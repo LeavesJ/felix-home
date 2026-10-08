@@ -363,12 +363,18 @@ felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
 # On 0, _felix_autonomy_lock_dir and _felix_autonomy_lock_ino say what was
 # made. The inode is read here, before anything is printed, so the
 # substitution has nothing stale to capture.
+#
+# mkdir and ls run with the guarded signals ignored, which they inherit. A
+# Ctrl-C reaches the whole process group, and a mkdir it killed after making
+# the directory would report failure. The run would then take its own lock
+# for another's, and leave it behind. The shell's own traps still note the
+# signal.
 felix_autonomy_lock() {
   local lock="$1/autonomy.lock" out
   _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""
-  if mkdir "$lock" 2>/dev/null; then
+  if ( trap '' $FELIX_AUTONOMY_SIGNALS; exec mkdir "$lock" ) 2>/dev/null; then
     _felix_autonomy_lock_dir="$lock"
-    out="$(ls -di "$lock" 2>/dev/null)"
+    out="$( trap '' $FELIX_AUTONOMY_SIGNALS; exec ls -di "$lock" 2>/dev/null )"
     out="${out#"${out%%[! ]*}"}"; out="${out%% *}"
     case "$out" in ''|*[!0-9]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
     return 0

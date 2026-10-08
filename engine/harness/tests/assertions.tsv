@@ -2012,6 +2012,7 @@
 1	and a row already on disk is cleaned on the way out
 1	and a row before that last owned catch does not
 1	and a row carries the command that unblocks it
+1	and a row whose item is present stays present over that unread list
 1	and a row with no grounding column is a person's
 1	and a ruled capability is not listed there
 1	and a ruled one is not
@@ -2088,6 +2089,7 @@
 1	and an unstaged deletion beside a staged copy names the table it removed
 1	and another session's catch on this very branch does not
 1	and another session's on this same branch does not
+1	and applies no item for that row, tried or failed
 1	and are read as hooks, by event
 1	and as a server, each by its own rule
 1	and asked from a subdirectory it is still the checkout, not the subdirectory
@@ -2166,6 +2168,7 @@
 1	and does not diagnose a cause it cannot see
 1	and does not hold on a machine with no felix cache
 1	and does not leave it as a bare dash
+1	and does not list them under the header for capabilities nothing declares, but names each routine and its capability on a line of its own
 1	and does not nag about ancient history
 1	and does not name a channel it never got to consult
 1	and does not pretend it searched the rest
@@ -2228,14 +2231,19 @@
 1	and felix gate fails qualified showing each such row MALFORMED under it
 1	and felix ledger passes over the last of many machine sessions the same way
 1	and felix log does too, a dash for no session and the branch of a checkout with no commit
+1	and felix maintenance does not count a routine it could not read among the routines due
 1	and felix maintenance never ran the refused check either
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix qualify names it as well
+1	and felix setup does not count a step it could not check among the steps that need a person
 1	and felix setup never ran the refused check either
 1	and felix setup risk-labels begins by saying why {{REPO}} is left as written
 1	and felix setup risk-labels prints the same runbook
+1	and felix setup still exits 0 with a step it could not check
 1	and felix setup still says it is not needed yet
 1	and felix setup's screen is the same, apart from the project's name
+1	and felix stack apply --yes over it returns 0 and says nothing could not be read
+1	and felix stack apply without --yes says how many could not be read before saying nothing changed
 1	and felix unattended's streak row counts the gate's runs alone
 1	and felix which does not resolve it
 1	and felix's qualification table declares every control for the schema checker
@@ -2244,9 +2252,13 @@
 1	and felix_land_malformed_in refuses none of them and exits 0, or the home's own table would bind nothing
 1	and felix_land_protected prints nothing and exits 1 for each of those neighbours, or it could not say a path is ordinary
 1	and felix_land_rows prints its accepted rows and leaves out the one refused, or a broken row would bind a path
+1	and felix_maint_unreachable prints nothing, and felix_stack_plan calls the absent skill manual
+1	and felix_maint_unreachable prints the two columns it always has
 1	and felix_mem_log adds nothing to lessons.md
 1	and felix_mem_log there writes one six-column row under the branch name
+1	and felix_next rank 6 says the routine waits on a capability nothing declares, as before
 1	and felix_probes_run still names which git answered, for the readers that ask
+1	and felix_pulse_report never puts such a routine in its due line, and puts it there over a list read and declaring it
 1	and felix_qualify_run refuses it so without the caller's pipefail
 1	and felix_setup_malformed prints no row it admits
 1	and field 1 is still the tree id
@@ -2256,6 +2268,7 @@
 1	and flipping it back restores the digest
 1	and folding them takes it to zero
 1	and folds the older one in which such a prompt was one of several
+1	and for a routine with a check prints unknown with cadence 0, and does not run the check
 1	and for one declared last, while a low-risk candidate declared nowhere is declared
 1	and for one declared last, while one declared nowhere goes on to the fetch
 1	and for the built-in too, because nothing can tell which was meant
@@ -2550,6 +2563,7 @@
 1	and names the table
 1	and names the template
 1	and names the working tree rather than the checkout
+1	and names those rows on a line of their own, each with its state or no state
 1	and names under it a checker short of the six controls, without refusing
 1	and names what it kept, the empty placeholder among it
 1	and names what was caught
@@ -2739,7 +2753,10 @@
 1	and only the awaiting count records it
 1	and outside a temporary directory it is listed under question, its listing saying live
 1	and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why
+1	and over a list read and declaring ci it names that routine due at rank 4 and not at rank 6
 1	and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line
+1	and over that unread list a routine for every project is still event
+1	and over that unread list a step for every project is still done
 1	and over-broad means over-broad for Bash too
 1	and paint actually calls it
 1	and passes a well-formed file through byte for byte
@@ -2870,10 +2887,13 @@
 1	and says exactly what it says when the payload carries no cwd
 1	and says how many are still unusable
 1	and says how many bytes it would have destroyed
+1	and says how many routines could not be read in place of Nothing due
 1	and says how many scripts it examined
+1	and says how many steps could not be checked in place of Nothing outstanding
 1	and says how many tables it read
 1	and says how the command is used
 1	and says in flight on that row
+1	and says it again on the next session start, not once per topology
 1	and says it cannot be scoped
 1	and says it could not be asked here
 1	and says it could not run, naming 126
@@ -3295,6 +3315,7 @@
 1	and the person's edit survives it
 1	and the person's staged selection is untouched
 1	and the placeholder stays a placeholder
+1	and the plan counts that row neither to install nor blocked, and offers no apply
 1	and the play this project already chose
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
@@ -3450,6 +3471,7 @@
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
 1	and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them
+1	and this block leaves the projects, the state and the memory as it found them
 1	and this block leaves the table, the receipt and every cmes- file as it found them
 1	and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them
 1	and those two suites were running at the same moment
@@ -3486,6 +3508,7 @@
 1	and which stand alone
 1	and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error
 1	and whichever read plain felix qualify makes fails, it says what could not be read and exits 2
+1	and while they are unread it does not say the receipt line that is said once per topology, nor spend it
 1	and with BASH_ENV exported by its caller, naming a file that sets pipefail, that command still passes and is met
 1	and with CLAUDE_CONFIG_DIR unset, HOME/.claude/projects
 1	and with FELIX_TABLE_SKIP exported as a pattern every line matches, the judge's owed row is the same, or a session could empty the table the judge reads
@@ -3506,8 +3529,10 @@
 1	and with no commit to give, at the placeholder, quoted so YAML reads a string
 1	and with no deployment to compare against the evidence cannot examine
 1	and with no origin/HEAD, origin/main is the branch asked
+1	and with no provider row owed or unread it says the receipt line once and spends it
 1	and with no session handoff on disk, says nothing about one
 1	and with only a gitlab remote under another name, they wait
+1	and with only an awaiting provider row it is owed with its request path, and nothing is said to be unread
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
 1	and with the table back a fresh receipt is current
@@ -3968,7 +3993,9 @@
 1	felix lesson run in the checkout leaves a written.log row for its session, branch and kind
 1	felix log run in the checkout leaves a written.log row of kind log for its session
 1	felix maintenance marks the row in-flt
+1	felix maintenance over a list read and not declaring the capability lists both routines as not yet and under the header for capabilities nothing declares
 1	felix maintenance renders a passing check as such
+1	felix maintenance renders a routine it could not read as ? and not read, not as not yet
 1	felix maintenance renders it DUE, check refused
 1	felix maintenance says a row can never come due
 1	felix merge reaches gh at all
@@ -4037,9 +4064,12 @@
 1	felix repair writes the files the failing log names where --implicated says
 1	felix route --ack records without error
 1	felix setup lists the refused row as not done
+1	felix setup renders a step it could not check as [?] with the reason, not as not needed yet
 1	felix setup risk-labels prints the runbook with the slug filled in
 1	felix setup shows risk-labels as a step to do, with the reason Felix cannot check it
 1	felix setup shows risk-labels waiting for a GitHub remote, never as a step to do
+1	felix stack apply --yes says how many could not be read and returns 1, though no install failed
+1	felix stack plan prints the row it could not read as unknown, and after its summary says how many could not be read
 1	felix stack reconcile exits 0
 1	felix stack reconcile folds what nothing folded before reporting
 1	felix with no arguments lists felix audit in the grouped help
@@ -4251,6 +4281,8 @@
 1	felix_land_trust_base exits 0, printing nothing, for an instance of each of the fourteen trust-base entries, or the schema could not refuse a resolver there
 1	felix_land_would_refuse on a behind branch prints nothing on stdout or stderr and returns 0, or it could not sit inside the merge boundary unseen
 1	felix_ledger_retire is defined for the hook
+1	felix_maint_status prints unknown, not dormant, for a routine on a clock whose declared list could not be read
+1	felix_maint_unreachable says unknown in a third column for each routine whose declared list could not be read
 1	felix_mem_lesson appends exactly one row to written.log, with six columns
 1	felix_mem_lesson outside git files its row under a question mark
 1	felix_mem_log appends a second six-column row and keeps the lesson row ahead of it
@@ -4259,6 +4291,10 @@
 1	felix_mem_mistake_rows, with resolve.sh alone, reads a split pair as its one joined row and leaves the file as it was
 1	felix_merge_blockers emits exactly the kinds cmd_merge places
 1	felix_merge_blockers on a behind and owing branch writes both would-refuse rows and no row of another kind on a real attempt, and nothing on a dry run, or the boundary never reports them or reports more than them
+1	felix_next rank 4 never names a routine whose declared list could not be read, and names it due over a list read and declaring it
+1	felix_next rank 6 says the declared list could not be read for that routine, naming its capability and felix maintenance, never that nothing declares it
+1	felix_next says at rank 6 that whether a routine on ci is due is not known when the declared list could not be read, and says the routine it named with its capability once
+1	felix_pulse_report prints an unknown line naming the routines whose declared list could not be read
 1	felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without
 1	felix_qualify_run over a table holding a NUL byte anywhere runs nothing, prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
@@ -4266,6 +4302,8 @@
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_setup_malformed prints the refused row as id and a reason naming tail
+1	felix_setup_status prints unknown, not dormant, for a step whose declared list could not be read, and does not run its check
+1	felix_stack_plan prints unknown, not dormant, for a row whose declared list could not be read, naming its capability
 1	felix_tidy_safe is defined for the hook
 1	field 7 is the epoch the receipt was stamped under
 1	field 8 is the four components, comma-joined in the order the spec lists them
@@ -5000,6 +5038,9 @@
 1	outside a checkout it cannot search, and says so rather than passing
 2	outside a git repository it cannot look, exit 2
 1	outside git the written row spells branch and sha exactly as the gate's own row does
+1	over a list read and declaring the capability the clock routine is due, never run, and the checked one due on its check
+1	over a list read and declaring the capability the step is todo and its check runs
+1	over a list read and not declaring the capability the step, both routines and the absent skill are dormant
 1	over every table, felix_table_rows is byte-identical to the grep filter 42 readers use
 1	overrides are recorded
 1	passed is exactly 4: the last check after the last edit did not fail
@@ -5312,6 +5353,7 @@
 1	sees a credential in an untracked new file
 1	sees a plugin a route already names
 1	self-contained, no external references
+1	session start does not put a provider row whose state is unknown, or which has no state, among what a session owes
 1	session start names the holder: 'Already in flight, so not due: <name> on <holders>'
 1	session start reports a broken home pointer
 1	session start reports an unresolvable marker
@@ -6260,6 +6302,7 @@
 1	with nothing in flight it prints nothing and exits 0
 1	with nothing on record there is nothing to compare
 1	with only inflight, ok, event and dormant rows, felix maintenance shows the inflight row
+1	with only unread provider rows session start prints no paragraph saying a session owes anything, and still names them
 1	with origin/main a bump ahead of main, the check follows origin
 1	with origin/main level with main the verdict is unchanged
 1	with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it

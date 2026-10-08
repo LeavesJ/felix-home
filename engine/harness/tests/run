@@ -258,21 +258,29 @@ _fx_git() { ( _fx_chdir "${BASH_LINENO[0]}" "${1-}" && shift && command git "$@"
 #   directory and a write for subcommand.
 # _fx_cd and _fx_git are never sites; command git is git. A git write is every
 # subcommand not named as a read: rev-parse, log, show and the like always;
-# config with --get and its kin, remote with nothing or -v, get-url or show,
-# branch with only listing options, symbolic-ref with one operand, tag with
-# nothing or -l, stash list and show, worktree list, notes list and show. A
+# config with --get and its kin, remote with nothing, get-url or show after
+# any -v or --verbose (git remote -v add o u adds o), branch with only listing
+# options, symbolic-ref with one operand, tag with nothing or -l, stash list
+# and show, worktree list, notes list and show. A
 # subcommand written as a parameter is none of those, so it is a write; the one
 # place this suite did that on a directory outside $TMP names its subcommand
 # now, because _fx_git would refuse it. Command position is the first word of
 # a line, and the word after ( $( { ; && || | ! and the keywords then do else if
-# elif while until, and after command for git. A word is read as code outside
-# comments (a # that begins a word), single-quoted strings, double-quoted
+# elif while until; after command or builtin, for cd and git; and after env,
+# exec, time, nice and nohup, the first word that is not an option, a
+# NAME=value or a number, so nice -n 5 git -C "$X" commit is a git. A
+# NAME=value before a command leaves the command in command position. A word
+# is read as code outside comments (a # that begins a word), single-quoted
+# strings, double-quoted
 # strings except inside a $( ) opened within them, and heredoc bodies; here-
 # strings are not heredocs. Quotes and $( ) carry across lines, and the ) that
 # ends a case pattern closes no group. What it cannot see: backticks, text
 # run through eval, bash -c bodies, and scripts written to a file and run
-# later. Those run in child shells, where _fx_cd does not exist. awk is POSIX
-# awk, the BSD one on macOS and gawk or mawk on the CI runner, and the program
+# later. Those run in child shells, where _fx_cd does not exist. Nor does it
+# see three shapes this file does not hold today: a raw cd at the top of a
+# multi-line { } or function body with the git on a later line, git run
+# through a variable ($GIT), and xargs git. awk is POSIX awk, the BSD one on
+# macOS and gawk or mawk on the CI runner, and the program
 # holds no apostrophe because it sits in one. The lint is the suite's check of
 # itself, in the section after the pipefail lint; it is meant to be run on this
 # file by a person too: _fx_lint tests/run.
@@ -305,6 +313,8 @@ BEGIN {
   for (i = 1; i <= n; i++) cfgread[rd[i]] = 1
   n = split("then do else if elif while until ! {", rd, " ")
   for (i = 1; i <= n; i++) kw[rd[i]] = 1
+  n = split("env exec time nice nohup", rd, " ")
+  for (i = 1; i <= n; i++) transp[rd[i]] = 1
 }
 
 # Raw text of a word is kept only up to WMAX characters: its start and its
@@ -353,6 +363,12 @@ function wend(   t, w, ty) {
     return
   }
   if (ty != "W") return
+  # After env, exec, time, nice or nohup the command is the first word that
+  # is not an option, a NAME=value or a number: nice -n 5 git -C "$X" commit.
+  if (tcmd[t] == 3) {
+    if (substr(w, 1, 1) == "-" || w ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/ || w ~ /^[0-9]+$/) { tcmd[t] = 0; expect = 3; return }
+    tcmd[t] = 1
+  }
   if (cs[sp] == 2 && w == "in") {
     cs[sp] = 0
     sp++; sk[sp] = "K"; kpat[sp] = 1; cs[sp] = 0; expect = 0
@@ -367,7 +383,8 @@ function wend(   t, w, ty) {
     if (w ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/) { expect = 1; return }
     if (w == "esac" && sk[sp] == "K") { popk(); return }
     if (w in kw) expect = 1
-    else if (w == "command" && tcmd[t] == 1) expect = 2
+    else if ((w == "command" || w == "builtin") && tcmd[t] == 1) expect = 2
+    else if (w in transp) expect = 3
     else if (w == "case") cs[sp] = 1
   }
 }
@@ -679,7 +696,10 @@ function is_write(   i, a, opnd, lst) {
     return 1
   }
   if (g_sub == "remote") {
-    if (na == 0 || args[1] == "-v" || args[1] == "get-url" || args[1] == "show") return 0
+    # -v and --verbose read nothing by themselves: git remote -v add o u adds
+    # o and exits 0 (git 2.54). The word after them decides.
+    for (i = 1; i <= na && (args[i] == "-v" || args[i] == "--verbose"); i++) continue
+    if (i > na || args[i] == "get-url" || args[i] == "show") return 0
     return 1
   }
   if (g_sub == "branch") {
@@ -751,7 +771,7 @@ function check_git(t) {
 END {
   for (t = 1; t <= ntok; t++) {
     if (ttype[t] != "W" || !tcmd[t]) continue
-    if (traw[t] == "cd" && tcmd[t] == 1) check_cd(t)
+    if (traw[t] == "cd" && (tcmd[t] == 1 || tcmd[t] == 2)) check_cd(t)
     else if (traw[t] == "git") check_git(t)
   }
   for (s = 1; s <= nsites; s++) print tline[site[s]] ":" lines[tline[site[s]]]

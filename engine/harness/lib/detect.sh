@@ -113,40 +113,45 @@ felix_detect() {
 #
 # 2026-10-08: until then it read with grep -vE '^\s*(#|$)' in the caller's
 # locale, which treated a file that is not text as a list. A NUL made BSD grep
-# print "Binary file <path> matches" as the one capability and GNU grep stop
-# at the first binary line with 0, a byte that is not valid UTF-8 did the same
-# under a UTF-8 locale, a byte-order mark before a comment listed the comment,
-# a line of only a no-break space was listed in the C locale and dropped in
-# UTF-8, and a CR made every name one no table holds. Now a NUL anywhere is no
-# list (as #383 refused a qualification.tsv holding one), the file is read
-# byte for byte in the C locale, a leading UTF-8 byte-order mark is dropped,
-# and a listed line holding a byte outside tab and printable ASCII makes the
-# whole file no list, the way qualify calls a row with a CR malformed. All
-# four are 2 with nothing printed.
+# print "Binary file <path> matches" as the one capability (measured), and by
+# GNU grep's documentation (not run) stop at the first binary line with 0, as
+# it would at a byte that is not valid UTF-8 under a UTF-8 locale; BSD grep
+# reads such a byte as text. A byte-order mark before a comment listed the
+# comment, a line of only a no-break space was listed in the C locale and
+# dropped in UTF-8, and a CR made every name one no table holds. Now a NUL
+# anywhere is no list (as #383 refused a qualification.tsv holding one), the
+# file is read byte for byte in the C locale, a leading UTF-8 byte-order mark
+# is dropped, and a listed line holding a byte outside tab and printable ASCII
+# makes the whole file no list, the way qualify calls a row with a CR
+# malformed. A file that is no list is 2 with nothing printed.
 # It reads with cat into a subshell, not a redirect or a second grep, so that
 # the file is opened once by a named command whose status says a read failed
 # (the read builtin returns a read error as end of input). The C locale is set
 # inside the subshell because bash 4 to 5.2 in a UTF-8 locale reads the byte
 # after a UTF-8 lead byte as part of a character without asking whether it is
 # the delimiter, so a NUL right after one hid from read -d '' (#383's review);
-# the subshell keeps the locale, IFS, set -f and positional parameters its own.
-# The cost is one process more per call than the grep it replaced, a cat and a
-# subshell, measured.
+# the subshell keeps the locale, IFS and set -f its own, and its stderr is
+# discarded as grep's was (a caller's readonly LC_ALL makes it 2, not a
+# message). cat is `command cat`, so no function of that name stands in. The
+# cost is one process more per call than the grep it replaced, a cat and a
+# subshell, measured; the mark is cut by offset and the names kept in an array,
+# because `${x#mark}` and appending to a string grew with the square of the
+# file (5.6 s for 678 KB, found by review).
 felix_declared() {
   local proj="$1" st
   [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
   [ -f "$proj/capabilities" ] || return 2
-  cat -- "$proj/capabilities" 2>/dev/null | (
+  command cat -- "$proj/capabilities" 2>/dev/null | (
     LC_ALL=C
     IFS= read -r -d '' _fdb && exit 3
-    _fdb="${_fdb#$'\357\273\277'}"
-    _fdo='' IFS=$'\n'; set -f; set -- $_fdb
+    case "$_fdb" in $'\357\273\277'*) _fdb="${_fdb:3}" ;; esac
+    _fdk=(); IFS=$'\n'; set -f; set -- $_fdb
     for _fdl; do
       case "${_fdl#"${_fdl%%[![:space:]]*}"}" in ''|'#'*) continue ;; esac
       case "${_fdl//$'\t'/ }" in *[![:print:]]*) exit 4 ;; esac
-      _fdo="$_fdo$_fdl"$'\n'
+      _fdk[${#_fdk[@]}]="$_fdl"
     done
-    printf '%s' "$_fdo" )
+    [ "${#_fdk[@]}" -eq 0 ] || printf '%s\n' "${_fdk[@]}" ) 2>/dev/null
   st="${PIPESTATUS[0]}:${PIPESTATUS[1]}"
   [ "$st" = 0:0 ] || return 2
 }

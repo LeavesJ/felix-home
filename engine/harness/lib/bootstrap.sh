@@ -85,13 +85,13 @@ felix_guess_ecosystem() {
 # Each setup action is the newest release of the lowest major whose action.yml
 # runs on Node 24, as the checkouts are. Read 2026-10-08 with gh api
 # repos/OWNER/NAME/contents/action.yml?ref=SHA: setup-node v4, setup-python v5
-# and setup-go v5 run on Node 20. setup-go v6.0.0 and v6.1.0 announce Node 24
-# in their release notes and still say node20 in action.yml; v6.2.0 is the
-# first that runs on it. tests/run holds each pin to the runtime read for it.
+# and setup-go v5 run on Node 20. setup-go v6.0.0's release notes and v6.1.0's
+# README announce Node 24, and both still say node20 in action.yml; v6.2.0 is
+# the first that runs on it. tests/run holds each pin to the runtime read for it.
 #
 # What the new majors change for the step rendered here:
-# - setup-node v5 caches by itself when package.json names a packageManager.
-#   It reads $GITHUB_WORKSPACE/package.json, and the repository is checked out
+# - setup-node v5 caches by itself when package.json's packageManager names
+#   npm, yarn or pnpm. It reads $GITHUB_WORKSPACE/package.json, and the repository is checked out
 #   under repo/, so nothing is cached, as under v4.
 # - setup-python v6 adds pip-version and pip-install, both left unset. Caching
 #   stays opt-in.

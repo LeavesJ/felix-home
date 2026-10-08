@@ -4641,16 +4641,21 @@ fi
 # to a commit missing from the list fails until that read is recorded; a
 # recorded runtime other than node24 or composite fails; a comment naming
 # another release than the list fails. Every stack the gate workflow renders
-# for is read, as above, and the unattended template beside them.
+# for is read, as above, and the unattended template beside them. A uses: key
+# in a shape the reader does not parse, `uses :` or a flow mapping, fails
+# rather than being skipped, and so does a render or reader that exits non-zero:
+# a reader that never ran prints nothing, which is what a clean file prints.
 _gprtrows='actions/checkout fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 v5.1.0 node24
 actions/setup-node a0853c24544627f65ddf259abe73b1d18a591444 v5.0.0 node24
 actions/setup-python ece7cb06caefa5fff74198d8649806c4678c61a1 v6.3.0 node24
 actions/setup-go 924ae3a1cded613372ab5595356fb5720e22ba16 v6.5.0 node24
 dtolnay/rust-toolchain 7e38f4b43b4db5c8dd498af069a4f6196df1d067 v1 composite'
-_gprt() { tr -d "\"'" | _GPRT="$_gprtrows" awk '
+_gprt() { tr -d "\"'\r" | _GPRT="$_gprtrows" awk '
   BEGIN { n = split(ENVIRON["_GPRT"], r, "\n")
           for (i = 1; i <= n; i++) if (split(r[i], f, " ") == 4) { k = f[1] "@" f[2]; rel[k] = f[3]; rt[k] = f[4] } }
   /^[ \t]*#/ { next }
+  !/^[ \t]*(-[ \t]+)?uses:/ && /(^|[^A-Za-z0-9_.-])uses[ \t]*:/ { seen++
+    print NR ": a uses: key in a shape this reader does not parse"; next }
   /^[ \t]*(-[ \t]+)?uses:/ { v = $0; c = ""; seen++
     sub(/^[ \t]*(-[ \t]+)?uses:[ \t]*/, "", v)
     if (match(v, /[ \t]+#[ \t]*/)) { c = substr(v, RSTART + RLENGTH); v = substr(v, 1, RSTART - 1) }
@@ -4664,10 +4669,14 @@ _gprtloose=""; _gprterr=""
 for _gpst in $_gpstacks; do
   _gprtout="$( ( . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/bootstrap.sh"
                  felix_bs_render_workflow "$_gpst" someone/repo ) 2>"$TMP/gprt.err" | _gprt )"
+  _gprtrc=$?; [ "$_gprtrc" -eq 0 ] || _gprtout="${_gprtout:+$_gprtout
+}the render or its reader exited $_gprtrc"
   [ -z "$_gprtout" ] || _gprtloose="$_gprtloose, $_gpst: $(printf '%s' "$_gprtout" | tr '\n' ';')"
   [ ! -s "$TMP/gprt.err" ] || _gprterr="$_gprterr, $_gpst: $(head -1 "$TMP/gprt.err")"
 done
 _gprtout="$(_gprt < "$REAL_HARNESS/templates/unattended.yml")"
+_gprtrc=$?; [ "$_gprtrc" -eq 0 ] || _gprtout="${_gprtout:+$_gprtout
+}the reader exited $_gprtrc"
 [ -z "$_gprtout" ] || _gprtloose="$_gprtloose, unattended.yml: $(printf '%s' "$_gprtout" | tr '\n' ';')"
 if [ -z "$_gprtloose" ]; then
   ok  "and each of those, and each in the unattended template, is a commit read as running on Node 24 or composite, under the release its comment names"
@@ -4675,10 +4684,32 @@ else
   bad "and each of those, and each in the unattended template, is a commit read as running on Node 24 or composite, under the release its comment names" \
       "${_gprtloose#, }"
 fi
-# The workflow is an unquoted heredoc, so a backquote in one of its comments
-# runs as a command when it renders, and the adopting repository gets the
-# comment with a hole in it. The render is otherwise silent on stderr.
+# The workflow is an unquoted heredoc, so a backquote or a $ in it expands when
+# it renders, and the adopting repository gets whatever that printed in place
+# of the text. One that fails says so on stderr, which the first assertion
+# reads. One that succeeds says nothing: `pwd` or $HOME in a comment renders a
+# path into the file. So the heredoc's source is read too: every $ and
+# backquote in it is escaped, or is one of the three expansions it means, the
+# repository, the ref and the setup step. The setup step's printf formats hold
+# no % to fill, since they are given no arguments.
 is  "and rendering it for any stack writes nothing to stderr" "${_gprterr#, }" ""
+_gpxp="$(awk '
+  function strip(s, t,   i) { while ((i = index(s, t)) > 0) s = substr(s, 1, i - 1) substr(s, i + length(t)); return s }
+  /^felix_bs_render_workflow\(\)/ { f = 1 }
+  f && /cat <<YAML$/ { b = 1; next }
+  b && /^YAML$/ { b = 0; f = 0; wdone = 1; next }
+  b { n++; v = strip(strip($0, "\\$"), "\\`")
+      v = strip(strip(strip(v, "${felix_repo}"), "${felix_ref}"), "$(_felix_bs_setup_block \"$eco\")")
+      if (index(v, "$") || index(v, "`")) print NR ": " $0 }
+  /^_felix_bs_setup_block\(\)/ { s = 1 }
+  s && /^}/ { s = 0; sdone = 1 }
+  s && index($0, "%") { print NR ": " $0 }
+  END { if (!wdone || !n) print "no workflow heredoc found"; if (!sdone) print "no setup block found" }' \
+  "$FROOT/harness/lib/bootstrap.sh")"
+_gpxprc=$?; [ "$_gpxprc" -eq 0 ] || _gpxp="${_gpxp:+$_gpxp
+}the reader exited $_gpxprc"
+is  "and the workflow's text expands only the repository, the ref and the setup step, which expands nothing" \
+    "$(printf '%s' "$_gpxp" | tr '\n' ';')" ""
 # dtolnay/rust-toolchain chose the toolchain by the ref's name: @stable was a
 # branch whose action.yml defaults it. At a commit on master, the history its
 # README says a pin must come from, the input is required, so the step names it.

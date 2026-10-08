@@ -20,8 +20,8 @@ LeavesJ/Elenchus#29 pins for its own gate.yml, so once both land they agree,
 and #29's note explaining the divergence from the renderer goes stale.
 
 **Traps paid:**
-- **setup-go v6.0.0 and v6.1.0 say Node 24 in their release notes and node20
-  in action.yml.** v6.2.0 (#691, "Update Node.js version in action.yml") is
+- **setup-go v6.0.0's release notes and v6.1.0's README say Node 24, and
+  both say node20 in action.yml.** v6.2.0 (#691, "Update Node.js version in action.yml") is
   the first that runs on it. A major is the wrong unit to check; the sha is.
 - **dtolnay's v1 moved on 2026-10-01** to master's new head 7e38f4b4, which
   wraps `rustup toolchain install` in up to five tries on a release-server
@@ -30,12 +30,16 @@ and #29's note explaining the divergence from the renderer goes stale.
   become false.
 - **The workflow is an unquoted heredoc.** A backquoted `using:` in a new
   rendered comment ran as a command at render time and left a hole in the
-  adopter's file; the #354 loop discarded stderr, so nothing failed. A new
-  assertion holds every stack's render silent on stderr.
+  adopter's file. The error reached the suite's output and nothing failed on
+  it. Two assertions now hold the render: silent on stderr for every stack,
+  and every `$` and backquote in the heredoc's source escaped or one of its
+  three meant expansions, since one that succeeds (`pwd`, `$HOME`) prints
+  nothing on stderr. The adversarial review demonstrated that second case.
 
 **What changes for an adopting repository** (both action.yml files and the
 release notes, read for each major):
-- setup-node v5 caches by itself when package.json names a `packageManager`.
+- setup-node v5 caches by itself when package.json's `packageManager` names
+  npm, yarn or pnpm.
   It reads `$GITHUB_WORKSPACE/package.json`; the rendered workflow checks the
   repository out under `repo/`, so nothing is cached, as under v4.
 - setup-python v6 adds `pip-version` and `pip-install`, both left unset.
@@ -50,17 +54,36 @@ release notes, read for each major):
 - All three need runner v2.327.1 or later, which `actions/checkout` v5
   already required; `ubuntu-latest` has it.
 
-**The test.** One assertion after #354's loop reads every `uses:` the gate
-workflow renders for every stack, and the unattended template's. Each
-`owner/repo@sha` must appear in a list in tests/run of commits whose runtime
-was read (release, `using:`), the runtime must be node24 or composite, and the
-comment after the sha must name the listed release. Moving a pin fails until
-the new commit's runtime is read and listed. Section runner, against main
-6fe5f986: red on the four setup pins ("has no runtime read for it"). Mutants,
-each red with its own reason: go comment `# v6.2.0` on the v6.5.0 sha; the
-v6.1.0 sha (node20); node's comment removed; unattended's second checkout
-commented `# v5.0.1`; the list recording setup-node as node20. The stderr
-assertion is red with the backquote put back and green on the tree.
+**The tests.** Three assertions after #354's loop.
+1. Every `uses:` the gate workflow renders for every stack, and the
+   unattended template's, is listed in tests/run as a commit whose runtime was
+   read, with its release and `using:`. The runtime is node24 or composite, and
+   the comment after the sha names the listed release. A `uses:` in a shape
+   the reader does not parse (`uses :`, a flow mapping) fails, and so does a
+   render or reader that exits non-zero. Moving a pin fails until the new
+   commit's runtime is read and listed.
+2. Every stack's render is silent on stderr.
+3. Every `$` and backquote in the heredoc's source is escaped or is one of
+   `${felix_repo}`, `${felix_ref}`, `$(_felix_bs_setup_block "$eco")`, and
+   the setup block's printf formats hold no `%`.
+
+Section runner (preamble through the line before `resolution`, then the
+section), against main 6fe5f986: 1 is red on the four setup pins ("has no
+runtime read for it"), and 2 and 3 pass. Mutants, each red on the assertion
+meant to catch it:
+- 1: go's comment `# v6.2.0` on the v6.5.0 sha; the v6.1.0 sha (node20);
+  node's comment removed; unattended's second checkout commented `# v5.0.1`;
+  the list recording setup-node as node20; the node step as a flow mapping
+  `- {uses: …@49933ea5…}`; `uses :`; an awk shim that exits 2 on any program
+  containing ENVIRON, with main's engine.
+- 2 and 3: the backquoted `using:` put back.
+- 3: `` `pwd` ``; `$HOME`; `node-version: "%s"`.
+
+The adversarial review (one Opus reader, no suite) found the `pwd`/`$HOME`,
+flow-mapping, `uses :`, awk-failure and CRLF holes in the first cut, and
+three sentences that claimed more than the actions' source. All are fixed
+above. It confirmed every sha, tag, runtime and adopter-facing claim, and
+that no lower major of any of the five actions runs on Node 24.
 
 **Seen while working, not this change:** at 12:47 the shared
 `~/Documents/Felix/.git/config` lost origin and gained

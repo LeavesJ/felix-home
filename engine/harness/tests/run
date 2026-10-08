@@ -68,36 +68,45 @@ skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
 
 TMP="$(mktemp -d)"
+# GNU mktemp names a relative TMPDIR relatively, and the suite is about to
+# leave the directory that name is relative to.
+case "$TMP" in /*) ;; *) TMP="$PWD/$TMP" ;; esac
 trap 'rm -rf "$TMP"' EXIT
 # No fixture git command reaches a repository outside $TMP. On 2026-10-08 one
-# did. A setup block's fixture roots came out empty, and in bash 3.2
-# `( cd "" && git remote set-url origin ... )` exits 0 where it stands. The
-# suite stood in the developer's worktree, and every worktree shares one
-# .git/config. A hundred lines later felix-home's origin read
+# did. A section runner took this preamble and the setup block, but not the
+# helpers that make the block's fixture directories, so its roots came out
+# empty, and in bash 3.2 `( cd "" && git remote set-url origin ... )` exits 0
+# where it stands. The runner stood in a developer's worktree, and every
+# worktree shares one .git/config. So felix-home's origin came to read
 # https://github.com/acme/widget.git, with no refs/remotes/origin left and no
 # branch's upstream. That block's own lines, run with both roots empty from a
-# worktree of a scratch clone, do exactly that. A fixture directory whose
-# `git init` never ran does the same, since git walks up to whatever
-# repository encloses it. So does a GIT_DIR the caller left in the environment.
+# worktree of a scratch clone, do exactly that. A fork that fails inside
+# `$(_fh_root ...)` under load is a second way to an empty root. A fixture
+# directory whose `git init` never ran does the same damage with no empty
+# variable, since git walks up to whatever repository encloses it. So does a
+# GIT_DIR the caller left in the environment.
 #
 # A guard on each line would leave the next line written unguarded, so this
-# closes the class:
-# - the suite stands in $TMP/cwd, so an empty root resolves inside $TMP;
+# closes the class for every fixture that names its repository by the
+# directory it stands in:
+# - the suite stands in $TMP/cwd, so an empty root resolves inside $TMP. A
+#   root with something after it is not covered: `cd "$empty/x"` lands at /x,
+#   or fails;
 # - GIT_CEILING_DIRECTORIES is $TMP's PARENT, so no git command run at or
-#   below $TMP walks up out of it, even with TMPDIR inside a checkout. A
-#   ceiling is a directory git will not climb INTO. With $TMP as the ceiling,
-#   a cwd of $TMP itself, which `cd "$TMP/$empty"` reaches, still climbs into
-#   its parent (measured, git 2.54). And a ceiling alone, with the suite left
-#   in the worktree, stops nothing, since the worktree is not below it;
+#   below $TMP walks up out of it. A ceiling is a directory git will not climb
+#   INTO. With $TMP as the ceiling, a cwd of $TMP itself, which
+#   `cd "$TMP/$empty"` reaches, still climbs into its parent (measured, git
+#   2.54). And a ceiling alone, with the suite left in the worktree, stops
+#   nothing, since the worktree is not below it;
 # - the variables that point git at a repository whatever the cwd are unset.
 #   So is GIT_CONFIG, which `git config` writes to even with no repository at
 #   all (git 2.54), and OLDPWD, which `cd -` would follow back to the worktree.
-# Then the floor is tried. A suite that can still reach a repository from where
-# it stands refuses to start.
+# Then the floor is tried: from where the suite now stands, git must answer
+# 128, not a repository. Any other answer, a repository or a git that could
+# not run, and the suite refuses to start.
 #
 # The parent is read from $PWD once the shell stands in DIR/cwd, not from
-# `$(dirname ...)`. That way no fork can fail into an empty ceiling under
-# load, which is how fixture roots came back empty in the first place. And
+# `$(dirname ...)`, so no fork can fail into an empty ceiling under load. And
 # bash has already folded a trailing or doubled slash, which would otherwise
 # leave DIR as its own parent. A fork that fails anywhere here kills the shell
 # with status 128 (bash 3.2.57), so the suite stops rather than starts.
@@ -108,12 +117,36 @@ _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk 
         GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG OLDPWD
   GIT_CEILING_DIRECTORIES="${PWD%/cwd}"; GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES%/*}"
   export GIT_CEILING_DIRECTORIES
-  ! git rev-parse --git-dir >/dev/null 2>&1
+  git rev-parse --git-dir >/dev/null 2>&1; [ $? -eq 128 ]
+}
+# The ceiling binds git and nothing else. felix_repo_root, which the CLI
+# calls before most of what it writes, climbs the physical path for a .git by
+# itself and asks git only when it finds none. So a fixture that runs the CLI
+# from an empty root would reach any checkout that encloses $TMP, ceiling or
+# not. On macOS `mktemp -d` ignores TMPDIR, and nothing above /private/var/folders
+# is a checkout. Elsewhere TMPDIR can sit inside one, and then the suite does
+# not start. The walk is the engine's, done from where the shell stands, with
+# no fork: `cd -P .` makes $PWD physical in place.
+_fixture_enclosed() {   # -> 0 when this directory or one above it, physically, holds a .git; _fixture_at names it
+  cd -P . || return 2
+  _fixture_at="$PWD"
+  while :; do
+    [ -e "${_fixture_at:-/}/.git" ] && { _fixture_at="${_fixture_at:-/}"; return 0; }
+    [ -n "$_fixture_at" ] || return 1
+    _fixture_at="${_fixture_at%/*}"
+  done
 }
 _fixture_floor "$TMP" || {
-  printf 'tests/run: git still finds a repository from %s, so a fixture could edit it; not starting\n' "$PWD" >&2
+  printf 'tests/run: could not stand in %s/cwd out of git'"'"'s reach (it stands in %s); not starting\n' "$TMP" "$PWD" >&2
   exit 1
 }
+_fixture_enclosed; case $? in
+  1) ;;
+  0) printf 'tests/run: %s holds a .git, and %s is below it. Felix walks up to it past any ceiling, so a fixture could edit it. Point TMPDIR outside every checkout; not starting\n' "$_fixture_at" "$PWD" >&2
+     exit 1 ;;
+  *) printf 'tests/run: could not read where %s sits; not starting\n' "$PWD" >&2
+     exit 1 ;;
+esac
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
@@ -539,8 +572,10 @@ for _ff_how in empty dir uninit gitdir; do
   is "$_ff_n8" "$_ff_s_up"   "$_ff_p_up"
 done
 
-# 4. What the floor refuses, and that a refusal leaves the caller exactly as
-# it was: where it stands, what it exports, and what is on disk.
+# 4. What the floor refuses before it acts, an empty or a missing DIR, and
+# that such a refusal leaves the caller exactly as it was: where it stands,
+# what it exports, and what is on disk. A refusal after the cd, when git still
+# finds a repository, has already moved the caller; the preamble exits on it.
 _ff_caller="$TMP/floor-caller"; mkdir -p "$_ff_caller"
 _ff_refuse() {  # <dir>: key-a-line report of what _fixture_floor <dir> did to its caller
   ( cd "$_ff_caller" || exit 0
@@ -570,6 +605,75 @@ is "_fixture_floor given a directory that does not exist leaves the caller's GIT
    "$(_ff_get "$_ff_o" env)" "$_ff_ewant"
 [ ! -e "$_ff_miss" ] && ok "_fixture_floor given a directory that does not exist does not create it" \
   || bad "_fixture_floor given a directory that does not exist does not create it" "it now holds: $(find "$_ff_miss" -print 2>/dev/null | tr '\n' ' ')"
+
+# 5. GIT_CONFIG names a file that `git config` writes to with no repository at
+# all (git 2.54), so a caller's GIT_CONFIG is a way out that needs no cwd. The
+# floor drops it with the GIT_DIR family. The file it names is under $TMP, so a
+# floor that kept it writes only there.
+_ff_gcf="$TMP/floor-git-config"; : > "$_ff_gcf"; mkdir -p "$TMP/floor-gc"
+_ff_o="$(GIT_CONFIG="$_ff_gcf"; export GIT_CONFIG
+         _fixture_floor "$TMP/floor-gc" >/dev/null 2>&1 || { printf 'refused'; exit 0; }
+         git config branch.main.remote x >/dev/null 2>&1; printf '%s|%s' "$?" "$(_ff_child GIT_CONFIG)")"
+if [ "$_ff_o" = refused ]; then
+  bad "_fixture_floor drops a GIT_CONFIG the caller exported, so git config from the floor writes nowhere" \
+      "the floor refused [$TMP/floor-gc]"
+elif [ "${_ff_o%%|*}" != 0 ] && [ "${_ff_o#*|}" = "(unset)" ] && [ ! -s "$_ff_gcf" ]; then
+  ok  "_fixture_floor drops a GIT_CONFIG the caller exported, so git config from the floor writes nowhere"
+else
+  bad "_fixture_floor drops a GIT_CONFIG the caller exported, so git config from the floor writes nowhere" \
+      "git config exited [${_ff_o%%|*}], a child sees GIT_CONFIG [${_ff_o#*|}], and the file holds [$(tr '\n' ' ' < "$_ff_gcf")]"
+fi
+
+# 6. The engine's own walk, which no ceiling binds. From a directory inside a
+# checkout, under a ceiling that hides the checkout from git, git finds
+# nothing and _fixture_enclosed still names the checkout, as felix_repo_root
+# would. From the suite's own directory it names nothing.
+_ffw="$TMP/floor-walk"; mkdir -p "$_ffw/a/b"; _ff_git init -q "$_ffw" >/dev/null 2>&1
+_ff_o="$(cd "$_ffw/a/b" || exit 0; GIT_CEILING_DIRECTORIES="$_ffw/a"; export GIT_CEILING_DIRECTORIES
+         git rev-parse --git-dir >/dev/null 2>&1; _ff_g=$?
+         _fixture_enclosed; printf '%s|%s|%s' "$_ff_g" "$?" "${_fixture_at:-}")"
+if [ "${_ff_o%%|*}" = 128 ] && [ "$(printf '%s' "$_ff_o" | cut -d'|' -f2)" = 0 ] \
+   && [ -n "$(_ff_phys "$_ffw")" ] && [ "${_ff_o##*|}" = "$(_ff_phys "$_ffw")" ]; then
+  ok  "_fixture_enclosed names the checkout above a directory even where git's ceiling hides it"
+else
+  bad "_fixture_enclosed names the checkout above a directory even where git's ceiling hides it" \
+      "git exited, _fixture_enclosed returned, and it named: [$_ff_o]; the checkout is [$(_ff_phys "$_ffw")]"
+fi
+_ff_o="$(_fixture_enclosed; printf '%s|%s' "$?" "${_fixture_at:-}")"
+is "_fixture_enclosed finds no checkout at or above the suite's working directory" "${_ff_o%%|*}" "1"
+
+# 7. And the preamble acts on what the walk finds. The suite's own lines, up to
+# the first one after the floor, run in a child whose `mktemp -d` lands inside
+# a checkout. The floor's ceiling hides that checkout from git, so only the
+# walk can see it, and the child must refuse to start and say why. A section
+# runner's $HERE holds no suite, and there the check is skipped.
+_ff_self="$HERE/run"
+_ff_end="$(grep -n '^FELIX_TEST_RAN="\$TMP/ran"' "$_ff_self" 2>/dev/null | head -1 | cut -d: -f1)"
+if [ -z "$_ff_end" ] || ! grep -q '^_fixture_enclosed; case' "$_ff_self" 2>/dev/null; then
+  skip "the preamble refuses to start when its temporary directory sits inside a checkout" \
+       "$_ff_self is not a suite with the floor"
+else
+  _ffp="$TMP/floor-preamble"; mkdir -p "$_ffp/t"; _ff_git init -q "$_ffp" >/dev/null 2>&1
+  sed -n "1,$((_ff_end - 1))p" "$_ff_self" > "$_ffp/t/head.sh"
+  _ff_o="$(cd "$_ffp/t" && FFP_T="$_ffp/t" bash -c \
+             'mktemp() { command mktemp -d "$FFP_T/tmp.XXXXXX"; }; export -f mktemp; bash ./head.sh' 2>&1
+           printf '|rc=%s' "$?")"
+  case "$_ff_o" in
+    *"holds a .git"*"|rc=1")
+      ok  "the preamble refuses to start when its temporary directory sits inside a checkout" ;;
+    *)
+      bad "the preamble refuses to start when its temporary directory sits inside a checkout" \
+          "the suite's first $((_ff_end - 1)) lines, with mktemp inside [$_ffp], said: [$(printf '%s' "$_ff_o" | tr '\n' ' ')]" ;;
+  esac
+fi
+
+# 8. Only git's own "not a repository", status 128, is a floor. A git that
+# could not run at all says nothing about where the suite stands. On a PATH
+# that has mkdir and no git, the floor must refuse.
+_ffn="$TMP/floor-nogit"; mkdir -p "$_ffn/bin" "$_ffn/d"; ln -s "$(command -v mkdir)" "$_ffn/bin/mkdir"
+_ff_o="$(PATH="$_ffn/bin"; _fixture_floor "$_ffn/d" >/dev/null 2>&1; printf '%s' "$?")"
+[ -n "$_ff_o" ] && [ "$_ff_o" -ne 0 ] && ok "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" \
+  || bad "_fixture_floor refuses when git cannot run at all, rather than reading that as no repository" "it returned [$_ff_o] with no git on PATH"
 
 
 printf '\nresolution\n'

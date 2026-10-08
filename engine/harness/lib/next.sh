@@ -98,9 +98,18 @@ EOF
       # and there is no diff to show them the reversal path for. Ranked 1 and
       # Felix's, because until it is corrected every row above and below it was
       # computed against a comparison that never happened.
+      # Since 2026-10-08 it also means git could not read the change to the
+      # end, named by its pseudo-path rather than by a base, and the remedy is
+      # the tree, not the base.
       if [ "$kind" = "unknown" ]; then
-        _felix_next_row 1 felix "nothing was scanned: $subject — $reason" \
-          "name a base that exists here, with --base, then run this again"
+        case "$subject" in
+          ADDED-LINES|CHANGED-PATHS)
+            _felix_next_row 1 felix "not scanned in full: $subject — $reason" \
+              "make every tracked path a readable file again (git status names it), then run this again" ;;
+          *)
+            _felix_next_row 1 felix "nothing was scanned: $subject — $reason" \
+              "name a base that exists here, with --base, then run this again" ;;
+        esac
         continue
       fi
       _felix_next_row 2 founder "$kind: $subject — $reason" \

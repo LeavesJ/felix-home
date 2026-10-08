@@ -1068,6 +1068,14 @@ _felix_discover_content() {
 # No files is no digest, and no digest is not an empty one. An empty document
 # hashes to a perfectly good sha that every other empty directory also has, so
 # returning it would say two things are the same copy when neither was read.
+#
+# A file hash-object could not read is no digest either (2026-10-08). A mode-000
+# file hashed to an empty field and the digest went on, so two copies that each
+# held an unreadable file agreed about bytes nobody read. Named pipes, sockets
+# and devices are left out on purpose, as `find -type f -o -type l` always left
+# them out. They hold no bytes to compare, hash-object would block forever on a
+# pipe, and a socket a running server leaves in its own directory would make two
+# identical installs differ.
 felix_discover_digest() {
   local dir="$1" sub="${2:-}" base listing
   base="$dir"
@@ -1080,8 +1088,13 @@ felix_discover_digest() {
     | while IFS= read -r f; do
         if [ -L "$f" ]; then
           printf 'l %s %s\n' "$(readlink "$f" 2>/dev/null)" "$f"
+        elif ! h="$(git hash-object "$f" 2>/dev/null)" || [ -z "$h" ]; then
+          # The loop ends here, and the marker line tells the reader outside
+          # this subshell why. No apostrophe in a comment in here: bash 3.2
+          # reads one inside a command substitution as an open quote.
+          printf '\037unread\n'; exit 1
         elif [ -x "$f" ]; then
-          printf 'x %s %s\n' "$(git hash-object "$f" 2>/dev/null)" "$f"
+          printf 'x %s %s\n' "$h" "$f"
         else
           # `f`, not `-`. A format string beginning with a dash is an
           # OPTION to printf, and this shipped as `- %s %s` for exactly as
@@ -1090,11 +1103,12 @@ felix_discover_digest() {
           # Two nothings compare equal, so the first demonstration showed
           # two identical copies "agreeing" and a changed byte "agreeing"
           # too. A check that cannot fail is not a check.
-          printf 'f %s %s\n' "$(git hash-object "$f" 2>/dev/null)" "$f"
+          printf 'f %s %s\n' "$h" "$f"
         fi
       done
   )"
   [ -n "$listing" ] || return 1
+  case "$listing" in *$'\037unread'*) return 1 ;; esac
   printf '%s\n' "$listing" | git hash-object --stdin 2>/dev/null
 }
 

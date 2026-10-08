@@ -64,7 +64,13 @@ felix_evidence_check() {
     return 0
   fi
 
-  paths="$(felix_changed_paths "$root" "$base")"
+  # The same one row when git could not list the change to the end (2026-10-08).
+  # A list it broke off would read every rule it missed as n/a, which is the
+  # claim "this change does not touch that surface" about paths never seen.
+  if ! paths="$(felix_changed_paths "$root" "$base")"; then
+    printf 'unknown\t%s\tgit could not list every path this change touches, so no rule was consulted\n' "${base:-the working tree}"
+    return 0
+  fi
 
   while IFS=$'\t' read -r name when requires reason; do
     [ -n "${name:-}" ] || continue

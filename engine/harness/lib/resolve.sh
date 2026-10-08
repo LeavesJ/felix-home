@@ -743,6 +743,35 @@ _felix_merge_refs() {
 
 # Every path this branch touches, including what is staged but not committed.
 #
+# Run a git command that reads the working tree. Set the named variable to what
+# it printed, and return 0 only when it ran to the end and exited 0.
+#
+# 2026-10-08. git does not block on a named pipe at a tracked path, and it does
+# not skip one either. `git diff` and `git diff HEAD` print every path that sorts
+# before it, then exit 128: "cannot hash". A mode-000 file and a corrupt index
+# do the same. Every caller sent that to /dev/null and kept what was printed, so
+# each path after the pipe was dropped in silence. The tree id of an edited tree
+# came out as the clean commit's, and secret-scan passed an added key.
+#
+# A non-zero exit is not an answer. Neither is an empty capture whose subshell
+# never ran, so the mark is written only after git returns 0. The mark is a
+# line of its own holding a control character. A bare trailing `.` was tried
+# first, and a partial diff whose last line is `+foo.` read as finished. No line
+# git prints in a diff, a status or a listing is that line. The variable still
+# gets the partial output on failure, for a caller that would rather list too
+# much than too little. Trailing newlines are stripped as `$(...)` strips them,
+# so what a caller hashes is byte for byte what it hashed before.
+_felix_git_read() {   # VAR command...
+  local _felix_gr_out _felix_gr_rc=1
+  _felix_gr_out="$("${@:2}" 2>/dev/null && printf '\n\037ok')"
+  case "$_felix_gr_out" in
+    *$'\n\037ok') _felix_gr_rc=0; _felix_gr_out="${_felix_gr_out%$'\n\037ok'}" ;;
+  esac
+  while [ "${_felix_gr_out%$'\n'}" != "$_felix_gr_out" ]; do _felix_gr_out="${_felix_gr_out%$'\n'}"; done
+  printf -v "$1" '%s' "$_felix_gr_out"
+  return "$_felix_gr_rc"
+}
+
 # One function because there were four, and they drifted in the same direction.
 # Each tried `git diff --name-only base...HEAD` and fell back to `git diff base`
 # only when that came back EMPTY — so on a branch with commits, which is every
@@ -770,22 +799,36 @@ _felix_merge_refs() {
 # review of the table validator's contract, 2026-09-22, in a scratch clone.
 # The flag follows --name-only because the merge-race test injects a peer
 # checkout on `diff --name-only`, inside this very diff.
+#
+# Exits 1 when any of the three diffs did not finish (2026-10-08), and still
+# prints every path it did read. A list git broke off is not the list of what
+# changed, and a caller that decides on it must say it does not know. A tracked
+# named pipe does not trip this one: --name-only compares stat data and never
+# hashes, so it lists the pipe and exits 0. A corrupt index does.
 felix_changed_paths() {
-  local root="$1" base="${2:-}" refs
-  {
-    if [ -n "$base" ]; then
-      # What merging would change, when that is computable and differs from what
-      # was typed. See _felix_merge_refs. Unquoted on purpose: it prints two refs.
-      if refs="$(_felix_merge_refs "$root" "$base")"; then
-        # shellcheck disable=SC2086
-        git -C "$root" diff --name-only --no-renames $refs 2>/dev/null
-      else
-        git -C "$root" diff --name-only --no-renames "$base...HEAD" 2>/dev/null
-      fi
+  local root="$1" base="${2:-}" refs out all="" rc=0
+  # The branch side only where there is a branch. On an unborn HEAD, an orphan
+  # checkout, `base...HEAD` fails for want of a commit, and "nothing committed
+  # here" was always the answer read from it, so it is not asked.
+  if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    # What merging would change, when that is computable and differs from what
+    # was typed. See _felix_merge_refs. Unquoted on purpose: it prints two refs.
+    if refs="$(_felix_merge_refs "$root" "$base")"; then
+      # shellcheck disable=SC2086
+      _felix_git_read out git -C "$root" diff --name-only --no-renames $refs || rc=1
+    else
+      _felix_git_read out git -C "$root" diff --name-only --no-renames "$base...HEAD" || rc=1
     fi
-    git -C "$root" diff --name-only --no-renames --cached 2>/dev/null
-    git -C "$root" diff --name-only --no-renames 2>/dev/null
-  } | grep -v '^$' | LC_ALL=C sort -u
+    all="$out"
+  fi
+  _felix_git_read out git -C "$root" diff --name-only --no-renames --cached || rc=1
+  all="$all
+$out"
+  _felix_git_read out git -C "$root" diff --name-only --no-renames || rc=1
+  all="$all
+$out"
+  printf '%s\n' "$all" | grep -v '^$' | LC_ALL=C sort -u
+  return "$rc"
 }
 
 # Every line this branch ADDS, including staged and unstaged ones.
@@ -794,24 +837,36 @@ felix_changed_paths() {
 # landed: knowing a path changed is not knowing what the change says. A content
 # rule reading only `base...HEAD` names a staged file and then inspects the
 # version without the staged content in it.
+#
+# Exits 1 when any of its diffs did not finish (2026-10-08), whatever lines it
+# printed. A tracked named pipe ends `git diff` at that path, so with a pipe at
+# A.txt every line added to src.txt was dropped and this printed nothing at all:
+# escape.sh and classify.sh then scanned an empty change and found it clean. It
+# used to exit with grep's status, 1 for a change that added no line, and no
+# caller read that; it exits 0 for a change it read to the end, lines or none.
 felix_added_lines() {
-  local root="$1" base="${2:-}" refs
-  {
-    if [ -n "$base" ]; then
-      # The same correction as felix_changed_paths, and for the same reason: a
-      # content rule reading three-dot on a stacked branch scans lines the base
-      # already merged, so a credential the branch below it added is reported
-      # against this one.
-      if refs="$(_felix_merge_refs "$root" "$base")"; then
-        # shellcheck disable=SC2086
-        git -C "$root" diff $refs 2>/dev/null
-      else
-        git -C "$root" diff "$base...HEAD" 2>/dev/null
-      fi
+  local root="$1" base="${2:-}" refs out all="" rc=0
+  if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    # The same correction as felix_changed_paths, and for the same reason: a
+    # content rule reading three-dot on a stacked branch scans lines the base
+    # already merged, so a credential the branch below it added is reported
+    # against this one.
+    if refs="$(_felix_merge_refs "$root" "$base")"; then
+      # shellcheck disable=SC2086
+      _felix_git_read out git -C "$root" diff $refs || rc=1
+    else
+      _felix_git_read out git -C "$root" diff "$base...HEAD" || rc=1
     fi
-    git -C "$root" diff --cached 2>/dev/null
-    git -C "$root" diff 2>/dev/null
-  } | grep '^+' | grep -v '^+++'
+    all="$out"
+  fi
+  _felix_git_read out git -C "$root" diff --cached || rc=1
+  all="$all
+$out"
+  _felix_git_read out git -C "$root" diff || rc=1
+  all="$all
+$out"
+  printf '%s\n' "$all" | grep '^+' | grep -v '^+++'
+  return "$rc"
 }
 
 # A file as it will be committed, not as it was last committed.

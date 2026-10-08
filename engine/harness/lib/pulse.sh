@@ -85,12 +85,17 @@ felix_pulse_mem_repo() {
 # somebody adds deliberately is refused once and then stops being new the
 # moment they commit it, which is a self-resolving nudge rather than a
 # permanent latch, and it costs no matching rules that can be wrong.
+#
+# Returns 2, printing nothing, when the question could not be asked: no scratch
+# index, or a `git add -A` into it that did not finish (2026-10-08). A tracked
+# named pipe fails that add, and the index it left was HEAD's, so a nested
+# repository added beside the pipe read as no new gitlink. Not asked is not no.
 _felix_pulse_new_gitlinks() {
   local repo="$1" tmp idx head
   # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
   # suite points TMPDIR at a fixture to count what is left there.
   local tmpd="${TMPDIR:-/tmp}"
-  tmp="$(mktemp "${tmpd%/}/felix-pulse.XXXXXX")" || return 0
+  tmp="$(mktemp "${tmpd%/}/felix-pulse.XXXXXX" 2>/dev/null)" || return 2
   # A scratch index, so a person's deliberately staged selection survives
   # being asked about. The check used to stage into the real index and then
   # `git reset` on refusal, which is not an undo: it emptied whatever they
@@ -98,7 +103,9 @@ _felix_pulse_new_gitlinks() {
   if git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
     GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree HEAD >/dev/null 2>&1
   fi
-  GIT_INDEX_FILE="$tmp" git -C "$repo" add -A >/dev/null 2>&1
+  if ! GIT_INDEX_FILE="$tmp" git -C "$repo" add -A >/dev/null 2>&1; then
+    rm -f "$tmp"; return 2
+  fi
   idx="$(GIT_INDEX_FILE="$tmp" git -C "$repo" ls-files -s 2>/dev/null | grep '^160000 ' | cut -f2-)"
   rm -f "$tmp"
   [ -n "$idx" ] || return 0
@@ -182,13 +189,25 @@ felix_pulse_backup() {
     # had deliberately staged. Counted with grep -c, which reads its whole
     # input, because grep -q under pipefail kills the producer and this
     # repository has paid for that before.
-    local links; links="$(_felix_pulse_new_gitlinks "$repo")"
+    local links lrc=0; links="$(_felix_pulse_new_gitlinks "$repo")" || lrc=$?
+    if [ "$lrc" -eq 2 ]; then
+      printf 'backup\tcould not ask whether a nested repository sits inside memory (no scratch index could be made, or git could not stage this tree), so nothing was committed, and this memory is NOT backed up\n'
+      return 0
+    fi
     if [ "$(printf '%s\n' "$links" | grep -c .)" -gt 0 ]; then
       printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, so nothing was committed — move it out, or commit it yourself\n' \
         "$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"
       return 0
     fi
-    git -C "$repo" add -A >/dev/null 2>&1
+    # A stage that did not finish is not a commit to make (2026-10-08). `git
+    # add -A` over a tracked named pipe exits 128 having staged nothing. The
+    # commit that followed then recorded whatever a person had staged by hand,
+    # or failed as "nothing to commit", and neither says why.
+    if ! git -C "$repo" add -A >/dev/null 2>&1; then
+      printf 'backup\tgit could not stage this tree (%s), so nothing was committed, and this memory is NOT backed up\n' \
+        "$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
+      return 0
+    fi
     if git -C "$repo" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
          commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
       printf 'backup\tcommitted\n'

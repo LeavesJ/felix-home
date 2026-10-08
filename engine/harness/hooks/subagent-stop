@@ -64,7 +64,12 @@ if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
   felix_session_committed "$FELIX_HOME_DIR" "${SID:-}" "$ROOT" || exit 0
 fi
 
-TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
+# An id that cannot be had is a dirty tree git could not read in full, and no
+# receipt is for it (2026-10-08). It used to end the hook in silence, which is
+# what a verified tree gets; it goes on to the nudge now, as any tree with no
+# matching receipt does. An empty TID cannot equal a receipt's first field,
+# since felix_verify_record writes none without an id.
+TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || TID=""
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
 [ "$(printf '%s' "$receipt" | cut -f1)" = "$TID" ] \
   && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ] && exit 0

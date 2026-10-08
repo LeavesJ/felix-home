@@ -204,11 +204,19 @@ if ! felix_tree_dirty "$ROOT" "$FELIX_HOME_DIR"; then
   fi
 fi
 
-TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR")" || TID=""
-if [ -z "$TID" ]; then
-  felix_verify_log "$PROJ" "allowed" "" "tree identity unavailable"
-  exit 0
-fi
+# An empty id is a tree git could not read in full, and it is held below like
+# any tree no receipt matches (2026-10-08). It used to be allowed here as "tree
+# identity unavailable", and that was the permissive half of the same defect.
+# felix_tree_id then hashed whatever `git diff HEAD` printed before a tracked
+# named pipe stopped it. An edit plus a pipe at an earlier path came out as the
+# clean commit's id, its green receipt read current, and the edit went
+# unverified. It returns nothing now, and this must not turn nothing back into
+# a pass. This is not the unexpected case the header allows: line 186 already
+# left for a directory git does not know, and this tree is one git called
+# dirty. The hold is the same speed bump as every other, once per chain.
+TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || TID=""
+TREE_WHY=""
+[ -n "$TID" ] || TREE_WHY="$(felix_tree_why "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
 
 # The override is the founder's, not the model's. It is read from the
 # environment the session was launched with, and an export inside a Bash tool
@@ -500,7 +508,13 @@ down describes what the code does now."
   exit 0
 fi
 
-if [ -z "$receipt" ]; then
+if [ -z "$TID" ]; then
+  # First, because a receipt of any colour is about some other tree. Git's own
+  # line names the path; the remedy is the path, not a gate run, since a gate
+  # over this tree has no id to record a receipt under.
+  why="Felix cannot identify this tree, so no receipt can stand for it: git could not read it${TREE_WHY:+ (${TREE_WHY})}. The usual cause is a tracked path that is no longer a readable regular file: a named pipe, a socket, a device, or a file git may not open. git can neither hash nor commit such a path, so not even a green gate run can be recorded for this tree. Make that path a readable file again, or move it out of the tree, and then run the gate."
+  detail="tree unknown"
+elif [ -z "$receipt" ]; then
   why="The gate has never run in this checkout."
   detail="never verified"
 elif [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then

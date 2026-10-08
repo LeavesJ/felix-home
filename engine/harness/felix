@@ -1171,9 +1171,13 @@ cmd_recommend() {
   # had detected nothing yet, each a claim about a list nobody read. Now the
   # list is read once, here, and the three places that print it say it is not
   # known. The text of a read list is unchanged, trailing space included.
+  #
+  # Joined by an expansion, and not by `| tr '\n' ' '` in a substitution, which
+  # until 2026-10-08 could come back empty with no failure at all (a fork that
+  # failed inside it) and read as `declared: none` over a list that was read.
   caps=""
   if felix_declared_into declared "$proj"; then
-    [ -z "$declared" ] || caps="$(printf '%s\n' "$declared" | tr '\n' ' ')"
+    [ -z "$declared" ] || caps="${declared//$'\n'/ } "
   else
     dunread=1
   fi
@@ -4636,22 +4640,32 @@ EOF
     fi
   fi
 
+  # Both lists are joined by an expansion and the surfaces are walked in this
+  # shell, where until 2026-10-08 each went through `| tr '\n' ' '` in a
+  # substitution and a pipe into a loop. A join that came back empty printed an
+  # empty declared line and an empty undeclared one over lists that were read, and
+  # a loop in a pipe that could not be made printed the header and no surface.
+  local dshow="" nrest nl=$'\n' c
+  [ -z "$declared" ] || dshow="${declared//$'\n'/ } "
   printf 'project:      %s\n' "$(basename "$proj")"
   if [ "$dunread" -eq 1 ]; then
     printf 'declared:     not known: the capabilities this project declares could not be read\n'
   else
-    printf 'declared:     %s\n' "$([ -z "$declared" ] || printf '%s\n' "$declared" | tr '\n' ' ')"
+    printf 'declared:     %s\n' "$dshow"
   fi
   if [ "$dunread" -eq 1 ]; then
     printf 'undeclared:   not known: the capabilities this project declares could not be read\n'
   elif [ -z "$new" ]; then
     printf 'undeclared:   none\n'
   else
-    printf 'undeclared:   %s\n\n' "$(printf '%s' "$new" | tr '\n' ' ')"
+    printf 'undeclared:   %s\n\n' "${new//$'\n'/ }"
     printf 'These surfaces exist in the checkout but this project has never\n'
     printf 'declared them. Each one is a gate the guidebook expects and that\n'
     printf 'nothing is currently enforcing:\n\n'
-    printf '%s\n' "$new" | while read -r c; do
+    nrest="$new"
+    while [ -n "$nrest" ]; do
+      c="${nrest%%$nl*}"
+      if [ "$c" = "$nrest" ]; then nrest=""; else nrest="${nrest#*$nl}"; fi
       [ -n "$c" ] || continue
       printf '  %-14s %s\n' "$c" "$(_felix_why "$c")"
     done

@@ -27731,7 +27731,7 @@ stack|felix_stack_plan|0|held|stack: a plan that prints an unknown action is hel
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is absent is held|usable\tfoo\tok\nabsent\tbar\tnot installed\n
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is disabled is held|usable\tfoo\tok\ndisabled\tbar\tinstalled and switched off\n
 preflight|felix_ready_report|0|held|preflight: a report that could not list the plugins is held|unknown\tbar\tthe plugin list could not be read\n
-discover|felix_discover_cache_current|1|held|discover: a discovery cache that is not current is held|
+discover|felix_discover_cache_current|1|unknown|discover: a discovery cache that is not current is unknown|
 discover|felix_discover_adopt|0|held|discover: an adoption still to declare is held|already\tfoo\tllm\tlow\ndeclare\tbar\tllm\tlow\n
 human_steps|felix_setup_status|0|held|human_steps: a runbook step still to do is held|done\tgh_auth\tok\ntodo\tdeploy_key\tadd the deploy key\n
 stack|felix_stack_plan|1|done|stack: a manifest of comments, whose plan prints nothing and returns 1, reads done|
@@ -27786,11 +27786,6 @@ printf '\ncommissioning: a check says it could not be asked by exiting 2\n'
 # case stays red until claude/declared-unread-readers lands as well: on main
 # felix_toolbox_unwired prints nothing and returns 0 over a capabilities list
 # it could not read, so that row reads done.
-#
-# On claude/commission-check-unasked, which changes the engine and no table,
-# this block carries the status, run and receipt cases (C1 to C3). The reach
-# and discover rows, the real engine and the template header (C4 to C6, C8)
-# arrive with the table change, claude/commission-unasked-rows.
 _cutab="${CMU_TABLE:-$FROOT/harness/templates/commissioning.tsv}"
 _cudir="$TMP/cu-work"; _cup="$TMP/cu-proj"; _cur="$TMP/cu-root"
 mkdir -p "$_cudir/home" "$_cup" "$_cur"
@@ -27960,18 +27955,120 @@ _cuall() {
   _cuemit "a real run whose felix answer left its check exiting 2 writes the receipt indeterminate" \
     "$(felix_commission_receipt_write "$_cudir/home" "$_cup" "$_cur" "$_cuout" "$(felix_commission_malformed "$_cup")")" "indeterminate"
 
+  # C4. The reach row, its unwired read stubbed.
+  row="$(_curow reach)"
+  IFS=$'\t' read -r need grounds instrument when answer check step <<CUROW
+$row
+CUROW
+  _cuemit "the exit-2 block finds a reach row and stubs every engine function its check names" \
+    "$([ -n "$row" ] && printf present || printf absent) unstubbed=[$(_cuunstubbed "$check" felix_toolbox_unwired)]" \
+    "present unstubbed=[]"
+  if [ -n "$row" ]; then
+    _cuc4() {
+      _cuuwhow="$1"; _cuuwrc="$2"; _cuuwout="$3"
+      _cuemit "reach: $5 (pipefail on and off)" "$(_cuboth reach "$instrument" "$answer" "$check")" "on=$4 off=$4"
+    }
+    _cuq='?\tthe capabilities this project declares could not be read\n'
+    _cuc4 return 0   ''                done    'an unwired read that returned 0 having printed nothing reads done'
+    _cuc4 return 0   'someplugin\tllm\n' held  'an unwired read that returned 0 naming a plugin reads held'
+    _cuc4 return 2   "$_cuq"           unknown 'an unwired read that returned 2 saying the capabilities could not be read reads unknown'
+    _cuc4 return 2   ''                unknown 'an unwired read that returned 2 having printed nothing reads unknown'
+    _cuc4 return 2   'someplugin\tllm\n' unknown 'an unwired read that returned 2 naming a plugin reads unknown, its status deciding'
+    _cuc4 return 1   ''                done    'an unwired read that returned 1 having printed nothing reads done'
+    _cuc4 return 1   'someplugin\tllm\n' held  'an unwired read that returned 1 naming a plugin reads held'
+    _cuc4 exit   128 ''                held    'an unwired read that ended its substitution with exit 128 reads held'
+    _cuc4 return 128 ''                held    'an unwired read that returned 128 having printed nothing reads held'
+    _cuc4 return 130 "$_cuq"           held    'an unwired read that returned 130 after the could-not-be-read line reads held, a death'
+    _cuuwhow=return; _cuuwrc=0; _cuuwout=
+    _cuemit "reach: when no pipe can be made, the reach check does not pass though its read answers" \
+      "$(_cunopipe "$check")" "free=passes nopipe=fails"
+    { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; _curowrun reach; } > "$_cup/commissioning.tsv"
+    _cuuwhow=return; _cuuwrc=2; _cuuwout="$_cuq"
+    _cureset; _curun _curunner reach
+    _cuemit "reach: a real run whose unwired read returned 2 runs toolbox --route" "$(_curan)" "felix:toolbox --route"
+    _cuemit "reach: a real run whose unwired read still returns 2 after toolbox --route reads unknown" "$_cust" "unknown"
+    _cuemit "reach: that run reports toolbox --route and its exit first in its detail" \
+      "$(_cuhead "$_cudet" 'ran toolbox --route (exit ')" 'ran toolbox --route (exit '
+  fi
+
+  # C5. The discover row, its cache lookup and its adoption stubbed.
+  row="$(_curow discover)"
+  IFS=$'\t' read -r need grounds instrument when answer check step <<CUROW
+$row
+CUROW
+  _cuemit "the exit-2 block finds a discover row and stubs every engine function its check names" \
+    "$([ -n "$row" ] && printf present || printf absent) unstubbed=[$(_cuunstubbed "$check" felix_discover_cache_current felix_discover_adopt)]" \
+    "present unstubbed=[]"
+  if [ -n "$row" ]; then
+    _cuc5() {
+      _cucc="$1"; _cuadhow="$2"; _cuadrc="$3"; _cuadout="$4"
+      _cuemit "discover: $6 (pipefail on and off)" "$(_cuboth discover "$instrument" "$answer" "$check")" "on=$5 off=$5"
+    }
+    _cuc5 0   return 0   'already\tfoo\tllm\tlow\n' done 'a current cache and an adoption already declared reads done'
+    _cuc5 0   return 0   ''                        done 'a current cache and an adoption that prints nothing reads done'
+    _cuc5 0   return 0   'already\tfoo\tllm\tlow\ndeclare\tbar\tllm\tlow\n' held 'a current cache and an adoption still to declare reads held'
+    _cuc5 1   return 0   'already\tfoo\tllm\tlow\n' unknown 'a cache that is not current reads unknown, whatever adoption says'
+    _cuc5 1   return 0   'declare\tbar\tllm\tlow\n' unknown 'a cache that is not current reads unknown though adoption would declare'
+    _cuc5 die return 0   'already\tfoo\tllm\tlow\n' held 'a cache lookup that dies with exit 128 reads held'
+    _cuc5 0   exit   128 ''                        held 'an adoption that ended its substitution with exit 128 having printed nothing reads held'
+    _cuc5 0   exit   128 'declare\tbar\tllm\tlow\n' held 'an adoption that printed a declare row and then exited 128 reads held'
+    _cuc5 0   return 1   'already\tfoo\tllm\tlow\n' done 'an adoption that printed only already rows and returned 1 reads done'
+    _cucc=0; _cuadhow=return; _cuadrc=0; _cuadout='already\tfoo\tllm\tlow\n'
+    _cuemit "discover: when no pipe can be made, the discover check does not pass though its lookups answer" \
+      "$(_cunopipe "$check")" "free=passes nopipe=fails"
+    { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; _curowrun discover; } > "$_cup/commissioning.tsv"
+    _cucc=flag; _cuadhow=return; _cuadrc=0; _cuadout=
+    _cureset; _cumake=1; _curun _curunner discover
+    _cuemit "discover: a real run with no current cache whose answer makes it current, adopting nothing, reads done" "$_cust" "done"
+    _cureset; _curun _curunner discover
+    _cuemit "discover: a real run with no current cache runs discover --adopt" "$(_curan)" "felix:discover --adopt"
+    _cuemit "discover: a real run whose cache is still not current after discover --adopt reads unknown" "$_cust" "unknown"
+    _cuemit "discover: that run reports discover --adopt and its exit first in its detail" \
+      "$(_cuhead "$_cudet" 'ran discover --adopt (exit ')" 'ran discover --adopt (exit '
+  fi
   printf 'cu-end\n'
 }
 
-_cures="$(_cm _cuall)"
+# C6. The real engine, nothing stubbed, in a _cm of its own. FELIX_HOME_DIR is
+# $FROOT there, and no discovery cache is ever written for these projects.
+_cu6() {
+  local p kind
+  p="$TMP/cu-fresh"; mkdir -p "$p"
+  { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; _curowrun discover; } > "$p/commissioning.tsv"
+  _cuemit "discover: with the real cache lookup and no discovery cache, the row reads unknown with no runner" \
+    "$([ -e "$FELIX_HOME_DIR/state/discover/cu-fresh.tsv" ] && printf 'a cache' || printf 'no cache') $(_cufield "$(felix_commission_run "$p" "$_cur" - </dev/null)" discover 2)" \
+    "no cache unknown"
+  for kind in directory dangling; do
+    p="$TMP/cu-unread-$kind"; mkdir -p "$p"
+    if [ "$kind" = directory ]; then mkdir -p "$p/capabilities"; else ln -s "$TMP/cu-gone" "$p/capabilities"; fi
+    { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; _curowrun reach; } > "$p/commissioning.tsv"
+    case "$kind" in directory) kind='a directory' ;; *) kind='a symlink whose target is gone' ;; esac
+    _cuemit "reach: with the real unwired read and a capabilities list that is $kind, the row reads unknown" \
+      "$(_cufield "$(felix_commission_run "$p" "$_cur" - </dev/null)" reach 2)" "unknown"
+  done
+  printf 'cu-end\n'
+}
+
+_cures="$(_cm _cuall)
+$(_cm _cu6)"
 while IFS='|' read -r _cuname _cugot _cuwant; do
   [ -n "$_cuname" ] && [ "$_cuname" != cu-end ] || continue
   is "$_cuname" "$_cugot" "$_cuwant"
 done <<CURES
 $_cures
 CURES
-is "the exit-2 block reached the end of its run, no case dropped" \
-   "$(printf '%s\n' "$_cures" | grep -c '^cu-end$')" "1"
+is "the exit-2 block reached the end of both its runs, no case dropped" \
+   "$(printf '%s\n' "$_cures" | grep -c '^cu-end$')" "2"
+
+# C8. The template's header says it, where it describes the check column.
+_cuhdr="$(awk '/^# check[[:space:]]/ { on = 1 } /^# step[[:space:]]/ { on = 0 } on' \
+            "$FROOT/harness/templates/commissioning.tsv" | sed 's/^#[[:space:]]*//' | tr '\n' ' ' | tr -s ' ')"
+_cu8a=no; _cu8u=no; _cu8t=no
+case "$_cuhdr" in *'could not be asked'*) _cu8a=yes ;; esac
+case "$_cuhdr" in *unknown*) _cu8u=yes ;; esac
+grep -qE '(^|[^0-9])2([^0-9]|$)' <<<"$_cuhdr" && _cu8t=yes
+is "the template's check column says a check exiting 2 could not be asked and reads unknown" \
+   "asked=$_cu8a unknown=$_cu8u two=$_cu8t" "asked=yes unknown=yes two=yes"
 
 rm -rf "$_cudir" "$_cup" "$_cur" "$TMP/cu-fresh" "$TMP/cu-unread-directory" "$TMP/cu-unread-dangling"
 unset -f _curow _curowrun _cuemit _cuhas _cuhead _cutable _cufield _curan _cureset _curunner \

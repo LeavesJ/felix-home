@@ -1064,12 +1064,14 @@ _og_reread() {
 # I -> 0 when file I has moved since the snapshot: a watched entry differs in
 # name, value or order, a remote that had refs has none, or a remote a branch
 # tracked is tracked by none. Gaining refs or trackers is not a move. A
-# snapshot that could not be read is reported by itself, not as a move; a file
-# readable then and not now has moved.
+# snapshot that could not be read is reported by itself, not as a move (1). A
+# file readable then and not now returns 2: could not read is not moved, since
+# a git that exits above 1 or a fork that fails under load says nothing about
+# the remotes. Only a move between two readable states is a move.
 _og_diff() {
   local i="$1" name
   [ "${_og_sok[$i]}" = 1 ] || return 1
-  [ "${_og_nok[$i]}" = 1 ] || return 0
+  [ "${_og_nok[$i]}" = 1 ] || return 2
   [ "${_og_nu[$i]}" = "${_og_su[$i]}" ] || return 0
   for name in ${_og_sr[$i]}; do
     case "${_og_nr[$i]}" in *" $name "*) ;; *) return 0 ;; esac
@@ -1105,7 +1107,9 @@ _og_record() {
     printf 'now:\n';    _og_show "${_og_nok[$2]}" "${_og_nu[$2]}" "${_og_nr[$2]}" "${_og_nt[$2]}"
   } > "$_og_moved" 2>/dev/null
 }
-# Called by _ran with the name about to be recorded.
+# Called by _ran with the name about to be recorded. A file the re-read could
+# not read records nothing; the stamp is refreshed all the same, and the end
+# of the run reads it again.
 _og_tick() {
   local i=0 hit=""
   while [ "$i" -lt "$_og_n" ]; do
@@ -1129,11 +1133,26 @@ _og_tick() {
 # before a skip is considered, since an empty one would otherwise read as a
 # run that started in no checkout. A move C7 recorded is bad even when the
 # file reads as it did at the start by now: a remote moved and put back while
-# the run ran is still a remote that moved under it.
+# the run ran is still a remote that moved under it. C7 records only a move
+# between two readable states, so that is all this holds to.
+#
+# A file read at the start that cannot be read now is read again, up to three
+# reads in all, before anything is judged: a git that exits above 1 or a fork
+# that fails under load is not an answer. Still unreadable after the third, it
+# is red on its own terms, "could not re-read the remotes at the end", and
+# never called moved, since nothing was compared.
 _og_check() {
-  local i rest line mcfg=""
+  local i rest line mcfg="" tries=0 short d rrr="" rrm=""
   _og_v=ok; _og_msg=""; _og_rep=""
-  _og_reread
+  while :; do
+    _og_reread; tries=$((tries+1))
+    short=""; i=0
+    while [ "$i" -lt "$_og_n" ]; do
+      if [ "${_og_sok[$i]}" = 1 ] && [ "${_og_nok[$i]}" != 1 ]; then short=1; break; fi
+      i=$((i+1))
+    done
+    [ -n "$short" ] && [ "$tries" -lt 3 ] || break
+  done
   rest="$_og_unread"
   while [ -n "$rest" ]; do
     line="${rest%%"$_og_nl"*}"
@@ -1150,7 +1169,17 @@ _og_check() {
   fi
   i=0
   while [ "$i" -lt "$_og_n" ]; do
-    if _og_diff "$i"; then
+    _og_diff "$i"; d=$?
+    if [ "$d" -eq 2 ]; then
+      _og_v=bad
+      rrr="${rrr}tests/run: could not re-read the remotes at the end: ${_og_cfg[$i]}$_og_nl"
+      rrm="${rrm}could not re-read the remotes at the end: ${_og_cfg[$i]}${_og_nl}  three reads failed, so nothing was compared$_og_nl"
+      if [ -n "$mcfg" ] && [ "$mcfg" = "${_og_cfg[$i]}" ]; then
+        _og_rep="${_og_rep}tests/run: remotes moved while this run ran: ${_og_cfg[$i]}$_og_nl"
+        _og_msg="${_og_msg}the remotes in ${_og_cfg[$i]} moved while this run ran, as recorded between two readable states; dozens of suites share that config, some of them older code, so the cause is not known here$_og_nl"
+        mcfg=""
+      fi
+    elif [ "$d" -eq 0 ]; then
       _og_v=bad
       _og_rep="${_og_rep}tests/run: remotes moved while this run ran: ${_og_cfg[$i]}$_og_nl"
       _og_msg="${_og_msg}the remotes in ${_og_cfg[$i]} moved while this run ran; dozens of suites share that config, some of them older code, so the cause is not known here${_og_nl}  before:${_og_nl}$(_og_show "${_og_sok[$i]}" "${_og_su[$i]}" "${_og_sr[$i]}" "${_og_st[$i]}")${_og_nl}  now:${_og_nl}$(_og_show "${_og_nok[$i]}" "${_og_nu[$i]}" "${_og_nr[$i]}" "${_og_nt[$i]}")$_og_nl"
@@ -1168,6 +1197,9 @@ _og_check() {
     _og_rep="${_og_rep}tests/run: remotes moved while this run ran: $mcfg$_og_nl"
     _og_msg="${_og_msg}the remotes in $mcfg moved while this run ran$_og_nl"
   fi
+  # A file that could not be re-read leads the report, so its detail starts
+  # with what happened to it.
+  _og_rep="$rrr$_og_rep"; _og_msg="$rrm$_og_msg"
   if [ "$_og_v" = bad ] && [ -s "$_og_moved" ]; then
     _og_msg="${_og_msg}first seen between two assertions (time, the assertion before, the assertion recorded when it was seen, the config):${_og_nl}$(cat "$_og_moved" 2>/dev/null)${_og_nl}"
   fi

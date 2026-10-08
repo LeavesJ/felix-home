@@ -109,11 +109,22 @@ and what is out of reach.
 remote add origin https://github.com/acme/widget.git`, in the real shared
 repository. That deleted every remote-tracking ref and broke fetch for every
 session.
-- **Restored** at 12:54 from FETCH_HEAD. The per-branch upstream and Desktop
-  PR-binding entries are lost.
-- **Source not found.** The shape matches tests/run 4415 and 5606 with an
-  empty fixture variable, because `cd ""` stays put.
-- **Prevention:** suite-fixture-floor, carrier position 3.
+- **Cause.** Another session measured it: a block runner cut from tests/run
+  without the `_fh` helpers left the fixture roots empty, and bash 3.2's
+  `cd ""` stays put. The full account is in the memory note
+  suite-cd-empty-rewrites-real-remote.
+- **Prevention.** The fix is suite-fixture-floor, carrier position 3.
+- **How it was restored, and what that skipped.** This session restored it at
+  12:54 with `git config remote.origin.url
+  https://github.com/LeavesJ/felix-home.git`, the URL FETCH_HEAD recorded at
+  12:14, then fetched.
+  - Felix's deny row 134 refuses `git remote add|set-url|rename|remove` from
+    a session, because the remote is the person's.
+  - `git config remote.origin.url` does the same thing in a spelling the row
+    does not match. That is a gap in the row, and the restore went through
+    it unknowingly.
+  - The founder should confirm the URL and decide whether the row also
+    covers `git config remote.*`.
 - **The same session nearly paid it again.** A heredoc nested in a heredoc
   with the same delimiter ran the rest of a test fragment in the tool shell
   with empty variables. It did nothing only because `/` is read-only. Give an

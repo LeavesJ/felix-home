@@ -70,9 +70,11 @@ EOF
     mem="$(felix_mem_dir "$proj")"
     if [ -f "$mem/mistakes.log" ]; then
       # Column four holds every check that failed in one run, space separated.
-      awk -F'\t' '{ n = split($4, t, " "); for (i = 1; i <= n; i++)
-                    if (t[i] != "") print "failure:" t[i] }' \
-          "$mem/mistakes.log" 2>/dev/null
+      # Read through felix_mem_mistake_rows, so a failure an older engine
+      # wrote as a split row on an unborn HEAD is an item too (U44).
+      felix_mem_mistake_rows "$mem/mistakes.log" \
+        | awk -F'\t' '{ n = split($4, t, " "); for (i = 1; i <= n; i++)
+                    if (t[i] != "") print "failure:" t[i] }' 2>/dev/null
     fi
   } | LC_ALL=C sort -u
   return 0

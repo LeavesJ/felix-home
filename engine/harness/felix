@@ -2006,7 +2006,9 @@ cmd_autonomy() {
                 allow="$2"; shift 2 ;;
       --revoke) need_value "$@"; [ -z "$revoke" ] || die "one --revoke at a time"
                 revoke="$2"; shift 2 ;;
-      *) shift ;;
+      # 2026-10-08: "--revoke tidy commission" revoked tidy and dropped the
+      # second name without a word.
+      *) die "unexpected argument: $1. felix autonomy takes --allow <capability> and --revoke <capability>." ;;
     esac
   done
   for a in "$allow" "$revoke"; do
@@ -2021,11 +2023,13 @@ cmd_autonomy() {
     # 2026-10-01: a one-grant file kept its grant here while this printed
     # "revoked:" and deleted the stamp (felix_autonomy_revoke says how).
     felix_autonomy_revoke "$proj" "$revoke"; rc=$?
+    # Only commission has a stamp, so only a stamp that is there is mentioned.
+    a=""; [ -e "$(felix_autonomy_stamp_path "$proj" "$revoke")" ] && a="; its stamp is left in place"
     case "$rc" in
       0) ;;
-      2) die "$revoke is not revoked, because $proj/autonomy holds a NUL byte and so grants nothing anyone can read; remove the byte by hand. Its stamp is left in place" ;;
-      3) die "$revoke is not revoked, because $proj/autonomy was rewritten without it and a read of it still finds the grant (another writer?); its stamp is left in place" ;;
-      *) die "$revoke is not revoked, because $proj/autonomy could not be read whole or rewritten without it; its stamp is left in place" ;;
+      2) die "$revoke is not revoked, because $proj/autonomy holds a NUL byte: this engine reads no grant from it, an older engine may, and it cannot be rewritten as it is. Remove the byte by hand$a" ;;
+      3) die "$revoke is not revoked, because $proj/autonomy was rewritten without it and a read of it still finds the grant (another writer?)$a" ;;
+      *) die "$revoke is not revoked, because $proj/autonomy could not be read whole or rewritten without it$a" ;;
     esac
     # The stamp goes with the grant. Left behind, a later --allow would look
     # like it had already been read against a table nobody re-read.

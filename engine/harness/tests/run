@@ -21917,8 +21917,10 @@ is "and leaves the commission stamp where it was" "$(_rvstamp)" "kept"
 _rvprobe="$TMP/rv.probe"; printf 'x\n' > "$_rvprobe"; chmod 000 "$_rvprobe"
 if [ -r "$_rvprobe" ]; then _rvperm=0; else _rvperm=1; fi
 chmod 644 "$_rvprobe"; rm -f "$_rvprobe"
-_rvclosed() {   # LABEL: the six fail-closed assertions after a refused revoke of commission
-  if [ "$_rvperm" = 0 ]; then
+_rvclosed() {   # LABEL [always]: the fail-closed assertions after a refused revoke of commission
+  # "always" runs them even where permission bits do not bind, for a refusal
+  # that comes from something else, such as a file-size limit, which binds root.
+  if [ "$_rvperm" = 0 ] && [ "${2:-}" != always ]; then
     for _rvn in "exits non-zero" "and does not say revoked" "and says on stderr it was not revoked" \
                 "and leaves the file byte-identical" "and leaves the stamp in place" \
                 "and the grant still holds" "and leaves nothing new behind"; do
@@ -21939,7 +21941,8 @@ _rvset 'commission\n'; cp "$RVP/autonomy" "$TMP/rv.held"
 chmod 000 "$RVP/autonomy"; _rvrun commission; chmod 644 "$RVP/autonomy"
 _rvclosed "that cannot read the grant file"
 _rvset 'commission\n'; cp "$RVP/autonomy" "$TMP/rv.held"
-chmod a-w "$RVP"; _rvrun commission; chmod u+w "$RVP"
+_rvdmode="$(stat -c %a "$RVP" 2>/dev/null)" || _rvdmode="$(stat -f %Lp "$RVP")"
+chmod a-w "$RVP"; _rvrun commission; chmod "$_rvdmode" "$RVP"
 _rvclosed "that cannot write into the project directory"
 
 # R7: nothing to revoke.
@@ -22036,6 +22039,9 @@ _rwuis "a revoke of tidy under UTF-8 after that comment takes tidy away and keep
 _rvset '# h\ntidy\302\240\n'; _rwloc C tidy
 _rwuis "after a revoke of tidy run under C over a no-break-space line, neither a C nor a UTF-8 reader finds tidy" \
    "$(_rwboth tidy)" "no:no"
+printf '# h\n' > "$TMP/rw.want"
+is "that revoke under C over the no-break-space line exits 0 and removes the line, leaving the header" \
+   "$_rvrc:$(_rwis)" "0:same"
 
 # C2: a NUL byte anywhere and the file grants nothing, and a revoke of it is
 # refused and touches nothing.
@@ -22086,9 +22092,11 @@ _rvset 'tidy\040\ncommission'; _rvrun commission; printf 'tidy\040\n' > "$TMP/rw
 is "revoking an unended commission last line keeps the line before it byte for byte, trailing space and newline" \
    "$(_rwis)" "same"
 
-# C6: a replacement cut short by the file-size limit fails closed. bash's
-# ulimit -f counts 1024-byte blocks (512 in POSIX mode), so a limit of 2 is at
-# most 2048 bytes, and the kept lines here come to about 5 KB. stdout goes to
+# C6: a replacement cut short by the file-size limit fails closed. ulimit -f
+# counts 512-byte blocks in macOS's bash 3.2 and 1024-byte blocks in bash 5.2,
+# so a limit of 2 is at most 2048 bytes on either, and the kept lines here
+# come to about 5 KB. The limit binds root as well, so these run for every
+# user, where the permission cases above are skipped for root. stdout goes to
 # a pipe, which the limit does not bind, so the status felix prints after a
 # revoke is not what fails. A small file under the same limit is revoked, so
 # the limit stops the rewrite and not felix starting.
@@ -22106,7 +22114,7 @@ while [ "$_rwi" -lt 80 ]; do
 done > "$RVP/autonomy"
 printf 'commission\n' >> "$RVP/autonomy"; printf 'stamp\n' > "$RVP/autonomy.commission"
 _rvbefore="$(_rvrest)"; cp "$RVP/autonomy" "$TMP/rv.held"; _rwcut
-_rvclosed "whose replacement is cut short by the file-size limit"
+_rvclosed "whose replacement is cut short by the file-size limit" always
 
 # C7: a link planted at the first fix's temporary name is not written through.
 _rvset '# h\ncommission\n'; printf 'precious\n' > "$TMP/rw.precious"; printf 'precious\n' > "$TMP/rw.want"
@@ -22133,6 +22141,228 @@ rmdir "$RV2K" 2>/dev/null
 chmod "$_rwmode" "$RVP"
 is "the widget's directory holds exactly what it held before the review findings were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_rwstart"
+
+printf '\nrevoke reaches every reader, and leaves alone what it does not change\n'
+# 2026-10-08: a second review of the revoke fix found the revoke narrower than
+# the readers still deployed. An older engine's reader trims [[:space:]] in
+# the caller's locale, so tidy followed by a no-break space is a grant to that
+# engine in a macOS UTF-8 session, and this engine's revoke kept the line. A
+# revoke now removes every line any reader could take as the grant: trimmed at
+# both ends of ASCII whitespace and of every byte from 0x80 up. It found the
+# revoke wider than its change, too: a revoke that removed nothing rewrote the
+# file onto a new inode at mode 600, replaced a link and refused in a read-only
+# directory. These pin a no-op to leaving the file alone and a real rewrite to
+# keeping the mode; both flags and any stray word checked before anything is
+# written; refusals that say only what is true; the read-back held by the CLI
+# as well as by the library; the gaps the review's mutants slipped through;
+# and a reader that stays linear in the size of the file, measured in CPU
+# because this machine's load makes wall time meaningless.
+RV3K="$TMP/revoke-keep-3"; mkdir -p "$RV3K"
+_r3start="$(ls -A "$RVP" | LC_ALL=C sort)"
+_r3dmode="$(stat -c %a "$RVP" 2>/dev/null)" || _r3dmode="$(stat -f %Lp "$RVP")"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV3K/"; done
+_r3mode() { stat -L -c %a "$1" 2>/dev/null || stat -L -f %Lp "$1"; }   # FILE: its permission bits, through a link
+_r3ino() { ls -i "$1" | awk '{print $1}'; }   # FILE: its inode, the link's own when it is a link
+_r3type() { if [ -L "$1" ]; then echo link; elif [ -f "$1" ]; then echo regular; else echo other; fi; }
+_r3cmp() { cmp -s "$1" "$2" && echo same || echo differs; }   # A B
+_r3has() { case "$1" in *"$2"*) echo "$3" ;; *) echo "$4" ;; esac; }   # TEXT WORD IF-HELD IF-NOT
+# main's felix_autonomy_allows as of 6fe5f986, copied under another name: the
+# reader every engine before this fix still runs.
+_rvold() {
+  local proj="$1" want="$2" line
+  [ -n "$want" ] || return 1
+  [ -f "$proj/autonomy" ] || return 1
+  while IFS= read -r line || [ -n "$line" ]; do
+    case "$line" in ''|'#'*) continue ;; esac
+    # Trimmed, because a trailing space in a hand-edited file should not be the
+    # difference between a permission holding and silently not.
+    line="${line%"${line##*[![:space:]]}"}"
+    line="${line#"${line%%[![:space:]]*}"}"
+    [ "$line" = "$want" ] && return 0
+  done < "$proj/autonomy"
+  return 1
+}
+_r3old() { ( export LC_ALL="$1"; _rvold "$RVP" "$2" && echo yes || echo no ) 2>/dev/null; }   # LOCALE CAP
+_r3gone() {   # SHAPE: a header, then SHAPE as printf writes it, revoked as tidy under C -> exit:said:file
+  _rvset "# h\\n$1\\n"; _rwloc C tidy; printf '# h\n' > "$TMP/rw.want"
+  printf '%s:%s:%s' "$_rvrc" "$(_rvsaid tidy)" "$(_rwis)"
+}
+
+# D1: a revoke takes every line any reader could take as the grant.
+is "a revoke of tidy removes tidy followed by a no-break space, exits 0 and says revoked: tidy" \
+   "$(_r3gone 'tidy\302\240')" "0:said:same"
+is "a revoke of tidy removes tidy preceded by a no-break space, exits 0 and says revoked: tidy" \
+   "$(_r3gone '\302\240tidy')" "0:said:same"
+is "a revoke of tidy removes tidy followed by an em space, exits 0 and says revoked: tidy" \
+   "$(_r3gone 'tidy\342\200\203')" "0:said:same"
+is "a revoke of tidy removes tidy followed by an ideographic space, exits 0 and says revoked: tidy" \
+   "$(_r3gone 'tidy\343\200\200')" "0:said:same"
+is "a revoke of tidy removes tidy followed by a lone 0xA0 byte, exits 0 and says revoked: tidy" \
+   "$(_r3gone 'tidy\240')" "0:said:same"
+is "a revoke of tidy removes tidy followed by a stray UTF-8 lead byte, exits 0 and says revoked: tidy" \
+   "$(_r3gone 'tidy\303')" "0:said:same"
+_rvset '# h\ntidyx\nxtidy\n# tidy\302\240\nti dy\ncommission\ntidy\n'; _rwloc C tidy
+printf '# h\ntidyx\nxtidy\n# tidy\302\240\nti dy\ncommission\n' > "$TMP/rw.want"
+is "a revoke of tidy keeps tidyx, xtidy, a comment of tidy and a no-break space, ti dy and commission byte for byte" \
+   "$_rvrc:$(_rwis)" "0:same"
+_rvset '\302\240tidy\n'; _r3w="$(_rwboth tidy)"
+_rvset 'tidy\343\200\200\n'; _r3w="$_r3w:$(_rwboth tidy)"
+_rvset 'tidy\303\n'; _r3w="$_r3w:$(_rwboth tidy)"
+_rwuis "this engine's reader takes neither a leading no-break space, an ideographic space nor a lead byte as part of a tidy grant" \
+   "$_r3w" "no:no:no:no:no:no"
+_r3a=""; _r3b=""
+if [ -n "$_rwu" ]; then
+  _rvset 'tidy\302\240\n'; _r3a="$(_r3old "$_rwu" tidy)"
+  _rvset 'tidy\342\200\203\n'; _r3b="$(_r3old "$_rwu" tidy)"
+fi
+_rwuis "before any revoke an older engine's reader under UTF-8 takes tidy and a no-break space or an em space as a grant" \
+   "$(_r3has "$_r3a$_r3b" yes found neither)" "found"
+_rvset '# h\ntidy\302\240\ntidy\342\200\203\n'; _rwloc "${_rwu:-C}" tidy
+_rwuis "after a revoke of tidy under UTF-8 an older engine's reader under UTF-8 finds no tidy" \
+   "$_rvrc:$(_r3old "${_rwu:-C}" tidy)" "0:no"
+
+# D2: a revoke that removes nothing leaves the file alone.
+_rvset '# h\ncommission\n'; chmod 644 "$RVP/autonomy"; cp "$RVP/autonomy" "$TMP/rw.want"
+_r3i="$(_r3ino "$RVP/autonomy")"; _rvrun tidy
+is "a revoke of tidy where no line grants it exits 0 and says revoked: tidy" "$_rvrc:$(_rvsaid tidy)" "0:said"
+is "and that no-op revoke leaves the grant file on the same inode" "$(_r3ino "$RVP/autonomy")" "$_r3i"
+is "and the no-op revoke leaves the grant file's mode at 644" "$(_r3mode "$RVP/autonomy")" "644"
+is "and the no-op revoke leaves the grant file's bytes as they were" "$(_rwis)" "same"
+_rvset '# h\ncommission\n'; rm -f "$RVP/autonomy"
+printf '# h\ncommission\n' > "$TMP/r3.target"; cp "$TMP/r3.target" "$TMP/rw.want"
+ln -s "$TMP/r3.target" "$RVP/autonomy"; _rvrun tidy
+is "a no-op revoke of tidy through a linked grant file exits 0 and leaves autonomy a link" \
+   "$_rvrc:$(_r3type "$RVP/autonomy")" "0:link"
+is "and the no-op revoke through the link leaves its target byte-identical" "$(_r3cmp "$TMP/rw.want" "$TMP/r3.target")" "same"
+_rvset '# h\ncommission\n'; chmod a-w "$RVP"; _rvrun tidy; chmod "$_r3dmode" "$RVP"
+is "a no-op revoke of tidy in a read-only project directory exits 0 and says revoked: tidy" \
+   "$_rvrc:$(_rvsaid tidy)" "0:said"
+
+# D3: a revoke that removes a line keeps the file's mode.
+_rvset '# h\ntidy\ncommission\n'; chmod 644 "$RVP/autonomy"; _rvrun tidy
+is "a revoke that removes a line leaves a 644 grant file at 644" "$_rvrc:$(_r3mode "$RVP/autonomy")" "0:644"
+_rvset '# h\ntidy\ncommission\n'; chmod 640 "$RVP/autonomy"; _rvrun tidy
+is "a revoke that removes a line leaves a 640 grant file at 640" "$_rvrc:$(_r3mode "$RVP/autonomy")" "0:640"
+
+# D4: a linked grant file is replaced, and what it pointed at is not written.
+_rvset '# h\ncommission\n'; rm -f "$RVP/autonomy"
+printf '# h\ncommission\n' > "$TMP/r3.target"; cp "$TMP/r3.target" "$TMP/rw.want"
+ln -s "$TMP/r3.target" "$RVP/autonomy"; _rvrun commission
+is "a revoke of commission through a linked grant file exits 0 and leaves a regular file without the grant" \
+   "$_rvrc:$(_r3type "$RVP/autonomy"):$(_rvallows commission)" "0:regular:no"
+is "and the revoke through the link leaves the file it pointed at byte-identical" \
+   "$(_r3cmp "$TMP/rw.want" "$TMP/r3.target")" "same"
+
+# D5 and D13: every argument is checked before anything is written.
+_rvset '# h\ntidy\ncommission\n'; _rwheld="$(_rwsnap)"; _rwcli --revoke tidy commission
+is "a revoke of tidy followed by a stray word exits non-zero and says nothing revoked" \
+   "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+is "and the revoke with a stray word leaves every autonomy file byte-identical" "$(_rwsame)" "same"
+has "and the revoke with a stray word says unexpected argument on stderr" "$_rverr" "unexpected argument"
+_rvset '# h\ntidy\ncommission\n'; _rwheld="$(_rwsnap)"; _rwcli --revoke tidy --allow Commission
+is "a revoke of tidy beside an allow of Commission exits non-zero and names an unknown capability" \
+   "$(_rwexit):$(_rwunk)" "refused:unknown"
+is "and the revoke beside a bad allow leaves every autonomy file byte-identical, the tidy grant included" \
+   "$(_rwsame)" "same"
+
+# D6: refusals say what is true.
+_rvset '# a\000b\ntidy\ncommission\n'; _rvrun commission
+has "a refused revoke of a NUL-holding file says on stderr it must be mended by hand" "$_rverr" "by hand"
+is "and the refused revoke of the NUL-holding file does not claim it grants nothing anyone can read" \
+   "$(_r3has "$_rverr" 'grants nothing anyone can read' claimed honest)" "honest"
+if [ "$_rvperm" = 0 ]; then
+  for _r3n in "a refused revoke of tidy from an unreadable file exits non-zero and says nothing of a stamp" \
+              "a refused revoke of commission from an unreadable file says its stamp is left in place" \
+              "a revoke of an unreadable empty grant file exits non-zero and says nothing revoked"; do
+    skip "$_r3n" "permission bits do not bind this user"
+  done
+else
+  _rvset '# h\ntidy\n'; chmod 000 "$RVP/autonomy"; _rvrun tidy; chmod 644 "$RVP/autonomy"
+  is "a refused revoke of tidy from an unreadable file exits non-zero and says nothing of a stamp" \
+     "$(_rwexit):$(_rwsaid stamp)" "refused:silent"
+  _rvset '# h\ncommission\n'; chmod 000 "$RVP/autonomy"; _rvrun commission; chmod 644 "$RVP/autonomy"
+  has "a refused revoke of commission from an unreadable file says its stamp is left in place" \
+      "$_rverr" "stamp is left in place"
+  # D14: an empty file is no grant, but one that cannot be read is not known empty.
+  rm -f "$RVP"/autonomy*; : > "$RVP/autonomy"; chmod 000 "$RVP/autonomy"; _rvrun commission
+  chmod 644 "$RVP/autonomy"
+  is "a revoke of an unreadable empty grant file exits non-zero and says nothing revoked" \
+     "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+fi
+
+# D7: the CLI, not only the library, refuses a read-back that still finds the grant.
+_rvset '# h\ncommission\n'; cp "$FROOT/harness/lib/autonomy.sh" "$TMP/r3.lib"
+printf '\nfelix_autonomy_allows() { return 0; }\n' >> "$FROOT/harness/lib/autonomy.sh"; _rvrun commission
+cp "$TMP/r3.lib" "$FROOT/harness/lib/autonomy.sh"; rm -f "$TMP/r3.lib"
+is "a revoke whose read-back still finds the grant exits non-zero and says nothing revoked" \
+   "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+is "and the revoke refused on its read-back keeps the commission stamp" "$(_rvstamp)" "kept"
+has "and the revoke refused on its read-back says the reader still finds the grant" "$_rverr" "still finds the grant"
+
+# D8 and D9: no line is joined to the next, and no kept line is read as a format.
+_rvset 'tid\\\ny\n'
+_rwuis "a line ending in a backslash is not joined to the next to make a tidy grant, under C or UTF-8" \
+   "$(_rwboth tidy)" "no:no"
+printf 'tid\\\ny\n' > "$TMP/rw.want"; _rvrun tidy
+is "a revoke of tidy keeps a backslash-ended line and the line after it byte for byte" "$_rvrc:$(_rwis)" "0:same"
+_rvset '# 50%% off, %%s and C:\\new\ncommission\n'; _rvrun commission
+printf '# 50%% off, %%s and C:\\new\n' > "$TMP/rw.want"
+is "a revoke of commission keeps a comment holding percent directives and a backslash byte for byte" \
+   "$_rvrc:$(_rwis)" "0:same"
+
+# D10: a UTF-8 caller.
+_rvset '# caf\303\251\ncommission\n'; _rwloc "${_rwu:-C}" commission; printf '# caf\303\251\n' > "$TMP/rw.want"
+_rwuis "a revoke of commission run under UTF-8 leaves exactly the accented comment above it" "$_rvrc:$(_rwis)" "0:same"
+
+# D11: a link planted at a temporary name built from the revoking pid.
+_rvset '# h\ncommission\n'; printf 'precious\n' > "$TMP/r3.precious"; printf 'precious\n' > "$TMP/rw.want"
+( cd "$REPO" && exec sh -c 'ln -s "$1" "$2/autonomy.new.$$" && exec "$3" autonomy --revoke commission' \
+    _ "$TMP/r3.precious" "$RVP" "$FELIX" ) > "$TMP/rv.out" 2> "$TMP/rv.err"
+_rvrc=$?; _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+is "a revoke beside a link planted at autonomy.new and its own pid runs and leaves the link's target as it was" \
+   "$([ -n "$_rvout$_rverr" ] && echo ran || echo silent):$(_r3cmp "$TMP/rw.want" "$TMP/r3.precious")" "ran:same"
+rm -f "$RVP"/autonomy.new.*
+
+# D12: a directory at autonomy grants nothing.
+rm -f "$RVP"/autonomy*; mkdir "$RVP/autonomy"; _rvrun commission
+is "a revoke of commission where autonomy is a directory exits 0 and says revoked: commission" \
+   "$_rvrc:$(_rvsaid commission)" "0:said"
+rm -rf "$RVP/autonomy"
+
+# D15: a rewrite cut short prints none of the file it was writing.
+rm -f "$RVP"/autonomy*; _r3i=0
+while [ "$_r3i" -lt 80 ]; do
+  [ "$_r3i" = 40 ] && printf '# revoked: commission, 2026-09-01, then granted again\n'
+  printf '# kept line %02d, one of enough to carry this file past the write limit\n' "$_r3i"
+  _r3i=$((_r3i+1))
+done > "$RVP/autonomy"
+printf 'commission\n' >> "$RVP/autonomy"; printf 'stamp\n' > "$RVP/autonomy.commission"; _rwcut
+is "a revoke cut short by the file-size limit prints none of the grant file's text on stdout" \
+   "$(_r3has "$_rvout" 'kept line' printed quiet):$(_r3has "$_rvout" 'write limit' printed quiet):$(_r3has "$_rvout" 'granted again' printed quiet)" \
+   "quiet:quiet:quiet"
+
+# D16: the reader is linear. About 400 KB of comments ahead of the grant, read
+# by a fresh bash whose own times are summed, user and system, it and its
+# children, and a CPU limit that stops a quadratic reader well short of minutes.
+rm -f "$RVP"/autonomy*; _r3i=0
+while [ "$_r3i" -lt 8000 ]; do
+  printf '# line %04d of eight thousand ahead of the grant\n' "$_r3i"; _r3i=$((_r3i+1))
+done > "$RVP/autonomy"
+printf 'tidy\n' >> "$RVP/autonomy"
+_r3cpu="$( ( ulimit -t 5; LC_ALL=C "$BASH" -c '. "$1/harness/lib/autonomy.sh"
+             felix_autonomy_allows "$2" tidy && echo yes || echo no; times' _ "$FROOT" "$RVP" ) 2>/dev/null )"
+is "the reader answers yes for tidy after 8000 comment lines using at most 3 seconds of CPU" \
+   "$(printf '%s\n' "$_r3cpu" | awk 'NR == 1 { a = $0; next }
+        { for (i = 1; i <= NF; i++) { split($i, p, "m"); sub(/s$/, "", p[2]); t += p[1] * 60 + p[2] } }
+        END { if (NR < 3) print "killed"; else printf "%s:%s\n", a, (t <= 3 ? "within" : "over " t) }')" \
+   "yes:within"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/r3.target" "$TMP/r3.precious"
+for _rvf in "$RV3K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV3K" 2>/dev/null
+chmod "$_r3dmode" "$RVP"
+is "the widget's directory holds exactly what it held before revoke's reach was tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r3start"
 
 # ---- allow-grant block begin
 printf '\nallow says allowed only when the grant holds\n'

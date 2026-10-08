@@ -1810,7 +1810,7 @@ cmd_autonomy() {
     if [ "$allow" = commission ]; then
       stamp="$(felix_autonomy_stamp_path "$proj" commission)"
       swhat="$(felix_not_replaceable "$stamp")" \
-        && die "nothing was written for commission: $stamp, where its stamp goes, is $swhat. Remove it, and run felix autonomy --allow commission again"
+        && die "nothing was written for commission: its stamp $stamp is $swhat. Remove it, and run felix autonomy --allow commission again"
     fi
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"

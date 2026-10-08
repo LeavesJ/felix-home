@@ -38,9 +38,10 @@ set -uo pipefail
 # these names: the comment above the same line in engine/harness/felix.
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
 
-# Git's colour stays off for every git this runs, whatever the caller set. Why,
-# and why these keys: the comment above the same lines in engine/harness/felix.
-_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never'"
+# Git's colour stays off for every git this runs, whatever colour settings the
+# caller made. Why, why these keys, and what is out of reach: the comment above
+# the same lines in engine/harness/felix.
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;

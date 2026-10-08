@@ -17,9 +17,10 @@ set -uo pipefail
 # these names: the comment above the same line in engine/harness/felix.
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
 
-# Git's colour stays off for every git this runs, whatever the caller set. Why,
-# and why these keys: the comment above the same lines in engine/harness/felix.
-_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never'"
+# Git's colour stays off for every git this runs, whatever colour settings the
+# caller made. Why, why these keys, and what is out of reach: the comment above
+# the same lines in engine/harness/felix.
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
@@ -39589,7 +39590,8 @@ printf '\na person'"'"'s git colour configuration never reaches what the engine 
 # engine parses start with an escape, so `^+`, `^??` and `diff --git` stop
 # matching. The decided mechanism: every executable under engine/harness
 # appends eleven `'color.<key>=never'` entries to GIT_CONFIG_PARAMETERS and
-# exports it, once, without forking.
+# exports it, once, without forking. (After review the entries are thirteen:
+# see the section that ends this block.)
 #
 # This suite is itself one of those executables, so once it carries the pin
 # everything it starts inherits a pinned value. Every drive below therefore
@@ -39628,7 +39630,7 @@ GCH="$(cd "$TMP" && pwd -P)/gcolour"
 GCT="${GCH%/gcolour}"
 mkdir -p "$GCH/home/.config" "$GCH/hcolour/.config" "$GCH/shim" "$GCH/refuse" "$GCH/regions" "$GCH/redcopy/tests"
 _gc_esc="$(printf '\033')"
-_gc_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never'"
+_gc_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 _gc_realgit="$(command -v git)"
 _gc_run() {   # [VAR=value ...] cmd args: with no git configuration of the caller's or the machine's
   env -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM \
@@ -39751,54 +39753,54 @@ is "colour forced on by a caller's new-format GIT_CONFIG_PARAMETERS entry for a 
 
 # ---- P6 for bin/secret-scan, then P3, P4 and P5 as git receives them.
 _gc_shimscan >/dev/null
-is "bin/secret-scan started with no GIT_CONFIG_PARAMETERS calls git with exactly the eleven colour entries, every time" \
+is "bin/secret-scan started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 
 _gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p=1'")"
 is "a caller's old-format GIT_CONFIG_PARAMETERS entry still reaches every git call bin/secret-scan makes, first" \
    "$(_gc_shim_starts "'gcfix.p=1'")" "ok"
-is "and the eleven colour entries follow it after one space" \
+is "and the thirteen colour entries follow it after one space" \
    "$(_gc_shim_is "'gcfix.p=1' $_gc_pin")" "ok"
 is "and git accepts the result as it accepted the caller's value: bin/secret-scan still finds the credential" \
    "$(_gc_found "$_gc_o")" "found"
 _gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p'='1'")"
 is "a caller's new-format GIT_CONFIG_PARAMETERS entry still reaches every git call bin/secret-scan makes, first" \
    "$(_gc_shim_starts "'gcfix.p'='1'")" "ok"
-is "and the eleven old-format colour entries follow it after one space" \
+is "and the thirteen old-format colour entries follow it after one space" \
    "$(_gc_shim_is "'gcfix.p'='1' $_gc_pin")" "ok"
 is "and git accepts that mix: bin/secret-scan still finds the credential" \
    "$(_gc_found "$_gc_o")" "found"
 _gc_o="$(_gc_shimscan GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gcfix.c GIT_CONFIG_VALUE_0=1)"
 is "a caller's GIT_CONFIG_COUNT, its key and its value reach every git call bin/secret-scan makes unchanged" \
    "$(_gc_shim_fields - 1 gcfix.c 1)" "ok"
-is "and beside it GIT_CONFIG_PARAMETERS is exactly the eleven colour entries" \
+is "and beside it GIT_CONFIG_PARAMETERS is exactly the thirteen colour entries" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 is "and git accepts both: bin/secret-scan still finds the credential" \
    "$(_gc_found "$_gc_o")" "found"
 
 # P4. Idempotent across nesting, by the whole-entry suffix and nothing looser.
 _gc_shimscan GIT_CONFIG_PARAMETERS="$_gc_pin" >/dev/null
-is "a GIT_CONFIG_PARAMETERS that is exactly the eleven colour entries reaches git unchanged, not doubled" \
+is "a GIT_CONFIG_PARAMETERS that is exactly the thirteen colour entries reaches git unchanged, not doubled" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 _gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p=1' $_gc_pin" >/dev/null
-is "one that ends in the eleven colour entries after a caller's own entry reaches git unchanged" \
+is "one that ends in the thirteen colour entries after a caller's own entry reaches git unchanged" \
    "$(_gc_shim_is "'gcfix.p=1' $_gc_pin")" "ok"
 _gc_shimscan GIT_CONFIG_PARAMETERS="$_gc_pin 'gcfix.p=1'" >/dev/null
-is "one that holds the eleven colour entries earlier but ends in another entry gets them appended again" \
+is "one that holds the thirteen colour entries earlier but ends in another entry gets them appended again" \
    "$(_gc_shim_is "$_gc_pin 'gcfix.p=1' $_gc_pin")" "ok"
-_gc_shimscan GIT_CONFIG_PARAMETERS="'color.status=never' 'color.transport=never'" >/dev/null
-is "one that ends in only the last two of the colour entries gets all eleven appended" \
-   "$(_gc_shim_is "'color.status=never' 'color.transport=never' $_gc_pin")" "ok"
-# Text that ends like the eleven but not as whole entries: here the first of
+_gc_shimscan GIT_CONFIG_PARAMETERS="'color.pager=false' 'blame.coloring=none'" >/dev/null
+is "one that ends in only the last two of the colour entries gets all thirteen appended" \
+   "$(_gc_shim_is "'color.pager=false' 'blame.coloring=none' $_gc_pin")" "ok"
+# Text that ends like the thirteen but not as whole entries: here the first of
 # them is the quoted value of a new-format key, so git reads color.ui=never as
 # gcfix.p's value and not as color.ui at all.
 _gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p'=$_gc_pin" >/dev/null
-is "one whose text ends like the eleven colour entries, but not as whole entries, gets them appended" \
+is "one whose text ends like the thirteen colour entries, but not as whole entries, gets them appended" \
    "$(_gc_shim_is "'gcfix.p'=$_gc_pin $_gc_pin")" "ok"
 
 # P5. Judged the way git judges it, measured against raw git with the same value.
 _gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS=)"
-is "an empty GIT_CONFIG_PARAMETERS becomes exactly the eleven colour entries" \
+is "an empty GIT_CONFIG_PARAMETERS becomes exactly the thirteen colour entries" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 is "and git accepts it as it accepted the empty value: bin/secret-scan still finds the credential" \
    "$(_gc_found "$_gc_o")" "found"
@@ -39895,7 +39897,7 @@ is "colour fixture: felix receipt names a tree fingerprint for the dirty tree" \
    "$([ -n "$_gc_t0" ] && printf named)" "named"
 is "colour fixture: felix receipt's secret-scan child ran under the shim" \
    "$(_gc_scanran)" "ran"
-is "every git call under felix receipt started with no GIT_CONFIG_PARAMETERS, its secret-scan child included, receives the eleven colour entries exactly once" \
+is "every git call under felix receipt started with no GIT_CONFIG_PARAMETERS, its secret-scan child included, receives the thirteen colour entries exactly once" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 _gc_colour "$GCW" on
 is "colour fixture: raw git diff in the receipt repository, with its own config forcing colour, writes an escape byte" \
@@ -39961,7 +39963,7 @@ is "colour fixture: felix gate ran the project's gate.sh, which wrote the commit
 is "with colour forced on by the repository's own config, a project's gate.sh under felix gate reads git log, diff, grep and status with no escape byte" \
    "$(_gc_hasesc "$(cat "$GCH/gate.out")") $(grep -c '^log=' "$GCH/gate.out")" "no 1"
 # P6 for felix, through the child it starts.
-is "felix started with no GIT_CONFIG_PARAMETERS hands its gate child exactly the eleven colour entries" \
+is "felix started with no GIT_CONFIG_PARAMETERS hands its gate child exactly the thirteen colour entries" \
    "$(sed -n 's/^env=//p' "$GCH/gate.out")" "$_gc_pin"
 _gc_colour "$GCD" off
 # P3 through felix and a child of it: a non-colour key from each caller channel
@@ -39972,7 +39974,7 @@ _gc_colour "$GCD" off
     "$FELIX" gate >/dev/null 2>&1 )
 is "a project's gate.sh under felix gate still reads a non-colour key from the caller's GIT_CONFIG_PARAMETERS and one from the caller's GIT_CONFIG_COUNT, which arrives unchanged" \
    "$(sed -n 's/^p=/p=/p; s/^c=/c=/p; s/^count=/count=/p' "$GCH/gate.out" | tr '\n' ' ')" "count=1 p=yes c=yes "
-is "and it sees the caller's GIT_CONFIG_PARAMETERS with the eleven colour entries appended after one space" \
+is "and it sees the caller's GIT_CONFIG_PARAMETERS with the thirteen colour entries appended after one space" \
    "$(sed -n 's/^env=//p' "$GCH/gate.out")" "'gcfix.p=yes' $_gc_pin"
 # The same for the new format: git still reads the caller's key, not only
 # accepts the value.
@@ -39986,7 +39988,7 @@ is "a project's gate.sh under felix gate still reads a non-colour key from the c
 : > "$GCH/shim.log"
 ( cd "$GCD" || exit 1
   _gc_run env PATH="$GCH/shim:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" </dev/null >/dev/null 2>&1 )
-is "hooks/session-start started with no GIT_CONFIG_PARAMETERS calls git with exactly the eleven colour entries, every time" \
+is "hooks/session-start started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time" \
    "$(_gc_shim_is "$_gc_pin")" "ok"
 # The copy has the engine's lib beside it, as tests/red has in the tree, and no
 # tests/run, so it cannot start a suite whatever happens.
@@ -39994,7 +39996,7 @@ cp "$FROOT/harness/tests/red" "$GCH/redcopy/tests/red" && chmod +x "$GCH/redcopy
 cp -R "$FROOT/harness/lib" "$GCH/redcopy/lib"
 : > "$GCH/shim.log"
 ( cd "$GCH" || exit 1; _gc_run env PATH="$GCH/refuse:$PATH" "$GCH/redcopy/tests/red" >/dev/null 2>&1; printf '%s' "$?" > "$GCH/red.rc" )
-is "tests/red started with no GIT_CONFIG_PARAMETERS has exactly the eleven colour entries on its first git call, and stops there when git refuses" \
+is "tests/red started with no GIT_CONFIG_PARAMETERS has exactly the thirteen colour entries on its first git call, and stops there when git refuses" \
    "$(_gc_shim_is "$_gc_pin") rc=$(cat "$GCH/red.rc" 2>/dev/null)" "ok rc=2"
 
 # ---- P6 and P7, read from the text of every executable file, as each must
@@ -40094,7 +40096,7 @@ for _gc_f in $_gc_exes; do
 done
 is "every executable file under engine/harness pins git colour after its caller-environment unset line and before its first git command" \
    "$_gc_order" ""
-is "each executable file's pin, run on its own, exports exactly the eleven colour entries, appends them to a caller's entry and leaves a value already ending in them alone" \
+is "each executable file's pin, run on its own, exports exactly the thirteen colour entries, appends them to a caller's entry and leaves a value already ending in them alone" \
    "$_gc_sem" ""
 is "every executable file has a pin, and no line of any of them holds a command substitution, a process substitution or a backtick" \
    "$_gc_text" ""
@@ -40104,6 +40106,37 @@ else
   is "every executable file's pin, held to one process, exports what it exports unheld and tries no fork" \
      "$_gc_nfl" ""
 fi
+
+# ---- Added after the adversarial review, 2026-10-08, and not blind. The
+# review found two colour sources the contract's eleven entries missed, and
+# the pin grew to thirteen for them:
+# - GIT_PAGER_IN_USE. git exports it to whatever it starts beside a pager.
+#   Plumbing (`diff-tree -p`) reads no family key, so under it plumbing
+#   coloured a pipe until color.pager=false.
+# - blame.coloring, the one documented colour switch outside color.*.
+# Each is held here by behaviour, through a project's gate under felix gate,
+# with its raw-git control beside it. A pin without either entry reds its
+# row. Above this line, only _gc_pin, the word thirteen in names that count
+# entries, and the partial-suffix case (now the pin's actual last two
+# entries) changed from what was written blind.
+_gcg config --file "$GCD/.git/config" blame.coloring highlightRecent
+cat > "$GCPD/gate.sh" <<EOF
+#!/bin/sh
+e="\$(printf '\\033')"
+{ printf 'plumb='; git diff-tree -p HEAD | grep -c "\$e"
+  printf 'blame='; git blame notes.txt | grep -c "\$e"; } > "$GCH/gate2.out" 2>&1
+echo gcolour-gate2-ran
+EOF
+chmod +x "$GCPD/gate.sh"
+is "colour fixture: raw git diff-tree -p with GIT_PAGER_IN_USE set and a colour terminal writes an escape byte, with no colour configuration at all" \
+   "$(_gc_hasesc "$(_gc_run env GIT_PAGER_IN_USE=true TERM=xterm-256color "$_gc_realgit" -C "$GCD" diff-tree -p HEAD 2>/dev/null)")" "yes"
+is "colour fixture: raw git blame in a repository whose own config sets blame.coloring=highlightRecent writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_run "$_gc_realgit" -C "$GCD" blame notes.txt 2>/dev/null)")" "yes"
+: > "$GCH/gate2.out"
+_gc_go="$( cd "$GCD" || exit 1; _gc_run env GIT_PAGER_IN_USE=true TERM=xterm-256color "$FELIX" gate 2>&1 )"
+is "a project's gate.sh under felix gate, started with GIT_PAGER_IN_USE set and a colour terminal, reads git diff-tree -p and git blame under blame.coloring=highlightRecent with no escape byte" \
+   "$(case "$_gc_go" in (*gcolour-gate2-ran*) printf ran ;; esac) $(tr '\n' ' ' < "$GCH/gate2.out")" "ran plumb=0 blame=0 "
+_gcg config --file "$GCD/.git/config" --unset blame.coloring
 
 unset GCH GCT GCS GCW GCD GCPD _gc_esc _gc_pin _gc_realgit _gc_key _gc_ss _gc_o _gc_r _gc_rp _gc_cp _gc_rc _gc_cc \
       _gc_v _gc_t0 _gc_hf _gc_go _gc_exes _gc_f _gc_rf _gc_order _gc_sem _gc_text _gc_a _gc_b _gc_c _gc_t _gc_nf \

@@ -5065,6 +5065,23 @@ cmd_decisions() {
   printf 'this data - HANDOFF 0af and docs/2026-08-30-advisory-redesign.md B.\n'
 }
 
+# VAR STRING: the number of lines of STRING that are not empty, assigned to VAR
+# and counted in this shell. A substitution around grep -c can come back empty
+# with no failure at all (a fork that fails inside it), and a count that is empty
+# reads as none, so a report that keys on it says there is nothing over a list it
+# had already read. No locals and no named variable of its own, because a local
+# of the name the caller passed would take the assignment and a global would
+# overwrite the caller's: everything is held in the positional parameters.
+_felix_count_lines() {
+  set -- "$1" "$2" 0 ""
+  while [ -n "$2" ]; do
+    set -- "$1" "$2" "$3" "${2%%$'\n'*}"
+    case "$2" in *$'\n'*) set -- "$1" "${2#*$'\n'}" "$3" "$4" ;; *) set -- "$1" "" "$3" "$4" ;; esac
+    [ -z "$4" ] || set -- "$1" "$2" $(($3 + 1)) "$4"
+  done
+  printf -v "$1" '%s' "$3"
+}
+
 # What each moment has to answer for, and what nothing answers yet.
 #
 # The gap list is the product. A project that has taken no stances sees every
@@ -5089,18 +5106,25 @@ cmd_procedures() {
   # in for the gap and orphan sections and the closing claim; the stance,
   # malformed-row and unknown-moment sections do not read the list and print as
   # they did.
-  local n_item n_gap n_stance items="" gaps="" orphans="" punread=0
+  #
+  # Until 2026-10-08 the counts of those lists, once read, were taken with
+  # `$(printf ... | grep -c .)`, and the gap section and the closing all-clear
+  # keyed on the count: one that came back empty (a fork that failed inside the
+  # substitution) read as none, so the report said every item had a stance over
+  # gaps it had in hand. Now the sections are decided from the captured strings
+  # themselves, and the two counts that are printed are taken in this shell.
+  local n_item=0 n_gap=0 items="" gaps="" orphans="" stanced="" punread=0
   felix_capture items felix_procedures_items "$proj" "$root" || punread=1
   felix_capture gaps felix_procedures_gaps "$proj" "$root" "$tpl" || punread=1
   felix_capture orphans felix_procedures_orphans "$proj" "$root" || punread=1
-  n_item="$(printf '%s\n' "$items" | grep -c .)"
-  n_gap="$(printf '%s\n' "$gaps" | grep -c .)"
-  n_stance="$(felix_procedures_wellformed "$proj" | grep -c .)"
+  felix_capture stanced felix_procedures_wellformed "$proj" || stanced=""
+  _felix_count_lines n_item "$items"
+  _felix_count_lines n_gap "$gaps"
 
   # Stances first, by moment, so what IS handled reads as the smaller thing it
   # currently is rather than as the summary.
   local m item moment by line shown
-  if [ "${n_stance:-0}" -gt 0 ]; then
+  if [ -n "$stanced" ]; then
     while IFS= read -r m; do
       [ -n "$m" ] || continue
       shown=0
@@ -5128,7 +5152,7 @@ EOF
     printf 'which items have no stance, and which stances name nothing that exists: not known: the capabilities this project declares could not be read\n\n'
     printf 'That is not "every item has one": the list of capabilities was never seen,\n'
     printf 'so no item was compared with a stance.\n'
-  elif [ "${n_gap:-0}" -gt 0 ]; then
+  elif [ -n "$gaps" ]; then
     printf 'nothing answers these\n\n'
     printf '%s\n' "$gaps" | while IFS= read -r item; do
       [ -n "$item" ] || continue
@@ -5188,7 +5212,7 @@ EOF
     printf 'moment in templates/moments.tsv, or correct the row.\n'
   fi
 
-  if [ "$punread" -eq 0 ] && [ "${n_gap:-0}" -eq 0 ] && [ -z "$unknown" ] && [ -z "$malformed" ] \
+  if [ "$punread" -eq 0 ] && [ -z "$gaps" ] && [ -z "$unknown" ] && [ -z "$malformed" ] \
      && [ -z "$orphans" ]; then
     printf 'Every item has a stance. That is a claim about this table, not about\n'
     printf 'the project: an item nothing enumerates cannot appear here, so this\n'

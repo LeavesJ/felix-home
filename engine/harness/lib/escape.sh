@@ -243,10 +243,12 @@ _felix_escape_shrank() {
   before="$(_felix_escape_lines "$root" "$base" "$f")"
   [ -n "$before" ] || return 1
   after="$(_felix_escape_lines "$root" HEAD "$f")"
-  # 2026-10-08: comm ran in the caller's locale over lines sorted in C, so under
-  # LANG=en_US.UTF-8 a pure addition to a deny table read as a removal (comm
-  # compared C-sorted lines in the locale's collation). Every sort, comm, join
-  # and uniq in the engine now runs as LC_ALL=C <tool>, linted by tests/run.
+  # 2026-10-08: comm compares in its locale's collation, and both sides are
+  # sorted in C. Under LANG=en_US.UTF-8, an added row that sorts before an
+  # existing one in bytes and after it in the locale (Zulu and _under) made
+  # comm print a row nobody removed, so a pure addition read as a removal.
+  # Every sort, comm, join and uniq in the engine runs as LC_ALL=C <tool>,
+  # which tests/run lints.
   [ -n "$(LC_ALL=C comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 

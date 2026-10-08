@@ -376,11 +376,13 @@ EOF
 # had actually named. The prompt is the claim; the tree only corroborates.
 felix_route_best() {
   local line
-  # 2026-10-08: macOS sort in a UTF-8 locale printed nothing on a play holding a
-  # byte that is not UTF-8, so no prompt was routed; the sort is pinned to C.
+  # 2026-10-08: in a UTF-8 locale, macOS sort printed nothing when any route's
+  # play held a byte that is not UTF-8, so no prompt was routed at all, and BSD
+  # cut failed on the picked line when the winner's own play held one. Both
+  # read bytes in C.
   line="$(felix_route_score "$1" "$2" "$3" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n | head -1)"
   [ -n "$line" ] || return 1
-  [ "$(printf '%s' "$line" | cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
+  [ "$(printf '%s' "$line" | LC_ALL=C cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
   printf '%s' "$line"
 }
 

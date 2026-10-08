@@ -23069,6 +23069,149 @@ for _lks in TERM INT HUP; do
   _lkreq "$_lkn2" "$(_lkexit "$_lkarc"):$(_lkrv "$_lkaout$_lkaerr")" "refused:silent"
 done
 
+
+# Mutation follow-ups, 2026-10-08. Each pins a case the assertions above could
+# not see, and each comment names the mutant of the fix that it kills.
+
+# L1 and L6 under a signal (kills: no HUP/INT/TERM traps). bash runs a trap
+# only once the foreground step has returned, so a revoke sent TERM or HUP
+# while its move onto the grant file is in flight keeps the lock until that
+# move has landed. A shell that died at once instead let the lock go with the
+# move still pending: a revoke of tidy started then took the lock and said
+# revoked:, and A's stale copy, tidy still in it, landed over it. A run that
+# stopped at once is gone well inside the 10 s given; one that waits on its
+# move is not.
+_lkmid() {   # SIG: run A paused in its move and sent SIG; run B, a revoke of tidy, run meanwhile; both reaped
+  _lkset 'tidy\ncommission\n'; _lkpaused=unreached; _lkkept=unreached; _lkbp=""; _lkbrc=""; _lkbended="never started"
+  _lkgo
+  if [ "$_lkreached" = yes ]; then
+    _lkpaused="$(_lklock)"
+    kill "-$1" "$_lka"
+    _lki=0; while kill -0 "$_lka" 2>/dev/null && [ "$_lki" -lt 100 ]; do sleep 0.1; _lki=$((_lki+1)); done
+    _lkkept="$(_lklock)"
+    ( cd "$REPO" && exec "$FELIX" autonomy --revoke tidy ) > "$TMP/lk-b.out" 2> "$TMP/lk-b.err" 8>&- &
+    _lkbp=$!
+    if _lkuntil "$_lkbp"; then _lkbended=ended; else _lkbended="still running after 30 s"; kill -KILL "$_lkbp" 2>/dev/null; fi
+    wait "$_lkbp"; _lkbrc=$?
+  fi
+  _lkend
+  _lkbout="$(cat "$TMP/lk-b.out" 2>/dev/null)"; _lkberr="$(cat "$TMP/lk-b.err" 2>/dev/null)"
+}
+for _lks in TERM HUP; do
+  _lkn1="a revoke sent SIG$_lks while its move onto the grant file is in flight holds the lock until that move has landed"
+  _lkn2="and a revoke of tidy run while that move is in flight says revoked: only if tidy stays revoked once both have ended"
+  if [ "$(_lkprobe "$_lks")" != yes ]; then
+    skip "$_lkn1" "SIG$_lks cannot reach a process this suite starts: it was ignored when the suite began"
+    skip "$_lkn2" "SIG$_lks cannot reach a process this suite starts: it was ignored when the suite began"
+    continue
+  fi
+  _lkmid "$_lks" 2>/dev/null
+  _lkreq "$_lkn1" "$_lkpaused:$_lkkept" "empty:empty"
+  _lkreq "$_lkn2" "$_lkbended:$(_lkclaim "$_lkbrc" "$_lkbout$_lkberr" 'revoked: tidy' tidy no)" "ended:holds"
+done
+
+# L5 for SIGINT sent to the shell alone, as kill -INT PID sends it, and not to
+# its process group as a Ctrl-C does (kills: no INT trap). The move in flight
+# lands, and then the run ends, says nothing and lets the lock go. Untrapped,
+# bash waiting on a child that survives an INT carries on as if none came, and
+# says revoked:.
+_lkn1="a revoke sent SIGINT alone, not its process group, while it holds the lock exits non-zero, does not say revoked: and leaves no lock"
+if [ "$(_lkprobe INT)" != yes ]; then
+  skip "$_lkn1" "SIGINT cannot reach a process this suite starts: it was ignored when the suite began"
+else
+  _lkint() {
+    _lkset 'tidy\ncommission\n'; _lkpaused=unreached
+    _lkgo
+    if [ "$_lkreached" = yes ]; then _lkpaused="$(_lklock)"; kill -INT "$_lka"; sleep 0.1; fi
+    _lkend
+  }
+  _lkint 2>/dev/null
+  _lkreq "$_lkn1" "$_lkpaused:$(_lklock):$(_lkexit "$_lkarc"):$(_lkrv "$_lkaout$_lkaerr")" "empty:absent:refused:silent"
+fi
+
+# L2 for a lock of any age (kills: a lock older than N seconds is taken over).
+# One found stale is still held: its run may only be slow or stopped (^Z), and
+# two runs that both judged it stale would both take it.
+_lkset 'tidy\ncommission\n'; mkdir "$_lkL"; touch -t 200001010000 "$_lkL"; _lkheld="$(_lkstate)"; _lkrun --revoke tidy
+is "with a lock dated 2000 held, a revoke of tidy refuses, says nothing, writes nothing and leaves the lock" \
+   "$(_lkexit "$_lkrc"):$(_lksaid "$_lkout$_lkerr"):$(_lksame):$(_lklock)" "refused:silent:same:empty"
+
+# L2 and L6 after the last write (kills: the lock let go early by hand while
+# the exit trap still releases it). A run's exit lets go only of a lock it
+# still holds, so it never removes one another run took after its last write.
+# Run A, the revoke of commission, is paused a second time, past its last
+# write, in the basename its status page calls. Run B, a revoke of commission,
+# starts then and pauses in its own move if it got the lock. A is let go and
+# ends; run C, a revoke of tidy, runs; then B's move lands.
+{ printf '#!/bin/sh\n_d=%s\n' "'$_lksh'"
+  cat <<'EOF'
+case "$1" in
+  */projects/widget)
+    if [ -e "$_d/barmed" ] && /bin/rm "$_d/barmed" 2>/dev/null; then
+      echo "$$" > "$_d/breached"
+      read -r _line < "$_d/brelease"
+    fi ;;
+esac
+exec /usr/bin/basename "$@"
+EOF
+} > "$_lksh/basename"; chmod +x "$_lksh/basename"
+_lklate() {   # sets _lkstage, _lkleft (B's state:the lock once A ended) and C's _lkcrc _lkcout _lkcerr
+  _lkset 'tidy\ncommission\n'; _lkstage="A never paused in its move"; _lkleft=unreached
+  _lkcrc=""; _lkcout=""; _lkcerr=""; _lkb3=""
+  rm -f "$_lksh/breached" "$_lksh/brelease" "$_lksh/barmed"
+  _lkgo
+  mkfifo "$_lksh/brelease" 2>/dev/null; exec 7<>"$_lksh/brelease"
+  if [ "$_lkreached" = yes ]; then
+    _lkstage="A never paused in its status page"
+    : > "$_lksh/barmed"; rm -f "$_lksh/reached"
+    printf 'go\n' >&8
+    _lki=0; while [ ! -s "$_lksh/breached" ] && [ "$_lki" -lt 300 ]; do sleep 0.1; _lki=$((_lki+1)); done
+    if [ -s "$_lksh/breached" ]; then
+      _lkstage=paused
+      : > "$_lksh/armed"
+      ( cd "$REPO" && PATH="$_lksh:$PATH" exec "$FELIX" autonomy --revoke commission ) \
+        > "$TMP/lk-b.out" 2> "$TMP/lk-b.err" 7>&- 8>&- &
+      _lkb3=$!
+      _lki=0
+      while [ ! -s "$_lksh/reached" ] && kill -0 "$_lkb3" 2>/dev/null && [ "$_lki" -lt 300 ]; do
+        sleep 0.1; _lki=$((_lki+1))
+      done
+      if [ -s "$_lksh/reached" ]; then _lkb3st=holding; else _lkb3st=refused; rm -f "$_lksh/armed"; fi
+      printf 'go\n' >&7
+      _lkuntil "$_lka" || kill -KILL "$_lka" 2>/dev/null
+      wait "$_lka"; _lka=""
+      _lkleft="$_lkb3st:$(_lklock)"
+      _lkrun --revoke tidy; _lkcrc="$_lkrc"; _lkcout="$_lkout"; _lkcerr="$_lkerr"
+    fi
+  fi
+  { printf 'go\n' >&7; } 2>/dev/null; exec 7>&-
+  _lkend
+  if [ -n "$_lkb3" ]; then _lkuntil "$_lkb3" || kill -KILL "$_lkb3" 2>/dev/null; wait "$_lkb3"; fi
+  rm -f "$_lksh/breached" "$_lksh/brelease" "$_lksh/barmed"
+}
+_lklate 2>/dev/null
+case "$_lkleft" in refused:*|holding:empty) _lkverdict="left alone" ;; *) _lkverdict="removed ($_lkleft)" ;; esac
+if [ "$_lkstage" = paused ]; then
+  is "a run's exit removes no lock another run took after that run's last write" "$_lkverdict" "left alone"
+  is "and a revoke of tidy that says revoked: while the other run's move is in flight leaves tidy not granted once all have ended" \
+     "$(_lkclaim "$_lkcrc" "$_lkcout$_lkcerr" 'revoked: tidy' tidy no)" "holds"
+else
+  bad "a run's exit removes no lock another run took after that run's last write" "$_lkstage"
+  bad "and a revoke of tidy that says revoked: while the other run's move is in flight leaves tidy not granted once all have ended" "$_lkstage"
+fi
+rm -f "$_lksh/basename"
+
+# The lock is let go with rmdir, never rm -r (kills: unlock by rm -rf). A lock
+# that has gained contents was not made by this run, and is left for a person.
+# This pins the fix's choice: L5 as written says no lock outlives the run.
+_lkset 'tidy\ncommission\n'; _lkgo
+[ "$_lkreached" = yes ] && : > "$_lkL/someone-else"
+_lkend 2>/dev/null
+_lkreq "a run whose lock gained contents while it held it leaves that lock, contents and all, for a person" \
+       "$(_lklock):$([ -e "$_lkL/someone-else" ] && echo kept || echo gone)" "full:kept"
+rm -rf "$_lkL"
+
+
 exec 8>&-
 _lkclear; rm -rf "$_lksh"
 rm -f "$TMP/lk.out" "$TMP/lk.err" "$TMP/lk-a.out" "$TMP/lk-a.err" "$TMP/lk-b.out" "$TMP/lk-b.err"

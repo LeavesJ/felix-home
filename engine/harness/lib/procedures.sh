@@ -148,17 +148,28 @@ felix_procedures_malformed() {
 # clothes. It was reported and still closed the gap, which is that sentence
 # half-applied — the report named the typo while the item quietly left the
 # unanswered list.
+#
+# The stances are read once and walked as a string in this shell, the moment
+# tested against the declared ones by case. Until 2026-10-08 they went through a
+# here-document and felix_has_line, which is another, and on a bash that writes a
+# here-document to a temporary file (3.2 among them) one that could not be
+# written ended the walk before its first stance, so no stance answered anything
+# and every item that had one was called a gap.
 felix_procedures_effective() {
-  local proj="$1" tpl="${2:-}" known line moment
+  local proj="$1" tpl="${2:-}" known line moment stances rest nl=$'\n' tab=$'\t'
   known="$(felix_procedures_moments "$tpl")"
-  while IFS= read -r line; do
+  stances="$(felix_procedures_wellformed "$proj")"
+  rest="$stances"
+  while [ -n "$rest" ]; do
+    line="${rest%%$nl*}"
+    if [ "$line" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$line" ] || continue
-    moment="$(printf '%s\n' "$line" | cut -f2)"
-    [ -n "$tpl" ] && ! felix_has_line "$known" "$moment" && continue
+    moment="${line#*$tab}"; moment="${moment%%$tab*}"
+    if [ -n "$tpl" ]; then
+      case "$nl$known$nl" in *"$nl$moment$nl"*) ;; *) continue ;; esac
+    fi
     printf '%s\n' "$line"
-  done <<EOF
-$(felix_procedures_wellformed "$proj")
-EOF
+  done
   return 0
 }
 
@@ -169,8 +180,11 @@ EOF
 # real one. The items are captured with felix_capture, since a substitution can
 # end with nothing printed and status 0 when its fork fails, and walked in this
 # shell, where a here-document that cannot be written ends the loop before its
-# first item and no gap is named. The stances are a plain substitution: a table
-# with none closes nothing, and what it says of itself is not the declared list's.
+# first item and no gap is named. The stances come from felix_procedures_effective
+# in a plain substitution: a table with none closes nothing, and what it says of
+# itself is not the declared list's. That function walked them through
+# here-documents too, until 2026-10-08, and with one that could not be written
+# every item that had a stance was called a gap; it walks them in the shell now.
 felix_procedures_gaps() {
   local proj="$1" root="${2:-}" tpl="${3:-}" item stanced items="" rest nl=$'\n'
   felix_capture items felix_procedures_items "$proj" "$root" || return 2

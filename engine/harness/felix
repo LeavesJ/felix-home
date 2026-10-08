@@ -1805,12 +1805,13 @@ cmd_autonomy() {
     # on a directory after the grant was written and "stamped" said, and wrote
     # through a link to a regular file: linked to the grant file, it replaced
     # every grant with a hash. Refused here, before the grant, so that a
-    # refusal writes nothing at all.
+    # refusal writes neither. Said as what this block did not write, because a
+    # --revoke on the same command line has already run.
     local stamp="" swhat
     if [ "$allow" = commission ]; then
       stamp="$(felix_autonomy_stamp_path "$proj" commission)"
       swhat="$(felix_not_replaceable "$stamp")" \
-        && die "nothing was written for commission: its stamp $stamp is $swhat. Remove it, and run felix autonomy --allow commission again"
+        && die "no commission grant or stamp was written: its stamp $stamp is $swhat. Remove it, and run felix autonomy --allow commission again"
     fi
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"

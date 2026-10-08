@@ -6901,6 +6901,1009 @@ else
       "the lint exited $_fxl_rc and printed: $(printf '%s' "$_fxl_out" | head -5 | cut -c1-160 | tr '\n' '|')"
 fi
 
+printf '\nfixture git proof\n'
+# On 2026-10-08 at 12:47:41 local time the config every worktree of the home
+# checkout shares lost its origin. [remote "origin"] came back at the end of
+# the file as https://github.com/acme/widget.git, packed-refs was rewritten in
+# the same second, every refs/remotes/origin ref was gone, and every branch
+# upstream went with them. A section runner had cut one block of this file
+# without the helpers that set its fixture roots, so
+# `( cd "$_fs_wr" && git remote remove origin ... )` ran with an empty name.
+# Bash 3.2 takes `cd ""` as a success that stays put, and where it stayed was
+# a worktree. `git -C ""` does the same: it runs in the cwd and exits 0.
+#
+# The change under test (contract C1 to C11, 2026-10-08-suite-git-proof) puts
+# every fixture git write behind _fx_cd and _fx_git. They refuse any directory
+# they cannot prove sits physically under $TMP, and they record each refusal in
+# a file. It adds _fx_lint, which finds the raw shapes that did the damage. And
+# it guards the end of every run, section runners included, by comparing the
+# remotes of the checkout the run started in with a snapshot taken before $TMP
+# existed.
+#
+# These assertions were written blind, from the contract alone. Three rules
+# keep a broken implementation away from a real repository:
+# - Every probe that could write starts INSIDE a stand-in checkout under $TMP,
+#   so a guard that fails open damages the stand-in and the assertion sees it.
+# - The probes run in subshells, because _fx_cd moves the shell that calls it.
+# - The stand-ins are built, and their remotes moved, by scripts written below
+#   and run as children. Those scripts shed the GIT_DIR family and check their
+#   target's physical path themselves, so their own git writes never pass
+#   through the code under test.
+#
+# Each probe hands _fx_cd a refusal record of its own in FELIX_TEST_FXREFUSED,
+# so the refusals this block provokes on purpose never reach the record the end
+# of the run judges. The last assertion here checks that they did not.
+#
+# Measured on bash 3.2.57 (2026-10-08): BASH_LINENO[0] inside a function and
+# $LINENO on the line that called it agree inside ( ), inside a multi-line
+# $( ) and at top level. So each probe prints $LINENO on its call's own line,
+# and the record's line field is compared with that. Under `ulimit -S -u 1` a
+# fork inside a subshell aborts that subshell at once, with status 128 and no
+# retry, so a probe that forks prints nothing after the fork.
+_gp="$TMP/fixture-git-proof"; mkdir -p "$_gp/plain" "$_gp/kid"
+: > "$_gp/afile"; ln -s / "$_gp/link-out"; ln -s "$_gp/plain" "$_gp/link-in"
+_gp_phys() { [ -n "${1:-}" ] && [ -d "$1" ] && ( cd -P "$1" && pwd -P ); }
+_gp_get()  { printf '%s\n' "$1" | sed -n "s/^$2 //p"; }
+_gp_tmpp="$(_gp_phys "$TMP")"
+_gp_start="$(pwd -P)"
+_gp_url="https://example.invalid/gp/stand-in.git"
+_gp_rec0=0
+[ -n "${FELIX_TEST_FXREFUSED:-}" ] && [ -f "$FELIX_TEST_FXREFUSED" ] \
+  && _gp_rec0="$(wc -l < "$FELIX_TEST_FXREFUSED" | tr -d ' ')"
+
+# The stand-in builder. It refuses any target that is not physically under
+# the directory it is given as $2, sheds the GIT_DIR family and GIT_CONFIG, and
+# sets its own ceiling at the target's parent before git runs, so a failed
+# `git init` cannot climb to a repository above. Each stand-in carries what
+# the incident destroyed: an origin, a ref under refs/remotes/origin, and a
+# branch whose upstream is origin. With "spare" it also gets a second remote
+# with no refs. No fetch, so no URL is ever dialled.
+cat > "$_gp/build.sh" <<'GPBUILD'
+set -u
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG
+[ -n "${1:-}" ] && [ -n "${2:-}" ] || exit 3
+mkdir -p "$1/sub" || exit 3
+t="$(cd -P "$2" && pwd -P)" && d="$(cd -P "$1" && pwd -P)" || exit 3
+case "$d" in "$t"/?*) ;; *) exit 4 ;; esac
+GIT_CEILING_DIRECTORIES="${d%/*}"; export GIT_CEILING_DIRECTORIES
+cd "$d" || exit 3
+git init -q -b main . >/dev/null 2>&1 && [ -d "$d/.git" ] || exit 5
+[ "$(git rev-parse --absolute-git-dir 2>/dev/null)" = "$d/.git" ] || exit 6
+git -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
+    commit -q --no-verify --allow-empty -m stand-in >/dev/null 2>&1 || exit 7
+git remote add origin https://example.invalid/gp/stand-in.git || exit 8
+git update-ref refs/remotes/origin/main HEAD || exit 8
+git config branch.main.remote origin && git config branch.main.merge refs/heads/main || exit 8
+if [ "${3:-}" = spare ]; then git remote add spare https://example.invalid/gp/spare.git || exit 8; fi
+exit 0
+GPBUILD
+_gp_build() { bash "$_gp/build.sh" "$1" "$TMP" "${2:-}" >/dev/null 2>&1; }
+# What git reads in a stand-in, one key a line. Reads only.
+_gp_state() {   # <checkout>
+  printf 'url %s\n'  "$(git -C "$1" config --get remote.origin.url 2>/dev/null)"
+  printf 'refs %s\n' "$(git -C "$1" for-each-ref refs/remotes/origin 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'up %s\n'   "$(git -C "$1" config --get branch.main.remote 2>/dev/null)"
+}
+_gp_home="$_gp/home"; _gp_build "$_gp_home"; _gp_homep="$(_gp_phys "$_gp_home")"
+_gp_s="$(_gp_state "$_gp_home")"
+# A control on this block's own fixture: it passes on any suite, main's
+# included, and says whether everything below measures the code or the
+# fixture.
+if [ -n "$_gp_homep" ] && [ -d "$_gp_home/.git" ] && [ "$_gp_s" = "$(printf 'url %s\nrefs 1\nup origin' "$_gp_url")" ]; then
+  ok  "fixture git proof: the stand-in checkout has an origin, an origin ref and a branch tracking origin"
+else
+  bad "fixture git proof: the stand-in checkout has an origin, an origin ref and a branch tracking origin" \
+      "the stand-in at [$_gp_home] reads: $(printf '%s' "$_gp_s" | tr '\n' ' ')"
+fi
+
+# C1, C2, C11. The three functions exist in the suite's shell, and each is
+# defined above the first section header, so a section runner cut at the
+# line before that header carries them.
+_gp_src="$REAL_HARNESS/tests/run"
+_gp_pre="$(grep -n "^printf '\\\\n" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
+for _gp_f in _fx_cd _fx_git _fx_lint; do
+  _gp_d="$(grep -nE "^(function[[:space:]]+)?${_gp_f}[[:space:]]*\(\)" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
+  if ! declare -F "$_gp_f" >/dev/null 2>&1; then
+    bad "$_gp_f is defined in the suite's shell, above the first section header" "no function by that name in the suite's shell"
+  elif [ -z "$_gp_d" ] || [ -z "$_gp_pre" ] || [ "$_gp_d" -ge "$_gp_pre" ]; then
+    bad "$_gp_f is defined in the suite's shell, above the first section header" \
+        "in $_gp_src it is defined at line [${_gp_d:-nowhere}] and the first section header is at line [${_gp_pre:-none}]"
+  else
+    ok  "$_gp_f is defined in the suite's shell, above the first section header"
+  fi
+done
+is "the preamble names \$TMP/fx-refused as the refusal record" "${FELIX_TEST_FXREFUSED:-}" "$TMP/fx-refused"
+
+# C1, refusals. Each case breaks exactly one of _fx_cd's conditions, so the
+# reason is not a matter of which check comes first. The caller stands in the
+# stand-in's sub directory and sends stdout and stderr to /dev/null; the
+# record must arrive anyway, from a subshell, because it goes to a file.
+_gp_n=0
+_gp_refusal() {   # <what> <dir> <reason> [NAME=value exported before the call]
+  local what="$1" dir="$2" why="$3" rec o rc line pwd
+  _gp_n=$((_gp_n + 1)); rec="$_gp/rec.$_gp_n"; : > "$rec"
+  o="$(cd "$_gp_home/sub" || exit 0
+       [ -n "${4:-}" ] && export "$4"
+       FELIX_TEST_FXREFUSED="$rec"
+       _fx_cd "$dir" >/dev/null 2>&1; printf 'rc %s\nline %s\n' "$?" "$LINENO"
+       printf 'pwd %s\n' "$(pwd -P)")"
+  rc="$(_gp_get "$o" rc)"; line="$(_gp_get "$o" line)"; pwd="$(_gp_get "$o" pwd)"
+  if ! declare -F _fx_cd >/dev/null 2>&1; then
+    bad "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood" "_fx_cd is not defined"
+    bad "_fx_cd refusing $what appends one line: the call's line, the directory as given, and $why" "_fx_cd is not defined"
+    return 0
+  fi
+  if [ -n "$rc" ] && [ "$rc" != 0 ] && [ -n "$_gp_homep" ] && [ "$pwd" = "$_gp_homep/sub" ]; then
+    ok  "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood"
+  else
+    bad "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood" \
+        "given [$dir] it returned [$rc] and its caller stood in [$pwd], not [$_gp_homep/sub]"
+  fi
+  is "_fx_cd refusing $what appends one line: the call's line, the directory as given, and $why" \
+     "$(cat "$rec" 2>/dev/null)|$(wc -l < "$rec" | tr -d ' ')" "$(printf '%s\t%s\t%s' "$line" "$dir" "$why")|1"
+}
+_gp_refusal "an empty directory name"                         ""               empty
+_gp_refusal "a name under \$TMP that does not exist"          "$_gp/missing"   not-a-directory
+_gp_refusal "a regular file under \$TMP"                      "$_gp/afile"     not-a-directory
+_gp_refusal "\$TMP itself"                                    "$TMP"           outside-tmp
+_gp_refusal "a directory outside \$TMP"                       "/"              outside-tmp
+_gp_refusal "a symlink under \$TMP that points outside it"    "$_gp/link-out"  outside-tmp
+_gp_refusal "a directory under \$TMP while GIT_DIR is exported"        "$_gp/plain" git-env "GIT_DIR=$_gp_home/.git"
+_gp_refusal "a directory under \$TMP while GIT_WORK_TREE is exported"  "$_gp/plain" git-env "GIT_WORK_TREE=$_gp_home"
+_gp_refusal "a directory under \$TMP while GIT_COMMON_DIR is exported" "$_gp/plain" git-env "GIT_COMMON_DIR=$_gp_home/.git"
+
+# The stderr line, and that a refusal leaves every variable its caller can
+# see as it was. The variables are compared as `set` lists them in POSIX
+# mode, less the ones bash itself changes from one command to the next.
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.err"
+         _fx_cd "" 2>"$_gp/err.empty" >/dev/null; printf '%s' "$?")"
+_gp_x="$(cat "$_gp/err.empty" 2>/dev/null)"
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '" "_fx_cd is not defined"
+elif [ "$(wc -l < "$_gp/err.empty" | tr -d ' ')" = 1 ] && case "$_gp_x" in "tests/run: _fx_cd refused "*) true ;; *) false ;; esac; then
+  ok  "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '"
+else
+  bad "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '" "it returned [$_gp_o] and wrote [$_gp_x]"
+fi
+_gp_vf() { grep -vE '^(BASH_ARGC|BASH_ARGV|BASH_LINENO|BASH_SOURCE|BASH_SUBSHELL|BASH_COMMAND|FUNCNAME|LINENO|PIPESTATUS|RANDOM|SECONDS|_)=' "$1"; }
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.vars"
+         export GIT_CEILING_DIRECTORIES="/gp/prior"
+         ( set -o posix; set ) > "$_gp/vars.before"
+         _fx_cd "$_gp/missing" >/dev/null 2>&1
+         ( set -o posix; set ) > "$_gp/vars.after"; printf 'compared')"
+_gp_x="$(diff <(_gp_vf "$_gp/vars.before") <(_gp_vf "$_gp/vars.after") 2>&1)"
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd refusing changes no variable its caller can see" "_fx_cd is not defined"
+elif [ "$_gp_o" = compared ] && [ -s "$_gp/vars.before" ] && [ -z "$_gp_x" ]; then
+  ok  "_fx_cd refusing changes no variable its caller can see"
+else
+  bad "_fx_cd refusing changes no variable its caller can see" "the probe said [$_gp_o]; set lists, before and after: $(printf '%s' "$_gp_x" | tr '\n' ' ')"
+fi
+
+# C1, success. The caller ends up in DIR physically, and a child process sees
+# GIT_CEILING_DIRECTORIES with the physical $TMP first and whatever was there
+# before after it. Whether git then finds nothing needs a repository at $TMP,
+# which this suite's own $TMP must not become; a child run below makes one of
+# its own.
+_gp_ok() {   # <dir> <ceiling before, or - for unset>: key-a-line report of _fx_cd <dir> from inside the stand-in
+  ( cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.ok"
+    if [ "$2" = - ]; then unset GIT_CEILING_DIRECTORIES; else export GIT_CEILING_DIRECTORIES="$2"; fi
+    _fx_cd "$1" >/dev/null 2>&1; printf 'rc %s\n' "$?"
+    printf 'pwd %s\nceiling %s\n' "$(pwd -P)" "$(command printenv GIT_CEILING_DIRECTORIES || printf '(unset)')" )
+}
+: > "$_gp/rec.ok"
+_gp_plainp="$(_gp_phys "$_gp/plain")"
+_gp_o="$(_gp_ok "$_gp/plain" -)"
+is "_fx_cd on a directory under \$TMP returns 0 and stands its caller there, physically" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" pwd)" "0 $_gp_plainp"
+is "_fx_cd on a directory under \$TMP exports the physical \$TMP as GIT_CEILING_DIRECTORIES when none was set" \
+   "$(_gp_get "$_gp_o" ceiling)" "$_gp_tmpp"
+_gp_o="$(_gp_ok "$_gp/plain" "/gp/prior/one:/gp/prior/two")"
+is "_fx_cd puts the physical \$TMP first in GIT_CEILING_DIRECTORIES and keeps what was there after it" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" ceiling)" "0 $_gp_tmpp:/gp/prior/one:/gp/prior/two"
+_gp_o="$(_gp_ok "$_gp/link-in" -)"
+is "_fx_cd through a symlink under \$TMP that points inside it stands its caller in the target, physically" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" pwd)" "0 $_gp_plainp"
+if declare -F _fx_cd >/dev/null 2>&1 && [ ! -s "$_gp/rec.ok" ]; then
+  ok  "_fx_cd records nothing when it succeeds"
+else
+  bad "_fx_cd records nothing when it succeeds" "defined: $(declare -F _fx_cd >/dev/null 2>&1 && echo yes || echo no); record: [$(tr '\t\n' '| ' < "$_gp/rec.ok")]"
+fi
+
+# C1 under fork pressure. `ulimit -S -u 1` in the probe's own subshell leaves
+# it no fork at all, so an _fx_cd that forks on its success path dies there
+# and prints no status. Everything after the ulimit is a builtin. Skipped as a
+# probe when _fx_cd is missing, because bash forks to report a command not
+# found and the probe would only measure that.
+_gp_fp() {   # <dir>: key-a-line report of _fx_cd <dir> with no fork available
+  ( cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.fork"
+    ulimit -S -u 1 2>/dev/null || { printf 'nolimit x\n'; exit 0; }
+    _fx_cd "$1" >/dev/null 2>&1; printf 'rc %s\n' "$?"; printf 'pwd '; pwd -P
+    printf 'ceiling %s\n' "${GIT_CEILING_DIRECTORIES:-}" ) 2>/dev/null
+}
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd succeeds with no fork available" "_fx_cd is not defined"
+  bad "_fx_cd refuses a directory outside \$TMP with no fork available" "_fx_cd is not defined"
+else
+  _gp_o="$(_gp_fp "$_gp/plain")"
+  if [ -n "$(_gp_get "$_gp_o" nolimit)" ]; then
+    skip "_fx_cd succeeds with no fork available" "ulimit -S -u 1 was refused here"
+  else
+    is "_fx_cd succeeds with no fork available" \
+       "$(_gp_get "$_gp_o" rc)|$(_gp_get "$_gp_o" pwd)|$(_gp_get "$_gp_o" ceiling | cut -d: -f1)" "0|$_gp_plainp|$_gp_tmpp"
+  fi
+  _gp_o="$(_gp_fp "/")"
+  _gp_x="$(_gp_get "$_gp_o" rc)"
+  if [ -n "$(_gp_get "$_gp_o" nolimit)" ]; then
+    skip "_fx_cd refuses a directory outside \$TMP with no fork available" "ulimit -S -u 1 was refused here"
+  elif [ -z "$_gp_x" ] || { [ "$_gp_x" != 0 ] && [ "$(_gp_get "$_gp_o" pwd)" = "$_gp_homep/sub" ]; }; then
+    # No status at all means the subshell died at a fork: nothing after the
+    # call ran, which is a refusal by the only measure that matters here.
+    ok  "_fx_cd refuses a directory outside \$TMP with no fork available"
+  else
+    bad "_fx_cd refuses a directory outside \$TMP with no fork available" \
+        "it returned [$_gp_x] and its caller stood in [$(_gp_get "$_gp_o" pwd)]"
+  fi
+fi
+
+# C2. _fx_git stands in DIR for git and only for git, returns git's own
+# status, and records a refusal with its own call's line.
+_gp_o="$(cd "$_gp_home" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g1"
+         export GIT_CEILING_DIRECTORIES="/gp/prior"
+         _fx_git "$_gp_home/sub" rev-parse --show-prefix > "$_gp/g1.out" 2>/dev/null; printf 'rc %s\n' "$?"
+         printf 'pwd %s\nceiling %s\n' "$(pwd -P)" "$(command printenv GIT_CEILING_DIRECTORIES)")"
+is "_fx_git runs git standing in the directory it is given" "$(cat "$_gp/g1.out" 2>/dev/null)|$(_gp_get "$_gp_o" rc)" "sub/|0"
+if declare -F _fx_git >/dev/null 2>&1 && [ "$(_gp_get "$_gp_o" rc)" = 0 ]; then
+  is "_fx_git leaves its caller's directory and GIT_CEILING_DIRECTORIES as they were" \
+     "$(_gp_get "$_gp_o" pwd)|$(_gp_get "$_gp_o" ceiling)" "$_gp_homep|/gp/prior"
+else
+  bad "_fx_git leaves its caller's directory and GIT_CEILING_DIRECTORIES as they were" \
+      "_fx_git did not run git: it returned [$(_gp_get "$_gp_o" rc)]"
+fi
+: > "$_gp/rec.g2"
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g2"
+         _fx_git "$_gp_home" rev-parse -q --verify HEAD >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" config --get gp.absent >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" rev-parse --verify refs/heads/gp-absent >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" config --gp-no-such-option >/dev/null 2>&1; printf '%s' "$?")"
+is "_fx_git returns git's own status: 0, 1, 128 and 129 from four git commands that exit so" \
+   "$_gp_o|$(cat "$_gp/rec.g2" 2>/dev/null)" "0 1 128 129|"
+: > "$_gp/rec.g3"
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g3"; _gp_e=""
+         _fx_git "$_gp_e" rev-parse --show-toplevel > "$_gp/g3.out" 2>/dev/null; printf 'rc %s\nline %s\n' "$?" "$LINENO")"
+if declare -F _fx_git >/dev/null 2>&1 && [ -n "$(_gp_get "$_gp_o" rc)" ] && [ "$(_gp_get "$_gp_o" rc)" != 0 ] && [ ! -s "$_gp/g3.out" ]; then
+  ok  "_fx_git given an empty directory returns non-zero without running git"
+else
+  bad "_fx_git given an empty directory returns non-zero without running git" \
+      "it returned [$(_gp_get "$_gp_o" rc)] and git printed [$(cat "$_gp/g3.out" 2>/dev/null)]"
+fi
+is "_fx_git refusing records the line of the _fx_git call, the directory as given, and empty" \
+   "$(cat "$_gp/rec.g3" 2>/dev/null)" "$(printf '%s\t%s\t%s' "$(_gp_get "$_gp_o" line)" "" empty)"
+# The incident's own three commands, through _fx_git, with an empty name, from
+# inside a stand-in of their own: a guard that fails open runs them on it.
+_gp_victim="$_gp/victim"; _gp_build "$_gp_victim"; : > "$_gp/rec.g4"
+_gp_s0="$(_gp_state "$_gp_victim")"
+_gp_o="$(cd "$_gp_victim" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g4"; _gp_e=""
+         _fx_git "$_gp_e" remote remove origin >/dev/null 2>&1
+         _fx_git "$_gp_e" remote add origin https://github.com/acme/widget.git >/dev/null 2>&1
+         _fx_git "$_gp_e" config branch.main.remote gp-moved >/dev/null 2>&1; printf 'ran')"
+if ! declare -F _fx_git >/dev/null 2>&1; then
+  bad "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" "_fx_git is not defined"
+elif [ "$_gp_s0" != "$(printf 'url %s\nrefs 1\nup origin' "$_gp_url")" ]; then
+  bad "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" \
+      "not exercised: the stand-in read [$(printf '%s' "$_gp_s0" | tr '\n' ' ')] before"
+else
+  is  "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" \
+      "$(_gp_state "$_gp_victim")" "$_gp_s0"
+fi
+is "and each of the three is recorded with the reason empty" \
+   "$(cut -f2- "$_gp/rec.g4" 2>/dev/null | tr '\t\n' '|;')" "|empty;|empty;|empty;"
+# From the suite's own shell. _fx_git runs git in a subshell of its own, so it
+# needs no ( ) around it, and it leaves the suite where it stood. Should it
+# not, the suite is put back, so one broken guard does not move every
+# assertion after this one.
+_gp_c0="${GIT_CEILING_DIRECTORIES-(unset)}"
+FELIX_TEST_FXREFUSED="$_gp/rec.top" _fx_git "$_gp_home" rev-parse --show-toplevel > "$_gp/top.out" 2>/dev/null; _gp_rc=$?
+_gp_here="$(pwd -P)"; _gp_c1="${GIT_CEILING_DIRECTORIES-(unset)}"
+[ "$_gp_here" = "$_gp_start" ] || cd -- "$_gp_start"
+if [ "$_gp_c1" != "$_gp_c0" ]; then
+  if [ "$_gp_c0" = "(unset)" ]; then unset GIT_CEILING_DIRECTORIES; else export GIT_CEILING_DIRECTORIES="$_gp_c0"; fi
+fi
+is "_fx_git called from the suite's own shell runs git in DIR and returns its status" \
+   "$(cat "$_gp/top.out" 2>/dev/null)|$_gp_rc" "$_gp_homep|0"
+if declare -F _fx_git >/dev/null 2>&1; then
+  is "_fx_git called from the suite's own shell leaves it where it stood, with its GIT_CEILING_DIRECTORIES" \
+     "$_gp_here|$_gp_c1" "$_gp_start|$_gp_c0"
+else
+  bad "_fx_git called from the suite's own shell leaves it where it stood, with its GIT_CEILING_DIRECTORIES" "_fx_git is not defined"
+fi
+
+# C3. _fx_lint over synthetic files. A line that should be reported holds a
+# variable whose name starts S_, and no other line does, so the expected output
+# is grep -n of those lines: N:text, in file order, nothing else. A line whose
+# name starts N_ is one the lint must pass over.
+mkdir -p "$_gp/lint"
+# (i): a raw cd on a variable, then each kind of git write the contract names,
+# global options before the subcommand included.
+cat > "$_gp/lint/writes" <<'GPLINT'
+( cd "$S_config" && git config user.name x )
+( cd "$S_unset" && git config --unset user.name )
+( cd "$S_cfgset" && git config set user.name x )
+( cd "$S_radd" && git remote add origin https://example.invalid/x.git )
+( cd "$S_rrm" && git remote remove origin )
+( cd "$S_rseturl" && git remote set-url origin https://example.invalid/y.git )
+( cd "$S_rrename" && git remote rename origin upstream )
+( cd "$S_uref" && git update-ref refs/remotes/origin/main HEAD )
+( cd "$S_bdel" && git branch -D old )
+( cd "$S_bnew" && git branch topic )
+( cd "$S_bmove" && git branch -m a b )
+( cd "$S_bup" && git branch --set-upstream-to=origin/main )
+( cd "$S_symset" && git symbolic-ref HEAD refs/heads/x )
+( cd "$S_tag" && git tag v1 )
+( cd "$S_tagd" && git tag -d v1 )
+( cd "$S_stash" && git stash )
+( cd "$S_stashdrop" && git stash drop )
+( cd "$S_wtadd" && git worktree add ../w )
+( cd "$S_notes" && git notes add -m x )
+( cd "$S_fetch" && git fetch origin )
+( cd "$S_init" && git init -q )
+( cd "$S_commit" && git commit -qm x )
+( cd "$S_unknown" && git frobnicate )
+( cd "$S_globals" && git --no-pager -c a.b=c -P config k v )
+( cd "$S_gitdirflag" && git --git-dir=.git config k v )
+( cd "$S_clit" && git -C sub config k v )
+GPLINT
+# The read list, after the same raw cd: none is a site.
+cat > "$_gp/lint/reads" <<'GPLINT'
+( cd "$N_a" && git rev-parse --show-toplevel )
+( cd "$N_a" && git log -1 --format=%H )
+( cd "$N_a" && git show HEAD:x )
+( cd "$N_a" && git diff --quiet )
+( cd "$N_a" && git status --porcelain )
+( cd "$N_a" && git ls-files -co )
+( cd "$N_a" && git ls-tree HEAD )
+( cd "$N_a" && git ls-remote origin )
+( cd "$N_a" && git cat-file -t HEAD )
+( cd "$N_a" && git for-each-ref refs/remotes )
+( cd "$N_a" && git rev-list --count HEAD )
+( cd "$N_a" && git show-ref --verify refs/heads/main )
+( cd "$N_a" && git merge-base HEAD main )
+( cd "$N_a" && git describe --always )
+( cd "$N_a" && git grep -n x )
+( cd "$N_a" && git blame x )
+( cd "$N_a" && git version )
+( cd "$N_a" && git check-ignore -q x )
+( cd "$N_a" && git diff-tree --no-commit-id -r HEAD )
+( cd "$N_a" && git config --get remote.origin.url )
+( cd "$N_a" && git config --get-all remote.origin.fetch )
+( cd "$N_a" && git config --get-regexp '^remote' )
+( cd "$N_a" && git config --list )
+( cd "$N_a" && git config -l )
+( cd "$N_a" && git config get remote.origin.url )
+( cd "$N_a" && git config list )
+( cd "$N_a" && git remote )
+( cd "$N_a" && git remote -v )
+( cd "$N_a" && git remote get-url origin )
+( cd "$N_a" && git remote show origin )
+( cd "$N_a" && git branch )
+( cd "$N_a" && git branch -a )
+( cd "$N_a" && git branch -vv )
+( cd "$N_a" && git branch --show-current )
+( cd "$N_a" && git branch --format='%(refname)' )
+( cd "$N_a" && git symbolic-ref HEAD )
+( cd "$N_a" && git symbolic-ref -q --short HEAD )
+( cd "$N_a" && git tag )
+( cd "$N_a" && git tag -l )
+( cd "$N_a" && git tag --list )
+( cd "$N_a" && git stash list )
+( cd "$N_a" && git stash show )
+( cd "$N_a" && git worktree list )
+( cd "$N_a" && git notes list )
+( cd "$N_a" && git --no-pager -c a.b=c log -1 )
+( cd "$N_a" && git -C sub rev-parse --git-dir )
+( cd "$N_a" && git config --get k && git log -1 )
+GPLINT
+# Shapes that are not sites: a literal operand, the two helpers, git out of
+# command position, a group that closed before the git, and a top-level cd
+# whose group is the rest of its own line.
+cat > "$_gp/lint/others" <<'GPLINT'
+( cd /literal/path && git remote add o https://example.invalid/x.git )
+( cd sub && git config k v )
+( _fx_cd "$N_fx" && git config k v )
+_fx_cd "$N_fx" && git remote add o https://example.invalid/x.git
+_fx_git "$N_fx" remote add o https://example.invalid/x.git
+( cd "$N_echo" && echo git config k v )
+( cd "$N_printf" && printf '%s\n' "git remote add o u" )
+echo cd "$N_word" && git config k v
+( mycd "$N_fn" && git config k v )
+git -C /literal remote add o https://example.invalid/x.git
+git -C sub config k v
+git -C "$N_read" log -1
+git -C "$N_read" config --get-regexp '^remote[.]'
+command git -C "$N_read" status
+git -C "$N_read" -c a.b=c status
+_fx_git "$N_fx" config k v
+( cd "$N_close" && echo hi )
+git remote add o https://example.invalid/x.git
+cd "$N_line" && echo hi
+git config k v
+GPLINT
+# (i) across command groups: continuation lines, multi-line ( ) and $( )
+# groups, a case pattern's ")", keywords, braces, every operand form the
+# contract calls parameter-led, and -P, -L and -- before the operand.
+cat > "$_gp/lint/groups" <<'GPLINT'
+( cd "$S_cont" \
+    && git remote set-url origin https://example.invalid/x.git )
+cd "$S_and" &&
+  git config k v
+cd "$S_or" ||
+  git config k v
+( cd "$S_multi"
+  echo first
+  git remote add o https://example.invalid/x.git
+)
+y="$(cd "$S_dollar"
+     git config k v)"
+( cd "$S_case"
+  case "$m" in
+    a|b)
+      git remote add o https://example.invalid/x.git ;;
+  esac
+)
+if cd "$S_if"; then git config k v; fi
+if false; then :; else cd "$S_else" && git config k v; fi
+while read -r l; do cd "$S_do" && git branch -D "$l"; done < /dev/null
+{ cd "$S_brace" && git tag v1; }
+( cd "$S_semi"; git config k v )
+(cd "$S_tight" && git config k v)
+! cd "$S_bang" || git config k v
+out="$(cd "$S_dq" && git config k v)"
+v="$(
+  cd "$S_nested" && git config k v
+)"
+( cd "$S_once" && git config a b && git config c d )
+( cd "${S_braced}" && git config k v )
+( cd "$S_sub/x" && git config k v )
+( cd $S_bare && git config k v )
+( cd "$(printf '%s' "$S_cmdsub")" && git config k v )
+( cd -P "$S_dashp" && git config k v )
+( cd -L "$S_dashl" && git config k v )
+( cd -- "$S_dashdash" && git config k v )
+( cd "$S_cmd" && command git remote add o https://example.invalid/x.git )
+GPLINT
+# Text the lint does not read as code, and code right after it.
+cat > "$_gp/lint/text" <<'GPLINT'
+# ( cd "$N_c1" && git remote add o https://example.invalid/x.git )
+echo hi # cd "$N_c2" && git config k v
+   # cd "$N_c3" && git config k v
+echo '( cd "$N_q1" && git remote add o https://example.invalid/x.git )'
+echo "( cd $N_q2 && git config k v )"
+msg='spans
+( cd "$N_q3" && git remote add o https://example.invalid/x.git )
+lines'
+msg2="spans
+( cd $N_q4 && git config k v )
+end"
+cat > /dev/null <<EOF
+( cd "$N_h1" && git remote add o https://example.invalid/x.git )
+EOF
+cat > /dev/null <<'EOF'
+( cd "$N_h2" && git config k v )
+EOF
+cat > /dev/null <<"END"
+( cd "$N_h3" && git config k v )
+END
+GPLINT
+printf 'cat > /dev/null <<-EOF\n\t( cd "$N_h4" && git config k v )\n\tEOF\n' >> "$_gp/lint/text"
+cat >> "$_gp/lint/text" <<'GPLINT'
+( cd "$S_after_heredoc" && git config k v )
+cat > /dev/null <<EOF; ( cd "$S_on_heredoc_line" && git config k v )
+( cd "$N_h5" && git config k v )
+EOF
+grep -q x <<<"$N_hs"
+( cd "$S_after_herestring" && git config k v )
+x=a#b; ( cd "$S_hash_in_word" && git config k v )
+echo "a # not a comment"; ( cd "$S_after_dq_hash" && git config k v )
+echo 'it''s'; ( cd "$S_after_sq" && git config k v )
+GPLINT
+# (ii): a raw git -C on a variable with a write, command git included.
+cat > "$_gp/lint/dashc" <<'GPLINT'
+git -C "$S_c1" remote add o https://example.invalid/x.git
+git -C "${S_c2}" config k v
+git -C "$S_c3/sub" update-ref refs/x HEAD
+git -C $S_c4 config k v
+git --no-pager -C "$S_c5" branch -D old
+git -c a.b=c -C "$S_c6" config k v
+command git -C "$S_c7" remote add o https://example.invalid/x.git
+x="$(git -C "$S_c8" config k v)"
+if git -C "$S_c9" config k v; then :; fi
+git -C "$N_c10" rev-parse HEAD
+command git -C "$N_c11" config --get k
+echo git -C "$N_c12" config k v
+GPLINT
+_gp_lint_is() {   # <name> <file> <status wanted>
+  local o rc
+  if ! declare -F _fx_lint >/dev/null 2>&1; then bad "$1" "_fx_lint is not defined"; return 0; fi
+  o="$(_fx_lint "$2" 2>/dev/null)"; rc=$?
+  is "$1" "$o|rc=$rc" "$(grep -nE '\$\{?S_' "$2")|rc=$3"
+}
+_gp_lint_is "_fx_lint reports a raw cd on a variable before every kind of git write, one N:text line each, and exits 1" "$_gp/lint/writes" 1
+_gp_lint_is "_fx_lint passes over a raw cd on a variable before every git read, and exits 0" "$_gp/lint/reads" 0
+_gp_lint_is "_fx_lint passes over literal operands, _fx_cd, _fx_git, git out of command position, and closed groups" "$_gp/lint/others" 0
+_gp_lint_is "_fx_lint follows a cd's command group across continuations, ( ) and \$( ) groups and a case pattern's )" "$_gp/lint/groups" 1
+_gp_lint_is "_fx_lint skips comments, quoted text and heredoc bodies, and reads the code after them and after a here-string" "$_gp/lint/text" 1
+_gp_lint_is "_fx_lint reports a raw git -C on a variable with a write, command git included, and not a read" "$_gp/lint/dashc" 1
+# A file the lint cannot read never reads as clean.
+_gp_lint2() {   # <name> <files...>: exit 2 with a message on stderr
+  local n="$1" o rc; shift
+  if ! declare -F _fx_lint >/dev/null 2>&1; then bad "$n" "_fx_lint is not defined"; return 0; fi
+  o="$(_fx_lint "$@" 2>"$_gp/lint.err")"; rc=$?
+  if [ "$rc" = 2 ] && [ -s "$_gp/lint.err" ]; then ok "$n"
+  else bad "$n" "it exited [$rc], printed [$o] and said on stderr [$(cat "$_gp/lint.err")]"; fi
+}
+_gp_lint2 "_fx_lint exits 2 with a message on stderr for a file that does not exist" "$_gp/lint/absent"
+_gp_lint2 "_fx_lint exits 2 for a missing file named after a clean one" "$_gp/lint/reads" "$_gp/lint/absent"
+cp "$_gp/lint/reads" "$_gp/lint/locked"; chmod 000 "$_gp/lint/locked"
+if [ -r "$_gp/lint/locked" ]; then
+  skip "_fx_lint exits 2 with a message on stderr for a file it may not read" "this user reads a mode-000 file"
+else
+  _gp_lint2 "_fx_lint exits 2 with a message on stderr for a file it may not read" "$_gp/lint/locked"
+fi
+chmod 644 "$_gp/lint/locked"
+
+# C5 to C9, through child runs. Each child is this suite's preamble, cut at the
+# line before its first section header as a section runner is, with
+# REAL_HARNESS set right after the preamble's own line to a copy of the harness
+# under test. Then comes a body written here, and, for some children, the
+# lines from the header of C5 and C8 to the line before the completion marker,
+# then a tail that prints FAIL and exits 0. A child without that cut is a
+# section runner, and only the EXIT trap stands between it and a green exit.
+#
+# Each child starts INSIDE a stand-in, or in a directory under $TMP that is in
+# no checkout. Its harness copy sits outside any checkout unless the case
+# says otherwise, so the remotes it watches are the stand-in's and nothing
+# else's. The children that move a stand-in's remote do it through _gpk_git,
+# which names the stand-in's git dir outright and first checks that the
+# stand-in sits physically under this suite's $TMP. Only the stand-in a child
+# is handed can be touched, whatever the child's code does.
+#
+# C7 compares mtimes with `test -nt`, which resolves to whole seconds, so a
+# child that moves a remote sleeps a second first. The move then lands in a
+# later second than the snapshot.
+_gp_hdr="printf '\\nthe run stayed inside its temporary directory\\n'"
+_gp_mark="printf '\\nreached\\n'"
+_gp_c5="no fixture git command was refused for a directory outside the suite's temporary directory"
+_gp_c8="the remotes of the checkout this run started in did not move while it ran"
+_gp_cutx() {   # the lines from C5 and C8's header to the line before the marker
+  GP_H="$_gp_hdr" GP_M="$_gp_mark" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"] }
+    $0 == h { on = 1 } on && $0 == m { exit } on { print }' "$_gp_src"
+}
+_gp_o="$(GP_H="$_gp_hdr" GP_M="$_gp_mark" GP_P="printf '\\n" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"]; p = ENVIRON["GP_P"] }
+  $0 == h { n++; if (!s) s = NR; next }
+  s && !e && $0 == m { e = NR; next }
+  s && !e && index($0, p) == 1 { x++ }
+  END { printf "%d %d", n, (e > s ? 0 : 1) + x }' "$_gp_src" 2>/dev/null)"
+is "the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker" "$_gp_o" "1 0"
+_gp_harness="$_gp/harness"; _copy_content "$REAL_HARNESS" "$_gp_harness"
+_gp_none="$_gp/none"; mkdir -p "$_gp_none"
+cat > "$_gp/kid-lib.sh" <<'GPKID'
+# fixture git proof: what this child may do to its stand-in, and nothing else
+_gpk_ok() {
+  [ -n "${GP_STAND:-}" ] && [ -n "${GP_TMPP:-}" ] && [ -d "$GP_STAND/.git" ] || return 1
+  case "$(cd -P "$GP_STAND" 2>/dev/null && pwd -P)/" in "$GP_TMPP"/?*) return 0 ;; esac
+  return 1
+}
+_gpk_git() {
+  _gpk_ok || { printf 'no stand-in [%s]\n' "${GP_STAND:-}" >> "$GP_OUT/kid.err"; return 3; }
+  ( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_CONFIG
+    git --git-dir="$GP_STAND/.git" "$@" ) >/dev/null 2>&1
+}
+printf '%s\n' "$TMP" > "$GP_OUT/tmp"
+GPKID
+cat > "$_gp/kid-tail.sh" <<'GPKID'
+printf 'gp-fail %s\n' "$FAIL"
+exit 0
+GPKID
+_gp_kid() {   # <name> <cut: 0|1>, body on stdin: writes $_gp/kid/<name>/run
+  local d="$_gp/kid/$1"; mkdir -p "$d"; cat > "$d/body.sh"
+  { [ -n "$_gp_pre" ] && awk -v n="$_gp_pre" 'NR < n { print; if ($0 ~ /^REAL_HARNESS=/) print "REAL_HARNESS=\"$GP_HARNESS\"" }' "$_gp_src"
+    cat "$_gp/kid-lib.sh" "$d/body.sh"
+    if [ "$2" = 1 ]; then _gp_cutx; cat "$_gp/kid-tail.sh"; fi; } > "$d/run"
+}
+_gp_run() {   # <name> <start dir> [stand-in] [harness]: out, err and rc beside the child
+  local d="$_gp/kid/$1"
+  if [ -z "${2:-}" ] || [ ! -d "$2" ]; then printf 'not started' > "$d/err"; : > "$d/out"; printf 'x' > "$d/rc"; return 0; fi
+  ( cd "$2" && GP_OUT="$d" GP_STAND="${3:-}" GP_TMPP="$_gp_tmpp" GP_HARNESS="${4:-$_gp_harness}" \
+      bash "$d/run" > "$d/out" 2> "$d/err"; printf '%s' "$?" > "$d/rc" )
+}
+_gp_rc()   { cat "$_gp/kid/$1/rc" 2>/dev/null; }
+_gp_has()  { grep -Fxq -- "$2" "$_gp/kid/$1/out" 2>/dev/null; }                 # <kid> <exact stdout line>
+_gp_err()  { grep -c -- "^$2" "$_gp/kid/$1/err" 2>/dev/null | tr -d ' '; }      # <kid> <stderr line prefix>: how many
+_gp_detail() {   # <kid> <assertion name>: what bad printed under it
+  GP_N="  FAIL  $2" awk 'f && (/^  (ok|FAIL|skip)  / || /^gp-fail /) { exit } f { print } $0 == ENVIRON["GP_N"] { f = 1 }' \
+    "$_gp/kid/$1/out" 2>/dev/null
+}
+_gp_samecfg() {   # <reported path> <stand-in>: the path is the stand-in's .git/config, physically
+  [ "${1##*/}" = config ] && [ -n "$(_gp_phys "$2/.git")" ] && [ "$(_gp_phys "${1%/*}")" = "$(_gp_phys "$2/.git")" ]
+}
+_gp_gone() {   # <kid>: the child's $TMP no longer exists
+  local t; t="$(cat "$_gp/kid/$1/tmp" 2>/dev/null)"; [ -n "$t" ] && [ ! -e "$t" ]
+}
+
+# C8 skips, C5 passes, and the trap stays quiet, in a run that started in no
+# checkout and whose harness is in none.
+_gp_kid none 1 <<'GPKID'
+ok "gp child: an assertion in a run that started in no checkout"
+true
+GPKID
+_gp_run none "$_gp_none"
+_gp_x="$(grep -F -- "  skip  $_gp_c8 (" "$_gp/kid/none/out" 2>/dev/null)"
+if _gp_has none "  ok    $_gp_c5" && case "$_gp_x" in *checkout*) true ;; *) false ;; esac \
+   && [ "$(_gp_rc none)" = 0 ] && [ "$(_gp_err none 'tests/run:')" = 0 ]; then
+  ok  "a run that started in no checkout skips the origin check, saying so, and exits 0"
+else
+  bad "a run that started in no checkout skips the origin check, saying so, and exits 0" \
+      "status [$(_gp_rc none)]; it printed: $(grep -E '^  (ok|FAIL|skip)  ' "$_gp/kid/none/out" | tail -3 | tr '\n' ' ')stderr: $(head -3 "$_gp/kid/none/err" | tr '\n' ' ')"
+fi
+
+# Unchanged remotes: C5 and C8 pass, and the run exits 0. Under fork pressure
+# the guard's per-assertion check costs no fork. That half alone would pass on
+# a suite with no guard at all, so it counts only where the moved-remote child
+# below shows the guard is there.
+_gp_same="$_gp/stand-same"; _gp_build "$_gp_same"
+_gp_kid same 1 <<'GPKID'
+ok "gp child: an assertion before anything else"
+( ulimit -S -u 1 2>/dev/null || exit 0
+  ulimit -S -u > "$GP_OUT/fork.limit"
+  _ran "gp child: an assertion recorded with no fork available" 2> "$GP_OUT/fork.err" )
+ok "gp child: an assertion after the fork probe"
+true
+GPKID
+_gp_run same "$_gp_same/sub" "$_gp_same"
+if _gp_has same "  ok    $_gp_c5" && _gp_has same "  ok    $_gp_c8" && [ "$(_gp_rc same)" = 0 ] && [ "$(_gp_err same 'tests/run:')" = 0 ]; then
+  ok  "a run whose remotes did not move passes the refusal and origin checks and exits 0"
+else
+  bad "a run whose remotes did not move passes the refusal and origin checks and exits 0" \
+      "status [$(_gp_rc same)]; C5 and C8 said: $(grep -F -e "$_gp_c5" -e "$_gp_c8" "$_gp/kid/same/out" | tr '\n' ' ')stderr: $(head -3 "$_gp/kid/same/err" | tr '\n' ' ')"
+fi
+# A section-runner child, no C5 or C8 of its own: the trap checks, finds
+# nothing wrong, says nothing and keeps 0. A control: a suite with no guard
+# passes it too.
+_gp_kid samerun 0 <<'GPKID'
+ok "gp child: an assertion in a section runner whose remotes stay put"
+true
+GPKID
+_gp_run samerun "$_gp_same/sub" "$_gp_same"
+if [ "$(_gp_rc samerun)" = 0 ] && [ "$(_gp_err samerun 'tests/run:')" = 0 ] && _gp_gone samerun; then
+  ok  "a section runner whose remotes did not move exits 0, its trap silent, its temporary directory removed"
+else
+  bad "a section runner whose remotes did not move exits 0, its trap silent, its temporary directory removed" \
+      "status [$(_gp_rc samerun)]; stderr: $(head -3 "$_gp/kid/samerun/err" | tr '\n' ' ')"
+fi
+
+# Gaining refs is not moving: a concurrent fetch does it. Nor is a config
+# write that leaves every url and pushurl as it was, which makes the guard
+# re-read mid-run and must leave no C7 record.
+_gp_gain="$_gp/stand-gain"; _gp_build "$_gp_gain" spare
+_gp_kid gain 1 <<'GPKID'
+ok "gp child: an assertion before the stand-in gains refs"
+sleep 1
+_gpk_git update-ref refs/remotes/origin/gp-extra refs/remotes/origin/main
+_gpk_git update-ref refs/remotes/spare/main refs/remotes/origin/main
+_gpk_git config gp.touched yes
+ok "gp child: an assertion after the stand-in gains refs"
+[ -e "$TMP/origin-moved" ] && cp "$TMP/origin-moved" "$GP_OUT/origin-moved"
+true
+GPKID
+_gp_run gain "$_gp_gain/sub" "$_gp_gain"
+if [ -z "$(git -C "$_gp_gain" for-each-ref refs/remotes/spare/main refs/remotes/origin/gp-extra 2>/dev/null | sed -n 2p)" ] \
+   || [ "$(git -C "$_gp_gain" config --get gp.touched 2>/dev/null)" != yes ]; then
+  bad "a remote that gained refs, and a config write that moved no url, read as not moved" \
+      "not exercised: the stand-in did not gain the refs and the key [$(cat "$_gp/kid/gain/kid.err" 2>/dev/null)]"
+elif _gp_has gain "  ok    $_gp_c8" && [ ! -e "$_gp/kid/gain/origin-moved" ] && [ "$(_gp_rc gain)" = 0 ]; then
+  ok  "a remote that gained refs, and a config write that moved no url, read as not moved"
+else
+  bad "a remote that gained refs, and a config write that moved no url, read as not moved" \
+      "status [$(_gp_rc gain)]; C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/gain/out" | tr '\n' ' ')C7 record: $(tr '\n' ' ' 2>/dev/null < "$_gp/kid/gain/origin-moved")"
+fi
+
+# A changed URL, twice. C8 fails naming the config, both states and C7's
+# record. C7 recorded the first move only, between the assertions on either
+# side of it. Because C5 and C8 ran, the trap adds nothing and keeps the 0 the
+# tail exits with.
+_gp_url1="$_gp/stand-url"; _gp_build "$_gp_url1"
+_gp_kid url 1 <<'GPKID'
+ok "gp child: an assertion before the remote moves"
+sleep 1
+_gpk_git remote set-url origin https://example.invalid/gp/moved.git
+ok "gp child: the first assertion after the remote moves"
+sleep 1
+_gpk_git remote set-url origin https://example.invalid/gp/moved-again.git
+ok "gp child: the second assertion after the remote moves"
+[ -e "$TMP/origin-moved" ] && cp "$TMP/origin-moved" "$GP_OUT/origin-moved"
+true
+GPKID
+_gp_run url "$_gp_url1/sub" "$_gp_url1"
+_gp_d="$(_gp_detail url "$_gp_c8")"
+if [ "$(git -C "$_gp_url1" config --get remote.origin.url 2>/dev/null)" != "https://example.invalid/gp/moved-again.git" ]; then
+  _gp_x="not exercised: the stand-in's origin was not moved [$(cat "$_gp/kid/url/kid.err" 2>/dev/null)]"
+  bad "a changed URL fails the origin check, naming the config, the URL before and the URL now" "$_gp_x"
+  bad "the origin check's detail carries C7's record of where in the run the remote moved" "$_gp_x"
+  bad "C7 records the assertion before the move and the assertion after it, and the stand-in's config" "$_gp_x"
+  bad "C7 writes one record, at the first move, with the state before and the state then" "$_gp_x"
+else
+  if _gp_has url "  FAIL  $_gp_c8" && case "$_gp_d" in *"$_gp_url"*) true ;; *) false ;; esac \
+     && case "$_gp_d" in *moved-again.git*) true ;; *) false ;; esac \
+     && case "$_gp_d" in *stand-url/.git/config*) true ;; *) false ;; esac; then
+    ok  "a changed URL fails the origin check, naming the config, the URL before and the URL now"
+  else
+    bad "a changed URL fails the origin check, naming the config, the URL before and the URL now" \
+        "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/url/out" | tr '\n' ' ')detail: $(printf '%s' "$_gp_d" | tr '\n' ' ')"
+  fi
+  has "the origin check's detail carries C7's record of where in the run the remote moved" \
+      "$_gp_d" "gp child: the first assertion after the remote moves"
+  _gp_h="$(head -1 "$_gp/kid/url/origin-moved" 2>/dev/null)"
+  _gp_t="$(printf '%s' "$_gp_h" | cut -f1)"; _gp_p="$(printf '%s' "$_gp_h" | cut -f4)"
+  if [ "$(printf '%s' "$_gp_h" | cut -f2-3)" = "$(printf '%s\t%s' "gp child: an assertion before the remote moves" "gp child: the first assertion after the remote moves")" ] \
+     && case "$_gp_t" in *[0-9]*) true ;; *) false ;; esac && _gp_samecfg "$_gp_p" "$_gp_url1"; then
+    ok  "C7 records the assertion before the move and the assertion after it, and the stand-in's config"
+  else
+    bad "C7 records the assertion before the move and the assertion after it, and the stand-in's config" \
+        "the record's first line is [$(printf '%s' "$_gp_h" | tr '\t' '|')]"
+  fi
+  _gp_b="$(awk '/^before:/ { f = 1 } /^now:/ { f = 0 } f' "$_gp/kid/url/origin-moved" 2>/dev/null)"
+  _gp_w="$(awk '/^now:/ { f = 1 } f' "$_gp/kid/url/origin-moved" 2>/dev/null)"
+  if [ "$(grep -c '^before:' "$_gp/kid/url/origin-moved" 2>/dev/null)" = 1 ] && [ "$(grep -c '^now:' "$_gp/kid/url/origin-moved" 2>/dev/null)" = 1 ] \
+     && case "$_gp_b" in *"$_gp_url"*) true ;; *) false ;; esac \
+     && case "$_gp_w" in *gp/moved.git*) true ;; *) false ;; esac \
+     && case "$_gp_w" in *moved-again*) false ;; *) true ;; esac; then
+    ok  "C7 writes one record, at the first move, with the state before and the state then"
+  else
+    bad "C7 writes one record, at the first move, with the state before and the state then" \
+        "the record reads: $(tr '\t\n' '| ' 2>/dev/null < "$_gp/kid/url/origin-moved")"
+  fi
+fi
+if _gp_has url "  FAIL  $_gp_c8" && [ "$(_gp_rc url)" = 0 ] && [ "$(_gp_err url 'tests/run: remotes moved while this run ran: ')" = 0 ]; then
+  ok  "when C5 and C8 ran, the trap reports nothing more and keeps the run's status"
+else
+  bad "when C5 and C8 ran, the trap reports nothing more and keeps the run's status" \
+      "C8 failed: $(_gp_has url "  FAIL  $_gp_c8" && echo yes || echo no); status [$(_gp_rc url)]; stderr: $(head -3 "$_gp/kid/url/err" | tr '\n' ' ')"
+fi
+if grep -q 'this run moved' "$_gp/kid/url/out" "$_gp/kid/url/err" 2>/dev/null; then
+  bad "the origin check says the remotes moved while the run ran, never that the run moved them" \
+      "$(grep -h 'this run moved' "$_gp/kid/url/out" "$_gp/kid/url/err" | head -2 | tr '\n' ' ')"
+elif _gp_has url "  FAIL  $_gp_c8"; then
+  ok  "the origin check says the remotes moved while the run ran, never that the run moved them"
+else
+  bad "the origin check says the remotes moved while the run ran, never that the run moved them" "the origin check did not fail"
+fi
+
+# The incident's own shape: origin removed and added back with the same URL.
+# The url entries read the same; the refs are gone, and that is a move.
+_gp_readd="$_gp/stand-readd"; _gp_build "$_gp_readd"
+_gp_kid readd 1 <<'GPKID'
+ok "gp child: an assertion before the remote is removed and added back"
+_gpk_git remote remove origin
+_gpk_git remote add origin https://example.invalid/gp/stand-in.git
+ok "gp child: an assertion after the remote is removed and added back"
+true
+GPKID
+_gp_run readd "$_gp_readd/sub" "$_gp_readd"
+if [ "$(_gp_state "$_gp_readd" | sed -n 1,2p)" != "$(printf 'url %s\nrefs 0' "$_gp_url")" ]; then
+  bad "a remote removed and added back with the same URL, its refs gone, fails the origin check" \
+      "not exercised: the stand-in reads [$(_gp_state "$_gp_readd" | tr '\n' ' ')]"
+elif _gp_has readd "  FAIL  $_gp_c8"; then
+  ok  "a remote removed and added back with the same URL, its refs gone, fails the origin check"
+else
+  bad "a remote removed and added back with the same URL, its refs gone, fails the origin check" \
+      "C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/readd/out" | tr '\n' ' ')"
+fi
+
+# A renamed remote, in a section runner whose harness copy sits inside the
+# stand-in it starts in: both ends of the watch name one config, which is
+# watched once. The trap turns the 0 the runner ends with into 1, and reports
+# once. Subshells, which the body runs after the move, do not run it.
+_gp_ren="$_gp/stand-rename"; _gp_build "$_gp_ren"; _copy_content "$_gp_harness" "$_gp_ren/harness"
+_gp_kid rename 0 <<'GPKID'
+ok "gp child: an assertion before the remote is renamed"
+_gpk_git remote rename origin upstream
+( : ); _gpk_x="$( : )"
+ok "gp child: an assertion after the remote is renamed"
+true
+GPKID
+_gp_run rename "$_gp_ren/sub" "$_gp_ren" "$_gp_ren/harness"
+_gp_x="$(grep '^tests/run: remotes moved while this run ran: ' "$_gp/kid/rename/err" 2>/dev/null)"
+if [ -z "$(git -C "$_gp_ren" config --get remote.upstream.url 2>/dev/null)" ]; then
+  _gp_y="not exercised: the stand-in's origin was not renamed [$(cat "$_gp/kid/rename/kid.err" 2>/dev/null)]"
+  bad "a section runner whose remote was renamed exits 1, not 0" "$_gp_y"
+  bad "its trap reports once on stderr, first line tests/run:, naming the watched config" "$_gp_y"
+else
+  is  "a section runner whose remote was renamed exits 1, not 0" "$(_gp_rc rename)" 1
+  if [ "$(head -1 "$_gp/kid/rename/err" | cut -c1-10)" = "tests/run:" ] && [ "$(_gp_err rename 'tests/run: remotes moved while this run ran: ')" = 1 ] \
+     && _gp_samecfg "${_gp_x#tests/run: remotes moved while this run ran: }" "$_gp_ren"; then
+    ok  "its trap reports once on stderr, first line tests/run:, naming the watched config"
+  else
+    bad "its trap reports once on stderr, first line tests/run:, naming the watched config" "stderr: $(head -5 "$_gp/kid/rename/err" | tr '\n' ' ')"
+  fi
+fi
+if grep -q 'this run moved' "$_gp/kid/rename/err" 2>/dev/null; then
+  bad "the trap says the remotes moved while the run ran, never that the run moved them" "$(grep 'this run moved' "$_gp/kid/rename/err" | head -1)"
+elif [ -n "$_gp_x" ]; then
+  ok  "the trap says the remotes moved while the run ran, never that the run moved them"
+else
+  bad "the trap says the remotes moved while the run ran, never that the run moved them" "the trap reported no move"
+fi
+# A control: the trap goes on removing $TMP, red or green.
+if _gp_gone rename; then ok "a red section runner's trap still removes its temporary directory"
+else bad "a red section runner's trap still removes its temporary directory" "[$(cat "$_gp/kid/rename/tmp" 2>/dev/null)] is still there"; fi
+
+# A push URL added, in a section runner that exits 7 of its own accord: the
+# trap reports the move and keeps the 7.
+_gp_push="$_gp/stand-push"; _gp_build "$_gp_push"
+_gp_kid push 0 <<'GPKID'
+ok "gp child: an assertion before the remote gains a push URL"
+_gpk_git remote set-url --push origin https://example.invalid/gp/push.git
+ok "gp child: an assertion after the remote gains a push URL"
+exit 7
+GPKID
+_gp_run push "$_gp_push/sub" "$_gp_push"
+if [ -z "$(git -C "$_gp_push" config --get remote.origin.pushurl 2>/dev/null)" ]; then
+  bad "a section runner exiting 7 whose remote gained a push URL keeps 7, and its trap reports the move" \
+      "not exercised: the stand-in has no push URL [$(cat "$_gp/kid/push/kid.err" 2>/dev/null)]"
+else
+  is  "a section runner exiting 7 whose remote gained a push URL keeps 7, and its trap reports the move" \
+      "$(_gp_rc push)|$(_gp_err push 'tests/run: remotes moved while this run ran: ')" "7|1"
+fi
+
+# Refusals at the end of a run. The child calls _fx_cd from its own top level
+# on a directory under its $TMP, which only the top-level rule refuses, then
+# from a subshell sent to /dev/null on "/". With C5 cut in, C5 fails with
+# both records in its detail, FAIL is at least 1, and the trap stays quiet.
+_gp_kid refuse 1 <<'GPKID'
+mkdir -p "$TMP/gp-plain"
+printf 'before %s\n' "$(pwd -P)" > "$GP_OUT/top"
+_fx_cd "$TMP/gp-plain" >/dev/null 2>&1; printf 'rc %s\nline %s\n' "$?" "$LINENO" >> "$GP_OUT/top"
+printf 'after %s\n' "$(pwd -P)" >> "$GP_OUT/top"
+( _fx_cd / ; printf '%s' "$LINENO" > "$GP_OUT/subline" ) >/dev/null 2>&1
+cp "${FELIX_TEST_FXREFUSED:-$TMP/gp-no-record}" "$GP_OUT/rec" 2>/dev/null
+true
+GPKID
+_gp_run refuse "$_gp_none"
+_gp_o="$(cat "$_gp/kid/refuse/top" 2>/dev/null)"; _gp_t="$(cat "$_gp/kid/refuse/tmp" 2>/dev/null)"
+if ! grep -Eq '^(function[[:space:]]+)?_fx_cd[[:space:]]*\(\)' "$_gp/kid/refuse/run" 2>/dev/null; then
+  bad "_fx_cd called from the suite's own shell refuses, and the shell stays where it stood" "_fx_cd is not in the preamble"
+elif [ -n "$(_gp_get "$_gp_o" rc)" ] && [ "$(_gp_get "$_gp_o" rc)" != 0 ] && [ -n "$(_gp_get "$_gp_o" before)" ] \
+     && [ "$(_gp_get "$_gp_o" after)" = "$(_gp_get "$_gp_o" before)" ]; then
+  ok  "_fx_cd called from the suite's own shell refuses, and the shell stays where it stood"
+else
+  bad "_fx_cd called from the suite's own shell refuses, and the shell stays where it stood" "the child reported: $(printf '%s' "$_gp_o" | tr '\n' ' ')"
+fi
+is "the records of a top-level refusal and a refusal from a silenced subshell: line, directory as given, reason" \
+   "$(tr '\t\n' '|;' 2>/dev/null < "$_gp/kid/refuse/rec")" \
+   "$(_gp_get "$_gp_o" line)|$_gp_t/gp-plain|top-level;$(cat "$_gp/kid/refuse/subline" 2>/dev/null)|/|outside-tmp;"
+# Each line of a file appears in a text. Kept out of $( ): bash 3.2 cannot
+# parse a case pattern's ) inside a command substitution.
+_gp_all_in() {   # <text> <file>
+  local l; while IFS= read -r l; do case "$1" in *"$l"*) ;; *) return 1 ;; esac; done < "$2"; return 0
+}
+_gp_d="$(_gp_detail refuse "$_gp_c5")"
+if _gp_has refuse "  FAIL  $_gp_c5" && [ -s "$_gp/kid/refuse/rec" ] \
+   && _gp_all_in "$_gp_d" "$_gp/kid/refuse/rec" \
+   && [ "$(sed -n 's/^gp-fail //p' "$_gp/kid/refuse/out")" -ge 1 ] 2>/dev/null; then
+  ok  "a refusal fails the end-of-run refusal check, with every recorded line in its detail, so FAIL is at least 1"
+else
+  bad "a refusal fails the end-of-run refusal check, with every recorded line in its detail, so FAIL is at least 1" \
+      "C5 said: $(grep -F -- "$_gp_c5" "$_gp/kid/refuse/out" | tr '\n' ' ')detail: $(printf '%s' "$_gp_d" | tr '\t\n' '| ')"
+fi
+if _gp_has refuse "  FAIL  $_gp_c5" && [ "$(_gp_rc refuse)" = 0 ] && [ "$(_gp_err refuse 'tests/run: refused fixture git commands:')" = 0 ]; then
+  ok  "when C5 has already failed in the main shell, the trap adds no refusal report and keeps the status"
+else
+  bad "when C5 has already failed in the main shell, the trap adds no refusal report and keeps the status" \
+      "status [$(_gp_rc refuse)]; stderr: $(head -3 "$_gp/kid/refuse/err" | tr '\n' ' ')"
+fi
+# And in a section runner, where only the trap can say it.
+_gp_kid refrun 0 <<'GPKID'
+( _fx_cd "" ) >/dev/null 2>&1
+ok "gp child: an assertion after a refused fixture command"
+cp "${FELIX_TEST_FXREFUSED:-$TMP/gp-no-record}" "$GP_OUT/rec" 2>/dev/null
+true
+GPKID
+_gp_run refrun "$_gp_none"
+_gp_x="$(awk '/^tests\/run: refused fixture git commands:/ { f = 1; next } f' "$_gp/kid/refrun/err" 2>/dev/null)"
+if [ "$(_gp_rc refrun)" = 1 ] && [ "$(head -1 "$_gp/kid/refrun/err" | cut -c1-10)" = "tests/run:" ] \
+   && [ "$(_gp_err refrun 'tests/run: refused fixture git commands:')" = 1 ] && [ -s "$_gp/kid/refrun/rec" ] \
+   && case "$_gp_x" in *"$(head -1 "$_gp/kid/refrun/rec")"*) true ;; *) false ;; esac; then
+  ok  "a section runner with a refusal exits 1, its trap listing the recorded line under 'tests/run: refused fixture git commands:'"
+else
+  bad "a section runner with a refusal exits 1, its trap listing the recorded line under 'tests/run: refused fixture git commands:'" \
+      "status [$(_gp_rc refrun)]; record [$(tr '\t\n' '| ' 2>/dev/null < "$_gp/kid/refrun/rec")]; stderr: $(head -4 "$_gp/kid/refrun/err" | tr '\t\n' '| ')"
+fi
+
+# C6 fails closed. A stand-in whose config this user may not read is a
+# checkout whose remotes cannot be known, and that is not the same as none.
+_gp_unr1="$_gp/stand-unread-a"; _gp_build "$_gp_unr1"
+_gp_unr2="$_gp/stand-unread-b"; _gp_build "$_gp_unr2"
+chmod 000 "$_gp_unr1/.git/config" "$_gp_unr2/.git/config" 2>/dev/null
+if [ -r "$_gp_unr1/.git/config" ]; then
+  skip "an unreadable config fails the origin check rather than passing or skipping it" "this user reads a mode-000 file"
+  skip "a section runner whose start config is unreadable exits 1, saying it could not read the remotes" "this user reads a mode-000 file"
+else
+  _gp_kid unread 1 <<'GPKID'
+ok "gp child: an assertion in a run whose remotes could not be read"
+true
+GPKID
+  _gp_run unread "$_gp_unr1/sub" "$_gp_unr1"
+  if _gp_has unread "  FAIL  $_gp_c8" && [ "$(_gp_rc unread)" = 0 ]; then
+    ok  "an unreadable config fails the origin check rather than passing or skipping it"
+  else
+    bad "an unreadable config fails the origin check rather than passing or skipping it" \
+        "status [$(_gp_rc unread)]; C8 said: $(grep -F -- "$_gp_c8" "$_gp/kid/unread/out" | tr '\n' ' ')"
+  fi
+  _gp_kid unrrun 0 <<'GPKID'
+ok "gp child: an assertion in a section runner whose remotes could not be read"
+true
+GPKID
+  _gp_run unrrun "$_gp_unr2/sub" "$_gp_unr2"
+  _gp_x="$(grep '^tests/run: could not read the remotes this run started with: ' "$_gp/kid/unrrun/err" 2>/dev/null | head -1)"
+  if [ "$(_gp_rc unrrun)" = 1 ] && case "$_gp_x" in *stand-unread-b*) true ;; *) false ;; esac; then
+    ok  "a section runner whose start config is unreadable exits 1, saying it could not read the remotes"
+  else
+    bad "a section runner whose start config is unreadable exits 1, saying it could not read the remotes" \
+        "status [$(_gp_rc unrrun)]; stderr: $(head -3 "$_gp/kid/unrrun/err" | tr '\n' ' ')"
+  fi
+fi
+chmod 644 "$_gp_unr1/.git/config" "$_gp_unr2/.git/config" 2>/dev/null
+
+# The ceiling. A child makes its own $TMP a repository, which this suite's
+# $TMP must never be. From a directory under it with no .git, git with no
+# ceiling finds that repository, the control; after _fx_cd, and through
+# _fx_git, git finds none. Any ceiling the child's preamble set is unset
+# first, so only _fx_cd's can be what stops git.
+_gp_kid ceiling 0 <<'GPKID'
+git init -q "$TMP" >/dev/null 2>&1
+mkdir -p "$TMP/gp-plain"
+_gpk_c="$( unset GIT_CEILING_DIRECTORIES; cd -P "$TMP/gp-plain" && git rev-parse --absolute-git-dir 2>/dev/null )"
+printf 'control %s\nwant %s\n' "${_gpk_c:--}" "$(cd -P "$TMP" && pwd -P)/.git" > "$GP_OUT/ceil"
+_gpk_c="$( unset GIT_CEILING_DIRECTORIES; FELIX_TEST_FXREFUSED="$TMP/gp-rec"
+           _fx_cd "$TMP/gp-plain" >/dev/null 2>&1 || { printf 'refused'; exit 0; }
+           git rev-parse --absolute-git-dir 2>/dev/null; printf 'rc=%s' "$?" )"
+printf 'fxcd %s\n' "$_gpk_c" >> "$GP_OUT/ceil"
+_gpk_c="$( unset GIT_CEILING_DIRECTORIES; FELIX_TEST_FXREFUSED="$TMP/gp-rec"
+           _fx_git "$TMP/gp-plain" rev-parse --absolute-git-dir 2>/dev/null; printf 'rc=%s' "$?" )"
+printf 'fxgit %s\n' "$_gpk_c" >> "$GP_OUT/ceil"
+true
+GPKID
+_gp_run ceiling "$_gp_none"
+_gp_o="$(cat "$_gp/kid/ceiling/ceil" 2>/dev/null)"
+if [ -z "$(_gp_get "$_gp_o" want)" ] || [ "$(_gp_get "$_gp_o" control)" != "$(_gp_get "$_gp_o" want)" ]; then
+  _gp_x="not exercised: with no ceiling git found [$(_gp_get "$_gp_o" control)], not the child's own [$(_gp_get "$_gp_o" want)]"
+  bad "after _fx_cd, git finds no repository from a directory under \$TMP with none of its own, even with one at \$TMP" "$_gp_x"
+  bad "_fx_git on a directory under \$TMP with no .git of its own finds no repository, and returns git's 128" "$_gp_x"
+else
+  is "after _fx_cd, git finds no repository from a directory under \$TMP with none of its own, even with one at \$TMP" \
+     "$(_gp_get "$_gp_o" fxcd)" "rc=128"
+  is "_fx_git on a directory under \$TMP with no .git of its own finds no repository, and returns git's 128" \
+     "$(_gp_get "$_gp_o" fxgit)" "rc=128"
+fi
+
+# The fork half of C7, counted only where C7 is shown to exist (see above).
+if [ ! -s "$_gp/kid/url/origin-moved" ]; then
+  bad "the guard's check on each assertion costs no fork when no watched file changed" \
+      "C7 left no record in the moved-remote child, so there is no guard here to measure"
+elif [ "$(cat "$_gp/kid/same/fork.limit" 2>/dev/null)" != 1 ]; then
+  skip "the guard's check on each assertion costs no fork when no watched file changed" "ulimit -S -u 1 did not hold in the child"
+else
+  is "the guard's check on each assertion costs no fork when no watched file changed" \
+     "$(cat "$_gp/kid/same/fork.err" 2>/dev/null)|$(grep -c 'gp child: an assertion after the fork probe' "$_gp/kid/same/out")" "|1"
+fi
+
+# Last: none of the refusals this block provoked reached the suite's own
+# record. A control on a suite with no record, where both counts are 0.
+_gp_rec1=0
+[ -n "${FELIX_TEST_FXREFUSED:-}" ] && [ -f "$FELIX_TEST_FXREFUSED" ] \
+  && _gp_rec1="$(wc -l < "$FELIX_TEST_FXREFUSED" | tr -d ' ')"
+is "no refusal this block provoked reached the suite's own refusal record" "$_gp_rec1" "$_gp_rec0"
+
 # >>> hook-payload-cwd
 printf '\nhooks stand where the session stands\n'
 # Claude Desktop starts every session with --project-config-root naming the

@@ -2074,8 +2074,18 @@ cmd_autonomy() {
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
     else
-      [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
-      printf '%s\n' "$allow" >> "$proj/autonomy"
+      # The grant first, and the word and the stamp below only once the reader
+      # finds it. 2026-10-08: an append here glued it onto an unended last
+      # line and said "allowed:" anyway (felix_autonomy_grant says how).
+      felix_autonomy_grant "$proj" "$allow"; rc=$?
+      # Only commission has a stamp, so only commission's is mentioned.
+      a=""; [ "$allow" = commission ] && a=", and no stamp was written"
+      case "$rc" in
+        0) ;;
+        2) die "$allow is not allowed, because $proj/autonomy holds a NUL byte: this engine reads no grant from it, so one added to it would not hold. Remove the byte by hand. Nothing was written$a" ;;
+        3) die "$allow is not allowed, because $proj/autonomy was rewritten with it and a read of it does not find the grant (another writer?)$a" ;;
+        *) die "$allow is not allowed, because $proj/autonomy is not a regular file, is read-only, or could not be read whole or rewritten with it. Nothing was written$a" ;;
+      esac
       printf 'allowed: %s\n' "$allow"
     fi
     # Stamped with the table it was granted over, so a later edit to that table

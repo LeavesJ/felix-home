@@ -120,6 +120,18 @@ behaves exactly as before this change.
 13. `felix_commission_gaps PROJ ROOT`. Unread: prints nothing, returns 2.
     `felix commission` and `--status`: in place of the gap section,
     `surfaces nothing serves, reaches, or grounds: not known: WHY`.
+14. Added 2026-10-08, when the merge of main brought in #378, which gave
+    `felix commission` a reader of its own: before a full run asks any row,
+    it adopts every capability the checkout shows and the project has not
+    declared, from `felix_undeclared` through a here-document nobody checked.
+    Unread (out of process, a dangling `capabilities` link): it adopts
+    nothing, leaving `capabilities`, `stack.tsv` and `setup.tsv` as they
+    were; prints no `adopted before this run` line; prints
+    `Capability drift was not checked: WHY.` after `commissioning for
+    <project>` and before the first row; and still asks and prints the rows
+    and the summary. Read: as before, including the adoption line, and never
+    the drift line. `--status` adopts nothing and prints neither line. The
+    exit status is not part of this item.
 
 Not in this change, and why:
 - `felix_adopt_capability` (lib/adopt.sh) `touch`es `capabilities` before

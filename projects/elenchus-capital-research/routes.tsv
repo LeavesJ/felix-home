@@ -1,0 +1,37 @@
+# Task routes. What kind of work a prompt is, and what to reach for.
+#
+# Read top-down. Highest score wins and file order breaks ties, so specific
+# routes belong above general ones and the catch-all belongs last.
+#
+# Write keywords in their SHORTEST form. A keyword matches when it appears
+# inside a word you typed, so `hook` matches both "hook" and "hooks" while
+# `hooks` matches neither "hook" nor "hooking". Felix's own table had `hooks`
+# and stayed silent the first time somebody asked about a hook.
+#
+# Scoring: a keyword matches when it appears inside a context token, so `page`
+# matches `pages`. Words you typed count double; words taken from the branch
+# name and the working tree count single. The prompt is what you just said, the
+# tree is only where you happen to be standing.
+#
+# `profile` must name a row in profiles.tsv. `play` is the ordered sequence to
+# reach for, or `-` for none. The order is the point: build with one tool, then
+# critique with the next.
+#
+# Rewritten 2026-10-02 for the Elenchus Capital Point72 pitch: an equity
+# research project, not an app. The seeded frontend/backend/incident/release
+# rows were removed because this project's own words collide with them
+# ("screen" a candidate, "view" of the market, "index", "publish"). Every play
+# here is a skill installed in this environment. Web search/fetch, EDGAR and
+# subagents are core tools and need no row.
+#
+# name	keywords	profile	play
+skew	skew asymmetr payoff upside downside bull bear scenario probabil floor option volatil squeeze borrow	core	data:statistical-analysis ecc:council
+redteam	rival counter falsif premortem skeptic steelman blind attack disconfirm kill	core	ecc:santa-method ecc:council
+expectations	consensus estimate expectation priced reverse guidance revision sentiment crowd	core	ecc:market-research data:analyze
+filing	filing 10-k 10-q 8-k edgar xbrl footnote segment 13f insider transcript proxy	core	anthropic-skills:pdf data:validate-data
+evidence	evidence registry faa clinicaltrial fda utility interconnect supplier customer competitor alternative	core	ecc:market-research data:explore-data
+model	workbook model xlsx excel forecast dcf valuation bridge sotp quarter driver	core	anthropic-skills:xlsx data:validate-data superpowers:verification-before-completion
+thesis	thesis variant insight idea brainstorm mechanism catalyst pattern unconventional	core	superpowers:brainstorming ecc:council
+deck	deck slide pitch pptx cover appendix	core	anthropic-skills:pptx superpowers:verification-before-completion
+debug	broken failing crash regression traceback stacktrace exception reproduce	core	superpowers:systematic-debugging
+build	build implement create script	core	superpowers:brainstorming superpowers:writing-plans

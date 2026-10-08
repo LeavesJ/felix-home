@@ -361,6 +361,10 @@ function wend(   t, w, ty) {
   if (cs[sp] == 1) { cs[sp] = 2; return }
   if (w == "{") { expect = 1; return }
   if (tcmd[t]) {
+    # NAME=value before a command is an assignment for that command alone, and
+    # the command comes after it: GIT_COMMITTER_DATE=... git -C "$X" merge is a
+    # git in command position, and was not seen until 2026-10-08.
+    if (w ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/) { expect = 1; return }
     if (w == "esac" && sk[sp] == "K") { popk(); return }
     if (w in kw) expect = 1
     else if (w == "command" && tcmd[t] == 1) expect = 2
@@ -39317,7 +39321,7 @@ _brv_c() {   # message, epoch, marker-id [, extra file]: commit HANDOFF.md holdi
   printf '# Handoff\n\nFold with felix handoff --rotate (after %s comes x).\n' "$3" \
     | sed "s/comes x/comes $(cd "$_brv" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_next_id "$3")/" > "$_brv/HANDOFF.md"
   [ -z "${4:-}" ] || printf '%s\n' "$4" > "$_brv/$4.txt"
-  _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@$2 +0000" GIT_AUTHOR_DATE="@$2 +0000" git -C "$_brv" commit -q -m "$1"
+  _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@$2 +0000" GIT_AUTHOR_DATE="@$2 +0000" _fx_git "$_brv" commit -q -m "$1"
   git -C "$_brv" rev-parse HEAD
 }
 _brv_if() { ( cd "$_brv" && . "$1/lib/handoff.sh" && felix_handoff_in_flight "$_brv" refs/remotes/origin/main "${2:-0}" ); }
@@ -39330,13 +39334,13 @@ _brv_now="$(date +%s)"
 # alone, f1 hid a fold that could land.
 _brv_t0="$(_brv_c T0 1000000000 0bz)"
 _fx_git "$_brv" checkout -q -b F
-_brv_f1="$(printf 'p4\n' > "$_brv/p4.txt"; _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@1000000250 +0000" git -C "$_brv" commit -q -m f1 && git -C "$_brv" rev-parse HEAD)"
+_brv_f1="$(printf 'p4\n' > "$_brv/p4.txt"; _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@1000000250 +0000" _fx_git "$_brv" commit -q -m f1 && git -C "$_brv" rev-parse HEAD)"
 _fx_git "$_brv" checkout -q -b G "$_brv_t0"
 _brv_t1="$(_brv_c "fold G" 1000000200 0cc)"
 _fx_git "$_brv" checkout -q F
-GIT_COMMITTER_DATE="@1000000300 +0000" git -C "$_brv" merge -q --no-edit "$_brv_t1" >/dev/null 2>&1
+GIT_COMMITTER_DATE="@1000000300 +0000" _fx_git "$_brv" merge -q --no-edit "$_brv_t1" >/dev/null 2>&1
 _fx_git "$_brv" checkout -q -b land "$_brv_t1"
-GIT_COMMITTER_DATE="@1000000400 +0000" git -C "$_brv" merge -q --no-ff --no-edit "$_brv_f1" >/dev/null 2>&1
+GIT_COMMITTER_DATE="@1000000400 +0000" _fx_git "$_brv" merge -q --no-ff --no-edit "$_brv_f1" >/dev/null 2>&1
 _fx_git "$_brv" update-ref refs/remotes/origin/main "$(git -C "$_brv" rev-parse HEAD)"
 _fx_git "$_brv" checkout -q F
 _brv_f3="$(_brv_c "fold F" 1000000500 0cd)"

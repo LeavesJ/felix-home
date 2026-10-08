@@ -114,22 +114,32 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
 # character, in any encoding a macOS or glibc locale runs in, holds either
 # byte. UTF-8's and the EUC encodings' are bytes from \200 up, Shift-JIS's
 # ideographic space is \201@ and Big5's \241@, and GB18030's four-byte spaces
-# hold digits (checked 2026-10-08 against every Python codec: only EBCDIC and
-# ISO-2022, which no locale runs in, put a letter in one). 2026-10-08, from
-# the third review: trimming whitespace and bytes from \200 up missed
-# Shift-JIS, whose ideographic space ends in an ASCII '@', so an older engine
-# under ja_JP.SJIS still tidied by "tidy\201@" after "revoked: tidy". A line
-# that only looks like the grant ("tidy.", "- tidy") goes too; no reader
-# granted it. This holds while the capability names are letters. Call it in
-# the C locale, so a letter is A-Z or a-z.
+# hold digits. Checked 2026-10-08 against Python's codecs and every LC_CTYPE
+# on this Mac. The encodings that do put a letter in a space are ones no
+# locale reads with it: EBCDIC, ISO-2022 and UTF-7, and Shift_JIS-2004, whose
+# no-break space is \205A (macOS has no such locale, and glibc's space class
+# leaves out U+00A0). 2026-10-08, from the third review: trimming whitespace
+# and bytes from \200 up missed Shift-JIS, whose ideographic space ends in an
+# ASCII '@', so an older engine under ja_JP.SJIS still tidied by "tidy\201@"
+# after "revoked: tidy".
+#
+# A line that only looks like the grant ("tidy.", "- tidy", "tidy=0") goes too;
+# no reader granted it. This holds while the capability names are letters with
+# no overlap of themselves, as tidy and commission are: then a second copy, or
+# any other letter, is a letter before or after a copy. Call it in the C
+# locale, so a letter is A-Z or a-z.
+#
+# Only case patterns, each one match over the line. 2026-10-08, from the fourth
+# review: bash's # and % operators run a match from every position of the
+# line, and each match measures the rest of it again, so they are quadratic in
+# the line's length: one 512 KB line cost 8.8 s of CPU.
 _felix_autonomy_names() {   # line want -> 0 when some reader might take the line as want
-  local pre post
-  # What comes before the first match and after it, by %% and an offset: a
-  # pattern that starts with * makes bash 3.2's # quadratic in the line.
-  pre="${1%%"$2"*}"
-  [ "$pre" != "$1" ] || return 1
-  post="${1:$(( ${#pre} + ${#2} ))}"
-  case "$pre$post" in *[A-Za-z#]*) return 1 ;; esac
+  case "$1" in
+    *'#'*) return 1 ;;
+    *"$2"*) ;;
+    *) return 1 ;;
+  esac
+  case "$1" in *[A-Za-z]*"$2"*|*"$2"*[A-Za-z]*) return 1 ;; esac
 }
 
 # One pass of revoke, in the C locale. Checks the file holds no NUL byte, then
@@ -155,11 +165,14 @@ _felix_autonomy_rewrite() {   # file want tmp
 '
   _felix_autonomy_read "$f"; rc=$?
   [ "$rc" = 0 ] || return "$rc"
-  # A read cut short mid-file also ends like the end of the file. The byte
-  # count is the check: in the C locale ${#…} counts bytes.
+  # A read cut short mid-file also ends like the end of the file, and a NUL
+  # past the cut would go unseen. In the C locale ${#…} counts bytes.
   size="$(( $(wc -c < "$f") ))"
   [ "$size" -eq "${#_felix_autonomy_text}" ] || return 1
   _felix_autonomy_text=""
+  # Nothing may fork after this loop. When a printf to tmp fails, bash 3.2
+  # keeps the unwritten tail in its buffer and flushes it into the next child,
+  # where a $(…) would read file text as its answer.
   while :; do
     if IFS= read -r line; then end="$nl"
     elif [ -n "$line" ]; then end=""
@@ -185,17 +198,22 @@ felix_autonomy_allows() {
   # the first grant answers. One line at a time, because splitting the text in
   # shell copies the rest of it per line, and that is quadratic on the hook
   # path: a 100 KB file took a minute at this machine's load.
+  # A grant answers 10, not 0. Under bash 3.2, in a script such as felix, a
+  # subshell that set -u stops in an arithmetic expansion exits 0, and a stop
+  # must not read as a grant (2026-10-08).
   ( LC_ALL=C
     _felix_autonomy_read "$proj/autonomy" || exit 1
     while IFS= read -r line || [ -n "$line" ]; do
-      _felix_autonomy_grants "$line" "$want" && exit 0
+      _felix_autonomy_grants "$line" "$want" && exit 10
     done < "$proj/autonomy"
     exit 1 ) 2>/dev/null
+  [ "$?" = 10 ]
 }
 
-# Take a grant back: rewrite the file without every line any reader could take
-# as that grant (_felix_autonomy_names), keeping every other byte, an unended
-# last line unended. The caller says "revoked" only on 0.
+# Take a grant back: rewrite the file without every line _felix_autonomy_names
+# matches (every line any reader could take as that grant, and lines that only
+# look like it), keeping every other byte, an unended last line unended. The
+# caller says "revoked" only on 0.
 #   0  no line any reader takes as cap is left (or there was none to begin
 #      with, and the file was not touched)
 #   1  the file could not be read whole, or the rewrite could not be written
@@ -213,8 +231,9 @@ felix_autonomy_allows() {
 #
 # Decided: revoke removes every line a reader could count as the grant — the
 # capability with whitespace of any kind, in any encoding, around it, CRs too —
-# and keeps every other byte. Matching exactly instead would leave a revoke
-# that cannot take back a grant a reader honours.
+# and with it any line holding the capability and no other letter or '#'. It
+# keeps every other byte. Matching exactly instead would leave a revoke that
+# cannot take back a grant a reader honours.
 #
 # The rewrite keeps the file's mode, and a revoke with nothing to remove
 # writes nothing. A linked file is replaced by a regular one: the revoke is
@@ -234,7 +253,15 @@ felix_autonomy_revoke() {
   # that is file text. The first pass writes nothing, not even a temp file, so
   # a revoke with nothing to remove needs no writable directory and leaves the
   # file as it was.
+  #
+  # A pass says it wrote with 10, never 0. 2026-10-08, from the writer lock's
+  # third review: under bash 3.2, in a script such as felix, a subshell that
+  # set -u stops in an arithmetic expansion exits 0. The pass's
+  # $(( $(wc -c) )) is one, and a stale buffer flushed into the wc would stop
+  # it; the mv then put an empty file over the grants and revoke said done.
+  # The first pass never writes, so a 0 from it is a stop too.
   ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
+  [ "$rc" != 0 ] || rc=1
   if [ "$rc" = 5 ]; then
     # mktemp creates the name or fails; it never opens a link planted there.
     # The name is set in the same command that makes it, where the caller's
@@ -243,7 +270,8 @@ felix_autonomy_revoke() {
     # group cannot kill it between making the file and naming it.
     _FELIX_AUTONOMY_TMP="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
     tmp="$_FELIX_AUTONOMY_TMP"
-    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" ) > /dev/null 2>&1; rc=$?
+    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" && exit 10 ) > /dev/null 2>&1; rc=$?
+    case "$rc" in 10) rc=0 ;; 0) rc=1 ;; esac
   fi
   if [ "$rc" = 0 ]; then
     # mktemp made it 0600; give it the file's permission bits, or keep 0600.

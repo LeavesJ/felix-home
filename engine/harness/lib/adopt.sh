@@ -94,6 +94,18 @@ felix_adopt_capability() {
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
       [ -f "$proj/setup.tsv" ] && grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
+      # 2026-10-08: the runbook is written with `>`, which waited forever on a
+      # pipe at its path, as session start does for every capability the
+      # checkout grew, and wrote through a link whose target was gone. The step
+      # is refused whole, row as well: a row left without its runbook makes the
+      # next adopt skip the step, so the runbook would never be written.
+      local rbwhat
+      if [ -f "$tpl/setup/$id.md" ] && rbwhat="$(felix_not_regular "$proj/setup/$id.md")"; then
+        printf 'felix: could not add %s to %s/setup.tsv: its runbook %s/setup/%s.md is %s\n' \
+          "$id" "$proj" "$proj" "$id" "$rbwhat" >&2
+        missed=$((missed+1))
+        continue
+      fi
       # The same for a hand-edited setup.tsv, and the runbook is not copied
       # for a step whose row was not written.
       if ! felix_end_line "$proj/setup.tsv" \
@@ -102,8 +114,15 @@ felix_adopt_capability() {
         missed=$((missed+1))
         continue
       fi
-      [ -f "$tpl/setup/$id.md" ] && \
-        sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"
+      # Its row is written by now, so a runbook that still fails, as under a
+      # setup/ that is not a directory, is said, and the step counts as added
+      # with something it implies left unwritten.
+      if [ -f "$tpl/setup/$id.md" ] \
+         && ! { sed "s|{{REPO}}|$slug|g" "$tpl/setup/$id.md" > "$proj/setup/$id.md"; } 2>/dev/null; then
+        printf 'felix: added %s to %s/setup.tsv, but could not write its runbook %s/setup/%s.md\n' \
+          "$id" "$proj" "$proj" "$id" >&2
+        missed=$((missed+1))
+      fi
       added_setup=$((added_setup+1))
     done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
   fi

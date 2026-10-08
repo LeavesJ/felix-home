@@ -708,6 +708,29 @@ felix_end_line() {
   esac
 }
 
+# What is at a path, when it is something other than a regular file. Prints the
+# words felix adopt uses for its capabilities list and returns 0; prints nothing
+# and returns 1 for a regular file (a link to one included) or for nothing
+# there. Asks of the path only what stat answers, so it never opens it.
+#
+# 2026-10-08: the appends and reads above refuse such a path, and the sites that
+# overwrite, copy onto or run a project file did not. `felix obligations --seed`
+# copied into a directory and through a dangling link; the commission grant's
+# stamp, `felix gate`, rival-gate detection and adopt's runbook waited forever
+# on a pipe; `felix new` said "created" through a dangling projects/<name>.
+# Each now refuses with these words, said the same way at every site.
+felix_not_regular() {
+  local f="$1"
+  { [ -e "$f" ] || [ -L "$f" ]; } || return 1
+  [ -f "$f" ] && return 1
+  if   [ -L "$f" ] && [ ! -e "$f" ]; then printf 'a link whose target is gone or cannot be reached'
+  elif [ -d "$f" ]; then printf 'a directory'
+  elif [ -p "$f" ]; then printf 'a pipe'
+  else printf 'not a regular file'
+  fi
+  return 0
+}
+
 felix_same_repo() {
   local a="$1" b="$2" ga gb
   [ -n "$a" ] && [ -n "$b" ] || return 1

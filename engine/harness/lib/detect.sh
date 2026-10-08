@@ -172,7 +172,11 @@ _felix_rival_gates() {
       if [ "$held" -eq 0 ]; then
         case "$base" in *gate*|*verify*|*check*) ;; *) continue ;; esac
       fi
-      [ -x "$root/$f" ] || continue
+      # A regular file only (2026-10-08). `-x` is true for a pipe at mode 755,
+      # which the comparison below then waited on forever. git still lists a
+      # tracked path a pipe has replaced, and an untracked link to one, and
+      # neither is a script anyone runs; nor is a submodule's directory.
+      [ -f "$root/$f" ] && [ -x "$root/$f" ] || continue
 
       # The declared gate itself, when the project stores it in Felix's home and
       # the home happens to be this checkout. Same file, not a rival.
@@ -197,9 +201,12 @@ _felix_rival_gates() {
 
       # Compared against whichever copy Felix actually holds: the file of the
       # same name when there is one, otherwise the declared gate.
-      local mine=""
+      # The declared gate as a regular file only, for the same reason: a pipe
+      # there held felix doctor, and session start through felix_tidy_safe
+      # when tidy is granted (2026-10-08). Anything else is said, not compared.
+      local mine="" gwhat=""
       [ "$held" -eq 1 ] && mine="$proj/$base"
-      [ -z "$mine" ] && [ -x "$proj/$gate" ] && mine="$proj/$gate"
+      [ -z "$mine" ] && [ -f "$proj/$gate" ] && [ -x "$proj/$gate" ] && mine="$proj/$gate"
 
       if [ -n "$mine" ]; then
         if cmp -s "$root/$f" "$mine"; then
@@ -207,6 +214,8 @@ _felix_rival_gates() {
         else
           note="differs from the copy Felix holds"
         fi
+      elif [ -n "$gate" ] && gwhat="$(felix_not_regular "$proj/$gate")"; then
+        note="the gate Felix holds is $gwhat, so nothing was compared"
       else
         note="this project gates with a command, not a file"
       fi

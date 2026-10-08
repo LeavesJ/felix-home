@@ -537,6 +537,15 @@ cmd_gate() {
   resolve_or_die; local proj="$PROJ" gate
   gate="$(felix_json_str "$proj/project.json" gate)"
   [ -n "$gate" ] || die "project $(basename "$proj") declares no gate in project.json"
+  # 2026-10-08: a gate Felix stores is run only as a regular file. A pipe at
+  # the path passed `-x` at mode 755 and bash waited on it forever; at 644, or
+  # as a dangling link or a directory, it fell through to `bash -c gate.sh`,
+  # and the 126 or 127 was recorded as the project's own failure. Refused
+  # before anything is run or recorded. A gate that is a command names no
+  # file here, so it is not refused.
+  local gwhat
+  gwhat="$(felix_not_regular "$proj/$gate")" \
+    && die "the gate was not run, and nothing was recorded: $proj/$gate is $gwhat. Make it a regular executable file, and run felix gate again"
 
   # Run from the checkout being gated, never from Felix. A gate that inspects
   # "the tree it lives in" instead of "the tree it was pointed at" reports a
@@ -861,6 +870,13 @@ cmd_new() {
   [ -d "$target" ] || die "$synopsis (not a directory: $target)"
   local dir="$FELIX_HOME_DIR/projects/$name"
   [ -e "$dir" ] && die "project $name already exists at $dir"
+  # 2026-10-08: `-e` is false for a link whose target is gone, so one at
+  # projects/<name> got past it; mkdir then failed, every write after it
+  # failed, the marker bound the checkout to a project with no directory, and
+  # this printed "created" and exited 0.
+  local nwhat
+  nwhat="$(felix_not_regular "$dir")" \
+    && die "project $name was not made: $dir is $nwhat. Remove it, and run felix new again; nothing was made"
   local tpl="$SCRIPT_DIR/templates"
   [ -d "$tpl" ] || die "missing $tpl"
 
@@ -1784,6 +1800,16 @@ cmd_autonomy() {
       tidy|commission) ;;
       *) die "unknown capability: $allow. They are 'tidy' and 'commission'." ;;
     esac
+    # 2026-10-08: the stamp below is written with `>`, which waited forever on
+    # a pipe at its path, wrote through a link whose target was gone, and
+    # failed on a directory after the grant was written and "stamped" said.
+    # Refused here, before the grant, so that a refusal writes nothing at all.
+    local stamp="" swhat
+    if [ "$allow" = commission ]; then
+      stamp="$(felix_autonomy_stamp_path "$proj" commission)"
+      swhat="$(felix_not_regular "$stamp")" \
+        && die "nothing was written for commission: $stamp, where its stamp goes, is $swhat. Remove it, and run felix autonomy --allow commission again"
+    fi
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
     else
@@ -1802,9 +1828,10 @@ cmd_autonomy() {
     # Stamped with the table it was granted over, so a later edit to that table
     # does not inherit the grant. Written on every --allow, not only the first,
     # because re-granting is how a person re-arms it after reading a change.
+    # A write that fails is not said: "stamped" printed whatever `>` did.
     if [ "$allow" = commission ]; then
-      printf '%s\n' "$(felix_commission_policy_version "$proj")" \
-        > "$(felix_autonomy_stamp_path "$proj" commission)"
+      { printf '%s\n' "$(felix_commission_policy_version "$proj")" > "$stamp"; } 2>/dev/null \
+        || die "commission is in $proj/autonomy, but its stamp could not be written to $stamp, and the grant does not hold until it is. Run felix autonomy --allow commission again once it can be"
       printf 'stamped against commissioning.tsv as it stands now.\n'
     fi
   fi
@@ -4582,6 +4609,9 @@ cmd_adopt() {
   if [ "$arc" -eq 3 ]; then
     printf 'felix: %s is declared, but not every row it implies was written.\n' "$cap" >&2
     printf 'Make stack.tsv and setup.tsv in %s regular files this user can read and write,\n' "$proj" >&2
+    # A runbook in the way is named above; it is removed, not made a file
+    # (2026-10-08), because the step writes it.
+    printf 'remove whatever the lines above name under setup/,\n' >&2
     printf 'delete the %s line from %s/capabilities, and run felix adopt %s again.\n' "$cap" "$proj" "$cap" >&2
     return 3
   fi
@@ -5109,6 +5139,13 @@ cmd_obligations() {
       printf 'ledger: what it admits is a person'"'"'s to change, by hand, one row at a time.\n'
       return 0
     fi
+    # Seeded only where nothing is at the path (2026-10-08). `[ -f ]` let the
+    # rest through to cp, which waited forever on a pipe, created the target
+    # of a link whose target was gone, and copied into a directory, saying
+    # "seeded" for both.
+    local owhat
+    owhat="$(felix_not_regular "$proj/obligations.tsv")" \
+      && die "obligations.tsv was not seeded, and nothing was written: $proj/obligations.tsv is $owhat. Remove it, and run felix obligations --seed again"
     [ -s "$SCRIPT_DIR/templates/obligations.tsv" ] \
       || die "no template at $SCRIPT_DIR/templates/obligations.tsv, so there is nothing to seed from"
     cp "$SCRIPT_DIR/templates/obligations.tsv" "$proj/obligations.tsv" \

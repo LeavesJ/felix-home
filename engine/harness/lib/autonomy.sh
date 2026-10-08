@@ -449,10 +449,12 @@ felix_autonomy_grant() {
 # - An ignored signal is inherited. With ILL, FPE, BUS and SEGV ignored, a
 #   child that really faulted spun on macOS instead of dying, and the run
 #   hung holding the lock. They are trapped now, like the rest: a trapped
-#   signal is reset in every child. They are never ignored, not even around
-#   mkdir, so a child's fault always ends the child. A real fault in bash
-#   itself would re-run under the handler and hang the run; that is reasoned,
-#   not measured.
+#   signal is reset in every child. They are never ignored here, not even
+#   around mkdir, so a child's fault ends the child. Not when whoever started
+#   felix ignored them: bash cannot trap a signal ignored at entry, and a
+#   child that faults then spins with the lock held, as before (the fourth
+#   review). A real fault in bash itself would re-run under the handler and
+#   hang the run; that is reasoned, not measured.
 # - fd 9 was taken whatever it held. A caller's flock on fd 9 (flock(1)'s own
 #   example) was let go the moment the lock was made. The run now keeps the
 #   lock open on the first of fds 9 to 3 that it did not inherit, and on none

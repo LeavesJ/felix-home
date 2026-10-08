@@ -42051,6 +42051,19 @@ _ddq_in "$DDQR" 'printf "x\0%s\n" "$DDQN" > f.bin'
 _ddq_is "under core.abbrev=4, a second binary edit whose blob id shares four hex digits with the first has another tree id (after review)" \
         "$([ -n "$DDQT1" ] && [ "$(_ddq_tid "$DDQR")" != "$DDQT1" ] && echo different)" "different"
 
+# Q8: a text file named like a glob, beside a binary file the glob would match.
+# git matches a pathspec literally before it tries it as a glob, so a lone
+# creds[1].txt reads the same either way; only a second match shows the read
+# again naming its path as a pattern (mutation survivors M16 and M17).
+_ddq_new q8
+_ddq_in "$DDQR" 'printf "*.txt -diff\n" > .git/info/attributes && printf "api_key = \"%s\"\n" "$DDQK" > "a*.txt" \
+  && printf "x\0y\n" > ab.txt && _ddq_g add -A && _ddq_g commit -qm k'
+_ddq_scan "$DDQR"; DDQRC=$?
+_ddq_is "secret-scan finds a key in a -diff file named a*.txt beside a binary ab.txt, exit 1 (mutation survivor)" "$DDQRC" "1"
+DDQO="$(_ddq_added "$DDQR")"
+_ddq_is "and felix_added_lines prints it and returns 0 (mutation survivor)" \
+        "$(_ddq_has "$DDQO" '+api_key') $(_ddq_rc "$DDQO")" "printed 0"
+
 unset -f _ddq_g _ddq_in _ddq_new _ddq_scan _ddq_added _ddq_tid _ddq_is _ddq_has _ddq_rc
 unset DDQ DDQK DDQFX DDQR DDQO DDQRC DDQS DDQT0 DDQT1 DDQN
 

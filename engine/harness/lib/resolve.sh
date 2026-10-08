@@ -842,7 +842,9 @@ $out"
 # The patch the repository's content makes, whatever anyone configured about how
 # git shows one (2026-10-08). Read into VAR as _felix_git_read reads, and 0 only
 # when every read ran to the end. The arguments are a diff's revisions and
-# options, with no pathspec.
+# options, with no pathspec. Each read ends them with `--`: with a tracked file
+# named HEAD, `git diff HEAD` refused as ambiguous, so bin/secret-scan could
+# never call such a repository clean (a blind author's assertion, after review).
 #
 # Porcelain `git diff` prints what a person's settings and a branch's attributes
 # tell it to print. Measured on git 2.54, on a branch adding a credential line to
@@ -920,7 +922,7 @@ _felix_git_patch() {   # VAR ROOT diff-args...
   _fgp_top="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null)"
   [ -n "$_fgp_top" ] || { printf -v "$_fgp_var" '%s' ""; return 1; }
   shift 2
-  _felix_git_read _fgp_all git -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none -M "$@" || _fgp_rc=1
+  _felix_git_read _fgp_all git -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none -M "$@" -- || _fgp_rc=1
   # The paths git printed as binary. -z, read to NUL, because a path may hold
   # any byte but that one. The mark is a record git never prints.
   while IFS= read -r -d '' _fgp_rec; do
@@ -928,7 +930,7 @@ _felix_git_patch() {   # VAR ROOT diff-args...
       -"$_fgp_t"-"$_fgp_t"*) _fgp_bin+=("${_fgp_rec#-"$_fgp_t"-"$_fgp_t"}") ;;
       $'\037'ok) _fgp_ok=1 ;;
     esac
-  done < <(git -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --numstat -z "$@" 2>/dev/null && printf '\037ok\0')
+  done < <(git -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --numstat -z "$@" -- 2>/dev/null && printf '\037ok\0')
   [ -n "$_fgp_ok" ] || _fgp_rc=1
   if [ "${#_fgp_bin[@]}" -gt 0 ]; then
     # Each one's sides, from --raw: `:oldmode newmode oldsha newsha status`, then
@@ -1000,7 +1002,7 @@ felix_change_why() {   # root [base]
   local root="$1" base="${2:-}" why
   why="$( {
       if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
-        git -C "$root" diff --no-ext-diff --no-textconv --stat "$base...HEAD"
+        git -C "$root" diff --no-ext-diff --no-textconv --stat "$base...HEAD" --
       fi
       git -C "$root" diff --no-ext-diff --no-textconv --stat --cached
       git -C "$root" diff --no-ext-diff --no-textconv --stat

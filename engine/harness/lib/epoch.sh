@@ -190,6 +190,6 @@ felix_epoch() {
   comps="$(felix_epoch_components "$proj" "$root")"
   # awk reads every value before it answers; grep -q would quit at a `-`, and
   # pipefail would read the writer it cut off as no unknown.
-  printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }' && return 1
+  printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }' && return 1
   printf '%s\n' "$comps" | _felix_epoch_hash
 }

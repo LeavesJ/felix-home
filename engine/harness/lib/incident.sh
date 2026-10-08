@@ -54,9 +54,9 @@ felix_incident_paths() {
   # followed by a colon, `tests/test_a.py:12: AssertionError` or Go's
   # `a_test.go:12: expected 1`. Each resolved to no file at all.
   printf '%s' "$text" \
-    | tr ' \t"'"'"'(),[]<>`*' '\n\n\n\n\n\n\n\n\n\n\n\n\n' \
-    | sed -E 's/::.*$//; s/:[0-9]+(:[0-9]+)?:?$//; s/,$//; s/^\.\///; s/^[+-]+//' \
-    | grep -E '[/.][A-Za-z0-9_]' \
+    | LC_ALL=C tr ' \t"'"'"'(),[]<>`*' '\n\n\n\n\n\n\n\n\n\n\n\n\n' \
+    | LC_ALL=C sed -E 's/::.*$//; s/:[0-9]+(:[0-9]+)?:?$//; s/,$//; s/^\.\///; s/^[+-]+//' \
+    | LC_ALL=C grep -E '[/.][A-Za-z0-9_]' \
     | LC_ALL=C sort -u \
     | while IFS= read -r cand; do
         [ -n "$cand" ] || continue
@@ -127,7 +127,7 @@ felix_incident_severity() {
     hit=0
     while IFS=$'\t' read -r tier kind pattern reason; do
       [ "${kind:-}" = "path" ] || continue
-      grep -qE "$pattern" <<<"$p" || continue
+      LC_ALL=C grep -qE "$pattern" <<<"$p" || continue
       hit=1
       case "$tier:$best" in
         red:*)        best="red" ;;

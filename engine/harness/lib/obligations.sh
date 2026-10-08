@@ -78,7 +78,7 @@ FELIX_OBLIGATION_PATHWAYS='deterministic witness corroborated probabilistic unkn
 _felix_obligation_scan() {
   local table="$1/obligations.tsv" mode="$2" out rc
   [ -f "$table" ] || return 0
-  out="$(awk -F'\t' -v mode="$mode" \
+  out="$(LC_ALL=C awk -F'\t' -v mode="$mode" \
       -v classes=" $FELIX_OBLIGATION_CLASSES " -v paths=" $FELIX_OBLIGATION_PATHWAYS " "$FELIX_FINAL_FILTER_AWK"'
     function needs_bad(s,   n, i, id) {
       if (s == "" || s == "-") return 0
@@ -185,7 +185,7 @@ fi
 # row apply again. With `release` as the third argument the column is `-` for
 # every row: the release path never carries a clearance, so the blocking
 # filter's release arm is the second lock and not the only one.
-_felix_obligation_field() { printf '%s\n' "$1" | cut -f"$2"; }
+_felix_obligation_field() { printf '%s\n' "$1" | LC_ALL=C cut -f"$2"; }
 felix_obligations_run() {   # proj root [mode]
   local proj="$1" root="$2" mode="${3:-}" line name cls pw applies ev grounds st exc
   felix_obligation_rows "$proj" | while IFS= read -r line; do
@@ -257,8 +257,8 @@ felix_obligations_blocking() {
 # nothing in probes.tsv rests on nothing, and the table is refused for it.
 felix_obligations_orphans() {
   local proj="$1" preds g
-  preds="$(felix_probe_rows "$proj" 2>/dev/null | cut -f1 | LC_ALL=C sort -u)"
-  felix_obligation_rows "$proj" | cut -f6 | tr ',' '\n' | grep -v '^-\?$' \
+  preds="$(felix_probe_rows "$proj" 2>/dev/null | LC_ALL=C cut -f1 | LC_ALL=C sort -u)"
+  felix_obligation_rows "$proj" | LC_ALL=C cut -f6 | LC_ALL=C tr ',' '\n' | LC_ALL=C grep -v '^-\?$' \
     | LC_ALL=C sort -u | while IFS= read -r g; do
         [ -n "$g" ] || continue
         felix_has_line "$preds" "$g" && continue

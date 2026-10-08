@@ -172,7 +172,7 @@ FELIX_DENY_PROBES='git status --short
 /felix/probe/ordinary'
 
 felix_deny_overbroad() {
-  local pattern="$1" probe
+  local pattern="$1" probe LC_ALL=C
   [ -n "$pattern" ] || return 0
   while IFS= read -r probe; do
     [ -n "$probe" ] || continue
@@ -205,7 +205,7 @@ EOF
 # and not output, so the call that nearly always finds nothing costs no
 # subshell to find it.
 _felix_deny_first() {
-  local proj="$1" want="$2" text="$3" tool pattern reason scope
+  local proj="$1" want="$2" text="$3" tool pattern reason scope LC_ALL=C
   _FELIX_DENY_REASON=""
   while IFS=$'\t' read -r tool pattern reason scope; do
     [ "${tool:-}" = "$want" ] || continue

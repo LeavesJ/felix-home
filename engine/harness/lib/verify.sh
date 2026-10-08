@@ -378,20 +378,20 @@ felix_verify_current() {
   local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch
   receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
   [ -n "$receipt" ] || { printf 'none\n'; return 1; }
-  r_res="$(printf '%s' "$receipt" | cut -f2)"
+  r_res="$(printf '%s' "$receipt" | LC_ALL=C cut -f2)"
   [ "$r_res" = "green" ] || { printf 'red\n'; return 1; }
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
-  r_tid="$(printf '%s' "$receipt" | cut -f1)"
+  r_tid="$(printf '%s' "$receipt" | LC_ALL=C cut -f1)"
   if [ -z "$tid" ] || [ "$r_tid" != "$tid" ]; then
     printf 'stale\tthe tree changed since the receipt\n'; return 1
   fi
   # Six fields: written before the epoch existed, by an engine that could not
   # say what its verdict rested on. Not current; one gate run rewrites it.
-  if [ "$(printf '%s' "$receipt" | awk -F'\t' '{ print NF }')" -lt 7 ]; then
+  if [ "$(printf '%s' "$receipt" | LC_ALL=C awk -F'\t' '{ print NF }')" -lt 7 ]; then
     printf 'stale\tthe receipt predates the epoch, so what it rests on is not recorded; run felix gate\n'; return 1
   fi
-  r_epoch="$(printf '%s' "$receipt" | cut -f7)"
-  r_comps="$(printf '%s' "$receipt" | cut -f8)"
+  r_epoch="$(printf '%s' "$receipt" | LC_ALL=C cut -f7)"
+  r_comps="$(printf '%s' "$receipt" | LC_ALL=C cut -f8)"
   # `-`: the gate had no epoch to record, which with a green result means the
   # project declares no probes — a probe that could not run turns the gate
   # red, and a red receipt never reaches this line. A verdict resting on
@@ -409,7 +409,7 @@ felix_verify_current() {
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
   # awk, not grep -q, here and in felix_verify_epoch_fields: it reads every
   # value before it answers, so no writer is cut off for pipefail to misread.
-  if printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
+  if printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf 'stale\tthe grounded facts cannot be read now, so the receipt cannot be confirmed; run felix gate\n'; return 1
   fi
   now_epoch="$(printf '%s\n' "$comps" | _felix_hash)"
@@ -417,15 +417,15 @@ felix_verify_current() {
   # Which component moved, in the order a reader can act on: the world first,
   # then the tables, then the two that almost never move.
   local s t p r
-  s="$(printf '%s' "$r_comps" | cut -d, -f1)"; t="$(printf '%s' "$r_comps" | cut -d, -f2)"
-  p="$(printf '%s' "$r_comps" | cut -d, -f3)"; r="$(printf '%s' "$r_comps" | cut -d, -f4)"
-  if [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "topology_version" { print $2 }')" != "$t" ]; then
+  s="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f1)"; t="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f2)"
+  p="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f3)"; r="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f4)"
+  if [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "topology_version" { print $2 }')" != "$t" ]; then
     printf 'stale\tthe grounded facts moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "policy_version" { print $2 }')" != "$p" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "policy_version" { print $2 }')" != "$p" ]; then
     printf 'stale\tthe table set moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "subject_identity" { print $2 }')" != "$s" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "subject_identity" { print $2 }')" != "$s" ]; then
     printf 'stale\tthe subject moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "release_target" { print $2 }')" != "$r" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "release_target" { print $2 }')" != "$r" ]; then
     printf 'stale\tthe release target moved since the receipt; run felix gate\n'
   else
     printf 'stale\tthe epoch moved since the receipt and no component says why; run felix gate\n'
@@ -442,11 +442,11 @@ felix_verify_epoch_fields() {
   fi
   command -v felix_epoch_components >/dev/null 2>&1 || { printf -- '-\t-\n'; return 0; }
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
-  if [ -z "$comps" ] || printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
+  if [ -z "$comps" ] || printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf -- '-\t-\n'; return 0
   fi
   printf '%s\t%s\n' "$(printf '%s\n' "$comps" | _felix_hash)" \
-    "$(printf '%s\n' "$comps" | cut -f2 | paste -sd, -)"
+    "$(printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C paste -sd, -)"
 }
 
 # Every decision, allowed or refused, appended and committed. Nothing else in

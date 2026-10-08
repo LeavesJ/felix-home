@@ -169,7 +169,7 @@ felix_overnight_field() {   # proj, field-number [, sid] -> value
   [ -f "$f" ] || return 1
   # sed -n 1p, not head -1: head stops reading after one line, and a cut still
   # writing would die of SIGPIPE, which pipefail hands the callers as no night.
-  cut -f"$2" < "$f" 2>/dev/null | sed -n 1p
+  LC_ALL=C cut -f"$2" < "$f" 2>/dev/null | LC_ALL=C sed -n 1p
 }
 
 felix_overnight_now() { date +%s; }

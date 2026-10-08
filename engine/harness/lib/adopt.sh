@@ -26,7 +26,7 @@ felix_adopt_capability() {
   [ -n "$proj" ] && [ -n "$cap" ] || return 1
 
   touch "$proj/capabilities"
-  grep -qxF "$cap" "$proj/capabilities" 2>/dev/null && return 1
+  LC_ALL=C grep -qxF "$cap" "$proj/capabilities" 2>/dev/null && return 1
   printf '%s\n' "$cap" >> "$proj/capabilities"
 
   # Create the manifests when a project never had them. Skipping the backfill
@@ -40,22 +40,22 @@ felix_adopt_capability() {
   if [ -f "$tpl/catalog.tsv" ]; then
     while IFS=$'\t' read -r k n src r c _kw; do
       [ "${c:-}" = "$cap" ] || continue
-      grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
+      LC_ALL=C grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
       # DECLARED: the catalogue tier is a person's judgment, and the engine
       # writing the row down does not make it the engine's.
       printf '%s\t%s\t%s\t%s\t%s\tDECLARED\n' "$k" "$n" "$src" "$r" "$c" >> "$proj/stack.tsv"
       added_stack=$((added_stack+1))
-    done < <(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
+    done < <(LC_ALL=C grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
   fi
 
   if [ -f "$tpl/setup.tsv" ]; then
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
-      grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
+      LC_ALL=C grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
       printf '%s\t%s\t%s\t%s\n' "$id" "$title" "$c" "$chk" >> "$proj/setup.tsv"
       [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$proj/setup/$id.md"
       added_setup=$((added_setup+1))
-    done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
+    done < <(LC_ALL=C grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
   fi
 
   printf '%s %s' "$added_stack" "$added_setup"

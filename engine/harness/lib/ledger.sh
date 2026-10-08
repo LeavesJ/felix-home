@@ -95,7 +95,7 @@ _felix_ledger_rows() {
 # data written before 2026-08-12 says "unknown" rather than "zero".
 felix_ledger_summary() {
   local proj="$1"
-  _felix_ledger_rows "$(felix_mem_dir "$proj")" | awk -F'\t' '
+  _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' '
     $4 != "" {
       # A built-in skill is not the plugin that shares its name.
       #

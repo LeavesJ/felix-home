@@ -327,8 +327,8 @@ _FELIX_ROUTE_SESSION_REQUESTS=(
 # precisely the moment the router should have the most to say.
 felix_route_context() {
   local root="$1"
-  git -C "$root" status --porcelain -uall 2>/dev/null | cut -c4- | tr '/._-' '    '
-  git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/-_' '   '
+  git -C "$root" status --porcelain -uall 2>/dev/null | LC_ALL=C cut -c4- | LC_ALL=C tr '/._-' '    '
+  git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null | LC_ALL=C tr '/-_' '   '
 }
 
 # score <TAB> promptscore <TAB> order <TAB> name <TAB> profile <TAB> play, best first.
@@ -686,7 +686,7 @@ felix_route_names_capability() {
 felix_route_state_guessed() {
   local state="$1"
   [ -f "$state" ] || return 1
-  case "$(cut -f2 < "$state" 2>/dev/null)" in
+  case "$(LC_ALL=C cut -f2 < "$state" 2>/dev/null)" in
     tree) return 0 ;;
     *)    return 1 ;;
   esac

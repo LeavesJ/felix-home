@@ -309,9 +309,9 @@ _felix_stop_sessions() {
 _felix_stop_unrecorded() { felix_guard_unrecorded "$PROJ" "$ROOT" "$(_felix_stop_sessions)"; }
 
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
-r_tid="$(printf '%s' "$receipt" | cut -f1)"
-r_res="$(printf '%s' "$receipt" | cut -f2)"
-r_when="$(printf '%s' "$receipt" | cut -f3)"
+r_tid="$(printf '%s' "$receipt" | LC_ALL=C cut -f1)"
+r_res="$(printf '%s' "$receipt" | LC_ALL=C cut -f2)"
+r_when="$(printf '%s' "$receipt" | LC_ALL=C cut -f3)"
 
 # Current by verify.sh's reading, which the merge boundary shares: the exact
 # tree, green, and the decision epoch the gate ran under still the epoch now.

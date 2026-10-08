@@ -22761,6 +22761,90 @@ rmdir "$RV6K" 2>/dev/null
 is "the widget's directory holds exactly what it held before failed reads, failed writes and long lines were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r6start"
 
+printf '\nrevoke and the reader take no stopped subshell for an answer\n'
+# 2026-10-08: the writer lock's third review found that, under bash 3.2, a set -u
+# stop in an arithmetic expansion exits 0 from a subshell. In a script file
+# under set -u, a subshell that reads an unset name inside $(( )) ends with
+# status 0, where bash -c gives 127 and a plain unbound word gives 1, so a
+# revoke pass or a grant read stopped part-way can look like one that finished.
+# felix runs as a script under set -uo pipefail, so every fault here is
+# injected through a script file run by "$BASH", never "$BASH -c". H1 and H3
+# hand back 'revoked: tidy' from every wc after the first, which is no count;
+# H2 stops the grant read itself. On bash 5.2 (Linux CI) the stop exits
+# non-zero, so this block is green on every revision there, and can fail only
+# under bash 3.2, as on macOS.
+RV7K="$TMP/revoke-keep-7"; mkdir -p "$RV7K"
+_r7start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV7K/"; done
+_r7calls="$TMP/r7.calls"
+_r7exit() { case "$1" in 'returned 0') echo 'returned 0' ;; 'returned '[1-9]*) echo refused ;; *) echo "no status [$1]" ;; esac; }
+
+# H1: a revoke pass stopped part-way is a refusal, not a rewrite. With STOP as
+# its fourth word the script's wc is real once and then prints no count.
+cat > "$TMP/r7.h1" <<'R7H1'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+_r7c="$3"
+if [ "$4" = stop ]; then
+  wc() {
+    if [ -e "$_r7c" ]; then printf 'call\n' >> "$_r7c"; printf 'revoked: tidy\n'; return 0; fi
+    printf 'call\n' > "$_r7c"; command wc "$@"
+  }
+fi
+felix_autonomy_revoke "$2" tidy >/dev/null 2>&1
+echo "returned $?"
+R7H1
+rm -f "$_r7calls"; _rvset '# h\ntidy\ncommission\n'; _r6held
+_r7h1="$("$BASH" "$TMP/r7.h1" "$FROOT" "$RVP" "$_r7calls" stop 2>/dev/null)"
+is "a revoke of tidy in a script under set -u whose wc prints no count after its first call returns non-zero" \
+   "$(_r7exit "$_r7h1")" "refused"
+is "and that stopped revoke leaves the grant file byte-identical, tidy granted, the stamp kept and nothing new behind" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_rvallows tidy):$(_rvstamp):$(_r6new)" "same:yes:kept:nothing-new"
+rm -f "$_r7calls"; _rvset '# h\ntidy\ncommission\n'
+_r7h1="$("$BASH" "$TMP/r7.h1" "$FROOT" "$RVP" "$_r7calls" real 2>/dev/null)"
+is "and the same script with the real wc revokes tidy, returns 0 and keeps commission" \
+   "$(_r7exit "$_r7h1"):$(_rvallows tidy):$(_rvallows commission)" "returned 0:no:yes"
+
+# H2: a grant read stopped part-way is no grant. With STOP as its third word
+# the script's grant read stops in an arithmetic expansion of an unset name.
+cat > "$TMP/r7.h2" <<'R7H2'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+if [ "$3" = stop ]; then
+  _felix_autonomy_grants() { local x; x=$(( h2_never_set )); }
+fi
+if felix_autonomy_allows "$2" tidy; then echo grant; else echo none; fi
+R7H2
+_rvset 'tidy\n'
+is "a grant read of tidy in a script under set -u stopped by an unset name in arithmetic is no grant" \
+   "$("$BASH" "$TMP/r7.h2" "$FROOT" "$RVP" stop 2>/dev/null)" "none"
+is "and the same script without the stop reads tidy over 'tidy' as a grant" \
+   "$("$BASH" "$TMP/r7.h2" "$FROOT" "$RVP" plain 2>/dev/null)" "grant"
+
+# H3: the CLI end to end, with an executable wc first in PATH that is the real
+# wc once and then prints no count. No stamp is written.
+_r7bin="$TMP/r7.bin"; mkdir -p "$_r7bin"; _r7wc="$(command -v wc)"
+{ printf '#!/bin/sh\n'; printf "c='%s'; w='%s'\n" "$_r7calls" "$_r7wc"
+  cat <<'R7WC'
+if [ -e "$c" ]; then printf 'call\n' >> "$c"; printf 'revoked: tidy\n'; exit 0; fi
+printf 'call\n' > "$c"; exec "$w" "$@"
+R7WC
+} > "$_r7bin/wc"; chmod 755 "$_r7bin/wc"
+rm -f "$_r7calls"; _rvset '# h\ntidy\ncommission\n'; rm -f "$RVP/autonomy.commission"; _r6held
+( cd "$REPO" && PATH="$_r7bin:$PATH" "$FELIX" autonomy --revoke tidy ) > "$TMP/rv.out" 2> "$TMP/rv.err"
+_rvrc=$?; _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+rm -rf "$_r7bin"
+is "a felix autonomy --revoke tidy whose wc prints no count after its first call exits non-zero" "$(_rwexit)" "refused"
+is "and the stopped CLI revoke prints no revoked: on stdout" "$(_r3has "$_rvout" 'revoked:' said silent)" "silent"
+is "and the stopped CLI revoke leaves the grant file byte-identical and nothing new behind" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "same:nothing-new"
+
+rm -f "$RVP"/autonomy* "$TMP/rv.held" "$_r7calls" "$TMP/r7.h1" "$TMP/r7.h2"
+for _rvf in "$RV7K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV7K" 2>/dev/null
+is "the widget's directory holds exactly what it held before stopped subshells were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r7start"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

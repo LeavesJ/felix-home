@@ -896,7 +896,7 @@ cmd_gate() {
   # off the flags this command was given. A project gate that skips for its own
   # reasons is recorded the same way, and no gate has to be edited to be heard.
   local skipped
-  skipped="$(awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }' "$log" 2>/dev/null)"
+  skipped="$(LC_ALL=C awk '$2 == "skipped" { printf "%s%s", sep, $1; sep = "," }' "$log" 2>/dev/null)"
   # And every check it reported, with the verdict it printed, off the same
   # report. Until this was recorded the only roster of what the gate checks was
   # one a session typed into a handoff by hand, and `felix qualify` had no way

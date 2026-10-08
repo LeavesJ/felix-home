@@ -119,7 +119,7 @@ _felix_setup_classify() {
   esac
   while :; do case "$path" in /*) path="${path#/}" ;; *) break ;; esac; done
   case "$host" in ''|-*|*[!A-Za-z0-9._-]*) return 0 ;; esac
-  lh="$(printf '%s' "$host" | tr 'A-Z' 'a-z')"
+  lh="$(printf '%s' "$host" | LC_ALL=C tr 'A-Z' 'a-z')"
   case "$lh" in
     github.com|www.github.com|ssh.github.com) ;;
     *)
@@ -128,7 +128,7 @@ _felix_setup_classify() {
       # turns the whole pipeline's status to 141.
       if [ "$ssh" -eq 1 ] && command -v ssh >/dev/null 2>&1; then
         real="$(ssh -G -o CanonicalizeHostname=no "$host" </dev/null 2>/dev/null \
-                | awk '$1 == "hostname" && !s { print $2; s = 1 }' | tr 'A-Z' 'a-z')" || real=""
+                | LC_ALL=C awk '$1 == "hostname" && !s { print $2; s = 1 }' | LC_ALL=C tr 'A-Z' 'a-z')" || real=""
       fi
       case "$real" in
         github.com|www.github.com|ssh.github.com) ;;

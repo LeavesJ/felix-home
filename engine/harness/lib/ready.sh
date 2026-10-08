@@ -142,7 +142,7 @@ felix_ready_report() {
       printf 'undeclared\t%s\t%s\n' "$want" "named by a route, absent from stack.tsv"
       continue
     fi
-    kind="$(printf '%s' "$row" | cut -f1)"
+    kind="$(printf '%s' "$row" | LC_ALL=C cut -f1)"
 
     # A standalone skill is a directory, not a package: there is no plugin to
     # enable and nothing in the plugin list to find. Looking for one there

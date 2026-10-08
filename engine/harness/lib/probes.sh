@@ -110,7 +110,7 @@ felix_probe_rows() {
   local proj="$1"
   [ -f "$proj/probes.tsv" ] || return 0
   LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
-    | awk -F'\t' 'NF >= 4 && NF <= 5 && $1 != "" && $4 != "" { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
+    | LC_ALL=C awk -F'\t' 'NF >= 4 && NF <= 5 && $1 != "" && $4 != "" { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
   return 0
 }
 
@@ -123,7 +123,7 @@ felix_probe_malformed() {
   local proj="$1"
   [ -f "$proj/probes.tsv" ] || return 0
   LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
-    | awk -F'\t' 'NF < 4 || NF > 5 || $1 == "" || $4 == "" { print ($1 == "" ? "(unnamed)" : $1) }'
+    | LC_ALL=C awk -F'\t' 'NF < 4 || NF > 5 || $1 == "" || $4 == "" { print ($1 == "" ? "(unnamed)" : $1) }'
   return 0
 }
 

@@ -159,10 +159,10 @@ felix_commission_provider_state() {
   if [ "$first" != "# topology $(felix_commission_topology "$proj" "$root")" ]; then
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
-  last="$(grep -vE '^[[:space:]]*$' "$f" | tail -1)"
-  rows="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | grep -vc $'^done\t'
+  last="$(LC_ALL=C grep -vE '^[[:space:]]*$' "$f" | tail -1)"
+  rows="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -vc $'^done\t'
     set -- "${PIPESTATUS[@]}"; [ "${1:-2}" -le 1 ] && [ "${2:-2}" -le 1 ] || printf '?')"
-  n="$(printf '%s' "$last" | awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
+  n="$(printf '%s' "$last" | LC_ALL=C awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
   case "$n" in ''|*[!0-9]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
   case "$rows" in ''|*[!0-9]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
   if [ "$n" -ne "$rows" ]; then
@@ -193,7 +193,7 @@ felix_commission_provider_classifier() {   # need -> 1-based field index
 }
 _felix_commission_provider_lines() {
   local f; f="$(felix_commission_answer_path "$1" "$2")"; [ -f "$f" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$f" | grep -v $'^done\t'
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -v $'^done\t'
   return 0
 }
 felix_commission_provider_rows() {

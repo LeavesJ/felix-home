@@ -22,7 +22,7 @@ so two sessions' handoffs cannot collide in whatever order they land. The
 session start names every section waiting there. Each is newer than the
 current section below. `felix handoff --rotate`, on a branch cut from main
 when upkeep says it is due, folds them in, oldest-landed first:
-- each takes the next id (after 0cg comes 0ch);
+- each takes the next id (after 0di comes 0dj);
 - the section it replaces moves into `docs/handoff/<id>.md`, unchanged;
 - their rows go in at the top of the index.
 
@@ -47,86 +47,139 @@ tree; the engine is published as a snapshot with no history at
 Sections newer than this one may be waiting in `docs/handoff/pending/`. The
 session start names them.
 
-### 0cg. 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree
+### 0di. 2026-10-01: a seeded commissioning check reads done only when its lookups ran to the end
 
-**No engine change.** `.github/workflows/gate.yml` and two scripts beside it,
-on `claude/felix-verification-scheduler-1fe223`. It is an `execute` escape, so
-`felix merge` refuses it and it merges on the founder's yes.
+Found by the adversarial review of claude/commission-lookup-fails-unknown,
+and reproduced there with `ulimit -u 1` inside a check's own substitution.
 
-**Why.** From 2026-09-25 00:07Z GitHub refused every felix-home job. The
-founder and an outside reviewer read that as a new verification ceiling. The
-measurement is in `~/.felix/memory/felix/audits/2026-09-24-ci-budget/`
-(`ci-budget.md`, its PDF, and `data/` with the scripts).
+**Defect closed.** Ten of the template's fourteen rows decided from what an
+engine lookup printed. They read `done` when the lookup never finished.
+Measured on macOS bash 3.2.57:
+- `[ -z "$(lookup)" ]` (probes, obligations, reach) is true when the lookup
+  cannot fork inside the substitution, which prints nothing with status 128.
+  It is also true when the substitution cannot make its pipe
+  (`ulimit -n 3`), which prints nothing with status **0**. So
+  `out="$(lookup)" && [ -z "$out" ]` would not close it.
+- `[ "$(lookup | grep -c bad)" -eq 0 ]` (stack, preflight, discover,
+  human_steps) is true when the lookup dies inside the pipe, with pipefail
+  or without.
+- `[ -n "$(lookup)" ]` (gate_declared) is true on what a lookup printed
+  before it died.
+- `lookup | grep -q good` (envelope, baseline) is true on what a lookup
+  printed before it died when pipefail is off. With pipefail on, it holds on
+  a lookup that answered and returned non-zero.
 
-**What the data says.**
+The rows are in engine/harness/templates/commissioning.tsv and in every
+governed project's copy: bazaar, behaviorchangebench, elenchus, felix,
+sv2-apps, veldra and webapp.
 
-- **A budget cap, not capacity.** September's 531 runs came to about 2,042
-  billed minutes against the Free plan's 2,000, with a $0 spending limit. Since
-  09-22, jobs waited a median of 3 s to start, and at most 4 ran at once
-  against the plan's 20.
-- **Post-merge runs on main never failed.** They were 34.5% of minutes, and
-  0 of 203 failed. 174 of them gated a tree the pull request's run had already
-  passed.
-- **Drafts:** 20% of minutes gross, but only about 6.5% net, because 45 of 54
-  went ready.
-- **Freshness:** 21 of 37 PR failures were freshness checks alone. L2b removes
-  that class.
-- **Nothing in the engine reads CI.** `felix merge` never does; sessions
-  stopped on the working rule "merge once CI is green". Under the landing
-  actor, CI on landed commits is the brake, so the budget sets availability as
-  well as cost.
+**Mechanism, and why this one.** Each lookup is read alone with a mark after
+it, `x="$(lookup; [ $? -lt 128 ] && printf .)" && [ "${x%.}" != "$x" ]`.
+The row then decides by `grep -c` over `${x%.}`, never over a pipe from the
+lookup. Probes feeds felix_probes_blocking from the value it read, through
+`{ felix_probes_blocking; [ $? -lt 128 ] && printf .; }`.
+- **Status 128 or more is a death.** A dead last pipeline stage returns 128
+  or 129 (felix_stack_plan, felix_setup_status), so the mark is not written.
+- **A lower status is an answer.** felix_stack_plan returns grep's 1 under
+  pipefail on a stack.tsv holding only comments. A shape that carries any
+  status holds that row.
+- **Blank lines read as before.** The count, rather than `[ "$x" = . ]` or
+  `[ -n "${x%.}" ]`, keeps the old reading of blank lines. felix_json_str
+  prints an empty line for `"gate": ""`.
+- **`unknown` lines hold their rows.**
+  - stack counts an `unknown` action.
+  - human_steps counts an `unknown` step.
+  - preflight counts an `unknown` line, which felix_ready_report already
+    prints when it cannot list plugins.
 
-**What was built.**
+  claude/cap-unread-callers makes felix_stack_plan and felix_setup_status
+  print theirs. With that engine and these rows, an unreadable capabilities
+  file holds the stack row. Old rows read done there, and on main's engine
+  both still do.
+- **No lint.** #375 tried a validator for the check column and reverted it:
+  a correct one needs a quote-, redirect- and list-aware parser.
 
-- The `reuse` job runs on pushes to main only, holding `pull-requests`,
-  `actions` and `checks` read. It finds the merged pull request, then the
-  pull_request run of `gate.yml` on its head that ran last (by
-  `run_started_at`). That run must be green, and its gate job must name exactly
-  one `gated tree` annotation equal to the landed tree.
-- The `gate` job emits that annotation before the gate runs. It is skipped only
-  when `reuse` names a run.
-- `reuse-verified-tree.test.sh` has 27 cases. Its stand-in `gh` answers only
-  exact URLs, and nine mutations of the step were each caught.
+**Built as spec, blind assertions, fix, review.**
+- **Blind assertions.** A blind author wrote 115 assertions from the contract
+  alone, in its own worktree on origin/main. 37 were red there. The
+  reachability and old-finding cases were green.
+- **First fix and its gaps.** The first fix (e8bb0029) covered seven rows.
+  The blind block found envelope, gate_declared and baseline, plus a status
+  read on the probes stage (521e0757).
+- **Adversarial review.** The review of e8bb0029 confirmed the fix where it
+  claims to work. It found the 128/129 loop deaths and the missing `unknown`
+  in felix_stack_plan, and corrected three sentences of the header (eb2d8374).
+- **Assertions after review.** Eight not-blind assertions were added after
+  review (7e4e429c). They are red against 521e0757, so they pin the status rule.
+- **Final count.** 123 assertions: 123/123 against the template and against
+  the bazaar, behaviorchangebench, felix, sv2-apps and webapp tables.
+  origin/main fails 45. Elenchus and
+  veldra fail only six named obligations cases, because neither table has an
+  obligations row.
+- **Mutation.** Reverting any one row to main's text reds only that need's
+  assertions, 2 to 8 each, 45 in all.
+- **Normal states.** `felix commission --status` reads the same done and held
+  rows under old and new tables in all six checkouts found here (every
+  project but webapp).
+  - One state changes on purpose: preflight, when the claude CLI is present
+    and its plugin list is empty, goes from done to held, and the routed
+    plugins really are absent.
+  - Provider answers read `stale`, because their topology hashes
+    commissioning.tsv.
 
-**The review changed the design.** One adversarial reviewer found a hole in
-the first version. It inferred the gated tree from ancestry, so it could reuse
-a run whose base was another branch: a pull request retargeted to main after
-its last run, or a head shared by two pull requests. The run object keeps no
-base once the pull request merges. The annotation records the tree the run
-actually gated, which also drops the dependence on main only moving forward.
-The reviewer also found:
+**What landing costs.**
+- **It escapes.** commissioning.tsv is in FELIX_ESCAPE_TABLES, so
+  `felix merge` refuses it. It lands by `gh pr merge` on the founder's yes.
+- **Every policy hash moves.**
+  - Felix's commission grant and receipt go stale. `felix merge` refuses
+    every PR until the founder runs `felix autonomy --allow commission`, then
+    `felix commission`.
+  - Each other project's receipt goes stale until a `felix commission` run in
+    its checkout.
+  - The provider skills (constitution_audited, automation_surveyed, and
+    obligations_surveyed on elenchus) read `stale` until they run again.
+- **Slot.** The carrier placed this at 0.49.265, after #340 (.263) and #385
+  (.264), which also change felix's tables, so one re-stamp covers all three.
+- **#388's two tables are done.** #388 brought projects/webapp and
+  projects/behaviorchangebench with the old checks, unchanged from the old
+  template. Main was merged at ea865e82, and both tables now carry the
+  template's check cell for all ten needs. Each passes 123/123 and fails 45
+  on main. behaviorchangebench's checkout reads the same states under old and
+  new rows. No checkout here is bound to webapp. A table added after this
+  must be given the same cells.
 
-- a stand-in `gh` that three broken copies passed;
-- "latest" meaning latest created rather than latest started;
-- token claims that overstated.
+**Handed on, not done here:**
+- **Nested deaths.** A fork failure nested inside a lookup can still leave a
+  short answer, a status under 128 and the mark. The review reproduced it for:
+  - preflight, in felix_ready_wanted;
+  - probes, in felix_probe_state;
+  - obligations, in felix_obligations_orphans' row read;
+  - preflight again with `ulimit -n 11`, a redirection failing inside
+    felix_ready_report.
 
-All of these are fixed.
+  Each is the lookup's to report. Most lookups end in `return 0`.
+- **preflight's `unknown` cannot be cleared by its answer.**
+  felix_ready_report prints `unknown` ("no claude CLI here") for an empty
+  plugin list even when the CLI is present, and `felix ready --fix` acts only
+  on absent and disabled. The row reads held rather than unknown. It ignores
+  `undeclared`, which `felix ready` itself counts.
+- **The mark is only a trailing `.`.** A lookup that exits 0 mid-line after a
+  `.` would pass. No lookup calls exit.
+- **gate_shown_failing can hold falsely.** It ends in `grep -q .` behind
+  three filters. Under pipefail, a mistakes.log that fills the pipe after
+  grep quits reads held. That fails closed.
+- **Tables copied from older templates.** Tables outside this repository, or
+  copied from an older template, keep the old rows. A drift report is being
+  built as claude/commission-template-drift.
 
-**What is not proven until it runs.** The replay of the first version
-reused 168 of 203 September pushes. The annotation version cannot be replayed,
-because old runs carry no annotation. Its first live test is this PR's own
-push to main. Check that run's `reuse` job summary: a green run with the `gate`
-job skipped means it worked.
-
-**Rules recorded for the verification plane** (R1-R6 in the audit, Felix's
-call, not asked):
-
-- R1: evidence is keyed by tree, judge and environment.
-- R2: a skip is only ever a reuse.
-- R3: remote CI is spent at the landing frontier, with readiness in L6a.
-- R4: freshness never costs a runner; L2b removes it.
-- R5: the month-to-date budget goes on the L3a status page.
-- R6: docs-only changes run the full gate until the suite's reads are
-  measured. This suite pins README text, so a path filter would drop real
-  checks.
-- Not now: a self-hosted runner.
-
-**Next.**
-
-- The founder's yes on the merge.
-- After it lands, read the first push run.
-- Then carry the reuse into the bootstrap template (`lib/bootstrap.sh`), so
-  adopters get it too. That is engine work, through the pipeline.
+**Traps paid:**
+- **C3 cannot go through felix_commission_ask.** Its `</dev/null` needs fd 3,
+  which `ulimit -n 3` refuses. The block evaluates the check text directly.
+- **The fact-forcing gate.** In a Bash call, `rm -rf` trips it whatever facts
+  come first. Create a fresh `mktemp -d` instead.
+- **"Held on every fresh project" was wrong.** `felix new` seeds the
+  catalogue's `always` rows into stack.tsv, so a manifest of only comments
+  comes from a hand edit, not from `felix new`.
 
 ---
 
@@ -137,6 +190,34 @@ Newest first. Each file is the section exactly as it stood.
 | § | Section |
 |---|---|
 | [0](docs/handoff/0.md) | DECIDED 2026-08-14, AMENDED 2026-09-13 — this repository is private, and a snapshot of the engine is public |
+| [0dh](docs/handoff/0dh.md) | 2026-09-28 — Felix governs a Claude Code cloud session of felix-home, and carries the toolbox its routes name |
+| [0dg](docs/handoff/0dg.md) | 2026-09-24/10-01 — a binding refusal cut at eighty characters could name the parent directory; the middle is cut now, and marked |
+| [0df](docs/handoff/0df.md) | 2026-10-01 — handoff-check, lifecycle-check and obligations-check find their libraries before moving to the top, so a relative call from a subdirectory no longer ends 127 |
+| [0de](docs/handoff/0de.md) | 2026-10-01 — a handoff fold already pushed is named at session start, so a second session does not fold the same sections |
+| [0dd](docs/handoff/0dd.md) | 2026-09-24 — the engine makes its scratch under TMPDIR, because a bare mktemp on a Mac does not, and no count of what a path left behind could see it |
+| [0dc](docs/handoff/0dc.md) | 2026-09-24 — every uses: in the gate workflow bootstrap renders is a commit sha, for every stack it can render |
+| [0db](docs/handoff/0db.md) | 2026-10-01: a fresh repository commissions clean. The mistakes log writes one row per failure and heals split ones, the gate records the project's own failure, a gate that could not run is not a shown failure, and GitHub-only setup rows wait for a GitHub remote |
+| [0da](docs/handoff/0da.md) | 2026-10-01: a table check that cannot fail because a final filter hides its status is refused, by one classifier every runner and schema-check share |
+| [0cz](docs/handoff/0cz.md) | 2026-10-02: felix inventory (Phase 0b step 4), revised against the settled spec |
+| [0cy](docs/handoff/0cy.md) | 2026-10-02: lib/qualify.sh is split along its run/read seam, and a later qualify run sweeps the scratch trees a SIGKILLed run left, and nothing else |
+| [0cx](docs/handoff/0cx.md) | 2026-10-02: a hook in a Desktop worktree session judges the worktree, not the main checkout |
+| [0cw](docs/handoff/0cw.md) | 2026-10-01: the systems report v5, reviewed and decided. What Felix builds next, in what order, and what starts each step |
+| [0cv](docs/handoff/0cv.md) | 2026-10-01: a receipt over a run that reported fewer rows than its table lists, or over counts that are not numbers, is indeterminate, and the reader refuses a receipt whose counts or result no run writes |
+| [0cu](docs/handoff/0cu.md) | 2026-09-25 to 10-01: a commissioning state line that comes back empty, names no state, or was never read makes its row unknown, so the receipt no longer reads commissioned over it |
+| [0ct](docs/handoff/0ct.md) | 2026-10-02: an assertion the base run never reached is recorded red, and the gate fails a record that counts fewer assertions than the manifest lists (#371's follow-up) |
+| [0cs](docs/handoff/0cs.md) | 2026-10-01: a red run whose suite died is refused, not recorded as zero red, and the gate fails a record that shows no red run for an engine change (#371) |
+| [0cr](docs/handoff/0cr.md) | 2026-10-01: a qualification row's scratch tree never outlives the row: its permissions come back before it is removed, and a row stopped by INT, TERM or HUP removes it on the way out |
+| [0cq](docs/handoff/0cq.md) | 2026-10-01: a qualification row's premise, mutation and command each run in a bash of their own, and a column that ran nothing reads unrunnable wherever the runner can hear it |
+| [0cp](docs/handoff/0cp.md) | 2026-09-25 — a lesson or devlog entry settles only its writer's catches: `felix lesson` and `felix log` record who wrote each entry in written.log, and the unrecorded-catch prompt reads nothing else |
+| [0co](docs/handoff/0co.md) | 2026-09-25: a `qualification.tsv` holding a NUL byte is refused as a whole, through the one read |
+| [0cn](docs/handoff/0cn.md) | 2026-09-25: `felix qualify --gate` fails closed. One read of the table, a failed read refuses with exit 2, a short run refuses, and the gate always says why under `qualified FAIL` |
+| [0cm](docs/handoff/0cm.md) | 2026-09-25 — the needs-count flake was printf into grep -q under pipefail, not a failed read; qualify's membership is a case in the shell now, and an unreadable qualification.tsv is said, not resolved |
+| [0cl](docs/handoff/0cl.md) | 2026-09-25 — the project scripts read a pipe's answer from the whole list: a README change under --public-readme and a monitoring change in sv2-apps are no longer read as absent |
+| [0ck](docs/handoff/0ck.md) | 2026-09-24 — bootstrap's rendered gate workflow keeps no credential after its checkouts |
+| [0cj](docs/handoff/0cj.md) | 2026-09-23/25 — stranded work audited and backed up, the landing actor designed and put first, the founder's batch landed |
+| [0ci](docs/handoff/0ci.md) | 2026-09-25 — the context cap the founder counted on did not exist, and a session started from now on summarizes at 500K |
+| [0ch](docs/handoff/0ch.md) | 2026-09-25 — no engine test reads a pipe through a grep that can stop early: fifty sites converted, and a suite lint refuses the shape |
+| [0cg](docs/handoff/0cg.md) | 2026-09-24 — the Actions outage measured: a spending cap, not capacity; a push to main now reuses its pull request's green run of the same tree |
 | [0cf](docs/handoff/0cf.md) | 2026-09-23 — the public README rewritten for a general reader first, with the Felix mark, and checked against the code three times |
 | [0ce](docs/handoff/0ce.md) | 2026-09-24 — the 44 red rows every Mac recorded since #308 were tests/red moving TMPDIR, which macOS's mktemp ignores; red now runs the suite in the caller's TMPDIR |
 | [0cd](docs/handoff/0cd.md) | 2026-09-24 — the megabyte-line audit assertion timed by CPU and shown red, then handed to the session that already had it |

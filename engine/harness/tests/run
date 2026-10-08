@@ -22580,6 +22580,55 @@ chmod "$_r4dmode" "$RVP"
 is "the widget's directory holds exactly what it held before revoke's reading and naming were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r4start"
 
+printf '\nrevoke then allow on a last line with no newline\n'
+# 2026-10-08: the third review found that a revoke keeping an unended last line,
+# followed by an --allow that appended without ending it, glued the new grant
+# onto the old one: '# h\ntidy\ncommission' revoked of tidy and then allowed
+# tidy read 'commissiontidy', and the CLI still said "allowed: tidy". Revoke
+# keeps every byte it does not remove, so the unended line stays unended, and
+# --allow must end it before it appends. --allow is fixed by another change
+# (felix_end_line, slot .274), so this block is red on this branch until that
+# lands, and green on main, where revoke always wrote a final newline.
+RV5K="$TMP/revoke-keep-5"; mkdir -p "$RV5K"
+_r5start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV5K/"; done
+_r5bytes() { od -An -c "$RVP/autonomy" | tr -s ' \n' ' '; }   # the grant file's bytes, spelled out
+
+# F1: revoke tidy, then allow tidy, on '# h\ntidy\ncommission' with no final newline.
+_rvset '# h\ntidy\ncommission'; _rwcli --revoke tidy
+is "a revoke of tidy from a file whose last line commission is unended exits 0 and says revoked: tidy" \
+   "$_rvrc:$(_rwsaid 'revoked: tidy')" "0:said"
+printf '# h\ncommission' > "$TMP/rw.want"
+is "and the file is then '# h' and commission, still unended" "$(_rwis)" "same"
+_rwcli --allow tidy
+is "then an --allow of tidy exits 0 and says allowed: tidy" "$_rvrc:$(_rwsaid 'allowed: tidy')" "0:said"
+printf '# h\ncommission\ntidy\n' > "$TMP/rw.want"
+is "and the file is then exactly '# h', commission and tidy, each on its own ended line" \
+   "$(_rwis):$(_r5bytes)" "same:$(od -An -c "$TMP/rw.want" | tr -s ' \n' ' ')"
+_rwuis "and tidy and commission both read as granted under C and under UTF-8" \
+   "$(_rwboth tidy):$(_rwboth commission)" "yes:yes:yes:yes"
+
+# F1, mirrored: revoke commission, then allow commission, on '# h\ncommission\ntidy'.
+_rvset '# h\ncommission\ntidy'; _rwcli --revoke commission
+is "a revoke of commission from a file whose last line tidy is unended exits 0 and says revoked: commission" \
+   "$_rvrc:$(_rwsaid 'revoked: commission')" "0:said"
+printf '# h\ntidy' > "$TMP/rw.want"
+is "and the file is then '# h' and tidy, still unended" "$(_rwis)" "same"
+_rwcli --allow commission
+is "then an --allow of commission exits 0 and says allowed: commission" \
+   "$_rvrc:$(_rwsaid 'allowed: commission')" "0:said"
+printf '# h\ntidy\ncommission\n' > "$TMP/rw.want"
+is "and the file is then exactly '# h', tidy and commission, each on its own ended line" \
+   "$(_rwis):$(_r5bytes)" "same:$(od -An -c "$TMP/rw.want" | tr -s ' \n' ' ')"
+_rwuis "and commission and tidy both read as granted under C and under UTF-8 after the re-arm" \
+   "$(_rwboth commission):$(_rwboth tidy)" "yes:yes:yes:yes"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want"
+for _rvf in "$RV5K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV5K" 2>/dev/null
+is "the widget's directory holds exactly what it held before revoke then allow was tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r5start"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

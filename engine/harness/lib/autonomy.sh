@@ -106,46 +106,75 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
 # engines already deployed (plugin caches up to 0.49.273, and every session
 # started before a deploy) keep the locale-bound reader, so a revoke that
 # matched only this engine's reader said "revoked: tidy" over a tidy<NBSP>
-# line their session-start still tidied by. Every non-ASCII whitespace
-# character is made of bytes from \200 up in UTF-8, and is one such byte in a
-# single-byte locale, so trimming all of them from both ends covers every
-# reader. A line that only looks like the grant goes too; it granted nothing
-# here. Call it in the C locale, so the byte range is bytes.
+# line their session-start still tidied by.
+#
+# A reader grants a line that is the capability with whitespace around it, as
+# its locale reads whitespace. So a line names the capability when it holds it
+# once and nothing else in the line is an ASCII letter or '#': no whitespace
+# character, in any encoding a macOS or glibc locale runs in, holds either
+# byte. UTF-8's and the EUC encodings' are bytes from \200 up, Shift-JIS's
+# ideographic space is \201@ and Big5's \241@, and GB18030's four-byte spaces
+# hold digits (checked 2026-10-08 against every Python codec: only EBCDIC and
+# ISO-2022, which no locale runs in, put a letter in one). 2026-10-08, from
+# the third review: trimming whitespace and bytes from \200 up missed
+# Shift-JIS, whose ideographic space ends in an ASCII '@', so an older engine
+# under ja_JP.SJIS still tidied by "tidy\201@" after "revoked: tidy". A line
+# that only looks like the grant ("tidy.", "- tidy") goes too; no reader
+# granted it. This holds while the capability names are letters. Call it in
+# the C locale, so a letter is A-Z or a-z.
 _felix_autonomy_names() {   # line want -> 0 when some reader might take the line as want
-  local line="$1" hi=$'\200-\377'
-  case "$line" in ''|'#'*) return 1 ;; esac
-  line="${line%"${line##*[![:space:]$hi]}"}"
-  line="${line#"${line%%[![:space:]$hi]*}"}"
-  [ "$line" = "$2" ]
+  local pre post
+  # What comes before the first match and after it, by %% and an offset: a
+  # pattern that starts with * makes bash 3.2's # quadratic in the line.
+  pre="${1%%"$2"*}"
+  [ "$pre" != "$1" ] || return 1
+  post="${1:$(( ${#pre} + ${#2} ))}"
+  case "$pre$post" in *[A-Za-z#]*) return 1 ;; esac
 }
 
-# One pass of revoke, in the C locale. Reads the file once, checks the read
-# was whole, and drops every line _felix_autonomy_names matches.
-#   with tmp: writes what is kept to tmp; 0 written, 4 nothing to remove
-#   tmp "":   writes nothing; 5 something to remove, 4 nothing to remove
+# One pass of revoke, in the C locale. Checks the file holds no NUL byte, then
+# reads it a line at a time, straight from the file, and drops every line
+# _felix_autonomy_names matches. The bytes the lines account for are counted,
+# and the count must come to the file's size: a loop that never ran, or a read
+# cut short, is a file not read whole, never one with nothing to remove.
+#   tmp "":   writes nothing; 5 something to remove (at the first such line),
+#             4 nothing to remove
+#   with tmp: writes every other line to tmp, each with the newline it had, so
+#             an unended last line stays unended; 0 written, 4 nothing to remove
 #   1 the file could not be read whole, or tmp could not be written
 #   2 the file holds a NUL byte
+#
+# 2026-10-08, from the third review: the lines came from a here-string of the
+# one read, and bash 3.2 writes a here-string to a temp file in /tmp or
+# /var/tmp. When that write failed, the loop never ran and the pass said
+# nothing to remove, so over a tidy<NBSP> line only older engines grant,
+# revoke said "revoked: tidy" and left the line. And the kept text, built up in
+# one string, made a revoke quadratic: 1 MB took 111 s of CPU.
 _felix_autonomy_rewrite() {   # file want tmp
-  local f="$1" want="$2" tmp="$3" rc line kept="" hit=1 ended=1 last=0 body nl='
+  local f="$1" want="$2" tmp="$3" size rc line end seen=0 hit=1 wrote=0 nl='
 '
   _felix_autonomy_read "$f"; rc=$?
   [ "$rc" = 0 ] || return "$rc"
   # A read cut short mid-file also ends like the end of the file. The byte
   # count is the check: in the C locale ${#…} counts bytes.
-  [ "$(( $(wc -c < "$f") ))" -eq "${#_felix_autonomy_text}" ] || return 1
-  body="$_felix_autonomy_text"
-  case "$body" in *"$nl") body="${body%"$nl"}" ;; *) ended=0 ;; esac
-  # One line at a time, from the one read: the here-string hands back the
-  # same bytes plus a final newline. When the file's last line was unended
-  # and is kept, that newline is not the file's, and comes off again.
-  while IFS= read -r line; do
-    if _felix_autonomy_names "$line" "$want"; then hit=0 last=0
-    else kept="$kept$line$nl" last=1; fi
-  done <<< "$body"
+  size="$(( $(wc -c < "$f") ))"
+  [ "$size" -eq "${#_felix_autonomy_text}" ] || return 1
+  _felix_autonomy_text=""
+  while :; do
+    if IFS= read -r line; then end="$nl"
+    elif [ -n "$line" ]; then end=""
+    else break; fi
+    seen=$(( seen + ${#line} + ${#end} ))
+    if _felix_autonomy_names "$line" "$want"; then
+      hit=0
+      [ -n "$tmp" ] || break
+    elif [ -n "$tmp" ]; then
+      printf '%s%s' "$line" "$end" || { wrote=1; break; }
+    fi
+  done < "$f" > "${tmp:-/dev/null}"
+  [ -n "$tmp" ] || [ "$hit" = 1 ] || return 5
+  [ "$wrote" = 0 ] && [ "$seen" -eq "$size" ] || return 1
   [ "$hit" = 0 ] || return 4
-  [ -n "$tmp" ] || return 5
-  [ "$ended$last" != 01 ] || kept="${kept%"$nl"}"
-  printf '%s' "$kept" > "$tmp" || return 1
 }
 
 felix_autonomy_allows() {
@@ -182,10 +211,10 @@ felix_autonomy_allows() {
 # exactly where the reader trims, so a hand-edited "commission " stayed granted
 # after a revoke that said otherwise.
 #
-# Decided: revoke removes every line a reader could count as the grant —
-# leading and trailing whitespace of any kind, CRs too — and keeps every other
-# byte. Matching exactly instead would leave a revoke that cannot take back a
-# grant a reader honours.
+# Decided: revoke removes every line a reader could count as the grant — the
+# capability with whitespace of any kind, in any encoding, around it, CRs too —
+# and keeps every other byte. Matching exactly instead would leave a revoke
+# that cannot take back a grant a reader honours.
 #
 # The rewrite keeps the file's mode, and a revoke with nothing to remove
 # writes nothing. A linked file is replaced by a regular one: the revoke is
@@ -204,8 +233,9 @@ felix_autonomy_revoke() {
   [ -f "$f" ] || return 0
   # Each pass runs in its own C locale with its output thrown away: bash 3.2's
   # printf can leave the unwritten tail of a failed write in its buffer, and
-  # that is file text. The first pass writes nothing, so a revoke with nothing
-  # to remove needs no writable directory and leaves the file as it was.
+  # that is file text. The first pass writes nothing, not even a temp file, so
+  # a revoke with nothing to remove needs no writable directory and leaves the
+  # file as it was.
   ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
   if [ "$rc" = 5 ]; then
     # mktemp creates the name or fails; it never opens a link planted there.
@@ -213,7 +243,9 @@ felix_autonomy_revoke() {
     ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" ) > /dev/null 2>&1; rc=$?
   fi
   if [ "$rc" = 0 ]; then
-    # mktemp made it 0600; give it the file's own mode, or keep 0600.
+    # mktemp made it 0600; give it the file's permission bits, or keep 0600.
+    # BSD's %Lp leaves out setuid, setgid and sticky, which a grant file has no
+    # use for.
     mode="$(stat -L -c %a "$f" 2>/dev/null || stat -L -f %Lp "$f" 2>/dev/null)"
     [ -z "$mode" ] || chmod "$mode" "$tmp" 2>/dev/null
     mv -f "$tmp" "$f" 2>/dev/null || rc=1

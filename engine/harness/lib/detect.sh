@@ -30,7 +30,7 @@ _felix_dep_grep() {
     # shellcheck disable=SC2086
     for m in "$root"/$f; do
       [ -f "$m" ] || continue
-      grep -qiE "$pat" "$m" && return 0
+      LC_ALL=C grep -qiE "$pat" "$m" && return 0
     done
   done
   return 1
@@ -138,10 +138,10 @@ felix_undeclared() {
 felix_guess_gate() {
   local root="${1:-$PWD}"
   if [ -f "$root/package.json" ]; then
-    grep -q '"verify"' "$root/package.json" && { echo "npm run verify"; return; }
-    grep -q '"test"'   "$root/package.json" && { echo "npm test"; return; }
+    LC_ALL=C grep -q '"verify"' "$root/package.json" && { echo "npm run verify"; return; }
+    LC_ALL=C grep -q '"test"'   "$root/package.json" && { echo "npm test"; return; }
   fi
-  [ -f "$root/Makefile" ] && grep -qE '^(check|verify):' "$root/Makefile" \
+  [ -f "$root/Makefile" ] && LC_ALL=C grep -qE '^(check|verify):' "$root/Makefile" \
     && { echo "make check"; return; }
   [ -f "$root/Cargo.toml" ] && { echo "cargo test"; return; }
   [ -f "$root/go.mod" ]     && { echo "go test ./..."; return; }

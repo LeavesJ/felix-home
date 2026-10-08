@@ -82,16 +82,16 @@ felix_candidates_rules() {
 '
   f="$(felix_candidates_answer_path "$proj")"
   [ -f "$f" ] || return 0
-  preds="$(felix_probe_rows "$proj" 2>/dev/null | cut -f1 | LC_ALL=C sort -u)"
+  preds="$(felix_probe_rows "$proj" 2>/dev/null | LC_ALL=C cut -f1 | LC_ALL=C sort -u)"
   admitted="$(felix_obligation_names "$proj" 2>/dev/null)"
-  grep -vE '^[[:space:]]*(#|$)' "$f" | grep -v $'^done\t' | while IFS= read -r line; do
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -v $'^done\t' | while IFS= read -r line; do
     [ -n "$line" ] || continue
-    n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
-    name="$(printf '%s\n' "$line" | cut -f1)"
+    n="$(printf '%s\n' "$line" | LC_ALL=C awk -F'\t' '{ print NF }')"
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
     if [ "$n" -ne 7 ]; then
       printf 'refuse\t%s\t%s fields where the shape has 7\n' "${name:-(unnamed)}" "$n"; continue
     fi
-    if ! grep -qE '^[a-z][a-z0-9_]*$' <<<"$name"; then
+    if ! LC_ALL=C grep -qE '^[a-z][a-z0-9_]*$' <<<"$name"; then
       printf 'refuse\t%s\tnot a name: an obligation is lowercase letters, digits and underscores\n' "${name:-(unnamed)}"; continue
     fi
     # Membership by case, not a pipe into grep -q: grep stops at the first
@@ -100,7 +100,7 @@ felix_candidates_rules() {
     case "$nl$admitted$nl" in
       *"$nl$name$nl"*) printf 'refuse\t%s\talready admitted in obligations.tsv\n' "$name"; continue ;;
     esac
-    cls="$(printf '%s\n' "$line" | cut -f2)"
+    cls="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     case "$cls" in
       *_BLOCKING) printf 'refuse\t%s\tclass %s may not block: a single model finding is advisory only, and a person admits it with the class they can defend\n' "$name" "$cls"; continue ;;
     esac
@@ -108,20 +108,20 @@ felix_candidates_rules() {
       *" $cls "*) ;;
       *) printf 'refuse\t%s\tclass "%s" is not one of %s\n' "$name" "$cls" "$FELIX_CANDIDATES_CLASSES"; continue ;;
     esac
-    ev="$(printf '%s\n' "$line" | cut -f4)"
+    ev="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
     if [ -z "$ev" ] || [ "$ev" = "-" ]; then
       printf 'refuse\t%s\tno evidence: a candidate nothing could ever discharge is a wish\n' "$name"; continue
     fi
-    grounds="$(printf '%s\n' "$line" | cut -f5)"
+    grounds="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
     bad=""
-    for g in $(printf '%s' "$grounds" | tr ',' ' '); do
+    for g in $(printf '%s' "$grounds" | LC_ALL=C tr ',' ' '); do
       case "$nl$preds$nl" in *"$nl$g$nl"*) ;; *) bad="$g" ;; esac
     done
     [ -z "$grounds" ] && bad="-"
     if [ -n "$bad" ]; then
       printf 'refuse\t%s\tground "%s" is not a declared probe: a proposal grounded on nothing Felix reads is the fabrication the spec forbids\n' "$name" "$bad"; continue
     fi
-    reason="$(printf '%s\n' "$line" | cut -f7)"
+    reason="$(printf '%s\n' "$line" | LC_ALL=C cut -f7)"
     if [ "${#reason}" -gt "$FELIX_CANDIDATES_REASON_MAX" ]; then
       printf 'refuse\t%s\ta reason longer than %s characters, which the log could not hold whole\n' "$name" "$FELIX_CANDIDATES_REASON_MAX"; continue
     fi

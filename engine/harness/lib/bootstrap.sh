@@ -35,7 +35,7 @@
 # `gate`, which is the name this library writes inside gate.yml. A project that
 # names another file has to name that workflow's display name in the trigger.
 felix_gate_workflow() {
-  local proj="$1" w
+  local proj="$1" w LC_ALL=C
   w="$(felix_json_str "$proj/project.json" gate_workflow 2>/dev/null)"
   [ -n "$w" ] || { printf 'gate.yml'; return 0; }
   case "$w" in
@@ -66,7 +66,7 @@ _felix_bs_have_protection() {
 }
 # grep on a file is safe; only pipelines can SIGPIPE.
 _felix_bs_have_perms()    { [ -f "$1/.claude/settings.json" ] && \
-                            grep -q '"deny"' "$1/.claude/settings.json" 2>/dev/null; }
+                            LC_ALL=C grep -q '"deny"' "$1/.claude/settings.json" 2>/dev/null; }
 
 # Which toolchain CI has to install before the gate can run.
 felix_guess_ecosystem() {

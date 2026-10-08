@@ -66,8 +66,8 @@ fi
 
 TID="$(felix_tree_id "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR" 2>/dev/null)"
-[ "$(printf '%s' "$receipt" | cut -f1)" = "$TID" ] \
-  && [ "$(printf '%s' "$receipt" | cut -f2)" = "green" ] && exit 0
+[ "$(printf '%s' "$receipt" | LC_ALL=C cut -f1)" = "$TID" ] \
+  && [ "$(printf '%s' "$receipt" | LC_ALL=C cut -f2)" = "green" ] && exit 0
 
 # Once per parent session, and the sentence claims only what this hook can
 # know (#97). SubagentStop carries the PARENT's session id and nothing about

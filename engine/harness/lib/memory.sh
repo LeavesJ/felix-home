@@ -133,14 +133,14 @@ felix_mem_handoff() {
   f="$(felix_mem_dir "$proj")/SESSION_HANDOFF.md"
   if [ "$replace" != 1 ] && felix_mem_handoff_foreign "$f"; then
     printf 'felix handoff: not replacing %s, %s bytes that felix handoff did not write:\n' \
-      "$f" "$(wc -c < "$f" | tr -d ' ')" >&2
+      "$f" "$(wc -c < "$f" | LC_ALL=C tr -d ' ')" >&2
     printf 'it does not open with the header this command writes, "# Handoff" and then\n' >&2
     printf '"Regenerated <date>." on the third line. Move it aside, or pass --replace to\n' >&2
     printf 'overwrite it with the regenerated handoff.\n' >&2
     return 1
   fi
   if [ -z "$note" ] && [ -f "$f" ]; then
-    note="$(sed -n 's/^- what was in progress: //p' "$f" | head -1)"
+    note="$(LC_ALL=C sed -n 's/^- what was in progress: //p' "$f" | head -1)"
     case "$note" in _fill*) note="" ;; esac
   fi
   body="$(_felix_mem_handoff_text "$root" "$gate" "$note")"

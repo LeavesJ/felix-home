@@ -97,12 +97,12 @@ if [ -n "$leaked" ]; then
   printf '%s\n' "$leaked" | sed 's/^/memory tracked: /'; rc=1
 fi
 named="$(git ls-files -- 'projects/*' 2>/dev/null \
-  | grep -E "(^|/)($MEMORY_NAMES)(\.bak[^/]*)?\$" | grep -v '/memory/')"
+  | LC_ALL=C grep -E "(^|/)($MEMORY_NAMES)(\.bak[^/]*)?\$" | LC_ALL=C grep -v '/memory/')"
 if [ -n "$named" ]; then
   printf '%s\n' "$named" | sed 's/^/memory tracked by name: /'; rc=1
 fi
 indir="$(git ls-files -- 'projects/*' 2>/dev/null \
-  | grep -E "(^|/)($MEMORY_DIRS)/" | grep -v '/memory/')"
+  | LC_ALL=C grep -E "(^|/)($MEMORY_DIRS)/" | LC_ALL=C grep -v '/memory/')"
 if [ -n "$indir" ]; then
   printf '%s\n' "$indir" | sed 's/^/memory tracked in a memory directory: /'; rc=1
 fi

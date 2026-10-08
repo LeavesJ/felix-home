@@ -137,7 +137,7 @@ felix_ready_report() {
     # Declared in the project's own manifest? A tool nobody declared is a tool
     # nobody agreed to, whatever happens to be installed on this laptop.
     local row kind
-    row="$(grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    row="$(LC_ALL=C grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     if [ -z "$row" ]; then
       printf 'undeclared\t%s\t%s\n' "$want" "named by a route, absent from stack.tsv"
       continue

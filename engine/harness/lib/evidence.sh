@@ -37,7 +37,7 @@ _felix_any_match() {
   local paths="$1" pattern="$2" f
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    grep -qE "$pattern" <<<"$f" && return 0
+    LC_ALL=C grep -qE "$pattern" <<<"$f" && return 0
   done <<EOF
 $paths
 EOF

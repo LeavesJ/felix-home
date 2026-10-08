@@ -174,9 +174,9 @@ felix_repair_excerpt() {
   local run_id="$1" repo="$2" log out
   log="$(gh run view "$run_id" --repo "$repo" --log-failed 2>/dev/null)" || return 1
   out="$(printf '%s\n' "$log" \
-    | sed 's/^[^\t]*\t[^\t]*\t//' \
-    | sed 's/^[0-9TZ:.-]*Z //' \
-    | grep -vE '^\s*$' \
+    | LC_ALL=C sed 's/^[^\t]*\t[^\t]*\t//' \
+    | LC_ALL=C sed 's/^[0-9TZ:.-]*Z //' \
+    | LC_ALL=C grep -vE '^\s*$' \
     | tail -40)"
   [ -n "$out" ] || return 1
   printf '%s\n' "$out"

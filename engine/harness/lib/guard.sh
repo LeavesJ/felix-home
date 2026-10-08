@@ -219,7 +219,7 @@ EOF
 # owner wrote after it. AT is its second or `-`, DAY the day its row names,
 # HOW and BRANCH how it is this session's and the branch it names.
 _felix_guard_owed() {
-  local m="$1" w="$2" at="$3" day="$4" how="$5" rb="$6" sids="$7" cutoff mt
+  local m="$1" w="$2" at="$3" day="$4" how="$5" rb="$6" sids="$7" cutoff mt LC_ALL=C
   if [ "$at" = "-" ]; then
     # An old debt should surface once, not forever. Past a week it is history
     # rather than something this session is in a position to explain. Aged by

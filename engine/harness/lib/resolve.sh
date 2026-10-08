@@ -168,7 +168,7 @@ felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
   if [ -f "$HOME/.felix-home" ]; then
-    local p; p="$(tr -d '[:space:]' < "$HOME/.felix-home")"
+    local p; p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home")"
     [ -n "$p" ] && [ -d "$p" ] && { printf '%s' "$p"; return; }
   fi
   # A plugin install is a frozen copy of the whole repository, projects/
@@ -259,7 +259,7 @@ felix_mem_dir() {
 # Anything richer belongs in a real parser, and would mean project.json has
 # outgrown its job.
 felix_json_str() {
-  sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
+  LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
 # Print the repo root for a directory, or the directory itself when not in git.
@@ -318,7 +318,7 @@ felix_head_branch() {
   local root="$1" b
   b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
     || b="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || b=""
-  printf '%s' "${b:-?}" | tr -d '\t\n\r'
+  printf '%s' "${b:-?}" | LC_ALL=C tr -d '\t\n\r'
 }
 
 felix_head_commit() {
@@ -396,13 +396,13 @@ felix_mem_mistake_rows() {
 # works for a repo with no remote, a fork, a rename, or a checkout of somebody
 # else's code. Remote matching is the convenience path, not the contract.
 felix_resolve_project() {
-  local start="${1:-$PWD}" felix_root="$2"
+  local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
   local root name remote meta match
   root="$(felix_repo_root "$start")"
 
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
-    name="$(tr -d '[:space:]' < "$root/.felix")"
+    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")"
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
@@ -459,7 +459,7 @@ felix_resolve_project() {
 # is the main checkout. Both need a per-session record of where the session
 # stood, which this does not keep.
 _felix_hook_dir_set() {   # payload, home -> _felix_hd
-  local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"'
+  local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"' LC_ALL=C
   _felix_hd="$PWD"
   raw="${raw:0:4096}"
   case "$raw" in *'"cwd"'*) ;; *) return 0 ;; esac
@@ -535,6 +535,7 @@ _felix_binding_sane() {
 # no tables, no deny rows and no gate, and every hook reading it as governed.
 # A name holding a slash is a path, and a path is not a name either.
 _felix_name_ok() {
+  local LC_ALL=C
   case "${1:-}" in
     ''|.*|-*|*/*|*[!A-Za-z0-9._-]*) return 1 ;;
   esac
@@ -584,7 +585,7 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
+    p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then
@@ -602,10 +603,10 @@ felix_binding_broken() {
 
   root="$(felix_repo_root "$start")"
   [ -f "$root/.felix" ] || return 0
-  name="$(tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
-  known="$(ls "$home/projects" 2>/dev/null | tr '\n' ' ')"
+  known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
   elif ! _felix_name_ok "$name"; then
@@ -811,7 +812,7 @@ felix_added_lines() {
     fi
     git -C "$root" diff --cached 2>/dev/null
     git -C "$root" diff 2>/dev/null
-  } | grep '^+' | grep -v '^+++'
+  } | LC_ALL=C grep '^+' | LC_ALL=C grep -v '^+++'
 }
 
 # A file as it will be committed, not as it was last committed.
@@ -887,7 +888,7 @@ _felix_plugin_version() {
   local root="$1" ref="${2:-}"
   { if [ -n "$ref" ]; then git -C "$root" show "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null
     else cat "$root/engine/.claude-plugin/plugin.json" 2>/dev/null; fi
-  } | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+  } | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
 }
 
 # The engine that judges, which must not be the engine being judged.
@@ -1014,7 +1015,7 @@ felix_deployable_from() {
 felix_version_bump() {
   local manifest="$1" cur major minor patch next tmp
   [ -f "$manifest" ] || return 1
-  cur="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
+  cur="$(LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
   case "$cur" in
     [0-9]*.[0-9]*.[0-9]*) ;;
     *) return 1 ;;
@@ -1028,7 +1029,7 @@ felix_version_bump() {
   # suite points TMPDIR at a fixture to count what is left there.
   local tmpd="${TMPDIR:-/tmp}"
   tmp="$(mktemp "${tmpd%/}/felix-bump.XXXXXX")" || return 1
-  sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
+  LC_ALL=C sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
       "$manifest" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   [ -s "$tmp" ] || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$manifest" 2>/dev/null || { rm -f "$tmp"; return 1; }

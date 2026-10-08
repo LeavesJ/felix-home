@@ -378,8 +378,11 @@ felix_autonomy_grant() {
     esac
     printf '%s' "$_felix_autonomy_text$want$nl" > "$tmp" || exit 1
     # Written is a status of its own. 2026-10-08, from the lock's third
-    # review: bash 3.2 ends a subshell that set -u stops with status 0, and a
-    # 0 here moved an empty temp file over the grants (felix_autonomy_say).
+    # review: bash 3.2 ends a subshell that set -u stops in $(( )) with the
+    # status of the command before the stop, which was wc's 0, and a 0 here
+    # moved an empty temp file over the grants (felix_autonomy_say). The
+    # digits check above is what keeps a stop out; this keeps a 0 from
+    # anything else from reading as written.
     exit 10
   ) > /dev/null 2>&1; rc=$?
   case "$rc" in 10) rc=0 ;; 0) rc=1 ;; esac
@@ -612,7 +615,8 @@ felix_autonomy_guard() {   # proj
 # child wrote it into what it captured. A "revoked:" that stdout refused
 # (closed, read-only, or a pipe nobody reads with SIGPIPE ignored) went into
 # the grant's byte count. set -u then stopped the grant's subshell, bash 3.2
-# ended it with status 0, and an empty file replaced the grant file. A child
+# ended it with the status wc left, 0, and an empty file replaced the grant
+# file. A child
 # takes a failed write's buffer away with it. Once one line fails, stdout
 # goes to /dev/null, so no later line can fail the same way. Redirecting it
 # after a failure in the shell itself does not empty the buffer.

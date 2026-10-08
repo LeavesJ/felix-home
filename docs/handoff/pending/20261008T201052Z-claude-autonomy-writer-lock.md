@@ -218,6 +218,17 @@ which the old append never could.
 - **Revoke blind block 7 merged (12bc2b12).** It holds `set -u` stops run
   as a script, and changes tests only. On every autonomy block
   (21841-24466): 591/0/0.
+- **Revoke revision 6 merged (35d1d267), and the grant follows it
+  (7bf1a04c, test 86c1bf8f).** Revoke's fifth review corrected the `set -u`
+  premise. A stop in `$(( ))` does not always exit 0: it keeps the status of
+  the command before it. So a wc that answered a word and exited 10 read as
+  "written" past the 10 sentinel, measured on bash 3.2.
+  - Both revoke's pass and the grant now check wc's answer as digits and
+    never put it through `$(( ))`.
+  - The lock block's wc-shim case runs with the shim exiting 0 and exiting
+    10. The exit-10 one fails without the grant fix.
+  - On every autonomy block (21841-24592), revoke blocks 1-8 included:
+    611/0/0.
 - **Review 4, one Opus reviewer, of revision 4.** No fail-open path and no
   data loss.
   - Checked and sound:

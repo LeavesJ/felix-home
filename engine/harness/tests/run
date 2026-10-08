@@ -41916,9 +41916,11 @@ printf '\nwhat the engine reads from a patch: the cases its review found\n'
 # the clean tree. A binary-marked file named like an option, `-c1`, was handed
 # to head, which read one byte of the record stream instead. With
 # GIT_LITERAL_PATHSPECS=1 the `:(literal)` magic first used matched nothing.
-# A type change prints its header twice. And a pair whose old side is binary is
+# A type change prints its header twice. A pair whose old side is binary is
 # left as git's default leaves it, unread, since reading it was the cost the
-# design set out to avoid. Not pinned here: the 512 MiB size rule, which no
+# design set out to avoid. And under core.abbrev=4 the tree id saw 16 bits of a
+# binary file's blob id, so an edit found to share them hashed as the one before
+# (measured after the review). Not pinned here: the 512 MiB size rule, which no
 # fixture can afford, and the count check on a read again, which no git this
 # suite can drive misses a path for.
 DDQ="$(mktemp -d "$TMP/ddq.XXXXXX" 2>/dev/null)" && DDQ="$(cd -- "${DDQ:?}" && pwd -P)" && [ -n "$DDQ" ] || DDQ="$TMP/ddq-missing"
@@ -42031,8 +42033,26 @@ _ddq_in "$DDQR" 'printf "f.dat -diff\n" > .git/info/attributes'
 DDQO="$(_ddq_added "$DDQR")"
 _ddq_is "nor when an attribute also marks it (after review, B3)" "$(_ddq_has "$DDQO" 'BINTOTEXT')" "not printed"
 
+# Q7: core.abbrev, which shortens the `index` line, all the tree id sees of a
+# binary file's edit. The second edit is found by its blob id's first four hex
+# digits, which perl computes as git does and git hash-object then confirms.
+_ddq_new q7
+_ddq_in "$DDQR" 'printf "x\0y\n" > f.bin && _ddq_g add -A && _ddq_g commit -qm bin && printf "x\0%s\n" 0 > f.bin'
+DDQN="$(perl -MDigest::SHA=sha1_hex -e 'my $b = sub { my $c = "x\0$_[0]\n"; sha1_hex("blob " . length($c) . "\0" . $c) };
+  my $t = substr($b->(0), 0, 4); for my $i (1 .. 4000000) { if (substr($b->($i), 0, 4) eq $t) { print $i; exit 0 } } exit 1' 2>/dev/null)" \
+  || { [ -n "$DDQFX" ] || DDQFX="no second edit sharing four hex digits was found"; }
+_ddq_in "$DDQR" '[ -n "$DDQN" ] && [ "$(printf "x\0%s\n" "$DDQN" | git hash-object --stdin | cut -c1-4)" = "$(git hash-object f.bin | cut -c1-4)" ]'
+DDQT0="$(_ddq_tid "$DDQR")"
+_ddq_in "$DDQR" 'git config core.abbrev 4'
+DDQT1="$(_ddq_tid "$DDQR")"
+_ddq_is "core.abbrev=4 does not change the tree id of a binary file's edit (after review)" \
+        "$([ -n "$DDQT0" ] && [ "$DDQT1" = "$DDQT0" ] && echo same)" "same"
+_ddq_in "$DDQR" 'printf "x\0%s\n" "$DDQN" > f.bin'
+_ddq_is "under core.abbrev=4, a second binary edit whose blob id shares four hex digits with the first has another tree id (after review)" \
+        "$([ -n "$DDQT1" ] && [ "$(_ddq_tid "$DDQR")" != "$DDQT1" ] && echo different)" "different"
+
 unset -f _ddq_g _ddq_in _ddq_new _ddq_scan _ddq_added _ddq_tid _ddq_is _ddq_has _ddq_rc
-unset DDQ DDQK DDQFX DDQR DDQO DDQRC DDQS DDQT0
+unset DDQ DDQK DDQFX DDQR DDQO DDQRC DDQS DDQT0 DDQT1 DDQN
 
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished

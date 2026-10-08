@@ -280,8 +280,11 @@ _felix_tree_excludes() {
 # diff.ignoreSubmodules=all, or `ignore = all` in a committed .gitmodules, a
 # moved submodule pointer did the same. Why per call, and what else was
 # measured: above _felix_git_patch in resolve.sh. A binary marking needs nothing
-# here, because the patch's `index` line still names both blobs. For a default
-# configuration the bytes are unchanged, so this too staled no receipt.
+# here, because the patch's `index` line still names both blobs. That line is
+# all the id sees of a binary file's edit, so core.abbrev is pinned to auto,
+# git's default: core.abbrev=4 cut it to 16 bits of each blob id, and an edit
+# found to share them hashed as the edit a receipt was written for. For a
+# default configuration the bytes are unchanged, so this too staled no receipt.
 felix_tree_id() {
   local root="$1" home="${2:-}" head diff cached untracked n=0 meta="" quoted="" prefix="" f id
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
@@ -297,14 +300,14 @@ EOF
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
-    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none -- . "${exargs[@]+"${exargs[@]}"}" || return 2
     # What is staged, against nothing. Added only when there is any, so the id
     # of a bare `git init` is the one it always was.
-    _felix_git_read cached git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read cached git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
     [ -z "$cached" ] || diff="$cached
 $diff"
   else
-    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   fi
 
   # quotePath off, so a name past ASCII is listed as the bytes stat can open.

@@ -2034,8 +2034,15 @@ cmd_autonomy() {
   #
   # Nothing else on this path sets a trap. cmd_discover's and cmd_commission's
   # traps belong to their own commands, and the libs' are inside subshells.
+  #
+  # 2026-10-08, from the second review of the lock: with stdout closed, bash
+  # 3.2 keeps a "revoked:" it failed to print in its buffer, and the allow's
+  # next substitution captured it into the temp file's name. Sending a closed
+  # stdout to /dev/null first means no print fails. ': 3>&1' fails only on a
+  # closed fd 1; ': >&1' does not, because bash skips a dup onto itself.
   if [ -n "$allow$revoke" ]; then
     local lock qlock not="" age=""
+    { : 3>&1; } 2>/dev/null || exec >/dev/null
     lock="$(felix_autonomy_lock_path "$proj")"; printf -v qlock '%q' "$lock"
     [ -z "$allow" ]  || not="$allow is not allowed"
     [ -z "$revoke" ] || not="${not:+$not and }$revoke is not revoked"

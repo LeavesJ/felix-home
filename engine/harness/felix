@@ -91,9 +91,59 @@ set -uo pipefail
 # - BASH_ENV has run, and exported functions are defined, before this line.
 #   SHELLOPTS is readonly. Some CI hosts (CircleCI) load each step's setup
 #   through BASH_ENV, and a project's gate may need it.
-# - git takes colour from its configuration, not from these variables, so
-#   `color.ui=always` is not handled here.
+# - git takes colour from its configuration, not from these variables. The
+#   pin below this line handles it.
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
+
+# 2026-10-08: and a person's git colour settings must not reach what the
+# engine parses. Told `always`, git writes colour escapes into a pipe, and it
+# can be told by any config file (system, global, repository, worktree) or by
+# the environment: GIT_CONFIG_COUNT, or GIT_CONFIG_PARAMETERS, which git
+# itself exports to every child of `git -c`. Measured on git 2.54 with
+# color.ui=always in a repository's own config:
+# - Coloured: `git diff`, `log --oneline`, `show`, `branch`, `grep` (with -l
+#   too), and `status --short` on a tree with changes.
+# - Plain: --porcelain, --name-only, --numstat, a --format without %C, and
+#   plumbing.
+# The engine reads the coloured ones with `^+` and `^??`:
+# - bin/secret-scan saw no added line, and passed a branch that added a
+#   credential.
+# - felix_added_lines read nothing, so the durable added-lines escape and
+#   classify's content rules saw nothing.
+# - A risk row's confine read an empty hunk and fired on a confined change.
+# - `felix handoff` called a tree whose only changes were untracked dirty.
+# - felix_tree_id hashed the escapes into the tree's fingerprint.
+#
+# So every executable file under engine/harness pins every colour switch git
+# documents to never, for itself and every child: the engine's own calls, a
+# project's gate under `felix gate`, a table's check, and a provider. It
+# appends them to GIT_CONFIG_PARAMETERS, right after the line above.
+# - The family keys as well as color.ui, because an explicit
+#   color.diff=always beats color.ui=never. color.pager is left out: it only
+#   says whether `auto` colours for a pager.
+# - GIT_CONFIG_PARAMETERS, not GIT_CONFIG_COUNT. git reads it after every
+#   config file and after GIT_CONFIG_COUNT, and the later entry wins. A
+#   caller's `-c color.ui=always` beat a GIT_CONFIG_COUNT pin. An engine
+#   call's own `git -c` is read later still, so one call can still choose.
+# - Appended after one space, so everything the caller set still applies.
+#   Not appended again when the value already ends with the pin, so a nested
+#   entry point adds nothing. GIT_CONFIG_COUNT is left as the caller set it.
+# - In the 'key=value' form every git reads. 2.31 and later also read it
+#   mixed with the 'key'='value' form a newer git writes.
+# - A case and parameter expansions, no fork, because post-tool runs on
+#   every tool call.
+# Not `--no-color` per call: that reaches only the engine's own calls, and
+# every later call would have to remember it. The cost: someone running felix
+# in a terminal loses git's colour in whatever felix passes through to them.
+# Left alone: other settings that change what git prints, such as
+# diff.noprefix, diff.external, GIT_EXTERNAL_DIFF and log.showSignature.
+# tests/run checks every executable file for these lines ("a person's git
+# colour configuration never reaches what the engine parses").
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
 
 # Resolve through symlinks before locating the libraries.
 #

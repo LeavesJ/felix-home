@@ -23,6 +23,14 @@ set -u
 # these names: the comment above the same line in engine/harness/felix.
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH
 
+# Git's colour stays off for every git this runs, whatever the caller set. Why,
+# and why these keys: the comment above the same lines in engine/harness/felix.
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
+
 # Found before moving: $0 may be relative to where this was called from. A
 # library it cannot find is 127, as deploy-check says it: exit 1 is a violation.
 HERE="$(cd "$(dirname "$0")/.." && pwd)" || exit 127

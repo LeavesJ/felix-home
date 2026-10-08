@@ -40944,6 +40944,349 @@ LGB_D_L3="$(_lgb_d_scope "$REAL_HARNESS" | _lgb_d_files _lgb_d_r1lint "$REAL_HAR
 is  "every function on the Rule 1 list is found once and declares LC_ALL=C in a local line" \
     "$(printf '%s' "$LGB_D_L3" | LC_ALL=C tr '\n' ' ')" ""
 
+# fragment e: digit ranges, U+2185 (E22-E25, L4)
+#
+# bash 3.2 collates a bracket range in its own patterns, and under en_US.UTF-8
+# on macOS one character outside ASCII collates as a digit: U+2185 ROMAN
+# NUMERAL SIX LATE FORM (bytes e2 86 85) matches [1-9] and [0-9], so
+# `*[!0-9]*` does not refuse it. Measured 2026-10-08, bash 3.2.57, macOS 26
+# (contract, Amendment 1). What the admitted value then meets: `[ -ne ]`
+# returns 2 and reads as "not different", `$((...))` aborts the rest of the
+# caller's line, and a positive arm like `[1-9]` simply admits it. The value
+# is built with printf, so no byte outside ASCII sits in this file. Each case
+# runs the one call under test in a subshell set to the UTF-8 locale, reads
+# the answer outside it with LC_ALL=C tools, and has a C control on the same
+# fixture. glibc's bash collates its own patterns too, so where Linux has the
+# locale and a code point collating as a digit these can fail there as well.
+LGB_E_U="$(printf '\342\206\205')"
+_lgb_e_in() {  # C|lang|all <command...>: one call in a chosen locale, in a subshell
+  local how="$1"; shift
+  case "$how" in
+    C)    ( export LC_ALL=C; "$@" ) ;;
+    lang) ( unset LC_ALL LC_COLLATE LC_CTYPE; export LANG="$LCB_U8"; "$@" ) ;;
+    all)  ( export LC_ALL="$LCB_U8"; "$@" ) ;;
+  esac
+}
+
+# E22. commission-provider.sh: felix_commission_provider_state over a
+# model-written answer: the topology line, three automation rows and a last
+# row `done<TAB>v`. The guard `''|*[!0-9]*` lets U+2185 by in UTF-8, and the
+# `[ "$n" -ne "$rows" ]` after it returns 2, so the answer read `answered`
+# whatever count the model gave. Both shapes: the character alone, and after a
+# digit. The fixture is written in the suite's own locale; only the reading is
+# in the subshell. The topology is the real one for an empty checkout, so a
+# fixture the reader takes for another topology reads stale and fails the
+# controls rather than passing anything.
+LGB_E_MEM="$TMP/lgb-e-mem"; LGB_E_PJ="$TMP/lgb-e-home/projects/lgbe"; LGB_E_RT="$TMP/lgb-e-root"
+mkdir -p "$LGB_E_MEM" "$LGB_E_PJ" "$LGB_E_RT"
+_lgb_e_answer() {  # <done value>: writes the answer file over three rows ending in that done row
+  ( export FELIX_MEMORY="$LGB_E_MEM"
+    . "$FROOT/harness/lib/commission-provider.sh" || exit 1
+    f="$(felix_commission_answer_path "$LGB_E_PJ" lgb_need)"
+    [ -n "$f" ] && mkdir -p "${f%/*}" || exit 1
+    { printf '# topology %s\n' "$(felix_commission_topology "$LGB_E_PJ" "$LGB_E_RT")"
+      printf 'plugin\tlgb-a\tcap\tx\tthe first row\n'
+      printf 'plugin\tlgb-b\tcap\tx\tthe second row\n'
+      printf 'plugin\tlgb-c\tcap\tx\tthe third row\n'
+      printf 'done\t%s\n' "$1"; } > "$f" ) </dev/null >/dev/null 2>&1
+}
+_lgb_e_state() {  # felix_commission_provider_state over that answer, raw
+  ( export FELIX_MEMORY="$LGB_E_MEM"
+    . "$FROOT/harness/lib/commission-provider.sh"
+    felix_commission_provider_state "$LGB_E_PJ" "$LGB_E_RT" lgb_need ) </dev/null 2>/dev/null
+}
+_lgb_e_st() {  # <C|lang|all> <done value>: the state word that locale reads over that answer
+  _lgb_e_answer "$2" || { printf 'no fixture'; return 0; }
+  _lgb_e_in "$1" _lgb_e_state | LC_ALL=C cut -f1
+}
+is  "in C, a commissioning answer whose done row is U+2185 over three rows reads partial" \
+    "$(_lgb_e_st C "$LGB_E_U")" "partial"
+is  "in C, a commissioning answer whose done row is 3 then U+2185 over three rows reads partial" \
+    "$(_lgb_e_st C "3$LGB_E_U")" "partial"
+is  "in C, the same answer with done 3 over three rows reads answered, and with done 2 partial" \
+    "$(_lgb_e_st C 3)|$(_lgb_e_st C 2)" "answered|partial"
+LGB_E_22A="in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C"
+LGB_E_22L="in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C"
+LGB_E_22B="in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C"
+LGB_E_22M="in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C"
+LGB_E_22K="in a UTF-8 locale, the same answer with done 3 over three rows still reads answered, and with done 2 partial"
+if [ -n "$LCB_U8" ]; then
+  is  "$LGB_E_22A" "$(_lgb_e_st all  "$LGB_E_U")"  "$(_lgb_e_st C "$LGB_E_U")"
+  is  "$LGB_E_22L" "$(_lgb_e_st lang "$LGB_E_U")"  "$(_lgb_e_st C "$LGB_E_U")"
+  is  "$LGB_E_22B" "$(_lgb_e_st all  "3$LGB_E_U")" "$(_lgb_e_st C "3$LGB_E_U")"
+  is  "$LGB_E_22M" "$(_lgb_e_st lang "3$LGB_E_U")" "$(_lgb_e_st C "3$LGB_E_U")"
+  # Holds on the engine as it was; pins that the fixture is read in this
+  # locale at all, and that a fix does not refuse a well-formed answer.
+  is  "$LGB_E_22K" "$(_lgb_e_st all 3)|$(_lgb_e_st all 2)" "answered|partial"
+else
+  for a in "$LGB_E_22A" "$LGB_E_22L" "$LGB_E_22B" "$LGB_E_22M" "$LGB_E_22K"; do skip "$a" "$LCB_NONE"; done
+fi
+
+# E23, an arithmetic expansion after the guard. budget.sh: felix_budget_limit
+# over project.json's unattended_daily_limit, a person's file. In C a limit
+# holding U+2185 is refused and the default ceiling of 10 applies; in UTF-8 the
+# guard admits it and cmd_budget's `left=$((limit - used))` aborts the felix
+# dispatch line, so `felix budget --record` exits 1 with nothing recorded. That
+# is closed for the spend, but the report, the exhaustion check and the record
+# are all lost to a value a person typed. The real CLI, in a home, memory and
+# checkout of this fragment's own; the limit is written outside the subshell.
+LGB_E_BH="$TMP/lgb-e-budget"; LGB_E_BP="$LGB_E_BH/home/projects/lgbe"; LGB_E_BR="$LGB_E_BH/repo"
+mkdir -p "$LGB_E_BH/h" "$LGB_E_BH/mem" "$LGB_E_BH/kc" "$LGB_E_BP" "$LGB_E_BR"
+printf '# lgbe\n' > "$LGB_E_BP/CLAUDE.md"
+( cd "$LGB_E_BR" && git init -q -b main && printf 'lgbe\n' > .felix ) >/dev/null 2>&1
+LGB_E_BR="$(cd "$LGB_E_BR" && pwd -P)" || LGB_E_BR=""
+_lgb_e_blim() {  # <limit>: project.json with that daily limit, and an empty ledger
+  printf '{\n  "name": "lgbe",\n  "unattended_daily_limit": "%s"\n}\n' "$1" > "$LGB_E_BP/project.json"
+  rm -f "$LGB_E_BP/budget.log"
+}
+_lgb_e_brec() {  # felix budget --record's exit status, in the fragment's checkout
+  [ -n "$LGB_E_BR" ] && [ -f "$LGB_E_BR/.felix" ] || { printf 'no fixture'; return 0; }
+  ( cd "$LGB_E_BR" || exit 99
+    HOME="$LGB_E_BH/h" FELIX_KERNEL='' FELIX_KERNEL_CACHE="$LGB_E_BH/kc" FELIX_HOME="$LGB_E_BH/home" \
+      FELIX_MEMORY="$LGB_E_BH/mem" "$FELIX" budget --record --why lgb-e ) </dev/null >/dev/null 2>&1
+  printf 'rc=%s' "$?"
+}
+_lgb_e_bud() {  # <C|all> <limit>: the record's status and the ledger's line count after it
+  _lgb_e_blim "$2"
+  printf '%s ledger=%s' "$(_lgb_e_in "$1" _lgb_e_brec)" \
+    "$(LC_ALL=C grep -c . "$LGB_E_BP/budget.log" 2>/dev/null || true)"
+}
+is  "in C, felix budget --record under a daily limit of 1 then U+2185 falls back to the default ceiling and records the run" \
+    "$(_lgb_e_bud C "1$LGB_E_U")" "rc=0 ledger=1"
+is  "in C, felix budget --record under a daily limit of 3 records the run" "$(_lgb_e_bud C 3)" "rc=0 ledger=1"
+LGB_E_23="in a UTF-8 locale, felix budget --record under a daily limit of 1 then U+2185 still falls back to the default ceiling and records the run, as in C"
+LGB_E_23K="in a UTF-8 locale, felix budget --record under a daily limit of 3 still records the run"
+if [ -n "$LCB_U8" ]; then
+  is  "$LGB_E_23"  "$(_lgb_e_bud all "1$LGB_E_U")" "rc=0 ledger=1"
+  is  "$LGB_E_23K" "$(_lgb_e_bud all 3)" "rc=0 ledger=1"
+else
+  for a in "$LGB_E_23" "$LGB_E_23K"; do skip "$a" "$LCB_NONE"; done
+fi
+
+# E24, a positive [0-9] case arm. commission.sh: _felix_commission_step_ok's
+# `-|[1-9]|10` over commissioning.tsv's step column, a project table a person
+# or a session writes. In C a step of U+2185 is malformed and the row is not
+# admitted; in UTF-8 the arm admits it, felix_commission_rows takes the row and
+# felix_commission_malformed stops naming it, so the gate's commission FAIL,
+# the merge blocker built from the malformed list and the receipt's
+# indeterminate are all lost. Real library, nothing stubbed. Printed as the
+# admitted rows' count, a bar, and the malformed rows' needs.
+LGB_E_CP="$TMP/lgb-e-step/projects/lgbe"; mkdir -p "$LGB_E_CP" "$TMP/lgb-e-step/mem"
+_lgb_e_step() {  # <step>: the commissioning table, one provider row with that step
+  printf 'need_lgb\t-\t-\t-\tprovider:lgb-plug:lgb-skill\t-\t%s\n' "$1" > "$LGB_E_CP/commissioning.tsv"
+}
+_lgb_e_rows() {  # felix_commission_rows, a bar, then felix_commission_malformed, raw
+  ( export FELIX_MEMORY="$TMP/lgb-e-step/mem"
+    . "$FROOT/harness/lib/commission.sh"
+    felix_commission_rows "$LGB_E_CP"; printf '|\n'; felix_commission_malformed "$LGB_E_CP" ) </dev/null 2>/dev/null
+}
+_lgb_e_cm() {  # <C|all> <step>: admitted count|malformed needs
+  local out; _lgb_e_step "$2"; out="$(_lgb_e_in "$1" _lgb_e_rows)"
+  printf '%s|%s' "$(printf '%s\n' "${out%%|*}" | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "${out#*|}" | LC_ALL=C cut -f1 | LC_ALL=C grep . | LC_ALL=C tr '\n' ' ')"
+}
+is  "in C, a commissioning row whose step is U+2185 is not admitted and is named malformed" \
+    "$(_lgb_e_cm C "$LGB_E_U")" "0|need_lgb "
+is  "in C, the same row with step 6 is admitted and nothing is malformed" "$(_lgb_e_cm C 6)" "1|"
+LGB_E_24="in a UTF-8 locale, a commissioning row whose step is U+2185 is still not admitted and still named malformed, as in C"
+LGB_E_24K="in a UTF-8 locale, the same row with step 6 is still admitted and nothing is malformed"
+if [ -n "$LCB_U8" ]; then
+  is  "$LGB_E_24"  "$(_lgb_e_cm all "$LGB_E_U")" "0|need_lgb "
+  is  "$LGB_E_24K" "$(_lgb_e_cm all 6)" "1|"
+else
+  for a in "$LGB_E_24" "$LGB_E_24K"; do skip "$a" "$LCB_NONE"; done
+fi
+# No E25. The contract's third shape is a numeric test after the guard, and
+# the sweep's only demonstrated fail-open of that shape is E22's own site:
+# audit.sh's month and day tests return 2 and refuse, which is closed, and
+# bin/handoff-in-flight's second abort sits in a substitution whose failure
+# still exits 2.
+
+# L4. No bracket expression in bash's own pattern syntax whose members are
+# only digits, digit ranges and . + _ -, holding a range between two digits.
+# Bash's own pattern syntax is a case arm, the right side of [[ == ]] or
+# [[ != ]], the pattern of ${v#p} ${v##p} ${v%p} ${v%%p} ${v/p/r} ${v//p/r},
+# or a glob word: so every such bracket in code counts, except on the right of
+# [[ =~ (an ERE, whose ranges are code points) up to a `]]` after a blank.
+# Quote state is carried across lines, and what is not bash pattern text is
+# skipped: single quotes, $'...' (with its \'), double quotes except inside
+# ${...} (and inside a $( ) within them, which is code again, where a case
+# arm's `)` does not close it), heredoc bodies (<<WORD, <<'WORD', <<"WORD",
+# <<\WORD, <<-WORD with its tabs; not <<< and not a shift inside (( ))), and a
+# comment from a # at a word boundary. A backslash escapes the next character
+# in code, in double quotes and in $'...'. That keeps awk, sed and grep
+# programs out (their ranges are code points). Spelled out, [0123456789] holds
+# no range, and a bracket holding a letter range is Rule 1's first sentence,
+# not this lint.
+_lgb_e_dlint() {  # <prefix to strip> <file>...: file:line for each digit range in bash's own pattern syntax
+  local pre="$1"; shift
+  LC_ALL=C awk -v pre="$pre" -v q="'" '
+    function push(s) { st[++sp] = s; cc[sp] = 0 }
+    function pop() { if (sp > 1) sp-- }
+    function bnd(k) { return k < 1 || substr(L, k, 1) ~ /[ \t;&|(]/ }
+    BEGIN { ARE = "[\\\\" q "]"; DRE = "[\\\\\"$`]"; CRE = "[]\\\\" q "\"#<[$()}=]|case|esac"
+            BRE = "^\\[[!^]?[0-9._+-]*[0-9]-[0-9][0-9._+-]*\\]"; ID = "^[A-Za-z_][A-Za-z0-9_]*" }
+    FNR == 1 { sp = 1; st[1] = "C"; cc[1] = 0; nh = 0; hd = 0; hc = 0 }
+    { L = $0
+      if (hd) { t = L; if (ht[hc]) sub(/^\t+/, "", t)
+        if (t == hw[hc]) { hc++; if (hc > nh) { hd = 0; nh = 0 } }
+        next }
+      hit = 0; re = 0; n = length(L); i = 1
+      while (i <= n) {
+        s = st[sp]
+        if (s == "Q") { j = index(substr(L, i), q); if (!j) break; i += j; pop(); continue }
+        if (s == "A") { if (!match(substr(L, i), ARE)) break; i += RSTART - 1
+          if (substr(L, i, 1) == "\\") { i += 2; continue }
+          pop(); i++; continue }
+        if (s == "D") { if (!match(substr(L, i), DRE)) break; i += RSTART - 1; c = substr(L, i, 1)
+          if (c == "\\") { i += 2; continue }
+          if (c == "\"") { pop(); i++; continue }
+          if (c == "$") {
+            if (substr(L, i + 1, 1) == "{") { push("P"); i += 2; continue }
+            if (substr(L, i + 1, 2) == "((") { push("M"); i += 3; continue }
+            if (substr(L, i + 1, 1) == "(") { push("S"); i += 2; continue } }
+          i++; continue }
+        if (!match(substr(L, i), CRE)) break
+        i += RSTART - 1; c = substr(L, i, 1)
+        if (c == "\\") { i += 2; continue }
+        if (c == q) { push("Q"); i++; continue }
+        if (c == "\"") { push("D"); i++; continue }
+        if (c == "#") { if (s != "P" && bnd(i - 1)) break; i++; continue }
+        if (c == "<") {
+          if (s != "P" && s != "M" && substr(L, i, 2) == "<<" && substr(L, i + 2, 1) != "<" && substr(L, i - 1, 1) != "<") {
+            r = substr(L, i + 2); tb = 0; w = ""
+            if (substr(r, 1, 1) == "-") { tb = 1; r = substr(r, 2) }
+            sub(/^[ \t]+/, "", r); k = n - length(r) + 1; o = substr(r, 1, 1)
+            if ((o == q || o == "\"") && match(substr(r, 2), ID) && substr(r, RLENGTH + 2, 1) == o) { w = substr(r, 2, RLENGTH); a = RLENGTH + 2 }
+            else if (o == "\\" && match(substr(r, 2), ID)) { w = substr(r, 2, RLENGTH); a = RLENGTH + 1 }
+            else if (match(r, ID)) { w = substr(r, 1, RLENGTH); a = RLENGTH }
+            if (w != "") { hw[++nh] = w; ht[nh] = tb; i = k + a; continue } }
+          i++; continue }
+        if (c == "[") { if (!re && match(substr(L, i), BRE)) { hit = 1; i += RLENGTH; continue } i++; continue }
+        if (c == "]") { if (re && substr(L, i, 2) == "]]" && substr(L, i - 1, 1) ~ /[ \t]/) re = 0; i++; continue }
+        if (c == "=") { if (substr(L, i, 2) == "=~" && substr(L, i - 1, 1) ~ /[ \t]/ && substr(L, i + 2, 1) ~ /^[ \t]?$/) { re = 1; i += 2; continue } i++; continue }
+        if (c == "$") { d = substr(L, i + 1, 1)
+          if (d == q) { push("A"); i += 2; continue }
+          if (d == "\"") { push("D"); i += 2; continue }
+          if (d == "{") { push("P"); i += 2; continue }
+          if (substr(L, i + 1, 2) == "((") { push("M"); i += 3; continue }
+          if (d == "(") { push("S"); i += 2; continue }
+          i++; continue }
+        if (c == "}") { if (s == "P") pop(); i++; continue }
+        if (c == "(") { if (s != "P") { if (s != "M" && substr(L, i, 2) == "((") { push("M"); i += 2; continue } push("R") } i++; continue }
+        if (c == ")") {
+          if (s == "M") { if (substr(L, i + 1, 1) == ")") { pop(); i += 2; continue } i++; continue }
+          if ((s == "R" || s == "S") && cc[sp] <= 0) pop()
+          i++; continue }
+        if (s != "P" && s != "M" && bnd(i - 1) && substr(L, i + 4, 1) ~ /^[ \t;)]?$/) {
+          if (substr(L, i, 4) == "case") cc[sp]++; else if (cc[sp] > 0) cc[sp]-- }
+        i += 4 }
+      if (hit) { f = FILENAME; if (index(f, pre) == 1) f = substr(f, length(pre) + 1); printf "%s:%d\n", f, FNR }
+      if (nh && !hd) { hd = 1; hc = 1 } }' "$@" \
+    || printf 'the lint itself failed\n'
+}
+LGB_E_LF="$TMP/lgb-e-lint"; mkdir -p "$LGB_E_LF"
+# Every line of the catch fixture that holds a finding, by number: each
+# pattern context, and a pattern right after each quote or heredoc form ends
+# (or after a line a careless lint would take for one), so a lint that loses
+# its quote state misses the line. The tabs of the <<- heredoc are printf'd.
+{ cat <<'EOF'
+case $n in ''|*[!0-9]*) ;; esac
+case "$v" in
+  [0-9][0-9]) echo two ;;
+  *) ;;
+esac
+[[ $v == [1-9]* ]] && echo one
+[[ $v != [0-9] ]] || echo none
+y="${x%%[!0-9]*}"
+y=${x//[!0-9]/}
+y=${x#[0-9]}
+y=${x##*[0-9.]}
+y="${x%[0-9-]}"
+y=${x/[0-9]/-}
+for f in "$d"/[0-9]*; do :; done
+LC_ALL=C awk '
+  /^[0-9]+$/ { print }' f; case $x in [0-9]) ;; esac
+cat <<EOT
+[0-9]
+EOT
+case $x in [0-9]) ;; esac
+cat <<'EOT'
+${x%%[!0-9]*}
+EOT
+case $x in [0-9]) ;; esac
+cat <<-EON
+EOF
+  printf '\t[0-9]\n\tEON\n'
+  cat <<'EOF'
+case $x in *[!0-9]*) ;; esac
+echo "say \"hi\""; case $x in [0-9]) ;; esac
+printf '%s\n' it\'s; case $x in [0-9]) ;; esac
+y=$'a\'b\'c'; case $y in [0-9]) ;; esac
+x=a#b; case $x in [0-9]) ;; esac
+n=${#x} m=$#; case $n in [0-9]) ;; esac
+grep -c x <<<word
+case $x in [0-9]) ;; esac
+n=$((x << y))
+case $n in [0-9]) ;; esac
+r="$(printf 'a"b')"; case $x in [0-9]) ;; esac
+r="$(case $x in a) echo 'x"y' ;; esac)"; case $x in [0-9]) ;; esac
+[[ $x =~ ^[a-z]+$ ]] && [[ $x == [0-9]* ]]
+echo "two
+lines"; case $x in [+0-9_]) ;; esac
+case $x in *[^0-9]*) ;; esac
+EOF
+} > "$LGB_E_LF/d-catch.sh"
+# Nothing here is a digit range in bash's own pattern syntax.
+{ cat <<'EOF'
+case $n in ''|*[!0123456789]*) ;; esac
+LC_ALL=C awk '
+  /^[0-9]+$/ { n++ }' f
+LC_ALL=C grep -E '[0-9]' f
+cat <<EOT
+[0-9] ${x%%[!0-9]*}
+EOT
+cat <<'EOT'
+case $x in [0-9]) ;; esac
+EOT
+cat <<"EOT"
+[[ $v == [0-9] ]]
+EOT
+cat <<\EOT
+y=${x#[0-9]}
+EOT
+cat <<-EON
+EOF
+  printf '\t[1-9]\n\tEON\n'
+  cat <<'EOF'
+# case $x in [0-9]) ;; esac
+    # an indented one: ${x#[0-9]}
+x=1 # and after code: [[ $v == [0-9] ]]
+case $v in *[!a-z0-9_-]*) ;; esac
+y=$'[0-9]'
+[[ $x =~ ^[0-9]+$ ]] && echo digits
+LC_ALL=C sed -n "s/[0-9]//p" f
+echo "first
+[0-9] second"
+y='it''s [0-9]'
+LC_ALL=C grep -c "x[0-9]" <<<"$y"
+echo "${x%%[!0123456789]*}" "[0-9]"
+r="$(printf '%s' "[1-9]")"
+EOF
+} > "$LGB_E_LF/d-clean.sh"
+is  "the digit-range lint names a case arm on one line and across lines, [[ == ]] and [[ != ]], each \${v#p} form in and out of double quotes, a glob word, and a range right after each quote, heredoc, comment and escape form ends" \
+    "$(_lgb_e_dlint "$LGB_E_LF/" "$LGB_E_LF/d-catch.sh" | LC_ALL=C tr '\n' ' ')" \
+    "d-catch.sh:1 d-catch.sh:3 d-catch.sh:6 d-catch.sh:7 d-catch.sh:8 d-catch.sh:9 d-catch.sh:10 d-catch.sh:11 d-catch.sh:12 d-catch.sh:13 d-catch.sh:14 d-catch.sh:16 d-catch.sh:20 d-catch.sh:24 d-catch.sh:28 d-catch.sh:29 d-catch.sh:30 d-catch.sh:31 d-catch.sh:32 d-catch.sh:33 d-catch.sh:35 d-catch.sh:37 d-catch.sh:38 d-catch.sh:39 d-catch.sh:40 d-catch.sh:42 d-catch.sh:43 "
+is  "and names none of a spelled-out set, an awk program over two lines, grep and sed programs, heredoc bodies in every form, comments, a letter range, \$'[0-9]', the right of =~, or double-quoted text" \
+    "$(_lgb_e_dlint "$LGB_E_LF/" "$LGB_E_LF/d-clean.sh" | LC_ALL=C tr '\n' ' ')" ""
+LGB_E_L4="$(_lgb_d_scope "$REAL_HARNESS" | _lgb_d_files _lgb_e_dlint "$REAL_HARNESS/")"
+if [ -z "$LGB_E_L4" ]; then
+  ok  "no bracket in bash's own pattern syntax in the engine's runtime code holds a range of digits; each is spelled out"
+else
+  bad "no bracket in bash's own pattern syntax in the engine's runtime code holds a range of digits; each is spelled out" \
+      "$(printf '%s\n' "$LGB_E_L4" | LC_ALL=C grep -c .) findings: $(printf '%s\n' "$LGB_E_L4" | LC_ALL=C tr '\n' ' ')"
+fi
+
 printf '\nthe engine makes its scratch under TMPDIR\n'
 # Measured 2026-09-24 on macOS 26.3.1: a bare `mktemp` or `mktemp -d` makes its
 # file in the per-user /var/folders/.../T whatever TMPDIR says (set, unset, or

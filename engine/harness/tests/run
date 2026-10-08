@@ -22629,6 +22629,138 @@ rmdir "$RV5K" 2>/dev/null
 is "the widget's directory holds exactly what it held before revoke then allow was tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r5start"
 
+printf '\nrevoke refuses what it could not read or write, and stays linear in a long line\n'
+# 2026-10-08: a fourth review of the revoke fix found mutants the blocks above
+# let through. Upper-case letters beside the capability were not pinned as
+# letters, so a names rule that looked only for lower case could take TIDYtidy
+# for a tidy grant. A line read that fails was not pinned to a refusal, so a
+# loop that stopped at its first failed read could say there was nothing to
+# remove. A write that fails on the file's last line was not pinned, so a
+# rewrite that checked every write but the last could rename a cut-short file
+# into place. The refused rename was pinned only through chflags, which Linux
+# does not have, so CI never ran it. The here-string cases ran over a file of
+# about 3 KB, which bash 5.1 and later send through a pipe rather than a
+# temporary file, so they could not fail on CI. And the revoke was linear in
+# the number of lines but not in the length of one: a single line of half a
+# megabyte took it seconds. These pin each of those, the long-line cases in
+# CPU, as E3 does.
+RV6K="$TMP/revoke-keep-6"; mkdir -p "$RV6K"
+_r6start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV6K/"; done
+_r6held() { cp "$RVP/autonomy" "$TMP/rv.held"; _rvbefore="$(_rvrest)"; }   # record the file and the directory
+_r6new() { [ "$(_rvrest)" = "$_rvbefore" ] && echo nothing-new || echo left-behind; }
+_r6xs() { head -c "$1" /dev/zero | LC_ALL=C tr '\0' "$2"; }   # N BYTE: N copies of BYTE, no loop
+_r6cpu() {   # CAP: revoke CAP from the widget's file in a fresh bash under a CPU limit -> 'returned N:within'
+  _r6t="$( ( ulimit -t 12; LC_ALL=C "$BASH" -c '. "$1/harness/lib/autonomy.sh"
+             felix_autonomy_revoke "$2" "$3" >/dev/null 2>&1; echo "returned $?"; times' _ "$FROOT" "$RVP" "$1" ) 2>/dev/null )"
+  printf '%s\n' "$_r6t" | LC_ALL=C awk 'NR == 1 { a = $0; next }
+      { for (i = 1; i <= NF; i++) { split($i, p, "m"); sub(/s$/, "", p[2]); t += p[1] * 60 + p[2] } }
+      END { if (NR < 3) print "killed"; else printf "%s:%s\n", a, (t <= 6 ? "within" : "over " t) }'
+}
+
+# G1: an upper-case letter beside the capability is a letter.
+_rvset '# h\nTIDYtidy\ntidyX\nZtidy\ntidy\n'; _rwloc C tidy
+printf '# h\nTIDYtidy\ntidyX\nZtidy\n' > "$TMP/rw.want"
+is "a revoke of tidy keeps TIDYtidy, tidyX and Ztidy byte for byte and removes the tidy line" \
+   "$_rvrc:$(_rwis)" "0:same"
+
+# G2: a revoke whose line reads fail is a refusal. The whole-file read with -d
+# still works, and every other read fails.
+_r6g2() {   # run felix_autonomy_revoke tidy with every read but read -d failing -> 'returned N'
+  "$BASH" -c '. "$1/harness/lib/autonomy.sh"
+    read() { local a; for a; do [ "$a" != -d ] || { builtin read "$@"; return; }; done; return 1; }
+    felix_autonomy_revoke "$2" tidy >/dev/null 2>&1; echo "returned $?"' _ "$FROOT" "$RVP" 2>/dev/null
+}
+_rvset '# h\ntidy\n'; _r6held
+is "a revoke of tidy whose line reads fail returns 1" "$(_r6g2)" "returned 1"
+is "and the revoke whose line reads fail leaves the tidy grant file byte-identical and nothing new behind" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "same:nothing-new"
+_rvset '# h\ntidy\302\240\n'; _r6held
+is "a revoke of tidy whose line reads fail over a line only older engines grant returns 1" "$(_r6g2)" "returned 1"
+is "and that refused revoke keeps the older engines' grant line, byte-identical" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "same:nothing-new"
+
+# G3: a write that fails on the file's last line. The only kept line is one
+# comment of about 2.9 KB, and it crosses the two-block limit.
+rm -f "$RVP"/autonomy*
+{ printf 'tidy\n# '; _r6xs 2900 x; printf '\n'; } > "$RVP/autonomy"
+printf 'stamp\n' > "$RVP/autonomy.commission"; _r6held; _r4cut tidy
+is "under a two-block file-size limit a revoke of tidy whose one kept line crosses the limit exits non-zero and says nothing revoked" \
+   "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+is "and the revoke cut short on its last line leaves the grant file byte-identical and nothing new behind" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "same:nothing-new"
+
+# G4: a refused rename, on any system. A mv first in PATH refuses any move
+# onto a path ending in /autonomy and passes every other through.
+_r6bin="$TMP/r6.bin"; mkdir -p "$_r6bin"
+printf '%s\n' '#!/bin/sh' 'for _a in "$@"; do _l="$_a"; done' \
+  'case "${_l:-}" in */autonomy) exit 1 ;; esac' 'exec /bin/mv "$@"' > "$_r6bin/mv"
+chmod 755 "$_r6bin/mv"
+_rvset '# h\ntidy\ncommission\n'; _r6held
+( export PATH="$_r6bin:$PATH"; cd "$REPO" && "$FELIX" autonomy --revoke commission ) > "$TMP/rv.out" 2> "$TMP/rv.err"
+_rvrc=$?; _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+rm -rf "$_r6bin"
+is "a revoke of commission whose rename onto the grant file is refused by mv exits non-zero and says nothing revoked" \
+   "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+is "and the rename refused by mv is not blamed on another writer" \
+   "$(_r3has "$_rvout$_rverr" 'another writer' claimed honest)" "honest"
+is "and the rename refused by mv leaves the grant file byte-identical and the stamp in place" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_rvstamp)" "same:kept"
+is "and the rename refused by mv leaves nothing new in the project directory" "$(_r6new)" "nothing-new"
+
+# G5: E1b and E1c over a file of about 80 KB, past any pipe buffer, so the
+# shell cannot hand a here-string of it through a pipe.
+_r6big() {   # LAST: '# h', 1000 comment lines of about 80 bytes, then LAST as printf writes it, beside a stamp
+  rm -f "$RVP"/autonomy*; _r6i=0
+  { printf '# h\n'
+    while [ "$_r6i" -lt 1000 ]; do
+      printf '# kept line %04d, one of a thousand that carry this file past any pipe buffer\n' "$_r6i"
+      _r6i=$((_r6i+1))
+    done
+    printf "$1\\n"; } > "$RVP/autonomy"
+  printf 'stamp\n' > "$RVP/autonomy.commission"; _r6held
+}
+_r6big 'tidy\302\240'; _r4cut tidy
+is "under a two-block file-size limit a revoke of tidy over an 80 KB file ending in a no-break-space line exits non-zero and says nothing revoked" \
+   "$(_rwexit):$(_rwsaid revoked:)" "refused:silent"
+is "and the refused revoke of the 80 KB file leaves it byte-identical and nothing new behind" \
+   "$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "same:nothing-new"
+_r6big 'commission'; _r4cut commission
+has "under a two-block file-size limit a refused revoke of commission from an 80 KB file says it could not be read whole or rewritten" \
+    "$_rverr" "could not be read whole or rewritten"
+is "and the refusal over the 80 KB file says nothing of another writer" \
+   "$(_r3has "$_rverr" 'another writer' claimed honest)" "honest"
+is "and the refused revoke of commission from the 80 KB file exits non-zero, keeps the stamp and leaves the file byte-identical" \
+   "$(_rwexit):$(_rvstamp):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy")" "refused:kept:same"
+
+# G6: a revoke is linear in the length of a line. Each long line is 512 KB.
+rm -f "$RVP"/autonomy*
+{ printf '# h\n'; _r6xs 524288 x; printf '\ntidy\n'; } > "$RVP/autonomy"
+{ printf '# h\n'; _r6xs 524288 x; printf '\n'; } > "$TMP/rw.want"
+is "a revoke of tidy below one 512 KB line of x returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu tidy)" "returned 0:within"
+is "and that revoke leaves no tidy line and the 512 KB line of x whole" \
+   "$(LC_ALL=C grep -cx tidy "$RVP/autonomy"):$(LC_ALL=C sed -n 2p "$RVP/autonomy" | wc -c | tr -d ' '):$(_rwis)" \
+   "0:524289:same"
+rm -f "$RVP"/autonomy*
+{ printf 'tidy\n# '; _r6xs 524288 x; printf ' tidy\n'; } > "$RVP/autonomy"
+{ printf '# '; _r6xs 524288 x; printf ' tidy\n'; } > "$TMP/rw.want"
+is "a revoke of tidy above a 512 KB comment that mentions tidy returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu tidy)" "returned 0:within"
+is "and that revoke leaves only the 512 KB comment, byte for byte" "$(_rwis)" "same"
+rm -f "$RVP"/autonomy*
+{ _r6xs 524288 '\201'; printf 'tidy\n# h\n'; } > "$RVP/autonomy"
+printf '# h\n' > "$TMP/rw.want"
+is "a revoke of tidy over one line of 512 KB of 0x81 bytes and then tidy returns 0 using at most 6 seconds of CPU" \
+   "$(_r6cpu tidy)" "returned 0:within"
+is "and that revoke removes the long line that names tidy and leaves exactly '# h'" "$(_rwis)" "same"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/rv.held"
+for _rvf in "$RV6K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV6K" 2>/dev/null
+is "the widget's directory holds exactly what it held before failed reads, failed writes and long lines were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r6start"
+
 # The commission grant is bound to the table it was granted over.
 #
 # Every other grant names an action the engine defines. This one names a

@@ -611,16 +611,24 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   # Captured with felix_capture, since a topology that could not be computed is
   # not an empty one: the all-clear below is keyed to it, and every answer file
   # is read against it. Until 2026-10-01 it was an empty string here, which only
-  # the all-clear's test told from a topology, and nothing said why the rows it
-  # left unknown were; the paragraph that names them says it now.
-  _cm_topo=""; _cm_topo_unread=0
-  felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo_unread=1
+  # the all-clear's test told from a topology. One that could not be computed
+  # leaves it empty, and the all-clear is refused on that. Why a row's answer
+  # could not be read is the row's own detail below, and not a sentence of this
+  # hook's keyed to this computation: until 2026-10-08 there was one, and under
+  # a transient failure the two computations of the topology could disagree.
+  _cm_topo=""
+  felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo=""
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
   _cm_await=""; _cm_ans=0; _cm_unread=""
   while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
     [ -n "$_cn" ] || continue
     case "$_ca" in provider:*) ;; *) continue ;; esac
-    _cst="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null | cut -f1)"
+    # The whole state line, since its detail is what says why a row is unknown;
+    # until 2026-10-08 only the state was kept.
+    _csl="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null)"
+    _cst="${_csl%%$'\t'*}"
+    _csd=""
+    case "$_csl" in *$'\t'*) _csd="${_csl#*$'\t'}" ;; esac
     # Only a state that says an answer is missing, for another topology, or
     # unfinished is owed. Until 2026-10-01 every state but answered was, so a row
     # whose state was unknown, or whose state call failed and printed nothing,
@@ -634,8 +642,13 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
         _cm_await="$_cm_await
   $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")" ;;
       *)
-        _cm_unread="$_cm_unread
-  $_cn (${_cst:-no state})" ;;
+        if [ "$_cst" = unknown ] && [ -n "$_csd" ]; then
+          _cm_unread="$_cm_unread
+  $_cn (unknown: $_csd)"
+        else
+          _cm_unread="$_cm_unread
+  $_cn (${_cst:-no state})"
+        fi ;;
     esac
   done <<EOF
 $(felix_commission_rows "$PROJ" 2>/dev/null)
@@ -677,15 +690,6 @@ Commissioning: receipt ${_cm_valid}."
     context="$context
 
 Commissioning: whether these answers are whole could not be read, so they are neither owed nor recorded; felix commission --status reads them again:${_cm_unread}"
-    # And why, when it is the topology: an answer is read against it, so one that
-    # could not be computed leaves every answer unknown. The sentence names the
-    # declared list because that is what the topology fails for, bar a hash that
-    # could not be made, which the capture cannot tell from it.
-    if [ "$_cm_topo_unread" -eq 1 ]; then
-      context="$context
-
-Commissioning: the topology these answers are keyed to could not be computed: the capabilities this project declares could not be read."
-    fi
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context
 

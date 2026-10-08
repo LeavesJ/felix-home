@@ -856,48 +856,71 @@ $out"
 # - A binary marking: the attribute `-diff` or `binary`, the same in the file
 #   core.attributesFile names, `diff.<driver>.binary`, or core.bigFileThreshold
 #   below the file's size. git prints "Binary files differ".
+# - Colour: color.ui or color.diff set to always puts an escape before each
+#   `+`, so no line read as added.
 # None of these needs the person's config. A committed .gitattributes is read
 # from the branch itself, so `creds.py -diff` in the branch blinded the scan of
 # that branch. The tree id hashes the same patch: under an external diff or an
 # empty textconv a clean tree and an edited one had one id, so a green receipt
 # read current over an edit no gate had seen.
 #
-# Why per call and not a config pin, as color.* is pinned at every entry point:
+# Why per call:
 # - A driver's name is anyone's to choose. No key turns every textconv or every
 #   driver command off, so --no-textconv and --no-ext-diff are the only
 #   switches, and they are per call. --no-ext-diff covers all three external
-#   forms.
+#   forms. --no-color is per call here too, so these readers do not wait on a
+#   colour pin at the entry points.
 # - A binary marking has no switch either. --text reads every file as text, and
 #   was measured at 6.75 s CPU against 0.08 s on a branch adding a 20 MB random
 #   binary, most of it bash holding the bytes. So only a path git printed as
-#   binary is read again, and only when its new side is text by git's own rule:
-#   no NUL in its first 8000 bytes. That rule is the one git applies when no
-#   attribute says otherwise, so a real binary is still unread, as before.
+#   binary is read again, and only when it is text by the rule git applies when
+#   no attribute speaks: each side present is at most 512 MiB, the default
+#   core.bigFileThreshold, and holds no NUL in its first 8000 bytes. A pair with
+#   a binary side is still unread, as git leaves it by default. That includes a
+#   branch that replaces a binary with text, which a review of this change
+#   found, a gap git's default leaves and this does not widen.
 # - Each path is named with --literal-pathspecs. The `:(literal)` magic that
 #   was tried first is itself switched off by GIT_LITERAL_PATHSPECS=1, and with
 #   it set the read again matched nothing and the scan exited 0. A read again
-#   must print one file's patch for each path it named, or it is not whole.
+#   must print a patch for each path it named, or it is not whole.
 #   GIT_GLOB_PATHSPECS or GIT_ICASE_PATHSPECS make git refuse the option, so
 #   with either set a binary-marked text file is unread: exit 2, not clean.
+# - Every read runs from the top of the work tree, so diff.relative cannot
+#   narrow it to the directory a caller named.
 # - The a/ and b/ prefixes are pinned, because diff.noprefix, diff.srcPrefix,
 #   diff.dstPrefix and diff.mnemonicPrefix change the `+++` header a reader takes
 #   a path from. bin/secret-scan does; `dstPrefix = b/fixtures/` made every file
 #   it read a fixture's, which it does not scan.
+# - --ignore-submodules=none, because diff.ignoreSubmodules and a committed
+#   .gitmodules `ignore = all` hid a moved submodule pointer.
+# - -M, rename detection as git's default has it, because diff.renames=copies
+#   would hide a copied file's lines. The content rules that read these lines
+#   ask what a change adds, and a pure move adds nothing. bin/secret-scan reads
+#   with --no-renames instead, since its fixture exclusion is a property of the
+#   path, and a key moved out of fixtures/ is a new key where it lands.
 # For a default configuration every flag here prints what git printed without
 # it, byte for byte, so no tree id changed when this landed.
 #
 # tests/run refuses an engine line that runs `git diff` without --no-ext-diff
 # and --no-textconv on it, unless the line asks only for names. Not covered,
-# and why: a clean filter, core.fsmonitor, assume-unchanged and skip-worktree
-# change what git sees in the working tree, and they change what `git add`
-# commits the same way. `git show <rev>:<path>`, `git grep` and
-# `git diff --quiet` apply no textconv or external diff by default (measured).
+# and why:
+# - A clean filter, core.fsmonitor, assume-unchanged and skip-worktree change
+#   what git sees in the working tree, and they change what `git add` commits
+#   the same way.
+# - `git show <rev>:<path>`, `git grep` and `git diff --quiet` apply no textconv
+#   or external diff by default (measured).
+# - A working-tree-encoding file's side in the tree is judged on its bytes as
+#   stored there, so a UTF-16 file a person also marks binary stays unread.
+# - An added line that itself begins `++ ` prints as `+++` and is taken for a
+#   header: no setting is needed for that, and it is its own defect.
 # bin/secret-scan holds a copy of this, since it sources no library.
 _felix_git_patch() {   # VAR ROOT diff-args...
-  local _fgp_var="$1" _fgp_root="$2" _fgp_all _fgp_rec _fgp_meta="" _fgp_ok="" _fgp_rc=0 _fgp_n _fgp_sha
+  local _fgp_var="$1" _fgp_top _fgp_all="" _fgp_rec _fgp_meta="" _fgp_ok="" _fgp_rc=0 _fgp_n _fgp_st
   local _fgp_bin=() _fgp_text=() _fgp_t=$'\t'
+  _fgp_top="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null)"
+  [ -n "$_fgp_top" ] || { printf -v "$_fgp_var" '%s' ""; return 1; }
   shift 2
-  _felix_git_read _fgp_all git -C "$_fgp_root" diff --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ "$@" || _fgp_rc=1
+  _felix_git_read _fgp_all git -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none -M "$@" || _fgp_rc=1
   # The paths git printed as binary. -z, read to NUL, because a path may hold
   # any byte but that one. The mark is a record git never prints.
   while IFS= read -r -d '' _fgp_rec; do
@@ -905,30 +928,23 @@ _felix_git_patch() {   # VAR ROOT diff-args...
       -"$_fgp_t"-"$_fgp_t"*) _fgp_bin+=("${_fgp_rec#-"$_fgp_t"-"$_fgp_t"}") ;;
       $'\037'ok) _fgp_ok=1 ;;
     esac
-  done < <(git -C "$_fgp_root" diff --no-ext-diff --no-textconv --no-renames --numstat -z "$@" 2>/dev/null && printf '\037ok\0')
+  done < <(git -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --numstat -z "$@" 2>/dev/null && printf '\037ok\0')
   [ -n "$_fgp_ok" ] || _fgp_rc=1
   if [ "${#_fgp_bin[@]}" -gt 0 ]; then
-    # Each one's new side, from --raw: `:old new oldsha newsha status`, then the
-    # path. A zero sha is the working tree's file, which git did not hash.
+    # Each one's sides, from --raw: `:oldmode newmode oldsha newsha status`, then
+    # the path. A deleted path adds nothing, and an unmerged one is left as git
+    # left it.
     _fgp_ok=""
     while IFS= read -r -d '' _fgp_rec; do
       if [ -n "$_fgp_meta" ]; then
-        _fgp_sha="${_fgp_meta#:* * * }"; _fgp_sha="${_fgp_sha%% *}"
-        case "${_fgp_meta##* }" in
-          D) _fgp_n=1 ;;   # deleted: nothing is added
-          *) if [ -z "${_fgp_sha//0/}" ]; then
-               # A link is its target's name. Anything but a regular file is
-               # read again, never opened here: a pipe would block, and the diff
-               # of it fails, as the base reader's contract says it must.
-               if [ -L "$_fgp_root/$_fgp_rec" ] || [ ! -f "$_fgp_root/$_fgp_rec" ]; then _fgp_n=0
-               else _fgp_n="$(head -c 8000 "$_fgp_root/$_fgp_rec" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)"; fi
-             else
-               _fgp_n="$(git -C "$_fgp_root" cat-file blob "$_fgp_sha" 2>/dev/null | head -c 8000 | LC_ALL=C tr -cd '\000' | wc -c)"
-             fi ;;
+        _fgp_st="${_fgp_meta##* }"
+        case "$_fgp_st" in
+          D*|U*) ;;
+          *) _fgp_n="${_fgp_meta#:* * }"
+             { [ "${_fgp_st#A}" != "$_fgp_st" ] || _felix_side_text "$_fgp_top" "${_fgp_n%% *}" "$_fgp_rec"; } \
+               && _fgp_n="${_fgp_n#* }" && _felix_side_text "$_fgp_top" "${_fgp_n%% *}" "$_fgp_rec" \
+               && _fgp_text+=("$_fgp_rec") ;;
         esac
-        # A content check that could not run counts no NUL, so the path is read
-        # again as text, and a read that fails there fails the whole.
-        [ "${_fgp_n//[!0-9]/}" = 0 ] || [ -z "${_fgp_n//[!0-9]/}" ] && _fgp_text+=("$_fgp_rec")
         _fgp_meta=""
         continue
       fi
@@ -936,20 +952,42 @@ _felix_git_patch() {   # VAR ROOT diff-args...
         :*) _fgp_meta="$_fgp_rec" ;;
         $'\037'ok) _fgp_ok=1 ;;
       esac
-    done < <(git --literal-pathspecs -C "$_fgp_root" diff --no-ext-diff --no-textconv --no-renames --no-abbrev --raw -z "$@" -- "${_fgp_bin[@]}" 2>/dev/null && printf '\037ok\0')
+    done < <(git --literal-pathspecs -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --no-abbrev --raw -z "$@" -- "${_fgp_bin[@]}" 2>/dev/null && printf '\037ok\0')
     [ -n "$_fgp_ok" ] || _fgp_rc=1
   fi
   if [ "${#_fgp_text[@]}" -gt 0 ]; then
     local _fgp_more
-    _felix_git_read _fgp_more git --literal-pathspecs -C "$_fgp_root" diff --no-ext-diff --no-textconv --src-prefix=a/ --dst-prefix=b/ --text "$@" -- "${_fgp_text[@]}" || _fgp_rc=1
-    # One file's patch for each path asked for, or the read is not whole.
-    _fgp_n="$(printf '%s\n' "$_fgp_more" | LC_ALL=C awk '/^diff --git / { n++ } END { print n + 0 }')"
+    _felix_git_read _fgp_more git --literal-pathspecs -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none --no-renames --text "$@" -- "${_fgp_text[@]}" || _fgp_rc=1
+    # A patch for each path asked for, or the read is not whole. Distinct
+    # headers, since a type change prints its path's header twice.
+    _fgp_n="$(printf '%s\n' "$_fgp_more" | LC_ALL=C awk '/^diff --git / && !s[$0]++ { n++ } END { print n + 0 }')"
     [ "$_fgp_n" = "${#_fgp_text[@]}" ] || _fgp_rc=1
     _fgp_all="$_fgp_all
 $_fgp_more"
   fi
   printf -v "$_fgp_var" '%s' "$_fgp_all"
   return "$_fgp_rc"
+}
+
+# Whether one side of a pair is text by the rule git applies when no attribute
+# speaks: at most 512 MiB, and no NUL in its first 8000 bytes. A zero sha is the
+# file in the working tree, which git did not hash. There, a link is its
+# target's name, and anything else that is not a regular file counts as text,
+# to be read again unopened: a pipe would block here, and its diff fails, as an
+# unreadable path must. A side whose check cannot run also counts as text, and
+# a read again that then fails fails the whole.
+_felix_side_text() {   # TOP SHA PATH
+  local s n
+  if [ -z "${2//0/}" ]; then
+    { [ -L "$1/$3" ] || [ ! -f "$1/$3" ]; } && return 0
+    s="$(wc -c < "$1/$3" 2>/dev/null)"
+    n="$(head -c 8000 < "$1/$3" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)"
+  else
+    s="$(git -C "$1" cat-file -s "$2" 2>/dev/null)"
+    n="$(git -C "$1" cat-file blob "$2" 2>/dev/null | head -c 8000 | LC_ALL=C tr -cd '\000' | wc -c)"
+  fi
+  s="${s//[!0-9]/}"; n="${n//[!0-9]/}"
+  [ "${s:-0}" -le 536870912 ] && [ "${n:-0}" -eq 0 ]
 }
 
 # git's own first complaint about reading this change, one line with no tab, for

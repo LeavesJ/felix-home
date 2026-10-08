@@ -184,20 +184,20 @@ _felix_escape_confined() {
   # exist. With no base, or no commit yet, `...HEAD` fails for want of a
   # commit, and an empty answer there was always the right one.
   #
-  # No external diff and no textconv (2026-10-08): either could print a
-  # confined-looking hunk for a change that is not one. A textconv that printed
+  # No external diff, no textconv and no colour (2026-10-08): the first two could
+  # print a confined-looking hunk for a change that is not one. A textconv that printed
   # `liba>=1.0` for the old deps.txt and `liba>=2.0` for one that added evilpkg
   # demoted the row. Why per call: above _felix_git_patch in resolve.sh. A
   # binary marking leaves no +/- line here, so the row fires, as it should.
   local one all=""
   if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
-    _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv -U0 "$base...HEAD" -- "$f" || return 1
+    _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 "$base...HEAD" -- "$f" || return 1
     all="$one"
   fi
-  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv -U0 --cached -- "$f" || return 1
+  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 --cached -- "$f" || return 1
   all="$all
 $one"
-  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv -U0 -- "$f" || return 1
+  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 -- "$f" || return 1
   all="$all
 $one"
   hunk="$(printf '%s\n' "$all" | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"

@@ -273,13 +273,15 @@ _felix_tree_excludes() {
 # untracked name git quoted, every name past ASCII by default, a macOS
 # screenshot included, went to stat under a spelling that names no file.
 #
-# The diff runs with no external diff and no textconv (2026-10-08). Under
-# `diff.external`, GIT_EXTERNAL_DIFF, a driver command or a textconv that prints
-# nothing, git printed nothing for the edited file, so an edit hashed exactly as
-# the clean tree did. Why per call, and what else was measured: above
-# _felix_git_patch in resolve.sh. A binary marking needs nothing here, because
-# the patch's `index` line still names both blobs. For a default configuration
-# the bytes are unchanged, so this too staled no receipt.
+# The diff runs with no external diff, no textconv, no colour, and every
+# submodule shown (2026-10-08). Under `diff.external`, GIT_EXTERNAL_DIFF, a
+# driver command or a textconv that prints nothing, git printed nothing for the
+# edited file, so an edit hashed exactly as the clean tree did. Under
+# diff.ignoreSubmodules=all, or `ignore = all` in a committed .gitmodules, a
+# moved submodule pointer did the same. Why per call, and what else was
+# measured: above _felix_git_patch in resolve.sh. A binary marking needs nothing
+# here, because the patch's `index` line still names both blobs. For a default
+# configuration the bytes are unchanged, so this too staled no receipt.
 felix_tree_id() {
   local root="$1" home="${2:-}" head diff cached untracked n=0 meta="" quoted="" prefix="" f id
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
@@ -295,14 +297,14 @@ EOF
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
-    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none -- . "${exargs[@]+"${exargs[@]}"}" || return 2
     # What is staged, against nothing. Added only when there is any, so the id
     # of a bare `git init` is the one it always was.
-    _felix_git_read cached git -C "$root" diff --no-ext-diff --no-textconv --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read cached git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
     [ -z "$cached" ] || diff="$cached
 $diff"
   else
-    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    _felix_git_read diff git -C "$root" diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none HEAD -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   fi
 
   # quotePath off, so a name past ASCII is listed as the bytes stat can open.

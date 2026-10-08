@@ -24016,17 +24016,24 @@ is "an allow of commission already granted, stdout open read-only, exits 0 and s
    "$(_lwexit "$_lwrc"):$(_lwlock):$(_lwpage):$(grep -c 'allowed' "$_lwp/autonomy.commission" 2>/dev/null)" "exit 0:absent:[x]:0"
 
 # The grant's subshell ended 0 when set -u stopped it, on bash 3.2, and 0 was
-# "written": the empty temp file then replaced the grants. Revision 4 gives
-# written a status of its own. A wc first on the run's PATH that prints a
-# name stands for anything that stops it: $(( name )) is unbound. bash 5.2
-# ends that subshell non-zero anyway, so this is red on bash 3.2 only.
-mkdir -p "$TMP/lw-wc"; printf '#!/bin/sh\necho stray\n' > "$TMP/lw-wc/wc"; chmod +x "$TMP/lw-wc/wc"
-_lwset '# grants\ntidy\n'; _lwheld="$(_lwstate)"
-( cd "$REPO" && PATH="$TMP/lw-wc:$PATH" exec "$FELIX" autonomy --allow commission ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
-_lwreap $!; _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
-is "an allow of commission whose grant subshell set -u stops exits non-zero, says commission is not allowed and no allowed:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)" \
-   "$(_lwexit "$_lwrc"):$(_lwsaid "$_lwout"):$(_lwhas "$_lwerr" 'commission is not allowed'):$(_lwsame):$(_lwlock):$(_lwnew)" \
-   "non-zero:silent:commission is not allowed:same:absent:0"
+# "written": the empty temp file then replaced the grants. Revision 4 gave
+# written a status of its own. That was not enough (revoke's fifth review): a
+# stop in $(( )) leaves the status of the command before it, so a wc that
+# answered a word and exited 10 read as written too. Revision 5 checks wc's
+# answer as digits and never puts it through $(( )). A wc first on the run's
+# PATH that prints a word stands for anything that answers one: exiting 0,
+# and exiting 10. bash 5.2 ends a stopped subshell non-zero, so the first is
+# red on bash 3.2 only; the second is red on both.
+mkdir -p "$TMP/lw-wc"
+for _lwws in 0 10; do
+  printf '#!/bin/sh\necho stray\nexit %s\n' "$_lwws" > "$TMP/lw-wc/wc"; chmod +x "$TMP/lw-wc/wc"
+  _lwset '# grants\ntidy\n'; _lwheld="$(_lwstate)"
+  ( cd "$REPO" && PATH="$TMP/lw-wc:$PATH" exec "$FELIX" autonomy --allow commission ) > "$TMP/lw.out" 2> "$TMP/lw.err" 8>&- &
+  _lwreap $!; _lwout="$(cat "$TMP/lw.out")"; _lwerr="$(cat "$TMP/lw.err")"
+  is "an allow of commission whose wc answers a word and exits $_lwws exits non-zero, says commission is not allowed and no allowed:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)" \
+     "$(_lwexit "$_lwrc"):$(_lwsaid "$_lwout"):$(_lwhas "$_lwerr" 'commission is not allowed'):$(_lwsame):$(_lwlock):$(_lwnew)" \
+     "non-zero:silent:commission is not allowed:same:absent:0"
+done
 
 # F5. The release removes the lock through find, and said nothing when find
 # could not do it; the lock stayed and the next run was refused. Revision 3

@@ -26940,6 +26940,210 @@ unset _durcfound _durcdirs _durcp _durcr _durchome _durcstub _durcasked _durctpl
       _durctopo _durctopo2 _durcobreq _durcout _durcrc _durcn _durcst1 _durcst2 _durcstamp _durcorph _durcxo _durcxg _durcabsent \
       _durcdang _durcreg _durcfifo _durccol _durcnames _durcgot _durcs1 _durcs2 _durctl _durcnl _durcd
 
+# felix commission adopts nothing over a declared list it could not read, and
+# says that capability drift was not checked.
+#
+# Since #378 a full `felix commission` adopts, before it asks any row, every
+# capability the checkout shows and the project has not declared, as session
+# start does. When the project's declared-capabilities list could not be read,
+# a full run adopts nothing, leaves capabilities, stack.tsv and setup.tsv byte
+# for byte, prints no `adopted before this run` line, and prints
+# `Capability drift was not checked: <why>.` after the `commissioning for
+# <project>` line and before the first row line; the rows and the summary are
+# still printed. Over a list that was read (one that declares something, none
+# at all, or an empty one) a full run adopts and says so, exactly as before,
+# and never prints the drift line. `--status` adopts nothing and prints neither
+# line, read or unread. Item 14 of the contract in
+# docs/handoff/pending/20261001T235048Z-claude-declared-unread-readers.md.
+# These assertions were written blind, from that contract item alone, before
+# the fix: the body of cmd_commission was not read.
+# The CLI is another process, so the unread list is a `capabilities` link whose
+# target, in a directory that exists, does not: a write through the link would
+# create it. The checkout shows ci (a workflow file) and secrets (.env.example);
+# the read fixture declares secrets only, so ci is there to adopt. The
+# commissioning table holds two rows with no grounds, one done and one held, so
+# an unread list changes neither row and the summary is known in advance.
+# HOME is a scratch directory and PATH holds a `claude` that logs and refuses
+# everything, so nothing reaches the network, ~/.claude or an installed CLI.
+# The exit status is not part of the item and is not asserted.
+# Everything this makes is removed below and everything it defines unset.
+_durdfixture() { { find "$FROOT/projects" "$FROOT/state" "$MEM" 2>/dev/null | LC_ALL=C sort
+                   find "$FROOT/projects" "$FROOT/state" "$MEM" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; } | cksum; }
+_durdfound="$(_durdfixture)"
+_durddirs="$(find "$FROOT/state" -type d 2>/dev/null)"
+_durdp="$FROOT/projects/durdproj"; _durdr="$TMP/durd-repo"; _durdhome="$TMP/durd-home"; _durdbin="$TMP/durd-bin"
+_durdasked="$TMP/durd-asked"; _durdgone="$TMP/durd-no-such-list"
+_durdwhy='the capabilities this project declares could not be read'
+_durddrift="Capability drift was not checked: $_durdwhy."
+_durdadopted='adopted before this run, because the checkout shows them:'
+mkdir -p "$_durdp" "$_durdr/.github/workflows" "$_durdhome" "$_durdbin"
+printf '{\n  "name": "durdproj",\n  "remote_match": "example.com/durdproj",\n  "gate": "true"\n}\n' > "$_durdp/project.json"
+printf '# durdproj\n' > "$_durdp/CLAUDE.md"
+{ printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
+  printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'
+  printf 'durdheld\t-\t-\t-\t-\ttest -f durd-never-made\t5\n'; } > "$_durdp/commissioning.tsv"
+( cd "$_durdr" && git init -q -b main && printf 'durdproj\n' > .felix && printf 'on: push\n' > .github/workflows/ci.yml \
+    && printf 'X=1\n' > .env.example && git add -A && git -c user.name=durd -c user.email=durd@example.com commit -q -m durd )
+_durdr="$(cd "$_durdr" && pwd -P)"
+cat > "$_durdbin/claude" <<STUB
+#!/bin/sh
+printf '%s\n' "\$*" >> "$_durdasked"
+exit 2
+STUB
+chmod +x "$_durdbin/claude"
+
+# $1 is how capabilities is left: read (declares secrets), none (no file),
+# empty (a file that declares nothing) or unread (a link whose target is gone).
+# stack.tsv and setup.tsv are reset to their headers and adoption's runbooks
+# removed, so every run starts from the same tables.
+_durdset() {
+  rm -rf "$_durdp/setup"; rm -f "$_durdp/capabilities"
+  printf '# k\tn\ts\tr\tc\n' > "$_durdp/stack.tsv"
+  printf '# id\ttitle\tcapability\tcheck\n' > "$_durdp/setup.tsv"
+  case "$1" in
+    read)   printf 'secrets\n' > "$_durdp/capabilities" ;;
+    empty)  : > "$_durdp/capabilities" ;;
+    unread) ln -s "$_durdgone" "$_durdp/capabilities" ;;
+  esac
+  cp "$_durdp/stack.tsv" "$TMP/durd-stack.keep"; cp "$_durdp/setup.tsv" "$TMP/durd-setup.keep"
+  rm -f "$TMP/durd-caps.keep"; [ -f "$_durdp/capabilities" ] && cp "$_durdp/capabilities" "$TMP/durd-caps.keep"
+  return 0; }
+_durdcli() { ( cd "$_durdr" && HOME="$_durdhome" PATH="$_durdbin:/usr/bin:/bin" "$FELIX" commission "$@" 2>&1 ); }
+# said when $1 holds $2 as a whole line; silent otherwise.
+_durdline() { case "
+$1
+" in *"
+$2
+"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+# said when $1 holds $2 anywhere.
+_durdsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+# said when some line of $1 begins with $2.
+_durdbegins() { printf '%s\n' "$1" | awk -v p="$2" 'index($0, p) == 1 { f = 1 } END { print (f ? "said" : "silent") }'; }
+# The first line number of $1 equal to $2, or 0.
+_durdat() { printf '%s\n' "$1" | awk -v w="$2" '$0 == w { print NR; f = 1; exit } END { if (!f) print 0 }'; }
+# The first line number of a row line for either row, or 0.
+_durdrow1() { printf '%s\n' "$1" | awk '/^  [a-z-]+ +(marker|durdheld)( |$)/ { print NR; f = 1; exit } END { if (!f) print 0 }'; }
+# The summary line, or nothing.
+_durdsum() { printf '%s\n' "$1" | grep -E '^[0-9]+ done, [0-9]+ held, [0-9]+ unknown, ' | head -n 1; }
+# ran when the report has its head line and a summary line, so that "nothing
+# changed" and "nothing printed" are read from a run that got that far.
+_durdran() { if [ "$(_durdline "$1" 'commissioning for durdproj')" = said ] && [ -n "$(_durdsum "$1")" ]; then
+               printf 'ran\n'; else printf 'short\n'; fi; }
+# kept when capabilities is still a link to the same target and that target is
+# still nothing at all.
+_durdlink() { if [ -L "$_durdp/capabilities" ] && [ "$(readlink "$_durdp/capabilities")" = "$_durdgone" ]; then
+                printf 'link\n'; else printf 'gone\n'; fi; }
+_durdtarget() { if [ -e "$_durdgone" ] || [ -L "$_durdgone" ]; then printf 'made\n'; else printf 'absent\n'; fi; }
+_durdsame() { cmp -s "$1" "$2" && printf 'same\n' || printf 'changed\n'; }
+_durdcaps() { grep -vE '^[[:space:]]*(#|$)' "$_durdp/capabilities" 2>/dev/null | LC_ALL=C sort | tr '\n' ' '; }
+
+# The fixture: the checkout shows ci, and the read list declares only secrets.
+_durdset read
+_durddet="$( ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; felix_detect "$_durdr" ) 2>/dev/null | LC_ALL=C sort -u | tr '\n' ' ')"
+is  "the durd checkout shows ci and secrets, and the read fixture declares secrets and not ci" \
+    "$(_durdsays " $_durddet" ' ci ') $(_durdsays " $_durddet" ' secrets ') $(_durdcaps)" "said said secrets "
+
+# Unread, --status.
+_durdset unread
+_durdout="$(_durdcli --status)"
+is  "felix commission --status over a capabilities link whose target is gone prints its report, no adopted line and no drift line" \
+    "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'adopted before this run') $(_durdsays "$_durdout" 'Capability drift was not checked')" \
+    "ran silent silent"
+is  "and leaves the link a link to the same target, creates nothing there, and leaves stack.tsv and setup.tsv byte for byte" \
+    "$(_durdlink) $(_durdtarget) $(_durdsame "$_durdp/stack.tsv" "$TMP/durd-stack.keep") $(_durdsame "$_durdp/setup.tsv" "$TMP/durd-setup.keep")" \
+    "link absent same same"
+
+# Unread, a full run.
+_durdset unread
+_durdls="$(ls -A "$_durdp")"
+_durdout="$(_durdcli)"
+_durdrun="$(_durdran "$_durdout")"
+if [ "$_durdrun" != ran ]; then
+  for _durdn in "an unread full run leaves capabilities a link to the same target" \
+                "an unread full run creates nothing at the link's target" \
+                "an unread full run leaves stack.tsv byte for byte" \
+                "an unread full run leaves setup.tsv byte for byte" \
+                "an unread full run adds no entry to the project directory, so no setup runbook either"; do
+    bad "$_durdn" "the run printed no head line and summary, so nothing changed proves nothing: $(printf '%s\n' "$_durdout" | head -n 4)"
+  done
+else
+  is  "an unread full run leaves capabilities a link to the same target" "$(_durdlink)" "link"
+  is  "an unread full run creates nothing at the link's target" "$(_durdtarget)" "absent"
+  is  "an unread full run leaves stack.tsv byte for byte" "$(_durdsame "$_durdp/stack.tsv" "$TMP/durd-stack.keep")" "same"
+  is  "an unread full run leaves setup.tsv byte for byte" "$(_durdsame "$_durdp/setup.tsv" "$TMP/durd-setup.keep")" "same"
+  is  "an unread full run adds no entry to the project directory, so no setup runbook either" "$(ls -A "$_durdp")" "$_durdls"
+fi
+is  "an unread full run prints its report and no line beginning adopted before this run" \
+    "$_durdrun $(_durdbegins "$_durdout" 'adopted before this run')" "ran silent"
+is  "an unread full run prints the line Capability drift was not checked: the capabilities this project declares could not be read." \
+    "$(_durdline "$_durdout" "$_durddrift")" "said"
+_durdhead="$(_durdat "$_durdout" 'commissioning for durdproj')"; _durdat2="$(_durdat "$_durdout" "$_durddrift")"
+_durdfirst="$(_durdrow1 "$_durdout")"
+if [ "$_durdat2" -eq 0 ]; then
+  bad "and that line comes after the commissioning for durdproj line and before the first row line" \
+      "the drift line is not printed, so it has no place: $(printf '%s\n' "$_durdout" | head -n 4)"
+elif [ "$_durdhead" -eq 0 ] || [ "$_durdfirst" -eq 0 ]; then
+  bad "and that line comes after the commissioning for durdproj line and before the first row line" \
+      "head line at $_durdhead, first row line at $_durdfirst"
+elif [ "$_durdhead" -lt "$_durdat2" ] && [ "$_durdat2" -lt "$_durdfirst" ]; then
+  ok  "and that line comes after the commissioning for durdproj line and before the first row line"
+else
+  bad "and that line comes after the commissioning for durdproj line and before the first row line" \
+      "head line $_durdhead, drift line $_durdat2, first row line $_durdfirst"
+fi
+is  "an unread full run still asks and prints both rows, marker done and durdheld held" \
+    "$(printf '%s\n' "$_durdout" | grep -cE '^  done +marker( |$)')|$(printf '%s\n' "$_durdout" | grep -cE '^  held +durdheld( |$)')" "1|1"
+is  "an unread full run still prints the summary line, 1 done, 1 held, 0 unknown" \
+    "$(_durdsum "$_durdout" | cut -d, -f1-3)" "1 done, 1 held, 0 unknown"
+
+# Read, --status: ci is there to adopt, and --status adopts nothing.
+_durdset read
+_durdout="$(_durdcli --status)"
+is  "felix commission --status over a read list prints its report, no adopted line and no drift line" \
+    "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'adopted before this run') $(_durdsays "$_durdout" 'Capability drift was not checked')" \
+    "ran silent silent"
+is  "and adopts nothing: capabilities, stack.tsv and setup.tsv byte for byte" \
+    "$(_durdsame "$_durdp/capabilities" "$TMP/durd-caps.keep") $(_durdsame "$_durdp/stack.tsv" "$TMP/durd-stack.keep") $(_durdsame "$_durdp/setup.tsv" "$TMP/durd-setup.keep")" \
+    "same same same"
+_durdset none
+_durdout="$(_durdcli --status)"
+is  "felix commission --status with no capabilities file prints its report, no adopted line and no drift line, and creates no capabilities file" \
+    "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'adopted before this run') $(_durdsays "$_durdout" 'Capability drift was not checked') $([ -e "$_durdp/capabilities" ] || [ -L "$_durdp/capabilities" ] && echo made || echo absent)" \
+    "ran silent silent absent"
+
+# Read, a full run, as before the change: ci is adopted and the run says so.
+_durdset read
+_durdout="$(_durdcli)"
+is  "a full run over a list that declares secrets adopts ci: capabilities then declares ci and secrets" "$(_durdcaps)" "ci secrets "
+is  "and prints the adopted before this run line, naming ci" \
+    "$(printf '%s\n' "$_durdout" | awk -v p="$_durdadopted" 'index($0, p) == 1' | grep -c ' ci(')" "1"
+is  "and the run over a list that declares secrets never prints Capability drift was not checked" "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'Capability drift was not checked')" "ran silent"
+_durdset none
+_durdout="$(_durdcli)"
+is  "a full run with no capabilities file adopts what the checkout shows and says so: capabilities declares ci, and the adopted line is printed" \
+    "$(_durdsays " $(_durdcaps)" ' ci ') $(_durdbegins "$_durdout" "$_durdadopted")" "said said"
+is  "and the run with no capabilities file never prints Capability drift was not checked" "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'Capability drift was not checked')" "ran silent"
+_durdset empty
+_durdout="$(_durdcli)"
+is  "a full run over an empty capabilities file adopts what the checkout shows and says so: capabilities declares ci, and the adopted line is printed" \
+    "$(_durdsays " $(_durdcaps)" ' ci ') $(_durdbegins "$_durdout" "$_durdadopted")" "said said"
+is  "and the run over an empty capabilities file never prints Capability drift was not checked" "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'Capability drift was not checked')" "ran silent"
+
+rm -rf "$_durdp" "$_durdr" "$_durdhome" "$_durdbin" "$MEM/durdproj" "$_durdgone"
+rm -f "$_durdasked" "$TMP/durd-stack.keep" "$TMP/durd-setup.keep" "$TMP/durd-caps.keep"
+[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*durdproj*' -exec rm -rf {} + 2>/dev/null
+_durdnl='
+'
+find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _durdd; do
+  case "$_durdnl$_durddirs$_durdnl" in *"$_durdnl$_durdd$_durdnl"*) ;; *) rmdir "$_durdd" 2>/dev/null ;; esac
+done
+is  "and the block for felix commission over an unread declared list leaves the projects, the state and the memory as it found them" \
+    "$(_durdfixture)" "$_durdfound"
+unset -f _durdfixture _durdset _durdcli _durdline _durdsays _durdbegins _durdat _durdrow1 _durdsum _durdran _durdlink \
+         _durdtarget _durdsame _durdcaps
+unset _durdfound _durddirs _durdp _durdr _durdhome _durdbin _durdasked _durdgone _durdwhy _durddrift _durdadopted \
+      _durddet _durdout _durdls _durdrun _durdn _durdhead _durdat2 _durdfirst _durdnl _durdd
+
 # A table command whose last stage succeeds whatever it is fed is refused.
 #
 # Every table runner evaluates a row with pipefail off: probes, obligations,

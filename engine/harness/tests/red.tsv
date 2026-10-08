@@ -3,56 +3,55 @@
 #   base  <ref>  <sha>  <engine version there>
 #   run   <failed>  <passed>  <skipped>        lines counted, not the summary
 #   <assertion name>  <times it failed>        failed names only
-# A base of - means no red run was possible. Reproduce with: tests/red <ref>
-base	origin/main	cb3a72ce4f0d85d37253359ca73b4976e9d45201	0.49.194
-run	50	3470	5
-a cancelled gate run between failures neither spends the repair ceiling nor resets it	1
-a gate run that failed to start counts against the ceiling, as do a timed-out one and a conclusion this code does not know	1
-a lifted scoped row is written to says.log with the command	1
-a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw	1
-and of the conclusions a completed gate run can have, only success resets it	1
-and says the ceiling is reached, not unknown	1
-and with it, the same call lifts	1
-felix repair stops three failed gate runs that a cancelled one sits between	1
-scoped: .. out of the checkout that lands in scratch	1
-scoped: P from pwd keeps the scratch cwd after a cd	1
-scoped: Write to a relative marker under a scratch payload cwd	1
-scoped: Write to a scratch marker lifts	1
-scoped: a cd first in its chain to an existing directory, then ;	1
-scoped: a cd second in its chain can fail even to an existing directory	1
-scoped: a fetch from the governed checkout into the scratch clone	1
-scoped: a fixture repo under a scratch variable, marker then git add -A	1
-scoped: a fixture script written by here-document and run with arguments	1
-scoped: a for loop over literal words feeding an assignment	1
-scoped: a here-document fed to bash sees a prefixed variable	1
-scoped: a lift to be recorded	1
-scoped: a lifted marker row does not lift the stage row	1
-scoped: a lifted row does not stop another row	1
-scoped: a payload cwd already in scratch	1
-scoped: a shared clone moved by a script read from stdin	1
-scoped: a shell running a script this line wrote by here-document, all in scratch	1
-scoped: a sibling whose name extends the checkout's is not the checkout	1
-scoped: a single-quoted bash -c fixture given its directory	1
-scoped: a working directory that holds the checkout	1
-scoped: a worktree of the scratch clone, made in scratch	1
-scoped: an EXIT trap with a known action does not	1
-scoped: an echo run from the checkout counts the checkout	1
-scoped: an unmatched command naming the checkout is not judged	1
-scoped: bash -c starts in the directory it was called from	1
-scoped: builtin cd steps past a function of that name	1
-scoped: cd DIR || exit cannot fall back	1
-scoped: dd of= with an input path after = in scratch	1
-scoped: every branch of an if leaves scratch	1
-scoped: git worktree anywhere in the line	1
-scoped: ln anywhere in the line	1
-scoped: mkdir -p, cd, then a remote on the lines after	1
-scoped: mkdir; cd; cmd judges the directory before too	1
-scoped: mktemp -d with a scratch template, then remote add by git -C	1
-scoped: pwd -P of the scratch clone, then update-ref under refs/remotes	1
-scoped: repeated -C, each relative to the last	1
-scoped: set -u is not set -e	1
-scoped: three scoped rows all lifted in one clone	1
-scoped: under set -e a cd inside a chain can still fall through	1
-scoped: under set -e a lone cd on its own line is final	1
-the judge alone: a scratch path is throwaway	1
-the same reader reaching its end would lift	1
+#   an assertion the manifest lists that the base run never reached counts as failed, by its shortfall
+# A base of - means no complete red run was made: none was possible, the
+# suite stopped before reached or reached no assertion, or tests/red itself
+# was stopped; its stdout said which unless it was the one stopped.
+# Reproduce with: tests/red <ref>
+base	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	0.49.272
+run	45	6281	9
+baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+discover: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+discover: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+discover: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+discover: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail off)	1
+human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail on)	1
+human_steps: a runbook that prints an unknown step is held (pipefail off)	1
+human_steps: a runbook that prints an unknown step is held (pipefail on)	1
+obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+obligations: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+obligations: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+preflight: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+preflight: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+preflight: a report that could not list the plugins is held (pipefail off)	1
+preflight: a report that could not list the plugins is held (pipefail on)	1
+probes: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+probes: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+probes: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+probes: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+reach: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+reach: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+reach: an unwired read that returned 128 having printed nothing is held (pipefail off)	1
+reach: an unwired read that returned 128 having printed nothing is held (pipefail on)	1
+reach: with no pipe to be made, the check does not pass	1
+stack: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
+stack: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
+stack: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
+stack: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
+stack: a plan that prints an unknown action is held (pipefail off)	1
+stack: a plan that prints an unknown action is held (pipefail on)	1
+stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail off)	1
+stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail on)	1

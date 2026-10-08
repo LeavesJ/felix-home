@@ -75,7 +75,7 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # reading, and a row loosened in place removes the old line, so both fire, and
 # adding a row for a new table is free. By basename it would also stop the
 # merge of any product that keeps a data file called schemas.tsv.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv land.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"
@@ -85,7 +85,31 @@ FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecos
 # about to break invariant 1 in, and merge green. Any change to one of these
 # fires — the conformance amendments say so in as many words — because there
 # is no direction of edit to such a table that a reviewer need not look at.
-FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv'
+# "Any change" is every change to a row, compared as the reader reads it: in
+# file order and byte for byte (_felix_escape_changed). Only comments and blank
+# lines are free.
+#
+# land.tsv (lib/land-table.sh) is the same case twice over. A resolver row is
+# a path the landing actor may settle without a session; a founder or session
+# row is one it may not. So adding a resolver row widens, removing a narrowing
+# row widens too, and no direction of edit is free: the landing-actor design
+# says "any change fires, additions included". A basename, like its siblings,
+# because every project keeps its table at projects/<name>/land.tsv and the
+# engine names none of them. That errs toward the founder: a product's own
+# data file called land.tsv escapes on every change, as one called risk.tsv
+# does.
+#
+# The membership binds from the first engine that carries it. The pull request
+# that adds land.tsv here is judged by the engine main already holds, where
+# land.tsv is in no list, and its schemas.tsv row is an addition, which is
+# free; so that pull request does not escape by itself and is carried to the
+# founder by hand.
+#
+# It is deliberately NOT in FELIX_COMMISSION_TABLES (commission.sh).
+# felix_commission_policy_version hashes a header for every name listed there
+# whether or not the file exists, so adding the name would move every governed
+# project's policy hash on deploy and stale every commission receipt at once.
+FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv land.tsv'
 
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.
@@ -159,8 +183,10 @@ _felix_escape_confined() {
            } | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"
   [ -n "$hunk" ] || return 1
 
-  # Any line outside the confine means the row fires.
-  printf '%s\n' "$hunk" | grep -qvE "$confine" && return 1
+  # Any line outside the confine means the row fires. A here-string, not a
+  # pipe: grep -q stops at the first such line, and a printf still writing a
+  # long hunk dies of SIGPIPE, which pipefail reads as every line confined.
+  grep -qvE "$confine" <<<"$hunk" && return 1
 
   plus="$(printf '%s\n' "$hunk"  | grep '^+' \
           | sed -E 's/^\+[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
@@ -220,13 +246,28 @@ _felix_escape_shrank() {
   [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
-# Any row present on one side and not the other, in either direction. Same
-# static blobs, same comment stripping, so a reworded comment is still free.
+# Any change to the rows of an exemption table: the non-comment, non-blank
+# lines of the two sides, in file order and byte for byte, differ. Same static
+# blobs and the same comment stripping, so a reworded comment is still free.
+#
+# Deliberately not _felix_escape_lines. Its comma stripping is for project.json,
+# which is no exemption table, and its sort -u makes order and repetition
+# invisible, while the readers of these tables see both. A land table's reader
+# refuses a row whose last cell gained a comma, so the row it bound is gone;
+# and it keeps the first of two rows on one path, so swapping them changes the
+# row that stands. Compared as sets, both edits read as no change, and a
+# founder or session row could be dropped or overridden with nobody asked.
+# grep -a and the C locale, so a byte that is not text is compared as a byte
+# and never turns one side into grep's "Binary file matches".
+_felix_escape_rows_exact() {
+  felix_file_at "$1" "$2" "$3" | LC_ALL=C grep -avE '^[[:space:]]*(#|$)'
+}
+
 _felix_escape_changed() {
   local root="$1" base="$2" f="$3" before after
-  before="$(_felix_escape_lines "$root" "$base" "$f")"
-  after="$(_felix_escape_lines "$root" HEAD "$f")"
-  [ -n "$(comm -3 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+  before="$(_felix_escape_rows_exact "$root" "$base" "$f"; printf .)"
+  after="$(_felix_escape_rows_exact "$root" HEAD "$f"; printf .)"
+  [ "$before" != "$after" ]
 }
 
 felix_escapes() {
@@ -270,16 +311,16 @@ felix_escapes() {
   while IFS= read -r f; do
     [ -n "$f" ] || continue
 
-    printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_EXECUTE" \
+    grep -qE "$FELIX_ESCAPE_EXECUTE" <<<"$f" \
       && printf 'execute\t%s\tmerging runs this job holding the repository secrets\n' "$f"
 
-    printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_AUTHORITY" \
+    grep -qE "$FELIX_ESCAPE_AUTHORITY" <<<"$f" \
       && printf 'authority\t%s\tmerging grants Felix a power it then holds in every session; a revert does not un-run them\n' "$f"
 
-    printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_EXCEPTION" \
+    grep -qE "$FELIX_ESCAPE_EXCEPTION" <<<"$f" \
       && printf 'exception\t%s\tmerging turns a written row into a grant that clears an obligation, and only a person may give one\n' "$f"
 
-    printf '%s' "$f" | grep -qE "$FELIX_ESCAPE_DURABLE_PATH" \
+    grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"
 
     # verifier, for the tables that decide what stops. Adding is free — except
@@ -297,7 +338,9 @@ felix_escapes() {
 $paths
 EOF
 
-  [ -n "$added" ] && printf '%s' "$added" | grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" \
+  # A here-string for the reason _felix_escape_confined gives: SQL on an early
+  # line of a long diff would otherwise read as no SQL at all.
+  [ -n "$added" ] && grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
     && printf 'durable\tADDED-LINES\tdestructive SQL in the added lines\n'
 
   # One lookup for the whole diff. `reviewed` is the only channel a verdict can
@@ -332,7 +375,7 @@ EOF
     [ "$channel" = "unknown" ] && channel="declared-unknown"
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      printf '%s' "$f" | grep -qE "$pattern" || continue
+      grep -qE "$pattern" <<<"$f" || continue
       [ "$channel" = "reviewed" ] && [ "$reviewed" = "pass" ] && continue
       case "${confine:-}" in
         count:*) _felix_escape_fewer "$root" "$base" "$f" "${confine#count:}" || continue ;;
@@ -389,6 +432,12 @@ felix_merge_checkout() {
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
+  # owed and behind (lib/land-table.sh), report-only: they write says.log
+  # would-refuse rows and print nothing here. A subshell, so nothing either
+  # does, an unset variable under the judge's set -u included, can reach this
+  # function's output, its status, or the shell that called it; and no input,
+  # so nothing it runs can wait on a terminal.
+  ( felix_land_would_refuse "$proj" "$base" "$root" ) </dev/null >/dev/null 2>&1
 
   felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
@@ -505,8 +554,10 @@ felix_merge_blockers() {
   # or detected surfaces have moved since it was, or while a row could not be
   # asked here (indeterminate). Never on held rows: a toolbox that is not yet
   # installed is a fact about a machine, not about the code being merged. And
-  # never on provider rows, which hold nothing by class. Fails closed on a
-  # missing library for the same reason the probes block does.
+  # never on a provider row's answer, which holds nothing by class; a provider
+  # row whose answer could not be read is unknown like any row, and blocks
+  # through the indeterminate receipt. Fails closed on a missing library for
+  # the same reason the probes block does.
   if ! command -v felix_commission_rows >/dev/null 2>&1; then
     printf 'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project\n'
   elif [ ! -f "$proj/commissioning.tsv" ]; then
@@ -524,3 +575,18 @@ felix_merge_blockers() {
     fi
   fi
 }
+
+# The land table and its report-only checks, which felix_merge_blockers calls
+# above. Loaded here, after every function this file defines, so the judge's
+# child shell, which sources escape.sh and not land-table.sh, has them; and
+# land-table.sh, which loads this file when felix_escapes is missing, finds it
+# already loaded. A land library that cannot be loaded costs the report and
+# nothing else: the status of sourcing this file stays 0, so the judge does
+# not read it as an engine that could not be loaded.
+#
+# Always, never "unless felix_land_rows exists". The judge's child shell
+# imports the functions the session exported, so that guard would let one of
+# them stand in for the library. When land-table.sh was sourced first and
+# loads this file, it is read a second time, which defines the same functions
+# again and stops there, since felix_escapes is defined by then.
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/land-table.sh" 2>/dev/null || :

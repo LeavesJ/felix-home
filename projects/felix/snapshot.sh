@@ -88,7 +88,9 @@ SRC="$(git -C "$HOME_TOP" rev-parse --verify -q "$SRC_REF^{commit}")" || die "no
 git -C "$HOME_TOP" merge-base --is-ancestor "$SRC" "$MAIN" || die "$SRC_REF is not on the home's main ($MAIN)" "a snapshot publishes what main accepted, and nothing else"
 # The home's own slug, read and never typed: it is the one remote this file may
 # know, and the public copy of this file must refuse to run as if it were home.
-slug_of() { sed -n 's/.*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | head -1; }
+# sed -n 1p and not head -1, here and in ver_of: head quits after one line, and
+# set -e would end the run on the SIGPIPE that leaves the sed writing the rest.
+slug_of() { sed -n 's/.*"remote_match"[^"]*"\([^"]*\)".*/\1/p' | sed -n 1p; }
 HOME_SLUG="$(git -C "$HOME_TOP" show "$MAIN:projects/$SELF/project.json" | slug_of)"
 [ -n "$HOME_SLUG" ] && [ "$HOME_SLUG" != "$PUBLIC_SLUG" ] || die "this is not the home (remote_match reads '${HOME_SLUG}')" "run it from the private checkout, never from the published copy"
 
@@ -209,8 +211,10 @@ show_hits() {  # DIR HITS: each line, and the row that would acknowledge it
 
 # ------------------------------------------------------------- build -------
 # The published set, out of the commit; the consent files left out by pathspec.
+# assets/ holds the README's images (2026-09-23): the README is published, so
+# what it shows must be too, or the public page renders broken images.
 PUB=""
-for p in engine "projects/$SELF" .gitignore .claude-plugin/marketplace.json; do
+for p in engine "projects/$SELF" .gitignore .claude-plugin/marketplace.json assets; do
   if git -C "$HOME_TOP" cat-file -e "$SRC:$p" 2>/dev/null; then PUB="$PUB $p"; fi
 done
 [ "$PUBLIC_README" -eq 1 ] || PUB="$PUB README.md"
@@ -333,7 +337,7 @@ own="$(awk -F'\t' '$4 == "repository" { print $1 ":" $2 }' "$OUT/hits.all")"
 [ -z "$own" ] || die "the home's own repository is named in the build; a person rewrites each:" $own
 unacked "$OUT/hits.all" > "$OUT/hits"
 bad_shape=""
-for e in $(ls -A "$B"); do case "$e" in engine|projects|.gitignore|.claude-plugin|README.md) ;; *) bad_shape="$bad_shape $e" ;; esac; done
+for e in $(ls -A "$B"); do case "$e" in engine|projects|.gitignore|.claude-plugin|README.md|assets) ;; *) bad_shape="$bad_shape $e" ;; esac; done
 for e in $(ls -A "$B/projects"); do [ "$e" = "$SELF" ] || bad_shape="$bad_shape projects/$e"; done
 [ ! -d "$B/.claude-plugin" ] || for e in $(ls -A "$B/.claude-plugin"); do [ "$e" = marketplace.json ] || bad_shape="$bad_shape .claude-plugin/$e"; done
 consent="$({ find "$B" \( -name autonomy -o -name autonomy.commission \) -print; find "$B/projects" -name 'autonomy*' -print; } | sed "s|^$B/||" | sort -u)"
@@ -380,13 +384,18 @@ secrets() { (cd "$1" && "$B/engine/harness/bin/secret-scan" --tree 2>&1 >/dev/nu
 [ -n "$EXPECT" ] || secrets "$CLONE" > "$OUT/secret.base"
 
 STAGE="engine projects .gitignore .claude-plugin"; [ "$PUBLIC_README" -eq 1 ] || STAGE="$STAGE README.md"
+# assets/ only where one side has it: a pathspec neither side has stops git add,
+# and the snapshots made before it existed must still reproduce.
+if [ -e "$B/assets" ] || git -C "$CLONE" cat-file -e "$BASE:assets" 2>/dev/null; then STAGE="$STAGE assets"; fi
 # shellcheck disable=SC2086
 (cd "$B" && git --git-dir="$CLONE/.git" --work-tree="$B" add -A -f -- $STAGE)
 # shellcheck disable=SC2086
 git -C "$CLONE" ls-files -- $STAGE | sort | cmp -s - "$OUT/files.build" || die "the staged paths are not the built tree"
-outside="$(git -C "$CLONE" diff --cached --name-only "$BASE" | grep -vE '^(engine/|projects/|\.gitignore$|\.claude-plugin/|README\.md$)' || true)"
+outside="$(git -C "$CLONE" diff --cached --name-only "$BASE" | grep -vE '^(engine/|projects/|\.gitignore$|\.claude-plugin/|README\.md$|assets/)' || true)"
 [ -z "$outside" ] || die "staging touched paths outside the published set:" $outside
-if [ "$PUBLIC_README" -eq 1 ] && git -C "$CLONE" diff --cached --name-only "$BASE" | grep -qx README.md; then die "README.md changed with --public-readme"; fi
+# A here-string, not a pipe: grep -q quits at README.md, and pipefail would read
+# the SIGPIPE it leaves git, still listing the paths after it, as no change.
+if [ "$PUBLIC_README" -eq 1 ] && grep -qx README.md <<<"$(git -C "$CLONE" diff --cached --name-only "$BASE")"; then die "README.md changed with --public-readme"; fi
 
 if [ -n "$EXPECT" ]; then
   got="$(git -C "$CLONE" write-tree)"
@@ -400,7 +409,7 @@ fi
 [ -n "$(git -C "$CLONE" diff --cached --name-only "$BASE")" ] || die "nothing to publish: the public main already holds this tree"
 
 # ------------------------------------------------------------- commit ------
-ver_of() { sed -n 's/.*"version"[^"]*"\([^"]*\)".*/\1/p' | head -1; }
+ver_of() { sed -n 's/.*"version"[^"]*"\([^"]*\)".*/\1/p' | sed -n 1p; }
 VER="$(ver_of < "$B/engine/.claude-plugin/plugin.json")"
 PREV="$(git -C "$CLONE" show "$BASE:engine/.claude-plugin/plugin.json" 2>/dev/null | ver_of || true)"
 DAY_SRC="$(git -C "$HOME_TOP" log -1 --format=%cd --date=short "$SRC")"
@@ -452,7 +461,7 @@ say "suite: running on $(git -C "$V" rev-parse --short HEAD), about ten minutes;
 ( cd "$V/engine/harness" && ./tests/run > "$OUT/suite.log" 2>&1 ) && rc=0 || rc=$?
 echo "exit=$rc" >> "$OUT/suite.log"
 SUITE="$(grep -E '^[0-9]+ passed, [0-9]+ failed' "$OUT/suite.log" | tail -1 || true)"
-[ "$rc" -eq 0 ] && printf '%s' "$SUITE" | grep -q ' 0 failed' || die "the suite did not pass on the snapshot (exit $rc): ${SUITE:-no summary}" "$(grep -A2 '^  FAIL' "$OUT/suite.log" | head -12)"
+[ "$rc" -eq 0 ] && grep -q ' 0 failed' <<<"$SUITE" || die "the suite did not pass on the snapshot (exit $rc): ${SUITE:-no summary}" "$(grep -A2 '^  FAIL' "$OUT/suite.log" | head -12)"
 say "suite: $SUITE, exit 0"
 
 # ------------------------------------------------------------- report ------
@@ -481,7 +490,7 @@ say ""
 say "Withheld, and why:"
 git -C "$HOME_TOP" ls-tree --name-only "$SRC" | while IFS= read -r e; do
   case "$e" in
-    engine|.gitignore) ;;
+    engine|.gitignore|assets) ;;
     README.md) if [ "$PUBLIC_README" -eq 1 ]; then say "  README.md: the public one is kept (--public-readme)"; fi ;;
     .claude-plugin) n="$(git -C "$HOME_TOP" ls-tree --name-only "$SRC" .claude-plugin/ | grep -vc marketplace.json || true)"
       if [ "$n" != 0 ]; then say "  .claude-plugin/: $n file(s) besides the marketplace manifest, the only one a clone needs"; fi ;;
@@ -496,5 +505,5 @@ done
 say "  projects/$SELF/autonomy, autonomy.commission: a person's consent, and consent is not state"
 say "  memory: never in the tree, so never in the build"
 say "Kept from the public repository, outside the staged paths:"
-git -C "$CLONE" ls-tree -r --name-only HEAD | grep -vE '^(engine/|projects/|\.gitignore$|\.claude-plugin/|README\.md$)' | sed 's/^/  /' || true
+git -C "$CLONE" ls-tree -r --name-only HEAD | grep -vE '^(engine/|projects/|\.gitignore$|\.claude-plugin/|README\.md$|assets/)' | sed 's/^/  /' || true
 say "Scratch, unscrubbed where it says raw: $OUT"

@@ -22234,9 +22234,20 @@ ln -s "$TMP/r3.target" "$RVP/autonomy"; _rvrun tidy
 is "a no-op revoke of tidy through a linked grant file exits 0 and leaves autonomy a link" \
    "$_rvrc:$(_r3type "$RVP/autonomy")" "0:link"
 is "and the no-op revoke through the link leaves its target byte-identical" "$(_r3cmp "$TMP/rw.want" "$TMP/r3.target")" "same"
-_rvset '# h\ncommission\n'; chmod a-w "$RVP"; _rvrun tidy; chmod "$_r3dmode" "$RVP"
-is "a no-op revoke of tidy in a read-only project directory exits 0 and says revoked: tidy" \
-   "$_rvrc:$(_rvsaid tidy)" "0:said"
+# 2026-10-08, when the writer lock was merged in: every revoke now takes
+# projects/<p>/autonomy.lock before it reads, and a directory nothing can be
+# written into cannot hold one. So the run refuses rather than say revoked:
+# without the lock. D2 above pins that a no-op writes nothing, in a directory
+# that can be written.
+_rvset '# h\ncommission\n'; cp "$RVP/autonomy" "$TMP/rw.want"
+chmod a-w "$RVP"; _rvrun tidy; chmod "$_r3dmode" "$RVP"
+is "a no-op revoke of tidy in a read-only project directory, where the writer lock cannot be made, refuses and says no revoked:" \
+   "$([ "$_rvrc" -ne 0 ] && echo refused || echo "exit $_rvrc"):$(case "$_rvout$_rverr" in (*revoked:*) echo said ;; (*) echo silent ;; esac)" \
+   "refused:silent"
+has "and the read-only revoke says on stderr that tidy is not revoked" "$_rverr" "tidy is not revoked"
+is "and the read-only revoke leaves the grant file's bytes as they were" "$(_rwis)" "same"
+is "and the read-only revoke leaves no autonomy.lock behind" \
+   "$({ [ -e "$RVP/autonomy.lock" ] || [ -L "$RVP/autonomy.lock" ]; } && echo left || echo absent)" "absent"
 
 # D3: a revoke that removes a line keeps the file's mode.
 _rvset '# h\ntidy\ncommission\n'; chmod 644 "$RVP/autonomy"; _rvrun tidy

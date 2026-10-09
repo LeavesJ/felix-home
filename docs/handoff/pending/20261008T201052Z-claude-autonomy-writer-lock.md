@@ -244,6 +244,16 @@ which the old append never could.
 
   On every autonomy block (21841-24749), revoke blocks 1-9 included:
   635/0/0.
+- **The lock under a caller's IFS (7a34337e, test e4f0f985).** Revoke's
+  seventh review found an unquoted `$(( ))` split by a caller's IFS of
+  digits. Checking the lock for the same thing found that its signal lists
+  were split by the caller's IFS. Under an IFS with no space in it ('2', the
+  digits, a tab), the guard took the lock and set no trap at all. Every split
+  now sets IFS to a space itself.
+  - felix's CLI cannot hit this: bash ignores an IFS in the environment,
+    and felix sets none globally. Only an in-process library caller could.
+  - On every autonomy block (21841-24767): 638/0/0. The 3 new assertions
+    fail on the previous head.
 - **Review 4, one Opus reviewer, of revision 4.** No fail-open path and no
   data loss.
   - Checked and sound:

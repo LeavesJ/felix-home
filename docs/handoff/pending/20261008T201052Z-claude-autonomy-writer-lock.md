@@ -335,9 +335,32 @@ which the old append never could.
   grant ending in a NUL byte must become "refused and byte-identical". The
   allow fix's pending note says so.
 
-**Landing.** In the carrier's 2026-10-08 batch (state file
-`~/.felix/memory/felix/audits/2026-10-08-carrier/state.md`), after .274, as
-one PR with revoke at .275 if all three are ready together, otherwise after
-it. No table under projects/, no escape table and no commission table is
-touched. The version is the carrier's to assign, and the record and gate run
-only on its "you are next".
+**Final merges, 2026-10-08.**
+- **Revoke is final at 6d8ddf33:** revision 8, blind block 10, and the
+  quoted `exit "$(( 20 + $? ))"`. It is merged as 1c61756c.
+  - Block 10's L2 stub was a `mktemp()` function defined after the lib.
+    This branch's mktemp runs with `exec`, which never calls a function, so
+    the stub would not have fired.
+  - At the merge it became a mktemp script first on the script's PATH. Its
+    "stub ran" marker assertions are kept.
+- **origin/main e2748140 (.274, adopt-newline) is merged as 822fcd40.**
+  - cmd_autonomy `--allow` keeps the grant rewrite under the lock. It
+    already puts a grant after an unended last line on its own line, and
+    already seeds the header.
+  - .274's block-1 case "a grant ending in a NUL byte writes a newline after
+    the NUL first" is now "refused, names the NUL byte, no allowed:, file
+    byte-identical". This engine reads no grant from a file holding a NUL,
+    so a tidy added after one would not hold.
+  - Both .274 blocks pass 102/0 on the tree. On main, that one assertion
+    fails, as it should.
+- **Every autonomy block (23829-26870 after the main merge): 651/0/0.**
+  Revoke's block 5 passes now that .274's felix_end_line is on main.
+- **For the PR body.** Revoke's pending note says "the 4 that fail are block
+  5's, which wait on .274". After this merge that count is 0.
+
+**Landing.** The carrier carries one PR from claude/autonomy-writer-lock at
+position 4 of its 2026-10-08 batch (state file
+`~/.felix/memory/felix/audits/2026-10-08-carrier/state.md`). It holds the
+revoke fix, the allow fix and this lock. No table under projects/, no escape
+table and no commission table is touched. The version is the carrier's to
+assign. The record, red and gate run only on its "you are next".

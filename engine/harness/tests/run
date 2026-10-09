@@ -24035,6 +24035,19 @@ for _lwws in 0 10; do
      "non-zero:silent:commission is not allowed:same:absent:0"
 done
 
+# A caller of the library that printed to a dead stdout before the grant
+# left the text in bash 3.2's buffer, and the grant's first child took it:
+# the mktemp substitution made it part of the temp file's name, and the grant
+# refused. Revision 5 flushes the buffer to /dev/null first, as revoke does
+# (revoke's sixth review). A failed printf of "tidy" stands for any; the
+# grant asked for is commission, and tidy must not come with it. Red on bash
+# 3.2 only: later bash purges that buffer in a child.
+_lwset '# grants\n'; rm -f "$_lwp/autonomy.commission"
+bash -c 'set -uo pipefail; . "$1/harness/lib/autonomy.sh"; printf "tidy\n"; felix_autonomy_grant "$2" commission; echo "rc=$?" >&2' \
+  _ "$FROOT" "$_lwp" >&- 2> "$TMP/lw.err" 8>&-
+is "a grant called after a printf of tidy failed on a closed stdout grants commission, and tidy does not come with it (not blind)" \
+   "$(grep -o 'rc=[0-9]*' "$TMP/lw.err"):tidy $(_lwallows tidy):commission $(_lwallows commission):$(_lwnew)" "rc=0:tidy no:commission yes:0"
+
 # F5. The release removes the lock through find, and said nothing when find
 # could not do it; the lock stayed and the next run was refused. Revision 3
 # says so. A find first on the run's PATH that fails stands for any find

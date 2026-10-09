@@ -24585,8 +24585,8 @@ printf '\nrevoke writes no stale output, takes one count from wc, and no stop fo
 # 2026-10-08: the sixth review of the revoke fix found three gaps the blocks
 # above leave open. Under bash 3.2 a printf that fails on a closed stdout keeps
 # its text in the shell's stdout buffer, and every subshell forked after that
-# flushes the buffer into its own stdout, a $( ) capture included, after its
-# own output. A caller that printed into a closed stdout before revoking could
+# flushes the buffer into its own stdout, a $( ) capture included, before or
+# after its own output. A caller that printed into a closed stdout before revoking could
 # so hand the revoke text it never read from the grant file: a NUL byte, a
 # newline, a line saying revoked, or a line only older engines grant. K1 pins
 # that none of it reaches the grant file. Block 8's wc printed no count at all;
@@ -24722,6 +24722,121 @@ for _rvf in "$RV9K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
 rmdir "$RV9K" 2>/dev/null
 is "the widget's directory holds exactly what it held before stale output, wc's answers and stopped names tests were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r9start"
+
+printf '\nrevoke holds with stdout closed throughout, a file changed between its passes, and any IFS\n'
+# 2026-10-08: the seventh review of the revoke fix found three gaps the blocks
+# above leave open. K1 pointed stdout at /dev/null before the revoke, so a
+# stale buffer was only ever flushed into /dev/null or a capture; L1 keeps
+# stdout closed from the failed printf through the revoke, and the revoke must
+# still read only the grant file and rewrite it. The revoke reads the file in
+# two passes, and nothing pinned what it does when the file changes between
+# them; L2 changes it from a mktemp defined after the lib is sourced, which
+# replaces every mktemp the lib calls by that name, so the second pass reads
+# the changed file: a file that no longer grants tidy is left as it now is with
+# status 0, and one that now ends in a NUL byte is refused with 2 and left as
+# it now is. A stub that writes a marker outside the project shows it ran.
+# And an unquoted $(( )) or $( ) in the lib is word-split on the caller's IFS,
+# which a shell function inherits, so an IFS holding a digit split a count and
+# the revoke refused or kept the grant; L3 revokes under several such IFS
+# values. Every case is a script file run by "$BASH", as blocks 7 to 9 are.
+RV10K="$TMP/revoke-keep-10"; mkdir -p "$RV10K"
+_r10start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV10K/"; done
+_r10mark="$TMP/r10.marker"
+
+# L1: the flush holds when stdout stays closed through the revoke. The script
+# closes stdout, fails a printf of STALE into it, revokes tidy with stdout
+# still closed, and then prints the status on the stdout it saved.
+cat > "$TMP/r10.l1" <<'R10L1'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+exec 3>&1 1>&-
+printf "$3" 2>/dev/null
+felix_autonomy_revoke "$2" tidy 2>/dev/null
+_r10rc=$?
+exec 1>&3
+echo "returned $_r10rc"
+R10L1
+_r10l1() {   # STALE LABEL: the L1 script over '# h', tidy and commission
+  _rvset '# h\ntidy\ncommission\n'; _r6held
+  _r10out="$("$BASH" "$TMP/r10.l1" "$FROOT" "$RVP" "$1" < /dev/null 2>/dev/null)"
+  printf '# h\ncommission\n' > "$TMP/rw.want"
+  is "a revoke of tidy with stdout closed from a failed printf of $2 through the revoke returns 0, leaves exactly '# h' and commission and nothing new" \
+     "$(_r9last "$_r10out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+}
+_r10l1 '\0' 'a NUL byte'
+_r10l1 '\n' 'a newline'
+_r10l1 'revoked: tidy\n' "'revoked: tidy'"
+_r10l1 'tidy\302\240\n' 'tidy and a no-break space'
+
+# L2: the file changes between the two passes. The script's mktemp writes
+# CASE's content to the grant file and a line to a marker outside the
+# project, and then makes the temporary file; the control's mktemp only makes
+# it. Adapted at the merge into the writer lock: there, revoke runs mktemp
+# with `exec`, which never calls a shell function, so the stub is a mktemp
+# first on the script's PATH instead of a function defined after the lib.
+# The marker assertion still fails if the stub never runs.
+_r10shim="$TMP/r10.shim"; mkdir -p "$_r10shim"
+{ printf '#!/bin/sh\n'
+  printf 'case "$R10_CASE" in\n'
+  printf '  gone) printf "stub\\n" >> "$R10_MARK"; printf "# h\\ncommission\\n" > "$R10_GRANT" ;;\n'
+  printf '  nul)  printf "stub\\n" >> "$R10_MARK"; printf "# h\\ntidy\\ncommission\\n\\0" > "$R10_GRANT" ;;\n'
+  printf 'esac\n'
+  printf 'exec %s "$@"\n' "'$(command -v mktemp)'"
+} > "$_r10shim/mktemp"; chmod +x "$_r10shim/mktemp"
+cat > "$TMP/r10.l2" <<'R10L2'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+R10_GRANT="$2/autonomy"; R10_MARK="$3"; R10_CASE="$4"; export R10_GRANT R10_MARK R10_CASE
+PATH="$5:$PATH"
+felix_autonomy_revoke "$2" tidy >/dev/null 2>&1
+echo "returned $?"
+R10L2
+_r10l2() {   # CASE: the L2 script over '# h', tidy and commission -> 'returned N'
+  rm -f "$_r10mark"; _rvset '# h\ntidy\ncommission\n'
+  "$BASH" "$TMP/r10.l2" "$FROOT" "$RVP" "$_r10mark" "$1" "$_r10shim" < /dev/null 2>/dev/null
+}
+_r10ran() { [ -s "$_r10mark" ] && echo stub-ran || echo stub-never-ran; }
+_r10out="$(_r10l2 gone)"; printf '# h\ncommission\n' > "$TMP/rw.want"
+is "a revoke of tidy whose mktemp first rewrites the grant file without tidy returns 0, leaves exactly '# h' and commission and nothing new, and the stub ran" \
+   "$(_r9last "$_r10out"):$(_rwis):$(_r6new):$(_r10ran)" "returned 0:same:nothing-new:stub-ran"
+_r10out="$(_r10l2 nul)"; printf '# h\ntidy\ncommission\n\0' > "$TMP/rw.want"
+is "a revoke of tidy whose mktemp first rewrites the grant file to end in a NUL byte returns 2, leaves the file byte-identical to what the stub wrote and nothing new, and the stub ran" \
+   "$(_r9last "$_r10out"):$(_rwis):$(_r6new):$(_r10ran)" "returned 2:same:nothing-new:stub-ran"
+_r10out="$(_r10l2 control)"; printf '# h\ncommission\n' > "$TMP/rw.want"
+is "and the same script whose mktemp only runs the real mktemp revokes tidy, returns 0 and leaves exactly '# h' and commission and nothing new" \
+   "$(_r9last "$_r10out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+
+# L3: a caller's IFS changes nothing. The script sets IFS to the value under
+# test after sourcing the lib, revokes CAP, and restores the default IFS before
+# it reports the status.
+cat > "$TMP/r10.l3" <<'R10L3'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+IFS="$4"
+felix_autonomy_revoke "$2" "$3" >/dev/null 2>&1
+_r10rc=$?
+IFS=$' \t\n'
+echo "returned $_r10rc"
+R10L3
+_r10l3() {   # CAP IFS: the L3 script over '# h', tidy and commission -> 'returned N'
+  _rvset '# h\ntidy\ncommission\n'
+  "$BASH" "$TMP/r10.l3" "$FROOT" "$RVP" "$1" "$2" < /dev/null 2>/dev/null
+}
+for _r10ifs in 2 5 0123456789 ' 2'; do
+  _r10out="$(_r10l3 tidy "$_r10ifs")"; printf '# h\ncommission\n' > "$TMP/rw.want"
+  is "a revoke of tidy in a script whose IFS is '$_r10ifs' returns 0, leaves exactly '# h' and commission and nothing new" \
+     "$(_r9last "$_r10out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+done
+_r10out="$(_r10l3 commission 2)"; printf '# h\ntidy\n' > "$TMP/rw.want"
+is "a revoke of commission in a script whose IFS is '2' returns 0, leaves exactly '# h' and tidy and nothing new" \
+   "$(_r9last "$_r10out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/rv.held" "$_r10mark" "$TMP/r10.l1" "$TMP/r10.l2" "$TMP/r10.l3"
+for _rvf in "$RV10K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV10K" 2>/dev/null
+is "the widget's directory holds exactly what it held before a closed stdout, a file changed between passes and a caller's IFS were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r10start"
 
 # The commission grant is bound to the table it was granted over.
 #

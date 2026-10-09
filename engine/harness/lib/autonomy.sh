@@ -287,8 +287,10 @@ felix_autonomy_revoke() {
   # whatever status it leaves. The passes once did $(( $(wc -c) )), which a
   # stale buffer stopped with wc's 0, and the mv put an empty file over the
   # grants. They now do no arithmetic on text they read; the offset is for a
-  # stop no one has found yet.
-  ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" ""; exit $(( 20 + $? )) ) > /dev/null 2>&1; rc=$?
+  # stop no one has found yet. The exit's number is quoted: the seventh review
+  # found an unquoted one split on a caller's IFS that holds a digit, so every
+  # revoke refused.
+  ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" ""; exit "$(( 20 + $? ))" ) > /dev/null 2>&1; rc=$?
   case "$rc" in 21|22|24|25) rc=$(( rc - 20 )) ;; *) rc=1 ;; esac
   if [ "$rc" = 5 ]; then
     # mktemp creates the name or fails; it never opens a link planted there.
@@ -298,7 +300,7 @@ felix_autonomy_revoke() {
     # group cannot kill it between making the file and naming it.
     _FELIX_AUTONOMY_TMP="$( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
     tmp="$_FELIX_AUTONOMY_TMP"
-    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp"; exit $(( 20 + $? )) ) > /dev/null 2>&1; rc=$?
+    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp"; exit "$(( 20 + $? ))" ) > /dev/null 2>&1; rc=$?
     case "$rc" in 20|21|22|24) rc=$(( rc - 20 )) ;; *) rc=1 ;; esac
   fi
   if [ "$rc" = 0 ]; then

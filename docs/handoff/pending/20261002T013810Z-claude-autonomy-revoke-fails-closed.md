@@ -221,11 +221,30 @@ here:
   - The strip joined `2 0` into 20.
 - **Round 9.** 23 blind assertions ("revoke writes no stale output, takes one
   count from wc, and no stop for an answer", 007e902d): four stale buffers,
-  four `wc` answers, and a names test stopped after each status 0-5 and 10 in
-  either pass. 11 fail on revision 6.
+  four `wc` answers, and a names test stopped after statuses 0, 1, 2, 4, 5 and
+  10 in the first pass and 0, 1, 2, 4 and 10 in the second. 11 fail on
+  revision 6.
 - **Revision 7:** the flush, the offset, and no strip. Blocks 1-9 give 254
   pass on it, and the 4 that fail are block 5's.
-- **Review 7:** on revision 7.
+- **Review 7** (on 9709b9cc): no blocker or major. No path to "revoked:"
+  with a grant readable and no lost line; 26 mutants.
+  - Three survived that are not equivalent, all test gaps: the flush without
+    its `> /dev/null` (every K1 case reopened stdout before the revoke), and
+    pass 2's 22 and 24 arms dropped.
+  - Nit: the unquoted `exit $(( 20 + $? ))` split on a caller's IFS holding a
+    digit, so every revoke refused (closed, where revision 6 removed the
+    grant).
+  - `--revoke X --allow Y` with stdout closed wrote "revoked: X" into the
+    grant file. It is on main too. The writer lock's `felix_autonomy_say` and
+    the grant's flush already cover it there, so nothing was done here.
+- **Round 10.** 13 blind assertions ("revoke holds with stdout closed
+  throughout, a file changed between its passes, and any IFS", 27f520a6):
+  stdout kept closed through the revoke, a `mktemp` stub that rewrites the
+  file between the passes (gone, a NUL, a control), and IFS of `2`, `5`,
+  `0123456789` and ` 2`. 5 fail on revision 7, the IFS cases. It kills
+  review 7's three surviving mutants.
+- **Revision 8:** the quoted exits. Blocks 1-10 give 267 pass on it, and the
+  4 that fail are block 5's.
 - **What could not be shown locally.** The stray-lead-byte case passes on
   bash 3.2 for every engine. Only CI's bash 5.2 can show it red against main.
 - **The section runner.** It is preamble lines 1 to 224 (the line before the
@@ -252,10 +271,8 @@ here:
   claude/autonomy-allow-fails-closed adds the read-back.
 
 **Landing.** The weekly batch's carrier (the adopt session, 2026-10-08) set
-the order: .274 adopt-newline, then .275 this branch (after .274, never
-before: see block 5), then the writer lock
-and --allow, then .276 and .277. The fold rule: one PR for all three autonomy
-branches at .275, carried from this branch, if the lock and --allow branches
-are reviewed and merged onto this head within about 3 hours of review 3
-finishing. Otherwise this branch lands alone. No commission table, no escape
-and no projects/ table is touched. The carrier deploys.
+the order: .274 adopt-newline first, and this branch after it, never before
+(see block 5). Revoke, the writer lock and `--allow` land as one PR, carried
+from claude/autonomy-writer-lock by the lock session, which merges this
+branch's head in; position 4 in the carrier's queue. No commission table, no
+escape and no projects/ table is touched. The carrier deploys.

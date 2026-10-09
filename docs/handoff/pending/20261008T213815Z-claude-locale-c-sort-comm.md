@@ -38,6 +38,7 @@ rewrites it (agreed with that session).
 
 **State.** Branch claude/locale-c-sort-comm, head 789377f5. It holds blind
 assertions (Opus), the fix (Sonnet), two Opus reviews and a fix round. Section
-runner: 17/0/0 here, and 11 pass with 6 fail on origin/main. Carrier slot 21.
-No record, red or gate run yet. Contract and stage log:
+runner: 17/0/0 here, and 11 pass with 6 fail on origin/main. It lands inside
+claude/locale-glob-bsd-tools's PR (slot 22), which carries b434425f whole;
+agreed with the carrier after [1de1ca] ended, 2026-10-08. Contract and stage log:
 ~/.felix/memory/felix/audits/2026-10-08-locale-sort-comm/contract.md.

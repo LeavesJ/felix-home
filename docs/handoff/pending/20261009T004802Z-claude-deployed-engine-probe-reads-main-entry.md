@@ -41,20 +41,75 @@ version it is and not what else the cache holds.
 - A receipt's verdict about a branch tree does not depend on main's version
   number. Main moving is what tree ids and merge's own checks are for.
 
-**Evidence** (section runner: the suite preamble plus the block, from an
-empty temp directory):
-- Main's row: 10 of 17 fail, the prune pair among them. The test commit
-  e69afae01 precedes the fix c48d29225.
-- The fix: 17 of 17.
-- Six mutants of the row each fail at least one assertion:
-  - the old row;
-  - the registry's installPath as the probe;
-  - the new probe with the old witness;
-  - the witness without its no-version guard;
-  - local main only;
-  - every cached harness/.
+**A new stale window, and the only way out of it.** When origin/main
+declares a version nothing is installed at, the row goes from found to
+empty. Any session's fetch does this, between an engine merge and its deploy.
+- That stales every green felix-home receipt. It is the honest reading: in
+  the same window the gate's `installed` check fails in every checkout.
+- From a worktree, only the deploy clears it. A re-gate there is red on
+  `installed`, and the structural branch does not stop early, so it runs the
+  full suite to reach that red.
+- The deploy makes the old receipts current again, where under the old row
+  a deploy staled them for good. Prunes and candidate installs stale nothing.
+- Follow-up, an engine change kept out of this table PR: name the moved
+  predicate in felix_verify_current's stale reason, so "the grounded facts
+  moved" says which fact.
+
+**Evidence** (section runner: the suite preamble plus the two blocks, from
+an empty temp directory):
+- My block, before the blind one existed: 10 of 17 fail on main's row, the
+  prune pair among them. The test commit e69afae01 precedes the fix
+  c48d29225.
+- Both blocks, 48 assertions: all pass on the fix; 35 fail on main's row.
+- Eight mutants of the row each fail at least one:
+
+  | mutant | fail |
+  |---|---|
+  | the old row | 35 |
+  | the registry's installPath as the probe | 23 |
+  | the new probe with the old witness | 16 |
+  | the witness without its no-version guard | 5 |
+  | local main only | 4 |
+  | every cached harness/ | 34 |
+  | the witness matching a prefix (0.49.27 in 0.49.270) | 1 |
+  | the probe stopping at `<version>/`, not `harness/` | 2 |
+
+  The last two are the reviewer's. My block alone passes both of them, and
+  only the blind block catches them.
 - The real home after the change: `probes-check projects/felix` reads
   deployed_engine found 1, with 0 blocking.
+
+**Blind round.** The second block (30 assertions) was authored from the
+contract in prose, never shown the row or my block. It passed 30 of 30 on the
+fix the first time it ran against it.
+
+**Review** (Opus, adversarial): no blockers. Both governance claims were
+confirmed from the code (the `verifier` escape fires, and the stamp hash
+moves). What it found, and what was done:
+- **A `cd` into an empty fixture path stays in the suite's own checkout.**
+  Under fork failure the fixture's `git update-ref refs/heads/main main~1`
+  would then rewind the real main, through the refs a worktree shares with
+  the home. Every fixture `cd` is now `${X:?}`, and the blind block's
+  `git -C` helper refuses an empty path. Measured: bash 3.2 exits 127
+  before any git runs.
+- **The two reviewer mutants above.** Pinned by the blind block.
+- **Two equality checks could pass with both sides empty.** A non-empty
+  baseline assertion was added. The fixture commits now pin
+  `commit.gpgsign=false` and `core.hooksPath=/dev/null`.
+- **The row reads the default cache only.** The comment now says so: the
+  gate also honours FELIX_KERNEL_CACHE and FELIX_PLUGIN_CACHE, and the old
+  row did not read them either.
+- **Left as they are:**
+  - With no main ref, deploy-check reads the obligation dormant while this
+    row reads unknown. The gate fails that checkout either way.
+  - A fetch landing between the probe and its witness can give one blind
+    reading.
+  - The first facts drift report after the home pulls says 39 to 1 members.
+  - GREP_OPTIONS predates this change; slot 14's branch handles it.
+
+**Version bump at "you are next".** tests/run ships in the cache, so landing
+without a bump leaves main's engine apart from main's entry, and `installed`
+fails everywhere.
 
 **For the founder.** This is a table change, and it escapes.
 - probes.tsv is in FELIX_ESCAPE_TABLES. An in-place row edit removes a line,

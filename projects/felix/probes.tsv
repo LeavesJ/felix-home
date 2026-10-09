@@ -59,7 +59,9 @@ ci_workflow	ci	-	git ls-files '.github/workflows/*'	test -d .github/workflows
 # while nothing the verdict rests on had changed. On 2026-10-08 a gate that
 # took hours went stale two minutes after it passed, when the cache went from
 # 40 versions to 39. Main's version is read the way the gate reads it,
-# origin/main before main.
+# origin/main before main. The cache is the default one under $HOME, as the
+# row has always read; the overrides the gate also honours,
+# FELIX_KERNEL_CACHE and FELIX_PLUGIN_CACHE, are not read here.
 #
 # The witness asks the registry rather than the filesystem. If the registry
 # names main's version, the entry should be there, and a probe that found

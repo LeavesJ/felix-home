@@ -19292,13 +19292,13 @@ DER="$TMP/depeng-repo"; mkdir -p "$DER/engine/.claude-plugin"
 _de_ver() { printf '{ "name": "felix", "version": "%s" }\n' "$1" > "$DER/engine/.claude-plugin/plugin.json"; }
 ( cd "${DER:?}" || exit 1
   git init -q -b main && _de_ver 0.0.8 && git add -A \
-    && git -c user.name=t -c user.email=t@t commit -qm base && git checkout -q -b work ) >/dev/null 2>&1
+    && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm base && git checkout -q -b work ) >/dev/null 2>&1
 DER="$(cd "$DER" && pwd -P)"
 # Main declares $1 in a commit of its own, and HEAD goes back to `work`, whose
 # tree never changed.
 _de_main() { ( cd "${DER:?}" || exit 1
                git checkout -q main && _de_ver "$1" && git add -A \
-                 && git -c user.name=t -c user.email=t@t commit -qm "declare $1" && git checkout -q work ) >/dev/null 2>&1; }
+                 && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm "declare $1" && git checkout -q work ) >/dev/null 2>&1; }
 _de_lib()   { . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
               . "$FROOT/harness/lib/probes.sh";  . "$FROOT/harness/lib/epoch.sh"; }
 _de_tid()   { ( cd "${DER:?}" || exit 1; export HOME="$DEH"; _de_lib; felix_tree_id "$DER" "$FROOT" ); }
@@ -19314,6 +19314,10 @@ _de_cur()   { ( cd "${DER:?}" || exit 1; export HOME="$DEH"; _de_lib; felix_veri
 
 _dei "the felix deployed_engine row finds the entry main declares in a fixture cache" "$(_de_state)" "found"
 de_tid0="$(_de_tid)"; de_topo0="$(_de_topo)"
+# Every "where it was" below compares against these two, and two empty
+# strings compare equal: a fixture that computed neither would pass them all.
+_dei "the fixture has a tree id and a topology before anything moves" \
+     "$( [ -n "$de_tid0" ] && [ -n "$de_topo0" ] && echo both )" "both"
 _de_rec
 _dei "a green receipt stamped under that cache is current" "$(_de_cur)" "current"
 
@@ -19374,7 +19378,7 @@ _dei "a remote main declaring a version nothing is installed at reads empty over
 DEN="$TMP/depeng-nomain"; mkdir -p "$DEN"
 ( cd "${DEN:?}" || exit 1
   git init -q -b trunk && printf 'x\n' > x && git add -A \
-    && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
+    && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm x ) >/dev/null 2>&1
 _dei "a checkout with no main to read leaves the row unknown, never empty" "$(_de_state "$DEN")" "unknown"
 
 printf '\ndeployed_engine counts the entry main declares, and no other version in the cache\n'

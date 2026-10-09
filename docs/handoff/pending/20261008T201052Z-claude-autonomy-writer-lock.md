@@ -229,6 +229,21 @@ which the old append never could.
     10. The exit-10 one fails without the grant fix.
   - On every autonomy block (21841-24592), revoke blocks 1-8 included:
     611/0/0.
+- **Revoke revision 7 merged (4a11bf8e), and the grant and guard follow it
+  (3790f770, test df7c20e8).** Revoke's sixth review found that every
+  subshell inherits a stale stdout buffer. A bare `printf ''` does not flush
+  it; `printf '%s' '' > /dev/null` does.
+  - The guard and the grant now flush it first. Before that, a library
+    caller's failed `printf "tidy\n"` made the grant refuse: mktemp's
+    substitution captured it into the temp file's name. That failed closed.
+  - The grant's padded wc count goes to `-eq` unstripped, since stripping
+    joined "2 0" into 20.
+  - Revoke's passes now return their status offset by 20.
+  - The grant keeps exit 10, because nothing in its subshell does
+    arithmetic.
+
+  On every autonomy block (21841-24749), revoke blocks 1-9 included:
+  635/0/0.
 - **Review 4, one Opus reviewer, of revision 4.** No fail-open path and no
   data loss.
   - Checked and sound:

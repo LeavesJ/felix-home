@@ -24133,6 +24133,24 @@ _lwkept="$(bash -c 'set -uo pipefail; . "$1/harness/lib/autonomy.sh"
 is "a run whose caller holds fd 9 open keeps it, holds its lock open on another fd, and still holds the caller's fd 9 once it has released (not blind)" \
    "$_lwkept:$(_lwlock)" "kept:held:kept:absent"
 
+# The signal lists were split by the caller's IFS. A library caller whose IFS
+# held no space ('2', the digits, a tab) got the lock with no trap set, so a
+# signal mid-mv released it at once (from revoke's seventh review, which
+# found an unquoted $(( )) under such an IFS; not blind). Each split now sets
+# IFS to a space itself. felix's own runs cannot carry one: bash ignores an
+# IFS in the environment.
+for _lwifs in 2 0123456789 tab; do
+  _lwset 'tidy\n'
+  _lwtr="$(bash -c '. "$1/harness/lib/autonomy.sh"
+    if [ "$3" = tab ]; then IFS="	"; else IFS="$3"; fi
+    felix_autonomy_guard "$2" || exit 7
+    case "$(trap -p TERM)" in *_felix_autonomy_signalled*) printf TERM ;; *) printf "no TERM" ;; esac
+    case "$(trap -p SEGV)" in *_felix_autonomy_signalled*) printf :SEGV ;; *) printf ":no SEGV" ;; esac
+    ' _ "$FROOT" "$_lwp" "$_lwifs" 8>&- 2>/dev/null)"
+  is "a guard taken under a caller's IFS of $_lwifs sets its TERM and SEGV traps, and releases the lock at exit (not blind)" \
+     "$_lwtr:$(_lwlock)" "TERM:SEGV:absent"
+done
+
 # F4. mktemp ran with the signals at their defaults, so a Ctrl-C to the group
 # between its making the file and the name reaching the shell left the file.
 # The real gap is microseconds. A mktemp shim, first on run A's PATH, makes it

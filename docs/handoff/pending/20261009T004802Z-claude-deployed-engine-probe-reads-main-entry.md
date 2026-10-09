@@ -63,8 +63,12 @@ empty temp directory):
 - probes.tsv is in FELIX_COMMISSION_TABLES, so the policy hash moves. The
   felix commission grant (projects/felix/autonomy.commission) goes stale and
   needs `felix autonomy --allow commission` again.
-- Proposed: beside slot 11 (commission-unasked-rows) and last in the batch,
-  so one session and one re-stamp cover both.
+- Queued by the 10-08 carrier as 11b, last in the batch, beside 11
+  (commission-unasked-rows), so one sitting and one re-stamp cover both.
+  - Agreed with 11's session: 11 lands first, then 11b, then the re-stamp.
+  - If 11b is ready and the founder sits before 11's prerequisites (.277,
+    then slot 10) have landed, 11b goes first and 11 merges main after it.
+  - The two branches share only tests/run, and in different regions.
 - When the home pulls this, every felix-home receipt goes stale once, on
   topology and policy. Land it when no gated receipt is waiting to merge.
 

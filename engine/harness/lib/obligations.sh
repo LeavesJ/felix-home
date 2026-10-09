@@ -121,7 +121,7 @@ felix_obligation_malformed() { _felix_obligation_scan "$1" bad; }
 
 # The obligations a table admits, by name.
 felix_obligation_names() {
-  felix_obligation_rows "$1" | cut -f1
+  felix_obligation_rows "$1" | LC_ALL=C cut -f1
   return 0
 }
 

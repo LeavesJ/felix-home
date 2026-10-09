@@ -409,8 +409,9 @@ _felix_deny_scoped_lifts() {
 # or run by another name: a script printf wrote to $S/bin/claude and PATH
 # later finds. That is the limit any reading of one command has.
 #
-# One awk process. The program is the same in BWK awk, mawk and gawk:
-# split(s, A, "") is one character per element in all three. Nothing here
+# One awk process, run with LC_ALL=C, so split(s, A, "") is one byte per
+# element in BWK awk, mawk and gawk alike (in a UTF-8 locale macOS's BWK awk
+# still splits bytes but matches by characters, and aborted). Nothing here
 # fails closed: no awk, or a program error, prints nothing, and a row matches
 # nothing in nothing, which allows.
 #

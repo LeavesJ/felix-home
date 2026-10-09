@@ -358,6 +358,24 @@ which the old append never could.
 - **For the PR body.** Revoke's pending note says "the 4 that fail are block
   5's, which wait on .274". After this merge that count is 0.
 
+**A changed blind assertion from .274.** It is in tests/run's "appends onto a
+hand-written last line" block, under `felix autonomy --allow`.
+- **Who and when:** changed by the writer lock's session at the main merge
+  (822fcd40), 2026-10-08. The carrier accepted it the same day.
+- **Was:** "felix autonomy --allow onto a grant ending in a NUL byte writes a
+  newline after the NUL first". It expected `commission\0\ntidy\n` and
+  `allowed: tidy`.
+- **Now:** "… is refused, names the NUL byte, says no allowed:, and leaves
+  the file byte-identical". It expects `commission\0` and the refusal.
+- **Why:** this engine reads no grant from a file that holds a NUL byte.
+  felix_autonomy_allows refuses it whole. So a tidy added after a NUL would
+  not hold, and `allowed: tidy` over such a file is the defect the allow fix
+  closes. Refusing and leaving the file as it was is the stronger contract.
+  The grant's rc 2 says so, and the message tells the person to remove the
+  byte by hand.
+- **Measured:** green on the tree, red on main. The other .274 assertions
+  are unchanged, and both .274 blocks pass 102/0 on the tree.
+
 **Landing.** The carrier carries one PR from claude/autonomy-writer-lock at
 position 4 of its 2026-10-08 batch (state file
 `~/.felix/memory/felix/audits/2026-10-08-carrier/state.md`). It holds the

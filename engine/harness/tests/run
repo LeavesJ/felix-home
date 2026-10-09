@@ -354,9 +354,12 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # GIT_CONFIG may be set; _fx_cd may not run in the suite's own shell, which it
 # would move; and the first .git met walking up from the directory, short of
 # $TMP, must be a directory, or a gitfile or symlink that points physically
-# below $TMP, so a worktree's .git cannot hand git a repository elsewhere.
-# _fx_git also refuses -C, --git-dir and --work-tree before the subcommand,
-# which would name another repository after the proof; -c k=v is allowed.
+# below $TMP, so a worktree's .git cannot hand git a repository elsewhere. A
+# .git directory counts only when it is a valid git dir, as git's own walk
+# counts it, and one whose commondir names a directory outside $TMP is
+# refused. _fx_git also refuses -C, --git-dir and --work-tree before the
+# subcommand, which would name another repository after the proof; -c k=v is
+# allowed.
 # $TMP itself is not under $TMP, since `cd "$TMP/$empty"` lands there. On
 # success the shell stands in the directory, physically, with $TMP at the head
 # of GIT_CEILING_DIRECTORIES, so git run there cannot find a repository at or
@@ -403,20 +406,40 @@ _fx_below() {
   case "$got/" in "$_fx_tmp"/?*) return 0 ;; esac
   return 1
 }
-# -> 0 when the first .git entry met walking up from $PWD, $TMP itself not
-# reached, is a directory, is a gitfile or a symlink that points physically
-# below $TMP, or is not there at all, since the ceiling stops git at $TMP. The
-# gitfile's pointer is its gitdir: line, read with the read builtin, and a
-# relative one is relative to the directory holding the .git. A gitfile that
-# cannot be read or holds no gitdir: line, and a .git of any other type, are
-# refused: what they name cannot be proven.
+# -> 0 when the first .git entry that decides, walking up from $PWD with $TMP
+# itself not reached, is a valid git directory, is a gitfile or a symlink that
+# points physically below $TMP, or is not there at all, since the ceiling
+# stops git at $TMP. The gitfile's pointer is its gitdir: line, read with the
+# read builtin, and a relative one is relative to the directory holding the
+# .git. A gitfile that cannot be read or holds no gitdir: line, and a .git of
+# any other type, are refused: what they name cannot be proven.
+#
+# A .git directory decides only as git's own walk would have it decide: when
+# it is a valid git dir, holding a regular file HEAD, a directory objects and
+# a directory refs. An empty or partial one is passed over, as git passes it,
+# and the walk goes on upward. A symlink .git must point below $TMP, and is
+# then judged as the directory it names. A valid one that holds a commondir
+# file shares the config and refs of the directory that file names, so that
+# directory must lie physically below $TMP too: its first line, read with the
+# read builtin, relative to the .git directory when relative. A commondir that
+# cannot be read names nothing that can be proven, and is refused.
 _fx_gitdir() {
   local d="$PWD" g l
   while :; do
     case "$d/" in "$_fx_tmp"/?*) ;; *) return 0 ;; esac
     g="$d/.git"
-    if [ -L "$g" ]; then _fx_below "$g" 1; return
-    elif [ -d "$g" ]; then return 0
+    if [ -L "$g" ]; then _fx_below "$g" 1 || return 1; fi
+    if [ -d "$g" ]; then
+      if [ -f "$g/HEAD" ] && [ -d "$g/objects" ] && [ -d "$g/refs" ]; then
+        { [ -e "$g/commondir" ] || [ -L "$g/commondir" ]; } || return 0
+        l=""
+        IFS= read -r l 2>/dev/null < "$g/commondir" || [ -n "$l" ] || return 1
+        l="${l%$'\r'}"
+        [ -n "$l" ] || return 1
+        case "$l" in /*) ;; *) l="$g/$l" ;; esac
+        _fx_below "$l" ""; return
+      fi
+    elif [ -L "$g" ]; then return 1
     elif [ -f "$g" ]; then
       l=""
       IFS= read -r l 2>/dev/null < "$g" || [ -n "$l" ] || return 1
@@ -462,9 +485,13 @@ _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 wi
   return 0
 }
 _fx_cd()  { _fx_chdir "${BASH_LINENO[0]}" "${1-}"; }
-# LINE DIR ARGS... -> 1 with a record when an option before git's subcommand
-# names a repository or a work tree of its own: -C, --git-dir, --work-tree.
-# -c k=v is allowed, and its value is skipped.
+# LINE DIR ARGS... -> 1 with a record when an option anywhere before git's
+# subcommand names a repository or a work tree of its own: -C, --git-dir and
+# --work-tree, with the value as the next word or after =. -c k=v is allowed.
+# The global options that take their value as a separate word, -c,
+# --namespace, --config-env and --attr-source, have that word skipped, so a
+# value is never read as the subcommand and the options after it are still
+# seen.
 _fx_gargs() {
   local at="$1" d="$2" a sk=""
   shift 2
@@ -472,7 +499,7 @@ _fx_gargs() {
     if [ -n "$sk" ]; then sk=""; continue; fi
     case "$a" in
       -C|--git-dir|--git-dir=*|--work-tree|--work-tree=*) _fx_refuse "$at" "$d" git-args; return 1 ;;
-      -c|--namespace) sk=1 ;;
+      -c|--namespace|--config-env|--attr-source) sk=1 ;;
       -*) ;;
       *) return 0 ;;
     esac

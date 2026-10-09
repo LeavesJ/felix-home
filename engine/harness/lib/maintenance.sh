@@ -21,6 +21,13 @@
 # maintenance.tsv rows: name <TAB> cadence-days <TAB> capability <TAB> description
 #   cadence 0 means event-driven, never on a clock.
 
+# felix_end_line lives in resolve.sh, which the CLI and the hooks source first.
+# Sourced here too rather than assumed: missing, the record below would fail
+# every time and say only that the log was not written.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 _felix_maint_rows() {
   local proj="$1"
   [ -f "$proj/maintenance.tsv" ] || return 0
@@ -30,7 +37,9 @@ _felix_maint_rows() {
 _felix_maint_last() {   # epoch of the most recent run, or empty
   local proj="$1" name="$2" line last=""
   [ -f "$proj/maintenance.log" ] || return 0
-  while IFS=$'\t' read -r n epoch _; do
+  # A last line with no newline is a run too, and the loop dropped it, so the
+  # routine it recorded read as due again (2026-10-01).
+  while IFS=$'\t' read -r n epoch _ || [ -n "${n:-}" ]; do
     [ "${n:-}" = "$name" ] && last="$epoch"
   done < "$proj/maintenance.log"
   printf '%s' "$last"
@@ -39,6 +48,11 @@ _felix_maint_last() {   # epoch of the most recent run, or empty
 felix_maint_record() {
   local proj="$1" name="$2" now
   now="$(date +%s)"
+  # The log is committed, and a hand-merge can drop its final newline. This run
+  # then fused onto that last line, and the reader took the line's first name
+  # and epoch, so the run just recorded was never read (2026-10-01). Not
+  # ended, no row is written and the caller says so.
+  felix_end_line "$proj/maintenance.log" || return 1
   printf '%s\t%s\t%s\n' "$name" "$now" "$(date -r "$now" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)" \
     >> "$proj/maintenance.log"
 }
@@ -71,7 +85,10 @@ FELIX_MAINT_CAPABILITIES='ci deploy iac observability billing e2e database api f
 felix_maint_unreachable() {
   local proj="$1" name cadence cap desc rc
   [ -f "$proj/maintenance.tsv" ] || return 0
-  while IFS=$'\t' read -r name cadence cap desc; do
+  # The last routine is kept when it has no newline, as _felix_maint_last keeps
+  # the log's last run: dropped, an unreachable routine written last by hand
+  # was never reported (2026-10-01).
+  while IFS=$'\t' read -r name cadence cap desc || [ -n "${name:-}" ]; do
     case "$name" in ''|'#'*) continue ;; esac
     [ -n "${cap:-}" ] || continue
     [ "$cap" = "always" ] && continue

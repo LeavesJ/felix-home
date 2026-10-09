@@ -59,6 +59,11 @@ here:
   pass with wc's 0, which read as written, and the mv put an empty file over
   the grants. The reader's subshell answered 0 for a grant, so a stop could
   read as one.
+- **A stale stdout buffer** (review 6). When a printf to a closed stdout
+  fails, bash 3.2 keeps its text in the buffer, and every subshell inherits
+  it. Pass 2's first write into the temp file flushed it there, so a NUL or a
+  newline, which `$( )` had dropped from wc's answer, went into the grant
+  file. With a NUL, this engine then read no grant from it at all.
 - **Revision 5's match order** (review 5). Its test tried "a letter before a
   copy" first, from every letter: quadratic when letters follow the
   capability (`tidy` plus 64 KB of letters cost 5.5 s).
@@ -106,10 +111,15 @@ here:
     unended last line stays unended. A failed write is a refusal. Revoke is
     linear: 512 KB costs about 1.5 s of CPU and 1 MB about 2.9 s, and one
     512 KB line about 1 s.
-  - `wc`'s answer is checked as digits and never put through `$(( ))`, so no
-    pass does arithmetic on text it reads and none can be stopped that way.
-    As defence in depth a pass says it wrote with 10, never 0, and the
-    reader's subshell answers a grant with 10.
+  - Revoke first empties the shell's stdout buffer (`printf '%s' '' >
+    /dev/null`), so no subshell inherits stale output.
+  - `wc`'s answer must be one count, digits with blanks around them, and goes
+    straight to test's `-eq`, never through `$(( ))`. So no pass does
+    arithmetic on text it reads, and none can be stopped that way.
+  - As defence in depth, a pass's status comes back offset by 20, and nothing
+    a pass runs exits from 20 to 25, so a stop is refused whatever status it
+    leaves. The reader's subshell answers a grant with 10, which nothing it
+    runs exits with.
   - The file's mode is copied (`stat -L -c %a`, falling back to
     `stat -L -f %Lp`), then the mv. The result is read back through the
     reader.
@@ -202,7 +212,20 @@ here:
   fail on revision 5.
 - **Revision 6:** the digit check and the swapped order. Blocks 1-8 give 231
   pass on it; the 4 that fail are block 5's, which wait on .274.
-- **Review 6:** on revision 6.
+- **Review 6** (on 715f6381): no fault in the match or the digit check
+  (240,000 fuzzed lines, linear on every shape).
+  - It found the stale buffer reaching the temp file (major).
+  - The one check refusing a true count with text after it was unpinned.
+  - The 10 code guarded success only: a stop leaving 4 still read as
+    "nothing to remove".
+  - The strip joined `2 0` into 20.
+- **Round 9.** 23 blind assertions ("revoke writes no stale output, takes one
+  count from wc, and no stop for an answer", 007e902d): four stale buffers,
+  four `wc` answers, and a names test stopped after each status 0-5 and 10 in
+  either pass. 11 fail on revision 6.
+- **Revision 7:** the flush, the offset, and no strip. Blocks 1-9 give 254
+  pass on it, and the 4 that fail are block 5's.
+- **Review 7:** on revision 7.
 - **What could not be shown locally.** The stray-lead-byte case passes on
   bash 3.2 for every engine. Only CI's bash 5.2 can show it red against main.
 - **The section runner.** It is preamble lines 1 to 224 (the line before the

@@ -351,6 +351,11 @@ felix_autonomy_grant() {
   # would replace it where the append could not write it, and a grant is the
   # direction that asks first.
   if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] && [ -w "$f" ] || return 1; fi
+  # As in revoke: whatever an earlier failed printf left in bash 3.2's stdout
+  # buffer goes to /dev/null before any child is made, or the mktemp below
+  # would take it into the name and the write into the file. Only the '%s'
+  # form flushes; a bare printf '' returns first (revoke's sixth review).
+  printf '%s' '' > /dev/null 2>&1
   # As in revoke: the name where the caller's exit can remove it.
   _FELIX_AUTONOMY_TMP="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
   tmp="$_FELIX_AUTONOMY_TMP"
@@ -364,11 +369,12 @@ felix_autonomy_grant() {
       # through $(( )). A set -u stop there leaves the status of the command
       # before it, which is wc's, so a wc that answered a word and exited 10
       # read as written whatever this subshell said (revoke's fifth review).
+      # The padded count goes to -eq as it is: stripping its blanks joined
+      # "2 0" into 20 (revoke's sixth review).
       size="$(wc -c < "$f")" || exit 1
       case "$size" in *[0-9]*) ;; *) exit 1 ;; esac
       case "$size" in *[!0-9\ \	]*) exit 1 ;; esac
-      size="${size//[!0-9]/}"
-      [ "$size" -eq "${#_felix_autonomy_text}" ] || exit 1
+      [ "$size" -eq "${#_felix_autonomy_text}" ] 2>/dev/null || exit 1
     else
       _felix_autonomy_text="# What Felix may do here unattended.$nl"
     fi
@@ -382,7 +388,10 @@ felix_autonomy_grant() {
     # status of the command before the stop, which was wc's 0, and a 0 here
     # moved an empty temp file over the grants (felix_autonomy_say). The
     # digits check above is what keeps a stop out; this keeps a 0 from
-    # anything else from reading as written.
+    # anything else from reading as written. A stop keeps an earlier status
+    # only in $(( )), and nothing in this subshell does arithmetic, so none
+    # can leave a 10 here; keep it that way, or encode the status as revoke's
+    # passes do.
     exit 10
   ) > /dev/null 2>&1; rc=$?
   case "$rc" in 10) rc=0 ;; 0) rc=1 ;; esac
@@ -594,6 +603,10 @@ _felix_autonomy_signalled() {   # SIG
 # felix_autonomy_lock. Signals while it is taken are noted, then acted on.
 felix_autonomy_guard() {   # proj
   local s rc
+  # Anything a printf before this left in bash 3.2's stdout buffer goes to
+  # /dev/null now, before the lock's ls substitution could take it for the
+  # inode (felix_autonomy_grant says why only the '%s' form flushes).
+  printf '%s' '' > /dev/null 2>&1
   _FELIX_AUTONOMY_CAUGHT=""; _FELIX_AUTONOMY_TMP=""
   _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""; _felix_autonomy_lock_fd=""
   for s in $FELIX_AUTONOMY_SIGNALS $FELIX_AUTONOMY_FAULTS; do
@@ -618,8 +631,9 @@ felix_autonomy_guard() {   # proj
 # ended it with the status wc left, 0, and an empty file replaced the grant
 # file. A child
 # takes a failed write's buffer away with it. Once one line fails, stdout
-# goes to /dev/null, so no later line can fail the same way. Redirecting it
-# after a failure in the shell itself does not empty the buffer.
+# goes to /dev/null, so no later line can fail the same way. An exec
+# >/dev/null after a failure in the shell itself does not empty the buffer;
+# printf '%s' '' > /dev/null does, and the guard and the grant run one first.
 felix_autonomy_say() {   # FORMAT [ARG...]
   ( printf "$@" ) 2>/dev/null || exec >/dev/null
 }

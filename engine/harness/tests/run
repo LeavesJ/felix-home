@@ -532,10 +532,18 @@ _fx_git() { ( _fx_chdir "${BASH_LINENO[0]}" "${1-}" || exit 1
 # place this suite did that on a directory outside $TMP names its subcommand
 # now, because _fx_git would refuse it. Command position is the first word of
 # a line, and the word after ( $( { ; && || | ! and the keywords then do else if
-# elif while until; after command or builtin, for cd and git; and after env,
-# exec, time, nice and nohup, the first word that is not an option, a
-# NAME=value or a number, so nice -n 5 git -C "$X" commit is a git. A
-# NAME=value before a command leaves the command in command position. A word
+# elif while until; after command or builtin, for cd and git, and after
+# command -p, whose -p keeps it (command -v and -V run nothing); and after env,
+# exec, time, nice, nohup and timeout, the first word that is not an option,
+# the value of env -u or -C, of exec -a or of timeout -s or -k, a NAME=value or
+# a number, with the first such word after timeout taken as its duration, so
+# nice -n 5 git -C "$X" commit and timeout 5s git -C "$X" commit are gits. A
+# NAME=value before a command leaves the command in command position. Before
+# git's subcommand every word that begins with - is a global option and is
+# skipped, with the value word of -C, -c, --git-dir, --work-tree, --namespace,
+# --config-env, --attr-source and an --exec-path given without =; a -C
+# anywhere among them counts, so git --no-optional-locks -C "$X" commit is a
+# site and git -C "$X" --no-optional-locks status, a read, is not. A word
 # is read as code outside comments (a # that begins a word), single-quoted
 # strings, double-quoted
 # strings except inside a $( ) opened within them, and heredoc bodies; here-
@@ -579,8 +587,17 @@ BEGIN {
   for (i = 1; i <= n; i++) cfgread[rd[i]] = 1
   n = split("then do else if elif while until ! {", rd, " ")
   for (i = 1; i <= n; i++) kw[rd[i]] = 1
-  n = split("env exec time nice nohup", rd, " ")
+  n = split("env exec time nice nohup timeout", rd, " ")
   for (i = 1; i <= n; i++) transp[rd[i]] = 1
+  # The options of a transparent word that take the next word as their value,
+  # keyed by the word and the option: env -u NAME, env -C DIR, exec -a NAME,
+  # timeout -s SIGNAL, timeout -k DURATION.
+  n = split("env -u|env --unset|env -C|env --chdir|exec -a|timeout -s|timeout --signal|timeout -k|timeout --kill-after", rd, "|")
+  for (i = 1; i <= n; i++) topt[rd[i]] = 1
+  # The global options of git that take the next word as their value. A
+  # --exec-path given without = is counted among them.
+  n = split("-C -c --git-dir --work-tree --namespace --config-env --attr-source --exec-path", rd, " ")
+  for (i = 1; i <= n; i++) gval[rd[i]] = 1
 }
 
 # Raw text of a word is kept only up to WMAX characters: its start and its
@@ -629,11 +646,28 @@ function wend(   t, w, ty) {
     return
   }
   if (ty != "W") return
-  # After env, exec, time, nice or nohup the command is the first word that
-  # is not an option, a NAME=value or a number: nice -n 5 git -C "$X" commit.
+  # After env, exec, time, nice, nohup or timeout the command is the first
+  # word that is not an option, the value of an option, a NAME=value or a number:
+  # nice -n 5 git -C "$X" commit. The value of env -u and -C, of exec -a, and
+  # of timeout -s and -k is skipped, and so is the first word after timeout
+  # that is not an option, the duration: timeout 5s git -C "$X" commit is a git.
   if (tcmd[t] == 3) {
-    if (substr(w, 1, 1) == "-" || w ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/ || w ~ /^[0-9]+$/) { tcmd[t] = 0; expect = 3; return }
+    if (tskip) { tskip = 0; tcmd[t] = 0; expect = 3; return }
+    if (substr(w, 1, 1) == "-") {
+      if ((tw " " w) in topt) tskip = 1
+      tcmd[t] = 0; expect = 3; return
+    }
+    if (tdur) { tdur = 0; tcmd[t] = 0; expect = 3; return }
+    if (w ~ /^[A-Za-z_][A-Za-z0-9_]*[+]?=/ || w ~ /^[0-9]+$/) { tcmd[t] = 0; expect = 3; return }
     tcmd[t] = 1
+  }
+  # command -p runs the word after it as command would: the -p keeps command
+  # position. command -v and -V run nothing, so the word after them is not in
+  # command position.
+  if (tcmd[t] == 2 && substr(w, 1, 1) == "-") {
+    tcmd[t] = 0
+    expect = (w == "-p") ? 2 : 0
+    return
   }
   if (cs[sp] == 2 && w == "in") {
     cs[sp] = 0
@@ -650,7 +684,7 @@ function wend(   t, w, ty) {
     if (w == "esac" && sk[sp] == "K") { popk(); return }
     if (w in kw) expect = 1
     else if ((w == "command" || w == "builtin") && tcmd[t] == 1) expect = 2
-    else if (w in transp) expect = 3
+    else if (w in transp) { expect = 3; tw = w; tskip = 0; tdur = (w == "timeout") }
     else if (w == "case") cs[sp] = 1
   }
 }
@@ -932,22 +966,25 @@ function nextword(j,   ty) {
 }
 
 # The global options of the git at token t, then its subcommand g_sub and its
-# arguments args[1..na]. g_dyn is set when a -C names a parameter-led directory.
+# arguments args[1..na]. Every word before the subcommand that begins with - is
+# a global option and is skipped, and the ones that take a separate value, in
+# gval, skip that word too. So git --no-optional-locks -C "$X" commit and
+# git -p -C "$X" commit are read to their commit, and git -C "$X"
+# --no-optional-locks status to its status. g_dyn is set when a -C anywhere
+# among them names a parameter-led directory.
 function parse_git(t,   j, w, a) {
   g_sub = ""; g_dyn = 0; na = 0
   j = nextword(t + 1)
   while (j) {
     w = traw[j]
-    if (w == "-C" || w == "-c") {
+    if (substr(w, 1, 1) != "-") { g_sub = w; break }
+    if (w in gval) {
       a = nextword(j + 1)
       if (!a) return
       if (w == "-C" && tpl[a]) { g_dyn = 1; g_ctok = j; g_atok = a }
       j = nextword(a + 1); continue
     }
-    if (w == "--no-pager" || w == "-P" || w == "--bare" || w == "--no-replace-objects" || w == "--literal-pathspecs" || index(w, "--git-dir=") == 1 || index(w, "--work-tree=") == 1 || index(w, "--namespace=") == 1) {
-      j = nextword(j + 1); continue
-    }
-    g_sub = w; break
+    j = nextword(j + 1)
   }
   if (g_sub == "") return
   j = nextword(j + 1)

@@ -1609,9 +1609,125 @@
 1	adding sentry surfaces observability
 1	adopt answers already for a candidate stack.tsv declares first of 3,002 rows
 1	adopt refuses any flag as a capability
+1	adopting a capability a read-only capabilities file already lists changes nothing in or beside the project
+1	adopting a capability a read-only capabilities file already lists prints nothing on stdout
+1	adopting a capability a read-only capabilities file already lists returns 1
+1	adopting a capability the capabilities file already lists changes nothing in or beside the project
+1	adopting a capability the capabilities file already lists prints nothing on stdout
+1	adopting a capability the capabilities file already lists returns 1
+1	adopting into a capabilities directory holding a file leaves every entry in and beside the project as it was
+1	adopting into a capabilities directory holding a file leaves the directory holding just that file, unchanged
+1	adopting into a capabilities directory holding a file prints nothing on stderr
+1	adopting into a capabilities directory holding a file prints nothing on stdout
+1	adopting into a capabilities directory holding a file returns exactly 2
+1	adopting into a capabilities link to /dev/null leaves every entry in and beside the project as it was
+1	adopting into a capabilities link to /dev/null leaves it pointing at /dev/null
+1	adopting into a capabilities link to /dev/null prints nothing on stderr
+1	adopting into a capabilities link to /dev/null prints nothing on stdout
+1	adopting into a capabilities link to /dev/null returns exactly 2
+1	adopting into a capabilities link to a directory adds nothing to the directory it points at
+1	adopting into a capabilities link to a directory leaves every entry in and beside the project as it was
+1	adopting into a capabilities link to a directory leaves it pointing where it did
+1	adopting into a capabilities link to a directory prints nothing on stderr
+1	adopting into a capabilities link to a directory prints nothing on stdout
+1	adopting into a capabilities link to a directory returns exactly 2
+1	adopting into a capabilities link to a pipe leaves every entry in and beside the project as it was
+1	adopting into a capabilities link to a pipe leaves it pointing at the same pipe
+1	adopting into a capabilities link to a pipe prints nothing on stderr
+1	adopting into a capabilities link to a pipe prints nothing on stdout
+1	adopting into a capabilities link to a pipe returns exactly 2
+1	adopting into a capabilities link to a pipe returns without waiting on the pipe
+1	adopting into a capabilities link whose target is gone creates nothing at its target
+1	adopting into a capabilities link whose target is gone leaves every entry in and beside the project as it was
+1	adopting into a capabilities link whose target is gone leaves it pointing where it did
+1	adopting into a capabilities link whose target is gone prints nothing on stderr
+1	adopting into a capabilities link whose target is gone prints nothing on stdout
+1	adopting into a capabilities link whose target is gone returns exactly 2
+1	adopting into a capabilities link whose target's directory is gone too creates no directory along its target's path
+1	adopting into a capabilities link whose target's directory is gone too leaves every entry in and beside the project as it was
+1	adopting into a capabilities link whose target's directory is gone too leaves it pointing where it did
+1	adopting into a capabilities link whose target's directory is gone too prints nothing on stderr
+1	adopting into a capabilities link whose target's directory is gone too prints nothing on stdout
+1	adopting into a capabilities link whose target's directory is gone too returns exactly 2
+1	adopting into a capabilities pipe leaves every entry in and beside the project as it was
+1	adopting into a capabilities pipe leaves it a pipe
+1	adopting into a capabilities pipe prints nothing on stderr
+1	adopting into a capabilities pipe prints nothing on stdout
+1	adopting into a capabilities pipe returns exactly 2
+1	adopting into a capabilities pipe returns without waiting on it
+1	adopting into a project with no capabilities list appends the stack and setup rows observability implies and copies its runbook
+1	adopting into a project with no capabilities list creates a regular file listing only observability
+1	adopting into a project with no capabilities list prints the stack rows and setup steps it added as two counts
+1	adopting into a project with no capabilities list returns 0
+1	adopting into a read-only capabilities file appends no stack or setup row and copies no runbook
+1	adopting into a read-only capabilities file keeps its bytes
+1	adopting into a read-only capabilities file leaves every entry in and beside the project as it was
+1	adopting into a read-only capabilities file prints nothing on stderr
+1	adopting into a read-only capabilities file prints nothing on stdout
+1	adopting into a read-only capabilities file returns exactly 2
+1	adopting into a writable capabilities file without the capability appends its rows after the ones already there and copies the runbook
+1	adopting into a writable capabilities file without the capability keeps every line there and appends observability as a line
+1	adopting into a writable capabilities file without the capability prints the two counts it added to the rows already there
+1	adopting into a writable capabilities file without the capability returns 0
+1	adopting into a write-only capabilities file keeps its mode and bytes
+1	adopting into a write-only capabilities file leaves every entry in and beside the project as it was
+1	adopting into a write-only capabilities file prints nothing on stderr
+1	adopting into a write-only capabilities file prints nothing on stdout
+1	adopting into a write-only capabilities file returns exactly 2
+1	adopting into a write-only capabilities file that already lists the capability keeps its mode and bytes
+1	adopting into a write-only capabilities file that already lists the capability leaves every entry in and beside the project as it was
+1	adopting into a write-only capabilities file that already lists the capability prints nothing on stderr
+1	adopting into a write-only capabilities file that already lists the capability prints nothing on stdout
+1	adopting into a write-only capabilities file that already lists the capability returns exactly 2
+1	adopting into an empty capabilities directory leaves every entry in and beside the project as it was
+1	adopting into an empty capabilities directory leaves it an empty directory
+1	adopting into an empty capabilities directory prints nothing on stderr
+1	adopting into an empty capabilities directory prints nothing on stdout
+1	adopting into an empty capabilities directory returns exactly 2
+1	adopting into an unreadable capabilities file keeps its mode and bytes
+1	adopting into an unreadable capabilities file leaves every entry in and beside the project as it was
+1	adopting into an unreadable capabilities file prints nothing on stderr
+1	adopting into an unreadable capabilities file prints nothing on stdout
+1	adopting into an unreadable capabilities file returns exactly 2
+1	adopting onto a capabilities list ending in a NUL byte writes a newline after the NUL first
+1	adopting onto a capabilities list ending in a newline adds the capability with no blank line
+1	adopting onto a capabilities list with no final newline keeps its last line and writes its own
+1	adopting onto a newline-terminated read-only setup.tsv counts none of the steps it could not write
+1	adopting onto a newline-terminated read-only stack.tsv counts none of the rows it could not write
+1	adopting onto a read-only capabilities list with no final newline leaves the list byte for byte
+1	adopting onto a read-only setup.tsv with no final newline leaves it byte for byte
+1	adopting onto a read-only stack.tsv with no final newline leaves it byte for byte
+1	adopting onto a setup.tsv ending in a NUL byte writes a newline after the NUL before the step
+1	adopting onto a setup.tsv ending in a newline appends the step with no blank line
+1	adopting onto a setup.tsv with no final newline keeps its last step and puts the new step on its own line
+1	adopting onto a stack.tsv ending in a NUL byte writes a newline after the NUL before its catalogue rows
+1	adopting onto a stack.tsv ending in a newline appends its catalogue rows with no blank line
+1	adopting onto a stack.tsv with no final newline keeps its last row and puts each catalogue row on its own line
+1	adopting onto a write-only capabilities list with no final newline leaves the list byte for byte
+1	adopting onto a write-only setup.tsv with no final newline leaves it byte for byte
+1	adopting onto a write-only stack.tsv with no final newline leaves it byte for byte
+1	adopting onto an empty capabilities list writes the capability alone
+1	adopting onto an empty setup.tsv writes the step and no header
+1	adopting onto an empty stack.tsv writes its catalogue rows and no header
 1	adopting removes it from drift
 1	adopting reports the backfill
+1	adopting through a capabilities link to a writable file appends observability to the file the link points at
+1	adopting through a capabilities link to a writable file appends the rows observability implies
+1	adopting through a capabilities link to a writable file leaves the link a link to the same file
+1	adopting through a capabilities link to a writable file returns 0
 1	adopting twice is a no-op
+1	adopting while a newline-terminated read-only setup.tsv refuses its rows returns 3 and still prints both counts
+1	adopting while a newline-terminated read-only stack.tsv refuses its rows returns 3 and still prints both counts
+1	adopting with a FIFO at setup.tsv returns promptly and counts no setup step
+1	adopting with a FIFO at stack.tsv returns promptly and counts no stack row
+1	adopting with a dangling symlink at setup.tsv counts no setup step
+1	adopting with a dangling symlink at stack.tsv counts none of its catalogue rows
+1	adopting with a directory at setup.tsv counts no setup step
+1	adopting with a directory at stack.tsv counts none of its catalogue rows
+1	adopting with every row written still returns 0 (control)
+1	adopting with no capabilities list writes the capability alone
+1	adopting with no setup.tsv seeds the header and then the step
+1	adopting with no stack.tsv seeds the header and then its catalogue rows
 1	advances to the next step once the first is used
 1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
 1	after commissioning the gate line reads ok
@@ -2057,6 +2173,40 @@
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
 1	and adds, removes or changes no file under the project's memory
+1	and adopting onto that newline-terminated read-only setup.tsv leaves it byte for byte
+1	and adopting onto that newline-terminated read-only setup.tsv names it and the step it left out on stderr
+1	and adopting onto that newline-terminated read-only setup.tsv writes no instructions file for the step
+1	and adopting onto that newline-terminated read-only stack.tsv leaves it byte for byte
+1	and adopting onto that newline-terminated read-only stack.tsv names it and each row it left out on stderr
+1	and adopting onto that read-only capabilities list backfills no stack.tsv or setup.tsv row
+1	and adopting onto that read-only capabilities list returns 2 and prints no counts
+1	and adopting onto that read-only setup.tsv names it and the step it left out on stderr
+1	and adopting onto that read-only setup.tsv still records the capability and writes its stack rows
+1	and adopting onto that read-only setup.tsv writes no instructions file for the step it left out
+1	and adopting onto that read-only stack.tsv names it and each catalogue row it left out on stderr
+1	and adopting onto that read-only stack.tsv still records the capability and writes its setup step
+1	and adopting onto that write-only capabilities list backfills no stack.tsv or setup.tsv row
+1	and adopting onto that write-only capabilities list returns 2 and prints no counts
+1	and adopting onto that write-only setup.tsv names it and the step it left out on stderr
+1	and adopting onto that write-only setup.tsv still records the capability and writes its stack rows
+1	and adopting onto that write-only setup.tsv writes no instructions file for the step it left out
+1	and adopting onto that write-only stack.tsv names it and each catalogue row it left out on stderr
+1	and adopting onto that write-only stack.tsv still records the capability and writes its setup step
+1	and adopting with a FIFO at setup.tsv still records the capability and writes the stack rows
+1	and adopting with a FIFO at stack.tsv still records the capability and writes the setup step
+1	and adopting with a dangling symlink at setup.tsv creates nothing there
+1	and adopting with a dangling symlink at setup.tsv still records the capability and writes its stack rows
+1	and adopting with a dangling symlink at setup.tsv writes no instructions file for the step
+1	and adopting with a dangling symlink at stack.tsv creates nothing there
+1	and adopting with a dangling symlink at stack.tsv still records the capability and writes its setup step
+1	and adopting with a directory at setup.tsv creates nothing there
+1	and adopting with a directory at setup.tsv still records the capability and writes its stack rows
+1	and adopting with a directory at setup.tsv writes no instructions file for the step
+1	and adopting with a directory at stack.tsv creates nothing there
+1	and adopting with a directory at stack.tsv still records the capability and writes its setup step
+1	and after adopting onto an unterminated list felix_declared lists both the hand-written capability and the adopted one
+1	and after felix autonomy --allow onto that read-only grant, tidy is not granted
+1	and after felix autonomy --allow onto that write-only grant, tidy is not granted
 1	and again, so a session can bump twice
 1	and all four rows landed
 1	and an --implicated file that cannot be written stops repair before any brief
@@ -2105,6 +2255,7 @@
 1	and both gates' own rows are kept, one each
 1	and both paths in one sentence are found
 1	and both shells agree on what the new epoch is
+1	and both the hand-written grant and the typed one then hold
 1	and briefs the file it names
 1	and calls an absent surface empty rather than blind
 1	and calls it a shelf with nothing on it
@@ -2121,6 +2272,14 @@
 1	and claims nothing was unchecked
 1	and claims to have kept no memory, having found none
 1	and commission blockers carry exactly the subjects cmd_merge places
+1	and commissioning's apply onto that read-only stack.tsv counts no declare
+1	and commissioning's apply onto that read-only stack.tsv logs no declare for the row
+1	and commissioning's apply onto that write-only stack.tsv counts no declare
+1	and commissioning's apply onto that write-only stack.tsv logs no declare for the row
+1	and commissioning's apply with a dangling symlink at stack.tsv creates nothing there
+1	and commissioning's apply with a dangling symlink at stack.tsv logs no declare for the row
+1	and commissioning's apply with a directory at stack.tsv creates nothing there
+1	and commissioning's apply with a directory at stack.tsv logs no declare for the row
 1	and commissions
 1	and commits nothing to it
 1	and components exits 0 even then
@@ -2224,10 +2383,41 @@
 1	and fails the same way
 1	and fails when a wired moment is unbound
 1	and fails when one of them loses it
+1	and felix adopt names the capability, the capabilities file and felix adopt on stderr when a row could not be written
+1	and felix adopt still says it declared the capability when a row could not be written
+1	and felix autonomy --allow onto that newline-terminated read-only grant leaves the file byte for byte
+1	and felix autonomy --allow onto that newline-terminated read-only grant writes no stamp for tidy
+1	and felix autonomy --allow onto that read-only grant exits non-zero without saying allowed
+1	and felix autonomy --allow onto that read-only grant names the autonomy file on stderr
+1	and felix autonomy --allow onto that write-only grant exits non-zero without saying allowed
+1	and felix autonomy --allow onto that write-only grant names the autonomy file on stderr
+1	and felix autonomy --allow with a dangling symlink at the autonomy file creates nothing there
+1	and felix autonomy --allow with a directory at the autonomy file creates nothing there
 1	and felix commission hashes the same topology there, so it reads the same answer as answered
+1	and felix discover --adopt onto that newline-terminated read-only stack.tsv names the row unwritten
+1	and felix discover --adopt onto that newline-terminated read-only stack.tsv prints no installed or declared line for the row
+1	and felix discover --adopt onto that newline-terminated read-only stack.tsv sums up 0 adopted and 1 unwritten
+1	and felix discover --adopt onto that read-only stack.tsv attempts no install of the row it could not write
+1	and felix discover --adopt onto that read-only stack.tsv names that row unwritten
+1	and felix discover --adopt onto that read-only stack.tsv prints no installed or declared line for that row
+1	and felix discover --adopt onto that read-only stack.tsv sums up 0 adopted
+1	and felix discover --adopt onto that write-only stack.tsv attempts no install of the row it could not write
+1	and felix discover --adopt onto that write-only stack.tsv names that row unwritten
+1	and felix discover --adopt onto that write-only stack.tsv prints no installed or declared line for that row
+1	and felix discover --adopt onto that write-only stack.tsv sums up 0 adopted
+1	and felix discover --adopt with a dangling symlink at stack.tsv creates nothing there
+1	and felix discover --adopt with a dangling symlink at stack.tsv names the row unwritten and sums up 0 adopted
+1	and felix discover --adopt with a dangling symlink at stack.tsv prints no installed or declared line for the row
+1	and felix discover --adopt with a directory at stack.tsv creates nothing there
+1	and felix discover --adopt with a directory at stack.tsv names the row unwritten and sums up 0 adopted
+1	and felix discover --adopt with a directory at stack.tsv prints no installed or declared line for the row
 1	and felix gate fails qualified showing each such row MALFORMED under it
 1	and felix ledger passes over the last of many machine sessions the same way
 1	and felix log does too, a dash for no session and the branch of a checkout with no commit
+1	and felix maintenance --ran onto that read-only log exits non-zero without saying it recorded the run
+1	and felix maintenance --ran onto that write-only log exits non-zero without saying it recorded the run
+1	and felix maintenance --ran with a dangling symlink at the log creates nothing there
+1	and felix maintenance --ran with a directory at the log creates nothing there
 1	and felix maintenance never ran the refused check either
 1	and felix new seeds it itself, without falling through to the answer
 1	and felix qualify names it as well
@@ -2239,13 +2429,21 @@
 1	and felix unattended's streak row counts the gate's runs alone
 1	and felix which does not resolve it
 1	and felix's qualification table declares every control for the schema checker
+1	and felix_budget_record onto that read-only log returns non-zero
+1	and felix_budget_record onto that write-only log returns non-zero
+1	and felix_budget_record returns 0 after every one of those writes, whatever the last byte was
+1	and felix_budget_record with a dangling symlink at budget.log creates nothing there
+1	and felix_budget_record with a directory at budget.log creates nothing there
+1	and felix_budget_used counts the same two runs when the log ends in a newline (control)
 1	and felix_land_malformed reports that refused row by its line and exits 1, or a table that cannot be read would pass for a clean one
 1	and felix_land_malformed_in refuses none of them and exits 0, or the design's own table would read as broken
 1	and felix_land_malformed_in refuses none of them and exits 0, or the home's own table would bind nothing
 1	and felix_land_protected prints nothing and exits 1 for each of those neighbours, or it could not say a path is ordinary
 1	and felix_land_rows prints its accepted rows and leaves out the one refused, or a broken row would bind a path
+1	and felix_maint_status reads it the same when the log ends in a newline (control)
 1	and felix_mem_log adds nothing to lessons.md
 1	and felix_mem_log there writes one six-column row under the branch name
+1	and felix_mem_mistake on a checkout with a commit writes the same shape (control)
 1	and felix_probes_run still names which git answered, for the readers that ask
 1	and felix_qualify_run refuses it so without the caller's pipefail
 1	and felix_setup_malformed prints no row it admits
@@ -3139,8 +3337,11 @@
 1	and that summary counts eleven, four failing, two of them never reached
 1	and the CLI keeps its executable bit through it
 1	and the FELIX_KERNEL refusal row carries the branch and the session
+1	and the FIFO at stack.tsv is still a FIFO after the Stop hook read it
 1	and the Felix checkout, which holds the deploy key, drops it
+1	and the Stop hook's exit status with a FIFO at stack.tsv is the exit status of the same run with no stack.tsv
 1	and the Stop hook's guard still names it through the link
+1	and the Stop hook's stdout with a FIFO at stack.tsv is the stdout of the same run with no stack.tsv
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
 1	and the all-clear is not repeated every session
@@ -3239,6 +3440,7 @@
 1	and the index holds no gitlink afterwards
 1	and the inline variable is named
 1	and the instrument is appended as the ninth
+1	and the invented night project, its memory, its receipt and the hook state its sessions wrote are gone after the fifth block
 1	and the job that runs the model holds no actions permission
 1	and the judge is refused when the engine path sorts last
 1	and the judge still exits 0 with stdout byte for byte the control's and no row written, or a failing report could fail a merge
@@ -3259,6 +3461,8 @@
 1	and the misbound job says the binding failed, not the ceiling
 1	and the missing function is named
 1	and the missing function is named, not the when's status
+1	and the mistakes.log row for that unended run names probes, not an exit status
+1	and the mistakes.log row for the newline-terminated gate run names probes (control)
 1	and the model step is handed no token, in its environment or its text
 1	and the monitor reports its capability unglued from the grounding
 1	and the monitor still renders the sentence, not the JSON around it
@@ -3349,6 +3553,8 @@
 1	and the resume row names the engine, the installed engine, the HEAD, the handoff and the transcript
 1	and the reviewed one is cleared by it
 1	and the root's tree is left as it was, with nothing a row wrote in it
+1	and the roster that unended gate run records includes probes
+1	and the roster the newline-terminated gate run records includes probes (control)
 1	and the route its path named is not taken
 1	and the row a peer session's felix_mem_lesson writes on the same branch does not
 1	and the row after an empty or unreadable state line is still read, and done
@@ -3398,8 +3604,11 @@
 1	and the sentence still is
 1	and the session is not told a person decides on tier alone
 1	and the session is told how many are left
+1	and the session-start hook names no unwritten table when every row was written (control)
 1	and the sessions the filter actually counted
 1	and the set it proceeds on is handed on as the step's output
+1	and the setup count adopting prints for that read-only setup.tsv leaves out the step it could not write
+1	and the setup count adopting prints for that write-only setup.tsv leaves out the step it could not write
 1	and the sha it parenthesises abbreviates main's commit
 1	and the shim did prune it, so the line above read the race
 1	and the shipped wiring matches its stance
@@ -3407,6 +3616,8 @@
 1	and the skip list is still where it was
 1	and the slug comes from the checkout's remote
 1	and the split file it points at is byte for byte what it was
+1	and the stack count adopting prints for that read-only stack.tsv leaves out the rows it could not write
+1	and the stack count adopting prints for that write-only stack.tsv leaves out the rows it could not write
 1	and the stale answer is still there, not replaced by an empty one
 1	and the stale row was not adopted
 1	and the start it records is that row process's start: where /proc names the pid namespace, field 22 of /proc/<pid>/stat, @ and that namespace; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed
@@ -3436,6 +3647,10 @@
 1	and the validator refuses a three-cell row in a land table as cells, exit 1, or schema-check would pass a row the reader splits wrong
 1	and the values are the ones the four functions compute
 1	and the version is a dotted number
+1	and the widget autonomy, stack.tsv and discovery cache those appends rewrote are back as they were
+1	and the widget files and every mode those unwritable cases changed are back as they were
+1	and the widget files, the invented gate project and every mode the third block changed are back as they were
+1	and the widget files, the invented hook projects and every mode the fourth block changed are back as they were
 1	and the widget ledger is as this block found it
 1	and the widget manifest is as this block found it
 1	and the widget project is as this block found it
@@ -3507,6 +3722,7 @@
 1	and with no deployment to compare against the evidence cannot examine
 1	and with no origin/HEAD, origin/main is the branch asked
 1	and with no session handoff on disk, says nothing about one
+1	and with no stack.tsv the same Stop hook run still holds the session for the night, without the nudge (control)
 1	and with only a gitlab remote under another name, they wait
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
@@ -3708,6 +3924,16 @@
 1	comments and blanks are not capabilities
 1	comments, a commented-out row and blank lines are not rows, or a note in the table would bind a path
 1	commissioning rows omit every check a final filter makes unfailable, and keep the rest in file order
+1	commissioning's apply onto a read-only stack.tsv with no final newline leaves it byte for byte
+1	commissioning's apply onto a stack.tsv ending in a NUL byte writes a newline after the NUL before declaring
+1	commissioning's apply onto a stack.tsv ending in a newline declares with no blank line
+1	commissioning's apply onto a stack.tsv with no final newline keeps its last row and declares on a line of its own
+1	commissioning's apply onto a write-only stack.tsv with no final newline leaves it byte for byte
+1	commissioning's apply onto an empty stack.tsv writes the declared row and no header
+1	commissioning's apply with a FIFO at stack.tsv returns promptly and counts no declare
+1	commissioning's apply with a dangling symlink at stack.tsv counts no declare
+1	commissioning's apply with a directory at stack.tsv counts no declare
+1	commissioning's apply with no stack.tsv seeds the header and then the declared row
 1	committing unverified work no longer skips the check
 1	complete is not discharge: the row is still UNSATISFIED
 1	components exits 0 when all four are known
@@ -3910,6 +4136,8 @@
 1	every verdict is one line of two tab-separated fields
 1	every vocabulary token is a word, not a regex fragment
 1	every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it
+1	every writer the third block refuses still writes its row where it can (control)
+1	every writer the unwritable cases below refuse still writes its row to a table it can end (control)
 1	evidence that says it cannot examine is UNKNOWN, not failed
 1	exactly one chip is chip-unstarted: of five, one was started, one dismissed, one is older than the default 14 days of --days (D4) and one is another repository's
 1	exactly one declaration from that cache
@@ -3924,10 +4152,129 @@
 1	felix --help still answers usage
 1	felix admits engine_deployed as task-blocking, grounded on the one fact it rests on
 1	felix adopt --help answers with usage
+1	felix adopt exits 3 when a row the capability implies could not be written
+1	felix adopt into a project with no capabilities list exits 0
+1	felix adopt into a project with no capabilities list says declared observability for widget
+1	felix adopt of a capability the project already declares exits 0
+1	felix adopt of a capability the project already declares says observability already declared
+1	felix adopt over a capabilities directory holding a file exits exactly 2
+1	felix adopt over a capabilities directory holding a file names the full path of the capabilities entry
+1	felix adopt over a capabilities directory holding a file never says declared, already declared or backfilled
+1	felix adopt over a capabilities directory holding a file prints nothing on stdout
+1	felix adopt over a capabilities directory holding a file says it found a directory
+1	felix adopt over a capabilities directory holding a file says on stderr that nothing was written
+1	felix adopt over a capabilities directory holding a file says on stderr that observability was not declared
+1	felix adopt over a capabilities directory holding a file writes nothing in the project or where its link points
+1	felix adopt over a capabilities link to /dev/null exits exactly 2
+1	felix adopt over a capabilities link to /dev/null names the full path of the capabilities entry
+1	felix adopt over a capabilities link to /dev/null never says declared, already declared or backfilled
+1	felix adopt over a capabilities link to /dev/null prints nothing on stdout
+1	felix adopt over a capabilities link to /dev/null says on stderr that nothing was written
+1	felix adopt over a capabilities link to /dev/null says on stderr that observability was not declared
+1	felix adopt over a capabilities link to /dev/null writes nothing in the project or where its link points
+1	felix adopt over a capabilities link to a directory exits exactly 2
+1	felix adopt over a capabilities link to a directory names the full path of the capabilities entry
+1	felix adopt over a capabilities link to a directory never says declared, already declared or backfilled
+1	felix adopt over a capabilities link to a directory prints nothing on stdout
+1	felix adopt over a capabilities link to a directory says it found a directory
+1	felix adopt over a capabilities link to a directory says on stderr that nothing was written
+1	felix adopt over a capabilities link to a directory says on stderr that observability was not declared
+1	felix adopt over a capabilities link to a directory writes nothing in the project or where its link points
+1	felix adopt over a capabilities link to a pipe does not wait on the pipe
+1	felix adopt over a capabilities link to a pipe exits exactly 2
+1	felix adopt over a capabilities link to a pipe names the full path of the capabilities entry
+1	felix adopt over a capabilities link to a pipe never says declared, already declared or backfilled
+1	felix adopt over a capabilities link to a pipe prints nothing on stdout
+1	felix adopt over a capabilities link to a pipe says it found a pipe
+1	felix adopt over a capabilities link to a pipe says on stderr that nothing was written
+1	felix adopt over a capabilities link to a pipe says on stderr that observability was not declared
+1	felix adopt over a capabilities link to a pipe writes nothing in the project or where its link points
+1	felix adopt over a capabilities link whose target is gone exits exactly 2
+1	felix adopt over a capabilities link whose target is gone names the full path of the capabilities entry
+1	felix adopt over a capabilities link whose target is gone never says declared, already declared or backfilled
+1	felix adopt over a capabilities link whose target is gone prints nothing on stdout
+1	felix adopt over a capabilities link whose target is gone says it found a link whose target is gone
+1	felix adopt over a capabilities link whose target is gone says on stderr that nothing was written
+1	felix adopt over a capabilities link whose target is gone says on stderr that observability was not declared
+1	felix adopt over a capabilities link whose target is gone writes nothing in the project or where its link points
+1	felix adopt over a capabilities link whose target's directory is gone too exits exactly 2
+1	felix adopt over a capabilities link whose target's directory is gone too names the full path of the capabilities entry
+1	felix adopt over a capabilities link whose target's directory is gone too never says declared, already declared or backfilled
+1	felix adopt over a capabilities link whose target's directory is gone too prints nothing on stdout
+1	felix adopt over a capabilities link whose target's directory is gone too says it found a link whose target is gone
+1	felix adopt over a capabilities link whose target's directory is gone too says on stderr that nothing was written
+1	felix adopt over a capabilities link whose target's directory is gone too says on stderr that observability was not declared
+1	felix adopt over a capabilities link whose target's directory is gone too writes nothing in the project or where its link points
+1	felix adopt over a capabilities pipe does not wait on it
+1	felix adopt over a capabilities pipe exits exactly 2
+1	felix adopt over a capabilities pipe names the full path of the capabilities entry
+1	felix adopt over a capabilities pipe never says declared, already declared or backfilled
+1	felix adopt over a capabilities pipe prints nothing on stdout
+1	felix adopt over a capabilities pipe says it found a pipe
+1	felix adopt over a capabilities pipe says on stderr that nothing was written
+1	felix adopt over a capabilities pipe says on stderr that observability was not declared
+1	felix adopt over a capabilities pipe writes nothing in the project or where its link points
+1	felix adopt over a capability name holding brandnew?ci claims nothing and leaves the list as it was
+1	felix adopt over a capability name holding caf? claims nothing and leaves the list as it was
+1	felix adopt over a capability name holding two?words claims nothing and leaves the list as it was
+1	felix adopt over a project directory it cannot write exits exactly 2
+1	felix adopt over a project directory it cannot write names the full path of the capabilities entry
+1	felix adopt over a project directory it cannot write never says declared, already declared or backfilled
+1	felix adopt over a project directory it cannot write prints nothing on stdout
+1	felix adopt over a project directory it cannot write says on stderr that nothing was written
+1	felix adopt over a project directory it cannot write says on stderr that observability was not declared
+1	felix adopt over a project directory it cannot write says the list is absent and could not be created
+1	felix adopt over a project directory it cannot write writes nothing in the project or where its link points
+1	felix adopt over a read-only capabilities file exits exactly 2
+1	felix adopt over a read-only capabilities file names the full path of the capabilities entry
+1	felix adopt over a read-only capabilities file never says declared, already declared or backfilled
+1	felix adopt over a read-only capabilities file prints nothing on stdout
+1	felix adopt over a read-only capabilities file says it could not be written
+1	felix adopt over a read-only capabilities file says on stderr that nothing was written
+1	felix adopt over a read-only capabilities file says on stderr that observability was not declared
+1	felix adopt over a read-only capabilities file writes nothing in the project or where its link points
+1	felix adopt over a write-only capabilities file exits exactly 2
+1	felix adopt over a write-only capabilities file names the full path of the capabilities entry
+1	felix adopt over a write-only capabilities file never says declared, already declared or backfilled
+1	felix adopt over a write-only capabilities file prints nothing on stdout
+1	felix adopt over a write-only capabilities file says it could not be read
+1	felix adopt over a write-only capabilities file says on stderr that nothing was written
+1	felix adopt over a write-only capabilities file says on stderr that observability was not declared
+1	felix adopt over a write-only capabilities file writes nothing in the project or where its link points
+1	felix adopt over an empty capabilities directory exits exactly 2
+1	felix adopt over an empty capabilities directory names the full path of the capabilities entry
+1	felix adopt over an empty capabilities directory never says declared, already declared or backfilled
+1	felix adopt over an empty capabilities directory prints nothing on stdout
+1	felix adopt over an empty capabilities directory says it found a directory
+1	felix adopt over an empty capabilities directory says on stderr that nothing was written
+1	felix adopt over an empty capabilities directory says on stderr that observability was not declared
+1	felix adopt over an empty capabilities directory writes nothing in the project or where its link points
+1	felix adopt over an unreadable capabilities file exits exactly 2
+1	felix adopt over an unreadable capabilities file keeps its mode and bytes
+1	felix adopt over an unreadable capabilities file names the full path of the capabilities entry
+1	felix adopt over an unreadable capabilities file never says declared, already declared or backfilled
+1	felix adopt over an unreadable capabilities file prints nothing on stdout
+1	felix adopt over an unreadable capabilities file says it could not be read
+1	felix adopt over an unreadable capabilities file says on stderr that nothing was written
+1	felix adopt over an unreadable capabilities file says on stderr that observability was not declared
+1	felix adopt over an unreadable capabilities file writes nothing in the project or where its link points
+1	felix adopt refuses a capability name holding brandnew?ci and exits nonzero
+1	felix adopt refuses a capability name holding caf? and exits nonzero
+1	felix adopt refuses a capability name holding two?words and exits nonzero
 1	felix audit --dir exits 0 over a directory of transcripts
 1	felix audit --help answers its usage and reads nothing
 1	felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report
 1	felix automerge judges a green pull request by the gate's runs alone
+1	felix autonomy --allow onto a grant ending in a NUL byte writes a newline after the NUL first
+1	felix autonomy --allow onto a grant ending in a newline adds no blank line
+1	felix autonomy --allow onto a hand-written grant with no final newline keeps that grant on its own line
+1	felix autonomy --allow onto a newline-terminated read-only grant exits non-zero without saying allowed
+1	felix autonomy --allow onto a read-only grant with no final newline leaves the file byte for byte
+1	felix autonomy --allow onto a write-only grant with no final newline leaves the file byte for byte
+1	felix autonomy --allow onto an empty autonomy file writes the grant alone
+1	felix autonomy --allow with a dangling symlink at the autonomy file exits non-zero without saying allowed
+1	felix autonomy --allow with a directory at the autonomy file exits non-zero without saying allowed
+1	felix autonomy --allow with no autonomy file still seeds its comment line before the grant
 1	felix commission --status adopts nothing and says nothing about adopting
 1	felix commission --status leaves a split log byte for byte, because it writes nothing
 1	felix commission --status prints a refused check among the rows that name a need and nothing readable
@@ -3937,6 +4284,16 @@
 1	felix commission, run later, commissions what felix new --no-commission created
 1	felix coverage answers
 1	felix decisions reads the record
+1	felix discover --adopt onto a newline-terminated read-only stack.tsv attempts no install of the row
+1	felix discover --adopt onto a read-only stack.tsv with no final newline leaves it byte for byte
+1	felix discover --adopt onto a stack.tsv ending in a NUL byte writes a newline after the NUL before declaring
+1	felix discover --adopt onto a stack.tsv ending in a newline declares with no blank line
+1	felix discover --adopt onto a stack.tsv with no final newline keeps its last row and declares on a line of its own
+1	felix discover --adopt onto a write-only stack.tsv with no final newline leaves it byte for byte
+1	felix discover --adopt onto an empty stack.tsv writes the declared row alone
+1	felix discover --adopt with a dangling symlink at stack.tsv attempts no install of the row
+1	felix discover --adopt with a directory at stack.tsv attempts no install of the row
+1	felix discover --adopt with no stack.tsv writes the declared row alone
 1	felix discover --inspect --quiet exits 2 when the catalogue cannot be read
 1	felix gate fails qualification over a checker never shown failing
 1	felix gate fails qualification over a row whose verdict is not its control's
@@ -3945,6 +4302,8 @@
 1	felix gate over a present, empty table fails qualified and says under it that no checker here is qualified
 1	felix gate over a table holding a NUL byte anywhere fails qualified, never ok, and shows under it the felix: line naming the table and its NUL
 1	felix gate over a table it cannot read fails qualified and says under it that the table could not be read
+1	felix gate puts the probes checker line on a line of its own after a gate whose output ends in a newline (control)
+1	felix gate puts the probes checker line on a line of its own after a gate whose output has no final newline
 1	felix gate reads qualified ok over controls that did not apply
 1	felix gate runs the probes for a project with a table
 1	felix handoff --replace over a hand-written handoff appends a row noted replaced, with the hash of what replaced it
@@ -3967,6 +4326,10 @@
 1	felix lesson files its writer beside the lesson: branch, kind and session
 1	felix lesson run in the checkout leaves a written.log row for its session, branch and kind
 1	felix log run in the checkout leaves a written.log row of kind log for its session
+1	felix maintenance --ran onto a read-only log with no final newline leaves the log byte for byte
+1	felix maintenance --ran onto a write-only log with no final newline leaves the log byte for byte
+1	felix maintenance --ran with a dangling symlink at the log exits non-zero without saying it recorded the run
+1	felix maintenance --ran with a directory at the log exits non-zero without saying it recorded the run
 1	felix maintenance marks the row in-flt
 1	felix maintenance renders a passing check as such
 1	felix maintenance renders it DUE, check refused
@@ -4056,6 +4419,11 @@
 1	felix-home's land.tsv holds the design's seven rows, by the hash of its data rows, or the table the founder arms is not the one designed
 1	felix_autonomy_allows is defined for the hook
 1	felix_budget_record itself reports the failure
+1	felix_budget_record onto a FIFO at budget.log returns non-zero without blocking
+1	felix_budget_record onto a one-run log with no final newline leaves felix_budget_used counting two
+1	felix_budget_record with a dangling symlink at budget.log returns non-zero
+1	felix_budget_record with a directory at budget.log returns non-zero
+1	felix_budget_used counts a last run whose line has no final newline
 1	felix_classify_diff reports unknown, not empty
 1	felix_commission_ask returns a text's 2 as 2, not folded to 1
 1	felix_contains survives a large haystack under pipefail
@@ -4251,11 +4619,16 @@
 1	felix_land_trust_base exits 0, printing nothing, for an instance of each of the fourteen trust-base entries, or the schema could not refuse a resolver there
 1	felix_land_would_refuse on a behind branch prints nothing on stdout or stderr and returns 0, or it could not sit inside the merge boundary unseen
 1	felix_ledger_retire is defined for the hook
+1	felix_maint_record onto a FIFO at maintenance.log returns non-zero without blocking
+1	felix_maint_status reads a routine whose latest run is an unterminated last line as recently run
 1	felix_mem_lesson appends exactly one row to written.log, with six columns
 1	felix_mem_lesson outside git files its row under a question mark
 1	felix_mem_log appends a second six-column row and keeps the lesson row ahead of it
 1	felix_mem_log files a session id holding a tab as a dash too
 1	felix_mem_log in a detached checkout files its row under HEAD at the short sha
+1	felix_mem_mistake on a checkout with no commit writes one line of six fields, the fourth what it was given
+1	felix_mem_mistake with a dangling symlink at mistakes.log creates nothing there
+1	felix_mem_mistake with a directory at mistakes.log creates nothing there
 1	felix_mem_mistake_rows, with resolve.sh alone, reads a split pair as its one joined row and leaves the file as it was
 1	felix_merge_blockers emits exactly the kinds cmd_merge places
 1	felix_merge_blockers on a behind and owing branch writes both would-refuse rows and no row of another kind on a real attempt, and nothing on a dry run, or the boundary never reports them or reports more than them
@@ -5112,9 +5485,24 @@
 1	recommending installs nothing
 1	reconcile answers even where no stack.tsv exists
 1	recorded under the session it ran in, with felix merge as its cause, or the row could not be joined to the attempt
+1	recording a budget run onto a log ending in a NUL byte writes a newline after the NUL first
+1	recording a budget run onto a log ending in a newline records with no blank line
+1	recording a budget run onto a log with no final newline keeps its last run and records on a line of its own
+1	recording a budget run onto a read-only log with no final newline leaves the log byte for byte
+1	recording a budget run onto a write-only log with no final newline leaves the log byte for byte
+1	recording a budget run onto an empty log writes the run alone
+1	recording a budget run with no log writes the run alone
+1	recording a mistake onto a hand-curated mistakes.log with no final newline keeps its last line and records on a line of its own
+1	recording a mistake onto a mistakes.log ending in a NUL byte writes a newline after the NUL first
+1	recording a mistake onto a mistakes.log ending in a newline adds no blank line
 1	recording a run succeeds
 1	recording a run works
 1	recording an answered file appends the accepted rows and says how many
+1	recording maintenance onto a log ending in a NUL byte writes a newline after the NUL first
+1	recording maintenance onto a log ending in a newline records with no blank line
+1	recording maintenance onto a log with no final newline keeps its last run and records on a line of its own
+1	recording maintenance onto an empty log writes the run alone
+1	recording maintenance with no log writes the run alone
 1	recording the same file again appends nothing
 1	records what it said
 1	red beats an unknown too
@@ -5153,6 +5541,87 @@
 1	rewording only a comment line in it escapes nothing, or every note about the table would go to the founder
 1	rewriting an archived section is refused
 1	rewriting assertions without losing any escapes nothing
+1	rkl: _felix_deny_rows lists a newline-ended table with reasons and scope (control)
+1	rkl: _felix_deny_rows lists the unended last row with its reason and scope
+1	rkl: _felix_deny_rows reads an unended tabs-only last line as no row (every engine)
+1	rkl: _felix_route_kind reads a stack.tsv symlinked to a regular copy
+1	rkl: _felix_route_kind reads the kind of a newline-ended last row (control)
+1	rkl: _felix_route_kind reads the kind of the unended last row, not 'not declared'
+1	rkl: _felix_route_rows prints both routes of a newline-ended table (control)
+1	rkl: _felix_route_rows prints the unended last route
+1	rkl: _felix_route_rows reads an unended comment last line as no row (every engine)
+1	rkl: and names its first step as the plugin stack.tsv declares (control)
+1	rkl: felix ready --fix with a FIFO stack.tsv returns what it prints with none
+1	rkl: felix ready --fix with no stack.tsv reports the play entries undeclared (control)
+1	rkl: felix recommend --want with a FIFO stack.tsv returns what it prints with none
+1	rkl: felix recommend --want with no stack.tsv reports a catalogue hit not mounted (control)
+1	rkl: felix recommend with a FIFO stack.tsv returns what it prints with none
+1	rkl: felix recommend with no stack.tsv closes with nothing already declared (control)
+1	rkl: felix route finds the step's kind when its stack row is the unended last line
+1	rkl: felix route picks the keyword-matching last route of a newline-ended table (control)
+1	rkl: felix route picks the keyword-matching route when it is the unended last row
+1	rkl: felix which resolves by remote past a FIFO project.json in another project
+1	rkl: felix which resolves this project by its remote (control)
+1	rkl: felix_autonomy_commission_current with a FIFO stamp returns, not current
+1	rkl: felix_autonomy_commission_current with no stamp is not current (control)
+1	rkl: felix_commission_admit with a FIFO stack.tsv returns what it returns with none
+1	rkl: felix_commission_admit with no stack.tsv and no answer prints nothing (control)
+1	rkl: felix_commission_policy_version of a regular table set is the value before this work
+1	rkl: felix_commission_policy_version reads a stack.tsv symlinked to a regular copy as the file
+1	rkl: felix_commission_policy_version with a FIFO commissioning.tsv hashes it as absent
+1	rkl: felix_commission_policy_version with a FIFO stack.tsv hashes it as absent
+1	rkl: felix_commission_policy_version with stack.tsv a symlink to a FIFO hashes it as absent
+1	rkl: felix_commission_request with a FIFO stack.tsv returns and renders nothing declared
+1	rkl: felix_commission_request with no stack.tsv renders nothing declared (control)
+1	rkl: felix_commission_topology of a regular table set is the value before this work
+1	rkl: felix_commission_topology reads a commissioning.tsv symlinked to a regular copy as the file
+1	rkl: felix_commission_topology with a FIFO commissioning.tsv hashes it as absent
+1	rkl: felix_discover_adopt with a FIFO stack.tsv returns, the cached candidate not declared
+1	rkl: felix_discover_adopt with no stack.tsv would declare the cached candidate (control)
+1	rkl: felix_discover_candidates with a FIFO stack.tsv returns the candidates it finds with none
+1	rkl: felix_discover_candidates with no stack.tsv finds the stub's one candidate (control)
+1	rkl: felix_json_str on a FIFO project.json returns and prints nothing
+1	rkl: felix_json_str on an absent project.json prints nothing (control)
+1	rkl: felix_maint_unreachable reports a newline-ended last row naming no capability (control)
+1	rkl: felix_maint_unreachable reports the unended last row naming no capability
+1	rkl: felix_ready_report with a FIFO stack.tsv returns, every play entry undeclared
+1	rkl: felix_ready_report with no stack.tsv calls a play entry undeclared (control)
+1	rkl: felix_ready_unused with a FIFO stack.tsv returns what it returns with none
+1	rkl: felix_ready_unused with no stack.tsv lists the one tool no route names (control)
+1	rkl: felix_ready_wanted lists every play entry of a newline-ended table (control)
+1	rkl: felix_ready_wanted lists the play entries of the unended last route
+1	rkl: felix_recommend_missing with a FIFO stack.tsv returns, every catalogue row not declared
+1	rkl: felix_recommend_missing with no stack.tsv lists every catalogue row (control)
+1	rkl: felix_route_names_capability finds a tool named in the newline-ended last route (control)
+1	rkl: felix_route_names_capability finds a tool named only in the unended last route
+1	rkl: felix_toolbox_route_for finds a route whose profile is the unended last profiles row
+1	rkl: felix_toolbox_route_for finds the route for a capability, both tables ended (control)
+1	rkl: felix_toolbox_route_for finds the unended last route of routes.tsv
+1	rkl: no background job this block started outlives it
+1	rkl: pre-tool refuses a Bash command its only Bash row matches, newline-ended (control)
+1	rkl: pre-tool refuses a Bash command when that only Bash row is the unended last line
+1	rkl: pre-tool refuses when an earlier Bash row misses and the last matches, newline-ended (control)
+1	rkl: pre-tool refuses when an earlier Bash row misses and the unended last row matches
+1	rkl: the ledger fold writes a zero row for every declared row of a newline-ended stack.tsv (control)
+1	rkl: the ledger fold writes a zero row for the unended last stack row
+1	rkl: the monitor JSON lists both routes of a newline-ended table (control)
+1	rkl: the monitor JSON lists both rows of a newline-ended stack.tsv (control)
+1	rkl: the monitor JSON lists the unended last route
+1	rkl: the monitor JSON lists the unended last stack row
+1	rkl: the monitor JSON reads an unended comment last line of stack.tsv as no row (every engine)
+1	rkl: the monitor JSON with a FIFO routes.tsv returns what it returns with none
+1	rkl: the monitor JSON with a FIFO stack.tsv returns what it returns with none
+1	rkl: the monitor JSON with no routes.tsv has an empty routes list (control)
+1	rkl: the monitor JSON with no stack.tsv has an empty stack list (control)
+1	rkl: the monitor JSON with routes.tsv a symlink to a FIFO returns what it returns with none
+1	rkl: the monitor JSON with stack.tsv a symlink to /dev/zero returns what it returns with none
+1	rkl: the stop hook reached its green branch on this fixture with no stack.tsv (control)
+1	rkl: the stop hook with a FIFO stack.tsv returns what it says with none
+1	rkt: no engine reader drops a project table's unended last row or opens it unguarded
+1	rkt: the lint names a grep, a cat and a < of a project table with no -f in its function
+1	rkt: the lint names a loop over a project table that drops an unended last row
+1	rkt: the lint passes guarded reads, writes, messages and comments
+1	rkt: the lint passes the same loop when it keeps that row
 1	rolling the same session twice does not double it
 1	route and lessons arrive as one block
 1	route refuses outside a governed repo
@@ -5434,6 +5903,8 @@
 1	the README's Try it section shows felix audit from a clone and felix new <name> --no-commission, and names felix install as what holds sessions
 1	the SessionStart matcher binds resume
 1	the Stop hook calls the guard in one place
+1	the Stop hook in a session that owns a night on a green tree goes through the night's branch and says its stack.tsv nudge (control)
+1	the Stop hook in a session that owns a night returns within 8 s with a FIFO at the project's stack.tsv
 1	the Stop hook's guard names what an unhealed split row caught last
 1	the admit phase answers already for a nomination stack.tsv declares first of 3,002 rows
 1	the admit phase installs nothing and edits no manifest
@@ -5457,6 +5928,7 @@
 1	the behind fixture stands where it says: feat does not hold origin/main's commit
 1	the behind-and-owing fixture is behind origin/main and changes engine/harness/lib/x.sh alone since the merge-base
 1	the best capability wins
+1	the bounded adopt and apply calls of the fourth block write their rows to regular tables (control)
 1	the branch is named under the remote, without origin/ or refs/remotes/
 1	the brief names the file the issue names
 1	the budget row is not reported as satisfied
@@ -5717,9 +6189,21 @@
 1	the handoff check is behind the verifier confine
 1	the help, the audit and the README say in the same words that a --no-commission project's sessions are held once felix install has run where a gate was guessed, and to set gate in project.json first where none was
 1	the hold line claims no more than the hold does, and says a held stop is counted
+1	the hook adopts observability for a sentry-sdk checkout whose project lists nothing
 1	the hook announces what it adopted
 1	the hook ingests an answer file offline
 1	the hook names the request a session still owes
+1	the hook over a capabilities link whose target is gone creates no stack.tsv, setup.tsv or setup directory
+1	the hook over a capabilities link whose target is gone creates nothing at the target and leaves the link pointing there
+1	the hook over a capabilities link whose target is gone does not say Adopted automatically
+1	the hook over a capabilities link whose target is gone finishes
+1	the hook over a capabilities pipe does not say Adopted automatically
+1	the hook over a capabilities pipe finishes without waiting on it
+1	the hook over a capabilities pipe leaves it a pipe
+1	the hook over a capabilities pipe leaves stack.tsv, setup.tsv and the setup directory byte for byte
+1	the hook over a read-only capabilities list does not say Adopted automatically
+1	the hook over a read-only capabilities list says observability was not adopted because the list could not be written
+1	the hook over a read-only capabilities list writes nothing and keeps the list
 1	the hook routes on the first prompt
 1	the hook says what must be read first
 1	the hook surfaces due maintenance
@@ -5916,6 +6400,7 @@
 1	the session banner does not carry the unmeasurable list
 1	the session handoff is named as state to re-check by command
 1	the session it does own is folded
+1	the session-start hook says a capability it adopted could not write every row, naming stack.tsv
 1	the setup template holds the two rows that need a GitHub slug
 1	the shares are whole percentages of the stops after edits
 1	the shell this suite runs ends on an unset variable with a status that is not 0

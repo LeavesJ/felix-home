@@ -56,8 +56,12 @@ _fi_orphan_find() {
   done > "$T/nest"
 }
 # The gitdir a directory's .git file names, absolute, resolved as far as it exists.
+# Both callers test `-f` first, and it is tested here again, so a pipe put at
+# .git between their test and this read is never opened (2026-10-08): the
+# readers lint judges an open by its own function.
 _fi_gitdir() {
   local g x
+  [ -f "$1/.git" ] || return 1
   g="$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null | head -1)"
   case "$g" in /*) ;; ?*) g="$1/$g" ;; *) return 1 ;; esac
   x="$(cd "${g%/*}" 2>/dev/null && pwd -P)" && g="$x/${g##*/}"

@@ -516,8 +516,14 @@ felix_commission_actor() {
 # file so an absent file differs from an empty one; and the detected surfaces.
 felix_commission_policy_version() {
   local proj="$1" f
+  # Each table is read only as a regular file. A pipe at any table's path held
+  # the cat open for a writer that never came, so every caller of the policy
+  # version (the commission grant, the epoch, merge) waited on it forever, and
+  # a link to a device read without end (2026-10-01). Skipped, the path hashes
+  # as an absent table always hashed, since cat printed nothing for one, so no
+  # hash over ordinary files moves and no receipt goes stale.
   for f in $FELIX_COMMISSION_TABLES; do
-    printf '== %s ==\n' "$f"; cat "$proj/$f" 2>/dev/null
+    printf '== %s ==\n' "$f"; [ -f "$proj/$f" ] && cat "$proj/$f" 2>/dev/null
   done | _felix_hash
 }
 felix_commission_caps_hash() { felix_detect "$1" 2>/dev/null | LC_ALL=C sort -u | _felix_hash; }

@@ -251,6 +251,12 @@ felix_mem_handoff_foreign() {
 # byte for byte what #267 writes, and a heal passes a row of five or six
 # fields through byte for byte: it joins only the split pair an older engine
 # left, which is four fields once joined.
+#
+# Curated means rewritten by hand or by a session, so its last line can arrive
+# without a newline. This row then fused onto it, and `cut -f4` and the
+# ranking's $4 read neither mistake (2026-10-01). Ended first, under the same
+# lock; a log that cannot be ended takes no row, as one that cannot be written
+# takes none.
 felix_mem_mistake() {
   local proj="$1" root="$2" what="$3" dir d b c w at sid held=0 tries=0 rc
   dir="$(felix_mem_dir "$proj")"
@@ -266,7 +272,11 @@ felix_mem_mistake() {
     sleep 0.1
     tries=$((tries + 1))
   done
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" "$at" "$sid" >> "$dir/mistakes.log"; rc=$?
+  if felix_end_line "$dir/mistakes.log"; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" "$at" "$sid" >> "$dir/mistakes.log"; rc=$?
+  else
+    rc=1
+  fi
   [ "$held" -eq 1 ] && _felix_mem_unlock "$dir/.mistakes.lock"
   return "$rc"
 }
@@ -297,7 +307,10 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
     return 0
   fi
   [ -d "$lock" ] || return 1
-  owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
+  # Read only as a regular file, as _felix_mem_unlock reads it (2026-10-08);
+  # otherwise no owner, and the age rule below decides.
+  owner=""
+  [ -f "$lock/pid" ] && owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
   case "$owner" in
     ''|*[!0123456789]*) ;;
     *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
@@ -320,10 +333,12 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
 # lock whose pid file is missing or empty is removed too, because the write of
 # the pid can fail (a full disk), and a lock this call left behind would have
 # every writer wait out its three seconds, and every heal decline, until the
-# lock aged past a minute.
+# lock aged past a minute. A pid that is not a regular file is not read, and
+# reads as missing: a pipe there would hold the release, and the gate behind
+# it, forever (2026-10-08).
 _felix_mem_unlock() {
-  local owner
-  owner="$(head -n 1 "$1/pid" 2>/dev/null)"
+  local owner=""
+  [ -f "$1/pid" ] && owner="$(head -n 1 "$1/pid" 2>/dev/null)"
   case "$owner" in
     ''|"$$") rm -rf "$1" 2>/dev/null ;;
   esac

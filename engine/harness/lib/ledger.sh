@@ -487,7 +487,11 @@ EOF
   # for, written down because absence of use given presence is the only
   # unconfounded evidence in the design and it leaves no trace of its own.
   if [ -f "$proj/stack.tsv" ]; then
-    while IFS=$'\t' read -r kind name _src _risk _cap; do
+    # A last row with no newline is declared too. `read` returns 1 on it with
+    # the fields filled, and the loop dropped it, so the capability written
+    # last by hand never got its zero row: the one unconfounded signal said
+    # nothing about it (2026-10-01).
+    while IFS=$'\t' read -r kind name _src _risk _cap || [ -n "${kind:-}" ]; do
       case "${kind:-}" in ''|'#'*) continue ;; esac
       [ -n "${name:-}" ] || continue
       # stack.tsv names a package (`superpowers@marketplace`); a signal names

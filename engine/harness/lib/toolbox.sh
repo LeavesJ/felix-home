@@ -119,7 +119,10 @@ felix_toolbox_route_for() {
   local proj="$1" want="$2" prof caps name kw pr play
   [ -n "$want" ] || return 0
   [ -f "$proj/profiles.tsv" ] && [ -f "$proj/routes.tsv" ] || return 0
-  while IFS=$'\t' read -r prof caps; do
+  # Both loops keep a last row that has no newline. `read` returns 1 on it with
+  # the fields filled, so a profile or a route written last by hand was
+  # dropped and this said no route reaches a capability one did (2026-10-01).
+  while IFS=$'\t' read -r prof caps || [ -n "${prof:-}" ]; do
     case "$prof" in ''|'#'*) continue ;; esac
     # Exact capability only. Matching `always` here as a wildcard would send
     # every capability to the core profile and make the report useless by
@@ -128,7 +131,7 @@ felix_toolbox_route_for() {
       *",${want},"*) ;;
       *) continue ;;
     esac
-    while IFS=$'\t' read -r name kw pr play; do
+    while IFS=$'\t' read -r name kw pr play || [ -n "${name:-}" ]; do
       case "$name" in ''|'#'*) continue ;; esac
       [ "${pr:-}" = "$prof" ] && printf '%s\n' "$name"
     done < "$proj/routes.tsv"

@@ -21,7 +21,9 @@ felix_recommend_missing() {
   [ -f "$tpl/catalog.tsv" ] || return 0
   while IFS=$'\t' read -r kind name src risk cap kw; do
     [ -n "${kind:-}" ] || continue
-    grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && continue
+    # Only as a regular file: a pipe at the path held this grep open, for every
+    # catalogue row (2026-10-01). Anything else declares nothing.
+    [ -f "$proj/stack.tsv" ] && grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && continue
     printf '%s\t%s\t%s\t%s\n' "$kind" "$name" "$risk" "${cap:-always}"
   done <<EOF
 $(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")

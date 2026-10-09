@@ -371,7 +371,10 @@ ${_on_unrec}"
         mkdir -p "$(dirname "$_on_said")" 2>/dev/null && printf 'unrecorded\n' >> "$_on_said" 2>/dev/null
       fi
     fi
-    if [ -n "${SID:-}" ] \
+    # stack.tsv only as a regular file, here and below: a pipe at the path held
+    # this grep open, and the Stop hook with it, for a writer that never came
+    # (2026-10-01).
+    if [ -n "${SID:-}" ] && [ -f "$PROJ/stack.tsv" ] \
        && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null \
        && [ ! -f "$FELIX_HOME_DIR/state/verified/$SID" ]; then
       mkdir -p "$FELIX_HOME_DIR/state/verified" 2>/dev/null \
@@ -468,7 +471,7 @@ this session either way."
   # Declared, not routed. Requiring a route to name it would mean it never
   # fires for a project whose table happens not to mention it — including
   # Felix's own, which is exactly the session this was missing from.
-  if [ -n "${SID:-}" ] \
+  if [ -n "${SID:-}" ] && [ -f "$PROJ/stack.tsv" ] \
      && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null; then
     vstate="$FELIX_HOME_DIR/state/verified/$SID"
     if [ ! -f "$vstate" ]; then

@@ -22857,10 +22857,12 @@ printf '\nrevoke knows every letter, stays linear after the capability, and take
 # set -u stop in a subshell to exit 0. Under bash 3.2, in a script file, it
 # exits with the status of the last command run before the stop, so a stop can
 # leave any status, 10 or 4 or 2 among them, including one the engine itself
-# uses to mean success or a NUL byte. A pass or a read stopped part-way must be
-# refused whatever status it leaves, and the refusal must not claim a NUL the
-# file does not hold. The stopped cases are script files run by "$BASH", as
-# block 7's are, and are green on bash 5.2, where the stop exits non-zero.
+# uses to mean success or a NUL byte. The cases here do not stop a pass: they
+# stub wc, which from some call on answers 'revoked: tidy' and no count and
+# returns a chosen status, and a revoke given that answer must be refused
+# whatever status comes with it, without claiming a NUL the file does not
+# hold. The block after this one stops the names test itself. These cases are
+# script files run by "$BASH", as block 7's are.
 RV8K="$TMP/revoke-keep-8"; mkdir -p "$RV8K"
 _r8start="$(ls -A "$RVP" | LC_ALL=C sort)"
 for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV8K/"; done
@@ -22910,7 +22912,7 @@ is "a revoke of commission below one line of commission and then 256 KB of 'comm
 is "and that revoke keeps the line of commission and 256 KB of 'commissio ' byte for byte" "$(_rwis)" "same"
 _r8s=''
 
-# I3: a pass stopped by set -u is refused whatever status the stop leaves.
+# I3: a wc that answers no count is refused whatever status it returns.
 # The script's wc counts its calls in a file, and from call FROM onward prints
 # no count but 'revoked: tidy' and returns CODE; before that it is the real wc.
 _r8calls="$TMP/r8.calls"
@@ -22963,6 +22965,148 @@ for _rvf in "$RV8K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
 rmdir "$RV8K" 2>/dev/null
 is "the widget's directory holds exactly what it held before every letter, long capability lines and stopped passes were tested" \
    "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r8start"
+
+printf '\nrevoke writes no stale output, takes one count from wc, and no stop for an answer\n'
+# 2026-10-08: the sixth review of the revoke fix found three gaps the blocks
+# above leave open. Under bash 3.2 a printf that fails on a closed stdout keeps
+# its text in the shell's stdout buffer, and every subshell forked after that
+# flushes the buffer into its own stdout, a $( ) capture included, after its
+# own output. A caller that printed into a closed stdout before revoking could
+# so hand the revoke text it never read from the grant file: a NUL byte, a
+# newline, a line saying revoked, or a line only older engines grant. K1 pins
+# that none of it reaches the grant file. Block 8's wc printed no count at all;
+# K2 pins that a wc that prints a true count and then more, two numbers, or a
+# true count with a failing status is no answer either, beside a control whose
+# wc is real. Block 8 stubbed wc's answer and status and never stopped a pass;
+# K3 stops the names test itself under set -u, in the first pass and in the
+# second, after each of several statuses, and a revoke whose pass stopped must
+# return 1 whatever status the stop left. K4 is the CLI under K2's first stub.
+# Every case is a script file run by "$BASH", as blocks 7 and 8 are.
+RV9K="$TMP/revoke-keep-9"; mkdir -p "$RV9K"
+_r9start="$(ls -A "$RVP" | LC_ALL=C sort)"
+for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV9K/"; done
+_r9calls="$TMP/r9.calls"
+_r9last() { printf '%s\n' "$1" | tail -n 1; }   # TEXT: its last line
+
+# K1: a stale stdout buffer never reaches the grant file. The script closes
+# stdout, fails a printf of STALE into it, points stdout at /dev/null, revokes
+# tidy, and then prints the status on the stdout it saved.
+cat > "$TMP/r9.k1" <<'R9K1'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+exec 3>&1 1>&-
+printf "$3" 2>/dev/null
+exec 1>/dev/null
+felix_autonomy_revoke "$2" tidy 2>/dev/null
+_r9rc=$?
+exec 1>&3
+echo "returned $_r9rc"
+R9K1
+_r9k1() {   # STALE LABEL: the K1 script over '# h', tidy and commission
+  _rvset '# h\ntidy\ncommission\n'; _r6held
+  _r9out="$("$BASH" "$TMP/r9.k1" "$FROOT" "$RVP" "$1" < /dev/null 2>/dev/null)"
+  printf '# h\ncommission\n' > "$TMP/rw.want"
+  is "a revoke of tidy after a printf of $2 failed on a closed stdout returns 0, leaves exactly '# h' and commission and nothing new" \
+     "$(_r9last "$_r9out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+}
+_r9k1 '\0' 'a NUL byte'
+_r9k1 '\n' 'a newline'
+_r9k1 'revoked: tidy\n' "'revoked: tidy'"
+_r9k1 'tidy\302\240\n' 'tidy and a no-break space'
+
+# K2: wc must answer one count. The script's wc, defined after the lib is
+# sourced, is one of four stubs; the last is the control.
+cat > "$TMP/r9.k2" <<'R9K2'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+case "$3" in
+  text)  wc() { command wc "$@"; printf 'revoked: tidy\n'; return 0; } ;;
+  two)   wc() { printf '2 0\n'; return 0; } ;;
+  fails) wc() { command wc "$@"; return 1; } ;;
+  real)  wc() { command wc "$@"; return 0; } ;;
+esac
+felix_autonomy_revoke "$2" tidy >/dev/null 2>&1
+echo "returned $?"
+R9K2
+_r9k2() {   # STUB LABEL: the K2 script over the 20-byte '# h', tidy and commission, refused
+  _rvset '# h\ntidy\ncommission\n'; _r6held
+  _r9out="$("$BASH" "$TMP/r9.k2" "$FROOT" "$RVP" "$1" < /dev/null 2>/dev/null)"
+  is "a revoke of tidy in a script under set -u whose wc $2 returns 1, leaves the file byte-identical and nothing new" \
+     "$(_r9last "$_r9out"):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "returned 1:same:nothing-new"
+}
+_r9k2 text "prints a true count and then the line 'revoked: tidy'"
+_r9k2 two "prints '2 0' over a 20-byte file"
+_r9k2 fails "prints a true count and exits 1"
+_rvset '# h\ntidy\ncommission\n'; _r6held
+_r9out="$("$BASH" "$TMP/r9.k2" "$FROOT" "$RVP" real < /dev/null 2>/dev/null)"
+printf '# h\ncommission\n' > "$TMP/rw.want"
+is "and the same script whose wc prints a true count and exits 0 returns 0, leaves exactly '# h' and commission and nothing new" \
+   "$(_r9last "$_r9out"):$(_rwis):$(_r6new)" "returned 0:same:nothing-new"
+
+# K3: a pass stopped part-way is refused whatever status the stop leaves. The
+# script wraps the names test, counts its calls in a file, and on call N runs
+# (exit CODE) and then reads an unset name in arithmetic, which stops the
+# subshell with CODE under bash 3.2. Over '# h' and a no-break-space tidy line
+# the first pass asks about lines 1 and 2 (calls 1 and 2), the second about
+# both again (calls 3 and 4).
+cat > "$TMP/r9.k3" <<'R9K3'
+set -uo pipefail
+. "$1/harness/lib/autonomy.sh"
+_r9c="$3"; _r9n="$4"; _r9code="$5"
+eval "_k3_real_$(declare -f _felix_autonomy_names)"
+_felix_autonomy_names() {
+  printf 'call\n' >> "$_r9c"
+  if [ "$(command wc -l < "$_r9c" | tr -d ' ')" = "$_r9n" ]; then
+    (exit "$_r9code"); _r9x=$(( never_set_k3 ))
+  fi
+  _k3_real__felix_autonomy_names "$@"
+}
+felix_autonomy_revoke "$2" tidy >/dev/null 2>&1
+echo "returned $?"
+R9K3
+_r9k3() {   # N CODE: the K3 script over '# h' and a no-break-space tidy line -> 'returned N'
+  rm -f "$_r9calls"
+  "$BASH" "$TMP/r9.k3" "$FROOT" "$RVP" "$_r9calls" "$1" "$2" < /dev/null 2>/dev/null
+}
+_rvset '# h\ntidy\302\240\n'; _r9out="$(_r9k3 1000000 0)"; printf '# h\n' > "$TMP/rw.want"
+_r9asked="$(cat "$_r9calls" 2>/dev/null | wc -l | tr -d ' ')"
+is "a revoke of tidy over a no-break-space line whose names test is wrapped but never stopped returns 0, leaves exactly '# h' and asks the names test at least three times" \
+   "$(_r9last "$_r9out"):$(_rwis):$([ "${_r9asked:-0}" -ge 3 ] && echo asked || echo "asked ${_r9asked:-0}")" \
+   "returned 0:same:asked"
+for _r9case in 1:0 1:1 1:2 1:4 1:5 1:10 3:0 3:1 3:2 3:4 3:10; do
+  _r9n="${_r9case%%:*}"; _r9code="${_r9case#*:}"
+  case "$_r9n" in 1) _r9pass=first ;; *) _r9pass=second ;; esac
+  _rvset '# h\ntidy\302\240\n'; _r6held; _r9out="$(_r9k3 "$_r9n" "$_r9code")"
+  is "a revoke of tidy over a no-break-space line whose names test stops under set -u on call $_r9n, in the $_r9pass pass, after status $_r9code returns exactly 1, leaves the file byte-identical and nothing new" \
+     "$(_r9last "$_r9out"):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" "returned 1:same:nothing-new"
+done
+
+# K4: the CLI under K2's first stub. An executable wc first in PATH prints the
+# true count and then a line of text; a second one only passes to the real wc,
+# as a control. No stamp is written.
+_r9bin="$TMP/r9.bin"; _r9ctl="$TMP/r9.ctl"; mkdir -p "$_r9bin" "$_r9ctl"; _r9wc="$(command -v wc)"
+{ printf '#!/bin/sh\n'; printf "w='%s'\n" "$_r9wc"; printf '%s\n' '"$w" "$@"' "printf 'revoked: tidy\\n'" 'exit 0'; } > "$_r9bin/wc"
+{ printf '#!/bin/sh\n'; printf "exec '%s' \"\$@\"\n" "$_r9wc"; } > "$_r9ctl/wc"
+chmod 755 "$_r9bin/wc" "$_r9ctl/wc"
+_r9cli() {   # BIN: felix autonomy --revoke tidy with BIN first in PATH; sets _rvrc _rvout _rverr
+  ( cd "$REPO" && PATH="$1:$PATH" "$FELIX" autonomy --revoke tidy ) > "$TMP/rv.out" 2> "$TMP/rv.err" < /dev/null
+  _rvrc=$?; _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
+}
+_rvset '# h\ntidy\ncommission\n'; rm -f "$RVP/autonomy.commission"; _r6held; _r9cli "$_r9bin"
+is "a felix autonomy --revoke tidy whose wc prints a true count and then a line of text exits non-zero, prints no revoked: on stdout, leaves the file byte-identical and nothing new" \
+   "$(_rwexit):$(_r3has "$_rvout" 'revoked:' said silent):$(_r3cmp "$TMP/rv.held" "$RVP/autonomy"):$(_r6new)" \
+   "refused:silent:same:nothing-new"
+_rvset '# h\ntidy\ncommission\n'; rm -f "$RVP/autonomy.commission"; _r6held; _r9cli "$_r9ctl"
+printf '# h\ncommission\n' > "$TMP/rw.want"
+is "and the same CLI revoke whose wc in PATH only passes to the real wc exits 0 and leaves exactly '# h' and commission" \
+   "$_rvrc:$(_rwis)" "0:same"
+rm -rf "$_r9bin" "$_r9ctl"
+
+rm -f "$RVP"/autonomy* "$TMP/rw.want" "$TMP/rv.held" "$_r9calls" "$TMP/r9.k1" "$TMP/r9.k2" "$TMP/r9.k3"
+for _rvf in "$RV9K"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVP/"; done
+rmdir "$RV9K" 2>/dev/null
+is "the widget's directory holds exactly what it held before stale output, wc's answers and stopped names tests were tested" \
+   "$(ls -A "$RVP" | LC_ALL=C sort)" "$_r9start"
 
 # The commission grant is bound to the table it was granted over.
 #

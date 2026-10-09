@@ -171,17 +171,18 @@ _felix_autonomy_rewrite() {   # file want tmp
   # A read cut short mid-file also ends like the end of the file, and a NUL
   # past the cut would go unseen. In the C locale ${#…} counts bytes.
   #
-  # wc's answer is checked as digits and never put through $(( )). 2026-10-08,
-  # from the writer lock's third review and revoke's fifth: under bash 3.2, in
-  # a script such as felix, a word in an arithmetic expansion stops the shell
-  # under set -u, and the subshell exits with the status of the command before
-  # the stop. A stale stdout buffer flushed into this wc made its answer
-  # "revoked: tidy"; the stop left wc's 0, the pass read as written, and the mv
-  # put an empty file over the grants.
+  # wc's answer must be one count, digits with blanks around them, and is
+  # never put through $(( )); test's -eq reads it and refuses anything else.
+  # 2026-10-08, from the writer lock's third review and revoke's fifth and
+  # sixth: under bash 3.2, in a script such as felix, an unset name in an
+  # arithmetic expansion stops the subshell under set -u, which then exits
+  # with the status of the command before the stop. A stale stdout buffer
+  # flushed into this wc put its text after the count; $(( )) stopped on it
+  # with wc's 0, the pass read as written, and the mv put an empty file over
+  # the grants.
   size="$(wc -c < "$f")" || return 1
   case "$size" in *[0-9]*) ;; *) return 1 ;; esac
   case "$size" in *[!0-9\ \	]*) return 1 ;; esac
-  size="${size//[!0-9]/}"
   [ "$size" -eq "${#_felix_autonomy_text}" ] || return 1
   _felix_autonomy_text=""
   # Nothing may fork after this loop. When a printf to tmp fails, bash 3.2
@@ -213,10 +214,10 @@ felix_autonomy_allows() {
   # shell copies the rest of it per line, and that is quadratic on the hook
   # path: a 100 KB file took a minute at this machine's load.
   # A grant answers 10, not 0. Under bash 3.2, in a script such as felix, a
-  # subshell that set -u stops in an arithmetic expansion exits with the status
-  # of the command before the stop, often 0 (2026-10-08). The reader does no
-  # arithmetic on what it reads, so it has no such stop; the 10 keeps one a
-  # later change might add from reading as a grant.
+  # subshell that set -u stops at an unset name in an arithmetic expansion
+  # exits with the status of the command before the stop (2026-10-08). The
+  # reader does no arithmetic on what it reads, and nothing it runs exits 10,
+  # so a stop a later change might add reads as no grant.
   ( LC_ALL=C
     _felix_autonomy_read "$proj/autonomy" || exit 1
     while IFS= read -r line || [ -n "$line" ]; do
@@ -264,22 +265,31 @@ felix_autonomy_revoke() {
   f="$proj/autonomy"
   # The reader takes nothing from what is not a regular file.
   [ -f "$f" ] || return 0
-  # Each pass runs in its own C locale with its output thrown away: bash 3.2's
-  # printf can leave the unwritten tail of a failed write in its buffer, and
-  # that is file text. The first pass writes nothing, not even a temp file, so
-  # a revoke with nothing to remove needs no writable directory and leaves the
-  # file as it was.
+  # Empty the shell's stdout buffer before any subshell inherits it.
+  # 2026-10-08, from the sixth review: when a printf to a closed stdout fails,
+  # bash 3.2 keeps its text in the buffer, and every subshell forked after
+  # inherits it. Pass 2's first write into tmp flushed it there, so a NUL or a
+  # newline, which $( ) had dropped from wc's answer, went into the grant file.
+  # A printf with a format flushes the buffer, here into /dev/null; a bare
+  # printf '' returns before it flushes.
+  printf '%s' '' > /dev/null 2>&1
+  # Each pass runs in its own C locale with its stdout and stderr sent to
+  # /dev/null (pass 2's loop writes to tmp): bash 3.2's printf can leave the
+  # unwritten tail of a failed write in its buffer, and that is file text. The
+  # first pass writes nothing, not even a temp file, so a revoke with nothing
+  # to remove needs no writable directory and leaves the file as it was.
   #
-  # A pass says it wrote with 10, never 0. 2026-10-08, from the writer lock's
-  # third review: under bash 3.2, in a script such as felix, a subshell that
-  # set -u stops in an arithmetic expansion exits with the status of the
-  # command before the stop, and the pass's old $(( $(wc -c) )) stopped with
-  # wc's 0, so the mv put an empty file over the grants. The pass now does no
-  # arithmetic on text it reads, so it has no such stop; the 10 is kept for
-  # any other. The first pass never writes, so a 0 from it is a refusal (its
-  # empty tmp could not be moved in any case).
-  ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "" ) > /dev/null 2>&1; rc=$?
-  [ "$rc" != 0 ] || rc=1
+  # A pass's status comes back offset by 20. 2026-10-08, from the writer
+  # lock's third review and revoke's fifth and sixth: under bash 3.2, in a
+  # script such as felix, a subshell that set -u stops at an unset name in an
+  # arithmetic expansion exits with the status of the command before the stop,
+  # and nothing a pass runs exits from 20 to 25, so a stop reads as a refusal
+  # whatever status it leaves. The passes once did $(( $(wc -c) )), which a
+  # stale buffer stopped with wc's 0, and the mv put an empty file over the
+  # grants. They now do no arithmetic on text they read; the offset is for a
+  # stop no one has found yet.
+  ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" ""; exit $(( 20 + $? )) ) > /dev/null 2>&1; rc=$?
+  case "$rc" in 21|22|24|25) rc=$(( rc - 20 )) ;; *) rc=1 ;; esac
   if [ "$rc" = 5 ]; then
     # mktemp creates the name or fails; it never opens a link planted there.
     # The name is set in the same command that makes it, where the caller's
@@ -288,8 +298,8 @@ felix_autonomy_revoke() {
     # group cannot kill it between making the file and naming it.
     _FELIX_AUTONOMY_TMP="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
     tmp="$_FELIX_AUTONOMY_TMP"
-    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp" && exit 10 ) > /dev/null 2>&1; rc=$?
-    case "$rc" in 10) rc=0 ;; 0) rc=1 ;; esac
+    ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp"; exit $(( 20 + $? )) ) > /dev/null 2>&1; rc=$?
+    case "$rc" in 20|21|22|24) rc=$(( rc - 20 )) ;; *) rc=1 ;; esac
   fi
   if [ "$rc" = 0 ]; then
     # mktemp made it 0600; give it the file's permission bits, or keep 0600.

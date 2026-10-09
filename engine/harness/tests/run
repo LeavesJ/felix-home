@@ -194,7 +194,11 @@ _og_watch() {
 # files, or the snapshot is marked unreadable. A start directory that cannot be
 # entered encloses nothing. When the walk finds no .git, git is asked once,
 # read-only, whether DIR is in a repository all the same, a bare one: status
-# 128 is no, 0 with a directory named is yes, and anything else is unreadable.
+# 128 with "not a git repository" on its stderr, read in the C locale, is no;
+# 0 with a directory named is yes; anything else is unreadable. Status 128
+# alone is not a no: a fork that fails inside the capture gives 128 with
+# nothing said, and git gives 128 too for a repository it finds and will not
+# open.
 # For the start directory, when the common config sets
 # extensions.worktreeConfig, the config.worktree of its own git dir is watched
 # too, if it exists. Nothing here prints, and nothing exits.
@@ -204,9 +208,15 @@ _og_add() {
   [ -n "$_og_git" ] || _og_git="$(command -v git 2>/dev/null)"
   [ -n "$_og_git" ] || return 0
   if _og_up "$_og_p"; then root="$_og_root"; at="$root/.git"; else root="$_og_p"; at=""; fi
-  c="$( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; "$_og_git" -C "$root" rev-parse --git-dir --git-common-dir 2>/dev/null )"; rc=$?
-  if [ -z "$at" ]; then
-    [ "$rc" -ne 128 ] || return 0
+  if [ -n "$at" ]; then
+    c="$( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; "$_og_git" -C "$root" rev-parse --git-dir --git-common-dir 2>/dev/null )"; rc=$?
+  else
+    # Both streams, so the no can be read; on status 0 a line git wrote to
+    # stderr spoils the two paths, and that reads as unreadable, not as no.
+    c="$( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR; LC_ALL=C "$_og_git" -C "$root" rev-parse --git-dir --git-common-dir 2>&1 )"; rc=$?
+    if [ "$rc" -eq 128 ]; then
+      case "$c" in *"not a git repository"*) return 0 ;; esac
+    fi
     at="$root"
   fi
   [ "$rc" -eq 0 ] || c=""
@@ -292,8 +302,11 @@ _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk 
         GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG OLDPWD
   GIT_CEILING_DIRECTORIES="${PWD%/cwd}"; GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES%/*}"
   export GIT_CEILING_DIRECTORIES
+  # The same test the origin guard puts to a start with no .git above it:
+  # status 128 and "not a git repository" in the C locale, both.
   said="$(LC_ALL=C git rev-parse --git-dir 2>&1 >/dev/null)"
-  case "$said" in *[Nn]"ot a git repository"*) return 0 ;; esac
+  [ "$?" -eq 128 ] || return 1
+  case "$said" in *"not a git repository"*) return 0 ;; esac
   return 1
 }
 # The ceiling binds git and nothing else. felix_repo_root, which the CLI

@@ -89,9 +89,10 @@ moves). What it found, and what was done:
 - **A `cd` into an empty fixture path stays in the suite's own checkout.**
   Under fork failure the fixture's `git update-ref refs/heads/main main~1`
   would then rewind the real main, through the refs a worktree shares with
-  the home. Every fixture `cd` is now `${X:?}`, and the blind block's
-  `git -C` helper refuses an empty path. Measured: bash 3.2 exits 127
-  before any git runs.
+  the home. Every `cd` that git or a library runs under is now `${X:?}`,
+  and the blind block's `git -C` helper refuses an empty path. Measured:
+  bash 3.2 exits 127 before any git runs. The three `$(cd X && pwd -P)`
+  resolutions run nothing else and stay as they were.
 - **The two reviewer mutants above.** Pinned by the blind block.
 - **Two equality checks could pass with both sides empty.** A non-empty
   baseline assertion was added. The fixture commits now pin
@@ -127,5 +128,7 @@ fails everywhere.
 - When the home pulls this, every felix-home receipt goes stale once, on
   topology and policy. Land it when no gated receipt is waiting to merge.
 
-**After 3b lands**, convert the block's four git-write subshells to
-`_fx_cd`.
+**After 3b lands**, convert the five sites its `_fx_lint` reports in these
+two sections (measured against origin/claude/suite-git-proof 00adb3281):
+- the four `( cd "${X:?}" ...; git ...)` groups, to `_fx_cd`;
+- the blind block's `git -C "$BLREPO"` in `_bl_git`, to `_fx_git`.

@@ -296,7 +296,7 @@ felix_autonomy_revoke() {
     # exit removes it should a signal cut this short (felix_autonomy_guard).
     # mktemp ignores the signals, as the lock's mkdir does, so a Ctrl-C to the
     # group cannot kill it between making the file and naming it.
-    _FELIX_AUTONOMY_TMP="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
+    _FELIX_AUTONOMY_TMP="$( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
     tmp="$_FELIX_AUTONOMY_TMP"
     ( LC_ALL=C; _felix_autonomy_rewrite "$f" "$want" "$tmp"; exit $(( 20 + $? )) ) > /dev/null 2>&1; rc=$?
     case "$rc" in 20|21|22|24) rc=$(( rc - 20 )) ;; *) rc=1 ;; esac
@@ -367,7 +367,7 @@ felix_autonomy_grant() {
   # form flushes; a bare printf '' returns first (revoke's sixth review).
   printf '%s' '' > /dev/null 2>&1
   # As in revoke: the name where the caller's exit can remove it.
-  _FELIX_AUTONOMY_TMP="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
+  _FELIX_AUTONOMY_TMP="$( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mktemp "$f.new.XXXXXX" 2>/dev/null )" || { _FELIX_AUTONOMY_TMP=""; return 1; }
   tmp="$_FELIX_AUTONOMY_TMP"
   # As in revoke: its own C locale, and its stdout thrown away.
   ( LC_ALL=C; nl='
@@ -507,6 +507,12 @@ felix_autonomy_grant() {
 #   example) was let go the moment the lock was made. The run now keeps the
 #   lock open on the first of fds 9 to 3 that it did not inherit, and on none
 #   if it inherited them all.
+#
+# 2026-10-08, from revoke's seventh review, which found a caller's IFS
+# splitting an unquoted $(( )): every use of these two lists sets IFS to a
+# space where it splits them. Under a library caller's IFS with no space in
+# it ('2', the digits, a tab), the guard took the lock and set no trap at all.
+# felix itself never runs with one: bash ignores an IFS in the environment.
 FELIX_AUTONOMY_SIGNALS='HUP INT QUIT PIPE ALRM TERM USR1 USR2 XCPU XFSZ VTALRM PROF ABRT TRAP SYS EMT'
 FELIX_AUTONOMY_FAULTS='ILL FPE BUS SEGV'
 
@@ -527,7 +533,7 @@ felix_autonomy_lock_path() { printf '%s/autonomy.lock' "$1"; }
 felix_autonomy_lock() {
   local lock="$1/autonomy.lock" out fd
   _felix_autonomy_lock_dir=""; _felix_autonomy_lock_ino=""; _felix_autonomy_lock_fd=""
-  if ( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mkdir "$lock" ) 2>/dev/null; then
+  if ( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec mkdir "$lock" ) 2>/dev/null; then
     _felix_autonomy_lock_dir="$lock"
     # '<&fd' fails only on an fd that is not open. bash 3.2 has no {fd}, so
     # the number goes through eval, and it is one of these seven digits.
@@ -536,7 +542,7 @@ felix_autonomy_lock() {
       eval "{ exec $fd<\"\$lock\"; } 2>/dev/null" && _felix_autonomy_lock_fd="$fd"
       break
     done
-    out="$( trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec ls -di "$lock" 2>/dev/null )"
+    out="$( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec ls -di "$lock" 2>/dev/null )"
     out="${out#"${out%%[! ]*}"}"; out="${out%% *}"
     case "$out" in ''|*[!0-9]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
     return 0
@@ -573,6 +579,7 @@ felix_autonomy_unlock() {
 # release's children inherit, and the faults caught and dropped, which they
 # do not.
 _felix_autonomy_hush() {
+  local IFS=' '
   trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null
   trap : $FELIX_AUTONOMY_FAULTS
 }
@@ -612,7 +619,7 @@ _felix_autonomy_signalled() {   # SIG
 # The caller's whole hold, in one call: traps, then the lock. Same codes as
 # felix_autonomy_lock. Signals while it is taken are noted, then acted on.
 felix_autonomy_guard() {   # proj
-  local s rc
+  local s rc IFS=' '
   # Anything a printf before this left in bash 3.2's stdout buffer goes to
   # /dev/null now, before the lock's ls substitution could take it for the
   # inode (felix_autonomy_grant says why only the '%s' form flushes).

@@ -21,6 +21,16 @@ exec </dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
+# REAL_HARNESS must name a harness before anything reads or copies it. A cd into
+# a path that does not exist leaves `$(cd X && pwd)` empty, and every copy below
+# then starts from "/": on 2026-10-08 at 18:04 a section runner handed this file
+# a harness path that did not exist, and the fixture copy, `cp -R "$src/."`, ran
+# as `cp -R /.` and wrote 123 GB before it was killed. A runner that sets its
+# own REAL_HARNESS on the line after the one above meets this check as well.
+if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
+  printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
+  exit 2
+fi
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict.
@@ -1396,6 +1406,10 @@ unset CLAUDE_CODE_SESSION_ID
 # failed. GNU tar was not there to measure; skipping means it is never asked.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
   local src="$1" dest="$2" f
+  # An empty source would be copied as "/." (the 18:04 incident above
+  # REAL_HARNESS's check), so a source that is not a directory copies nothing.
+  [ -n "$src" ] && [ -d "$src" ] || {
+    printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
   mkdir -p "$dest" || return 1
   if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
     ( cd "$src" && git ls-files -co --exclude-standard -z . \
@@ -1831,6 +1845,9 @@ if [ -z "$_ff_end" ]; then
        "$_ff_self is not this suite"
 else
   _ffp="$TMP/floor-preamble"; mkdir -p "$_ffp/t"; _ff_git init -q "$_ffp" >/dev/null 2>&1
+  # head.sh's REAL_HARNESS is $_ffp, which must look like a harness to get past
+  # the check that follows REAL_HARNESS: a felix file and a lib/ directory.
+  : > "$_ffp/felix"; mkdir -p "$_ffp/lib"
   sed -n "1,$((_ff_end - 1))p" "$_ff_self" > "$_ffp/t/head.sh"
   _ff_o="$(cd "$_ffp/t" && FFP_T="$_ffp/t" bash -c \
              'mktemp() { command mktemp -d "$FFP_T/tmp.XXXXXX"; }; export -f mktemp; bash ./head.sh' 2>&1
@@ -10381,6 +10398,49 @@ _gp_lint_is "X22 _fx_lint reads a git after |, a cd continued by a trailing |, a
 mkdir -p "$_gp/stubbin"; printf '#!/bin/sh\nexit 3\n' > "$_gp/stubbin/awk"; chmod 755 "$_gp/stubbin/awk"
 _gx_o="$( PATH="$_gp/stubbin:$PATH"; _fx_lint "$_gp/lint/writes" 2>/dev/null; printf 'rc=%s' "$?" )"
 is "X11 _fx_lint does not read a failed awk as a clean file" "$_gx_o" "rc=2"
+
+printf '\nthe suite copies only a harness\n'
+# The 18:04 incident on 2026-10-08: a section runner handed this file a harness
+# path that did not exist, REAL_HARNESS came out empty, and the fixture copy ran
+# as `cp -R /.`. Not written blind: the carrier ruled it into this branch after
+# both blind rounds. Neither probe can copy anything if the check it tests is
+# missing. The child is the suite's lines before `TMP=`, which read and never
+# write, and the copy probe runs _copy_content with cp, tar and git shadowed.
+_rh_src="$REAL_HARNESS/tests/run"
+_rh="$TMP/real-harness-check"; mkdir -p "$_rh/cwd" "$_rh/bare" "$_rh/ok/lib"; : > "$_rh/ok/felix"
+_rh_tl="$(grep -n '^TMP="\$(mktemp -d)"' "$_rh_src" | head -1 | cut -d: -f1)"
+if [ -z "$_rh_tl" ]; then
+  bad "tests/run exits 2 before it makes its temporary directory when REAL_HARNESS names no harness, and goes on when it names one" \
+      "no TMP=\"\$(mktemp -d)\" line in $_rh_src"
+else
+  awk -v n="$_rh_tl" 'NR < n { print; if ($0 ~ /^REAL_HARNESS=/) print "REAL_HARNESS=\"$RH_H\"" } END { print "printf '"'"'survived\\n'"'"'" }' \
+    "$_rh_src" > "$_rh/head.sh"
+  _rh_one() {   # LABEL HARNESS -> LABEL:rc=N:said|survived|
+    local o e rc
+    o="$(cd "$_rh/cwd" && RH_H="$2" bash "$_rh/head.sh" 2>"$_rh/err")"; rc=$?
+    case "$(cat "$_rh/err")" in "tests/run: REAL_HARNESS ["*"] is not a harness"*) e=said ;; *) e=quiet ;; esac
+    printf '%s:rc=%s:%s|%s|' "$1" "$rc" "$e" "$o"
+  }
+  _rh_x="$(_rh_one empty ''; _rh_one missing "$_rh/missing"; _rh_one bare "$_rh/bare"; _rh_one root /; _rh_one ok "$_rh/ok")"
+  is "tests/run exits 2 before it makes its temporary directory when REAL_HARNESS names no harness, and goes on when it names one" \
+     "$_rh_x" "empty:rc=2:said||missing:rc=2:said||bare:rc=2:said||root:rc=2:said||ok:rc=0:quiet|survived|"
+fi
+awk '/^_copy_content\(\) \{/ { f = 1 } f { print } f && /^}$/ { exit }' "$_rh_src" > "$_rh/cc.sh"
+mkdir -p "$_rh/src"
+_rh_x="$(cd "$_rh/cwd" && RH="$_rh" bash -c '
+  cp()  { printf "cp %s\n" "$*" >> "$RH/log"; }
+  tar() { printf "tar %s\n" "$*" >> "$RH/log"; }
+  git() { return 1; }
+  . "$RH/cc.sh" || exit 9
+  _copy_content "" "$RH/d-empty" 2>/dev/null; a=$?
+  _copy_content "$RH/missing" "$RH/d-missing" 2>/dev/null; b=$?
+  [ -s "$RH/log" ] && n=copied || n=none
+  [ -e "$RH/d-empty" ] || [ -e "$RH/d-missing" ] && m=made || m=unmade
+  _copy_content "$RH/src" "$RH/d-src"; c=$?
+  printf "%s %s %s %s %s|%s" "$( [ "$a" != 0 ] && echo refused || echo rc=$a )" \
+    "$( [ "$b" != 0 ] && echo refused || echo rc=$b )" "$n" "$m" "$c" "$(cat "$RH/log" 2>/dev/null)"')"
+is "_copy_content copies nothing and makes no directory from a source that is empty or not a directory, and copies from one that is" \
+   "$_rh_x" "refused refused none unmade 0|cp -R $_rh/src/. $_rh/d-src/"
 
 # >>> hook-payload-cwd
 printf '\nhooks stand where the session stands\n'

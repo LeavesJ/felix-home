@@ -74,6 +74,24 @@ the 2026-10-08 12:47:41 incident.
    runner. The messages say the remotes moved *while this run ran*, never
    that this run moved them, because dozens of suites share one config. It
    restores nothing.
+5. **The harness guard** (carrier ruling, added after both blind rounds, not
+   blind). At 18:04 a section runner handed the suite a harness path that did
+   not exist. `$(cd X && pwd)` gave an empty REAL_HARNESS, the floor's cwd
+   is in no checkout, so `_copy_content` fell through to `cp -R "/."`. It
+   wrote 123 GB before it was killed. Now:
+   - the line after REAL_HARNESS exits 2 when it is empty or lacks `felix` or
+     `lib/`, before the origin snapshot, `$TMP` or any copy; a runner that
+     sets its own REAL_HARNESS on the next line meets the check too;
+   - `_copy_content` refuses a source that is empty or not a directory, before
+     its mkdir.
+
+   The floor's preamble child (`head.sh`) gets a stand-in `felix` and `lib/`
+   so it reaches the checks it tests. One section, "the suite copies only a
+   harness", holds two assertions: both red against 00adb3281 (with cp
+   shadowed, the old copy asked for `cp -R /. …`), both green after. Neither
+   probe can copy anything if its check is missing. The 14/15 branch's guard
+   ("no felix and no lib/") is looser than this one and can be dropped at its
+   merge.
 
 **Conversion rule for every branch landing after this.**
 - `( cd "$X" && git <write> ... )` becomes `( _fx_cd "$X" && git <write> ... )`.
@@ -123,8 +141,8 @@ The C3 assertion names any site missed.
     `github-pr-owner-number` and gh's `gh-resolved`, with no move recorded.
 - **Merged tree, section runner from inside an export**: the floor's section,
   the lint section, the four proof blocks (78 + 55 + 46 blind, 16 from the
-  mutation runner) and both end checks gave 261 passed, 0 failed, 2 skipped
-  (both need a start inside a checkout).
+  mutation runner), the harness guard's section and both end checks gave 263
+  passed, 0 failed, 2 skipped (both need a start inside a checkout).
 - The real home's `remote.*` config was compared before and after every run,
   and never moved.
 

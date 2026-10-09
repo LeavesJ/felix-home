@@ -45,9 +45,14 @@ felix_autonomy_stamp_path() { printf '%s/autonomy.%s' "$1" "$2"; }
 
 # Does the grant still cover what is on disk?
 felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
-  local proj="$1" stamped now
+  local proj="$1" stamped now stamp
   felix_autonomy_allows "$proj" commission || return 1
-  stamped="$(head -1 "$(felix_autonomy_stamp_path "$proj" commission)" 2>/dev/null)"
+  # The stamp only as a regular file. A pipe at the path held head open for a
+  # writer that never came, and the grant check with it (2026-10-01); anything
+  # else is no stamp, so the grant is not current.
+  stamp="$(felix_autonomy_stamp_path "$proj" commission)"
+  [ -f "$stamp" ] || return 1
+  stamped="$(head -1 "$stamp" 2>/dev/null)"
   [ -n "$stamped" ] || return 1
   command -v felix_commission_policy_version >/dev/null 2>&1 || return 1
   now="$(felix_commission_policy_version "$proj" 2>/dev/null)"

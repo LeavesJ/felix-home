@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	6fe5f98688456fa95a7198e4c0eceadb9fe43741	0.49.273
-run	21	6348	9
+base	origin/main	e27481408b31407528dda4e2503125db8ca218a0	0.49.274
+run	21	6833	9
 and does not list them under the header for capabilities nothing declares, but names each routine and its capability on a line of its own	1
 and felix stack apply without --yes says how many could not be read before saying nothing changed	1
 and for a routine with a check prints unknown with cadence 0, and does not run the check	1

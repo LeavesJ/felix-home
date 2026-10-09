@@ -582,6 +582,15 @@ cmd_gate() {
   else
     bash -c "$gate \"\$@\"" felix-gate "$@" 2>&1 | tee "$log"; rc=${PIPESTATUS[0]}
   fi
+  # The project's gate wrote this log, and nothing makes it end its last line.
+  # One that did not took the engine's first checker line below onto it, so
+  # `gate: pass` and `  probes  FAIL` read as one line: the failure was
+  # recorded as exit-1 rather than probes, and probes left the roster
+  # (2026-10-01). Ended here, on the screen as well, which saw the same bytes,
+  # and before the project's size is taken below, so that size ends on the
+  # newline and the first engine line starts a line of its own in the log.
+  local lend=0; felix_line_ended "$log" || lend=$?
+  [ "$lend" -ne 1 ] || printf '\n' | tee -a "$log"
   # The project gate's own status, and where its output ends, taken before any
   # engine check below appends a line to the same log (G5.2, G1.8). The
   # recorder used to read FAIL names and the exit fallback off the whole log,
@@ -1178,7 +1187,10 @@ cmd_recommend() {
       printf '%s\n' "$hits" | while IFS=$'\t' read -r score kind name risk cap; do
         [ -n "${score:-}" ] || continue
         local have="not mounted"
-        grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && have="already declared"
+        # stack.tsv is opened only as a regular file, here and in the closing
+        # line below: a pipe at the path held the grep open for a writer that
+        # never came (2026-10-01). Anything else declares nothing.
+        [ -f "$proj/stack.tsv" ] && grep -qF "	$name	" "$proj/stack.tsv" 2>/dev/null && have="already declared"
         printf '  %-10s %-46s %-7s %s\n' "$kind" "$name" "$risk" "$have"
       done
       printf '\nDeclare one with: felix adopt <capability>, or add the row to\n'
@@ -1211,7 +1223,7 @@ cmd_recommend() {
   printf '  Project %s, a %s codebase. Felix already detected: %s\n' \
     "$(basename "$proj")" "$eco" "${caps:-nothing yet}"
   printf '  Already declared, do not repeat these: %s\n' \
-    "$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+    "$([ -f "$proj/stack.tsv" ] && grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   printf '  Recommend hooks, subagents and skills this stack implies that are\n'
   printf '  not in that list. Read-only: I will decide what to adopt.\n'
 }
@@ -2022,8 +2034,16 @@ cmd_autonomy() {
     if felix_autonomy_allows "$proj" "$allow"; then
       printf 'already allowed: %s\n' "$allow"
     else
-      [ -f "$proj/autonomy" ] || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
-      printf '%s\n' "$allow" >> "$proj/autonomy"
+      # Seeded only where nothing is at the path, as adopt.sh seeds its
+      # tables, so a dangling link or a pipe is refused below (2026-10-01).
+      [ -e "$proj/autonomy" ] || [ -L "$proj/autonomy" ] \
+        || printf '# What Felix may do here unattended.\n' > "$proj/autonomy"
+      # A hand-edited `tidy` with no final newline took `commission` as
+      # `tidycommission`, and neither grant held (2026-10-01). A grant that
+      # could not be written on a line of its own is not said, and not stamped
+      # below: this printed `allowed:` whenever the append failed.
+      felix_end_line "$proj/autonomy" && printf '%s\n' "$allow" >> "$proj/autonomy" \
+        || die "could not write $allow to $proj/autonomy, so it is not allowed"
       printf 'allowed: %s\n' "$allow"
     fi
     # Stamped with the table it was granted over, so a later edit to that table
@@ -2873,7 +2893,7 @@ cmd_discover() {
       printf 'declares. Declaring another capability widens the search.\n'
       return 0
     fi
-    local n_dec=0 n_ref=0 kind
+    local n_dec=0 n_ref=0 n_unw=0 kind
     printf 'adopting for %s\n\n' "$(basename "$proj")"
     while IFS=$'\t' read -r act name cap risk; do
       [ -n "${act:-}" ] || continue
@@ -2884,9 +2904,21 @@ cmd_discover() {
           # felix stack apply call the wrong installer, so it is stated rather
           # than guessed at install time.
           kind=plugin
+          # A hand-edited stack.tsv whose last row has no newline would take
+          # this row onto that line, and both would be lost (2026-10-01). A row
+          # that could not be put on a line of its own, or not written at all,
+          # is said and neither installed nor counted: until then a failed
+          # append installed the plugin with no row recording it.
+          #
           # OBSERVED: the tier is what the engine read off the copy on disk,
           # and the row must never read back as a person's on the next run.
-          printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"
+          if ! felix_end_line "$proj/stack.tsv" \
+             || ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$kind" "$name" "$risk" "$cap" >> "$proj/stack.tsv"; then
+            printf '  unwritten  %-24s %-10s %s (stack.tsv could not take the row)\n' \
+              "$name" "$risk" "$cap"
+            n_unw=$((n_unw+1))
+            continue
+          fi
           if felix_stack_install "$kind" "$name" "-"; then
             printf '  installed  %-24s %-10s %s\n' "$name" "$risk" "$cap"
             # Invariant 4 says Felix installs what it has read. This is the
@@ -2931,7 +2963,11 @@ cmd_discover() {
     done <<EOF
 $plan
 EOF
-    printf '\n%s adopted, %s refused.\n' "$n_dec" "$n_ref"
+    if [ "$n_unw" -gt 0 ]; then
+      printf '\n%s adopted, %s refused, %s unwritten.\n' "$n_dec" "$n_ref" "$n_unw"
+    else
+      printf '\n%s adopted, %s refused.\n' "$n_dec" "$n_ref"
+    fi
     if [ "$n_ref" -gt 0 ]; then
       printf '\nMedium means it ships an MCP server, which usually needs a credential\n'
       printf 'only you can supply. High means hooks, a floating version, or an\n'
@@ -3192,7 +3228,12 @@ cmd_ready() {
   while IFS=$'\t' read -r st name detail; do
     [ -n "${st:-}" ] || continue
     case "$name" in *:*) owner="${name%%:*}" ;; *) owner="$name" ;; esac
-    local srow; srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    # Only as a regular file. Defensive: felix_ready_report already reads a
+    # pipe at the path as no row, so a pipe reaches this grep only if
+    # stack.tsv is swapped for one between that report and this loop
+    # (2026-10-01). Anything else declares no row. Held by the lint below, not
+    # by a blind case, which cannot build the swap without a race.
+    local srow=""; [ -f "$proj/stack.tsv" ] && srow="$(grep -E "	($name|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     # Read the row the way felix_stack_plan reads it, so the two policy callers
     # cannot disagree about the same line. `cut -f6` and a trailing `read`
     # variable differ on a row with seven fields: cut takes the sixth alone,
@@ -4152,7 +4193,8 @@ cmd_maintenance() {
     names="$(_felix_maint_rows "$proj" | cut -f1)" \
       && case "$nl$names$nl" in *"$nl$ran$nl"*) true ;; *) false ;; esac \
       || die "no routine named $ran"
-    felix_maint_record "$proj" "$ran"
+    felix_maint_record "$proj" "$ran" \
+      || die "could not record a run of $ran: $proj/maintenance.log was not written"
     printf 'recorded a run of %s\n' "$ran"
     printf 'commit %s/maintenance.log so the cadence survives this machine.\n' "$proj"
     return 0
@@ -4823,11 +4865,44 @@ cmd_adopt() {
   # before anything else would notice (#102). Refused rather than stripped:
   # guessing what a mistyped flag meant is how the wrong thing gets declared.
   case "$cap" in -*) die "usage: felix adopt <capability> (got a flag: $cap)" ;; esac
-  local slug counts
+  # 2026-10-01: a capability is one line of one word, written out in full
+  # because a class like [:alnum:] follows the locale and let a byte that is
+  # no character through. grep -F reads a newline in its pattern as two
+  # patterns, so `felix adopt $'new\nci'` said "ci already declared", and a
+  # byte BSD grep could not read was called a list it could not read.
+  case "$cap" in
+    *[!abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789._-]*)
+      die "felix adopt takes one capability name of ASCII letters, digits, '.', '_' and '-'" ;;
+  esac
+  local slug counts arc list what fix
   slug="$(felix_repo_slug "$(felix_repo_root "$PWD")")"
-  if ! counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; then
-    printf '%s already declared\n' "$cap"; return 0
-  fi
+  counts="$(felix_adopt_capability "$proj" "$cap" "$SCRIPT_DIR/templates" "$slug")"; arc=$?
+  case "$arc" in
+    0|3) ;;
+    1) printf '%s already declared\n' "$cap"; return 0 ;;
+    *)
+      # 2026-10-01: the list could not be read or written, so nothing was. This
+      # used to print "already declared" for every failure, and before that
+      # the function had already written the rows anyway. What is at the path
+      # is said, because that is what a person has to change.
+      list="$proj/capabilities"
+      fix='Make it a regular file of capability names, one per line'
+      # A link whose target cannot be stat'ed is not always gone: one into a
+      # directory this user cannot search, or one to itself, fails the same
+      # test, and a person told "gone" would replace a list that is there.
+      if   [ -L "$list" ] && [ ! -e "$list" ]; then what='a link whose target is gone or cannot be reached'
+      elif [ -d "$list" ]; then what='a directory'
+      elif [ -p "$list" ]; then what='a pipe'
+      elif [ ! -e "$list" ]; then what='absent and could not be created'; fix="Let this user write to $proj"
+      elif [ ! -f "$list" ]; then what='not a regular file'
+      elif [ ! -r "$list" ]; then what='a file that could not be read'; fix='Let this user read and write it'
+      elif [ ! -w "$list" ]; then what='a file that could not be written'; fix='Let this user read and write it'
+      else what='a file whose read or append failed'; fix='Look at what is in it'
+      fi
+      printf 'felix: %s was not declared, and nothing was written: %s is %s.\n' "$cap" "$list" "$what" >&2
+      printf '%s, and run felix adopt again.\n' "$fix" >&2
+      return 2 ;;
+  esac
   printf 'declared %s for %s\n' "$cap" "$(basename "$proj")"
   set -- $counts
   if [ "${1:-0}" -gt 0 ] || [ "${2:-0}" -gt 0 ]; then
@@ -4835,6 +4910,15 @@ cmd_adopt() {
     printf 'review with: felix stack plan   and   felix setup\n'
   fi
   printf 'commit %s in the Felix repo to make it durable.\n' "$proj"
+  # 2026-10-01: recorded, with a row it implies left unwritten (the `could not
+  # add` lines above say which). A second adopt answers "already declared"
+  # and never writes them, so the way back is said and the exit is not 0.
+  if [ "$arc" -eq 3 ]; then
+    printf 'felix: %s is declared, but not every row it implies was written.\n' "$cap" >&2
+    printf 'Make stack.tsv and setup.tsv in %s regular files this user can read and write,\n' "$proj" >&2
+    printf 'delete the %s line from %s/capabilities, and run felix adopt %s again.\n' "$cap" "$proj" "$cap" >&2
+    return 3
+  fi
 }
 
 # The deliberation record, readable. Decision B (approved 2026-08-30) holds

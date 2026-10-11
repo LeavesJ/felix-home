@@ -231,6 +231,14 @@ git -C "$ROOT" worktree add --detach "$TREE" "$SHA" >/dev/null 2>&1
 mkdir -p "$TREE/engine/harness/tests" 2>/dev/null
 cp "$HERE/run" "$TREE/engine/harness/tests/run" 2>/dev/null \
   || _none "could not place tests/run into the tree at $BASE"
+# The assertions are in parts beside it, sourced by name from the run above, so
+# a part only the base has is never loaded, and one this tree has is placed
+# whether or not the base predates the split.
+if [ -d "$HERE/parts" ]; then
+  mkdir -p "$TREE/engine/harness/tests/parts" 2>/dev/null \
+    && cp -R "$HERE/parts/." "$TREE/engine/harness/tests/parts/" 2>/dev/null \
+    || _none "could not place tests/parts into the tree at $BASE"
+fi
 
 # The suite runs with the caller's TMPDIR, as it does by hand, so its own
 # mktemp root is made where a plain run makes it. Until 2026-09-24 it ran with

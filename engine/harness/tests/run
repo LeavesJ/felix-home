@@ -43768,7 +43768,12 @@ is  "felix cost: the model row counts each of the five ids once" \
     "$(_fc_row model m-f)" "$(_fc_exps model m-f 10500.00 0.0 5)"
 
 # ======================================================================
-# Where it reads: exactly <E>/*.jsonl and <E>/<sid>/subagents/*.jsonl.
+# Where it reads: exactly <E>/*.jsonl and every *.jsonl under
+# <E>/<sid>/subagents/. Restated after the blind round, not blind: the contract
+# was amended on 2026-10-11 to read a workflow's agents in
+# subagents/workflows/<run>/ (222 of the week's 626 real transcripts), so the
+# deeper file below moved from "never read" to read, and a deeper file outside
+# subagents/ took its place as the case that is never read.
 # ======================================================================
 _fc_mk r6
 FC_L="$FC/r6/projects"
@@ -43779,26 +43784,27 @@ _fc_in "$FC_L/-Users-dev-l2/s9.jsonl"               msg_L3 "$FCT0" m-ses 4000
 _fc_in "$FC_L/x.jsonl"                                  msg_L4 "$FCT0" m-root   100001
 _fc_in "$FC_L/-Users-dev-l1/s1/x.jsonl"                 msg_L5 "$FCT0" m-sid    100002
 _fc_in "$FC_L/-Users-dev-l1/s1/other/x.jsonl"           msg_L6 "$FCT0" m-other  100003
-_fc_in "$FC_L/-Users-dev-l1/s1/subagents/deeper/x.jsonl" msg_L7 "$FCT0" m-deeper 100004
+_fc_in "$FC_L/-Users-dev-l1/s1/other/deeper/x.jsonl"    msg_L7 "$FCT0" m-deeper 100004
+_fc_in "$FC_L/-Users-dev-l1/s1/subagents/workflows/wf_1/x.jsonl" msg_L10 "$FCT0" m-wf 500
 _fc_in "$FC_L/-Users-dev-l1/x.txt"                      msg_L8 "$FCT0" m-txt    100005
 _fc_in "$FC_L/-Users-dev-l1/old.jsonl.bak"              msg_L9 "$FCT0" m-bak    100006
 mkdir -p "$FC_L/-Users-dev-l2/dir.jsonl"      # a directory whose name ends .jsonl is not a regular file
 FCCFG="$FC/r6" _fc --tsv
-is  "felix cost reads <E>/*.jsonl, a session transcript, and <E>/<sid>/subagents/*.jsonl, a helper agent's" \
-    "$(_fc_rows model | awk -F'\t' '{ printf "%s%s=%s", s, $2, $3; s = " " }')" "m-ses=5000.00 m-sub=2000.00"
-is  "felix cost counts a helper agent's file under <E>/<sid>/subagents/ to <E>" \
-    "$(_fc_row worktree -Users-dev-l1)" "$(_fc_exps worktree -Users-dev-l1 3000.00 0.0 2)"
-is  "felix cost: the files it read are the three it should: files_read 3" "$(_fc_cover files_read)" "3"
+is  "felix cost reads <E>/*.jsonl, a session transcript, and every *.jsonl under <E>/<sid>/subagents/, a helper agent's" \
+    "$(_fc_rows model | awk -F'\t' '{ printf "%s%s=%s", s, $2, $3; s = " " }')" "m-ses=5000.00 m-sub=2000.00 m-wf=500.00"
+is  "felix cost counts a helper agent's file under <E>/<sid>/subagents/, and a workflow agent's under subagents/workflows/<run>/, to <E>" \
+    "$(_fc_row worktree -Users-dev-l1)" "$(_fc_exps worktree -Users-dev-l1 3500.00 0.0 3)"
+is  "felix cost: the files it read are the four it should: files_read 4" "$(_fc_cover files_read)" "4"
 is  "felix cost does not read a .jsonl directly under the records root" "$(_fc_absent model m-root)" "absent"
 is  "felix cost does not read <E>/<sid>/x.jsonl" "$(_fc_absent model m-sid)" "absent"
 is  "felix cost does not read <E>/<sid>/other/x.jsonl" "$(_fc_absent model m-other)" "absent"
-is  "felix cost does not read a file nested deeper under subagents/" "$(_fc_absent model m-deeper)" "absent"
+is  "felix cost does not read a file nested deeper under <E>/<sid>/ outside subagents/" "$(_fc_absent model m-deeper)" "absent"
 is  "felix cost does not read a file without the .jsonl suffix" "$(_fc_absent model m-txt)" "absent"
 is  "felix cost does not read a file whose name only contains .jsonl" "$(_fc_absent model m-bak)" "absent"
 is  "felix cost: a directory named *.jsonl is no regular file, so it is neither read nor counted unread" \
     "$(_fc_cover files_unread) $(_fc_cover coverage)" "0 measured"
-is  "felix cost: only what it read is in the total, 7000 over three calls" \
-    "$(_fc_row total all)" "$(_fc_exps total all 7000.00 0.0 3)"
+is  "felix cost: only what it read is in the total, 7500 over four calls" \
+    "$(_fc_row total all)" "$(_fc_exps total all 7500.00 0.0 4)"
 is  "felix cost: worktree rows are the record directories, largest first" \
     "$(_fc_rows worktree | awk -F'\t' '{ printf "%s%s", s, $2; s = " " }')" "-Users-dev-l2 -Users-dev-l1"
 

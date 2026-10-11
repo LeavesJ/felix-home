@@ -23,7 +23,9 @@
 # records root moved to another disk is usually a link; a loop or a dangling
 # link is unread. A file last written before the window opened cannot hold a
 # record from inside it, so find's -mmin, with two minutes to spare, keeps it
-# out: a week is about a gigabyte of transcripts and a summer ten.
+# out: a week is about a gigabyte of transcripts and a summer ten. It is cut to
+# the second with -newermt (BSD and GNU find both read "YYYY-MM-DD HH:MM:SS
+# UTC"), and to the minute with -mmin where find has no -newermt.
 #
 # One response, once. Claude Code writes a line per content block of a
 # response, each carrying the usage so far, so within a file the last line of
@@ -39,7 +41,8 @@
 # Claude Code writes them after the message and after wireToolInputs, so a tool
 # input that quotes such a triple comes first, and a progress or attachment
 # record that nests an assistant message names its own type last (no line of
-# 432,371 read on 2026-10-11 had its own triple anywhere else). No JSON parser,
+# 432,371 read on 2026-10-11 had its own triple anywhere else), or, as
+# lib/audit.sh tells it, before its message. No JSON parser,
 # on purpose (lib/audit.sh says why): inside a JSON string every quote is
 # escaped, so a "key": pattern only matches structure.
 #
@@ -57,7 +60,7 @@
 #
 # The window. A plan week opens Thursday 13:00:00Z (the Unix epoch was a
 # Thursday, so a week start is 13 h plus a whole number of weeks) and runs
-# seven days; --since opens at an instant and runs to now. A record counts when
+# seven days; --since opens at an instant and has no end. A record counts when
 # start <= its timestamp < end, compared as ISO 8601 strings. FELIX_COST_NOW
 # sets the instant taken as now. Dates are integer arithmetic, so BSD and GNU
 # date differ in nothing used here.
@@ -146,7 +149,7 @@ felix_cost() {
     [[ "$since" =~ $re_since ]] \
       && _fc_real "${BASH_REMATCH[1]}" "${BASH_REMATCH[2]}" "${BASH_REMATCH[3]}" "${BASH_REMATCH[5]:-00}" "${BASH_REMATCH[6]:-00}" 00 \
       || { _fc_refuse "--since is not a real YYYY-MM-DD or YYYY-MM-DDTHH:MM: $since"; return; }
-    start=$_FC_E; end=$now
+    start=$_FC_E; end=""
   else
     start=$((((now - 46800) / 604800) * 604800 + 46800)); end=$((start + 604800))
   fi
@@ -156,31 +159,39 @@ felix_cost() {
   else root=""; where='$HOME/.claude/projects'; fi
   case "$root" in -*) froot="./$root" ;; *) froot="$root" ;; esac
 
-  local s_iso e_iso n_iso e_say any=0 f mmin
+  local s_iso e_iso="" n_iso e_say any=0 f prune
   _fc_iso "$start"; s_iso="$_FC_ISO"
-  _fc_iso "$end"; e_iso="$_FC_ISO"
+  [ -z "$end" ] || { _fc_iso "$end"; e_iso="$_FC_ISO"; }
   _fc_iso "$now"; n_iso="$_FC_ISO"
   if [ -n "$since" ]; then e_say=now; else e_say="${e_iso:0:16}Z"; fi
   if [ -n "$root" ] && [ -d "$root" ]; then
     for f in "$root"/*/*.jsonl; do [ -f "$f" ] && { any=1; break; }; done
     [ "$any" = 1 ] || for f in "$root"/*/*/subagents/*.jsonl "$root"/*/*/subagents/*/*/*.jsonl; do [ -f "$f" ] && { any=1; break; }; done
   fi
-  mmin=$(((real - start) / 60 + 2)); [ "$mmin" -ge 1 ] || mmin=1
+  # Modified after the second before the window opened, or, where find has no
+  # -newermt, within the minutes since then and two more.
+  _fc_iso $((start - 1))
+  if find "$froot" -maxdepth 0 -newermt "${_FC_ISO/T/ } UTC" >/dev/null 2>&1; then
+    prune="-newermt|${_FC_ISO/T/ } UTC"
+  else
+    prune=$(((real - start) / 60 + 2)); [ "$prune" -ge 1 ] || prune=1; prune="-mmin|-$prune"
+  fi
 
-  { if [ -n "$root" ] && [ -d "$root" ]; then _fc_files "$froot" "$mmin"; fi; } \
+  { if [ -n "$root" ] && [ -d "$root" ]; then _fc_files "$froot" "${prune%%|*}" "${prune#*|}"; fi; } \
     | FC_ROOT="$froot" awk -v any="$any" -v start="$s_iso" -v end="$e_iso" -v esay="$e_say" \
           -v asof="${n_iso:0:16}Z" -v cap="$cap" -v by="$by" -v top="$top" -v tsv="$tsv" -v where="$where" "$_FC_AWK"
 }
 
-# The transcripts of the window under ROOT, as grep -H prints their lines that
+# The transcripts of the window under ROOT, modified as TEST VALUE says, as
+# grep -H prints their lines that
 # hold a usage, for the awk below; \002 is a grep that could not read a file,
 # and the last line, \003 read unread, counts the files. Always status 0: find
 # returns 1 for a directory it could not enter, which is counted, not fatal.
 _fc_files() {
-  local root="$1" mmin="$2" p rel r2 nread=0 unread=0 rc
+  local root="$1" pt="$2" pv="$3" p rel r2 nread=0 unread=0 rc
   local -a fs=()
   unset GREP_OPTIONS GREP_COLOR GREP_COLORS
-  find -L "$root" -mindepth 2 -name '*.jsonl' \( \( -type f -mmin "-$mmin" \) -o -type l \) -print 2>&1 | sort | {
+  find -L "$root" -mindepth 2 -name '*.jsonl' \( \( -type f "$pt" "$pv" \) -o -type l \) -print 2>&1 | sort | {
     while IFS= read -r p; do
       case "$p" in "$root"/*) rel="${p#"$root"/}" ;; *) unread=$((unread + 1)); continue ;; esac
       r2="${rel#*/}"
@@ -253,6 +264,7 @@ _FC_AWK='
     t = own; sub(/.*"timestamp":"/, "", t); sub(/"$/, "", t)
     if (t !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T/) t = ""
     if (!(im = index(l, "\"message\":{"))) next
+    p = index(l, "\"type\":\""); if (p && p < im && substr(l, p, 18) != "\"type\":\"assistant\"") next
     r = substr(l, im + 11)
     if (!(p = index(r, "\"role\":\"")) || substr(r, p + 8, 10) != "assistant\"") next
     if ((id = str(r, "\"id\":\"")) == "") next
@@ -299,7 +311,7 @@ _FC_AWK='
   }
   END {
     for (id in W) {
-      if (T[id] != "" && (T[id] < start || T[id] >= end)) continue
+      if (T[id] != "" && (T[id] < start || (end != "" && T[id] >= end))) continue
       if (T[id] == "" || W[id] < 0) { runread++; continue }
       h = W[id]; tot += h; calls++
       WT[WE[id]] += h; WC[WE[id]]++
@@ -326,7 +338,7 @@ _FC_AWK='
     printf "felix cost: read-only. A proxy for plan usage in input-equivalent tokens, not the plan%ss own number.\n", "\047"
     printf "window   %s to %s\n", s16, esay
     if (cov == "unknown") {
-      printf "total    unknown: %s\ncalls    unknown\n", why
+      printf "total    unknown (%s)\ncalls    unknown\n", why
       if (any) printf "files    %d read, %d could not be read under %s\n", nread, unread, where
       exit
     }

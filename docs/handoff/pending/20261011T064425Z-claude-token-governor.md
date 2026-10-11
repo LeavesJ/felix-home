@@ -1,9 +1,11 @@
 ### 2026-10-11: felix cost reads what a week of Claude Code cost, as input-equivalent tokens against the weekly cap (slot 2a, part A)
 
-Branch claude/token-governor, cut from main b9929fe9. Slot 2a of the carrier
+Branch claude/token-governor, cut from main b9929fe9, with main 9f614a5b (#424)
+merged in. Slot 2a of the carrier
 queue (audits/2026-10-08-carrier/state.md in the memory root), part A of the
 brief in audits/2026-10-09-token-burn/BRIEF.md. Engine only: lib/cost.sh, the
-dispatch and help line in felix, and a block in tests/run. No table under
+dispatch and help line in felix, and three parts of the suite
+(tests/parts/1050 to 1070, the block cut where each parses alone). No table under
 projects/, no escape.
 
 **What it does.** `felix cost [--week | --since D] [--by worktree|day|model]
@@ -70,8 +72,10 @@ two shapes the brief named and reported 417M. Every `*.jsonl` under
 - **Mutation.** Nine mutants were run, and all nine are caught (100, 32, 27,
   11, 8, 5, 4, 3 and 3 reds). The ninth, largest across files, survived the
   first block and was caught only once the second round covered it.
-- **Version.** 0.49.277, pipelined on #421 (0.49.276) at its gated head
-  fbeca7e1, which this branch merges. The red run is against that head.
+- **Version.** 0.49.278. It was 0.49.277, pipelined on #421, until #424 took
+  0.49.277 and carried #421's commits. Main was merged in, and the block moved
+  into parts unchanged, byte for byte.
+- **Record.** RECORD_LINE
 
 **Not done here, and next in slot 2a.**
 - **B.** The Stop hook holds once per (session, tree id), and afterwards

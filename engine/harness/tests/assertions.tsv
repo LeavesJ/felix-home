@@ -859,6 +859,7 @@
 1	a name the ledger already admits is refused as already admitted
 1	a name the manifest lists twice that the base run reaches once is a row counting the one time it never reached it
 1	a name the registry does not hold reads absent
+1	a name the run reached fewer times than the manifest lists is said with both counts, in the manifest's order, and one reached more often, or listed nowhere, is not
 1	a name with no digest recorded claims nothing
 1	a named capability carries its count
 1	a named file whose name is not ASCII is pushed like any other
@@ -3646,6 +3647,7 @@
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
 1	and the suite writes the manifest it compares and records through that writer
+1	and the suite's last step asks it, rather than running an awk for each name the manifest lists
 1	and the summary counts three of six assertions failing against main at the engine version main declares
 1	and the summary counts twelve, nine failing, eight of them never reached
 1	and the summary line counts them
@@ -3747,6 +3749,7 @@
 1	and with no provider row owed or unread it says the receipt line once and spends it
 1	and with no session handoff on disk, says nothing about one
 1	and with no stack.tsv the same Stop hook run still holds the session for the night, without the nudge (control)
+1	and with nothing reached, every name listed is said once, a row with no name or a count that is no number listing none
 1	and with only a gitlab remote under another name, they wait
 1	and with only an awaiting provider row it is owed with its request path, and nothing is said to be unread
 1	and with the edit undone the tree id is back
@@ -6298,6 +6301,7 @@
 1	the maintenance fixture names more routines than a pipe holds
 1	the mandate does not claim more precision than measured
 1	the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran
+1	the manifest of 7,000 names is read against a run that missed three in under 5 seconds of CPU
 1	the manifest variable reached the run
 1	the manifest writer keeps each name as the suite printed it, blanks inside and at either end, so red never reads one as unreached
 1	the marker moves on to the id after the current one

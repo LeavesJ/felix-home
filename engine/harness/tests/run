@@ -53,6 +53,26 @@ _ran_rows() {   # stdin: names, one a line -> count<TAB>name, sorted by name
   LC_ALL=C sort | uniq -c | LC_ALL=C awk '{ c = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%s\n", c, $0 }' \
     | LC_ALL=C sort -t"$(printf '\t')" -k2
 }
+# The names the manifest lists that a run reached fewer times than it lists
+# them: want<TAB>got<TAB>name, one a line, in the manifest's order. Both files
+# are rows of count<TAB>name and both are read once. This was a loop over the
+# manifest that ran an awk over the whole counts file for each of its ~6,800
+# rows: 88 s of the gate's 1,565 on 2026-10-09, most of it fork and exec, for
+# a comparison that is one pass. A name is what follows a row's first tab on
+# both sides and is compared as bytes, so a backslash, a bracket or a tab in
+# it is itself. A row that lists no name, or whose count is not a number,
+# lists nothing to reach.
+_manifest_short() {   # manifest counts
+  LC_ALL=C awk -F'\t' '
+    function name(line) { sub(/^\t+/, "", line); if (!sub(/^[^\t]*\t+/, "", line)) return ""; sub(/\t+$/, "", line); return line }
+    function count(line) { sub(/^\t+/, "", line); sub(/\t.*$/, "", line); return line }
+    FILENAME == ARGV[1] { got[name($0)] = count($0); next }
+    { n = name($0); w = count($0) }
+    n == "" || w !~ /^[0-9]+$/ { next }
+    { g = (n in got) ? got[n] : 0 }
+    g + 0 < w + 0 { printf "%s\t%s\t%s\n", w, g, n }
+  ' "$2" "$1"
+}
 ok()   { PASS=$((PASS+1)); _ran "$1"; printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); _ran "$1"; printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
 is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]"; }
@@ -32125,6 +32145,37 @@ is  "the manifest writer keeps each name as the suite printed it, blanks inside 
     "$(printf '%s\n' 'a  b' ' lead' 'trail ' 'a  b' | _ran_rows)" "$(printf '1\t lead\n2\ta  b\n1\ttrail ')"
 is  "and the suite writes the manifest it compares and records through that writer" \
     "$(grep -c '^_ran_rows < "\$FELIX_TEST_RAN" > "\$_ran_counts"$' "$HERE/run")" "1"
+# The suite's last step compares that manifest with what ran. It was a loop of
+# one awk per manifest row, 88 s of the gate on 2026-10-09; it is one pass over
+# both files now, and these ask it what the loop answered. The loop's answers
+# on every case below were read off it before it was replaced, bar three it got
+# wrong and the pass does not: a tab inside a name reached by the run, which
+# the loop reported unreached, a last row with no newline, which it dropped, and
+# a name that is a number written another way, "1e0" for "1", which it took to
+# be reached because awk compared the two as numbers.
+_ms="$TMP/ms"; mkdir -p "$_ms"
+printf '1\talpha\n3\tbeta\n1\tgamma\n2\ta\\back [x] star.*\n1\tread a.b\n1\ta name\twith a tab\n1\t1e0' > "$_ms/want"
+printf '1\talpha\n2\tbeta\n2\ta\\back [x] star.*\n1\tread aXb\n1\ta name\twith a tab\n5\textra name\n1\t1\n' > "$_ms/got"
+is  "a name the run reached fewer times than the manifest lists is said with both counts, in the manifest's order, and one reached more often, or listed nowhere, is not" \
+    "$(_manifest_short "$_ms/want" "$_ms/got")" "$(printf '3\t2\tbeta\n1\t0\tgamma\n1\t0\tread a.b\n1\t0\t1e0')"
+: > "$_ms/none"
+is  "and with nothing reached, every name listed is said once, a row with no name or a count that is no number listing none" \
+    "$(printf '1\tone\n\n1\n\tno count\nx\tnot a number\n2\ttwo\n' > "$_ms/odd"; _manifest_short "$_ms/odd" "$_ms/none" | tr '\t' '|')" "1|0|one
+2|0|two"
+is  "and the suite's last step asks it, rather than running an awk for each name the manifest lists" \
+    "$(grep -c '^  done < <(_manifest_short "\$FELIX_TEST_MANIFEST" "\$_ran_counts")$' "$HERE/run")" "1"
+# Timed as CPU, children's user and system both: the loop's time was forks. At
+# 7,000 names it ran for over a minute, so 5 s stays far from both.
+awk 'BEGIN { for (i = 1; i <= 7000; i++) printf "1\tassertion number %d, and a few words more\n", i }' > "$_ms/big.want"
+head -6997 "$_ms/big.want" > "$_ms/big.got"
+_msn="$(_manifest_short "$_ms/big.want" "$_ms/big.got"; times > "$_ms/big.cpu")"
+_msc="$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } } END { printf "%d", ms }' "$_ms/big.cpu")"
+_msv="the manifest of 7,000 names is read against a run that missed three in under 5 seconds of CPU"
+if [ "$(printf '%s\n' "$_msn" | grep -c .)" = "3" ]; then
+  [ "$_msc" -le 5000 ] && ok "$_msv" || bad "$_msv" "took ${_msc} ms of CPU"
+else
+  bad "$_msv" "it did not say the three, so its speed says nothing"
+fi
 if [ -x "$FROOT/harness/tests/red" ]; then
   _red_seed "$RED/repo" main 0.0.7; _red_dirty "$RED/repo" skips
   RSHA="$(cd "$RED/repo" && git rev-parse main)"
@@ -45070,17 +45121,13 @@ elif [ -f "$FELIX_TEST_MANIFEST" ]; then
   # workflow having to change, and .github/workflows is an escape channel no
   # project can demote.
   _missing=0
-  while IFS=$'\t' read -r want name; do
-    [ -n "${name:-}" ] || continue
-    # ENVIRON, not -v: awk -v processes backslash escapes, so a name holding a
-    # backslash could never equal itself and would read as never reached.
-    got="$(N="$name" awk -F'\t' '$2==ENVIRON["N"] {print $1}' "$_ran_counts")"
-    got="${got:-0}"
-    if [ "$got" -lt "$want" ]; then
-      bad "assertion did not run: $name" "expected it $want time(s), reached it $got"
-      _missing=$((_missing+1))
-    fi
-  done < "$FELIX_TEST_MANIFEST"
+  # Read from the files, not through awk -v, which processes backslash escapes
+  # so a name holding a backslash could never equal itself and would read as
+  # never reached. One pass: see _manifest_short.
+  while IFS=$'\t' read -r want got name; do
+    bad "assertion did not run: $name" "expected it $want time(s), reached it $got"
+    _missing=$((_missing+1))
+  done < <(_manifest_short "$FELIX_TEST_MANIFEST" "$_ran_counts")
   _extra="$(LC_ALL=C comm -13 <(cut -f2 "$FELIX_TEST_MANIFEST" | LC_ALL=C sort -u) \
                               <(cut -f2 "$_ran_counts"        | LC_ALL=C sort -u) | wc -l | tr -d ' ')"
   [ "$_missing" -eq 0 ] \

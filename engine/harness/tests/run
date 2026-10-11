@@ -43474,8 +43474,13 @@ _ho_noreceipt() { rm -f "$(_ho_lib _felix_receipt_path "$HODIR" "$HOHOME")"; }
 # The work tree is the committed "base" plus at most one line, so a tree named
 # by its line is the same tree whenever it comes back.
 _ho_edit()  { printf 'base\n%s\n' "$1" > "$HOREPO/WORK.txt"; }
-_ho_rec()   { cat "$HOSTATE/held-tree/$1" 2>/dev/null; }
-_ho_seed()  { mkdir -p "$HOSTATE/held-tree" && printf '%s\n' "$2" > "$HOSTATE/held-tree/$1"; }
+# Restated after the review, not blind (the contract's addendum A): a record
+# line is the tree id, the reason and the checkout, tab-separated. _ho_rec reads
+# the tree ids a record holds, and _ho_seed lays a whole line, the reason "never
+# verified" and the checkout the helpers talk to unless it is told otherwise.
+_ho_rec()   { cut -f1 "$HOSTATE/held-tree/$1" 2>/dev/null; }
+_ho_seed()  { mkdir -p "$HOSTATE/held-tree" \
+                && printf '%s\t%s\t%s\n' "$2" "${3:-never verified}" "${4:-$HODIR}" > "$HOSTATE/held-tree/$1"; }
 _ho_rows()  { awk 'END { print NR + 0 }' "$HOLOG" 2>/dev/null || printf '0'; }
 _ho_field() { printf '%s' "$HO_ROW" | cut -f"$1"; }
 _ho_pay() {   # session id [, flag [, transcript]] -> a Stop payload
@@ -43614,10 +43619,11 @@ for _ho_i in 3 4; do
       "$(_ho_sum)" "silent:0:1:debt"
 done
 # The record read, not the writer: a record laid by hand in the contract's
-# shape, one line holding the tree id, is all a session needs to be past its hold.
+# shape, one line holding the tree id, the reason and the checkout, is all a
+# session needs to be past its hold. Restated after the review, not blind.
 _ho_seed ho-seed "$HOT1"
 _ho_stop ho-seed
-is  "the Stop hook treats a record holding the tree id on one line as a hold already made, and adds a debt row" \
+is  "the Stop hook treats a record line holding the tree id, the reason and the checkout as a hold already made, and adds a debt row" \
     "$(_ho_sum)" "silent:0:1:debt"
 _ho_seed ho-other "0000000000000000000000000000000000000000"
 _ho_stop ho-other

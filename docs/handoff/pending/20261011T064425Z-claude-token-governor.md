@@ -75,7 +75,8 @@ two shapes the brief named and reported 417M. Every `*.jsonl` under
 - **Version.** 0.49.278. It was 0.49.277, pipelined on #421, until #424 took
   0.49.277 and carried #421's commits. Main was merged in, and the block moved
   into parts unchanged, byte for byte.
-- **Record.** RECORD_LINE
+- **Record.** 7306 assertions, the suite 7298 passed, 0 failed and 8 skipped.
+  425 of them are red against main 9f614a5 at engine 0.49.277.
 
 **Not done here, and next in slot 2a.**
 - **B.** The Stop hook holds once per (session, tree id), and afterwards

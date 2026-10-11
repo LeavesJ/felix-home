@@ -274,12 +274,16 @@ _FC_AWK='
     if (index(substr(r, u + 9), "\"usage\":{") || (wt && wt < u)) w = -1
     else { w = weight(substr(r, u + 8, 2048)); if (w < 0) w = weight(substr(r, u + 8)); if (w < 0) w = -1 }
     rel = substr(file, rl + 2); e = substr(rel, 1, index(rel, "/") - 1)
-    # Within a file the last line of an id wins; across files the largest.
-    if (id in W) {
-      if (WF[id] == file) { if (w < 0 && W[id] >= 0) next }
-      else if (w <= W[id]) next
-    }
-    W[id] = w; WF[id] = file; T[id] = t; WE[id] = e; WM[id] = mo
+    # Within a file the last line of an id wins, kept in L* until the file
+    # ends (one that can be weighed over one that cannot); then across files
+    # the largest, in settle(). grep -H keeps a file s lines together.
+    if (file != CF) { settle(); CF = file }
+    if (w < 0 && (id in LW) && LW[id] >= 0) next
+    LW[id] = w; LT[id] = t; LE[id] = e; LM[id] = mo
+  }
+  function settle(    id) {
+    for (id in LW) if (!(id in W) || LW[id] > W[id]) { W[id] = LW[id]; T[id] = LT[id]; WE[id] = LE[id]; WM[id] = LM[id] }
+    for (id in LW) { delete LW[id]; delete LT[id]; delete LE[id]; delete LM[id] }
   }
   # Keys of A (n of them, in K) ordered: by value largest first then key, or
   # by key alone when bykey. An insertion sort: there are tens of keys, not
@@ -310,6 +314,7 @@ _FC_AWK='
       else printf "  %5s%%  %8s  %s\n", pct(A[K[i]]), mil(A[K[i]]), K[i]
   }
   END {
+    settle()
     for (id in W) {
       if (T[id] != "" && (T[id] < start || (end != "" && T[id] >= end))) continue
       if (T[id] == "" || W[id] < 0) { runread++; continue }

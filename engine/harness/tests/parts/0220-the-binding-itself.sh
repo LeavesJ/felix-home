@@ -12,13 +12,15 @@ _allows "and a flagged stop under it ends, as before" "$out"
 # flagged stop after it is judged once more and let through, two holds at
 # most. Inside another hook's chain it does not hold, since that would be the
 # second in a row, and it says so on the record instead.
-rm -rf "$FROOT/state/held"; : > "$FROOT/state/held"
+# The record of the tree held on cannot be written either, or the flagged stop
+# would be debt on that tree before it came to this rule.
+rm -rf "$FROOT/state/held" "$FROOT/state/held-tree"; : > "$FROOT/state/held"; : > "$FROOT/state/held-tree"
 out="$(_stop "$GREPO" "$(_hj false rw-ro)")"
 _blocks "an unflagged stop holds even when the hold cannot be recorded" "$out"
 out="$(_stop "$GREPO" "$(_hj true rw-ro)")"
 _allows "but a flagged one does not hold again unrecorded" "$out"
 has "and the record says why" "$(tail -1 "$_hv")" "could not be recorded"
-rm -f "$FROOT/state/held"
+rm -f "$FROOT/state/held" "$FROOT/state/held-tree"
 
 # The flag is a FIELD. The payload also carries the model's last message, and
 # a glob for the key followed by `true` anywhere after it was satisfied by a

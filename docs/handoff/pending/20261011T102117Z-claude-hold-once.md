@@ -1,7 +1,7 @@
 ### 2026-10-11: the Stop hook holds once for each tree, reason and checkout in a session, and then records the unrun gate as a debt (slot 2a, part B)
 
 Branch claude/hold-once, stacked on claude/token-governor (#423, part A) at
-A_HEAD. Slot 2a of the carrier queue, part B of the brief in
+its gated head 84ecc70b. Slot 2a of the carrier queue, part B of the brief in
 audits/2026-10-09-token-burn/BRIEF.md (memory root). Engine only: hooks/stop,
 hooks/session-end, hooks/user-prompt, lib/verify.sh and templates/monitor.html,
 plus the suite: the two blind blocks as parts 1080 and 1090, and the rewake
@@ -54,8 +54,10 @@ transcripts and tree ids from the verification rows they wrote.
   - the session named in the debt row;
   - the monitor class.
 - **Restated, not blind.** The record line changed shape, so two round-1 helpers
-  and one assertion name were restated, and so were three existing rewake
-  assertions. Each is marked in place.
+  and one assertion name were restated. So were four existing assertions that
+  stop one session twice on one tree: three rewake assertions (parts 0210 and
+  0220) and the summary marker's (part 0240). Each now expects the debt row
+  where it expected a second hold, and each is marked in place.
 - **Blind round 2.** 100 assertions on the addendum, 63 red on main. All 37
   that pass on main are controls. The implementation passes all 100.
 - **Mutation.** All 18 mutants of this implementation are caught, each by the

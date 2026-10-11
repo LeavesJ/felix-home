@@ -99,6 +99,16 @@ cmd_inventory() {
 }
 if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
 
+# felix cost is dispatched here too, for the same reason as audit: it reads the
+# transcripts Claude Code keeps, writes nothing, and needs no home. What it
+# counts, and how it reads a response once, is in lib/cost.sh.
+cmd_cost() {
+  # shellcheck source=lib/cost.sh
+  . "${SCRIPT_DIR}/lib/cost.sh" || exit 1
+  felix_cost "$@"
+}
+if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
+
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"
 # shellcheck source=lib/detect.sh
@@ -227,6 +237,9 @@ specific project, language, or toolchain.
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
     felix inventory        read-only: where unlanded work sits, from git, gh and session records
+    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv]
+                           read-only: input-equivalent tokens spent this plan week, against
+                           the weekly cap, by worktree, day or model, from the same transcripts
     felix new <name> --no-commission
                            bind one project (rules, gate guess, marker) without commissioning:
                            no plugin installs, no network; felix commission runs it later.

@@ -50,6 +50,58 @@ _bwcli '' lesson "bw e2e sessionless lesson"
 has "through the Stop hook, a felix lesson run outside every session does not settle this session's catch" \
     "$(_bwstop bw-e2e-f)" "nothing has been written down"
 
+# A report is for being told, and this one was told at every stop. The count
+# comes from the whole transcript, so three calls blocked in a session's first
+# hour came back at the end of every turn after it, as if new, until the session
+# closed: eleven times in one afternoon (2026-10-11), for edits made before the
+# cause was gone, each answered at length. It says itself again when more is
+# blocked, and not otherwise. Keyed by the transcript, because the desktop app
+# has carried one conversation on under a new session id.
+_bwstop2() { ( cd "$_BWHR" && printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s","transcript_path":"%s"}' "$1" "$2" \
+               | "$FROOT/harness/hooks/stop" 2>&1 ); }
+_bwrec() { printf '{"type":"attachment","attachment":{"type":"hook_blocking_error","hookName":"%s","hookEvent":"x","blockingError":{"blockingError":"%s","command":"bash x"}}}\n' "$1" "$2"; }
+rm -f "$_BWHM/mistakes.log" "$_BWHM/written.log" "$_BWHM/lessons.md" "$_BWHM/DEVLOG.md"
+_bwtp="$TMP/bw-blocks.jsonl"
+{ _bwrec PostToolUse:Edit "Request payload exceeded maximum size."; _bwrec PostToolUse:Edit "Request payload exceeded maximum size."
+  _bwrec Stop "The gate last ran at 2026-08-13T09:30:36Z, on a different tree. Run felix gate."; } > "$_bwtp"
+_bwsaid() { _bwstop2 "$1" "$2" | grep -c 'Something blocked'; }
+has "through the Stop hook, a plugin's blocked calls are reported the first time, Felix's own not counted in" \
+    "$(_bwstop2 bw-blk-a "$_bwtp")" "Something blocked 2 tool call(s)"
+is  "and not at the next stop, which reads the same transcript" "$(_bwsaid bw-blk-a "$_bwtp")" "0"
+is  "nor the one after it" "$(_bwsaid bw-blk-a "$_bwtp")" "0"
+is  "nor under a new session id, as the desktop app carries one conversation on, over the same transcript" \
+    "$(_bwsaid bw-blk-new-id "$_bwtp")" "0"
+_bwrec PostToolUse:Edit "Request payload exceeded maximum size." >> "$_bwtp"
+has "but one more blocked call is reported again, with the count it has now" \
+    "$(_bwstop2 bw-blk-a "$_bwtp")" "Something blocked 3 tool call(s)"
+is  "and then not again" "$(_bwsaid bw-blk-a "$_bwtp")" "0"
+_bwrec PostToolUse:Write "Not logged into Semgrep Guardian." >> "$_bwtp"
+has "and a different plugin's refusal is reported when it arrives, though the first plugin's were all said" \
+    "$(_bwstop2 bw-blk-a "$_bwtp")" "Not logged into Semgrep Guardian"
+{ _bwrec Stop "The gate last ran at 2026-08-13T09:30:36Z, on a different tree. Run felix gate."; } > "$TMP/bw-own.jsonl"
+is  "Felix's own refusal alone is never reported, the first time or after" \
+    "$(_bwsaid bw-blk-b "$TMP/bw-own.jsonl")$(_bwsaid bw-blk-b "$TMP/bw-own.jsonl")" "00"
+cp "$_bwtp" "$TMP/bw-blocks-2.jsonl"
+has "another conversation's transcript is its own count, and says its blocks the first time" \
+    "$(_bwstop2 bw-blk-c "$TMP/bw-blocks-2.jsonl")" "Something blocked"
+# What was said is compared as bytes, a row at a time. A message holding a
+# backslash, a bracket or a star is itself and not a pattern, a near miss is
+# another row, and saying a row again replaces its count and keeps the others.
+_bwgs="$TMP/guard-said"; _bwgm='a back\slash [x] and a star.*'
+( . "$FROOT/harness/lib/guard.sh"
+  felix_guard_say "$_bwgs" 2 PostToolUse:Edit "$_bwgm"; felix_guard_say "$_bwgs" 3 PostToolUse:Edit "$_bwgm"
+  felix_guard_say "$_bwgs" 1 Stop plain )
+is  "a row said twice is kept once at the count last said, beside the others, and tab-separated" \
+    "$(tr '\t' '|' < "$_bwgs")" "$(printf '3|PostToolUse:Edit|%s\n1|Stop|plain' "$_bwgm")"
+is  "the count said for a message holding a backslash, brackets and a star is read back exactly" \
+    "$( . "$FROOT/harness/lib/guard.sh"; felix_guard_said "$_bwgs" PostToolUse:Edit "$_bwgm" )" "3"
+is  "and a message that differs by the star is another row, never said" \
+    "$( . "$FROOT/harness/lib/guard.sh"; felix_guard_said "$_bwgs" PostToolUse:Edit 'a back\slash [x] and a star.' )" ""
+is  "as is the same message from another hook, and a file that is not there says nothing was said" \
+    "$( . "$FROOT/harness/lib/guard.sh"; felix_guard_said "$_bwgs" PreToolUse:Edit "$_bwgm"; felix_guard_said "$TMP/no-such-file" Stop plain )" ""
+unset _bwgs _bwgm
+unset -f _bwstop2 _bwrec _bwsaid
+
 rm -rf "$_BWHP" "$_BWHM"
 _bwreset
 unset -f _bwago _bwstamp _bwday _bwmt _bwreset _bwcatch _bwwrote _bwprose _bwverdict _bwsays _bwsays0 \

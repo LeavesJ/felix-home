@@ -32,6 +32,31 @@ felix_guard_blocks() {
     | LC_ALL=C sort -k1,1nr
 }
 
+# What has already been said about a blocking row, so a report is made once and
+# again only when more is blocked. count<TAB>hook<TAB>message, one row each, in
+# a state file kept per transcript. The count the finish line reads is the whole
+# transcript's, so without this three calls blocked in a session's first hour
+# came back at the end of every turn after it, as news, until the session
+# closed: eleven times in one afternoon (2026-10-11). Compared as bytes through
+# ENVIRON, since awk -v reads a backslash as an escape and a message holding one
+# could never equal itself. A file that cannot be read says nothing was said,
+# and one that cannot be written leaves the report repeating: both err toward
+# telling.
+felix_guard_said() {   # file hook message -> the count said for that row, or nothing
+  [ -f "$1" ] || return 0
+  H="$2" M="$3" LC_ALL=C awk -F'\t' '$2 == ENVIRON["H"] && $3 == ENVIRON["M"] { print $1; exit }' "$1" 2>/dev/null
+  return 0
+}
+felix_guard_say() {    # file count hook message: record it, replacing that row's earlier count
+  local f="$1" tmp
+  mkdir -p "$(dirname "$f")" 2>/dev/null || return 0
+  tmp="$f.$$"
+  { [ -f "$f" ] && H="$3" M="$4" LC_ALL=C awk -F'\t' '!($2 == ENVIRON["H"] && $3 == ENVIRON["M"])' "$f"
+    printf '%s\t%s\t%s\n' "$2" "$3" "$4"; } > "$tmp" 2>/dev/null \
+    && mv -f "$tmp" "$f" 2>/dev/null
+  return 0
+}
+
 # Which installed plugin most likely produced a message.
 #
 # The recorded command holds ${CLAUDE_PLUGIN_ROOT} unexpanded, so it names no

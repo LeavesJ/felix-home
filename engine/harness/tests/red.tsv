@@ -8,5 +8,12 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	b9929fe96a46ce091f0fc5ad97a0a78036cbe6b1	0.49.275
-run	0	6863	9
+base	origin/main	9f614a5ba2093c3f2c1ceba19e5dac77d4aa1fc2	0.49.277
+run	7	6869	9
+a row said twice is kept once at the count last said, beside the others, and tab-separated	1
+and a different plugin's refusal is reported when it arrives, though the first plugin's were all said	1
+and not at the next stop, which reads the same transcript	1
+and then not again	1
+nor the one after it	1
+nor under a new session id, as the desktop app carries one conversation on, over the same transcript	1
+the count said for a message holding a backslash, brackets and a star is read back exactly	1

@@ -252,7 +252,7 @@ _felix_stop_skipped() {
 
 # A hook belonging to another plugin that refused tool calls this session.
 _felix_stop_blocks() {
-  local tp rows n hook msg who
+  local tp rows n hook msg who c h m p
   tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   [ -n "$tp" ] && [ -f "$tp" ] || return 0
   rows="$(felix_guard_blocks "$tp")"
@@ -261,15 +261,27 @@ _felix_stop_blocks() {
   # session that hit both would otherwise report Felix and hide the plugin that
   # is actually broken. The rows arrive sorted by count, so the first survivor
   # is still the loudest one that is somebody else's.
+  #
+  # And a row already said at this count is skipped too: the count is the whole
+  # transcript's, so a block from the first hour was reported again at every
+  # stop after it. A row says itself again when its count has grown, and a
+  # different plugin's row, never said, is reported though a louder one was.
+  # Kept per transcript and not per session id, because the desktop app has
+  # carried one conversation on under a new id.
+  local said
+  said="$FELIX_HOME_DIR/state/blocks-said/$(printf '%s' "$tp" | cksum | awk '{ print $1 }')"
   n=""; hook=""; msg=""
   while IFS=$'\t' read -r c h m; do
     [ -n "${m:-}" ] || continue
     felix_guard_is_own "$m" && continue
+    p="$(felix_guard_said "$said" "$h" "$m")"
+    [ "$c" -gt "${p:-0}" ] 2>/dev/null || continue
     n="$c"; hook="$h"; msg="$m"; break
   done <<EOF
 $rows
 EOF
   [ -n "$msg" ] || return 0
+  felix_guard_say "$said" "$n" "$hook" "$msg"
   who="$(felix_guard_culprit "$msg")"
   printf 'Something blocked %s tool call(s) this session, and it was not Felix.\n\n' "$n"
   printf '  hook     %s\n  says     %s\n' "$hook" "$msg"
@@ -277,6 +289,7 @@ EOF
   printf '\nA plugin that ships hooks is a dependency on that plugin working, and\n'
   printf 'when one fails the error lands on the tool rather than on the plugin, so\n'
   printf 'it reads as the editor being broken. Tell the founder plainly.\n'
+  printf '\nSaid once: this will not come again unless more is blocked.\n'
   # Never Felix, whatever the resolver said. The remedy for a report is not
   # switching off the thing that reports.
   [ -n "$who" ] && [ "$who" != "felix" ] && \

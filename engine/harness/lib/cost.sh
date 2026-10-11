@@ -14,8 +14,8 @@
 # backs the first two with a file, and POSIX mode has no third).
 #
 # Records. The root is $CLAUDE_CONFIG_DIR/projects when that is set and
-# non-empty, else $HOME/.claude/projects (lib/inventory-host.sh reads the same
-# root). Under it a session is <E>/*.jsonl, E a working directory's record
+# non-empty, else $HOME/.claude/projects (the host adapter's session reader
+# takes the same root). Under it a session is <E>/*.jsonl, E a working directory's record
 # directory, and its helper agents are every *.jsonl under <E>/<sid>/subagents/:
 # an Agent call's directly, a workflow's two levels down in workflows/<run>/
 # (measured 2026-10-11: 222 of the week's 626 transcripts, and 152M of its

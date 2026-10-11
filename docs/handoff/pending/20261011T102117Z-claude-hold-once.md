@@ -56,15 +56,19 @@ transcripts and tree ids from the verification rows they wrote.
 - **Restated, not blind.** The record line changed shape, so two round-1 helpers
   and one assertion name were restated. So were four existing assertions that
   stop one session twice on one tree: three rewake assertions (parts 0210 and
-  0220) and the summary marker's (part 0240). Each now expects the debt row
-  where it expected a second hold, and each is marked in place.
+  0220) and the summary marker's (part 0240). Three now expect the debt row
+  where they expected a second hold. The unrecordable-hold one makes both
+  records unwritable, so it still reaches the rule it tests. Each is marked in
+  place.
 - **Blind round 2.** 100 assertions on the addendum, 63 red on main. All 37
   that pass on main are controls. The implementation passes all 100.
 - **Mutation.** All 18 mutants of this implementation are caught, each by the
   assertions it targets. Round 1 catches 6. The other 12 each break an
   addendum rule (every rule but B, whose case the reason mutant covers), and only
   round 2 catches them.
-- **Record.** RECORD_RESULT. The gate passed on the final tree.
+- **Record.** 7524 assertions, the suite 7516 passed, 0 failed and 8 skipped.
+  111 of them are red against main 82999a8 at engine 0.49.278: 45 from round 1,
+  63 from round 2, and three of the restated ones.
 - **Version.** 0.49.279, pipelined on #423 (0.49.278).
 
 **Not done here.**

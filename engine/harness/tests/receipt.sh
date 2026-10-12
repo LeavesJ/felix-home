@@ -360,6 +360,7 @@ _rcp_red_alive() {   # status 0 while the red this run started is still running
 # red is.
 _rcp_red_start() {   # <mark>: sets _rcp_red, _rcp_redsig and _rcp_wd
   _rcp_nomark=0
+  _rcp_redt0="$(date +%s)"; _rcp_rtsv0="$(ls -i "$HERE/red.tsv" 2>/dev/null)"
   "$HERE/red" --after "$1" $$ > "$TMP/red.out" 2>&1 &
   _rcp_red=$!; disown "$_rcp_red" 2>/dev/null
   _rcp_redsig="$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)"
@@ -367,9 +368,23 @@ _rcp_red_start() {   # <mark>: sets _rcp_red, _rcp_redsig and _rcp_wd
   _rcp_wd=$!; disown "$_rcp_wd" 2>/dev/null
 }
 
+# Red retracts red.tsv as its first act, and a red ended before it has leaves the
+# previous change's claim standing, which is the one shape that file must never
+# take. So a red that is to be ended and was started less than five seconds ago
+# is given up to two for red.tsv to be replaced (red writes it by mv, a new file
+# each time). A red that never touches it, as a stand-in for one does not, costs
+# the two seconds; one started longer ago has had its chance.
+_rcp_red_settle() {
+  local n=0
+  [ $(( $(date +%s) - _rcp_redt0 )) -lt 5 ] || return 0
+  while [ "$n" -lt 20 ] && _rcp_red_alive && [ "$(ls -i "$HERE/red.tsv" 2>/dev/null)" = "$_rcp_rtsv0" ]; do
+    sleep 0.1; n=$((n + 1))
+  done
+}
+
 _rcp_watch() {   # <record run's pid>: once it is gone, red and what red started are ended
   while kill -0 "$1" 2>/dev/null; do sleep 1; done
-  ! _rcp_red_alive || _rcp_stop "$_rcp_red"
+  ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
 }
 
 # The mark, whole or not at all: a sibling file and one mv. <word> is written;
@@ -382,7 +397,7 @@ _rcp_mark() {   # <written|failed> <mark>
   done
   rm -f "$2.tmp" 2>/dev/null
   _rcp_nomark=1
-  ! _rcp_red_alive || _rcp_stop "$_rcp_red"
+  ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
 }
 
 # After the recorded line: what red said, every line indented by two spaces, once

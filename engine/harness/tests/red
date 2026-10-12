@@ -196,6 +196,65 @@ _none() {
   exit 2
 }
 
+# A tree of processes ended: all of it asked to end, so that the suite's own EXIT
+# trap removes its temporary directory, the root given up to 10 s to go, and
+# what is left stopped and then killed, the whole list at once so that nothing
+# forks while it is being ended. The same words as _rcp_stop in receipt.sh,
+# which this does not load: red runs in the base's tree as well as this one.
+_tree() {   # <pid>: it and every process below it, on one line
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+_stop_tree() {   # <pid>
+  local list p n=0
+  list="$(_tree "$1")"
+  for p in $list; do kill -TERM "$p" 2>/dev/null; done
+  while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
+  for p in $list; do kill -STOP "$p" 2>/dev/null; done
+  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+}
+# Whatever still holds this run's temporary path in its command line is a stray
+# of this run, and is ended (HANDOFF §5, below).
+TMP=""
+_reap() { [ -z "$TMP" ] || pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1; }
+
+# Whether the record run is gone: process $WPID no longer exists or is a zombie,
+# or red, which the record run starts as its own child, has a different parent
+# now. A process that merely holds the id of a record run that is dead (the id
+# was reused) is not the record run, and red's parent says so: red was handed to
+# someone else the moment the record run ended. Asked of a $WPID that is not
+# red's parent, as when red is run by hand, only the first two apply.
+_gone() {
+  local pp
+  kill -0 "$WPID" 2>/dev/null || return 0
+  case "$(ps -o stat= -p "$WPID" 2>/dev/null)" in Z*) return 0 ;; esac
+  if [ "$WPID" = "$PPID0" ]; then
+    pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
+    case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
+  fi
+  return 1
+}
+SUITE=""; MON=""
+# Ended by a signal (the record run's, or a Ctrl-C at a terminal): its suite and
+# the monitor are ended, the base checkout goes with the trap below, and the
+# retraction is written again, so that a signal that came before the first
+# write, or in the middle of the last, leaves red.tsv saying nothing was shown.
+# Armed ahead of the retraction for that reason; --after only, since run by hand
+# the suite is a foreground command and a signal waits for it.
+_abort() {   # <exit status>
+  trap '' INT TERM HUP
+  [ -z "$MON" ] || kill "$MON" 2>/dev/null
+  [ -z "$SUITE" ] || _stop_tree "$SUITE"
+  _reap
+  { _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } | _put 2>/dev/null
+  exit "$1"
+}
+if [ "$AFTER" -eq 1 ]; then trap '_abort 130' INT; trap '_abort 143' TERM; trap '_abort 129' HUP; fi
+
 # Retract FIRST, before anything that can take minutes or be killed. A run
 # ended by a signal nothing here can trap — kill -9, an out-of-memory kill, a
 # runner's hard timeout — reaches neither write below, and until this line
@@ -273,58 +332,6 @@ _cleanup() {
 }
 trap _cleanup EXIT
 
-# A tree of processes ended: all of it asked to end, so that the suite's own EXIT
-# trap removes its temporary directory, the root given up to 10 s to go, and
-# what is left stopped and then killed, the whole list at once so that nothing
-# forks while it is being ended. The same words as _rcp_stop in receipt.sh,
-# which this does not load: red runs in the base's tree as well as this one.
-_tree() {   # <pid>: it and every process below it, on one line
-  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
-    { kids[$2] = kids[$2] " " $1 }
-    END { q = root; out = ""
-          while (q != "") { n = split(q, a, " "); q = ""
-                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
-          print out }'
-}
-_stop_tree() {   # <pid>
-  local list p n=0
-  list="$(_tree "$1")"
-  for p in $list; do kill -TERM "$p" 2>/dev/null; done
-  while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
-  for p in $list; do kill -STOP "$p" 2>/dev/null; done
-  for p in $list; do kill -KILL "$p" 2>/dev/null; done
-}
-# Whatever still holds this run's temporary path in its command line is a stray
-# of this run, and is ended (HANDOFF §5, below).
-_reap() { pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1; }
-
-# Whether the record run is gone: process $WPID no longer exists or is a zombie,
-# or red, which the record run starts as its own child, has a different parent
-# now. A process that merely holds the id of a record run that is dead (the id
-# was reused) is not the record run, and red's parent says so: red was handed to
-# someone else the moment the record run ended. Asked of a $WPID that is not
-# red's parent, as when red is run by hand, only the first two apply.
-_gone() {
-  local pp
-  kill -0 "$WPID" 2>/dev/null || return 0
-  case "$(ps -o stat= -p "$WPID" 2>/dev/null)" in Z*) return 0 ;; esac
-  if [ "$WPID" = "$PPID0" ]; then
-    pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
-    case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
-  fi
-  return 1
-}
-SUITE=""; MON=""
-# Ended by a signal (the record run's, or a Ctrl-C at a terminal): its suite and
-# the monitor below are ended, the base checkout goes with the trap above, and
-# red.tsv keeps the retraction it was given first.
-_abort() {   # <exit status>
-  trap '' INT TERM HUP
-  [ -z "$MON" ] || kill "$MON" 2>/dev/null
-  [ -z "$SUITE" ] || _stop_tree "$SUITE"
-  _reap
-  exit "$1"
-}
 # The whole commit, not engine/ alone: the suite reads the repository's own
 # gate, tables, hooks and commands through REAL_HARNESS/../.., and a tree
 # missing them would skip those assertions and call the skip a verdict.
@@ -396,7 +403,6 @@ if [ "$AFTER" -eq 1 ]; then
   # job in a script ignores SIGINT, and the suite already did in every record
   # run: the record run starts red as a job, and what a process ignores its
   # children ignore too. Run by hand without --after, the suite is as it was.
-  trap '_abort 130' INT; trap '_abort 143' TERM; trap '_abort 129' HUP
   ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1 &
   SUITE=$!
   ( while kill -0 "$SUITE" 2>/dev/null; do

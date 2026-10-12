@@ -140,13 +140,14 @@ _rx_proj mcpy
   printf 'mcp\tnothere\thttps://nothere.example/mcp\tlow\talways\n'
 } > "$RXH/projects/mcpy/stack.tsv"
 RXM="$RX/mcpy-checkout"; _rx_checkout "$RXM" mcpy; RXM="$(cd "$RXM" && pwd -P)"
+# Changed in review (part 1120): the list is read from an empty directory, where a project-scoped server is not listed, so an mcp row it does not name is unknown and not not-listed (R6, D19).
 RXR6="$RX/rows-r6"
 printf '%s\t%s\t%s\t%s\t%s\n' \
   needs-auth plugin cf@m plugin:cf:cf-api 'Needs authentication' \
   connected plugin cf@m plugin:cf:cf-docs 'Connected' \
   connected mcp sentry sentry 'Connected' \
   needs-auth mcp cf-api plugin:cf:cf-api 'Needs authentication' \
-  not-listed mcp nothere - 'no line of claude mcp list names this server' \
+  unknown mcp nothere - 'no line of claude mcp list names this server; a project-scoped server is not started by Felix, so whether it connects is not known' \
   > "$RXR6"
 
 # bare: rows the stack does not hold only. nostack: no stack.tsv at all.
@@ -245,7 +246,7 @@ is  "a plugin.json carrying only an author url declares nothing"          "$(_rx
 _rx_src_pipe="$(awk '/\|[[:space:]]*grep -q/ { print FILENAME ":" FNR }' "$FROOT/harness/lib/reach.sh" 2>/dev/null)"
 if [ -f "$FROOT/harness/lib/reach.sh" ]; then is "and reach.sh pipes nothing into grep -q" "$_rx_src_pipe" ""
 else bad "and reach.sh pipes nothing into grep -q" "there is no lib/reach.sh"; fi
-is  "with LIST-A the mcp rows match by key or :name:, and an unnamed one reads not-listed (R6)" \
+is  "with LIST-A the mcp rows match by key or :name:, and an unnamed one reads unknown (R6)" \
     "$(_rx_rows mcpy)" "$(cat "$RXR6")"
 _rxo="$(RX_LIST="$RXLO" _rx_rows oddy)"
 is  "a line whose key holds a space is prose and is ignored (R2)" "$(_rx_pick "$_rxo" ctx@m | cut -f1)" "connected"
@@ -271,7 +272,9 @@ _rxf="$(cd "$RXC" && _rxl reach "felix_reach_refresh '$RXH/projects/reachy' '$RX
 is  "a refresh prints the rows" "$_rxf" "$(cat "$RXR4")"
 is  "and returns the read's status, 0 when read" "$_rxfrc" "0"
 _rxhd="$(head -1 "$(_rx_cache reachy)" 2>/dev/null)"
-case "$_rxhd" in "# read "[0-9]*" $RXC") ok "the cache opens # read <epoch> <the directory the read ran in>" ;;
+# Changed in review (part 1120): the directory the read ran in is the empty one felix_reach_read makes under TMPDIR, never the checkout (R13).
+case "$_rxhd" in "# read "[0-9]*" $RXC") bad "the cache opens # read <epoch> <the directory the read ran in>" "the read ran in the checkout: $_rxhd" ;;
+                 "# read "[0-9]*" "*/felix-reach.??????) ok "the cache opens # read <epoch> <the directory the read ran in>" ;;
                  *) bad "the cache opens # read <epoch> <the directory the read ran in>" "$_rxhd" ;; esac
 _rxe="${_rxhd#\# read }"; _rxe="${_rxe%% *}"
 case "$_rxe" in ''|*[!0-9]*) _rxe=0 ;; esac
@@ -323,9 +326,11 @@ is  "and its stdout is still valid JSON" \
 _rx_wait 10 '[ -s "$(_rx_cache reachy)" ] && [ ! -d "$_rx_lock" ]' && _rxhook=1 || _rxhook=0
 [ "$_rxhook" = 1 ] && ok "with the cache absent, a session start writes one within 10 s" \
                    || bad "with the cache absent, a session start writes one within 10 s" "no cache, or the lock is still held"
+# Changed in review (part 1120): the header names the empty directory the read ran in, not the checkout root (R13).
 case "$(head -1 "$(_rx_cache reachy)" 2>/dev/null)" in
-  "# read "[0-9]*" $RXC") ok  "and its header's directory is the checkout root" ;;
-  *)                      bad "and its header's directory is the checkout root" "$(head -1 "$(_rx_cache reachy)" 2>/dev/null)" ;;
+  "# read "[0-9]*" $RXC") bad "and its header's directory is the empty directory the read ran in, not the checkout root" "the read ran in the checkout" ;;
+  "# read "[0-9]*" "*/felix-reach.??????) ok  "and its header's directory is the empty directory the read ran in, not the checkout root" ;;
+  *)                      bad "and its header's directory is the empty directory the read ran in, not the checkout root" "$(head -1 "$(_rx_cache reachy)" 2>/dev/null)" ;;
 esac
 is  "and its rows are R4's" "$(tail -n +2 "$(_rx_cache reachy)" 2>/dev/null)" "$(cat "$RXR4")"
 _rxw=10; [ "$_rxhook" = 1 ] || _rxw=1
@@ -367,9 +372,11 @@ is  "felix stack --reach --tsv prints exactly the rows, no header and no summary
 is  "and exits 0" "$_rxsrc" "0"
 is  "and runs one claude command, mcp list, and no plugin or marketplace list" "$(cat "$RXLOG")" "mcp list"
 case "$_rxso$(cat "$RX/err")" in *RX-STDERR-NOISE*) bad "the list's stderr is discarded" ;; *) ok "the list's stderr is discarded" ;; esac
+# Changed in review (part 1120): read from an empty directory, whatever checkout the person stands in (R13).
 case "$(head -1 "$(_rx_cache reachy)" 2>/dev/null)" in
-  "# read "[0-9]*" $RXC") ok  "and it writes the cache, read from the checkout the person stands in" ;;
-  *)                      bad "and it writes the cache, read from the checkout the person stands in" ;;
+  "# read "[0-9]*" $RXC") bad "and it writes the cache, read from an empty directory and not the checkout the person stands in" "the read ran in the checkout" ;;
+  "# read "[0-9]*" "*/felix-reach.??????) ok  "and it writes the cache, read from an empty directory and not the checkout the person stands in" ;;
+  *)                      bad "and it writes the cache, read from an empty directory and not the checkout the person stands in" ;;
 esac
 _rxso="$(_rx_stk "$RXC" --reach)"; _rxsrc=$?
 _rxexp="$( printf '%-11s %-7s %-44s %-34s %s\n' STATE KIND NAME SERVER DETAIL

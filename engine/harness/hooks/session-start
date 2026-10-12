@@ -597,16 +597,18 @@ fi
 # ------------------------------------------------------------- reach ----
 # Whether the servers this project declares connect, read in the background and
 # kept for the pulse and felix status. Detached, silent and best effort: it
-# starts one claude command after this hook has gone, in this checkout so a
-# project-scoped .mcp.json is seen, and writes a cache that nothing in this hook
-# reads. Nothing here waits on it, adds a word to the session, or changes what
-# any later decision reads, which is how invariant 2 holds (lib/reach.sh). A
-# fresh cache starts nothing; one 24 hours old or more is read again, and a read
-# that fails leaves the old cache.
+# starts one claude command after this hook has gone and writes a cache that
+# nothing in this hook reads. That command is run from an empty directory of its
+# own and never from this checkout: `claude mcp list` starts the servers it
+# lists, a project-scoped one included once it is approved, and this hook runs in
+# repositories nobody has vetted (lib/reach.sh says why). Nothing here waits on
+# it, adds a word to the session, or changes what any later decision reads, which
+# is how invariant 2 holds. A fresh cache starts nothing; one 24 hours old or
+# more is read again, and a read that fails leaves the old cache.
 if [ -n "$PROJ" ] && [ -f "$PROJ/stack.tsv" ] && command -v claude >/dev/null 2>&1 \
    && command -v felix_reach_due >/dev/null 2>&1 \
    && felix_reach_due "$PROJ" "$FELIX_HOME_DIR"; then
-  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "$_repo_root"
+  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR"
 fi
 
 # ------------------------------------------------------- commissioning ----

@@ -19,9 +19,10 @@ it, and nothing inside Felix can say so, because its hooks never load.
 - Reach (lib/reach.sh, felix stack --reach [--tsv]). One `claude mcp list` read,
   classified per declared plugin or mcp row and per server: connected, needs-auth,
   failed, not-listed, no-server, unknown. Cached per project in
-  state/reach/<project>.tsv under a `# read <epoch> <cwd>` header. The SessionStart
-  hook starts a detached refresh when the cache is absent or a day old and reads
-  nothing back. Advisory only: felix stack plan still calls a plugin whose server
+  state/reach/<project>.tsv under a `# read <epoch> <dir>` header. The list is read
+  from a fresh empty directory under TMPDIR, never the checkout (see "Found in
+  review"). The SessionStart hook starts a detached refresh when the cache is
+  absent or a day old and reads nothing back. Advisory only: felix stack plan still calls a plugin whose server
   needs authentication present, and the gate, the Stop hook and commissioning never
   read the cache. A detail never carries a URL's query string.
 - The pulse (lib/pulse.sh, lib/status.sh). Two new report duties and a record: a
@@ -61,6 +62,29 @@ last run existed before this change), reach unknown (no cache yet).
 - Part 0220's `adopt --help` assertion looked for the word "declared" in the usage
   text, which now says it (felix status, felix stack --reach); it looks for the
   writer's own sentences instead.
+
+**Found in review, and fixed.** The adversarial review raised two blockers.
+- `claude mcp list` ran in the checkout, at every session start, so a project
+  `.mcp.json` server that was approved or auto-enabled (enableAllProjectMcpServers)
+  would have been started in a repository nobody had vetted. Measured with the
+  real CLI: a server pending approval is listed and not started, and from an empty
+  directory it is not listed at all (CLAUDE_PROJECT_DIR changes nothing). So the
+  list is now read from a fresh `mktemp -d` directory under TMPDIR, removed after,
+  for the refresh and for `felix stack --reach` alike; with no directory to read
+  from it, or with a .mcp.json in any parent of it (the CLI walks up, measured), it
+  reads nothing and runs no claude. An mcp row the list does not name is
+  now `unknown`, its detail saying a project-scoped server is not started by Felix,
+  and never `not-listed`. Part 1120: a claude stub that records its $PWD and starts
+  the .mcp.json command of the directory it is run in, 29 assertions red before the
+  fix, and six mutants of the fix each caught.
+- A scratch FELIX_HOME_DIR wrote the real home's cache. Not a bug: FELIX_HOME is
+  the CLI's override and FELIX_HOME_DIR is assigned from it, unconditionally, on
+  main too. Nothing changed; part 1120 pins that the cache, the pulse record and
+  log and the refresh land in the home the invocation resolved.
+- Not changed, and wanting its own decision: `felix commission` already runs
+  `claude mcp list` in the checkout (its `stack` row calls felix_stack_plan), and
+  session-start starts it detached under a `commission` autonomy grant, which only
+  projects/felix has. See the spec's section 8.
 
 **Record.**
 - The blind part 1100 against main's engine: 58 passed, 172 failed. Against this

@@ -34,9 +34,23 @@
 # first question mark. It is not truncated by bytes, because a byte cut can
 # split a multibyte character and one bad byte empties a macOS UTF-8 sort.
 #
-# Cache: <home>/state/reach/<project>.tsv, first line `# read <epoch> <cwd>`,
-# then the rows felix_reach_rows printed, written to a temp file and moved into
-# place, and only when the list was read: a failed read leaves the old cache.
+# THE LIST IS READ FROM AN EMPTY DIRECTORY, NEVER THE CHECKOUT. `claude mcp list`
+# starts the servers it lists, a project-scoped one included once it is approved
+# or auto-enabled (enableAllProjectMcpServers), and this runs at every session
+# start of every governed project, repositories opened to hunt for bugs among
+# them. Measured 2026-10-12 with the real CLI: a server pending approval is
+# listed and not started, so reading in the checkout was safe only while Claude
+# Code's approval state held; from an empty directory it is not listed at all,
+# but the CLI walks up to a parent's .mcp.json, so a scratch directory with one
+# above it is refused. felix_reach_read makes a fresh directory under TMPDIR
+# (never the checkout, never $HOME, itself a repository here), reads from there,
+# removes it, and when it cannot reads nothing, never in the caller's directory.
+# A server only a project's .mcp.json declares is not seen: unknown, not not-listed.
+#
+# Cache: <home>/state/reach/<project>.tsv, first line `# read <epoch> <dir>`
+# (dir is the empty directory the read ran in, gone by now), then the rows
+# felix_reach_rows printed, written to a temp file and moved into place, and
+# only when the list was read: a failed read leaves the old cache.
 # Each row is `state<TAB>kind<TAB>declared name<TAB>server<TAB>detail`.
 
 # Sourced by path because the suite sources libraries alone, in subshells, and a
@@ -82,22 +96,60 @@ _felix_reach_parse() {
   done
 }
 
-# Run `claude mcp list` once, here, in the current directory, so a server a
-# project's own .mcp.json declares is seen. 0 when it was read, with the server
-# table in _FELIX_REACH_SRV; 1 when not, with one sentence in _FELIX_REACH_WHY.
-# The output, the exit status and a sentinel come back in one substitution: a
-# substitution that cannot make its pipe expands to nothing with status 0 on
-# bash 3.2, and that must read as unread and never as an empty list. stderr is
-# discarded. No timeout: nobody waits on the background read, a person running
-# --reach can interrupt it, the pulse never runs it, and macOS ships no
-# `timeout` binary to bound it with.
+# Remove a scratch directory felix_reach_read made, and whatever claude left in
+# it. Only a path shaped as mktemp gave it, absolute and not a symlink.
+_felix_reach_rm() {
+  case "${1:-}" in
+    /*/felix-reach.??????) [ -d "$1" ] && [ ! -L "$1" ] && rm -rf "$1" 2>/dev/null ;;
+  esac
+  return 0
+}
+
+# 0 when no directory from $1 up to / holds a .mcp.json (the CLI reads a parent's).
+_felix_reach_neutral() {
+  local d="$1"
+  while :; do
+    [ -e "$d/.mcp.json" ] && return 1
+    [ -n "$d" ] || return 0
+    d="${d%/*}"
+  done
+}
+
+# Run `claude mcp list` once, from a fresh empty directory (the head of this file
+# says why). 0 when read, with the server table in _FELIX_REACH_SRV and the
+# directory it ran in in _FELIX_REACH_CWD; 1 when not, one sentence in
+# _FELIX_REACH_WHY. The directory is made under $TMPDIR with a template (a bare
+# mktemp on macOS ignores TMPDIR) and removed once the command returns, on every
+# path. When it cannot be made, entered or trusted, claude is not run at all.
+# Output, exit status and a sentinel come back in one substitution: one that
+# cannot make its pipe expands to nothing with status 0 on bash 3.2, and that
+# must read as unread, never as an empty list. stderr is discarded. No timeout:
+# nobody waits on the background read, a person running --reach can interrupt it,
+# and macOS ships no `timeout` binary to bound it with.
 felix_reach_read() {
-  local out rc body parsed nl=$'\n' ws=$' \t\r\n'
-  _FELIX_REACH_OK=0; _FELIX_REACH_WHY=""; _FELIX_REACH_SRV=""
+  local out rc body parsed nl=$'\n' ws=$' \t\r\n' tmpd made dir=""
+  _FELIX_REACH_OK=0; _FELIX_REACH_WHY=""; _FELIX_REACH_SRV=""; _FELIX_REACH_CWD=""
   if ! command -v claude >/dev/null 2>&1; then
     _FELIX_REACH_WHY="no claude CLI on PATH"; return 1
   fi
-  out="$(claude mcp list 2>/dev/null </dev/null; printf '\n.%s' "$?")"
+  tmpd="${TMPDIR:-/tmp}"
+  # A relative TMPDIR would put it under the caller's own directory.
+  case "$tmpd" in /*) ;; *) tmpd=/tmp ;; esac
+  made="$(mktemp -d "${tmpd%/}/felix-reach.XXXXXX" 2>/dev/null)" || made=""
+  case "$made" in /*/felix-reach.??????) ;; *) made="" ;; esac
+  if [ -n "$made" ] && [ -d "$made" ] && [ ! -L "$made" ]; then
+    dir="$(cd "$made" 2>/dev/null && pwd -P)" || dir=""
+  fi
+  if [ -z "$dir" ]; then
+    _felix_reach_rm "$made"
+    _FELIX_REACH_WHY="could not make an empty directory to run claude mcp list in"; return 1
+  fi
+  if ! _felix_reach_neutral "$dir"; then
+    _felix_reach_rm "$made"
+    _FELIX_REACH_WHY="a .mcp.json sits above the scratch directory, so claude mcp list could start a project-scoped server there"; return 1
+  fi
+  out="$(cd "$dir" 2>/dev/null && claude mcp list 2>/dev/null </dev/null; printf '\n.%s' "$?")"
+  _felix_reach_rm "$made"
   case "$out" in
     *"$nl."[0-9]*) ;;
     *) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
@@ -122,6 +174,7 @@ felix_reach_read() {
     *.) _FELIX_REACH_SRV="${parsed%.}" ;;
     *)  _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
   esac
+  _FELIX_REACH_CWD="$dir"
   _FELIX_REACH_OK=1
   return 0
 }
@@ -176,7 +229,9 @@ _felix_reach_one() {
   m="$(printf '%s\n' "${_FELIX_REACH_SRV:-}" | _felix_reach_match "$kind" "$x" "$name")"
   if [ -n "$m" ]; then printf '%s\n' "$m"; return 0; fi
   if [ "$kind" = mcp ]; then
-    printf 'not-listed\tmcp\t%s\t-\tno line of claude mcp list names this server\n' "$name"
+    # Unknown, never not-listed: from an empty directory a project-scoped server
+    # is not listed, so its absence says nothing about whether it connects.
+    printf 'unknown\tmcp\t%s\t-\tno line of claude mcp list names this server; a project-scoped server is not started by Felix, so whether it connects is not known\n' "$name"
     return 0
   fi
   dir="$(felix_toolbox_path "$x")" || dir=""
@@ -272,7 +327,8 @@ _felix_reach_store() {
   cache="$(felix_reach_cache "$proj" "$home")"
   tmp="$cache.new.$$"
   mkdir -p "${cache%/*}" 2>/dev/null || return 1
-  cwd="$(pwd -P 2>/dev/null)"; cwd="${cwd//$'\n'/ }"
+  # The empty directory felix_reach_read ran in, not where this was called from.
+  cwd="${_FELIX_REACH_CWD:--}"; cwd="${cwd//$'\n'/ }"
   if { printf '# read %s %s\n' "$(date +%s)" "$cwd"
        [ -z "$rows" ] || printf '%s\n' "$rows"
      } > "$tmp" 2>/dev/null && mv -f "$tmp" "$cache" 2>/dev/null; then
@@ -311,15 +367,15 @@ felix_reach_refresh() {
   return "$rc"
 }
 
-# The refresh, detached, in felix_discover_refresh_bg's shape: a lock directory
-# taken with mkdir (held means a refresh is running, so return), a subshell that
-# removes it on EXIT, the inherited descriptors closed, standing in the
-# session's checkout so a project-scoped .mcp.json is seen, and every stream
-# closed so nothing about it can reach the session or hold the hook open. A lock
-# older than 30 minutes is broken, because a refresh killed by a signal never
-# runs its trap and reach would otherwise never refresh again.
+# The refresh, detached, in felix_discover_refresh_bg's shape without its cd: a
+# lock directory taken with mkdir (held means a refresh is running, so return), a
+# subshell that removes it on EXIT, the inherited descriptors closed, every
+# stream closed so nothing about it can reach the session or hold the hook open.
+# It stands nowhere in particular: felix_reach_read reads from an empty directory
+# of its own. A lock older than 30 minutes is broken, because a refresh killed by
+# a signal never runs its trap and reach would otherwise never refresh again.
 felix_reach_refresh_bg() {
-  local proj="$1" home="$2" root="$3" dir lock p
+  local proj="$1" home="$2" dir lock p
   dir="$home/state/reach"
   p="${proj%/}"
   lock="$dir/${p##*/}.lock"
@@ -331,7 +387,6 @@ felix_reach_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     felix_close_inherited_fds
-    cd "$root" 2>/dev/null || exit 0
     felix_reach_refresh "$proj" "$home" >/dev/null
   ) </dev/null >/dev/null 2>&1 &
   return 0

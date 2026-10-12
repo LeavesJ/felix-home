@@ -40,6 +40,18 @@ Notation: `\t` is one tab byte. `<epoch>` is `date +%s`. A row written
   `Connected`, `Needs authentication`, or `Failed to connect — <error>` where
   the error can itself quote a URL with a query string. No tab, no escape
   sequence, when stdout is not a terminal.
+- `claude mcp list` and project-scoped servers (measured 2026-10-12 with the real
+  CLI, after the review of this branch): run in a directory holding a
+  `.mcp.json` whose server is not yet approved, it lists that server as
+  `<key>: ... - ⏸ Pending approval (run `claude` to approve)` and does not start
+  it (the probe's marker file was never written). Run in an empty directory it
+  does not list the server at all, and exporting `CLAUDE_PROJECT_DIR` naming the
+  checkout changes nothing. It does start a user-scoped server (`npx -y
+  ruflo@latest` is one here) in whatever directory it is run in, and a
+  project-scoped server that is approved, or auto-enabled by
+  `enableAllProjectMcpServers`, is started like any other. It walks up: run in
+  an empty subdirectory of a checkout, it lists the checkout's `.mcp.json`
+  server, so an empty directory under a project is not neutral.
 - `lib/discover.sh`: `felix_discover_refresh_bg` takes a lock directory with
   `mkdir`, runs a subshell that traps `rmdir` on EXIT, calls
   `felix_close_inherited_fds`, `cd`s to the checkout, writes `<cache>.new.$$`
@@ -117,9 +129,9 @@ subshells.
   verdicts and asks the helper: a matching line whose state is `failed` or
   `needs-auth` returns 1; any other matching line returns 0; no matching line
   returns 1.
-- `felix_reach_read`: runs `claude mcp list` once, in the current directory,
-  into `_FELIX_REACH_LIST`; returns 0 when the list was read and 1 when not,
-  setting `_FELIX_REACH_WHY` to one sentence.
+- `felix_reach_read`: runs `claude mcp list` once, from a fresh empty directory
+  (R13) and never the caller's, into `_FELIX_REACH_LIST`; returns 0 when the
+  list was read and 1 when not, setting `_FELIX_REACH_WHY` to one sentence.
 - `felix_reach_rows <proj>`: classifies every `plugin` and `mcp` row of
   `<proj>/stack.tsv` against the list already read (or, when the last read
   failed, as unknown). Emits rows, prints nothing else.
@@ -129,18 +141,25 @@ subshells.
 - `felix_reach_due <proj> <home>`: 0 when the project declares a plugin or mcp
   row and its cache is absent, has no valid header, or was read 24 hours ago
   or more.
-- `felix_reach_refresh_bg <proj> <home> <root>`: the background form.
+- `felix_reach_refresh_bg <proj> <home>`: the background form. It takes no
+  checkout root: it does not stand in the checkout and has no use for it (R13).
 - `felix_reach_report <proj> <home>`: the pulse's lines for one project.
 - `felix_reach_summary <proj> <home>`: the status row's state, value, detail.
 
 ### Behaviours
 
 **R1. One read.** `felix_reach_read` runs `claude mcp list` exactly once per
-call, with stderr discarded, capturing stdout, the exit status and a sentinel
-in one substitution (shape: `out="$(claude mcp list 2>/dev/null; printf '\n.%s' "$?")"`),
+call, from the empty directory R13 makes, with stderr discarded, capturing
+stdout, the exit status and a sentinel in one substitution (shape:
+`out="$(cd "$dir" && claude mcp list 2>/dev/null; printf '\n.%s' "$?")"`),
 so a substitution that could not make its pipe reads as unread, not as an
 empty list. It is unread, return 1, when:
 - `command -v claude` fails: `_FELIX_REACH_WHY` = `no claude CLI on PATH`;
+- the empty directory could not be made or entered (R13): `could not make an
+  empty directory to run claude mcp list in`, and `claude` is not run;
+- a `.mcp.json` exists in that directory's parents (R13): `a .mcp.json sits
+  above the scratch directory, so claude mcp list could start a project-scoped
+  server there`, and `claude` is not run;
 - the sentinel is missing: `the list's output could not be captured`;
 - the exit status is not 0: `claude mcp list exited <n>`;
 - stdout is empty: `claude mcp list printed nothing`.
@@ -204,9 +223,14 @@ into `grep -q`. All three shapes in section 0 read as declaring.
 row as in R4.1; otherwise every server line `_felix_mcp_connected` would match
 (key equal to `<n>`, or containing `:<n>:`; the same two `case` patterns) gives
 one row, state as in R4.2; no matching line gives
-`not-listed\tmcp\t<n>\t-\tno line of claude mcp list names this server`.
-`no-server` never applies to an mcp row. With LIST-A, `mcp sentry` reads
-`connected`.
+`unknown\tmcp\t<n>\t-\tno line of claude mcp list names this server; a project-scoped server is not started by Felix, so whether it connects is not known`.
+The list is read from an empty directory (R13), where a project-scoped server
+is not listed because Felix did not start it, so a server that list does not
+name is not known to be missing. `no-server` and `not-listed` never apply to an
+mcp row, and neither does `failed` unless a line says `Failed to connect`.
+(Until the review of this branch the no-match row was `not-listed`.) With
+LIST-A, `mcp sentry` reads `connected`, and an mcp row `nothere` reads `unknown`
+with that detail.
 
 **R7. Detail never carries a query string.** For a server line, detail is the
 text from the first occurrence of the status phrase (`Failed to connect`,
@@ -225,8 +249,10 @@ Capability is not consulted: a dormant row is read like any other (section 7,
 D7).
 
 **R9. The cache.** Path `$FELIX_HOME_DIR/state/reach/<project>.tsv`. Content:
-first line `# read <epoch> <cwd>` (cwd = `pwd -P` of the read, the rest of
-the line), then exactly the rows `felix_reach_rows` printed. Written to
+first line `# read <epoch> <dir>` (dir = `pwd -P` of the empty directory the
+read ran in, R13, the rest of the line; the directory is gone by the time
+anyone reads it, and it is never the checkout or `$HOME`), then exactly the rows
+`felix_reach_rows` printed. Written to
 `<cache>.new.$$` and moved with `mv -f`; on any failure the temp file is
 removed. Written only when R1 read the list: an unread list leaves an
 existing cache byte-identical, and creates none. A project with no plugin or
@@ -240,16 +266,19 @@ immediately after the discovery block and before the commissioning block:
 if [ -n "$PROJ" ] && [ -f "$PROJ/stack.tsv" ] && command -v claude >/dev/null 2>&1 \
    && command -v felix_reach_due >/dev/null 2>&1 \
    && felix_reach_due "$PROJ" "$FELIX_HOME_DIR"; then
-  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "$_repo_root"
+  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR"
 fi
 ```
 
-`felix_reach_refresh_bg` has `felix_discover_refresh_bg`'s shape: `mkdir -p
-state/reach`, take the lock directory `state/reach/<project>.lock` with
-`mkdir` (return 0 if held), then a subshell that traps `rmdir` of the lock on
-EXIT, calls `felix_close_inherited_fds`, `cd`s to `<root>` (exit 0 if that
-fails), and runs `felix_reach_refresh`, the whole subshell
-`</dev/null >/dev/null 2>&1 &`; return 0. A lock directory older than 30
+`felix_reach_refresh_bg` has `felix_discover_refresh_bg`'s shape without its
+`cd` to the checkout: `mkdir -p state/reach`, take the lock directory
+`state/reach/<project>.lock` with `mkdir` (return 0 if held), then a subshell
+that traps `rmdir` of the lock on EXIT, calls `felix_close_inherited_fds`, and
+runs `felix_reach_refresh`, the whole subshell `</dev/null >/dev/null 2>&1 &`;
+return 0. It never stands in the checkout: the read it runs makes its own empty
+directory (R13). (The first draft `cd`ed to the checkout so a project-scoped
+`.mcp.json` would be seen; that instruction is withdrawn, R13 and D18 say why.)
+A lock directory older than 30
 minutes (`find <lock> -maxdepth 0 -mmin +30` names it) is removed with `rmdir`
 and taken again, because a refresh killed by a signal never runs its trap.
 Observable:
@@ -259,8 +288,18 @@ Observable:
   `Needs authentication`, and is valid JSON as `0010` already checks.
 - With a stub `claude` whose `mcp list` sleeps 5 s, the hook returns in under
   3 s and exits 0.
-- With the cache absent, a cache appears within 10 s, its header's cwd is the
-  checkout root, its rows are R4's.
+- With the cache absent, a cache appears within 10 s, its header's directory
+  is a `felix-reach.XXXXXX` directory under TMPDIR and not the checkout root,
+  its rows are R4's.
+- In a fixture checkout whose `.mcp.json` declares a server whose command would
+  write a marker file, and with a `claude` stub that records its `$PWD` and
+  starts the `.mcp.json` command of the directory it is run in (its control, run
+  in the checkout, does write the marker): after a session start in that
+  checkout and the refresh, the recorded `$PWD` is neither the checkout nor
+  `$HOME`, no marker was written (a second `.mcp.json` in the fixture `$HOME`
+  has its own marker, also never written), and TMPDIR holds nothing.
+- With a TMPDIR that cannot make a directory the refresh runs no `claude`
+  command and writes no cache, and its lock is released.
 - With a cache read less than 24 h ago, the stub's log gains no `mcp list`
   line from a second hook run.
 - With the header epoch set to now − 90,000, a hook run refreshes it.
@@ -272,9 +311,10 @@ Observable:
 **R11. `felix stack --reach [--tsv]`.** Recognised only as the first argument
 to `felix stack`, and handled before the `stack.tsv` guard and before
 `felix_stack_plan`, so it runs one `claude` command, `mcp list`, and no
-`plugin list` or `marketplace list`. It runs `felix_reach_refresh` from the
-cwd (the checkout the person stands in, so project-scoped `.mcp.json` servers
-are seen) and exits 0 for any report, unread list included.
+`plugin list` or `marketplace list`. It runs `felix_reach_refresh`, whose read
+is from an empty directory (R13) whatever the cwd, so a project-scoped
+`.mcp.json` server of the checkout the person stands in is neither started nor
+listed, and exits 0 for any report, unread list included.
 - `--tsv`: stdout is exactly the rows, no header, no summary; nothing else.
 - Without `--tsv`, aligned lines `printf '%-11s %-7s %-44s %-34s %s\n'` of
   state, kind, name, server, detail, under a header line made by the same
@@ -294,6 +334,12 @@ are seen) and exits 0 for any report, unread list included.
   installs nothing, runs no `claude` command, and exits 2).
 - `felix stack plan`, `apply`, `reconcile` and bare `felix stack` behave
   exactly as before for every other argument list.
+- With the stub of R10: `felix stack --reach --tsv` run from the hostile
+  checkout records a `$PWD` that is neither the checkout nor `$HOME`, writes no
+  marker, leaves TMPDIR empty, and the cache header names the recorded
+  directory. Run from a scratch home (`FELIX_HOME`, D20) it writes the cache and
+  `pulse.status.tsv` under that home and nothing under the home the
+  `~/.felix-home` pointer names.
 
 **R12. Advisory only.** Nothing outside lib/reach.sh, lib/status.sh and
 `felix stack --reach` reads `state/reach`. Observable:
@@ -309,6 +355,32 @@ are seen) and exits 0 for any report, unread list included.
   nothing on the enforcing path waits on or reads this result: the hook only
   starts it detached and never reads it; the gate, the Stop hook,
   commissioning and `felix stack plan` never read the cache.
+
+**R13. The list is read from an empty directory, never the checkout.** This
+replaces the first draft's instruction to read it in the checkout, withdrawn
+after the adversarial review. `felix_reach_read` makes the directory with
+`mktemp -d "${TMPDIR:-/tmp}/felix-reach.XXXXXX"` (a template, so it honours
+TMPDIR on macOS, as part 1000 requires), runs `claude mcp list` with that as the
+cwd, and removes the directory and whatever `claude` left in it afterwards, on
+every path after it was made, read or unread. The directory is never the
+checkout and never `$HOME`, which is itself a repository on the machine this
+was found on. It fails closed: when `mktemp` fails or the directory cannot be
+entered, the list is unread (R1's sentence) and `claude` is not run, in no other
+directory. Because the CLI walks up to a parent's `.mcp.json` (section 0), the
+directory is also refused, and the list unread, when any directory from it up to
+`/` holds a `.mcp.json`: a TMPDIR inside a repository, or a file planted in
+world-writable `/tmp`. The reason is that a project-scoped server declared by the
+checkout's `.mcp.json` is started by `claude mcp list` once it is approved, or
+auto-enabled by `enableAllProjectMcpServers`, and the refresh runs in every
+session start of every governed project, including a repository the founder
+opened to hunt for bugs. Measured 2026-10-12 (section 0): a server still pending
+approval is not started, so the review found the old behaviour safe only while
+Claude Code's approval state happened to hold; this removes the dependence on
+it. Consequences, accepted (D18, D19): servers that exist only in a project's
+`.mcp.json` or a local-scope entry are not listed, so an mcp row naming one
+reads `unknown` (R6); plugin rows are unaffected for a plugin installed at user
+scope, which is how `felix stack apply` installs them; and a plugin a person
+enabled only through a project's own settings reads as if not listed.
 
 ---
 
@@ -641,3 +713,86 @@ without trimming.
 **D17. The human form has no header.** Five labelled rows say what they are;
 a test can then assert the human and TSV forms carry the same rows in the
 same order.
+
+---
+
+## 8. Decisions taken in review
+
+The adversarial review of this branch raised two blockers. The first changed the
+design and is recorded here with the behaviours it changes (R1, R6, R9, R10,
+R11, R13). The second was a mistaken variable and changed nothing.
+
+**D18. `claude mcp list` is read from an empty directory, never the checkout.**
+The brief asked for the checkout as the cwd, so a project-scoped `.mcp.json`
+server would be listed. That instruction is withdrawn. `claude mcp list` starts
+the servers it lists, and a project-scoped one is started once it is approved,
+or auto-enabled by `enableAllProjectMcpServers`; the SessionStart refresh runs
+at every session start of every governed project, including repositories the
+founder opens for bounty work, where a hostile `.mcp.json` is the expected
+case. The review measured that a server still pending approval is not started
+(the probe's marker was never written), and that `npx -y ruflo@latest`, a
+user-scoped server, is started in the checkout. So the first design was safe
+only while Claude Code's approval state happened to hold; this change does not
+rely on it, which is why it is defense in depth and not the fix for an observed
+attack. Measured again with the real CLI (section 0): from an empty directory a
+project-scoped server is not listed at all, and exporting `CLAUDE_PROJECT_DIR`
+naming the checkout changes nothing, so no variable needs scrubbing; but it does
+walk up from its cwd to a parent's `.mcp.json`, so an ancestor check (any
+`.mcp.json` from the directory to `/` leaves the list unread) closes the case of
+a TMPDIR inside a repository, or a file planted in `/tmp` by another local
+user. The directory is made with `mktemp -d` under TMPDIR with a template, because a bare
+`mktemp -d` on macOS ignores TMPDIR (part 1000). It is never the checkout and
+never `$HOME`, which is itself a repository on this machine, so a fallback to
+either would defeat the point; when none can be made the list is unread. A
+relative TMPDIR reads as `/tmp`, since a relative template would put the
+directory under the caller's own. It is removed recursively after the command
+returns, and only a path of the shape `/*/felix-reach.??????` that is not a
+symlink, because `claude` may leave files in its cwd and an `rmdir` would
+leave them in TMPDIR. A refresh killed by a signal (or a `--reach` interrupted
+by Ctrl-C) leaves its empty directory in TMPDIR, which the OS clears; removing
+it would take an EXIT trap in a function the CLI sources. Cost, accepted:
+servers that exist only in a project's `.mcp.json`, or in a local-scope entry
+of `~/.claude.json`, are not seen. `felix stack apply` installs plugins with
+`--scope user`, so plugin rows are unaffected; a plugin a person enabled only
+through a project's own settings would read `not-listed`, a known false alarm
+that is not changed here.
+
+**D19. An mcp row the empty-directory list does not name is `unknown`.** With
+the checkout out of the picture, absence from the list no longer says the
+server is missing: it may be project-scoped, which Felix does not start. Saying
+`not-listed` (and so an `unreachable` pulse line) would claim a failure nobody
+observed; `unknown` (a `reach-unknown` line) says what is true, with a detail
+that names the reason. A plugin row keeps `not-listed`, because a plugin's
+server is user-scoped and its absence from the list is an observation.
+
+**D20. The CLI's home override is `FELIX_HOME`; `FELIX_HOME_DIR` is not one.**
+The review ran `felix stack --reach` with `FELIX_HOME_DIR` set to a scratch
+directory and the real home's `state/reach/felix.tsv` was written. That is not
+a defect of the cache path: `felix` and every hook assign `FELIX_HOME_DIR` from
+`felix_home` (lib/resolve.sh), which reads `FELIX_HOME`, then the
+`~/.felix-home` pointer, then the engine's own tree, and the assignment is
+unconditional, as it is on main. A scratch home is `FELIX_HOME=<dir>`, which the
+suite exports for exactly that reason. Reproduced both ways in a fixture with a
+fake `$HOME` whose pointer names a "real" home: with `FELIX_HOME_DIR=<scratch>`
+the pointer's home received `state/reach/<project>.tsv`, `pulse.status.tsv` and
+`pulse.log`, as every other state file does on main; with `FELIX_HOME=<scratch>`
+the scratch home received all three and the pointer's home none. Nothing
+changed in the engine. Part 1120 pins that the reach cache, the pulse record
+and log, and the SessionStart refresh all land in the home the invocation
+resolved, and shows `FELIX_HOME_DIR` alone is not an override. (Part 1100's
+`_rx_env` sets both variables to one value, which is why its assertions could
+not have told them apart.)
+
+**Left as it was, and named.** A path that predates this branch already runs
+`claude mcp list` in a checkout: `felix commission`, whose `stack` row
+evaluates `felix_stack_plan`, which loads `claude mcp list` through
+`_felix_load_state`, in the checkout root (`felix_commission_ask` changes
+directory to it). `hooks/session-start` starts that run detached
+(`felix_commission_resume_bg`) when the project's `autonomy` file names the
+`commission` grant and the stamp over `commissioning.tsv` is current; on this
+machine only `projects/felix` grants it, and `state/commission/felix.bg.log`
+records runs today. A person running `felix commission`, `felix stack
+plan|apply`, `felix profile <name>` or `felix setup` in a checkout reaches the
+same call. No other hook starts a `claude mcp list`, and the pulse, the Stop
+hook and the discovery refresh do not. Not changed in this branch; it is the
+same class of exposure and wants its own decision.

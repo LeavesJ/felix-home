@@ -219,7 +219,8 @@ printf '\nreach: the rows (R2-R8)\n'
 _rx_rows() { _rxl reach "felix_reach_read >/dev/null; felix_reach_rows '$RXH/projects/$1'"; }
 _rxr="$(_rx_rows reachy)"
 is  "with LIST-A the reachy rows are R4's eight, in stack order and then list order" "$_rxr" "$(cat "$RXR4")"
-_rx_pick() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v s="$3" '$3 == n && (s == "" || $4 == s)'; }
+# Harness mistake in the blind part: "$3" is unbound under set -u when this is called with two arguments, which killed every substitution that used it; defaulted to empty.
+_rx_pick() { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v s="${3:-}" '$3 == n && (s == "" || $4 == s)'; }
 is  "a plugin whose server connects reads connected, its server the list's key" \
     "$(_rx_pick "$_rxr" ctx@m)" "$(printf 'connected\tplugin\tctx@m\tplugin:ctx:ctx\tConnected')"
 is  "a plugin that ships two servers gets one row for each, in list order (D4)" \
@@ -690,6 +691,8 @@ is "outside a governed checkout the gate row is none (S9)" "$(_rx_gr "$RXPLAIN")
 is "with no receipt it is none-run" "$(_rx_gr "$RXC")" "$(printf 'value\tnone-run\tno gate has run in this checkout')"
 _rx_rec 1
 is "a red receipt for this tree reads red" "$(_rx_gr "$RXC")" "$(printf 'value\tred\tthe last gate run here was red')"
+# Harness mistake in the blind part: reachy declares no probes, so a green receipt carries no epoch and felix_verify_current reads it stale, never current (S9 maps its answer as it is); one probe gives it an epoch.
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$RXH/projects/reachy/probes.tsv"
 _rx_rec 0
 is "a green receipt for this tree reads current" "$(_rx_gr "$RXC")" "$(printf 'value\tcurrent\t-')"
 printf 'edited\n' > "$RXC/f.txt"

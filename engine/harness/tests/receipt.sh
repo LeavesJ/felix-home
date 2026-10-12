@@ -312,3 +312,89 @@ _rcp_drop() {   # <root>
   rm -f "$p" 2>/dev/null
   return 0
 }
+
+# ------------------------------------------------------------ red, beside a record run
+# A record run starts tests/red when it starts, and the two run side by side.
+# Red is the record run's own child and is disowned at once: a part that ends in
+# a bare `wait` (parts 0150 and 0330 do) waits for every job its shell holds,
+# red waits for the mark the record run writes after the parts, and a job table
+# holding red made every record run wait on itself. So the record run learns
+# that red has finished from the process table, not the job table: red's pid and
+# the start time ps gives it, together, since a pid alone is reused (red can end
+# minutes before the record run does, and the suite forks a hundred thousand
+# processes in fifteen).
+
+_rcp_tree() {   # <pid>: it and every process below it, on one line
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+
+# A tree ended: every process in it is asked to end, so that the suite's own
+# EXIT trap removes its temporary directory and red's removes its base checkout,
+# the root is given up to 30 s to go, and what is left is stopped and then
+# killed, the whole list at once, so that nothing forks while it is being ended.
+_rcp_stop() {   # <pid>
+  local list p n=0
+  list="$(_rcp_tree "$1")"
+  for p in $list; do kill -TERM "$p" 2>/dev/null; done
+  while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
+  for p in $list; do kill -STOP "$p" 2>/dev/null; done
+  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+}
+
+_rcp_red_alive() {   # status 0 while the red this run started is still running
+  [ -n "${_rcp_red:-}" ] && kill -0 "$_rcp_red" 2>/dev/null || return 1
+  [ -z "$_rcp_redsig" ] || [ "$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)" = "$_rcp_redsig" ]
+}
+
+# Started at the beginning of a record run: red, told where the mark will be and
+# which process to watch, its output in a file of the run's temporary
+# directory; and a watcher, so that a record run that dies in any way, a signal
+# included (the shell's default for SIGINT, SIGTERM and SIGHUP is to die at once,
+# which a trap would put off until the command it is running ends), ends red
+# and red's suite within a second or so. The watcher is disowned for the reason
+# red is.
+_rcp_red_start() {   # <mark>: sets _rcp_red, _rcp_redsig and _rcp_wd
+  _rcp_nomark=0
+  "$HERE/red" --after "$1" $$ > "$TMP/red.out" 2>&1 &
+  _rcp_red=$!; disown "$_rcp_red" 2>/dev/null
+  _rcp_redsig="$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)"
+  ( _rcp_watch $$ ) > /dev/null 2>&1 &
+  _rcp_wd=$!; disown "$_rcp_wd" 2>/dev/null
+}
+
+_rcp_watch() {   # <record run's pid>: once it is gone, red and what red started are ended
+  while kill -0 "$1" 2>/dev/null; do sleep 1; done
+  ! _rcp_red_alive || _rcp_stop "$_rcp_red"
+}
+
+# The mark, whole or not at all: a sibling file and one mv. <word> is written;
+# if that cannot be, `failed` is; if neither can, red would wait for a mark that
+# never comes while this run waits for red, so red is ended and not waited for.
+_rcp_mark() {   # <written|failed> <mark>
+  local w
+  for w in "$1" failed; do
+    if printf '%s\n' "$w" > "$2.tmp" 2>/dev/null && mv -f "$2.tmp" "$2" 2>/dev/null; then return 0; fi
+  done
+  rm -f "$2.tmp" 2>/dev/null
+  _rcp_nomark=1
+  ! _rcp_red_alive || _rcp_stop "$_rcp_red"
+}
+
+# After the recorded line: what red said, every line indented by two spaces, once
+# red has finished; or why there is nothing of it.
+_rcp_red_end() {   # <mark> <red's output file>
+  local n=0
+  if [ "$_rcp_nomark" = 1 ]; then
+    printf '  red not run: the record run could not write its mark (%s)\n' "$1"
+  else
+    while _rcp_red_alive; do n=$((n + 1)); if [ "$n" -le 20 ]; then sleep 0.1; else sleep 1; fi; done
+    sed 's/^/  /' < "$2"
+  fi
+  [ -z "${_rcp_wd:-}" ] || kill "$_rcp_wd" 2>/dev/null
+  _rcp_wd=""
+}

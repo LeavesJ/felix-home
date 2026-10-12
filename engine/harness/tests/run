@@ -144,12 +144,11 @@ if [ "$_rcp_on" -eq 1 ]; then
   _rcp_begin "$_rcp_root"
 fi
 # Red starts here and not at the end: told where to find the mark and which
-# process to watch. Before the exports below, so its suite is made in an
-# environment of its own, as a plain run's is.
+# process to watch (receipt.sh, "red, beside a record run": it is disowned, so a
+# part's bare `wait` does not wait for it). Before the exports below, so its
+# suite is made in an environment of its own, as a plain run's is.
 _rcp_red=""
-if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ -x "$HERE/red" ]; then
-  "$HERE/red" --after "$TMP/manifest.mark" $$ > "$TMP/red.out" 2>&1 & _rcp_red=$!
-fi
+if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ]; then _rcp_red_start "$TMP/manifest.mark"; fi
 
 # Memory has lived outside any checkout since 2026-08-14, so the fixture needs a
 # root of its own rather than a directory inside the fixture home.
@@ -424,20 +423,19 @@ _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
 
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
-  # The manifest, then the mark: a sibling file and one mv, so red never reads half.
+  # The manifest, then the mark (whole, or red is ended and not waited for).
   _rcp_mk=written
   cp "$_ran_counts" "$FELIX_TEST_MANIFEST" || _rcp_mk=failed
-  [ -z "$_rcp_red" ] || { printf '%s\n' "$_rcp_mk" > "$TMP/manifest.mark.tmp" && mv -f "$TMP/manifest.mark.tmp" "$TMP/manifest.mark"; }
+  [ -z "$_rcp_red" ] || _rcp_mark "$_rcp_mk" "$TMP/manifest.mark"
   printf '  recorded %s assertions to %s\n' \
     "$(awk -F'\t' '{s+=$1} END {print s+0}' "$_ran_counts")" "$FELIX_TEST_MANIFEST"
   # And what red wrote, so the manifest and the count it was shown red with are
   # written by one command and travel in one diff. Its exit status is its own:
   # a red run that could not be made is said in red.tsv and does not turn a
   # green suite red.
-  if [ -n "$_rcp_red" ]; then
-    wait "$_rcp_red"; sed 's/^/  /' < "$TMP/red.out"
-  else
-    printf '  no tests/red beside this suite: red.tsv not written\n'
+  if [ -n "$_rcp_red" ]; then _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out"
+  elif [ "$_rcp_on" -eq 1 ]; then printf '  no tests/red beside this suite: red.tsv not written\n'
+  else printf '  no tests/receipt.sh beside this suite: red.tsv not written\n'
   fi
   # Then the record it wrote, judged as a normal run judges it (record mode off
   # for the call): those four checks skip while the record is rewritten, and

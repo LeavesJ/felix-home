@@ -305,15 +305,21 @@ elif ./engine/harness/tests/run --reuse >"$GTLOG" 2>&1; then
   # ended and what it counted, and the receipt this gate writes carries
   # `tests:reused` for it, so felix merge, the monitor and qualify can tell the
   # two apart. A run that began "not reused: <reason>" ran the suite, and is `ok`.
-  case "$(head -1 "$GTLOG")" in
-    reused\ *)
-      printf '  %-18s reused\n' tests
-      printf '                     %s\n' "$(head -1 "$GTLOG")"
-      printf '                     %s\n' "$(tail -1 "$GTLOG")" ;;
-    *)
-      pass tests
-      printf '                     %s\n' "$(tail -1 "$GTLOG")" ;;
-  esac
+  # The log is searched for that line and not read from its first line: the log
+  # holds stderr as well, and one line from anything ahead of the answer (a
+  # misconfigured knob, a git warning, BASH_ENV) would have made a reused suite
+  # read as `ok`, and the merge would then ask nothing of GitHub for it. A log
+  # that holds the line anywhere is `reused`, never `ok`; the other way about is
+  # only ever a stricter merge.
+  GTREUSED="$(grep -m1 '^reused the suite run that ended ' "$GTLOG")"
+  if [ -n "$GTREUSED" ]; then
+    printf '  %-18s reused\n' tests
+    printf '                     %s\n' "$GTREUSED"
+    printf '                     %s\n' "$(tail -1 "$GTLOG")"
+  else
+    pass tests
+    printf '                     %s\n' "$(tail -1 "$GTLOG")"
+  fi
   rm -f "$GTLOG"
 else
   fail tests

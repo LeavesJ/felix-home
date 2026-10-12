@@ -182,7 +182,7 @@ is  "and the manifest it wrote lists each name reached before it, once (control)
 is  "red's output follows the recorded line, every line of it, stderr too, indented by two spaces" \
     "$(grep -xF -e "  recorded 7 assertions to $GFC_T/assertions.tsv" -e '  gfc red says one' -e '  gfc red says two' \
         -e '  gfc red says on stderr' "$GFC/r1.out" | _gfc_q)" \
-    "$(printf '  recorded 7 assertions to %s\n  gfc red says one\n  gfc red says two\n  gfc red says on stderr\n' "$GFC_T" | _gfc_q)"
+    "$(printf '  recorded 7 assertions to %s\n  gfc red says one\n  gfc red says two\n  gfc red says on stderr\n' "$GFC_T/assertions.tsv" | _gfc_q)"
 is  "the record run does not end before red has" "$(_gfc_log 'red done')" "1"
 is  "after red, a record run prints an empty line and then the record this run wrote" \
     "$(awk '$0 == "the record this run wrote" { print (p == "" && NR > 1) ? "after an empty line" : "after [" p "]"; n++ } { p = $0 } END { if (!n) print "never" }' "$GFC/r1.out")" \

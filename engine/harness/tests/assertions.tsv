@@ -78,6 +78,7 @@
 1	FELIX_MEMORY overrides the default
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Felix's own gate refusal is recognised as its own
+1	Felix's own refusal alone is never reported, the first time or after
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit
@@ -1206,6 +1207,7 @@
 1	a row of more than six fields is malformed
 1	a row one second after the catch does
 1	a row refused for its needs is never evaluated
+1	a row said twice is kept once at the count last said, beside the others, and tab-separated
 1	a row saved with an empty slug reads as waiting for a GitHub remote, like a {{REPO}} row
 1	a row stamped the very second of the catch does not settle it
 1	a row switched off by its when column is reported as not applying
@@ -2048,6 +2050,7 @@
 1	and a declared one the tree no longer shows is still an item
 1	and a declined one is ok too
 1	and a detached one files under HEAD, as the guard reads it
+1	and a different plugin's refusal is reported when it arrives, though the first plugin's were all said
 1	and a directory in no repository hears nothing either
 1	and a doctored judge merges nothing
 1	and a document that is not a plan
@@ -2086,6 +2089,7 @@
 1	and a main copy that reports identical is believed over the cache entry
 1	and a marker laid in a session a person has typed into does not excuse it: the stop is judged, as debt on the tree it was held on
 1	and a medium one is still refused
+1	and a message that differs by the star is another row, never said
 1	and a missing manifest is the reason given ahead of a base that does not resolve
 1	and a name
 1	and a new note replaces the old one
@@ -2842,6 +2846,7 @@
 1	and none without the caller's pipefail either
 1	and nor does a mutation
 1	and not as an escape, which would escalate a typo to the founder
+1	and not at the next stop, which reads the same transcript
 1	and not by a peer's row on another branch
 1	and not by a peer's row there
 1	and not by a peer's row with no checkout given
@@ -3686,6 +3691,7 @@
 1	and the widget's topology is non-empty
 1	and their rows interleaved too
 1	and their rows interleaved, so each append window held the other's rows
+1	and then not again
 1	and there is at least one of them
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
@@ -3777,6 +3783,7 @@
 1	and writes the request under the memory root
 1	and zero failures is still exit 0
 1	another checkout's newer catch does not make this one speak
+1	another conversation's transcript is its own count, and says its blocks the first time
 1	another plugin's refusal is not
 1	another section put in place under the current id is refused, since the one it replaced is lost
 1	another session in the same project is not held by that night
@@ -3798,6 +3805,7 @@
 1	as does another
 1	as is one naming FELIX_PROJECT, which the runner exports
 1	as is the devlog entry, its header one line on a checkout with no commit
+1	as is the same message from another hook, and a file that is not there says nothing was said
 1	as the schema's own refusal
 1	asked from a worktree the distance is still the holding checkout's
 1	at most one caller records when one slot is left
@@ -3907,6 +3915,7 @@
 1	but not the session handoff, which a prior session wrote
 1	but not when a file it merely prefixes changes, since only a trigger ending in a slash names a directory
 1	but once the grounded facts move under that receipt, the hook blocks
+1	but one more blocked call is reported again, with the count it has now
 1	but one that could not have passed is not
 1	but only the newest five, and the rest counted
 1	but removing one still escapes
@@ -5768,10 +5777,12 @@
 1	nor the last of many machine sessions
 1	nor the one about a missing stamp
 1	nor the one about another tree
+1	nor the one after it
 1	nor the read the engine resolves its home with, whose 2>/dev/null writes no pointer
 1	nor the stale one
 1	nor the stop hook talking to itself
 1	nor two base rows, said as _rtn1 always said it
+1	nor under a new session id, as the desktop app carries one conversation on, over the same transcript
 1	not refused
 1	nothing changed is the same epoch
 1	nothing decided but unknown counts items, not the repository's own unknowns, which its header states
@@ -6784,6 +6795,7 @@
 1	the control: with the probe table in place the receipt is current
 1	the controls a checker declares nothing for are named
 1	the count is one per obligation, by its weakest need
+1	the count said for a message holding a backslash, brackets and a star is read back exactly
 1	the current line prints no absolute path
 1	the dash fixture's branch changes a file named - and leaves assertions.tsv and tests/run alone
 1	the data marker is substituted
@@ -7204,6 +7216,7 @@
 1	through the Stop hook, a peer session's felix lesson after this session's catch still prompts
 1	through the Stop hook, a peer session's felix lesson does not settle this session's catch
 1	through the Stop hook, a peer session's felix log after this session's catch still prompts
+1	through the Stop hook, a plugin's blocked calls are reported the first time, Felix's own not counted in
 1	through the Stop hook, this session's catch with nothing written prompts
 1	through the Stop hook, this session's felix lesson after its catch gives no prompt
 1	through the Stop hook, this session's felix log after its catch gives no prompt

@@ -89,6 +89,14 @@
 # above; any other first line, or a record run gone with no mark, is a refusal,
 # and red.tsv keeps the two rows it was given first. The retraction is written
 # before any of this, so a record run that is killed leaves red.tsv saying so.
+# The record run is gone when process <pid> no longer exists, is a zombie, or is
+# no longer red's parent (the record run starts red as its own child, so a red
+# whose parent changed was handed over when the record run ended, and a process
+# that merely holds the record run's old id is not it). That is asked while the
+# suite runs too, once a second, by a monitor: a record run that is gone with no
+# mark ends the suite and this run, without the 25 minutes the suite would take,
+# and a signal to this run ends the suite with it. A mark that is not a regular
+# file is refused at once, unopened: a FIFO would block the read for ever.
 #
 # Recorded, not refused. The manifest says the assertion was reached against
 # this tree's own engine: tests/run --record-assertions wrote it from that run
@@ -150,7 +158,7 @@ OUT="$HERE/red.tsv"
 # --after <mark> <pid>, taken apart here and judged after the retraction below,
 # so a bad one is said in red.tsv as every other refusal is. It is the first
 # word or it is not --after, and what is left after it is the base, as ever.
-AFTER=0; MARK=""; WPID=""
+AFTER=0; MARK=""; WPID=""; PPID0="$PPID"
 if [ "${1:-}" = "--after" ]; then
   AFTER=1; MARK="${2:-}"; WPID="${3:-}"
   shift; [ "$#" -eq 0 ] || shift; [ "$#" -eq 0 ] || shift
@@ -264,6 +272,59 @@ _cleanup() {
   rm -rf "$TMP"
 }
 trap _cleanup EXIT
+
+# A tree of processes ended: all of it asked to end, so that the suite's own EXIT
+# trap removes its temporary directory, the root given up to 10 s to go, and
+# what is left stopped and then killed, the whole list at once so that nothing
+# forks while it is being ended. The same words as _rcp_stop in receipt.sh,
+# which this does not load: red runs in the base's tree as well as this one.
+_tree() {   # <pid>: it and every process below it, on one line
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+_stop_tree() {   # <pid>
+  local list p n=0
+  list="$(_tree "$1")"
+  for p in $list; do kill -TERM "$p" 2>/dev/null; done
+  while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
+  for p in $list; do kill -STOP "$p" 2>/dev/null; done
+  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+}
+# Whatever still holds this run's temporary path in its command line is a stray
+# of this run, and is ended (HANDOFF §5, below).
+_reap() { pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1; }
+
+# Whether the record run is gone: process $WPID no longer exists or is a zombie,
+# or red, which the record run starts as its own child, has a different parent
+# now. A process that merely holds the id of a record run that is dead (the id
+# was reused) is not the record run, and red's parent says so: red was handed to
+# someone else the moment the record run ended. Asked of a $WPID that is not
+# red's parent, as when red is run by hand, only the first two apply.
+_gone() {
+  local pp
+  kill -0 "$WPID" 2>/dev/null || return 0
+  case "$(ps -o stat= -p "$WPID" 2>/dev/null)" in Z*) return 0 ;; esac
+  if [ "$WPID" = "$PPID0" ]; then
+    pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
+    case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
+  fi
+  return 1
+}
+SUITE=""; MON=""
+# Ended by a signal (the record run's, or a Ctrl-C at a terminal): its suite and
+# the monitor below are ended, the base checkout goes with the trap above, and
+# red.tsv keeps the retraction it was given first.
+_abort() {   # <exit status>
+  trap '' INT TERM HUP
+  [ -z "$MON" ] || kill "$MON" 2>/dev/null
+  [ -z "$SUITE" ] || _stop_tree "$SUITE"
+  _reap
+  exit "$1"
+}
 # The whole commit, not engine/ alone: the suite reads the repository's own
 # gate, tables, hooks and commands through REAL_HARNESS/../.., and a tree
 # missing them would skip those assertions and call the skip a verdict.
@@ -327,9 +388,30 @@ fi
 # the tests/red before this change (measured again 2026-10-02).
 RAW="$TMP/red.raw"
 LOG="$TMP/red.log"
-( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1
-RC=$?
-pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1
+if [ "$AFTER" -eq 1 ]; then
+  # With --after the suite runs as a job and red waits for it, so that a signal
+  # reaches red while it waits and not after, and a monitor watches the record
+  # run meanwhile: if it is gone and has left no mark, the suite is ended, and
+  # so is this run, with the reason a record run that ended is refused for. A
+  # job in a script ignores SIGINT, and the suite already did in every record
+  # run: the record run starts red as a job, and what a process ignores its
+  # children ignore too. Run by hand without --after, the suite is as it was.
+  trap '_abort 130' INT; trap '_abort 143' TERM; trap '_abort 129' HUP
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1 &
+  SUITE=$!
+  ( while kill -0 "$SUITE" 2>/dev/null; do
+      if [ ! -e "$MARK" ] && _gone; then : > "$TMP/gone"; _stop_tree "$SUITE"; break; fi
+      sleep 1
+    done ) > /dev/null 2>&1 &
+  MON=$!
+  wait "$SUITE"; RC=$?
+  kill "$MON" 2>/dev/null
+  [ ! -e "$TMP/gone" ] || { _reap; _none "the record run ended before it wrote the manifest"; }
+else
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1
+  RC=$?
+fi
+_reap
 cp "$RAW" "$LOG" 2>/dev/null || _none "could not keep the log of the suite against $BASE"
 
 PASSED="$(grep -c '^  ok    ' "$LOG")"
@@ -347,12 +429,16 @@ awk '/^  (ok    |FAIL  |skip  )/ { a = NR } $0 == "reached" { r = NR }
 # been looked at once more, since a mark written just before it ended must count.
 if [ "$AFTER" -eq 1 ]; then
   while [ ! -e "$MARK" ]; do
-    if ! kill -0 "$WPID" 2>/dev/null; then
+    if _gone; then
       [ -e "$MARK" ] && break
       _none "the record run ended before it wrote the manifest"
     fi
     sleep 1
   done
+  # A mark that is not a regular file (a directory, a FIFO, a socket, a device,
+  # or a link to one) is refused here, at once, and never opened: reading a FIFO
+  # blocks until something writes to it, whether or not the record run is gone.
+  [ -f "$MARK" ] || _none "the record run did not write a manifest ($MARK is not a regular file)"
   _first=""; { IFS= read -r _first < "$MARK"; } 2>/dev/null
   [ "$_first" = "written" ] || _none "the record run did not write a manifest (${_first:-empty})"
   _manifest

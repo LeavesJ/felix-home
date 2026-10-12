@@ -48,9 +48,12 @@
 # recorded, or cannot be read while one was.
 # Everything else is covered by the twelve-hour bound alone, and is not named:
 #  - the memory root's lessons.md, read from ~/.felix/memory/felix by part 0590;
-#  - the deployed plugin cache and the marketplace registry, which the gate's
-#    `installed` check and the engine_deployed obligation read (parts 0440,
-#    0110, 0430, 0590, 0800) when a test is not handed a cache of its own;
+#  - the plugin install state: what `claude plugin list --json` answers (the
+#    engine_deployed obligation reads it through felix_deployed_engine, part
+#    0440) and the deployed plugin cache and marketplace registry under
+#    ~/.claude/plugins, which the gate's `installed` check and the readers in
+#    parts 0110, 0430, 0590 and 0800 consult wherever a test is not handed a
+#    cache of its own; the receipt names only whether `claude` is on PATH;
 #  - the user's real HOME where the suite does not set one: ~/.felix-home, the
 #    Claude settings directory, the global git configuration and its global
 #    excludes file (the driver's own comments record the last one);
@@ -347,7 +350,7 @@ _rcp_stop() {   # <pid>
 }
 
 _rcp_red_alive() {   # status 0 while the red this run started is still running
-  [ -n "${_rcp_red:-}" ] && kill -0 "$_rcp_red" 2>/dev/null || return 1
+  [ -n "${_rcp_red:-}" ] && [ "${_rcp_redgone:-0}" = 0 ] && kill -0 "$_rcp_red" 2>/dev/null || return 1
   [ -z "$_rcp_redsig" ] || [ "$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)" = "$_rcp_redsig" ]
 }
 
@@ -364,6 +367,9 @@ _rcp_red_start() {   # <mark>: sets _rcp_red, _rcp_redsig and _rcp_wd
   "$HERE/red" --after "$1" $$ > "$TMP/red.out" 2>&1 &
   _rcp_red=$!; disown "$_rcp_red" 2>/dev/null
   _rcp_redsig="$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)"
+  # No start time and no process: red ended before it could be read, and its id
+  # is not to be taken for it later.
+  _rcp_redgone=0; [ -n "$_rcp_redsig" ] || kill -0 "$_rcp_red" 2>/dev/null || _rcp_redgone=1
   ( _rcp_watch $$ ) > /dev/null 2>&1 &
   _rcp_wd=$!; disown "$_rcp_wd" 2>/dev/null
 }
@@ -396,8 +402,9 @@ _rcp_mark() {   # <written|failed> <mark>
     if printf '%s\n' "$w" > "$2.tmp" 2>/dev/null && mv -f "$2.tmp" "$2" 2>/dev/null; then return 0; fi
   done
   rm -f "$2.tmp" 2>/dev/null
+  _rcp_red_alive || return 0   # red has ended on its own, and what it said is shown
   _rcp_nomark=1
-  ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
+  _rcp_red_settle; _rcp_stop "$_rcp_red"
 }
 
 # After the recorded line: what red said, every line indented by two spaces, once

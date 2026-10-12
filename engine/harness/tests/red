@@ -225,17 +225,16 @@ _reap() { [ -z "$TMP" ] || pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(
 # Whether the record run is gone: process $WPID no longer exists or is a zombie,
 # or red, which the record run starts as its own child, has a different parent
 # now. A process that merely holds the id of a record run that is dead (the id
-# was reused) is not the record run, and red's parent says so: red was handed to
-# someone else the moment the record run ended. Asked of a $WPID that is not
-# red's parent, as when red is run by hand, only the first two apply.
+# was reused, and red's suite forks a hundred thousand processes in fifteen
+# minutes) is not the record run, and red's parent says so: red was handed to
+# someone else the moment the process that started it ended. That holds for
+# whoever started red, so it is asked whatever $WPID is.
 _gone() {
   local pp
   kill -0 "$WPID" 2>/dev/null || return 0
   case "$(ps -o stat= -p "$WPID" 2>/dev/null)" in Z*) return 0 ;; esac
-  if [ "$WPID" = "$PPID0" ]; then
-    pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
-    case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
-  fi
+  pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
+  case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
   return 1
 }
 SUITE=""; MON=""

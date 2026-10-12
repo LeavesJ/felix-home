@@ -3,7 +3,7 @@
     "What a Claude Code cloud session gets of the toolbox projects/felix/stack.tsv declares, and why.",
     "Read by .claude/cloud/provision. Every plugin and skill row in stack.tsv needs an entry here, and the gate's cloud check fails when one is missing, so a new stack row forces a decision about the cloud instead of silently not arriving there.",
     "Plugins never load in a cloud session, whether a user or a repository enables them (code.claude.com/docs/en/cloud-environments, 'What carries over'). What does load is this repository's .claude/skills, .claude/agents and .claude/commands, so fetch entries are carried as those: provision downloads the plugin at the sha pinned here and copies its skills, agents and commands into the clone.",
-    "The shas are the ones installed on the founder's machine on 2026-09-25 (~/.claude/plugins/installed_plugins.json), so the cloud runs what a local session runs. Move a pin when the local install moves.",
+    "The shas are the ones installed on the founder's machine (~/.claude/plugins/installed_plugins.json), on 2026-09-25 for the first entries and on 2026-10-12 for ci-optimizer, so the cloud runs what a local session runs. Move a pin when the local install moves.",
     "carry: fetch = downloaded at sha and copied into .claude/; builtin = Claude Code itself ships an equivalent under the same name; claude.ai = arrives through the skills enabled on claude.ai; no = not carried, and the note says why.",
     "JSON rather than a .tsv because the engine never reads it: engine/harness/templates/schemas.tsv registers the tables the engine reads."
   ],
@@ -56,6 +56,34 @@
       "name": "graphify",
       "carry": "no",
       "note": "the graph is built on the founder's machine and is not in the clone, so the skill would have nothing to query"
+    },
+    {
+      "name": "ci-optimizer-faster-github-actions-and-gitlab-ci",
+      "carry": "fetch",
+      "source": "petrovicistefan/claude-code-plugins",
+      "sha": "a7a800dd8f787ef9d6c499636a818285de624cef",
+      "subdir": "ci-optimizer",
+      "note": "one skill and two commands; its script reads the workflow files with the Python standard library and finds itself from its own skill folder, so a copy works in the clone"
+    },
+    {
+      "name": "test-coverage-intelligence-risk-ranked-coverage-gaps",
+      "carry": "no",
+      "note": "it ranks gaps from a coverage report, and felix-home's suite is bash and writes none, so the clone gives it nothing to read"
+    },
+    {
+      "name": "pipeline-reconcile",
+      "carry": "no",
+      "note": "its reconcile skill runs its scripts through CLAUDE_PLUGIN_ROOT, which provision does not set for a copied skill, so the copy would fail"
+    },
+    {
+      "name": "viral-launch-pipeline",
+      "carry": "no",
+      "note": "a pipeline for writing a product's launch posts, which no engineering session on felix-home asks for"
+    },
+    {
+      "name": "sabotage",
+      "carry": "no",
+      "note": "mutation testing for a JavaScript suite, run by node scripts at the plugin root that provision does not copy and reached through CLAUDE_PLUGIN_ROOT; felix-home has no JavaScript suite"
     }
   ]
 }

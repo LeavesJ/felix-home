@@ -15,10 +15,13 @@ esac
 # A marker is not a way out. Every prompt a person types marks the session and a
 # summary never does, so a marker beside a mark is not what it says.
 mkdir -p "$FROOT/state/machine" && : > "$FROOT/state/machine/p264-heldctl"
-case "$(_p264_stop "$P264R" p264-heldctl)" in
-  *'"decision"'*'"block"'*) ok  "and a marker laid in a session a person has typed into does not excuse it" ;;
-  *)                        bad "and a marker laid in a session a person has typed into does not excuse it" ;;
-esac
+# Restated for the hold once per tree (slot 2a, part B), not blind: the session
+# was held on this tree a moment ago, so the stop is judged and is debt, a row
+# in verification.log. A marker that excused it would end it with no row.
+_p264n0="$(awk 'END { print NR + 0 }' "$MEM/widget/verification.log" 2>/dev/null)"
+_p264o="$(_p264_stop "$P264R" p264-heldctl)"
+is  "and a marker laid in a session a person has typed into does not excuse it: the stop is judged, as debt on the tree it was held on" \
+    "$(( $(awk 'END { print NR + 0 }' "$MEM/widget/verification.log" 2>/dev/null) - _p264n0 )):$(tail -1 "$MEM/widget/verification.log" 2>/dev/null | cut -f2):[$_p264o]" "1:debt:[]"
 _b="$(_p264_snap)"
 _p264_prompt "$(_p264_payload p264-sumstop "$P264_REQ")" "$P264R" >/dev/null
 [ -e "$FROOT/state/machine/p264-sumstop" ] \

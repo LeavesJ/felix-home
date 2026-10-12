@@ -1932,7 +1932,7 @@
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
 1	an unenforceable probe word is muted on the record
-1	an unflagged stop clears a hold left behind
+1	an unflagged stop clears a hold left behind, so the flagged stop after it is judged
 1	an unflagged stop holds even when the hold cannot be recorded
 1	an ungoverned directory writes no lifecycle.log, under the memory root or in its tree, where a governed start does
 1	an ungoverned repo is allowed
@@ -2087,7 +2087,7 @@
 1	and a live one says when it was last caught
 1	and a machine that binds nothing is an empty roster, not an error
 1	and a main copy that reports identical is believed over the cache entry
-1	and a marker laid in a session a person has typed into does not excuse it
+1	and a marker laid in a session a person has typed into does not excuse it: the stop is judged, as debt on the tree it was held on
 1	and a medium one is still refused
 1	and a message that differs by the star is another row, never said
 1	and a missing manifest is the reason given ahead of a base that does not resolve
@@ -2954,7 +2954,7 @@
 1	and only nothing to repair tells the report so, under the name the report reads
 1	and only once per session
 1	and only rows of the right shape and kind are accepted
-1	and only that one: the rewake turn after it is judged
+1	and only that one: the rewake turn after it is judged, as debt on the tree it was held on
 1	and only the awaiting count records it
 1	and outside a temporary directory it is listed under question, its listing saying live
 1	and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why
@@ -4323,6 +4323,440 @@
 1	felix commission --status reads the row whose producer outruns grep -q done
 1	felix commission on a project without the table exits 1
 1	felix commission, run later, commissions what felix new --no-commission created
+1	felix cost (text) --by day prints the days heading alone, and --top does not cut the days
+1	felix cost (text) --by model --top 2 shows two models
+1	felix cost (text) --by model prints the models heading alone, a line per model: percent, millions, model
+1	felix cost (text) --by worktree --top 12 shows twelve worktrees, more than the default ten
+1	felix cost (text) --by worktree prints the worktrees heading alone, ten of them
+1	felix cost (text) --since: the window line ends at now
+1	felix cost (text) --top 3 does not cut the days
+1	felix cost (text) --top 3 shows three worktrees
+1	felix cost (text) exits 0
+1	felix cost (text) over one response exits 0
+1	felix cost (text) reads a CRLF file the same: the calls line counts five
+1	felix cost (text) with POSIXLY_CORRECT=1: exit status 0, as without it
+1	felix cost (text) with POSIXLY_CORRECT=1: it is a report, with a total line
+1	felix cost (text) with POSIXLY_CORRECT=1: the output is byte-identical to the output without it
+1	felix cost (text) with a FELIX_COST_NOW before 1970-01-01T13:00Z is a usage error too
+1	felix cost (text) without --by prints the worktrees heading and then the days heading, and no models
+1	felix cost (text): a FELIX_COST_CAP_M that is not a positive number is a usage error in the text view too
+1	felix cost (text): a dangling link makes the files line say 1 could not be read
+1	felix cost (text): a dangling link makes the files line say floor
+1	felix cost (text): a dangling link makes the total line read at least
+1	felix cost (text): a day line is the date, millions, then percent
+1	felix cost (text): a floor reads at least
+1	felix cost (text): a floor's total still gives the millions it did find, 90.5M
+1	felix cost (text): a line beginning responses says how many responses could not be read: the number 2 is one of its words
+1	felix cost (text): a records root that cannot be read or entered reads total unknown (<reason>), exit 0
+1	felix cost (text): a records root that cannot be read or entered says could not be read
+1	felix cost (text): a worktree line is percent, millions, then the record directory
+1	felix cost (text): nothing in the window is 0 calls
+1	felix cost (text): nothing in the window is a total of 0.0M, not unknown
+1	felix cost (text): the calls line counts 13 distinct responses
+1	felix cost (text): the calls line counts only the one readable response
+1	felix cost (text): the calls line gives the number of distinct responses
+1	felix cost (text): the days are all shown, earliest first: a line is the date, millions, percent
+1	felix cost (text): the files line leads with how many files were read
+1	felix cost (text): the files line names $HOME, not its value
+1	felix cost (text): the files line names the root as the literal $CLAUDE_CONFIG_DIR/projects
+1	felix cost (text): the files line names the root as the literal $HOME/.claude/projects
+1	felix cost (text): the files line names the variable, not its value
+1	felix cost (text): the files line says how many could not be read
+1	felix cost (text): the files line says the total is a floor
+1	felix cost (text): the first line says it is read-only and a proxy, not the plan's own number
+1	felix cost (text): the headings are worktrees and then days, and no models
+1	felix cost (text): the responses line contains the word floor
+1	felix cost (text): the total line gives the millions, 78.0M
+1	felix cost (text): the total line gives the percent of the cap that was set, 50.0%
+1	felix cost (text): the total line gives the percent of the cap with one decimal
+1	felix cost (text): the total line gives the percent of the cap, 78.0%
+1	felix cost (text): the total line gives the tokens in millions with one decimal and an M
+1	felix cost (text): the total line names the cap that was set, 181M
+1	felix cost (text): the total line names the cap, 100M
+1	felix cost (text): the total line names the cap, 905M
+1	felix cost (text): the total line of a floor from unread responses reads at least
+1	felix cost (text): the window line for the earlier week
+1	felix cost (text): the window line gives the plan week's start and end
+1	felix cost (text): the worktrees show at most 10 by default, largest first
+1	felix cost (text): when every file that should be read is unreadable the total line reads unknown
+1	felix cost (text): when every file that should be read is unreadable the total reads unknown (<reason>), exit 0
+1	felix cost (text): with a records root that holds no transcript at all: exit 0
+1	felix cost (text): with a records root that holds no transcript at all: no breakdown follows it
+1	felix cost (text): with a records root that holds no transcript at all: the total line reads unknown
+1	felix cost (text): with a records root that holds no transcript: exit 0 and no heading
+1	felix cost (text): with a records root that holds no transcript: the total line reads total unknown, then a reason in parentheses
+1	felix cost (text): with a records root whose files are read at neither depth: exit 0 and no heading
+1	felix cost (text): with a records root whose files are read at neither depth: the total line reads total unknown, then a reason in parentheses
+1	felix cost (text): with no records root: exit 0
+1	felix cost (text): with no records root: exit 0 and no heading
+1	felix cost (text): with no records root: no breakdown follows it
+1	felix cost (text): with no records root: the total line reads total unknown, then a reason in parentheses
+1	felix cost (text): with no records root: the total line reads unknown
+1	felix cost --bogus (an unknown argument) is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --by bogus is a usage error
+1	felix cost --by model: the model rows are ordered by tokens, largest first, ties by key
+1	felix cost --by with an empty value is a usage error
+1	felix cost --by with no value is a usage error
+1	felix cost --help exits 0 and prints a usage line starting usage: felix cost
+1	felix cost --since 2026-10-08: the day rows run in date order, all five records over three days
+1	felix cost --since 2026-10-08T00:00 is a real date or time and is accepted: exit 0, the window starts there
+1	felix cost --since 2026-10-09 is a real date or time and is accepted: exit 0, the window starts there
+1	felix cost --since 2026-10-09 reads the file modified at 00:00:00 and not the one modified at 23:59:59 the day before
+1	felix cost --since 2026-10-09 totals the four records from then on, 30000
+1	felix cost --since 2026-10-09T10:30 reads the file modified at 10:30:00 and the one at 10:30:01, and not the one at 10:29:59
+1	felix cost --since 2026-10-09T10:30 totals the two records from then on, 24000
+1	felix cost --since 2026-12-31T23:59 is a real date or time and is accepted: exit 0, the window starts there
+1	felix cost --since 2028-02-29 is a real date or time and is accepted: exit 0, the window starts there
+1	felix cost --since YYYY-MM-DD: the instant taken as now is still as_of
+1	felix cost --since YYYY-MM-DD: the window starts at that day's 00:00Z
+1	felix cost --since YYYY-MM-DD: the window's end reads now
+1	felix cost --since YYYY-MM-DDTHH:MM counts a record at exactly the minute, not the millisecond before
+1	felix cost --since YYYY-MM-DDTHH:MM: the window starts at that minute
+1	felix cost --since [2026-00-10] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-02-29] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-02-30] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-04-31] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-1-8] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-10-00] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-10-08T12:60] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-10-08T12] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-10-08T24:00] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-10-32] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [2026-13-01] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since [garbage] is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since an earlier day reads the older files too, so the prune follows the window start: 5 files, 31000
+1	felix cost --since counts a record at exactly 00:00Z of the day and not the millisecond before
+1	felix cost --since followed by another flag, not a value, is a usage error
+1	felix cost --since has no end: a record dated after now still counts
+1	felix cost --since with an empty value, in the TSV view, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --since with an empty value, in the text view, is a usage error
+1	felix cost --since with no value is a usage error
+1	felix cost --top 1234567890, more than 9 digits, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --top 12345678901234567890123, more than 9 digits, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --top 2 takes the first two after the tie order: -t-big, then -t-Beta
+1	felix cost --top 999999999, nine digits, is accepted: exit 0 and all twelve worktrees
+1	felix cost --top 99999999999999999999, more than 9 digits, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost --top [-1] is not a positive integer: a usage error, exit 2, nothing on stdout, felix cost: and the usage line on stderr
+1	felix cost --top [0] is not a positive integer: a usage error, exit 2, nothing on stdout, felix cost: and the usage line on stderr
+1	felix cost --top [1.5] is not a positive integer: a usage error, exit 2, nothing on stdout, felix cost: and the usage line on stderr
+1	felix cost --top [] is not a positive integer: a usage error, exit 2, nothing on stdout, felix cost: and the usage line on stderr
+1	felix cost --top [x] is not a positive integer: a usage error, exit 2, nothing on stdout, felix cost: and the usage line on stderr
+1	felix cost --top of ten digits is a usage error in the text view too
+1	felix cost --top with no value is a usage error
+1	felix cost --tsv --by day --top 1 still shows all five days
+1	felix cost --tsv --by day shows the day rows only, after the cover and total
+1	felix cost --tsv --by model shows the model rows only, after the cover and total
+1	felix cost --tsv --by model: the cover rows keep their order
+1	felix cost --tsv --by worktree shows the worktree rows only, after the cover and total
+1	felix cost --tsv --since: the cover rows keep their order, window_end reading now
+1	felix cost --tsv --top 12 shows all twelve worktrees
+1	felix cost --tsv --top 2 leaves the total as it was
+1	felix cost --tsv --top 2 limits the model rows to the first two
+1	felix cost --tsv --top 2 limits the worktree rows to the first two
+1	felix cost --tsv --top 2 never cuts the days
+1	felix cost --tsv --top larger than the rows shows them all
+1	felix cost --tsv with POSIXLY_CORRECT=1, CRLF lines: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, CRLF lines: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, CRLF lines: the output is byte-identical to the output without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, an id in two files with different usage: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, an id in two files with different usage: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, an id in two files with different usage: the output is byte-identical to the output without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, helper agents and a workflow's agents: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, helper agents and a workflow's agents: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, helper agents and a workflow's agents: the output is byte-identical to the output without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, no records root: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, no records root: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, no records root: the output is byte-identical to the output without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, responses it cannot place: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, responses it cannot place: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, responses it cannot place: the output is byte-identical to the output without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, twelve worktrees and three models: exit status 0, as without it
+1	felix cost --tsv with POSIXLY_CORRECT=1, twelve worktrees and three models: it is a report, with a total line
+1	felix cost --tsv with POSIXLY_CORRECT=1, twelve worktrees and three models: the output is byte-identical to the output without it
+1	felix cost --tsv without --by shows all three facets
+1	felix cost --tsv, run from a directory outside every git repository with no FELIX_HOME, exits 0
+1	felix cost --tsv: FELIX_COST_CAP_M=100 makes cap_tokens 100000000
+1	felix cost --tsv: a record directory that cannot be entered counts as one unread, and the total is a floor
+1	felix cost --tsv: a records root that cannot be read or entered is exit 0, coverage unknown, a total of unknown in all three columns, no breakdown row
+1	felix cost --tsv: a report with one unreadable file still exits 0
+1	felix cost --tsv: a root of only old transcripts is coverage measured, with no file read
+1	felix cost --tsv: a root whose only transcript is older than the window is a measured 0, a transcript of any age counts
+1	felix cost --tsv: a root with a transcript but nothing in the window is a measured total of 0, not unknown
+1	felix cost --tsv: a subagents directory that cannot be entered counts as one unread, and the total is a floor
+1	felix cost --tsv: an unreadable file older than the window is not one that should be read, so it is not unread
+1	felix cost --tsv: an unreadable in-window file leaves the total at what the readable files hold, with the rows as measured
+1	felix cost --tsv: cover as_of is the instant FELIX_COST_NOW named, to the minute
+1	felix cost --tsv: cover cap_tokens is 905000000 by default
+1	felix cost --tsv: cover coverage is measured when everything was read
+1	felix cost --tsv: cover files_read counts the one transcript read
+1	felix cost --tsv: cover files_unread is 0 when every file could be read
+1	felix cost --tsv: cover rows have three columns, every other row five, and no row is of another kind (no header line)
+1	felix cost --tsv: cover source with CLAUDE_CONFIG_DIR set is the literal text $CLAUDE_CONFIG_DIR/projects
+1	felix cost --tsv: cover source with CLAUDE_CONFIG_DIR unset is the literal text $HOME/.claude/projects
+1	felix cost --tsv: cover window_end is the next Thursday 13:00Z
+1	felix cost --tsv: cover window_start is the Thursday 13:00Z the plan week opened on
+1	felix cost --tsv: day rows, one per UTC date that has a counted response, earliest first, not by size
+1	felix cost --tsv: every cover key and the total row appear exactly once
+1	felix cost --tsv: model rows, largest first
+1	felix cost --tsv: nothing in the window has no worktree, day or model row
+1	felix cost --tsv: nothing in the window is coverage measured
+1	felix cost --tsv: responses_unread is 0 when every response could be placed
+1	felix cost --tsv: that report's source is still $CLAUDE_CONFIG_DIR/projects
+1	felix cost --tsv: the cover rows are, in order, window_start window_end source cap_tokens files_read files_unread responses_unread coverage as_of
+1	felix cost --tsv: the cover rows keep their order when responses are unread, responses_unread being 2
+1	felix cost --tsv: the cover rows keep their order when the total is unknown
+1	felix cost --tsv: the day row is the UTC date of the record's time
+1	felix cost --tsv: the file was read though it held nothing in the window
+1	felix cost --tsv: the model row is message.model
+1	felix cost --tsv: the nine cover rows are the first nine lines, and the total row is the tenth
+1	felix cost --tsv: the total is the sum over 13 distinct responses and its percent is of the cap
+1	felix cost --tsv: the total row is the response's exact input-equivalent tokens, 10.0 percent, one call
+1	felix cost --tsv: the worktree row is the record directory, with the same tokens
+1	felix cost --tsv: two responses it cannot place are responses_unread 2
+1	felix cost --tsv: when every file that should be read is unreadable the floor is 0 and the total reads unknown, never 0
+1	felix cost --tsv: with CLAUDE_CONFIG_DIR set to a directory with no projects, whatever $HOME holds: cover coverage is unknown
+1	felix cost --tsv: with CLAUDE_CONFIG_DIR set to a directory with no projects, whatever $HOME holds: exit 0 with a report
+1	felix cost --tsv: with CLAUDE_CONFIG_DIR set to a directory with no projects, whatever $HOME holds: no worktree, day or model row is printed
+1	felix cost --tsv: with CLAUDE_CONFIG_DIR set to a directory with no projects, whatever $HOME holds: the total row reads unknown in all three columns, never 0
+1	felix cost --tsv: with a records root that holds no transcript at all: cover coverage is unknown
+1	felix cost --tsv: with a records root that holds no transcript at all: exit 0 with a report
+1	felix cost --tsv: with a records root that holds no transcript at all: no worktree, day or model row is printed
+1	felix cost --tsv: with a records root that holds no transcript at all: the total row reads unknown in all three columns, never 0
+1	felix cost --tsv: with every facet printed, cover rows still have three columns and data rows five
+1	felix cost --tsv: with files only where none is read, no *.jsonl at either read depth: cover coverage is unknown
+1	felix cost --tsv: with files only where none is read, no *.jsonl at either read depth: exit 0 with a report
+1	felix cost --tsv: with files only where none is read, no *.jsonl at either read depth: no worktree, day or model row is printed
+1	felix cost --tsv: with files only where none is read, no *.jsonl at either read depth: the total row reads unknown in all three columns, never 0
+1	felix cost --tsv: with no records root: cover coverage is unknown
+1	felix cost --tsv: with no records root: exit 0 with a report
+1	felix cost --tsv: with no records root: no worktree, day or model row is printed
+1	felix cost --tsv: with no records root: the total row reads unknown in all three columns, never 0
+1	felix cost --tsv: worktree rows, one per record directory, largest first
+1	felix cost --week at 12:59Z on a Thursday is still the week that opened the Thursday before: its start
+1	felix cost --week at 12:59Z on a Thursday: its end is that same day at 13:00Z
+1	felix cost --week at 12:59Z on a Thursday: the instant taken as now is as_of
+1	felix cost --week counts a record at exactly the week's start
+1	felix cost --week counts a record one millisecond before the week's end
+1	felix cost --week does not count a record at exactly the week's end
+1	felix cost --week does not count a record one millisecond before the week's start
+1	felix cost --week is the default window: the same report, which has its total row
+1	felix cost --week: now 2026-10-07T00:00:00Z falls in the plan week 2026-10-01T13:00Z to 2026-10-08T13:00Z
+1	felix cost --week: now 2026-10-08T00:00:00Z falls in the plan week 2026-10-01T13:00Z to 2026-10-08T13:00Z
+1	felix cost --week: now 2026-10-08T13:00:00Z falls in the plan week 2026-10-08T13:00Z to 2026-10-15T13:00Z
+1	felix cost --week: now 2026-10-11T05:00:00Z falls in the plan week 2026-10-08T13:00Z to 2026-10-15T13:00Z
+1	felix cost --week: now 2026-10-11T05:40Z falls in the plan week 2026-10-08T13:00Z to 2026-10-15T13:00Z
+1	felix cost --week: now 2026-10-15T12:59:59Z falls in the plan week 2026-10-08T13:00Z to 2026-10-15T13:00Z
+1	felix cost --week: now 2026-10-15T13:00:00Z falls in the plan week 2026-10-15T13:00Z to 2026-10-22T13:00Z
+1	felix cost --week: now 2026-11-02T00:00:00Z falls in the plan week 2026-10-29T13:00Z to 2026-11-05T13:00Z
+1	felix cost --week: now 2026-12-31T12:00:00Z falls in the plan week 2026-12-24T13:00Z to 2026-12-31T13:00Z
+1	felix cost --week: now 2026-12-31T13:00:00Z falls in the plan week 2026-12-31T13:00Z to 2027-01-07T13:00Z
+1	felix cost --week: now 2027-01-03T00:00:00Z falls in the plan week 2026-12-31T13:00Z to 2027-01-07T13:00Z
+1	felix cost --week: now 2028-02-29T12:00:00Z falls in the plan week 2028-02-24T13:00Z to 2028-03-02T13:00Z
+1	felix cost --week: three of the five records fall inside, 25000
+1	felix cost -h exits 0 and prints a usage line starting usage: felix cost
+1	felix cost -x (an unknown argument) is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost accepts FELIX_COST_NOW without seconds, and as_of reads it to the minute
+1	felix cost bogus (an unknown argument) is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost counts a dangling link named *.jsonl in a record directory as one unread file, and the total is a floor of the readable 1000
+1	felix cost counts a dangling link named *.jsonl under subagents/ as one unread file, and the total is a floor of the readable 2000
+1	felix cost counts a helper agent's file under <E>/<sid>/subagents/, and a workflow agent's under subagents/workflows/<run>/, to <E>
+1	felix cost counts a record at exactly the earlier week's start and not the millisecond before it
+1	felix cost counts a transcript name that is a link loop as one unread file, and the total is a floor of the readable 4000
+1	felix cost counts a whole last line that has no newline after it
+1	felix cost counts cache_creation_input_tokens as 5-minute writes when cache_creation is absent
+1	felix cost counts only the three whole assistant responses among the rest: 1000 + 2000 + 4000
+1	felix cost dates a record by its top-level timestamp: one dated before the window does not count for a time in its content
+1	felix cost dates a record by its top-level timestamp: one whose content holds an earlier uuid and timestamp still counts
+1	felix cost does not count a progress record that nests an assistant message
+1	felix cost does not count a progress record that nests an assistant record, even when its own type comes after the nested message
+1	felix cost does not count a record at exactly the earlier week's end
+1	felix cost does not count a record whose message.id is empty
+1	felix cost does not count a record whose message.role is not assistant
+1	felix cost does not count a record whose usage is not an object
+1	felix cost does not count a record with no message.id
+1	felix cost does not count a system record that nests an assistant record, its own type coming after it
+1	felix cost does not count a system record, though its message is an assistant's
+1	felix cost does not count a user record carrying a usage object in a toolUseResult
+1	felix cost does not count a user record that nests an assistant record in a toolUseResult, its own type coming after it
+1	felix cost does not count a user record, even one in an assistant record's shape
+1	felix cost does not count an attachment record that nests an assistant message
+1	felix cost does not count an attachment record that nests an assistant record, its own type coming after it
+1	felix cost does not count the <synthetic> model
+1	felix cost does not read <E>/<sid>/other/x.jsonl
+1	felix cost does not read <E>/<sid>/x.jsonl
+1	felix cost does not read a .jsonl directly under the records root
+1	felix cost does not read a file modified one minute before the window start
+1	felix cost does not read a file modified one second before the window opens, 12:59:59, though it holds an in-window record
+1	felix cost does not read a file nested deeper under <E>/<sid>/ outside subagents/
+1	felix cost does not read a file under subagents/ without the .jsonl suffix
+1	felix cost does not read a file under subagents/workflows/ modified before the window start
+1	felix cost does not read a file whose name only contains .jsonl
+1	felix cost does not read a file without the .jsonl suffix
+1	felix cost does not read a helper agent's file last modified before the window start
+1	felix cost does not read a transcript last modified long before the window start, though it holds an in-window record
+1	felix cost does not read subagents/ when it sits below another directory of the session (<E>/<sid>/other/subagents/)
+1	felix cost ends with a report when a directory link under subagents/ loops back to its parent, and counts the response in it once: 8000
+1	felix cost follows a record directory that is a link: its session file and its helper agent's file count, 28000 over three calls
+1	felix cost follows a record directory that is a link: the worktree rows are the link's name and the real directory's, largest first
+1	felix cost follows a record directory that is a link: three files read, none unread
+1	felix cost follows a records root that is a symbolic link: both files read, none unread, coverage measured
+1	felix cost follows a records root that is a symbolic link: its transcript and its helper agent's are read, 3000 over two calls
+1	felix cost follows a records root that is a symbolic link: the worktree row is the record directory under the link
+1	felix cost ignores a FELIX_HOME that does not exist and a HOME whose .felix-home names none
+1	felix cost ignores cache_creation_input_tokens when cache_creation is present
+1	felix cost keeps tokens past 2^31 exact: 3000000000 is 75.0 percent of a 4000M cap
+1	felix cost leaves no carriage return in its TSV report of a CRLF file
+1	felix cost leaves no carriage return in its text report of a CRLF file
+1	felix cost leaves no scratch file in TMPDIR after a report
+1	felix cost leaves the status of the repository it is run from as it was, and reports
+1	felix cost never counts usage.iterations: nor when iterations is written before the top-level counts
+1	felix cost never counts usage.iterations: the top level alone is weighed (iterations after the counts)
+1	felix cost prints a cap past 2^31 whole: FELIX_COST_CAP_M=4000 is 4000000000 tokens
+1	felix cost prints a weight that has two decimals exactly: tokens are printed to the hundredth
+1	felix cost prunes by the window start in UTC under another zone: the file modified at the start is read, the one a minute before is not
+1	felix cost prunes to the second in UTC under America/Los_Angeles: the file at the start is read, the one a second before is not
+1	felix cost prunes to the second in UTC under another zone: the file at the start is read, the one a second before is not
+1	felix cost reads $HOME/.claude/projects when CLAUDE_CONFIG_DIR is set but empty
+1	felix cost reads $HOME/.claude/projects when CLAUDE_CONFIG_DIR is unset
+1	felix cost reads <E>/*.jsonl, a session transcript, and every *.jsonl under <E>/<sid>/subagents/, a helper agent's
+1	felix cost reads a 1-hour write missing from cache_creation as 0 and uses its 5-minute field
+1	felix cost reads a 5-minute write missing from cache_creation as 0 and uses its 1-hour field
+1	felix cost reads a CRLF line in the middle of a mixed file: 8000
+1	felix cost reads a file modified after the window start
+1	felix cost reads a file modified at exactly the window start
+1	felix cost reads a file modified at the second the window opens, 2026-10-08 13:00:00
+1	felix cost reads a file modified one second after the window opens
+1	felix cost reads a null count, and a count that is missing, as 0
+1	felix cost reads a records root whose path holds a space
+1	felix cost reads a transcript that is a link as a file read, none unread
+1	felix cost reads a transcript that is a link, in the record directory and in subagents/: 224000 over three calls
+1	felix cost reads every *.jsonl at any depth under <E>/<sid>/subagents/: direct, in a workflow run, and deeper still: 15000 over four calls
+1	felix cost reads exactly four files there
+1	felix cost reads lines ending \r\n as whole records: 33000 over five calls from a CRLF file and a mixed file
+1	felix cost reports, and creates and changes nothing: not under the records root, nor in its working directory, HOME or TMPDIR
+1	felix cost runs from inside a git repository the same as from outside one: the same report, with its total
+1	felix cost skips a CRLF line that lost its last brace
+1	felix cost skips a cut-off last line with no newline
+1	felix cost skips a line cut off part-way through
+1	felix cost skips a line that lost its last brace
+1	felix cost takes its flags in any order: the same three worktree rows
+1	felix cost under TZ=America/Los_Angeles still reads the week and the days in UTC
+1	felix cost under TZ=Asia/Kolkata still reads the week and the days in UTC
+1	felix cost under TZ=Pacific/Auckland still reads the week and the days in UTC
+1	felix cost weighs a 1-hour cache write at 2
+1	felix cost weighs a 5-minute cache write at 1.25
+1	felix cost weighs a cache read at 0.1
+1	felix cost weighs a usage with its keys, and cache_creation's keys, in reverse order the same
+1	felix cost weighs a usage with output_tokens_details first the same as any other order
+1	felix cost weighs an input token at 1
+1	felix cost weighs an output token at 5
+1	felix cost with FELIX_COST_NOW unset takes the clock as now
+1	felix cost with FELIX_COST_NOW=1900-01-01T00:00:00Z, before 1970-01-01T13:00Z, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost with FELIX_COST_NOW=1969-12-31T23:59:00Z, before 1970-01-01T13:00Z, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost with FELIX_COST_NOW=1970-01-01T12:59:00Z, before 1970-01-01T13:00Z, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost with FELIX_COST_NOW=1970-01-01T12:59:59Z, before 1970-01-01T13:00Z, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost with FELIX_COST_NOW=1970-01-01T12:59Z, before 1970-01-01T13:00Z, is a usage error: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost with FELIX_COST_NOW=1970-01-01T13:00:00Z, not before the limit, is accepted: exit 0 and the week that opened at that instant
+1	felix cost writes nothing into the repository it is run from, and reports
+1	felix cost: 90500000 tokens is 20.0 percent of a 452.5M cap
+1	felix cost: 90500000 tokens is 5.0 percent of a 1810M cap
+1	felix cost: 90500000 tokens is 50.0 percent of a 181M cap
+1	felix cost: FELIX_COST_CAP_M=-5 is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: FELIX_COST_CAP_M=0 is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: FELIX_COST_CAP_M=0.0 is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: FELIX_COST_CAP_M=1.2.3 is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: FELIX_COST_CAP_M=181 makes cap_tokens 181000000
+1	felix cost: FELIX_COST_CAP_M=452.5 makes cap_tokens 452500000
+1	felix cost: FELIX_COST_CAP_M=5x is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: FELIX_COST_CAP_M=abc is not a positive number: exit 2, nothing on stdout, a felix cost: line and the usage line on stderr
+1	felix cost: a CRLF file is read without any unread file, coverage measured
+1	felix cost: a CRLF file leaves no response unread: a line ending \r\n is a whole line, not a response it cannot place
+1	felix cost: a day with nothing counted has no day row; the one day that has is 2026-10-09
+1	felix cost: a directory named *.jsonl is no regular file, so it is neither read nor counted unread
+1	felix cost: a partial copy in subagents/agent-a.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts first): both files were read
+1	felix cost: a partial copy in subagents/agent-a.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts first): the id counts once, at the full usage: 1100 over one call
+1	felix cost: a partial copy in subagents/agent-a.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts first): the model row holds the full usage once
+1	felix cost: a partial copy in subagents/z-agent.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts last): both files were read
+1	felix cost: a partial copy in subagents/z-agent.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts last): the id counts once, at the full usage: 1100 over one call
+1	felix cost: a partial copy in subagents/z-agent.jsonl, the full usage in a workflow's agent-a.jsonl (partial path sorts last): the model row holds the full usage once
+1	felix cost: a quoted assistant triple dated inside the window does not bring in a response whose own last triple is dated before it
+1	felix cost: a quoted triple dated 2020 does not move the response off its own day, 2026-10-09
+1	felix cost: a record directory holding nothing that counts has no worktree row
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: it has no model row
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: it is not a call: the total counts 1 call
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: nothing of it is weighed: the total is the readable 1000 and 0.0 percent
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: the report is still made, exit 0, with every other file read and none unread
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: the response is counted in responses_unread
+1	felix cost: a response whose content holds an object-valued usage key, a second usage: the total is a floor
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: it has no model row
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: it is not a call: the total counts 1 call
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: nothing of it is weighed: the total is the readable 1000 and 0.0 percent
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: the report is still made, exit 0, with every other file read and none unread
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: the response is counted in responses_unread
+1	felix cost: a response whose message usage is followed by a second usage in wireToolInputs: the total is a floor
+1	felix cost: a response whose only usage comes after a wireToolInputs key: it has no model row
+1	felix cost: a response whose only usage comes after a wireToolInputs key: it is not a call: the total counts 1 call
+1	felix cost: a response whose only usage comes after a wireToolInputs key: nothing of it is weighed: the total is the readable 1000 and 0.0 percent
+1	felix cost: a response whose only usage comes after a wireToolInputs key: the report is still made, exit 0, with every other file read and none unread
+1	felix cost: a response whose only usage comes after a wireToolInputs key: the response is counted in responses_unread
+1	felix cost: a response whose only usage comes after a wireToolInputs key: the total is a floor
+1	felix cost: a response whose timestamp is not a time: it has no model row
+1	felix cost: a response whose timestamp is not a time: it is not a call: the total counts 1 call
+1	felix cost: a response whose timestamp is not a time: nothing of it is weighed: the total is the readable 1000 and 0.0 percent
+1	felix cost: a response whose timestamp is not a time: the report is still made, exit 0, with every other file read and none unread
+1	felix cost: a response whose timestamp is not a time: the response is counted in responses_unread
+1	felix cost: a response whose timestamp is not a time: the total is a floor
+1	felix cost: a response with a wireToolInputs that quotes nothing counts: 3200
+1	felix cost: a root whose only transcript is a dangling link is one unread file, a floor of 0, so the total reads unknown
+1	felix cost: a triple of type user quoted in a tool_use input does not change the response's own type or time: it counts
+1	felix cost: a user triple quoted in wireToolInputs, between the message and the real triple, does not change a response's type or time
+1	felix cost: across two files the largest per-file last line wins, not the largest line anywhere (file A sorts first): A's last line is A's usage, then the larger of the files' usages counts: 1500, once
+1	felix cost: across two files the largest per-file last line wins, not the largest line anywhere (file A sorts last): A's last line is A's usage, then the larger of the files' usages counts: 1500, once
+1	felix cost: an assistant triple dated inside the window quoted in wireToolInputs does not bring in a response dated before it
+1	felix cost: an id found in two files, a fork's copy, is counted once: five distinct ids, 10500 tokens
+1	felix cost: an id in a session file and in its helper agent's file is the directory's, once
+1	felix cost: an id in two files of one record directory is that directory's, once
+1	felix cost: an id in two record directories, partial in one and full in the other, counts once at the full usage: 1100
+1	felix cost: an id in two record directories: the worktree rows add up to the total, 1100 over one call
+1	felix cost: an id written once among the repeats of another is counted as it is
+1	felix cost: equal models are ordered by key in byte order, so Zmodel, amodel, then m-mid
+1	felix cost: equal worktrees are ordered by key in byte order, so -t-Beta, -t-Zeta, then -t-alpha
+1	felix cost: every file is still read, though its repeated ids are not counted twice
+1	felix cost: files_read counts only the files it read, 2 of the 5
+1	felix cost: four responses with iterations and shuffled keys total 2050 over 4 calls
+1	felix cost: of an id repeated in one file with growing usage, the last line's usage counts, once
+1	felix cost: of an id repeated on CRLF lines the last line's usage counts: 3000
+1	felix cost: of the five lines only the plain response counts, 500 over one call
+1	felix cost: only what it read is in the total, 7500 over four calls
+1	felix cost: quoted triples in the content leave the report measured, with no response unread
+1	felix cost: quoted triples in the content leave the total at the two responses that count, 1800 over two calls
+1	felix cost: quoted triples in wireToolInputs leave the report measured, with no response unread
+1	felix cost: records that nest an assistant record are not counted and not read as unreadable responses: measured, responses_unread 0
+1	felix cost: six lines of three ids are three calls and the sum of the last lines
+1	felix cost: skipping the lines it does not count is silent, exit 0 with nothing on stderr
+1	felix cost: the day rows are the UTC dates of the records counted, earliest first
+1	felix cost: the earlier week holds three of the five records, 1400
+1	felix cost: the files it read are the four it should: files_read 4
+1	felix cost: the full usage in subagents/agent-a.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts first): both files were read
+1	felix cost: the full usage in subagents/agent-a.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts first): the id counts once, at the full usage: 1100 over one call
+1	felix cost: the full usage in subagents/agent-a.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts first): the model row holds the full usage once
+1	felix cost: the full usage in subagents/z-agent.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts last): both files were read
+1	felix cost: the full usage in subagents/z-agent.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts last): the id counts once, at the full usage: 1100 over one call
+1	felix cost: the full usage in subagents/z-agent.jsonl, a partial copy in a workflow's agent-a.jsonl (full path sorts last): the model row holds the full usage once
+1	felix cost: the last line of an id wins even when an earlier line of it carried more
+1	felix cost: the model row counts each of the five ids once
+1	felix cost: the one counted record is dated 2026-10-09
+1	felix cost: the percent in a breakdown row is of the cap too
+1	felix cost: the percent of a 1M worktree against a 100M cap is 1.0, and of 500000 tokens 0.5
+1	felix cost: the second-exact prune reads two files, 5000 over two calls
+1	felix cost: the tie order is the same under a UTF-8 locale, five worktree rows
+1	felix cost: the total of eleven weighed responses is their sum, as a percent of a 0.01M cap
+1	felix cost: the total of the files it read is 5000 over two calls
+1	felix cost: the wireToolInputs lines total 4000 over two calls
+1	felix cost: the worktree rows add up to the total, so a forked id sits under one directory
+1	felix cost: two quoted triples, a progress and an attachment, leave a response of its own type assistant counted: 1100
+1	felix cost: worktree rows are the record directories, largest first
 1	felix coverage answers
 1	felix decisions reads the record
 1	felix discover --adopt onto a newline-terminated read-only stack.tsv attempts no install of the row
@@ -5963,10 +6397,224 @@
 1	the README promises felix gate after --no-commission only where a gate was guessed or set
 1	the README's Try it section shows felix audit from a clone and felix new <name> --no-commission, and names felix install as what holds sessions
 1	the SessionStart matcher binds resume
+1	the Stop hook adds a debt row and holds nothing at unflagged stop number 3 of the same session on the same tree
+1	the Stop hook adds a debt row and holds nothing at unflagged stop number 4 of the same session on the same tree
+1	the Stop hook allows a stop on a tree the gate has passed, in silence, with an allowed row
 1	the Stop hook calls the guard in one place
+1	the Stop hook charges flagged stop number 1 of the night's chain to the night
+1	the Stop hook charges flagged stop number 2 of the night's chain to the night
+1	the Stop hook charges flagged stop number 3 of the night's chain to the night
+1	the Stop hook counts a flagged stop inside another hook's chain as debt for a session held once already
+1	the Stop hook counts a stop from the top of the checkout as debt once a stop from a directory below it was held
+1	the Stop hook counts debt for the first checkout once it was held there
+1	the Stop hook counts debt for the second checkout once it was held there
+1	the Stop hook counts debt when the matching line is one of several in the record, with others on both sides of it
+1	the Stop hook counts debt when the reason returns to one the session was already held on, on the same tree
+1	the Stop hook counts debt, and holds nothing, for a record line with this tree, this reason and this checkout
+1	the Stop hook counts the second stop of a session whose id is longer than eight characters as debt
+1	the Stop hook counts the stop after that hold as debt when the record had differed only in a different checkout
+1	the Stop hook counts the stop after that hold as debt when the record had differed only in a different reason
+1	the Stop hook counts the stop after that hold as debt when the record had differed only in a different tree id
+1	the Stop hook counts the stop after that hold as debt when the record had held only the tree id
+1	the Stop hook does not create the file a dangling record link points to (control)
+1	the Stop hook does not hold a flagged stop inside another hook's chain on a tree already held on for the session: it is debt
+1	the Stop hook does not hold a later unflagged stop of the same session on the same tree: it is silent, exits 0 and adds a debt row
+1	the Stop hook does not hold a session when the tree moves forward again to the other tree it was held on
+1	the Stop hook does not hold a session when the tree returns to one the session was held on
+1	the Stop hook does not hold the second stop on the same tree when the gate failed on this tree, and the debt row names that tree
+1	the Stop hook does not hold the second stop on the same tree when the gate never ran, and the debt row names that tree
+1	the Stop hook does not hold the second stop on the same tree when the gate passed on this tree and the epoch moved, and the debt row names that tree
+1	the Stop hook does not hold the second stop on the same tree when the receipt is for a different tree, and the debt row names that tree
+1	the Stop hook does not hold the third tree a second time
+1	the Stop hook ends the flagged stop after that hold at the flag
+1	the Stop hook ends the flagged stop right after its own hold at the flag: silent, exit status 0, no row
+1	the Stop hook has the session of the next case on debt before the flagged stop reaches it (control)
+1	the Stop hook holds a 128-character session id once and then adds debt, as it does for any id that can name a file
+1	the Stop hook holds a checkout whose path holds spaces once and then counts debt, and records the path whole
+1	the Stop hook holds a checkout with 500 untracked files once and then counts debt, as it does any ordinary tree
+1	the Stop hook holds a checkout with no commit at every unflagged stop, three in a row (control)
+1	the Stop hook holds a coarse tree at every unflagged stop, three in a row (control)
+1	the Stop hook holds a night's flagged stop and charges it to the night (control)
+1	the Stop hook holds a night's flagged stop though the record holds this tree, this reason and this checkout, and charges it (control)
+1	the Stop hook holds a night's unflagged stop though the record holds this tree, this reason and this checkout (control)
+1	the Stop hook holds a second session on a tree the first session was already held on
+1	the Stop hook holds a session again on every tree it was held on once a person has typed into it, not on the last only
+1	the Stop hook holds a session again on the same tree once SessionEnd has removed its record, and records it afresh
+1	the Stop hook holds a session at two stops of its night, then once and only once after the night: the night wrote no record
+1	the Stop hook holds a session id made of letters, digits, dot, dash and underscore once and then adds debt
+1	the Stop hook holds a session once and then counts debt, before any prompt is typed into it
+1	the Stop hook holds a session once and then counts debt, before the session is given a night
+1	the Stop hook holds a session that holds a night at its first unflagged stop (control)
+1	the Stop hook holds a session that holds a night at its second unflagged stop too, and does not count debt (control)
+1	the Stop hook holds a session whose record is a link to a file holding this very line, where the same line in a plain file is debt
+1	the Stop hook holds a session whose record is a link to nothing (control)
+1	the Stop hook holds a session whose record names a different tree
+1	the Stop hook holds a stop made from a directory below the top of the checkout, and records the top level of the checkout, not that directory
+1	the Stop hook holds a stop whose record is a file it cannot read
+1	the Stop hook holds a stop whose record is an empty file, which holds no tree
+1	the Stop hook holds a stop whose record line differs from it only in a different checkout, and records the hold on a line of its own
+1	the Stop hook holds a stop whose record line differs from it only in a different reason, and records the hold on a line of its own
+1	the Stop hook holds a stop whose record line differs from it only in a different tree id, and records the hold on a line of its own
+1	the Stop hook holds a stop whose record line holds only the tree id, and records the hold in full
+1	the Stop hook holds a stop whose record line holds the tree id and the reason but no checkout, and records the hold in full
+1	the Stop hook holds a third session on the same tree once for itself too
+1	the Stop hook holds a third tree once, and names it in the blocked row
+1	the Stop hook holds both of two stops in a row when state/held-tree is a regular file and not a directory
+1	the Stop hook holds both of two stops in a row when state/held-tree is not writable
+1	the Stop hook holds both of two unflagged stops in a row for a 129-character session id [ho-000000000]
+1	the Stop hook holds both of two unflagged stops in a row for an empty session id []
+1	the Stop hook holds both of two unflagged stops in a row for the session id [-ho-dash]
+1	the Stop hook holds both of two unflagged stops in a row for the session id [../ho-escape]
+1	the Stop hook holds both of two unflagged stops in a row for the session id [..]
+1	the Stop hook holds both of two unflagged stops in a row for the session id [.]
+1	the Stop hook holds both of two unflagged stops in a row for the session id [ho sp ace]
+1	the Stop hook holds both of two unflagged stops in a row for the session id [ho/slash]
+1	the Stop hook holds both of two unflagged stops in a row that carry no session id at all
+1	the Stop hook holds that tree only once for "epoch moved" after "failed": the next stop is debt
+1	the Stop hook holds that tree only once for "failed" after "never verified": the next stop is debt
+1	the Stop hook holds that tree only once for "failed" after "stale receipt": the next stop is debt
+1	the Stop hook holds the changed tree only once: the next unflagged stop on it is debt
+1	the Stop hook holds the first stop in a home that is the checkout it governs, and names the tree as it stood
+1	the Stop hook holds the first stop of a session that will later be stopped inside another hook's chain
+1	the Stop hook holds the first stop of a session that will see three trees
+1	the Stop hook holds the first stop of the session the override and the green gate will later let through
+1	the Stop hook holds the first stop on a tree as "failed" (control)
+1	the Stop hook holds the first stop on a tree as "never verified" (control)
+1	the Stop hook holds the first stop on a tree as "stale receipt" (control)
+1	the Stop hook holds the first stop once when the gate failed on this tree, and the blocked row says failed
+1	the Stop hook holds the first stop once when the gate never ran, and the blocked row says never verified
+1	the Stop hook holds the first stop once when the gate passed on this tree and the epoch moved, and the blocked row says epoch moved
+1	the Stop hook holds the first stop once when the receipt is for a different tree, and the blocked row says stale receipt
+1	the Stop hook holds the flagged stop of a session whose night began after its record was made (control)
+1	the Stop hook holds the night's chain again at its flagged stop number 1 though the tree is on the session's record
+1	the Stop hook holds the night's chain again at its flagged stop number 2 though the tree is on the session's record
+1	the Stop hook holds the night's chain again at its flagged stop number 3 though the tree is on the session's record
+1	the Stop hook holds the same session again at the next unflagged stop once the tree has changed
+1	the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold
+1	the Stop hook holds the same session on the same tree again when the reason has become "epoch moved" after "failed", and records that hold
+1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never verified", and records that hold
+1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "stale receipt", and records that hold
+1	the Stop hook holds the second session only once on that tree
+1	the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold
+1	the Stop hook holds the session once again at its next stop after a person's prompt, and then counts debt
+1	the Stop hook holds the session once the green receipt is gone, for the first time, because the green gate recorded nothing
+1	the Stop hook holds the session once the override is gone, for the first time, because the override recorded nothing
+1	the Stop hook holds the stop after one that was stopped while writing its says row, and only then counts debt
+1	the Stop hook holds the stop after one that was stopped while writing its verification row, and only then counts debt
+1	the Stop hook holds the unflagged stop of a session whose night began after its record was made (control)
+1	the Stop hook holds, and does not hang, when the session's record is a FIFO
+1	the Stop hook holds, and does not hang, when the session's record is a directory
+1	the Stop hook holds, and does not hang, when the session's record is a link to a FIFO
 1	the Stop hook in a session that owns a night on a green tree goes through the night's branch and says its stack.tsv nudge (control)
 1	the Stop hook in a session that owns a night returns within 8 s with a FIFO at the project's stack.tsv
+1	the Stop hook judges the same tree at the stop after a hold in a home that is the checkout it governs: debt
+1	the Stop hook keeps a record of its own for the second session
+1	the Stop hook keeps the first tree in the session's record when it records the changed one
+1	the Stop hook leaves a record it did not write as it was while the session holds a night (control)
+1	the Stop hook leaves another session's record as it was when a person types into a session
+1	the Stop hook leaves every record and every file beside the records as it was for a prompt with no session id or an id that is a path (control)
+1	the Stop hook leaves no record behind for any id that cannot name a file
+1	the Stop hook leaves no record behind when it was stopped while writing its says row (control)
+1	the Stop hook leaves no record behind when it was stopped while writing its verification row (control)
+1	the Stop hook leaves the file a record link points to byte for byte as it was (control)
+1	the Stop hook leaves the first session's debt as it was while other sessions are held on the tree
+1	the Stop hook lets a founder's FELIX_ALLOW_RED stop through in silence with an override row
+1	the Stop hook lets the override through again at the next stop, still an override and not debt
+1	the Stop hook prints nothing to stdout for a stop it does not hold
+1	the Stop hook records both checkouts, each on a line of its own
+1	the Stop hook records both holds, "failed" and then "epoch moved", on lines of their own
+1	the Stop hook records both holds, "never verified" and then "failed", on lines of their own
+1	the Stop hook records both holds, "stale receipt" and then "failed", on lines of their own
+1	the Stop hook records nothing for a checkout with no commit (control)
+1	the Stop hook records nothing for a checkout with no commit, though the same session is held and then counted as debt in a checkout with a commit
+1	the Stop hook records nothing for a clean tree
+1	the Stop hook records nothing for a coarse tree (control)
+1	the Stop hook records nothing for a coarse tree, though the same session is held and then counted as debt in an ordinary tree
+1	the Stop hook records nothing for a directory nothing governs
+1	the Stop hook records nothing for a stop the green gate allowed
+1	the Stop hook records nothing for a stop the override let through
+1	the Stop hook records the changed tree too
+1	the Stop hook records the tree for that first hold when the gate failed on this tree
+1	the Stop hook records the tree for that first hold when the gate never ran
+1	the Stop hook records the tree for that first hold when the gate passed on this tree and the epoch moved
+1	the Stop hook records the tree for that first hold when the receipt is for a different tree
+1	the Stop hook records the tree id of a first hold in state/held-tree under the session id
+1	the Stop hook records the tree id, a tab, "epoch moved", a tab and the checkout for a hold when the gate passed on this tree and the epoch moved
+1	the Stop hook records the tree id, a tab, "failed", a tab and the checkout for a hold when the gate failed on this tree
+1	the Stop hook records the tree id, a tab, "never verified", a tab and the checkout for a hold when the gate never ran
+1	the Stop hook records the tree id, a tab, "stale receipt", a tab and the checkout for a hold when the receipt is for a different tree
+1	the Stop hook records the tree it held inside another hook's chain, as it does for any first hold
+1	the Stop hook records the tree it held on in a record that named a different tree
+1	the Stop hook stays silent in a directory nothing governs, adds no row and exits 0
+1	the Stop hook stays silent on a clean tree the session committed nothing to, adds no row and exits 0
+1	the Stop hook still counts debt after a system reminder arrives as a prompt: it does not clear the record
+1	the Stop hook still counts debt after a task notification arrives as a prompt: it does not clear the record
+1	the Stop hook still counts debt after its own feedback arrives as a prompt: it does not clear the record
+1	the Stop hook still gives that first hold the reason it gave when the gate never ran
+1	the Stop hook still holds a flagged stop in another hook's chain for a session it has never held
+1	the Stop hook still holds the first unflagged stop of a session on a tree no gate has passed, with the block decision and exit status 0
+1	the Stop hook still judges a flagged stop inside another hook's chain on a tree not recorded for the session, and holds it
+1	the Stop hook still names felix gate as the way to pass
+1	the Stop hook still prints the block as a JSON object with the decision on its second line and the reason on its third
+1	the Stop hook still says a session cannot grant itself an exceptions.tsv row
+1	the Stop hook still says the way past a red gate is the founder's FELIX_ALLOW_RED and not the session's
+1	the Stop hook still tells the held session not to describe the work as complete
+1	the Stop hook still writes an allowed row, and not debt, for a session already held on this tree once the gate has passed it
+1	the Stop hook still writes an override row, and not debt, for a session already held on this tree
+1	the Stop hook treats a flagged stop right after a debt stop as another hook's chain on a held tree: debt, not silence at the flag
+1	the Stop hook treats a flagged stop with no hold of Felix's on record as debt when the session's record names the tree
+1	the Stop hook treats a record line holding the tree id, the reason and the checkout as a hold already made, and adds a debt row
+1	the Stop hook writes no record for a session while it holds a night (control)
+1	the Stop hook writes no record outside state/held-tree for an id that names a parent directory or a path
+1	the Stop hook's SessionEnd exits 0 for a session that has a record
+1	the Stop hook's SessionEnd exits 0 for a session that was never held
+1	the Stop hook's SessionEnd leaves another session's record as it was
+1	the Stop hook's SessionEnd removes a link at the session's record and leaves the file it points to as it was
+1	the Stop hook's SessionEnd removes a link at the session's record that points to nothing
+1	the Stop hook's SessionEnd removes nothing at all for a session id that cannot name a file [../ho-keep]
+1	the Stop hook's SessionEnd removes nothing at all for a session id that cannot name a file [..]
+1	the Stop hook's SessionEnd removes nothing at all for a session id that cannot name a file [.]
+1	the Stop hook's SessionEnd removes the record the session had
+1	the Stop hook's allowed row for a current green gate says green and names the tree
+1	the Stop hook's blocked row for the coarse tree names a tree id that starts with coarse: (control)
+1	the Stop hook's blocked row, debt row, record and independently taken tree id are one tree id
+1	the Stop hook's checkout with 501 untracked files has a coarse tree id (control)
+1	the Stop hook's checkout with exactly 500 untracked files has an ordinary tree id (control)
+1	the Stop hook's debt row for a stop inside another hook's chain names the session too
+1	the Stop hook's debt row for a stop inside another hook's chain says the tree was held once already
+1	the Stop hook's debt row for the returning tree names the returning tree
+1	the Stop hook's debt row gives only the first eight characters of the session id, never more
+1	the Stop hook's debt row has the verdict debt in its second field and the tree the session was held on in its third
+1	the Stop hook's debt row names a session id of exactly eight characters in full
+1	the Stop hook's debt row names the session as (session a1b2c3d4), the first eight characters of its id
+1	the Stop hook's debt row says in its fourth field that the tree was held once on this tree already
+1	the Stop hook's debt row still says the tree was held once already
+1	the Stop hook's debt row, its record and the tree id taken independently all name one tree
+1	the Stop hook's first hold writes a blocked row naming the tree and never verified as the reason
+1	the Stop hook's fixture for "failed" then "epoch moved" leaves the tree as it was (control)
+1	the Stop hook's fixture for "never verified" then "failed" leaves the tree as it was (control)
+1	the Stop hook's fixture for "stale receipt" then "failed" leaves the tree as it was (control)
+1	the Stop hook's fixture stops a hold after its verification row and in the middle of its says row, before the JSON is printed (control)
+1	the Stop hook's fixture stops a hold in the middle of writing its verification row, before the JSON is printed (control)
 1	the Stop hook's guard names what an unhealed split row caught last
+1	the Stop hook's longest usable session id is 128 characters (control)
+1	the Stop hook's night fixture starts with twelve continuations (control)
+1	the Stop hook's over-long session id is 129 characters (control)
+1	the Stop hook's override row names the tree
+1	the Stop hook's record in the governed home holds the tree id the blocked row names
+1	the Stop hook's record inside the tree leaves the tree's identity as it was
+1	the Stop hook's record line for a hold holds the very reason the blocked row gives
+1	the Stop hook's record of a first hold is exactly one line
+1	the Stop hook's record of a hold is one line of three tab-separated fields that ends in a newline
+1	the Stop hook's record of a session is there before a person types into it and gone after, and another session's record is as it was
+1	the Stop hook's record, once a hold was printed, holds the tree it was held on
+1	the Stop hook's second hold of that session names the changed tree
+1	the Stop hook's second night fixture starts with twelve continuations (control)
+1	the Stop hook's two checkouts have one tree id (control)
+1	the Stop hook's two checkouts stand on one commit (control)
+1	the Stop hook's two sessions each have a record before the first one ends (control)
+1	the Stop hook's unborn checkout has an ordinary tree id (control)
+1	the Stop hook's unborn checkout has no commit (control)
 1	the admit phase answers already for a nomination stack.tsv declares first of 3,002 rows
 1	the admit phase installs nothing and edits no manifest
 1	the admitted sentence now counts the grants
@@ -6332,6 +6980,10 @@
 1	the model still gets the whole thing
 1	the model's tools are allowed inside the checkout and nowhere else
 1	the monitor counts an unhealed split row once: three rows, not five
+1	the monitor page does not show a debt verification row with the class a blocked gate has (control)
+1	the monitor page does not show a debt verification row with the class a passed gate has
+1	the monitor page gives a passed gate its own class, and the page's log panel lists all four rows (control)
+1	the monitor page shows a debt verification row with the warning class
 1	the near-name and stray fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem

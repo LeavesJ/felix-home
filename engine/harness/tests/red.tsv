@@ -8,9 +8,6 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	53d076a053a4bd5eba192e949e2dd82fce9a72ea	0.49.279
-run	4	7518	9
-every template the engine ships passes its own secret scan	1
-quiet on a quoted reference sample 1	1
-quiet on a quoted reference sample 2	1
-quiet on a quoted reference sample 3	1
+base	origin/main	97cdd50af4701ca3f9899d28aa1dc2eb115fb3ac	0.49.279
+run	1	7515	9
+every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move	1

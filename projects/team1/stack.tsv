@@ -1,0 +1,15 @@
+# Declared tooling for team1. Seeded from the catalogue by felix new,
+# filtered to what this checkout actually shows. Edit freely.
+#
+# kind	name	source	risk	capability	grounding
+marketplace	claude-plugins-official	anthropics/claude-plugins-official	low	always	DECLARED
+plugin	superpowers@claude-plugins-official	-	low	always	DECLARED
+plugin	claude-md-management@claude-plugins-official	-	low	always	DECLARED
+plugin	claude-code-setup@claude-plugins-official	-	low	always	DECLARED
+plugin	context7@claude-plugins-official	-	low	always	DECLARED
+plugin	code-review@claude-plugins-official	-	low	always	DECLARED
+plugin	security-guidance@claude-plugins-official	-	low	always	DECLARED
+plugin	code-simplifier@claude-plugins-official	-	low	always	DECLARED
+plugin	semgrep@claude-plugins-official	-	high	always	DECLARED
+plugin	github@claude-plugins-official	-	high	ci	DECLARED
+plugin	frontend-design@claude-plugins-official	-	low	frontend	DECLARED

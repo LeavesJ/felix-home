@@ -1,11 +1,13 @@
 ### 2026-10-11: every uses: in felix-home's own workflows is a commit sha, and the suite holds every workflow beside the harness to it
 
-**Engine 0.49.280, a placeholder.** It is row "?" of the 10-08 carrier queue
-(~/.felix/memory/felix/audits/2026-10-08-carrier/state.md). When it was
-gated, no carrier was running: the founder starts the next one. Whoever
-carries renumbers it at "you are next". It was built on 10-08 at a 0.49.274
-placeholder, which #418 took. Main 97cdd50a (0.49.279) was merged in, and
-the block moved into parts/0160 after #424 split tests/run.
+**Engine 0.49.280**, the next free number after main's 0.49.279. It is
+row "?" of the 10-08 carrier queue
+(~/.felix/memory/felix/audits/2026-10-08-carrier/state.md). No carrier was
+running, so the founder approved the merge directly on 2026-10-12. It was
+built on 10-08 at a 0.49.274 placeholder, which #418 took. Main 97cdd50a
+(0.49.279) was merged in, then 53d076a0 (#422, docs only). The block moved
+into parts/0160 after #424 split tests/run. If another engine PR lands
+first, renumber.
 
 **What changed.** `.github/workflows/gate.yml` ran both checkouts on
 `actions/checkout@v4`, a tag its owner can move. Both now name
@@ -58,8 +60,8 @@ repository, and its `.github/workflows` holds LeavesJ/Felix's own
 fails with `suite.yml:37: actions/checkout@v4`, so the next `snapshot.sh`
 dies at "the suite did not pass on the snapshot". The public repository
 keeps that file outside the staged paths, so the snapshot cannot carry the
-fix. Pinning `suite.yml` there to the same commit is a one-line pull request
-on the public repository, merged before the next snapshot. That is
+fix. LeavesJ/Felix#6 pins `suite.yml` there to the same commit, and the
+block passes on it. It must merge before the next snapshot. That is
 deliberate: the public CI has the same hole, and an exemption for it would be
 an instance of the rule rather than the rule.
 

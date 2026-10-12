@@ -75,9 +75,18 @@ audits/2026-10-12-gate-friction/ under the memory root):
   - **48 parts** die before their end: 36 on a variable an earlier part sets,
     12 on a function an earlier part defines.
 - A static count agrees: 106 of 109 parts use a name an earlier part defines.
-- Per-part CPU and wall, from one instrumented serial run on the same commit:
-  in the audit folder once the run ends. It decides the list in step 2 and the
-  scheduling order in step 3, not the design.
+- Per-part CPU and wall, from one instrumented serial run on the same commit
+  at load 40 to 120 and nice 10 (parttime.tsv in the audit folder): 2035 s
+  wall, 1710 s CPU. One part is a quarter of it: 0580, "tidying, with the
+  checks that make it safe", 405 s of CPU. After it come 0700 (94 s), 0920
+  (49 s of CPU in 140 s of wall), 0440 (42 s) and 0010 (39 s). No other part
+  takes more than 32 s.
+- That run also printed nine FAILs with exit status 126 in parts 0430 and
+  0710, which pass on main's own gate. 126 is a command that could not be
+  executed, as a script being written while it is started gives. These are
+  read as a race under load and are owed a look in step 2. A tenth FAIL, in
+  part 1040 ("the driver itself is under 500 lines"), was the
+  instrumentation's own: it added 110 lines to the driver.
 
 ## 3. Step 1: pay once per tree
 
@@ -182,8 +191,8 @@ About 28 minutes on a quiet machine, from 78: one suite's wall time, then
 
 4% of assertions take 60% of the suite. Each is made cheaper without changing
 what it asserts, and each change is shown with the assertion's own verdict on
-the old and new code. Named on 2026-10-10, with today's per-part numbers to
-come:
+the old and new code. First, from the 2026-10-12 per-part table: part 0580,
+tidying, 405 s of the suite's 1710 s of CPU. Then, named on 2026-10-10:
 - three signal tests in the inventory block that wait 30 s each, about 90 s of
   wall and no CPU: wait on the event, with the same bound;
 - the inventory blind contract, 177 s;

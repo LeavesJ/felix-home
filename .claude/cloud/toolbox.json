@@ -83,11 +83,8 @@
     },
     {
       "name": "viral-launch-pipeline",
-      "carry": "fetch",
-      "source": "koz-tv/viral-launch-pipeline",
-      "sha": "475705f8de04d79f1bca25fbd5c2c5fa7158d08c",
-      "subdir": ".",
-      "note": "one skill and the prompts inside it"
+      "carry": "no",
+      "note": "a product-launch copy pipeline that fans out 21 subagents; a cloud session of felix-home does engineering, so it has no use for one, and the local install is unaffected"
     },
     {
       "name": "sabotage",

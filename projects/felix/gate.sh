@@ -297,9 +297,23 @@ elif [ "${1:-}" = "--quick" ]; then
 elif ! GTLOG="$(mktemp "$GTLOG_DIR/felix-gate-tests.XXXXXX" 2>/dev/null)" || [ -z "$GTLOG" ]; then
   fail tests
   printf '    could not make a log file for the suite under %s\n' "$GTLOG_DIR"
-elif ./engine/harness/tests/run >"$GTLOG" 2>&1; then
-  pass tests
-  printf '                     %s\n' "$(tail -1 "$GTLOG")"
+elif ./engine/harness/tests/run --reuse >"$GTLOG" 2>&1; then
+  # --reuse answers from the receipt a passed run left for this exact tree
+  # (tests/receipt.sh), and runs the suite itself when there is none, so a pass
+  # here is a pass either way; what differs is that it says which. A reused run
+  # begins "reused " and is reported as `reused`, with the line that says when it
+  # ended and what it counted, and the receipt this gate writes carries
+  # `tests:reused` for it, so felix merge, the monitor and qualify can tell the
+  # two apart. A run that began "not reused: <reason>" ran the suite, and is `ok`.
+  case "$(head -1 "$GTLOG")" in
+    reused\ *)
+      printf '  %-18s reused\n' tests
+      printf '                     %s\n' "$(head -1 "$GTLOG")"
+      printf '                     %s\n' "$(tail -1 "$GTLOG")" ;;
+    *)
+      pass tests
+      printf '                     %s\n' "$(tail -1 "$GTLOG")" ;;
+  esac
   rm -f "$GTLOG"
 else
   fail tests

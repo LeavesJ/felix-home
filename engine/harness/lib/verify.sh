@@ -298,6 +298,13 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
+# Arguments after the second are pathspecs added to the exclusions, for the
+# diff and for the untracked list alike, each exactly as given: `:(exclude)x`
+# names a path to leave out, and nothing here adds the prefix. The suite's
+# receipt (tests/receipt.sh) asks for a tree id with the two record files
+# left out, so a record run can say that nothing else moved while red rewrote
+# them. With two arguments or fewer this is the function it was, and no caller
+# that exists passes a third.
 felix_tree_id() {
   local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
@@ -306,6 +313,7 @@ felix_tree_id() {
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $ex
 EOF
+  if [ "$#" -gt 2 ]; then shift 2; for f in "$@"; do exargs+=("$f"); done; fi
 
   head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
   if [ -z "$head" ]; then

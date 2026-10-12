@@ -9,7 +9,10 @@
 # If Felix ever grows a hidden assumption about Python, about a remote naming
 # scheme, or about Elenchus specifically, these tests are where it surfaces.
 #
-#   harness/tests/run
+#   harness/tests/run                       the suite
+#   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
+#   harness/tests/run --reuse               say the last run on this tree stands, or run
+# Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 
 set -uo pipefail
 
@@ -105,15 +108,46 @@ FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
 # one command that changes it, so the diff on every PR says plainly which
-# assertions were added and which were removed. The same command then runs
+# assertions were added and which were removed. The same command runs
 # tests/red, which writes red.tsv beside it: this suite against the engine the
 # base ref holds, so "N fail against the previous engine" is a file in the
-# tree and not a sentence in a pull request. FELIX_TEST_NO_MANIFEST=1 is how
-# that red run asks this suite not to compare itself against a manifest that
-# describes another tree.
+# tree and not a sentence in a pull request. Red starts with the record run, not
+# after it: its suite needs this tree's manifest only for the comparison it
+# makes once that suite has ended, so the two run side by side and the record
+# run hands the manifest over with a mark file, `written` or `failed`. They ran
+# one after the other until 2026-10-12, when the suite was 1429 s of the gate's
+# 1565 s on a quiet machine. FELIX_TEST_NO_MANIFEST=1 is how that red run asks
+# this suite not to compare itself against a manifest that describes another tree.
 FELIX_TEST_MANIFEST="$HERE/assertions.tsv"
-FELIX_TEST_RECORD=0
-[ "${1:-}" = "--record-assertions" ] && { FELIX_TEST_RECORD=1; shift; }
+FELIX_TEST_RECORD=0; _sr_reuse=0
+while :; do case "${1:-}" in
+  --record-assertions) FELIX_TEST_RECORD=1; shift ;;
+  --reuse)             _sr_reuse=1; shift ;;
+  *)                   break ;;
+esac; done
+[ "$_sr_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
+
+# The receipt (receipt.sh) is what lets the gate ask for this run instead of
+# making it: --reuse answers from the last passed run on this tree, or runs. A
+# red run stands in the base's tree, reads and writes none, and so does not load
+# the file, which red does not copy into the base.
+_sr_on=0; _sr_cmp=0; _sr_judged=0; _sr_why=""
+if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then _sr_why="this is a red run"
+elif . "$HERE/receipt.sh" 2>/dev/null; then _sr_on=1
+else _sr_why="no tests/receipt.sh beside this suite"; fi
+[ "$_sr_on" -eq 1 ] || [ "$_sr_reuse" -eq 0 ] || printf 'not reused: %s\n' "$_sr_why"
+if [ "$_sr_on" -eq 1 ]; then
+  _sr_root="$REAL_HARNESS/../.."
+  [ "$_sr_reuse" -eq 0 ] || _sr_answer "$_sr_root"
+  _sr_begin "$_sr_root"
+fi
+# Red starts here and not at the end: told where to find the mark and which
+# process to watch. Before the exports below, so its suite is made in an
+# environment of its own, as a plain run's is.
+_sr_red=""
+if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ -x "$HERE/red" ]; then
+  "$HERE/red" --after "$TMP/manifest.mark" $$ > "$TMP/red.out" 2>&1 & _sr_red=$!
+fi
 
 # Memory has lived outside any checkout since 2026-08-14, so the fixture needs a
 # root of its own rather than a directory inside the fixture home.
@@ -384,19 +418,35 @@ _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
 
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
-  cp "$_ran_counts" "$FELIX_TEST_MANIFEST"
+  # The manifest, then the mark: a sibling file and one mv, so red never reads half.
+  _sr_mk=written
+  cp "$_ran_counts" "$FELIX_TEST_MANIFEST" || _sr_mk=failed
+  [ -z "$_sr_red" ] || { printf '%s\n' "$_sr_mk" > "$TMP/manifest.mark.tmp" && mv -f "$TMP/manifest.mark.tmp" "$TMP/manifest.mark"; }
   printf '  recorded %s assertions to %s\n' \
     "$(awk -F'\t' '{s+=$1} END {print s+0}' "$_ran_counts")" "$FELIX_TEST_MANIFEST"
-  # And the red run, so the manifest and the count it was shown red with are
+  # And what red wrote, so the manifest and the count it was shown red with are
   # written by one command and travel in one diff. Its exit status is its own:
   # a red run that could not be made is said in red.tsv and does not turn a
   # green suite red.
-  if [ -x "$HERE/red" ]; then
-    "$HERE/red" 2>&1 | sed 's/^/  /'
+  if [ -n "$_sr_red" ]; then
+    wait "$_sr_red"; sed 's/^/  /' < "$TMP/red.out"
   else
     printf '  no tests/red beside this suite: red.tsv not written\n'
   fi
-elif [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
+  # Then the record it wrote, judged as a normal run judges it (record mode off
+  # for the call): those four checks skip while the record is rewritten, and
+  # the receipt names the tree this run leaves, record files and all.
+  if [ "$(type -t _rt_judge)" = function ]; then
+    printf '\n%s\n' 'the record this run wrote'
+    _sr_rec="$FELIX_TEST_RECORD"; FELIX_TEST_RECORD=0
+    _rt_judge "$REAL_HARNESS/../.."
+    FELIX_TEST_RECORD="$_sr_rec"; _sr_judged=1
+    _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
+  else
+    printf '  no record judge in this suite: the record is not re-judged\n'
+  fi
+fi
+if [ "$FELIX_TEST_RECORD" -ne 1 ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
   # The red run: this suite is executing inside the base's tree, whose
   # manifest describes the base's assertions. Comparing against it would
   # report every assertion this tree added as one the base never reached,
@@ -424,6 +474,7 @@ elif [ -f "$FELIX_TEST_MANIFEST" ]; then
     || printf '  %s assertion(s) in the manifest never ran. Not a failure of the code\n  they name: the suite never got to them on this machine.\n' "$_missing"
   [ "${_extra:-0}" -eq 0 ] || \
     printf '  note  %s assertion(s) ran that the manifest does not list.\n        Re-record with: tests/run --record-assertions\n' "$_extra"
+  _sr_cmp=1
 else
   printf '  no manifest yet. Record one with: tests/run --record-assertions\n'
 fi
@@ -431,4 +482,8 @@ fi
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d skipped' "$SKIP"
 printf '\n'
+# The receipt, after the summary and with no say in the exit status below. This line
+# is reached only by a run whose every part was sourced and which printed `reached`.
+[ "$_sr_on" -eq 1 ] \
+  && _sr_finish "$_sr_root" "$FELIX_TEST_RECORD" "$_sr_cmp" "$_sr_judged" "$PASS" "$FAIL" "$SKIP"
 [ "$FAIL" -eq 0 ] || exit 1

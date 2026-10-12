@@ -2,6 +2,9 @@
 # The red run: this tree's assertions against the engine the base ref holds.
 #
 #   tests/red [base]        base defaults to origin/main, then main
+#   tests/red --after <mark> <pid> [base]
+#                           the form tests/run --record-assertions starts it in, at
+#                           the start of the record run: see "Waiting" below
 #
 # "Shown failing before believed" (invariant 5) was, until this, a sentence in
 # a pull request body: the author ran the suite against the previous engine,
@@ -64,16 +67,35 @@
 # built on it read 0 of 2 assertions failing, `run 0 2 0`, the vanished one
 # counted nowhere, which is fewer red than true, the one shape this file must
 # never take. So this tree's manifest, assertions.tsv beside this script, is
-# read before the suite runs, refused there if it is not a manifest, and kept;
-# after the run each name it lists is counted in the log's ok, FAIL and skip
-# lines, per name as the suite's own comparison counts, and a name reached
-# fewer times than the manifest says is recorded as red by the shortfall.
+# read before the suite runs (after it, with --after: see Waiting), refused
+# there if it is not a manifest, and kept; after the run each name it lists is
+# counted in the log's ok, FAIL and skip lines, per name as the suite's own
+# comparison counts, and a name reached fewer times than the manifest says is
+# recorded as red by the shortfall.
+#
+# Waiting. Run by hand, the manifest is there before this starts and is read
+# first, as above. tests/run --record-assertions starts this with --after at
+# the beginning of its own suite instead, since the base's suite does not need
+# the new manifest until its comparison, and the two take one suite's wall time
+# between them where they took two when this ran after the record run (the
+# suite was 1429 s of the gate's 1565 s, measured 2026-10-10 on a quiet
+# machine). So with --after the manifest is NOT read before the suite. The
+# suite runs, the check that it finished is made first and a suite that did not
+# is refused without waiting, and only then does this wait, checking once a
+# second, until the file <mark> exists or process <pid>, the record run, is
+# gone; the mark is looked at first on each pass, so one written just before
+# the process ended counts. A mark that reads exactly `written` means the record
+# run wrote the manifest, which is then read and refused or kept exactly as
+# above; any other first line, or a record run gone with no mark, is a refusal,
+# and red.tsv keeps the two rows it was given first. The retraction is written
+# before any of this, so a record run that is killed leaves red.tsv saying so.
 #
 # Recorded, not refused. The manifest says the assertion was reached against
 # this tree's own engine: tests/run --record-assertions wrote it from that run
-# immediately before it called this. If it was not reached against the base's,
-# the base's engine kept this tree's suite from asking it, by a statement that
-# erred on what the engine wrote or a block the engine's behaviour gates.
+# and told this where it was when its suite ended. If it was not reached
+# against the base's, the base's engine kept this tree's suite from asking it,
+# by a statement that erred on what the engine wrote or a block the engine's
+# behaviour gates.
 # Either way the base does not meet the tree's contract there, which is what
 # red means. Refusing would make every change whose new assertion sits in such
 # a block unrecordable, and write - exactly where red is the true answer.
@@ -93,7 +115,7 @@
 # red, more red than true; an assertion tests/run gained after the manifest
 # was written is not compared at all, so if it vanishes against the base it is
 # counted nowhere, fewer red than true. The record path writes the manifest
-# from this same tree just before it calls this, so a stale one arises only in
+# from this same tree and announces it to this, so a stale one arises only in
 # a run by hand. The log is read and not the suite's ran file because that
 # file goes with the suite's temporary directory, and the log is what is
 # counted already.
@@ -112,7 +134,9 @@
 #           repeated name, no rows), a tree that could not be read, a suite
 #           that stopped before its end, which is no red run whatever it
 #           printed first, or a log that could not be kept or a comparison
-#           that could not be made. red.tsv says so.
+#           that could not be made; with --after, also a missing or malformed
+#           argument, a record run that ended before it wrote the manifest and
+#           one whose mark does not read `written`. red.tsv says so.
 #
 # One trap, from HANDOFF §5: a test for a hang leaks the hang unless its
 # watchdog kills the children, and a red run is precisely where such tests
@@ -122,6 +146,15 @@ set -uo pipefail
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" || exit 2
 OUT="$HERE/red.tsv"
+
+# --after <mark> <pid>, taken apart here and judged after the retraction below,
+# so a bad one is said in red.tsv as every other refusal is. It is the first
+# word or it is not --after, and what is left after it is the base, as ever.
+AFTER=0; MARK=""; WPID=""
+if [ "${1:-}" = "--after" ]; then
+  AFTER=1; MARK="${2:-}"; WPID="${3:-}"
+  shift; [ "$#" -eq 0 ] || shift; [ "$#" -eq 0 ] || shift
+fi
 
 _header() {
   printf '# The red run: this tree'"'"'s assertions against the engine the base ref holds,\n'
@@ -163,37 +196,49 @@ _none() {
 { _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } | _put \
   || { printf 'red: not run: could not write %s\n' "$OUT"; exit 2; }
 
+# --after, judged now that the retraction stands: a mark file, and a process id
+# that is a positive decimal integer. Nothing else about either is asked yet.
+if [ "$AFTER" -eq 1 ]; then
+  case "$WPID" in ''|*[!0-9]*) WPID="" ;; *[1-9]*) ;; *) WPID="" ;; esac
+  { [ -n "$MARK" ] && [ -n "$WPID" ]; } || _none "--after needs a mark file and a process id"
+fi
+
 ROOT="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null)" || _none "$HERE is not inside a git repository"
 [ -f "$HERE/run" ] || _none "no tests/run beside $HERE/red"
 
-# This tree's manifest, read once and here, before the suite: a bad one costs
-# seconds, not a whole run. It is kept in memory, so a manifest rewritten while
-# the suite runs does not change what the run is compared with. One row is a
-# count, a tab and a name, the name being all after the first tab. A wholly
-# empty line is skipped. The suite's own comparison skips any row with no
-# name, `1<TAB>` among them, and this refuses every such row but the empty
-# line. A name on two rows (a textual merge makes them) is refused, not
-# summed, since the record would then rest on a count nobody wrote. awk reads
-# every line and reports the first fault at the end, so the pipe into it never
-# breaks.
+# This tree's manifest, read once, before the suite: a bad one costs seconds,
+# not a whole run. With --after it is read once as well, but after the suite and
+# the wait for the record run (below), since the record run is still writing it
+# while the suite runs; every refusal and every message is the same. It is kept
+# in memory, so a manifest rewritten while the suite runs does not change what
+# the run is compared with. One row is a count, a tab and a name, the name being
+# all after the first tab. A wholly empty line is skipped. The suite's own
+# comparison skips any row with no name, `1<TAB>` among them, and this refuses
+# every such row but the empty line. A name on two rows (a textual merge makes
+# them) is refused, not summed, since the record would then rest on a count
+# nobody wrote. awk reads every line and reports the first fault at the end, so
+# the pipe into it never breaks.
 MANF="$HERE/assertions.tsv"
-{ [ -f "$MANF" ] && [ -r "$MANF" ]; } || _none "no readable assertions.tsv beside $HERE/red"
-MAN="$(cat "$MANF" 2>/dev/null)" || _none "no readable assertions.tsv beside $HERE/red"
-_mv="$(printf '%s\n' "$MAN" | LC_ALL=C awk '
-  v != "" || $0 == "" { next }
-  {
-    i = index($0, "\t"); c = substr($0, 1, i - 1); n = substr($0, i + 1)
-    if (i == 0 || c !~ /^[1-9][0-9]*$/ || n == "") { v = "line " NR " is not a count, a tab and a name"; next }
-    if (n in seen) { v = "line " NR " repeats a name an earlier line holds"; next }
-    seen[n] = 1; rows++
-  }
-  END { print (v != "" ? v : (rows ? "ok" : "none")) }')"
-case "$_mv" in
-  ok) ;;
-  none) _none "assertions.tsv beside $HERE/red lists no assertion" ;;
-  line\ *) _none "assertions.tsv $_mv" ;;
-  *) _none "no readable assertions.tsv beside $HERE/red" ;;
-esac
+_manifest() {
+  { [ -f "$MANF" ] && [ -r "$MANF" ]; } || _none "no readable assertions.tsv beside $HERE/red"
+  MAN="$(cat "$MANF" 2>/dev/null)" || _none "no readable assertions.tsv beside $HERE/red"
+  _mv="$(printf '%s\n' "$MAN" | LC_ALL=C awk '
+    v != "" || $0 == "" { next }
+    {
+      i = index($0, "\t"); c = substr($0, 1, i - 1); n = substr($0, i + 1)
+      if (i == 0 || c !~ /^[1-9][0-9]*$/ || n == "") { v = "line " NR " is not a count, a tab and a name"; next }
+      if (n in seen) { v = "line " NR " repeats a name an earlier line holds"; next }
+      seen[n] = 1; rows++
+    }
+    END { print (v != "" ? v : (rows ? "ok" : "none")) }')"
+  case "$_mv" in
+    ok) ;;
+    none) _none "assertions.tsv beside $HERE/red lists no assertion" ;;
+    line\ *) _none "assertions.tsv $_mv" ;;
+    *) _none "no readable assertions.tsv beside $HERE/red" ;;
+  esac
+}
+[ "$AFTER" -eq 1 ] || _manifest
 
 BASE="${1:-}"
 if [ -z "$BASE" ]; then
@@ -294,6 +339,24 @@ awk '/^  (ok    |FAIL  |skip  )/ { a = NR } $0 == "reached" { r = NR }
      END { exit (r + 0 > a + 0) ? 0 : 1 }' "$LOG" \
   || _none "the suite against $BASE did not finish (exit $RC after $((PASSED + FAILED + SKIPPED)) assertions)"
 [ "$((PASSED + FAILED + SKIPPED))" -gt 0 ] || _none "the suite reached no assertion against $BASE"
+
+# With --after the record run may still be writing the manifest, and it is waited
+# for here, after the checks above and not before: a suite that did not finish
+# is refused without waiting. The mark is looked at first on each pass and the
+# process second, and a process found gone is not believed until the mark has
+# been looked at once more, since a mark written just before it ended must count.
+if [ "$AFTER" -eq 1 ]; then
+  while [ ! -e "$MARK" ]; do
+    if ! kill -0 "$WPID" 2>/dev/null; then
+      [ -e "$MARK" ] && break
+      _none "the record run ended before it wrote the manifest"
+    fi
+    sleep 1
+  done
+  _first=""; { IFS= read -r _first < "$MARK"; } 2>/dev/null
+  [ "$_first" = "written" ] || _none "the record run did not write a manifest (${_first:-empty})"
+  _manifest
+fi
 
 # Then the manifest kept above, against the log. What the run did adds red
 # and is never a refusal; what is refused here is a comparison that could not

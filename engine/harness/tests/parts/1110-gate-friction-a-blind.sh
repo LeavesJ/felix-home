@@ -44,13 +44,18 @@ _gfb_run() {
 _gfb_base_run() { printf '%s\n' '#!/usr/bin/env bash' "printf '  FAIL  the base run was executed\\n'"; }
 # The tree's suite. GFB_DIE ends it before its third assertion and before the
 # marker; GFB_WRITE_MAN and GFB_WRITE_MARK make it do what a record run does
-# while red's suite runs: write the manifest, then the mark, each whole.
+# while red's suite runs: write the manifest, then the mark, each whole. The
+# manifest it writes is one, two, three and four, or with GFB_MAN_FROM the
+# content of that file, or none at all when that file does not exist.
 _gfb_suite() { cat <<'EOF'
 #!/usr/bin/env bash
 printf 'gfb stub suite\n\n  ok    one\n  ok    two\n'
 [ "${GFB_DIE:-}" = 1 ] && kill -9 $$
 printf '  FAIL  three\n        expected [a] got [b]\n'
-if [ -n "${GFB_WRITE_MAN:-}" ]; then
+if [ -n "${GFB_WRITE_MAN:-}" ] && [ -n "${GFB_MAN_FROM:-}" ]; then
+  if [ -f "$GFB_MAN_FROM" ]; then cp "$GFB_MAN_FROM" "$GFB_WRITE_MAN.gfb" && mv -f "$GFB_WRITE_MAN.gfb" "$GFB_WRITE_MAN"
+  else rm -f "$GFB_WRITE_MAN"; fi
+elif [ -n "${GFB_WRITE_MAN:-}" ]; then
   printf '1\tone\n1\ttwo\n1\tthree\n1\tfour\n' > "$GFB_WRITE_MAN.gfb" && mv -f "$GFB_WRITE_MAN.gfb" "$GFB_WRITE_MAN"
 fi
 if [ -n "${GFB_WRITE_MARK:-}" ]; then
@@ -110,7 +115,7 @@ _gfb_red "$GFB_A" 100 --after "$GFB/args.mark" 1.5
 is  "a process id with a decimal point is refused" "$(_gfb_said)" "2|1|$GFB_NOARGS"
 _gfb_red "$GFB_A" 100 --after "$GFB/args.mark" main
 is  "a branch name where the process id goes is refused, not read as the base" "$(_gfb_said)" "2|1|$GFB_NOARGS"
-is  "and after each refusal red.tsv holds only the two retraction rows" "$(_gfb_body "$GFB_A")" "$GFB_RETRACTED"
+is  "and after each refusal red.tsv holds only the two retraction rows (control)" "$(_gfb_body "$GFB_A")" "$GFB_RETRACTED"
 
 # ---- C1.5: the mark already written, the record run already gone
 GFB_B="$GFB/done"; _gfb_seed "$GFB_B"; GFB_BSHA="$(git -C "${GFB_B:?}" rev-parse main)"
@@ -148,7 +153,7 @@ _gfb_red "$GFB_D" 150 --after "$GFB/dead.mark" "$$"
 _gfb_fast=slow; [ "$GFB_EL" -lt 50 ] && _gfb_fast=fast
 is  "with --after a suite that did not finish is refused at once with today's reason, before a bad manifest is read" \
     "$(_gfb_said)|$_gfb_fast" "2|1|red: not run: the suite against main did not finish (exit 137 after 2 assertions)|fast"
-is  "and red.tsv holds the two retraction rows for it" "$(_gfb_body "$GFB_D")" "$GFB_RETRACTED"
+is  "and red.tsv holds the two retraction rows for it (control)" "$(_gfb_body "$GFB_D")" "$GFB_RETRACTED"
 
 # ---- C1.5: the record run ends and no mark comes
 GFB_F="$GFB/gone"; _gfb_seed "$GFB_F"
@@ -157,7 +162,7 @@ GFB_P1="$(_gfb_detached 'exec sleep 2')"; GFB_SPAWNED="$GFB_SPAWNED $GFB_P1"
 _gfb_red "$GFB_F" 150 --after "$GFB/gone.mark" "$GFB_P1"
 is  "a record run that ends without a mark is refused, exit 2: it ended before it wrote the manifest" \
     "$(_gfb_said)" "2|1|red: not run: the record run ended before it wrote the manifest"
-is  "and red.tsv holds the two retraction rows for a record run that ended" "$(_gfb_body "$GFB_F")" "$GFB_RETRACTED"
+is  "and red.tsv holds the two retraction rows for a record run that ended (control)" "$(_gfb_body "$GFB_F")" "$GFB_RETRACTED"
 is  "and that refusal leaves no temporary directory behind" "$(sed -n 1p "$GFB/out") $(_gfb_left)" \
     "red: not run: the record run ended before it wrote the manifest $_gfb_before"
 # C2.6 as red sees it: the record run is ended by a signal, and its EXIT trap
@@ -195,7 +200,7 @@ printf 'failed\n' > "$GFB/nw.mark"
 _gfb_red "$GFB_I" 300 --after "$GFB/nw.mark" "$$"
 is  "a mark reading failed is refused, exit 2, naming what it read" \
     "$(_gfb_said)" "2|1|red: not run: the record run did not write a manifest (failed)"
-is  "and red.tsv holds the two retraction rows for a mark that does not read written" "$(_gfb_body "$GFB_I")" "$GFB_RETRACTED"
+is  "and red.tsv holds the two retraction rows for a mark that does not read written (control)" "$(_gfb_body "$GFB_I")" "$GFB_RETRACTED"
 : > "$GFB/nw.mark"
 _gfb_red "$GFB_I" 300 --after "$GFB/nw.mark" "$$"
 is  "an empty mark is refused as empty" "$(_gfb_said)" "2|1|red: not run: the record run did not write a manifest (empty)"
@@ -205,25 +210,29 @@ is  "a mark whose first line is written and a blank is not exactly written" \
     "$(_gfb_said)" "2|1|red: not run: the record run did not write a manifest (written )"
 
 # ---- C1.5: a written mark, then today's manifest refusals
+# The manifest is sound when red starts and goes bad while its suite runs, as
+# a record run would leave it, and the mark is written after it: so what is
+# refused is the manifest red read after the mark.
 GFB_J="$GFB/manifest"; _gfb_seed "$GFB_J"; GFB_JH="$(cd "${GFB_J:?}/engine/harness/tests" && pwd)"
-printf 'written\n' > "$GFB/m.mark"
-rm -f "$GFB_J/engine/harness/tests/assertions.tsv"
-_gfb_red "$GFB_J" 300 --after "$GFB/m.mark" "$$"
-is  "after a written mark, no assertions.tsv is refused with today's reason" \
+_gfb_badman() {   # <manifest text, or - for none>
+  rm -f "$GFB/m.mark" "$GFB/m.from"; [ "$1" = - ] || printf "$1" > "$GFB/m.from"
+  printf '1\tone\n1\tthree\n1\ttwo\n' > "$GFB_J/engine/harness/tests/assertions.tsv"
+  GFB_E=(GFB_WRITE_MAN="$GFB_J/engine/harness/tests/assertions.tsv" GFB_MAN_FROM="$GFB/m.from" GFB_WRITE_MARK="$GFB/m.mark")
+  _gfb_red "$GFB_J" 300 --after "$GFB/m.mark" "$$"
+}
+_gfb_badman -
+is  "after the mark, a manifest the record run removed is refused with today's reason for none" \
     "$(_gfb_said)" "2|1|red: not run: no readable assertions.tsv beside $GFB_JH/red"
-printf 'x\tone\n' > "$GFB_J/engine/harness/tests/assertions.tsv"
-_gfb_red "$GFB_J" 300 --after "$GFB/m.mark" "$$"
-is  "after a written mark, a row that is no count is refused with today's reason" \
+_gfb_badman 'x\tone\n'
+is  "after the mark, a row that is no count is refused with today's reason" \
     "$(_gfb_said)" "2|1|red: not run: assertions.tsv line 1 is not a count, a tab and a name"
-printf '1\tone\n1\tone\n' > "$GFB_J/engine/harness/tests/assertions.tsv"
-_gfb_red "$GFB_J" 300 --after "$GFB/m.mark" "$$"
-is  "after a written mark, a repeated name is refused with today's reason" \
+_gfb_badman '1\tone\n1\tone\n'
+is  "after the mark, a repeated name is refused with today's reason" \
     "$(_gfb_said)" "2|1|red: not run: assertions.tsv line 2 repeats a name an earlier line holds"
-: > "$GFB_J/engine/harness/tests/assertions.tsv"
-_gfb_red "$GFB_J" 300 --after "$GFB/m.mark" "$$"
-is  "after a written mark, an empty manifest is refused with today's reason" \
+_gfb_badman ''
+is  "after the mark, an empty manifest is refused with today's reason" \
     "$(_gfb_said)" "2|1|red: not run: assertions.tsv beside $GFB_JH/red lists no assertion"
-is  "and red.tsv holds the two retraction rows after a manifest refusal" "$(_gfb_body "$GFB_J")" "$GFB_RETRACTED"
+is  "and red.tsv holds the two retraction rows after a manifest refusal (control)" "$(_gfb_body "$GFB_J")" "$GFB_RETRACTED"
 
 # ---- the same red without --after (control)
 GFB_K="$GFB/plain"; _gfb_seed "$GFB_K"; GFB_KSHA="$(git -C "${GFB_K:?}" rev-parse main)"

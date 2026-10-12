@@ -66,7 +66,7 @@ if [ ! -f "$GFG_GATE" ]; then
   for _gfg_a in "the gate runs the suite with --reuse" \
                 "a suite that exits 0 and says it reused a run is reported as tests reused" \
                 "followed by the log's first line and its last, each indented to column 21" \
-                "and with only that check the gate passes" \
+                "and a reused suite run leaves the gate passing (control)" \
                 "the receipt felix gate writes then reports tests:reused"; do
     skip "$_gfg_a" "no projects/felix/gate.sh beside this engine"
   done
@@ -80,7 +80,7 @@ else
       "$GFG_LINE_REUSED
 $(_gfg_ind 'reused the suite run that ended 09:41 on this tree (normal), not run again')
 $(_gfg_ind '12 passed, 0 failed (reused)')"
-  is  "and with only that check the gate passes" "$GFG_RC|$(sed -n '$p' "$GFG/reused.out")" "0|gate: pass"
+  is  "and a reused suite run leaves the gate passing (control)" "$GFG_RC|$(sed -n '$p' "$GFG/reused.out")" "0|gate: pass"
   # felix gate keeps every check line the gate printed as name:verdict in its
   # receipt; its reader is asked here of this gate's output, read off the CLI.
   _gfg_prog="$(awk -v q="'" 'index($0, "reported=\"$(awk " q) { s = substr($0, index($0, q) + 1); print substr(s, 1, index(s, q " \"$log\"") - 1); exit }' "$REAL_HARNESS/felix" 2>/dev/null)"

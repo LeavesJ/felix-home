@@ -34,6 +34,10 @@ _gfc_tree_of() {   # pid -> it and every process below it
 _gfc_sr() { bash -c '. "$1" >/dev/null 2>&1 || exit 97; shift; "$@"' _ "$GFC_R" "$@" 2>/dev/null; }
 _gfc_want() { printf '%s' "${1:-<nothing was computed to compare with>}"; }
 _gfc_hm() { date -r "$1" +%H:%M 2>/dev/null || date -d "@$1" +%H:%M; }
+# Lines of output compared whole are shown with a bar before each, so that a
+# failure's detail never holds a line a reader of this log takes for an
+# assertion line of its own.
+_gfc_q() { sed 's/^/| /'; }
 
 # ---- the fixture checkout
 GFC_F="$GFC/f"; GFC_T="$GFC_F/engine/harness/tests"
@@ -177,8 +181,8 @@ is  "the record run still says how many assertions it recorded and where (contro
 is  "and the manifest it wrote lists each name reached before it, once (control)" "$(cat "$GFC_T/assertions.tsv")" "$GFC_ROWS"
 is  "red's output follows the recorded line, every line of it, stderr too, indented by two spaces" \
     "$(grep -xF -e "  recorded 7 assertions to $GFC_T/assertions.tsv" -e '  gfc red says one' -e '  gfc red says two' \
-        -e '  gfc red says on stderr' "$GFC/r1.out")" \
-    "$(printf '  recorded 7 assertions to %s\n  gfc red says one\n  gfc red says two\n  gfc red says on stderr' "$GFC_T")"
+        -e '  gfc red says on stderr' "$GFC/r1.out" | _gfc_q)" \
+    "$(printf '  recorded 7 assertions to %s\n  gfc red says one\n  gfc red says two\n  gfc red says on stderr\n' "$GFC_T" | _gfc_q)"
 is  "the record run does not end before red has" "$(_gfc_log 'red done')" "1"
 is  "after red, a record run prints an empty line and then the record this run wrote" \
     "$(awk '$0 == "the record this run wrote" { print (p == "" && NR > 1) ? "after an empty line" : "after [" p "]"; n++ } { p = $0 } END { if (!n) print "never" }' "$GFC/r1.out")" \
@@ -187,8 +191,8 @@ is  "and judges its own checkout a second time, with the parts' argument and FEL
     "$(awk -F'|' 'NR == 1 { a = $1; r = $2 } NR == 2 { s = ($1 == a && r == "1" && $2 != "1") ? "so" : "not so: " $0 } END { print NR " " s }' "$GFC/r1.judge" 2>/dev/null)" \
     "2 so"
 is  "and the four record names are reported after that line as a normal run reports them" \
-    "$(grep -A4 -xF 'the record this run wrote' "$GFC/r1.out" | sed -n '2,5p')" \
-    "$(printf '  ok    gfc record check one\n  ok    gfc record check two\n  ok    gfc record check three\n  ok    gfc record check four')"
+    "$(grep -A4 -xF 'the record this run wrote' "$GFC/r1.out" | sed -n '2,5p' | _gfc_q)" \
+    "$(printf '  ok    gfc record check one\n  ok    gfc record check two\n  ok    gfc record check three\n  ok    gfc record check four\n' | _gfc_q)"
 is  "so a record run reaches each record name twice, once skipped and once judged" \
     "$(grep -c '^  [a-zA-Z]*  *gfc record check one' "$GFC/r1.out")" "2"
 is  "the manifest comparison runs in a record run, against the manifest just written, and finds every name reached" \
@@ -197,8 +201,8 @@ is  "the summary counts the re-judged names: six passed, none failed, five skipp
     "$(sed -n '$p' "$GFC/r1.out")" "6 passed, 0 failed, 5 skipped"
 is  "and red's output, the record header, the comparison and the summary come in that order" \
     "$(grep -xF -e '  gfc red says two' -e 'the record this run wrote' -e '  ok    every assertion in the manifest was reached' \
-        -e '6 passed, 0 failed, 5 skipped' "$GFC/r1.out")" \
-    "$(printf '  gfc red says two\nthe record this run wrote\n  ok    every assertion in the manifest was reached\n6 passed, 0 failed, 5 skipped')"
+        -e '6 passed, 0 failed, 5 skipped' "$GFC/r1.out" | _gfc_q)" \
+    "$(printf '  gfc red says two\nthe record this run wrote\n  ok    every assertion in the manifest was reached\n6 passed, 0 failed, 5 skipped\n' | _gfc_q)"
 is  "a record run whose own record passes its judge exits 0 (control)" "$GFC_RC" "0"
 is  "a passing record run leaves one receipt line of nine tab-separated fields, v1 first" \
     "$(awk -F'\t' 'END { print NR, NF, $1 }' "$GFC_RP" 2>/dev/null)" "1 9 v1"
@@ -227,15 +231,15 @@ printf 'v1\t%s\tnormal\t9\t0\t0\t%s\t%s\t%s\n' "$(_gfc_sr _sr_tree "$GFC_F")" "$
 cp "$GFC_RP" "$GFC/r2.receipt"
 _gfc_drive r2 --reuse
 is  "tests/run --reuse on a reusable receipt prints the reuse line, an empty line and the counts, the skipped clause left out at zero" \
-    "$(cat "$GFC/r2.out")" \
-    "$(printf 'reused the suite run that ended %s on this tree (normal), not run again\n\n9 passed, 0 failed (reused)' "$(_gfc_hm "$_gfc_end")")"
+    "$(_gfc_q < "$GFC/r2.out")" \
+    "$(printf 'reused the suite run that ended %s on this tree (normal), not run again\n\n9 passed, 0 failed (reused)\n' "$(_gfc_hm "$_gfc_end")" | _gfc_q)"
 is  "and exits 0 without running a part" "$GFC_RC $GFC_RAN" "0 0"
 
 # ---- R3: --reuse and --record-assertions together
 cp "$GFC_T/assertions.tsv" "$GFC/r3.manifest"
 _gfc_drive r3 --reuse --record-assertions
 is  "--reuse with --record-assertions is refused on stderr: they do not go together" \
-    "$(cat "$GFC/r3.err")" "tests/run: --reuse and --record-assertions do not go together"
+    "$(_gfc_q < "$GFC/r3.err")" "| tests/run: --reuse and --record-assertions do not go together"
 is  "and exits 2, running no part and rewriting no manifest" \
     "$GFC_RC $GFC_RAN $(cmp -s "$GFC/r3.manifest" "$GFC_T/assertions.tsv" && echo same || echo rewritten)" "2 0 same"
 
@@ -255,7 +259,7 @@ is  "a run that reaches its end with a failure removes the receipt an earlier ru
 
 # ---- R5: --reuse with no receipt, then a normal run
 _gfc_drive r5 --reuse
-is  "--reuse with no receipt says not reused: no receipt as its first line" "$(sed -n 1p "$GFC/r5.out")" "not reused: no receipt"
+is  "--reuse with no receipt says not reused: no receipt as its first line" "$(sed -n 1p "$GFC/r5.out" | _gfc_q)" "| not reused: no receipt"
 is  "and then runs as a normal run, every part and the manifest comparison included (control)" \
     "$GFC_RAN $(_gfc_has r5 '  ok    every assertion in the manifest was reached')" "1 1"
 is  "a normal run that passes leaves a receipt naming mode normal and its counts, six passed and one skipped" \
@@ -269,6 +273,12 @@ cp "$GFC_RP" "$GFC/r6.receipt" 2>/dev/null || rm -f "$GFC/r6.receipt"
 GFC_E=(FELIX_TEST_NO_MANIFEST=1)
 _gfc_drive r6
 rm -f "$GFC_JUDGEFAIL"
-is  "a red run, failing, leaves the receipt it found byte for byte" \
-    "$([ -f "$GFC/r6.receipt" ] && cmp -s "$GFC/r6.receipt" "$GFC_RP" && echo kept || echo 'not kept')" "kept"
+# Asked only of the receipt the passing normal run just left: a receipt from
+# any earlier run would make keeping it say nothing about this one.
+if [ "$(awk -F'\t' '{ print $3, $4, $5, $6 }' "$GFC/r6.receipt" 2>/dev/null)" != "normal 6 0 1" ]; then
+  bad "a red run, failing, leaves the receipt it found byte for byte" "the normal run before it left no receipt of its own to keep"
+else
+  is  "a red run, failing, leaves the receipt it found byte for byte" \
+      "$(cmp -s "$GFC/r6.receipt" "$GFC_RP" && echo kept || echo 'not kept')" "kept"
+fi
 is  "and a plain run with a reusable receipt beside it still runs every part (control)" "$GFC_RC $GFC_RAN" "1 1"

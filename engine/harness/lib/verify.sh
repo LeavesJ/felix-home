@@ -182,6 +182,63 @@ felix_hold_clear() {   # home, sid
   rm -f "$path" 2>/dev/null || true
 }
 
+# What a session was held on for a gate that had not passed, one line a hold:
+# the tree id, the reason (never verified, stale receipt, failed, epoch moved)
+# and the checkout, tab-separated. So a session is held once for each, not at
+# every stop after it.
+#
+# Every wake-up of an idle session (a background task finishing, another
+# session's message) ends in a stop of its own, and each was judged afresh, so
+# a tree whose gate had not run was held again at each one. Counted over 13.5
+# hours of 2026-10-08 by replay_holds.py (audits/2026-10-09-token-burn in the
+# memory root): 366 holds in 41 sessions, a median of 7 a session and 48 at
+# most, each a model turn of about 69K tokens, 2.8% of a week's allowance.
+# The first hold says everything a hold can; the rest only cost. So the next
+# stop on the same tree, for the same reason, in the same checkout, lets the
+# session go and puts the unrun gate on record as a debt (felix_verify_log).
+# A changed tree is held again, and so is the same tree when the reason moved:
+# held as never verified, the gate then failed on it, and that is news. A
+# person's prompt clears the record (hooks/user-prompt), since a person asking
+# is a new question about the work, and so does SessionEnd. hooks/stop does not
+# hold once where the tree id cannot tell work apart (an unborn HEAD, a coarse
+# id) or for a session that holds a night, whose own bounds govern it. The
+# same script, replaying this rule: 157 holds, a median of 2 a session and 18
+# at most.
+#
+# Under state/, which tree identity excludes, so marking a tree cannot change
+# it. A record that cannot be read or written holds as before, and so does a
+# path that is not a regular file or is a link: nothing here may open a pipe or
+# write through a link out of state/.
+_felix_hold_tree_path() {   # home, sid -> path, or 1 when the id cannot name a file
+  _felix_hold_path "${1:-}" "${2:-}" >/dev/null || return 1
+  printf '%s/state/held-tree/%s' "$1" "$2"
+}
+
+felix_hold_tree_seen() {   # home, sid, tid, reason, checkout -> 0 when held on just that
+  local path
+  [ -n "${3:-}" ] || return 1
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 1
+  [ -f "$path" ] && [ ! -L "$path" ] || return 1
+  grep -Fxq -e "$3	${4:-}	${5:-}" "$path" 2>/dev/null
+}
+
+felix_hold_tree_mark() {   # home, sid, tid, reason, checkout
+  local path
+  [ -n "${3:-}" ] || return 0
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 0
+  mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
+  [ ! -L "$path" ] || return 0
+  [ ! -e "$path" ] || [ -f "$path" ] || return 0
+  printf '%s\t%s\t%s\n' "$3" "${4:-}" "${5:-}" >> "$path" 2>/dev/null || true
+}
+
+felix_hold_tree_clear() {   # home, sid
+  local path
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 0
+  [ -f "$path" ] || [ -L "$path" ] || return 0
+  rm -f "$path" 2>/dev/null || true
+}
+
 # Did this session commit anything? Returns 1 when unknown, so the caller keeps
 # whatever it did before rather than treating ignorance as a change.
 felix_session_committed() {

@@ -152,7 +152,7 @@ is  "(A4) and _sr_check answers run no checkout for it" "$(_gfb_hcall _sr_check 
 _v="$(_gfb_hcall _sr_path "$_gfb_F/engine/harness/../..")"
 case "$_v" in
   0\|/*) _p="${_v#0|}"
-         if [ "$(basename "$_p")" = felix-suite-receipt ] && [ "$(cd "$(dirname "$_p")" 2>/dev/null && pwd -P)" = "$_gfb_F/.git" ]; then
+         if [ "$(basename "$_p")" = felix-suite-receipt ] && [ "$(cd "$(dirname "${_p:?}")" 2>/dev/null && pwd -P)" = "$_gfb_F/.git" ]; then
            _v="the checkout's receipt"
          fi ;;
 esac

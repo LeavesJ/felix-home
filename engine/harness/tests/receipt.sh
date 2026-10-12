@@ -128,7 +128,7 @@ _sr_check() {   # <root>
 # ended at, BSD date's -r first and GNU's -d @ if that is the one here, and the
 # skipped clause is left out when nothing was skipped, as the summary of a run
 # leaves it out.
-_sr_reused() {   # <the `reuse ...` line _sr_check printed>
+_rcp_reused() {   # <the `reuse ...` line _sr_check printed>
   local w p f s e m hm
   read -r w p f s e m <<< "$1"
   e="$(awk -v x="$e" 'BEGIN { printf "%d", x }')"
@@ -143,11 +143,11 @@ _sr_reused() {   # <the `reuse ...` line _sr_check printed>
 # ends the run here with exit 0, which is why this exits and does not return;
 # one that does not says why on the first line and the run goes on, receipt
 # rules and all.
-_sr_answer() {   # <root>
+_rcp_answer() {   # <root>
   local v
   v="$(_sr_check "$1")"
   case "$v" in
-    "reuse "*) _sr_reused "$v"; exit 0 ;;
+    "reuse "*) _rcp_reused "$v"; exit 0 ;;
     *)         printf 'not reused: %s\n' "${v#run }" ;;
   esac
 }
@@ -155,9 +155,9 @@ _sr_answer() {   # <root>
 # What a run takes before its first part: the tree, the tree without the two
 # record files, the environment and the clock. Before any part, and before red
 # can rewrite those two files, so what the end compares is what the start saw.
-_sr_begin() {   # <root> -> sets _sr_t0, _sr_s0, _sr_e0 and _sr_start
-  _sr_t0="$(_sr_tree "$1")"; _sr_s0="$(_sr_tree "$1" stable)"
-  _sr_e0="$(_sr_env)"; _sr_start="$(date +%s)"
+_rcp_begin() {   # <root> -> sets _rcp_t0, _rcp_s0, _rcp_e0 and _rcp_start
+  _rcp_t0="$(_sr_tree "$1")"; _rcp_s0="$(_sr_tree "$1" stable)"
+  _rcp_e0="$(_sr_env)"; _rcp_start="$(date +%s)"
 }
 
 # What a run that reached its end does about the receipt, after its summary
@@ -174,22 +174,22 @@ _sr_begin() {   # <root> -> sets _sr_t0, _sr_s0, _sr_e0 and _sr_start
 # outside part 1010), and the build shows it with the suite run twice on one
 # tree under two different valid records. The tree id written is the full one
 # taken now. Any other run takes the last receipt away.
-_sr_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> <passed> <failed> <skipped>
+_rcp_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> <passed> <failed> <skipped>
   local root="$1" mode=normal t1="" s1="" ok=0
   [ "$2" = 1 ] && mode=record
-  if [ "$6" = 0 ] && [ "$3" = 1 ] && [ -n "$_sr_t0" ] && [ -n "$_sr_s0" ] && [ "$(_sr_env)" = "$_sr_e0" ]; then
+  if [ "$6" = 0 ] && [ "$3" = 1 ] && [ -n "$_rcp_t0" ] && [ -n "$_rcp_s0" ] && [ "$(_sr_env)" = "$_rcp_e0" ]; then
     t1="$(_sr_tree "$root")"
     if [ "$mode" = normal ]; then
-      [ -n "$t1" ] && [ "$t1" = "$_sr_t0" ] && ok=1
+      [ -n "$t1" ] && [ "$t1" = "$_rcp_t0" ] && ok=1
     elif [ "$4" = 1 ] && [ -n "$t1" ]; then
       s1="$(_sr_tree "$root" stable)"
-      [ -n "$s1" ] && [ "$s1" = "$_sr_s0" ] && ok=1
+      [ -n "$s1" ] && [ "$s1" = "$_rcp_s0" ] && ok=1
     fi
   fi
   if [ "$ok" = 1 ]; then
-    _sr_write "$root" "$t1" "$mode" "$5" "$6" "$7" "$_sr_e0" "$_sr_start" "$(date +%s)"
+    _rcp_write "$root" "$t1" "$mode" "$5" "$6" "$7" "$_rcp_e0" "$_rcp_start" "$(date +%s)"
   else
-    _sr_drop "$root"
+    _rcp_drop "$root"
   fi
 }
 
@@ -198,7 +198,7 @@ _sr_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> <
 # followed to wherever it points and a directory would take the temporary file
 # in as a member. Said, so that the run that declined is not mistaken for one
 # that wrote.
-_sr_plain() {   # <path>: status 0 when nothing is there or a regular file is
+_rcp_plain() {   # <path>: status 0 when nothing is there or a regular file is
   if [ -L "$1" ] || { [ -e "$1" ] && [ ! -f "$1" ]; }; then
     printf '  receipt not written: %s is not a regular file\n' "$1"
     return 1
@@ -207,10 +207,10 @@ _sr_plain() {   # <path>: status 0 when nothing is there or a regular file is
 
 # A sibling temporary file in the same directory, then one mv, so a reader sees
 # the old receipt or the new one and never half of one.
-_sr_write() {   # <root> <tree id> <mode> <passed> <failed> <skipped> <env> <start> <end>
+_rcp_write() {   # <root> <tree id> <mode> <passed> <failed> <skipped> <env> <start> <end>
   local p t
   p="$(_sr_path "$1")" || return 1
-  _sr_plain "$p" || return 1
+  _rcp_plain "$p" || return 1
   t="$p.tmp.$$"
   if printf 'v1\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" > "$t" 2>/dev/null \
      && mv -f "$t" "$p" 2>/dev/null; then
@@ -224,11 +224,11 @@ _sr_write() {   # <root> <tree id> <mode> <passed> <failed> <skipped> <env> <sta
 # A run that reached its end and did not earn a receipt takes the checkout's
 # last one away, so that a failing run, or one whose tree moved under it, never
 # leaves an earlier pass standing for the next gate to find.
-_sr_drop() {   # <root>
+_rcp_drop() {   # <root>
   local p
   p="$(_sr_path "$1")" || return 0
   if [ ! -e "$p" ] && [ ! -L "$p" ]; then return 0; fi
-  _sr_plain "$p" || return 1
+  _rcp_plain "$p" || return 1
   rm -f "$p" 2>/dev/null
   return 0
 }

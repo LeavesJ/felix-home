@@ -107,9 +107,8 @@ directory (`git rev-parse --git-path felix-suite`), outside the tree, so
 writing it changes no tree id. One receipt per checkout, overwritten.
 
 The receipt holds:
-- the tree id of what the suite ran, computed by `felix_tree_id` with the
-  record files `tests/assertions.tsv` and `tests/red.tsv` excluded (why that is
-  sound is below);
+- the tree id (`felix_tree_id`) of the tree the run leaves behind, which for a
+  record run includes the record files it wrote (why that is sound is below);
 - the mode (normal or record), the counts of ok, FAIL and skip lines, and the
   ran counts the suite produced (the file the manifest is written from);
 - what the run cannot see from the tree: the host, the bash version, whether a
@@ -124,18 +123,21 @@ hold, and otherwise runs the suite as today:
 - it is less than 12 hours old, so a change outside the tree (a tool upgraded,
   a plugin removed) cannot ride on it for long.
 
-Then, every time, and never reused:
-- **The manifest comparison** is made fresh, between the receipt's ran counts
-  and the manifest in the tree now. A run in record mode wrote that manifest,
-  so they agree. A union a merge made does not always agree, and then the check
-  fails as it does today.
-- **The real-record checks.** `_rtn1` to `_rtn4` move out of the suite into
-  `engine/harness/bin/record-check`, called by the gate as its own check,
-  `record`. That is the shape every other gate check already took (schema,
-  handoff, executable), and for the same reason: a check that cannot run alone
-  cannot be qualified. Part 1010 keeps every assertion it makes about
-  `_rt_judge` and the record helpers on fixtures, and asks `bin/record-check`
-  the same way.
+What a record run skipped is made up before it writes its receipt, on the
+tree it leaves behind:
+- **The real-record checks.** After red has finished and the manifest is
+  written, the record run judges its own checkout's record once more, as a
+  normal run does (`_rt_judge`, part 1010, with record mode off), so `_rtn1`
+  to `_rtn3` are asked of the files it just wrote. The judge stays where seven
+  reviews put it. One assertion that counts its calls is restated.
+- **The manifest comparison** is made after that, against the manifest just
+  written, as a normal run makes it.
+
+So the receipt is keyed to the full tree as the record run leaves it, record
+files included, and says that tree passed everything a normal run asks.
+`--record-assertions` now exits 1 when the record it wrote fails that judge,
+as a red run that could not be made does. That is what the gate would say of
+the same tree, so it is said at the record rather than discovered at the gate.
 
 What the gate prints when it reuses:
 
@@ -146,14 +148,17 @@ What the gate prints when it reuses:
 and the gate receipt's reported field reads `tests:reused`, not `tests:ok`, so
 `felix merge`, the monitor and qualify can tell the two apart.
 
-**Why excluding the two record files is sound.** After 1b the only assertions
-that read the real record files are the ones moved to `record-check`. Every
-other mention of red.tsv or assertions.tsv in the suite reads a fixture
-(checked 2026-10-12: parts 0440, 0720, 0730, 0740, 0990 and 1000). A lint
-assertion holds this: no part names `$HERE/red.tsv`, `$HERE/assertions.tsv` or
-the same paths under `$REAL_HARNESS/tests`. The build shows it with a
-differential: the suite run twice on one tree with two different valid record
-files gives the same verdict on every name.
+**Why the record files may change under the run.** A record run's parts run
+while red.tsv holds red's retraction and the manifest holds the old list, and
+the receipt names the tree after both are rewritten. That is sound only if no
+assertion but the re-judged ones reads those two files' content. Every other
+mention of red.tsv or assertions.tsv in the suite reads a fixture (checked
+2026-10-12: parts 0440, 0720, 0730, 0740, 0990 and 1000). The run checks the
+rest of the tree did not move: its tree id with the two record files left out
+is taken at its start and again before the receipt, and a difference writes no
+receipt. The build shows the claim with a differential: the suite run twice on
+one tree with two different valid record files gives the same verdict on every
+name.
 
 **What reuse cannot catch, said plainly.** The receipt is a file a session can
 write. So is the gate receipt `felix merge` already trusts, and the hold-once
@@ -249,8 +254,9 @@ agreed for long enough to trust it.
 Invariant 5: nothing here is believed until it is shown failing.
 - **Reuse.** A changed tree, a FAIL in the receipt, an unfinished run, another
   host, another bash, `claude` added or removed, a receipt 12 hours old, and a
-  receipt that is not a file each make the gate run the suite. A record file
-  changed in a way `record-check` refuses fails `record`.
+  receipt that is not a file each make the gate run the suite. A record run
+  whose re-judged record fails, or whose tree moved outside the record files
+  while it ran, writes no receipt.
 - **1a.** A record run stopped part way, failing, or writing a malformed
   manifest each leave red's retraction rows and exit 2.
 - **3b.** A part killed mid-run, a part that exits before its mark, and a part
@@ -268,7 +274,7 @@ instead of three.
 
 | PR | what | lands after |
 |---|---|---|
-| A | step 1: 1a, and 1b with `bin/record-check` | - |
+| A | step 1: 1a and 1b | - |
 | B | step 2: the slow assertions, `qualified` rows in parallel | A |
 | C | step 3a: every part runs alone (tests only, large) | A |
 | D | step 3b: `-j`, slots, red with `-j` | C |

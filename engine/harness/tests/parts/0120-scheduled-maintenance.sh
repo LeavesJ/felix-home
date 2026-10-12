@@ -116,6 +116,43 @@ for s in '    token: str = ""' \
 done
 unset _ss_n
 
+# A quoted value that begins with `$` is a reference, as the unquoted form and
+# the quoted-key form already read it. Until 2026-10-11 the plain quoted form
+# did not: felix gate went red in the home on the GitHub MCP runbook that
+# `felix new` writes into every project it onboards, whose line hands the token
+# over as `"$(gh auth token)"`. A literal that only holds a `$` further in is
+# still a literal.
+while IFS= read -r s; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && ok "quiet on a quoted reference sample $_ss_n" \
+    || bad "quiet on a quoted reference sample $_ss_n" "false positive on: $s"
+done <<'SSREF'
+echo 'export GITHUB_PERSONAL_ACCESS_TOKEN="$(gh auth token)"' >> ~/.zshrc
+token="${GH_TOKEN}"
+password="$(security find-generic-password -w -s felix)"
+SSREF
+unset _ss_n
+for s in 'token = "abcd''1234efgh5678"' \
+         'password = "pa$$''word1234"' \
+         'secret = "x$(y''zzzzzz)"'; do
+  _ss_n=$((${_ss_n:-0}+1))
+  printf '+%s\n' "$s" | "$SS" - >/dev/null 2>&1 \
+    && bad "catches a quoted literal holding a later \$ sample $_ss_n" "scanner passed: $s" \
+    || ok "catches a quoted literal holding a later \$ sample $_ss_n"
+done
+unset _ss_n
+# The class, not the one runbook: every file the engine ships as a template is
+# written into a project by felix new or a setup step, and a template the
+# engine's own scan refuses fails every project that tracks it.
+_ss_bad=""
+for f in $(cd "$REAL_HARNESS/templates" && find . -type f | LC_ALL=C sort); do
+  sed 's/^/+/' "$REAL_HARNESS/templates/$f" | "$SS" - >/dev/null 2>&1 || _ss_bad="$_ss_bad $f"
+done
+[ -z "$_ss_bad" ] && ok "every template the engine ships passes its own secret scan" \
+  || bad "every template the engine ships passes its own secret scan" "refused:$_ss_bad"
+unset _ss_bad
+
 # An exclusion applied to the whole line defuses every credential on it. That
 # turned the scanner off with one word: a live AWS key on a line that also said
 # "example" exited 0, and a private key header wrapped in <pre> did too, because

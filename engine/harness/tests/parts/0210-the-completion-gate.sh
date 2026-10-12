@@ -483,14 +483,24 @@ out="$(_stop "$GREPO" "$(_hj false rw-own)")"
 _n0="$(_hn)"
 out="$(_stop "$GREPO" "$(_hj true rw-own)")"
 is "a hold lets the one flagged stop it started end" "$(( $(_hn) - _n0 )):[$out]" "0:[]"
+# Restated for the hold once per tree (slot 2a, part B): judged, the rewake
+# turn finds the tree the session was held on, so it is debt, a row of its own,
+# where a turn taken for part of Felix's chain would have written none.
+_n0="$(_hn)"
 out="$(_stop "$GREPO" "$(_hj true rw-own)")"
-_blocks "and only that one: the rewake turn after it is judged" "$out"
+is "and only that one: the rewake turn after it is judged, as debt on the tree it was held on" \
+   "$(( $(_hn) - _n0 )):$(tail -1 "$_hv" | cut -f2):[$out]" "1:debt:[]"
 
 # A chain can end without reaching its flagged stop (an interrupted turn), and
 # the next prompt's stop is unflagged. That stop starts afresh and clears what
 # was left, or the leftover waves the next rewake turn through.
 out="$(_stop "$GREPO" "$(_hj false rw-stale)")"
 out="$(cd "$GREPO" && _hj false rw-stale | FELIX_ALLOW_RED=1 "$STOP" 2>&1)"
+# Restated for the hold once per tree: the flagged stop is judged, and on the
+# tree the session was held on that is a debt row. A hold left behind would have
+# ended it at the flag with no row.
+_n0="$(_hn)"
 out="$(_stop "$GREPO" "$(_hj true rw-stale)")"
-_blocks "an unflagged stop clears a hold left behind" "$out"
+is "an unflagged stop clears a hold left behind, so the flagged stop after it is judged" \
+   "$(( $(_hn) - _n0 )):$(tail -1 "$_hv" | cut -f2)" "1:debt"
 

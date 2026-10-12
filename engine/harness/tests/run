@@ -485,11 +485,12 @@ else
   printf '  no manifest yet. Record one with: tests/run --record-assertions\n'
 fi
 
+# The receipt, ahead of the summary so that the summary stays the last line of
+# the log (the gate shows that line), and with no say in the exit status below.
+# This line is reached only by a run whose every part was sourced and which
+# printed `reached`.
+[ "$_rcp_on" -ne 1 ] || _rcp_finish "$_rcp_root" "$FELIX_TEST_RECORD" "$_rcp_cmp" "$_rcp_judged" "$PASS" "$FAIL" "$SKIP"
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d skipped' "$SKIP"
 printf '\n'
-# The receipt, after the summary and with no say in the exit status below. This line
-# is reached only by a run whose every part was sourced and which printed `reached`.
-[ "$_rcp_on" -eq 1 ] \
-  && _rcp_finish "$_rcp_root" "$FELIX_TEST_RECORD" "$_rcp_cmp" "$_rcp_judged" "$PASS" "$FAIL" "$SKIP"
 [ "$FAIL" -eq 0 ] || exit 1

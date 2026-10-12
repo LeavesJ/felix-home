@@ -8,50 +8,116 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	0.49.272
-run	45	6281	9
-baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-discover: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-discover: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-discover: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-discover: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail off)	1
-human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail on)	1
-human_steps: a runbook that prints an unknown step is held (pipefail off)	1
-human_steps: a runbook that prints an unknown step is held (pipefail on)	1
-obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-obligations: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-obligations: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-preflight: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-preflight: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-preflight: a report that could not list the plugins is held (pipefail off)	1
-preflight: a report that could not list the plugins is held (pipefail on)	1
-probes: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-probes: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-probes: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-probes: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-reach: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-reach: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-reach: an unwired read that returned 128 having printed nothing is held (pipefail off)	1
-reach: an unwired read that returned 128 having printed nothing is held (pipefail on)	1
-reach: with no pipe to be made, the check does not pass	1
-stack: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-stack: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-stack: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-stack: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-stack: a plan that prints an unknown action is held (pipefail off)	1
-stack: a plan that prints an unknown action is held (pipefail on)	1
-stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail off)	1
-stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail on)	1
+base	origin/main	82999a844641c9bdbce8c542bc6c5c40ef1c0aba	0.49.278
+run	111	7404	9
+an unflagged stop clears a hold left behind, so the flagged stop after it is judged	1
+and a marker laid in a session a person has typed into does not excuse it: the stop is judged, as debt on the tree it was held on	1
+and only that one: the rewake turn after it is judged, as debt on the tree it was held on	1
+the Stop hook adds a debt row and holds nothing at unflagged stop number 3 of the same session on the same tree	1
+the Stop hook adds a debt row and holds nothing at unflagged stop number 4 of the same session on the same tree	1
+the Stop hook counts a flagged stop inside another hook's chain as debt for a session held once already	1
+the Stop hook counts a stop from the top of the checkout as debt once a stop from a directory below it was held	1
+the Stop hook counts debt for the first checkout once it was held there	1
+the Stop hook counts debt for the second checkout once it was held there	1
+the Stop hook counts debt when the matching line is one of several in the record, with others on both sides of it	1
+the Stop hook counts debt when the reason returns to one the session was already held on, on the same tree	1
+the Stop hook counts debt, and holds nothing, for a record line with this tree, this reason and this checkout	1
+the Stop hook counts the second stop of a session whose id is longer than eight characters as debt	1
+the Stop hook counts the stop after that hold as debt when the record had differed only in a different checkout	1
+the Stop hook counts the stop after that hold as debt when the record had differed only in a different reason	1
+the Stop hook counts the stop after that hold as debt when the record had differed only in a different tree id	1
+the Stop hook counts the stop after that hold as debt when the record had held only the tree id	1
+the Stop hook does not hold a flagged stop inside another hook's chain on a tree already held on for the session: it is debt	1
+the Stop hook does not hold a later unflagged stop of the same session on the same tree: it is silent, exits 0 and adds a debt row	1
+the Stop hook does not hold a session when the tree moves forward again to the other tree it was held on	1
+the Stop hook does not hold a session when the tree returns to one the session was held on	1
+the Stop hook does not hold the second stop on the same tree when the gate failed on this tree, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the gate never ran, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the gate passed on this tree and the epoch moved, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the receipt is for a different tree, and the debt row names that tree	1
+the Stop hook does not hold the third tree a second time	1
+the Stop hook has the session of the next case on debt before the flagged stop reaches it (control)	1
+the Stop hook holds a 128-character session id once and then adds debt, as it does for any id that can name a file	1
+the Stop hook holds a checkout whose path holds spaces once and then counts debt, and records the path whole	1
+the Stop hook holds a checkout with 500 untracked files once and then counts debt, as it does any ordinary tree	1
+the Stop hook holds a session again on every tree it was held on once a person has typed into it, not on the last only	1
+the Stop hook holds a session again on the same tree once SessionEnd has removed its record, and records it afresh	1
+the Stop hook holds a session at two stops of its night, then once and only once after the night: the night wrote no record	1
+the Stop hook holds a session id made of letters, digits, dot, dash and underscore once and then adds debt	1
+the Stop hook holds a session once and then counts debt, before any prompt is typed into it	1
+the Stop hook holds a session once and then counts debt, before the session is given a night	1
+the Stop hook holds a session whose record is a link to a file holding this very line, where the same line in a plain file is debt	1
+the Stop hook holds a stop made from a directory below the top of the checkout, and records the top level of the checkout, not that directory	1
+the Stop hook holds a stop whose record line differs from it only in a different checkout, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line differs from it only in a different reason, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line differs from it only in a different tree id, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line holds only the tree id, and records the hold in full	1
+the Stop hook holds a stop whose record line holds the tree id and the reason but no checkout, and records the hold in full	1
+the Stop hook holds that tree only once for "epoch moved" after "failed": the next stop is debt	1
+the Stop hook holds that tree only once for "failed" after "never verified": the next stop is debt	1
+the Stop hook holds that tree only once for "failed" after "stale receipt": the next stop is debt	1
+the Stop hook holds the changed tree only once: the next unflagged stop on it is debt	1
+the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "epoch moved" after "failed", and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never verified", and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "failed" after "stale receipt", and records that hold	1
+the Stop hook holds the second session only once on that tree	1
+the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold	1
+the Stop hook holds the session once again at its next stop after a person's prompt, and then counts debt	1
+the Stop hook holds the stop after one that was stopped while writing its says row, and only then counts debt	1
+the Stop hook holds the stop after one that was stopped while writing its verification row, and only then counts debt	1
+the Stop hook judges the same tree at the stop after a hold in a home that is the checkout it governs: debt	1
+the Stop hook keeps a record of its own for the second session	1
+the Stop hook keeps the first tree in the session's record when it records the changed one	1
+the Stop hook leaves another session's record as it was when a person types into a session	1
+the Stop hook leaves the first session's debt as it was while other sessions are held on the tree	1
+the Stop hook prints nothing to stdout for a stop it does not hold	1
+the Stop hook records both checkouts, each on a line of its own	1
+the Stop hook records both holds, "failed" and then "epoch moved", on lines of their own	1
+the Stop hook records both holds, "never verified" and then "failed", on lines of their own	1
+the Stop hook records both holds, "stale receipt" and then "failed", on lines of their own	1
+the Stop hook records nothing for a checkout with no commit, though the same session is held and then counted as debt in a checkout with a commit	1
+the Stop hook records nothing for a coarse tree, though the same session is held and then counted as debt in an ordinary tree	1
+the Stop hook records the changed tree too	1
+the Stop hook records the tree for that first hold when the gate failed on this tree	1
+the Stop hook records the tree for that first hold when the gate never ran	1
+the Stop hook records the tree for that first hold when the gate passed on this tree and the epoch moved	1
+the Stop hook records the tree for that first hold when the receipt is for a different tree	1
+the Stop hook records the tree id of a first hold in state/held-tree under the session id	1
+the Stop hook records the tree id, a tab, "epoch moved", a tab and the checkout for a hold when the gate passed on this tree and the epoch moved	1
+the Stop hook records the tree id, a tab, "failed", a tab and the checkout for a hold when the gate failed on this tree	1
+the Stop hook records the tree id, a tab, "never verified", a tab and the checkout for a hold when the gate never ran	1
+the Stop hook records the tree id, a tab, "stale receipt", a tab and the checkout for a hold when the receipt is for a different tree	1
+the Stop hook records the tree it held inside another hook's chain, as it does for any first hold	1
+the Stop hook records the tree it held on in a record that named a different tree	1
+the Stop hook still counts debt after a system reminder arrives as a prompt: it does not clear the record	1
+the Stop hook still counts debt after a task notification arrives as a prompt: it does not clear the record	1
+the Stop hook still counts debt after its own feedback arrives as a prompt: it does not clear the record	1
+the Stop hook treats a flagged stop right after a debt stop as another hook's chain on a held tree: debt, not silence at the flag	1
+the Stop hook treats a flagged stop with no hold of Felix's on record as debt when the session's record names the tree	1
+the Stop hook treats a record line holding the tree id, the reason and the checkout as a hold already made, and adds a debt row	1
+the Stop hook's SessionEnd leaves another session's record as it was	1
+the Stop hook's SessionEnd removes a link at the session's record and leaves the file it points to as it was	1
+the Stop hook's SessionEnd removes a link at the session's record that points to nothing	1
+the Stop hook's SessionEnd removes the record the session had	1
+the Stop hook's blocked row, debt row, record and independently taken tree id are one tree id	1
+the Stop hook's debt row for a stop inside another hook's chain names the session too	1
+the Stop hook's debt row for a stop inside another hook's chain says the tree was held once already	1
+the Stop hook's debt row for the returning tree names the returning tree	1
+the Stop hook's debt row gives only the first eight characters of the session id, never more	1
+the Stop hook's debt row has the verdict debt in its second field and the tree the session was held on in its third	1
+the Stop hook's debt row names a session id of exactly eight characters in full	1
+the Stop hook's debt row names the session as (session a1b2c3d4), the first eight characters of its id	1
+the Stop hook's debt row says in its fourth field that the tree was held once on this tree already	1
+the Stop hook's debt row still says the tree was held once already	1
+the Stop hook's debt row, its record and the tree id taken independently all name one tree	1
+the Stop hook's record in the governed home holds the tree id the blocked row names	1
+the Stop hook's record inside the tree leaves the tree's identity as it was	1
+the Stop hook's record line for a hold holds the very reason the blocked row gives	1
+the Stop hook's record of a first hold is exactly one line	1
+the Stop hook's record of a hold is one line of three tab-separated fields that ends in a newline	1
+the Stop hook's record of a session is there before a person types into it and gone after, and another session's record is as it was	1
+the Stop hook's record, once a hold was printed, holds the tree it was held on	1
+the Stop hook's two sessions each have a record before the first one ends (control)	1
+the monitor page does not show a debt verification row with the class a passed gate has	1
+the monitor page shows a debt verification row with the warning class	1

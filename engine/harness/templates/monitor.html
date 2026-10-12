@@ -472,7 +472,7 @@ function renderLog(){
   pastSays().forEach(s=>ev.push({t:s.t,m:(LABEL[s.kind]||s.kind)+' · '+gist(s),
     c:(s.kind==='held'||s.kind==='plugin-blocked')?'bad':(s.kind==='skipped'||s.kind==='unrecorded')?'warn':''}));
   (p.verifyLog||[]).forEach(v=>ev.push({t:v.t,m:'gate '+v.verdict+' · '+v.reason,
-    c:v.verdict==='blocked'?'bad':v.verdict==='override'?'warn':'ok'}));
+    c:v.verdict==='blocked'?'bad':(v.verdict==='override'||v.verdict==='debt')?'warn':'ok'}));
   ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
   const n=new Set(pastSays().map(s=>s.session||'unknown')).size;
   at('logTag').textContent=n?n+' past session'+(n===1?'':'s'):'archive';

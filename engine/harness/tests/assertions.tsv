@@ -3932,6 +3932,9 @@
 1	catches a key the keyword ends, sample 1
 1	catches a key the keyword ends, sample 2
 1	catches a key the keyword ends, sample 3
+1	catches a quoted literal holding a later $ sample 1
+1	catches a quoted literal holding a later $ sample 2
+1	catches a quoted literal holding a later $ sample 3
 1	catches a temporary key or a quoted JSON key, sample 1
 1	catches a temporary key or a quoted JSON key, sample 2
 1	catches a temporary key or a quoted JSON key, sample 3
@@ -4163,6 +4166,7 @@
 1	every seeded row of the table was asked, none dropped
 1	every steps.push output the template reads is one the verify step writes
 1	every tab inside a holder line becomes a space
+1	every template the engine ships passes its own secret scan
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
 1	every uses: in the unattended template names a full commit sha, not a ref its owner can move
 1	every verdict is one line of two tab-separated fields
@@ -5920,6 +5924,9 @@
 1	quiet on a key the keyword only begins, sample 3
 1	quiet on a key the keyword only begins, sample 4
 1	quiet on a key the keyword only begins, sample 5
+1	quiet on a quoted reference sample 1
+1	quiet on a quoted reference sample 2
+1	quiet on a quoted reference sample 3
 1	quiet on a word that begins with a key id's prefix
 1	quiet on exclusion sample 1
 1	quiet on exclusion sample 2

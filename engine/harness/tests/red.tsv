@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	2fc0c6715b3067c6e07cbfca10bbebbc3c70f451	0.49.280
-run	182	7579	10
+base	origin/main	5fd5811004cd17678cbe9bf340ad80d7a778ed16	0.49.283
+run	182	7968	10
 (1) a record run whose manifest write fails marks it failed: red says the record run did not write a manifest (failed)	1
 (10) red, its parent the record run ended (id still held) and red re-parented, refuses: the record run ended before it wrote the manifest	1
 (11) a record run ended by SIGINT while red's suite runs ends red within ten seconds	1

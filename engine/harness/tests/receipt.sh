@@ -165,10 +165,14 @@ _sr_origin() {   # <root>
 # tree is asked (merge-base and ancestry against origin/main, _rtn3 and _rtn4)
 # only of a tree that holds a commit origin/main lacks, and skips both for one
 # whose HEAD origin/main already held; a run at such a parent was not asked what
-# the commit is. That ancestry is the one read of the checkout's history whose
-# answer the commit can change (the search of the parts, the driver, red and this
-# file is in the contract). Prints `head <HEAD's full sha>` where it stands,
-# `held` where the ids agree and the ancestry does not, and nothing otherwise.
+# the commit is. Searched on 2026-10-12 (the parts, the driver, red, this file):
+# no other read of the checkout's git state has an answer the commit changes,
+# apart from `merge-base HEAD origin/main` choosing between two equally good
+# bases of a criss-cross that share a commit second (_rt_record_holds). The rest
+# read refs and objects the commit leaves alone, fixtures, or the tracked set,
+# which the id covers: a file the commit adds shows in the diff. Prints `head
+# <HEAD's full sha>` where it stands, `held` where the ids agree and the
+# ancestry does not, and nothing otherwise.
 _sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it recorded, or -> -> head <sha> | held | nothing
   local line h p1 p2 id rc
   line="$(git -C "$1" rev-list --parents -n 1 HEAD 2>/dev/null)" || return 0

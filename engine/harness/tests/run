@@ -401,8 +401,8 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1100-gate-friction-a-blind.sh"
 . "$HERE/parts/1110-gate-friction-a-blind.sh"
 . "$HERE/parts/1120-gate-friction-a-blind.sh"
-. "$HERE/parts/1130-gate-friction-a-blind.sh"
 . "$HERE/parts/1130-gate-friction-a-addendum-blind.sh"
+. "$HERE/parts/1130-gate-friction-a-blind.sh"
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished
 # red run exits 1 as a dead one can (#371). The empty line before it is this

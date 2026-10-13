@@ -175,8 +175,19 @@ is  "(A2) a normal run removes the checkout's earlier receipt before its first p
     "$(cat "$_gfb_o/rcpt-at-part.d1" 2>/dev/null)" "absent"
 is  "(A10) a normal run that leaves a receipt prints its summary as the last line of its stdout and stderr together" \
     "$(_gfb_last "$_gfb_o/d1.out")" "the summary"
-if [ -f "$_gfb_rp" ] && LC_ALL=C awk -F'\t' -v s="$_gfb_c1" '{ for (i = 1; i <= NF; i++) if ($i == s) f = 1 } END { exit !f }' "$_gfb_rp"; then _v=yes; else _v=no; fi
-is  "(A1) the receipt a passing run leaves names, as a field of its own, the commit origin/main named when the run began" "$_v" "yes"
+# restated, not blind: C4/C5 addendum. The block above asked for the commit "as a
+# field of its own", a position the addendum does not give ("records the commit
+# ... or `-` when there was none") and the contract's nine fields, which parts
+# 1100 and 1120 pin ("a receipt of ten fields is malformed", "one receipt line of
+# nine tab-separated fields") do not leave room for. The commit rides at the end
+# of the env field, `;origin=<commit>`, so the receipt is read for the commit as
+# a whole field or as the tail of one, and for no other place it could hide in:
+# the tree id, the mode, a count or a time cannot hold it, being fields whose
+# values the other assertions pin.
+if [ -f "$_gfb_rp" ] && LC_ALL=C awk -F'\t' -v s="$_gfb_c1" 'BEGIN { t = ";origin=" s }
+  { for (i = 1; i <= NF; i++) if ($i == s || (length($i) > length(t) && substr($i, length($i) - length(t) + 1) == t)) f = 1 }
+  END { exit !f }' "$_gfb_rp"; then _v=yes; else _v=no; fi
+is  "(A1) the receipt a passing run leaves names, as a field of its own or as the tail of its env field, the commit origin/main named when the run began" "$_v" "yes"
 _v="$(_gfb_chk)"; case "$_v" in "reuse "*) _v=reuse ;; esac
 is  "(A1) that receipt is reused while origin/main still names that commit" "$_v" "reuse"
 _gfb_origin "$_gfb_c2"

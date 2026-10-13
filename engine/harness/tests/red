@@ -89,10 +89,13 @@
 # above; any other first line, or a record run gone with no mark, is a refusal,
 # and red.tsv keeps the two rows it was given first. The retraction is written
 # before any of this, so a record run that is killed leaves red.tsv saying so.
-# The record run is gone when process <pid> no longer exists, is a zombie, or is
-# no longer red's parent (the record run starts red as its own child, so a red
-# whose parent changed was handed over when the record run ended, and a process
-# that merely holds the record run's old id is not it). That is asked while the
+# The record run is gone when process <pid> no longer exists, is a zombie, is
+# not the process it was when red began (its start time, as ps gives it, has
+# changed), is no longer red's parent (the record run starts red as its own
+# child, so a red whose parent changed was handed over when the record run
+# ended), or never was one of red's ancestors at all: a process that merely
+# holds the record run's old id, or that red was never started by, is not the
+# record run and never extends the wait. That is asked while the
 # suite runs too, once a second, by a monitor: a record run that is gone with no
 # mark ends the suite and this run, without the 25 minutes the suite would take,
 # and a signal to this run ends the suite with it. A mark that is not a regular
@@ -223,16 +226,33 @@ TMP=""
 _reap() { [ -z "$TMP" ] || pkill -9 -f "$(printf '%s' "$TMP" | sed 's/[][\\.*^$(){}+?|]/\\&/g')" >/dev/null 2>&1; }
 
 # Whether the record run is gone: process $WPID no longer exists or is a zombie,
-# or red, which the record run starts as its own child, has a different parent
-# now. A process that merely holds the id of a record run that is dead (the id
-# was reused, and red's suite forks a hundred thousand processes in fifteen
-# minutes) is not the record run, and red's parent says so: red was handed to
-# someone else the moment the process that started it ended. That holds for
-# whoever started red, so it is asked whatever $WPID is.
+# or is not the process red was told of (WANC and WSIG, taken when red began: it
+# was never one of red's ancestors, or its start time has changed), or red, which
+# the record run starts as its own child, has a different parent now. A process
+# that merely holds the id of a record run that is dead (the id was reused, and
+# red's suite forks a hundred thousand processes in fifteen minutes), or that is
+# alive and never started red, is not the record run, and red's parent says so
+# for the first: red was handed to someone else the moment the process that
+# started it ended. That holds for whoever started red, so it is asked whatever
+# $WPID is.
+WANC=0; WSIG=""
+_ancestor() {   # <pid>: status 0 when it is one of this process's ancestors
+  local p="$$" n=0 w="${1#"${1%%[!0]*}"}"   # w: the id without leading zeros
+  while [ "$n" -lt 64 ]; do
+    p="$(ps -o ppid= -p "$p" 2>/dev/null)"; p="${p//[[:space:]]/}"
+    case "$p" in ''|*[!0-9]*) return 1 ;; esac
+    [ "$p" = "$w" ] && return 0
+    [ "$p" != 0 ] && [ "$p" != 1 ] || return 1
+    n=$((n + 1))
+  done
+  return 1
+}
 _gone() {
   local pp
   kill -0 "$WPID" 2>/dev/null || return 0
   case "$(ps -o stat= -p "$WPID" 2>/dev/null)" in Z*) return 0 ;; esac
+  [ "$WANC" = 1 ] || return 0
+  [ -z "$WSIG" ] || [ "$(ps -o lstart= -p "$WPID" 2>/dev/null)" = "$WSIG" ] || return 0
   pp="$(ps -o ppid= -p "$$" 2>/dev/null)"; pp="${pp//[[:space:]]/}"
   case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
   return 1
@@ -267,6 +287,11 @@ if [ "$AFTER" -eq 1 ]; then trap '_abort 130' INT; trap '_abort 143' TERM; trap 
 if [ "$AFTER" -eq 1 ]; then
   case "$WPID" in ''|*[!0-9]*) WPID="" ;; *[1-9]*) ;; *) WPID="" ;; esac
   { [ -n "$MARK" ] && [ -n "$WPID" ]; } || _none "--after needs a mark file and a process id"
+  # Who the record run is, taken now while it is the one running: whether it is
+  # an ancestor of this process, and when it started. A pid that is neither
+  # (a process red was not started by) is gone to _gone from the first pass.
+  ! _ancestor "$WPID" || WANC=1
+  WSIG="$(ps -o lstart= -p "$WPID" 2>/dev/null)"
 fi
 
 ROOT="$(git -C "$HERE" rev-parse --show-toplevel 2>/dev/null)" || _none "$HERE is not inside a git repository"

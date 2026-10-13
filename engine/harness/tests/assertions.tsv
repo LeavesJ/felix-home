@@ -1,3 +1,59 @@
+1	(1) a record run whose manifest write fails marks it failed: red says the record run did not write a manifest (failed)
+1	(10) red, its parent the record run ended (id still held) and red re-parented, refuses: the record run ended before it wrote the manifest
+1	(11) a record run ended by SIGINT while red's suite runs ends red within ten seconds
+1	(11) a record run ended by SIGTERM while red's suite runs ends red within ten seconds
+1	(11) and red.tsv then holds the two retraction rows
+1	(11) and red.tsv then holds the two retraction rows, after SIGINT too
+1	(2) a record run during which a tracked file other than assertions.tsv and red.tsv changed leaves no receipt
+1	(2)(6) a passing record run in this fixture leaves a receipt, mode record, so a missing one below says something (control)
+1	(3) a normal run during which a claude command appeared on PATH (the PATH itself unchanged) leaves no receipt
+1	(3)(4)(5)(7)(8) a passing normal run in this fixture leaves a receipt, mode normal (control)
+1	(4) a normal run during which red.tsv changed (the full tree id moved, the stable one did not) leaves no receipt
+1	(5) a normal run that compared no manifest (it said no manifest yet) leaves no receipt
+1	(6) a record run in a suite with no _rt_judge says the record is not re-judged
+1	(6) and leaves no receipt
+1	(7) a receipt path that is a directory holds nothing new after a passing run: nothing written into it or through it
+1	(7) and the run says receipt not written: <the receipt path> is not a regular file
+1	(8) a failing run removes a receipt that appeared while it ran
+1	(9) an ended record run whose id is still held, no longer red's ancestor, never extends red's wait: red refuses as the record run gone
+1	(A1) a receipt whose origin/main now names another commit is refused: run origin/main moved
+1	(A1) a run with no origin/main at its start, during which origin/main appears, leaves no receipt
+1	(A1) aged past 12 hours with origin/main moved, the origin/main check answers first
+1	(A1) and so is one whose origin/main cannot be read now, when the receipt recorded one
+1	(A1) and the deployed plugin cache that part 0440 reads
+1	(A1) that receipt is reused while origin/main still names that commit
+1	(A1) the contract lists the memory lessons.md that part 0590 reads among the inputs from outside the tree
+1	(A1) the receipt a passing run leaves names, as a field of its own or as the tail of its env field, the commit origin/main named when the run began
+1	(A1) the same receipt aged past 12 hours, origin/main unmoved, is older than 12 hours
+1	(A10) a normal run that leaves a receipt prints its summary as the last line of its stdout and stderr together
+1	(A10) a record run whose receipt is not written prints its summary as the last line of its stdout and stderr together
+1	(A10) and the summary is still the last line on the run's stdout
+1	(A2) a normal run removes the checkout's earlier receipt before its first part
+1	(A2) a receipt path that is a directory is neither removed nor written through by a run
+1	(A2) a record run removes the checkout's earlier receipt before its first part
+1	(A3) a suite log holding the reuse line below a line stderr printed first is never the tests check's ok
+1	(A4) _sr_path, handed a directory inside a checkout that is not its top level, answers no checkout: status 1, nothing printed
+1	(A4) a root written as the driver writes it, with .. in it, that is the top level, is still the checkout and names its receipt
+1	(A4) and _sr_check answers run no checkout for it
+1	(A4) and so does _sr_tree for that directory
+1	(A5) a part's bare wait for a job of its own returns, status 0, within seconds, red running or not
+1	(A5) and the record run ends on its own rather than at the 45-second bound
+1	(A5) the record run's red, given the record run's pid, is already running while the part runs
+1	(A6) a record run that can put neither written nor failed in place as its mark says red was not run, naming the mark
+1	(A6) and ends without waiting for red, whose suite alone would take 30 seconds
+1	(A6) and red's suite is not left running after it
+1	(A6) and red.tsv keeps the retraction
+1	(A7) and leaves the retraction in red.tsv
+1	(A7) and removes its base checkout
+1	(A7) and stops its suite, which would have run 30 seconds more
+1	(A7) red, its record run killed while red's suite runs, refuses within seconds as the record run gone
+1	(A8) a live process that is not the one that started red never extends red's wait: red refuses as the record run gone
+1	(A9) a mark that is a directory is refused the same way
+1	(A9) and exits 2
+1	(A9) and leaves the retraction in red.tsv
+1	(A9) and so is a symbolic link to a FIFO
+1	(A9) red refuses a mark that is a FIFO at once, without opening it, as not a regular file
+1	--after with the mark written and the record run since ended is a red run, exit 0, the mark read first
 1	--blocked 1 makes its tool call with no result blocked
 1	--clear empties the queue
 1	--days 1 leaves out the chips of a session two days old
@@ -14,9 +70,12 @@
 1	--no-gh says unknown for what only GitHub could say
 1	--no-host reports no row live, question, blocked or chip-unstarted
 1	--no-host says unknown for the worktree whose session asked a question
+1	--quick still skips the suite without running it (control)
 1	--report prints the morning page
 1	--request refuses when the epoch cannot be computed
 1	--request writes no table: obligations.tsv is byte-identical
+1	--reuse with --record-assertions is refused on stderr: they do not go together
+1	--reuse with no receipt says not reused: no receipt as its first line
 1	--since counts the stops on or after the cutoff, read against what came before it: a check the day before is stale, not never
 1	--since keeps the cut day, drops what came before it, and splits a session across it
 1	--since refuses a month of 19 and a day of 39, where a real date runs
@@ -32,6 +91,25 @@
 1	--verify refuses a backslash class, which is a class on one awk and a letter on another, where [[:space:]] runs
 1	--yes never installs high risk
 1	.lsp.json at the root is medium
+1	C9.1: and that was asked of gh run list
+1	C9.1: for the workflow felix_gate_workflow names (ci-gate.yml here)
+1	C9.2: a reused receipt with the gate workflow's success on the head clears every blocker
+1	C9.3/C9.5: saying what held: its run concluded cancelled
+1	C9.3: a failed gate run on the head holds: its run concluded failure
+1	C9.3: a gate run in progress on the head holds: its run is in_progress
+1	C9.3: a gate success on another commit only (and lint's on this one) is no run on this commit
+1	C9.3: and gh answering empty is not read as no run
+1	C9.3: and gh answering fail is not read as no run
+1	C9.3: and gh missing is not read as no run
+1	C9.3: gh answering empty holds the merge: GitHub could not be asked (...)
+1	C9.3: gh answering fail holds the merge: GitHub could not be asked (...)
+1	C9.3: gh missing holds the merge: GitHub could not be asked (...)
+1	C9.3: no gate run at all holds the merge: no run on this commit
+1	C9.3: the reason begins with the contract's sentence and the head's first 8
+1	C9.4: a green receipt reading tests:ok clears every blocker, as today
+1	C9.4: and gh is not called at all
+1	C9.5: and prints the blocker on its own line, as the others are printed
+1	C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled
 1	D1: a ? four paragraphs back, in a text that makes no offer, is no question
 1	D1: a ?? inside a code span is no question
 1	D1: a last paragraph of single lines, one of them ending on ?, is a question
@@ -124,6 +202,20 @@
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
 1	_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability
 1	_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr
+1	_sr_check of a directory that is no git checkout says run no checkout, and returns 0
+1	_sr_check of a sound receipt for this tree and this environment says reuse with its counts, end and mode
+1	_sr_check with nothing at the receipt path says run no receipt
+1	_sr_check would reuse what the normal run left
+1	_sr_check would reuse what the record run left
+1	_sr_env is one line of host, bash version, an empty locale when none is set, the hash of PATH and claude, in that order
+1	_sr_env says claude=yes when a claude command is on PATH
+1	_sr_env's locale is LC_ALL when it is set
+1	_sr_path in a linked worktree names that worktree's own git path, not the main checkout's
+1	_sr_path names felix-suite-receipt in the checkout's git directory, as an absolute path
+1	_sr_path of a directory that is no git checkout prints nothing and returns 1
+1	_sr_tree of a checkout is felix_tree_id of it with an empty home
+1	_sr_tree of a directory that is no git checkout prints nothing and returns 1
+1	_sr_tree of a tree whose id is coarse prints nothing and returns 1, as one it cannot compute
 1	a # Handoff title with no stamp on line 3 is refused
 1	a # in a later cell, UTF-8 text, trailing spaces, a blank line and an optional column left off are accepted
 1	a $( ) inside a quoted message still runs, and is refused
@@ -169,6 +261,7 @@
 1	a bare skill row is counted as the host's, not the plugin's
 1	a base in the TMPDIR named felix-qualify. and six letters or digits, holding owner as a symlink whose text is a dead pid alone, is swept with its tree's registration, and the run's own row still reads pass and met
 1	a base in the TMPDIR owned by another user, with a dead record, is never a candidate
+1	a base named after the mark and the process id is the base red runs against
 1	a base named felix-qualify- and six letters, a dash where the dot goes, with a dead record, is left as it was
 1	a base named felix-qualify. and five characters, with a dead record, is left as it was
 1	a base named felix-qualify. and seven characters, with a dead record, is left as it was
@@ -209,6 +302,7 @@
 1	a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old
 1	a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost
 1	a branch made from a detached HEAD inherits nothing from before the detach
+1	a branch name where the process id goes is refused, not read as the base
 1	a branch neither behind nor owing adds no row, or every clean landing would leave a refusal on record
 1	a branch pruned after it was listed does not blank the read: main is still read, the live fold still named
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
@@ -273,6 +367,10 @@
 1	a chain of links keeps every link
 1	a change outside every trigger owes nothing, or a docs branch would be told it owes a version
 1	a change that does not touch the engine is not called self-judgement
+1	a change to a path a third argument excludes leaves felix_tree_id's id as it was
+1	a change to any other file moves the stable id
+1	a change to assertions.tsv leaves the stable id as it was
+1	a change to red.tsv leaves the stable id as it was too
 1	a change to the Felix checkout that judges the repair is refused before it judges
 1	a change to the project marker escapes
 1	a change under engine/ that bumps no version and reruns nothing owes both rows, in table order, or the landing that forgot them goes unnamed
@@ -488,6 +586,7 @@
 1	a devlog entry newer than the catch settles it too
 1	a diff felix scope cannot classify is not pushed, and no pull request is labelled
 1	a diff larger than a pipe whose every line is inside the confine still escapes nothing
+1	a different PATH gives a different path hash
 1	a different git on PATH computes the same decision epoch
 1	a different remote_match is a different subject
 1	a different repository is still checked
@@ -546,6 +645,7 @@
 1	a failing row that names an absent capability blocks a release as before
 1	a failure in another workflow on the branch does not dirty a green pull request
 1	a failure on a red path is escalated to a person
+1	a failure recorded is said before another tree
 1	a faithful cache entry still merges a self-governed branch
 1	a felix merge --dry-run on the same checkout adds no would-refuse row, or cmd_merge does not tell the report that a dry run is one
 1	a felix qualify --gate run killed at its first control refuses, never counting none of none as met
@@ -730,6 +830,7 @@
 1	a line that begins with a non-ASCII byte is refused, since whether it is a comment depends on the locale
 1	a line that only contains the word reached is not the marker, exit 2
 1	a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red
+1	a linked worktree does not read the main checkout's receipt
 1	a listed name the base never reaches is red, though a name it reaches begins with it, holds it in its middle, or is it in another case
 1	a listed worktree whose .git file is gone is an orphan of the repository, not the checkout around it
 1	a live grant is listed live and a grant on a dormant row is listed armed
@@ -778,6 +879,8 @@
 1	a manifest that is itself a link out of the copy is unread
 1	a manifest that is not a JSON object is high
 1	a manifest with no final newline still gets its row
+1	a mark reading failed is refused, exit 2, naming what it read
+1	a mark whose first line is written and a blank is not exactly written
 1	a marker naming '.' refuses rather than binding to the projects directory
 1	a marker naming '..' refuses rather than binding to the projects directory
 1	a marker naming '../widget' refuses rather than binding to the projects directory
@@ -870,6 +973,7 @@
 1	a need the table lists twice, printed twice, is a complete run and a commissioned receipt
 1	a negated check is malformed, because it could not fail
 1	a negated commissioning check is still malformed
+1	a negative process id is refused
 1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
 1	a new grounded topology is a new epoch
@@ -896,6 +1000,7 @@
 1	a non-empty devlog written after the catch settles it
 1	a non-empty devlog written before the catch does not
 1	a non-executable lookalike is ignored
+1	a normal run that passes leaves a receipt naming mode normal and its counts, six passed and one skipped
 1	a note carrying a tab and a newline still leaves one line of six fields
 1	a note given twice, by flag and by words, refuses
 1	a note reaches the file
@@ -918,6 +1023,7 @@
 1	a passing gate records nothing
 1	a passing mention is not a lesson about the check
 1	a passing project with a failing probe still records probes alone
+1	a passing record run leaves one receipt line of nine tab-separated fields, v1 first
 1	a passing verdict clears a reviewed escape through the kernel
 1	a passing verdict for this exact tree clears it
 1	a path a green rule names is green
@@ -1015,6 +1121,8 @@
 1	a probe whose when ends in | tail applies, and its probe ending in | tail counts its members
 1	a probes table with comments and no row is refused, since its row says emptiness is
 1	a probes.tsv holding no rows is refused too
+1	a process id of 0 is not a positive decimal integer and is refused
+1	a process id with a decimal point is refused
 1	a process substitution keeps the shape a row is written about
 1	a project FAIL line and a failing probe are both recorded, in one row, and the gate exits 1
 1	a project FAIL line with no final newline is not swallowed by the engine line after it
@@ -1075,27 +1183,54 @@
 1	a real word rises
 1	a reason of exactly 300 is accepted
 1	a reason past 300 characters is refused, not shortened
+1	a receipt beginning v2 is malformed
 1	a receipt carrying a skip list still clears every blocker
+1	a receipt for a tree whose id is coarse now says run another tree, its own coarse id notwithstanding
+1	a receipt for another tree id says run another tree
 1	a receipt for another tree still blocks
 1	a receipt from an older claude cli whose counts are empty is unreadable, not announced
+1	a receipt from another environment says run another environment
+1	a receipt holding the stable id of a tree whose manifest changed is for another tree
 1	a receipt missing an input is indeterminate, never verified
+1	a receipt of eight fields is malformed
+1	a receipt of ten fields is malformed
+1	a receipt of two sound lines is malformed
 1	a receipt on an unborn HEAD is still json
 1	a receipt over an output carrying a need the table does not list is indeterminate
 1	a receipt over an output carrying a row twice is indeterminate
 1	a receipt over an output missing a row the table lists is indeterminate, printed and written
 1	a receipt over the table's rows in another order is indeterminate
+1	a receipt path that is a FIFO is not a regular file, said without opening it
+1	a receipt path that is a directory is not a regular file
+1	a receipt path that is a symbolic link, even to a sound receipt, is not a regular file
 1	a receipt read under a different release target is stale for that reason
 1	a receipt survives being written inside the tree it describes
+1	a receipt that cannot be read is an unreadable receipt
+1	a receipt that ended more than 43200 seconds ago is older than 12 hours
 1	a receipt whose awaiting count alone is ? is unreadable
 1	a receipt whose counts are empty is unreadable, not valid
 1	a receipt whose done count alone is empty is unreadable
+1	a receipt whose end is 30 seconds ahead is not malformed, and is reused
+1	a receipt whose end is more than 60 seconds in the future is malformed
+1	a receipt whose failed count is negative is malformed, not a failure recorded
+1	a receipt whose mode is neither normal nor record is malformed
+1	a receipt whose passed count is not decimal digits is malformed
 1	a receipt whose result is a word no run writes is unreadable
+1	a receipt whose skipped count is empty is malformed
+1	a receipt whose start is after its end is malformed
+1	a receipt whose start is not decimal digits is malformed
 1	a receipt whose unknown count is ? is unreadable
+1	a receipt with a failure and a mode that is no mode is malformed first
 1	a receipt with no epoch is said to have none before the facts are said to be unreadable
 1	a receipt with no roster is said to have none, never read as nothing left
 1	a receipt written with an epoch reads back with eight fields
 1	a receipt written without the two epoch arguments still has eight fields
 1	a record from before the session column still reads
+1	a record run ended by a signal, its directory and the mark's path removed, is read as ended before it wrote the manifest
+1	a record run starts tests/red before its first part runs
+1	a record run that ends without a mark is refused, exit 2: it ended before it wrote the manifest
+1	a record run whose own record fails its judge exits 1
+1	a record run whose own record passes its judge exits 0 (control)
 1	a record that could not be appended is reported
 1	a record that could not be written does not exit 0
 1	a record whose kill -0 fails with an empty message, a fork that failed, is alive
@@ -1115,6 +1250,7 @@
 1	a red rule still wins
 1	a red run against main exits 0 once the suite has run
 1	a red run breaks the streak
+1	a red run, failing, leaves the receipt it found byte for byte
 1	a red working tree is still named in the session
 1	a red.tsv base of - reads as retracted, not as a published snapshot
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
@@ -1259,6 +1395,7 @@
 1	a run of the first routine is recorded however many routines follow it
 1	a run that printed every row the table lists is complete, and nothing is said
 1	a run that printed every row the table lists, in order, still gives a commissioned receipt
+1	a run that reaches its end with a failure removes the receipt an earlier run left
 1	a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself
 1	a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were
 1	a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing
@@ -1349,6 +1486,7 @@
 1	a skip of a name the manifest does not list is no skip of a listed name it begins with, unless a space and a parenthesis follow that name
 1	a slug baked in by the old writer reads done through the stub
 1	a small payload's subject is read without running awk
+1	a sound receipt that records a failure says run failures recorded
 1	a source past its ceiling is refused too
 1	a source that is not a checkout pins nothing
 1	a source whose HEAD is origin's default branch pins that commit, in full
@@ -1402,8 +1540,11 @@
 1	a suite killed before it printed reached is not a red run, exit 2
 1	a suite killed before its first assertion is refused as unfinished, not as empty
 1	a suite killed short of reached is refused as unfinished, not recorded with the names it never reached, exit 2
+1	a suite that exits 0 and says it reused a run is reported as tests reused
+1	a suite that exits 0 having run is reported ok with its last line, as today (control)
 1	a suite that exits 0 with a totals line but no reached line is refused too, exit 2
 1	a suite that exits 1 without reached, as a finished red run exits, is refused, exit 2
+1	a suite that exits non-zero is a tests FAIL, whatever its first line says, as today (control)
 1	a suite that printed an assertion after reached and was killed is refused, exit 2
 1	a suite that prints reached having run no assertion is still refused, exit 2
 1	a suite with a stray reached early and the real one after its last assertion is a red run, exit 0
@@ -1731,9 +1872,15 @@
 1	adopting with no stack.tsv seeds the header and then its catalogue rows
 1	advances to the next step once the first is used
 1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
+1	after an installed failure the suite is still skipped, not run (control)
 1	after commissioning the gate line reads ok
+1	after red, a record run prints an empty line and then the record this run wrote
 1	after the fold, a tampered cache entry still fails
 1	after the last audit run as after the first: nothing changed under the scratch root outside the review fixtures, nothing in the scratch HOME, and no claude, gh, curl or wget was called
+1	after the mark, a manifest the record run removed is refused with today's reason for none
+1	after the mark, a repeated name is refused with today's reason
+1	after the mark, a row that is no count is refused with today's reason
+1	after the mark, an empty manifest is refused with today's reason
 1	all clean counts them all
 1	all of them
 1	already-installed rows report present
@@ -1811,6 +1958,7 @@
 1	an empty grounding refuses
 1	an empty kernel cache leaves the judge unverifiable and the merge refused
 1	an empty listing is exit 0 and no rows: a catalogue that was read
+1	an empty mark is refused as empty
 1	an empty marker is reported at session start too
 1	an empty marker refuses too
 1	an empty needs cell is not refused by the scan
@@ -1818,6 +1966,7 @@
 1	an empty payload is not machine text
 1	an empty play is replaced, not appended to
 1	an empty premise and a premise of - still mean no premise: the control applies and is met
+1	an empty receipt is malformed
 1	an empty stamp is not a distance of zero
 1	an empty table fails the gate
 1	an empty tier refuses
@@ -1871,6 +2020,7 @@
 1	an explicit FELIX_HOME wins
 1	an explicit base argument names the ref to run against
 1	an explicit path is allowed
+1	an extra exclusion reaches git as given, its pathspec magic included
 1	an id no checker carries resolves absent
 1	an id that cannot name a file still holds an unflagged stop
 1	an ignore rule that swallows a TRACKED maintenance.log fails
@@ -2005,6 +2155,8 @@
 1	and 4 where the .felix marker names a project that does not exist
 1	and FELIX_KERNEL is refused before the cache is even consulted
 1	and HEAD, which git resolves to a commit here, reads as malformed, since tests/red writes a base as a full id
+1	and LANG when neither is
+1	and LC_CTYPE when LC_ALL is not
 1	and Read and Edit stay allowed, since the repair needs both
 1	and SessionEnd folds nothing of it into ledger.d
 1	and Stop neither holds that session nor tells it anything
@@ -2090,12 +2242,14 @@
 1	and a name
 1	and a new note replaces the old one
 1	and a non-zero status too
+1	and a normal run's receipt is reused with mode normal
 1	and a partial answer records nothing
 1	and a peer branch's does not, nor anything else on this green stop
 1	and a peer's row on that same other branch does not
 1	and a person's medium row installs, as it always has
 1	and a person's prompt adds no lifecycle row at all
 1	and a pipe to sudo bash is medium
+1	and a plain run with a reusable receipt beside it still runs every part (control)
 1	and a prefixed skill is never called a built-in
 1	and a premise and a mutation running that tool still apply the control and make the change, so the checker is met
 1	and a probe that failed against a real surface is blind too
@@ -2122,6 +2276,7 @@
 1	and a refused grant says why
 1	and a reported checker whose name is part of a declared one's is still unqualified
 1	and a repository with no main resolves to nothing
+1	and a reused suite run leaves the gate passing (control)
 1	and a revoked grant covers nothing
 1	and a rotated ledger is the same record with a date on it
 1	and a row added to ecosystem.tsv still escapes as verifier, or land.tsv replaced the exemption table it was meant to join
@@ -2207,6 +2362,7 @@
 1	and adopting with a directory at stack.tsv creates nothing there
 1	and adopting with a directory at stack.tsv still records the capability and writes its setup step
 1	and after adopting onto an unterminated list felix_declared lists both the hand-written capability and the adopted one
+1	and after each refusal red.tsv holds only the two retraction rows (control)
 1	and after felix autonomy --allow onto that read-only grant, tidy is not granted
 1	and after felix autonomy --allow onto that write-only grant, tidy is not granted
 1	and again, so a session can bump twice
@@ -2274,6 +2430,7 @@
 1	and claims nothing about surfaces it never compared
 1	and claims nothing was unchecked
 1	and claims to have kept no memory, having found none
+1	and claude=no when none is
 1	and commission blockers carry exactly the subjects cmd_merge places
 1	and commissioning's apply onto that read-only stack.tsv counts no declare
 1	and commissioning's apply onto that read-only stack.tsv logs no declare for the row
@@ -2379,9 +2536,11 @@
 1	and exits 0 there too
 1	and exits 0 when it has a digest to print
 1	and exits 0 with the tree dirty
+1	and exits 0 without running a part
 1	and exits 0, because upkeep may never fail a session
 1	and exits 0, so the request itself still goes through
 1	and exits 1 for a sibling of an entry and for a gate.sh one directory too deep, or a star would span a slash and the base would swallow its neighbours
+1	and exits 2, running no part and rewriting no manifest
 1	and exits 3, distinctly
 1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
@@ -2505,6 +2664,7 @@
 1	and hands it a pull request to merge
 1	and hands on no failing output as if attempts remained
 1	and hands over the page as it goes
+1	and hands red three arguments, --after first
 1	and hands the session back at once rather than waiting for the build
 1	and heads the report with the project and counts every row
 1	and holds an engine-grounded medium for a person
@@ -2550,6 +2710,7 @@
 1	and is still not work Felix owes
 1	and it adds exactly one row to that project's says.log, a would-refuse row and nothing of another kind, or the behind branch would leave no record or move another count
 1	and it asks graphify to update the checkout that holds the graph
+1	and it did not finish before the mark was written
 1	and it dispatches the workflow whose failure started the repair
 1	and it does not repeat within a session
 1	and it does not say hold
@@ -2585,6 +2746,7 @@
 1	and it is the one named
 1	and it is the usage text
 1	and it is this checkout's tree id
+1	and it leaves no temporary directory behind
 1	and it left no lock file beside the graph
 1	and it makes an otherwise low plugin medium
 1	and it merges nothing
@@ -2642,6 +2804,7 @@
 1	and its data rows are those seven, verbatim and in order, so a drifted row is shown by name and not only by a hash
 1	and its declines count as unchecked
 1	and its detail counts the 2 files whose content is in no object, and not its .git link
+1	and its environment is _sr_env as the run saw it
 1	and its evidence cannot examine there
 1	and its evidence is never run
 1	and its evidence is never run behind an applicability nobody established
@@ -2659,6 +2822,7 @@
 1	and its reason names exit 1 and the three assertions it printed, the failure among them, on one line
 1	and its reason whole
 1	and its record counts one failed, one passed and one skipped, the failed name below
+1	and its record is main's base row, one of three failing and the failing name, as a red run without --after writes it
 1	and its record is the base row, one failed and two passed, and the failed name, the stray reached notwithstanding
 1	and its repair ceiling does not read as unspent
 1	and its row says git marks it prunable
@@ -2666,6 +2830,7 @@
 1	and its runbook begins by saying {{REPO}} is left as written until origin points at GitHub
 1	and its runbook shows --repo acme/widget in both places
 1	and its seeded stack rows carry DECLARED
+1	and its start and end are Unix seconds within the run, the start not after the end
 1	and its stop costs that night nothing
 1	and its subject and body carry no ci skip marker though every commit does
 1	and its summary is one line, one of three failing against main, one of them never reached
@@ -2677,6 +2842,7 @@
 1	and its topology is non-empty
 1	and its verdict on the retraction, reported as _rtn3 reports it, is that failure with that detail, not a skip or a pass
 1	and its well-formed rows keep their bytes and their places: lines 1, 3 and 5
+1	and judges its own checkout a second time, with the parts' argument and FELIX_TEST_RECORD not 1
 1	and keeps a never-invoked one at zero
 1	and keeps all 212864 of its bytes
 1	and keeps its mtime
@@ -2828,6 +2994,7 @@
 1	and no temporary directory is left under the tmpdir it was given
 1	and no test on stderr says integer expression expected
 1	and no test on stderr says integer expression expected over the ?
+1	and no worktree of main is left registered
 1	and no zero row for one that was used
 1	and none is not a passing answer
 1	and none of the commands out there are listed
@@ -2901,6 +3068,7 @@
 1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
 1	and on a branch the gate has never run on
+1	and on a dirty tree, state included since an empty home excludes nothing, it is still that id
 1	and on a fail control it reads pass and held, never fail and met, which is what a working checker says
 1	and on a fail control that command passes and is held, never fail and met because nounset stopped it
 1	and on a gate run still in progress
@@ -2929,6 +3097,7 @@
 1	and one stamped over this table does
 1	and one that arrives without its bit fails, where a fixed list saw nothing
 1	and one that does not is reported unmet
+1	and one that ended 43100 seconds ago is still reused
 1	and one that finished having given 1 verdict of 2 refuses by itself, saying 1 of 2 ran
 1	and one that holds no table at all is emptiness, not an all clear
 1	and one that shares nothing stands alone
@@ -2954,6 +3123,7 @@
 1	and outside a temporary directory it is listed under question, its listing saying live
 1	and over a felix qualify --gate killed before it said anything, qualified FAIL still says where to read why
 1	and over a list read and declaring ci it names that routine due at rank 4 and not at rank 6
+1	and over a wait of three seconds it spends under 1.5 s of CPU, checking no more than about once a second
 1	and over each twin, its NUL taken out, felix gate reads as before: qualified FAIL over the held or unrunnable row, and qualified ok when the NUL sat on a blank or comment line
 1	and over that unread list a routine for every project is still event
 1	and over that unread list a step for every project is still done
@@ -3027,8 +3197,13 @@
 1	and records the session at the worktree's HEAD
 1	and red is named before any fact that moved
 1	and red returns non-zero
+1	and red's output, the record header, the comparison and the summary come in that order
 1	and red.tsv again holds only the two rows saying no red run was made
 1	and red.tsv holds only the two rows saying no red run was made, the stale claim retracted
+1	and red.tsv holds the two retraction rows after a manifest refusal (control)
+1	and red.tsv holds the two retraction rows for a mark that does not read written (control)
+1	and red.tsv holds the two retraction rows for a record run that ended (control)
+1	and red.tsv holds the two retraction rows for it (control)
 1	and red.tsv holds the two rows saying no red run was made for it as well
 1	and red.tsv holds the two rows saying no red run was made for the suite that went on past reached
 1	and red.tsv holds the two rows saying no red run was made, none of the names it never reached
@@ -3037,6 +3212,7 @@
 1	and red.tsv holds the two rows saying no red run was made, the skip lines after the stray reached notwithstanding
 1	and red.tsv holds the two rows saying no red run was made, the stray reached notwithstanding
 1	and red.tsv retracts the earlier claim rather than keeping it
+1	and red.tsv then holds the two retraction rows, the stale claim gone (control)
 1	and red.tsv's header says an assertion the manifest lists and the base run never reached counts as failed
 2	and refused at the boundary
 1	and refuses in gate mode as well
@@ -3267,6 +3443,7 @@
 1	and so when its errors go to /dev/null: the 2 of 2>/dev/null is no second ref
 1	and so with pipefail off in the caller
 1	and so without the caller's pipefail
+1	and sourcing it leaves no felix_verify_ function in the shell that sourced it
 1	and ssh is asked only for its configuration, with no DNS lookup, about the alias as written
 1	and ssh is never called with it
 1	and stack.sh alone can too
@@ -3285,6 +3462,7 @@
 1	and stays to one line
 1	and stdout is the one line naming main, the kill's exit 137 and the four assertions it reached
 1	and stdout is the one summary line
+1	and stdout is the one summary line a red run prints
 1	and step 8 is no longer a step nothing answers
 1	and still binds startup, clear and compact
 1	and still does not know what changed there
@@ -3330,6 +3508,7 @@
 1	and that copy is the only library the block sources
 1	and that exit 2 leaves no temporary directory behind either
 1	and that field holds four members
+1	and that file lies under the record run's temporary directory
 1	and that hold is on the record
 1	and that is a failure, not a path it might make up
 1	and that is more than one, so the count is doing work
@@ -3351,6 +3530,7 @@
 1	and that refusal also names the launch checkout's deny table
 1	and that refusal is non-zero too
 1	and that refusal is the checkout-scoped row of the worktree's project
+1	and that refusal leaves no temporary directory behind
 1	and that refusal names the launch checkout's deny table
 1	and that refused row begins with the branch and the kind and carries the session
 1	and that row begins with the checked-out branch and carries the session
@@ -3434,6 +3614,7 @@
 1	and the footer: discovered one, admitted one
 1	and the foreign session is not folded
 1	and the founder's one line says how many are due
+1	and the four record names are reported after that line as a normal run reports them
 1	and the gate does not say the run was not recorded, when that row makes gate_shown_failing read done
 1	and the gate exits red
 1	and the gate line called no cli
@@ -3467,6 +3648,7 @@
 1	and the job that runs the model holds no actions permission
 1	and the judge is refused when the engine path sorts last
 1	and the judge still exits 0 with stdout byte for byte the control's and no row written, or a failing report could fail a merge
+1	and the judge's failure is a FAIL line among the names after the record header
 1	and the lesson is in the file once
 1	and the lesson is in the same block
 1	and the lesson itself is the prose it always was
@@ -3476,6 +3658,11 @@
 1	and the log carries the sha it was read at
 1	and the log is back to empty, as this block found it
 1	and the loud form says the catalogue was never seen
+1	and the manifest is whole by the time the mark appears
+1	and the manifest it wrote lists each name reached before it, once (control)
+1	and the manifest written while its suite ran is the one compared, a name only it lists counted red as never reached
+1	and the mark is a path under the record run's temporary directory
+1	and the mark it hands red does not exist yet when red starts
 1	and the member going away brings both back to the epoch they started from
 1	and the memory, which is somewhere else now
 1	and the merge is left exactly where the person left it
@@ -3527,6 +3714,7 @@
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
 1	and the probes marker blocker names no commission run
+1	and the process id it hands red is the record run's own
 1	and the project's own checkout drops the job token
 1	and the prompt names felix log for a one-off
 1	and the provider skill is named as a channel a session runs, not a prompt to paste
@@ -3535,6 +3723,7 @@
 1	and the reader prints exactly one line
 1	and the reason is that the grounded facts moved
 1	and the receipt does not claim the founder must approve it
+1	and the receipt ends in a newline
 1	and the receipt is written with ten fields
 1	and the receipt keeps ten fields, each count digits or ?
 1	and the receipt over it is indeterminate, printed and written, not commissioned with the held row gone
@@ -3650,9 +3839,11 @@
 1	and the suite runner beside it, rather than stopping at the first
 1	and the suite writes the manifest it compares and records through that writer
 1	and the suite's last step asks it, rather than running an awk for each name the manifest lists
+1	and the summary counts it: five passed, one failed, five skipped
 1	and the summary counts three of six assertions failing against main at the engine version main declares
 1	and the summary counts twelve, nine failing, eight of them never reached
 1	and the summary line counts them
+1	and the summary says how many of them were never reached
 1	and the summary then counts zero of six
 1	and the table validator accepts it under its schemas.tsv row, or schema-check would fail the gate
 1	and the text is actually there
@@ -3663,6 +3854,8 @@
 1	and the token is in no argument git was given
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
+1	and the tree id it records is the checkout's full id
+1	and the tree id it records is the full id at the run's end, the rewritten manifest in it
 1	and the two suites were running at the same moment
 1	and the unbound job says the binding failed, not the ceiling
 1	and the unknown count reads ?, with every other count in its own place
@@ -3686,6 +3879,7 @@
 1	and the widget's topology is non-empty
 1	and their rows interleaved too
 1	and their rows interleaved, so each append window held the other's rows
+1	and then runs as a normal run, every part and the manifest comparison included (control)
 1	and there is at least one of them
 1	and there the refusal is charged to the night
 1	and they still do in a UTF-8 locale, as a founder's shell runs them
@@ -3777,10 +3971,12 @@
 1	and writes the request under the memory root
 1	and zero failures is still exit 0
 1	another checkout's newer catch does not make this one speak
+1	another environment is said before older than 12 hours
 1	another plugin's refusal is not
 1	another section put in place under the current id is refused, since the one it replaced is lost
 1	another session in the same project is not held by that night
 1	another session's edit changes the tree identity
+1	another tree is said before another environment
 1	another workflow's failures on the branch are not repair attempts
 1	any one bound reached ends the night, whichever it is
 1	any trigger on a session or founder row is refused as trigger, or a path the actor may never write could be owed
@@ -4124,6 +4320,7 @@
 1	envelope: with no pipe to be made, the check does not pass
 1	even on the unknown pathway, which holds only while the row applies
 1	every --tsv row has eight tab-separated fields, and there are rows
+1	every argument after the second excludes, an untracked file as much as a tracked one
 1	every assertion red.tsv names as red is one the manifest lists
 1	every call is appended
 1	every capability detection can adopt has a discovery rule
@@ -5140,6 +5337,7 @@
 1	fold order: 0zz is before 0aaa, though it sorts after it as a string, so it is not in flight
 1	folding a section ahead of one that landed before it is refused
 1	folds are ordered by tip time, newest first, not by name or by id
+1	followed by the log's first line and its last, each indented to column 21
 1	for every gate check that file actually covers
 1	four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line
 1	fragments that cannot pair keep their bytes and their places
@@ -5163,6 +5361,7 @@
 1	gate_shown_failing: with every lookup answering, the row reads done (pipefail on and off)
 1	gh pr merge is told the head commit the checkout has, by --match-head-commit
 1	given a bound of 48 hours in seconds, a fold whose tip is 72 hours old is left out
+1	given a home inside the root, the extra exclusions apply beside the home's own
 1	governs them immediately
 1	green tier is still reported
 1	grounded on a probe felix declares
@@ -5773,6 +5972,24 @@
 1	nor the stale one
 1	nor the stop hook talking to itself
 1	nor two base rows, said as _rtn1 always said it
+1	not blind: mutant, accept a run on another commit: a success the answer puts on the parent commit is no run on this commit
+1	not blind: mutant, accept a run on another commit: and gh was asked for the head's full sha
+1	not blind: mutant, accept a run on another commit: nor is one on the head's first 8, which is not the head
+1	not blind: mutant, tests:reused as a substring: a pair that only contains it (xtests:reused, tests:reusedx) clears every blocker
+1	not blind: mutant, tests:reused as a substring: and gh is not called at all
+1	not blind: review finding C9-R1: a newer failed gate run on the head is not outvoted by an older success: its run concluded failure
+1	not blind: review finding C9-R1: a newer success after an older failure clears every blocker (control)
+1	not blind: review finding C9-R1: nor is a newer gate run still in progress: its run is in_progress
+1	not blind: review finding C9-R2: a success whose headSha is absent is not a pass: GitHub could not be asked (...)
+1	not blind: review finding C9-R2: a success whose headSha is empty is not a pass: GitHub could not be asked (...)
+1	not blind: review finding C9-R2: a success whose headSha is null is not a pass: GitHub could not be asked (...)
+1	not blind: review finding C9-R2: the raw stub's answer holds a success whose headSha is the head (control)
+1	not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is removed a moment later: no run on this commit
+1	not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is truncated a moment later: no run on this commit
+1	not blind: review finding C9-R3: and with the gate's success on the head the same wrapped judge clears every blocker (control)
+1	not blind: review finding C9-R4: a log whose summary says (reused) is reported tests reused though its first line is lost
+1	not blind: review finding C9-R4: a reused suite whose first line follows a line fragment is reported tests reused, not ok
+1	not blind: review finding C9-R4: a suite that ran, with a test name that mentions the reuse line, is still reported ok (control)
 1	not refused
 1	nothing changed is the same epoch
 1	nothing decided but unknown counts items, not the repository's own unknowns, which its header states
@@ -5808,6 +6025,7 @@
 1	of six tab-separated fields
 1	on a branch with commits the receipt names the branch
 1	on a repository with no commit, nothing tracked reads as empty, not blind
+1	on a tree whose two record files match HEAD, the stable id is the full id
 1	on a well-formed log the recurrence report is what it always was
 1	on main after an engine change nobody deployed, installed fails
 1	on the line directly under the in-flt row
@@ -5966,6 +6184,7 @@
 1	reads the per-project limit
 1	ready --fix asks the policy
 1	ready --fix reads the grounding off the row
+1	receipt.sh sourced by a bash given nothing but PATH and HOME answers _sr_tree
 1	recommending installs nothing
 1	reconcile answers even where no stack.tsv exists
 1	recorded under the session it ran in, with felix merge as its cause, or the row could not be joined to the attempt
@@ -5990,6 +6209,9 @@
 1	recording the same file again appends nothing
 1	records what it said
 1	red beats an unknown too
+1	red waits for a mark written while it waits and then records, exit 0
+1	red's output follows the recorded line, every line of it, stderr too, indented by two spaces
+1	red's stdout is a file and its stderr the same file
 1	red.tsv is one record, written whole: one base row, one run row, failed names that add up to the run's failed count, and a run that counts at least as many assertions as the manifest lists
 1	red.tsv was recorded against the engine origin/main held where this tree branched from it
 1	refused, not downgraded: the blocking row is accepted nowhere
@@ -6296,6 +6518,7 @@
 1	so a project created on git init alone is not born blocked
 1	so a project created today is not born blocked
 1	so a project created today reads something from reality
+1	so a record run reaches each record name twice, once skipped and once judged
 1	so both land, the second on top of the first, without a conflict
 1	so do an added row, a comment edit and a deletion
 1	so does a pointer naming a directory that is gone
@@ -6375,12 +6598,18 @@
 1	symbolic-ref --delete with one ref deletes it, and is refused
 1	symbolic-ref with two refs writes the first, and a remote-tracking one is refused
 1	tasks sharing a file are one unit
+1	tests/red --after with a mark and no process id is refused the same way
+1	tests/red --after with neither a mark nor a process id is refused, exit 2, with the reason --after needs both
+1	tests/run --reuse on a reusable receipt prints the reuse line, an empty line and the counts, the skipped clause left out at zero
 1	text piped into a shell is its script
 1	that names the command
 1	that row carries today's date and the epoch second of the call
 1	that row reads lesson, on the checkout's branch, at its short HEAD, under the session
 1	the #264 block leaves the logs and the session state as it found them
 1	the 300-character reason survives the record whole
+1	the A2 fixture has two commits and a head sha to name
+1	the A2 fixture's PATH without gh finds no gh
+1	the A2 stub answers the gate workflow's runs on one commit as gh would
 1	the CLI still regenerates the empty placeholder
 1	the README lists by path exactly what the audit leaves out: /tmp, TMPDIR, CLAUDE_CONFIG_DIR or ~/.claude, FELIX_MEMORY or ~/.felix/memory
 1	the README names all felix audit runs, bash through /usr/bin/env, awk, and readlink where felix is reached through a symlink, which bash and awk alone cannot follow
@@ -6867,6 +7096,8 @@
 1	the gate announces a stale receipt and does not fail on it
 1	the gate carries the ecosystem check too
 1	the gate is dispatched on the pushed branch
+1	the gate runs the suite with --reuse
+1	the gate still reports the suite with a pass tests line and a fail tests line the verifier confine counts (control)
 1	the gate workflow bootstrap writes can be dispatched
 1	the gate's executable check passes when every script under bin/ has its bit
 1	the gate's installed check asks the one reader, felix_accepted_deploy_diff
@@ -6955,9 +7186,11 @@
 1	the maintenance fixture names more routines than a pipe holds
 1	the mandate does not claim more precision than measured
 1	the manifest compared is the one read before the suite ran, not the one the run rewrote while it ran
+1	the manifest comparison runs in a record run, against the manifest just written, and finds every name reached
 1	the manifest of 7,000 names is read against a run that missed three in under 5 seconds of CPU
 1	the manifest variable reached the run
 1	the manifest writer keeps each name as the suite printed it, blanks inside and at either end, so red never reads one as unreached
+1	the mark reads written once the manifest is written
 1	the marker moves on to the id after the current one
 1	the marketplace is added from the directory holding its manifest
 1	the mcp record aggregates a server across sessions
@@ -7032,12 +7265,16 @@
 1	the reason is durable in decisions.log
 1	the reason names the server it starts
 1	the receipt carries the limit no layer above it removes
+1	the receipt felix gate writes then reports tests:reused
 1	the receipt has ten fields
+1	the receipt names mode record and the run's counts, six passed, none failed, five skipped
 1	the receipt names what granted the authority
 1	the receipt records every check the gate reported, with its verdict
 1	the receipt records which checks the gate skipped
 1	the record is written
 1	the record judgment of a checkout whose engine change carries a real record against origin/main reports all four record checks passed, and nothing else
+1	the record run does not end before red has
+1	the record run still says how many assertions it recorded and where (control)
 1	the recurrence report counts an unhealed split row: two occasions, unborn and a sha, over three runs
 1	the refusal is recorded where no project is known
 1	the refusal on stderr names the size in bytes
@@ -7126,10 +7363,11 @@
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
-1	the suite judges its own checkout's record with one bare call at the top level, and nowhere else
+1	the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else
 1	the suite's copy of a harness holding one leaves it behind
 1	the suite's own completion marker, the reached line tests/red requires, still follows its last section
 1	the summary counts the excepted rows
+1	the summary counts the re-judged names: six passed, none failed, five skipped
 1	the surviving drift is named
 1	the syntax check is behind the verifier confine
 1	the table did not grow
@@ -7317,6 +7555,7 @@
 1	when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row
 1	where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met
 1	which does not by itself fail the gate, since not applying is not a claim
+1	which is not the full id the run started from
 1	which is the number it printed
 1	which lines are rows does not follow a FELIX_TABLE_SKIP the session exported, or the environment would choose the rows the judge reads
 1	which takes it back to nothing stranded
@@ -7327,6 +7566,7 @@
 1	whichever read of the table felix qualify --gate makes fails, it runs nothing, says the table could not be read, and exits 2
 1	while --status reads straight through it
 1	while a basename entry still matches in any directory
+1	while a change to a path no argument excludes still moves it (control)
 1	while a checkout with a row there is named by it
 1	while a comment added to it is free
 1	while a complete stance is not called malformed
@@ -7372,6 +7612,7 @@
 1	while the raw copy the suite used to take is refused as a judge
 1	while the red gate is handed back as work Felix owes
 1	while the rows whose grants were refused or absent still do
+1	while the same change moves the full id
 1	while the same path without one is documentation, and the run stays green
 1	while the same rows plus one on the exact branch do
 1	while the tree id never saw the table
@@ -7383,6 +7624,8 @@
 1	wires a tool into a route
 1	wiring into a route that does not exist is refused
 1	wiring the same tool twice is refused
+1	with --after a suite that did not finish is refused at once with today's reason, before a bad manifest is read
+1	with --after no assertions.tsv need be there when red starts, exit 0
 1	with FELIX_MERGE_DRY_RUN unset it adds no row, and with it 0 it adds one, or an older CLI's dry run would write the report
 1	with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does
 1	with SHELLOPTS exported by its caller, carrying nounset and pipefail, a command piping big output into grep -q still passes its pass control and is met
@@ -7452,6 +7695,7 @@
 1	with only unread provider rows session start prints no paragraph saying a session owes anything, and still names them
 1	with origin/main a bump ahead of main, the check follows origin
 1	with origin/main level with main the verdict is unchanged
+1	with tests/red not executable a record run says so and starts nothing (control)
 1	with that proc filesystem, a base whose record names a dead pid alone is left as it was: a host whose /proc names its namespace cannot judge it
 1	with that proc filesystem, a base whose record names a dead pid in that namespace but another boot is left as it was: another host's or another boot's pid is not this sweep's to read
 1	with that proc filesystem, a base whose record names a dead pid in that namespace with no boot after it is left as it was
@@ -7482,6 +7726,8 @@
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
 1	with three pending and no fold branch the handoff row is due
+1	with two arguments or fewer felix_tree_id prints what the function before this change printed (control)
+1	without --after red runs and records exactly as before (control)
 1	without --strict it only reports
 1	without claiming that none of it is a founder decision
 1	without lib/exceptions.sh every eighth column is a dash and every row is still reported

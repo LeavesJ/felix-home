@@ -166,15 +166,17 @@ _sr_origin() {   # <root>
 # only of a tree that holds a commit origin/main lacks, and skips both for one
 # whose HEAD origin/main already held; a run at such a parent was not asked what
 # the commit is. Searched on 2026-10-12 (the parts, the driver, red, this file):
-# no other read of the checkout's git state has an answer the commit changes,
-# apart from `merge-base HEAD origin/main` choosing between two equally good
-# bases of a criss-cross that share a commit second (_rt_record_holds). The rest
-# read refs and objects the commit leaves alone, fixtures, or the tracked set,
-# which the id covers: a file the commit adds shows in the diff. Prints `head
-# <HEAD's full sha>` where it stands, `held` where the ids agree and the
-# ancestry does not, and nothing otherwise.
+# one read of the checkout's git state has an answer the commit can change,
+# `merge-base HEAD origin/main` (_rt_record_holds): with two equally good bases
+# of a criss-cross that share a commit second, git's pick can move when a commit
+# is put on top, and part 1010's _rtn3 with it (review finding C10-1). So the
+# parent and the recorded origin/main must have exactly one best base (C10.3e).
+# The rest read refs and objects the commit leaves alone, fixtures, or the
+# tracked set, which the id covers: a file the commit adds shows in the diff.
+# Prints `head <HEAD's full sha>` where it stands, `held` where the ids agree
+# and the ancestry does not, and nothing otherwise.
 _sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it recorded, or -> -> head <sha> | held | nothing
-  local line h p1 p2 id rc
+  local line h p1 p2 id rc mb
   line="$(git -C "$1" rev-list --parents -n 1 HEAD 2>/dev/null)" || return 0
   IFS=' ' read -r h p1 p2 <<< "$line"
   { [ -n "$h" ] && [ -n "$p1" ] && [ -z "$p2" ]; } || return 0
@@ -188,6 +190,8 @@ _sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it rec
       1) ;;
       *) return 0 ;;   # the recorded commit cannot be read here: no bridge
     esac
+    mb="$(git -C "$1" merge-base --all "$p1" "$3" 2>/dev/null)" || return 0
+    case "$mb" in ''|*$'\n'*) return 0 ;; esac   # none, or more than one best base
   fi
   echo "head $h"
 }

@@ -43,7 +43,26 @@ the commit naming it is new.
       (`-`) is not held by this condition, since the judge skips both in
       either state;
    d. every later check in `_sr_check` holds, in the order it has today:
-      environment, origin/main, twelve hours.
+      environment, origin/main, twelve hours;
+   e. (added after review, finding C10-1, 2026-10-12.) The parent and the
+      commit the receipt recorded for `refs/remotes/origin/main` have exactly
+      one best merge base: `git merge-base --all <parent> <recorded>` prints
+      one commit. Why: the search the section below asks for found one read
+      whose answer the commit can change. Part 1010's judge asks
+      `git merge-base HEAD refs/remotes/origin/main`, which names one commit
+      even where two are equally good (a criss-cross), and where those two
+      share a commit second git's pick can move when one commit is put on top.
+      The set of best bases is the same for the parent and for HEAD; the one
+      git names is not. On git 2.54 a criss-cross with two such bases named A1
+      at the run and B1 at the commit, so `_rtn3` passed at the run and failed
+      at the commit, and the gate would have reported `tests reused`. With one
+      best base there is nothing to pick, whatever git, version or
+      commit-graph is asked. Like c, it is not asked of a receipt that
+      recorded no origin/main (`-`), since the judge skips `_rtn3` there. A
+      receipt it refuses is `run another tree`, the plain line, as in 5. It is
+      stricter than the verdict needs (two bases whose pick does not move are
+      refused as well), on purpose, and costs a full suite run in a case that
+      is rare where main takes squash merges.
    One commit only. Two commits since the run is `another tree`.
 4. **What it says.** Where the receipt stands on the bridged id, `_sr_check`
    prints `reuse <passed> <failed> <skipped> <end> <mode> <HEAD's full sha>`:
@@ -77,6 +96,11 @@ messages, branch names, reflog) and list each one found. Reads of a fixture
 repository do not count. If any other read exists whose answer can differ
 between the parent with the change uncommitted and HEAD with it committed,
 stop and report it: the condition list in 3 is then incomplete.
+
+Result, 2026-10-12: the search found one such read, the merge-base pick above,
+and a review reproduced it (finding C10-1). The list was incomplete; 3e closes
+it, and tests/receipt.sh (_sr_bridge) lists the reads that remain and why the
+commit leaves each alone.
 
 ## What the build must show
 

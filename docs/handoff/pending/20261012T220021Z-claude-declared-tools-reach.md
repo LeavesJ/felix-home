@@ -130,9 +130,43 @@ security review of the fix for the first raised a third.
   unchanged engine also fails when the suite is exported outside a git checkout;
   part 0220, which the new usage lines tripped, passes again.
 
+**The status surface, built outside this repository, and kept for reuse.** The
+founder asked (2026-10-12) for a mini dashboard as a Claude Code mod, the way he set
+one up on a friend's machine, until Felix has its own interface. He asked for it to
+be recorded, because it is temporary and its parts are meant to be reused when the
+real interface is built. It is the `dash` mod:
+- Live source `~/.claude/mods/dash`, loaded in every session by
+  `CLAUDE_CODE_PLUGIN_DIRS` in `~/.claude/settings.json`. A copy with a README is in
+  the memory repository at `audits/2026-10-12-dash/`, which the pulse backs up;
+  `~/.claude` is backed up by nothing.
+- A band above the prompt (agents running and done, live sessions, enabled plugins,
+  skills used, gate, tools, pulse, settings, the week's spend) and a pane, `/dash`,
+  with the same and an activity log. Read-only: it hooks no tool call it could
+  refuse. 9 tests under `claude plugin test`.
+- It reads Felix only through `felix status --tsv`, every minute, and
+  `felix cost --week --tsv`, about 20 s, run by one session every 15 minutes and
+  shared through the mod store with a lock.
+
+What the Felix interface should take from it, rather than rebuild:
+- this branch's five-row contract as the data layer every surface reads (the
+  2026-10-09 "data contract first, skin second" proposal, now real);
+- the three-state cell rule: `?` is not measured, `-` is none, and nothing that was
+  not read is ever drawn as 0 or ok;
+- the expensive reading shared across sessions instead of run by each;
+- live sessions read from `~/.claude/sessions/<pid>.json`, filtered by `ps`;
+- two limits found: `$.agent.list()` does not list Workflow agents, and a tool
+  called from a mod timer fires every classic PreToolUse hook (the ledger's
+  included), so a surface must never poll through a tool.
+
+**Next, a security item for its own pipeline.** The commissioning path in "Found in
+review" above: a repository whose `.felix` names `felix` gets a detached
+`felix commission` at session start, in that checkout. That matters because the
+founder opens hostile repositories for bounty work. What it runs there has not been
+traced end to end. The fix is to refuse unattended commissioning in a checkout
+whose remote is not the project's, or to run its reads from a private empty
+directory as reach now does.
+
 **Not built.**
-- The status surface itself: a Claude Code mod, built outside this repository, that
-  runs felix status --tsv on a timer and felix cost --tsv on a slower one.
 - Weekly spend is not a status row, on purpose.
 - Version: 0.49.283. Read 2026-10-12 at ship time: main 0.49.280; unmerged
   branches and worktrees hold 0.49.281 (secret-scan-quoted-reference, gf-a family)

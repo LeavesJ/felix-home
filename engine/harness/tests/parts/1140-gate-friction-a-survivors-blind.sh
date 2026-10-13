@@ -95,7 +95,9 @@ printf 'tracked\n' > "$_gfd_F/gfd-tracked.txt"
 # The stub part. In red's suite (FELIX_TEST_NO_MANIFEST=1) it writes its
 # shell's pid and, for (11), runs 40 seconds. In the record or normal run it
 # does what its mode asks, mid-run, then passes, and judges the record unless
-# the mode is r6.
+# the mode is r6. Its judge call spells the checkout with braces, as part 1120's
+# does: part 1010 counts the lines of the parts that name the suite's own call,
+# and this text is a stub's, not a call this suite makes.
 cat > "$_gfd_T/parts/0001-gfd-stub.sh" <<'GFDSTUBPART'
 _rtn1="gfd record check one"; _rtn2="gfd record check two"
 _rtn3="gfd record check three"; _rtn4="gfd record check four"
@@ -140,7 +142,7 @@ if [ "$_gfds_m" != r6 ]; then
     fi
     ok "$_rtn1"; ok "$_rtn2"; ok "$_rtn3"; ok "$_rtn4"
   }
-  _rt_judge "$REAL_HARNESS/../.."
+  _rt_judge "${REAL_HARNESS}/../.."
 fi
 GFDSTUBPART
 ( cd "${_gfd_F:?}" && git init -q -b main && git add -A && _gfd_git commit -qm seed ) >/dev/null 2>&1

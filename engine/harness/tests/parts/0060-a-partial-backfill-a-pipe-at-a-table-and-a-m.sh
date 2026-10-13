@@ -181,10 +181,11 @@ _anl4_ifr "and felix adopt names the capability, the capabilities file and felix
 _anl4_hook() {   # project name, stack.tsv mode (ro | -) -> the hook's output in $_anl4/<name>.out
   local p="$1" r="$_anl4/$1-repo"
   mkdir -p "$r" "$FROOT/projects/$p"
-  ( cd "$r" && git init -q -b main )
+  # Own checkout: session-start adopts only in the bound project's own (lib/own.sh, 0.49.286).
+  ( cd "$r" && git init -q -b main && git config remote.origin.url "https://github.com/example.com/$p" )
   printf '%s\n' "$p" > "$r/.felix"
   printf 'sentry-sdk\n' > "$r/requirements.txt"
-  printf '{"name":"%s","gate":"true"}\n' "$p" > "$FROOT/projects/$p/project.json"
+  printf '{"name":"%s","remote_match":"example.com/%s","gate":"true"}\n' "$p" "$p" > "$FROOT/projects/$p/project.json"
   printf '# %s\n' "$p" > "$FROOT/projects/$p/CLAUDE.md"
   printf '%s%s' "$_anl4_SH" "$_anl4_SO" > "$FROOT/projects/$p/stack.tsv"
   [ "$2" = ro ] && chmod 444 "$FROOT/projects/$p/stack.tsv"
@@ -429,10 +430,10 @@ printf '\nthe hook adopts rather than nags\n'
 # A surface detected and left undeclared stays unhandled for as long as nobody
 # reads the message. The hook closes that itself.
 HOOKREPO="$TMP/hookrepo"; mkdir -p "$HOOKREPO"
-( cd "$HOOKREPO" && git init -q -b main )
+( cd "$HOOKREPO" && git init -q -b main && git config remote.origin.url https://github.com/example.com/hookproj )  # own checkout, see _anl4_hook
 printf 'hookproj\n' > "$HOOKREPO/.felix"
 mkdir -p "$FROOT/projects/hookproj" "$MEM/hookproj"
-printf '{"name":"hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"
+printf '{"name":"hookproj","remote_match":"example.com/hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"
 printf '# h\n' > "$FROOT/projects/hookproj/CLAUDE.md"
 
 out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"

@@ -8,18 +8,131 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4308328233ec5d0dd029e944477198cea3e13b9f	0.49.284
-run	13	8176	9
-a bridged receipt from another environment refuses with run another environment	1
-a bridged receipt that ended more than twelve hours ago refuses with run older than 12 hours	1
-a bridged receipt whose origin/main has moved since refuses with run origin/main moved	1
-a commit holding one of the two changes, the other still uncommitted, stands on the bridge with Y's sha	1
-a line the gate's search pattern finds	1
-a receipt that recorded no origin/main stands across the commit, with the seventh field	1
-a run on the very commit origin/main named, then committed, refuses with C10.5's reason	1
-after exactly those changes are committed as Y, the receipt stands, the seventh field naming Y's full sha	1
-and its first line says the run was then committed as Y's first 8	1
-and its last line is the summary, unchanged	1
-and no part of the suite ran	1
-and so does one on a commit the recorded origin/main has below it	1
-tests/run --reuse on the bridged receipt exits 0	1
+base	origin/main	a4c412aec6182954c89342e7321d5c0be80e22af	0.49.285
+run	126	8256	9
+B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (fork)	1
+B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (lookalike)	1
+B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (none)	1
+B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (substring)	1
+B11: the fork checkout never runs felix commission	1
+B11: the lookalike checkout never runs felix commission	1
+B11: the none checkout never runs felix commission	1
+B11: the substring checkout never runs felix commission	1
+B13: in the lookalike checkout gh logs nothing	1
+B14: and never from the checkout	1
+B14: in an own checkout discovery runs felix discover --inspect --quiet from a fresh felix-discover directory holding .felix=ownp	1
+B14: in the fork checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp	1
+B14: in the lookalike checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp	1
+B14: in the none checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp	1
+B14: in the substring checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp	1
+B16: and writes no cache and leaves no lock (TMPDIR d777)	1
+B16: and writes no cache and leaves no lock (TMPDIR mcp)	1
+B16: and writes no cache and leaves no lock (TMPDIR rel)	1
+B16: and writes no cache and leaves no lock (TMPDIR unset)	1
+B16: with TMPDIR d777 the refresh runs no felix and no claude	1
+B16: with TMPDIR mcp the refresh runs no felix and no claude	1
+B16: with TMPDIR rel the refresh runs no felix and no claude	1
+B16: with TMPDIR unset the refresh runs no felix and no claude	1
+B19: the fork checkout never runs graphify	1
+B19: the lookalike checkout never runs graphify	1
+B19: the none checkout never runs graphify	1
+B19: the substring checkout never runs graphify	1
+B21: and its context holds no Removed, as copies line (fork)	1
+B21: and its context holds no Removed, as copies line (lookalike)	1
+B21: and its context holds no Removed, as copies line (none)	1
+B21: and its context holds no Removed, as copies line (substring)	1
+B21: the fork checkout keeps its rival, byte-identical	1
+B21: the lookalike checkout keeps its rival, byte-identical	1
+B21: the none checkout keeps its rival, byte-identical	1
+B21: the substring checkout keeps its rival, byte-identical	1
+B23: an unowned checkout leaves capabilities, stack.tsv, setup.tsv and setup/ byte-identical	1
+B23: and its context holds no Adopted automatically line	1
+B30: adoption alone withheld says Withheld: adoption.	1
+B30: the lookalike checkout's last paragraph is the one line	1
+B31: the substring-bound checkout says it was bound by an origin that only contains the remote_match	1
+B32: a project with no remote_match says so as the reason	1
+B32: with no origin remote the reason is it has no origin remote	1
+B33: a different checkout with the same kinds withheld (fork) says it again	1
+B33: and its commissioning is refused again, one more bg.log line	1
+B33: the same checkout with a different set of kinds says it again	1
+B35: the line is in additionalContext	1
+B40: own.sh is under 500 lines	1
+B41: lib/own.sh exists and names no governed project	1
+B41: lib/own.sh parses under /bin/bash and uses no ${x,,}	1
+B42: no commissioning, no graph refresh, no tidying and no adoption ran in an own checkout	1
+B7: and the unowned one with a token still says its line	1
+B7: the predicate and the line, called directly, answer	1
+B8: a repository is unknown when git cannot say whether it is a submodule (2 unread)	1
+B8: a repository that holds a submodule is still own when its own origin is the project's	1
+B8: a submodule is not own though its origin is the project's (1 submodule)	1
+B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it	1
+B9: a session start in a submodule runs no felix commission and logs one refused-not-own line, none ran	1
+B9: and keeps its untracked rival, byte-identical	1
+B9: and says adoption was withheld too	1
+B9: and says what was withheld, and why	1
+B9: and with a Cargo.toml it adopts nothing into the project's capabilities	1
+a .felix marker changes nothing: origin - reads the same with and without it	1
+a .felix marker changes nothing: origin git@evil.example:OwnerX/ownp-repo.git reads the same with and without it	1
+a .felix marker changes nothing: origin https://github.com/OwnerX/ownp-repo reads the same with and without it	1
+a .seen that cannot be written does not stop the line	1
+a TMPDIR others can write returns 2	1
+a TMPDIR under a .mcp.json returns 4	1
+a checkout whose origin is git://github.com/OwnerX/ownp-repo.git is own (0 own)	1
+a checkout whose origin is git@evil.example:OwnerX/ownp-repo.git is not own (1 other)	1
+a checkout whose origin is git@github.com:OwnerX/ownp-repo.git is own (0 own)	1
+a checkout whose origin is github.com:OwnerX/ownp-repo is own (0 own)	1
+a checkout whose origin is https://GitHub.com/ownerx/OWNP-REPO.git/ is own (0 own)	1
+a checkout whose origin is https://evil.example#@github.com/OwnerX/ownp-repo is not own (1 other)	1
+a checkout whose origin is https://github.com.evil.example/OwnerX/ownp-repo is not own (1 other)	1
+a checkout whose origin is https://github.com/OwnerX/ownp-repo is own (0 own)	1
+a checkout whose origin is https://github.com/OwnerX/ownp-repo-fork.git is not own (1 other)	1
+a checkout whose origin is https://github.com/OwnerX/ownp-repo.git is own (0 own)	1
+a checkout whose origin is https://github.com:443/OwnerX/ownp-repo is own (0 own)	1
+a checkout whose origin is https://tok@github.com/OwnerX/ownp-repo.git is own (0 own)	1
+a checkout whose origin is ssh://git@github.com/OwnerX/ownp-repo.git is own (0 own)	1
+a checkout whose origin is ssh://git@github.com:22/OwnerX/ownp-repo is own (0 own)	1
+a directory that is not a repository is unknown (2 unread)	1
+a prefix that is not lowercase letters and dashes returns 3	1
+a project whose remote_match is abc has no own checkout, its own .felix and origin included (1 no-match)	1
+a project whose remote_match is absent has no own checkout, its own .felix and origin included (1 no-match)	1
+a project whose remote_match is dotcom has no own checkout, its own .felix and origin included (1 no-match)	1
+a project whose remote_match is empty has no own checkout, its own .felix and origin included (1 no-match)	1
+a relative TMPDIR returns 1	1
+a repository is unknown when git exits 69 (2 unread)	1
+a repository with no origin is not own (1 no-origin)	1
+a worktree of an own checkout is own	1
+and it is said again, since it could not be recorded	1
+and nothing the second time for the same checkout and kinds	1
+felix_neutral_dir makes a fresh <TMPDIR>/<prefix>.XXXXXX and returns 0	1
+felix_neutral_rm removes it	1
+felix_neutral_run runs the command in the fresh directory, a .felix naming the project, and returns its status	1
+felix_own_gate returns 0 on status 0 and withholds nothing, 1 otherwise, each kind once, comma-joined	1
+felix_remote_github_slug prints nothing and returns 1 for [/tmp/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for []	1
+felix_remote_github_slug prints nothing and returns 1 for [file:///tmp/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [git@evil.example:OwnerX/ownp-repo.git]	1
+felix_remote_github_slug prints nothing and returns 1 for [git@github.com:/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [http://github.com/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://evil.example#@github.com/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://evil.example/github.com/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://evil.example?@github.com/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://evil.example\@github.com/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://github.com.evil.example/OwnerX/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://github.com/Owner X/ownp-repo]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX/ownp-repo/extra]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX/ownp-repo?x=1]	1
+felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX]	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for git://github.com/OwnerX/ownp-repo.git	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for git@github.com:OwnerX/ownp-repo.git	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for github.com:OwnerX/ownp-repo	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://GitHub.com/ownerx/OWNP-REPO.git/	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com/OwnerX/ownp-repo	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com/OwnerX/ownp-repo.git	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com:443/OwnerX/ownp-repo	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://tok@github.com/OwnerX/ownp-repo.git	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for ssh://git@github.com/OwnerX/ownp-repo.git	1
+felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for ssh://git@github.com:22/OwnerX/ownp-repo	1
+lib/commission.sh closes what it inherited before backgrounding	1
+the fork URL is a valid slug, ownerx/ownp-repo-fork, refused only by the predicate	1
+the line is a blank line then the sentence, the first time	1
+with nothing withheld the line prints nothing	1

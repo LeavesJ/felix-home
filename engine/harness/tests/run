@@ -13,7 +13,6 @@
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
-
 set -uo pipefail
 
 # The suite reads nothing from its own stdin, and hooks/session-start reads a
@@ -400,6 +399,7 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"
 . "$HERE/parts/1110-found-after-the-blind-part-status-index-and-long-list.sh"
 . "$HERE/parts/1120-found-in-review-reach-runs-in-an-empty-directory.sh"
+. "$HERE/parts/1130-unattended-work-runs-only-in-its-own-checkout.sh"
 . "$HERE/parts/1200-gate-friction-a-blind.sh"
 . "$HERE/parts/1210-gate-friction-a-blind.sh"
 . "$HERE/parts/1220-gate-friction-a-blind.sh"

@@ -93,6 +93,119 @@
 1	.lsp.json at the root is medium
 1	/ itself: claude was not run
 1	/ itself: the list is unread, with the sentence that says why
+1	B10: an own checkout with a current grant runs felix commission once, in the checkout root
+1	B10: and bg.log gains a ran line for the root
+1	B10: and bg.log gains its ran line (own-case)
+1	B10: and bg.log gains its ran line (own-scp)
+1	B10: and bg.log gains its ran line (own-ssh)
+1	B10: the own-case spelling runs felix commission once, in the checkout root
+1	B10: the own-scp spelling runs felix commission once, in the checkout root
+1	B10: the own-ssh spelling runs felix commission once, in the checkout root
+1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (fork)
+1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (lookalike)
+1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (none)
+1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (substring)
+1	B11: the fork checkout never runs felix commission
+1	B11: the lookalike checkout never runs felix commission
+1	B11: the none checkout never runs felix commission
+1	B11: the substring checkout never runs felix commission
+1	B12: a stale-stamped project in an unowned checkout writes no bg.log line of any kind
+1	B12: a tableless project in an unowned checkout writes no bg.log line of any kind
+1	B12: a ungranted project in an unowned checkout writes no bg.log line of any kind
+1	B13: a granted session start in an own checkout makes the real felix commission run gh there
+1	B13: and the lookalike checkout gains no .github directory
+1	B13: in the lookalike checkout gh logs nothing
+1	B14: and never from the checkout
+1	B14: in an own checkout discovery runs felix discover --inspect --quiet from a fresh felix-discover directory holding .felix=ownp
+1	B14: in the fork checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp
+1	B14: in the lookalike checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp
+1	B14: in the none checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp
+1	B14: in the substring checkout discovery still runs, from a fresh felix-discover directory holding .felix=ownp
+1	B15: a failing refresh still ran
+1	B15: and on a non-zero exit the previous cache is unchanged
+1	B15: no .new file is left, the lock is gone, TMPDIR holds no felix-discover directory
+1	B15: on success the cache is the command's stdout
+1	B15: the lock is gone and TMPDIR holds no felix-discover directory
+1	B16: and writes no cache and leaves no lock (TMPDIR d777)
+1	B16: and writes no cache and leaves no lock (TMPDIR mcp)
+1	B16: and writes no cache and leaves no lock (TMPDIR rel)
+1	B16: and writes no cache and leaves no lock (TMPDIR unset)
+1	B16: with TMPDIR d777 the refresh runs no felix and no claude
+1	B16: with TMPDIR mcp the refresh runs no felix and no claude
+1	B16: with TMPDIR rel the refresh runs no felix and no claude
+1	B16: with TMPDIR unset the refresh runs no felix and no claude
+1	B17: nothing a session start launched ran claude with a checkout as its working directory
+1	B18: an own checkout whose graph is behind runs graphify update <graph home> once, from the graph home
+1	B19: and the graph line is still in its context (fork)
+1	B19: and the graph line is still in its context (lookalike)
+1	B19: and the graph line is still in its context (none)
+1	B19: and the graph line is still in its context (substring)
+1	B19: the fork checkout never runs graphify
+1	B19: the lookalike checkout never runs graphify
+1	B19: the none checkout never runs graphify
+1	B19: the substring checkout never runs graphify
+1	B20: an own checkout granted tidy removes the held untracked rival
+1	B20: and backs it up under state/rivals
+1	B20: and the context says what it removed
+1	B21: and its context holds no Removed, as copies line (fork)
+1	B21: and its context holds no Removed, as copies line (lookalike)
+1	B21: and its context holds no Removed, as copies line (none)
+1	B21: and its context holds no Removed, as copies line (substring)
+1	B21: the fork checkout keeps its rival, byte-identical
+1	B21: the lookalike checkout keeps its rival, byte-identical
+1	B21: the none checkout keeps its rival, byte-identical
+1	B21: the substring checkout keeps its rival, byte-identical
+1	B22: an own checkout holding Cargo.toml appends rust to capabilities
+1	B22: and the context says it adopted rust
+1	B23: an unowned checkout leaves capabilities, stack.tsv, setup.tsv and setup/ byte-identical
+1	B23: and its context holds no Adopted automatically line
+1	B23: nor a Not adopted line
+1	B30: adoption alone withheld says Withheld: adoption.
+1	B30: the lookalike checkout's last paragraph is the one line
+1	B31: the substring-bound checkout says it was bound by an origin that only contains the remote_match
+1	B32: a project with no remote_match says so as the reason
+1	B32: with no origin remote the reason is it has no origin remote
+1	B33: a different checkout with the same kinds withheld (fork) says it again
+1	B33: a second session in the same checkout with the same kinds adds no line
+1	B33: and its commissioning is refused again, one more bg.log line
+1	B33: the same checkout with a different set of kinds says it again
+1	B34: an own checkout's context never holds the withheld line
+1	B34: an unowned checkout where nothing was due holds no withheld line
+1	B34: no withheld line in the own-case checkout
+1	B34: no withheld line in the own-scp checkout
+1	B34: no withheld line in the own-ssh checkout
+1	B35: and is the same status line an own checkout gets (fork)
+1	B35: and is the same status line an own checkout gets (lookalike)
+1	B35: and is the same status line an own checkout gets (none)
+1	B35: and is the same status line an own checkout gets (substring)
+1	B35: the line is in additionalContext
+1	B35: the systemMessage carries no withheld line (fork)
+1	B35: the systemMessage carries no withheld line (lookalike)
+1	B35: the systemMessage carries no withheld line (none)
+1	B35: the systemMessage carries no withheld line (substring)
+1	B40: 1130-unattended-work-runs-only-in-its-own-checkout.sh is under 500 lines
+1	B40: hooks/session-start is no longer than 726 lines
+1	B40: lib/commission.sh is no longer than 731 lines
+1	B40: lib/discover.sh is no longer than 1516 lines
+1	B40: own.sh is under 500 lines
+1	B40: reach-read.sh is under 500 lines
+1	B41: lib/own.sh exists and names no governed project
+1	B41: lib/own.sh parses under /bin/bash and uses no ${x,,}
+1	B42: no commissioning, no graph refresh, no tidying and no adoption ran in an own checkout
+1	B42: the hook still emits its JSON and exits 0
+1	B7: an origin carrying a token as userinfo is own (it ran)
+1	B7: and the unowned one with a token still says its line
+1	B7: no file under the home, the memory root, HOME, TMPDIR or the logs holds the token, nor any output
+1	B7: the predicate and the line, called directly, answer
+1	B8: a repository is unknown when git cannot say whether it is a submodule (2 unread)
+1	B8: a repository that holds a submodule is still own when its own origin is the project's
+1	B8: a submodule is not own though its origin is the project's (1 submodule)
+1	B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it
+1	B9: a session start in a submodule runs no felix commission and logs one refused-not-own line, none ran
+1	B9: and keeps its untracked rival, byte-identical
+1	B9: and says adoption was withheld too
+1	B9: and says what was withheld, and why
+1	B9: and with a Cargo.toml it adopts nothing into the project's capabilities
 1	C9.1: and that was asked of gh run list
 1	C9.1: for the workflow felix_gate_workflow names (ci-gate.yml here)
 1	C9.2: a reused receipt with the gate workflow's success on the head clears every blocker
@@ -237,9 +350,13 @@
 1	a --base that names nothing is refused, not scoped, clean tree or not
 1	a --since that is not YYYY-MM-DD exits non-zero
 1	a -c script whose here-document body runs past the first 64K goes on after the body to its closing quote, over 256K as under it: the runner there is a check
+1	a .felix marker changes nothing: origin - reads the same with and without it
+1	a .felix marker changes nothing: origin git@evil.example:OwnerX/ownp-repo.git reads the same with and without it
+1	a .felix marker changes nothing: origin https://github.com/OwnerX/ownp-repo reads the same with and without it
 1	a .mcp.json above the scratch directory leaves the list unread, and says why
 1	a .mcp.json with servers at the top level declares a server
 1	a .mcp.json wrapping servers in mcpServers declares a server (R5)
+1	a .seen that cannot be written does not stop the line
 1	a 0700 TMPDIR owned by the user: claude ran once
 1	a 0700 TMPDIR owned by the user: the list is read
 1	a 0700 TMPDIR under a group-writable parent: claude was not run
@@ -289,8 +406,10 @@
 1	a TMPDIR of .: claude was not run
 1	a TMPDIR of .: the list is unread, with the sentence that says why
 1	a TMPDIR of / is not a temporary root
+1	a TMPDIR others can write returns 2
 1	a TMPDIR that cannot make a directory leaves the list unread, and says so
 1	a TMPDIR that holds $HOME is not a temporary root
+1	a TMPDIR under a .mcp.json returns 4
 1	a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not
 1	a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check
 1	a backfilled row carries DECLARED
@@ -476,6 +595,20 @@
 1	a checkout root that is not a git repository counts every row
 1	a checkout that has never been graphed has no graph file
 1	a checkout that moves after verification merges nothing
+1	a checkout whose origin is git://github.com/OwnerX/ownp-repo.git is own (0 own)
+1	a checkout whose origin is git@evil.example:OwnerX/ownp-repo.git is not own (1 other)
+1	a checkout whose origin is git@github.com:OwnerX/ownp-repo.git is own (0 own)
+1	a checkout whose origin is github.com:OwnerX/ownp-repo is own (0 own)
+1	a checkout whose origin is https://GitHub.com/ownerx/OWNP-REPO.git/ is own (0 own)
+1	a checkout whose origin is https://evil.example#@github.com/OwnerX/ownp-repo is not own (1 other)
+1	a checkout whose origin is https://github.com.evil.example/OwnerX/ownp-repo is not own (1 other)
+1	a checkout whose origin is https://github.com/OwnerX/ownp-repo is own (0 own)
+1	a checkout whose origin is https://github.com/OwnerX/ownp-repo-fork.git is not own (1 other)
+1	a checkout whose origin is https://github.com/OwnerX/ownp-repo.git is own (0 own)
+1	a checkout whose origin is https://github.com:443/OwnerX/ownp-repo is own (0 own)
+1	a checkout whose origin is https://tok@github.com/OwnerX/ownp-repo.git is own (0 own)
+1	a checkout whose origin is ssh://git@github.com/OwnerX/ownp-repo.git is own (0 own)
+1	a checkout whose origin is ssh://git@github.com:22/OwnerX/ownp-repo is own (0 own)
 1	a checkout with no binding gets a dash for its epoch
 1	a checkout with no commit yet records its HEAD as unborn
 1	a checkout with no commit yet writes one row, under its branch
@@ -661,6 +794,7 @@
 1	a directory that exists but holds no files yields no digest
 1	a directory that is no repository has no branch to name
 1	a directory that is not a governed checkout reads none
+1	a directory that is not a repository is unknown (2 unread)
 1	a directory the user does not own (/usr): claude was not run
 1	a directory the user does not own (/usr): the list is unread, with the sentence that says why
 1	a dirty memory repo is committed
@@ -1185,6 +1319,7 @@
 1	a predicate with fewer members than the last tree is named
 1	a predicate with more members than the last tree is named too
 1	a predicate with no prior record is named as new
+1	a prefix that is not lowercase letters and dashes returns 3
 1	a premise and a mutation see none of the runner's locals or positional parameters: each writes || for scratch, its own text and 1
 1	a premise can see the files HEAD has
 1	a premise exiting 0 still applies its control, 1 still makes it inapplicable, and 2 still makes it unrunnable
@@ -1241,6 +1376,10 @@
 1	a project that declares no probes has no topology
 1	a project that has qualified nothing is skipped, not failed
 1	a project that names its gate workflow is repaired from that workflow's run
+1	a project whose remote_match is abc has no own checkout, its own .felix and origin included (1 no-match)
+1	a project whose remote_match is absent has no own checkout, its own .felix and origin included (1 no-match)
+1	a project whose remote_match is dotcom has no own checkout, its own .felix and origin included (1 no-match)
+1	a project whose remote_match is empty has no own checkout, its own .felix and origin included (1 no-match)
 1	a project with declared rows and no cache gets one reach-unread line
 1	a project with no declared gate is left alone
 1	a project with no graph is told nothing at all
@@ -1395,6 +1534,7 @@
 1	a rejected push is reported, not forced
 1	a relative TMPDIR naming a private directory that exists under the working directory: claude was not run
 1	a relative TMPDIR naming a private directory that exists under the working directory: the list is unread, with the sentence that says why
+1	a relative TMPDIR returns 1
 1	a relative link survives a write too
 1	a release-mode run carries no clearance in any row
 1	a remote branch that moved on from its local namesake, content not on main and no pull request, has a row, unproposed
@@ -1409,7 +1549,9 @@
 1	a repo copy of a file Felix holds is reported
 1	a report writer that dies on an unset variable is still reached from the judge's shell, or the containment asserted next is never exercised
 1	a reported checker with a row is never called unqualified among twenty thousand, and one with none still is
+1	a repository is unknown when git exits 69 (2 unread)
 1	a repository that is not the memory's own is named foreign
+1	a repository with no origin is not own (1 no-origin)
 1	a repository with no unattended workflow says so
 1	a repository without the gate workflow makes no pull request clean
 1	a rerun row whose command is the dash is refused as arg, or the actor would settle the path by running nothing
@@ -1851,6 +1993,7 @@
 1	a workflow change escapes as execute
 1	a workflow list that cannot be read is unknown, not unmet
 1	a worktree engine cannot
+1	a worktree of an own checkout is own
 1	a worktree on a branch tracking origin/main, pushed under its own name with an open pull request, is pr-open
 1	a worktree pruned from a directory where git lists no worktree any more is still an orphan
 1	a worktree refreshes the holding checkout's graph
@@ -2250,6 +2393,7 @@
 1	an unmet step reports todo
 1	an unmount below the session threshold is not evidence
 1	an unmount is held while calls sit unfolded on disk
+1	an unowned checkout still reads mcp list from a fresh felix-reach directory
 1	an unparseable payload is allowed
 1	an unparseable payload records nothing
 1	an unpinned LSP command is high
@@ -2711,6 +2855,7 @@
 1	and exits 1 for a sibling of an entry and for a gate.sh one directory too deep, or a star would span a slash and the base would swallow its neighbours
 1	and exits 2, running no part and rewriting no manifest
 1	and exits 3, distinctly
+1	and exits as it does in an own checkout
 1	and exits non-zero rather than hashing over an absence
 1	and explains why it now matters
 1	and fails the same way
@@ -2914,6 +3059,7 @@
 1	and it is refused though the risk rules call that file green
 1	and it is reported as unusable, not unchecked
 1	and it is said
+1	and it is said again, since it could not be recorded
 1	and it is spelled with the symlinks taken out
 1	and it is the chip neither started nor dismissed, named by its title or task id
 1	and it is the lifecycle one
@@ -3252,6 +3398,7 @@
 1	and nothing reached the remote
 1	and nothing spliced from it ran: no PWNED file in the checkout or the working directory
 1	and nothing the branch's copy printed reaches the output
+1	and nothing the second time for the same checkout and kinds
 1	and nothing the working tree's copy printed reaches the output
 1	and nothing unusable
 1	and nothing was committed
@@ -3276,6 +3423,7 @@
 1	and of one whose retraction has origin/main's sha pasted into its base row, it fails the whole-record check, though the base check passes
 1	and of the conclusions a completed gate run can have, only success resets it
 1	and ok once a graph newer than the last commit exists
+1	and on 3 and 4 nothing it made is left
 1	and on a branch the gate has never run on
 1	and on a dirty tree, state included since an empty home excludes nothing, it is still that id
 1	and on a fail control it reads pass and held, never fail and met, which is what a working checker says
@@ -3376,6 +3524,7 @@
 1	and prints the refused rows under the list
 1	and prints the state rather than a verdict
 1	and prints the whole runbook after it, every appendix line
+1	and prints what it prints there, roots aside
 1	and procedures list the failure as they always did
 1	and procedures still name it through the link
 1	and proposes nothing for it
@@ -3445,6 +3594,7 @@
 1	and refuses with no issue and no input
 1	and refusing costs no continuation
 1	and released, that row runs to its end and removes its own base and registration
+1	and removes the directory after
 1	and removing that file restores it
 1	and repair hears the gate's runs could not be read, not that there are none
 1	and reporting absent is not failing
@@ -3706,6 +3856,10 @@
 2	and still exits 0
 1	and still exits 0, because start cannot refuse
 1	and still folds the person's whose prompt shares its first 200 characters, with what it reached for
+1	and still gets the gate line (fork)
+1	and still gets the gate line (lookalike)
+1	and still gets the gate line (none)
+1	and still gets the gate line (substring)
 1	and still marks the session it opens
 1	and still matches with its comments changed
 1	and still mounts a matching line that says something unrecognised
@@ -4268,6 +4422,7 @@
 1	at most one caller records when one slot is left
 1	at release a task-blocking row is dropped and a release-blocking one blocks, grant or no grant
 1	at the task moment an excepted row does not block
+1	attended felix commission typed in an unowned checkout still runs its rows there
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first
@@ -4787,6 +4942,7 @@
 1	felix autonomy --allow with no autonomy file still seeds its comment line before the grant
 1	felix commission --status adopts nothing and says nothing about adopting
 1	felix commission --status leaves a split log byte for byte, because it writes nothing
+1	felix commission --status likewise
 1	felix commission --status prints a refused check among the rows that name a need and nothing readable
 1	felix commission --status reads a when naming an unset variable unknown
 1	felix commission --status reads the row whose producer outruns grep -q done
@@ -5608,9 +5764,14 @@
 1	felix_mem_mistake_rows, with resolve.sh alone, reads a split pair as its one joined row and leaves the file as it was
 1	felix_merge_blockers emits exactly the kinds cmd_merge places
 1	felix_merge_blockers on a behind and owing branch writes both would-refuse rows and no row of another kind on a real attempt, and nothing on a dry run, or the boundary never reports them or reports more than them
+1	felix_neutral_dir makes a fresh <TMPDIR>/<prefix>.XXXXXX and returns 0
+1	felix_neutral_rm leaves a symlink and its target alone
+1	felix_neutral_rm removes it
+1	felix_neutral_run runs the command in the fresh directory, a .felix naming the project, and returns its status
 1	felix_next rank 4 never names a routine whose declared list could not be read, and names it due over a list read and declaring it
 1	felix_next rank 6 says the declared list could not be read for that routine, naming its capability and felix maintenance, never that nothing declares it
 1	felix_next says at rank 6 that whether a routine on ci is due is not known when the declared list could not be read, and says the routine it named with its capability once
+1	felix_own_gate returns 0 on status 0 and withholds nothing, 1 otherwise, each kind once, comma-joined
 1	felix_pulse_report prints an unknown line naming the routines whose declared list could not be read
 1	felix_qualify_missing_controls over a table holding a NUL byte anywhere prints nothing, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_qualify_rows, felix_qualify_malformed and felix_qualify_snapshot each exit non-zero over a table holding a NUL byte anywhere, with the caller's pipefail and without
@@ -5619,6 +5780,31 @@
 1	felix_qualify_ungoverned keeps every reported checker and drops every sub-line
 1	felix_qualify_ungoverned over a table holding a NUL byte anywhere names no checker, exits 2, and says in one stderr line naming the table that it holds a NUL
 1	felix_reach_cache names state/reach/<project>.tsv under the home
+1	felix_remote_github_slug prints nothing and returns 1 for [/tmp/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for []
+1	felix_remote_github_slug prints nothing and returns 1 for [file:///tmp/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [git@evil.example:OwnerX/ownp-repo.git]
+1	felix_remote_github_slug prints nothing and returns 1 for [git@github.com:/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [http://github.com/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://evil.example#@github.com/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://evil.example/github.com/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://evil.example?@github.com/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://evil.example\@github.com/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://github.com.evil.example/OwnerX/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://github.com/Owner X/ownp-repo]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX/ownp-repo/extra]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX/ownp-repo?x=1]
+1	felix_remote_github_slug prints nothing and returns 1 for [https://github.com/OwnerX]
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for git://github.com/OwnerX/ownp-repo.git
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for git@github.com:OwnerX/ownp-repo.git
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for github.com:OwnerX/ownp-repo
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://GitHub.com/ownerx/OWNP-REPO.git/
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com/OwnerX/ownp-repo
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com/OwnerX/ownp-repo.git
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://github.com:443/OwnerX/ownp-repo
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for https://tok@github.com/OwnerX/ownp-repo.git
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for ssh://git@github.com/OwnerX/ownp-repo.git
+1	felix_remote_github_slug prints ownerx/ownp-repo and returns 0 for ssh://git@github.com:22/OwnerX/ownp-repo
 1	felix_setup_malformed prints the refused row as id and a reason naming tail
 1	felix_setup_status prints unknown, not dormant, for a step whose declared list could not be read, and does not run its check
 1	felix_stack_plan prints unknown, not dormant, for a row whose declared list could not be read, naming its capability
@@ -7220,6 +7406,10 @@
 1	the behind fixture stands where it says: feat does not hold origin/main's commit
 1	the behind-and-owing fixture is behind origin/main and changes engine/harness/lib/x.sh alone since the merge-base
 1	the best capability wins
+1	the binding is unchanged: fork still resolves to ownp
+1	the binding is unchanged: lookalike still resolves to ownp
+1	the binding is unchanged: none still resolves to ownp
+1	the binding is unchanged: substring still resolves to ownp
 1	the bounded adopt and apply calls of the fourth block write their rows to regular tables (control)
 1	the branch is named under the remote, without origin/ or refs/remotes/
 1	the brief names the file the issue names
@@ -7451,6 +7641,7 @@
 1	the flag is what made the difference: the same felix new without it calls claude and writes a receipt
 1	the flagged stop after that hold is Felix's own chain, and ends there
 1	the fold refuses to write over an archive that holds something else, and writes nothing
+1	the fork URL is a valid slug, ownerx/ownp-repo-fork, refused only by the predicate
 1	the founder's case 10: a here-document a shell reads is its script
 1	the founder's case 11: and so with -s
 1	the founder's case 12: a redirect's target is written whatever line the here-document ends on
@@ -7533,6 +7724,7 @@
 1	the ledger is durable state in the project
 1	the ledger no longer opens the registry itself
 1	the lifecycle.log schema row names the nine columns lib/lifecycle.sh documents, in order
+1	the line is a blank line then the sentence, the first time
 1	the lint carries neither an || nor a comment's trailing pipe onto the next line
 1	the lint flags a grep -q on the line after a pipe that a comment follows
 1	the lint flags a grep -q on the line after a pipe that ends a line, with or without a backslash
@@ -8095,6 +8287,7 @@
 1	with nothing due it reports nothing
 1	with nothing in flight it prints nothing and exits 0
 1	with nothing on record there is nothing to compare
+1	with nothing withheld the line prints nothing
 1	with only inflight, ok, event and dormant rows, felix maintenance shows the inflight row
 1	with only unread provider rows session start prints no paragraph saying a session owes anything, and still names them
 1	with origin/main a bump ahead of main, the check follows origin

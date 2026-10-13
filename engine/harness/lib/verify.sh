@@ -306,16 +306,50 @@ _felix_tree_excludes() {
 # them. With two arguments or fewer this is the function it was, and no caller
 # that exists passes a third.
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
+  local root="$1" home="${2:-}"
+  if [ "$#" -gt 2 ]; then shift 2; else set --; fi
+  _felix_tree_id_on "$root" "" "$home" "$@"
+}
+
+# The id felix_tree_id would print for this checkout as it is now if HEAD named
+# <commit> instead: the same exclusions, the diff of the working tree against
+# <commit>, the same untracked files and metadata, the same hashing, because it
+# is the same code with the commit as an input. The suite's receipt asks it for
+# a commit's parent (tests/receipt.sh, rule C10): a record run ends with the
+# manifest and red.tsv changed and not committed, the landing order is record,
+# commit, gate, and the commit moves HEAD, so the id of the tree the gate sees
+# is never the id the run left. What the gate would test is the content the run
+# passed; the id of that content against the commit the run stood on is this.
+# Status 1 and nothing when <commit> is empty (it must not fall back to HEAD) or
+# is no commit here.
+felix_tree_id_on() {   # <root> <commit> [home] [pathspec...]
+  local root="$1" at="${2:-}" home="${3:-}"
+  [ -n "$at" ] || return 1
+  if [ "$#" -gt 3 ]; then shift 3; else set --; fi
+  _felix_tree_id_on "$root" "$at" "$home" "$@"
+}
+
+# The one hashing path. <at> empty is HEAD, exactly as felix_tree_id always
+# read it, down to the unborn case; otherwise it is the commit that stands in
+# for HEAD, in the hash and as the base of the diff.
+_felix_tree_id_on() {   # <root> <at> <home> [pathspec...]
+  local root="$1" at="$2" home="${3:-}" head diff untracked n meta="" prefix="" f base=HEAD
+  shift 3
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $ex
 EOF
-  if [ "$#" -gt 2 ]; then shift 2; for f in "$@"; do exargs+=("$f"); done; fi
+  for f in "$@"; do exargs+=("$f"); done
 
-  head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
+  if [ -n "$at" ]; then
+    head="$(git -C "$root" rev-parse -q --verify "$at^{commit}" 2>/dev/null)" || return 1
+    [ -n "$head" ] || return 1
+    base="$head"
+  else
+    head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
+  fi
   if [ -z "$head" ]; then
     # An unborn HEAD has nothing to diff against. A repository with no commits is
     # a real state — it is what `git init` leaves, and what this suite's own
@@ -323,7 +357,7 @@ EOF
     head="unborn"
     diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   else
-    diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    diff="$(git -C "$root" diff "$base" -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi
 
   untracked="$(git -C "$root" ls-files --others --exclude-standard \

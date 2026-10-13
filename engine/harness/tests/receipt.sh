@@ -142,16 +142,63 @@ _sr_origin() {   # <root>
   printf '%s\n' "$c"
 }
 
+# The bridged tree id (rule C10, contract A3, 2026-10-12): the id of the tree a
+# receipt names, asked of a checkout that has been committed since. PR A's reuse
+# never fired in the one flow it was built for. A record run ends with the
+# manifest and red.tsv changed and not committed; the landing order is record,
+# commit, gate, because the gate's receipt and `felix merge` judge the tree that
+# is pushed; and the commit moves HEAD, which the tree id hashes, so the gate
+# found `another tree` and ran the whole suite again. The content the gate would
+# test was byte for byte the content the run passed, and only the commit naming
+# it was new. So where HEAD has exactly one parent, the id is asked as it would
+# be if HEAD named that parent: the diff of the working tree against the parent,
+# the same untracked files, the same hash (felix_tree_id_on, one code path with
+# felix_tree_id). A root commit, an unborn HEAD and a merge have no bridged id.
+#
+# It stands only if the receipt's tree id is that id, which says the parent is the
+# commit the run had at HEAD and the working tree holds, against it, what the run
+# left. A file the run saw untracked and the commit added is tracked now, so the
+# ids differ and the suite runs: stricter than it need be, and meant to be. And
+# only if the parent is not an ancestor of the commit the receipt recorded for
+# origin/main (`-` holds nothing back). Part 1010's judge asks what a committed
+# tree is asked (merge-base and ancestry against origin/main, _rtn3 and _rtn4)
+# only of a tree that holds a commit origin/main lacks, and skips both for one
+# whose HEAD origin/main already held; a run at such a parent was not asked what
+# the commit is. That ancestry is the one read of the checkout's history whose
+# answer the commit can change (the search of the parts, the driver, red and this
+# file is in the contract). Prints `head <HEAD's full sha>` where it stands,
+# `held` where the ids agree and the ancestry does not, and nothing otherwise.
+_sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it recorded, or -> -> head <sha> | held | nothing
+  local line h p1 p2 id rc
+  line="$(git -C "$1" rev-list --parents -n 1 HEAD 2>/dev/null)" || return 0
+  IFS=' ' read -r h p1 p2 <<< "$line"
+  { [ -n "$h" ] && [ -n "$p1" ] && [ -z "$p2" ]; } || return 0
+  id="$( { . "$_SR_LIB" && felix_tree_id_on "$1" "$p1" ""; } 2>/dev/null )" || return 0
+  case "$id" in ''|coarse:*) return 0 ;; esac
+  [ "$id" = "$2" ] || return 0
+  if [ "$3" != - ]; then
+    git -C "$1" merge-base --is-ancestor "$p1" "$3" 2>/dev/null; rc=$?
+    case "$rc" in
+      0) echo held; return 0 ;;
+      1) ;;
+      *) return 0 ;;   # the recorded commit cannot be read here: no bridge
+    esac
+  fi
+  echo "head $h"
+}
+
 # Whether a run may be answered from the receipt: `reuse <passed> <failed>
-# <skipped> <end> <mode>`, or `run <reason>`, the first reason that applies, in
-# the order a person would find it out. One line either way and status 0, so a
-# caller reads the line and not the status. The fields are digits and are never
-# put through $(( )): a leading zero is an octal error there, and in bash 3.2 an
-# arithmetic error discards the whole command it sits in. The tabs are counted
-# and cut with parameter expansion because read with a tab in IFS folds a run
-# of tabs into one and would read an empty field as no field at all.
+# <skipped> <end> <mode>`, with the full sha of HEAD as a seventh field where the
+# receipt stands on the bridged id (_sr_bridge), or `run <reason>`, the first
+# reason that applies, in the order a person would find it out. One line either
+# way and status 0, so a caller reads the line and not the status. The fields
+# are digits and are never put through $(( )): a leading zero is an octal error
+# there, and in bash 3.2 an arithmetic error discards the whole command it sits
+# in. The tabs are counted and cut with parameter expansion because read with a
+# tab in IFS folds a run of tabs into one and would read an empty field as no
+# field at all.
 _sr_check() {   # <root>
-  local root="$1" p rec line t="" f1 f2 f3 f4 f5 f6 f7 f8 f9 rest now cur fe fo
+  local root="$1" p rec line t="" f1 f2 f3 f4 f5 f6 f7 f8 f9 rest now cur fe fo b=""
   p="$(_sr_path "$root")" || { echo "run no checkout"; return 0; }
   if [ ! -e "$p" ] && [ ! -L "$p" ]; then echo "run no receipt"; return 0; fi
   if [ -L "$p" ] || [ ! -f "$p" ]; then echo "run not a regular file"; return 0; fi
@@ -190,24 +237,38 @@ _sr_check() {   # <root>
   awk -v s="$f8" -v e="$f9" -v n="$now" 'BEGIN { exit !(s + 0 > e + 0 || e + 0 > n + 60) }' \
     && { echo "run malformed receipt"; return 0; }
   awk -v f="$f5" 'BEGIN { exit !(f + 0 != 0) }' && { echo "run failures recorded"; return 0; }
+  # The bridged id is asked here and only here: where the tree as it is now is
+  # not the receipt's, in the place of `another tree`. A receipt that matches as
+  # it is now is answered as it always was and the bridged id is never computed.
   cur="$(_sr_tree "$root")" || cur=""
-  { [ -n "$cur" ] && [ "$cur" = "$f2" ]; } || { echo "run another tree"; return 0; }
+  if [ -z "$cur" ] || [ "$cur" != "$f2" ]; then
+    [ -z "$cur" ] || b="$(_sr_bridge "$root" "$f2" "$fo")"
+    case "$b" in
+      "head "?*) b="${b#head }" ;;
+      held) echo "run another tree (committed since the run, and origin/main already held the commit the run was on)"; return 0 ;;
+      *)    echo "run another tree"; return 0 ;;
+    esac
+  fi
   [ "$(_sr_env)" = "$fe" ] || { echo "run another environment"; return 0; }
   [ "$(_sr_origin "$root")" = "$fo" ] || { echo "run origin/main moved"; return 0; }
   awk -v e="$f9" -v n="$now" 'BEGIN { exit !(n - e > 43200) }' && { echo "run older than 12 hours"; return 0; }
-  echo "reuse $f4 $f5 $f6 $f9 $f3"
+  echo "reuse $f4 $f5 $f6 $f9 $f3${b:+ $b}"
 }
 
 # What `tests/run --reuse` prints when the receipt stands: the line the gate
 # shows first and the summary it shows last. The time is the local one the run
 # ended at, BSD date's -r first and GNU's -d @ if that is the one here, and the
 # skipped clause is left out when nothing was skipped, as the summary of a run
-# leaves it out.
+# leaves it out. A receipt that stands on the bridged id (a seventh field, HEAD's
+# sha) says so in the sentence: the commit is disclosed, and the sentence still
+# ends the way projects/felix/gate.sh looks for, so the gate reports the run as
+# reused and the receipt it writes carries tests:reused.
 _rcp_reused() {   # <the `reuse ...` line _sr_check printed>
-  local w p f s e m hm
-  read -r w p f s e m <<< "$1"
+  local w p f s e m h hm
+  read -r w p f s e m h <<< "$1"
   e="$(awk -v x="$e" 'BEGIN { printf "%d", x }')"
   hm="$(date -r "$e" +%H:%M 2>/dev/null || date -d "@$e" +%H:%M 2>/dev/null)" || hm=""
+  if [ -n "$h" ]; then m="$m, then committed as ${h:0:8}"; fi
   printf 'reused the suite run that ended %s on this tree (%s), not run again\n' "${hm:-unknown}" "$m"
   printf '\n%s passed, 0 failed' "$p"
   awk -v x="$s" 'BEGIN { exit !(x + 0 > 0) }' && printf ', %s skipped' "$s"

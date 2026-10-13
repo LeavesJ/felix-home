@@ -190,7 +190,8 @@ case "$_owo" in "0 $OWT"/felix-discover.??????) [ -d "${_owo#0 }" ] && ok "felix
                   || bad "felix_neutral_dir makes a fresh <TMPDIR>/<prefix>.XXXXXX and returns 0" "not a directory" ;;
   *) bad "felix_neutral_dir makes a fresh <TMPDIR>/<prefix>.XXXXXX and returns 0" "[$_owo]" ;; esac
 _ow_lib reach 'felix_neutral_rm "$1" felix-discover' "${_owo#0 }" >/dev/null 2>&1
-is "felix_neutral_rm removes it" "$(case "$_owo" in "0 /"*) [ -e "${_owo#0 }" ] && echo left || echo gone ;; *) echo "nothing was made" ;; esac)" "gone"
+# Harness mistake, fixed in the build stage: a case pattern without its opening paren inside $( ) is a syntax error in bash 3.2, so this assertion read the code as the answer.
+is "felix_neutral_rm removes it" "$(case "$_owo" in ("0 /"*) [ -e "${_owo#0 }" ] && echo left || echo gone ;; (*) echo "nothing was made" ;; esac)" "gone"
 mkdir -p "$OW/d777" "$OW/mcp/tmp" "$OWT/real-target"; chmod 777 "$OW/d777"; chmod 700 "$OW/mcp/tmp"; printf '{}\n' > "$OW/mcp/.mcp.json"
 is "a relative TMPDIR returns 1" "$(OW_TMPDIR=rel-tmp _ow_nd felix-discover | cut -d' ' -f1)" "1"
 is "a TMPDIR others can write returns 2" "$(OW_TMPDIR="$OW/d777" _ow_nd felix-discover | cut -d' ' -f1)" "2"

@@ -1470,6 +1470,7 @@ felix_discover_stale() {
 felix_discover_refresh_bg() {
   local proj="$1" home="$2" felix_bin="$3"
   local dir lock
+  command -v felix_neutral_run >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach-read.sh"
   dir="$home/state/discover"
   lock="$dir/.lock"
   mkdir -p "$dir" 2>/dev/null || return 0
@@ -1477,11 +1478,10 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     felix_close_inherited_fds
-    cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    # A refresh that could not read the marketplaces exits non-zero and writes
-    # nothing, and the previous answer stands: an unreadable catalogue is not
-    # an empty one, and must not become one for seven days.
-    if "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
+    # Never the checkout, which may be a stranger's: an empty directory holding a .felix naming the
+    # project (lib/reach-read.sh), or no run at all. A read that fails writes nothing and the previous
+    # answer stands: an unreadable catalogue is not an empty one, and must not become one for a week.
+    if felix_neutral_run "$proj" felix-discover "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
       mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
             "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
     else

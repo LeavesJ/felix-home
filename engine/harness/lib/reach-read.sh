@@ -76,11 +76,15 @@ _felix_reach_parse() {
   done
 }
 
-# Remove a scratch directory felix_reach_read made, and whatever claude left in
-# it. Only a path shaped as mktemp gave it, absolute and not a symlink.
-_felix_reach_rm() {
+# Remove a scratch directory felix_neutral_dir made, and whatever was left in
+# it. Only a path shaped as mktemp gave it from <prefix>, absolute and not a
+# symlink; a prefix that is not lowercase letters and dashes removes nothing.
+# Always 0.
+felix_neutral_rm() {
+  local lc=abcdefghijklmnopqrstuvwxyz
+  case "${2:-}" in ''|[!$lc]*|*[!$lc-]*) return 0 ;; esac
   case "${1:-}" in
-    /*/felix-reach.??????) [ -d "$1" ] && [ ! -L "$1" ] && rm -rf "$1" 2>/dev/null ;;
+    /*/"$2".??????) [ -d "$1" ] && [ ! -L "$1" ] && rm -rf "$1" 2>/dev/null ;;
   esac
   return 0
 }
@@ -148,6 +152,67 @@ _felix_reach_private() {
   done
 }
 
+# A fresh empty directory to run a command in when that command must not see the
+# checkout: this is the directory-making half of felix_reach_read, moved here so
+# the one other thing that needs it (felix_neutral_run, below) calls the same
+# code instead of copying it. It is made as "$phys/<prefix>.XXXXXX" under the
+# physical path of $TMPDIR, only when TMPDIR is absolute and private by the rules
+# in the head of this file, and it is not a place a .mcp.json can reach. 0 with
+# the physical path in _FELIX_NEUTRAL_DIR; otherwise nothing it made is left and
+# the status says why:
+#   1  TMPDIR is not an absolute path
+#   2  TMPDIR is not a private directory (_felix_reach_private)
+#   3  the directory could not be made, entered or trusted, a TMPDIR of / and a
+#      <prefix> that is not lowercase letters and dashes included
+#   4  a .mcp.json sits at or above the directory (_felix_reach_neutral)
+felix_neutral_dir() {
+  local prefix="${1:-}" phys made dir="" lc=abcdefghijklmnopqrstuvwxyz
+  _FELIX_NEUTRAL_DIR=""
+  case "$prefix" in ''|[!$lc]*|*[!$lc-]*) return 3 ;; esac
+  case "${TMPDIR:-}" in /*) ;; *) return 1 ;; esac
+  phys="$(cd "$TMPDIR" 2>/dev/null && pwd -P)" || phys=""
+  case "$phys" in ''|/) return 3 ;; esac
+  _felix_reach_private "$phys" || return 2
+  made="$(mktemp -d "$phys/$prefix.XXXXXX" 2>/dev/null)" || made=""
+  case "$made" in /*/"$prefix".??????) ;; *) made="" ;; esac
+  if [ -n "$made" ] && [ -d "$made" ] && [ ! -L "$made" ]; then
+    dir="$(cd "$made" 2>/dev/null && pwd -P)" || dir=""
+  fi
+  if [ -z "$dir" ]; then felix_neutral_rm "$made" "$prefix"; return 3; fi
+  if ! _felix_reach_neutral "$dir"; then felix_neutral_rm "$made" "$prefix"; return 4; fi
+  _FELIX_NEUTRAL_DIR="$dir"
+  return 0
+}
+
+# Run <cmd> [args...] in a fresh neutral directory and not in the checkout, as
+# the project <proj> (a path under the Felix home): `felix_neutral_run <proj>
+# <prefix> <cmd> [args...]`. The directory holds one file, a .felix naming the
+# project, which is the marker mechanism used as designed (the binding is by
+# marker, and this directory is one Felix made itself), so a command that
+# resolves its project from $PWD finds the same one it would have in the
+# checkout without reading a byte of it. The command's stdout is passed
+# through, its stdin is closed, and its status is returned after the directory
+# is gone. 125 when the command was not run: no neutral directory (any
+# felix_neutral_dir status), a marker that could not be written, or a directory
+# git or the environment places inside a repository (felix_repo_root must name
+# the directory itself, or the marker would not be the one read). It never runs
+# the command in any other directory.
+felix_neutral_run() {
+  local proj="${1:-}" prefix="${2:-}" dir rc
+  [ "$#" -ge 3 ] && [ -n "$proj" ] || return 125
+  shift 2
+  felix_neutral_dir "$prefix" || return 125
+  dir="$_FELIX_NEUTRAL_DIR"
+  if ! printf '%s\n' "$(basename "$proj")" > "$dir/.felix" 2>/dev/null \
+     || [ "$(felix_repo_root "$dir")" != "$dir" ]; then
+    felix_neutral_rm "$dir" "$prefix"; return 125
+  fi
+  ( cd "$dir" 2>/dev/null || exit 125; "$@" </dev/null )
+  rc=$?
+  felix_neutral_rm "$dir" "$prefix"
+  return "$rc"
+}
+
 # Run `claude mcp list` once, from a fresh empty directory (the head of this file
 # says why). 0 when read, with the server table in _FELIX_REACH_SRV and the
 # directory it ran in in _FELIX_REACH_CWD; 1 when not, one sentence in
@@ -162,39 +227,24 @@ _felix_reach_private() {
 # nobody waits on the background read, a person running --reach can interrupt it,
 # and macOS ships no `timeout` binary to bound it with.
 felix_reach_read() {
-  local out rc body parsed nl=$'\n' ws=$' \t\r\n' phys made dir=""
+  local out rc body parsed nl=$'\n' ws=$' \t\r\n' dir=""
   _FELIX_REACH_OK=0; _FELIX_REACH_WHY=""; _FELIX_REACH_SRV=""; _FELIX_REACH_CWD=""
   if ! command -v claude >/dev/null 2>&1; then
     _FELIX_REACH_WHY="no claude CLI on PATH"; return 1
   fi
   # No default: an unset TMPDIR would send it to a shared place, and a relative
-  # one to a directory under the caller's own.
-  case "${TMPDIR:-}" in
-    /*) ;;
-    *) _FELIX_REACH_WHY="TMPDIR is not an absolute path, so there is no private directory to run claude mcp list in"; return 1 ;;
+  # one to a directory under the caller's own. The sentences are this read's;
+  # what makes the directory, and what each status means, is felix_neutral_dir.
+  felix_neutral_dir felix-reach; rc=$?
+  case "$rc" in
+    0) dir="$_FELIX_NEUTRAL_DIR" ;;
+    1) _FELIX_REACH_WHY="TMPDIR is not an absolute path, so there is no private directory to run claude mcp list in"; return 1 ;;
+    2) _FELIX_REACH_WHY="TMPDIR is not a private directory, so claude mcp list was not run: it must be owned by you and writable by no one else, under parents only you or root can write"; return 1 ;;
+    4) _FELIX_REACH_WHY="a .mcp.json sits above the scratch directory, so claude mcp list could start a project-scoped server there"; return 1 ;;
+    *) _FELIX_REACH_WHY="could not make an empty directory to run claude mcp list in"; return 1 ;;
   esac
-  phys="$(cd "$TMPDIR" 2>/dev/null && pwd -P)" || phys=""
-  case "$phys" in
-    ''|/) _FELIX_REACH_WHY="could not make an empty directory to run claude mcp list in"; return 1 ;;
-  esac
-  if ! _felix_reach_private "$phys"; then
-    _FELIX_REACH_WHY="TMPDIR is not a private directory, so claude mcp list was not run: it must be owned by you and writable by no one else, under parents only you or root can write"; return 1
-  fi
-  made="$(mktemp -d "$phys/felix-reach.XXXXXX" 2>/dev/null)" || made=""
-  case "$made" in /*/felix-reach.??????) ;; *) made="" ;; esac
-  if [ -n "$made" ] && [ -d "$made" ] && [ ! -L "$made" ]; then
-    dir="$(cd "$made" 2>/dev/null && pwd -P)" || dir=""
-  fi
-  if [ -z "$dir" ]; then
-    _felix_reach_rm "$made"
-    _FELIX_REACH_WHY="could not make an empty directory to run claude mcp list in"; return 1
-  fi
-  if ! _felix_reach_neutral "$dir"; then
-    _felix_reach_rm "$made"
-    _FELIX_REACH_WHY="a .mcp.json sits above the scratch directory, so claude mcp list could start a project-scoped server there"; return 1
-  fi
   out="$(cd "$dir" 2>/dev/null && claude mcp list 2>/dev/null </dev/null; printf '\n.%s' "$?")"
-  _felix_reach_rm "$made"
+  felix_neutral_rm "$dir" felix-reach
   case "$out" in
     *"$nl."[0-9]*) ;;
     *) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;

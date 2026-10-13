@@ -225,6 +225,10 @@ fi
 adopted=""; not_adopted=""; partly=""
 _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
+# Unattended work runs only in the project's own checkout (lib/own.sh): 0 here, and 2 until it answers.
+_own=2; _FELIX_OWN_WITHHELD=""; command -v felix_checkout_is_own >/dev/null 2>&1 && { felix_checkout_is_own "$PROJ" "$_repo_root" 2>/dev/null; _own=$?; }
+_undecl="$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)"
+[ -z "$_undecl" ] || felix_own_gate adoption "$_own" 2>/dev/null || _undecl=""
 while IFS= read -r _cap; do
   [ -n "$_cap" ] || continue
   # 2026-10-01: 2 is a list adopt could not read or write, so nothing was
@@ -240,7 +244,7 @@ while IFS= read -r _cap; do
     3) adopted="$adopted $_cap(${_counts// /+})"; partly="$partly $_cap" ;;
   esac
 done <<EOF
-$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
+$_undecl
 EOF
 
 if [ -n "$adopted" ]; then
@@ -321,15 +325,17 @@ ${_gl}"
 # rename, so a session querying it mid-refresh reads the old file or the new
 # one and never half of either. Checked in the source rather than assumed.
 case "${_gl}" in
-  *"behind this checkout"*) felix_graph_refresh_bg "$_repo_root" 2>/dev/null || true ;;
+  *"behind this checkout"*) command -v graphify >/dev/null 2>&1 && felix_own_gate "graph refresh" "$_own" 2>/dev/null \
+                              && felix_graph_refresh_bg "$_repo_root" 2>/dev/null ;;
 esac
 
 # Done, not reported. A duplicate script is not a decision somebody should be
 # handed at the start of their day; it is tidying, and Felix holds the copy that
 # matters. Every check lives in felix_tidy_safe and the project must have opted
 # in, so silence here is the normal case rather than a failure.
-tidy_line=""
-_removed="$(felix_tidy_safe "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null | tr '\n' ' ')"
+tidy_line=""; _removed=""
+if [ "$_own" -eq 0 ]; then _removed="$(felix_tidy_safe "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null | tr '\n' ' ')"
+elif felix_own_tidy_due "$PROJ" "$_repo_root" 2>/dev/null; then felix_own_gate tidying "$_own" 2>/dev/null; fi
 _removed="${_removed% }"
 [ -n "$_removed" ] && tidy_line="
 Removed, as copies Felix already holds: ${_removed}
@@ -614,20 +620,11 @@ if [ -n "$PROJ" ] && [ -f "$PROJ/stack.tsv" ] && command -v claude >/dev/null 2>
 fi
 
 # ------------------------------------------------------- commissioning ----
-# Offline, every time: the record phase over any provider answer file (file
-# reads, no cli, no network), receipt validity from the two hashes, and one
-# paragraph naming what a session still owes — spoken ONCE per topology, so
-# it fires once per addressee and an answer consumes it. Nothing here runs a
-# check, an instrument or an installer; that is felix commission's, and a
-# person's to invoke.
-#
-# Unless a person has said otherwise, in writing, over this exact table. The
-# `commission` grant is the one thing that moves the line quoted above, and it
-# is absent by default: felix_commission_resume_bg returns without doing
-# anything unless projects/<p>/autonomy names it AND the stamp taken when it
-# was granted still matches commissioning.tsv. Two of that table's columns are
-# eval'd, so a grant that outlived the table it was read against would be
-# consent to something nobody read.
+# Offline, every time: the record phase over any provider answer file (file reads, no cli, no
+# network), receipt validity from the two hashes, and one paragraph naming what a session still
+# owes, spoken ONCE per topology. Nothing here runs a check, an instrument or an installer; that is
+# felix commission's. The detached resume is the one exception (lib/own.sh): under a current
+# `commission` grant stamped over this exact table (two columns are eval'd), in the project's own checkout.
 if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/null 2>&1; then
   # Detached, and silent when ungranted — which is every project until a person
   # types the command.
@@ -720,6 +717,9 @@ case "$_felix_due" in ''|*[!0-9]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
+
+# The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).
+_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
 
 _felix_emit "$_felix_line" "$context"
 

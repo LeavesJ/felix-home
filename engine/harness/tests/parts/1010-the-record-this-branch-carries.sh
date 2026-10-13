@@ -334,10 +334,23 @@ _rt_judge "$REAL_HARNESS/../.."
 # while the four checks skipped or went uncounted (#371, seventh review), so
 # this file must hold it as one line of its own, unindented, and name the
 # suite's checkout to _rt_judge nowhere else.
+# restated, not blind (gate friction step 1, 2026-10-12): this asked for one
+# call in the whole suite, and a record run now judges the record it wrote a
+# second time, after red has finished rewriting red.tsv (tests/run, contract C3),
+# so the driver holds a second call, indented, inside its record-mode branch.
+# The parts still hold exactly one, bare and unindented, which is the one
+# thing the seventh review of #371 needed, and the driver's is found by what it
+# names and where it stands: one line naming the suite's checkout, none of them
+# bare, and that line between the `if` that opens record mode and its `fi`.
+# Nothing else in the driver or the parts names it.
 _rtcall="_rt_judge \"\$REAL_HARNESS/../..\""
-is "the suite judges its own checkout's record with one bare call at the top level, and nowhere else" \
+is "the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else" \
    "$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next } $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++ }
-                          END { printf "%d exact, %d naming it", x, y }' <(_suite_src))" "1 exact, 1 naming it"
+                          END { printf "%d exact, %d naming it", x, y }' "$HERE"/parts/*.sh)|$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next }
+                          /^if \[ "\$FELIX_TEST_RECORD" -eq 1 \]; then$/ { r = 1 } r && /^fi$/ { r = 0 }
+                          $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++; if (r) z++ }
+                          END { printf "%d exact, %d naming it, %d in the record branch", x, y, z }' "$HERE/run")" \
+   "1 exact, 1 naming it|0 exact, 1 naming it, 1 in the record branch"
 # Whether a helper printed one line whose first word is the verdict asked for
 # and whose rest holds each phrase given.
 _rt_said() {   # <name> <what the helper printed> <ok|skip|bad> [<phrase>...]

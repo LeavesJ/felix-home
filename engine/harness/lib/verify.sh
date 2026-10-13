@@ -298,6 +298,13 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
+# Arguments after the second are pathspecs added to the exclusions, for the
+# diff and for the untracked list alike, each exactly as given: `:(exclude)x`
+# names a path to leave out, and nothing here adds the prefix. The suite's
+# receipt (tests/receipt.sh) asks for a tree id with the two record files
+# left out, so a record run can say that nothing else moved while red rewrote
+# them. With two arguments or fewer this is the function it was, and no caller
+# that exists passes a third.
 felix_tree_id() {
   local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
@@ -306,6 +313,7 @@ felix_tree_id() {
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $ex
 EOF
+  if [ "$#" -gt 2 ]; then shift 2; for f in "$@"; do exargs+=("$f"); done; fi
 
   head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
   if [ -z "$head" ]; then
@@ -431,9 +439,18 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 # epoch.sh is sourced at call time rather than at load, because it pulls
 # commission.sh in behind it and commission.sh sources this file: a load-time
 # source from here would be a cycle, and at call time this file is complete.
+#
+# A fourth argument, when one is given, is the receipt's text as the caller
+# already read it, and is judged in place of reading the file again. It exists
+# for a caller that also wants a field of the receipt it asks about (the merge
+# boundary reads the reported checks for rule C9): this function takes a third
+# of a second, the gate rewrites the receipt with a truncating `>`, and a
+# second read after this one is not the receipt that was judged (review finding
+# C9-R3). Absent, it reads the file as it always did; an empty fourth argument
+# is a receipt of nothing, which is `none`.
 felix_verify_current() {
   local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch
-  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  if [ $# -ge 4 ]; then receipt="$4"; else receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"; fi
   [ -n "$receipt" ] || { printf 'none\n'; return 1; }
   r_res="$(printf '%s' "$receipt" | cut -f2)"
   [ "$r_res" = "green" ] || { printf 'red\n'; return 1; }

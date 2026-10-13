@@ -313,15 +313,11 @@ felix_tree_id() {
 
 # The id felix_tree_id would print for this checkout as it is now if HEAD named
 # <commit> instead: the same exclusions, the diff of the working tree against
-# <commit>, the same untracked files and metadata, the same hashing, because it
-# is the same code with the commit as an input. The suite's receipt asks it for
-# a commit's parent (tests/receipt.sh, rule C10): a record run ends with the
-# manifest and red.tsv changed and not committed, the landing order is record,
-# commit, gate, and the commit moves HEAD, so the id of the tree the gate sees
-# is never the id the run left. What the gate would test is the content the run
-# passed; the id of that content against the commit the run stood on is this.
-# Status 1 and nothing when <commit> is empty (it must not fall back to HEAD) or
-# is no commit here.
+# <commit>, the same untracked files, the same hashing, because it is the same
+# code with the commit as an input. The suite's receipt asks it for a commit's
+# parent (tests/receipt.sh, rule C10): the id hashes HEAD, so committing the
+# tree a run passed moves the id although the content is the run's. Status 1
+# and nothing when <commit> is empty (it never falls back to HEAD) or no commit.
 felix_tree_id_on() {   # <root> <commit> [home] [pathspec...]
   local root="$1" at="${2:-}" home="${3:-}"
   [ -n "$at" ] || return 1
@@ -329,9 +325,9 @@ felix_tree_id_on() {   # <root> <commit> [home] [pathspec...]
   _felix_tree_id_on "$root" "$at" "$home" "$@"
 }
 
-# The one hashing path. <at> empty is HEAD, exactly as felix_tree_id always
-# read it, down to the unborn case; otherwise it is the commit that stands in
-# for HEAD, in the hash and as the base of the diff.
+# The one hashing path. <at> empty is HEAD, as felix_tree_id always read it,
+# the unborn case included; otherwise it is the commit that stands in for HEAD,
+# in the hash and as the base of the diff.
 _felix_tree_id_on() {   # <root> <at> <home> [pathspec...]
   local root="$1" at="$2" home="${3:-}" head diff untracked n meta="" prefix="" f base=HEAD
   shift 3

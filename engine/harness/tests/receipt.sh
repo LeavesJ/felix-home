@@ -14,7 +14,8 @@
 # side by side, and the third pass is the gate's `tests` check asking this file
 # whether the tree it is about to gate is one a run already passed. The design
 # is docs/2026-10-12-gate-friction-design.md, section 3; the rules are
-# docs/2026-10-12-gate-friction-contract-a.md, C4 and C5.
+# docs/2026-10-12-gate-friction-contract-a.md, C4 and C5, and, for the one commit
+# that records a run, contract-a3.md, C10 (_sr_bridge).
 #
 # One receipt for each checkout, one line, tab-separated, in the checkout's git
 # directory (git rev-parse --git-path), which is outside the tree: writing it

@@ -317,3 +317,44 @@ case "$GFD_CO_B" in
   coarse:*) is "felix_tree_id over the untracked cap is the base's coarse id (control)" "$GFD_CO_N" "$GFD_CO_B" ;;
   *) bad "felix_tree_id over the untracked cap is the base's coarse id (control)" "the base copy's id is not coarse: [$GFD_CO_B]" ;;
 esac
+
+# ---- Not blind: review finding C10-1 (2026-10-12), written after the code.
+# A criss-cross: two commits, A1 and B1, made in the same second, both best
+# common ancestors of the branch and of origin/main (which is merge(A1, B1)),
+# the branch being merge(B1, A1) and then the run's commit X. Part 1010's judge
+# asks `git merge-base HEAD origin/main`, which names one of the two, and with
+# equal commit seconds git's choice can change when one commit is put on top of
+# X: on git 2.54 it names A1 at X and B1 at the commit that records the run, so
+# part 1010's _rtn3 passed at X and fails at the commit. The bridge may not
+# stand where the choice is open, whichever git is asked, so this fixture asks
+# only for what is structural, that the two bases are both best (merge-base
+# --all prints two), and the bridge refuses on that alone (C10.3e).
+_gfd_cc() {   # <dir>: the criss-cross above, HEAD at X, both record files committed
+  local d="${1:?}"
+  mkdir -p "$d/engine/harness/tests" || return 1
+  printf 'a\n' > "$d/a.txt"; printf 'b\n' > "$d/b.txt"
+  printf '1\tone\n' > "$d/engine/harness/tests/assertions.tsv"
+  printf 'base\t-\t-\t-\nrun\t-\t-\t-\n' > "$d/engine/harness/tests/red.tsv"
+  (
+    export GIT_AUTHOR_DATE="@1700000000 +0000" GIT_COMMITTER_DATE="@1700000000 +0000"
+    cd "${d:?}" || exit 1
+    _gfd_git init -q -b main && _gfd_git add -A && _gfd_git commit -qm root || exit 1
+    r0="$(git rev-parse HEAD)" && printf 'a1\n' > a.txt && _gfd_git commit -qam A1 || exit 1
+    a1="$(git rev-parse HEAD)" || exit 1
+    _gfd_git checkout -q -b sideB "$r0" && printf 'b1\n' > b.txt && _gfd_git commit -qam B1 || exit 1
+    b1="$(git rev-parse HEAD)" || exit 1
+    _gfd_git checkout -q --detach "$a1" && _gfd_git merge -q --no-ff --no-edit "$b1" || exit 1
+    git update-ref refs/remotes/origin/main HEAD || exit 1
+    _gfd_git checkout -q sideB && _gfd_git merge -q --no-ff --no-edit "$a1" || exit 1
+    printf 'x\n' > c.txt && _gfd_git add -A && _gfd_git commit -qm X || exit 1
+  ) >/dev/null 2>&1
+}
+GFD_CC="$GFD/cc"; _gfd_cc "$GFD_CC"; _gfd_rf "$GFD_CC"; _gfd_rec "$GFD_CC"
+_gfd_git -C "${GFD_CC:?}" commit -qam record >/dev/null 2>&1
+GFD_CCN="not blind: review finding C10-1: a criss-cross whose two best merge bases share a second, committed once since the run, is run another tree, since git's pick between them can change with the commit"
+if [ "$(git -C "${GFD_CC:?}" merge-base --all HEAD refs/remotes/origin/main 2>/dev/null | grep -c .)" = 2 ] \
+   && [ "$(git -C "${GFD_CC:?}" rev-list --parents -n 1 HEAD 2>/dev/null | wc -w | tr -d ' ')" = 2 ]; then
+  is  "$GFD_CCN" "$(_gfd_chk "$GFD_CC")" "run another tree|0"
+else
+  bad "$GFD_CCN" "the fixture's criss-cross was not made as intended"
+fi

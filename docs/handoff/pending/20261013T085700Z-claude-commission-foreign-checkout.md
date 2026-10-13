@@ -107,8 +107,27 @@ consumed as a submodule of another gets no unattended work inside that submodule
 claimed: a linked worktree made with `git worktree add` from inside a submodule shares its
 gitdir and origin and is not refused.
 
-**Record.** Written at ship; see the end of this section for the numbers once the
-manifest and the red run are recorded.
+**Record.**
+- The blind part 1130 (written from the spec alone, before any of it was built) is the
+  tests of B1-B42. Against the base engine, tests/red.tsv records 126 of this tree's 8353
+  assertions failing against origin/main 4308328 at engine 0.49.284 (8218 pass, 9 skip).
+  Most of the 126 are part 1130's: B1-B9 and B30-B33 (the functions and the line do not
+  exist on main) and B11, B14, B19, B21, B23 (main runs commissioning, graph refresh,
+  tidying and adoption in the unowned checkouts, and runs discovery in the checkout). The
+  positive controls B10, B18, B20 and B22 pass on main on purpose: an unowned refusal
+  proves nothing unless the same state runs in an own checkout. One red name is not
+  part 1130's: part 0750's "lib/commission.sh closes what it inherited before
+  backgrounding", which now reads lib/own.sh because the resume moved there, so it cannot
+  pass against an engine that has no lib/own.sh.
+- Manifest: tests/assertions.tsv 8160 -> 8353, 193 added, none removed.
+- Found at ship and fixed: part 0750 asserted that lib/commission.sh holds the
+  felix_close_inherited_fds call, which moved with the function to lib/own.sh (1 failure,
+  fixed in the part, its name unchanged); tests/run, merged with #432's seven parts and this
+  branch's one, was 501 lines against the 500 the suite pins for the driver (one blank line
+  removed; red.tsv was re-recorded after that so it does not carry a spurious red).
+- Parts 0030 and 0060 pass with their fixture changes only; part 0580 (a library caller of
+  commission.sh alone) and parts 1100-1120 pass unedited.
+- The gate was run on the committed tree; the result is in the pull request.
 
 **Not built.**
 - No attended notice in `felix commission` (D2).

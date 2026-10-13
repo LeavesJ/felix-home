@@ -49,16 +49,38 @@ _felix_load_state() {
   _FELIX_INLINE="$(sed -n 's/.*"\([A-Za-z0-9._-]*\)@inline".*/\1/p' "$HOME/.claude.json" 2>/dev/null | LC_ALL=C sort -u)"
 }
 
+# What one line of `claude mcp list` says about its server: failed, needs-auth,
+# connected, or other for a status nobody here has seen. The single reading of
+# the status phrase, shared by the mount test below and by lib/reach.sh, so the
+# two cannot come to read a line differently. The order is the verdict's:
+# a line that mentions two phrases is the worse one.
+_felix_mcp_line_set() {
+  case "$1" in
+    *"Failed to connect"*)     _FELIX_MCP_STATE=failed ;;
+    *"Needs authentication"*)  _FELIX_MCP_STATE=needs-auth ;;
+    *"Connected"*)             _FELIX_MCP_STATE=connected ;;
+    *)                         _FELIX_MCP_STATE=other ;;
+  esac
+}
+# The same, printed. A caller that reads many lines calls _felix_mcp_line_set and
+# reads _FELIX_MCP_STATE instead, which forks nothing.
+_felix_mcp_line_state() {
+  _felix_mcp_line_set "$1"
+  printf '%s' "$_FELIX_MCP_STATE"
+}
+
 # A server is mounted only when its line says connected. Configured-but-failing
 # is the state the GitHub server sits in until someone exports a token, and
-# calling that mounted hides the only fact that matters.
+# calling that mounted hides the only fact that matters. A matching line that
+# says something unrecognised still counts as mounted, as it always did: this
+# decides what felix stack plan calls present, and reach.sh, which only reports,
+# maps the same unrecognised line to unknown instead.
 _felix_mcp_connected() {
   local line
   while IFS= read -r line; do
     case "$line" in
       "$1:"*|*":$1:"*)
-        felix_contains "$line" "Failed to connect" && return 1
-        felix_contains "$line" "Needs authentication" && return 1
+        case "$(_felix_mcp_line_state "$line")" in failed|needs-auth) return 1 ;; esac
         return 0 ;;
     esac
   done <<EOF

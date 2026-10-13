@@ -1,0 +1,422 @@
+# The suite's receipt: what a run that reached its end leaves behind, and what a
+# later run reads before it pays for the suite again.
+#
+# Sourced by tests/run, and sourceable on its own. It needs bash 3.2, git and
+# ../lib/verify.sh, which it loads inside a subshell each time it asks for a
+# tree id, so the shell that sources this file gains no felix_verify_* name and
+# no FELIX_UNTRACKED_CAP. The driver is 500 lines at most (part 1040), and this
+# is where the receipt's rules live so that the driver only decides when to ask.
+#
+# Why it exists. An engine change paid for the whole suite three times before
+# it landed: the record run, the red run the record run then made, and the
+# gate. Measured on a quiet machine on 2026-10-10 the suite was 1429 s of the
+# gate's 1565 s (audits/2026-10-10-gate-time). The record run and red now run
+# side by side, and the third pass is the gate's `tests` check asking this file
+# whether the tree it is about to gate is one a run already passed. The design
+# is docs/2026-10-12-gate-friction-design.md, section 3; the rules are
+# docs/2026-10-12-gate-friction-contract-a.md, C4 and C5.
+#
+# One receipt for each checkout, one line, tab-separated, in the checkout's git
+# directory (git rev-parse --git-path), which is outside the tree: writing it
+# moves no tree id. A linked worktree has a git directory of its own, so it has
+# a receipt of its own. A root that is not the top of its own checkout (a
+# directory inside a larger repository, such as the plugin cache under a home
+# directory in git) is no checkout here: its tree id would be the larger one's,
+# blind to what that directory holds, and its receipt path would be shared by
+# every directory under it.
+#
+#   v1  <tree id>  <mode>  <passed>  <failed>  <skipped>  <env>  <start>  <end>
+#
+# <mode> is normal or record; <start> and <end> are Unix seconds. <env> is
+# _sr_env, and, when the checkout had a refs/remotes/origin/main, that line
+# followed by ;origin=<the commit it named when the run began>. A checkout with
+# none writes <env> as _sr_env alone, which reads as "none" (a `-`).
+#
+# A run that may leave a receipt takes the last one away before its first part
+# (_rcp_begin), so the only receipt that can stand after it is one it wrote
+# itself at its end. A run that fails, is interrupted or dies part way never
+# leaves an earlier pass standing for the gate to find.
+#
+# What a receipt names, and what it does not. The tree id covers every tracked
+# and untracked file under the root and the commit HEAD names. The assertions
+# also read things the tree does not hold. The receipt names these: the host,
+# the bash version, the locale, the PATH (by hash), whether a `claude` CLI is on
+# it (some assertions turn into skips), and the commit refs/remotes/origin/main
+# names (part 1010's judge reads it: _rtn3 and _rtn4 compare this tree with it,
+# so a fetch that moves it can turn a pass into a fail with the tree unchanged).
+# A receipt refuses with `origin/main moved` when that commit is not the one
+# recorded, or cannot be read while one was.
+# Everything else is covered by the twelve-hour bound alone, and is not named:
+#  - the memory root's lessons.md, read from ~/.felix/memory/felix by part 0590;
+#  - the plugin install state: what `claude plugin list --json` answers (the
+#    engine_deployed obligation reads it through felix_deployed_engine, part
+#    0440) and the deployed plugin cache and marketplace registry under
+#    ~/.claude/plugins, which the gate's `installed` check and the readers in
+#    parts 0110, 0430, 0590 and 0800 consult wherever a test is not handed a
+#    cache of its own; the receipt names only whether `claude` is on PATH;
+#  - the user's real HOME where the suite does not set one: ~/.felix-home, the
+#    Claude settings directory, the global git configuration and its global
+#    excludes file (the driver's own comments record the last one);
+#  - the version of git and of the other tools on PATH, which the path hash
+#    names only as a path;
+#  - the machine: its load, clock, process cap, free disk and network, which the
+#    timing-bound assertions and the ones that fork heavily answer to;
+#  - gh and the network, where an assertion is not given a stub of its own.
+# A change to any of those rides on a receipt for up to twelve hours.
+#
+# What a receipt cannot say, plainly. It is a file a session can write, as the
+# gate's own receipt is that `felix merge` already trusts. Reuse adds no new
+# kind of trust, and GitHub CI still runs the whole suite on Linux before
+# anything merges. What it does refuse is the honest mistakes: a tree that
+# moved, a run that failed, a different bash, a different host, a `claude` CLI
+# that turns skips into passes or back, a main that moved, a receipt older than
+# twelve hours.
+
+_SR_LIB="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)/verify.sh"
+
+# Whether <root> is the top of a checkout: what git names as the top level of
+# the directory is that directory. Compared as physical paths, since git prints
+# the resolved one.
+_sr_top() {   # <root>: status 0 when it is
+  local a b
+  [ -n "${1:-}" ] || return 1
+  b="$(git -C "$1" rev-parse --show-toplevel 2>/dev/null)" || return 1
+  a="$(CDPATH= cd "$1" 2>/dev/null && pwd -P)" || return 1
+  b="$(CDPATH= cd "$b" 2>/dev/null && pwd -P)" || return 1
+  [ -n "$a" ] && [ "$a" = "$b" ]
+}
+
+# Where this checkout's receipt is. git prints the path relative to the
+# directory it was asked from when the git directory is inside it, which is
+# every ordinary checkout, so it is made absolute against the root.
+_sr_path() {   # <root> -> the absolute path; status 1 and nothing when <root> is no git checkout
+  local p
+  _sr_top "$1" || return 1
+  p="$(git -C "$1" rev-parse --git-path felix-suite-receipt 2>/dev/null)" || return 1
+  [ -n "$p" ] || return 1
+  case "$p" in /*) ;; *) p="${1%/}/$p" ;; esac
+  printf '%s\n' "$p"
+}
+
+# The tree as felix_tree_id names it, with Felix's home left empty so nothing is
+# excluded: a suite run judges the whole checkout. `stable` also leaves out the
+# two files a record run rewrites while it runs, the manifest and red.tsv, so a
+# record run can say that nothing else moved (C8). A coarse id, the one a tree
+# with more untracked files than the cap gets, is a hash of a count and not of
+# the tree, and a receipt keyed to it would stand for any tree with as many
+# stray files, so it counts as an id that cannot be had. Nothing is written to
+# stderr: a message here would reach the log of a run that is deciding whether
+# it was reused.
+_sr_tree() {   # <root> [stable] -> the id; status 1 and nothing when it cannot be had
+  local id
+  _sr_top "$1" || return 1
+  if [ "${2:-}" = stable ]; then
+    id="$( { . "$_SR_LIB" && felix_tree_id "$1" "" \
+             ':(exclude)engine/harness/tests/assertions.tsv' ':(exclude)engine/harness/tests/red.tsv'; } 2>/dev/null )" || return 1
+  else
+    id="$( { . "$_SR_LIB" && felix_tree_id "$1" ""; } 2>/dev/null )" || return 1
+  fi
+  case "$id" in ''|coarse:*) return 1 ;; esac
+  printf '%s\n' "$id"
+}
+
+# What a run depends on that the tree does not hold. The host and the bash are
+# what the suite's timing and its syntax rules answer to; the locale changes
+# how sort and awk order names; the PATH, as a hash because it is long and only
+# its identity matters, decides which tools the fixtures find; and whether a
+# `claude` CLI is on it turns some assertions into skips (has_claude), so a run
+# with one and a run without are different runs.
+_sr_env() {
+  local loc="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" cl=no ph
+  command -v claude >/dev/null 2>&1 && cl=yes
+  ph="$(printf '%s' "$PATH" | git hash-object --stdin 2>/dev/null)"
+  printf 'host=%s;bash=%s;locale=%s;path=%s;claude=%s\n' "$(uname -n 2>/dev/null)" "$BASH_VERSION" "$loc" "$ph" "$cl"
+}
+
+# The commit refs/remotes/origin/main names, or `-` when it names none or cannot
+# be read. Part 1010's judge compares this tree with it, so it is an input of the
+# suite that the tree id does not hold.
+_sr_origin() {   # <root>
+  local c
+  c="$(git -C "$1" rev-parse -q --verify 'refs/remotes/origin/main^{commit}' 2>/dev/null)" && [ -n "$c" ] || c=-
+  printf '%s\n' "$c"
+}
+
+# Whether a run may be answered from the receipt: `reuse <passed> <failed>
+# <skipped> <end> <mode>`, or `run <reason>`, the first reason that applies, in
+# the order a person would find it out. One line either way and status 0, so a
+# caller reads the line and not the status. The fields are digits and are never
+# put through $(( )): a leading zero is an octal error there, and in bash 3.2 an
+# arithmetic error discards the whole command it sits in. The tabs are counted
+# and cut with parameter expansion because read with a tab in IFS folds a run
+# of tabs into one and would read an empty field as no field at all.
+_sr_check() {   # <root>
+  local root="$1" p rec line t="" f1 f2 f3 f4 f5 f6 f7 f8 f9 rest now cur fe fo
+  p="$(_sr_path "$root")" || { echo "run no checkout"; return 0; }
+  if [ ! -e "$p" ] && [ ! -L "$p" ]; then echo "run no receipt"; return 0; fi
+  if [ -L "$p" ] || [ ! -f "$p" ]; then echo "run not a regular file"; return 0; fi
+  # A trailing x keeps the newlines $( ) would strip, so two lines are two.
+  rec="$(cat -- "$p" 2>/dev/null && printf x)"
+  case "$rec" in *x) rec="${rec%x}" ;; *) echo "run unreadable receipt"; return 0 ;; esac
+  line="$rec"; case "$line" in *$'\n') line="${line%$'\n'}" ;; esac
+  case "$line" in ''|*$'\n'*) echo "run malformed receipt"; return 0 ;; esac
+  t="${line//[!$'\t']/}"
+  [ "${#t}" -eq 8 ] || { echo "run malformed receipt"; return 0; }
+  f1="${line%%$'\t'*}"; rest="${line#*$'\t'}"
+  f2="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f3="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f4="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f5="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f6="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f7="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
+  f8="${rest%%$'\t'*}"; f9="${rest#*$'\t'}"
+  now="$(date +%s)"
+  [ "$f1" = v1 ] || { echo "run malformed receipt"; return 0; }
+  case "$f3" in normal|record) ;; *) echo "run malformed receipt"; return 0 ;; esac
+  for cur in "$f4" "$f5" "$f6" "$f8" "$f9"; do
+    case "$cur" in ''|*[!0-9]*) echo "run malformed receipt"; return 0 ;; esac
+  done
+  # The environment field is _sr_env, and may end in ;origin=<commit>. The
+  # commit is 40 or 64 hex digits; anything else after ;origin= is no receipt.
+  fe="$f7"; fo=-
+  case "$f7" in
+    *";origin="*)
+      fo="${f7##*;origin=}"; fe="${f7%";origin=$fo"}"
+      case "$fo" in ''|*[!0-9a-f]*) echo "run malformed receipt"; return 0 ;; esac
+      { [ "${#fo}" -eq 40 ] || [ "${#fo}" -eq 64 ]; } || { echo "run malformed receipt"; return 0; } ;;
+  esac
+  # Compared as numbers by awk, which reads a long digit string as a float and
+  # never fails on it; a time too large to be one is in the future anyway.
+  awk -v s="$f8" -v e="$f9" -v n="$now" 'BEGIN { exit !(s + 0 > e + 0 || e + 0 > n + 60) }' \
+    && { echo "run malformed receipt"; return 0; }
+  awk -v f="$f5" 'BEGIN { exit !(f + 0 != 0) }' && { echo "run failures recorded"; return 0; }
+  cur="$(_sr_tree "$root")" || cur=""
+  { [ -n "$cur" ] && [ "$cur" = "$f2" ]; } || { echo "run another tree"; return 0; }
+  [ "$(_sr_env)" = "$fe" ] || { echo "run another environment"; return 0; }
+  [ "$(_sr_origin "$root")" = "$fo" ] || { echo "run origin/main moved"; return 0; }
+  awk -v e="$f9" -v n="$now" 'BEGIN { exit !(n - e > 43200) }' && { echo "run older than 12 hours"; return 0; }
+  echo "reuse $f4 $f5 $f6 $f9 $f3"
+}
+
+# What `tests/run --reuse` prints when the receipt stands: the line the gate
+# shows first and the summary it shows last. The time is the local one the run
+# ended at, BSD date's -r first and GNU's -d @ if that is the one here, and the
+# skipped clause is left out when nothing was skipped, as the summary of a run
+# leaves it out.
+_rcp_reused() {   # <the `reuse ...` line _sr_check printed>
+  local w p f s e m hm
+  read -r w p f s e m <<< "$1"
+  e="$(awk -v x="$e" 'BEGIN { printf "%d", x }')"
+  hm="$(date -r "$e" +%H:%M 2>/dev/null || date -d "@$e" +%H:%M 2>/dev/null)" || hm=""
+  printf 'reused the suite run that ended %s on this tree (%s), not run again\n' "${hm:-unknown}" "$m"
+  printf '\n%s passed, 0 failed' "$p"
+  awk -v x="$s" 'BEGIN { exit !(x + 0 > 0) }' && printf ', %s skipped' "$s"
+  printf ' (reused)\n'
+}
+
+# The --reuse question, asked before anything is built. A receipt that stands
+# ends the run here with exit 0, which is why this exits and does not return;
+# one that does not says why on the first line and the run goes on, receipt
+# rules and all. The check writes nothing to stderr: the first thing a reader
+# of the log sees is this answer, and a line from a helper must not come first.
+_rcp_answer() {   # <root>
+  local v
+  v="$(_sr_check "$1" 2>/dev/null)"
+  case "$v" in
+    "reuse "*) _rcp_reused "$v"; exit 0 ;;
+    *)         printf 'not reused: %s\n' "${v#run }" ;;
+  esac
+}
+
+# What a run takes before its first part: the tree, the tree without the two
+# record files, the environment, the commit origin/main names and the clock,
+# all before red can rewrite those two files; and then it takes away the
+# checkout's last receipt, so that what the end compares is what the start saw
+# and the only receipt that can stand after this run is one it writes itself.
+_rcp_begin() {   # <root> -> sets _rcp_t0, _rcp_s0, _rcp_e0, _rcp_o0 and _rcp_start
+  _rcp_t0="$(_sr_tree "$1")"; _rcp_s0="$(_sr_tree "$1" stable)"
+  _rcp_e0="$(_sr_env)"; _rcp_o0="$(_sr_origin "$1")"; _rcp_start="$(date +%s)"
+  _rcp_drop "$1"
+}
+
+# What a run that reached its end does about the receipt, before its summary
+# line (which stays the last line of the log) and with no say in its exit
+# status. It writes one only when it can say that the tree it passed is the
+# tree it leaves: nothing failed; the manifest was compared; the environment is
+# the one the run began in; origin/main names the commit it named when the run
+# began; and the tree is the one it began with. A record run leaves a different
+# tree on purpose, since it and red rewrite the manifest and red.tsv, so it
+# compares the tree with those two files left out, and says its record was
+# judged. That is sound because nothing in the suite but the judged checks reads
+# those two files' content; every other mention of them reads a fixture (the
+# design checked parts 0440, 0720, 0730, 0740, 0990 and 1000 on 2026-10-12, and
+# a search of the parts for a read of the real files, by HERE or REAL_HARNESS,
+# finds none outside part 1010), and the build shows it with the suite run twice
+# on one tree under two different valid records. The tree id written is the full
+# one taken now. Any other run has already taken the last receipt away.
+_rcp_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> <passed> <failed> <skipped>
+  local root="$1" mode=normal t1="" s1="" ok=0 e1
+  [ "$2" = 1 ] && mode=record
+  if [ "$6" = 0 ] && [ "$3" = 1 ] && [ -n "$_rcp_t0" ] && [ -n "$_rcp_s0" ] \
+     && [ "$(_sr_env)" = "$_rcp_e0" ] && [ "$(_sr_origin "$root")" = "$_rcp_o0" ]; then
+    t1="$(_sr_tree "$root")"
+    if [ "$mode" = normal ]; then
+      [ -n "$t1" ] && [ "$t1" = "$_rcp_t0" ] && ok=1
+    elif [ "$4" = 1 ] && [ -n "$t1" ]; then
+      s1="$(_sr_tree "$root" stable)"
+      [ -n "$s1" ] && [ "$s1" = "$_rcp_s0" ] && ok=1
+    fi
+  fi
+  if [ "$ok" = 1 ]; then
+    e1="$_rcp_e0"; [ "$_rcp_o0" = - ] || e1="$e1;origin=$_rcp_o0"
+    _rcp_write "$root" "$t1" "$mode" "$5" "$6" "$7" "$e1" "$_rcp_start" "$(date +%s)"
+  else
+    _rcp_drop "$root"
+  fi
+}
+
+# A receipt path that holds something other than a regular file is left alone,
+# written through by nothing and removed by nothing: a symbolic link would be
+# followed to wherever it points and a directory would take the temporary file
+# in as a member. Said once, so that the run that declined is not mistaken for
+# one that wrote.
+_rcp_said=""
+_rcp_plain() {   # <path>: status 0 when nothing is there or a regular file is
+  if [ -L "$1" ] || { [ -e "$1" ] && [ ! -f "$1" ]; }; then
+    [ "$_rcp_said" = "$1" ] || printf '  receipt not written: %s is not a regular file\n' "$1"
+    _rcp_said="$1"
+    return 1
+  fi
+}
+
+# A sibling temporary file in the same directory, then one mv, so a reader sees
+# the old receipt or the new one and never half of one.
+_rcp_write() {   # <root> <tree id> <mode> <passed> <failed> <skipped> <env> <start> <end>
+  local p t
+  p="$(_sr_path "$1")" || return 1
+  _rcp_plain "$p" || return 1
+  t="$p.tmp.$$"
+  if printf 'v1\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$2" "$3" "$4" "$5" "$6" "$7" "$8" "$9" > "$t" 2>/dev/null \
+     && mv -f "$t" "$p" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$t" 2>/dev/null
+  printf '  receipt not written: could not write %s\n' "$p"
+  return 1
+}
+
+# Takes the checkout's last receipt away: at the start of every run that may
+# leave one, and again at the end of one that did not earn one.
+_rcp_drop() {   # <root>
+  local p
+  p="$(_sr_path "$1")" || return 0
+  if [ ! -e "$p" ] && [ ! -L "$p" ]; then return 0; fi
+  _rcp_plain "$p" || return 1
+  rm -f "$p" 2>/dev/null
+  return 0
+}
+
+# ------------------------------------------------------------ red, beside a record run
+# A record run starts tests/red when it starts, and the two run side by side.
+# Red is the record run's own child and is disowned at once: a part that ends in
+# a bare `wait` (parts 0150 and 0330 do) waits for every job its shell holds,
+# red waits for the mark the record run writes after the parts, and a job table
+# holding red made every record run wait on itself. So the record run learns
+# that red has finished from the process table, not the job table: red's pid and
+# the start time ps gives it, together, since a pid alone is reused (red can end
+# minutes before the record run does, and the suite forks a hundred thousand
+# processes in fifteen).
+
+_rcp_tree() {   # <pid>: it and every process below it, on one line
+  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
+    { kids[$2] = kids[$2] " " $1 }
+    END { q = root; out = ""
+          while (q != "") { n = split(q, a, " "); q = ""
+                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
+          print out }'
+}
+
+# A tree ended: every process in it is asked to end, so that the suite's own
+# EXIT trap removes its temporary directory and red's removes its base checkout,
+# the root is given up to 30 s to go, and what is left is stopped and then
+# killed, the whole list at once, so that nothing forks while it is being ended.
+_rcp_stop() {   # <pid>
+  local list p n=0
+  list="$(_rcp_tree "$1")"
+  for p in $list; do kill -TERM "$p" 2>/dev/null; done
+  while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
+  for p in $list; do kill -STOP "$p" 2>/dev/null; done
+  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+}
+
+_rcp_red_alive() {   # status 0 while the red this run started is still running
+  [ -n "${_rcp_red:-}" ] && [ "${_rcp_redgone:-0}" = 0 ] && kill -0 "$_rcp_red" 2>/dev/null || return 1
+  [ -z "$_rcp_redsig" ] || [ "$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)" = "$_rcp_redsig" ]
+}
+
+# Started at the beginning of a record run: red, told where the mark will be and
+# which process to watch, its output in a file of the run's temporary
+# directory; and a watcher, so that a record run that dies in any way, a signal
+# included (the shell's default for SIGINT, SIGTERM and SIGHUP is to die at once,
+# which a trap would put off until the command it is running ends), ends red
+# and red's suite within a second or so. The watcher is disowned for the reason
+# red is.
+_rcp_red_start() {   # <mark>: sets _rcp_red, _rcp_redsig and _rcp_wd
+  _rcp_nomark=0
+  _rcp_redt0="$(date +%s)"; _rcp_rtsv0="$(ls -i "$HERE/red.tsv" 2>/dev/null)"
+  "$HERE/red" --after "$1" $$ > "$TMP/red.out" 2>&1 &
+  _rcp_red=$!; disown "$_rcp_red" 2>/dev/null
+  _rcp_redsig="$(ps -o lstart= -p "$_rcp_red" 2>/dev/null)"
+  # No start time and no process: red ended before it could be read, and its id
+  # is not to be taken for it later.
+  _rcp_redgone=0; [ -n "$_rcp_redsig" ] || kill -0 "$_rcp_red" 2>/dev/null || _rcp_redgone=1
+  ( _rcp_watch $$ ) > /dev/null 2>&1 &
+  _rcp_wd=$!; disown "$_rcp_wd" 2>/dev/null
+}
+
+# Red retracts red.tsv as its first act, and a red ended before it has leaves the
+# previous change's claim standing, which is the one shape that file must never
+# take. So a red that is to be ended and was started less than five seconds ago
+# is given up to two for red.tsv to be replaced (red writes it by mv, a new file
+# each time). A red that never touches it, as a stand-in for one does not, costs
+# the two seconds; one started longer ago has had its chance.
+_rcp_red_settle() {
+  local n=0
+  [ $(( $(date +%s) - _rcp_redt0 )) -lt 5 ] || return 0
+  while [ "$n" -lt 20 ] && _rcp_red_alive && [ "$(ls -i "$HERE/red.tsv" 2>/dev/null)" = "$_rcp_rtsv0" ]; do
+    sleep 0.1; n=$((n + 1))
+  done
+}
+
+_rcp_watch() {   # <record run's pid>: once it is gone, red and what red started are ended
+  while kill -0 "$1" 2>/dev/null; do sleep 1; done
+  ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
+}
+
+# The mark, whole or not at all: a sibling file and one mv. <word> is written;
+# if that cannot be, `failed` is; if neither can, red would wait for a mark that
+# never comes while this run waits for red, so red is ended and not waited for.
+_rcp_mark() {   # <written|failed> <mark>
+  local w
+  for w in "$1" failed; do
+    if printf '%s\n' "$w" > "$2.tmp" 2>/dev/null && mv -f "$2.tmp" "$2" 2>/dev/null; then return 0; fi
+  done
+  rm -f "$2.tmp" 2>/dev/null
+  _rcp_red_alive || return 0   # red has ended on its own, and what it said is shown
+  _rcp_nomark=1
+  _rcp_red_settle; _rcp_stop "$_rcp_red"
+}
+
+# After the recorded line: what red said, every line indented by two spaces, once
+# red has finished; or why there is nothing of it.
+_rcp_red_end() {   # <mark> <red's output file>
+  local n=0
+  if [ "$_rcp_nomark" = 1 ]; then
+    printf '  red not run: the record run could not write its mark (%s)\n' "$1"
+  else
+    while _rcp_red_alive; do n=$((n + 1)); if [ "$n" -le 20 ]; then sleep 0.1; else sleep 1; fi; done
+    sed 's/^/  /' < "$2"
+  fi
+  [ -z "${_rcp_wd:-}" ] || kill "$_rcp_wd" 2>/dev/null
+  _rcp_wd=""
+}

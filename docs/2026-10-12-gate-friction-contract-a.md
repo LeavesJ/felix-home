@@ -226,8 +226,8 @@ as strict as the run it reuses, no more). CI is unchanged.
 ## Addendum (second review, 2026-10-12)
 
 The second review added the items below. Each amends the clause it names and
-does not change the others. The blind block for them is part 1130
-(`1130-gate-friction-a-addendum-blind.sh`).
+does not change the others. The blind block for them is part 1230
+(`1230-gate-friction-a-addendum-blind.sh`).
 
 - **C4/C5, origin/main.** The receipt records the commit `refs/remotes/origin/main`
   named when the run started, or `-` when there was none, and it is written only

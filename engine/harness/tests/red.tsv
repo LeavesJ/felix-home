@@ -8,6 +8,187 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	97cdd50af4701ca3f9899d28aa1dc2eb115fb3ac	0.49.279
-run	1	7515	9
-every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move	1
+base	origin/main	5fd5811004cd17678cbe9bf340ad80d7a778ed16	0.49.283
+run	182	7968	10
+(1) a record run whose manifest write fails marks it failed: red says the record run did not write a manifest (failed)	1
+(10) red, its parent the record run ended (id still held) and red re-parented, refuses: the record run ended before it wrote the manifest	1
+(11) a record run ended by SIGINT while red's suite runs ends red within ten seconds	1
+(11) a record run ended by SIGTERM while red's suite runs ends red within ten seconds	1
+(11) and red.tsv then holds the two retraction rows	1
+(11) and red.tsv then holds the two retraction rows, after SIGINT too	1
+(2)(6) a passing record run in this fixture leaves a receipt, mode record, so a missing one below says something (control)	1
+(3) a normal run during which a claude command appeared on PATH (the PATH itself unchanged) leaves no receipt	1
+(3)(4)(5)(7)(8) a passing normal run in this fixture leaves a receipt, mode normal (control)	1
+(7) and the run says receipt not written: <the receipt path> is not a regular file	1
+(8) a failing run removes a receipt that appeared while it ran	1
+(A1) a receipt whose origin/main now names another commit is refused: run origin/main moved	1
+(A1) a run with no origin/main at its start, during which origin/main appears, leaves no receipt	1
+(A1) aged past 12 hours with origin/main moved, the origin/main check answers first	1
+(A1) and so is one whose origin/main cannot be read now, when the receipt recorded one	1
+(A1) and the deployed plugin cache that part 0440 reads	1
+(A1) that receipt is reused while origin/main still names that commit	1
+(A1) the contract lists the memory lessons.md that part 0590 reads among the inputs from outside the tree	1
+(A1) the receipt a passing run leaves names, as a field of its own or as the tail of its env field, the commit origin/main named when the run began	1
+(A1) the same receipt aged past 12 hours, origin/main unmoved, is older than 12 hours	1
+(A2) a normal run removes the checkout's earlier receipt before its first part	1
+(A2) a record run removes the checkout's earlier receipt before its first part	1
+(A3) a suite log holding the reuse line below a line stderr printed first is never the tests check's ok	1
+(A4) _sr_path, handed a directory inside a checkout that is not its top level, answers no checkout: status 1, nothing printed	1
+(A4) a root written as the driver writes it, with .. in it, that is the top level, is still the checkout and names its receipt	1
+(A4) and _sr_check answers run no checkout for it	1
+(A4) and so does _sr_tree for that directory	1
+(A5) the record run's red, given the record run's pid, is already running while the part runs	1
+(A6) a record run that can put neither written nor failed in place as its mark says red was not run, naming the mark	1
+(A6) and red's suite is not left running after it	1
+(A6) and red.tsv keeps the retraction	1
+(A7) and stops its suite, which would have run 30 seconds more	1
+(A7) red, its record run killed while red's suite runs, refuses within seconds as the record run gone	1
+(A8) a live process that is not the one that started red never extends red's wait: red refuses as the record run gone	1
+(A9) a mark that is a directory is refused the same way	1
+(A9) and so is a symbolic link to a FIFO	1
+(A9) red refuses a mark that is a FIFO at once, without opening it, as not a regular file	1
+--after with the mark written and the record run since ended is a red run, exit 0, the mark read first	1
+--reuse with no receipt says not reused: no receipt as its first line	1
+C9.1: and that was asked of gh run list	1
+C9.1: for the workflow felix_gate_workflow names (ci-gate.yml here)	1
+C9.3/C9.5: saying what held: its run concluded cancelled	1
+C9.3: a failed gate run on the head holds: its run concluded failure	1
+C9.3: a gate run in progress on the head holds: its run is in_progress	1
+C9.3: a gate success on another commit only (and lint's on this one) is no run on this commit	1
+C9.3: gh answering empty holds the merge: GitHub could not be asked (...)	1
+C9.3: gh answering fail holds the merge: GitHub could not be asked (...)	1
+C9.3: gh missing holds the merge: GitHub could not be asked (...)	1
+C9.3: no gate run at all holds the merge: no run on this commit	1
+C9.3: the reason begins with the contract's sentence and the head's first 8	1
+C9.5: and prints the blocker on its own line, as the others are printed	1
+C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled	1
+_sr_check of a directory that is no git checkout says run no checkout, and returns 0	1
+_sr_check of a sound receipt for this tree and this environment says reuse with its counts, end and mode	1
+_sr_check with nothing at the receipt path says run no receipt	1
+_sr_check would reuse what the normal run left	1
+_sr_check would reuse what the record run left	1
+_sr_env is one line of host, bash version, an empty locale when none is set, the hash of PATH and claude, in that order	1
+_sr_env says claude=yes when a claude command is on PATH	1
+_sr_env's locale is LC_ALL when it is set	1
+_sr_path in a linked worktree names that worktree's own git path, not the main checkout's	1
+_sr_path names felix-suite-receipt in the checkout's git directory, as an absolute path	1
+_sr_path of a directory that is no git checkout prints nothing and returns 1	1
+_sr_tree of a checkout is felix_tree_id of it with an empty home	1
+_sr_tree of a directory that is no git checkout prints nothing and returns 1	1
+_sr_tree of a tree whose id is coarse prints nothing and returns 1, as one it cannot compute	1
+a base named after the mark and the process id is the base red runs against	1
+a branch name where the process id goes is refused, not read as the base	1
+a change to a path a third argument excludes leaves felix_tree_id's id as it was	1
+a change to any other file moves the stable id	1
+a change to assertions.tsv leaves the stable id as it was	1
+a change to red.tsv leaves the stable id as it was too	1
+a different PATH gives a different path hash	1
+a failure recorded is said before another tree	1
+a linked worktree does not read the main checkout's receipt	1
+a mark reading failed is refused, exit 2, naming what it read	1
+a mark whose first line is written and a blank is not exactly written	1
+a negative process id is refused	1
+a normal run that passes leaves a receipt naming mode normal and its counts, six passed and one skipped	1
+a passing record run leaves one receipt line of nine tab-separated fields, v1 first	1
+a process id of 0 is not a positive decimal integer and is refused	1
+a process id with a decimal point is refused	1
+a receipt beginning v2 is malformed	1
+a receipt for a tree whose id is coarse now says run another tree, its own coarse id notwithstanding	1
+a receipt for another tree id says run another tree	1
+a receipt from another environment says run another environment	1
+a receipt holding the stable id of a tree whose manifest changed is for another tree	1
+a receipt of eight fields is malformed	1
+a receipt of ten fields is malformed	1
+a receipt of two sound lines is malformed	1
+a receipt path that is a FIFO is not a regular file, said without opening it	1
+a receipt path that is a directory is not a regular file	1
+a receipt path that is a symbolic link, even to a sound receipt, is not a regular file	1
+a receipt that cannot be read is an unreadable receipt	1
+a receipt that ended more than 43200 seconds ago is older than 12 hours	1
+a receipt whose end is 30 seconds ahead is not malformed, and is reused	1
+a receipt whose end is more than 60 seconds in the future is malformed	1
+a receipt whose failed count is negative is malformed, not a failure recorded	1
+a receipt whose mode is neither normal nor record is malformed	1
+a receipt whose passed count is not decimal digits is malformed	1
+a receipt whose skipped count is empty is malformed	1
+a receipt whose start is after its end is malformed	1
+a receipt whose start is not decimal digits is malformed	1
+a receipt with a failure and a mode that is no mode is malformed first	1
+a record run ended by a signal, its directory and the mark's path removed, is read as ended before it wrote the manifest	1
+a record run starts tests/red before its first part runs	1
+a record run that ends without a mark is refused, exit 2: it ended before it wrote the manifest	1
+a red run, failing, leaves the receipt it found byte for byte	1
+a run that reaches its end with a failure removes the receipt an earlier run left	1
+a sound receipt that records a failure says run failures recorded	1
+a suite that exits 0 and says it reused a run is reported as tests reused	1
+after the mark, a manifest the record run removed is refused with today's reason for none	1
+after the mark, a repeated name is refused with today's reason	1
+after the mark, a row that is no count is refused with today's reason	1
+after the mark, an empty manifest is refused with today's reason	1
+an empty mark is refused as empty	1
+an empty receipt is malformed	1
+an extra exclusion reaches git as given, its pathspec magic included	1
+and LANG when neither is	1
+and LC_CTYPE when LC_ALL is not	1
+and a normal run's receipt is reused with mode normal	1
+and claude=no when none is	1
+and exits 0 without running a part	1
+and hands red three arguments, --after first	1
+and it did not finish before the mark was written	1
+and it leaves no temporary directory behind	1
+and its environment is _sr_env as the run saw it	1
+and its record is main's base row, one of three failing and the failing name, as a red run without --after writes it	1
+and its start and end are Unix seconds within the run, the start not after the end	1
+and no worktree of main is left registered	1
+and on a dirty tree, state included since an empty home excludes nothing, it is still that id	1
+and one that ended 43100 seconds ago is still reused	1
+and over a wait of three seconds it spends under 1.5 s of CPU, checking no more than about once a second	1
+and red's output, the record header, the comparison and the summary come in that order	1
+and sourcing it leaves no felix_verify_ function in the shell that sourced it	1
+and stdout is the one summary line a red run prints	1
+and that file lies under the record run's temporary directory	1
+and that refusal leaves no temporary directory behind	1
+and the manifest is whole by the time the mark appears	1
+and the manifest written while its suite ran is the one compared, a name only it lists counted red as never reached	1
+and the mark is a path under the record run's temporary directory	1
+and the mark it hands red does not exist yet when red starts	1
+and the process id it hands red is the record run's own	1
+and the receipt ends in a newline	1
+and the summary says how many of them were never reached	1
+and the tree id it records is the checkout's full id	1
+and the tree id it records is the full id at the run's end, the rewritten manifest in it	1
+another environment is said before older than 12 hours	1
+another tree is said before another environment	1
+every argument after the second excludes, an untracked file as much as a tracked one	1
+followed by the log's first line and its last, each indented to column 21	1
+given a home inside the root, the extra exclusions apply beside the home's own	1
+not blind: mutant, accept a run on another commit: a success the answer puts on the parent commit is no run on this commit	1
+not blind: mutant, accept a run on another commit: and gh was asked for the head's full sha	1
+not blind: mutant, accept a run on another commit: nor is one on the head's first 8, which is not the head	1
+not blind: review finding C9-R1: a newer failed gate run on the head is not outvoted by an older success: its run concluded failure	1
+not blind: review finding C9-R1: nor is a newer gate run still in progress: its run is in_progress	1
+not blind: review finding C9-R2: a success whose headSha is absent is not a pass: GitHub could not be asked (...)	1
+not blind: review finding C9-R2: a success whose headSha is empty is not a pass: GitHub could not be asked (...)	1
+not blind: review finding C9-R2: a success whose headSha is null is not a pass: GitHub could not be asked (...)	1
+not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is removed a moment later: no run on this commit	1
+not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is truncated a moment later: no run on this commit	1
+not blind: review finding C9-R4: a log whose summary says (reused) is reported tests reused though its first line is lost	1
+not blind: review finding C9-R4: a reused suite whose first line follows a line fragment is reported tests reused, not ok	1
+on a tree whose two record files match HEAD, the stable id is the full id	1
+receipt.sh sourced by a bash given nothing but PATH and HOME answers _sr_tree	1
+red waits for a mark written while it waits and then records, exit 0	1
+red's output follows the recorded line, every line of it, stderr too, indented by two spaces	1
+red's stdout is a file and its stderr the same file	1
+tests/red --after with a mark and no process id is refused the same way	1
+tests/red --after with neither a mark nor a process id is refused, exit 2, with the reason --after needs both	1
+tests/run --reuse on a reusable receipt prints the reuse line, an empty line and the counts, the skipped clause left out at zero	1
+the gate runs the suite with --reuse	1
+the mark reads written once the manifest is written	1
+the receipt felix gate writes then reports tests:reused	1
+the receipt names mode record and the run's counts, six passed, none failed, five skipped	1
+the record run does not end before red has	1
+which is not the full id the run started from	1
+while the same change moves the full id	1
+with --after a suite that did not finish is refused at once with today's reason, before a bad manifest is read	1
+with --after no assertions.tsv need be there when red starts, exit 0	1
+with tests/red not executable a record run says so and starts nothing (control)	1

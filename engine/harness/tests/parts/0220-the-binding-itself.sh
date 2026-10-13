@@ -468,8 +468,9 @@ rm -f "$FROOT/projects/widget/setup.tsv"
 out="$(cd "$REPO" && "$FELIX" adopt --help 2>&1)"; rc=$?
 is  "felix adopt --help answers with usage"        "$rc" "0"
 has "and it is the usage text"                     "$out" "The engineering OS"
+# The usage text says "declared" now (felix status, felix stack --reach), so the word alone no longer means adopt declared something; the writer's own sentences are what this looks for.
 case "$out" in
-  *"declared"*) bad "and declares nothing" "$out" ;;
+  *"declared --help for"*|*"--help already declared"*) bad "and declares nothing" "$out" ;;
   *)            ok  "and declares nothing" ;;
 esac
 is "the capabilities file is untouched" \

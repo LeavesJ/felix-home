@@ -180,24 +180,23 @@ unset CLAUDE_CODE_SESSION_ID
 
 # Every copy this suite takes of the real tree goes through here, and it copies
 # CONTENT: what git tracks under the source, plus what is untracked and not
-# ignored, because work not yet added is still work under test. What git
-# ignores stays behind. `cp -R` copied a directory listing instead, residue
-# included, and the fixtures below that commit such a copy as "main" and cut a
-# cache entry from it then disagreed with themselves: measured 2026-09-19, a
-# claude-flow hook had dropped .claude-flow/ into engine/harness — ignored, so
-# git status stayed clean — and fifteen assertions failed, each leading with
-# the judge and the plugin cache and carrying the directory's name only at the
-# tail of a temporary path, which is where nobody reads. The mechanism, by
-# experiment: the fixture's `git add -A` obeys the machine's GLOBAL excludes
-# file, which named .claude-flow/, so the fixture's main left the stray out;
-# the raw copy in the fixture's cache kept it; and the judge, which shuts the
-# global file off on purpose, called the difference drift. A runner with no
-# global excludes commits the stray on both sides and the judge, measured on
-# that pair, reports nothing — so this was only ever red on a developer's
-# machine. Production is not sensitive, measured at 0.49.122:
-# felix_accepted_deploy_diff reads its source side from the commit, and
-# felix_deploy_diff asks the repository's own ignore rules about the rest.
-# It was sensitive once, and #86 is what ended that.
+# ignored, because work not yet added is still work under test. What git ignores
+# stays behind. `cp -R` copied a directory listing instead, residue included,
+# and the fixtures below that commit such a copy as "main" and cut a cache entry
+# from it then disagreed with themselves: measured 2026-09-19, a claude-flow
+# hook had dropped .claude-flow/ into engine/harness — ignored, so git status
+# stayed clean — and fifteen assertions failed, each leading with the judge and
+# the plugin cache and carrying the directory's name only at the tail of a
+# temporary path, which is where nobody reads. The mechanism, by experiment: the
+# fixture's `git add -A` obeys the machine's GLOBAL excludes file, which named
+# .claude-flow/, so the fixture's main left the stray out; the raw copy in the
+# fixture's cache kept it; and the judge, which shuts the global file off on
+# purpose, called the difference drift. A runner with no global excludes commits
+# the stray on both sides and the judge, measured on that pair, reports nothing
+# — so this was only ever red on a developer's machine. Production is not
+# sensitive, measured at 0.49.122: felix_accepted_deploy_diff reads its source
+# side from the commit, and felix_deploy_diff asks the repository's own ignore
+# rules about the rest. It was sensitive once, and #86 is what ended that.
 #
 # --exclude-standard, global file included, deliberately: whatever this
 # machine's git would refuse to add to a fixture is exactly what must not be
@@ -398,14 +397,17 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1070-felix-cost-the-2026-10-11-addendum.sh"
 . "$HERE/parts/1080-the-stop-hook-holds-once-per-session-per-tre.sh"
 . "$HERE/parts/1090-the-stop-hook-holds-once-per-session-tree-re.sh"
-. "$HERE/parts/1100-gate-friction-a-blind.sh"
-. "$HERE/parts/1110-gate-friction-a-blind.sh"
-. "$HERE/parts/1120-gate-friction-a-blind.sh"
-. "$HERE/parts/1130-gate-friction-a-addendum-blind.sh"
-. "$HERE/parts/1130-gate-friction-a-blind.sh"
-. "$HERE/parts/1140-gate-friction-a-survivors-blind.sh"
-. "$HERE/parts/1150-gate-friction-a2-blind.sh"
-. "$HERE/parts/1160-gate-friction-a3-blind.sh"
+. "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"
+. "$HERE/parts/1110-found-after-the-blind-part-status-index-and-long-list.sh"
+. "$HERE/parts/1120-found-in-review-reach-runs-in-an-empty-directory.sh"
+. "$HERE/parts/1200-gate-friction-a-blind.sh"
+. "$HERE/parts/1210-gate-friction-a-blind.sh"
+. "$HERE/parts/1220-gate-friction-a-blind.sh"
+. "$HERE/parts/1230-gate-friction-a-addendum-blind.sh"
+. "$HERE/parts/1230-gate-friction-a-blind.sh"
+. "$HERE/parts/1240-gate-friction-a-survivors-blind.sh"
+. "$HERE/parts/1250-gate-friction-a2-blind.sh"
+. "$HERE/parts/1260-gate-friction-a3-blind.sh"
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished
 # red run exits 1 as a dead one can (#371). The empty line before it is this

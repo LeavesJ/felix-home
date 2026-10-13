@@ -261,4 +261,156 @@ _gfcHas "C9.5: and prints the blocker on its own line, as the others are printed
     "$(printf '  %-11s %-22s %s' unverified tests "$_gfcPre")"
 _gfcHas "C9.3/C9.5: saying what held: its run concluded cancelled" "$_gfcOut" "its run concluded cancelled"
 
+# ==== not blind: the review of the first build of C9 (779d7f39) ===============
+# Everything above is the blind block, written from the contract alone. What
+# follows is not: four findings of the review that came after the build, each
+# written with the defect in view and named in its assertions. Each is red on
+# 779d7f39 and green on the fix, and the cases the fix keeps are marked
+# (control).
+
+# ---- C9-R1: the newest run on the head is the verdict ----------------------
+# A second run on one head appears when a pull request is reopened after main
+# moved, or when the head sits in two of them. An older green run must not
+# stand in for a newer one that failed or has not finished.
+_gfcRcpt 0 "$_gfcRO"
+_gfcCase runs "$(_gfcRun 42 "$_gfcH" completed failure ci-gate.yml)" "$(_gfcRun 40 "$_gfcH" completed success ci-gate.yml)"
+_gfcIs "not blind: review finding C9-R1: a newer failed gate run on the head is not outvoted by an older success: its run concluded failure" \
+   "$(_gfcHeld "$(_gfcBlk "$_gfcPATH")" "its run concluded failure")" "held"
+_gfcCase runs "$(_gfcRun 42 "$_gfcH" in_progress "" ci-gate.yml)" "$(_gfcRun 40 "$_gfcH" completed success ci-gate.yml)"
+_gfcIs "not blind: review finding C9-R1: nor is a newer gate run still in progress: its run is in_progress" \
+   "$(_gfcHeld "$(_gfcBlk "$_gfcPATH")" "its run is in_progress")" "held"
+_gfcCase runs "$(_gfcRun 42 "$_gfcH" completed success ci-gate.yml)" "$(_gfcRun 40 "$_gfcH" completed failure ci-gate.yml)"
+_gfcIs "not blind: review finding C9-R1: a newer success after an older failure clears every blocker (control)" \
+   "$(_gfcBlk "$_gfcPATH")" ""
+
+# ---- C9-R2: a run whose commit cannot be read is not a run on this commit ---
+# The stub below answers whatever --commit says, as a gh that is not GitHub's
+# or an API anomaly would, with the one run's headSha taken out three ways.
+# Real gh always fills headSha; the only thing that would tie such a run to the
+# head is the --commit filter, and the rule says it reads headSha itself.
+mkdir -p "${_gfcG:?}/raw"
+cat > "$_gfcG/raw/gh" <<'GFCRAW'
+#!/usr/bin/env bash
+d="$(cd "$(dirname "$0")/.." && pwd)"
+printf '%s\n' "$*" >> "$d/calls"
+case "${1:-} ${2:-}" in
+  "auth status"|"repo view") exit 0 ;;
+  "run list") shift 2 ;;
+  *) exit 1 ;;
+esac
+q=""
+while [ $# -gt 0 ]; do case "$1" in -q|--jq) q="${2:-}"; shift 2 ;; *) shift ;; esac; done
+jq -r "$q" "$d/runs.json"
+GFCRAW
+chmod +x "$_gfcG/raw/gh"
+_gfcRawPATH="$_gfcG/raw:$PATH"
+_gfcOne="$(_gfcRun 40 "$_gfcH" completed success ci-gate.yml)"
+_gfcNoSha=0; command -v jq >/dev/null 2>&1 && _gfcNoSha=1
+if [ "$_gfcNoSha" = 1 ]; then
+  _gfcRcpt 0 "$_gfcRO"
+  _gfcCase runs "$_gfcOne"
+  is "not blind: review finding C9-R2: the raw stub's answer holds a success whose headSha is the head (control)" \
+     "$(_gfcBlk "$_gfcRawPATH")" ""
+  for _gfcv in 'null:.headSha = null' 'empty:.headSha = ""' 'absent:del(.headSha)'; do
+    _gfcCase runs "$(printf '%s' "$_gfcOne" | jq -c "${_gfcv#*:}")"
+    _gfcB="$(_gfcBlk "$_gfcRawPATH")"
+    is "not blind: review finding C9-R2: a success whose headSha is ${_gfcv%%:*} is not a pass: GitHub could not be asked (...)" \
+       "$(_gfcHeld "$_gfcB" "GitHub could not be asked (")" "held"
+  done
+else
+  skip "not blind: review finding C9-R2: a success whose headSha is missing is not a pass" "no jq here for the gh stub"
+fi
+
+# ---- C9-R3: the receipt C9 reads is the receipt that was judged -------------
+# felix_verify_current takes about a third of a second and the gate rewrites
+# the receipt with a truncating `>`. The judge below is the merge boundary's,
+# loaded the same way, with that one function wrapped so that the receipt
+# vanishes, or is truncated, the moment it has said `current`. The receipt
+# judged current said tests:reused, gh answers an empty list, and the rule must
+# still have asked.
+_gfcBlkRace() {   # PATH, rm|empty: what happens to the receipt right after it is judged
+  ( cd "${_gfcR:?}" && GIT_ALLOW_PROTOCOL=file PATH="$1" bash -c '
+      set -uo pipefail
+      k="$1"; p="$2"; r="$3"; h="$4"; m="$5"
+      for f in resolve verify review classify evidence escape; do . "$k/lib/$f.sh" 2>/dev/null || exit 3; done
+      # The copy of the function below cannot find epoch.sh by its own path, as
+      # the original does at call time, so it is loaded here.
+      . "$k/lib/epoch.sh" 2>/dev/null || exit 3
+      eval "_gfcOrigCurrent() $(declare -f felix_verify_current | sed 1d)"
+      felix_verify_current() {
+        _gfcOrigCurrent "$@"; local rc=$?
+        case "$m" in
+          rm)    rm -f "$(_felix_receipt_path "$r" "$h")" ;;
+          empty) : > "$(_felix_receipt_path "$r" "$h")" ;;
+        esac
+        return $rc
+      }
+      felix_merge_blockers "$p" HEAD~1 "$r" "$h"
+    ' _ "$FROOT/harness" "$_gfcP" "$_gfcR" "$FROOT" "$2" ) 2>/dev/null
+}
+for _gfcm in rm empty; do
+  _gfcRcpt 0 "$_gfcRO"
+  _gfcCase runs
+  _gfcIs "not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is $([ "$_gfcm" = rm ] && echo removed || echo truncated) a moment later: no run on this commit" \
+     "$(_gfcHeld "$(_gfcBlkRace "$_gfcPATH" "$_gfcm")" "no run on this commit")" "held"
+done
+_gfcRcpt 0 "$_gfcRO"
+_gfcCase runs "$(_gfcRun 40 "$_gfcH" completed success ci-gate.yml)"
+_gfcIs "not blind: review finding C9-R3: and with the gate's success on the head the same wrapped judge clears every blocker (control)" \
+   "$(_gfcBlkRace "$_gfcPATH" rm)" ""
+
+# ---- C9-R4: a reused suite is reported reused whatever is in front of it ----
+# projects/felix/gate.sh, whole, in a checkout of its own with a stub for
+# tests/run, as part 1130 does it. The stub writes `warning: something` to
+# stderr with no newline ahead of the suite's first line, which is what a git
+# warning or BASH_ENV can do: the log then holds the sentence on a line that
+# does not begin with it. A gate that reports ok for it writes tests:ok in its
+# receipt and C9 asks nothing.
+GFH="$TMP/gfh-gate"; GFH_C="$GFH/c"; mkdir -p "$GFH/tmp" "$GFH/home"
+GFH_GATE="$REAL_HARNESS/../../projects/felix/gate.sh"
+mkdir -p "$GFH_C/engine/harness/bin" "$GFH_C/engine/harness/lib" "$GFH_C/engine/harness/tests" "$GFH_C/projects/felix"
+if [ ! -f "$GFH_GATE" ]; then
+  skip "not blind: review finding C9-R4: a reused suite behind a line fragment is reported reused" "no projects/felix/gate.sh beside this engine"
+else
+  cp "$GFH_GATE" "$GFH_C/projects/felix/gate.sh"
+  printf '#!/bin/sh\nexit 0\n' > "$GFH_C/engine/harness/bin/schema-check"
+  printf '#!/bin/sh\n[ "${1:-}" = --paths ] && echo engine/harness/bin\nexit 0\n' > "$GFH_C/engine/harness/bin/independence-scan"
+  printf '_gfh_probe() {\n  _felix_dep_grep "$root" "gfhzzword"\n}\n' > "$GFH_C/engine/harness/lib/detect.sh"
+  printf '# kind\tfile\ttoken\treason\n' > "$GFH_C/engine/harness/ecosystem.tsv"
+  cat > "$GFH_C/engine/harness/tests/run" <<'GFHRUN'
+#!/usr/bin/env bash
+case "$(cat "${GFH_MODE:?}")" in
+  prefixed)    printf 'warning: something' >&2
+               printf 'reused the suite run that ended 09:41 on this tree (normal), not run again\n\n12 passed, 0 failed (reused)\n'; exit 0 ;;
+  summaryonly) printf 'the first line was lost\n\n12 passed, 0 failed (reused)\n'; exit 0 ;;
+  ranfull)     printf 'not reused: no receipt\n\n  ok    the line that says reused the suite run that ended is not this one\n\n12 passed, 0 failed\n'; exit 0 ;;
+esac
+exit 3
+GFHRUN
+  chmod +x "$GFH_C/engine/harness/bin/schema-check" "$GFH_C/engine/harness/bin/independence-scan" "$GFH_C/engine/harness/tests/run"
+  ( cd "${GFH_C:?}" && git -c user.name=gfh -c user.email=gfh@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null init -q -b main \
+      && git add -A && git -c user.name=gfh -c user.email=gfh@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm fixture ) >/dev/null 2>&1
+  _gfhGate() {   # name mode: the gate's output in $GFH/<name>.out
+    local pid c=0
+    printf '%s\n' "$2" > "$GFH/mode"
+    ( cd "${GFH_C:?}" && exec env HOME="$GFH/home" FELIX_KERNEL_CACHE="$GFH/nocache" TMPDIR="$GFH/tmp" \
+        GFH_MODE="$GFH/mode" bash projects/felix/gate.sh ) > "$GFH/$1.out" 2>&1 &
+    pid=$!
+    while kill -0 "$pid" 2>/dev/null && [ "$c" -lt 300 ]; do sleep 0.1; c=$((c + 1)); done
+    kill -0 "$pid" 2>/dev/null && kill -9 "$pid" 2>/dev/null
+    wait "$pid" 2>/dev/null
+  }
+  _gfhReused="$(printf '  %-18s reused' tests)"
+  _gfhOk="$(printf '  %-18s ok' tests)"
+  _gfhGate prefixed prefixed
+  is "not blind: review finding C9-R4: a reused suite whose first line follows a line fragment is reported tests reused, not ok" \
+     "$(grep -cxF -e "$_gfhReused" "$GFH/prefixed.out") $(grep -cxF -e "$_gfhOk" "$GFH/prefixed.out")" "1 0"
+  _gfhGate summaryonly summaryonly
+  is "not blind: review finding C9-R4: a log whose summary says (reused) is reported tests reused though its first line is lost" \
+     "$(grep -cxF -e "$_gfhReused" "$GFH/summaryonly.out") $(grep -cxF -e "$_gfhOk" "$GFH/summaryonly.out")" "1 0"
+  _gfhGate ranfull ranfull
+  is "not blind: review finding C9-R4: a suite that ran, with a test name that mentions the reuse line, is still reported ok (control)" \
+     "$(grep -cxF -e "$_gfhReused" "$GFH/ranfull.out") $(grep -cxF -e "$_gfhOk" "$GFH/ranfull.out")" "0 1"
+fi
+
 rm -rf "${_gfcP:?}" "${MEM:?}/gfcw"

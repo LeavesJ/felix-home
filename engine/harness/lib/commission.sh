@@ -223,44 +223,10 @@ felix_commission_lock() {   # proj, home -> 0 taken, 1 held by a live run
 
 felix_commission_unlock() { [ -n "${1:-}" ] && rm -rf "$1" 2>/dev/null; return 0; }
 
-# Run the pipeline with nobody present, when a person has said it may.
-#
-# Deliberately thin. It takes no lock of its own: cmd_commission takes one, so
-# this is just another caller and a run that arrives while a person is
-# commissioning gives up quietly — which is the right answer, where two writers
-# appending to one manifest is not.
-#
-# Three refusals before it starts, and each is a different question.
-#   - Is it granted at all.
-#   - Does the grant still cover the table on disk? An ordinary edit to
-#     commissioning.tsv must not inherit a person's consent, because two of its
-#     columns are eval'd.
-#   - Is there a table to run.
-#
-# The outcome is written down. A detached run whose output goes to /dev/null
-# fails where nobody can see it, which is the shape this repository keeps
-# finding: a silence that reads as success. One line per run, so the next
-# session can say what the last unattended one did.
-felix_commission_resume_bg() {
-  local proj="$1" home="$2" bin="${3:-}" log root
-  [ -n "$bin" ] && [ -x "$bin" ] || return 0
-  command -v felix_autonomy_commission_current >/dev/null 2>&1 || return 0
-  felix_autonomy_commission_current "$proj" || return 0
-  [ -f "$proj/commissioning.tsv" ] || return 0
-  root="$(felix_repo_root "$PWD")"; [ -n "$root" ] || return 0
-  log="$home/state/commission/$(basename "$proj").bg.log"
-  mkdir -p "$(dirname "$log")" 2>/dev/null || return 0
-  (
-    felix_close_inherited_fds
-    cd "$root" 2>/dev/null || exit 0
-    if "$bin" commission >/dev/null 2>&1; then
-      printf '%s\tran\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"
-    else
-      printf '%s\tdeclined-or-failed\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"
-    fi
-  ) </dev/null >/dev/null 2>&1 &
-  return 0
-}
+# The unattended resume lives in own.sh, beside the rule that decides whether it
+# may run in a checkout. Sourced by path so a caller of this file alone finds it.
+command -v felix_commission_resume_bg >/dev/null 2>&1 \
+  || { [ -r "$(dirname "${BASH_SOURCE[0]:-$0}")/own.sh" ] && . "$(dirname "${BASH_SOURCE[0]:-$0}")/own.sh"; }
 
 # Run a check or a `when` in the checkout, in-process, with stdin closed, and
 # return the status as the text left it: what it returned, what the shell
@@ -515,8 +481,14 @@ felix_commission_actor() {
 # file so an absent file differs from an empty one; and the detected surfaces.
 felix_commission_policy_version() {
   local proj="$1" f
+  # Each table is read only as a regular file. A pipe at any table's path held
+  # the cat open for a writer that never came, so every caller of the policy
+  # version (the commission grant, the epoch, merge) waited on it forever, and
+  # a link to a device read without end (2026-10-01). Skipped, the path hashes
+  # as an absent table always hashed, since cat printed nothing for one, so no
+  # hash over ordinary files moves and no receipt goes stale.
   for f in $FELIX_COMMISSION_TABLES; do
-    printf '== %s ==\n' "$f"; cat "$proj/$f" 2>/dev/null
+    printf '== %s ==\n' "$f"; [ -f "$proj/$f" ] && cat "$proj/$f" 2>/dev/null
   done | _felix_hash
 }
 felix_commission_caps_hash() { felix_detect "$1" 2>/dev/null | LC_ALL=C sort -u | _felix_hash; }

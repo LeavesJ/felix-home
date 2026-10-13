@@ -164,8 +164,10 @@ felix_discover_candidates() {
   rules="$(_felix_discover_rules "$tpl" "$proj")"
   [ -n "$rules" ] || return 0
 
-  local declared
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # stack.tsv only as a regular file: a pipe at the path held this grep open
+  # for a writer that never came (2026-10-01). Anything else declares nothing.
+  local declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
 
   listing="$(claude plugin list --json --available </dev/null 2>/dev/null)" || return 3
   # A listing is a JSON array or object. An error printed to stdout with a
@@ -1379,7 +1381,9 @@ felix_discover_adopt() {
 
   # Compared without the marketplace suffix, the same way candidates are
   # filtered, so langfuse@x already declared matches a langfuse candidate.
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
+  # Only as a regular file, for the reason felix_discover_candidates gives.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
               | cut -f2 | sed 's/@.*//')"
 
   # Four fields, and the fourth is read even though this function does not use
@@ -1466,6 +1470,7 @@ felix_discover_stale() {
 felix_discover_refresh_bg() {
   local proj="$1" home="$2" felix_bin="$3"
   local dir lock
+  command -v felix_neutral_run >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach-read.sh"
   dir="$home/state/discover"
   lock="$dir/.lock"
   mkdir -p "$dir" 2>/dev/null || return 0
@@ -1473,11 +1478,10 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     felix_close_inherited_fds
-    cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    # A refresh that could not read the marketplaces exits non-zero and writes
-    # nothing, and the previous answer stands: an unreadable catalogue is not
-    # an empty one, and must not become one for seven days.
-    if "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
+    # Never the checkout, which may be a stranger's: an empty directory holding a .felix naming the
+    # project (lib/reach-read.sh), or no run at all. A read that fails writes nothing and the previous
+    # answer stands: an unreadable catalogue is not an empty one, and must not become one for a week.
+    if felix_neutral_run "$proj" felix-discover "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
       mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
             "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
     else

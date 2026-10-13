@@ -37,6 +37,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/overnight.sh"
 # shellcheck source=../lib/ledger.sh
 . "${SCRIPT_DIR}/../lib/ledger.sh"
+# shellcheck source=../lib/reach.sh
+. "${SCRIPT_DIR}/../lib/reach.sh"
 # shellcheck source=../lib/pulse.sh
 . "${SCRIPT_DIR}/../lib/pulse.sh"
 # shellcheck source=../lib/commission.sh
@@ -220,16 +222,29 @@ fi
 # are appended, so `stack plan` and `setup` begin telling the truth. Installing
 # remains a separate, deliberate act, and high-risk rows are refused by every
 # flag regardless. The plan changes; the machine does not.
-adopted=""
+adopted=""; not_adopted=""; partly=""
 _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
+# Unattended work runs only in the project's own checkout (lib/own.sh): 0 here, and 2 until it answers.
+_own=2; _FELIX_OWN_WITHHELD=""; command -v felix_checkout_is_own >/dev/null 2>&1 && { felix_checkout_is_own "$PROJ" "$_repo_root" 2>/dev/null; _own=$?; }
+_undecl="$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)"
+[ -z "$_undecl" ] || felix_own_gate adoption "$_own" 2>/dev/null || _undecl=""
 while IFS= read -r _cap; do
   [ -n "$_cap" ] || continue
-  if _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"; then
-    adopted="$adopted $_cap(${_counts// /+})"
-  fi
+  # 2026-10-01: 2 is a list adopt could not read or write, so nothing was
+  # recorded or written. It is said below rather than dropped like 1, or a
+  # surface on a read-only list would go unmentioned every session.
+  _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"
+  case $? in
+    0) adopted="$adopted $_cap(${_counts// /+})" ;;
+    2) not_adopted="$not_adopted $_cap" ;;
+    # Also 2026-10-01: 3 is recorded with a row it implies left unwritten.
+    # The reason went to the stderr dropped above, and the next session finds
+    # the capability declared and never writes the row, so it is said here.
+    3) adopted="$adopted $_cap(${_counts// /+})"; partly="$partly $_cap" ;;
+  esac
 done <<EOF
-$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
+$_undecl
 EOF
 
 if [ -n "$adopted" ]; then
@@ -240,6 +255,17 @@ Nothing was installed. Review with 'felix stack plan' and 'felix setup', and
 commit the project directory in Felix to make it durable."
 else
   drift_line=""
+fi
+if [ -n "$not_adopted" ]; then
+  drift_line="$drift_line
+Not adopted, because $PROJ/capabilities could not be read or written:${not_adopted}
+'felix adopt <capability>' says what is there."
+fi
+if [ -n "$partly" ]; then
+  drift_line="$drift_line
+Adopted, but not every row each implies could be written to $PROJ/stack.tsv or setup.tsv:${partly}
+Make both regular files Felix can write, delete each one's line from
+$PROJ/capabilities, and 'felix adopt <capability>' writes the rest."
 fi
 
 # Upkeep has no deadline, so it never happens, and then happens as a crisis.
@@ -299,15 +325,17 @@ ${_gl}"
 # rename, so a session querying it mid-refresh reads the old file or the new
 # one and never half of either. Checked in the source rather than assumed.
 case "${_gl}" in
-  *"behind this checkout"*) felix_graph_refresh_bg "$_repo_root" 2>/dev/null || true ;;
+  *"behind this checkout"*) command -v graphify >/dev/null 2>&1 && felix_own_gate "graph refresh" "$_own" 2>/dev/null \
+                              && felix_graph_refresh_bg "$_repo_root" 2>/dev/null ;;
 esac
 
 # Done, not reported. A duplicate script is not a decision somebody should be
 # handed at the start of their day; it is tidying, and Felix holds the copy that
 # matters. Every check lives in felix_tidy_safe and the project must have opted
 # in, so silence here is the normal case rather than a failure.
-tidy_line=""
-_removed="$(felix_tidy_safe "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null | tr '\n' ' ')"
+tidy_line=""; _removed=""
+if [ "$_own" -eq 0 ]; then _removed="$(felix_tidy_safe "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null | tr '\n' ' ')"
+elif felix_own_tidy_due "$PROJ" "$_repo_root" 2>/dev/null; then felix_own_gate tidying "$_own" 2>/dev/null; fi
 _removed="${_removed% }"
 [ -n "$_removed" ] && tidy_line="
 Removed, as copies Felix already holds: ${_removed}
@@ -572,21 +600,31 @@ felix discover --inspect shows what each one actually ships."
   fi
 fi
 
+# ------------------------------------------------------------- reach ----
+# Whether the servers this project declares connect, read in the background and
+# kept for the pulse and felix status. Detached, silent and best effort: it
+# starts one claude command after this hook has gone and writes a cache that
+# nothing in this hook reads. That command is run from an empty directory of its
+# own and never from this checkout: `claude mcp list` starts the servers it
+# lists, a project-scoped one included once it is approved, and this hook runs in
+# repositories nobody has vetted. The directory is made only under a TMPDIR that
+# no one else can write into, and with none the command is not run (lib/reach-read.sh
+# says why). Nothing here waits on
+# it, adds a word to the session, or changes what any later decision reads, which
+# is how invariant 2 holds. A fresh cache starts nothing; one 24 hours old or
+# more is read again, and a read that fails leaves the old cache.
+if [ -n "$PROJ" ] && [ -f "$PROJ/stack.tsv" ] && command -v claude >/dev/null 2>&1 \
+   && command -v felix_reach_due >/dev/null 2>&1 \
+   && felix_reach_due "$PROJ" "$FELIX_HOME_DIR"; then
+  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR"
+fi
+
 # ------------------------------------------------------- commissioning ----
-# Offline, every time: the record phase over any provider answer file (file
-# reads, no cli, no network), receipt validity from the two hashes, and one
-# paragraph naming what a session still owes — spoken ONCE per topology, so
-# it fires once per addressee and an answer consumes it. Nothing here runs a
-# check, an instrument or an installer; that is felix commission's, and a
-# person's to invoke.
-#
-# Unless a person has said otherwise, in writing, over this exact table. The
-# `commission` grant is the one thing that moves the line quoted above, and it
-# is absent by default: felix_commission_resume_bg returns without doing
-# anything unless projects/<p>/autonomy names it AND the stamp taken when it
-# was granted still matches commissioning.tsv. Two of that table's columns are
-# eval'd, so a grant that outlived the table it was read against would be
-# consent to something nobody read.
+# Offline, every time: the record phase over any provider answer file (file reads, no cli, no
+# network), receipt validity from the two hashes, and one paragraph naming what a session still
+# owes, spoken ONCE per topology. Nothing here runs a check, an instrument or an installer; that is
+# felix commission's. The detached resume is the one exception (lib/own.sh): under a current
+# `commission` grant stamped over this exact table (two columns are eval'd), in the project's own checkout.
 if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/null 2>&1; then
   # Detached, and silent when ungranted — which is every project until a person
   # types the command.
@@ -594,18 +632,27 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
     && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
   _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
-  _cm_await=""; _cm_ans=0
+  _cm_await=""; _cm_ans=0; _cm_unread=""
   while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
     [ -n "$_cn" ] || continue
     case "$_ca" in provider:*) ;; *) continue ;; esac
     _cst="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null | cut -f1)"
-    if [ "$_cst" = "answered" ]; then
-      _k="$(felix_commission_record_provider "$PROJ" "$_repo_root" "$_cn" "$_ca" "$(felix_tree_id "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)" "$(felix_commission_policy_version "$PROJ" 2>/dev/null)" 2>/dev/null)"
-      _cm_ans=$((_cm_ans + ${_k:-0}))
-    else
-      _cm_await="$_cm_await
-  $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")"
-    fi
+    # Only a state that says an answer is missing, for another topology, or
+    # unfinished is owed. Until 2026-10-01 every state but answered was, so a row
+    # whose state was unknown, or whose state call failed and printed nothing,
+    # sent a session to redo an answer that may be whole. Those rows are their
+    # own line below: neither owed nor recorded.
+    case "$_cst" in
+      answered)
+        _k="$(felix_commission_record_provider "$PROJ" "$_repo_root" "$_cn" "$_ca" "$(felix_tree_id "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)" "$(felix_commission_policy_version "$PROJ" 2>/dev/null)" 2>/dev/null)"
+        _cm_ans=$((_cm_ans + ${_k:-0})) ;;
+      awaiting|stale|partial)
+        _cm_await="$_cm_await
+  $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")" ;;
+      *)
+        _cm_unread="$_cm_unread
+  $_cn (${_cst:-no state})" ;;
+    esac
   done <<EOF
 $(felix_commission_rows "$PROJ" 2>/dev/null)
 EOF
@@ -622,19 +669,30 @@ EOF
   # that stops it and is entirely in a session's hands; the informational
   # line, which nobody has to act on, is still said once. Measured on this
   # machine, not reasoned: state/commission/felix.seen already held the
-  # current topology while all six requests sat unanswered.
+  # current topology while all six requests sat unanswered. A row whose answer
+  # could not be read holds it back too, as it did when it was counted among
+  # the owed: an all-clear spent over a row nobody could read would be said
+  # once and never again, on the strength of an answer that may not be whole.
   if [ -n "$_cm_await" ]; then
     context="$context
 
 Commissioning: receipt ${_cm_valid:-unknown}. A session still owes these — run the
 skill each request names, write the answer file it names, then felix commission:${_cm_await}"
-  elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
+  elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && [ -z "$_cm_unread" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
     context="$context
 
 Commissioning: receipt ${_cm_valid}."
     # Spent even on a summary session, which cannot be told apart here; see the
     # reconcile line above.
     mkdir -p "$(dirname "$_cm_seen")" 2>/dev/null && printf '%s\n' "$_cm_topo" >> "$_cm_seen" 2>/dev/null
+  fi
+  # Said at every session start while it holds, not once per topology: like the
+  # owed paragraph it is not an all-clear, and a row nobody could read is not
+  # one a first session's hearing of it discharges.
+  if [ -n "$_cm_unread" ]; then
+    context="$context
+
+Commissioning: whether these answers are whole could not be read, so they are neither owed nor recorded; felix commission --status reads them again:${_cm_unread}"
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context
 
@@ -659,6 +717,9 @@ case "$_felix_due" in ''|*[!0-9]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
+
+# The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).
+_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
 
 _felix_emit "$_felix_line" "$context"
 

@@ -144,14 +144,17 @@ $(felix_ready_report "$proj" 2>/dev/null)
 EOF
   fi
 
-  # 4 — upkeep.
+  # 4 — upkeep. The status is kept for rank 6, which says the rows whose
+  # capabilities could not be read.
+  local mstat=""
   if command -v felix_maint_status >/dev/null 2>&1; then
     local st nm age cad desc
+    mstat="$(felix_maint_status "$proj" "$(felix_repo_root "$PWD" 2>/dev/null)" 2>/dev/null)"
     while IFS=$'\t' read -r st nm age cad desc; do
       [ "${st:-}" = "due" ] || continue
       _felix_next_row 4 felix "upkeep due: $nm — $desc" "felix maintenance"
     done <<EOF
-$(felix_maint_status "$proj" "$(felix_repo_root "$PWD" 2>/dev/null)" 2>/dev/null)
+$mstat
 EOF
   fi
 
@@ -210,16 +213,42 @@ EOF
   # collision, and the guard for it was written and then called by nothing but
   # the suite — every surface that reads maintenance keeps only `^due`, so a
   # typo in the capability column is invisible on all of them, permanently.
+  #
+  # A third column of `unknown` is a list that could not be read at all, which
+  # says nothing about whether the capability is declared. Until 2026-10-01 that
+  # read as "nothing declares it" and sent someone to edit a table that may be
+  # right; it is its own row now, and its action is to ask again.
+  local mname mcap mwhy msaid="|"
   if command -v felix_maint_unreachable >/dev/null 2>&1; then
-    local mname mcap
-    while IFS=$'\t' read -r mname mcap; do
+    while IFS=$'\t' read -r mname mcap mwhy; do
       [ -n "${mname:-}" ] || continue
+      if [ "${mwhy:-}" = "unknown" ]; then
+        _felix_next_row 6 felix "upkeep '$mname': the capabilities this project declares could not be read, so whether $mcap is declared is not known" \
+          "run felix maintenance again"
+        msaid="$msaid$mname|"
+        continue
+      fi
       _felix_next_row 6 felix "upkeep '$mname' waits on a capability nothing declares: $mcap" \
         "fix the capability in $proj/maintenance.tsv, or declare it — it can never come due as written"
     done <<EOF
 $(felix_maint_unreachable "$proj" 2>/dev/null)
 EOF
   fi
+  # The rest of the routines the status calls unknown. felix_maint_unreachable
+  # passes over the capabilities it trusts as spelled (ci, tests, ...), so
+  # until 2026-10-01 a routine on one of those, over a list that could not be
+  # read, reached no rank here, and `felix next` printed "no upkeep is past its
+  # cadence" over it. A routine said above with its capability is not said
+  # twice.
+  local ust unm urest
+  while IFS=$'\t' read -r ust unm urest; do
+    [ "${ust:-}" = "unknown" ] || continue
+    case "$msaid" in *"|$unm|"*) continue ;; esac
+    _felix_next_row 6 felix "upkeep '$unm': the capabilities this project declares could not be read, so whether it is due is not known" \
+      "run felix maintenance again"
+  done <<EOF
+$mstat
+EOF
 
   # 7 — routing. Mounted, never pointed at. Not the same as "no route names it":
   # the table may name it while its keywords never match the work anybody does,

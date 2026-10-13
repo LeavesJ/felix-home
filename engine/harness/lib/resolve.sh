@@ -258,7 +258,14 @@ felix_mem_dir() {
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has
 # outgrown its job.
+#
+# Something at the path that is not a regular file is not opened, and reads as
+# no field (2026-10-01). Resolution reads every project's project.json, so a
+# pipe at one project's path held sed open for a writer that never came, and
+# every hook of every project waited on it. Nothing at the path is left to sed
+# as before.
 felix_json_str() {
+  if [ -e "$1" ] && [ ! -f "$1" ]; then return 2; fi
   sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
@@ -858,6 +865,50 @@ felix_count() {
   local n
   n="$(grep -c "$@" 2>/dev/null)" || true
   case "$n" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$n" ;; esac
+}
+
+# Whether a file's last line is ended, so that the next
+# `printf '...\n' >> file` lands as a row of its own.
+#
+# 2026-10-01: felix adopt appended `obs` to a hand-written capabilities file
+# holding `api` with no final newline, and wrote `apiobs`, one row that was
+# neither. felix_declared then listed `apiobs`, so both capabilities were lost,
+# while the stack and setup rows for `obs` were still appended. Any file the
+# engine appends to that something else also writes - a table a person may
+# edit, a log a routine curates, a project gate's own output - can end that
+# way, so the engine ends it before it appends, and a table row that cannot be
+# put on a line of its own is not appended.
+#
+# 0: absent, empty, or ending in a newline. 1: a last line with no newline.
+# 2: not a regular file, or its last byte cannot be read. Something at the path
+# that is not a regular file is never opened: a FIFO would block the append
+# that follows, a directory would fail it after the caller had counted it, and
+# a dangling link would create its target.
+#
+# The last byte is read as a number, as lib/table.sh reads it. A command
+# substitution drops a NUL the same way it drops a newline, so the obvious
+# `[ -n "$(tail -c 1 f)" ]` reads a NUL-ended file as ended and glues the row.
+felix_line_ended() {
+  local f="$1" last
+  if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] || return 2; fi
+  [ -s "$f" ] || return 0
+  last="$( { tail -c 1 < "$f" | od -An -tx1 | tr -d ' \n'; } 2>/dev/null )"
+  [ "$last" = "0a" ] && return 0
+  [ -n "$last" ] || return 2
+  return 1
+}
+
+# Ends the file's last line if it has none. Returns 1 when the file is not one
+# a row can be appended to whole: not a regular file, a last byte that cannot
+# be read, or a newline that cannot be written. The caller must then not
+# append, and must not count or report the row as written.
+felix_end_line() {
+  felix_line_ended "$1"
+  case $? in
+    0) return 0 ;;
+    1) { printf '\n' >> "$1"; } 2>/dev/null ;;
+    *) return 1 ;;
+  esac
 }
 
 felix_same_repo() {

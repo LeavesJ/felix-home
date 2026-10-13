@@ -27,20 +27,27 @@ printf '\nfound in review: reach reads the list from an empty directory, and the
 #
 # Uses the fixtures part 1100 leaves behind: RXH (the project reachy and its
 # stack), RXPC, RXMEM, RXLA (LIST-A), RXR4 (its rows) and the helpers.
-RZ="$(mktemp -d "$TMP/rz.XXXXXX")"; RZ="$(cd "$RZ" && pwd -P)"
+RZ="$(mktemp -d "$RXBASE/rz.XXXXXX")"; RZ="$(cd "$RZ" && pwd -P)"
 RZB="$RZ/bin"; RZT="$RZ/tmp"; RZU="$RZ/user"; RZC="$RZ/hostile-checkout"
 mkdir -p "$RZB" "$RZT" "$RZU"
-RZT="$(cd "$RZT" && pwd -P)"
+RZT="$(cd "$RZT" && pwd -P)"; chmod 700 "$RZT"
 cat > "$RZB/claude" <<'RZCLAUDESTUB'
 #!/bin/bash
 printf '%s\n' "$*" >> "${RZ_ARGLOG:-/dev/null}"
 case "$*" in
   "mcp list")
     pwd -P >> "${RZ_PWDLOG:-/dev/null}"
-    if [ -f .mcp.json ]; then
-      c="$(sed -n 's/.*"command": *"\([^"]*\)".*/\1/p' .mcp.json | head -1)"
-      if [ -n "$c" ]; then "$c" >/dev/null 2>&1; fi
-    fi
+    # Like the real CLI (measured 2026-10-12), it walks up: the nearest .mcp.json from the working directory to / is the one whose server it starts.
+    _d="$PWD"
+    while :; do
+      if [ -f "$_d/.mcp.json" ]; then
+        c="$(sed -n 's/.*"command": *"\([^"]*\)".*/\1/p' "$_d/.mcp.json" | head -1)"
+        if [ -n "$c" ]; then "$c" >/dev/null 2>&1; fi
+        break
+      fi
+      [ -n "$_d" ] && [ "$_d" != / ] || break
+      _d="${_d%/*}"
+    done
     if [ -n "${RZ_DROP:-}" ]; then printf 'x\n' > ./dropped-by-claude; pwd -P >> "${RZ_DROPLOG:-/dev/null}"; fi
     if [ -n "${RX_LIST:-}" ]; then cat "$RX_LIST"; fi
     exit "${RX_RC:-0}" ;;
@@ -140,7 +147,7 @@ is  "and exits 0" "$_rzrc" "0"
 is  "and ran no claude command" "$(_rz_n "$RZ/args.log")" "0"
 cmp -s "$RZ/cache.keep" "$(_rx_cache reachy)" && ok "and left the cache as it was" || bad "and left the cache as it was"
 # Measured 2026-10-12 with the real claude: run in a subdirectory of a checkout it lists the server of the parent's .mcp.json, so an empty directory under a project is not neutral. A TMPDIR below a .mcp.json (a repository's own tmp, or a planted /tmp/.mcp.json) must leave the list unread.
-RZUP="$RZ/under-mcp"; mkdir -p "$RZUP"; printf '{"mcpServers": {}}\n' > "$RZUP/.mcp.json"
+RZUP="$RZ/under-mcp"; mkdir -p "$RZUP"; chmod 755 "$RZUP"; printf '{"mcpServers": {}}\n' > "$RZUP/.mcp.json"
 _rz_reset
 is  "a .mcp.json above the scratch directory leaves the list unread, and says why" \
     "$(RZ_TMPDIR="$RZUP" _rz_lib reach 'felix_reach_read >/dev/null; printf "%s|%s" "$?" "$_FELIX_REACH_WHY"')" \
@@ -156,8 +163,8 @@ rm -f "$RZUP/.mcp.json"
 is  "the same TMPDIR without the .mcp.json reads the list (the control)" \
     "$(RZ_TMPDIR="$RZUP" _rz_lib reach 'felix_reach_read >/dev/null; printf "%s" "$?"')" "0"
 _rz_reset
-_rz_src="$(awk '/^[[:space:]]*#/ { next } /claude mcp list 2>/ { print }' "$FROOT/harness/lib/reach.sh" 2>/dev/null)"
-is  "reach.sh runs claude mcp list in exactly one place" "$(printf '%s\n' "$_rz_src" | grep -c 'claude mcp list 2>')" "1"
+_rz_src="$(awk '/^[[:space:]]*#/ { next } /claude mcp list 2>/ { print }' "$FROOT/harness/lib/reach.sh" "$FROOT/harness/lib/reach-read.sh" 2>/dev/null)"
+is  "reach.sh and reach-read.sh run claude mcp list in exactly one place" "$(printf '%s\n' "$_rz_src" | grep -c 'claude mcp list 2>')" "1"
 _rx_has "and that place changes into the scratch directory first" "$_rz_src" 'cd "'
 
 printf '\nreach: the SessionStart refresh reads from an empty directory\n'
@@ -246,3 +253,172 @@ _rz_hset FELIX_HOME_DIR="$RZSCR" "$FELIX" stack --reach --tsv >/dev/null
 is  "FELIX_HOME_DIR alone is not an override: the pointer's home is written (what the review saw)" "$(_rz_has_state "$RZREAL")" " reachy.tsv"
 is  "and the directory it named is not" "$(_rz_has_state "$RZSCR")" ""
 _rz_clear; _rz_reset
+
+printf '\nreach: the scratch directory is made only under a TMPDIR nobody else can write\n'
+# The third blocker, from the security review of the empty-directory fix (MEDIUM,
+# toctou). The fix fell back to /tmp when TMPDIR was unset or relative. /tmp is
+# shared and world-writable (sticky stops a delete, not a create), so between
+# "no .mcp.json in any parent" and `claude mcp list` another local user could
+# plant /tmp/.mcp.json, which the CLI reads from a parent, and the refresh would
+# start whatever it names. The ancestor check cannot close that: it is a check,
+# and the file arrives after it. What closes it is a directory nobody else can
+# write into, under parents nobody else can write into: TMPDIR must be absolute,
+# owned by the user with no group or other write bit, and every ancestor up to /
+# owned by root or the user with neither. Otherwise claude is not run.
+# Shown failing first: against the /tmp fallback the unset, empty and relative
+# cases READ the list, and the 0777, group-writable, world-writable-parent and
+# foreign-owner cases read it too.
+RZSB="$RZ/sbin"; mkdir -p "$RZSB"
+cat > "$RZSB/stat" <<'RZSTATSTUB'
+#!/bin/bash
+# stat for the ownership tests. RZ_STATFAIL=1: no form of it works. RZ_FOREIGN=<path>:
+# that path belongs to uid 4242, in whichever form was asked. Anything else is the real one.
+if [ -n "${RZ_STATFAIL:-}" ]; then exit 1; fi
+for _a in "$@"; do _p="$_a"; done
+if [ -n "${RZ_FOREIGN:-}" ] && [ "${_p:-}" = "$RZ_FOREIGN" ]; then printf '4242 755\n'; exit 0; fi
+for _s in /usr/bin/stat /bin/stat; do [ -x "$_s" ] && exec "$_s" "$@"; done
+exit 1
+RZSTATSTUB
+cat > "$RZSB/ls" <<'RZLSSTUB'
+#!/bin/bash
+# ls for the fallback tests. RZ_LSJUNK=1: prints something that is no listing.
+# RZ_FOREIGN=<path>: that path is listed as belonging to uid 4242. Otherwise the real one.
+if [ -n "${RZ_LSJUNK:-}" ]; then printf 'not a listing\n'; exit 0; fi
+for _a in "$@"; do _p="$_a"; done
+if [ -n "${RZ_FOREIGN:-}" ] && [ "${_p:-}" = "$RZ_FOREIGN" ]; then printf 'drwxr-xr-x  2 4242  20  64 Oct 12 12:00 %s\n' "$_p"; exit 0; fi
+for _s in /bin/ls /usr/bin/ls; do [ -x "$_s" ] && exec "$_s" "$@"; done
+exit 1
+RZLSSTUB
+chmod +x "$RZSB/stat" "$RZSB/ls"
+
+# One lib under /bin/bash like _rz_lib, with extra env(1) arguments (-u TMPDIR, TMPDIR=x, PATH=...) and a working directory.
+_rz_libenv() {   # <lib> <code> [env arg]...
+  local lib="$1" code="$2"; shift 2
+  [ -z "${RZ_CWD:-}" ] || cd "$RZ_CWD" || return 1
+  _rz_env env "$@" /bin/bash -c '. "$1/lib/resolve.sh" && . "$1/lib/$2.sh" || exit 97; eval "$3"' rzl "$FROOT/harness" "$lib" "$code" 2>/dev/null
+}
+RZWHY_ABS="TMPDIR is not an absolute path, so there is no private directory to run claude mcp list in"
+RZWHY_PRIV="TMPDIR is not a private directory, so claude mcp list was not run: it must be owned by you and writable by no one else, under parents only you or root can write"
+_rz_refuses() {   # <name> <why> <env arg>... : the read says no, with that sentence, and claude was never started
+  local n="$1" why="$2" got; shift 2
+  _rz_reset
+  got="$(_rz_libenv reach 'felix_reach_read >/dev/null; printf "%s|%s" "$?" "$_FELIX_REACH_WHY"' "$@")"
+  is  "$n: the list is unread, with the sentence that says why" "$got" "1|$why"
+  is  "$n: claude was not run" "$(_rz_n "$RZ/args.log")" "0"
+}
+_rz_reads() {   # <name> <env arg>... : the read is made, and where it ran is a fresh felix-reach directory
+  local n="$1" got; shift
+  _rz_reset
+  got="$(_rz_libenv reach 'felix_reach_read >/dev/null; printf "%s" "$?"' "$@")"
+  is  "$n: the list is read" "$got" "0"
+  is  "$n: claude ran once" "$(_rz_n "$RZ/args.log")" "1"
+}
+_rz_mk() {   # <dir> <mode>: a directory, with that mode
+  mkdir -p "$1" && chmod "$2" "$1"
+}
+_rz_mk "$RZ/priv" 700; _rz_mk "$RZ/pub" 755
+_rz_mk "$RZ/d777" 777; _rz_mk "$RZ/d770" 770; _rz_mk "$RZ/d707" 707
+_rz_mk "$RZ/world" 700; _rz_mk "$RZ/world/priv" 700; chmod 777 "$RZ/world"
+_rz_mk "$RZ/grp" 700; _rz_mk "$RZ/grp/priv" 700; chmod 775 "$RZ/grp"
+_rz_mk "$RZ/world2" 700; _rz_mk "$RZ/world2/mid" 755; _rz_mk "$RZ/world2/mid/priv" 700; chmod 777 "$RZ/world2"
+_rz_mk "$RZ/fgn" 755; _rz_mk "$RZ/fgn/priv" 700
+
+printf '\nthe controls: a private TMPDIR reads\n'
+_rz_reads "a 0700 TMPDIR owned by the user" TMPDIR="$RZ/priv"
+case "$(head -1 "$RZ/pwd.log" 2>/dev/null)" in "$RZ/priv"/felix-reach.??????) ok "a 0700 TMPDIR: it ran in a fresh felix-reach directory under that TMPDIR" ;; *) bad "a 0700 TMPDIR: it ran in a fresh felix-reach directory under that TMPDIR" "$(head -1 "$RZ/pwd.log" 2>/dev/null)" ;; esac
+is  "and its directory is gone afterwards" "$(ls -A "$RZ/priv" | wc -l | tr -d ' ')" "0"
+_rz_reads "a 0755 TMPDIR (no group or other write bit)" TMPDIR="$RZ/pub"
+ln -s "$RZ/priv" "$RZ/link-priv"
+_rz_reads "a symlink to a private directory" TMPDIR="$RZ/link-priv"
+case "$(head -1 "$RZ/pwd.log" 2>/dev/null)" in "$RZ/priv"/felix-reach.??????) ok "and it ran in the physical directory, not under the link" ;; *) bad "and it ran in the physical directory, not under the link" "$(head -1 "$RZ/pwd.log" 2>/dev/null)" ;; esac
+
+printf '\nTMPDIR unset, empty or relative: no fallback to /tmp\n'
+_rz_refuses "TMPDIR unset" "$RZWHY_ABS" -u TMPDIR
+_rz_refuses "TMPDIR empty" "$RZWHY_ABS" TMPDIR=
+RZ_CWD="$RZ" _rz_refuses "a relative TMPDIR naming a private directory that exists under the working directory" "$RZWHY_ABS" TMPDIR=priv
+RZ_CWD="$RZ" _rz_refuses "a TMPDIR of ." "$RZWHY_ABS" TMPDIR=.
+is  "and with the same directory given absolutely the control reads" \
+    "$(RZ_CWD="$RZ" _rz_libenv reach 'felix_reach_read >/dev/null; printf "%s" "$?"' TMPDIR="$RZ/priv")" "0"
+
+printf '\na TMPDIR that others can write\n'
+_rz_refuses "a 0777 TMPDIR" "$RZWHY_PRIV" TMPDIR="$RZ/d777"
+is  "and nothing was made in it" "$(ls -A "$RZ/d777" | wc -l | tr -d ' ')" "0"
+_rz_refuses "a 0770 TMPDIR (group write)" "$RZWHY_PRIV" TMPDIR="$RZ/d770"
+_rz_refuses "a 0707 TMPDIR (other write)" "$RZWHY_PRIV" TMPDIR="$RZ/d707"
+ln -s "$RZ/d777" "$RZ/link-777"
+_rz_refuses "a symlink to a 0777 directory" "$RZWHY_PRIV" TMPDIR="$RZ/link-777"
+if [ "$(id -u)" != 0 ]; then
+  _rz_refuses "a directory the user does not own (/usr)" "$RZWHY_PRIV" TMPDIR=/usr
+else
+  skip "a directory the user does not own (/usr)" "running as root, which owns it"
+fi
+_rz_refuses "/ itself" "could not make an empty directory to run claude mcp list in" TMPDIR=/
+is  "and nothing named felix-reach was made in /" "$(ls -d /felix-reach.* 2>/dev/null | wc -l | tr -d ' ')" "0"
+
+printf '\na private TMPDIR under a parent that others can write (the planted /tmp/.mcp.json)\n'
+_rz_refuses "a 0700 TMPDIR under a world-writable parent" "$RZWHY_PRIV" TMPDIR="$RZ/world/priv"
+is  "and nothing was made in it" "$(ls -A "$RZ/world/priv" | wc -l | tr -d ' ')" "0"
+printf '{"mcpServers": {"evil": {"command": "%s/writer-home.sh", "args": []}}}\n' "$RZ" > "$RZ/world/.mcp.json"
+_rz_refuses "the same with a .mcp.json planted in the parent" "$RZWHY_PRIV" TMPDIR="$RZ/world/priv"
+is  "and the planted server was not started" "$(_rz_marks)" ""
+rm -f "$RZ/world/.mcp.json"
+_rz_refuses "a 0700 TMPDIR under a group-writable parent" "$RZWHY_PRIV" TMPDIR="$RZ/grp/priv"
+_rz_refuses "a 0700 TMPDIR under a world-writable grandparent" "$RZWHY_PRIV" TMPDIR="$RZ/world2/mid/priv"
+chmod 755 "$RZ/world"
+_rz_reads "the control: the same TMPDIR once the parent is 0755" TMPDIR="$RZ/world/priv"
+chmod 777 "$RZ/world"
+_rz_refuses "and 0777 again" "$RZWHY_PRIV" TMPDIR="$RZ/world/priv"
+
+printf '\nan ancestor owned by someone else\n'
+_rz_refuses "a parent owned by another user, by stat" "$RZWHY_PRIV" TMPDIR="$RZ/fgn/priv" PATH="$RZSB:$RZB:$PATH" RZ_FOREIGN="$RZ/fgn"
+_rz_reads "the control: the same stub with no foreign path" TMPDIR="$RZ/fgn/priv" PATH="$RZSB:$RZB:$PATH"
+_rz_refuses "a parent owned by another user, by ls when stat says nothing" "$RZWHY_PRIV" TMPDIR="$RZ/fgn/priv" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1 RZ_FOREIGN="$RZ/fgn"
+_rz_reads "a private TMPDIR still reads by ls when stat says nothing" TMPDIR="$RZ/priv" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1
+_rz_refuses "a 0777 TMPDIR is still refused by ls when stat says nothing" "$RZWHY_PRIV" TMPDIR="$RZ/d777" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1
+_rz_refuses "a 0770 TMPDIR is still refused by ls when stat says nothing (group write)" "$RZWHY_PRIV" TMPDIR="$RZ/d770" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1
+_rz_refuses "a 0707 TMPDIR is still refused by ls when stat says nothing (other write)" "$RZWHY_PRIV" TMPDIR="$RZ/d707" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1
+_rz_refuses "a world-writable parent is still refused by ls" "$RZWHY_PRIV" TMPDIR="$RZ/world/priv" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1
+_rz_refuses "when neither stat nor ls can say, it is refused and not assumed fine" "$RZWHY_PRIV" TMPDIR="$RZ/priv" PATH="$RZSB:$RZB:$PATH" RZ_STATFAIL=1 RZ_LSJUNK=1
+
+printf '\nthe default TMPDIR of this platform is private\n'
+if [ "$(uname)" = Darwin ] && _rzdef="$(getconf DARWIN_USER_TEMP_DIR 2>/dev/null)" && [ -d "$_rzdef" ]; then
+  is  "macOS's per-user temporary directory passes the rule" \
+      "$(_rz_lib reach "d=\"\$(cd '$_rzdef' && pwd -P)\"; _felix_reach_private \"\$d\"; printf '%s' \"\$?\"")" "0"
+else
+  skip "macOS's per-user temporary directory passes the rule" "not macOS"
+fi
+
+printf '\nfelix stack --reach and the SessionStart refresh with a TMPDIR nobody can trust\n'
+_rx_put reachy "$(_rx_now)" "$RZ/x" "$RXR4"
+cp "$(_rx_cache reachy)" "$RZ/cache.keep"
+_rz_reset
+_rzo="$(RZ_TMPDIR="$RZ/world/priv" _rz_stk "$RZC" --reach --tsv)"; _rzrc=$?
+is  "felix stack --reach --tsv under a world-writable parent gives one unknown row per plugin row, with the reason" "$_rzo" \
+    "$(for _p in ctx gh cf dd quiet gone lost; do printf 'unknown\tplugin\t%s@m\t-\t%s\n' "$_p" "$RZWHY_PRIV"; done)"
+is  "and exits 0" "$_rzrc" "0"
+is  "and ran no claude command" "$(_rz_n "$RZ/args.log")" "0"
+cmp -s "$RZ/cache.keep" "$(_rx_cache reachy)" && ok "and left the cache as it was" || bad "and left the cache as it was"
+_rz_reset
+rm -f "$(_rx_cache reachy)"; _rz_reset
+_rx_wait 10 '[ ! -d "$_rz_lock" ]'
+RZ_TMPDIR="$RZ/d777" _rz_hook
+_rx_wait 10 '[ ! -d "$_rz_lock" ]'
+is  "a SessionStart refresh under a 0777 TMPDIR runs no claude command" "$(_rz_n "$RZ/args.log")" "0"
+if [ -e "$(_rx_cache reachy)" ]; then bad "and writes no cache"; else ok "and writes no cache"; fi
+is  "and the lock is not left behind" "$([ -d "$_rz_lock" ] && echo held || echo free)" "free"
+is  "and started no project-scoped server" "$(_rz_marks)" ""
+
+printf '\nreach.sh has no /tmp\n'
+_rz_src="$(awk '/^[[:space:]]*#/ { next } { print }' "$FROOT/harness/lib/reach.sh" "$FROOT/harness/lib/reach-read.sh" 2>/dev/null)"
+is  "no line of code in reach.sh or reach-read.sh names /tmp" "$(printf '%s\n' "$_rz_src" | grep -c '/tmp')" "0"
+is  "and none gives TMPDIR a default" "$(printf '%s\n' "$_rz_src" | grep -c 'TMPDIR:-[^}]')" "0"
+for _rzl in reach reach-read; do
+  _rzlc="$(awk 'END { print NR }' "$FROOT/harness/lib/$_rzl.sh" 2>/dev/null)"
+  [ -n "$_rzlc" ] && [ "$_rzlc" -gt 0 ] && [ "$_rzlc" -lt 500 ] && ok "lib/$_rzl.sh is under 500 lines" || bad "lib/$_rzl.sh is under 500 lines" "${_rzlc:-absent}"
+done
+is  "reach-read.sh pipes nothing into grep -q" "$(awk '/\|[[:space:]]*grep -q/ { print FILENAME ":" FNR }' "$FROOT/harness/lib/reach-read.sh" 2>/dev/null)" ""
+is  "reach.sh sources reach-read.sh, so every caller of the read has it" \
+    "$(awk '/reach-read\.sh/ && !/^[[:space:]]*#/ { n++ } END { print n + 0 }' "$FROOT/harness/lib/reach.sh")" "1"
+_rz_reset
+# The fixtures of parts 1100 to 1120 lived under HOME on a runner whose temporary directory is under a world-writable /tmp (see part 1100); they go with the part.
+[ "$RXBASE" = "$TMP" ] || rm -rf "$RXBASE"

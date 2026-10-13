@@ -52,6 +52,17 @@ Notation: `\t` is one tab byte. `<epoch>` is `date +%s`. A row written
   `enableAllProjectMcpServers`, is started like any other. It walks up: run in
   an empty subdirectory of a checkout, it lists the checkout's `.mcp.json`
   server, so an empty directory under a project is not neutral.
+- Who can write where (measured 2026-10-12, macOS 26): `/tmp` is
+  `/private/tmp`, owned by root, mode 1777, so any local user can create a file
+  in it (the sticky bit stops a delete, not a create). The per-user temporary
+  directory (`getconf DARWIN_USER_TEMP_DIR`, the default `TMPDIR`) is
+  `/private/var/folders/<xx>/<hash>/T`, owned by the user, mode 0700, under a
+  parent owned by the user at 0755, then `/private/var/folders/<xx>`,
+  `/private/var/folders`, `/private/var`, `/private` and `/`, all owned by root
+  at 0755. A bare `mktemp -d` on macOS ignores `TMPDIR` and always uses that
+  per-user directory (part 1000), so the template form is required. `stat -f
+  '%u %Lp'` reads owner and mode on macOS and `stat -c '%u %a'` on GNU; each
+  fails on the other platform.
 - `lib/discover.sh`: `felix_discover_refresh_bg` takes a lock directory with
   `mkdir`, runs a subshell that traps `rmdir` on EXIT, calls
   `felix_close_inherited_fds`, `cd`s to the checkout, writes `<cache>.new.$$`
@@ -129,9 +140,12 @@ subshells.
   verdicts and asks the helper: a matching line whose state is `failed` or
   `needs-auth` returns 1; any other matching line returns 0; no matching line
   returns 1.
-- `felix_reach_read`: runs `claude mcp list` once, from a fresh empty directory
-  (R13) and never the caller's, into `_FELIX_REACH_LIST`; returns 0 when the
-  list was read and 1 when not, setting `_FELIX_REACH_WHY` to one sentence.
+- `felix_reach_read` (in `lib/reach-read.sh`, which `lib/reach.sh` sources, so
+  that neither file passes 500 lines): runs `claude mcp list` once, from a fresh
+  empty directory under a private `TMPDIR` (R13) and never the caller's, into
+  `_FELIX_REACH_LIST`; returns 0 when the list was read and 1 when not, setting
+  `_FELIX_REACH_WHY` to one sentence. `_felix_reach_private <dir>` is the test
+  R13 applies to `TMPDIR`.
 - `felix_reach_rows <proj>`: classifies every `plugin` and `mcp` row of
   `<proj>/stack.tsv` against the list already read (or, when the last read
   failed, as unknown). Emits rows, prints nothing else.
@@ -155,8 +169,16 @@ stdout, the exit status and a sentinel in one substitution (shape:
 so a substitution that could not make its pipe reads as unread, not as an
 empty list. It is unread, return 1, when:
 - `command -v claude` fails: `_FELIX_REACH_WHY` = `no claude CLI on PATH`;
-- the empty directory could not be made or entered (R13): `could not make an
-  empty directory to run claude mcp list in`, and `claude` is not run;
+- `TMPDIR` is unset, empty or not an absolute path (R13): `TMPDIR is not an
+  absolute path, so there is no private directory to run claude mcp list in`,
+  and `claude` is not run;
+- `TMPDIR` is not a private directory (R13): `TMPDIR is not a private
+  directory, so claude mcp list was not run: it must be owned by you and
+  writable by no one else, under parents only you or root can write`, and
+  `claude` is not run;
+- the empty directory could not be made or entered (R13), or `TMPDIR` is `/` or
+  names no directory: `could not make an empty directory to run claude mcp list
+  in`, and `claude` is not run;
 - a `.mcp.json` exists in that directory's parents (R13): `a .mcp.json sits
   above the scratch directory, so claude mcp list could start a project-scoped
   server there`, and `claude` is not run;
@@ -298,8 +320,9 @@ Observable:
   checkout and the refresh, the recorded `$PWD` is neither the checkout nor
   `$HOME`, no marker was written (a second `.mcp.json` in the fixture `$HOME`
   has its own marker, also never written), and TMPDIR holds nothing.
-- With a TMPDIR that cannot make a directory the refresh runs no `claude`
-  command and writes no cache, and its lock is released.
+- With a TMPDIR that cannot make a directory, or that others could write into
+  (R13), the refresh runs no `claude` command and writes no cache, and its lock
+  is released.
 - With a cache read less than 24 h ago, the stub's log gains no `mcp list`
   line from a second hook run.
 - With the header epoch set to now − 90,000, a hook run refreshes it.
@@ -356,31 +379,63 @@ listed, and exits 0 for any report, unread list included.
   starts it detached and never reads it; the gate, the Stop hook,
   commissioning and `felix stack plan` never read the cache.
 
-**R13. The list is read from an empty directory, never the checkout.** This
-replaces the first draft's instruction to read it in the checkout, withdrawn
-after the adversarial review. `felix_reach_read` makes the directory with
-`mktemp -d "${TMPDIR:-/tmp}/felix-reach.XXXXXX"` (a template, so it honours
-TMPDIR on macOS, as part 1000 requires), runs `claude mcp list` with that as the
-cwd, and removes the directory and whatever `claude` left in it afterwards, on
-every path after it was made, read or unread. The directory is never the
-checkout and never `$HOME`, which is itself a repository on the machine this
-was found on. It fails closed: when `mktemp` fails or the directory cannot be
-entered, the list is unread (R1's sentence) and `claude` is not run, in no other
-directory. Because the CLI walks up to a parent's `.mcp.json` (section 0), the
-directory is also refused, and the list unread, when any directory from it up to
-`/` holds a `.mcp.json`: a TMPDIR inside a repository, or a file planted in
-world-writable `/tmp`. The reason is that a project-scoped server declared by the
+**R13. The list is read from an empty directory under a private TMPDIR, never
+the checkout.** This replaces the first draft's instruction to read it in the
+checkout, withdrawn after the adversarial review. `felix_reach_read` makes the
+directory with `mktemp -d "<physical TMPDIR>/felix-reach.XXXXXX"` (a template, so
+it honours TMPDIR on macOS, as part 1000 requires), runs `claude mcp list` with
+that as the cwd, and removes the directory and whatever `claude` left in it
+afterwards, on every path after it was made, read or unread. The directory is
+never the checkout and never `$HOME`, which is itself a repository on the
+machine this was found on. It fails closed: when `mktemp` fails or the directory
+cannot be entered, the list is unread (R1's sentence) and `claude` is not run,
+in no other directory.
+
+*TMPDIR must be a directory nobody else can write (D21).* There is no default:
+`TMPDIR` is used only when all of these hold, tested on the physical path
+(`cd "$TMPDIR" && pwd -P`, so a symlink is judged by where it leads, and `/` is
+refused outright):
+1. it is an absolute path (unset, empty, `.` and any relative path are refused
+   with the first sentence of R1, whatever the directory they name);
+2. the directory is owned by the current user (`test -O`);
+3. it and every ancestor up to `/` is owned by root or the current user;
+4. it and every ancestor up to `/` has neither the group write bit nor the
+   other write bit (mode `& 022` is zero), the sticky bit not excusing it.
+Owner and mode come from `stat -c '%u %a'`, then `stat -f '%u %Lp'`, each
+answer accepted only as a decimal uid and octal digits, then `ls -ldn` (uid the
+third field, write bits the 6th and 9th characters of the mode string). When
+none can say, the directory is not private. No other principal can
+create, replace or rename anything in that chain, so there is no window between
+the check and the read. macOS's
+per-user temporary directory passes; a Linux machine whose `TMPDIR` is unset or
+under `/tmp` does not, and reads `unknown` until `TMPDIR` names a private
+directory. Not covered, and said: another process of the same user, and an ACL
+that grants someone else write.
+
+*The ancestor `.mcp.json` check stays.* Because the CLI walks up to a parent's
+`.mcp.json` (section 0), the directory is also refused, and the list unread
+with its own sentence (R1), when any directory from it up to `/` holds a
+`.mcp.json`: a `TMPDIR` inside a repository. It is a check made before the read
+and so cannot by itself close a race; R13's rule above does that, and this
+catches what the rule does not mean to, a private directory that happens to sit
+under a project.
+
+The reason for all of it is that a project-scoped server declared by the
 checkout's `.mcp.json` is started by `claude mcp list` once it is approved, or
 auto-enabled by `enableAllProjectMcpServers`, and the refresh runs in every
 session start of every governed project, including a repository the founder
 opened to hunt for bugs. Measured 2026-10-12 (section 0): a server still pending
 approval is not started, so the review found the old behaviour safe only while
 Claude Code's approval state happened to hold; this removes the dependence on
-it. Consequences, accepted (D18, D19): servers that exist only in a project's
-`.mcp.json` or a local-scope entry are not listed, so an mcp row naming one
-reads `unknown` (R6); plugin rows are unaffected for a plugin installed at user
-scope, which is how `felix stack apply` installs them; and a plugin a person
-enabled only through a project's own settings reads as if not listed.
+it. Consequences, accepted (D18, D19, D21): servers that exist only in a
+project's `.mcp.json` or a local-scope entry are not listed, so an mcp row
+naming one reads `unknown` (R6); plugin rows are unaffected for a plugin
+installed at user scope, which is how `felix stack apply` installs them; a
+plugin a person enabled only through a project's own settings reads as if not
+listed; and where `TMPDIR` is not private nothing is read at all, so `felix
+stack --reach` prints every declared row as `unknown` with the sentence that
+says why, and no cache is written: the pulse says `reach-unread` until one is,
+and `reach-stale` once an old one is a week old.
 
 ---
 
@@ -720,7 +775,8 @@ same order.
 
 The adversarial review of this branch raised two blockers. The first changed the
 design and is recorded here with the behaviours it changes (R1, R6, R9, R10,
-R11, R13). The second was a mistaken variable and changed nothing.
+R11, R13). The second was a mistaken variable and changed nothing. A security
+review of the fix for the first then raised a third (D21).
 
 **D18. `claude mcp list` is read from an empty directory, never the checkout.**
 The brief asked for the checkout as the cwd, so a project-scoped `.mcp.json`
@@ -739,13 +795,13 @@ project-scoped server is not listed at all, and exporting `CLAUDE_PROJECT_DIR`
 naming the checkout changes nothing, so no variable needs scrubbing; but it does
 walk up from its cwd to a parent's `.mcp.json`, so an ancestor check (any
 `.mcp.json` from the directory to `/` leaves the list unread) closes the case of
-a TMPDIR inside a repository, or a file planted in `/tmp` by another local
-user. The directory is made with `mktemp -d` under TMPDIR with a template, because a bare
-`mktemp -d` on macOS ignores TMPDIR (part 1000). It is never the checkout and
+a TMPDIR inside a repository (a file planted in a shared parent afterwards is
+what D21 closes). The directory is made with `mktemp -d` under TMPDIR with a
+template, because a bare `mktemp -d` on macOS ignores TMPDIR (part 1000). It is never the checkout and
 never `$HOME`, which is itself a repository on this machine, so a fallback to
-either would defeat the point; when none can be made the list is unread. A
-relative TMPDIR reads as `/tmp`, since a relative template would put the
-directory under the caller's own. It is removed recursively after the command
+either would defeat the point; when none can be made the list is unread. An
+unset or relative TMPDIR used to read as `/tmp`; D21 removes that. It is removed
+recursively after the command
 returns, and only a path of the shape `/*/felix-reach.??????` that is not a
 symlink, because `claude` may leave files in its cwd and an `rmdir` would
 leave them in TMPDIR. A refresh killed by a signal (or a `--reach` interrupted
@@ -783,16 +839,67 @@ resolved, and shows `FELIX_HOME_DIR` alone is not an override. (Part 1100's
 `_rx_env` sets both variables to one value, which is why its assertions could
 not have told them apart.)
 
-**Left as it was, and named.** A path that predates this branch already runs
-`claude mcp list` in a checkout: `felix commission`, whose `stack` row
-evaluates `felix_stack_plan`, which loads `claude mcp list` through
-`_felix_load_state`, in the checkout root (`felix_commission_ask` changes
-directory to it). `hooks/session-start` starts that run detached
-(`felix_commission_resume_bg`) when the project's `autonomy` file names the
-`commission` grant and the stamp over `commissioning.tsv` is current; on this
-machine only `projects/felix` grants it, and `state/commission/felix.bg.log`
-records runs today. A person running `felix commission`, `felix stack
-plan|apply`, `felix profile <name>` or `felix setup` in a checkout reaches the
-same call. No other hook starts a `claude mcp list`, and the pulse, the Stop
-hook and the discovery refresh do not. Not changed in this branch; it is the
-same class of exposure and wants its own decision.
+**D21. TMPDIR must be a private directory, and there is no `/tmp` fallback.**
+Raised by the security review of the fix for D18 (MEDIUM, time of check to time
+of use). That fix fell back to `/tmp` when `TMPDIR` was unset or relative, and
+checked that no `.mcp.json` sat in any ancestor of the scratch directory.
+`/tmp` is shared and world-writable; the sticky bit stops another user deleting
+a file, not creating one. So between the check finding no `/tmp/.mcp.json` and
+`claude mcp list` running, another local user could plant it, and the CLI,
+which reads a parent's `.mcp.json` (section 0), would find it and, if its
+server is approved or auto-enabled, start it as the user. No exploitation is
+known; the exposure is a local, unprivileged one, and the refresh runs at every
+session start. A check cannot close a race, so the fix removes
+the shared place instead of re-checking it: `TMPDIR` is used only when it is
+absolute, owned by the user, writable by neither group nor others, and every
+ancestor up to `/` is owned by root or the user and writable by neither group
+nor others (R13), tested on the physical path. Otherwise `claude` is not run and
+the list is unread, which every consumer already reads as `unknown`. The
+ancestor `.mcp.json` check is kept, for a private directory that sits under a
+project. Cost, accepted: on a machine whose temporary directory is not private
+(Linux with `TMPDIR` unset, or set under `/tmp`) reach reads nothing until
+`TMPDIR` names a private directory, so the pulse says `reach-unread` there and
+`felix stack --reach` says why. The founder's machine is macOS, where the
+default passes; the cost lands on the Linux CI runner, whose suite fixtures
+therefore live under a private base (part 1100) and whose `claude` is absent in
+any case. The rule is the review's: remove the fallback, and run nothing
+where there is no private `TMPDIR`. A private directory of Felix's own was not
+built, and the ancestor rule is what fails closed on a parent someone else owns.
+
+**Left as it was, and named.** Read for the third blocker's request, not
+changed in this branch. Every path in the engine that runs `claude mcp list`:
+this branch's two (R10, R11), now in a private empty directory; and one call in
+`lib/stack.sh`, `_felix_load_state`, which `felix_stack_plan` and `felix
+profile <name>` use, with the caller's cwd.
+- The only **unattended** path that reaches it is commissioning. `hooks/session-start`
+  calls `felix_commission_resume_bg`, which, when the project's `autonomy` file
+  names `commission` and the stamp over `commissioning.tsv` is current, starts
+  `felix commission` detached with the checkout root as its cwd. Its `stack`
+  row evaluates `felix_stack_plan` there, so `claude mcp list` (and `claude
+  plugin list`, `claude plugin marketplace list`) run in the checkout. Only
+  `projects/felix` grants `commission` on this machine (`projects/elenchus`
+  grants `tidy`), and `state/commission/felix.bg.log` records runs on
+  2026-10-12 at 20:25, 21:52 and 22:44 UTC. Its `human_steps` row runs
+  `felix_setup_status`, which runs a project's `setup.tsv` checks with `bash -c`
+  in the checkout; three template checks (`github-mcp`, `supabase-auth`,
+  `sentry`) are `claude mcp list | grep`, but `projects/felix` has no
+  `setup.tsv`, so that row does not reach it under the one grant that exists.
+- What makes that path matter for a hostile repository: a checkout's own
+  `.felix` file names its project and wins over the remote (lib/resolve.sh).
+  Measured read-only in a scratch repository whose `.felix` held `felix`:
+  `felix which` answered `project: felix` and `governs:` that directory. Nothing
+  in `cmd_commission`, `felix_commission_resume_bg` or
+  `felix_autonomy_commission_current` asks whether the checkout is the
+  project's own. So a repository that names itself `felix` would have a
+  detached `felix commission` started in it at session start, which is the
+  exposure this branch removed from reach. Not run end to end here, because
+  that would run the commissioning rows; it is read from the code. It wants its
+  own decision (run the `stack` row's read from a private empty directory too,
+  or refuse to run commissioning in a checkout whose remote is not the
+  project's).
+- Attended, in the person's own shell: `felix commission`, `felix new` (which
+  runs `cmd_commission`), `felix stack plan|apply`, `felix profile <name>` and
+  `felix setup`.
+- Not reaching it: the pulse, the Stop hook, the discovery refresh
+  (`lib/discover.sh` runs no `claude mcp list`), `felix route` (lib/route.sh
+  reads no live mount state), the gate and `felix status`.

@@ -63,7 +63,8 @@ last run existed before this change), reach unknown (no cache yet).
   text, which now says it (felix status, felix stack --reach); it looks for the
   writer's own sentences instead.
 
-**Found in review, and fixed.** The adversarial review raised two blockers.
+**Found in review, and fixed.** The adversarial review raised two blockers, and a
+security review of the fix for the first raised a third.
 - `claude mcp list` ran in the checkout, at every session start, so a project
   `.mcp.json` server that was approved or auto-enabled (enableAllProjectMcpServers)
   would have been started in a repository nobody had vetted. Measured with the
@@ -81,16 +82,47 @@ last run existed before this change), reach unknown (no cache yet).
   the CLI's override and FELIX_HOME_DIR is assigned from it, unconditionally, on
   main too. Nothing changed; part 1120 pins that the cache, the pulse record and
   log and the refresh land in the home the invocation resolved.
-- Not changed, and wanting its own decision: `felix commission` already runs
-  `claude mcp list` in the checkout (its `stack` row calls felix_stack_plan), and
-  session-start starts it detached under a `commission` autonomy grant, which only
-  projects/felix has. See the spec's section 8.
+- The empty-directory fix fell back to /tmp when TMPDIR was unset or relative
+  (security review, MEDIUM, toctou). /tmp is world-writable, so another local user
+  could plant /tmp/.mcp.json after the ancestor check and before the read, and the
+  CLI would find it from the parent. A check cannot close a race, so the shared
+  place is gone: TMPDIR is used only when it is absolute, owned by the user,
+  writable by neither group nor others, under ancestors that are owned by root or
+  the user and writable by neither, all read on the physical path (stat -c, then
+  stat -f, then ls -ldn; none able to say means not private). Otherwise claude is
+  not run and the rows read unknown, with one sentence that says why. The ancestor
+  .mcp.json check stays. macOS's per-user temporary directory passes (measured:
+  0700 under 0755 parents); a Linux machine with TMPDIR unset or under /tmp reads
+  nothing until TMPDIR names a private directory, and the pulse says reach-unread
+  there. The read moved into lib/reach-read.sh because reach.sh would have passed
+  500 lines (a blind assertion pins the limit). The suite's reach fixtures needed a
+  private base too, so on a runner whose temporary directory is under /tmp (the
+  Linux CI runner) parts 1100 to 1120 live under the first of XDG_RUNTIME_DIR,
+  RUNNER_TEMP and HOME that qualifies and remove it at the end. Part 1120: 50 of
+  its assertions fail against the engine before the fix and pass after it, and
+  fourteen of fifteen mutants of the fix are caught (the fifteenth, dropping the
+  guard on `id -u`, is equivalent: the chain test still refuses when the user is
+  unknown).
+- Not changed, and wanting its own decision (spec, "Left as it was"): the only
+  unattended path that already runs `claude mcp list` in a checkout is
+  commissioning. session-start starts `felix commission` detached, with the
+  checkout as its cwd, under a `commission` autonomy grant (only projects/felix
+  has one), and its `stack` row calls felix_stack_plan. A checkout's own `.felix`
+  file names its project and wins, so a repository that holds `felix` in `.felix`
+  is bound to project felix (measured with `felix which` in a scratch repository),
+  and nothing in the commissioning path asks whether the checkout is the
+  project's own. Read from the code, not run end to end.
 
 **Record.**
 - The blind part 1100 against main's engine: 58 passed, 172 failed. Against this
   one: all 230 of its assertions pass. Part 1110 (the implementer's, after the blind
   part, so not blind; 10 assertions) has the two findings above and was shown red
   against the pre-fix gate row and the quadratic read.
+- The third blocker (parts 1100 to 1120 only, run with a cut-down runner from an
+  empty directory outside any repository): 389 passed, 0 failed, against 310 at
+  410e55d3; with the suite's temporary directory moved under world-writable
+  /private/tmp, the layout of a Linux runner, 389 passed, 0 failed; the same
+  assertions against the engine at 410e55d3, 339 passed, 50 failed.
 - tests/assertions.tsv and tests/red.tsv are not re-recorded here: that is the
   landing slot's full run. The whole suite and the gate were not run in this stage.
 - Prefix of the suite (parts 0010 to 0480, then 1100 and 1110) against this tree:

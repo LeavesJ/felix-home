@@ -29,23 +29,10 @@
 # own header epoch and never from the file's mtime, so a copied or touched file
 # cannot look fresh.
 #
-# A detail never carries a URL's query string, which can hold a key: the target
-# column of a list line is never copied, and the status text is cut before its
-# first question mark. It is not truncated by bytes, because a byte cut can
-# split a multibyte character and one bad byte empties a macOS UTF-8 sort.
-#
-# THE LIST IS READ FROM AN EMPTY DIRECTORY, NEVER THE CHECKOUT. `claude mcp list`
-# starts the servers it lists, a project-scoped one included once it is approved
-# or auto-enabled (enableAllProjectMcpServers), and this runs at every session
-# start of every governed project, repositories opened to hunt for bugs among
-# them. Measured 2026-10-12 with the real CLI: a server pending approval is
-# listed and not started, so reading in the checkout was safe only while Claude
-# Code's approval state held; from an empty directory it is not listed at all,
-# but the CLI walks up to a parent's .mcp.json, so a scratch directory with one
-# above it is refused. felix_reach_read makes a fresh directory under TMPDIR
-# (never the checkout, never $HOME, itself a repository here), reads from there,
-# removes it, and when it cannot reads nothing, never in the caller's directory.
-# A server only a project's .mcp.json declares is not seen: unknown, not not-listed.
+# The read itself (the parse of `claude mcp list`, and where it may run) is in
+# lib/reach-read.sh, sourced below. It reads the list from a directory nobody
+# else can write and never from the checkout, and a list it could not read is
+# unknown. A detail never carries a URL's query string.
 #
 # Cache: <home>/state/reach/<project>.tsv, first line `# read <epoch> <dir>`
 # (dir is the empty directory the read ran in, gone by now), then the rows
@@ -64,120 +51,9 @@ fi
 if ! command -v felix_close_inherited_fds >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
-
-# One line of the list as a server row `key<TAB>state<TAB>detail`, or nothing
-# for a line that is not a server line. A server line holds `: ` and the text
-# before the first `: ` (its key) holds no space, so the health header, the
-# blank line and prose are ignored. Reads the list on stdin.
-_felix_reach_parse() {
-  local line key state phrase d tab=$'\t' cr=$'\r'
-  while IFS= read -r line || [ -n "$line" ]; do
-    case "$line" in *": "*) ;; *) continue ;; esac
-    key="${line%%: *}"
-    case "$key" in ''|*" "*) continue ;; esac
-    _felix_mcp_line_set "$line"; state="$_FELIX_MCP_STATE"
-    case "$state" in
-      failed)     phrase="Failed to connect" ;;
-      needs-auth) phrase="Needs authentication" ;;
-      connected)  phrase="Connected" ;;
-      *)          phrase="" ;;
-    esac
-    if [ -n "$phrase" ]; then
-      d="$phrase${line#*"$phrase"}"
-    else
-      state=unknown
-      case "$line" in *" - "*) d="${line##* - }" ;; *) d="" ;; esac
-    fi
-    d="${d%%\?*}"
-    d="${d//$tab/ }"; d="${d//$cr/ }"
-    [ -n "$d" ] || d="-"
-    key="${key//$tab/ }"; key="${key//$cr/ }"
-    printf '%s\t%s\t%s\n' "$key" "$state" "$d"
-  done
-}
-
-# Remove a scratch directory felix_reach_read made, and whatever claude left in
-# it. Only a path shaped as mktemp gave it, absolute and not a symlink.
-_felix_reach_rm() {
-  case "${1:-}" in
-    /*/felix-reach.??????) [ -d "$1" ] && [ ! -L "$1" ] && rm -rf "$1" 2>/dev/null ;;
-  esac
-  return 0
-}
-
-# 0 when no directory from $1 up to / holds a .mcp.json (the CLI reads a parent's).
-_felix_reach_neutral() {
-  local d="$1"
-  while :; do
-    [ -e "$d/.mcp.json" ] && return 1
-    [ -n "$d" ] || return 0
-    d="${d%/*}"
-  done
-}
-
-# Run `claude mcp list` once, from a fresh empty directory (the head of this file
-# says why). 0 when read, with the server table in _FELIX_REACH_SRV and the
-# directory it ran in in _FELIX_REACH_CWD; 1 when not, one sentence in
-# _FELIX_REACH_WHY. The directory is made under $TMPDIR with a template (a bare
-# mktemp on macOS ignores TMPDIR) and removed once the command returns, on every
-# path. When it cannot be made, entered or trusted, claude is not run at all.
-# Output, exit status and a sentinel come back in one substitution: one that
-# cannot make its pipe expands to nothing with status 0 on bash 3.2, and that
-# must read as unread, never as an empty list. stderr is discarded. No timeout:
-# nobody waits on the background read, a person running --reach can interrupt it,
-# and macOS ships no `timeout` binary to bound it with.
-felix_reach_read() {
-  local out rc body parsed nl=$'\n' ws=$' \t\r\n' tmpd made dir=""
-  _FELIX_REACH_OK=0; _FELIX_REACH_WHY=""; _FELIX_REACH_SRV=""; _FELIX_REACH_CWD=""
-  if ! command -v claude >/dev/null 2>&1; then
-    _FELIX_REACH_WHY="no claude CLI on PATH"; return 1
-  fi
-  tmpd="${TMPDIR:-/tmp}"
-  # A relative TMPDIR would put it under the caller's own directory.
-  case "$tmpd" in /*) ;; *) tmpd=/tmp ;; esac
-  made="$(mktemp -d "${tmpd%/}/felix-reach.XXXXXX" 2>/dev/null)" || made=""
-  case "$made" in /*/felix-reach.??????) ;; *) made="" ;; esac
-  if [ -n "$made" ] && [ -d "$made" ] && [ ! -L "$made" ]; then
-    dir="$(cd "$made" 2>/dev/null && pwd -P)" || dir=""
-  fi
-  if [ -z "$dir" ]; then
-    _felix_reach_rm "$made"
-    _FELIX_REACH_WHY="could not make an empty directory to run claude mcp list in"; return 1
-  fi
-  if ! _felix_reach_neutral "$dir"; then
-    _felix_reach_rm "$made"
-    _FELIX_REACH_WHY="a .mcp.json sits above the scratch directory, so claude mcp list could start a project-scoped server there"; return 1
-  fi
-  out="$(cd "$dir" 2>/dev/null && claude mcp list 2>/dev/null </dev/null; printf '\n.%s' "$?")"
-  _felix_reach_rm "$made"
-  case "$out" in
-    *"$nl."[0-9]*) ;;
-    *) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
-  esac
-  rc="${out##*"$nl."}"
-  case "$rc" in
-    ''|*[!0-9]*) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
-  esac
-  body="${out%"$nl.$rc"}"
-  if [ "$rc" != 0 ]; then
-    _FELIX_REACH_WHY="claude mcp list exited $rc"; return 1
-  fi
-  # Tested with case and not by stripping the whitespace out with ${body//..//}:
-  # on bash 3.2 a global substitution over a list this size is quadratic, three
-  # seconds for a hundred lines.
-  case "$body" in
-    *[!$ws]*) ;;
-    *) _FELIX_REACH_WHY="claude mcp list printed nothing"; return 1 ;;
-  esac
-  parsed="$(printf '%s\n' "$body" | _felix_reach_parse; printf '.')"
-  case "$parsed" in
-    *.) _FELIX_REACH_SRV="${parsed%.}" ;;
-    *)  _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
-  esac
-  _FELIX_REACH_CWD="$dir"
-  _FELIX_REACH_OK=1
-  return 0
-}
+if ! command -v felix_reach_read >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach-read.sh"
+fi
 
 # Does the plugin directory $1 declare an MCP server? 0 yes, 1 no, 2 a manifest
 # is there and could not be read. .mcp.json counts when its text holds "command"

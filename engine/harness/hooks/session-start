@@ -601,7 +601,9 @@ fi
 # nothing in this hook reads. That command is run from an empty directory of its
 # own and never from this checkout: `claude mcp list` starts the servers it
 # lists, a project-scoped one included once it is approved, and this hook runs in
-# repositories nobody has vetted (lib/reach.sh says why). Nothing here waits on
+# repositories nobody has vetted. The directory is made only under a TMPDIR that
+# no one else can write into, and with none the command is not run (lib/reach-read.sh
+# says why). Nothing here waits on
 # it, adds a word to the session, or changes what any later decision reads, which
 # is how invariant 2 holds. A fresh cache starts nothing; one 24 hours old or
 # more is read again, and a read that fails leaves the old cache.

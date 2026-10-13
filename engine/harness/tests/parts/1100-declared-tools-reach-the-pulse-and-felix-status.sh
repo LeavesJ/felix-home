@@ -10,10 +10,35 @@ printf '\ndeclared tools reach, the pulse settings and reach lines, and felix st
 # Everything lives in one directory of its own: a Felix home, a HOME, a plugin
 # cache, a memory root and stubs for claude, launchctl, uname and jq, so no
 # assertion here can read or write the machine's own.
-RX="$(mktemp -d "$TMP/rx.XXXXXX")"; RX="$(cd "$RX" && pwd -P)"
+# Changed in review (part 1120): the reach read refuses a TMPDIR that others could write into or sit above (R13), and a .mcp.json above it. So the fixtures need a base whose every ancestor is root's or the user's and writable by neither group nor others, and which has no .mcp.json from there up to / (this machine's HOME has one). $TMP is such a base on macOS (/var/folders/.../T). A Linux runner's is under /tmp, which is world-writable; there the fixtures live under the first of XDG_RUNTIME_DIR, RUNNER_TEMP and HOME that qualifies, for the length of parts 1100 to 1120, and part 1120 removes them. The chain is checked with perl, not with the engine's own test.
+_rx_chain_private() {   # <dir>: 0 when it and every ancestor is owned by root or this user with no group or other write bit
+  perl -e 'use Cwd qw(abs_path); my $d = abs_path($ARGV[0]); exit 1 unless defined $d && -d $d;
+           while (1) { my @s = stat($d) or exit 1; exit 1 unless $s[4] == 0 || $s[4] == $<; exit 1 if $s[2] & 022;
+                       last if $d eq "/"; $d =~ s{/[^/]*$}{}; $d = "/" if $d eq ""; } exit 0' "$1" 2>/dev/null
+}
+_rx_base_ok() {   # <dir>: a private chain and no .mcp.json from it up to /
+  local d
+  [ -d "$1" ] && _rx_chain_private "$1" || return 1
+  d="$(cd "$1" && pwd -P)"
+  while :; do
+    [ -e "$d/.mcp.json" ] && return 1
+    [ -n "$d" ] || return 0
+    d="${d%/*}"
+  done
+}
+RXBASE=""
+for _rxc in "$TMP" "${XDG_RUNTIME_DIR:-}" "${RUNNER_TEMP:-}" "${HOME:-}"; do
+  [ -n "$_rxc" ] && _rx_base_ok "$_rxc" || continue
+  if [ "$_rxc" = "$TMP" ]; then RXBASE="$TMP"; else RXBASE="$(mktemp -d "$_rxc/.felix-suite-rx.XXXXXX" 2>/dev/null)" || RXBASE=""; fi
+  [ -n "$RXBASE" ] && break
+done
+[ -n "$RXBASE" ] || RXBASE="$TMP"
+RX="$(mktemp -d "$RXBASE/rx.XXXXXX")"; RX="$(cd "$RX" && pwd -P)"
 RXH="$RX/home"; RXHOME="$RX/user"; RXB="$RX/bin"; RXU="$RX/ubin"; RXPC="$RX/cache"
 RXMEM="$RX/memory"; RXLOG="$RX/claude.log"; RXLA="$RX/list-a"; RXPLAIN="$RX/plain"
-mkdir -p "$RXH/projects" "$RXH/state" "$RXHOME/.claude" "$RXB" "$RXU" "$RXPC" "$RXMEM" "$RXPLAIN" "$RX/jq"
+RXT="$RX/tmp"
+mkdir -p "$RXH/projects" "$RXH/state" "$RXHOME/.claude" "$RXB" "$RXU" "$RXPC" "$RXMEM" "$RXPLAIN" "$RX/jq" "$RXT"
+chmod 700 "$RXT"
 : > "$RXLOG"
 printf '{"enabledPlugins":{"felix@felix":true}}\n' > "$RXHOME/.claude/settings.json"
 
@@ -61,7 +86,7 @@ RXLISTA
 # on PATH, CLAUDE_CONFIG_DIR and FELIX_JQ unset unless a test sets them.
 _rx_env() {
   env -u CLAUDE_CONFIG_DIR -u FELIX_JQ HOME="${RX_HOMEOVR:-$RXHOME}" FELIX_HOME="${RX_FH:-$RXH}" \
-      FELIX_HOME_DIR="${RX_FH:-$RXH}" FELIX_MEMORY="$RXMEM" FELIX_PLUGIN_CACHE="$RXPC" \
+      FELIX_HOME_DIR="${RX_FH:-$RXH}" FELIX_MEMORY="$RXMEM" FELIX_PLUGIN_CACHE="$RXPC" TMPDIR="$RXT" \
       PATH="${RX_PATH:-$RXB:$PATH}" RX_LOG="$RXLOG" RX_LIST="${RX_LIST-$RXLA}" RX_RC="${RX_RC:-0}" \
       RX_SLEEP="${RX_SLEEP:-}" RX_PLUGINS="${RX_PLUGINS:-}" "$@"
 }
@@ -213,8 +238,9 @@ if [ -z "$(PATH=/usr/bin:/bin command -v claude 2>/dev/null)" ]; then
 else
   skip "no claude on PATH is unread, and says so" "a claude sits in /usr/bin or /bin here"
 fi
+# Changed in review (part 1120): the read moved to lib/reach-read.sh to keep reach.sh under 500 lines.
 _rx_has "an output that could not be captured has its own sentence" \
-    "$(cat "$FROOT/harness/lib/reach.sh" 2>/dev/null)" "the list's output could not be captured"
+    "$(cat "$FROOT/harness/lib/reach.sh" "$FROOT/harness/lib/reach-read.sh" 2>/dev/null)" "the list's output could not be captured"
 
 printf '\nreach: the rows (R2-R8)\n'
 _rx_rows() { _rxl reach "felix_reach_read >/dev/null; felix_reach_rows '$RXH/projects/$1'"; }

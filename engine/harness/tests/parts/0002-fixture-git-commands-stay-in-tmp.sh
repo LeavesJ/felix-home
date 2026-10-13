@@ -48,6 +48,53 @@
 # means OLDPWD.
 FELIX_TEST_FXREFUSED="$TMP/fx-refused"
 _fx_tmp=""; _og_phys "$TMP" && _fx_tmp="$_og_p"
+# The roots a fixture directory may lie below, one physical path a line: $TMP,
+# and any base a part made for its own fixtures outside $TMP and registered
+# with _fx_root_add. Everything below that this comment block says of $TMP holds
+# of each root, the ceiling included: it is the root the directory lies below.
+_fx_roots="$_fx_tmp"
+# PATH -> 0, with _fx_r set to the root PATH lies strictly below, or 1 and
+# _fx_r empty. Parameter expansion only, no fork and no temporary file.
+_fx_root_for() {
+  local rest="$_fx_roots" r
+  _fx_r=""
+  while [ -n "$rest" ]; do
+    r="${rest%%$'\n'*}"
+    case "$rest" in *$'\n'*) rest="${rest#*$'\n'}" ;; *) rest="" ;; esac
+    [ -n "$r" ] || continue
+    case "$1/" in "$r"/?*) _fx_r="$r"; return 0 ;; esac
+  done
+  return 1
+}
+# DIR -> 0 when DIR is, or already lies below, a root. Parts 1100 and 1130 need a
+# base whose every ancestor only root or this user can write (the reach read's
+# R13), and where $TMP sits under a shared /tmp, as on a Linux runner, they
+# make one elsewhere: XDG_RUNTIME_DIR, RUNNER_TEMP or HOME. They register it
+# here at once, so their fixture git lines stand behind _fx_cd and _fx_git as
+# every other fixture's do. Refused with a record, and nothing added, when DIR
+# is empty or no directory, when it is /, and when a .git of any kind stands in
+# DIR or in any directory above it: in a directory where `git init` never ran
+# git walks up, only the root's ceiling stops it, and a root inside a checkout
+# would hand that checkout a fixture's write. A refusal leaves the base
+# unregistered, so every fixture line under it is refused in turn and the run
+# goes red at its end; nothing reads as safe that was not proven.
+_fx_root_add() {
+  local at="${BASH_LINENO[0]}" d="${1-}" p back="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}"
+  if [ -z "$d" ] || ! cd -P -- "$d" >/dev/null 2>&1; then _fx_refuse "$at" "$d" root-not-a-directory; return 1; fi
+  p="$PWD"
+  cd -- "$back" >/dev/null 2>&1
+  if [ -n "$hadold" ]; then OLDPWD="$old"; else unset OLDPWD; fi
+  [ "$p" != / ] || { _fx_refuse "$at" "$d" root-is-slash; return 1; }
+  _fx_root_for "$p/." && return 0
+  d="$p"
+  while :; do
+    if [ -e "$d/.git" ] || [ -L "$d/.git" ]; then _fx_refuse "$at" "$1" root-in-a-checkout; return 1; fi
+    [ -n "$d" ] || break
+    d="${d%/*}"
+  done
+  _fx_roots="$_fx_roots${_fx_roots:+$'\n'}$p"
+  return 0
+}
 # LINE DIR WHY -> the refusal's line in the record, and its line on stderr.
 _fx_refuse() {
   printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "${FELIX_TEST_FXREFUSED:-/dev/null}" 2>/dev/null
@@ -71,7 +118,7 @@ _fx_below() {
   got="${PWD%/}$rest"
   cd -P -- "$back" >/dev/null 2>&1 || return 1
   case "$rest/" in */../*) return 1 ;; esac
-  case "$got/" in "$_fx_tmp"/?*) return 0 ;; esac
+  _fx_root_for "$got" && return 0
   return 1
 }
 # -> 0 when the first .git entry that decides, walking up from $PWD with $TMP
@@ -94,7 +141,7 @@ _fx_below() {
 _fx_gitdir() {
   local d="$PWD" g l
   while :; do
-    case "$d/" in "$_fx_tmp"/?*) ;; *) return 0 ;; esac
+    case "$d/" in "$_fx_walkroot"/?*) ;; *) return 0 ;; esac
     g="$d/.git"
     if [ -L "$g" ]; then _fx_below "$g" 1 || return 1; fi
     if [ -d "$g" ]; then
@@ -121,15 +168,13 @@ _fx_gitdir() {
   done
 }
 _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 with a record
-  local at="$1" d="${2-}" why="" t was="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}" ent=""
+  local at="$1" d="${2-}" why="" t was="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}" ent="" root=""
   if [ -z "$d" ]; then why=empty
   else
     case "$d" in /*) t="$d" ;; *) t="./$d" ;; esac
     if cd -P -- "$t" >/dev/null 2>&1; then
       ent=1
-      if [ -z "$_fx_tmp" ]; then why=outside-tmp
-      else case "$PWD/" in "$_fx_tmp"/?*) ;; *) why=outside-tmp ;; esac
-      fi
+      if _fx_root_for "$PWD"; then root="$_fx_r"; _fx_walkroot="$root"; else why=outside-tmp; fi
       if [ -z "$why" ]; then
         if [ -n "${GIT_DIR:-}${GIT_WORK_TREE:-}${GIT_COMMON_DIR:-}${GIT_INDEX_FILE:-}${GIT_OBJECT_DIRECTORY:-}${GIT_ALTERNATE_OBJECT_DIRECTORIES:-}${GIT_CONFIG:-}" ]; then why=git-env
         elif [ "$BASH_SUBSHELL" -eq 0 ]; then why=top-level
@@ -148,7 +193,7 @@ _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 wi
     return 1
   fi
   OLDPWD="$was"
-  GIT_CEILING_DIRECTORIES="$_fx_tmp${GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}"
+  GIT_CEILING_DIRECTORIES="$root${GIT_CEILING_DIRECTORIES:+:$GIT_CEILING_DIRECTORIES}"
   export GIT_CEILING_DIRECTORIES
   return 0
 }

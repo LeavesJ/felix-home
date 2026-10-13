@@ -33,6 +33,8 @@ for _rxc in "$TMP" "${XDG_RUNTIME_DIR:-}" "${RUNNER_TEMP:-}" "${HOME:-}"; do
   [ -n "$RXBASE" ] && break
 done
 [ -n "$RXBASE" ] || RXBASE="$TMP"
+# A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused.
+_fx_root_add "$RXBASE"
 RX="$(mktemp -d "$RXBASE/rx.XXXXXX")"; RX="$(cd "$RX" && pwd -P)"
 RXH="$RX/home"; RXHOME="$RX/user"; RXB="$RX/bin"; RXU="$RX/ubin"; RXPC="$RX/cache"
 RXMEM="$RX/memory"; RXLOG="$RX/claude.log"; RXLA="$RX/list-a"; RXPLAIN="$RX/plain"

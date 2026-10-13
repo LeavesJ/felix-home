@@ -273,6 +273,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/0202-fixture-git-proof-review-round-1.sh"
 . "$HERE/parts/0203-fixture-git-proof-review-round-2.sh"
 . "$HERE/parts/0204-hooks-stand-where-the-session-stands.sh"
+. "$HERE/parts/0205-a-fixture-root-outside-tmp.sh"
 . "$HERE/parts/0210-the-completion-gate.sh"
 . "$HERE/parts/0220-the-binding-itself.sh"
 . "$HERE/parts/0230-the-intent-router.sh"

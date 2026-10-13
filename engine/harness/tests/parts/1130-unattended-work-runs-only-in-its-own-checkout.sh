@@ -20,6 +20,8 @@ if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ]; then   # part 1120 removes a base it 
   done
   [ -n "$OWBASE" ] || OWBASE="$TMP"
 fi
+# A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused.
+_fx_root_add "$OWBASE"
 OW="$(mktemp -d "$OWBASE/ow.XXXXXX")"; OW="$(cd "$OW" && pwd -P)"
 OWT="$OW/tmp"; OWH="$OW/home"; OWP="$OWH/projects"; OWL="$OW/log"; OWCO="$OW/co"; OWHH="$OW/h/harness"
 mkdir -p "$OWT" "$OWP" "$OWL" "$OWCO" "$OW/bin" "$OW/user" "$OW/mem" "$OW/cache" "$OW/gitbad" "$OW/h"

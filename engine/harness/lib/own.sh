@@ -27,10 +27,20 @@
 # unattended for it in any checkout. Only 0 lets the work run; unknown (git could
 # not answer) is withheld like not-own.
 #
-# WHAT THIS DOES NOT DEFEND. It corroborates against a tree's content only. A
-# checkout whose .git directory itself came from an attacker (a tarball with
-# .git in it) controls its own config, its own origin and the code git runs from
-# it, and that is out of Felix's reach and not claimed here.
+# A SUBMODULE IS NEVER OWN. A plain clone's origin is the URL a person cloned
+# from, which the tree cannot choose. A submodule's origin is written by git from
+# the superproject's tracked .gitmodules, so the superproject's authors choose
+# it, and any project whose GitHub repo they can fork or open a pull request
+# against can be named: the gitlink commit only has to be fetchable from there.
+# So a checkout that has a superproject is not own whatever its origin reads
+# (felix_checkout_is_own, why `submodule`). A linked worktree made with
+# `git worktree add` from inside a submodule shares its gitdir and so its origin,
+# and git reports no superproject for it, so it is NOT refused; making one is a
+# person's act on a repository they already hold, and it is not claimed here.
+#
+# WHAT THIS DOES NOT DEFEND. A checkout whose .git directory itself came from an
+# attacker (a tarball with .git in it) controls its own config, its own origin and
+# the code git runs from it, and that is out of Felix's reach and not claimed here.
 #
 # The gates sit at the session-start call sites, except commissioning, whose
 # gate is inside felix_commission_resume_bg because that function has no
@@ -60,8 +70,14 @@ _felix_own_pair() {
 # The owner/repo a remote URL names on github.com, lowercased, or nothing.
 # Prints it and returns 0, or prints nothing and returns 1.
 #
-# The URL is lowercased whole, and any byte outside printable ASCII, or any
-# space, refuses. One trailing / and then one trailing .git are dropped. Accepted:
+# The URL is lowercased whole, and any byte outside printable ASCII, any space,
+# and a ?, # or \ anywhere in it refuse. By URL rules the authority ends at the
+# first of ? or #: measured 2026-10-13, git 2.54.0 given https://evil.invalid#@github.com/o/r
+# (and ?@) resolves evil.invalid, though the text up to its last @ looks like
+# userinfo for github.com. A \ is read as a path separator by some URL parsers and
+# as userinfo by others (that git connected to github.com), so it refuses too:
+# where parsers disagree about the host, no host is corroborated. One trailing /
+# and then one trailing .git are dropped. Accepted:
 #   https://[userinfo@]H[:port]/P     ssh://[user@]H[:port]/P
 #   git://H[:port]/P                  [user@]H:P   (scp-style: no ://, and no /
 #                                                   before the first :)
@@ -69,14 +85,14 @@ _felix_own_pair() {
 # port is : and digits only. H must be github.com exactly, so github.com.evil.example,
 # evil.example and www.github.com refuse, and so does http:// , git+ssh:// ,
 # file:// and a local path. P must be exactly owner/repo (_felix_own_pair); a
-# leading / in the scp form, a third segment, ? and # refuse. The URL is never
-# printed anywhere: an https remote can carry a token as its userinfo.
+# leading / in the scp form and a third segment refuse. The URL is never printed
+# anywhere: an https remote can carry a token as its userinfo.
 felix_remote_github_slug() {
   local u="${1:-}" rest="" auth p host port scp=0
   [ -n "$u" ] || return 1
   u="$(printf '%s' "$u" | LC_ALL=C tr 'A-Z' 'a-z')" || return 1
   [ -z "$(printf '%s' "$u" | LC_ALL=C tr -d '[:print:]')" ] || return 1
-  case "$u" in *" "*|*$'\n'*) return 1 ;; esac
+  case "$u" in *" "*|*$'\n'*|*[?#\\]*) return 1 ;; esac
   u="${u%/}"; u="${u%.git}"
   case "$u" in
     https://*) rest="${u#https://}" ;;
@@ -106,7 +122,7 @@ felix_remote_github_slug() {
 
 # Is <root> the own checkout of the project <proj> (a path under the Felix home)?
 # 0 own, 1 not own, 2 unknown (git could not answer). Sets _FELIX_OWN_WHY to
-# exactly one of own, no-match, no-origin, other, unread.
+# exactly one of own, no-match, no-origin, submodule, other, unread.
 #
 #   1. project.json's remote_match, lowercased with a trailing / and then .git
 #      dropped, must be exactly owner/repo (_felix_own_pair). Empty, absent,
@@ -115,15 +131,20 @@ felix_remote_github_slug() {
 #   2. git not on PATH is unread.
 #   3. `git remote get-url origin`. Measured 2026-10-13 on git 2.54.0: 2 when
 #      there is no origin, 128 outside a repository. 2 is no-origin; any other
-#      failure (128, 69 under an unaccepted Xcode licence, 127) is unread; 0 is
-#      own when felix_remote_github_slug of the URL equals the remote_match, and
-#      other when it does not.
+#      failure (128, 69 under an unaccepted Xcode licence, 127) is unread; on 0:
+#   4. `git rev-parse --show-superproject-working-tree` names the superproject
+#      of a submodule and nothing for a plain clone, a superproject, or a linked
+#      worktree of either. It failing is unread; a path is not own, `submodule`,
+#      whatever the origin reads, because a submodule's origin comes from the
+#      superproject's tracked .gitmodules and so is the tree's to choose.
+#   5. Else own when felix_remote_github_slug of the URL equals the remote_match,
+#      and other when it does not.
 #
 # The .felix marker is never read here and a substring is never enough. The
 # origin URL is never printed, logged or written. See the head of this file for
 # what that corroboration does not defend.
 felix_checkout_is_own() {
-  local proj="${1:-}" root="${2:-}" m u rc
+  local proj="${1:-}" root="${2:-}" m u rc sp
   _FELIX_OWN_WHY=no-match
   m="$(felix_json_str "$proj/project.json" remote_match 2>/dev/null)"
   m="$(printf '%s' "$m" | LC_ALL=C tr 'A-Z' 'a-z')"
@@ -137,6 +158,8 @@ felix_checkout_is_own() {
     2) _FELIX_OWN_WHY=no-origin; return 1 ;;
     *) return 2 ;;
   esac
+  sp="$(git -C "$root" rev-parse --show-superproject-working-tree 2>/dev/null)" || return 2
+  if [ -n "$sp" ]; then _FELIX_OWN_WHY=submodule; return 1; fi
   if [ "$(felix_remote_github_slug "$u")" = "$m" ]; then _FELIX_OWN_WHY=own; return 0; fi
   _FELIX_OWN_WHY=other
   return 1
@@ -183,8 +206,8 @@ EOF
 #
 # B is "by its .felix marker" when the root holds one and "by an origin that only
 # contains <remote_match>" when not; R says why it is not own (origin not
-# github.com/<remote_match>, no origin remote, the project declares no usable
-# remote_match, or the origin could not be read). It is said once per checkout
+# github.com/<remote_match>, no origin remote, a submodule, the project declares
+# no usable remote_match, or the origin could not be read). It is said once per checkout
 # and set of kinds: the key "<root><TAB><K>" is kept a line in
 # <home>/state/own/<project>.seen, and a key already there prints nothing. A root
 # or kinds holding a tab or a newline are not recorded, and a .seen that cannot be
@@ -200,6 +223,7 @@ felix_own_withheld_line() {
   case "${_FELIX_OWN_WHY:-}" in
     other)     why="its origin is not github.com/$rmw" ;;
     no-origin) why="it has no origin remote" ;;
+    submodule) why="it is a submodule, whose origin the repository holding it chooses" ;;
     no-match)  why="$name declares no remote_match naming a github.com owner/repo, so no checkout is its own" ;;
     *)         why="its origin could not be read" ;;
   esac

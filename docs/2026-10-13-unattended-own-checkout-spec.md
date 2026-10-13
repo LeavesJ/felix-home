@@ -22,8 +22,8 @@ its `.felix` marker first and by a substring of its origin URL second. A
 project name such as the one Felix governs itself under is public. Once bound,
 `hooks/session-start` starts work with nobody present, in the checkout. This
 change keeps the binding and everything a present person gets, and withholds
-only the unattended work, unless the checkout's origin remote names the
-project's own repository.
+only the unattended work, unless the checkout is not a submodule and its origin
+remote names the project's own repository.
 
 ---
 
@@ -197,6 +197,15 @@ whose `.git` itself came from an attacker (a tarball carrying `.git`) controls
 its own config, its own `origin`, and code git runs; that is out of Felix's
 reach and is not claimed.
 
+The `origin` is the tree's to choose in one case, and it is claimed: a
+submodule. git writes a submodule's `origin` from the superproject's tracked
+`.gitmodules` url, so a hostile superproject names any GitHub repository it can
+fork or open a pull request against, and the gitlink commit only has to be
+fetchable from there (fork and pull-request commits are). A submodule is
+therefore never own (section 3, `felix_checkout_is_own` rule 4, decision D9).
+Found in review: the first version of this paragraph said the `origin` was
+beyond the tree's reach, which is false for submodules.
+
 ---
 
 ## 2. Files
@@ -228,7 +237,17 @@ Prints `owner/repo`, lowercased, and returns 0 when `<url>` names a github.com
 repository in one of these spellings; prints nothing and returns 1 otherwise.
 
 1. The whole URL is lowercased (`LC_ALL=C tr 'A-Z' 'a-z'`). Any byte outside
-   printable ASCII, or any space, returns 1.
+   printable ASCII, any space, and a `?`, `#` or `\` anywhere in it, returns 1.
+   This is checked on the whole URL before it is split, because the split below
+   takes the authority to end at the first `/` and drops everything up to its
+   last `@` as userinfo, and by URL rules the authority ends at the first `?` or
+   `#`. Measured 2026-10-13 on git 2.54.0: `git ls-remote
+   'https://evil.invalid#@github.com/OwnerX/ownp-repo'` (and `?@`) resolves
+   `evil.invalid`, while its error message prints
+   `https://github.com/OwnerX/ownp-repo/`. A `\` is read as a path separator by
+   some URL parsers and as userinfo by others (that git connected to
+   github.com), so it refuses too: where parsers disagree about the host, no host
+   is corroborated.
 2. One trailing `/` is removed, then one trailing `.git`.
 3. Accepted shapes (after 1-2), where `H` is a host and `P` a path:
    - `https://[userinfo@]H[:port]/P`
@@ -241,8 +260,8 @@ repository in one of these spellings; prints nothing and returns 1 otherwise.
 4. `H` must equal `github.com` exactly (so `github.com.evil.example`,
    `evil.example`, `www.github.com` return 1).
 5. `P` must be exactly two segments `owner/repo`, each matching
-   `^[a-z0-9._-]+$` and neither `.` nor `..`; a leading `/` in the scp form, a
-   third segment, `?` or `#` return 1.
+   `^[a-z0-9._-]+$` and neither `.` nor `..`; a leading `/` in the scp form or a
+   third segment returns 1 (`?`, `#` and `\` already did, by rule 1).
 
 Bash 3.2: case patterns or `[[ =~ ]]` with the pattern held in a variable; no
 `${x,,}`; no loop of `${x#pat}` over input.
@@ -250,7 +269,7 @@ Bash 3.2: case patterns or `[[ =~ ]]` with the pattern held in a variable; no
 ### `felix_checkout_is_own <proj> <root>` (lib/own.sh)
 
 Returns 0 own, 1 not own, 2 unknown. Sets `_FELIX_OWN_WHY` to exactly one of
-`own`, `no-match`, `no-origin`, `other`, `unread`.
+`own`, `no-match`, `no-origin`, `submodule`, `other`, `unread`.
 
 1. `m="$(felix_json_str "$proj/project.json" remote_match)"`. Normalised the
    way a URL path is: lowercased, one trailing `/` then one trailing `.git`
@@ -264,15 +283,23 @@ Returns 0 own, 1 not own, 2 unknown. Sets `_FELIX_OWN_WHY` to exactly one of
    - `rc` 2: return 1, `no-origin`.
    - `rc` other than 0 and 2 (128, 69 under an unaccepted Xcode licence, 127):
      return 2, `unread`.
-   - `rc` 0: `felix_remote_github_slug "$u"` equal to the normalised `m`:
-     return 0, `own`; else return 1, `other`.
-4. The `.felix` marker is never read here. A substring match is never enough.
-5. The origin URL is never printed, logged or written anywhere (an https URL
+   - `rc` 0: go on to rule 4.
+4. `sp="$(git -C "$root" rev-parse --show-superproject-working-tree 2>/dev/null)"`.
+   Measured 2026-10-13 on git 2.54.0: it prints the superproject's path for a
+   submodule and nothing for a plain clone, for the superproject, and for a
+   linked worktree of either of those. If it fails: return 2, `unread`. If `sp`
+   is not empty: return 1, `submodule`, whatever the origin reads (decision D9).
+   Else `felix_remote_github_slug "$u"` equal to the normalised `m`: return 0,
+   `own`; else return 1, `other`.
+5. The `.felix` marker is never read here. A substring match is never enough.
+6. The origin URL is never printed, logged or written anywhere (an https URL
    can carry a token as userinfo).
-6. The function's comment says, in substance: this corroborates the binding
-   against what the tree cannot choose, the clone's own `origin`; it does not
-   defend a checkout whose `.git` came from an attacker, which controls its own
-   config and code git runs, and that is out of Felix's reach and not claimed.
+7. The function's comment says, in substance: this corroborates the binding
+   against the clone's own `origin`, which a plain clone's tree cannot choose;
+   a submodule's `origin` comes from the superproject's tracked `.gitmodules`,
+   so a submodule is refused; and it does not defend a checkout whose `.git` came
+   from an attacker, which controls its own config and code git runs, and that
+   is out of Felix's reach and not claimed.
 
 ### `felix_own_gate <kind> <status>` (lib/own.sh)
 
@@ -296,6 +323,7 @@ Nothing ran here unattended: <project> is bound to this checkout <B>, and <R>. W
 - `<R>` by `_FELIX_OWN_WHY`:
   - `other`: `its origin is not github.com/<remote_match as written>`
   - `no-origin`: `it has no origin remote`
+  - `submodule`: `it is a submodule, whose origin the repository holding it chooses`
   - `no-match`: `<project> declares no remote_match naming a github.com owner/repo, so no checkout is its own`
   - `unread`: `its origin could not be read`
 - `<K>`: `_FELIX_OWN_WITHHELD` as accumulated.
@@ -369,14 +397,18 @@ for which `felix_checkout_is_own` does not return 0. "The stubs" are section 6.
   `https://github.com/OwnerX/ownp-repo/extra`, `https://github.com/OwnerX`,
   `http://github.com/OwnerX/ownp-repo`, `file:///tmp/ownp-repo`, `/tmp/ownp-repo`,
   `git@github.com:/OwnerX/ownp-repo`, `https://github.com/OwnerX/ownp-repo?x=1`,
-  `https://github.com/Owner X/ownp-repo`, the empty string. The fork URL
+  `https://github.com/Owner X/ownp-repo`, `https://evil.example#@github.com/OwnerX/ownp-repo`,
+  `https://evil.example?@github.com/OwnerX/ownp-repo`,
+  `https://evil.example\@github.com/OwnerX/ownp-repo` (found in review: a `?` or
+  `#` ends the authority, so the host is `evil.example`), the empty string. The fork URL
   `https://github.com/OwnerX/ownp-repo-fork.git` is a valid slug: it prints
   `ownerx/ownp-repo-fork` and returns 0, and B4 is where it is refused.
 - **B3** For a project whose remote_match is `OwnerX/ownp-repo`,
   `felix_checkout_is_own` returns 0 with `_FELIX_OWN_WHY=own` in checkouts
   whose origin is any B1 spelling, a worktree of such a checkout included.
 - **B4** It returns 1 with `other` for origins `git@evil.example:OwnerX/ownp-repo.git`,
-  `https://github.com/OwnerX/ownp-repo-fork.git`, `https://github.com.evil.example/OwnerX/ownp-repo`;
+  `https://github.com/OwnerX/ownp-repo-fork.git`, `https://github.com.evil.example/OwnerX/ownp-repo`,
+  `https://evil.example#@github.com/OwnerX/ownp-repo`;
   1 with `no-origin` for a repository with no origin; 1 with `no-match` for a
   project whose remote_match is empty, absent, `example.com`, or
   `a/b/c`, whatever the origin, a `.felix` naming the project included.
@@ -388,6 +420,27 @@ for which `felix_checkout_is_own` does not return 0. "The stubs" are section 6.
   origin URL; asserted with origin `https://SECRETTOKEN@github.com/OwnerX/ownp-repo.git`
   by grepping every file the session start wrote under the scratch home and
   memory root, and the hook's output, for `SECRETTOKEN`.
+- **B8** (found in review) A checkout that is a submodule is not own: the
+  predicate returns 1 with `submodule` although its `origin` is exactly the
+  project's. Asserted with a local superproject whose tracked `.gitmodules` url
+  is `https://github.com/OwnerX/ownp-repo`, cloned with `--recurse-submodules`
+  and an `insteadOf` that serves that url from a local bare repository (offline);
+  first as a control, that the submodule's `origin` reads as the project's and
+  `felix_remote_github_slug` accepts it. The superproject, once its own origin is
+  the project's, is still own (0), as a plain clone and a linked worktree of an
+  own checkout are (B3). When `git rev-parse --show-superproject-working-tree`
+  fails, the predicate returns 2 with `unread`.
+- **B9** (found in review) A session start in that submodule runs, in effect,
+  none of the unattended work (it carries a `.felix` naming the project, a
+  current `commission` and `tidy` grant, an untracked rival the project holds a
+  copy of, and then an undeclared `Cargo.toml`): the `felix` stub is not run
+  with `commission` and `bg.log` gains one `refused-not-own` line and no `ran`;
+  the rival is kept byte-identical; nothing is adopted into the project's
+  `capabilities`. The context's last paragraph is the one line, with `it is a
+  submodule, whose origin the repository holding it chooses` as `<R>`, naming
+  `tidying, commissioning`, and then `adoption, tidying, commissioning`. A graph
+  refresh is never due in a submodule: `felix_graph_home` is the parent of its
+  gitdir, which holds no graph, so that kind is never named there.
 
 ### Commissioning (P1)
 
@@ -581,7 +634,9 @@ otherwise:
 - `claude`: answers `plugin list --json --available` with `[]` and `mcp list`
   with nothing; any other shape exits 2 after logging.
 - `gh`, `graphify`: log only.
-- `git` failing (B5 only, on a PATH of its own): exits 69.
+- `git` failing (B5 only, on a PATH of its own): exits 69. A second one for B8
+  exits 69 only for `--show-superproject-working-tree` and otherwise runs the
+  real git.
 
 Every detached launch is waited for with `_rx_wait` on its lock or log
 (`$home/state/discover/.lock` gone; `graphify-out/.felix-refresh.lock` gone;
@@ -698,6 +753,29 @@ loose `felix_repo_slug` (detect.sh:233, `.*github\.com[:/]`, which
 `https://evil.example/github.com/a/b` satisfies) is not reused. Segments allow
 `[a-z0-9._-]`, wider than GitHub's owner names, because equality is what
 decides and the fixture remote_match `example.com/widget` should stay usable.
+
+### D9. A submodule is never own (found in review)
+
+`git remote get-url origin` is the corroboration because a plain clone's tree
+cannot choose it. For a submodule that is false: git writes the submodule's
+`origin` from the superproject's tracked `.gitmodules` url. A hostile repository
+can therefore make a submodule own for any governed project whose GitHub repo it
+can fork or send a pull request to, since the gitlink commit only has to be
+fetchable from that url. Reproduced in a local fixture before the fix: a session
+start in the submodule adopted `rust` into the project's `capabilities`, removed
+an untracked `scripts/prepush.sh` the project holds a copy of (tidying backs it
+up under `state/rivals/` first), and ran `felix commission` there.
+
+Decided: a checkout with a superproject is not own, whatever its origin reads.
+The cost is stated: a project whose own repository is consumed as a submodule of
+another gets no unattended work inside that submodule; a person typing the
+command still gets it. Not claimed: a linked worktree added with `git worktree
+add` from inside a submodule shares the submodule's gitdir and its `origin`, and
+`--show-superproject-working-tree` prints nothing for it, so it is not refused.
+Making one is a person's act on a repository they already hold. Checking the
+common gitdir for `.git/modules/` would close part of it and still miss a
+superproject whose gitdir is elsewhere, so it is left unclaimed rather than
+half-claimed.
 
 ---
 

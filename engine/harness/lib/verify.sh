@@ -439,9 +439,18 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 # epoch.sh is sourced at call time rather than at load, because it pulls
 # commission.sh in behind it and commission.sh sources this file: a load-time
 # source from here would be a cycle, and at call time this file is complete.
+#
+# A fourth argument, when one is given, is the receipt's text as the caller
+# already read it, and is judged in place of reading the file again. It exists
+# for a caller that also wants a field of the receipt it asks about (the merge
+# boundary reads the reported checks for rule C9): this function takes a third
+# of a second, the gate rewrites the receipt with a truncating `>`, and a
+# second read after this one is not the receipt that was judged (review finding
+# C9-R3). Absent, it reads the file as it always did; an empty fourth argument
+# is a receipt of nothing, which is `none`.
 felix_verify_current() {
   local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch
-  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  if [ $# -ge 4 ]; then receipt="$4"; else receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"; fi
   [ -n "$receipt" ] || { printf 'none\n'; return 1; }
   r_res="$(printf '%s' "$receipt" | cut -f2)"
   [ "$r_res" = "green" ] || { printf 'red\n'; return 1; }

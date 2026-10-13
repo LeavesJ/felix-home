@@ -448,13 +448,17 @@ felix_merge_checkout() {
 # review of 2026-10-12 asked for the independent verdict, and the gate
 # workflow's own run on this exact commit is it.
 #
-# Prints nothing and returns 0 when that workflow has a run on the commit whose
-# status is completed and whose conclusion is success. Otherwise returns 1 and
-# prints what held, as the tail of the blocker's reason:
+# Prints nothing and returns 0 when the newest run of that workflow on the
+# commit is completed and concluded success. The newest run is the one that
+# counts, and an older green one never stands in for it (review finding C9-R1):
+# a second run on one head appears when a pull request is reopened after main
+# moved, or when the same head sits in two of them, and it tests the head in a
+# different base. Otherwise returns 1 and prints what held, as the tail of the
+# blocker's reason:
 #
 #   no run on this commit
-#   its run is <status>                 none of its runs has completed
-#   its run concluded <conclusion>      the newest completed one did not succeed
+#   its run is <status>                 the newest run on it has not completed
+#   its run concluded <conclusion>      the newest run on it completed and did not succeed
 #   GitHub could not be asked (<what failed>)
 #
 # Asked the way lib/repair.sh and lib/automerge.sh ask: `gh run list` for the
@@ -462,7 +466,10 @@ felix_merge_checkout() {
 # it lists every workflow's runs on the commit, and the unattended repair's or
 # GitHub's Dependency Graph passing is no verdict of the gate. The commit is
 # asked for with --commit, and each run's own headSha is read as well, so an
-# answer about another commit is no evidence however it came to be listed.
+# answer about another commit is no evidence however it came to be listed. A run
+# whose headSha is not exactly the commit is not a run on it, and one whose
+# headSha gh did not give at all cannot be placed, which is unreadable and never
+# a pass (review finding C9-R2).
 #
 # Unreadable is never "no run" and never a pass, and pass is the one word
 # anything here is compared to. The count is printed first, as repair.sh does
@@ -498,30 +505,31 @@ _felix_merge_gate_held() {
   # The first line is the count; the rest are runs, newest first as gh lists
   # them, as status, conclusion and the commit the run is on, with `-` for a
   # field gh left empty so no field is ever missing between two tabs.
+  #
+  # The first run that is on this commit decides, and nothing after it is read:
+  # a run before it that cannot be read or placed might have been the newest on
+  # this commit, so it is unreadable and not skipped, and an older success never
+  # outvotes a newer run that failed or has not finished.
   verdict="$(printf '%s\n' "$runs" | LC_ALL=C awk -F'\t' -v sha="$sha" '
     NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; exit }
               total = $0 + 0; next }
     { lines++
       st = $1; co = $2; on = $3
-      if (st !~ /^[A-Za-z0-9_]+$/) { unread++; next }
-      if (on != "-" && on != sha) { other++; next }
-      if (st == "completed" && co !~ /^[A-Za-z0-9_]+$/) { unread++; next }
-      here++
-      if (here == 1) first = st
-      if (st == "completed") {
-        if (co == "success") { pass = 1; exit }
-        if (++fin == 1) newest = co
-      }
+      if (st !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a run whose status cannot be read"; exit }
+      if (on == "-" || on == "") { bad = "gh run list listed a run without the commit it is on"; exit }
+      if (on != sha) { other++; next }
+      if (st != "completed") { newest = "status\t" st; exit }
+      if (co !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a completed run without a conclusion"; exit }
+      newest = (co == "success") ? "pass" : ("concluded\t" co)
+      exit
     }
     END {
       if (NR == 0) { print "unreadable\tgh run list printed nothing"; exit }
       if (bad != "") { print "unreadable\t" bad; exit }
-      if (pass) { print "pass"; exit }
+      if (newest != "") { print newest; exit }
       if (total == 0) { print "none"; exit }
-      if (here > 0 && fin > 0) { print "concluded\t" newest; exit }
-      if (here > 0) { print "status\t" first; exit }
       if (lines == 0) { print "unreadable\tgh run list counted runs and listed none"; exit }
-      if (unread == 0 && other == lines) { print "none"; exit }
+      if (other == lines) { print "none"; exit }
       print "unreadable\tgh run list listed runs that cannot be read"
     }')"
   key="${verdict%%"$tab"*}"; val="${verdict#*"$tab"}"
@@ -565,8 +573,16 @@ felix_merge_blockers() {
   # the Stop hook cannot disagree. Stale for a fact that moved outside the tree
   # is named as such, because "run felix gate" on a tree that did not change
   # reads as the hook being broken until the reason is beside it.
-  local cur
-  cur="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || true
+  #
+  # The receipt is read once, here, and that text is what is judged and what
+  # rule C9 reads its reported checks from. felix_verify_current runs the
+  # project's probes, about a third of a second, and the gate rewrites the
+  # receipt with a truncating `>`: a second read after the judgement need not be
+  # the receipt that was judged, and an empty one would have dropped C9 and
+  # merged (review finding C9-R3).
+  local cur rcpt
+  rcpt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  cur="$(felix_verify_current "$root" "$home" "$proj" "$rcpt" 2>/dev/null)" || true
   case "$cur" in
     current) ;;
     stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
@@ -584,7 +600,7 @@ felix_merge_blockers() {
   # always was and makes no call to gh.
   if [ "$cur" = "current" ]; then
     local rfield hsha held
-    rfield="$(felix_verify_receipt "$root" "$home" 2>/dev/null | cut -f6)"
+    rfield="$(printf '%s' "$rcpt" | cut -f6)"
     case ",${rfield}," in
       *,tests:reused,*)
         hsha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"

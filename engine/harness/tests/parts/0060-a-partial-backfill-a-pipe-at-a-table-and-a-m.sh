@@ -181,7 +181,7 @@ _anl4_ifr "and felix adopt names the capability, the capabilities file and felix
 _anl4_hook() {   # project name, stack.tsv mode (ro | -) -> the hook's output in $_anl4/<name>.out
   local p="$1" r="$_anl4/$1-repo"
   mkdir -p "$r" "$FROOT/projects/$p"
-  # Own checkout: session-start adopts only in the bound project's own (lib/own.sh, 0.49.285).
+  # Own checkout: session-start adopts only in the bound project's own (lib/own.sh, 0.49.286).
   ( cd "$r" && git init -q -b main && git config remote.origin.url "https://github.com/example.com/$p" )
   printf '%s\n' "$p" > "$r/.felix"
   printf 'sentry-sdk\n' > "$r/requirements.txt"

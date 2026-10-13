@@ -2,7 +2,7 @@
 # A checkout the hook would adopt observability for, first as a control with
 # no capabilities list, then over a link whose target is gone and over a pipe.
 _adrhr="$TMP/_adr/hookrepo"; mkdir -p "$_adrhr"
-# Adoption at session start runs only in the project's own checkout (lib/own.sh, 0.49.285), so this fixture's checkout is adrhook's own: its remote_match names its origin.
+# Adoption at session start runs only in the project's own checkout (lib/own.sh, 0.49.286), so this fixture's checkout is adrhook's own: its remote_match names its origin.
 ( cd "$_adrhr" && git init -q -b main && git config remote.origin.url https://github.com/example.com/adrhook )
 printf 'adrhook\n' > "$_adrhr/.felix"; printf 'sentry-sdk\n' > "$_adrhr/requirements.txt"
 _adrhp="$FROOT/projects/adrhook"; mkdir -p "$_adrhp" "$MEM/adrhook"

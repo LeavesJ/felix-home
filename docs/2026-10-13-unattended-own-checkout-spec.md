@@ -787,3 +787,7 @@ version is **0.49.285**; the ship stage re-checks every worktree's
 `engine/.claude-plugin/plugin.json` and every open PR's before bumping.
 `tests/assertions.tsv` and `tests/red.tsv` are re-recorded with
 `tests/run --record-assertions` at ship, under nohup, polled by pid.
+
+Shipped as **0.49.286**. At ship time main had moved to 0.49.284 (#432) and PR
+#433 (claude/gf-a3, and the charming-bartik-58e065 worktree) held 0.49.285, so
+the number this section named was taken.

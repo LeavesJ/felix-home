@@ -1,6 +1,6 @@
 ### 2026-10-13: unattended work runs only in the project's own checkout
 
-**Engine 0.49.285**, branch claude/commission-foreign-checkout, from main at 0.49.283.
+**Engine 0.49.286**, branch claude/commission-foreign-checkout, from main at 0.49.283, merged with main at 0.49.284 (#432, gate friction step 1).
 The spec is docs/2026-10-13-unattended-own-checkout-spec.md (B1-B42, decisions D1-D9).
 Tier adversarial: lib/, the hook and the felix CLI run in every session of every
 governed project. No table under projects/, no escape, no deny row, no change to the
@@ -114,6 +114,8 @@ manifest and the red run are recorded.
 - No attended notice in `felix commission` (D2).
 - The project-less `remote_match` projects above are not given one; that is a table edit
   for each, and a founder's call about which hosts they are on.
-- Version: 0.49.285. Read 2026-10-13 at ship time: main 0.49.283; worktree
-  charming-bartik-58e065 and open PR #432 (claude/gf-a) hold 0.49.284; no other worktree
-  or open PR holds a number above 0.49.283. Renumber if another engine PR lands first.
+- Version: 0.49.286. Read 2026-10-13 at ship time, after main moved: main 0.49.284 (#432);
+  PR #433 (claude/gf-a3) and the charming-bartik-58e065 worktree hold 0.49.285; no
+  other worktree, remote branch or open PR holds a number above 0.49.284. The spec and
+  the two commits before this one named 0.49.285, which was free when they were
+  written; they are renumbered here. Renumber if another engine PR lands first.

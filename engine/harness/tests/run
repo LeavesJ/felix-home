@@ -366,6 +366,7 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"
 . "$HERE/parts/1110-found-after-the-blind-part-status-index-and-long-list.sh"
 . "$HERE/parts/1120-found-in-review-reach-runs-in-an-empty-directory.sh"
+. "$HERE/parts/1130-unattended-work-runs-only-in-its-own-checkout.sh"
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished
 # red run exits 1 as a dead one can (#371). The empty line before it is this

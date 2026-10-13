@@ -317,9 +317,31 @@ if [ "$_gfcNoSha" = 1 ]; then
     is "not blind: review finding C9-R2: a success whose headSha is ${_gfcv%%:*} is not a pass: GitHub could not be asked (...)" \
        "$(_gfcHeld "$_gfcB" "GitHub could not be asked (")" "held"
   done
+  # Mutants the blind block let through, found by hand after it was written:
+  # the blind stub filters by --commit as gh does, so a rule that dropped its
+  # own reading of headSha, or dropped --commit, still met only runs on the
+  # head. A gh that answers about another commit anyway shows both.
+  _gfcCase runs "$(_gfcRun 40 "$_gfcO" completed success ci-gate.yml)"
+  is "not blind: mutant, accept a run on another commit: a success the answer puts on the parent commit is no run on this commit" \
+     "$(_gfcHeld "$(_gfcBlk "$_gfcRawPATH")" "no run on this commit")" "held"
+  _gfcCase runs "$(_gfcRun 40 "$_gfcH8" completed success ci-gate.yml)"
+  is "not blind: mutant, accept a run on another commit: nor is one on the head's first 8, which is not the head" \
+     "$(_gfcHeld "$(_gfcBlk "$_gfcRawPATH")" "no run on this commit")" "held"
+  has "not blind: mutant, accept a run on another commit: and gh was asked for the head's full sha" "$(_gfcCalls)" "$_gfcH"
 else
   skip "not blind: review finding C9-R2: a success whose headSha is missing is not a pass" "no jq here for the gh stub"
 fi
+
+# ---- the pair is tests:reused, not a string that contains it ----------------
+# A mutant that matched `tests:reused` as a substring of the reported field
+# passed the blind block, which only ever reports tests:ok and tests:reused.
+# The gate reports neither of these; a receipt that did must not be taken for a
+# reused one (contract A2, item 1: "holds the pair"). gh fails, so a rule that
+# asked would show in the blockers and in the record.
+_gfcRcpt 0 "syntax:ok,xtests:reused,tests:reusedx,secret:ok"; _gfcCase fail
+is "not blind: mutant, tests:reused as a substring: a pair that only contains it (xtests:reused, tests:reusedx) clears every blocker" \
+   "$(_gfcBlk "$_gfcPATH")" ""
+is "not blind: mutant, tests:reused as a substring: and gh is not called at all" "$(_gfcCalls)" ""
 
 # ---- C9-R3: the receipt C9 reads is the receipt that was judged -------------
 # felix_verify_current takes about a third of a second and the gate rewrites

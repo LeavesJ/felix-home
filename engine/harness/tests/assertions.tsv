@@ -483,6 +483,9 @@
 1	a branch with a commit on no remote leads with unpushed
 1	a branch with no HANDOFF.md is not in flight
 1	a branch-owned catch is not settled by a row on its branch from before it
+1	a bridged receipt from another environment refuses with run another environment
+1	a bridged receipt that ended more than twelve hours ago refuses with run older than 12 hours
+1	a bridged receipt whose origin/main has moved since refuses with run origin/main moved
 1	a brief that names no file stops at scope: not acted on, not failed, not escalated
 1	a broad but legitimate rule still denies
 1	a builtin is named without a token, as before
@@ -656,10 +659,13 @@
 1	a commissioning check with | head -1 inside $( ) is not malformed
 1	a commissioning run seeds the ledger through the row's answer
 1	a commissioning when ending in | tail is not judged
+1	a commit holding one of the two changes, the other still uncommitted, stands on the bridge with Y's sha
 1	a commit holding the project it is asked about pins
 1	a commit in the checkout the graph was built from is due
 1	a commit message in a here-document is not read as a command
+1	a commit of the run's changes plus a further uncommitted change is run another tree (control)
 1	a commit on the default branch from before the project merged pins nothing
+1	a commit that adds a file the run saw untracked is run another tree (control)
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -1028,6 +1034,7 @@
 1	a line that begins with a non-ASCII byte is refused, since whether it is a comment depends on the locale
 1	a line that only contains the word reached is not the marker, exit 2
 1	a line that opens like a listed name's skip and does not end in a parenthesis is not its skip, so the name is still red
+1	a line the gate's search pattern finds
 1	a line whose key holds a space is prose and is ignored (R2)
 1	a linked worktree does not read the main checkout's receipt
 1	a list of 300 servers is read and classified in under 8 s
@@ -1106,6 +1113,7 @@
 1	a megabyte line of backslashes, content blocks or timestamps is read in one pass: three sessions in under 5 seconds of CPU
 1	a member count that moves is still a new epoch to the shell with the other git
 1	a memory directory the recorder cannot write leaves the hook's exit 0 and its banner as it was
+1	a merge commit whose first parent is the run's commit, holding exactly its changes, is run another tree (control)
 1	a merge in progress is a person's, and the pulse says so
 1	a merge is blocked while the project reads nothing from reality
 1	a merge stopped for the founder is recorded as one
@@ -1437,6 +1445,7 @@
 1	a receipt of ten fields is malformed
 1	a receipt of two sound lines is malformed
 1	a receipt on an unborn HEAD is still json
+1	a receipt on the tree as it is now, nothing committed since, says today's six fields (control)
 1	a receipt over an output carrying a need the table does not list is indeterminate
 1	a receipt over an output carrying a row twice is indeterminate
 1	a receipt over an output missing a row the table lists is indeterminate, printed and written
@@ -1448,6 +1457,8 @@
 1	a receipt survives being written inside the tree it describes
 1	a receipt that cannot be read is an unreadable receipt
 1	a receipt that ended more than 43200 seconds ago is older than 12 hours
+1	a receipt that matches the merge as it is now says today's six fields, no commit named (control)
+1	a receipt that recorded no origin/main stands across the commit, with the seventh field
 1	a receipt whose awaiting count alone is ? is unreadable
 1	a receipt whose counts are empty is unreadable, not valid
 1	a receipt whose done count alone is empty is unreadable
@@ -1462,6 +1473,7 @@
 1	a receipt whose start is not decimal digits is malformed
 1	a receipt whose unknown count is ? is unreadable
 1	a receipt with a failure and a mode that is no mode is malformed first
+1	a receipt with failures says run failures recorded, before any tree is asked (control)
 1	a receipt with no epoch is said to have none before the facts are said to be unreadable
 1	a receipt with no roster is said to have none, never read as nothing left
 1	a receipt written with an epoch reads back with eight fields
@@ -1554,6 +1566,7 @@
 1	a resumed session gets no banner
 1	a revision expression is taken as given
 1	a rollup rewrites no file another session wrote
+1	a root commit made of exactly what an unborn run left staged is run another tree (control)
 1	a root nothing has stamped reads as none
 1	a root that cannot be entered makes every row unknown
 1	a route from what you typed is recorded as such
@@ -1642,6 +1655,8 @@
 1	a run felix repair could not read fails the job rather than passing quietly
 1	a run nobody could read does not count as clean
 1	a run of the first routine is recorded however many routines follow it
+1	a run on a clean tree, then a commit that changes a file, is run another tree (control)
+1	a run on the very commit origin/main named, then committed, refuses with C10.5's reason
 1	a run that printed every row the table lists is complete, and nothing is said
 1	a run that printed every row the table lists, in order, still gives a commissioned receipt
 1	a run that reaches its end with a failure removes the receipt an earlier run left
@@ -2142,6 +2157,7 @@
 1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
 1	after an installed failure the suite is still skipped, not run (control)
 1	after commissioning the gate line reads ok
+1	after exactly those changes are committed as Y, the receipt stands, the seventh field naming Y's full sha
 1	after one pulse with no memory repository the row is never, with the run's UTC minute
 1	after red, a record run prints an empty line and then the record this run wrote
 1	after the fold, a tampered cache entry still fails
@@ -2693,6 +2709,7 @@
 1	and as a server, each by its own rule
 1	and asked from a subdirectory it is still the checkout, not the subdirectory
 1	and asked from a worktree it is still the holding checkout
+1	and asking leaves the receipt byte for byte as it was (control)
 1	and asks for no grant the merge does not need
 1	and asks for no re-arm the grant does not need
 1	and bad with a detail as a failure of it, giving the detail, not as a skip or a pass
@@ -3122,8 +3139,10 @@
 1	and its evidence is never run
 1	and its evidence is never run behind an applicability nobody established
 1	and its evidence mode says the same
+1	and its first line says the run was then committed as Y's first 8
 1	and its header's directory is the empty directory the read ran in, not the checkout root
 1	and its label felix:founder says founder
+1	and its last line is the summary, unchanged
 1	and its last-caught line names that catch, trimmed
 1	and its last-caught line names the catch
 1	and its medium holds too
@@ -3311,6 +3330,7 @@
 1	and no night is announced when none was granted
 1	and no other variable of the caller's moves
 1	and no part of a when that does not parse was run
+1	and no part of the suite ran
 1	and no policy version either, there being no tables to hash
 1	and no rate is claimed over a numerator that cannot hold compliance
 1	and no row anywhere carries a grounding the policy cannot read
@@ -3757,6 +3777,7 @@
 1	and so does flipping the verdict a control expects
 1	and so does its felix log
 1	and so does one inside a command substitution
+1	and so does one on a commit the recorded origin/main has below it
 1	and so does one who types a question under a task notification
 1	and so does one whose registry entry carries no installPath
 1	and so does swapping its mutation for one that changes nothing
@@ -3878,6 +3899,7 @@
 1	and tampered under hooks it is drift as well
 1	and tee onto the marker
 1	and tells the session which fact moved
+1	and tests/run --reuse on it exits 0 (control)
 1	and that alone does not fail the gate
 1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
@@ -5787,6 +5809,15 @@
 1	felix_setup_status prints unknown, not dormant, for a step whose declared list could not be read, and does not run its check
 1	felix_stack_plan prints unknown, not dormant, for a row whose declared list could not be read, naming its capability
 1	felix_tidy_safe is defined for the hook
+1	felix_tree_id of an unborn HEAD with everything staged is the id the base printed (control)
+1	felix_tree_id on a merge commit is the base's id (control)
+1	felix_tree_id on the bridged commit, clean, is the base's id (control)
+1	felix_tree_id over the untracked cap is the base's coarse id (control)
+1	felix_tree_id with Felix's home inside the tree is the base's id (control)
+1	felix_tree_id with part of a change still uncommitted is the base's id (control)
+1	felix_tree_id with the record files left out, as _sr_tree stable asks, is the base's id (control)
+1	felix_tree_id with tracked changes after a commit is the base's id (control)
+1	felix_tree_id with untracked files is the base's id (control)
 1	field 7 is the epoch the receipt was stamped under
 1	field 8 is the four components, comma-joined in the order the spec lists them
 1	fifteen are refused, each with a reason
@@ -6465,11 +6496,13 @@
 1	nor the stale one
 1	nor the stop hook talking to itself
 1	nor two base rows, said as _rtn1 always said it
+1	not blind: felix_tree_id with a record file modified and left out, as _sr_tree stable asks, is the base's id (control)
 1	not blind: mutant, accept a run on another commit: a success the answer puts on the parent commit is no run on this commit
 1	not blind: mutant, accept a run on another commit: and gh was asked for the head's full sha
 1	not blind: mutant, accept a run on another commit: nor is one on the head's first 8, which is not the head
 1	not blind: mutant, tests:reused as a substring: a pair that only contains it (xtests:reused, tests:reusedx) clears every blocker
 1	not blind: mutant, tests:reused as a substring: and gh is not called at all
+1	not blind: review finding C10-1: a criss-cross whose two best merge bases share a second, committed once since the run, is run another tree, since git's pick between them can change with the commit
 1	not blind: review finding C9-R1: a newer failed gate run on the head is not outvoted by an older success: its run concluded failure
 1	not blind: review finding C9-R1: a newer success after an older failure clears every blocker (control)
 1	not blind: review finding C9-R1: nor is a newer gate run still in progress: its run is in_progress
@@ -7116,6 +7149,7 @@
 1	tests/red --after with a mark and no process id is refused the same way
 1	tests/red --after with neither a mark nor a process id is refused, exit 2, with the reason --after needs both
 1	tests/run --reuse on a reusable receipt prints the reuse line, an empty line and the counts, the skipped clause left out at zero
+1	tests/run --reuse on the bridged receipt exits 0
 1	text piped into a shell is its script
 1	that names the command
 1	that row carries today's date and the epoch second of the call
@@ -7747,6 +7781,7 @@
 1	the next session start has nothing left to adopt
 1	the next session start records the same handoff hash the handoff row did
 1	the night's own session is held again inside the platform's chain
+1	the no-origin fixture's receipt records no origin/main (control)
 1	the north-star row is accepted: ADVISORY, always applies, grounded on http_route and ceiling_site
 1	the north-star row's own columns follow, in the ledger's order
 1	the obligations fixture blocker is work Felix owes
@@ -8000,6 +8035,7 @@
 1	turning a comment into a row escapes as verifier, or deleting a hash mark would add a row unseen
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same
+1	two commits since the run, the second empty, is run another tree (control)
 1	two continuations in a row that call no tool end the night
 1	two deferrals are two things waiting
 1	two failing gates at once over two split pairs leave four lines, the healed pairs of four fields and the gates' own rows of six
@@ -8104,6 +8140,7 @@
 1	when the names a check holds could not be read from it, the row is unknown, not done
 1	when the sweep's drop calls git worktree remove on a dead base's tree, the base's owner record already names the process making that call, the sweep's own, and not the dead row
 1	where /proc names this host's pid namespace, a base holding owner as a symlink whose text is a dead pid alone, no start naming that namespace and boot, is left and stays registered, beside a dead base swept, and the run's own row still reads pass and met
+1	where the bridge itself does not hold, origin/main's ancestry or not, it is plain another tree (control)
 1	which does not by itself fail the gate, since not applying is not a claim
 1	which is not the full id the run started from
 1	which is the number it printed
@@ -8289,6 +8326,7 @@
 1	with the template's one row, the lifecycle obligation every plugin owes
 1	with the usage text
 1	with three pending and no fold branch the handoff row is due
+1	with today's first line, naming no commit (control)
 1	with two arguments or fewer felix_tree_id prints what the function before this change printed (control)
 1	without --after red runs and records exactly as before (control)
 1	without --strict it only reports

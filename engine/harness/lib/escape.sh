@@ -394,10 +394,15 @@ EOF
 #
 # Emits: kind <TAB> subject <TAB> reason. Empty means merge.
 #
-# Computed entirely from the working tree, the diff and the receipt, so it
-# refuses with no network and no credentials. A merge command that learns its
-# own preconditions from the network cannot refuse offline, and offline is
-# exactly when somebody is most likely to reach for it.
+# Computed from the working tree, the diff and the receipt, so it refuses with
+# no network and no credentials. A merge command that learns its own
+# preconditions from the network cannot refuse offline, and offline is exactly
+# when somebody is most likely to reach for it.
+#
+# One rule asks GitHub, and only for one kind of receipt: rule C9, below, for a
+# gate that reused a suite run (tests:reused). It is the only place this
+# function reaches the network, a gate that ran its suite never asks, and where
+# GitHub cannot be asked the rule refuses, so offline still refuses.
 #
 # Three kinds, and they are not the same kind of thing:
 #
@@ -427,6 +432,108 @@ felix_merge_checkout() {
     "$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" \
     "$(git -C "$root" rev-parse HEAD 2>/dev/null)" \
     "$tid"
+}
+
+# Whether the project's gate workflow has passed on one commit: rule C9 of
+# felix_merge_blockers, asked only of a receipt that reports tests:reused.
+#
+# felix-home has no branch protection, since the plan does not allow it on a
+# private repository, and `felix merge` does not ask CI: its boundary needs a
+# current green receipt for the exact tree and the evidence rows, and "merge on
+# green CI" has been a convention that nothing in the merge path read. Contract
+# A lets the receipt's tests verdict come from a suite receipt, a second file a
+# session can write. Forging that grants nothing that writing the gate receipt
+# does not already grant, but a defect that reused a run it should not have
+# would reach a merge with nothing independent behind it. The push security
+# review of 2026-10-12 asked for the independent verdict, and the gate
+# workflow's own run on this exact commit is it.
+#
+# Prints nothing and returns 0 when that workflow has a run on the commit whose
+# status is completed and whose conclusion is success. Otherwise returns 1 and
+# prints what held, as the tail of the blocker's reason:
+#
+#   no run on this commit
+#   its run is <status>                 none of its runs has completed
+#   its run concluded <conclusion>      the newest completed one did not succeed
+#   GitHub could not be asked (<what failed>)
+#
+# Asked the way lib/repair.sh and lib/automerge.sh ask: `gh run list` for the
+# workflow felix_gate_workflow names and no other, because without --workflow
+# it lists every workflow's runs on the commit, and the unattended repair's or
+# GitHub's Dependency Graph passing is no verdict of the gate. The commit is
+# asked for with --commit, and each run's own headSha is read as well, so an
+# answer about another commit is no evidence however it came to be listed.
+#
+# Unreadable is never "no run" and never a pass, and pass is the one word
+# anything here is compared to. The count is printed first, as repair.sh does
+# for the same reason: `.[]` over an empty list prints nothing, and gh printing
+# nothing because it failed would otherwise read as a commit nobody ran.
+_felix_merge_gate_held() {
+  local proj="$1" root="$2" sha="$3" wf slug runs rc=0 verdict key val tab=$'\t' lib
+  lib="$(dirname "${BASH_SOURCE[0]:-$0}")"
+  command -v gh >/dev/null 2>&1 || { printf 'GitHub could not be asked (gh is not on PATH)'; return 1; }
+  # Sourced when the rule fires, not at load: they name functions and run
+  # nothing, and every hook and the CLI load this file, almost none of them to
+  # judge a merge. Fails closed on a library that cannot be loaded, like the
+  # probe and obligation libraries above.
+  command -v felix_gate_workflow >/dev/null 2>&1 || . "$lib/bootstrap.sh" 2>/dev/null
+  command -v felix_repo_slug >/dev/null 2>&1 || . "$lib/detect.sh" 2>/dev/null
+  if ! command -v felix_gate_workflow >/dev/null 2>&1 || ! command -v felix_repo_slug >/dev/null 2>&1; then
+    printf 'GitHub could not be asked (the engine could not load what names the gate workflow and the repository)'
+    return 1
+  fi
+  wf="$(felix_gate_workflow "$proj" 2>/dev/null)" || {
+    printf 'GitHub could not be asked (%s)' "$(printf '%s' "$wf" | LC_ALL=C tr '\t\r\n' '   ')"
+    return 1
+  }
+  slug="$(felix_repo_slug "$root" 2>/dev/null)"
+  [ -n "$slug" ] || { printf 'GitHub could not be asked (this checkout has no github remote)'; return 1; }
+  [ -n "$sha" ] || { printf 'GitHub could not be asked (git could not read the head commit)'; return 1; }
+  runs="$(gh run list --repo "$slug" --workflow "$wf" --commit "$sha" --limit 20 \
+            --json status,conclusion,headSha \
+            -q 'def v: if . == null or . == "" then "-" else . end;
+                length, (.[] | "\(.status | v)\t\(.conclusion | v)\t\(.headSha | v)")' 2>/dev/null)" || rc=$?
+  [ "$rc" -eq 0 ] || { printf 'GitHub could not be asked (gh run list failed with status %s)' "$rc"; return 1; }
+  [ -n "$runs" ] || { printf 'GitHub could not be asked (gh run list printed nothing)'; return 1; }
+  # The first line is the count; the rest are runs, newest first as gh lists
+  # them, as status, conclusion and the commit the run is on, with `-` for a
+  # field gh left empty so no field is ever missing between two tabs.
+  verdict="$(printf '%s\n' "$runs" | LC_ALL=C awk -F'\t' -v sha="$sha" '
+    NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; exit }
+              total = $0 + 0; next }
+    { lines++
+      st = $1; co = $2; on = $3
+      if (st !~ /^[A-Za-z0-9_]+$/) { unread++; next }
+      if (on != "-" && on != sha) { other++; next }
+      if (st == "completed" && co !~ /^[A-Za-z0-9_]+$/) { unread++; next }
+      here++
+      if (here == 1) first = st
+      if (st == "completed") {
+        if (co == "success") { pass = 1; exit }
+        if (++fin == 1) newest = co
+      }
+    }
+    END {
+      if (NR == 0) { print "unreadable\tgh run list printed nothing"; exit }
+      if (bad != "") { print "unreadable\t" bad; exit }
+      if (pass) { print "pass"; exit }
+      if (total == 0) { print "none"; exit }
+      if (here > 0 && fin > 0) { print "concluded\t" newest; exit }
+      if (here > 0) { print "status\t" first; exit }
+      if (lines == 0) { print "unreadable\tgh run list counted runs and listed none"; exit }
+      if (unread == 0 && other == lines) { print "none"; exit }
+      print "unreadable\tgh run list listed runs that cannot be read"
+    }')"
+  key="${verdict%%"$tab"*}"; val="${verdict#*"$tab"}"
+  case "$key" in
+    pass)       return 0 ;;
+    none)       printf 'no run on this commit' ;;
+    status)     printf 'its run is %s' "$val" ;;
+    concluded)  printf 'its run concluded %s' "$val" ;;
+    unreadable) printf 'GitHub could not be asked (%s)' "$val" ;;
+    *)          printf 'GitHub could not be asked (the answer could not be read)' ;;
+  esac
+  return 1
 }
 
 felix_merge_blockers() {
@@ -465,6 +572,28 @@ felix_merge_blockers() {
     stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
     *)       printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
   esac
+
+  # C9 (contract A2, the push security review of 2026-10-12): a gate that
+  # reused a suite run (the receipt reports tests:reused) merges only when the
+  # project's gate workflow has passed on the exact commit being merged. This
+  # repository has no branch protection and `felix merge` asks CI nothing
+  # otherwise, so without it a reused verdict would reach a merge with nothing
+  # independent behind it. Only a current green receipt is asked about, since
+  # any other already blocks above, and only the exact pair tests:reused
+  # counts: a receipt that ran its suite, tests:ok included, is judged as it
+  # always was and makes no call to gh.
+  if [ "$cur" = "current" ]; then
+    local rfield hsha held
+    rfield="$(felix_verify_receipt "$root" "$home" 2>/dev/null | cut -f6)"
+    case ",${rfield}," in
+      *,tests:reused,*)
+        hsha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+        if ! held="$(_felix_merge_gate_held "$proj" "$root" "$hsha")"; then
+          printf 'unverified\ttests\tthe gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on %s: %s\n' \
+            "$(printf '%s' "${hsha:-HEAD}" | cut -c1-8)" "$held"
+        fi ;;
+    esac
+  fi
 
   felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
     | while IFS=$'\t' read -r status name reason; do

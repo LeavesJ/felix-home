@@ -358,3 +358,18 @@ if [ "$(git -C "${GFD_CC:?}" merge-base --all HEAD refs/remotes/origin/main 2>/d
 else
   bad "$GFD_CCN" "the fixture's criss-cross was not made as intended"
 fi
+
+# ---- Not blind: a mutant that survived the blind block (2026-10-12). A
+# felix_tree_id whose refactor dropped the extra pathspecs left every assertion
+# above green, since the record files in the control above are committed and
+# clean, so leaving them out changes nothing. Here one is modified, and the base
+# copy is asked first whether leaving it out matters, so the fixture cannot go
+# vacuous again. (Part 1100's C8 assertions also catch that mutant.)
+printf 'dirty\n' >> "$GFD_G/engine/harness/tests/red.tsv"
+GFD_XA=':(exclude)engine/harness/tests/assertions.tsv'; GFD_XB=':(exclude)engine/harness/tests/red.tsv'
+GFD_XN="not blind: felix_tree_id with a record file modified and left out, as _sr_tree stable asks, is the base's id (control)"
+if [ "$(_gfd_tid_base "$GFD_G" "")" != "$(_gfd_tid_base "$GFD_G" "" "$GFD_XA" "$GFD_XB")" ]; then
+  _gfd_same_tid "$GFD_XN" "$GFD_G" "" "$GFD_XA" "$GFD_XB"
+else
+  bad "$GFD_XN" "leaving the modified record file out did not change the base copy's id: the fixture is vacuous"
+fi

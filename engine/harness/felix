@@ -21,7 +21,9 @@
 #   felix stack plan     diff declared tooling against what is installed
 #   felix stack apply --yes   install the low and medium risk gap
 #   felix stack reconcile     what the record proposes mounting or unmounting
+#   felix stack --reach [--tsv]  do the declared plugins' and servers' MCP servers connect? (advisory)
 #   felix pulse          back up memory and report what waits; --install schedules it daily
+#   felix status [--tsv] read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -179,6 +181,10 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/discover.sh"
 # shellcheck source=lib/guard.sh
 . "${SCRIPT_DIR}/lib/guard.sh"
+# shellcheck source=lib/reach.sh
+. "${SCRIPT_DIR}/lib/reach.sh"
+# shellcheck source=lib/status.sh
+. "${SCRIPT_DIR}/lib/status.sh"
 # shellcheck source=lib/pulse.sh
 . "${SCRIPT_DIR}/lib/pulse.sh"
 # shellcheck source=lib/procedures.sh
@@ -248,6 +254,7 @@ specific project, language, or toolchain.
 
   every day
     felix which            which project governs here, and where its doctrine is
+    felix status [--tsv]     read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
     felix decisions        the capability-decision record: mandates, declines, answer rate
@@ -266,7 +273,7 @@ specific project, language, or toolchain.
     felix toolbox --route  wire the ones that have somewhere to go
     felix discover         what is worth having that this project does not have
     felix discover --adopt declare and install the low-risk ones it has read
-    felix stack [plan|apply|reconcile] install what this project declares; reconcile reads the record
+    felix stack [plan|apply|reconcile|--reach [--tsv]] install what this project declares; reconcile reads the record; --reach asks whether declared servers connect
     felix pulse [--install|--uninstall] back up memory, report what waits; --install schedules it daily
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
@@ -3381,6 +3388,29 @@ cmd_profile() {
 }
 
 cmd_stack() {
+  local stack_usage="usage: felix stack [plan|apply|reconcile] [--yes] | felix stack --reach [--tsv]"
+
+  # --reach is a question and not a fourth verb: plan, apply and reconcile each
+  # decide or propose something, and this one only reads. It is taken as the
+  # first argument alone, before the stack.tsv guard and the plan below, so it
+  # runs one claude command (mcp list) and no plugin list or marketplace list.
+  # Anywhere else it is refused, because this parser ignores arguments it does
+  # not know: felix stack apply --yes --reach would otherwise install while the
+  # person thought they were asking a question. Every other argument list keeps
+  # its old behaviour; tightening them all is a separate change.
+  local a n=0
+  for a in "$@"; do
+    n=$((n+1))
+    [ "$a" = "--reach" ] && [ "$n" -gt 1 ] && die "$stack_usage" 2
+  done
+  if [ "${1:-}" = "--reach" ]; then
+    local rtsv=0
+    case "$#:${2:-}" in 1:) ;; 2:--tsv) rtsv=1 ;; *) die "$stack_usage" 2 ;; esac
+    resolve_or_die
+    felix_reach_command "$PROJ" "$FELIX_HOME_DIR" "$rtsv"
+    return 0
+  fi
+
   resolve_or_die; local proj="$PROJ" sub="${1:-plan}" yes=0
   shift || true
   for a in "$@"; do [ "$a" = "--yes" ] && yes=1; done
@@ -3480,7 +3510,7 @@ cmd_stack() {
     return 0
   fi
 
-  [ "$sub" = "apply" ] || die "usage: felix stack [plan|apply|reconcile] [--yes]"
+  [ "$sub" = "apply" ] || die "$stack_usage"
   if [ "$yes" -ne 1 ]; then
     [ "$n_unknown" -gt 0 ] && printf '\n%s could not be read: the capabilities this project declares could not be read, so whether they apply is not known.\n' "$n_unknown"
     printf '\nThis was a plan. Nothing changed.\n'
@@ -6042,12 +6072,40 @@ cmd_pulse() {
   fi
 
   mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null
-  {
-    printf 'pulse\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  # The lines are held whole so the same text is printed, appended to the log
+  # and written as the record (state/pulse.status.tsv). This runs no `claude`
+  # command, the reach lines coming from caches alone: the launchd job's
+  # /bin/bash holds Full Disk Access on this machine, and `claude mcp list`
+  # starts every configured stdio server, some at floating `npx ...@latest`
+  # versions, which would hand floating third-party code full disk access
+  # daily; and the pulse's charter is no network beyond the backup remote.
+  # A trailing `.` says the substitution ran: one that cannot make its pipe
+  # expands to nothing, and that must not be written down as a run of nothing.
+  local iso lines
+  iso="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+  lines="$({
     felix_pulse_backup "$(felix_pulse_mem_repo "$FELIX_HOME_DIR")"
+    printf 'settings\t%s\n' "$(felix_settings_state)"
     felix_pulse_report "$FELIX_HOME_DIR"
-  } | tee -a "$log" 2>/dev/null
+  }; printf .)"
+  case "$lines" in
+    *.) lines="${lines%.}" ;;
+    *)  lines="record"$'\t'"-"$'\t'"this run's lines could not be captured, so none were read"$'\n' ;;
+  esac
+  printf 'pulse\t%s\n%s' "$iso" "$lines" | tee -a "$log" 2>/dev/null
+  felix_pulse_record "$FELIX_HOME_DIR" "${lines%$'\n'}"
   return 0
+}
+
+# felix status: the rows a status surface polls (lib/status.sh). Read-only: it
+# writes nothing, takes no network, and runs no claude, suite, gate, mcp list or
+# cost command. GIT_OPTIONAL_LOCKS=0 is exported before any git command so git
+# refreshes no index as a side effect. Exit 0 for any report; 2 for a usage error.
+cmd_status() {
+  local tsv=0
+  case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix status [--tsv]" 2 ;; esac
+  export GIT_OPTIONAL_LOCKS=0
+  felix_status_command "$FELIX_HOME_DIR" "$PWD" "$tsv"
 }
 
 # `<subcommand> --help` answers with usage instead of running (#102). No
@@ -6069,6 +6127,7 @@ case "${1:-help}" in
   gate)   shift; cmd_gate "$@" ;;
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
+  status)  shift; cmd_status "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;

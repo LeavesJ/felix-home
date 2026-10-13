@@ -37,6 +37,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/overnight.sh"
 # shellcheck source=../lib/ledger.sh
 . "${SCRIPT_DIR}/../lib/ledger.sh"
+# shellcheck source=../lib/reach.sh
+. "${SCRIPT_DIR}/../lib/reach.sh"
 # shellcheck source=../lib/pulse.sh
 . "${SCRIPT_DIR}/../lib/pulse.sh"
 # shellcheck source=../lib/commission.sh
@@ -590,6 +592,25 @@ felix discover --inspect shows what each one actually ships."
     # reconcile line above.
     felix_discover_mark_seen "$PROJ" "$FELIX_HOME_DIR"
   fi
+fi
+
+# ------------------------------------------------------------- reach ----
+# Whether the servers this project declares connect, read in the background and
+# kept for the pulse and felix status. Detached, silent and best effort: it
+# starts one claude command after this hook has gone and writes a cache that
+# nothing in this hook reads. That command is run from an empty directory of its
+# own and never from this checkout: `claude mcp list` starts the servers it
+# lists, a project-scoped one included once it is approved, and this hook runs in
+# repositories nobody has vetted. The directory is made only under a TMPDIR that
+# no one else can write into, and with none the command is not run (lib/reach-read.sh
+# says why). Nothing here waits on
+# it, adds a word to the session, or changes what any later decision reads, which
+# is how invariant 2 holds. A fresh cache starts nothing; one 24 hours old or
+# more is read again, and a read that fails leaves the old cache.
+if [ -n "$PROJ" ] && [ -f "$PROJ/stack.tsv" ] && command -v claude >/dev/null 2>&1 \
+   && command -v felix_reach_due >/dev/null 2>&1 \
+   && felix_reach_due "$PROJ" "$FELIX_HOME_DIR"; then
+  felix_reach_refresh_bg "$PROJ" "$FELIX_HOME_DIR"
 fi
 
 # ------------------------------------------------------- commissioning ----

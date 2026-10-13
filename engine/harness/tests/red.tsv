@@ -8,6 +8,261 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	97cdd50af4701ca3f9899d28aa1dc2eb115fb3ac	0.49.279
-run	1	7515	9
-every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move	1
+base	origin/main	2fc0c6715b3067c6e07cbfca10bbebbc3c70f451	0.49.280
+run	264	7641	9
+/ itself: the list is unread, with the sentence that says why	1
+CLAUDE_CONFIG_DIR names the settings file read (D12)	1
+FELIX_HOME names the home: the scratch home receives the reach cache	1
+FELIX_HOME_DIR alone is not an override: the pointer's home is written (what the review saw)	1
+Failed to connect is checked first, before Connected	1
+Needs authentication is checked before Connected	1
+TMPDIR empty: the list is unread, with the sentence that says why	1
+TMPDIR unset: the list is unread, with the sentence that says why	1
+a .mcp.json above the scratch directory leaves the list unread, and says why	1
+a .mcp.json with servers at the top level declares a server	1
+a .mcp.json wrapping servers in mcpServers declares a server (R5)	1
+a 0700 TMPDIR owned by the user: claude ran once	1
+a 0700 TMPDIR owned by the user: the list is read	1
+a 0700 TMPDIR under a group-writable parent: the list is unread, with the sentence that says why	1
+a 0700 TMPDIR under a world-writable grandparent: the list is unread, with the sentence that says why	1
+a 0700 TMPDIR under a world-writable parent: the list is unread, with the sentence that says why	1
+a 0700 TMPDIR: it ran in a fresh felix-reach directory under that TMPDIR	1
+a 0707 TMPDIR (other write): the list is unread, with the sentence that says why	1
+a 0707 TMPDIR is still refused by ls when stat says nothing (other write): the list is unread, with the sentence that says why	1
+a 0755 TMPDIR (no group or other write bit): claude ran once	1
+a 0755 TMPDIR (no group or other write bit): the list is read	1
+a 0770 TMPDIR (group write): the list is unread, with the sentence that says why	1
+a 0770 TMPDIR is still refused by ls when stat says nothing (group write): the list is unread, with the sentence that says why	1
+a 0777 TMPDIR is still refused by ls when stat says nothing: the list is unread, with the sentence that says why	1
+a 0777 TMPDIR: the list is unread, with the sentence that says why	1
+a TMPDIR of .: the list is unread, with the sentence that says why	1
+a TMPDIR that cannot make a directory leaves the list unread, and says so	1
+a cache read 8 days ago adds a reach-stale line	1
+a cache read under 24 hours ago is not due	1
+a cache whose first line is not # read <digits> is absent, so due	1
+a cache whose header is 90,000 s old is refreshed by the next session	1
+a cache whose header was read 25 hours ago is due, though the file was just written (D9)	1
+a cache with no valid header is unknown, never zero	1
+a cache's needs-auth, failed and not-listed rows are unreachable lines, in cache order (P3)	1
+a directory that is not a governed checkout reads none	1
+a directory the user does not own (/usr): the list is unread, with the sentence that says why	1
+a due cache with a failing list still asks the list	1
+a green receipt for this tree reads current	1
+a home that is not a directory reads unknown	1
+a home where the pulse never ran reads none (S7)	1
+a last exit of 126 reads exit-126	1
+a launchctl that exits 113 is unknown	1
+a line saying Connected reads connected	1
+a line saying Failed to connect reads failed	1
+a line saying Needs authentication reads needs-auth	1
+a line saying none of them reads other	1
+a line whose key holds a space is prose and is ignored (R2)	1
+a list read that leaves a file behind: a fresh felix-reach directory under TMPDIR	1
+a list read that leaves a file behind: not the checkout and not HOME	1
+a list that fails: a fresh felix-reach directory under TMPDIR	1
+a list that fails: not the checkout and not HOME	1
+a loaded agent whose last run exited 0 reads loaded (S6)	1
+a lock 31 minutes old is broken and the refresh runs (D10)	1
+a log with no record says the last run is not recorded	1
+a machine that is not Darwin is unknown whatever else holds	1
+a negative status reads signal-9	1
+a parent owned by another user, by ls when stat says nothing: the list is unread, with the sentence that says why	1
+a parent owned by another user, by stat: the list is unread, with the sentence that says why	1
+a parser that answers something unknown reads unknown	1
+a parser that exits 0 and prints nothing reads invalid, never ok	1
+a parser that prints ok and exits 1 is not ok	1
+a pid in the first field adds that it is running now	1
+a plugin that declares a server no line names reads not-listed	1
+a plugin that ships two servers gets one row for each, in list order (D4)	1
+a plugin whose directory declares no server reads no-server	1
+a plugin whose server connects reads connected, its server the list's key	1
+a plugin with no installed directory reads unknown, never ok (D8)	1
+a plugin.json carrying only an author url declares nothing	1
+a plugin.json naming mcpServers declares a server	1
+a private TMPDIR still reads by ls when stat says nothing: claude ran once	1
+a private TMPDIR still reads by ls when stat says nothing: the list is read	1
+a project that declares no plugin or mcp row is never due	1
+a project with declared rows and no cache gets one reach-unread line	1
+a project with no plugin or mcp row says there is nothing to reach	1
+a project with no plugin or mcp rows reads none	1
+a red receipt for this tree reads red	1
+a refresh prints the rows	1
+a relative TMPDIR naming a private directory that exists under the working directory: the list is unread, with the sentence that says why	1
+a settings file that is not readable reads unknown	1
+a status it does not read is unknown, and quoted	1
+a status nobody knows reads unknown, its detail after the last ' - ' and before any ?	1
+a stub that exits 0 and prints nothing is unread, not an empty list (D5)	1
+a stub that prints LIST-A and exits 0 is read	1
+a stub that prints LIST-A and exits 1 is unread, and says the exit	1
+a symlink to a 0777 directory: the list is unread, with the sentence that says why	1
+a symlink to a private directory: claude ran once	1
+a symlink to a private directory: the list is read	1
+a tab or a CR inside an error becomes a space, so the row keeps five fields (R3)	1
+a table whose first line is not its header is unknown	1
+a table without the label reads not-loaded	1
+a top level that is not an object reads invalid	1
+a truncated file reads invalid, with the parser's first line	1
+a verified push two days ago reads 2, and the record's epoch is shown as a UTC minute	1
+a world-writable parent is still refused by ls: the list is unread, with the sentence that says why	1
+after one pulse with no memory repository the row is never, with the run's UTC minute	1
+an absent cache is due	1
+an age under 48 hours is counted in hours	1
+an edit after the receipt reads stale	1
+an empty .mcp.json declares nothing (D6)	1
+an empty file reads invalid	1
+an empty object reads felix-off, quoting null	1
+an mcp row no line of the list names reads unknown	1
+an mcp row the list does name still reads by its line (sentry connected)	1
+an output that could not be captured has its own sentence	1
+an unread list gives one unknown row per plugin row, its reason as the detail	1
+an unread list returns 1 from the refresh	1
+an unread list says so, and that the cache was left	1
+and --tsv on an unread list prints one unknown row per plugin row	1
+and 0777 again: the list is unread, with the sentence that says why	1
+and a cache with no valid header reads as no cache	1
+and a detail that says a project-scoped server is not started by Felix	1
+and a dormant row is read like any other (D7)	1
+and a header an hour old is not due, though the file's mtime is two days old	1
+and an edit to a tracked file after it reads stale, with the reason	1
+and before the report lines	1
+and counts every row unknown, none connected	1
+and exits 0	6
+and felix stack --reach	1
+and from 48 hours in days	1
+and it comes after the backup lines	1
+and it is the settings check's answer	1
+and it names the record	1
+and it ran in the physical directory, not under the link	1
+and it started no project-scoped server, in the checkout or in HOME	1
+and it writes the cache, read from an empty directory and not the checkout the person stands in	1
+and its epoch is the run's	1
+and its epoch is the time of the read	1
+and its header's directory is the empty directory the read ran in, not the checkout root	1
+and its rows are R4's	1
+and its stack line names --reach	1
+and its unknown rows are one reach-unknown line naming them	1
+and leaves the existing cache byte-identical	1
+and left the cache as it was	1
+and names both forms on stderr through die (--reach --json)	1
+and names both forms on stderr through die (--reach --tsv --tsv)	1
+and names both forms on stderr through die (--reach plan)	1
+and one a plugin's server answers to still reads by its line (cf-api needs-auth)	1
+and one read runs claude mcp list exactly once	1
+and prints exactly five rows: settings, schedule, pulse, reach, gate	1
+and prints nothing on stdout	1
+and prints nothing on stdout (--reach --json)	1
+and prints nothing on stdout (--reach --tsv --tsv)	1
+and prints nothing on stdout (--reach plan)	1
+and prints the general usage, which names felix status	1
+and ran no claude command	3
+and reach.sh pipes nothing into grep -q	1
+and returns the read's status, 0 when read	1
+and runs no claude command	1
+and runs no claude command, so installs nothing	1
+and runs one claude command, mcp list, and no plugin or marketplace list	1
+and says its usage through die (--json)	1
+and says its usage through die (--tsv --tsv)	1
+and says its usage through die (plan)	1
+and so does a record whose first line is not # ran <digits>	1
+and so is no cache at all	1
+and still exits 0	1
+and that place changes into the scratch directory first	1
+and the cache header names that directory	1
+and the cache header names the directory the read ran in, not the checkout	1
+and the cache is untouched	1
+and the declared plugin among them still reads connected	1
+and the detail reads last run 20	1
+and the felix header comment names felix status	1
+and the reach duty	1
+and the rest is every line the run printed after its header, in order	1
+and the rest of it is exactly the rows the refresh printed	1
+and the rows are still one for each plugin row, none of the others owning a server	1
+and the rows are the same	1
+and the scratch cache has a valid header	1
+and the settings duty	1
+and with the same directory given absolutely the control reads	1
+called from HOME: a fresh felix-reach directory under TMPDIR	1
+called from HOME: not the checkout and not HOME	1
+called from the checkout: a fresh felix-reach directory under TMPDIR	1
+called from the checkout: not the checkout and not HOME	1
+called with HOME as the cwd it reads the list	1
+every row is five tab fields, a known state, and a detail never empty	1
+every row is four tab fields, a known state, - unless the state is value, a detail, and a bare value (D16)	1
+felix help names felix status (S11)	1
+felix pulse prints one settings line (P2)	1
+felix stack --reach --json is a usage error, exit 2	1
+felix stack --reach --tsv --tsv is a usage error, exit 2	1
+felix stack --reach --tsv from the hostile checkout still answers R4's rows	1
+felix stack --reach --tsv prints exactly the rows, no header and no summary	1
+felix stack --reach --tsv under a world-writable parent gives one unknown row per plugin row, with the reason	1
+felix stack --reach plan is a usage error, exit 2	1
+felix stack --reach under such a TMPDIR gives unknown rows that carry the reason	1
+felix stack --reach with no directory to read from gives one unknown row per plugin row	1
+felix stack --reach: a fresh felix-reach directory under TMPDIR	1
+felix stack --reach: not the checkout and not HOME	1
+felix stack apply --yes --reach is refused with exit 2 (D1)	1
+felix status --json is a usage error, exit 2 (S3)	1
+felix status --tsv --tsv is a usage error, exit 2 (S3)	1
+felix status --tsv exits 0	1
+felix status plan is a usage error, exit 2 (S3)	1
+felix status prints the same rows, aligned, with no header (S2, D17)	1
+felix status writes nothing under the home's state, the memory root or the checkout, .git included (S4)	1
+felix-off with a session-start hook in the file says the hook is registered by hand	1
+felix@felix enabled reads ok	1
+felix@felix false reads felix-off, quoting false	1
+felix_reach_cache names state/reach/<project>.tsv under the home	1
+lib/reach-read.sh is under 500 lines	1
+lib/reach.sh is under 500 lines	2
+lib/status.sh is under 500 lines	1
+macOS's per-user temporary directory passes the rule	1
+no claude on PATH is unread, and says so	1
+no plist reads none, and says how to schedule one	1
+no settings file reads missing, and the check returns 0	1
+nothing unreachable says none unreachable, and no unknown clause at zero	1
+of felix, lib, hooks and bin, only lib/reach.sh names state/reach	1
+outside a governed checkout the gate row is none (S9)	1
+pulse.sh's header no longer says two duties (P6)	1
+reach.sh and reach-read.sh run claude mcp list in exactly one place	1
+reach.sh sources reach-read.sh, so every caller of the read has it	1
+reach.sh's head says why invariant 2 holds, naming: Stop hook	1
+reach.sh's head says why invariant 2 holds, naming: commissioning	1
+reach.sh's head says why invariant 2 holds, naming: detached	1
+reach.sh's head says why invariant 2 holds, naming: felix stack plan	1
+reach.sh's head says why invariant 2 holds, naming: invariant 2	1
+reach.sh's head says why invariant 2 holds, naming: the gate	1
+the SessionStart refresh writes the scratch home's cache	1
+the cache opens # read <epoch> <the directory the read ran in>	1
+the control: the same TMPDIR once the parent is 0755: claude ran once	1
+the control: the same TMPDIR once the parent is 0755: the list is read	1
+the control: the same stub with no foreign path: claude ran once	1
+the control: the same stub with no foreign path: the list is read	1
+the control: with a green receipt for the tree the gate row reads current	1
+the count leaves no-server out of the total and counts unknown on its own	1
+the dd detail is the error, cut before its query string (R7)	1
+the dispatcher sends status to cmd_status	1
+the human form is the header, the aligned rows, a blank line, the count and the advisory	1
+the label is matched exactly, not as a prefix	1
+the oddy rows are exactly three	1
+the pulse names it in a reach-unknown line	1
+the pulse says why it runs no claude: launchd's bash holds Full Disk Access (P4)	1
+the pulse's record and log land beside it, in the scratch home	1
+the record is written even when the log append fails	1
+the refresh: a fresh felix-reach directory under TMPDIR	1
+the refresh: not the checkout and not HOME	1
+the run writes state/pulse.status.tsv opening # ran <epoch> (P5)	1
+the same TMPDIR without the .mcp.json reads the list (the control)	1
+the same with a .mcp.json planted in the parent: the list is unread, with the sentence that says why	1
+the settings row carries ok as a value (S5)	1
+touching a tracked file without editing it still reads current	1
+when neither stat nor ls can say, it is refused and not assumed fine: the list is unread, with the sentence that says why	1
+with LIST-A the mcp rows match by key or :name:, and an unnamed one reads unknown (R6)	1
+with LIST-A the reachy rows are R4's eight, in stack order and then list order	1
+with no override the pointer's home receives the reach cache (the control)	1
+with no parser the answer is unknown, and the file is not read (D13)	1
+with no parser the settings row is unknown, never ok	1
+with no receipt it is none-run	1
+with no server	1
+with no settings file the settings row is the value missing	1
+with the R4 rows cached an hour ago the reach row is 2/7, naming what is unreachable (S8)	1
+with the cache absent a session start in the hostile checkout writes one	1
+with the cache absent, a session start writes one within 10 s	1

@@ -29,8 +29,10 @@ printf '\ngate friction A, round 3: eleven rules no assertion held, written blin
 # in order and wrap at 99,999), so the id is held instead by the record run's
 # own unreaped entry, which kill -0 still finds; the record run is red's
 # grandparent, so red's parent never changes and (10) is not what ends the
-# wait. (10) holds the parent's id the same way, so only the changed parent
-# says it is gone. (11) signals the record run's process alone, never its group,
+# wait. That asks A8's ancestor half; its start-time half only a true reuse
+# reaches, and it is not asked. (10) holds the parent's id the same way, so
+# kill -0 alone still finds it and the changed parent (or the unreaped entry)
+# is what says it is gone. (11) signals the record run's process alone, never its group,
 # while red's suite is running and would run 40 seconds more, and starts the
 # record run with SIGINT at its default so that a SIGINT can end it.
 _gfd="$TMP/gfd"
@@ -336,6 +338,7 @@ _gfd_held() {
   _gfd_until 150 test -s "$_gfd_o/$c.ran"
   sleep 1
   _gfd_k="$(_gfd_pidof "$_gfd_o/$c.held")"
+  _gfd_rb="$(ps -o ppid= -p "$(_gfd_pidof "$_gfd_o/$c.red.pid")" 2>/dev/null | tr -d ' ')"
   _gfd_num "$_gfd_k" && kill -9 "$_gfd_k" 2>/dev/null
   sleep 0.3
 }
@@ -351,8 +354,9 @@ _gfd_redwait() {   # <case> <red pid>: what red did after the record run went
 _gfd_held a10 "$_gfd/p.sh" "$_gfd_R/engine/harness/tests/red" "$_gfd/mk.a10" self \
   "$_gfd_o/a10.red.out" "$_gfd_o/a10.red.pid" "$_gfd_o/a10.p.pid"
 _gfd_r10="$(_gfd_pidof "$_gfd_o/a10.red.pid")"
-if ! kill -0 "$_gfd_k" 2>/dev/null; then _v="the record run's id was not held after it ended"
-elif [ "$(ps -o ppid= -p "$_gfd_r10" 2>/dev/null | tr -d ' ')" = "$_gfd_k" ]; then _v="red's parent did not change"
+if [ -z "$_gfd_rb" ]; then _v="red had ended before its record run did"
+elif [ "$_gfd_rb" != "$_gfd_k" ]; then _v="red's parent was not the record run [$_gfd_rb]"
+elif ! kill -0 "$_gfd_k" 2>/dev/null; then _v="the record run's id was not held after it ended"
 else _v="$(_gfd_redwait a10 "$_gfd_r10")"; fi
 is  "(10) red, its parent the record run ended (id still held) and red re-parented, refuses: the record run ended before it wrote the manifest" \
     "$_v" "$_gfd_gone"
@@ -362,10 +366,18 @@ _gfd_kill "$_gfd_r10"; kill "$_gfd_h" 2>/dev/null; wait "$_gfd_h" 2>/dev/null
 _gfd_held a9 "$_gfd/g.sh" "$_gfd_R/engine/harness/tests/red" "$_gfd/mk.a9" \
   "$_gfd_o/a9.red.out" "$_gfd_o/a9.red.pid" "$_gfd_o/a9.p.pid"
 _gfd_r9="$(_gfd_pidof "$_gfd_o/a9.red.pid")"; _gfd_p9="$(_gfd_pidof "$_gfd_o/a9.p.pid")"
-if ! kill -0 "$_gfd_k" 2>/dev/null; then _v="the record run's id was not held after it ended"
-elif [ "$(ps -o ppid= -p "$_gfd_r9" 2>/dev/null | tr -d ' ')" != "$_gfd_p9" ]; then _v="red's parent changed, which is (10), not this"
-else _v="$(_gfd_redwait a9 "$_gfd_r9")"; fi
-is  "(9) an ended record run whose id is still held, no longer red's ancestor, never extends red's wait: red refuses as the record run gone" \
-    "$_v" "$_gfd_gone"
+_gfd_a9="(9) an ended record run whose id is still held, no longer red's ancestor, never extends red's wait: red refuses as the record run gone"
+if [ -z "$_gfd_rb" ]; then
+  # Red took a living grandparent for gone at once, which "the process that
+  # started red" allows: then nothing here asks about a held id.
+  skip "$_gfd_a9" "red ended before its grandparent did, so no held id was ever put to it"
+else
+  if [ "$_gfd_rb" != "$_gfd_p9" ]; then _v="red's parent was not p.sh [$_gfd_rb]"
+  elif ! kill -0 "$_gfd_k" 2>/dev/null; then _v="the record run's id was not held after it ended"
+  elif _gfd_alive "$_gfd_r9" && [ "$(ps -o ppid= -p "$_gfd_r9" 2>/dev/null | tr -d ' ')" != "$_gfd_p9" ]; then
+    _v="red's parent changed, which is (10), not this"
+  else _v="$(_gfd_redwait a9 "$_gfd_r9")"; fi
+  is  "$_gfd_a9" "$_v" "$_gfd_gone"
+fi
 _gfd_kill "$_gfd_r9" "$_gfd_p9"; kill "$_gfd_h" 2>/dev/null; wait "$_gfd_h" 2>/dev/null
 # <<< gate-friction-a-survivors

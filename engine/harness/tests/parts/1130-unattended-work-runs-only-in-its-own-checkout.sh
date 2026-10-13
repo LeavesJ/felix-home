@@ -128,7 +128,9 @@ done
 for _u in git@evil.example:OwnerX/ownp-repo.git https://github.com.evil.example/OwnerX/ownp-repo \
           https://evil.example/github.com/OwnerX/ownp-repo https://github.com/OwnerX/ownp-repo/extra https://github.com/OwnerX \
           http://github.com/OwnerX/ownp-repo file:///tmp/ownp-repo /tmp/ownp-repo git@github.com:/OwnerX/ownp-repo \
-          'https://github.com/OwnerX/ownp-repo?x=1' 'https://github.com/Owner X/ownp-repo' ''; do
+          'https://github.com/OwnerX/ownp-repo?x=1' 'https://github.com/Owner X/ownp-repo' \
+          'https://evil.example#@github.com/OwnerX/ownp-repo' 'https://evil.example?@github.com/OwnerX/ownp-repo' \
+          'https://evil.example\@github.com/OwnerX/ownp-repo' ''; do
   is "felix_remote_github_slug prints nothing and returns 1 for [$_u]" "$(_ow_slug "$_u")" "|1"
 done
 is "the fork URL is a valid slug, ownerx/ownp-repo-fork, refused only by the predicate" \
@@ -146,7 +148,8 @@ for _u in https://github.com/OwnerX/ownp-repo https://github.com/OwnerX/ownp-rep
 done
 git -C "$OWCO/own-https" worktree add -q "$OWCO/own-wt" -b wt >/dev/null 2>&1
 is "a worktree of an own checkout is own" "$(_ow_own "$OWDP" "$OWCO/own-wt")" "0 own"
-for _u in git@evil.example:OwnerX/ownp-repo.git https://github.com/OwnerX/ownp-repo-fork.git https://github.com.evil.example/OwnerX/ownp-repo; do
+for _u in git@evil.example:OwnerX/ownp-repo.git https://github.com/OwnerX/ownp-repo-fork.git https://github.com.evil.example/OwnerX/ownp-repo \
+          'https://evil.example#@github.com/OwnerX/ownp-repo'; do
   git -C "$OWPR" config remote.origin.url "$_u"
   is "a checkout whose origin is $_u is not own (1 other)" "$(_ow_own "$OWDP" "$OWPR")" "1 other"
 done
@@ -275,6 +278,34 @@ printf '{"nodes":[],"built_at_commit":"%s"}\n' "$(git -C "$_owr" rev-parse HEAD)
 _ow_run "$_owr"
 is "B33: the same checkout with a different set of kinds says it again" "$(_ow_last)" \
    "$OWLINE ownp is bound to this checkout by its .felix marker, and its origin is not github.com/OwnerX/ownp-repo. Withheld: tidying, commissioning."
+
+printf '\na submodule is never own: its origin is the superproject'"'"'s to choose (found in review)\n'
+# A hostile superproject's tracked .gitmodules gives the submodule its origin. Offline: insteadOf serves that URL from a local bare repo.
+_ow_co sub-seed ownp - nograph norival; git clone -q --bare "$OWCO/sub-seed" "$OW/sub.git" >/dev/null 2>&1; git init -q -b main "$OW/sup-seed" >/dev/null 2>&1
+( cd "$OW/sup-seed" && printf 'a\n' > f.txt && git add f.txt && git -c user.name=t -c user.email=t@t commit -qm one \
+  && git -c protocol.file.allow=always submodule add -q "file://$OW/sub.git" vendor/x && git config -f .gitmodules submodule.vendor/x.url https://github.com/OwnerX/ownp-repo \
+  && git add .gitmodules && git -c user.name=t -c user.email=t@t commit -qm two ) >/dev/null 2>&1
+git clone -q --bare "$OW/sup-seed" "$OW/sup.git" >/dev/null 2>&1
+git -c "url.file://$OW/sub.git.insteadOf=https://github.com/OwnerX/ownp-repo" -c protocol.file.allow=always clone -q --recurse-submodules "file://$OW/sup.git" "$OWCO/hostile" >/dev/null 2>&1
+_owsub="$OWCO/hostile/vendor/x"; _owu="$(git -C "$_owsub" remote get-url origin 2>/dev/null)"
+_ow_rival "$_owsub"; cp "$_owsub/scripts/prepush.sh" "$OW/rival.sub"   # no graph here: felix_graph_home of a submodule is its gitdir's parent, so a refresh is never due
+is "B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it" "$_owu|$(_ow_slug "$_owu")" \
+   "https://github.com/OwnerX/ownp-repo|ownerx/ownp-repo|0"
+is "B8: a submodule is not own though its origin is the project's (1 submodule)" "$(_ow_own "$OWDP" "$_owsub")" "1 submodule"
+git -C "$OWCO/hostile" config remote.origin.url https://github.com/OwnerX/ownp-repo
+is "B8: a repository that holds a submodule is still own when its own origin is the project's" "$(_ow_own "$OWDP" "$OWCO/hostile")" "0 own"
+mkdir -p "$OW/gitsp"; printf '#!/bin/sh\ncase "$*" in *--show-superproject-working-tree*) exit 69 ;; esac\nexec %s "$@"\n' "$(command -v git)" > "$OW/gitsp/git"; chmod +x "$OW/gitsp/git"
+is "B8: a repository is unknown when git cannot say whether it is a submodule (2 unread)" "$(OW_PATH="$OW/gitsp:$OW/bin:$PATH" _ow_own "$OWDP" "$OWCO/own-https")" "2 unread"
+_ow_run "$_owsub"; _ow_wait "$OWNEG" '[ "$(_ow_n felix "$_owsub" commission)" -gt 0 ]'
+is "B9: a session start in a submodule runs no felix commission and logs one refused-not-own line, none ran" \
+   "$(_ow_n felix "$_owsub" commission) $(_ow_bg ownp "$_owsub" refused-not-own) $(_ow_bg ownp "$_owsub" ran)" "0 1 0"
+cmp -s "$OW/rival.sub" "$_owsub/scripts/prepush.sh" && ok "B9: and keeps its untracked rival, byte-identical" || bad "B9: and keeps its untracked rival, byte-identical"
+_owk="$OWLINE ownp is bound to this checkout by its .felix marker, and it is a submodule, whose origin the repository holding it chooses. Withheld:"
+is "B9: and says what was withheld, and why" "$(_ow_last)" "$_owk tidying, commissioning."
+printf '[package]\nname = "x"\n' > "$_owsub/Cargo.toml"; _ow_run "$_owsub"
+is "B9: and with a Cargo.toml it adopts nothing into the project's capabilities" "$(grep -c '^rust$' "$OWDP/capabilities")" "0"
+is "B9: and says adoption was withheld too" "$(_ow_last)" "$_owk adoption, tidying, commissioning."
+rm -rf "$OWDP"; cp -R "$OW/ownp.keep" "$OWDP"   # a run that did adopt would leave the project changed for every part after this one
 
 printf '\nadoption (B22, B23, B30, B32, B34)\n'
 OWDISC=0

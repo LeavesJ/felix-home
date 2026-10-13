@@ -343,8 +343,11 @@ is "and standard error is left alone" "$out" "stderr survives"
 # The three background jobs that run from a hook must all call it, or the one
 # that does not is the one that holds the pipe. Named rather than counted: a
 # count goes green when somebody adds a fourth.
+# The commissioning resume moved to lib/own.sh (0.49.285), beside the rule that decides whether it
+# may run; the file that holds its detached subshell is the one that has to close the descriptors.
 for _bgfile in commission discover graph; do
-  if grep -q 'felix_close_inherited_fds' "$FROOT/harness/lib/$_bgfile.sh" 2>/dev/null; then
+  _bgsrc="$_bgfile"; [ "$_bgfile" = commission ] && _bgsrc=own
+  if grep -q 'felix_close_inherited_fds' "$FROOT/harness/lib/$_bgsrc.sh" 2>/dev/null; then
     ok  "lib/$_bgfile.sh closes what it inherited before backgrounding"
   else
     bad "lib/$_bgfile.sh closes what it inherited before backgrounding" "no call"

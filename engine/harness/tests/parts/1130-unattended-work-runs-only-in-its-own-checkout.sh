@@ -11,7 +11,8 @@ printf '\nunattended work runs only in the bound project'"'"'s own checkout\n'
 # root, a harness copy whose felix is a stub, and stubs for claude, gh and
 # graphify that log their working directory and arguments.
 OWBASE="${RXBASE:-}"
-if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ]; then   # part 1120 removes a base it made outside $TMP
+# Part 1100's base is adopted only while it is a root of the fixture guard, so an inherited RXBASE is never used unproven.
+if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ] || ! _fx_root_for "$(cd "$OWBASE" 2>/dev/null && pwd -P)/."; then   # part 1120 removes a base it made outside $TMP
   OWBASE=""
   for _owc in "$TMP" "${XDG_RUNTIME_DIR:-}" "${RUNNER_TEMP:-}" "${HOME:-}"; do
     [ -n "$_owc" ] && command -v _rx_base_ok >/dev/null 2>&1 && _rx_base_ok "$_owc" || continue
@@ -448,4 +449,4 @@ is "B41: lib/own.sh exists and names no governed project" "$([ -f "$FROOT/harnes
 is "B41: lib/own.sh parses under /bin/bash and uses no \${x,,}" \
    "$(/bin/bash -n "$FROOT/harness/lib/own.sh" 2>&1 && grep -c ',,}' "$FROOT/harness/lib/own.sh")" "0"
 _fx_git "$OWCO/own-https" worktree remove --force "$OWCO/own-wt" >/dev/null 2>&1
-[ "$OWBASE" = "$TMP" ] || [ "$OWBASE" = "${RXBASE:-}" ] || rm -rf "$OWBASE"
+[ "$OWBASE" = "$TMP" ] || [ "$OWBASE" = "${RXBASE:-}" ] || { _fx_root_del "$OWBASE"; rm -rf "$OWBASE"; }

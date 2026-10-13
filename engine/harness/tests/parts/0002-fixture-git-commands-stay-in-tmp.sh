@@ -53,6 +53,10 @@ _fx_tmp=""; _og_phys "$TMP" && _fx_tmp="$_og_p"
 # with _fx_root_add. Everything below that this comment block says of $TMP holds
 # of each root, the ceiling included: it is the root the directory lies below.
 _fx_roots="$_fx_tmp"
+# The root the directory _fx_chdir is proving lies below. _fx_gitdir's walk stops
+# there, and _fx_below accepts only a path below it, so a .git under $TMP never
+# vouches for one under another root, nor the other way round.
+_fx_walkroot=""
 # PATH -> 0, with _fx_r set to the root PATH lies strictly below, or 1 and
 # _fx_r empty. Parameter expansion only, no fork and no temporary file.
 _fx_root_for() {
@@ -70,22 +74,31 @@ _fx_root_for() {
 # base whose every ancestor only root or this user can write (the reach read's
 # R13), and where $TMP sits under a shared /tmp, as on a Linux runner, they
 # make one elsewhere: XDG_RUNTIME_DIR, RUNNER_TEMP or HOME. They register it
-# here at once, so their fixture git lines stand behind _fx_cd and _fx_git as
-# every other fixture's do. Refused with a record, and nothing added, when DIR
-# is empty or no directory, when it is /, and when a .git of any kind stands in
-# DIR or in any directory above it: in a directory where `git init` never ran
-# git walks up, only the root's ceiling stops it, and a root inside a checkout
-# would hand that checkout a fixture's write. A refusal leaves the base
-# unregistered, so every fixture line under it is refused in turn and the run
-# goes red at its end; nothing reads as safe that was not proven.
+# here at once, right after mktemp -d makes it, so their fixture git lines stand
+# behind _fx_cd and _fx_git as every other fixture's do. Refused with a record,
+# and nothing added, when DIR is empty, not absolute or no directory, when it is
+# /, when its physical path holds a newline or a colon (the separators of this
+# list and of GIT_CEILING_DIRECTORIES), when it already holds anything (a base
+# that holds a checkout would vouch for it, and a fresh base holds nothing),
+# and when a .git of any kind stands in DIR or in any directory above it: in a
+# directory where `git init` never ran git walks up, only the root's ceiling
+# stops it, and a root inside a checkout would hand that checkout a fixture's
+# write. A refusal leaves the base unregistered, so every fixture line under it
+# is refused in turn and the run goes red at its end; nothing reads as safe that
+# was not proven. A DIR that is, or lies below, a root already adds nothing.
 _fx_root_add() {
-  local at="${BASH_LINENO[0]}" d="${1-}" p back="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}"
-  if [ -z "$d" ] || ! cd -P -- "$d" >/dev/null 2>&1; then _fx_refuse "$at" "$d" root-not-a-directory; return 1; fi
+  local at="${BASH_LINENO[0]}" d="${1-}" p e back="$PWD" old="${OLDPWD-}" hadold="${OLDPWD+x}"
+  case "$d" in /*) ;; *) _fx_refuse "$at" "$d" root-not-absolute; return 1 ;; esac
+  if ! cd -P -- "$d" >/dev/null 2>&1; then _fx_refuse "$at" "$d" root-not-a-directory; return 1; fi
   p="$PWD"
   cd -- "$back" >/dev/null 2>&1
   if [ -n "$hadold" ]; then OLDPWD="$old"; else unset OLDPWD; fi
   [ "$p" != / ] || { _fx_refuse "$at" "$d" root-is-slash; return 1; }
   _fx_root_for "$p/." && return 0
+  case "$p" in *$'\n'*|*:*) _fx_refuse "$at" "$d" root-unsafe-name; return 1 ;; esac
+  for e in "$p"/* "$p"/.[!.]* "$p"/..?*; do
+    if [ -e "$e" ] || [ -L "$e" ]; then _fx_refuse "$at" "$d" root-not-empty; return 1; fi
+  done
   d="$p"
   while :; do
     if [ -e "$d/.git" ] || [ -L "$d/.git" ]; then _fx_refuse "$at" "$1" root-in-a-checkout; return 1; fi
@@ -95,12 +108,27 @@ _fx_root_add() {
   _fx_roots="$_fx_roots${_fx_roots:+$'\n'}$p"
   return 0
 }
+# DIR -> DIR is no longer a root, before the part that made it removes it, so a
+# path that later reappears there is not vouched for. $TMP is never removed.
+_fx_root_del() {
+  local p rest="$_fx_roots" r out=""
+  p="$(cd -P -- "${1:-/nonexistent}" 2>/dev/null && pwd -P)" || return 0
+  [ "$p" != "$_fx_tmp" ] || return 0
+  while [ -n "$rest" ]; do
+    r="${rest%%$'\n'*}"
+    case "$rest" in *$'\n'*) rest="${rest#*$'\n'}" ;; *) rest="" ;; esac
+    [ -n "$r" ] && [ "$r" != "$p" ] && out="$out${out:+$'\n'}$r"
+  done
+  _fx_roots="$out"
+  return 0
+}
 # LINE DIR WHY -> the refusal's line in the record, and its line on stderr.
 _fx_refuse() {
   printf '%s\t%s\t%s\n' "$1" "$2" "$3" >> "${FELIX_TEST_FXREFUSED:-/dev/null}" 2>/dev/null
   printf 'tests/run: _fx_cd refused %s: line %s, directory [%s]\n' "$3" "$1" "$2" >&2
 }
-# ABSOLUTE-PATH STRICT -> 0 when the path lies physically strictly below $TMP.
+# ABSOLUTE-PATH STRICT -> 0 when the path lies physically strictly below the
+# root _fx_chdir is proving, $_fx_walkroot; with none set, nothing is below it.
 # The path is entered with cd -P and the shell is put back where it stood. A
 # path that does not exist, a gitfile's pointer to a worktree since removed, is
 # judged by the nearest directory above it that can be entered, with the rest
@@ -110,6 +138,7 @@ _fx_refuse() {
 # refused.
 _fx_below() {
   local p="$1" rest="" back="$PWD" got
+  [ -n "$_fx_walkroot" ] || return 1
   case "$p" in /*) ;; *) return 1 ;; esac
   until cd -P -- "${p:-/}" >/dev/null 2>&1; do
     [ -z "$2" ] && [ -n "$p" ] || return 1
@@ -118,8 +147,25 @@ _fx_below() {
   got="${PWD%/}$rest"
   cd -P -- "$back" >/dev/null 2>&1 || return 1
   case "$rest/" in */../*) return 1 ;; esac
-  _fx_root_for "$got" && return 0
+  case "$got/" in "$_fx_walkroot"/?*) return 0 ;; esac
   return 1
+}
+# GITDIR -> 0 when GITDIR holds no commondir, or one that names a directory
+# physically below the root: a valid git directory that shares the config and
+# refs of the directory its commondir names writes there. Read with the read
+# builtin, relative to GITDIR when relative. One that cannot be read names
+# nothing that can be proven, and is refused. A gitfile's target is held to
+# this as a .git directory is: a worktree's gitdir under $TMP whose commondir
+# names a repository outside it would hand git that repository's config.
+_fx_commondir_ok() {
+  local g="$1" l
+  { [ -e "$g/commondir" ] || [ -L "$g/commondir" ]; } || return 0
+  l=""
+  IFS= read -r l 2>/dev/null < "$g/commondir" || [ -n "$l" ] || return 1
+  l="${l%$'\r'}"
+  [ -n "$l" ] || return 1
+  case "$l" in /*) ;; *) l="$g/$l" ;; esac
+  _fx_below "$l" ""
 }
 # -> 0 when the first .git entry that decides, walking up from $PWD with $TMP
 # itself not reached, is a valid git directory, is a gitfile or a symlink that
@@ -146,13 +192,7 @@ _fx_gitdir() {
     if [ -L "$g" ]; then _fx_below "$g" 1 || return 1; fi
     if [ -d "$g" ]; then
       if [ -f "$g/HEAD" ] && [ -d "$g/objects" ] && [ -d "$g/refs" ]; then
-        { [ -e "$g/commondir" ] || [ -L "$g/commondir" ]; } || return 0
-        l=""
-        IFS= read -r l 2>/dev/null < "$g/commondir" || [ -n "$l" ] || return 1
-        l="${l%$'\r'}"
-        [ -n "$l" ] || return 1
-        case "$l" in /*) ;; *) l="$g/$l" ;; esac
-        _fx_below "$l" ""; return
+        _fx_commondir_ok "$g"; return
       fi
     elif [ -L "$g" ]; then return 1
     elif [ -f "$g" ]; then
@@ -161,7 +201,8 @@ _fx_gitdir() {
       l="${l%$'\r'}"
       case "$l" in "gitdir: "?*) l="${l#gitdir: }" ;; *) return 1 ;; esac
       case "$l" in /*) ;; *) l="$d/$l" ;; esac
-      _fx_below "$l" ""; return
+      _fx_below "$l" "" || return 1
+      _fx_commondir_ok "$l"; return
     elif [ -e "$g" ]; then return 1
     fi
     d="${d%/*}"
@@ -173,7 +214,7 @@ _fx_chdir() {   # LINE DIR -> stands in DIR when it is proven, else returns 1 wi
   else
     case "$d" in /*) t="$d" ;; *) t="./$d" ;; esac
     if cd -P -- "$t" >/dev/null 2>&1; then
-      ent=1
+      ent=1; _fx_walkroot=""
       if _fx_root_for "$PWD"; then root="$_fx_r"; _fx_walkroot="$root"; else why=outside-tmp; fi
       if [ -z "$why" ]; then
         if [ -n "${GIT_DIR:-}${GIT_WORK_TREE:-}${GIT_COMMON_DIR:-}${GIT_INDEX_FILE:-}${GIT_OBJECT_DIRECTORY:-}${GIT_ALTERNATE_OBJECT_DIRECTORIES:-}${GIT_CONFIG:-}" ]; then why=git-env

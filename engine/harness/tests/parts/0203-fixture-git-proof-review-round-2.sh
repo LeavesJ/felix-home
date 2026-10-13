@@ -634,6 +634,8 @@ elif [ -z "$_g3_sec" ]; then
   _g3_sec=none
 else
   _copy_content "$REAL_HARNESS" "$_g3/b2/same"
+  # The copy's tests/run is the driver; B2 reads sections, so it gets the suite as one file, as top and end do.
+  cp "$_g3_src" "$_g3/b2/same/tests/run"
   _g3_b2copy top top; _g3_b2copy end end
   for _g3_x in same top end; do _g3_b2kid "$_g3_x"; done
   if grep -Fxq -- "  ok    $_g3_b2n" "$_g3/b2/same.out" 2>/dev/null; then ok "$_g3_n0"

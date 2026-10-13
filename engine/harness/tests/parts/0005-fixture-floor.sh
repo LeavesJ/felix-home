@@ -354,7 +354,12 @@ is "_fixture_enclosed finds no checkout at or above the suite's working director
 # the exit trap removed the directory the suite was started from.
 _ff_self="$(_suite_flat)"
 _ff_end="$(grep -n '^FELIX_TEST_RAN="\$TMP/ran"' "$_ff_self" 2>/dev/null | head -1 | cut -d: -f1)"
-if [ -z "$_ff_end" ]; then
+if [ -z "$_ff_self" ]; then
+  bad "the preamble refuses to start when its temporary directory sits inside a checkout" \
+      "_suite_flat could not rebuild the suite as one file, so its preamble was not read"
+  bad "a mktemp -d that gives no directory stops the suite and removes nothing" \
+      "_suite_flat could not rebuild the suite as one file, so its preamble was not read"
+elif [ -z "$_ff_end" ]; then
   skip "the preamble refuses to start when its temporary directory sits inside a checkout" \
        "$_ff_self is not this suite"
   skip "a mktemp -d that gives no directory stops the suite and removes nothing" \

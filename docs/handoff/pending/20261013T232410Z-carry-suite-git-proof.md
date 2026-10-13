@@ -45,6 +45,24 @@ and the gate-friction and own parts added the rest. 44 lines were converted
 by 3b's final rule. One line holds two sites. After that, the lint reports
 only `_ff_case`'s three reviewed probes.
 
+**Fixture roots outside `$TMP`.** Parts 1100 (#431) and 1130 (#434) make
+their fixtures outside `$TMP` on a Linux runner, where `$TMP` sits under a
+world-writable /tmp. The guard would have refused all 14 of their converted
+lines there. `_fx_root_add` (part 0002) registers such a base. It must be
+absolute, empty, free of newlines and colons, and have no `.git` in it or
+above it. `_fx_root_del` takes the base back before the part removes it. A
+directory is proven only against the root it lies below. The `.git` walk and
+`_fx_below` both stop at that root, so one root never vouches for another. A
+gitfile's target is now held to the same commondir check as a `.git`
+directory; before this, the target was not checked at all. One Opus review
+found nine issues, all fixed, among them B2's unchanged copy reading the
+driver instead of the flat suite, and 0005 skipping where `_suite_flat` had
+failed. Part 0205 has 13 assertions. Ten mutants of the guard were run
+against them and nine turned it red. The survivor removes the empty-walk-root
+guard in `_fx_below`, which no current path reaches. Parts 1100-1130 passed
+644/0 twice: once as macOS runs them, and once with `TMPDIR` under a
+world-writable ancestor and `RUNNER_TEMP` private, which is the runner's path.
+
 **After it lands.** Row 0's step C (every part runs alone) builds on
 `_fx_cd`/`_fx_git` and starts once this is on main ("Queue-based build
 system" [62efaa]). Each later batch branch converts its own raw sites when it

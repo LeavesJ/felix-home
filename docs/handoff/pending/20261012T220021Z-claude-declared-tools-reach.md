@@ -1,6 +1,6 @@
 ### 2026-10-12: declared tools' reach, the pulse's settings and reach lines, and felix status
 
-**Engine 0.49.282**, branch claude/declared-tools-reach, from main at 0.49.280. The
+**Engine 0.49.283**, branch claude/declared-tools-reach, from main at 0.49.280. The
 spec is docs/2026-10-12-declared-tools-reach-spec.md; the brief behind it was the
 founder's: a declared-tools checker, the daily pulse reporting it with the settings
 file's health, and one read-only command a status surface can poll. No table under
@@ -134,6 +134,7 @@ security review of the fix for the first raised a third.
 - The status surface itself: a Claude Code mod, built outside this repository, that
   runs felix status --tsv on a timer and felix cost --tsv on a slower one.
 - Weekly spend is not a status row, on purpose.
-- Version: 0.49.282. origin/claude/setup-actions-node24 and
-  LeavesJ/confident-archimedes-b76781 (stale since 10-08, no open PR) also carry
-  0.49.282; renumber if either lands first.
+- Version: 0.49.283. Read 2026-10-12 at ship time: main 0.49.280; unmerged
+  branches and worktrees hold 0.49.281 (secret-scan-quoted-reference, gf-a family)
+  and 0.49.282 (origin/claude/setup-actions-node24); nothing holds 0.49.283.
+  Renumber if another engine PR lands first.

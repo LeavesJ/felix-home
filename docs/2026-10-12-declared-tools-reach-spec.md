@@ -115,7 +115,7 @@ Notation: `\t` is one tab byte. `<epoch>` is `date +%s`. A row written
 | `engine/harness/lib/pulse.sh` | header text, the reach lines inside `felix_pulse_report`, two guarded sources |
 | `engine/harness/felix` | sources both new libs; `cmd_stack --reach`; `cmd_pulse` settings line and record; `cmd_status`; dispatcher; `usage`; header comment |
 | `engine/harness/hooks/session-start` | sources `reach.sh`; one block that starts the refresh |
-| `engine/.claude-plugin/plugin.json` | `"version": "0.49.282"` |
+| `engine/.claude-plugin/plugin.json` | `"version": "0.49.283"` |
 | `engine/harness/tests/parts/1100-…`, `1110-…`, `1120-…` | the assertions; `tests/run` sources each; `assertions.tsv` and `red.tsv` re-recorded |
 | `docs/handoff/pending/<stamp>-claude-declared-tools-reach.md` | the shipped-version entry |
 
@@ -662,14 +662,14 @@ new row is added at the end.
 
 ## 6. Version and record
 
-- `engine/.claude-plugin/plugin.json` `"version": "0.49.282"`. Read on
+- `engine/.claude-plugin/plugin.json` `"version": "0.49.283"`. Read on
   2026-10-12: main 0.49.280; worktree `claude/secret-scan-quoted-reference`
   holds 0.49.281 (unpushed); every other worktree is at or below 0.49.280;
   open PR #425 carries 0.49.280 and #365, #360 older numbers. If another engine
   PR lands first, renumber.
 - A pending handoff section, written through `felix handoff --section FILE`,
   headed `### 2026-10-12: declared tools' reach, the pulse's settings and reach lines, and felix status`,
-  opening `**Engine 0.49.282**`, naming the three surfaces, the measured
+  opening `**Engine 0.49.283**`, naming the three surfaces, the measured
   `felix status` time (S10), and what is not built (the mod).
 - Assertions recorded with `tests/run --record-assertions`, which also writes
   `red.tsv`; the new names fail against main's engine there, which is the red.

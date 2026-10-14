@@ -67,15 +67,14 @@ _ran_rows() {   # stdin: names, one a line -> count<TAB>name, sorted by name
   LC_ALL=C sort | uniq -c | LC_ALL=C awk '{ c = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%s\n", c, $0 }' \
     | LC_ALL=C sort -t"$(printf '\t')" -k2
 }
-# The names the manifest lists that a run reached fewer times than it lists
-# them: want<TAB>got<TAB>name, one a line, in the manifest's order. Both files
-# are rows of count<TAB>name and both are read once. This was a loop over the
-# manifest that ran an awk over the whole counts file for each of its ~6,800
-# rows: 88 s of the gate's 1,565 on 2026-10-09, most of it fork and exec, for
-# a comparison that is one pass. A name is what follows a row's first tab on
-# both sides and is compared as bytes, so a backslash, a bracket or a tab in
-# it is itself. A row that lists no name, or whose count is not a number,
-# lists nothing to reach.
+# The names the manifest lists that a run reached fewer times than it lists them:
+# want<TAB>got<TAB>name, one a line, in the manifest's order. Both files are rows
+# of count<TAB>name and both are read once. This was a loop over the manifest
+# that ran an awk over the whole counts file for each of its ~6,800 rows: 88 s of
+# the gate's 1,565 on 2026-10-09, most of it fork and exec, for a comparison that
+# is one pass. A name is what follows a row's first tab on both sides and is
+# compared as bytes, so a backslash, a bracket or a tab in it is itself. A row
+# that lists no name, or whose count is not a number, lists nothing to reach.
 _manifest_short() {   # manifest counts
   LC_ALL=C awk -F'\t' '
     function name(line) { sub(/^\t+/, "", line); if (!sub(/^[^\t]*\t+/, "", line)) return ""; sub(/\t+$/, "", line); return line }
@@ -408,6 +407,7 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1240-gate-friction-a-survivors-blind.sh"
 . "$HERE/parts/1250-gate-friction-a2-blind.sh"
 . "$HERE/parts/1260-gate-friction-a3-blind.sh"
+. "$HERE/parts/1270-gate-friction-b-blind.sh"
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished
 # red run exits 1 as a dead one can (#371). The empty line before it is this

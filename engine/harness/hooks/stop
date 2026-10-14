@@ -229,7 +229,7 @@ _felix_stop_skipped() {
   [ -n "$sid" ] || return 0
   state="$FELIX_HOME_DIR/state/route/$sid"
   [ -f "$state" ] || return 0
-  routename="$(cut -d: -f1 < "$state" 2>/dev/null)"
+  routename="$(LC_ALL=C cut -d: -f1 < "$state" 2>/dev/null)"
   [ -n "$routename" ] || return 0
   # A route read off the working tree is Felix's guess, not anybody's
   # instruction, so a play it named going unused is evidence of nothing. This
@@ -309,9 +309,9 @@ _felix_stop_sessions() {
 _felix_stop_unrecorded() { felix_guard_unrecorded "$PROJ" "$ROOT" "$(_felix_stop_sessions)"; }
 
 receipt="$(felix_verify_receipt "$ROOT" "$FELIX_HOME_DIR")"
-r_tid="$(printf '%s' "$receipt" | cut -f1)"
-r_res="$(printf '%s' "$receipt" | cut -f2)"
-r_when="$(printf '%s' "$receipt" | cut -f3)"
+r_tid="$(printf '%s' "$receipt" | LC_ALL=C cut -f1)"
+r_res="$(printf '%s' "$receipt" | LC_ALL=C cut -f2)"
+r_when="$(printf '%s' "$receipt" | LC_ALL=C cut -f3)"
 
 # Current by verify.sh's reading, which the merge boundary shares: the exact
 # tree, green, and the decision epoch the gate ran under still the epoch now.
@@ -371,7 +371,10 @@ ${_on_unrec}"
         mkdir -p "$(dirname "$_on_said")" 2>/dev/null && printf 'unrecorded\n' >> "$_on_said" 2>/dev/null
       fi
     fi
-    if [ -n "${SID:-}" ] \
+    # stack.tsv only as a regular file, here and below: a pipe at the path held
+    # this grep open, and the Stop hook with it, for a writer that never came
+    # (2026-10-01).
+    if [ -n "${SID:-}" ] && [ -f "$PROJ/stack.tsv" ] \
        && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null \
        && [ ! -f "$FELIX_HOME_DIR/state/verified/$SID" ]; then
       mkdir -p "$FELIX_HOME_DIR/state/verified" 2>/dev/null \
@@ -429,7 +432,7 @@ piece before you take the next one: check the claims, not the tests."
     # adds pressure, not information.
     playline=""
     if [ -f "$FELIX_HOME_DIR/state/route/${SID:-}" ]; then
-      routename="$(cut -d: -f1 < "$FELIX_HOME_DIR/state/route/${SID:-}" 2>/dev/null)"
+      routename="$(LC_ALL=C cut -d: -f1 < "$FELIX_HOME_DIR/state/route/${SID:-}" 2>/dev/null)"
       playline="$(_felix_route_rows "$PROJ" | awk -F'\t' -v r="$routename" '$1==r{print $4}')"
     fi
     if felix_route_ack_consume "$ROOT" "$FELIX_HOME_DIR"; then
@@ -468,7 +471,7 @@ this session either way."
   # Declared, not routed. Requiring a route to name it would mean it never
   # fires for a project whose table happens not to mention it — including
   # Felix's own, which is exactly the session this was missing from.
-  if [ -n "${SID:-}" ] \
+  if [ -n "${SID:-}" ] && [ -f "$PROJ/stack.tsv" ] \
      && grep -qE "	superpowers(@[^	]*)?	" "$PROJ/stack.tsv" 2>/dev/null; then
     vstate="$FELIX_HOME_DIR/state/verified/$SID"
     if [ ! -f "$vstate" ]; then
@@ -533,6 +536,21 @@ if [ "$CHAIN" = "1" ]; then
   [ "$_on_rc" -eq 0 ] || exit 0
 fi
 
+# Held once per tree, reason and checkout in a session (felix_hold_tree_seen in
+# lib/verify.sh). A later stop on the same lets the session go and records the
+# unrun gate as a debt. Not inside a night's chain, nor for a session that holds
+# a night, which keep their own bounds; not where the tree id cannot tell work
+# apart (an unborn HEAD hashes no staged content, and a coarse id no untracked
+# edit). FELIX_ALLOW_RED and the foreign-chain rule are unchanged.
+_once=0
+if [ "$CHAIN" = "0" ] && ! felix_overnight_owns "$PROJ" "${SID:-}"; then
+  case "$TID" in coarse:*) ;; *) git -C "$ROOT" rev-parse --verify --quiet HEAD >/dev/null 2>&1 && _once=1 ;; esac
+fi
+if [ "$_once" = 1 ] && felix_hold_tree_seen "$FELIX_HOME_DIR" "${SID:-}" "$TID" "$detail" "$ROOT"; then
+  felix_verify_log "$PROJ" "debt" "$TID" "$detail; held once on this tree already (session ${SID:0:8})"
+  exit 0
+fi
+
 if ! _felix_stop_may_hold; then
   felix_verify_log "$PROJ" "allowed" "$TID" "$detail; inside another hook's chain, and the hold could not be recorded"
   exit 0
@@ -553,4 +571,7 @@ and dated, merged by a person; a session cannot grant itself one."
 
 felix_say "$PROJ" "held" "$reason" "" "${SID:-}"
 printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$reason")"
+# Marked once the hold is delivered: a hook stopped before this costs one more
+# hold later, never a hold that was recorded and not made.
+[ "$_once" = 1 ] && felix_hold_tree_mark "$FELIX_HOME_DIR" "${SID:-}" "$TID" "$detail" "$ROOT"
 exit 0

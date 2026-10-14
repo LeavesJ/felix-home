@@ -58,6 +58,7 @@ felix_commission_instruments() {
 }
 
 _felix_commission_answer_ok() {
+  local LC_ALL=C
   case "${1:-}" in
     -) return 0 ;;
     'felix:discover --adopt'|'felix:stack apply --yes'|'felix:ready --fix'|'felix:toolbox --route') return 0 ;;
@@ -89,13 +90,13 @@ _felix_commission_judged() {
 }
 
 _felix_commission_step_ok() {
-  case "${1:-}" in -|[1-9]|10) return 0 ;; esac
+  case "${1:-}" in -|[123456789]|10) return 0 ;; esac
   return 1
 }
 
 _felix_commission_lines() {
   [ -f "$1/commissioning.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$1/commissioning.tsv" 2>/dev/null
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$1/commissioning.tsv" 2>/dev/null
   return 0
 }
 
@@ -170,7 +171,7 @@ EOF
 # the caller's read then truncates. Measured.
 _felix_commission_functions_present() {
   local names w IFS=$' \t\n'
-  names="$(printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ] && printf .)"
+  names="$(printf '%s' "$1" | LC_ALL=C grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ] && printf .)"
   case "$names" in *.) names="${names%.}" ;; *) return 2 ;; esac
   for w in $names; do
     command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; return 1; }
@@ -209,7 +210,7 @@ felix_commission_lock() {   # proj, home -> 0 taken, 1 held by a live run
   owner="$(head -1 "$dir/pid" 2>/dev/null)"
   # No pid, or a pid nothing answers to: the run that made this is gone.
   case "$owner" in
-    ''|*[!0-9]*) ;;
+    ''|*[!0123456789]*) ;;
     *) if kill -0 "$owner" 2>/dev/null; then printf '%s' "$owner"; return 1; fi ;;
   esac
   rm -rf "$dir" 2>/dev/null
@@ -223,44 +224,10 @@ felix_commission_lock() {   # proj, home -> 0 taken, 1 held by a live run
 
 felix_commission_unlock() { [ -n "${1:-}" ] && rm -rf "$1" 2>/dev/null; return 0; }
 
-# Run the pipeline with nobody present, when a person has said it may.
-#
-# Deliberately thin. It takes no lock of its own: cmd_commission takes one, so
-# this is just another caller and a run that arrives while a person is
-# commissioning gives up quietly — which is the right answer, where two writers
-# appending to one manifest is not.
-#
-# Three refusals before it starts, and each is a different question.
-#   - Is it granted at all.
-#   - Does the grant still cover the table on disk? An ordinary edit to
-#     commissioning.tsv must not inherit a person's consent, because two of its
-#     columns are eval'd.
-#   - Is there a table to run.
-#
-# The outcome is written down. A detached run whose output goes to /dev/null
-# fails where nobody can see it, which is the shape this repository keeps
-# finding: a silence that reads as success. One line per run, so the next
-# session can say what the last unattended one did.
-felix_commission_resume_bg() {
-  local proj="$1" home="$2" bin="${3:-}" log root
-  [ -n "$bin" ] && [ -x "$bin" ] || return 0
-  command -v felix_autonomy_commission_current >/dev/null 2>&1 || return 0
-  felix_autonomy_commission_current "$proj" || return 0
-  [ -f "$proj/commissioning.tsv" ] || return 0
-  root="$(felix_repo_root "$PWD")"; [ -n "$root" ] || return 0
-  log="$home/state/commission/$(basename "$proj").bg.log"
-  mkdir -p "$(dirname "$log")" 2>/dev/null || return 0
-  (
-    felix_close_inherited_fds
-    cd "$root" 2>/dev/null || exit 0
-    if "$bin" commission >/dev/null 2>&1; then
-      printf '%s\tran\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"
-    else
-      printf '%s\tdeclined-or-failed\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"
-    fi
-  ) </dev/null >/dev/null 2>&1 &
-  return 0
-}
+# The unattended resume lives in own.sh, beside the rule that decides whether it
+# may run in a checkout. Sourced by path so a caller of this file alone finds it.
+command -v felix_commission_resume_bg >/dev/null 2>&1 \
+  || { [ -r "$(dirname "${BASH_SOURCE[0]:-$0}")/own.sh" ] && . "$(dirname "${BASH_SOURCE[0]:-$0}")/own.sh"; }
 
 # Run a check or a `when` in the checkout, in-process, with stdin closed, and
 # return the status as the text left it: what it returned, what the shell
@@ -319,7 +286,7 @@ felix_commission_ask() {
         eval "$2" >/dev/null
         printf 'returned %s\n' "$?" )
       printf 'ended %s\n' "$?"; } 2>/dev/null | { read -r _l; printf '%s' "$_l"; } )"
-  case "${4##* }" in ''|*[!0-9]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  case "${4##* }" in ''|*[!0123456789]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
   case "${4% *}" in returned|ended|unentered) ;; *) set -- "$1" "$2" "$3" "unasked 2" ;; esac
   printf -v "$3" '%s' "${4% *}"
   return "${4##* }"
@@ -515,8 +482,14 @@ felix_commission_actor() {
 # file so an absent file differs from an empty one; and the detected surfaces.
 felix_commission_policy_version() {
   local proj="$1" f
+  # Each table is read only as a regular file. A pipe at any table's path held
+  # the cat open for a writer that never came, so every caller of the policy
+  # version (the commission grant, the epoch, merge) waited on it forever, and
+  # a link to a device read without end (2026-10-01). Skipped, the path hashes
+  # as an absent table always hashed, since cat printed nothing for one, so no
+  # hash over ordinary files moves and no receipt goes stale.
   for f in $FELIX_COMMISSION_TABLES; do
-    printf '== %s ==\n' "$f"; cat "$proj/$f" 2>/dev/null
+    printf '== %s ==\n' "$f"; [ -f "$proj/$f" ] && cat "$proj/$f" 2>/dev/null
   done | _felix_hash
 }
 felix_commission_caps_hash() { felix_detect "$1" 2>/dev/null | LC_ALL=C sort -u | _felix_hash; }
@@ -583,13 +556,13 @@ felix_commission_run_complete() {   # proj, out[, quiet] -> 0 whole; 1 and "K of
 felix_commission_counts() {
   local rows="$1" malformed="$2" c='' out='' rc=0
   for c in \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "done"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "held"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "unknown"' | grep -c .)" \
-    "$(printf '%s\n' "$malformed" | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "not-applicable"' | grep -c .)"; do
-    case "$c" in ''|*[!0-9]*) c='?'; rc=1 ;; esac
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "done"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "held"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "unknown"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$malformed" | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "not-applicable"' | LC_ALL=C grep -c .)"; do
+    case "$c" in ''|*[!0123456789]*) c='?'; rc=1 ;; esac
     out="$out${out:+ }$c"
   done
   printf '%s' "$out"
@@ -622,12 +595,12 @@ EOF
   # Fewer than six words is a gap the split closed up, and more is a line
   # nobody wrote, so no count in it is where it says it is.
   case "$n_na" in ''|*' '*) n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' ;; esac
-  case "$n_done"  in ''|*[!0-9]*) n_done='?';  unread=1 ;; esac
-  case "$n_held"  in ''|*[!0-9]*) n_held='?';  unread=1 ;; esac
-  case "$n_unk"   in ''|*[!0-9]*) n_unk='?';   unread=1 ;; esac
-  case "$n_mal"   in ''|*[!0-9]*) n_mal='?';   unread=1 ;; esac
-  case "$n_await" in ''|*[!0-9]*) n_await='?'; unread=1 ;; esac
-  case "$n_na"    in ''|*[!0-9]*) n_na='?';    unread=1 ;; esac
+  case "$n_done"  in ''|*[!0123456789]*) n_done='?';  unread=1 ;; esac
+  case "$n_held"  in ''|*[!0123456789]*) n_held='?';  unread=1 ;; esac
+  case "$n_unk"   in ''|*[!0123456789]*) n_unk='?';   unread=1 ;; esac
+  case "$n_mal"   in ''|*[!0123456789]*) n_mal='?';   unread=1 ;; esac
+  case "$n_await" in ''|*[!0123456789]*) n_await='?'; unread=1 ;; esac
+  case "$n_na"    in ''|*[!0123456789]*) n_na='?';    unread=1 ;; esac
   if [ "$unread" -ne 0 ]; then result=indeterminate
   elif ! felix_commission_run_complete "$proj" "$rows" quiet; then result=indeterminate
   elif [ "$n_unk" -gt 0 ] || [ "$n_mal" -gt 0 ]; then result=indeterminate

@@ -40,7 +40,11 @@ FELIX_ROUTE_CONTEXT_CAP="${FELIX_ROUTE_CONTEXT_CAP:-2}"
 _felix_route_rows() {
   local proj="$1" n p pr pl
   [ -f "$proj/routes.tsv" ] || return 0
-  while IFS=$'\t' read -r n p pr pl; do
+  # A last route with no newline is a route. `read` returns 1 on it with the
+  # fields filled, and the loop dropped it, so the route a person added last
+  # by hand was never matched, mounted or reported (2026-10-01). Every loop
+  # over a hand-edited table in this file keeps it the same way.
+  while IFS=$'\t' read -r n p pr pl || [ -n "${n:-}" ]; do
     case "$n" in ''|'#'*) continue ;; esac
     [ -n "${pr:-}" ] || continue
     printf '%s\t%s\t%s\t%s\n' "$n" "$p" "$pr" "${pl:--}"
@@ -153,7 +157,7 @@ _felix_route_words() {
 }
 
 felix_route_tokens() {
-  printf '%s' "$1" | _felix_route_words | sort -u
+  printf '%s' "$1" | _felix_route_words | LC_ALL=C sort -u
 }
 
 # The prompt value out of a hook payload, from the FIRST occurrence of the key.
@@ -327,8 +331,8 @@ _FELIX_ROUTE_SESSION_REQUESTS=(
 # precisely the moment the router should have the most to say.
 felix_route_context() {
   local root="$1"
-  git -C "$root" status --porcelain -uall 2>/dev/null | cut -c4- | tr '/._-' '    '
-  git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null | tr '/-_' '   '
+  git -C "$root" status --porcelain -uall 2>/dev/null | LC_ALL=C cut -c4- | LC_ALL=C tr '/._-' '    '
+  git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null | LC_ALL=C tr '/-_' '   '
 }
 
 # score <TAB> promptscore <TAB> order <TAB> name <TAB> profile <TAB> play, best first.
@@ -376,9 +380,13 @@ EOF
 # had actually named. The prompt is the claim; the tree only corroborates.
 felix_route_best() {
   local line
-  line="$(felix_route_score "$1" "$2" "$3" | sort -k2,2nr -k3,3nr -k4,4n | head -1)"
+  # 2026-10-08: in a UTF-8 locale, macOS sort printed nothing when any route's
+  # play held a byte that is not UTF-8, so no prompt was routed at all, and BSD
+  # cut failed on the picked line when the winner's own play held one. Both
+  # read bytes in C.
+  line="$(felix_route_score "$1" "$2" "$3" | LC_ALL=C sort -k2,2nr -k3,3nr -k4,4n | head -1)"
   [ -n "$line" ] || return 1
-  [ "$(printf '%s' "$line" | cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
+  [ "$(printf '%s' "$line" | LC_ALL=C cut -f1)" -ge "$FELIX_ROUTE_MIN_SCORE" ] || return 1
   printf '%s' "$line"
 }
 
@@ -398,7 +406,9 @@ _felix_route_kind() {
     *:*) owner="${want%%:*}" ;;
     *)   owner="$want" ;;
   esac
-  while IFS=$'\t' read -r kind name _rest; do
+  # The last row is kept when it has no newline: `lastone` written last by
+  # hand read as `not declared` (2026-10-01).
+  while IFS=$'\t' read -r kind name _rest || [ -n "${kind:-}" ]; do
     case "$kind" in ''|'#'*) continue ;; esac
     case "$name" in
       "$want"|"$want@"*)   printf '%s' "$kind"; return ;;
@@ -429,8 +439,8 @@ felix_route_render() {
 
   if [ "$play" != "-" ] && [ -n "$play" ]; then
     if due="$(felix_route_due "$transcript" "$play")"; then
-      rest="$(printf '%s' "$due" | cut -f2)"
-      due="$(printf '%s' "$due" | cut -f1)"
+      rest="$(printf '%s' "$due" | LC_ALL=C cut -f2)"
+      due="$(printf '%s' "$due" | LC_ALL=C cut -f1)"
       kind="$(_felix_route_kind "$proj" "$due")"
 
       if [ "$kind" = "not declared" ]; then
@@ -651,7 +661,7 @@ felix_route_names_capability() {
   local proj="$1" want="$2" n p pr pl entry
   [ -n "$want" ] || return 1
   [ -f "$proj/routes.tsv" ] || return 1
-  while IFS=$'\t' read -r n p pr pl; do
+  while IFS=$'\t' read -r n p pr pl || [ -n "${n:-}" ]; do
     case "$n" in ''|'#'*) continue ;; esac
     [ -n "${pl:-}" ] && [ "$pl" != "-" ] || continue
     for entry in $pl; do
@@ -682,7 +692,7 @@ felix_route_names_capability() {
 felix_route_state_guessed() {
   local state="$1"
   [ -f "$state" ] || return 1
-  case "$(cut -f2 < "$state" 2>/dev/null)" in
+  case "$(LC_ALL=C cut -f2 < "$state" 2>/dev/null)" in
     tree) return 0 ;;
     *)    return 1 ;;
   esac
@@ -701,7 +711,7 @@ felix_route_promote() {
   [ -f "$log" ] || return 0
   awk -F'\t' '$2 == "-" { print $4 }' "$log" \
     | _felix_route_words \
-    | sort | uniq -c | sort -rn \
+    | LC_ALL=C sort | LC_ALL=C uniq -c | LC_ALL=C sort -rn \
     | awk -v m="$FELIX_ROUTE_PROMOTE_MIN" '$1 >= m { print $1 "\t" $2 }'
 }
 

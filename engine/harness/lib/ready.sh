@@ -84,9 +84,12 @@ felix_ready_unused() {
   # substitution, so `case "$w" in *:*)` fails at runtime with a syntax error
   # about an unexpected newline. It parses cleanly under zsh, which is how it
   # survived a hand-check and died the moment the real CLI ran it.
+  # stack.tsv is read only as a regular file. A pipe at the path held this
+  # grep open for a writer that never came (2026-10-01); anything else
+  # declares nothing, as an absent table declares nothing.
   wanted="$(
     felix_ready_wanted "$proj" | sed 's/:.*//'
-    grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//'
+    [ -f "$proj/stack.tsv" ] && grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//'
   )"
   felix_ready_inventory | while IFS=$'\t' read -r kind name; do
     [ -n "$name" ] || continue
@@ -99,7 +102,10 @@ felix_ready_unused() {
 felix_ready_wanted() {
   local proj="$1" n k pr pl p
   [ -f "$proj/routes.tsv" ] || return 0
-  while IFS=$'\t' read -r n k pr pl; do
+  # A last route with no newline is kept; `read` returns 1 on it with the
+  # fields filled, and its play was missing from every readiness report
+  # (2026-10-01).
+  while IFS=$'\t' read -r n k pr pl || [ -n "${n:-}" ]; do
     case "$n" in ''|'#'*) continue ;; esac
     [ -n "${pl:-}" ] && [ "$pl" != "-" ] || continue
     for p in $pl; do printf '%s\n' "$p"; done
@@ -125,9 +131,9 @@ felix_ready_report() {
   local plugins=""
   if command -v claude >/dev/null 2>&1; then
     plugins="$(claude plugin list --json 2>/dev/null \
-      | sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
+      | LC_ALL=C sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
                -e 's/.*"enabled"[[:space:]]*:[[:space:]]*\([a-z]*\).*/EN \1/p' \
-      | awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
+      | LC_ALL=C awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
   fi
 
   while IFS= read -r want; do
@@ -136,13 +142,14 @@ felix_ready_report() {
 
     # Declared in the project's own manifest? A tool nobody declared is a tool
     # nobody agreed to, whatever happens to be installed on this laptop.
-    local row kind
-    row="$(grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    local row="" kind
+    # Only as a regular file, for the reason felix_ready_unused gives.
+    [ -f "$proj/stack.tsv" ] && row="$(LC_ALL=C grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     if [ -z "$row" ]; then
       printf 'undeclared\t%s\t%s\n' "$want" "named by a route, absent from stack.tsv"
       continue
     fi
-    kind="$(printf '%s' "$row" | cut -f1)"
+    kind="$(printf '%s' "$row" | LC_ALL=C cut -f1)"
 
     # A standalone skill is a directory, not a package: there is no plugin to
     # enable and nothing in the plugin list to find. Looking for one there

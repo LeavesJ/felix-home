@@ -84,7 +84,7 @@ EOF
 felix_procedures_stances() {
   local proj="$1"
   [ -f "$proj/procedures.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$proj/procedures.tsv" 2>/dev/null
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/procedures.tsv" 2>/dev/null
 }
 
 # Stances that record an actual judgement: an item, a moment, and something

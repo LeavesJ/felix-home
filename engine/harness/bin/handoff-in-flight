@@ -34,7 +34,7 @@ while [ $# -gt 0 ]; do
     *) break ;;
   esac
 done
-case "$within" in ''|*[!0-9]*) printf 'cannot examine: --within %s is not a whole number of hours\n' "$within"; exit 2 ;; esac
+case "$within" in ''|*[!0123456789]*) printf 'cannot examine: --within %s is not a whole number of hours\n' "$within"; exit 2 ;; esac
 within=$((10#$within))
 # Found before moving: $0 may be relative to where this was called from.
 HERE="$(cd "$(dirname "$0")/.." && pwd)" || exit 2

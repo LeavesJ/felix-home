@@ -83,7 +83,7 @@ FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 # Curated rows first, in the engine's own table order; then the capabilities
 # no row covers, sorted, so a curated row also beats a name-only fallback.
 _felix_discover_rules() {
-  local tpl="$1" proj="$2" cap kws rcap rkws table="" declared ruled=""
+  local tpl="$1" proj="$2" cap kws rcap rkws table="" declared ruled="" LC_ALL=C
   [ -f "$tpl/discover-rules.tsv" ] \
     && table="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null)"
   declared="$(felix_declared "$proj")"
@@ -164,8 +164,10 @@ felix_discover_candidates() {
   rules="$(_felix_discover_rules "$tpl" "$proj")"
   [ -n "$rules" ] || return 0
 
-  local declared
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # stack.tsv only as a regular file: a pipe at the path held this grep open
+  # for a writer that never came (2026-10-01). Anything else declares nothing.
+  local declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | LC_ALL=C cut -f2 | LC_ALL=C sed 's/@.*//')"
 
   listing="$(claude plugin list --json --available </dev/null 2>/dev/null)" || return 3
   # A listing is a JSON array or object. An error printed to stdout with a
@@ -179,7 +181,7 @@ felix_discover_candidates() {
   # unreadable — an over-refusal in the one direction nobody can act on, which
   # is how a check gets switched off. The measured failure is the plain-text
   # one and that is what this rejects.
-  case "$(printf '%s' "$listing" | tr -d '[:space:]' | cut -c1)" in
+  case "$(printf '%s' "$listing" | LC_ALL=C tr -d '[:space:]' | LC_ALL=C cut -c1)" in
     '['|'{') ;;
     *) return 3 ;;
   esac
@@ -205,9 +207,9 @@ felix_discover_candidates() {
   # the rest.
   local rows
   rows="$(printf '%s\n' "$listing" \
-    | sed -n -e 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/N \1/p' \
+    | LC_ALL=C sed -n -e 's/.*"name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/N \1/p' \
              -e 's/.*"description"[[:space:]]*:[[:space:]]*"\(.*\)".*/D \1/p' \
-    | awk '/^N /{ if (n != "") print n "\t" d; n=substr($0,3); d="" }
+    | LC_ALL=C awk '/^N /{ if (n != "") print n "\t" d; n=substr($0,3); d="" }
            /^D /{ d=substr($0,3) }
            END{ if (n != "") print n "\t" d }' \
     | while IFS=$'\t' read -r name desc; do
@@ -215,13 +217,13 @@ felix_discover_candidates() {
         felix_has_line "$declared" "$name" && continue
         local hit best best_cap
         hit="$(felix_capability_match "$name" "$desc" "$rules")"
-        best="$(printf '%s' "$hit" | cut -f1)"
-        best_cap="$(printf '%s' "$hit" | cut -f2)"
+        best="$(printf '%s' "$hit" | LC_ALL=C cut -f1)"
+        best_cap="$(printf '%s' "$hit" | LC_ALL=C cut -f2)"
         if [ "$best" -ge "${FELIX_DISCOVER_MIN:-3}" ]; then
           printf '%s\t%s\t%s\t%s\n' "$best" "$best_cap" "$name" "$desc"
         fi
       done)"
-  printf '%s\n' "$rows" | grep . | sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
+  printf '%s\n' "$rows" | LC_ALL=C grep . | LC_ALL=C sort -k1,1nr | head -"$FELIX_DISCOVER_MAX"
   return 0
 }
 
@@ -321,21 +323,21 @@ felix_discover_fetch() {
 _felix_discover_hooks_facts() {
   local f="$1"
   printf 'hooks\t%s\n' \
-    "$(grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
-       | tr -d '"' | sort -u | tr '\n' ' ')"
-  grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
-    | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
+    "$(LC_ALL=C grep -oE '"(PreToolUse|PostToolUse|SessionStart|SessionEnd|Stop|UserPromptSubmit|PostToolBatch)"' "$f" \
+       | LC_ALL=C tr -d '"' | LC_ALL=C sort -u | LC_ALL=C tr '\n' ' ')"
+  LC_ALL=C grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
+    | LC_ALL=C sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
     | while IFS= read -r c; do printf 'hook-command\t%s\n' "$c"; done
   return 0
 }
 
 _felix_discover_mcp_facts() {
   local f="$1"
-  grep -qE '"type"[[:space:]]*:[[:space:]]*"(http|sse)"' "$f" \
+  LC_ALL=C grep -qE '"type"[[:space:]]*:[[:space:]]*"(http|sse)"' "$f" \
     && printf 'mcp\tremote endpoint\n' || printf 'mcp\tlocal subprocess\n'
-  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
+  LC_ALL=C grep -oE '\$\{[A-Z_]+' "$f" | LC_ALL=C tr -d '${' | LC_ALL=C sort -u \
     | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
-  grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
+  LC_ALL=C grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the mcp command\n'
   return 0
 }
 
@@ -347,12 +349,12 @@ _felix_discover_mcp_facts() {
 _felix_discover_lsp_facts() {
   local f="$1"
   printf 'lsp\tlocal subprocess\n'
-  grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
-    | sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
+  LC_ALL=C grep -oE '"command"[[:space:]]*:[[:space:]]*"[^"]{0,90}' "$f" \
+    | LC_ALL=C sed 's/.*"command"[[:space:]]*:[[:space:]]*"//' \
     | while IFS= read -r c; do printf 'lsp-command\t%s\n' "$c"; done
-  grep -oE '\$\{[A-Z_]+' "$f" | tr -d '${' | sort -u \
+  LC_ALL=C grep -oE '\$\{[A-Z_]+' "$f" | LC_ALL=C tr -d '${' | LC_ALL=C sort -u \
     | while IFS= read -r v; do [ -n "$v" ] && printf 'interpolates\t%s\n' "$v"; done
-  grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the lsp command\n'
+  LC_ALL=C grep -qE '@latest|:latest' "$f" && printf 'floating\tan unpinned version in the lsp command\n'
   return 0
 }
 
@@ -1312,7 +1314,7 @@ felix_discover_cache_current() {
 # matched as the two-word phrase it tokenises to. `eval` no longer matches
 # `evaluation` or `evaltool`, and is not meant to: a keyword that matches
 # inside other words is a keyword that matches by accident.
-_felix_cap_tokens() { printf ' %s ' "$(printf '%s' "$1" | tr '[:upper:]' '[:lower:]' | tr -cs 'a-z0-9' ' ' | sed 's/^ *//; s/ *$//')"; }
+_felix_cap_tokens() { printf ' %s ' "$(printf '%s' "$1" | LC_ALL=C tr '[:upper:]' '[:lower:]' | LC_ALL=C tr -cs 'a-z0-9' ' ' | LC_ALL=C sed 's/^ *//; s/ *$//')"; }
 felix_capability_match() {
   local name="$1" desc="$2" rules="$3" skills="${4:-}"
   local nhay dhay shay cap kws kw kwn score hit best=0 best_cap=""
@@ -1347,7 +1349,7 @@ EOF
 felix_plugin_description() {
   local dir="$1"
   [ -f "$dir/.claude-plugin/plugin.json" ] || return 0
-  sed -n 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
+  LC_ALL=C sed -n 's/.*"description"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
     "$dir/.claude-plugin/plugin.json" 2>/dev/null | head -1
 }
 
@@ -1379,8 +1381,10 @@ felix_discover_adopt() {
 
   # Compared without the marketplace suffix, the same way candidates are
   # filtered, so langfuse@x already declared matches a langfuse candidate.
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
-              | cut -f2 | sed 's/@.*//')"
+  # Only as a regular file, for the reason felix_discover_candidates gives.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null \
+              | LC_ALL=C cut -f2 | LC_ALL=C sed 's/@.*//')"
 
   # Four fields, and the fourth is read even though this function does not use
   # it. A three-field read hands `low<TAB><digest>` to `risk` whole, no tier
@@ -1466,6 +1470,7 @@ felix_discover_stale() {
 felix_discover_refresh_bg() {
   local proj="$1" home="$2" felix_bin="$3"
   local dir lock
+  command -v felix_neutral_run >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach-read.sh"
   dir="$home/state/discover"
   lock="$dir/.lock"
   mkdir -p "$dir" 2>/dev/null || return 0
@@ -1473,11 +1478,10 @@ felix_discover_refresh_bg() {
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT
     felix_close_inherited_fds
-    cd "$(felix_repo_root "$PWD")" 2>/dev/null || exit 0
-    # A refresh that could not read the marketplaces exits non-zero and writes
-    # nothing, and the previous answer stands: an unreadable catalogue is not
-    # an empty one, and must not become one for seven days.
-    if "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
+    # Never the checkout, which may be a stranger's: an empty directory holding a .felix naming the
+    # project (lib/reach-read.sh), or no run at all. A read that fails writes nothing and the previous
+    # answer stands: an unreadable catalogue is not an empty one, and must not become one for a week.
+    if felix_neutral_run "$proj" felix-discover "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
       mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
             "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
     else

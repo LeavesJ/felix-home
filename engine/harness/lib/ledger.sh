@@ -95,7 +95,7 @@ _felix_ledger_rows() {
 # data written before 2026-08-12 says "unknown" rather than "zero".
 felix_ledger_summary() {
   local proj="$1"
-  _felix_ledger_rows "$(felix_mem_dir "$proj")" | awk -F'\t' '
+  _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' '
     $4 != "" {
       # A built-in skill is not the plugin that shares its name.
       #
@@ -456,7 +456,7 @@ $name"
     [ -n "$_o" ] && seen_owner="$seen_owner
 $_o"
   done <<EOF
-$(sort -u "$state" 2>/dev/null)
+$(LC_ALL=C sort -u "$state" 2>/dev/null)
 EOF
 
   # Anything a route named that was never reached for. It has no call row to
@@ -480,14 +480,18 @@ $name"
     seen_owner="$seen_owner
 $_o"
   done <<EOF
-$(sort -u "$state" 2>/dev/null)
+$(LC_ALL=C sort -u "$state" 2>/dev/null)
 EOF
 
   # The zero rows. Every declared capability that this session never reached
   # for, written down because absence of use given presence is the only
   # unconfounded evidence in the design and it leaves no trace of its own.
   if [ -f "$proj/stack.tsv" ]; then
-    while IFS=$'\t' read -r kind name _src _risk _cap; do
+    # A last row with no newline is declared too. `read` returns 1 on it with
+    # the fields filled, and the loop dropped it, so the capability written
+    # last by hand never got its zero row: the one unconfounded signal said
+    # nothing about it (2026-10-01).
+    while IFS=$'\t' read -r kind name _src _risk _cap || [ -n "${kind:-}" ]; do
       case "${kind:-}" in ''|'#'*) continue ;; esac
       [ -n "${name:-}" ] || continue
       # stack.tsv names a package (`superpowers@marketplace`); a signal names

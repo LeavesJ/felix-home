@@ -168,7 +168,7 @@ felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
   if [ -f "$HOME/.felix-home" ]; then
-    local p; p="$(tr -d '[:space:]' < "$HOME/.felix-home")"
+    local p; p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home")"
     [ -n "$p" ] && [ -d "$p" ] && { printf '%s' "$p"; return; }
   fi
   # A plugin install is a frozen copy of the whole repository, projects/
@@ -254,12 +254,61 @@ felix_mem_dir() {
   printf '%s/%s' "${FELIX_MEMORY:-$HOME/.felix/memory}" "${p##*/}"
 }
 
+# The locale, decided 2026-10-08. The engine runs in its caller's locale, and a
+# macOS Terminal sets LANG=en_US.UTF-8, so `felix` run by a person, and every
+# hook of a claude started from that Terminal, runs in UTF-8; a desktop
+# session's tool shell runs in C, which is why no session saw what follows.
+# Measured on macOS 26, bash 3.2.57, with a Latin-1 byte (\351):
+#
+#   - BSD sed, tr and cut stop at a byte that is not UTF-8 ("illegal byte
+#     sequence") and print nothing more; grep misses a match that lies after
+#     one on its line; awk aborts the whole program on a regex over one; and a
+#     pattern holding one compiles to nothing, in grep and in [[ =~ ]]. One
+#     such byte on a project.json line above "gate" made the sed below print
+#     nothing, and the Stop hook then judged no gate at all.
+#   - awk splits and slices by bytes but matches by characters, so a program
+#     that walks text a byte at a time aborts on a lone byte of a VALID
+#     character too. lib/deny-read.sh did: any Bash command holding an accent
+#     or a dash passed every deny row.
+#   - bash collates its own globs and bracket ranges in the locale: `for f in
+#     *` gives `_x alpha Beta` in UTF-8 and `Beta _x alpha` in C, and
+#     `case B in [a-z])` matches in UTF-8. Even `[0-9]` admits one character,
+#     U+2185, which collates as 6; `[ "$n" -ne 3 ]` then errors and takes the
+#     else branch. macOS's [[:digit:]] admits 670.
+#
+# Two rules follow, and tests/run holds the engine to both:
+#
+#   1. A function whose answer can depend on bash's own collation (where the
+#      first match of a glob decides, where a bracket range judges input a
+#      person or a third party wrote, or wherever it uses [[ =~ ]]) declares
+#      LC_ALL=C in a `local` line. bash restores the caller's on return, and it
+#      costs no process. A bracket over digits alone in bash's own pattern is
+#      spelled out instead, everywhere: [0123456789], not [0-9]. A local
+#      LC_ALL=C would also make ${#x} count bytes in that function.
+#   2. A grep, sed, tr, cut, awk, paste, fold, column, rev or expand that reads
+#      bytes the engine did not write (a table, project.json, a file of the
+#      governed repository, a diff, the gate's output, a plugin's files), where
+#      its result decides something, is written `LC_ALL=C <tool>` on that
+#      command. In a function that exists to decide from such bytes, every one
+#      is, so a later edit cannot add one that is not; tests/run lists them.
+#
+# Display keeps the caller's locale, so a message still counts characters as
+# the person's terminal does. sort, comm, join and uniq are pinned everywhere,
+# by the rule tests/run states beside its lint for them.
+
 # Read one top-level string field out of a flat JSON file.
 # Handles exactly what project.json needs: one nesting level, no escaped quotes.
 # Anything richer belongs in a real parser, and would mean project.json has
 # outgrown its job.
+#
+# Something at the path that is not a regular file is not opened, and reads as
+# no field (2026-10-01). Resolution reads every project's project.json, so a
+# pipe at one project's path held sed open for a writer that never came, and
+# every hook of every project waited on it. Nothing at the path is left to sed
+# as before.
 felix_json_str() {
-  sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
+  if [ -e "$1" ] && [ ! -f "$1" ]; then return 2; fi
+  LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
 # Print the repo root for a directory, or the directory itself when not in git.
@@ -318,7 +367,7 @@ felix_head_branch() {
   local root="$1" b
   b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
     || b="$(git -C "$root" rev-parse --abbrev-ref HEAD 2>/dev/null)" || b=""
-  printf '%s' "${b:-?}" | tr -d '\t\n\r'
+  printf '%s' "${b:-?}" | LC_ALL=C tr -d '\t\n\r'
 }
 
 felix_head_commit() {
@@ -395,14 +444,17 @@ felix_mem_mistake_rows() {
 # Order matters. The .felix marker wins because it is the only mechanism that
 # works for a repo with no remote, a fork, a rename, or a checkout of somebody
 # else's code. Remote matching is the convenience path, not the contract.
+# Locale, 2026-10-08: glob order bound Web or web-admin by who ran felix. Byte
+# order still binds the less specific of the two, a separate defect. The rules
+# are above felix_json_str.
 felix_resolve_project() {
-  local start="${1:-$PWD}" felix_root="$2"
+  local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
   local root name remote meta match
   root="$(felix_repo_root "$start")"
 
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
-    name="$(tr -d '[:space:]' < "$root/.felix")"
+    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")"
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
@@ -459,7 +511,7 @@ felix_resolve_project() {
 # is the main checkout. Both need a per-session record of where the session
 # stood, which this does not keep.
 _felix_hook_dir_set() {   # payload, home -> _felix_hd
-  local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"'
+  local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"' LC_ALL=C
   _felix_hd="$PWD"
   raw="${raw:0:4096}"
   case "$raw" in *'"cwd"'*) ;; *) return 0 ;; esac
@@ -535,6 +587,7 @@ _felix_binding_sane() {
 # no tables, no deny rows and no gate, and every hook reading it as governed.
 # A name holding a slash is a path, and a path is not a name either.
 _felix_name_ok() {
+  local LC_ALL=C
   case "${1:-}" in
     ''|.*|-*|*/*|*[!A-Za-z0-9._-]*) return 1 ;;
   esac
@@ -584,7 +637,7 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
+    p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then
@@ -602,10 +655,10 @@ felix_binding_broken() {
 
   root="$(felix_repo_root "$start")"
   [ -f "$root/.felix" ] || return 0
-  name="$(tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
-  known="$(ls "$home/projects" 2>/dev/null | tr '\n' ' ')"
+  known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
   elif ! _felix_name_ok "$name"; then
@@ -811,7 +864,7 @@ felix_added_lines() {
     fi
     git -C "$root" diff --cached 2>/dev/null
     git -C "$root" diff 2>/dev/null
-  } | grep '^+' | grep -v '^+++'
+  } | LC_ALL=C grep '^+' | LC_ALL=C grep -v '^+++'
 }
 
 # A file as it will be committed, not as it was last committed.
@@ -857,7 +910,51 @@ felix_file_at() {
 felix_count() {
   local n
   n="$(grep -c "$@" 2>/dev/null)" || true
-  case "$n" in ''|*[!0-9]*) printf '0' ;; *) printf '%s' "$n" ;; esac
+  case "$n" in ''|*[!0123456789]*) printf '0' ;; *) printf '%s' "$n" ;; esac
+}
+
+# Whether a file's last line is ended, so that the next
+# `printf '...\n' >> file` lands as a row of its own.
+#
+# 2026-10-01: felix adopt appended `obs` to a hand-written capabilities file
+# holding `api` with no final newline, and wrote `apiobs`, one row that was
+# neither. felix_declared then listed `apiobs`, so both capabilities were lost,
+# while the stack and setup rows for `obs` were still appended. Any file the
+# engine appends to that something else also writes - a table a person may
+# edit, a log a routine curates, a project gate's own output - can end that
+# way, so the engine ends it before it appends, and a table row that cannot be
+# put on a line of its own is not appended.
+#
+# 0: absent, empty, or ending in a newline. 1: a last line with no newline.
+# 2: not a regular file, or its last byte cannot be read. Something at the path
+# that is not a regular file is never opened: a FIFO would block the append
+# that follows, a directory would fail it after the caller had counted it, and
+# a dangling link would create its target.
+#
+# The last byte is read as a number, as lib/table.sh reads it. A command
+# substitution drops a NUL the same way it drops a newline, so the obvious
+# `[ -n "$(tail -c 1 f)" ]` reads a NUL-ended file as ended and glues the row.
+felix_line_ended() {
+  local f="$1" last
+  if [ -e "$f" ] || [ -L "$f" ]; then [ -f "$f" ] || return 2; fi
+  [ -s "$f" ] || return 0
+  last="$( { tail -c 1 < "$f" | od -An -tx1 | tr -d ' \n'; } 2>/dev/null )"
+  [ "$last" = "0a" ] && return 0
+  [ -n "$last" ] || return 2
+  return 1
+}
+
+# Ends the file's last line if it has none. Returns 1 when the file is not one
+# a row can be appended to whole: not a regular file, a last byte that cannot
+# be read, or a newline that cannot be written. The caller must then not
+# append, and must not count or report the row as written.
+felix_end_line() {
+  felix_line_ended "$1"
+  case $? in
+    0) return 0 ;;
+    1) { printf '\n' >> "$1"; } 2>/dev/null ;;
+    *) return 1 ;;
+  esac
 }
 
 felix_same_repo() {
@@ -887,7 +984,7 @@ _felix_plugin_version() {
   local root="$1" ref="${2:-}"
   { if [ -n "$ref" ]; then git -C "$root" show "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null
     else cat "$root/engine/.claude-plugin/plugin.json" 2>/dev/null; fi
-  } | sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
+  } | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1
 }
 
 # The engine that judges, which must not be the engine being judged.
@@ -1014,13 +1111,13 @@ felix_deployable_from() {
 felix_version_bump() {
   local manifest="$1" cur major minor patch next tmp
   [ -f "$manifest" ] || return 1
-  cur="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
+  cur="$(LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' "$manifest" | head -1)"
   case "$cur" in
-    [0-9]*.[0-9]*.[0-9]*) ;;
+    [0123456789]*.[0123456789]*.[0123456789]*) ;;
     *) return 1 ;;
   esac
   major="${cur%%.*}"; minor="${cur#*.}"; minor="${minor%%.*}"; patch="${cur##*.}"
-  case "$major$minor$patch" in *[!0-9]*) return 1 ;; esac
+  case "$major$minor$patch" in *[!0123456789]*) return 1 ;; esac
   next="${major}.${minor}.$((patch + 1))"
   # Through a temp file, so a failed write cannot leave empty the one manifest
   # whose corruption stops everything deploying.
@@ -1028,7 +1125,7 @@ felix_version_bump() {
   # suite points TMPDIR at a fixture to count what is left there.
   local tmpd="${TMPDIR:-/tmp}"
   tmp="$(mktemp "${tmpd%/}/felix-bump.XXXXXX")" || return 1
-  sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
+  LC_ALL=C sed 's/\("version"[[:space:]]*:[[:space:]]*"\)[^"]*\("\)/\1'"${next}"'\2/' \
       "$manifest" > "$tmp" 2>/dev/null || { rm -f "$tmp"; return 1; }
   [ -s "$tmp" ] || { rm -f "$tmp"; return 1; }
   mv -f "$tmp" "$manifest" 2>/dev/null || { rm -f "$tmp"; return 1; }

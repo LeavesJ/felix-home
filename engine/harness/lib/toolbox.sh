@@ -25,12 +25,14 @@ FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"
 # directory anywhere, so "no path" is a normal answer and never an error.
 # Version directories sort with -V so 0.10.0 beats 0.9.0, which plain sort does
 # not: the gate's own installed check was once wrong for exactly this reason.
+# Locale, 2026-10-08: glob order decided which marketplace's copy answered.
+# The rules are above felix_json_str in resolve.sh.
 felix_toolbox_path() {
-  local name="$1" d
+  local name="$1" d LC_ALL=C
   for d in "$FELIX_PLUGIN_CACHE"/*/"$name"; do
     [ -d "$d" ] || continue
     local newest
-    newest="$(ls -d "$d"/*/ 2>/dev/null | sort -V | tail -1)"
+    newest="$(ls -d "$d"/*/ 2>/dev/null | LC_ALL=C sort -V | tail -1)"
     [ -n "$newest" ] && { printf '%s' "${newest%/}"; return 0; }
     printf '%s' "$d"; return 0
   done
@@ -97,11 +99,11 @@ felix_toolbox_routed() {
   local proj="$1" name="$2" plays heads nl='
 '
   [ -f "$proj/routes.tsv" ] || return 1
-  plays="$(grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | cut -f4 | tr ' ' '\n')"
+  plays="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | LC_ALL=C cut -f4 | LC_ALL=C tr ' ' '\n')"
   # Read whole, then matched by case, not piped into grep: GNU grep writing to
   # /dev/null stops at its first match as -q does, and pipefail reads the sed it
   # cut off as no route. The `.` keeps an empty last line that $(...) strips.
-  heads="$(printf '%s\n' "$plays" | sed 's/:.*//' && printf .)" || return 1
+  heads="$(printf '%s\n' "$plays" | LC_ALL=C sed 's/:.*//' && printf .)" || return 1
   case "$nl${heads%.}" in *"$nl$name$nl"*) return 0 ;; esac
   return 1
 }
@@ -117,7 +119,10 @@ felix_toolbox_route_for() {
   local proj="$1" want="$2" prof caps name kw pr play
   [ -n "$want" ] || return 0
   [ -f "$proj/profiles.tsv" ] && [ -f "$proj/routes.tsv" ] || return 0
-  while IFS=$'\t' read -r prof caps; do
+  # Both loops keep a last row that has no newline. `read` returns 1 on it with
+  # the fields filled, so a profile or a route written last by hand was
+  # dropped and this said no route reaches a capability one did (2026-10-01).
+  while IFS=$'\t' read -r prof caps || [ -n "${prof:-}" ]; do
     case "$prof" in ''|'#'*) continue ;; esac
     # Exact capability only. Matching `always` here as a wildcard would send
     # every capability to the core profile and make the report useless by
@@ -126,7 +131,7 @@ felix_toolbox_route_for() {
       *",${want},"*) ;;
       *) continue ;;
     esac
-    while IFS=$'\t' read -r name kw pr play; do
+    while IFS=$'\t' read -r name kw pr play || [ -n "${name:-}" ]; do
       case "$name" in ''|'#'*) continue ;; esac
       [ "${pr:-}" = "$prof" ] && printf '%s\n' "$name"
     done < "$proj/routes.tsv"

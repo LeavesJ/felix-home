@@ -103,10 +103,10 @@ _felix_qualify_drop() {   # root, base
   fi
   _felix_qualify_phys "${base%/*}" && pdir="$_felix_qualify_text"
   _felix_qualify_reg "$root" "$base" "$pdir"
-  if [ -n "$_felix_qualify_text" ] && ! git -C "$root" worktree remove -f -f "$_felix_qualify_text" >/dev/null 2>&1; then
+  if [ -n "$_felix_qualify_text" ] && ! _felix_qualify_wt "$root" remove -f -f "$_felix_qualify_text"; then
     _felix_qualify_in "$base" _felix_qualify_rmw
     _felix_qualify_reg "$root" "$base" "$pdir"
-    if [ -n "$_felix_qualify_text" ] && ! git -C "$root" worktree remove -f -f "$_felix_qualify_text" >/dev/null 2>&1; then
+    if [ -n "$_felix_qualify_text" ] && ! _felix_qualify_wt "$root" remove -f -f "$_felix_qualify_text"; then
       _felix_qualify_reg "$root" "$base" "$pdir"
       [ -z "$_felix_qualify_text" ] ||
         printf 'felix: %s still lists the scratch worktree %s, which could not be removed\n' \
@@ -457,7 +457,7 @@ _felix_qualify_one() {   # root, command, mutation, [premise] -> pass | fail | u
   # Before the add, so a row stopped while git checks the tree out goes too.
   # Every way out of this function lifts them, though it runs in a $(...).
   _felix_qualify_arm "$root" "$base"
-  if ! git -C "$root" worktree add --detach -q "$scratch" HEAD 2>/dev/null; then
+  if ! _felix_qualify_wt "$root" add --detach -q "$scratch" HEAD; then
     _felix_qualify_unown "$base"; trap - INT TERM HUP; printf 'unrunnable'; return 0
   fi
   got=""

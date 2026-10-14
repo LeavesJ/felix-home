@@ -390,10 +390,11 @@ _qswrowof() {   # held pid, caller pid
 # _qswpath, when set, goes first on its PATH, and _qswxenv, when set, is one
 # NAME=value more in its environment. TZ is not UTC, so a start read in local
 # time differs from one read under TZ=UTC0 on every runner.
+# One row at a time (FELIX_QUALIFY_JOBS=1): these stage one base, one killed row.
 _qswbg() {
   local d="$1" t="$2" root="$3" go="$4" what="$5"; shift 5
   mkdir -p "$d"; : >> "$d/made"; : >> "$d/git"; rm -f "$d/caller"
-  env ${_qswxenv:+"$_qswxenv"} TZ=JST-9 TMPDIR="$t" PATH="${_qswpath:+$_qswpath:}$QSWSHIM:$PATH" \
+  env FELIX_QUALIFY_JOBS=1 ${_qswxenv:+"$_qswxenv"} TZ=JST-9 TMPDIR="$t" PATH="${_qswpath:+$_qswpath:}$QSWSHIM:$PATH" \
     QSW_GITLOG="$d/git" QSW_NORECORD="${_qswnorec:-}" \
     perl -e '$SIG{INT} = $SIG{TERM} = $SIG{HUP} = "DEFAULT"; setpgrp(0, 0) or exit 97; exec @ARGV or exit 98' \
     "$BASH" "$QSWL" "$FROOT" "$root" "$d/made" "$d/caller" "$go" "$what" "$@" </dev/null >"$d/out" 2>"$d/err" &

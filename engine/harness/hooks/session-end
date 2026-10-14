@@ -35,6 +35,8 @@ session="$(printf '%s' "$raw" \
 _machine=0
 felix_session_machine "$FELIX_HOME_DIR" "$session" && _machine=1
 felix_session_machine_clear "$FELIX_HOME_DIR" "$session"
+# What the Stop hook held this session on goes with it (lib/verify.sh).
+felix_hold_tree_clear "$FELIX_HOME_DIR" "$session"
 [ "$_machine" = 1 ] && exit 0
 
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""

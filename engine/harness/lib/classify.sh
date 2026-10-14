@@ -83,7 +83,7 @@ felix_table_rel() {
 _felix_risk_rows() {
   local proj="$1"
   [ -f "$proj/risk.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/risk.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/risk.tsv"
 }
 
 # The rows the tree under judgement inherited. Empty when this branch added the
@@ -91,7 +91,7 @@ _felix_risk_rows() {
 # introducing a whole table has not yet earned the right to be judged by it.
 _felix_risk_rows_at() {
   local root="$1" ref="$2" rel="$3"
-  git -C "$root" show "$ref:$rel" 2>/dev/null | grep -vE '^\s*(#|$)'
+  git -C "$root" show "$ref:$rel" 2>/dev/null | LC_ALL=C grep -vE '^\s*(#|$)'
 }
 
 _felix_tier_rank() {
@@ -112,7 +112,7 @@ _felix_classify_pass() {
       path)
         while IFS= read -r f; do
           [ -n "$f" ] || continue
-          if grep -qE "$pattern" <<<"$f"; then
+          if LC_ALL=C grep -qE "$pattern" <<<"$f"; then
             printf '%s\t%s\t%s\n' "$tier" "$f" "$reason"
             matched_paths="$matched_paths
 $f"
@@ -128,7 +128,7 @@ EOF
         # newline, and the one the here-string adds only ends its last line.
         # Nothing is stripped first: a % removal of a trailing newline scans
         # every suffix of a value that has none, which is seconds on a long diff.
-        if [ -n "$added" ] && grep -qE "$pattern" <<<"$added"; then
+        if [ -n "$added" ] && LC_ALL=C grep -qE "$pattern" <<<"$added"; then
           printf '%s\tADDED-LINES\t%s\n' "$tier" "$reason"
         fi
         ;;

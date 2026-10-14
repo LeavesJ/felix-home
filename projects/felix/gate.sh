@@ -297,9 +297,35 @@ elif [ "${1:-}" = "--quick" ]; then
 elif ! GTLOG="$(mktemp "$GTLOG_DIR/felix-gate-tests.XXXXXX" 2>/dev/null)" || [ -z "$GTLOG" ]; then
   fail tests
   printf '    could not make a log file for the suite under %s\n' "$GTLOG_DIR"
-elif ./engine/harness/tests/run >"$GTLOG" 2>&1; then
-  pass tests
-  printf '                     %s\n' "$(tail -1 "$GTLOG")"
+elif ./engine/harness/tests/run --reuse >"$GTLOG" 2>&1; then
+  # --reuse answers from the receipt a passed run left for this exact tree
+  # (tests/receipt.sh), and runs the suite itself when there is none, so a pass
+  # here is a pass either way; what differs is that it says which. A reused run
+  # begins "reused " and is reported as `reused`, with the line that says when it
+  # ended and what it counted, and the receipt this gate writes carries
+  # `tests:reused` for it, so felix merge, the monitor and qualify can tell the
+  # two apart. A run that began "not reused: <reason>" ran the suite, and is `ok`.
+  # The log is searched for that line and not read from its first line: the log
+  # holds stderr as well, and one line from anything ahead of the answer (a
+  # misconfigured knob, a git warning, BASH_ENV) would have made a reused suite
+  # read as `ok`, and the merge would then ask nothing of GitHub for it. It is
+  # searched for anywhere on a line and not only at the start of one, because
+  # such a fragment need not end in a newline: `warning: x` written with none
+  # sits in front of the sentence on the same line (review finding C9-R4). The
+  # summary a reused run ends on, which says `(reused)`, counts as the same
+  # sign. A log that shows reuse anywhere is `reused`, never `ok`; the other way
+  # about is only ever a stricter merge.
+  GTREUSED="$(grep -m1 -E 'reused the suite run that ended .* on this tree \(.*\), not run again' "$GTLOG")"
+  GTLAST="$(tail -1 "$GTLOG")"
+  [ -n "$GTREUSED" ] || case "$GTLAST" in *' (reused)') GTREUSED="$GTLAST" ;; esac
+  if [ -n "$GTREUSED" ]; then
+    printf '  %-18s reused\n' tests
+    printf '                     %s\n' "$GTREUSED"
+    [ "$GTLAST" = "$GTREUSED" ] || printf '                     %s\n' "$GTLAST"
+  else
+    pass tests
+    printf '                     %s\n' "$GTLAST"
+  fi
   rm -f "$GTLOG"
 else
   fail tests

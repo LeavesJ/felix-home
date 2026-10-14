@@ -21,16 +21,25 @@
 # maintenance.tsv rows: name <TAB> cadence-days <TAB> capability <TAB> description
 #   cadence 0 means event-driven, never on a clock.
 
+# felix_end_line lives in resolve.sh, which the CLI and the hooks source first.
+# Sourced here too rather than assumed: missing, the record below would fail
+# every time and say only that the log was not written.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 _felix_maint_rows() {
   local proj="$1"
   [ -f "$proj/maintenance.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/maintenance.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/maintenance.tsv"
 }
 
 _felix_maint_last() {   # epoch of the most recent run, or empty
   local proj="$1" name="$2" line last=""
   [ -f "$proj/maintenance.log" ] || return 0
-  while IFS=$'\t' read -r n epoch _; do
+  # A last line with no newline is a run too, and the loop dropped it, so the
+  # routine it recorded read as due again (2026-10-01).
+  while IFS=$'\t' read -r n epoch _ || [ -n "${n:-}" ]; do
     [ "${n:-}" = "$name" ] && last="$epoch"
   done < "$proj/maintenance.log"
   printf '%s' "$last"
@@ -39,12 +48,17 @@ _felix_maint_last() {   # epoch of the most recent run, or empty
 felix_maint_record() {
   local proj="$1" name="$2" now
   now="$(date +%s)"
+  # The log is committed, and a hand-merge can drop its final newline. This run
+  # then fused onto that last line, and the reader took the line's first name
+  # and epoch, so the run just recorded was never read (2026-10-01). Not
+  # ended, no row is written and the caller says so.
+  felix_end_line "$proj/maintenance.log" || return 1
   printf '%s\t%s\t%s\n' "$name" "$now" "$(date -r "$now" +%Y-%m-%d 2>/dev/null || date +%Y-%m-%d)" \
     >> "$proj/maintenance.log"
 }
 
 # Emits: status <TAB> name <TAB> days-since <TAB> cadence <TAB> description
-# status is due | ok | inflight | event | unchecked | dormant
+# status is due | ok | inflight | event | unchecked | dormant | unknown
 # Upkeep rows that can never come due.
 #
 # The capability column takes `always` or a capability name. Anything else
@@ -58,19 +72,33 @@ felix_maint_record() {
 # into noise. Only a name that is not a capability at all is caught, because
 # that is a typo wearing a dash.
 #
-# Emits: name <TAB> capability, one line per unreachable row.
+# Emits: name <TAB> capability, one line per unreachable row, and
+# name <TAB> capability <TAB> unknown when the declared list could not be read
+# at all.
+#
+# Until 2026-10-01 the list was read here with felix_has_line over
+# $(felix_declared), so a list that could not be read said "nothing declares
+# it", the same claim as a list that was read and does not. The row is now
+# asked of _felix_cap_active, whose status 2 is the third column.
 FELIX_MAINT_CAPABILITIES='ci deploy iac observability billing e2e database api frontend llm rust tests secrets'
 
 felix_maint_unreachable() {
-  local proj="$1" name cadence cap desc
+  local proj="$1" name cadence cap desc rc
   [ -f "$proj/maintenance.tsv" ] || return 0
-  while IFS=$'\t' read -r name cadence cap desc; do
+  # The last routine is kept when it has no newline, as _felix_maint_last keeps
+  # the log's last run: dropped, an unreachable routine written last by hand
+  # was never reported (2026-10-01).
+  while IFS=$'\t' read -r name cadence cap desc || [ -n "${name:-}" ]; do
     case "$name" in ''|'#'*) continue ;; esac
     [ -n "${cap:-}" ] || continue
     [ "$cap" = "always" ] && continue
     case " $FELIX_MAINT_CAPABILITIES " in *" $cap "*) continue ;; esac
-    felix_has_line "$(felix_declared "$proj")" "$cap" 2>/dev/null && continue
-    printf '%s\t%s\n' "$name" "$cap"
+    _felix_cap_active "$cap" "$proj" 2>/dev/null; rc=$?
+    case "$rc" in
+      0) continue ;;
+      1) printf '%s\t%s\n' "$name" "$cap" ;;
+      *) printf '%s\t%s\tunknown\n' "$name" "$cap" ;;
+    esac
   done < "$proj/maintenance.tsv"
 }
 
@@ -169,17 +197,27 @@ felix_maint_status() {
   # keep working, so the fifth is filled with `-` when absent. The sixth is `-`
   # or why the check is refused.
   _felix_maint_judged "$proj" | while IFS= read -r line; do
-    local name cadence cap desc check ff
-    name="$(printf '%s\n' "$line" | cut -f1)"
-    cadence="$(printf '%s\n' "$line" | cut -f2)"
-    cap="$(printf '%s\n' "$line" | cut -f3)"
-    desc="$(printf '%s\n' "$line" | cut -f4)"
-    check="$(printf '%s\n' "$line" | cut -f5)"
-    ff="$(printf '%s\n' "$line" | cut -f6)"
+    local name cadence cap desc check ff rc
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
+    cadence="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
+    cap="$(printf '%s\n' "$line" | LC_ALL=C cut -f3)"
+    desc="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
+    check="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
+    ff="$(printf '%s\n' "$line" | LC_ALL=C cut -f6)"
     [ -n "${name:-}" ] || continue
-    if ! _felix_cap_active "${cap:-always}" "$proj"; then
-      printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue
-    fi
+    # Until 2026-10-01 this was `! _felix_cap_active`, so a declared list that
+    # could not be read (status 2) printed `dormant`, a routine that may be due
+    # said to be not yet. It is `unknown` now, never due: `due` is what session
+    # start's "Maintenance due" line, the stop hook's overnight list, next.sh
+    # rank 4 and pulse act on, and a false due sends someone to work that may
+    # not apply. The `unchecked` precedent, a row that could not be asked being
+    # its own word. Its check is not run and its last run is not read.
+    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue ;;
+      *) printf 'unknown\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue ;;
+    esac
     if [ "${cadence:-0}" -eq 0 ] 2>/dev/null; then
       if [ -n "$check" ] && [ "$check" != "-" ] && [ "$ff" != "-" ]; then
         printf 'due\t%s\trefused\t0\t%s\n' "$name" "$desc"; continue
@@ -188,7 +226,7 @@ felix_maint_status() {
         if [ -n "$root" ] && [ -d "$root" ]; then
           local said held
           if said="$(cd "$root" && FELIX_HARNESS_DIR="$FELIX_MAINT_HARNESS" bash -c "$check" felix-maint </dev/null 2>/dev/null)"; then
-            held="$(printf '%s\n' "$said" | tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
+            held="$(printf '%s\n' "$said" | LC_ALL=C tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
                       | LC_ALL=C awk 'NF { printf "%s%s", s, $0; s = "; " }')"
             if [ -n "$held" ]; then
               printf 'inflight\t%s\t%s\t0\t%s\n' "$name" "$held" "$desc"

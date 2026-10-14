@@ -32,7 +32,7 @@ _fi_orphan_find() {
   : > "$T/orph"; : > "$T/scope"; : > "$T/nest"
   reg="$_FI_NL$(cut -f1 "$T/wt")$_FI_NL"
   { awk -F'\t' 'NR > 1 && $4 !~ /linebreak/ { p = $1; sub(/\/[^\/]*$/, "", p); if (p != "") print p }' "$T/wt"; _fi_orphan_parents; } \
-    | sort -u > "$T/parents"
+    | LC_ALL=C sort -u > "$T/parents"
   while IFS= read -r p <&3; do
     in=0; [ -n "$_FI_MAIN" ] && case "$p/" in "$_FI_MAIN"/?*/) in=1; printf '%s/\n' "$p" >> "$T/scope" ;; esac
     for o in "$p"/*/; do
@@ -56,8 +56,12 @@ _fi_orphan_find() {
   done > "$T/nest"
 }
 # The gitdir a directory's .git file names, absolute, resolved as far as it exists.
+# Both callers test `-f` first, and it is tested here again, so a pipe put at
+# .git between their test and this read is never opened (2026-10-08): the
+# readers lint judges an open by its own function.
 _fi_gitdir() {
   local g x
+  [ -f "$1/.git" ] || return 1
   g="$(sed -n 's/^gitdir: //p' "$1/.git" 2>/dev/null | head -1)"
   case "$g" in /*) ;; ?*) g="$1/$g" ;; *) return 1 ;; esac
   x="$(cd "${g%/*}" 2>/dev/null && pwd -P)" && g="$x/${g##*/}"
@@ -113,8 +117,8 @@ _fi_orphan_rows() {
   while IFS="$_FI_TAB" read -r o x <&3; do
     _fi_uniq "$o"; _FI_DET="$_FI_UQ"; [ "$x" = - ] || _fi_add "$x"
     _fi_host "$o"
-    when="$(date -r "$o" +%s 2>/dev/null)"; case "$when" in *[!0-9]*|'') when=0 ;; esac
-    case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
+    when="$(date -r "$o" +%s 2>/dev/null)"; case "$when" in *[!0123456789]*|'') when=0 ;; esac
+    case "${_FI_H[1]}" in *[!0123456789]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
     _fi_states "$_FI_OC" live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" orphan=yes; _fi_age "$when"
     ! _fi_temp "$o" || _fi_add temp
     _fi_row orphan "$o" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$_FI_OC" "$_FI_DET" - -

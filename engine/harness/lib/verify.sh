@@ -151,6 +151,7 @@ felix_session_machine_clear() {   # home, sid
 # cannot be written, nothing here can be told apart, and every flagged stop
 # ends at the flag as it did before any of this existed.
 _felix_hold_path() {   # home, sid -> path, or 1 when the id cannot name a file
+  local LC_ALL=C
   [ -n "${1:-}" ] || return 1
   case "${2:-}" in ''|.|..|-*|*[!A-Za-z0-9._-]*) return 1 ;; esac
   [ "${#2}" -le 128 ] || return 1
@@ -179,6 +180,63 @@ felix_hold_clear() {   # home, sid
   local path
   path="$(_felix_hold_path "${1:-}" "${2:-}")" || return 0
   [ -f "$path" ] || return 0
+  rm -f "$path" 2>/dev/null || true
+}
+
+# What a session was held on for a gate that had not passed, one line a hold:
+# the tree id, the reason (never verified, stale receipt, failed, epoch moved)
+# and the checkout, tab-separated. So a session is held once for each, not at
+# every stop after it.
+#
+# Every wake-up of an idle session (a background task finishing, another
+# session's message) ends in a stop of its own, and each was judged afresh, so
+# a tree whose gate had not run was held again at each one. Counted over 13.5
+# hours of 2026-10-08 by replay_holds.py (audits/2026-10-09-token-burn in the
+# memory root): 366 holds in 41 sessions, a median of 7 a session and 48 at
+# most, each a model turn of about 69K tokens, 2.8% of a week's allowance.
+# The first hold says everything a hold can; the rest only cost. So the next
+# stop on the same tree, for the same reason, in the same checkout, lets the
+# session go and puts the unrun gate on record as a debt (felix_verify_log).
+# A changed tree is held again, and so is the same tree when the reason moved:
+# held as never verified, the gate then failed on it, and that is news. A
+# person's prompt clears the record (hooks/user-prompt), since a person asking
+# is a new question about the work, and so does SessionEnd. hooks/stop does not
+# hold once where the tree id cannot tell work apart (an unborn HEAD, a coarse
+# id) or for a session that holds a night, whose own bounds govern it. The
+# same script, replaying this rule: 157 holds, a median of 2 a session and 18
+# at most.
+#
+# Under state/, which tree identity excludes, so marking a tree cannot change
+# it. A record that cannot be read or written holds as before, and so does a
+# path that is not a regular file or is a link: nothing here may open a pipe or
+# write through a link out of state/.
+_felix_hold_tree_path() {   # home, sid -> path, or 1 when the id cannot name a file
+  _felix_hold_path "${1:-}" "${2:-}" >/dev/null || return 1
+  printf '%s/state/held-tree/%s' "$1" "$2"
+}
+
+felix_hold_tree_seen() {   # home, sid, tid, reason, checkout -> 0 when held on just that
+  local path
+  [ -n "${3:-}" ] || return 1
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 1
+  [ -f "$path" ] && [ ! -L "$path" ] || return 1
+  grep -Fxq -e "$3	${4:-}	${5:-}" "$path" 2>/dev/null
+}
+
+felix_hold_tree_mark() {   # home, sid, tid, reason, checkout
+  local path
+  [ -n "${3:-}" ] || return 0
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 0
+  mkdir -p "$(dirname "$path")" 2>/dev/null || return 0
+  [ ! -L "$path" ] || return 0
+  [ ! -e "$path" ] || [ -f "$path" ] || return 0
+  printf '%s\t%s\t%s\n' "$3" "${4:-}" "${5:-}" >> "$path" 2>/dev/null || true
+}
+
+felix_hold_tree_clear() {   # home, sid
+  local path
+  path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 0
+  [ -f "$path" ] || [ -L "$path" ] || return 0
   rm -f "$path" 2>/dev/null || true
 }
 
@@ -241,16 +299,54 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
+# Arguments after the second are pathspecs added to the exclusions, for the
+# diff and for the untracked list alike, each exactly as given: `:(exclude)x`
+# names a path to leave out, and nothing here adds the prefix. The suite's
+# receipt (tests/receipt.sh) asks for a tree id with the two record files
+# left out, so a record run can say that nothing else moved while red rewrote
+# them. With two arguments or fewer this is the function it was, and no caller
+# that exists passes a third.
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
+  local root="$1" home="${2:-}"
+  if [ "$#" -gt 2 ]; then shift 2; else set --; fi
+  _felix_tree_id_on "$root" "" "$home" "$@"
+}
+
+# The id felix_tree_id would print for this checkout as it is now if HEAD named
+# <commit> instead: the same exclusions, the diff of the working tree against
+# <commit>, the same untracked files, the same hashing, because it is the same
+# code with the commit as an input. The suite's receipt asks it for a commit's
+# parent (tests/receipt.sh, rule C10): the id hashes HEAD, so committing the
+# tree a run passed moves the id although the content is the run's. Status 1
+# and nothing when <commit> is empty (it never falls back to HEAD) or no commit.
+felix_tree_id_on() {   # <root> <commit> [home] [pathspec...]
+  local root="$1" at="${2:-}" home="${3:-}"
+  [ -n "$at" ] || return 1
+  if [ "$#" -gt 3 ]; then shift 3; else set --; fi
+  _felix_tree_id_on "$root" "$at" "$home" "$@"
+}
+
+# The one hashing path. <at> empty is HEAD, as felix_tree_id always read it,
+# the unborn case included; otherwise it is the commit that stands in for HEAD,
+# in the hash and as the base of the diff.
+_felix_tree_id_on() {   # <root> <at> <home> [pathspec...]
+  local root="$1" at="$2" home="${3:-}" head diff untracked n meta="" prefix="" f base=HEAD
+  shift 3
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $ex
 EOF
+  for f in "$@"; do exargs+=("$f"); done
 
-  head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
+  if [ -n "$at" ]; then
+    head="$(git -C "$root" rev-parse -q --verify "$at^{commit}" 2>/dev/null)" || return 1
+    [ -n "$head" ] || return 1
+    base="$head"
+  else
+    head="$(git -C "$root" rev-parse HEAD 2>/dev/null)" || head=""
+  fi
   if [ -z "$head" ]; then
     # An unborn HEAD has nothing to diff against. A repository with no commits is
     # a real state — it is what `git init` leaves, and what this suite's own
@@ -258,7 +354,7 @@ EOF
     head="unborn"
     diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   else
-    diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    diff="$(git -C "$root" diff "$base" -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi
 
   untracked="$(git -C "$root" ls-files --others --exclude-standard \
@@ -340,11 +436,11 @@ felix_verify_record() {
   result=green; [ "$rc" -eq 0 ] || result=red
   if [ $# -lt 8 ]; then
     local name proj fields
-    name="$(head -1 "$root/.felix" 2>/dev/null | tr -d '[:space:]')"
+    name="$(head -1 "$root/.felix" 2>/dev/null | LC_ALL=C tr -d '[:space:]')"
     proj="$home/projects/$name"
     if [ -n "$name" ] && [ -d "$proj" ]; then
       fields="$(felix_verify_epoch_fields "$proj" "$root")"
-      epoch="$(printf '%s' "$fields" | cut -f1)"; comps="$(printf '%s' "$fields" | cut -f2)"
+      epoch="$(printf '%s' "$fields" | LC_ALL=C cut -f1)"; comps="$(printf '%s' "$fields" | LC_ALL=C cut -f2)"
     fi
   fi
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$tid" "$result" "$(_felix_now)" "$gate" \
@@ -374,24 +470,33 @@ felix_verify_receipt() { cat "$(_felix_receipt_path "$1" "$2")" 2>/dev/null; }
 # epoch.sh is sourced at call time rather than at load, because it pulls
 # commission.sh in behind it and commission.sh sources this file: a load-time
 # source from here would be a cycle, and at call time this file is complete.
+#
+# A fourth argument, when one is given, is the receipt's text as the caller
+# already read it, and is judged in place of reading the file again. It exists
+# for a caller that also wants a field of the receipt it asks about (the merge
+# boundary reads the reported checks for rule C9): this function takes a third
+# of a second, the gate rewrites the receipt with a truncating `>`, and a
+# second read after this one is not the receipt that was judged (review finding
+# C9-R3). Absent, it reads the file as it always did; an empty fourth argument
+# is a receipt of nothing, which is `none`.
 felix_verify_current() {
   local root="$1" home="$2" proj="$3" tid receipt r_tid r_res r_epoch r_comps comps now_epoch
-  receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  if [ $# -ge 4 ]; then receipt="$4"; else receipt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"; fi
   [ -n "$receipt" ] || { printf 'none\n'; return 1; }
-  r_res="$(printf '%s' "$receipt" | cut -f2)"
+  r_res="$(printf '%s' "$receipt" | LC_ALL=C cut -f2)"
   [ "$r_res" = "green" ] || { printf 'red\n'; return 1; }
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null)" || tid=""
-  r_tid="$(printf '%s' "$receipt" | cut -f1)"
+  r_tid="$(printf '%s' "$receipt" | LC_ALL=C cut -f1)"
   if [ -z "$tid" ] || [ "$r_tid" != "$tid" ]; then
     printf 'stale\tthe tree changed since the receipt\n'; return 1
   fi
   # Six fields: written before the epoch existed, by an engine that could not
   # say what its verdict rested on. Not current; one gate run rewrites it.
-  if [ "$(printf '%s' "$receipt" | awk -F'\t' '{ print NF }')" -lt 7 ]; then
+  if [ "$(printf '%s' "$receipt" | LC_ALL=C awk -F'\t' '{ print NF }')" -lt 7 ]; then
     printf 'stale\tthe receipt predates the epoch, so what it rests on is not recorded; run felix gate\n'; return 1
   fi
-  r_epoch="$(printf '%s' "$receipt" | cut -f7)"
-  r_comps="$(printf '%s' "$receipt" | cut -f8)"
+  r_epoch="$(printf '%s' "$receipt" | LC_ALL=C cut -f7)"
+  r_comps="$(printf '%s' "$receipt" | LC_ALL=C cut -f8)"
   # `-`: the gate had no epoch to record, which with a green result means the
   # project declares no probes — a probe that could not run turns the gate
   # red, and a red receipt never reaches this line. A verdict resting on
@@ -409,7 +514,7 @@ felix_verify_current() {
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
   # awk, not grep -q, here and in felix_verify_epoch_fields: it reads every
   # value before it answers, so no writer is cut off for pipefail to misread.
-  if printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
+  if printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf 'stale\tthe grounded facts cannot be read now, so the receipt cannot be confirmed; run felix gate\n'; return 1
   fi
   now_epoch="$(printf '%s\n' "$comps" | _felix_hash)"
@@ -417,15 +522,15 @@ felix_verify_current() {
   # Which component moved, in the order a reader can act on: the world first,
   # then the tables, then the two that almost never move.
   local s t p r
-  s="$(printf '%s' "$r_comps" | cut -d, -f1)"; t="$(printf '%s' "$r_comps" | cut -d, -f2)"
-  p="$(printf '%s' "$r_comps" | cut -d, -f3)"; r="$(printf '%s' "$r_comps" | cut -d, -f4)"
-  if [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "topology_version" { print $2 }')" != "$t" ]; then
+  s="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f1)"; t="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f2)"
+  p="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f3)"; r="$(printf '%s' "$r_comps" | LC_ALL=C cut -d, -f4)"
+  if [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "topology_version" { print $2 }')" != "$t" ]; then
     printf 'stale\tthe grounded facts moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "policy_version" { print $2 }')" != "$p" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "policy_version" { print $2 }')" != "$p" ]; then
     printf 'stale\tthe table set moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "subject_identity" { print $2 }')" != "$s" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "subject_identity" { print $2 }')" != "$s" ]; then
     printf 'stale\tthe subject moved since the receipt; run felix gate\n'
-  elif [ "$(printf '%s\n' "$comps" | awk -F'\t' '$1 == "release_target" { print $2 }')" != "$r" ]; then
+  elif [ "$(printf '%s\n' "$comps" | LC_ALL=C awk -F'\t' '$1 == "release_target" { print $2 }')" != "$r" ]; then
     printf 'stale\tthe release target moved since the receipt; run felix gate\n'
   else
     printf 'stale\tthe epoch moved since the receipt and no component says why; run felix gate\n'
@@ -442,11 +547,11 @@ felix_verify_epoch_fields() {
   fi
   command -v felix_epoch_components >/dev/null 2>&1 || { printf -- '-\t-\n'; return 0; }
   comps="$(felix_epoch_components "$proj" "$root" 2>/dev/null)"
-  if [ -z "$comps" ] || printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }'; then
+  if [ -z "$comps" ] || printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }'; then
     printf -- '-\t-\n'; return 0
   fi
   printf '%s\t%s\n' "$(printf '%s\n' "$comps" | _felix_hash)" \
-    "$(printf '%s\n' "$comps" | cut -f2 | paste -sd, -)"
+    "$(printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C paste -sd, -)"
 }
 
 # Every decision, allowed or refused, appended and committed. Nothing else in

@@ -144,4 +144,73 @@ if [ "$(type -t _ibsig)" = function ] && [ -n "${IB:-}" ] && command -v perl >/d
 else
   bad "$GFQ_B2A" "part 0920's _ibsig, part 0900's \$IB or perl is not here"
 fi
+
+# ---------------------------------------------------------------------- B4 ---
+# _sr_env's host: LocalHostName from /usr/sbin/scutil when that answers with a
+# valid name (contract B4.1), else uname -n (B4.4). Asked of receipt.sh in a
+# child bash given nothing but PATH and HOME, as part 1200 asks it. The
+# expected name is computed here from the contract's words: the file is
+# executable, the command exits 0, and its output is one non-empty line of
+# only ASCII letters, digits and hyphens.
+GFQ_R="$REAL_HARNESS/tests/receipt.sh"
+GFQ_P="$(dirname "$(command -v git)"):/usr/bin:/bin"
+_gfq_alone() { env -i PATH="$GFQ_P" HOME="$HOME" "$@"; }
+_gfq_env() { _gfq_alone "$@" bash -c '. "$1" >/dev/null 2>&1 || exit 97; _sr_env' _ "$GFQ_R" 2>/dev/null; }
+_gfq_host() { printf '%s\n' "$1" | sed -n 's/^host=\([^;]*\);.*$/\1/p'; }
+GFQ_LH=""; GFQ_LHOK=0
+if [ -x /usr/sbin/scutil ]; then
+  if GFQ_LH="$(/usr/sbin/scutil --get LocalHostName 2>/dev/null)"; then
+    case "$GFQ_LH" in
+      ""|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-]*) ;;
+      *) GFQ_LHOK=1 ;;
+    esac
+  fi
+fi
+GFQ_B4A="B4: where scutil gives a valid LocalHostName, _sr_env's host is that name"
+GFQ_B4B="B4: with a uname on PATH that names a new host on every call, two _sr_env calls give the same host, and not the stub's"
+GFQ_B4C="B4: where scutil is absent or gives nothing valid, _sr_env's host is uname -n"
+GFQ_B4D="B4: _sr_env's other four fields are bash, locale, path and claude, in that order, on one line (control)"
+GFQ_E0="$(_gfq_env)"
+if [ ! -x /usr/sbin/scutil ]; then
+  skip "$GFQ_B4A" "/usr/sbin/scutil is not executable here"
+  skip "$GFQ_B4B" "/usr/sbin/scutil is not executable here"
+elif [ "$GFQ_LHOK" -ne 1 ]; then
+  skip "$GFQ_B4A" "scutil --get LocalHostName gave no valid name here"
+  skip "$GFQ_B4B" "scutil --get LocalHostName gave no valid name here"
+else
+  is "$GFQ_B4A" "$(_gfq_host "$GFQ_E0")" "$GFQ_LH"
+  mkdir -p "$GFQ/unm"; : > "$GFQ/unm.n"
+  printf '#!/bin/sh\nprintf x >> "%s/unm.n"\nprintf "gfq-stub-%%s\\n" "$(wc -c < "%s/unm.n" | tr -d " ")"\n' "$GFQ" "$GFQ" > "$GFQ/unm/uname"
+  chmod +x "$GFQ/unm/uname"
+  GFQ_S1="$(_gfq_alone PATH="$GFQ/unm:$GFQ_P" bash -c '. "$1" >/dev/null 2>&1 || exit 97; _sr_env' _ "$GFQ_R" 2>/dev/null)"
+  GFQ_S2="$(_gfq_alone PATH="$GFQ/unm:$GFQ_P" bash -c '. "$1" >/dev/null 2>&1 || exit 97; _sr_env' _ "$GFQ_R" 2>/dev/null)"
+  GFQ_H1="$(_gfq_host "$GFQ_S1")"; GFQ_H2="$(_gfq_host "$GFQ_S2")"
+  GFQ_U1="$(PATH="$GFQ/unm:$GFQ_P" uname -n)"; GFQ_U2="$(PATH="$GFQ/unm:$GFQ_P" uname -n)"
+  if [ "$GFQ_U1" = "$GFQ_U2" ]; then
+    bad "$GFQ_B4B" "the stub uname named one host twice ([$GFQ_U1]), so it proves nothing"
+  else
+    case "$GFQ_H1" in
+      "" | gfq-stub-*) bad "$GFQ_B4B" "first host [$GFQ_H1] second [$GFQ_H2]" ;;
+      *) is "$GFQ_B4B" "$GFQ_H2" "$GFQ_H1" ;;
+    esac
+  fi
+fi
+if [ -x /usr/sbin/scutil ] && [ "$GFQ_LHOK" -eq 1 ]; then
+  skip "$GFQ_B4C" "scutil answers LocalHostName here; this one runs where it does not"
+else
+  is "$GFQ_B4C" "$(_gfq_host "$GFQ_E0")" "$(uname -n)"
+fi
+GFQ_BV="$(_gfq_alone bash -c 'printf %s "$BASH_VERSION"' 2>/dev/null)"
+GFQ_PH1="$(printf '%s' "$GFQ_P" | git hash-object --stdin)"; GFQ_PH2="$(printf '%s\n' "$GFQ_P" | git hash-object --stdin)"
+GFQ_CL="$(_gfq_alone bash -c 'command -v claude >/dev/null 2>&1 && echo yes || echo no' 2>/dev/null)"
+case "$GFQ_E0" in
+  *"
+"*) bad "$GFQ_B4D" "more than one line: [$GFQ_E0]" ;;
+  "host="*";bash=$GFQ_BV;locale=;path=$GFQ_PH1;claude=$GFQ_CL"|"host="*";bash=$GFQ_BV;locale=;path=$GFQ_PH2;claude=$GFQ_CL")
+    case "$(_gfq_host "$GFQ_E0")" in
+      "" | *";"*) bad "$GFQ_B4D" "the host field is empty or holds a ;: [$GFQ_E0]" ;;
+      *) ok "$GFQ_B4D" ;;
+    esac ;;
+  *) bad "$GFQ_B4D" "got [$GFQ_E0]" ;;
+esac
 # <<< gate-friction-b

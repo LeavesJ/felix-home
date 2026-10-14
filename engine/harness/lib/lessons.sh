@@ -52,7 +52,7 @@ felix_lessons_for() {
     | tr -cs 'a-z0-9_-' '\n' \
     | grep -E '^.{4,}$' \
     | grep -vE '^(this|that|with|from|have|been|will|when|what|there|their|would|could|should|about|into|then|than|they|them|your|make|does|just|also|only|some|more|most|need|want|please|help|file|code|test|tests|change|changes|update|fix|fixes)$' \
-    | sort -u)"
+    | LC_ALL=C sort -u)"
   [ -n "$words" ] || return 0
 
   _felix_lessons_entries "$file" | while IFS= read -r entry; do
@@ -66,7 +66,7 @@ felix_lessons_for() {
 $words
 EOF
     [ "$score" -gt 0 ] && printf '%s\t%s\n' "$score" "$entry"
-  done | sort -rn | head -"$max" | cut -f2- | _felix_lessons_headline
+  done | LC_ALL=C sort -rn | head -"$max" | cut -f2- | _felix_lessons_headline
 }
 
 # A well-written lesson states itself in its first sentence and spends the rest

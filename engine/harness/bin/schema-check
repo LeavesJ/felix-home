@@ -64,7 +64,7 @@ SCHEMAS="engine/harness/templates/schemas.tsv"
 . "$HERE/lib/final-filter.sh"
 
 # name <TAB> lives, one per schema row.
-DECLARED="$(felix_table_rows "$SCHEMAS" | cut -f1,2)"
+DECLARED="$(felix_table_rows "$SCHEMAS" | LC_ALL=C cut -f1,2)"
 
 # lives <TAB> path for every file that is a table: declared by basename, or
 # named *.tsv (lives `none`). core.quotePath=false keeps non-ASCII names as
@@ -112,7 +112,7 @@ land_check() {   # <file>
 while IFS= read -r line; do
   [ -n "$line" ] && add "$SCHEMAS:$line"
 done <<EOF
-$(felix_table_schema_malformed "$SCHEMAS" | sed 's/	/	schema-/')
+$(felix_table_schema_malformed "$SCHEMAS" | LC_ALL=C sed 's/	/	schema-/')
 EOF
 
 N=0

@@ -54,7 +54,7 @@ _felix_mem_stamp() {
 # inherits from its parent. A dash when there is none, or when the id holds
 # anything that could break a row.
 _felix_mem_sid() {
-  local sid="${CLAUDE_CODE_SESSION_ID:-}"
+  local sid="${CLAUDE_CODE_SESSION_ID:-}" LC_ALL=C
   case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
   printf '%s' "$sid"
 }
@@ -133,14 +133,14 @@ felix_mem_handoff() {
   f="$(felix_mem_dir "$proj")/SESSION_HANDOFF.md"
   if [ "$replace" != 1 ] && felix_mem_handoff_foreign "$f"; then
     printf 'felix handoff: not replacing %s, %s bytes that felix handoff did not write:\n' \
-      "$f" "$(wc -c < "$f" | tr -d ' ')" >&2
+      "$f" "$(wc -c < "$f" | LC_ALL=C tr -d ' ')" >&2
     printf 'it does not open with the header this command writes, "# Handoff" and then\n' >&2
     printf '"Regenerated <date>." on the third line. Move it aside, or pass --replace to\n' >&2
     printf 'overwrite it with the regenerated handoff.\n' >&2
     return 1
   fi
   if [ -z "$note" ] && [ -f "$f" ]; then
-    note="$(sed -n 's/^- what was in progress: //p' "$f" | head -1)"
+    note="$(LC_ALL=C sed -n 's/^- what was in progress: //p' "$f" | head -1)"
     case "$note" in _fill*) note="" ;; esac
   fi
   body="$(_felix_mem_handoff_text "$root" "$gate" "$note")"
@@ -251,6 +251,12 @@ felix_mem_handoff_foreign() {
 # byte for byte what #267 writes, and a heal passes a row of five or six
 # fields through byte for byte: it joins only the split pair an older engine
 # left, which is four fields once joined.
+#
+# Curated means rewritten by hand or by a session, so its last line can arrive
+# without a newline. This row then fused onto it, and `cut -f4` and the
+# ranking's $4 read neither mistake (2026-10-01). Ended first, under the same
+# lock; a log that cannot be ended takes no row, as one that cannot be written
+# takes none.
 felix_mem_mistake() {
   local proj="$1" root="$2" what="$3" dir d b c w at sid held=0 tries=0 rc
   dir="$(felix_mem_dir "$proj")"
@@ -266,7 +272,11 @@ felix_mem_mistake() {
     sleep 0.1
     tries=$((tries + 1))
   done
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" "$at" "$sid" >> "$dir/mistakes.log"; rc=$?
+  if felix_end_line "$dir/mistakes.log"; then
+    printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$d" "$b" "$c" "$w" "$at" "$sid" >> "$dir/mistakes.log"; rc=$?
+  else
+    rc=1
+  fi
   [ "$held" -eq 1 ] && _felix_mem_unlock "$dir/.mistakes.lock"
   return "$rc"
 }
@@ -297,9 +307,12 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
     return 0
   fi
   [ -d "$lock" ] || return 1
-  owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
+  # Read only as a regular file, as _felix_mem_unlock reads it (2026-10-08);
+  # otherwise no owner, and the age rule below decides.
+  owner=""
+  [ -f "$lock/pid" ] && owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
   case "$owner" in
-    ''|*[!0-9]*) ;;
+    ''|*[!0123456789]*) ;;
     *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
   esac
   if [ "$stale" -eq 0 ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
@@ -320,10 +333,12 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
 # lock whose pid file is missing or empty is removed too, because the write of
 # the pid can fail (a full disk), and a lock this call left behind would have
 # every writer wait out its three seconds, and every heal decline, until the
-# lock aged past a minute.
+# lock aged past a minute. A pid that is not a regular file is not read, and
+# reads as missing: a pipe there would hold the release, and the gate behind
+# it, forever (2026-10-08).
 _felix_mem_unlock() {
-  local owner
-  owner="$(head -n 1 "$1/pid" 2>/dev/null)"
+  local owner=""
+  [ -f "$1/pid" ] && owner="$(head -n 1 "$1/pid" 2>/dev/null)"
   case "$owner" in
     ''|"$$") rm -rf "$1" 2>/dev/null ;;
   esac
@@ -502,7 +517,7 @@ felix_mem_recurring_mistakes() {
         printf "%d\t%s\t%s\t%d\n", count[t], t, last[t], runs[t]
       }
     }
-  ' 2>/dev/null | sort -rn
+  ' 2>/dev/null | LC_ALL=C sort -rn
 }
 
 # Whether the lessons file holds a lesson about a check of this name.
@@ -568,7 +583,7 @@ felix_mem_promotable() {
     END { for (t in entries) if (entries[t] >= MIN) printf "%d\t%s\n", entries[t], t }
   ' MIN="$min" "$(felix_mem_dir "$proj")/DEVLOG.md" \
     | grep -vE $'\t(about|after|again|against|because|before|being|between|could|during|every|first|found|from|going|instead|into|might|other|rather|really|should|since|still|than|that|their|them|then|there|these|they|thing|think|this|those|through|under|until|were|what|when|where|which|while|with|would|your|commit|change|changes|added|update|updated|files|file|version|branch|already|actually|something|because|makes|making|which|there|where|point|second)$' \
-    | sort -rn \
+    | LC_ALL=C sort -rn \
     | while IFS=$'\t' read -r n term; do
         [ -n "${term:-}" ] || continue
         case "$lessons" in *"$term"*) continue ;; esac

@@ -134,6 +134,10 @@ FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/'
 #
 # Named by shape. projects/<name>/autonomy exists for every governed project,
 # and the engine names none of them.
+#
+# The shape also matches autonomy.lock, felix autonomy's writer lock
+# (felix_autonomy_lock, autonomy.sh). That is an empty directory, which git
+# does not track, so it never reaches a diff and this never fires on it.
 FELIX_ESCAPE_AUTHORITY='(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$'
 
 # exception: the table of grants that clear a TASK_BLOCKING obligation at the
@@ -180,18 +184,18 @@ _felix_escape_confined() {
   hunk="$( { git -C "$root" diff -U0 "$base...HEAD" -- "$f" 2>/dev/null
              git -C "$root" diff -U0 --cached -- "$f" 2>/dev/null
              git -C "$root" diff -U0 -- "$f" 2>/dev/null
-           } | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"
+           } | LC_ALL=C grep -E '^[-+]' | LC_ALL=C grep -vE '^(\+\+\+|---)')"
   [ -n "$hunk" ] || return 1
 
   # Any line outside the confine means the row fires. A here-string, not a
   # pipe: grep -q stops at the first such line, and a printf still writing a
   # long hunk dies of SIGPIPE, which pipefail reads as every line confined.
-  grep -qvE "$confine" <<<"$hunk" && return 1
+  LC_ALL=C grep -qvE "$confine" <<<"$hunk" && return 1
 
-  plus="$(printf '%s\n' "$hunk"  | grep '^+' \
-          | sed -E 's/^\+[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
-  minus="$(printf '%s\n' "$hunk" | grep '^-' \
-          | sed -E 's/^-[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
+  plus="$(printf '%s\n' "$hunk"  | LC_ALL=C grep '^+' \
+          | LC_ALL=C sed -E 's/^\+[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
+  minus="$(printf '%s\n' "$hunk" | LC_ALL=C grep '^-' \
+          | LC_ALL=C sed -E 's/^-[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
   [ "$plus" = "$minus" ] || return 1
   return 0
 }
@@ -214,8 +218,8 @@ _felix_escape_confined() {
 # since it also teaches them to route around the ones that matter.
 _felix_escape_fewer() {
   local root="$1" base="$2" f="$3" pattern="$4" before after
-  before="$(git -C "$root" show "$base:$f" 2>/dev/null | grep -cE "$pattern")"
-  after="$( felix_file_at "$root" HEAD "$f" | grep -cE "$pattern")"
+  before="$(git -C "$root" show "$base:$f" 2>/dev/null | LC_ALL=C grep -cE "$pattern")"
+  after="$( felix_file_at "$root" HEAD "$f" | LC_ALL=C grep -cE "$pattern")"
   [ "${after:-0}" -lt "${before:-0}" ]
 }
 
@@ -231,10 +235,12 @@ _felix_escape_fewer() {
 # on the most ordinary edit there is. Caught on the commit that declared
 # `consumers`, which added two keys and removed nothing. A genuine removal takes
 # its whole line with it and is still caught.
+# Locale, 2026-10-08: sed stopped at a byte that was not UTF-8 and hid every
+# removal below it. The rules are above felix_json_str in resolve.sh.
 _felix_escape_lines() {
   felix_file_at "$1" "$2" "$3" \
-    | grep -vE '^[[:space:]]*(#|$)' \
-    | sed -E 's/[[:space:]]*,[[:space:]]*$//' \
+    | LC_ALL=C grep -vE '^[[:space:]]*(#|$)' \
+    | LC_ALL=C sed -E 's/[[:space:]]*,[[:space:]]*$//' \
     | LC_ALL=C sort -u
 }
 
@@ -243,7 +249,13 @@ _felix_escape_shrank() {
   before="$(_felix_escape_lines "$root" "$base" "$f")"
   [ -n "$before" ] || return 1
   after="$(_felix_escape_lines "$root" HEAD "$f")"
-  [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+  # 2026-10-08: comm compares in its locale's collation, and both sides are
+  # sorted in C. Under LANG=en_US.UTF-8, an added row that sorts before an
+  # existing one in bytes and after it in the locale (Zulu and _under) made
+  # comm print a row nobody removed, so a pure addition read as a removal.
+  # Every sort, comm, join and uniq in the engine runs as LC_ALL=C <tool>,
+  # which tests/run lints.
+  [ -n "$(LC_ALL=C comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
 # Any change to the rows of an exemption table: the non-comment, non-blank
@@ -311,16 +323,16 @@ felix_escapes() {
   while IFS= read -r f; do
     [ -n "$f" ] || continue
 
-    grep -qE "$FELIX_ESCAPE_EXECUTE" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_EXECUTE" <<<"$f" \
       && printf 'execute\t%s\tmerging runs this job holding the repository secrets\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_AUTHORITY" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_AUTHORITY" <<<"$f" \
       && printf 'authority\t%s\tmerging grants Felix a power it then holds in every session; a revert does not un-run them\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_EXCEPTION" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_EXCEPTION" <<<"$f" \
       && printf 'exception\t%s\tmerging turns a written row into a grant that clears an obligation, and only a person may give one\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"
 
     # verifier, for the tables that decide what stops. Adding is free — except
@@ -340,7 +352,7 @@ EOF
 
   # A here-string for the reason _felix_escape_confined gives: SQL on an early
   # line of a long diff would otherwise read as no SQL at all.
-  [ -n "$added" ] && grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
+  [ -n "$added" ] && LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
     && printf 'durable\tADDED-LINES\tdestructive SQL in the added lines\n'
 
   # One lookup for the whole diff. `reviewed` is the only channel a verdict can
@@ -375,7 +387,7 @@ EOF
     [ "$channel" = "unknown" ] && channel="declared-unknown"
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      grep -qE "$pattern" <<<"$f" || continue
+      LC_ALL=C grep -qE "$pattern" <<<"$f" || continue
       [ "$channel" = "reviewed" ] && [ "$reviewed" = "pass" ] && continue
       case "${confine:-}" in
         count:*) _felix_escape_fewer "$root" "$base" "$f" "${confine#count:}" || continue ;;
@@ -386,7 +398,7 @@ EOF
 $paths
 EOF2
   done <<EOF
-$(grep -vE '^[[:space:]]*(#|$)' "$proj/risk.tsv")
+$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/risk.tsv")
 EOF
 }
 
@@ -394,10 +406,15 @@ EOF
 #
 # Emits: kind <TAB> subject <TAB> reason. Empty means merge.
 #
-# Computed entirely from the working tree, the diff and the receipt, so it
-# refuses with no network and no credentials. A merge command that learns its
-# own preconditions from the network cannot refuse offline, and offline is
-# exactly when somebody is most likely to reach for it.
+# Computed from the working tree, the diff and the receipt, so it refuses with
+# no network and no credentials. A merge command that learns its own
+# preconditions from the network cannot refuse offline, and offline is exactly
+# when somebody is most likely to reach for it.
+#
+# One rule asks GitHub, and only for one kind of receipt: rule C9, below, for a
+# gate that reused a suite run (tests:reused). It is the only place this
+# function reaches the network, a gate that ran its suite never asks, and where
+# GitHub cannot be asked the rule refuses, so offline still refuses.
 #
 # Three kinds, and they are not the same kind of thing:
 #
@@ -429,6 +446,116 @@ felix_merge_checkout() {
     "$tid"
 }
 
+# Whether the project's gate workflow has passed on one commit: rule C9 of
+# felix_merge_blockers, asked only of a receipt that reports tests:reused.
+#
+# felix-home has no branch protection, since the plan does not allow it on a
+# private repository, and `felix merge` does not ask CI: its boundary needs a
+# current green receipt for the exact tree and the evidence rows, and "merge on
+# green CI" has been a convention that nothing in the merge path read. Contract
+# A lets the receipt's tests verdict come from a suite receipt, a second file a
+# session can write. Forging that grants nothing that writing the gate receipt
+# does not already grant, but a defect that reused a run it should not have
+# would reach a merge with nothing independent behind it. The push security
+# review of 2026-10-12 asked for the independent verdict, and the gate
+# workflow's own run on this exact commit is it.
+#
+# Prints nothing and returns 0 when the newest run of that workflow on the
+# commit is completed and concluded success. The newest run is the one that
+# counts, and an older green one never stands in for it (review finding C9-R1):
+# a second run on one head appears when a pull request is reopened after main
+# moved, or when the same head sits in two of them, and it tests the head in a
+# different base. Otherwise returns 1 and prints what held, as the tail of the
+# blocker's reason:
+#
+#   no run on this commit
+#   its run is <status>                 the newest run on it has not completed
+#   its run concluded <conclusion>      the newest run on it completed and did not succeed
+#   GitHub could not be asked (<what failed>)
+#
+# Asked the way lib/repair.sh and lib/automerge.sh ask: `gh run list` for the
+# workflow felix_gate_workflow names and no other, because without --workflow
+# it lists every workflow's runs on the commit, and the unattended repair's or
+# GitHub's Dependency Graph passing is no verdict of the gate. The commit is
+# asked for with --commit, and each run's own headSha is read as well, so an
+# answer about another commit is no evidence however it came to be listed. A run
+# whose headSha is not exactly the commit is not a run on it, and one whose
+# headSha gh did not give at all cannot be placed, which is unreadable and never
+# a pass (review finding C9-R2).
+#
+# Unreadable is never "no run" and never a pass, and pass is the one word
+# anything here is compared to. The count is printed first, as repair.sh does
+# for the same reason: `.[]` over an empty list prints nothing, and gh printing
+# nothing because it failed would otherwise read as a commit nobody ran.
+_felix_merge_gate_held() {
+  local proj="$1" root="$2" sha="$3" wf slug runs rc=0 verdict key val tab=$'\t' lib
+  lib="$(dirname "${BASH_SOURCE[0]:-$0}")"
+  command -v gh >/dev/null 2>&1 || { printf 'GitHub could not be asked (gh is not on PATH)'; return 1; }
+  # Sourced when the rule fires, not at load: they name functions and run
+  # nothing, and every hook and the CLI load this file, almost none of them to
+  # judge a merge. Fails closed on a library that cannot be loaded, like the
+  # probe and obligation libraries above.
+  command -v felix_gate_workflow >/dev/null 2>&1 || . "$lib/bootstrap.sh" 2>/dev/null
+  command -v felix_repo_slug >/dev/null 2>&1 || . "$lib/detect.sh" 2>/dev/null
+  if ! command -v felix_gate_workflow >/dev/null 2>&1 || ! command -v felix_repo_slug >/dev/null 2>&1; then
+    printf 'GitHub could not be asked (the engine could not load what names the gate workflow and the repository)'
+    return 1
+  fi
+  wf="$(felix_gate_workflow "$proj" 2>/dev/null)" || {
+    printf 'GitHub could not be asked (%s)' "$(printf '%s' "$wf" | LC_ALL=C tr '\t\r\n' '   ')"
+    return 1
+  }
+  slug="$(felix_repo_slug "$root" 2>/dev/null)"
+  [ -n "$slug" ] || { printf 'GitHub could not be asked (this checkout has no github remote)'; return 1; }
+  [ -n "$sha" ] || { printf 'GitHub could not be asked (git could not read the head commit)'; return 1; }
+  runs="$(gh run list --repo "$slug" --workflow "$wf" --commit "$sha" --limit 20 \
+            --json status,conclusion,headSha \
+            -q 'def v: if . == null or . == "" then "-" else . end;
+                length, (.[] | "\(.status | v)\t\(.conclusion | v)\t\(.headSha | v)")' 2>/dev/null)" || rc=$?
+  [ "$rc" -eq 0 ] || { printf 'GitHub could not be asked (gh run list failed with status %s)' "$rc"; return 1; }
+  [ -n "$runs" ] || { printf 'GitHub could not be asked (gh run list printed nothing)'; return 1; }
+  # The first line is the count; the rest are runs, newest first as gh lists
+  # them, as status, conclusion and the commit the run is on, with `-` for a
+  # field gh left empty so no field is ever missing between two tabs.
+  #
+  # The first run that is on this commit decides, and nothing after it is read:
+  # a run before it that cannot be read or placed might have been the newest on
+  # this commit, so it is unreadable and not skipped, and an older success never
+  # outvotes a newer run that failed or has not finished.
+  verdict="$(printf '%s\n' "$runs" | LC_ALL=C awk -F'\t' -v sha="$sha" '
+    NR == 1 { if ($0 !~ /^[0-9]+$/) { bad = "gh run list printed no run count"; exit }
+              total = $0 + 0; next }
+    { lines++
+      st = $1; co = $2; on = $3
+      if (st !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a run whose status cannot be read"; exit }
+      if (on == "-" || on == "") { bad = "gh run list listed a run without the commit it is on"; exit }
+      if (on != sha) { other++; next }
+      if (st != "completed") { newest = "status\t" st; exit }
+      if (co !~ /^[A-Za-z0-9_]+$/) { bad = "gh run list listed a completed run without a conclusion"; exit }
+      newest = (co == "success") ? "pass" : ("concluded\t" co)
+      exit
+    }
+    END {
+      if (NR == 0) { print "unreadable\tgh run list printed nothing"; exit }
+      if (bad != "") { print "unreadable\t" bad; exit }
+      if (newest != "") { print newest; exit }
+      if (total == 0) { print "none"; exit }
+      if (lines == 0) { print "unreadable\tgh run list counted runs and listed none"; exit }
+      if (other == lines) { print "none"; exit }
+      print "unreadable\tgh run list listed runs that cannot be read"
+    }')"
+  key="${verdict%%"$tab"*}"; val="${verdict#*"$tab"}"
+  case "$key" in
+    pass)       return 0 ;;
+    none)       printf 'no run on this commit' ;;
+    status)     printf 'its run is %s' "$val" ;;
+    concluded)  printf 'its run concluded %s' "$val" ;;
+    unreadable) printf 'GitHub could not be asked (%s)' "$val" ;;
+    *)          printf 'GitHub could not be asked (the answer could not be read)' ;;
+  esac
+  return 1
+}
+
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
@@ -458,13 +585,43 @@ felix_merge_blockers() {
   # the Stop hook cannot disagree. Stale for a fact that moved outside the tree
   # is named as such, because "run felix gate" on a tree that did not change
   # reads as the hook being broken until the reason is beside it.
-  local cur
-  cur="$(felix_verify_current "$root" "$home" "$proj" 2>/dev/null)" || true
+  #
+  # The receipt is read once, here, and that text is what is judged and what
+  # rule C9 reads its reported checks from. felix_verify_current runs the
+  # project's probes, about a third of a second, and the gate rewrites the
+  # receipt with a truncating `>`: a second read after the judgement need not be
+  # the receipt that was judged, and an empty one would have dropped C9 and
+  # merged (review finding C9-R3).
+  local cur rcpt
+  rcpt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
+  cur="$(felix_verify_current "$root" "$home" "$proj" "$rcpt" 2>/dev/null)" || true
   case "$cur" in
     current) ;;
     stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
     *)       printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
   esac
+
+  # C9 (contract A2, the push security review of 2026-10-12): a gate that
+  # reused a suite run (the receipt reports tests:reused) merges only when the
+  # project's gate workflow has passed on the exact commit being merged. This
+  # repository has no branch protection and `felix merge` asks CI nothing
+  # otherwise, so without it a reused verdict would reach a merge with nothing
+  # independent behind it. Only a current green receipt is asked about, since
+  # any other already blocks above, and only the exact pair tests:reused
+  # counts: a receipt that ran its suite, tests:ok included, is judged as it
+  # always was and makes no call to gh.
+  if [ "$cur" = "current" ]; then
+    local rfield hsha held
+    rfield="$(printf '%s' "$rcpt" | cut -f6)"
+    case ",${rfield}," in
+      *,tests:reused,*)
+        hsha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
+        if ! held="$(_felix_merge_gate_held "$proj" "$root" "$hsha")"; then
+          printf 'unverified\ttests\tthe gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on %s: %s\n' \
+            "$(printf '%s' "${hsha:-HEAD}" | cut -c1-8)" "$held"
+        fi ;;
+    esac
+  fi
 
   felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
     | while IFS=$'\t' read -r status name reason; do

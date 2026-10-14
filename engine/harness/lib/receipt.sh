@@ -140,10 +140,10 @@ felix_receipt() {
   local rec rtid
   rec="$(felix_verify_receipt "$root" "$home" 2>/dev/null || true)"
   if [ -n "$rec" ]; then
-    rtid="$(printf '%s' "$rec" | cut -f1)"
-    rres="$(printf '%s' "$rec" | cut -f2)"
+    rtid="$(printf '%s' "$rec" | LC_ALL=C cut -f1)"
+    rres="$(printf '%s' "$rec" | LC_ALL=C cut -f2)"
     vres="\"$(_felix_rcpt_esc "$rres")\""
-    vwhen="\"$(_felix_rcpt_esc "$(printf '%s' "$rec" | cut -f3)")\""
+    vwhen="\"$(_felix_rcpt_esc "$(printf '%s' "$rec" | LC_ALL=C cut -f3)")\""
     vtree="\"$(_felix_rcpt_esc "$rtid")\""
     # Current only by verify.sh's reading, which also asks whether the facts
     # the verdict rests on have moved; a receipt that cannot be confirmed is
@@ -161,7 +161,7 @@ felix_receipt() {
   local ev="" gaps=""
   if [ "$base_ok" -eq 1 ] && [ -f "$proj/evidence.tsv" ]; then
     ev="$(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null || true)"
-    gaps="$(printf '%s\n' "$ev" | awk -F'\t' '$1=="gap"{print $2}')"
+    gaps="$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="gap"{print $2}')"
   fi
 
   # ---- authority. Carried here because no transport carries it, and refused
@@ -231,7 +231,7 @@ felix_receipt() {
   printf '  "verification": {"state": "%s", "result": %s, "tree": %s, "when": %s},\n' \
          "$vstate" "$vres" "$vtree" "$vwhen"
   printf '  "evidence": {"met": %s, "gap": %s},\n' \
-         "$(printf '%s\n' "$ev" | awk -F'\t' '$1=="met"{print $2}' | _felix_rcpt_arr)" \
+         "$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="met"{print $2}' | _felix_rcpt_arr)" \
          "$(printf '%s\n' "$gaps" | _felix_rcpt_arr)"
   printf '  "authority": {"autonomous": %s, "founder_required": %s, "granted_by": "%s", "escapes": %s},\n' \
          "$autonomous" "$founder" "$granted" \

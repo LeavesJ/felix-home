@@ -120,7 +120,7 @@ felix_exceptions_at_base() {   # proj -> file text
 # comments and blank lines are skipped; nothing else is a row.
 _felix_exceptions_scan() {   # mode (rows|bad) <- text
   local mode="$1"
-  awk -F'\t' -v mode="$mode" -v stamp="$FELIX_EXCEPTION_STAMP" -v hmin="$FELIX_EXCEPTION_HASH_MIN" '
+  LC_ALL=C awk -F'\t' -v mode="$mode" -v stamp="$FELIX_EXCEPTION_STAMP" -v hmin="$FELIX_EXCEPTION_HASH_MIN" '
     /^[[:space:]]*(#|$)/ { next }
     {
       sub(/\r$/, "")
@@ -168,20 +168,20 @@ felix_exception_for() {   # proj obligation class ledger-line [now] -> excepted:
   [ -n "$line" ] || return 1
   # An authority hold — pathway `unknown` — blocks whatever its discharge says
   # and no grant may clear it (amendments §1.3).
-  [ "$(printf '%s\n' "$line" | cut -f3)" != "unknown" ] || return 1
+  [ "$(printf '%s\n' "$line" | LC_ALL=C cut -f3)" != "unknown" ] || return 1
   text="$(felix_exceptions_at_base "$proj")" || return 1
   [ -n "$text" ] || return 1
   hash="$(printf '%s\n' "$line" | git hash-object --stdin 2>/dev/null)"
   [ -n "$hash" ] || return 1
   [ -n "$now" ] || now="$(_felix_exceptions_now "$proj")"
-  grep -qE "$FELIX_EXCEPTION_STAMP" <<<"$now" || return 1
+  LC_ALL=C grep -qE "$FELIX_EXCEPTION_STAMP" <<<"$now" || return 1
   local best="" bestwho="" maxyear=$(( ${now%%-*} + FELIX_EXCEPTION_HORIZON_YEARS ))
   while IFS= read -r row; do
     [ -n "$row" ] || continue
-    [ "$(printf '%s\n' "$row" | cut -f1)" = "$name" ] || continue
-    h="$(printf '%s\n' "$row" | cut -f2)"
-    exp="$(printf '%s\n' "$row" | cut -f3)"
-    who="$(printf '%s\n' "$row" | cut -f4)"
+    [ "$(printf '%s\n' "$row" | LC_ALL=C cut -f1)" = "$name" ] || continue
+    h="$(printf '%s\n' "$row" | LC_ALL=C cut -f2)"
+    exp="$(printf '%s\n' "$row" | LC_ALL=C cut -f3)"
+    who="$(printf '%s\n' "$row" | LC_ALL=C cut -f4)"
     case "$hash" in "$h"*) ;; *) continue ;; esac
     [[ "$exp" > "$now" ]] || continue
     [ "${exp%%-*}" -le "$maxyear" ] 2>/dev/null || continue

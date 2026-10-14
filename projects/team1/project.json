@@ -1,0 +1,5 @@
+{
+  "name": "team1",
+  "remote_match": "joshcodes42/Team1",
+  "gate": "npm run check"
+}

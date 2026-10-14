@@ -117,7 +117,7 @@ felix_table_schema() {
 # glob, and an unquoted expansion would match it against whatever files sit in
 # the directory the caller happens to be in.
 _felix_table_arity() {
-  printf '%s\n' "$1" | cut -f3 | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { t++; if ($i !~ /\?$/) r++ } } END { printf "%d %d\n", r, t }'
+  printf '%s\n' "$1" | LC_ALL=C cut -f3 | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { t++; if ($i !~ /\?$/) r++ } } END { printf "%d %d\n", r, t }'
 }
 
 # Everything wrong with one file as an instance of one table. One line per
@@ -145,7 +145,7 @@ felix_table_check() {
   read -r req tot <<EOF
 $(_felix_table_arity "$row")
 EOF
-  empty="$(printf '%s\n' "$row" | cut -f4)"
+  empty="$(printf '%s\n' "$row" | LC_ALL=C cut -f4)"
 
   # One pass classifies every line and applies every per-line refusal. The last
   # line it prints is the row count, which the shell splits off.

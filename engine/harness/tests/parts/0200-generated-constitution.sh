@@ -179,321 +179,759 @@ _pfre="(printf '%s(\\\\n)?'|echo) \"[\$][^\"]*\" [|] ([^|]*[|] )*grep [^|]*-[a-z
 _pfsites="$(_suite_src | grep -nE "$_pfre" | grep -vE -e '^[0-9]+:[[:space:]]*#' -e '"[$]big" [|] grep -Fxq 1 [)]')"
 is "no check in this suite pipes printf or echo of a variable into a chain ending in grep -q" "$_pfsites" ""
 
-# >>> hook-payload-cwd
-printf '\nhooks stand where the session stands\n'
-# Claude Desktop starts every session with --project-config-root naming the
-# main checkout, and Claude Code then spawns every command hook with its cwd
-# there, whatever directory the session works in. The session's own directory,
-# a worktree as often as not, reaches a hook only as the payload's top-level
-# "cwd" (measured 2026-10-02 against the real binary and a mock API). So every
-# hook that resolved from $PWD judged the main checkout: a Stop hook told a
-# worktree session that the gate had passed "on this exact tree" about the
-# main checkout's receipt, ninety seconds after the worktree's own green one.
+printf '\nno fixture git write follows a raw cd on a variable or a raw git -C on a variable\n'
+# On 2026-10-08 a fixture's `( cd "$_fs_wr" && git remote set-url ... )` ran with
+# the variable empty, bash 3.2 stayed in the directory the suite was started in,
+# and the config every worktree of felix-home shares came back with origin
+# pointing at acme/widget. The preamble's _fx_cd and _fx_git are the fix: they
+# refuse a directory they cannot prove is under $TMP. A fixture written the old
+# way is still one empty variable from the same thing, so the lint reads this
+# file and goes red on any site: a raw cd on a variable with a git write after
+# it in the same group, or a raw git -C on a variable with a write for
+# subcommand. No site is allow-listed except the three probes in the fixture
+# floor's _ff_case, set aside below, and that function's whole text is pinned
+# by its cksum. One whose directory is legitimately
+# outside $TMP is a defect, not an exception: it is read through a subcommand
+# the lint knows for a read, or it is not a fixture. The file read is the
+# suite under test as one file, _suite_flat's $REAL_HARNESS/tests/run with each
+# part in place of the line that sources it, which in a full run is this one and
+# in a section runner is the tree that runner was pointed at. A file the lint
+# cannot read is a failure too, since it exits 2 then and prints nothing else.
 #
-# Written from the contract alone, before any implementation existed. The
-# shape is Desktop's: the hook runs in a launch directory, either PCA, a
-# governed main checkout, or PCU, a checkout nothing governs, and the
-# payload's cwd names PCB, a `git worktree add` of PCA on a commit of its own.
-# A home and a memory of its own, set on every call, so nothing here is seen
-# by a later section.
+# The lint covers those two shapes and no more. A raw `( cd "$X" && "$FELIX"
+# ... )` with X empty is not a site, and this branch does not convert it: on
+# main alone the engine's own felix_repo_root then walks from the cwd to the
+# checkout the run started in. That class rests on the fixture floor
+# (claude/suite-fixture-floor), which lands first: the suite stands in
+# $TMP/cwd, and _fixture_enclosed refuses a $TMP inside a checkout. The review
+# measured the class contained on a trial merge of the two. The origin guard
+# still reports a remote that class moves, as it reports any.
 #
-# The controls, where the payload's cwd equals the launch directory, is absent
-# or unusable, or names a directory nothing governs, pass on the engine before
-# this change by design: they are the behaviour that must not move.
-PC="$TMP/payload-cwd"; mkdir -p "$PC"; PC="$(cd "$PC" && pwd -P)"
-PH="$PC/home"; PM="$PC/memory"; PT="$PC/transcripts"; PX="$PC/fx"
-mkdir -p "$PH/projects/pcwd" "$PH/projects/pcwdremote" "$PM/pcwd" "$PT" "$PX"
-cat > "$PH/projects/pcwd/project.json" <<'EOF'
-{
-  "name": "pcwd",
-  "remote_match": "example.invalid/pcwd-marker-only",
-  "gate": "sh -c 'test -f OK.txt && echo pcwd-gate-ran'"
+# One function holds sites on purpose, and they are the only ones set aside.
+# The fixture floor's _ff_case repeats the incident's commands from where a
+# fixture can end up after the floor: `cd "$e"` with e empty, `cd
+# "$r/fixtures/$e"` and `cd "$r/fixtures/uninit"`. It asks git which repository
+# a write would land in before running one, and writes only when the answer is
+# under $TMP. Those three must stay raw cds, since an _fx_cd there would test
+# _fx_cd and not the floor. So they are set aside by their exact text and only
+# inside _ff_case's body, and a second assertion holds the set at exactly those
+# three: the probe changing shape, or a fourth line like them, is red rather
+# than quietly exempt (the merge of the two branches, 2026-10-08). The set-aside
+# trusts the rest of _ff_case too: the which-repository check its git writes
+# sit behind is what makes three raw cds safe there. So a third assertion pins
+# _ff_case whole, from its `_ff_case() {` line through the `}` that ends it, by
+# the CRC and byte count cksum prints. Any edit to it is red until a person has
+# checked that every git write in it still sits behind that check, and then
+# updates the pin. To recompute it, from engine/harness/tests:
+#   awk '/^_ff_case\(\) \{/ { s = 1 } s { print } s && /^}$/ { exit }' parts/0005-fixture-floor.sh | cksum
+_fxl_file="$(_suite_flat)"
+_fxl_out="$(_fx_lint "$_fxl_file" 2>&1)"; _fxl_rc=$?
+_fxl_ff="$(awk '/^_ff_case\(\) \{/ { s = NR } s && !e && NR > s && /^}$/ { e = NR } END { print s + 0, e + 0 }' "$_fxl_file" 2>/dev/null)"
+_fxl_split() {   # 1 -> the sites not set aside; 0 -> the ones set aside
+  printf '%s\n' "$_fxl_out" | awk -v want="$1" -v r="$_fxl_ff" '
+    BEGIN { split(r, b, " ") }
+    !NF { next }
+    { n = $0; sub(/:.*/, "", n); t = $0; sub(/^[0-9]+:[ \t]*/, "", t)
+      ex = (n + 0 > b[1] + 0 && n + 0 < b[2] + 0 &&
+            (t ~ /^[a-z|]+\) +cd "\$e" ;;$/ || t ~ /^[a-z|]+\) +cd "\$r\/fixtures\/\$e" ;;$/ ||
+             t ~ /^[a-z|]+\) +cd "\$r\/fixtures\/uninit" ;;$/))
+      if ((ex ? 0 : 1) == want + 0) print }'
 }
-EOF
-printf '# pcwd\n' > "$PH/projects/pcwd/CLAUDE.md"
-# The widget's probe row. Without one every receipt carries no epoch, no green
-# receipt is ever current, and every stop below would take the gate's hold.
-printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$PH/projects/pcwd/probes.tsv"
-printf 'Bash\t(^|[;&| ])npm publish\tpcwd refuses a publish\n' > "$PH/projects/pcwd/deny.tsv"
-cat > "$PH/projects/pcwdremote/project.json" <<'EOF'
-{
-  "name": "pcwdremote",
-  "remote_match": "example.invalid/pcwd-remote"
-}
-EOF
-printf -- '- **L1 The quokka ledger in pcwd is reconciled by hand.** Evidence would follow here.\n' \
-  > "$PM/pcwd/lessons.md"
+_fxl_rest="$(_fxl_split 1)"; _fxl_aside="$(_fxl_split 0)"
+if { [ "$_fxl_rc" -eq 0 ] || [ "$_fxl_rc" -eq 1 ]; } && [ -z "$_fxl_rest" ]; then
+  ok  "no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable"
+else
+  bad "no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable" \
+      "the lint exited $_fxl_rc and printed: $(printf '%s' "$_fxl_rest" | head -5 | cut -c1-160 | tr '\n' '|')"
+fi
+is "the lint's only sites set aside are the fixture floor's three deliberate probes inside _ff_case" \
+   "$(printf '%s\n' "$_fxl_aside" | grep -c ':')" "3"
+_fxl_pin="1793434744 1884"   # _ff_case, reviewed 2026-10-08 (review round 2)
+_fxl_ck="$(awk '/^_ff_case\(\) \{/ { s = 1 } s { print } s && /^}$/ { exit }' "$_fxl_file" 2>/dev/null | cksum | awk '{ print $1, $2 }')"
+if [ "$_fxl_ck" = "$_fxl_pin" ]; then
+  ok  "the fixture floor's _ff_case is the probe the lint's set-aside was reviewed against"
+else
+  bad "the fixture floor's _ff_case is the probe the lint's set-aside was reviewed against" \
+      "its cksum is [$_fxl_ck], and the set-aside was reviewed against [$_fxl_pin]. Before updating the pin, check that every git write in _ff_case still sits behind its which-repository check, the one that asks where a write would land and writes only under \$TMP"
+fi
 
-_pcwd_git() { git -c user.name=t -c user.email=t@t "$@"; }
-PCA="$PX/main"; PCB="$PX/wt"; PCU="$PX/plain"; PCN="$PX/nogit"; PCK="$PX/broken"
-PCR="$PX/remote"; PCQ="$PX/sealed"; PCBS="$PX/back\\slash"; PCW2="$PX/wt-broken"
-mkdir -p "$PCA" "$PCU" "$PCN" "$PCK" "$PCR" "$PCQ" "$PCBS"
-( cd "$PCA" && git init -q -b main && printf 'ok\n' > OK.txt && printf 'pcwd\n' > .felix \
-  && git add -A && _pcwd_git commit -qm init && git worktree add -q -b side "$PCB" ) >/dev/null 2>&1
-( cd "$PCB" && mkdir -p sub && printf 'kept\n' > sub/keep.txt \
-  && printf '# the worktree handoff\n' > HANDOFF.md \
-  && git add -A && _pcwd_git commit -qm side ) >/dev/null 2>&1
-# A second worktree of the main checkout, whose marker somebody broke.
-git -C "$PCA" worktree add -q -b broken-side "$PCW2" >/dev/null 2>&1
-printf 'pcwd-no-such-project\n' > "$PCW2/.felix"
-( cd "$PCU" && git init -q -b main && printf 'u\n' > u.txt && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
-( cd "$PCK" && git init -q -b main && printf 'pcwd-no-such-project\n' > .felix \
-  && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
-( cd "$PCR" && git init -q -b main && printf 'r\n' > r.txt && git add -A && _pcwd_git commit -qm init \
-  && git remote add origin https://example.invalid/pcwd-remote.git ) >/dev/null 2>&1
-( cd "$PCQ"  && git init -q -b main && printf 'pcwd\n' > .felix ) >/dev/null 2>&1
-( cd "$PCBS" && git init -q -b main && printf 'pcwd\n' > .felix ) >/dev/null 2>&1
-# The main checkout's own handoff, untracked so the worktree does not carry it,
-# and a link a relative cwd would follow from there into the worktree.
-printf '# the main checkout handoff\n' > "$PCA/HANDOFF.md"
-ln -s "$PCB" "$PCA/to-b"
-printf 'a-edit\n' >> "$PCA/OK.txt"; printf 'b-edit\n' >> "$PCB/OK.txt"
-PCHA="$(git -C "$PCA" rev-parse HEAD 2>/dev/null)"; PCHB="$(git -C "$PCB" rev-parse HEAD 2>/dev/null)"
+printf '\nfixture git proof\n'
+# On 2026-10-08 at 12:47:41 local time the config every worktree of the home
+# checkout shares lost its origin. [remote "origin"] came back at the end of
+# the file as https://github.com/acme/widget.git, packed-refs was rewritten in
+# the same second, every refs/remotes/origin ref was gone, and every branch
+# upstream went with them. A section runner had cut one block of this file
+# without the helpers that set its fixture roots, so
+# `( cd "$_fs_wr" && git remote remove origin ... )` ran with an empty name.
+# Bash 3.2 takes `cd ""` as a success that stays put, and where it stayed was
+# a worktree. `git -C ""` does the same: it runs in the cwd and exits 0.
+#
+# The change under test (contract C1 to C11, 2026-10-08-suite-git-proof) puts
+# every fixture git write behind _fx_cd and _fx_git. They refuse any directory
+# they cannot prove sits physically under $TMP, and they record each refusal in
+# a file. It adds _fx_lint, which finds the raw shapes that did the damage. And
+# it guards the end of every run, section runners included, by comparing the
+# remotes of the checkout the run started in with a snapshot taken before $TMP
+# existed.
+#
+# These assertions were written blind, from the contract alone. Three rules
+# keep a broken implementation away from a real repository:
+# - Every probe that could write starts INSIDE a stand-in checkout under $TMP,
+#   so a guard that fails open damages the stand-in and the assertion sees it.
+# - The probes run in subshells, because _fx_cd moves the shell that calls it.
+# - The stand-ins are built, and their remotes moved, by scripts written below
+#   and run as children. Those scripts shed the GIT_DIR family and check their
+#   target's physical path themselves, so their own git writes never pass
+#   through the code under test.
+#
+# Each probe hands _fx_cd a refusal record of its own in FELIX_TEST_FXREFUSED,
+# so the refusals this block provokes on purpose never reach the record the end
+# of the run judges. The last assertion here checks that they did not.
+#
+# Measured on bash 3.2.57 (2026-10-08): BASH_LINENO[0] inside a function and
+# $LINENO on the line that called it agree inside ( ), inside a multi-line
+# $( ) and at top level. So each probe prints $LINENO on its call's own line,
+# and the record's line field is compared with that. Under `ulimit -S -u 1` a
+# fork inside a subshell aborts that subshell at once, with status 128 and no
+# retry, so a probe that forks prints nothing after the fork.
+_gp="$TMP/fixture-git-proof"; mkdir -p "$_gp/plain" "$_gp/kid"
+: > "$_gp/afile"; ln -s / "$_gp/link-out"; ln -s "$_gp/plain" "$_gp/link-in"
+_gp_phys() { [ -n "${1:-}" ] && [ -d "$1" ] && ( cd -P "$1" && pwd -P ); }
+_gp_get()  { printf '%s\n' "$1" | sed -n "s/^$2 //p"; }
+_gp_tmpp="$(_gp_phys "$TMP")"
+_gp_start="$(pwd -P)"
+_gp_url="https://example.invalid/gp/stand-in.git"
+_gp_rec0=0
+[ -n "${FELIX_TEST_FXREFUSED:-}" ] && [ -f "$FELIX_TEST_FXREFUSED" ] \
+  && _gp_rec0="$(wc -l < "$FELIX_TEST_FXREFUSED" | tr -d ' ')"
 
-# The platform's envelope, cwd third; a cwd of `-` leaves the key out.
-_pcwd_pay() {   # event sid cwd [more fields]
-  local c=""; [ "$3" = - ] || c="\"cwd\":\"$3\","
-  printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl",%s"permission_mode":"default","hook_event_name":"%s"%s}' \
-    "$2" "$PT" "$2" "$c" "$1" "${4:+,$4}"
+# The stand-in builder. It refuses any target that is not physically under
+# the directory it is given as $2, sheds the GIT_DIR family and GIT_CONFIG, and
+# sets its own ceiling at the target's parent before git runs, so a failed
+# `git init` cannot climb to a repository above. Each stand-in carries what
+# the incident destroyed: an origin, a ref under refs/remotes/origin, and a
+# branch whose upstream is origin. With "spare" it also gets a second remote
+# with no refs. No fetch, so no URL is ever dialled.
+cat > "$_gp/build.sh" <<'GPBUILD'
+set -u
+unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG
+[ -n "${1:-}" ] && [ -n "${2:-}" ] || exit 3
+mkdir -p "$1/sub" || exit 3
+t="$(cd -P "$2" && pwd -P)" && d="$(cd -P "$1" && pwd -P)" || exit 3
+case "$d" in "$t"/?*) ;; *) exit 4 ;; esac
+GIT_CEILING_DIRECTORIES="${d%/*}"; export GIT_CEILING_DIRECTORIES
+cd "$d" || exit 3
+git init -q -b main . >/dev/null 2>&1 && [ -d "$d/.git" ] || exit 5
+[ "$(git rev-parse --absolute-git-dir 2>/dev/null)" = "$d/.git" ] || exit 6
+git -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
+    commit -q --no-verify --allow-empty -m stand-in >/dev/null 2>&1 || exit 7
+git remote add origin https://example.invalid/gp/stand-in.git || exit 8
+git update-ref refs/remotes/origin/main HEAD || exit 8
+git config branch.main.remote origin && git config branch.main.merge refs/heads/main || exit 8
+if [ "${3:-}" = spare ]; then git remote add spare https://example.invalid/gp/spare.git || exit 8; fi
+exit 0
+GPBUILD
+_gp_build() { bash "$_gp/build.sh" "$1" "$TMP" "${2:-}" >/dev/null 2>&1; }
+# What git reads in a stand-in, one key a line. Reads only.
+_gp_state() {   # <checkout>
+  printf 'url %s\n'  "$(git -C "$1" config --get remote.origin.url 2>/dev/null)"
+  printf 'refs %s\n' "$(git -C "$1" for-each-ref refs/remotes/origin 2>/dev/null | wc -l | tr -d ' ')"
+  printf 'up %s\n'   "$(git -C "$1" config --get branch.main.remote 2>/dev/null)"
 }
-# A hook run where the platform would start it, with the fixture's own home.
-_pcwd_hook() {   # launch dir, hook, payload -> stdout and stderr together
-  ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/$2" <<<"$3" 2>&1 )
+_gp_home="$_gp/home"; _gp_build "$_gp_home"; _gp_homep="$(_gp_phys "$_gp_home")"
+_gp_s="$(_gp_state "$_gp_home")"
+# A control on this block's own fixture: it passes on any suite, main's
+# included, and says whether everything below measures the code or the
+# fixture.
+if [ -n "$_gp_homep" ] && [ -d "$_gp_home/.git" ] && [ "$_gp_s" = "$(printf 'url %s\nrefs 1\nup origin' "$_gp_url")" ]; then
+  ok  "fixture git proof: the stand-in checkout has an origin, an origin ref and a branch tracking origin"
+else
+  bad "fixture git proof: the stand-in checkout has an origin, an origin ref and a branch tracking origin" \
+      "the stand-in at [$_gp_home] reads: $(printf '%s' "$_gp_s" | tr '\n' ' ')"
+fi
+
+# C1, C2, C11. The three functions exist in the suite's shell, and each is
+# defined above the first section header, so a section runner cut at the
+# line before that header carries them.
+_gp_src="$(_suite_flat)"
+_gp_pre="$(grep -n "^printf '\\\\n" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
+for _gp_f in _fx_cd _fx_git _fx_lint; do
+  _gp_d="$(grep -nE "^(function[[:space:]]+)?${_gp_f}[[:space:]]*\(\)" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
+  if ! declare -F "$_gp_f" >/dev/null 2>&1; then
+    bad "$_gp_f is defined in the suite's shell, above the first section header" "no function by that name in the suite's shell"
+  elif [ -z "$_gp_d" ] || [ -z "$_gp_pre" ] || [ "$_gp_d" -ge "$_gp_pre" ]; then
+    bad "$_gp_f is defined in the suite's shell, above the first section header" \
+        "in $_gp_src it is defined at line [${_gp_d:-nowhere}] and the first section header is at line [${_gp_pre:-none}]"
+  else
+    ok  "$_gp_f is defined in the suite's shell, above the first section header"
+  fi
+done
+is "the preamble names \$TMP/fx-refused as the refusal record" "${FELIX_TEST_FXREFUSED:-}" "$TMP/fx-refused"
+
+# C1, refusals. Each case breaks exactly one of _fx_cd's conditions, so the
+# reason is not a matter of which check comes first. The caller stands in the
+# stand-in's sub directory and sends stdout and stderr to /dev/null; the
+# record must arrive anyway, from a subshell, because it goes to a file.
+_gp_n=0
+_gp_refusal() {   # <what> <dir> <reason> [NAME=value exported before the call]
+  local what="$1" dir="$2" why="$3" rec o rc line pwd
+  _gp_n=$((_gp_n + 1)); rec="$_gp/rec.$_gp_n"; : > "$rec"
+  o="$(cd "$_gp_home/sub" || exit 0
+       [ -n "${4:-}" ] && export "$4"
+       FELIX_TEST_FXREFUSED="$rec"
+       _fx_cd "$dir" >/dev/null 2>&1; printf 'rc %s\nline %s\n' "$?" "$LINENO"
+       printf 'pwd %s\n' "$(pwd -P)")"
+  rc="$(_gp_get "$o" rc)"; line="$(_gp_get "$o" line)"; pwd="$(_gp_get "$o" pwd)"
+  if ! declare -F _fx_cd >/dev/null 2>&1; then
+    bad "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood" "_fx_cd is not defined"
+    bad "_fx_cd refusing $what appends one line: the call's line, the directory as given, and $why" "_fx_cd is not defined"
+    return 0
+  fi
+  if [ -n "$rc" ] && [ "$rc" != 0 ] && [ -n "$_gp_homep" ] && [ "$pwd" = "$_gp_homep/sub" ]; then
+    ok  "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood"
+  else
+    bad "_fx_cd refuses $what with a non-zero status, and its caller stays where it stood" \
+        "given [$dir] it returned [$rc] and its caller stood in [$pwd], not [$_gp_homep/sub]"
+  fi
+  is "_fx_cd refusing $what appends one line: the call's line, the directory as given, and $why" \
+     "$(cat "$rec" 2>/dev/null)|$(wc -l < "$rec" | tr -d ' ')" "$(printf '%s\t%s\t%s' "$line" "$dir" "$why")|1"
 }
-_pcwd_pre() {    # launch dir, payload -> exit status; stderr in $PC/pre.err
-  ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FROOT/harness/hooks/pre-tool" <<<"$2" >/dev/null 2>"$PC/pre.err" )
-  printf '%s' "$?"
+_gp_refusal "an empty directory name"                         ""               empty
+_gp_refusal "a name under \$TMP that does not exist"          "$_gp/missing"   not-a-directory
+_gp_refusal "a regular file under \$TMP"                      "$_gp/afile"     not-a-directory
+_gp_refusal "\$TMP itself"                                    "$TMP"           outside-tmp
+_gp_refusal "a directory outside \$TMP"                       "/"              outside-tmp
+_gp_refusal "a symlink under \$TMP that points outside it"    "$_gp/link-out"  outside-tmp
+_gp_refusal "a directory under \$TMP while GIT_DIR is exported"        "$_gp/plain" git-env "GIT_DIR=$_gp_home/.git"
+_gp_refusal "a directory under \$TMP while GIT_WORK_TREE is exported"  "$_gp/plain" git-env "GIT_WORK_TREE=$_gp_home"
+_gp_refusal "a directory under \$TMP while GIT_COMMON_DIR is exported" "$_gp/plain" git-env "GIT_COMMON_DIR=$_gp_home/.git"
+
+# The stderr line, and that a refusal leaves every variable its caller can
+# see as it was. The variables are compared as `set` lists them in POSIX
+# mode, less the ones bash itself changes from one command to the next.
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.err"
+         _fx_cd "" 2>"$_gp/err.empty" >/dev/null; printf '%s' "$?")"
+_gp_x="$(cat "$_gp/err.empty" 2>/dev/null)"
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '" "_fx_cd is not defined"
+elif [ "$(wc -l < "$_gp/err.empty" | tr -d ' ')" = 1 ] && case "$_gp_x" in "tests/run: _fx_cd refused "*) true ;; *) false ;; esac; then
+  ok  "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '"
+else
+  bad "_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '" "it returned [$_gp_o] and wrote [$_gp_x]"
+fi
+_gp_vf() { grep -vE '^(BASH_ARGC|BASH_ARGV|BASH_LINENO|BASH_SOURCE|BASH_SUBSHELL|BASH_COMMAND|FUNCNAME|LINENO|PIPESTATUS|RANDOM|SECONDS|_)=' "$1"; }
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.vars"
+         export GIT_CEILING_DIRECTORIES="/gp/prior"
+         ( set -o posix; set ) > "$_gp/vars.before"
+         _fx_cd "$_gp/missing" >/dev/null 2>&1
+         ( set -o posix; set ) > "$_gp/vars.after"; printf 'compared')"
+_gp_x="$(diff <(_gp_vf "$_gp/vars.before") <(_gp_vf "$_gp/vars.after") 2>&1)"
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd refusing changes no variable its caller can see" "_fx_cd is not defined"
+elif [ "$_gp_o" = compared ] && [ -s "$_gp/vars.before" ] && [ -z "$_gp_x" ]; then
+  ok  "_fx_cd refusing changes no variable its caller can see"
+else
+  bad "_fx_cd refusing changes no variable its caller can see" "the probe said [$_gp_o]; set lists, before and after: $(printf '%s' "$_gp_x" | tr '\n' ' ')"
+fi
+
+# C1, success. The caller ends up in DIR physically, and a child process sees
+# GIT_CEILING_DIRECTORIES with the physical $TMP first and whatever was there
+# before after it. Whether git then finds nothing needs a repository at $TMP,
+# which this suite's own $TMP must not become; a child run below makes one of
+# its own.
+_gp_ok() {   # <dir> <ceiling before, or - for unset>: key-a-line report of _fx_cd <dir> from inside the stand-in
+  ( cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.ok"
+    if [ "$2" = - ]; then unset GIT_CEILING_DIRECTORIES; else export GIT_CEILING_DIRECTORIES="$2"; fi
+    _fx_cd "$1" >/dev/null 2>&1; printf 'rc %s\n' "$?"
+    printf 'pwd %s\nceiling %s\n' "$(pwd -P)" "$(command printenv GIT_CEILING_DIRECTORIES || printf '(unset)')" )
 }
-_pcwd_tid() { ( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$1" "$PH" ) 2>/dev/null; }
-_pcwd_gate() { ( cd "$1" && FELIX_HOME="$PH" FELIX_MEMORY="$PM" "$FELIX" gate >/dev/null 2>&1 ); }
-_pcwd_current() { ( . "$FROOT/harness/lib/verify.sh"; felix_verify_current "$1" "$PH" "$PH/projects/pcwd" ) 2>/dev/null | cut -f1; }
-_pcwd_res() { local p; p="$( . "$FROOT/harness/lib/resolve.sh"; felix_resolve_project "$1" "$PH" 2>/dev/null )"; printf '%s' "${p##*/}"; }
-# What a stop decided, and the one row it wrote: which tree it judged, and why.
-_pcwd_vlog="$PM/pcwd/verification.log"
-_pcwd_rows() { if [ -f "$_pcwd_vlog" ]; then awk 'END { print NR }' "$_pcwd_vlog"; else printf '0'; fi; }
-_pcwd_stop() {   # launch dir, payload -> "block|silent +rows verdict tree reason"
-  local n0 o
-  n0="$(_pcwd_rows)"; o="$(_pcwd_hook "$1" stop "$2")"
-  case "$o" in
-    *'"decision"'*'"block"'*) printf 'block' ;;
-    '')                       printf 'silent' ;;
-    *)                        printf 'other[%s]' "$(printf '%s' "$o" | head -c 200)" ;;
+: > "$_gp/rec.ok"
+_gp_plainp="$(_gp_phys "$_gp/plain")"
+_gp_o="$(_gp_ok "$_gp/plain" -)"
+is "_fx_cd on a directory under \$TMP returns 0 and stands its caller there, physically" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" pwd)" "0 $_gp_plainp"
+is "_fx_cd on a directory under \$TMP exports the physical \$TMP as GIT_CEILING_DIRECTORIES when none was set" \
+   "$(_gp_get "$_gp_o" ceiling)" "$_gp_tmpp"
+_gp_o="$(_gp_ok "$_gp/plain" "/gp/prior/one:/gp/prior/two")"
+is "_fx_cd puts the physical \$TMP first in GIT_CEILING_DIRECTORIES and keeps what was there after it" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" ceiling)" "0 $_gp_tmpp:/gp/prior/one:/gp/prior/two"
+_gp_o="$(_gp_ok "$_gp/link-in" -)"
+is "_fx_cd through a symlink under \$TMP that points inside it stands its caller in the target, physically" \
+   "$(_gp_get "$_gp_o" rc) $(_gp_get "$_gp_o" pwd)" "0 $_gp_plainp"
+if declare -F _fx_cd >/dev/null 2>&1 && [ ! -s "$_gp/rec.ok" ]; then
+  ok  "_fx_cd records nothing when it succeeds"
+else
+  bad "_fx_cd records nothing when it succeeds" "defined: $(declare -F _fx_cd >/dev/null 2>&1 && echo yes || echo no); record: [$(tr '\t\n' '| ' < "$_gp/rec.ok")]"
+fi
+
+# C1 under fork pressure. `ulimit -S -u 1` in the probe's own subshell leaves
+# it no fork at all, so an _fx_cd that forks on its success path dies there
+# and prints no status. Everything after the ulimit is a builtin. Skipped as a
+# probe when _fx_cd is missing, because bash forks to report a command not
+# found and the probe would only measure that.
+_gp_fp() {   # <dir>: key-a-line report of _fx_cd <dir> with no fork available
+  ( cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.fork"
+    ulimit -S -u 1 2>/dev/null || { printf 'nolimit x\n'; exit 0; }
+    _fx_cd "$1" >/dev/null 2>&1; printf 'rc %s\n' "$?"; printf 'pwd '; pwd -P
+    printf 'ceiling %s\n' "${GIT_CEILING_DIRECTORIES:-}" ) 2>/dev/null
+}
+if ! declare -F _fx_cd >/dev/null 2>&1; then
+  bad "_fx_cd succeeds with no fork available" "_fx_cd is not defined"
+  bad "_fx_cd refuses a directory outside \$TMP with no fork available" "_fx_cd is not defined"
+else
+  _gp_o="$(_gp_fp "$_gp/plain")"
+  if [ -n "$(_gp_get "$_gp_o" nolimit)" ]; then
+    skip "_fx_cd succeeds with no fork available" "ulimit -S -u 1 was refused here"
+  else
+    is "_fx_cd succeeds with no fork available" \
+       "$(_gp_get "$_gp_o" rc)|$(_gp_get "$_gp_o" pwd)|$(_gp_get "$_gp_o" ceiling | cut -d: -f1)" "0|$_gp_plainp|$_gp_tmpp"
+  fi
+  _gp_o="$(_gp_fp "/")"
+  _gp_x="$(_gp_get "$_gp_o" rc)"
+  if [ -n "$(_gp_get "$_gp_o" nolimit)" ]; then
+    skip "_fx_cd refuses a directory outside \$TMP with no fork available" "ulimit -S -u 1 was refused here"
+  elif [ -z "$_gp_x" ] || { [ "$_gp_x" != 0 ] && [ "$(_gp_get "$_gp_o" pwd)" = "$_gp_homep/sub" ]; }; then
+    # No status at all means the subshell died at a fork: nothing after the
+    # call ran, which is a refusal by the only measure that matters here.
+    ok  "_fx_cd refuses a directory outside \$TMP with no fork available"
+  else
+    bad "_fx_cd refuses a directory outside \$TMP with no fork available" \
+        "it returned [$_gp_x] and its caller stood in [$(_gp_get "$_gp_o" pwd)]"
+  fi
+fi
+
+# C2. _fx_git stands in DIR for git and only for git, returns git's own
+# status, and records a refusal with its own call's line.
+_gp_o="$(cd "$_gp_home" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g1"
+         export GIT_CEILING_DIRECTORIES="/gp/prior"
+         _fx_git "$_gp_home/sub" rev-parse --show-prefix > "$_gp/g1.out" 2>/dev/null; printf 'rc %s\n' "$?"
+         printf 'pwd %s\nceiling %s\n' "$(pwd -P)" "$(command printenv GIT_CEILING_DIRECTORIES)")"
+is "_fx_git runs git standing in the directory it is given" "$(cat "$_gp/g1.out" 2>/dev/null)|$(_gp_get "$_gp_o" rc)" "sub/|0"
+if declare -F _fx_git >/dev/null 2>&1 && [ "$(_gp_get "$_gp_o" rc)" = 0 ]; then
+  is "_fx_git leaves its caller's directory and GIT_CEILING_DIRECTORIES as they were" \
+     "$(_gp_get "$_gp_o" pwd)|$(_gp_get "$_gp_o" ceiling)" "$_gp_homep|/gp/prior"
+else
+  bad "_fx_git leaves its caller's directory and GIT_CEILING_DIRECTORIES as they were" \
+      "_fx_git did not run git: it returned [$(_gp_get "$_gp_o" rc)]"
+fi
+: > "$_gp/rec.g2"
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g2"
+         _fx_git "$_gp_home" rev-parse -q --verify HEAD >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" config --get gp.absent >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" rev-parse --verify refs/heads/gp-absent >/dev/null 2>&1; printf '%s ' "$?"
+         _fx_git "$_gp_home" config --gp-no-such-option >/dev/null 2>&1; printf '%s' "$?")"
+is "_fx_git returns git's own status: 0, 1, 128 and 129 from four git commands that exit so" \
+   "$_gp_o|$(cat "$_gp/rec.g2" 2>/dev/null)" "0 1 128 129|"
+: > "$_gp/rec.g3"
+_gp_o="$(cd "$_gp_home/sub" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g3"; _gp_e=""
+         _fx_git "$_gp_e" rev-parse --show-toplevel > "$_gp/g3.out" 2>/dev/null; printf 'rc %s\nline %s\n' "$?" "$LINENO")"
+if declare -F _fx_git >/dev/null 2>&1 && [ -n "$(_gp_get "$_gp_o" rc)" ] && [ "$(_gp_get "$_gp_o" rc)" != 0 ] && [ ! -s "$_gp/g3.out" ]; then
+  ok  "_fx_git given an empty directory returns non-zero without running git"
+else
+  bad "_fx_git given an empty directory returns non-zero without running git" \
+      "it returned [$(_gp_get "$_gp_o" rc)] and git printed [$(cat "$_gp/g3.out" 2>/dev/null)]"
+fi
+is "_fx_git refusing records the line of the _fx_git call, the directory as given, and empty" \
+   "$(cat "$_gp/rec.g3" 2>/dev/null)" "$(printf '%s\t%s\t%s' "$(_gp_get "$_gp_o" line)" "" empty)"
+# The incident's own three commands, through _fx_git, with an empty name, from
+# inside a stand-in of their own: a guard that fails open runs them on it.
+_gp_victim="$_gp/victim"; _gp_build "$_gp_victim"; : > "$_gp/rec.g4"
+_gp_s0="$(_gp_state "$_gp_victim")"
+_gp_o="$(cd "$_gp_victim" || exit 0; FELIX_TEST_FXREFUSED="$_gp/rec.g4"; _gp_e=""
+         _fx_git "$_gp_e" remote remove origin >/dev/null 2>&1
+         _fx_git "$_gp_e" remote add origin https://github.com/acme/widget.git >/dev/null 2>&1
+         _fx_git "$_gp_e" config branch.main.remote gp-moved >/dev/null 2>&1; printf 'ran')"
+if ! declare -F _fx_git >/dev/null 2>&1; then
+  bad "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" "_fx_git is not defined"
+elif [ "$_gp_s0" != "$(printf 'url %s\nrefs 1\nup origin' "$_gp_url")" ]; then
+  bad "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" \
+      "not exercised: the stand-in read [$(printf '%s' "$_gp_s0" | tr '\n' ' ')] before"
+else
+  is  "the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was" \
+      "$(_gp_state "$_gp_victim")" "$_gp_s0"
+fi
+is "and each of the three is recorded with the reason empty" \
+   "$(cut -f2- "$_gp/rec.g4" 2>/dev/null | tr '\t\n' '|;')" "|empty;|empty;|empty;"
+# From the suite's own shell. _fx_git runs git in a subshell of its own, so it
+# needs no ( ) around it, and it leaves the suite where it stood. Should it
+# not, the suite is put back, so one broken guard does not move every
+# assertion after this one.
+_gp_c0="${GIT_CEILING_DIRECTORIES-(unset)}"
+FELIX_TEST_FXREFUSED="$_gp/rec.top" _fx_git "$_gp_home" rev-parse --show-toplevel > "$_gp/top.out" 2>/dev/null; _gp_rc=$?
+_gp_here="$(pwd -P)"; _gp_c1="${GIT_CEILING_DIRECTORIES-(unset)}"
+[ "$_gp_here" = "$_gp_start" ] || cd -- "$_gp_start"
+if [ "$_gp_c1" != "$_gp_c0" ]; then
+  if [ "$_gp_c0" = "(unset)" ]; then unset GIT_CEILING_DIRECTORIES; else export GIT_CEILING_DIRECTORIES="$_gp_c0"; fi
+fi
+is "_fx_git called from the suite's own shell runs git in DIR and returns its status" \
+   "$(cat "$_gp/top.out" 2>/dev/null)|$_gp_rc" "$_gp_homep|0"
+if declare -F _fx_git >/dev/null 2>&1; then
+  is "_fx_git called from the suite's own shell leaves it where it stood, with its GIT_CEILING_DIRECTORIES" \
+     "$_gp_here|$_gp_c1" "$_gp_start|$_gp_c0"
+else
+  bad "_fx_git called from the suite's own shell leaves it where it stood, with its GIT_CEILING_DIRECTORIES" "_fx_git is not defined"
+fi
+
+# C3. _fx_lint over synthetic files. A line that should be reported holds a
+# variable whose name starts S_, and no other line does, so the expected output
+# is grep -n of those lines: N:text, in file order, nothing else. A line whose
+# name starts N_ is one the lint must pass over.
+mkdir -p "$_gp/lint"
+# (i): a raw cd on a variable, then each kind of git write the contract names,
+# global options before the subcommand included.
+cat > "$_gp/lint/writes" <<'GPLINT'
+( cd "$S_config" && git config user.name x )
+( cd "$S_unset" && git config --unset user.name )
+( cd "$S_cfgset" && git config set user.name x )
+( cd "$S_radd" && git remote add origin https://example.invalid/x.git )
+( cd "$S_rrm" && git remote remove origin )
+( cd "$S_rseturl" && git remote set-url origin https://example.invalid/y.git )
+( cd "$S_rrename" && git remote rename origin upstream )
+( cd "$S_uref" && git update-ref refs/remotes/origin/main HEAD )
+( cd "$S_bdel" && git branch -D old )
+( cd "$S_bnew" && git branch topic )
+( cd "$S_bmove" && git branch -m a b )
+( cd "$S_bup" && git branch --set-upstream-to=origin/main )
+( cd "$S_symset" && git symbolic-ref HEAD refs/heads/x )
+( cd "$S_tag" && git tag v1 )
+( cd "$S_tagd" && git tag -d v1 )
+( cd "$S_stash" && git stash )
+( cd "$S_stashdrop" && git stash drop )
+( cd "$S_wtadd" && git worktree add ../w )
+( cd "$S_notes" && git notes add -m x )
+( cd "$S_fetch" && git fetch origin )
+( cd "$S_init" && git init -q )
+( cd "$S_commit" && git commit -qm x )
+( cd "$S_unknown" && git frobnicate )
+( cd "$S_globals" && git --no-pager -c a.b=c -P config k v )
+( cd "$S_gitdirflag" && git --git-dir=.git config k v )
+( cd "$S_clit" && git -C sub config k v )
+GPLINT
+# The read list, after the same raw cd: none is a site.
+cat > "$_gp/lint/reads" <<'GPLINT'
+( cd "$N_a" && git rev-parse --show-toplevel )
+( cd "$N_a" && git log -1 --format=%H )
+( cd "$N_a" && git show HEAD:x )
+( cd "$N_a" && git diff --quiet )
+( cd "$N_a" && git status --porcelain )
+( cd "$N_a" && git ls-files -co )
+( cd "$N_a" && git ls-tree HEAD )
+( cd "$N_a" && git ls-remote origin )
+( cd "$N_a" && git cat-file -t HEAD )
+( cd "$N_a" && git for-each-ref refs/remotes )
+( cd "$N_a" && git rev-list --count HEAD )
+( cd "$N_a" && git show-ref --verify refs/heads/main )
+( cd "$N_a" && git merge-base HEAD main )
+( cd "$N_a" && git describe --always )
+( cd "$N_a" && git grep -n x )
+( cd "$N_a" && git blame x )
+( cd "$N_a" && git version )
+( cd "$N_a" && git check-ignore -q x )
+( cd "$N_a" && git diff-tree --no-commit-id -r HEAD )
+( cd "$N_a" && git config --get remote.origin.url )
+( cd "$N_a" && git config --get-all remote.origin.fetch )
+( cd "$N_a" && git config --get-regexp '^remote' )
+( cd "$N_a" && git config --list )
+( cd "$N_a" && git config -l )
+( cd "$N_a" && git config get remote.origin.url )
+( cd "$N_a" && git config list )
+( cd "$N_a" && git remote )
+( cd "$N_a" && git remote -v )
+( cd "$N_a" && git remote get-url origin )
+( cd "$N_a" && git remote show origin )
+( cd "$N_a" && git branch )
+( cd "$N_a" && git branch -a )
+( cd "$N_a" && git branch -vv )
+( cd "$N_a" && git branch --show-current )
+( cd "$N_a" && git branch --format='%(refname)' )
+( cd "$N_a" && git symbolic-ref HEAD )
+( cd "$N_a" && git symbolic-ref -q --short HEAD )
+( cd "$N_a" && git tag )
+( cd "$N_a" && git tag -l )
+( cd "$N_a" && git tag --list )
+( cd "$N_a" && git stash list )
+( cd "$N_a" && git stash show )
+( cd "$N_a" && git worktree list )
+( cd "$N_a" && git notes list )
+( cd "$N_a" && git --no-pager -c a.b=c log -1 )
+( cd "$N_a" && git -C sub rev-parse --git-dir )
+( cd "$N_a" && git config --get k && git log -1 )
+GPLINT
+# Shapes that are not sites: a literal operand, the two helpers, git out of
+# command position, a group that closed before the git, and a top-level cd
+# whose group is the rest of its own line.
+cat > "$_gp/lint/others" <<'GPLINT'
+( cd /literal/path && git remote add o https://example.invalid/x.git )
+( cd sub && git config k v )
+( _fx_cd "$N_fx" && git config k v )
+_fx_cd "$N_fx" && git remote add o https://example.invalid/x.git
+_fx_git "$N_fx" remote add o https://example.invalid/x.git
+( cd "$N_echo" && echo git config k v )
+( cd "$N_printf" && printf '%s\n' "git remote add o u" )
+echo cd "$N_word" && git config k v
+( mycd "$N_fn" && git config k v )
+git -C /literal remote add o https://example.invalid/x.git
+git -C sub config k v
+git -C "$N_read" log -1
+git -C "$N_read" config --get-regexp '^remote[.]'
+command git -C "$N_read" status
+git -C "$N_read" -c a.b=c status
+_fx_git "$N_fx" config k v
+( cd "$N_close" && echo hi )
+git remote add o https://example.invalid/x.git
+cd "$N_line" && echo hi
+git config k v
+GPLINT
+# (i) across command groups: continuation lines, multi-line ( ) and $( )
+# groups, a case pattern's ")", keywords, braces, every operand form the
+# contract calls parameter-led, and -P, -L and -- before the operand.
+cat > "$_gp/lint/groups" <<'GPLINT'
+( cd "$S_cont" \
+    && git remote set-url origin https://example.invalid/x.git )
+cd "$S_and" &&
+  git config k v
+cd "$S_or" ||
+  git config k v
+( cd "$S_multi"
+  echo first
+  git remote add o https://example.invalid/x.git
+)
+y="$(cd "$S_dollar"
+     git config k v)"
+( cd "$S_case"
+  case "$m" in
+    a|b)
+      git remote add o https://example.invalid/x.git ;;
   esac
-  printf ' +%s %s' "$(( $(_pcwd_rows) - n0 ))" "$(tail -1 "$_pcwd_vlog" 2>/dev/null | cut -f2-4 | tr '\t' ' ')"
+)
+if cd "$S_if"; then git config k v; fi
+if false; then :; else cd "$S_else" && git config k v; fi
+while read -r l; do cd "$S_do" && git branch -D "$l"; done < /dev/null
+{ cd "$S_brace" && git tag v1; }
+( cd "$S_semi"; git config k v )
+(cd "$S_tight" && git config k v)
+! cd "$S_bang" || git config k v
+out="$(cd "$S_dq" && git config k v)"
+v="$(
+  cd "$S_nested" && git config k v
+)"
+( cd "$S_once" && git config a b && git config c d )
+( cd "${S_braced}" && git config k v )
+( cd "$S_sub/x" && git config k v )
+( cd $S_bare && git config k v )
+( cd "$(printf '%s' "$S_cmdsub")" && git config k v )
+( cd -P "$S_dashp" && git config k v )
+( cd -L "$S_dashl" && git config k v )
+( cd -- "$S_dashdash" && git config k v )
+( cd "$S_cmd" && command git remote add o https://example.invalid/x.git )
+GPLINT
+# Text the lint does not read as code, and code right after it.
+cat > "$_gp/lint/text" <<'GPLINT'
+# ( cd "$N_c1" && git remote add o https://example.invalid/x.git )
+echo hi # cd "$N_c2" && git config k v
+   # cd "$N_c3" && git config k v
+echo '( cd "$N_q1" && git remote add o https://example.invalid/x.git )'
+echo "( cd $N_q2 && git config k v )"
+msg='spans
+( cd "$N_q3" && git remote add o https://example.invalid/x.git )
+lines'
+msg2="spans
+( cd $N_q4 && git config k v )
+end"
+cat > /dev/null <<EOF
+( cd "$N_h1" && git remote add o https://example.invalid/x.git )
+EOF
+cat > /dev/null <<'EOF'
+( cd "$N_h2" && git config k v )
+EOF
+cat > /dev/null <<"END"
+( cd "$N_h3" && git config k v )
+END
+GPLINT
+printf 'cat > /dev/null <<-EOF\n\t( cd "$N_h4" && git config k v )\n\tEOF\n' >> "$_gp/lint/text"
+cat >> "$_gp/lint/text" <<'GPLINT'
+( cd "$S_after_heredoc" && git config k v )
+cat > /dev/null <<EOF; ( cd "$S_on_heredoc_line" && git config k v )
+( cd "$N_h5" && git config k v )
+EOF
+grep -q x <<<"$N_hs"
+( cd "$S_after_herestring" && git config k v )
+x=a#b; ( cd "$S_hash_in_word" && git config k v )
+echo "a # not a comment"; ( cd "$S_after_dq_hash" && git config k v )
+echo 'it''s'; ( cd "$S_after_sq" && git config k v )
+GPLINT
+# (ii): a raw git -C on a variable with a write, command git included.
+cat > "$_gp/lint/dashc" <<'GPLINT'
+git -C "$S_c1" remote add o https://example.invalid/x.git
+git -C "${S_c2}" config k v
+git -C "$S_c3/sub" update-ref refs/x HEAD
+git -C $S_c4 config k v
+git --no-pager -C "$S_c5" branch -D old
+git -c a.b=c -C "$S_c6" config k v
+command git -C "$S_c7" remote add o https://example.invalid/x.git
+x="$(git -C "$S_c8" config k v)"
+if git -C "$S_c9" config k v; then :; fi
+git -C "$N_c10" rev-parse HEAD
+command git -C "$N_c11" config --get k
+echo git -C "$N_c12" config k v
+GPLINT
+_gp_lint_is() {   # <name> <file> <status wanted>
+  local o rc
+  if ! declare -F _fx_lint >/dev/null 2>&1; then bad "$1" "_fx_lint is not defined"; return 0; fi
+  o="$(_fx_lint "$2" 2>/dev/null)"; rc=$?
+  is "$1" "$o|rc=$rc" "$(grep -nE '\$\{?S_' "$2")|rc=$3"
 }
-_pcwd_sp() { _pcwd_pay Stop "$1" "$2" '"stop_hook_active":false'; }
-
-if [ -f "$PCB/.git" ] && [ -f "$PCW2/.git" ] && [ -n "$PCHB" ] && [ "$PCHA" != "$PCHB" ] \
-   && [ "$(cd "$(git -C "$PCB" rev-parse --git-common-dir 2>/dev/null)" 2>/dev/null && pwd -P)" = "$PCA/.git" ]; then
-  ok  "the payload-cwd fixture has a main checkout and a worktree of it on a commit of its own"
+_gp_lint_is "_fx_lint reports a raw cd on a variable before every kind of git write, one N:text line each, and exits 1" "$_gp/lint/writes" 1
+_gp_lint_is "_fx_lint passes over a raw cd on a variable before every git read, and exits 0" "$_gp/lint/reads" 0
+_gp_lint_is "_fx_lint passes over literal operands, _fx_cd, _fx_git, git out of command position, and closed groups" "$_gp/lint/others" 0
+_gp_lint_is "_fx_lint follows a cd's command group across continuations, ( ) and \$( ) groups and a case pattern's )" "$_gp/lint/groups" 1
+_gp_lint_is "_fx_lint skips comments, quoted text and heredoc bodies, and reads the code after them and after a here-string" "$_gp/lint/text" 1
+_gp_lint_is "_fx_lint reports a raw git -C on a variable with a write, command git included, and not a read" "$_gp/lint/dashc" 1
+# A file the lint cannot read never reads as clean.
+_gp_lint2() {   # <name> <files...>: exit 2 with a message on stderr
+  local n="$1" o rc; shift
+  if ! declare -F _fx_lint >/dev/null 2>&1; then bad "$n" "_fx_lint is not defined"; return 0; fi
+  o="$(_fx_lint "$@" 2>"$_gp/lint.err")"; rc=$?
+  if [ "$rc" = 2 ] && [ -s "$_gp/lint.err" ]; then ok "$n"
+  else bad "$n" "it exited [$rc], printed [$o] and said on stderr [$(cat "$_gp/lint.err")]"; fi
+}
+_gp_lint2 "_fx_lint exits 2 with a message on stderr for a file that does not exist" "$_gp/lint/absent"
+_gp_lint2 "_fx_lint exits 2 for a missing file named after a clean one" "$_gp/lint/reads" "$_gp/lint/absent"
+cp "$_gp/lint/reads" "$_gp/lint/locked"; chmod 000 "$_gp/lint/locked"
+if [ -r "$_gp/lint/locked" ]; then
+  skip "_fx_lint exits 2 with a message on stderr for a file it may not read" "this user reads a mode-000 file"
 else
-  bad "the payload-cwd fixture has a main checkout and a worktree of it on a commit of its own" \
-      "worktree [$PCB] heads [$PCHA] [$PCHB]"
+  _gp_lint2 "_fx_lint exits 2 with a message on stderr for a file it may not read" "$_gp/lint/locked"
 fi
-is "and in its own home the checkouts resolve as the cases below assume" \
-   "$(_pcwd_res "$PCA") $(_pcwd_res "$PCB") $(_pcwd_res "$PCR") $(_pcwd_res "$PCBS") [$(_pcwd_res "$PCU")] [$(_pcwd_res "$PCK")] [$(_pcwd_res "$PCW2")] [$(_pcwd_res "$PCN")]" \
-   "pcwd pcwd pcwdremote pcwd [] [] [] []"
-chmod 000 "$PCQ/.felix"
+chmod 644 "$_gp/lint/locked"
 
-# ---- felix_hook_dir, rule by rule (C1). Each answer is the directory printed,
-# a dot, the status, a bar, and whatever reached stderr, so one case checks
-# that it prints one directory with no newline, returns 0 and says nothing.
-# The suite's FELIX_HOME still names the widget home, so the remote-bound case
-# can only pass where the function resolves in the home it is handed.
-_pcwd_hd() {   # stand-in dir, payload
-  ( cd "$1" || exit 0
-    . "$FROOT/harness/lib/resolve.sh"
-    o="$(felix_hook_dir "$2" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
-    printf '%s|%s' "$o" "$(cat "$PC/hd.err" 2>/dev/null)" )
+# C5 to C9, through child runs. Each child is this suite's preamble, cut at the
+# line before its first section header as a section runner is, with
+# REAL_HARNESS set right after the preamble's own line to a copy of the harness
+# under test. Then comes a body written here, and, for some children, the
+# lines from the header of C5 and C8 to the line before the completion marker,
+# then a tail that prints FAIL and exits 0. A child without that cut is a
+# section runner, and only the EXIT trap stands between it and a green exit.
+#
+# Each child starts INSIDE a stand-in, or in a directory under $TMP that is in
+# no checkout. Its harness copy sits outside any checkout unless the case
+# says otherwise, so the remotes it watches are the stand-in's and nothing
+# else's. The children that move a stand-in's remote do it through _gpk_git,
+# which names the stand-in's git dir outright and first checks that the
+# stand-in sits physically under this suite's $TMP. Only the stand-in a child
+# is handed can be touched, whatever the child's code does.
+#
+# C7 compares mtimes with `test -nt`, which resolves to whole seconds, so a
+# child that moves a remote sleeps a second first. The move then lands in a
+# later second than the snapshot.
+_gp_hdr="printf '\\nthe run stayed inside its temporary directory\\n'"
+_gp_mark="printf '\\nreached\\n'"
+_gp_c5="no fixture git command was refused for a directory outside the suite's temporary directory"
+_gp_c8="the remotes of the checkout this run started in did not move while it ran"
+_gp_cutx() {   # the lines from C5 and C8's header to the line before the marker
+  GP_H="$_gp_hdr" GP_M="$_gp_mark" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"] }
+    $0 == h { on = 1 } on && $0 == m { exit } on { print }' "$_gp_src"
 }
-_pcwd_hdp() { _pcwd_pay PreToolUse hd "$1" '"tool_name":"Bash","tool_input":{"command":"true"},"tool_use_id":"toolu_hd"'; }
-is "felix_hook_dir prints the payload's worktree when its marker names a project" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB")")" "$PCB.0|"
-is "felix_hook_dir prints a subdirectory of that worktree as given, not its root" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/sub")")" "$PCB/sub.0|"
-is "felix_hook_dir prints a checkout whose marker is broken, since Felix has that to say about it" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCK")")" "$PCK.0|"
-# Launched where nothing governs: Amendment 1 keeps a governed launch directory
-# when the candidate's project is another one, and round two asserts that.
-is "felix_hook_dir prints a checkout bound by its remote alone, resolved in the home it is handed, when the launch directory governs nothing" \
-   "$(_pcwd_hd "$PCU" "$(_pcwd_hdp "$PCR")")" "$PCR.0|"
-is "felix_hook_dir prints a checkout whose marker cannot be read, and writes nothing to stderr about it" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCQ")")" "$PCQ.0|"
-is "felix_hook_dir keeps the launch directory for a git checkout nothing governs" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCU")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for a plain directory nothing governs" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCN")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory when the payload's cwd is empty" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory when the payload carries no cwd" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp -)")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for a relative cwd, though from there it names a governed worktree" \
-   "$(_pcwd_hd "$PX" "$(_pcwd_hdp wt)")" "$PX.0|"
-is "felix_hook_dir keeps the launch directory for a cwd spelt with escaped slashes, which it does not decode" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$(printf '%s' "$PCB" | sed 's|/|\\/|g')")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for a cwd holding a backslash, though that directory exists and is governed" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCBS")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for an escaped backslash that only decoding would make a governed directory" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PX/back\\\\slash")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for a cwd that does not exist" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/no-such-directory")")" "$PCA.0|"
-is "felix_hook_dir keeps the launch directory for a cwd naming a file inside a governed worktree" \
-   "$(_pcwd_hd "$PCA" "$(_pcwd_hdp "$PCB/OK.txt")")" "$PCA.0|"
-# Payloads holding a brace and a comma are built in an assignment first: bash
-# 3.2 brace-expands such a word inside "$(...)" in a command's arguments, and
-# the assertion then compares two halves of a payload with each other.
-_pcwd_p="{\"session_id\":\"hd\",\"transcript_path\":\"$PT/hd.jsonl\",\"cwd\" :  \"$PCB\",\"hook_event_name\":\"Stop\"}"
-is "felix_hook_dir reads the top-level cwd with whitespace around its colon" "$(_pcwd_hd "$PCU" "$_pcwd_p")" "$PCB.0|"
-_pcwd_p="$(_pcwd_pay PreToolUse hd "$PCU" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCB\"}")"
-is "felix_hook_dir reads the leftmost cwd: a governed directory named again inside tool_input does not move it" \
-   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCA.0|"
-_pcwd_p="$(_pcwd_pay PreToolUse hd "$PCB" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"true\",\"cwd\":\"$PCU\"}")"
-is "felix_hook_dir reads the leftmost cwd: an ungoverned directory named again inside tool_input does not undo it" \
-   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCB.0|"
-_pcwd_p="$(_pcwd_pay Stop hd - "\"stop_hook_active\":false,\"last_assistant_message\":\"cd there: \\\"cwd\\\":\\\"$PCB\\\"\"")"
-is "felix_hook_dir does not read a cwd spelt inside a message, where the key's quotes are escaped" \
-   "$(_pcwd_hd "$PCA" "$_pcwd_p")" "$PCA.0|"
-# The CLI case, where the two directories are one: it must cost nothing, so
-# nothing that resolves is called. Spies stand in for each.
-_pco="$( cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; : > "$PC/spy"
-         felix_repo_root()       { printf 'felix_repo_root ' >> "$PC/spy"; printf '%s' "${1:-$PWD}"; }
-         felix_resolve_project() { printf 'felix_resolve_project ' >> "$PC/spy"; return 1; }
-         felix_binding_broken()  { printf 'felix_binding_broken ' >> "$PC/spy"; }
-         git()                   { printf 'git ' >> "$PC/spy"; command git "$@"; }
-         o="$(felix_hook_dir "$(_pcwd_hdp "$PCA")" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
-         printf '%s|%s|%s' "$o" "$(cat "$PC/hd.err")" "$(cat "$PC/spy")" )"
-is "felix_hook_dir answers a cwd equal to the launch directory without resolving anything" "$_pco" "$PCA.0||"
+_gp_o="$(GP_H="$_gp_hdr" GP_M="$_gp_mark" GP_P="printf '\\n" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"]; p = ENVIRON["GP_P"] }
+  $0 == h { n++; if (!s) s = NR; next }
+  s && !e && $0 == m { e = NR; next }
+  s && !e && index($0, p) == 1 { x++ }
+  END { printf "%d %d", n, (e > s ? 0 : 1) + x }' "$_gp_src" 2>/dev/null)"
+is "the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker" "$_gp_o" "1 0"
+_gp_harness="$_gp/harness"; _copy_content "$REAL_HARNESS" "$_gp_harness"
+_gp_none="$_gp/none"; mkdir -p "$_gp_none"
+cat > "$_gp/kid-lib.sh" <<'GPKID'
+# fixture git proof: what this child may do to its stand-in, and nothing else
+_gpk_ok() {
+  [ -n "${GP_STAND:-}" ] && [ -n "${GP_TMPP:-}" ] && [ -d "$GP_STAND/.git" ] || return 1
+  case "$(cd -P "$GP_STAND" 2>/dev/null && pwd -P)/" in "$GP_TMPP"/?*) return 0 ;; esac
+  return 1
+}
+_gpk_git() {
+  _gpk_ok || { printf 'no stand-in [%s]\n' "${GP_STAND:-}" >> "$GP_OUT/kid.err"; return 3; }
+  ( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_CONFIG
+    git --git-dir="$GP_STAND/.git" "$@" ) >/dev/null 2>&1
+}
+printf '%s\n' "$TMP" > "$GP_OUT/tmp"
+GPKID
+cat > "$_gp/kid-tail.sh" <<'GPKID'
+printf 'gp-fail %s\n' "$FAIL"
+exit 0
+GPKID
+_gp_kid() {   # <name> <cut: 0|1>, body on stdin: writes $_gp/kid/<name>/run
+  local d="$_gp/kid/$1"; mkdir -p "$d"; cat > "$d/body.sh"
+  { [ -n "$_gp_pre" ] && awk -v n="$_gp_pre" 'NR < n { print; if ($0 ~ /^REAL_HARNESS=/) print "REAL_HARNESS=\"$GP_HARNESS\"" }' "$_gp_src"
+    cat "$_gp/kid-lib.sh" "$d/body.sh"
+    if [ "$2" = 1 ]; then _gp_cutx; cat "$_gp/kid-tail.sh"; fi; } > "$d/run"
+}
+_gp_run() {   # <name> <start dir> [stand-in] [harness]: out, err and rc beside the child
+  local d="$_gp/kid/$1"
+  if [ -z "${2:-}" ] || [ ! -d "$2" ]; then printf 'not started' > "$d/err"; : > "$d/out"; printf 'x' > "$d/rc"; return 0; fi
+  ( cd "$2" && GP_OUT="$d" GP_STAND="${3:-}" GP_TMPP="$_gp_tmpp" GP_HARNESS="${4:-$_gp_harness}" \
+      bash "$d/run" > "$d/out" 2> "$d/err"; printf '%s' "$?" > "$d/rc" )
+}
+_gp_rc()   { cat "$_gp/kid/$1/rc" 2>/dev/null; }
+_gp_has()  { grep -Fxq -- "$2" "$_gp/kid/$1/out" 2>/dev/null; }                 # <kid> <exact stdout line>
+_gp_err()  { grep -c -- "^$2" "$_gp/kid/$1/err" 2>/dev/null | tr -d ' '; }      # <kid> <stderr line prefix>: how many
+_gp_detail() {   # <kid> <assertion name>: what bad printed under it
+  GP_N="  FAIL  $2" awk 'f && (/^  (ok|FAIL|skip)  / || /^gp-fail /) { exit } f { print } $0 == ENVIRON["GP_N"] { f = 1 }' \
+    "$_gp/kid/$1/out" 2>/dev/null
+}
+_gp_samecfg() {   # <reported path> <stand-in>: the path is the stand-in's .git/config, physically
+  [ "${1##*/}" = config ] && [ -n "$(_gp_phys "$2/.git")" ] && [ "$(_gp_phys "${1%/*}")" = "$(_gp_phys "$2/.git")" ]
+}
+_gp_gone() {   # <kid>: the child's $TMP no longer exists
+  local t; t="$(cat "$_gp/kid/$1/tmp" 2>/dev/null)"; [ -n "$t" ] && [ ! -e "$t" ]
+}
 
-# About a megabyte: a last message full of escaped "cwd" keys, each naming a
-# checkout Felix has something to say about, behind the real key in the first
-# payload and with no real one in the second. Child CPU, under
-# a watchdog, so neither the load on this machine nor a scan that never ends
-# can decide it; the work is a few milliseconds and the bound is three seconds.
-_pcwd_killtree() { local c; for c in $(pgrep -P "$1" 2>/dev/null); do _pcwd_killtree "$c"; done; kill "$1" 2>/dev/null; }
-_pcwd_bounded() {   # seconds, outfile, command... -> done | killed
-  local lim="$1" of="$2" i=0 pid; shift 2
-  ( "$@" ) > "$of" 2>&1 &
-  pid=$!
-  while kill -0 "$pid" 2>/dev/null && [ "$i" -lt $((lim * 10)) ]; do sleep 0.1; i=$((i + 1)); done
-  if kill -0 "$pid" 2>/dev/null; then _pcwd_killtree "$pid"; wait "$pid" 2>/dev/null; printf 'killed'; return; fi
-  wait "$pid" 2>/dev/null; printf 'done'
-}
-_pcwd_big_one() {
-  cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; raw="$(cat "$1")"
-  o="$(felix_hook_dir "$raw" "$PH" 2>/dev/null)"; printf '%s' "$o" > "$1.out"; times > "$1.cpu"
-}
-_pcwd_big() {   # payload file -> "<printed> <cpu ms>", or killed
-  [ "$(_pcwd_bounded 60 "$1.log" _pcwd_big_one "$1")" = done ] || { printf 'killed'; return; }
-  printf '%s %s' "$(cat "$1.out" 2>/dev/null)" \
-    "$(awk '{ for (i = 1; i <= NF; i++) { split($i, t, "m"); sub(/s$/, "", t[2]); ms += (t[1] * 60 + t[2]) * 1000 } }
-            END { printf "%d", ms }' "$1.cpu" 2>/dev/null)"
-}
-_pcwd_msg() { awk -v p="$PCK" 'BEGIN { u = "x \\\"cwd\\\":\\\"" p "\\\" y "; for (n = 0; n < 1100000; n += length(u)) printf "%s", u }'; }
-_pcwd_bigp() { _pcwd_pay Stop big "$1" "\"stop_hook_active\":false,\"last_assistant_message\":\"$(_pcwd_msg)\""; }
-_pcwd_bigp "$PCB" > "$PC/big-cwd.json"; _pcwd_bigp - > "$PC/big-none.json"
-_pcwd_bigsz="$(wc -c < "$PC/big-cwd.json" | tr -d ' ')"
-[ "$_pcwd_bigsz" -gt 1000000 ] && ok  "the payload-cwd fixture's megabyte payloads hold over a million bytes" \
-                               || bad "the payload-cwd fixture's megabyte payloads hold over a million bytes" "$_pcwd_bigsz bytes"
-_pco="$(_pcwd_big "$PC/big-cwd.json")"
-if [ "${_pco% *}" = "$PCB" ] && [ "${_pco##* }" -lt 3000 ] 2>/dev/null; then
-  ok  "felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds"
+# C8 skips, C5 passes, and the trap stays quiet, in a run that started in no
+# checkout and whose harness is in none.
+_gp_kid none 1 <<'GPKID'
+ok "gp child: an assertion in a run that started in no checkout"
+true
+GPKID
+_gp_run none "$_gp_none"
+_gp_x="$(grep -F -- "  skip  $_gp_c8 (" "$_gp/kid/none/out" 2>/dev/null)"
+if _gp_has none "  ok    $_gp_c5" && case "$_gp_x" in *checkout*) true ;; *) false ;; esac \
+   && [ "$(_gp_rc none)" = 0 ] && [ "$(_gp_err none 'tests/run:')" = 0 ]; then
+  ok  "a run that started in no checkout skips the origin check, saying so, and exits 0"
 else
-  bad "felix_hook_dir finds the top-level cwd ahead of a megabyte of message in under three CPU seconds" \
-      "got [$_pco], want [$PCB] under 3000 ms"
+  bad "a run that started in no checkout skips the origin check, saying so, and exits 0" \
+      "status [$(_gp_rc none)]; it printed: $(grep -E '^  (ok|FAIL|skip)  ' "$_gp/kid/none/out" | tail -3 | tr '\n' ' ')stderr: $(head -3 "$_gp/kid/none/err" | tr '\n' ' ')"
 fi
-_pco="$(_pcwd_big "$PC/big-none.json")"
-if [ "${_pco% *}" = "$PCA" ] && [ "${_pco##* }" -lt 3000 ] 2>/dev/null; then
-  ok  "felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds"
+
+# Unchanged remotes: C5 and C8 pass, and the run exits 0. Under fork pressure
+# the guard's per-assertion check costs no fork. That half alone would pass on
+# a suite with no guard at all, so it counts only where the moved-remote child
+# below shows the guard is there.
+_gp_same="$_gp/stand-same"; _gp_build "$_gp_same"
+_gp_kid same 1 <<'GPKID'
+ok "gp child: an assertion before anything else"
+( ulimit -S -u 1 2>/dev/null || exit 0
+  ulimit -S -u > "$GP_OUT/fork.limit"
+  _ran "gp child: an assertion recorded with no fork available" 2> "$GP_OUT/fork.err" )
+ok "gp child: an assertion after the fork probe"
+true
+GPKID
+_gp_run same "$_gp_same/sub" "$_gp_same"
+if _gp_has same "  ok    $_gp_c5" && _gp_has same "  ok    $_gp_c8" && [ "$(_gp_rc same)" = 0 ] && [ "$(_gp_err same 'tests/run:')" = 0 ]; then
+  ok  "a run whose remotes did not move passes the refusal and origin checks and exits 0"
 else
-  bad "felix_hook_dir answers a megabyte payload with no cwd by the launch directory in under three CPU seconds" \
-      "got [$_pco], want [$PCA] under 3000 ms"
+  bad "a run whose remotes did not move passes the refusal and origin checks and exits 0" \
+      "status [$(_gp_rc same)]; C5 and C8 said: $(grep -F -e "$_gp_c5" -e "$_gp_c8" "$_gp/kid/same/out" | tr '\n' ' ')stderr: $(head -3 "$_gp/kid/same/err" | tr '\n' ' ')"
 fi
-
-# ---- felix_hook_enter (C2'): the calling shell moves, and keeps no record of
-# whence. Amendment 1 dropped FELIX_HOOK_LAUNCH: nothing reads it once pre-tool
-# resolves from where it was started, and state nobody reads is a claim nobody
-# checks. So the variable must come back unset, not merely empty.
-_pcwd_he() {   # payload -> "PWD|unset, or set to FELIX_HOOK_LAUNCH's value|status|output"
-  ( cd "$PCA" && . "$FROOT/harness/lib/resolve.sh"; unset FELIX_HOOK_LAUNCH
-    felix_hook_enter "$1" "$PH" > "$PC/he.out" 2>&1; rc=$?
-    printf '%s|%s|%s|%s' "$PWD" "${FELIX_HOOK_LAUNCH+set to }${FELIX_HOOK_LAUNCH-unset}" "$rc" "$(cat "$PC/he.out")" )
-}
-is "felix_hook_enter moves the calling shell into the payload's worktree, says nothing, and leaves FELIX_HOOK_LAUNCH unset" \
-   "$(_pcwd_he "$(_pcwd_hdp "$PCB")")" "$PCB|unset|0|"
-is "felix_hook_enter leaves the calling shell where it was for a directory nothing governs, says nothing, and sets no FELIX_HOOK_LAUNCH" \
-   "$(_pcwd_he "$(_pcwd_hdp "$PCU")")" "$PCA|unset|0|"
-
-# ---- Stop, first with the main checkout green and the worktree unverified.
-_pcwd_gate "$PCA"
-PCTA1="$(_pcwd_tid "$PCA")"; PCTB1="$(_pcwd_tid "$PCB")"
-is "the payload-cwd fixture's main checkout carries a current green receipt, and its worktree none" \
-   "$(_pcwd_current "$PCA") $(_pcwd_current "$PCB")" "current none"
-is "Stop with the payload's cwd at the launch checkout judges that checkout as before, and it is green" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s1 "$PCA")")" "silent +1 allowed $PCTA1 green"
-is "Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s2 "$PCB")")" "block +1 blocked $PCTB1 never verified"
-_pco="$(_pcwd_hook "$PCA" stop "$(_pcwd_sp pc-s3 "$PCW2")")"
-case "$_pco" in
-  *'"decision"'*'"block"'*) ok  "Stop refuses a broken marker in the payload's worktree though the launch checkout is green" ;;
-  *)                        bad "Stop refuses a broken marker in the payload's worktree though the launch checkout is green" "got [$_pco]" ;;
-esac
-has "and the refusal names that worktree's marker" "$_pco" "The .felix marker in $PCW2 names"
-# Entered before the flag is read: a flagged stop in a chain Felix did not
-# start is judged, and the project it is judged under is the worktree's.
-is "Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names" \
-   "$(_pcwd_stop "$PCU" "$(_pcwd_pay Stop pc-s6 "$PCB" '"stop_hook_active":true')")" "block +1 blocked $PCTB1 never verified"
-
-# SubagentStop asks the same of the tree, and says so rather than holding.
-has "SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green" \
-    "$(_pcwd_hook "$PCA" subagent-stop "$(_pcwd_pay SubagentStop pc-ss1 "$PCB" '"stop_hook_active":false,"agent_id":"a1"')")" \
-    "A subagent report is about to be integrated"
-has "SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names" \
-    "$(_pcwd_hook "$PCU" subagent-stop "$(_pcwd_pay SubagentStop pc-ss2 "$PCB" '"stop_hook_active":false,"agent_id":"a2"')")" \
-    "A subagent report is about to be integrated"
-
-# ---- Then the other way round: the worktree green, the main checkout not.
-_pcwd_gate "$PCB"
-printf 'a-again\n' >> "$PCA/OK.txt"
-PCTA2="$(_pcwd_tid "$PCA")"; PCTB2="$(_pcwd_tid "$PCB")"
-is "the payload-cwd fixture's worktree now carries a current green receipt, and its main checkout a stale one" \
-   "$(_pcwd_current "$PCB") $(_pcwd_current "$PCA")" "current stale"
-is "Stop allows when the worktree the payload names is green, though the launch checkout holds unverified work" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s4 "$PCB")")" "silent +1 allowed $PCTB2 green"
-is "Stop judges the worktree when the payload's cwd is a subdirectory of it" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s5 "$PCB/sub")")" "silent +1 allowed $PCTB2 green"
-_pcwd_held="block +1 blocked $PCTA2 stale receipt"
-is "Stop with the payload's cwd at the launch checkout judges it as before, and holds its stale receipt" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c1 "$PCA")")" "$_pcwd_held"
-is "Stop with no cwd in the payload judges the launch checkout as before" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c2 -)")" "$_pcwd_held"
-is "Stop with an empty cwd judges the launch checkout as before" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c3 "")")" "$_pcwd_held"
-is "Stop with a relative cwd judges the launch checkout, though from there that path leads to the green worktree" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c4 to-b)")" "$_pcwd_held"
-is "Stop with a cwd spelt in JSON escapes judges the launch checkout, though decoding it leads to the green worktree" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c5 "$(printf '%s' "$PCB" | sed 's|/|\\/|g')")")" "$_pcwd_held"
-is "Stop with a cwd that does not exist judges the launch checkout as before" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c6 "$PCB/no-such-directory")")" "$_pcwd_held"
-is "Stop with a cwd in a git checkout nothing governs judges the launch checkout as before" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c7 "$PCU")")" "$_pcwd_held"
-is "Stop with a cwd in a plain directory nothing governs judges the launch checkout as before" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-c8 "$PCN")")" "$_pcwd_held"
-
-# ---- PreToolUse. A deny row with no scope, so where the command acts does
-# not matter and only which project's rows apply does.
-_pcwd_ptp() { _pcwd_pay PreToolUse "$1" "$2" "\"tool_name\":\"Bash\",\"tool_input\":{\"command\":\"npm publish\"${3:-}},\"tool_use_id\":\"toolu_pcwd\""; }
-is "PreToolUse launched in a directory nothing governs refuses by the rows of the governed worktree the payload names" \
-   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p1 "$PCB")")" "2"
-has "and the refusal names that project's deny table" "$(cat "$PC/pre.err" 2>/dev/null)" \
-    "This is a rule in $PH/projects/pcwd/deny.tsv"
-is "PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal" \
-   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p2 "$PCB" ",\"cwd\":\"$PCU\"")")" "2"
-is "PreToolUse is not moved by a governed directory named only inside tool_input" \
-   "$(_pcwd_pre "$PCU" "$(_pcwd_ptp pc-p3 "$PCU" ",\"cwd\":\"$PCB\"")")" "0"
-is "PreToolUse still refuses by the launch checkout's rows when the payload's worktree has a broken marker" \
-   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p4 "$PCW2")")" "2"
-_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p5 -)" >/dev/null; _pcwd_err0="$(cat "$PC/pre.err" 2>/dev/null)"
-is "PreToolUse refuses by the launch checkout's rows when the payload's cwd is a directory nothing governs, as before" \
-   "$(_pcwd_pre "$PCA" "$(_pcwd_ptp pc-p6 "$PCU")")" "2"
-is "and says exactly what it says when the payload carries no cwd" "$(cat "$PC/pre.err" 2>/dev/null)" "$_pcwd_err0"
+# A section-runner child, no C5 or C8 of its own: the trap checks, finds
+# nothing wrong, says nothing and keeps 0. A control: a suite with no guard
+# passes it too.
+_gp_kid samerun 0 <<'GPKID'
+ok "gp child: an assertion in a section runner whose remotes stay put"
+true
+GPKID
+_gp_run samerun "$_gp_same/sub" "$_gp_same"
+if [ "$(_gp_rc samerun)" = 0 ] && [ "$(_gp_err samerun 'tests/run:')" = 0 ] && _gp_gone samerun; then
+  ok  "a section runner whose remotes did not move exits 0, its trap silent, its temporary directory removed"
+else
+  bad "a section runner whose remotes did not move exits 0, its trap silent, its temporary directory removed" \
+      "status [$(_gp_rc samerun)]; stderr: $(head -3 "$_gp/kid/samerun/err" | tr '\n' ' ')"
+fi
 

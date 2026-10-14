@@ -72,7 +72,7 @@ for _k in el pp vd; do
   for _t in a b; do
     _d="$PGL/$_k/$_t"; mkdir -p "$_d/src/elenchus" "$_d/.venv/bin"
     : > "$_d/src/elenchus/__init__.py"; cp "$PGL/bin/python" "$_d/.venv/bin/python"
-    ( cd "$_d" && git init -q -b main && git add src \
+    ( _fx_cd "$_d" && git init -q -b main && git add src \
       && git -c user.name=t -c user.email=t@t commit -qm base \
       && git update-ref refs/remotes/origin/main HEAD \
       && printf 'x = 1\n' > src/elenchus/mod.py && git add src \
@@ -176,7 +176,7 @@ STUB
 printf '#!/usr/bin/env bash\nexit 0\n' > "$_VFM/bin/gitleaks"
 chmod +x "$_VFM/bin/cargo" "$_VFM/bin/gitleaks"
 for _f in a b c; do printf 'fn %s() {}\n' "$_f" > "$_VFM/real/src/$_f.rs"; done
-( cd "$_VFM/real" && git init -q -b main && git add src \
+( _fx_cd "$_VFM/real" && git init -q -b main && git add src \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 ln -s "$_VFM/real" "$_VFM/link"
 printf 'fn d( ){}\n' > "$_VFM/real/src/d.rs"

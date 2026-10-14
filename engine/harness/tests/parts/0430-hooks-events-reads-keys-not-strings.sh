@@ -169,7 +169,7 @@ cp -R "$FROOT/harness" "$DCK/tree/engine/harness"
 _copy_content "$REAL_HARNESS/../hooks" "$DCK/tree/engine/hooks"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCK/tree/engine/.claude-plugin/plugin.json"
 printf '*.log\n' > "$DCK/tree/.gitignore"
-( cd "$DCK/tree" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "$DCK/tree" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 DCKT="$(cd "$DCK/tree" && pwd -P)"
 cp -R "$DCK/tree/engine" "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1"
 printf '{\n  "felix": {\n    "installLocation": "%s"\n  }\n}\n' "$DCKT" > "$DCK/home/.claude/plugins/known_marketplaces.json"
@@ -197,12 +197,12 @@ if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
   # Committed on main: the question is main's engine against main's entry, so
   # a library changed in the working tree is not drift and one merged is.
   printf '# drift\n' >> "$DCKT/engine/harness/lib/say.sh"
-  ( cd "$DCKT" && git -c user.name=t -c user.email=t@t commit -qam drift ) >/dev/null 2>&1
+  ( _fx_cd "$DCKT" && git -c user.name=t -c user.email=t@t commit -qam drift ) >/dev/null 2>&1
   out="$(_dck)"
   is  "a changed library is drift, exit 1" "$(_rc "$out")" "1"
   has "and the report names the path" "$out" "say.sh"
   has "and counts it" "$out" "1 path(s) differ"
-  ( cd "$DCKT" && git reset -q --hard HEAD~1 )
+  ( _fx_cd "$DCKT" && git reset -q --hard HEAD~1 )
   printf 'x\n' > "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1/harness/scratch.log"
   is  "what git ignores is not drift" "$(_rc "$(_dck)")" "0"
   rm -f "$DCK/home/.claude/plugins/cache/felix/felix/0.0.1/harness/scratch.log"
@@ -227,7 +227,7 @@ if [ -x "$DCKT/engine/harness/bin/deploy-check" ]; then
   # that stops blocking because its checker could not start.
   DCKB="$TMP/deploy-check-broken"; mkdir -p "$DCKB/engine/harness/bin"
   cp "$DCKT/engine/harness/bin/deploy-check" "$DCKB/engine/harness/bin/"
-  ( cd "$DCKB" && git init -q -b main && git add -A \
+  ( _fx_cd "$DCKB" && git init -q -b main && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm b ) >/dev/null 2>&1
   is  "a deploy-check with no library beside it is 127, never 1" \
       "$(cd "$DCKB" && HOME="$DCK/home" PATH="$DCK/bin:$PATH" engine/harness/bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "127"
@@ -269,7 +269,7 @@ cp -R "$FROOT/harness" "$DCM/tree/engine/harness"
 _copy_content "$REAL_HARNESS/../hooks" "$DCM/tree/engine/hooks"
 printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCM/tree/engine/.claude-plugin/plugin.json"
 printf '*.log\n' > "$DCM/tree/.gitignore"
-( cd "$DCM/tree" && git init -q -b main && git add -A \
+( _fx_cd "$DCM/tree" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 DCMT="$(cd "$DCM/tree" && pwd -P)"
 # Deploy a ref's engine at a version the way the cache holds it: from the
@@ -277,7 +277,7 @@ DCMT="$(cd "$DCM/tree" && pwd -P)"
 # fresh entry only; a tampered file is put back below from the same commit.
 _dcm_deploy() {   # ref, version
   mkdir -p "$DCMC/$2" "$DCM/x.$2"
-  git -C "$DCMT" archive "$1" engine | tar -x -C "$DCM/x.$2"
+  _fx_git "$DCMT" archive "$1" engine | tar -x -C "$DCM/x.$2"
   for _d in harness hooks commands; do
     [ -d "$DCM/x.$2/engine/$_d" ] && cp -R "$DCM/x.$2/engine/$_d" "$DCMC/$2/$_d"
   done
@@ -304,7 +304,7 @@ _dcmn() { ( cd "$DCMT" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CAC
 # Exact, for the reason the block above gives: "rc=1" as a substring is
 # satisfied by rc=126 and rc=127, which are a checker that never ran.
 _dcmrc() { printf '%s' "${1##*rc=}"; }
-_dcmci() { git -C "$DCMT" -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }
+_dcmci() { _fx_git "$DCMT" -c user.name=t -c user.email=t@t "$@" >/dev/null 2>&1; }
 if [ -x "$FROOT/harness/bin/deploy-check" ]; then
   # Applicability: a cache and a main. Who the marketplace serves is not asked.
   is  "deploy-check --applies holds in a worktree the marketplace does not serve" "$(_dcmrc "$(_dcm --applies)")" "0"
@@ -322,7 +322,7 @@ if [ -x "$FROOT/harness/bin/deploy-check" ]; then
   # The working tree is not main.
   printf '# working tree\n' >> "$DCMT/engine/harness/lib/say.sh"
   is  "a library changed in the working tree is not drift, because main did not change" "$(_dcmrc "$(_dcm)")" "0"
-  ( cd "$DCMT" && git checkout -q -- engine/harness/lib/say.sh )
+  ( _fx_cd "$DCMT" && git checkout -q -- engine/harness/lib/say.sh )
   printf 'x\n' > "$DCMT/engine/harness/lib/untracked.sh"
   is  "nor is a file added to the working tree that git does not track" "$(_dcmrc "$(_dcm)")" "0"
   rm -f "$DCMT/engine/harness/lib/untracked.sh"
@@ -390,7 +390,7 @@ if [ -x "$FROOT/harness/bin/deploy-check" ]; then
   cp -R "$FROOT/harness" "$DCMR/engine/harness"
   _copy_content "$REAL_HARNESS/../hooks" "$DCMR/engine/hooks"
   printf '{ "name": "felix", "version": "0.0.1" }\n' > "$DCMR/engine/.claude-plugin/plugin.json"
-  ( cd "$DCMR" && git init -q -b trunk && git add -A \
+  ( _fx_cd "$DCMR" && git init -q -b trunk && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
   _dcmr() { ( cd "$DCMR" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE \
               && HOME="$DCM/home" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check "$@" 2>&1; echo "rc=$?" ); }
@@ -418,7 +418,7 @@ if [ -x "$FROOT/harness/bin/deploy-check" ]; then
   # that ran without its library would answer 0 to --applies.
   DCMB="$DCM/broken"; mkdir -p "$DCMB/engine/harness/bin"
   cp "$DCMT/engine/harness/bin/deploy-check" "$DCMB/engine/harness/bin/"
-  ( cd "$DCMB" && git init -q -b main && git add -A \
+  ( _fx_cd "$DCMB" && git init -q -b main && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm b ) >/dev/null 2>&1
   is  "a deploy-check with no library beside it is still 127 under the new question" \
       "$(cd "$DCMB" && HOME="$DCM/home" PATH="$DCM/bin:$PATH" engine/harness/bin/deploy-check --applies >/dev/null 2>&1; echo $?)" "127"
@@ -472,7 +472,7 @@ printf '{ "name": "felix", "version": "0.0.1" }\n' > "$GEX/engine/.claude-plugin
 _GEXG="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
 if [ -f "$_GEXG" ]; then
   cp "$_GEXG" "$GEX/gate.sh"
-  ( cd "$GEX" && git init -q -b main && git add -A \
+  ( _fx_cd "$GEX" && git init -q -b main && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   out="$(cd "$GEX" && bash gate.sh --quick 2>&1 | grep '^  executable')"
   has "the gate's executable check passes when every script under bin/ has its bit" "$out" "ok"

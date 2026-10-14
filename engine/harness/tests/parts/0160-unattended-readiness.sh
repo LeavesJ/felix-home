@@ -48,7 +48,7 @@ chmod +x "$UNB/gh"
 # The fixture has no origin at this point and cmd_unattended dies without one -
 # which made two of these assertions pass on the error text rather than on the
 # behaviour. Added here and removed at the end of the block.
-( cd "$REPO" && git remote add origin https://github.com/example/widget.git ) 2>/dev/null
+( _fx_cd "$REPO" && git remote add origin https://github.com/example/widget.git ) 2>/dev/null
 _unatt() { ( cd "$REPO" && PATH="$UNB:$PATH" "$FELIX" unattended 2>&1 ); }
 # Asserted, not assumed: if the command still cannot run, everything below is
 # testing an error message.
@@ -181,7 +181,7 @@ unset UNSTUB_FILES UNSTUB_WORKFLOWS
 fi
 
 cp "$TMP/risk.unatt.keep" "$FROOT/projects/widget/risk.tsv"
-( cd "$REPO" && git remote remove origin ) 2>/dev/null
+( _fx_cd "$REPO" && git remote remove origin ) 2>/dev/null
 
 printf '\ngenerated CI points at a path that exists\n'
 # Moving the engine broke every generated workflow at once, in other
@@ -311,22 +311,22 @@ is  "every checkout in the generated workflow is v5, the lowest major on Node 24
 # succeed, which is why a pushed branch nobody merged is the case that matters:
 # it fetches, and grades with an engine nobody reviewed.
 _PS="$TMP/pinsrc"; _PC="$TMP/pinclone"
-( git init -q -b main "$_PS" && cd "$_PS" \
+( git init -q -b main "$_PS" && _fx_cd "$_PS" \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
   && git checkout -q -b side && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m side \
   && git checkout -q main && git clone -q "$_PS" "$_PC" ) >/dev/null 2>&1
 _pinref() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" || printf 'NONE' ); }
 is  "a source whose HEAD is origin's default branch pins that commit, in full" \
     "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
-( cd "$_PC" && git checkout -q --detach origin/side ) >/dev/null 2>&1
+( _fx_cd "$_PC" && git checkout -q --detach origin/side ) >/dev/null 2>&1
 is  "a HEAD on a pushed branch the default branch does not hold pins nothing" \
     "$(_pinref "$_PC")" "NONE"
-( cd "$_PC" && git checkout -q main \
+( _fx_cd "$_PC" && git checkout -q main \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m local ) >/dev/null 2>&1
 is  "a HEAD only this machine holds pins nothing" "$(_pinref "$_PC")" "NONE"
 # A clone made some other way may carry no origin/HEAD, and origin/main is
 # still the default branch's name here.
-( cd "$_PC" && git reset -q --hard origin/main && git remote set-head origin -d ) >/dev/null 2>&1
+( _fx_cd "$_PC" && git reset -q --hard origin/main && git remote set-head origin -d ) >/dev/null 2>&1
 is  "and with no origin/HEAD, origin/main is the branch asked" \
     "$(_pinref "$_PC")" "$(git -C "$_PS" rev-parse main)"
 # Bounded, because a $TMP under a directory that is itself a repository would
@@ -339,23 +339,23 @@ is  "a source that is not a checkout pins nothing" \
 # the order cannot show; here it is trunk, and a main beside it holds a commit
 # the default branch does not.
 _PT="$TMP/pintrunk"; _PTC="$TMP/pintrunkclone"
-( git init -q -b trunk "$_PT" && cd "$_PT" \
+( git init -q -b trunk "$_PT" && _fx_cd "$_PT" \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m one \
   && git checkout -q -b main && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m two \
   && git checkout -q trunk && git clone -q "$_PT" "$_PTC" \
-  && cd "$_PTC" && git checkout -q --detach origin/main ) >/dev/null 2>&1
+  && _fx_cd "$_PTC" && git checkout -q --detach origin/main ) >/dev/null 2>&1
 is  "a HEAD only a branch named main holds, when the default branch is another, pins nothing" \
     "$(_pinref "$_PTC")" "NONE"
 
 # The project, when asked about. CI resolves the project from the Felix it
 # checked out, so a commit from before the project merged cannot govern it.
 _pinproj() { ( . "$FROOT/harness/lib/bootstrap.sh"; felix_bs_pin_ref "$1" "$2" || printf 'NONE' ); }
-( cd "$_PS" && mkdir -p projects/w && printf '{}\n' > projects/w/project.json && git add projects \
+( _fx_cd "$_PS" && mkdir -p projects/w && printf '{}\n' > projects/w/project.json && git add projects \
   && git -c user.name=t -c user.email=t@t commit -q -m project \
-  && cd "$_PC" && git fetch -q origin && git checkout -q --detach origin/main ) >/dev/null 2>&1
+  && _fx_cd "$_PC" && git fetch -q origin && git checkout -q --detach origin/main ) >/dev/null 2>&1
 is  "a commit holding the project it is asked about pins" \
     "$(_pinproj "$_PC" projects/w)" "$(git -C "$_PS" rev-parse main)"
-( cd "$_PC" && git checkout -q --detach origin/main~1 ) >/dev/null 2>&1
+( _fx_cd "$_PC" && git checkout -q --detach origin/main~1 ) >/dev/null 2>&1
 is  "a commit on the default branch from before the project merged pins nothing" \
     "$(_pinproj "$_PC" projects/w)" "NONE"
 

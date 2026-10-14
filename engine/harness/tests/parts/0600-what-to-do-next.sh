@@ -48,7 +48,7 @@ has "every row carries the command that clears it" "$(printf '%s\n' "$n" | head 
 # checkout, not the name of a project. $REPO above holds no engine, which is
 # why none of the rows already asserted here changed.
 NDR="$TMP/next-drift"; mkdir -p "$NDR/engine"
-( cd "$NDR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+( _fx_cd "$NDR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
 NDR="$(cd "$NDR" && pwd -P)"
 cp -R "$FROOT/harness" "$NDR/engine/harness"

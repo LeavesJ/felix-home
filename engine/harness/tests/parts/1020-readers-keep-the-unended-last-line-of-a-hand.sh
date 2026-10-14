@@ -63,7 +63,7 @@ _rkl_proj() {   # name -> a project under projects/, with a gate that cannot fai
 }
 _rkl_checkout() {   # dir, project name for its .felix marker (or - for none)
   mkdir -p "$1"
-  ( cd "$1" && git init -q -b main >/dev/null 2>&1 \
+  ( _fx_cd "$1" && git init -q -b main >/dev/null 2>&1 \
       && printf 'rkl checkout\n' > README.rkl && git add README.rkl \
       && git -c user.name=rkl -c user.email=rkl@example.invalid commit -qm rkl >/dev/null 2>&1 )
   [ "$2" = - ] || printf '%s\n' "$2" > "$1/.felix"
@@ -400,7 +400,7 @@ is "rkl: the stop hook reached its green branch on this fixture with no stack.ts
 _rkl_proj rkl-b-remote
 mkdir -p "$_rkl_PR/rkl-a-other"
 mkdir -p "$_rkl/co-remote"
-( cd "$_rkl/co-remote" && git init -q -b main && git remote add origin https://example.invalid/rkl-b-remote.git ) >/dev/null 2>&1
+( _fx_cd "$_rkl/co-remote" && git init -q -b main && git remote add origin https://example.invalid/rkl-b-remote.git ) >/dev/null 2>&1
 _rkl_np "rkl: felix which resolves by remote past a FIFO project.json in another project" \
   "$_rkl_PR/rkl-a-other/project.json" fifo 'cd "$_rkl/co-remote" && "$FELIX" which'
 is "rkl: felix which resolves this project by its remote (control)" \

@@ -534,7 +534,7 @@ FCCFG="$FC/r1" FCFH="$FC/no-such-dir" _fc --tsv
 is  "felix cost ignores a FELIX_HOME that does not exist and a HOME whose .felix-home names none" \
     "$(_fc_row total all)" "$(_fc_exps total all 90500000.00 10.0 1)"
 mkdir -p "$FC/repo"
-( cd "$FC/repo" && git init -q -b main && printf 'x\n' > file.txt )
+( _fx_cd "$FC/repo" && git init -q -b main && printf 'x\n' > file.txt )
 FC_GS0="$(git -C "$FC/repo" status --porcelain)"; FC_SN0="$(_fc_snap "$FC/repo")"
 FCCWD="$FC/repo" FCCFG="$FC/r1" _fc --tsv
 FC_SN1="$(_fc_snap "$FC/repo")"; FC_GS1="$(git -C "$FC/repo" status --porcelain)"

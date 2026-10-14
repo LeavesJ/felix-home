@@ -123,7 +123,7 @@ cat > "$WP/project.json" <<'EOF2'
 EOF2
 NREPO="$TMP/nightrepo"
 mkdir -p "$NREPO"
-( cd "$NREPO" && git init -q -b main
+( _fx_cd "$NREPO" && git init -q -b main
   printf 'contents\n' > WIDGET.txt
   printf 'widget\n'   > .felix
   git add -A >/dev/null 2>&1
@@ -278,7 +278,7 @@ printf 'contents\nnight work\n' > "$NREPO/WIDGET.txt"
 # no night, so a session that had not committed yet was let go for the night.
 CREPO="$TMP/nightclean"
 mkdir -p "$CREPO"
-( cd "$CREPO" && git init -q -b main
+( _fx_cd "$CREPO" && git init -q -b main
   printf 'contents\n' > WIDGET.txt
   printf 'widget\n'   > .felix
   git add -A >/dev/null 2>&1
@@ -423,7 +423,7 @@ _ovreset "$WP"
 # hold is asked for by what it says: a block alone is also what the gate's hold
 # looks like, and a fixture with no probes reached that one instead and passed.
 _ovrows() { awk 'END { print NR }' "$MEM/widget/verification.log" 2>/dev/null || echo 0; }
-( cd "$NREPO" && git checkout -q -- . ); printf 'night work\n' >> "$NREPO/WIDGET.txt"
+( _fx_cd "$NREPO" && git checkout -q -- . ); printf 'night work\n' >> "$NREPO/WIDGET.txt"
 _ovgate="$(cd "$NREPO" && "$FELIX" gate 2>&1)"; _ovgaterc=$?
 is "the tree is green before the hold record meets a night" "$_ovgaterc" "0"
 rm -rf "$FROOT/state/held"

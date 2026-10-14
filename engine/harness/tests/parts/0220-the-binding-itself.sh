@@ -78,7 +78,7 @@ printf '\nthe binding itself\n'
 # this project's own rule is that "nothing due" and "nothing is being checked"
 # must not render identically.
 BROKEN="$TMP/brokenmarker"; mkdir -p "$BROKEN"
-( cd "$BROKEN" && git init -q -b main
+( _fx_cd "$BROKEN" && git init -q -b main
   printf 'contents\n' > WIDGET.txt
   printf 'nonexistent\n' > .felix
   git add -A; git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
@@ -126,7 +126,7 @@ grep -q 'nonexistent' "$MEM/unresolved.log" 2>/dev/null \
 # a repository Felix does not govern, and silence is the correct answer even
 # with unverified work sitting in the tree.
 NOMARK="$TMP/nomarker"; mkdir -p "$NOMARK"
-( cd "$NOMARK" && git init -q -b main && printf 'x\n' > a.txt
+( _fx_cd "$NOMARK" && git init -q -b main && printf 'x\n' > a.txt
   git add -A; git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
 printf 'unverified\n' >> "$NOMARK/a.txt"
 out="$(_stop "$NOMARK")"; rc=$?
@@ -276,7 +276,7 @@ esac
 mkdir -p "$FROOT/projects/nogate" "$MEM/nogate"
 printf '{\n  "name": "nogate"\n}\n' > "$FROOT/projects/nogate/project.json"
 NGREPO="$TMP/nogaterepo"; mkdir -p "$NGREPO"
-( cd "$NGREPO" && git init -q -b main && printf 'x\n' > a.txt
+( _fx_cd "$NGREPO" && git init -q -b main && printf 'x\n' > a.txt
   git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm i >/dev/null 2>&1 )
 printf 'nogate\n' > "$NGREPO/.felix"; printf 'dirty\n' >> "$NGREPO/a.txt"
 out="$(_stop "$NGREPO")"
@@ -300,12 +300,12 @@ printf 'moved\n' >> "$GREPO/WIDGET.txt"
 tid2="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$GREPO" )"
 [ "$tid_lib" != "$tid2" ] && ok "and changes when the tree changes" \
                           || bad "and changes when the tree changes" "$tid_lib == $tid2"
-( cd "$GREPO" && git checkout -q -- WIDGET.txt )
+( _fx_cd "$GREPO" && git checkout -q -- WIDGET.txt )
 
 # A repository with no commits at all. HEAD is unborn, and every naive
 # implementation of this dies there. The suite's own fixture is in that state.
 UNBORN="$TMP/unborn"; mkdir -p "$UNBORN"
-( cd "$UNBORN" && git init -q -b main )
+( _fx_cd "$UNBORN" && git init -q -b main )
 printf 'widget\n' > "$UNBORN/.felix"; printf 'x\n' > "$UNBORN/new.txt"
 tid3="$( . "$FROOT/harness/lib/verify.sh"; felix_tree_id "$UNBORN" )"
 [ -n "$tid3" ] && ok "tree identity survives an unborn HEAD" \
@@ -330,7 +330,7 @@ printf '# self\n' > "$SELF/projects/self/CLAUDE.md"
 # declares none has a receipt resting on nothing Felix reads, and that is
 # stale by design rather than a fixture that happens to pass.
 printf 'code\t-\t-\tgit ls-files\ttest -e .git\n' > "$SELF/projects/self/probes.tsv"
-( cd "$SELF" && git init -q -b main && printf 'x\n' > code.txt && printf 'self\n' > .felix
+( _fx_cd "$SELF" && git init -q -b main && printf 'x\n' > code.txt && printf 'self\n' > .felix
   git add -A >/dev/null 2>&1
   git -c user.name=t -c user.email=t@t commit -qm i >/dev/null 2>&1 )
 SELF="$(cd "$SELF" && pwd -P)"
@@ -373,7 +373,7 @@ _sub() { ( cd "$1" && FELIX_HOME="$2" printf '%s' "$SUB_JSON" \
 _sub_speaks() { case "$1" in *"no gate has passed on"*) return 0 ;; *) return 1 ;; esac; }
 
 SUBR="$TMP/subrepo"; mkdir -p "$SUBR"
-( cd "$SUBR" && git init -q -b main
+( _fx_cd "$SUBR" && git init -q -b main
   printf 'widget\n' > .felix
   printf 'contents\n' > WIDGET.txt
   printf 'x\n' > code.txt
@@ -389,13 +389,13 @@ _sub_speaks "$out" && bad "an untouched clean tree stays silent" "$out" \
 
 # UNDER-FIRES. The subagent commits its work, which is what you do at the end,
 # so the tree is clean and the hook said nothing about an unverified result.
-( cd "$SUBR" && printf 'the subagent work\n' >> code.txt
+( _fx_cd "$SUBR" && printf 'the subagent work\n' >> code.txt
   git add -A; git -c user.name=t -c user.email=t@t commit -qm "subagent work" ) >/dev/null 2>&1
 # The mark the user-prompt hook writes at the start of a session, which is what
 # makes "this session committed something" answerable at all.
 ( . "$FROOT/harness/lib/verify.sh"
   felix_session_mark "$FROOT" "$SUB_SID" "$SUBR" ) >/dev/null 2>&1
-( cd "$SUBR" && printf 'more\n' >> code.txt
+( _fx_cd "$SUBR" && printf 'more\n' >> code.txt
   git add -A; git -c user.name=t -c user.email=t@t commit -qm "more work" ) >/dev/null 2>&1
 out="$(_sub "$SUBR" "$FROOT")"
 _sub_speaks "$out" && ok  "work the subagent committed is still checked" \
@@ -433,7 +433,7 @@ _sub_speaks "$out" && bad "a second hand-off in the same session stays quiet" "$
 # bookkeeping too, so appending a log line leaves the receipt valid. The
 # over-fire is only reachable on an UNVERIFIED tree, which is exactly the state
 # the hook exists to speak about.
-( cd "$SELF" && git add -A && git -c user.name=t -c user.email=t@t commit -qm settle ) >/dev/null 2>&1
+( _fx_cd "$SELF" && git add -A && git -c user.name=t -c user.email=t@t commit -qm settle ) >/dev/null 2>&1
 mkdir -p "$SELF/state"; printf 'a log line\n' >> "$SELF/state/keep.log"
 is "the fixture is dirty only in Felix's own bookkeeping" \
    "$( cd "$SELF" && . "$SELF/harness/lib/verify.sh"
@@ -452,7 +452,7 @@ SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"sub-session-2\"
 out="$(_sub "$SUBR" "$FROOT")"
 _sub_speaks "$out" && ok  "a real uncommitted edit still speaks, in a fresh session" \
                    || bad "a real uncommitted edit still speaks, in a fresh session" "$out"
-( cd "$SUBR" && git checkout -q -- code.txt )
+( _fx_cd "$SUBR" && git checkout -q -- code.txt )
 SUB_JSON="{\"hook_event_name\":\"SubagentStop\",\"session_id\":\"$SUB_SID\"}"
 
 printf '\na flag is not a positional\n'

@@ -274,7 +274,7 @@ out="$(cd "$PLAIN" && "$FELIX" repair 2>&1)"; rc=$?
 # command keeps 2: "ungoverned repo refuses to run a gate" holds that.
 is  "repair exits 4 in a checkout no project governs, not the ceiling's 2" "$rc" "4"
 RBRK="$TMP/repair-broken"; mkdir -p "$RBRK"
-( cd "$RBRK" && git init -q -b main && printf 'nonexistent\n' > .felix )
+( _fx_cd "$RBRK" && git init -q -b main && printf 'nonexistent\n' > .felix )
 out="$(cd "$RBRK" && "$FELIX" repair 2>&1)"; rc=$?
 is  "and 4 where the .felix marker names a project that does not exist" "$rc" "4"
 has "and names the broken binding rather than asking for a marker" "$out" "nonexistent"
@@ -357,7 +357,7 @@ _base_branch="$(cd "$REPO" && { git symbolic-ref --quiet --short HEAD 2>/dev/nul
 # A parent commit on the branch itself, rather than a base commit on main,
 # because a later section makes the first commit on main and the restore here
 # depends on it still being unborn.
-( cd "$REPO" && git checkout -qb feature/thing 2>/dev/null
+( _fx_cd "$REPO" && git checkout -qb feature/thing 2>/dev/null
   git add -A >/dev/null 2>&1
   git -c user.name=t -c user.email=t@t commit -qm "fixture base" >/dev/null 2>&1
   printf 'y\n' >> src/widget.py
@@ -409,7 +409,7 @@ out="$(cd "$REPO" && "$FELIX" pr --base feature/thing 2>&1)"; rc=$?
 # is an unborn branch and `git checkout main` has nothing to check out. The
 # branch created here was the first that ever had a commit on it, which is why
 # every attempt to return to `main` failed quietly.
-( cd "$REPO" && git symbolic-ref HEAD "refs/heads/${_base_branch:-main}" 2>/dev/null
+( _fx_cd "$REPO" && git symbolic-ref HEAD "refs/heads/${_base_branch:-main}" 2>/dev/null
   git branch -qD feature/thing 2>/dev/null
   git reset -q 2>/dev/null ) || true
 rm -f "$FROOT/projects/widget/routes.tsv" "$FROOT/projects/widget/evidence.tsv"

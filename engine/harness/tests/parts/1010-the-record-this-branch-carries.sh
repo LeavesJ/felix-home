@@ -66,7 +66,10 @@ _rt_report() {   # <name> <verdict line>
     *)         bad  "$1" "the check's verdict reads [$2], which is none of ok, skip <reason> or bad <detail>" ;;
   esac
 }
-_rtg() { git -C "$REAL_HARNESS" "$@" 2>/dev/null; }
+# Reads this suite's own repository, which sits outside $TMP, so it names its
+# subcommand: the lint reads a parameter in that place as a write, and _fx_git
+# refuses a directory outside $TMP.
+_rtg() { git -C "$REAL_HARNESS" rev-list "$@" 2>/dev/null; }
 _rtv() { sed -n '/"version"/{s/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p;q;}'; }
 # Whether every base the record names is a commit in this repository. The
 # record names its base by id, and a published snapshot carries the private
@@ -81,7 +84,7 @@ _rt_base_in() {   # <bases, space-separated> [<checkout>]
 }
 # Both answers, on this repository's own history: an id that is no commit
 # here, and its root, which is.
-_rtroot="$(_rtg rev-list --max-parents=0 HEAD | head -1)"
+_rtroot="$(_rtg --max-parents=0 HEAD | head -1)"
 # What kind of base the record names, one word of four. tests/red records a
 # base of - when it made no red run, and - is no commit either, so the base
 # check skipped a retraction as though it were a published snapshot and an
@@ -170,14 +173,14 @@ _rt_engine_same() { git -C "$1" diff --quiet refs/remotes/origin/main -- :/engin
 # Both answers on a repository built here: a commit to docs keeps main's
 # engine, a commit to engine/ does not.
 _rtes="$TMP/rt-engine-same"; mkdir -p "$_rtes/engine" "$_rtes/docs"
-( cd "$_rtes" && git init -q && git config user.email t@t && git config user.name t \
+( _fx_cd "$_rtes" && git init -q && git config user.email t@t && git config user.name t \
     && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm base \
     && git update-ref refs/remotes/origin/main HEAD \
     && echo b > docs/y && git commit -qam docs ) >/dev/null 2>&1
 _rt_engine_same "$_rtes" \
   && ok  "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" \
   || bad "a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version" "the docs-only fixture read as an engine change"
-( cd "$_rtes" && echo b > engine/x && git commit -qam engine ) >/dev/null 2>&1
+( _fx_cd "$_rtes" && echo b > engine/x && git commit -qam engine ) >/dev/null 2>&1
 _rt_engine_same "$_rtes" \
   && bad "and a branch that changes engine/ still owes both" "the engine fixture read as main's engine" \
   || ok  "and a branch that changes engine/ still owes both"
@@ -201,7 +204,7 @@ _rt_record_holds() {   # <checkout> <red.tsv's base sha>
 # takes a docs commit, and the branch is rebased onto it; then main takes an
 # engine commit and the branch is rebased again.
 _rtrh="$TMP/rt-record-holds"; mkdir -p "$_rtrh/engine" "$_rtrh/docs"
-( cd "$_rtrh" && git init -q && git config user.email t@t && git config user.name t \
+( _fx_cd "$_rtrh" && git init -q && git config user.email t@t && git config user.name t \
     && echo a > engine/x && echo a > docs/y && git add -A && git commit -qm record \
     && echo b > docs/y && git commit -qam 'main: docs' \
     && git update-ref refs/remotes/origin/main HEAD \
@@ -213,7 +216,7 @@ if [ -n "$_rtrr" ] && _rt_record_holds "$_rtrh" "$_rtrr"; then
 else
   bad "$_rtrn" "record ${_rtrr:-(none)}, merge-base $(git -C "$_rtrh" merge-base HEAD refs/remotes/origin/main 2>/dev/null)"
 fi
-( cd "$_rtrh" && git checkout -q --detach refs/remotes/origin/main \
+( _fx_cd "$_rtrh" && git checkout -q --detach refs/remotes/origin/main \
     && echo c > engine/z && git add -A && git commit -qm 'main: engine' \
     && git update-ref refs/remotes/origin/main HEAD \
     && git checkout -q -b rebased && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
@@ -420,7 +423,7 @@ esac
 # branch commit to engine/, with red.tsv rewritten beside that checkout's
 # suite, uncommitted, for each kind of base.
 _rtbc="$TMP/rt-base-check"; mkdir -p "$_rtbc/engine/harness/tests"
-( cd "$_rtbc" && git init -q && git config user.email t@t && git config user.name t \
+( _fx_cd "$_rtbc" && git init -q && git config user.email t@t && git config user.name t \
     && echo a > engine/x && git add -A && git commit -qm 'main: engine' \
     && git update-ref refs/remotes/origin/main HEAD \
     && echo b > engine/x && git commit -qam 'branch: engine' ) >/dev/null 2>&1
@@ -627,7 +630,7 @@ _rtjt="$_rtj/engine/harness/tests/red.tsv"; _rtjp="$_rtj/engine/.claude-plugin/p
 _rtja="the one assertion the judged checkout's manifest lists"
 _rtju="an assertion the judged checkout's manifest does not list"
 _rtjd="$(printf '# a record\nbase\t-\t-\t-\nrun\t-\t-\t-')"
-( cd "$_rtj" && git init -q && git config user.email t@t && git config user.name t \
+( _fx_cd "$_rtj" && git init -q && git config user.email t@t && git config user.name t \
     && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh && echo a > docs/y \
     && printf '1\t%s\n' "$_rtja" > engine/harness/tests/assertions.tsv && printf '%s\n' "$_rtjd" > "$_rtjt" \
     && git add -A && git commit -qm 'main: engine 1.0.0' \
@@ -717,7 +720,7 @@ if [ -n "$_rtjm" ] && [ "$(git -C "$_rtj" merge-base HEAD refs/remotes/origin/ma
              set -- $_m; _rt_judged "$_rtj" "$1" "$2" | cut -d'|' -f2 | LC_ALL=C sort | paste -sd'|' -
            done)"
   is "$_rtjn14" "$_rtjo" "$(_l="$(printf '%s\n' "$_rtn1" "$_rtn2" "$_rtn3" "$_rtn4" | LC_ALL=C sort | paste -sd'|' -)"; printf '%s\n%s\n%s' "$_l" "$_l" "$_l")"
-  ( cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
+  ( _fx_cd "$_rtj" && printf '{\n  "version": "1.0.0"\n}\n' > "$_rtjp" && echo a > engine/harness/lib/x.sh \
       && printf '%s\n' "$_rtjd" > "$_rtjt" && git commit -qam 'branch: engine put back, docs kept' ) >/dev/null 2>&1
   # And this one only while engine/ is origin/main's again and docs/ is not.
   if [ "$(git -C "$_rtj" log -1 --format=%s HEAD 2>/dev/null)" = "branch: engine put back, docs kept" ] \

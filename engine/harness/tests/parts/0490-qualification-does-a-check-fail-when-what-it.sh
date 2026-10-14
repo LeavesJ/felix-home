@@ -4,7 +4,7 @@ printf '\nqualification: does a check fail when what it protects is broken\n'
 # judging the writing works, and a check that passes over a violation is worse
 # than no check because the report says the property holds.
 QLP="$TMP/qualproj"; QLR="$TMP/qualrepo"; mkdir -p "$QLP" "$QLR" "$MEM/qualproj"
-( cd "$QLR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
+( _fx_cd "$QLR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QLR="$(cd "$QLR" && pwd -P)"
 _ql() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/qualify.sh"

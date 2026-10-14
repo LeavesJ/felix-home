@@ -58,7 +58,7 @@ _red_seed() {
   _red_base_run > "$1/engine/harness/tests/run"; chmod +x "$1/engine/harness/tests/run"
   cp "$FROOT/harness/tests/red" "$1/engine/harness/tests/red"
   printf '# stale\nbase\tmain\tdeadbeef\t0.0.0\nrun\t1\t0\t0\nstale claim\t9\n' > "$1/engine/harness/tests/red.tsv"
-  ( cd "$1" && git init -q -b "$2" && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+  ( _fx_cd "$1" && git init -q -b "$2" && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 }
 # names on stdin -> manifest rows, as tests/run --record-assertions writes
 # them, through the same helper: how many times each name was given, a tab,
@@ -197,7 +197,7 @@ if [ -x "$FROOT/harness/tests/red" ]; then
   git clone -q "$RED/repo" "$RED/clone" >/dev/null 2>&1
   printf '{\n  "name": "felix",\n  "description": "fixture",\n  "version": "0.0.8"\n}\n' > "$RED/clone/engine/.claude-plugin/plugin.json"
   printf 'marker=new\n' > "$RED/clone/engine/harness/lib/marker.sh"
-  ( cd "$RED/clone" && git -c user.name=t -c user.email=t@t commit -qam bump ) >/dev/null 2>&1
+  ( _fx_cd "$RED/clone" && git -c user.name=t -c user.email=t@t commit -qam bump ) >/dev/null 2>&1
   CSHA="$(cd "$RED/clone" && git rev-parse main)"
   _red_dirty "$RED/clone" skips
   _red "$RED/clone" engine/harness/tests/red
@@ -416,7 +416,7 @@ EOF
   _red_count() {
     _red_seed "$1" main 0.0.7 </dev/null
     printf 'count=-\n' > "$1/engine/harness/lib/count.sh"
-    ( cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm count ) </dev/null >/dev/null 2>&1
+    ( _fx_cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm count ) </dev/null >/dev/null 2>&1
     printf 'count=5\n' > "$1/engine/harness/lib/count.sh"; printf 'marker=new\n' > "$1/engine/harness/lib/marker.sh"
     { printf 'set -uo pipefail\n'; _red_helpers
       printf '%s\n' 'HERE="$(cd "$(dirname "$0")" && pwd)"' '. "$HERE/../lib/marker.sh"; . "$HERE/../lib/count.sh"'

@@ -19,7 +19,7 @@ printf '\nqualification: a control whose premise is absent\n'
 # runner's source. That records the method; it is not a property anyone can
 # check from here.
 QPP="$TMP/premproj"; QPR="$TMP/premrepo"; mkdir -p "$QPP" "$QPR" "$MEM/premproj"
-( cd "$QPR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
+( _fx_cd "$QPR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QPR="$(cd "$QPR" && pwd -P)"
 # Present in the checkout and absent from HEAD, so a premise that finds it was
@@ -224,7 +224,7 @@ mkdir -p "$QGH/projects/premgate" "$QGH/harness" "$MEM/premgate" "$QGR"
 cp -R "$FROOT/harness/." "$QGH/harness/"
 printf '{ "name": "premgate", "gate": "true" }\n' > "$QGH/projects/premgate/project.json"
 printf '# premgate\n' > "$QGH/projects/premgate/CLAUDE.md"
-( cd "$QGR" && git init -q -b main && printf 'clean\n' > a.txt && printf 'premgate\n' > .felix \
+( _fx_cd "$QGR" && git init -q -b main && printf 'clean\n' > a.txt && printf 'premgate\n' > .felix \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QGR="$(cd "$QGR" && pwd -P)"
 _qpgate() { ( cd "$QGR" && FELIX_HOME="$QGH" "$QGH/harness/felix" gate 2>&1 ); }

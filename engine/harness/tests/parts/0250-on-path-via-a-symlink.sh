@@ -121,7 +121,7 @@ case "$out" in
 esac
 # Consumed, not standing: one decline answers one complaint. A permanent ack
 # would be a mute button on the only compliance signal there is.
-[ -f "$FROOT/state/route/ack-$(printf '%s' "$(cd "$REPO" && pwd -P)" | git hash-object --stdin)" ] \
+[ -f "$FROOT/state/route/ack-$(printf '%s' "$(_fx_cd "$REPO" && pwd -P)" | git hash-object --stdin)" ] \
   && bad "and the ack is consumed by the answer" "ack file still present" \
   || ok  "and the ack is consumed by the answer"
 
@@ -189,7 +189,7 @@ case "$out" in
   *)                              ok  "and never renders a negative count" ;;
 esac
 
-( cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
+( _fx_cd "$REPO" && git checkout -q -- WIDGET.txt 2>/dev/null || printf 'contents\n' > "$REPO/WIDGET.txt" )
 
 printf '\nvisible at all\n'
 # Felix ships no skills and no commands and costs a session nothing, which is

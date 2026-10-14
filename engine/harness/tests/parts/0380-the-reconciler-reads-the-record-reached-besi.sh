@@ -138,7 +138,7 @@ printf '# reconproj\n' > "$FROOT/projects/reconproj/CLAUDE.md"
 cp "$MEM/reconlib/ledger.tsv" "$MEM/reconproj/ledger.tsv"
 cp "$RCL/stack.tsv" "$FROOT/projects/reconproj/stack.tsv"
 RREPO="$TMP/recon-repo"; mkdir -p "$RREPO"
-( cd "$RREPO" && git init -q -b main )
+( _fx_cd "$RREPO" && git init -q -b main )
 printf 'reconproj\n' > "$RREPO/.felix"
 _stack_before="$(cat "$FROOT/projects/reconproj/stack.tsv")"
 out="$(cd "$RREPO" && FELIX_LEDGER_MIN=3 "$FELIX" stack reconcile 2>&1)"; rc=$?
@@ -189,7 +189,7 @@ printf 'mcp\tquietgh\t-\tmedium\talways\n' > "$FROOT/projects/holdproj/stack.tsv
   printf 'h2\t2026-08-01\tmcp\tquietgh\t0\t2\n'
   printf 'h3\t2026-08-01\tmcp\tquietgh\t0\t2\n'; } > "$MEM/holdproj/ledger.tsv"
 HREPO="$TMP/hold-repo"; mkdir -p "$HREPO"
-( cd "$HREPO" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+( _fx_cd "$HREPO" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
 printf 'holdproj\n' > "$HREPO/.felix"
 mkdir -p "$FROOT/state/ledger" "$FROOT/state/session"
@@ -227,7 +227,7 @@ printf '# quietproj\n' > "$FROOT/projects/quietproj/CLAUDE.md"
 printf 'mcp\tgh\t-\tmedium\talways\n' > "$FROOT/projects/quietproj/stack.tsv"
 printf 's1\t2026-08-01\tmcp\tgh\t5\t1\n' > "$MEM/quietproj/ledger.tsv"
 QREPO="$TMP/quiet-repo"; mkdir -p "$QREPO"
-( cd "$QREPO" && git init -q -b main )
+( _fx_cd "$QREPO" && git init -q -b main )
 printf 'quietproj\n' > "$QREPO/.felix"
 out="$(cd "$QREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" \
        "$FROOT/harness/hooks/session-start" 2>&1)"
@@ -249,7 +249,7 @@ cat > "$FROOT/projects/emptyrec/project.json" <<'EOF'
 EOF
 printf '# emptyrec\n' > "$FROOT/projects/emptyrec/CLAUDE.md"
 EREPO="$TMP/empty-repo"; mkdir -p "$EREPO"
-( cd "$EREPO" && git init -q -b main )
+( _fx_cd "$EREPO" && git init -q -b main )
 printf 'emptyrec\n' > "$EREPO/.felix"
 out="$(cd "$EREPO" && "$FELIX" stack reconcile 2>&1)"; rc=$?
 is  "no record still answers cleanly" "$rc" "0"

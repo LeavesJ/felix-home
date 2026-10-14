@@ -12,7 +12,7 @@ printf '\nan answer that is neither yes nor no\n'
 ASKP="$TMP/askproj"; ASKQ="$TMP/askprobes"; ASKC="$TMP/askcheck"; ASKN="$TMP/askcheck-none"
 ASKR="$TMP/askrepo"
 mkdir -p "$ASKP" "$ASKQ" "$ASKC" "$ASKN" "$ASKR" "$MEM/askproj" "$MEM/askprobes" "$MEM/askcheck"
-( cd "$ASKR" && git init -q -b main && printf 'x\n' > x && git add -A \
+( _fx_cd "$ASKR" && git init -q -b main && printf 'x\n' > x && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
 ASKR="$(cd "$ASKR" && pwd -P)"
 printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$ASKP/probes.tsv"

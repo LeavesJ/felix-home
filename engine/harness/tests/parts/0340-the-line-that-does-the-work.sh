@@ -38,14 +38,14 @@ chmod +x "$GHB/gh"
 # Its own checkout, because the main fixture is deliberately remote-less and
 # felix merge dies on "no github remote" long before it reaches gh.
 MR="$TMP/mergerepo"; mkdir -p "$MR"
-( cd "$MR" && git init -q -b main \
+( _fx_cd "$MR" && git init -q -b main \
   && git remote add origin https://github.com/example/widget.git )
 MR="$(cd "$MR" && pwd -P)"
 printf 'widget\n' > "$MR/.felix"; printf 'contents\n' > "$MR/WIDGET.txt"
-( cd "$MR" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$MR" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 printf 'a change to merge\n' > "$MR/README.md"
-( cd "$MR" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$MR" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 )
 
 export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
@@ -96,10 +96,10 @@ KR="$TMP/kres"; mkdir -p "$KR/engine/.claude-plugin"
 # -b main explicitly: without it the branch name comes from init.defaultBranch,
 # which is the machine and not the fixture. This passed on a laptop that says
 # main and failed on a runner that says master.
-( cd "$KR" && git init -q -b main && git config user.email t@t && git config user.name t )
+( _fx_cd "$KR" && git init -q -b main && git config user.email t@t && git config user.name t )
 printf '{ "name": "felix", "version": "1.0.0" }\n' > "$KR/engine/.claude-plugin/plugin.json"
 mkdir -p "$KR/engine/harness/lib"; printf 'x\n' > "$KR/engine/harness/lib/escape.sh"
-( cd "$KR" && git add -A >/dev/null && git commit -qm base >/dev/null )
+( _fx_cd "$KR" && git add -A >/dev/null && git commit -qm base >/dev/null )
 KC="$TMP/kcache"; mkdir -p "$KC/1.0.0/harness/lib" "$KC/2.0.0/harness/lib" "$KC/10.0.0/harness/lib"
 
 _kd() { ( . "$FROOT/harness/lib/resolve.sh"
@@ -121,7 +121,7 @@ esac
 rm -rf "$KC/1.0.0"
 is "a version main declares but nobody installed resolves to nothing" "$(_kd)" ""
 mkdir -p "$KC/1.0.0/harness/lib"
-KR2="$TMP/kres2"; mkdir -p "$KR2"; ( cd "$KR2" && git init -q -b main )
+KR2="$TMP/kres2"; mkdir -p "$KR2"; ( _fx_cd "$KR2" && git init -q -b main )
 is "and a repository with no main resolves to nothing" \
    "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR2" )" ""
 
@@ -132,13 +132,13 @@ is "and a repository with no main resolves to nothing" \
 _sg() { ( . "$FROOT/harness/lib/resolve.sh"; felix_self_governed "$1" && echo yes || echo no ); }
 # The branch name is an argument, not a constant. A project whose trunk is
 # called something else must still find its judge.
-( cd "$KR" && git branch -m main trunk )
+( _fx_cd "$KR" && git branch -m main trunk )
 is "the judge is found on whatever branch is being merged into" \
    "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR" trunk )" \
    "$KC/1.0.0/harness"
 is "and not found by assuming the branch is called main" \
    "$( . "$FROOT/harness/lib/resolve.sh"; FELIX_KERNEL_CACHE="$KC" felix_kernel_dir "$KR" main )" ""
-( cd "$KR" && git branch -m trunk main )
+( _fx_cd "$KR" && git branch -m trunk main )
 
 # The collision that shipped. toolbox.sh sets FELIX_PLUGIN_CACHE to the plugins
 # cache root and the CLI sources it, so a resolver reading that name looked one
@@ -158,7 +158,7 @@ printf '\nand it is that version that forms the verdict\n'
 # declaring one version and the branch declaring another, which is the shape the
 # deploy loop forces on every engine change.
 SG="$TMP/selfgov"; mkdir -p "$SG/engine/.claude-plugin" "$SG/engine/harness/lib"
-( cd "$SG" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$SG" && git init -q -b main && git config user.email t@t && git config user.name t \
   && git remote add origin https://github.com/example/widget.git )
 # Physical path, as $MR already does a few hundred lines up and for the same
 # reason. felix_repo_root resolves symlinks, so on macOS a fixture under /tmp
@@ -179,14 +179,14 @@ cp -R "$FROOT/harness/." "$SG/engine/harness/"
 # its harness copy is residue to the byte comparison here as it is there (#86).
 printf '*.log\n.DS_Store\n' > "$SG/.gitignore"
 printf '{ "version": "1.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
-( cd "$SG" && git add -A >/dev/null && git commit -qm base >/dev/null && git checkout -q -b feature )
+( _fx_cd "$SG" && git add -A >/dev/null && git commit -qm base >/dev/null && git checkout -q -b feature )
 printf '{ "version": "2.0.0" }\n' > "$SG/engine/.claude-plugin/plugin.json"
 printf 'runs something\n' > "$SG/KERNEL2.txt"
 # The candidate edits the judge's own source. Without this the diff touches only
 # engine/.claude-plugin, which is not self-judgement and no longer trips the
 # guard — the correction this fixture exists to exercise.
 printf 'candidate edit\n' >> "$SG/engine/harness/lib/escape.sh"
-( cd "$SG" && git add -A >/dev/null && git commit -qm candidate >/dev/null )
+( _fx_cd "$SG" && git add -A >/dev/null && git commit -qm candidate >/dev/null )
 printf 'red\tpath\t^KERNEL2\\.txt$\ta channel for the kernel test\texecute\n' \
   >> "$FROOT/projects/widget/risk.tsv"
 
@@ -250,7 +250,7 @@ rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 # judge has to be identical to the tree AND loadable, and a stub that cannot be
 # sourced would refuse for the wrong reason and the assertion would pass
 # without testing anything.
-( cd "$SG" && git checkout -q main \
+( _fx_cd "$SG" && git checkout -q main \
   && rm -rf engine/harness && cp -R "$FROOT/harness" engine/harness \
   && git add -A >/dev/null \
   && { git diff --cached --quiet || git -c user.name=t -c user.email=t@t commit -qm engine >/dev/null; } \
@@ -274,7 +274,7 @@ esac
 # as zero, and the block's own comment above says why that is vacuous.
 if [ "$SGMERGES" = "1" ]; then ok "and a self-governed branch does merge under the kernel"
 else bad "and a self-governed branch does merge under the kernel" "merges=$SGMERGES rc=$SGRC: $(cat "$TMP/sg.out")"; fi
-( cd "$SG" && git checkout -q feature && git branch -qD prose )
+( _fx_cd "$SG" && git checkout -q feature && git branch -qD prose )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 
 # And the other half: the same identical judge, with the engine in the diff,
@@ -293,7 +293,7 @@ rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 # The kernel is copied AFTER the checkout, or it is not identical to the tree
 # and the guard never gets the chance to fire — the assertion below is a
 # negative, so it would pass because nothing happened.
-( cd "$SG" && git checkout -q main && git checkout -q -b bumponly \
+( _fx_cd "$SG" && git checkout -q main && git checkout -q -b bumponly \
   && printf '{ "version": "3.0.0" }\n' > engine/.claude-plugin/plugin.json \
   && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm bump >/dev/null )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$SG/engine/harness" "$KC2/1.0.0/harness"
@@ -307,7 +307,7 @@ case "$(cat "$TMP/sg.out")" in
   *"judging itself"*) bad "a version bump alone is not self-judgement" "$(cat "$TMP/sg.out")" ;;
   *)           ok  "a version bump alone is not self-judgement" ;;
 esac
-( cd "$SG" && git checkout -q feature && git branch -qD bumponly )
+( _fx_cd "$SG" && git checkout -q feature && git branch -qD bumponly )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 
 # review.sh must be in the kernel's source list. escape.sh guards the reviewed
@@ -370,7 +370,7 @@ is "a governed product merges with no installed engine at all" \
 # The branch is the prose shape from above: off main, one file, no engine in
 # the diff, so the identical-judge guard stays out of the picture and the
 # merge that closes this section is the same merge the section opened with.
-( cd "$SG" && git checkout -q main && git checkout -q -b pinned \
+( _fx_cd "$SG" && git checkout -q main && git checkout -q -b pinned \
   && printf 'pinned notes\n' > NOTES.md && git add -A >/dev/null \
   && git -c user.name=t -c user.email=t@t commit -qm pinned >/dev/null )
 # review.sh was rewritten above, so the entry is restored before anything
@@ -461,7 +461,7 @@ has "and the dry run says the judge is byte-identical to main" "$(cat "$TMP/sg.o
 INC="$TMP/incident"; mkdir -p "$INC/engine"
 cp -R "$FROOT/harness" "$INC/engine/harness"
 printf '*.log\n.DS_Store\n.claude-flow/\n' > "$INC/.gitignore"
-( cd "$INC" && git init -q -b main && git add -A >/dev/null \
+( _fx_cd "$INC" && git init -q -b main && git add -A >/dev/null \
   && git -c user.name=t -c user.email=t@t commit -qm checkout >/dev/null )
 mkdir -p "$INC/engine/harness/.claude-flow/data"
 printf '{}\n' > "$INC/engine/harness/.claude-flow/data/pending-insights.jsonl"

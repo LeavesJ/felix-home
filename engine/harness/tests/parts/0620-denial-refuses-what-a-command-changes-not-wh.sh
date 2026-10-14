@@ -158,7 +158,7 @@ printf '\ndenial scoped to the checkout\n'
 # contract alone, by an author who never saw lib/where-read.sh or lib/where.sh.
 SC="$TMP/scoped"; GOV="$SC/gov"; GWT="$SC/gov-wt"; SCR="$SC/scr"; SC_ERR="$TMP/.scoped-err"
 mkdir -p "$GOV" "$SCR/plain"
-( cd "$GOV" && git init -q -b main && printf 'widget\n' > .felix && printf 'readme\n' > README \
+( _fx_cd "$GOV" && git init -q -b main && printf 'widget\n' > .felix && printf 'readme\n' > README \
   && git add .felix README && git -c user.name=t -c user.email=t@t commit -qm init \
   && git remote add origin https://example.com/widget.git && git worktree add -q -b wt "$GWT" ) >/dev/null 2>&1
 git clone -q "$GOV" "$SCR/clone" >/dev/null 2>&1

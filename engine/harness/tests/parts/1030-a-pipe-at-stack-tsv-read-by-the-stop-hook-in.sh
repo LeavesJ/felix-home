@@ -76,7 +76,7 @@ printf '{\n  "name": "anl5night",\n  "remote_match": "example.invalid/anl5night"
   > "$_anl5_P/project.json"
 printf '# anl5night\n' > "$_anl5_P/CLAUDE.md"
 printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$_anl5_P/probes.tsv"
-( cd "$_anl5_R" && git init -q -b main && printf 'anl5night\n' > .felix && printf 'contents\n' > NIGHT.txt \
+( _fx_cd "$_anl5_R" && git init -q -b main && printf 'anl5night\n' > .felix && printf 'contents\n' > NIGHT.txt \
   && git add -A && git -c user.name=anl5 -c user.email=anl5@example.invalid -c commit.gpgsign=false commit -qm anl5 ) >/dev/null 2>&1
 _anl5_R="$(cd "$_anl5_R" && pwd -P)"
 printf 'night work\n' >> "$_anl5_R/NIGHT.txt"

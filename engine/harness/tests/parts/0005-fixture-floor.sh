@@ -425,7 +425,9 @@ fi
 
 # 11. A walk that cannot say where it stands is no walk. With the directory
 # gone from under the shell, `cd -P .` returns 0 and leaves PWD empty (bash
-# 3.2.57), which the loop would read as / and answer "no checkout".
+# 3.2.57), which the loop would read as / and answer "no checkout", or leaves
+# the gone path (bash 5 on the Linux runner, found by #435's CI), which the
+# loop would walk up from and answer the same.
 _ffg="$TMP/floor-gone"; mkdir -p "$_ffg"
 _ff_o="$(cd "$_ffg" && rmdir "$_ffg" && { _fixture_enclosed 2>/dev/null; printf '%s' "$?"; })"
 is "_fixture_enclosed refuses when the directory it stands in is gone, rather than reading that as /" "$_ff_o" "2"

@@ -246,9 +246,11 @@ _fixture_floor() {   # DIR -> this shell stands in DIR/cwd, and git cannot walk 
 # which the engine's stops short of and git would not.
 _fixture_enclosed() {   # -> 0 when this directory or one above it, physically, holds a .git; _fixture_at names it
   cd -P . || return 2
-  # A directory gone from under the shell: bash prints an error, returns 0
-  # and leaves PWD empty (3.2.57), which the loop would read as /.
-  [ -n "$PWD" ] || return 2
+  # A directory gone from under the shell: bash prints an error and returns 0,
+  # and leaves PWD empty (3.2.57, which the loop would read as /) or the gone
+  # path itself (5.x on the Linux runner, which the loop would walk up from as
+  # if it stood). Either way PWD is not the directory the shell stands in.
+  [ -n "$PWD" ] && [ -d "$PWD" ] && [ "$PWD" -ef . ] || return 2
   _fixture_at="$PWD"
   while :; do
     [ -e "${_fixture_at:-/}/.git" ] && { _fixture_at="${_fixture_at:-/}"; return 0; }

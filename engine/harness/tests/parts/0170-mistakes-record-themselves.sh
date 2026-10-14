@@ -48,7 +48,7 @@ case "$out" in
 esac
 # A second tree is. Same failure, different commit — which is what "again"
 # means and what a lesson would be generalising over.
-( cd "$REPO" && printf 'again\n' >> README.md && git add -A \
+( _fx_cd "$REPO" && printf 'again\n' >> README.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm second ) >/dev/null 2>&1
 ( cd "$REPO" && "$FELIX" gate >/dev/null 2>&1 )
 out="$(cd "$REPO" && "$FELIX" promote 2>&1)"
@@ -195,7 +195,7 @@ cat "$TMP/mislog.aged" > "$MISLOG"
 # fixture that invents git's answer would have inherited the same assumption.
 NOHEAD="$TMP/unborn-repo"; NOHEADP="$FROOT/projects/unbornproj"
 mkdir -p "$NOHEAD" "$NOHEADP" "$MEM/unbornproj"
-( cd "$NOHEAD" && git init -q -b main )
+( _fx_cd "$NOHEAD" && git init -q -b main )
 printf 'unbornproj\n' > "$NOHEAD/.felix"
 printf 'untracked\n'  > "$NOHEAD/file.txt"
 printf '{"name":"unbornproj","gate":"gate.sh"}\n' > "$NOHEADP/project.json"

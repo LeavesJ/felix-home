@@ -14,10 +14,10 @@ printf '\na handoff fold already in flight is named, so a second session does no
 # flight; upstream holds a fold that belongs to another remote; age, built just
 # before it is read, holds tips of chosen ages for the human line.
 _bif_r="$TMP/bif-inflight"; mkdir -p "$_bif_r/docs/handoff/pending"
-( cd "$_bif_r" && git init -q -b main && git config user.name t \
+( _fx_cd "$_bif_r" && git init -q -b main && git config user.name t \
     && git config user.email t@example.invalid && git config commit.gpgsign false )
 _bif_now="$(date +%s)"
-_bif_git() { git -C "$_bif_r" "$@"; }
+_bif_git() { _fx_git "$_bif_r" "$@"; }
 _bif_ago() { printf '%s' "$((_bif_now - $1))"; }
 # HANDOFF.md with the marker `(after $1 comes $2)` in its preamble and, given a
 # third argument, that phrase quoted again lower down, as a section may.
@@ -322,12 +322,12 @@ printf '\na fold in flight: the shapes an adversarial review found\n'
 # reviewer against the first version of this code and each shown red against
 # it before the fix.
 _brv="$TMP/brv"; mkdir -p "$_brv"
-( cd "$_brv" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
+( _fx_cd "$_brv" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
 _brv_c() {   # message, epoch, marker-id [, extra file]: commit HANDOFF.md holding that marker
   printf '# Handoff\n\nFold with felix handoff --rotate (after %s comes x).\n' "$3" \
     | sed "s/comes x/comes $(cd "$_brv" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_next_id "$3")/" > "$_brv/HANDOFF.md"
   [ -z "${4:-}" ] || printf '%s\n' "$4" > "$_brv/$4.txt"
-  git -C "$_brv" add -A && GIT_COMMITTER_DATE="@$2 +0000" GIT_AUTHOR_DATE="@$2 +0000" git -C "$_brv" commit -q -m "$1"
+  _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@$2 +0000" GIT_AUTHOR_DATE="@$2 +0000" _fx_git "$_brv" commit -q -m "$1"
   git -C "$_brv" rev-parse HEAD
 }
 _brv_if() { ( cd "$_brv" && . "$1/lib/handoff.sh" && felix_handoff_in_flight "$_brv" refs/remotes/origin/main "${2:-0}" ); }
@@ -339,23 +339,23 @@ _brv_now="$(date +%s)"
 # fold) and t1 (after it), and git prints whichever its dates favour. Read
 # alone, f1 hid a fold that could land.
 _brv_t0="$(_brv_c T0 1000000000 0bz)"
-git -C "$_brv" checkout -q -b F
-_brv_f1="$(printf 'p4\n' > "$_brv/p4.txt"; git -C "$_brv" add -A && GIT_COMMITTER_DATE="@1000000250 +0000" git -C "$_brv" commit -q -m f1 && git -C "$_brv" rev-parse HEAD)"
-git -C "$_brv" checkout -q -b G "$_brv_t0"
+_fx_git "$_brv" checkout -q -b F
+_brv_f1="$(printf 'p4\n' > "$_brv/p4.txt"; _fx_git "$_brv" add -A && GIT_COMMITTER_DATE="@1000000250 +0000" _fx_git "$_brv" commit -q -m f1 && git -C "$_brv" rev-parse HEAD)"
+_fx_git "$_brv" checkout -q -b G "$_brv_t0"
 _brv_t1="$(_brv_c "fold G" 1000000200 0cc)"
-git -C "$_brv" checkout -q F
-GIT_COMMITTER_DATE="@1000000300 +0000" git -C "$_brv" merge -q --no-edit "$_brv_t1" >/dev/null 2>&1
-git -C "$_brv" checkout -q -b land "$_brv_t1"
-GIT_COMMITTER_DATE="@1000000400 +0000" git -C "$_brv" merge -q --no-ff --no-edit "$_brv_f1" >/dev/null 2>&1
-git -C "$_brv" update-ref refs/remotes/origin/main "$(git -C "$_brv" rev-parse HEAD)"
-git -C "$_brv" checkout -q F
+_fx_git "$_brv" checkout -q F
+GIT_COMMITTER_DATE="@1000000300 +0000" _fx_git "$_brv" merge -q --no-edit "$_brv_t1" >/dev/null 2>&1
+_fx_git "$_brv" checkout -q -b land "$_brv_t1"
+GIT_COMMITTER_DATE="@1000000400 +0000" _fx_git "$_brv" merge -q --no-ff --no-edit "$_brv_f1" >/dev/null 2>&1
+_fx_git "$_brv" update-ref refs/remotes/origin/main "$(git -C "$_brv" rev-parse HEAD)"
+_fx_git "$_brv" checkout -q F
 _brv_f3="$(_brv_c "fold F" 1000000500 0cd)"
-git -C "$_brv" update-ref refs/remotes/origin/claude/criss "$_brv_f3"
+_fx_git "$_brv" update-ref refs/remotes/origin/claude/criss "$_brv_f3"
 is  "a criss-cross fold has two merge-bases, one before main's fold and one after it" \
     "$(git -C "$_brv" merge-base --all "$_brv_f3" refs/remotes/origin/main | wc -l | tr -d ' ')" "2"
 is  "and it is named however git orders its merge-bases, since every base is read" \
     "$(_brv_if "$REAL_HARNESS" | cut -f1,2)" "$(printf 'claude/criss\t0cd')"
-git -C "$_brv" update-ref -d refs/remotes/origin/claude/criss
+_fx_git "$_brv" update-ref -d refs/remotes/origin/claude/criss
 
 # 2. A branch pruned between the listing and the read. Every session shares
 # refs/remotes, so a fetch --prune in another worktree can delete a ref the
@@ -363,12 +363,12 @@ git -C "$_brv" update-ref -d refs/remotes/origin/claude/criss
 # died on that one, printing nothing for the rest: main read as unmarked and
 # the run as "cannot examine". The shim deletes the ref right after git lists
 # it, which is the same thing on a fixed schedule.
-git -C "$_brv" checkout -q -b main2 refs/remotes/origin/main
+_fx_git "$_brv" checkout -q -b main2 refs/remotes/origin/main
 _brv_live="$(_brv_c live "$_brv_now" 0cd)"
-git -C "$_brv" update-ref refs/remotes/origin/claude/live "$_brv_live"
-git -C "$_brv" checkout -q -b old "$_brv_t0"
+_fx_git "$_brv" update-ref refs/remotes/origin/claude/live "$_brv_live"
+_fx_git "$_brv" checkout -q -b old "$_brv_t0"
 _brv_gone="$(_brv_c gone "$_brv_now" 0bz gone)"
-git -C "$_brv" update-ref refs/remotes/origin/claude/gone "$_brv_gone"
+_fx_git "$_brv" update-ref refs/remotes/origin/claude/gone "$_brv_gone"
 mkdir -p "$_brv/shim"
 _brv_git="$(command -v git)"
 cat > "$_brv/shim/git" <<EOF
@@ -387,10 +387,10 @@ git -C "$_brv" rev-parse --verify --quiet refs/remotes/origin/claude/gone >/dev/
 
 # 3. A tip dated ahead of this clock. It passed the age bound for as long as
 # it stayed ahead, and the script showed it as 0m old.
-git -C "$_brv" checkout -q -b ahead refs/remotes/origin/main
-git -C "$_brv" update-ref -d refs/remotes/origin/claude/live
+_fx_git "$_brv" checkout -q -b ahead refs/remotes/origin/main
+_fx_git "$_brv" update-ref -d refs/remotes/origin/claude/live
 _brv_ahead="$(_brv_c ahead $((_brv_now + 7200)) 0cd)"
-git -C "$_brv" update-ref refs/remotes/origin/claude/ahead "$_brv_ahead"
+_fx_git "$_brv" update-ref refs/remotes/origin/claude/ahead "$_brv_ahead"
 is  "a tip dated two hours ahead is not trusted as fresh under a bound" \
     "$(_brv_if "$REAL_HARNESS" 172800)" ""
 is  "with no bound it is named" "$(_brv_if "$REAL_HARNESS" 0 | cut -f1)" "claude/ahead"

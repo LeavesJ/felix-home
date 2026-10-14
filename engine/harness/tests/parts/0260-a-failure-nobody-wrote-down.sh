@@ -35,7 +35,7 @@ touch -t "$GYDAY" "$MEM/guarded/lessons.md" "$MEM/guarded/DEVLOG.md" 2>/dev/null
 # Asked from a checkout on the branch the catch names, because an entry settles
 # only the catches of whoever wrote it, and a guard told no checkout cannot
 # know whose a catch is.
-GRP="$TMP/guarded-main"; mkdir -p "$GRP" && ( cd "$GRP" && git init -q -b main \
+GRP="$TMP/guarded-main"; mkdir -p "$GRP" && ( _fx_cd "$GRP" && git init -q -b main \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init ) >/dev/null 2>&1
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$GRP" )"
 has "speaks when a catch went unexplained" "$out" "nothing has been written down"
@@ -90,7 +90,7 @@ _ur_row() {   # branch, check, minutes ago, [session]: the shape felix_mem_mista
   printf '%s\t%s\t%s\t%s \t%s\t%s\n' "$(date +%Y-%m-%d)" "$1" 0123abcd "$2" "$((UNOW - $3 * 60))" "${4:--}"
 }
 _ur_repo() {  # dir, branch
-  mkdir -p "$1" && ( cd "$1" && git init -q -b "$2" \
+  mkdir -p "$1" && ( _fx_cd "$1" && git init -q -b "$2" \
     && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m init ) >/dev/null 2>&1
 }
 _ur() { ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" "$1" "${2:-}" ); }
@@ -180,7 +180,7 @@ _ur_lesson 60
 # then made its own, one that gated another checkout, one that ran checkout -B.
 # A row naming another session is that session's, on this very branch too.
 UCK2="$TMP/unrec-renamed"; _ur_repo "$UCK2" auto/handed
-( cd "$UCK2" && git checkout -q -b claude/made && git branch -m claude/renamed ) >/dev/null 2>&1
+( _fx_cd "$UCK2" && git checkout -q -b claude/made && git branch -m claude/renamed ) >/dev/null 2>&1
 { _ur_row auto/handed lint 30 ur-this; _ur_row claude/peer tests 10 ur-peer; } > "$MEM/guarded/mistakes.log"
 has "this session's catch prompts after its checkout moves to another branch" \
     "$(_ur "$UCK2" ur-this)" "last caught   lint"
@@ -192,10 +192,10 @@ has "a conversation holding more than one session owns the rows of each" \
 has "a row that names no session is this checkout's when its branch is the one checked out" \
     "$(_ur "$UCK2" ur-this)" "last caught   lint"
 UCK3="$TMP/unrec-reused"; _ur_repo "$UCK3" claude/earlier-session
-( cd "$UCK3" && git checkout -q --detach && git checkout -q -b claude/this-session ) >/dev/null 2>&1
+( _fx_cd "$UCK3" && git checkout -q --detach && git checkout -q -b claude/this-session ) >/dev/null 2>&1
 _ur_row claude/earlier-session lint 30 > "$MEM/guarded/mistakes.log"
 is  "and an earlier session's catch in a reused checkout does not" "$(_ur "$UCK3" ur-this)" ""
-( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+( _fx_cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
 { _ur_row HEAD lint 30; _ur_row claude/peer tests 10; } > "$MEM/guarded/mistakes.log"
 has "a detached checkout's own catch, filed as HEAD, prompts" "$(_ur "$UCK3")" "last caught   lint"
 # A checkout git cannot name, and a row from before rows carried a time, are
@@ -303,12 +303,12 @@ is "and a dash for an id that would break the row" "$(tail -1 "$MEM/guarded/mist
 # there, so its fallback wrote a second line into the row, and the fifth
 # column landed in the fourth, where every reader of checks would take a
 # timestamp for one.
-UUB="$TMP/unrec-unborn"; mkdir -p "$UUB" && ( cd "$UUB" && git init -q -b claude/unborn ) >/dev/null 2>&1
+UUB="$TMP/unrec-unborn"; mkdir -p "$UUB" && ( _fx_cd "$UUB" && git init -q -b claude/unborn ) >/dev/null 2>&1
 : > "$MEM/guarded/mistakes.log"
 ( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UUB" lint ) >/dev/null 2>&1
 is "a checkout with no commit yet writes one row, under its branch" \
    "$(wc -l < "$MEM/guarded/mistakes.log" | tr -d ' ')|$(cut -f2,4 "$MEM/guarded/mistakes.log" | head -1)" "1|claude/unborn	lint"
-( cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
+( _fx_cd "$UCK3" && git checkout -q --detach ) >/dev/null 2>&1
 ( . "$FROOT/harness/lib/memory.sh"; felix_mem_mistake "$GP" "$UCK3" lint ) >/dev/null 2>&1
 is "and a detached one files under HEAD, as the guard reads it" "$(tail -1 "$MEM/guarded/mistakes.log" | cut -f2)" "HEAD"
 

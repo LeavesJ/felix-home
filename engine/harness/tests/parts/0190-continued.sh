@@ -8,7 +8,7 @@
 _fh_proj gatesplit gate.sh
 _fg_r="$(_fh_root gatesplit)"; _fg_p="$FROOT/projects/gatesplit"; _fg_l="$MEM/gatesplit/mistakes.log"
 printf 'contents\n' > "$_fg_r/WIDGET.txt"
-( cd "$_fg_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm widget ) >/dev/null 2>&1
+( _fx_cd "$_fg_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm widget ) >/dev/null 2>&1
 _fg_blind() { { printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n'
                 printf 'blindrow\t-\t-\tls -1 nothing-here.rs\ttest -f WIDGET.txt\n'; } > "$_fg_p/probes.tsv"; }
 _fg_clean() { printf 'present\t-\t-\tls -1 WIDGET.txt\ttest -f WIDGET.txt\n' > "$_fg_p/probes.tsv"; }
@@ -201,7 +201,7 @@ is "the setup template holds the two rows that need a GitHub slug" \
 
 # felix new, in a checkout with CI and no remote.
 _fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
-( cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
+( _fx_cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
 printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
 _fs_n="$(cd "$_fs_n" && pwd -P)"; _fs_p="$FROOT/projects/setupproj"
 ( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
@@ -229,7 +229,7 @@ is "and gh is asked nothing for the rows that wait" "$(grep -cE 'label list|secr
 # A remote added later fills the same saved row: nothing re-adopted, nothing
 # rewritten, the file on disk exactly as felix new left it.
 cp "$_fs_p/setup.tsv" "$TMP/fs-setup.copy"
-( cd "$_fs_n" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_n" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
 : > "$_fs_ghlog"
 _fs_st="$(_fs_status "$_fs_n" "$_fs_p")"
 cmp -s "$_fs_p/setup.tsv" "$TMP/fs-setup.copy" \
@@ -259,12 +259,12 @@ mkdir -p "$_fs_wp/setup"; cp "$FROOT/harness/templates/setup/risk-labels.md" "$_
 { _fh_cmhdr; _fh_cmrow human_steps; printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'; } > "$_fs_wp/commissioning.tsv"
 is "with no remote, felix commission --status reads human_steps done: the rows that wait hold nothing" \
    "$(_fs_cm "$_fs_wr" --status | grep -cE '^  done +human_steps( |$)')" "1"
-( cd "$_fs_wr" && git remote add origin https://github.com/other/thing.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote add origin https://github.com/other/thing.git ) >/dev/null 2>&1
 is "and with a GitHub remote whose steps are not done, human_steps is held" \
    "$(_fs_cm "$_fs_wr" --status | grep -cE '^  held +human_steps( |$)')" "1"
 
 # A remote that is not GitHub has no slug to fill in, so its rows wait too.
-( cd "$_fs_wr" && git remote set-url origin git@gitlab.com:acme/widget.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote set-url origin git@gitlab.com:acme/widget.git ) >/dev/null 2>&1
 : > "$_fs_ghlog"
 is "a non-GitHub remote leaves both slug rows waiting for a GitHub remote" \
    "$(_fs_ids "$(_fs_status "$_fs_wr" "$_fs_wp")")" "$_fs_wait"
@@ -275,7 +275,7 @@ is "and with a gitlab remote gh is never called for them" "$(grep -cE 'label lis
 # though, so its rows do not wait: they are steps Felix cannot check, held and
 # said so, and their checks never run.
 _fs_evil='https://github.com/acme/widget;touch PWNED.git'
-( cd "$_fs_wr" && git remote set-url origin "$_fs_evil" ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote set-url origin "$_fs_evil" ) >/dev/null 2>&1
 _fs_pw0="$([ -e "$_fs_wr/PWNED" ] || [ -e "$PWD/PWNED" ] && echo present || echo absent)"
 : > "$_fs_ghlog"
 _fs_st="$(_fs_status "$_fs_wr" "$_fs_wp")"
@@ -307,7 +307,7 @@ fi
 # its owner/name, and a GitHub remote Felix still cannot read holds its rows
 # as todo and says why. Only no remote, or one that is not GitHub, waits.
 _fs_both() { _fs_ids "$(_fs_status "$_fs_wr" "$_fs_wp")"; }
-_fs_seturl() { ( cd "$_fs_wr" && git remote set-url origin "$1" ) >/dev/null 2>&1; }
+_fs_seturl() { ( _fx_cd "$_fs_wr" && git remote set-url origin "$1" ) >/dev/null 2>&1; }
 _fs_done="$(printf 'done\trisk-labels\t%s\ndone\tci-anthropic-key\t%s' "$_fs_rlt" "$_fs_ckt")"
 _fs_todo() { printf 'todo\trisk-labels\t%s\t%s\ntodo\tci-anthropic-key\t%s\t%s' "$_fs_rlt" "$1" "$_fs_ckt" "$1"; }
 _fs_seturl 'https://github.com/acme/widget/'
@@ -354,12 +354,12 @@ is "and ssh is never called with it" "$(grep -c '' "$_fs_sshlog")" "0"
 
 # Origin is the remote Felix reads. With none, a GitHub remote under another
 # name still means the repository owes its GitHub steps.
-( cd "$_fs_wr" && git remote remove origin && git remote add upstream https://github.com/acme/widget.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote remove origin && git remote add upstream https://github.com/acme/widget.git ) >/dev/null 2>&1
 is "with no origin but a GitHub remote named upstream, both rows are held as todo, saying origin is the one read" \
    "$(_fs_both)" "$(_fs_todo "no remote is named origin, the one Felix reads, though another points at GitHub, so Felix cannot check it")"
-( cd "$_fs_wr" && git remote remove upstream && git remote add upstream https://gitlab.com/acme/widget.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote remove upstream && git remote add upstream https://gitlab.com/acme/widget.git ) >/dev/null 2>&1
 is "and with only a gitlab remote under another name, they wait" "$(_fs_both)" "$_fs_wait"
-( cd "$_fs_wr" && git remote remove upstream ) >/dev/null 2>&1
+( _fx_cd "$_fs_wr" && git remote remove upstream ) >/dev/null 2>&1
 
 # Rows an older felix new already saved with an empty slug read the same way:
 # `--repo` followed by blanks and then nothing a slug could be.
@@ -378,7 +378,7 @@ is "and its runbook begins by saying {{REPO}} is left as written until origin po
    "$(printf '%s\n' "$_fs_rb" | head -n 1)" "$_fs_nogh"
 is "and shows --repo {{REPO}} in both places the empty slug was" \
    "$(printf '%s\n' "$_fs_rb" | grep -cF -- '--repo {{REPO}}')" "2"
-( cd "$_fs_lr" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+( _fx_cd "$_fs_lr" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
 : > "$_fs_ghlog"
 is "with the acme remote the row saved with an empty slug reads done" \
    "$(_fs_status "$_fs_lr" "$_fs_lp" | awk -F'\t' '$2 == "risk-labels"')" "$(printf 'done\trisk-labels\t%s' "$_fs_rlt")"
@@ -421,7 +421,7 @@ is "a long legacy runbook with an empty slug begins with the preface, then shows
 # baked in at write time: the same lines, the same screens, the same gh calls.
 for _fs_x in setupbaked setupplace; do
   _fh_proj "$_fs_x" true
-  ( cd "$TMP/fr-$_fs_x" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
+  ( _fx_cd "$TMP/fr-$_fs_x" && git remote add origin https://github.com/acme/widget.git ) >/dev/null 2>&1
   printf 'ci\n' > "$FROOT/projects/$_fs_x/capabilities"
   mkdir -p "$FROOT/projects/$_fs_x/setup"
 done
@@ -458,7 +458,7 @@ has "and felix setup still says it is not needed yet" "$(printf '%s\n' "$_fs_cp"
 _fh_proj adoptproj true
 _fa_r="$(_fh_root adoptproj)"; _fa_p="$FROOT/projects/adoptproj"
 mkdir -p "$_fa_r/.github/workflows"; printf 'on: push\n' > "$_fa_r/.github/workflows/ci.yml"
-( cd "$_fa_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm ci ) >/dev/null 2>&1
+( _fx_cd "$_fa_r" && git add -A && git -c user.name=t -c user.email=t@t commit -qm ci ) >/dev/null 2>&1
 : > "$_fa_p/capabilities"
 printf '# k\tn\ts\tr\tc\n' > "$_fa_p/stack.tsv"
 printf '%s\n' "$_fs_hdr" > "$_fa_p/setup.tsv"

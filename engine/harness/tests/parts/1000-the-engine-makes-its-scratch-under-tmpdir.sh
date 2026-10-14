@@ -2,7 +2,7 @@
 # main at c1, feat at c3 off c1, and origin/main moved to c2, a child of c1
 # that feat does not hold. Checked out on feat.
 _lt_mkb() {  # <dir> <proj>
-  mkdir -p "$1" "$MEM/$2" && ( cd "$1" && git init -q -b main && git config user.email t@t && git config user.name t \
+  mkdir -p "$1" "$MEM/$2" && ( _fx_cd "$1" && git init -q -b main && git config user.email t@t && git config user.name t \
     && mkdir -p "projects/$2" && printf '{ "name": "%s" }\n' "$2" > "projects/$2/project.json" \
     && printf 'one\n' > one.txt && git add -A && git commit -qm c1 \
     && git checkout -q -b feat && printf 'three\n' > three.txt && git add -A && git commit -qm c3 \
@@ -18,14 +18,14 @@ is  "the behind fixture stands where it says: feat does not hold origin/main's c
 is  "a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced" \
     "$(_lt_behind "$LT_B" origin/main)" "$(printf '0|origin/main\t%s\t%s' "$LT_BC2" "$LT_BC3")"
 _lt_mkb "$TMP/lt-merged" ltmg; LT_B2="$(cd "$TMP/lt-merged" && pwd -P)"
-( cd "$LT_B2" && git merge -q --no-edit refs/remotes/origin/main ) >/dev/null 2>&1
+( _fx_cd "$LT_B2" && git merge -q --no-edit refs/remotes/origin/main ) >/dev/null 2>&1
 is  "the merged behind fixture holds origin/main once it has merged it" "$(_lt_state "$LT_B2")" "current"
 is  "and a branch that has merged origin/main is not behind, status 1 and nothing printed, or every current branch would be reported" \
     "$(_lt_behind "$LT_B2" origin/main)" "1|"
 is  "a base that names nothing, or no base at all, cannot be told, status 2 and nothing printed, or a typo would read as current" \
     "$(_lt_behind "$LT_B" no-such) $(_lt_behind "$LT_B" '')" "2| 2|"
 LT_B3="$TMP/lt-unborn"; mkdir -p "$LT_B3"
-( cd "$LT_B3" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_B3" && git init -q -b main && git config user.email t@t && git config user.name t \
   && printf 'one\n' > one.txt && git add -A && git commit -qm c1 && git update-ref refs/remotes/origin/main HEAD \
   && git checkout -q --orphan unborn ) >/dev/null 2>&1
 is  "the unborn fixture has no HEAD commit while origin/main resolves" \
@@ -38,7 +38,7 @@ is  "and a checkout whose HEAD holds no commit cannot be told either, status 2, 
 # with a file trigger for projects/ltc. One branch per case, each cut from
 # origin/main and rewriting the files it names.
 LT_F="$TMP/lt-owed"; mkdir -p "$LT_F" "$MEM/ltow" "$MEM/ltc"
-( cd "$LT_F" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_F" && git init -q -b main && git config user.email t@t && git config user.name t \
   && mkdir -p projects/ltow projects/ltc engine/.claude-plugin engine/harness/tests engine/harness/lib docs src \
   && cp "$LT_SEVEN" projects/ltow/land.tsv && _lt_row out.txt insertions-union src/a.c - > projects/ltc/land.tsv \
   && printf '{ "version": "0.0.1" }\n' > engine/.claude-plugin/plugin.json \
@@ -48,10 +48,10 @@ LT_F="$TMP/lt-owed"; mkdir -p "$LT_F" "$MEM/ltow" "$MEM/ltc"
 LT_F="$(cd "$LT_F" && pwd -P)"; LT_FP="$LT_F/projects/ltow"
 _lt_fbr() {  # <branch> <file>...
   local b="$1" f; shift
-  ( cd "$LT_F" && git checkout -q -f -B "$b" refs/remotes/origin/main && git clean -qfd \
+  ( _fx_cd "$LT_F" && git checkout -q -f -B "$b" refs/remotes/origin/main && git clean -qfd \
       && for f in "$@"; do printf 'changed on %s\n' "$b" >> "$f"; done \
       && git add -A && git commit -qm "$b" ) >/dev/null 2>&1; }
-_lt_fon() { ( cd "$LT_F" && git checkout -q -f "$1" && git clean -qfd ) >/dev/null 2>&1; }
+_lt_fon() { ( _fx_cd "$LT_F" && git checkout -q -f "$1" && git clean -qfd ) >/dev/null 2>&1; }
 _lt_owed() {  # <proj dir> <root> [base]: felix_land_owed's status, then what it printed
   ( unset FELIX_MERGE_DRY_RUN; . "$LT_LIB" 2>/dev/null
     _lto="$(felix_land_owed "$1" "$2" "${3-origin/main}" 2>/dev/null)"; _ltr=$?; printf '%s|%s' "$_ltr" "$_lto" ) </dev/null; }
@@ -87,7 +87,7 @@ is  "the dash fixture's branch changes a file named - and leaves assertions.tsv 
     "$(git -C "$LT_F" diff --name-only refs/remotes/origin/main HEAD 2>/dev/null | awk '$0 == "-" || /assertions\.tsv$/ || /tests\/run$/' | tr '\n' ' ')" "- "
 is  "a row whose trigger is - is never owed, not even when a file named - changes and its path is untouched, or the dash would read as a path" \
     "$(_lt_owed "$LT_FP" "$LT_F")" "0|"
-( cd "$LT_F" && git checkout -q -f -B f-tree refs/remotes/origin/main && git clean -qfd \
+( _fx_cd "$LT_F" && git checkout -q -f -B f-tree refs/remotes/origin/main && git clean -qfd \
   && printf 'changed\n' >> engine/harness/lib/x.sh && _lt_row docs/a.md version-above engine/ - >> projects/ltow/land.tsv \
   && git add -A && git commit -qm f-tree && _lt_row out.txt version-above engine/ - >> projects/ltow/land.tsv ) >/dev/null 2>&1
 is  "a row that exists only on the branch or only in the working tree is never owed, or a pull request could invent a debt the base does not hold" \
@@ -97,14 +97,14 @@ is  "an empty base or one that names nothing cannot be computed, status 2 and no
 # What merging would change includes what is not yet committed: x.sh edited
 # on a branch that is origin/main itself, first unstaged, then staged. A reader
 # of committed changes only, three dots or two, owes nothing here.
-( cd "$LT_F" && git checkout -q -f -B f-wt refs/remotes/origin/main && git clean -qfd \
+( _fx_cd "$LT_F" && git checkout -q -f -B f-wt refs/remotes/origin/main && git clean -qfd \
   && printf 'edited, not committed\n' >> engine/harness/lib/x.sh ) >/dev/null 2>&1
 is  "the uncommitted-change fixture's HEAD is origin/main's commit, and x.sh differs only in the working tree" \
     "$(git -C "$LT_F" rev-parse -q --verify HEAD 2>/dev/null | cut -c1-12) $(git -C "$LT_F" diff --name-only 2>/dev/null) $(git -C "$LT_F" diff --cached --name-only 2>/dev/null | awk 'END { print NR }')" \
     "$(git -C "$LT_F" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null | cut -c1-12) engine/harness/lib/x.sh 0"
 is  "an engine change left unstaged owes both rows, or a landing that commits it later would never have been told" \
     "$(_lt_owed "$LT_FP" "$LT_F")" "0|$LT_OWED2"
-( cd "$LT_F" && git add engine/harness/lib/x.sh ) >/dev/null 2>&1
+( _fx_cd "$LT_F" && git add engine/harness/lib/x.sh ) >/dev/null 2>&1
 is  "and staged, it owes both rows still, or the index would hide a debt the working tree showed" \
     "$(git -C "$LT_F" diff --cached --name-only 2>/dev/null)|$(_lt_owed "$LT_FP" "$LT_F")" "engine/harness/lib/x.sh|0|$LT_OWED2"
 
@@ -166,7 +166,7 @@ is  "a branch neither behind nor owing adds no row, or every clean landing would
 # rewrote red.tsv, so a two-dot diff against it names both files as changed
 # and would read the branch as having paid what it owes.
 _lt_mkbo() {  # <dir> <proj>: origin/main carries the seven rows for projects/<proj>; feat changes x.sh and is behind
-  mkdir -p "$1" "$MEM/$2" && ( cd "$1" && git init -q -b main && git config user.email t@t && git config user.name t \
+  mkdir -p "$1" "$MEM/$2" && ( _fx_cd "$1" && git init -q -b main && git config user.email t@t && git config user.name t \
     && mkdir -p "projects/$2" engine/.claude-plugin engine/harness/tests engine/harness/lib docs \
     && cp "$LT_SEVEN" "projects/$2/land.tsv" && printf '{ "version": "0.0.1" }\n' > engine/.claude-plugin/plugin.json \
     && printf 'base\n' > engine/harness/tests/red.tsv && printf 'x\n' > engine/harness/lib/x.sh && printf 'a\n' > docs/a.md \
@@ -191,7 +191,7 @@ has "and the owed row names the version and the record, which main changed and t
 # A row the schema refuses at the base is not a clean table, and it is not a
 # debt either: it is said on its own row, by line, never folded into owed.
 LT_RF="$TMP/lt-refused"; mkdir -p "$LT_RF" "$MEM/ltrf"
-( cd "$LT_RF" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_RF" && git init -q -b main && git config user.email t@t && git config user.name t \
   && mkdir -p projects/ltrf docs && printf 'a\n' > docs/a.md \
   && { printf '# a table with one row the schema refuses\n'; _lt_row a.txt version-above - -
        _lt_row projects/p/risk.tsv version-above - -; } > projects/ltrf/land.tsv \
@@ -276,7 +276,7 @@ is  "and the judge still exits 0 with stdout byte for byte the control's and no 
 _lt_blockerish() { printf '%s\n' "$1" | awk '{ t = $1; sub(/^[-*]+/, "", t); sub(/:$/, "", t) }
                                              t == "behind" || t == "owed" || index($0, "behind\t") || index($0, "owed\t")'; }
 LT_P="$TMP/lt-product"; mkdir -p "$LT_P"
-( cd "$LT_P" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_P" && git init -q -b main && git config user.email t@t && git config user.name t \
   && printf 'widget\n' > .felix && printf 'contents\n' > WIDGET.txt && git add -A && git commit -qm c1 \
   && git checkout -q -b feat && printf 'work\n' > work.txt && git add -A && git commit -qm c3 \
   && git checkout -q --detach main && printf 'moved\n' > moved.txt && git add -A && git commit -qm c2 \
@@ -303,7 +303,7 @@ is  "a felix merge --dry-run on the same checkout adds no would-refuse row, or c
 _ltn0="$(_lt_nsaid widget)"; ( cd "$LT_P" && FELIX_MERGE_DRY_RUN=1 "$FELIX" merge --base main >/dev/null 2>&1 ); _ltn1="$(_lt_nsaid widget)"
 is  "and a real attempt still writes its row when the session exported FELIX_MERGE_DRY_RUN=1, or a session could silence the report by its environment" \
     "$((_ltn1 - _ltn0))" "1"
-( cd "$LT_P" && git merge -q --no-edit refs/remotes/origin/main ) >/dev/null 2>&1
+( _fx_cd "$LT_P" && git merge -q --no-edit refs/remotes/origin/main ) >/dev/null 2>&1
 is  "the product checkout holds origin/main once it has merged it" "$(_lt_state "$LT_P")" "current"
 _ltn0="$(_lt_nsaid widget)"
 _ltout="$( cd "$LT_P" && unset FELIX_MERGE_DRY_RUN && "$FELIX" merge --base main 2>&1 )"; _ltrc=$?
@@ -350,7 +350,7 @@ LT_SC="$TMP/lt-schemacheck"; mkdir -p "$LT_SC/engine/harness/templates" "$LT_SC/
 printf 'schemas.tsv\ttree\ttable lives columns empty\trefused\nland.tsv\ttree\tpath kind trigger arg\tallowed\n' \
   > "$LT_SC/engine/harness/templates/schemas.tsv"
 cp "$LT_SEVEN" "$LT_SC/projects/p/land.tsv"
-( cd "$LT_SC" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "$LT_SC" && git init -q -b main && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 _lt_sc() { ( cd "$LT_SC" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" ) </dev/null; }
 _ltsc0="$(_lt_sc)"
 _lt_row projects/p/risk.tsv version-above - - >> "$LT_SC/projects/p/land.tsv"
@@ -406,7 +406,7 @@ printf '#!/bin/sh\nprintf "%%s\\n" "$*" >> "%s"\nexec "%s" "$@"\n' "$MKT/calls" 
 chmod +x "$MKT/bin/mktemp"; : > "$MKT/calls"
 printf '{\n  "name": "x",\n  "version": "1.2.3"\n}\n' > "$MKT/plugin.json"
 printf 'web\tendpoint handler\tbackend\tplaywright\n' > "$MKT/proj/routes.tsv"
-( cd "$MKT/repo" && git init -q -b main && : > f && git add f \
+( _fx_cd "$MKT/repo" && git init -q -b main && : > f && git add f \
   && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
 ( PATH="$MKT/bin:$PATH"; export TMPDIR="$MKT/tmp"
   . "$FROOT/harness/lib/resolve.sh"; felix_version_bump "$MKT/plugin.json"

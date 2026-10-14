@@ -30,7 +30,7 @@ has "a project that has qualified nothing is skipped, not failed" \
     "$out" "no qualification.tsv for widget"
 
 printf '\nungoverned directories\n'
-PLAIN="$TMP/unrelated"; mkdir -p "$PLAIN"; ( cd "$PLAIN" && git init -q -b main )
+PLAIN="$TMP/unrelated"; mkdir -p "$PLAIN"; ( _fx_cd "$PLAIN" && git init -q -b main )
 out="$(cd "$PLAIN" && "$FELIX" gate 2>&1)"; rc=$?
 is  "ungoverned repo refuses to run a gate" "$rc" "2"
 has "and says which projects it knows"      "$out" "Known projects:"
@@ -198,7 +198,7 @@ chmod +x "$CMSTUB/claude"
 # with anything already here.
 STRANGE="$TMP/stranger"
 mkdir -p "$STRANGE"
-( cd "$STRANGE" && git init -q -b main )
+( _fx_cd "$STRANGE" && git init -q -b main )
 cat > "$STRANGE/package.json" <<'JSON'
 { "name": "stranger", "scripts": { "verify": "echo ok" },
   "dependencies": { "express": "^4", "stripe": "^17" },
@@ -258,7 +258,7 @@ printf '\nfelix new: memory that outlived its project is kept\n'
 # before its home did. felix new opened the devlog, the lessons and the session
 # handoff with `: >`, which left each at zero bytes, and the next pulse commit
 # recorded the loss.
-RBC="$TMP/reborn"; mkdir -p "$RBC"; ( cd "$RBC" && git init -q -b main )
+RBC="$TMP/reborn"; mkdir -p "$RBC"; ( _fx_cd "$RBC" && git init -q -b main )
 RBM="$MEM/reborn"; RBK="$TMP/reborn.keep"; mkdir -p "$RBM" "$RBK"
 printf '# Devlog\n\n## 2026-09-01\n\nthe first entry, written nowhere else\n' > "$RBM/DEVLOG.md"
 printf '\n- **2026-09-02** a lesson this project paid for once\n' > "$RBM/lessons.md"
@@ -284,7 +284,7 @@ done
 # and said to be, and only DEVLOG.md is created. A line naming every file
 # whatever it found would pass the block above; a check for a non-empty file
 # would pass everything here but the kept line.
-RPC="$TMP/rebornpart"; mkdir -p "$RPC"; ( cd "$RPC" && git init -q -b main )
+RPC="$TMP/rebornpart"; mkdir -p "$RPC"; ( _fx_cd "$RPC" && git init -q -b main )
 RPM="$MEM/rebornpart"; mkdir -p "$RPM"
 printf '\n- **2026-09-03** the one file that synced with something in it\n' > "$RPM/lessons.md"
 : > "$RPM/SESSION_HANDOFF.md"

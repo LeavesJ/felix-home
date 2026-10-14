@@ -15,10 +15,10 @@ _xc_row()    { local IFS=$'\t'; printf '%s\n' "$*"; }
 _xc_hash()   { local l; l="$(awk -F'\t' -v n="$2" '$1==n{print; exit}' "$1")"
                printf '%s\n' "$l" | git hash-object --stdin; }
 _xc_h12()    { _xc_hash "$1" "$2" | cut -c1-12; }
-_xc_ci()     { ( cd "$1" && git add -A >/dev/null 2>&1 \
+_xc_ci()     { ( _fx_cd "$1" && git add -A >/dev/null 2>&1 \
                  && git -c user.name=t -c user.email=t@t commit -qm "$2" >/dev/null 2>&1 ); }
 _xc_origin() { git init -q --bare "$1.git" >/dev/null 2>&1 \
-               && ( cd "$1" && git remote add origin "$1.git" && git push -q origin main \
+               && ( _fx_cd "$1" && git remote add origin "$1.git" && git push -q origin main \
                     && git fetch -q origin ) >/dev/null 2>&1; }
 _xc_lib()    { . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
                . "$FROOT/harness/lib/obligations.sh"; }
@@ -92,7 +92,7 @@ H12_CLEAR="$(_xc_h12 "$XHL" t_clear)"
   _xc_row r_fails   "$(_xc_h12 "$XHL" r_fails)"           "$XC_LIVE"          founder 'names a release-blocking row'
   _xc_row ghost     abcdefabcdef                          "$XC_LIVE"          founder 'names nothing the ledger admits'
 } > "$XHX"
-( cd "$XH" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XH" ledger
+( _fx_cd "$XH" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XH" ledger
 XRUN0="$(_xc_run "$XH/projects/x" "$XH")"
 _xc_origin "$XH"
 
@@ -292,10 +292,10 @@ fi
 # is a repository other than the governed root.
 XB="$TMP/exc-branch"; mkdir -p "$XB/projects/b"; XB="$(cd "$XB" && pwd -P)"
 _xc_row b_task TASK_BLOCKING deterministic - false - 'granted on a side branch only' > "$XB/projects/b/obligations.tsv"
-( cd "$XB" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XB" base; _xc_origin "$XB"
-( cd "$XB" && git checkout -q -b side ) >/dev/null 2>&1
+( _fx_cd "$XB" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XB" base; _xc_origin "$XB"
+( _fx_cd "$XB" && git checkout -q -b side ) >/dev/null 2>&1
 _xc_row b_task "$(_xc_h12 "$XB/projects/b/obligations.tsv" b_task)" "$XC_LIVE" founder 'side' > "$XB/projects/b/exceptions.tsv"
-_xc_ci "$XB" side; ( cd "$XB" && git push -q origin side ) >/dev/null 2>&1
+_xc_ci "$XB" side; ( _fx_cd "$XB" && git push -q origin side ) >/dev/null 2>&1
 if git -C "$XB" rev-parse --verify -q refs/remotes/origin/side >/dev/null 2>&1; then
   is  "a grant committed only on a side branch clears nothing even once the origin holds that branch" \
       "$(_xc_col "$(_xc_run "$XB/projects/b" "$XB")" b_task 8)" "-"
@@ -309,7 +309,7 @@ _xc_row n_task "$(_xc_h12 "$XN/projects/n/obligations.tsv" n_task)" "$XC_LIVE" f
 XR="$TMP/exc-rootproj"; mkdir -p "$XR"; XR="$(cd "$XR" && pwd -P)"
 _xc_row r_task TASK_BLOCKING deterministic - false - 'the project is the repository root' > "$XR/obligations.tsv"
 _xc_row r_task "$(_xc_h12 "$XR/obligations.tsv" r_task)" "$XC_LIVE" founder 'at the root' > "$XR/exceptions.tsv"
-( cd "$XR" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XR" root; _xc_origin "$XR"
+( _fx_cd "$XR" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XR" root; _xc_origin "$XR"
 if git -C "$XR" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1; then
   is  "a project directory outside any repository, or one that is itself the repository root, grants nothing" \
       "$(_xc_col "$(_xc_run "$XN/projects/n" "$XN")" n_task 8)|$(_xc_col "$(_xc_run "$XR" "$XR")" r_task 8)" "-|-"
@@ -321,8 +321,8 @@ XK="$TMP/exc-otherhome"; mkdir -p "$XK/projects/k"; XK="$(cd "$XK" && pwd -P)"
 XKR="$TMP/exc-otherroot"; mkdir -p "$XKR"; XKR="$(cd "$XKR" && pwd -P)"
 _xc_row k_task TASK_BLOCKING deterministic - false - 'granted in a home that is not the root' > "$XK/projects/k/obligations.tsv"
 _xc_row k_task "$(_xc_h12 "$XK/projects/k/obligations.tsv" k_task)" "$XC_LIVE" founder 'another repository' > "$XK/projects/k/exceptions.tsv"
-( cd "$XK" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XK" home; _xc_origin "$XK"
-( cd "$XKR" && git init -q -b main && printf 'x\n' > x ) >/dev/null 2>&1; _xc_ci "$XKR" root
+( _fx_cd "$XK" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XK" home; _xc_origin "$XK"
+( _fx_cd "$XKR" && git init -q -b main && printf 'x\n' > x ) >/dev/null 2>&1; _xc_ci "$XKR" root
 if git -C "$XK" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1; then
   is  "a grant under a home that is a different repository from the governed root clears nothing" \
       "$(_xc_col "$(_xc_run "$XK/projects/k" "$XKR")" k_task 8)" "-"
@@ -359,7 +359,7 @@ is  "a name admitted twice is refused the second time and admitted once" \
 XC="$TMP/exc-clean"; mkdir -p "$XC"; XC="$(cd "$XC" && pwd -P)"; _xc_home "$XC" c
 _xc_row c_task TASK_BLOCKING deterministic - false - 'the one row, excepted' > "$XC/projects/c/obligations.tsv"
 _xc_row c_task "$(_xc_h12 "$XC/projects/c/obligations.tsv" c_task)" "$XC_LIVE" founder 'accepted' > "$XC/projects/c/exceptions.tsv"
-( cd "$XC" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XC" clean; _xc_origin "$XC"
+( _fx_cd "$XC" && git init -q -b main ) >/dev/null 2>&1; _xc_ci "$XC" clean; _xc_origin "$XC"
 if git -C "$XC" rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1; then
   out="$(cd "$XC" && FELIX_HOME="$XC" "$XC/harness/felix" obligations --gate 2>&1)"; _rc=$?
   if [ "$_rc" -eq 0 ] && grep -F "$(printf '\texcepted\t')" "$MEM/c/says.log" 2>/dev/null \
@@ -384,7 +384,7 @@ fi
 # The table IS the grant, so any change to it between base and head goes to
 # a person: the same shape as the authority channel one file over.
 XE="$TMP/exc-escape"; mkdir -p "$XE"; XE="$(cd "$XE" && pwd -P)"
-( cd "$XE" && git init -q -b main && printf 'notes\n' > README.md ) >/dev/null 2>&1; _xc_ci "$XE" base
+( _fx_cd "$XE" && git init -q -b main && printf 'notes\n' > README.md ) >/dev/null 2>&1; _xc_ci "$XE" base
 _xc_esc()   { ( cd "$XE" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/escape.sh"
                 . "$FROOT/harness/lib/obligations.sh"; felix_escapes "$FROOT/projects/widget" HEAD~1 "$XE" ) 2>/dev/null; }
 # The rows are read whole before grep sees them. Piped, a grep -q that matched
@@ -424,7 +424,7 @@ fi
 # lives and that the session cannot write itself one. The checkout is bound
 # to the widget the way $GREPO is, by the marker alone.
 XS="$TMP/exc-stop"; mkdir -p "$XS"; XS="$(cd "$XS" && pwd -P)"
-( cd "$XS" && git init -q -b main && printf 'contents\n' > WIDGET.txt && printf 'widget\n' > "${_XC_MARK}" ) >/dev/null 2>&1
+( _fx_cd "$XS" && git init -q -b main && printf 'contents\n' > WIDGET.txt && printf 'widget\n' > "${_XC_MARK}" ) >/dev/null 2>&1
 _xc_ci "$XS" init
 if [ -x "$FROOT/harness/hooks/stop" ] && git -C "$XS" rev-parse --verify -q HEAD >/dev/null 2>&1; then
   printf 'unverified\n' >> "$XS/WIDGET.txt"

@@ -19,14 +19,14 @@ printf 'x\n' > "$EPR/tracked.txt"
 # precedence chain is the literal string `main`, and on a checkout whose branch
 # happens to be named main that assertion would pass whether the fallback is
 # implemented or whether the current branch is being read by accident.
-( cd "$EPR" && git init -q -b sideways && git add -A \
+( _fx_cd "$EPR" && git init -q -b sideways && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 EPR="$(cd "$EPR" && pwd -P)"
 
 # A checkout that does have a default branch of its own, and one that is not
 # main either, so reading origin/HEAD and defaulting can be told apart.
 EPO="$TMP/epoch-origin-repo"; mkdir -p "$EPO"
-( cd "$EPO" && git init -q -b sideways && printf 'x\n' > f.txt && git add -A \
+( _fx_cd "$EPO" && git init -q -b sideways && printf 'x\n' > f.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm init \
   && git remote add origin https://example.com/epoch-origin.git \
   && git update-ref refs/remotes/origin/trunk HEAD \

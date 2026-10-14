@@ -247,7 +247,7 @@ _qswreggone "$R" "$T/felix-qualify.ORPH01/w"; rm -rf "$T/felix-qualify.ORPH01"
 _qswreggone "$R" "$T/other/w"; rm -rf "$T/other"
 _qswreggone "$R" "$T/felix-qualify.ORPH02/x"; rm -rf "$T/felix-qualify.ORPH02"
 _qswreggone "$R" "$d/elsewhere/felix-qualify.ORPH03/w"; rm -rf "$d/elsewhere/felix-qualify.ORPH03"
-git -C "$R" worktree add --detach -q "$d/userwt" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/userwt/uncommitted.txt"
+_fx_git "$R" worktree add --detach -q "$d/userwt" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/userwt/uncommitted.txt"
 _qswreggone "$R" "$d/gonewt"
 _qswreggone "$R" "$T/felix-qualify.ORPH5/w"; rm -rf "$T/felix-qualify.ORPH5"
 _qswreggone "$R" "$T/felix-qualify.ORPH04/w"
@@ -292,7 +292,7 @@ is  "with TMPDIR a symlink to a directory, given with a trailing slash, a regist
     "before:$_qswwas after:$(_qswlisted "$R" "$_qswP")" "before:yes after:no"
 d="$QSWS/notdir"; mkdir -p "$d"; R="$(_qswroot "$d/root")"; _qswtab "$d/proj"
 _qswnd="$(_qswphys "$d")/t"
-mkdir -p "$_qswnd/felix-qualify.NODIR1"; git -C "$R" worktree add --detach -q "$_qswnd/felix-qualify.NODIR1/w" HEAD >/dev/null 2>&1
+mkdir -p "$_qswnd/felix-qualify.NODIR1"; _fx_git "$R" worktree add --detach -q "$_qswnd/felix-qualify.NODIR1/w" HEAD >/dev/null 2>&1
 rm -rf "$_qswnd"
 _qswrun "$d/r1" "$_qswnd" "$R" "$d/proj"
 _qswwas="$(_qswlisted "$R" "$_qswnd/felix-qualify.NODIR1/w")"
@@ -364,7 +364,7 @@ is  "with TMPDIR a directory whose name ends in a newline, a sweep that removes 
 # this root's own list untouched; that repository's next run removes the
 # orphan it is left with.
 d="$QSWS/other-repo"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; R2="$(_qswroot "$d/root2")"; _qswtab "$d/proj"
-git -C "$R" worktree add --detach -q "$d/u1" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/u1/uncommitted.txt"
+_fx_git "$R" worktree add --detach -q "$d/u1" HEAD >/dev/null 2>&1; printf 'mine\n' > "$d/u1/uncommitted.txt"
 _qswreggone "$R" "$d/r1gone"
 _qswplant "$T" felix-qualify.OTHERX "$R2" "$(_qswdead) $QSWOLD"
 _qswwas="$(git -C "$R" worktree list --porcelain 2>/dev/null)"
@@ -379,7 +379,7 @@ is  "and that other repository's own next run in the same TMPDIR removes the reg
 
 # 9. A dead base whose w was swapped for a symlink to another worktree.
 d="$QSWS/w-link"; T="$d/t"; mkdir -p "$T"; R="$(_qswroot "$d/root")"; Tp="$(_qswphys "$T")"; _qswtab "$d/proj"
-git -C "$R" worktree add --detach -q "$d/other" HEAD >/dev/null 2>&1
+_fx_git "$R" worktree add --detach -q "$d/other" HEAD >/dev/null 2>&1
 _qswO="$(_qswphys "$d/other")"; printf 'mine\n' > "$d/other/uncommitted.txt"
 _qswplant "$T" felix-qualify.WLINK1 "$R" "$(_qswdead) $QSWOLD"
 mv "$T/felix-qualify.WLINK1/w" "$T/felix-qualify.WLINK1/w.orig"; ln -s "$_qswO" "$T/felix-qualify.WLINK1/w"
@@ -412,9 +412,9 @@ for _qswo in before after; do
     case "$_qswk" in base) _qswwhat="the dead base itself" ;; tree) _qswwhat="the dead base's tree" ;; esac
     d="$QSWS/swap-$_qswk-$_qswo"; mkdir -p "$d/t" "$d/decoy"; ln -s "$d/t" "$d/tlink"; T="$d/tlink"; Tp="$(_qswphys "$d/t")"
     R="$(_qswroot "$d/root")"
-    [ "$_qswo" = before ] && git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+    [ "$_qswo" = before ] && _fx_git "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
     _qswplant "$T" felix-qualify.SWAPWT "$R" "$(_qswdead) $QSWOLD"
-    [ "$_qswo" = after ] && git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+    [ "$_qswo" = after ] && _fx_git "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
     printf 'mine\n' > "$d/decoy/w/uncommitted.txt"; _qswD="$(_qswphys "$d/decoy/w")"
     _qswwas="$(_qswlisted "$R" "$_qswD"),$(_qswlisted "$R" "$Tp/felix-qualify.SWAPWT/w")"
     case "$_qswk" in base) _qswxenv="QSW_GITSWAP=$d/decoy" ;; tree) _qswxenv="QSW_GITSWAPW=$_qswD" ;; esac
@@ -470,7 +470,7 @@ for _qswk in other none; do
     _qswplant "$T" felix-qualify.UNLIST - "$(_qswdead) $QSWOLD"
     mkdir "$T/felix-qualify.UNLIST/w" && printf 'x\n' > "$T/felix-qualify.UNLIST/w/f" && _qswwas=no
   fi
-  git -C "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
+  _fx_git "$R" worktree add --detach -q "$d/decoy/w" HEAD >/dev/null 2>&1
   printf 'mine\n' > "$d/decoy/w/uncommitted.txt"; _qswD="$(_qswphys "$d/decoy/w")"
   _qswwas="$_qswwas,$(_qswlisted "$R" "$_qswD")"
   _qswxenv="QSW_GITSWAPL=$d/decoy"; _qswbg "$d/s" "$T" "$R" - sweep; _qswxenv=""; _qswfinish "$_qswpid" "$d/s"

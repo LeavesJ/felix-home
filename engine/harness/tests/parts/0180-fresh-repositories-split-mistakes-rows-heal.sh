@@ -27,7 +27,7 @@ _fh_proj() {
   mkdir -p "$FROOT/projects/$1" "$MEM/$1" "$TMP/fr-$1"
   printf '{"name":"%s","gate":"%s"}\n' "$1" "$2" > "$FROOT/projects/$1/project.json"
   printf '# %s\n' "$1" > "$FROOT/projects/$1/CLAUDE.md"
-  ( cd "$TMP/fr-$1" && git init -q -b main && printf '%s\n' "$1" > .felix && printf 'x\n' > README.md \
+  ( _fx_cd "$TMP/fr-$1" && git init -q -b main && printf '%s\n' "$1" > .felix && printf 'x\n' > README.md \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 }
 _fh_root()    { ( cd "$TMP/fr-$1" && pwd -P ); }
@@ -346,7 +346,7 @@ rm -f "$_fh_cm/.mistakes.log.heal.99999"
 _fh_proj healproj2 gate.sh
 _fh_script healproj2 'echo "  lint               FAIL"; exit 1'
 _fh_2a="$(_fh_root healproj2)"; _fh_2b="$TMP/fr-healproj2-b"; mkdir -p "$_fh_2b"
-( cd "$_fh_2b" && git init -q -b main && printf 'healproj2\n' > .felix && printf 'y\n' > README.md \
+( _fx_cd "$_fh_2b" && git init -q -b main && printf 'healproj2\n' > .felix && printf 'y\n' > README.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 _fh_2b="$(cd "$_fh_2b" && pwd -P)"; _fh_2l="$MEM/healproj2/mistakes.log"
 { _fh_legacy 2026-09-01 'x '; _fh_legacy 2026-09-02 'y '; } > "$_fh_2l"
@@ -474,7 +474,7 @@ is "and the monitor's count and newest entry are what they always were" \
 # row, and must be a second of this run; the session is a dash, since the
 # suite runs under none.
 mkdir -p "$FROOT/projects/healunborn" "$MEM/healunborn" "$TMP/fr-healunborn"
-( cd "$TMP/fr-healunborn" && git init -q -b main && printf 'healunborn\n' > .felix ) >/dev/null 2>&1
+( _fx_cd "$TMP/fr-healunborn" && git init -q -b main && printf 'healunborn\n' > .felix ) >/dev/null 2>&1
 _fh_setgate healunborn gate.sh
 _fh_script healunborn 'echo "  lint               FAIL"; exit 1'
 : > "$MEM/healunborn/mistakes.log"

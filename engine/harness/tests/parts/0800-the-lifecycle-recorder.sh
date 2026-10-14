@@ -54,7 +54,7 @@ printf '# ly\n' > "$LYH/projects/ly/CLAUDE.md"
 LYM="$TMP/ly-memory"; mkdir -p "$LYM/ly"
 LYLOG="$LYM/ly/lifecycle.log"; LYHF="$LYM/ly/SESSION_HANDOFF.md"
 LYR="$TMP/ly-repo"; mkdir -p "$LYR"; LYR="$(cd "$LYR" && pwd -P)"
-( cd "$LYR" && git init -q -b main && printf 'ly\n' > .felix && printf 'x\n' > README.md \
+( _fx_cd "$LYR" && git init -q -b main && printf 'ly\n' > .felix && printf 'x\n' > README.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 LYHEAD="$(git -C "$LYR" rev-parse HEAD 2>/dev/null)"
 [ -n "$LYHEAD" ] || LYHEAD="the-fixture-checkout-has-no-HEAD"
@@ -202,7 +202,7 @@ _ly_is "a payload of 30,000 lines carrying source is answered by its first, reco
 # about one: it left before the report, and before the resolve. The recorder
 # resolves above that exit now, and stderr is output too.
 LYX="$TMP/ly-unreadable"; mkdir -p "$LYX"; LYX="$(cd "$LYX" && pwd -P)"
-( cd "$LYX" && git init -q -b main && printf 'ly\n' > .felix ) >/dev/null 2>&1
+( _fx_cd "$LYX" && git init -q -b main && printf 'ly\n' > .felix ) >/dev/null 2>&1
 chmod 000 "$LYX/.felix"
 if [ -r "$LYX/.felix" ]; then
   skip "a resume where the marker cannot be read prints nothing on either stream, records nothing and exits 0" \
@@ -237,7 +237,7 @@ fi
 # Three answers and they mean different things: a sha, a repository with no
 # commit yet, and a directory git cannot say anything about.
 LYN="$TMP/ly-unborn"; mkdir -p "$LYN"; LYN="$(cd "$LYN" && pwd -P)"
-( cd "$LYN" && git init -q -b main && printf 'ly\n' > .felix ) >/dev/null 2>&1
+( _fx_cd "$LYN" && git init -q -b main && printf 'ly\n' > .felix ) >/dev/null 2>&1
 _ly_ss '{"session_id":"ly-unborn","source":"startup"}' "$LYM" "$LYN" >/dev/null
 _lyr="$(_ly_last "$LYLOG")"
 _ly_is "a checkout with no commit yet records its HEAD as unborn" "$(_ly_f "$_lyr" 3):$(_ly_f "$_lyr" 6)" "ly-unborn:unborn"
@@ -287,7 +287,7 @@ _ly_is "with no Claude Code registry in HOME, the installed engine is - and the 
 # Ungoverned is silent on disk as well as on screen. Checked against a fresh
 # memory root that a governed start is then shown to write into, so the
 # absence is of a row and not of a recorder.
-LYP="$TMP/ly-plain"; mkdir -p "$LYP"; LYP="$(cd "$LYP" && pwd -P)"; ( cd "$LYP" && git init -q -b main ) >/dev/null 2>&1
+LYP="$TMP/ly-plain"; mkdir -p "$LYP"; LYP="$(_fx_cd "$LYP" && pwd -P)"; ( _fx_cd "$LYP" && git init -q -b main ) >/dev/null 2>&1
 LYUM="$TMP/ly-memory-ungoverned"; mkdir -p "$LYUM/ly"
 for _lyk in startup resume clear; do
   _ly_ss "{\"session_id\":\"ly-ungoverned\",\"source\":\"$_lyk\"}" "$LYUM" "$LYP" >/dev/null

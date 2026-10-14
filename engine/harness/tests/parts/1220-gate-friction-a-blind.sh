@@ -48,8 +48,8 @@ for _gfc_x in "$REAL_HARNESS"/tests/*; do
   case "${_gfc_x##*/}" in run|red|assertions.tsv|red.tsv) ;; *) cp "$_gfc_x" "$GFC_T/" ;; esac
 done
 printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$GFC_F/engine/.claude-plugin/plugin.json"
-awk '/^\. "\$HERE\/parts\// { if (!d) { print ". \"$HERE/parts/0001-gfc-parts.sh\""; print ". \"$HERE/parts/0002-gfc-judge.sh\""; d = 1 } next }
-     { print }' "$REAL_HARNESS/tests/run" > "$GFC_T/run"
+# The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+_suite_copy_driver "$REAL_HARNESS/tests/run" "$GFC_T" 0001-gfc-parts.sh 0002-gfc-judge.sh
 chmod +x "$GFC_T/run"
 cat > "$GFC_T/parts/0001-gfc-parts.sh" <<'EOF'
 printf 'gfc fixture parts\n'

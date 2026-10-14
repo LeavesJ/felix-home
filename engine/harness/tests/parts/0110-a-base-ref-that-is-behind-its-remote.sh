@@ -13,7 +13,7 @@ printf '\na base ref that is behind its remote\n'
 # is new and worse: an evidence rule can be satisfied by a file that is in the
 # diff only BECAUSE the base is stale, which is an all-clear nothing earned.
 STALE="$TMP/stalebase"; mkdir -p "$STALE"
-( cd "$STALE" && git init -q -b main
+( _fx_cd "$STALE" && git init -q -b main
   git config user.email t@t; git config user.name t
   printf 'a\n' > a.txt; git add -A; git commit -qm one
   # main stays at one. origin/main advances to two, as a fetch would leave it.
@@ -84,7 +84,7 @@ printf '\nstacked on a squashed base\n'
 # the over-report is not only a wrong tier — it escalates a docs-only branch to
 # the founder as writing outside the tree.
 STK="$TMP/stacked"; mkdir -p "$STK"
-( cd "$STK" && git init -q -b main
+( _fx_cd "$STK" && git init -q -b main
   git config user.email t@t; git config user.name t
   printf 'base\n' > base.txt; git add -A; git commit -qm init
   git checkout -q -b feat-a
@@ -120,15 +120,15 @@ esac
 # The control that keeps this honest: the branch's OWN escape must still fire.
 # A fix that simply narrowed everything would pass both assertions above and
 # quietly stop enforcing.
-( cd "$STK" && mkdir -p .github/workflows && printf 'on: pull_request\n' > .github/workflows/own.yml
+( _fx_cd "$STK" && mkdir -p .github/workflows && printf 'on: pull_request\n' > .github/workflows/own.yml
   git add -A && git commit -qm "B: adds its own workflow" ) >/dev/null 2>&1
 has "but a workflow this branch adds itself still escapes" "$(_stk_esc)" "execute"
 has "and it is named"                                      "$(_stk_esc)" "own.yml"
-( cd "$STK" && git reset -q --hard HEAD~1 )
+( _fx_cd "$STK" && git reset -q --hard HEAD~1 )
 
 # And an ordinary unstacked branch is untouched by any of this.
 UNS="$TMP/unstacked"; mkdir -p "$UNS"
-( cd "$UNS" && git init -q -b main
+( _fx_cd "$UNS" && git init -q -b main
   git config user.email t@t; git config user.name t
   printf 'base\n' > base.txt; git add -A; git commit -qm init
   git checkout -q -b feat; printf 'x\n' > src.txt; git add -A; git commit -qm work ) >/dev/null 2>&1
@@ -141,7 +141,7 @@ is "an unstacked branch reports exactly what it changed" \
 # name, which no rule knows. Committed, staged and unstaged, since those are
 # the three sources and each has its own diff.
 REN="$TMP/renamed"; mkdir -p "$REN/projects/p"
-( cd "$REN" && git init -q -b main
+( _fx_cd "$REN" && git init -q -b main
   git config user.email t@t; git config user.name t
   printf 'Bash\tgit push --force\tforce push drops commits\nBash\tgit commit --no-verify\tno\n' > projects/p/deny.tsv
   git add -A; git commit -qm init; git checkout -q -b feat
@@ -150,11 +150,11 @@ REN="$(cd "$REN" && pwd -P)"
 _renpaths() { ( cd "$REN" && . "$FROOT/harness/lib/resolve.sh"; felix_changed_paths "$REN" main | tr '\n' ' ' ); }
 is  "a committed rename lists the name it left as well as the one it took" \
     "$(_renpaths)" "projects/p/deny-archived.tsv projects/p/deny.tsv "
-( cd "$REN" && git reset -q --soft HEAD~1 ) >/dev/null 2>&1
+( _fx_cd "$REN" && git reset -q --soft HEAD~1 ) >/dev/null 2>&1
 is  "and so does a staged one" "$(_renpaths)" "projects/p/deny-archived.tsv projects/p/deny.tsv "
-( cd "$REN" && git reset -q HEAD -- . && git add projects/p/deny-archived.tsv ) >/dev/null 2>&1
+( _fx_cd "$REN" && git reset -q HEAD -- . && git add projects/p/deny-archived.tsv ) >/dev/null 2>&1
 has "and an unstaged deletion beside a staged copy names the table it removed" "$(_renpaths)" "projects/p/deny.tsv"
-( cd "$REN" && git add -A && git commit -qm "archive the deny table" ) >/dev/null 2>&1
+( _fx_cd "$REN" && git add -A && git commit -qm "archive the deny table" ) >/dev/null 2>&1
 # What the rename was hiding: the enforcing table's rows go, and the verifier
 # that guards them sees it.
 has "renaming an enforcing table away fires the verifier on the table it removed" \
@@ -324,7 +324,7 @@ mkdir -p "$_ESRC/engine/harness"
 _ESRC="$(cd "$_ESRC" && pwd -P)"
 printf '#!/usr/bin/env bash\nexit 0\n' > "$_ESRC/engine/harness/felix"
 chmod +x "$_ESRC/engine/harness/felix"
-( cd "$_ESRC" && git init -q -b main \
+( _fx_cd "$_ESRC" && git init -q -b main \
   && git remote add origin https://github.com/someone/felixsrc.git )
 _ECACHE="$TMP/ehome/.claude/plugins/cache/felix/felix/0.1.0"
 mkdir -p "$_ECACHE/harness" "$TMP/ehome" "$TMP/nowhere"
@@ -389,7 +389,7 @@ has "bootstrap with no commit to pin says the workflow gets the placeholder" \
 mkdir -p "$TMP/pinghbin"; printf '#!/bin/sh\nexit 1\n' > "$TMP/pinghbin/gh"; chmod +x "$TMP/pinghbin/gh"
 _bspin() { ( cd "$_ESRC" && HOME="$TMP/ehome" FELIX_HOME="${1:-$FROOT}" PATH="$TMP/pinghbin:$PATH" \
                "$_EDEPLOY/harness/felix" bootstrap ${2:+"$2"} 2>&1 ) | sed -n 's/^felix ref: *//p'; }
-( cd "$_ESRC" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m pin \
+( _fx_cd "$_ESRC" && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m pin \
   && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
 is  "and pins the source checkout's commit once origin's default branch holds it" \
     "$(_bspin)" "$(git -C "$_ESRC" rev-parse HEAD)"
@@ -407,7 +407,7 @@ rm -rf "$_ESRC/.github" "$_ESRC/.claude"
 mkdir -p "$_ESRC/projects"; cp -R "$FROOT/projects/widget" "$_ESRC/projects/widget"
 has "a project no commit on the default branch holds yet is not pinned" \
     "$(_bspin "$_ESRC")" "{{FELIX_REF}}"
-( cd "$_ESRC" && git add projects && git -c user.name=t -c user.email=t@t commit -q -m widget \
+( _fx_cd "$_ESRC" && git add projects && git -c user.name=t -c user.email=t@t commit -q -m widget \
   && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1
 is  "and is pinned once the default branch holds it" \
     "$(_bspin "$_ESRC")" "$(git -C "$_ESRC" rev-parse HEAD)"
@@ -418,7 +418,7 @@ mkdir -p "$REPO/src" "$REPO/migrations" "$REPO/docs"
 printf 'x\n' > "$REPO/src/thing.js"
 printf 'x\n' > "$REPO/migrations/003.sql"
 printf 'x\n' > "$REPO/docs/guide.md"
-( cd "$REPO" && git add -A >/dev/null 2>&1
+( _fx_cd "$REPO" && git add -A >/dev/null 2>&1
   git -c user.name=t -c user.email=t@t commit -qm "incident fixture" >/dev/null 2>&1 )
 
 # A trace never carries repo-relative paths. It carries wherever the process ran.

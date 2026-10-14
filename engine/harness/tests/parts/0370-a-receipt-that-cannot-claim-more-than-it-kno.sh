@@ -68,11 +68,11 @@ is "and that nothing granted it, on a channel review cannot clear" \
 # must approve routine engine work. The founder is required where a channel
 # escapes; a red tier is advice.
 RDR="$TMP/redreceipt"; mkdir -p "$RDR"
-( cd "$RDR" && git init -q -b main && printf 'widget\n' > .felix && printf 'x\n' > seed.txt && git add -A \
+( _fx_cd "$RDR" && git init -q -b main && printf 'widget\n' > .felix && printf 'x\n' > seed.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 RDR="$(cd "$RDR" && pwd -P)"; RDB="$(git -C "$RDR" rev-parse HEAD)"
 mkdir -p "$RDR/auth"; printf 'allow = True\n' > "$RDR/auth/policy.py"
-( cd "$RDR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm red ) >/dev/null 2>&1
+( _fx_cd "$RDR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm red ) >/dev/null 2>&1
 _rdr="$( cd "$RDR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
          . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
          . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
@@ -168,7 +168,7 @@ is         "on a branch with commits the receipt names the branch" "$(_rf "$r" s
 _is_sha_of "and the commit it stands on"                           "$(_rf "$r" subject.head)"   "$STG"
 # Detached, symbolic-ref has no answer and says nothing, so the reader has to
 # fall through to the `HEAD` rev-parse always gave rather than to the fallback.
-( cd "$RDR" && git checkout -q --detach ) >/dev/null 2>&1
+( _fx_cd "$RDR" && git checkout -q --detach ) >/dev/null 2>&1
 _rdd="$(_rcpt_in "$RDR" "$RDB")"
 is         "a detached HEAD is named HEAD, as it always was" "$(_rf "$_rdd" subject.branch)" "HEAD"
 _is_sha_of "and still names its commit"                      "$(_rf "$_rdd" subject.head)"   "$RDR"
@@ -223,7 +223,7 @@ printf '\nstaged content, not just staged names\n'
 # `git show HEAD:`, so on a branch with commits a staged change was named but
 # never inspected. Half a fix reads exactly like a whole one from the outside.
 SC2="$TMP/stagedcontent"; mkdir -p "$SC2"
-( cd "$SC2" && git init -q -b main )
+( _fx_cd "$SC2" && git init -q -b main )
 SC2="$(cd "$SC2" && pwd -P)"
 printf 'widget\n' > "$SC2/.felix"
 mkdir -p "$SC2/projects/thing"
@@ -232,10 +232,10 @@ mkdir -p "$SC2/projects/thing"
   printf 'red\tpath\t^auth/\tauthorization model\n'
 } > "$SC2/projects/thing/risk.tsv"
 printf 'notes\n' > "$SC2/a.md"
-( cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+( _fx_cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 SC2_BASE="$(git -C "$SC2" rev-parse HEAD)"
 printf 'more\n' >> "$SC2/a.md"
-( cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
+( _fx_cd "$SC2" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
 
 _sc() { ( cd "$SC2" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
           . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
@@ -243,16 +243,16 @@ _sc() { ( cd "$SC2" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/
 
 # Destructive SQL, staged. The path is seen now; the added LINES were not.
 printf 'DROP TABLE users;\n' >> "$SC2/a.md"
-( cd "$SC2" && git add a.md >/dev/null 2>&1 )
+( _fx_cd "$SC2" && git add a.md >/dev/null 2>&1 )
 has "staged destructive SQL still escapes as durable" "$(_sc)" "durable"
-( cd "$SC2" && git checkout -q -- a.md 2>/dev/null; git reset -q HEAD a.md 2>/dev/null; git checkout -q -- a.md 2>/dev/null )
+( _fx_cd "$SC2" && git checkout -q -- a.md 2>/dev/null; git reset -q HEAD a.md 2>/dev/null; git checkout -q -- a.md 2>/dev/null )
 
 # A row removed from an enforcing table, staged. The verifier channel compares
 # against `git show HEAD:`, which cannot see the index.
 sed '/^red.path.\^auth/d' "$SC2/projects/thing/risk.tsv" > "$TMP/rt2" && mv "$TMP/rt2" "$SC2/projects/thing/risk.tsv"
-( cd "$SC2" && git add projects >/dev/null 2>&1 )
+( _fx_cd "$SC2" && git add projects >/dev/null 2>&1 )
 has "a staged row removal still escapes as verifier" "$(_sc)" "verifier"
-( cd "$SC2" && git reset -q HEAD projects 2>/dev/null; git checkout -q -- projects 2>/dev/null )
+( _fx_cd "$SC2" && git reset -q HEAD projects 2>/dev/null; git checkout -q -- projects 2>/dev/null )
 
 printf '\none tier for one table\n'
 # Two functions read risk.tsv and disagreed about the same path, and the table's

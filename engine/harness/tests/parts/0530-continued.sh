@@ -42,7 +42,7 @@ QTRS="$TMP/qual-tree-side"; QTRR="$TMP/qual-tree-repo"
 # could remove a base this section left before the section looked at it.
 QTRT="$TMP/qual-tree-tmp"
 mkdir -p "$QTRS" "$QTRR" "$QTRT"
-( cd "$QTRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+( _fx_cd "$QTRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QTRR="$(cd "$QTRR" && pwd -P)"
 _qtr5() { printf '%s\t%s\t%s\t%s\t%s\n' "$@"; }
@@ -82,7 +82,7 @@ _qtrclean() {   # made-log, root
     fi
   done < "$1"
   rm -f "$2"/.git/worktrees/*/locked 2>/dev/null
-  git -C "$2" worktree prune >/dev/null 2>&1
+  _fx_git "$2" worktree prune >/dev/null 2>&1
 }
 # The runner as the CLI calls it, from inside the root under set -uo pipefail,
 # with mktemp wrapped after the libraries are read.
@@ -141,7 +141,7 @@ _qtrsaid() {   # stderr file, names file -> named | unnamed
 _qtrcase plain
 is  "a run whose rows read fail and met, pass and met, pass and held, inapplicable, and unrunnable leaves no path mktemp handed the runner and no worktree registered in the root, live, prunable or locked, and its stderr carries no felix: line" \
     "$_qtrres" "fail met; pass met; pass held; - inapplicable; unrunnable unrunnable; $_qtrquiet"
-QTRU="$TMP/qual-tree-unborn"; mkdir -p "$QTRU"; ( cd "$QTRU" && git init -q -b main ) >/dev/null 2>&1
+QTRU="$TMP/qual-tree-unborn"; mkdir -p "$QTRU"; ( _fx_cd "$QTRU" && git init -q -b main ) >/dev/null 2>&1
 QTRU="$(cd "$QTRU" && pwd -P)"
 _qtr5 unborn 'test -f base.txt' restoration pass true > "$(_qtrd unborn)"
 _qtrcase unborn "$QTRU"
@@ -234,11 +234,11 @@ chmod u+w "$QTRH" 2>/dev/null
 # The root is one of its own, so its other worktree counts against no other
 # case.
 QTR9="$TMP/qual-tree-repo9"; mkdir -p "$QTR9"
-( cd "$QTR9" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+( _fx_cd "$QTR9" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QTR9="$(cd "$QTR9" && pwd -P)"
 QTR9O="$TMP/qual-tree-other"
-git -C "$QTR9" worktree add --detach -q "$QTR9O" HEAD >/dev/null 2>&1
+_fx_git "$QTR9" worktree add --detach -q "$QTR9O" HEAD >/dev/null 2>&1
 QTR9O="$(cd "$QTR9O" 2>/dev/null && pwd -P)"
 printf 'mine\n' > "$QTR9O/uncommitted.txt"
 _qtr5 swap 'test -f base.txt' restoration pass "w=\"\$PWD\"; cd .. && mv \"\$w\" w.orig && ln -s '$QTR9O' w" > "$(_qtrd swap)"

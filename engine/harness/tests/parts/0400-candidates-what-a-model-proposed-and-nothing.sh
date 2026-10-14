@@ -101,7 +101,7 @@ has "probes.tsv is one of the tables whose shrinkage escapes" \
 # ledger; a dormant row is reported and blocks nothing; unknown blocks; and
 # shrinking the ledger escapes to a person.
 OBP="$TMP/oblig-proj"; OBR="$TMP/oblig-repo"; mkdir -p "$OBP" "$OBR"
-( cd "$OBR" && git init -q -b main && printf 'x\n' > x && git add -A && git commit -qm x )
+( _fx_cd "$OBR" && git init -q -b main && printf 'x\n' > x && git add -A && git commit -qm x )
 OBR="$(cd "$OBR" && pwd -P)"
 printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$OBP/probes.tsv"
 _ob()    { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
@@ -159,7 +159,7 @@ printf '\ncandidates: what a model proposed, and nothing admitted\n'
 CDP="$TMP/cand-proj"; CDR="$TMP/cand-repo"
 mkdir -p "$CDP" "$CDR/routes" "$MEM/cand-proj/commission"
 printf 'a\n' > "$CDR/routes/a"
-( cd "$CDR" && git init -q -b main && git add -A \
+( _fx_cd "$CDR" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 CDR="$(cd "$CDR" && pwd -P)"
 printf '{\n  "name": "cand-proj",\n  "remote_match": "example.com/cand-proj",\n  "gate": "true"\n}\n' \

@@ -242,7 +242,7 @@ has "an engine that cannot evaluate commissioning blocks rather than skips" "$(_
 # felix new commissions instead of printing the next steps, and writes
 # nothing into the tree but the marker.
 CMS="$TMP/cm-stranger"; mkdir -p "$CMS"
-( cd "$CMS" && git init -q -b main ) >/dev/null 2>&1
+( _fx_cd "$CMS" && git init -q -b main ) >/dev/null 2>&1
 printf '{ "name": "cms", "scripts": { "verify": "echo ok" }, "dependencies": { "express": "^4" } }\n' > "$CMS/package.json"
 : > "$CMSTUB_LOG"
 _cmn="$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" new cmstranger 2>&1)"; _cmnrc=$?
@@ -290,7 +290,7 @@ esac
 # so a web app with src/config/hooks.json was handed an ACTIVE obligation
 # whose evidence is a hold — UNKNOWN, blocking — on the day it was created.
 CMW="$TMP/cm-webapp"; mkdir -p "$CMW/src/config"
-( cd "$CMW" && git init -q -b main && printf '{"webhooks":[]}\n' > src/config/hooks.json \
+( _fx_cd "$CMW" && git init -q -b main && printf '{"webhooks":[]}\n' > src/config/hooks.json \
   && printf '{ "name": "w", "scripts": { "verify": "echo ok" } }\n' > package.json \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 _cmw="$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" new cmwebapp 2>&1)"

@@ -403,14 +403,14 @@ _p264_held "and so does one who types a question under a task notification" p264
 # The mark is worth what Stop does with it, so end to end: a session that opens
 # on the paste, commits, and stops is still asked about that work.
 P264R="$TMP/p264-repo"; mkdir -p "$P264R"
-( cd "$P264R" && git init -q -b main && printf 'contents\n' > WIDGET.txt && printf 'widget\n' > .felix \
+( _fx_cd "$P264R" && git init -q -b main && printf 'contents\n' > WIDGET.txt && printf 'widget\n' > .felix \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 P264R="$(cd "$P264R" && pwd -P)"
 _p264_stop() { ( cd "$1" && printf '{"session_id":"%s","transcript_path":"%s/%s.jsonl","hook_event_name":"Stop","stop_hook_active":false}' \
                    "$2" "$P264" "$2" | "$FROOT/harness/hooks/stop" 2>&1 ); }
 _p264_prompt "$(_p264_payload p264-e2e 'Stop hook feedback:\nThe gate has never run in this checkout.\n\nwhy does this keep firing when I already ran the gate?')" "$P264R" >/dev/null
 printf 'committed work\n' >> "$P264R/WIDGET.txt"
-( cd "$P264R" && git add -A && git -c user.name=t -c user.email=t@t commit -qm work ) >/dev/null 2>&1
+( _fx_cd "$P264R" && git add -A && git -c user.name=t -c user.email=t@t commit -qm work ) >/dev/null 2>&1
 out="$(_p264_stop "$P264R" p264-e2e)"
 case "$out" in
   *'"decision"'*'"block"'*) ok  "and Stop still asks about the work such a session commits" ;;
@@ -422,7 +422,7 @@ esac
 # committed, and the next prompt's mark was taken at the HEAD after it.
 _p264_prompt "$(_p264_payload p264-e2eopen "${P264_OPEN}why does Felix brief this every time? fix route.sh so it is not routed, and commit it")" "$P264R" >/dev/null
 printf 'committed fix\n' >> "$P264R/WIDGET.txt"
-( cd "$P264R" && git add -A && git -c user.name=t -c user.email=t@t commit -qm fix ) >/dev/null 2>&1
+( _fx_cd "$P264R" && git add -A && git -c user.name=t -c user.email=t@t commit -qm fix ) >/dev/null 2>&1
 out="$(_p264_stop "$P264R" p264-e2eopen)"
 case "$out" in
   *'"decision"'*'"block"'*) ok  "and so does a session that opens on the summary request's opening and the person's own instruction" ;;

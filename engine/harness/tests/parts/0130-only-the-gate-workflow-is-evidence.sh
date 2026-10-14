@@ -244,11 +244,11 @@ cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 # the test. Its own checkout, on a branch, with a GitHub remote: the main
 # fixture is remote-less, and felix repair dies without one before any gh.
 WFR="$TMP/wfrepo"; mkdir -p "$WFR"
-( cd "$WFR" && git init -q -b fix/y \
+( _fx_cd "$WFR" && git init -q -b fix/y \
   && git remote add origin https://github.com/example/widget.git )
 WFR="$(cd "$WFR" && pwd -P)"
 printf 'widget\n' > "$WFR/.felix"; printf 'contents\n' > "$WFR/WIDGET.txt"
-( cd "$WFR" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$WFR" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 cp "$FROOT/projects/widget/project.json" "$TMP/project.wf.keep"
 _wfcli() { ( cd "$WFR" && PATH="$WFB:$PATH" "$FELIX" "$@" 2>&1 ); }
@@ -293,10 +293,10 @@ out="$(_wfcli repair)"; rc=$?
 is "and on a branch the gate has never run on" "$rc" "5"
 # A detached checkout's branch reads as HEAD, which no run is on, so it would
 # be the third case above for a branch nobody named.
-( cd "$WFR" && git checkout -q --detach )
+( _fx_cd "$WFR" && git checkout -q --detach )
 out="$(_wfcli repair)"; rc=$?
 is "felix repair refuses a detached checkout rather than finding nothing to repair on HEAD" "$rc" "1"
-( cd "$WFR" && git checkout -q fix/y )
+( _fx_cd "$WFR" && git checkout -q fix/y )
 cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 
 # The newest gate run completed and was neither green nor a failure. Only

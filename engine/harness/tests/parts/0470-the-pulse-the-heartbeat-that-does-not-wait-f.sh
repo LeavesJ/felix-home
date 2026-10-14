@@ -5,7 +5,7 @@ printf '\nthe pulse: the heartbeat that does not wait for a session\n'
 # because pushed is a claim and verified is a fact.
 PBR="$TMP/pulse-mem"; PBREM="$TMP/pulse-remote.git"
 mkdir -p "$PBR/memory/pulseproj"
-( cd "$PBR" && git init -q -b main \
+( _fx_cd "$PBR" && git init -q -b main \
   && printf 'l\n' > memory/pulseproj/lessons.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
 # -b main, and every later read names refs/heads/main outright: a bare repo's
@@ -13,7 +13,7 @@ mkdir -p "$PBR/memory/pulseproj"
 # answered on this laptop and broke on the runner — a machine-dependent test
 # is #67's family wearing a fixture.
 git init -q --bare -b main "$PBREM"
-( cd "$PBR" && git remote add backup "$PBREM" && git push -q backup main )
+( _fx_cd "$PBR" && git remote add backup "$PBREM" && git push -q backup main )
 printf 'new lesson\n' >> "$PBR/memory/pulseproj/lessons.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PBR" )"
@@ -27,7 +27,7 @@ has "a clean repo says so instead of minting a commit" "$out" "nothing new to co
 
 # Divergence is another machine's work, and reconciling it is a person's call.
 PB2="$TMP/pulse-mem2"; git clone -q "$PBREM" "$PB2" 2>/dev/null
-( cd "$PB2" && printf 'other machine\n' > other.md && git add -A \
+( _fx_cd "$PB2" && printf 'other machine\n' > other.md && git add -A \
   && git -c user.name=o -c user.email=o@o commit -qm other && git push -q origin main )
 printf 'this machine\n' >> "$PBR/memory/pulseproj/lessons.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -45,7 +45,7 @@ is  "and the remote keeps the other machine's head" \
     "$(git --git-dir="$PBREM" rev-parse refs/heads/main)" "$(git -C "$PB2" rev-parse HEAD)"
 
 PNR="$TMP/pulse-noremote"; mkdir -p "$PNR"
-( cd "$PNR" && git init -q -b main && printf 'x\n' > f \
+( _fx_cd "$PNR" && git init -q -b main && printf 'x\n' > f \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
 printf 'y\n' >> "$PNR/f"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -70,7 +70,7 @@ has "memory outside any repository is said plainly" "$out" "not in a git reposit
 # one feature.
 PMG="$TMP/pulse-merge"; PMGR="$TMP/pulse-merge-remote.git"
 mkdir -p "$PMG"
-( cd "$PMG" && git init -q -b main && printf 'a\n' > l.md \
+( _fx_cd "$PMG" && git init -q -b main && printf 'a\n' > l.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
   && git checkout -q -b other \
   && printf 'B\n' > l.md && git add -A && git -c user.name=b -c user.email=b@b commit -qm B \
@@ -78,7 +78,7 @@ mkdir -p "$PMG"
   && printf 'A\n' > l.md && git add -A && git -c user.name=a -c user.email=a@a commit -qm A \
   && git -c user.name=m -c user.email=m@m merge other >/dev/null 2>&1 || true )
 git init -q --bare -b main "$PMGR"
-( cd "$PMG" && git remote add backup "$PMGR" )
+( _fx_cd "$PMG" && git remote add backup "$PMGR" )
 # The precondition, asserted rather than assumed. Without this the two
 # assertions below cannot tell "the guard failed" from "the conflict was
 # never staged", and this project has paid for that confusion twice today.
@@ -102,7 +102,7 @@ is "and nothing reached the remote" \
 # repo tracking $HOME would have every private file committed and pushed
 # daily by the same four lines that back up lessons.
 POUT="$TMP/pulse-outer"; mkdir -p "$POUT/dotfiles/felixish/memory"
-( cd "$POUT/dotfiles" && git init -q -b main && printf 'rc\n' > .bashrc \
+( _fx_cd "$POUT/dotfiles" && git init -q -b main && printf 'rc\n' > .bashrc \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm dots )
 _outer_head="$(git -C "$POUT/dotfiles" rev-parse HEAD)"
 mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -129,7 +129,7 @@ has "a parent that is not the resolved home is still foreign" "$mr" "foreign"
 # setup was being refused as foreign, because the fixtures only ever built
 # the shapes the rule already named.
 PFX="$TMP/pulse-felixdir"; mkdir -p "$PFX/.felix/memory/proj"
-( cd "$PFX/.felix" && git init -q -b main && printf 'l\n' > memory/proj/lessons.md \
+( _fx_cd "$PFX/.felix" && git init -q -b main && printf 'l\n' > memory/proj/lessons.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 mr="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
        HOME="$PFX" FELIX_MEMORY="$PFX/.felix/memory" \
@@ -139,7 +139,7 @@ is "the shipped layout — memory under ~/.felix — is its own repo" \
 
 # Detached HEAD is a person inspecting history; a commit would land on no
 # branch and the next checkout strands it.
-( cd "$PNR" && git checkout -q --detach HEAD )
+( _fx_cd "$PNR" && git checkout -q --detach HEAD )
 printf 'z\n' >> "$PNR/f"
 _det_head="$(git -C "$PNR" rev-parse HEAD)"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -150,10 +150,10 @@ is  "and nothing was committed onto it"      "$(git -C "$PNR" rev-parse HEAD)" "
 # A nested git repository stages as a bare gitlink: the backup would verify
 # while a restore materializes an empty directory.
 PNEST="$TMP/pulse-nest"; mkdir -p "$PNEST"
-( cd "$PNEST" && git init -q -b main && printf 'l\n' > l.md \
+( _fx_cd "$PNEST" && git init -q -b main && printf 'l\n' > l.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
 mkdir -p "$PNEST/scraps"
-( cd "$PNEST/scraps" && git init -q -b main && printf 'n\n' > notes.md \
+( _fx_cd "$PNEST/scraps" && git init -q -b main && printf 'n\n' > notes.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm inner )
 _nest_head="$(git -C "$PNEST" rev-parse HEAD)"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -174,16 +174,16 @@ is  "and the index holds no gitlink afterwards" \
 # and no later run could ever notice.
 for _mode in squash cherry stash; do
   D="$TMP/pulse-unmerged-$_mode"; mkdir -p "$D"
-  ( cd "$D" && git init -q -b main && printf 'base\n' > a.md && git add -A \
+  ( _fx_cd "$D" && git init -q -b main && printf 'base\n' > a.md && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm base \
     && git checkout -q -b other && printf 'THEIRS\n' > a.md && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm theirs \
     && git checkout -q main && printf 'OURS\n' > a.md && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm ours ) >/dev/null 2>&1
   case "$_mode" in
-    squash) ( cd "$D" && git -c user.name=t -c user.email=t@t merge --squash other ) >/dev/null 2>&1 || true ;;
-    cherry) ( cd "$D" && git -c user.name=t -c user.email=t@t cherry-pick -n other ) >/dev/null 2>&1 || true ;;
-    stash)  ( cd "$D" && printf 'WIP\n' > a.md && git stash -q \
+    squash) ( _fx_cd "$D" && git -c user.name=t -c user.email=t@t merge --squash other ) >/dev/null 2>&1 || true ;;
+    cherry) ( _fx_cd "$D" && git -c user.name=t -c user.email=t@t cherry-pick -n other ) >/dev/null 2>&1 || true ;;
+    stash)  ( _fx_cd "$D" && printf 'WIP\n' > a.md && git stash -q \
               && printf 'MOVED\n' > a.md && git add -A \
               && git -c user.name=t -c user.email=t@t commit -qm moved \
               && git stash pop ) >/dev/null 2>&1 || true ;;
@@ -206,12 +206,12 @@ done
 # this link is in it. Worse, the refusal message's own remedy created the
 # hole.
 PSUB="$TMP/pulse-submod"; mkdir -p "$PSUB"
-( cd "$PSUB" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PSUB" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 mkdir -p "$PSUB/declared" "$PSUB/undeclared"
-( cd "$PSUB/declared" && git init -q -b main && printf 'd\n' > f && git add -A \
+( _fx_cd "$PSUB/declared" && git init -q -b main && printf 'd\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm d ) >/dev/null 2>&1
-( cd "$PSUB/undeclared" && git init -q -b main && printf 'u\n' > f && git add -A \
+( _fx_cd "$PSUB/undeclared" && git init -q -b main && printf 'u\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm u ) >/dev/null 2>&1
 printf '[submodule "declared"]\n\tpath = declared\n\turl = ./declared\n' > "$PSUB/.gitmodules"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -222,12 +222,12 @@ has "a declared submodule does not excuse an undeclared one" "$out" "undeclared"
 # counting it refused every future backup forever, which is the fail-closed
 # mirror of the same defect.
 PGL="$TMP/pulse-oldlink"; mkdir -p "$PGL"
-( cd "$PGL" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PGL" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 mkdir -p "$PGL/legacy"
-( cd "$PGL/legacy" && git init -q -b main && printf 'x\n' > f && git add -A \
+( _fx_cd "$PGL/legacy" && git init -q -b main && printf 'x\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
-( cd "$PGL" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "legacy link" ) >/dev/null 2>&1
+( _fx_cd "$PGL" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "legacy link" ) >/dev/null 2>&1
 printf 'new lesson\n' >> "$PGL/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PGL" )"
@@ -239,10 +239,10 @@ has "a gitlink already in history does not block every future backup" "$out" "co
 # "pushed and verified" while the memory was not backed up at all.
 PCF="$TMP/pulse-commitfail"; PCFR="$TMP/pulse-commitfail.git"
 mkdir -p "$PCF"
-( cd "$PCF" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PCF" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 git init -q --bare -b main "$PCFR"
-( cd "$PCF" && git remote add origin "$PCFR" && git push -q origin main ) >/dev/null 2>&1
+( _fx_cd "$PCF" && git remote add origin "$PCFR" && git push -q origin main ) >/dev/null 2>&1
 printf 'new\n' >> "$PCF/l.md"
 printf '#!/bin/sh\nexit 1\n' > "$PCF/.git/hooks/pre-commit"; chmod +x "$PCF/.git/hooks/pre-commit"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -280,7 +280,7 @@ is "an old stamp is counted in days" "$age" "9"
 # repository with no remote — which commits happily every day — never reads
 # as freshly backed up.
 PST="$TMP/pulse-stamp"; PSTR="$TMP/pulse-stamp.git"; mkdir -p "$PST"
-( cd "$PST" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PST" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 PSTH="$TMP/pulse-stamphome"; mkdir -p "$PSTH/state"
 printf 'x\n' >> "$PST/l.md"
@@ -290,7 +290,7 @@ printf 'x\n' >> "$PST/l.md"
   && bad "a commit with no remote does not stamp a push" "stamp written" \
   || ok  "a commit with no remote does not stamp a push"
 git init -q --bare -b main "$PSTR"
-( cd "$PST" && git remote add origin "$PSTR" ) >/dev/null 2>&1
+( _fx_cd "$PST" && git remote add origin "$PSTR" ) >/dev/null 2>&1
 printf 'y\n' >> "$PST/l.md"
 ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
   FELIX_HOME_DIR="$PSTH" felix_pulse_backup "$PST" ) >/dev/null 2>&1
@@ -301,13 +301,13 @@ printf 'y\n' >> "$PST/l.md"
 # The gitlink check runs on a scratch index, so asking the question cannot
 # destroy the answer: a person's deliberately staged selection survives.
 PIX="$TMP/pulse-index"; mkdir -p "$PIX"
-( cd "$PIX" && git init -q -b main && printf 'a\n' > a.md && printf 'b\n' > b.md \
+( _fx_cd "$PIX" && git init -q -b main && printf 'a\n' > a.md && printf 'b\n' > b.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 mkdir -p "$PIX/nested"
-( cd "$PIX/nested" && git init -q -b main && printf 'n\n' > f && git add -A \
+( _fx_cd "$PIX/nested" && git init -q -b main && printf 'n\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm n ) >/dev/null 2>&1
 printf 'staged\n' >> "$PIX/a.md"; printf 'unstaged\n' >> "$PIX/b.md"
-( cd "$PIX" && git add a.md ) >/dev/null 2>&1
+( _fx_cd "$PIX" && git add a.md ) >/dev/null 2>&1
 _staged_before="$(git -C "$PIX" diff --cached --name-only | tr '\n' ' ')"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PIX" )"
@@ -320,14 +320,14 @@ is  "and the person's staged selection is untouched" \
 # whose name collided with a known one after collapsing was committed as a
 # bare gitlink — the exact outcome the guard exists to prevent.
 PWS="$TMP/pulse-space"; mkdir -p "$PWS"
-( cd "$PWS" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PWS" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 mkdir -p "$PWS/a b"
-( cd "$PWS/a b" && git init -q -b main && printf 'x\n' > f && git add -A \
+( _fx_cd "$PWS/a b" && git init -q -b main && printf 'x\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
-( cd "$PWS" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "link one" ) >/dev/null 2>&1
+( _fx_cd "$PWS" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "link one" ) >/dev/null 2>&1
 mkdir -p "$PWS/a  b"
-( cd "$PWS/a  b" && git init -q -b main && printf 'y\n' > f && git add -A \
+( _fx_cd "$PWS/a  b" && git init -q -b main && printf 'y\n' > f && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm y ) >/dev/null 2>&1
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PWS" )"
@@ -337,7 +337,7 @@ has "a path differing only by spacing is still a new nested repo" "$out" "restor
 # it but a later commit, so a guard keyed to it refused forever in a
 # repository git itself called clean.
 PSQ="$TMP/pulse-squashmsg"; mkdir -p "$PSQ"
-( cd "$PSQ" && git init -q -b main && printf 'l\n' > l.md && git add -A \
+( _fx_cd "$PSQ" && git init -q -b main && printf 'l\n' > l.md && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 printf 'a leftover draft\n' > "$PSQ/.git/SQUASH_MSG"
 printf 'new lesson\n' >> "$PSQ/l.md"
@@ -349,10 +349,10 @@ has "a leftover message draft does not stop the backup forever" "$out" "committe
 # name that sorts first; two strangers with no upstream is a person's call.
 PMR="$TMP/pulse-remotes"; PMRA="$TMP/pulse-ra.git"; PMRO="$TMP/pulse-ro.git"
 mkdir -p "$PMR"
-( cd "$PMR" && git init -q -b main && printf 'l\n' > l.md \
+( _fx_cd "$PMR" && git init -q -b main && printf 'l\n' > l.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
 git init -q --bare -b main "$PMRA"; git init -q --bare -b main "$PMRO"
-( cd "$PMR" && git remote add archive "$PMRA" && git remote add origin "$PMRO" )
+( _fx_cd "$PMR" && git remote add archive "$PMRA" && git remote add origin "$PMRO" )
 printf 'm\n' >> "$PMR/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PMR" )"
@@ -363,7 +363,7 @@ has "origin outranks the name that sorts first" "$out" "pushed and verified: ori
 # which is this project's most-repeated defect wearing a fixture.
 is  "and the alphabetical-first remote was not touched" \
     "$(git --git-dir="$PMRA" rev-parse --verify -q refs/heads/main 2>/dev/null | grep -c .)" "0"
-( cd "$PMR" && git remote rename origin mirror )
+( _fx_cd "$PMR" && git remote rename origin mirror )
 printf 'm2\n' >> "$PMR/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PMR" )"
@@ -374,10 +374,10 @@ has "two strangers and no upstream is a person's call" "$out" "a person picks"
 # where nothing reads back, and 'pushed and verified' would be a lie.
 PSPLIT="$TMP/pulse-split"; PSF="$TMP/pulse-sf.git"; PSP="$TMP/pulse-sp.git"
 mkdir -p "$PSPLIT"
-( cd "$PSPLIT" && git init -q -b main && printf 'l\n' > l.md \
+( _fx_cd "$PSPLIT" && git init -q -b main && printf 'l\n' > l.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base )
 git init -q --bare -b main "$PSF"; git init -q --bare -b main "$PSP"
-( cd "$PSPLIT" && git remote add origin "$PSF" \
+( _fx_cd "$PSPLIT" && git remote add origin "$PSF" \
   && git remote set-url --push origin "$PSP" )
 printf 's\n' >> "$PSPLIT/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"

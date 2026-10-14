@@ -42,12 +42,12 @@ printf '{ "name": "self", "gate": "true" }\n' > "$HOSELF/projects/self/project.j
 printf '# self\n' > "$HOSELF/projects/self/CLAUDE.md"
 printf 'code\t-\t-\tgit ls-files\ttest -e .git\n' > "$HOSELF/projects/self/probes.tsv"
 for _ho_d in "$HOREPO" "$HOCLEAN"; do
-  ( cd "${_ho_d:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hoproj\n' > .felix \
+  ( _fx_cd "${_ho_d:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hoproj\n' > .felix \
     && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
 done
-( cd "${HOPLAIN:?}" && git init -q -b main && printf 'x\n' > a.txt \
+( _fx_cd "${HOPLAIN:?}" && git init -q -b main && printf 'x\n' > a.txt \
   && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
-( cd "${HOSELF:?}" && git init -q -b main && printf 'x\n' > code.txt && printf 'self\n' > .felix \
+( _fx_cd "${HOSELF:?}" && git init -q -b main && printf 'x\n' > code.txt && printf 'self\n' > .felix \
   && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
 HOREPO="$(cd "${HOREPO:?}" && pwd -P)"
 HOCLEAN="$(cd "${HOCLEAN:?}" && pwd -P)"

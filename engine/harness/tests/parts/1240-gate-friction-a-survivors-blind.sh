@@ -85,8 +85,8 @@ for _gfd_x in "$HERE"/*; do
   [ -f "$_gfd_x" ] || continue
   case "${_gfd_x##*/}" in run|assertions.tsv|red.tsv) ;; *) cp "$_gfd_x" "$_gfd_T/" ;; esac
 done
-LC_ALL=C awk 'index($0, ". \"$HERE/parts/") == 1 { if (!d) print ". \"$HERE/parts/0001-gfd-stub.sh\""; d = 1; next } { print }' \
-  "$HERE/run" > "$_gfd_T/run"
+# The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+_suite_copy_driver "$HERE/run" "$_gfd_T" 0001-gfd-stub.sh
 chmod +x "$_gfd_T/run" "$_gfd_T/red"
 printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$_gfd_F/engine/.claude-plugin/plugin.json"
 printf '1\tgfd: the stub part ran\n' > "$_gfd_T/assertions.tsv"
@@ -145,10 +145,10 @@ if [ "$_gfds_m" != r6 ]; then
   _rt_judge "${REAL_HARNESS}/../.."
 fi
 GFDSTUBPART
-( cd "${_gfd_F:?}" && git init -q -b main && git add -A && _gfd_git commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "${_gfd_F:?}" && git init -q -b main && git add -A && _gfd_git commit -qm seed ) >/dev/null 2>&1
 _gfd_F="$(cd "${_gfd_F:?}" && pwd -P)"; _gfd_T="$_gfd_F/engine/harness/tests"
 _gfd_c1="$(_gfd_git -C "${_gfd_F:?}" commit-tree -p HEAD -m 'origin' 'HEAD^{tree}' 2>/dev/null)"
-[ -n "$_gfd_c1" ] && git -C "${_gfd_F:?}" update-ref refs/remotes/origin/main "$_gfd_c1" >/dev/null 2>&1
+[ -n "$_gfd_c1" ] && _fx_git "${_gfd_F:?}" update-ref refs/remotes/origin/main "$_gfd_c1" >/dev/null 2>&1
 _gfd_rp="$(git -C "${_gfd_F:?}" rev-parse --git-path felix-suite-receipt 2>/dev/null)"
 case "$_gfd_rp" in /*) ;; *) _gfd_rp="$_gfd_F/$_gfd_rp" ;; esac
 _gfd_mf="$_gfd_T/assertions.tsv"
@@ -307,7 +307,7 @@ printf '\n1 passed, 0 failed\n'
 GFDREDSTUBRUN
 chmod +x "$_gfd_R/engine/harness/tests/run" "$_gfd_R/engine/harness/tests/red"
 printf '1\tgfd red stub\n' > "$_gfd_R/engine/harness/tests/assertions.tsv"
-( cd "${_gfd_R:?}" && git init -q -b main && git add -A && _gfd_git commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "${_gfd_R:?}" && git init -q -b main && git add -A && _gfd_git commit -qm seed ) >/dev/null 2>&1
 _gfd_R="$(cd "${_gfd_R:?}" && pwd -P)"
 # p.sh <red> <mark> <pid, or self> <out> <red pid file> <own pid file>: starts
 # red in the background, as the record run does, and waits for it.

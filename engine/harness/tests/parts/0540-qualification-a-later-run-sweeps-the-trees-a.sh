@@ -54,8 +54,8 @@ is  "a second INT to the run's process group while the row is removing its scrat
 # Nothing the section made keeps a permission it took away, and its roots
 # list no worktree a run left behind.
 for _qtrp in "$QTRS"/*/made; do [ -f "$_qtrp" ] && _qtrclean "$_qtrp" "$QTRR"; done
-git -C "$QTRU" worktree prune >/dev/null 2>&1
-git -C "$QTR9" worktree prune >/dev/null 2>&1
+_fx_git "$QTRU" worktree prune >/dev/null 2>&1
+_fx_git "$QTR9" worktree prune >/dev/null 2>&1
 chmod -R u+rwX "$QTRS" "$QTRT" 2>/dev/null
 
 printf '\nqualification: a later run sweeps the trees a killed run left\n'
@@ -215,7 +215,7 @@ _qswmode() { ls -ld "$1" 2>/dev/null | cut -c1-10; }
 _qswroot() {   # dir -> a git root there, one commit holding base.txt; its physical path
   local p
   mkdir -p "$1"
-  ( cd "$1" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+  ( _fx_cd "$1" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
   p="$(_qswphys "$1")"; printf '%s\n' "$p" >> "$QSWS/roots"; printf '%s' "$p"
 }
@@ -265,7 +265,7 @@ _qswreaped() { [ -z "$1" ] || [ -z "$(ps -o pid= -p "$1" 2>/dev/null | tr -d ' '
 _qswplant() {
   local b="$1/$2"
   mkdir "$b" || return 1
-  [ "$3" = - ] || git -C "$3" worktree add --detach -q "$b/w" HEAD >/dev/null 2>&1
+  [ "$3" = - ] || _fx_git "$3" worktree add --detach -q "$b/w" HEAD >/dev/null 2>&1
   case "$4" in
     -) ;;
     file:*) printf '%s' "${4#file:}" > "$b/owner" ;;
@@ -274,7 +274,7 @@ _qswplant() {
 }
 _qswreggone() {   # root, path: a worktree registered there, then its directory taken away
   mkdir -p "${2%/*}"
-  git -C "$1" worktree add --detach -q "$2" HEAD >/dev/null 2>&1
+  _fx_git "$1" worktree add --detach -q "$2" HEAD >/dev/null 2>&1
   rm -rf "$2"
 }
 _qswlisted() { git -C "$1" worktree list --porcelain 2>/dev/null | awk -v p="worktree $2" '$0 == p { f = 1 } END { print (f ? "yes" : "no") }'; }

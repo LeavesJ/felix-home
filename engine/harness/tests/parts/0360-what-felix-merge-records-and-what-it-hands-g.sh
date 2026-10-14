@@ -158,7 +158,7 @@ _l1marked() {   # checkout -> 0 when so
 # The trailers git itself finds in the squash commit gh would write: subject,
 # blank line, body. `git interpret-trailers --parse` is the oracle for "the
 # body's last paragraph holds git trailers".
-_l1trailers() { printf '%s\n\n%s\n' "$2" "$3" | git -C "$1" interpret-trailers --parse 2>/dev/null; }
+_l1trailers() { printf '%s\n\n%s\n' "$2" "$3" | _fx_git "$1" interpret-trailers --parse 2>/dev/null; }
 _l1reached() {  # name -> 0 when the run exited 0 and called gh pr merge; else fails the name
   [ "$L1RC" -eq 0 ] && [ -n "$L1MC" ] && return 0
   bad "$1" "gh pr merge was never called: exit $L1RC: $(_l1all)"; return 1
@@ -176,13 +176,13 @@ _l1landing() {   # in a checkout: three marked commits touching NOTES.md
 
 # ---- a governed product, with a github remote -------------------------------
 L1P="$L1/product"; mkdir -p "$L1P"
-( cd "$L1P" && git init -q -b main && git remote add origin https://github.com/example/widget.git )
+( _fx_cd "$L1P" && git init -q -b main && git remote add origin https://github.com/example/widget.git )
 L1P="$(cd "$L1P" && pwd -P)"
 printf 'widget\n' > "$L1P/.felix"; printf 'contents\n' > "$L1P/WIDGET.txt"
-( cd "$L1P" && git add -A >/dev/null 2>&1 && _l1commit -m base )
+( _fx_cd "$L1P" && git add -A >/dev/null 2>&1 && _l1commit -m base )
 
 # Two escapes of ONE kind: two schema migrations, each its own durable blocker.
-( cd "$L1P" && git checkout -q -b l1-blind-escapes && mkdir -p migrations \
+( _fx_cd "$L1P" && git checkout -q -b l1-blind-escapes && mkdir -p migrations \
   && printf 'x\n' > migrations/1.sql && printf 'y\n' > migrations/2.sql \
   && git add -A >/dev/null 2>&1 && _l1commit -m 'two migrations' )
 _l1rec "$L1P" >/dev/null
@@ -217,10 +217,10 @@ if [ "$(_l1lines escape)" -ge 2 ]; then
 else bad "a real run on an escaping tree still writes one escalated row per escape blocker" "no escape blockers printed: $(_l1all)"; fi
 
 # Two KINDS: an escape, and a receipt the tree has since moved past.
-( cd "$L1P" && git checkout -q main && git checkout -q -b l1-blind-two-kinds && mkdir -p migrations \
+( _fx_cd "$L1P" && git checkout -q main && git checkout -q -b l1-blind-two-kinds && mkdir -p migrations \
   && printf 'z\n' > migrations/3.sql && git add -A >/dev/null 2>&1 && _l1commit -m 'a migration' )
 _l1rec "$L1P" >/dev/null
-( cd "$L1P" && printf 'after the gate\n' > LATER.md && git add -A >/dev/null 2>&1 && _l1commit -m 'after the gate' )
+( _fx_cd "$L1P" && printf 'after the gate\n' > LATER.md && git add -A >/dev/null 2>&1 && _l1commit -m 'after the gate' )
 _l1run "$L1P" l1-blind-sess-b -- --base main
 # main: exits 3 printing escape and unverified, and records neither as refused.
 if [ "$L1RC" -ne 0 ] && [ -z "$L1MC" ] && case "$(_l1kinds)" in *escape*) true ;; *) false ;; esac \
@@ -254,7 +254,7 @@ if [ "$L1RC" -eq 1 ] && grep -q '^felix: ' "$L1/err"; then
 else bad "a dry run stopped by an argument it cannot honour writes nothing to memory" "no error refusal: exit $L1RC: $(_l1all)"; fi
 
 # A branch that lands: three commits, every one carrying CI skip markers.
-( cd "$L1P" && git checkout -q main && git checkout -q -b l1-blind-land && _l1landing )
+( _fx_cd "$L1P" && git checkout -q main && git checkout -q -b l1-blind-land && _l1landing )
 L1TID="$(_l1rec "$L1P")"
 _l1keep
 _l1run "$L1P" l1-blind-sess-g0 -- --base main --dry-run
@@ -298,9 +298,9 @@ fi
 
 # ---- no github remote, green receipt ----------------------------------------
 L1N="$L1/noremote"; mkdir -p "$L1N"
-( cd "$L1N" && git init -q -b main ); L1N="$(cd "$L1N" && pwd -P)"
+( _fx_cd "$L1N" && git init -q -b main ); L1N="$(cd "$L1N" && pwd -P)"
 printf 'widget\n' > "$L1N/.felix"; printf 'contents\n' > "$L1N/WIDGET.txt"
-( cd "$L1N" && git add -A >/dev/null 2>&1 && _l1commit -m base && git checkout -q -b l1-blind-no-remote \
+( _fx_cd "$L1N" && git add -A >/dev/null 2>&1 && _l1commit -m base && git checkout -q -b l1-blind-no-remote \
   && printf 'a\n' > A.md && git add -A >/dev/null 2>&1 && _l1commit -m a )
 _l1rec "$L1N" >/dev/null
 _l1run "$L1N" l1-blind-sess-d -- --base main
@@ -320,13 +320,13 @@ _l1rowsok "l1-blind-no-remote: " l1-blind-sess-d \
 # touches prose only, and main then moves one commit on, so main's version,
 # the branch's version, the merge-base and the base ref's sha all differ.
 L1SG="$L1/selfgov"; mkdir -p "$L1SG/engine/.claude-plugin" "$L1SG/engine/harness"
-( cd "$L1SG" && git init -q -b main && git remote add origin https://github.com/example/widget.git )
+( _fx_cd "$L1SG" && git init -q -b main && git remote add origin https://github.com/example/widget.git )
 L1SG="$(cd "$L1SG" && pwd -P)"
 printf 'widget\n' > "$L1SG/.felix"
 cp -R "$FROOT/harness/." "$L1SG/engine/harness/"
 printf '*.log\n.DS_Store\n' > "$L1SG/.gitignore"
 printf '{ "version": "1.0.0" }\n' > "$L1SG/engine/.claude-plugin/plugin.json"
-( cd "$L1SG" && git add -A >/dev/null 2>&1 && _l1commit -m base \
+( _fx_cd "$L1SG" && git add -A >/dev/null 2>&1 && _l1commit -m base \
   && git checkout -q -b l1-blind-self \
   && printf '{ "version": "2.0.0" }\n' > engine/.claude-plugin/plugin.json && _l1landing \
   && git checkout -q main && printf 'main moved\n' > MAIN.md && git add -A >/dev/null 2>&1 \
@@ -448,18 +448,18 @@ printf '\nwhat you are about to commit\n'
 # branch a staged workflow change or a staged credential was invisible to the
 # merge gate. lessons.sh had it right all along and nothing made the rest agree.
 STG="$TMP/stagedrepo"; mkdir -p "$STG"
-( cd "$STG" && git init -q -b main )
+( _fx_cd "$STG" && git init -q -b main )
 STG="$(cd "$STG" && pwd -P)"
 printf 'widget\n' > "$STG/.felix"; printf 'x\n' > "$STG/seed.txt"
-( cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+( _fx_cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 BASE_SHA="$(git -C "$STG" rev-parse HEAD)"
 # A commit ahead of base, so `base...HEAD` is non-empty and the fallback is dead.
 printf 'notes\n' > "$STG/README.md"
-( cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
+( _fx_cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
 
 mkdir -p "$STG/.github/workflows"
 printf 'on: push\n' > "$STG/.github/workflows/ci.yml"
-( cd "$STG" && git add .github >/dev/null 2>&1 )   # staged, deliberately not committed
+( _fx_cd "$STG" && git add .github >/dev/null 2>&1 )   # staged, deliberately not committed
 
 _sesc() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
             . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"
@@ -468,12 +468,12 @@ has "a staged workflow escapes even with commits ahead" "$(_sesc)" "execute"
 
 printf 'unit\t^src/\t^tests?/\tcode changes need a test\n' > "$FROOT/projects/widget/evidence.tsv"
 mkdir -p "$STG/src" "$STG/tests"; printf 'x=1\n' > "$STG/src/a.py"
-( cd "$STG" && git add src >/dev/null 2>&1 )
+( _fx_cd "$STG" && git add src >/dev/null 2>&1 )
 _sev() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/evidence.sh"
            felix_evidence_check "$FROOT/projects/widget" "$BASE_SHA" "$STG" ); }
 has "a staged source change owes its test" "$(_sev)" "gap"
 printf 'def test_a(): pass\n' > "$STG/tests/test_a.py"
-( cd "$STG" && git add tests >/dev/null 2>&1 )
+( _fx_cd "$STG" && git add tests >/dev/null 2>&1 )
 has "and staging the test closes the gap — the case that started this" "$(_sev)" "met"
 rm -f "$FROOT/projects/widget/evidence.tsv"
 

@@ -15,7 +15,7 @@ printf '\nmaintenance: a check that names work already in flight is not due\n'
 mkdir -p "$TMP/_bim"
 _bim_P="$TMP/_bim/proj"; mkdir -p "$_bim_P"
 _bim_R="$TMP/_bim/root"; mkdir -p "$_bim_R"
-( cd "$_bim_R" && git init -q -b main ) >/dev/null 2>&1
+( _fx_cd "$_bim_R" && git init -q -b main ) >/dev/null 2>&1
 _bim_R="$(cd "$_bim_R" && pwd -P)"
 _bim_row() { printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$4" "$5"; }
 # Sourced from the fixture home's copy of the engine, the way the CLI and the
@@ -280,7 +280,7 @@ is  "unchanged: the stop hook's due filter yields the due row and not the inflig
 # are really asked: the due row reading due is the proof the held row was
 # asked too, and not merely left unchecked.
 _bim_PH="$TMP/_bim/pulsehome"; mkdir -p "$_bim_PH/projects/bimpulse"
-( cd "$_bim_PH" && git init -q -b main ) >/dev/null 2>&1
+( _fx_cd "$_bim_PH" && git init -q -b main ) >/dev/null 2>&1
 _bim_PH="$(cd "$_bim_PH" && pwd -P)"
 printf 'bimpulse\n' > "$_bim_PH/.felix"
 printf '{"name": "bimpulse", "remote_match": "example.com/bimpulse", "gate": "true"}\n' \
@@ -320,8 +320,8 @@ printf '\nmaintenance in flight: the handoff row, end to end\n'
 # main holds fewer than three. The row reaches the engine's script through
 # FELIX_HARNESS_DIR, which the lib sets — nothing here sets it.
 _bim_E="$TMP/_bim/e2e"; mkdir -p "$_bim_E/docs/handoff/pending"
-_bim_git() { git -C "$_bim_E" -c core.hooksPath=/dev/null -c commit.gpgsign=false "$@"; }
-( cd "$_bim_E" && git init -q -b main && git config user.name t && git config user.email t@example.invalid ) >/dev/null 2>&1
+_bim_git() { _fx_git "$_bim_E" -c core.hooksPath=/dev/null -c commit.gpgsign=false "$@"; }
+( _fx_cd "$_bim_E" && git init -q -b main && git config user.name t && git config user.email t@example.invalid ) >/dev/null 2>&1
 _bim_E="$(cd "$_bim_E" && pwd -P)"
 _bim_handoff() {
   printf '# Handoff\n\nWrite your section with felix handoff --section; the fold gives it the next id\n'

@@ -319,7 +319,7 @@ is  "and it fails closed the same way with the escape list or the execute list b
 # A repository R holding projects/lt/, whose table is committed on local main
 # before any origin/main exists. Its fourth line is a row the schema refuses.
 LT_C="$TMP/lt-base"; mkdir -p "$LT_C"
-( cd "$LT_C" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_C" && git init -q -b main && git config user.email t@t && git config user.name t \
   && mkdir -p projects/lt projects/ltnone \
   && printf '{ "name": "lt" }\n' > projects/lt/project.json && printf '{ "name": "ltnone" }\n' > projects/ltnone/project.json \
   && { printf '# the table origin/main holds\n'; _lt_row a.txt version-above engine/ -
@@ -342,7 +342,7 @@ is  "the base-read fixture has its table committed on local main and no origin/m
 # A reader that falls back to local main, as felix_base_ref does, fails here.
 is  "with no origin/main the table is not read at all, local main's copy included, or a local branch could stand in for the base" \
     "$(_lt_at "$LT_CP") rows=[$(_lt felix_land_rows "$LT_CP")]" "1| rows=[]"
-git -C "$LT_C" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+_fx_git "$LT_C" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
 is  "once origin/main holds the table, felix_land_table_at_base prints it as that ref holds it, or the base could not be read at all" \
     "$(_lt_at "$LT_CP")" "0|$(git -C "$LT_C" show refs/remotes/origin/main:projects/lt/land.tsv 2>/dev/null)"
 is  "and felix_land_rows prints its accepted rows and leaves out the one refused, or a broken row would bind a path" \
@@ -361,12 +361,12 @@ is  "a project path spelled through a dot-dot is resolved before its table is lo
 _lt_row d.txt version-above - - >> "$LT_CP/land.tsv"
 is  "a row added in the working tree only is not read, or an uncommitted edit would rewrite the recipe" \
     "$(_lt felix_land_rows "$LT_CP")" "$LT_CROWS"
-( cd "$LT_C" && git checkout -q -b feat && git add -A && git commit -qm 'a row on the branch' ) >/dev/null 2>&1
+( _fx_cd "$LT_C" && git checkout -q -b feat && git add -A && git commit -qm 'a row on the branch' ) >/dev/null 2>&1
 is  "the base-read fixture's branch commit holds a row origin/main lacks" \
     "$(git -C "$LT_C" show feat:projects/lt/land.tsv 2>/dev/null | _lt_count d.txt)|$(git -C "$LT_C" show refs/remotes/origin/main:projects/lt/land.tsv 2>/dev/null | _lt_count d.txt)" "1|0"
 is  "and that row, committed on a branch origin/main does not hold, is not read, or a pull request could rewrite the recipe that lands it" \
     "$(_lt felix_land_rows "$LT_CP")" "$LT_CROWS"
-( cd "$LT_C" && git checkout -q main && _lt_row e.txt version-above - - >> projects/lt/land.tsv \
+( _fx_cd "$LT_C" && git checkout -q main && _lt_row e.txt version-above - - >> projects/lt/land.tsv \
   && git commit -qam 'a row on local main' && git checkout -q feat ) >/dev/null 2>&1
 is  "the base-read fixture's local main holds a row origin/main lacks, and the checkout stands on its branch" \
     "$(git -C "$LT_C" show main:projects/lt/land.tsv 2>/dev/null | _lt_count e.txt)|$(git -C "$LT_C" show refs/remotes/origin/main:projects/lt/land.tsv 2>/dev/null | _lt_count e.txt)|$(git -C "$LT_C" rev-parse --abbrev-ref HEAD 2>/dev/null)" "1|0|feat"
@@ -388,7 +388,7 @@ fi
 # but a comment. felix_escapes on a project with no risk.tsv, so only the
 # engine's own channels speak. Each case is one commit on top of the base.
 LT_E="$TMP/lt-escape"; LT_EP="$TMP/lt-escape-proj"; mkdir -p "$LT_E" "$LT_EP"
-( cd "$LT_E" && git init -q -b main && git config user.email t@t && git config user.name t \
+( _fx_cd "$LT_E" && git init -q -b main && git config user.email t@t && git config user.name t \
   && mkdir -p projects/anyproj some/dir && printf 'notes\n' > README.md \
   && { printf '# how each path lands\n'; _lt_row a.txt version-above engine/ -; _lt_row b.txt insertions-union - -
        printf '#c.txt\tversion-above\t-\t-\n'; _lt_row 'docs/.*roadmap.*' founder - -
@@ -406,7 +406,7 @@ _lt_esc() { ( cd "$LT_E" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/
 # a quiet answer is never a fixture that did nothing.
 _lt_echan() {  # <path> <edit command...>, run at the repository root
   local p="$1"; shift
-  ( cd "$LT_E" && git reset -q --hard "$LT_EB" && git clean -qfd && "$@" && git add -A \
+  ( _fx_cd "$LT_E" && git reset -q --hard "$LT_EB" && git clean -qfd && "$@" && git add -A \
       && git -c user.name=t -c user.email=t@t commit -qm edit ) >/dev/null 2>&1
   if git -C "$LT_E" diff --quiet "$LT_EB" HEAD 2>/dev/null; then printf 'unchanged'; return 0; fi
   _lt_esc | awk -F'\t' -v p="$p" '$2 == p { print $1 }' | LC_ALL=C sort -u | awk '{ printf "%s%s", s, $0; s = " " }'
@@ -447,7 +447,7 @@ is  "a land.tsv in any directory is one by its basename, and a row added to some
     "$(_lt_echan some/dir/land.tsv _lt_ed '1; END { print "b.txt\tversion-above\t-\t-" }' some/dir/land.tsv)" "verifier"
 is  "and a row added to ecosystem.tsv still escapes as verifier, or land.tsv replaced the exemption table it was meant to join" \
     "$(_lt_echan ecosystem.tsv _lt_ed '1; END { print "allow\tlib/x.sh\tcargo\tprose" }' ecosystem.tsv)" "verifier"
-( cd "$LT_E" && git reset -q --hard "$LT_EB" && git clean -qfd ) >/dev/null 2>&1
+( _fx_cd "$LT_E" && git reset -q --hard "$LT_EB" && git clean -qfd ) >/dev/null 2>&1
 is  "the exemption tables are exactly ecosystem.tsv and land.tsv, or any change to a land table would not reach a person" \
     "$( . "$FROOT/harness/lib/escape.sh" 2>/dev/null; printf '%s' "${FELIX_ESCAPE_EXEMPTION_TABLES:-}" )" "ecosystem.tsv land.tsv"
 is  "and land.tsv is named once among the escape tables, as a basename, or a project's table under a name the engine does not know would be missed" \

@@ -18,7 +18,7 @@ PBP="$TMP/probes-proj"; mkdir -p "$PBP" "$MEM/probes-proj"
 PBR="$TMP/probes-repo"; mkdir -p "$PBR/src" "$PBR/.github/workflows"
 printf 'x\n' > "$PBR/src/a.py"
 printf 'on: push\n' > "$PBR/.github/workflows/ci.yml"
-( cd "$PBR" && git init -q -b main && git add -A \
+( _fx_cd "$PBR" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
 PBR="$(cd "$PBR" && pwd -P)"
 
@@ -493,6 +493,6 @@ is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" 
 mkdir -p "$FROOT/projects/bare" "$MEM/bare"
 printf '{\n  "name": "bare",\n  "gate": "true"\n}\n' > "$FROOT/projects/bare/project.json"
 BARE="$TMP/bare-repo"; mkdir -p "$BARE"
-( cd "$BARE" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
+( _fx_cd "$BARE" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
 BARE="$(cd "$BARE" && pwd -P)"; printf 'bare\n' > "$BARE/.felix"
 

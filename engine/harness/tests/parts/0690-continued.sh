@@ -204,7 +204,7 @@ printf '# table\tlives\tcolumns\tempty\nschemas.tsv\ttree\ttable lives columns e
   > "$_ffat/engine/harness/templates/schemas.tsv"
 printf '# id\ttitle\tcapability\tcheck\nok1\tT\talways\ttest -f x\nbad1\tT\talways\tx | tail -1\n' > "$_ffat/p/setup.tsv"
 printf 'm1\t7\talways\td\tx | tail\nm2\t 0\talways\td\tx | tail\n' > "$_ffat/p/maintenance.tsv"
-( cd "$_ffat" && git init -q -b main && git add -A \
+( _fx_cd "$_ffat" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 is  "felix_final_filter_table names the refused line of a setup table, and why" \
     "$( . "$REAL_HARNESS/lib/final-filter.sh"; felix_final_filter_table "$_ffat/p/setup.tsv" | cut -c1-25 )" \
@@ -217,7 +217,7 @@ has "naming the line and the refusal" "$_ffao" "p/setup.tsv:3	unfailable	check c
 has "in maintenance too" "$_ffao" "p/maintenance.tsv:2	unfailable"
 printf '# id\ttitle\tcapability\tcheck\nok1\tT\talways\ttest -f x\n' > "$_ffat/p/setup.tsv"
 printf 'm1\t7\talways\td\tx | tail\n' > "$_ffat/p/maintenance.tsv"
-( cd "$_ffat" && git add -A && git -c user.name=t -c user.email=t@t commit -qm fix ) >/dev/null 2>&1
+( _fx_cd "$_ffat" && git add -A && git -c user.name=t -c user.email=t@t commit -qm fix ) >/dev/null 2>&1
 _ffao="$( cd "$_ffat" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" )"
 is  "and passes once the rows are fixed" "${_ffao##*rc=}" "0"
 

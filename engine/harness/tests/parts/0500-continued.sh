@@ -429,7 +429,7 @@ EOF
 chmod +x "$_QGSHIM/git"
 _qkill() {   # K: felix qualify --gate with its Kth worktree add killing the row loop
   : > "$_QSC"; rm -f "$_QSC.killed"
-  _qsout="$( cd "$REPO" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" FELIX_QUALIFY_JOBS=1 \
+  _qsout="$( cd "$REPO" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" \
              QKILL_FELIX="$FELIX" QKILL_SPARE="$$" "$FELIX" qualify --gate 2>&1 )"; _qsrc=$?
   [ -s "$_QSC.killed" ]
 }

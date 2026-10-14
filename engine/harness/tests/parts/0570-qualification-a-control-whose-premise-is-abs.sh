@@ -437,7 +437,7 @@ is  "and one that finished having given 1 verdict of 2 refuses by itself, saying
 # FAIL still says where to read why rather than standing alone.
 _qpk() {   # K BELOW: felix gate with its Kth worktree add killing the process BELOW under the CLI
   : > "$_QSC"; rm -f "$_QSC.killed"
-  _qsout="$( cd "$QGR" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" QKILL_BELOW="$2" FELIX_QUALIFY_JOBS=1 \
+  _qsout="$( cd "$QGR" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" QKILL_BELOW="$2" \
              QKILL_FELIX="$QGH/harness/felix" QKILL_SPARE="$$" FELIX_HOME="$QGH" "$QGH/harness/felix" gate 2>&1 )"
   [ -s "$_QSC.killed" ]
 }

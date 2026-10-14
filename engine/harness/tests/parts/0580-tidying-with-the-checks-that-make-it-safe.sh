@@ -338,8 +338,10 @@ out="$(cd "$REPO" && PATH="$DSTUB:$PATH" "$FELIX" discover 2>&1)"; rc=$?
 after="$(cksum < "$FROOT/projects/widget/stack.tsv")"
 is "discovery writes nothing" "$after" "$before"
 # Without this, "writes nothing" can pass over a run that matched nothing or
-# stopped early: a statement about a path nothing walked.
+# stopped early: a statement about a path nothing walked. The decoy must not
+# list, or a discover that printed the whole catalogue unfiltered would pass.
 case "$out" in
+  *pasta-recipes*) bad "discovery lists the catalogue's matching entry, from the stub's catalogue" "the decoy listed: $out" ;;
   *storybook-helper*|*llm-eval-kit*) ok "discovery lists the catalogue's matching entry, from the stub's catalogue" ;;
   *) bad "discovery lists the catalogue's matching entry, from the stub's catalogue" "$out" ;;
 esac

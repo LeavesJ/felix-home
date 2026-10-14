@@ -7,6 +7,25 @@ request, engine tier. Built on main d36ec648 (A and A3 landed as 0.49.284 and
 The design's rule binds every item: weaken no check, and show each change by
 the assertion's own verdict on the old and the new code.
 
+## Split after review, 2026-10-14
+
+B1 and B2 land in this PR as 0.49.288. B3 is cut and goes back to its contract
+as a PR of its own (branch claude/gf-b3 holds the first build, a06ae3a3). The
+second Opus review reproduced five blocking defects in it. Four are the loop's
+signal and fork windows, and the job count read from a zero-padded value. The
+fifth is the design itself: rows running at once share the repository's
+`.git/worktrees`, and while one row adds or removes its worktree, a column's
+`git worktree list`, `git branch` or checkout in another row fails with 128.
+Such a failure can turn a verdict, and weakening a check is what this design
+forbids. B3's revised contract must keep every column's git reads off a
+worktree list that is changing: for example, add a batch's worktrees one at a
+time, run its columns, then remove them one at a time.
+
+Review findings on B1, fixed here: part 1270's positive-control check passed
+for any extra assertion (it now also requires that control to fail when
+widget declares nothing a rule names), and the control in 0580 did not check
+that the decoy entry is absent (it does now).
+
 ## What decided the list
 
 One instrumented whole-suite run on main d36ec648, 2026-10-13, in a clone,

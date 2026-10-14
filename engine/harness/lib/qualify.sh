@@ -304,8 +304,6 @@ _felix_qualify_missing_in() {   # rows, checker -> one control per line
 # The row runner, _felix_qualify_one and the helpers it runs a row with, is in
 # lib/qualify-run.sh.
 . "${BASH_SOURCE[0]%/*}/qualify-run.sh"
-# The rows run in parallel under FELIX_QUALIFY_JOBS: lib/qualify-par.sh.
-. "${BASH_SOURCE[0]%/*}/qualify-par.sh"
 
 # Emits: checker <TAB> control <TAB> expect <TAB> got <TAB> met|held|unrunnable|inapplicable
 #
@@ -342,19 +340,10 @@ felix_qualify_run() {   # proj, root, [checker]
 # killed run left in this TMPDIR (lib/qualify-sweep.sh). Here, so felix
 # qualify, felix gate and felix_qualify_run all get it. Its stdout goes
 # nowhere: this loop's stdout is the verdict lines.
-#
-# Then the rows are picked out, all of them before any runs, and run: in turn
-# when FELIX_QUALIFY_JOBS is 1 or one row is selected, otherwise at most that
-# many at once (lib/qualify-par.sh). Either way the output is the same lines in
-# the table's order and each row's stderr whole, and the status is 0 unless a
-# row's process ended without giving a verdict. That row is unrunnable and not
-# held: it has said nothing about its checker, and a killed `$(...)` once
-# yielded an empty verdict, which the case below reads as held.
 _felix_qualify_run_rows() {   # rows, root, [checker]
-  local rest="$1" root="$2" want="${3:-}" line f n=0 i rc died=0 got
-  local checker nl='
+  local rest="$1" root="$2" want="${3:-}" line f
+  local checker cmd control expect mut premise got verdict nl='
 ' tab='	'
-  local -a _fq_chk _fq_ctl _fq_exp _fq_cmd _fq_mut _fq_pre
   _felix_qualify_sweep "$root" >/dev/null
   while [ -n "$rest" ]; do
     line="${rest%%"$nl"*}"
@@ -364,43 +353,23 @@ _felix_qualify_run_rows() {   # rows, root, [checker]
     checker="${f%%"$tab"*}"; f="${f#*"$tab"}"
     [ -n "$checker" ] || continue
     [ -z "$want" ] || [ "$want" = "$checker" ] || continue
-    n=$((n + 1))
-    _fq_chk[$n]="$checker"
-    _fq_cmd[$n]="${f%%"$tab"*}";     f="${f#*"$tab"}"
-    _fq_ctl[$n]="${f%%"$tab"*}";     f="${f#*"$tab"}"
-    _fq_exp[$n]="${f%%"$tab"*}";     f="${f#*"$tab"}"
-    _fq_mut[$n]="${f%%"$tab"*}"
+    cmd="${f%%"$tab"*}";     f="${f#*"$tab"}"
+    control="${f%%"$tab"*}"; f="${f#*"$tab"}"
+    expect="${f%%"$tab"*}";  f="${f#*"$tab"}"
+    mut="${f%%"$tab"*}"
     case "$f" in
-      *"$tab"*) f="${f#*"$tab"}"; _fq_pre[$n]="${f%%"$tab"*}" ;;
-      *)        _fq_pre[$n]="" ;;
+      *"$tab"*) f="${f#*"$tab"}"; premise="${f%%"$tab"*}" ;;
+      *)        premise="" ;;
     esac
+    got="$(_felix_qualify_one "$root" "$cmd" "$mut" "$premise")"
+    case "$got" in
+      unrunnable)   verdict=unrunnable ;;
+      inapplicable) verdict=inapplicable; got=- ;;
+      "$expect")    verdict=met ;;
+      *)            verdict=held ;;
+    esac
+    printf '%s\t%s\t%s\t%s\t%s\n' "$checker" "$control" "$expect" "$got" "$verdict"
   done
-  _felix_qualify_njobs
-  if [ "$_felix_qualify_nj" -gt 1 ] && [ "$n" -gt 1 ]; then
-    [ "$_felix_qualify_nj" -le "$n" ] || _felix_qualify_nj="$n"
-    _felix_qualify_par "$root" "$_felix_qualify_nj" "$n"; rc=$?
-    [ "$rc" -eq 98 ] || return "$rc"
-  fi
-  i=1
-  while [ "$i" -le "$n" ]; do
-    got="$(_felix_qualify_one "$root" "${_fq_cmd[$i]}" "${_fq_mut[$i]}" "${_fq_pre[$i]}")" ||
-      { got=unrunnable; died=1; }
-    _felix_qualify_say "${_fq_chk[$i]}" "${_fq_ctl[$i]}" "${_fq_exp[$i]}" "$got"
-    i=$((i + 1))
-  done
-  return "$died"
-}
-
-# One row's verdict line. An inapplicable row's got is `-`, as above.
-_felix_qualify_say() {   # checker, control, expect, got
-  local got="$4" verdict
-  case "$got" in
-    unrunnable)   verdict=unrunnable ;;
-    inapplicable) verdict=inapplicable; got=- ;;
-    "$3")         verdict=met ;;
-    *)            verdict=held ;;
-  esac
-  printf '%s\t%s\t%s\t%s\t%s\n' "$1" "$2" "$3" "$got" "$verdict"
 }
 
 # Checkers never shown failing here: at least one control expects `fail`, and

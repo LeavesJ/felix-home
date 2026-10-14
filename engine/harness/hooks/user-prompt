@@ -104,6 +104,10 @@ sid="$sid_raw"
 # a session that cannot start loses everything.
 [ -n "$sid_raw" ] && felix_session_mark "$FELIX_HOME_DIR" "$sid_raw" "$root" 2>/dev/null || true
 
+# A person's prompt is a new question about the work, so the Stop hook may hold
+# once more on what it held this session before (felix_hold_tree_seen).
+[ -z "$machine" ] && [ -n "$sid_raw" ] && { felix_hold_tree_clear "$FELIX_HOME_DIR" "$sid_raw" 2>/dev/null || true; }
+
 # ------------------------------------------------------------------ route ----
 # The runtime uses this channel for its own messages — task completions, system
 # reminders, the Stop hook's own feedback — and routing those announced a play

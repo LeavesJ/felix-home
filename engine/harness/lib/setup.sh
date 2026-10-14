@@ -183,9 +183,16 @@ _felix_setup_norm() {
   LC_ALL=C sed -E 's/--repo([[:space:]]+)(--|[0-9]*[<>]|[|;&`]|$)/--repo {{REPO}}\1\2/g'
 }
 
-# done | todo | dormant, one row each: status <TAB> id <TAB> title, and a
-# fourth field only for a row the remote decides: why it waits, or why Felix
-# cannot check it.
+# done | todo | dormant | unknown, one row each: status <TAB> id <TAB> title,
+# and a fourth field only for a row the remote decides: why it waits, or why
+# Felix cannot check it.
+#
+# Until 2026-10-01 this asked _felix_cap_active with `!`, so a declared list
+# that could not be read (status 2) printed `dormant`: a step that still needs
+# a person, said to be not needed yet. A list nobody read is its own word,
+# `unknown`, and its check is not run, as an `unchecked` maintenance row's is
+# not: nothing here can say a step is done or todo on a capability it could
+# not look up.
 #
 # A row whose check needs the slug reads, by the remote: with a slug, its check
 # run with the slug filled in; `unread`, todo with the reason and its check not
@@ -200,7 +207,7 @@ _felix_setup_norm() {
 # ROOT is the checkout, defaulting to the one the working directory is in: the
 # human_steps row calls this with the project alone, from inside the checkout.
 felix_setup_status() {
-  local proj="$1" root="${2:-}" rem="none" slug="" why=""
+  local proj="$1" root="${2:-}" rem="none" slug="" why="" rc
   [ -n "$root" ] || root="$(felix_repo_root "$PWD")"
   if [ -f "$proj/setup.tsv" ] && LC_ALL=C grep -qF -e '--repo' -e '{{REPO}}' "$proj/setup.tsv" 2>/dev/null; then
     rem="$(_felix_setup_remote "$root")"
@@ -211,10 +218,12 @@ felix_setup_status() {
   esac
   _felix_setup_judged "$proj" | while IFS=$'\t' read -r ff id title cap check; do
     [ -n "${id:-}" ] || continue
-    if ! _felix_cap_active "${cap:-always}" "$proj"; then
-      printf 'dormant\t%s\t%s\n' "$id" "$title"
-      continue
-    fi
+    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'dormant\t%s\t%s\n' "$id" "$title"; continue ;;
+      *) printf 'unknown\t%s\t%s\n' "$id" "$title"; continue ;;
+    esac
     if [ "$ff" != "-" ]; then
       printf 'todo\t%s\t%s\n' "$id" "$title"
       continue

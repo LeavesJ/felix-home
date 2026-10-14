@@ -8,7 +8,9 @@
 # no checkout touched, no network beyond the backup remote a person already
 # configured.
 #
-# Duties, deliberately two:
+# Duties, four and a record. All of it is bash and git (and jq, when present, for
+# the settings check). Only the first duty writes outside state/ or reaches a
+# network, and then only the backup remote; the next three read and never act:
 #   backup   commit and push the memory repository, verified by asking the
 #            remote what it now holds; a rejected push is reported and never
 #            forced, because a divergence is another machine's work and
@@ -16,6 +18,23 @@
 #   report   name what is waiting — maintenance due, discovery caches stale —
 #            so the pulse log doubles as a note about what the next session
 #            will find
+#   settings whether ~/.claude/settings.json still enables Felix: that file is
+#            what a broken hand edit can turn Felix off with, and no hook of
+#            Felix's can say so, because none of them loads
+#   reach    which declared plugin and mcp servers a project's last reach cache
+#            says do not connect, or that no cache has been read for
+# and the record, which is not a duty but what a run leaves behind:
+#   record   state/pulse.status.tsv, rewritten whole by every run: `# ran
+#            <epoch>`, then the lines the run printed, so a status surface
+#            reads the last run without parsing the log
+#
+# The pulse runs no `claude` command, so the reach duty reads a cache that a
+# session start or felix stack --reach wrote and never asks the servers itself.
+# The launchd job runs /bin/bash, which holds Full Disk Access on this machine,
+# and `claude mcp list` starts every configured stdio server, some of them at
+# floating `npx ...@latest` versions: a daily unattended run would hand floating
+# third-party code full disk access. And the pulse's own charter is no network
+# beyond the backup remote.
 #
 # The review of the first version confirmed ten ways an unattended committer
 # can corrupt the thing it protects, each by construction, and the guards
@@ -308,10 +327,19 @@ felix_pulse_backup_age() {
 if ! command -v felix_repo_root >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
+# reach.sh holds felix_reach_report and status.sh felix_settings_state, which
+# felix pulse prints. Guarded the same way, and at load: status.sh sources this
+# file only at call time, so there is no cycle.
+if ! command -v felix_reach_report >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach.sh"
+fi
+if ! command -v felix_settings_state >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/status.sh"
+fi
 
 # What is waiting, one line per fact. Reads only Felix's own tables and state.
 felix_pulse_report() {
-  local home="$1" proj name due unasked st root self selfproj
+  local home="$1" proj name due unasked unread st root self selfproj
 
   # The one checkout this may name. The pulse runs from launchd with whatever
   # cwd launchd had, so $PWD says nothing, and a project records no path — it
@@ -339,11 +367,42 @@ felix_pulse_report() {
       unasked="$(printf '%s\n' "$st" | grep '^unchecked' | cut -f2 | tr '\n' ' ')"
       unasked="${unasked% }"
       [ -n "$unasked" ] && printf 'unchecked\t%s\t%s\n' "$name" "$unasked"
+      # A row whose capability could not be looked up is neither due nor
+      # dormant. Its own line, and never in the due one: a false due sends
+      # someone to work that may not apply.
+      unread="$(printf '%s\n' "$st" | grep '^unknown' | cut -f2 | tr '\n' ' ')"
+      unread="${unread% }"
+      [ -n "$unread" ] && printf 'unknown\t%s\t%s\n' "$name" "$unread"
     fi
     if [ -f "$proj/routes.tsv" ] && felix_discover_stale "$proj" "$home"; then
       printf 'stale\t%s\tdiscovery cache; the next session refreshes it in the background\n' "$name"
     fi
+    # Reach, from the project's cache alone. This never runs claude: the launchd
+    # job runs /bin/bash, which holds Full Disk Access on this machine, and
+    # `claude mcp list` starts every configured stdio server, some at floating
+    # `npx ...@latest` versions, so a daily unattended run would hand floating
+    # third-party code full disk access, and the pulse's charter is no network
+    # beyond the backup remote. The cache is written at a session start or by
+    # felix stack --reach; a missing or old one is itself a line here.
+    felix_reach_report "$proj" "$home"
   done
+  return 0
+}
+
+# What a run leaves for a status surface: `# ran <epoch>`, then the lines it
+# printed after its header, in order. Written to a temp file and moved into
+# place so a reader never sees half a record, and written whatever became of the
+# log append, because the record is the one thing a surface reads. Best effort:
+# a record that could not be written is not a failed run.
+felix_pulse_record() {
+  local home="$1" lines="$2" rec tmp
+  rec="$home/state/pulse.status.tsv"; tmp="$rec.new.$$"
+  mkdir -p "$home/state" 2>/dev/null || return 0
+  if { printf '# ran %s\n' "$(date +%s)"; [ -z "$lines" ] || printf '%s\n' "$lines"; } > "$tmp" 2>/dev/null \
+     && mv -f "$tmp" "$rec" 2>/dev/null; then
+    return 0
+  fi
+  rm -f "$tmp" 2>/dev/null
   return 0
 }
 

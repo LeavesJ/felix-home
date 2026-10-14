@@ -49,16 +49,38 @@ _felix_load_state() {
   _FELIX_INLINE="$(sed -n 's/.*"\([A-Za-z0-9._-]*\)@inline".*/\1/p' "$HOME/.claude.json" 2>/dev/null | LC_ALL=C sort -u)"
 }
 
+# What one line of `claude mcp list` says about its server: failed, needs-auth,
+# connected, or other for a status nobody here has seen. The single reading of
+# the status phrase, shared by the mount test below and by lib/reach.sh, so the
+# two cannot come to read a line differently. The order is the verdict's:
+# a line that mentions two phrases is the worse one.
+_felix_mcp_line_set() {
+  case "$1" in
+    *"Failed to connect"*)     _FELIX_MCP_STATE=failed ;;
+    *"Needs authentication"*)  _FELIX_MCP_STATE=needs-auth ;;
+    *"Connected"*)             _FELIX_MCP_STATE=connected ;;
+    *)                         _FELIX_MCP_STATE=other ;;
+  esac
+}
+# The same, printed. A caller that reads many lines calls _felix_mcp_line_set and
+# reads _FELIX_MCP_STATE instead, which forks nothing.
+_felix_mcp_line_state() {
+  _felix_mcp_line_set "$1"
+  printf '%s' "$_FELIX_MCP_STATE"
+}
+
 # A server is mounted only when its line says connected. Configured-but-failing
 # is the state the GitHub server sits in until someone exports a token, and
-# calling that mounted hides the only fact that matters.
+# calling that mounted hides the only fact that matters. A matching line that
+# says something unrecognised still counts as mounted, as it always did: this
+# decides what felix stack plan calls present, and reach.sh, which only reports,
+# maps the same unrecognised line to unknown instead.
 _felix_mcp_connected() {
   local line
   while IFS= read -r line; do
     case "$line" in
       "$1:"*|*":$1:"*)
-        felix_contains "$line" "Failed to connect" && return 1
-        felix_contains "$line" "Needs authentication" && return 1
+        case "$(_felix_mcp_line_state "$line")" in failed|needs-auth) return 1 ;; esac
         return 0 ;;
     esac
   done <<EOF
@@ -91,8 +113,9 @@ _felix_have() {
 # status alone is not enough either: on bash 3.2 a substitution that cannot
 # make its pipe (no file descriptor left) expands to nothing with status 0
 # (measured), so the list carries a `.` written only after felix_declared
-# returned 0, and a list without it was never read. The callers that ask with
-# `!` still read 2 as not active. The membership is a case and not
+# returned 0, and a list without it was never read. Every caller branches on
+# the status: setup, maintenance and the stack plan say unknown for 2, where
+# they asked with `!` and printed dormant. The membership is a case and not
 # felix_has_line, whose here-document is a temporary file on bash 3.2, and one
 # that cannot be written reads as "not declared" too.
 _felix_cap_active() {
@@ -106,8 +129,14 @@ _felix_cap_active() {
 
 
 # Classify every manifest row. Emits: action <TAB> kind <TAB> name <TAB> detail
+#
+# action is present | dormant | unknown | blocked | manual | install. A row
+# whose item is present is present without asking its capability. Otherwise a
+# capability whose declared list could not be read is `unknown`, never dormant
+# (until 2026-10-01 a `!` printed dormant for it) and never install, blocked or
+# manual: nothing is installed on a list nobody read.
 felix_stack_plan() {
-  local proj="$1"
+  local proj="$1" rc
   _felix_load_state
   # The sixth column is who grounded the row. Absent, it is a person's —
   # DECLARED — which is what every row was before the column existed. A row
@@ -118,9 +147,13 @@ felix_stack_plan() {
     [ -n "${kind:-}" ] || continue
     ground="${ground:-DECLARED}"
     if _felix_have "$kind" "$name"; then
-      printf 'present\t%s\t%s\t-\n' "$kind" "$name"
-    elif ! _felix_cap_active "${cap:-always}" "$proj"; then
+      printf 'present\t%s\t%s\t-\n' "$kind" "$name"; continue
+    fi
+    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    if [ "$rc" -eq 1 ]; then
       printf 'dormant\t%s\t%s\tneeds capability: %s\n' "$kind" "$name" "$cap"
+    elif [ "$rc" -ne 0 ]; then
+      printf 'unknown\t%s\t%s\tthe capabilities this project declares could not be read, so whether %s is active here is not known\n' "$kind" "$name" "$cap"
     elif [ "$(felix_admit "${risk:-}" "$ground")" != "install" ]; then
       printf 'blocked\t%s\t%s\t%s\n' "$kind" "$name" "$(felix_admit_why "${risk:-}" "$ground")"
     elif [ "$kind" = "skill" ]; then

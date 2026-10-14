@@ -75,8 +75,8 @@ mkdir -p "$_gfb_F/engine/harness/tests/parts" "$_gfb_F/engine/.claude-plugin"
 _copy_content "$REAL_HARNESS/lib" "$_gfb_F/engine/harness/lib"
 cp "$HERE/red" "$_gfb_F/engine/harness/tests/red"
 [ -f "$HERE/receipt.sh" ] && cp "$HERE/receipt.sh" "$_gfb_F/engine/harness/tests/receipt.sh"
-LC_ALL=C awk 'index($0, ". \"$HERE/parts/") == 1 { if (!d) print ". \"$HERE/parts/0001-gfb-stub.sh\""; d = 1; next } { print }' \
-  "$HERE/run" > "$_gfb_F/engine/harness/tests/run"
+# The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+_suite_copy_driver "$HERE/run" "$_gfb_F/engine/harness/tests" 0001-gfb-stub.sh
 chmod +x "$_gfb_F/engine/harness/tests/run" "$_gfb_F/engine/harness/tests/red"
 printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$_gfb_F/engine/.claude-plugin/plugin.json"
 printf '1\tgfb: the stub part ran\n' > "$_gfb_F/engine/harness/tests/assertions.tsv"

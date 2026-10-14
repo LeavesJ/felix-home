@@ -119,6 +119,7 @@ has_claude() { command -v claude >/dev/null 2>&1; }
 . "$HERE/parts/0001-the-origin-guard-and-the-temporary-directory.sh"
 
 . "$HERE/parts/0002-fixture-git-commands-stay-in-tmp.sh"
+. "$HERE/parts/0003-the-lint-the-origin-record-and-the-exit-trap.sh"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
 # one command that changes it, so the diff on every PR says plainly which

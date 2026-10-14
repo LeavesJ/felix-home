@@ -124,8 +124,8 @@ _gfd_repo() {
     _copy_content "$REAL_HARNESS/lib" "$d/engine/harness/lib"
     cp "$GFD_R" "$d/engine/harness/tests/receipt.sh"
     mkdir -p "$d/engine/harness/tests/parts"
-    awk '/^\. "\$HERE\/parts\// { if (!x) { print ". \"$HERE/parts/0001-gfd-stub.sh\""; x = 1 } next } { print }' \
-      "$REAL_HARNESS/tests/run" > "$d/engine/harness/tests/run"
+    # The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+    _suite_copy_driver "$REAL_HARNESS/tests/run" "$d/engine/harness/tests" 0001-gfd-stub.sh
     chmod +x "$d/engine/harness/tests/run"
     printf 'printf %s\nexit 3\n' "'gfd fixture part ran\\n'" > "$d/engine/harness/tests/parts/0001-gfd-stub.sh"
   fi

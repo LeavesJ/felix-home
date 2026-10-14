@@ -20,10 +20,12 @@ by hand and asserted in the script that did it:
 
 **Where the new text sits.**
 - 3b's preamble helpers became parts 0001 (the origin guard, `$TMP` and its
-  checks, `FELIX_TEST_RAN`) and 0002 (`_fx_cd`, `_fx_git`, `_fx_lint`, the
-  EXIT trap). Each is sourced from the driver line its text came from.
+  checks, `FELIX_TEST_RAN`), 0002 (`_fx_cd`, `_fx_git` and the roots) and 0003
+  (`_fx_lint`, the origin record, the EXIT trap and `_suite_flat`), cut where
+  the lint begins so that no part passes 1,000 lines. Each is sourced from the
+  driver line its text came from.
 - Main's widget fixture became part 0004, so the driver stays within 500
-  lines (468).
+  lines (470).
 - Part 0200 held 3,224 lines after the merge. It was cut into 0200-0204 at
   section headers, each piece parsing alone under `bash -n`.
 
@@ -32,7 +34,7 @@ by hand and asserted in the script that did it:
 `_ff_case` pin), and `_gp_src`, `_g2_src`, `_g3_src` and `_rh_src` (the
 preamble-and-one-section runners). On the driver alone they would read no
 section, because its first header is `reached`. They now read
-`_suite_flat` (end of part 0002), which rebuilds the one file once per run
+`_suite_flat` (end of part 0003), which rebuilds the one file once per run
 from `$REAL_HARNESS/tests`. That rebuild was checked against the merged file:
 the only differences are its own definition and those six lines. The
 `_ff_case` cksum is unchanged (1793434744 1884), so the set-aside needs no new
@@ -62,6 +64,25 @@ against them and nine turned it red. The survivor removes the empty-walk-root
 guard in `_fx_below`, which no current path reaches. Parts 1100-1130 passed
 644/0 twice: once as macOS runs them, and once with `TMPDIR` under a
 world-writable ancestor and `RUNNER_TEMP` private, which is the runner's path.
+
+**Found by the first full record (212 red), all fixed.**
+- `_suite_flat` was written `[ -s f ] || awk ... && mv`, which bash reads as
+  `(A || B) && C`. Only its first call worked (part 0005's), and every later
+  reader got nothing. It is an `if` now.
+- Part 0002 held 1,077 lines, past part 1040's 1,000. It was cut where the lint
+  begins, into 0002 and 0003.
+- The gate-friction blocks (1220, the 1230 addendum, 1240, 1260) ran a copy of
+  the driver with every part line swapped for stubs. After 3+3b that dropped
+  `$TMP`, the guard and the EXIT trap, and put the stubs ahead of argument
+  parsing. `_suite_copy_driver` (part 0003) now keeps the preamble parts
+  (0001-0004, the text that was the driver's own on main) where they stand,
+  copies the harness's `felix` (the driver's `REAL_HARNESS` guard needs it),
+  and puts the stubs where the suite's first part stood. Row 0's
+  `onepart.sh` meets the same break and can use it.
+- iCloud had left 121 `* 2` copies of tracked files in this worktree, 109 of
+  them in `parts/`, and two `main 2` ref files in `.git` that stopped every
+  clone. All were moved aside, not deleted, and listed in the carrier's state
+  file.
 
 **After it lands.** Row 0's step C (every part runs alone) builds on
 `_fx_cd`/`_fx_git` and starts once this is on main ("Queue-based build

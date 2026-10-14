@@ -85,8 +85,8 @@ for _gfd_x in "$HERE"/*; do
   [ -f "$_gfd_x" ] || continue
   case "${_gfd_x##*/}" in run|assertions.tsv|red.tsv) ;; *) cp "$_gfd_x" "$_gfd_T/" ;; esac
 done
-LC_ALL=C awk 'index($0, ". \"$HERE/parts/") == 1 { if (!d) print ". \"$HERE/parts/0001-gfd-stub.sh\""; d = 1; next } { print }' \
-  "$HERE/run" > "$_gfd_T/run"
+# The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+_suite_copy_driver "$HERE/run" "$_gfd_T" 0001-gfd-stub.sh
 chmod +x "$_gfd_T/run" "$_gfd_T/red"
 printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$_gfd_F/engine/.claude-plugin/plugin.json"
 printf '1\tgfd: the stub part ran\n' > "$_gfd_T/assertions.tsv"

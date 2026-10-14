@@ -203,3 +203,38 @@ that the block's stub log shows the calls and the real CLI was never reached).
 Do not assert elapsed time anywhere. B3 is the bulk: drive
 `_felix_qualify_run_rows` and `felix qualify` on scratch repositories of the
 part's own, never on `$HERE`'s checkout.
+
+## B4. The receipt's host is the machine's name, not the network's (added 2026-10-14)
+
+**Found.** B's record run on e25774f1 (2026-10-14 ~20:30Z) ended 8840 passed,
+7 failed. All seven were part 1200's receipt assertions, and all said the same
+thing: `_sr_env`'s host was `Jarrons-Mac-567.local` when the run started and
+`wifi-10-44-222-61.wifi.berkeley.edu` when the assertion ran. `_sr_env` takes
+the host from `uname -n`, which on macOS follows the network the Mac is on, and
+on campus Wi-Fi the name changes as the laptop roams (it changed again within
+the hour). #433 noted this as a follow-up that costs a reuse. It also makes any
+whole-suite run that spans a network change fail, a record run and a gate
+alike, for a reason that has nothing to do with the tree.
+
+**Contract.**
+1. `_sr_env`'s host is, in this order: the output of
+   `/usr/sbin/scutil --get LocalHostName` when that file is executable, the
+   command exits 0, and its output is one non-empty line of only ASCII letters,
+   digits and hyphens; otherwise `uname -n`, as today. The path is absolute, so
+   the answer does not depend on PATH (PATH is a field of its own). macOS
+   keeps LocalHostName across networks; it is the name set under Sharing.
+2. Nothing else in `_sr_env` changes: the field order, the other four fields,
+   one line.
+3. A receipt written before this change names the old host, so on macOS it now
+   reads as `another environment` and the suite runs. That is the safe
+   direction, and it is said in the PR.
+4. On a machine without scutil (the Linux CI runner), the host is `uname -n`,
+   as today.
+5. Two Macs that share one LocalHostName and one git directory (through file
+   sync) would read as one host. That was already true of `uname -n`, and it
+   is said rather than fixed here.
+
+**Shown failing.** On a Mac, with a `uname` first on PATH that prints a
+different name on every call, two `_sr_env` calls print the same host (today
+they differ). Part 1200's assertion of `_sr_env`'s shape is updated to expect
+item 1's host. A mutant that keeps `uname -n` fails the new assertion on a Mac.

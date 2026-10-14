@@ -3,7 +3,7 @@
     "What a Claude Code cloud session gets of the toolbox projects/felix/stack.tsv declares, and why.",
     "Read by .claude/cloud/provision. Every plugin and skill row in stack.tsv needs an entry here, and the gate's cloud check fails when one is missing, so a new stack row forces a decision about the cloud instead of silently not arriving there.",
     "Plugins never load in a cloud session, whether a user or a repository enables them (code.claude.com/docs/en/cloud-environments, 'What carries over'). What does load is this repository's .claude/skills, .claude/agents and .claude/commands, so fetch entries are carried as those: provision downloads the plugin at the sha pinned here and copies its skills, agents and commands into the clone.",
-    "The shas are the ones installed on the founder's machine on 2026-09-25 (~/.claude/plugins/installed_plugins.json), so the cloud runs what a local session runs. Move a pin when the local install moves.",
+    "The shas are the ones installed on the founder's machine (~/.claude/plugins/installed_plugins.json): 2026-09-25 for the official ones, 2026-10-12 for the five from the plugin directory, each at the commit the directory reviewed. So the cloud runs what a local session runs. Move a pin when the local install moves.",
     "carry: fetch = downloaded at sha and copied into .claude/; builtin = Claude Code itself ships an equivalent under the same name; claude.ai = arrives through the skills enabled on claude.ai; no = not carried, and the note says why.",
     "JSON rather than a .tsv because the engine never reads it: engine/harness/templates/schemas.tsv registers the tables the engine reads."
   ],
@@ -56,6 +56,40 @@
       "name": "graphify",
       "carry": "no",
       "note": "the graph is built on the founder's machine and is not in the clone, so the skill would have nothing to query"
+    },
+    {
+      "name": "test-coverage-intelligence-risk-ranked-coverage-gaps",
+      "carry": "fetch",
+      "source": "petrovicistefan/claude-code-plugins",
+      "sha": "a7a800dd8f787ef9d6c499636a818285de624cef",
+      "subdir": "test-coverage-intelligence",
+      "note": "one skill, with its script inside the skill, and two commands"
+    },
+    {
+      "name": "ci-optimizer-faster-github-actions-and-gitlab-ci",
+      "carry": "fetch",
+      "source": "petrovicistefan/claude-code-plugins",
+      "sha": "a7a800dd8f787ef9d6c499636a818285de624cef",
+      "subdir": "ci-optimizer",
+      "note": "one skill, with its script inside the skill, and two commands"
+    },
+    {
+      "name": "pipeline-reconcile",
+      "carry": "fetch",
+      "source": "mark124/pipeline-reconcile",
+      "sha": "fce83379a5ca6aff8cecb85171fb833650686a16",
+      "subdir": ".",
+      "note": "two skills; the reconcile skill names its scripts under ${CLAUDE_PLUGIN_ROOT}, which a cloud session leaves unset, so there they are at .claude/skills/reconcile/scripts"
+    },
+    {
+      "name": "viral-launch-pipeline",
+      "carry": "no",
+      "note": "a product-launch copy pipeline that fans out 21 subagents; a cloud session of felix-home does engineering, so it has no use for one, and the local install is unaffected"
+    },
+    {
+      "name": "sabotage",
+      "carry": "no",
+      "note": "its skill and commands run node scripts from the plugin root (scripts/sabotage.js, scripts/restore.js), which provision does not copy, so a cloud session would have a mutation-testing skill whose restore step is missing"
     }
   ]
 }

@@ -186,7 +186,7 @@ _felix_autonomy_rewrite() {   # file want tmp
   # with wc's 0, the pass read as written, and the mv put an empty file over
   # the grants.
   size="$(wc -c < "$f")" || return 1
-  case "$size" in *[0-9]*) ;; *) return 1 ;; esac
+  case "$size" in *[0123456789]*) ;; *) return 1 ;; esac
   case "$size" in *[!0-9\ \	]*) return 1 ;; esac
   [ "$size" -eq "${#_felix_autonomy_text}" ] || return 1
   _felix_autonomy_text=""
@@ -389,7 +389,7 @@ felix_autonomy_grant() {
       # The padded count goes to -eq as it is: stripping its blanks joined
       # "2 0" into 20 (revoke's sixth review).
       size="$(wc -c < "$f")" || exit 1
-      case "$size" in *[0-9]*) ;; *) exit 1 ;; esac
+      case "$size" in *[0123456789]*) ;; *) exit 1 ;; esac
       case "$size" in *[!0-9\ \	]*) exit 1 ;; esac
       [ "$size" -eq "${#_felix_autonomy_text}" ] 2>/dev/null || exit 1
     else
@@ -551,7 +551,7 @@ felix_autonomy_lock() {
     done
     out="$( IFS=' '; trap '' $FELIX_AUTONOMY_SIGNALS 2>/dev/null; exec ls -di "$lock" 2>/dev/null )"
     out="${out#"${out%%[! ]*}"}"; out="${out%% *}"
-    case "$out" in ''|*[!0-9]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
+    case "$out" in ''|*[!0123456789]*) ;; *) _felix_autonomy_lock_ino="$out" ;; esac
     return 0
   fi
   [ -d "$lock" ] && [ ! -L "$lock" ] && return 1
@@ -602,7 +602,7 @@ _felix_autonomy_release() {
   [ -z "${_felix_autonomy_lock_dir:-}" ] \
     || felix_autonomy_unlock "$_felix_autonomy_lock_dir" "${_felix_autonomy_lock_ino:-}"
   _felix_autonomy_lock_dir=""
-  case "${_felix_autonomy_lock_fd:-}" in [3-9]) eval "exec $_felix_autonomy_lock_fd<&-" ;; esac
+  case "${_felix_autonomy_lock_fd:-}" in [3456789]) eval "exec $_felix_autonomy_lock_fd<&-" ;; esac
   _felix_autonomy_lock_fd=""
 }
 

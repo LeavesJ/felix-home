@@ -131,9 +131,9 @@ felix_ready_report() {
   local plugins=""
   if command -v claude >/dev/null 2>&1; then
     plugins="$(claude plugin list --json 2>/dev/null \
-      | sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
+      | LC_ALL=C sed -n -e 's/.*"id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/ID \1/p' \
                -e 's/.*"enabled"[[:space:]]*:[[:space:]]*\([a-z]*\).*/EN \1/p' \
-      | awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
+      | LC_ALL=C awk '/^ID /{id=$2} /^EN /{print id "\t" $2}')"
   fi
 
   while IFS= read -r want; do
@@ -144,12 +144,12 @@ felix_ready_report() {
     # nobody agreed to, whatever happens to be installed on this laptop.
     local row="" kind
     # Only as a regular file, for the reason felix_ready_unused gives.
-    [ -f "$proj/stack.tsv" ] && row="$(grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
+    [ -f "$proj/stack.tsv" ] && row="$(LC_ALL=C grep -E "	($want|$owner)(@[^	]*)?	" "$proj/stack.tsv" 2>/dev/null | head -1)"
     if [ -z "$row" ]; then
       printf 'undeclared\t%s\t%s\n' "$want" "named by a route, absent from stack.tsv"
       continue
     fi
-    kind="$(printf '%s' "$row" | cut -f1)"
+    kind="$(printf '%s' "$row" | LC_ALL=C cut -f1)"
 
     # A standalone skill is a directory, not a package: there is no plugin to
     # enable and nothing in the plugin list to find. Looking for one there

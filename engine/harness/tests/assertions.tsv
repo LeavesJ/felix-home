@@ -3214,6 +3214,7 @@
 1	and in its own home the checkouts resolve as the cases below assume
 1	and in record mode it skips the whole-record, manifest and base checks, saying --record-assertions rewrites red.tsv, and still asks the version
 1	and in that locale the library reads no row of it and exits non-zero
+1	and in the UTF-8 locale the same removal is still a verifier escape
 1	and in the policy's own words, which is what proves the call reached it
 1	and inside a quoted string that name is the string as written
 1	and install onto the marker
@@ -3451,6 +3452,8 @@
 1	and names DEVLOG.md among what it kept
 1	and names SESSION_HANDOFF.md among what it kept
 1	and names a handoff when the repo has one
+1	and names a listed function defined a second time in another file without the local, twice:r1_ok, ahead of the rest in the list's order
+1	and names a listed function defined twice, and one that is gone, in the list's order
 1	and names both forms on stderr through die (--reach --json)
 1	and names both forms on stderr through die (--reach --tsv --tsv)
 1	and names both forms on stderr through die (--reach plan)
@@ -3460,7 +3463,11 @@
 1	and names lessons.md among what it kept
 1	and names no commission run
 1	and names no play in a session ledger for it
+1	and names none of a spelled-out set, an awk program over two lines, grep and sed programs, heredoc bodies in every form, comments, a letter range, $'[0-9]', the right of =~, or double-quoted text
 1	and names none of demo's controls missing
+1	and names none of the eight pinned, an assignment before LC_ALL=C among them, a comment, a tool name inside a string, a tool in a function not on its list, or one after a listed one-line function ends
+1	and names none of the pinned spellings, comment lines, an awk split string or an awk function called join
+1	and names none of where.sh's shape, a local whose values hold a parameter default and a quoted bar, comment lines, an awk or grep string holding =~, or a one-line function declaring it first
 1	and names none when there is none
 1	and names origin's version as the one nothing is installed at
 1	and names the answer file to write
@@ -4559,6 +4566,7 @@
 1	and what the engine tiered medium holds
 1	and what was detected
 1	and what was typed still counts
+1	and when that byte is in the winning route's own play, felix_route_best still picks it
 1	and whether git tracks it
 1	and which stand alone
 1	and whichever read fails, felix gate never says across 0 checker(s) nor shows awk's own error
@@ -4570,6 +4578,10 @@
 1	and with FELIX_TEST_NO_MANIFEST at 0, and again at true, it judges the real record as a normal run does, all four passed each time, since a red run is that variable at exactly 1
 1	and with FELIX_TEST_NO_MANIFEST at 1 around it but unset for the judgment, as these cases unset it inside a red run, it judges the real record as a normal run does, all four passed
 1	and with FELIX_TEST_RECORD unset it judges the real record as a normal run does, all four passed, since record mode is that variable at exactly 1
+1	and with LANG set and LC_ALL unset, felix_json_str reads them too
+1	and with LANG set and LC_ALL unset, that row still refuses it
+1	and with LC_ALL set to that locale, felix_resolve_project binds the same project as in C
+1	and with LC_ALL set to that locale, the same pure addition is not a verifier escape either
 1	and with a GitHub remote whose steps are not done, human_steps is held
 1	and with a clean probes table an all-structural failure still writes no row
 1	and with a fact moved as well, no epoch is still the reason given
@@ -4973,6 +4985,7 @@
 1	envelope: with no pipe to be made, the check does not pass
 1	even on the unknown pathway, which holds only while the row applies
 1	every --tsv row has eight tab-separated fields, and there are rows
+1	every [[ =~ ]] in the engine's runtime code sits in a function that declares local LC_ALL=C
 1	every argument after the second excludes, an untracked file as much as a tracked one
 1	every assertion red.tsv names as red is one the manifest lists
 1	every call is appended
@@ -4986,7 +4999,9 @@
 1	every decisions.log row felix route --ack wrote in this suite is a row its schema accepts
 1	every ecosystem row carries a written reason
 1	every engine function the seeded checks name has an answer in this block
+1	every executable under bin and hooks is in the locale lint's scope
 1	every file in parts is sourced by the driver once and in name order, and the driver sources none that is not there
+1	every function on the Rule 1 list is found once and declares LC_ALL=C in a local line
 1	every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET
 1	every git status, diff or describe it ran carries --no-optional-locks
 1	every git worktree add either run made found owner already a symlink in the base it added the tree to
@@ -4996,6 +5011,7 @@
 1	every judged command in templates/setup.tsv is admitted
 1	every lifecycle.log row the recorder wrote in this suite is a row its schema accepts
 1	every list fixture below holds more than 256 KB with the line asked about first and the control last
+1	every listed verdict function is found once, and every grep, sed, tr, cut, awk and their kin inside it is written LC_ALL=C <tool>
 1	every membership fixture below holds more than 256 KB with the value asked about on its first line
 1	every mktemp the engine and Felix's gate run is given a template, so none lands outside TMPDIR on a Mac
 1	every obligations run row carries eight columns
@@ -5013,6 +5029,7 @@
 1	every row the adopt reader emits is four fields wide, digest or no digest
 1	every run list those three make names the gate workflow
 1	every seeded row of the table was asked, none dropped
+1	every sort, comm, join and uniq in the engine's runtime code is written LC_ALL=C <tool>
 1	every steps.push output the template reads is one the verify step writes
 1	every tab inside a holder line becomes a space
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
@@ -6164,9 +6181,152 @@
 1	human_steps: with no pipe to be made, the check does not pass
 1	identical deploys are clean before any stray lands
 1	ignores a file that does not exist
+1	in C, _felix_overnight_sid_ok refuses a session id ending in an e-acute and accepts cafe
+1	in C, a candidate whose reason holds a Latin-1 byte is recorded with its name, class and reason
+1	in C, a candidate whose reason is 160 e-acutes, 320 bytes, is refused and a short one accepted
+1	in C, a checkout whose origin names that project's remote_match resolves to it
+1	in C, a commissioning answer naming a provider in e-acute letters is refused and provider:plug:skill accepted
+1	in C, a commissioning answer whose done row is 3 then U+2185 over three rows reads partial
+1	in C, a commissioning answer whose done row is U+2185 over three rows reads partial
+1	in C, a commissioning row whose need starts with a Latin-1 byte and whose instrument is unknown is counted unknown
+1	in C, a commissioning row whose step is U+2185 is not admitted and is named malformed
+1	in C, a committed workflow whose name holds the byte is an execute escape
+1	in C, a deny row whose pattern holds a byte that is not UTF-8 refuses git push --force origin main
+1	in C, a new dependency on a manifest line ending in a Latin-1 comment fires the confined row
+1	in C, a one-line .mcp.json with a Latin-1 description before an @latest command and a ${TOKEN} env names both facts and tiers high
+1	in C, a probe whose command prints a Latin-1 word is run and found
+1	in C, a project name with an e-acute is refused and cafe accepted
+1	in C, a provider answer row whose why is 200 e-acutes (400 bytes), or a Latin-1 byte and 400 more, is refused as longer than 300, and a short one admitted
+1	in C, a red path row whose pattern ends in an alternative holding a byte that is not UTF-8 makes a diff adding secrets/prod.env red
+1	in C, a risk row whose pattern holds the byte in another alternative fires on src/
+1	in C, an evidence row whose when cell holds a byte that is not UTF-8 reports a gap for a change to src/api with no test
+1	in C, an evidence table holding only a commented-out row whose second byte is Latin-1 reports nothing, and the same row uncommented a gap
+1	in C, an obligations table with a Latin-1 byte in one row's reason admits every row and says nothing could not be read
+1	in C, classify rates red an added key id after a Latin-1 byte in a docs file
+1	in C, destructive SQL after a Latin-1 comment in the added lines is a durable escape
+1	in C, discover reads a person's shellx row after a row holding a Latin-1 byte as already declared
+1	in C, discover's rules for a project declaring Security and infra are infra's alone
+1	in C, felix budget --record under a daily limit of 1 then U+2185 falls back to the default ceiling and records the run
+1	in C, felix budget --record under a daily limit of 3 records the run
+1	in C, felix gate under a release target holding a Latin-1 byte records a green receipt with an epoch, and felix_verify_current reads it current
+1	in C, felix maintenance --ran records a run when another row of the table holds a Latin-1 byte
+1	in C, felix probes --gate, felix obligations --gate, bin/probes-check and bin/obligations-check each exit 1 over a blocking row whose name starts with a Latin-1 byte
+1	in C, felix route for a prompt whose best route's play holds a Latin-1 byte prints that route
+1	in C, felix route says that route wants superpowers:brainstorming, the first step of its play
+1	in C, felix scope given a first path starting with a Latin-1 byte and a workflow path is out of scope, exit 3
+1	in C, felix_added_lines keeps an added line whose first byte after the plus is not UTF-8
+1	in C, felix_epoch refuses (rc 1) for a project with no probes whose release target holds a byte that is not UTF-8
+1	in C, felix_epoch_topology moves when a probe whose command holds a Latin-1 byte finds one member more
+1	in C, felix_incident_severity rates secrets/prod.env red by that row
+1	in C, felix_json_str reads remote_match and gate from a project.json whose description line above them holds a byte that is not UTF-8
+1	in C, hooks/user-prompt over a prompt the backend route wins, its play holding a Latin-1 byte, records backend and its first step in the route state and logs backend
+1	in C, incident paths over error text with a Latin-1 line implicate the file named after it
+1	in C, recording a provider row whose why holds a Latin-1 byte keeps every byte of it in the log
+1	in C, removing a row from a deny table is still a verifier escape
+1	in C, removing the counted line that holds the byte fires the count: row
+1	in C, secret-scan exits 1 on a lookup followed by a Latin-1 byte and a key id, and 0 on a placeholder value holding the byte and on a lookup after it
+1	in C, secret-scan refuses a key id that follows a Latin-1 byte on its added line
+1	in C, the Stop hook holds a dirty checkout bound to that project with no receipt
+1	in C, the deny hook refuses a matching Bash command that also echoes an e-acute, an em dash, or a Latin-1 byte, exit 2 each
+1	in C, the fixture whose winning play holds the byte picks backend at 6 too
+1	in C, the foreign-byte escape fixture's deny table removal of the row after the byte row is a verifier escape
+1	in C, the handoff check names a duplicate index row that follows a row whose title holds a Latin-1 byte
+1	in C, the ledger summary over rows naming a plugin with a Latin-1 byte still summarises the other names
+1	in C, the locale detect fixture's undeclared capabilities are deploy and tests
+1	in C, the locale route fixture picks backend at 6
+1	in C, the same answer with done 3 over three rows reads answered, and with done 2 partial
+1	in C, the same row with step 6 is admitted and nothing is malformed
+1	in C, the template's probes check, as commissioning.tsv writes it, is done over a well-formed table and not done over a malformed row named with a Latin-1 byte
+1	in C, two never-run routines, the second's description holding a Latin-1 byte, are both due
+1	in a UTF-8 locale with LANG set and LC_ALL unset, _felix_overnight_sid_ok still refuses that session id
+1	in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C
+1	in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C
+1	in a UTF-8 locale with LANG set and LC_ALL unset, a row added to a deny table and none removed is not a verifier escape
+1	in a UTF-8 locale with LANG set and LC_ALL unset, felix_resolve_project binds a checkout two projects' remote_match both occur in to the project it binds in C
+1	in a UTF-8 locale with LANG set and LC_ALL unset, hooks/user-prompt writes the same route state and routes.log row as in C for that play
+1	in a UTF-8 locale with LANG set and LC_ALL unset, removing a deny row after a row holding a byte that is not UTF-8 is still a verifier escape
+1	in a UTF-8 locale with LANG set and LC_ALL unset, secret-scan still exits 1 on that lookup, byte and key id
+1	in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that echoes a valid UTF-8 e-acute
+1	in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that holds a byte that is not UTF-8
+1	in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that holds an em dash
+1	in a UTF-8 locale with LANG set and LC_ALL unset, the template's probes check is not done over a malformed probe row named with a byte that is not UTF-8
+1	in a UTF-8 locale with LC_ALL set, _felix_overnight_sid_ok still refuses a session id ending in an e-acute, as in C
+1	in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C
+1	in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C
+1	in a UTF-8 locale with LC_ALL set, a deny row whose pattern holds a byte that is not UTF-8 still refuses git push --force origin main
+1	in a UTF-8 locale with LC_ALL set, felix_json_str still reads remote_match and gate below a description line holding a byte that is not UTF-8
+1	in a UTF-8 locale with LC_ALL set, hooks/user-prompt writes the same route state and routes.log row as in C when the winning route's play holds a byte that is not UTF-8
+1	in a UTF-8 locale with LC_ALL set, removing a deny row after a row holding a byte that is not UTF-8 is still a verifier escape
+1	in a UTF-8 locale with LC_ALL set, secret-scan still exits 1 on a lookup followed by a byte that is not UTF-8 and a key id
+1	in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that echoes a valid UTF-8 e-acute
+1	in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that holds a byte that is not UTF-8
+1	in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that holds an em dash
+1	in a UTF-8 locale with LC_ALL set, the template's probes check is not done over a malformed probe row named with a byte that is not UTF-8
+1	in a UTF-8 locale, _felix_commission_answer_ok refuses a provider and skill spelt with an e-acute, as in C
+1	in a UTF-8 locale, _felix_name_ok refuses a project name ending in an e-acute, as in C
+1	in a UTF-8 locale, a candidate whose reason holds a byte that is not UTF-8 is still recorded with its name, class and reason
+1	in a UTF-8 locale, a candidate whose reason is 160 e-acutes, 320 bytes, is still refused, as in C
+1	in a UTF-8 locale, a commissioning row whose step is U+2185 is still not admitted and still named malformed, as in C
+1	in a UTF-8 locale, a committed workflow path holding a byte that is not UTF-8, read with core.quotepath=false, is still an execute escape
+1	in a UTF-8 locale, a declared capability holding a byte that is not UTF-8 leaves felix_undeclared naming exactly what it names in C
+1	in a UTF-8 locale, a never-run routine whose description holds a byte that is not UTF-8 is still due, beside the plain one
+1	in a UTF-8 locale, a new dependency on a manifest line ending in a Latin-1 comment still fires the confined row
+1	in a UTF-8 locale, a path named after a line holding a byte that is not UTF-8 is still implicated
+1	in a UTF-8 locale, a project risk row whose pattern holds a byte that is not UTF-8 still fires on a change to src/
+1	in a UTF-8 locale, a provider answer row whose why is 200 e-acutes, 400 bytes, is still not admitted, as in C
+1	in a UTF-8 locale, a provider answer row whose why is a byte that is not UTF-8 and 400 more is still not admitted, as in C
+1	in a UTF-8 locale, a route whose play holds a byte that is not UTF-8 leaves felix_route_best picking what it picks in C
 1	in a UTF-8 locale, a row holding a byte that is not UTF-8 hides no checker after it from felix qualify
 1	in a UTF-8 locale, a row holding a byte that is not UTF-8 is read, and ungoverned names only the unqualified
+1	in a UTF-8 locale, a row whose need starts with a byte that is not UTF-8 still counts as unknown, so the receipt cannot read commissioned
+1	in a UTF-8 locale, an added line DROP TABLE after a Latin-1 comment is still a durable ADDED-LINES escape
+1	in a UTF-8 locale, an evidence table holding only a commented-out row whose second byte is not UTF-8 reports no gap
+1	in a UTF-8 locale, an obligations row whose reason holds a byte that is not UTF-8 leaves the scan admitting every row, with no could not be read
+1	in a UTF-8 locale, bin/obligations-check still exits 1 over a blocking obligation whose name starts with a byte that is not UTF-8
+1	in a UTF-8 locale, bin/probes-check still exits 1 over a blocking probe whose name starts with a byte that is not UTF-8
+1	in a UTF-8 locale, classify still rates red an added key id after a Latin-1 byte, over a green docs path rule
+1	in a UTF-8 locale, discover makes no capability rule for a declared Security, as in C
+1	in a UTF-8 locale, discover still reads that shellx row as already declared and declares nothing to append
+1	in a UTF-8 locale, felix budget --record under a daily limit of 1 then U+2185 still falls back to the default ceiling and records the run, as in C
+1	in a UTF-8 locale, felix budget --record under a daily limit of 3 still records the run
+1	in a UTF-8 locale, felix gate under a release target holding a byte that is not UTF-8 still records an epoch, and felix_verify_current reads the receipt current
+1	in a UTF-8 locale, felix maintenance --ran still records a run when another row holds a byte that is not UTF-8
+1	in a UTF-8 locale, felix obligations --gate still exits 1 over a blocking obligation whose name starts with a byte that is not UTF-8
+1	in a UTF-8 locale, felix probes --gate still exits 1 over a blocking probe whose name starts with a byte that is not UTF-8
 1	in a UTF-8 locale, felix qualify --gate over a table with a NUL right after a UTF-8 lead byte runs no control, says it holds a NUL, and exits 2
+1	in a UTF-8 locale, felix route prints the best route whose play holds a byte that is not UTF-8 exactly as in C, the wants superpowers:brainstorming line included
+1	in a UTF-8 locale, felix scope given a first path starting with a byte that is not UTF-8 and a workflow path does not say Nothing to scope, and exits 3
+1	in a UTF-8 locale, felix_added_lines still keeps an added line whose first byte after the plus is not UTF-8
+1	in a UTF-8 locale, felix_commission_provider_rejects names both long whys as longer than 300, as in C
+1	in a UTF-8 locale, felix_epoch refuses (rc 1) for that project with an ASCII release target
+1	in a UTF-8 locale, felix_epoch still refuses (rc 1) when the release target holds the byte, rather than hashing over the unknown topology
+1	in a UTF-8 locale, felix_epoch_topology over that probe reads the hash it reads in C
+1	in a UTF-8 locale, felix_epoch_topology still moves when a probe whose command holds a byte that is not UTF-8 finds one member more
+1	in a UTF-8 locale, felix_handoff_check still names the duplicate row after a title holding a byte that is not UTF-8, and exits 1
+1	in a UTF-8 locale, felix_incident_severity still rates secrets/prod.env red by the row holding the byte
+1	in a UTF-8 locale, felix_ledger_summary over rows naming a plugin whose name holds a byte that is not UTF-8 still summarises the other names
+1	in a UTF-8 locale, felix_probes_run still runs a probe whose command prints a byte that is not UTF-8, and finds it
+1	in a UTF-8 locale, felix_resolve_project still binds that checkout through the project.json whose description holds the byte
+1	in a UTF-8 locale, felix_toolbox_path returns the same installed copy of a plugin held under two marketplaces as in C
+1	in a UTF-8 locale, felix_verify_current reads that green receipt for this tree as current, the byte in its skipped field notwithstanding
+1	in a UTF-8 locale, felix_verify_record given no epoch computes one under that release target, and felix_verify_current reads the receipt current
+1	in a UTF-8 locale, removing a counted line that holds a byte that is not UTF-8 still fires the count: row
+1	in a UTF-8 locale, removing the deny row before the byte row is still a verifier escape
+1	in a UTF-8 locale, secret-scan still exits 0 on a placeholder password value that holds a byte that is not UTF-8
+1	in a UTF-8 locale, secret-scan still exits 0 on a token lookup that follows a byte that is not UTF-8 on its line
+1	in a UTF-8 locale, secret-scan still exits non-zero on a key id that follows a Latin-1 byte on its added line
+1	in a UTF-8 locale, that .mcp.json still names interpolates and floating, and its tier is high
+1	in a UTF-8 locale, that evidence row still reports the gap rather than n/a
+1	in a UTF-8 locale, that red path row still makes the diff adding secrets/prod.env red
+1	in a UTF-8 locale, the Stop hook still holds that dirty checkout, the byte above gate notwithstanding
+1	in a UTF-8 locale, the commissioning log row for a provider why holding a byte that is not UTF-8 keeps every byte, as in C
+1	in a UTF-8 locale, the deny hook refuses that command echoing cafe in ASCII
+1	in a UTF-8 locale, the same answer with done 3 over three rows still reads answered, and with done 2 partial
+1	in a UTF-8 locale, the same row spelled in ASCII refuses git push --force origin main through felix_deny_match
+1	in a UTF-8 locale, the same row with step 6 is still admitted and nothing is malformed
+1	in a UTF-8 locale, the template's probes check is still done over a well-formed table and not done over a malformed row named in ASCII
+1	in a UTF-8 locale, the uncommented api-tests row still reports its gap
+1	in a UTF-8 locale, those four exit 1 over the same blocking rows named in ASCII
 1	in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name
 1	in a repository with no main and no origin, --applies does not hold even with a cache
 1	in maintenance too
@@ -6604,6 +6764,7 @@
 1	nine fields per log row
 1	no allow row claims a surface that no longer names it
 1	no awk in either library uses a gawk-only function or match's third argument
+1	no bracket in bash's own pattern syntax in the engine's runtime code holds a range of digits; each is spelled out
 1	no candidate is dropped in silence
 1	no candidate's applies or evidence ran through rules, record, read or stale
 1	no check in this suite pipes printf or echo of a variable into a chain ending in grep -q
@@ -7403,6 +7564,7 @@
 1	that row reads lesson, on the checkout's branch, at its short HEAD, under the session
 1	the #264 block leaves the logs and the session state as it found them
 1	the 300-character reason survives the record whole
+1	the =~ lint names a [[ =~ ]] in a function with no local, with LC_ALL set to a UTF-8 locale, with LC_COLLATE=C, after another function's local, and at top level after a one-line function
 1	the A2 fixture has two commits and a head sha to name
 1	the A2 fixture's PATH without gh finds no gh
 1	the A2 stub answers the gate workflow's runs on one commit as gh would
@@ -7414,6 +7576,7 @@
 1	the README names all felix audit runs, bash through /usr/bin/env, awk, and readlink where felix is reached through a symlink, which bash and awk alone cannot follow
 1	the README promises felix gate after --no-commission only where a gate was guessed or set
 1	the README's Try it section shows felix audit from a clone and felix new <name> --no-commission, and names felix install as what holds sessions
+1	the Rule 1 lint accepts a local LC_ALL=C, in a one-line function too, and names a local UTF-8 LC_ALL, a local LC_COLLATE=C, an export, a comment, a command prefix, one past the function's end and a missing function
 1	the SessionStart matcher binds resume
 1	the SessionStart refresh writes the scratch home's cache
 1	the Stop hook adds a debt row and holds nothing at unflagged stop number 3 of the same session on the same tree
@@ -7634,6 +7797,7 @@
 1	the Stop hook's two sessions each have a record before the first one ends (control)
 1	the Stop hook's unborn checkout has an ordinary tree id (control)
 1	the Stop hook's unborn checkout has no commit (control)
+1	the added row Zulu sorts before _under in bytes and after it in the UTF-8 locale, so the escape fixture can fail
 1	the admit phase answers already for a nomination stack.tsv declares first of 3,002 rows
 1	the admit phase installs nothing and edits no manifest
 1	the admitted sentence now counts the grants
@@ -7653,9 +7817,11 @@
 1	the base-read fixture has its table committed on local main and no origin/main yet
 1	the base-read fixture's branch commit holds a row origin/main lacks
 1	the base-read fixture's local main holds a row origin/main lacks, and the checkout stands on its branch
+1	the bash-collation lints' scope reaches felix, the libraries, the hooks, the bin scripts and the workflow template
 1	the behind fixture stands where it says: feat does not hold origin/main's commit
 1	the behind-and-owing fixture is behind origin/main and changes engine/harness/lib/x.sh alone since the merge-base
 1	the best capability wins
+1	the binding fixture's projects glob Web first in C and web-admin first in the UTF-8 locale, and in C felix_resolve_project binds one of them
 1	the binding is unchanged: fork still resolves to ownp
 1	the binding is unchanged: lookalike still resolves to ownp
 1	the binding is unchanged: none still resolves to ownp
@@ -7839,6 +8005,7 @@
 1	the deployed path is read from the CLI, not guessed from the cache
 1	the devlog row carries today's date and the epoch second of the call
 1	the devlog row reads log, on the checkout's branch, at its short HEAD, under the session
+1	the digit-range lint names a case arm on one line and across lines, [[ == ]] and [[ != ]], each ${v#p} form in and out of double quotes, a glob word, and a range right after each quote, heredoc, comment and escape form ends
 1	the dispatcher sends status to cmd_status
 1	the done row is not a candidate
 1	the ecosystem check is behind the verifier confine
@@ -7997,6 +8164,9 @@
 1	the lint takes no option's argument for an option: -eline is not -l, and a pattern -quux is not -q
 1	the lint's only sites set aside are the fixture floor's three deliberate probes inside _ff_case
 1	the list's stderr is discarded
+1	the locale escape fixture's add branch adds one row to t/deny.tsv and removes none, its rm branch removes one and adds none, and in C the addition is no escape
+1	the locale lint names each unpinned shape in its fixture, by file and line
+1	the locale lint's scope reaches felix, the libraries, the hooks, the bin scripts and the workflow template
 1	the lock is released when the refresh finishes
 1	the lock it takes while refreshing is a directory, not a file
 1	the log a group's or a compound's own output goes to is not a write after the check in it: 6 such read passed, and a write after the group is still stale
@@ -8072,6 +8242,7 @@
 1	the payload-cwd fixture's worktree now carries a current green receipt, and its main checkout a stale one
 1	the pin's failure detail names _ff_case and the cksum it asks the reader to update
 1	the platform's summary request says nothing
+1	the plugin cache fixture globs Zeta first in C and alpha first in the UTF-8 locale, and in C felix_toolbox_path returns a copy
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight fixture's inventory holds more than a pipe holds, the plugin asked about first and last
@@ -8108,6 +8279,7 @@
 1	the reason names the server it starts
 1	the receipt carries the limit no layer above it removes
 1	the receipt felix gate writes then reports tests:reused
+1	the receipt fixture's fifth field holds the byte that is not UTF-8, and in C felix_verify_current reads it current
 1	the receipt has ten fields
 1	the receipt names mode record and the run's counts, six passed, none failed, five skipped
 1	the receipt names what granted the authority
@@ -8248,6 +8420,7 @@
 1	the unrunob fixture's obligation fails from the engine
 1	the unverified tree blocker is work Felix owes
 1	the variable an ask is told to set is set, whatever the caller named it
+1	the verdict-function lint names an unpinned cut after a pipe, sed in $( ), grep before <<<, awk with a regex, awk after an assignment, grep after if !, grep after while, cut inside { }, and tr in a one-line function, by file and line
 1	the verify step takes the implicated set from the scope step's output, and reads no file for it
 1	the watching git was asked
 1	the when-status rows are read as rows, none of them malformed

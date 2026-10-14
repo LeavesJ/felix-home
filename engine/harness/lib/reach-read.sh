@@ -115,15 +115,15 @@ _felix_reach_owner_mode() {
     esac
     case "$m" in *" "*) ;; *) continue ;; esac
     u="${m%% *}"; p="${m#* }"
-    case "$u" in ''|*[!0-9]*) continue ;; esac
-    case "$p" in ''|*[!0-7]*) continue ;; esac
+    case "$u" in ''|*[!0123456789]*) continue ;; esac
+    case "$p" in ''|*[!01234567]*) continue ;; esac
     [ "${#p}" -le 5 ] || continue
     printf '%s %s' "$u" "$p"; return 0
   done
   m="$(ls -ldn -- "$d" 2>/dev/null)" || m=""
   [ -n "$m" ] || return 0
   read -r perm links u _ <<< "$m"
-  case "$u" in ''|*[!0-9]*) return 0 ;; esac
+  case "$u" in ''|*[!0123456789]*) return 0 ;; esac
   case "$perm" in d?????????*) ;; *) return 0 ;; esac
   [ "${perm:5:1}" = w ] && o=$((o + 16))
   [ "${perm:8:1}" = w ] && o=$((o + 2))
@@ -138,7 +138,7 @@ _felix_reach_owner_mode() {
 _felix_reach_private() {
   local d="$1" me om u m
   me="$(id -u 2>/dev/null)"
-  case "$me" in ''|*[!0-9]*) return 1 ;; esac
+  case "$me" in ''|*[!0123456789]*) return 1 ;; esac
   case "$d" in /*) ;; *) return 1 ;; esac
   [ -d "$d" ] && [ -O "$d" ] || return 1
   while :; do
@@ -246,12 +246,12 @@ felix_reach_read() {
   out="$(cd "$dir" 2>/dev/null && claude mcp list 2>/dev/null </dev/null; printf '\n.%s' "$?")"
   felix_neutral_rm "$dir" felix-reach
   case "$out" in
-    *"$nl."[0-9]*) ;;
+    *"$nl."[0123456789]*) ;;
     *) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
   esac
   rc="${out##*"$nl."}"
   case "$rc" in
-    ''|*[!0-9]*) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
+    ''|*[!0123456789]*) _FELIX_REACH_WHY="the list's output could not be captured"; return 1 ;;
   esac
   body="${out%"$nl.$rc"}"
   if [ "$rc" != 0 ]; then

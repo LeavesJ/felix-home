@@ -22,7 +22,7 @@ command -v felix_final_filter_lead >/dev/null 2>&1 \
 _felix_setup_rows() {
   local proj="$1"
   [ -f "$proj/setup.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/setup.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/setup.tsv"
 }
 
 # Each row led by `-`, or by the sentence refusing its check. The check runs
@@ -101,7 +101,7 @@ felix_setup_malformed() {
 # GitHub Enterprise server) is `host`: probably owed, and not something
 # `--repo owner/name` on github.com would check.
 _felix_setup_classify() {
-  local u="$1" rest host path ssh=0 lh real=""
+  local u="$1" rest host path ssh=0 lh real="" LC_ALL=C
   while :; do case "$u" in */) u="${u%/}" ;; *) break ;; esac; done
   u="${u%.git}"
   case "$u" in
@@ -119,7 +119,7 @@ _felix_setup_classify() {
   esac
   while :; do case "$path" in /*) path="${path#/}" ;; *) break ;; esac; done
   case "$host" in ''|-*|*[!A-Za-z0-9._-]*) return 0 ;; esac
-  lh="$(printf '%s' "$host" | tr 'A-Z' 'a-z')"
+  lh="$(printf '%s' "$host" | LC_ALL=C tr 'A-Z' 'a-z')"
   case "$lh" in
     github.com|www.github.com|ssh.github.com) ;;
     *)
@@ -128,7 +128,7 @@ _felix_setup_classify() {
       # turns the whole pipeline's status to 141.
       if [ "$ssh" -eq 1 ] && command -v ssh >/dev/null 2>&1; then
         real="$(ssh -G -o CanonicalizeHostname=no "$host" </dev/null 2>/dev/null \
-                | awk '$1 == "hostname" && !s { print $2; s = 1 }' | tr 'A-Z' 'a-z')" || real=""
+                | LC_ALL=C awk '$1 == "hostname" && !s { print $2; s = 1 }' | LC_ALL=C tr 'A-Z' 'a-z')" || real=""
       fi
       case "$real" in
         github.com|www.github.com|ssh.github.com) ;;
@@ -180,7 +180,7 @@ _felix_setup_remote() {
 # the placeholder put back. Only the text in hand changes, never the file.
 # `--repo {{REPO}}` and `--repo owner/name` do not match and are left alone.
 _felix_setup_norm() {
-  sed -E 's/--repo([[:space:]]+)(--|[0-9]*[<>]|[|;&`]|$)/--repo {{REPO}}\1\2/g'
+  LC_ALL=C sed -E 's/--repo([[:space:]]+)(--|[0-9]*[<>]|[|;&`]|$)/--repo {{REPO}}\1\2/g'
 }
 
 # done | todo | dormant | unknown, one row each: status <TAB> id <TAB> title,
@@ -209,7 +209,7 @@ _felix_setup_norm() {
 felix_setup_status() {
   local proj="$1" root="${2:-}" rem="none" slug="" why="" rc
   [ -n "$root" ] || root="$(felix_repo_root "$PWD")"
-  if [ -f "$proj/setup.tsv" ] && grep -qF -e '--repo' -e '{{REPO}}' "$proj/setup.tsv" 2>/dev/null; then
+  if [ -f "$proj/setup.tsv" ] && LC_ALL=C grep -qF -e '--repo' -e '{{REPO}}' "$proj/setup.tsv" 2>/dev/null; then
     rem="$(_felix_setup_remote "$root")"
   fi
   case "$rem" in

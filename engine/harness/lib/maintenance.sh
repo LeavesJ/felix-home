@@ -31,7 +31,7 @@ fi
 _felix_maint_rows() {
   local proj="$1"
   [ -f "$proj/maintenance.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/maintenance.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/maintenance.tsv"
 }
 
 _felix_maint_last() {   # epoch of the most recent run, or empty
@@ -198,12 +198,12 @@ felix_maint_status() {
   # or why the check is refused.
   _felix_maint_judged "$proj" | while IFS= read -r line; do
     local name cadence cap desc check ff rc
-    name="$(printf '%s\n' "$line" | cut -f1)"
-    cadence="$(printf '%s\n' "$line" | cut -f2)"
-    cap="$(printf '%s\n' "$line" | cut -f3)"
-    desc="$(printf '%s\n' "$line" | cut -f4)"
-    check="$(printf '%s\n' "$line" | cut -f5)"
-    ff="$(printf '%s\n' "$line" | cut -f6)"
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
+    cadence="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
+    cap="$(printf '%s\n' "$line" | LC_ALL=C cut -f3)"
+    desc="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
+    check="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
+    ff="$(printf '%s\n' "$line" | LC_ALL=C cut -f6)"
     [ -n "${name:-}" ] || continue
     # Until 2026-10-01 this was `! _felix_cap_active`, so a declared list that
     # could not be read (status 2) printed `dormant`, a routine that may be due
@@ -226,7 +226,7 @@ felix_maint_status() {
         if [ -n "$root" ] && [ -d "$root" ]; then
           local said held
           if said="$(cd "$root" && FELIX_HARNESS_DIR="$FELIX_MAINT_HARNESS" bash -c "$check" felix-maint </dev/null 2>/dev/null)"; then
-            held="$(printf '%s\n' "$said" | tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
+            held="$(printf '%s\n' "$said" | LC_ALL=C tr '\t' ' ' | LC_ALL=C tr -d '\000-\010\013-\037\177' \
                       | LC_ALL=C awk 'NF { printf "%s%s", s, $0; s = "; " }')"
             if [ -n "$held" ]; then
               printf 'inflight\t%s\t%s\t0\t%s\n' "$name" "$held" "$desc"

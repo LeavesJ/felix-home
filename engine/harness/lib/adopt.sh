@@ -52,7 +52,7 @@ felix_adopt_capability() {
   # not be opened is not read as grep's 1, a list without the capability.
   if [ -e "$list" ] || [ -L "$list" ]; then
     [ -f "$list" ] || return 2
-    { grep -qxF -- "$cap" "$list"; rc=$?; } 2>/dev/null
+    { LC_ALL=C grep -qxF -- "$cap" "$list"; rc=$?; } 2>/dev/null
     [ "$rc" -eq 0 ] && return 1
     [ "$rc" -eq 1 ] || return 2
   fi
@@ -79,7 +79,7 @@ felix_adopt_capability() {
     while IFS=$'\t' read -r k n src r c _kw; do
       [ "${c:-}" = "$cap" ] || continue
       # The duplicate check opens the file, and a pipe would hold it there.
-      [ -f "$proj/stack.tsv" ] && grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
+      [ -f "$proj/stack.tsv" ] && LC_ALL=C grep -qF "	$n	" "$proj/stack.tsv" 2>/dev/null && continue
       # stack.tsv is seeded "Edit freely", so a last row with no newline is
       # ordinary; unended, this row would fuse onto it (2026-10-01). A row that
       # could not be put on a line of its own, or not written at all, is said
@@ -94,13 +94,13 @@ felix_adopt_capability() {
         continue
       fi
       added_stack=$((added_stack+1))
-    done < <(grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
+    done < <(LC_ALL=C grep -vE '^\s*(#|$)' "$tpl/catalog.tsv")
   fi
 
   if [ -f "$tpl/setup.tsv" ]; then
     while IFS=$'\t' read -r id title c chk; do
       [ "${c:-}" = "$cap" ] || continue
-      [ -f "$proj/setup.tsv" ] && grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
+      [ -f "$proj/setup.tsv" ] && LC_ALL=C grep -qE "^$id	" "$proj/setup.tsv" 2>/dev/null && continue
       # The same for a hand-edited setup.tsv, and the runbook is not copied
       # for a step whose row was not written.
       if ! felix_end_line "$proj/setup.tsv" \
@@ -111,7 +111,7 @@ felix_adopt_capability() {
       fi
       [ -f "$tpl/setup/$id.md" ] && cp "$tpl/setup/$id.md" "$proj/setup/$id.md"
       added_setup=$((added_setup+1))
-    done < <(grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
+    done < <(LC_ALL=C grep -vE '^\s*(#|$)' "$tpl/setup.tsv")
   fi
 
   printf '%s %s' "$added_stack" "$added_setup"

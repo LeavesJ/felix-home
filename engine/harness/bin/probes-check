@@ -54,14 +54,14 @@ printf '%s\n' "$out" | while IFS= read -r line; do
     "$(printf '%s\n' "$line" | cut -f4)" "$(printf '%s\n' "$line" | cut -f5)"
 done
 
-blocking="$(printf '%s\n' "$out" | felix_probes_blocking | grep -c .)"
+blocking="$(printf '%s\n' "$out" | felix_probes_blocking | LC_ALL=C grep -c .)"
 printf '\n%s probe(s): %s found, %s empty, %s not applicable, %s unknown, %s blind; %s blocking\n' \
-  "$(printf '%s\n' "$out" | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$3 == "found"'          | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$3 == "empty"'          | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$3 == "not-applicable"' | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$3 == "unknown"'        | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$3 == "blind"'          | grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "found"'          | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "empty"'          | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "not-applicable"' | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "unknown"'        | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$3 == "blind"'          | LC_ALL=C grep -c .)" \
   "$blocking"
 [ "$blocking" -eq 0 ] || exit 1
 exit 0

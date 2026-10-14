@@ -9,7 +9,7 @@ the assertion's own verdict on the old and the new code.
 
 ## Split after review, 2026-10-14
 
-B1 and B2 land in this PR as 0.49.288. B3 is cut and goes back to its contract
+B1 and B2 land in this PR as 0.49.289. B3 is cut and goes back to its contract
 as a PR of its own (branch claude/gf-b3 holds the first build, a06ae3a3). The
 second Opus review reproduced five blocking defects in it. Four are the loop's
 signal and fork windows, and the job count read from a zero-padded value. The

@@ -83,7 +83,9 @@ $(_gfg_ind '12 passed, 0 failed (reused)')"
   is  "and a reused suite run leaves the gate passing (control)" "$GFG_RC|$(sed -n '$p' "$GFG/reused.out")" "0|gate: pass"
   # felix gate keeps every check line the gate printed as name:verdict in its
   # receipt; its reader is asked here of this gate's output, read off the CLI.
-  _gfg_prog="$(awk -v q="'" 'index($0, "reported=\"$(awk " q) { s = substr($0, index($0, q) + 1); print substr(s, 1, index(s, q " \"$log\"") - 1); exit }' "$REAL_HARNESS/felix" 2>/dev/null)"
+  # 3c runs that awk in the C locale, so the reader is found with or without
+  # its LC_ALL=C.
+  _gfg_prog="$(awk -v q="'" 'index($0, "reported=\"$(awk " q) || index($0, "reported=\"$(LC_ALL=C awk " q) { s = substr($0, index($0, q) + 1); print substr(s, 1, index(s, q " \"$log\"") - 1); exit }' "$REAL_HARNESS/felix" 2>/dev/null)"
   if [ -z "$_gfg_prog" ]; then
     bad "the receipt felix gate writes then reports tests:reused" "no reader of the reported checks found in $REAL_HARNESS/felix"
   else

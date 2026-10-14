@@ -8,5 +8,82 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	d36ec648bd169219f353b2ffd69701c9e561a2bf	0.49.286
-run	0	8660	9
+base	origin/main	b0ea215006b5ba6992de10593244a4506446a3fe	0.49.287
+run	77	8756	9
+and when that byte is in the winning route's own play, felix_route_best still picks it	1
+and with LANG set and LC_ALL unset, felix_json_str reads them too	1
+and with LANG set and LC_ALL unset, that row still refuses it	1
+and with LC_ALL set to that locale, felix_resolve_project binds the same project as in C	1
+and with LC_ALL set to that locale, the same pure addition is not a verifier escape either	1
+every [[ =~ ]] in the engine's runtime code sits in a function that declares local LC_ALL=C	1
+every function on the Rule 1 list is found once and declares LC_ALL=C in a local line	1
+every listed verdict function is found once, and every grep, sed, tr, cut, awk and their kin inside it is written LC_ALL=C <tool>	1
+every sort, comm, join and uniq in the engine's runtime code is written LC_ALL=C <tool>	1
+in a UTF-8 locale with LANG set and LC_ALL unset, _felix_overnight_sid_ok still refuses that session id	1
+in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C	1
+in a UTF-8 locale with LANG set and LC_ALL unset, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C	1
+in a UTF-8 locale with LANG set and LC_ALL unset, a row added to a deny table and none removed is not a verifier escape	1
+in a UTF-8 locale with LANG set and LC_ALL unset, felix_resolve_project binds a checkout two projects' remote_match both occur in to the project it binds in C	1
+in a UTF-8 locale with LANG set and LC_ALL unset, hooks/user-prompt writes the same route state and routes.log row as in C for that play	1
+in a UTF-8 locale with LANG set and LC_ALL unset, removing a deny row after a row holding a byte that is not UTF-8 is still a verifier escape	1
+in a UTF-8 locale with LANG set and LC_ALL unset, secret-scan still exits 1 on that lookup, byte and key id	1
+in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that echoes a valid UTF-8 e-acute	1
+in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that holds a byte that is not UTF-8	1
+in a UTF-8 locale with LANG set and LC_ALL unset, the deny hook still refuses a matching Bash command that holds an em dash	1
+in a UTF-8 locale with LANG set and LC_ALL unset, the template's probes check is not done over a malformed probe row named with a byte that is not UTF-8	1
+in a UTF-8 locale with LC_ALL set, _felix_overnight_sid_ok still refuses a session id ending in an e-acute, as in C	1
+in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is 3 then U+2185 does not read answered, and reads as in C	1
+in a UTF-8 locale with LC_ALL set, a commissioning answer whose done row is U+2185 does not read answered, and reads as in C	1
+in a UTF-8 locale with LC_ALL set, a deny row whose pattern holds a byte that is not UTF-8 still refuses git push --force origin main	1
+in a UTF-8 locale with LC_ALL set, felix_json_str still reads remote_match and gate below a description line holding a byte that is not UTF-8	1
+in a UTF-8 locale with LC_ALL set, hooks/user-prompt writes the same route state and routes.log row as in C when the winning route's play holds a byte that is not UTF-8	1
+in a UTF-8 locale with LC_ALL set, removing a deny row after a row holding a byte that is not UTF-8 is still a verifier escape	1
+in a UTF-8 locale with LC_ALL set, secret-scan still exits 1 on a lookup followed by a byte that is not UTF-8 and a key id	1
+in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that echoes a valid UTF-8 e-acute	1
+in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that holds a byte that is not UTF-8	1
+in a UTF-8 locale with LC_ALL set, the deny hook still refuses a matching Bash command that holds an em dash	1
+in a UTF-8 locale with LC_ALL set, the template's probes check is not done over a malformed probe row named with a byte that is not UTF-8	1
+in a UTF-8 locale, _felix_commission_answer_ok refuses a provider and skill spelt with an e-acute, as in C	1
+in a UTF-8 locale, _felix_name_ok refuses a project name ending in an e-acute, as in C	1
+in a UTF-8 locale, a candidate whose reason holds a byte that is not UTF-8 is still recorded with its name, class and reason	1
+in a UTF-8 locale, a candidate whose reason is 160 e-acutes, 320 bytes, is still refused, as in C	1
+in a UTF-8 locale, a commissioning row whose step is U+2185 is still not admitted and still named malformed, as in C	1
+in a UTF-8 locale, a committed workflow path holding a byte that is not UTF-8, read with core.quotepath=false, is still an execute escape	1
+in a UTF-8 locale, a declared capability holding a byte that is not UTF-8 leaves felix_undeclared naming exactly what it names in C	1
+in a UTF-8 locale, a never-run routine whose description holds a byte that is not UTF-8 is still due, beside the plain one	1
+in a UTF-8 locale, a new dependency on a manifest line ending in a Latin-1 comment still fires the confined row	1
+in a UTF-8 locale, a path named after a line holding a byte that is not UTF-8 is still implicated	1
+in a UTF-8 locale, a project risk row whose pattern holds a byte that is not UTF-8 still fires on a change to src/	1
+in a UTF-8 locale, a provider answer row whose why is 200 e-acutes, 400 bytes, is still not admitted, as in C	1
+in a UTF-8 locale, a route whose play holds a byte that is not UTF-8 leaves felix_route_best picking what it picks in C	1
+in a UTF-8 locale, a row whose need starts with a byte that is not UTF-8 still counts as unknown, so the receipt cannot read commissioned	1
+in a UTF-8 locale, an added line DROP TABLE after a Latin-1 comment is still a durable ADDED-LINES escape	1
+in a UTF-8 locale, an evidence table holding only a commented-out row whose second byte is not UTF-8 reports no gap	1
+in a UTF-8 locale, an obligations row whose reason holds a byte that is not UTF-8 leaves the scan admitting every row, with no could not be read	1
+in a UTF-8 locale, classify still rates red an added key id after a Latin-1 byte, over a green docs path rule	1
+in a UTF-8 locale, discover makes no capability rule for a declared Security, as in C	1
+in a UTF-8 locale, discover still reads that shellx row as already declared and declares nothing to append	1
+in a UTF-8 locale, felix budget --record under a daily limit of 1 then U+2185 still falls back to the default ceiling and records the run, as in C	1
+in a UTF-8 locale, felix maintenance --ran still records a run when another row holds a byte that is not UTF-8	1
+in a UTF-8 locale, felix route prints the best route whose play holds a byte that is not UTF-8 exactly as in C, the wants superpowers:brainstorming line included	1
+in a UTF-8 locale, felix scope given a first path starting with a byte that is not UTF-8 and a workflow path does not say Nothing to scope, and exits 3	1
+in a UTF-8 locale, felix_added_lines still keeps an added line whose first byte after the plus is not UTF-8	1
+in a UTF-8 locale, felix_commission_provider_rejects names both long whys as longer than 300, as in C	1
+in a UTF-8 locale, felix_epoch still refuses (rc 1) when the release target holds the byte, rather than hashing over the unknown topology	1
+in a UTF-8 locale, felix_epoch_topology over that probe reads the hash it reads in C	1
+in a UTF-8 locale, felix_epoch_topology still moves when a probe whose command holds a byte that is not UTF-8 finds one member more	1
+in a UTF-8 locale, felix_handoff_check still names the duplicate row after a title holding a byte that is not UTF-8, and exits 1	1
+in a UTF-8 locale, felix_incident_severity still rates secrets/prod.env red by the row holding the byte	1
+in a UTF-8 locale, felix_ledger_summary over rows naming a plugin whose name holds a byte that is not UTF-8 still summarises the other names	1
+in a UTF-8 locale, felix_probes_run still runs a probe whose command prints a byte that is not UTF-8, and finds it	1
+in a UTF-8 locale, felix_resolve_project still binds that checkout through the project.json whose description holds the byte	1
+in a UTF-8 locale, felix_toolbox_path returns the same installed copy of a plugin held under two marketplaces as in C	1
+in a UTF-8 locale, felix_verify_current reads that green receipt for this tree as current, the byte in its skipped field notwithstanding	1
+in a UTF-8 locale, removing a counted line that holds a byte that is not UTF-8 still fires the count: row	1
+in a UTF-8 locale, secret-scan still exits non-zero on a key id that follows a Latin-1 byte on its added line	1
+in a UTF-8 locale, that .mcp.json still names interpolates and floating, and its tier is high	1
+in a UTF-8 locale, that evidence row still reports the gap rather than n/a	1
+in a UTF-8 locale, that red path row still makes the diff adding secrets/prod.env red	1
+in a UTF-8 locale, the Stop hook still holds that dirty checkout, the byte above gate notwithstanding	1
+in a UTF-8 locale, the commissioning log row for a provider why holding a byte that is not UTF-8 keeps every byte, as in C	1
+no bracket in bash's own pattern syntax in the engine's runtime code holds a range of digits; each is spelled out	1

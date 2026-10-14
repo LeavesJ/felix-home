@@ -198,7 +198,7 @@ mkdir -p "$QSWH/projects/sweepq" "$QSWH/harness" "$MEM/sweepq" "$QSWHR"
 cp -R "$FROOT/harness/." "$QSWH/harness/"
 printf '{ "name": "sweepq", "gate": "true" }\n' > "$QSWH/projects/sweepq/project.json"
 printf '# sweepq\n' > "$QSWH/projects/sweepq/CLAUDE.md"
-( cd "$QSWHR" && git init -q -b main && printf 'clean\n' > base.txt && printf 'sweepq\n' > .felix \
+( _fx_cd "$QSWHR" && git init -q -b main && printf 'clean\n' > base.txt && printf 'sweepq\n' > .felix \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QSWHR="$(_qswphys "$QSWHR")"; printf '%s\n' "$QSWHR" >> "$QSWS/roots"
 { _qsw5 sweepme '! test -f bad.txt' violation fail 'printf FORBIDDEN > bad.txt'
@@ -293,7 +293,7 @@ if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$QSWS" 2>/dev/nul
 while IFS= read -r _qswr; do
   [ -d "$_qswr/.git" ] || continue
   rm -f "$_qswr"/.git/worktrees/*/locked 2>/dev/null
-  git -C "$_qswr" worktree prune >/dev/null 2>&1
+  _fx_git "$_qswr" worktree prune >/dev/null 2>&1
 done < "$QSWS/roots"
 rm -rf "$QSWS"
 

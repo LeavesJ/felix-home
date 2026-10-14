@@ -427,7 +427,7 @@ _anl3_GP="$FROOT/projects/anl3gate"; _anl3_GR="$_anl3/gate-repo"
 _anl3_had_gp=0; [ -e "$_anl3_GP" ] && _anl3_had_gp=1
 _anl3_had_gm=0; [ -e "$MEM/anl3gate" ] && _anl3_had_gm=1
 mkdir -p "$_anl3_GP" "$_anl3_GR"
-( cd "$_anl3_GR" && git init -q -b main )
+( _fx_cd "$_anl3_GR" && git init -q -b main )
 _anl3_GR="$(cd "$_anl3_GR" && pwd -P)"
 printf 'anl3gate\n' > "$_anl3_GR/.felix"
 printf 'contents\n' > "$_anl3_GR/PRESENT.txt"
@@ -435,7 +435,7 @@ printf 'contents\n' > "$_anl3_GR/PRESENT.txt"
 # HEAD, `git rev-parse --abbrev-ref HEAD` prints HEAD and fails, the `|| echo`
 # prints `?` as well, and the row splits across two lines: a separate defect,
 # and not the one these assertions are about.
-( cd "$_anl3_GR" && git add -A && git -c user.name=anl3 -c user.email=anl3@example.invalid -c commit.gpgsign=false commit -qm anl3 )
+( _fx_cd "$_anl3_GR" && git add -A && git -c user.name=anl3 -c user.email=anl3@example.invalid -c commit.gpgsign=false commit -qm anl3 )
 printf '# anl3gate\n' > "$_anl3_GP/CLAUDE.md"
 printf 'blindrow\t-\t-\tls -1 nothing-here.rs\ttest -f PRESENT.txt\n' > "$_anl3_GP/probes.tsv"
 _anl3_gate() {   # case id, gate command as project.json holds it

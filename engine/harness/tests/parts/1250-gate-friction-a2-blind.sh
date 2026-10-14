@@ -30,7 +30,7 @@ cat > "$_gfcP/project.json" <<'EOF'
   "gate_workflow": "ci-gate.yml"
 }
 EOF
-( cd "${_gfcR:?}" && git init -q -b main && printf 'gfcw\n' > .felix && printf 'one\n' > NOTES.txt \
+( _fx_cd "${_gfcR:?}" && git init -q -b main && printf 'gfcw\n' > .felix && printf 'one\n' > NOTES.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
   && git checkout -q -b gfc-topic && printf 'two\n' >> NOTES.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm change \
@@ -410,7 +410,7 @@ esac
 exit 3
 GFHRUN
   chmod +x "$GFH_C/engine/harness/bin/schema-check" "$GFH_C/engine/harness/bin/independence-scan" "$GFH_C/engine/harness/tests/run"
-  ( cd "${GFH_C:?}" && git -c user.name=gfh -c user.email=gfh@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null init -q -b main \
+  ( _fx_cd "${GFH_C:?}" && git -c user.name=gfh -c user.email=gfh@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null init -q -b main \
       && git add -A && git -c user.name=gfh -c user.email=gfh@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm fixture ) >/dev/null 2>&1
   _gfhGate() {   # name mode: the gate's output in $GFH/<name>.out
     local pid c=0

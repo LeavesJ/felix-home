@@ -36,7 +36,7 @@ done
 # instead of first lines, these are the false alarms it raises.
 printf '# notes\n\nWhat lives under bin/, and why.\n' > "$EXC/engine/harness/bin/NOTES.md"
 printf 'event\tpurpose\nPreToolUse\tdeny\n'           > "$EXC/engine/harness/hooks/events.tsv"
-( cd "$EXC" && git init -q -b main && git add -A \
+( _fx_cd "$EXC" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 # macOS resolves /var to /private/var and the engine resolves the same way, so
 # compare against what the filesystem calls this directory, not what mktemp did.
@@ -47,7 +47,7 @@ _xc()   { ( cd "$1" && "$REAL_HARNESS/bin/executable-check" 2>&1; echo "rc=$?" )
 _xcrc() { printf '%s' "${1##*rc=}"; }
 # Committed after every mutation, so a reading of the index and a reading of the
 # worktree cannot disagree about what this fixture says.
-_xcc()  { ( cd "$EXC" && git add -A \
+_xcc()  { ( _fx_cd "$EXC" && git add -A \
             && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
 
 if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
@@ -105,7 +105,7 @@ if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
   # Could not look is not nothing wrong. Both ways in.
   is  "outside a git repository it cannot look, exit 2" "$(_xcrc "$(_xc "$TMP")")" "2"
   EXN="$TMP/executable-check-no-engine"; mkdir -p "$EXN"
-  ( cd "$EXN" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+  ( _fx_cd "$EXN" && git init -q -b main && printf 'x\n' > README.md && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   is  "a checkout with no engine directory cannot look either, exit 2" \
       "$(_xcrc "$(_xc "$EXN")")" "2"
@@ -117,7 +117,7 @@ if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
   mkdir -p "$EXZ/engine/harness/bin" "$EXZ/engine/harness/hooks"
   printf '# notes\n'          > "$EXZ/engine/harness/bin/NOTES.md"
   printf 'event\tpurpose\n'   > "$EXZ/engine/harness/hooks/events.tsv"
-  ( cd "$EXZ" && git init -q -b main && git add -A \
+  ( _fx_cd "$EXZ" && git init -q -b main && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   is  "an engine holding nothing it recognises is emptiness, not an all clear" \
       "$(_xcrc "$(_xc "$EXZ")")" "2"
@@ -125,7 +125,7 @@ if [ -x "$REAL_HARNESS/bin/executable-check" ]; then
   # above was measuring a fixture the check could never have read.
   printf '#!/usr/bin/env bash\nexit 0\n' > "$EXZ/engine/harness/bin/gamma-scan"
   chmod 755 "$EXZ/engine/harness/bin/gamma-scan"
-  ( cd "$EXZ" && git add -A && git -c user.name=t -c user.email=t@t commit -qm one ) >/dev/null 2>&1
+  ( _fx_cd "$EXZ" && git add -A && git -c user.name=t -c user.email=t@t commit -qm one ) >/dev/null 2>&1
   is  "and one real script in that same tree is examined, so it was the emptiness" \
       "$(_xcrc "$(_xc "$EXZ")")" "0"
 
@@ -390,7 +390,7 @@ is  "which the validator accepts" "$(_tbrc felix_table_check "$TBS" "$_tbd")" "0
 # A home of its own, so the fixture home later assertions count projects in
 # is not changed by this one.
 NB="$TMP/newborn"; NBH="$TMP/newborn-home"; mkdir -p "$NB" "$NBH/projects"
-( cd "$NB" && git init -q -b main )
+( _fx_cd "$NB" && git init -q -b main )
 ( cd "$NB" && FELIX_HOME="$NBH" PATH="$CMSTUB:$PATH" "$FELIX" new newborn ) >/dev/null 2>&1
 _nbn=0; _nbbad=""
 for _nbf in "$NBH/projects/newborn/"*.tsv "$NBH/projects/newborn/capabilities"; do

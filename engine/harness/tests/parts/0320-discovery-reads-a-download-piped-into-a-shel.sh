@@ -189,9 +189,9 @@ is "rolling the same session twice does not double it" "$n" "3"
 # for why. Every fixture session here is marked as belonging to LGA.
 LGA="$TMP/ledger-attrib-a"; LGB="$TMP/ledger-attrib-b"
 mkdir -p "$LGA" "$LGB"
-( cd "$LGA" && git init -q -b main \
+( _fx_cd "$LGA" && git init -q -b main \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m a )
-( cd "$LGB" && git init -q -b main \
+( _fx_cd "$LGB" && git init -q -b main \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m b )
 LGA_SHA="$(git -C "$LGA" rev-parse HEAD 2>/dev/null)"
 LGB_SHA="$(git -C "$LGB" rev-parse HEAD 2>/dev/null)"

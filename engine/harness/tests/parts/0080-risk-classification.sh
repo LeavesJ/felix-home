@@ -1,12 +1,12 @@
 printf '\nrisk classification\n'
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
-( cd "$REPO" && git add -A >/dev/null 2>&1
+( _fx_cd "$REPO" && git add -A >/dev/null 2>&1
   git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 
 _classify() { ( cd "$REPO" && "$FELIX" classify --base HEAD~0 2>/dev/null ); }
-_stage() { ( cd "$REPO" && git add -A >/dev/null 2>&1 && \
+_stage() { ( _fx_cd "$REPO" && git add -A >/dev/null 2>&1 && \
              git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 ); }
-_reset() { ( cd "$REPO" && git reset -q --hard HEAD~1 >/dev/null 2>&1 ); }
+_reset() { ( _fx_cd "$REPO" && git reset -q --hard HEAD~1 >/dev/null 2>&1 ); }
 
 printf 'notes\n' > "$REPO/README.md"; _stage
 out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"
@@ -119,12 +119,12 @@ printf '\na branch that rewrites the rules it is judged by\n'
 # (docs/2026-08-14-earned-autonomy-decision.md §4a), achieved for the tables,
 # which is the half of the authority kernel that is data rather than code.
 SELF="$TMP/self"; mkdir -p "$SELF/projects/p" "$SELF/engine/lib" "$SELF/engine/bin"
-( cd "$SELF" && git init -q . && git config user.email t@t && git config user.name t )
+( _fx_cd "$SELF" && git init -q . && git config user.email t@t && git config user.name t )
 printf 'red\tpath\t^engine/lib/\tsourced by every hook\nyellow\tpath\t^projects/[^/]+/risk\\.tsv$\trules\n' \
   > "$SELF/projects/p/risk.tsv"
 printf 'lib\n'  > "$SELF/engine/lib/classify.sh"
 printf 'scan\n' > "$SELF/engine/bin/secret-scan"
-( cd "$SELF" && git add -A >/dev/null && git commit -qm base >/dev/null )
+( _fx_cd "$SELF" && git add -A >/dev/null && git commit -qm base >/dev/null )
 SELF_BASE="$( cd "$SELF" && git rev-parse HEAD )"
 
 # Asserted per path, not on the whole diff. risk.tsv rates itself yellow, so
@@ -138,34 +138,34 @@ _selfpath() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/classif
                      | awk -F'\t' -v p="$1" '$2==p')" ); }
 
 # Demotion: delete the red row, add a green one, edit the file it covered.
-( cd "$SELF" && grep -v '^red' projects/p/risk.tsv > t && mv t projects/p/risk.tsv
+( _fx_cd "$SELF" && grep -v '^red' projects/p/risk.tsv > t && mv t projects/p/risk.tsv
   printf 'green\tpath\t^engine/lib/\tharmless\n' >> projects/p/risk.tsv
   printf 'PWNED\n' >> engine/lib/classify.sh
   git add -A >/dev/null && git commit -qm demote >/dev/null )
 is "a green row cannot demote the diff that adds it" \
    "$(_selfpath engine/lib/classify.sh)" "red"
-( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+( _fx_cd "$SELF" && git reset -q --hard "$SELF_BASE" )
 
 # The additive half, which `verifier` structurally cannot see: nothing is
 # removed, so the escape guarding these tables never fires. A green row for a
 # path that had no row at all takes a file from the yellow default to green in
 # one commit — and engine/bin is where the credential scanner lives, the one
 # the `disclose` channel shells out to.
-( cd "$SELF" && printf 'green\tpath\t^engine/bin/\ttooling\n' >> projects/p/risk.tsv
+( _fx_cd "$SELF" && printf 'green\tpath\t^engine/bin/\ttooling\n' >> projects/p/risk.tsv
   printf 'exit 0\n' > engine/bin/secret-scan
   git add -A >/dev/null && git commit -qm additive >/dev/null )
 is "a green row for a previously unruled path does not green it either" \
    "$(_selfpath engine/bin/secret-scan)" "yellow"
-( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+( _fx_cd "$SELF" && git reset -q --hard "$SELF_BASE" )
 
 # Tightening applies immediately. The stricter of the two versions wins, not
 # the older one — otherwise the rule would be a reason to ignore the table.
-( cd "$SELF" && printf 'red\tpath\t^engine/bin/\tthe scanner\n' >> projects/p/risk.tsv
+( _fx_cd "$SELF" && printf 'red\tpath\t^engine/bin/\tthe scanner\n' >> projects/p/risk.tsv
   printf 'exit 0\n' > engine/bin/secret-scan
   git add -A >/dev/null && git commit -qm tighten >/dev/null )
 is "a red row added applies to the diff that adds it" \
    "$(_selfpath engine/bin/secret-scan)" "red"
-( cd "$SELF" && git reset -q --hard "$SELF_BASE" )
+( _fx_cd "$SELF" && git reset -q --hard "$SELF_BASE" )
 
 # The guard's own failure mode, which nothing asserted. felix_table_rel decided
 # whether the base-version pass runs by comparing path strings, so any way the
@@ -182,7 +182,7 @@ is "the table resolves to its repo-relative path" \
    "$(_tr "$SELF" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"
 is "and still resolves when the root is spelled the other way" \
    "$(_tr "$SELFP" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"
-( cd "$SELF" && git worktree add -q "$TMP/selfwt" -b wt >/dev/null 2>&1 )
+( _fx_cd "$SELF" && git worktree add -q "$TMP/selfwt" -b wt >/dev/null 2>&1 )
 if [ -d "$TMP/selfwt" ]; then
   is "and from a worktree of the same repository" \
      "$(_tr "$TMP/selfwt" "$SELF/projects/p/risk.tsv")" "projects/p/risk.tsv"

@@ -266,7 +266,7 @@ _cucrhome="$TMP/cucr-home"
 mkdir -p "$_cucrp" "$_cucrr" "$_cucrhome/.claude/skills/cucr-skill-there"
 printf '{\n  "name": "cucrproj",\n  "remote_match": "example.com/cucrproj",\n  "gate": "true"\n}\n' > "$_cucrp/project.json"
 printf '# cucrproj\n' > "$_cucrp/CLAUDE.md"
-( cd "$_cucrr" && git init -q -b main && printf 'cucrproj\n' > .felix && git add .felix \
+( _fx_cd "$_cucrr" && git init -q -b main && printf 'cucrproj\n' > .felix && git add .felix \
     && git -c user.name=cucr -c user.email=cucr@example.com commit -q -m cucr )
 _cucrr="$(cd "$_cucrr" && pwd -P)"
 { printf 'cucr_step\ta step on a declared capability\tcucrcap\ttouch %s; false\n' "$TMP/cucr-setup-ran"

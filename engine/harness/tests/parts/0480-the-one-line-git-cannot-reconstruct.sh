@@ -10,7 +10,7 @@ mkdir -p "$DQSRC/skills/storybook-css" "$DQSRC/.claude-plugin"
 # the fetch and the inspect would read a plugin that ships nothing.
 printf '# storybook-css\n' > "$DQSRC/skills/storybook-css/SKILL.md"
 printf '{"name": "shipster"}\n' > "$DQSRC/.claude-plugin/plugin.json"
-( cd "$DQSRC" && git init -q -b main && git add -A \
+( _fx_cd "$DQSRC" && git init -q -b main && git add -A \
   && git -c user.email=t@t.t -c user.name=t commit -qm fixture )
 DQB="$TMP/discover-quiet-bin"; mkdir -p "$DQB"
 cat > "$DQB/claude" <<EOF
@@ -42,7 +42,7 @@ esac
 DQE="$TMP/discover-quiet-entry"
 mkdir -p "$DQE/src/skills/storybook-css" "$DQE/mkt/.claude-plugin" "$DQE/bin"
 printf '# storybook-css\n' > "$DQE/src/skills/storybook-css/SKILL.md"
-( cd "$DQE/src" && git init -q -b main && git add -A \
+( _fx_cd "$DQE/src" && git init -q -b main && git add -A \
   && git -c user.email=t@t.t -c user.name=t commit -qm fixture )
 printf '{"name":"entrymkt","plugins":[{"name":"lspster","source":"./x","strict":false,"lspServers":{"css":{"command":"css-ls"}}}]}\n' \
   > "$DQE/mkt/.claude-plugin/marketplace.json"

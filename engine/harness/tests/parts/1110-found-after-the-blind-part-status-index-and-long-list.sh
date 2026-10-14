@@ -31,7 +31,7 @@ _rxg="$(TMPDIR="$RX/tmpd" _rx_st "$RXC" --tsv | awk -F'\t' '$1 == "gate"' | cut 
 is "an edit after the receipt reads stale" "$_rxg" "$(printf 'value\tstale\tthe tree changed since the receipt')"
 is "and leaves the checkout and the home's state as they were" \
    "$(find "$RXC" "$RXH/state" "$RXMEM" -newer "$RX/marker3" 2>/dev/null)" ""
-( cd "$RXC" && git checkout -q -- f.txt )
+( _fx_cd "$RXC" && git checkout -q -- f.txt )
 
 # The second: reach reading a long list. The blind part's lists have six lines.
 # The first draft of felix_reach_read took the whitespace out of the list with

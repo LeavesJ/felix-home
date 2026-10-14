@@ -33,6 +33,8 @@ for _rxc in "$TMP" "${XDG_RUNTIME_DIR:-}" "${RUNNER_TEMP:-}" "${HOME:-}"; do
   [ -n "$RXBASE" ] && break
 done
 [ -n "$RXBASE" ] || RXBASE="$TMP"
+# A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused.
+_fx_root_add "$RXBASE"
 RX="$(mktemp -d "$RXBASE/rx.XXXXXX")"; RX="$(cd "$RX" && pwd -P)"
 RXH="$RX/home"; RXHOME="$RX/user"; RXB="$RX/bin"; RXU="$RX/ubin"; RXPC="$RX/cache"
 RXMEM="$RX/memory"; RXLOG="$RX/claude.log"; RXLA="$RX/list-a"; RXPLAIN="$RX/plain"
@@ -122,7 +124,7 @@ _rx_proj() {
 }
 _rx_checkout() {   # <dir> <project>
   mkdir -p "$1"
-  ( cd "$1" && git init -q -b main && printf '%s\n' "$2" > .felix && printf 'x\n' > f.txt \
+  ( _fx_cd "$1" && git init -q -b main && printf '%s\n' "$2" > .felix && printf 'x\n' > f.txt \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 }
 # has(), without printing a haystack that may be a whole file.
@@ -730,7 +732,7 @@ _rx_rec 0
 is "a green receipt for this tree reads current" "$(_rx_gr "$RXC")" "$(printf 'value\tcurrent\t-')"
 printf 'edited\n' > "$RXC/f.txt"
 is "and an edit to a tracked file after it reads stale, with the reason" "$(_rx_gr "$RXC")" "$(printf 'value\tstale\tthe tree changed since the receipt')"
-( cd "$RXC" && git checkout -q -- f.txt )
+( _fx_cd "$RXC" && git checkout -q -- f.txt )
 # S11: discoverable.
 _rxhp="$(_rx_env "$FELIX" help 2>&1)"
 _rx_has "felix help names felix status (S11)" "$_rxhp" \

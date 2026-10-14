@@ -342,13 +342,13 @@ printf '\nscope could not see what the diff added\n'
 # Reversible enough for an unattended attempt" and exited 0, while felix
 # classify called the same diff red. Reproduced before it was believed.
 SC="$TMP/scoperepo"; mkdir -p "$SC"
-( cd "$SC" && git init -q -b main )
+( _fx_cd "$SC" && git init -q -b main )
 SC="$(cd "$SC" && pwd -P)"
 printf 'widget\n' > "$SC/.felix"; printf 'notes\n' > "$SC/a.md"
-( cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+( _fx_cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
 printf 'api_key = "sk-ant''-api03-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$SC/a.md"   # must_flag
-( cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm leak >/dev/null 2>&1 )
+( _fx_cd "$SC" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm leak >/dev/null 2>&1 )
 
 out="$( cd "$SC" && "$FELIX" scope --base HEAD~1 2>&1 )"; rc=$?
 is  "a credential added to a green path is out of scope" "$rc" "3"
@@ -367,7 +367,7 @@ has "but admits it never read the changes"   "$out" "content"
 out="$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbc=$?
 printf 'more notes\n' >> "$SC/a.md"
 out="$out$( cd "$SC" && "$FELIX" scope --base no-such-ref 2>&1 )"; _sbd=$?
-( cd "$SC" && git checkout -q -- a.md )
+( _fx_cd "$SC" && git checkout -q -- a.md )
 is  "a --base that names nothing is refused, not scoped, clean tree or not" \
     "clean:$_sbc changed:$_sbd" "clean:1 changed:1"
 has "and it says nothing was compared" "$out" "names nothing here"
@@ -380,7 +380,7 @@ has "and it says nothing was compared" "$out" "names nothing here"
 # yet was "In scope". The unattended verify step only missed it by committing
 # before it asked. The control comes first, so the red below cannot be read as
 # "anything uncommitted is red".
-( cd "$SC" && git reset -q --hard HEAD ) >/dev/null 2>&1
+( _fx_cd "$SC" && git reset -q --hard HEAD ) >/dev/null 2>&1
 printf 'more notes\n' >> "$SC/a.md"
 out="$( cd "$SC" && "$FELIX" scope --base HEAD 2>&1 )"; rc=$?
 is  "an uncommitted edit with nothing in it stays in scope" "$rc" "0"
@@ -391,7 +391,7 @@ printf 'token = "sk-RRRRRRRRRRRRRRRRRRRRRRRR"\n' >> "$SC/a.md"   # must_flag
 out="$( cd "$SC" && "$FELIX" scope --base HEAD 2>&1 )"; rc=$?
 is  "an uncommitted credential added to a green path is out of scope" "$rc" "3"
 has "and scope names the tier the line reached"                        "$out" "highest tier: red"
-( cd "$SC" && git add a.md ) >/dev/null 2>&1
+( _fx_cd "$SC" && git add a.md ) >/dev/null 2>&1
 out="$( cd "$SC" && "$FELIX" scope --base HEAD 2>&1 )"; rc=$?
 is  "and so is a staged one" "$rc" "3"
 # Every other caller of felix_classify_diff reads the same staged line, since a
@@ -400,14 +400,14 @@ has "classify reads it too"                  "$( cd "$SC" && "$FELIX" classify -
 has "and so does the tier a pull request would be labelled with" \
     "$( cd "$SC" && "$FELIX" pr --base HEAD 2>&1 )" "tier:     red"
 has "and the receipt's risk tier"            "$( cd "$SC" && "$FELIX" receipt --base HEAD 2>&1 )" '"tier": "red"'
-( cd "$SC" && git reset -q --hard HEAD ) >/dev/null 2>&1
+( _fx_cd "$SC" && git reset -q --hard HEAD ) >/dev/null 2>&1
 
 # And on a stacked branch the content rules read three-dot, which the paths
 # stopped doing for #51. A squash freezes the merge-base, so every line the
 # branch below added was read again as this branch's own: a docs-only branch
 # was out of scope for a credential main already held.
 SK="$TMP/scopestack"; mkdir -p "$SK"
-( cd "$SK" && git init -q -b main
+( _fx_cd "$SK" && git init -q -b main
   git config user.email t@t; git config user.name t
   printf 'widget\n' > .felix; printf 'notes\n' > a.md; git add -A; git commit -qm init
   git checkout -q -b feat-a
@@ -426,7 +426,7 @@ is "a stacked branch is not out of scope for a credential its base already merge
 # The control that keeps it honest: a fix that narrowed everything would pass
 # the line above and stop enforcing.
 printf 'api_key = "sk-SSSSSSSSSSSSSSSSSSSSSSSS"\n' >> "$SK/NOTES.md"   # must_flag
-( cd "$SK" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "B: its own" ) >/dev/null 2>&1
+( _fx_cd "$SK" && git add -A && git -c user.name=t -c user.email=t@t commit -qm "B: its own" ) >/dev/null 2>&1
 out="$( cd "$SK" && "$FELIX" scope --base main 2>&1 )"; rc=$?
 is "but a credential the branch adds itself still is" "$rc" "3"
 

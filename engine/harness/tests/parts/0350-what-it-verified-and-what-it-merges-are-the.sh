@@ -30,7 +30,7 @@ printf 'a home directory under version control\n' > "$INCH/README"
 printf 'cache/\n' > "$INCH/.gitignore"
 printf '#!/bin/sh\n' > "$INCH/cache/harness/felix"
 printf '{}\n' > "$INCH/cache/harness/.claude-flow/data/pending-insights.jsonl"
-( cd "$INCH" && git init -q -b main && git add -A >/dev/null \
+( _fx_cd "$INCH" && git init -q -b main && git add -A >/dev/null \
   && git -c user.name=t -c user.email=t@t commit -qm home >/dev/null )
 _copy_content "$INCH/cache/harness" "$TMP/incident-cache-copy"
 is "a directory git tracks nothing under is copied whole, even inside a repository that ignores it" \
@@ -52,7 +52,7 @@ else
   bad "and names the judge only after the merge is reported" \
       "merged at line [$_sgm], judged-by at line [$_sgj]: $(cat "$TMP/sg.out")"
 fi
-( cd "$SG" && git checkout -q feature && git branch -qD pinned )
+( _fx_cd "$SG" && git checkout -q feature && git branch -qD pinned )
 rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 
 # And the product that ships no engine is still left alone — now with the one
@@ -101,7 +101,7 @@ exec "$GITREAL" "\$@"
 STUB
 chmod +x "$GB/git"
 
-( cd "$MR" && git checkout -q -b feature && git branch other )
+( _fx_cd "$MR" && git checkout -q -b feature && git branch other )
 
 # Re-records the receipt, runs felix merge with one peer action injected, and
 # reports the exit code and whether gh was asked to merge anything.
@@ -127,7 +127,7 @@ _race "remote get-url" "$GITREAL -C $MR checkout -q other"
 is "a checkout that moves after verification merges nothing" "$RACE_MERGES" "0"
 [ "$RACE_RC" -ne 0 ] && ok "and says so rather than reporting a merge" \
                      || bad "and says so rather than reporting a merge" "exit $RACE_RC"
-( cd "$MR" && git checkout -q feature )
+( _fx_cd "$MR" && git checkout -q feature )
 
 # 2. Inside felix_merge_blockers, which is the assertion that pins the fix. The
 #    first version of this test injected only at `remote get-url` — the tail of
@@ -140,7 +140,7 @@ _race "diff --name-only" "$GITREAL -C $MR checkout -q other"
 [ -f "$TMP/race.fired" ] && ok "a checkout inside the verification is caught too" \
                          || bad "a checkout inside the verification is caught too" "it never fired"
 is "and nothing is merged when it lands there" "$RACE_MERGES" "0"
-( cd "$MR" && git checkout -q feature )
+( _fx_cd "$MR" && git checkout -q feature )
 
 # 3. The other two fields. A peer commit moves the sha with the branch name
 #    unchanged; a peer edit moves neither and changes only the tree the receipt
@@ -163,7 +163,7 @@ case "$race_out" in
   *"The checkout moved"*) bad "and does not blame a checkout that did not move" "$race_out" ;;
   *)                      ok  "and does not blame a checkout that did not move" ;;
 esac
-( cd "$MR" && git checkout -q -- README.md 2>/dev/null; git checkout -q feature )
+( _fx_cd "$MR" && git checkout -q -- README.md 2>/dev/null; git checkout -q feature )
 unset GHSTUB_LOG
 
 # The same defect with no concurrency in it at all. `felix merge 35` shifted the

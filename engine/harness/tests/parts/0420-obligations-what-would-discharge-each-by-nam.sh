@@ -8,7 +8,7 @@
 # move whatever a need resolves to. Fresh fixture dirs, as for the asks above.
 printf '\nobligations: what would discharge each, by name\n'
 NDP="$TMP/needs-proj"; NDR="$TMP/needs-repo"; mkdir -p "$NDP" "$NDR" "$MEM/needs-proj"
-( cd "$NDR" && git init -q -b main && printf 'x\n' > x && git add -A \
+( _fx_cd "$NDR" && git init -q -b main && printf 'x\n' > x && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
 NDR="$(cd "$NDR" && pwd -P)"
 printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$NDP/probes.tsv"

@@ -308,7 +308,7 @@ _spd_esc() { ( cd "$1" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/l
 # LAST the last. The unchanged second line ends the first hunk there, so FIRST
 # is the hunk's second line, straight after the line it replaced.
 _spd_deps() {
-  mkdir -p "$1" && ( cd "$1" && git init -q -b main \
+  mkdir -p "$1" && ( _fx_cd "$1" && git init -q -b main \
     && awk 'BEGIN { print "pkg00000 = 1.0"; print "# pinned below"
                     for (i = 1; i <= 20000; i++) printf "pkg%05d = 1.0\n", i }' > deps.txt \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
@@ -353,7 +353,7 @@ fi
 # destructive SQL, and a fixture spelled out would escape the branch that adds it.
 _spd_stmt="$(printf '%s%s' 'DROP ' 'TABLE users;')"
 _spd_sql() {
-  mkdir -p "$1" && ( cd "$1" && git init -q -b main && printf 'notes\n' > README.md \
+  mkdir -p "$1" && ( _fx_cd "$1" && git init -q -b main && printf 'notes\n' > README.md \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm base \
     && _SPD_W="$2" _SPD_S="$_spd_stmt" awk 'BEGIN { w = ENVIRON["_SPD_W"]; s = ENVIRON["_SPD_S"]
                     if (w == "first") print s

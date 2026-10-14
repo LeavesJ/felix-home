@@ -268,7 +268,7 @@ printf '\ncommissioning: one moment, one table, one policy\n'
 # that decides, and `unknown` is reachable by construction.
 CMP="$FROOT/projects/cmproj"; CMR="$TMP/cm-repo"
 mkdir -p "$CMP" "$CMR/src" "$MEM/cmproj"
-( cd "$CMR" && git init -q -b main && printf 'x\n' > src/a.txt && printf 'KEY=\n' > .env.example
+( _fx_cd "$CMR" && git init -q -b main && printf 'x\n' > src/a.txt && printf 'KEY=\n' > .env.example
   git add -A && git -c user.name=t -c user.email=t@t commit -qm init
   printf 'y\n' > src/b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm two ) >/dev/null 2>&1
 CMR="$(cd "$CMR" && pwd -P)"

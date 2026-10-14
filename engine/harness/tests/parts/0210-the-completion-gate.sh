@@ -64,7 +64,7 @@ cat > "$PH/projects/pcwdnogate/project.json" <<'EOF'
 }
 EOF
 PCNEST="$PCA/nest"; mkdir -p "$PCNEST" "$PCA/.git/info" "$PCK/sub"
-( cd "$PCNEST" && git init -q -b main && printf 'pcwdnogate\n' > .felix && printf 'n\n' > n.txt \
+( _fx_cd "$PCNEST" && git init -q -b main && printf 'pcwdnogate\n' > .felix && printf 'n\n' > n.txt \
   && git add -A && _pcwd_git commit -qm init ) >/dev/null 2>&1
 printf 'nest/\n' >> "$PCA/.git/info/exclude"
 ln -s "$PCA" "$PC/via-link"
@@ -104,7 +104,7 @@ _pcwd_spy() {   # launch dir as the shell reaches it, payload cwd -> "printed.st
     felix_repo_root()       { printf 'felix_repo_root ' >> "$PC/spy"; printf '%s' "${1:-$PWD}"; }
     felix_resolve_project() { printf 'felix_resolve_project ' >> "$PC/spy"; return 1; }
     felix_binding_broken()  { printf 'felix_binding_broken ' >> "$PC/spy"; }
-    git()                   { printf 'git ' >> "$PC/spy"; command git "$@"; }
+    git()                   { printf 'git ' >> "$PC/spy"; _pcwd_realgit "$@"; }
     o="$(felix_hook_dir "$(_pcwd_hdp "$2")" "$PH" 2>"$PC/hd.err"; printf '.%s' "$?")"
     printf '%s|%s|%s' "$o" "$(cat "$PC/hd.err")" "$(cat "$PC/spy")" )
 }
@@ -271,7 +271,7 @@ fi
 # remote once, as main does: the hook did not move, so there is nothing to ask
 # again. Counted at git itself, through a shim first on PATH.
 PCUR="$PX/plain-remote"; mkdir -p "$PCUR"; _pcwd_git -C "$PCUR" init -q -b main
-git -C "$PCUR" config remote.origin.url https://example.invalid/nobody.git
+_fx_git "$PCUR" config remote.origin.url https://example.invalid/nobody.git
 PCUR="$(cd "$PCUR" && pwd -P)"
 mkdir -p "$PC/gitspy"
 printf '#!/bin/sh\ncase "$*" in *"remote get-url"*) echo x >> "$PCWD_SPY_LOG" ;; esac\nexec "$PCWD_REAL_GIT" "$@"\n' > "$PC/gitspy/git"
@@ -292,7 +292,7 @@ unset PC PH PM PT PX PCA PCB PCU PCN PCK PCR PCQ PCBS PCW2 PCHA PCHB PCTA1 PCTB1
 unset -f _pcwd_git _pcwd_pay _pcwd_hook _pcwd_pre _pcwd_tid _pcwd_gate _pcwd_current _pcwd_res \
          _pcwd_rows _pcwd_stop _pcwd_sp _pcwd_hd _pcwd_hdp _pcwd_killtree _pcwd_bounded \
          _pcwd_big_one _pcwd_big _pcwd_msg _pcwd_bigp _pcwd_he _pcwd_ptp _pcwd_handoffs _pcwd_closed \
-         _pcwd_at _pcwd_spy _pcwd_ptc _pcwd_catch _pcwd_stopu _pcwd_tty
+         _pcwd_at _pcwd_spy _pcwd_ptc _pcwd_catch _pcwd_stopu _pcwd_tty _pcwd_realgit
 # <<< hook-payload-cwd
 printf '\nthe completion gate\n'
 # The principle under test: an agent must not be able to say it is finished
@@ -312,7 +312,7 @@ cat > "$FROOT/projects/widget/project.json" <<'EOF'
 EOF
 GREPO="$TMP/gaterepo"
 mkdir -p "$GREPO"
-( cd "$GREPO" && git init -q -b main
+( _fx_cd "$GREPO" && git init -q -b main
   printf 'contents\n' > WIDGET.txt
   printf 'widget\n'   > .felix
   git add -A >/dev/null 2>&1
@@ -355,7 +355,7 @@ out="$(_stop "$GREPO" "$SESS")"
 _allows "a recorded session that committed nothing is still silent" "$out"
 
 printf 'committed work\n' >> "$GREPO/WIDGET.txt"
-( cd "$GREPO" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$GREPO" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm work >/dev/null 2>&1 )
 out="$(_stop "$GREPO" "$SESS")"
 _blocks "committing unverified work no longer skips the check" "$out"
@@ -368,7 +368,7 @@ _allows "with no session record it behaves as before" "$out"
 rm -f "$FROOT/state/session/dod-sess"
 
 # Restore the fixture for the assertions below, which expect an unverified edit.
-( cd "$GREPO" && git reset -q --hard HEAD~1 )
+( _fx_cd "$GREPO" && git reset -q --hard HEAD~1 )
 
 printf 'edited\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO")"
@@ -441,7 +441,7 @@ printf 'different\n' >> "$GREPO/WIDGET.txt"
 out="$(_stop "$GREPO")"
 _blocks "editing the same file again invalidates the receipt" "$out"
 
-( cd "$GREPO" && git checkout -q -- WIDGET.txt )
+( _fx_cd "$GREPO" && git checkout -q -- WIDGET.txt )
 out="$(cd "$GREPO" && "$FELIX" gate 2>&1)"
 printf 'new\n' > "$GREPO/untracked.txt"
 out="$(_stop "$GREPO")"

@@ -252,7 +252,7 @@ unset _ss_n _ss_i _ss_o _ss_r _ss_b
 # A new file has no previous version, so git diff cannot see it, and a fresh
 # file is where a key most often lands.
 SECREPO="$TMP/secrepo"; mkdir -p "$SECREPO"
-( cd "$SECREPO" && git init -q -b main
+( _fx_cd "$SECREPO" && git init -q -b main
   printf 'x\n' > a.txt && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm i )
 printf 'key = "sk-ant''-api03-BBBBBBBBBBBBBBBBBBBBBBBB"\n' > "$SECREPO/leak.py"
 ( cd "$SECREPO" && "$SS" >/dev/null 2>&1 ) \

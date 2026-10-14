@@ -37,7 +37,7 @@ printf '\nthe handoff, as sections: no two sessions write the same path\n'
 # The fixture is a checkout with a remote-tracking main moved by hand, and a
 # landing is a squash onto main, which is what the merge boundary does.
 HX="$TMP/handoff"; mkdir -p "$HX/docs/handoff"
-( cd "$HX" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
+( _fx_cd "$HX" && git init -q -b main && git config user.name t && git config user.email t@example.invalid )
 printf 'widget\n' > "$HX/.felix"
 cat > "$HX/HANDOFF.md" <<'EOF'
 # Handoff
@@ -72,17 +72,17 @@ EOF
 printf '## 0. Standing\n\nThe standing decision.\n\n' > "$HX/docs/handoff/0.md"
 printf '### 0ba. the one before that\n\nIts body.\n' > "$HX/docs/handoff/0ba.md"
 printf '## 1. the oldest\n\nIts body.\n\n' > "$HX/docs/handoff/1.md"
-git -C "$HX" add -A && git -C "$HX" commit -q -m base && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+_fx_git "$HX" add -A && _fx_git "$HX" commit -q -m base && _fx_git "$HX" update-ref refs/remotes/origin/main HEAD
 _hx()     { ( cd "$HX" && . "$REAL_HARNESS/lib/handoff.sh" && "$@" ); }
 _hx_chk() { _hx felix_handoff_check "$HX" "${1:-refs/remotes/origin/main}"; }
-_hx_on()  { git -C "$HX" checkout -q -B "$1" "${2:-refs/remotes/origin/main}"; }
-_hx_commit() { git -C "$HX" add -A && git -C "$HX" commit -q -m "$1"; }
+_hx_on()  { _fx_git "$HX" checkout -q -B "$1" "${2:-refs/remotes/origin/main}"; }
+_hx_commit() { _fx_git "$HX" add -A && _fx_git "$HX" commit -q -m "$1"; }
 # A landing: squash the branch onto the remote-tracking main and move it.
 _hx_land() {
-  git -C "$HX" checkout -q --detach refs/remotes/origin/main \
-    && git -C "$HX" merge -q --squash "$1" >/dev/null 2>&1 \
-    && { git -C "$HX" diff --cached --quiet || git -C "$HX" commit -q -m "land $1"; } \
-    && git -C "$HX" update-ref refs/remotes/origin/main HEAD
+  _fx_git "$HX" checkout -q --detach refs/remotes/origin/main \
+    && _fx_git "$HX" merge -q --squash "$1" >/dev/null 2>&1 \
+    && { git -C "$HX" diff --cached --quiet || _fx_git "$HX" commit -q -m "land $1"; } \
+    && _fx_git "$HX" update-ref refs/remotes/origin/main HEAD
 }
 _hx_base="$(git -C "$HX" rev-parse HEAD)"
 
@@ -191,7 +191,7 @@ _hx_on s/rewrite
 printf '\nAn afterthought.\n' >> "$HX/docs/handoff/0ba.md"; _hx_commit "rewrite"
 has "rewriting an archived section is refused" "$(_hx_chk)" "docs/handoff/0ba.md was rewritten"
 _hx_on s/gone
-git -C "$HX" rm -q docs/handoff/0bc.md; _hx_commit "gone"
+_fx_git "$HX" rm -q docs/handoff/0bc.md; _hx_commit "gone"
 has "and so is removing one" "$(_hx_chk)" "docs/handoff/0bc.md was archived and is gone"
 
 # Two more sessions land; C lands before D.
@@ -202,7 +202,7 @@ done
 _hxc_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-c\.md$')"
 _hxd_path="$(git -C "$HX" ls-tree --name-only refs/remotes/origin/main docs/handoff/pending/ | grep -- '-s-d\.md$')"
 _hx_on s/drop
-git -C "$HX" rm -q "$_hxc_path"; _hx_commit "drop"
+_fx_git "$HX" rm -q "$_hxc_path"; _hx_commit "drop"
 has "removing a pending section without folding it is refused, since that drops it" "$(_hx_chk)" "which drops it"
 _hx_on s/skip
 printf '%s\n' "$_hxd_path" > "$TMP/ho-order"
@@ -216,18 +216,18 @@ _hx_on s/stale
 _hx felix_handoff_rotate "$HX" refs/remotes/origin/main >/dev/null; _hx_commit "fold c d"
 _hx_on s/e; printf '### what e did\n\nIts body.\n' > "$TMP/ho-e.md"
 _hx felix_handoff_section "$HX" "$TMP/ho-e.md" refs/remotes/origin/main >/dev/null; _hx_commit e; _hx_land s/e
-git -C "$HX" checkout -q --detach refs/remotes/origin/main
-git -C "$HX" merge -q --no-edit s/stale >/dev/null 2>&1; _hxm=$?
+_fx_git "$HX" checkout -q --detach refs/remotes/origin/main
+_fx_git "$HX" merge -q --no-edit s/stale >/dev/null 2>&1; _hxm=$?
 _hx_chk >/dev/null; _hxcr=$?
 is  "a fold that main moved past merges and reads clean, and the section that landed after it waits" \
     "$_hxm:$_hxcr:$(ls "$HX/docs/handoff/pending" | grep -c -- '-s-e\.md$')" "0:0:1"
 _hx felix_handoff_rotate "$HX" HEAD >/dev/null
 has "and the next fold gives it the id after theirs" "$(cat "$HX/HANDOFF.md")" "### 0bg. what e did"
-git -C "$HX" checkout -q -f --detach HEAD; git -C "$HX" clean -qfd
+_fx_git "$HX" checkout -q -f --detach HEAD; _fx_git "$HX" clean -qfd
 
 # The fold's own refusals: nothing written when one step would fail.
 _hxfx="$TMP/handoff-fold"; mkdir -p "$_hxfx"
-git -C "$HX" archive refs/remotes/origin/main | tar -x -C "$_hxfx"
+_fx_git "$HX" archive refs/remotes/origin/main | tar -x -C "$_hxfx"
 printf '### 0bf. something else\n' > "$_hxfx/docs/handoff/0bf.md"
 cp "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md"
 ( cd "$_hxfx" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_pending_order "$_hxfx" > "$TMP/ho-o2" \
@@ -240,11 +240,11 @@ has "and says an archived section is never rewritten" "$(cat "$TMP/ho-fold.out")
 _hx_on s/local
 printf '### 0bz. an id\n\nbody\n' > "$HX/docs/handoff/pending/20260101T000000Z-x.md"
 has "a pending section that carries an id is refused" "$(_hx_chk)" "carries an id"
-git -C "$HX" checkout -q -f s/local; git -C "$HX" clean -qfd
+_fx_git "$HX" checkout -q -f s/local; _fx_git "$HX" clean -qfd
 sed 's/^### 0bd\. /### 0bx. /' "$HX/HANDOFF.md" > "$TMP/ho-m.md"; cp "$TMP/ho-m.md" "$HX/HANDOFF.md"
 has "a current section the marker does not name is refused" "$(_hx_chk)" "is not headed"
-git -C "$HX" checkout -q -f s/local
-mkdir -p "$TMP/ho-none"; ( cd "$TMP/ho-none" && git init -q )
+_fx_git "$HX" checkout -q -f s/local
+mkdir -p "$TMP/ho-none"; ( _fx_cd "$TMP/ho-none" && git init -q )
 ( cd "$TMP/ho-none" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "handoff-check cannot examine a checkout with no HANDOFF.md, and says 2, never 0" "$?" "2"
 ( cd "$HX" && "$REAL_HARNESS/bin/handoff-check" >/dev/null 2>&1 ); is "and exits 0 on a clean one" "$?" "0"
 # Called by a path relative to a subdirectory, as `cd docs &&

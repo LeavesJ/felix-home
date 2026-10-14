@@ -52,7 +52,7 @@ _ddiff "$ISRC/engine" "$ICACHE" && ok  "and absent from both sides is a fixture,
 # fine, only the residue differs.
 RSD="$TMP/residue"
 mkdir -p "$RSD/engine/harness/tests" "$RSD/cache/harness/tests"
-( cd "$RSD" && git init -q -b main )
+( _fx_cd "$RSD" && git init -q -b main )
 printf '.claude-flow/\n.DS_Store\n' > "$RSD/.gitignore"
 printf 'real\n' > "$RSD/engine/harness/felix"
 printf 'real\n' > "$RSD/cache/harness/felix"
@@ -112,11 +112,11 @@ rm -rf "$RSD/cache/harness/tests/.claude-flow"
 #    A core.excludesFile pointing anywhere — repo config counts, it is not
 #    committed either — must not reclassify real undeployed work as residue.
 printf 'undeployed.sh\n' > "$RSD/private-ignore"
-git -C "$RSD" config core.excludesFile "$RSD/private-ignore"
+_fx_git "$RSD" config core.excludesFile "$RSD/private-ignore"
 printf 'new\n' > "$RSD/engine/harness/undeployed.sh"
 _ddiff "$RSD/engine" "$RSD/cache" && bad "a personal excludes file cannot hide real drift" "reported clean" \
                                   || ok  "a personal excludes file cannot hide real drift"
-git -C "$RSD" config --unset core.excludesFile
+_fx_git "$RSD" config --unset core.excludesFile
 rm -f "$RSD/engine/harness/undeployed.sh"
 
 # 4. Apple diff -rq EXITS 0 when a file faces a directory of the same name —
@@ -311,7 +311,7 @@ _ISCAN="$FROOT/harness/bin/independence-scan"
 _indep_repo() {   # name -> path of a fresh repo with the four engine dirs tracked
   local r="$TMP/indep-$1"; mkdir -p "$r/engine/harness/lib" "$r/engine/harness/hooks" \
     "$r/engine/harness/bin" "$r/projects"
-  ( cd "$r" && git init -q -b main \
+  ( _fx_cd "$r" && git init -q -b main \
     && printf '#!/bin/sh\n' > engine/harness/felix && printf '# lib\n' > engine/harness/lib/a.sh \
     && printf '# hook\n' > engine/harness/hooks/h && printf '# bin\n' > engine/harness/bin/b \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
@@ -329,9 +329,9 @@ _iscan() { ( cd "$1" && "$_ISCAN" 2>&1 ); }
 _IR="$(_indep_repo blind)"
 printf '{"name":"blindproj"}\n' > "$_IR/projects/blindproj/project.json" 2>/dev/null || { mkdir -p "$_IR/projects/blindproj"; printf '{"name":"blindproj"}\n' > "$_IR/projects/blindproj/project.json"; }
 printf '# blindproj\n' >> "$_IR/engine/harness/lib/a.sh"
-( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm plant ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm plant ) >/dev/null 2>&1
 has "a planted name is caught" "$(_iscan "$_IR")" "blindproj"
-( cd "$_IR" && git rm -rq engine/harness/bin && git -c user.name=t -c user.email=t@t commit -qm nobin ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git rm -rq engine/harness/bin && git -c user.name=t -c user.email=t@t commit -qm nobin ) >/dev/null 2>&1
 _o="$(_iscan "$_IR")"
 has "the scanner refuses to answer on a path it cannot search" "$_o" "cannot search"
 case "$_o" in
@@ -349,11 +349,11 @@ mkdir -p "$_IR/projects/real" "$_IR/projects/stray"
 printf '{"name":"real"}\n' > "$_IR/projects/real/project.json"
 printf 'not a project\n' > "$_IR/projects/README.md"
 printf '# a stray word and a README word\n' >> "$_IR/engine/harness/lib/a.sh"
-( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm enum ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm enum ) >/dev/null 2>&1
 ( cd "$_IR" && "$_ISCAN" >/dev/null 2>&1 ) && ok "it enumerates declared projects, not directory entries" \
   || bad "it enumerates declared projects, not directory entries" "$(_iscan "$_IR")"
 printf '# real\n' >> "$_IR/engine/harness/lib/a.sh"
-( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm real ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm real ) >/dev/null 2>&1
 has "while a declared one is caught" "$(_iscan "$_IR")" "real"
 
 # Matches a project name as a literal. -F, not -E: the name is interpolated
@@ -362,11 +362,11 @@ has "while a declared one is caught" "$(_iscan "$_IR")" "real"
 _IR="$(_indep_repo literal)"
 mkdir -p "$_IR/projects/vel.ra"; printf '{"name":"vel.ra"}\n' > "$_IR/projects/vel.ra/project.json"
 printf '# velXra is not that project\n' >> "$_IR/engine/harness/lib/a.sh"
-( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm lit ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm lit ) >/dev/null 2>&1
 ( cd "$_IR" && "$_ISCAN" >/dev/null 2>&1 ) && ok "it matches a project name as a literal" \
   || bad "it matches a project name as a literal" "$(_iscan "$_IR")"
 printf '# vel.ra itself\n' >> "$_IR/engine/harness/lib/a.sh"
-( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm dot ) >/dev/null 2>&1
+( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm dot ) >/dev/null 2>&1
 has "and the literal name is caught" "$(_iscan "$_IR")" "vel.ra"
 
 # All four engine directories are searched. Planted in each in turn, because
@@ -376,7 +376,7 @@ for _d in felix lib/a.sh hooks/h bin/b; do
   _IR="$(_indep_repo "paths-${_d%%/*}")"
   mkdir -p "$_IR/projects/pathproj"; printf '{"name":"pathproj"}\n' > "$_IR/projects/pathproj/project.json"
   printf '# pathproj\n' >> "$_IR/engine/harness/$_d"
-  ( cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm p ) >/dev/null 2>&1
+  ( _fx_cd "$_IR" && git add -A && git -c user.name=t -c user.email=t@t commit -qm p ) >/dev/null 2>&1
   has "a name planted in engine/harness/${_d%%/*} is caught" "$(_iscan "$_IR")" "pathproj"
 done
 

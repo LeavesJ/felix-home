@@ -11,7 +11,8 @@ printf '\nunattended work runs only in the bound project'"'"'s own checkout\n'
 # root, a harness copy whose felix is a stub, and stubs for claude, gh and
 # graphify that log their working directory and arguments.
 OWBASE="${RXBASE:-}"
-if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ]; then   # part 1120 removes a base it made outside $TMP
+# Part 1100's base is adopted only while it is a root of the fixture guard, so an inherited RXBASE is never used unproven.
+if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ] || ! _fx_root_for "$(cd "$OWBASE" 2>/dev/null && pwd -P)/."; then   # part 1120 removes a base it made outside $TMP
   OWBASE=""
   for _owc in "$TMP" "${XDG_RUNTIME_DIR:-}" "${RUNNER_TEMP:-}" "${HOME:-}"; do
     [ -n "$_owc" ] && command -v _rx_base_ok >/dev/null 2>&1 && _rx_base_ok "$_owc" || continue
@@ -20,6 +21,8 @@ if [ -z "$OWBASE" ] || [ ! -d "$OWBASE" ]; then   # part 1120 removes a base it 
   done
   [ -n "$OWBASE" ] || OWBASE="$TMP"
 fi
+# A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused.
+_fx_root_add "$OWBASE"
 OW="$(mktemp -d "$OWBASE/ow.XXXXXX")"; OW="$(cd "$OW" && pwd -P)"
 OWT="$OW/tmp"; OWH="$OW/home"; OWP="$OWH/projects"; OWL="$OW/log"; OWCO="$OW/co"; OWHH="$OW/h/harness"
 mkdir -p "$OWT" "$OWP" "$OWL" "$OWCO" "$OW/bin" "$OW/user" "$OW/mem" "$OW/cache" "$OW/gitbad" "$OW/h"
@@ -71,10 +74,10 @@ _ow_stamp() { ( . "$OWHH/lib/resolve.sh"; . "$OWHH/lib/detect.sh"; . "$OWHH/lib/
 _ow_rival() { mkdir -p "$1/scripts"; printf '#!/bin/sh\necho repo copy\n' > "$1/scripts/prepush.sh"; chmod +x "$1/scripts/prepush.sh"; }
 _ow_co() {   # <name> <project or -> <origin or -> [cargo] [nograph] [norival]: two commits, a held rival, a graph one behind
   local d="$OWCO/$1"; mkdir -p "$d"
-  ( cd "$d" && git init -q -b main && { [ "$2" = - ] || printf '%s\n' "$2" > .felix; } && printf 'a\n' > f.txt \
+  ( _fx_cd "$d" && git init -q -b main && { [ "$2" = - ] || printf '%s\n' "$2" > .felix; } && printf 'a\n' > f.txt \
     && git add -A && git -c user.name=t -c user.email=t@t commit -qm one \
     && printf 'b\n' > f.txt && git -c user.name=t -c user.email=t@t commit -qam two ) >/dev/null 2>&1
-  [ "$3" = - ] || git -C "$d" config remote.origin.url "$3"
+  [ "$3" = - ] || _fx_git "$d" config remote.origin.url "$3"
   case " $* " in *" nograph "*) ;; *) mkdir -p "$d/graphify-out"
     printf '{"nodes":[],"built_at_commit":"%s"}\n' "$(git -C "$d" rev-list --max-parents=0 HEAD)" > "$d/graphify-out/graph.json" ;; esac
   case " $* " in *" norival "*) ;; *) _ow_rival "$d" ;; esac
@@ -143,20 +146,20 @@ for _u in https://github.com/OwnerX/ownp-repo https://github.com/OwnerX/ownp-rep
           https://tok@github.com/OwnerX/ownp-repo.git https://github.com:443/OwnerX/ownp-repo git@github.com:OwnerX/ownp-repo.git \
           github.com:OwnerX/ownp-repo ssh://git@github.com/OwnerX/ownp-repo.git ssh://git@github.com:22/OwnerX/ownp-repo \
           git://github.com/OwnerX/ownp-repo.git; do
-  git -C "$OWPR" config remote.origin.url "$_u"
+  _fx_git "$OWPR" config remote.origin.url "$_u"
   is "a checkout whose origin is $_u is own (0 own)" "$(_ow_own "$OWDP" "$OWPR")" "0 own"
 done
-git -C "$OWCO/own-https" worktree add -q "$OWCO/own-wt" -b wt >/dev/null 2>&1
+_fx_git "$OWCO/own-https" worktree add -q "$OWCO/own-wt" -b wt >/dev/null 2>&1
 is "a worktree of an own checkout is own" "$(_ow_own "$OWDP" "$OWCO/own-wt")" "0 own"
 for _u in git@evil.example:OwnerX/ownp-repo.git https://github.com/OwnerX/ownp-repo-fork.git https://github.com.evil.example/OwnerX/ownp-repo \
           'https://evil.example#@github.com/OwnerX/ownp-repo'; do
-  git -C "$OWPR" config remote.origin.url "$_u"
+  _fx_git "$OWPR" config remote.origin.url "$_u"
   is "a checkout whose origin is $_u is not own (1 other)" "$(_ow_own "$OWDP" "$OWPR")" "1 other"
 done
 is "a repository with no origin is not own (1 no-origin)" "$(_ow_own "$OWDP" "$OWCO/none")" "1 no-origin"
 _ow_proj pm-empty ""; _ow_proj pm-absent -; _ow_proj pm-dotcom example.com; _ow_proj pm-abc a/b/c
 for _pm in pm-empty pm-absent pm-dotcom pm-abc; do
-  printf '%s\n' "$_pm" > "$OWPR/.felix"; git -C "$OWPR" config remote.origin.url "https://github.com/OwnerX/$_pm"
+  printf '%s\n' "$_pm" > "$OWPR/.felix"; _fx_git "$OWPR" config remote.origin.url "https://github.com/OwnerX/$_pm"
   is "a project whose remote_match is ${_pm#pm-} has no own checkout, its own .felix and origin included (1 no-match)" \
      "$(_ow_own "$OWP/$_pm" "$OWPR")" "1 no-match"
 done
@@ -165,7 +168,7 @@ mkdir -p "$OW/notrepo"
 is "a directory that is not a repository is unknown (2 unread)" "$(_ow_own "$OWDP" "$OW/notrepo")" "2 unread"
 is "a repository is unknown when git exits 69 (2 unread)" "$(OW_PATH="$OW/gitbad:$OW/bin:$PATH" _ow_own "$OWDP" "$OWCO/own-https")" "2 unread"
 for _u in https://github.com/OwnerX/ownp-repo git@evil.example:OwnerX/ownp-repo.git -; do
-  if [ "$_u" = - ]; then git -C "$OWPR" config --unset remote.origin.url; else git -C "$OWPR" config remote.origin.url "$_u"; fi
+  if [ "$_u" = - ]; then _fx_git "$OWPR" config --unset remote.origin.url; else _fx_git "$OWPR" config remote.origin.url "$_u"; fi
   _a="$(_ow_own "$OWDP" "$OWPR")"; rm -f "$OWPR/.felix"; _b="$(_ow_own "$OWDP" "$OWPR")"; printf 'ownp\n' > "$OWPR/.felix"
   [ -n "$_a" ] && [ "$_a" = "$_b" ] && ok "a .felix marker changes nothing: origin $_u reads the same with and without it" \
     || bad "a .felix marker changes nothing: origin $_u reads the same with and without it" "[$_a] vs [$_b]"
@@ -282,7 +285,7 @@ is "B33: the same checkout with a different set of kinds says it again" "$(_ow_l
 printf '\na submodule is never own: its origin is the superproject'"'"'s to choose (found in review)\n'
 # A hostile superproject's tracked .gitmodules gives the submodule its origin. Offline: insteadOf serves that URL from a local bare repo.
 _ow_co sub-seed ownp - nograph norival; git clone -q --bare "$OWCO/sub-seed" "$OW/sub.git" >/dev/null 2>&1; git init -q -b main "$OW/sup-seed" >/dev/null 2>&1
-( cd "$OW/sup-seed" && printf 'a\n' > f.txt && git add f.txt && git -c user.name=t -c user.email=t@t commit -qm one \
+( _fx_cd "$OW/sup-seed" && printf 'a\n' > f.txt && git add f.txt && git -c user.name=t -c user.email=t@t commit -qm one \
   && git -c protocol.file.allow=always submodule add -q "file://$OW/sub.git" vendor/x && git config -f .gitmodules submodule.vendor/x.url https://github.com/OwnerX/ownp-repo \
   && git add .gitmodules && git -c user.name=t -c user.email=t@t commit -qm two ) >/dev/null 2>&1
 git clone -q --bare "$OW/sup-seed" "$OW/sup.git" >/dev/null 2>&1
@@ -292,7 +295,7 @@ _ow_rival "$_owsub"; cp "$_owsub/scripts/prepush.sh" "$OW/rival.sub"   # no grap
 is "B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it" "$_owu|$(_ow_slug "$_owu")" \
    "https://github.com/OwnerX/ownp-repo|ownerx/ownp-repo|0"
 is "B8: a submodule is not own though its origin is the project's (1 submodule)" "$(_ow_own "$OWDP" "$_owsub")" "1 submodule"
-git -C "$OWCO/hostile" config remote.origin.url https://github.com/OwnerX/ownp-repo
+_fx_git "$OWCO/hostile" config remote.origin.url https://github.com/OwnerX/ownp-repo
 is "B8: a repository that holds a submodule is still own when its own origin is the project's" "$(_ow_own "$OWDP" "$OWCO/hostile")" "0 own"
 mkdir -p "$OW/gitsp"; printf '#!/bin/sh\ncase "$*" in *--show-superproject-working-tree*) exit 69 ;; esac\nexec %s "$@"\n' "$(command -v git)" > "$OW/gitsp/git"; chmod +x "$OW/gitsp/git"
 is "B8: a repository is unknown when git cannot say whether it is a submodule (2 unread)" "$(OW_PATH="$OW/gitsp:$OW/bin:$PATH" _ow_own "$OWDP" "$OWCO/own-https")" "2 unread"
@@ -445,5 +448,5 @@ done
 is "B41: lib/own.sh exists and names no governed project" "$([ -f "$FROOT/harness/lib/own.sh" ] && echo present)$_ownames" "present"
 is "B41: lib/own.sh parses under /bin/bash and uses no \${x,,}" \
    "$(/bin/bash -n "$FROOT/harness/lib/own.sh" 2>&1 && grep -c ',,}' "$FROOT/harness/lib/own.sh")" "0"
-git -C "$OWCO/own-https" worktree remove --force "$OWCO/own-wt" >/dev/null 2>&1
-[ "$OWBASE" = "$TMP" ] || [ "$OWBASE" = "${RXBASE:-}" ] || rm -rf "$OWBASE"
+_fx_git "$OWCO/own-https" worktree remove --force "$OWCO/own-wt" >/dev/null 2>&1
+[ "$OWBASE" = "$TMP" ] || [ "$OWBASE" = "${RXBASE:-}" ] || { _fx_root_del "$OWBASE"; rm -rf "$OWBASE"; }

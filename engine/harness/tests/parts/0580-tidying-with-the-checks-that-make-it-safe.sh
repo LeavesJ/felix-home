@@ -48,7 +48,7 @@ printf '\ntidying, with the checks that make it safe\n'
 # still exist somewhere afterwards.
 TR="$TMP/tidyrepo"; TH2="$TMP/tidyhome"; TP2="$TH2/projects/widget"
 mkdir -p "$TR/scripts" "$TP2"
-( cd "$TR" && git init -q . && git config user.email t@t && git config user.name t )
+( _fx_cd "$TR" && git init -q . && git config user.email t@t && git config user.name t )
 printf 'tidy\n' > "$TP2/autonomy"
 printf '#!/bin/sh\necho felix\n' > "$TP2/prepush.sh"
 # 1. untracked, and Felix holds a copy of that name -> removable
@@ -57,7 +57,7 @@ printf '#!/bin/sh\necho repo\n' > "$TR/scripts/prepush.sh"
 #    state, which is a different and much larger act than removing a stray file
 printf '#!/bin/sh\necho felix\n' > "$TP2/gate.sh"
 printf '#!/bin/sh\necho tracked\n' > "$TR/scripts/gate.sh"
-( cd "$TR" && git add scripts/gate.sh && git commit -qm base )
+( _fx_cd "$TR" && git add scripts/gate.sh && git commit -qm base )
 # 3. Felix holds nothing of that name -> may be the only copy anywhere
 printf '#!/bin/sh\necho only\n' > "$TR/scripts/verify-mine.sh"
 chmod +x "$TR"/scripts/*.sh

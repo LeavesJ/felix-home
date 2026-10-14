@@ -56,13 +56,13 @@ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$HR_PROJ/probes.tsv"
 # make the same commit object, so with the same edit they have one tree id and
 # only the checkout tells them apart.
 for _hr_d in "$HR_REPO" "$HR_REPO2" "$HR_BIG" "$HR_SP"; do
-  ( cd "${_hr_d:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hrproj\n' > .felix \
+  ( _fx_cd "${_hr_d:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hrproj\n' > .felix \
     && git add -A >/dev/null 2>&1 \
     && GIT_AUTHOR_DATE=2026-01-01T00:00:00Z GIT_COMMITTER_DATE=2026-01-01T00:00:00Z \
        git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init >/dev/null 2>&1 )
 done
 # No commit yet: what `git init` leaves.
-( cd "${HR_UNB:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hrproj\n' > .felix )
+( _fx_cd "${HR_UNB:?}" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'hrproj\n' > .felix )
 # Exactly as many untracked files as a tree id counts before it gives up on them.
 ( cd "${HR_BIG:?}" && mkdir bulk && cd bulk && seq 1 500 | sed 's/^/f/' | xargs touch )
 HR_REPO="$(cd "${HR_REPO:?}" && pwd -P)"

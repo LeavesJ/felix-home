@@ -17,18 +17,18 @@ printf '\nthe graph nothing ever mentioned\n'
 # handed. Which is why the fixture below builds a real one and lets its HEAD
 # diverge, rather than asserting about a directory named "worktree".
 GRH="$TMP/graphhome"; mkdir -p "$GRH"
-( cd "$GRH" && git init -q -b main && git config user.email t@t && git config user.name t
+( _fx_cd "$GRH" && git init -q -b main && git config user.email t@t && git config user.name t
   printf 'seed\n' > a.txt && git add -A && git commit -qm seed ) >/dev/null 2>&1
 GRSEED="$( cd "$GRH" && git rev-parse HEAD )"
-( cd "$GRH" && for i in 1 2 3; do printf '%s\n' "$i" > "f$i.txt"; git add -A
+( _fx_cd "$GRH" && for i in 1 2 3; do printf '%s\n' "$i" > "f$i.txt"; git add -A
     git commit -qm "c$i"; done ) >/dev/null 2>&1
 GRHEAD="$( cd "$GRH" && git rev-parse HEAD )"
 GRHP="$( cd "$GRH" && pwd -P )"
 GRW="$TMP/graphwt"
-( cd "$GRH" && git worktree add -q "$GRW" -b side ) >/dev/null 2>&1
+( _fx_cd "$GRH" && git worktree add -q "$GRW" -b side ) >/dev/null 2>&1
 # Five commits of its own, so the worktree's HEAD is nobody's idea of the
 # holding checkout's HEAD and an answer that happens to match cannot be luck.
-[ -d "$GRW" ] && ( cd "$GRW" && for i in 1 2 3 4 5; do printf '%s\n' "$i" > "w$i.txt"
+[ -d "$GRW" ] && ( _fx_cd "$GRW" && for i in 1 2 3 4 5; do printf '%s\n' "$i" > "w$i.txt"
     git add -A; git commit -qm "w$i"; done ) >/dev/null 2>&1
 GRWP="$( [ -d "$GRW" ] && cd "$GRW" && pwd -P )"
 GRPLAIN="$TMP/graphloose"; mkdir -p "$GRPLAIN"
@@ -187,7 +187,7 @@ fi
 # Silence is the correct output. Most projects Felix governs have no graph, and
 # a banner saying so every session would be the noise that gets banners ignored.
 GRX="$TMP/graphungraphed"; mkdir -p "$GRX"
-( cd "$GRX" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+( _fx_cd "$GRX" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 out="$(_gr felix_graph_line "$GRX" 2>&1)"; rc=$?
 is "a project with no graph is told nothing at all"  "$out" ""

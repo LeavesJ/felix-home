@@ -143,7 +143,7 @@ _er_probes; _er_evidence
 # Two commits, so the merge boundary has a base to diff against; `*.tmp`
 # ignored and committed, so the file the probe counts is invisible to git.
 ERR="$TMP/epochrcpt-repo"; mkdir -p "$ERR"
-( cd "$ERR" && git init -q -b main
+( _fx_cd "$ERR" && git init -q -b main
   printf 'epochrcpt\n' > .felix
   printf '*.tmp\n'     > .gitignore
   printf 'code\n'      > code.txt
@@ -233,7 +233,7 @@ case "$out" in
   *"the grounded facts moved"*) bad "and the moved fact is not what it blames" "$out" ;;
   *)                            ok  "and the moved fact is not what it blames" ;;
 esac
-( cd "$ERR" && git checkout -q -- code.txt )
+( _fx_cd "$ERR" && git checkout -q -- code.txt )
 is "and with the edit undone the tree id is back" "$(_er_tid)" "$er_tid0"
 
 # Topology before policy, when both moved.
@@ -285,7 +285,7 @@ rm -f "$ERR/a.tmp"
 # The tree changing outranks even that.
 printf 'edited\n' >> "$ERR/code.txt"
 has "a tree that changed is named before a receipt with no epoch" "$(_er_cur)" "the tree changed"
-( cd "$ERR" && git checkout -q -- code.txt )
+( _fx_cd "$ERR" && git checkout -q -- code.txt )
 # The receipt the writer leaves when called the way every earlier caller
 # calls it, with no eighth and ninth argument at all. The blind author of
 # this block expected it to carry no epoch and read stale; the writer went
@@ -302,7 +302,7 @@ case "$(_er_rcpt | cut -f7)" in
 esac
 is  "and reads current, because it rests on the same facts a gate would have recorded" "$(_er_cur | cut -f1)" "current"
 ERN="$TMP/epochrcpt-nomark"; mkdir -p "$ERN"
-( cd "$ERN" && git init -q -b main && printf 'x\n' > x && git add -A \
+( _fx_cd "$ERN" && git init -q -b main && printf 'x\n' > x && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm x ) >/dev/null 2>&1
 ERN="$(cd "$ERN" && pwd -P)"
 ( cd "$ERN" && _er_lib; felix_verify_record "$ERN" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$ERN" "$FROOT")" "" "" >/dev/null 2>&1 )

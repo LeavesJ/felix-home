@@ -7,14 +7,14 @@
 # file carries no memory rule on purpose: the property is what is tracked.
 printf '\nmemory-scan: memory stays out, doctrine stays in\n'
 MSS="$TMP/memory-scan-seed"; mkdir -p "$MSS/projects/alpha" "$MSS/projects/beta"
-( cd "$MSS" && git init -q -b main && printf '*.log\n!projects/*/maintenance.log\n' > .gitignore \
+( _fx_cd "$MSS" && git init -q -b main && printf '*.log\n!projects/*/maintenance.log\n' > .gitignore \
   && printf 'run\n' > projects/alpha/maintenance.log && printf 'x\n' > projects/alpha/CLAUDE.md \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 _ms()  { ( cd "$1" && "$REAL_HARNESS/bin/memory-scan" 2>&1; echo "rc=$?" ); }
 # Exact, for the reason the deploy-check block gives: "rc=1" as a substring is
 # satisfied by rc=126 and rc=127, which are a checker that never ran.
 _msrc() { printf '%s' "${1##*rc=}"; }
-_msc() { ( cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+_msc() { ( _fx_cd "$1" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
 if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
   is  "a tree with doctrine tracked and no memory is clean" "$(_msrc "$(_ms "$MSS")")" "0"
   MS1="$TMP/memory-scan-1"; cp -R "$MSS" "$MS1"
@@ -38,7 +38,7 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
   MS4="$TMP/memory-scan-4"; cp -R "$MSS" "$MS4"
   printf 'run\n' > "$MS4/projects/beta/maintenance.log"; _msc "$MS4"
   is  "with every log tracked, the form this replaced sees nothing to report" \
-      "$(cd "$MS4" && printf 'projects/*/maintenance.log\n' >> .gitignore
+      "$(_fx_cd "$MS4" && printf 'projects/*/maintenance.log\n' >> .gitignore
          git add -A >/dev/null 2>&1
          git -c user.name=t -c user.email=t@t commit -qm r >/dev/null 2>&1
          for d in projects/*/; do git check-ignore -q "${d}maintenance.log" 2>/dev/null && echo hit; done | grep -c .)" "0"
@@ -75,7 +75,7 @@ if [ -x "$REAL_HARNESS/bin/memory-scan" ]; then
   has "and a rotated ledger is the same record with a date on it" "$(_ms "$MS7")" "memory tracked by name: projects/alpha/ledger.tsv.bak-20260816010302"
   # A tree with nothing tracked under projects/ is not a clean tree.
   MS8="$TMP/memory-scan-8"; mkdir -p "$MS8"
-  ( cd "$MS8" && git init -q -b main && printf 'x\n' > README.md && git add -A \
+  ( _fx_cd "$MS8" && git init -q -b main && printf 'x\n' > README.md && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   out="$(_ms "$MS8")"
   has "a checkout with nothing tracked under projects/ cannot search" "$out" "cannot search"
@@ -174,7 +174,7 @@ cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
 # questions git and the filesystem can always answer; the answers still come
 # from the checkout, so this is not Felix authoring an enumeration.
 NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
-( cd "$NEWP" && git init -q -b main && printf 'x\n' > a.txt \
+( _fx_cd "$NEWP" && git init -q -b main && printf 'x\n' > a.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
 # Through CMSTUB, as every felix new here is: felix new commissions, and run
 # against the real claude it installed the catalog's always plugins into the
@@ -220,7 +220,7 @@ is  "so a project created today is not born blocked" "$rc" "0"
 # new project went red with `blind`. The honest state is `empty`, and the
 # witness that says so is the last commit's tree, not the .git directory.
 NEWQ="$TMP/probes-new-nocommit"; mkdir -p "$NEWQ"
-( cd "$NEWQ" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
+( _fx_cd "$NEWQ" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
 out="$(cd "$NEWQ" && PATH="$CMSTUB:$PATH" "$FELIX" new probeseedq "$NEWQ" 2>&1)"
 out="$(cd "$NEWQ" && "$FELIX" probes 2>&1)"
 has "on a repository with no commit, nothing tracked reads as empty, not blind" \
@@ -240,7 +240,7 @@ printf '\nfelix new: the maturity a person gives is read back\n'
 # 2026-09-21 on bash 3.2.57, the stock macOS /bin/bash, and on 5.2.21, the CI
 # runner's: both drop them. Nothing caught it because no assertion set it.
 MATP="$TMP/maturity-new"; mkdir -p "$MATP"
-( cd "$MATP" && git init -q -b main ) >/dev/null 2>&1
+( _fx_cd "$MATP" && git init -q -b main ) >/dev/null 2>&1
 out="$(cd "$MATP" && FELIX_MATURITY=prototype PATH="$CMSTUB:$PATH" "$FELIX" new maturityseed "$MATP" </dev/null 2>&1)"; rc=$?
 # The detail names the bash and what the file held, because `got []` alone
 # cannot tell a dropped quote from a felix new that never wrote the file.
@@ -261,7 +261,7 @@ printf '\nmaintenance: an event row that can come due from reality\n'
 # lesson this project already holds, one table over.
 MTP="$TMP/maint-proj"; mkdir -p "$MTP" "$MEM/maint-proj"
 MTR="$TMP/maint-repo"; mkdir -p "$MTR"
-( cd "$MTR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+( _fx_cd "$MTR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
 MTR="$(cd "$MTR" && pwd -P)"
 printf 'graph\t0\talways\tkeep the map current\ttest -f map.json\n' > "$MTP/maintenance.tsv"
@@ -308,7 +308,7 @@ has "and ok once a graph newer than the last commit exists"     "$(_mst "$MTR")"
 # comparing whole seconds, read `due`. Two finds, two precisions, one fixture
 # faster than either. The gap puts the commit in a later second than the graph.
 sleep 1
-( cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
+( _fx_cd "$MTR" && printf 'y\n' > b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm later ) >/dev/null 2>&1
 has "and due again after a commit the graph has not seen"       "$(_mst "$MTR")" "due	graphify"
 # But recording that the refresh happened must not undo it.
 #
@@ -325,13 +325,13 @@ mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
 has "a refreshed graph clears the row"                          "$(_mst "$MTR")" "ok	graphify"
 sleep 1
 mkdir -p "$MTR/projects/widget"
-( cd "$MTR" && printf 'graphify\t1\t2026-09-05\n' >> projects/widget/maintenance.log \
+( _fx_cd "$MTR" && printf 'graphify\t1\t2026-09-05\n' >> projects/widget/maintenance.log \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm "record the run" ) >/dev/null 2>&1
 has "and recording the run does not put it back"                "$(_mst "$MTR")" "ok	graphify"
 # The exclusion is that narrow: anything else the same commit shape touches
 # still counts, or the row would be a check that cannot come due.
 sleep 1
-( cd "$MTR" && printf 'z\n' > c.txt && git add -A \
+( _fx_cd "$MTR" && printf 'z\n' > c.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm content ) >/dev/null 2>&1
 has "while any other commit still does"                         "$(_mst "$MTR")" "due	graphify"
 # A worktree has no graphify-out/ of its own. The graph lives beside the
@@ -344,7 +344,7 @@ has "while any other commit still does"                         "$(_mst "$MTR")"
 sleep 1
 mkdir -p "$MTR/graphify-out" && printf '{}\n' > "$MTR/graphify-out/graph.json"
 MTW="$TMP/maint-worktree"
-( cd "$MTR" && git worktree add -q "$MTW" -b maint-wt ) >/dev/null 2>&1
+( _fx_cd "$MTR" && git worktree add -q "$MTW" -b maint-wt ) >/dev/null 2>&1
 MTW="$(cd "$MTW" && pwd -P)"
 has "the checkout holding the graph is ok"                      "$(_mst "$MTR")" "ok	graphify"
 has "and a worktree of it reads the same graph, and is ok too"  "$(_mst "$MTW")" "ok	graphify"
@@ -354,14 +354,14 @@ has "and a worktree of it reads the same graph, and is ok too"  "$(_mst "$MTW")"
 # — so calling the graph stale over it is a row that is on in every worktree
 # session and cannot be satisfied by the thing it asks for.
 sleep 1
-( cd "$MTW" && printf 'w\n' > d.txt && git add -A \
+( _fx_cd "$MTW" && printf 'w\n' > d.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm "worktree commit" ) >/dev/null 2>&1
 has "work committed only in a worktree does not make the graph stale" "$(_mst "$MTW")" "ok	graphify"
 has "and the checkout the graph was built from reads ok as well"      "$(_mst "$MTR")" "ok	graphify"
 # The holding checkout moving is the thing that does, and it reads the same
 # from both places, because it is one fact about one graph.
 sleep 1
-( cd "$MTR" && printf 'e\n' > e.txt && git add -A \
+( _fx_cd "$MTR" && printf 'e\n' > e.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm "checkout commit" ) >/dev/null 2>&1
 has "a commit in the checkout the graph was built from is due"        "$(_mst "$MTR")" "due	graphify"
 has "and due from the worktree too, which is where the session is"    "$(_mst "$MTW")" "due	graphify"

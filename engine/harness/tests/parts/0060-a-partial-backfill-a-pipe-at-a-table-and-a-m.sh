@@ -182,7 +182,7 @@ _anl4_hook() {   # project name, stack.tsv mode (ro | -) -> the hook's output in
   local p="$1" r="$_anl4/$1-repo"
   mkdir -p "$r" "$FROOT/projects/$p"
   # Own checkout: session-start adopts only in the bound project's own (lib/own.sh, 0.49.286).
-  ( cd "$r" && git init -q -b main && git config remote.origin.url "https://github.com/example.com/$p" )
+  ( _fx_cd "$r" && git init -q -b main && git config remote.origin.url "https://github.com/example.com/$p" )
   printf '%s\n' "$p" > "$r/.felix"
   printf 'sentry-sdk\n' > "$r/requirements.txt"
   printf '{"name":"%s","remote_match":"example.com/%s","gate":"true"}\n' "$p" "$p" > "$FROOT/projects/$p/project.json"
@@ -229,8 +229,8 @@ _anl4_if "commissioning's apply with a FIFO at stack.tsv returns promptly and co
 
 # ------------------------------------------ H: a mistake on an unborn HEAD ----
 mkdir -p "$_anl4/h-unborn" "$_anl4/h-born"
-( cd "$_anl4/h-unborn" && git init -q -b main )
-( cd "$_anl4/h-born" && git init -q -b main && printf 'x\n' > x && git add -A \
+( _fx_cd "$_anl4/h-unborn" && git init -q -b main )
+( _fx_cd "$_anl4/h-born" && git init -q -b main && printf 'x\n' > x && git add -A \
   && git -c user.name=anl4 -c user.email=anl4@example.invalid -c commit.gpgsign=false commit -qm anl4 )
 _anl4_mshape() {   # case id, checkout -> lines|fields of the first line|fourth field
   ( FELIX_MEMORY="$_anl4/mem"; export FELIX_MEMORY
@@ -386,16 +386,16 @@ rm -rf "$REPO/scripts"
 # here — issue #2 records that `felix merge` is unreachable from one — so a
 # guard that silently lapses there is a guard for the case that does not arise.
 RH="$TMP/felixhome"; mkdir -p "$RH/projects/p1" "$RH/projects/p2"
-( cd "$RH" && git init -q -b main )
+( _fx_cd "$RH" && git init -q -b main )
 RH="$(cd "$RH" && pwd -P)"
 printf '#!/bin/sh\necho p1\n' > "$RH/projects/p1/gate.sh"
 printf '#!/bin/sh\necho p2\n' > "$RH/projects/p2/gate.sh"
 chmod +x "$RH/projects/p1/gate.sh" "$RH/projects/p2/gate.sh"
 printf '{"name":"p1","gate":"gate.sh"}\n' > "$RH/projects/p1/project.json"
-( cd "$RH" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$RH" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm home >/dev/null 2>&1 )
 RW="$TMP/felixwork"
-( cd "$RH" && git worktree add -q -b wt "$RW" >/dev/null 2>&1 )
+( _fx_cd "$RH" && git worktree add -q -b wt "$RW" >/dev/null 2>&1 )
 RW="$(cd "$RW" && pwd -P)"
 
 _riv() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
@@ -412,11 +412,11 @@ esac
 # The guard must stay narrow: a genuinely unrelated repo that happens to have a
 # projects/ directory is not Felix, and its lookalikes are still reported.
 OTHER="$TMP/notfelix"; mkdir -p "$OTHER/projects/p2"
-( cd "$OTHER" && git init -q -b main )
+( _fx_cd "$OTHER" && git init -q -b main )
 OTHER="$(cd "$OTHER" && pwd -P)"
 printf '#!/bin/sh\necho other\n' > "$OTHER/projects/p2/gate.sh"
 chmod +x "$OTHER/projects/p2/gate.sh"
-( cd "$OTHER" && git add -A >/dev/null 2>&1 \
+( _fx_cd "$OTHER" && git add -A >/dev/null 2>&1 \
   && git -c user.name=t -c user.email=t@t commit -qm other >/dev/null 2>&1 )
 has "a different repository is still checked" "$(_riv "$OTHER")" "projects/p2/gate.sh"
 
@@ -430,7 +430,7 @@ printf '\nthe hook adopts rather than nags\n'
 # A surface detected and left undeclared stays unhandled for as long as nobody
 # reads the message. The hook closes that itself.
 HOOKREPO="$TMP/hookrepo"; mkdir -p "$HOOKREPO"
-( cd "$HOOKREPO" && git init -q -b main && git config remote.origin.url https://github.com/example.com/hookproj )  # own checkout, see _anl4_hook
+( _fx_cd "$HOOKREPO" && git init -q -b main && git config remote.origin.url https://github.com/example.com/hookproj )  # own checkout, see _anl4_hook
 printf 'hookproj\n' > "$HOOKREPO/.felix"
 mkdir -p "$FROOT/projects/hookproj" "$MEM/hookproj"
 printf '{"name":"hookproj","remote_match":"example.com/hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"

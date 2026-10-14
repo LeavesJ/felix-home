@@ -3,7 +3,7 @@ printf '\nfelix new --no-commission: governed, not commissioned\n'
 # fixture's tests, and the same stub as every other felix new in this file.
 NC="$TMP/nocommission"; mkdir -p "$NC/home/projects" "$NC/mem" "$NC/userhome"; NC="$(cd "$NC" && pwd -P)"
 _nc_repo() { mkdir -p "$NC/$1"
-  ( cd "$NC/$1" && git init -q -b main \
+  ( _fx_cd "$NC/$1" && git init -q -b main \
     && printf '{ "name": "cheap", "scripts": { "verify": "echo ok" }, "dependencies": { "express": "^4" } }\n' > package.json ) >/dev/null 2>&1; }
 _nc() {  # cwd, then felix new's arguments; the stub's calls land in CMSTUB_LOG
   local d="$1"; shift; : > "$CMSTUB_LOG"

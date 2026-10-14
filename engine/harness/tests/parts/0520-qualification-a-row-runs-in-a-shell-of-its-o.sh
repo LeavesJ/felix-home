@@ -20,7 +20,7 @@ printf '\nqualification: a row runs in a shell of its own\n'
 # load. Authored blind to the runner's source, from the contract in prose.
 QFRP="$TMP/qual-fresh"; QFRR="$TMP/qual-fresh-repo"; QFRS="$TMP/qual-fresh-side"
 mkdir -p "$QFRP" "$QFRR" "$QFRS" "$MEM/qual-fresh"
-( cd "$QFRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
+( _fx_cd "$QFRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 QFRR="$(cd "$QFRR" && pwd -P)"
 _qfrhead="$(git -C "$QFRR" rev-parse HEAD 2>/dev/null)"

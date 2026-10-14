@@ -44,7 +44,7 @@ echo met >> "$GCT/sync/met"
 exit 0
 STUB
     chmod +x "$GCT/$_t/engine/harness/tests/run"
-    ( cd "$GCT/$_t" && git init -q -b main && git add -A \
+    ( _fx_cd "$GCT/$_t" && git init -q -b main && git add -A \
       && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
   done
   # No plugin cache, so `installed` skips and the suite always runs.
@@ -140,14 +140,14 @@ printf '*.log\n' > "$GIN/tree/.gitignore"
 _GING="$(cd "$REAL_HARNESS/../.." && pwd)/projects/felix/gate.sh"
 if [ -f "$_GING" ] && grep -q '^# -* tests -*$' "$_GING"; then
   sed '/^# -* tests -*$/,$d' "$_GING" > "$GIN/tree/gate.sh"
-  ( cd "$GIN/tree" && git init -q -b main && git add -A \
+  ( _fx_cd "$GIN/tree" && git init -q -b main && git add -A \
     && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
   GINT="$(cd "$GIN/tree" && pwd -P)"
   # Deploy a ref's engine at a version, the way the cache holds it: the
   # directories felix install copies, from the commit rather than the disk.
   _gin_deploy() {   # ref, version
     rm -rf "$GINC/$2" "$GIN/x"; mkdir -p "$GINC/$2" "$GIN/x"
-    git -C "$GINT" archive "$1" engine | tar -x -C "$GIN/x"
+    _fx_git "$GINT" archive "$1" engine | tar -x -C "$GIN/x"
     for _d in harness hooks commands; do
       [ -d "$GIN/x/engine/$_d" ] && cp -R "$GIN/x/engine/$_d" "$GINC/$2/$_d"
     done
@@ -172,10 +172,10 @@ STUB
   # Criterion 3. A branch that changed the engine, gated once with nothing
   # installed and once after installing it at a bumped version: the verdict
   # must not depend on having done the thing it would tell you to do.
-  ( cd "$GINT" && git checkout -q -b cand && printf '# candidate\n' >> engine/harness/lib/say.sh \
+  ( _fx_cd "$GINT" && git checkout -q -b cand && printf '# candidate\n' >> engine/harness/lib/say.sh \
     && git -c user.name=t -c user.email=t@t commit -qam cand ) >/dev/null 2>&1
   _gino_skip="$(_gin)"
-  ( cd "$GINT" && sed -i.bak 's/"0.0.1"/"0.0.2"/' engine/.claude-plugin/plugin.json && rm -f engine/.claude-plugin/plugin.json.bak \
+  ( _fx_cd "$GINT" && sed -i.bak 's/"0.0.1"/"0.0.2"/' engine/.claude-plugin/plugin.json && rm -f engine/.claude-plugin/plugin.json.bak \
     && git -c user.name=t -c user.email=t@t commit -qam bump ) >/dev/null 2>&1
   _gin_deploy cand 0.0.2; _gin_live 0.0.2
   _gino_inst="$(_gin)"
@@ -190,17 +190,17 @@ STUB
   _gin_kd="$( cd "$GINT" && unset FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE
               HOME="$GIN/home" && . "$FROOT/harness/lib/resolve.sh" && felix_kernel_dir "$GINT" main )"
   has "and it names the cache entry felix merge would judge with" "$_gino_skip" "${_gin_kd%/harness} is its engine"
-  ( cd "$GINT" && git checkout -q main ) >/dev/null 2>&1; _gin_live 0.0.1; rm -rf "$GINC/0.0.2"
+  ( _fx_cd "$GINT" && git checkout -q main ) >/dev/null 2>&1; _gin_live 0.0.1; rm -rf "$GINC/0.0.2"
 
   # Criterion 2. Where "written is not installed" moves to: main has taken an
   # engine change and nothing deployed it. If this cannot fail, the protection
   # was dropped rather than relocated.
-  ( cd "$GINT" && printf '# merged, not deployed\n' >> engine/harness/lib/say.sh \
+  ( _fx_cd "$GINT" && printf '# merged, not deployed\n' >> engine/harness/lib/say.sh \
     && git -c user.name=t -c user.email=t@t commit -qam merged ) >/dev/null 2>&1
   _gino="$(_gin)"
   is  "on main after an engine change nobody deployed, installed fails" "$(_ginv "$_gino")" "FAIL"
   has "and names the path that differs" "$_gino" "say.sh"
-  ( cd "$GINT" && sed -i.bak 's/"0.0.1"/"0.0.9"/' engine/.claude-plugin/plugin.json && rm -f engine/.claude-plugin/plugin.json.bak \
+  ( _fx_cd "$GINT" && sed -i.bak 's/"0.0.1"/"0.0.9"/' engine/.claude-plugin/plugin.json && rm -f engine/.claude-plugin/plugin.json.bak \
     && git -c user.name=t -c user.email=t@t commit -qam bump ) >/dev/null 2>&1
   _gino="$(_gin)"
   is  "a version main declares with no cache entry fails rather than skipping" "$(_ginv "$_gino")" "FAIL"
@@ -250,9 +250,9 @@ STUB
   # entry the verdict word alone is satisfied by ordinary drift.
   _gin_sha="$(git -C "$GINT" rev-parse main)"
   _gin_stub()    { printf '\nfelix_accepted_deploy_diff() { echo %s; return %s; }\n' "$1" "$2" >> "$3"; }  # marker, rc, file
-  _gin_commit()  { git -C "$GINT" -c user.name=t -c user.email=t@t commit -qam "$1" >/dev/null 2>&1; }
+  _gin_commit()  { _fx_git "$GINT" -c user.name=t -c user.email=t@t commit -qam "$1" >/dev/null 2>&1; }
   _gin_restore() {   # main back at the recorded sha, the entry re-cut from it
-    ( cd "$GINT" && git checkout -q main && git reset -q --hard "$_gin_sha" ) >/dev/null 2>&1
+    ( _fx_cd "$GINT" && git checkout -q main && git reset -q --hard "$_gin_sha" ) >/dev/null 2>&1
     _gin_deploy main 0.0.9
   }
   # 1. Main's copy decides. Committed on main, so the working tree is main as
@@ -277,7 +277,7 @@ STUB
     *MARKER-FROM-TREE*) bad "and nothing the working tree's copy printed reaches the output" "$_gino" ;;
     *)                  ok  "and nothing the working tree's copy printed reaches the output" ;;
   esac
-  ( cd "$GINT" && git checkout -q -- engine/harness/lib/resolve.sh && git checkout -q -b side ) >/dev/null 2>&1
+  ( _fx_cd "$GINT" && git checkout -q -- engine/harness/lib/resolve.sh && git checkout -q -b side ) >/dev/null 2>&1
   _gin_stub MARKER-FROM-SIDE 1 "$GINT/engine/harness/lib/resolve.sh"; _gin_commit stub-side
   _gino="$(_gin)"
   is  "a resolve.sh committed on the branch being gated does not change the verdict" "$(_ginv "$_gino")" "ok"
@@ -285,7 +285,7 @@ STUB
     *MARKER-FROM-SIDE*) bad "and nothing the branch's copy printed reaches the output" "$_gino" ;;
     *)                  ok  "and nothing the branch's copy printed reaches the output" ;;
   esac
-  ( cd "$GINT" && git checkout -q main && git branch -q -D side ) >/dev/null 2>&1
+  ( _fx_cd "$GINT" && git checkout -q main && git branch -q -D side ) >/dev/null 2>&1
   # Never the cache entry's: a stub there that reports identical is, to main's
   # own function, one more path that differs.
   _gin_stub MARKER-FROM-CACHE 0 "$GINC/0.0.9/harness/lib/resolve.sh"
@@ -300,12 +300,12 @@ STUB
   is  "when main's resolve.sh does not define the check, installed fails rather than skipping" "$(_ginv "$_gino")" "FAIL"
   has "and names the function it could not find" "$_gino" "felix_accepted_deploy_diff"
   _gin_restore
-  ( cd "$GINT" && git rm -q engine/harness/lib/resolve.sh ) >/dev/null 2>&1; _gin_commit no-file
-  ( cd "$GINT" && git checkout -q -b side "$_gin_sha" ) >/dev/null 2>&1
+  ( _fx_cd "$GINT" && git rm -q engine/harness/lib/resolve.sh ) >/dev/null 2>&1; _gin_commit no-file
+  ( _fx_cd "$GINT" && git checkout -q -b side "$_gin_sha" ) >/dev/null 2>&1
   _gino="$(_gin)"
   is  "when main has no resolve.sh to read, installed fails rather than skipping" "$(_ginv "$_gino")" "FAIL"
   has "and names the function it could not source" "$_gino" "felix_accepted_deploy_diff"
-  _gin_restore; git -C "$GINT" branch -q -D side >/dev/null 2>&1
+  _gin_restore; _fx_git "$GINT" branch -q -D side >/dev/null 2>&1
   # Criterion 4 once more, after the fold.
   printf '# tampered\n' >> "$GINC/0.0.9/harness/lib/say.sh"
   is  "after the fold, a tampered cache entry still fails" "$(_ginv "$(_gin)")" "FAIL"

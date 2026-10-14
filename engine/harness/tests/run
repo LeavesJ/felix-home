@@ -23,6 +23,16 @@ exec </dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
+# REAL_HARNESS must name a harness before anything reads or copies it. A cd into
+# a path that does not exist leaves `$(cd X && pwd)` empty, and every copy below
+# then starts from "/": on 2026-10-08 at 18:04 a section runner handed this file
+# a harness path that did not exist, and the fixture copy, `cp -R "$src/."`, ran
+# as `cp -R /.` and wrote 123 GB before it was killed. A runner that sets its
+# own REAL_HARNESS on the line after the one above meets this check as well.
+if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
+  printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
+  exit 2
+fi
 # This file is the driver: the helpers every assertion uses, then one line per
 # part that sources it, then the manifest comparison and the verdict. The
 # assertions live in parts/NNNN-*.sh, each cut where it parses alone, sourced in
@@ -54,7 +64,12 @@ PASS=0; FAIL=0
 # variable does not survive the subshells some of these assertions run inside —
 # the same reason PASS and FAIL are incremented in the main shell only.
 FELIX_TEST_RAN=""
-_ran() { [ -n "$FELIX_TEST_RAN" ] && printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
+# Each name is also offered to the origin guard (_og_tick, in the preamble below,
+# armed once $TMP exists): one builtin comparison of a watched config's mtime with
+# a stamp, and no fork unless that config changed. It is called only when its
+# state exists, so the helper block tests/red lifts out of this file and runs on
+# its own (this line to skip(), below) stays silent under set -u.
+_ran() { [ -n "$FELIX_TEST_RAN" ] || return 0; [ -z "${_og_on:-}" ] || _og_tick "$1"; printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
 # The ran file, one name a line, as count<TAB>name rows sorted by name: the
 # manifest's shape. The name is kept exactly as the suite printed it. Until
 # 2026-10-01 the count was cut off by assigning to awk's $1, which rebuilds
@@ -100,9 +115,10 @@ SKIP=0
 skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
 
-TMP="$(mktemp -d)"
-trap 'rm -rf "$TMP"' EXIT
-FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"
+. "$HERE/parts/0001-the-origin-guard-and-the-temporary-directory.sh"
+
+. "$HERE/parts/0002-fixture-git-commands-stay-in-tmp.sh"
+. "$HERE/parts/0003-the-lint-the-origin-record-and-the-exit-trap.sh"
 # The manifest of assertions this suite is supposed to reach, beside the suite
 # and tracked. Regenerated with `tests/run --record-assertions`, which is the
 # one command that changes it, so the diff on every PR says plainly which
@@ -214,6 +230,10 @@ unset CLAUDE_CODE_SESSION_ID
 # failed. GNU tar was not there to measure; skipping means it is never asked.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
   local src="$1" dest="$2" f
+  # An empty source would be copied as "/." (the 18:04 incident above
+  # REAL_HARNESS's check), so a source that is not a directory copies nothing.
+  [ -n "$src" ] && [ -d "$src" ] || {
+    printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
   mkdir -p "$dest" || return 1
   if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
     ( cd "$src" && git ls-files -co --exclude-standard -z . \
@@ -226,66 +246,9 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
   fi
 }
 
-# ---------------------------------------------------------------- fixture ----
-# A Felix root with the real harness and one invented project.
-FROOT="$TMP/felix"
-mkdir -p "$FROOT/projects/widget" "$MEM/widget"
-_copy_content "$REAL_HARNESS" "$FROOT/harness"
+. "$HERE/parts/0004-the-widget-fixture.sh"
 
-cat > "$FROOT/projects/widget/project.json" <<'EOF'
-{
-  "name": "widget",
-  "remote_match": "example.com/widget",
-  "gate": "sh -c 'test -f WIDGET.txt && echo widget-gate-ran'"
-}
-EOF
-printf '# widget\n' > "$FROOT/projects/widget/CLAUDE.md"
-
-# One row, deliberately the most boring true thing about this checkout: the
-# marker that binds it. It must never come back `blind`, or every merge
-# assertion in this file would be measuring the probe rather than the merge —
-# so it reads a file the fixture creates and keeps, and if something does
-# remove it the honest answer is `empty`, which blocks nothing.
-printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' \
-  > "$FROOT/projects/widget/probes.tsv"
-cp "$FROOT/projects/widget/probes.tsv" "$TMP/probes.keep"
-
-# And one admitted obligation, for the same reason: the merge boundary refuses
-# a project that has admitted nothing, so every merge assertion below would
-# otherwise be measuring the empty ledger. Always applicable, discharged by a
-# command that cannot fail, grounded on nothing — the least an obligation can
-# be while still being one.
-printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\n' \
-  > "$FROOT/projects/widget/obligations.tsv"
-cp "$FROOT/projects/widget/obligations.tsv" "$TMP/obligations.keep"
-
-# The same for commissioning: one row a person answers, whose check reads the
-# marker the fixture keeps, so the merge boundary is measuring the merge and
-# not this table. The receipt it needs is stamped by _cm_stamp beside every
-# green gate receipt below, because both are keyed to the tables the tests
-# hand-edit, and a receipt for the wrong tables is exactly what must block.
-printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n' > "$FROOT/projects/widget/commissioning.tsv"
-cp "$FROOT/projects/widget/commissioning.tsv" "$TMP/commissioning.keep"
-_cm_stamp() { ( _r="${1:-$REPO}"; cd "$_r" && FELIX_HOME_DIR="$FROOT"; . "$FROOT/harness/lib/commission.sh"
-                _o="$(felix_commission_run "$FROOT/projects/widget" "$_r" -)"
-                felix_commission_receipt_write "$FROOT" "$FROOT/projects/widget" "$_r" "$_o" "" >/dev/null ); }
-
-FELIX="$FROOT/harness/felix"
-# Pin the home. Resolution consults ~/.felix-home, so without this the suite
-# runs against whatever the machine has installed, writes test projects into it,
-# and reports failures about the wrong tree. Observed exactly that.
-export FELIX_HOME="$FROOT"
-
-# A checkout with NO git remote, bound by marker file alone.
-REPO="$TMP/some-customer-repo"
-mkdir -p "$REPO/deep/nested"
-( cd "$REPO" && git init -q -b main )
-# macOS resolves /var to /private/var, and git reports the resolved path. Compare
-# against what the filesystem actually calls this directory, not what mktemp said.
-REPO="$(cd "$REPO" && pwd -P)"
-printf 'widget\n' > "$REPO/.felix"
-printf 'contents\n'  > "$REPO/WIDGET.txt"
-
+. "$HERE/parts/0005-fixture-floor.sh"
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"
@@ -306,6 +269,11 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/0180-fresh-repositories-split-mistakes-rows-heal.sh"
 . "$HERE/parts/0190-continued.sh"
 . "$HERE/parts/0200-generated-constitution.sh"
+. "$HERE/parts/0201-continued.sh"
+. "$HERE/parts/0202-fixture-git-proof-review-round-1.sh"
+. "$HERE/parts/0203-fixture-git-proof-review-round-2.sh"
+. "$HERE/parts/0204-hooks-stand-where-the-session-stands.sh"
+. "$HERE/parts/0205-a-fixture-root-outside-tmp.sh"
 . "$HERE/parts/0210-the-completion-gate.sh"
 . "$HERE/parts/0220-the-binding-itself.sh"
 . "$HERE/parts/0230-the-intent-router.sh"
@@ -408,6 +376,8 @@ printf 'contents\n'  > "$REPO/WIDGET.txt"
 . "$HERE/parts/1250-gate-friction-a2-blind.sh"
 . "$HERE/parts/1260-gate-friction-a3-blind.sh"
 . "$HERE/parts/1270-gate-friction-b-blind.sh"
+. "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
+
 # The suite's completion marker: tests/red counts a red run only when a line
 # that is exactly "reached" follows its last assertion line, since a finished
 # red run exits 1 as a dead one can (#371). The empty line before it is this

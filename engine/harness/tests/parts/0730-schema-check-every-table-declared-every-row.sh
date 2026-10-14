@@ -10,12 +10,12 @@ printf '# table\tlives\tcolumns\tempty\nschemas.tsv\ttree\ttable lives columns e
 printf '# alpha\none\ttwo\none\ttwo\tthree\n' > "$SCX/data/alpha.tsv"
 printf 'x\ty\n' > "$SCX/data/beta.tsv"
 printf 'ignored.tsv\n' > "$SCX/.gitignore"
-( cd "$SCX" && git init -q -b main && git add -A \
+( _fx_cd "$SCX" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 SCX="$(cd "$SCX" && pwd -P)"
 _scx()   { ( cd "$1" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" ); }
 _scxrc() { printf '%s' "${1##*rc=}"; }
-_scxc()  { ( cd "$SCX" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
+_scxc()  { ( _fx_cd "$SCX" && git add -A && git -c user.name=t -c user.email=t@t commit -qm case ) >/dev/null 2>&1; }
 
 out="$(_scx "$SCX")"
 is  "a tree whose every table is declared and accepted exits 0" "$(_scxrc "$out")" "0"
@@ -62,14 +62,14 @@ printf 'p\tq\n' > "$SCX/data/gamma.log"; _scxc
 out="$(_scx "$SCX")"
 is  "a file whose row says it lives in memory fails when it is in the tree" "$(_scxrc "$out")" "1"
 has "and says so" "$out" "data/gamma.log:-	memory-tracked"
-( cd "$SCX" && git rm -q data/gamma.log ) >/dev/null 2>&1; _scxc
+( _fx_cd "$SCX" && git rm -q data/gamma.log ) >/dev/null 2>&1; _scxc
 # A link, a tracked table gone from the working tree, and a name git quotes.
 mkdir -p "$SCX/data2"; ln -s ../data/alpha.tsv "$SCX/data2/alpha.tsv"; _scxc
 has "a table that is a link fails" "$(_scx "$SCX")" "data2/alpha.tsv:-	symlink"
-( cd "$SCX" && git rm -q data2/alpha.tsv ) >/dev/null 2>&1; _scxc
+( _fx_cd "$SCX" && git rm -q data2/alpha.tsv ) >/dev/null 2>&1; _scxc
 rm -f "$SCX/data/beta.tsv"
 has "a tracked table missing from the working tree fails" "$(_scx "$SCX")" "data/beta.tsv:-	missing"
-( cd "$SCX" && git checkout -q -- data/beta.tsv ) >/dev/null 2>&1
+( _fx_cd "$SCX" && git checkout -q -- data/beta.tsv ) >/dev/null 2>&1
 printf 'x\ty\n' > "$SCX/data/tab	name.tsv"
 has "and a table whose name git quotes is one no reader opens by that name" "$(_scx "$SCX")" "unexaminable"
 rm -f "$SCX/data/tab	name.tsv"
@@ -81,7 +81,7 @@ printf 'x\t\ty\n' > "$SCX/k=v/alpha.tsv"; printf 'one\ttwo' > "$SCX/-d/alpha.tsv
 out="$(_scx "$SCX")"
 has "a table under a directory named like an awk assignment is read, and refused" "$out" "k=v/alpha.tsv:1	empty-cell"
 has "and one under a directory named like an option keeps its final-newline check" "$out" "-d/alpha.tsv:-	no-final-newline"
-( cd "$SCX" && git rm -rq -- "k=v" "-d" ) >/dev/null 2>&1; _scxc
+( _fx_cd "$SCX" && git rm -rq -- "k=v" "-d" ) >/dev/null 2>&1; _scxc
 is  "and with both gone the tree is clean again" "$(_scxrc "$(_scx "$SCX")")" "0"
 chmod 000 "$SCX/engine/harness/templates/schemas.tsv"
 if [ -r "$SCX/engine/harness/templates/schemas.tsv" ]; then
@@ -92,7 +92,7 @@ fi
 chmod 644 "$SCX/engine/harness/templates/schemas.tsv"
 
 # The reverse gap: a tree row nothing here is named is said, and does not fail.
-( cd "$SCX" && git rm -q data/delta.tsv ) >/dev/null 2>&1; _scxc
+( _fx_cd "$SCX" && git rm -q data/delta.tsv ) >/dev/null 2>&1; _scxc
 out="$(_scx "$SCX")"
 is  "a tree row no table matches is not a failure: some tables are absent until written" "$(_scxrc "$out")" "0"
 has "and it is said" "$out" "note  delta.tsv is declared and nothing here is named that"
@@ -109,13 +109,13 @@ is  "and from a nested subdirectory the verdict is unchanged" "$(_scxrc "$(_scx 
 # Could not look is not nothing wrong.
 is  "outside a git repository it cannot look, exit 2" "$(_scxrc "$(_scx "$TMP")")" "2"
 SCN="$TMP/schema-check-no-schema"; mkdir -p "$SCN"
-( cd "$SCN" && printf 'a\tb\n' > t.tsv && git init -q -b main && git add -A \
+( _fx_cd "$SCN" && printf 'a\tb\n' > t.tsv && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
 is  "a checkout with tables and no schemas.tsv cannot look either, exit 2" "$(_scxrc "$(_scx "$SCN")")" "2"
 SCZ="$TMP/schema-check-no-tables"; mkdir -p "$SCZ/engine/harness/templates"
 printf '# no table here\n' > "$SCZ/README"
 printf 'schemas.tsv\ttree\ttable lives columns empty\trefused\n' > "$SCZ/engine/harness/templates/schemas.tsv"
-( cd "$SCZ" && printf 'engine/harness/templates/schemas.tsv\n' > .gitignore && git init -q -b main && git add -A \
+( _fx_cd "$SCZ" && printf 'engine/harness/templates/schemas.tsv\n' > .gitignore && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm s ) >/dev/null 2>&1
 is  "and one that holds no table at all is emptiness, not an all clear" "$(_scxrc "$(_scx "$SCZ")")" "2"
 

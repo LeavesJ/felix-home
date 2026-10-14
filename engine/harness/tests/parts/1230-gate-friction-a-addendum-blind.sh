@@ -75,8 +75,8 @@ mkdir -p "$_gfb_F/engine/harness/tests/parts" "$_gfb_F/engine/.claude-plugin"
 _copy_content "$REAL_HARNESS/lib" "$_gfb_F/engine/harness/lib"
 cp "$HERE/red" "$_gfb_F/engine/harness/tests/red"
 [ -f "$HERE/receipt.sh" ] && cp "$HERE/receipt.sh" "$_gfb_F/engine/harness/tests/receipt.sh"
-LC_ALL=C awk 'index($0, ". \"$HERE/parts/") == 1 { if (!d) print ". \"$HERE/parts/0001-gfb-stub.sh\""; d = 1; next } { print }' \
-  "$HERE/run" > "$_gfb_F/engine/harness/tests/run"
+# The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+_suite_copy_driver "$HERE/run" "$_gfb_F/engine/harness/tests" 0001-gfb-stub.sh
 chmod +x "$_gfb_F/engine/harness/tests/run" "$_gfb_F/engine/harness/tests/red"
 printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$_gfb_F/engine/.claude-plugin/plugin.json"
 printf '1\tgfb: the stub part ran\n' > "$_gfb_F/engine/harness/tests/assertions.tsv"
@@ -113,15 +113,15 @@ fi
 ok "gfb: the stub part ran"
 if [ "${GFB_MODE:-}" = "d3" ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" != "1" ]; then chmod -R a-w "${TMP:?}"; fi
 GFBSTUB
-( cd "${_gfb_F:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "${_gfb_F:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
 _gfb_F="$(cd "${_gfb_F:?}" && pwd -P)"
 _gfb_c1="$(_gfb_git -C "${_gfb_F:?}" commit-tree -p HEAD -m 'origin one' 'HEAD^{tree}' 2>/dev/null)"
 _gfb_c2="$(_gfb_git -C "${_gfb_F:?}" commit-tree -p HEAD -m 'origin two' 'HEAD^{tree}' 2>/dev/null)"
 _gfb_rp="$(git -C "${_gfb_F:?}" rev-parse --git-path felix-suite-receipt 2>/dev/null)"
 case "$_gfb_rp" in /*) ;; *) _gfb_rp="$_gfb_F/$_gfb_rp" ;; esac
 _gfb_origin() {   # <commit, or - for none>
-  if [ "$1" = "-" ]; then git -C "${_gfb_F:?}" update-ref -d refs/remotes/origin/main >/dev/null 2>&1
-  else git -C "${_gfb_F:?}" update-ref refs/remotes/origin/main "$1" >/dev/null 2>&1; fi
+  if [ "$1" = "-" ]; then _fx_git "${_gfb_F:?}" update-ref -d refs/remotes/origin/main >/dev/null 2>&1
+  else _fx_git "${_gfb_F:?}" update-ref refs/remotes/origin/main "$1" >/dev/null 2>&1; fi
 }
 # <limit> <mode> <stdout> <stderr, or = for the same file> [--record-assertions]
 _gfb_drive() {
@@ -260,7 +260,7 @@ printf '\n1 passed, 0 failed\n'
 GFBREDRUN
 chmod +x "$_gfb_R/engine/harness/tests/run" "$_gfb_R/engine/harness/tests/red"
 printf '1\tgfb red stub\n' > "$_gfb_R/engine/harness/tests/assertions.tsv"
-( cd "${_gfb_R:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "${_gfb_R:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
 _gfb_R="$(cd "${_gfb_R:?}" && pwd -P)"
 _gfb_redt="$_gfb_R/engine/harness/tests/red.tsv"
 # <case> <mark> [<pid>]: red --after <mark> <pid> from a shell of its own that
@@ -330,7 +330,7 @@ printf '\n7 passed, 0 failed (reused)\n'
 exit 0
 GFBGATERUN
 chmod +x "$_gfb_G/engine/harness/tests/run"
-( cd "${_gfb_G:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
+( _fx_cd "${_gfb_G:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
 ( cd "${_gfb_G:?}" && _gfb_bounded 60 env -u FELIX_TEST_NO_MANIFEST FELIX_KERNEL_CACHE="$_gfb_G/no-cache" \
     TMPDIR="$_gfb/tmpdir" bash projects/felix/gate.sh ) > "$_gfb_o/gate.out" 2>&1
 _v="$(LC_ALL=C awk '/^  tests / && t == "" { t = $0 }

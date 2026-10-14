@@ -139,8 +139,8 @@ fi
 printf '#!/usr/bin/env bash\nexec "%s" "$@"\n' "$FELIX" > "$SC/felix/engine/harness/felix"
 chmod +x "$SC/felix/engine/harness/felix"
 mkdir -p "$SC/unbound" "$SC/misbound"
-( cd "$SC/unbound" && git init -q -b main )
-( cd "$SC/misbound" && git init -q -b main && printf 'nonexistent\n' > .felix )
+( _fx_cd "$SC/unbound" && git init -q -b main )
+( _fx_cd "$SC/misbound" && git init -q -b main && printf 'nonexistent\n' > .felix )
 for _w in unbound misbound; do
   _scope 0 "$_w"; _src=$?
   _sgot="exit $_src, proceed=$(sed -n 's/^proceed=//p' "$SC/out" | head -1), gh [$(tr '\n' ' ' < "$SC/gh.log")]"
@@ -216,7 +216,7 @@ chmod +x "$VP/felix/engine/harness/felix" "$VP/vbin/gh"
 # with a risk table of its own in it.
 mkdir -p "$VP/felix/projects/widget"
 cp "$REAL_HARNESS/templates/risk.tsv" "$VP/felix/projects/widget/risk.tsv"
-( cd "$VP/felix" && git init -q -b main && git add -A \
+( _fx_cd "$VP/felix" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm felix ) >/dev/null 2>&1
 cp "$FROOT/projects/widget/risk.tsv" "$VP/risk.keep"
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
@@ -225,7 +225,7 @@ cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
 _vfix() { rm -rf "$VP/remote.git" "$VP/repo"
   git init -q --bare "$VP/remote.git"
   git init -q -b fix/x "$VP/repo"
-  ( cd "$VP/repo" && git remote add origin "$VP/remote.git" \
+  ( _fx_cd "$VP/repo" && git remote add origin "$VP/remote.git" \
     && mkdir -p .github/workflows src tests && printf 'on: push\n' > .github/workflows/gate.yml \
     && printf 'a\n' > src/a.txt && printf 'def test_a(): pass\n' > tests/test_a.py \
     && printf 'c\n' > "src/caf$(printf '\303\251').txt" && printf '*.local\n' > .gitignore \
@@ -310,7 +310,7 @@ is  "an ignored file the attempt created is outside the brief as well, and is re
 _vfix; printf 'b\n' >> "$VP/repo/src/a.txt"
 printf 'green\tpath\t.*\tanything goes\n' >> "$VP/felix/projects/widget/risk.tsv"
 _verify 0
-( cd "$VP/felix" && git checkout -q -- . )
+( _fx_cd "$VP/felix" && git checkout -q -- . )
 is  "a change to the Felix checkout that judges the repair is refused before it judges" \
     "$_vgot, $_vtree" "exit 1, remote unchanged, gate 0, pushed=, tree at base, refused=yes"
 # git quotes a name outside ASCII, so the file the brief named never matched

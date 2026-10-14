@@ -124,13 +124,13 @@ _gfd_repo() {
     _copy_content "$REAL_HARNESS/lib" "$d/engine/harness/lib"
     cp "$GFD_R" "$d/engine/harness/tests/receipt.sh"
     mkdir -p "$d/engine/harness/tests/parts"
-    awk '/^\. "\$HERE\/parts\// { if (!x) { print ". \"$HERE/parts/0001-gfd-stub.sh\""; x = 1 } next } { print }' \
-      "$REAL_HARNESS/tests/run" > "$d/engine/harness/tests/run"
+    # The suite's preamble parts stay in the copy (part 0003's _suite_copy_driver): since 3+3b they hold $TMP and the EXIT trap.
+    _suite_copy_driver "$REAL_HARNESS/tests/run" "$d/engine/harness/tests" 0001-gfd-stub.sh
     chmod +x "$d/engine/harness/tests/run"
     printf 'printf %s\nexit 3\n' "'gfd fixture part ran\\n'" > "$d/engine/harness/tests/parts/0001-gfd-stub.sh"
   fi
   ( cd "${d:?}" && _gfd_git init -q -b main && _gfd_git add -A && _gfd_git commit -qm base ) >/dev/null 2>&1
-  [ "$2" = yes ] && git -C "${d:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+  [ "$2" = yes ] && _fx_git "${d:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
   printf 'b-topic\n' > "$d/b.txt"
   _gfd_git -C "${d:?}" commit -qam topic >/dev/null 2>&1
 }
@@ -221,14 +221,14 @@ is  "a receipt that recorded no origin/main stands across the commit, with the s
 # ---- C10.5: the parent is an ancestor of the recorded origin/main
 GFD_C5='run another tree (committed since the run, and origin/main already held the commit the run was on)'
 GFD_J="$GFD/j"; _gfd_repo "$GFD_J" yes
-git -C "${GFD_J:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+_fx_git "${GFD_J:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
 _gfd_rf "$GFD_J"; _gfd_rec "$GFD_J"
 _gfd_git -C "${GFD_J:?}" commit -qam record >/dev/null 2>&1
 is  "a run on the very commit origin/main named, then committed, refuses with C10.5's reason" "$(_gfd_chk "$GFD_J")" "$GFD_C5|0"
 GFD_J2="$GFD/j2"; _gfd_repo "$GFD_J2" yes
 _gfd_git -C "${GFD_J2:?}" checkout -q -b up >/dev/null 2>&1
 printf 'up\n' > "$GFD_J2/c.txt"; _gfd_git -C "${GFD_J2:?}" add -A >/dev/null 2>&1; _gfd_git -C "${GFD_J2:?}" commit -qm up >/dev/null 2>&1
-git -C "${GFD_J2:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
+_fx_git "${GFD_J2:?}" update-ref refs/remotes/origin/main HEAD >/dev/null 2>&1
 _gfd_git -C "${GFD_J2:?}" checkout -q main >/dev/null 2>&1
 _gfd_rf "$GFD_J2"; _gfd_rec "$GFD_J2"
 _gfd_git -C "${GFD_J2:?}" commit -qam record >/dev/null 2>&1
@@ -246,7 +246,7 @@ GFD_L2="$GFD/l2"; _gfd_repo "$GFD_L2" yes; _gfd_rf "$GFD_L2"; _gfd_rec "$GFD_L2"
 _gfd_git -C "${GFD_L2:?}" commit -qam record >/dev/null 2>&1
 GFD_L2M="$(git -C "${GFD_L2:?}" rev-parse refs/remotes/origin/main 2>/dev/null)"
 GFD_L2N="$(printf 'moved\n' | _gfd_git -C "${GFD_L2:?}" commit-tree "$GFD_L2M^{tree}" -p "$GFD_L2M" 2>/dev/null)"
-git -C "${GFD_L2:?}" update-ref refs/remotes/origin/main "${GFD_L2N:-$GFD_L2M}" >/dev/null 2>&1
+_fx_git "${GFD_L2:?}" update-ref refs/remotes/origin/main "${GFD_L2N:-$GFD_L2M}" >/dev/null 2>&1
 is  "a bridged receipt whose origin/main has moved since refuses with run origin/main moved" "$(_gfd_chk "$GFD_L2")" "run origin/main moved|0"
 GFD_L3="$GFD/l3"; _gfd_repo "$GFD_L3" yes; _gfd_rf "$GFD_L3"; _gfd_rec "$GFD_L3" normal 5 0 0 43300
 _gfd_git -C "${GFD_L3:?}" commit -qam record >/dev/null 2>&1
@@ -337,7 +337,7 @@ _gfd_cc() {   # <dir>: the criss-cross above, HEAD at X, both record files commi
   printf 'base\t-\t-\t-\nrun\t-\t-\t-\n' > "$d/engine/harness/tests/red.tsv"
   (
     export GIT_AUTHOR_DATE="@1700000000 +0000" GIT_COMMITTER_DATE="@1700000000 +0000"
-    cd "${d:?}" || exit 1
+    _fx_cd "${d:?}" || exit 1
     _gfd_git init -q -b main && _gfd_git add -A && _gfd_git commit -qm root || exit 1
     r0="$(git rev-parse HEAD)" && printf 'a1\n' > a.txt && _gfd_git commit -qam A1 || exit 1
     a1="$(git rev-parse HEAD)" || exit 1

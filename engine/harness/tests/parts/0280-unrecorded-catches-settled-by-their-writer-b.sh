@@ -69,7 +69,7 @@ _BWR_V="$TMP/bw-v";         _bwrepo "$_BWR_V" bw/v1.2
 _BWR_W="$TMP/bw-writer";    _bwrepo "$_BWR_W" bw/writer
 _BWR_DET="$TMP/bw-det";     _bwrepo "$_BWR_DET" bw/det
 _bwg -C "$_BWR_DET" checkout -q --detach >/dev/null 2>&1
-_BWR_UB="$TMP/bw-unborn";   mkdir -p "$_BWR_UB" && ( cd "$_BWR_UB" && git init -q -b bw/unborn ) >/dev/null 2>&1
+_BWR_UB="$TMP/bw-unborn";   mkdir -p "$_BWR_UB" && ( _fx_cd "$_BWR_UB" && git init -q -b bw/unborn ) >/dev/null 2>&1
 _BWR_NG="$TMP/bw-nongit";   mkdir -p "$_BWR_NG"
 
 is "fixture: every throwaway checkout stands where its case assumes" \

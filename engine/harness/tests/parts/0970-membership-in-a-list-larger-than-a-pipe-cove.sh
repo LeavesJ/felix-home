@@ -184,7 +184,7 @@ mkdir -p "$_spg_root"
 _spg_L="$_spg_root/ledger"
 _spg_LP="$_spg_L/proj/spgledger"
 mkdir -p "$_spg_L/mem/spgledger" "$_spg_LP" "$_spg_L/repo"
-( cd "$_spg_L/repo" && git init -q -b main \
+( _fx_cd "$_spg_L/repo" && git init -q -b main \
   && git -c user.name=t -c user.email=t@t commit -q --allow-empty -m spg )
 _spg_sha="$(git -C "$_spg_L/repo" rev-parse HEAD 2>/dev/null)"
 # The opening's first 200 characters as a brief row keeps them, read from
@@ -262,7 +262,7 @@ LC_ALL=C awk 'BEGIN {
     for (i = 1; i <= 8000; i++)
       printf "spg-grant-%05d\t0123456789abcdef\t2027-06-30T12:00:00Z\tfounder\ta grant the fixture merged, number %05d\n", i, i
   }' > "$_spg_X/projects/spgexc/exceptions.tsv"
-( cd "$_spg_X" && git init -q -b main && git add projects \
+( _fx_cd "$_spg_X" && git init -q -b main && git add projects \
   && git -c user.name=t -c user.email=t@t commit -q -m spg \
   && git update-ref refs/remotes/origin/main HEAD )
 _spg_XP="$_spg_X/projects/spgexc"
@@ -342,7 +342,7 @@ mkdir -p "$_spc_proj" "$_spc_mem"
 printf '{"name":"_spc_cli","gate":"true"}\n' > "$_spc_proj/project.json"
 printf '# _spc_cli\n' > "$_spc_proj/CLAUDE.md"
 _spc_repo="$TMP/_spc_repo"; mkdir -p "$_spc_repo"
-( cd "$_spc_repo" && git init -q -b main && printf '_spc_cli\n' > .felix && printf 'x\n' > a.txt \
+( _fx_cd "$_spc_repo" && git init -q -b main && printf '_spc_cli\n' > .felix && printf 'x\n' > a.txt \
   && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null )
 _spc_repo="$(cd "$_spc_repo" && pwd -P)"
 _spc_felix() { ( _spc_at="$1"; shift; cd "$_spc_at" || exit 99
@@ -439,7 +439,7 @@ _spc_mgrepo() {   # dir, top directory of the filler
   printf '{ "version": "1.0.0" }\n' > "$_spc_d/engine/.claude-plugin/plugin.json"
   printf '# judged\n' > "$_spc_d/engine/harness/lib/x.sh"
   printf '_spc_cli\n' > "$_spc_d/.felix"
-  ( cd "$_spc_d" && git init -q -b main && git add -A >/dev/null \
+  ( _fx_cd "$_spc_d" && git init -q -b main && git add -A >/dev/null \
     && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null && git checkout -q -b feature )
   printf -v _spc_long '%0200d' 0
   mkdir -p "$_spc_d/$_spc_top/$_spc_long"
@@ -448,7 +448,7 @@ _spc_mgrepo() {   # dir, top directory of the filler
     _spc_i=$((_spc_i + 1))
   done
   printf '# candidate edit\n' >> "$_spc_d/engine/harness/lib/x.sh"
-  ( cd "$_spc_d" && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm candidate >/dev/null )
+  ( _fx_cd "$_spc_d" && git add -A >/dev/null && git -c user.name=t -c user.email=t@t commit -qm candidate >/dev/null )
 }
 _spc_early="$TMP/_spc_mg_early"; _spc_late="$TMP/_spc_mg_late"
 _spc_mgrepo "$_spc_early" zz; _spc_mgrepo "$_spc_late" aa

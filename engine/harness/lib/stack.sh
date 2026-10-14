@@ -32,7 +32,7 @@ fi
 _felix_stack_rows() {
   local proj="$1"
   [ -f "$proj/stack.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/stack.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/stack.tsv"
 }
 
 # Actual state, read once because `claude mcp list` runs health checks and is slow.

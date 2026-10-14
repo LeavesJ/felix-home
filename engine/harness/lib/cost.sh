@@ -136,7 +136,7 @@ felix_cost() {
     || { _fc_refuse "FELIX_COST_CAP_M is not a positive number: $cap"; return; }
 
   real="$(date -u +%s)"
-  case "$real" in ''|*[!0-9]*) printf 'felix cost: the clock could not be read\n' >&2; return 1 ;; esac
+  case "$real" in ''|*[!0123456789]*) printf 'felix cost: the clock could not be read\n' >&2; return 1 ;; esac
   now=$real
   if [ -n "${FELIX_COST_NOW:-}" ]; then
     [[ "$FELIX_COST_NOW" =~ $re_now ]] \
@@ -191,7 +191,7 @@ _fc_files() {
   local root="$1" pt="$2" pv="$3" p rel r2 nread=0 unread=0 rc
   local -a fs=()
   unset GREP_OPTIONS GREP_COLOR GREP_COLORS
-  find -L "$root" -mindepth 2 -name '*.jsonl' \( \( -type f "$pt" "$pv" \) -o -type l \) -print 2>&1 | sort | {
+  find -L "$root" -mindepth 2 -name '*.jsonl' \( \( -type f "$pt" "$pv" \) -o -type l \) -print 2>&1 | LC_ALL=C sort | {
     while IFS= read -r p; do
       case "$p" in "$root"/*) rel="${p#"$root"/}" ;; *) unread=$((unread + 1)); continue ;; esac
       r2="${rel#*/}"

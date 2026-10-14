@@ -184,7 +184,7 @@ _felix_land_scan() {   # rows|bad <- table text
     [ -n "$k" ] && [ -n "$p" ] || continue
     case " ${FELIX_LAND_NARROWING:-} " in
       *" $k "*)
-        grep -E -- "$p" </dev/null >/dev/null 2>&1
+        LC_ALL=C grep -E -- "$p" </dev/null >/dev/null 2>&1
         if [ "$?" -eq 2 ]; then ere_bad="$ere_bad$p"$'\n'; else nars="$nars$n"$'\t'"$p"$'\n'; fi
         ;;
       *)

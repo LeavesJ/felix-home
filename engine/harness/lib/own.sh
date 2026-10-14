@@ -112,7 +112,7 @@ felix_remote_github_slug() {
   if [ "$scp" -eq 0 ]; then
     case "$auth" in
       *:*) host="${auth%%:*}"; port="${auth#*:}"
-           case "$port" in ''|*[!0-9]*) return 1 ;; esac ;;
+           case "$port" in ''|*[!0123456789]*) return 1 ;; esac ;;
     esac
   fi
   [ "$host" = github.com ] || return 1

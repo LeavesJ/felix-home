@@ -144,6 +144,12 @@
 1	B19: the lookalike checkout never runs graphify
 1	B19: the none checkout never runs graphify
 1	B19: the substring checkout never runs graphify
+1	B1: and fails against that engine with no claude anywhere on PATH
+1	B1: the block has a positive control besides those two, and it passes
+1	B1: the block's discovery writes nothing fails against an engine whose plain felix discover appends a row to stack.tsv, with a claude on PATH the block did not write
+1	B1: the block's positive control fails when widget declares nothing the discovery rules name, so no catalogue entry can list
+1	B1: the block's two assertions keep their names and pass: discovery writes nothing, there is no --yes
+1	B1: the discovery block runs felix discover only with a claude the suite wrote first on PATH, never one it found there
 1	B20: an own checkout granted tidy removes the held untracked rival
 1	B20: and backs it up under state/rivals
 1	B20: and the context says what it removed
@@ -160,6 +166,8 @@
 1	B23: an unowned checkout leaves capabilities, stack.tsv, setup.tsv and setup/ byte-identical
 1	B23: and its context holds no Adopted automatically line
 1	B23: nor a Not adopted line
+1	B2: the gh stub part 0900 writes no longer sleeps 30 s unconditionally once it has written its pid
+1	B2: when _ibsig sends the signal the gh stub is still waiting, and the run then leaves no scratch (control)
 1	B30: adoption alone withheld says Withheld: adoption.
 1	B30: the lookalike checkout's last paragraph is the one line
 1	B31: the substring-bound checkout says it was bound by an origin that only contains the remote_match
@@ -193,6 +201,10 @@
 1	B41: lib/own.sh parses under /bin/bash and uses no ${x,,}
 1	B42: no commissioning, no graph refresh, no tidying and no adoption ran in an own checkout
 1	B42: the hook still emits its JSON and exits 0
+1	B4: _sr_env's other four fields are bash, locale, path and claude, in that order, on one line (control)
+1	B4: where scutil gives a valid LocalHostName, _sr_env's host is that name
+1	B4: where scutil is absent or gives nothing valid, _sr_env's host is uname -n
+1	B4: with a uname on PATH that names a new host on every call, two _sr_env calls give the same host, and not the stub's
 1	B7: an origin carrying a token as userinfo is own (it ran)
 1	B7: and the unowned one with a token still says its line
 1	B7: no file under the home, the memory root, HOME, TMPDIR or the logs holds the token, nor any output
@@ -4924,6 +4936,7 @@
 1	discover: an adoption still to declare is held (pipefail on)
 1	discover: with every lookup answering, the row reads done (pipefail on and off)
 1	discover: with no pipe to be made, the check does not pass
+1	discovery lists the catalogue's matching entry, from the stub's catalogue
 1	discovery writes nothing
 1	docs classify green
 1	doctor exits 0 despite drift

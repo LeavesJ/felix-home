@@ -206,6 +206,8 @@
 1	B9: and says adoption was withheld too
 1	B9: and says what was withheld, and why
 1	B9: and with a Cargo.toml it adopts nothing into the project's capabilities
+1	C7 records the assertion before the move and the assertion after it, and the stand-in's config
+1	C7 writes one record, at the first move, with the state before and the state then
 1	C9.1: and that was asked of gh run list
 1	C9.1: for the workflow felix_gate_workflow names (ci-gate.yml here)
 1	C9.2: a reused receipt with the gate workflow's success on the head clears every blocker
@@ -324,9 +326,186 @@
 1	TMPDIR unset: the list is unread, with the sentence that says why
 1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
+1	X1 _fx_cd refusing an outside directory it entered restores OLDPWD as well
+1	X11 _fx_lint does not read a failed awk as a clean file
+1	X12 a remote that moved in the checkout around the harness fails the origin check, though the run started in no checkout
+1	X14 a remote that moved under a run started in a linked worktree fails the origin check
+1	X15 a remote named with a dot that loses its refs fails the origin check
+1	X16 the origin check's detail says the remotes moved while this run ran
+1	X21 the guard refreshes its stamp, so an assertion after a seen config change costs no fork
+1	X22 _fx_lint reads a git after |, a cd continued by a trailing |, a command right after a case pattern's ), and a cd continued by a backslash at top level
+1	X26 C7's time is UTC
+1	X2a _fx_cd - does not follow OLDPWD: it refuses and the caller stays
+1	X2b _fx_cd on a bare relative name does not search CDPATH
+1	X3 the same urls in another file order fail the origin check
+1	X4 the snapshot is taken above TMP=$(mktemp -d)
+1	X5a after the snapshot the shell stands in the directory it started in
+1	X5b after the snapshot OLDPWD is as the shell found it
+1	X7 a stand-in whose packed refs cannot be read fails the origin check
+1	_copy_content copies nothing and makes no directory from a source that is empty or not a directory, and copies from one that is
 1	_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability
 1	_felix_mcp_connected still mounts a connected server (sentry)
 1	_felix_qualify_sweep called on its own, from the root with TMPDIR exported, removes a dead base and its registration and prints nothing on stdout or stderr
+1	_fixture_enclosed finds no checkout at or above the suite's working directory
+1	_fixture_enclosed names the checkout above a directory even where git's ceiling hides it
+1	_fixture_enclosed refuses when the directory it stands in is gone, rather than reading that as /
+1	_fixture_floor drops a GIT_CONFIG the caller exported, so git config from the floor writes nowhere
+1	_fixture_floor exports DIR's parent, not DIR, as GIT_CEILING_DIRECTORIES
+1	_fixture_floor given a directory that does not exist does not create it
+1	_fixture_floor given a directory that does not exist leaves the caller where it stood
+1	_fixture_floor given a directory that does not exist leaves the caller's GIT_CEILING_DIRECTORIES and GIT_DIR as they were
+1	_fixture_floor given an empty argument leaves the caller where it stood
+1	_fixture_floor given an empty argument leaves the caller's GIT_CEILING_DIRECTORIES and GIT_DIR as they were
+1	_fixture_floor given an empty argument writes nothing into the caller's directory
+1	_fixture_floor leaves no OLDPWD for cd - to return to
+1	_fixture_floor moves the calling shell into DIR/cwd
+1	_fixture_floor refuses a DIR whose .git git cannot open, though git exits 128 there
+1	_fixture_floor refuses a directory that does not exist with a non-zero status
+1	_fixture_floor refuses an empty argument with a non-zero status
+1	_fixture_floor refuses when git cannot run at all, rather than reading that as no repository
+1	_fixture_floor returns 0 for a directory inside a checkout
+1	_fixture_floor returns non-zero when DIR is itself a checkout
+1	_fixture_floor unsets every variable of the GIT_DIR family the caller exported
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: git config branch.main.remote x fails
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: git finds no repository
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: git remote add origin https://github.com/acme/widget.git fails
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: git remote remove origin fails
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: the stand-in keeps its refs/remotes/origin ref
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: the stand-in's local config is unchanged
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: the stand-in's main still tracks origin/main
+1	_fixture_floor, then GIT_DIR at the stand-in exported before the floor: the stand-in's origin URL is unchanged
+1	_fixture_floor, then a directory under DIR where git init never ran: git config branch.main.remote x fails
+1	_fixture_floor, then a directory under DIR where git init never ran: git finds no repository
+1	_fixture_floor, then a directory under DIR where git init never ran: git remote add origin https://github.com/acme/widget.git fails
+1	_fixture_floor, then a directory under DIR where git init never ran: git remote remove origin fails
+1	_fixture_floor, then a directory under DIR where git init never ran: the stand-in keeps its refs/remotes/origin ref
+1	_fixture_floor, then a directory under DIR where git init never ran: the stand-in's local config is unchanged
+1	_fixture_floor, then a directory under DIR where git init never ran: the stand-in's main still tracks origin/main
+1	_fixture_floor, then a directory under DIR where git init never ran: the stand-in's origin URL is unchanged
+1	_fixture_floor, then an empty variable as the directory: git config branch.main.remote x fails
+1	_fixture_floor, then an empty variable as the directory: git finds no repository
+1	_fixture_floor, then an empty variable as the directory: git remote add origin https://github.com/acme/widget.git fails
+1	_fixture_floor, then an empty variable as the directory: git remote remove origin fails
+1	_fixture_floor, then an empty variable as the directory: the stand-in keeps its refs/remotes/origin ref
+1	_fixture_floor, then an empty variable as the directory: the stand-in's local config is unchanged
+1	_fixture_floor, then an empty variable as the directory: the stand-in's main still tracks origin/main
+1	_fixture_floor, then an empty variable as the directory: the stand-in's origin URL is unchanged
+1	_fixture_floor, then cwd equal to DIR itself: git config branch.main.remote x fails
+1	_fixture_floor, then cwd equal to DIR itself: git finds no repository
+1	_fixture_floor, then cwd equal to DIR itself: git remote add origin https://github.com/acme/widget.git fails
+1	_fixture_floor, then cwd equal to DIR itself: git remote remove origin fails
+1	_fixture_floor, then cwd equal to DIR itself: the stand-in keeps its refs/remotes/origin ref
+1	_fixture_floor, then cwd equal to DIR itself: the stand-in's local config is unchanged
+1	_fixture_floor, then cwd equal to DIR itself: the stand-in's main still tracks origin/main
+1	_fixture_floor, then cwd equal to DIR itself: the stand-in's origin URL is unchanged
+1	_fx_cd called from the suite's own shell refuses, and the shell stays where it stood
+1	_fx_cd is defined in the suite's shell, above the first section header
+1	_fx_cd on a directory under $TMP exports the physical $TMP as GIT_CEILING_DIRECTORIES when none was set
+1	_fx_cd on a directory under $TMP returns 0 and stands its caller there, physically
+1	_fx_cd on a git worktree of a stand-in inside $TMP succeeds and stands there, recording nothing
+1	_fx_cd on a valid .git directory whose commondir names a repository inside $TMP succeeds, records nothing and stands there
+1	_fx_cd on a valid .git directory whose relative commondir resolves inside $TMP succeeds, records nothing and stands there
+1	_fx_cd on an empty .git directory with no repository above it inside $TMP succeeds, records nothing and stands there
+1	_fx_cd puts the physical $TMP first in GIT_CEILING_DIRECTORIES and keeps what was there after it
+1	_fx_cd records nothing when it succeeds
+1	_fx_cd refuses $TMP itself with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a .git directory with HEAD and refs but no objects, below a .git file that points outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a directory outside $TMP with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a directory outside $TMP with no fork available
+1	_fx_cd refuses a directory under $TMP while GIT_COMMON_DIR is exported with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a directory under $TMP while GIT_DIR is exported with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a directory under $TMP while GIT_WORK_TREE is exported with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a directory whose .git file has a relative gitdir: line resolving outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a directory whose .git file points outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a directory whose .git is a symlink outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a directory with no .git, below a checkout whose .git file points outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a name under $TMP that does not exist with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a regular file under $TMP with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a stand-in under $TMP while GIT_ALTERNATE_OBJECT_DIRECTORIES names the outside repository with reason git-env, and its caller stays where it stood
+1	_fx_cd refuses a stand-in under $TMP while GIT_CONFIG names the outside repository with reason git-env, and its caller stays where it stood
+1	_fx_cd refuses a stand-in under $TMP while GIT_INDEX_FILE names the outside repository with reason git-env, and its caller stays where it stood
+1	_fx_cd refuses a stand-in under $TMP while GIT_OBJECT_DIRECTORY names the outside repository with reason git-env, and its caller stays where it stood
+1	_fx_cd refuses a symlink under $TMP that points outside it with a non-zero status, and its caller stays where it stood
+1	_fx_cd refuses a valid .git directory whose commondir names a repository outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses a valid .git directory whose relative commondir resolves outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses an empty .git directory below a .git file that points outside $TMP with reason gitdir-outside, and its caller stays where it stood
+1	_fx_cd refuses an empty directory name with a non-zero status, and its caller stays where it stood
+1	_fx_cd refusing $TMP itself appends one line: the call's line, the directory as given, and outside-tmp
+1	_fx_cd refusing a directory outside $TMP appends one line: the call's line, the directory as given, and outside-tmp
+1	_fx_cd refusing a directory under $TMP while GIT_COMMON_DIR is exported appends one line: the call's line, the directory as given, and git-env
+1	_fx_cd refusing a directory under $TMP while GIT_DIR is exported appends one line: the call's line, the directory as given, and git-env
+1	_fx_cd refusing a directory under $TMP while GIT_WORK_TREE is exported appends one line: the call's line, the directory as given, and git-env
+1	_fx_cd refusing a name under $TMP that does not exist appends one line: the call's line, the directory as given, and not-a-directory
+1	_fx_cd refusing a regular file under $TMP appends one line: the call's line, the directory as given, and not-a-directory
+1	_fx_cd refusing a symlink under $TMP that points outside it appends one line: the call's line, the directory as given, and outside-tmp
+1	_fx_cd refusing an empty directory name appends one line: the call's line, the directory as given, and empty
+1	_fx_cd refusing changes no variable its caller can see
+1	_fx_cd refusing writes one line to stderr, beginning 'tests/run: _fx_cd refused '
+1	_fx_cd succeeds with no fork available
+1	_fx_cd through a symlink under $TMP that points inside it stands its caller in the target, physically
+1	_fx_git allows --config-env x.y=HOME with no -C: git runs once and sees the value
+1	_fx_git allows -C after the subcommand, where it is the subcommand's own option
+1	_fx_git allows -c k=v before the subcommand: git runs once and sees the value
+1	_fx_git below a checkout whose .git file points outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git below a git worktree of a stand-in inside $TMP runs git once, there, recording nothing
+1	_fx_git called from the suite's own shell leaves it where it stood, with its GIT_CEILING_DIRECTORIES
+1	_fx_git called from the suite's own shell runs git in DIR and returns its status
+1	_fx_git given an empty directory returns non-zero without running git
+1	_fx_git in a git worktree of a stand-in inside $TMP runs git once, there, recording nothing
+1	_fx_git is defined in the suite's shell, above the first section header
+1	_fx_git leaves its caller's directory and GIT_CEILING_DIRECTORIES as they were
+1	_fx_git on a .git directory lacking objects below a .git file pointing outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on a directory under $TMP with no .git of its own finds no repository, and returns git's 128
+1	_fx_git on a directory whose .git file points outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on a directory whose .git is a symlink outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on a directory whose relative gitdir: line resolves outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on a valid .git directory whose commondir is outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on a valid .git directory whose commondir names a repository inside $TMP runs git once, which finds that repository
+1	_fx_git on a valid .git directory whose relative commondir resolves inside $TMP runs git once, which finds that repository
+1	_fx_git on a valid .git directory whose relative commondir resolves outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on an empty .git directory below a .git file pointing outside $TMP refuses; git never runs and the outside repository reads as it was
+1	_fx_git on an empty .git directory with no repository above it inside $TMP runs git once, which finds none
+1	_fx_git refuses --git-dir before the subcommand with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refuses --git-dir= before the subcommand with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refuses --work-tree before the subcommand with git-args; git never runs and the outside work tree reads as it was
+1	_fx_git refuses --work-tree= before the subcommand with git-args; git never runs and the outside work tree reads as it was
+1	_fx_git refuses -C after --attr-source and its value with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refuses -C after --config-env and its value with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refuses -C after --no-optional-locks with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refuses -C before the subcommand with git-args; git never runs and the outside repository reads as it was
+1	_fx_git refusing records the line of the _fx_git call, the directory as given, and empty
+1	_fx_git returns git's own status: 0, 1, 128 and 129 from four git commands that exit so
+1	_fx_git runs git standing in the directory it is given
+1	_fx_git with GIT_ALTERNATE_OBJECT_DIRECTORIES set refuses with git-env; git never runs and the outside repository reads as it was
+1	_fx_git with GIT_CONFIG set refuses with git-env; git never runs and the outside repository reads as it was
+1	_fx_git with GIT_INDEX_FILE set refuses with git-env; git never runs and the outside repository reads as it was
+1	_fx_git with GIT_OBJECT_DIRECTORY set refuses with git-env; git never runs and the outside repository reads as it was
+1	_fx_lint exits 2 for a missing file named after a clean one
+1	_fx_lint exits 2 with a message on stderr for a file it may not read
+1	_fx_lint exits 2 with a message on stderr for a file that does not exist
+1	_fx_lint follows a cd's command group across continuations, ( ) and $( ) groups and a case pattern's )
+1	_fx_lint is defined in the suite's shell, above the first section header
+1	_fx_lint passes over a raw cd on a variable before every git read, and exits 0
+1	_fx_lint passes over git -C on a variable with --no-optional-locks before or after it when the subcommand is a read
+1	_fx_lint passes over literal operands, _fx_cd, _fx_git, git out of command position, and closed groups
+1	_fx_lint passes over the read forms of those shapes, and words that are not in command position
+1	_fx_lint reports a raw cd on a variable before command -p git or timeout 5 git with a write
+1	_fx_lint reports a raw cd on a variable before every kind of git write, one N:text line each, and exits 1
+1	_fx_lint reports a raw git -C on a variable with a write, command git included, and not a read
+1	_fx_lint reports builtin cd and command cd on a variable before a git write
+1	_fx_lint reports remote -v add, remote --verbose remove and their kin as writes, after a raw cd and a raw git -C
+1	_fx_lint sees git -C on a variable past command -p
+1	_fx_lint sees git -C on a variable past env --unset NAME, env -C DIR and env --chdir DIR
+1	_fx_lint sees git -C on a variable past env -u NAME
+1	_fx_lint sees git -C on a variable past env, exec, time, nice and nohup, and git after them past a raw cd
+1	_fx_lint sees git -C on a variable past exec -a NAME
+1	_fx_lint sees git -C on a variable past timeout and its duration, options included
+1	_fx_lint sees git's -C on a variable after --no-optional-locks or -p
+1	_fx_lint skips comments, quoted text and heredoc bodies, and reads the code after them and after a here-string
+1	_fx_lint skips exactly the argument env -u, exec -a and timeout take, and passes over reads behind command -p, timeout and -p
+1	_fx_lint still passes over remote -v alone, remote -v show and remote get-url, after a raw cd and a raw git -C
+1	_fx_root_add on $TMP, and on a directory below it, adds no root and refuses nothing
+1	_fx_root_add refuses each name that cannot be a root, with a record naming why
 1	_sr_check of a directory that is no git checkout says run no checkout, and returns 0
 1	_sr_check of a sound receipt for this tree and this environment says reuse with its counts, end and mode
 1	_sr_check with nothing at the receipt path says run no receipt
@@ -546,6 +725,7 @@
 1	a change to the Felix checkout that judges the repair is refused before it judges
 1	a change to the project marker escapes
 1	a change under engine/ that bumps no version and reruns nothing owes both rows, in table order, or the landing that forgot them goes unnamed
+1	a changed URL fails the origin check, naming the config, the URL before and the URL now
 1	a changed library is drift, exit 1
 1	a check is read from the command, not the description, and a parallel call's error does not fail the check beside it
 1	a check named as the head of a path is found
@@ -671,6 +851,7 @@
 1	a committed rename lists the name it left as well as the one it took
 1	a compact appends one lifecycle row of kind compact
 1	a component that cannot be computed prints as a dash
+1	a config still unreadable at the end fails the origin check with 'could not re-read the remotes at the end: ' and its path, and never says moved
 1	a consistent record is called agreement
 1	a consistent record says nothing at session start
 1	a content difference is still a drift
@@ -681,6 +862,8 @@
 1	a control that stages its own violation lifts the refusal
 1	a control the checker meets is met
 1	a conversation holding more than one session owns the rows of each
+1	a copy of the suite with a git write added at the top of _ff_case fails the pin
+1	a copy of the suite with a git write added just before _ff_case's closing brace fails the pin
 1	a copy that ships a README alone is low when no entry is read
 1	a copy whose scope step drifted is unmet
 1	a copy with a placeholder left unfilled does not match
@@ -901,6 +1084,7 @@
 1	a gate workflow that cannot be read is unknown, not unmet
 1	a gate workflow that takes workflow_dispatch is reported as taking one
 1	a gate_workflow that is not a file name is refused, and named
+1	a gitfile's git directory whose commondir names a directory outside the root is refused, and one naming a directory inside is entered
 1	a gitignored stray in the tree is residue, not drift
 1	a gitlink already in history does not block every future backup
 1	a governed directory that is not a git checkout records its HEAD as -, not unborn
@@ -1136,6 +1320,7 @@
 1	a missing state file is not a guess
 1	a missing written.log settles nothing
 1	a mixed file of seven lines holding two pairs heals to five
+1	a mktemp -d that gives no directory stops the suite and removes nothing
 1	a multi-line command holding an escaped backslash reads the same under a --verify that matches a backslash as under one that does not: its line breaks stay line breaks
 1	a multi-line utterance stays one greppable line
 1	a mutation exiting 1 on a fail control whose checker passes reads pass and held: the mutation's status never becomes the command's
@@ -1195,6 +1380,7 @@
 1	a negative status reads signal-9
 1	a nested repository is refused, with the restore truth
 1	a never-run routine is due
+1	a new branch.<b>.merge added during the run is not a move
 1	a new grounded topology is a new epoch
 1	a new note replaces it
 1	a new policy state is a new epoch
@@ -1505,6 +1691,7 @@
 1	a red run against main exits 0 once the suite has run
 1	a red run breaks the streak
 1	a red run, failing, leaves the receipt it found byte for byte
+1	a red section runner's trap still removes its temporary directory
 1	a red working tree is still named in the session
 1	a red.tsv base of - reads as retracted, not as a published snapshot
 1	a red.tsv base that is no commit here is told apart, so the base check skips in a published snapshot
@@ -1517,11 +1704,14 @@
 1	a refresh prints the rows
 1	a refresh that cannot make its directory runs no claude command
 1	a refreshed graph clears the row
+1	a refs/remotes directory unreadable from the start fails the origin check, rather than reading as a remote with no refs
+1	a refusal fails the end-of-run refusal check, with every recorded line in its detail, so FAIL is at least 1
 1	a refusal on risk is reported
 1	a refused candidate does not fail the report
 1	a refused check is no row of the run
 1	a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone
 1	a regenerated handoff keeps the mode it had
+1	a registered base outside $TMP is entered by _fx_cd, with git's ceiling at that base, and no refusal
 1	a registered marketplace names its catalogue
 1	a registration of <T>/felix-qualify. and five characters /w whose base is gone stays listed
 1	a registration of <T>/felix-qualify.XXXXXX/w is left by a run whose TMPDIR, T, is not a directory, and once T is a directory again the next run removes it as an orphan
@@ -1540,6 +1730,13 @@
 1	a remote branch that moved on from its local namesake, content not on main and no pull request, has a row, unproposed
 1	a remote branch with no pull request and no local copy is unproposed
 1	a remote carrying shell text is no slug: risk-labels is a step Felix says it cannot check
+1	a remote moved and put back within one run fails the origin check, naming the config
+1	a remote moved between readable states and put back, after a tick that could not read the config, still fails the origin check as a move
+1	a remote moved in a bare repository the run started in fails the origin check, naming its config
+1	a remote ref whose value changed during the run has not moved
+1	a remote removed and added back with the same URL, its refs gone, fails the origin check
+1	a remote that gained a ref during the run has not moved
+1	a remote that gained refs, and a config write that moved no url, read as not moved
 1	a remote whose host would be an ssh option is no GitHub remote: both rows wait
 1	a repair that changes a file the brief did not name is not pushed, and the gate is not spent on it
 1	a repair that edits a workflow file is not pushed, and the gate is not spent on it
@@ -1657,13 +1854,17 @@
 1	a run of the first routine is recorded however many routines follow it
 1	a run on a clean tree, then a commit that changes a file, is run another tree (control)
 1	a run on the very commit origin/main named, then committed, refuses with C10.5's reason
+1	a run started inside a bare repository git cannot be asked about, exiting 128 but not 'not a git repository', fails the origin check rather than skipping it
+1	a run started inside a bare repository runs the origin check and passes it, rather than skipping it
 1	a run that printed every row the table lists is complete, and nothing is said
 1	a run that printed every row the table lists, in order, still gives a commissioned receipt
 1	a run that reaches its end with a failure removes the receipt an earlier run left
+1	a run that started in no checkout skips the origin check, saying so, and exits 0
 1	a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself
 1	a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were
 1	a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing
 1	a run whose loop ended on its second row printed only the first
+1	a run whose remotes did not move passes the refusal and origin checks and exits 0
 1	a run whose rows read fail and met, pass and met, pass and held, inapplicable, and unrunnable leaves no path mktemp handed the runner and no worktree registered in the root, live, prunable or locked, and its stderr carries no felix: line
 1	a run whose shell has failglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line
 1	a run whose shell has noglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line
@@ -1703,6 +1904,16 @@
 1	a second run appends rather than replacing
 1	a second session's grant is a second night, not a replacement
 1	a second tree makes it a promotion candidate
+1	a section runner exiting 7 whose remote gained a push URL keeps 7, and its trap reports the move
+1	a section runner started inside a bare repository git cannot be asked about exits 1, saying it could not read the remotes this run started with
+1	a section runner started inside a bare repository whose remote moved exits 1, its trap naming the config
+1	a section runner whose config could not be read at one tick, readable and unchanged by the end, exits 0 with its trap silent
+1	a section runner whose config is still unreadable at the end exits 1, its trap saying it could not re-read the remotes at the end, not that they moved
+1	a section runner whose remote moved and was put back exits 1, its trap naming the config
+1	a section runner whose remote was renamed exits 1, not 0
+1	a section runner whose remotes did not move exits 0, its trap silent, its temporary directory removed
+1	a section runner whose start config is unreadable exits 1, saying it could not read the remotes
+1	a section runner with a refusal exits 1, its trap listing the recorded line under 'tests/run: refused fixture git commands:'
 1	a section waiting in docs/handoff/pending on main is handoff-pending, carrying both of its Next lines
 1	a section written in beside the current one, the marker left alone, is refused too
 1	a section written into HANDOFF.md by hand is refused, however correct its id
@@ -1737,6 +1948,7 @@
 1	a shell comment is not code: its apostrophe opens no quote, its (npm test) runs nothing, and its ; takes no status
 1	a shell's -c script is still read as a command
 1	a short name is not turned into a keyword
+1	a sibling whose name starts with the base's name is refused
 1	a sidechain edit does not turn a pass stale, and a failure reported before its tool_use_id, behind an escaped quote, still fails
 1	a silent project failure with nothing else failing records exit-3, exactly as before
 1	a sixth count that is a word gives indeterminate, though the receipt never writes it
@@ -1879,6 +2091,7 @@
 1	a three-cell row is refused as cells alone and read by no one, or a reader would invent its missing arg
 1	a three-column row beside it is still declared
 1	a three-field score answer is answered
+1	a tick that cannot re-read the config, readable and unchanged again by the end, records no move and the origin check passes
 1	a tie is broken the same way whichever order the file lists
 1	a time column that is not a time is read as none
 1	a timed-out gate run is repaired, as the ceiling counts it
@@ -2154,6 +2367,8 @@
 1	adopting with no setup.tsv seeds the header and then the step
 1	adopting with no stack.tsv seeds the header and then its catalogue rows
 1	advances to the next step once the first is used
+1	after _fx_cd, git finds no repository from a directory under $TMP with none of its own, even with one at $TMP
+1	after _fx_root_del the roots are as they were, $TMP kept, and the base is refused again
 1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
 1	after an installed failure the suite is still skipped, not run (control)
 1	after commissioning the gate line reads ok
@@ -2404,6 +2619,7 @@
 1	an unread list gives one unknown row per plugin row, its reason as the detail
 1	an unread list returns 1 from the refresh
 1	an unread list says so, and that the cache was left
+1	an unreadable config fails the origin check rather than passing or skipping it
 1	an unreadable count is unknown
 1	an unreadable risk table yields an unknown tier
 1	an unreadable tier does not install: felix-test-blank
@@ -2412,6 +2628,7 @@
 1	an unrecognised file is yellow, never green
 1	an unrecognised flag refuses rather than printing success
 1	an unrecognised path is yellow, never green
+1	an unregistered directory outside $TMP is refused by _fx_cd, as outside-tmp
 1	an unregistered marketplace makes no claim either way
 1	an unregistered one names none
 1	an unrelated context matches nothing
@@ -2467,6 +2684,7 @@
 1	and TASK_BLOCKING may not block either
 1	and _felix_cap_active reads an absent file as a list without the capability, 1
 1	and _felix_cap_active returns 2 there, and the row grounded on it is unknown, not not-applicable
+1	and _fx_git runs a write there: git init makes the fixture's own repository
 1	and a CLI that answers nothing reports no drift
 1	and a CLI that cannot answer is not a stale deployment
 1	and a CR inside a cell is cells too, never kind, or the reason would depend on where the CR fell
@@ -2815,6 +3033,7 @@
 1	and each did its work: the version bumped and the tool wired in
 1	and each full log line names a file holding its own run alone
 1	and each item appears once however often it bit
+1	and each of the three is recorded with the reason empty
 1	and each of those refused rows carries the branch and the session
 1	and each pair is joined exactly once
 1	and each pair is joined where it stood: lines 2 and 4
@@ -3351,6 +3570,7 @@
 1	and none of the hand-written lines
 1	and none of the three leaves a scratch tree, base directory or registration, or says a felix: line
 1	and none of them asks gh for every workflow's runs
+1	and none of them became a root: _fx_cd still refuses the full base's checkout and the base under a .git
 1	and none of them is handed on as a brief
 1	and none of them leaves anything there
 1	and none of them names the checkout it read
@@ -5827,6 +6047,23 @@
 1	finds the route a capability belongs to
 1	five rows are accepted, by name
 1	five rows in candidates.tsv under the memory root
+1	fixture floor: _fixture_floor is defined in the suite's shell
+1	fixture floor: a child process inherits none of the GIT_DIR family
+1	fixture floor: a child process sees GIT_CEILING_DIRECTORIES as the parent of the suite's temporary directory
+1	fixture floor: an empty fixture root does not reach the checkout the suite was started from
+1	fixture floor: an empty fixture root, cd to an empty name, reaches no repository
+1	fixture floor: at the end of the suite it still stands in cwd inside its temporary directory, under a ceiling at that directory's parent
+1	fixture floor: git finds no repository from the suite's working directory
+1	fixture floor: the stand-in checkout has an origin, an origin ref and a branch tracking origin
+1	fixture floor: the suite's working directory is cwd inside its own temporary directory
+1	fixture git proof r1: the child built its stand-ins, and a git shim on PATH logs each git it runs
+1	fixture git proof r1: the relative gitdir: line resolves to the outside repository
+1	fixture git proof r2: a run started inside a readable bare repository passes the origin check
+1	fixture git proof r2: each _ff_case copy differs from the suite under test by one added line inside _ff_case
+1	fixture git proof r2: git honours a -C given after --config-env x.y=HOME, --attr-source HEAD and --no-optional-locks
+1	fixture git proof r2: git takes each directory B3 refuses to the outside repository, and each it allows to one inside $TMP or to none
+1	fixture git proof r2: the child built its stand-ins, and a git shim on PATH logs each git it runs
+1	fixture git proof: the stand-in checkout has an origin, an origin ref and a branch tracking origin
 1	fixture: every throwaway checkout is on the branch its case assumes
 1	fixture: every throwaway checkout stands where its case assumes
 1	fixture: the non-git root is outside any repository
@@ -6260,6 +6497,7 @@
 1	its human output lists hazards before any landed item or count
 1	its last line points at felix new <name> --no-commission
 1	its own shape is regenerated without asking
+1	its trap reports once on stderr, first line tests/run:, naming the watched config
 1	keeps a tracked one, whatever else is true
 1	keeps one Felix holds no copy of
 1	knows a standalone skill is not a plugin
@@ -6380,6 +6618,8 @@
 1	no evidence rule requires a pattern that matches everything
 1	no file under gizmo, its origin or the decoy changed across these runs
 1	no file under the fixture's repositories or the scratch HOME changed across every run, nor git's object count
+1	no fixture git command was refused for a directory outside the suite's temporary directory
+1	no fixture in this suite runs a git write from a raw cd or a raw git -C on a variable
 1	no git command that run made was a worktree prune or a gc
 1	no history is no streak
 1	no hook and nothing in felix's gate names the inventory: it is advisory, off the enforcing path
@@ -6403,6 +6643,9 @@
 1	no reachable checkout resolves to nothing
 1	no record still answers cleanly
 1	no recurrence says nothing at all
+1	no refusal review round 1's block provoked reached the suite's own refusal record
+1	no refusal review round 2's block provoked reached the suite's own refusal record
+1	no refusal this block provoked reached the suite's own refusal record
 1	no remote is named as the risk it is
 1	no row carries a query string or the target column: ?
 1	no row carries a query string or the target column: REDACTED
@@ -6570,6 +6813,7 @@
 1	one already in stack.tsv is left alone
 1	one already in the stack still reads already
 1	one answer of two leaves the other still owed
+1	one branch's upstream removed while another still tracks the remote is not a move
 1	one byte changed inside one file changes the digest
 1	one continuation is spent per turn, not two
 1	one continuation that called no tool is not yet the end of the night
@@ -6764,7 +7008,9 @@
 1	refuses to clobber an existing project
 1	refuses to invent a brief from unknown paths
 1	regardless of the order given
+1	registering a directory below a root adds nothing
 1	released, run A ends with its row read pass and met, and neither run leaves a base in the TMPDIR or a worktree registered beside the root
+1	remote.origin.gh-resolved added during the run is not a move
 1	removes a copy of a file Felix holds
 1	removes an untracked copy Felix holds
 1	removing a pending section without folding it is refused, since that drops it
@@ -7150,6 +7396,7 @@
 1	tests/red --after with neither a mark nor a process id is refused, exit 2, with the reason --after needs both
 1	tests/run --reuse on a reusable receipt prints the reuse line, an empty line and the counts, the skipped clause left out at zero
 1	tests/run --reuse on the bridged receipt exits 0
+1	tests/run exits 2 before it makes its temporary directory when REAL_HARNESS names no harness, and goes on when it names one
 1	text piped into a shell is its script
 1	that names the command
 1	that row carries today's date and the epoch second of the call
@@ -7159,6 +7406,9 @@
 1	the A2 fixture has two commits and a head sha to name
 1	the A2 fixture's PATH without gh finds no gh
 1	the A2 stub answers the gate workflow's runs on one commit as gh would
+1	the C3 section holds the CRC and the byte count cksum gives for _ff_case's text
+1	the C3 section of the suite under test, run on an unchanged copy, holds and passes the assertion pinning _ff_case
+1	the C7 record of a run whose config could not be read at one tick names the assertion after the real move, not that tick
 1	the CLI still regenerates the empty placeholder
 1	the README lists by path exactly what the audit leaves out: /tmp, TMPDIR, CLAUDE_CONFIG_DIR or ~/.claude, FELIX_MEMORY or ~/.felix/memory
 1	the README names all felix audit runs, bash through /usr/bin/env, awk, and readlink where felix is reached through a symlink, which bash and awk alone cannot follow
@@ -7620,6 +7870,7 @@
 1	the first field is a UTC stamp
 1	the first five read stale and the new six current
 1	the fixture answer is restored
+1	the fixture floor's _ff_case is the probe the lint's set-aside was reviewed against
 1	the fixture has an epoch before anything is stamped
 1	the fixture has no entry written for the catch yet
 1	the fixture is dirty only in Felix's own bookkeeping
@@ -7678,6 +7929,7 @@
 1	the graph is graphify-out/graph.json under the holding checkout
 1	the graph's home is the checkout that holds the repository
 1	the grouped help names --no-commission
+1	the guard's check on each assertion costs no fork when no watched file changed
 1	the handoff a fold could have written reads clean
 1	the handoff carries no file comments
 1	the handoff check is behind the verifier confine
@@ -7707,6 +7959,7 @@
 1	the id after 0bv is 0bw, after 0bz 0ca, after 0z 0aa, and after 0zz 0aaa
 1	the ignored file leaves the tree id the receipt was stamped for
 1	the in-flight line appears when nothing is due
+1	the incident's commands through _fx_git with an empty directory leave the stand-in they started in as it was
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
 1	the installed check is behind the verifier confine
@@ -7742,6 +7995,7 @@
 1	the lint reads a digit before > as a descriptor only standing alone: 2>/dev/null is not named, y2>/dev/null is
 1	the lint reads a quoted string and a code line's trailing comment as code
 1	the lint takes no option's argument for an option: -eline is not -l, and a pattern -quux is not -q
+1	the lint's only sites set aside are the fixture floor's three deliberate probes inside _ff_case
 1	the list's stderr is discarded
 1	the lock is released when the refresh finishes
 1	the lock it takes while refreshing is a directory, not a file
@@ -7788,6 +8042,17 @@
 1	the obligations row is done on day one, its seeded row dormant in a project with no hooks
 1	the oddy rows are exactly three
 1	the one that landed last is current, with the id after it
+1	the origin check follows an include present from the start: a pushurl the included file gains is a move
+1	the origin check reads a refs/remotes directory made unreadable during the run as moved, not as no refs
+1	the origin check reads a remote no branch tracks any more, its url and refs as they were, as moved
+1	the origin check reads a remote's fetch refspec changed during the run as moved
+1	the origin check reads a remote.<name>.push added during the run as moved
+1	the origin check reads a url.<base>.insteadOf added during the run as moved
+1	the origin check reads a url.<base>.pushInsteadOf added during the run as moved
+1	the origin check reads an include.path added during the run, whose file sets a remote pushurl, as moved
+1	the origin check reads extensions.worktreeConfig turned on during the run, with config.worktree setting a pushurl, as moved
+1	the origin check says the remotes moved while the run ran, never that the run moved them
+1	the origin check's detail carries C7's record of where in the run the remote moved
 1	the owed fixture's feat changes engine/harness/lib/x.sh alone against origin/main
 1	the owed fixture's feat is not behind origin/main
 1	the page carries the speech
@@ -7805,11 +8070,14 @@
 1	the payload-cwd fixture's padded payloads end the cwd at byte 4096 in one and start its key at byte 4097 in the other
 1	the payload-cwd fixture's worktree lies under the TMPDIR the suite was given
 1	the payload-cwd fixture's worktree now carries a current green receipt, and its main checkout a stale one
+1	the pin's failure detail names _ff_case and the cksum it asks the reader to update
 1	the platform's summary request says nothing
 1	the plugins cache root is composed with, not read as ours
 1	the pointer file beats a sibling projects/
 1	the pre-flight fixture's inventory holds more than a pipe holds, the plugin asked about first and last
 1	the pre-flight runs clean under bash
+1	the preamble names $TMP/fx-refused as the refusal record
+1	the preamble refuses to start when its temporary directory sits inside a checkout
 1	the probe command stays in the eighth column
 1	the probe report says what it cannot reach
 1	the probe table is in the set too
@@ -7850,6 +8118,7 @@
 1	the record judgment of a checkout whose engine change carries a real record against origin/main reports all four record checks passed, and nothing else
 1	the record run does not end before red has
 1	the record run still says how many assertions it recorded and where (control)
+1	the records of a top-level refusal and a refusal from a silenced subshell: line, directory as given, reason
 1	the recurrence report counts an unhealed split row: two occasions, unborn and a sha, over three runs
 1	the refresh: a fresh felix-reach directory under TMPDIR
 1	the refresh: not the checkout and not HOME
@@ -7857,8 +8126,10 @@
 1	the refusal on stderr names the size in bytes
 1	the refusals' fixture run, given a manifest naming what it prints, executes, leaves its file, and is recorded with the summary of before
 1	the refused row is shown with its reason
+1	the registered base itself is refused, as $TMP itself is: a fixture stands strictly below its root
 1	the registry says where the engine is served from
 1	the remote actually holds the commit
+1	the remotes of the checkout this run started in did not move while it ran
 1	the removed file still exists somewhere
 1	the report heads the grants with the base ref and its commit date
 1	the report lists what the provider named and says nothing was installed
@@ -7945,6 +8216,7 @@
 1	the structural verdict shows its evidence too
 1	the stub refuses a selectorless merge the way gh does
 1	the stub refuses an untaught shape
+1	the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker
 1	the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else
 1	the suite's copy of a harness holding one leaves it behind
 1	the suite's own completion marker, the reached line tests/red requires, still follows its last section
@@ -7961,6 +8233,7 @@
 1	the tests check is behind the verifier confine
 1	the third field is the epoch the answer file named
 1	the topology is back once the ignored file is gone
+1	the trap says the remotes moved while the run ran, never that the run moved them
 1	the tree holds only the marker beside what was there
 1	the tree id is still the one the receipt names
 1	the tree is green before the hold record meets a night
@@ -8084,6 +8357,7 @@
 1	unchanged: with no root the check is never run
 1	unchanged: with only inflight and ok rows there is no due line
 1	undeclared capability classifies as dormant
+1	under $TMP, a gitfile naming a directory below the registered base is refused: one root never vouches for another
 1	under --no-gh a branch only a merged pull request shows landed is not called landed
 1	under --no-gh a pushed branch whose pull requests cannot be seen says unknown
 1	under --no-gh an open pull request's branch still has a row, and it says unknown
@@ -8094,6 +8368,7 @@
 1	under a current grant it says the next session start re-commissions
 1	under pipefail, printf of a megabyte piped into grep -q reads a match on its first line as absent
 1	under pipefail, printf piped into grep -q fails when grep matches the first line of a megabyte
+1	under the base, a gitfile naming a directory outside every root is refused, and one naming a directory below the base is entered
 1	ungoverned over a table that cannot be read names no reported checker, and exits 2
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
@@ -8130,6 +8405,8 @@
 1	what it kept is what it sent
 1	what no route named is not a compliance figure
 1	what the engine tiered low installs
+1	when C5 and C8 ran, the trap reports nothing more and keeps the run's status
+1	when C5 has already failed in the main shell, the trap adds no refusal report and keeps the status
 1	when gh lists its limit of pull requests, a pushed branch with none among them is unknown, not unproposed
 1	when main has no resolve.sh to read, installed fails rather than skipping
 1	when main's resolve.sh does not define the check, installed fails rather than skipping
@@ -8328,6 +8605,7 @@
 1	with three pending and no fold branch the handoff row is due
 1	with today's first line, naming no commit (control)
 1	with two arguments or fewer felix_tree_id prints what the function before this change printed (control)
+1	with worktreeConfig on from the start, a pushurl config.worktree gains during the run is a move
 1	without --after red runs and records exactly as before (control)
 1	without --strict it only reports
 1	without claiming that none of it is a founder decision

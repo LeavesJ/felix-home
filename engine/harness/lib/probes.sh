@@ -109,8 +109,8 @@ fi
 felix_probe_rows() {
   local proj="$1"
   [ -f "$proj/probes.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
-    | awk -F'\t' 'NF >= 4 && NF <= 5 && $1 != "" && $4 != "" { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
+    | LC_ALL=C awk -F'\t' 'NF >= 4 && NF <= 5 && $1 != "" && $4 != "" { printf "%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, (NF == 5 ? $5 : "-") }'
   return 0
 }
 
@@ -122,8 +122,8 @@ felix_probe_rows() {
 felix_probe_malformed() {
   local proj="$1"
   [ -f "$proj/probes.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
-    | awk -F'\t' 'NF < 4 || NF > 5 || $1 == "" || $4 == "" { print ($1 == "" ? "(unnamed)" : $1) }'
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/probes.tsv" 2>/dev/null \
+    | LC_ALL=C awk -F'\t' 'NF < 4 || NF > 5 || $1 == "" || $4 == "" { print ($1 == "" ? "(unnamed)" : $1) }'
   return 0
 }
 
@@ -278,7 +278,7 @@ felix_probe_state() {
   # Blank lines are not members. A command that prints a trailing newline and
   # nothing else has enumerated nothing, and counting it as one member is how a
   # probe passes by finding nothing while looking like it found something.
-  n="$(printf '%s\n' "$out" | grep -c '[^[:space:]]')"
+  n="$(printf '%s\n' "$out" | LC_ALL=C grep -c '[^[:space:]]')"
   [ -n "$n" ] || n=0
 
   if [ "$rc" -eq 0 ] && [ "$n" -gt 0 ]; then
@@ -368,11 +368,11 @@ felix_probes_run() {
   local proj="$1" root="$2" line pred grounds when probe witness st
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    pred="$(printf '%s\n' "$line" | cut -f1)"
-    grounds="$(printf '%s\n' "$line" | cut -f2)"
-    when="$(printf '%s\n' "$line" | cut -f3)"
-    probe="$(printf '%s\n' "$line" | cut -f4)"
-    witness="$(printf '%s\n' "$line" | cut -f5)"
+    pred="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
+    grounds="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
+    when="$(printf '%s\n' "$line" | LC_ALL=C cut -f3)"
+    probe="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
+    witness="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
     st="$(felix_probe_state "$root" "$when" "$probe" "$witness")"
     printf '%s\t%s\t%s\t%s\t%s\n' \
       "$pred" "$grounds" "$st" "$probe" "$(felix_probe_source "$root" "$probe")"

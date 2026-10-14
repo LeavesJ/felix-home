@@ -312,7 +312,7 @@ felix_pulse_backup_age() {
     return 0
   fi
   last="$(cat "$stamp" 2>/dev/null)"
-  case "${last:-}" in ''|*[!0-9]*) printf 'never'; return 0 ;; esac
+  case "${last:-}" in ''|*[!0123456789]*) printf 'never'; return 0 ;; esac
   now="$(date +%s)"
   [ "$now" -ge "$last" ] 2>/dev/null || { printf '0'; return 0; }
   printf '%s' $(( (now - last) / 86400 ))

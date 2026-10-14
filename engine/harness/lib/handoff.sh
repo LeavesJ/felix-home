@@ -272,7 +272,7 @@ _felix_handoff_ids() {
 #   exit 2  cannot examine, and why, on stdout
 felix_handoff_in_flight() {
   local root="$1" ref="${2:-}" within="${3:-0}" full ns x t msha mid now r sha ep id
-  case "$within" in ''|*[!0-9]*) printf 'cannot examine\tthe bound %s is not a whole number of seconds\n' "$within"; return 2 ;; esac
+  case "$within" in ''|*[!0123456789]*) printf 'cannot examine\tthe bound %s is not a whole number of seconds\n' "$within"; return 2 ;; esac
   full="$(git -C "$root" rev-parse --verify --quiet --symbolic-full-name "$ref" 2>/dev/null)"
   case "$full" in
     refs/remotes/?*/?*) ;;
@@ -280,7 +280,7 @@ felix_handoff_in_flight() {
   esac
   msha="$(git -C "$root" rev-parse --verify --quiet "$full^{commit}" 2>/dev/null)" \
     || { printf 'cannot examine\t%s does not resolve to a commit\n' "$ref"; return 2; }
-  mid="$(printf '%s\n' "$msha" | _felix_handoff_ids "$root" | cut -f2)"
+  mid="$(printf '%s\n' "$msha" | _felix_handoff_ids "$root" | LC_ALL=C cut -f2)"
   [ -n "$mid" ] || { printf 'cannot examine\t%s holds no %s with an (after <id> comes <next>) marker\n' "$ref" "$FELIX_HANDOFF_FILE"; return 2; }
   x="${full#refs/remotes/}"; ns="refs/remotes/${x%%/*}"
   local tmpd="${TMPDIR:-/tmp}"
@@ -290,7 +290,7 @@ felix_handoff_in_flight() {
   # one commit per other blob is read for its marker.
   git -C "$root" for-each-ref --format='%(refname)%09%(objectname)%09%(committerdate:unix)%09%(symref)' "$ns" 2>/dev/null \
     | FULL="$full" LC_ALL=C awk -F'\t' '$4 == "" && $1 != ENVIRON["FULL"] { print $1 "\t" $2 "\t" $3 }' > "$t/refs"
-  { printf '%s\n' "$msha"; cut -f2 "$t/refs"; } | sed "s|\$|:$FELIX_HANDOFF_FILE|" \
+  { printf '%s\n' "$msha"; LC_ALL=C cut -f2 "$t/refs"; } | LC_ALL=C sed "s|\$|:$FELIX_HANDOFF_FILE|" \
     | git -C "$root" cat-file --batch-check='%(objectname) %(objecttype)' > "$t/blobs" 2>/dev/null
   LC_ALL=C awk -F'\t' '
     FNR == NR { split($0, w, " "); b[FNR] = (w[2] == "blob") ? w[1] : ""; next }
@@ -313,7 +313,7 @@ felix_handoff_in_flight() {
       [ "$ep" -gt $((now + 3600)) ] && continue
     fi
     git -C "$root" merge-base --all "$sha" "$msha" 2>/dev/null | _felix_handoff_ids "$root" \
-      | cut -f2 | LC_ALL=C awk -v mid="$mid" '$0 == mid { f = 1 } END { exit !f }' || continue
+      | LC_ALL=C cut -f2 | LC_ALL=C awk -v mid="$mid" '$0 == mid { f = 1 } END { exit !f }' || continue
     printf '%s\t%s\t%s\n' "${r#"$ns"/}" "$id" "$ep"
   done < "$t/after" | LC_ALL=C sort -t "$(printf '\t')" -k3,3nr -k1,1
   rm -rf "$t"
@@ -344,7 +344,7 @@ felix_handoff_section() {
     [ -f "$f" ] || continue
     # The whole name, not its tail: branch x/a-b ends in -a-b as well.
     case "${f##*/}" in
-      [0-9][0-9][0-9][0-9][0-9][0-9][0-9][0-9]T[0-9][0-9][0-9][0-9][0-9][0-9]Z-"$slug".md) ;;
+      [0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]T[0123456789][0123456789][0123456789][0123456789][0123456789][0123456789]Z-"$slug".md) ;;
       *) continue ;;
     esac
     rel="${f#"$root"/}"
@@ -386,7 +386,7 @@ felix_handoff_check() {
   local tmpd="${TMPDIR:-/tmp}"
   t="$(mktemp -d "${tmpd%/}/felix-handoff.XXXXXX" 2>/dev/null)" || { printf 'cannot examine\tcould not make a scratch directory\n'; return 2; }
   : > "$t/p"; : > "$t/n"
-  x="$(printf '%s' "$m" | cut -f1)"; y="$(printf '%s' "$m" | cut -f2)"; ml="$(printf '%s' "$m" | cut -f3)"
+  x="$(printf '%s' "$m" | LC_ALL=C cut -f1)"; y="$(printf '%s' "$m" | LC_ALL=C cut -f2)"; ml="$(printf '%s' "$m" | LC_ALL=C cut -f3)"
   [ "$y" = "$(felix_handoff_next_id "$x")" ] \
     || printf 'marker\tsays after %s comes %s, and after %s comes %s\n' "$x" "$y" "$x" "$(felix_handoff_next_id "$x")" >> "$t/p"
   if b="$(felix_handoff_bounds "$h" "$x")"; then
@@ -403,15 +403,15 @@ felix_handoff_check() {
       printf "current\tsection %s sits in HANDOFF.md beside the current one; a section is added under docs/handoff/pending/, and only the fold makes it current\n", id }' \
     "$h" >> "$t/p"
   felix_handoff_rows "$h" > "$t/rows"
-  cut -f1 "$t/rows" | LC_ALL=C sort | uniq -d | while IFS= read -r id; do
+  LC_ALL=C cut -f1 "$t/rows" | LC_ALL=C sort | LC_ALL=C uniq -d | while IFS= read -r id; do
     printf 'index\t%s has more than one row\n' "$id"; done >> "$t/p"
-  grep -q "^$x	" "$t/rows" && printf 'index\t%s is the current section and has an index row too\n' "$x" >> "$t/p"
+  LC_ALL=C grep -q "^$x	" "$t/rows" && printf 'index\t%s is the current section and has an index row too\n' "$x" >> "$t/p"
   [ -e "$root/$FELIX_HANDOFF_DIR/$x.md" ] && printf 'archive\t%s is the current section and is archived too\n' "$x" >> "$t/p"
   for f in "$root/$FELIX_HANDOFF_DIR"/*.md; do
     [ -f "$f" ] || continue
     id="${f##*/}"; id="${id%.md}"
     case "$id" in _*) continue ;; esac
-    if ! grep -q "^$id	" "$t/rows"; then
+    if ! LC_ALL=C grep -q "^$id	" "$t/rows"; then
       printf 'index\t%s/%s.md is archived and has no index row\n' "$FELIX_HANDOFF_DIR" "$id" >> "$t/p"; continue
     fi
     title="$(ID="$id" LC_ALL=C awk -F'\t' '$1 == ENVIRON["ID"] { print $2; exit }' "$t/rows")"
@@ -419,7 +419,7 @@ felix_handoff_check() {
     [ "$hd" = "### $id. $title" ] || [ "$hd" = "## $id. $title" ] \
       || printf 'index\tthe row for %s does not carry the title its file is headed with\n' "$id" >> "$t/p"
   done
-  cut -f1 "$t/rows" | while IFS= read -r id; do
+  LC_ALL=C cut -f1 "$t/rows" | while IFS= read -r id; do
     [ "$id" = "$x" ] || [ -f "$root/$FELIX_HANDOFF_DIR/$id.md" ] || printf 'index\t%s has a row and no file\n' "$id"
   done >> "$t/p"
   for f in "$root/$FELIX_HANDOFF_PENDING"/*.md; do
@@ -434,7 +434,7 @@ felix_handoff_check() {
   if [ -z "$base" ]; then
     printf 'note\tno merge-base with %s, so nothing was compared with what this branch started from\n' "${ref:-a base ref}" >> "$t/n"
   elif ! git -C "$root" show "$base:$FELIX_HANDOFF_FILE" > "$t/base.md" 2>/dev/null \
-       || ! xb="$(felix_handoff_marker "$t/base.md" | cut -f1)" || [ -z "$xb" ]; then
+       || ! xb="$(felix_handoff_marker "$t/base.md" | LC_ALL=C cut -f1)" || [ -z "$xb" ]; then
     printf 'note\tthe merge-base holds no sectioned %s, so nothing was compared with it\n' "$FELIX_HANDOFF_FILE" >> "$t/n"
   else
     git -C "$root" ls-tree "$base" -- "$FELIX_HANDOFF_DIR/" 2>/dev/null \
@@ -447,12 +447,12 @@ felix_handoff_check() {
     git -C "$root" ls-tree --name-only "$base" -- "$FELIX_HANDOFF_PENDING/" 2>/dev/null \
       | LC_ALL=C grep '\.md$' | _felix_handoff_order "$root" "$base" > "$t/order"
     while IFS= read -r f; do [ -f "$root/$f" ] || printf '%s\n' "$f"; done < "$t/order" > "$t/gone"
-    n="$(grep -c . "$t/gone")"
+    n="$(LC_ALL=C grep -c . "$t/gone")"
     if [ "$x" = "$xb" ]; then
       # Edited in place, the current section keeps its heading. A new heading
       # under the old id is another section put in its place, and the one it
       # replaced is gone from the file without being archived.
-      m="$(grep -m1 "^### $xb\. " "$t/base.md")"; f="$(grep -m1 "^### $x\. " "$h")"
+      m="$(LC_ALL=C grep -m1 "^### $xb\. " "$t/base.md")"; f="$(LC_ALL=C grep -m1 "^### $x\. " "$h")"
       [ -z "$f" ] || [ "$f" = "$m" ] \
         || printf 'current\tsection %s is headed differently than on the merge-base, so another section took its place and the one it replaced is lost. A new section goes under %s/\n' "$x" "$FELIX_HANDOFF_PENDING" >> "$t/p"
       while IFS= read -r f; do printf 'pending\t%s was removed without being folded in, which drops it\n' "$f"; done < "$t/gone" >> "$t/p"
@@ -470,7 +470,7 @@ felix_handoff_check() {
         _felix_handoff_block "$t/base.md" "$xb" > "$t/xb"
         cmp -s "$t/xb" "$root/$FELIX_HANDOFF_DIR/$xb.md" \
           || printf 'archive\t%s/%s.md is not the section the merge-base holds as current (%s lines against %s), so archiving it drops what the base added\n' \
-               "$FELIX_HANDOFF_DIR" "$xb" "$(wc -l < "$root/$FELIX_HANDOFF_DIR/$xb.md" | tr -d ' ')" "$(wc -l < "$t/xb" | tr -d ' ')" >> "$t/p"
+               "$FELIX_HANDOFF_DIR" "$xb" "$(wc -l < "$root/$FELIX_HANDOFF_DIR/$xb.md" | LC_ALL=C tr -d ' ')" "$(wc -l < "$t/xb" | LC_ALL=C tr -d ' ')" >> "$t/p"
       fi
     elif [ "$(head -n "$n" "$t/order" | LC_ALL=C sort)" != "$(LC_ALL=C sort "$t/gone")" ]; then
       printf 'pending\tthe sections folded in are not the %s that landed first on the merge-base\n' "$n" >> "$t/p"

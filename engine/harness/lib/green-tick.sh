@@ -24,6 +24,10 @@
 # owns. It sits outside the lib/land*.sh trust-base glob on purpose: it holds no
 # rule, only the order in which the existing ones are asked.
 
+# A8. Every read of main names the full ref: git resolves a tag or a local
+# branch called origin/main before the remote one, and every worktree shares them.
+_GT_MAIN=refs/remotes/origin/main
+
 # The ledger's time is UTC ISO 8601, the one format that sorts as text and that
 # an awk can turn back into seconds without a date(1) that differs per OS.
 _gt_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -45,9 +49,10 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
   local title="Felix: $1" det
-  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|timeout|stuck) ;; *) return 0 ;; esac
+  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
+  [ "${_GT_QUIET:-0}" = 1 ] && return 0
   [ "$2" = "-" ] || title="$title #$2"
-  det="$(printf '%s' "$3" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
+  det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
   osascript -e "display notification \"$det\" with title \"$title\"" >/dev/null 2>&1 || true
 }
 
@@ -61,11 +66,10 @@ _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
 
 # A pull request that waits writes one row, not one every five minutes: the row
 # is written only when it differs from that pull request's previous row.
+_gt_last() { LC_ALL=C awk -F'\t' -v p="$1" '$3 == p { l = $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null; }
 _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
-  local det prev
-  det="$(_gt_clean "${6:-}")"
-  [ -f "$_GT_LEDGER" ] && prev="$(LC_ALL=C awk -F'\t' -v p="$2" '$3 == p { l = $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER")" || prev=""
-  [ "$prev" != "$(printf '%s\t%s\t%s' "$1" "$3" "${det:--}")" ] || return 0
+  local det; det="$(_gt_clean "${6:-}")"
+  [ "$(_gt_last "$2")" != "$(printf '%s\t%s\t%s' "$1" "$3" "${det:--}")" ] || return 0
   _gt_row "$@"
 }
 
@@ -165,7 +169,7 @@ _gt_descendants() {   # PID -> its descendants' pids, one per line
 
 _GT_WDSECS=1800
 _gt_watchdog() {
-  local tick=$$ lead=0
+  local tick=$$ lead=0 st; st="$(_gt_started "$tick")"
   [ "$(LC_ALL=C ps -o pgid= -p "$tick" 2>/dev/null | tr -d ' ')" = "$tick" ] && lead=1
   (
     trap - EXIT; exec >/dev/null 2>&1 </dev/null
@@ -173,6 +177,8 @@ _gt_watchdog() {
     sleep "$_GT_WDSECS" & sp=$!
     trap 'kill "$sp" 2>/dev/null; exit 0' TERM
     wait "$sp" 2>/dev/null
+    # A15: the pid may name another process by now; only the tick it was set on is signalled.
+    [ -n "$st" ] && [ "$(_gt_started "$tick")" = "$st" ] || exit 0
     if [ "$lead" = 1 ]; then kill -TERM -- "-$tick"
     else
       kill -TERM $(_gt_descendants "$tick" | LC_ALL=C awk -v me="$me" '$1 != me') 2>/dev/null
@@ -195,12 +201,12 @@ _gt_cache() { printf '%s/felix/felix' "${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugi
 # names a judge the merge boundary does not take from the environment either.
 _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
   local why rc
-  why="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$FELIX_HOME_DIR" origin/main 2>&1 )"; rc=$?
+  why="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$FELIX_HOME_DIR" "$_GT_MAIN" 2>&1 )"; rc=$?
   if [ "$rc" -eq 0 ]; then
     # A2: an entry that is already main's does not make the deploy done. The
     # author's gate installs the entry for its own head, so after that head
     # lands the cache is right and the home is still behind, unverified.
-    [ "$(git -C "$FELIX_HOME_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$FELIX_HOME_DIR" rev-parse origin/main 2>/dev/null)" ] || return 1
+    [ "$(git -C "$FELIX_HOME_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$FELIX_HOME_DIR" rev-parse "$_GT_MAIN" 2>/dev/null)" ] || return 1
     why="the home checkout is not at origin/main: the engine it holds has not been deployed and verified"
   fi
   printf '%s' "$(printf '%s\n' "$why" | sed -n 1p)"
@@ -214,28 +220,31 @@ _gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1
 _gt_deploy() {
   local home="$FELIX_HOME_DIR" why ver out entry rc
   _GT_T0=$SECONDS
-  # A gate or suite measures the engine it runs under. Replacing the engine
-  # beneath it would invalidate the measurement, and nothing is ever signalled.
-  if pgrep -f '/engine/harness/tests/run|/gate\.sh' >/dev/null 2>&1; then
-    _gt_row deploy-owed - - - 0 "a gate or suite is running"; return 1
+  # A gate or suite measures the engine it runs under; replacing the engine
+  # beneath it would invalidate that, and nothing is ever signalled. A14: tests/red
+  # starts the suite by a relative path, and a pgrep that fails reads as a suite running.
+  pgrep -f 'engine/harness/tests/run|gate\.sh' >/dev/null 2>&1; rc=$?
+  if [ "$rc" -ne 1 ]; then
+    [ "$rc" -eq 0 ] && why="a gate or suite is running" || why="a gate or suite may be running: pgrep exited $rc"
+    _gt_row_once deploy-owed - - - 0 "$why"; return 1
   fi
   why=""
   [ "$(git -C "$home" rev-parse --abbrev-ref HEAD 2>/dev/null)" = "main" ] || why="the home checkout is not on main"
   [ -n "$why" ] || [ -z "$(git -C "$home" status --porcelain --untracked-files=no 2>/dev/null)" ] \
     || why="the home checkout holds a tracked change"
   if [ -n "$why" ]; then
-    _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
+    _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
   # A home ahead of origin/main, or diverged from it, holds a tree nothing judged.
   # Only origin/main's own commit is main, and nothing is installed from anything else.
-  if ! git -C "$home" merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
+  if ! git -C "$home" merge-base --is-ancestor HEAD "$_GT_MAIN" 2>/dev/null; then
     why="the home checkout holds a commit origin/main does not: it is ahead of or diverged from origin/main"
-    _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
+    _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
   out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
-  if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse origin/main 2>/dev/null)" ]; then
+  if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse "$_GT_MAIN" 2>/dev/null)" ]; then
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
-    _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
+    _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
@@ -255,20 +264,23 @@ _gt_deploy() {
 }
 
 # --- one pull request -------------------------------------------------------
-# The files a pull request changes: gh's list, and git's as well, because gh
-# caps the files it lists and a direction document past the cap must not read
-# as absent. The union only ever holds more back. Empty output is a failure.
+# The files a pull request changes: git's list and gh's together, because gh caps
+# the files it lists and a direction document past the cap must not read as
+# absent. The union only ever holds more back. git's is read with -z and
+# --no-renames (A9, A3): quoting never hides a byte, and a rename lists its old
+# path as well as its new one. Returns 1 when a list cannot be read and 3 when a
+# path holds a byte outside printable ASCII: the file system folds Unicode case
+# too, so projectſ/x/CLAUDE.md is the founder's file once it is checked out.
 _gt_files() {   # PR SHA
   local out n g
+  g="$(git -C "$FELIX_HOME_DIR" diff -z --no-renames --name-only "$_GT_MAIN...$2" 2>/dev/null \
+        | LC_ALL=C tr -c '\040-\176\000' '\001' | LC_ALL=C tr '\0' '\n')" || return 1
+  case "$g" in *$'\001'*) return 3 ;; esac
   out="$(gh pr view "$1" ${_GT_REPO:+--repo "$_GT_REPO"} --json files \
           --jq '(.files // []) as $f | ($f | length), ($f[].path)' 2>/dev/null)" || return 1
   n="$(printf '%s\n' "$out" | sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac
   [ "$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR - 1 }')" = "$n" ] || return 1
-  # --no-renames: a rename lists both the old path and the new one, so a
-  # direction document renamed away is still a changed path. gh gives only the
-  # new name, which is why git's list is not optional here.
-  g="$(git -C "$FELIX_HOME_DIR" diff --no-renames --name-only "origin/main...$2" 2>/dev/null)" || return 1
   { printf '%s\n' "$out" | sed '1d'; printf '%s\n' "$g"; } | LC_ALL=C awk 'NF && !seen[$0]++'
 }
 
@@ -312,23 +324,35 @@ _gt_detail() {   # felix merge's output -> the first blocker line, else the last
   printf '%s' "$d"
 }
 
-_gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS -> 0 when it landed
-  local n="$1" br="$2" sha="$3" why files dir wt out rc t0
+# A13. A refusal is final until the head or main moves; the row records both.
+# The ledger row is written on every run; it is notified only if the blocker or
+# the head differs from the pull request's previous refused row.
+_gt_refuse() {   # PR SHA WORKTREE WALL OUTPUT
+  local b; b="$(_gt_clean "$(_gt_detail "$5")")"
+  case "$(_gt_last "$1")" in "refused"$'\t'"$2"$'\t'"$b [main "*) _GT_QUIET=1 ;; esac
+  _gt_row refused "$1" "$2" "$3" "$4" "$b [main $_GT_MS]"; _GT_QUIET=0
+}
+
+_gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it landed
+  local n="$1" br="$2" sha="$3" why files dir wt out rc t0 frc
   if   [ "$4" = true ]; then why="a draft"
   elif [ "$5" = true ]; then why="labelled felix:hold"
   elif [ "$7" = true ]; then why="cross-repository: the head is not in this repository"
   elif [ "$6" = CONFLICTING ]; then why="conflicting with main"
+  elif [ "$8" != main ]; then why="its base is $8, not main: only pull requests into main are merged"
   else
     why="$(_felix_merge_gate_held "$PROJ" "$FELIX_HOME_DIR" "$sha")" || why="gate run not green: $why"
     case "$why" in "gate run not green: "*) ;; *) why="" ;; esac
   fi
   if [ -n "$why" ]; then _gt_row_once skip "$n" "$sha" - 0 "$why"; return 1; fi
-  files="$(_gt_files "$n" "$sha")" || files=""
-  [ -n "$files" ] || { _gt_row_once skip "$n" "$sha" - 0 "could not read the files the pull request changes"; return 1; }
+  files="$(_gt_files "$n" "$sha")"; frc=$?
+  [ "$frc" -ne 3 ] || { _gt_row_once founder "$n" "$sha" - 0 "changes a path outside printable ASCII, which this Mac's file system may fold onto a direction document"; return 1; }
+  [ "$frc" -eq 0 ] && [ -n "$files" ] || { _gt_row_once skip "$n" "$sha" - 0 "could not read the files the pull request changes"; return 1; }
   dir="$(_gt_direction "$files")" && {
     _gt_row_once founder "$n" "$sha" - 0 "touches $dir, a direction document; those merge on the founder's yes"; return 1; }
   wt="$(_gt_checkout "$br" "$sha")"
   [ -n "$wt" ] || { _gt_row_once session "$n" "$sha" - 0 "no checkout holds the gated head"; return 1; }
+  case "$(_gt_last "$n")" in "refused"$'\t'"$sha"$'\t'*"[main $_GT_MS]") return 1 ;; esac
   t0=$SECONDS
   out="$(_gt_merge "$wt" "$_GT_VER")"; rc=$?
   if [ "$rc" -eq 0 ]; then
@@ -336,7 +360,7 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS -> 0 when it land
     printf '%s\n' "$files" | LC_ALL=C awk '/^engine\// { f = 1 } END { exit !f }' && _GT_ENGINE=1
     return 0
   fi
-  _gt_row_once refused "$n" "$sha" "$wt" "$((SECONDS - t0))" "$(_gt_detail "$out")"
+  _gt_refuse "$n" "$sha" "$wt" "$((SECONDS - t0))" "$out"
   return 1
 }
 
@@ -344,10 +368,10 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS -> 0 when it land
 _gt_prs() {   # prints "number branch oid draft hold mergeable cross" lines, ascending
   local out n
   out="$(gh pr list ${_GT_REPO:+--repo "$_GT_REPO"} --state open --limit 200 \
-          --json number,headRefName,headRefOid,isDraft,labels,mergeable,isCrossRepository \
+          --json number,headRefName,headRefOid,isDraft,labels,mergeable,isCrossRepository,baseRefName \
           --jq 'length, (.[] | [(.number | tostring), (.headRefName // "-"), (.headRefOid // "-"), (.isDraft | tostring),
                 (((.labels // []) | any(.name == "felix:hold")) | tostring), (.mergeable // "UNKNOWN"),
-                (.isCrossRepository | tostring)] | join("\t"))' 2>/dev/null)" || return 1
+                (.isCrossRepository | tostring), (.baseRefName // "-")] | join("\t"))' 2>/dev/null)" || return 1
   n="$(printf '%s\n' "$out" | sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac
   [ "$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR - 1 }')" = "$n" ] || return 1
@@ -355,7 +379,7 @@ _gt_prs() {   # prints "number branch oid draft hold mergeable cross" lines, asc
 }
 
 _gt_tick() {
-  local last age ver why prs n br sha dr ho mg cr
+  local last age ver why prs n br sha dr ho mg cr bs
   # Not paused. One row, at most one an hour, so a long pause shows itself.
   if [ -e "$_GT_LAND/paused" ]; then
     last=""
@@ -368,24 +392,24 @@ _gt_tick() {
   _gt_lock || return 0
   _gt_watchdog
   if ! gh auth status >/dev/null 2>&1; then
-    _gt_row gh - - - 0 "gh auth status failed: the job cannot see pull requests or CI"; return 0
+    _gt_row_once gh - - - 0 "gh auth status failed: the job cannot see pull requests or CI"; return 0
   fi
   # G3: what main holds is deployed before anything merges, because felix merge
   # refuses every candidate for want of an installed judge.
   if ! _gt_git -C "$FELIX_HOME_DIR" fetch -q origin >/dev/null 2>&1; then
-    _gt_row fetch - - - 0 "git fetch origin failed in the home: main's version is not known"; return 0
+    _gt_row_once fetch - - - 0 "git fetch origin failed in the home: main's version is not known"; return 0
   fi
-  ver="$(_felix_plugin_version "$FELIX_HOME_DIR" origin/main)"
-  [ -n "$ver" ] || { _gt_row fetch - - - 0 "origin/main declares no engine version"; return 0; }
-  _GT_VER="$ver"
-  if why="$(_gt_deploy_owed)"; then
-    _gt_deploy || return 0
-  fi
-  prs="$(_gt_prs)" || { _gt_row gh - - - 0 "gh pr list failed"; return 0; }
+  ver="$(_felix_plugin_version "$FELIX_HOME_DIR" "$_GT_MAIN")"
+  [ -n "$ver" ] || { _gt_row_once fetch - - - 0 "origin/main declares no engine version"; return 0; }
+  _GT_VER="$ver"; _GT_MS="$(git -C "$FELIX_HOME_DIR" rev-parse "$_GT_MAIN" 2>/dev/null)"
+  # A11: a tick that deploys, whether or not it verifies, merges nothing. The next
+  # tick merges with the engine just deployed, and that engine runs it.
+  if why="$(_gt_deploy_owed)"; then _gt_deploy; return 0; fi
+  prs="$(_gt_prs)" || { _gt_row_once gh - - - 0 "gh pr list failed"; return 0; }
   _GT_ENGINE=0
-  while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr; do
+  while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr bs; do
     [ -n "${n:-}" ] || continue
-    if _gt_candidate "$n" "$br" "$sha" "$dr" "$ho" "$mg" "$cr"; then
+    if _gt_candidate "$n" "$br" "$sha" "$dr" "$ho" "$mg" "$cr" "$bs"; then
       # One landing per tick; a landing that changed engine/ is deployed now.
       [ "$_GT_ENGINE" -ne 1 ] || _gt_deploy
       break
@@ -402,6 +426,14 @@ _gt_usage() {
   return 2
 }
 
+# Rationed to one an hour by a stamp, because a tick every five minutes would repeat it.
+_gt_noproj() {
+  local s="$HOME/Library/Application Support/felix/land/noproject"
+  [ -z "$(find "$s" -mmin -60 2>/dev/null)" ] || return 0
+  mkdir -p "${s%/*}" 2>/dev/null; : > "$s" 2>/dev/null
+  _gt_say unresolved - "felix land --tick cannot resolve its project from $PWD: nothing was looked at"
+}
+
 felix_land() {
   case "${1:-}" in
     --tick|--resume|--install|--uninstall) [ $# -eq 1 ] || { _gt_usage; return 2; } ;;
@@ -409,6 +441,8 @@ felix_land() {
     --status) { [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--tsv" ]; }; } || { _gt_usage; return 2; } ;;
     *) _gt_usage; return 2 ;;
   esac
+  # A10: a tick that cannot resolve its project has no ledger to write; it says so.
+  [ "$1" != --tick ] || ( resolve_or_die ) >/dev/null 2>&1 </dev/null || _gt_noproj
   resolve_or_die
   local cmd="$1"; shift
   _GT_LAND="$(felix_mem_dir "$PROJ")/land"; _GT_LEDGER="$_GT_LAND/ledger.tsv"

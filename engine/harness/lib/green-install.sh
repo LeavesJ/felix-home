@@ -21,7 +21,6 @@ _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 # or any working tree.
 _gt_trampoline_body() {
   cat <<'TRAMPOLINE'
-cd "$FELIX_HOME_DIR" || exit 1
 cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"
 owed() {   # DETAIL: say why nothing runs, once, and stop
   t="$(printf 'deploy-owed\t%s' "$1")"
@@ -32,7 +31,8 @@ owed() {   # DETAIL: say why nothing runs, once, and stop
   }
   echo "felix land: $1" >&2; exit 1
 }
-pj="$(git show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null)" \
+cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME_DIR ($FELIX_HOME_DIR), so no engine is run"
+pj="$(git show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null)" \
   || owed "git could not read origin/main's engine version, so no engine is run"
 ver="$(printf '%s\n' "$pj" | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
 [ -n "$ver" ] || owed "origin/main declares no readable engine version, so no engine is run"
@@ -41,11 +41,11 @@ entry="$cache/$ver"
 [ -x "$entry/harness/felix" ] || owed "main's engine $ver is not executable under $cache: nothing runs until it is deployed from the home"
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/felix-land.XXXXXX" 2>/dev/null)" \
   || owed "main's accepted-engine check cannot be loaded: no temporary directory to read it into"
-git show origin/main:engine/harness/lib/resolve.sh > "$tmp/resolve.sh" 2>/dev/null \
+git show refs/remotes/origin/main:engine/harness/lib/resolve.sh > "$tmp/resolve.sh" 2>/dev/null \
   || { rm -rf "$tmp"; owed "main's accepted-engine check cannot be loaded: origin/main holds no lib/resolve.sh"; }
 out="$(env -u FELIX_KERNEL_CACHE /bin/bash -c '. "$1" >/dev/null 2>&1
   command -v felix_accepted_deploy_diff >/dev/null 2>&1 || exit 3
-  felix_accepted_deploy_diff "$2" origin/main 2>/dev/null' felix-land "$tmp/resolve.sh" "$FELIX_HOME_DIR")"
+  felix_accepted_deploy_diff "$2" refs/remotes/origin/main 2>/dev/null' felix-land "$tmp/resolve.sh" "$FELIX_HOME_DIR")"
 rc=$?
 rm -rf "$tmp"
 case "$rc" in
@@ -81,7 +81,7 @@ _gt_install() {
     printf '  <key>StartInterval</key><integer>300</integer>\n  <key>RunAtLoad</key><true/>\n'
     printf '  <key>ProcessType</key><string>Interactive</string>\n'
     printf '  <key>EnvironmentVariables</key><dict>\n'
-    printf '    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n'
+    printf '    <key>PATH</key><string>%s/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n' "$(_gt_xml "$HOME")"
     printf '    <key>FELIX_HOME_DIR</key><string>%s</string>\n  </dict>\n' "$(_gt_xml "$FELIX_HOME_DIR")"
     printf '  <key>StandardOutPath</key><string>%s</string>\n' "$(_gt_xml "$_GT_LAND/launchd.log")"
     printf '  <key>StandardErrorPath</key><string>%s</string>\n' "$(_gt_xml "$_GT_LAND/launchd.log")"

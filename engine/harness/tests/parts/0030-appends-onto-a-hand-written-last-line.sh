@@ -226,8 +226,18 @@ _anl_out="$(_anl_allow nl)"
 _anl_aut_is "felix autonomy --allow onto a grant ending in a newline adds no blank line" \
    "$_anl_out" "$(_anl_want 'commission\ntidy\n')"
 _anl_out="$(_anl_allow nul)"
-_anl_aut_is "felix autonomy --allow onto a grant ending in a NUL byte writes a newline after the NUL first" \
-   "$_anl_out" "$(_anl_want 'commission\0\ntidy\n')"
+# Amended 2026-10-08 at the merge into claude/autonomy-writer-lock, which
+# carries the allow fix: this engine reads no grant from a file holding a NUL
+# byte, so a tidy added after one would not hold, and "allowed: tidy" over it
+# is the defect that fix closes. The grant is refused, says why, and the file
+# keeps every byte.
+case "$_anl_nl$_anl_out$_anl_nl" in
+  *"${_anl_nl}allowed: tidy${_anl_nl}"*) _anl_said=said ;;
+  *"tidy is not allowed"*"NUL byte"*) _anl_said=refused ;;
+  *) _anl_said=other ;;
+esac
+is "felix autonomy --allow onto a grant ending in a NUL byte is refused, names the NUL byte, says no allowed:, and leaves the file byte-identical" \
+   "$_anl_said:$(_anl_bytes "$_anl_W/autonomy")" "refused:$(_anl_want 'commission\0')"
 _anl_out="$(_anl_allow absent)"
 _anl_aut_is "felix autonomy --allow with no autonomy file still seeds its comment line before the grant" \
    "$_anl_out" "$(_anl_want '# What Felix may do here unattended.\ntidy\n')"

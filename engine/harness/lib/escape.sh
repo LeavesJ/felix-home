@@ -134,6 +134,10 @@ FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/'
 #
 # Named by shape. projects/<name>/autonomy exists for every governed project,
 # and the engine names none of them.
+#
+# The shape also matches autonomy.lock, felix autonomy's writer lock
+# (felix_autonomy_lock, autonomy.sh). That is an empty directory, which git
+# does not track, so it never reaches a diff and this never fires on it.
 FELIX_ESCAPE_AUTHORITY='(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$'
 
 # exception: the table of grants that clear a TASK_BLOCKING obligation at the

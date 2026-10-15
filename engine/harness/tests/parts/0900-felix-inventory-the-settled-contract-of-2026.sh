@@ -40,7 +40,11 @@ printf '0\n' > "$IB/gh/rc"; : > "$IB/gh/err"
 # XDG_CACHE_HOME and answers the --state all or --state open listing of the
 # repository -R names (else of the directory it runs in) from $IB/gh/<key>/.
 # $IB/gh/rc and err make it fail, fail-open fails the second call only, and
-# slow makes it write its PID and sleep.
+# slow makes it write its PID and wait, at most 30 s, until $IB/gh/release
+# exists, and then exit 0 with no output as `sleep 30` did. A test that sends
+# the run a signal while gh waits releases it after the send (_ibsig, part
+# 0920): bash runs a trap only when its foreground child ends, so the run
+# would otherwise sit out the whole 30 s before it could act on the signal.
 cat > "$IB/stub/gh" <<IBGHEOF
 #!/bin/sh
 D='$IB/gh'
@@ -49,7 +53,11 @@ r=""; p=""
 for a in "\$@"; do [ "\$p" = -R ] && r="\$a"; p="\$a"; done
 if [ -n "\$r" ]; then k="\$(printf '%s' "\$r" | tr '/' '_')"; else k="pwd_\${PWD##*/}"; fi
 [ -d "\$D/\$k" ] || k=default
-if [ -f "\$D/slow" ]; then printf '%s\n' "\$\$" > '$IB/gh.pid'; exec sleep 30; fi
+if [ -f "\$D/slow" ]; then
+  printf '%s\n' "\$\$" > '$IB/gh.pid'; i=0
+  while [ ! -e "\$D/release" ] && [ "\$i" -lt 300 ]; do sleep 0.1; i=\$((i + 1)); done
+  exit 0
+fi
 s=all; case " \$* " in *" --state open "*) s=open ;; esac
 if [ "\$s" = open ] && [ -f "\$D/fail-open" ]; then echo 'gh: the open listing failed' >&2; exit 1; fi
 rc="\$(cat "\$D/rc")"

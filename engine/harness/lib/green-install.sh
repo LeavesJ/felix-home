@@ -5,6 +5,23 @@
 # lib/land*.sh trust-base glob like it, and for the same reason: it holds no
 # rule, only the order in which the existing ones are asked.
 
+# A22. A tick that cannot resolve its project has no ledger of its own. The
+# trampoline carries the ledger's path and exports it as FELIX_LAND_LEDGER; this is
+# the only case that reads it. The row is deduplicated as A10's are, so five
+# minutes of the same failure is one row and one notification. Without the
+# variable it is rationed to one an hour by a stamp.
+_gt_noproj() {
+  local s="$HOME/Library/Application Support/felix/land/noproject" m
+  m="felix land --tick cannot resolve its project from $PWD: nothing was looked at"
+  if [ -n "${FELIX_LAND_LEDGER:-}" ]; then
+    _GT_LEDGER="$FELIX_LAND_LEDGER"; _GT_LAND="$(dirname "$_GT_LEDGER")"
+    _gt_row_once unresolved - - - 0 "$m"; return 0
+  fi
+  [ -z "$(find "$s" -mmin -60 2>/dev/null)" ] || return 0
+  mkdir -p "${s%/*}" 2>/dev/null; : > "$s" 2>/dev/null
+  _gt_say unresolved - "$m"
+}
+
 _gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 
@@ -69,7 +86,7 @@ _gt_install() {
   {
     printf '#!/bin/sh\n# Written by felix land --install; felix land --uninstall removes it.\n'
     printf ': "${FELIX_HOME_DIR:=%s}"\nexport FELIX_HOME_DIR\nFELIX_HOME="$FELIX_HOME_DIR"; export FELIX_HOME\n' "$(_gt_sq "$FELIX_HOME_DIR")"
-    printf 'ledger=%s\n' "$(_gt_sq "$_GT_LEDGER")"
+    printf 'ledger=%s\nFELIX_LAND_LEDGER="$ledger"; export FELIX_LAND_LEDGER\n' "$(_gt_sq "$_GT_LEDGER")"
     _gt_trampoline_body
   } > "$tr" && chmod +x "$tr" || die "could not write $tr"
   {

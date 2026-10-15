@@ -59,8 +59,9 @@ _gt_say() {   # EVENT PR DETAIL
 _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
   local det; det="$(_gt_clean "${6:-}")"; [ -n "$det" ] || det="-"
   mkdir -p "$_GT_LAND" 2>/dev/null
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(_gt_now)" "$1" "${2:--}" "${3:--}" "${4:--}" "${5:-0}" "$det" \
-    >> "$_GT_LEDGER" 2>/dev/null
+  # A18: a tab or newline in any column would break the seven fields, not only the detail.
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(_gt_now)" "$(_gt_clean "$1")" "$(_gt_clean "${2:--}")" "$(_gt_clean "${3:--}")" \
+    "$(_gt_clean "${4:--}")" "$(_gt_clean "${5:-0}")" "$det" >> "$_GT_LEDGER" 2>/dev/null
   _gt_say "$1" "${2:--}" "$det"
 }
 
@@ -201,6 +202,9 @@ _gt_cache() { printf '%s/felix/felix' "${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugi
 # names a judge the merge boundary does not take from the environment either.
 _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
   local why rc
+  # A20: a verify cut off by the watchdog, a logout or a reboot left this file, and
+  # is run again before anything merges.
+  [ ! -e "$_GT_LAND/verifying" ] || { printf 'a deploy was started and its verify did not finish: it is run again'; return 0; }
   why="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$FELIX_HOME_DIR" "$_GT_MAIN" 2>&1 )"; rc=$?
   if [ "$rc" -eq 0 ]; then
     # A2: an entry that is already main's does not make the deploy done. The
@@ -246,12 +250,14 @@ _gt_deploy() {
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
+  : > "$_GT_LAND/verifying"   # A20: removed only by the deployed row below
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"
   entry="$(_gt_cache)/$ver"
-  out="$(diff -rq "$entry/harness" "$home/engine/harness" 2>&1)" \
-    || { _gt_unverified "diff: the cache entry for ${ver:-no version} differs from the home's engine/harness: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
+  # A21: against main's own commit, not the home's files: an untracked file in the home's engine/ cannot pass.
+  out="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$home" "$_GT_MAIN" 2>&1 )" \
+    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
   printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
     | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) >/dev/null 2>&1
   rc=$?
@@ -259,7 +265,8 @@ _gt_deploy() {
   ( cd "$home" && "$home/engine/harness/felix" gate --quick ) >/dev/null 2>&1 </dev/null
   rc=$?
   [ "$rc" -eq 0 ] || { _gt_unverified "gate: felix gate --quick exited $rc in the home"; return 1; }
-  _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches the home, and passed session-start and felix gate --quick"
+  _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches origin/main, and passed session-start and felix gate --quick"
+  rm -f "$_GT_LAND/verifying"
   return 0
 }
 
@@ -300,9 +307,10 @@ EOF
 # The checkout a session would have merged from: a worktree of the home whose
 # branch is the pull request's and whose HEAD is the head the gate ran on. The
 # tick never checks one out, fetches into it, resets, cleans or writes to it.
+# -z keeps a path whole; a path holding a tab, CR or newline is answered as ! and never used (A18).
 _gt_checkout() {   # BRANCH SHA -> the worktree's path
-  git -C "$FELIX_HOME_DIR" worktree list --porcelain 2>/dev/null | LC_ALL=C awk -v br="refs/heads/$1" -v sha="$2" '
-    function flush() { if (p != "" && b == br && h == sha) { print p; found = 1; exit } }
+  git -C "$FELIX_HOME_DIR" worktree list --porcelain -z 2>/dev/null | LC_ALL=C tr '\0' '\001' | LC_ALL=C awk -v RS='\001' -v br="refs/heads/$1" -v sha="$2" '
+    function flush() { if (p != "" && b == br && h == sha) { print (p ~ /[\t\r\n]/ ? "!" : p); found = 1; exit } }
     /^worktree / { flush(); p = substr($0, 10); h = ""; b = ""; next }
     /^HEAD /     { h = $2; next }
     /^branch /   { b = $2; next }
@@ -333,6 +341,9 @@ _gt_refuse() {   # PR SHA WORKTREE WALL OUTPUT
   _gt_row refused "$1" "$2" "$3" "$4" "$b [main $_GT_MS]"; _GT_QUIET=0
 }
 
+# A19: felix merge picks its pull request by branch name, so a head branch two open pull requests share is merged for neither.
+_gt_dup() { case $'\n'"$_GT_DUPS"$'\n' in *$'\n'"$1"$'\n'*) return 0 ;; esac; return 1; }
+
 _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it landed
   local n="$1" br="$2" sha="$3" why files dir wt out rc t0 frc
   if   [ "$4" = true ]; then why="a draft"
@@ -340,6 +351,7 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it
   elif [ "$7" = true ]; then why="cross-repository: the head is not in this repository"
   elif [ "$6" = CONFLICTING ]; then why="conflicting with main"
   elif [ "$8" != main ]; then why="its base is $8, not main: only pull requests into main are merged"
+  elif _gt_dup "$br"; then why="another open pull request has the head branch $br: felix merge picks its pull request by branch name"
   else
     why="$(_felix_merge_gate_held "$PROJ" "$FELIX_HOME_DIR" "$sha")" || why="gate run not green: $why"
     case "$why" in "gate run not green: "*) ;; *) why="" ;; esac
@@ -352,6 +364,7 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it
     _gt_row_once founder "$n" "$sha" - 0 "touches $dir, a direction document; those merge on the founder's yes"; return 1; }
   wt="$(_gt_checkout "$br" "$sha")"
   [ -n "$wt" ] || { _gt_row_once session "$n" "$sha" - 0 "no checkout holds the gated head"; return 1; }
+  [ "$wt" != "!" ] || { _gt_row_once session "$n" "$sha" - 0 "the checkout holding the gated head has a tab or newline in its path: it is never used"; return 1; }
   case "$(_gt_last "$n")" in "refused"$'\t'"$sha"$'\t'*"[main $_GT_MS]") return 1 ;; esac
   t0=$SECONDS
   out="$(_gt_merge "$wt" "$_GT_VER")"; rc=$?
@@ -406,7 +419,7 @@ _gt_tick() {
   # tick merges with the engine just deployed, and that engine runs it.
   if why="$(_gt_deploy_owed)"; then _gt_deploy; return 0; fi
   prs="$(_gt_prs)" || { _gt_row_once gh - - - 0 "gh pr list failed"; return 0; }
-  _GT_ENGINE=0
+  _GT_ENGINE=0; _GT_DUPS="$(printf '%s\n' "$prs" | cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
   while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr bs; do
     [ -n "${n:-}" ] || continue
     if _gt_candidate "$n" "$br" "$sha" "$dr" "$ho" "$mg" "$cr" "$bs"; then
@@ -424,14 +437,6 @@ EOF
 _gt_usage() {
   printf 'usage: felix land --tick | --pause [reason] | --resume | --install | --uninstall | --status [--tsv]\n' >&2
   return 2
-}
-
-# Rationed to one an hour by a stamp, because a tick every five minutes would repeat it.
-_gt_noproj() {
-  local s="$HOME/Library/Application Support/felix/land/noproject"
-  [ -z "$(find "$s" -mmin -60 2>/dev/null)" ] || return 0
-  mkdir -p "${s%/*}" 2>/dev/null; : > "$s" 2>/dev/null
-  _gt_say unresolved - "felix land --tick cannot resolve its project from $PWD: nothing was looked at"
 }
 
 felix_land() {

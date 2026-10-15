@@ -741,6 +741,12 @@ felix_base_resolves() {
 felix_base_ref() {
   local root="${1:-}" base="${2:-}" ref
   [ -n "$root" ] && [ -n "$base" ] || return 1
+  # A full ref name is taken as given: putting origin/ in front of it would name
+  # a ref any session can create. It is returned only when it is a commit.
+  case "$base" in refs/*)
+    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
+    return 1 ;;
+  esac
   for ref in "origin/$base" "$base"; do
     if git -C "$root" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1; then
       printf '%s' "$ref"; return 0
@@ -1228,6 +1234,12 @@ EOF
 # resolves, which is a repository that cannot say what was accepted.
 felix_base_ref() {
   local root="$1" base="${2:-main}" ref
+  # A full ref name is taken as given: putting origin/ in front of it would name
+  # a ref any session can create. It is returned only when it is a commit.
+  case "$base" in refs/*)
+    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
+    return 1 ;;
+  esac
   for ref in "origin/$base" "$base"; do
     if git -C "$root" rev-parse --verify --quiet "$ref" >/dev/null 2>&1; then
       printf '%s' "$ref"; return 0

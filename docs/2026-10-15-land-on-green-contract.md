@@ -349,6 +349,44 @@ from a clause above, the amendment wins.
   project writes its row there, deduplicated as in A10, and notifies. The tick
   reads that variable only in this case.
 
+## Amended after the fourth review, 2026-10-15
+
+**What the guards are for.** Every session on this Mac holds the founder's
+GitHub token. A hostile session can therefore merge directly, and this job gives
+it nothing it lacks. Like the rest of Felix's floor, these guards stop a
+careless session or a damaged checkout, not a hostile one. Where a check is
+cheap and closes a case a careless session could create, it is in. Hostile-only
+cases are recorded and are not chased further.
+
+- **A23 (the checkout is the one the pull request names).**
+    - `git worktree list --porcelain -z` is read one NUL-ended field at a time
+      (`read -r -d ''`), and a record ends at its empty field. No byte inside a
+      field is ever used as a separator.
+    - The tick then asks the chosen directory itself. It must report all of
+      these, or the pull request gets a `session` row:
+        - `git symbolic-ref HEAD` equal to `refs/heads/<headRefName>`;
+        - `git rev-parse HEAD` equal to `headRefOid`;
+        - a `git rev-parse --git-common-dir` that names the home's own `.git`.
+- **A24 (the home is main, byte for byte, before any of its code runs).**
+  Before the deploy runs anything from the home (`felix install`,
+  `session-start`, `felix gate --quick`), all three of these must hold for
+  `engine/` and `projects/<p>/`:
+    - every tracked path hashes, with `git hash-object` over the working-tree
+      file and not through `git status`, to the blob
+      `refs/remotes/origin/main` holds;
+    - no index entry carries assume-unchanged or skip-worktree (`git ls-files
+      -v`);
+    - no untracked or ignored file exists under `engine/` (`git ls-files
+      --others` with no exclude rules).
+
+  If any of them fails, the deploy writes a `deploy-owed` row naming the path,
+  writes `paused`, and runs nothing. The trampoline applies the third check to
+  `engine/` before its A1 check, so an untracked `.gitignore` there cannot
+  widen what that check calls residue.
+- **A25 (the watchdog signals the tick first).** It sends TERM to the tick's
+  pid first, and only then to the tick's descendants. It never signals its own
+  pid or its own process group.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

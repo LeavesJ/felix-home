@@ -126,12 +126,19 @@ _sr_tree() {   # <root> [stable] -> the id; status 1 and nothing when it cannot 
 # how sort and awk order names; the PATH, as a hash because it is long and only
 # its identity matters, decides which tools the fixtures find; and whether a
 # `claude` CLI is on it turns some assertions into skips (has_claude), so a run
-# with one and a run without are different runs.
+# with one and a run without are different runs. The host is LocalHostName on
+# macOS: `uname -n` there follows the network, and moved mid-run (B4).
 _sr_env() {
   local loc="${LC_ALL:-${LC_CTYPE:-${LANG:-}}}" cl=no ph
   command -v claude >/dev/null 2>&1 && cl=yes
   ph="$(printf '%s' "$PATH" | git hash-object --stdin 2>/dev/null)"
-  printf 'host=%s;bash=%s;locale=%s;path=%s;claude=%s\n' "$(uname -n 2>/dev/null)" "$BASH_VERSION" "$loc" "$ph" "$cl"
+  printf 'host=%s;bash=%s;locale=%s;path=%s;claude=%s\n' "$(_sr_host)" "$BASH_VERSION" "$loc" "$ph" "$cl"
+}
+
+_sr_host() {   # LocalHostName where it answers a plain name, else uname -n (B4)
+  local h=""; [ -x /usr/sbin/scutil ] && h="$(/usr/sbin/scutil --get LocalHostName 2>/dev/null)"
+  case "$h" in ''|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-]*) h="$(uname -n 2>/dev/null)" ;; esac
+  printf '%s' "$h"
 }
 
 # The commit refs/remotes/origin/main names, or `-` when it names none or cannot

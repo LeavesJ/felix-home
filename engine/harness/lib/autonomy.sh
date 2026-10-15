@@ -119,7 +119,7 @@ _felix_autonomy_grants() {   # line want -> 0 when the line grants want
 # character, in any encoding a macOS or glibc locale runs in, holds either
 # byte. UTF-8's and the EUC encodings' are bytes from \200 up, Shift-JIS's
 # ideographic space is \201@ and Big5's \241@, and GB18030's four-byte spaces
-# hold digits. Checked 2026-10-08 against Python's codecs and every LC_CTYPE
+# hold digits. Checked 2026-10-08 against a codec library and every LC_CTYPE
 # on this Mac. The encodings that do put a letter in a space are ones no
 # locale reads with it: EBCDIC, ISO-2022 and UTF-7, and Shift_JIS-2004, whose
 # no-break space is \205A (macOS has no such locale, and glibc's space class

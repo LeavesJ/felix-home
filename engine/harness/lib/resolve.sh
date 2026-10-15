@@ -838,7 +838,7 @@ felix_changed_paths() {
     fi
     git -C "$root" diff --name-only --no-renames --cached 2>/dev/null
     git -C "$root" diff --name-only --no-renames 2>/dev/null
-  } | grep -v '^$' | LC_ALL=C sort -u
+  } | LC_ALL=C grep -v '^$' | LC_ALL=C sort -u
 }
 
 # Every line this branch ADDS, including staged and unstaged ones.

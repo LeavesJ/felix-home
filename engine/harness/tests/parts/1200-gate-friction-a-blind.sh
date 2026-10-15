@@ -97,9 +97,19 @@ _gfa_bv="$(_gfa_alone bash -c 'printf %s "$BASH_VERSION"' 2>/dev/null)"
 _gfa_ph1="$(printf '%s' "$GFA_P" | git hash-object --stdin)"; _gfa_ph2="$(printf '%s\n' "$GFA_P" | git hash-object --stdin)"
 _gfa_cl="$(_gfa_alone bash -c 'command -v claude >/dev/null 2>&1 && echo yes || echo no' 2>/dev/null)"
 _gfa_env() { _gfa_alone "$@" bash -c '. "$1" >/dev/null 2>&1 || exit 97; _sr_env' _ "$GFA_R" 2>/dev/null; }
+# The host, by contract B4.1: scutil's LocalHostName when /usr/sbin/scutil is
+# executable, exits 0 and prints one non-empty line of ASCII letters, digits
+# and hyphens; else uname -n.
+_gfa_h="$(uname -n)"
+if [ -x /usr/sbin/scutil ] && _gfa_lh="$(/usr/sbin/scutil --get LocalHostName 2>/dev/null)"; then
+  case "$_gfa_lh" in
+    ""|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-]*) ;;
+    *) _gfa_h="$_gfa_lh" ;;
+  esac
+fi
 _gfa_e0="$(_gfa_env)"
 case "$_gfa_e0" in
-  "host=$(uname -n);bash=$_gfa_bv;locale=;path=$_gfa_ph1;claude=$_gfa_cl"|"host=$(uname -n);bash=$_gfa_bv;locale=;path=$_gfa_ph2;claude=$_gfa_cl")
+  "host=$_gfa_h;bash=$_gfa_bv;locale=;path=$_gfa_ph1;claude=$_gfa_cl"|"host=$_gfa_h;bash=$_gfa_bv;locale=;path=$_gfa_ph2;claude=$_gfa_cl")
     ok  "_sr_env is one line of host, bash version, an empty locale when none is set, the hash of PATH and claude, in that order" ;;
   *) bad "_sr_env is one line of host, bash version, an empty locale when none is set, the hash of PATH and claude, in that order" \
          "got [$_gfa_e0]" ;;

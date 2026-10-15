@@ -606,6 +606,7 @@
 1	a TMPDIR under a .mcp.json returns 4
 1	a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not
 1	a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check
+1	a `[` that ends the names lookup's own substitution before it answers, at status 0 with no text, makes it return 2 naming nothing
 1	a backfilled row carries DECLARED
 1	a backslash at the end of a comment does not join the next line to it: the runner there is a check, and a --silent after a commented-out flag takes npm test's status
 1	a bare branch name prefers the remote-tracking ref
@@ -2480,6 +2481,7 @@
 1	a when whose test returns 0 applies, and the check decides done
 1	a when whose test returns 1 is still not-applicable
 1	a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1
+1	a whole answer whose counting grep printed its count and then failed is unknown, not answered
 1	a whole answer whose rows could not be counted is unknown, not answered
 1	a why past the stated ceiling is refused rather than silently cut
 1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
@@ -4789,7 +4791,7 @@
 1	and the monitor's count and newest entry are what they always were
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
-1	and the names lookup is one substitution whose one pipe reads the names, with no here-document
+1	and the names lookup is one substitution whose one pipe reads the names, with no here-document, process substitution or backquote, calling no engine function
 1	and the near-name and stray records are each one record, the run row's failed count what the names add up to
 1	and the new row is its own line
 1	and the next fold gives it the id after theirs
@@ -5142,6 +5144,7 @@
 1	and with nothing reached, every name listed is said once, a row with no name or a count that is no number listing none
 1	and with only a gitlab remote under another name, they wait
 1	and with only an awaiting provider row it is owed with its request path, and nothing is said to be unread
+1	and with the answer's rows uncountable the provider row is unknown and the receipt indeterminate, not commissioned
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
 1	and with the same directory given absolutely the control reads
@@ -8416,7 +8419,7 @@
 1	the cache row carries the tier its marketplace entry declares
 1	the candidate fixture's epoch is a hash
 1	the capabilities file is untouched
-1	the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line
+1	the capability lookup is one substitution, with no pipe, here-document, process substitution or backquote, calling no engine function but felix_declared
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
@@ -9166,6 +9169,7 @@
 1	unstubbed, a whole answer of two rows is answered and one of its two rows is partial
 1	unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log
 1	unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial
+1	unstubbed, the run over a provider row with a whole answer and a done row reads answered and the receipt is commissioned
 1	untouched surfaces are n/a
 1	update-ref writing a remote-tracking ref is still refused
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
@@ -9322,6 +9326,7 @@
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no commit yet the written row spells branch and sha exactly as the gate's own row does
+1	with no descriptor left for its pipe, the names lookup returns 2 and names nothing
 1	with no felix cache on the machine, installed is skipped
 1	with no felix cache the evidence cannot examine, exit 2
 1	with no gh on PATH at all, felix inventory --tsv still exits 0

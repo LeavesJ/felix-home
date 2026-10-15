@@ -3,7 +3,7 @@ printf '\nland on green: felix land, its preflight, candidates and merge (contra
 # Blind, written from docs/2026-10-15-land-on-green-contract.md alone on
 # 2026-10-15, before lib/green-tick.sh or any felix land existed. Nothing here
 # was read off an implementation of it. Part 1281 carries G3, G7 and --install
-# on the fixture this part builds.
+# on the fixture this part builds, and 1282 review round 1 and A1-A7.
 #
 # The fixture: a bare origin whose path ends github.com/fixture/lgh.git, so the
 # slug the engine derives is fixture/lgh and git fetch works offline; a home
@@ -476,105 +476,3 @@ _lg_reset; _lg_land --pause "$(printf 'first line\nsecond\tpart')"; _lg_land --t
 _lgo="$(LC_ALL=C awk -F'\t' 'NF != 7' "$LAND/ledger.tsv" 2>/dev/null | wc -l | tr -d ' ')"
 [ "$(_lg_rows)" -eq 1 ] && [ "$_lgo" = 0 ] && ok "G8: a detail holding a newline and a tab is written as one row of seven fields" \
   || bad "G8: a detail holding a newline and a tab is written as one row of seven fields" "$(_lg_rows) lines, $_lgo of another shape"
-
-# ------------------------------------------------------- review round 1 ---
-# Blind, from the contract and the review's findings alone; lib/green-tick.sh
-# was not read. Each block cites the clause it holds the tick to, and leaves
-# the fixture as part 1281 expects it: the home on main at origin/main, which
-# declares 9.0.0, the cache holding 9.0.0 as a copy of the home's engine, and
-# no trampoline installed.
-LGV1="$LGC/felix/felix"
-_lgr1_cache() { rm -rf "$LGV1/$1"; mkdir -p "$LGV1/$1"; cp -R "$LGH/engine/harness" "$LGV1/$1/harness"; }
-_lgr1_home() {   # back to origin/main, and main's entry cached from it
-  _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
-  _fx_git "$LGH" reset -q --hard origin/main >/dev/null 2>&1; _lgr1_cache 9.0.0
-}
-
-# G3, G7.2, G7.4: while a deploy is owed and not completed, the tick merges
-# nothing. A deploy that stops at a home off main, or whose verify fails, has
-# not completed, and a green pull request with a matched worktree is listed.
-rm -rf "$LGV1/9.0.0"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42
-_fx_git "$LGH" checkout -q -b side1 >/dev/null 2>&1
-_lg_land --tick
-is "G3, G7.2 (review 1): a deploy owed and stopped at a home off main merges nothing in that tick" \
-   "$(_lg_n deploy-owed)|$(_lg_merges)" "1|"
-_fx_git "$LGH" checkout -q main >/dev/null 2>&1; _fx_git "$LGH" branch -q -D side1 >/dev/null 2>&1
-for _lgk in hook gate; do
-  rm -rf "$LGV1/9.0.0"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; printf '1\n' > "$LGK/$_lgk.rc"
-  _lg_land --tick
-  is "G3, G7.4 (review 1): a deploy whose $_lgk check fails is not completed: deployed-unverified, and nothing merges in that tick" \
-     "$(_lg_n deployed-unverified)|$(_lg_merges)" "1|"
-done
-_lgr1_home
-
-# G3: the version is read from origin/main after a git fetch. origin's main is
-# moved from a clone that is not the home, so the home's origin/main is stale
-# until the tick fetches.
-_fx_git "$LG" clone -q "$LGO" other1 >/dev/null 2>&1
-_lgr1_base="$(git -C "$LGH" rev-parse HEAD 2>/dev/null)"
-printf 'core r1\n' > "$LG/other1/engine/harness/lib/core.sh"
-printf '{ "name": "felix", "version": "9.0.1" }\n' > "$LG/other1/engine/.claude-plugin/plugin.json"
-_fx_git "$LG/other1" -c user.name=t -c user.email=t@t commit -qam r1 >/dev/null 2>&1
-_fx_git "$LG/other1" push -q origin HEAD:main >/dev/null 2>&1
-is "the land fixture: origin's main moved and the home's origin/main did not (fixture control)" \
-   "$(git -C "$LGH" rev-parse origin/main 2>&1) $(git -C "$LGO" rev-parse main 2>&1 | cut -c1-7)" \
-   "$_lgr1_base $(git -C "$LG/other1" rev-parse HEAD 2>&1 | cut -c1-7)"
-_lg_reset; _lg_land --tick
-is "G3 (review 1): the tick fetches before it reads origin/main's version: a main pushed from elsewhere is deployed" \
-   "$(_lg_n deployed)|$(cat "$LGV1/9.0.1/harness/lib/core.sh" 2>/dev/null)" "1|core r1"
-is "G3 (review 1): and the home's origin/main is origin's main after the tick" \
-   "$(git -C "$LGH" rev-parse origin/main 2>&1)" "$(git -C "$LGO" rev-parse main 2>&1)"
-_fx_git "$LG/other1" push -q -f origin "$_lgr1_base:refs/heads/main" >/dev/null 2>&1
-rm -rf "$LG/other1" "$LGV1/9.0.1"; _lgr1_home
-
-# G3 "Deploy what main already holds", G7.3 "The home's engine is main's": a
-# home whose main holds an unpushed engine commit is not installed as main's,
-# and no deployed row stands while the cache entry for origin/main's version
-# still differs from origin/main's engine/harness, which G3 calls owed. What the
-# tick does instead (a row, a pause) the contract does not say.
-printf 'core local\n' > "$LGH/engine/harness/lib/core.sh"
-_fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qam unpushed >/dev/null 2>&1
-rm -rf "$LGV1/9.0.0"; _lg_reset; _lg_land --tick
-_lgo="$(cat "$LGV1/9.0.0/harness/lib/core.sh" 2>/dev/null)"
-case "$_lgo" in "core local") bad "G3, G7.3 (review 1): an unpushed engine commit in the home is never installed as main's" "the cache entry holds [$_lgo]" ;;
-  *) ok "G3, G7.3 (review 1): an unpushed engine commit in the home is never installed as main's" ;; esac
-case "$(_lg_n deployed):$_lgo" in 0:*|*":core 0") ok "G3 (review 1): no deployed row while the cache entry differs from origin/main's engine/harness" ;;
-  *) bad "G3 (review 1): no deployed row while the cache entry differs from origin/main's engine/harness" "deployed $(_lg_n deployed), cache core [$_lgo]" ;; esac
-_lgr1_home
-
-# G5: a pull request that renames a direction document away changes it, so it
-# is held with a founder row. gh's files list names only the new path, as gh
-# does for a rename.
-_fx_git "$LGH" worktree add -q -b b36 "$LGW/b36" main >/dev/null 2>&1
-_fx_git "$LGW/b36" mv projects/lgh/CLAUDE.md projects/lgh/CONSTITUTION.old >/dev/null 2>&1
-_fx_git "$LGW/b36" -c user.name=t -c user.email=t@t commit -qm b36 >/dev/null 2>&1
-printf '36\t%s\n' "$(git -C "$LGW/b36" rev-parse HEAD)" >> "$LG/shas"
-_lg_reset; _lg_prs "$(_lg_pr 36)"; _lg_green 36; printf 'projects/lgh/CONSTITUTION.old\n' > "$LGK/files.36"
-_lg_land --tick
-is "G5 (review 1): a pull request that renames projects/*/CLAUDE.md away is held with a founder row and not merged" \
-   "$(_lg_n founder 36)|$(_lg_merges)" "1|"
-_fx_git "$LGH" worktree remove --force "$LGW/b36" >/dev/null 2>&1; _fx_git "$LGH" branch -q -D b36 >/dev/null 2>&1
-
-# G9: the trampoline runs main's version, resolved at run time, and never
-# another. A candidate's newer entry sits in the cache, as every gated branch
-# leaves one. With main's entry missing, or origin/main unreadable because git
-# fails (exit 69, as after an Xcode update), it runs no other version's felix.
-# What it does instead the contract does not say.
-_lg_reset; _lg_land --install
-LGTR1="$LGU/Library/Application Support/felix/land/lgh/tick"
-mkdir -p "$LG/bin-nogit"; printf '#!/bin/sh\nexit 69\n' > "$LG/bin-nogit/git"; chmod +x "$LG/bin-nogit/git"
-_lgr1_tramp() { ( cd "$TMP/cwd" 2>/dev/null || cd "$LG" || exit 97
-  exec env -i HOME="$LGU" FELIX_HOME_DIR="$LGH" PATH="$1$LGB:$PATH" GIT_CEILING_DIRECTORIES="$GIT_CEILING_DIRECTORIES" \
-    "$LGTR1" ) > "$LG/out.tramp" 2>&1; }
-_lgr1_other() { _lg_logs felix | LC_ALL=C awk -F'\t' -v m="$LGV1/9.0.0/harness/felix" '$3 == "land --tick" && $1 != m { print $1 }' | head -3 | tr '\n' ' '; }
-_lgr1_cache 9.1.0
-[ -x "$LGTR1" ] && [ -x "$LGV1/9.1.0/harness/felix" ] && ok "the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)" \
-  || bad "the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)" "no $LGTR1 or no candidate"
-rm -rf "$LGV1/9.0.0"; _lg_reset; _lgr1_tramp ""
-is "G9 (review 1): with main's entry missing, the trampoline runs no other version's felix land --tick" "$(_lgr1_other)" ""
-_lgr1_cache 9.0.0; _lg_reset; _lgr1_tramp "$LG/bin-nogit:"
-is "G9 (review 1): with git failing, the trampoline runs no felix land --tick but main's" "$(_lgr1_other)" ""
-_lg_reset; _lgr1_tramp ""
-is "the land fixture: with main's entry there and git working, the trampoline runs main's felix land --tick (fixture control)" \
-   "$(_lg_logs felix | LC_ALL=C awk -F'\t' '$3 == "land --tick" { print $1 }' | tail -1)" "$LGV1/9.0.0/harness/felix"
-_lg_reset; _lg_land --uninstall; rm -rf "$LGV1/9.1.0" "$LG/bin-nogit"; _lgr1_home

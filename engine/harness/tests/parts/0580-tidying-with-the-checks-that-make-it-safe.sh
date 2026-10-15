@@ -289,11 +289,63 @@ printf '{"hooks":{"SessionStart":[{"hooks":[{"command":"touch %s/PWNED"}]}]}}\n'
                    || ok "inspecting a plugin never runs it"
 
 # It recommends. It must never acquire.
+#
+# Against a catalogue this suite writes. Both runs used to inherit the PATH, so
+# felix discover ran the real claude, read this machine's whole plugin
+# catalogue and scored every entry: 516 s of CPU on 2026-10-13, a quarter of
+# the suite, from this one assertion (docs/2026-10-13-gate-friction-contract-b.md).
+# On a machine with no claude it stopped before reading anything, so "writes
+# nothing" held over a run that read nothing. Now a stub claude stands first on
+# PATH, logs every call, answers the one listing felix discover asks for from a
+# three-entry catalogue and refuses any shape it was not taught, as CMSTUB does.
+# Two entries are candidates for widget under templates/discover-rules.tsv, a
+# keyword in an entry's name scoring 3, the threshold: storybook-helper for
+# frontend, which widget declares by here (with e2e, measured 2026-10-13), and
+# llm-eval-kit for llm, which part 1270 declares when it re-runs this block
+# alone. The plain run lists and fetches nothing, so the catalogue is all it
+# reads.
+DSTUB="$TMP/discover-stub"; mkdir -p "$DSTUB"; DSLOG="$TMP/discover-stub.log"; : > "$DSLOG"
+cat > "$DSTUB/catalogue.json" <<'DSCAT'
+[
+  {
+    "name": "storybook-helper",
+    "description": "Storybook component stories and tailwind css helpers",
+    "marketplaceName": "suite-market"
+  },
+  {
+    "name": "llm-eval-kit",
+    "description": "Evaluate llm prompts",
+    "marketplaceName": "suite-market"
+  },
+  {
+    "name": "pasta-recipes",
+    "description": "Dinner ideas for a weeknight",
+    "marketplaceName": "suite-market"
+  }
+]
+DSCAT
+cat > "$DSTUB/claude" <<DSSTUB
+#!/bin/sh
+printf '%s\n' "\$*" >> "$DSLOG"
+case "\$*" in
+  "plugin list --json --available") cat "$DSTUB/catalogue.json" ;;
+  *) printf 'stub: untaught shape: %s\n' "\$*" >&2; exit 2 ;;
+esac
+DSSTUB
+chmod +x "$DSTUB/claude"
 before="$(cksum < "$FROOT/projects/widget/stack.tsv")"
-out="$(cd "$REPO" && "$FELIX" discover 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$DSTUB:$PATH" "$FELIX" discover 2>&1)"; rc=$?
 after="$(cksum < "$FROOT/projects/widget/stack.tsv")"
 is "discovery writes nothing" "$after" "$before"
-out="$(cd "$REPO" && "$FELIX" discover --yes 2>&1)"; rc=$?
+# Without this, "writes nothing" can pass over a run that matched nothing or
+# stopped early: a statement about a path nothing walked. The decoy must not
+# list, or a discover that printed the whole catalogue unfiltered would pass.
+case "$out" in
+  *pasta-recipes*) bad "discovery lists the catalogue's matching entry, from the stub's catalogue" "the decoy listed: $out" ;;
+  *storybook-helper*|*llm-eval-kit*) ok "discovery lists the catalogue's matching entry, from the stub's catalogue" ;;
+  *) bad "discovery lists the catalogue's matching entry, from the stub's catalogue" "$out" ;;
+esac
+out="$(cd "$REPO" && PATH="$DSTUB:$PATH" "$FELIX" discover --yes 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "there is no --yes" || bad "there is no --yes" "$out"
 
 printf '\nseeing the whole toolbox\n'

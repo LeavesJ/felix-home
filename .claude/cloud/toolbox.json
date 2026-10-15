@@ -90,6 +90,26 @@
       "name": "sabotage",
       "carry": "no",
       "note": "its skill and commands run node scripts from the plugin root (scripts/sabotage.js, scripts/restore.js), which provision does not copy, so a cloud session would have a mutation-testing skill whose restore step is missing"
+    },
+    {
+      "name": "data-pipeline-builder-dbt-and-airflow-checks",
+      "carry": "no",
+      "note": "reviews dbt models and Airflow DAGs; felix-home has neither, so a cloud session of it has no use for the skill, and the local install is unaffected"
+    },
+    {
+      "name": "api-load-tester-latency-and-throughput-tests",
+      "carry": "no",
+      "note": "load-tests an HTTP API; felix-home serves none, so a cloud session of it has no use for the skill, and the local install is unaffected"
+    },
+    {
+      "name": "e2e-test-generator-playwright-and-cypress-tests",
+      "carry": "no",
+      "note": "writes Playwright and Cypress browser tests; felix-home has no web pages (the dash mod lives outside it), so a cloud session of it has no use for the skill, and the local install is unaffected"
+    },
+    {
+      "name": "service-boundary-tests-containers-contracts-and-mocks",
+      "carry": "no",
+      "note": "plans integration and contract tests for a service's databases, queues and outside APIs; felix-home is a bash engine with none, so a cloud session of it has no use for the skill, and the local install is unaffected"
     }
   ]
 }

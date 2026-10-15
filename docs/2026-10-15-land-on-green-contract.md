@@ -46,7 +46,9 @@ deploy, and G6's verify and pause cover that.
 
 - **Code.** `lib/green-tick.sh` holds the tick. It sits outside the `lib/land*.sh`
   trust-base glob and stays under 500 lines.
-- **Command.** `felix land` dispatches to it.
+- **Command.** `felix land` dispatches to it. It resolves its project the way
+  every `felix` command does, from the working directory. The trampoline
+  changes into `$FELIX_HOME_DIR` before it runs.
 - **State.** The job's state lives in `$(felix_mem_dir <project>)/land/`:
     - `ledger.tsv`, append-only;
     - `paused`, whose content is the reason;

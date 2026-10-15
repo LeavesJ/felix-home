@@ -207,6 +207,60 @@ Any other argument, or none, prints usage and exits 2. Installing is persistent
 configuration, so a session runs `--install` only on the founder's yes in chat.
 Those four commands are the whole backend of a future interface toggle.
 
+## Amended after review, 2026-10-15
+
+Two Opus reviews and an automated security review of the first build found
+gaps this contract left open. These amendments bind, and where one differs
+from a clause above, the amendment wins.
+
+- **A1 (G9, the trampoline runs only main's accepted engine).** The
+  trampoline reads the version `origin/main` declares, without a fetch. It runs
+  that cache entry's `felix land --tick` only when main's own acceptance check
+  says the entry is main's engine. The check is `felix_accepted_deploy_diff`,
+  read out of `origin/main`'s `engine/harness/lib/resolve.sh` with
+  `git show` and sourced in a subshell, as `cmd_merge` does for its judge.
+    - In every other case it runs nothing: the version is unreadable, the
+      entry is missing, the entry is not executable, the check cannot be
+      loaded, or the check says the entry differs. It then writes one
+      `deploy-owed` row naming which case it was, deduplicated against the
+      ledger's last row, sends one notification, and exits 1.
+    - It never runs the newest cache entry, another version, or any working
+      tree. A cache entry at main's version number that a branch installed is
+      not main's engine, and this check is what tells the two apart.
+- **A2 (G3, a home behind main owes a deploy).** A deploy is owed also when
+  `$FELIX_HOME_DIR`'s HEAD is not `origin/main` after the fetch. That covers a
+  landing whose cache entry the author's gate had already installed: the home
+  is still behind and nothing verified the deploy. G7 then requires HEAD to
+  equal `origin/main` after the pull, before anything is installed. A home
+  ahead of or diverged from `origin/main` is a `deploy-owed` row plus `paused`,
+  and nothing is installed.
+- **A3 (G5, direction documents, matched without case and across renames).**
+  Paths are compared after folding A-Z to a-z under `LC_ALL=C`, because this
+  Mac's file system folds case: `projects/felix/claude.md` is the founder's
+  `CLAUDE.md` once it is checked out.
+    - A rename counts under both its old path and its new one.
+    - A list that cannot be read is not an empty list: the pull request is
+      skipped, with a row saying the files could not be read.
+- **A4 (G2, the tick is bounded and a stuck lane is said).**
+    - **Fetch and pull.** `git fetch` and `git pull` run with
+      `GIT_TERMINAL_PROMPT=0`, `GIT_HTTP_LOW_SPEED_LIMIT=1000` and
+      `GIT_HTTP_LOW_SPEED_TIME=60`.
+    - **A watchdog.** The tick runs under a watchdog. After 30 minutes it sends
+      TERM to the tick's own process group, and the tick's trap writes a
+      `timeout` row, sends a notification and releases the lock.
+    - **A stuck lock.** A tick that finds a live lock older than 45 minutes
+      writes one `stuck` row and one notification, and does not take the lock
+      or signal its holder.
+- **A5 (G2, the lock is taken atomically).** The lock's `pid` and `started`
+  are written into a fresh directory, which is then renamed to `lock/`. A dead
+  lock is first renamed aside to a unique name, and only the tick whose rename
+  succeeds goes on to take it. No tick reads a half-written lock as dead.
+- **A6 (G4-G6, rows for a waiting pull request).** `skip`, `session`,
+  `founder` and `refused` rows, and their notifications, are written only when
+  the event, head or detail differs from that pull request's previous row.
+- **A7 (G9, arguments).** `--pause` takes at most one reason. More arguments
+  print usage and exit 2.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

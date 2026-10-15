@@ -313,6 +313,42 @@ from a clause above, the amendment wins.
   with `$HOME` expanded when it is written. `claude`, which `felix install`
   needs, lives in `~/.local/bin`.
 
+## Amended after the final review, 2026-10-15
+
+- **A17 (the acceptance check judges the full ref).**
+    - **The defect.** `felix_accepted_deploy_diff` resolves its base through
+      `felix_base_ref`, which puts `origin/` in front of whatever it is given.
+      Passed `refs/remotes/origin/main`, it judged
+      `origin/refs/remotes/origin/main` first, and any session can create that
+      name.
+    - **The fix.** `felix_base_ref` returns a base that already begins with
+      `refs/` as it is, when it resolves to a commit, and tries nothing else.
+      Every existing caller passes a short name, so none of them changes.
+    - **What is asserted.** A tag or branch named
+      `origin/refs/remotes/origin/main` changes nothing the trampoline or the
+      tick does. The short-name weakness in the other callers stays its own
+      queue item.
+- **A18 (every ledger column is cleaned).** Tabs and newlines become spaces in
+  every column, not only the detail. A worktree whose path holds a tab or a
+  newline is never used: its pull request gets a `session` row.
+- **A19 (one pull request per head branch).** `felix merge` picks its pull
+  request by branch name. A candidate whose `headRefName` is also the head of
+  another open pull request gets a `skip` row.
+- **A20 (an unfinished verify owes a deploy).** The deploy writes
+  `land/verifying` before its verify starts, and removes it only when it writes
+  `deployed`. A tick that finds `land/verifying` treats the deploy as owed, so
+  a verify cut off by the watchdog, a logout or a reboot is run again before
+  anything merges.
+- **A21 (the verify compares against main, not the home's files).** G7.4's
+  first check is `felix_accepted_deploy_diff "$FELIX_HOME_DIR"
+  refs/remotes/origin/main` returning 0, not a `diff -rq` against the home's
+  working tree. An untracked file in the home's `engine/` then cannot pass as
+  main's engine.
+- **A22 (an unresolved project leaves a row).** The trampoline exports the
+  ledger path it carries as `FELIX_LAND_LEDGER`. A tick that cannot resolve its
+  project writes its row there, deduplicated as in A10, and notifies. The tick
+  reads that variable only in this case.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

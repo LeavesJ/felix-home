@@ -261,6 +261,58 @@ from a clause above, the amendment wins.
 - **A7 (G9, arguments).** `--pause` takes at most one reason. More arguments
   print usage and exit 2.
 
+## Amended after the second review, 2026-10-15
+
+- **A8 (the remote branch by its full name).** Every read of main in the job
+  names `refs/remotes/origin/main`, never the short `origin/main`. That covers
+  the trampoline, the version read, the acceptance check, the owed-deploy
+  check, the home's HEAD comparison and the deploy. Git resolves a tag or local
+  branch named `origin/main` first, and every worktree shares those refs. A tag
+  or branch with that name changes nothing the job does. `felix merge`'s own
+  `felix_base_ref` has the same weakness, and it is a separate queue item.
+- **A9 (paths outside plain ASCII wait for a person).** The file system folds
+  Unicode case as well as A-Z, so `projectſ/felix/CLAUDE.md` is the founder's
+  file once it is checked out.
+    - A pull request any of whose changed paths, old or new, holds a byte
+      outside printable ASCII gets a `founder` row and is not merged.
+    - Paths are read from `git diff -z --no-renames --name-only`, so git's
+      quoting never hides a byte.
+- **A10 (nothing stops silently).** Each of these writes a row and sends a
+  notification:
+    - the trampoline unable to enter `$FELIX_HOME_DIR`;
+    - the tick unable to resolve its project;
+    - `gh auth status` failing;
+    - a fetch failing;
+    - a deploy owed.
+
+  The ledger path is written into the trampoline, so it does not depend on the
+  home. Each of these rows, like A6's, is written and notified only when it
+  differs from the previous row of the same event.
+- **A11 (a tick that deploys does not merge).** A tick that runs G7's deploy,
+  whether it succeeds or not, merges nothing in that tick. The next tick merges
+  with the engine just deployed, and that engine runs it.
+- **A12 (only pull requests into main).** A candidate's `baseRefName` must be
+  `main`. A pull request into any other branch gets a `skip` row.
+- **A13 (`felix merge` is not re-run on a known refusal).** A pull request
+  whose newest row is `refused` is passed to `felix merge` again only when its
+  head or `refs/remotes/origin/main` has moved since that row. The row records
+  both. Every real `felix merge` run writes says.log rows, and re-running a
+  refused one every five minutes would inflate the founder-interruption count.
+- **A14 (seeing a running suite, and failing closed).**
+    - G7.1's process check matches `engine/harness/tests/run` with or without a
+      leading slash, since `tests/red` starts it relatively, and `gate.sh`.
+    - A `pgrep` that exits with anything but 0 or 1 counts as "a suite is
+      running".
+- **A15 (signal only what it still owns).**
+    - The watchdog compares its tick's start time before it signals, and stops
+      without signalling if the pid now names another process.
+    - The lock takeover compares the pid it judged dead with the pid it moved
+      aside.
+- **A16 (the job's PATH).** The plist's `PATH` is
+  `$HOME/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin`,
+  with `$HOME` expanded when it is written. `claude`, which `felix install`
+  needs, lives in `~/.local/bin`.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

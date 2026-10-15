@@ -142,6 +142,12 @@ _gt_deploy() {
     _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
   out="$(git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
+  # An ff-only pull succeeds on a home that is ahead of origin, and what that
+  # home holds is a tree nothing judged. Only origin/main's own commit is main.
+  if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse origin/main 2>/dev/null)" ]; then
+    why="the home checkout's main is not origin/main: it holds a commit origin does not"
+    _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
+  fi
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"
@@ -170,7 +176,10 @@ _gt_files() {   # PR SHA
   n="$(printf '%s\n' "$out" | sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac
   [ "$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR - 1 }')" = "$n" ] || return 1
-  g="$(git -C "$FELIX_HOME_DIR" diff --name-only "origin/main...$2" 2>/dev/null)" || g=""
+  # --no-renames: a rename lists both the old path and the new one, so a
+  # direction document renamed away is still a changed path. gh gives only the
+  # new name, which is why git's list is not optional here.
+  g="$(git -C "$FELIX_HOME_DIR" diff --no-renames --name-only "origin/main...$2" 2>/dev/null)" || return 1
   { printf '%s\n' "$out" | sed '1d'; printf '%s\n' "$g"; } | LC_ALL=C awk 'NF && !seen[$0]++'
 }
 
@@ -312,19 +321,27 @@ _gt_install() {
   mkdir -p "$(dirname "$tr")" "$HOME/Library/LaunchAgents" "$_GT_LAND" || die "could not make the job's directories"
   # Static: it names no version and no working tree. The installed engine for
   # the version origin/main declares is resolved when it runs, so a deploy
-  # needs no new trampoline, and the newest installed one answers while a
-  # deploy is held back. FELIX_HOME is what the installed engine reads to find
-  # its home; the plist names FELIX_HOME_DIR, which is the contract's word.
+  # needs no new trampoline. When that engine is not installed it runs nothing:
+  # every gated branch leaves a newer, unmerged version in the cache, and that
+  # candidate's code must never pick what merges. The job records the wait in
+  # the ledger and tells the founder, who deploys by hand from the home.
+  # FELIX_HOME is what the installed engine reads to find its home; the plist
+  # names FELIX_HOME_DIR, which is the contract's word.
   {
     printf '#!/bin/sh\n# Written by felix land --install; felix land --uninstall removes it.\n'
     printf ': "${FELIX_HOME_DIR:=%s}"\nexport FELIX_HOME_DIR\nFELIX_HOME="$FELIX_HOME_DIR"; export FELIX_HOME\n' "$(_gt_sq "$FELIX_HOME_DIR")"
     printf 'cd "$FELIX_HOME_DIR" || exit 1\n'
-    printf 'cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"\n'
+    printf 'cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"\nledger=%s\n' "$(_gt_sq "$_GT_LEDGER")"
     printf 'ver="$(git show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | LC_ALL=C sed -n %s | LC_ALL=C sed -n 1p)"\n' \
       "'s/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p'"
     printf 'if [ -z "$ver" ] || [ ! -x "$cache/$ver/harness/felix" ]; then\n'
-    printf '  ver="$(ls "$cache" 2>/dev/null | LC_ALL=C sort -t. -k1,1n -k2,2n -k3,3n | LC_ALL=C sed -n '"'"'$p'"'"')"\nfi\n'
-    printf '[ -x "$cache/$ver/harness/felix" ] || { echo "felix land: no installed engine under $cache" >&2; exit 1; }\n'
+    printf '  d="main'"'"'s engine ${ver:-(version unreadable)} is not installed under $cache: nothing runs until it is deployed from the home"\n'
+    printf '  t="$(printf '"'"'deploy-owed\\t%%s'"'"' "$d")"\n'
+    printf '  [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2,7)" = "$t" ] || {\n'
+    printf '    mkdir -p "$(dirname "$ledger")"\n'
+    printf '    printf '"'"'%%s\\tdeploy-owed\\t-\\t-\\t-\\t0\\t%%s\\n'"'"' "$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" "$d" >> "$ledger"\n'
+    printf '    osascript -e "display notification \\"Felix land: no installed engine for main to run\\" with title \\"Felix: deploy-owed\\"" >/dev/null 2>&1\n'
+    printf '  }\n  echo "felix land: $d" >&2; exit 1\nfi\n'
     printf 'exec "$cache/$ver/harness/felix" land --tick\n'
   } > "$tr" && chmod +x "$tr" || die "could not write $tr"
   {

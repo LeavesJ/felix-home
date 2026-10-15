@@ -145,6 +145,8 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/automerge.sh"
 # shellcheck source=lib/green-tick.sh
 . "${SCRIPT_DIR}/lib/green-tick.sh"
+# shellcheck source=lib/green-install.sh
+. "${SCRIPT_DIR}/lib/green-install.sh"
 # shellcheck source=lib/budget.sh
 . "${SCRIPT_DIR}/lib/budget.sh"
 # shellcheck source=lib/unattended.sh

@@ -45,7 +45,7 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
   local title="Felix: $1" det
-  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused) ;; *) return 0 ;; esac
+  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|timeout|stuck) ;; *) return 0 ;; esac
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "$3" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
   osascript -e "display notification \"$det\" with title \"$title\"" >/dev/null 2>&1 || true
@@ -73,38 +73,117 @@ _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
 # tick's, which finds the file first (G2). A hand pause does the same.
 _gt_pause() { mkdir -p "$_GT_LAND" 2>/dev/null; printf '%s\n' "$1" > "$_GT_LAND/paused"; }
 
-# --- the lock -------------------------------------------------------------
-# held by a live tick: its pid is alive and its started line is that process's
-# start time. A pid that is alive under another start time was reused, so the
-# lock is dead; it is taken, never waited on.
+# --- the lock and the clock --------------------------------------------------
+# A lock is held by a live tick when its pid is alive and its started line is
+# that process's start time. A pid that is alive under another start time was
+# reused, so the lock is dead. A started line that is absent or empty cannot be
+# compared, so a live pid holds it: no tick reads a half-written lock as dead (A5).
 _gt_started() { LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | LC_ALL=C sed 's/^ *//; s/ *$//'; }
 
 _gt_unlock() {
+  [ -z "${_GT_WD:-}" ] || { kill "$_GT_WD" 2>/dev/null; wait "$_GT_WD" 2>/dev/null; _GT_WD=""; }
   [ "${_GT_LOCKED:-0}" = 1 ] || return 0
   rm -rf "$_GT_LAND/lock" 2>/dev/null; _GT_LOCKED=0
 }
 
-_gt_lock() {   # 0 when taken; 1 when a live tick holds it
-  local l="$_GT_LAND/lock" pid st
+# Seconds the process has run, from ps's [[dd-]hh:]mm:ss; empty when unreadable.
+_gt_age() {
+  LC_ALL=C ps -o etime= -p "$1" 2>/dev/null | LC_ALL=C awk 'NF { n = split($1, a, /[-:]/); s = 0
+    if (n == 2) s = a[1] * 60 + a[2]; else if (n == 3) s = a[1] * 3600 + a[2] * 60 + a[3]
+    else if (n == 4) s = a[1] * 86400 + a[2] * 3600 + a[3] * 60 + a[4]; else exit; print s }'
+}
+
+# 0 when the lock directory names a live tick; sets _GT_HPID to its pid.
+_gt_holder_live() {
+  local pid st
+  pid="$(sed -n 1p "$1/pid" 2>/dev/null)"; st="$(sed -n 1p "$1/started" 2>/dev/null)"; _GT_HPID=""
+  case "$pid" in ""|*[!0123456789]*) return 1 ;; esac
+  kill -0 "$pid" 2>/dev/null || return 1
+  _GT_HPID="$pid"
+  [ -z "$st" ] || [ "$(_gt_started "$pid")" = "$st" ]
+}
+
+# A5. The pid and started line are written into a fresh directory, which is
+# renamed to lock/. A dead lock is first renamed aside to a unique name, and
+# only the tick whose rename succeeds goes on to take it. mv onto an existing
+# directory would move into it, so a rename that did not win is told by lock/pid.
+_gt_take() {   # 0 when this tick's directory is now lock/
+  local l="$_GT_LAND/lock" t="$_GT_LAND/lock.new.$$"
+  rm -rf "$t"; mkdir "$t" 2>/dev/null || return 1
+  printf '%s\n' "$$" > "$t/pid"; _gt_started "$$" > "$t/started"
+  [ ! -e "$l" ] && mv "$t" "$l" 2>/dev/null
+  if [ "$(sed -n 1p "$l/pid" 2>/dev/null)" = "$$" ] && [ ! -e "$t" ]; then return 0; fi
+  rm -rf "$t" "$l/lock.new.$$" 2>/dev/null; return 1
+}
+
+_gt_lock() {   # 0 when taken; 1 when a live tick holds it or another tick won it
+  local l="$_GT_LAND/lock" dead age old
   mkdir -p "$_GT_LAND" 2>/dev/null
-  if ! mkdir "$l" 2>/dev/null; then
-    [ -s "$l/pid" ] || sleep 1   # the holder is between its mkdir and its pid
-    pid="$(sed -n 1p "$l/pid" 2>/dev/null)"; st="$(sed -n 1p "$l/started" 2>/dev/null)"
-    case "$pid" in ""|*[!0123456789]*) pid="" ;; esac
-    if [ -n "$pid" ] && [ -n "$st" ] && kill -0 "$pid" 2>/dev/null && [ "$(_gt_started "$pid")" = "$st" ]; then
+  if [ -e "$l" ]; then
+    if _gt_holder_live "$l"; then
+      age="$(_gt_age "$_GT_HPID")"
+      # A live lock older than 45 minutes is said once, and neither taken nor signalled.
+      if [ -n "$age" ] && [ "$age" -gt 2700 ]; then
+        _gt_row_once stuck - - - 0 "tick $_GT_HPID has held the lock for over 45 minutes: it is neither taken nor signalled"
+      fi
       return 1
     fi
-    rm -rf "$l" 2>/dev/null
-    mkdir "$l" 2>/dev/null || return 1
+    old="$(sed -n 1p "$l/pid" 2>/dev/null)"
+    dead="$_GT_LAND/lock.dead.$$.$RANDOM"
+    mv "$l" "$dead" 2>/dev/null || return 1
+    # Another tick may have replaced the dead lock between the look and the
+    # rename; what was moved aside is dead only if it still names the same pid.
+    if [ "$(sed -n 1p "$dead/pid" 2>/dev/null)" != "$old" ]; then
+      [ -e "$l" ] || mv "$dead" "$l" 2>/dev/null; return 1
+    fi
+    rm -rf "$dead" 2>/dev/null
   fi
-  _GT_LOCKED=1
-  # Released on every way out, a signal included: bash runs the TERM trap once
-  # the foreground command returns, and the exit it names runs the EXIT one.
+  _gt_take || return 1
+  _GT_LOCKED=1; _GT_T00=$SECONDS
+  # Released on every way out. bash runs a trap once the foreground command
+  # returns, and the exit a trap names runs the EXIT one.
   trap '_gt_unlock' EXIT
-  trap 'exit 143' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
-  printf '%s\n' "$$" > "$l/pid"; _gt_started "$$" > "$l/started"
+  trap '_gt_timeout' TERM; trap 'exit 130' INT; trap 'exit 129' HUP
   return 0
 }
+
+_gt_timeout() {
+  trap '' TERM
+  _gt_row timeout - - - "$((SECONDS - ${_GT_T00:-0}))" "the tick was stopped by TERM, as the 30 minute watchdog sends it: its lock is released"
+  exit 143
+}
+
+# A4. After 30 minutes the watchdog sends TERM to the tick's own process group
+# when the tick leads it, which is how launchd runs it. Run by hand from a shell
+# the tick shares that shell's group, which is never signalled: the tick and its
+# own descendants, by pid, are.
+_gt_descendants() {   # PID -> its descendants' pids, one per line
+  LC_ALL=C ps -axo pid=,ppid= 2>/dev/null | LC_ALL=C awk -v root="$1" '{ k[NR] = $1; par[$1] = $2 }
+    END { want[root] = 1; do { c = 0; for (i = 1; i <= NR; i++) if (!(k[i] in want) && (par[k[i]] in want)) { want[k[i]] = 1; c = 1 } } while (c)
+          for (i = 1; i <= NR; i++) if (k[i] != root && (k[i] in want)) print k[i] }'
+}
+
+_GT_WDSECS=1800
+_gt_watchdog() {
+  local tick=$$ lead=0
+  [ "$(LC_ALL=C ps -o pgid= -p "$tick" 2>/dev/null | tr -d ' ')" = "$tick" ] && lead=1
+  (
+    trap - EXIT; exec >/dev/null 2>&1 </dev/null
+    me="$(sh -c 'echo $PPID')"
+    sleep "$_GT_WDSECS" & sp=$!
+    trap 'kill "$sp" 2>/dev/null; exit 0' TERM
+    wait "$sp" 2>/dev/null
+    if [ "$lead" = 1 ]; then kill -TERM -- "-$tick"
+    else
+      kill -TERM $(_gt_descendants "$tick" | LC_ALL=C awk -v me="$me" '$1 != me') 2>/dev/null
+      kill -TERM "$tick" 2>/dev/null
+    fi
+  ) &
+  _GT_WD=$!
+}
+
+# fetch and pull neither prompt nor wait on a stalled server forever.
+_gt_git() { GIT_TERMINAL_PROMPT=0 GIT_HTTP_LOW_SPEED_LIMIT=1000 GIT_HTTP_LOW_SPEED_TIME=60 git "$@"; }
 
 # --- what main holds --------------------------------------------------------
 _gt_cache() { printf '%s/felix/felix' "${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"; }
@@ -117,7 +196,13 @@ _gt_cache() { printf '%s/felix/felix' "${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugi
 _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
   local why rc
   why="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$FELIX_HOME_DIR" origin/main 2>&1 )"; rc=$?
-  [ "$rc" -ne 0 ] || return 1
+  if [ "$rc" -eq 0 ]; then
+    # A2: an entry that is already main's does not make the deploy done. The
+    # author's gate installs the entry for its own head, so after that head
+    # lands the cache is right and the home is still behind, unverified.
+    [ "$(git -C "$FELIX_HOME_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$FELIX_HOME_DIR" rev-parse origin/main 2>/dev/null)" ] || return 1
+    why="the home checkout is not at origin/main: the engine it holds has not been deployed and verified"
+  fi
   printf '%s' "$(printf '%s\n' "$why" | sed -n 1p)"
 }
 
@@ -141,9 +226,13 @@ _gt_deploy() {
   if [ -n "$why" ]; then
     _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
-  out="$(git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
-  # An ff-only pull succeeds on a home that is ahead of origin, and what that
-  # home holds is a tree nothing judged. Only origin/main's own commit is main.
+  # A home ahead of origin/main, or diverged from it, holds a tree nothing judged.
+  # Only origin/main's own commit is main, and nothing is installed from anything else.
+  if ! git -C "$home" merge-base --is-ancestor HEAD origin/main 2>/dev/null; then
+    why="the home checkout holds a commit origin/main does not: it is ahead of or diverged from origin/main"
+    _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
+  fi
+  out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
   if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse origin/main 2>/dev/null)" ]; then
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
     _gt_row deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
@@ -185,9 +274,11 @@ _gt_files() {   # PR SHA
 
 # G5. These two patterns are an engine constant and name no project.
 _gt_direction() {   # FILES -> the first path that is a direction document
-  local f LC_ALL=C
+  local f lc LC_ALL=C
   while IFS= read -r f; do
-    case "$f" in projects/*/CLAUDE.md|docs/*roadmap*) printf '%s' "$f"; return 0 ;; esac
+    # This Mac's file system folds case, so projects/x/claude.md is the founder's CLAUDE.md.
+    lc="$(printf '%s' "$f" | tr 'A-Z' 'a-z')"
+    case "$lc" in projects/*/claude.md|docs/*roadmap*) printf '%s' "$f"; return 0 ;; esac
   done <<EOF
 $1
 EOF
@@ -275,12 +366,13 @@ _gt_tick() {
     return 0
   fi
   _gt_lock || return 0
+  _gt_watchdog
   if ! gh auth status >/dev/null 2>&1; then
     _gt_row gh - - - 0 "gh auth status failed: the job cannot see pull requests or CI"; return 0
   fi
   # G3: what main holds is deployed before anything merges, because felix merge
   # refuses every candidate for want of an installed judge.
-  if ! git -C "$FELIX_HOME_DIR" fetch -q origin >/dev/null 2>&1; then
+  if ! _gt_git -C "$FELIX_HOME_DIR" fetch -q origin >/dev/null 2>&1; then
     _gt_row fetch - - - 0 "git fetch origin failed in the home: main's version is not known"; return 0
   fi
   ver="$(_felix_plugin_version "$FELIX_HOME_DIR" origin/main)"
@@ -310,91 +402,10 @@ _gt_usage() {
   return 2
 }
 
-_gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
-_gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
-
-_gt_install() {
-  local p tr plist uid="$(id -u)"
-  p="$(basename "$PROJ")"
-  tr="$HOME/Library/Application Support/felix/land/$p/tick"
-  plist="$HOME/Library/LaunchAgents/felix.land.$p.plist"
-  mkdir -p "$(dirname "$tr")" "$HOME/Library/LaunchAgents" "$_GT_LAND" || die "could not make the job's directories"
-  # Static: it names no version and no working tree. The installed engine for
-  # the version origin/main declares is resolved when it runs, so a deploy
-  # needs no new trampoline. When that engine is not installed it runs nothing:
-  # every gated branch leaves a newer, unmerged version in the cache, and that
-  # candidate's code must never pick what merges. The job records the wait in
-  # the ledger and tells the founder, who deploys by hand from the home.
-  # FELIX_HOME is what the installed engine reads to find its home; the plist
-  # names FELIX_HOME_DIR, which is the contract's word.
-  {
-    printf '#!/bin/sh\n# Written by felix land --install; felix land --uninstall removes it.\n'
-    printf ': "${FELIX_HOME_DIR:=%s}"\nexport FELIX_HOME_DIR\nFELIX_HOME="$FELIX_HOME_DIR"; export FELIX_HOME\n' "$(_gt_sq "$FELIX_HOME_DIR")"
-    printf 'cd "$FELIX_HOME_DIR" || exit 1\n'
-    printf 'cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"\nledger=%s\n' "$(_gt_sq "$_GT_LEDGER")"
-    printf 'ver="$(git show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | LC_ALL=C sed -n %s | LC_ALL=C sed -n 1p)"\n' \
-      "'s/.*\"version\"[[:space:]]*:[[:space:]]*\"\\([^\"]*\\)\".*/\\1/p'"
-    printf 'if [ -z "$ver" ] || [ ! -x "$cache/$ver/harness/felix" ]; then\n'
-    printf '  d="main'"'"'s engine ${ver:-(version unreadable)} is not installed under $cache: nothing runs until it is deployed from the home"\n'
-    printf '  t="$(printf '"'"'deploy-owed\\t%%s'"'"' "$d")"\n'
-    printf '  [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2,7)" = "$t" ] || {\n'
-    printf '    mkdir -p "$(dirname "$ledger")"\n'
-    printf '    printf '"'"'%%s\\tdeploy-owed\\t-\\t-\\t-\\t0\\t%%s\\n'"'"' "$(date -u +%%Y-%%m-%%dT%%H:%%M:%%SZ)" "$d" >> "$ledger"\n'
-    printf '    osascript -e "display notification \\"Felix land: no installed engine for main to run\\" with title \\"Felix: deploy-owed\\"" >/dev/null 2>&1\n'
-    printf '  }\n  echo "felix land: $d" >&2; exit 1\nfi\n'
-    printf 'exec "$cache/$ver/harness/felix" land --tick\n'
-  } > "$tr" && chmod +x "$tr" || die "could not write $tr"
-  {
-    printf '<?xml version="1.0" encoding="UTF-8"?>\n'
-    printf '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
-    printf '<plist version="1.0">\n<dict>\n'
-    printf '  <key>Label</key><string>felix.land.%s</string>\n' "$(_gt_xml "$p")"
-    printf '  <key>ProgramArguments</key><array><string>%s</string></array>\n' "$(_gt_xml "$tr")"
-    printf '  <key>StartInterval</key><integer>300</integer>\n  <key>RunAtLoad</key><true/>\n'
-    printf '  <key>ProcessType</key><string>Interactive</string>\n'
-    printf '  <key>EnvironmentVariables</key><dict>\n'
-    printf '    <key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>\n'
-    printf '    <key>FELIX_HOME_DIR</key><string>%s</string>\n  </dict>\n' "$(_gt_xml "$FELIX_HOME_DIR")"
-    printf '  <key>StandardOutPath</key><string>%s</string>\n' "$(_gt_xml "$_GT_LAND/launchd.log")"
-    printf '  <key>StandardErrorPath</key><string>%s</string>\n' "$(_gt_xml "$_GT_LAND/launchd.log")"
-    printf '</dict>\n</plist>\n'
-  } > "$plist" || die "could not write $plist"
-  # A job already loaded is booted out first, or bootstrap refuses it.
-  launchctl print "gui/$uid/felix.land.$p" >/dev/null 2>&1 && launchctl bootout "gui/$uid/felix.land.$p" >/dev/null 2>&1
-  launchctl bootstrap "gui/$uid" "$plist" || die "launchctl bootstrap gui/$uid $plist failed; the files are written, the job is not loaded"
-  printf 'land on green is installed for %s: %s\n' "$p" "$plist"
-}
-
-_gt_uninstall() {
-  local p; p="$(basename "$PROJ")"
-  launchctl bootout "gui/$(id -u)/felix.land.$p" >/dev/null 2>&1 || true
-  rm -f "$HOME/Library/LaunchAgents/felix.land.$p.plist" "$HOME/Library/Application Support/felix/land/$p/tick"
-  rmdir "$HOME/Library/Application Support/felix/land/$p" 2>/dev/null || true
-  printf 'land on green is uninstalled for %s\n' "$p"
-}
-
-_gt_status() {   # [--tsv]: read-only, writes nothing and loads nothing
-  local p tab; p="$(basename "$PROJ")"; tab="$(printf '\t')"
-  local ins=no lod=no pau=no rows=""
-  [ -f "$HOME/Library/LaunchAgents/felix.land.$p.plist" ] && ins=yes
-  launchctl print "gui/$(id -u)/felix.land.$p" >/dev/null 2>&1 && lod=yes
-  [ -e "$_GT_LAND/paused" ] && pau=yes
-  # The last row of each pull request seen, in pull request order.
-  [ -f "$_GT_LEDGER" ] && rows="$(LC_ALL=C awk -F'\t' '$3 != "-" { last[$3] = $0 } END { for (k in last) print last[k] }' "$_GT_LEDGER" \
-                                   | LC_ALL=C sort -t "$tab" -k3,3n)"
-  if [ "${1:-}" = "--tsv" ]; then
-    printf 'installed\t%s\nloaded\t%s\npaused\t%s\n' "$ins" "$lod" "$pau"
-    [ -z "$rows" ] || printf '%s\n' "$rows"
-  else
-    printf 'installed  %s\nloaded     %s\npaused     %s\n' "$ins" "$lod" "$pau"
-    [ -z "$rows" ] || printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '{ printf "#%-5s %-19s %-8s %s  %s\n", $3, $2, substr($4, 1, 7), $1, $7 }'
-  fi
-}
-
 felix_land() {
   case "${1:-}" in
     --tick|--resume|--install|--uninstall) [ $# -eq 1 ] || { _gt_usage; return 2; } ;;
-    --pause) ;;
+    --pause) [ $# -le 2 ] || { _gt_usage; return 2; } ;;
     --status) { [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--tsv" ]; }; } || { _gt_usage; return 2; } ;;
     *) _gt_usage; return 2 ;;
   esac

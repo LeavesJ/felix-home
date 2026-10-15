@@ -136,6 +136,9 @@ LG='@LG@'
 { printf '%s\t%s\t' "$(cd -P "$(dirname "$0")" && pwd -P)" "$(pwd -P)"; tr '\n' ' '; printf '\n'; } >> "$LG/log/hook.log"
 rc=0; [ -f "$LG/ctl/hook.rc" ] && rc="$(cat "$LG/ctl/hook.rc")"; exit "$rc"
 LGSTUB
+# Main's own acceptance check (A1) is real, so the trampoline has an engine it
+# accepts: the base commit holds the real lib/resolve.sh, as 1282's A1 does.
+cp "$REAL_HARNESS/lib/resolve.sh" "$LGH/engine/harness/lib/resolve.sh"
 _fx_git "$LGH" add -A >/dev/null 2>&1
 _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1
 _fx_git "$LGH" push -q -u origin main >/dev/null 2>&1
@@ -203,9 +206,9 @@ _lg_f() {   # EVENT PR FIELD -> that field of the last such row (PR empty: any)
 _lg_lc() { printf '%s' "$1" | LC_ALL=C tr '[:upper:]' '[:lower:]'; }
 _lg_merges() { [ -f "$LGL/felix.log" ] || return 0
   LC_ALL=C awk -F'\t' '$3 == "merge" || index($3, "merge ") == 1 { n = $2; sub(/.*\//, "", n); printf "%s%s", s, n; s = " " }' "$LGL/felix.log"; }
-_lg_pr() {   # N [draft] [labels] [mergeable] [cross] -> one pull request as gh lists it
-  printf '{"number":%s,"headRefName":"b%s","headRefOid":"%s","isDraft":%s,"labels":%s,"mergeable":"%s","isCrossRepository":%s}' \
-    "$1" "$1" "$(_lg_sha "$1")" "${2:-false}" "${3:-[]}" "${4:-MERGEABLE}" "${5:-false}"
+_lg_pr() {   # N [draft] [labels] [mergeable] [cross] [base] -> one pull request as gh lists it
+  printf '{"number":%s,"headRefName":"b%s","headRefOid":"%s","isDraft":%s,"labels":%s,"mergeable":"%s","isCrossRepository":%s,"baseRefName":"%s"}' \
+    "$1" "$1" "$(_lg_sha "$1")" "${2:-false}" "${3:-[]}" "${4:-MERGEABLE}" "${5:-false}" "${6:-main}"
 }
 _lg_prs() { local IFS=,; printf '[%s]\n' "$*" > "$LGK/prs.json"; }
 _lg_green() { local n s; for n in "$@"; do s="$(_lg_sha "$n")"; printf 'completed\tsuccess\t%s\n' "$s" > "$LGK/runs.$s"; done; }

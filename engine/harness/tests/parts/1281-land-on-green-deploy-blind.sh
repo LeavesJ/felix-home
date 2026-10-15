@@ -139,7 +139,8 @@ has "G9: its StartInterval is 300" "$_lgp" "<key>StartInterval</key><integer>300
 has "G9: RunAtLoad is true" "$_lgp" "<key>RunAtLoad</key><true/>"
 has "G9: ProcessType is Interactive" "$_lgp" "<key>ProcessType</key><string>Interactive</string>"
 case "$_lgp" in *LowPriorityIO*) bad "G9: it sets no LowPriorityIO" "$_lgp" ;; *) ok "G9: it sets no LowPriorityIO" ;; esac
-has "G9: it sets the explicit PATH" "$_lgp" "<key>PATH</key><string>/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>"
+# A16 amends G9's PATH: the fixture HOME's .local/bin comes first.
+has "G9: it sets the explicit PATH" "$_lgp" "<key>PATH</key><string>$(printf '%s' "$LGU" | tr -d ' ')/.local/bin:/opt/homebrew/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>"
 has "G9: its EnvironmentVariables name FELIX_HOME_DIR as the home" "$_lgp" "<key>EnvironmentVariables</key><dict>"
 has "G9: FELIX_HOME_DIR is the home" "$_lgp" "<key>FELIX_HOME_DIR</key><string>$(printf '%s' "$LGH" | tr -d ' ')</string>"
 has "G9: its stdout goes to land/launchd.log" "$_lgp" "<key>StandardOutPath</key><string>$LAND/launchd.log</string>"

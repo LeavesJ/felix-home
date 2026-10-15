@@ -192,6 +192,11 @@ _la_owed() {   # CASE PATH-PREFIX WORD... -> two runs in CASE run nothing and sa
   _la_names "A1: $what: the row names the case" "$(_lg_f deploy-owed "" 7)" "$@"
   printf '%s\n' "$(_lg_f deploy-owed "" 7)" >> "$LA/details"
 }
+# The base commit 1280 builds holds lib/resolve.sh; main drops it here, so its
+# check cannot be loaded, and gets it back below.
+_fx_git "$LGH" rm -q engine/harness/lib/resolve.sh >/dev/null 2>&1
+_fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm 'main without its resolve.sh' >/dev/null 2>&1
+_fx_git "$LGH" push -q origin main >/dev/null 2>&1; _lg_cache 9.0.0
 [ -x "$LATR" ] && ! git -C "$LGH" cat-file -e origin/main:engine/harness/lib/resolve.sh 2>/dev/null \
   && ok "the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)" \
   || bad "the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)" "no $LATR, or resolve.sh is there"
@@ -279,7 +284,7 @@ _fx_git "$LGH" reset -q --hard origin/main >/dev/null 2>&1
 printf 'origin side\n' > "$LG/la-o2/notes/la-div.md"
 _fx_git "$LG/la-o2" add -A >/dev/null 2>&1; _fx_git "$LG/la-o2" -c user.name=t -c user.email=t@t commit -qm div >/dev/null 2>&1
 _fx_git "$LG/la-o2" push -q origin HEAD:main >/dev/null 2>&1
-printf 'home side\n' > "$LGH/notes/la-home.md"
+mkdir -p "$LGH/notes"; printf 'home side\n' > "$LGH/notes/la-home.md"
 _fx_git "$LGH" add -A >/dev/null 2>&1; _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm home >/dev/null 2>&1
 _la_home "diverged from"
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" reset -q --hard origin/main >/dev/null 2>&1
@@ -325,6 +330,10 @@ is "A6: one refused row for a refused one" "$(_lg_n refused 40)" "1"
 is "A6: one session row for one no checkout holds" "$(_lg_n session 31)" "1"
 is "A6: and one notification each for the founder and the refused row" \
    "$(_lg_logs osa | grep -c 'Felix: founder #34')|$(_lg_logs osa | grep -c 'Felix: refused #40')" "1|1"
+# A13: felix merge is re-run on a known refusal only once its head or main
+# moves, so main moves here, pushed from the home, which stays at it.
+mkdir -p "$LGH/notes"; printf 'a6\n' > "$LGH/notes/la-a6.md"; _fx_git "$LGH" add -A >/dev/null 2>&1
+_fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm a6 >/dev/null 2>&1; _fx_git "$LGH" push -q origin main >/dev/null 2>&1
 printf 'felix merge: refused\n  blocker: the version is behind main\n' > "$LGK/merge.b40.out"; _lg_land --tick
 is "A6: a refusal whose detail changed writes one new refused row and one new notification" \
    "$(_lg_n refused 40)|$(_lg_logs osa | grep -c 'Felix: refused #40')" "2|2"

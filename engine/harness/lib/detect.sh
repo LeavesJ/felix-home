@@ -105,31 +105,159 @@ felix_detect() {
 # Capabilities a project has declared it knows about, one per line.
 #
 # 0 when there is no file or it was read, whether or not it holds a
-# capability line, and 2 when something is there and could not be read. Until
-# 2026-10-01 a file of only comments returned grep's 1, which a caller asking
-# the status, as _felix_cap_active now does, would have read as a list that
-# failed. Only nothing at all is absent: a link whose target is gone, a
+# capability line, and 2 when something is there and could not be read as a
+# list. Only nothing at all is absent: a link whose target is gone, a
 # directory or a pipe is something there that is not a list, and is 2 without
-# being opened, where `-f` alone called each absent and the list empty (a pipe
-# must not be opened at all, since grep would wait on it for a writer). The
-# status starts at 2 and the redirection sits outside the grep, because a
-# redirection that cannot be opened returns 1 without running the command, and
-# 1 is what an empty list now reads as.
+# being opened (a pipe must not be opened at all, since a reader would wait on
+# it for a writer).
+#
+# 2026-10-08: until then it read with grep -vE '^\s*(#|$)' in the caller's
+# locale, which treated a file that is not text as a list. A NUL made BSD grep
+# print "Binary file <path> matches" as the one capability (measured), and by
+# GNU grep's manual (not run) stop printing at the first NUL with 0 and, under
+# a UTF-8 locale, drop each line holding a byte that is not valid UTF-8; BSD
+# grep reads such a byte as text. A byte-order mark before a comment listed the
+# comment, a line of only a no-break space was listed in the C locale and
+# dropped in UTF-8, and a CR made every name one no table holds. Now a NUL
+# anywhere is no list (as #383 refused a qualification.tsv holding one), the
+# file is read byte for byte in the C locale, a leading UTF-8 byte-order mark
+# is dropped, and a listed line holding a byte outside tab and printable ASCII
+# makes the whole file no list, the way qualify calls a row with a CR
+# malformed. A file that is no list is 2 with nothing printed.
+# It reads with cat into a subshell, not a redirect or a second grep, so that
+# the file is opened once by a named command whose status says a read failed
+# (the read builtin returns a read error as end of input). The C locale is set
+# inside the subshell because bash 4 to 5.2 in a UTF-8 locale reads the byte
+# after a UTF-8 lead byte as part of a character without asking whether it is
+# the delimiter, so a NUL right after one hid from read -d '' (#383's review);
+# the subshell keeps the locale, IFS and set -f its own, and its stderr is
+# discarded as grep's was. A caller whose LC_ALL is readonly and not C gets 2
+# and no message: bash 3.2 abandons the subshell at the assignment, and the
+# second test refuses where a shell would carry on in the caller's locale.
+# cat is `command cat`, so no function of that name stands in. The lines are
+# judged by two regular expressions, each tried on known input first, since
+# one that cannot be compiled returns 2 and `&&` would read that as no match.
+# The cost is one process more per call than the grep it replaced, a cat and a
+# subshell, measured, and linear in the file: the mark is cut by offset, the
+# names kept in an array and each line matched once, because `${x#mark}`,
+# string appends, `${x//tab/ }` and stripping leading space by pattern grew
+# with the square of a file or a line (5.7 s for 670 KB, 17 s for one line of
+# 10,000 tabs; found by review).
 felix_declared() {
-  local proj="$1" rc=2
+  local proj="$1" st
   [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
   [ -f "$proj/capabilities" ] || return 2
-  { grep -vE '^\s*(#|$)' "$proj/capabilities"; rc=$?; } 2>/dev/null
-  [ "$rc" -le 1 ] || return 2
+  command cat -- "$proj/capabilities" 2>/dev/null | (
+    [ "${LC_ALL-}" = C ] || LC_ALL=C
+    [ "${LC_ALL-}" = C ] || exit 6
+    IFS= read -r -d '' _fdb && exit 3
+    case "$_fdb" in $'\357\273\277'*) _fdb="${_fdb:3}" ;; esac
+    _fdskip='^[[:space:]]*(#|$)' _fdbad=$'[^\t[:print:]]'
+    [[ '' =~ $_fdskip ]] && [[ $'\001' =~ $_fdbad ]] && ! [[ $'a\t~' =~ $_fdbad ]] || exit 5
+    _fdk=(); IFS=$'\n'; set -f; set -- $_fdb
+    for _fdl; do
+      [[ $_fdl =~ $_fdskip ]] && continue
+      [[ $_fdl =~ $_fdbad ]] && exit 4
+      _fdk[${#_fdk[@]}]="$_fdl"
+    done
+    [ "${#_fdk[@]}" -eq 0 ] || printf '%s\n' "${_fdk[@]}" ) 2>/dev/null
+  st="${PIPESTATUS[0]}:${PIPESTATUS[1]}"
+  [ "$st" = 0:0 ] || return 2
+}
+
+# NAME CMD [ARGS...]: run CMD in one command substitution and assign its output
+# to the variable named NAME, minus one trailing newline, only when CMD returned
+# 0 and the substitution ran to its end. 0 when it did, the empty string being
+# output too, and 2 when it did not, with NAME left as the caller had it. The
+# status of CMD is not enough, because a substitution can end with nothing
+# printed and status 0 when its fork fails (EAGAIN) or, on bash 3.2, when it
+# cannot make its pipe, so a newline and a `.` are printed only after CMD
+# returned 0, and output that does not end in them was never whole.
+#
+# Every status but 0 reads as not whole, so a command captured here returns 0
+# only when what it printed is whole. The sentinel is forged by a last line that
+# is exactly `.`, printed by a command that then failed, and by nothing else.
+# Until 2026-10-01 it was a bare `.`, which a failed felix_declared forged with a
+# last line ending in a dot (`billing.`). No locals, because a local of the name
+# the caller passed would take the assignment printf -v makes and the caller's
+# variable would never see it, and no variable of its own, because a global would
+# not hide a caller's variable of the same name but overwrite it (lib/commission.sh
+# felix_commission_ask has no locals either, for the first reason only):
+# everything is held in the positional parameters. The newlines are stripped
+# with a literal one in the pattern, which is the same in bash 3.2 and 5.
+felix_capture() {
+  set -- "$1" "$(shift; "$@" && printf '\n.')"
+  case "$2" in *"
+.") ;; *) return 2 ;; esac
+  set -- "$1" "${2%"
+."}"
+  set -- "$1" "${2%"
+"}"
+  printf -v "$1" '%s' "$2"
   return 0
 }
 
+# The declared list read into the variable named $1, one capability per line
+# with no trailing newline, and whether it was read. 0 when it was, the empty
+# string being a list too (no file, or one that declares nothing), and 2 when it
+# was not, with the variable left as the caller had it.
+#
+# Until 2026-10-01 each reader of the list but _felix_cap_active ran
+# `$(felix_declared ...)` and took what came back as the list, so a list that
+# could not be read was an empty one and every reader made a claim from it: a
+# capability not declared, drift to adopt, an orphan, a gap that was not one, a
+# topology that was not the project's. Now they read here and branch on the
+# status, and felix_capture says whether the substitution came back whole.
+felix_declared_into() {
+  felix_capture "$1" felix_declared "$2"
+}
+
+# The capabilities this checkout shows and the project declares, one to a line,
+# sorted and without repeats: ROOT and LIST, which is the declared list as
+# felix_declared_into read it. 0 when the pipeline that made it ran whole, and
+# nonzero when either half of it did not, a sort that could not run being as much
+# a union that was not made as a list that could not be read. Captured by
+# felix_capture, which is what makes the status mean something. Until 2026-10-01
+# each caller made this union itself, in a group piped to sort whose status
+# nobody asked, so a sort that could not run was a list with nothing in it.
+#
+# The declared half is printed first, so a felix_detect that exits inside the
+# group cannot take it along. The group ends in `:` because felix_detect's own
+# status is its last test's, 1 for a checkout with no .env.example, and says
+# nothing about whether it ran. A fork that fails inside the group (felix_detect's
+# EAGAIN) is another thing: on bash 3.2 it kills the group's subshell with 128, so
+# the pipeline's status is nonzero, the union is not made, and its readers say the
+# declared list could not be read, the one sentence they have for it. (Until
+# 2026-10-08 this said that failure reads as nothing detected, as it did; here it
+# does not.) The statuses are taken whole into the positional parameters, which
+# pipefail does not change and the first test would reset.
+_felix_capability_union() {
+  { [ -z "$2" ] || printf '%s\n' "$2"; felix_detect "$1" 2>/dev/null; :; } | LC_ALL=C sort -u
+  set -- "${PIPESTATUS[@]}"
+  [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ]
+}
+
 # Present in the checkout but never declared. This is the drift worth surfacing.
+#
+# 0 with the surfaces on stdout, and 2 with nothing printed when the declared
+# list could not be read. Until 2026-10-01 an unread list subtracted nothing, so
+# every detected surface was undeclared drift and session start adopted each one,
+# capabilities that may already have been declared. The list is read once, in
+# this shell, before the pipeline, and what it holds is skipped by a case, the
+# way _felix_cap_active asks, where felix_has_line's here-document is a
+# temporary file on bash 3.2. A process substitution would hand a loop an empty
+# file when its fork failed, so there is none. The detected half, `felix_detect |
+# sort -u`, is the felix_detect lookup, left as it was: a sort that fails there
+# reads as less drift, unlike in _felix_capability_union, where a sort that could
+# not run is a union that was not made.
 felix_undeclared() {
-  local root="$1" proj="$2"
-  LC_ALL=C comm -23 \
-    <(felix_detect "$root" | LC_ALL=C sort -u) \
-    <(felix_declared "$proj" | LC_ALL=C sort -u)
+  local root="$1" proj="$2" declared nl=$'\n' cap
+  felix_declared_into declared "$proj" || return 2
+  felix_detect "$root" | LC_ALL=C sort -u | while IFS= read -r cap; do
+    [ -n "$cap" ] || continue
+    case "$nl$declared$nl" in *"$nl$cap$nl"*) ;; *) printf '%s\n' "$cap" ;; esac
+  done
+  return 0
 }
 
 # Best guess at the command that proves this project correct. A guess, printed

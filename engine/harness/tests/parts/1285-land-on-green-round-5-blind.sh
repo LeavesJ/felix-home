@@ -1,13 +1,13 @@
 # >>> land-on-green-round-5
-printf '\nland on green: the amendments A23-A25 (contract A23-A25, blind)\n'
+printf '\nland on green: the amendments A23-A28 (contract A23-A28, blind)\n'
 # Blind, from the contract's "Amended after the fourth review" alone, on the
 # fixture parts 1280-1284 build: lib/green-tick.sh, lib/green-install.sh,
 # felix_land and cmd_land were not read. lib/resolve.sh's
 # felix_accepted_deploy_diff and felix_deploy_diff were, for what A24 calls
 # residue. What the contract leaves open is not asserted: a row's words beyond
 # the path it names, and what the trampoline writes when its A24 check fails.
-# A25's watchdog fires after 30 minutes and the contract gives no seam that
-# shortens that, so A25 is skipped, as A4's and A15's watchdog halves are.
+# A25's watchdog is asserted in the A26-A28 section at the end, through the
+# _GT_WDSECS seam A28 gives it.
 #
 # The home's felix stub logs every call it gets to log/felix.log and its
 # session-start hook to log/hook.log, so "no home code runs" is both logs
@@ -202,8 +202,195 @@ is "A24: (control) with the home clean and main's entry in place again, the tram
 _lg_reset; _lg_land --uninstall
 
 # -------------------------------------------------------------------- A25 ---
-skip "A25: the watchdog sends TERM to the tick's pid before its descendants" "the contract gives no way to shorten 30 minutes"
-skip "A25: the watchdog never signals its own pid or its own process group" "the contract gives no way to shorten 30 minutes"
+# Asserted under A28 below, once _GT_WDSECS shortens the watchdog's bound.
+
+# --------------------------------------------------- amendments A26-A28 ---
+# Blind, from the contract's "Amended after the fifth review" alone, on the
+# fixture parts 1280-1285 build: lib/green-tick.sh, lib/green-install.sh,
+# felix_land and cmd_land were not read. The CLI's own lines that source its
+# libraries were, to set _GT_WDSECS after lib/green-tick.sh as A28 allows.
+# What the contract leaves open is not asserted: a row's words beyond the path
+# it names, and what land/verifying holds. Each stopped deploy below is made
+# owed by taking main's entry out of the cache; each re-run has that entry back
+# as main's and the home at origin's main, so only the marker makes it owed.
+L6="$LG/round6"; mkdir -p "$L6"
+_l6_logs() { rm -rf "$LGL"; mkdir -p "$LGL"; }
+_l6_gq() { _lg_logs felix | LC_ALL=C awk -F'\t' -v h="$LGH" '$3 == "gate --quick" && $2 == h' | wc -l | tr -d ' '; }
+_l6_nohome() {   # TAG WHAT -> no home code ran: no install, gate or session-start, no call to the home's felix
+  is "$1: $2: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs" \
+     "$(_lg_logs felix | LC_ALL=C awk -F'\t' -v h="$LGH/engine/harness/felix" '$1 == h || index($3, "install") == 1 || index($3, "gate") == 1' | wc -l | tr -d ' ')|$(_lg_cnt hook)|$(_lg_cnt edited)" \
+     "0|0|0"
+}
+_l6_stop() {   # TAG WHAT WORD... -> one tick with a deploy owed stops: one deploy-owed row naming the path, paused, nothing run
+  local tag="$1" what="$2"; shift 2
+  rm -rf "$LGV/$L5V"; _lg_reset; _lg_prs "$(_lg_pr 80)"; _lg_green 80; _lg_land --tick
+  is "$tag: $what: the tick writes one deploy-owed row, and no deployed or deployed-unverified row" \
+     "$LGRC|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deployed-unverified)" "0|1|0|0"
+  _la_names "$tag: $what: the deploy-owed row names the path" "$(_lg_f deploy-owed "" 7)" "$@"
+  [ -s "$LAND/paused" ] && ok "$tag: $what: and writes paused" || bad "$tag: $what: and writes paused" "no paused"
+  _l6_nohome "$tag" "$what"
+  is "$tag: $what: nothing is installed into the cache, and nothing merges" "$([ -e "$LGV/$L5V" ] && echo installed)|$(_lg_merges)" "|"
+}
+_l6_rerun() {   # WHAT -> cause cleared and main's entry back: --resume, then the next tick redoes the deploy and merges nothing
+  _lg_cache "$L5V"
+  is "the land fixture: $1, cleared: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored, the home is at origin's main, and main's check accepts its entry (fixture control)" \
+     "$(git -C "$LGH" status --porcelain 2>&1)|$(git -C "$LGH" ls-files -v 2>&1 | LC_ALL=C grep -c '^[abcdefghijklmnopqrstuvwxyzS]')|$(git -C "$LGH" ls-files --others -- engine 2>&1 | wc -l | tr -d ' ')|$(git -C "$LGH" rev-parse HEAD 2>&1)|$(_l4_acc refs/remotes/origin/main)" \
+     "|0|0|$(git -C "$LGO" rev-parse main 2>&1)|0"
+  _lg_land --resume; _l6_logs; _lg_land --tick
+  is "A26: $1: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row" \
+     "$(_lg_ninst)|$([ "$(_lg_cnt hook)" -ge 1 ] && echo ran)|$(_l6_gq)|$(_lg_n deployed)" "1|ran|1|1"
+  is "A26: $1: and merges nothing in that tick" "$(_lg_merges)|$(_lg_n landed)" "|0"
+  [ -e "$LAND/verifying" ] && bad "A26: $1: the deployed row removes land/verifying" "it is still there" \
+    || ok "A26: $1: the deployed row removes land/verifying"
+  _lg_land --tick
+  is "A26: $1: (control) the tick after it lands the waiting pull request and installs nothing more" \
+     "$(_lg_n landed 80)|$(_lg_merges)|$(_lg_ninst)" "1|b80|1"
+}
+_l6_marked() {   # WHAT -> the stopped deploy left land/verifying
+  [ -e "$LAND/verifying" ] && ok "A26: $1: the stopped deploy leaves land/verifying, written before A24's checks" \
+    || bad "A26: $1: the stopped deploy leaves land/verifying, written before A24's checks" "no land/verifying"
+}
+
+# -------------------------------------------------------------------- A26 ---
+printf 'not main\n' > "$LGH/engine/harness/a26-untracked.txt"
+_l6_stop A26 "an untracked file under engine/" a26-untracked
+_l6_marked "an untracked file under engine/"
+rm -f "$LGH/engine/harness/a26-untracked.txt"
+_l6_rerun "an untracked file under engine/"
+
+_l3_commit projects/lgh/gate.sh 'exit 0'
+printf 'echo edited\n' >> "$LGH/projects/lgh/gate.sh"
+_fx_git "$LGH" update-index --skip-worktree projects/lgh/gate.sh >/dev/null 2>&1
+is "the land fixture: main holds projects/lgh/gate.sh; the home's, edited, carries skip-worktree, and git status shows nothing (fixture control)" \
+   "$(git -C "$LGH" cat-file -t refs/remotes/origin/main:projects/lgh/gate.sh 2>&1)|$(git -C "$LGH" ls-files -v -- projects/lgh/gate.sh 2>&1 | cut -c1)|$(git -C "$LGH" status --porcelain 2>&1)" \
+   "blob|S|"
+_l6_stop A26 "skip-worktree on projects/lgh/gate.sh" projects/lgh/gate.sh
+_l6_marked "skip-worktree on projects/lgh/gate.sh"
+_fx_git "$LGH" update-index --no-skip-worktree projects/lgh/gate.sh >/dev/null 2>&1
+_fx_git "$LGH" checkout -q -- projects/lgh/gate.sh >/dev/null 2>&1
+_l6_rerun "skip-worktree on projects/lgh/gate.sh"
+
+# -------------------------------------------------------------------- A27 ---
+# core.sh as main has it, with CRLF line ends, added again under autocrlf: the
+# index and git status call it main's, and a filtered hash agrees.
+_l6m="$(git -C "$LGH" rev-parse refs/remotes/origin/main:engine/harness/lib/core.sh 2>/dev/null)"
+git -C "$LGH" show "$_l6m" 2>/dev/null | LC_ALL=C awk '{ printf "%s\r\n", $0 }' > "$L6/core.crlf"
+_fx_git "$LGH" config core.autocrlf true >/dev/null 2>&1
+cat "$L6/core.crlf" > "$LGH/engine/harness/lib/core.sh"
+_fx_git "$LGH" add engine/harness/lib/core.sh >/dev/null 2>&1
+is "the land fixture: under core.autocrlf=true the home's core.sh holds CRs, git status shows nothing, and a filtered hash is main's blob while a byte-exact one is not (fixture control)" \
+   "$(git -C "$LGH" config --get core.autocrlf 2>&1)|$([ "$(LC_ALL=C tr -cd '\r' < "$LGH/engine/harness/lib/core.sh" | wc -c | tr -d ' ')" -ge 1 ] && echo cr)|$(git -C "$LGH" status --porcelain 2>&1)|$(_fx_git "$LGH" hash-object engine/harness/lib/core.sh 2>&1)|$([ "$(_fx_git "$LGH" hash-object --no-filters engine/harness/lib/core.sh 2>&1)" = "$_l6m" ] && echo same)" \
+   "true|cr||$_l6m|"
+_l6_stop A27 "a CRLF copy of an engine file, re-added under core.autocrlf" engine/harness/lib/core.sh
+_fx_git "$LGH" config --unset core.autocrlf >/dev/null 2>&1
+rm -f "$LGH/engine/harness/lib/core.sh"; _fx_git "$LGH" checkout -q -- engine/harness/lib/core.sh >/dev/null 2>&1
+is "the land fixture: core.sh is main's byte for byte again, and git status shows nothing (fixture control)" \
+   "$(_fx_git "$LGH" hash-object --no-filters engine/harness/lib/core.sh 2>&1)|$(git -C "$LGH" status --porcelain 2>&1)" "$_l6m|"
+_lg_cache "$L5V"
+
+# -------------------------------------------------------------------- A28 ---
+printf 'not main\n' > "$LGH/projects/lgh/a28-untracked.txt"
+is "the land fixture: the file is untracked under projects/lgh/ (fixture control)" \
+   "$(git -C "$LGH" status --porcelain 2>&1 | tr '\n' '|')" "?? projects/lgh/a28-untracked.txt|"
+rm -rf "$LGV/$L5V"; _lg_reset; _lg_land --tick
+is "A28: an untracked file under projects/lgh/ does not stop a deploy: one install, one deployed row, no deploy-owed row" \
+   "$(_lg_ninst)|$(_lg_n deployed)|$(_lg_n deploy-owed)" "1|1|0"
+[ -e "$LAND/paused" ] && bad "A28: and nothing is paused" "[$(cat "$LAND/paused")]" || ok "A28: and nothing is paused"
+rm -f "$LGH/projects/lgh/a28-untracked.txt"
+printf 'not main\n' > "$LGH/engine/a28-untracked.txt"
+_l6_stop A28 "the same untracked file under engine/" a28-untracked
+rm -f "$LGH/engine/a28-untracked.txt"; _lg_cache "$L5V"
+
+# A25 through A28's seam. A copy of the CLI beside it sets _GT_WDSECS=2 on the
+# line after it sources lib/green-tick.sh. Its tick runs in a process group of
+# its own and is held in gh auth status by a gh that, on TERM, logs it and
+# exits 0, as a passing auth would. A tick still unsignalled when that gh ends
+# would go on to list pull requests; one already holding its TERM writes its
+# timeout row instead. That is how "the tick's pid first" is read. A sentinel
+# joins the tick's process group without descending from it: a TERM to that
+# group reaches it. pgrep is the system's for this tick, so a watchdog that
+# finds descendants with it finds real ones. A watchdog that signalled its own
+# pid ahead of gh would not live to reach gh; one that signals itself after its
+# last descendant leaves no mark a test here can read.
+L6F="$FROOT/harness/felix-l6wd"
+LC_ALL=C awk '{ print } index($0, ". \"${SCRIPT_DIR}/lib/green-tick.sh\"") == 1 && !d { print "_GT_WDSECS=2"; d = 1 }' "$FELIX" > "$L6F" \
+  && chmod +x "$L6F"
+is "the land fixture: a copy of the CLI sets _GT_WDSECS=2 on the line after it sources lib/green-tick.sh, and differs in nothing else (fixture control)" \
+   "$(LC_ALL=C awk 'p && $0 == "_GT_WDSECS=2" { n++ } { p = (index($0, ". \"${SCRIPT_DIR}/lib/green-tick.sh\"") == 1) } END { print n + 0 }' "$L6F" 2>&1)|$(diff "$FELIX" "$L6F" 2>&1 | LC_ALL=C grep -c '^[<>]')" \
+   "1|1"
+/bin/mv "$LGB/gh" "$L6/gh.prev"; /bin/mv "$LGB/pgrep" "$L6/pgrep.prev"
+_lg_put "$LGB/gh" <<'LGSTUB'
+#!/bin/bash
+LG='@LG@'
+if [ "${1:-} ${2:-}" = "auth status" ] && [ -f "$LG/ctl/gh-hold" ]; then
+  printf '%s\n' "$*" >> "$LG/log/gh.log"
+  trap 'printf "gh TERM\n" >> "$LG/log/term.log"; exit 0' TERM
+  printf '%s\n' "$$" > "$LG/log/gh-held"
+  i=0; while [ "$i" -lt 200 ]; do sleep 0.1 & wait "$!"; i=$((i+1)); done
+  exit 1
+fi
+exec "$LG/round6/gh.prev" "$@"
+LGSTUB
+_lg_put "$LGB/pgrep" <<'LGSTUB'
+#!/bin/bash
+LG='@LG@'
+if [ -f "$LG/ctl/pgrep-real" ]; then printf '%s\n' "$*" >> "$LG/log/pgrep.log"; exec /usr/bin/pgrep "$@"; fi
+exec "$LG/round6/pgrep.prev" "$@"
+LGSTUB
+_l6_ms() { perl -MTime::HiRes=time -e 'printf "%d\n", time() * 1000'; }
+_l6_anc() {   # PID ANCESTOR -> yes when ANCESTOR is PID or one of its ancestors
+  local p="$1" i=0
+  while [ "$i" -lt 12 ]; do
+    [ -n "$p" ] && [ "$p" = "$2" ] && { echo yes; return 0; }
+    p="$(ps -o ppid= -p "$p" 2>/dev/null | tr -d ' ')"
+    case "$p" in ""|0|1|*[!0123456789]*) break ;; esac
+    i=$((i+1))
+  done
+  echo no
+}
+_lg_reset; : > "$LGK/gh-hold"; : > "$LGK/pgrep-real"
+L6S=""; L6SG=""; L6GH=""; L6TK=""; L6ANC=""; _l6i=0; L6T0="$(_l6_ms)"
+( cd "$LGH" || exit 97
+  exec perl -e 'setpgrp(0, 0); exec @ARGV or exit 127' env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE \
+    HOME="$LGU" FELIX_HOME="$LGH" FELIX_HOME_DIR="$LGH" FELIX_MEMORY="$LGM" FELIX_PLUGIN_CACHE="$LGC" \
+    PATH="$LGB:$PATH" "$L6F" land --tick ) > "$LG/out.wd" 2>&1 &
+L6BG=$!
+while [ "$_l6i" -lt 150 ]; do
+  if [ -z "$L6S" ] && [ "$(ps -o pgid= -p "$L6BG" 2>/dev/null | tr -d ' ')" = "$L6BG" ]; then
+    perl -e '$g = shift; $l = shift; setpgrp(0, $g) or exit 3;
+      $SIG{TERM} = sub { open(my $f, ">>", $l); print $f "sentinel TERM\n"; close $f; exit 0 };
+      for (1 .. 300) { select(undef, undef, undef, 0.1) } exit 0' "$L6BG" "$LGL/term.log" &
+    L6S=$!
+  fi
+  if [ -z "$L6GH" ] && [ -s "$LGL/gh-held" ]; then
+    L6GH="$(cat "$LGL/gh-held")"; L6TK="$(cat "$LAND/lock/pid" 2>/dev/null)"; L6ANC="$(_l6_anc "$L6GH" "$L6TK")"
+    [ -z "$L6S" ] || L6SG="$(ps -o pgid= -p "$L6S" 2>/dev/null | tr -d ' ')"
+  fi
+  [ "$(_lg_n timeout)" -ge 1 ] && [ ! -d "$LAND/lock" ] && break
+  kill -0 "$L6BG" 2>/dev/null || break
+  sleep 0.1; _l6i=$((_l6i+1))
+done
+L6EL=$(( $(_l6_ms) - L6T0 ))
+L6SA="$([ -n "$L6S" ] && kill -0 "$L6S" 2>/dev/null && echo alive)"
+rm -f "$LGK/gh-hold"; _la_reap "$L6BG"
+[ -z "$L6GH" ] || ! kill -0 "$L6GH" 2>/dev/null || kill -TERM "$L6GH" 2>/dev/null
+is "the land fixture: the tick was held in gh auth status, gh descends from the pid in lock/, and the sentinel is in the tick's process group (fixture control)" \
+   "$([ -n "$L6GH" ] && echo held)|$L6ANC|$([ -n "$L6SG" ] && [ "$L6SG" = "$L6BG" ] && echo grouped)" "held|yes|grouped"
+is "A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12" \
+   "$(_lg_n timeout)|$([ "$L6EL" -ge 1900 ] && [ "$L6EL" -lt 12000 ] && echo inside)" "1|inside"
+[ -d "$LAND/lock" ] && bad "A25, A28: and the lock is released" "lock/ is left" || ok "A25, A28: and the lock is released"
+has "A25: the tick's descendant holding it, gh, gets TERM" "$(_lg_logs term)" "gh TERM"
+is "A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout" \
+   "$(_lg_logs gh | LC_ALL=C grep -vc '^auth status')|$(_lg_rows)" "0|1"
+is "A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM" \
+   "$(_lg_logs term | LC_ALL=C grep -c '^gh TERM$')" "1"
+case "$(_lg_logs term)" in
+  *sentinel*) bad "A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM" "the sentinel got TERM" ;;
+  *) [ "$L6SA" = alive ] && ok "A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM" \
+       || bad "A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM" "the sentinel [$L6S] is gone" ;;
+esac
+[ -z "$L6S" ] || { kill -TERM "$L6S" 2>/dev/null; wait "$L6S" 2>/dev/null; }
+rm -f "$L6F" "$LGK/pgrep-real"; /bin/mv "$L6/gh.prev" "$LGB/gh"; /bin/mv "$L6/pgrep.prev" "$LGB/pgrep"
 
 for _l5n in 80 82 83 84; do _fx_git "$LGH" worktree remove --force "$LGW/b$_l5n" >/dev/null 2>&1; done
 _fx_git "$LGH" worktree prune >/dev/null 2>&1; _fx_git "$LGH" branch -q -D b80 b81 b82 b83 b84 >/dev/null 2>&1

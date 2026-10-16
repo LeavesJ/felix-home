@@ -35,16 +35,16 @@ _gt_home_exact() {   # -> 0 when the home is main's; else 1, with the path and w
   git -C "$home" ls-tree -r "$_GT_MAIN" -- engine "$pj" 2>/dev/null \
     | LC_ALL=C awk -F'\t' -v w="$t/want" -v p="$t/paths" '$1 ~ /^[0-7]+ blob / { split($1, a, " "); print a[3] > w; print $2 > p }'
   [ -s "$t/paths" ] || { rm -rf "$t"; printf "git could not list origin/main's engine/ and %s/" "$pj"; return 1; }
-  git -C "$home" hash-object --stdin-paths < "$t/paths" > "$t/got" 2>/dev/null
+  git -C "$home" hash-object --no-filters --stdin-paths < "$t/paths" > "$t/got" 2>/dev/null
   if ! cmp -s "$t/want" "$t/got"; then
     n="$(LC_ALL=C awk 'NR == FNR { w[FNR] = $0; next } { g = FNR; if ($0 != w[FNR] && !f) f = FNR } END { print f ? f : g + 1 }' "$t/want" "$t/got")"
-    x="$(sed -n "${n}p" "$t/paths")"; rm -rf "$t"
+    x="$(LC_ALL=C sed -n "${n}p" "$t/paths")"; rm -rf "$t"
     printf '%s does not hash to the blob origin/main holds, or cannot be read' "$x"; return 1
   fi
   rm -rf "$t"
   x="$(git -C "$home" ls-files -v -- engine "$pj" 2>/dev/null | LC_ALL=C awk '/^[a-zS] / { print substr($0, 3); exit }')"
   [ -z "$x" ] || { printf '%s carries assume-unchanged or skip-worktree in the index' "$x"; return 1; }
-  x="$(git -C "$home" ls-files --others -- engine 2>/dev/null | sed -n 1p)"
+  x="$(git -C "$home" ls-files --others -- engine 2>/dev/null | LC_ALL=C sed -n 1p)"
   [ -z "$x" ] || { printf '%s is untracked or ignored under engine/' "$x"; return 1; }
   return 0
 }
@@ -110,7 +110,7 @@ owed() {   # DETAIL: say why nothing runs, once, and stop
 cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME_DIR ($FELIX_HOME_DIR), so no engine is run"
 # A24: an untracked .gitignore under engine/ would widen what the check below calls residue.
 un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list the home's untracked files under engine/, so no engine is run"
-[ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | sed -n 1p)): nothing runs until it is removed"
+[ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | LC_ALL=C sed -n 1p)): nothing runs until it is removed"
 pj="$(git show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null)" \
   || owed "git could not read origin/main's engine version, so no engine is run"
 ver="$(printf '%s\n' "$pj" | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"

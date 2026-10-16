@@ -101,7 +101,7 @@ _gt_age() {
 # 0 when the lock directory names a live tick; sets _GT_HPID to its pid.
 _gt_holder_live() {
   local pid st
-  pid="$(sed -n 1p "$1/pid" 2>/dev/null)"; st="$(sed -n 1p "$1/started" 2>/dev/null)"; _GT_HPID=""
+  pid="$(LC_ALL=C sed -n 1p "$1/pid" 2>/dev/null)"; st="$(LC_ALL=C sed -n 1p "$1/started" 2>/dev/null)"; _GT_HPID=""
   case "$pid" in ""|*[!0123456789]*) return 1 ;; esac
   kill -0 "$pid" 2>/dev/null || return 1
   _GT_HPID="$pid"
@@ -117,7 +117,7 @@ _gt_take() {   # 0 when this tick's directory is now lock/
   rm -rf "$t"; mkdir "$t" 2>/dev/null || return 1
   printf '%s\n' "$$" > "$t/pid"; _gt_started "$$" > "$t/started"
   [ ! -e "$l" ] && mv "$t" "$l" 2>/dev/null
-  if [ "$(sed -n 1p "$l/pid" 2>/dev/null)" = "$$" ] && [ ! -e "$t" ]; then return 0; fi
+  if [ "$(LC_ALL=C sed -n 1p "$l/pid" 2>/dev/null)" = "$$" ] && [ ! -e "$t" ]; then return 0; fi
   rm -rf "$t" "$l/lock.new.$$" 2>/dev/null; return 1
 }
 
@@ -133,12 +133,12 @@ _gt_lock() {   # 0 when taken; 1 when a live tick holds it or another tick won i
       fi
       return 1
     fi
-    old="$(sed -n 1p "$l/pid" 2>/dev/null)"
+    old="$(LC_ALL=C sed -n 1p "$l/pid" 2>/dev/null)"
     dead="$_GT_LAND/lock.dead.$$.$RANDOM"
     mv "$l" "$dead" 2>/dev/null || return 1
     # Another tick may have replaced the dead lock between the look and the
     # rename; what was moved aside is dead only if it still names the same pid.
-    if [ "$(sed -n 1p "$dead/pid" 2>/dev/null)" != "$old" ]; then
+    if [ "$(LC_ALL=C sed -n 1p "$dead/pid" 2>/dev/null)" != "$old" ]; then
       [ -e "$l" ] || mv "$dead" "$l" 2>/dev/null; return 1
     fi
     rm -rf "$dead" 2>/dev/null
@@ -213,7 +213,7 @@ _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
     [ "$(git -C "$FELIX_HOME_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$FELIX_HOME_DIR" rev-parse "$_GT_MAIN" 2>/dev/null)" ] || return 1
     why="the home checkout is not at origin/main: the engine it holds has not been deployed and verified"
   fi
-  printf '%s' "$(printf '%s\n' "$why" | sed -n 1p)"
+  printf '%s' "$(printf '%s\n' "$why" | LC_ALL=C sed -n 1p)"
 }
 
 _gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1"; _gt_pause "$1"; }
@@ -245,7 +245,8 @@ _gt_deploy() {
     why="the home checkout holds a commit origin/main does not: it is ahead of or diverged from origin/main"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
-  out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
+  : > "$_GT_LAND/verifying"   # A26: owed from here; a deploy A24 stops is redone after --resume. Removed only by the deployed row below
+  out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse "$_GT_MAIN" 2>/dev/null)" ]; then
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
@@ -253,14 +254,13 @@ _gt_deploy() {
   # A24: nothing of the home's runs until its engine/ and project are main's, byte for byte.
   why="$(_gt_home_exact)" || {
     why="the home checkout is not main byte for byte: $why"; _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1; }
-  : > "$_GT_LAND/verifying"   # A20: removed only by the deployed row below
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"
   entry="$(_gt_cache)/$ver"
   # A21: against main's own commit, not the home's files: an untracked file in the home's engine/ cannot pass.
   out="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$home" "$_GT_MAIN" 2>&1 )" \
-    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(printf '%s\n' "$out" | sed -n 1p)"; return 1; }
+    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
     | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) >/dev/null 2>&1
   rc=$?
@@ -288,10 +288,10 @@ _gt_files() {   # PR SHA
   case "$g" in *$'\001'*) return 3 ;; esac
   out="$(gh pr view "$1" ${_GT_REPO:+--repo "$_GT_REPO"} --json files \
           --jq '(.files // []) as $f | ($f | length), ($f[].path)' 2>/dev/null)" || return 1
-  n="$(printf '%s\n' "$out" | sed -n 1p)"
+  n="$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac
   [ "$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR - 1 }')" = "$n" ] || return 1
-  { printf '%s\n' "$out" | sed '1d'; printf '%s\n' "$g"; } | LC_ALL=C awk 'NF && !seen[$0]++'
+  { printf '%s\n' "$out" | LC_ALL=C sed '1d'; printf '%s\n' "$g"; } | LC_ALL=C awk 'NF && !seen[$0]++'
 }
 
 # G5. These two patterns are an engine constant and name no project.
@@ -391,10 +391,10 @@ _gt_prs() {   # prints "number branch oid draft hold mergeable cross" lines, asc
           --jq 'length, (.[] | [(.number | tostring), (.headRefName // "-"), (.headRefOid // "-"), (.isDraft | tostring),
                 (((.labels // []) | any(.name == "felix:hold")) | tostring), (.mergeable // "UNKNOWN"),
                 (.isCrossRepository | tostring), (.baseRefName // "-")] | join("\t"))' 2>/dev/null)" || return 1
-  n="$(printf '%s\n' "$out" | sed -n 1p)"
+  n="$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac
   [ "$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR - 1 }')" = "$n" ] || return 1
-  printf '%s\n' "$out" | sed '1d' | LC_ALL=C sort -t "$(printf '\t')" -k1,1n
+  printf '%s\n' "$out" | LC_ALL=C sed '1d' | LC_ALL=C sort -t "$(printf '\t')" -k1,1n
 }
 
 _gt_tick() {
@@ -425,7 +425,7 @@ _gt_tick() {
   # tick merges with the engine just deployed, and that engine runs it.
   if why="$(_gt_deploy_owed)"; then _gt_deploy; return 0; fi
   prs="$(_gt_prs)" || { _gt_row_once gh - - - 0 "gh pr list failed"; return 0; }
-  _GT_ENGINE=0; _GT_DUPS="$(printf '%s\n' "$prs" | cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
+  _GT_ENGINE=0; _GT_DUPS="$(printf '%s\n' "$prs" | LC_ALL=C cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
   while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr bs; do
     [ -n "${n:-}" ] || continue
     if _gt_candidate "$n" "$br" "$sha" "$dr" "$ho" "$mg" "$cr" "$bs"; then

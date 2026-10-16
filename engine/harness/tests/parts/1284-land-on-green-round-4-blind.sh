@@ -189,11 +189,12 @@ is "A21: (control) an owed deploy with nothing untracked in the home's engine en
    "$(_lg_n deployed)|$(_lg_n deployed-unverified)" "1|0"
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42
 printf 'not main\n' > "$LGH/engine/harness/a21-extra.txt"; _lg_land --tick
-is "the land fixture: the file is untracked in the home, and the install copied it into the entry (fixture control)" \
-   "$(git -C "$LGH" status --porcelain -- engine 2>&1 | tr '\n' '|')$([ -f "$LGV/$L4V/harness/a21-extra.txt" ] && echo copied)" \
-   "?? engine/harness/a21-extra.txt|copied"
-is "A21: an untracked file under the home's engine/harness at deploy time ends deployed-unverified, not deployed" \
-   "$(_lg_n deployed-unverified)|$(_lg_n deployed)" "1|0"
+# A24, later, stops this deploy before its install with a deploy-owed row; A21
+# alone ended it deployed-unverified. Under either it is never deployed.
+is "the land fixture: the file is untracked in the home (fixture control)" \
+   "$(git -C "$LGH" status --porcelain -- engine 2>&1 | tr '\n' '|')" "?? engine/harness/a21-extra.txt|"
+is "A21, A24: an untracked file under the home's engine/harness at deploy time never ends deployed" \
+   "$(_lg_n deployed)|$(( $(_lg_n deployed-unverified) + $(_lg_n deploy-owed) ))" "0|1"
 [ -s "$LAND/paused" ] && ok "A21: and writes paused" || bad "A21: and writes paused" "no paused"
 is "A21: and merges nothing" "$(_lg_merges)" ""
 rm -f "$LGH/engine/harness/a21-extra.txt"; _lg_cache "$L4V"

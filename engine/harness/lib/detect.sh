@@ -145,6 +145,10 @@ felix_detect() {
 # 10,000 tabs; found by review).
 felix_declared() {
   local proj="$1" st
+  # Declared as the locale rules above felix_json_str in resolve.sh ask of every
+  # function holding a [[ =~ ]]. A readonly LC_ALL refuses it, silently here,
+  # and the subshell's own test below then returns 2.
+  local LC_ALL=C 2>/dev/null
   [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
   [ -f "$proj/capabilities" ] || return 2
   command cat -- "$proj/capabilities" 2>/dev/null | (

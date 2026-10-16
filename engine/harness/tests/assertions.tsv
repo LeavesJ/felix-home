@@ -657,12 +657,15 @@
 1	a bound of 0 is no bound
 1	a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old
 1	a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost
+1	a branch ending on a merge of main is titled by its own last commit
 1	a branch made from a detached HEAD inherits nothing from before the detach
 1	a branch name where the process id goes is refused, not read as the base
 1	a branch neither behind nor owing adds no row, or every clean landing would leave a refusal on record
+1	a branch of nothing but record commits is titled by the newest of them, not the merge
 1	a branch pruned after it was listed does not blank the read: main is still read, the live fold still named
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
 1	a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced
+1	a branch that merged another unlanded branch is titled by its own work, not that branch's
 1	a branch that only adds a pending file, and a fold not yet pushed, leave the row due
 1	a branch that only adds a pending file, its marker equal to main's, is not in flight
 1	a branch that only adds a pending section reads clean
@@ -677,6 +680,7 @@
 1	a branch whose pull request was closed but whose content main holds is landed
 1	a branch with a commit on no remote leads with unpushed
 1	a branch with no HANDOFF.md is not in flight
+1	a branch with no commit of its own keeps HEAD's subject, as before
 1	a branch-owned catch is not settled by a row on its branch from before it
 1	a bridged receipt from another environment refuses with run another environment
 1	a bridged receipt that ended more than twelve hours ago refuses with run older than 12 hours
@@ -864,6 +868,7 @@
 1	a commit of the run's changes plus a further uncommitted change is run another tree (control)
 1	a commit on the default branch from before the project merged pins nothing
 1	a commit that adds a file the run saw untracked is run another tree (control)
+1	a commit that changes the record and more is the branch's own
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -2049,6 +2054,7 @@
 1	a revoke whose replacement is cut short by the file-size limit exits non-zero
 1	a rollup rewrites no file another session wrote
 1	a root commit made of exactly what an unborn run left staged is run another tree (control)
+1	a root commit made only of a record is the landing's too
 1	a root nothing has stamped reads as none
 1	a root that cannot be entered makes every row unknown
 1	a route from what you typed is recorded as such
@@ -2257,6 +2263,7 @@
 1	a source that is not a checkout pins nothing
 1	a source whose HEAD is origin's default branch pins that commit, in full
 1	a split row dated today is healed
+1	a squash gh gave no title for is subjected by the newest commit the branch made itself
 1	a stacked branch is not blamed for what its base already merged
 1	a stacked branch is not out of scope for a credential its base already merged
 1	a staged row removal still escapes as verifier
@@ -2392,6 +2399,7 @@
 1	a tool_use with its type key first is read by its own id and name, not by an id or a name nested in its input ahead of them
 1	a top level that is not an object reads invalid
 1	a tracked file missing from disk does not stop the copy
+1	a tracked file named HEAD leaves HEAD's subject readable
 1	a tracked table missing from the working tree fails
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
@@ -2850,6 +2858,7 @@
 1	an empty base or one that names nothing cannot be computed, status 2 and nothing printed, or a typo would read as nothing owed
 1	an empty cell is refused, and an IFS read moves every later column
 1	an empty command and a command of spaces each read unrunnable, never pass and met with no checker run
+1	an empty commit is not passed over as the landing's
 1	an empty devlog newer than the catch does not settle it
 1	an empty directory is reported as no transcripts, exit 0
 1	an empty evidence cell is no evidence
@@ -2873,6 +2882,7 @@
 1	an empty tier refuses
 1	an empty written.log settles nothing
 1	an engine change left unstaged owes both rows, or a landing that commits it later would never have been told
+1	an engine change under a record's subject is the branch's own
 1	an engine function that is the whole check runs without pipefail, as the row does
 1	an engine function that sources a library redefining what the check names runs the new definitions
 1	an engine function the check names that is not loaded is unknown
@@ -3062,6 +3072,7 @@
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and --gate names the row and the verdict its control demands
+1	and --title still wins over all of it
 1	and --tsv on an unread list prints one unknown row per plugin row
 1	and 0777 again: claude was not run
 1	and 0777 again: the list is unread, with the sentence that says why
@@ -4429,6 +4440,7 @@
 1	and so does the tier a pull request would be labelled with
 1	and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included
 1	and so is a deny from its own PreToolUse
+1	and so is a file elsewhere that shares a record's name
 1	and so is a file this user cannot read
 1	and so is a founder row on every one of them, or the founder could not keep them
 1	and so is a premise whose command does not exist
@@ -4451,6 +4463,7 @@
 1	and so is no cache at all
 1	and so is one behind an escaped leading newline
 1	and so is one handed to bash -s with arguments
+1	and so is one the landing then gave a version slot, a record and a handoff section
 1	and so is one who opens on its first sentence and goes on in their own words
 1	and so is one who pastes a whole request and writes their own instruction after its closing
 1	and so is one who pastes the whole fixed opening and then writes their own instruction
@@ -8036,6 +8049,7 @@
 1	seventeen hours is past the ceiling
 1	severity derives from the risk rules
 1	ships a slash command to be found by
+1	signed commits leave the title the branch's own under log.showSignature
 2	silent in an ungoverned repo
 1	silent outside a git repository
 1	silent when a project has no lessons yet

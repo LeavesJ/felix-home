@@ -741,6 +741,12 @@ felix_base_resolves() {
 felix_base_ref() {
   local root="${1:-}" base="${2:-}" ref
   [ -n "$root" ] && [ -n "$base" ] || return 1
+  # A full ref name is taken as given: putting origin/ in front of it would name
+  # a ref any session can create. It is returned only when it is a commit.
+  case "$base" in refs/*)
+    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
+    return 1 ;;
+  esac
   for ref in "origin/$base" "$base"; do
     if git -C "$root" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1; then
       printf '%s' "$ref"; return 0
@@ -1228,6 +1234,12 @@ EOF
 # resolves, which is a repository that cannot say what was accepted.
 felix_base_ref() {
   local root="$1" base="${2:-main}" ref
+  # A full ref name is taken as given: putting origin/ in front of it would name
+  # a ref any session can create. It is returned only when it is a commit.
+  case "$base" in refs/*)
+    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
+    return 1 ;;
+  esac
   for ref in "origin/$base" "$base"; do
     if git -C "$root" rev-parse --verify --quiet "$ref" >/dev/null 2>&1; then
       printf '%s' "$ref"; return 0
@@ -1275,7 +1287,13 @@ felix_accepted_deploy_diff() {
   tmp="$(mktemp -d "${tmpd%/}/felix-deploy.XXXXXX" 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
   for d in harness hooks commands; do
     git -C "$root" cat-file -e "$ref:engine/$d" 2>/dev/null || continue
-    git -C "$root" archive "$ref" "engine/$d" 2>/dev/null | tar -x -C "$tmp" 2>/dev/null \
+    # bsdtar stops reading at the end-of-archive marker, and git archive may
+    # still be writing its trailing padding then: into a closed pipe it dies
+    # of SIGPIPE, and pipefail read main's own entry as one that cannot be
+    # examined (192 of 1,500 runs under load). The rest is drained, so the
+    # status is git's and tar's own.
+    git -C "$root" archive "$ref" "engine/$d" 2>/dev/null \
+      | { tar -x -C "$tmp" 2>/dev/null; r=$?; cat >/dev/null; exit "$r"; } \
       || { rm -rf "$tmp"; printf 'cannot examine: could not read engine/%s at %s\n' "$d" "$ref"; return 2; }
   done
   felix_deploy_diff "$tmp/engine" "$entry" "$root/engine"; rc=$?

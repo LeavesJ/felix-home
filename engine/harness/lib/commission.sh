@@ -539,6 +539,12 @@ felix_commission_actor() {
 # receipt still current.
 felix_commission_policy_version() {
   local proj="$1" f
+  # Each table is read only as a regular file. A pipe at any table's path held
+  # the cat open for a writer that never came, so every caller of the policy
+  # version (the commission grant, the epoch, merge) waited on it forever, and
+  # a link to a device read without end (2026-10-01). Anything else at the
+  # path is never opened and hashes as the marker line above, not as an absent
+  # table; a regular file, a link to one and no file hash as they always did.
   for f in $FELIX_COMMISSION_TABLES; do
     printf '== %s ==\n' "$f"
     if [ -f "$proj/$f" ]; then cat "$proj/$f" 2>/dev/null || printf '<unreadable>\n'

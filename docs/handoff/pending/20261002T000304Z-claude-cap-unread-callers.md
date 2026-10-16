@@ -113,16 +113,20 @@ The maintenance and pulse sections passed 69 of 73 on both. Their four failures
 are graph and discovery-cache assertions that need fixture context the section
 runner does not build.
 
-**Gate.** Not run. Under the carrier's rule (2026-10-01) no suite runs before a
-session's slot is called, and load was 200 to 450. One-block section runs were
-used instead: tests/run lines 1-153 and this block, in about a second each. At
-the slot:
-1. merge the head this lands on;
-2. run `tests/run --record-assertions`, which takes the new assertions into
-   assertions.tsv and red.tsv;
-3. run `felix gate`.
+**Gate.** Until the slot was called, no suite ran: under the carrier's rule
+(2026-10-01) no suite runs before a session's slot, and load was 200 to 450.
+One-block section runs were used instead, tests/run's preamble and this block,
+in about a second each.
 
-The version is the carrier's, assigned when the weekly batch is called.
+At the slot (2026-10-08, weekly batch, 0.49.275):
+- This branch merged adopt-newline's gated head (dd68b3b8). The block alone
+  then passed 43 of 43 on the merged engine.
+- The record holds 6863 assertions, and 6855 pass, 0 fail, 8 skip. Its red is
+  21 of 6863 against origin/main e2748140 at 0.49.274, all 21 this branch's
+  own.
+- main (#418 698825a5, #417 e2748140) was merged in with no engine file
+  changed, and `felix gate` passed. An earlier gate on 6fe5f986 also passed,
+  at the founder's direction ahead of the slot.
 
 **Handed on, not done here:**
 - The commissioning `stack` and `human_steps` checks, in every

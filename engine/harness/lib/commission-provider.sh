@@ -24,6 +24,12 @@
 if ! command -v felix_commission_rows >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/commission.sh"
 fi
+# commission.sh loads resolve.sh only when felix_mem_dir is missing, so a
+# resolve.sh older than felix_end_line would satisfy it, and every declare below
+# would then be refused as an append that failed. Keyed on what this file calls.
+if ! command -v felix_end_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
 
 FELIX_COMMISSION_PROVIDER_KINDS='plugin mcp hook skill subagent'
 FELIX_COMMISSION_PROVIDER_MAX="${FELIX_COMMISSION_PROVIDER_MAX:-40}"
@@ -109,9 +115,15 @@ felix_commission_topology() {
 # read the list and built the union again: two reads, so the names in a request could
 # come from one and its topology from another. The status is the hash's; a missing
 # table is `|| :`, as above.
+#
+# The table is read only as a regular file. A pipe at the path held the cat
+# open for a writer that never came, and a link to a device read without
+# end (2026-10-01). Skipped, it hashes as an absent table hashed before, so
+# no hash over ordinary files moves and no keyed answer goes stale.
 _felix_commission_topology_of() {
   { [ -z "$1" ] || printf '%s\n' "$1"
-    printf '== commissioning.tsv ==\n'; cat "$2/commissioning.tsv" 2>/dev/null || :; } | _felix_hash
+    printf '== commissioning.tsv ==\n'
+    if [ -f "$2/commissioning.tsv" ]; then cat "$2/commissioning.tsv" 2>/dev/null || :; fi; } | _felix_hash
 }
 
 _felix_commission_provider_dir() { printf '%s/commission' "$(felix_mem_dir "$1")"; }
@@ -146,7 +158,10 @@ felix_commission_request() {
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
   caps="${union//$'\n'/ }"
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+  # stack.tsv only as a regular file, as felix_commission_apply_declares reads
+  # it; a pipe at the path held this grep open (2026-10-01).
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
   # read them, and the admitted ledger. Each may hold newlines, backslashes
@@ -446,7 +461,9 @@ felix_commission_admit() {
   fi
   # Compared without the marketplace suffix, the same way discover's adopt
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # Only as a regular file, for the reason felix_commission_request gives.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
   scratch="${TMPDIR:-/tmp}/felix-admit.$$.$(basename "$proj")"
   rm -rf "$scratch" 2>/dev/null; mkdir -p "$scratch" 2>/dev/null || return 1
 
@@ -558,21 +575,33 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
   local v k n tier gcap sha why log stamp declared c=0 nl='
 '
   log="$(felix_mem_dir "$proj")/commissioning.log"
-  declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  # Read only as a regular file. A pipe at the path held this read open, so
+  # the refusal below was never reached (2026-10-01). Anything else declares
+  # nothing here and every row is refused as an append that failed.
+  declared=""
+  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
   stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   while IFS=$'\t' read -r v k n tier gcap sha why; do
     [ "${v:-}" = "declare" ] && [ -n "${n:-}" ] || continue
     # By case, for the reason felix_commission_admit gives: a row already in
     # stack.tsv read as absent would be appended a second time.
     case "$nl$declared$nl" in *"$nl${n%%@*}$nl"*) continue ;; esac
-    [ -f "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
+    # Seeded only where nothing is at the path, as adopt.sh seeds it: a link
+    # whose target is gone, or a pipe, is refused below rather than written
+    # through or waited on in this function (2026-10-01).
+    [ -e "$proj/stack.tsv" ] || [ -L "$proj/stack.tsv" ] || printf '# kind\tname\tsource\trisk\tcapability\tgrounding\n' > "$proj/stack.tsv"
     # A manifest whose last line has no newline would otherwise fuse the two
     # rows into one, destroying the row that was there and losing this one.
     # stack.tsv is seeded "Edit freely", so a hand edit that drops the final
     # newline is an ordinary thing rather than a corrupt file.
-    [ -s "$proj/stack.tsv" ] && [ -n "$(tail -c 1 "$proj/stack.tsv")" ] \
-      && printf '\n' >> "$proj/stack.tsv"
-    if ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv"; then
+    #
+    # Through felix_end_line since 2026-10-01. The test here was
+    # `[ -n "$(tail -c 1 ...)" ]`, and a command substitution drops a NUL as it
+    # drops a newline, so a stack.tsv ending in a NUL read as ended and the row
+    # fused onto it anyway. A newline that cannot be written is a row that
+    # cannot be written, so it takes the same branch as a failed append.
+    if ! felix_end_line "$proj/stack.tsv" \
+       || ! printf '%s\t%s\t-\t%s\t%s\tOBSERVED\n' "$k" "$n" "$tier" "$gcap" >> "$proj/stack.tsv"; then
       # Said, not skipped. A declare that could not be written is a thing the
       # run tried and failed to do, and reporting it as "nothing was declared"
       # is the same defect one level down from the one this whole column

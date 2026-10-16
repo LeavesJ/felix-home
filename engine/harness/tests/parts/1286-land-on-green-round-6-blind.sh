@@ -62,7 +62,7 @@ _l7_acc() { ( set -o pipefail; PATH="$LGB:$PATH"; _la_accepts ); }   # main's ch
 _l7_plain() {   # -> the status of git archive | tar -x under pipefail, the stub first on PATH
   rm -rf "$L7/x"; mkdir -p "$L7/x"
   ( set -o pipefail; PATH="$LGB:$PATH"
-    git -C "$LGH" archive refs/remotes/origin/main engine/harness | tar -x -C "$L7/x" -f - ) >/dev/null 2>&1
+    _fx_git "$LGH" archive refs/remotes/origin/main engine/harness | tar -x -C "$L7/x" -f - ) >/dev/null 2>&1
   echo "$?"
 }
 
@@ -73,11 +73,11 @@ is "the land fixture: with the stub, git archive | tar -x under pipefail fails o
    "$_l7o" " fail fail fail"
 rm -f "$L7/whole.tar"
 _l7r="$( ( set -o pipefail; PATH="$LGB:$PATH"
-  git -C "$LGH" archive refs/remotes/origin/main engine/harness | cat > "$L7/whole.tar" ) >/dev/null 2>&1; echo "$?")"
+  _fx_git "$LGH" archive refs/remotes/origin/main engine/harness | cat > "$L7/whole.tar" ) >/dev/null 2>&1; echo "$?")"
 is "the land fixture: with the stub, a reader that reads to the end gets main's engine whole, and the pipeline exits 0 (fixture control)" \
    "$_l7r|$(tar -tf "$L7/whole.tar" 2>/dev/null | LC_ALL=C grep -cx 'engine/harness/lib/resolve.sh')" "0|1"
 rm -f "$L7/o.tar"
-( PATH="$LGB:$PATH"; git -C "$LGH" archive -o "$L7/o.tar" refs/remotes/origin/main engine/harness ) >/dev/null 2>&1; _l7r=$?
+( PATH="$LGB:$PATH"; _fx_git "$LGH" archive -o "$L7/o.tar" refs/remotes/origin/main engine/harness ) >/dev/null 2>&1; _l7r=$?
 is "the land fixture: with the stub, git archive -o FILE writes main's engine whole to FILE, its padding appended, and exits 0 (fixture control)" \
    "$_l7r|$(tar -tf "$L7/o.tar" 2>/dev/null | LC_ALL=C grep -cx 'engine/harness/lib/resolve.sh')|$([ "$(wc -c < "$L7/o.tar" 2>/dev/null | tr -d ' ')" -gt 1048576 ] 2>/dev/null && echo padded)" \
    "0|1|padded"

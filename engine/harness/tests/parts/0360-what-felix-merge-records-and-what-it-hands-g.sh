@@ -313,6 +313,24 @@ _l1rowsok "l1-blind-no-remote: " l1-blind-sess-d \
   && ok  "and the no-remote refusal row carries the branch and the session" \
   || bad "and the no-remote refusal row carries the branch and the session" "$L1WHY"
 
+# The subject when gh gives no title, which this stub never does: the newest
+# commit the branch made itself, as felix pr titles it (felix_pr_title). It was
+# the newest commit that was not a merge, so a handoff section written last was
+# the subject of the squash on main.
+( _fx_cd "$L1P" && git checkout -q main && git checkout -q -b l1-title-side \
+  && printf 'side\n' > SIDE.txt && git add -A >/dev/null 2>&1 && _l1commit -m 'Side work, merged in' \
+  && git checkout -q main && git checkout -q -b l1-title \
+  && printf 'changed\n' >> WIDGET.txt && git add -A >/dev/null 2>&1 && _l1commit -m 'Change the widget' \
+  && git -c user.name=t -c user.email=t@t merge -q --no-ff l1-title-side -m "Merge branch 'l1-title-side' into l1-title" \
+  && mkdir -p docs/handoff/pending && printf '### l1\n' > docs/handoff/pending/20991231T000000Z-l1-title.md \
+  && git add -A >/dev/null 2>&1 && _l1commit -m "docs(handoff): this branch's section" ) >/dev/null 2>&1
+_l1rec "$L1P" >/dev/null
+_l1run "$L1P" l1-title-sess -- --base main
+L1S=""; [ -n "$L1MC" ] && L1S="$(_l1arg "$L1MC" --subject)"
+_l1reached "a squash gh gave no title for is subjected by the newest commit the branch made itself" \
+  && is "a squash gh gave no title for is subjected by the newest commit the branch made itself" \
+        "$L1S" "Change the widget"
+
 # ---- the repository that ships the engine ------------------------------------
 # Built as the suite's self-governed fixture is: main's engine is the real
 # harness, main declares 1.0.0, the kernel cache's 1.0.0 entry is a copy of the

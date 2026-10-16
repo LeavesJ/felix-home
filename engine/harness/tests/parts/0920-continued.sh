@@ -78,7 +78,7 @@ is  "inventory A29: when only the second gh call fails, PR facts are unknown and
 # Signals: gh answers slowly; the run is sent TERM, HUP or INT while it waits.
 _ibsig() {  # signal -> "gone" when the run exited and left no scratch
   local sig="$1" pid gp i=0 sd
-  rm -f "$IB/gh.pid" "$IB/gh.log"; : > "$IB/gh/slow"
+  rm -f "$IB/gh.pid" "$IB/gh.log" "$IB/gh/release"; : > "$IB/gh/slow"
   ( cd "$IB/cwd" || exit 97
     unset FELIX_HOME FELIX_MEMORY CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE XDG_STATE_HOME XDG_CACHE_HOME
     export HOME="$IB/home" TMPDIR="$IB/tmp" FELIX_INVENTORY_TEMP_ROOTS="$IB/temproot" PATH="$IB/stub:$PATH" \
@@ -90,6 +90,7 @@ _ibsig() {  # signal -> "gone" when the run exited and left no scratch
   if [ ! -s "$IB/gh.pid" ]; then kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; printf 'gh was never reached'; return; fi
   gp="$(cat "$IB/gh.pid")"; sd="$(LC_ALL=C awk -F'|' 'END { s = $5; sub(/\/[^\/]*$/, "", s); print s }' "$IB/gh.log")"
   kill "-$sig" "$pid" 2>/dev/null
+  : > "$IB/gh/release"   # only now: until the signal is sent the run is still waiting on gh
   i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 0.2; i=$((i + 1)); done
   kill -0 "$pid" 2>/dev/null && { kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null; printf 'still running after %s' "$sig"; return; }
   wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null

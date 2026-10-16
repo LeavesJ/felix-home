@@ -37,9 +37,12 @@ printf "\nbash's own collation and the BSD text tools decide nothing by locale\n
 # below puts the byte where that turns a stop into silence, runs the one call
 # under test in a subshell set to the UTF-8 locale, and reads the answer back
 # outside it with LC_ALL=C tools. Each has a C control on the same fixture, so
-# a fixture that cannot reach the escape cannot pass as fixed. glibc's grep and
-# sed do not fail this way, so on a Linux runner with the locale these cannot
-# fail; without it they skip.
+# a fixture that cannot reach the escape cannot pass as fixed. glibc's sed does
+# not fail this way. GNU grep fails another way: in a UTF-8 locale it takes a
+# line holding a byte that is not UTF-8 as binary and prints no line from there
+# on. E6 and E7 first failed so on the ubuntu runner, through a bare grep -v in
+# felix_changed_paths and in secret-scan, which macOS had passed. Without the
+# locale these skip.
 _lgb_a_in() {  # C|lang|all <command...>: one call in that locale, in a subshell
   local how="$1"; shift
   case "$how" in

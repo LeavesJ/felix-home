@@ -14,12 +14,14 @@
 # the check said yes or no. `not-applicable` asked nothing. `unknown` is the
 # state this table exists to make reachable: an instrument that is not
 # installed here, a `when` or check whose command does not exist, a `when`
-# that answers neither yes nor no, an engine function a check names that this
-# process has not loaded, a checkout that cannot be entered, or a lookup the
-# state is read from that could not be made: the declared capabilities, or the
-# engine functions a check names. It blocks the receipt and nothing can
-# demote it but the machine changing. `malformed` counts toward nothing and
-# fails the run.
+# that answers neither yes nor no, a `when` or check that does not parse, a
+# check that says it could not be asked (it exits 2), an engine function a
+# check names that this process has not loaded, a checkout that cannot be
+# entered, or a lookup the state is read from that could not be made: the
+# declared capabilities, or the engine functions a check names. It blocks the
+# receipt until the row can be asked: the machine changes, or, for a check
+# that said it could not be asked, a run whose answer makes it askable (a
+# discovery cache filled). `malformed` counts toward nothing and fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
 # write appears, it holds nothing, and awaiting, stale, partial or answered it
@@ -325,6 +327,18 @@ felix_commission_ask() {
   return "${4##* }"
 }
 
+# The detail of a row whose check exited 2: with no argument, printed; with
+# one, whether that detail is it. felix_commission_state prints it and
+# felix_commission_run recognises it, because that is the one unknown a row's
+# answer may still change, so it is one string in one place. A function and
+# not a variable, so a session's environment cannot stand in for it, and
+# printing it forks nothing.
+_felix_commission_unasked() {
+  local d='the check says it could not be asked here, so whether this is answered is not known'
+  [ "$#" -eq 0 ] && { printf '%s' "$d"; return 0; }
+  [ "$1" = "$d" ]
+}
+
 # state <TAB> detail <TAB> provenance, without running the answer.
 felix_commission_state() {
   local proj="$1" root="$2" need="$3" grounds="$4" instrument="$5" when="$6" answer="$7" check="$8"
@@ -364,12 +378,9 @@ felix_commission_state() {
   # `when` that crashed skipped its step. A shell that ended inside the text is
   # unknown even at 1, since an unset variable ends it with 1 too, and applies
   # at 0, which only the text's own exit gives. Parsing is asked first because
-  # eval hands a syntax error back as 1 on bash 3.2. The check below still
-  # reads anything but 0, 126 and 127 as held, which fails closed on its
-  # status. Not on its text: a check shaped `[ -z "$(lookup)" ]` reads a
-  # lookup whose fork failed inside it as empty, and passes. Three seeded
-  # checks have that shape, and changing them is a table change, the
-  # founder's (2026-10-01).
+  # eval hands a syntax error back as 1 on bash 3.2. The check below is read
+  # by its status alone, so a row that reads a lookup's text has to turn that
+  # text into a status itself, as the template's rows have since #393.
   if [ "$when" != "-" ]; then
     if ! BASH_ENV= "${BASH:-bash}" -n -c "$when" </dev/null 2>/dev/null; then
       printf 'unknown\tthe `when` test does not parse, so it was not run and whether this applies is not known\t%s\n' "$prov"; return 0
@@ -408,9 +419,23 @@ PROV
       fi
       return 0 ;;
   esac
+  # A check says yes with 0 and no with any status but these three, which say
+  # it could not be asked: 126 and 127, and 2, which a check returns for
+  # itself (2026-10-08). Until then 2 was a no, so a row whose lookup said it
+  # could not answer, as felix_toolbox_unwired does over a declared list it
+  # could not read, read held: a person's queue, OBSERVED, and a receipt that
+  # passed. 2 is what grep, test, diff and make -q return when they could not
+  # answer, and what the `when` above already reads as unknown. The check is
+  # parsed first, as the `when` is, because eval hands a syntax error back as
+  # 1 on bash 3.2 and as 2 on bash 5, and a check that does not parse would
+  # then read held on one and unknown on the other.
+  if ! BASH_ENV= "${BASH:-bash}" -n -c "$check" </dev/null 2>/dev/null; then
+    printf 'unknown\tthe check does not parse, so it was not run and whether this is answered is not known\t%s\n' "$prov"; return 0
+  fi
   felix_commission_ask "$root" "$check"; rc=$?
   case "$rc" in
     0)   printf 'done\tthe check passes\t%s\n' "$prov" ;;
+    2)   printf 'unknown\t'; _felix_commission_unasked; printf '\t%s\n' "$prov" ;;
     126) printf 'unknown\tthe checkout could not be entered\t%s\n' "$prov" ;;
     127) printf 'unknown\ta command in the check does not exist here\t%s\n' "$prov" ;;
     *)   printf 'held\tthe check does not pass\t%s\n' "$prov" ;;
@@ -470,7 +495,16 @@ EOF
           esac ;;
       esac
     fi
-    if [ "$st" = "held" ] && [ "$runner" != "-" ]; then
+    # A row's answer runs when its check said no, and when its check said it
+    # could not be asked, because the answer may be what makes it askable:
+    # discover --adopt fills the cache the discover check reads. Before
+    # 2026-10-08 such a check read held, so this runs the same answers as
+    # before and reports them truthfully. No other unknown runs its answer: an
+    # instrument, a command or a function that is missing, a checkout that
+    # cannot be entered, or a check that does not parse (held until
+    # 2026-10-08, so its answer ran then) is not anything an engine stage can
+    # change.
+    if [ "$runner" != "-" ] && { [ "$st" = "held" ] || { [ "$st" = "unknown" ] && _felix_commission_unasked "$detail"; }; }; then
       case "$answer" in
         felix:*)
           out="$( cd "$root" && "$runner" "$answer" 2>&1 )"; arc=$?

@@ -391,6 +391,145 @@ out="$(cd "$REPO" && "$FELIX" pr --base feature/thing 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "pr refuses to open a branch against itself" \
                 || bad "pr refuses to open a branch against itself" "$out"
 
+# The title a pull request gets when --title gives none. It was HEAD's
+# subject, and a branch landed by merging main in last ends on that merge: #395
+# reached main as "Merge remote-tracking branch 'origin/main' into
+# claude/red-counts-unreached". What the landing writes after the merge, the
+# version slot, the suite's record and the handoff section, says no more about
+# the change.
+#
+# A repository of its own, so nothing here borrows the fixture above. Every
+# commit has a fixed date, because which commit is newest must not rest on two
+# commits made in the same second.
+PTTL="$TMP/prtitle"; mkdir -p "$PTTL"
+( _fx_cd "$PTTL" || exit 1
+  n=0
+  c() { n=$((n+1)); d="2099-01-01T00:00:$(printf %02d "$n")Z"
+        GIT_AUTHOR_DATE="$d" GIT_COMMITTER_DATE="$d" git "$@"; }
+  bk() { mkdir -p engine/harness/tests engine/.claude-plugin
+         printf '%s\n' "$2" >> "$1"; git add "$1"; }
+  git init -q -b main; git config user.email t@t; git config user.name t
+  printf 'widget\n' > .felix; printf 'a\n' > a.txt; git add -A; c commit -qm init
+  # Its own work, main moving on, and main merged in.
+  git checkout -qb claude/merged
+  printf 'b\n' >> a.txt; c commit -qam "fix(thing): the change this branch carries"
+  git checkout -q main; printf 'm\n' > m.txt; git add m.txt; c commit -qm "chore: main moved on"
+  git checkout -q claude/merged
+  c merge -q --no-ff main -m "Merge remote-tracking branch 'origin/main' into claude/merged"
+  # Then the landing: a version slot, main merged again, the suite's record,
+  # and the session's handoff section.
+  git checkout -qb claude/landed
+  bk engine/.claude-plugin/plugin.json 1; c commit -qm "chore(version): 0.0.2, the slot the carrier assigned"
+  git checkout -q main; printf 'n\n' >> m.txt; c commit -qam "chore: main moved again"
+  git checkout -q claude/landed
+  c merge -q --no-ff main -m "Merge remote-tracking branch 'origin/main' into claude/landed"
+  bk engine/harness/tests/assertions.tsv 1; bk engine/harness/tests/red.tsv 1
+  c commit -qm "test(record): 2 assertions, 1 red against main"
+  mkdir -p docs/handoff/pending; printf '### s\n' > docs/handoff/pending/20991231T000000Z-claude-landed.md
+  git add docs/handoff/pending; c commit -qm "docs(handoff): this branch's section"
+  # A commit that changes the record and something else is the branch's own.
+  git checkout -qb claude/mixed
+  printf 'c\n' >> a.txt; bk engine/harness/tests/red.tsv 2; git add a.txt
+  c commit -qm "fix(thing): a second change, recorded with it"
+  bk engine/harness/tests/red.tsv 3; c commit -qm "test(red): re-run against main"
+  # A commit that changes nothing is not one the landing wrote.
+  git checkout -qb claude/empty
+  c commit -q --allow-empty -m "ci: an empty commit, made by hand"
+  bk engine/harness/tests/red.tsv 4; c commit -qm "test(red): re-run once more"
+  # Only those paths are the landing's: not the directory they sit in, not a
+  # file elsewhere with a record's name, and not a subject a record could carry.
+  git checkout -qb claude/engineown main
+  mkdir -p engine/harness/lib; printf 'x\n' > engine/harness/lib/thing.sh; git add engine/harness/lib
+  c commit -qm "test(record): an engine change whose subject reads like a record's"
+  bk engine/harness/tests/red.tsv 1; c commit -qm "test(red): the record after it"
+  git checkout -qb claude/samename main
+  mkdir -p tables; printf 'x\n' > tables/red.tsv; git add tables
+  c commit -qm "fix(tables): a table that shares the record's file name"
+  bk engine/harness/tests/red.tsv 1; c commit -qm "test(red): the record after it"
+  # Stacked: this branch merged another branch's head before that one landed.
+  # A squash merge means main never holds the other branch's commits, and its
+  # commit is the newer, so newest-first it would be the title.
+  git checkout -qb claude/stacked main
+  printf 's\n' > s.txt; git add s.txt; c commit -qm "fix(stacked): this branch's change"
+  git checkout -qb claude/other main
+  printf 'o\n' > o.txt; git add o.txt; c commit -qm "feat(other): another branch's change, not landed"
+  git checkout -q claude/stacked
+  c merge -q --no-ff claude/other -m "Merge commit 'claude/other' into claude/stacked"
+  # A branch that made nothing but the landing's own commits.
+  git checkout -qb claude/recordonly main
+  bk engine/harness/tests/red.tsv 1; c commit -qm "test(record): 0 assertions, 0 red against main"
+  bk engine/harness/tests/red.tsv 2; c commit -qm "test(record): re-run, the newest record"
+  c merge -q --no-ff claude/other -m "Merge branch 'claude/other' into claude/recordonly"
+  # And one that made no commit of its own at all.
+  git checkout -qb claude/nothing main
+  c merge -q --no-ff claude/other -m "Merge branch 'claude/other' into claude/nothing"
+  # A record that is a root commit, in a history main does not share.
+  rt() { local t; t="$(printf '100644 blob %s\tred.tsv\n' "$1" | git mktree)"
+         t="$(printf '040000 tree %s\ttests\n' "$t" | git mktree)"
+         t="$(printf '040000 tree %s\tharness\n' "$t" | git mktree)"
+         printf '040000 tree %s\tengine\n' "$t" | git mktree; }
+  r1="$(c commit-tree "$(rt "$(printf '1\n' | git hash-object -w --stdin)")" -m "test(record): the first record, a root commit")"
+  r2="$(c commit-tree "$(rt "$(printf '2\n' | git hash-object -w --stdin)")" -p "$r1" -m "test(record): the second record")"
+  git branch claude/orphan "$r2"
+  # Both commits signed with ssh, the branch's own and the record over it, so
+  # the read of the branch and the read of the title each meet a signature.
+  # Signed where this git and ssh-keygen can, and made unsigned otherwise so
+  # the index is left clean; the check below skips then.
+  git checkout -qb claude/signed main
+  sg=""
+  ssh-keygen -q -t ed25519 -N '' -C t@t -f "$PTTL.key" </dev/null \
+    && printf 't@t %s\n' "$(cat "$PTTL.key.pub")" > "$PTTL.signers" \
+    && git config gpg.format ssh && git config user.signingkey "$PTTL.key.pub" \
+    && git config gpg.ssh.allowedSignersFile "$PTTL.signers" && sg=-S
+  printf 'g\n' > g.txt; git add g.txt
+  c commit $sg -qm "fix(signed): the change under a signed record" \
+    || c commit -qm "fix(signed): the change under a signed record"
+  bk engine/harness/tests/red.tsv 1
+  c commit $sg -qm "test(red): a signed record" || c commit -qm "test(red): a signed record"
+  # Last, because it leaves a file named HEAD in the tree: a tracked one, on a
+  # branch that made nothing of its own.
+  git checkout -qb claude/headside main
+  printf 'h\n' > HEAD; git add HEAD; c commit -qm "feat(headside): a file named HEAD"
+  git checkout -qb claude/headfile main
+  c merge -q --no-ff claude/headside -m "Merge branch 'claude/headside' into claude/headfile"
+) >/dev/null 2>&1
+_ptt() { ( _fx_cd "$PTTL" && git checkout -q "$1" && "$FELIX" pr ${2:+--title "$2"} 2>&1 ) | grep '^title:'; }
+is  "a branch ending on a merge of main is titled by its own last commit" \
+    "$(_ptt claude/merged)" "title:    fix(thing): the change this branch carries"
+is  "and so is one the landing then gave a version slot, a record and a handoff section" \
+    "$(_ptt claude/landed)" "title:    fix(thing): the change this branch carries"
+is  "a commit that changes the record and more is the branch's own" \
+    "$(_ptt claude/mixed)" "title:    fix(thing): a second change, recorded with it"
+is  "an empty commit is not passed over as the landing's" \
+    "$(_ptt claude/empty)" "title:    ci: an empty commit, made by hand"
+is  "an engine change under a record's subject is the branch's own" \
+    "$(_ptt claude/engineown)" "title:    test(record): an engine change whose subject reads like a record's"
+is  "and so is a file elsewhere that shares a record's name" \
+    "$(_ptt claude/samename)" "title:    fix(tables): a table that shares the record's file name"
+is  "a branch that merged another unlanded branch is titled by its own work, not that branch's" \
+    "$(_ptt claude/stacked)" "title:    fix(stacked): this branch's change"
+is  "a branch of nothing but record commits is titled by the newest of them, not the merge" \
+    "$(_ptt claude/recordonly)" "title:    test(record): re-run, the newest record"
+is  "a branch with no commit of its own keeps HEAD's subject, as before" \
+    "$(_ptt claude/nothing)" "title:    Merge branch 'claude/other' into claude/nothing"
+is  "and --title still wins over all of it" \
+    "$(_ptt claude/landed "the title given")" "title:    the title given"
+# Asked of the function, since felix pr refuses a base that shares no history.
+is  "a root commit made only of a record is the landing's too" \
+    "$( _fx_cd "$PTTL" && git checkout -q claude/orphan && . "$FROOT/harness/lib/intake.sh" \
+        && felix_pr_title "$PTTL" main )" "test(record): the second record"
+if [ "$(git -C "$PTTL" log -2 --format=%G? claude/signed 2>/dev/null | tr -d '\n')" = GG ]; then
+  _fx_git "$PTTL" config log.showSignature true
+  is  "signed commits leave the title the branch's own under log.showSignature" \
+      "$(_ptt claude/signed)" "title:    fix(signed): the change under a signed record"
+  _fx_git "$PTTL" config --unset log.showSignature
+else
+  skip "signed commits leave the title the branch's own under log.showSignature" \
+       "this git or ssh-keygen could not make an ssh-signed commit"
+fi
+is  "a tracked file named HEAD leaves HEAD's subject readable" \
+    "$(_ptt claude/headfile)" "title:    Merge branch 'claude/headside' into claude/headfile"
+
 # Put back what this section borrowed. Declaring the state you depend on is half
 # the rule; restoring the state you changed is the other half. Seeding a route
 # table here made a later assertion about the prompt hook being silent fail,

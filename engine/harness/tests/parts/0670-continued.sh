@@ -156,10 +156,28 @@ is  "an answer whose rows could not be counted is not ingested: the record print
 #   felix_has_line's here-document. Each lookup is read here as bash prints it:
 #   one substitution, no here-document, and no pipe but the one that reads
 #   the names.
-# Not modelled: the names lookup's own substitution failing to make its pipe.
-# Nothing in it runs in that substitution's shell before the answer, so no
-# stub can end it early, and nothing here lowers a limit. The `.` it carries
-# is there by reading, and a mutation that drops it passes this block.
+#
+# Added after a second review and a review of that, also not blind:
+# - The names lookup's own substitution failing to make its pipe, which a note
+#   here called beyond any stub. Two ways now. `[` runs in that substitution's
+#   shell before the `.`, and bash lets a function named `[` shadow the
+#   builtin, so a `[` that exits 0 while grep answers "no names" gives what a
+#   substitution with no pipe gives: no text, status 0. That holds only while
+#   the lookup tests its status with `[`, as the shape check below pins. The
+#   second takes every descriptor below a lowered limit, so the pipe really
+#   cannot be made, however the lookup is spelled (measured on 3.2.57).
+# - A count whose grep printed it and then failed is no count either, however
+#   right the number looks.
+# - A second channel the shape check did not see. With no descriptor left, a
+#   backquote expands to nothing at status 0 as `$(` does, and a `< <(...)`
+#   redirect fails at status 1 without running its loop (measured on 3.2.57),
+#   so a walk over either sees no names. Nor did it see a walk moved into a
+#   helper, whose body it never reads, so it now names every engine function
+#   a lookup calls.
+# - That a provider row whose rows could not be counted makes the receipt
+#   indeterminate, which commission.sh's header and escape.sh say and nothing
+#   asserted end to end. A count that skips provider rows' unknowns fails only
+#   this one.
 printf 'api\n' > "$CMP/capabilities"
 is  "a declared list whose substitution ended before it answered, with status 0, makes _felix_cap_active return 2 and the row unknown" \
     "$(_cmlfca declared-exit0 api) $(_cm _cmlfstub declared-exit0 felix_commission_state "$CMP" "$CMR" cmlf_cap api - - - true 2>/dev/null | cut -f1)" \
@@ -199,22 +217,49 @@ is  "a count over a first grep that failed is not a count: done 0 over two rows 
     "$(_cmlfps count-first cmlf_zero2 | cut -f1)" "unknown"
 is  "and done 2 over three rows is unknown when that grep printed two of them and failed, not answered" \
     "$(_cmlfps count-first-two cmlf_three | cut -f1)" "unknown"
-_cmlfshape() { local _cmlfb _cmlfr _cmlfn=0 _cmlfp=0
+is  "a whole answer whose counting grep printed its count and then failed is unknown, not answered" \
+    "$(_cmlfps count-printed cmlf_whole | cut -f1)" "unknown"
+is  "a \`[\` that ends the names lookup's own substitution before it answers, at status 0 with no text, makes it return 2 naming nothing" \
+    "$(_cmlfpres bracket-exit0 "$_cmlfgone")" "2 []"
+# Every descriptor below the limit taken, so the lookup's substitution cannot
+# make its pipe however the lookup is spelled. What it printed and returned go
+# to a file opened before the limit.
+_cmlffd() { ( exec 0</dev/null 1>"$TMP/cmlf-fd.out" 2>/dev/null; ulimit -Sn 10
+    for _cmlfd in 3 4 5 6 7 8 9; do eval "exec $_cmlfd</dev/null"; done
+    "$@"; printf ' %s' "$?" ); cat "$TMP/cmlf-fd.out"; rm -f "$TMP/cmlf-fd.out"; }
+is  "with no descriptor left for its pipe, the names lookup returns 2 and names nothing" \
+    "$(_cm _cmlffd _felix_commission_functions_present "$_cmlfgone")" " 2"
+_cmlfshape() { local _cmlfb _cmlfr _cmlfg _cmlfn=0 _cmlfp=0
   _cmlfb="$(declare -f "$1")"; _cmlfr="$_cmlfb"
   while :; do case "$_cmlfr" in *'$('*) _cmlfr="${_cmlfr#*\$(}"; _cmlfn=$((_cmlfn + 1)) ;; *) break ;; esac; done
   _cmlfr="$_cmlfb"
   while :; do case "$_cmlfr" in *' | '*) _cmlfr="${_cmlfr#* | }"; _cmlfp=$((_cmlfp + 1)) ;; *) break ;; esac; done
   printf '%s subs %s pipes' "$_cmlfn" "$_cmlfp"
   case "$_cmlfb" in *'<<'*) printf ', a here-document' ;; esac
-  case "$_cmlfb" in *felix_has_line*) printf ', felix_has_line' ;; esac
+  case "$_cmlfb" in *'<('*|*'>('*) printf ', a process substitution' ;; esac
+  case "$_cmlfb" in *'`'*) printf ', a backquote' ;; esac
+  for _cmlfg in $(declare -F | cut -d' ' -f3); do
+    case "$_cmlfg" in "$1") continue ;; felix_*|_felix_*|cmd_*) ;; *) continue ;; esac
+    case " $_cmlfb " in *[!A-Za-z0-9_]"$_cmlfg"[!A-Za-z0-9_]*) printf ', calls %s' "$_cmlfg" ;; esac
+  done
   printf '\n'; }
-is  "the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line" \
-    "$(_cm _cmlfshape _felix_cap_active)" "1 subs 0 pipes"
-is  "and the names lookup is one substitution whose one pipe reads the names, with no here-document" \
+is  "the capability lookup is one substitution, with no pipe, here-document, process substitution or backquote, calling no engine function but felix_declared" \
+    "$(_cm _cmlfshape _felix_cap_active)" "1 subs 0 pipes, calls felix_declared"
+is  "and the names lookup is one substitution whose one pipe reads the names, with no here-document, process substitution or backquote, calling no engine function" \
     "$(_cm _cmlfshape _felix_commission_functions_present)" "1 subs 1 pipes"
+# The answer is keyed to the topology over this table, which holds it.
+_cmtable "$(printf 'cmlf_rcpt\t-\t-\t-\t%s\t-\t4' "$_cmlfprov")" $'cmlf_plain\t-\t-\t-\t-\ttest -f src/a.txt\t9'
+_cmlftopo="$(_cm felix_commission_topology "$CMP" "$CMR")"
+_cmlfans $'plugin\tcmlfone\t-\tllm\twhy' $'plugin\tcmlftwo\t-\tllm\twhy' $'done\t2' > "$_cmlfad/cmlf_rcpt.tsv"
+_cmlfrr0="$(_cm felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"
+_cmlfrr1="$(_cm _cmlfstub count felix_commission_run "$CMP" "$CMR" - 2>/dev/null)"
+is  "unstubbed, the run over a provider row with a whole answer and a done row reads answered and the receipt is commissioned" \
+    "$(_cmlff "$_cmlfrr0" cmlf_rcpt 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmlfrr0" "")" "answered commissioned"
+is  "and with the answer's rows uncountable the provider row is unknown and the receipt indeterminate, not commissioned" \
+    "$(_cmlff "$_cmlfrr1" cmlf_rcpt 2) $(_cm felix_commission_receipt_write "$FROOT" "$CMP" "$CMR" "$_cmlfrr1" "")" "unknown indeterminate"
 
 rm -f "$_cmlfad/cmlf_whole.tsv" "$_cmlfad/cmlf_part.tsv" "$_cmlfad/cmlf_zero.tsv" "$_cmlfad/cmlf_twin.tsv" \
-      "$_cmlfad/cmlf_zero2.tsv" "$_cmlfad/cmlf_three.tsv"
+      "$_cmlfad/cmlf_zero2.tsv" "$_cmlfad/cmlf_three.tsv" "$_cmlfad/cmlf_rcpt.tsv"
 [ -n "$_cmlfmade" ] && rmdir "$_cmlfad"
 rm -f "$CMP/capabilities"; [ -f "$TMP/cmlf-caps.keep" ] && mv "$TMP/cmlf-caps.keep" "$CMP/capabilities"
 if [ -f "$TMP/cmlf-table.keep" ]; then cp "$TMP/cmlf-table.keep" "$CMP/commissioning.tsv"; else rm -f "$CMP/commissioning.tsv"; fi
@@ -226,9 +271,9 @@ rm -f "$TMP/cmlf-table.keep" "$TMP/cmlf-log.keep"
 is  "and this block leaves the capabilities, the table, the receipt, the log and every answer file as it found them" \
     "$(_cmlffixture)" "$_cmlffound"
 unset -f _cmlffixture _cmlfstub _cmlfrc _cmlff _cmlfsays _cmlfnz _cmlfca _cmlfefn _cmlfpres _cmlfps _cmlfans _cmlfsum _cmlfshape _cmlfkill \
-         felix_cmlf_one felix_cmlf_two
+         _cmlffd felix_cmlf_one felix_cmlf_two
 unset _cmlfad _cmlffound _cmlfmade _cmlfrun0 _cmlfrun1 _cmlfrun2 _cmlfc3 _cmlfgone _cmlfe0 _cmlfe1 _cmlfe2 \
-      _cmlfw _cmlfi _cmlffifo _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone
+      _cmlfrr0 _cmlfrr1 _cmlfw _cmlfi _cmlffifo _cmlfp1 _cmlfp3 _cmlfprov _cmlftopo _cmlfpw _cmlflogt _cmlflog0 _cmlflog1 _cmlfrect _cmlfrec1 _cmlfur _cmlfalone
 
 # A declared-capabilities list that could not be read is said, never dormant.
 #

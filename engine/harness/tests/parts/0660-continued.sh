@@ -471,6 +471,9 @@ _cmlfstub() { local _cmlfmode="$1"; shift
     count-first)    grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
     count-first-two) grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') command grep "$@" | awk 'NR <= 2'; return 2 ;; esac
                       command grep "$@"; } ;;
+    count-printed)  grep() { case "$1" in -vc) command grep "$@"; return 2 ;; esac; command grep "$@"; } ;;
+    bracket-exit0)  grep() { case "$1" in -oE) return 1 ;; esac; command grep "$@"; }
+                    [() { exit 0; } ;;
   esac
   "$@"; }
 # What a call printed and the status it returned, as "status [output]".

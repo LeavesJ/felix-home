@@ -144,6 +144,12 @@
 1	B19: the lookalike checkout never runs graphify
 1	B19: the none checkout never runs graphify
 1	B19: the substring checkout never runs graphify
+1	B1: and fails against that engine with no claude anywhere on PATH
+1	B1: the block has a positive control besides those two, and it passes
+1	B1: the block's discovery writes nothing fails against an engine whose plain felix discover appends a row to stack.tsv, with a claude on PATH the block did not write
+1	B1: the block's positive control fails when widget declares nothing the discovery rules name, so no catalogue entry can list
+1	B1: the block's two assertions keep their names and pass: discovery writes nothing, there is no --yes
+1	B1: the discovery block runs felix discover only with a claude the suite wrote first on PATH, never one it found there
 1	B20: an own checkout granted tidy removes the held untracked rival
 1	B20: and backs it up under state/rivals
 1	B20: and the context says what it removed
@@ -160,6 +166,8 @@
 1	B23: an unowned checkout leaves capabilities, stack.tsv, setup.tsv and setup/ byte-identical
 1	B23: and its context holds no Adopted automatically line
 1	B23: nor a Not adopted line
+1	B2: the gh stub part 0900 writes no longer sleeps 30 s unconditionally once it has written its pid
+1	B2: when _ibsig sends the signal the gh stub is still waiting, and the run then leaves no scratch (control)
 1	B30: adoption alone withheld says Withheld: adoption.
 1	B30: the lookalike checkout's last paragraph is the one line
 1	B31: the substring-bound checkout says it was bound by an origin that only contains the remote_match
@@ -193,6 +201,10 @@
 1	B41: lib/own.sh parses under /bin/bash and uses no ${x,,}
 1	B42: no commissioning, no graph refresh, no tidying and no adoption ran in an own checkout
 1	B42: the hook still emits its JSON and exits 0
+1	B4: _sr_env's other four fields are bash, locale, path and claude, in that order, on one line (control)
+1	B4: where scutil gives a valid LocalHostName, _sr_env's host is that name
+1	B4: where scutil is absent or gives nothing valid, _sr_env's host is uname -n
+1	B4: with a uname on PATH that names a new host on every call, two _sr_env calls give the same host, and not the stub's
 1	B7: an origin carrying a token as userinfo is own (it ran)
 1	B7: and the unowned one with a token still says its line
 1	B7: no file under the home, the memory root, HOME, TMPDIR or the logs holds the token, nor any output
@@ -277,6 +289,7 @@
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Failed to connect is checked first, before Connected
 1	Felix's own gate refusal is recognised as its own
+1	INT sent to a writing run's process group every 10 ms, from 16 delays across its life, cuts at least one run short
 1	Needs authentication is checked before Connected
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
@@ -320,6 +333,7 @@
 1	SubagentStart with a terminal on its stdin finishes without waiting on it, and binds the launch checkout
 1	SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green
 1	SubagentStop launched in a directory nothing governs resolves the governed worktree the payload names
+1	TERM sent to a writing run alone, at 16 delays from 0 to past its usual length, cuts at least one run short
 1	TMPDIR empty: claude was not run
 1	TMPDIR empty: the list is unread, with the sentence that says why
 1	TMPDIR unset: claude was not run
@@ -577,6 +591,7 @@
 1	a HEAD only a branch named main holds, when the default branch is another, pins nothing
 1	a HEAD only this machine holds pins nothing
 1	a NUL after more than a pipe's 64 KB of rows refuses the table all the same, in one stderr line naming it
+1	a NUL byte inside a word is not dropped to make it commission, and tidy beside it is not granted
 1	a NUL is refused, and grep reads the whole table as binary
 1	a NUL refuses the whole table: with it in a comment between two met controls on clean lines neither runs and --gate exits 2, where without it both run and pass
 1	a QUIT mid-run leaves no scratch behind
@@ -591,6 +606,7 @@
 1	a TMPDIR under a .mcp.json returns 4
 1	a VAR=$( ) or a backquoted value before a runner is an assignment, so the runner is a check; assigning a path built from one is not
 1	a VAR=value ends at ; or a line break, and assigning a gate's path is not running it: a copy or a quote after one is no check
+1	a `[` that ends the names lookup's own substitution before it answers, at status 0 with no text, makes it return 2 naming nothing
 1	a backfilled row carries DECLARED
 1	a backslash at the end of a comment does not join the next line to it: the runner there is a check, and a --silent after a commented-out flag takes npm test's status
 1	a bare branch name prefers the remote-tracking ref
@@ -641,12 +657,15 @@
 1	a bound of 0 is no bound
 1	a bound of 5000 seconds keeps only the fold whose tip is 2730 seconds old
 1	a branch both behind and owing adds two rows, behind first and then owed, or one of the two reports would be lost
+1	a branch ending on a merge of main is titled by its own last commit
 1	a branch made from a detached HEAD inherits nothing from before the detach
 1	a branch name where the process id goes is refused, not read as the base
 1	a branch neither behind nor owing adds no row, or every clean landing would leave a refusal on record
+1	a branch of nothing but record commits is titled by the newest of them, not the merge
 1	a branch pruned after it was listed does not blank the read: main is still read, the live fold still named
 1	a branch that changes only docs keeps main's engine, so it owes no new red.tsv and no new version
 1	a branch that does not hold origin/main's commit is behind, status 0, naming the base and both commits, or a stale branch would land unannounced
+1	a branch that merged another unlanded branch is titled by its own work, not that branch's
 1	a branch that only adds a pending file, and a fold not yet pushed, leave the row due
 1	a branch that only adds a pending file, its marker equal to main's, is not in flight
 1	a branch that only adds a pending section reads clean
@@ -661,6 +680,7 @@
 1	a branch whose pull request was closed but whose content main holds is landed
 1	a branch with a commit on no remote leads with unpushed
 1	a branch with no HANDOFF.md is not in flight
+1	a branch with no commit of its own keeps HEAD's subject, as before
 1	a branch-owned catch is not settled by a row on its branch from before it
 1	a bridged receipt from another environment refuses with run another environment
 1	a bridged receipt that ended more than twelve hours ago refuses with run older than 12 hours
@@ -828,7 +848,9 @@
 1	a command whose text begins with a dash runs as a command and reads unrunnable, never taken for bash's own options and read fail and met
 1	a commands directory main ships that the entry lacks is drift
 1	a comment added to it is still free
+1	a comment ending in a stray UTF-8 lead byte leaves the tidy grant after it holding, under C and UTF-8
 1	a comment is not a command
+1	a comment naming the revoked capability is not taken for it
 1	a commission table blocker waits for the founder too
 1	a commissioning check ending in | tail -20 || exit 1 is malformed, because the || branch never runs
 1	a commissioning check ending in | tail is malformed, and the reason names tail
@@ -846,6 +868,7 @@
 1	a commit of the run's changes plus a further uncommitted change is run another tree (control)
 1	a commit on the default branch from before the project merged pins nothing
 1	a commit that adds a file the run saw untracked is run another tree (control)
+1	a commit that changes the record and more is the branch's own
 1	a commit this repository does not hold is not a distance
 1	a commit with no remote does not stamp a push
 1	a committed rename lists the name it left as well as the one it took
@@ -1024,6 +1047,9 @@
 1	a failure on a red path is escalated to a person
 1	a failure recorded is said before another tree
 1	a faithful cache entry still merges a self-governed branch
+1	a felix autonomy --revoke tidy whose wc exits 2 with no count from its first call exits non-zero and leaves the file byte-identical
+1	a felix autonomy --revoke tidy whose wc prints a true count and then a line of text exits non-zero, prints no revoked: on stdout, leaves the file byte-identical and nothing new
+1	a felix autonomy --revoke tidy whose wc prints no count after its first call exits non-zero
 1	a felix merge --dry-run on the same checkout adds no would-refuse row, or cmd_merge does not tell the report that a dry run is one
 1	a felix qualify --gate run killed at its first control refuses, never counting none of none as met
 1	a felix-answered row names felix as the actor
@@ -1032,6 +1058,7 @@
 1	a file facing a directory is a drift, whatever diff exits
 1	a file git ignores dropped into the entry is residue, not drift
 1	a file git ignores, left in the cache entry, is not drift
+1	a file holding a NUL byte in a comment grants neither tidy nor commission, under C or UTF-8
 1	a file named exceptions.tsv elsewhere or deeper than projects/<p>/ does not fire it
 1	a file of one newline is not the empty placeholder
 1	a file that does not parse drops out of the roster without taking the rest
@@ -1090,11 +1117,14 @@
 1	a governed directory that is not a git checkout records its HEAD as -, not unborn
 1	a governed product merges with FELIX_KERNEL set and no engine installed
 1	a governed product merges with no installed engine at all
+1	a grant beside comments, blanks and other grants is revoked
+1	a grant called after a printf of tidy failed on a closed stdout grants commission, and tidy does not come with it (not blind)
 1	a grant committed locally on top of the fetched main but not pushed clears nothing
 1	a grant committed on local main with no remote clears nothing
 1	a grant committed only on a side branch clears nothing even once the origin holds that branch
 1	a grant expiring past the horizon clears nothing
 1	a grant hashed over the line without its newline clears nothing
+1	a grant in a CRLF file is revoked
 1	a grant keyed to another line's hash clears nothing
 1	a grant merged first among thousands is not listed as written and not merged
 1	a grant naming a release-blocking obligation clears nothing
@@ -1102,9 +1132,14 @@
 1	a grant of authority escapes
 1	a grant on a dormant row is not applied
 1	a grant re-armed over the moved tables is current, and the receipt still the one blocker
+1	a grant read of tidy in a script under set -u stopped by an unset name in arithmetic is no grant
 1	a grant that expired before the base commit is expired whatever the clock says
 1	a grant under a home that is a different repository from the governed root clears nothing
+1	a grant with a trailing tab is revoked
+1	a grant with leading spaces is revoked
 1	a grant with no stamp does not cover the table
+1	a grant with trailing spaces, which the reader trims, is revoked
+1	a grant written on two lines is revoked from both
 1	a grant written only in the working tree clears nothing
 1	a granted night hands the session its turn back instead
 1	a granted night is in progress
@@ -1126,6 +1161,9 @@
 1	a green tree with no night granted still ends the session
 1	a ground the probe table does not declare is refused
 1	a grounded topology is one line
+1	a guard taken under a caller's IFS of 0123456789 sets its TERM and SEGV traps, and releases the lock at exit (not blind)
+1	a guard taken under a caller's IFS of 2 sets its TERM and SEGV traps, and releases the lock at exit (not blind)
+1	a guard taken under a caller's IFS of tab sets its TERM and SEGV traps, and releases the lock at exit (not blind)
 1	a half-written character does not fail the whole report
 1	a hand-written handoff is refused by the library
 1	a handoff given no note says it kept the last one
@@ -1206,6 +1244,7 @@
 1	a lifecycle.log that cannot be appended to leaves a resume silent, a startup's banner unchanged, and both exiting 0
 1	a lifted scoped row is written to says.log with the command
 1	a line a stray writes to the log after red has read it is not counted, so the name it says is still red, the log being read once
+1	a line ending in a backslash is not joined to the next to make a tidy grant, under C or UTF-8
 1	a line ending in one backslash goes on to the next: an && list across it can fail, and a path on the next line is an argument
 1	a line of spaces is refused, and the raw case loops take it for a row
 1	a line of two tool_use blocks is read block by block, and an error is charged only to the result block that reported it
@@ -1247,6 +1286,7 @@
 1	a local server declared inline in plugin.json is medium
 1	a local-only branch is taken as given
 1	a lock 31 minutes old is broken and the refresh runs (D10)
+1	a lock in another project's directory does not stop a widget revoke of commission
 1	a lock whose owner has exited is taken over, and the pair joined
 1	a lock whose owner is gone is taken over
 1	a lock with no pid, over a minute old, is taken over: the file is healed and the lock gone
@@ -1399,6 +1439,8 @@
 1	a night typed outside every session is refused, and nothing is granted
 1	a night whose state cannot be written lets the session close
 1	a night with no continuations in it is refused
+1	a no-op revoke of tidy in a read-only project directory, where the writer lock cannot be made, refuses and says no revoked:
+1	a no-op revoke of tidy through a linked grant file exits 0 and leaves autonomy a link
 1	a nomination that inspects clean is declared
 1	a nomination whose entry declares an LSP server is held for a person
 1	a non-GitHub remote leaves both slug rows waiting for a GitHub remote
@@ -1710,6 +1752,10 @@
 1	a refused candidate does not fail the report
 1	a refused check is no row of the run
 1	a refused handoff appends a lifecycle row noted refused, with the hash of the file it left alone
+1	a refused revoke of a NUL-holding file says on stderr it must be mended by hand
+1	a refused revoke of commission from an unreadable file says its stamp is left in place
+1	a refused revoke of tidy from an unreadable file exits non-zero and says nothing of a stamp
+1	a refused revoke of tidy from an unreadable file says it could not be read whole
 1	a regenerated handoff keeps the mode it had
 1	a registered base outside $TMP is entered by _fx_cd, with git's ceiling at that base, and no refusal
 1	a registered marketplace names its catalogue
@@ -1726,6 +1772,7 @@
 1	a relative TMPDIR naming a private directory that exists under the working directory: the list is unread, with the sentence that says why
 1	a relative TMPDIR returns 1
 1	a relative link survives a write too
+1	a release run a second time, by the exit trap after a handler ran it, leaves the lock another run made at the path in between
 1	a release-mode run carries no clearance in any row
 1	a remote branch that moved on from its local namesake, content not on main and no pull request, has a row, unproposed
 1	a remote branch with no pull request and no local copy is unproposed
@@ -1762,8 +1809,252 @@
 1	a resume where the marker cannot be read prints nothing on either stream, records nothing and exits 0
 1	a resumed session gets no banner
 1	a revision expression is taken as given
+1	a revoke and an allow sent no signal each exit 0 and leave no lock: the sweeps below are timed against them
+1	a revoke beside a link at autonomy.new leaves the link's target holding exactly what it held
+1	a revoke beside a link planted at autonomy.new and its own pid runs and leaves the link's target as it was
+1	a revoke cut short by the file-size limit prints none of the grant file's text on stdout
+1	a revoke given twice on one command line exits non-zero
+1	a revoke killed with SIGHUP while it holds the lock leaves no lock behind
+1	a revoke killed with SIGINT while it holds the lock leaves no lock behind
+1	a revoke killed with SIGTERM while it holds the lock leaves no lock behind
+1	a revoke of Commission, capitalised, exits non-zero
+1	a revoke of [*] is refused as an unknown capability and says nothing revoked
+1	a revoke of [../x] is refused as an unknown capability and says nothing revoked
+1	a revoke of [commission ] is refused as an unknown capability and says nothing revoked
+1	a revoke of a file holding a NUL byte exits non-zero
+1	a revoke of an unreadable empty grant file exits non-zero and says nothing revoked
+1	a revoke of block 2's long commission file under the file-size limit says it could not be read whole or rewritten
+1	a revoke of commission below one line of commission and then 256 KB of 'commissio ' returns 0 using at most 6 seconds of CPU
+1	a revoke of commission from a file whose last line tidy is unended exits 0 and says revoked: commission
+1	a revoke of commission in a script whose IFS is '2' returns 0, leaves exactly '# h' and tidy and nothing new
+1	a revoke of commission keeps a comment holding percent directives and a backslash byte for byte
+1	a revoke of commission paused in its mv and sent INT to its process group leaves no autonomy.new.* in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGABRT to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGALRM to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGBUS to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGEMT to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGFPE to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGHUP to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGILL to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGINT to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGPIPE to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGPROF to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGQUIT to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGSEGV to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGSYS to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGTERM to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGTRAP to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: a revoke of tidy started then ends, exits non-zero, says neither revoked: nor allowed:, and names the lock, rmdir and not revoked
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: half a second on, the mv still paused, the lock is still there and still empty
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: no autonomy.new.* is left in the widget's directory
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: once the mv is released, it exits non-zero and says neither revoked: nor allowed:
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: that revoke of tidy leaves the grant file, the stamp and the directory as they were, and the lock still empty
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: the lock is gone once both runs have ended
+1	a revoke of commission paused in its mv and sent SIGUSR1 to its pid alone: what each run reported holds once both have ended
+1	a revoke of commission paused in its mv and sent SIGUSR2 to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGVTALRM to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGXCPU to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in its mv and sent SIGXFSZ to its pid alone leaves no lock once it has ended, and does not say revoked:
+1	a revoke of commission paused in mktemp, its temp file made and not yet named, and sent INT to its process group, exits non-zero, says nothing, and leaves no lock, no autonomy.new.* and the widget's files as they were
+1	a revoke of commission removes commission followed by a Shift-JIS ideographic space, keeps tidy followed by one, and takes the stamp
+1	a revoke of commission run under UTF-8 leaves exactly the accented comment above it
+1	a revoke of commission that succeeds leaves no autonomy.new.* in the widget's directory
+1	a revoke of commission that succeeds leaves no lock
+1	a revoke of commission through a linked grant file exits 0 and leaves a regular file without the grant
+1	a revoke of commission under C beside every ASCII letter on both sides of both capabilities exits 0 and removes only the bare commission line
+1	a revoke of commission where autonomy is a directory exits 0 and says revoked: commission
+1	a revoke of commission whose release cannot run find still revokes, and its stderr names the lock and says it may not have been removed
+1	a revoke of commission whose rename onto the grant file is refused by mv exits non-zero and says nothing revoked
+1	a revoke of commission whose rename over an immutable grant file is refused exits non-zero and says nothing revoked
+1	a revoke of tidy above 8192 comment lines, about 512 KB, returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy above a 512 KB comment that mentions tidy returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy after a printf of 'revoked: tidy' failed on a closed stdout returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy after a printf of a NUL byte failed on a closed stdout returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy after a printf of a newline failed on a closed stdout returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy after a printf of tidy and a no-break space failed on a closed stdout returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy below one 512 KB line of x returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy below one line of tidy and then 512 KB of t returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy below one line of tidy and then 512 KB of x returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy beside an allow of Commission exits non-zero and names an unknown capability
+1	a revoke of tidy followed by a stray word exits non-zero and says nothing revoked
+1	a revoke of tidy from a file that does not grant it leaves no lock
+1	a revoke of tidy from a file whose last line commission is unended exits 0 and says revoked: tidy
+1	a revoke of tidy in a script under set -u whose wc from its second call returns 10 without a count returns non-zero, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc from its second call returns 4 without a count returns non-zero, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc from its second call returns 5 without a count returns non-zero, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc prints '2 0' over a 20-byte file returns 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc prints a true count and exits 1 returns 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc prints a true count and then the line 'revoked: tidy' returns 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy in a script under set -u whose wc prints no count after its first call returns non-zero
+1	a revoke of tidy in a script whose IFS is ' 2' returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy in a script whose IFS is '0123456789' returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy in a script whose IFS is '2' returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy in a script whose IFS is '5' returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy keeps TIDYtidy, tidyX and Ztidy byte for byte and removes the tidy line
+1	a revoke of tidy keeps a backslash-ended line and the line after it byte for byte
+1	a revoke of tidy keeps tidy commission, tidy with a note, comments naming tidy and commission, byte for byte
+1	a revoke of tidy keeps tidyx, xtidy, a comment of tidy and a no-break space, ti dy and commission byte for byte
+1	a revoke of tidy keeps tidyx, xtidy, ti dy, Tidy, tidytidy and tidy before a high byte and a letter, byte for byte
+1	a revoke of tidy over a no-break-space line in a script under set -u whose wc from its first call returns 2 without a count returns exactly 1 and keeps the line byte for byte
+1	a revoke of tidy over a no-break-space line in a script under set -u whose wc from its first call returns 4 without a count returns exactly 1 and keeps the line byte for byte
+1	a revoke of tidy over a no-break-space line whose names test is wrapped but never stopped returns 0, leaves exactly '# h' and asks the names test at least three times
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 0 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 1 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 10 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 2 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 4 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 1, in the first pass, after status 5 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 3, in the second pass, after status 0 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 3, in the second pass, after status 1 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 3, in the second pass, after status 10 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 3, in the second pass, after status 2 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over a no-break-space line whose names test stops under set -u on call 3, in the second pass, after status 4 returns exactly 1, leaves the file byte-identical and nothing new
+1	a revoke of tidy over one line of 512 KB of 0x81 bytes and then tidy returns 0 using at most 6 seconds of CPU
+1	a revoke of tidy removes a dash and a space before tidy, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a 0x01 control byte, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a Big5 ideographic space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a GB18030 em space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a Shift-JIS ideographic space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a digit, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a file separator byte, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a full stop, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a lone 0xA0 byte, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a no-break space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by a stray UTF-8 lead byte, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by an em space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy followed by an ideographic space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy preceded by a GB18030 em space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy preceded by a Shift-JIS ideographic space, exits 0 and says revoked: tidy
+1	a revoke of tidy removes tidy preceded by a no-break space, exits 0 and says revoked: tidy
+1	a revoke of tidy through a link to a 640 grant file leaves a regular file at 640
+1	a revoke of tidy under C beside every ASCII letter on both sides of both capabilities exits 0 and removes only the bare tidy line
+1	a revoke of tidy under UTF-8 after that comment takes tidy away and keeps the comment byte for byte
+1	a revoke of tidy where no line grants it exits 0 and says revoked: tidy
+1	a revoke of tidy whose line reads fail over a line only older engines grant returns 1
+1	a revoke of tidy whose line reads fail returns 1
+1	a revoke of tidy whose mktemp first rewrites the grant file to end in a NUL byte returns 2, leaves the file byte-identical to what the stub wrote and nothing new, and the stub ran
+1	a revoke of tidy whose mktemp first rewrites the grant file without tidy returns 0, leaves exactly '# h' and commission and nothing new, and the stub ran
+1	a revoke of tidy whose stdout is a pipe its reader has already left ends and leaves no lock, and the next revoke, of commission, exits 0 and says so
+1	a revoke of tidy whose stdout is closed ends and leaves no lock, and the next revoke, of commission, exits 0 and says so
+1	a revoke of tidy with an allow of commission, stdout closed, exits 0 and leaves no lock and no autonomy.new.*
+1	a revoke of tidy with an allow of commission, stdout open read-only, exits 0 and leaves no lock and no autonomy.new.* (not blind)
+1	a revoke of tidy with no grant file leaves no lock
+1	a revoke of tidy with stdout closed from a failed printf of 'revoked: tidy' through the revoke returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy with stdout closed from a failed printf of a NUL byte through the revoke returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy with stdout closed from a failed printf of a newline through the revoke returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke of tidy with stdout closed from a failed printf of tidy and a no-break space through the revoke returns 0, leaves exactly '# h' and commission and nothing new
+1	a revoke paused in its mv holds its lock directory open
+1	a revoke refused as an unknown capability leaves no lock
+1	a revoke refused for naming --revoke twice leaves no lock
+1	a revoke refused over a grant file holding a NUL byte leaves no autonomy.new.* in the widget's directory
+1	a revoke refused over a grant file holding a NUL byte leaves no lock
+1	a revoke sent SIGHUP while its move onto the grant file is in flight holds the lock until that move has landed
+1	a revoke sent SIGINT alone, not its process group, while it holds the lock exits non-zero, does not say revoked: and leaves no lock
+1	a revoke sent SIGTERM while its move onto the grant file is in flight holds the lock until that move has landed
+1	a revoke that cannot read the grant file and does not say revoked
+1	a revoke that cannot read the grant file and leaves nothing new behind
+1	a revoke that cannot read the grant file and leaves the file byte-identical
+1	a revoke that cannot read the grant file and leaves the stamp in place
+1	a revoke that cannot read the grant file and says on stderr it was not revoked
+1	a revoke that cannot read the grant file and the grant still holds
+1	a revoke that cannot read the grant file exits non-zero
+1	a revoke that cannot write into the project directory and does not say revoked
+1	a revoke that cannot write into the project directory and leaves nothing new behind
+1	a revoke that cannot write into the project directory and leaves the file byte-identical
+1	a revoke that cannot write into the project directory and leaves the stamp in place
+1	a revoke that cannot write into the project directory and says on stderr it was not revoked
+1	a revoke that cannot write into the project directory and the grant still holds
+1	a revoke that cannot write into the project directory exits non-zero
+1	a revoke that removes a line leaves a 640 grant file at 640
+1	a revoke that removes a line leaves a 644 grant file at 644
+1	a revoke whose lock a person made unreadable while its mv was paused leaves that lock, and its stderr names the lock and says it may not have been removed
+1	a revoke whose lock a person rmdir'd and another made again at the same path while its mv was paused leaves the new lock in place, still empty
+1	a revoke whose lock gained a file while its mv was paused leaves the lock with that file in it
+1	a revoke whose lock was replaced by another directory while its mv was paused leaves the new lock in place, still empty
+1	a revoke whose mv takes SIGSEGV: the mv dies of it, and the run exits non-zero, says commission is not revoked and no revoked:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)
+1	a revoke whose read-back still finds the grant exits non-zero and says nothing revoked
+1	a revoke whose replacement is cut short by the file-size limit and does not say revoked
+1	a revoke whose replacement is cut short by the file-size limit and leaves nothing new behind
+1	a revoke whose replacement is cut short by the file-size limit and leaves the file byte-identical
+1	a revoke whose replacement is cut short by the file-size limit and leaves the stamp in place
+1	a revoke whose replacement is cut short by the file-size limit and says on stderr it was not revoked
+1	a revoke whose replacement is cut short by the file-size limit and the grant still holds
+1	a revoke whose replacement is cut short by the file-size limit exits non-zero
 1	a rollup rewrites no file another session wrote
 1	a root commit made of exactly what an unborn run left staged is run another tree (control)
+1	a root commit made only of a record is the landing's too
 1	a root nothing has stamped reads as none
 1	a root that cannot be entered makes every row unknown
 1	a route from what you typed is recorded as such
@@ -1850,6 +2141,7 @@
 1	a run SIGKILLed as a whole process group while its row's checker holds leaves that row's base in its TMPDIR, holding owner, a symlink whose pid is now dead, and the tree in it still registered in the root
 1	a run compared against its own tree reports nothing
 1	a run felix repair could not read fails the job rather than passing quietly
+1	a run holding the lock and a temp file, whose exit trap begins by running the TERM handler as a TERM pending then makes it, ends 143 and leaves no lock and no autonomy.new.*
 1	a run nobody could read does not count as clean
 1	a run of the first routine is recorded however many routines follow it
 1	a run on a clean tree, then a commit that changes a file, is run another tree (control)
@@ -1862,7 +2154,9 @@
 1	a run that started in no checkout skips the origin check, saying so, and exits 0
 1	a run that sweeps two dead bases prints byte for byte the three verdict lines a run with nothing to sweep prints, says nothing on stderr, and leaves its TMPDIR empty and the root listing only itself
 1	a run whose caller alone is SIGKILLed while its row holds keeps that row's owner record naming the row's live process, and a later run's sweep leaves that base, record and registration as they were
+1	a run whose caller holds fd 9 open keeps it, holds its lock open on another fd, and still holds the caller's fd 9 once it has released (not blind)
 1	a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing
+1	a run whose lock gained contents while it held it leaves that lock, contents and all, for a person
 1	a run whose loop ended on its second row printed only the first
 1	a run whose remotes did not move passes the refusal and origin checks and exits 0
 1	a run whose rows read fail and met, pass and met, pass and held, inapplicable, and unrunnable leaves no path mktemp handed the runner and no worktree registered in the root, live, prunable or locked, and its stderr carries no felix: line
@@ -1870,6 +2164,7 @@
 1	a run whose shell has noglob set by its caller still reads its row pass and met, sweeps a dead base, registration included, throws its own row's base away with the junk its mutation wrote beside the tree, and says no felix: line
 1	a run with no tree id says nothing was compared
 1	a run writes the request for each provider row
+1	a run's exit removes no lock another run took after that run's last write
 1	a runbook of 200 KB or more with {{REPO}} still begins with the no-remote preface
 1	a runbook prints in full
 1	a runner after if, do, ! or { is a check, and 3 of the 4 hand their status to the if, the loop or the !
@@ -1968,6 +2263,7 @@
 1	a source that is not a checkout pins nothing
 1	a source whose HEAD is origin's default branch pins that commit, in full
 1	a split row dated today is healed
+1	a squash gh gave no title for is subjected by the newest commit the branch made itself
 1	a stacked branch is not blamed for what its base already merged
 1	a stacked branch is not out of scope for a credential its base already merged
 1	a staged row removal still escapes as verifier
@@ -2036,6 +2332,7 @@
 1	a surface appearing in the checkout makes it stale the other way
 1	a surface detected in the tree is an item even if nobody declared it
 1	a surface the checkout has and no probe reads is a gap
+1	a surviving grant keeps its trailing spaces
 1	a sweep KILLed as its drop's git worktree remove starts leaves the base holding only its tree and one owner record, which names that sweep's own process, now dead
 1	a sweep KILLed right after its first git in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
 1	a sweep KILLed right after its first ln in claiming or dropping a dead base leaves it for the next sweep, which removes the base and its registration and says nothing
@@ -2102,6 +2399,7 @@
 1	a tool_use with its type key first is read by its own id and name, not by an id or a name nested in its input ahead of them
 1	a top level that is not an object reads invalid
 1	a tracked file missing from disk does not stop the copy
+1	a tracked file named HEAD leaves HEAD's subject readable
 1	a tracked table missing from the working tree fails
 1	a trailing colon does not eat it
 1	a trailing slash resolves the same
@@ -2191,6 +2489,7 @@
 1	a when whose test returns 0 applies, and the check decides done
 1	a when whose test returns 1 is still not-applicable
 1	a when written as exit 1 is unknown, because bash's own fatal errors end the shell with 1
+1	a whole answer whose counting grep printed its count and then failed is unknown, not answered
 1	a whole answer whose rows could not be counted is unknown, not answered
 1	a why past the stated ceiling is refused rather than silently cut
 1	a window of gate runs that ends before a success or the ceiling is not read as the attempts it saw
@@ -2369,6 +2668,9 @@
 1	advances to the next step once the first is used
 1	after _fx_cd, git finds no repository from a directory under $TMP with none of its own, even with one at $TMP
 1	after _fx_root_del the roots are as they were, $TMP kept, and the base is refused again
+1	after a revoke of tidy run under C an older engine's reader under Shift-JIS finds no tidy
+1	after a revoke of tidy run under C over a no-break-space line, neither a C nor a UTF-8 reader finds tidy
+1	after a revoke of tidy under UTF-8 an older engine's reader under UTF-8 finds no tidy
 1	after an arithmetic error inside a for and an if, every assertion left in each block is recorded red, by the times the base never reached it
 1	after an installed failure the suite is still skipped, not run (control)
 1	after commissioning the gate line reads ok
@@ -2407,6 +2709,107 @@
 1	an agent whose frontmatter declares hooks stays low, since Claude Code ignores them there
 1	an alias named for GitHub without github.com in it is held the same way
 1	an all-structural gate still fails
+1	an allow given twice on one command line exits non-zero
+1	an allow of commission after an unended comment exits 0 and the reader then grants commission
+1	an allow of commission after an unended tidy line exits 0 and says allowed: commission
+1	an allow of commission after lines with trailing spaces exits 0 and both commission and tidy are then granted
+1	an allow of commission already granted, stdout open read-only, exits 0 and stamps it over this table with nothing else in the stamp (not blind)
+1	an allow of commission into a read-only directory either grants with every byte kept or fails closed
+1	an allow of commission into that CRLF file exits 0 and both commission and tidy are then granted
+1	an allow of commission over a CRLF commission line says already allowed: commission
+1	an allow of commission over a FIFO at the grant file finishes inside ten seconds
+1	an allow of commission over a FIFO at the grant file, with no stamp, does not say allowed
+1	an allow of commission over a FIFO at the grant file, with no stamp, exits non-zero
+1	an allow of commission over a FIFO at the grant file, with no stamp, leaves nothing new in the project directory
+1	an allow of commission over a FIFO at the grant file, with no stamp, leaves the absent stamp absent
+1	an allow of commission over a FIFO at the grant file, with no stamp, leaves what sits at the grant file as it was
+1	an allow of commission over a FIFO at the grant file, with no stamp, says on stderr it was not allowed
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, does not say allowed
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, exits non-zero
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, leaves nothing new in the project directory
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, leaves the grant file byte-identical
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, leaves the stamp byte-identical
+1	an allow of commission over a NUL byte in a comment, beside a commission line and a stamp, says on stderr it was not allowed
+1	an allow of commission over a NUL byte inside a word, with no stamp, does not say allowed
+1	an allow of commission over a NUL byte inside a word, with no stamp, exits non-zero
+1	an allow of commission over a NUL byte inside a word, with no stamp, leaves nothing new in the project directory
+1	an allow of commission over a NUL byte inside a word, with no stamp, leaves the absent stamp absent
+1	an allow of commission over a NUL byte inside a word, with no stamp, leaves the grant file byte-identical
+1	an allow of commission over a NUL byte inside a word, with no stamp, says on stderr it was not allowed
+1	an allow of commission over a mode-640 grant file exits 0 and leaves it mode 640
+1	an allow of commission over a read-only grant file, beside a stamp, does not say allowed
+1	an allow of commission over a read-only grant file, beside a stamp, exits non-zero
+1	an allow of commission over a read-only grant file, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission over a read-only grant file, beside a stamp, leaves the grant file byte-identical
+1	an allow of commission over a read-only grant file, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission over a read-only grant file, beside a stamp, says on stderr it was not allowed
+1	an allow of commission over an unreadable grant file, beside a stamp, does not say allowed
+1	an allow of commission over an unreadable grant file, beside a stamp, exits non-zero
+1	an allow of commission over an unreadable grant file, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission over an unreadable grant file, beside a stamp, leaves the grant file byte-identical
+1	an allow of commission over an unreadable grant file, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission over an unreadable grant file, beside a stamp, says on stderr it was not allowed
+1	an allow of commission through a dangling link at the grant file, beside a stamp, does not say allowed
+1	an allow of commission through a dangling link at the grant file, beside a stamp, exits non-zero
+1	an allow of commission through a dangling link at the grant file, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission through a dangling link at the grant file, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission through a dangling link at the grant file, beside a stamp, leaves what sits at the grant file as it was
+1	an allow of commission through a dangling link at the grant file, beside a stamp, says on stderr it was not allowed
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, does not say allowed
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, exits non-zero
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, leaves the grant file byte-identical
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission whose rewrite of a 2040-byte grant file is cut short, beside a stamp, says on stderr it was not allowed
+1	an allow of commission whose wc answers a word and exits 0 exits non-zero, says commission is not allowed and no allowed:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)
+1	an allow of commission whose wc answers a word and exits 10 exits non-zero, says commission is not allowed and no allowed:, and leaves the widget's files as they were, no lock and no autonomy.new.* (not blind)
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, does not say allowed
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, exits non-zero
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, leaves the grant file byte-identical
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission whose write is cut short by the file-size limit, beside a stamp, says on stderr it was not allowed
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, does not say allowed
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, exits non-zero
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, leaves the grant file byte-identical
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission whose write is cut short over comment lines that read allowed:, beside a stamp, says on stderr it was not allowed
+1	an allow of commission with a directory at the grant file, with no stamp, does not say allowed
+1	an allow of commission with a directory at the grant file, with no stamp, exits non-zero
+1	an allow of commission with a directory at the grant file, with no stamp, leaves nothing new in the project directory
+1	an allow of commission with a directory at the grant file, with no stamp, leaves the absent stamp absent
+1	an allow of commission with a directory at the grant file, with no stamp, leaves what sits at the grant file as it was
+1	an allow of commission with a directory at the grant file, with no stamp, says on stderr it was not allowed
+1	an allow of commission with no grant file exits 0 and says allowed: commission
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, does not say allowed
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, exits non-zero
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, leaves no grant file where there was none
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, leaves nothing new in the project directory
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, leaves the stamp byte-identical
+1	an allow of commission with no grant file, in a directory it cannot write, beside a stamp, says on stderr it was not allowed
+1	an allow of commission, stdout closed, exits 0, leaves no lock and no autonomy.new.*, and stamps it: the status page says [x]
+1	an allow of tidy already granted, which says already allowed, leaves no lock
+1	an allow of tidy into an empty grant file exits 0 and the reader then grants tidy
+1	an allow of tidy over a NUL byte in a comment above a tidy line does not say allowed
+1	an allow of tidy over a NUL byte in a comment above a tidy line exits non-zero
+1	an allow of tidy over a NUL byte in a comment above a tidy line leaves nothing new in the project directory
+1	an allow of tidy over a NUL byte in a comment above a tidy line leaves the absent stamp absent
+1	an allow of tidy over a NUL byte in a comment above a tidy line leaves the grant file byte-identical
+1	an allow of tidy over a NUL byte in a comment above a tidy line says on stderr it was not allowed
+1	an allow of tidy over that padded unended line says already allowed: tidy
+1	an allow of tidy paused in its mv and sent INT to its process group leaves no lock, and reports no grant that does not hold
+1	an allow of tidy paused in mktemp the same way and sent INT to its process group exits non-zero, says nothing, and leaves no lock, no autonomy.new.* and the widget's files as they were
+1	an allow of tidy run under C after an unended tidy and no-break space exits 0 and writes that line, a newline, then tidy
+1	an allow of tidy run under UTF-8 after an unended comment ending in a stray lead byte keeps that comment byte for byte and puts tidy on a line of its own
+1	an allow of tidy that succeeds leaves no autonomy.new.* in the widget's directory
+1	an allow of tidy that succeeds leaves no lock
+1	an allow of tidy the reader already grants exits 0 and says already allowed: tidy
+1	an allow of tidy whose stdout is a pipe its reader has already left ends and leaves no lock, and the next revoke, of commission, exits 0 and says so
+1	an allow of tidy whose stdout is closed ends and leaves no lock, and the next revoke, of commission, exits 0 and says so
+1	an allow of tidy with no grant file exits 0 and says allowed: tidy
+1	an allow of tidy with no grant file under umask 022 creates it mode 644
+1	an allow refused over a grant file holding a NUL byte leaves no autonomy.new.* in the widget's directory
 1	an always row is not flagged
 1	an always-applicable obligation whose evidence holds is ACTIVE SATISFIED
 1	an ambiguous play naming is counted for the declared plugin
@@ -2455,6 +2858,7 @@
 1	an empty base or one that names nothing cannot be computed, status 2 and nothing printed, or a typo would read as nothing owed
 1	an empty cell is refused, and an IFS read moves every later column
 1	an empty command and a command of spaces each read unrunnable, never pass and met with no checker run
+1	an empty commit is not passed over as the landing's
 1	an empty devlog newer than the catch does not settle it
 1	an empty directory is reported as no transcripts, exit 0
 1	an empty evidence cell is no evidence
@@ -2478,6 +2882,7 @@
 1	an empty tier refuses
 1	an empty written.log settles nothing
 1	an engine change left unstaged owes both rows, or a landing that commits it later would never have been told
+1	an engine change under a record's subject is the branch's own
 1	an engine function that is the whole check runs without pipefail, as the row does
 1	an engine function that sources a library redefining what the check names runs the new definitions
 1	an engine function the check names that is not loaded is unknown
@@ -2588,6 +2993,7 @@
 1	an undecided row lists every state it could not decide, the first of them too
 1	an undeclared capability is still never scored
 1	an undeclared tool is reported, not hidden
+1	an unended last line tidy is a grant under C and under UTF-8
 1	an unenforceable probe word is muted on the record
 1	an unflagged stop clears a hold left behind, so the flagged stop after it is judged
 1	an unflagged stop holds even when the hold cannot be recorded
@@ -2666,6 +3072,7 @@
 1	and --fix does not exit 0 when every repair failed
 1	and --gate does not raise it
 1	and --gate names the row and the verdict its control demands
+1	and --title still wins over all of it
 1	and --tsv on an unread list prints one unknown row per plugin row
 1	and 0777 again: claude was not run
 1	and 0777 again: the list is unread, with the sentence that says why
@@ -2802,6 +3209,8 @@
 1	and a reported checker whose name is part of a declared one's is still unqualified
 1	and a repository with no main resolves to nothing
 1	and a reused suite run leaves the gate passing (control)
+2	and a revoke of tidy run while that move is in flight says revoked: only if tidy stays revoked once both have ended
+1	and a revoke of tidy that says revoked: while the other run's move is in flight leaves tidy not granted once all have ended
 1	and a revoked grant covers nothing
 1	and a rotated ledger is the same record with a date on it
 1	and a row added to ecosystem.tsv still escapes as verifier, or land.tsv replaced the exemption table it was meant to join
@@ -2854,6 +3263,7 @@
 1	and a write with another line after it, which the old row let through
 1	and absent from both sides is a fixture, not a drift
 1	and accepted once its rows fit
+1	and adds nothing to that file, not even the newline its last line lacks
 1	and adds, removes or changes no file under the project's memory
 1	and adopting onto that newline-terminated read-only setup.tsv leaves it byte for byte
 1	and adopting onto that newline-terminated read-only setup.tsv names it and the step it left out on stderr
@@ -2890,6 +3300,10 @@
 1	and after each refusal red.tsv holds only the two retraction rows (control)
 1	and after felix autonomy --allow onto that read-only grant, tidy is not granted
 1	and after felix autonomy --allow onto that write-only grant, tidy is not granted
+1	and after felix_autonomy_grant over the unended tidy line both tidy and commission are granted
+1	and after that C allow both C and UTF-8 readers grant tidy
+1	and after that allow the reader grants commission
+1	and after that revoke autonomy is a regular file, not a link
 1	and again, so a session can bump twice
 1	and all four rows landed
 1	and an --implicated file that cannot be written stops repair before any brief
@@ -2897,6 +3311,8 @@
 1	and an abbreviated id that is no commit here reads as malformed, not as a snapshot
 1	and an absent table refuses with a non-zero status too
 1	and an agent file piping to a shell is medium
+1	and an allow of commission into a new grant file writes the commission stamp
+1	and an allow of tidy into a new grant file writes no commission stamp
 1	and an answer of done 0 with no rows is answered
 1	and an append to the marker
 1	and an ask with one prints nothing on stdout either
@@ -2931,6 +3347,7 @@
 1	and asks for no grant the merge does not need
 1	and asks for no re-arm the grant does not need
 1	and bad with a detail as a failure of it, giving the detail, not as a skip or a pass
+1	and before the allow a UTF-8 reader does not grant it either
 1	and before the report lines
 1	and blocked by a probe that cannot see what a witness proves is there
 1	and blocked by a row nothing could establish at all
@@ -2961,6 +3378,7 @@
 1	and claude was not run
 1	and claude was not run, in the checkout or anywhere
 1	and claude=no when none is
+1	and commission and tidy both read as granted under C and under UTF-8 after the re-arm
 1	and commission blockers carry exactly the subjects cmd_merge places
 1	and commissioning's apply onto that read-only stack.tsv counts no declare
 1	and commissioning's apply onto that read-only stack.tsv logs no declare for the row
@@ -3013,6 +3431,7 @@
 1	and does not call the file it created kept
 1	and does not claim to keep a note when there was none
 1	and does not claim to know which way the facts went
+1	and does not create one
 1	and does not diagnose a cause it cannot see
 1	and does not hold on a machine with no felix cache
 1	and does not leave it as a bare dash
@@ -3043,10 +3462,12 @@
 1	and ends that session's night and no other
 1	and engine_deployed needs deploy, absent the same way
 1	and every --tsv byte is valid UTF-8
+1	and every CR in it is kept, one LF ends its last line, then commission
 1	and every byte is the one it had
 1	and every count in it is ?, not a number moved into its neighbour's place
 1	and every line is a whole row
 1	and every one has a schema row and is accepted
+1	and every other line survives verbatim and in order
 1	and every part is NNNN-name.sh, four digits, so the order is the same under any locale
 1	and every placeholder in it was filled
 1	and every placeholder was filled
@@ -3289,6 +3710,7 @@
 1	and it is this checkout's tree id
 1	and it keeps the sentence that nothing here schedules itself
 1	and it leaves no temporary directory behind
+1	and it leaves nothing new in the project directory
 1	and it left no lock file beside the graph
 1	and it makes an otherwise low plugin medium
 1	and it merges nothing
@@ -3318,6 +3740,7 @@
 1	and it says matches
 1	and it says none of ready, hold or founder
 1	and it says nothing was compared
+1	and it says revoked: commission
 1	and it says so where a reader must look
 1	and it says the capabilities this project declares could not be read
 1	and it says the engine functions the check names could not be read
@@ -3424,7 +3847,9 @@
 1	and leaves no scratch file behind
 1	and leaves no session mark for a session nobody held
 1	and leaves off the table of what would discharge each
+1	and leaves that CRLF grant file byte-identical
 1	and leaves the checkout and the home's state as they were
+1	and leaves the commission stamp where it was
 1	and leaves the existing cache byte-identical
 1	and leaves the recorded note as it was
 2	and left the cache as it was
@@ -3562,6 +3987,8 @@
 1	and no row anywhere carries a grounding the policy cannot read
 1	and no row carries a query string
 1	and no row is accepted from that file
+1	and no run sent TERM at any of those delays leaves a lock, or runs on
+1	and no run sent that held-down INT leaves a lock, or runs on
 1	and no scratch index is left in TMPDIR
 1	and no setup.tsv appears from asking for help
 1	and no temporary directory is left under the tmpdir it was given
@@ -4013,6 +4440,7 @@
 1	and so does the tier a pull request would be labelled with
 1	and so in a UTF-8 locale, a mutation holding a byte that is not UTF-8 included
 1	and so is a deny from its own PreToolUse
+1	and so is a file elsewhere that shares a record's name
 1	and so is a file this user cannot read
 1	and so is a founder row on every one of them, or the founder could not keep them
 1	and so is a premise whose command does not exist
@@ -4035,6 +4463,7 @@
 1	and so is no cache at all
 1	and so is one behind an escaped leading newline
 1	and so is one handed to bash -s with arguments
+1	and so is one the landing then gave a version slot, a record and a handoff section
 1	and so is one who opens on its first sentence and goes on in their own words
 1	and so is one who pastes a whole request and writes their own instruction after its closing
 1	and so is one who pastes the whole fixed opening and then writes their own instruction
@@ -4127,11 +4556,15 @@
 1	and tee onto the marker
 1	and tells the session which fact moved
 1	and tests/run --reuse on it exits 0 (control)
+1	and that UTF-8 allow exits 0 and tidy is then granted under C and UTF-8 readers
+1	and that allow of tidy sent INT to its process group leaves no autonomy.new.* in the widget's directory
 1	and that alone does not fail the gate
+1	and that already-allowed commission writes the stamp it lacked
 1	and that continuation is spent like any other
 1	and that copy is the only library the block sources
 1	and that exit 2 leaves no temporary directory behind either
 1	and that field holds four members
+1	and that file becomes tidy, one newline, then commission and a newline
 1	and that file lies under the record run's temporary directory
 1	and that hold is on the record
 1	and that is a failure, not a path it might make up
@@ -4141,6 +4574,7 @@
 1	and that is the one line missing_controls writes there
 1	and that is the one line needs writes there
 1	and that is the one line ungoverned writes there
+1	and that no-op revoke leaves the grant file on the same inode
 1	and that nothing granted it, on a channel review cannot clear
 1	and that one authority writes both halves
 1	and that other repository's own next run in the same TMPDIR removes the registration it was left holding, so it lists only itself
@@ -4157,21 +4591,47 @@
 1	and that refusal is the checkout-scoped row of the worktree's project
 1	and that refusal leaves no temporary directory behind
 1	and that refusal names the launch checkout's deny table
+1	and that refusal says nothing of another writer or of the file having been rewritten
+1	and that refused revoke keeps the older engines' grant line, byte-identical
+1	and that refused revoke of commission exits non-zero, keeps the stamp and leaves the grant file byte-identical
 1	and that refused row begins with the branch and the kind and carries the session
+1	and that revoke either removes the line, or refuses saying nothing revoked and leaves the file and the directory as they were
+1	and that revoke keeps the line of commission and 256 KB of 'commissio ' byte for byte
+1	and that revoke keeps the line of tidy and 512 KB of t byte for byte
+1	and that revoke keeps the line of tidy and 512 KB of x byte for byte
+1	and that revoke leaves no tidy line and keeps all 8192 comment lines
+1	and that revoke leaves no tidy line and the 512 KB line of x whole
+1	and that revoke leaves nothing new in the project directory either
+1	and that revoke leaves only the 512 KB comment, byte for byte
+1	and that revoke removes the long line that names tidy and leaves exactly '# h'
+1	and that revoke says revoked: commission too
 1	and that row begins with the checked-out branch and carries the session
 1	and that row reads inflight, since the check printed it and exited 0
 1	and that row, committed on a branch origin/main does not hold, is not read, or a pull request could rewrite the recipe that lands it
+1	and that run keeps the grant file's other lines, leaves tidy not granted, and grants commission, stamped over this table with nothing else in the stamp (not blind)
+1	and that run leaves tidy not granted, and commission granted and stamped over this table: the status page says [x]
+1	and that stopped CLI revoke does not claim a NUL byte the file does not hold
+1	and that stopped CLI revoke prints no revoked: on stdout
+1	and that stopped revoke leaves the grant file byte-identical, tidy granted, the stamp kept and nothing new behind
 1	and that summary counts eleven, four failing, two of them never reached
 1	and the CLI keeps its executable bit through it
+1	and the CRLF file's other line keeps its carriage return
 1	and the FELIX_KERNEL refusal row carries the branch and the session
 1	and the FIFO at stack.tsv is still a FIFO after the Stop hook read it
 1	and the Felix checkout, which holds the deploy key, drops it
+1	and the NUL-holding file is left byte-identical
+1	and the NUL-holding file's commission stamp stays in place
 1	and the Stop hook's exit status with a FIFO at stack.tsv is the exit status of the same run with no stack.tsv
 1	and the Stop hook's guard still names it through the link
 1	and the Stop hook's stdout with a FIFO at stack.tsv is the stdout of the same run with no stack.tsv
 1	and the ack is consumed by the answer
 1	and the admitted row not to re-propose
 1	and the all-clear is not repeated every session
+1	and the allow of commission after the unended tidy line writes the commission stamp
+1	and the allow of commission over a NUL byte in a comment names the NUL byte on stderr
+1	and the allow of commission over a NUL byte inside a word names the NUL byte on stderr
+1	and the allow of tidy over a NUL byte in a comment names the NUL byte on stderr
+1	and the allow refused by the lock dated ten minutes ago leaves no autonomy.new.* in the widget's directory
 1	and the alphabetical-first remote was not touched
 1	and the announcement names the change
 1	and the appends that arrived after it are folded in
@@ -4204,6 +4664,7 @@
 1	and the control it declares only on its last row is not reported missing
 1	and the count follows
 1	and the counts return 1
+1	and the dangling link's target is not created by the refused allow
 1	and the declared file is read for the key it sends
 1	and the declared plugin among them still reads connected
 1	and the detail is the digest the two copies share
@@ -4216,6 +4677,10 @@
 1	and the directory, file and all, is removed afterwards
 1	and the discovery cache gone stale
 1	and the domain it speaks for
+1	and the doubled allow leaves every autonomy file byte-identical
+1	and the doubled allow says nothing allowed
+1	and the doubled revoke leaves the grant file and the stamp byte-identical
+1	and the doubled revoke says nothing revoked
 1	and the drift line carries the whole name
 1	and the driver itself is under 500 lines
 1	and the dry run says the judge is byte-identical to main
@@ -4234,8 +4699,14 @@
 1	and the felix header comment names felix status
 1	and the file and the directory those symlinks point at keep their modes, 0444 and 0555, and still exist with the file inside the directory: giving permissions back never reaches outside the row's base directory
 1	and the file at the end of it holds the new handoff
+1	and the file is left empty, not removed
+1	and the file is then '# h' and commission, still unended
+1	and the file is then '# h' and tidy, still unended
+1	and the file is then exactly '# h', commission and tidy, each on its own ended line
+1	and the file is then exactly '# h', tidy and commission, each on its own ended line
 1	and the file it names holds the new handoff
 1	and the file it names, relative to the link, holds the new handoff
+1	and the file of that already-allowed tidy is left byte-identical
 1	and the file then states that no red run was possible
 1	and the first five are current again: nothing about staleness was stored
 1	and the first repository's rows are the ones reading it alone gives
@@ -4261,7 +4732,11 @@
 1	and the gate's summary counts nothing it could not read
 1	and the gate's summary line ends saying what would discharge them could not be read
 1	and the gate-failure total
+1	and the grant file that allow creates holds exactly the header line and tidy
+1	and the grant file that run writes grants tidy and holds no revoked: line
+1	and the grant file the commission allow creates holds exactly the header line and commission
 1	and the grant is not left lying around for the next session
+1	and the grant's stamp is gone with it
 1	and the grep it replaced counts the entry that never fires
 1	and the grep the probe used to be counts it, which is why the probe moved
 1	and the guard names the last catch as it always did
@@ -4272,6 +4747,16 @@
 1	and the heal keeps the log's mtime
 1	and the heal that took it over leaves no lock behind
 1	and the held total
+1	and the held-lock allow leaves the grant file and the stamp byte-identical and adds nothing to the directory
+1	and the held-lock allow leaves the lock it found in place, still empty
+1	and the held-lock allow names the lock's path on stderr
+1	and the held-lock allow says on stderr it was not allowed
+1	and the held-lock allow says on stderr that rmdir clears a stale lock
+1	and the held-lock revoke leaves the grant file and the stamp byte-identical and adds nothing to the directory
+1	and the held-lock revoke leaves the lock it found in place, still empty
+1	and the held-lock revoke names the lock's path on stderr
+1	and the held-lock revoke says on stderr it was not revoked
+1	and the held-lock revoke says on stderr that rmdir clears a stale lock
 1	and the hold a night made does not outlive it: the rewake turn after is judged
 2	and the home the pointer names receives nothing
 1	and the home the pointer names still has none of them
@@ -4292,6 +4777,7 @@
 1	and the lifecycle row has nine tab-separated fields
 1	and the line names it
 1	and the literal name is caught
+1	and the lock dated 2000 is left exactly where it was: the same directory, still empty, still dated 2000
 2	and the lock is not left behind
 1	and the log carries the sha it was read at
 1	and the log gains exactly what was printed
@@ -4318,21 +4804,26 @@
 1	and the monitor's count and newest entry are what they always were
 1	and the moved fact is not what it blames
 1	and the mute is a row, not a silent omission
-1	and the names lookup is one substitution whose one pipe reads the names, with no here-document
+1	and the names lookup is one substitution whose one pipe reads the names, with no here-document, process substitution or backquote, calling no engine function
 1	and the near-name and stray records are each one record, the run row's failed count what the names add up to
 1	and the new row is its own line
 1	and the next fold gives it the id after theirs
 1	and the night is closed as it goes
 1	and the night is closed, not left for the next stop
+1	and the no-op revoke leaves the grant file's bytes as they were
+1	and the no-op revoke leaves the grant file's mode at 644
+1	and the no-op revoke through the link leaves its target byte-identical
 1	and the no-remote refusal row carries the branch and the session
 1	and the note it was given
 1	and the number it reports is the number it stored
 1	and the obligations fixture blocker names no commission run
 1	and the old remote_match brings the old subject back
 1	and the older spelling of the same tool is caught too
+1	and the once-empty file holds exactly tidy and a newline, no header and no blank line
 1	and the one enumeration cannot close
 1	and the one it cannot attribute is not folded either
 1	and the one updated 2 hours ago carries 1 to 3, its own age
+1	and the other project's lock is left where it was
 1	and the other three are still there beside it
 1	and the output names the version nothing is installed at
 1	and the outside file keeps mode 0444 and its content, and every file under the root's .git/objects, of which there are some, keeps the mode it had before the run: giving permissions back never reaches a file through a hard link
@@ -4361,7 +4852,13 @@
 1	and the pulse refuses it in words
 1	and the raced heal leaves no temporary, link or lock behind
 1	and the reach duty
+1	and the read-only revoke leaves no autonomy.lock behind
+1	and the read-only revoke leaves the grant file's bytes as they were
+1	and the read-only revoke says on stderr that tidy is not revoked
+1	and the reader grants commission from the grant file that allow created
+1	and the reader grants tidy from the grant file that allow created
 1	and the reader prints exactly one line
+1	and the reader still allows nothing
 1	and the reason is that the grounded facts moved
 1	and the receipt does not claim the founder must approve it
 1	and the receipt ends in a newline
@@ -4384,12 +4881,27 @@
 1	and the refusal names that worktree's marker
 1	and the refusal names the stray, which is all the incident ever printed
 1	and the refusal names the version main declares or the cache it searched
+1	and the refusal over the 80 KB file says nothing of another writer
+1	and the refusal over the lock dated 2000 names the lock, says rmdir, and says not revoked
+1	and the refusal over the lock dated 2000 says a stopped run still holds its lock
+1	and the refusal over the lock dated 2000 says it is more than a minute old
+1	and the refusal over the lock made just now names the lock, says rmdir, and says a stopped run still holds its lock
 1	and the refusal says how to add a section instead
 1	and the refusal says how to type it inside the session
 1	and the refused maintenance check is never run
+1	and the refused rename leaves nothing new in the project directory
+1	and the refused rename leaves the grant file byte-identical and the stamp in place
+1	and the refused rename says nothing of another writer
+1	and the refused revoke of commission from the 80 KB file exits non-zero, keeps the stamp and leaves the file byte-identical
+1	and the refused revoke of the 80 KB file leaves it byte-identical and nothing new behind
+1	and the refused revoke of the NUL-holding file does not claim it grants nothing anyone can read
+1	and the refused revoke of the unreadable file says nothing of a NUL byte
 1	and the refused setup check is never run
 1	and the remote keeps the other machine's head
 1	and the remote's own file is not listed against the branch
+1	and the rename refused by mv is not blamed on another writer
+1	and the rename refused by mv leaves nothing new in the project directory
+1	and the rename refused by mv leaves the grant file byte-identical and the stamp in place
 1	and the report names the merged path
 1	and the report names the path
 1	and the report says how many fewer
@@ -4408,6 +4920,30 @@
 1	and the rest of the file is untouched
 1	and the resume row names the engine, the installed engine, the HEAD, the handoff and the transcript
 1	and the reviewed one is cleared by it
+1	and the revoke after the rmdir leaves no lock behind
+1	and the revoke beside a bad allow leaves every autonomy file byte-identical, the tidy grant included
+1	and the revoke beside the planted link succeeds
+1	and the revoke cut short on its last line leaves the grant file byte-identical and nothing new behind
+1	and the revoke killed with SIGHUP exits non-zero and does not say revoked:
+1	and the revoke killed with SIGINT exits non-zero and does not say revoked:
+1	and the revoke killed with SIGTERM exits non-zero and does not say revoked:
+1	and the revoke of Commission leaves every autonomy file byte-identical, the commission stamp included
+1	and the revoke of Commission says nothing revoked
+1	and the revoke of Commission says on stderr it is an unknown capability
+1	and the revoke of [*] leaves every autonomy file byte-identical
+1	and the revoke of [../x] leaves every autonomy file byte-identical
+1	and the revoke of [commission ] leaves every autonomy file byte-identical
+1	and the revoke of the NUL-holding file names the NUL byte on stderr
+1	and the revoke of the NUL-holding file says nothing revoked
+1	and the revoke of the NUL-holding file says on stderr it was not revoked
+1	and the revoke refused by the lock dated 2000 leaves no autonomy.new.* in the widget's directory
+1	and the revoke refused on its read-back keeps the commission stamp
+1	and the revoke refused on its read-back says the reader still finds the grant
+1	and the revoke through the link leaves the file it pointed at byte-identical
+1	and the revoke whose line reads fail leaves the tidy grant file byte-identical and nothing new behind
+1	and the revoke whose lock gained a file names the lock on stderr and says it was not removed
+1	and the revoke with a stray word leaves every autonomy file byte-identical
+1	and the revoke with a stray word says unexpected argument on stderr
 1	and the root's tree is left as it was, with nothing a row wrote in it
 1	and the roster that unended gate run records includes probes
 1	and the roster the newline-terminated gate run records includes probes (control)
@@ -4440,15 +4976,23 @@
 1	and the run row counts the one failure the base printed and the eight times it never reached as nine failed
 1	and the run that took it over leaves nothing behind
 1	and the rust toolchain step names stable itself, since a commit carries no channel
+1	and the same CLI revoke whose wc in PATH only passes to the real wc exits 0 and leaves exactly '# h' and commission
 1	and the same night as one line reads live
 1	and the same plugin declared by a person installs, which high would refuse
 1	and the same row lifts for a command that acts only in a scratch checkout under that TMPDIR
 1	and the same rows over more sessions are not
 1	and the same saved rows now read done, three fields, with the slug filled in
 1	and the same scanner catches a planted one
+1	and the same script whose mktemp only runs the real mktemp revokes tidy, returns 0 and leaves exactly '# h' and commission and nothing new
+1	and the same script whose wc prints a true count and exits 0 returns 0, leaves exactly '# h' and commission and nothing new
+1	and the same script with a wc that is real on every call revokes tidy, returns 0 and keeps commission
+1	and the same script with the real wc revokes tidy, returns 0 and keeps commission
+1	and the same script without the stop reads tidy over 'tidy' as a grant
 1	and the same test fed a here-string finds it
 1	and the same text in a setup check, which runs without set -u, is refused
 1	and the same when the read that fails is an earlier one, with a later one read
+1	and the sandboxed revoke of a plain tidy grant says nothing of another writer
+1	and the sandboxed revoke over the no-break-space line leaves exactly the header and the commission line
 1	and the saved risk-labels runbook keeps {{REPO}} too
 1	and the schema check accepts it
 1	and the schema still refuses a resolver on projects/p/gate.sh from there, or a table checked in the wrong directory would pass
@@ -4482,8 +5026,11 @@
 1	and the stack count adopting prints for that write-only stack.tsv leaves out the rows it could not write
 1	and the stale answer is still there, not replaced by an empty one
 1	and the stale row was not adopted
+1	and the stamp of the grant revoked beside them is gone
 1	and the start it records is that row process's start: where /proc names the pid namespace, field 22 of /proc/<pid>/stat, @ and that namespace; elsewhere ps -o lstart= under TZ=UTC0 and LC_ALL=C, every blank removed
 1	and the state now carries the new route, for the finish-line judge
+1	and the stopped CLI revoke leaves the grant file byte-identical and nothing new behind
+1	and the stopped CLI revoke prints no revoked: on stdout
 1	and the stranded reaches are now counted
 1	and the suite runner beside it, rather than stopping at the first
 1	and the suite writes the manifest it compares and records through that writer
@@ -4503,10 +5050,13 @@
 1	and the token is in no argument git was given
 1	and the topology comes back when the member goes away
 1	and the topology it is keyed to
+1	and the trailing spaces on the lines before it are kept, and nothing but commission is added
 1	and the tree id it records is the checkout's full id
 1	and the tree id it records is the full id at the run's end, the rewritten manifest in it
 1	and the two suites were running at the same moment
 1	and the unbound job says the binding failed, not the ceiling
+1	and the unended comment stays a comment, with commission on a line of its own
+1	and the unended tidy grant before it is still granted
 1	and the unknown count reads ?, with every other count in its own place
 1	and the unmount above is the only other proposal
 1	and the unverified tree blocker names no commission run
@@ -4537,6 +5087,10 @@
 1	and this block leaves the table, the receipt and every cmes- file as it found them
 1	and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them
 1	and those two suites were running at the same moment
+1	and tidy and commission both read as granted under C and under UTF-8
+1	and tidy, granted before the allow into the read-only directory, is still granted
+1	and tidy, granted before the cut-short allow, is still granted
+1	and tidy, granted before the refused allow of the unreadable file, is still granted
 1	and to ended when an engine function the text names ends the shell
 1	and to ended when an unset variable ends the shell, with its status
 1	and to ended when the text exits 0, with 0
@@ -4564,6 +5118,7 @@
 1	and what main's copy printed reaches the output
 1	and what needs action comes in the spec's order: hazards, questions, uncommitted, unpushed, unproposed
 1	and what the engine tiered medium holds
+1	and what the revoke whose lock gained a file reported holds
 1	and what was detected
 1	and what was typed still counts
 1	and when that byte is in the winning route's own play, felix_route_best still picks it
@@ -4602,6 +5157,7 @@
 1	and with nothing reached, every name listed is said once, a row with no name or a count that is no number listing none
 1	and with only a gitlab remote under another name, they wait
 1	and with only an awaiting provider row it is owed with its request path, and nothing is said to be unread
+1	and with the answer's rows uncountable the provider row is unknown and the receipt indeterminate, not commissioned
 1	and with the edit undone the tree id is back
 1	and with the fact back where it was, the same receipt allows again
 1	and with the same directory given absolutely the control reads
@@ -4673,6 +5229,26 @@
 1	because it was not read
 1	because the second path was read too
 1	before any heal, gate_shown_failing cannot see the failure the split rows hold
+1	before any revoke a file of 208 lettered lines and bare tidy and commission lines holds 210 lines and grants both, under C and UTF-8
+1	before any revoke an older engine's reader under Shift-JIS takes tidy and an ideographic space as a grant
+1	before any revoke an older engine's reader under UTF-8 takes tidy and a no-break space or an em space as a grant
+1	before any revoke the reader takes a CRLF commission line as a grant, under C and UTF-8
+1	before any revoke the reader takes commission with a leading tab as a grant, under C and UTF-8
+1	before any revoke the reader takes commission with a trailing tab as a grant, under C and UTF-8
+1	before any revoke the reader takes commission with leading spaces as a grant, under C and UTF-8
+1	before any revoke the reader takes commission with trailing spaces as a grant, under C and UTF-8
+1	before the allow a C reader does not grant tidy from an unended tidy and no-break space
+1	before the allow the reader does not grant tidy from a NUL-holding file whose other line is tidy
+1	before the allow the reader grants commission from a CRLF commission line
+1	before the allow the reader grants neither tidy nor commission from a file with a NUL byte in a comment
+1	before the allow the reader grants neither word from a file with a NUL byte inside commission
+1	before the allow the reader grants tidy from a CRLF file whose last line has its CR and no LF
+1	before the allow the reader grants tidy from a file whose one line is tidy with no newline
+1	before the allow the reader grants tidy from a line with two trailing spaces
+1	before the allow the reader grants tidy from an unended line padded with a space and a tab
+1	before the allow the reader grants tidy from the end of a five-kilobyte grant file
+1	before the allow the reader grants tidy from the file about to be made unreadable
+1	before the allow the reader grants tidy from the unended file in the directory about to be made read-only
 1	before the pulse has ever run there is nothing to report
 1	beside a failing probe, the line never says the run was not recorded, since probes was
 1	bin/handoff-in-flight, run from a subdirectory with no arguments, reads origin/main within 48 hours and names each fold, newest first, exit 0
@@ -4924,6 +5500,7 @@
 1	discover: an adoption still to declare is held (pipefail on)
 1	discover: with every lookup answering, the row reads done (pipefail on and off)
 1	discover: with no pipe to be made, the check does not pass
+1	discovery lists the catalogue's matching entry, from the stub's catalogue
 1	discovery writes nothing
 1	docs classify green
 1	doctor exits 0 despite drift
@@ -5167,7 +5744,7 @@
 1	felix audit --help answers its usage and reads nothing
 1	felix audit runs with bash and awk alone on PATH, as the README says, and answers the same report
 1	felix automerge judges a green pull request by the gate's runs alone
-1	felix autonomy --allow onto a grant ending in a NUL byte writes a newline after the NUL first
+1	felix autonomy --allow onto a grant ending in a NUL byte is refused, names the NUL byte, says no allowed:, and leaves the file byte-identical
 1	felix autonomy --allow onto a grant ending in a newline adds no blank line
 1	felix autonomy --allow onto a hand-written grant with no final newline keeps that grant on its own line
 1	felix autonomy --allow onto a newline-terminated read-only grant exits non-zero without saying allowed
@@ -5785,6 +6362,15 @@
 1	felix@felix enabled reads ok
 1	felix@felix false reads felix-off, quoting false
 1	felix_autonomy_allows is defined for the hook
+1	felix_autonomy_grant of commission over an unended tidy line returns 0
+1	felix_autonomy_grant refuses Commission, capitalised, and leaves the file byte-identical
+1	felix_autonomy_grant refuses a capability with a newline in it and leaves the file byte-identical
+1	felix_autonomy_grant returns 1 and leaves the file byte-identical when its read comes back shorter than the file
+1	felix_autonomy_grant returns 1 when a directory sits where the grant file goes
+1	felix_autonomy_grant returns 2 on a grant file holding a NUL byte
+1	felix_autonomy_grant returns 3 when its read-back does not find the grant it wrote
+1	felix_autonomy_grant returns non-zero when its read-back does not find the grant it wrote
+1	felix_autonomy_revoke returns non-zero when its read-back still finds the grant
 1	felix_budget_record itself reports the failure
 1	felix_budget_record onto a FIFO at budget.log returns non-zero without blocking
 1	felix_budget_record onto a one-run log with no final newline leaves felix_budget_used counting two
@@ -7197,6 +7783,12 @@
 1	resolves via .felix marker with no remote
 1	restored, it exits 0 again
 1	retires what Felix pointed at and nobody reached for
+1	revoking a file whose only line is the grant exits 0 and the grant is gone
+1	revoking an unended commission last line keeps the line before it byte for byte, trailing space and newline
+1	revoking an unended one-line grant exits 0 and the grant is gone
+1	revoking commission ahead of an unended tidy line leaves exactly tidy, still unended
+1	revoking tidy exits 0 and leaves commission allowed
+1	revoking with no grant file exits 0
 1	rewording only a comment line in it escapes nothing, or every note about the table would go to the founder
 1	rewriting an archived section is refused
 1	rewriting assertions without losing any escapes nothing
@@ -7281,6 +7873,7 @@
 1	rkt: the lint names a loop over a project table that drops an unended last row
 1	rkt: the lint passes guarded reads, writes, messages and comments
 1	rkt: the lint passes the same loop when it keeps that row
+1	rmdir clears the lock a refused run left in place, and the next revoke of commission exits 0, says so and takes the grant
 1	rolling the same session twice does not double it
 1	route and lessons arrive as one block
 1	route refuses outside a governed repo
@@ -7456,6 +8049,7 @@
 1	seventeen hours is past the ceiling
 1	severity derives from the risk rules
 1	ships a slash command to be found by
+1	signed commits leave the title the branch's own under log.showSignature
 2	silent in an ungoverned repo
 1	silent outside a git repository
 1	silent when a project has no lessons yet
@@ -7560,6 +8154,7 @@
 1	tests/run exits 2 before it makes its temporary directory when REAL_HARNESS names no harness, and goes on when it names one
 1	text piped into a shell is its script
 1	that names the command
+1	that revoke under C over the no-break-space line exits 0 and removes the line, leaving the header
 1	that row carries today's date and the epoch second of the call
 1	that row reads lesson, on the checkout's branch, at its short HEAD, under the session
 1	the #264 block leaves the logs and the session state as it found them
@@ -7838,7 +8433,7 @@
 1	the cache row carries the tier its marketplace entry declares
 1	the candidate fixture's epoch is a hash
 1	the capabilities file is untouched
-1	the capability lookup is one substitution, with no pipe, no here-document and no felix_has_line
+1	the capability lookup is one substitution, with no pipe, here-document, process substitution or backquote, calling no engine function but felix_declared
 1	the capability probe yields ecosystem words to check for
 1	the cause is not the raw payload
 1	the ceiling itself is still a night somebody can be granted
@@ -8199,6 +8794,7 @@
 1	the monitor page does not show a debt verification row with the class a passed gate has
 1	the monitor page gives a passed gate its own class, and the page's log panel lists all four rows (control)
 1	the monitor page shows a debt verification row with the warning class
+1	the near-limit grant file is 2040 bytes
 1	the near-name and stray fixtures' runs reach, against their own working trees, every name their manifests list and as often
 1	the nested repo is still refused
 1	the never line claims only what the roster recognises, and --verify ERE adds a project's own runner to it, in every project read, as the report, the help, the README and ecosystem.tsv say; none claims every ecosystem
@@ -8273,6 +8869,7 @@
 1	the quiet control did bind its project
 1	the re-run's answer names a different epoch
 1	the read-only checks can fail: an audit that writes under HOME and calls claude changes the snapshot and the stub log
+1	the reader answers yes for tidy after 8000 comment lines using at most 3 seconds of CPU
 1	the reader prints a command separator as a token of its own, an operator of two characters whole
 1	the readiness report runs at all
 1	the reason is durable in decisions.log
@@ -8331,6 +8928,8 @@
 1	the run writes state/pulse.status.tsv opening # ran <epoch> (P5)
 1	the run writes the receipt
 1	the same TMPDIR without the .mcp.json reads the list (the control)
+1	the same allow of tidy run under C after the stray lead byte writes exactly the same bytes
+1	the same allow of tidy run under UTF-8 after the no-break space writes exactly the same bytes
 1	the same catch speaks for the checkout that owns it
 1	the same change merged to main with no new deployment is drift, exit 1
 1	the same change with the version bumped and red.tsv rewritten owes nothing, or a row would stay owed after it was paid
@@ -8428,6 +9027,19 @@
 1	the why for an unread declaration names its key and its path
 1	the why names the file that pipes to a shell
 1	the widget's commission grant covers the tables before one moves
+1	the widget's directory holds exactly what it held before a closed stdout, a file changed between passes and a caller's IFS were tested
+1	the widget's directory holds exactly what it held before allow was tested
+1	the widget's directory holds exactly what it held before every letter, long capability lines and stopped passes were tested
+1	the widget's directory holds exactly what it held before failed reads, failed writes and long lines were tested
+1	the widget's directory holds exactly what it held before revoke then allow was tested
+1	the widget's directory holds exactly what it held before revoke was tested
+1	the widget's directory holds exactly what it held before revoke's reach was tested
+1	the widget's directory holds exactly what it held before revoke's reading and naming were tested
+1	the widget's directory holds exactly what it held before stale output, wc's answers and stopped names tests were tested
+1	the widget's directory holds exactly what it held before stopped subshells were tested
+1	the widget's directory holds exactly what it held before the lock was tested
+1	the widget's directory holds exactly what it held before the lock was tested under signals and a person's hand
+1	the widget's directory holds exactly what it held before the review findings were tested
 1	the widget's epoch is a hash
 1	the widget's probe table is exactly as this section found it
 1	the widget's risk table is exactly as this section found it, and it has no grant
@@ -8445,12 +9057,16 @@
 1	the writer's fifth column is the current epoch second
 1	their declared gate runs and passes
 1	their high-risk rows are blocked too
+1	then an --allow of commission exits 0 and says allowed: commission
+1	then an --allow of tidy exits 0 and says allowed: tidy
 1	there are declared ecosystem rows to judge
 1	there is at least one governed project to check for
 2	there is no --yes
 1	thirteen fields per row
 1	this branch's own newer catch still prompts, and names it rather than a peer's logged after it
 1	this branch's week-old catch stays history while a peer's rows keep the file fresh
+1	this engine's reader takes neither a leading no-break space, an ideographic space nor a lead byte as part of a tidy grant
+1	this engine's reader takes neither tidy and a Shift-JIS ideographic space, tidy and a file separator, nor tidy. as a grant, under C or UTF-8
 1	this engine's version is above origin/main's when this tree holds commits origin/main lacks
 1	this repository's every table is declared and accepted
 1	this session's catch prompts after its checkout moves to another branch
@@ -8475,6 +9091,12 @@
 1	through the Stop hook, this session's felix lesson after its catch gives no prompt
 1	through the Stop hook, this session's felix log after its catch gives no prompt
 1	through the Stop hook, this session's own catch prompts
+1	tidy followed by a form feed is a grant under C and under UTF-8
+1	tidy followed by a lone 0xA0 byte is not a grant under C or under UTF-8
+1	tidy followed by a no-break space is not a grant under C or under UTF-8
+1	tidy followed by a vertical tab is a grant under C and under UTF-8
+1	tidy followed by an em space is not a grant under C or under UTF-8
+1	tidy stays allowed after commission is revoked
 1	touching a tracked file without editing it still reads current
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
@@ -8539,9 +9161,18 @@
 1	under --no-host what git and gh decide stands: the staged revert, the uncommitted worktree and an open pull request
 1	under /bin/bash 3.2 felix inventory --tsv gives the same items and states
 1	under a current grant it says the next session start re-commissions
+1	under a sandbox that denies writes outside the Felix home and memory, a revoke of tidy over a no-break-space line exits 0 and says revoked: tidy
+1	under a two-block file-size limit a refused revoke of commission from a long file says it could not be read whole or rewritten
+1	under a two-block file-size limit a refused revoke of commission from an 80 KB file says it could not be read whole or rewritten
+1	under a two-block file-size limit a revoke of tidy over a long file ending in a no-break-space line does not exit 0 with the file untouched
+1	under a two-block file-size limit a revoke of tidy over an 80 KB file ending in a no-break-space line exits non-zero and says nothing revoked
+1	under a two-block file-size limit a revoke of tidy whose one kept line crosses the limit exits non-zero and says nothing revoked
+1	under a two-block file-size limit a small grant file is still revoked
+1	under a two-block file-size limit an allow of commission into a small grant file is still granted
 1	under pipefail, printf of a megabyte piped into grep -q reads a match on its first line as absent
 1	under pipefail, printf piped into grep -q fails when grep matches the first line of a megabyte
 1	under the base, a gitfile naming a directory outside every root is refused, and one naming a directory below the base is entered
+1	under the same sandbox a revoke of a plain tidy grant exits 0 and leaves exactly the header and the commission line
 1	ungoverned over a table that cannot be read names no reported checker, and exits 2
 1	ungoverned repo refuses to run a gate
 1	uninstall names the doctrine it left alone
@@ -8552,6 +9183,7 @@
 1	unstubbed, a whole answer of two rows is answered and one of its two rows is partial
 1	unstubbed, a whole answer of two rows is ingested: the record prints 2 and appends to the log
 1	unstubbed, an answer saying done 0 over two rows and one saying done 2 over three are partial
+1	unstubbed, the run over a provider row with a whole answer and a done row reads answered and the receipt is commissioned
 1	untouched surfaces are n/a
 1	update-ref writing a remote-tracking ref is still refused
 1	veldra's fmt: a check that fails with no name it can parse is a loud FAIL
@@ -8681,6 +9313,10 @@
 1	with a GitHub remote, a {{REPO}} row's status is byte for byte a baked row's
 1	with a fact and a table both moved, the fact is named first
 1	with a list that takes 5 s the hook still returns in under 3 s
+1	with a lock dated 2000 held, a revoke of commission exits non-zero, says neither revoked: nor allowed:, and writes nothing
+1	with a lock dated 2000 held, a revoke of tidy refuses, says nothing, writes nothing and leaves the lock
+1	with a lock dated ten minutes ago held, an allow of tidy refuses and says the lock is more than a minute old
+1	with a lock made just now held, a revoke of commission refuses and does not say the lock is more than a minute old
 1	with a proc filesystem that names the pid namespace pid:[777] and a boot id, a base whose record names a dead pid with a start in that namespace and boot is swept, registration included
 1	with a ps on PATH that prints nothing, a base whose record names a live pid with a start that is not its own is left as it was: a start that cannot be read now shows no other process
 1	with a ps on PATH that prints nothing, a base whose record names a live pid with its true start is left as it was
@@ -8704,9 +9340,11 @@
 1	with no checkout in front of it the row reads unchecked
 2	with no cli call at all
 1	with no commit yet the written row spells branch and sha exactly as the gate's own row does
+1	with no descriptor left for its pipe, the names lookup returns 2 and names nothing
 1	with no felix cache on the machine, installed is skipped
 1	with no felix cache the evidence cannot examine, exit 2
 1	with no gh on PATH at all, felix inventory --tsv still exits 0
+1	with no grant file, a revoke of tidy with an allow of tidy, stdout closed, exits 0 and leaves no lock and no autonomy.new.*
 1	with no grant the merge still waits for the founder
 1	with no graphify installed the refresh runs nothing
 1	with no graphify-out beside the checkout it runs nothing
@@ -8764,6 +9402,15 @@
 1	with the file's contents untouched
 1	with the generated shape
 1	with the lesson gone it names its own row past the look-alikes
+1	with the lock held and neither a grant file nor a stamp, an allow of commission refuses and both stay absent
+1	with the lock held and no grant file, a revoke of tidy still refuses and says nothing revoked
+1	with the lock held, a revoke given twice exits non-zero and leaves the lock in place
+1	with the lock held, a revoke of commission exits non-zero and says neither revoked: nor allowed:
+1	with the lock held, a revoke of the unknown capability Commission exits non-zero and leaves the lock in place
+1	with the lock held, a run given --allow and --revoke refuses, says not allowed and not revoked, and writes nothing
+1	with the lock held, an allow of commission already granted refuses, says no already allowed:, and leaves its stamp as it was
+1	with the lock held, an allow of tidy exits non-zero and says neither allowed: nor revoked:
+1	with the lock held, felix autonomy given neither --allow nor --revoke exits 0, shows the status page and leaves the lock
 1	with the newlines escaped, not lost
 1	with the note --was gave it
 1	with the probe table gone the epoch cannot be computed
@@ -8789,5 +9436,31 @@
 1	work not yet added to git is still carried into the copy
 1	work the subagent committed is still checked
 1	workflow_dispatch named only in an if: expression does not
+1	writer race (a), a revoke of tidy while a revoke of commission is paused: A pauses in the mv onto the grant file
+1	writer race (a): A exits 0, says revoked: commission, and commission is not granted once both have ended
+1	writer race (a): B ends while A is paused, exits non-zero, and says neither revoked: nor allowed:
+1	writer race (a): B leaves the grant file and the stamp byte-identical and adds nothing to the directory
+1	writer race (a): B names the lock on stderr
+1	writer race (a): after B ends, with A still paused, A's lock is still there and still empty
+1	writer race (a): the lock A held is gone once both have ended
+1	writer race (a): what each run reported holds once both have ended
+1	writer race (a): while A is paused the lock exists and is an empty directory
+1	writer race (b), an allow of tidy while a revoke of commission is paused: A pauses in the mv onto the grant file
+1	writer race (b): A exits 0, says revoked: commission, and commission is not granted once both have ended
+1	writer race (b): B ends while A is paused, exits non-zero, and says neither revoked: nor allowed:
+1	writer race (b): B leaves the grant file and the stamp byte-identical and adds nothing to the directory
+1	writer race (b): B names the lock on stderr
+1	writer race (b): after B ends, with A still paused, A's lock is still there and still empty
+1	writer race (b): the lock A held is gone once both have ended
+1	writer race (b): what each run reported holds once both have ended
+1	writer race (b): while A is paused the lock exists and is an empty directory
+1	writer race (c), an allow of commission while a revoke of commission is paused: A pauses in the mv onto the grant file
+1	writer race (c): A exits 0, says revoked: commission, and commission is not granted once both have ended
+1	writer race (c): B ends while A is paused, exits non-zero, and says neither revoked: nor allowed:
+1	writer race (c): B leaves the grant file and the stamp byte-identical and adds nothing to the directory
+1	writer race (c): B names the lock on stderr
+1	writer race (c): after B ends, with A still paused, A's lock is still there and still empty
+1	writer race (c): the lock A held is gone once both have ended
+1	writer race (c): while A is paused the lock exists and is an empty directory
 1	writes a zero row for a declared tool nobody reached for
 1	zero members is two different answers depending on the witness

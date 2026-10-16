@@ -8,5 +8,16 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	82c4df2d715616258597c6084c6010863a552df6	0.49.290
-run	0	9463	39
+base	origin/main	387c3fccfb23cb5858bf8543a64a5f671c6b8c3a	0.49.291
+run	11	9466	39
+a branch ending on a merge of main is titled by its own last commit	1
+a branch of nothing but record commits is titled by the newest of them, not the merge	1
+a branch that merged another unlanded branch is titled by its own work, not that branch's	1
+a commit that changes the record and more is the branch's own	1
+a root commit made only of a record is the landing's too	1
+a squash gh gave no title for is subjected by the newest commit the branch made itself	1
+an empty commit is not passed over as the landing's	1
+an engine change under a record's subject is the branch's own	1
+and so is a file elsewhere that shares a record's name	1
+and so is one the landing then gave a version slot, a record and a handoff section	1
+signed commits leave the title the branch's own under log.showSignature	1

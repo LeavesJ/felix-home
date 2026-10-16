@@ -105,23 +105,64 @@ felix_detect() {
 # Capabilities a project has declared it knows about, one per line.
 #
 # 0 when there is no file or it was read, whether or not it holds a
-# capability line, and 2 when something is there and could not be read. Until
-# 2026-10-01 a file of only comments returned grep's 1, which a caller asking
-# the status, as _felix_cap_active now does, would have read as a list that
-# failed. Only nothing at all is absent: a link whose target is gone, a
+# capability line, and 2 when something is there and could not be read as a
+# list. Only nothing at all is absent: a link whose target is gone, a
 # directory or a pipe is something there that is not a list, and is 2 without
-# being opened, where `-f` alone called each absent and the list empty (a pipe
-# must not be opened at all, since grep would wait on it for a writer). The
-# status starts at 2 and the redirection sits outside the grep, because a
-# redirection that cannot be opened returns 1 without running the command, and
-# 1 is what an empty list now reads as.
+# being opened (a pipe must not be opened at all, since a reader would wait on
+# it for a writer).
+#
+# 2026-10-08: until then it read with grep -vE '^\s*(#|$)' in the caller's
+# locale, which treated a file that is not text as a list. A NUL made BSD grep
+# print "Binary file <path> matches" as the one capability (measured), and by
+# GNU grep's manual (not run) stop printing at the first NUL with 0 and, under
+# a UTF-8 locale, drop each line holding a byte that is not valid UTF-8; BSD
+# grep reads such a byte as text. A byte-order mark before a comment listed the
+# comment, a line of only a no-break space was listed in the C locale and
+# dropped in UTF-8, and a CR made every name one no table holds. Now a NUL
+# anywhere is no list (as #383 refused a qualification.tsv holding one), the
+# file is read byte for byte in the C locale, a leading UTF-8 byte-order mark
+# is dropped, and a listed line holding a byte outside tab and printable ASCII
+# makes the whole file no list, the way qualify calls a row with a CR
+# malformed. A file that is no list is 2 with nothing printed.
+# It reads with cat into a subshell, not a redirect or a second grep, so that
+# the file is opened once by a named command whose status says a read failed
+# (the read builtin returns a read error as end of input). The C locale is set
+# inside the subshell because bash 4 to 5.2 in a UTF-8 locale reads the byte
+# after a UTF-8 lead byte as part of a character without asking whether it is
+# the delimiter, so a NUL right after one hid from read -d '' (#383's review);
+# the subshell keeps the locale, IFS and set -f its own, and its stderr is
+# discarded as grep's was. A caller whose LC_ALL is readonly and not C gets 2
+# and no message: bash 3.2 abandons the subshell at the assignment, and the
+# second test refuses where a shell would carry on in the caller's locale.
+# cat is `command cat`, so no function of that name stands in. The lines are
+# judged by two regular expressions, each tried on known input first, since
+# one that cannot be compiled returns 2 and `&&` would read that as no match.
+# The cost is one process more per call than the grep it replaced, a cat and a
+# subshell, measured, and linear in the file: the mark is cut by offset, the
+# names kept in an array and each line matched once, because `${x#mark}`,
+# string appends, `${x//tab/ }` and stripping leading space by pattern grew
+# with the square of a file or a line (5.7 s for 670 KB, 17 s for one line of
+# 10,000 tabs; found by review).
 felix_declared() {
-  local proj="$1" rc=2
+  local proj="$1" st
   [ -e "$proj/capabilities" ] || [ -L "$proj/capabilities" ] || return 0
   [ -f "$proj/capabilities" ] || return 2
-  { grep -vE '^\s*(#|$)' "$proj/capabilities"; rc=$?; } 2>/dev/null
-  [ "$rc" -le 1 ] || return 2
-  return 0
+  command cat -- "$proj/capabilities" 2>/dev/null | (
+    [ "${LC_ALL-}" = C ] || LC_ALL=C
+    [ "${LC_ALL-}" = C ] || exit 6
+    IFS= read -r -d '' _fdb && exit 3
+    case "$_fdb" in $'\357\273\277'*) _fdb="${_fdb:3}" ;; esac
+    _fdskip='^[[:space:]]*(#|$)' _fdbad=$'[^\t[:print:]]'
+    [[ '' =~ $_fdskip ]] && [[ $'\001' =~ $_fdbad ]] && ! [[ $'a\t~' =~ $_fdbad ]] || exit 5
+    _fdk=(); IFS=$'\n'; set -f; set -- $_fdb
+    for _fdl; do
+      [[ $_fdl =~ $_fdskip ]] && continue
+      [[ $_fdl =~ $_fdbad ]] && exit 4
+      _fdk[${#_fdk[@]}]="$_fdl"
+    done
+    [ "${#_fdk[@]}" -eq 0 ] || printf '%s\n' "${_fdk[@]}" ) 2>/dev/null
+  st="${PIPESTATUS[0]}:${PIPESTATUS[1]}"
+  [ "$st" = 0:0 ] || return 2
 }
 
 # NAME CMD [ARGS...]: run CMD in one command substitution and assign its output

@@ -404,6 +404,22 @@ cases are recorded and are not chased further.
       may set it after sourcing the library, and nothing else sets it.
     - Every `sed`, `sort`, `cut` and `awk` in the job runs under `LC_ALL=C`.
 
+## Amended after the record of 2026-10-16
+
+- **A29 (main's engine is read whole, on every run).** Every tick, and every
+  verify, asks `felix_accepted_deploy_diff`. It used to read main's engine
+  through `git archive | tar -x` under felix's `pipefail`. bsdtar stops reading
+  at the end-of-archive marker. If `git archive` is still writing its trailing
+  padding at that moment, it dies of SIGPIPE, and the check answered "cannot
+  examine" for an entry that is main's. Measured on a fixture-sized engine, ten
+  loops at once: 192 of 1,500 runs. A tick then deploys instead of merging, and
+  a verify writes `deployed-unverified` and pauses the lane.
+    - For an entry that is main's, `felix_accepted_deploy_diff` exits 0 however
+      late `git archive` writes bytes after the end-of-archive marker, and
+      however early the reader of the archive stops.
+    - It still exits 2 when `git archive` itself fails, and 1 when the entry
+      differs. A reader that stops early never turns a failure into a pass.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

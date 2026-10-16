@@ -93,6 +93,270 @@
 1	.lsp.json at the root is medium
 1	/ itself: claude was not run
 1	/ itself: the list is unread, with the sentence that says why
+1	A10: a deploy owed is written once and notified once over two identical ticks
+1	A10: a failing fetch is written once and notified once over two identical ticks
+1	A10: a tick that cannot resolve its project sends a notification
+1	A10: a trampoline that cannot enter FELIX_HOME_DIR runs no felix land --tick
+1	A10: and its row names the fetch
+1	A10: and sends one notification, over two identical runs
+1	A10: and writes a row
+1	A10: and writes one row into the ledger written into it, over two identical runs
+1	A10: gh auth status failing is written once and notified once over two identical ticks
+1	A11: a tick that deploys, and verifies, merges nothing though a green candidate waits
+1	A11: a tick whose deploy ends deployed-unverified merges nothing
+1	A11: the next tick merges it
+1	A11: with the engine just deployed
+1	A12: a green pull request into release, not main, gets one skip row and is not merged
+1	A12: and the skip row names the base
+1	A12: the tick asks gh pr list for baseRefName
+1	A13: a refused pull request is not passed to felix merge again on a tick with the same head and main
+1	A13: once its head moves, felix merge runs once more, and not again on the tick after
+1	A13: once refs/remotes/origin/main moves, felix merge runs once more, and not again on the tick after
+1	A14: a pgrep that exits 2 counts as a suite running: the deploy waits
+1	A14: a suite started as bash engine/harness/tests/run, with no leading slash, makes the deploy wait
+1	A14: and the row says a gate or suite is running
+1	A15: a takeover that finds another pid in the lock it moved aside does not take it: only the live tick asked gh
+1	A15: and the live tick is not signalled
+1	A15: the watchdog compares its tick's start time before it signals
+1	A16: the plist's PATH is the fixture HOME's .local/bin, then the listed directories
+1	A16: with HOME expanded when it is written
+1	A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deployed-unverified
+1	A17: and main's own engine is accepted
+1	A17: and nothing is paused
+1	A17: and writes no deploy-owed row
+1	A17: control, with no decoy name: the tick finds the deploy owed: one deploy-owed row, nothing installed, nothing merged
+1	A17: control, with no decoy name: the trampoline runs no felix land --tick, from that entry or any
+1	A17: control, with no decoy name: two trampoline runs write one deploy-owed row and exit 1
+1	A17: felix_base_ref given refs/remotes/origin/main returns exactly that ref, though a tag and a branch named origin/refs/remotes/origin/main exist
+1	A17: given a refs/ name that does not resolve, it tries nothing else: origin/refs/heads/absent resolves, and it still fails, printing nothing
+1	A17: given a refs/ name that resolves to a tree, not a commit, it fails, printing nothing
+1	A17: given a short name that resolves neither way, it fails, as before
+1	A17: given main, with no origin/main, it returns main, as before
+1	A17: given main, with origin/main there, it returns origin/main, as before
+1	A17: given refs/heads/main it returns it as it is
+1	A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: the tick finds the deploy owed: one deploy-owed row, nothing installed, nothing merged
+1	A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: the trampoline runs no felix land --tick, from that entry or any
+1	A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: two trampoline runs write one deploy-owed row and exit 1
+1	A17: with the decoy names and main's entry in place, the tick owes no deploy and merges a green pull request through main's entry
+1	A17: with the decoy names and main's entry in place, the trampoline runs main's entry's felix land --tick
+1	A17: with the decoy names, felix_accepted_deploy_diff given refs/remotes/origin/main judges main: the decoy's engine is rejected
+1	A18: (control) a green pull request whose worktree path is plain lands
+1	A18: a green pull request whose worktree path holds a tab gets one session row
+1	A18: every ledger line has exactly seven tab-separated fields
+1	A18: neither is merged, and felix merge runs in neither worktree
+1	A18: one whose worktree path holds a newline gets one session row
+1	A19: (control) a green pull request alone on its head branch lands
+1	A19: a candidate whose head branch is also the head of an open pull request into another base gets one skip row and is not merged
+1	A19: and each gets one skip row
+1	A19: two green open pull requests with one headRefName: neither is merged
+1	A1: an entry main's check accepts runs: its felix land --tick is the one tick invoked
+1	A1: and the trampoline writes no deploy-owed row
+1	A1: each case is named apart from the others in its row
+1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): and send one notification
+1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): it exits 1, both runs
+1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): the row names the case
+1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): two runs write one deploy-owed row
+1	A1: with an entry at main's version that differs from origin/main's engine (a branch's install): and send one notification
+1	A1: with an entry at main's version that differs from origin/main's engine (a branch's install): it exits 1, both runs
+1	A1: with an entry at main's version that differs from origin/main's engine (a branch's install): the row names the case
+1	A1: with an entry at main's version that differs from origin/main's engine (a branch's install): the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: with an entry at main's version that differs from origin/main's engine (a branch's install): two runs write one deploy-owed row
+1	A1: with git failing (exit 69): and send one notification
+1	A1: with git failing (exit 69): it exits 1, both runs
+1	A1: with git failing (exit 69): the row names the case
+1	A1: with git failing (exit 69): the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: with git failing (exit 69): two runs write one deploy-owed row
+1	A1: with main's entry missing: and send one notification
+1	A1: with main's entry missing: it exits 1, both runs
+1	A1: with main's entry missing: the row names the case
+1	A1: with main's entry missing: the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: with main's entry missing: two runs write one deploy-owed row
+1	A1: with main's entry not executable: and send one notification
+1	A1: with main's entry not executable: it exits 1, both runs
+1	A1: with main's entry not executable: the row names the case
+1	A1: with main's entry not executable: the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: with main's entry not executable: two runs write one deploy-owed row
+1	A1: with origin/main's version unreadable: and send one notification
+1	A1: with origin/main's version unreadable: it exits 1, both runs
+1	A1: with origin/main's version unreadable: the row names the case
+1	A1: with origin/main's version unreadable: the trampoline runs no felix land --tick, from any cache entry or tree
+1	A1: with origin/main's version unreadable: two runs write one deploy-owed row
+1	A2, A4: the tick fetched, and pulled the home
+1	A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed
+1	A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install
+1	A20: a leftover land/verifying makes the next tick redo the deploy: one install, one deployed row
+1	A20: a leftover land/verifying with a suite running: one deploy-owed row, nothing installed, nothing merged
+1	A20: a verify that writes deployed removes land/verifying
+1	A20: and its deployed verify removes land/verifying
+1	A20: and land/verifying stays
+1	A20: and that tick merges nothing
+1	A20: land/verifying stays after a verify that did not write deployed
+1	A20: once resumed, a tick that finds land/verifying deploys again, though main's entry is in place, and merges nothing
+1	A20: the deploy wrote land/verifying before its verify ran felix gate --quick
+1	A20: the tick after it merges, with nothing installed again
+1	A21, A24: an untracked file under the home's engine/harness at deploy time never ends deployed
+1	A21: (control) an owed deploy with nothing untracked in the home's engine ends deployed
+1	A21: and merges nothing
+1	A21: and writes paused
+1	A22: a tick that cannot resolve its project writes one row into FELIX_LAND_LEDGER over two identical runs, and sends one notification
+1	A22: a tick that resolves its project writes to its own ledger, not to FELIX_LAND_LEDGER
+1	A22: and that row is one of seven tab-separated fields
+1	A22: the trampoline exports the ledger it carries as FELIX_LAND_LEDGER, the same on both runs
+1	A22: the trampoline's unresolved tick leaves one row in that ledger, and one notification, across two runs
+1	A23 (\001): a forged record in a lock reason: 81, which no worktree holds, gets one session row
+1	A23 (\001): and felix merge never runs in the checkout the forged record names
+1	A23 (\001): the locked worktree's own green pull request still lands, in its worktree
+1	A23 (\001): with b81's own worktree back, 81 lands there, and never in the checkout the forged record names
+1	A23 (newline): a forged record in a lock reason: 81, which no worktree holds, gets one session row
+1	A23 (newline): and felix merge never runs in the checkout the forged record names
+1	A23 (newline): the locked worktree's own green pull request still lands, in its worktree
+1	A23 (newline): with b81's own worktree back, 81 lands there, and never in the checkout the forged record names
+1	A23: (control) a green pull request whose worktree is what its admin entry says lands, in that worktree
+1	A23: (control) with its own directory back, 84 lands there
+1	A23: a worktree directory that belongs to another repository gives one session row
+1	A23: a worktree directory that now has another branch checked out than its admin entry says gives one session row
+2	A23: and felix merge runs nowhere
+1	A24: (control) a clean home deploys: one install, session-start run, one deployed row, no deploy-owed row
+1	A24: (control) once the home is clean again, the owed deploy runs and writes deployed
+1	A24: (control) with nothing untracked under the home's engine/, the trampoline runs main's entry's felix land --tick
+1	A24: (control) with the home clean and main's entry in place again, the trampoline runs its tick
+1	A24: an edited engine file under assume-unchanged: and writes paused
+1	A24: an edited engine file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an edited engine file under assume-unchanged: nothing is installed into the cache, and nothing merges
+1	A24: an edited engine file under assume-unchanged: the deploy-owed row names the path
+1	A24: an edited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an edited engine file under skip-worktree: and writes paused
+1	A24: an edited engine file under skip-worktree: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an edited engine file under skip-worktree: nothing is installed into the cache, and nothing merges
+1	A24: an edited engine file under skip-worktree: the deploy-owed row names the path
+1	A24: an edited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an edited projects/lgh/ file under assume-unchanged: and writes paused
+1	A24: an edited projects/lgh/ file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an edited projects/lgh/ file under assume-unchanged: nothing is installed into the cache, and nothing merges
+1	A24: an edited projects/lgh/ file under assume-unchanged: the deploy-owed row names the path
+1	A24: an edited projects/lgh/ file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: and writes paused
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: nothing is installed into the cache, and nothing merges
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: the deploy-owed row names the path
+1	A24: an ignored file under engine/, with an untracked .gitignore beside it: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an unedited engine file under assume-unchanged: and writes paused
+1	A24: an unedited engine file under assume-unchanged: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an unedited engine file under assume-unchanged: nothing is installed into the cache, and nothing merges
+1	A24: an unedited engine file under assume-unchanged: the deploy-owed row names the path
+1	A24: an unedited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an unedited engine file under skip-worktree: and writes paused
+1	A24: an unedited engine file under skip-worktree: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an unedited engine file under skip-worktree: nothing is installed into the cache, and nothing merges
+1	A24: an unedited engine file under skip-worktree: the deploy-owed row names the path
+1	A24: an unedited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: an untracked file under engine/: and writes paused
+1	A24: an untracked file under engine/: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A24: an untracked file under engine/: nothing is installed into the cache, and nothing merges
+1	A24: an untracked file under engine/: the deploy-owed row names the path
+1	A24: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A24: with an untracked .gitignore under the home's engine/ that makes main's check accept a stray, the trampoline runs no felix land --tick
+1	A24: with an untracked file under the home's engine/, the trampoline runs no felix land --tick
+1	A25, A28: and the lock is released
+1	A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12
+1	A25: the tick's descendant holding it, gh, gets TERM
+1	A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout
+1	A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM
+1	A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM
+1	A26: an untracked file under engine/: (control) the tick after it lands the waiting pull request and installs nothing more
+1	A26: an untracked file under engine/: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row
+1	A26: an untracked file under engine/: and merges nothing in that tick
+1	A26: an untracked file under engine/: and writes paused
+1	A26: an untracked file under engine/: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A26: an untracked file under engine/: nothing is installed into the cache, and nothing merges
+1	A26: an untracked file under engine/: the deploy-owed row names the path
+1	A26: an untracked file under engine/: the deployed row removes land/verifying
+1	A26: an untracked file under engine/: the stopped deploy leaves land/verifying, written before A24's checks
+1	A26: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A26: skip-worktree on projects/lgh/gate.sh: (control) the tick after it lands the waiting pull request and installs nothing more
+1	A26: skip-worktree on projects/lgh/gate.sh: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row
+1	A26: skip-worktree on projects/lgh/gate.sh: and merges nothing in that tick
+1	A26: skip-worktree on projects/lgh/gate.sh: and writes paused
+1	A26: skip-worktree on projects/lgh/gate.sh: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A26: skip-worktree on projects/lgh/gate.sh: nothing is installed into the cache, and nothing merges
+1	A26: skip-worktree on projects/lgh/gate.sh: the deploy-owed row names the path
+1	A26: skip-worktree on projects/lgh/gate.sh: the deployed row removes land/verifying
+1	A26: skip-worktree on projects/lgh/gate.sh: the stopped deploy leaves land/verifying, written before A24's checks
+1	A26: skip-worktree on projects/lgh/gate.sh: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: and writes paused
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: nothing is installed into the cache, and nothing merges
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the deploy-owed row names the path
+1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A28: an untracked file under projects/lgh/ does not stop a deploy: one install, one deployed row, no deploy-owed row
+1	A28: and nothing is paused
+1	A28: the same untracked file under engine/: and writes paused
+1	A28: the same untracked file under engine/: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
+1	A28: the same untracked file under engine/: nothing is installed into the cache, and nothing merges
+1	A28: the same untracked file under engine/: the deploy-owed row names the path
+1	A28: the same untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A29: and pauses nothing
+1	A29: and the deploy pauses nothing
+1	A29: and writes no deploy-owed, deployed or deployed-unverified row
+1	A29: with git archive failing (exit 128) having written nothing, main's check exits 2, never 0
+1	A29: with git archive failing (exit 128) having written the first 1024 bytes of the archive, main's check exits 2, never 0
+1	A29: with git archive writing past the end-of-archive marker after its reader stops, main's check exits 0 for main's entry, on each of three runs
+1	A29: with the stub, a deploy's verify accepts the entry just installed: one deployed row, no deployed-unverified row
+1	A29: with the stub, a tick finds main's entry accepted and lands green 42
+1	A29: with the stub, an entry that differs from main still exits 1: a reader that stops early never turns a difference into a pass
+1	A2: a home ahead of origin/main also writes paused
+1	A2: a home ahead of origin/main installs nothing, deploys nothing and merges nothing
+1	A2: a home ahead of origin/main writes one deploy-owed row
+1	A2: a home behind origin/main, whose entry is already main's, owes a deploy: one install and one deployed row
+1	A2: a home diverged from origin/main also writes paused
+1	A2: a home diverged from origin/main installs nothing, deploys nothing and merges nothing
+1	A2: a home diverged from origin/main writes one deploy-owed row
+1	A2: the home is at origin/main after it
+1	A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged
+1	A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged
+1	A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged
+1	A3: a pull request touching no direction document lands (control for the cases below)
+1	A3: a pull request touching projects/lgh/claude.md is held with one founder row and not merged
+1	A3: a pull request whose file list cannot be read gets one skip row and is not merged
+1	A3: and the skip row says the files could not be read
+1	A4: a live lock older than 45 minutes gives one stuck row and one notification over two ticks, and its holder is not signalled
+1	A4: a tick finding a live lock younger than 45 minutes writes no stuck row
+1	A4: a tick whose process group gets TERM, as the watchdog sends it, writes one timeout row
+1	A4: and does not signal the lock's holder
+1	A4: and releases the lock
+1	A4: and sends one notification for it
+1	A4: every git fetch and git pull runs with GIT_TERMINAL_PROMPT=0, GIT_HTTP_LOW_SPEED_LIMIT=1000 and GIT_HTTP_LOW_SPEED_TIME=60
+1	A4: the watchdog sends TERM after 30 minutes
+1	A5: a lock whose pid is live and whose started is absent is not taken: the tick asks gh nothing
+1	A5: a lock whose pid is live and whose started is empty is not taken: the tick asks gh nothing
+2	A5: and its holder is not signalled
+2	A5: and that lock is left as it was
+1	A5: and the lock is released after the race
+1	A5: two ticks racing one dead lock leave exactly one taker, in each of five rounds
+1	A6: a refusal whose detail changed writes one new refused row and one new notification
+1	A6: and one notification each for the founder and the refused row
+1	A6: one refused row for a refused one
+1	A6: one session row for one no checkout holds
+1	A6: two identical ticks write one founder row for a held pull request
+1	A7: and writes no paused file
+1	A7: felix land --pause with two reasons prints usage and exits 2
+1	A8: with a local branch named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs
+1	A8: with a local branch named origin/main, nothing is paused
+1	A8: with a local branch named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
+1	A8: with a local branch named origin/main, the trampoline runs main's accepted entry, not the one the short name declares
+1	A8: with a local branch named origin/main, the trampoline writes no deploy-owed row
+1	A8: with a tag named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs
+1	A8: with a tag named origin/main, nothing is paused
+1	A8: with a tag named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
+1	A8: with a tag named origin/main, the trampoline runs main's accepted entry, not the one the short name declares
+1	A8: with a tag named origin/main, the trampoline writes no deploy-owed row
+1	A9: a plain ASCII docs/notes.md still merges
+1	A9: a pull request whose changed path holds U+017F (projectſ/lgh/CLAUDE.md) gets one founder row and is not merged
+1	A9: a pull request whose changed path holds a byte >= 0x80 (notes/café.md) gets one founder row and is not merged
+1	A9: a pull request whose changed path holds a byte >= 0x80 only in its old name, renamed away gets one founder row and is not merged
+1	A9: a pull request whose changed path holds a newline gets one founder row and is not merged
+1	A9: a pull request whose changed path holds a tab gets one founder row and is not merged
 1	B10: an own checkout with a current grant runs felix commission once, in the checkout root
 1	B10: and bg.log gains a ran line for the root
 1	B10: and bg.log gains its ran line (own-case)
@@ -289,6 +553,185 @@
 1	FELIX_RELEASE_TARGET decides the target when it is set
 1	Failed to connect is checked first, before Connected
 1	Felix's own gate refusal is recognised as its own
+1	G1: lib/green-tick.sh stays under 500 lines
+1	G1: the tick lives in lib/green-tick.sh, outside the lib/land*.sh glob
+1	G1: the trampoline changes into FELIX_HOME_DIR before it runs
+1	G2: a lock whose pid is alive but started at another time is dead, and taken
+1	G2: a lock whose pid is dead is taken: the tick goes on to ask gh
+1	G2: a paused tick exits 0
+1	G2: a paused tick leaves no lock behind
+1	G2: a paused tick, with no paused row yet, writes one paused row
+1	G2: a running tick holds lock/ with the pid of a live process and its started line
+1	G2: a second paused tick within the hour writes no row
+1	G2: a tick ended by TERM still releases its lock, through its trap
+1	G2: a tick that finds the lock held by a live tick exits 0
+1	G2: a tick whose gh auth status fails exits 0
+1	G2: and does not ask gh anything
+1	G2: and does nothing else: it asks gh nothing
+1	G2: and lists no pull request
+2	G2: and merges nothing
+2	G2: and released when the tick ends
+1	G2: and writes no row
+1	G2: and writes one gh row
+1	G2: once the newest paused row is older than an hour, a paused tick writes one more
+1	G2: the lock is released when the tick ends
+1	G3 (review 1): and the home's origin/main is origin's main after the tick
+1	G3 (review 1): no deployed row while the cache entry differs from origin/main's engine/harness
+1	G3 (review 1): the tick fetches before it reads origin/main's version: a main pushed from elsewhere is deployed
+1	G3, G7.2 (review 1): a deploy owed and stopped at a home off main merges nothing in that tick
+1	G3, G7.3 (review 1): an unpushed engine commit in the home is never installed as main's
+1	G3, G7.4 (review 1): a deploy whose gate check fails is not completed: deployed-unverified, and nothing merges in that tick
+1	G3, G7.4 (review 1): a deploy whose hook check fails is not completed: deployed-unverified, and nothing merges in that tick
+1	G3, G7: with main's version missing from the cache and a suite running, the tick exits 0
+1	G3: a cache entry that diff -rq finds different from origin/main's engine/harness owes a deploy, and nothing merges
+1	G3: the version read is origin/main's: a newer one there is deployed
+1	G3: while a deploy is owed, nothing is merged
+1	G4, G6: felix merge is tried in ascending order, 40 and 41 refused, 42 landed, and nothing after the first landing
+1	G4: a CONFLICTING pull request is skipped with one skip row
+1	G4: a cross-repository pull request is skipped with one skip row
+1	G4: a draft is skipped with one skip row
+1	G4: a pull request green only on an older head is skipped with one skip row
+1	G4: a pull request labelled felix:hold is skipped with one skip row
+1	G4: a pull request whose failing check changed gets one new skip row
+1	G4: a pull request whose gate run failed is skipped with one skip row
+1	G4: a pull request whose gate run has not completed is skipped with one skip row
+1	G4: a pull request whose gh run list fails is skipped with one skip row
+1	G4: a pull request whose newest run failed after an older one passed is skipped with one skip row
+1	G4: a pull request with no gate run on its head is skipped with one skip row
+1	G4: a second tick over the same waiting pull requests writes no new skip row
+1	G4: a tick over open pull requests exits 0
+1	G4: and the others none
+1	G4: and the skip row for a CONFLICTING pull request names the check
+1	G4: and the skip row for a cross-repository pull request names the check
+1	G4: and the skip row for a draft names the check
+1	G4: and the skip row for a pull request labelled felix:hold names the check
+1	G4: it lists them with one gh pr list call
+1	G4: rows are written in ascending pull request order
+1	G4: the gh pr list call carries --state open
+1	G4: the gh pr list call carries headRefName
+1	G4: the gh pr list call carries headRefOid
+1	G4: the gh pr list call carries isCrossRepository
+1	G4: the gh pr list call carries isDraft
+1	G4: the gh pr list call carries labels
+1	G4: the gh pr list call carries mergeable
+1	G4: the gh pr list call carries number
+1	G5 (review 1): a pull request that renames projects/*/CLAUDE.md away is held with a founder row and not merged
+1	G5, A3: the tick asked gh for the file list
+1	G5: a pull request touching another project's projects/*/CLAUDE.md is held with a founder row
+1	G5: a pull request touching docs/*roadmap* is held with a founder row
+1	G5: a pull request whose branch no worktree holds gets a session row reading no checkout holds the gated head
+1	G5: no worktree is checked out, reset, cleaned or written, and origin's refs did not move
+1	G5: so does one whose worktree is at the head but not on its branch
+1	G5: so does one whose worktree is on the branch at another head
+1	G6, G8: a refused row's detail is the first output line that begins with two spaces, its tab made a space
+1	G6: and 43, after the landing, is never tried
+1	G6: and only that line
+1	G6: each refusal writes a refused row
+1	G6: each runs in the matched worktree
+1	G6: each with no argument but merge
+1	G6: every felix merge run is the installed engine's, at main's version in the cache
+1	G6: exit 0 from felix merge writes one landed row
+1	G6: no worktree's engine/harness/felix ever runs
+1	G6: the tick writes no label, comment, review or merge through gh
+1	G6: with FELIX_ALLOW_RED, FELIX_KERNEL and FELIX_KERNEL_CACHE unset though the caller exported them
+1	G6: with no such line, the detail is the output's last line
+1	G7: a deployed-unverified for felix gate --quick also writes paused with the same reason
+1	G7: a deployed-unverified for the diff of the cache entry against the home also writes paused with the same reason
+1	G7: a deployed-unverified for the session-start hook also writes paused with the same reason
+1	G7: a dirty home also writes paused with the same reason
+1	G7: a home off main also writes paused with the same reason
+1	G7: a landing that changes no engine/ path deploys nothing
+1	G7: a landing whose changed paths include engine/ lands, then deploys
+1	G7: a running /gate.sh also leaves the deploy owed
+1	G7: a verified deploy writes no paused
+1	G7: an untracked file in the home is no tracked change: the owed deploy runs and writes deployed
+1	G7: and hands it the stub payload's cwd, the home
+1	G7: and hands it the stub payload's session_id, felix-land-verify
+1	G7: and hands it the stub payload's source, startup
+2	G7: and installs nothing
+1	G7: and nothing is installed
+1	G7: and the install that follows puts origin/main's engine in the cache under its version
+1	G7: install runs once, as the home's engine/harness/felix install --no-bump, from the home
+1	G7: installing once, the version the landing brought
+1	G7: it writes one deploy-owed row
+1	G7: naming the check, felix gate --quick
+1	G7: naming the check, the diff of the cache entry against the home
+1	G7: naming the check, the session-start hook
+1	G7: reading a gate or suite is running
+1	G7: the home is pulled to origin/main first
+1	G7: the running suite is looked for with pgrep -f
+1	G7: the verify runs felix gate --quick in the home
+1	G7: the verify runs the home's hooks/session-start
+1	G7: when felix gate --quick fails, the tick writes one deployed-unverified row and no deployed row
+1	G7: when the diff of the cache entry against the home fails, the tick writes one deployed-unverified row and no deployed row
+1	G7: when the session-start hook fails, the tick writes one deployed-unverified row and no deployed row
+1	G7: with a deploy owed and the home off main, the tick exits 0 with one deploy-owed row
+1	G7: with the home holding a tracked change, one deploy-owed row
+1	G8: a detail holding a newline and a tab is written as one row of seven fields
+1	G8: a failing osascript is ignored: the tick exits 0
+1	G8: a founder row is sent titled Felix: founder #34
+1	G8: a notification is one osascript -e display notification
+1	G8: a paused row is also sent as a notification titled Felix: paused
+1	G8: a refused row is sent titled Felix: refused #41
+1	G8: a row with no pull request has - for its number, head and worktree
+1	G8: and a UTC time
+1	G8: and the landed row stands
+1	G8: and the worktree path
+1	G8: and wall seconds as a number
+1	G8: every ledger line is one row of seven tab-separated fields
+1	G8: one notification per row
+1	G8: the deployed row is sent titled Felix: deployed
+1	G8: the deployed-unverified row for felix gate --quick is sent as a notification
+1	G8: the deployed-unverified row for the diff of the cache entry against the home is sent as a notification
+1	G8: the deployed-unverified row for the session-start hook is sent as a notification
+1	G8: the landed row carries the head SHA
+1	G8: the landed row is sent titled Felix: landed #42
+1	G8: the ledger row is written before its notification
+1	G9 (review 1): with git failing, the trampoline runs no felix land --tick but main's
+1	G9 (review 1): with main's entry missing, the trampoline runs no other version's felix land --tick
+1	G9: --install bootstraps it with launchctl bootstrap gui/<uid> <plist>
+1	G9: --install exits 0
+1	G9: --install writes ~/Library/LaunchAgents/felix.land.<p>.plist
+1	G9: --pause exits 0
+1	G9: --pause with a reason writes the reason into paused
+1	G9: --pause with no reason writes paused reading "paused by hand"
+1	G9: --resume exits 0
+1	G9: --resume removes paused
+1	G9: --status --tsv exits 0
+1	G9: --status --tsv prints a pull request's last ledger row as the ledger has it
+1	G9: --status --tsv says installed no before --install, as key<TAB>value
+1	G9: --status --tsv says installed yes and loaded yes once installed and loaded
+1	G9: --status --tsv says paused yes while paused exists
+1	G9: --status --tsv's second line is loaded<TAB>yes or no
+1	G9: --status bootstraps and boots out nothing
+1	G9: --status writes nothing: the land directory and LaunchAgents are as they were
+1	G9: --uninstall exits 0
+1	G9: --uninstall runs launchctl bootout gui/<uid>/felix.land.<p>
+1	G9: --uninstall with nothing installed is not an error
+1	G9: FELIX_HOME_DIR is the home
+1	G9: ProcessType is Interactive
+1	G9: RunAtLoad is true
+1	G9: and an executable trampoline at ~/Library/Application Support/felix/land/<p>/tick
+1	G9: and loaded no when launchctl does not have it
+1	G9: and not a pull request's earlier rows
+2	G9: and prints a usage that names --tick
+1	G9: and removes the plist and the trampoline
+1	G9: and the last row of every other pull request seen
+1	G9: felix land with an unknown argument exits 2
+1	G9: felix land with no argument exits 2
+1	G9: it resolves main's version when it runs, not when it was installed
+1	G9: it runs the trampoline
+1	G9: it sets no LowPriorityIO
+1	G9: it sets the explicit PATH
+1	G9: its EnvironmentVariables name FELIX_HOME_DIR as the home
+1	G9: its StartInterval is 300
+1	G9: its stderr goes to land/launchd.log
+1	G9: its stdout goes to land/launchd.log
+1	G9: plain --status prints installed, loaded and paused, each yes or no, first
+1	G9: the plist is one plutil reads
+1	G9: the plist's label is felix.land.<p>
+1	G9: the trampoline runs the installed engine's felix land --tick at main's version
+1	G9: two commands at once is another argument, and exits 2
 1	INT sent to a writing run's process group every 10 ms, from 16 delays across its life, cuts at least one run short
 1	Needs authentication is checked before Connected
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
@@ -8734,6 +9177,71 @@
 1	the kinds are engine constants, the design's six, with session and founder the narrowing two, or a kind could be added without an engine change
 1	the label is matched exactly, not as a prefix
 1	the label needs-founder says founder too
+1	the land fixture: C9's own function passes the gate of 21-24 and 40-42 and of none of 25-30 (fixture control)
+1	the land fixture: a branch's install at main's version number sits in the cache, and main's check rejects it (fixture control)
+1	the land fixture: a copy of the CLI sets _GT_WDSECS=2 on the line after it sources lib/green-tick.sh, and differs in nothing else (fixture control)
+1	the land fixture: a live tick held the lock while the second ran (fixture control)
+1	the land fixture: a tag and a branch named origin/refs/remotes/origin/main name the decoy, and refs/remotes/origin/main names main (fixture control)
+1	the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)
+1	the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)
+1	the land fixture: an untracked .gitignore in the home that ignores the stray makes main's check accept that entry (fixture control)
+1	the land fixture: an untracked file under engine/, cleared: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored, the home is at origin's main, and main's check accepts its entry (fixture control)
+1	the land fixture: b82's lock reason holds \001 and, read with NUL or \001 as a separator, a record for other on b81 (fixture control, \001)
+1	the land fixture: b82's lock reason holds newline and, read with NUL or newline as a separator, a record for other on b81 (fixture control, newline)
+1	the land fixture: both trampoline runs ran main's entry, whose land ran the tick from no project (fixture control)
+1	the land fixture: core.sh carries assume-unchanged and is as main has it (fixture control)
+1	the land fixture: core.sh carries skip-worktree and is as main has it (fixture control)
+1	the land fixture: core.sh is main's byte for byte again, and git status shows nothing (fixture control)
+1	the land fixture: each of 60-63 changes exactly its one path, as git diff -z names it (fixture control)
+1	the land fixture: every pull request's head is a commit (fixture control)
+1	the land fixture: git diff -z --no-renames names a rename's old path and its new one (fixture control)
+1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under assume-unchanged (fixture control)
+1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under skip-worktree (fixture control)
+1	the land fixture: git status --porcelain shows nothing in the home, an edited projects/lgh/ file under assume-unchanged (fixture control)
+1	the land fixture: in br, origin/refs/remotes/origin/main names the decoy, refs/remotes/origin/main names main, l4tree a tree (fixture control)
+1	the land fixture: main holds projects/lgh/gate.sh; the home's, edited, carries skip-worktree, and git status shows nothing (fixture control)
+1	the land fixture: main's check accepts origin/main's 9.0.3 entry, and the home's HEAD is behind origin/main (fixture control)
+1	the land fixture: main's felix stub carries the round 4 lines, the home is at origin's main, and main's check accepts its entry (fixture control)
+1	the land fixture: no worktree holds b31, b32 sits behind its head, b33 is detached at it (fixture control)
+1	the land fixture: origin's main is back at the base, declaring 9.0.0, and the home is on main at it (fixture control)
+1	the land fixture: origin's main moved and the home's origin/main did not (fixture control)
+1	the land fixture: origin/main declares no version, and main's entry is in place (fixture control)
+1	the land fixture: origin/main holds lib/resolve.sh, and its check accepts the 9.0.0 entry (fixture control)
+1	the land fixture: origin/main now declares 9.0.1 and the home's main does not (fixture control)
+1	the land fixture: origin/main, short, names the rogue commit; refs/remotes/origin/main does not (fixture control, a local branch named origin/main)
+1	the land fixture: origin/main, short, names the rogue commit; refs/remotes/origin/main does not (fixture control, a tag named origin/main)
+1	the land fixture: other, a clone of the home, is on b81 at 81's head, and no worktree of the home holds b81 (fixture control)
+1	the land fixture: skip-worktree on projects/lgh/gate.sh, cleared: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored, the home is at origin's main, and main's check accepts its entry (fixture control)
+1	the land fixture: the entry at main's version is the decoy commit's engine: main's check, asked about that commit, accepts it, and asked about main, rejects it (fixture control)
+1	the land fixture: the file is ignored, and only the untracked .gitignore beside it shows in git status (fixture control)
+1	the land fixture: the file is untracked in the home (fixture control)
+1	the land fixture: the file is untracked under projects/lgh/ (fixture control)
+1	the land fixture: the gh stub lists the pull requests and honours --jq (fixture control)
+1	the land fixture: the home is back at origin/main, and main's check accepts its entry (fixture control)
+1	the land fixture: the home is clean again: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored (fixture control)
+1	the land fixture: the home is on main at origin's main, main declares a version, and main's check accepts that entry with the real git (fixture control)
+1	the land fixture: the home is on main at origin's main, nothing under its engine/ is untracked or ignored, no index entry is flagged, and main's check accepts its entry (fixture control)
+1	the land fixture: the home is on main at origin's main, which declares a version whose entry main's check accepts (fixture control)
+1	the land fixture: the home's felix stub installs its engine into the cache under the home's version (fixture control)
+1	the land fixture: the home's felix, edited, logs to edited.log, and its index entry carries skip-worktree (fixture control)
+1	the land fixture: the list says b83's directory is on b83 at 83's head; the directory says x83, at the same commit (fixture control)
+1	the land fixture: the list says b84's directory is on b84 at 84's head, and so does the directory, whose git common dir is its own (fixture control)
+1	the land fixture: the stub is gone, and main's check accepts main's entry again (fixture control)
+1	the land fixture: the tick asked pgrep (fixture control)
+1	the land fixture: the tick ran git archive through the stub (fixture control)
+1	the land fixture: the tick was held in gh auth status, gh descends from the pid in lock/, and the sentinel is in the tick's process group (fixture control)
+1	the land fixture: the tick's fetch failed (fixture control)
+1	the land fixture: the worktree of 70 holds a tab in its path, that of 71 a newline, each on its branch at its pull request's head (fixture control)
+1	the land fixture: under core.autocrlf=true the home's core.sh holds CRs, git status shows nothing, and a filtered hash is main's blob while a byte-exact one is not (fixture control)
+1	the land fixture: with a stray file in main's entry, main's check rejects it with the real git (fixture control)
+1	the land fixture: with a stray in main's entry, main's check rejects it (fixture control)
+1	the land fixture: with main's entry there and git working, the trampoline runs main's felix land --tick (fixture control)
+1	the land fixture: with no ref named origin/main, a green pull request merges through main's entry (fixture control)
+1	the land fixture: with the real git, a tick lands green 42 and owes no deploy (fixture control)
+1	the land fixture: with the stub on PATH, main's check ran git archive through it (fixture control)
+1	the land fixture: with the stub, a reader that reads to the end gets main's engine whole, and the pipeline exits 0 (fixture control)
+1	the land fixture: with the stub, git archive -o FILE writes main's engine whole to FILE, its padding appended, and exits 0 (fixture control)
+1	the land fixture: with the stub, git archive | tar -x under pipefail fails on each of three runs, the defect A29 records (fixture control)
 1	the land-table fixture's seven rows are the design's, byte for byte, by their hash
 1	the last belonging row in the file decides, not the largest time
 1	the ledger is durable state in the project

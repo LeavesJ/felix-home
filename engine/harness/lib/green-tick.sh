@@ -100,8 +100,9 @@ _gt_age() {
 
 # 0 when the lock directory names a live tick; sets _GT_HPID to its pid.
 _gt_holder_live() {
-  local pid st
-  pid="$(LC_ALL=C sed -n 1p "$1/pid" 2>/dev/null)"; st="$(LC_ALL=C sed -n 1p "$1/started" 2>/dev/null)"; _GT_HPID=""
+  local pid="" st=""
+  [ -f "$1/pid" ] && pid="$(LC_ALL=C sed -n 1p "$1/pid" 2>/dev/null)"
+  [ -f "$1/started" ] && st="$(LC_ALL=C sed -n 1p "$1/started" 2>/dev/null)"; _GT_HPID=""
   case "$pid" in ""|*[!0123456789]*) return 1 ;; esac
   kill -0 "$pid" 2>/dev/null || return 1
   _GT_HPID="$pid"

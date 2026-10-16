@@ -223,8 +223,10 @@ L3PID="$(cat "$LAND/lock/pid" 2>/dev/null)"
 rm -rf "$L3/held-lock"; /bin/mv "$LAND/lock" "$L3/held-lock" 2>/dev/null
 mkdir -p "$LAND/lock"; printf '%s\n' "$L3DEAD" > "$LAND/lock/pid"; cat "$L3/held-lock/started" > "$LAND/lock/started" 2>/dev/null
 printf '%s\n' "$L3/held-lock" > "$LGK/mv-swap"; _lg_land --tick
-if [ -z "$L3PID" ] || ! kill -0 "$L3PID" 2>/dev/null; then
-  bad "the land fixture: a live tick held the lock while the second ran (fixture control)" "holder [$L3PID]"
+if [ -n "$L3PID" ] && kill -0 "$L3PID" 2>/dev/null; then L3LIVE=1; else L3LIVE=0; fi
+is "the land fixture: a live tick held the lock while the second ran (fixture control)" "$L3LIVE holder [$L3PID]" "1 holder [$L3PID]"
+if [ "$L3LIVE" != 1 ]; then
+  :
 elif [ ! -d "$LGK/mv-swapped" ]; then
   skip "A15: a takeover that finds another pid in the lock it moved aside does not take it" "the takeover did not rename the lock through PATH's mv"
 else

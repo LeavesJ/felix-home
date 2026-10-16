@@ -73,9 +73,9 @@ is "G7: install runs once, as the home's engine/harness/felix install --no-bump,
    "$(_lg_ninst)|$(_lg_inst | cut -f1-3 | tr '\t' '|')" "1|$LGH/engine/harness/felix|$LGH|install --no-bump"
 _lgo="$(_lg_logs hook | head -1)"
 is "G7: the verify runs the home's hooks/session-start" "$(printf '%s' "$_lgo" | cut -f1)" "$LGH/engine/harness/hooks"
-for _lgk in '"session_id":"felix-land-verify"' '"source":"startup"' "\"cwd\":\"$LGH\""; do
-  has "G7: and hands it the stub payload's $_lgk" "$_lgo" "$_lgk"
-done
+has "G7: and hands it the stub payload's session_id, felix-land-verify" "$_lgo" '"session_id":"felix-land-verify"'
+has "G7: and hands it the stub payload's source, startup" "$_lgo" '"source":"startup"'
+has "G7: and hands it the stub payload's cwd, the home" "$_lgo" "\"cwd\":\"$LGH\""
 is "G7: the verify runs felix gate --quick in the home" \
    "$(_lg_logs felix | LC_ALL=C awk -F'\t' -v h="$LGH" '$3 == "gate --quick" && $2 == h' | wc -l | tr -d ' ')" "1"
 _lg_osa 'with title "Felix: deployed' "G8: the deployed row is sent titled Felix: deployed"

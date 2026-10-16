@@ -22,6 +22,65 @@ _gt_noproj() {
   _gt_say unresolved - "$m"
 }
 
+# A24. Before the deploy runs anything from the home, its engine/ and its
+# projects/<p>/ are main, byte for byte: every tracked path hashes (git
+# hash-object over the working-tree file, never through git status, which an
+# assume-unchanged or skip-worktree flag blinds) to the blob refs/remotes/origin/main
+# holds, no index entry carries either flag, and no untracked or ignored file
+# exists under engine/ (--others with no exclude rules). One batch of hashes
+# against one ls-tree keeps it fast. Prints the first path that is not, and why.
+_gt_home_exact() {   # -> 0 when the home is main's; else 1, with the path and why on stdout
+  local home="$FELIX_HOME_DIR" pj="projects/$(basename "$PROJ")" t n x
+  t="$(mktemp -d "${TMPDIR:-/tmp}/felix-land-home.XXXXXX" 2>/dev/null)" || { printf 'no temporary directory to compare the home in'; return 1; }
+  git -C "$home" ls-tree -r "$_GT_MAIN" -- engine "$pj" 2>/dev/null \
+    | LC_ALL=C awk -F'\t' -v w="$t/want" -v p="$t/paths" '$1 ~ /^[0-7]+ blob / { split($1, a, " "); print a[3] > w; print $2 > p }'
+  [ -s "$t/paths" ] || { rm -rf "$t"; printf "git could not list origin/main's engine/ and %s/" "$pj"; return 1; }
+  git -C "$home" hash-object --stdin-paths < "$t/paths" > "$t/got" 2>/dev/null
+  if ! cmp -s "$t/want" "$t/got"; then
+    n="$(LC_ALL=C awk 'NR == FNR { w[FNR] = $0; next } { g = FNR; if ($0 != w[FNR] && !f) f = FNR } END { print f ? f : g + 1 }' "$t/want" "$t/got")"
+    x="$(sed -n "${n}p" "$t/paths")"; rm -rf "$t"
+    printf '%s does not hash to the blob origin/main holds, or cannot be read' "$x"; return 1
+  fi
+  rm -rf "$t"
+  x="$(git -C "$home" ls-files -v -- engine "$pj" 2>/dev/null | LC_ALL=C awk '/^[a-zS] / { print substr($0, 3); exit }')"
+  [ -z "$x" ] || { printf '%s carries assume-unchanged or skip-worktree in the index' "$x"; return 1; }
+  x="$(git -C "$home" ls-files --others -- engine 2>/dev/null | sed -n 1p)"
+  [ -z "$x" ] || { printf '%s is untracked or ignored under engine/' "$x"; return 1; }
+  return 0
+}
+
+# The checkout helpers (A23), kept here so that green-tick.sh stays under 500 lines.
+# Reads the list on stdin and prints the first record on BRANCH at SHA. A function
+# of its own: bash 3.2 cannot parse a case pattern's ) inside $( ).
+_gt_wt_scan() {   # BRANCH SHA
+  local f p="" h="" b=""
+  while IFS= read -r -d '' f; do
+    if [ -z "$f" ]; then
+      [ -z "$p" ] || [ "$b" != "refs/heads/$1" ] || [ "$h" != "$2" ] || { printf '%s' "$p"; return 0; }
+      p=""; h=""; b=""; continue
+    fi
+    case "$f" in
+      "worktree "*) p="${f#worktree }" ;;
+      "HEAD "*)     h="${f#HEAD }" ;;
+      "branch "*)   b="${f#branch }" ;;
+    esac
+  done
+  return 0
+}
+
+# The directory's own answers: on the branch, at the head, and a git common dir
+# that is the home's own .git (a clone, or a directory swapped for another's).
+_gt_common() {   # DIR -> its git common dir, resolved
+  local c; c="$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)" && [ -n "$c" ] || return 1
+  ( cd "$1" 2>/dev/null && cd "$c" 2>/dev/null && pwd -P )
+}
+_gt_wt_asks() {   # DIR BRANCH SHA
+  local hc dc
+  [ "$(git -C "$1" symbolic-ref HEAD 2>/dev/null)" = "refs/heads/$2" ] || return 1
+  [ "$(git -C "$1" rev-parse HEAD 2>/dev/null)" = "$3" ] || return 1
+  dc="$(_gt_common "$1")" && hc="$(_gt_common "$FELIX_HOME_DIR")" && [ -n "$dc" ] && [ "$dc" = "$hc" ]
+}
+
 _gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 
@@ -49,6 +108,9 @@ owed() {   # DETAIL: say why nothing runs, once, and stop
   echo "felix land: $1" >&2; exit 1
 }
 cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME_DIR ($FELIX_HOME_DIR), so no engine is run"
+# A24: an untracked .gitignore under engine/ would widen what the check below calls residue.
+un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list the home's untracked files under engine/, so no engine is run"
+[ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | sed -n 1p)): nothing runs until it is removed"
 pj="$(git show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null)" \
   || owed "git could not read origin/main's engine version, so no engine is run"
 ver="$(printf '%s\n' "$pj" | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"

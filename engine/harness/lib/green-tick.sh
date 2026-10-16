@@ -158,20 +158,22 @@ _gt_timeout() {
   exit 143
 }
 
-# A4. After 30 minutes the watchdog sends TERM to the tick's own process group
-# when the tick leads it, which is how launchd runs it. Run by hand from a shell
-# the tick shares that shell's group, which is never signalled: the tick and its
-# own descendants, by pid, are.
-_gt_descendants() {   # PID -> its descendants' pids, one per line
-  LC_ALL=C ps -axo pid=,ppid= 2>/dev/null | LC_ALL=C awk -v root="$1" '{ k[NR] = $1; par[$1] = $2 }
-    END { want[root] = 1; do { c = 0; for (i = 1; i <= NR; i++) if (!(k[i] in want) && (par[k[i]] in want)) { want[k[i]] = 1; c = 1 } } while (c)
-          for (i = 1; i <= NR; i++) if (k[i] != root && (k[i] in want)) print k[i] }'
+# A4, A25. After 30 minutes the watchdog sends TERM to the tick's pid first, and
+# only then to the tick's descendants, listed before the tick can end and orphan
+# them. It never signals its own pid or its own process group: the group is the
+# shell's when the tick is run by hand, and holds the watchdog itself.
+_gt_descendants() {   # PID [SKIP] -> PID's descendants' pids, one per line, minus SKIP and its own
+  LC_ALL=C ps -axo pid=,ppid= 2>/dev/null | LC_ALL=C awk -v root="$1" -v skip="${2:-x}" '{ k[NR] = $1; par[$1] = $2 }
+    END { want[root] = 1; sk[skip] = 1
+          do { c = 0; for (i = 1; i <= NR; i++) {
+                 if (!(k[i] in want) && (par[k[i]] in want)) { want[k[i]] = 1; c = 1 }
+                 if (!(k[i] in sk) && (par[k[i]] in sk)) { sk[k[i]] = 1; c = 1 } } } while (c)
+          for (i = 1; i <= NR; i++) if (k[i] != root && (k[i] in want) && !(k[i] in sk)) print k[i] }'
 }
 
 _GT_WDSECS=1800
 _gt_watchdog() {
-  local tick=$$ lead=0 st; st="$(_gt_started "$tick")"
-  [ "$(LC_ALL=C ps -o pgid= -p "$tick" 2>/dev/null | tr -d ' ')" = "$tick" ] && lead=1
+  local tick=$$ st; st="$(_gt_started "$tick")"
   (
     trap - EXIT; exec >/dev/null 2>&1 </dev/null
     me="$(sh -c 'echo $PPID')"
@@ -180,11 +182,9 @@ _gt_watchdog() {
     wait "$sp" 2>/dev/null
     # A15: the pid may name another process by now; only the tick it was set on is signalled.
     [ -n "$st" ] && [ "$(_gt_started "$tick")" = "$st" ] || exit 0
-    if [ "$lead" = 1 ]; then kill -TERM -- "-$tick"
-    else
-      kill -TERM $(_gt_descendants "$tick" | LC_ALL=C awk -v me="$me" '$1 != me') 2>/dev/null
-      kill -TERM "$tick" 2>/dev/null
-    fi
+    kids="$(_gt_descendants "$tick" "$me")"
+    kill -TERM "$tick" 2>/dev/null
+    [ -z "$kids" ] || kill -TERM $kids 2>/dev/null
   ) &
   _GT_WD=$!
 }
@@ -250,6 +250,9 @@ _gt_deploy() {
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
+  # A24: nothing of the home's runs until its engine/ and project are main's, byte for byte.
+  why="$(_gt_home_exact)" || {
+    why="the home checkout is not main byte for byte: $why"; _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1; }
   : > "$_GT_LAND/verifying"   # A20: removed only by the deployed row below
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
@@ -307,14 +310,16 @@ EOF
 # The checkout a session would have merged from: a worktree of the home whose
 # branch is the pull request's and whose HEAD is the head the gate ran on. The
 # tick never checks one out, fetches into it, resets, cleans or writes to it.
-# -z keeps a path whole; a path holding a tab, CR or newline is answered as ! and never used (A18).
+# A23. The list is read with -z one NUL-ended field at a time and a record ends at
+# its empty field, so no byte inside a field (a lock reason holds newlines and
+# anything else) is ever a separator. The chosen directory is then asked itself.
+# It prints the path; ! when the path holds a tab, CR or newline (A18) and ? when
+# the directory does not report the branch, the head and the home's own .git.
 _gt_checkout() {   # BRANCH SHA -> the worktree's path
-  git -C "$FELIX_HOME_DIR" worktree list --porcelain -z 2>/dev/null | LC_ALL=C tr '\0' '\001' | LC_ALL=C awk -v RS='\001' -v br="refs/heads/$1" -v sha="$2" '
-    function flush() { if (p != "" && b == br && h == sha) { print (p ~ /[\t\r\n]/ ? "!" : p); found = 1; exit } }
-    /^worktree / { flush(); p = substr($0, 10); h = ""; b = ""; next }
-    /^HEAD /     { h = $2; next }
-    /^branch /   { b = $2; next }
-    END { if (!found) flush() }' | sed -n 1p
+  local w; w="$(git -C "$FELIX_HOME_DIR" worktree list --porcelain -z 2>/dev/null | _gt_wt_scan "$1" "$2")"
+  [ -n "$w" ] || return 0
+  case "$w" in *[$'\t\r\n']*) printf '!'; return 0 ;; esac
+  _gt_wt_asks "$w" "$1" "$2" && printf '%s' "$w" || printf '?'
 }
 
 # G6. The installed engine's felix, from the worktree, with no argument, and
@@ -365,6 +370,7 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it
   wt="$(_gt_checkout "$br" "$sha")"
   [ -n "$wt" ] || { _gt_row_once session "$n" "$sha" - 0 "no checkout holds the gated head"; return 1; }
   [ "$wt" != "!" ] || { _gt_row_once session "$n" "$sha" - 0 "the checkout holding the gated head has a tab or newline in its path: it is never used"; return 1; }
+  [ "$wt" != "?" ] || { _gt_row_once session "$n" "$sha" - 0 "the directory the worktree list names does not report the gated branch, the gated head and the home's own .git: it is never used"; return 1; }
   case "$(_gt_last "$n")" in "refused"$'\t'"$sha"$'\t'*"[main $_GT_MS]") return 1 ;; esac
   t0=$SECONDS
   out="$(_gt_merge "$wt" "$_GT_VER")"; rc=$?

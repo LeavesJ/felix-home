@@ -387,6 +387,23 @@ cases are recorded and are not chased further.
   pid first, and only then to the tick's descendants. It never signals its own
   pid or its own process group.
 
+## Amended after the fifth review, 2026-10-15
+
+- **A26 (the owed marker comes first).** The deploy writes `land/verifying`
+  before its `git pull` and before A24's checks, not just before the install.
+  A deploy that A24 stops is still owed after `--resume`, so the next tick
+  re-runs the whole deploy before anything merges. The marker is removed only
+  when `deployed` is written.
+- **A27 (byte-exact hashing).** A24's hash is `git hash-object --no-filters
+  --stdin-paths`, so `core.autocrlf` and attributes cannot make different bytes
+  hash to main's blob.
+- **A28 (scope and seams).**
+    - A24's third check (no untracked or ignored file) covers `engine/` only.
+      Its first two cover `engine/` and `projects/<p>/`.
+    - `_GT_WDSECS`, the watchdog's bound in seconds, defaults to 1800. A test
+      may set it after sourcing the library, and nothing else sets it.
+    - Every `sed`, `sort`, `cut` and `awk` in the job runs under `LC_ALL=C`.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

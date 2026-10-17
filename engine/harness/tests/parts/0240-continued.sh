@@ -385,12 +385,10 @@ out="$(_route "add a migration for the endpoint schema")"
 has "a wall of tree tokens cannot outvote the prompt" "$out" "backend"
 rm -rf "$REPO/noise"
 
-RHK="$FROOT/harness/hooks/user-prompt"
+_user_prompt_hook_vars
 S1='{"session_id":"sess-aaa","prompt":"let us build the results page"}'
 S2='{"session_id":"sess-aaa","prompt":"let us build the results page again"}'
 S3='{"session_id":"sess-aaa","prompt":"add a migration for the endpoint schema"}'
-_hook() { ( cd "$REPO" && printf '%s' "$1" | "$RHK" 2>&1 ); }
-_ctx() { printf '%s' "$1" | python3 -c 'import json,sys;print(json.load(sys.stdin)["hookSpecificOutput"]["additionalContext"])' 2>/dev/null; }
 
 rm -rf "$FROOT/state/route"
 out="$(_hook "$S1")"; ctx="$(_ctx "$out")"

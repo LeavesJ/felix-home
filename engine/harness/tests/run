@@ -248,6 +248,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/0004-the-widget-fixture.sh"
 
 . "$HERE/parts/0005-fixture-floor.sh"
+. "$HERE/parts/0006-the-lib-judges.sh"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"

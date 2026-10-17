@@ -14,10 +14,13 @@ is  "every file in parts is sourced by the driver once and in name order, and th
     "$(sed -n 's|^\. "\$HERE/parts/\(.*\)"$|\1|p' "$HERE/run")" "$(cd "$_pt" && LC_ALL=C ls | LC_ALL=C sort)"
 is  "and every part is NNNN-name.sh, four digits, so the order is the same under any locale" \
     "$(cd "$_pt" && LC_ALL=C ls | grep -vc '^[0-9][0-9][0-9][0-9]-[a-z0-9-]*[.]sh$')" "0"
-_pt_max="$(awk 'FNR == 1 && NR > 1 { if (n > m) m = n; n = 0 } { n++ } END { if (n > m) m = n; print m + 0 }' "$_pt"/*.sh)"
+# Every part and every lib file (tests/lib, contract C2), not the driver, which has its own limit below.
+_pt_files=(); while IFS= read -r _ptf; do case "$_ptf" in */run) ;; *) _pt_files[${#_pt_files[@]}]="$_ptf" ;; esac; done < <(_suite_files)
+_pt_mx="$(awk 'FNR == 1 && NR > 1 { if (n > m) { m = n; mf = pf } n = 0 } FNR == 1 { pf = FILENAME } { n++ } END { if (n > m) { m = n; mf = pf } print m + 0 " " mf }' "${_pt_files[@]}")"
+_pt_max="${_pt_mx%% *}"
 [ "$_pt_max" -le 1000 ] && ok  "no part is longer than 1,000 lines, and the driver is under 500" \
-  || bad "no part is longer than 1,000 lines, and the driver is under 500" "the longest part has $_pt_max lines"
+  || bad "no part is longer than 1,000 lines, and the driver is under 500" "the longest part has $_pt_max lines: ${_pt_mx#* }"
 [ "$(awk 'END { print NR }' "$HERE/run")" -le 500 ] && ok  "and the driver itself is under 500 lines" \
   || bad "and the driver itself is under 500 lines" "it has $(awk 'END { print NR }' "$HERE/run")"
-_pt_syn=""; for _ptf in "$_pt"/*.sh; do _pt_syn="$_pt_syn$(bash -n "$_ptf" 2>&1)"; done
+_pt_syn=""; for _ptf in "${_pt_files[@]}"; do _pt_syn="$_pt_syn$(bash -n "$_ptf" 2>&1)"; done
 is  "every part parses on its own, with nothing said on stderr, so no cut sits inside a construct" "$_pt_syn" ""

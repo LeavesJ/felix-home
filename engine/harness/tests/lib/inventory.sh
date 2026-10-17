@@ -20,7 +20,11 @@ _ivg() { HOME="$IVH" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
          GIT_COMMITTER_NAME=Fixture GIT_COMMITTER_EMAIL=fixture@example.invalid git "$@"; }
 _ivq() { _ivg --no-optional-locks "$@"; }
 _ivi() { GIT_INDEX_FILE="$IV/idx" HOME="$IVH" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 git "$@"; }
+# _inventory_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_inventory_vars() {
 IVC=""
+}
 _ivc() {  # repo parent message path content [path content]... -> IVC
   local r="$1" par="$2" msg="$3" blob tree; shift 3
   _ivi -C "$r" read-tree "$par"

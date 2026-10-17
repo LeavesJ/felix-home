@@ -55,7 +55,12 @@ _fc() {
 # ---- building transcripts -------------------------------------------------
 # One response record in the contract's shape: compact, keys in that order, the
 # timestamp following the uuid. _fc_rec ID TS MODEL USAGE-JSON
+# _felix_cost_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_felix_cost_vars() {
 FC_CONTENT='[{"type":"text","text":"hi"}]'
+FCUSAGE_OK="rc=2 stdout=empty message=yes usage=yes"
+}
 _fc_rec() {   # ID TS MODEL USAGE-JSON [CONTENT-JSON]
   local c="${5:-$FC_CONTENT}"
   FCSEQ=$((FCSEQ+1))
@@ -134,7 +139,6 @@ _fc_usage_verdict() {
   v="$v $(awk '/^felix cost: / { m = 1 } /^usage: felix cost/ { u = 1 } END { printf "message=%s usage=%s", m ? "yes" : "no", u ? "yes" : "no" }' "$FCERRF")"
   printf '%s' "$v"
 }
-FCUSAGE_OK="rc=2 stdout=empty message=yes usage=yes"
 
 # is / has, skipped where nothing can be denied.
 _fcd()  { if [ "$FCCANDENY" = 1 ]; then is  "$1" "$2" "$3"; else skip "$1" "a missing read permission does not stop this user"; fi; }

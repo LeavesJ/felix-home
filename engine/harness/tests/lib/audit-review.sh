@@ -15,6 +15,9 @@ _rv_one() {  # dir session command [ok|true]: an edit, one Bash call, its result
 _rv_says() { printf '%s\n' "$1" | awk -v re="$2" '{ s = s " " tolower($0) } END { exit (s ~ re) ? 0 : 1 }'; }
 # one(file, id, command) writes a session of an edit, that Bash command, its
 # passing result and a stop; rep(s, n) is s n times, in log n concatenations.
+# _audit_review_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_audit_review_vars() {
 _rv_bigawk='
   function A(id, content, sr) {
     return "{\"parentUuid\":\"p\",\"isSidechain\":false,\"message\":{\"model\":\"m\",\"id\":\"" id "\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[" content "],\"stop_reason\":\"" sr "\"},\"type\":\"assistant\",\"uuid\":\"u-" id "\",\"timestamp\":\"2026-04-03T10:00:00.000Z\"}" }
@@ -25,6 +28,7 @@ _rv_bigawk='
     print A("msg_" id "s", "{\"type\":\"text\",\"text\":\"Done.\"}", "end_turn") > f
     close(f) }
   function rep(s, n,    r) { r = ""; while (n > 0) { if (n % 2) r = r s; s = s s; n = int(n / 2) } return r }'
+}
 
 # _rv_build: RV, the root of the review fixtures under AU, and the timestamp they share.
 # Needs _au_build first. Makes nothing.

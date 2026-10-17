@@ -241,6 +241,13 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
 . "$HERE/lib/widget-repo.sh"
+# The variables the lib files' functions read, set here, once, by the _vars
+# function of each file that has them: a lib file sets none as it is sourced (C2).
+# A copy of the driver (_suite_copy_driver) drops the lib lines and has no lib.
+if [ -d "$HERE/lib" ]; then
+  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
+  _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
+fi
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"

@@ -45,8 +45,12 @@ _qualify_u8_probe() {
 #            calls the file binary and awk still ends the line
 # demo's checker marks $_qzmark each time it runs, so a run of no control is
 # measured, not inferred from what was printed.
+# _qualify_needs_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_qualify_needs_vars() {
 _qzwhere="start row field alone comment far"
 _qzmark="$TMP/qual-nul-ran"
+}
 _qznul() {
   local k='! grep -rqI FORBIDDEN . 2>/dev/null' pre="" post=""
   printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "printf x >> '$_qzmark'; $k"

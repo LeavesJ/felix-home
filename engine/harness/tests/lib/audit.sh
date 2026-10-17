@@ -12,7 +12,12 @@
 # Transcripts in the shape Claude Code writes them: one compact JSON object per
 # line, the assistant's own "type":"message" nested before the record's
 # "type":"assistant", one line per content block, stop_reason repeated on each.
+# _audit_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_audit_vars() {
 _AU_F=""; _AU_SID=""
+_AU_B=""
+}
 _au_open() { _AU_F="$1"; _AU_SID="$2"; mkdir -p "${1%/*}"; : > "$1"; }
 _au_raw()  { printf '%s\n' "$1" >> "$_AU_F"; }
 _au_a() {    # ts msgid stop_reason block [isSidechain]
@@ -30,7 +35,6 @@ _au_hold() {  # ts text [isSidechain]
 # Blocks are built with printf -v, never "$(...)": bash 3.2 brace-expands a
 # quoted {"a":1,"b":2} inside a double-quoted command substitution, which cut
 # every Bash call in the first version of this fixture in two.
-_AU_B=""
 _au_tool() { printf -v _AU_B '{"type":"tool_use","id":"%s","name":"%s","input":%s}' "$1" "$2" "$3"; }
 _au_text() { printf -v _AU_B '{"type":"text","text":"%s"}' "$1"; }
 _au_edit() { _au_tool "$3" "${4:-Edit}" '{"file_path":"/w/src/app.js","old_string":"a","new_string":"b"}'

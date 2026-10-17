@@ -16,7 +16,12 @@ _ibg() { HOME="$IB/fxhome" XDG_CONFIG_HOME="$IB/fxhome/.config" GIT_CONFIG_NOSYS
 _ibq() { _ibg --no-optional-locks "$@"; }
 _ibi() { GIT_INDEX_FILE="$IB/fx.idx" HOME="$IB/fxhome" XDG_CONFIG_HOME="$IB/fxhome/.config" GIT_CONFIG_NOSYSTEM=1 "$IB_GIT" "$@"; }
 _ibago() { printf '%s' $(( $(date +%s) - $1 * 60 )); }
+# _inventory_blind_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_inventory_blind_vars() {
 IBC=""
+IB_F=""; IB_SID=""; IB_BR=""; IB_TSF=""
+}
 _ibmk() {  # MIN|- repo parent|- message [path content|-]...  -> IBC, a commit no checkout holds
   local d="$1" r="$2" par="$3" msg="$4" blob tree; shift 4
   rm -f "$IB/fx.idx"
@@ -50,7 +55,6 @@ _ibage() { local e; e="$(_ibago "$2")"
 # A session file: _ibsess DIR SID files it where Claude Code files DIR's
 # sessions; _ibopen FILE SID opens any path. IB_BR, when set, is the
 # gitBranch every record carries; IB_SID is the sessionId.
-IB_F=""; IB_SID=""; IB_BR=""; IB_TSF=""
 _ibopen() { IB_F="$1"; IB_SID="$2"; mkdir -p "${1%/*}"; : > "$1"; }
 _ibsess() { _ibopen "$IBP/$(_ibenc "$1")/$2.jsonl" "$2"; }
 _ib_tsf() { if [ "$1" = none ]; then IB_TSF=""; else IB_TSF=",\"timestamp\":\"$(_ibts "$1")\""; fi; }

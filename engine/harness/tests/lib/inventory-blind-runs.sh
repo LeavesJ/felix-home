@@ -8,7 +8,11 @@
 # _ibsaid (325-326). _ib_n16 repeats, in 0920's order, the commands of the runs 0930's N16
 # reads, with what they need, so 0930 can stand alone. Needs inventory-blind.sh. Definitions only.
 
+# _inventory_blind_runs_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_inventory_blind_runs_vars() {
 IB_LABELS='hazard:shared-branch|hazard:staged-revert|live|question|blocked|uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded|orphan|chip-unstarted|handoff-pending|undecided, content not landed|in temporary directories'
+}
 # h's records, written just before its runs. Ages are minutes.
 _ibh_ask() {  # worktree sid final-text: a session two minutes of talk, ending on that text
   _ibsess "$IB/hw/$1" "$2"; _ib_h 32 'report back'; _ib_a 30 "$3"; }

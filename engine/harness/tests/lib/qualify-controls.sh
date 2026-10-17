@@ -10,8 +10,12 @@
 
 # The checker every demo row of these parts uses, and the widget project's
 # qualification table.
+# _qualify_controls_vars: the variables this file's functions read, set when the prelude calls it
+# (contract C2: a lib file defines functions and nothing else).
+_qualify_controls_vars() {
 _qcheck='! grep -rqI FORBIDDEN . 2>/dev/null'
 _qlw="$FROOT/projects/widget/qualification.tsv"
+}
 
 # _qualify_gshim_build: git is wrapped so that the Kth worktree add kills a
 # process of the felix CLI above it and then fails (see 0500 for the use).

@@ -692,7 +692,13 @@ _gci_refuses_c() {   # <assertion name> <case>: _gci_refuses on the copy's plant
   if [ "$v" = "1|1 line(s)|names the file" ]; then ok "$1"
   else bad "$1" "status|lines|naming: [$v], wanted [1|1 line(s)|names the file]; it said [$(head -3 "$GCI/lrn.out.$f" | LC_ALL=C tr '\n' ' ')]"; fi
 }
-_gci_refuses_c "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that defines bad inside a brace group" e03-brace-bad
+# Amended after the third round's build and review (2026-10-16): on bash 3.2 a
+# brace group that holds only a definition fires no DEBUG trap, so it runs
+# nothing and meets C2's rule; the one harm in it, taking the name bad, is the
+# _lib_clashes assertion below.
+_gci_n="_lib_runs_nothing returns 0 for a lib file that defines bad inside a brace group, which runs no command (the name is _lib_clashes' to refuse)"
+if ! declare -F _lib_runs_nothing >/dev/null; then bad "$_gci_n" "_lib_runs_nothing: $GCI_NO"
+else _gci_judge "$GCI_T/lib/zz-gci-x-e03-brace-bad.sh" "$GCI/lrn.out.e03-pass"; is "$_gci_n" "$_gci_rc" "0"; fi
 _gci_named "_lib_clashes, pointed at a copy of the tree, prints bad, the lib file and defined before the lib block, for a lib file that defines bad inside a brace group" \
     bad e03-brace-bad "$GCI_BEFORE"
 _gci_named "_lib_clashes, pointed at a copy of the tree, prints [, the lib file and a builtin, for a lib file that defines a function named [" \
@@ -720,6 +726,18 @@ _gci_both() {   # <assertion name> <case>: _lib_runs_nothing returns 0 for the c
 }
 _gci_both "_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file of function definitions only, with comments and blank lines" p4-defs
 _gci_both "_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file whose one function's body sets variables, calls commands and writes files" p5-body
+# Conditions 2 to 5, each alone: every case above that is refused runs a
+# command, so without these a judge that dropped its check of printed output,
+# of the scratch directory, of the variable set or its time limit would pass.
+# From the third review's probes (2026-10-16).
+_gci_put gci-lrn-c2-parse.sh 'zgci_c2() { :; '
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that does not parse, so sourcing it only prints an error" gci-lrn-c2-parse.sh
+_gci_put gci-lrn-c3-redir.sh '{ zgci_c3() { :; }; } > zz-gci-c3-out'
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file whose brace group of definitions writes a file through a redirect" gci-lrn-c3-redir.sh
+_gci_put gci-lrn-c4-var.sh '{ zgci_c4() { :; }; } > "${ZGCI_C4:=/dev/null}"'
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file whose brace group of definitions sets a variable in its redirect" gci-lrn-c4-var.sh
+_gci_put gci-lrn-c5-spin.sh 'while { zgci_c5() { :; }; }; do zgci_c5b() { :; }; done'
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that loops without running a command, ended by the time limit (1 s here)" gci-lrn-c5-spin.sh _lrn_limit=1
 
 # ---- (h): the driver writes lib-before.names at the start of its lib block
 _gci_o="$(LC_ALL=C awk '

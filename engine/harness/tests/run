@@ -252,6 +252,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/lib/cm-stub.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/recon.sh"
+. "$HERE/lib/unborn-repo.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
 . "$HERE/lib/widget-repo.sh"

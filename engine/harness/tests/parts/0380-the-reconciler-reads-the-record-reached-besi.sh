@@ -130,16 +130,7 @@ has "no stack.tsv means nothing is declared, not nothing to say" "$r" "mount	con
 # The CLI surface, driven end to end against a governed fixture. The command
 # must render the proposals, act on none of them, and exit 0 — drift reported
 # is not a failure.
-mkdir -p "$FROOT/projects/reconproj" "$MEM/reconproj"
-cat > "$FROOT/projects/reconproj/project.json" <<'EOF'
-{"name": "reconproj", "remote_match": "example.com/reconproj", "gate": "true"}
-EOF
-printf '# reconproj\n' > "$FROOT/projects/reconproj/CLAUDE.md"
-cp "$MEM/reconlib/ledger.tsv" "$MEM/reconproj/ledger.tsv"
-cp "$RCL/stack.tsv" "$FROOT/projects/reconproj/stack.tsv"
-RREPO="$TMP/recon-repo"; mkdir -p "$RREPO"
-( _fx_cd "$RREPO" && git init -q -b main )
-printf 'reconproj\n' > "$RREPO/.felix"
+_recon_build
 _stack_before="$(cat "$FROOT/projects/reconproj/stack.tsv")"
 out="$(cd "$RREPO" && FELIX_LEDGER_MIN=3 "$FELIX" stack reconcile 2>&1)"; rc=$?
 is  "felix stack reconcile exits 0"                    "$rc" "0"

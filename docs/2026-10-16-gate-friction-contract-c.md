@@ -138,3 +138,16 @@ against main names nothing as red, because no engine code changes.
   (`audits/2026-10-16-gate-friction-c/c3-demo.sh`), not a suite part. A lint
   that reads the suite through `_suite_files`, `_suite_src` or `_suite_flat`
   stays covered after that, because 1290 checks those three.
+- **A lib file defines functions and nothing else.** This tightens C2's
+  "defines things and runs nothing" after two reviews of the judge. Sourced, a
+  `tests/lib` file runs no command and sets no variable, not even a plain
+  assignment. A builder, or a `_<name>_vars` function, sets variables when a
+  part calls it. The open list of variables that change how bash or the suite
+  behaves (`FAIL`, `IFS`, `GLOBIGNORE`, `POSIXLY_CORRECT`,
+  `FELIX_TEST_NO_MANIFEST`, ...) therefore needs no enumerating. A lib
+  function also may not take the name of a builtin, a keyword, an alias or a
+  command (`[`, `.`, `printf`, `git`), nor a name defined before the lib block
+  or by another file of the suite. The judge never carries out what it judges:
+  it skips each command it records, and gives up after a time limit.
+  Function bodies run when a part calls them, and are part code like any
+  other.

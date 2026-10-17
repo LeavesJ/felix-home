@@ -1,6 +1,7 @@
 _autocomm_build revoked
 _cmstub_build
 _widget_repo_build
+_discover_fixtures_build
 [ -s "$FROOT/projects/widget/capabilities" ] || printf 'frontend\ne2e\n' > "$FROOT/projects/widget/capabilities"
 # The background resume refuses on each of those, and is silent about it —
 # an ungranted project must not learn that a grant exists from a log entry.

@@ -20,7 +20,11 @@ printf '\nthe stuck-PR page: felix land --prs and --queue, the fixture, usage an
 # pr list from ctl/prs.<owner>_<name>.json, the repository taken from -R or
 # --repo, else from the origin of the directory it runs in, and fails as
 # ctl/prs.<key>.rc says; it answers api GETs of the Actions billing from a
-# fixed body, or fails as ctl/api.rc says. It logs the XDG state and cache
+# fixed body, or fails as ctl/api.rc says. It answers a GET of repos/fixture/home
+# or repos/fixture/two with the default branch main, as GitHub would: the queue
+# has no checkout of two to read origin/HEAD from (review F5; without this
+# answer every pull request of two was unknown, and the cross-project check in
+# 1310 passed on no rows). It logs the XDG state and cache
 # directories and GH_CONFIG_DIR it was handed. launchctl print succeeds only
 # while ctl/loaded exists. ps is the real one: a lock names this shell's pid.
 # The home's engine/harness/felix is a tripwire that logs if anything runs it.
@@ -39,11 +43,12 @@ _sp_put "$SPB/gh" <<'SPSTUB'
 SP='@SP@'; K="$SP/ctl"
 printf '%s\n' "$*" >> "$SP/log/gh.log"
 printf '%s\t%s\t%s\n' "${XDG_STATE_HOME-unset}" "${XDG_CACHE_HOME-unset}" "${GH_CONFIG_DIR-unset}" >> "$SP/log/gh.env"
-jqx=""; repo=""; prev=""; bill=0; user=0
+jqx=""; repo=""; prev=""; bill=0; user=0; dflt=""
 for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
   case "$a" in *settings/billing/actions*) bill=1 ;; users/*|/users/*) user=1 ;; esac
+  case "$a" in repos/fixture/home|/repos/fixture/home|repos/fixture/two|/repos/fixture/two) dflt="${a#/}" ;; esac
   prev="$a"
 done
 if [ -z "$repo" ]; then
@@ -65,6 +70,7 @@ if [ "${1:-}" = api ]; then
     printf '{"total_minutes_used":123,"total_paid_minutes_used":0,"included_minutes":2000,"minutes_used_breakdown":{"UBUNTU":123}}\n' | out; exit 0
   fi
   if [ "$user" = 1 ]; then printf '{"login":"fixture","id":1,"type":"User"}\n' | out; exit 0; fi
+  if [ -n "$dflt" ]; then printf '{"full_name":"%s","default_branch":"main"}\n' "${dflt#repos/}" | out; exit 0; fi
   printf 'gh: Not Found (HTTP 404)\n' >&2; exit 1
 fi
 printf 'stub: gh %s is not served\n' "$*" >&2

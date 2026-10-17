@@ -268,5 +268,14 @@ is "§6.1: --queue gives one gh source row per project naming a remote_match" \
 is "§6.1: and no other source row" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 != "gh"' "$Q" | head -2)" ""
 is "§6.3: two projects never list the same pull request: no row pairs one repository with the other's head" \
    "$(LC_ALL=C awk -F'\t' -v h="$(_sp_sha 101)" -v t="$(_sp_two 101)" '$1 == "pr" && (($2 == "fixture/home" && $7 == t) || ($2 == "fixture/two" && $7 == h))' "$Q")" ""
+# Review F5: the check above passed on no rows while two's pull requests were
+# all unknown in the queue. Two's founder #101 must be there for it to mean
+# anything: once, under fixture/two, with two's head, beside home's #101.
+is "§6.3: --queue lists two's founder pull request #101 exactly once, under fixture/two, with two's head" \
+   "$(LC_ALL=C awk -F'\t' '$1 == "pr" && $2 == "fixture/two" && $3 == "#101" { printf "%s|", $7 }' "$Q")" "$(_sp_two 101)|"
+is "§6.3: and home's #101 exactly once, under fixture/home, with home's head" \
+   "$(LC_ALL=C awk -F'\t' '$1 == "pr" && $2 == "fixture/home" && $3 == "#101" { printf "%s|", $7 }' "$Q")" "$(_sp_sha 101)|"
+is "§6.1: two's founder pull requests in --queue are #101 alone: its ready and refused ones are not founder" \
+   "$(LC_ALL=C awk -F'\t' '$1 == "pr" && $2 == "fixture/two" { printf "%s ", $3 }' "$Q")" "#101 "
 has "§6.2: the queue's text lists the founder pull request" "$(cat "$SPX/queue.txt")" "#101 founder"
 # <<< stuck-pr-page-states

@@ -1,4 +1,5 @@
 printf '\nthe pre-flight\n'
+_user_prompt_hook_vars; _widget_repo_build; _router_build routed
 # A skill can be invoked mid-turn; a plugin that is switched off cannot be
 # switched on without a restart. So whether the router's picks will actually
 # work is decided before a session starts, and it differs per project.

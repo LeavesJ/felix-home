@@ -1,13 +1,3 @@
-rm -rf "$_cucrp" "$_cucrr" "$_cucrhome" "$TMP/cucr-plugin" "$MEM/cucrproj"
-rm -f "$TMP/cucr-setup-ran" "$TMP/cucr-maint-ran"
-[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*cucrproj*' -exec rm -rf {} + 2>/dev/null
-case "$_cucrmade" in *commission*) rmdir "$FROOT/state/commission" 2>/dev/null ;; esac
-case "$_cucrmade" in state*) rmdir "$FROOT/state" 2>/dev/null ;; esac
-is  "and this block leaves the projects, the state and the memory as it found them" "$(_cucrfixture)" "$_cucrfound"
-unset -f _cucrfixture _cucrlib _cucrnext _cucrpulse _cucrcli _cucrline _cucrsays _cucrboth _cucrran _cucrstart _cucrowed _cucrseen
-unset _cucrfound _cucrmade _cucrp _cucrr _cucrhome _cucrwhy _cucrsu1 _cucrms1 _cucrms0 _cucrsp1 _cucrnx1 _cucrnx0 _cucrn6 _cucrpu1 \
-      _cucrout _cucrrc _cucrunread _cucrs1 _cucrs2 _cucrs3 _cucrow
-
 # A table command whose last stage succeeds whatever it is fed is refused.
 #
 # Every table runner evaluates a row with pipefail off: probes, obligations,
@@ -228,6 +218,7 @@ for _fft in obligations.tsv setup.tsv maintenance.tsv; do
   rm -f "$TMP/ff-w-$_fft.keep"
   [ -f "$_ffw/$_fft" ] && cp "$_ffw/$_fft" "$TMP/ff-w-$_fft.keep"
 done
+_commissioning_build alpha12
 cp "$CMP/commissioning.tsv" "$TMP/ff-cm.keep"
 rm -f "$TMP/ffcran" "$TMP/fforan" "$TMP/ffsran" "$TMP/ffmran"
 

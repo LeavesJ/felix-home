@@ -1,3 +1,79 @@
+# A lookup that could not be made is unknown, never a no.
+#
+# felix_commission_state decides a row from lookups made inside $(...), and
+# under load a fork inside one fails with EAGAIN: the substitution prints
+# nothing and returns 128. Three lookups read that as a valid answer. The
+# declared capabilities came back as none, so a row whose capability is
+# declared read not-applicable and the receipt said commissioned; the run's
+# empty-state guard cannot see it, because not-applicable is a state. The
+# engine functions a check names came back as none when the grep that reads
+# them ran and failed, so a check over a function that is not loaded ran and
+# read done. (Amended after review: a fork that failed there skipped the
+# `|| true` and, under the CLI's pipefail, read unknown naming no function;
+# done only without pipefail. The stub below models the grep that failed.)
+# And the count of an answer's rows came
+# back empty, the comparison with its done line errored and was false, and the
+# answer read answered, whole or not, which is the state every ingestion
+# reads. The adversarial reviewer of the empty-state fix above found the
+# first on bash 3.2; the other two were found by surveying the same shape. Here
+# nothing is starved of processes: inside _cm the lookup is replaced by one
+# that fails as a substitution whose fork could not be made fails, printing
+# nothing and returning 128, and the engine is called after it. A list that was
+# read and is empty is still a no; one that could not be read is unknown. These
+# assertions were written blind, from the contract, before the fix, and each
+# was run against main's engine first.
+# Everything this touches is restored below and everything it defines unset.
+_commissioning_build alpha12
+_cmlfad="$MEM/cmproj/commission"
+_cmlffixture() { local _cmlff
+  for _cmlff in "$CMP/capabilities" "$CMP/commissioning.tsv" "$FROOT/state/commission/cmproj" \
+                "$MEM/cmproj/commissioning.log"; do
+    if [ -f "$_cmlff" ]; then printf '%s %s | ' "$(cksum < "$_cmlff")" "$(ls -l "$_cmlff" | cut -c1-10)"
+    else printf 'absent | '; fi
+  done
+  if [ -d "$_cmlfad" ]; then find "$_cmlfad" -type f -exec cksum {} + | sort | tr '\n' ' '
+  else printf 'no answer directory '; fi
+  printf '| %s | %s\n' "$(find "$FROOT/state/commission" -name 'cmproj*' -exec cksum {} + 2>/dev/null | sort | tr '\n' ' ')" \
+                       "$(ls -a "$TMP" | grep -c '^cmlf-')"; }
+_cmlffound="$(_cmlffixture)"
+rm -f "$TMP/cmlf-caps.keep" "$TMP/cmlf-table.keep" "$TMP/cmlf-receipt.keep" "$TMP/cmlf-log.keep"
+[ -f "$CMP/capabilities" ] && mv "$CMP/capabilities" "$TMP/cmlf-caps.keep"
+[ -f "$CMP/commissioning.tsv" ] && cp "$CMP/commissioning.tsv" "$TMP/cmlf-table.keep"
+[ -f "$FROOT/state/commission/cmproj" ] && cp "$FROOT/state/commission/cmproj" "$TMP/cmlf-receipt.keep"
+[ -f "$MEM/cmproj/commissioning.log" ] && cp "$MEM/cmproj/commissioning.log" "$TMP/cmlf-log.keep"
+_cmlfmade=''; [ -d "$_cmlfad" ] || { mkdir -p "$_cmlfad"; _cmlfmade=made; }
+# $1 names the lookup to break and the rest is the engine call made after it.
+# Every stub is defined inside the _cm subshell, never in this shell.
+_cmlfstub() { local _cmlfmode="$1"; shift
+  case "$_cmlfmode" in
+    declared)     felix_declared() { return 128; } ;;
+    declared-api) felix_declared() { printf 'api\n'; return 128; } ;;
+    has-line)     felix_has_line() { return 1; } ;;
+    names)        grep() { case "$1" in -oE) return 128 ;; esac; command grep "$@"; } ;;
+    names-nopf)   set +o pipefail
+                  grep() { case "$1" in -oE) return 128 ;; esac; command grep "$@"; } ;;
+    count)        grep() { case "$1" in -vc) return 128 ;; esac; command grep "$@"; } ;;
+    cap-3)        _felix_cap_active() { return 3; } ;;
+    present-1)    _felix_commission_functions_present() { return 1; } ;;
+    present-3)    _felix_commission_functions_present() { return 3; } ;;
+    tab)          IFS=$'\t' ;;
+    declared-exit0) felix_declared() { exit 0; } ;;
+    present-exit0)  _felix_commission_functions_present() { exit 0; } ;;
+    declared-grep2) grep() { case "$1$2" in '-vE^\s*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
+    count-first)    grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') return 2 ;; esac; command grep "$@"; } ;;
+    count-first-two) grep() { case "$1$2" in '-vE^[[:space:]]*(#|$)') command grep "$@" | awk 'NR <= 2'; return 2 ;; esac
+                      command grep "$@"; } ;;
+    count-printed)  grep() { case "$1" in -vc) command grep "$@"; return 2 ;; esac; command grep "$@"; } ;;
+    bracket-exit0)  grep() { case "$1" in -oE) return 1 ;; esac; command grep "$@"; }
+                    [() { exit 0; } ;;
+  esac
+  "$@"; }
+# What a call printed and the status it returned, as "status [output]".
+_cmlfrc()   { local _cmlfo _cmlfs; _cmlfo="$("$@" 2>/dev/null)"; _cmlfs=$?; printf '%s [%s]\n' "$_cmlfs" "$_cmlfo"; }
+_cmlff()    { printf '%s\n' "$1" | awk -F'\t' -v n="$2" -v f="$3" '$1 == n { print $f }'; }
+_cmlfsays() { case "$1" in *"$2"*) printf 'said\n' ;; *) printf 'silent\n' ;; esac; }
+_cmlfnz()   { case "$1" in '0 '*) printf 'returned 0\n' ;; *' []') printf 'nonzero, nothing\n' ;; *) printf '%s\n' "$1" ;; esac; }
+
 # The declared capabilities.
 _cmtable $'cmlf_cap\tapi\t-\t-\t-\ttrue\t9' \
          $'cmlf_plain\t-\t-\t-\t-\ttest -f src/a.txt\t9'
@@ -539,3 +615,12 @@ _cucrs3="$(_cucrstart)"
 is  "and with no provider row owed or unread it says the receipt line once and spends it" \
     "$(_cucrsays "$_cucrs3" 'Commissioning: receipt') $(_cucrseen)" "said spent"
 
+rm -rf "$_cucrp" "$_cucrr" "$_cucrhome" "$TMP/cucr-plugin" "$MEM/cucrproj"
+rm -f "$TMP/cucr-setup-ran" "$TMP/cucr-maint-ran"
+[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*cucrproj*' -exec rm -rf {} + 2>/dev/null
+case "$_cucrmade" in *commission*) rmdir "$FROOT/state/commission" 2>/dev/null ;; esac
+case "$_cucrmade" in state*) rmdir "$FROOT/state" 2>/dev/null ;; esac
+is  "and this block leaves the projects, the state and the memory as it found them" "$(_cucrfixture)" "$_cucrfound"
+unset -f _cucrfixture _cucrlib _cucrnext _cucrpulse _cucrcli _cucrline _cucrsays _cucrboth _cucrran _cucrstart _cucrowed _cucrseen
+unset _cucrfound _cucrmade _cucrp _cucrr _cucrhome _cucrwhy _cucrsu1 _cucrms1 _cucrms0 _cucrsp1 _cucrnx1 _cucrnx0 _cucrn6 _cucrpu1 \
+      _cucrout _cucrrc _cucrunread _cucrs1 _cucrs2 _cucrs3 _cucrow

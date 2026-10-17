@@ -212,6 +212,32 @@ else
 fi
 is "the review fixture: the modes are restored and the ledger reads again (fixture control)" "$(LC_ALL=C cut -f3 "$SQLAND/ledger.tsv" 2>&1)" 169
 
+# ---- F4, F11: what reaches the terminal (§6.2) ----------------------------------
+# A title is written by someone else. gh prints a C1 control raw, as its two
+# UTF-8 bytes; the page prints it as a question mark. A title cut at 60 bytes
+# never ends in half a character.
+SQ_C1="$(printf '\302\233')"; SQ_E="$(printf '\303\251')"
+SQ_LONG="$(printf 'a%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30 31 32 33 34 35 36 37 38 39 40 41 42 43 44 45 46 47 48 49 50 51 52 53 54 55 56 57 58 59)"
+_sq_prs "$(_sq_pr 171 notes/171.md:0 | LC_ALL=C sed "s/\"title\":\"Change 171\"/\"title\":\"T${SQ_C1}end\"/")" \
+        "$(_sq_pr 172 notes/172.md:0 | LC_ALL=C sed "s/\"title\":\"Change 172\"/\"title\":\"${SQ_LONG}${SQ_E}${SQ_E}tail\"/")"
+_sq_land --prs; _sq_keep tame.txt
+is "§6.2: the page over a title holding a C1 control exits 0" "$(cat "$SQX/tame.txt.rc")" 0
+has "§6.2: the title is on the page" "$(cat "$SQX/tame.txt")" "#171 ready T"
+is "§6.2: no 0x9b byte reaches the terminal" "$(LC_ALL=C grep -c "$SQ_C1" "$SQX/tame.txt")" 0
+_sq_l172="$(LC_ALL=C grep '^#172 ' "$SQX/tame.txt")"
+has "§6.2: the long title is on the page" "$_sq_l172" "#172 ready ${SQ_LONG}"
+if command -v iconv >/dev/null 2>&1; then
+  printf '%s\n' "$_sq_l172" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 && ok "§6.2: a title cut at 60 does not end in half a UTF-8 character" || bad "§6.2: a title cut at 60 does not end in half a UTF-8 character" "iconv refuses [$_sq_l172]"
+else skip "§6.2: a title cut at 60 does not end in half a UTF-8 character" "no iconv"; fi
+
+# ---- F9: a repository no project governs (§7) -------------------------------------
+mkdir -p "$SQ/free" && _fx_git "$SQ/free" init -q >/dev/null 2>&1
+_sq_land --prs --tsv --repo "$SQ/free"; _sq_keep free.tsv
+is "§7: a repository no project governs: the page prints and exits 0" "$(cat "$SQX/free.tsv.rc")" 0
+is "§7: and its land table is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "land" { print $4; exit }' "$SQX/free.tsv")" unread
+is "§7: its lander row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "lander" { print $4; exit }' "$SQX/free.tsv")" unread
+is "§5: and its ledger row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "ledger" { print $4; exit }' "$SQX/free.tsv")" unread
+
 # ---- F3: a list of 1000 is truncated, in --prs and in --queue (§3, §5) -----------
 LC_ALL=C awk -v u="$SQ_UPD" -v g="$SQ_GREEN" 'BEGIN { printf "["
   for (n = 1000; n >= 1; n--) {

@@ -342,6 +342,13 @@ if [ -d "$HERE/parts" ]; then
     && cp -R "$HERE/parts/." "$TREE/engine/harness/tests/parts/" 2>/dev/null \
     || _none "could not place tests/parts into the tree at $BASE"
 fi
+# The driver sources tests/lib/*.sh as well (contract C2), by name, so they go
+# the same way: one the base has and this tree lacks is never loaded.
+if [ -d "$HERE/lib" ]; then
+  mkdir -p "$TREE/engine/harness/tests/lib" 2>/dev/null \
+    && cp -R "$HERE/lib/." "$TREE/engine/harness/tests/lib/" 2>/dev/null \
+    || _none "could not place tests/lib into the tree at $BASE"
+fi
 
 # The suite runs with the caller's TMPDIR, as it does by hand, so its own
 # mktemp root is made where a plain run makes it. Until 2026-09-24 it ran with

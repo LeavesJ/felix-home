@@ -348,7 +348,7 @@ for pat in sys.argv[2:]:
 print(" ".join(sorted(set(out))))
 PY
 selfref="$(python3 "$SR" "$(cd "$REAL_HARNESS/.." && pwd)" \
-           "harness/lib/*.sh" "harness/felix" "harness/hooks/*" "harness/tests/run" "harness/tests/parts/*.sh")"
+           "harness/lib/*.sh" "harness/felix" "harness/hooks/*" "harness/tests/run" "harness/tests/parts/*.sh" "harness/tests/lib/*.sh")"
 is "no local assignment reads one declared beside it" "$selfref" ""
 
 # The same scanner, against a planted instance of the exact shape. If somebody

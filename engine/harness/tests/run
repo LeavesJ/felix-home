@@ -248,6 +248,9 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/0004-the-widget-fixture.sh"
 
 . "$HERE/parts/0005-fixture-floor.sh"
+. "$HERE/parts/0006-the-lib-judges.sh"
+# The names defined so far, one a line, for _lib_clashes: a lib file may not take one.
+{ compgen -v; compgen -A function; } | LC_ALL=C sort -u > "$TMP/lib-before.names"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
 . "$HERE/lib/adopt-refusals.sh"
 . "$HERE/lib/attempt-step.sh"

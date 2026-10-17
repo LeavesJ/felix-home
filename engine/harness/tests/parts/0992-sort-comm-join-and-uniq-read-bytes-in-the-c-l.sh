@@ -26,12 +26,7 @@ printf '\nsort, comm, join and uniq read bytes in the C locale\n'
 # is no substitute: its collation is code-point order, which for valid UTF-8 is
 # byte order, so the escape case cannot fail under it. Each locale is set in a
 # subshell around the one call under test.
-LCB_U8="$(locale -a 2>/dev/null | awk '/^en_US\.(UTF-8|utf8)$/ && !n++')"
-LCB_NONE="no en_US UTF-8 locale is installed here"
-# Whether sort in that locale drops its whole output on a line it cannot
-# decode, which BSD sort does and glibc sort does not.
-LCB_DROPS=0
-[ -n "$LCB_U8" ] && [ -z "$(printf 'x\377\n' | LC_ALL="$LCB_U8" sort 2>/dev/null)" ] && LCB_DROPS=1
+_locale_bytes_vars
 # One call in a chosen locale: C, or `lang` (LANG set and every LC_ unset, as
 # a Terminal has it), or `all` (LC_ALL set). Everything after the first word is
 # run in a subshell, so the suite keeps its own locale.

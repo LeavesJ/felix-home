@@ -6,6 +6,7 @@ printf '\nland on green: review round 1, and the amendments A1-A7 (contract G2-G
 # the way 1280 leaves it: origin's main at the base commit, which declares
 # 9.0.0, the home on main at it, and the cache holding 9.0.0 as a copy of the
 # home's engine and no other entry 1281 installed.
+_lg_build after-1280
 _lgb2="$(git -C "$LGH" rev-parse "$(_lg_sha 21)^" 2>/dev/null)"
 _fx_git "$LGH" push -q -f origin "$_lgb2:refs/heads/main" >/dev/null 2>&1
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
@@ -126,44 +127,7 @@ _lg_reset; _lg_land --uninstall; rm -rf "$LGV1/9.1.0" "$LG/bin-nogit"; _lgr1_hom
 # for a stuck lock and 30 for the watchdog: those are skipped, and their
 # testable halves asserted. The trampoline's ledger is the one felix_mem_dir
 # names under launchd's environment, which the fixture links to its own.
-LA="$LG/amend"; mkdir -p "$LA/git69" "$LGU/.felix"
-[ -e "$LGU/.felix/memory" ] || ln -s "$LGM" "$LGU/.felix/memory"
-printf '#!/bin/sh\nexit 69\n' > "$LA/git69/git"; chmod +x "$LA/git69/git"
-command -v git > "$LA/realgit"
-# gh as 1280's stub answers it, but for a pr view whose ctl/files.N.rc exists,
-# which fails as gh does on a server error.
-mv "$LGB/gh" "$LA/gh.1280"
-_lg_put "$LGB/gh" <<'LGSTUB'
-#!/bin/bash
-LG='@LG@'
-if [ "${1:-} ${2:-}" = "pr view" ] && [ -f "$LG/ctl/files.${3:-}.rc" ]; then
-  printf '%s\n' "$*" >> "$LG/log/gh.log"; echo "HTTP 502: Bad Gateway" >&2; exit "$(cat "$LG/ctl/files.${3:-}.rc")"
-fi
-exec "$LG/amend/gh.1280" "$@"
-LGSTUB
-_la_names() {   # WHAT DETAIL WORD... -> the detail, folded, holds one of the words
-  local what="$1" d w; d="$(_lg_lc "$2")"; shift 2
-  for w in "$@"; do case "$d" in *"$w"*) ok "$what"; return 0 ;; esac; done
-  bad "$what" "[$d] holds none of: $*"
-}
-_la_reap() {   # PID -> it has ended, by itself within ten seconds or by KILL
-  local i=0
-  while [ "$i" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; i=$((i+1)); done
-  kill -0 "$1" 2>/dev/null && kill -KILL "$1" 2>/dev/null
-  wait "$1" 2>/dev/null; return 0
-}
-_la_bg() {   # NAME -> felix land --tick in the background, in a process group of its own; pid in LABG
-  ( cd "$LGH" || exit 97
-    exec perl -e 'setpgrp(0, 0); exec @ARGV or exit 127' env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE \
-      HOME="$LGU" FELIX_HOME="$LGH" FELIX_HOME_DIR="$LGH" FELIX_MEMORY="$LGM" FELIX_PLUGIN_CACHE="$LGC" \
-      PATH="$LGB:$PATH" "$FELIX" land --tick ) > "$LG/out.$1" 2>&1 &
-  LABG=$!
-}
-_la_accepts() {   # -> main's own felix_accepted_deploy_diff on the home, as cmd_merge asks it: its status
-  ( unset FELIX_KERNEL_CACHE; FELIX_PLUGIN_CACHE="$LGC"
-    git -C "$LGH" show origin/main:engine/harness/lib/resolve.sh > "$LA/resolve.main" 2>/dev/null || exit 9
-    . "$LA/resolve.main" >/dev/null 2>&1; felix_accepted_deploy_diff "$LGH" main >/dev/null 2>&1 ); echo "$?"
-}
+_lg_build amend
 
 # --------------------------------------------------------------------- A7 ---
 _lg_reset; _lg_land --pause first second
@@ -173,14 +137,7 @@ is "A7: felix land --pause with two reasons prints usage and exits 2" "$LGRC" 2
 # --------------------------------------------------------------------- A1 ---
 # The trampoline is run as launchd runs it. A candidate's newer entry, 9.1.0,
 # sits in the cache throughout, as every gated branch leaves one.
-_lg_reset; _lg_land --install; LATR="$LGU/Library/Application Support/felix/land/lgh/tick"; _lg_cache 9.1.0
-_la_tramp() {   # [PATH-PREFIX] -> the trampoline, with launchd's environment; status in LARC
-  ( cd "$TMP/cwd" 2>/dev/null || cd "$LG" || exit 97
-    exec env -i HOME="$LGU" FELIX_HOME_DIR="$LGH" PATH="${1-}$LGB:$PATH" GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES-}" \
-      "$LATR" ) > "$LG/out.tramp" 2>&1
-  LARC=$?
-}
-_la_ticks() { _lg_logs felix | LC_ALL=C awk -F'\t' '$3 == "land --tick"' | wc -l | tr -d ' '; }
+_lg_reset; _lg_land --install; _lg_cache 9.1.0
 : > "$LA/details"
 _la_owed() {   # CASE PATH-PREFIX WORD... -> two runs in CASE run nothing and say it once
   local what="$1" pre="$2" r1 r2; shift 2

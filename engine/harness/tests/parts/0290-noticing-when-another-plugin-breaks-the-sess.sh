@@ -1,6 +1,8 @@
 # ================================================= (i) CLI and the Stop hook
 # A governed throwaway checkout, green but for the catch: a gate that passes,
 # a probe that reads the marker, and a verify record for its tree.
+_memory_guarded_build
+_bw_build
 _BWHP="$FROOT/projects/bwhook"; _BWHM="$MEM/bwhook"; mkdir -p "$_BWHP" "$_BWHM"
 printf '{\n  "name": "bwhook",\n  "remote_match": "example.com/bwhook",\n  "gate": "true"\n}\n' > "$_BWHP/project.json"
 printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$_BWHP/probes.tsv"
@@ -107,7 +109,6 @@ printf '\ndiscovery runs on a cadence, not in front of a prompt\n'
 DH="$TMP/dhome"; mkdir -p "$DH/state/discover"
 # Every fixture cache carries the stamp a real one does, or the readers treat
 # it as absent — which is the point, asserted below.
-_dstamp() { ( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp_line "$FROOT/harness/templates" ); }
 DP="$FROOT/projects/widget"
 # Never refreshed is stale; that is what makes the first run happen at all.
 ( . "$FROOT/harness/lib/discover.sh"; felix_discover_stale "$DP" "$DH" ) \
@@ -244,15 +245,8 @@ printf '\ndiscovery reads before it recommends\n'
 # The plugin format has no permission declaration and `claude plugin validate`
 # checks schema only, so the only way to know what something does is to read it.
 # Fixtures throughout: this must never touch the network to be tested.
-DF="$TMP/discover-fixtures"
-mkdir -p "$DF/skillsonly/skills/a" "$DF/hooky/hooks" "$DF/mcplocal" "$DF/floaty" "$DF/creds"
-printf '{"mcpServers":{"x":{"command":"/usr/local/bin/x","args":["run"]}}}\n' > "$DF/mcplocal/.mcp.json"
-printf '{"hooks":{"PreToolUse":[{"hooks":[{"command":"bash s.sh"}]}]}}\n'     > "$DF/hooky/hooks/hooks.json"
-printf '{"mcpServers":{"x":{"command":"npx","args":["pkg@latest"]}}}\n'       > "$DF/floaty/.mcp.json"
-printf '{"mcpServers":{"x":{"type":"http","url":"https://e.example","headers":{"Authorization":"${SECRET_TOKEN}"}}}}\n' > "$DF/creds/.mcp.json"
+_discover_fixtures_build
 
-_tier() { ( . "$FROOT/harness/lib/discover.sh"
-            felix_discover_risk "$(felix_discover_inspect "$1")" ); }
 is "skills only is low"                  "$(_tier "$DF/skillsonly")" "low"
 is "a pinned local server is medium"     "$(_tier "$DF/mcplocal")"   "medium"
 is "anything shipping hooks is high"     "$(_tier "$DF/hooky")"      "high"

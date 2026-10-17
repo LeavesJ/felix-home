@@ -1,3 +1,34 @@
+# MEM, the session unset and resolve.sh moved here from the driver with
+# _copy_content below, 2026-10-17, for the same 500 lines; they ran just
+# before this part there, so they run in the same order here.
+# Memory has lived outside any checkout since 2026-08-14, so the fixture needs a
+# root of its own rather than a directory inside the fixture home.
+#
+# Exported, and that is not a detail. This suite drives the real CLI and the real
+# hooks as child processes; an unexported value would leave every one of them
+# resolving felix_mem_root to the default and writing the fixture's invented
+# projects into the developer's own memory — which is both a corrupted test and
+# a corrupted record, and neither would announce itself.
+MEM="$TMP/memory"
+export FELIX_MEMORY="$MEM"
+mkdir -p "$MEM"
+
+# No session, as on the CI runner. The gate files each catch under the session
+# its shell was given, and the Stop hook asks a session only about its own, so
+# a suite run from inside a session would file every fixture's catch under
+# that session and judge the hooks differently from CI. Cases that need one
+# set it where they need it.
+unset CLAUDE_CODE_SESSION_ID
+
+# Every lib that writes memory calls felix_mem_dir, which resolve.sh defines and
+# which the CLI and both hooks always source first. The subshells below source
+# one lib at a time, so without this they run under a load order production
+# never has. Worth stating because of how that fails: bash reports "command not
+# found" on stderr, the append is redirected to /dev/null, and the assertion
+# then reads as "memory was not written" — a wrong answer about the code rather
+# than about the test. Functions defined here are inherited by every subshell.
+. "$REAL_HARNESS/lib/resolve.sh"
+
 # _copy_content is defined here, at the head of the first part that calls it,
 # and not in the driver: moved 2026-10-16 (contract C), when the driver's lib
 # lines took it past 1040's 500 lines. This part is in _suite_preamble, so every

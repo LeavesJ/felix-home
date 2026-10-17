@@ -250,6 +250,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 
 . "$HERE/parts/0005-fixture-floor.sh"
 . "$HERE/lib/cm-stub.sh"
+. "$HERE/lib/widget-repo.sh"
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"

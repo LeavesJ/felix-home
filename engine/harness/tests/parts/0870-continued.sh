@@ -148,18 +148,27 @@ else bad "no row is landed together with any state but live" "${_ivx:-no rows}";
 _ivx="$(_iv_named "$IV_T1" $IV_WTS orphan-edit orphan-clean topic/superseded topic/partly topic/precedes topic/dup-one topic/dup-two topic/remote-only 4103 4104 4105 4106 4109)"
 [ -s "$IV_T1" ] && [ -z "$_ivx" ] && ok "every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it" \
   || bad "every worktree, orphan, unchecked-out branch, remote-only branch and open pull request in the fixture has a row naming it" "unnamed:${_ivx:- all, no rows}"
+# The runs compared with another below give the same states only while every
+# age in the fixture stays on one side of each threshold. The tool call written
+# 3 minutes old crosses --blocked's default of 20 after 17 minutes, and on
+# 2026-10-15 a machine under load took longer than that between here and the
+# bash 3.2 run: three FAILs in a gate, none about inventory. So each compared
+# run, and the baseline it is compared with, passes thresholds no suite run
+# outlasts. The default thresholds stay asserted on IV_T1, read once at the start.
+IV_CMP=(--live 999999 --blocked 999999)
+IV_T1C="$IV/t1c.tsv"; _ivrun inventory --tsv --repo "$IVM" "${IV_CMP[@]}" > "$IV_T1C"
 # Standing in the repository, in the main clone or in a linked worktree of it,
 # reads the same repository.
-IV_T0="$IV/t0.tsv"; _ivrun inventory --tsv > "$IV_T0"; IV_RC0=$?
-[ "$IV_RC0" -eq 0 ] && [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T0")" = "$(_iv_kinds "$IV_T1")" ] \
+IV_T0="$IV/t0.tsv"; _ivrun inventory --tsv "${IV_CMP[@]}" > "$IV_T0"; IV_RC0=$?
+[ "$IV_RC0" -eq 0 ] && [ -s "$IV_T1C" ] && [ "$(_iv_kinds "$IV_T0")" = "$(_iv_kinds "$IV_T1C")" ] \
   && ok "standing in the main clone with no --repo gives the items and states --repo naming it gives" \
   || bad "standing in the main clone with no --repo gives the items and states --repo naming it gives" \
-         "rc=$IV_RC0; $(_ivnr "$IV_T0") rows standing in, $(_ivnr "$IV_T1") with --repo"
-IV_T0W="$IV/t0w.tsv"; _ivrun --cwd "$IVW/wt-squash" inventory --tsv > "$IV_T0W"; IV_RC0W=$?
-[ "$IV_RC0W" -eq 0 ] && [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T0W")" = "$(_iv_kinds "$IV_T1")" ] \
+         "rc=$IV_RC0; $(_ivnr "$IV_T0") rows standing in, $(_ivnr "$IV_T1C") with --repo"
+IV_T0W="$IV/t0w.tsv"; _ivrun --cwd "$IVW/wt-squash" inventory --tsv "${IV_CMP[@]}" > "$IV_T0W"; IV_RC0W=$?
+[ "$IV_RC0W" -eq 0 ] && [ -s "$IV_T1C" ] && [ "$(_iv_kinds "$IV_T0W")" = "$(_iv_kinds "$IV_T1C")" ] \
   && ok "and standing in a linked worktree reads the same repository" \
   || bad "and standing in a linked worktree reads the same repository" \
-         "rc=$IV_RC0W; $(_ivnr "$IV_T0W") rows standing in, $(_ivnr "$IV_T1") with --repo"
+         "rc=$IV_RC0W; $(_ivnr "$IV_T0W") rows standing in, $(_ivnr "$IV_T1C") with --repo"
 if [ "$IV_JQ" != 1 ]; then skip "felix inventory consults gh when gh is on PATH" "no jq for the gh stand-in"
 elif [ -s "$IVGH_LOG" ]; then ok "felix inventory consults gh when gh is on PATH"
 else bad "felix inventory consults gh when gh is on PATH" "the stand-in logged no call"; fi
@@ -337,16 +346,16 @@ if grep -qi unknown "$IV_T5" && [ "$(_iv_count "$IV_T5" pr-open)" = 0 ]; then
 else bad "and it says unknown, claiming no pull request open or absent" "$(head -c 300 "$IV_T5" | tr '\t\n' '|;')"; fi
 
 # ---- --repo --------------------------------------------------------------
-IV_T6="$IV/t6.tsv"; _ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IVM" --repo "$IVG" > "$IV_T6"; IV_RC6=$?
+IV_T6="$IV/t6.tsv"; _ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IVM" --repo "$IVG" "${IV_CMP[@]}" > "$IV_T6"; IV_RC6=$?
 is  "felix inventory --tsv --repo DIR --repo DIR, run from outside any repository, exits 0" "$IV_RC6" "0"
 _iv_chk "each --repo is read: the second repository's unpushed branch has its row, and it is unpushed" "$IV_T6" topic/gadget-only hold unpushed
 _iv_sel "$IV_T6" topic/gadget-only; IV_RG="$(_iv_col2)"
 _iv_sel "$IV_T6" wt-squash;         IV_RW="$(_iv_col2)"
 [ -n "$IV_RG" ] && [ -n "$IV_RW" ] && [ "$IV_RG" != "$IV_RW" ] && ok "and each row names its own repository" \
   || bad "and each row names its own repository" "gadget [$IV_RG], widget [$IV_RW]"
-[ -s "$IV_T1" ] && [ -n "$IV_RG" ] && [ "$(_iv_kinds "$IV_T6" "$IV_RG")" = "$(_iv_kinds "$IV_T1")" ] \
+[ -s "$IV_T1C" ] && [ -n "$IV_RG" ] && [ "$(_iv_kinds "$IV_T6" "$IV_RG")" = "$(_iv_kinds "$IV_T1C")" ] \
   && ok "and the first repository's rows are the ones reading it alone gives" \
-  || bad "and the first repository's rows are the ones reading it alone gives" "$(diff <(_iv_kinds "$IV_T1") <(_iv_kinds "$IV_T6" "$IV_RG") 2>&1 | head -n 6 | tr '\n' ';')"
+  || bad "and the first repository's rows are the ones reading it alone gives" "$(diff <(_iv_kinds "$IV_T1C") <(_iv_kinds "$IV_T6" "$IV_RG") 2>&1 | head -n 6 | tr '\n' ';')"
 _ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IV/cwd" > /dev/null; IV_RC6B=$?
 [ "$IV_RC6" -eq 0 ] && [ "$IV_RC6B" -ne 0 ] && ok "felix inventory --repo on a directory that is no repository exits nonzero, since it cannot read one" \
   || bad "felix inventory --repo on a directory that is no repository exits nonzero, since it cannot read one" "exit $IV_RC6B there, $IV_RC6 over two repositories"
@@ -354,10 +363,10 @@ _ivrun --cwd "$IV/cwd" inventory --tsv --repo "$IV/cwd" > /dev/null; IV_RC6B=$?
 # ---- bash 3.2 ------------------------------------------------------------
 if /bin/bash -c 'case "$BASH_VERSION" in 3.*) exit 0 ;; esac; exit 1' 2>/dev/null; then
   mkdir -p "$IV/b32"; ln -sf /bin/bash "$IV/b32/bash"
-  IV_T7="$IV/t7.tsv"; _ivrun --path "$IV/b32:$IVSTUB:$PATH" --bash /bin/bash inventory --tsv --repo "$IVM" > "$IV_T7"
-  [ -s "$IV_T1" ] && [ "$(_iv_kinds "$IV_T7")" = "$(_iv_kinds "$IV_T1")" ] \
+  IV_T7="$IV/t7.tsv"; _ivrun --path "$IV/b32:$IVSTUB:$PATH" --bash /bin/bash inventory --tsv --repo "$IVM" "${IV_CMP[@]}" > "$IV_T7"
+  [ -s "$IV_T1C" ] && [ "$(_iv_kinds "$IV_T7")" = "$(_iv_kinds "$IV_T1C")" ] \
     && ok "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" \
-    || bad "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" "$(diff <(_iv_kinds "$IV_T1") <(_iv_kinds "$IV_T7") 2>&1 | head -n 6 | tr '\n' ';')"
+    || bad "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" "$(diff <(_iv_kinds "$IV_T1C") <(_iv_kinds "$IV_T7") 2>&1 | head -n 6 | tr '\n' ';')"
 else
   skip "under /bin/bash 3.2 felix inventory --tsv gives the same items and states" "/bin/bash here is not 3.2"
 fi

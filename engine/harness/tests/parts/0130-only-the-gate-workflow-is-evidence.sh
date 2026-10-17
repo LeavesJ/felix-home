@@ -72,50 +72,7 @@ if ! command -v jq >/dev/null 2>&1; then
     skip "$a" "no jq here to evaluate gh's -q expressions"
   done
 else
-WFB="$TMP/wfgh"; mkdir -p "$WFB"
-cat > "$WFB/gh" <<'STUB'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$WFSTUB_LOG"
-# A call that does not answer, for the case of gh answering once and then not.
-if [ -n "${WFSTUB_UNANSWERED:-}" ]; then
-  case "$*" in *"$WFSTUB_UNANSWERED"*) printf 'error connecting to api.github.com\n' >&2; exit 1 ;; esac
-fi
-wf=""; br=""; lim=20; q="."; prev=""
-for a in "$@"; do
-  case "$prev" in
-    --workflow) wf="$a" ;;
-    --branch)   br="$a" ;;
-    --limit)    lim="$a" ;;
-    -q|--jq)    q="$a" ;;
-  esac
-  prev="$a"
-done
-case "$1 $2" in
-  "pr list") printf '%s\n' "$WFSTUB_PRS" | jq -r "$q" ;;
-  "run list")
-    if [ -n "$wf" ]; then
-      case " $WFSTUB_WORKFLOWS " in
-        *" $wf "*) ;;
-        *) printf 'HTTP 404: workflow %s not found on the default branch\n' "$wf" >&2; exit 1 ;;
-      esac
-    fi
-    awk -F'\t' -v wf="$wf" -v br="$br" -v lim="$lim" '
-      BEGIN { printf "["; n = 0 }
-      (wf == "" || $1 == wf) && (br == "" || $3 == br) && n < lim + 0 {
-        printf "%s{\"workflowName\":\"%s\",\"headBranch\":\"%s\",\"databaseId\":%s,\"status\":\"%s\",\"conclusion\":\"%s\"}",
-               (n ? "," : ""), $2, $3, $4, $5, $6
-        n++
-      }
-      END { print "]" }' "$WFSTUB_RUNS" | jq -r "$q" ;;
-  # WFSTUB_NOLOG is a log GitHub no longer holds, or never did: gh answers and
-  # there is nothing in it.
-  "run view") [ -n "${WFSTUB_NOLOG:-}" ] \
-                || printf 'gate\tRun the gate\t2026-09-22T00:00:00.0000000Z Error: %s\n' \
-                          "${WFSTUB_LOGTEXT:-the widget test failed}" ;;
-esac
-exit 0
-STUB
-chmod +x "$WFB/gh"
+_gate_workflow_stub_build
 export WFSTUB_LOG="$TMP/wf.log" WFSTUB_RUNS="$TMP/wf.runs" \
        WFSTUB_WORKFLOWS="gate.yml unattended.yml dynamic/dependabot/update-graph ci.yml" \
        WFSTUB_PRS='[{"number":7,"headRefName":"feat/x","title":"a green change"}]'
@@ -133,12 +90,6 @@ export WFSTUB_LOG="$TMP/wf.log" WFSTUB_RUNS="$TMP/wf.runs" \
   printf 'unattended.yml\tunattended repair\tfix/y\t905\tcompleted\tfailure\n'
   printf 'gate.yml\tgate\tfix/y\t202\tcompleted\tsuccess\n'
 } > "$WFSTUB_RUNS"
-_wfhist()   { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/automerge.sh"
-                felix_automerge_history example/widget "$1" ); }
-_wfatt()    { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/repair.sh"
-                felix_repair_attempts "$1" example/widget "$2" ); }
-_wflatest() { ( PATH="$WFB:$PATH"; . "$FROOT/harness/lib/repair.sh"
-                felix_repair_latest "$1" example/widget "$2" ); }
 # The `run list` calls in the log: all of them, those not naming workflow $1,
 # and those naming no workflow at all.
 _wfruns()  { grep -c '^run list' "$WFSTUB_LOG"; }
@@ -243,15 +194,8 @@ cp "$TMP/wf.runs.keep" "$WFSTUB_RUNS"
 # Through the CLI, where the workflow comes from the project rather than from
 # the test. Its own checkout, on a branch, with a GitHub remote: the main
 # fixture is remote-less, and felix repair dies without one before any gh.
-WFR="$TMP/wfrepo"; mkdir -p "$WFR"
-( _fx_cd "$WFR" && git init -q -b fix/y \
-  && git remote add origin https://github.com/example/widget.git )
-WFR="$(cd "$WFR" && pwd -P)"
-printf 'widget\n' > "$WFR/.felix"; printf 'contents\n' > "$WFR/WIDGET.txt"
-( _fx_cd "$WFR" && git add -A >/dev/null 2>&1 \
-  && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
+_gate_workflow_repo_build
 cp "$FROOT/projects/widget/project.json" "$TMP/project.wf.keep"
-_wfcli() { ( cd "$WFR" && PATH="$WFB:$PATH" "$FELIX" "$@" 2>&1 ); }
 
 : > "$WFSTUB_LOG"
 out="$(_wfcli repair)"

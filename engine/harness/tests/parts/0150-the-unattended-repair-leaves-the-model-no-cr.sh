@@ -1,4 +1,5 @@
 printf '\nthe unattended repair leaves the model no credential to copy\n'
+_attempt_build
 # Both checkouts left a credential on the runner for the model step to read.
 # actions/checkout persists what it fetched with unless told otherwise: the
 # job's token as an http.extraheader in repo/.git/config, and the deploy key as

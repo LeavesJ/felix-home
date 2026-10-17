@@ -7,6 +7,8 @@ printf '\ndiscovery reads a download piped into a shell\n'
 # accident.
 PTS=$'pipe-to-shell\t'
 _pipefacts() { ( . "$FROOT/harness/lib/discover.sh"; felix_discover_inspect "$1" ); }
+_discover_fixtures_build
+_widget_repo_build
 mkdir -p "$DF/pipeskill/skills/install" "$DF/pipewget/skills/fetch" \
          "$DF/pipesudo/skills/root" "$DF/pipecmd/commands" "$DF/pipeagent/agents" \
          "$DF/pipehooky/hooks" "$DF/pipehooky/skills/install" \
@@ -96,6 +98,9 @@ printf '\nmore than one session at a time\n'
 # repo-shaped one that nothing ever rolls up. Concurrent sessions would then
 # pile named rows into one file with no calls beside them, and a capability
 # would read as "pointed at and ignored" on its way to being retired.
+# The route table the hook reads: 0230 puts the shipped one there, and this part
+# alone finds none, so it takes the shipped table when the widget has no routes.tsv.
+[ -f "$FROOT/projects/widget/routes.tsv" ] || cp "$REAL_HARNESS/templates/routes.tsv" "$FROOT/projects/widget/routes.tsv"
 PROMPT='the build is broken and the stacktrace shows a crash on reproduce'
 rm -rf "$FROOT/state/ledger"
 ( cd "$REPO" && printf '{"prompt":"%s"}' "$PROMPT" \

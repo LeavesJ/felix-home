@@ -3,7 +3,7 @@ printf '\na failure nobody wrote down\n'
 # is half a mechanism. This fires only when the gate actually caught something
 # and nothing was written since — most sessions teach nothing, and a prompt
 # that fires every time is one people learn to dismiss.
-GP="$FROOT/projects/guarded"; mkdir -p "$GP" "$MEM/guarded"
+_memory_guarded_build
 : > "$MEM/guarded/lessons.md"; : > "$MEM/guarded/DEVLOG.md"
 out="$( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" )"
 is "silent when the gate has caught nothing" "${#out}" "0"

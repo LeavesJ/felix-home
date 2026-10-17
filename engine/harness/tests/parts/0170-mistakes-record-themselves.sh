@@ -1,7 +1,7 @@
 printf '\nmistakes record themselves\n'
 # Judgement at write time is the wrong shape: it asks for a decision at the exact
 # moment someone is trying to finish something else. Write cheaply, curate later.
-MISLOG="$MEM/widget/mistakes.log"
+_mislog_vars
 rm -f "$MISLOG"
 # A script rather than an inline command: project.json holds no escaped quotes,
 # which its reader documents that it cannot parse, and a gate script is the more
@@ -193,19 +193,7 @@ cat "$TMP/mislog.aged" > "$MISLOG"
 # Driven through the real gate in a real unborn repository rather than by
 # calling the writer, because the defect was in what git says there and a
 # fixture that invents git's answer would have inherited the same assumption.
-NOHEAD="$TMP/unborn-repo"; NOHEADP="$FROOT/projects/unbornproj"
-mkdir -p "$NOHEAD" "$NOHEADP" "$MEM/unbornproj"
-( _fx_cd "$NOHEAD" && git init -q -b main )
-printf 'unbornproj\n' > "$NOHEAD/.felix"
-printf 'untracked\n'  > "$NOHEAD/file.txt"
-printf '{"name":"unbornproj","gate":"gate.sh"}\n' > "$NOHEADP/project.json"
-cat > "$NOHEADP/gate.sh" <<'GS'
-#!/usr/bin/env bash
-echo "  lint               FAIL"
-exit 1
-GS
-chmod +x "$NOHEADP/gate.sh"
-NOHEADLOG="$MEM/unbornproj/mistakes.log"
+_unborn_repo_build
 ( cd "$NOHEAD" && "$FELIX" gate >/dev/null 2>&1 ); rc=$?
 is "a failing gate on an unborn HEAD still exits non-zero" "$rc" "1"
 is "and records exactly one line for it"  "$(grep -c '' "$NOHEADLOG" 2>/dev/null)" "1"

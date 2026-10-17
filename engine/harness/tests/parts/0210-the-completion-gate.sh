@@ -298,7 +298,7 @@ printf '\nthe completion gate\n'
 # The principle under test: an agent must not be able to say it is finished
 # while the tree it changed has never been verified. Everything here drives the
 # real Stop hook with real JSON on stdin, against a real git repository.
-STOP="$FROOT/harness/hooks/stop"
+_hook_payload_vars
 # Earlier sections rewrite the widget gate to prove other things, so this one
 # declares the gate it depends on instead of inheriting whatever ran last.
 # Without this the red-gate case silently tests a gate of `true`, which cannot
@@ -319,13 +319,7 @@ mkdir -p "$GREPO"
   git -c user.name=t -c user.email=t@t commit -qm init >/dev/null 2>&1 )
 GREPO="$(cd "$GREPO" && pwd -P)"
 
-EMPTY_JSON='{"hook_event_name":"Stop","stop_hook_active":false}'
 ACTIVE_JSON='{"hook_event_name":"Stop","stop_hook_active":true}'
-_stop() { ( cd "$1" && printf '%s' "${2:-$EMPTY_JSON}" | "$STOP" 2>&1 ); }
-_blocks() {
-  case "$2" in *'"decision"'*'"block"'*) ok "$1" ;; *) bad "$1" "expected a block, got [$2]" ;; esac
-}
-_allows() { [ -z "$2" ] && ok "$1" || bad "$1" "expected silence, got [$2]"; }
 
 out="$(_stop "$GREPO")"; rc=$?
 _allows "a session that changed nothing stops silently" "$out"
@@ -461,9 +455,6 @@ _allows "stop_hook_active is honoured, so it never loops" "$out"
 # installs for every project, is one. Leaving at the flag let the turn that
 # answered a background review end unchecked and unrecorded. Driven through
 # the real hook, in the order the platform sends these stops.
-_hj() { printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "$1" "$2"; }
-_hv="$MEM/widget/verification.log"
-_hn() { awk 'END { print NR }' "$_hv" 2>/dev/null || echo 0; }
 rm -rf "$FROOT/state/held"
 _n0="$(_hn)"
 out="$(_stop "$GREPO" "$(_hj true rw-foreign)")"

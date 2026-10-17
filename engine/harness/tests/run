@@ -252,6 +252,12 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 # The names defined so far, one a line, for _lib_clashes: a lib file may not take one.
 { compgen -v; compgen -A function; } | LC_ALL=C sort -u > "$TMP/lib-before.names"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
+. "$HERE/lib/cm-stub.sh"
+. "$HERE/lib/hook-payload.sh"
+. "$HERE/lib/recon.sh"
+. "$HERE/lib/unwritable.sh"
+. "$HERE/lib/user-prompt-hook.sh"
+. "$HERE/lib/widget-repo.sh"
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"

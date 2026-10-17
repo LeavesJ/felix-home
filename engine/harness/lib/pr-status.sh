@@ -52,19 +52,34 @@ _ps_srow() {   # FILE REF STATE DETAIL
   printf '%s\t%s\t%s\n' "$2" "$3" "$(printf '%s' "$4" | LC_ALL=C tr '\t\r\n' '   ')" > "$1"
 }
 
-# How long ago the repository was last fetched, from FETCH_HEAD's mtime.
+# How long ago, in words, for SECONDS.
+_ps_ago() {   # SECONDS
+  local s="$1"; [ "$s" -ge 0 ] || s=0
+  if [ "$s" -lt 3600 ]; then printf '%s min ago' $(( s / 60 ))
+  elif [ "$s" -lt 172800 ]; then printf '%s h ago' $(( s / 3600 ))
+  else printf '%s days ago' $(( s / 86400 )); fi
+}
+
+# How fresh origin/main is. Any fetch rewrites FETCH_HEAD, `git fetch origin
+# some-branch` among them, so its age alone says nothing about origin/main; the
+# reflog of refs/remotes/origin/main says when that ref last moved. The row gives
+# both, each labelled for what it is, and says so when either is not recorded.
 _ps_fetch_age() {   # DIR
-  local gd f mt s
-  gd="$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)" || { printf 'the last fetch is not recorded'; return 0; }
-  case "$gd" in /*) ;; *) gd="$1/$gd" ;; esac
-  f="$gd/FETCH_HEAD"
-  [ -f "$f" ] || { printf 'the last fetch is not recorded'; return 0; }
-  mt="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null)"
-  case "$mt" in ""|*[!0123456789]*) printf 'the last fetch is not recorded'; return 0 ;; esac
-  s=$(( $(date +%s) - mt )); [ "$s" -ge 0 ] || s=0
-  if [ "$s" -lt 3600 ]; then printf 'last fetch %s min ago' $(( s / 60 ))
-  elif [ "$s" -lt 172800 ]; then printf 'last fetch %s h ago' $(( s / 3600 ))
-  else printf 'last fetch %s days ago' $(( s / 86400 )); fi
+  local gd f mt ct now out="" LC_ALL=C
+  now="$(date +%s)"
+  ct="$(git -C "$1" reflog -1 --format=%ct "$_GT_MAIN" 2>/dev/null | LC_ALL=C sed -n 1p)"
+  case "$ct" in ""|*[!0123456789]*) ct="" ;; esac
+  [ -z "$ct" ] || out="origin/main last moved $(_ps_ago $(( now - ct )))"
+  gd="$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)" || gd=""
+  case "$gd" in "") ;; /*) ;; *) gd="$1/$gd" ;; esac
+  f="$gd/FETCH_HEAD"; mt=""
+  if [ -n "$gd" ] && [ -f "$f" ]; then
+    mt="$(stat -c %Y "$f" 2>/dev/null || stat -f %m "$f" 2>/dev/null)"
+    case "$mt" in ""|*[!0123456789]*) mt="" ;; esac
+  fi
+  [ -z "$mt" ] || out="${out:+$out; }last fetch, of any ref, $(_ps_ago $(( now - mt )))"
+  [ -n "$out" ] || out="the last fetch is not recorded"
+  printf '%s' "$out"
 }
 
 # origin/main and the default branch (spec 4.2): the target of origin/HEAD, else
@@ -84,7 +99,11 @@ _ps_origin() {   # DIR SLUG W
   case "$ref" in refs/remotes/origin/?*) _PS_DEF="${ref#refs/remotes/origin/}" ;; esac
   [ -n "$_PS_DEF" ] || [ -z "$_PS_MAIN" ] || _PS_DEF=main
   if [ -z "$_PS_MAIN" ]; then
-    _ps_srow "$w/s.origin" origin unread "no origin/main${_PS_DEF:+; origin/HEAD names $_PS_DEF}; the default branch is not read, and no ledger row can be on the current main"
+    if [ -n "$_PS_DEF" ]; then
+      _ps_srow "$w/s.origin" origin unread "no origin/main; default branch $_PS_DEF (origin/HEAD); no ledger row can be on the current main"
+    else
+      _ps_srow "$w/s.origin" origin unread "no origin/main; the default branch is not read, and no ledger row can be on the current main"
+    fi
     return 0
   fi
   _ps_srow "$w/s.origin" origin read "origin/main ${_PS_MAIN%"${_PS_MAIN#???????}"}, default branch ${_PS_DEF:-not read}, $(_ps_fetch_age "$d")"
@@ -111,9 +130,15 @@ _ps_collect() {   # DIR PROJDIR SLUG NAME W
   _PS_PROJDIR="$pd"; mkdir -p "$w"
   _ps_slug_ok "$slug" && owner="${slug%%/*}"
   _ps_origin "$d" "$slug" "$w"
-  _ps_land "$pd" "$d" "$w"
+  if [ -n "$pd" ]; then
+    _ps_land "$pd" "$d" "$w"
+    _ps_ledger "$(felix_mem_dir "$name")/land/ledger.tsv" "$w"
+  else
+    : > "$w/landpat"; : > "$w/ledger"
+    _PS_LAND=unread; _PS_LANDWHY="no project governs this repository"
+    _PS_LEDGER=unread; _PS_LEDGERWHY="no project governs this repository"
+  fi
   _ps_srow "$w/s.land" land "$_PS_LAND" "$_PS_LANDWHY"
-  _ps_ledger "$(felix_mem_dir "$name")/land/ledger.tsv" "$w"
   _ps_srow "$w/s.ledger" ledger "$_PS_LEDGER" "$_PS_LEDGERWHY"
   : > "$w/rows"
   if _ps_gh_list "${d:-$FELIX_HOME_DIR}" "$slug" "$w"; then
@@ -126,8 +151,19 @@ _ps_collect() {   # DIR PROJDIR SLUG NAME W
 # --- the pages -----------------------------------------------------------------
 # A pull request's line: #N state title (cut at 60): detail, then its flags.
 # shellcheck disable=SC2016
-_PS_LINE='function line(   t, f) { t = substr($6, 1, 60); f = $3; gsub(/^,/, "", f); gsub(/,/, ", ", f)
+_PS_LINE='function line(   t, f, c) { t = substr($6, 1, 60); c = substr($6, 61, 1)
+    if (c >= "\200" && c < "\300") { while (t != "" && substr(t, length(t)) >= "\200" && substr(t, length(t)) < "\300") t = substr(t, 1, length(t) - 1)
+      if (t != "" && substr(t, length(t)) >= "\300") t = substr(t, 1, length(t) - 1) }
+    f = $3; gsub(/^,/, "", f); gsub(/,/, ", ", f)
     return "#" $1 " " $2 " " t ": " $5 (f == "" ? "" : " (flags: " f ")") }'
+
+# What reaches the terminal. A title, a check name, a path, a ledger detail or
+# gh's error line is written by someone else, so a byte that a terminal acts on
+# (a control character below space but for tab and newline, DEL, and the C1
+# controls, which UTF-8 spells C2 80 to C2 9F) is printed as a question mark.
+_ps_tame() {
+  LC_ALL=C tr '\000-\010\013-\037\177' '?' | LC_ALL=C awk '{ gsub(/\302[\200-\237]/, "?"); print }'
+}
 
 # The groups of the text page, founder first (spec 6.2).
 _ps_groups() {   # ROWS
@@ -159,6 +195,7 @@ _ps_prs_text() {   # SLUG NAME W
 
 _ps_prs_tsv() {   # SLUG W
   local ref
+  set -- "$(printf '%s' "$1" | LC_ALL=C tr '\t\r\n' '   ')" "$2"
   for ref in gh land ledger lander budget origin; do
     PS_R="$1" LC_ALL=C awk -F'\t' '{ printf "source\t%s\t%s\t%s\t-\t-\t-\t%s\n", ENVIRON["PS_R"], $1, $2, $3 }' "$2/s.$ref"
   done
@@ -170,18 +207,22 @@ _ps_prs_cmd() {
   [ -d "$d" ] || die "no such directory: $d" 1
   d="$(CDPATH='' cd -- "$d" 2>/dev/null && pwd -P)" || die "cannot enter $d" 1
   dir="$(git -C "$d" rev-parse --show-toplevel 2>/dev/null)" && [ -n "$dir" ] || die "no repository holds $d" 1
-  proj="$(felix_resolve_project "$d" "$FELIX_HOME_DIR")" && [ -n "$proj" ] || die "no project governs $d: add a .felix file naming one, or declare remote_match in a project.json" 1
-  name="${proj##*/}"; landd="$(felix_mem_dir "$name")/land"
+  proj="$(felix_resolve_project "$d" "$FELIX_HOME_DIR")" || proj=""
+  name=""; landd=""
+  if [ -n "$proj" ]; then name="${proj##*/}"; landd="$(felix_mem_dir "$name")/land"; fi
   slug="$(felix_repo_slug "$dir" 2>/dev/null)"; repo="$slug"
   _ps_slug_ok "$slug" || repo="${dir##*/}"
+  repo="$(printf '%s' "$repo" | LC_ALL=C tr '\t\r\n' '   ')"
   owner=""; _ps_slug_ok "$slug" && owner="${slug%%/*}"
   _ps_scratch || return 1
   w="$_PS_T/p"
   _ps_collect "$dir" "$proj" "$slug" "$name" "$w"
-  _ps_lander "$name" "$landd" "$w"
+  if [ -n "$proj" ]; then _ps_lander "$name" "$landd" "$w"
+  else _ps_srow "$w/s.lander" lander unread "no project governs this repository"; fi
   if _ps_budget "$owner" "$dir"; then :; fi
   _ps_srow "$w/s.budget" budget "$_PS_BST" "$_PS_BWHY"
-  if [ "$_PS_TSV" = 1 ]; then _ps_prs_tsv "$repo" "$w"; else _ps_prs_text "$repo" "$name" "$w"; fi
+  if [ "$_PS_TSV" = 1 ]; then _ps_prs_tsv "$repo" "$w"; else _ps_prs_text "$repo" "${name:-none}" "$w"; fi > "$_PS_T/out"
+  _ps_tame < "$_PS_T/out"
   _ps_scratch_gone
   return 0
 }
@@ -202,8 +243,9 @@ _ps_scratch_gone() { rm -rf "$_PS_T"; trap - EXIT; }
 # project whose checkout is the home is read as --prs reads it; another is read
 # from GitHub alone, which can say its default branch and not its fetch.
 _ps_queue_cmd() {
-  local meta pd name rm slug dir hs n=0 w nf nu ref st det tot=0 LC_ALL=C
+  local meta pd name rm slug dir hs n=0 w nf nu ref st det tot=0 key seen="" first trunc anytrunc=0 nl tb LC_ALL=C
   _ps_scratch || return 1
+  nl=$'\n'; tb=$'\t'
   : > "$_PS_T/q.src"; : > "$_PS_T/q.pr"; : > "$_PS_T/q.txt"
   hs="$(felix_repo_slug "$FELIX_HOME_DIR" 2>/dev/null | LC_ALL=C tr 'A-Z' 'a-z')"
   for meta in "$FELIX_HOME_DIR"/projects/*/project.json; do
@@ -213,6 +255,16 @@ _ps_queue_cmd() {
     slug="${rm#https://}"; slug="${slug#http://}"; slug="${slug#git@}"; slug="${slug#github.com[:/]}"; slug="${slug%.git}"
     w="$_PS_T/q$n"; n=$(( n + 1 ))
     if _ps_slug_ok "$slug"; then
+      # Two projects naming one repository list its pull requests once, under
+      # the first (spec 6.3).
+      key="$(printf '%s' "$slug" | LC_ALL=C tr 'A-Z' 'a-z')"
+      case "$seen" in
+        *"$nl$key$tb"*)
+          first="${seen#*"$nl$key$tb"}"; first="${first%%"$nl"*}"
+          printf '%s: the same repository as %s, read once under it\n' "$name" "$first" >> "$_PS_T/q.txt"
+          continue ;;
+      esac
+      seen="$seen$nl$key$tb$name"
       dir=""
       if [ "$(printf '%s' "$slug" | LC_ALL=C tr 'A-Z' 'a-z')" = "$hs" ] && git -C "$FELIX_HOME_DIR" rev-parse --show-toplevel >/dev/null 2>&1; then
         dir="$(git -C "$FELIX_HOME_DIR" rev-parse --show-toplevel 2>/dev/null)"
@@ -223,6 +275,8 @@ _ps_queue_cmd() {
       _ps_srow "$w/s.gh" gh unread "remote_match $rm is not an owner/name slug"
     fi
     IFS=$'\t' read -r ref st det < "$w/s.gh"
+    slug="$(printf '%s' "$slug" | LC_ALL=C tr '\t\r\n' '   ')"
+    trunc=""; if [ "$st" = truncated ]; then trunc=" (the list may be incomplete: $det)"; anytrunc=1; fi
     printf 'source\t%s\tgh\t%s\t-\t-\t-\t%s\n' "$slug" "$st" "$det" >> "$_PS_T/q.src"
     PS_R="$slug" LC_ALL=C awk -F'\t' '$2 == "founder" { gsub(/[\t\r\n]/, " ", $5); printf "pr\t%s\t#%s\t%s%s\t%s\t%s\t%s\t%s\n", ENVIRON["PS_R"], $1, $2, $3, $4, $7, $8, $5 }' "$w/rows" >> "$_PS_T/q.pr"
     nf="$(LC_ALL=C awk -F'\t' '$2 == "founder" { n++ } END { print n + 0 }' "$w/rows")"
@@ -230,18 +284,21 @@ _ps_queue_cmd() {
     tot=$(( tot + nf ))
     if [ "$st" = unread ]; then printf '%s: not read: %s\n' "$name" "$det" >> "$_PS_T/q.txt"
     elif [ "$nf" -eq 0 ]; then
-      printf '%s: no founder entries%s\n' "$name" "$([ "$nu" -eq 0 ] || printf ' (%s unknown, not zero)' "$nu")" >> "$_PS_T/q.txt"
+      printf '%s: no founder entries%s%s\n' "$name" "$([ "$nu" -eq 0 ] || printf ' (%s unknown, not zero)' "$nu")" "$trunc" >> "$_PS_T/q.txt"
     else
-      printf '%s: %s founder entries%s\n' "$name" "$nf" "$([ "$nu" -eq 0 ] || printf ' (and %s unknown)' "$nu")" >> "$_PS_T/q.txt"
+      printf '%s: %s founder entries%s%s\n' "$name" "$nf" "$([ "$nu" -eq 0 ] || printf ' (and %s unknown)' "$nu")" "$trunc" >> "$_PS_T/q.txt"
       LC_ALL=C awk -F'\t' "$_PS_LINE"$'\n'' $2 == "founder" { print line() }' "$w/rows" >> "$_PS_T/q.txt"
     fi
   done
-  if [ "$_PS_TSV" = 1 ]; then cat "$_PS_T/q.src" "$_PS_T/q.pr"
-  else
-    cat "$_PS_T/q.txt"
-    [ "$n" -gt 0 ] || printf 'no project names a remote_match: nothing to read\n'
-    printf '%s founder entries across %s projects\n' "$tot" "$n"
-  fi
+  {
+    if [ "$_PS_TSV" = 1 ]; then cat "$_PS_T/q.src" "$_PS_T/q.pr"
+    else
+      cat "$_PS_T/q.txt"
+      [ "$n" -gt 0 ] || printf 'no project names a remote_match: nothing to read\n'
+      printf '%s founder entries across %s projects%s\n' "$tot" "$n" "$([ "$anytrunc" -eq 0 ] || printf ' (a list may be incomplete)')"
+    fi
+  } > "$_PS_T/out"
+  _ps_tame < "$_PS_T/out"
   _ps_scratch_gone
   return 0
 }

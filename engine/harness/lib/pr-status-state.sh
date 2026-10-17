@@ -16,6 +16,7 @@
 # that repository has no origin/main; 2 when it has no such file.
 _ps_blob() {   # PROJDIR NAME
   local pd repo rel
+  [ -n "$1" ] || return 1
   pd="$(CDPATH='' cd -- "$1" >/dev/null 2>&1 && pwd -P)" || return 1
   repo="$(git -C "$pd" rev-parse --show-toplevel 2>/dev/null)" || return 1
   case "$pd" in "$repo"/*) rel="${pd#"$repo"/}/$2" ;; *) return 1 ;; esac
@@ -55,8 +56,20 @@ _ps_land() {   # PROJDIR GOVERNED-DIR-OR-EMPTY W
 # and detail. absent is none; a regular readable file is read; anything else
 # (a directory, no permission) is unread.
 _ps_ledger() {   # LEDGER W
-  local l="$1" w="$2"
+  local l="$1" w="$2" anc nx
   : > "$w/ledger"
+  # A ledger is absent only when the directories above it can be searched: stat
+  # fails the same way for a file that is not there and for one behind a
+  # directory the reader may not enter, and the second is unread, never none.
+  anc="${l%/*}"
+  while [ -n "$anc" ] && [ "$anc" != "$l" ]; do
+    if [ -d "$anc" ] && [ ! -x "$anc" ]; then
+      _PS_LEDGER=unread; _PS_LEDGERWHY="the directory $anc cannot be searched"; return 0
+    fi
+    [ ! -e "$anc" ] || break
+    nx="${anc%/*}"; [ "$nx" != "$anc" ] || break
+    anc="$nx"
+  done
   if [ ! -e "$l" ] && [ ! -L "$l" ]; then _PS_LEDGER=none; _PS_LEDGERWHY="the tick has not written one"; return 0; fi
   if [ ! -f "$l" ] || [ ! -r "$l" ]; then _PS_LEDGER=unread; _PS_LEDGERWHY="not a readable regular file"; return 0; fi
   if ! LC_ALL=C awk -F'\t' 'NF >= 7 && $3 != "-" { gsub(/\r/, " ", $7); last[$3] = $2 "\t" $4 "\t" $7 }
@@ -120,6 +133,7 @@ _ps_pathattr() {   # W
 _PS_DECIDE='function add(s) { D[++nd] = s }
   function tag(p, t) { return index(" " TG[p], " " t " ") > 0 }
   BEGIN {
+    SEP = sprintf("%c", 3); CTL = sprintf("%c", 1)
     FS = "\t"; W = ENVIRON["PS_W"]; owner = ENVIRON["PS_OWNER"]; lo = tolower(owner)
     def = ENVIRON["PS_DEF"]; main = ENVIRON["PS_MAIN"]; land = ENVIRON["PS_LAND"]; landwhy = ENVIRON["PS_LANDWHY"]
     ledg = ENVIRON["PS_LEDGER"]; now = ENVIRON["PS_NOW"] + 0
@@ -136,7 +150,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       ownunk = (lo == "")
       outside = (cross || (!ownunk && tolower(au) != lo))
       defunk = (def == ""); stacked = (!defunk && base != def)
-      held = (index(lab, ",felix:hold,") > 0); conf = (mg == "CONFLICTING")
+      held = (index(lab, SEP "felix:hold" SEP) > 0); conf = (mg == "CONFLICTING")
       green = (nc > 0 && nfail == 0 && npend == 0)
       dups = ""; m = split(BR[br], o, " "); for (j = 1; j <= m; j++) if (o[j] != n) dups = dups (dups == "" ? "" : " ") o[j]
       if (cross) add("the head is in a fork")
@@ -155,9 +169,9 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       m = split(dups, o, " "); for (j = 1; j <= m; j++) add("head branch " br " is also #" o[j] "\047s")
       founder = 0; tb = 0; unk = 0; refusedhere = 0
       if (green) {
-        labf = (index(lab, ",needs-founder,") > 0 || index(lab, ",felix:founder,") > 0)
+        labf = (index(lab, SEP "needs-founder" SEP) > 0 || index(lab, SEP "felix:founder" SEP) > 0)
         filesok = (nf < 100)
-        items = ""; fc = 0; tbp = ""
+        items = ""; fc = 0; tbp = ""; hrl = ""
         if (filesok) for (k = 1; k <= FN[n]; k++) {
           p = FPATH[n, k]; d = FDEL[n, k]; rl = ""
           if (tag(p, "commission")) rl = rl "commission "
@@ -170,13 +184,17 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
           if (tag(p, "risk")) rl = rl "risk "
           if (land == "read" && tag(p, "land")) rl = rl "land "
           if (tag(p, "direction")) rl = rl "direction "
-          if (p ~ /[^ -~]/ || index(p, "\\")) rl = rl "path-bytes "
+          if (p ~ /[^ -~]/) rl = rl "path-bytes "
           if (tag(p, "riskconf")) add("risk row not evaluated: content confine, for " p)
-          if (rl != "") { sub(/ $/, "", rl); gsub(/ /, ", ", rl); fc++; if (fc <= 5) items = items (items == "" ? "" : "; ") p " (" rl ")" }
-          if (tbp == "" && tag(p, "trustbase")) tbp = p }
-        if (fc > 5) items = items "; and " (fc - 5) " more"
+          if (rl != "") { sub(/ $/, "", rl); fc++
+            if (fc <= 5) { r2 = rl; gsub(/ /, ", ", r2); items = items (items == "" ? "" : "; ") p " (" r2 ")" }
+            else { m2 = split(rl, rw, " "); for (q = 1; q <= m2; q++) if (!((n, rw[q]) in HR)) { HR[n, rw[q]] = 1; hrl = hrl (hrl == "" ? "" : ", ") rw[q] } } }
+          if (tag(p, "trustbase")) tbp = tbp (tbp == "" ? "" : ", ") p }
+        if (fc > 5) items = items "; and " (fc - 5) " more: " hrl
         founder = (labf || fc > 0)
-        if (labf) add("label " (index(lab, ",needs-founder,") > 0 ? "needs-founder" : "felix:founder") " puts it in the founder queue")
+        l1 = (index(lab, SEP "needs-founder" SEP) > 0); l2 = (index(lab, SEP "felix:founder" SEP) > 0)
+        if (l1 && l2) add("labels needs-founder and felix:founder put it in the founder queue")
+        else if (labf) add("label " (l1 ? "needs-founder" : "felix:founder") " puts it in the founder queue")
         if (fc > 0) add("founder paths, path-level: " items)
         if (tbp != "") { tb = 1; add("touches the trust base: " tbp) }
         if (!filesok) { add("files not read: GitHub lists at most 100"); if (!founder) unk = 1 }
@@ -193,7 +211,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
             else add("the lander: " ev ": " ld)
           } else add("the lander last saw " substr(lh, 1, 7) ": " ev)
         }
-        if (ledg == "unread" && !founder && !tb && !unk) { add("the lander\047s ledger not read"); unk = 2 }
+        if (ledg == "unread") { add("the lander\047s ledger not read"); if (!founder && !tb && !unk) unk = 2 }
       }
       if (outside) { st = "outside"; nd2 = "nobody" }
       else if (defunk || ownunk) { st = "unknown"; nd2 = "unknown" }
@@ -211,7 +229,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       else if (!draft && dups == "") { st = "ready"; nd2 = "lander"; add("the checks are green and nothing holds it back") }
       else { st = "unready"; nd2 = "session" }
       dt = ""; for (j = 1; j <= nd; j++) dt = dt (j > 1 ? "; " : "") D[j]
-      gsub(/[\t\r\n]/, " ", dt)
+      gsub(/[\t\r\n]/, " ", dt); gsub(CTL, "?", dt)
       age = "-"; if (upd ~ /^[0123456789]+$/) { age = int((now - upd) / 3600); if (age < 0) age = 0 }
       printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", n, st, fl, nd2, dt, title, age, oid
     } }'

@@ -22,7 +22,7 @@ _ps_ghc() {   # DIR ARGS...
 # A slug is owner/name: one slash, nothing else that splits it.
 _ps_slug_ok() {
   local tab; tab="$(printf '\t')"
-  case "${1:-}" in ""|*" "*|*"$tab"*|/*|*/|*/*/*) return 1 ;; */*) return 0 ;; esac
+  case "${1:-}" in ""|*" "*|*"$tab"*|*$'\r'*|*$'\n'*|/*|*/|*/*/*) return 1 ;; */*) return 0 ;; esac
   return 1
 }
 
@@ -36,9 +36,29 @@ _ps_err1() {   # FILE
     print s }'
 }
 
+# gh's JSON with its escapes decoded where the page has to tell them apart,
+# before the shared flattener (which turns \t, \n and \r into spaces and leaves
+# \\ doubled) reads it. A control character in a string (the escapes \b \f \n
+# \r \t, and \u00XX below 0x20 or 0x7f) becomes byte 001, a backslash byte 002,
+# and an escaped printable ASCII character the character itself, so that a
+# changed path holding a tab is seen as holding a byte outside printable ASCII
+# and a path holding a backslash is not. Any other \uXXXX is outside printable
+# ASCII too. \" stays for the flattener.
+# shellcheck disable=SC2016
+_PS_UNESC='BEGIN { c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); hx = "0123456789abcdef" }
+  { gsub(/\\\\/, c2); gsub(/\\[nrtbf]/, c1); gsub(/\\\//, "/")
+    while (match($0, /\\u[0123456789abcdefABCDEF][0123456789abcdefABCDEF][0123456789abcdefABCDEF][0123456789abcdefABCDEF]/)) {
+      h = tolower(substr($0, RSTART + 2, 4)); r = c1
+      if (substr(h, 1, 2) == "00") {
+        v = (index(hx, substr(h, 3, 1)) - 1) * 16 + (index(hx, substr(h, 4, 1)) - 1)
+        if (v == 34) r = "\\\""; else if (v == 92) r = c2; else if (v >= 32 && v < 127) r = sprintf("%c", v) }
+      $0 = substr($0, 1, RSTART - 1) r substr($0, RSTART + RLENGTH) }
+    print }'
+
 # One row per pull request, from the flattened list: number, title, head
 # branch, head SHA, base, draft, cross-repository, author, labels (lower case,
-# a comma after each, a comma alone for none), mergeable, mergeStateStatus,
+# each preceded and followed by byte 003, which no label name holds, and a
+# single 003 for none), mergeable, mergeStateStatus,
 # updatedAt as an epoch, files listed, checks, failed, unfinished, and the names
 # of the failed and of the unfinished ones. Tabs and carriage returns in a value
 # are spaces. A check's result is its conclusion, else its state, else its
@@ -47,8 +67,12 @@ _ps_err1() {   # FILE
 # anything else has not finished. The files table is number, path, deleted lines.
 # shellcheck disable=SC2016
 _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
-  BEGIN { pf = ENVIRON["PS_PF"]; ff = ENVIRON["PS_FF"] }
-  { i = $1; p = $2; v = $3; gsub(/[\t\r]/, " ", v)
+  BEGIN { pf = ENVIRON["PS_PF"]; ff = ENVIRON["PS_FF"]; bs = sprintf("%c", 92); c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); sep = sprintf("%c", 3) }
+  function un(x, keep,   k, e) { e = ""; k = 0
+    while ((k = index(x, c2)) > 0) x = substr(x, 1, k - 1) bs substr(x, k + 1)
+    if (!keep) gsub(c1, " ", x)
+    return x }
+  { i = $1; p = $2; v = $3; gsub(/[\t\r]/, " ", v); v = un(v, p ~ /^files[.][0123456789]+[.]path$/)
     if (!(i in S)) { S[i] = 1; O[++n] = i }
     if (p == "number") NUM[i] = v
     else if (p == "title") TI[i] = v
@@ -61,7 +85,7 @@ _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
     else if (p == "mergeable") MG[i] = v
     else if (p == "mergeStateStatus") MS[i] = v
     else if (p == "updatedAt") UP[i] = v
-    else if (p ~ /^labels[.][0123456789]+[.]name$/) LB[i] = LB[i] tolower(v) ","
+    else if (p ~ /^labels[.][0123456789]+[.]name$/) LB[i] = LB[i] (LB[i] == "" ? sep : "") tolower(v) sep
     else if (p ~ /^statusCheckRollup[.][0123456789]+[.]/) { split(p, k, "."); CK[i, k[2], k[3]] = v; if (k[2] + 1 > CN[i]) CN[i] = k[2] + 1 }
     else if (p ~ /^files[.][0123456789]+[.]/) { split(p, k, "."); if (k[3] == "path") FP[i, k[2]] = v; else if (k[3] == "deletions") FD[i, k[2]] = v
       if (k[2] + 1 > FC[i]) FC[i] = k[2] + 1 } }
@@ -75,7 +99,7 @@ _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
         else if (r !~ /^(SUCCESS|SKIPPED|NEUTRAL)$/) { npend++; pendn = pendn (pendn == "" ? "" : ", ") nm " " (r == "" ? "no result" : r) } }
       u = ep(UP[i])
       printf "%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%d\t%d\t%d\t%d\t%s\t%s\n", NUM[i], nz(TI[i]), nz(HB[i]), nz(HO[i]), nz(BS[i]), nz(DR[i]), nz(CR[i]), \
-        nz(AU[i]), "," LB[i], nz(MG[i]), nz(MS[i]), u, FC[i] + 0, CN[i] + 0, nfail, npend, nz(failn), nz(pendn) > pf
+        nz(AU[i]), (LB[i] == "" ? sep : LB[i]), nz(MG[i]), nz(MS[i]), u, FC[i] + 0, CN[i] + 0, nfail, npend, nz(failn), nz(pendn) > pf
       for (c = 0; c < FC[i]; c++) if ((i, c) in FP) printf "%s\t%s\t%d\n", NUM[i], FP[i, c], FD[i, c] + 0 > ff } }'
 
 # gh's open pull requests of SLUG, asked from directory $1, into $3/prs (sorted
@@ -97,7 +121,7 @@ _ps_gh_list() {   # DIR SLUG W
   fi
   first="$(LC_ALL=C awk 'NF { print substr($0, 1, 1); exit }' "$w/gh.json" 2>/dev/null)"
   if [ "$first" != "[" ]; then _PS_GHWHY="gh pr list answered something that is not a list"; return 1; fi
-  LC_ALL=C awk "$_FI_JSON" "$w/gh.json" 2>/dev/null \
+  LC_ALL=C awk "$_PS_UNESC" "$w/gh.json" 2>/dev/null | LC_ALL=C awk "$_FI_JSON" 2>/dev/null \
     | PS_PF="$w/prs.u" PS_FF="$w/files" LC_ALL=C awk -F'\t' "$_FI_EPOCH"$'\n'"$_PS_TABLES" 2>/dev/null
   [ -e "$w/prs.u" ] || : > "$w/prs.u"
   LC_ALL=C sort -t "$(printf '\t')" -k1,1n "$w/prs.u" > "$w/prs" 2>/dev/null
@@ -124,22 +148,27 @@ _ps_gh_list() {   # DIR SLUG W
 }
 
 # The account's Actions minutes this month, one gh api GET (spec 4.4):
-# users/<owner>/settings/billing/actions, or orgs/<owner>/... for an
-# organisation. States budget as _PS_BST and _PS_BWHY. On 2026-10-13 the
+# users/<owner>/settings/billing/actions, and orgs/<owner>/... when that answers
+# 404 (an organisation). States budget as _PS_BST and _PS_BWHY. On 2026-10-13 the
 # endpoint answered 404 for a user, because the token lacks the user scope;
 # widening it is the founder's, so the row says so and nothing asks him.
 _ps_budget() {   # OWNER DIR
-  local o="$1" d="$2" kind=users used inc e w="$_PS_T/budget"
+  local o="$1" d="$2" used inc e w="$_PS_T/budget"
   _PS_BST=unread
   if [ "${_PS_NOGH:-0}" = 1 ]; then _PS_BWHY="--no-gh: gh was not asked"; return 1; fi
   command -v gh >/dev/null 2>&1 || { _PS_BWHY="gh not found"; return 1; }
   [ -n "$o" ] || { _PS_BWHY="the repository names no owner"; return 1; }
-  if _ps_ghc "$d" api "users/$o" > "$w.type" 2> "$w.err"; then
-    case "$(LC_ALL=C sed -n 's/.*"type"[[:space:]]*:[[:space:]]*"\([A-Za-z]*\)".*/\1/p' "$w.type" 2>/dev/null | LC_ALL=C sed -n 1p)" in Organization) kind=orgs ;; esac
-  fi
-  if ! _ps_ghc "$d" api "$kind/$o/settings/billing/actions" > "$w.json" 2> "$w.err"; then
+  # One GET for a user's account. Only a 404 (an organisation's account has no
+  # such path, and a token without the user scope gets one too) asks the orgs
+  # path as well, and only a 404 says the token may lack the scope.
+  if ! _ps_ghc "$d" api "users/$o/settings/billing/actions" > "$w.json" 2> "$w.err"; then
     e="$(_ps_err1 "$w.err")"; [ -n "$e" ] || e="gh api exited with no output"
-    _PS_BWHY="$e; the token may lack the user scope, and widening it is the founder's"; return 1
+    case "$e" in *404*|*"Not Found"*)
+      if ! _ps_ghc "$d" api "orgs/$o/settings/billing/actions" > "$w.json" 2> "$w.err2"; then
+        _PS_BWHY="$e; the token may lack the user scope, and widening it is the founder's"; return 1
+      fi ;;
+    *) _PS_BWHY="$e"; return 1 ;;
+    esac
   fi
   used="$(LC_ALL=C sed -n 's/.*"total_minutes_used"[[:space:]]*:[[:space:]]*\([0123456789.]*\).*/\1/p' "$w.json" 2>/dev/null | LC_ALL=C sed -n 1p)"
   inc="$(LC_ALL=C sed -n 's/.*"included_minutes"[[:space:]]*:[[:space:]]*\([0123456789.]*\).*/\1/p' "$w.json" 2>/dev/null | LC_ALL=C sed -n 1p)"

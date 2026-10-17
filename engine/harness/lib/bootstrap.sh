@@ -90,9 +90,9 @@ felix_guess_ecosystem() {
 # the first that runs on it. tests/run holds each pin to the runtime read for it.
 #
 # What the new majors change for the step rendered here:
-# - setup-node v5 caches by itself when package.json's packageManager names
-#   npm, yarn or pnpm. It reads $GITHUB_WORKSPACE/package.json, and the repository is checked out
-#   under repo/, so nothing is cached, as under v4.
+# - setup-node v5 caches by itself when package.json's packageManager field
+#   names a package manager. It reads $GITHUB_WORKSPACE/package.json, and the
+#   repository is checked out under repo/, so nothing is cached, as under v4.
 # - setup-python v6 adds pip-version and pip-install, both left unset. Caching
 #   stays opt-in.
 # - setup-go v6 exports GOTOOLCHAIN=local to every later step, so `go` never

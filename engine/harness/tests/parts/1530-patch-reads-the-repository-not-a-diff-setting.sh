@@ -32,6 +32,13 @@ printf '\nwhat the engine reads from a patch is the repository'"'"'s, not a diff
 # prefix setting older git does not know, which is a skip. Keys are assembled at
 # run time, so this file never carries one. Every reader call runs under a time
 # limit that is a guard against a hang, not a measurement.
+#
+# The probes and the readers run without GIT_CONFIG_PARAMETERS, where the
+# driver puts its own colour pin (2026-10-17, carried with the colour change).
+# Under the pin a porcelain git prints no colour whatever the repository says,
+# so a colour case found nothing to test, and a reader would pass by the
+# suite's setting rather than its own flags. A kind that needs the variable
+# sets it in DDRE, which applies after it is removed.
 DDR="$(mktemp -d "$TMP/ddr.XXXXXX" 2>/dev/null)" || DDR=""
 if [ -n "$DDR" ] && [ -d "$DDR" ]; then DDR="$(cd -- "${DDR:?}" && pwd -P)"; fi
 [ -n "$DDR" ] && [ -d "$DDR" ] || DDR="$TMP/ddr-missing"
@@ -173,7 +180,7 @@ _ddr_probe() {   # repo kind
   [ -n "$DDRFX" ] && return 0
   v="$( _fx_cd "${1:?}" && GIT_CEILING_DIRECTORIES="${DDR:?}" && export GIT_CEILING_DIRECTORIES \
         && printf 'probe\n' >> app.txt \
-        && p="$(env ${DDRE[@]+"${DDRE[@]}"} git diff 2>&1)" \
+        && p="$(env -u GIT_CONFIG_PARAMETERS ${DDRE[@]+"${DDRE[@]}"} git diff 2>&1)" \
         && q="$(git diff --no-ext-diff --no-textconv --no-color --text 2>&1)" \
         && git checkout -q -- app.txt && [ -n "$q" ] && if [ "$p" = "$q" ]; then echo same; else echo moved; fi )"
   [ "$v" = moved ] || DDRFX="porcelain git diff here prints the plain patch under $2, so nothing is tested"
@@ -182,7 +189,8 @@ _ddr_probe() {   # repo kind
 _ddr_effect() {   # dir text git-args...: sets DDRSKIP when the text is absent
   local d="$1" t="$2" v; shift 2
   [ -n "$DDRFX" ] && return 0
-  v="$( _fx_cd "${d:?}" && GIT_CEILING_DIRECTORIES="${DDR:?}" && export GIT_CEILING_DIRECTORIES && git "$@" 2>&1 )"
+  v="$( _fx_cd "${d:?}" && GIT_CEILING_DIRECTORIES="${DDR:?}" && export GIT_CEILING_DIRECTORIES \
+        && env -u GIT_CONFIG_PARAMETERS git "$@" 2>&1 )"
   case "$v" in *"$t"*) ;; *) DDRSKIP="this git prints no [$t] for git $*, so it does not apply the setting" ;; esac
 }
 
@@ -190,13 +198,13 @@ _ddr_effect() {   # dir text git-args...: sets DDRSKIP when the text is absent
 _ddr_scan() {   # dir args... -> secret-scan's status
   local d="$1"; shift
   ( cd -- "${d:?}" && GIT_CEILING_DIRECTORIES="${DDR:?}" && export GIT_CEILING_DIRECTORIES \
-      && env ${DDRE[@]+"${DDRE[@]}"} perl -e 'alarm shift; exec @ARGV or exit 127' 300 \
+      && env -u GIT_CONFIG_PARAMETERS ${DDRE[@]+"${DDRE[@]}"} perl -e 'alarm shift; exec @ARGV or exit 127' 300 \
            "$FROOT/harness/bin/secret-scan" "$@" ) >/dev/null 2>"$DDR/scan.err"
 }
 _ddr_sh() {   # dir snippet args...: the snippet sees the harness as $1 and the arguments after it
   local d="$1" c="$2"; shift 2
   ( cd -- "${d:?}" && GIT_CEILING_DIRECTORIES="${DDR:?}" && export GIT_CEILING_DIRECTORIES \
-      && env ${DDRE[@]+"${DDRE[@]}"} perl -e 'alarm shift; exec @ARGV or exit 127' 300 \
+      && env -u GIT_CONFIG_PARAMETERS ${DDRE[@]+"${DDRE[@]}"} perl -e 'alarm shift; exec @ARGV or exit 127' 300 \
            bash -c "$c" _ "$FROOT/harness" "$@" ) 2>/dev/null
 }
 _ddr_added()   { _ddr_sh "$1" 'set -o pipefail; . "$1/lib/resolve.sh"; felix_added_lines "$2" "${3:-}"' "$1" "${2:-}"; }

@@ -1,3 +1,6 @@
+_mislog_vars
+_cmstub_build
+_probes_build end
 out="$(cd "$BARE" && "$FELIX" probes 2>&1)"; rc=$?
 is  "felix probes refuses a project that asks reality nothing" "$rc" "1"
 has "and says what is missing rather than printing a clean report" \
@@ -100,18 +103,7 @@ has "probes.tsv is one of the tables whose shrinkage escapes" \
 # derived on every run and never stored; the merge boundary refuses the empty
 # ledger; a dormant row is reported and blocks nothing; unknown blocks; and
 # shrinking the ledger escapes to a person.
-OBP="$TMP/oblig-proj"; OBR="$TMP/oblig-repo"; mkdir -p "$OBP" "$OBR"
-( _fx_cd "$OBR" && git init -q -b main && printf 'x\n' > x && git add -A && git commit -qm x )
-OBR="$(cd "$OBR" && pwd -P)"
-printf 'thing\t-\t-\tls -1 x\ttest -f x\n' > "$OBP/probes.tsv"
-_ob()    { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
-             . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
-_obrun() { _ob felix_obligations_run "$OBP" "$OBR"; }
-_obblk() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/evidence.sh"
-             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/probes.sh"
-             . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
-             felix_merge_blockers "${1:-$OBP}" "" "$OBR" "$FROOT" ) 2>/dev/null | grep '^obligations'; }
+_oblig_build
 
 # The axes, derived.
 printf 'a\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\tthing\tholds\n' > "$OBP/obligations.tsv"

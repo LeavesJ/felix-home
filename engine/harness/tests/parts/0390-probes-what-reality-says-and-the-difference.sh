@@ -1,4 +1,5 @@
 printf '\nprobes: what reality says, and the difference between empty and blind\n'
+_unwritable_probe
 # The rule, one level stricter than the one procedures.tsv obeys: Felix may
 # declare which question to ask reality, and may never author the answer.
 #
@@ -14,48 +15,8 @@ printf '\nprobes: what reality says, and the difference between empty and blind\
 # No number of extra checks fixes that. What fixes it is refusing to let "found
 # nothing" and "could not look" render the same, which is what every assertion
 # below is about.
-PBP="$TMP/probes-proj"; mkdir -p "$PBP" "$MEM/probes-proj"
-PBR="$TMP/probes-repo"; mkdir -p "$PBR/src" "$PBR/.github/workflows"
-printf 'x\n' > "$PBR/src/a.py"
-printf 'on: push\n' > "$PBR/.github/workflows/ci.yml"
-( _fx_cd "$PBR" && git init -q -b main && git add -A \
-  && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
-PBR="$(cd "$PBR" && pwd -P)"
+_probes_build base
 
-# Written by a function rather than patched in place, because the witness has
-# to be varied and `sed -i` with a \t is not portable between BSD and GNU sed —
-# the substitution silently matches nothing on one of them, which would leave an
-# assertion passing for the wrong reason.
-_pbtable() {
-  { printf '# predicate\tgrounds\twhen\tprobe\twitness\n'
-    # found: the probe enumerates, and the members are its own.
-    printf 'tracked\t-\t-\tgit ls-files\ttest -e .git\n'
-    # empty: nothing came back AND an independent witness agrees there is
-    # nothing to come back. The only state here that is a claim about the world.
-    printf 'rustcrate\t-\t-\tls -1 Cargo.toml 2>/dev/null\t%s\n' "${1:-test -f Cargo.toml}"
-    # blind: the probe saw none of a surface the witness proves is there. The
-    # control with teeth — the shape of every failure named in the header.
-    printf 'pyfile\t-\t-\tgit ls-files "*.rs"\ttest -d src\n'
-    # blind by failure rather than by silence: same verdict, because a probe
-    # that could not run against a surface that exists has seen none of it.
-    printf 'brokenprobe\t-\t-\tsh -c "exit 3"\ttest -d src\n'
-    # unknown: nothing came back and no witness says whether that is true.
-    printf 'nowitness\t-\t-\tgit ls-files "*.rs"\t-\n'
-    # unknown by absent tooling. 127 is never evidence about the surface.
-    printf 'notool\t-\t-\tdefinitely-not-a-real-command-xyz\ttest -d src\n'
-    # not-applicable: the row says it does not apply here, so it claims nothing.
-    printf 'na\t-\ttest -f Cargo.toml\tls -1 src/*.rs\ttest -d src\n'
-    # members AND a failure: partial, so neither found nor nothing-came-back.
-    printf 'partial\t-\t-\tls -1 src no-such-path\ttest -d src\n'
-    # a probe that reads stdin. With a terminal on stdin this WAITS, and this
-    # runs inside a gate — so one row spelt `grep foo` instead of
-    # `grep foo file` would hang every gate run on the project forever. The
-    # only way this assertion can be reached at all is if stdin is closed.
-    printf 'readsstdin\t-\t-\tcat\ttest -d src\n'
-    # anything the caller wants appended for one assertion.
-    [ -n "${2:-}" ] && printf '%s\n' "$2"
-  } > "$PBP/probes.tsv"
-}
 _pbtable
 
 _pbrun() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
@@ -481,8 +442,7 @@ _pbtable
 # nothing, forever, and read exactly like a project with no gaps. This is that
 # refused in three places, asserted separately, because a refusal that exists in
 # one place is a refusal somebody routes around.
-PBE="$TMP/probes-empty"; mkdir -p "$PBE"
-printf '{\n  "name": "widget",\n  "gate": "true"\n}\n' > "$PBE/project.json"
+_probes_build empty
 _pbnorows() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/facts.sh"; . "$FROOT/harness/lib/obligations.sh"
                 felix_probe_rows "$PBE" ); }
 is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" "0"
@@ -490,9 +450,5 @@ is "a project with no probes.tsv declares no probes" "$(_pbnorows | grep -c .)" 
 # One: the command itself. On a project of its own, because widget carries a
 # table like every project felix new creates, and the case under test is a
 # project that has none.
-mkdir -p "$FROOT/projects/bare" "$MEM/bare"
-printf '{\n  "name": "bare",\n  "gate": "true"\n}\n' > "$FROOT/projects/bare/project.json"
-BARE="$TMP/bare-repo"; mkdir -p "$BARE"
-( _fx_cd "$BARE" && git init -q -b main && printf 'x\n' > a.txt ) >/dev/null 2>&1
-BARE="$(cd "$BARE" && pwd -P)"; printf 'bare\n' > "$BARE/.felix"
+_probes_build bare
 

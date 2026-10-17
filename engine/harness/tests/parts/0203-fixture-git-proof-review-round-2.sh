@@ -691,6 +691,7 @@ printf '\nfixture git proof: what the mutation runner found\n'
 # - X21 counts only where the ulimit held and C7 is shown to exist, as the
 #   blind block's own fork probe does.
 
+_gitproof_build; _gitproof_kid_same; _gitproof_kid_url
 # F15: a refusal that enters the directory first (outside-tmp) restores OLDPWD too.
 : > "$_gp/rec.x1"
 _gx_o="$(cd "$_gp_home/sub" || exit 0; cd "$_gp_home" || exit 0; cd "$_gp_home/sub" || exit 0
@@ -853,6 +854,7 @@ if [ -n "$_gx_a" ] && [ -n "$_gx_b" ] && [ "$_gx_a" -lt "$_gx_b" ]; then ok "X4 
 else bad "X4 the snapshot is taken above TMP=\$(mktemp -d)" "snapshot at line [$_gx_a], TMP= at line [$_gx_b]"; fi
 
 # L22, L23, L25 and L11b: lint shapes the synthetic files do not hold.
+mkdir -p "$_gp/lint"
 cat > "$_gp/lint/more" <<'GPLINT'
 printf x | git -C "$S_pipe1" remote add o https://example.invalid/x.git
 cd "$S_pipe2" |

@@ -73,6 +73,37 @@ printf '\ngate friction C: the suite reads tests/lib, and nothing in it runs whe
 # paths are compared as files. (h) reads "the line that writes" as the one
 # driver line outside a comment that names lib-before.names. Before the
 # amended implementation most hole cases, (g) and (h) FAIL.
+#
+# Amended again 2026-10-16, a third round, blind, after two reviews of the
+# judges found a lib file could still weaken the serial run. C2 now reads: a
+# lib file, sourced, defines functions and nothing else; it runs no command and
+# sets no variable, not even a plain assignment. It replaces both judges'
+# bullets above:
+# - _lib_runs_nothing FILE judges FILE in a new /bin/bash --noprofile --norc
+#   under env -i, with PATH, and HOME, TMPDIR, TMP, FROOT, MEM, REPO,
+#   FELIX_HOME and FELIX in a fresh scratch directory under $TMP; set -u,
+#   pipefail, extdebug and a DEBUG trap that records each command and skips it;
+#   a 10 s limit. 0 only when no command was recorded, nothing was printed,
+#   nothing under the scratch directory changed, the child's variable names
+#   are the same after sourcing as before, and it ended normally within the
+#   limit; otherwise 1, and one line naming FILE and the first thing it did;
+# - _lib_clashes takes a lib file's names from a judging child (the functions
+#   it holds after sourcing and not before) and prints NAME<TAB>LIBFILE<TAB>WHAT
+#   for each that lib-before.names holds (defined before the lib block), that
+#   is a builtin, keyword, alias or command on PATH (a builtin, a keyword, an
+#   alias, or the command's path), that another lib file defines, or that
+#   another file of _suite_files defines by its text (that file's path).
+# Readings. Each assertion that passed a plain assignment now refuses it, on
+# the same planted file. A clash case that sets a variable is refused by
+# _lib_runs_nothing, and _lib_clashes, naming functions only, prints no line
+# for it. A builtin's WHAT is "a builtin"; git's is the path type -P finds here,
+# on the PATH the judge is handed. Files both judges must pass are planted in
+# the copy with function names made at run time, so no file of the tree holds
+# their definitions. Every _gci_judge call runs under ulimit -t 20, so a judge
+# with no limit of its own meets the endless loop as a FAIL, not a hang; that
+# case also times the call and allows the 10 s limit and 10 s more. (h) reads
+# "a function that part 0006 defines" as the two judges, each defined by a line
+# of 0006 at its left margin. Before the third-round judges, most new cases FAIL.
 GCI="$TMP/gci"; mkdir -p "$GCI"
 GCI_NO="no function by that name in the prelude"
 
@@ -289,13 +320,15 @@ cat > "$GCI_L/gci-lrn-git-init.sh" <<'GCI_LRN_GIT'
 _fx_git "$TMP" init -q >/dev/null 2>&1
 GCI_LRN_GIT
 
-_gci_n1="_lib_runs_nothing returns 0 for a lib file that holds only definitions and plain assignments"
+_gci_n1="_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that holds only definitions and plain assignments"
 _gci_n2="_lib_runs_nothing leaves its caller as it was: no function or variable from the file, and TMP, FROOT, MEM and REPO unchanged"
 if declare -F _lib_runs_nothing >/dev/null; then
   _gci_was="${TMP-}|${FROOT-}|${MEM-}|${REPO-}"
   _lib_runs_nothing "$GCI_L/gci-lrn-clean.sh" > "$GCI/lrn.clean" 2>&1; _gci_rc=$?
-  [ "$_gci_rc" -eq 0 ] && ok "$_gci_n1" \
-    || bad "$_gci_n1" "it returned $_gci_rc and said [$(head -3 "$GCI/lrn.clean" | LC_ALL=C tr '\n' ' ')]"
+  _gci_v="$_gci_rc|$(LC_ALL=C awk 'END { print NR }' "$GCI/lrn.clean") line(s)|"
+  if LC_ALL=C grep -qF -e gci-lrn-clean.sh "$GCI/lrn.clean"; then _gci_v="${_gci_v}names the file"; else _gci_v="${_gci_v}does not name the file"; fi
+  [ "$_gci_v" = "1|1 line(s)|names the file" ] && ok "$_gci_n1" \
+    || bad "$_gci_n1" "status|lines|naming: [$_gci_v], wanted [1|1 line(s)|names the file]; it said [$(head -3 "$GCI/lrn.clean" | LC_ALL=C tr '\n' ' ')]"
   _gci_v="$(declare -F _gci_lrn_fn >/dev/null && printf 'the function is defined; ')$([ -n "${_gci_lrn_var+x}" ] && printf 'the variable is set; ')"
   [ "${TMP-}|${FROOT-}|${MEM-}|${REPO-}" = "$_gci_was" ] || _gci_v="${_gci_v}TMP|FROOT|MEM|REPO went from [$_gci_was] to [${TMP-}|${FROOT-}|${MEM-}|${REPO-}]"
   [ -z "$_gci_v" ] && ok "$_gci_n2" || bad "$_gci_n2" "$_gci_v"
@@ -330,7 +363,8 @@ _gci_caught "_lib_runs_nothing returns 1 and prints one line naming the file, fo
 GCI_E="$GCI/lrn-env"; mkdir -p "$GCI_E/home" "$GCI_E/tmpdir" "$GCI_E/felix-home" "$GCI/lrn-outside"
 _gci_put() { printf '%s\n' "$2" > "$GCI_L/$1"; }   # <file name> <text>: a planted lib file in $GCI_L
 _gci_judge() {   # <planted file> <out> [NAME=VALUE the caller exports] -> the judge's status in _gci_rc
-  ( FELIX_TEST_RAN="$GCI/lrn-ran"; HOME="$GCI_E/home"; TMPDIR="$GCI_E/tmpdir"
+  ( ulimit -c 0 2>/dev/null; ulimit -t 20 2>/dev/null
+    FELIX_TEST_RAN="$GCI/lrn-ran"; HOME="$GCI_E/home"; TMPDIR="$GCI_E/tmpdir"
     FELIX_HOME="$GCI_E/felix-home"; FELIX="$GCI_E/felix"; export HOME TMPDIR FELIX_HOME FELIX
     [ -z "${3:-}" ] || export "$3"
     _lib_runs_nothing "$1" ) > "$2" 2>&1
@@ -392,6 +426,61 @@ _gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, f
 _gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that calls exit at top level" gci-lrn-h19-exit.sh
 _gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable with readonly" gci-lrn-h20-readonly.sh
 _gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable with declare -x" gci-lrn-h20-declare.sh
+
+# ---- (e), third round: a lib file that sets any variable, by any route.
+_gci_put gci-lrn-t01-literal.sh 'X=literal'
+_gci_put gci-lrn-t02-froot.sh 'X="$FROOT/projects/widget"'
+_gci_put gci-lrn-t03-brace.sh '{ FAIL=0; }'
+_gci_put gci-lrn-t04-if.sh 'if FAIL=0; then _x=1; fi'
+_gci_put gci-lrn-t05-bang.sh '! PASS=0'
+_gci_put gci-lrn-t06-until.sh 'until FAIL=0; do _x=1; done'
+_gci_put gci-lrn-t07-subscript.sh '_x=${_a[SKIP=0]-}'
+_gci_put gci-lrn-t08-default.sh '_y=${FELIX_TEST_RAN:=/dev/null}'
+_gci_put gci-lrn-t09-globignore.sh "GLOBIGNORE='*'"
+_gci_put gci-lrn-t10-posixly.sh 'POSIXLY_CORRECT=1'
+_gci_put gci-lrn-t11-cdpath.sh 'CDPATH=/'
+_gci_put gci-lrn-t12-no-manifest.sh 'FELIX_TEST_NO_MANIFEST=1'
+_gci_put gci-lrn-t14-blind.sh "$(printf '%s\n' '_lrn_log=/dev/null' 'cd /')"
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable to a literal at top level" gci-lrn-t01-literal.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable to a path under FROOT at top level" gci-lrn-t02-froot.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL inside a brace group" gci-lrn-t03-brace.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL in the condition of an if" gci-lrn-t04-if.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets PASS behind a !" gci-lrn-t05-bang.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL in the condition of an until loop" gci-lrn-t06-until.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets SKIP in an array subscript inside an expansion" gci-lrn-t07-subscript.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FELIX_TEST_RAN through a := expansion" gci-lrn-t08-default.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets GLOBIGNORE" gci-lrn-t09-globignore.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets POSIXLY_CORRECT" gci-lrn-t10-posixly.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets CDPATH" gci-lrn-t11-cdpath.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FELIX_TEST_NO_MANIFEST" gci-lrn-t12-no-manifest.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets _lrn_log to /dev/null and then changes directory, to blind the judge" gci-lrn-t14-blind.sh
+# An endless loop: timed, and its one line must name the command or the limit.
+_gci_put gci-lrn-t13-loop.sh 'while _x=1; do _y=1; done'
+_gci_n="_lib_runs_nothing returns 1 within its 10 s limit and 10 s more, with one line naming the file and the command or the limit, for a lib file whose while loop never ends"
+if ! declare -F _lib_runs_nothing >/dev/null; then bad "$_gci_n" "_lib_runs_nothing: $GCI_NO"
+else
+  _gci_o="$GCI/lrn.out.gci-lrn-t13-loop.sh"; _gci_t=$SECONDS
+  _gci_judge "$GCI_L/gci-lrn-t13-loop.sh" "$_gci_o"; _gci_t=$((SECONDS - _gci_t))
+  _gci_v="$_gci_rc|$(LC_ALL=C awk 'END { print NR }' "$_gci_o") line(s)|"
+  if LC_ALL=C grep -qF -e gci-lrn-t13-loop.sh "$_gci_o"; then _gci_v="${_gci_v}names the file|"; else _gci_v="${_gci_v}does not name the file|"; fi
+  if LC_ALL=C grep -qE -e '_x=1|_y=1|while|limit' "$_gci_o"; then _gci_v="${_gci_v}names the command or the limit|"; else _gci_v="${_gci_v}names neither|"; fi
+  if [ "$_gci_t" -le 20 ]; then _gci_v="${_gci_v}within 20 s"; else _gci_v="${_gci_v}took $_gci_t s"; fi
+  if [ "$_gci_v" = "1|1 line(s)|names the file|names the command or the limit|within 20 s" ]; then ok "$_gci_n"
+  else bad "$_gci_n" "[$_gci_v], wanted [1|1 line(s)|names the file|names the command or the limit|within 20 s]; it said [$(head -3 "$_gci_o" | cut -c1-200 | LC_ALL=C tr '\n' ' ')]"; fi
+fi
+# A write outside the scratch directory: refused, and never carried out.
+GCI_W15="$GCI/lrn-outside/t15-written"; rm -f "$GCI_W15"
+_gci_put gci-lrn-t15-outside.sh "printf 'gci\\n' > \"$GCI_W15\""
+_gci_n="_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that writes a file at a fixed absolute path outside the scratch directory, and the file is not there afterwards: the judge did not carry the write out"
+if ! declare -F _lib_runs_nothing >/dev/null; then bad "$_gci_n" "_lib_runs_nothing: $GCI_NO"
+else
+  _gci_judge "$GCI_L/gci-lrn-t15-outside.sh" "$GCI/lrn.out.gci-lrn-t15-outside.sh"
+  _gci_v="$_gci_rc|$(LC_ALL=C awk 'END { print NR }' "$GCI/lrn.out.gci-lrn-t15-outside.sh") line(s)|"
+  if LC_ALL=C grep -qF -e gci-lrn-t15-outside.sh "$GCI/lrn.out.gci-lrn-t15-outside.sh"; then _gci_v="${_gci_v}names the file|"; else _gci_v="${_gci_v}does not name the file|"; fi
+  if [ -e "$GCI_W15" ]; then _gci_v="${_gci_v}the file was written"; else _gci_v="${_gci_v}no file"; fi
+  if [ "$_gci_v" = "1|1 line(s)|names the file|no file" ]; then ok "$_gci_n"
+  else bad "$_gci_n" "[$_gci_v], wanted [1|1 line(s)|names the file|no file]; it said [$(head -3 "$GCI/lrn.out.gci-lrn-t15-outside.sh" | LC_ALL=C tr '\n' ' ')]"; fi
+fi
 cat > "$GCI_L/gci-lrn-p1-defs.sh" <<'GCI_P1_DEFS'
 _gci_p1_a() {
   printf 'gci: _gci_p1_a ran\n'
@@ -413,7 +502,7 @@ _gci_p2_fh="$FELIX_HOME/state" _gci_p2_cli="$FELIX"
 _gci_p2_again="$_gci_p2_widget/again"
 GCI_P2_ASSIGN
 cat > "$GCI_L/gci-lrn-p3-mixed.sh" <<'GCI_P3_MIXED'
-# planted: a lib file of the shape C2 wants
+# planted: a lib file of the shape C2 allowed before its third round
 
 # a builder and its settings
 _gci_p3_root="$FROOT/projects"
@@ -429,8 +518,8 @@ _gci_p3_name=widget   # a trailing comment
 _gci_p3_path="$_gci_p3_root/$_gci_p3_name"
 GCI_P3_MIXED
 _gci_passes "_lib_runs_nothing returns 0 for a lib file of function definitions only" gci-lrn-p1-defs.sh
-_gci_passes "_lib_runs_nothing returns 0 for a lib file of plain assignments whose values are literal strings or name variables" gci-lrn-p2-assign.sh
-_gci_passes "_lib_runs_nothing returns 0 for a lib file mixing definitions and plain assignments with comments and blank lines" gci-lrn-p3-mixed.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file of plain assignments whose values are literal strings or name variables" gci-lrn-p2-assign.sh
+_gci_refuses "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file mixing definitions and plain assignments with comments and blank lines" gci-lrn-p3-mixed.sh
 
 # The clash cases, (e)'s three and (g)'s, planted in the copy (c) made, named
 # to sort after its planted file, each with a line in the copy's driver just
@@ -459,6 +548,43 @@ _gci_cput g4-part-fn '_gci_lib_lines() { :; }'
 _gci_cput g5-twin-a "$GCI_FN() { :; }"
 _gci_cput g5-twin-b "$GCI_FN() { return 0; }"
 _gci_cput g6-later-var 'GCI_NO="also set by part 1290, after the lib block"'
+# Third round: a definition inside braces, four names bash or PATH already
+# has, and two files both judges must pass, whose function names are made at
+# run time.
+_gci_cput e03-brace-bad '{ bad() { :; }; }'
+_gci_cput b1-bracket '[() { return 0; }'
+_gci_cput b2-dot '.() { :; }'
+_gci_cput b3-printf 'printf() { :; }'
+_gci_cput b4-git 'git() { :; }'
+GCI_U="_gci_u$$_$RANDOM"
+cat > "$GCI_T/lib/zz-gci-x-p4-defs.sh" <<GCI_P4_DEFS
+# planted: function definitions only, with comments and blank lines
+
+# the first helper
+${GCI_U}_a() {
+  :
+}
+
+  # an indented comment
+${GCI_U}_b () { return 0; }
+
+function ${GCI_U}_c {
+  # a comment inside a body
+  printf '%s\n' "\$1"
+}
+# a last comment
+GCI_P4_DEFS
+cat > "$GCI_T/lib/zz-gci-x-p5-body.sh" <<GCI_P5_BODY
+# planted: a builder whose body sets variables, calls commands and writes files
+${GCI_U}_build() {
+  local _w="\$FROOT/projects/gci-widget"
+  ${GCI_U}_root="\$_w"; FAIL=\$((FAIL + 0))
+  mkdir -p "\$_w/sub"
+  printf 'built\n' > "\$_w/built"
+  _fx_git "\$_w" init -q
+  ok "gci: ${GCI_U}_build ran"
+}
+GCI_P5_BODY
 for _gci_f in "$GCI_T"/lib/zz-gci-x-*.sh; do printf '%s\n' "${_gci_f##*/}"; done | LC_ALL=C sort > "$GCI/clash.libs"
 GCI_LIST="$GCI/clash.libs" LC_ALL=C awk '$0 == ". \"$HERE/parts/0010-resolution.sh\"" { while ((getline l < (ENVIRON["GCI_LIST"])) > 0) print ". \"$HERE/lib/" l "\"" } { print }' \
   "$GCI_T/run" > "$GCI/run.clash" && cat "$GCI/run.clash" > "$GCI_T/run"
@@ -484,9 +610,27 @@ _gci_named() {   # <assertion name> <NAME> <case> <WHAT: a literal, a path, or -
   elif _gci_cline "$2" "$GCI_CL/zz-gci-x-$3.sh" "$4"; then ok "$1"
   else bad "$1" "no line [$2 | lib/zz-gci-x-$3.sh | $4]: $(_gci_cwhy)"; fi
 }
+# <assertion name> <case>: _lib_runs_nothing returns 1 for the copy's planted
+# file with one line naming it, and _lib_clashes printed no line for it.
+_gci_varcase() {
+  local f="zz-gci-x-$2.sh" v=""
+  if ! declare -F _lib_runs_nothing >/dev/null; then v="_lib_runs_nothing: $GCI_NO; "
+  else
+    _gci_judge "$GCI_T/lib/$f" "$GCI/lrn.out.$f"
+    v="$_gci_rc|$(LC_ALL=C awk 'END { print NR }' "$GCI/lrn.out.$f") line(s)|"
+    if LC_ALL=C grep -qF -e "$f" "$GCI/lrn.out.$f"; then v="${v}names the file"; else v="${v}does not name the file"; fi
+    if [ "$v" = "1|1 line(s)|names the file" ]; then v=""
+    else v="_lib_runs_nothing: [$v], wanted [1|1 line(s)|names the file], and said [$(head -3 "$GCI/lrn.out.$f" | LC_ALL=C tr '\n' ' ')]; "; fi
+  fi
+  if ! declare -F _lib_clashes >/dev/null; then v="${v}_lib_clashes: $GCI_NO"
+  elif LC_ALL=C awk -F'\t' -v f="$GCI_CL/$f" '$2 == f { hit = 1 } END { exit !hit }' "$GCI/clash.norm"; then
+    v="${v}_lib_clashes named it: [$(LC_ALL=C grep -F -e "$f" "$GCI/clash.out" | head -3 | LC_ALL=C tr '\n\t' '  ')]"
+  fi
+  if [ -z "$v" ]; then ok "$1"; else bad "$1" "$v"; fi
+}
 _gci_named "_lib_clashes names a lib file that defines bad, a function the driver defines before the lib block" bad e01-bad -
-_gci_named "_lib_clashes names a lib file that sets FAIL, a counter the driver owns, by a plain literal assignment" FAIL e02-fail -
-_gci_named "_lib_clashes names a lib file that sets PATH by a plain assignment, PATH being defined before the lib block" PATH e11-path -
+_gci_varcase "_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes prints no line for it, for a lib file that sets FAIL, a counter the driver owns, by a plain literal assignment" e02-fail
+_gci_varcase "_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes prints no line for it, for a lib file that sets PATH by a plain assignment, PATH being defined before the lib block" e11-path
 
 # ---- (f): every real tests/lib/*.sh
 _gci_k=0; _gci_names=""; _gci_failed=""
@@ -497,7 +641,7 @@ for _gci_f in "$HERE"/lib/*.sh; do
   ( FELIX_TEST_RAN="$GCI/lrn-ran"; _lib_runs_nothing "$_gci_f" ) > "$GCI/lrn.real" 2>&1 \
     || _gci_failed="$_gci_failed [${_gci_f##*/}: $(head -1 "$GCI/lrn.real")]"
 done
-_gci_n="every tests/lib/*.sh in this tree defines things and runs nothing when sourced, as _lib_runs_nothing judges it"
+_gci_n="every tests/lib/*.sh in this tree defines functions and nothing else when sourced, as _lib_runs_nothing judges it"
 if [ "$_gci_k" -eq 0 ]; then
   skip "$_gci_n" "tests/lib holds no *.sh on this branch yet: 0 files to judge"
 elif ! declare -F _lib_runs_nothing >/dev/null; then
@@ -521,10 +665,10 @@ fi
 GCI_BEFORE="defined before the lib block"
 _gci_named "_lib_clashes, pointed at a copy of the tree, prints bad, the lib file and defined before the lib block, for a lib file that defines bad among other functions" \
     bad g1-bad "$GCI_BEFORE"
-_gci_named "_lib_clashes, pointed at a copy of the tree, prints FAIL, the lib file and defined before the lib block, for a lib file that sets FAIL among other plain assignments" \
-    FAIL g2-fail "$GCI_BEFORE"
-_gci_named "_lib_clashes, pointed at a copy of the tree, prints IFS, the lib file and defined before the lib block, for a lib file that sets IFS" \
-    IFS g3-ifs "$GCI_BEFORE"
+_gci_varcase "_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes, pointed at a copy of the tree, prints no line for it, for a lib file that sets FAIL among other plain assignments" \
+    g2-fail
+_gci_varcase "_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes, pointed at a copy of the tree, prints no line for it, for a lib file that sets IFS" \
+    g3-ifs
 _gci_named "_lib_clashes, pointed at a copy of the tree, prints the function, the lib file and the part's path, for a lib file that defines a function part 1290 defines" \
     _gci_lib_lines g4-part-fn "$GCI_CP/1290-gate-friction-c-blind.sh"
 _gci_n="_lib_clashes, pointed at a copy of the tree, prints the function, one lib file and the other's path, for two lib files that define the same function"
@@ -537,6 +681,45 @@ if ! declare -F _lib_clashes >/dev/null; then bad "$_gci_n" "_lib_clashes: $GCI_
 elif LC_ALL=C awk -F'\t' -v f="$GCI_CL/zz-gci-x-g6-later-var.sh" '$2 == f { hit = 1 } END { exit !hit }' "$GCI/clash.norm"; then
   bad "$_gci_n" "it named lib/zz-gci-x-g6-later-var.sh: [$(LC_ALL=C grep -F -e zz-gci-x-g6 "$GCI/clash.out" | head -3 | LC_ALL=C tr '\n\t' '  ')]"
 else ok "$_gci_n"; fi
+
+# ---- (g), third round
+_gci_refuses_c() {   # <assertion name> <case>: _gci_refuses on the copy's planted lib file
+  local f="zz-gci-x-$2.sh" v
+  if ! declare -F _lib_runs_nothing >/dev/null; then bad "$1" "_lib_runs_nothing: $GCI_NO"; return 0; fi
+  _gci_judge "$GCI_T/lib/$f" "$GCI/lrn.out.$f"
+  v="$_gci_rc|$(LC_ALL=C awk 'END { print NR }' "$GCI/lrn.out.$f") line(s)|"
+  if LC_ALL=C grep -qF -e "$f" "$GCI/lrn.out.$f"; then v="${v}names the file"; else v="${v}does not name the file"; fi
+  if [ "$v" = "1|1 line(s)|names the file" ]; then ok "$1"
+  else bad "$1" "status|lines|naming: [$v], wanted [1|1 line(s)|names the file]; it said [$(head -3 "$GCI/lrn.out.$f" | LC_ALL=C tr '\n' ' ')]"; fi
+}
+_gci_refuses_c "_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that defines bad inside a brace group" e03-brace-bad
+_gci_named "_lib_clashes, pointed at a copy of the tree, prints bad, the lib file and defined before the lib block, for a lib file that defines bad inside a brace group" \
+    bad e03-brace-bad "$GCI_BEFORE"
+_gci_named "_lib_clashes, pointed at a copy of the tree, prints [, the lib file and a builtin, for a lib file that defines a function named [" \
+    '[' b1-bracket "a builtin"
+_gci_named "_lib_clashes, pointed at a copy of the tree, prints ., the lib file and a builtin, for a lib file that defines a function named ." \
+    '.' b2-dot "a builtin"
+_gci_named "_lib_clashes, pointed at a copy of the tree, prints printf, the lib file and a builtin, for a lib file that defines a function named printf" \
+    printf b3-printf "a builtin"
+GCI_GIT="$(type -P git 2>/dev/null)"
+[ -n "$GCI_GIT" ] && GCI_GIT="$(printf '%s\n' "$GCI_GIT" | _gci_canon)"
+_gci_named "_lib_clashes, pointed at a copy of the tree, prints git, the lib file and the path of git on PATH, for a lib file that defines a function named git" \
+    git b4-git "${GCI_GIT:-(no git on PATH here)}"
+_gci_both() {   # <assertion name> <case>: _lib_runs_nothing returns 0 for the copy's planted file, and _lib_clashes printed no line naming it
+  local f="zz-gci-x-$2.sh" v=""
+  if ! declare -F _lib_runs_nothing >/dev/null; then v="_lib_runs_nothing: $GCI_NO; "
+  else
+    _gci_judge "$GCI_T/lib/$f" "$GCI/lrn.out.$f"
+    [ "$_gci_rc" -eq 0 ] || v="_lib_runs_nothing returned $_gci_rc and said [$(head -3 "$GCI/lrn.out.$f" | LC_ALL=C tr '\n' ' ')]; "
+  fi
+  if ! declare -F _lib_clashes >/dev/null; then v="${v}_lib_clashes: $GCI_NO"
+  elif LC_ALL=C awk -F'\t' -v f="$GCI_CL/$f" '$2 == f || $3 == f { hit = 1 } END { exit !hit }' "$GCI/clash.norm"; then
+    v="${v}_lib_clashes named it: [$(LC_ALL=C grep -F -e "$f" "$GCI/clash.out" | head -3 | LC_ALL=C tr '\n\t' '  ')]"
+  fi
+  if [ -z "$v" ]; then ok "$1"; else bad "$1" "$v"; fi
+}
+_gci_both "_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file of function definitions only, with comments and blank lines" p4-defs
+_gci_both "_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file whose one function's body sets variables, calls commands and writes files" p5-body
 
 # ---- (h): the driver writes lib-before.names at the start of its lib block
 _gci_o="$(LC_ALL=C awk '
@@ -560,4 +743,20 @@ for _gci_x in PASS FAIL bad TMP; do
 done
 _gci_n="lib-before.names under TMP names PASS, FAIL, bad and TMP, each on a line of its own"
 if [ -z "$_gci_v" ]; then ok "$_gci_n"; else bad "$_gci_n" "it has no line for:$_gci_v"; fi
+_gci_n="lib-before.names under TMP is in LC_ALL=C order"
+if [ ! -f "$TMP/lib-before.names" ]; then bad "$_gci_n" "there is no $TMP/lib-before.names"
+elif _gci_o="$(LC_ALL=C sort -c "$TMP/lib-before.names" 2>&1)"; then ok "$_gci_n"
+else bad "$_gci_n" "sort -c says [$(printf '%s\n' "$_gci_o" | head -2 | LC_ALL=C tr '\n' ' ')]"; fi
+_gci_p6=""; for _gci_f in "$HERE"/parts/0006-*.sh; do [ -f "$_gci_f" ] && _gci_p6="$_gci_f"; done
+_gci_v=""
+for _gci_x in _lib_runs_nothing _lib_clashes; do
+  if [ -z "$_gci_p6" ]; then _gci_v="$_gci_v $_gci_x (there is no part 0006)"
+  elif ! LC_ALL=C awk -v n="$_gci_x" '$0 ~ ("^" n "[ \t]*\\(\\)") || $0 ~ ("^function[ \t]+" n "([ \t({]|$)") { hit = 1 } END { exit !hit }' "$_gci_p6"; then
+    _gci_v="$_gci_v $_gci_x (no line of ${_gci_p6##*/} defines it)"
+  elif ! LC_ALL=C grep -qxF -e "$_gci_x" "$TMP/lib-before.names" 2>/dev/null; then
+    _gci_v="$_gci_v $_gci_x (not in lib-before.names)"
+  fi
+done
+_gci_n="lib-before.names under TMP names _lib_runs_nothing and _lib_clashes, the judges part 0006 defines, so a lib file that takes either name is a clash"
+if [ -z "$_gci_v" ]; then ok "$_gci_n"; else bad "$_gci_n" "for:$_gci_v"; fi
 # <<< gate-friction-c-blind

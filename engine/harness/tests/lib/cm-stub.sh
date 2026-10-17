@@ -1,8 +1,10 @@
-# tests/lib/cm-stub.sh: the `claude` stub on PATH and the ungoverned repository.
-# Used by parts 0010 (builds both), 0070 0180 0190 0220 0400 0450 0580 0650
-# 0660-0710 0720 0730 0820 0850 (CMSTUB, CMSTUB_LOG) and 0070 0200 0220 0250
-# 0600 (PLAIN). Moved from parts/0010-resolution.sh: _plain_build from line 33
-# (PLAIN), _cmstub_build from lines 183-196 (CMSTUB, CMSTUB_LOG, the stub).
+# tests/lib/cm-stub.sh: the `claude` stub on PATH, the ungoverned repository, and
+# the stranger project.
+# Used by parts 0010 (builds all three), 0070 0180 0190 0220 0400 0450 0580 0650
+# 0660-0710 0720 0730 0780 0820 0850 (CMSTUB, CMSTUB_LOG), 0070 0200 0220 0250
+# 0600 (PLAIN) and 0200 0780 (the stranger project). Moved from
+# parts/0010-resolution.sh: _plain_build from line 33 (PLAIN), _cmstub_build from
+# lines 183-196 (CMSTUB, CMSTUB_LOG, the stub), _stranger_build from lines 184-193.
 # Definitions only. A builder sets its variables first and does nothing more when
 # its fixture is already there, so in the serial run only 0010's call builds.
 
@@ -35,4 +37,27 @@ case "\$*" in
 esac
 STUB
   chmod +x "$CMSTUB/claude"
+}
+
+# _stranger_build: the stranger project, which 0010 onboards with felix new and
+# 0200 (its generated constitution) and 0780 (its exceptions table) read after
+# it. Moved from parts/0010-resolution.sh, lines 184-193: a Node app with no git
+# remote, nothing to do with anything already here, and `felix new stranger`
+# over it through the claude stub. Sets STRANGE, and _stranger_out and
+# _stranger_rc, felix new's output and exit status, which 0010 asserts over; they
+# are set only when this call builds. Does nothing more once the project
+# ($FROOT/projects/stranger) and the checkout's binding are there, so in the
+# serial run only 0010's call builds.
+_stranger_build() {
+  STRANGE="$TMP/stranger"
+  [ -f "$FROOT/projects/stranger/project.json" ] && [ -f "$STRANGE/.felix" ] && return 0
+  _cmstub_build
+  mkdir -p "$STRANGE"
+  ( _fx_cd "$STRANGE" && git init -q -b main )
+  cat > "$STRANGE/package.json" <<'JSON'
+{ "name": "stranger", "scripts": { "verify": "echo ok" },
+  "dependencies": { "express": "^4", "stripe": "^17" },
+  "devDependencies": { "playwright": "^1" } }
+JSON
+  _stranger_out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; _stranger_rc=$?
 }

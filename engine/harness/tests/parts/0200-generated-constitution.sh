@@ -1,5 +1,6 @@
 printf '\ngenerated constitution\n'
 _plain_build
+_stranger_build
 CDIR="$FROOT/projects/stranger"
 [ -s "$CDIR/CLAUDE.md" ] && ok "onboarding writes one" || bad "onboarding writes one"
 has "it names the verification command" "$(cat "$CDIR/CLAUDE.md")" "felix gate"

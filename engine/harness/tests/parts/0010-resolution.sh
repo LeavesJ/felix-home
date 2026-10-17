@@ -180,17 +180,9 @@ _cmstub_build
 
 # The claim under test: someone who downloads Felix gets what Elenchus got,
 # without hand-writing any of it. A Node app with no git remote, nothing to do
-# with anything already here.
-STRANGE="$TMP/stranger"
-mkdir -p "$STRANGE"
-( _fx_cd "$STRANGE" && git init -q -b main )
-cat > "$STRANGE/package.json" <<'JSON'
-{ "name": "stranger", "scripts": { "verify": "echo ok" },
-  "dependencies": { "express": "^4", "stripe": "^17" },
-  "devDependencies": { "playwright": "^1" } }
-JSON
-
-out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
+# with anything already here. _stranger_build (tests/lib/cm-stub.sh) makes it
+# and runs felix new over it; its output and exit status are read back here.
+_stranger_build; out="$_stranger_out"; rc="$_stranger_rc"
 is  "felix new exits 0"            "$rc" "0"
 has "detects from their manifest"  "$out" "billing"
 has "guesses their gate"           "$out" "npm run verify"

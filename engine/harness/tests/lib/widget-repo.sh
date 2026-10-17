@@ -1,7 +1,7 @@
 # tests/lib/widget-repo.sh: the widget repository's risk table and root commit,
 # and the three helpers that stage, classify and undo a commit in it.
-# Used by 0080 (builds), 0090 0100 0110 0120 0480 0500 0510 0520 0570 0580 0600
-# and those of 0200 0210 0230 0280 0320 that need REPO committed.
+# Used by 0080 (builds), 0090 0100 0110 0120 0370 0480 0500 0510 0520 0570 0580
+# 0600 and those of 0200 0210 0230 0280 0320 that need REPO committed.
 # Moved from parts/0080-risk-classification.sh: _classify, _stage and _reset
 # from lines 6-9 (verbatim); _widget_repo_build reproduces lines 2-5.
 # Definitions only. The builder is guarded step by step: in the serial run 0070
@@ -22,7 +22,7 @@ _widget_repo_build() {
   [ -f "$FROOT/projects/widget/risk.tsv" ] \
     || cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
   [ -f "$TMP/risk.keep" ] || cp "$FROOT/projects/widget/risk.tsv" "$TMP/risk.keep"
-  ( cd "$REPO" && git rev-parse -q --verify HEAD >/dev/null 2>&1 ) && return 0
+  ( _fx_cd "$REPO" && git rev-parse -q --verify HEAD >/dev/null 2>&1 ) && return 0
   ( _fx_cd "$REPO" && git add -A >/dev/null 2>&1
     git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
 }

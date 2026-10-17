@@ -1,5 +1,5 @@
 # tests/lib/cm-stub.sh: the `claude` stub on PATH and the ungoverned repository.
-# Used by parts 0010 (builds both), 0070 0180 0190 0220 0250 0450 0580 0650
+# Used by parts 0010 (builds both), 0070 0180 0190 0220 0400 0450 0580 0650
 # 0660-0710 0720 0730 0820 0850 (CMSTUB, CMSTUB_LOG) and 0070 0200 0220 0250
 # 0600 (PLAIN). Moved from parts/0010-resolution.sh: _plain_build from line 33
 # (PLAIN), _cmstub_build from lines 183-196 (CMSTUB, CMSTUB_LOG, the stub).

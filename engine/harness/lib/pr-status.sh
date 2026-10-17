@@ -24,9 +24,9 @@
 #
 # Bash 3.2. LC_ALL=C on every text tool; digit brackets spelled out.
 
-. "${BASH_SOURCE[0]%/*}/inventory-gh.sh" || return 1
-. "${BASH_SOURCE[0]%/*}/pr-status-gh.sh" || return 1
-. "${BASH_SOURCE[0]%/*}/pr-status-state.sh" || return 1
+. "$_GT_LIBDIR/inventory-gh.sh" || return 1
+. "$_GT_LIBDIR/pr-status-gh.sh" || return 1
+. "$_GT_LIBDIR/pr-status-state.sh" || return 1
 
 # felix land --prs [--tsv] [--repo DIR] [--no-gh] | --queue [--tsv]. Status 1
 # when the arguments are anything else; --repo once, and only on --prs.
@@ -160,9 +160,9 @@ _ps_prs_text() {   # SLUG NAME W
 _ps_prs_tsv() {   # SLUG W
   local ref
   for ref in gh land ledger lander budget origin; do
-    LC_ALL=C awk -F'\t' -v r="$1" '{ printf "source\t%s\t%s\t%s\t-\t-\t-\t%s\n", r, $1, $2, $3 }' "$2/s.$ref"
+    PS_R="$1" LC_ALL=C awk -F'\t' '{ printf "source\t%s\t%s\t%s\t-\t-\t-\t%s\n", ENVIRON["PS_R"], $1, $2, $3 }' "$2/s.$ref"
   done
-  LC_ALL=C awk -F'\t' -v r="$1" '{ gsub(/[\t\r\n]/, " ", $5); printf "pr\t%s\t#%s\t%s%s\t%s\t%s\t%s\t%s\n", r, $1, $2, $3, $4, $7, $8, $5 }' "$2/rows"
+  PS_R="$1" LC_ALL=C awk -F'\t' '{ gsub(/[\t\r\n]/, " ", $5); printf "pr\t%s\t#%s\t%s%s\t%s\t%s\t%s\t%s\n", ENVIRON["PS_R"], $1, $2, $3, $4, $7, $8, $5 }' "$2/rows"
 }
 
 _ps_prs_cmd() {
@@ -224,13 +224,13 @@ _ps_queue_cmd() {
     fi
     IFS=$'\t' read -r ref st det < "$w/s.gh"
     printf 'source\t%s\tgh\t%s\t-\t-\t-\t%s\n' "$slug" "$st" "$det" >> "$_PS_T/q.src"
-    LC_ALL=C awk -F'\t' -v r="$slug" '$2 == "founder" { gsub(/[\t\r\n]/, " ", $5); printf "pr\t%s\t#%s\t%s%s\t%s\t%s\t%s\t%s\n", r, $1, $2, $3, $4, $7, $8, $5 }' "$w/rows" >> "$_PS_T/q.pr"
+    PS_R="$slug" LC_ALL=C awk -F'\t' '$2 == "founder" { gsub(/[\t\r\n]/, " ", $5); printf "pr\t%s\t#%s\t%s%s\t%s\t%s\t%s\t%s\n", ENVIRON["PS_R"], $1, $2, $3, $4, $7, $8, $5 }' "$w/rows" >> "$_PS_T/q.pr"
     nf="$(LC_ALL=C awk -F'\t' '$2 == "founder" { n++ } END { print n + 0 }' "$w/rows")"
     nu="$(LC_ALL=C awk -F'\t' '$2 == "unknown" { n++ } END { print n + 0 }' "$w/rows")"
     tot=$(( tot + nf ))
     if [ "$st" = unread ]; then printf '%s: not read: %s\n' "$name" "$det" >> "$_PS_T/q.txt"
     elif [ "$nf" -eq 0 ]; then
-      printf '%s: no founder entries%s\n' "$name" "$([ "$nu" -eq 0 ] || printf ' (%s pull requests are unknown, not zero)' "$nu")" >> "$_PS_T/q.txt"
+      printf '%s: no founder entries%s\n' "$name" "$([ "$nu" -eq 0 ] || printf ' (%s unknown, not zero)' "$nu")" >> "$_PS_T/q.txt"
     else
       printf '%s: %s founder entries%s\n' "$name" "$nf" "$([ "$nu" -eq 0 ] || printf ' (and %s unknown)' "$nu")" >> "$_PS_T/q.txt"
       LC_ALL=C awk -F'\t' "$_PS_LINE"$'\n'' $2 == "founder" { print line() }' "$w/rows" >> "$_PS_T/q.txt"

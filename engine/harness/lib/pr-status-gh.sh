@@ -47,6 +47,7 @@ _ps_err1() {   # FILE
 # anything else has not finished. The files table is number, path, deleted lines.
 # shellcheck disable=SC2016
 _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
+  BEGIN { pf = ENVIRON["PS_PF"]; ff = ENVIRON["PS_FF"] }
   { i = $1; p = $2; v = $3; gsub(/[\t\r]/, " ", v)
     if (!(i in S)) { S[i] = 1; O[++n] = i }
     if (p == "number") NUM[i] = v
@@ -81,7 +82,7 @@ _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
 # by number) and $3/files. The state is _PS_GHST (read, none, truncated or
 # unread), with the reason or the count in _PS_GHWHY; status 1 when unread.
 _ps_gh_list() {   # DIR SLUG W
-  local d="$1" slug="$2" w="$3" rc first n
+  local d="$1" slug="$2" w="$3" rc first n k
   : > "$w/prs"; : > "$w/files"; _PS_GHST=unread; _PS_GHN=0
   if [ "${_PS_NOGH:-0}" = 1 ]; then _PS_GHWHY="--no-gh: gh was not asked"; return 1; fi
   command -v gh >/dev/null 2>&1 || { _PS_GHWHY="gh not found"; return 1; }
@@ -97,12 +98,26 @@ _ps_gh_list() {   # DIR SLUG W
   first="$(LC_ALL=C awk 'NF { print substr($0, 1, 1); exit }' "$w/gh.json" 2>/dev/null)"
   if [ "$first" != "[" ]; then _PS_GHWHY="gh pr list answered something that is not a list"; return 1; fi
   LC_ALL=C awk "$_FI_JSON" "$w/gh.json" 2>/dev/null \
-    | LC_ALL=C awk -F'\t' -v pf="$w/prs.u" -v ff="$w/files" "$_FI_EPOCH"$'\n'"$_PS_TABLES" 2>/dev/null
+    | PS_PF="$w/prs.u" PS_FF="$w/files" LC_ALL=C awk -F'\t' "$_FI_EPOCH"$'\n'"$_PS_TABLES" 2>/dev/null
   [ -e "$w/prs.u" ] || : > "$w/prs.u"
   LC_ALL=C sort -t "$(printf '\t')" -k1,1n "$w/prs.u" > "$w/prs" 2>/dev/null
   n="$(LC_ALL=C awk 'END { print NR }' "$w/prs")"
   _PS_GHN="$n"
-  if [ "$n" -eq 0 ]; then _PS_GHST=none; _PS_GHWHY="no open pull requests"
+  # An empty array flattens to nothing, so a list that left out the checks or the
+  # files could not be told from one whose pull requests have none: unread.
+  if [ "$n" -gt 0 ]; then
+    for k in statusCheckRollup files; do
+      [ "$(LC_ALL=C grep -c "\"$k\"" "$w/gh.json" 2>/dev/null)" -gt 0 ] && continue
+      : > "$w/prs"; : > "$w/files"; _PS_GHN=0
+      _PS_GHWHY="gh pr list left out $k"; return 1
+    done
+  fi
+  if [ "$n" -eq 0 ]; then
+    # Only an empty list is "none": a list whose objects held no number is unread.
+    if [ "$(LC_ALL=C tr -d ' \t\r\n' < "$w/gh.json" 2>/dev/null)" != "[]" ]; then
+      _PS_GHWHY="gh pr list answered a list with no pull request numbers in it"; return 1
+    fi
+    _PS_GHST=none; _PS_GHWHY="no open pull requests"
   elif [ "$n" -ge 1000 ]; then _PS_GHST=truncated; _PS_GHWHY="$n listed, gh's limit: the list may be incomplete"
   else _PS_GHST=read; _PS_GHWHY="$n open pull requests"; fi
   return 0

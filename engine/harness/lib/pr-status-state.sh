@@ -133,13 +133,15 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       mg = f[10]; ms = f[11]; upd = f[12]; nf = f[13] + 0; nc = f[14] + 0; nfail = f[15] + 0; npend = f[16] + 0; failn = f[17]; pendn = f[18]
       nd = 0
       fl = ""; if (draft) fl = fl ",draft"; if (ms == "BEHIND") fl = fl ",behind"; if (mg == "UNKNOWN" || mg == "-") fl = fl ",mergeable-unknown"
-      outside = (cross || tolower(au) != lo)
+      ownunk = (lo == "")
+      outside = (cross || (!ownunk && tolower(au) != lo))
       defunk = (def == ""); stacked = (!defunk && base != def)
       held = (index(lab, ",felix:hold,") > 0); conf = (mg == "CONFLICTING")
       green = (nc > 0 && nfail == 0 && npend == 0)
       dups = ""; m = split(BR[br], o, " "); for (j = 1; j <= m; j++) if (o[j] != n) dups = dups (dups == "" ? "" : " ") o[j]
       if (cross) add("the head is in a fork")
-      if (tolower(au) != lo) add("author " au " is not the governed account " owner)
+      if (ownunk && !cross) add("governed account not read: origin names no owner/name slug")
+      else if (!ownunk && tolower(au) != lo) add("author " au " is not the governed account " owner)
       if (stacked) add("base is " base ", not the default branch " def ": it waits on its base")
       if (defunk && !outside) add("default branch not read")
       if (held) add("labelled felix:hold")
@@ -194,7 +196,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
         if (ledg == "unread" && !founder && !tb && !unk) { add("the lander\047s ledger not read"); unk = 2 }
       }
       if (outside) { st = "outside"; nd2 = "nobody" }
-      else if (defunk) { st = "unknown"; nd2 = "unknown" }
+      else if (defunk || ownunk) { st = "unknown"; nd2 = "unknown" }
       else if (stacked) { st = "stacked"; nd2 = "nobody" }
       else if (held) { st = "held"; nd2 = "session" }
       else if (conf) { st = "needs-session"; nd2 = "session" }

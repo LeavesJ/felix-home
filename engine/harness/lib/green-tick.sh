@@ -448,7 +448,7 @@ _gt_usage() {
 }
 
 # The stuck-PR page (lib/pr-status.sh): read-only, and sourced only when asked.
-_GT_LIBDIR="${BASH_SOURCE[0]%/*}"
+case "${BASH_SOURCE[0]}" in */*) _GT_LIBDIR="${BASH_SOURCE[0]%/*}" ;; *) _GT_LIBDIR=. ;; esac
 
 felix_land() {
   case "${1:-}" in

@@ -4,13 +4,8 @@
 # against the engine as it stands; the rest pin a fix no assertion bound.
 # Fixtures sit under $RV like the reviews', so their paths strip to AUROOT.
 printf '\nfelix audit: what the reviews left open\n'
-_rv_one() {  # dir session command [ok|true]: an edit, one Bash call, its result, a stop
-  _rv_new "$1" "$2"; _au_edit "$_rv_ts:01.000Z" "msg_$2a" "toolu_$2a"
-  _au_bash "$_rv_ts:02.000Z" "msg_$2b" "toolu_$2b" "$3"; _au_res "$_rv_ts:03.000Z" "toolu_$2b" "${4:-ok}"
-  _au_stop "$_rv_ts:04.000Z" "msg_$2c"; }
-# True when the text, its lines joined and case folded, matches the ERE. It
-# reads its whole input, for the reason _au_first gives.
-_rv_says() { printf '%s\n' "$1" | awk -v re="$2" '{ s = s " " tolower($0) } END { exit (s ~ re) ? 0 : 1 }'; }
+_au_build
+_rv_build
 
 # Runner names that are text, a shape at a time so a failure names it: a
 # here-document body outside any double quotes, whose lines start with a

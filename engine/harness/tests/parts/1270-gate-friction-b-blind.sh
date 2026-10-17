@@ -1,5 +1,6 @@
 # >>> gate-friction-b
 printf '\ngate friction B: the slow assertions (contract B, blind)\n'
+_ib_build
 # Blind, written from docs/2026-10-13-gate-friction-contract-b.md alone on
 # 2026-10-13, before the code it describes existed. Nothing here was read off
 # an implementation of it.

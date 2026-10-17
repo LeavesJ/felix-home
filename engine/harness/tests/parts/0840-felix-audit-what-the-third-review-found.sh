@@ -2,6 +2,10 @@
 # felix new, one assertion per confirmed finding, each shown failing against
 # the engine before its fix. Fixtures sit under $RV, as the reviews' do.
 printf '\nfelix audit: what the third review found\n'
+_au_build
+_rv_build
+_rv_hid_build
+_nc_build
 
 # An assignment's value ends where a word does, at a blank, a line break or
 # ; & | ( ): past that is the next command, not more of the value. And a path
@@ -325,18 +329,6 @@ _rv_says "$_rvr" 'leaves out[^:]*:[^:]*/tmp[^:]*tmpdir[^:]*claude_config_dir[^:]
 # and one here-document of 560,000 lines with the runner after it. Each is
 # read, each passes, and the three take seconds.
 mkdir -p "$RV/r3/hdbig/-p"
-# one(file, id, command) writes a session of an edit, that Bash command, its
-# passing result and a stop; rep(s, n) is s n times, in log n concatenations.
-_rv_bigawk='
-  function A(id, content, sr) {
-    return "{\"parentUuid\":\"p\",\"isSidechain\":false,\"message\":{\"model\":\"m\",\"id\":\"" id "\",\"type\":\"message\",\"role\":\"assistant\",\"content\":[" content "],\"stop_reason\":\"" sr "\"},\"type\":\"assistant\",\"uuid\":\"u-" id "\",\"timestamp\":\"2026-04-03T10:00:00.000Z\"}" }
-  function one(f, id, cmd) {
-    print A("msg_" id "e", "{\"type\":\"tool_use\",\"id\":\"toolu_" id "e\",\"name\":\"Edit\",\"input\":{\"file_path\":\"/w/a.js\"}}", "tool_use") > f
-    print A("msg_" id "b", "{\"type\":\"tool_use\",\"id\":\"toolu_" id "b\",\"name\":\"Bash\",\"input\":{\"command\":\"" cmd "\"}}", "tool_use") > f
-    print "{\"parentUuid\":\"p\",\"isSidechain\":false,\"type\":\"user\",\"message\":{\"role\":\"user\",\"content\":[{\"tool_use_id\":\"toolu_" id "b\",\"type\":\"tool_result\",\"content\":\"ok\"}]},\"uuid\":\"u-r" id "\",\"timestamp\":\"2026-04-03T10:00:01.000Z\"}" > f
-    print A("msg_" id "s", "{\"type\":\"text\",\"text\":\"Done.\"}", "end_turn") > f
-    close(f) }
-  function rep(s, n,    r) { r = ""; while (n > 0) { if (n % 2) r = r s; s = s s; n = int(n / 2) } return r }'
 awk -v d="$RV/r3/hdbig/-p" "$_rv_bigawk"'
   BEGIN {
     one(d "/shifts.jsonl", "hs", "npm test; echo $((1" rep("<<1", 1600000) "))")

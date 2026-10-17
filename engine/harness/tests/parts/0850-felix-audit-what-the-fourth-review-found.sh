@@ -1,4 +1,8 @@
 printf '\nfelix audit: what the fourth review found\n'
+_au_build
+_au_resume
+_rv_build
+_nc_build
 
 # A << that opens no here-document, a shift in $(( )) or one in quoted text,
 # reads the same on either side of 256K. Beyond it, one no line in the first

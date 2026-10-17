@@ -1,16 +1,6 @@
 printf '\nfelix new --no-commission: governed, not commissioned\n'
-# Its own home and memory root, so no project here is enumerated by the widget
-# fixture's tests, and the same stub as every other felix new in this file.
-NC="$TMP/nocommission"; mkdir -p "$NC/home/projects" "$NC/mem" "$NC/userhome"; NC="$(cd "$NC" && pwd -P)"
-_nc_repo() { mkdir -p "$NC/$1"
-  ( _fx_cd "$NC/$1" && git init -q -b main \
-    && printf '{ "name": "cheap", "scripts": { "verify": "echo ok" }, "dependencies": { "express": "^4" } }\n' > package.json ) >/dev/null 2>&1; }
-_nc() {  # cwd, then felix new's arguments; the stub's calls land in CMSTUB_LOG
-  local d="$1"; shift; : > "$CMSTUB_LOG"
-  ( cd "$d" && HOME="$NC/userhome" FELIX_HOME="$NC/home" FELIX_MEMORY="$NC/mem" PATH="$CMSTUB:$PATH" "$FELIX" new "$@" ) 2>&1; }
-_nc_calls() { grep -c . "$CMSTUB_LOG" 2>/dev/null | tr -d ' '; }
-_nc_ls()    { ( cd "$NC/home/projects/$1" 2>/dev/null && find . -print | LC_ALL=C sort | tr '\n' ' ' ); }
-_nc_bound() { [ "$(cat "$NC/$1/.felix" 2>/dev/null)" = "$2" ] && [ -f "$NC/home/projects/$2/project.json" ]; }
+_au_build
+_nc_build
 for _r in r-trail r-lead r-mid r-full r-bogus; do _nc_repo "$_r"; done
 
 out="$(cd "$NC" && "$FELIX" new 2>&1)"
@@ -137,27 +127,11 @@ _au --dir "$TMP/audit-nope" >/dev/null; rc=$?
 # and no digit in a temporary path can pass a count; the read-only snapshot
 # above was taken before any of them existed.
 printf '\nfelix audit: what the reviews found\n'
-RV="$AU/rv"
-_rv_ts=2026-04-02T10:00
-_rv_new() { _au_open "$RV/$1/-Users-dev-rv/$2.jsonl" "$2"; }
+_rv_build
 
 # A pipe, a later command or the background takes a check's exit status, so
 # "no error reported" is all such a check can say. pipefail, && and 2>&1 do not.
-_rv_new hid h1; _au_edit "$_rv_ts:01.000Z" msg_H1a toolu_H1a
-_au_bash "$_rv_ts:02.000Z" msg_H1b toolu_H1b 'npm test 2>&1 | tail -5'; _au_res "$_rv_ts:03.000Z" toolu_H1b ok
-_au_stop "$_rv_ts:04.000Z" msg_H1c
-_rv_new hid h2; _au_edit "$_rv_ts:01.000Z" msg_H2a toolu_H2a
-_au_bash "$_rv_ts:02.000Z" msg_H2b toolu_H2b 'pytest -q; echo done'; _au_res "$_rv_ts:03.000Z" toolu_H2b ok
-_au_stop "$_rv_ts:04.000Z" msg_H2c
-_rv_new hid h3; _au_edit "$_rv_ts:01.000Z" msg_H3a toolu_H3a
-_au_tool toolu_H3b Bash '{"command":"npm test","run_in_background":true}'; _au_a "$_rv_ts:02.000Z" msg_H3b '"tool_use"' "$_AU_B"
-_au_res "$_rv_ts:03.000Z" toolu_H3b ok; _au_stop "$_rv_ts:04.000Z" msg_H3c
-_rv_new hid h4; _au_edit "$_rv_ts:01.000Z" msg_H4a toolu_H4a
-_au_bash "$_rv_ts:02.000Z" msg_H4b toolu_H4b 'set -o pipefail; npm test | tail -3'; _au_res "$_rv_ts:03.000Z" toolu_H4b ok
-_au_stop "$_rv_ts:04.000Z" msg_H4c
-_rv_new hid h5; _au_edit "$_rv_ts:01.000Z" msg_H5a toolu_H5a
-_au_bash "$_rv_ts:02.000Z" msg_H5b toolu_H5b 'cd /w && npm test 2>&1'; _au_res "$_rv_ts:03.000Z" toolu_H5b ok
-_au_stop "$_rv_ts:04.000Z" msg_H5c
+_rv_hid_build
 _rvo="$(_au --dir "$RV/hid")"
 if [ "$(_au_counts "$_rvo")" = "5 0 0 0" ] && _au_nums "$_rvo" 'pipe|background' 3; then
   ok  "a passing check whose exit status a pipe, a later command or the background took is counted as one that could not fail: 3 of 5"

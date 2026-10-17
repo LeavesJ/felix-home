@@ -220,14 +220,23 @@ fi
 # are appended, so `stack plan` and `setup` begin telling the truth. Installing
 # remains a separate, deliberate act, and high-risk rows are refused by every
 # flag regardless. The plan changes; the machine does not.
-adopted=""
+adopted=""; not_adopted=""; partly=""
 _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
 while IFS= read -r _cap; do
   [ -n "$_cap" ] || continue
-  if _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"; then
-    adopted="$adopted $_cap(${_counts// /+})"
-  fi
+  # 2026-10-01: 2 is a list adopt could not read or write, so nothing was
+  # recorded or written. It is said below rather than dropped like 1, or a
+  # surface on a read-only list would go unmentioned every session.
+  _counts="$(felix_adopt_capability "$PROJ" "$_cap" "${ENGINE_DIR}/templates" "$_slug" 2>/dev/null)"
+  case $? in
+    0) adopted="$adopted $_cap(${_counts// /+})" ;;
+    2) not_adopted="$not_adopted $_cap" ;;
+    # Also 2026-10-01: 3 is recorded with a row it implies left unwritten.
+    # The reason went to the stderr dropped above, and the next session finds
+    # the capability declared and never writes the row, so it is said here.
+    3) adopted="$adopted $_cap(${_counts// /+})"; partly="$partly $_cap" ;;
+  esac
 done <<EOF
 $(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)
 EOF
@@ -240,6 +249,17 @@ Nothing was installed. Review with 'felix stack plan' and 'felix setup', and
 commit the project directory in Felix to make it durable."
 else
   drift_line=""
+fi
+if [ -n "$not_adopted" ]; then
+  drift_line="$drift_line
+Not adopted, because $PROJ/capabilities could not be read or written:${not_adopted}
+'felix adopt <capability>' says what is there."
+fi
+if [ -n "$partly" ]; then
+  drift_line="$drift_line
+Adopted, but not every row each implies could be written to $PROJ/stack.tsv or setup.tsv:${partly}
+Make both regular files Felix can write, delete each one's line from
+$PROJ/capabilities, and 'felix adopt <capability>' writes the rest."
 fi
 
 # Upkeep has no deadline, so it never happens, and then happens as a crisis.
@@ -594,18 +614,27 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
     && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
   _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
-  _cm_await=""; _cm_ans=0
+  _cm_await=""; _cm_ans=0; _cm_unread=""
   while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
     [ -n "$_cn" ] || continue
     case "$_ca" in provider:*) ;; *) continue ;; esac
     _cst="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null | cut -f1)"
-    if [ "$_cst" = "answered" ]; then
-      _k="$(felix_commission_record_provider "$PROJ" "$_repo_root" "$_cn" "$_ca" "$(felix_tree_id "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)" "$(felix_commission_policy_version "$PROJ" 2>/dev/null)" 2>/dev/null)"
-      _cm_ans=$((_cm_ans + ${_k:-0}))
-    else
-      _cm_await="$_cm_await
-  $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")"
-    fi
+    # Only a state that says an answer is missing, for another topology, or
+    # unfinished is owed. Until 2026-10-01 every state but answered was, so a row
+    # whose state was unknown, or whose state call failed and printed nothing,
+    # sent a session to redo an answer that may be whole. Those rows are their
+    # own line below: neither owed nor recorded.
+    case "$_cst" in
+      answered)
+        _k="$(felix_commission_record_provider "$PROJ" "$_repo_root" "$_cn" "$_ca" "$(felix_tree_id "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)" "$(felix_commission_policy_version "$PROJ" 2>/dev/null)" 2>/dev/null)"
+        _cm_ans=$((_cm_ans + ${_k:-0})) ;;
+      awaiting|stale|partial)
+        _cm_await="$_cm_await
+  $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")" ;;
+      *)
+        _cm_unread="$_cm_unread
+  $_cn (${_cst:-no state})" ;;
+    esac
   done <<EOF
 $(felix_commission_rows "$PROJ" 2>/dev/null)
 EOF
@@ -622,19 +651,30 @@ EOF
   # that stops it and is entirely in a session's hands; the informational
   # line, which nobody has to act on, is still said once. Measured on this
   # machine, not reasoned: state/commission/felix.seen already held the
-  # current topology while all six requests sat unanswered.
+  # current topology while all six requests sat unanswered. A row whose answer
+  # could not be read holds it back too, as it did when it was counted among
+  # the owed: an all-clear spent over a row nobody could read would be said
+  # once and never again, on the strength of an answer that may not be whole.
   if [ -n "$_cm_await" ]; then
     context="$context
 
 Commissioning: receipt ${_cm_valid:-unknown}. A session still owes these — run the
 skill each request names, write the answer file it names, then felix commission:${_cm_await}"
-  elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
+  elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && [ -z "$_cm_unread" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
     context="$context
 
 Commissioning: receipt ${_cm_valid}."
     # Spent even on a summary session, which cannot be told apart here; see the
     # reconcile line above.
     mkdir -p "$(dirname "$_cm_seen")" 2>/dev/null && printf '%s\n' "$_cm_topo" >> "$_cm_seen" 2>/dev/null
+  fi
+  # Said at every session start while it holds, not once per topology: like the
+  # owed paragraph it is not an all-clear, and a row nobody could read is not
+  # one a first session's hearing of it discharges.
+  if [ -n "$_cm_unread" ]; then
+    context="$context
+
+Commissioning: whether these answers are whole could not be read, so they are neither owed nor recorded; felix commission --status reads them again:${_cm_unread}"
   fi
   [ "$_cm_ans" -gt 0 ] && context="$context
 

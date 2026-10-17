@@ -8,50 +8,26 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	9dccc3ae380bbba808b4aaa85d4c0a00679a0449	0.49.272
-run	45	6281	9
-baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-baseline: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-discover: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-discover: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-discover: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-discover: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-envelope: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-gate_declared: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-human_steps: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-human_steps: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail off)	1
-human_steps: a runbook read whose loop died, a met answer then status 128, is held (pipefail on)	1
-human_steps: a runbook that prints an unknown step is held (pipefail off)	1
-human_steps: a runbook that prints an unknown step is held (pipefail on)	1
-obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-obligations: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-obligations: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-obligations: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-preflight: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-preflight: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-preflight: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-preflight: a report that could not list the plugins is held (pipefail off)	1
-preflight: a report that could not list the plugins is held (pipefail on)	1
-probes: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-probes: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-probes: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-probes: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-reach: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-reach: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-reach: an unwired read that returned 128 having printed nothing is held (pipefail off)	1
-reach: an unwired read that returned 128 having printed nothing is held (pipefail on)	1
-reach: with no pipe to be made, the check does not pass	1
-stack: a lookup that dies after printing an answer that alone reads met is held (pipefail off)	1
-stack: a lookup that dies after printing an answer that alone reads met is held (pipefail on)	1
-stack: a lookup that dies before its end, having printed nothing, is held (pipefail off)	1
-stack: a lookup that dies before its end, having printed nothing, is held (pipefail on)	1
-stack: a plan that prints an unknown action is held (pipefail off)	1
-stack: a plan that prints an unknown action is held (pipefail on)	1
-stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail off)	1
-stack: a plan whose last pipeline stage died, a met answer then status 129, is held (pipefail on)	1
+base	origin/main	e27481408b31407528dda4e2503125db8ca218a0	0.49.274
+run	21	6833	9
+and does not list them under the header for capabilities nothing declares, but names each routine and its capability on a line of its own	1
+and felix stack apply without --yes says how many could not be read before saying nothing changed	1
+and for a routine with a check prints unknown with cadence 0, and does not run the check	1
+and names those rows on a line of their own, each with its state or no state	1
+and says how many routines could not be read in place of Nothing due	1
+and says how many steps could not be checked in place of Nothing outstanding	1
+and says it again on the next session start, not once per topology	1
+and while they are unread it does not say the receipt line that is said once per topology, nor spend it	1
+felix maintenance renders a routine it could not read as ? and not read, not as not yet	1
+felix setup renders a step it could not check as [?] with the reason, not as not needed yet	1
+felix stack apply --yes says how many could not be read and returns 1, though no install failed	1
+felix stack plan prints the row it could not read as unknown, and after its summary says how many could not be read	1
+felix_maint_status prints unknown, not dormant, for a routine on a clock whose declared list could not be read	1
+felix_maint_unreachable says unknown in a third column for each routine whose declared list could not be read	1
+felix_next rank 6 says the declared list could not be read for that routine, naming its capability and felix maintenance, never that nothing declares it	1
+felix_next says at rank 6 that whether a routine on ci is due is not known when the declared list could not be read, and says the routine it named with its capability once	1
+felix_pulse_report prints an unknown line naming the routines whose declared list could not be read	1
+felix_setup_status prints unknown, not dormant, for a step whose declared list could not be read, and does not run its check	1
+felix_stack_plan prints unknown, not dormant, for a row whose declared list could not be read, naming its capability	1
+session start does not put a provider row whose state is unknown, or which has no state, among what a session owes	1
+with only unread provider rows session start prints no paragraph saying a session owes anything, and still names them	1

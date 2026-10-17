@@ -288,11 +288,11 @@ printf '\none rule for what a thing looks like\n'
 # other scored the name alone, nothing said they had to agree, and a plugin got
 # installed under a capability the other matcher would not have given it.
 CR="$(printf 'llm\tllm prompt eval evaluation\nfrontend\tpage component styling')"
-_cm() { ( . "$FROOT/harness/lib/discover.sh"; felix_capability_match "$1" "$2" "$CR" ); }
-is "a name counts triple"            "$(_cm eval-tool '' | cut -f1)" "3"
-is "and prose counts single"         "$(_cm zzz 'about prompt things' | cut -f1)" "1"
+_capmatch() { ( . "$FROOT/harness/lib/discover.sh"; felix_capability_match "$1" "$2" "$CR" ); }
+is "a name counts triple"            "$(_capmatch eval-tool '' | cut -f1)" "3"
+is "and prose counts single"         "$(_capmatch zzz 'about prompt things' | cut -f1)" "1"
 # Three, not four: `eval` inside `evaluation` used to count as a second hit.
-is "prose alone can still add up"    "$(_cm zzz 'an llm platform for prompt management and evaluation' | cut -f1)" "3"
+is "prose alone can still add up"    "$(_capmatch zzz 'an llm platform for prompt management and evaluation' | cut -f1)" "3"
 # A keyword is a word. On the first live commissioning run `rag` matched
 # google-cloud-sto*rag*e, scored the name hit that is also the adoption
 # threshold, and a storage plugin was installed under llm.
@@ -301,8 +301,8 @@ is "a keyword inside another word is not a match" \
    "$( . "$FROOT/harness/lib/discover.sh"; felix_capability_match google-cloud-storage '' "$CRG" | cut -f1 )" "0"
 is "and a hyphenated name still matches its words" \
    "$( . "$FROOT/harness/lib/discover.sh"; felix_capability_match rag-toolkit '' "$CRG" | cut -f1 )" "3"
-is "the best capability wins"        "$(_cm zzz 'page component styling' | cut -f2)" "frontend"
-is "and nothing matching scores nil" "$(_cm zzz 'a database migration tool' | cut -f1)" "0"
+is "the best capability wins"        "$(_capmatch zzz 'page component styling' | cut -f2)" "frontend"
+is "and nothing matching scores nil" "$(_capmatch zzz 'a database migration tool' | cut -f1)" "0"
 
 # The manifest, not the listing. A catalogue blurb is written to be chosen from;
 # a manifest is written to describe.

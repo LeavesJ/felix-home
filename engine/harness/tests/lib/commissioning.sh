@@ -4,8 +4,8 @@
 # parts/0650-ecosystem.sh: the fixture from lines 269-279 (CMP, CMR, the
 # repository, the project files), _cmtable from 280-281, _cm from 282-287 and
 # the twelve-row table from 291-302; from parts/0700-continued.sh: _cmcli from
-# line 128 and _cmp from line 355. All verbatim; the fixture, the table and _cm
-# are indented into the builder.
+# line 128 and _cmp from line 355. All verbatim; the fixture and the table are
+# indented into the builder, and _cm stands at the top level of this file.
 # Definitions only. _commissioning_build STATE sets CMP and CMR (and, for the
 # state that needs them, CMS, _cmans and _cmreq) before it looks at anything,
 # and does nothing more once the fixture (cmproj and its repository) is there, so
@@ -20,12 +20,21 @@
 #               $CMS, the three-row table with two provider rows, an empty log,
 #               _cmtopo, the request a full run writes, the answer file $_cmans
 #               with four rows, and _cmo, the output of a full run over it.
-# _cm is defined by the builder, on every call and first, and not at the top of
-# this file: 0370 defines a different _cm (felix_capability_match) which a
-# source-time definition here would lose to in the serial run. _cmmal is the
+# _cm is defined here, at the top level of the file. 0370 used to define a
+# different _cm (felix_capability_match), which made this file define it inside
+# the builder; 0370 now calls its own _capmatch. _cmmal is the
 # malformed rows of the twelve-row table: 0650 sets it as it asserts over it, and
 # the builder sets it only when it is unset, so that 0690 can read it alone.
 # _cmstub_build (cm-stub.sh) gives the CMSTUB that _cm puts first on PATH.
+
+# _cm CMD ARG...: CMD, run in a subshell with the libraries the commissioning
+# assertions read sourced and the claude stub first on PATH.
+_cm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
+          . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+          . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
+          . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
+          . "$FROOT/harness/lib/commission-provider.sh"
+          "$@" ); }
 
 # _cmtable ROW...: writes $CMP/commissioning.tsv, the header and then the rows given.
 _cmtable() { { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
@@ -47,12 +56,6 @@ _commissioning_build() {
     _cmreq="$MEM/cmproj/commission/requests/automation_surveyed.md"
     _cmans="$MEM/cmproj/commission/automation_surveyed.tsv"
   fi
-  _cm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
-            . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
-            . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
-            . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
-            . "$FROOT/harness/lib/commission-provider.sh"
-            "$@" ); }
   if [ -f "$CMP/project.json" ] && [ -f "$CMR/.felix" ]; then
     CMR="$(cd "$CMR" && pwd -P)"
     [ -n "${_cmmal+x}" ] || _cmmal="$(_cm felix_commission_malformed "$CMP")"

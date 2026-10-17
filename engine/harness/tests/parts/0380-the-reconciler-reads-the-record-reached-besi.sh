@@ -12,6 +12,8 @@ printf '\nthe reconciler reads the record: reached beside needed\n'
 # priors, and proposing a mount from them would flip the same rows back and
 # forth forever. idle is an undeclared server with no evidence at all — the
 # row an unconditional mount branch would trip over.
+# The widget declares the capabilities 0230 gives it; this part alone finds none.
+[ -f "$FROOT/projects/widget/capabilities" ] || printf 'frontend\ne2e\n' > "$FROOT/projects/widget/capabilities"
 # The reconciler asks the plugin registry whether a reached name is a plugin,
 # so the registry has to be a fixture. Read from $HOME, and unpinned these
 # assertions would answer differently on a laptop that happens to have a plugin

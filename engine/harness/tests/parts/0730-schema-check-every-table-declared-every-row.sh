@@ -120,6 +120,7 @@ printf 'schemas.tsv\ttree\ttable lives columns empty\trefused\n' > "$SCZ/engine/
 is  "and one that holds no table at all is emptiness, not an all clear" "$(_scxrc "$(_scx "$SCZ")")" "2"
 
 # The real tree, and the gate that runs this on it.
+_engine_manifest_build
 if [ -n "$TBROOT" ] && [ -f "$TBROOT/engine/harness/templates/schemas.tsv" ]; then
   is  "this repository's every table is declared and accepted" "$(_scxrc "$(_scx "$TBROOT")")" "0"
 else
@@ -399,32 +400,7 @@ printf '\na night the founder granted\n'
 # widget, because the hook and command assertions further down write widget's
 # overnight state and the two would otherwise be reading each other's files.
 # Memory is keyed on the project's basename, so the fixture needs both.
-NP="$TMP/nightproj"; mkdir -p "$NP" "$MEM/nightproj"
-# A night is granted to a session, so the library is driven for one.
-NS="lib-night"
-_ov() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/overnight.sh"; "$@" 2>&1 ); }
-_ovdir()   { _ov felix_overnight_dir "$1"; }
-# A night is a session's, so every helper takes the session last. Given none, a
-# helper reads the one project-wide file an older engine wrote, which is still
-# read, swept and ended so that a night granted before the change is closed.
-_ovfile()  { if [ -n "${2:-}" ]; then printf '%s/nights/%s' "$(_ovdir "$1")" "$2"
-             else printf '%s/active' "$(_ovdir "$1")"; fi; }
-# One field of the one-line state. Read with awk rather than cut so a note that
-# smuggled in a newline shows up as a second record instead of being averaged
-# into the answer.
-_ovfield() { awk -F'\t' -v f="$2" 'NR==1 {print $f}' "$(_ovfile "$1" "${3:-}")" 2>/dev/null; }
-_ovreset() { local d; d="$(_ovdir "$1")"; rm -rf "$d/active" "$d/nights" "$d/marks" "$d/grants"; }
-# Move the deadline into the past without touching any other field. The field
-# it edits is the one the assertion below proves is the deadline, which is the
-# only reason this rewrite is allowed to stand in for waiting eight hours.
-_ovexpire() {
-  local f p; f="$(_ovfile "$1" "${2:-}")"; p="$(( $(date +%s) - 120 ))"
-  awk -F'\t' -v OFS='\t' -v p="$p" 'NR==1 {$2=p} 1' "$f" > "$f.edit" && mv "$f.edit" "$f"
-}
-# The longest word in a sentence, for asking whether some other surface repeated
-# it. Guarded at the call site: an empty needle would match everything, which is
-# this project's oldest way of writing an assertion that cannot fail.
-_ovword() { printf '%s' "$1" | tr -cs 'A-Za-z' '\n' | awk '{ if (length($0) > length(m)) m = $0 } END { print m }'; }
+_overnight_build
 
 _ovreset "$NP"
 _now="$(date +%s)"

@@ -206,7 +206,7 @@ TBU8="$(locale -a 2>/dev/null | grep -iE '^(C|en_US)\.utf-?8$' | head -1)"
 
 # The kill test, over every table in this repository: every *.tsv, and every
 # file a schema row declares under another name.
-TBROOT="$(git -C "$REAL_HARNESS" rev-parse --show-toplevel 2>/dev/null)"
+_engine_manifest_build
 if [ -n "$TBROOT" ] && [ -f "$TBROOT/engine/harness/templates/schemas.tsv" ]; then
   _tbnames="$(_tb felix_table_rows "$TBROOT/engine/harness/templates/schemas.tsv" | cut -f1)"
   _tbdiff=""; _tbfam=""; _tbfam8=""; _tbn=0
@@ -389,6 +389,7 @@ is  "which the validator accepts" "$(_tbrc felix_table_check "$TBS" "$_tbd")" "0
 # A newborn project: every table felix new seeds has a row, and is accepted.
 # A home of its own, so the fixture home later assertions count projects in
 # is not changed by this one.
+_cmstub_build
 NB="$TMP/newborn"; NBH="$TMP/newborn-home"; mkdir -p "$NB" "$NBH/projects"
 ( _fx_cd "$NB" && git init -q -b main )
 ( cd "$NB" && FELIX_HOME="$NBH" PATH="$CMSTUB:$PATH" "$FELIX" new newborn ) >/dev/null 2>&1

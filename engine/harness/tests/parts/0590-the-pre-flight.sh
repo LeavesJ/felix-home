@@ -347,8 +347,12 @@ for pat in sys.argv[2:]:
                 seen.add(m.group(1))
 print(" ".join(sorted(set(out))))
 PY
+# The suite's own files come from _suite_files (every part, every tests/lib file,
+# the driver), as every check that reads the suite's text takes them, and not
+# from a glob of this part's own; the scanner takes a path that is absolute as it is.
+_sr_suite=(); while IFS= read -r _sr_f; do _sr_suite[${#_sr_suite[@]}]="$_sr_f"; done < <(_suite_files)
 selfref="$(python3 "$SR" "$(cd "$REAL_HARNESS/.." && pwd)" \
-           "harness/lib/*.sh" "harness/felix" "harness/hooks/*" "harness/tests/run" "harness/tests/parts/*.sh" "harness/tests/lib/*.sh")"
+           "harness/lib/*.sh" "harness/felix" "harness/hooks/*" "${_sr_suite[@]}")"
 is "no local assignment reads one declared beside it" "$selfref" ""
 
 # The same scanner, against a planted instance of the exact shape. If somebody

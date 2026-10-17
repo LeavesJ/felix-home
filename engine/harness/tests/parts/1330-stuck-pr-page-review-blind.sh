@@ -129,7 +129,7 @@ _sq_word() {   # TEXT WORD -> named | missing
 SQ_MANY="projects/felix/stack.tsv:0 projects/felix/ecosystem.tsv:0 projects/felix/qualification.tsv:1 .github/workflows/x.yml:0"
 SQ_MANY="$SQ_MANY projects/felix/autonomy:0 projects/felix/exceptions.tsv:0 migrations/x.sql:0 rrow/plain/a.md:0 lrow/x.md:0"
 SQ_MANY="$SQ_MANY projects/felix/CLAUDE.md:0 notes/caf$(printf '\303\251').md:0"
-_sq_prs "$(_sq_pr 169 notes/169.md:0)" "$(_sq_pr 168 'notes/a\u007fb.md:0')" "$(_sq_pr 167 'engine/harness/felix:0 engine/harness/lib/verify.sh:0')" \
+_sq_prs "$(_sq_pr 170 notes/170.md:0)" "$(_sq_pr 169 notes/169.md:0)" "$(_sq_pr 168 'notes/a\u007fb.md:0')" "$(_sq_pr 167 'engine/harness/felix:0 engine/harness/lib/verify.sh:0')" \
         "$(_sq_pr 166 'notes/a\u0001b.md:0')" "$(_sq_pr 165 'projects/felix/CLAUDE.md\r:0')" "$(_sq_pr 164 'notes/a\nb.md:0')" \
         "$(_sq_pr 163 "$SQ_MANY")" "$(_sq_pr 162 'lrow/a\\b.md:0')" "$(_sq_pr 161 'notes/a\\b.md:0')" "$(_sq_pr 160 'notes/a\tb.md:0')"
 rm -rf "$SQLAND"; mkdir -p "$SQLAND"
@@ -185,6 +185,7 @@ has "§4: and the second" "$(_sq_f "$T" 167 8)" "engine/harness/lib/verify.sh"
 
 # ---- F2: a land directory that cannot be searched (§4.3, §5) --------------------
 _sq_is "§4.3: the ledger refused #169's head on the current origin/main (control for what follows)" "$T" 169 refused session
+_sq_is "§4.3: and #170, plain and green with no ledger row, is ready (control for what follows)" "$T" 170 ready lander
 is "§4.3: and the ledger row says read (control)" "$(_sq_srcf "$T" ledger 4)" read
 chmod 000 "$SQLAND"
 if [ -e "$SQLAND/ledger.tsv" ] || [ -L "$SQLAND/ledger.tsv" ]; then
@@ -197,7 +198,7 @@ else
   is "§4.3: land/ at mode 000: the ledger is there but cannot be read, so its row says unread, not none" "$(_sq_srcf "$SQX/land000.tsv" ledger 4)" unread
   _sq_is "§5: and the pull request the ledger refused is unknown, never ready" "$SQX/land000.tsv" 169 unknown unknown
   has "§5: its detail says the lander's ledger was not read" "$(_sq_f "$SQX/land000.tsv" 169 8)" "the lander's ledger not read"
-  _sq_is "§5: and a plain green pull request that reaches state 10 is unknown too" "$SQX/land000.tsv" 161 unknown unknown
+  _sq_is "§5: and a plain green pull request that reaches state 10 is unknown too" "$SQX/land000.tsv" 170 unknown unknown
 fi
 chmod 000 "${SQLAND%/*}"
 if [ -e "$SQLAND" ] || [ -L "$SQLAND" ]; then

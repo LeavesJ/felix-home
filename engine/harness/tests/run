@@ -13,6 +13,24 @@
 
 set -uo pipefail
 
+# The caller's environment must not change what a tool prints. Why, and why
+# these lines: the comment above the same lines in engine/harness/felix.
+set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
+export -n SHELLOPTS BASHOPTS
+_FELIX_CALLER_CDPATH="${CDPATH-}"
+unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
+      GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
+      GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
+
+# Git's colour stays off for every git this runs, whatever colour settings the
+# caller made, except what is out of reach. Why, which keys, and what is out
+# of reach: the comment above the same lines in engine/harness/felix.
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
+
 # The suite reads nothing from its own stdin, and hooks/session-start reads a
 # payload from stdin whenever stdin is not a terminal. About thirty calls here
 # run that hook without piping one in, so an inherited pipe that stays open
@@ -21,6 +39,17 @@ exec </dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
+# A section runner that puts its own REAL_HARNESS in at a fixed line number
+# lands above this line once the lines before it move, and this line then
+# points REAL_HARNESS at the directory above the runner's script. Measured
+# 2026-10-08: with the runner in TMPDIR that was TMPDIR itself, and the
+# fixture's copy below spent 48 minutes copying TMPDIR into a directory
+# inside it. A tree that is not an engine is refused before anything is
+# copied. Put the runner's REAL_HARNESS after this line, wherever it is.
+[ -f "$REAL_HARNESS/felix" ] && [ -d "$REAL_HARNESS/lib" ] || {
+  printf 'tests/run: %s is not an engine (no felix, no lib/); nothing was run\n' "$REAL_HARNESS" >&2
+  exit 2
+}
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict.
@@ -41826,6 +41855,570 @@ is  "lib/land-table.sh exists and no line of it is one of felix-home's rows, or 
 is  "and no file among the engine's libraries, CLI, hooks or templates carries one of those rows either, or a project's recipe would live in the engine" \
     "$(grep -rlFxf "$LT_SEVEN" "$REAL_HARNESS/lib" "$REAL_HARNESS/felix" "$REAL_HARNESS/hooks" "$REAL_HARNESS/templates" 2>/dev/null)" ""
 
+printf '\na person'"'"'s git colour configuration never reaches what the engine parses\n'
+# Written blind, 2026-10-08, from the contract alone (P1-P7): a person can turn
+# git's colour on for output that is not a terminal (color.ui=always or a
+# family key in any config file, GIT_CONFIG_COUNT, or GIT_CONFIG_PARAMETERS,
+# which is what `git -c` exports to its children), and then the lines the
+# engine parses start with an escape, so `^+`, `^??` and `diff --git` stop
+# matching. The decided mechanism: every executable under engine/harness
+# appends eleven `'color.<key>=never'` entries to GIT_CONFIG_PARAMETERS and
+# exports it, once, without forking. (After review the entries are thirteen:
+# see the section that ends this block.)
+#
+# This suite is itself one of those executables, so once it carries the pin
+# everything it starts inherits a pinned value. Every drive below therefore
+# starts the entry point under test through _gc_run, which removes the
+# suite's GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT and points HOME, XDG and
+# the system file away from the machine, and then sets only what the case
+# names. Without that, every assertion here would pass whether or not the
+# script under test pinned anything.
+#
+# Each colour source has a control: raw git, outside the engine, under that
+# source alone, writes an escape byte into a pipe. Each drive has a control:
+# with no colour configuration it gives the answer it should. So nothing here
+# passes because colour never came on, or because a drive never reached the
+# code it names.
+#
+# What git received is read at git itself: a shim first on PATH runs the real
+# git, then appends its exit status, GIT_CONFIG_COUNT, GIT_CONFIG_KEY_0,
+# GIT_CONFIG_VALUE_0 and GIT_CONFIG_PARAMETERS to a log, one line per call.
+# tests/red gets a shim that records and refuses, so the copy driven here stops
+# at its first git call, and it has no tests/run beside it, so it can never
+# start a suite run.
+#
+# The static checks below read each executable's own text, so they require the
+# pin written inline in each file, as the caller-environment unset line is.
+# A pin kept in a lib and sourced would read as absent. They also see only the
+# word `git` in a file's own lines: a lib function that runs git, called before
+# the pin, is not seen there. Where that matters most it is driven instead
+# (felix, a hook, bin/secret-scan, tests/red).
+#
+# All git work happens in repositories made here, under $TMP, with
+# GIT_CEILING_DIRECTORIES at $TMP itself, so discovery cannot climb out even
+# from the fixture's top directory, and with the caller's repository-location
+# variables removed, so an inherited GIT_DIR cannot point a fixture command at
+# a real repository.
+GCH="$(cd "$TMP" && pwd -P)/gcolour"
+GCT="${GCH%/gcolour}"
+mkdir -p "$GCH/home/.config" "$GCH/hcolour/.config" "$GCH/shim" "$GCH/refuse" "$GCH/regions" "$GCH/redcopy/tests"
+_gc_esc="$(printf '\033')"
+_gc_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
+_gc_realgit="$(command -v git)"
+_gc_run() {   # [VAR=value ...] cmd args: with no git configuration of the caller's or the machine's
+  env -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM \
+      -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY \
+      -u GIT_ALTERNATE_OBJECT_DIRECTORIES -u GIT_NAMESPACE \
+      HOME="$GCH/home" XDG_CONFIG_HOME="$GCH/home/.config" GIT_CONFIG_NOSYSTEM=1 \
+      GIT_CEILING_DIRECTORIES="$GCT" "$@"
+}
+_gcg() { ( cd "$GCH" || exit 1; _gc_run "$_gc_realgit" -c user.name=t -c user.email=t@t "$@" ); }
+_gc_colour() {   # <repo> on|off: color.ui and every family key at always, in the repository's own config file
+  local k
+  case "$1" in "$GCH"/?*) ;; *) return 1 ;; esac
+  [ -f "$1/.git/config" ] || return 1
+  if [ "$2" = on ]; then
+    for k in ui advice branch diff grep interactive push remote showBranch status transport; do
+      _gcg config --file "$1/.git/config" "color.$k" always
+    done
+  else
+    _gcg config --file "$1/.git/config" --remove-section color 2>/dev/null
+  fi
+  return 0
+}
+_gc_hasesc() { case "$1" in *"$_gc_esc"*) printf yes ;; *) printf no ;; esac; }
+
+cat > "$GCH/shim/git" <<EOF
+#!/bin/sh
+"$_gc_realgit" "\$@"
+rc=\$?
+printf '%s\t%s\t%s\t%s\t%s\n' "\$rc" "\${GIT_CONFIG_COUNT-(unset)}" "\${GIT_CONFIG_KEY_0-(unset)}" "\${GIT_CONFIG_VALUE_0-(unset)}" "\${GIT_CONFIG_PARAMETERS-(unset)}" >> "$GCH/shim.log"
+printf '%s\n' "\$*" >> "$GCH/shim.args"
+exit \$rc
+EOF
+cat > "$GCH/refuse/git" <<EOF
+#!/bin/sh
+printf '%s\t%s\t%s\t%s\t%s\n' 128 "\${GIT_CONFIG_COUNT-(unset)}" "\${GIT_CONFIG_KEY_0-(unset)}" "\${GIT_CONFIG_VALUE_0-(unset)}" "\${GIT_CONFIG_PARAMETERS-(unset)}" >> "$GCH/shim.log"
+exit 128
+EOF
+chmod +x "$GCH/shim/git" "$GCH/refuse/git"
+# The log read three ways: every call's GIT_CONFIG_PARAMETERS equal to a value,
+# beginning with one, and every call's status, COUNT, KEY_0 and VALUE_0 equal
+# to four. Each answers `ok` or says the first call that differed; an empty log
+# is never ok, so a drive that made no git call cannot pass.
+_gc_shim_is() {
+  [ -s "$GCH/shim.log" ] || { printf 'no git call was recorded'; return 0; }
+  GC_E="$1" LC_ALL=C awk -F'\t' '
+    { v = $5; for (i = 6; i <= NF; i++) v = v "\t" $i
+      if (v != ENVIRON["GC_E"] && !nb++) bad = v }
+    END { if (!nb) printf "ok"; else printf "a call received [%s]", bad }' "$GCH/shim.log"
+}
+_gc_shim_starts() {
+  [ -s "$GCH/shim.log" ] || { printf 'no git call was recorded'; return 0; }
+  GC_E="$1" LC_ALL=C awk -F'\t' '
+    { v = $5; for (i = 6; i <= NF; i++) v = v "\t" $i
+      if (index(v, ENVIRON["GC_E"]) != 1 && !nb++) bad = v }
+    END { if (!nb) printf "ok"; else printf "a call received [%s]", bad }' "$GCH/shim.log"
+}
+_gc_shim_fields() {   # <rc|-> <count|-> <key0|-> <value0|->
+  [ -s "$GCH/shim.log" ] || { printf 'no git call was recorded'; return 0; }
+  GC_R="$1" GC_C="$2" GC_K="$3" GC_V="$4" LC_ALL=C awk -F'\t' '
+    { if ((ENVIRON["GC_R"] != "-" && $1 != ENVIRON["GC_R"]) \
+       || (ENVIRON["GC_C"] != "-" && $2 != ENVIRON["GC_C"]) \
+       || (ENVIRON["GC_K"] != "-" && $3 != ENVIRON["GC_K"]) \
+       || (ENVIRON["GC_V"] != "-" && $4 != ENVIRON["GC_V"])) { if (!nb++) bad = $1 " " $2 " " $3 " " $4 } }
+    END { if (!nb) printf "ok"; else printf "a call had status, count, key and value [%s]", bad }' "$GCH/shim.log"
+}
+
+# ---- the secret-scan repository: a branch that adds a credential, committed,
+# so the only way to see it is the diff. The key is assembled, so this file
+# carries no credential's shape.
+GCS="$GCH/scan"
+_gc_key="$(printf '%s%s' AKIA Q7XK2M9PLR4TWN3B)"
+_gcg init -q -b main "$GCS"
+printf 'notes\n' > "$GCS/README.md"
+_gcg -C "$GCS" add README.md && _gcg -C "$GCS" commit -qm base
+_gcg -C "$GCS" checkout -q -b leak
+printf 'aws_key = "%s"\n' "$_gc_key" > "$GCS/cfg.py"
+_gcg -C "$GCS" add cfg.py && _gcg -C "$GCS" commit -qm leak
+_gc_ss="$FROOT/harness/bin/secret-scan"
+# stderr, then rc=N. Arguments are environment assignments for the run.
+_gc_scan() { ( cd "$GCS" || exit 1; _gc_run env "$@" "$_gc_ss" main 2>&1 >/dev/null; printf 'rc=%s' "$?" ); }
+_gc_shimscan() { : > "$GCH/shim.log"; _gc_scan PATH="$GCH/shim:$PATH" "$@"; }
+_gc_found() {   # found, when the scan exited 1 and named the credential
+  case "$1" in
+    *"$_gc_key"*rc=1) printf found ;;
+    *) printf '%s' "$1" | tail -1 ;;
+  esac
+}
+_gc_rawdiff() { ( cd "$GCS" || exit 1; _gc_run env "$@" "$_gc_realgit" diff main...HEAD 2>/dev/null ); }
+
+is "colour fixture: with no colour configuration, bin/secret-scan finds the credential the branch adds" \
+   "$(_gc_found "$(_gc_scan)")" "found"
+is "colour fixture: raw git diff in that repository writes no escape byte while nothing turns colour on" \
+   "$(_gc_hasesc "$(_gc_rawdiff)")" "no"
+_gc_colour "$GCS" on
+is "colour fixture: raw git diff in a repository whose own config sets color.ui and every family key to always writes an escape byte into a pipe" \
+   "$(_gc_hasesc "$(_gc_rawdiff)")" "yes"
+# P1, and P2's repository config.
+is "with colour forced on by the repository's own config, bin/secret-scan still finds a credential the branch adds, exits 1 and names it" \
+   "$(_gc_found "$(_gc_scan)")" "found"
+_gc_colour "$GCS" off
+
+# ---- P2: every other source, each alone, each with its raw-git control.
+printf '[color]\n\tui = always\n\tdiff = always\n' > "$GCH/hcolour/.gitconfig"
+is "colour fixture: raw git diff with HOME at a global config that sets color.ui and color.diff to always writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_rawdiff HOME="$GCH/hcolour" XDG_CONFIG_HOME="$GCH/hcolour/.config")")" "yes"
+is "colour forced on by the person's global config is overridden: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$(_gc_scan HOME="$GCH/hcolour" XDG_CONFIG_HOME="$GCH/hcolour/.config")")" "found"
+is "colour fixture: raw git diff under a caller's GIT_CONFIG_COUNT entry for color.ui=always writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_rawdiff GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=color.ui GIT_CONFIG_VALUE_0=always)")" "yes"
+is "colour forced on by a caller's GIT_CONFIG_COUNT entry is overridden: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$(_gc_scan GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=color.ui GIT_CONFIG_VALUE_0=always)")" "found"
+is "colour fixture: raw git diff under a caller's old-format GIT_CONFIG_PARAMETERS entry 'color.ui=always' writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_rawdiff GIT_CONFIG_PARAMETERS="'color.ui=always'")")" "yes"
+is "colour forced on by a caller's old-format GIT_CONFIG_PARAMETERS entry is overridden: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$(_gc_scan GIT_CONFIG_PARAMETERS="'color.ui=always'")")" "found"
+is "colour fixture: raw git diff under a caller's new-format GIT_CONFIG_PARAMETERS entry 'color.diff'='always' writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_rawdiff GIT_CONFIG_PARAMETERS="'color.diff'='always'")")" "yes"
+is "colour forced on by a caller's new-format GIT_CONFIG_PARAMETERS entry for a family key is overridden: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$(_gc_scan GIT_CONFIG_PARAMETERS="'color.diff'='always'")")" "found"
+
+# ---- P6 for bin/secret-scan, then P3, P4 and P5 as git receives them.
+_gc_shimscan >/dev/null
+is "bin/secret-scan started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+
+_gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p=1'")"
+is "a caller's old-format GIT_CONFIG_PARAMETERS entry still reaches every git call bin/secret-scan makes, first" \
+   "$(_gc_shim_starts "'gcfix.p=1'")" "ok"
+is "and the thirteen colour entries follow it after one space" \
+   "$(_gc_shim_is "'gcfix.p=1' $_gc_pin")" "ok"
+is "and git accepts the result as it accepted the caller's value: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$_gc_o")" "found"
+_gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p'='1'")"
+is "a caller's new-format GIT_CONFIG_PARAMETERS entry still reaches every git call bin/secret-scan makes, first" \
+   "$(_gc_shim_starts "'gcfix.p'='1'")" "ok"
+is "and the thirteen old-format colour entries follow it after one space" \
+   "$(_gc_shim_is "'gcfix.p'='1' $_gc_pin")" "ok"
+is "and git accepts that mix: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$_gc_o")" "found"
+_gc_o="$(_gc_shimscan GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gcfix.c GIT_CONFIG_VALUE_0=1)"
+is "a caller's GIT_CONFIG_COUNT, its key and its value reach every git call bin/secret-scan makes unchanged" \
+   "$(_gc_shim_fields - 1 gcfix.c 1)" "ok"
+is "and beside it GIT_CONFIG_PARAMETERS is exactly the thirteen colour entries" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+is "and git accepts both: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$_gc_o")" "found"
+
+# P4. Idempotent across nesting, by the whole-entry suffix and nothing looser.
+_gc_shimscan GIT_CONFIG_PARAMETERS="$_gc_pin" >/dev/null
+is "a GIT_CONFIG_PARAMETERS that is exactly the thirteen colour entries reaches git unchanged, not doubled" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p=1' $_gc_pin" >/dev/null
+is "one that ends in the thirteen colour entries after a caller's own entry reaches git unchanged" \
+   "$(_gc_shim_is "'gcfix.p=1' $_gc_pin")" "ok"
+_gc_shimscan GIT_CONFIG_PARAMETERS="$_gc_pin 'gcfix.p=1'" >/dev/null
+is "one that holds the thirteen colour entries earlier but ends in another entry gets them appended again" \
+   "$(_gc_shim_is "$_gc_pin 'gcfix.p=1' $_gc_pin")" "ok"
+_gc_shimscan GIT_CONFIG_PARAMETERS="'color.pager=false' 'blame.coloring=none'" >/dev/null
+is "one that ends in only the last two of the colour entries gets all thirteen appended" \
+   "$(_gc_shim_is "'color.pager=false' 'blame.coloring=none' $_gc_pin")" "ok"
+# Text that ends like the thirteen but not as whole entries: here the first of
+# them is the quoted value of a new-format key, so git reads color.ui=never as
+# gcfix.p's value and not as color.ui at all.
+_gc_shimscan GIT_CONFIG_PARAMETERS="'gcfix.p'=$_gc_pin" >/dev/null
+is "one whose text ends like the thirteen colour entries, but not as whole entries, gets them appended" \
+   "$(_gc_shim_is "'gcfix.p'=$_gc_pin $_gc_pin")" "ok"
+
+# P5. Judged the way git judges it, measured against raw git with the same value.
+_gc_o="$(_gc_shimscan GIT_CONFIG_PARAMETERS=)"
+is "an empty GIT_CONFIG_PARAMETERS becomes exactly the thirteen colour entries" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+is "and git accepts it as it accepted the empty value: bin/secret-scan still finds the credential" \
+   "$(_gc_found "$_gc_o")" "found"
+_gc_rawrc() { _gc_run env "$@" "$_gc_realgit" -C "$GCS" rev-parse --verify HEAD >/dev/null 2>&1; printf '%s' "$?"; }
+_gc_r="$(_gc_rawrc GIT_CONFIG_PARAMETERS=gcfix.p=1)"
+_gc_shimscan GIT_CONFIG_PARAMETERS=gcfix.p=1 >/dev/null
+is "a GIT_CONFIG_PARAMETERS git refuses, an unquoted entry, is refused by raw git and still by every git call bin/secret-scan makes, with the same status" \
+   "$_gc_r $(_gc_shim_fields "$_gc_r" - - -)" "128 ok"
+_gc_r="$(_gc_rawrc GIT_CONFIG_PARAMETERS=' ')"
+_gc_shimscan GIT_CONFIG_PARAMETERS=' ' >/dev/null
+is "one that is a single space is refused by raw git and still by every git call bin/secret-scan makes, with the same status" \
+   "$_gc_r $(_gc_shim_fields "$_gc_r" - - -)" "128 ok"
+_gc_r="$(_gc_rawrc GIT_CONFIG_COUNT=x)"
+_gc_shimscan GIT_CONFIG_COUNT=x >/dev/null
+is "a bogus GIT_CONFIG_COUNT is refused by raw git and still by every git call bin/secret-scan makes, with the same status and the count untouched" \
+   "$_gc_r $(_gc_shim_fields "$_gc_r" x - -)" "128 ok"
+
+# ---- the governed project: a risk table with a confined row and the
+# destructive-SQL content row, and a gate.sh that writes down what git prints.
+GCPD="$FROOT/projects/gcolour"
+mkdir -p "$GCPD" "$MEM/gcolour"
+printf '{\n  "name": "gcolour",\n  "gate": "gate.sh"\n}\n' > "$GCPD/project.json"
+printf '# gcolour\n' > "$GCPD/CLAUDE.md"
+{ printf 'red\tpath\t(^|/)(migrations|alembic)(/|$)\tschema migration\n'
+  printf 'red\tcontent\t^\\+.*(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)\tdestructive SQL\n'
+  printf 'yellow\tpath\t^deps(-extra)?\\.txt$\tdependency floor\tgc-confined\t^[-+][a-z]+>=[0-9.]+$\n'
+  printf 'green\tpath\t\\.md$\tdocumentation\n'
+} > "$GCPD/risk.tsv"
+cat > "$GCPD/gate.sh" <<EOF
+#!/bin/sh
+{
+  printf 'env=%s\n' "\${GIT_CONFIG_PARAMETERS-(unset)}"
+  printf 'count=%s\n' "\${GIT_CONFIG_COUNT-(unset)}"
+  printf 'log='; git log --oneline -1
+  git diff HEAD~1 HEAD
+  printf 'grep='; git grep -l gcolour-word
+  printf 'status='; git status --short
+  printf 'p=%s\n' "\$(git config --get gcfix.p)"
+  printf 'c=%s\n' "\$(git config --get gcfix.c)"
+} > "$GCH/gate.out" 2>&1
+printf 'gcolour-gate-ran\n'
+EOF
+chmod +x "$GCPD/gate.sh"
+
+# The receipt repository, one branch: deps.txt changed inside the confine (the
+# same package, a new floor), deps-extra.txt given a line the confine does not
+# allow, and a migration that adds DROP TABLE. One risk row covers both deps
+# files, so its escape is judged per path: quiet on the first, firing on the
+# second. README.md is edited and left unstaged, so the tree is dirty and its
+# fingerprint hashes a diff.
+GCW="$GCH/work"
+_gcg init -q -b main "$GCW"
+printf 'gcolour\n' > "$GCW/.felix"
+printf 'notes\n' > "$GCW/README.md"
+printf 'alpha>=1.0\nbeta>=2.0\n' > "$GCW/deps.txt"
+printf 'gamma>=1.0\n' > "$GCW/deps-extra.txt"
+_gcg -C "$GCW" add -A && _gcg -C "$GCW" commit -qm base
+_gcg -C "$GCW" checkout -q -b mix
+printf 'alpha>=1.1\nbeta>=2.0\n' > "$GCW/deps.txt"
+printf 'gamma>=1.0\n--index-url http://example.invalid/simple\n' > "$GCW/deps-extra.txt"
+mkdir -p "$GCW/migrations"; printf 'DROP TABLE accounts;\n' > "$GCW/migrations/004_drop.sql"
+_gcg -C "$GCW" add -A && _gcg -C "$GCW" commit -qm mix
+printf 'more notes\n' >> "$GCW/README.md"
+_gc_receipt() { ( cd "$GCW" || exit 1; _gc_run env "$@" "$FELIX" receipt --base main 2>/dev/null ); }
+_gc_classify() { ( cd "$GCW" || exit 1; _gc_run "$FELIX" classify --base main 2>/dev/null ); }
+_gc_verdict() {   # receipt -> "<durable added-lines> <row on the confined change> <row on the other>"
+  case "$1" in *'{"channel":"durable","path":"ADDED-LINES"'*) printf 'sql-escapes ' ;; *) printf 'sql-quiet ' ;; esac
+  case "$1" in *'{"channel":"gc-confined","path":"deps.txt"'*) printf 'confined-fires ' ;; *) printf 'confined-quiet ' ;; esac
+  case "$1" in *'{"channel":"gc-confined","path":"deps-extra.txt"'*) printf 'outside-fires' ;; *) printf 'outside-quiet' ;; esac
+}
+_gc_tree() { printf '%s\n' "$1" | sed -n '/"subject"/s/.*"tree": "\([^"]*\)".*/\1/p'; }
+_gc_cl() { case "$1" in *"ADDED-LINES"*"destructive SQL"*) printf 'content-rule' ;; *) printf 'no-content-rule' ;; esac; }
+
+# The uncoloured receipt runs with the shim on PATH, which changes nothing it
+# prints, and doubles as P4 through a real nesting: felix receipt runs
+# bin/secret-scan as a child for the disclose channel, so that child starts
+# with a value felix already pinned. Its calls are the ones without -C: felix's
+# own diff calls name the repository with -C, and secret-scan reads its working
+# directory. Flags it may gain (--no-color, --no-pager) are allowed for.
+_gc_scanran() {   # ran, when some recorded call is a diff of main...HEAD with no -C before the diff
+  LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { if ($i == "-C") next; if ($i == "diff") break }
+                  if (i > NF) next
+                  for (j = i + 1; j <= NF; j++) if ($j == "main...HEAD") { n++; next } }
+                END { if (n) printf "ran"; else printf "no call of its was recorded" }' "$GCH/shim.args"
+}
+: > "$GCH/shim.log"; : > "$GCH/shim.args"
+_gc_rp="$(_gc_receipt PATH="$GCH/shim:$PATH")"; _gc_cp="$(_gc_classify)"
+is "colour fixture: with no colour configuration, felix receipt escapes the migration's DROP TABLE as durable ADDED-LINES and fires the confine row only on the change outside it" \
+   "$(_gc_verdict "$_gc_rp")" "sql-escapes confined-quiet outside-fires"
+is "colour fixture: with no colour configuration, felix classify reports the destructive-SQL content rule on the added lines" \
+   "$(_gc_cl "$_gc_cp")" "content-rule"
+_gc_t0="$(_gc_tree "$_gc_rp")"
+is "colour fixture: felix receipt names a tree fingerprint for the dirty tree" \
+   "$([ -n "$_gc_t0" ] && printf named)" "named"
+is "colour fixture: felix receipt's secret-scan child ran under the shim" \
+   "$(_gc_scanran)" "ran"
+is "every git call under felix receipt started with no GIT_CONFIG_PARAMETERS, its secret-scan child included, receives the thirteen colour entries exactly once" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+_gc_colour "$GCW" on
+is "colour fixture: raw git diff in the receipt repository, with its own config forcing colour, writes an escape byte" \
+   "$(_gc_hasesc "$( cd "$GCW" || exit 1; _gc_run "$_gc_realgit" diff -U0 main...HEAD 2>/dev/null )")" "yes"
+_gc_rc="$(_gc_receipt)"; _gc_cc="$(_gc_classify)"
+_gc_v="$(_gc_verdict "$_gc_rc")"
+is "with colour forced on by the repository's own config, felix receipt still escapes destructive SQL added in a migration as durable ADDED-LINES" \
+   "$(printf '%s' "$_gc_v" | cut -d' ' -f1)" "sql-escapes"
+# Read with the other path's verdict beside it, so a receipt that printed
+# nothing (which also reads as quiet) cannot pass this.
+is "with colour forced on by the repository's own config, a change the risk row's confine allows still leaves that row's escape quiet in felix receipt" \
+   "$(printf '%s' "$_gc_v" | cut -d' ' -f2,3)" "confined-quiet outside-fires"
+is "with colour forced on by the repository's own config, a change outside the confine still fires the risk row's escape in felix receipt" \
+   "$(printf '%s' "$_gc_v" | cut -d' ' -f3)" "outside-fires"
+is "with colour forced on by the repository's own config, felix classify still sees the destructive-SQL content rule in the added lines" \
+   "$(_gc_cl "$_gc_cc")" "content-rule"
+is "with colour forced on by the repository's own config, felix receipt names the same tree fingerprint for a dirty tree as with none" \
+   "$(_gc_tree "$_gc_rc")" "$_gc_t0"
+_gc_colour "$GCW" off
+
+# ---- handoff and gate, in a repository whose only change is an untracked file.
+GCD="$GCH/hand"
+_gcg init -q -b main "$GCD"
+printf 'gcolour\n' > "$GCD/.felix"
+printf 'one gcolour-word\n' > "$GCD/notes.txt"
+_gcg -C "$GCD" add -A && _gcg -C "$GCD" commit -qm first
+printf 'two\n' >> "$GCD/notes.txt"
+_gcg -C "$GCD" add -A && _gcg -C "$GCD" commit -qm second
+printf 'scratch\n' > "$GCD/untracked.txt"
+_gc_hf="$MEM/gcolour/SESSION_HANDOFF.md"
+_gc_handoff() { ( cd "$GCD" || exit 1; _gc_run "$FELIX" handoff 2>&1 ); }
+_gc_ublock() { sed -n '/^## Uncommitted/,/^## Recent/p' "$_gc_hf" 2>/dev/null; }
+rm -f "$_gc_hf"
+has "colour fixture: with no colour configuration, felix handoff on a tree whose only change is untracked prints that the tree is clean" \
+    "$(_gc_handoff)" "[x] tree is clean"
+# What the Uncommitted block says for this tree is read here, uncoloured, and
+# the coloured run below is held to it, so the check does not depend on the
+# block's wording.
+_gc_ub0="$(_gc_ublock)"
+is "colour fixture: with no colour configuration, the SESSION_HANDOFF.md felix handoff writes has an Uncommitted block that does not list the untracked file" \
+   "$([ -n "$_gc_ub0" ] && printf written) $(case "$_gc_ub0" in (*untracked.txt*) printf lists ;; (*) printf unlisted ;; esac)" "written unlisted"
+_gc_colour "$GCD" on
+is "colour fixture: raw git status --short on that tree, with its own config forcing colour, writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_run "$_gc_realgit" -C "$GCD" status --short 2>/dev/null)")" "yes"
+rm -f "$_gc_hf"
+has "with colour forced on by the repository's own config, felix handoff on a tree whose only change is untracked still prints that the tree is clean" \
+    "$(_gc_handoff)" "[x] tree is clean"
+is "and the SESSION_HANDOFF.md it writes holds no escape byte" \
+   "$(_gc_hasesc "$(cat "$_gc_hf" 2>/dev/null)")$([ -s "$_gc_hf" ] && printf ' written')" "no written"
+_gc_ub="$(_gc_ublock)"
+is "and its Uncommitted block reads exactly as it does with no colour configuration, without the untracked file" \
+   "${_gc_ub:-(no block)}" "$_gc_ub0"
+
+is "colour fixture: raw git log --oneline in that repository, with its own config forcing colour, writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_run "$_gc_realgit" -C "$GCD" log --oneline -1 2>/dev/null)")" "yes"
+: > "$GCH/gate.out"
+_gc_go="$( cd "$GCD" || exit 1; _gc_run "$FELIX" gate 2>&1 )"
+is "colour fixture: felix gate ran the project's gate.sh, which wrote the commit line and the grep match" \
+   "$(case "$_gc_go" in (*gcolour-gate-ran*) printf ran ;; esac) $(sed "s/${_gc_esc}\[[0-9;]*m//g" "$GCH/gate.out" | sed -n 's/^log=[^ ]* //p; s/^grep=//p' | tr '\n' ' ')" \
+   "ran second notes.txt "
+# With the count of commit lines beside it, so an empty file (the gate never
+# ran) cannot read as colour-free.
+is "with colour forced on by the repository's own config, a project's gate.sh under felix gate reads git log, diff, grep and status with no escape byte" \
+   "$(_gc_hasesc "$(cat "$GCH/gate.out")") $(grep -c '^log=' "$GCH/gate.out")" "no 1"
+# P6 for felix, through the child it starts.
+is "felix started with no GIT_CONFIG_PARAMETERS hands its gate child exactly the thirteen colour entries" \
+   "$(sed -n 's/^env=//p' "$GCH/gate.out")" "$_gc_pin"
+_gc_colour "$GCD" off
+# P3 through felix and a child of it: a non-colour key from each caller channel
+# still reaches git, and GIT_CONFIG_COUNT arrives as the caller set it.
+: > "$GCH/gate.out"
+( cd "$GCD" || exit 1
+  _gc_run env GIT_CONFIG_PARAMETERS="'gcfix.p=yes'" GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=gcfix.c GIT_CONFIG_VALUE_0=yes \
+    "$FELIX" gate >/dev/null 2>&1 )
+is "a project's gate.sh under felix gate still reads a non-colour key from the caller's GIT_CONFIG_PARAMETERS and one from the caller's GIT_CONFIG_COUNT, which arrives unchanged" \
+   "$(sed -n 's/^p=/p=/p; s/^c=/c=/p; s/^count=/count=/p' "$GCH/gate.out" | tr '\n' ' ')" "count=1 p=yes c=yes "
+is "and it sees the caller's GIT_CONFIG_PARAMETERS with the thirteen colour entries appended after one space" \
+   "$(sed -n 's/^env=//p' "$GCH/gate.out")" "'gcfix.p=yes' $_gc_pin"
+# The same for the new format: git still reads the caller's key, not only
+# accepts the value.
+: > "$GCH/gate.out"
+( cd "$GCD" || exit 1
+  _gc_run env GIT_CONFIG_PARAMETERS="'gcfix.p'='newform'" "$FELIX" gate >/dev/null 2>&1 )
+is "a project's gate.sh under felix gate still reads a non-colour key from the caller's new-format GIT_CONFIG_PARAMETERS entry" \
+   "$(sed -n 's/^p=/p=/p' "$GCH/gate.out")" "p=newform"
+
+# ---- a hook, and tests/red, each started with nothing set.
+: > "$GCH/shim.log"
+( cd "$GCD" || exit 1
+  _gc_run env PATH="$GCH/shim:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" </dev/null >/dev/null 2>&1 )
+is "hooks/session-start started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time" \
+   "$(_gc_shim_is "$_gc_pin")" "ok"
+# The copy has the engine's lib beside it, as tests/red has in the tree, and no
+# tests/run, so it cannot start a suite whatever happens.
+cp "$FROOT/harness/tests/red" "$GCH/redcopy/tests/red" && chmod +x "$GCH/redcopy/tests/red"
+cp -R "$FROOT/harness/lib" "$GCH/redcopy/lib"
+: > "$GCH/shim.log"
+( cd "$GCH" || exit 1; _gc_run env PATH="$GCH/refuse:$PATH" "$GCH/redcopy/tests/red" >/dev/null 2>&1; printf '%s' "$?" > "$GCH/red.rc" )
+is "tests/red started with no GIT_CONFIG_PARAMETERS has exactly the thirteen colour entries on its first git call, and stops there when git refuses" \
+   "$(_gc_shim_is "$_gc_pin") rc=$(cat "$GCH/red.rc" 2>/dev/null)" "ok rc=2"
+
+# ---- P6 and P7, read from the text of every executable file, as each must
+# carry its own pin. Where the pin is: from the first code line naming
+# GIT_CONFIG_PARAMETERS or 'color.ui=never', to the last code line naming
+# GIT_CONFIG_PARAMETERS before the file's first git command and within forty
+# lines, then on until those lines parse. A line runs git when the word git
+# follows the start, a blank, an operator or `$(`. Every test reads a line
+# with its comment taken off, whole-line or trailing, so a dated comment on a
+# pin line (which may name `git -c`, or a backtick) is not read as code.
+# Read from REAL_HARNESS, the tree under test. Which files are executable is
+# read from the suite's own copy of it, made by _copy_content, so a stray file
+# git ignores (as .claude-flow/ was on 2026-09-19) is not counted, and no git
+# runs here outside the fixture.
+_gc_lines() {   # <file> -> "u s e g": unset line, pin start, pin end, first git; 0 when absent
+  LC_ALL=C awk '
+    /^[[:space:]]*#/ { next }
+    { c = $0; sub(/[[:space:]]+#.*$/, "", c) }
+    c ~ /^unset GREP_OPTIONS / && !u { u = NR }
+    (c ~ /GIT_CONFIG_PARAMETERS/ || index(c, "'"'"'color.ui=never'"'"'")) && !s { s = NR }
+    c ~ "(^|[^A-Za-z0-9_./-])git[[:space:]]" && !g { g = NR }
+    c ~ /GIT_CONFIG_PARAMETERS/ { m[NR] = 1 }
+    END {
+      e = 0
+      if (s) { lim = s + 40; if (g && g - 1 < lim) lim = g - 1
+               for (i = s; i <= lim; i++) if (i in m) e = i }
+      printf "%d %d %d %d\n", u, s, e, g }' "$1"
+}
+_gc_region() {   # <file> <out>: writes the pin's lines; fails when there is none that parses
+  local u s e g k=0
+  read -r u s e g <<<"$(_gc_lines "$1")"
+  [ "${s:-0}" -gt 0 ] && [ "${e:-0}" -ge "${s:-0}" ] || return 1
+  while [ "$k" -le 12 ]; do
+    sed -n "${s},$((e + k))p" "$1" > "$2"
+    bash -n "$2" 2>/dev/null && return 0
+    k=$((k + 1))
+  done
+  return 1
+}
+_gc_exes=""
+for _gc_f in $(cd "$FROOT/harness" && find . -type f -perm -u+x 2>/dev/null | sed 's|^\./||' | LC_ALL=C sort); do
+  _gc_exes="$_gc_exes $_gc_f"
+done
+is "the executable files read for the pin include felix, a hook, bin/secret-scan, tests/run and tests/red" \
+   "$(for _gc_f in felix hooks/session-start bin/secret-scan tests/run tests/red; do
+        case " $_gc_exes " in (*" $_gc_f "*) ;; (*) printf '%s ' "$_gc_f" ;; esac; done)" ""
+# P7, run: each pin held to one process, with its own stderr kept. Any fork it
+# tries (a subshell, a pipe, an external command) fails there, and bash says
+# so on stderr, so a pin that tries one, or that needs one for its value, is
+# caught whatever the value comes out as. Root ignores the limit, so there it
+# is skipped rather than passed. bash retries a failed fork for about fifteen
+# seconds, so the first pin that forks ends the run of this check.
+_gc_nfskip=""; _gc_nfl=""; _gc_nfstop=""
+_gc_nfrun() {   # <region> <stderr file> [VAR=value]: the region sourced in one process, then printenv exec'd
+  env -u GIT_CONFIG_PARAMETERS ${3:+"$3"} bash -c 'set -u; ulimit -u 1 2>/dev/null || { printf "(unlimited)"; exit 0; }
+    . "$1" >/dev/null 2>"$2"; exec printenv GIT_CONFIG_PARAMETERS' _ "$1" "$2" 2>/dev/null
+}
+# The method's own control, which forks nothing itself: held to one process,
+# an empty region still hands a caller's value to the command it execs. Where
+# that fails, the check is skipped rather than read as a fork.
+if [ "${EUID:-0}" -eq 0 ]; then
+  _gc_nfskip="root ignores the process limit"
+else
+  printf ':\n' > "$GCH/regions/empty.nofork"
+  case "$(_gc_nfrun "$GCH/regions/empty.nofork" "$GCH/nofork.err" GIT_CONFIG_PARAMETERS=gcfix-probe)" in
+    "(unlimited)") _gc_nfskip="processes cannot be limited here" ;;
+    gcfix-probe) ;;
+    *) _gc_nfskip="a process held to one cannot exec a command here" ;;
+  esac
+fi
+_gc_order="" _gc_sem="" _gc_text=""
+for _gc_f in $_gc_exes; do
+  read -r _gc_u _gc_s _gc_e _gc_g <<<"$(_gc_lines "$REAL_HARNESS/$_gc_f")"
+  if [ "${_gc_u:-0}" -gt 0 ] && [ "${_gc_s:-0}" -gt "${_gc_u:-0}" ] && [ "${_gc_e:-0}" -ge "${_gc_s:-0}" ]; then :
+  else _gc_order="$_gc_order $_gc_f"; fi
+  _gc_rf="$GCH/regions/$(printf '%s' "$_gc_f" | tr '/' '_').sh"
+  if ! _gc_region "$REAL_HARNESS/$_gc_f" "$_gc_rf"; then
+    _gc_sem="$_gc_sem $_gc_f(none)"; _gc_text="$_gc_text $_gc_f(none)"; _gc_nfl="$_gc_nfl $_gc_f(none)"; continue
+  fi
+  _gc_a="$(env -u GIT_CONFIG_PARAMETERS bash -c 'set -u; . "$1" >/dev/null 2>&1; exec printenv GIT_CONFIG_PARAMETERS' _ "$_gc_rf" 2>/dev/null)"
+  _gc_b="$(env GIT_CONFIG_PARAMETERS="'gcfix.p=1'" bash -c 'set -u; . "$1" >/dev/null 2>&1; exec printenv GIT_CONFIG_PARAMETERS' _ "$_gc_rf" 2>/dev/null)"
+  _gc_c="$(env GIT_CONFIG_PARAMETERS="$_gc_pin" bash -c 'set -u; . "$1" >/dev/null 2>&1; exec printenv GIT_CONFIG_PARAMETERS' _ "$_gc_rf" 2>/dev/null)"
+  [ "$_gc_a" = "$_gc_pin" ] && [ "$_gc_b" = "'gcfix.p=1' $_gc_pin" ] && [ "$_gc_c" = "$_gc_pin" ] \
+    || _gc_sem="$_gc_sem $_gc_f"
+  # Code only: whole-line and trailing comments off, as above.
+  _gc_t="$(LC_ALL=C sed -e '/^[[:space:]]*#/d' -e 's/[[:space:]][[:space:]]*#.*$//' "$_gc_rf")"
+  case "$_gc_t" in *'$('*|*'`'*|*'<('*|*'>('*) _gc_text="$_gc_text $_gc_f" ;; esac
+  if [ -z "$_gc_nfskip" ] && [ -z "$_gc_nfstop" ]; then
+    : > "$GCH/nofork.err"
+    _gc_nf="$(_gc_nfrun "$_gc_rf" "$GCH/nofork.err")"
+    if [ "$_gc_nf" = "(unlimited)" ]; then
+      _gc_nfskip="processes cannot be limited here"
+    elif [ "$_gc_nf" != "$_gc_a" ] || grep -qi 'fork' "$GCH/nofork.err"; then
+      _gc_nfl="$_gc_nfl $_gc_f"; _gc_nfstop=1
+    fi
+  fi
+done
+is "every executable file under engine/harness pins git colour after its caller-environment unset line and before its first git command" \
+   "$_gc_order" ""
+is "each executable file's pin, run on its own, exports exactly the thirteen colour entries, appends them to a caller's entry and leaves a value already ending in them alone" \
+   "$_gc_sem" ""
+is "every executable file has a pin, and no line of any of them holds a command substitution, a process substitution or a backtick" \
+   "$_gc_text" ""
+if [ -n "$_gc_nfskip" ]; then
+  skip "every executable file's pin, held to one process, exports what it exports unheld and tries no fork" "$_gc_nfskip"
+else
+  is "every executable file's pin, held to one process, exports what it exports unheld and tries no fork" \
+     "$_gc_nfl" ""
+fi
+
+# ---- Added after the adversarial review, 2026-10-08, and not blind. The
+# review found two colour sources the contract's eleven entries missed, and
+# the pin grew to thirteen for them:
+# - GIT_PAGER_IN_USE. git exports it to whatever it starts beside a pager.
+#   Plumbing (`diff-tree -p`) reads no family key, so under it plumbing
+#   coloured a pipe until color.pager=false.
+# - blame.coloring, the one documented colour switch outside color.*.
+# Each is held here by behaviour, through a project's gate under felix gate,
+# with its raw-git control beside it. A pin without either entry reds its
+# row. Above this line, what changed from what was written blind is _gc_pin,
+# the word thirteen in names and comments that count entries, a pointer to
+# this section in the block's opening comment, and the partial-suffix case
+# (now the pin's actual last two entries).
+_gcg config --file "$GCD/.git/config" blame.coloring highlightRecent
+cat > "$GCPD/gate.sh" <<EOF
+#!/bin/sh
+e="\$(printf '\\033')"
+{ printf 'plumb='; git diff-tree -p HEAD | grep -c "\$e"
+  printf 'blame='; git blame notes.txt | grep -c "\$e"; } > "$GCH/gate2.out" 2>&1
+echo gcolour-gate2-ran
+EOF
+chmod +x "$GCPD/gate.sh"
+is "colour fixture: raw git diff-tree -p with GIT_PAGER_IN_USE set and a colour terminal writes an escape byte, with no colour configuration at all" \
+   "$(_gc_hasesc "$(_gc_run env GIT_PAGER_IN_USE=true TERM=xterm-256color "$_gc_realgit" -C "$GCD" diff-tree -p HEAD 2>/dev/null)")" "yes"
+is "colour fixture: raw git blame in a repository whose own config sets blame.coloring=highlightRecent writes an escape byte" \
+   "$(_gc_hasesc "$(_gc_run "$_gc_realgit" -C "$GCD" blame notes.txt 2>/dev/null)")" "yes"
+: > "$GCH/gate2.out"
+_gc_go="$( cd "$GCD" || exit 1; _gc_run env GIT_PAGER_IN_USE=true TERM=xterm-256color "$FELIX" gate 2>&1 )"
+is "a project's gate.sh under felix gate, started with GIT_PAGER_IN_USE set and a colour terminal, reads git diff-tree -p and git blame under blame.coloring=highlightRecent with no escape byte" \
+   "$(case "$_gc_go" in (*gcolour-gate2-ran*) printf ran ;; esac) $(tr '\n' ' ' < "$GCH/gate2.out")" "ran plumb=0 blame=0 "
+_gcg config --file "$GCD/.git/config" --unset blame.coloring
+
+unset GCH GCT GCS GCW GCD GCPD _gc_esc _gc_pin _gc_realgit _gc_key _gc_ss _gc_o _gc_r _gc_rp _gc_cp _gc_rc _gc_cc \
+      _gc_v _gc_t0 _gc_hf _gc_go _gc_exes _gc_f _gc_rf _gc_order _gc_sem _gc_text _gc_a _gc_b _gc_c _gc_t _gc_nf \
+      _gc_u _gc_s _gc_e _gc_g _gc_ub0 _gc_ub _gc_nfskip _gc_nfl _gc_nfstop
+unset -f _gc_run _gcg _gc_colour _gc_hasesc _gc_shim_is _gc_shim_starts _gc_shim_fields _gc_scan _gc_shimscan \
+         _gc_found _gc_rawdiff _gc_rawrc _gc_receipt _gc_classify _gc_verdict _gc_tree _gc_cl _gc_handoff \
+         _gc_lines _gc_region _gc_scanran _gc_ublock _gc_nfrun
+
 printf '\nthe engine makes its scratch under TMPDIR\n'
 # Measured 2026-09-24 on macOS 26.3.1: a bare `mktemp` or `mktemp -d` makes its
 # file in the per-user /var/folders/.../T whatever TMPDIR says (set, unset, or
@@ -41875,6 +42468,353 @@ is "each engine mktemp driven here names a template under the TMPDIR it was give
 is "and none of them leaves anything there" "$(ls -A "$MKT/tmp" | wc -l | tr -d ' ')" "0"
 is "and each did its work: the version bumped and the tool wired in" \
    "$(grep -o '"version": "[^"]*"' "$MKT/plugin.json") $(cut -f4 "$MKT/proj/routes.tsv")" '"version": "1.2.4" playwright deepeval'
+
+printf '\nno caller environment changes what an engine tool prints\n'
+# Measured 2026-10-08 on macOS (bash 3.2.57, BSD grep 2.6.0-FreeBSD, bsdtar
+# 3.5.3): eight variables a caller can export change what the tools the engine
+# reads as data print, and nothing under engine/harness removed them.
+# GREP_OPTIONS=-n put `1:` in front of every row felix doctor, evidence, probes
+# and commission --status read out of a table, so doctor listed `1:ci 2:tests`
+# and evidence lost its gap. POSIXLY_CORRECT starts bash 3.2 in posix mode,
+# where the `<( )` in lib/detect.sh, lib/adopt.sh and lib/discover.sh is a
+# syntax error. CDPATH makes `$(cd engine/harness && pwd)` capture the
+# directory twice, so the CLI run by a relative path cannot find its own
+# libraries. CLICOLOR_FORCE, GH_FORCE_TTY and TAPE were measured doing the
+# same kind of thing to ls, gh and tar; TAR_OPTIONS and QUOTING_STYLE are
+# documented to, for GNU tar and GNU ls, and were not. The rule pinned here:
+# every executable file under the engine unsets all eight as its first command
+# other than `set`, so nothing an entry point starts is given any of them.
+#
+# GNU grep has ignored GREP_OPTIONS since 3.6, and a bash newer than 3.2 need
+# not refuse `<( )` in posix mode (not measured here), so on the Linux runner
+# the engine's own tools need not show either effect, and a comparison of a
+# run with the variable against one without can pass there against an engine
+# that keeps no rule at all. So each part below
+# has at least one assertion that is red on any host while the rule is not
+# kept: a grep first on PATH that honours GREP_OPTIONS as BSD grep does, by
+# putting it in front of its own arguments; a record, written by every shim
+# and by `envrec`, a command the fixture's gate, probe and commissioning rows
+# run, of which of the eight reached its environment; and the rule itself,
+# read from the text. The plain comparisons stay as well: they are what a
+# person on a Mac sees.
+#
+# The record reads the environment awk was given (ENVIRON), not a shell
+# variable: /bin/sh on macOS is bash in posix mode and sets POSIXLY_CORRECT=y
+# for itself without exporting it, so a shim that asked its own shell would
+# report that name on every host whatever the engine did. Every run "without"
+# a variable unsets all eight first, so a person who has one exported does not
+# change what this block compares against, and every run has the shims first
+# on PATH, so the two sides of a comparison differ in the one variable alone.
+# The fixture is a project of its own, nce, so nothing an earlier block left in
+# widget's tables enters the comparison.
+NCE="$TMP/nce"; NCP="$FROOT/projects/nce"
+_nce_names='GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS QUOTING_STYLE POSIXLY_CORRECT CDPATH'
+mkdir -p "$NCE/bin" "$NCE/repo/src" "$NCE/top/engine" "$NCE/decoy/engine/harness/bin" "$NCP" "$MEM/nce"
+_nce_awk="$(command -v awk)"
+_nce_prog='BEGIN { r = t ":"; n = split(v, a, " "); for (i = 1; i <= n; i++) if (a[i] in ENVIRON) r = r " " a[i]; print r >> f }'
+printf "#!/bin/sh\n'%s' -v t=\"\$1\" -v f='%s' -v v='%s' '%s'\n" "$_nce_awk" "$NCE/rec" "$_nce_names" "$_nce_prog" \
+  > "$NCE/bin/envrec"
+for _nce_t in grep sed awk ls git tar gh sort head tr cut wc find; do
+  _nce_real="$(command -v "$_nce_t" 2>/dev/null)" || continue
+  case "$_nce_real" in /*) ;; *) continue ;; esac
+  { printf "#!/bin/sh\n'%s' -v t='%s' -v f='%s' -v v='%s' '%s'\n" "$_nce_awk" "$_nce_t" "$NCE/tools" "$_nce_names" "$_nce_prog"
+    case "$_nce_t" in
+      grep) printf '%s\n' 'o="${GREP_OPTIONS-}"; unset GREP_OPTIONS'
+            printf "exec '%s' \$o \"\$@\"\n" "$_nce_real" ;;
+      *)    printf "exec '%s' \"\$@\"\n" "$_nce_real" ;;
+    esac; } > "$NCE/bin/$_nce_t"
+done
+chmod +x "$NCE/bin"/*
+printf '{\n  "name": "nce",\n  "remote_match": "example.com/nce",\n  "gate": "envrec gate && echo nce-gate-ran"\n}\n' \
+  > "$NCP/project.json"
+printf '# nce\n' > "$NCP/CLAUDE.md"
+printf 'ci\ntests\n' > "$NCP/capabilities"
+printf 'code\t^src/\t^tests/\tbehaviour needs a test\ndocs\t^docs/\t^docs/\tdocs prove themselves\n' > "$NCP/evidence.tsv"
+printf 'env\t-\t-\tenvrec probe; ls -1 .felix\ttest -f .felix\n' > "$NCP/probes.tsv"
+printf 'env\t-\t-\t-\t-\tenvrec commission; test -f .felix\t9\n' > "$NCP/commissioning.tsv"
+printf 'Bash\tgit add (-A|--all|\\.)$\tstage explicit paths; -A stages what you did not read\n' > "$NCP/deny.tsv"
+( cd "$NCE/repo" && git init -q -b main && printf 'nce\n' > .felix && printf 'x = 1\n' > src/a.py \
+  && git add .felix src/a.py && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+printf 'x = 2\n' > "$NCE/repo/src/a.py"
+# A checkout's top with an engine of its own, for the relative runs, and a
+# second directory holding an engine/harness/ of its own (empty) for CDPATH to
+# name after `.`.
+cp -R "$FROOT/harness" "$NCE/top/engine/harness"; printf 'nce\n' > "$NCE/top/.felix"
+
+_nce_run() {   # <dir> <command...>: its stdout and stderr, then `exit N`, with none of the eight set
+  ( unset $_nce_names; cd "$1" || exit 1; shift
+    PATH="$NCE/bin:$PATH" "$@" 2>&1; printf 'exit %s\n' "$?" )
+}
+_nce_all() {   # <dir> <command...>: with all eight exported, output dropped
+  ( cd "$1" || exit 1; shift
+    env GREP_OPTIONS=-n CLICOLOR_FORCE=1 GH_FORCE_TTY=1 TAPE="$NCE/no-tape" TAR_OPTIONS=-v \
+        QUOTING_STYLE=c POSIXLY_CORRECT=1 CDPATH=".:$NCE/decoy" PATH="$NCE/bin:$PATH" "$@" ) >/dev/null 2>&1
+}
+# Equal to the run without the variable, and that run did what it was asked:
+# two runs that both failed are equal too, and would read as a pass. A
+# difference is shown as the head of a diff, without first and with second.
+_nce_same() {   # <name> <with> <without> <what the run without must say>
+  case "$3" in
+    *"$4"*) if [ "$2" = "$3" ]; then ok "$1"
+            else bad "$1" "$(diff <(printf '%s\n' "$3") <(printf '%s\n' "$2") | head -12)"; fi ;;
+    *) bad "$1" "the run without the variable never said [$4], so this compares nothing: [$3]" ;;
+  esac
+}
+# A record's lines that name one of the eight, or a line saying nothing was
+# recorded: a record no tool wrote proves nothing about what tools are given.
+_nce_dirty() {   # <record file>
+  if [ -s "$1" ]; then awk -F: '$2 != "" { print }' "$1" | LC_ALL=C sort -u
+  else printf 'nothing was recorded'; fi
+}
+
+# O1. A command whose output comes from grep over a table. Against an engine
+# that keeps no rule, doctor's declared line read `1:ci 2:tests`, evidence
+# named its rule `1:code`, found no change under it and said "No evidence
+# gaps.", and commission --status numbered every row, surface and question.
+_nce_g0="$(_nce_run "$NCE/repo" "$FELIX" doctor)"
+_nce_g1="$(_nce_run "$NCE/repo" env GREP_OPTIONS=-n "$FELIX" doctor)"
+is "with GREP_OPTIONS=-n exported, felix doctor lists the declared capabilities by name, or each one it reads out of the capabilities table carries a line number" \
+   "$(printf '%s\n' "$_nce_g1" | awk '$1 == "declared:" { for (i = 2; i <= NF; i++) printf "%s ", $i }')" "ci tests "
+_nce_same "and felix doctor prints what it prints without GREP_OPTIONS" "$_nce_g1" "$_nce_g0" "project:      nce"
+_nce_g0="$(_nce_run "$NCE/repo" "$FELIX" evidence)"
+_nce_g1="$(_nce_run "$NCE/repo" env GREP_OPTIONS=-n "$FELIX" evidence)"
+_nce_same "with GREP_OPTIONS=-n exported, felix evidence names its rules and finds the gap it finds without it, or a rule reads as 1:code and the gap goes unreported" \
+   "$_nce_g1" "$_nce_g0" "behaviour needs a test"
+_nce_g0="$(_nce_run "$NCE/repo" "$FELIX" commission --status)"
+_nce_g1="$(_nce_run "$NCE/repo" env GREP_OPTIONS=-n "$FELIX" commission --status)"
+_nce_same "with GREP_OPTIONS=-n exported, felix commission --status prints what it prints without it, or every row and surface it lists carries a line number" \
+   "$_nce_g1" "$_nce_g0" "the check passes"
+
+# O2. bash 3.2 in posix mode refuses `<( )`, and every bash the CLI starts
+# would begin in posix mode as well. The first two are red on a Mac; the
+# record is red on any host.
+_nce_p0="$(_nce_run "$NCE/repo" "$FELIX" which)"
+: > "$NCE/tools"
+_nce_p1="$(_nce_run "$NCE/repo" env POSIXLY_CORRECT=1 "$FELIX" which)"
+case "$_nce_p1" in
+  *'syntax error'*) bad "with POSIXLY_CORRECT=1 exported, felix which exits 0 with no syntax error, or bash 3.2 reads the libraries in posix mode and refuses their <( )" "$_nce_p1" ;;
+  *) is "with POSIXLY_CORRECT=1 exported, felix which exits 0 with no syntax error, or bash 3.2 reads the libraries in posix mode and refuses their <( )" "${_nce_p1##*exit }" "0" ;;
+esac
+_nce_same "and felix which prints what it prints without POSIXLY_CORRECT" "$_nce_p1" "$_nce_p0" "project:      nce"
+is "and no tool felix which starts is given POSIXLY_CORRECT, or every bash it starts begins in posix mode too" \
+   "$(_nce_dirty "$NCE/tools")" ""
+
+# O3. Run by a relative path from the checkout's top. `.` comes first in
+# CDPATH, so cd finds the checkout's own engine through it and prints the
+# directory into what $( ) captures: the CLI then sources lib/resolve.sh from
+# a path holding a newline, and handoff-check exits 127 where it exited 2.
+_nce_c0="$(_nce_run "$NCE/top" engine/harness/felix which)"
+_nce_c1="$(_nce_run "$NCE/top" env CDPATH=".:$NCE/decoy" engine/harness/felix which)"
+_nce_same "with CDPATH naming . and another engine, engine/harness/felix which run from the checkout's top resolves its libraries and prints what it prints without CDPATH, or cd prints the directory into the path it captures" \
+   "$_nce_c1" "$_nce_c0" "project:      nce"
+_nce_c0="$(_nce_run "$NCE/top" engine/harness/bin/handoff-check)"
+_nce_c1="$(_nce_run "$NCE/top" env CDPATH=".:$NCE/decoy" engine/harness/bin/handoff-check)"
+_nce_same "and so does engine/harness/bin/handoff-check run the same way" "$_nce_c1" "$_nce_c0" "no HANDOFF.md"
+
+# O4. All eight exported at once. What runs inside a `bash -c` the engine
+# starts writes its own line into rec; every tool shim writes into tools. The
+# gate leaves a receipt under the home's state/gate, named for the checkout;
+# the names there now are kept, so the one this block adds can be removed.
+# Listed by a glob, not ls, which a caller's CLICOLOR_FORCE would colour.
+_nce_gates="$(cd "$FROOT/state/gate" 2>/dev/null && printf '%s\n' *)"
+: > "$NCE/rec"; : > "$NCE/tools"
+_nce_all "$NCE/repo" "$FELIX" gate
+_nce_all "$NCE/repo" "$FELIX" probes
+_nce_all "$NCE/repo" "$FELIX" commission --status
+_nce_all "$NCE/repo" "$FELIX" doctor
+is "with all eight exported, the gate felix gate starts in a bash -c is given none of them" \
+   "$(awk -F: '$1 == "gate"' "$NCE/rec" | LC_ALL=C sort -u)" "gate:"
+is "and so is a probe felix probes starts in a bash -c" \
+   "$(awk -F: '$1 == "probe"' "$NCE/rec" | LC_ALL=C sort -u)" "probe:"
+is "and so is a commissioning check felix commission --status runs" \
+   "$(awk -F: '$1 == "commission"' "$NCE/rec" | LC_ALL=C sort -u)" "commission:"
+is "and no tool felix gate, probes, commission --status or doctor starts is given any of them, or grep, ls, gh and tar print what the caller asked for rather than what the engine reads" \
+   "$(_nce_dirty "$NCE/tools")" ""
+_nce_pay='{"tool_name":"Bash","tool_input":{"command":"git add -A"}}'
+: > "$NCE/tools"
+_nce_all "$NCE/repo" "$FROOT/harness/hooks/pre-tool" <<<"$_nce_pay"
+is "and no tool the pre-tool hook starts is given any of them" "$(_nce_dirty "$NCE/tools")" ""
+: > "$NCE/tools"
+_nce_all "$NCE/repo" "$FROOT/harness/bin/handoff-check"
+is "and no tool a bin script, handoff-check, starts is given any of them" "$(_nce_dirty "$NCE/tools")" ""
+
+# O5. A hook. On its way to a refusal pre-tool starts awk, cut, head, sed and
+# tr and no grep (measured against an engine that keeps no rule), so its exit
+# and text hold there; the record is what shows GREP_OPTIONS reaching what it
+# starts.
+_nce_d0="$(_nce_run "$NCE/repo" "$FROOT/harness/hooks/pre-tool" <<<"$_nce_pay")"
+: > "$NCE/tools"
+_nce_d1="$(_nce_run "$NCE/repo" env GREP_OPTIONS=-n "$FROOT/harness/hooks/pre-tool" <<<"$_nce_pay")"
+is "with GREP_OPTIONS=-n exported, pre-tool still refuses a command its deny rows refuse, with exit 2" "${_nce_d1##*exit }" "2"
+_nce_same "and its refusal text is the text it gives without GREP_OPTIONS" "$_nce_d1" "$_nce_d0" "stage explicit paths"
+is "and no tool pre-tool starts is given GREP_OPTIONS" "$(_nce_dirty "$NCE/tools")" ""
+
+# O6. The rule, read from the text of every regular file under the engine
+# with the user-execute bit, so a file added later is read too. Read from the
+# copy under test, which holds what git tracks and what it would add, and not
+# what it ignores. A file's first command is its first line that is not blank,
+# a comment or a `set`, with continuation lines joined and `;` splitting one
+# line into commands; it must be `unset` naming all eight, in any order.
+#
+# Amended after review, not blind (2026-10-08): the adversarial review found
+# that lib/where.sh reads the caller's CDPATH as the session's, and that an
+# exported SHELLOPTS hands the entry point's own options to every child. So
+# the rule became the block engine/harness/felix carries, in which a
+# `set +o`, an `export -n SHELLOPTS BASHOPTS` and one unexported record of the
+# caller's CDPATH come before the unset. The reader skips exactly those two
+# besides `set`, and the assertions after this block pin the whole block.
+_nce_first() {   # <file>: its first command other than set, whitespace folded
+  awk '
+    /^[ \t]*(#|$)/ { next }
+    { line = $0
+      while (line ~ /\\$/ && (getline more) > 0) { sub(/\\$/, " ", line); line = line more }
+      n = split(line, part, ";")
+      for (i = 1; i <= n; i++) {
+        c = part[i]; sub(/[ \t]+#.*$/, "", c); gsub(/[ \t]+/, " ", c); sub(/^ /, "", c); sub(/ $/, "", c)
+        if (c == "" || c ~ /^set( |$)/ || c == "export -n SHELLOPTS BASHOPTS" \
+            || c == "_FELIX_CALLER_CDPATH=\"${CDPATH-}\"") continue
+        print c; exit
+      } }' "$1"
+}
+_nce_off=""; _nce_s1=""; _nce_s2=""; _nce_s3=""; _nce_s4=""
+while IFS= read -r _nce_f; do
+  [ -n "$_nce_f" ] || continue
+  case "$_nce_f" in
+    ./felix) _nce_s1=felix ;; ./hooks/*) _nce_s2=hooks ;; ./bin/*) _nce_s3=bin ;; ./tests/run) _nce_s4=tests/run ;;
+  esac
+  _nce_c="$(_nce_first "$FROOT/harness/$_nce_f")"; _nce_miss=""
+  case "$_nce_c" in
+    "unset -f"*) _nce_miss=" it unsets functions: $_nce_c" ;;
+    unset\ *) for _nce_n in $_nce_names; do
+                case " $_nce_c " in *" $_nce_n "*) ;; *) _nce_miss="$_nce_miss $_nce_n" ;; esac
+              done ;;
+    *) _nce_miss=" its first command is: $_nce_c" ;;
+  esac
+  [ -z "$_nce_miss" ] || _nce_off="$_nce_off[${_nce_f#./}:$_nce_miss] "
+done <<<"$(cd "$FROOT/harness" && find . -type f -perm -u+x | LC_ALL=C sort)"
+is "every executable file under the engine unsets all eight caller variables as its first command other than set, or one of them reaches a path resolution, a source or a tool before anything removes it" \
+   "$_nce_off" ""
+is "and that reading reached the CLI, the hooks, the bin scripts and the suite, so it cannot pass by reading nothing" \
+   "$_nce_s1 $_nce_s2 $_nce_s3 $_nce_s4" "felix hooks bin tests/run"
+
+# Added after review, not blind (2026-10-08). The adversarial review of the
+# first fix (dc27380c) found what the contract above left unsaid, and the
+# lines below pin it. Each comment says what it was red against.
+#
+# The block. Every executable file carries, after its own set, the lines
+# engine/harness/felix carries: a `set +o` of the options a caller's SHELLOPTS
+# can turn on that change what a command does, `export -n SHELLOPTS
+# BASHOPTS`, an unexported record of the caller's CDPATH, and one unset of all
+# sixteen names. Read with continuation lines joined and blanks folded, so a
+# copy that differs only in layout reads the same.
+_nce_blk() {   # <file>: the commands after its first `set -u`, through the end of its unset
+  awk 'on && /^[[:space:]]*(#|$)/ { next }
+       on { l = $0; while (l ~ /\\$/ && (getline more) > 0) { sub(/\\$/, " ", l); l = l more }
+            gsub(/[ \t]+/, " ", l); sub(/^ /, "", l); sub(/ $/, "", l); print l
+            if (l ~ /^unset / || ++n >= 8) exit; next }
+       NR > 1 && /^[[:space:]]*set -u/ { on = 1 }' "$1"
+}
+_nce_cli="$(_nce_blk "$FROOT/harness/felix")"; _nce_lack=""
+for _nce_w in 'set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical' \
+              'export -n SHELLOPTS BASHOPTS' '_FELIX_CALLER_CDPATH="${CDPATH-}"'; do
+  case "
+$_nce_cli
+" in *"
+$_nce_w
+"*) ;; *) _nce_lack="$_nce_lack[$_nce_w] " ;; esac
+done
+_nce_u="$(printf '%s\n' "$_nce_cli" | awk '/^unset /')"
+for _nce_n in $_nce_names TAR_READER_OPTIONS GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS \
+              GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS TMOUT; do
+  case " $_nce_u " in *" $_nce_n "*) ;; *) _nce_lack="$_nce_lack[$_nce_n] " ;; esac
+done
+is "engine/harness/felix turns off the options a caller's SHELLOPTS can turn on, stops exporting SHELLOPTS and BASHOPTS, records the caller's CDPATH unexported and unsets all sixteen names, or one of them reaches what the engine runs" \
+   "$_nce_lack" ""
+_nce_off=""
+while IFS= read -r _nce_f; do
+  [ -n "$_nce_f" ] || continue
+  [ "$(_nce_blk "$FROOT/harness/$_nce_f")" = "$_nce_cli" ] || _nce_off="$_nce_off${_nce_f#./} "
+done <<<"$(cd "$FROOT/harness" && find . -type f -perm -u+x | LC_ALL=C sort)"
+is "and every other executable file under the engine begins with the same block, or one entry point keeps something the CLI removes" \
+   "$_nce_off" ""
+
+# The caller's CDPATH is a fact about the session. lib/where.sh judges where a
+# session's command runs, and the session runs it under the caller's CDPATH.
+# The first fix removed CDPATH before anything recorded it, so pre-tool let
+# `cd gov && git add -A` through a row scoped to the checkout when that
+# CDPATH takes `cd gov` into the governed checkout (red against dc27380c;
+# main refused it, since it never removed CDPATH).
+_nce_sc="$NCE/sc"; mkdir -p "$_nce_sc/gov" "$NCE/scr/plain/gov"
+( cd "$_nce_sc/gov" && git init -q -b main && printf 'nce\n' > .felix && git add .felix \
+  && git -c user.name=t -c user.email=t@t commit -qm init \
+  && git remote add origin https://example.com/nce.git ) >/dev/null 2>&1
+( cd "$NCE/scr/plain/gov" && git init -q -b main ) >/dev/null 2>&1
+cp "$NCP/deny.tsv" "$NCE/deny.keep"
+printf 'Bash\tgit add ([^;&|]* )?(-A|--all|\\.)( |$)\tstage explicit paths\tcheckout\n' > "$NCP/deny.tsv"
+_nce_sp="$(printf '{"session_id":"nce-scoped","cwd":"%s","tool_name":"Bash","tool_input":{"command":"cd gov && git add -A && git commit -qm x"}}' "$NCE/scr/plain")"
+_nce_s0="$(_nce_run "$_nce_sc/gov" "$FROOT/harness/hooks/pre-tool" <<<"$_nce_sp")"
+_nce_s1="$(_nce_run "$_nce_sc/gov" env CDPATH="$_nce_sc" "$FROOT/harness/hooks/pre-tool" <<<"$_nce_sp")"
+is "pre-tool lets a checkout-scoped row pass cd gov && git add -A from a directory whose own gov is not the checkout" \
+   "${_nce_s0##*exit }" "0"
+is "and with the caller's CDPATH taking that cd gov into the governed checkout it refuses it, or removing CDPATH blinds the hook to where the session's command runs" \
+   "${_nce_s1##*exit }" "2"
+cp "$NCE/deny.keep" "$NCP/deny.tsv"
+
+# An exported SHELLOPTS turns its options on before an entry point's first
+# line, and stays exported, so the entry point's own set -uo pipefail reached
+# every child bash, among them checks written to run without pipefail. Both
+# red against main and dc27380c. The other names are the ones the review and
+# peer sessions measured: TAR_READER_OPTIONS hands bsdtar options,
+# GIT_EXTERNAL_DIFF and GIT_DIFF_OPTS change what git diff prints, the four
+# GIT_*_PATHSPECS change what a pathspec matches, and TMOUT gives every read
+# a timeout. BASHOPTS is checkhash and TMOUT is long, so neither changes what
+# runs; the record is what shows them arriving.
+_nce_o0="$(_nce_run "$NCE/repo" "$FELIX" doctor)"
+_nce_o1="$(_nce_run "$NCE/repo" env SHELLOPTS=errexit "$FELIX" doctor)"
+_nce_same "with SHELLOPTS=errexit exported, felix doctor prints what it prints without it and exits as it does, or the first command that returns non-zero ends it" \
+   "$_nce_o1" "$_nce_o0" "declared:"
+_nce_names2='SHELLOPTS BASHOPTS TAR_READER_OPTIONS GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS GIT_ICASE_PATHSPECS TMOUT'
+printf "#!/bin/sh\n'%s' -v t=\"\$1\" -v f='%s' -v v='%s' '%s'\n" "$_nce_awk" "$NCE/rec2" "$_nce_names2" "$_nce_prog" \
+  > "$NCE/bin/envrec"
+for _nce_t in grep sed awk ls git tar gh sort head tr cut wc find; do
+  _nce_real="$(command -v "$_nce_t" 2>/dev/null)" || continue
+  case "$_nce_real" in "$NCE"/*) _nce_real="$(PATH="${PATH#"$NCE/bin:"}" command -v "$_nce_t")" ;; esac
+  case "$_nce_real" in /*) ;; *) continue ;; esac
+  printf "#!/bin/sh\n'%s' -v t='%s' -v f='%s' -v v='%s' '%s'\nexec '%s' \"\$@\"\n" \
+    "$_nce_awk" "$_nce_t" "$NCE/tools2" "$_nce_names2" "$_nce_prog" "$_nce_real" > "$NCE/bin/$_nce_t"
+done
+: > "$NCE/rec2"; : > "$NCE/tools2"
+for _nce_c in gate probes "commission --status"; do
+  ( cd "$NCE/repo" && env SHELLOPTS=noglob BASHOPTS=checkhash TAR_READER_OPTIONS=x GIT_EXTERNAL_DIFF=true \
+      GIT_DIFF_OPTS=-u0 GIT_LITERAL_PATHSPECS=1 GIT_GLOB_PATHSPECS=1 GIT_NOGLOB_PATHSPECS=1 \
+      GIT_ICASE_PATHSPECS=1 TMOUT=600 PATH="$NCE/bin:$PATH" "$FELIX" $_nce_c ) >/dev/null 2>&1
+done
+is "with SHELLOPTS, BASHOPTS, TAR_READER_OPTIONS, GIT_EXTERNAL_DIFF, GIT_DIFF_OPTS, the four GIT_*_PATHSPECS and TMOUT exported, the gate, a probe and a commissioning check are given none of them, or an exported SHELLOPTS hands the CLI's own pipefail to checks written to run without it" \
+   "$(LC_ALL=C sort -u "$NCE/rec2" | tr '\n' ' ')" "commission: gate: probe: "
+is "and no tool those runs start is given any of them" "$(_nce_dirty "$NCE/tools2")" ""
+
+# GIT_EXTERNAL_DIFF hands git diff to another program, and secret-scan reads
+# what git diff prints. With `true` there it read nothing and passed a branch
+# that adds a credential (red against main and dc27380c).
+_nce_ss="$NCE/ss"; mkdir -p "$_nce_ss"
+( cd "$_nce_ss" && git init -q -b main && printf 'a\n' > f.txt && git add f.txt \
+  && git -c user.name=t -c user.email=t@t commit -qm base && git checkout -q -b topic ) >/dev/null 2>&1
+printf 'api_key = "sk-QQQQQQQQQQQQQQQQQQQQQQQQ"\n' >> "$_nce_ss/f.txt"   # must_flag
+( cd "$_nce_ss" && git -c user.name=t -c user.email=t@t commit -qam add ) >/dev/null 2>&1
+_nce_x0="$(_nce_run "$_nce_ss" "$FROOT/harness/bin/secret-scan" main)"
+_nce_x1="$(_nce_run "$_nce_ss" env GIT_EXTERNAL_DIFF=true "$FROOT/harness/bin/secret-scan" main)"
+is "bin/secret-scan finds the credential a branch adds and exits 1" "${_nce_x0##*exit }" "1"
+is "and with GIT_EXTERNAL_DIFF=true exported it still does, or git hands the diff to that program and the scan reads nothing" \
+   "${_nce_x1##*exit }" "1"
+while IFS= read -r _nce_g; do
+  [ -n "$_nce_g" ] || continue
+  case "
+$_nce_gates
+" in *"
+$_nce_g
+"*) ;; *) rm -rf "$FROOT/state/gate/$_nce_g" ;; esac
+done <<<"$(cd "$FROOT/state/gate" 2>/dev/null && printf '%s\n' *)"
+rm -rf "$NCE" "$NCP" "$MEM/nce"
 
 printf '\nthe record this branch carries\n'
 # Raised by the same review. After a rebase, red.tsv held two runs' records

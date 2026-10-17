@@ -15,6 +15,9 @@ printf '\na receipt that cannot claim more than it knows\n'
 # The load-bearing property is none of that. It is that the receipt CANNOT CLAIM
 # VERIFIED ON AN ABSENCE. Six defects in one day were one species — emptiness
 # read as success — so the first consumer of this receipt is that rule.
+_widget_repo_build
+_unborn_repo_build
+_staged_repo_build full
 _rcpt() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
             . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/review.sh"
             . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/classify.sh"
@@ -173,6 +176,9 @@ _rdd="$(_rcpt_in "$RDR" "$RDB")"
 is         "a detached HEAD is named HEAD, as it always was" "$(_rf "$_rdd" subject.branch)" "HEAD"
 _is_sha_of "and still names its commit"                      "$(_rf "$_rdd" subject.head)"   "$RDR"
 # And `?` is kept for the one state it is true of: no repository to ask.
+# The directory that is no repository is 0220's NOGIT, the same two lines; this part
+# alone makes its own.
+NOGIT="$TMP/notgit"; mkdir -p "$NOGIT"; printf 'widget\n' > "$NOGIT/.felix"
 _rng="$(_rcpt_in "$NOGIT")"
 is  "a directory that is no repository has no branch to name" "$(_rf "$_rng" subject.branch)" "?"
 is  "and no commit, which is not the same as an unborn one"   "$(_rf "$_rng" subject.head)"   "?"

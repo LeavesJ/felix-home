@@ -254,6 +254,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"
+. "$HERE/lib/reach.sh"
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"

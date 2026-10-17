@@ -443,14 +443,19 @@ EOF
 # --- the commands -----------------------------------------------------------
 _gt_usage() {
   printf 'usage: felix land --tick | --pause [reason] | --resume | --install | --uninstall | --status [--tsv]\n' >&2
+  printf '       felix land --prs [--tsv] [--repo DIR] [--no-gh] | --queue [--tsv]\n' >&2
   return 2
 }
+
+# The stuck-PR page (lib/pr-status.sh): read-only, and sourced only when asked.
+_GT_LIBDIR="${BASH_SOURCE[0]%/*}"
 
 felix_land() {
   case "${1:-}" in
     --tick|--resume|--install|--uninstall) [ $# -eq 1 ] || { _gt_usage; return 2; } ;;
     --pause) [ $# -le 2 ] || { _gt_usage; return 2; } ;;
     --status) { [ $# -eq 1 ] || { [ $# -eq 2 ] && [ "$2" = "--tsv" ]; }; } || { _gt_usage; return 2; } ;;
+    --prs|--queue) . "$_GT_LIBDIR/pr-status.sh" && _ps_args "$@" || { _gt_usage; return 2; }; _ps_run; return $? ;;
     *) _gt_usage; return 2 ;;
   esac
   # A10: a tick that cannot resolve its project has no ledger to write; it says so.

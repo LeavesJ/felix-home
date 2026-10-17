@@ -86,6 +86,7 @@ rm -rf "$SP2/deep"
 
 # ---- §4.2, §5: no origin/main and no origin/HEAD -------------------------------
 _sp_logs0
+_sp_prs fixture_three "$(_sp_pr 301 notes/301.md:0 green labels=needs-founder repo=fixture/three)"   # the case-1 section above left three at []
 _sp_land "$SPH" --prs --tsv --repo "$SP3"; _sp_keep three.tsv
 is "§7: a repository with no origin/main still exits 0" "$(cat "$SPX/three.tsv.rc")" 0
 has "§5: the origin source row says no origin/main" "$(_sp_src "$SPX/three.tsv" origin)" "no origin/main"

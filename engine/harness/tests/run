@@ -191,60 +191,6 @@ unset CLAUDE_CODE_SESSION_ID
 # than about the test. Functions defined here are inherited by every subshell.
 . "$REAL_HARNESS/lib/resolve.sh"
 
-# Every copy this suite takes of the real tree goes through here, and it copies
-# CONTENT: what git tracks under the source, plus what is untracked and not
-# ignored, because work not yet added is still work under test. What git ignores
-# stays behind. `cp -R` copied a directory listing instead, residue included,
-# and the fixtures below that commit such a copy as "main" and cut a cache entry
-# from it then disagreed with themselves: measured 2026-09-19, a claude-flow
-# hook had dropped .claude-flow/ into engine/harness — ignored, so git status
-# stayed clean — and fifteen assertions failed, each leading with the judge and
-# the plugin cache and carrying the directory's name only at the tail of a
-# temporary path, which is where nobody reads. The mechanism, by experiment: the
-# fixture's `git add -A` obeys the machine's GLOBAL excludes file, which named
-# .claude-flow/, so the fixture's main left the stray out; the raw copy in the
-# fixture's cache kept it; and the judge, which shuts the global file off on
-# purpose, called the difference drift. A runner with no global excludes commits
-# the stray on both sides and the judge, measured on that pair, reports nothing
-# — so this was only ever red on a developer's machine. Production is not
-# sensitive, measured at 0.49.122: felix_accepted_deploy_diff reads its source
-# side from the commit, and felix_deploy_diff asks the repository's own ignore
-# rules about the rest. It was sensitive once, and #86 is what ended that.
-#
-# --exclude-standard, global file included, deliberately: whatever this
-# machine's git would refuse to add to a fixture is exactly what must not be
-# carried into one.
-#
-# The git path is taken only when git TRACKS something under the source. "Is
-# it inside a repository" is the wrong question, measured on the same day: the
-# plugin cache, where a copy of this suite also sits, was inside a repository
-# — a home directory under version control — that tracked none of it, and one ignore
-# rule there would have listed an empty harness. Where git tracks nothing it
-# has nothing to say, and the directory is copied whole, as it always was.
-# A tracked file deleted from the working tree is listed by git and absent
-# from disk, and it is skipped before tar is handed the list. Measured on
-# bsdtar: tar does not stop on such a name — it archives the rest and exits
-# non-zero — and under this suite's pipefail that exit becomes the copy's
-# status, so a developer's unstaged deletion would read as a copy that
-# failed. GNU tar was not there to measure; skipping means it is never asked.
-_copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
-  local src="$1" dest="$2" f
-  # An empty source would be copied as "/." (the 18:04 incident above
-  # REAL_HARNESS's check), so a source that is not a directory copies nothing.
-  [ -n "$src" ] && [ -d "$src" ] || {
-    printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
-  mkdir -p "$dest" || return 1
-  if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
-    ( cd "$src" && git ls-files -co --exclude-standard -z . \
-        | while IFS= read -r -d '' f; do
-            { [ -e "$f" ] || [ -L "$f" ]; } && printf '%s\0' "$f"
-          done \
-        | tar -c --null -T - -f - ) | tar -x -f - -C "$dest"
-  else
-    cp -R "$src/." "$dest/"
-  fi
-}
-
 . "$HERE/parts/0004-the-widget-fixture.sh"
 
 . "$HERE/parts/0005-fixture-floor.sh"

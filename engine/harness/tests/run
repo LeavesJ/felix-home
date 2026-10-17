@@ -251,9 +251,11 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
 . "$HERE/lib/cm-stub.sh"
 . "$HERE/lib/commissioning.sh"
+. "$HERE/lib/engine-manifest.sh"
 . "$HERE/lib/gov-names.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/install-fixture.sh"
+. "$HERE/lib/overnight.sh"
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"

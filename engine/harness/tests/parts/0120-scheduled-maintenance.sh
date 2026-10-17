@@ -1,4 +1,5 @@
 printf '\nscheduled maintenance\n'
+_widget_repo_build
 {
   printf 'weekly-thing\t7\talways\tan aggregated cleanup\n'
   printf 'monthly-thing\t30\talways\ta drift report\n'

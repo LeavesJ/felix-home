@@ -112,6 +112,7 @@ is  "the unattended template checks Felix out at a pinned ref, not the default b
 # step as shipped. Each half can pass its own assertions while the pair does
 # not, as when repair's status and the step's reading of it change apart.
 if command -v jq >/dev/null 2>&1; then
+  _gate_workflow_stub_build; _gate_workflow_repo_build
   sed "s#\.\./felix/engine/harness/felix#$FELIX#" "$SC/step.sh" > "$SC/step-real.sh"
   printf 'gate.yml\tgate\tfix/y\t211\tcompleted\tsuccess\n' > "$SC/runs"
   : > "$SC/out"
@@ -160,21 +161,7 @@ printf '\nthe unattended repair says why it stopped before the model\n'
 # after the budget step had already recorded the run's spend. The step is taken
 # out of the shipped template as it stands and run under `bash -e`, with npm
 # and claude stubbed.
-AT="$TMP/attempt"; mkdir -p "$AT/repo" "$AT/bin"
-awk '/- name: Attempt a repair/ { f = 1 } f && /^        run: \|/ { r = 1; next }
-     r && /^      [^ ]/ { exit } r { sub(/^          /, ""); print }' \
-  "$REAL_HARNESS/templates/unattended.yml" | sed "s#/tmp/brief.txt#$AT/brief.txt#" > "$AT/step.sh"
-printf 'brief\n' > "$AT/brief.txt"
-cat > "$AT/bin/npm" <<'STUB'
-#!/usr/bin/env bash
-[ -z "${ATTEMPT_NPM_FAILS:-}" ] && exit 0
-printf 'npm error code E404\nnpm error 404 Not Found - GET https://registry.npmjs.org/@anthropic-ai%%2fclaude-code\n' >&2
-exit 1
-STUB
-printf '#!/usr/bin/env bash\nprintf "claude\\n" >> "%s/claude.log"\n' "$AT" > "$AT/bin/claude"
-chmod +x "$AT/bin/npm" "$AT/bin/claude"
-_attempt() { : > "$AT/claude.log"
-  ( cd "$AT/repo" && ATTEMPT_NPM_FAILS="$1" PATH="$AT/bin:$PATH" bash -e "$AT/step.sh" ) > "$AT/out" 2>&1; }
+_attempt_build
 _attempt 1; _arc=$?
 [ "$_arc" -ne 0 ] && ok  "a failed install fails the repair step" \
                   || bad "a failed install fails the repair step" "exit 0: $(cat "$AT/out")"

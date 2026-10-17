@@ -249,7 +249,10 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 
 . "$HERE/parts/0005-fixture-floor.sh"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
+. "$HERE/lib/adopt-refusals.sh"
+. "$HERE/lib/attempt-step.sh"
 . "$HERE/lib/cm-stub.sh"
+. "$HERE/lib/gate-workflow.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/unwritable.sh"

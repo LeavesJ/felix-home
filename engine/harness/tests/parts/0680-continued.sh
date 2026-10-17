@@ -48,7 +48,7 @@ printf '{\n  "name": "duraproj",\n  "remote_match": "example.com/duraproj",\n  "
 printf '# duraproj\n' > "$_durap/CLAUDE.md"
 # Detected: secrets (.env.example) and tests (tests/). Declared: secrets, and
 # billing and duracap, which nothing detects. duracap has no discovery rule.
-( _fx_cd "$_durar" && git init -q -b main && printf 'duraproj\n' > .felix && printf 'X=1\n' > .env.example \
+( _fx_cd "$_durar" && git init -q -b main && git config remote.origin.url https://github.com/example.com/duraproj && printf 'duraproj\n' > .felix && printf 'X=1\n' > .env.example \
     && printf 'ok\n' > tests/t && git add -A && git -c user.name=dura -c user.email=dura@example.com commit -q -m dura )
 _durar="$(cd "$_durar" && pwd -P)"
 _duradeclare() { rm -f "$_durap/capabilities"; printf 'secrets\nbilling\nduracap\n' > "$_durap/capabilities"; }
@@ -274,7 +274,7 @@ _durbwhy='the capabilities this project declares could not be read'
 mkdir -p "$_durbp" "$_durbr" "$_durbhome/.claude/plugins" "$_durbstub" "$_durbnotpl"
 printf '{\n  "name": "durbproj",\n  "remote_match": "example.com/durbproj",\n  "gate": "true"\n}\n' > "$_durbp/project.json"
 printf '# durbproj\n' > "$_durbp/CLAUDE.md"
-( _fx_cd "$_durbr" && git init -q -b main && printf 'durbproj\n' > .felix && git add .felix \
+( _fx_cd "$_durbr" && git init -q -b main && git config remote.origin.url https://github.com/example.com/durbproj && printf 'durbproj\n' > .felix && git add .felix \
     && git -c user.name=durb -c user.email=durb@example.com commit -q -m durb )
 _durbr="$(cd "$_durbr" && pwd -P)"
 printf 'durbcap\ndurbgap\n' > "$_durbp/capabilities"
@@ -554,7 +554,7 @@ printf '# durcproj\n' > "$_durcp/CLAUDE.md"
 # Detected: secrets (.env.example) and tests (tests/). Declared: secrets, and
 # billing, durccap and durcgap, which nothing detects. A probe grounds billing
 # and durccap, and another one a durcghost that nothing declares or detects.
-( _fx_cd "$_durcr" && git init -q -b main && printf 'durcproj\n' > .felix && printf 'X=1\n' > .env.example \
+( _fx_cd "$_durcr" && git init -q -b main && git config remote.origin.url https://github.com/example.com/durcproj && printf 'durcproj\n' > .felix && printf 'X=1\n' > .env.example \
     && printf 'ok\n' > tests/t && git add -A && git -c user.name=durc -c user.email=durc@example.com commit -q -m durc )
 _durcr="$(cd "$_durcr" && pwd -P)"
 _durcdeclare() { rm -f "$_durcp/capabilities"; printf 'secrets\nbilling\ndurccap\ndurcgap\n' > "$_durcp/capabilities"; }
@@ -841,7 +841,7 @@ printf '# durdproj\n' > "$_durdp/CLAUDE.md"
 { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
   printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n'
   printf 'durdheld\t-\t-\t-\t-\ttest -f durd-never-made\t5\n'; } > "$_durdp/commissioning.tsv"
-( _fx_cd "$_durdr" && git init -q -b main && printf 'durdproj\n' > .felix && printf 'on: push\n' > .github/workflows/ci.yml \
+( _fx_cd "$_durdr" && git init -q -b main && git config remote.origin.url https://github.com/example.com/durdproj && printf 'durdproj\n' > .felix && printf 'on: push\n' > .github/workflows/ci.yml \
     && printf 'X=1\n' > .env.example && git add -A && git -c user.name=durd -c user.email=durd@example.com commit -q -m durd )
 _durdr="$(cd "$_durdr" && pwd -P)"
 cat > "$_durdbin/claude" <<STUB

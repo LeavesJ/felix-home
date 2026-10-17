@@ -30,6 +30,15 @@ printf '\na pipe at stack.tsv, read by the Stop hook inside a night\n'
 # pid, and the FIFO is opened read-write to release anything left on it. The
 # invented project, its memory, the receipt, and the hold and nudge markers the
 # hook writes for these sessions are removed afterwards.
+#
+# Restated 2026-10-16, when claude/declared-unread-readers landed: the policy
+# version now hashes anything at a table's path that is not a regular file as
+# `<not a regular file>`, so a FIFO no longer hashes as absent and cannot share
+# the absent run's receipt. A dangling link at stack.tsv hashes the same as the
+# FIFO and cannot block a reader, so it gets its own gate run and is the run
+# I.2 compares against; its control proves that run went through the night
+# without the nudge, as the absent one does. The 8 s bound, the night and the
+# pipe left a pipe are unchanged.
 _anl5="$TMP/anl5"; mkdir -p "$_anl5"
 _anl5_has() { case "$1" in *"$2"*) return 0 ;; esac; return 1; }
 _anl5_if()  {   # name, detail, command...: ok when the command succeeds
@@ -126,16 +135,29 @@ _anl5_if "and with no stack.tsv the same Stop hook run still holds the session f
          _anl5_has "$_anl5_o" "\"decision\": \"block\"" && _anl5_has "$_anl5_o" "Overnight is on, and" &&
          ! _anl5_has "$_anl5_o" "piece before you take the next one"'
 
+# ------------------------------- the control: a dangling link at stack.tsv ----
+ln -s "$_anl5/no-such-stack.tsv" "$_anl5_P/stack.tsv"
+_anl5_gate dang; _anl5_grc=$?
+_anl5_night anl5-dang; _anl5_owns anl5-dang; _anl5_orc=$?
+_anl5_stop anl5-dang -; _anl5_brc=$?
+_anl5_o="$(cat "$_anl5/anl5-dang.out" 2>/dev/null)"
+_anl5_if "and with a dangling link at stack.tsv, gated over it, the same run holds the session for the night, without the nudge (control)" \
+   "gate $_anl5_grc, owns $_anl5_orc, bounded $_anl5_brc, hook $(_anl5_rcof anl5-dang), stdout [$(_anl5_said anl5-dang)]" \
+   eval '[ "$_anl5_grc" = 0 ] && [ "$_anl5_orc" = 0 ] && [ "$_anl5_brc" != 124 ] && [ "$(_anl5_rcof anl5-dang)" = 0 ] &&
+         _anl5_has "$_anl5_o" "\"decision\": \"block\"" && _anl5_has "$_anl5_o" "Overnight is on, and" &&
+         ! _anl5_has "$_anl5_o" "piece before you take the next one"'
+rm -f "$_anl5_P/stack.tsv"
+
 # ------------------------------------------------ I: a FIFO at stack.tsv ----
 mkfifo "$_anl5_P/stack.tsv"
 _anl5_night anl5-fifo
 _anl5_stop anl5-fifo "$_anl5_P/stack.tsv"; _anl5_brc=$?
 _anl5_if "the Stop hook in a session that owns a night returns within 8 s with a FIFO at the project's stack.tsv" \
    "still blocked at the 8 s deadline" test "$_anl5_brc" != 124
-is "and the Stop hook's stdout with a FIFO at stack.tsv is the stdout of the same run with no stack.tsv" \
-   "$(cat "$_anl5/anl5-fifo.out" 2>/dev/null)" "$(cat "$_anl5/anl5-abs.out" 2>/dev/null)"
-is "and the Stop hook's exit status with a FIFO at stack.tsv is the exit status of the same run with no stack.tsv" \
-   "$(_anl5_rcof anl5-fifo)" "$(_anl5_rcof anl5-abs)"
+is "and the Stop hook's stdout with a FIFO at stack.tsv is the stdout of the same run with a dangling link there" \
+   "$(cat "$_anl5/anl5-fifo.out" 2>/dev/null)" "$(cat "$_anl5/anl5-dang.out" 2>/dev/null)"
+is "and the Stop hook's exit status with a FIFO at stack.tsv is the exit status of the same run with a dangling link there" \
+   "$(_anl5_rcof anl5-fifo)" "$(_anl5_rcof anl5-dang)"
 _anl5_if "and the FIFO at stack.tsv is still a FIFO after the Stop hook read it" \
    "$(ls -ld "$_anl5_P/stack.tsv" 2>&1)" test -p "$_anl5_P/stack.tsv"
 
@@ -143,7 +165,7 @@ _anl5_if "and the FIFO at stack.tsv is still a FIFO after the Stop hook read it"
 _anl5_rcpt="$( . "$FROOT/harness/lib/resolve.sh" 2>/dev/null; . "$FROOT/harness/lib/verify.sh" 2>/dev/null
                _felix_receipt_path "$_anl5_R" "$FROOT" 2>/dev/null )"
 [ -n "$_anl5_rcpt" ] && rm -f "$_anl5_rcpt"
-for _anl5_s in anl5-reg anl5-abs anl5-fifo; do
+for _anl5_s in anl5-reg anl5-abs anl5-dang anl5-fifo; do
   rm -f "$FROOT/state/held/$_anl5_s" "$FROOT/state/verified/$_anl5_s" "$FROOT/state/overnight-said/$_anl5_s"
 done
 for _d in state/overnight-said state/verified state/held state/gate state; do
@@ -153,7 +175,7 @@ done
 [ "$_anl5_had_m" -eq 1 ] || rm -rf "$MEM/anl5night"
 _anl5_back=""
 [ -n "$_anl5_rcpt" ] && [ ! -e "$_anl5_rcpt" ] || _anl5_back="$_anl5_back receipt[$_anl5_rcpt]"
-for _anl5_s in anl5-reg anl5-abs anl5-fifo; do
+for _anl5_s in anl5-reg anl5-abs anl5-dang anl5-fifo; do
   for _d in held verified overnight-said; do
     [ ! -e "$FROOT/state/$_d/$_anl5_s" ] || _anl5_back="$_anl5_back state/$_d/$_anl5_s"
   done

@@ -42,7 +42,7 @@ printf '# dureproj\n' > "$_durep/CLAUDE.md"
 # Declared: secrets, and durebill and durecap, which nothing detects. So the five
 # items are deploy, durebill, durecap, secrets and tests, and the two surfaces
 # nobody declared are deploy and tests.
-( _fx_cd "$_durer" && git init -q -b main && printf 'dureproj\n' > .felix && printf 'X=1\n' > .env.example \
+( _fx_cd "$_durer" && git init -q -b main && git config remote.origin.url https://github.com/example.com/dureproj && printf 'dureproj\n' > .felix && printf 'X=1\n' > .env.example \
     && printf 'ok\n' > tests/t && printf 'FROM x\n' > Dockerfile && git add -A \
     && git -c user.name=dure -c user.email=dure@example.com commit -q -m dure )
 _durer="$(cd "$_durer" && pwd -P)"

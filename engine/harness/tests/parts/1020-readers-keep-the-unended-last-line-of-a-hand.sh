@@ -297,6 +297,35 @@ _rkl_np() {   # name, path, fifo|link|zero, code
   fi
   rm -f "$2" "$_rkl/fifos/f"
 }
+# Added 2026-10-16, when claude/declared-unread-readers landed over this block:
+# felix_commission_policy_version hashes anything at a table's path that is not
+# a regular file as the line `<not a regular file>`, so a dangling link does not
+# hash like no file (that branch's note, agreed with this block's carrier on
+# 2026-10-08). Where a reader's answer rests on that hash, the answer with a
+# pipe there must be a dangling link's, which is not the absent one's, still
+# inside the 8 s and with the pipe never opened.
+_rkl_npm() {   # name, path, fifo|link, code
+  local rc rel="-" mark
+  rm -f "$2"
+  _rkl_bounded 8 - "$4"; rc=$?
+  _rkl_abs="$(cat "$_rkl/out/b.out")|$rc"
+  ln -s "$_rkl/fifos/rkl-gone" "$2"
+  _rkl_bounded 8 - "$4"; rc=$?
+  mark="$(cat "$_rkl/out/b.out")|$rc"
+  rm -f "$2"
+  case "$3" in
+    fifo) mkfifo "$2"; rel="$2" ;;
+    link) rm -f "$_rkl/fifos/f"; mkfifo "$_rkl/fifos/f"; ln -s "$_rkl/fifos/f" "$2"; rel="$_rkl/fifos/f" ;;
+  esac
+  _rkl_bounded 8 "$rel" "$4"; rc=$?
+  if [ "$rc" = 124 ]; then
+    bad "$1" "blocked: still running after 8 s with a $3 at $2"
+  else
+    is "$1" "$(cat "$_rkl/out/b.out")|$rc $([ "$mark" = "$_rkl_abs" ] && echo as-absent || echo not-as-absent)" \
+      "$mark not-as-absent"
+  fi
+  rm -f "$2" "$_rkl/fifos/f"
+}
 
 # -------------------------------------------------------- stack.tsv, libs ----
 _rkl_F="$_rkl/rkl-fifo"; mkdir -p "$_rkl_F"
@@ -385,9 +414,12 @@ printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\n' > "$_rkl_PR/rkl-stop/probe
 printf 'edited\n' >> "$_rkl/co-stop/README.rkl"
 ( cd "$_rkl/co-stop" && "$FELIX" gate ) >/dev/null 2>&1
 _rkl_vlog="$MEM/rkl-stop/verification.log"
-_rkl_np "rkl: the stop hook with a FIFO stack.tsv returns what it says with none" \
+# Restated 2026-10-16 (see _rkl_npm): the receipt was taken with no stack.tsv,
+# so a pipe there moves the table set as a dangling link does, and the hook says
+# so; with none it lets the stop through. The link run is a session of its own.
+_rkl_npm "rkl: the stop hook with a FIFO stack.tsv returns what it says with a dangling link there" \
   "$_rkl_PR/rkl-stop/stack.tsv" fifo \
-  'cd "$_rkl/co-stop" && _rkl_n=$( [ -p "$_rkl_PR/rkl-stop/stack.tsv" ] && echo f || echo a )
+  'cd "$_rkl/co-stop" && _rkl_n=$( [ -p "$_rkl_PR/rkl-stop/stack.tsv" ] && echo f || { [ -L "$_rkl_PR/rkl-stop/stack.tsv" ] && echo l || echo a; } )
    printf "{\"hook_event_name\":\"Stop\",\"stop_hook_active\":false,\"session_id\":\"rkl-stop-%s\"}" "$_rkl_n" \
      | "$_rkl_H/hooks/stop"'
 _rkl_a="$(grep -c 'green' "$_rkl_vlog" 2>/dev/null)"
@@ -426,35 +458,6 @@ _rkl_put "$_rkl_V/stack.tsv" nl "$_rkl_ST"
 _rkl_put "$_rkl_V/profiles.tsv" nl "$_rkl_PF"
 _rkl_put "$_rkl_V/routes.tsv" nl "$_rkl_RT"
 _rkl_put "$_rkl_V/deny.tsv" nl "$_rkl_D1"
-# Restated 2026-10-16, when claude/declared-unread-readers landed over this
-# block: felix_commission_policy_version hashes anything at a table's path that
-# is not a regular file as the line `<not a regular file>`, so a dangling link
-# does not hash like no file (that branch's note, agreed with this block's
-# carrier on 2026-10-08). The answer with a pipe there must be a dangling
-# link's, which is not the absent one's, still inside the 8 s and with the pipe
-# never opened.
-_rkl_npm() {   # name, path, fifo|link, code
-  local rc rel="-" mark
-  rm -f "$2"
-  _rkl_bounded 8 - "$4"; rc=$?
-  _rkl_abs="$(cat "$_rkl/out/b.out")|$rc"
-  ln -s "$_rkl/fifos/rkl-gone" "$2"
-  _rkl_bounded 8 - "$4"; rc=$?
-  mark="$(cat "$_rkl/out/b.out")|$rc"
-  rm -f "$2"
-  case "$3" in
-    fifo) mkfifo "$2"; rel="$2" ;;
-    link) rm -f "$_rkl/fifos/f"; mkfifo "$_rkl/fifos/f"; ln -s "$_rkl/fifos/f" "$2"; rel="$_rkl/fifos/f" ;;
-  esac
-  _rkl_bounded 8 "$rel" "$4"; rc=$?
-  if [ "$rc" = 124 ]; then
-    bad "$1" "blocked: still running after 8 s with a $3 at $2"
-  else
-    is "$1" "$(cat "$_rkl/out/b.out")|$rc $([ "$mark" = "$_rkl_abs" ] && echo as-absent || echo not-as-absent)" \
-      "$mark not-as-absent"
-  fi
-  rm -f "$2" "$_rkl/fifos/f"
-}
 _rkl_npm "rkl: felix_commission_policy_version with a FIFO stack.tsv hashes it as not a regular file" \
   "$_rkl_V/stack.tsv" fifo "$_rkl_lib"'felix_commission_policy_version "$_rkl_V"'
 _rkl_npm "rkl: felix_commission_policy_version with stack.tsv a symlink to a FIFO hashes it as not a regular file" \

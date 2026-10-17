@@ -792,7 +792,9 @@ _fx_exit() {   # RC -> RC, or 1 where RC is 0 and a check here failed
 }
 trap '_fx_rc=$?; set +u; _fx_exit "$_fx_rc"; _fx_rc=$?; rm -rf "$TMP"; exit "$_fx_rc"' EXIT
 # The suite under test as the one file it was before 2026-10-10: the driver
-# with each `. "$HERE/parts/NAME"` line replaced by that part. The checks that
+# with each `. "$HERE/parts/NAME"` and each `. "$HERE/lib/NAME"` line replaced
+# by that file (a lib file is where a helper two parts share lives, contract C2,
+# and a lint that read the parts must read it too, C3). The checks that
 # cut the preamble and one section out of the suite and run them alone, the
 # lint over every fixture line, and the pin on _ff_case were written against
 # one file, and on the driver alone they would read no section at all (its
@@ -805,10 +807,11 @@ _suite_flat() {
   # An if, not `[ -s ] || awk && mv`: that reads as (A || B) && C, so once the
   # file was made every later call ran the mv, found no .part and returned 1.
   if [ ! -s "$f" ]; then
-    LC_ALL=C awk -v d="$d/parts/" '
-      /^\. "\$HERE\/parts\/[^"\/]+"$/ { n = substr($0, 16, length($0) - 16)
-        if ((getline l < (d n)) <= 0) { bad = 1; exit }
-        print l; while ((getline l < (d n)) > 0) print l; close(d n); next }
+    LC_ALL=C awk -v d="$d/" '
+      /^\. "\$HERE\/parts\/[^"\/]+"$/ { n = "parts/" substr($0, 16, length($0) - 16) }
+      /^\. "\$HERE\/lib\/[^"\/]+"$/   { n = "lib/" substr($0, 14, length($0) - 14) }
+      n != "" { if ((getline l < (d n)) <= 0) { bad = 1; exit }
+        print l; while ((getline l < (d n)) > 0) print l; close(d n); n = ""; next }
       { print } END { exit bad }' "$d/run" > "$f.part" && mv "$f.part" "$f" || { rm -f "$f.part"; return 1; }
   fi
   printf '%s' "$f"
@@ -823,8 +826,10 @@ _suite_preamble="0001-the-origin-guard-and-the-temporary-directory.sh 0002-fixtu
 # kept, those parts copied into DIR/parts, and the source lines of the parts
 # STUB... (names in DIR/parts, which the caller writes) in place of the first
 # other part line, every later one dropped: where the suite's own first part
-# stood. The harness's felix is copied beside DIR as well, since the driver
-# refuses a REAL_HARNESS without felix and lib/ (the caller copies lib/).
+# stood. The lib lines are dropped as well: they follow that first part line, and
+# a copy holds no tests/lib. The harness's felix is copied beside DIR as well,
+# since the driver refuses a REAL_HARNESS without felix and lib/ (the caller
+# copies lib/).
 # Returns 1, with no DIR/run, when a preamble part or felix cannot be copied.
 _suite_copy_driver() {
   local run="$1" dir="$2" p; shift 2
@@ -832,10 +837,85 @@ _suite_copy_driver() {
   for p in $_suite_preamble; do cp "${run%/*}/parts/$p" "$dir/parts/$p" || return 1; done
   cp "${run%/*}/../felix" "$dir/../felix" || return 1
   LC_ALL=C awk -v pre=" $_suite_preamble " -v stubs="$*" '
+    index($0, ". \"$HERE/lib/") == 1 { next }
     index($0, ". \"$HERE/parts/") == 1 {
       n = substr($0, 16, length($0) - 16)
       if (index(pre, " " n " ")) { print; next }
       if (!d) { k = split(stubs, s, " "); for (i = 1; i <= k; i++) print ". \"$HERE/parts/" s[i] "\""; d = 1 }
       next }
     { print }' "$run" > "$dir/run"
+}
+
+# The suite's own files, one path a line and nothing else: every part, every lib
+# file (tests/lib/*.sh, where a helper two parts share lives, contract C2) and,
+# last, the driver. Every check that reads the suite's own text reads it through
+# this, _suite_src or _suite_flat, so code moved from a part into tests/lib
+# stays under the lint that read it there (contract C3). $HERE is the tests
+# directory read: the driver's, or a copy's where a check points HERE at one.
+_suite_files() {
+  local f
+  for f in "$HERE"/parts/*.sh "$HERE"/lib/*.sh "$HERE/run"; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+  return 0
+}
+# The text of those files as one stream, the driver last: a check that wants the
+# last section-header-shaped line (the completion marker) finds the driver's.
+_suite_src() {
+  local f
+  while IFS= read -r f; do cat "$f"; done < <(_suite_files)
+}
+
+# _lib_runs_nothing FILE -> 0 when sourcing FILE does nothing, 1 and one line
+# naming FILE and what it did when it does something. A lib file defines
+# functions and sets plain variables (contract C2); a fixture built, a file
+# written, a line printed or an assertion made at source time would run in every
+# part's prelude, and in the serial run once and in a part run alone once more.
+# FILE is sourced in a subshell, in a scratch directory made under $TMP that
+# stands in for $TMP, with FROOT, MEM, REPO and FELIX_MEMORY below it, and
+# FELIX_TEST_RAN a sink, so nothing it does reaches the run. It did something
+# when sourcing it printed a byte to stdout or stderr, left anything under the
+# scratch directory created, changed or removed (the directory starts empty, and
+# is looked at with find -ls and cksum before and after), changed PASS, FAIL or
+# SKIP, or ended the shell (exit, or an unbound variable under set -u) before
+# the source returned. (The counts are written when it returns, not by an EXIT
+# trap: bash 3.2 runs a subshell's trap with a function's locals already gone.) The caller keeps no function or variable from FILE, and
+# its TMP, FROOT, MEM and REPO are as they were: all of it happens in the
+# subshell.
+_lrn_snap() {   # DIR -> every path under DIR with its mode, size, mtime and inode, and the checksum of every file
+  LC_ALL=C find "$1" -ls 2>/dev/null | LC_ALL=C sort
+  LC_ALL=C find "$1" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort
+}
+_lib_runs_nothing() {
+  local f="${1-}" s w said="" snap0="" nb na gone made rc
+  case "$f" in /*) ;; *) f="$PWD/$f" ;; esac
+  if [ -z "${1-}" ] || [ ! -f "$f" ]; then printf '%s: no such lib file to source\n' "${1-}"; return 1; fi
+  s="$(mktemp -d "$TMP/lib-runs-nothing.XXXXXX")" && w="$(mktemp -d "$TMP/lib-runs-nothing-out.XXXXXX")" \
+    && [ -n "$s" ] && [ -n "$w" ] || { printf '%s: no scratch directory to source it in\n' "$f"; return 1; }
+  nb="$(LC_ALL=C find "$s" | LC_ALL=C sort)"
+  snap0="$(_lrn_snap "$s")"
+  (
+    TMP="$s"; FROOT="$s/froot"; MEM="$s/memory"; REPO="$s/repo"
+    export FELIX_MEMORY="$MEM"; FELIX_TEST_RAN=/dev/null
+    cd -- "$s" || exit 99
+    . "$f" > "$w/out" 2>&1
+    printf '%s %s %s\n' "$PASS" "$FAIL" "$SKIP" > "$w/counts"
+    exit 0
+  ); rc=$?
+  na="$(LC_ALL=C find "$s" | LC_ALL=C sort)"
+  [ ! -s "$w/out" ] || said="${said}printed $(wc -c < "$w/out" | tr -d ' ') byte(s) to stdout or stderr, the first line [$(head -1 "$w/out" | LC_ALL=C tr -d '\r' | cut -c1-60)]; "
+  if [ -s "$w/counts" ]; then
+    [ "$(cat "$w/counts")" = "$PASS $FAIL $SKIP" ] \
+      || said="${said}changed PASS, FAIL or SKIP from [$PASS $FAIL $SKIP] to [$(cat "$w/counts")]; "
+  else said="${said}ended the shell before the source returned (status $rc); "; fi
+  made="$(LC_ALL=C comm -13 <(printf '%s\n' "$nb") <(printf '%s\n' "$na"))"
+  gone="$(LC_ALL=C comm -23 <(printf '%s\n' "$nb") <(printf '%s\n' "$na"))"
+  [ -z "$made" ] || said="${said}created under its scratch directory: $(printf '%s\n' "$made" | head -3 | sed "s|^$s/*||" | LC_ALL=C tr '\n' ' ')[$(printf '%s\n' "$made" | wc -l | tr -d ' ') path(s)]; "
+  [ -z "$gone" ] || said="${said}removed under its scratch directory: $(printf '%s\n' "$gone" | head -3 | sed "s|^$s/*||" | LC_ALL=C tr '\n' ' '); "
+  [ -n "$made$gone" ] || [ "$snap0" = "$(_lrn_snap "$s")" ] || said="${said}changed something under its scratch directory; "
+  chmod -R u+rwX "$s" "$w" 2>/dev/null
+  rm -rf "$s" "$w"
+  [ -z "$said" ] && return 0
+  printf '%s: sourcing it %s\n' "$f" "${said%; }" | LC_ALL=C tr '\n' ' ' | sed 's/ $//'; printf '\n'
+  return 1
 }

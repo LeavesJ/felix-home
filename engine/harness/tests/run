@@ -42,9 +42,8 @@ fi
 # bash 3.2 discards the whole top-level command it sits in, and a loop would
 # make that the rest of the suite. Before 2026-10-10 this was one file of 43,000
 # lines, 2.8 MB, which an editor's post-edit scanner refused to read.
-# _suite_src is the suite's source as one stream, parts first and this file
-# last, for the assertions that read the suite's own text.
-_suite_src() { cat "$HERE"/parts/*.sh "$HERE/run"; }
+# _suite_files, _suite_src and _suite_flat, which the assertions that read the
+# suite's own text go through, are defined in part 0003 (parts, lib, this file).
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict.
@@ -249,6 +248,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/0004-the-widget-fixture.sh"
 
 . "$HERE/parts/0005-fixture-floor.sh"
+# tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"

@@ -15,24 +15,10 @@ printf '\nfresh repositories: split mistakes rows heal, the project gate keeps i
 # Discovery's background refresh would start from the session-start calls here
 # and reach for the network. Holding its lock for the section keeps the hook
 # offline, and only a lock this section took is let go at the end.
-_fh_dlock="$FROOT/state/discover/.lock"; _fh_dlock_mine=0
-mkdir -p "$FROOT/state/discover" && mkdir "$_fh_dlock" 2>/dev/null && _fh_dlock_mine=1
+_cmstub_build
+_fresh_repos_lock
 _fh_today="$(date +%Y-%m-%d)"
-_fh_sp=""
 
-# A project, its memory, and a born checkout bound to it by marker, with no
-# probes, qualification, obligations or commissioning table: the gate runs the
-# project's own command and skips every engine check, unless a block adds one.
-_fh_proj() {
-  mkdir -p "$FROOT/projects/$1" "$MEM/$1" "$TMP/fr-$1"
-  printf '{"name":"%s","gate":"%s"}\n' "$1" "$2" > "$FROOT/projects/$1/project.json"
-  printf '# %s\n' "$1" > "$FROOT/projects/$1/CLAUDE.md"
-  ( _fx_cd "$TMP/fr-$1" && git init -q -b main && printf '%s\n' "$1" > .felix && printf 'x\n' > README.md \
-    && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
-}
-_fh_root()    { ( cd "$TMP/fr-$1" && pwd -P ); }
-_fh_setgate() { printf '{"name":"%s","gate":"%s"}\n' "$1" "$2" > "$FROOT/projects/$1/project.json"; }
-_fh_script()  { printf '#!/usr/bin/env bash\n%s\n' "$2" > "$FROOT/projects/$1/gate.sh"; chmod +x "$FROOT/projects/$1/gate.sh"; }
 # What an engine before #267 wrote for one gate failure on an unborn HEAD:
 # `rev-parse --abbrev-ref HEAD` printed HEAD and exited 128, so the `|| echo ?`
 # fallback appended rather than replaced, and the row became two lines. Line A
@@ -49,16 +35,13 @@ _fh_guard() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/guard.s
 _fh_mon()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/monitor.sh"; _felix_mon_project "$1" "$FROOT" ) 2>/dev/null; }
 _fh_montotal() { printf '%s' "$1" | tr ',' '\n' | sed -n 's/.*"mistakesTotal":\([0-9]*\).*/\1/p' | head -n 1; }
 _fh_monfirst() { printf '%s' "$1" | sed -n 's/.*"mistakes":\[\({[^}]*}\).*/\1/p' | head -n 1; }
-_fh_cmhdr() { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; }
-_fh_cmrow() { grep -E "^$1$(printf '\t')" "$FROOT/harness/templates/commissioning.tsv" | head -n 1; }
 
 # The reader the split row was lost on, copied verbatim from the template's
 # gate_shown_failing row. templates/commissioning.tsv is an escape table, so
 # this check cannot learn the split shape; the file has to be healed under it.
-_fh_gsf_chk="$(awk -F'\t' '$1 == "gate_shown_failing" { print $6; exit }' "$FROOT/harness/templates/commissioning.tsv")"
+_fh_gsf_chk_load
 has "the gate_shown_failing check is read verbatim from the template, and it reads column four" \
     "$_fh_gsf_chk" 'cut -f4 "$FELIX_MEMORY_DIR/mistakes.log"'
-_fh_gsf() { ( FELIX_MEMORY_DIR="$1"; [ -n "$_fh_gsf_chk" ] || exit 99; eval "$_fh_gsf_chk" ) >/dev/null 2>&1; }
 
 # ------------------------------------------------ the heal and its readers ----
 # #267 fixed the writer, and every row written since is four fields. It did not

@@ -254,6 +254,8 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/lib/cm-stub.sh"
 . "$HERE/lib/felix-new-nocommission.sh"
 . "$HERE/lib/hook-payload.sh"
+. "$HERE/lib/inventory-blind-runs.sh"
+. "$HERE/lib/inventory-blind.sh"
 . "$HERE/lib/inventory-gizmo.sh"
 . "$HERE/lib/inventory.sh"
 . "$HERE/lib/recon.sh"

@@ -1,4 +1,5 @@
 # ---- §1, §9: the libraries -----------------------------------------------
+_ib_build n16
 IB_LIBS="inventory.sh inventory-items.sh inventory-gh.sh inventory-orphans.sh inventory-host.sh inventory-view.sh"
 _ibcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@"; }
 _ibmissing() { local f m=""; for f in $IB_LIBS; do [ -f "$IBL/$f" ] || m="$m $f"; done; printf '%s' "${m:+missing:$m}"; }

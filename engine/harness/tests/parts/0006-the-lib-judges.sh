@@ -166,3 +166,118 @@ LRN_CHILD_SCRIPT
   printf '%s: sourcing it %s\n' "$f" "$said" | LC_ALL=C tr '\n' ' ' | sed 's/ $//'; printf '\n'
   return 1
 }
+
+# _lib_clashes -> one line NAME<TAB>LIBFILE<TAB>WHAT for each of
+# - a name that a tests/lib file assigns or defines and that the driver's
+#   $TMP/lib-before.names holds (WHAT: defined before the lib block): a lib
+#   file that defines bad, or sets FAIL, PATH or IFS, takes over what the
+#   suite already runs on, and _lib_runs_nothing cannot see it, since FAIL=0
+#   is a plain assignment;
+# - a function that a tests/lib file defines and that another file of
+#   _suite_files defines too (WHAT: that file's path): which of the two a
+#   later part meets depends on the order they were sourced in.
+# and nothing when there is none, so "prints nothing" is the verdict. A lib
+# file may set a variable that a later part sets too; that is no clash. The
+# files are read from $HERE (the tests directory, the driver's or a copy's) and
+# the names from $TMP, and none is run: a lib file is read as text, one
+# character at a time, as far as these need: what it assigns at its top level
+# (NAME=VALUE words at the start of a statement, outside any { } body) and what
+# it defines (name() , name () , function name), through quotes, comments,
+# backslash-newline and here-documents. Another file is read for the functions
+# it defines only, by the shape of the line, name() or function name at the
+# start of a line: a here-document in it that holds such a line is read as a
+# definition, which can only add a clash, never hide one. A lib file nothing
+# can read, or no lib-before.names beside lib files, is status 2 and a message
+# on stderr, not an empty verdict.
+_lcl_awk='
+function app(c) { if (word == "") wdepth = depth; word = word c }
+function addv(nm) { lv[FILENAME SUBSEP nm] = 1 }
+function addf(nm) { lf[FILENAME SUBSEP nm] = 1; if (!((nm SUBSEP FILENAME) in fl)) { fl[nm SUBSEP FILENAME] = 1; fn[nm] = fn[nm] SUBSEP FILENAME } }
+function boundary() { endword(); stmt_i = 0; chain = 1; lastword = ""; lastidx = -1; pend_fn = 0; stmt_fn = 0 }
+function endword(   nm) {
+  if (word == "") return
+  if (wdepth == 0) {
+    if (pend_fn) { addf(word); pend_fn = 0 }
+    else if (stmt_i == 0 && word == "function") { pend_fn = 1; stmt_fn = 1 }
+    else if (chain && match(word, /^[A-Za-z_][A-Za-z0-9_]*\+?=/)) { nm = word; sub(/\+?=.*/, "", nm); addv(nm) }
+    else chain = 0
+    lastword = word; lastidx = stmt_i
+  }
+  stmt_i++; word = ""
+}
+function scan(line,   n, i, c, rest, cand, first, l) {
+  if (hd != "") { l = line; if (hdtab) sub(/^\t+/, "", l); if (l == hd) hd = ""; return }
+  n = length(line)
+  for (i = 1; i <= n; i++) {
+    c = substr(line, i, 1)
+    if (esc) { esc = 0; app(c); continue }
+    if (q == sq) { app(c); if (c == sq) q = ""; else if (ansi && c == "\\") esc = 1; continue }
+    if (q == "\"") { app(c); if (c == "\\") esc = 1; else if (c == "\"") q = ""; continue }
+    if (c == "\\") { esc = 1; app(c); continue }
+    if (c == sq) { ansi = (word ~ /\$$/); q = sq; app(c); continue }
+    if (c == "\"") { q = "\""; app(c); continue }
+    if (c == "#" && word == "") break
+    if (c == " " || c == "\t") { endword(); continue }
+    if (c == ";" || c == "&" || c == "|") { boundary(); continue }
+    if (c == "<" && substr(line, i + 1, 1) == "<" && substr(line, i + 2, 1) != "<" && substr(line, i - 1, 1) != "<") {
+      rest = substr(line, i + 2)
+      if (match(rest, /^-?[ \t]*["\047]?[A-Za-z_0-9]+/)) {
+        hdtab = (substr(rest, 1, 1) == "-"); l = substr(rest, 1, RLENGTH)
+        sub(/^-?[ \t]*["\047]?/, "", l); hd = l
+      }
+    }
+    if (c == "(" && depth == 0 && substr(line, i + 1) ~ /^[ \t]*\)/) {
+      cand = (word != "") ? word : lastword
+      first = (word != "") ? (stmt_i == 0) : (lastidx == 0)
+      if (cand ~ /^[A-Za-z_][A-Za-z0-9_:.+@%-]*$/ && (first || stmt_fn)) {
+        word = ""; pend_fn = 0
+        addf(cand); match(substr(line, i + 1), /^[ \t]*\)/); i += RLENGTH
+        stmt_i = 1; chain = 0; continue
+      }
+    }
+    if (c == "{" && word == "" && (i == n || substr(line, i + 1, 1) ~ /[ \t]/)) { depth++; stmt_i++; continue }
+    if (c == "}" && word == "" && stmt_i == 0 && (i == n || substr(line, i + 1, 1) ~ /[ \t;&|)]/)) {
+      if (depth > 0) depth--
+      if (depth == 0) boundary()
+      continue
+    }
+    app(c)
+  }
+  if (q != "") { esc = 0; app("\n"); return }
+  if (esc) { esc = 0; word = substr(word, 1, length(word) - 1); endword(); return }
+  boundary()
+}
+function reset() { q = ""; esc = 0; ansi = 0; depth = 0; word = ""; wdepth = 0; hd = ""; hdtab = 0; stmt_fn = 0; stmt_i = 0; chain = 1; lastword = ""; lastidx = -1; pend_fn = 0 }
+BEGIN {
+  sq = sprintf("%c", 39)
+  while ((getline l < b) > 0) before[l] = 1
+  close(b)
+}
+FNR == 1 { islib = (index(FILENAME, d) == 1); reset(); if (islib) libs[FILENAME] = 1 }
+islib { scan($0); next }
+index($0, "()") || index($0, "function") {
+  s = $0; sub(/^[ \t]+/, "", s); nm = ""
+  if (s ~ /^function[ \t]+[A-Za-z_]/) { sub(/^function[ \t]+/, "", s); match(s, /^[A-Za-z_][A-Za-z0-9_:.+@%-]*/); nm = substr(s, 1, RLENGTH) }
+  else if (match(s, /^[A-Za-z_][A-Za-z0-9_:.+@%-]*[ \t]*\(\)/)) { nm = substr(s, 1, RLENGTH); sub(/[ \t]*\(\)$/, "", nm) }
+  if (nm != "" && !((nm SUBSEP FILENAME) in fl)) { fl[nm SUBSEP FILENAME] = 1; fn[nm] = fn[nm] SUBSEP FILENAME }
+}
+END {
+  for (k in lv) { split(k, p, SUBSEP); if (p[2] in before) print p[2] "\t" p[1] "\tdefined before the lib block" }
+  for (k in lf) {
+    split(k, p, SUBSEP)
+    if (p[2] in before) print p[2] "\t" p[1] "\tdefined before the lib block"
+    m = split(fn[p[2]], o, SUBSEP)
+    for (j = 2; j <= m; j++) if (o[j] != p[1]) print p[2] "\t" p[1] "\t" o[j]
+  }
+}'
+_lib_clashes() {
+  local f libs=0 files=()
+  while IFS= read -r f; do
+    files[${#files[@]}]="$f"
+    case "$f" in "$HERE"/lib/*) libs=1 ;; esac
+  done < <(_suite_files)
+  [ "$libs" -eq 1 ] || return 0
+  [ -r "$TMP/lib-before.names" ] || {
+    printf '_lib_clashes: no %s/lib-before.names to read the names defined before the lib block from\n' "$TMP" >&2; return 2; }
+  LC_ALL=C awk -v d="$HERE/lib/" -v b="$TMP/lib-before.names" "$_lcl_awk" "${files[@]}" | LC_ALL=C sort -u
+}

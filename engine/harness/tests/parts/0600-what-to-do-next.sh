@@ -1,3 +1,5 @@
+_widget_repo_build
+_plain_build
 printf '\nwhat to do next\n'
 # Felix tracked maintenance, drift, setup gaps, evidence gaps and coverage in
 # five separate commands and never once said which of them mattered. A founder
@@ -325,8 +327,6 @@ cat > "$FROOT/projects/widget/deny.tsv" <<'EOF'
 Bash	git add (-A|--all|\.)$	stage explicit paths; -A stages what you did not read
 Bash	(^|[;&| ])\./scripts/gate\.sh	that is not the gate Felix runs
 EOF
-
-_pre() { printf '%s' "$1" | "$FROOT/harness/hooks/pre-tool" 2>"$FROOT/.deny-err"; }
 
 ( cd "$REPO" && _pre '{"tool_name":"Bash","tool_input":{"command":"git add -A"}}' ); rc=$?
 is "a denied command exits 2" "$rc" "2"

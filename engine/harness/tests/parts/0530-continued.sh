@@ -448,3 +448,62 @@ _qtrsig() {   # tag, run | one, INT | TERM | HUP, group | row | below, prem | cm
   _qtrclean "$d/made" "$QTRR"
 }
 
+# The whole process group, as a terminal's Ctrl-C, timeout or a tool's kill
+# sends it, while the checker runs. Under TERM and HUP the caller's own shell
+# dies at once, and the row cleans up with no one left reading it.
+_qtrsig gint run INT group cmd
+is  "a row whose checker is running when INT reaches its run's whole process group removes its scratch tree: once every process of the run has exited, no path mktemp handed the runner is left and the root lists no worktree for it, live or prunable" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig gterm run TERM group cmd
+is  "a row whose checker is running when TERM reaches its run's whole process group removes its scratch tree though the caller's shell dies at once: once every process of the run has exited, nothing mktemp handed the runner is left and the root lists no worktree for it" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig ghup run HUP group cmd
+is  "a row whose checker is running when HUP reaches its run's whole process group removes its scratch tree just the same, with nothing mktemp handed the runner left and no worktree listed in the root, live or prunable" \
+    "$_qtrres" "mut:ran cmd:ran exited $_qtrok"
+_qtrsig oint one INT group cmd
+is  "a row whose process gets INT from its run's process group while its checker runs exits 130 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:130 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig oterm one TERM group cmd
+is  "a row whose process gets TERM from its run's process group while its checker runs exits 143 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:143 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig ohup one HUP group cmd
+is  "a row whose process gets HUP from its run's process group while its checker runs exits 129 with unrunnable as its verdict, after removing its scratch tree" \
+    "$_qtrres" "rc:129 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+# The premise is where a group INT lands, so neither later column may start.
+_qtrsig pint run INT group prem
+is  "a row whose premise is running when INT reaches its run's whole process group removes its scratch tree, and neither its mutation nor its checker starts afterwards" \
+    "$_qtrres" "mut:absent cmd:absent exited $_qtrok"
+# The row's own process alone, its caller left running the rows. The column
+# the signal did not reach runs on until it is released; the row then removes
+# its tree, starts no later column, and reads unrunnable.
+_qtrsig rterm run TERM row mut
+is  "a row whose own process alone gets TERM while its mutation runs, its caller still running the rows, reads unrunnable in both the got and verdict columns, never held, removes its scratch tree once that mutation returns, and never starts its checker" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:absent exited $_qtrok"
+_qtrsig rhup run HUP row cmd
+is  "a row whose own process alone gets HUP while its checker runs reads unrunnable in both columns once that checker has ended, never pass and met, and removes its scratch tree" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:ran exited $_qtrok"
+# INT is the one a shell lets a waiting child answer for it: a row whose column
+# was told and exited plainly runs on. A fail control's checker that fails once
+# it is let go must not then be counted as a checker that caught its mutation.
+_qtrsig rint run INT row cmd fail
+is  "a fail control whose own process alone gets INT while its checker runs reads unrunnable in both columns once that checker has failed, never fail and met, and removes its scratch tree" \
+    "$_qtrres" "line:unrunnable unrunnable mut:ran cmd:ran exited $_qtrok"
+_qtrsig oterm1 one TERM row mut
+is  "a row whose own process alone gets TERM while its mutation runs exits 143 with unrunnable as its verdict, after removing its scratch tree, and never starts its checker" \
+    "$_qtrres" "rc:143 got:unrunnable mut:ran cmd:absent exited $_qtrok"
+_qtrsig belowterm one TERM below prem
+is  "a row whose processes below its caller all get TERM while its premise runs exits 143 with unrunnable as its verdict, removes its scratch tree, and starts neither its mutation nor its checker" \
+    "$_qtrres" "rc:143 got:unrunnable mut:absent cmd:absent exited $_qtrok"
+# A second INT while the row removes its tree: the first git call the row
+# makes after the first INT is held, the group gets INT again, then the call
+# is let go.
+_qtrsig twice one INT group cmd twice
+is  "a second INT to the run's process group while the row is removing its scratch tree, with git at work on it, does not cut the removal short: the row exits 130, unrunnable, and nothing of the tree is left" \
+    "$_qtrres" "second:sent rc:130 got:unrunnable mut:ran cmd:ran exited $_qtrok"
+
+# Nothing the section made keeps a permission it took away, and its roots
+# list no worktree a run left behind.
+for _qtrp in "$QTRS"/*/made; do [ -f "$_qtrp" ] && _qtrclean "$_qtrp" "$QTRR"; done
+_fx_git "$QTRU" worktree prune >/dev/null 2>&1
+_fx_git "$QTR9" worktree prune >/dev/null 2>&1
+chmod -R u+rwX "$QTRS" "$QTRT" 2>/dev/null

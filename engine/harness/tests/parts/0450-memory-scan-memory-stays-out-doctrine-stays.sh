@@ -176,6 +176,7 @@ cp "$TMP/probes.keep" "$FROOT/projects/widget/probes.tsv"
 NEWP="$TMP/probes-new"; mkdir -p "$NEWP"
 ( _fx_cd "$NEWP" && git init -q -b main && printf 'x\n' > a.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm i ) >/dev/null 2>&1
+_cmstub_build
 # Through CMSTUB, as every felix new here is: felix new commissions, and run
 # against the real claude it installed the catalog's always plugins into the
 # real ~/.claude, and wrote the registry that made marketplace_root blind.

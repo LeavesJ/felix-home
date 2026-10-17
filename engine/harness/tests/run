@@ -252,6 +252,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/lib/cm-stub.sh"
 . "$HERE/lib/felix-cost.sh"
 . "$HERE/lib/hook-payload.sh"
+. "$HERE/lib/land-on-green.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"
 . "$HERE/lib/reach.sh"

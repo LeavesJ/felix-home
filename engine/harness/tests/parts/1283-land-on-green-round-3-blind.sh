@@ -7,20 +7,15 @@ printf '\nland on green: the amendments A8-A16 (contract A8-A16, blind)\n'
 # resolve its project keeps a ledger. A15's watchdog half has no seam that
 # shortens 30 minutes, and is skipped. The lock-takeover half is driven through
 # mv as PATH finds it, and skipped when the takeover does not rename that way.
+_lg_build amend
 L3="$LG/round3"; mkdir -p "$L3/noproj"
 L3TR="$LGU/Library/Application Support/felix/land/lgh/tick"
-_l3_mainv() { git -C "$LGH" show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p'; }
 _l3_mc() { _lg_merges | wc -w | tr -d ' '; }
-_l3_mpath() { _lg_logs felix | LC_ALL=C awk -F'\t' 'index($3, "merge") == 1 { print $1 }' | LC_ALL=C sort -u | tr '\n' ' '; }
 _l3_tramp() {   # HOME-DIR -> the trampoline as launchd runs it, FELIX_HOME_DIR as given; status in L3RC
   ( cd "$TMP/cwd" 2>/dev/null || cd "$LG" || exit 97
     exec env -i HOME="$LGU" FELIX_HOME_DIR="$1" PATH="$LGB:$PATH" GIT_CEILING_DIRECTORIES="${GIT_CEILING_DIRECTORIES-}" \
       "$L3TR" ) > "$LG/out.tramp" 2>&1
   L3RC=$?
-}
-_l3_commit() {   # FILE MSG -> one commit on the home's main, pushed: origin/main moves and the home stays at it
-  mkdir -p "$(dirname "$LGH/$1")"; printf '%s\n' "$2" >> "$LGH/$1"; _fx_git "$LGH" add -A >/dev/null 2>&1
-  _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm "$2" >/dev/null 2>&1; _fx_git "$LGH" push -q origin main >/dev/null 2>&1
 }
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
 _fx_git "$LGH" reset -q --hard origin/main >/dev/null 2>&1

@@ -256,6 +256,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/lib/autocomm.sh"
 . "$HERE/lib/autonomy-lock.sh"
 . "$HERE/lib/bw.sh"
+. "$HERE/lib/candidates.sh"
 . "$HERE/lib/cm-stub.sh"
 . "$HERE/lib/commissioning.sh"
 . "$HERE/lib/deny-hook.sh"

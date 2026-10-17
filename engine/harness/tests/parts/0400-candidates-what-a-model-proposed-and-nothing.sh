@@ -175,17 +175,8 @@ CDTAB="$MEM/cand-proj/candidates.tsv"
 _cd() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
           . "$FROOT/harness/lib/obligations.sh"; . "$FROOT/harness/lib/epoch.sh"
           . "$FROOT/harness/lib/candidates.sh"; "$@" ) 2>/dev/null; }
-# The topology an answer is keyed to, asked the way the provider assertions
-# ask it, and the epoch, asked the way the epoch assertions ask it. Neither is
-# the code under test, and both are checked non-empty before anything leans on
-# them: `Epoch ` with nothing after it is a needle every haystack contains.
-_cdlib() { FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
-           . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
-           . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
-           . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
-           . "$FROOT/harness/lib/commission-provider.sh"; . "$FROOT/harness/lib/epoch.sh"; }
-_cdtopo()  { ( _cdlib; felix_commission_topology "${1:-$CDP}" "${2:-$CDR}" ) 2>/dev/null; }
-_cdepoch() { ( _cdlib; felix_epoch "${1:-$CDP}" "${2:-$CDR}" ) 2>/dev/null; }
+# _cdlib, _cdtopo and _cdepoch, the topology and the epoch an answer is keyed
+# to, are in tests/lib/candidates.sh.
 _cdps()    { ( _cdlib; felix_commission_provider_state "$CDP" "$CDR" obligations_surveyed | cut -f1 ) 2>/dev/null; }
 # Fields joined by a tab, so a row reads as its columns and an empty cell is
 # an empty cell rather than whitespace that may or may not be a tab.

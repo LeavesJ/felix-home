@@ -250,6 +250,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/0005-fixture-floor.sh"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
 . "$HERE/lib/cm-stub.sh"
+. "$HERE/lib/felix-cost.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"

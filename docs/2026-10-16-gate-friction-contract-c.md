@@ -115,3 +115,26 @@ against main names nothing as red, because no engine code changes.
 - Any change to engine code. A part that fails alone because of a defect in
   the engine, not the test, is reported to the founder and left as it is.
 - Gate-time claims. Those come after D, measured on a quiet machine.
+
+## Amended during the build, 2026-10-16
+
+- **C's own part.** C adds one part, `1290-gate-friction-c-blind.sh`, written
+  blind from C2 and C3. It checks that the driver sources every
+  `tests/lib/*.sh` by one line, in name order, between the 0005 and 0010
+  lines. It also checks that `_suite_files`, `_suite_src` and `_suite_flat`
+  read `tests/lib`, and that every lib file runs nothing at source time
+  (`_lib_runs_nothing`). The manifest is therefore main's plus 1290's names,
+  and every other name and count is main's. C3's byte-for-byte comparison
+  leaves 1290's rows out.
+- **An assertion cut from its block.** Where a part begins with the tail of
+  the block before it (0060's first 33 lines restore and check what 0050's
+  third block changed), those lines move back to the end of the earlier part,
+  unchanged. That leaves the serial order, C1's union and the manifest as
+  they were.
+- **Renames in assertion lines.** A rename C2 requires may change a helper's
+  name inside an assertion line. Nothing else on that line changes, and the
+  pull request lists every such line.
+- **The C3 demonstration** is one-time evidence in the pull request
+  (`audits/2026-10-16-gate-friction-c/c3-demo.sh`), not a suite part. A lint
+  that reads the suite through `_suite_files`, `_suite_src` or `_suite_flat`
+  stays covered after that, because 1290 checks those three.

@@ -175,7 +175,16 @@ felix_classify_diff() {
     return 0
   fi
 
-  paths="$(felix_changed_paths "$root" "$base")"
+  # A change git could not read to the end is the same emptiness one step on
+  # (2026-10-08), and it is said the same way. With a tracked named pipe at A.txt
+  # the added lines came back empty, so a credential added to src.txt was in no
+  # finding and the tier fell to green. The rows below still run on what was
+  # read, and this one outranks them.
+  # The row is named by what could not be read, CHANGED-PATHS or ADDED-LINES as
+  # escape.sh names it, and carries git's reason. Named by the base, it read as
+  # a base that resolves to nothing, whose remedy is another base.
+  local unread=""
+  paths="$(felix_changed_paths "$root" "$base")" || unread=CHANGED-PATHS
   # Added lines only. A removed secret is not a new exposure, and counting it as
   # one trains people to ignore the finding.
   #
@@ -185,7 +194,10 @@ felix_classify_diff() {
   # unstaged credential was a path whose content no rule saw: `felix scope`
   # called it in scope, and on a stacked branch every line the branch below
   # added was read again as this one's. escape.sh already read felix_added_lines.
-  added="$(felix_added_lines "$root" "$base" || true)"
+  added="$(felix_added_lines "$root" "$base")" || unread="${unread:-ADDED-LINES}"
+  [ -z "$unread" ] \
+    || printf 'unknown\t%s\tgit could not read this change to the end (%s), so its content was not classified\n' \
+         "$unread" "$(felix_change_why "$root" "$base")"
 
   out="$(_felix_classify_pass "$(_felix_risk_rows "$proj")" "$paths" "$added")"
 

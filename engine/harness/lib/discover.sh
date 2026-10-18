@@ -82,15 +82,40 @@ FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 # a file people edit freely would have silently re-filed a real plugin.
 # Curated rows first, in the engine's own table order; then the capabilities
 # no row covers, sorted, so a curated row also beats a name-only fallback.
+#
+# 0 with the rules on stdout, and 2 with nothing printed when the declared list
+# could not be read. Until 2026-10-01 an unread list was an empty one, so every
+# declared capability dropped out of the rules, discovery scored nothing, and
+# the quiet form cached "nothing matches" for seven days. The list is read once
+# with felix_declared_into, and once it is read nothing on the way to the rules
+# drops it: both loops walk a string in this shell, the table's and the sorted
+# list's, where a here-document is a temporary file on bash 3.2 and one that
+# cannot be written ends a loop before its first line and the rules come out as
+# none, and the sorted list is captured, since a pipeline that could not run
+# would be an empty one. The table is a plain substitution, since grep -v
+# returns 1 for none and its status means nothing. Its rows are split the way
+# `read` with a tab for IFS splits them: leading and trailing tabs dropped, the
+# rest of the line the second field.
 _felix_discover_rules() {
-  local tpl="$1" proj="$2" cap kws rcap rkws table="" declared ruled="" LC_ALL=C
+  local tpl="$1" proj="$2" cap kws rcap rkws table="" declared="" sorted="" ruled="" rest line nl=$'\n' tab=$'\t' LC_ALL=C
   [ -f "$tpl/discover-rules.tsv" ] \
     && table="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null)"
-  declared="$(felix_declared "$proj")"
+  felix_declared_into declared "$proj" || return 2
+  felix_capture sorted _felix_sorted_lines "$declared" || return 2
 
-  while IFS=$'\t' read -r rcap rkws; do
-    [ -n "${rcap:-}" ] || continue
-    felix_has_line "$declared" "$rcap" || continue
+  rest="$table"
+  while [ -n "$rest" ]; do
+    line="${rest%%$nl*}"
+    if [ "$line" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+    while [ "${line#$tab}" != "$line" ]; do line="${line#$tab}"; done
+    [ -n "$line" ] || continue
+    rcap="${line%%$tab*}"; rkws=""
+    if [ "$rcap" != "$line" ]; then
+      rkws="${line#*$tab}"
+      while [ "${rkws#$tab}" != "$rkws" ]; do rkws="${rkws#$tab}"; done
+      while [ "${rkws%$tab}" != "$rkws" ]; do rkws="${rkws%$tab}"; done
+    fi
+    case "$nl$declared$nl" in *"$nl$rcap$nl"*) ;; *) continue ;; esac
     ruled="$ruled$rcap
 "
     kws="$rkws"
@@ -102,13 +127,14 @@ _felix_discover_rules() {
       *) [ "${#rcap}" -ge 5 ] && kws="$kws $rcap" ;;
     esac
     printf '%s\t%s\n' "$rcap" "${kws# }"
-  done <<EOF
-$table
-EOF
+  done
 
-  while IFS= read -r cap; do
+  rest="$sorted"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$cap" ] || continue
-    felix_has_line "$ruled" "$cap" && continue
+    case "$nl$ruled" in *"$nl$cap$nl"*) continue ;; esac
     # A capability name is an identifier. felix_declared strips whole-line
     # comments only, so a line carrying a trailing remark survives as one
     # long "capability" — harmlessly dropped while the table drove the loop,
@@ -117,11 +143,14 @@ EOF
     case "$cap" in *[!a-z0-9_-]*) continue ;; esac
     [ "${#cap}" -ge 5 ] || continue
     printf '%s\t%s\n' "$cap" "$cap"
-  done <<EOF
-$(printf '%s\n' "$declared" | LC_ALL=C sort -u)
-EOF
+  done
   return 0
 }
+
+# The lines of $1 sorted and without repeats, and the status of the pipeline
+# that did it, so that felix_capture can say whether it ran. Until 2026-10-01 the
+# sorted list was a substitution inside a here-document, whose status nobody asked.
+_felix_sorted_lines() { printf '%s\n' "$1" | LC_ALL=C sort -u; }
 
 # Declared capabilities the table has no curated row for, one per line.
 #
@@ -130,17 +159,29 @@ EOF
 # that state is a fact about this project's tables that nothing else says
 # out loud. Same shape as the overbroad-deny report: a rule quietly doing
 # almost nothing is the complaint Felix makes about other people's plugins.
+#
+# 0 with the capabilities on stdout, and 2 with nothing printed when the declared
+# list could not be read. Until 2026-10-01 an unread list was an empty one, so
+# the answer was that no capability lacked a rule. Checked after the template,
+# as before: a template with no rules table is 0 and nothing printed whatever
+# the list. The list is walked in this shell, where a here-document is a
+# temporary file on bash 3.2. Measured on the first pass of this change, one that
+# could not be written ended the loop before its first capability and the function
+# returned nothing, which read as no capability lacking a rule. The table's first
+# column is a plain substitution, since its status means nothing.
 felix_capabilities_unruled() {
-  local proj="$1" tpl="$2" cap ruled
+  local proj="$1" tpl="$2" cap ruled declared="" rest nl=$'\n'
   [ -f "$tpl/discover-rules.tsv" ] || return 0
+  felix_declared_into declared "$proj" || return 2
   ruled="$(grep -vE '^[[:space:]]*(#|$)' "$tpl/discover-rules.tsv" 2>/dev/null | cut -f1)"
-  while IFS= read -r cap; do
+  rest="$declared"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
     [ -n "$cap" ] || continue
-    felix_has_line "$ruled" "$cap" && continue
+    case "$nl$ruled$nl" in *"$nl$cap$nl"*) continue ;; esac
     printf '%s\n' "$cap"
-  done <<EOF
-$(felix_declared "$proj")
-EOF
+  done
   return 0
 }
 
@@ -158,10 +199,18 @@ EOF
 # days. Nothing that reads the cache could tell a marketplace with nothing for
 # this project from a morning the CLI was broken. Read by an agent from the
 # find-skills plugin, which draws the same line in its own catalogue reader.
+#
+# Exit 2 is rules that could not be read, because the declared list could not:
+# nothing printed and the marketplace not asked. Until 2026-10-01 that read as
+# no rules, so the function returned 0 having scored nothing, and the quiet form
+# cached "nothing matches" for seven days. The rules are captured with
+# felix_capture, because a substitution can end with nothing printed and status
+# 0 when its fork fails, and a status alone would call that an empty rule set. A
+# missing claude is still 3 and still checked first.
 felix_discover_candidates() {
-  local proj="$1" tpl="$2" rules listing
+  local proj="$1" tpl="$2" rules="" listing
   command -v claude >/dev/null 2>&1 || return 3
-  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  felix_capture rules _felix_discover_rules "$tpl" "$proj" || return 2
   [ -n "$rules" ] || return 0
 
   # stack.tsv only as a regular file: a pipe at the path held this grep open

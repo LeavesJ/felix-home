@@ -87,15 +87,43 @@ _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
 }
 
 # The topology an answer is keyed to. Inputs ingestion never writes.
+#
+# 0 with the hash on stdout. 2 with nothing printed when the declared list could
+# not be read, or the union of it and what felix_detect shows could not be made,
+# and nowhere else: otherwise the status is the hash's. Until 2026-10-01 an
+# unread list hashed a different list, so every provider answer read stale, and a
+# request was written under a topology that was not the project's. The status is
+# not taken from the `cat` of commissioning.tsv, which is 1 for a project without
+# one, so under pipefail (the CLI and the hooks) a list that was read would come
+# back as one that was not; a missing table is `|| :`. What is hashed is the
+# same bytes as before on a list that was read: the union a line each, nothing
+# for none, as the sort printed it. The list is read here, the union built here,
+# and the hash is _felix_commission_topology_of's, which felix_commission_request
+# asks directly with the union it already holds.
 felix_commission_topology() {
-  local proj="$1" root="$2"
-  # The table is read only as a regular file. A pipe at the path held the cat
-  # open for a writer that never came, and a link to a device read without
-  # end (2026-10-01). Skipped, it hashes as an absent table hashed before, so
-  # no hash over ordinary files moves and no keyed answer goes stale.
-  { { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u
+  local proj="$1" root="$2" declared="" union=""
+  felix_declared_into declared "$proj" || return 2
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
+  _felix_commission_topology_of "$union" "$proj"
+}
+
+# UNION PROJ: the hash of the topology, and nothing else. UNION is the capabilities
+# the checkout shows and the project declares, one to a line as _felix_capability_union
+# printed them, and the bytes hashed are those lines, the line `== commissioning.tsv ==`
+# and the table. Split out on 2026-10-08, when felix_commission_request read the
+# declared list and built the union, and then called felix_commission_topology, which
+# read the list and built the union again: two reads, so the names in a request could
+# come from one and its topology from another. The status is the hash's; a missing
+# table is `|| :`, as above.
+#
+# The table is read only as a regular file. A pipe at the path held the cat
+# open for a writer that never came, and a link to a device read without
+# end (2026-10-01). Skipped, it hashes as an absent table hashed before, so
+# no hash over ordinary files moves and no keyed answer goes stale.
+_felix_commission_topology_of() {
+  { [ -z "$1" ] || printf '%s\n' "$1"
     printf '== commissioning.tsv ==\n'
-    [ -f "$proj/commissioning.tsv" ] && cat "$proj/commissioning.tsv" 2>/dev/null; } | _felix_hash
+    if [ -f "$2/commissioning.tsv" ]; then cat "$2/commissioning.tsv" 2>/dev/null || :; fi; } | _felix_hash
 }
 
 _felix_commission_provider_dir() { printf '%s/commission' "$(felix_mem_dir "$1")"; }
@@ -106,18 +134,34 @@ felix_commission_request_path() { printf '%s/requests/%s.md' "$(_felix_commissio
 # Placeholders are substituted the way setup runbooks substitute {{REPO}}.
 # Prints the path. Returns 1 when the template is absent — a provider row
 # with no request template is a row nobody can answer, and the state says so.
+#
+# And 2 when the declared list could not be read, with nothing printed and
+# nothing written, a request already there left as it was. Until 2026-10-01 an
+# unread list gave a request naming the wrong capabilities under the wrong
+# topology, and a session that answered it was answering another question. The
+# template is still checked first, so no template is 1 whatever the list. The
+# list, the union of it with what felix_detect shows, and the topology are each
+# captured with felix_capture, since a substitution can end with nothing printed
+# and status 0 when its fork fails, and the capabilities the request names are
+# that union with its lines joined, by an expansion and not a pipeline whose
+# status nobody asks. The topology is the hash of that same union, from
+# _felix_commission_topology_of, so the list is read once and the request holds
+# the topology of the list whose capabilities it names. Until 2026-10-08 it asked
+# felix_commission_topology, which read the list and built the union again.
 felix_commission_request() {
-  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo
+  local proj="$1" root="$2" need="$3" tpl="$4" src out caps declared topo dcl="" union=""
   src="$tpl/commission/$need.md"
   [ -f "$src" ] || return 1
+  felix_declared_into dcl "$proj" || return 2
+  felix_capture union _felix_capability_union "$root" "$dcl" || return 2
+  felix_capture topo _felix_commission_topology_of "$union" "$proj" || return 2
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
-  caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u | LC_ALL=C tr '\n' ' ')"
+  caps="${union//$'\n'/ }"
   # stack.tsv only as a regular file, as felix_commission_apply_declares reads
   # it; a pipe at the path held this grep open (2026-10-01).
   declared=""
   [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | LC_ALL=C cut -f2 | LC_ALL=C tr '\n' ' ')"
-  topo="$(felix_commission_topology "$proj" "$root")"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
   # read them, and the admitted ledger. Each may hold newlines, backslashes
@@ -135,7 +179,7 @@ felix_commission_request() {
   fi
   FELIX_TPL_EPOCH="${epoch:-unknown}" FELIX_TPL_PROBES="${probes:-    (no probes declared)}" \
   FELIX_TPL_ADMITTED="${admitted:-    (nothing admitted yet)}" \
-  LC_ALL=C awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="${caps% }" \
+  LC_ALL=C awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="$caps" \
       -v declared="${declared% }" -v topo="$topo" -v ans="$(felix_commission_answer_path "$proj" "$need")" '
     function splice(line, ph, val,   i, out) {
       out = ""
@@ -163,16 +207,30 @@ felix_commission_request() {
 # grep's own status is asked too, and the counting grep's, from PIPESTATUS,
 # which pipefail does not change. Taken whole into the positional parameters
 # first, because the first test resets it.
+#
+# Also unknown, since 2026-10-01, for an answer file that is there when the
+# topology it is keyed to could not be computed. Until then the topology came
+# back as another hash, or none, and every answer read stale: a verdict that
+# sends a person to run the skill again over a list nobody read. No file is still
+# awaiting, whatever the list. The topology is captured with felix_capture, since
+# a substitution can end with nothing printed and status 0 when its fork fails.
+# The sentence names the declared list, the cause the contract fixes. A union or
+# a hash that could not be made, or a capture whose fork failed, is said the same
+# way, since the capture cannot tell them apart from a list that was not read.
+# Session start prints the sentence as the row's own detail.
 # Locale, 2026-10-08: [0-9] let U+2185 through under UTF-8, and an answer read
 # whole on a count nobody gave. The rules are above felix_json_str in resolve.sh.
 felix_commission_provider_state() {
-  local proj="$1" root="$2" need="$3" f first last n rows
+  local proj="$1" root="$2" need="$3" f first last n rows topo=""
   f="$(felix_commission_answer_path "$proj" "$need")"
   if [ ! -f "$f" ]; then
     printf 'awaiting\tno answer at %s\n' "$f"; return 0
   fi
   first="$(head -1 "$f" 2>/dev/null)"
-  if [ "$first" != "# topology $(felix_commission_topology "$proj" "$root")" ]; then
+  if ! felix_capture topo felix_commission_topology "$proj" "$root"; then
+    printf 'unknown\tthe topology the answer at %s is keyed to could not be computed: the capabilities this project declares could not be read\n' "$f"; return 0
+  fi
+  if [ "$first" != "# topology $topo" ]; then
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
   last="$(LC_ALL=C grep -vE '^[[:space:]]*$' "$f" | tail -1)"
@@ -392,7 +450,17 @@ felix_commission_admit() {
   # something, and asking it is what keeps a third shape from repeating this.
   [ "$(_felix_commission_provider_shape "$need")" -eq 5 ] || return 0
 
-  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  # Until 2026-10-01 a declared list that could not be read gave no rules, so
+  # every nomination that was fetched and read matched no capability and came
+  # back `unknown`, "nothing it ships matches a capability this project
+  # declares", after the marketplace had been asked for each one. Now one row
+  # says the list could not be read, nothing is fetched, and the status is 2.
+  # The rules are captured with felix_capture, since a substitution can end with
+  # nothing printed and status 0 when its fork fails.
+  rules=""
+  if ! felix_capture rules _felix_discover_rules "$tpl" "$proj"; then
+    printf 'unknown\t-\t-\t-\t-\t-\tthe capabilities this project declares could not be read, so no nomination was matched to one\n'; return 2
+  fi
   # Compared without the marketplace suffix, the same way discover's adopt
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
   # Only as a regular file, for the reason felix_commission_request gives.

@@ -5,6 +5,7 @@ printf '\nthe stuck-PR page: one run over every state, the queue, and the read-o
 # them in descending order, so the page's ascending order is its own. Every
 # pull request is fifty hours old. "Plain" below means a path no founder rule,
 # land row, risk row or trust base names: notes/N.md.
+_sp_build
 _spt="$(printf 'A%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)"
 SP_LONG="$_spt${_spt}BBBBBBBBBB"
 SP_BYTES="$(printf 'notes/caf\303\251.md')"

@@ -3,6 +3,7 @@ printf '\nthe stuck-PR page: the queue once, the lock, the ledger, --repo and th
 # Blind, from spec v2 alone, on the fixture part 1300 builds. Each section
 # sets its own gh answers, ledger and lock, and the last one moves origin/main,
 # so it runs last. The fixture is removed at the end of this part.
+_sp_build
 
 # ---- case 1: exactly one entry, however many rules and labels (§6.3) ----------
 _sp_ledger; _sp_logs0

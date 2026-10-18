@@ -876,6 +876,10 @@ printf '\nthe suite copies only a harness\n'
 # both blind rounds. Neither probe can copy anything if the check it tests is
 # missing. The child is the suite's lines before `TMP=`, which read and never
 # write, and the copy probe runs _copy_content with cp, tar and git shadowed.
+# That copy wrote 123 GB before it was killed. Later the same day a runner whose
+# own REAL_HARNESS landed above the driver's left it naming the runner's
+# directory, and with the runner in TMPDIR the copy spent 48 minutes copying
+# TMPDIR into itself. The driver's check refuses both.
 _rh_src="$(_suite_flat)"
 _rh="$TMP/real-harness-check"; mkdir -p "$_rh/cwd" "$_rh/bare" "$_rh/ok/lib"; : > "$_rh/ok/felix"
 _rh_tl="$(grep -n '^TMP="\$(mktemp -d)"' "$_rh_src" | head -1 | cut -d: -f1)"

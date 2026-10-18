@@ -396,6 +396,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/1310-stuck-pr-page-states-blind.sh"
 . "$HERE/parts/1320-stuck-pr-page-readings-blind.sh"
 . "$HERE/parts/1330-stuck-pr-page-review-blind.sh"
+. "$HERE/parts/1340-stuck-pr-page-amendments-blind.sh"
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 
 # The suite's completion marker: tests/red counts a red run only when a line

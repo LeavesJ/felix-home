@@ -35,11 +35,18 @@ security change, kept apart from other work.
   - TERM and INT remove its temporary directory.
 - **The working-tree form** (`felix install`'s verify, `felix next`) never
   treats a path the repository tracks as residue.
-- **Version:** 0.49.300 is the placeholder, set by the carrier; the real
-  number is set at "you are next".
+- **Version:** 0.49.300, the slot the carrier gave after C (#444, 0.49.299).
 
-**Evidence.** Part runners only, by the carrier's order. No record and no
-gate yet.
+**Evidence.**
+- **The record**, on main 655606cf merged in at 0.49.300: 12893 passed,
+  0 failed, 43 skipped; 12854 names in the manifest.
+  - The manifest drops only the five names this branch renamed and adds
+    346. No other name's count changes.
+  - `red.tsv`, against main's engine at 0.49.299: 159 red, 12729 passed,
+    44 skipped. The red are the contract's A, B and C items and the restated
+    assertions that expect the full base name and the whole-entry comparison.
+- **`felix gate`** passed on the recorded tree, reusing the record's run.
+- **Before the record**, part runners only, by the carrier's order:
 - **Blind parts 1400-1402**, written from the contract by an author who did
   not read the code under test:
   - 156 ok / 121 FAIL on main ddad08e1;
@@ -124,17 +131,36 @@ jrr project and its JS and JG fixtures, and alone it stopped with 95 FAILs.
   alone with 0 FAIL and no unbound name. Each part's (verdict, name) pairs
   are the same alone and in order. Run in order, the four print the same 403
   pairs as before the move. The lint passes on the lib file.
-- **Until C lands, each part sources the lib file itself.** Main's driver
-  copies do not carry `lib/`.
+- **The lib file is in C's lib block,** after `inventory.sh`. Until C
+  landed, each part sourced it itself.
+
+**The merge with C** (29240d21) had four conflicts. Two of them were losses
+git did not flag as conflicts:
+- **0350 to 0340.** C moved 0350's opening block to the end of 0340, and the
+  move dropped this branch's restatement there: 0340 was back to
+  `--base HEAD~1`. It is restated again.
+- **1280 and 1281.** Their cache-entry restatements now sit in C's
+  `lib/land-on-green.sh`, where C moved those lines.
+- **Checked over every restated part:**
+  - every line this branch added is present in the merged suite;
+  - no line it removed came back through C's moves.
+- **Run alone with C's `marked.sh` on ed1d3709:**
+  - parts 1290 and 1400-1403;
+  - the 18 parts this branch restated (0100, 0110, 0340, 0350, 0360, 0430,
+    0440, 0970, 0990, 1250, 1280-1286, 1500).
+
+  Each reaches its end with 0 FAIL and no unbound name.
+
+**The founder's commission re-stamp** rides here (ed1d3709).
+`projects/felix/autonomy.commission` was copied unchanged from the home,
+where the founder rewrote it with `felix autonomy --allow commission` after C
+moved main's `commissioning.tsv`. It reads f3c052ed and changes no table.
 
 **Landing.**
-- **At the merge with C.** Drop the two per-part `. "$HERE/lib/judge-refs.sh"`
-  lines. Add `judge-refs.sh` to C's lib block in name order, after
-  `inventory.sh`. Run 1290, then each new part alone.
 - **Escapes and judge code.** The branch changes judge code in
   `lib/resolve.sh` and `felix`, and changes `projects/felix/gate.sh`, so it
   stays draft and needs-founder.
 - **When it binds.** The gate and `felix merge` read `lib/resolve.sh` from
   main, so the change binds only after it lands.
-- **Records.** CI's gate is red until the record: `red.tsv` and the manifest
-  wait for the carrier's `tests/run --record-assertions`.
+- **Who merges.** The founder merges #446, not the land job, because it
+  carries needs-founder. The carrier deploys it.

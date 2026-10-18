@@ -35,7 +35,22 @@ for a in "$@"; do
   fi
   case "$a" in -C) k=C ;; -c|--git-dir|--work-tree|--namespace|--config-env) k=1 ;; -*) ;; *) s="$a"; break ;; esac
 done
-[ "$s" = archive ] || exec "$RG" "$@"
+# 2026-10-18 (judge refs, Part C): main's check no longer runs git archive; it
+# lists main's tree with ls-tree. The stub stands in for that listing too: a
+# listing that fails (exit 128, nothing or a short read) is a check that exits 2,
+# and the call is logged where the archive calls are.
+case "$s" in
+  archive) ;;
+  ls-tree)
+    f="$(cat "$LG/ctl/archive.fail" 2>/dev/null)"
+    printf 'stdout\t%s\n' "${f:-pass}" >> "$LG/log/archive.log"
+    if [ -n "$f" ]; then
+      [ "$f" != part ] || "$RG" "$@" 2>/dev/null | head -c 20
+      echo "fatal: the tree could not be read" >&2; exit 128
+    fi
+    exec "$RG" "$@" ;;
+  *) exec "$RG" "$@" ;;
+esac
 o=""; p=""
 for a in "$@"; do
   case "$p" in -o|--output) o="$a" ;; esac

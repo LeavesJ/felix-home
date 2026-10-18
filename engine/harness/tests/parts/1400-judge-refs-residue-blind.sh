@@ -352,3 +352,43 @@ for _jg_k in refs/tags/origin/main refs/heads/origin/main; do
   [ "$JG_ON" = 1 ] && _jr_off "$JGT" "$_jg_k"
 done
 [ "$JG_ON" = 1 ] && _jg_entry
+
+# ------------------------------- found after the blind round (not blind) ---
+# Two things an automated security review of 2ce3a4b5 found, added here by the
+# implementer from the coordinator's report; they are not derived from the
+# contract alone and A12 was extended with the second. Each pair is red on
+# 2ce3a4b5 and green on the fix.
+#
+# (1) git reads A-F as hex, so the upper-case spelling of a full sha is still an
+# object name, and a branch planted under that spelling must not shadow it.
+JA_U="$(printf '%s' "$JA_C2" | tr 'a-f' 'A-F')"
+_jr_on "$JAR" "$JA_D" "refs/heads/$JA_U"
+is "found after the blind round (not blind) (fixture control): git reads the upper-case spelling of main's sha as that commit, though a branch of that name exists at the decoy" \
+   "$(_jr_sha "$JAR" "$JA_U")|$(_jr_sha "$JAR" "refs/heads/$JA_U")" "$JA_C2|$JA_D"
+is "found after the blind round (not blind): felix_base_ref given the upper-case spelling of a sha prints it unchanged, and does not print the branch of that name" \
+   "$(_ja_br "$JAR" "$JA_U")" "$JA_U|0"
+_jr_off "$JAR" "refs/heads/$JA_U"
+# (2) felix merge judges and merges against a full ref name or not at all. A
+# base that felix_base_ref resolves only as given (A4) is refused, naming that.
+_js_dryb() {   # BASE -> JSRC and $JS/out: felix merge --dry-run --base BASE in the checkout, a fresh receipt first
+  _jr_record "$JSR"; : > "$JS/gh.log"
+  ( cd "$JSR" && env -u FELIX_KERNEL PATH="$JS/gh:$PATH" GHSTUB_LOG="$JS/gh.log" FELIX_KERNEL_CACHE="$JSK" \
+      "$FELIX" merge --dry-run --base "$1" ) > "$JS/out" 2>&1; JSRC=$?
+}
+_js_fullname() {   # NAME BASE -> ok when the dry run refused saying a full ref name is required
+  local r="" j=""
+  [ "$JSRC" -eq 0 ] || r=refused
+  ! LC_ALL=C grep -Fq 'full ref name' "$JS/out" || j=says
+  if [ "$r|$j" = "refused|says" ]; then ok "$1"; else bad "$1" "expected [refused|says] got [$r|$j], exit $JSRC: $(head -6 "$JS/out" | tr '\n' ' ')"; fi
+}
+_js_entry
+_js_dryb main
+is "found after the blind round (not blind) (fixture control): with --base main, which refs/remotes/origin/main carries, the dry run passes the judge" \
+   "$JSRC|$(LC_ALL=C grep -Fc 'byte-identical to main' "$JS/out")" "0|1"
+_js_dryb "$JS_M"
+_js_fullname "found after the blind round (not blind): felix merge --dry-run --base <a sha> refuses, saying it judges and merges against a full ref name"
+_fx_git "$JSR" tag jr-prose "$JS_D" >/dev/null 2>&1
+_js_dryb jr-prose~1
+_js_fullname "found after the blind round (not blind): felix merge --dry-run --base jr-prose~1, with a tag named jr-prose at a decoy, refuses, saying it judges and merges against a full ref name"
+_fx_git "$JSR" tag -d jr-prose >/dev/null 2>&1
+_js_entry

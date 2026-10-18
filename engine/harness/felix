@@ -1633,8 +1633,19 @@ cmd_merge() {
   # reads the judge's code, the version that names the judge, and the changed
   # paths out of it. For `origin/X` with no remote-tracking ref, the name as
   # given is exactly what a tag or a local branch called origin/X answers to.
+  #
+  # And only a FULL ref name is a base here. felix_base_ref hands back a name as
+  # given (a sha, `main~1`, a tag) when no remote-tracking or local branch
+  # carries it, and an expression such as `main~1` is read by git in its
+  # short-name order, where a tag called main comes first. The report-only
+  # readers can live with that; the command that judges and merges cannot.
+  local given="$base"
   base="$(felix_base_ref "$root" "$base" 2>/dev/null)" \
-    || _felix_merge_die "$dry" "$proj" "$named" usage "felix: cannot tell which commit '$base' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base."
+    || _felix_merge_die "$dry" "$proj" "$named" usage "felix: cannot tell which commit '$given' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base."
+  case "$base" in
+    refs/*) ;;
+    *) _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' resolves here only as given, not as a full ref name, and felix merge judges and merges against a full ref name or not at all, because an expression such as main~1 still reaches git's short-name order. Name a branch that has a remote-tracking ref or a local branch, or a refs/ name, with --base." ;;
+  esac
 
   # Read before anything is verified, and read again immediately before the
   # merge. Every blocker below is a claim about one checkout, and the branch is

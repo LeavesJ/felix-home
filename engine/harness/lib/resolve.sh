@@ -781,10 +781,12 @@ felix_base_ref() {
       printf '%s' "$ref"; return 0 ;;
   esac
   # A full-length hex string is an object name to git before it is a ref name,
-  # so it is never looked up as one.
+  # so it is never looked up as one. Upper case too: git reads A-F as hex, so a
+  # branch planted under the upper-case spelling of a sha would otherwise shadow
+  # the object it spells.
   lookup=1
   case "$base" in
-    *[!0123456789abcdef]*) ;;
+    *[!0123456789abcdefABCDEF]*) ;;
     *) case "${#base}" in 40|64) lookup=0 ;; esac ;;
   esac
   if [ "$lookup" -eq 1 ]; then

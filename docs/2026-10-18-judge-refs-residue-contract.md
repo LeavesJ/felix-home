@@ -91,6 +91,9 @@ different commit from the one meant: `refs/tags/X`, `refs/heads/X` or
   `felix merge` refuses. It never reads judge code, version or changed paths
   through the name as given. The report-only readers (pr, next, receipt,
   evidence, classify) keep their fallback.
+  `felix merge` also refuses a base `felix_base_ref` resolves only as given
+  (A4): it judges and merges against a full ref name or not at all, because an
+  expression such as `main~1` still reaches git's short-name order.
 
 A message that prints the base may now print `refs/remotes/origin/main`.
 That is accepted.

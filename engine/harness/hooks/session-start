@@ -227,9 +227,23 @@ _repo_root="$(felix_repo_root "$PWD")"
 _slug="$(felix_repo_slug "$_repo_root" 2>/dev/null || true)"
 # Unattended work runs only in the project's own checkout (lib/own.sh): 0 here, and 2 until it answers.
 _own=2; _FELIX_OWN_WITHHELD=""; command -v felix_checkout_is_own >/dev/null 2>&1 && { felix_checkout_is_own "$PROJ" "$_repo_root" 2>/dev/null; _own=$?; }
-_undecl="$(felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null)"
-[ -z "$_undecl" ] || felix_own_gate adoption "$_own" 2>/dev/null || _undecl=""
-while IFS= read -r _cap; do
+# Until 2026-10-01 a declared list that could not be read was an empty one, so
+# felix_undeclared called every detected surface undeclared and this adopted each
+# of them, capabilities that may already have been declared, into manifests
+# nobody had asked it to change. Now what it printed is believed only when it
+# came back whole, which felix_capture says, since a substitution can end with
+# nothing printed and status 0 when its fork fails. Anything else adopts nothing
+# and says drift was not checked, which is not the same sentence as there being
+# none. The loop walks the string in this shell, where a here-document is a
+# temporary file on bash 3.2 and one that cannot be written ends the loop before
+# its first capability, so a drift that was read would be said to be none.
+_drift_unread=0; _undeclared=""
+felix_capture _undeclared felix_undeclared "$_repo_root" "$PROJ" 2>/dev/null || _drift_unread=1
+[ -z "$_undeclared" ] || felix_own_gate adoption "$_own" 2>/dev/null || _undeclared=""
+_nl=$'\n'; _rest="$_undeclared"
+while [ -n "$_rest" ]; do
+  _cap="${_rest%%$_nl*}"
+  if [ "$_cap" = "$_rest" ]; then _rest=""; else _rest="${_rest#*$_nl}"; fi
   [ -n "$_cap" ] || continue
   # 2026-10-01: 2 is a list adopt could not read or write, so nothing was
   # recorded or written. It is said below rather than dropped like 1, or a
@@ -243,11 +257,12 @@ while IFS= read -r _cap; do
     # the capability declared and never writes the row, so it is said here.
     3) adopted="$adopted $_cap(${_counts// /+})"; partly="$partly $_cap" ;;
   esac
-done <<EOF
-$_undecl
-EOF
+done
 
-if [ -n "$adopted" ]; then
+if [ "$_drift_unread" -eq 1 ]; then
+  drift_line="
+Capability drift was not checked: the capabilities this project declares could not be read."
+elif [ -n "$adopted" ]; then
   drift_line="
 Adopted automatically, because the checkout grew them:${adopted}
 Each is capability(tooling-rows+human-steps) added to this project's manifests.
@@ -630,13 +645,29 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   # types the command.
   command -v felix_commission_resume_bg >/dev/null 2>&1 \
     && felix_commission_resume_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix" 2>/dev/null
-  _cm_topo="$(felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null)"
+  # Captured with felix_capture, since a topology that could not be computed is
+  # not an empty one: the all-clear below and its seen marker are keyed to it.
+  # Each row's state computes its own topology to read its answer file against,
+  # so this one decides nothing about a row. Until 2026-10-01 it was an empty
+  # string here, which only the all-clear's test told from a topology. One that
+  # could not be computed leaves it empty, and the all-clear is refused on
+  # that. Why a row's answer could not be read is the row's own detail below,
+  # and not a sentence of this hook's keyed to this computation: until
+  # 2026-10-08 there was one, and under a transient failure the two
+  # computations of the topology could disagree.
+  _cm_topo=""
+  felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo=""
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
   _cm_await=""; _cm_ans=0; _cm_unread=""
   while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
     [ -n "$_cn" ] || continue
     case "$_ca" in provider:*) ;; *) continue ;; esac
-    _cst="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null | cut -f1)"
+    # The whole state line, since its detail is what says why a row is unknown;
+    # until 2026-10-08 only the state was kept.
+    _csl="$(felix_commission_provider_state "$PROJ" "$_repo_root" "$_cn" 2>/dev/null)"
+    _cst="${_csl%%$'\t'*}"
+    _csd=""
+    case "$_csl" in *$'\t'*) _csd="${_csl#*$'\t'}" ;; esac
     # Only a state that says an answer is missing, for another topology, or
     # unfinished is owed. Until 2026-10-01 every state but answered was, so a row
     # whose state was unknown, or whose state call failed and printed nothing,
@@ -650,8 +681,13 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
         _cm_await="$_cm_await
   $_cn ($_cst): $(felix_commission_request_path "$PROJ" "$_cn")" ;;
       *)
-        _cm_unread="$_cm_unread
-  $_cn (${_cst:-no state})" ;;
+        if [ "$_cst" = unknown ] && [ -n "$_csd" ]; then
+          _cm_unread="$_cm_unread
+  $_cn (unknown: $_csd)"
+        else
+          _cm_unread="$_cm_unread
+  $_cn (${_cst:-no state})"
+        fi ;;
     esac
   done <<EOF
 $(felix_commission_rows "$PROJ" 2>/dev/null)

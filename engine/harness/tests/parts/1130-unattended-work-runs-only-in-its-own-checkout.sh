@@ -432,7 +432,11 @@ is "B42: no commissioning, no graph refresh, no tidying and no adoption ran in a
 
 printf '\nsize and shape (B40, B41)\n'
 _ow_wc() { [ -f "$1" ] && awk 'END { print NR }' "$1" || echo absent; }
-for _f in hooks/session-start:726 lib/commission.sh:731 lib/discover.sh:1516; do
+# B40 bounded what this build added to three shared files (726, 731, 1516).
+# Restated 2026-10-16 to the sizes the weekly batch's slots 7 to 11b leave,
+# 36, 78 and 49 lines more than main held: a later change that grows one
+# restates its bound here, so the growth is seen in review, never unremarked.
+for _f in hooks/session-start:762 lib/commission.sh:776 lib/discover.sh:1565; do
   _owv="$(_ow_wc "$FROOT/harness/${_f%%:*}")"
   [ "$_owv" != absent ] && [ "$_owv" -le "${_f#*:}" ] && ok "B40: ${_f%%:*} is no longer than ${_f#*:} lines" || bad "B40: ${_f%%:*} is no longer than ${_f#*:} lines" "$_owv"
 done

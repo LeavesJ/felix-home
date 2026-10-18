@@ -1,10 +1,11 @@
 ### 2026-10-18: the lost-work page, `felix monitor`, and three inventory fixes (Phase 0b step 6)
 
 **Engine 0.49.301 (placeholder, set at "you are next"; this branch, `claude/lost-work-page`, cut from
-`claude/stuck-pr-page` at 6627e2ba, which sits on origin/main e95e5d3b).** The
+`claude/stuck-pr-page` at 6627e2ba; origin/main 96074341, step 5 as #449 at
+0.49.298, merged in at 237439dc).** The
 carrier's order on 2026-10-18: gate friction C .298, step 5 with 3f .299, #446
-.300, then step 6 about level with gate friction D. It needs step 5 merged
-first. The contract is
+.300, then step 6 about level with gate friction D, from .301 by
+gate-readiness. The contract is
 `docs/2026-10-18-lost-work-page-contract.md`: Part A changes `felix inventory`,
 Part B adds the page.
 
@@ -61,18 +62,28 @@ pins of the old `--log` behaviour (evidence:
 `audits/2026-10-18-lost-work-page/red-evidence.md` under the memory root).
 1440 holds 21 assertions for the review's findings, shown red before each fix.
 Changed existing parts:
-- 0590 and 0600: four `felix monitor` calls now say `felix monitor --log`
-  (contract B9.40); no name or expected value changed.
+- 0590 and 0600: six `felix monitor` calls now say `felix monitor --log`
+  (contract B9.40); no name or expected value changed. Two of them are in
+  0600's capabilities block (#443), which reached this branch with the merge
+  of main and failed three assertions until restated.
 - 0920 N7: two assertions renamed and re-expected, because A1 moves a branch
   another pushed branch holds from undecided to `carried`. A record comparison
   will show two names gone and two added.
 - 0870: `lib/inventory-chips.sh` is included in the host adapter's lints.
 A parts-alone smoke (0001-0005 plus 0590, 0600, 0810, 0860-0920, 0940,
-0990-0998, 1020, 1040, 1090, 1300-1350, 1400-1440) gave 1891 passed, 8 failed,
-1 skipped. The 8 failures fail identically on the pre-build export: 7 in
-0590/0600 come from running those parts without the parts before them, and one
-is step 5's (below). **The full suite, `--record-assertions`, red and the gate
+0990-0998, 1020, 1040, 1090, 1300-1360, 1400-1440) on the merge with main, at
+ff376654, gave 2208 passed, 10 failed, 1 skipped. Seven of the failures are in
+0590/0600 and fail the same way on the pre-build export: those parts need
+helpers (`_stage`, `_reset`, `PLAIN`) from parts the smoke does not run. The
+other three were the capabilities block's bare `felix monitor`, restated in
+the next commit; that commit's smoke was not run, because peers were recording.
+B9.2 and A111, which failed before the merge, now pass. **The full suite, `--record-assertions`, red and the gate
 were not run on this branch**: it has no landing slot yet.
+The carrier's two record seams were checked on 1400-1440. No name starts with a
+non-ASCII byte. Two names carried what the engine printed (B9.26's row count,
+and B9.30/31's "at least N" for work that never reached a PR), so a red tree
+would name assertions the record lacks. ff376654 makes both fixed strings and
+moves the count into `bad`'s detail; the expected values are unchanged.
 
 **Review.** One Opus review (`review.md`, `review-disposition.md` in the same
 audit folder). The blocker (collapsed `proposed` and `handoff` said a complete
@@ -83,19 +94,28 @@ awk `-v` that expanded backslashes in land's error line, `GIT_DIR` making the
 page refuse to run, and the upstream exclusion in A1.
 
 **Open.**
-- **Step 5's A111, settled by the carrier on step 5.** Part 0940's
-  "inventory A111" failed on `claude/stuck-pr-page` (and so here):
+- **Step 5's A111, settled by the carrier on step 5 and merged in.** Part
+  0940's "inventory A111" failed on `claude/stuck-pr-page`:
   `lib/pr-status.sh:27` sources and `lib/pr-status-gh.sh:9` names
   `inventory-gh.sh`. The carrier restated A111 on step 5 (spec v2 R12): those
-  two files may name `inventory-gh.sh` and nothing else of the inventory. This
-  branch gets it by merging main once step 5 lands, with step 5's R11 and the
-  A31 merge; `lib/lost-work.sh` names none of them and needs no change.
+  two files may name `inventory-gh.sh` and nothing else of the inventory. Main
+  at 96074341 carries it, with R11 and slot 3f, and this branch merged it at
+  237439dc; `lib/lost-work.sh` names none of them and needs no change.
 - **Test gaps left (review finding 7).** Nothing pins S1-S3's "modified after
   the proposal", S1's exclusion of the proposer's file, or the page's scratch
   cleanup after a signal. Part 0940's library lists do not name
   `inventory-chips.sh`. These need a blind round.
-- **`tests/run` is at 497 lines.** The next part added will need the driver
-  split or its part list moved.
+- **The parts do not yet run alone, which C (#444) requires (its C4).** 1410,
+  1420, 1430 and 1440 call 1400's `_lw_*` helpers and read the fixture 1400
+  builds (`LW`, `LW_F`, `LWC`, `LWM`, `LWT`, `LWX`, `LWL`); 1430 also reads
+  1420's page fixture (`PG`, `PGR`, `LWW`, `LW_HP`, `LW_HEAD`, `LWK`). None
+  uses step 5's `_sp_*`. After C lands and main is merged: move the helpers
+  and both fixtures into `tests/lib/lost-work.sh` in C's form (definitions
+  only, a `_lost_work_vars`, an idempotent `_lw_build [page]` each part
+  calls), add its one driver line, and run each part alone. C frees about 30
+  driver lines, so the 5 parts and 1 lib line fit.
+- **`tests/run` is at 478 lines, sourcing 173 parts.** A few more parts will
+  need the driver split or its part list moved.
 - **Noise the page shows.** Subagent and workflow worktrees (`agent-*`,
   `wf_*`) holding unpushed blind branches make up a large share of "work that
   never reached a PR" on felix-home. A group for helper worktrees ("spawned by
@@ -108,6 +128,7 @@ page refuse to run, and the upstream exclusion in A1.
   `unknown` (the listing then comes from HEAD, as before). That is one
   condition in `calc()` in `lib/lost-work.sh` if it should.
 
-**Next.** At "you are next" from the carrier, and not before: merge main
-(with step 5), set the version the carrier gives, run `tests/run --record-assertions` and red, then `felix gate`, and open
-the PR. Risk-red: new libs (`lost-work.sh`, `inventory-chips.sh`) and lib edits.
+**Next.** At "you are next" from the carrier, and not before: merge main again
+if it has moved, set the version the carrier gives, run
+`tests/run --record-assertions` and red, run `engine/harness/bin/schema-check`,
+then `felix gate`, and open the PR. Risk-red: new libs (`lost-work.sh`, `inventory-chips.sh`) and lib edits.

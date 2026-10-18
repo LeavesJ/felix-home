@@ -18,6 +18,8 @@
 #   is a group of tests/groups.tsv (D5) or a part in none, 0010 and later,
 #   9990 left to the parent. groups.tsv is read only here and only for N above
 #   1; a missing, unreadable or broken one is a refusal naming the rule.
+# - FELIX_TEST_RED_JOBS, N, exported for a record run under -j N until part 0004
+#   unsets it: the one variable red reads (tests/red).
 _sj_die() { printf 'tests/run: %s\n' "$1" >&2; exit 2; }
 _sj_n() { case "$1" in [123456789]|[12345][0123456789]|6[01234]) return 0 ;; esac; return 1; }
 # -> _sj_ord is the driver's part lines, in order, each name between blanks.
@@ -134,6 +136,12 @@ if [ -n "$_sj_part" ]; then
 elif [ "$_suite_jobs" -gt 1 ]; then
   _sj_order; _sj_groups; _sj_mkunits
 fi
+# A record run under -j N hands N to red as FELIX_TEST_RED_JOBS (D4). It is
+# exported here, between the argument check and red's start (the driver, after
+# part 0003), and unset by the head of part 0004, so no part sees it. One the
+# caller left in the environment is dropped first.
+unset FELIX_TEST_RED_JOBS
+if [ "$_suite_jobs" -gt 1 ]; then case "$_sj_flags" in *" --record-assertions "*) export FELIX_TEST_RED_JOBS="$_suite_jobs" ;; esac; fi
 # Part mode, in the driver's lines after the prelude. A unit's output goes to
 # its log, the runner lines are ended-line marks the parent reads back, and a
 # member is one driver line of its own. _pm_nl ends a partial last line, so a

@@ -121,6 +121,10 @@
 #           argument, a record run that ended before it wrote the manifest and
 #           one whose mark does not read `written`. red.tsv says so.
 #
+# Under -j (contract D4): FELIX_TEST_RED_JOBS, read once and unset, runs the suite with -j N, and
+# this tree's tests/groups.tsv goes in with run, parts and lib. The runner's own failure lines (D3)
+# name no assertion and are not counted; one that says a unit's prelude failed refuses the log.
+#
 # One trap, from HANDOFF §5: a test for a hang leaks the hang unless its
 # watchdog kills the children, and a red run is where such tests fail (_reap).
 set -uo pipefail
@@ -145,6 +149,8 @@ esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" || exit 2
 OUT="$HERE/red.tsv"
+RJ="${FELIX_TEST_RED_JOBS-}"; unset FELIX_TEST_RED_JOBS   # D4: read once, never passed on; kept only if it is an N
+case "$RJ" in [123456789]|[12345][0123456789]|6[01234]) ;; *) RJ="" ;; esac
 
 # --after <mark> <pid>, taken apart here and judged after the retraction below,
 # so a bad one is said in red.tsv as every other refusal is. It is the first
@@ -374,6 +380,10 @@ if [ -d "$HERE/lib" ]; then
     || _none "could not place tests/lib into the tree at $BASE"
 fi
 
+# tests/groups.tsv (D5) is this tree's too: the base's goes first, and none is placed when this tree has none.
+rm -f "$TREE/engine/harness/tests/groups.tsv" 2>/dev/null; [ ! -e "$TREE/engine/harness/tests/groups.tsv" ] || _none "could not clear tests/groups.tsv out of the tree at $BASE"
+[ ! -f "$HERE/groups.tsv" ] || cp "$HERE/groups.tsv" "$TREE/engine/harness/tests/groups.tsv" 2>/dev/null || _none "could not place tests/groups.tsv into the tree at $BASE"
+
 # The suite runs with the caller's TMPDIR, as it does by hand, so its own
 # mktemp root is made where a plain run makes it. Until 2026-09-24 it ran with
 # TMPDIR under this run's directory, so that its root would go with this run
@@ -424,7 +434,7 @@ if [ "$AFTER" -eq 1 ]; then
   # suite already did in every record run (the record run starts red as a job,
   # and what a process ignores its children ignore too). Run by hand without
   # --after, the suite is as it was.
-  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1 &
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1 &
   SUITE=$!
   ( while kill -0 "$SUITE" 2>/dev/null; do
       if [ ! -e "$MARK" ] && _gone; then : > "$TMP/gone"; _stop_tree "$SUITE"; break; fi
@@ -435,19 +445,22 @@ if [ "$AFTER" -eq 1 ]; then
   kill "$MON" 2>/dev/null
   [ ! -e "$TMP/gone" ] || { _reap; _none "the record run ended before it wrote the manifest"; }
 else
-  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1
   RC=$?
 fi
 _reap
 cp "$RAW" "$LOG" 2>/dev/null || _none "could not keep the log of the suite against $BASE"
 
+# The runner's own failure lines (D3, by their six prefixes) are left out of the counts and the names (LOGF).
+LOGF="$LOG.f"; grep -Ev "^  FAIL  part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: )" "$LOG" > "$LOGF"
 PASSED="$(grep -c '^  ok    ' "$LOG")"
-FAILED="$(grep -c '^  FAIL  ' "$LOG")"
+FAILED="$(grep -c '^  FAIL  ' "$LOGF")"
 SKIPPED="$(grep -c '^  skip  ' "$LOG")"
 awk '/^  (ok    |FAIL  |skip  )/ { a = NR } $0 == "reached" { r = NR }
      END { exit (r + 0 > a + 0) ? 0 : 1 }' "$LOG" \
   || _none "the suite against $BASE did not finish (exit $RC after $((PASSED + FAILED + SKIPPED)) assertions)"
 [ "$((PASSED + FAILED + SKIPPED))" -gt 0 ] || _none "the suite reached no assertion against $BASE"
+! grep -Eq "^  FAIL  part(.s prelude failed: | printed a line the runner owns: )" "$LOG" || _none "the suite against $BASE failed in a unit's prelude or printed a line its runner owns"
 
 # With --after the record run may still be writing the manifest, so it is waited
 # for here, after the checks above: a suite that did not finish is refused
@@ -503,7 +516,7 @@ printf '%s\n' "$MAN" | LC_ALL=C awk '
     for (n in want) if (want[n] > got[n] + 0) short[n] = want[n] - got[n]
     for (n in fail) printf "%.0f\t%.0f\t%s\n", fail[n], short[n] + 0, n
     for (n in short) if (!(n in fail)) printf "0\t%.0f\t%s\n", short[n], n
-  }' - "$LOG" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
+  }' - "$LOGF" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
 read -r FAILED_ALL TOTAL UNREACHED <<< "$(RED_F="$FAILED" RED_P="$PASSED" RED_S="$SKIPPED" LC_ALL=C awk -F'\t' '
   { u += $2 } END { f = ENVIRON["RED_F"] + u; printf "%.0f %.0f %.0f\n", f, f + ENVIRON["RED_P"] + ENVIRON["RED_S"], u }' "$CMP")"
 # Defensive, asked by no fixture: the awk above prints three numbers whatever it reads.

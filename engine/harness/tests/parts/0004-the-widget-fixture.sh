@@ -1,3 +1,6 @@
+# Red has started (or is not to be): the N a record run under -j N handed it
+# (part 0001) goes now, so that no part, unit or fixture sees it.
+unset FELIX_TEST_RED_JOBS
 # MEM, the session unset and resolve.sh moved here from the driver with
 # _copy_content below, 2026-10-17, for the same 500 lines; they ran just
 # before this part there, so they run in the same order here.

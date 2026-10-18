@@ -67,7 +67,8 @@ _ps_ago() {   # SECONDS
 _ps_fetch_age() {   # DIR
   local gd f mt ct now out="" LC_ALL=C
   now="$(date +%s)"
-  ct="$(git -C "$1" reflog -1 --format=%ct "$_GT_MAIN" 2>/dev/null | LC_ALL=C sed -n 1p)"
+  ct="$(git -C "$1" reflog -1 --date=unix --format=%gd "$_GT_MAIN" 2>/dev/null | LC_ALL=C sed -n 1p)"
+  ct="${ct#*@\{}"; ct="${ct%\}}"   # origin/main@{<unix time the ref moved>}
   case "$ct" in ""|*[!0123456789]*) ct="" ;; esac
   [ -z "$ct" ] || out="origin/main last moved $(_ps_ago $(( now - ct )))"
   gd="$(git -C "$1" rev-parse --git-common-dir 2>/dev/null)" || gd=""
@@ -86,7 +87,7 @@ _ps_fetch_age() {   # DIR
 # main when refs/remotes/origin/main exists. Sets _PS_MAIN and _PS_DEF. With no
 # local checkout (the queue) the default branch is GitHub's.
 _ps_origin() {   # DIR SLUG W
-  local d="$1" slug="$2" w="$3" ref
+  local d="$1" slug="$2" w="$3" ref src="" defd
   _PS_MAIN=""; _PS_DEF=""
   if [ -z "$d" ]; then
     if [ "${_PS_NOGH:-0}" != 1 ] && _ps_slug_ok "$slug"; then _PS_DEF="$(_ps_gh_default "$slug" "$FELIX_HOME_DIR")"; fi
@@ -96,17 +97,18 @@ _ps_origin() {   # DIR SLUG W
   fi
   _PS_MAIN="$(git -C "$d" rev-parse --verify --quiet "$_GT_MAIN^{commit}" 2>/dev/null)" || _PS_MAIN=""
   ref="$(git -C "$d" symbolic-ref --quiet refs/remotes/origin/HEAD 2>/dev/null)" || ref=""
-  case "$ref" in refs/remotes/origin/?*) _PS_DEF="${ref#refs/remotes/origin/}" ;; esac
-  [ -n "$_PS_DEF" ] || [ -z "$_PS_MAIN" ] || _PS_DEF=main
+  case "$ref" in refs/remotes/origin/?*) _PS_DEF="${ref#refs/remotes/origin/}"; src=origin/HEAD ;; esac
+  [ -n "$_PS_DEF" ] || [ -z "$_PS_MAIN" ] || { _PS_DEF=main; src=origin/main; }
   if [ -z "$_PS_MAIN" ]; then
     if [ -n "$_PS_DEF" ]; then
-      _ps_srow "$w/s.origin" origin unread "no origin/main; default branch $_PS_DEF (origin/HEAD); no ledger row can be on the current main"
+      _ps_srow "$w/s.origin" origin unread "no origin/main; default branch $_PS_DEF ($src); no ledger row can be on the current main"
     else
-      _ps_srow "$w/s.origin" origin unread "no origin/main; the default branch is not read, and no ledger row can be on the current main"
+      _ps_srow "$w/s.origin" origin unread "no origin/main; default branch not read; no ledger row can be on the current main"
     fi
     return 0
   fi
-  _ps_srow "$w/s.origin" origin read "origin/main ${_PS_MAIN%"${_PS_MAIN#???????}"}, default branch ${_PS_DEF:-not read}, $(_ps_fetch_age "$d")"
+  defd="not read"; [ -z "$_PS_DEF" ] || defd="$_PS_DEF ($src)"
+  _ps_srow "$w/s.origin" origin read "origin/main ${_PS_MAIN%"${_PS_MAIN#???????}"}, default branch $defd, $(_ps_fetch_age "$d")"
 }
 
 # The tick's own state, as felix land --status reads it, and whether a tick

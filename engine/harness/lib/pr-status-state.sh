@@ -200,7 +200,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
             if (fc <= 5) { r2 = rl; gsub(/ /, ", ", r2); items = items (items == "" ? "" : "; ") p " (" r2 ")" }
             else { m2 = split(rl, rw, " "); for (q = 1; q <= m2; q++) if (!((n, rw[q]) in HR)) { HR[n, rw[q]] = 1; hrl = hrl (hrl == "" ? "" : ", ") rw[q] } } }
           if (tag(p, "trustbase")) tbp = tbp (tbp == "" ? "" : ", ") p }
-        for (q = 1; q <= ncr; q++) if (CC[q] > 0) add("risk row not evaluated: content confine, " CRP[q] ", for " CC[q] " paths: " CF[q])
+        for (q = 1; q <= ncr; q++) if (CC[q] > 0) add("risk row not evaluated: content confine, " CRP[q] ", for " CC[q] (CC[q] == 1 ? " path: " : " paths: ") CF[q])
         if (fc > 5) items = items "; and " (fc - 5) " more: " hrl
         founder = (labf || fc > 0)
         l1 = (index(lab, SEP "needs-founder" SEP) > 0); l2 = (index(lab, SEP "felix:founder" SEP) > 0)

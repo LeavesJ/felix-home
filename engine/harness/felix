@@ -8,7 +8,7 @@
 #   felix profile [name] which tools a task profile mounts
 #   felix route          what kind of work this is, and what to reach for
 #   felix decisions      the capability-decision record: mandates, declines, answer rate
-#   felix monitor        render everything Felix did that nobody could see
+#   felix monitor        the lost-work page: what needs you first; --log renders the HTML page of what Felix did
 #   felix ready          is every tool this project names actually usable?
 #   felix discover       what is worth having that this project does not have
 #   felix discover --adopt  declare and install the low-risk ones it has read
@@ -318,7 +318,8 @@ specific project, language, or toolchain.
     felix lesson <text>    add a lesson, matched into later prompts
     felix lessons          what this project has already paid for
     felix promote          what has been caught often enough to become doctrine
-    felix monitor [--open] render everything Felix did that nobody could see
+    felix monitor [--tsv] [--repo DIR]... the lost-work page, read-only; felix monitor --log [--open] renders
+                           everything Felix did that nobody could see
 
   setup
     felix new <name> [path] [--no-commission]
@@ -3379,16 +3380,18 @@ EOF
   return 0
 }
 
+# felix monitor is the lost-work page (lib/lost-work.sh): what needs the founder
+# first, read from felix inventory and felix land --prs, writing nothing. The
+# HTML page of what Felix did that nobody could see is felix monitor --log, and
+# --open, --watch and --every N, which imply it.
 cmd_monitor() {
-  local open=0 watch=0 every=5 a out tpl
-  while [ $# -gt 0 ]; do
-    case "$1" in
-      --open)  open=1; shift ;;
-      --watch) watch=1; shift ;;
-      --every) need_value "$@"; every="$2"; shift 2 ;;
-      *) shift ;;
-    esac
-  done
+  local open=0 watch=0 every=5 a out tpl rc
+  # shellcheck source=lib/lost-work.sh
+  . "${SCRIPT_DIR}/lib/lost-work.sh" || exit 1
+  felix_monitor_args "$@"; rc=$?
+  case "$rc" in 0) ;; 3) return 0 ;; *) return "$rc" ;; esac
+  if [ "$_LW_LOG" = 0 ]; then felix_lost_work_page; return $?; fi
+  open="$_LW_OPEN"; watch="$_LW_WATCH"; every="$_LW_EVERY"
   tpl="$SCRIPT_DIR/templates/monitor.html"
   out="$FELIX_HOME_DIR/state/monitor.html"
 
@@ -6192,7 +6195,7 @@ cmd_status() {
 # own row below, and it answers usage rather than dying because asking for help
 # is not an error.
 case "${2:-}" in
-  -h|--help) case "${1:-}" in help|-h|--help|'') ;; *) usage; exit 0 ;; esac ;;
+  -h|--help) case "${1:-}" in help|-h|--help|monitor|'') ;; *) usage; exit 0 ;; esac ;;
 esac
 
 case "${1:-help}" in

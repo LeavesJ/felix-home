@@ -845,6 +845,68 @@ _suite_copy_driver() {
       next }
     { print }' "$run" > "$dir/run"
 }
+# [--red] F GROUPS MANIFEST STUB... -> F is a git checkout of a whole suite in
+# small (contract D, D8): branch main, one commit, refs/remotes/origin/main at
+# that commit, so a run there writes a receipt and red finds its base. It holds
+# engine/harness/lib, engine/harness/felix, engine/.claude-plugin/plugin.json
+# (felix, 0.0.1) and engine/harness/tests with receipt.sh, tests/lib, parts
+# 0001 to 0007 and 9990 by number (0007 where the tree has one), red with
+# --red, groups.tsv from the file GROUPS (none when GROUPS is -) and
+# assertions.tsv from the file MANIFEST (none when MANIFEST is -). Its driver
+# is this suite's own with the part lines after 0007 and before 9990 replaced,
+# where the first stood, by one line for each STUB: the path of a part file the
+# caller wrote, copied into the parts under its own name, which must be
+# NNNN-name.sh, numbered 0010 or later and not 9990, and which no other STUB
+# may share. Every input is checked before anything is made. Returns 1, with
+# no run in F, when anything cannot be made. A definition; it runs nothing.
+_suite_copy_tree() {
+  local red="" f g m s n d=" " p k T
+  [ "${1:-}" != --red ] || { red=1; shift; }
+  [ "$#" -ge 3 ] && [ -n "$1" ] || return 1
+  f="$1"; g="$2"; m="$3"; shift 3
+  T="$f/engine/harness/tests"
+  [ "$g" = - ] || [ -f "$g" ] || return 1
+  [ "$m" = - ] || [ -f "$m" ] || return 1
+  for s in "$@"; do
+    n="${s##*/}"
+    [ -f "$s" ] || return 1
+    case "$n" in [0-9][0-9][0-9][0-9]-*.sh) ;; *) return 1 ;; esac
+    case "${n%%-*}" in 000[0-9]|9990) return 1 ;; esac
+    case "$d" in *" $n "*) return 1 ;; esac
+    d="$d$n "
+  done
+  mkdir -p "$T/parts" "$f/engine/.claude-plugin" || return 1
+  _copy_content "$REAL_HARNESS/lib" "$f/engine/harness/lib" || return 1
+  _copy_content "$HERE/lib" "$T/lib" || return 1
+  cp "$REAL_HARNESS/felix" "$f/engine/harness/felix" || return 1
+  cp "$HERE/receipt.sh" "$T/receipt.sh" || return 1
+  [ -z "$red" ] || { cp "$HERE/red" "$T/red" && chmod +x "$T/red"; } || return 1
+  [ "$g" = - ] || cp "$g" "$T/groups.tsv" || return 1
+  [ "$m" = - ] || cp "$m" "$T/assertions.tsv" || return 1
+  for p in 0001 0002 0003 0004 0005 0006 0007 9990; do
+    k=0
+    for s in "$HERE/parts/$p"-*.sh; do
+      [ -f "$s" ] || continue
+      cp "$s" "$T/parts/${s##*/}" || return 1
+      k=$((k + 1))
+    done
+    [ "$k" -eq 1 ] || { [ "$p" = 0007 ] && [ "$k" -eq 0 ]; } || return 1
+  done
+  for s in "$@"; do cp "$s" "$T/parts/${s##*/}" || return 1; done
+  printf '{\n  "name": "felix",\n  "version": "0.0.1"\n}\n' > "$f/engine/.claude-plugin/plugin.json" || return 1
+  LC_ALL=C awk -v stubs="$d" '
+    index($0, ". \"$HERE/parts/") == 1 {
+      n = substr($0, 16, length($0) - 16); k = substr(n, 1, 4)
+      if (k <= "0007" || k == "9990") { print; next }
+      if (!d) { c = split(stubs, s, " "); for (i = 1; i <= c; i++) print ". \"$HERE/parts/" s[i] "\""; d = 1 }
+      next }
+    { print }' "$HERE/run" > "$T/run" || { rm -f "$T/run"; return 1; }
+  chmod +x "$T/run"
+  ( _fx_cd "$f" && git init -q -b main && git add -A \
+      && git -c user.name=sct -c user.email=sct@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm seed \
+      && git update-ref refs/remotes/origin/main HEAD ) >/dev/null 2>&1 || { rm -f "$T/run"; return 1; }
+  return 0
+}
 
 # The suite's own files, one path a line and nothing else: every part, every lib
 # file (tests/lib/*.sh, where a helper two parts share lives, contract C2) and,

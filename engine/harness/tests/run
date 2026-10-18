@@ -393,6 +393,7 @@ fi
 . "$HERE/parts/1288-land-on-green-round-8-blind.sh"
 . "$HERE/parts/1289-land-on-green-round-9-blind.sh"
 . "$HERE/parts/1290-gate-friction-c-blind.sh"
+. "$HERE/parts/1291-gate-friction-d-blind.sh"
 . "$HERE/parts/1500-git-colour-never-reaches-what-the-engine-parses.sh"
 . "$HERE/parts/1510-no-caller-environment-changes-a-tool-s-output.sh"
 . "$HERE/parts/1520-git-readers-fail-closed.sh"

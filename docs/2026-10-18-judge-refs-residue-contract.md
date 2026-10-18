@@ -184,6 +184,86 @@ declares. The comparison is over `engine/{harness,hooks,commands}`.
   `.gitignore` of `*`. The gate's `installed` check fails, and
   `felix merge --dry-run` refuses with `judge`.
 
+## Part C. Found by the review of 3289129f
+
+The Opus review measured each of these against the fixed engine. Each one
+holds in that engine.
+
+- **C1. Nothing converts main's side.** The fix read main's engine with
+  `git archive` inside the home, and archive applies the home's conversions
+  to every file it writes out. Measured: a smudge filter made an entry
+  holding `EVIL CODE` read as main's. The filter came from
+  `filter.<x>.smudge` in the repository config, plus `* filter=<x>` in
+  `.git/info/attributes` or in a file `core.attributesFile` names. The
+  conversions are:
+  - filters and their smudge and clean commands;
+  - `text`, `eol`, `core.autocrlf` and `core.eol`;
+  - `export-ignore` and `export-subst`;
+  - `ident` and `working-tree-encoding`.
+
+  Each can be set in `.git/info/attributes`, through `core.attributesFile`,
+  in the repository config, or in a working-tree `.gitattributes`. None of
+  them, alone or together, changes the verdict. Main's side is the blobs and
+  modes the commit stores. The entry's side is its files' raw bytes.
+- **C2. The whole entry is compared, at every top-level name.**
+  - `.claude-plugin/` is content, compared with main's
+    `engine/.claude-plugin/`. This form compares main with the entry for
+    main's own version, so "a bump is pending" does not apply to it.
+  - A top-level name E holds other than `harness`, `hooks`, `commands` and
+    `.claude-plugin` is drift, whatever any rule says. Examples are
+    `agents/`, `skills/`, `.mcp.json`, and a `hooks` or `mcpServers` field
+    added to `plugin.json`.
+  - Residue (B3) applies only beneath `harness/` and `hooks/`.
+  - Measured 2026-10-18: the real entry for main's 0.49.295 holds exactly
+    those four names and main's file set, so this turns nothing red today.
+- **C3. Type and mode are compared.** Each of these is drift, even when the
+  bytes behind it equal main's:
+  - a symlink, FIFO or socket at any path in E;
+  - a directory where main has a file, or a file where main has a directory;
+  - a file whose executable bit differs from main's mode (100755 or 100644).
+
+  Measured 2026-10-18: all 23 of main's executables keep their bit in the
+  real entry, and it holds no non-regular file.
+- **C4. Names are compared exactly.** An E-only or differing path counts as
+  drift (exit 1) when its name holds any of these:
+  - a newline or a tab;
+  - a backslash or a quote;
+  - the text ` and ` or `: `;
+  - a leading dash;
+  - a glob character (`*?[`);
+  - a trailing space.
+
+  Its line identifies it. For a newline, the line is in a form that cannot
+  be read as two paths.
+- **C5. Short-name reads of main, pinned directly.** B5 caught the
+  short-name mutants only through its ref-moving shim. The review measured
+  that reading the rules by short name survived every assertion. Each case
+  below exits 1 and names the extra file:
+  - A decoy `refs/tags/origin/main` sits at a commit whose `engine/.gitignore`
+    is `*`, and E is M plus `harness/extra` or `hooks/extra`.
+  - A decoy declares another version, with a cache entry for that version
+    present, and E for main's version is M plus one file.
+- **C6. A FILE named like a directory-only rule is not matched by it.** Take
+  an E-only *file* `harness/data` and main's rule `data/`: that is drift. An
+  E-only `harness/data/x` beneath a directory is residue. This pins the
+  directory-form query, which no assertion read before.
+- **C7. An interrupt leaves nothing behind.** A TERM or INT delivered to the
+  call midway still removes every temporary directory it made.
+- **C8. `felix merge` takes only a ref name.** A `refs/` expression rather
+  than a ref name, such as `refs/heads/nope~0`, is refused as a base.
+  Measured: a decoy at `refs/tags/refs/heads/nope` answered it. The base
+  must pass `git check-ref-format` and exist. A `.gitignore` that main holds
+  as a symlink contributes no rules.
+
+Not in this change, and recorded as follow-ups:
+- `felix merge` verifies the cache entry, then sources the judge's libraries
+  from that same writable directory. A session can change them in between.
+  The fix is to source main's libraries read by sha into a private
+  directory.
+- Every guarantee here assumes `refs/remotes/origin/main` is the remote's.
+  A session can move that ref with `git update-ref`, or with a fetch from
+  another URL into it. Whether the deny rows stop that has not been checked.
+
 ## Out of scope, said so the next reader does not assume it
 
 - `lib/bootstrap.sh` (`origin/HEAD:` and `origin/main:` workflow probes)

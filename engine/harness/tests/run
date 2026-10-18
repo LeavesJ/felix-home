@@ -395,6 +395,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
 . "$HERE/parts/1284-land-on-green-round-4-blind.sh"
 . "$HERE/parts/1285-land-on-green-round-5-blind.sh"
 . "$HERE/parts/1286-land-on-green-round-6-blind.sh"
+. "$HERE/parts/1287-land-on-green-round-7-blind.sh"
 . "$HERE/parts/1400-judge-refs-residue-blind.sh"
 . "$HERE/parts/1401-judge-refs-residue-b-blind.sh"
 . "$HERE/parts/1402-judge-refs-residue-a12-blind.sh"

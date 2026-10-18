@@ -223,6 +223,14 @@ mtime of a session file the run could not read, is `unknown:chip-unstarted`.
 OBSERVED. `chip-unstarted` stays OBSERVED in the table: it is the absence of all
 three.
 
+## A4. A pending listing that failed is in the states (review round)
+
+The inventory spec §5.2 says a failed listing of `docs/handoff/pending/` in
+the `default` cover row's detail (`handoff sections not read`). The page reads
+no detail, so the row now also carries `unknown:handoff-pending` in its states,
+after its first word, which stays `read` (or `unknown`). Added by the review
+round's fix for its finding 1, which B4's `handoff` row relies on.
+
 ---
 
 # Part B: the lost-work page

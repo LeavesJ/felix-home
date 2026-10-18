@@ -451,23 +451,37 @@ cases are recorded and are not chased further.
   for an unenterable home never fired. The tick then could not read `.felix`
   ("Operation not permitted") and wrote an `unresolved` row. The founder gave
   `/bin/bash` Full Disk Access on 2026-10-02, for the pulse job. Two transient
-  launchd jobs measured the difference on 2026-10-18: under `/bin/sh` neither
-  `.felix` nor `git` could read the home, and under `/bin/bash` both could.
+  launchd jobs measured the difference on 2026-10-18: under `/bin/sh` the
+  shell could not read `.felix`, and under `/bin/bash` it could. In the
+  installed job's own runs under `/bin/sh`, the trampoline's `git` reads of the
+  home succeeded, and only the shell's own read was refused. A `git` success
+  therefore does not show that the shell can read, and the probe below is the
+  shell's own.
     - **The program.** The plist's `ProgramArguments` are `/bin/bash`, then the
       trampoline's path. The trampoline's first line is `#!/bin/bash`.
     - **A read, not an entry.** After it enters `$FELIX_HOME_DIR`, and before
-      anything else, the trampoline opens the home's
-      `engine/.claude-plugin/plugin.json` for reading. Opening a file is what
-      the privacy control refuses, and the file is tracked in every Felix home.
-      A permission test (`[ -r ]`) is not enough: it passes where the open is
-      refused.
-    - **What it writes.** When that open fails, the trampoline writes one row of
+      anything else, the trampoline reads one byte of the home's
+      `engine/.claude-plugin/plugin.json` with the shell's own redirection.
+      Reading a file is what the privacy control refuses, and the file is
+      tracked in every Felix home. An empty regular file, which opens and has
+      no byte to read, is not a refusal.
+    - **No test stands in for the read.** A permission or type test (`[ -r ]`,
+      `[ -f ]`, or both) is not enough: under the privacy control both pass
+      where the read is refused. A home that cannot be entered is still A10's
+      `deploy-owed` row, not this one.
+    - **What it writes.** When that read fails, the trampoline writes one row of
       kind `unreadable` whose detail names `$FELIX_HOME_DIR` and says that
       macOS may be refusing the read, and that `/bin/bash` needs Full Disk
       Access (System Settings > Privacy & Security > Full Disk Access). It sends
       a notification titled `Felix: unreadable` and exits 1. It runs no engine.
       The row and the notification are written only when they differ from the
-      previous row, as A10's are.
+      previous row, as A10's are. The trampoline's other rows keep their kind
+      `deploy-owed` and their title `Felix: deploy-owed`.
+    - **Recovery.** When the read succeeds and the ledger's newest row is of
+      kind `unreadable`, the trampoline first writes one row of kind
+      `readable` whose detail says it read `$FELIX_HOME_DIR` again, and then
+      goes on. It sends no notification for it. So a job that recovers after
+      Full Disk Access is granted says so in `last`.
     - **The status says so.** `--status` prints a fourth line after `paused`:
       `last`, then the ledger's newest row of any kind, or `none` when the
       ledger has no row. Plain, the line shows that row's time, kind and
@@ -475,6 +489,10 @@ cases are recorded and are not chased further.
       it, or `none`. The rows of each pull request seen follow it, as before.
       An install whose job cannot run therefore shows it at the next status,
       without anyone reading the ledger.
+    - **Installed jobs.** Landing this changes no installed job. A job
+      installed before it keeps its `/bin/sh` trampoline and its plist until
+      `felix land --install` is run again, on the founder's yes, which rewrites
+      both and boots the old job out first.
 
 ## Not in this
 

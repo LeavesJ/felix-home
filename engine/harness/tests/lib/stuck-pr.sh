@@ -4,7 +4,8 @@
 # lines 39, 87-88, 135-142, 144-186, 188-206 and 209-263 (_sp_put to _sp_snapall), verbatim.
 # Definitions only. _sp_build builds the fixture into $TMP/stuck-pr and writes its ledger. When the fixture is
 # already there it does nothing, so in the serial run 1300 builds it and 1310 and 1320 find the state 1300 left;
-# each of the three calls it, so each runs alone. Part 1320 removes the fixture.
+# each of the three calls it, so each runs alone. Part 1320 removes the fixture. _sp_list, which
+# 1310 and 1320 call, sets 1310's SPLIST.
 
 _sp_put() { mkdir -p "$(dirname "$1")" && LC_ALL=C sed "s#@SP@#$SP#g" > "$1" && chmod +x "$1"; }
 
@@ -138,6 +139,67 @@ _sp_snap() {   # REPO LANDDIR
   if [ -d "$2" ]; then ( cd "$2" && find . -print | LC_ALL=C sort && find . -type f -exec cksum {} + | LC_ALL=C sort ) 2>&1; fi
 }
 _sp_snapall() { _sp_snap "$SPH" "$SPLAND"; _sp_snap "$SP2" "$SP2LAND"; _sp_snap "$SP3" "$SPM/three/land"; }
+
+# Part 1310's one gh answer: SPLIST, a pull request for each state and reading of spec v2 section 8, and the
+# values it names (SPR, SP_LONG, SP_BYTES, _spt). 1320 lists it again. Moved from 1310's lines 9-63, verbatim.
+_sp_list() {   # already set, nothing
+  [ -n "${SPR:-}" ] && return 0
+  _spt="$(printf 'A%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24 25 26 27 28 29 30)"
+  SP_LONG="$_spt${_spt}BBBBBBBBBB"
+  SP_BYTES="$(printf 'notes/caf\303\251.md')"
+  SPR="projects/felix/risk.tsv:1"   # a deleted line, so whichever table rule risk.tsv falls under fires
+  SPLIST=(
+    "$(_sp_pr 150 "$SPR" green labels=FELIX:HOLD)"
+    "$(_sp_pr 149 notes/149.md:0 ctxpend)"
+    "$(_sp_pr 148 notes/148.md:0 ctxerr)"
+    "$(_sp_pr 147 notes/147.md:0 green mergeable=UNKNOWN mss=UNKNOWN)"
+    "$(_sp_pr 146 notes/146.md:0 green draft=true mergeable=UNKNOWN mss=BEHIND)"
+    "$(_sp_pr 145 notes/145.md:0 red draft=true)"
+    "$(_sp_pr 144 "$SP_BYTES:0" green)"
+    "$(_sp_pr 143 docs/2026-09-23-roadmap.md:0 green)"
+    "$(_sp_pr 142 projects/felix/claude.md:0 green)"
+    "$(_sp_pr 141 projects/felix/CLAUDE.md:0 green)"
+    "$(_sp_pr 140 notes/140.md:0 green labels=Felix:Founder)"
+    "$(_sp_pr 139 notes/139.md:0 green labels=NEEDS-FOUNDER)"
+    "$(_sp_pr 138 notes/138.md:0 green branch=shared-b)"
+    "$(_sp_pr 137 notes/137.md:0 green branch=shared-b)"
+    "$(_sp_pr 136 notes/136.md:0 green draft=true)"
+    "$(_sp_pr 135 notes/135.md:0 green)"
+    "$(_sp_pr 134 notes/134.md:0 green)"
+    "$(_sp_pr 133 notes/133.md:0 green)"
+    "$(_sp_pr 132 notes/132.md:0 green)"
+    "$(_sp_pr 131 notes/131.md:0 green)"
+    "$(_sp_pr 130 notes/130.md:0 green)"
+    "$(_sp_pr 129 riskdir/confined/a.md:0 green)"
+    "$(_sp_pr 128 riskdir/plain/a.md:0 green)"
+    "$(_sp_pr 127 riskdir/wt/a.md:0 green)"
+    "$(_sp_pr 125 projects/felix/stack.tsv:0 green)"
+    "$(_sp_pr 124 projects/felix/autonomy:0 green)"
+    "$(_sp_pr 123 .github/workflows/x.yml:0 green)"
+    "$(_sp_pr 122 projects/felix/ecosystem.tsv:0 green)"
+    "$(_sp_pr 121 projects/felix/qualification.tsv:1 green)"
+    "$(_sp_pr 120 projects/felix/qualification.tsv:0 green)"
+    "$(_sp_pr 119 "$SPR engine/harness/felix:0" green)"
+    "$(_sp_pr 118 notes/118.md:0 green title='a title\twith a tab')"
+    "$(_sp_pr 117 notes/117.md:0 none)"
+    "$(_sp_pr 116 notes/116.md:0 green mss=BEHIND)"
+    "$(_sp_pr 115 wtonly/x.md:0 green)"
+    "$(_sp_pr 114 landdir/x.md:0 green)"
+    "$(_sp_pr 113 @100 red)"
+    "$(_sp_pr 112 @100 green)"
+    "$(_sp_pr 111 engine/harness/felix:0 green)"
+    "$(_sp_pr 110 notes/110.md:0 green base=claude/other)"
+    "$(_sp_pr 109 "$SPR" green author=someone-else)"
+    "$(_sp_pr 108 "$SPR" green cross=true)"
+    "$(_sp_pr 107 notes/107.md:0 red labels=Felix:Hold mergeable=CONFLICTING mss=DIRTY)"
+    "$(_sp_pr 106 notes/106.md:0 red labels=felix:hold mergeable=CONFLICTING mss=DIRTY)"
+    "$(_sp_pr 105 notes/105.md:0 mixed title="$SP_LONG")"
+    "$(_sp_pr 104 notes/104.md:0 green mergeable=CONFLICTING mss=DIRTY)"
+    "$(_sp_pr 103 "$SPR" running)"
+    "$(_sp_pr 102 "$SPR" red)"
+    "$(_sp_pr 101 "$SPR" green)"
+  )
+}
 
 _sp_build() {   # the fixture into $TMP/stuck-pr and its first ledger; already there, nothing
   [ -n "${SPH:-}" ] && [ -d "$SPH/.git" ] && return 0

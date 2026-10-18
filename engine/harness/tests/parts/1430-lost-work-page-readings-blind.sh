@@ -55,8 +55,8 @@ for _lwk in NG GF; do
      "$(_lw_sum "$_lwt" never-proposed 9 | LC_ALL=C awk '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (index(e[i], "prs ") == 1) f = 1 } END { print (f ? "named" : "unnamed") }')" named
   _lwo="$(_lw_line "$_lwx" 'work that never reached a PR')"
   case "$_lwo" in
-    "    work that never reached a PR: at least $_lwn ("*"prs "*")") ok "$_lwc the text says work that never reached a PR: at least $_lwn, naming prs" ;;
-    *) bad "$_lwc the text says work that never reached a PR: at least $_lwn, naming prs" "[$_lwo]" ;;
+    "    work that never reached a PR: at least $_lwn ("*"prs "*")") ok "$_lwc the text says work that never reached a PR: at least its row count, naming prs" ;;
+    *) bad "$_lwc the text says work that never reached a PR: at least its row count, naming prs" "[$_lwo], wanted at least $_lwn" ;;
   esac
 done
 is "B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 16 summaries" "$(_lw_rc GF)$(_lw_rc GFX) $(_lw_n16 "$(_lw_o GF)")" "00 16"

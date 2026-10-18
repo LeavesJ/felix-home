@@ -142,7 +142,7 @@ _lw_b3() { LC_ALL=C awk -F'\t' -v land="$2" '
   END { printf "%d rows, %d in the wrong group%s", r, b, w }' "$1"; }
 _lwo="$(_lw_b3 "$P" fixture/pg)"
 case "$_lwo" in
-  *" rows, 0 in the wrong group") [ "${_lwo%% *}" -ge 25 ] && ok "B9.26: every row's group is the one B3 gives ($_lwo)" || bad "B9.26: every row's group is the one B3 gives ($_lwo)" "too few rows" ;;
+  *" rows, 0 in the wrong group") [ "${_lwo%% *}" -ge 25 ] 2>/dev/null && ok "B9.26: every row's group is the one B3 gives" || bad "B9.26: every row's group is the one B3 gives" "too few rows: $_lwo" ;;
   *) bad "B9.26: every row's group is the one B3 gives" "$_lwo" ;;
 esac
 _lw_g() { _lw_col "$P" "$1" "$2" 0 1; }   # the group cell of the page row KIND REF

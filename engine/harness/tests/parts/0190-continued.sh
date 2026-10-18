@@ -5,6 +5,7 @@
 # so a project gate that failed silently beside a failing probe was recorded
 # as `probes` alone, which gate_shown_failing excludes: held forever. And a
 # project line with no final newline had the first engine line glued onto it.
+_cmstub_build; _fh_gsf_chk_load; _fresh_repos_lock
 _fh_proj gatesplit gate.sh
 _fg_r="$(_fh_root gatesplit)"; _fg_p="$FROOT/projects/gatesplit"; _fg_l="$MEM/gatesplit/mistakes.log"
 printf 'contents\n' > "$_fg_r/WIDGET.txt"
@@ -482,3 +483,51 @@ else
   esac
 fi
 
+_fa_o="$(_fs_cm "$_fa_r")"
+grep -qx ci "$_fa_p/capabilities" 2>/dev/null \
+  && ok  "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" \
+  || bad "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" "[$(cat "$_fa_p/capabilities")]"
+case "$_fa_o" in
+  *"adopted before this run, because the checkout shows them:"*"ci("*) ok  "and the report says so, naming ci with what it added" ;;
+  *) bad "and the report says so, naming ci with what it added" "$(printf '%s\n' "$_fa_o" | head -n 4)" ;;
+esac
+is "and setup.tsv gains ci's two slug rows with {{REPO}} kept" \
+   "$(awk -F'\t' '($1 == "risk-labels" || $1 == "ci-anthropic-key") && index($4, "--repo {{REPO}}") { print $1 }' "$_fa_p/setup.tsv" | tr '\n' ' ')" \
+   "risk-labels ci-anthropic-key "
+is "so nothing is left undeclared after the run" "$(_fa_undecl)" ""
+_fa_pv0="$(_fa_pv)"
+_fa_ss="$(cd "$_fa_r" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+case "$_fa_ss" in
+  *"Adopted automatically"*)  bad "the next session start has nothing left to adopt" "$(printf '%s' "$_fa_ss" | head -c 300)" ;;
+  *'"hookSpecificOutput"'*)   ok  "the next session start has nothing left to adopt" ;;
+  *)                          bad "the next session start has nothing left to adopt" "the hook printed no banner, so no adoption line proves nothing" ;;
+esac
+_fa_pv1="$(_fa_pv)"
+if [ -n "$_fa_pv0" ] && [ "$_fa_pv0" = "$_fa_pv1" ]; then
+  ok  "and the commissioning policy version does not move"
+else
+  bad "and the commissioning policy version does not move" "[$_fa_pv0] then [$_fa_pv1]"
+fi
+_fa_rl="$(_fs_cm "$_fa_r" --status | grep 'receipt:')"
+case "$_fa_rl" in
+  ''|*"stale (table set moved"*) bad "so the receipt the run wrote is not stale at the next read" "[$_fa_rl]" ;;
+  *)                             ok  "so the receipt the run wrote is not stale at the next read" ;;
+esac
+
+cp "$_fa_p/capabilities" "$TMP/fa-caps.1"
+_fa_u="$(_fa_undecl)"
+_fa_o="$(_fs_cm "$_fa_r")"
+if [ -n "$_fa_u" ]; then
+  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "the fixture still had [$_fa_u] undeclared"
+elif ! cmp -s "$_fa_p/capabilities" "$TMP/fa-caps.1"; then
+  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "capabilities now [$(cat "$_fa_p/capabilities")]"
+else
+  case "$_fa_o" in
+    *"adopted before this run"*)     bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "$_fa_o" ;;
+    *"commissioning for adoptproj"*) ok  "a second full run with nothing undeclared prints no adoption line and changes no capability" ;;
+    *)                               bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "no report: $_fa_o" ;;
+  esac
+fi
+
+[ -n "$_fh_sp" ] && { kill "$_fh_sp" 2>/dev/null; wait "$_fh_sp" 2>/dev/null; }
+[ "$_fh_dlock_mine" -eq 1 ] && rmdir "$_fh_dlock" 2>/dev/null

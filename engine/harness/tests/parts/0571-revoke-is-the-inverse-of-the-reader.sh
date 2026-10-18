@@ -10,18 +10,11 @@ printf '\nrevoke is the inverse of the reader\n'
 RVP="$FROOT/projects/widget"; RVK="$TMP/revoke-keep"; mkdir -p "$RVK"
 _rvstart="$(ls -A "$RVP" | LC_ALL=C sort)"
 for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RVK/"; done
-_rvallows() { ( . "$FROOT/harness/lib/autonomy.sh"; felix_autonomy_allows "$RVP" "$1" && echo yes || echo no ); }
-_rvset() {   # FORMAT: F written by printf FORMAT, beside a stamp for commission, and nothing else named autonomy*
-  rm -f "$RVP"/autonomy*; printf "$1" > "$RVP/autonomy"; printf 'stamp\n' > "$RVP/autonomy.commission"
-  _rvbefore="$(_rvrest)"
-}
-_rvrest() { ls -A "$RVP" | LC_ALL=C sort | grep -vxF autonomy.commission; }   # the directory, less the stamp
 _rvrun() {   # CAP: felix autonomy --revoke CAP from the widget checkout; sets _rvrc _rvout _rverr
   ( cd "$REPO" && "$FELIX" autonomy --revoke "$1" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
   _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
 }
 _rvsaid() { case "$_rvout" in *"revoked: $1"*) echo said ;; *) echo silent ;; esac; }
-_rvstamp() { [ -e "$RVP/autonomy.commission" ] && echo kept || echo gone; }
 
 # R1: each shape the reader reads as granting commission, revoked.
 _rvset 'commission\n'; _rvrun commission
@@ -126,30 +119,10 @@ RV2K="$TMP/revoke-keep-2"; mkdir -p "$RV2K"
 _rwstart="$(ls -A "$RVP" | LC_ALL=C sort)"
 _rwmode="$(stat -c %a "$RVP" 2>/dev/null)" || _rwmode="$(stat -f %Lp "$RVP")"
 for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV2K/"; done
-_rwnl=$'\n'; _rwlocs="$(locale -a 2>/dev/null)"; _rwu=""
-for _rwl in en_US.UTF-8 C.UTF-8 en_US.utf8 C.utf8; do
-  case "$_rwnl$_rwlocs$_rwnl" in *"$_rwnl$_rwl$_rwnl"*) _rwu="$_rwl"; break ;; esac
-done
-_rwal() {   # LOCALE CAP: the reader's verdict on the widget's file, under LC_ALL=LOCALE
-  ( export LC_ALL="$1"; . "$FROOT/harness/lib/autonomy.sh"
-    felix_autonomy_allows "$RVP" "$2" && echo yes || echo no ) 2>/dev/null
-}
-_rwboth() { printf '%s:%s' "$(_rwal C "$1")" "$(_rwal "${_rwu:-C}" "$1")"; }   # CAP: under C, then UTF-8
-_rwuis() { if [ -n "$_rwu" ]; then is "$@"; else skip "$1" "no UTF-8 locale is installed"; fi; }
-_rwcli() {   # ARGS...: felix autonomy ARGS from the widget checkout; sets _rvrc _rvout _rverr
-  ( cd "$REPO" && "$FELIX" autonomy "$@" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
-  _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
-}
-_rwloc() {   # LOCALE CAP: felix autonomy --revoke CAP run under LC_ALL=LOCALE
-  ( export LC_ALL="$1"; cd "$REPO" && "$FELIX" autonomy --revoke "$2" ) > "$TMP/rv.out" 2> "$TMP/rv.err"; _rvrc=$?
-  _rvout="$(cat "$TMP/rv.out")"; _rverr="$(cat "$TMP/rv.err")"
-}
-_rwexit() { [ "$_rvrc" -ne 0 ] && echo refused || echo "exit $_rvrc"; }
-_rwsaid() { case "$_rvout$_rverr" in *"$1"*) echo said ;; *) echo silent ;; esac; }   # WORD on stdout or stderr
+_autonomy_revoke_vars
 _rwunk() { case "$_rverr" in *'unknown capability'*) echo unknown ;; *) echo unnamed ;; esac; }
 _rwsnap() { ( cd "$RVP" && for _rwf in autonomy*; do [ -e "$_rwf" ] || continue; printf '%s ' "$_rwf"; cksum < "$_rwf"; done ); }
 _rwsame() { [ "$(_rwsnap)" = "$_rwheld" ] && echo same || echo changed; }   # every autonomy* file as _rwheld recorded
-_rwis() { cmp -s "$TMP/rw.want" "$RVP/autonomy" && echo same || echo differs; }
 
 # C8: the reader's trims, before any revoke is measured against them.
 _rvset 'commission\040\040\n'
@@ -317,8 +290,6 @@ for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV3K/"; done
 _r3mode() { stat -L -c %a "$1" 2>/dev/null || stat -L -f %Lp "$1"; }   # FILE: its permission bits, through a link
 _r3ino() { ls -i "$1" | awk '{print $1}'; }   # FILE: its inode, the link's own when it is a link
 _r3type() { if [ -L "$1" ]; then echo link; elif [ -f "$1" ]; then echo regular; else echo other; fi; }
-_r3cmp() { cmp -s "$1" "$2" && echo same || echo differs; }   # A B
-_r3has() { case "$1" in *"$2"*) echo "$3" ;; *) echo "$4" ;; esac; }   # TEXT WORD IF-HELD IF-NOT
 # main's felix_autonomy_allows as of 6fe5f986, copied under another name: the
 # reader every engine before this fix still runs.
 _rvold() {
@@ -550,10 +521,6 @@ RV4K="$TMP/revoke-keep-4"; mkdir -p "$RV4K"
 _r4start="$(ls -A "$RVP" | LC_ALL=C sort)"
 _r4dmode="$(stat -c %a "$RVP" 2>/dev/null)" || _r4dmode="$(stat -f %Lp "$RVP")"
 for _rvf in "$RVP"/autonomy*; do [ -e "$_rvf" ] && mv "$_rvf" "$RV4K/"; done
-_r4cut() {   # CAP: felix autonomy --revoke CAP under C, SIGXFSZ ignored, files limited to 2 blocks
-  _rvout="$( ( trap '' XFSZ; ulimit -f 2; export LC_ALL=C; cd "$REPO" && "$FELIX" autonomy --revoke "$1" ) 2> "$TMP/rv.err" )"
-  _rvrc=$?; _rverr="$(cat "$TMP/rv.err")"
-}
 _r4long() {   # LAST: '# h', 40 comment lines of about 70 bytes, then LAST as printf writes it, beside a stamp
   rm -f "$RVP"/autonomy*; _r4i=0
   { printf '# h\n'

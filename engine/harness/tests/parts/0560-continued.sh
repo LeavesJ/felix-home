@@ -1,3 +1,4 @@
+_qualify_sweep_build
 # 10. A base whose drop cannot finish: a row's mutation makes a file in its
 # tree immutable. Its record stays, a later sweep says what is left, and
 # once the flag is cleared the next run removes it.
@@ -268,32 +269,5 @@ _qswrun "$d/r" "$T" "$R" "$d/proj" nobody
 is  "a run whose checker names no row of its table still sweeps a dead base in its TMPDIR, registration included, and prints nothing" \
     "$(_qswgone "$_qswp1" "$T/felix-qualify.NONSEL" "$R" "$Tp/felix-qualify.NONSEL/w") stdout:[$(cat "$d/r/out" 2>/dev/null)]" "gone stdout:[]"
 
-# What the section made, stopped and removed whatever the assertions said:
-# its groups if any still run, the sleep, every path mktemp handed a run here,
-# the immutable flags, its roots' registrations, then all of it.
-[ -n "$QSWLIVE" ] && { kill -s KILL "$QSWLIVE" 2>/dev/null; wait "$QSWLIVE" 2>/dev/null; }
-while IFS= read -r _qswp; do
-  [ -n "$_qswp" ] || continue
-  [ "$(ps -o ppid= -p "$_qswp" 2>/dev/null | tr -d ' ')" = "$$" ] && _qswstop "$_qswp"
-done < "$QSWS/pids"
-find "$QSWS" -type f -name made 2>/dev/null > "$TMP/qual-sweep-made"
-while IFS= read -r _qswm; do
-  while IFS= read -r _qswp; do
-    case "$_qswp" in /?*) ;; *) continue ;; esac
-    if [ -e "$_qswp" ] || [ -L "$_qswp" ]; then
-      find "$_qswp" -type d -exec chmod u+rwx {} \; 2>/dev/null
-      if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$_qswp" 2>/dev/null; fi
-      rm -rf "$_qswp" 2>/dev/null
-    fi
-  done < "$_qswm"
-done < "$TMP/qual-sweep-made"
-rm -f "$TMP/qual-sweep-made"
-find "$QSWS" -type d ! -perm -0700 -exec chmod u+rwx {} \; 2>/dev/null
-if command -v chflags >/dev/null 2>&1; then chflags -R nouchg "$QSWS" 2>/dev/null; fi
-while IFS= read -r _qswr; do
-  [ -d "$_qswr/.git" ] || continue
-  rm -f "$_qswr"/.git/worktrees/*/locked 2>/dev/null
-  _fx_git "$_qswr" worktree prune >/dev/null 2>&1
-done < "$QSWS/roots"
-rm -rf "$QSWS"
+_qualify_sweep_cleanup
 

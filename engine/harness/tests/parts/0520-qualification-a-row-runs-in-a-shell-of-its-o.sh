@@ -18,6 +18,7 @@ printf '\nqualification: a row runs in a shell of its own\n'
 # its first line. That is far more than a pipe holds, so the producer is
 # certainly still writing when grep leaves, and the miss does not depend on
 # load. Authored blind to the runner's source, from the contract in prose.
+_widget_repo_build
 QFRP="$TMP/qual-fresh"; QFRR="$TMP/qual-fresh-repo"; QFRS="$TMP/qual-fresh-side"
 mkdir -p "$QFRP" "$QFRR" "$QFRS" "$MEM/qual-fresh"
 ( _fx_cd "$QFRR" && git init -q -b main && printf 'clean\n' > base.txt && git add -A \

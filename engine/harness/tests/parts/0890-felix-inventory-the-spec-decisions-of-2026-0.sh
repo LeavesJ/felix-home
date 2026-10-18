@@ -22,6 +22,8 @@
 # D1, D2 and D4 are built on a fourth repository, doohickey, so nothing above
 # changes its fixture; D3 and D5 read the runs above as well.
 printf '\nfelix inventory: the spec decisions of 2026-09-24\n'
+_iv_build runs
+_ivz_build runs
 IVW4="$IV/work4"; IVK="$IVW4/doohickey"; IVKO="$IV/origin4.git"
 mkdir -p "$IVW4"
 _ivrepo "$IVKO" "$IVK" acme/doohickey

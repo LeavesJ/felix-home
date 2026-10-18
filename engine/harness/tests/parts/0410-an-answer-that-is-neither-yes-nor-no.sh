@@ -1,4 +1,5 @@
 printf '\nan answer that is neither yes nor no\n'
+_oblig_build
 # Three columns ask a command a yes/no question from the repo root: an
 # obligation's `applies`, a probe row's `when`, and its `witness`. Each read
 # every non-zero exit but 126/127 as "no" — so an ask that CRASHED (grep on a

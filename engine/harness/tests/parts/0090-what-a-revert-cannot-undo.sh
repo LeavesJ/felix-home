@@ -1,4 +1,5 @@
 printf '\nwhat a revert cannot undo\n'
+_widget_repo_build
 # A tier used to be a function of which file you touched, and that is what sent
 # a one-line dependency-floor correction to the founder for a day. The question
 # a stop must answer is not "is this file important" but "does merging write

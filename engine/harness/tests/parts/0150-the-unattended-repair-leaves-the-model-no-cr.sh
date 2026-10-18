@@ -1,4 +1,5 @@
 printf '\nthe unattended repair leaves the model no credential to copy\n'
+_attempt_build
 # Both checkouts left a credential on the runner for the model step to read.
 # actions/checkout persists what it fetched with unless told otherwise: the
 # job's token as an http.extraheader in repo/.git/config, and the deploy key as
@@ -210,13 +211,7 @@ has "entries older than a day do not count" "$out" "used:   2"
 # a cloud session runs as root, so there the refusal cannot be built. Those
 # assertions skip, not pass, and not fail on a write that was never refused,
 # which also left the probe's row in the log for the control below to count.
-mkdir "$TMP/mode-555"; chmod 555 "$TMP/mode-555"
-printf 'x\n' > "$TMP/mode-444"; chmod 444 "$TMP/mode-444"
-_unwritable=1
-( : > "$TMP/mode-555/x" ) 2>/dev/null && _unwritable=0
-( printf 'x\n' >> "$TMP/mode-444" ) 2>/dev/null && _unwritable=0
-chmod 755 "$TMP/mode-555"; chmod 644 "$TMP/mode-444"
-_nowrite="this user writes through a mode of 555 or 444, so no write can be refused"
+_unwritable_probe
 rm -f "$FROOT/projects/widget/budget.log"
 python3 - "$FROOT/projects/widget/project.json" <<'PYJ'
 import json,sys,pathlib

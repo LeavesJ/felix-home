@@ -23,6 +23,7 @@
 # a minute on, a non-empty devlog, the row the file's order picks, the file's
 # time for an untimed row, and a sibling's own lesson. Only the owner is new.
 printf '\nunrecorded catches, per checkout (blind)\n'
+_memory_guarded_build
 
 _B="$MEM/guarded"; _BM="$_B/mistakes.log"; _BL="$_B/lessons.md"; _BD="$_B/DEVLOG.md"
 _BFIRST='The gate caught something here and nothing has been written down since.'

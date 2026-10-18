@@ -1,3 +1,7 @@
+_plain_build; _hook_payload_vars; _user_prompt_hook_vars
+_widget_repo_build
+_router_build routed
+_says_mandates_build
 out="$(cd "$PLAIN" && "$FELIX" route --for "build the results page" 2>&1)"; rc=$?
 [ "$rc" -ne 0 ] && ok "route refuses outside a governed repo" \
                 || bad "route refuses outside a governed repo" "$out"

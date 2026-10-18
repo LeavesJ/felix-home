@@ -794,7 +794,9 @@ _fx_exit() {   # RC -> RC, or 1 where RC is 0 and a check here failed
 }
 trap '_fx_rc=$?; set +u; '"$_tmp_pid"'; if [ "$_tmp_me" = "$_tmp_by" ]; then _fx_exit "$_fx_rc"; _fx_rc=$?; rm -rf "$TMP"; fi; exit "$_fx_rc"' EXIT
 # The suite under test as the one file it was before 2026-10-10: the driver
-# with each `. "$HERE/parts/NAME"` line replaced by that part. The checks that
+# with each `. "$HERE/parts/NAME"` and each `. "$HERE/lib/NAME"` line replaced
+# by that file (a lib file is where a helper two parts share lives, contract C2,
+# and a lint that read the parts must read it too, C3). The checks that
 # cut the preamble and one section out of the suite and run them alone, the
 # lint over every fixture line, and the pin on _ff_case were written against
 # one file, and on the driver alone they would read no section at all (its
@@ -807,10 +809,11 @@ _suite_flat() {
   # An if, not `[ -s ] || awk && mv`: that reads as (A || B) && C, so once the
   # file was made every later call ran the mv, found no .part and returned 1.
   if [ ! -s "$f" ]; then
-    LC_ALL=C awk -v d="$d/parts/" '
-      /^\. "\$HERE\/parts\/[^"\/]+"$/ { n = substr($0, 16, length($0) - 16)
-        if ((getline l < (d n)) <= 0) { bad = 1; exit }
-        print l; while ((getline l < (d n)) > 0) print l; close(d n); next }
+    LC_ALL=C awk -v d="$d/" '
+      /^\. "\$HERE\/parts\/[^"\/]+"$/ { n = "parts/" substr($0, 16, length($0) - 16) }
+      /^\. "\$HERE\/lib\/[^"\/]+"$/   { n = "lib/" substr($0, 14, length($0) - 14) }
+      n != "" { if ((getline l < (d n)) <= 0) { bad = 1; exit }
+        print l; while ((getline l < (d n)) > 0) print l; close(d n); n = ""; next }
       { print } END { exit bad }' "$d/run" > "$f.part" && mv "$f.part" "$f" || { rm -f "$f.part"; return 1; }
   fi
   printf '%s' "$f"
@@ -825,8 +828,10 @@ _suite_preamble="0001-the-origin-guard-and-the-temporary-directory.sh 0002-fixtu
 # kept, those parts copied into DIR/parts, and the source lines of the parts
 # STUB... (names in DIR/parts, which the caller writes) in place of the first
 # other part line, every later one dropped: where the suite's own first part
-# stood. The harness's felix is copied beside DIR as well, since the driver
-# refuses a REAL_HARNESS without felix and lib/ (the caller copies lib/).
+# stood. The lib lines are dropped as well: they follow that first part line, and
+# a copy holds no tests/lib. The harness's felix is copied beside DIR as well,
+# since the driver refuses a REAL_HARNESS without felix and lib/ (the caller
+# copies lib/).
 # Returns 1, with no DIR/run, when a preamble part or felix cannot be copied.
 _suite_copy_driver() {
   local run="$1" dir="$2" p; shift 2
@@ -834,6 +839,7 @@ _suite_copy_driver() {
   for p in $_suite_preamble; do cp "${run%/*}/parts/$p" "$dir/parts/$p" || return 1; done
   cp "${run%/*}/../felix" "$dir/../felix" || return 1
   LC_ALL=C awk -v pre=" $_suite_preamble " -v stubs="$*" '
+    index($0, ". \"$HERE/lib/") == 1 { next }
     index($0, ". \"$HERE/parts/") == 1 {
       n = substr($0, 16, length($0) - 16)
       if (index(pre, " " n " ")) { print; next }
@@ -841,3 +847,24 @@ _suite_copy_driver() {
       next }
     { print }' "$run" > "$dir/run"
 }
+
+# The suite's own files, one path a line and nothing else: every part, every lib
+# file (tests/lib/*.sh, where a helper two parts share lives, contract C2) and,
+# last, the driver. Every check that reads the suite's own text reads it through
+# this, _suite_src or _suite_flat, so code moved from a part into tests/lib
+# stays under the lint that read it there (contract C3). $HERE is the tests
+# directory read: the driver's, or a copy's where a check points HERE at one.
+_suite_files() {
+  local f
+  for f in "$HERE"/parts/*.sh "$HERE"/lib/*.sh "$HERE/run"; do
+    [ -f "$f" ] && printf '%s\n' "$f"
+  done
+  return 0
+}
+# The text of those files as one stream, the driver last: a check that wants the
+# last section-header-shaped line (the completion marker) finds the driver's.
+_suite_src() {
+  local f
+  while IFS= read -r f; do cat "$f"; done < <(_suite_files)
+}
+

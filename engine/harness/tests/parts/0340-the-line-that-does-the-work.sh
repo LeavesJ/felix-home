@@ -12,41 +12,7 @@ printf '\nthe line that does the work\n'
 # gh is stubbed here rather than called. The point is not that gh works; it is
 # that Felix hands it something it will accept, which is exactly the half no
 # test covered.
-GHB="$TMP/ghstub"; mkdir -p "$GHB"
-cat > "$GHB/gh" <<'STUB'
-#!/usr/bin/env bash
-printf '%s\n' "$*" >> "$GHSTUB_LOG"
-case "$1 $2" in
-  "pr view") printf '{"number":7,"state":"OPEN"}\n' ;;
-  "pr merge")
-    # Reproduce gh's own precondition rather than trusting it: --repo demands a
-    # PR selector, and a selector is any bare argument after `merge`.
-    sel=0; skip=0
-    for a in "${@:3}"; do
-      [ "$skip" -eq 1 ] && { skip=0; continue; }
-      case "$a" in --repo|--body|--subject) skip=1 ;; --*) ;; *) sel=1 ;; esac
-    done
-    case " $* " in *" --repo "*) [ "$sel" -eq 1 ] || {
-        echo "argument required when using the --repo flag" >&2; exit 1; } ;;
-    esac
-    printf 'merged\n' ;;
-esac
-exit 0
-STUB
-chmod +x "$GHB/gh"
-
-# Its own checkout, because the main fixture is deliberately remote-less and
-# felix merge dies on "no github remote" long before it reaches gh.
-MR="$TMP/mergerepo"; mkdir -p "$MR"
-( _fx_cd "$MR" && git init -q -b main \
-  && git remote add origin https://github.com/example/widget.git )
-MR="$(cd "$MR" && pwd -P)"
-printf 'widget\n' > "$MR/.felix"; printf 'contents\n' > "$MR/WIDGET.txt"
-( _fx_cd "$MR" && git add -A >/dev/null 2>&1 \
-  && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
-printf 'a change to merge\n' > "$MR/README.md"
-( _fx_cd "$MR" && git add -A >/dev/null 2>&1 \
-  && git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 )
+_merge_repo_build
 
 export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
@@ -487,3 +453,72 @@ _sgrefused "while the raw copy the suite used to take is refused as a judge" \
 has "and the refusal names the stray, which is all the incident ever printed" \
     "$(cat "$TMP/sg.out")" ".claude-flow"
 
+# The rest of the copy's contract, each line of it a way the rule above could
+# be kept and the suite still be wrong. Work not yet added to git is under
+# test, so untracked-and-not-ignored is carried; the CLI is run from the copy,
+# so its bit survives; a tracked file deleted from disk is in git's listing
+# and nowhere else, and the copy must still finish and say it succeeded. And
+# where git tracks nothing under the source there is no rule to apply and the
+# directory is copied whole — asked as "does git track anything here" and
+# never as "is this inside a repository", because the plugin cache, where a
+# copy of this suite also sits, was inside one, a home directory under version
+# control, and an ignore rule there lists an empty harness. The fixture is
+# that layout.
+printf 'not added yet\n' > "$INC/engine/harness/lib/unadded.sh"
+_copy_content "$INC/engine/harness" "$TMP/incident-copy"
+[ -f "$TMP/incident-copy/lib/unadded.sh" ] \
+  && ok  "work not yet added to git is still carried into the copy" \
+  || bad "work not yet added to git is still carried into the copy" "lib/unadded.sh was left behind"
+[ -x "$TMP/incident-copy/felix" ] \
+  && ok  "and the CLI keeps its executable bit through it" \
+  || bad "and the CLI keeps its executable bit through it" "felix is not executable in the copy"
+mv "$INC/engine/harness/lib/say.sh" "$TMP/incident-say.aside"
+_copy_content "$INC/engine/harness" "$TMP/incident-copy2"; _incrc=$?
+if [ "$_incrc" -eq 0 ] && [ -f "$TMP/incident-copy2/felix" ] && [ ! -e "$TMP/incident-copy2/lib/say.sh" ]; then
+  ok  "a tracked file missing from disk does not stop the copy"
+else
+  bad "a tracked file missing from disk does not stop the copy" "rc=$_incrc, felix copied: $([ -f "$TMP/incident-copy2/felix" ] && echo yes || echo no)"
+fi
+mv "$TMP/incident-say.aside" "$INC/engine/harness/lib/say.sh"
+INCH="$TMP/incident-home"; mkdir -p "$INCH/cache/harness/.claude-flow/data"
+printf 'a home directory under version control\n' > "$INCH/README"
+printf 'cache/\n' > "$INCH/.gitignore"
+printf '#!/bin/sh\n' > "$INCH/cache/harness/felix"
+printf '{}\n' > "$INCH/cache/harness/.claude-flow/data/pending-insights.jsonl"
+( _fx_cd "$INCH" && git init -q -b main && git add -A >/dev/null \
+  && git -c user.name=t -c user.email=t@t commit -qm home >/dev/null )
+_copy_content "$INCH/cache/harness" "$TMP/incident-cache-copy"
+is "a directory git tracks nothing under is copied whole, even inside a repository that ignores it" \
+   "$(find "$TMP/incident-cache-copy" -type f 2>/dev/null | grep -c .)" "2"
+
+# (d) The same fixture, untouched, merges — the assertion every refusal above
+# borrows its meaning from. The entry named is the version directory main
+# declares, the parent of the harness that judged and not the harness itself;
+# the pattern admits any spelling of the cache path and no other suffix.
+_sgrecord; _sgmerge
+is "a faithful cache entry still merges a self-governed branch" "$SGMERGES" "1"
+grep -Eq 'judged by [^ ]*/1\.0\.0, the engine main declares, byte-identical to main\.' "$TMP/sg.out" \
+  && ok  "and the merge names the entry main declares, not the harness inside it" \
+  || bad "and the merge names the entry main declares, not the harness inside it" "$(cat "$TMP/sg.out")"
+_sgm="$(_sgline 'merged. nothing in it escaped the tree')"; _sgj="$(_sgline 'judged by ')"
+if [ -n "$_sgm" ] && [ -n "$_sgj" ] && [ "$_sgj" -gt "$_sgm" ]; then
+  ok  "and names the judge only after the merge is reported"
+else
+  bad "and names the judge only after the merge is reported" \
+      "merged at line [$_sgm], judged-by at line [$_sgj]: $(cat "$TMP/sg.out")"
+fi
+( _fx_cd "$SG" && git checkout -q feature && git branch -qD pinned )
+rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
+
+# And the product that ships no engine is still left alone — now with the one
+# variable that refuses a self-governed repository outright set in its
+# environment, and no cache to find a judge in.
+: > "$TMP/gh.prod.log"
+( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
+_cm_stamp "$MR"
+( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
+    FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" FELIX_KERNEL="$KC2/1.0.0/harness" \
+    "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+is "a governed product merges with FELIX_KERNEL set and no engine installed" \
+   "$(grep -c '^pr merge' "$TMP/gh.prod.log" | tr -d ' ')" "1"

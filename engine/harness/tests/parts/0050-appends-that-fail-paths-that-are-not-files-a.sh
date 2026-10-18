@@ -476,3 +476,36 @@ is "recording a mistake onto a mistakes.log ending in a newline adds no blank li
 is "recording a mistake onto a mistakes.log ending in a NUL byte writes a newline after the NUL first" \
    "$(_anl3_norm "$_anl3/mem/e-nul/mistakes.log" "$_anl3_EL")" "$(_anl3_want '%s\0\n9-9-9\t?\t?\tanl-lint\t9\t-\n' "${_anl3_EO%$'\n'}")"
 
+# ------------------------------------------------------------- the restore ----
+_anl3_i=0
+for _f in $_anl3_wfiles; do
+  _anl3_i=$((_anl3_i + 1))
+  _anl3_clear "$_f"
+  [ -e "$_anl3/keep.$_anl3_i" ] && cp -p "$_anl3/keep.$_anl3_i" "$_f"
+done
+[ "$_anl3_had_gp" -eq 1 ] || rm -rf "$_anl3_GP"
+[ "$_anl3_had_gm" -eq 1 ] || rm -rf "$MEM/anl3gate"
+[ -n "$_anl3_receipt" ] && rm -f "$_anl3_receipt"
+[ "$_anl3_had_gate" -eq 1 ]  || rmdir "$FROOT/state/gate" 2>/dev/null
+[ "$_anl3_had_disc" -eq 1 ]  || rmdir "$FROOT/state/discover" 2>/dev/null
+[ "$_anl3_had_state" -eq 1 ] || rmdir "$FROOT/state" 2>/dev/null
+_anl3_back=""
+_anl3_i=0
+for _f in $_anl3_wfiles; do
+  _anl3_i=$((_anl3_i + 1))
+  if [ -e "$_anl3/keep.$_anl3_i" ]; then cmp -s "$_f" "$_anl3/keep.$_anl3_i" || _anl3_back="$_anl3_back $_f"
+  else { [ ! -e "$_f" ] && [ ! -L "$_f" ]; } || _anl3_back="$_anl3_back $_f"; fi
+done
+[ "$(_anl3_modes)" = "$_anl3_modes_was" ] || _anl3_back="$_anl3_back modes[$(_anl3_modes | tr '\n' ' ')]"
+{ [ "$_anl3_had_gp" -eq 1 ] || [ ! -e "$_anl3_GP" ]; } || _anl3_back="$_anl3_back projects/anl3gate"
+{ [ "$_anl3_had_gm" -eq 1 ] || [ ! -e "$MEM/anl3gate" ]; } || _anl3_back="$_anl3_back memory/anl3gate"
+[ ! -e "$_anl3_receipt" ] || _anl3_back="$_anl3_back receipt"
+{ [ "$_anl3_had_disc" -eq 1 ] || [ ! -e "$FROOT/state/discover" ]; } || _anl3_back="$_anl3_back state/discover"
+{ [ "$_anl3_had_gate" -eq 1 ] || [ ! -e "$FROOT/state/gate" ]; } || _anl3_back="$_anl3_back state/gate"
+# git writes its objects read-only on purpose; those modes are git's, not ours.
+_anl3_locked="$(find "$_anl3" -path "$_anl3/gate-repo/.git" -prune -o -type f ! -perm -600 -print 2>/dev/null)"
+[ -z "$_anl3_locked" ] || _anl3_back="$_anl3_back still-locked[$(printf '%s' "$_anl3_locked" | tr '\n' ' ')]"
+for _anl3_j in $(jobs -p); do
+  case "$_anl3_jobs_was" in *" $_anl3_j "*) ;; *) _anl3_back="$_anl3_back background-job[$_anl3_j]" ;; esac
+done
+is "and the widget files, the invented gate project and every mode the third block changed are back as they were" "$_anl3_back" ""

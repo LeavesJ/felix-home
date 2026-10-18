@@ -1,4 +1,5 @@
 printf '\nscheduled maintenance\n'
+_widget_repo_build
 {
   printf 'weekly-thing\t7\talways\tan aggregated cleanup\n'
   printf 'monthly-thing\t30\talways\ta drift report\n'
@@ -287,19 +288,19 @@ grep -q "## Where" "$MEM/widget/SESSION_HANDOFF.md" \
 # success over a note from two sessions earlier. The library carries a note
 # across a regeneration on purpose; the defect is the call site, so the call
 # site is what is tested.
-_hn() { sed -n 's/^- what was in progress: //p' "$MEM/widget/SESSION_HANDOFF.md" | head -1; }
+_hnote() { sed -n 's/^- what was in progress: //p' "$MEM/widget/SESSION_HANDOFF.md" | head -1; }
 ( cd "$MEMREPO" && "$FELIX" handoff --was "set with the flag" >/dev/null 2>&1 )
-is  "handoff --was still records the note" "$(_hn)" "set with the flag"
+is  "handoff --was still records the note" "$(_hnote)" "set with the flag"
 ( cd "$MEMREPO" && "$FELIX" handoff "given as words" "not a flag" >/dev/null 2>&1 ); _hrc=$?
-is  "a note typed without --was is recorded, not dropped" "$(_hn)" "given as words not a flag"
+is  "a note typed without --was is recorded, not dropped" "$(_hnote)" "given as words not a flag"
 is  "and the command succeeds"                            "$_hrc" "0"
 _ho="$(cd "$MEMREPO" && "$FELIX" handoff --wsa "misspelled" 2>&1)"; _hrc=$?
 is  "an unrecognised flag refuses rather than printing success" "$_hrc" "1"
 has "and says how the command is used"                          "$_ho" "usage"
-is  "and leaves the recorded note as it was"                    "$(_hn)" "given as words not a flag"
+is  "and leaves the recorded note as it was"                    "$(_hnote)" "given as words not a flag"
 ( cd "$MEMREPO" && "$FELIX" handoff --was "one" "two" >/dev/null 2>&1 ); _hrc=$?
 is  "a note given twice, by flag and by words, refuses"         "$_hrc" "1"
-is  "and records neither"                                       "$(_hn)" "given as words not a flag"
+is  "and records neither"                                       "$(_hnote)" "given as words not a flag"
 # The stale note that started this: nothing given, an old note carried, and
 # nothing said. Carrying stays; silence does not.
 _ho="$(cd "$MEMREPO" && "$FELIX" handoff 2>&1)"

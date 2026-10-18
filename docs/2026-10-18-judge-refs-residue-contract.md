@@ -28,18 +28,30 @@ NAME is the base argument, ROOT a repository. A "decoy" is a ref at a
 different commit from the one meant: `refs/tags/X`, `refs/heads/X` or
 `refs/X`, for X the short name a reader would otherwise pass to git.
 
-- **A1.** `felix_base_ref ROOT NAME`, NAME not starting `refs/`. When
-  `refs/remotes/origin/NAME` names a commit, it prints exactly
+- **A1.** `felix_base_ref ROOT NAME`, for a NAME that starts with neither
+  `refs/` nor `origin/`. When a ref of exactly the name
+  `refs/remotes/origin/NAME` exists and names a commit, it prints exactly
   `refs/remotes/origin/NAME` and exits 0. Decoys for `origin/NAME`, and for
   NAME itself, change nothing, whether one at a time or all at once.
-- **A2.** Otherwise, when `refs/remotes/NAME` names a commit (NAME is already
-  a remote-tracking name such as `origin/main`), it prints exactly
-  `refs/remotes/NAME`. Decoys for NAME change nothing.
-- **A3.** Otherwise, when `refs/heads/NAME` names a commit, it prints exactly
-  `refs/heads/NAME`. A tag named NAME, or `refs/NAME`, changes nothing.
-- **A4.** Otherwise, NAME is taken as given (a sha, `HEAD~1`, a tag's name):
-  when `NAME^{commit}` resolves, it prints NAME unchanged. When it does not,
-  it exits non-zero and prints nothing on stdout.
+- **A2.** NAME of the form `origin/X`, which a caller may pass. When
+  `refs/remotes/origin/X` names a commit, it prints exactly that and exits 0.
+  Otherwise it exits non-zero and prints nothing. It never prints, and never
+  resolves through, any of these:
+  - `refs/tags/origin/X`
+  - `refs/heads/origin/X`
+  - `refs/origin/X`
+  - `refs/remotes/origin/origin/X`
+- **A3.** NAME as in A1, with no such remote-tracking ref. When a ref of
+  exactly the name `refs/heads/NAME` names a commit, it prints exactly
+  `refs/heads/NAME`. A tag named NAME, `refs/NAME` or `refs/remotes/NAME`
+  changes nothing. (The last one must not win over the local branch, as it
+  does not in git's own order.)
+- **A4.** Otherwise NAME is taken as given (a sha, `HEAD~1`, a tag's name).
+  When `NAME^{commit}` resolves, it prints NAME unchanged. When it does not,
+  it exits non-zero and prints nothing on stdout. A1 and A3 look up refs of
+  exactly those names. A NAME that carries a revision suffix is not such a
+  ref. So `HEAD~1` means this repository's `HEAD~1` even when
+  `refs/remotes/origin/HEAD` exists, which a clone always has.
 - **A5.** NAME starting `refs/` is unchanged from today. It is printed as
   given when it names a commit; otherwise the function exits non-zero and
   prints nothing.

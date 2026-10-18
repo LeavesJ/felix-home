@@ -1,4 +1,4 @@
-# tests/lib/land-on-green.sh: the land-on-green fixture, its helpers, and the builder that gives parts 1280-1287 the same state.
+# tests/lib/land-on-green.sh: the land-on-green fixture, its helpers, and the builder that gives parts 1280-1289 the same state.
 # Used by 1280 (builds it) and 1281 to 1289, each of which calls _lg_build (1287 landed with A30 and 0.49.295,
 # 1288 and 1289 with A31 and 0.49.297). Moved from parts/1280-land-on-green-blind.sh: lines 24-28, 30-94, 96-150, 166-179 and 183
 # (the fixture, now step base of _lg_build), line 29 (_lg_put), lines 151-165 (_lg_branch, _lg_more, _lg_sha) and

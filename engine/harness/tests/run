@@ -373,6 +373,7 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/parts/1330-stuck-pr-page-review-blind.sh"
 . "$HERE/parts/1340-stuck-pr-page-amendments-blind.sh"
 . "$HERE/parts/1350-stuck-pr-page-terminal-and-risk-blind.sh"
+. "$HERE/parts/1360-stuck-pr-page-last-ledger-row-blind.sh"
 . "$HERE/parts/1500-git-colour-never-reaches-what-the-engine-parses.sh"
 . "$HERE/parts/1510-no-caller-environment-changes-a-tool-s-output.sh"
 . "$HERE/parts/1520-git-readers-fail-closed.sh"

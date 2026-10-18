@@ -626,16 +626,16 @@ rm -rf "$DB2/n/ord"
 
 # ---- a unit that waited for a slot (D3, D4, D6): the note says how long, and the duration written does not count the wait
 for _db2_a in 0010-wa.sh 0020-wb.sh; do _db2_w wt "$_db2_a" <<'X'
-perl -e 'sleep 4'
+perl -e 'sleep 6'
 ok "djy $DJ2N"
 X
 done
 _db2_new wt "$DB2/g-empty.tsv" + "$DB2/pp/wt"/*.sh; _db2_S=1; _db2_go a -j 2; _db2_wait
 _db2_nt="$(grep '^  note  ' "$_db2_c/a.out")"; _db2_nu="$(printf '%s' "$_db2_nt" | awk '{ print $2 }')"; _db2_ns="$(printf '%s' "$_db2_nt" | awk '{ print $4 }')"
 _db2_dd="$(awk -F'\t' '{ d[NR] = $1 } END { x = d[1] - d[2]; if (x < 0) x = -x; print NR, x }' "$_db2_F/.git/felix-suite-durations" 2>/dev/null)"
-is "D3: with one slot the unit that waited gets one note, whose seconds are at least the 4 s the other held the slot, and not an assertion" \
-   "$_db2_rc $(printf '%s' "$_db2_nt" | awk 'END { print NR }') ${_db2_nu:+named} $([ "${_db2_ns:-0}" -ge 4 ] 2>/dev/null && echo long || echo "S=${_db2_ns:-none}")" "0 1 named long"
-is "D4: and the durations of the two units differ by under 3 s, so the one that waited is not charged for the wait (it would be about 4 s more)" "${_db2_dd%% *} $([ "${_db2_dd#* }" -lt 3 ] 2>/dev/null && echo near || echo "apart [$_db2_dd]")" "2 near"
+is "D3: with one slot the unit that waited gets one note, whose seconds are at least the 6 s the other held the slot, and not an assertion" \
+   "$_db2_rc $(printf '%s' "$_db2_nt" | awk 'END { print NR }') ${_db2_nu:+named} $([ "${_db2_ns:-0}" -ge 6 ] 2>/dev/null && echo long || echo "S=${_db2_ns:-none}")" "0 1 named long"
+is "D4: and the durations of the two units differ by under 5 s, so the one that waited is not charged for the wait (it would be 6 s or more apart)" "${_db2_dd%% *} $([ "${_db2_dd#* }" -lt 5 ] 2>/dev/null && echo near || echo "apart [$_db2_dd]")" "2 near"
 rm -rf "$DB2/n/wt"
 
 # ---- what the parent prints of a unit (D3): what comes after the mark stays, the runner's own lines and the prelude's prefix do not show

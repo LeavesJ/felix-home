@@ -1,7 +1,8 @@
 # >>> judge-refs-residue-b
 printf '\njudge refs and residue: residue from the committed rules of main (contract B1-B10, blind)\n'
 # Blind, from the same contract as part 1400, whose helpers (_jr_*) and merge
-# and gate fixtures (JS, JG) this part uses; the same files were not read. The
+# and gate fixtures (JS, JG) this part uses, from tests/lib/judge-refs.sh,
+# building its own (gate friction C); the same files were not read. The
 # comparison is driven as 1282 and 1284 drive it: this tree's lib/resolve.sh,
 # the plugins cache root in FELIX_PLUGIN_CACHE, and FELIX_KERNEL_CACHE unset.
 #
@@ -9,6 +10,7 @@ printf '\njudge refs and residue: residue from the committed rules of main (cont
 # under *.log, and a file named out that the rule out/ names only as a
 # directory. Its rules are the root's .gitignore and engine/harness/tests'
 # (scratch/). E is the cache entry for main's 4.0.0, cut from the commit.
+. "$HERE/lib/judge-refs.sh"   # its helpers and builders, shared with 1400
 JB="$TMP/jr-b"; JBR="$JB/home"; JBC="$JB/cache"; JBV="$JBC/felix/felix"; JBE="$JBV/4.0.0"
 mkdir -p "$JBR/engine/harness/lib" "$JBR/engine/harness/tests" "$JBR/engine/hooks" "$JBR/engine/commands" "$JBV"
 JBR="$(cd "$JBR" && pwd -P)"
@@ -270,7 +272,9 @@ is "B9 (control): and so does one in LIVE: exit 0" "$JBRC" "0"
 
 # -------------------------------------------------- B10: the callers judge so ---
 # E is main plus commands/extra.md, in a home whose engine/ holds an untracked
-# .gitignore of *. Part 1400's checkouts: JS for felix merge, JG for the gate.
+# .gitignore of *. 1400's checkouts, built again here: JS for felix merge, JG for
+# the gate.
+_jr_project; _js_build; _js_entry; _jg_build; [ "$JG_ON" = 1 ] && _jg_entry
 _js_entry; printf 'not main\n' > "$JSK/1.0.0/commands/extra.md"; _js_dry
 _js_refused "B10 (no .gitignore) (fixture control): with the entry main plus commands/extra.md, felix merge --dry-run refuses: the judge is not the engine main accepted"
 printf '*\n' > "$JSR/engine/.gitignore"; _js_dry
@@ -282,5 +286,5 @@ _jg_check "B10 (no .gitignore) (fixture control): with the entry main plus comma
 _jg_check "B10: with an untracked engine/.gitignore of * in the home, installed still fails" "FAIL|0"
 [ "$JG_ON" = 1 ] && { rm -f "$JGT/engine/.gitignore"; _jg_entry; }
 
-# The project 1400 made, and this part's checkouts, are taken away again.
-rm -rf "$FROOT/projects/jrr" "$MEM/jrr" "$JR" "$JS" "$JG" "$JB"
+# The project and checkouts this part made are taken away again.
+rm -rf "$FROOT/projects/jrr" "$MEM/jrr" "$JS" "$JG" "$JB"

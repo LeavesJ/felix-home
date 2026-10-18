@@ -54,7 +54,6 @@ _lg_reset; mkdir -p "$LAND"; printf 'held for the test\n' > "$LAND/paused"
   printf '2026-10-15T00:05:00Z\tsession\t5\t%s\t-\t1\tno checkout holds the gated head\n' "$(_lg_sha 21)"
   printf '2026-10-15T00:06:00Z\tlanded\t6\t%s\t%s\t3\tmerged\n' "$(_lg_sha 22)" "$LGW/b22"
   printf '2026-10-15T00:07:00Z\tpaused\t-\t-\t-\t0\theld for the test\n'; } > "$LAND/ledger.tsv"
-_lgsnap() { ( cd "$LAND" 2>/dev/null && find . -exec cksum {} + 2>/dev/null | LC_ALL=C sort ); ls -la "$LGU/Library/LaunchAgents" 2>/dev/null; }
 _lgs0="$(_lgsnap)"
 _lg_land --status --tsv; _lgo="$(cat "$LG/out")"
 is "G9: --status --tsv exits 0" "$LGRC" 0

@@ -31,6 +31,9 @@ _lg_more() {   # NAME FILE -> one more commit on worktree NAME; prints the new h
   git -C "$LGW/$1" rev-parse HEAD
 }
 _lg_sha() { LC_ALL=C awk -F'\t' -v n="$1" '$1 == n { print $2 }' "$LG/shas"; }
+# _lgsnap: what the land directory and LaunchAgents hold, to show a command wrote nothing there.
+# Moved from parts/1280-land-on-green-blind.sh line 57; 1280 and 1288 call it.
+_lgsnap() { ( cd "$LAND" 2>/dev/null && find . -exec cksum {} + 2>/dev/null | LC_ALL=C sort ); ls -la "$LGU/Library/LaunchAgents" 2>/dev/null; }
 
 _lg_land() {   # ARGS -> felix land ARGS from the home; output in $LG/out, status in LGRC
   ( cd "$LGH" || exit 97

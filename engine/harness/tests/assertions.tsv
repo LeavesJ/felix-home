@@ -1170,6 +1170,73 @@
 1	_fx_lint still passes over remote -v alone, remote -v show and remote get-url, after a raw cd and a raw git -C
 1	_fx_root_add on $TMP, and on a directory below it, adds no root and refuses nothing
 1	_fx_root_add refuses each name that cannot be a root, with a record naming why
+1	_lib_clashes names a lib file that defines bad, a function the driver defines before the lib block
+1	_lib_clashes prints nothing for the real tree
+1	_lib_clashes, pointed at a copy of the tree, does not name a lib file that sets a variable a later part also sets
+1	_lib_clashes, pointed at a copy of the tree, prints ., the lib file and a builtin, for a lib file that defines a function named .
+1	_lib_clashes, pointed at a copy of the tree, prints [, the lib file and a builtin, for a lib file that defines a function named [
+1	_lib_clashes, pointed at a copy of the tree, prints bad, the lib file and defined before the lib block, for a lib file that defines bad among other functions
+1	_lib_clashes, pointed at a copy of the tree, prints bad, the lib file and defined before the lib block, for a lib file that defines bad inside a brace group
+1	_lib_clashes, pointed at a copy of the tree, prints git, the lib file and the path of git on PATH, for a lib file that defines a function named git
+1	_lib_clashes, pointed at a copy of the tree, prints printf, the lib file and a builtin, for a lib file that defines a function named printf
+1	_lib_clashes, pointed at a copy of the tree, prints the function, one lib file and the other's path, for two lib files that define the same function
+1	_lib_clashes, pointed at a copy of the tree, prints the function, the lib file and the part's path, for a lib file that defines a function part 1290 defines
+1	_lib_runs_nothing leaves its caller as it was: no function or variable from the file, and TMP, FROOT, MEM and REPO unchanged
+1	_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file of function definitions only, with comments and blank lines
+1	_lib_runs_nothing returns 0 and _lib_clashes prints no line for a lib file whose one function's body sets variables, calls commands and writes files
+1	_lib_runs_nothing returns 0 for a lib file of function definitions only
+1	_lib_runs_nothing returns 0 for a lib file that defines bad inside a brace group, which runs no command (the name is _lib_clashes' to refuse)
+1	_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes prints no line for it, for a lib file that sets FAIL, a counter the driver owns, by a plain literal assignment
+1	_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes prints no line for it, for a lib file that sets PATH by a plain assignment, PATH being defined before the lib block
+1	_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes, pointed at a copy of the tree, prints no line for it, for a lib file that sets FAIL among other plain assignments
+1	_lib_runs_nothing returns 1 and prints one line naming the file, and _lib_clashes, pointed at a copy of the tree, prints no line for it, for a lib file that sets IFS
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file mixing definitions and plain assignments with comments and blank lines
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file of plain assignments whose values are literal strings or name variables
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that builds a fixture behind a guard variable the caller has set and exported
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that calls exit at top level
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that calls ok when sourced, its output thrown away
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that changes directory
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that changes the umask
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that clears the EXIT trap
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that creates a directory under FELIX_HOME
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that creates a file under TMP and removes it again
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that does not parse, so sourcing it only prints an error
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that exports GIT_DIR
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that holds only definitions and plain assignments
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that leaves a background sleep running
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that loops without running a command, ended by the time limit (1 s here)
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that prints a line when sourced
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that runs git in a command substitution inside an assignment
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sends the shell's stdout and stderr to /dev/null with exec
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets CDPATH
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL in the condition of an if
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL in the condition of an until loop
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL inside a brace group
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FAIL, the driver's counter, through an arithmetic expansion
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FELIX_TEST_NO_MANIFEST
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets FELIX_TEST_RAN through a := expansion
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets GLOBIGNORE
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets PASS behind a !
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets POSIXLY_CORRECT
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets SKIP in an array subscript inside an expansion
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets _lrn_log to /dev/null and then changes directory, to blind the judge
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable to a literal at top level
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable to a path under FROOT at top level
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable with declare -x
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets a variable with readonly
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that sets an EXIT trap which prints when the shell ends
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that silently creates a directory when sourced
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that silently runs git init in the scratch directory when sourced
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that silently writes a file under TMP when sourced
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that starts a background subshell which writes under TMP a second later
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that turns on a shell option with shopt
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that turns set -u off
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that writes a file at a fixed absolute path outside the scratch directory
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that writes a file at a fixed absolute path outside the scratch directory, and the file is not there afterwards: the judge did not carry the write out
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file that writes a file under HOME
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file whose brace group of definitions sets a variable in its redirect
+1	_lib_runs_nothing returns 1 and prints one line naming the file, for a lib file whose brace group of definitions writes a file through a redirect
+1	_lib_runs_nothing returns 1 within its 10 s limit and 10 s more, with one line naming the file and the command or the limit, for a lib file whose while loop never ends
 1	_sr_check of a directory that is no git checkout says run no checkout, and returns 0
 1	_sr_check of a sound receipt for this tree and this environment says reuse with its counts, end and mode
 1	_sr_check with nothing at the receipt path says run no receipt
@@ -1184,6 +1251,10 @@
 1	_sr_tree of a checkout is felix_tree_id of it with an empty home
 1	_sr_tree of a directory that is no git checkout prints nothing and returns 1
 1	_sr_tree of a tree whose id is coarse prints nothing and returns 1, as one it cannot compute
+1	_suite_files lists exactly the driver, every tests/parts/*.sh and every tests/lib/*.sh, one path a line, as ls finds them
+1	_suite_files, pointed at a copy of the tree, lists a lib file planted in the copy
+1	_suite_flat, pointed at a copy of the tree with a TMP of its own, holds the text of a lib file planted and sourced there
+1	_suite_src, pointed at a copy of the tree, prints the text of a lib file planted there
 1	a # Handoff title with no stamp on line 3 is refused
 1	a # after a no-break space does not make a comment: that line is listed, holds bytes from 200 up, and the file is no list, under LC_ALL=C
 1	a # after a no-break space does not make a comment: that line is listed, holds bytes from 200 up, and the file is no list, under a UTF-8 locale
@@ -4536,6 +4607,7 @@
 1	and is carried when none is given
 1	and is clean when the three directories agree
 1	and is evaluated before the mutation, so a file only the mutation makes is not there
+1	and is exactly the copy's driver with each part line and each lib line replaced by the text of the file it names
 1	and is handed a non-empty --subject and --body
 1	and is indeterminate (E6)
 1	and is indeterminate too (E6)
@@ -4763,6 +4835,7 @@
 2	and left the cache as it was
 1	and lifts none of those met rows as a reason
 1	and lists every event its hooks object binds
+1	and lists exactly that copy's driver, parts and lib files, leaving out a file in lib that is not a .sh
 1	and lists them in the brief it hands a model
 1	and ln -s onto the marker
 1	and logs no routing decision for it
@@ -5101,6 +5174,7 @@
 2	and prints byte for byte what it prints when tr works
 1	and prints byte for byte what the dry run printed, its unverified blocker included, or reporting would change what blocks
 1	and prints exactly five rows: settings, schedule, pulse, reach, gate
+1	and prints exactly the copy's driver, parts and lib files, line for line, in whatever order
 1	and prints neither undeclared none, the detected surfaces, the paragraph beneath them nor the adopt line
 1	and prints no backup committed line (P1)
 1	and prints no events at all, not the ones it managed to reach
@@ -6743,6 +6817,7 @@
 1	every sort, comm, join and uniq in the engine's runtime code is written LC_ALL=C <tool>
 1	every steps.push output the template reads is one the verify step writes
 1	every tab inside a holder line becomes a space
+1	every tests/lib/*.sh in this tree defines functions and nothing else when sourced, as _lib_runs_nothing judges it
 1	every uses: in the gate workflow bootstrap renders names a full commit sha, for every stack it can render
 1	every uses: in the unattended template names a full commit sha, not a ref its owner can move
 1	every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move
@@ -8530,6 +8605,10 @@
 1	lesson refuses a flag as the lesson
 1	lesson warns against writing too much
 1	lessons.md gets exactly the old entry and nothing else: blank line, dated bullet, text
+1	lib-before.names exists under TMP in this run
+1	lib-before.names under TMP is in LC_ALL=C order
+1	lib-before.names under TMP names PASS, FAIL, bad and TMP, each on a line of its own
+1	lib-before.names under TMP names _lib_runs_nothing and _lib_clashes, the judges part 0006 defines, so a lib file that takes either name is a clash
 1	lib/commission.sh closes what it inherited before backgrounding
 1	lib/discover.sh closes what it inherited before backgrounding
 1	lib/graph.sh closes what it inherited before backgrounding
@@ -9982,6 +10061,8 @@
 1	the drift run's rows were cut from the template the fixture copied
 1	the drift section follows the missing needs and comes before the unanswered steps
 1	the drift template fixture reads as its rows, a duplicate kept and the malformed dropped
+1	the driver sources every tests/lib/*.sh by one line each, in name order, between the lines sourcing parts 0005 and 0010, and no line names a lib file that is not there
+1	the driver's one line writing lib-before.names under TMP sits after the line sourcing part 0005 and before its first lib line, or before the 0010 line when it has none
 1	the durd checkout shows ci and secrets, and the read fixture declares secrets and not ci
 1	the ecosystem check is behind the verifier confine
 1	the ecosystem table is an enforcing table, and escape.sh says so
@@ -10196,6 +10277,13 @@
 1	the last belonging row in the file decides, not the largest time
 1	the ledger is durable state in the project
 1	the ledger no longer opens the registry itself
+1	the lib-line check catches, in a planted copy of the driver, a lib file sourced by two lines
+1	the lib-line check catches, in a planted copy of the driver, a lib file with no line
+1	the lib-line check catches, in a planted copy of the driver, a lib line after the line sourcing part 0010
+1	the lib-line check catches, in a planted copy of the driver, a lib line before the line sourcing part 0005
+1	the lib-line check catches, in a planted copy of the driver, a line naming a lib file that is not there
+1	the lib-line check catches, in a planted copy of the driver, two lib lines out of name order
+1	the lib-line check passes a planted copy of the driver whose three lib files have one line each, in name order, inside the window (control)
 1	the lifecycle.log schema row names the nine columns lib/lifecycle.sh documents, in order
 1	the line is a blank line then the sentence, the first time
 1	the lint carries neither an || nor a comment's trailing pipe onto the next line

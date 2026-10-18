@@ -13,7 +13,9 @@ printf '\nland on green: deploy what main holds, and install the job (contract G
 # whether a tick that completes an owed deploy goes on to merge in the same
 # tick, so the deploy scenarios list no pull request where that would matter.
 LGV="$LGC/felix/felix"
-_lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"; }
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+_lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1/.claude-plugin"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"
+              printf '{ "name": "felix", "version": "%s" }\n' "$1" > "$LGV/$1/.claude-plugin/plugin.json"; }
 _lg_inst() { _lg_logs felix | LC_ALL=C awk -F'\t' 'index($3, "install") == 1'; }
 _lg_ninst() { _lg_inst | wc -l | tr -d ' '; }
 _lg_mainv() { git -C "$LGH" show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p'; }

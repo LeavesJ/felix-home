@@ -197,6 +197,9 @@ printf 'red\tpath\t^KERNEL2\\.txt$\ta channel for the kernel test\texecute\n' \
 KC2="$TMP/kcache2"; mkdir -p "$KC2/1.0.0" "$KC2/2.0.0"
 cp -R "$FROOT/harness" "$KC2/1.0.0/harness"          # main's version: honest
 cp -R "$FROOT/harness" "$KC2/2.0.0/harness"          # the candidate's own
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+_kcplug() { mkdir -p "$1/.claude-plugin"; printf '{ "version": "1.0.0" }\n' > "$1/.claude-plugin/plugin.json"; }
+_kcplug "$KC2/1.0.0"
 
 _sgmerge() {
   : > "$TMP/gh.sg.log"
@@ -474,6 +477,7 @@ is "a stray directory the repository ignores leaves git status clean, so nothing
 KC3="$TMP/kcache3"; KC4="$TMP/kcache4"; mkdir -p "$KC3/1.0.0" "$KC4/1.0.0"
 _copy_content "$INC/engine/harness" "$KC3/1.0.0/harness"
 cp -R "$INC/engine/harness" "$KC4/1.0.0/harness"
+_kcplug "$KC3/1.0.0"; _kcplug "$KC4/1.0.0"
 is "the suite's copy of a harness holding one leaves it behind" \
    "$(find "$KC3/1.0.0/harness" -name .claude-flow 2>/dev/null | grep -c .)" "0"
 _sgdry() {   # <kernel cache> -> a dry run of the pinned merge, judged from that cache

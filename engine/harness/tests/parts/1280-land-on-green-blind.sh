@@ -124,6 +124,7 @@ case "${1:-}" in
     [ -n "$v" ] || exit 8
     rm -rf "$LG/cache/felix/felix/$v"; mkdir -p "$LG/cache/felix/felix/$v"
     cp -R "$d" "$LG/cache/felix/felix/$v/harness" || exit 7
+    cp -R "$d/../.claude-plugin" "$LG/cache/felix/felix/$v/.claude-plugin" || exit 7
     [ ! -f "$K/install.taint" ] || printf 'taint\n' > "$LG/cache/felix/felix/$v/harness/taint"
     exit 0 ;;
   gate) rc=0; [ -f "$K/gate.rc" ] && rc="$(cat "$K/gate.rc")"; exit "$rc" ;;
@@ -143,6 +144,8 @@ _fx_git "$LGH" add -A >/dev/null 2>&1
 _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1
 _fx_git "$LGH" push -q -u origin main >/dev/null 2>&1
 mkdir -p "$LGC/felix/felix/9.0.0"; cp -R "$LGH/engine/harness" "$LGC/felix/felix/9.0.0/harness"
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+cp -R "$LGH/engine/.claude-plugin" "$LGC/felix/felix/9.0.0/.claude-plugin"
 mkdir -p "$LGU/.claude/plugins"; ln -s "$LGC" "$LGU/.claude/plugins/cache"
 
 # A worktree of the home per pull request, on branch bN from main, with one

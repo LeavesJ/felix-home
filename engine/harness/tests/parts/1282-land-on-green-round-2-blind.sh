@@ -21,7 +21,9 @@ is "the land fixture: origin's main is back at the base, declaring 9.0.0, and th
 # declares 9.0.0, the cache holding 9.0.0 as a copy of the home's engine, and
 # no trampoline installed.
 LGV1="$LGC/felix/felix"
-_lgr1_cache() { rm -rf "$LGV1/$1"; mkdir -p "$LGV1/$1"; cp -R "$LGH/engine/harness" "$LGV1/$1/harness"; }
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+_lgr1_cache() { rm -rf "$LGV1/$1"; mkdir -p "$LGV1/$1/.claude-plugin"; cp -R "$LGH/engine/harness" "$LGV1/$1/harness"
+                printf '{ "name": "felix", "version": "%s" }\n' "$1" > "$LGV1/$1/.claude-plugin/plugin.json"; }
 _lgr1_home() {   # back to origin/main, and main's entry cached from it
   _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
   _fx_git "$LGH" reset -q --hard origin/main >/dev/null 2>&1; _lgr1_cache 9.0.0
@@ -247,7 +249,8 @@ printf 'core a2\n' > "$LG/la-o2/engine/harness/lib/core.sh"
 printf '{ "name": "felix", "version": "9.0.3" }\n' > "$LG/la-o2/engine/.claude-plugin/plugin.json"
 _fx_git "$LG/la-o2" -c user.name=t -c user.email=t@t commit -qam a2 >/dev/null 2>&1
 _fx_git "$LG/la-o2" push -q origin HEAD:main >/dev/null 2>&1
-rm -rf "$LGV/9.0.3"; mkdir -p "$LGV/9.0.3"; cp -R "$LG/la-o2/engine/harness" "$LGV/9.0.3/harness"
+rm -rf "$LGV/9.0.3"; mkdir -p "$LGV/9.0.3/.claude-plugin"; cp -R "$LG/la-o2/engine/harness" "$LGV/9.0.3/harness"
+printf '{ "name": "felix", "version": "9.0.3" }\n' > "$LGV/9.0.3/.claude-plugin/plugin.json"
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1
 is "the land fixture: main's check accepts origin/main's 9.0.3 entry, and the home's HEAD is behind origin/main (fixture control)" \
    "$(_la_accepts)|$(git -C "$LGH" merge-base --is-ancestor HEAD origin/main 2>/dev/null && echo behind)|$(_lg_mainv)" "0|behind|9.0.3"

@@ -287,3 +287,7 @@ _lib_clashes() {
     [ "${#others[@]}" -eq 0 ] || LCL_DEFS="$defs" LC_ALL=C awk "$_lcl_awk" "${others[@]}"
   } | LC_ALL=C sort -u
 }
+# The variables the lib files' functions read are set by the driver, once, after
+# the lib lines, by the _vars function of each file that has them: a lib file
+# sets none as it is sourced (C2). A copy of the driver (_suite_copy_driver) drops
+# the lib lines and has no lib.

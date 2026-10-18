@@ -1,6 +1,6 @@
 ### 2026-10-17: the stuck-PR page, `felix land --prs` and `--queue` (Phase 0b step 5)
 
-**Engine 0.49.299 (set at the carry; this branch, `claude/stuck-pr-page`, based on
+**Engine 0.49.298 (set at the carry; this branch, `claude/stuck-pr-page`, based on
 origin/main e95e5d3b).** The page says why each open pull request has not
 landed and who has to act. The contract is spec v2,
 `audits/2026-10-01-report-v5-review/specs/stuck-pr/spec-v2.md`. It supersedes the
@@ -174,7 +174,7 @@ seams came out of it, each written into spec v2 first.
   libraries may name `inventory-gh.sh` and nothing else of the inventory. Found
   by the step 6 session's baseline run.
 
-**Owed at "you are next".** The carrier takes the record, the gate and the
-version number: 0.49.298 is a placeholder (.294 the escape batch, .295 A30, .296
-slot 18, .297 gate friction C), and is set to the number above main then. This
-is one engine PR, risk-red because it adds lib files.
+**Landing.** One engine PR with slot 3f, risk-red because it adds lib files,
+recorded and gated by the carrier at 0.49.298 on main 1c5ca0d0 (.297). It goes
+ahead of gate friction C (#444), which waits on the founder's merge: whichever
+of the two lands second merges main, records again and takes the next number.

@@ -62,7 +62,10 @@ own removal stays pinned by parts 0200 and 0201's section runners.
 `red.tsv`. The version is the carrier's. The gate runs when the carrier
 calls. No engine file changed.
 
-**Order.** This lands after gate friction C (#444, `claude/gf-c` ca87df52).
+**Order.** Written to land after gate friction C (#444, `claude/gf-c`
+ca87df52). At the carry (2026-10-18) it rides with the stuck-PR page at
+0.49.298 instead, ahead of C, which waits on the founder's merge; C merges it
+in when it records again.
 C rewrites the prelude, 0001-0006, but leaves both trap lines as main has
 them. An in-memory merge of this branch onto C (`git merge-tree`) was clean,
 and 0575 run alone on that merged tree, behind C's prelude including 0005

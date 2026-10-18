@@ -2,7 +2,8 @@
 
 **Engine 0.49.301 (placeholder, set at "you are next"; this branch, `claude/lost-work-page`, cut from
 `claude/stuck-pr-page` at 6627e2ba; origin/main 96074341, step 5 as #449 at
-0.49.298, merged in at 237439dc).** The
+0.49.298, merged in at 237439dc; origin/main 655606cf, gate friction C as #444
+at 0.49.299, merged in at b7782a94).** The
 carrier's order on 2026-10-18: gate friction C .298, step 5 with 3f .299, #446
 .300, then step 6 about level with gate friction D, from .301 by
 gate-readiness. The contract is
@@ -72,6 +73,23 @@ Changed existing parts:
   another pushed branch holds from undecided to `carried`. A record comparison
   will show two names gone and two added.
 - 0870: `lib/inventory-chips.sh` is included in the host adapter's lints.
+  C moved the adapter's file list into `tests/lib/inventory.sh` (`_iv_build`),
+  so `IVLIBC` and its exclusion from `IVPARTS` are there now.
+- 0920: `carried` is in `IB_LABELS`, which C moved into
+  `tests/lib/inventory-blind-runs.sh`.
+**Every part runs alone (contract C).** The shared fixture, its stubs and
+helpers moved from 1450, and the page fixture pg with `_lw_n16` and `_lw_norm`
+from 1470, into `tests/lib/lost-work.sh`: definitions only, one driver line.
+Each of 1450-1490 calls `_lw_build`, which sets the variables and makes the
+directories and stubs when they are not there; 1470 and 1480 then call
+`_lw_pg_build`, which builds pg once and otherwise reads its names from disk.
+No assertion line changed: every line taken from a part is in the lib
+verbatim, and only comments and the builder calls are new. Run alone, one at
+a time under nice 19 on main with C: 1450-1490, 1290, 1040, 0990-0998, 0870,
+0920, 0930, 0590 and 0600 each reach their end with 0 failed (0870 keeps its 1
+skip). 1450-1490 alone print exactly the 166 (name, verdict) pairs, all ok,
+that they print in serial order (the parts-alone smoke below). 0590 and 0600's
+alone-only failures are gone on main with C.
 A parts-alone smoke (0001-0005 plus 0590, 0600, 0810, 0860-0920, 0940,
 0990-0998, 1020, 1040, 1090, 1300-1360, 1450-1490) on the merge with main, at
 ff376654, gave 2208 passed, 10 failed, 1 skipped. Seven of the failures are in
@@ -110,17 +128,12 @@ page refuse to run, and the upstream exclusion in A1.
   the proposal", S1's exclusion of the proposer's file, or the page's scratch
   cleanup after a signal. Part 0940's library lists do not name
   `inventory-chips.sh`. These need a blind round.
-- **The parts do not yet run alone, which C (#444) requires (its C4).** 1460,
-  1470, 1480 and 1490 call 1450's `_lw_*` helpers and read the fixture 1450
-  builds (`LW`, `LW_F`, `LWC`, `LWM`, `LWT`, `LWX`, `LWL`); 1480 also reads
-  1470's page fixture (`PG`, `PGR`, `LWW`, `LW_HP`, `LW_HEAD`, `LWK`). None
-  uses step 5's `_sp_*`. After C lands and main is merged: move the helpers
-  and both fixtures into `tests/lib/lost-work.sh` in C's form (definitions
-  only, a `_lost_work_vars`, an idempotent `_lw_build [page]` each part
-  calls), add its one driver line, and run each part alone. C frees about 30
-  driver lines, so the 5 parts and 1 lib line fit.
-- **`tests/run` is at 478 lines, sourcing 173 parts.** A few more parts will
-  need the driver split or its part list moved.
+- **1490's home.** In the serial run 1490 used to inherit `FELIX_HOME` = pg
+  from 1480; `_lw_build` now gives it the empty `nohome`, alone and in order.
+  Its repositories xb and xc are governed by neither, and its 21 assertions
+  pass both ways.
+- **`tests/run` is at 476 lines, sourcing 176 parts and 45 lib files.** A few
+  more parts will need the driver split or its part list moved.
 - **Noise the page shows.** Subagent and workflow worktrees (`agent-*`,
   `wf_*`) holding unpushed blind branches make up a large share of "work that
   never reached a PR" on felix-home. A group for helper worktrees ("spawned by
@@ -137,3 +150,5 @@ page refuse to run, and the upstream exclusion in A1.
 if it has moved, set the version the carrier gives, run
 `tests/run --record-assertions` and red, run `engine/harness/bin/schema-check`,
 then `felix gate`, and open the PR. Risk-red: new libs (`lost-work.sh`, `inventory-chips.sh`) and lib edits.
+The record checks C1 across the whole suite; this branch's own share was
+checked alone as above.

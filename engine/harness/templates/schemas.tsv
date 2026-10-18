@@ -139,6 +139,9 @@ red.tsv	tree	kind_or_name ref_or_failed_or_times sha_or_passed? version_or_skipp
 # was reached, a pass that checked nothing. Absent, it says no manifest is
 # recorded yet.
 assertions.tsv	tree	count name	refused
+# Empty, no group: every part is a unit of its own under tests/run -j N. Absent,
+# a -j N above 1 refuses to start (part 0001); -j 1 never reads it.
+groups.tsv	tree	group part	allowed
 # Empty, no table has a row and bin/schema-check fails every table as
 # undeclared. Absent, it cannot examine, which is never read as clean.
 schemas.tsv	tree	table lives columns empty	refused

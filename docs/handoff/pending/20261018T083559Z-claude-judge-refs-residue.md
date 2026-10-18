@@ -113,7 +113,24 @@ The carrier passed the supersession to the founder, who owns that PR.
 - **zsh.** Sourcing the bash library in zsh gave a false "declares no engine
   version". Run real-input checks under `/bin/bash`.
 
+**Each part runs alone (gate friction C).** 1401 used 1400's helpers, its
+jrr project and its JS and JG fixtures, and alone it stopped with 95 FAILs.
+- **The move.** 100 lines moved verbatim into `tests/lib/judge-refs.sh`,
+  which defines functions and nothing else. Its builders are `_jr_project`,
+  `_js_build` and `_jg_build`, and their bodies are 1400's own lines.
+- **Who builds what.** 1400 calls the builders where those lines stood, and
+  removes what it built at its end. 1401 builds its own fixtures before B10.
+- **Measured with C's `marked.sh` on 358eaf4a.** Each of 1400-1403 runs
+  alone with 0 FAIL and no unbound name. Each part's (verdict, name) pairs
+  are the same alone and in order. Run in order, the four print the same 403
+  pairs as before the move. The lint passes on the lib file.
+- **Until C lands, each part sources the lib file itself.** Main's driver
+  copies do not carry `lib/`.
+
 **Landing.**
+- **At the merge with C.** Drop the two per-part `. "$HERE/lib/judge-refs.sh"`
+  lines. Add `judge-refs.sh` to C's lib block in name order, after
+  `inventory.sh`. Run 1290, then each new part alone.
 - **Escapes and judge code.** The branch changes judge code in
   `lib/resolve.sh` and `felix`, and changes `projects/felix/gate.sh`, so it
   stays draft and needs-founder.

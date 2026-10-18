@@ -173,6 +173,11 @@ seams came out of it, each written into spec v2 first.
   `_FI_EPOCH`, as spec v2 section 9 says. A111 is restated: the two page
   libraries may name `inventory-gh.sh` and nothing else of the inventory. Found
   by the step 6 session's baseline run.
+- Record 1 (12462 passed, 1 failed) found that part 1340's R5 block was
+  either-or: read as one row, or unread. A tree without the page took the
+  other branch, so the red run named two assertions the manifest did not
+  list. R5, clarified, already fixes unread; the block now asserts that
+  alone, with one new name for the unread state itself.
 
 **Landing.** One engine PR with slot 3f, risk-red because it adds lib files,
 recorded and gated by the carrier at 0.49.298 on main 1c5ca0d0 (.297). It goes

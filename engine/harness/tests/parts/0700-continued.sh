@@ -123,6 +123,354 @@ has "a template need this table lacks is named" \
 has "a pipeline step nothing answers is named from the architecture, not the table" \
     "$(_cm felix_commission_steps_unanswered "$CMP" "$FROOT/harness/templates")" "8	"
 
+# >>> commission template drift (blind assertions; written from the spec alone)
+# A table is cut from the template once, and after that only a need it lacks
+# was ever named. felix_commission_template_drift PROJ TPL names each project
+# row whose need the template also has and whose other six columns differ
+# from the template's row for that need: need <TAB> the differing columns. It
+# is a report: it refuses nothing and writes nothing. Its tables here live
+# under $TMP; the command's run borrows this project's table and the template
+# the fixture copied, and leaves both exactly as it found them. Assertions
+# under a "control" comment pass on an engine without the function too, so a
+# block that fails everywhere cannot pass for red.
+_ctdD="$TMP/ctdrift"; mkdir -p "$_ctdD"
+_ctdT="$FROOT/harness/templates/commissioning.tsv"
+_ctdhad=0
+[ -f "$CMP/commissioning.tsv" ] && { cp -p "$CMP/commissioning.tsv" "$_ctdD/project.save"; _ctdhad=1; }
+_ctdtkeep="$(cksum < "$_ctdT") $(ls -l "$_ctdT" | cut -c1-10)"
+_ctdr()   { local IFS=$'\t'; printf '%s\n' "$*"; }   # one row, its fields joined by tabs
+_ctdtab() { local d="$1" r; shift; mkdir -p "$d"
+            { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
+              for r in "$@"; do printf '%s\n' "$r"; done; } > "$d/commissioning.tsv"; }
+_ctd()    { _cm felix_commission_template_drift "$@" 2>&1; }
+_ctdsnap() { find "$@" -exec ls -lid {} + 2>/dev/null | LC_ALL=C sort
+             find "$@" -type f -exec cksum {} + 2>/dev/null | LC_ALL=C sort; }
+_ctdP="$_ctdD/p"; _ctdTP="$_ctdD/t"
+
+_ctdtab "$_ctdTP" \
+  "$(_ctdr t_all - - - - true 3)" \
+  "$(_ctdr t_check - - - - true 3)" \
+  "$(_ctdr t_g - - - - true 3)" \
+  "$(_ctdr t_ics - - - - true 3)" \
+  "$(_ctdr t_ws - - - - 'test -f a' 3)" \
+  "$(_ctdr t_same - git - 'felix:ready --fix' 'test -d .' 5)" \
+  "$(_ctdr t_dash - - - - true 3)" \
+  "$(_ctdr t_dash2 '' '' '' - true 3)" \
+  "$(_ctdr t_mal - - - - true 3)" \
+  "$(_ctdr t_six - - - - true 3)" \
+  "$(_ctdr t_tonly - - - - true 3)" \
+  "$(_ctdr t_dup - - - - true 3)" \
+  "$(_ctdr t_dup - - - - false 4)" \
+  "$(_ctdr t_tmal - - - - '! true' 3)" \
+  "$(_ctdr t_tmal - - - - true 3)" \
+  "$(_ctdr t_prov - - - provider:ctd-plugin:ctd-skill - 4)" \
+  "$(_ctdr t_when - - - - true 3)"
+# control: the fixture is what the cases below assume it is.
+is  "the drift template fixture reads as its rows, a duplicate kept and the malformed dropped" \
+    "$(_cm felix_commission_rows "$_ctdTP" | cut -f1 | tr '\n' ' ')" \
+    "t_all t_check t_g t_ics t_ws t_same t_dash t_mal t_six t_tonly t_dup t_dup t_tmal t_prov t_when "
+
+# Which columns, and how they are named.
+_ctdtab "$_ctdP" "$(_ctdr t_all ctdcap git true 'felix:ready --fix' 'test -d .' 4)"
+_ctdo="$(_ctd "$_ctdP" "$_ctdTP")"; _ctdrc=$?
+is  "a row differing from the template's in all six columns names all six, in table order" \
+    "$_ctdo" "$(printf 't_all\tgrounds instrument when answer check step')"
+is  "a comparison that found a differing row exits 0" "$_ctdrc" "0"
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_check - - - - false 3)" \
+  "$(_ctdr t_g ctdcap - - - true 3)" \
+  "$(_ctdr t_ics - git - - false 5)" \
+  "$(_ctdr t_when - - true - true 3)" \
+  "$(_ctdr t_prov - - - provider:ctd-plugin:ctd-other - 4)"
+is  "each differing row names only the columns that differ, separated by single spaces" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" \
+    "$(printf 't_check\tcheck\nt_g\tgrounds\nt_ics\tinstrument check step\nt_when\twhen\nt_prov\tanswer')"
+
+# Exact, byte for byte; and `-` against an empty field is no difference.
+# Measured on main: a read with IFS set to a tab folds an empty field into
+# its neighbour, so a row with one reads shifted and felix_commission_rows
+# drops it (t_dash2 in the control above). Either way nothing is named for
+# it; only a reader of the raw columns would name grounds, instrument, when.
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_ws - - - - 'test  -f a' 3)" \
+  "$(_ctdr t_check - - - - 'true ' 3)" \
+  "$(_ctdr t_g - - - - True 3)"
+is  "the comparison is exact: a doubled space, a trailing space and letter case each differ" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_ws\tcheck\nt_check\tcheck\nt_g\tcheck')"
+_ctdtab "$_ctdP" "$(_ctdr t_same - git - 'felix:ready --fix' 'test -d .' 5)"
+_ctdo="$(_ctd "$_ctdP" "$_ctdTP")"; _ctdrc=$?
+is  "a row equal to the template's prints nothing and exits 0" "$_ctdrc|$_ctdo" "0|"
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_dash '' '' '' - true 3)" \
+  "$(_ctdr t_dash2 - - - - true 3)" \
+  "$(_ctdr t_check - - - - false 3)"
+is  "a row with an empty cell is not compared, empty or - on either side" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+has "because the row with an empty cell is malformed, not read shifted" \
+    "$(_cm felix_commission_malformed "$_ctdP" | cut -f1 | tr '\n' ' ')" "t_dash "
+# Strings, not numbers: awk compares two fields that look like numbers as
+# numbers unless it is told otherwise, and then 1 and 1.0 are one value.
+_ctdtab "$_ctdD/tnum" "$(_ctdr t_num - - - - 1 3)" "$(_ctdr t_num2 1 - - - true 3)"
+_ctdtab "$_ctdD/pnum" "$(_ctdr t_num - - - - 1.0 3)" "$(_ctdr t_num2 01 - - - true 3)"
+is  "fields that read as the same number but differ in bytes are named" \
+    "$(_ctd "$_ctdD/pnum" "$_ctdD/tnum")" "$(printf 't_num\tcheck\nt_num2\tgrounds')"
+
+# Only the rows the engine runs are compared.
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_mal - - - - '! true' 3)" \
+  "$(_ctdr t_six - - - - false)" \
+  "$(_ctdr t_check - - - - false 3)"
+# control
+is  "the drift fixture's malformed project rows are malformed" \
+    "$(_cm felix_commission_malformed "$_ctdP" | cut -f1 | tr '\n' ' ')" "t_mal t_six "
+is  "a malformed project row is not compared with the template's" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+
+# A need on one side only prints nothing here.
+_ctdtab "$_ctdP" "$(_ctdr t_projonly ctdcap git true - false 9)" "$(_ctdr t_check - - - - false 3)"
+is  "a need only the project has prints nothing" "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+_ctdtab "$_ctdP" "$(_ctdr t_check - - - - false 3)"
+is  "a need only the template has prints nothing here" "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+
+# Duplicates: the template's first well-formed row is its row; the project's
+# every row is compared.
+_ctdtab "$_ctdP" "$(_ctdr t_dup - - - - true 3)" "$(_ctdr t_check - - - - false 3)"
+is  "a row equal to the first of the template's two rows for its need is not named" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+_ctdtab "$_ctdP" "$(_ctdr t_dup - - - - false 4)"
+is  "a row equal only to the template's second row for its need is compared with the first" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_dup\tcheck step')"
+_ctdtab "$_ctdP" "$(_ctdr t_tmal - - - - true 3)" "$(_ctdr t_check - - - - false 3)"
+is  "a malformed template row is not the template's row for its need; the well-formed one after it is" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck')"
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_check - - - - false 3)" \
+  "$(_ctdr t_same - git - 'felix:ready --fix' 'test -d .' 5)" \
+  "$(_ctdr t_check - - - - true 3)" \
+  "$(_ctdr t_check - - - - true 4)"
+is  "a need the project carries twice is compared row by row" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_check\tcheck\nt_check\tstep')"
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_when - - true - true 3)" \
+  "$(_ctdr t_all - - - - true 4)" \
+  "$(_ctdr t_check - - - - false 3)"
+is  "lines come out in the project table's order, not the template's" \
+    "$(_ctd "$_ctdP" "$_ctdTP")" "$(printf 't_when\twhen\nt_all\tstep\nt_check\tcheck')"
+
+# Nothing compared is not nothing differing: no template rows is exit 1.
+mkdir -p "$_ctdD/t-absent"
+_ctdo="$(_ctd "$_ctdP" "$_ctdD/t-absent")"; _ctdrc=$?
+is  "an absent template table exits 1 and prints nothing" "$_ctdrc|$_ctdo" "1|"
+mkdir -p "$_ctdD/t-comments"; printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n\n# nothing\n' > "$_ctdD/t-comments/commissioning.tsv"
+_ctdo="$(_ctd "$_ctdP" "$_ctdD/t-comments")"; _ctdrc=$?
+is  "a template table holding only comments exits 1 and prints nothing" "$_ctdrc|$_ctdo" "1|"
+_ctdtab "$_ctdD/t-malformed" "$(_ctdr t_check - - - - '! true' 3)" "$(_ctdr t_all - - - - true)"
+_ctdo="$(_ctd "$_ctdP" "$_ctdD/t-malformed")"; _ctdrc=$?
+is  "a template whose every row is malformed exits 1 and prints nothing" "$_ctdrc|$_ctdo" "1|"
+mkdir -p "$_ctdD/p-absent"
+_ctdo="$(_ctd "$_ctdD/p-absent" "$_ctdTP")"; _ctdrc=$?
+is  "an absent project table prints nothing and exits 0" "$_ctdrc|$_ctdo" "0|"
+mkdir -p "$_ctdD/p-comments"; printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n# nothing\n' > "$_ctdD/p-comments/commissioning.tsv"
+_ctdo="$(_ctd "$_ctdD/p-comments" "$_ctdTP")"; _ctdrc=$?
+is  "a project table holding only comments prints nothing and exits 0" "$_ctdrc|$_ctdo" "0|"
+
+# Writes nothing: no table, no state, no memory. Directories no earlier call
+# has seen, so a file a previous call left cannot hide this call's write, and
+# every time set back to 2000 so a rewrite in place shows as well. Run from a
+# directory of its own, which is watched too.
+# The memory root and the home are fresh too, for the same reason: a write
+# the earlier calls already made is rewritten in place and changes nothing a
+# snapshot to the minute can see (two mutants passed until this was so).
+_ctdtab "$_ctdD/pw" "$(_ctdr t_check - - - - false 3)" "$(_ctdr t_g ctdcap - - - true 3)"
+mkdir -p "$_ctdD/tw" "$_ctdD/cwd" "$_ctdD/fm" "$_ctdD/fh/state"
+cp "$_ctdTP/commissioning.tsv" "$_ctdD/tw/commissioning.tsv"
+find "$_ctdD/pw" "$_ctdD/tw" "$_ctdD/cwd" "$_ctdD/fm" "$_ctdD/fh" -exec touch -t 200001010000 {} +
+_ctdiso() { ( FELIX_HOME_DIR="$_ctdD/fh"; FELIX_HOME="$_ctdD/fh"; FELIX_MEMORY="$_ctdD/fm"
+              export FELIX_HOME FELIX_MEMORY; PATH="$CMSTUB:$PATH"
+              . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
+              . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
+              . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
+              . "$FROOT/harness/lib/commission-provider.sh"
+              cd "$_ctdD/cwd" && felix_commission_template_drift "$@" ) 2>&1; }
+_ctdb="$(_ctdsnap "$_ctdD" "$FROOT/projects" "$FROOT/state" "$MEM")"
+_ctdo="$(_ctdiso "$_ctdD/pw" "$_ctdD/tw")"; _ctdrc=$?
+_ctda="$(_ctdsnap "$_ctdD" "$FROOT/projects" "$FROOT/state" "$MEM")"
+_ctdw=same; [ "$_ctdb" = "$_ctda" ] || _ctdw=moved
+is  "a comparison that finds rows writes nothing: no table, no state, no memory" \
+    "$_ctdrc|$_ctdo|$_ctdw" "$(printf '0|t_check\tcheck\nt_g\tgrounds|same')"
+
+# A caller's IFS, and pipefail with a template bigger than a pipe holds.
+_ctdtabifs()   { IFS=$'\t'; felix_commission_template_drift "$@"; }
+_ctdpipefail() { set -o pipefail; felix_commission_template_drift "$@"; }
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_g ctdcap - - - true 3)" \
+  "$(_ctdr t_ics - git - - false 5)" \
+  "$(_ctdr t_all ctdcap git true 'felix:ready --fix' 'test -d .' 4)"
+_ctdo="$(_cm _ctdtabifs "$_ctdP" "$_ctdTP" 2>&1)"; _ctdrc=$?
+is  "a caller with IFS set to a tab gets the same lines" "$_ctdrc|$_ctdo" \
+    "$(printf '0|t_g\tgrounds\nt_ics\tinstrument check step\nt_all\tgrounds instrument when answer check step')"
+# About 210 KB, three times what a pipe holds: a writer feeding a reader that
+# stops at the first row is then killed every time, not by luck (measured: 900
+# rows was killed on some runs and not others).
+_ctdpad="ctd-padding-so-the-template-outgrows-a-pipe-buffer-ctd-padding-ctd-padding-ctd"
+mkdir -p "$_ctdD/tbig"
+awk -v pad="$_ctdpad" 'BEGIN { printf "# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n"
+  for (i = 1; i <= 2000; i++) printf "t_big_%d\t-\t-\t-\t-\ttrue # %s\t3\n", i, pad }' > "$_ctdD/tbig/commissioning.tsv"
+# control
+is  "the large drift template reads as 2000 rows" "$(_cm felix_commission_rows "$_ctdD/tbig" | grep -c .)" "2000"
+_ctdtab "$_ctdP" \
+  "$(_ctdr t_big_1 - - - - false 3)" \
+  "$(_ctdr t_big_2 - - - - "true # $_ctdpad" 3)" \
+  "$(_ctdr t_big_2000 - - - - "true # $_ctdpad" 4)"
+_ctdo="$(_cm _ctdpipefail "$_ctdP" "$_ctdD/tbig" 2>&1)"; _ctdrc=$?
+is  "under pipefail, a template larger than a pipe holds is compared at its first row and its last" \
+    "$_ctdrc|$_ctdo" "$(printf '0|t_big_1\tcheck\nt_big_2000\tstep')"
+
+# The command. felix commission --status only: a full run writes receipts,
+# logs and tables that later assertions read. Rows are cut from the template
+# the fixture copied, so the expected lines hold whatever that template says.
+_ctdcli() { ( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission --status 2>&1 ); }
+_ctdrow() { awk -F'\t' -v n="$1" '!/^[[:space:]]*#/ && $1 == n { print; exit }' "$_ctdT"; }
+_ctdhead() { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'; }
+# The section: from its heading to the next section the command prints.
+_ctdsec() { printf '%s\n' "$1" | awk '!done && index($0, "rows that differ from the template") == 1 { on = 1 }
+  on && /^(pipeline steps no row answers|What this cannot say:)/ { on = 0; done = 1 }
+  on { print }'; }
+# Its list: the indented lines straight after the heading.
+_ctdlist() { printf '%s\n' "$1" | awk 'NR == 1 || stop { next } !started && /^$/ { next }
+  /^  / { started = 1; print; next } { stop = 1 }'; }
+_ctdline() { printf '%s\n' "$1" | awk -v p="$2" '!n && index($0, p) == 1 { n = NR } END { print n + 0 }'; }
+_ctdnl='
+'
+# control
+[ -n "$(_ctdrow constitution)" ] && [ -n "$(_ctdrow gate_declared)" ] && [ -n "$(_ctdrow reach)" ] \
+  && ok  "the drift run's rows were cut from the template the fixture copied" \
+  || bad "the drift run's rows were cut from the template the fixture copied" "a need this block borrows is gone from $_ctdT"
+
+{ _ctdhead; _ctdrow constitution; _ctdrow gate_declared; _ctdr ctdlocal - - - - true 9; } > "$CMP/commissioning.tsv"
+_ctdc="$(_ctdcli)"; _ctdcrc=$?
+# control
+case "$_ctdc" in
+  *"differ from the template"*) bad "with no row differing, felix commission --status prints no drift section" "$_ctdc" ;;
+  *) ok "with no row differing, felix commission --status prints no drift section" ;;
+esac
+# control
+case "$_ctdc" in
+  *"$FROOT/harness/templates"*|*"could not be read"*) bad "and names neither the template's path nor an unreadable template" "$_ctdc" ;;
+  *) ok "and names neither the template's path nor an unreadable template" ;;
+esac
+
+{ _ctdhead
+  _ctdrow constitution | awk -F'\t' -v OFS='\t' '{ $6 = "true # ctd-check"; print }'
+  _ctdrow gate_declared
+  _ctdrow reach | awk -F'\t' -v OFS='\t' '{ $2 = "ctdcap"; $4 = "true # ctd-when"; $6 = "true # ctd-check"; print }'
+  _ctdr ctdlocal - - - - true 9; } > "$CMP/commissioning.tsv"
+_ctdb="$(_ctdsnap "$CMP" "$FROOT/harness/templates")"
+_ctdd="$(_ctdcli)"; _ctddrc=$?
+_ctda="$(_ctdsnap "$CMP" "$FROOT/harness/templates")"
+_ctds="$(_ctdsec "$_ctdd")"
+case "$_ctdnl$_ctdd$_ctdnl" in
+  *"${_ctdnl}rows that differ from the template's row for the same need${_ctdnl}"*)
+     ok  "felix commission --status prints the drift heading as its own line" ;;
+  *) bad "felix commission --status prints the drift heading as its own line" "$_ctdd" ;;
+esac
+_ctdm="$(_ctdline "$_ctdd" "questions the template asks that this table lacks")"
+_ctdh="$(_ctdline "$_ctdd" "rows that differ from the template")"
+_ctdu="$(_ctdline "$_ctdd" "pipeline steps no row answers")"
+[ "$_ctdm" -gt 0 ] && [ "$_ctdh" -gt "$_ctdm" ] && [ "$_ctdu" -gt "$_ctdh" ] \
+  && ok  "the drift section follows the missing needs and comes before the unanswered steps" \
+  || bad "the drift section follows the missing needs and comes before the unanswered steps" \
+         "missing needs at line $_ctdm, drift at $_ctdh, unanswered steps at $_ctdu"
+is  "one line per differing row: two spaces, the need padded to 22, the columns" \
+    "$(_ctdlist "$_ctds")" "$(printf '  %-22s %s\n' constitution check reach 'grounds when check')"
+has "the drift note says a project may keep its own row on purpose" "$_ctds" "on purpose"
+has "the drift note shows the template's path"                      "$_ctds" "$FROOT/harness/templates"
+has "the drift note says the receipt reads stale after a row changes" "$_ctds" "stale"
+has "the drift note names the command that re-arms a commission grant" "$_ctds" "felix autonomy --allow commission"
+has "and says a provider row's answer goes stale"                     "$_ctds" "answer goes stale"
+has "the drift note names the template table, not only its directory" "$_ctds" "$FROOT/harness/templates/commissioning.tsv"
+# control
+is  "felix commission --status exits the same with rows drifting as without" "$_ctddrc" "$_ctdcrc"
+# control
+[ "$_ctdb" = "$_ctda" ] \
+  && ok  "felix commission --status rewrites no table when rows drift" \
+  || bad "felix commission --status rewrites no table when rows drift" "a file under $CMP or the templates moved"
+
+# The template unreadable: said, and no row named against it.
+chmod u-r "$_ctdT"
+if [ -r "$_ctdT" ]; then
+  chmod u+r "$_ctdT"
+  skip "an unreadable template is said: it could not be read"             "this user reads a file whatever its mode"
+  skip "and no row is named as differing from an unreadable template"     "this user reads a file whatever its mode"
+  skip "felix commission --status exits the same with the template unreadable" "this user reads a file whatever its mode"
+else
+  _ctdx="$(_ctdcli)"; _ctdxrc=$?
+  chmod u+r "$_ctdT"
+  has "an unreadable template is said: it could not be read" "$_ctdx" "could not be read"
+  # control
+  case "$_ctdx" in
+    *"$(printf '  %-22s %s' constitution check)"*) bad "and no row is named as differing from an unreadable template" "$_ctdx" ;;
+    *) ok "and no row is named as differing from an unreadable template" ;;
+  esac
+  # control
+  is  "felix commission --status exits the same with the template unreadable" "$_ctdxrc" "$_ctdcrc"
+fi
+
+# The full run, the one a person makes after any table change. On a project
+# of its own, removed afterwards, because a full run writes a receipt, a log
+# and a lock that later assertions about this fixture's project would read.
+# (After review: three full-run mutants passed every --status assertion,
+# among them one that rewrote the table.)
+_ctdnames() { find "$FROOT/projects" "$FROOT/state" "$MEM" ! -type d 2>/dev/null | LC_ALL=C sort; }
+_ctdn0="$(_ctdnames)"
+_ctdFP="$FROOT/projects/ctdfull"; _ctdFR="$TMP/ctd-full-repo"
+mkdir -p "$_ctdFP" "$_ctdFR"
+( _fx_cd "$_ctdFR" && git init -q -b main && printf 'x\n' > a.txt && git add -A \
+  && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+_ctdFR="$(cd "$_ctdFR" && pwd -P)"
+printf 'ctdfull\n' > "$_ctdFR/.felix"
+printf '{"name":"ctdfull","gate":"true"}\n' > "$_ctdFP/project.json"
+printf '# ctdfull\n' > "$_ctdFP/CLAUDE.md"
+: > "$_ctdFP/capabilities"
+printf '# k\tn\ts\tr\tc\n' > "$_ctdFP/stack.tsv"
+cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$_ctdFP/"
+_ctdfull() { ( cd "$_ctdFR" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1 ); }
+{ _ctdhead; _ctdrow constitution; } > "$_ctdFP/commissioning.tsv"
+_ctdf0="$(_ctdfull)"; _ctdf0rc=$?
+{ _ctdhead; _ctdrow constitution | awk -F'\t' -v OFS='\t' '{ $6 = $6 " && true"; print }'; } > "$_ctdFP/commissioning.tsv"
+_ctdfk="$(cksum < "$_ctdFP/commissioning.tsv")"
+_ctdf1="$(_ctdfull)"; _ctdf1rc=$?
+# control
+case "$_ctdf0" in
+  *"differ from the template"*) bad "a full run with no row differing prints no drift section" "$_ctdf0" ;;
+  *) ok "a full run with no row differing prints no drift section" ;;
+esac
+is  "a full felix commission run names the differing row too" \
+    "$(_ctdlist "$(_ctdsec "$_ctdf1")")" "$(printf '  %-22s %s' constitution check)"
+# control
+is  "and exits as the same run does with no row differing" "$_ctdf1rc" "$_ctdf0rc"
+# control
+is  "and leaves the project's table as it was" "$(cksum < "$_ctdFP/commissioning.tsv")" "$_ctdfk"
+rm -rf "$_ctdFP" "$_ctdFR" "$MEM/ctdfull" "$FROOT/state/commission/ctdfull" "$FROOT/state/commission/ctdfull".*
+# control
+is  "the full-run project leaves no file behind for later assertions" "$(_ctdnames)" "$_ctdn0"
+
+if [ "$_ctdhad" -eq 1 ]; then cp -p "$_ctdD/project.save" "$CMP/commissioning.tsv"; else rm -f "$CMP/commissioning.tsv"; fi
+# control
+is  "the drift block leaves the fixture's template as it found it" \
+    "$(cksum < "$_ctdT") $(ls -l "$_ctdT" | cut -c1-10)" "$_ctdtkeep"
+# control
+if [ "$_ctdhad" -eq 1 ]; then
+  cmp -s "$_ctdD/project.save" "$CMP/commissioning.tsv" \
+    && ok  "and the project's table as it found it, byte for byte" \
+    || bad "and the project's table as it found it, byte for byte"
+else
+  [ ! -e "$CMP/commissioning.tsv" ] \
+    && ok  "and the project's table as it found it, byte for byte" \
+    || bad "and the project's table as it found it, byte for byte" "it had none, and now has one"
+fi
+# <<< commission template drift
+
 # The command: refuses the absent and empty table, writes the receipt, reads
 # it back, and says who answers what is held.
 _cmcli() { ( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission "$@" 2>&1 ); }

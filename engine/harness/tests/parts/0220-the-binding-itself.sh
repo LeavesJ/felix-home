@@ -202,6 +202,23 @@ case "$out" in
   *"is not a Felix home"*) bad "a pointer to a real home is left alone" "$out" ;;
   *)                       ok  "a pointer to a real home is left alone" ;;
 esac
+
+# And a real home whose path holds a space, which is where iCloud keeps
+# Documents: `~/Library/Mobile Documents/`. The pointer was read with every
+# whitespace character deleted, so it named `.../MobileDocuments/Felix`, a
+# directory nobody wrote: the resolver fell back past the home, and the stop
+# hook refused with that path in its reason. The home holds the project GREPO's
+# marker names, so a pointer read wrongly and a marker resolved against the
+# wrong home both show up as a refusal here.
+SPACED="$TMP/Mobile Documents/Felix"; mkdir -p "$SPACED/projects"
+cp -R "$FROOT/projects/widget" "$SPACED/projects/"
+printf '%s\n' "$SPACED" > "$POINTHOME/.felix-home"
+out="$( unset FELIX_HOME; HOME="$POINTHOME"; . "$FROOT/harness/lib/resolve.sh"; felix_home "$TMP/plainrepo" )"
+is  "a pointer to a home whose path holds a space resolves to it" "$out" "$SPACED"
+out="$(_stop_as_home "$GREPO" "$POINTHOME")"
+_allows "and the stop hook raises no refusal against it" "$out"
+out="$(cd "$GREPO" && env -u FELIX_HOME HOME="$POINTHOME" "$FELIX" which 2>&1)"
+has "and felix which governs from it" "$out" "doctrine:     $SPACED/projects/widget/CLAUDE.md"
 rm -f "$POINTHOME/.felix-home"
 
 # The other half of the same hole, and the half a session meets FIRST.

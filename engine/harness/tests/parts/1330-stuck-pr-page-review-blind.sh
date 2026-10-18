@@ -150,7 +150,7 @@ else skip "the review fixture: gh's answer is JSON (fixture control)" "no jq"; f
 # ---- F1, F2': path bytes as gh prints them (§4.5 path-bytes, §6.1) ------------
 _sq_land --prs --tsv; _sq_keep bytes.tsv
 T="$SQX/bytes.tsv"
-is "§7: the page over escaped paths exits 0" "$(cat "$T.rc")" 0
+is "spec §7: the page over escaped paths exits 0" "$(cat "$T.rc")" 0
 _sq_is "case 27: a path holding a tab, printed by gh as \\t, green" "$T" 160 founder founder
 is "case 27: by the rule path-bytes" "$(_sq_word "$(_sq_f "$T" 160 8)" path-bytes)" named
 _sq_is "case 27: a path holding a newline, printed as \\n" "$T" 164 founder founder
@@ -161,54 +161,54 @@ _sq_is "case 27: a path holding the byte 001, printed as \\u0001" "$T" 166 found
 is "case 27: by the rule path-bytes" "$(_sq_word "$(_sq_f "$T" 166 8)" path-bytes)" named
 _sq_is "case 27: a path holding DEL, printed as \\u007f, which is outside printable ASCII" "$T" 168 founder founder
 is "case 27: by the rule path-bytes" "$(_sq_word "$(_sq_f "$T" 168 8)" path-bytes)" named
-is "§6.1: the pull request whose path holds a tab is one row of eight columns" "$(_sq_nrow "$T" 160)|$(_sq_row "$T" 160 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
-is "§6.1: the one whose path holds a newline is one row of eight columns" "$(_sq_nrow "$T" 164)|$(_sq_row "$T" 164 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
-is "§6.1: the one whose path ends in a carriage return is one row of eight columns" "$(_sq_nrow "$T" 165)|$(_sq_row "$T" 165 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
-is "§6.1: no line of the page holds a carriage return" "$(LC_ALL=C awk -v cr="$(printf '\r')" 'index($0, cr) { n++ } END { print n + 0 }' "$T")" 0
-_sq_is "§4.5: a path holding a backslash, printable ASCII, green and nothing else" "$T" 161 ready lander
-is "§4.5: a backslash is not the rule path-bytes" "$(_sq_word "$(_sq_f "$T" 161 8)" path-bytes)" missing
-_sq_is "§4.5: a backslash path the land row matches is founder by that row" "$T" 162 founder founder
-is "§4.5: by the rule land" "$(_sq_word "$(_sq_f "$T" 162 8)" land)" named
-is "§4.5: and not by path-bytes" "$(_sq_word "$(_sq_f "$T" 162 8)" path-bytes)" missing
-has "§4.5: its detail names the path as it is, with one backslash" "$(_sq_f "$T" 162 8)" 'lrow/a\b.md'
-_sq_lacks "§4.5: and never doubled" "$(_sq_f "$T" 162 8)" 'a\\b'
+is "spec §6.1: the pull request whose path holds a tab is one row of eight columns" "$(_sq_nrow "$T" 160)|$(_sq_row "$T" 160 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
+is "spec §6.1: the one whose path holds a newline is one row of eight columns" "$(_sq_nrow "$T" 164)|$(_sq_row "$T" 164 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
+is "spec §6.1: the one whose path ends in a carriage return is one row of eight columns" "$(_sq_nrow "$T" 165)|$(_sq_row "$T" 165 | LC_ALL=C awk -F'\t' '{ print NF }')" "1|8"
+is "spec §6.1: no line of the page holds a carriage return" "$(LC_ALL=C awk -v cr="$(printf '\r')" 'index($0, cr) { n++ } END { print n + 0 }' "$T")" 0
+_sq_is "spec §4.5: a path holding a backslash, printable ASCII, green and nothing else" "$T" 161 ready lander
+is "spec §4.5: a backslash is not the rule path-bytes" "$(_sq_word "$(_sq_f "$T" 161 8)" path-bytes)" missing
+_sq_is "spec §4.5: a backslash path the land row matches is founder by that row" "$T" 162 founder founder
+is "spec §4.5: by the rule land" "$(_sq_word "$(_sq_f "$T" 162 8)" land)" named
+is "spec §4.5: and not by path-bytes" "$(_sq_word "$(_sq_f "$T" 162 8)" path-bytes)" missing
+has "spec §4.5: its detail names the path as it is, with one backslash" "$(_sq_f "$T" 162 8)" 'lrow/a\b.md'
+_sq_lacks "spec §4.5: and never doubled" "$(_sq_f "$T" 162 8)" 'a\\b'
 
 # ---- F4: every founder rule that fired is named (§4, §4.5) ----------------------
-_sq_is "§4.5: a pull request changing a path for each of eleven founder rules" "$T" 163 founder founder
+_sq_is "spec §4.5: a pull request changing a path for each of eleven founder rules" "$T" 163 founder founder
 _sqd="$(_sq_f "$T" 163 8)"
 for _sqr in commission exemption verifier execute authority exception durable risk land direction path-bytes; do
-  is "§4.5: each match is listed with its rule name, more than five of them: $_sqr" "$(_sq_word "$_sqd" "$_sqr")" named
+  is "spec §4.5: each match is listed with its rule name, more than five of them: $_sqr" "$(_sq_word "$_sqd" "$_sqr")" named
 done
-_sq_is "§4: a pull request changing two paths of the trust base" "$T" 167 needs-attended session
-has "§4: every condition that holds is listed: the first trust-base path" "$(_sq_f "$T" 167 8)" "engine/harness/felix"
-has "§4: and the second" "$(_sq_f "$T" 167 8)" "engine/harness/lib/verify.sh"
+_sq_is "spec §4: a pull request changing two paths of the trust base" "$T" 167 needs-attended session
+has "spec §4: every condition that holds is listed: the first trust-base path" "$(_sq_f "$T" 167 8)" "engine/harness/felix"
+has "spec §4: and the second" "$(_sq_f "$T" 167 8)" "engine/harness/lib/verify.sh"
 
 # ---- F2: a land directory that cannot be searched (§4.3, §5) --------------------
-_sq_is "§4.3: the ledger refused #169's head on the current origin/main (control for what follows)" "$T" 169 refused session
-_sq_is "§4.3: and #170, plain and green with no ledger row, is ready (control for what follows)" "$T" 170 ready lander
-is "§4.3: and the ledger row says read (control)" "$(_sq_srcf "$T" ledger 4)" read
+_sq_is "spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows)" "$T" 169 refused session
+_sq_is "spec §4.3: and #170, plain and green with no ledger row, is ready (control for what follows)" "$T" 170 ready lander
+is "spec §4.3: and the ledger row says read (control)" "$(_sq_srcf "$T" ledger 4)" read
 chmod 000 "$SQLAND"
 if [ -e "$SQLAND/ledger.tsv" ] || [ -L "$SQLAND/ledger.tsv" ]; then
   chmod 755 "$SQLAND"
-  skip "§4.3: a land directory that cannot be searched holds a ledger that is unread" "this user searches a mode-000 directory"
+  skip "spec §4.3: a land directory that cannot be searched holds a ledger that is unread" "this user searches a mode-000 directory"
 else
   _sq_land --prs --tsv; _sq_keep land000.tsv
   chmod 755 "$SQLAND"
-  is "§7: the page exits 0 while land/ cannot be searched" "$(cat "$SQX/land000.tsv.rc")" 0
-  is "§4.3: land/ at mode 000: the ledger is there but cannot be read, so its row says unread, not none" "$(_sq_srcf "$SQX/land000.tsv" ledger 4)" unread
-  _sq_is "§5: and the pull request the ledger refused is unknown, never ready" "$SQX/land000.tsv" 169 unknown unknown
-  has "§5: its detail says the lander's ledger was not read" "$(_sq_f "$SQX/land000.tsv" 169 8)" "the lander's ledger not read"
-  _sq_is "§5: and a plain green pull request that reaches state 10 is unknown too" "$SQX/land000.tsv" 170 unknown unknown
+  is "spec §7: the page exits 0 while land/ cannot be searched" "$(cat "$SQX/land000.tsv.rc")" 0
+  is "spec §4.3: land/ at mode 000: the ledger is there but cannot be read, so its row says unread, not none" "$(_sq_srcf "$SQX/land000.tsv" ledger 4)" unread
+  _sq_is "spec §5: and the pull request the ledger refused is unknown, never ready" "$SQX/land000.tsv" 169 unknown unknown
+  has "spec §5: its detail says the lander's ledger was not read" "$(_sq_f "$SQX/land000.tsv" 169 8)" "the lander's ledger not read"
+  _sq_is "spec §5: and a plain green pull request that reaches state 10 is unknown too" "$SQX/land000.tsv" 170 unknown unknown
 fi
 chmod 000 "${SQLAND%/*}"
 if [ -e "$SQLAND" ] || [ -L "$SQLAND" ]; then
   chmod 755 "${SQLAND%/*}"
-  skip "§4.3: a project memory directory that cannot be searched hides whether a ledger is there" "this user searches a mode-000 directory"
+  skip "spec §4.3: a project memory directory that cannot be searched hides whether a ledger is there" "this user searches a mode-000 directory"
 else
   _sq_land --prs --tsv; _sq_keep mem000.tsv
   chmod 755 "${SQLAND%/*}"
-  is "§4.3: the project's memory directory at mode 000, land/ and its ledger inside: the ledger row says unread, not none" "$(_sq_srcf "$SQX/mem000.tsv" ledger 4)" unread
-  _sq_is "§5: and the pull request the ledger refused is unknown" "$SQX/mem000.tsv" 169 unknown unknown
+  is "spec §4.3: the project's memory directory at mode 000, land/ and its ledger inside: the ledger row says unread, not none" "$(_sq_srcf "$SQX/mem000.tsv" ledger 4)" unread
+  _sq_is "spec §5: and the pull request the ledger refused is unknown" "$SQX/mem000.tsv" 169 unknown unknown
 fi
 is "the review fixture: the modes are restored and the ledger reads again (fixture control)" "$(LC_ALL=C cut -f3 "$SQLAND/ledger.tsv" 2>&1)" 169
 
@@ -221,22 +221,22 @@ SQ_LONG="$(printf 'a%.0s' 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17 18 19 20 21 
 _sq_prs "$(_sq_pr 171 notes/171.md:0 | LC_ALL=C sed "s/\"title\":\"Change 171\"/\"title\":\"T${SQ_C1}end\"/")" \
         "$(_sq_pr 172 notes/172.md:0 | LC_ALL=C sed "s/\"title\":\"Change 172\"/\"title\":\"${SQ_LONG}${SQ_E}${SQ_E}tail\"/")"
 _sq_land --prs; _sq_keep tame.txt
-is "§6.2: the page over a title holding a C1 control exits 0" "$(cat "$SQX/tame.txt.rc")" 0
-has "§6.2: the title is on the page" "$(cat "$SQX/tame.txt")" "#171 ready T"
-is "§6.2: no 0x9b byte reaches the terminal" "$(LC_ALL=C grep -c "$SQ_C1" "$SQX/tame.txt")" 0
+is "spec §6.2: the page over a title holding a C1 control exits 0" "$(cat "$SQX/tame.txt.rc")" 0
+has "spec §6.2: the title is on the page" "$(cat "$SQX/tame.txt")" "#171 ready T"
+is "spec §6.2: no 0x9b byte reaches the terminal" "$(LC_ALL=C grep -c "$SQ_C1" "$SQX/tame.txt")" 0
 _sq_l172="$(LC_ALL=C grep '^#172 ' "$SQX/tame.txt")"
-has "§6.2: the long title is on the page" "$_sq_l172" "#172 ready ${SQ_LONG}"
+has "spec §6.2: the long title is on the page" "$_sq_l172" "#172 ready ${SQ_LONG}"
 if command -v iconv >/dev/null 2>&1; then
-  printf '%s\n' "$_sq_l172" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 && ok "§6.2: a title cut at 60 does not end in half a UTF-8 character" || bad "§6.2: a title cut at 60 does not end in half a UTF-8 character" "iconv refuses [$_sq_l172]"
-else skip "§6.2: a title cut at 60 does not end in half a UTF-8 character" "no iconv"; fi
+  printf '%s\n' "$_sq_l172" | iconv -f UTF-8 -t UTF-8 >/dev/null 2>&1 && ok "spec §6.2: a title cut at 60 does not end in half a UTF-8 character" || bad "spec §6.2: a title cut at 60 does not end in half a UTF-8 character" "iconv refuses [$_sq_l172]"
+else skip "spec §6.2: a title cut at 60 does not end in half a UTF-8 character" "no iconv"; fi
 
 # ---- F9: a repository no project governs (§7) -------------------------------------
 mkdir -p "$SQ/free" && _fx_git "$SQ/free" init -q >/dev/null 2>&1
 _sq_land --prs --tsv --repo "$SQ/free"; _sq_keep free.tsv
-is "§7: a repository no project governs: the page prints and exits 0" "$(cat "$SQX/free.tsv.rc")" 0
-is "§7: and its land table is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "land" { print $4; exit }' "$SQX/free.tsv")" unread
-is "§7: its lander row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "lander" { print $4; exit }' "$SQX/free.tsv")" unread
-is "§5: and its ledger row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "ledger" { print $4; exit }' "$SQX/free.tsv")" unread
+is "spec §7: a repository no project governs: the page prints and exits 0" "$(cat "$SQX/free.tsv.rc")" 0
+is "spec §7: and its land table is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "land" { print $4; exit }' "$SQX/free.tsv")" unread
+is "spec §7: its lander row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "lander" { print $4; exit }' "$SQX/free.tsv")" unread
+is "spec §5: and its ledger row is unread" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "ledger" { print $4; exit }' "$SQX/free.tsv")" unread
 
 # ---- F3: a list of 1000 is truncated, in --prs and in --queue (§3, §5) -----------
 LC_ALL=C awk -v u="$SQ_UPD" -v g="$SQ_GREEN" 'BEGIN { printf "["
@@ -253,13 +253,13 @@ _sq_land --prs --tsv; _sq_keep trunc.tsv
 _sq_land --prs; _sq_keep trunc.txt
 _sq_land --queue --tsv; _sq_keep truncq.tsv
 _sq_land --queue; _sq_keep truncq.txt
-is "§7: the four runs over 1000 pull requests exit 0" \
+is "spec §7: the four runs over 1000 pull requests exit 0" \
    "$(cat "$SQX/trunc.tsv.rc")$(cat "$SQX/trunc.txt.rc")$(cat "$SQX/truncq.tsv.rc")$(cat "$SQX/truncq.txt.rc")" "0000"
-is "§3: at 1000 the gh source row of --prs says truncated" "$(_sq_srcf "$SQX/trunc.tsv" gh 4)" truncated
-has "§3: and the --prs text says the list may be incomplete" "$(cat "$SQX/trunc.txt")" "may be incomplete"
-is "§3: the gh source row of --queue --tsv says truncated" \
+is "spec §3: at 1000 the gh source row of --prs says truncated" "$(_sq_srcf "$SQX/trunc.tsv" gh 4)" truncated
+has "spec §3: and the --prs text says the list may be incomplete" "$(cat "$SQX/trunc.txt")" "may be incomplete"
+is "spec §3: the gh source row of --queue --tsv says truncated" \
    "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "gh" && $2 == "fixture/home" { print $4 }' "$SQX/truncq.tsv")" truncated
-has "§3, §5: and the --queue text says the list may be incomplete, not only that no founder entries were found" "$(cat "$SQX/truncq.txt")" "may be incomplete"
+has "spec §3, §5: and the --queue text says the list may be incomplete, not only that no founder entries were found" "$(cat "$SQX/truncq.txt")" "may be incomplete"
 
 # ---- the fixture is removed ------------------------------------------------------
 chmod -R u+rwx "$SQ" 2>/dev/null; rm -rf "$SQ"

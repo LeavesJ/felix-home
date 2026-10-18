@@ -144,9 +144,22 @@ felix_toolbox_route_for() {
 # wires, extracted so a commissioning check can ask whether anything is left
 # without re-deriving the loop. Needs no `claude`: the inventory reads the
 # registry files when the cli is absent.
+#
+# 0 with the plugins on stdout, and 2 when the declared list could not be read,
+# with the one line `?<TAB>why` and nothing else. Until 2026-10-01 an unread
+# list gave no rules, so nothing matched a capability and the answer was that
+# nothing was left to wire. The line is printed, and not left to the status,
+# because the commissioning tables ask `[ -z "$(felix_toolbox_unwired ...)" ]`,
+# which cannot see a status, and the tables are a founder's to change and not
+# this function's. A question mark is what lib/commission-provider.sh already
+# prints for a count it could not make, and is no plugin name. The rules are
+# captured with felix_capture, since a substitution can end with nothing printed
+# and status 0 when its fork fails.
 felix_toolbox_unwired() {
-  local proj="$1" tpl="${2:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" rules kind name dir risk cap
-  rules="$(_felix_discover_rules "$tpl" "$proj")"
+  local proj="$1" tpl="${2:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" rules="" kind name dir risk cap
+  if ! felix_capture rules _felix_discover_rules "$tpl" "$proj"; then
+    printf '?\tthe capabilities this project declares could not be read\n'; return 2
+  fi
   felix_ready_inventory | LC_ALL=C sort -u | while IFS=$'\t' read -r kind name; do
     [ "${kind:-}" = "plugin" ] && [ -n "${name:-}" ] || continue
     felix_toolbox_routed "$proj" "$name" && continue

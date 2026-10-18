@@ -301,18 +301,18 @@ _sp_land "$SPH" --queue --repo x
 is "case 19: felix land --queue --repo x exits 2: --repo belongs to --prs" "$SPRC" 2
 has "case 19: and prints the usage, which names --prs" "$(cat "$SPX/both")" "--prs"
 _sp_land "$SPH" --prs --repo "$SPH" --repo "$SP2"
-is "§1: two --repo options exit 2: one --repo only" "$SPRC" 2
+is "spec §1: two --repo options exit 2: one --repo only" "$SPRC" 2
 _sp_land "$SPH" --prs --sideways
-is "§1: --prs with an argument it does not know exits 2" "$SPRC" 2
-is "§2: no usage run asked gh or launchctl anything" "$(_sp_cnt gh)$(_sp_cnt launchctl)" "00"
+is "spec §1: --prs with an argument it does not know exits 2" "$SPRC" 2
+is "spec §2: no usage run asked gh or launchctl anything" "$(_sp_cnt gh)$(_sp_cnt launchctl)" "00"
 _sp_land "$SPH" --status
 _spo="$(LC_ALL=C sed -n 1,3p "$SPX/out" | LC_ALL=C awk '{ k = $1; gsub(/[^a-z]/, "", k); printf "%s ", k }')"
 is "case 19: felix land --status still exits 0" "$SPRC" 0
 is "case 19: and still prints installed, loaded and paused, first and in that order" "$_spo" "installed loaded paused "
 _sp_land "$SP/norepo" --prs
-is "§7: --prs where no repository holds the directory exits 1" "$SPRC" 1
+is "spec §7: --prs where no repository holds the directory exits 1" "$SPRC" 1
 _sp_land "$SPH" --prs --repo "$SP/norepo"
-is "§7: --prs --repo naming a directory no repository holds exits 1" "$SPRC" 1
+is "spec §7: --prs --repo naming a directory no repository holds exits 1" "$SPRC" 1
 
 # ------------------------------------------- gh failing, gh empty, --no-gh (§5) ---
 _sp_logs0; _sp_ghfail fixture_home "HTTP 502: Bad Gateway (https://api.github.com/graphql)"
@@ -339,13 +339,13 @@ _sp_lacks "case 13: and not that they were not read" "$(cat "$SPX/empty.txt")" "
 _sp_logs0; _sp_prs fixture_home "$(_sp_pr 105 notes/105.md:0 green)"
 _sp_land "$SPH" --prs --tsv --no-gh; _sp_keep nogh.tsv
 _sp_land "$SPH" --prs --no-gh; _sp_keep nogh.txt
-is "§1: --no-gh exits 0" "$(cat "$SPX/nogh.tsv.rc")$(cat "$SPX/nogh.txt.rc")" "00"
-is "§1: --no-gh asks gh nothing" "$(_sp_cnt gh)" 0
-is "§5: with --no-gh there is no pr row, though gh would have listed one" "$(_sp_prn "$SPX/nogh.tsv")" 0
-is "§5: the gh source row says unread" "$(_sp_srcf "$SPX/nogh.tsv" gh 4)" "unread"
-is "§4.4: and the budget row says unread, gh not asked" "$(_sp_srcf "$SPX/nogh.tsv" budget 4)" "unread"
-has "§5: the text page says pull requests not read" "$(cat "$SPX/nogh.txt")" "pull requests not read: "
-_sp_lacks "§5: and never no open pull requests" "$(cat "$SPX/nogh.txt")" "no open pull requests"
-is "§6.1: --no-gh still prints the six source rows, in the order gh land ledger lander budget origin" \
+is "spec §1: --no-gh exits 0" "$(cat "$SPX/nogh.tsv.rc")$(cat "$SPX/nogh.txt.rc")" "00"
+is "spec §1: --no-gh asks gh nothing" "$(_sp_cnt gh)" 0
+is "spec §5: with --no-gh there is no pr row, though gh would have listed one" "$(_sp_prn "$SPX/nogh.tsv")" 0
+is "spec §5: the gh source row says unread" "$(_sp_srcf "$SPX/nogh.tsv" gh 4)" "unread"
+is "spec §4.4: and the budget row says unread, gh not asked" "$(_sp_srcf "$SPX/nogh.tsv" budget 4)" "unread"
+has "spec §5: the text page says pull requests not read" "$(cat "$SPX/nogh.txt")" "pull requests not read: "
+_sp_lacks "spec §5: and never no open pull requests" "$(cat "$SPX/nogh.txt")" "no open pull requests"
+is "spec §6.1: --no-gh still prints the six source rows, in the order gh land ledger lander budget origin" \
    "$(LC_ALL=C awk -F'\t' '$1 == "source" { printf "%s ", $3 }' "$SPX/nogh.tsv")" "gh land ledger lander budget origin "
 # <<< stuck-pr-page

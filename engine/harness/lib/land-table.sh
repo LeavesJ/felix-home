@@ -320,12 +320,13 @@ felix_land_malformed() {
 # felix_changed_paths: what merging would change, staged and unstaged edits
 # included. A row whose trigger is `-` is never owed. Exit 0 when computed,
 # output possibly empty; 2, printing nothing, when the base is empty or names
-# nothing here.
+# nothing here, or when git could not list the change to the end (2026-10-08):
+# a trigger in a path it never listed is owed all the same.
 felix_land_owed() {   # proj root base
   local proj="${1:-}" root="${2:-}" base="${3:-}" changed rows
   [ -n "$base" ] || return 2
   felix_base_resolves "$root" "$base" || return 2
-  changed="$(felix_changed_paths "$root" "$base" 2>/dev/null)"
+  changed="$(felix_changed_paths "$root" "$base" 2>/dev/null)" || return 2
   rows="$(felix_land_rows "$proj" 2>/dev/null)"
   [ -n "$rows" ] || return 0
   printf '%s\n' "$rows" | C="$changed" LC_ALL=C awk -F'\t' '

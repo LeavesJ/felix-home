@@ -269,19 +269,17 @@ is "the amendments fixture: maple's remote_match holds a tab (fixture control)" 
 _sa_land --queue --tsv; _sa_keep r5q.tsv
 T="$SAX/r5q.tsv"
 is "R5: --queue with a remote_match holding a tab exits 0" "$(cat "$T.rc")" 0
-# A remote_match holding a tab may be refused as no owner/name slug: then its
-# gh source row says unread and why (§5), and no pull request is dropped
-# silently. Read, its founder #801 is one row of eight columns.
+# A remote_match holding a tab is no owner/name slug: R5, clarified, makes its
+# gh source row unread with that reason, and lists no pull request of it. First
+# written as either-or (read, #801 one row of eight columns); restated
+# 2026-10-18 at the carry to the clarified contract alone, because the two
+# branches gave a tree without the page assertion names this tree never
+# reaches, and the record's red run may name only what the manifest lists.
 _sat="$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "gh" && index($2, "ta by") { print $4; exit }' "$T")"
 is "R5: maple has a gh source row whose repo cell holds a space where the tab was" "$([ -n "$_sat" ] && echo yes)" yes
-if [ "$_sat" = unread ]; then
-  is "R5: maple not read: no pr row of its repository" "$(LC_ALL=C awk -F'\t' '$1 == "pr" && index($2, "ta")' "$T" | LC_ALL=C grep -c 'ta by')" 0
-  is "R5: and its gh source row says why" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "gh" && index($2, "ta by") { print ($8 != "" && $8 != "-") ? "why" : "silent"; exit }' "$T")" why
-else
-  is "R5: maple's founder #801 is one pr row" "$(_sa_nrow "$T" 801)" 1
-  is "R5: of exactly eight columns" "$(_sa_row "$T" 801 | LC_ALL=C awk -F'\t' '{ print NF }')" 8
-  has "R5: its repo cell holds a space where the tab was" "$(_sa_f "$T" 801 2)" "ta by"
-fi
+is "R5: maple's gh source row is unread, as R5 clarified says" "$_sat" unread
+is "R5: maple not read: no pr row of its repository" "$(LC_ALL=C awk -F'\t' '$1 == "pr" && index($2, "ta")' "$T" | LC_ALL=C grep -c 'ta by')" 0
+is "R5: and its gh source row says why" "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "gh" && index($2, "ta by") { print ($8 != "" && $8 != "-") ? "why" : "silent"; exit }' "$T")" why
 is "R5: every line of that --queue --tsv has eight columns" "$(_sa_cols "$T")" ""
 is "R5: and the other projects still list theirs: #601 once (control)" "$(_sa_nrow "$T" 601)" 1
 mkdir -p "$SA/tabrepo"; _fx_git "$SA/tabrepo" init -q >/dev/null 2>&1

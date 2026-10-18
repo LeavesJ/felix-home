@@ -8,353 +8,567 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	f9a88908f9c7c9f8e81adb07c1d44052093dbbb3	0.49.292
-run	350	9638	43
-A10: a deploy owed is written once and notified once over two identical ticks	1
-A10: a failing fetch is written once and notified once over two identical ticks	1
-A10: a tick that cannot resolve its project sends a notification	1
-A10: and its row names the fetch	1
-A10: and sends one notification, over two identical runs	1
-A10: and writes one row into the ledger written into it, over two identical runs	1
-A10: gh auth status failing is written once and notified once over two identical ticks	1
-A11: a tick that deploys, and verifies, merges nothing though a green candidate waits	1
-A11: a tick whose deploy ends deployed-unverified merges nothing	1
-A11: the next tick merges it	1
-A11: with the engine just deployed	1
-A12: a green pull request into release, not main, gets one skip row and is not merged	1
-A12: and the skip row names the base	1
-A12: the tick asks gh pr list for baseRefName	1
-A13: a refused pull request is not passed to felix merge again on a tick with the same head and main	1
-A13: once its head moves, felix merge runs once more, and not again on the tick after	1
-A13: once refs/remotes/origin/main moves, felix merge runs once more, and not again on the tick after	1
-A14: a pgrep that exits 2 counts as a suite running: the deploy waits	1
-A14: a suite started as bash engine/harness/tests/run, with no leading slash, makes the deploy wait	1
-A14: and the row says a gate or suite is running	1
-A15: a takeover that finds another pid in the lock it moved aside does not take it: only the live tick asked gh	1
-A15: and the live tick is not signalled	1
-A16: the plist's PATH is the fixture HOME's .local/bin, then the listed directories	1
-A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deployed-unverified	1
-A17: and main's own engine is accepted	1
-A17: control, with no decoy name: the tick finds the deploy owed: one deploy-owed row, nothing installed, nothing merged	1
-A17: control, with no decoy name: two trampoline runs write one deploy-owed row and exit 1	1
-A17: felix_base_ref given refs/remotes/origin/main returns exactly that ref, though a tag and a branch named origin/refs/remotes/origin/main exist	1
-A17: given a refs/ name that does not resolve, it tries nothing else: origin/refs/heads/absent resolves, and it still fails, printing nothing	1
-A17: given a refs/ name that resolves to a tree, not a commit, it fails, printing nothing	1
-A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: the tick finds the deploy owed: one deploy-owed row, nothing installed, nothing merged	1
-A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: two trampoline runs write one deploy-owed row and exit 1	1
-A17: with the decoy names and main's entry in place, the tick owes no deploy and merges a green pull request through main's entry	1
-A17: with the decoy names and main's entry in place, the trampoline runs main's entry's felix land --tick	1
-A17: with the decoy names, felix_accepted_deploy_diff given refs/remotes/origin/main judges main: the decoy's engine is rejected	1
-A18: (control) a green pull request whose worktree path is plain lands	1
-A18: a green pull request whose worktree path holds a tab gets one session row	1
-A18: every ledger line has exactly seven tab-separated fields	1
-A18: one whose worktree path holds a newline gets one session row	1
-A19: (control) a green pull request alone on its head branch lands	1
-A19: a candidate whose head branch is also the head of an open pull request into another base gets one skip row and is not merged	1
-A19: and each gets one skip row	1
-A1: an entry main's check accepts runs: its felix land --tick is the one tick invoked	1
-A1: each case is named apart from the others in its row	1
-A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): and send one notification	1
-A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): it exits 1, both runs	1
-A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): the row names the case	1
-A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): two runs write one deploy-owed row	1
-A1: with an entry at main's version that differs from origin/main's engine (a branch's install): and send one notification	1
-A1: with an entry at main's version that differs from origin/main's engine (a branch's install): it exits 1, both runs	1
-A1: with an entry at main's version that differs from origin/main's engine (a branch's install): the row names the case	1
-A1: with an entry at main's version that differs from origin/main's engine (a branch's install): two runs write one deploy-owed row	1
-A1: with git failing (exit 69): and send one notification	1
-A1: with git failing (exit 69): it exits 1, both runs	1
-A1: with git failing (exit 69): the row names the case	1
-A1: with git failing (exit 69): two runs write one deploy-owed row	1
-A1: with main's entry missing: and send one notification	1
-A1: with main's entry missing: it exits 1, both runs	1
-A1: with main's entry missing: the row names the case	1
-A1: with main's entry missing: two runs write one deploy-owed row	1
-A1: with main's entry not executable: and send one notification	1
-A1: with main's entry not executable: it exits 1, both runs	1
-A1: with main's entry not executable: the row names the case	1
-A1: with main's entry not executable: two runs write one deploy-owed row	1
-A1: with origin/main's version unreadable: and send one notification	1
-A1: with origin/main's version unreadable: it exits 1, both runs	1
-A1: with origin/main's version unreadable: the row names the case	1
-A1: with origin/main's version unreadable: two runs write one deploy-owed row	1
-A2, A4: the tick fetched, and pulled the home	1
-A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed	1
-A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install	1
-A20: a leftover land/verifying makes the next tick redo the deploy: one install, one deployed row	1
-A20: a leftover land/verifying with a suite running: one deploy-owed row, nothing installed, nothing merged	1
-A20: a verify that writes deployed removes land/verifying	1
-A20: land/verifying stays after a verify that did not write deployed	1
-A20: once resumed, a tick that finds land/verifying deploys again, though main's entry is in place, and merges nothing	1
-A20: the deploy wrote land/verifying before its verify ran felix gate --quick	1
-A20: the tick after it merges, with nothing installed again	1
-A21, A24: an untracked file under the home's engine/harness at deploy time never ends deployed	1
-A21: (control) an owed deploy with nothing untracked in the home's engine ends deployed	1
-A21: and writes paused	1
-A22: a tick that cannot resolve its project writes one row into FELIX_LAND_LEDGER over two identical runs, and sends one notification	1
-A22: a tick that resolves its project writes to its own ledger, not to FELIX_LAND_LEDGER	1
-A22: the trampoline exports the ledger it carries as FELIX_LAND_LEDGER, the same on both runs	1
-A22: the trampoline's unresolved tick leaves one row in that ledger, and one notification, across two runs	1
-A23 (\001): a forged record in a lock reason: 81, which no worktree holds, gets one session row	1
-A23 (\001): the locked worktree's own green pull request still lands, in its worktree	1
-A23 (\001): with b81's own worktree back, 81 lands there, and never in the checkout the forged record names	1
-A23 (newline): a forged record in a lock reason: 81, which no worktree holds, gets one session row	1
-A23 (newline): the locked worktree's own green pull request still lands, in its worktree	1
-A23 (newline): with b81's own worktree back, 81 lands there, and never in the checkout the forged record names	1
-A23: (control) a green pull request whose worktree is what its admin entry says lands, in that worktree	1
-A23: (control) with its own directory back, 84 lands there	1
-A23: a worktree directory that belongs to another repository gives one session row	1
-A23: a worktree directory that now has another branch checked out than its admin entry says gives one session row	1
-A24: (control) a clean home deploys: one install, session-start run, one deployed row, no deploy-owed row	1
-A24: (control) once the home is clean again, the owed deploy runs and writes deployed	1
-A24: (control) with nothing untracked under the home's engine/, the trampoline runs main's entry's felix land --tick	1
-A24: (control) with the home clean and main's entry in place again, the trampoline runs its tick	1
-A24: an edited engine file under assume-unchanged: and writes paused	1
-A24: an edited engine file under assume-unchanged: the deploy-owed row names the path	1
-A24: an edited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an edited engine file under skip-worktree: and writes paused	1
-A24: an edited engine file under skip-worktree: the deploy-owed row names the path	1
-A24: an edited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an edited projects/lgh/ file under assume-unchanged: and writes paused	1
-A24: an edited projects/lgh/ file under assume-unchanged: the deploy-owed row names the path	1
-A24: an edited projects/lgh/ file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an ignored file under engine/, with an untracked .gitignore beside it: and writes paused	1
-A24: an ignored file under engine/, with an untracked .gitignore beside it: the deploy-owed row names the path	1
-A24: an ignored file under engine/, with an untracked .gitignore beside it: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an unedited engine file under assume-unchanged: and writes paused	1
-A24: an unedited engine file under assume-unchanged: the deploy-owed row names the path	1
-A24: an unedited engine file under assume-unchanged: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an unedited engine file under skip-worktree: and writes paused	1
-A24: an unedited engine file under skip-worktree: the deploy-owed row names the path	1
-A24: an unedited engine file under skip-worktree: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A24: an untracked file under engine/: and writes paused	1
-A24: an untracked file under engine/: the deploy-owed row names the path	1
-A24: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12	1
-A25: the tick's descendant holding it, gh, gets TERM	1
-A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout	1
-A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM	1
-A26: an untracked file under engine/: (control) the tick after it lands the waiting pull request and installs nothing more	1
-A26: an untracked file under engine/: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row	1
-A26: an untracked file under engine/: and writes paused	1
-A26: an untracked file under engine/: the deploy-owed row names the path	1
-A26: an untracked file under engine/: the stopped deploy leaves land/verifying, written before A24's checks	1
-A26: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A26: skip-worktree on projects/lgh/gate.sh: (control) the tick after it lands the waiting pull request and installs nothing more	1
-A26: skip-worktree on projects/lgh/gate.sh: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row	1
-A26: skip-worktree on projects/lgh/gate.sh: and writes paused	1
-A26: skip-worktree on projects/lgh/gate.sh: the deploy-owed row names the path	1
-A26: skip-worktree on projects/lgh/gate.sh: the stopped deploy leaves land/verifying, written before A24's checks	1
-A26: skip-worktree on projects/lgh/gate.sh: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A27: a CRLF copy of an engine file, re-added under core.autocrlf: and writes paused	1
-A27: a CRLF copy of an engine file, re-added under core.autocrlf: the deploy-owed row names the path	1
-A27: a CRLF copy of an engine file, re-added under core.autocrlf: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A28: an untracked file under projects/lgh/ does not stop a deploy: one install, one deployed row, no deploy-owed row	1
-A28: the same untracked file under engine/: and writes paused	1
-A28: the same untracked file under engine/: the deploy-owed row names the path	1
-A28: the same untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row	1
-A29: with git archive writing past the end-of-archive marker after its reader stops, main's check exits 0 for main's entry, on each of three runs	1
-A29: with the stub, a deploy's verify accepts the entry just installed: one deployed row, no deployed-unverified row	1
-A29: with the stub, a tick finds main's entry accepted and lands green 42	1
-A29: with the stub, an entry that differs from main still exits 1: a reader that stops early never turns a difference into a pass	1
-A2: a home ahead of origin/main also writes paused	1
-A2: a home ahead of origin/main writes one deploy-owed row	1
-A2: a home behind origin/main, whose entry is already main's, owes a deploy: one install and one deployed row	1
-A2: a home diverged from origin/main also writes paused	1
-A2: a home diverged from origin/main writes one deploy-owed row	1
-A2: the home is at origin/main after it	1
-A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged	1
-A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged	1
-A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged	1
-A3: a pull request touching no direction document lands (control for the cases below)	1
-A3: a pull request touching projects/lgh/claude.md is held with one founder row and not merged	1
-A3: a pull request whose file list cannot be read gets one skip row and is not merged	1
-A3: and the skip row says the files could not be read	1
-A4: a tick whose process group gets TERM, as the watchdog sends it, writes one timeout row	1
-A4: and does not signal the lock's holder	1
-A4: and sends one notification for it	1
-A5: and the lock is released after the race	1
-A5: two ticks racing one dead lock leave exactly one taker, in each of five rounds	1
-A6: a refusal whose detail changed writes one new refused row and one new notification	1
-A6: and one notification each for the founder and the refused row	1
-A6: one refused row for a refused one	1
-A6: one session row for one no checkout holds	1
-A6: two identical ticks write one founder row for a held pull request	1
-A7: felix land --pause with two reasons prints usage and exits 2	1
-A8: with a local branch named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs	1
-A8: with a local branch named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges	1
-A8: with a local branch named origin/main, the trampoline runs main's accepted entry, not the one the short name declares	1
-A8: with a tag named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs	1
-A8: with a tag named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges	1
-A8: with a tag named origin/main, the trampoline runs main's accepted entry, not the one the short name declares	1
-A9: a plain ASCII docs/notes.md still merges	1
-A9: a pull request whose changed path holds U+017F (projectſ/lgh/CLAUDE.md) gets one founder row and is not merged	1
-A9: a pull request whose changed path holds a byte >= 0x80 (notes/café.md) gets one founder row and is not merged	1
-A9: a pull request whose changed path holds a byte >= 0x80 only in its old name, renamed away gets one founder row and is not merged	1
-A9: a pull request whose changed path holds a newline gets one founder row and is not merged	1
-A9: a pull request whose changed path holds a tab gets one founder row and is not merged	1
-G1: lib/green-tick.sh stays under 500 lines	1
-G1: the tick lives in lib/green-tick.sh, outside the lib/land*.sh glob	1
-G1: the trampoline changes into FELIX_HOME_DIR before it runs	1
-G2: a lock whose pid is alive but started at another time is dead, and taken	1
-G2: a lock whose pid is dead is taken: the tick goes on to ask gh	1
-G2: a paused tick exits 0	1
-G2: a paused tick, with no paused row yet, writes one paused row	1
-G2: a running tick holds lock/ with the pid of a live process and its started line	1
-G2: a second paused tick within the hour writes no row	1
-G2: a tick ended by TERM still releases its lock, through its trap	1
-G2: a tick that finds the lock held by a live tick exits 0	1
-G2: a tick whose gh auth status fails exits 0	1
-G2: and does not ask gh anything	1
-G2: and released when the tick ends	2
-G2: and writes one gh row	1
-G2: once the newest paused row is older than an hour, a paused tick writes one more	1
-G3 (review 1): and the home's origin/main is origin's main after the tick	1
-G3 (review 1): the tick fetches before it reads origin/main's version: a main pushed from elsewhere is deployed	1
-G3, G7.2 (review 1): a deploy owed and stopped at a home off main merges nothing in that tick	1
-G3, G7.4 (review 1): a deploy whose gate check fails is not completed: deployed-unverified, and nothing merges in that tick	1
-G3, G7.4 (review 1): a deploy whose hook check fails is not completed: deployed-unverified, and nothing merges in that tick	1
-G3, G7: with main's version missing from the cache and a suite running, the tick exits 0	1
-G3: a cache entry that diff -rq finds different from origin/main's engine/harness owes a deploy, and nothing merges	1
-G3: the version read is origin/main's: a newer one there is deployed	1
-G4, G6: felix merge is tried in ascending order, 40 and 41 refused, 42 landed, and nothing after the first landing	1
-G4: a CONFLICTING pull request is skipped with one skip row	1
-G4: a cross-repository pull request is skipped with one skip row	1
-G4: a draft is skipped with one skip row	1
-G4: a pull request green only on an older head is skipped with one skip row	1
-G4: a pull request labelled felix:hold is skipped with one skip row	1
-G4: a pull request whose failing check changed gets one new skip row	1
-G4: a pull request whose gate run failed is skipped with one skip row	1
-G4: a pull request whose gate run has not completed is skipped with one skip row	1
-G4: a pull request whose gh run list fails is skipped with one skip row	1
-G4: a pull request whose newest run failed after an older one passed is skipped with one skip row	1
-G4: a pull request with no gate run on its head is skipped with one skip row	1
-G4: a second tick over the same waiting pull requests writes no new skip row	1
-G4: a tick over open pull requests exits 0	1
-G4: and the others none	1
-G4: and the skip row for a CONFLICTING pull request names the check	1
-G4: and the skip row for a cross-repository pull request names the check	1
-G4: and the skip row for a draft names the check	1
-G4: and the skip row for a pull request labelled felix:hold names the check	1
-G4: it lists them with one gh pr list call	1
-G4: rows are written in ascending pull request order	1
-G4: the gh pr list call carries --state open	1
-G4: the gh pr list call carries headRefName	1
-G4: the gh pr list call carries headRefOid	1
-G4: the gh pr list call carries isCrossRepository	1
-G4: the gh pr list call carries isDraft	1
-G4: the gh pr list call carries labels	1
-G4: the gh pr list call carries mergeable	1
-G4: the gh pr list call carries number	1
-G5 (review 1): a pull request that renames projects/*/CLAUDE.md away is held with a founder row and not merged	1
-G5, A3: the tick asked gh for the file list	1
-G5: a pull request touching another project's projects/*/CLAUDE.md is held with a founder row	1
-G5: a pull request touching docs/*roadmap* is held with a founder row	1
-G5: a pull request whose branch no worktree holds gets a session row reading no checkout holds the gated head	1
-G5: so does one whose worktree is at the head but not on its branch	1
-G5: so does one whose worktree is on the branch at another head	1
-G6, G8: a refused row's detail is the first output line that begins with two spaces, its tab made a space	1
-G6: each refusal writes a refused row	1
-G6: each runs in the matched worktree	1
-G6: each with no argument but merge	1
-G6: every felix merge run is the installed engine's, at main's version in the cache	1
-G6: exit 0 from felix merge writes one landed row	1
-G6: with FELIX_ALLOW_RED, FELIX_KERNEL and FELIX_KERNEL_CACHE unset though the caller exported them	1
-G6: with no such line, the detail is the output's last line	1
-G7: a deployed-unverified for felix gate --quick also writes paused with the same reason	1
-G7: a deployed-unverified for the diff of the cache entry against the home also writes paused with the same reason	1
-G7: a deployed-unverified for the session-start hook also writes paused with the same reason	1
-G7: a dirty home also writes paused with the same reason	1
-G7: a home off main also writes paused with the same reason	1
-G7: a landing whose changed paths include engine/ lands, then deploys	1
-G7: a running /gate.sh also leaves the deploy owed	1
-G7: an untracked file in the home is no tracked change: the owed deploy runs and writes deployed	1
-G7: and hands it the stub payload's cwd, the home	1
-G7: and hands it the stub payload's session_id, felix-land-verify	1
-G7: and hands it the stub payload's source, startup	1
-G7: and the install that follows puts origin/main's engine in the cache under its version	1
-G7: install runs once, as the home's engine/harness/felix install --no-bump, from the home	1
-G7: installing once, the version the landing brought	1
-G7: it writes one deploy-owed row	1
-G7: naming the check, felix gate --quick	1
-G7: naming the check, the diff of the cache entry against the home	1
-G7: naming the check, the session-start hook	1
-G7: reading a gate or suite is running	1
-G7: the home is pulled to origin/main first	1
-G7: the running suite is looked for with pgrep -f	1
-G7: the verify runs felix gate --quick in the home	1
-G7: the verify runs the home's hooks/session-start	1
-G7: when felix gate --quick fails, the tick writes one deployed-unverified row and no deployed row	1
-G7: when the diff of the cache entry against the home fails, the tick writes one deployed-unverified row and no deployed row	1
-G7: when the session-start hook fails, the tick writes one deployed-unverified row and no deployed row	1
-G7: with a deploy owed and the home off main, the tick exits 0 with one deploy-owed row	1
-G7: with the home holding a tracked change, one deploy-owed row	1
-G8: a detail holding a newline and a tab is written as one row of seven fields	1
-G8: a failing osascript is ignored: the tick exits 0	1
-G8: a founder row is sent titled Felix: founder #34	1
-G8: a notification is one osascript -e display notification	1
-G8: a paused row is also sent as a notification titled Felix: paused	1
-G8: a refused row is sent titled Felix: refused #41	1
-G8: a row with no pull request has - for its number, head and worktree	1
-G8: and a UTC time	1
-G8: and the landed row stands	1
-G8: and the worktree path	1
-G8: and wall seconds as a number	1
-G8: every ledger line is one row of seven tab-separated fields	1
-G8: one notification per row	1
-G8: the deployed row is sent titled Felix: deployed	1
-G8: the deployed-unverified row for felix gate --quick is sent as a notification	1
-G8: the deployed-unverified row for the diff of the cache entry against the home is sent as a notification	1
-G8: the deployed-unverified row for the session-start hook is sent as a notification	1
-G8: the landed row carries the head SHA	1
-G8: the landed row is sent titled Felix: landed #42	1
-G8: the ledger row is written before its notification	1
-G9: --install bootstraps it with launchctl bootstrap gui/<uid> <plist>	1
-G9: --install exits 0	1
-G9: --install writes ~/Library/LaunchAgents/felix.land.<p>.plist	1
-G9: --pause exits 0	1
-G9: --pause with a reason writes the reason into paused	1
-G9: --pause with no reason writes paused reading "paused by hand"	1
-G9: --resume exits 0	1
-G9: --status --tsv exits 0	1
-G9: --status --tsv prints a pull request's last ledger row as the ledger has it	1
-G9: --status --tsv says installed no before --install, as key<TAB>value	1
-G9: --status --tsv says installed yes and loaded yes once installed and loaded	1
-G9: --status --tsv says paused yes while paused exists	1
-G9: --status --tsv's second line is loaded<TAB>yes or no	1
-G9: --uninstall exits 0	1
-G9: --uninstall runs launchctl bootout gui/<uid>/felix.land.<p>	1
-G9: --uninstall with nothing installed is not an error	1
-G9: FELIX_HOME_DIR is the home	1
-G9: ProcessType is Interactive	1
-G9: RunAtLoad is true	1
-G9: and an executable trampoline at ~/Library/Application Support/felix/land/<p>/tick	1
-G9: and loaded no when launchctl does not have it	1
-G9: and prints a usage that names --tick	2
-G9: and the last row of every other pull request seen	1
-G9: felix land with an unknown argument exits 2	1
-G9: felix land with no argument exits 2	1
-G9: it resolves main's version when it runs, not when it was installed	1
-G9: it runs the trampoline	1
-G9: it sets the explicit PATH	1
-G9: its EnvironmentVariables name FELIX_HOME_DIR as the home	1
-G9: its StartInterval is 300	1
-G9: its stderr goes to land/launchd.log	1
-G9: its stdout goes to land/launchd.log	1
-G9: plain --status prints installed, loaded and paused, each yes or no, first	1
-G9: the plist is one plutil reads	1
-G9: the plist's label is felix.land.<p>	1
-G9: the trampoline runs the installed engine's felix land --tick at main's version	1
-G9: two commands at once is another argument, and exits 2	1
-the land fixture: a copy of the CLI sets _GT_WDSECS=2 on the line after it sources lib/green-tick.sh, and differs in nothing else (fixture control)	1
-the land fixture: a live tick held the lock while the second ran (fixture control)	1
-the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)	1
-the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)	1
-the land fixture: both trampoline runs ran main's entry, whose land ran the tick from no project (fixture control)	1
-the land fixture: the tick asked pgrep (fixture control)	1
-the land fixture: the tick ran git archive through the stub (fixture control)	1
-the land fixture: the tick was held in gh auth status, gh descends from the pid in lock/, and the sentinel is in the tick's process group (fixture control)	1
-the land fixture: the tick's fetch failed (fixture control)	1
-the land fixture: with main's entry there and git working, the trampoline runs main's felix land --tick (fixture control)	1
-the land fixture: with no ref named origin/main, a green pull request merges through main's entry (fixture control)	1
-the land fixture: with the real git, a tick lands green 42 and owes no deploy (fixture control)	1
+base	origin/main	1c5ca0d0891ca01c9097c017e9bac12353169047	0.49.297
+run	575	11880	48
+R10 control: a plain risk row (no confine) makes #333 founder	1
+R10 control: and its detail lists the row once	1
+R10 control: one path under one confined row: #332 is not founder, it is ready	1
+R10: as content confine, the pattern, the count 4 and the first path	1
+R10: each pattern is named once	1
+R10: four paths under one confined row and no other rule: #330 is ready	1
+R10: its detail lists exactly two confined rows	1
+R10: its detail lists the confined row exactly once	1
+R10: on the text page too, #330's line lists the row once	1
+R10: one path under one confined row: the detail names the row's pattern	1
+R10: the detail never repeats the phrase per path	1
+R10: the first row once, with its count 2 and first path	1
+R10: the second row once, with its count 3 and first path	1
+R10: two different confined rows: #331 is ready	1
+R11 --repo control: and --repo two reads two's, not home's	1
+R11 --repo control: the home's page reads fixture/home's pull requests	1
+R11 --repo: --repo naming two names two's newest row: and the text page holds it	1
+R11 --repo: --repo naming two names two's newest row: both pages exit 0	1
+R11 --repo: --repo naming two names two's newest row: every row of the --tsv page has exactly eight columns	1
+R11 --repo: --repo naming two names two's newest row: on one line that names the lander	1
+R11 --repo: --repo naming two names two's newest row: the detail names the ledger's newest row once	1
+R11 --repo: --repo naming two names two's newest row: the lander row's detail ends with the clause	1
+R11 --repo: --repo naming two names two's newest row: the page has one lander source row	1
+R11 --repo: run from two's checkout, the same: and the text page holds it	1
+R11 --repo: run from two's checkout, the same: both pages exit 0	1
+R11 --repo: run from two's checkout, the same: every row of the --tsv page has exactly eight columns	1
+R11 --repo: run from two's checkout, the same: on one line that names the lander	1
+R11 --repo: run from two's checkout, the same: the detail names the ledger's newest row once	1
+R11 --repo: run from two's checkout, the same: the lander row's detail ends with the clause	1
+R11 --repo: run from two's checkout, the same: the page has one lander source row	1
+R11 --repo: the home's page names the home project's newest row: and the text page holds it	1
+R11 --repo: the home's page names the home project's newest row: both pages exit 0	1
+R11 --repo: the home's page names the home project's newest row: every row of the --tsv page has exactly eight columns	1
+R11 --repo: the home's page names the home project's newest row: on one line that names the lander	1
+R11 --repo: the home's page names the home project's newest row: the detail names the ledger's newest row once	1
+R11 --repo: the home's page names the home project's newest row: the lander row's detail ends with the clause	1
+R11 --repo: the home's page names the home project's newest row: the page has one lander source row	1
+R11 a carriage return in the detail is a space: and the text page holds it	1
+R11 a carriage return in the detail is a space: both pages exit 0	1
+R11 a carriage return in the detail is a space: every row of the --tsv page has exactly eight columns	1
+R11 a carriage return in the detail is a space: on one line that names the lander	1
+R11 a carriage return in the detail is a space: the detail names the ledger's newest row once	1
+R11 a carriage return in the detail is a space: the lander row's detail ends with the clause	1
+R11 a carriage return in the detail is a space: the page has one lander source row	1
+R11 a live lock, the newest row unreadable: and the text page holds it	1
+R11 a live lock, the newest row unreadable: both pages exit 0	1
+R11 a live lock, the newest row unreadable: every row of the --tsv page has exactly eight columns	1
+R11 a live lock, the newest row unreadable: on one line that names the lander	1
+R11 a live lock, the newest row unreadable: the detail names the ledger's newest row once	1
+R11 a live lock, the newest row unreadable: the lander row's detail ends with the clause	1
+R11 a live lock, the newest row unreadable: the page has one lander source row	1
+R11 job-level newest row (PR column -): and the text page holds it	1
+R11 job-level newest row (PR column -): both pages exit 0	1
+R11 job-level newest row (PR column -): every row of the --tsv page has exactly eight columns	1
+R11 job-level newest row (PR column -): on one line that names the lander	1
+R11 job-level newest row (PR column -): the detail names the ledger's newest row once	1
+R11 job-level newest row (PR column -): the lander row's detail ends with the clause	1
+R11 job-level newest row (PR column -): the page has one lander source row	1
+R11 newest row of any kind: a skip row for #402 is the one named: and the text page holds it	1
+R11 newest row of any kind: a skip row for #402 is the one named: both pages exit 0	1
+R11 newest row of any kind: a skip row for #402 is the one named: every row of the --tsv page has exactly eight columns	1
+R11 newest row of any kind: a skip row for #402 is the one named: on one line that names the lander	1
+R11 newest row of any kind: a skip row for #402 is the one named: the detail names the ledger's newest row once	1
+R11 newest row of any kind: a skip row for #402 is the one named: the lander row's detail ends with the clause	1
+R11 newest row of any kind: a skip row for #402 is the one named: the page has one lander source row	1
+R11 none control: and another: #402 is in state ready	1
+R11 none control: and another: #402 needs lander	1
+R11 none control: no ledger, so a green plain pull request: #401 is in state ready	1
+R11 none control: no ledger, so a green plain pull request: #401 needs lander	1
+R11 none control: paused no stays in the detail	1
+R11 none control: the ledger source row says none	1
+R11 none: and it comes before the clause	1
+R11 none: the lander row is not-live (no lock), as it was before R11	1
+R11 none: with no ledger file: and the text page holds it	1
+R11 none: with no ledger file: both pages exit 0	1
+R11 none: with no ledger file: every row of the --tsv page has exactly eight columns	1
+R11 none: with no ledger file: on one line that names the lander	1
+R11 none: with no ledger file: the detail names the ledger's newest row once	1
+R11 none: with no ledger file: the lander row's detail ends with the clause	1
+R11 none: with no ledger file: the page has one lander source row	1
+R11 paused control: paused yes stays in the detail	1
+R11 paused: a pull request is still ready, and needs the lander: #401 is in state ready	1
+R11 paused: a pull request is still ready, and needs the lander: #401 needs lander	1
+R11 paused: and the paused reason, the first line of the file	1
+R11 paused: paused yes comes before the clause	1
+R11 paused: the paused reason comes before the clause	1
+R11 paused: the text page holds the reason too	1
+R11 short row: a pull request is still ready: #401 is in state ready	1
+R11 short row: a pull request is still ready: #401 needs lander	1
+R11 short row: a pull request is still ready: #402 is in state ready	1
+R11 short row: a pull request is still ready: #402 needs lander	1
+R11 short row: a row of six columns: both pages exit 0	1
+R11 short row: a row of three columns: both pages exit 0	1
+R11 short row: every row of the --tsv page has eight columns, six columns in the ledger row	1
+R11 short row: every row of the --tsv page has eight columns, three columns in the ledger row	1
+R11 short row: the detail ends with the time and event and a colon, the detail empty (six columns)	1
+R11 short row: the detail ends with the time and event and a colon, the detail empty (three columns)	1
+R11 short row: the ledger source row says read	1
+R11 short row: the text page names the row (six columns)	1
+R11 short row: the text page names the row (three columns)	1
+R11 unread control: a directory where the ledger should be: the ledger row says unread	1
+R11 unread control: and a plain green pull request is unknown, as §5 says: #401 is in state unknown	1
+R11 unread control: and a plain green pull request is unknown, as §5 says: #401 needs unknown	1
+R11 unread control: land/ at mode 000: the ledger row says unread	1
+R11 unread: a directory where the ledger should be: and the text page holds it	1
+R11 unread: a directory where the ledger should be: both pages exit 0	1
+R11 unread: a directory where the ledger should be: every row of the --tsv page has exactly eight columns	1
+R11 unread: a directory where the ledger should be: on one line that names the lander	1
+R11 unread: a directory where the ledger should be: the detail names the ledger's newest row once	1
+R11 unread: a directory where the ledger should be: the lander row's detail ends with the clause	1
+R11 unread: a directory where the ledger should be: the page has one lander source row	1
+R11 unread: a land directory that cannot be searched: and the text page holds it	1
+R11 unread: a land directory that cannot be searched: both pages exit 0	1
+R11 unread: a land directory that cannot be searched: every row of the --tsv page has exactly eight columns	1
+R11 unread: a land directory that cannot be searched: on one line that names the lander	1
+R11 unread: a land directory that cannot be searched: the detail names the ledger's newest row once	1
+R11 unread: a land directory that cannot be searched: the lander row's detail ends with the clause	1
+R11 unread: a land directory that cannot be searched: the page has one lander source row	1
+R11 with paused present: and the text page holds it	1
+R11 with paused present: both pages exit 0	1
+R11 with paused present: every row of the --tsv page has exactly eight columns	1
+R11 with paused present: on one line that names the lander	1
+R11 with paused present: the detail names the ledger's newest row once	1
+R11 with paused present: the lander row's detail ends with the clause	1
+R11 with paused present: the page has one lander source row	1
+R11: #401, whose own newest row is a skip, is still ready: #401 is in state ready	1
+R11: #401, whose own newest row is a skip, is still ready: #401 needs lander	1
+R11: #402, whose own newest row is a refusal on the current main, is still refused: #402 is in state refused	1
+R11: #402, whose own newest row is a refusal on the current main, is still refused: #402 needs session	1
+R11: #402, whose own newest row is that skip, stays ready: #402 is in state ready	1
+R11: #402, whose own newest row is that skip, stays ready: #402 needs lander	1
+R11: and #401, with no row of its own, stays ready: #401 is in state ready	1
+R11: and #401, with no row of its own, stays ready: #401 needs lander	1
+R11: and #402, which has a skip row of its own earlier, stays ready: #402 is in state ready	1
+R11: and #402, which has a skip row of its own earlier, stays ready: #402 needs lander	1
+R11: and a pull request is still ready: #401 is in state ready	1
+R11: and a pull request is still ready: #401 needs lander	1
+R11: and its detail still holds the refusal's detail	1
+R11: no pull request's state changes: #401 stays ready and needs the lander: #401 is in state ready	1
+R11: no pull request's state changes: #401 stays ready and needs the lander: #401 needs lander	1
+R11: the lander row's state is live, unchanged by the newest row	1
+R11: the lander row's state is the same with an unreadable newest row: not-live	1
+R11: the ledger source row says read	1
+R11: the page's clause and --status's last row agree when the newest row is a pull request's	1
+R11: the page's clause and --status's last row are one row: time, event and detail agree	1
+R1: --queue exits 0, with --tsv and without	1
+R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/two	1
+R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once	1
+R1: under fixture/two (control)	1
+R2: a network error: one billing GET and no orgs/ GET	1
+R2: after a 404 the gh log holds one users/ GET	1
+R2: after a 502 the gh log holds exactly one billing GET	1
+R2: and adds the scope hint after the 404	1
+R2: and gives gh's first error line (control)	1
+R2: and it is the users/ GET	1
+R2: and no more billing GETs than those two	1
+R2: and the budget row says read	1
+R2: and the budget row says read (control)	1
+R2: and then one orgs/ GET	1
+R2: both answering 404: the budget row says unread	1
+R2: the billing GET answers: the gh log holds exactly one billing GET	1
+R2: the budget row says unread (control)	2
+R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/	1
+R2: users/ answers 404: the page exits 0	1
+R2: users/ answers 502: the page exits 0	1
+R3: a repository with neither origin/HEAD nor origin/main: the page exits 0 (control)	1
+R3: and #501 into main is stacked	1
+R3: and #501 into main was decided against it: ready (control)	1
+R3: and #502 into trunk is stacked (control)	1
+R3: and a plain green pull request into main was decided: #501 is ready (control)	1
+R3: and its origin row says default branch not read (control)	1
+R3: and its pull request was not decided: #901 is unknown (control)	1
+R3: and one into trunk is stacked (control)	1
+R3: origin/HEAD names main: the origin row says default branch main (origin/HEAD)	1
+R3: origin/HEAD naming trunk: the origin row says default branch trunk (origin/HEAD)	1
+R3: origin/HEAD wins over origin/main: #502 into trunk is ready	1
+R3: origin/main alone: the origin row says default branch main (origin/main)	1
+R3: the page with origin/HEAD naming main exits 0	1
+R3: the page with origin/main alone exits 0	1
+R4: and that is nine days ago, not the fresh fetch of another branch	1
+R4: and that is under an hour ago (control)	1
+R4: main moved just now: the origin row says when origin/main last moved (control)	1
+R4: the origin row says when origin/main last moved, from its reflog	1
+R4: the page after a fetch of another branch exits 0	1
+R4: the row still names the default branch (control)	1
+R5 clarified: --prs --tsv --repo on a directory whose name holds a tab exits 0, and so does the text page	1
+R5 clarified: and says it could not be read	1
+R5 clarified: every row of that page has exactly eight columns	1
+R5 clarified: it prints rows (control)	1
+R5 clarified: the gh source row speaks of the slug	1
+R5 control: the home's page exits 0	1
+R5: --prs in a repository whose slug holds a tab exits 0	1
+R5: --queue with a remote_match holding a tab exits 0	1
+R5: and its gh source row says why	1
+R5: and the other projects still list theirs: #601 once (control)	1
+R5: every line of --queue --tsv has eight columns (control)	1
+R5: every line of that --queue --tsv has eight columns	1
+R5: every line of that page, source rows too, has eight columns	1
+R5: its #801 is one pr row	1
+R5: its repo cell is not empty and holds no carriage return	1
+R5: maple has a gh source row whose repo cell holds a space where the tab was	1
+R5: maple's gh source row is unread, as R5 clarified says	1
+R5: of exactly eight columns	1
+R6: and #602 on one line	1
+R6: and founder #602 exactly once	1
+R6: and zeta's block names felix, whose block lists its pull requests	1
+R6: felix and zeta name one repository: founder #601 is listed exactly once	1
+R6: gh listed fixture/home once, not once per project: one pr list besides two's and three's	1
+R6: the text lists #601 on one line	1
+R6: zeta, second in name order, has a block of its own (control)	1
+R8 control: --queue lists the founder pull request #300 once	1
+R8 control: NBSP (C2 A0) and an accented letter are not controls and reach the page as they are	1
+R8 control: a plain title reaches the page unchanged	1
+R8 control: and #311, founder by its path	1
+R8 control: every pull request of the list has a row	1
+R8 control: in --queue, a plain title reaches the page unchanged	1
+R8 control: the billing GET failed: the budget row says unread	1
+R8 control: the lander row says paused yes	1
+R8 control: the ledger refused #320's head on the current main: refused	1
+R8 control: the pull request whose path holds ESC is founder	1
+R8 control: the pull request with a failed check is red	1
+R8 the detail of the newest row: ESC and BEL show as ?: and the text page holds it	1
+R8 the detail of the newest row: ESC and BEL show as ?: both pages exit 0	1
+R8 the detail of the newest row: ESC and BEL show as ?: every row of the --tsv page has exactly eight columns	1
+R8 the detail of the newest row: ESC and BEL show as ?: on one line that names the lander	1
+R8 the detail of the newest row: ESC and BEL show as ?: the detail names the ledger's newest row once	1
+R8 the detail of the newest row: ESC and BEL show as ?: the lander row's detail ends with the clause	1
+R8 the detail of the newest row: ESC and BEL show as ?: the page has one lander source row	1
+R8: --prs exits 0 over titles, a check name, a path, a ledger and a paused reason holding controls, TSV and text	1
+R8: --queue exits 0, TSV and text	1
+R8: a newline inside a title becomes a space	1
+R8: a tab inside a title becomes a space	1
+R8: a title holding BEL shows it as ?	1
+R8: a title holding C2 80, the first C1 control, shows it as ?	1
+R8: a title holding C2 9B shows it as ?	1
+R8: a title holding C2 9F, the last C1 control, shows it as ?	1
+R8: a title holding DEL shows it as ?	1
+R8: a title holding ESC shows it as ?	1
+R8: and on the text page	1
+R8: every row of the --prs --tsv page has exactly eight columns	1
+R8: every row of the --queue --tsv page has exactly eight columns	1
+R8: gh's error line holding ESC shows it as ?	1
+R8: in --queue, a newline inside a title becomes a space	1
+R8: in --queue, a tab inside a title becomes a space	1
+R8: in --queue, a title holding BEL shows it as ?	1
+R8: in --queue, a title holding C2 80 shows it as ?	1
+R8: in --queue, a title holding C2 9B shows it as ?	1
+R8: in --queue, a title holding C2 9F shows it as ?	1
+R8: in --queue, a title holding DEL shows it as ?	1
+R8: in --queue, a title holding ESC shows it as ?	1
+R8: the ledger's detail holding ESC shows it as ?, in a refusal	1
+R8: the ledger's detail holding ESC shows it as ?, in a skip	1
+R8: the paused reason holding ESC shows it as ?	1
+R8: the pull requests whose titles hold a tab and a newline are one --queue row each	1
+R8: the pull requests whose titles hold a tab and a newline are one row each	1
+case 10: exactly 100 files with a failed check: state 5 comes before 7: #113 is in state red	1
+case 10: exactly 100 files with a failed check: state 5 comes before 7: #113 needs session	1
+case 10: exactly 100 files, green, no label: #112 is in state unknown	1
+case 10: exactly 100 files, green, no label: #112 needs unknown	1
+case 11: a land-table founder row on origin/main matching a changed path: #114 is in state founder	1
+case 11: a land-table founder row on origin/main matching a changed path: #114 needs founder	1
+case 11: a pull request that reaches founder by a land row alone: #114 is in state unknown	1
+case 11: a pull request that reaches founder by a land row alone: #114 needs unknown	1
+case 11: the same kind of row only in the working tree makes nothing founder	1
+case 12: and gives gh's reason	1
+case 12: and without it	1
+case 12: gh failing still exits 0 with --tsv	1
+case 12: the gh source row says unread	1
+case 12: the page asked gh for the list once in each run	1
+case 12: the text page says pull requests not read, with the reason	1
+case 13: gh answering [] exits 0	1
+case 13: the gh source row says none	1
+case 13: the text page says no open pull requests	1
+case 14: a live pid under another start time was reused: not-live	1
+case 14: a live pid with an empty started: live	1
+case 14: a lock with a live pid and its start time: the lander row says live	1
+case 14: a paused file holding a reason: paused yes	1
+case 14: and the reason in the detail	1
+case 14: no lock: not-live	1
+case 15: BEHIND: the state is decided by the rest: #116 is in state ready	1
+case 15: BEHIND: the state is decided by the rest: #116 needs lander	1
+case 15: and carries the flag behind	1
+case 16: a head with no checks: #117 is in state unready	1
+case 16: a head with no checks: #117 needs session	1
+case 16: its detail says no checks ran on the head	1
+case 17: --prs --tsv prints its page and leaves the repositories and the land directories byte-identical	1
+case 17: --prs prints its page and leaves them byte-identical	1
+case 17: --queue --tsv prints its page and leaves them byte-identical	1
+case 17: --queue prints its page and leaves them byte-identical	1
+case 17: --repo prints its page and leaves both repositories and every land directory byte-identical	1
+case 17: gh was called with pr list and api only	1
+case 18: a title holding a tab gives one row	1
+case 18: of eight columns	1
+case 19: and --queue	1
+case 19: and its usage names --prs	1
+case 19: and prints the usage, which names --prs	3
+case 1: #101 appears in --queue exactly once	1
+case 1: and on one line of the --queue text	1
+case 1: and once in --queue --tsv	1
+case 1: in one --prs row	1
+case 1: risk.tsv changed, checks green: #101 is in state founder	1
+case 1: risk.tsv changed, checks green: #101 needs founder	1
+case 1: with a second and third escape table and two founder labels, #101 is still founder	1
+case 20: .github/workflows/x.yml: #123 is in state founder	1
+case 20: .github/workflows/x.yml: #123 needs founder	1
+case 20: by the rule authority	1
+case 20: by the rule commission	1
+case 20: by the rule execute	1
+case 20: by the rule exemption	1
+case 20: by the rule verifier	1
+case 20: ecosystem.tsv with only added lines: #122 is in state founder	1
+case 20: ecosystem.tsv with only added lines: #122 needs founder	1
+case 20: projects/felix/autonomy: #124 is in state founder	1
+case 20: projects/felix/autonomy: #124 needs founder	1
+case 20: qualification.tsv with one deleted line: #121 is in state founder	1
+case 20: qualification.tsv with one deleted line: #121 needs founder	1
+case 20: qualification.tsv with only added lines is not founder	1
+case 20: stack.tsv with only added lines: #125 is in state founder	1
+case 20: stack.tsv with only added lines: #125 needs founder	1
+case 21: and the detail also says trust base	1
+case 21: risk.tsv and engine/harness/felix, green: #119 is in state founder	1
+case 21: risk.tsv and engine/harness/felix, green: #119 needs founder	1
+case 22: a risk path row with a channel and no confine: #128 is in state founder	1
+case 22: a risk path row with a channel and no confine: #128 needs founder	1
+case 22: and the detail says the row was not evaluated	1
+case 22: by the rule risk	1
+case 22: the same row with a confine makes nothing founder	1
+case 23: a landed row on an older head decides nothing, nor a refused row of pull request 1340: #134 is in state ready	1
+case 23: a landed row on an older head decides nothing, nor a refused row of pull request 1340: #134 needs lander	1
+case 23: a session row on the head: #133 is in state refused	1
+case 23: a session row on the head: #133 needs session	1
+case 23: and the detail says the lander last saw that head	1
+case 23: the detail holds the refusal's detail	1
+case 23: the last ledger row refused this head on the current origin/main: #130 is in state refused	1
+case 23: the last ledger row refused this head on the current origin/main: #130 needs session	1
+case 23: the same row for an older head decides nothing: #132 is in state ready	1
+case 23: the same row for an older head decides nothing: #132 needs lander	1
+case 23: the same row on an older main decides nothing: #131 is in state ready	1
+case 23: the same row on an older main decides nothing: #131 needs lander	1
+case 24: a green draft with nothing else: #136 is in state unready	1
+case 24: a green draft with nothing else: #136 needs session	1
+case 24: and the detail a draft: the tick merges no draft	1
+case 24: with the flag draft	1
+case 25: both of them: #138 is in state unready	1
+case 25: both of them: #138 needs session	1
+case 25: each detail names the other: #137's	1
+case 25: each detail names the other: #138's	1
+case 25: two open green pull requests with one head branch: #137 is in state unready	1
+case 25: two open green pull requests with one head branch: #137 needs session	1
+case 26: Felix:Founder the same: #140 is in state founder	1
+case 26: Felix:Founder the same: #140 needs founder	1
+case 26: NEEDS-FOUNDER on a green pull request with no founder path: #139 is in state founder	1
+case 26: NEEDS-FOUNDER on a green pull request with no founder path: #139 needs founder	1
+case 27: a path holding DEL, printed as \u007f, which is outside printable ASCII: #168 is in state founder	1
+case 27: a path holding DEL, printed as \u007f, which is outside printable ASCII: #168 needs founder	1
+case 27: a path holding a byte outside printable ASCII: #144 is in state founder	1
+case 27: a path holding a byte outside printable ASCII: #144 needs founder	1
+case 27: a path holding a newline, printed as \n: #164 is in state founder	1
+case 27: a path holding a newline, printed as \n: #164 needs founder	1
+case 27: a path holding a tab, printed by gh as \t, green: #160 is in state founder	1
+case 27: a path holding a tab, printed by gh as \t, green: #160 needs founder	1
+case 27: a path holding the byte 001, printed as \u0001: #166 is in state founder	1
+case 27: a path holding the byte 001, printed as \u0001: #166 needs founder	1
+case 27: by the rule direction	3
+case 27: by the rule path-bytes	6
+case 27: docs/2026-09-23-roadmap.md: #143 is in state founder	1
+case 27: docs/2026-09-23-roadmap.md: #143 needs founder	1
+case 27: projects/felix/CLAUDE.md with a carriage return at its end, printed as \r: #165 is in state founder	1
+case 27: projects/felix/CLAUDE.md with a carriage return at its end, printed as \r: #165 needs founder	1
+case 27: projects/felix/CLAUDE.md: #141 is in state founder	1
+case 27: projects/felix/CLAUDE.md: #141 needs founder	1
+case 27: projects/felix/claude.md: #142 is in state founder	1
+case 27: projects/felix/claude.md: #142 needs founder	1
+case 28: a directory where the ledger should be: the ledger row says unread	1
+case 28: and a pull request that would otherwise be ready: #105 is in state unknown	1
+case 28: and a pull request that would otherwise be ready: #105 needs unknown	1
+case 28: and the pull request: #105 is in state ready	1
+case 28: and the pull request: #105 needs lander	1
+case 28: no ledger at all: the ledger row says none	1
+case 29: --repo exits 0	1
+case 29: and its detail is that ledger's	1
+case 29: every row names the second repository	1
+case 29: gh was asked for one list	1
+case 29: its pull requests, and none of the current repository's	1
+case 29: that project's ledger names #201's head in a session row: #201 is in state refused	1
+case 29: that project's ledger names #201's head in a session row: #201 needs session	1
+case 29: the current project's ledger row for 202 is not read: #202 is in state ready	1
+case 29: the current project's ledger row for 202 is not read: #202 needs lander	1
+case 2: the same with one failed check: #102 is in state red	1
+case 2: the same with one failed check: #102 needs session	1
+case 3: the same with a check still running: #103 is in state pending	1
+case 3: the same with a check still running: #103 needs nobody	1
+case 4: and is the flag mergeable-unknown	1
+case 4: mergeable CONFLICTING: #104 is in state needs-session	1
+case 4: mergeable CONFLICTING: #104 needs session	1
+case 4: mergeable UNKNOWN is not a conflict	1
+case 5: a ready pull request with no flag has the bare state	1
+case 5: green, not a draft, its own head branch, no founder or trust-base path, no ledger row: #105 is in state ready	1
+case 5: green, not a draft, its own head branch, no founder or trust-base path, no ledger row: #105 needs lander	1
+case 6: Felix:Hold the same: #107 is in state held	1
+case 6: Felix:Hold the same: #107 needs session	1
+case 6: felix:hold on a conflicting, red pull request: #106 is in state held	1
+case 6: felix:hold on a conflicting, red pull request: #106 needs session	1
+case 7: a head in a fork, with an escape path: #108 is in state outside	1
+case 7: a head in a fork, with an escape path: #108 needs nobody	1
+case 7: another author, with an escape path: #109 is in state outside	1
+case 7: another author, with an escape path: #109 needs nobody	1
+case 8: base claude/other: #110 is in state stacked	1
+case 8: base claude/other: #110 needs nobody	1
+case 8: the base is named in the detail	1
+case 9: engine/harness/felix changed, green: #111 is in state needs-attended	1
+case 9: engine/harness/felix changed, green: #111 needs session	1
+spec §1: --no-gh exits 0	1
+spec §2: --prs lists the pull requests with one gh pr list call	1
+spec §2: a founder row decided by a path says path-level	1
+spec §2: and says path-level	3
+spec §2: and the run removes that scratch directory	1
+spec §2: gh runs with its state and cache directories in a scratch directory, not the caller's	1
+spec §2: gh's configuration is left alone: GH_CONFIG_DIR is the caller's	1
+spec §2: origin/main is there: the origin row says read	1
+spec §2: the land table at origin/main was read	1
+spec §3, §5: and the --queue text says the list may be incomplete, not only that no founder entries were found	1
+spec §3: FELIX:HOLD on a green founder-lane pull request: held comes before founder: #150 is in state held	1
+spec §3: FELIX:HOLD on a green founder-lane pull request: held comes before founder: #150 needs session	1
+spec §3: and the --prs text says the list may be incomplete	1
+spec §3: and up to 1000 of them	1
+spec §3: at 1000 the gh source row of --prs says truncated	1
+spec §3: the gh pr list call asks for open pull requests	1
+spec §3: the gh source row of --queue --tsv says truncated	1
+spec §4.2: its detail says the default branch was not read	1
+spec §4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder: #301 is in state unknown	1
+spec §4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder: #301 needs unknown	1
+spec §4.3: a lock whose pid is dead names no live tick: the lander row says not-live	1
+spec §4.3: and #170, plain and green with no ledger row, is ready (control for what follows): #170 is in state ready	1
+spec §4.3: and #170, plain and green with no ledger row, is ready (control for what follows): #170 needs lander	1
+spec §4.3: and gives the first line of paused	1
+spec §4.3: and loaded no while launchctl print fails	1
+spec §4.3: and paused yes while paused exists	1
+spec §4.3: and the ledger row says read (control)	1
+spec §4.3: it is listed as the lander, the event, its detail	1
+spec §4.3: its detail says the lander cannot use it	1
+spec §4.3: its detail says the lander last saw the older head land	1
+spec §4.3: its detail says what the lander last saw	1
+spec §4.3: land/ at mode 000: the ledger is there but cannot be read, so its row says unread, not none	1
+spec §4.3: launchctl print succeeding: loaded yes	1
+spec §4.3: no paused file: paused no	1
+spec §4.3: only the last row counts: a skip after a refusal on the same head and main decides nothing: #135 is in state ready	1
+spec §4.3: only the last row counts: a skip after a refusal on the same head and main decides nothing: #135 needs lander	1
+spec §4.3: the job's plist there: installed yes	1
+spec §4.3: the lander row says installed no without the job's plist	1
+spec §4.3: the lander row's loaded is read with launchctl print, as --status reads it	1
+spec §4.3: the ledger is there: its source row says read	1
+spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows): #169 is in state refused	1
+spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows): #169 needs session	1
+spec §4.3: the project's memory directory at mode 000, land/ and its ledger inside: the ledger row says unread, not none	1
+spec §4.4: a failing billing GET: the budget row says unread	1
+spec §4.4: and gives gh's first error line	1
+spec §4.4: and the budget row says unread, gh not asked	1
+spec §4.4: it gives the minutes used	1
+spec §4.4: of the minutes included	1
+spec §4.4: the budget is one gh api GET of the governed account's Actions billing	1
+spec §4.4: the budget was read	1
+spec §4.5: a backslash path the land row matches is founder by that row: #162 is in state founder	1
+spec §4.5: a backslash path the land row matches is founder by that row: #162 needs founder	1
+spec §4.5: a path holding a backslash, printable ASCII, green and nothing else: #161 is in state ready	1
+spec §4.5: a path holding a backslash, printable ASCII, green and nothing else: #161 needs lander	1
+spec §4.5: a pull request changing a path for each of eleven founder rules: #163 is in state founder	1
+spec §4.5: a pull request changing a path for each of eleven founder rules: #163 needs founder	1
+spec §4.5: a risk row only in the working tree makes nothing founder	1
+spec §4.5: by the rule land	1
+spec §4.5: each match is listed with its rule name, more than five of them: authority	1
+spec §4.5: each match is listed with its rule name, more than five of them: commission	1
+spec §4.5: each match is listed with its rule name, more than five of them: direction	1
+spec §4.5: each match is listed with its rule name, more than five of them: durable	1
+spec §4.5: each match is listed with its rule name, more than five of them: exception	1
+spec §4.5: each match is listed with its rule name, more than five of them: execute	1
+spec §4.5: each match is listed with its rule name, more than five of them: exemption	1
+spec §4.5: each match is listed with its rule name, more than five of them: land	1
+spec §4.5: each match is listed with its rule name, more than five of them: path-bytes	1
+spec §4.5: each match is listed with its rule name, more than five of them: risk	1
+spec §4.5: each match is listed with its rule name, more than five of them: verifier	1
+spec §4.5: its detail names the path as it is, with one backslash	1
+spec §4.5: its detail names the rule land	1
+spec §4: a StatusContext in state ERROR is a failed check: #148 is in state red	1
+spec §4: a StatusContext in state ERROR is a failed check: #148 needs session	1
+spec §4: a StatusContext in state PENDING has not finished: #149 is in state pending	1
+spec §4: a StatusContext in state PENDING has not finished: #149 needs nobody	1
+spec §4: a draft is a flag on every state: a red draft	1
+spec §4: a pull request changing two paths of the trust base: #167 is in state needs-attended	1
+spec §4: a pull request changing two paths of the trust base: #167 needs session	1
+spec §4: and the second	1
+spec §4: every condition that holds is listed: the first trust-base path	1
+spec §5: a land table felix_land_malformed refuses is unread	1
+spec §5: and a plain green pull request that reaches state 10 is unknown too: #170 is in state unknown	1
+spec §5: and a plain green pull request that reaches state 10 is unknown too: #170 needs unknown	1
+spec §5: and its ledger row is unread	1
+spec §5: and the direction rule: #141 is in state founder	1
+spec §5: and the direction rule: #141 needs founder	1
+spec §5: and the labels: #139 is in state founder	1
+spec §5: and the labels: #139 needs founder	1
+spec §5: and the land table is unread	1
+spec §5: and the pull request the ledger refused is unknown, never ready: #169 is in state unknown	1
+spec §5: and the pull request the ledger refused is unknown, never ready: #169 needs unknown	1
+spec §5: and the pull request the ledger refused is unknown: #169 is in state unknown	1
+spec §5: and the pull request the ledger refused is unknown: #169 needs unknown	1
+spec §5: its detail says the files were not read	1
+spec §5: its detail says the land table was not read	1
+spec §5: its detail says the lander's ledger was not read	2
+spec §5: the escape-table rules still decide founder: #122 is in state founder	1
+spec §5: the escape-table rules still decide founder: #122 needs founder	1
+spec §5: the gh source row says unread	1
+spec §5: the origin source row says no origin/main	1
+spec §5: the text page says pull requests not read	1
+spec §6.1: --no-gh still prints the six source rows, in the order gh land ledger lander budget origin	1
+spec §6.1: --queue --tsv prints eight columns on every line	1
+spec §6.1: --queue gives one gh source row per project naming a remote_match	1
+spec §6.1: a project whose gh failed has its gh source row in --queue, unread	1
+spec §6.1: a source row's owner, age_h and content are -	1
+spec §6.1: age_h is the hours since updatedAt	1
+spec §6.1: content is the full head SHA	1
+spec §6.1: every line of --prs --tsv has eight tab-separated columns	1
+spec §6.1: every row is a source row or a pr row	1
+spec §6.1: gh answered: its source row says read	1
+spec §6.1: one pr row per open pull request gh listed	1
+spec §6.1: pull requests come in ascending number	1
+spec §6.1: sources come first, then pull requests	1
+spec §6.1: the flags follow the state in the order draft, behind, mergeable-unknown	1
+spec §6.1: the home's founder pull requests, each once, in ascending order	1
+spec §6.1: the one whose path ends in a carriage return is one row of eight columns	1
+spec §6.1: the one whose path holds a newline is one row of eight columns	1
+spec §6.1: the pull request whose path holds a tab is one row of eight columns	1
+spec §6.1: the repo column is the owner/name slug on every row	1
+spec §6.1: the six source rows come in the order gh land ledger lander budget origin	1
+spec §6.1: two's founder pull requests in --queue are #101 alone: its ready and refused ones are not founder	1
+spec §6.2: a line is #N state title: detail	1
+spec §6.2: and a project with no founder pull request says so	1
+spec §6.2: and ready	1
+spec §6.2: and unknown	1
+spec §6.2: each pull request takes one line: one line for #118, whose title holds a tab	1
+spec §6.2: founder first, then sessions, then the lander, then nobody, then unknown	1
+spec §6.2: the --queue text says that project was not read, and why	1
+spec §6.2: the last line counts the pull requests per state: founder	1
+spec §6.2: the long title is on the page	1
+spec §6.2: the page over a title holding a C1 control exits 0	1
+spec §6.2: the queue's text lists the founder pull request	1
+spec §6.2: the title is cut at 60	1
+spec §6.2: the title is on the page	1
+spec §6.2: within a group in ascending number	1
+spec §6.3: --queue lists two's founder pull request #101 exactly once, under fixture/two, with two's head	1
+spec §6.3: and home's #101 exactly once, under fixture/home, with home's head	1
+spec §7: --prs --repo naming a directory no repository holds exits 1	1
+spec §7: --prs where no repository holds the directory exits 1	1
+spec §7: --queue exits 0 though one project was not read	1
+spec §7: a repository no project governs: the page prints and exits 0	1
+spec §7: a repository with no origin/main still exits 0	1
+spec §7: and its land table is unread	1
+spec §7: and the page still exits 0	1
+spec §7: each of the four runs exits 0	1
+spec §7: its lander row is unread	1
+spec §7: the four runs over 1000 pull requests exit 0	1
+spec §7: the page exits 0 while land/ cannot be searched	1
+spec §7: the page over escaped paths exits 0	1

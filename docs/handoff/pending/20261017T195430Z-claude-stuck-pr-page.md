@@ -1,6 +1,6 @@
 ### 2026-10-17: the stuck-PR page, `felix land --prs` and `--queue` (Phase 0b step 5)
 
-**Engine 0.49.298 (placeholder; this branch, `claude/stuck-pr-page`, based on
+**Engine 0.49.298 (set at the carry; this branch, `claude/stuck-pr-page`, based on
 origin/main e95e5d3b).** The page says why each open pull request has not
 landed and who has to act. The contract is spec v2,
 `audits/2026-10-01-report-v5-review/specs/stuck-pr/spec-v2.md`. It supersedes the
@@ -158,7 +158,32 @@ not run on this branch.
 - The budget row is unread on felix-home: the billing endpoint answers 404, and
   the token likely lacks the `user` scope. Widening it is the founder's.
 
-**Owed at "you are next".** The carrier takes the record, the gate and the
-version number: 0.49.298 is a placeholder (.294 the escape batch, .295 A30, .296
-slot 18, .297 gate friction C), and is set to the number above main then. This
-is one engine PR, risk-red because it adds lib files.
+**At the carry (2026-10-18, the carrier).** Main was merged in twice: slot 18
+(0db47b70, .296) and A31 (1c5ca0d0, .297), with slot 3f (02634dfa) between. Two
+seams came out of it, each written into spec v2 first.
+- R11: A31 gave `felix land --status` a `last` line (the ledger's newest row of
+  any kind), and the `--prs` lander row did not have it, so a job macOS refuses
+  still read "ready, waits for the lander". The lander row now ends `; last
+  ledger row <time> <event>: <detail>` (`none`, or `not read` with the ledger
+  source row), read through `_gt_last_row` in `green-install.sh`, which
+  `--status` reads too. No PR's state changes. Part 1360 (178 assertions) was
+  written blind from R11 before the code (4f502dd0, 57 red).
+- R12: inventory A111 (part 0940) says no lib but `inventory*.sh` names
+  `inventory-`, and this page sources `inventory-gh.sh` for `_FI_JSON` and
+  `_FI_EPOCH`, as spec v2 section 9 says. A111 is restated: the two page
+  libraries may name `inventory-gh.sh` and nothing else of the inventory. Found
+  by the step 6 session's baseline run.
+- Record 1 (12462 passed, 1 failed) found that part 1340's R5 block was
+  either-or: read as one row, or unread. A tree without the page took the
+  other branch, so the red run named two assertions the manifest did not
+  list. R5, clarified, already fixes unread; the block now asserts that
+  alone, with one new name for the unread state itself.
+- Record 2 passed (12464/0/43), and the gate's schema check refused red.tsv:
+  158 assertion names in parts 1300-1330 began with `§`, and red.tsv's first
+  cell is a name, so 150 of its lines began with a non-ASCII byte
+  (lib/table.sh, nonascii-lead). Each such name now begins `spec §`.
+
+**Landing.** One engine PR with slot 3f, risk-red because it adds lib files,
+recorded and gated by the carrier at 0.49.298 on main 1c5ca0d0 (.297). It goes
+ahead of gate friction C (#444), which waits on the founder's merge: whichever
+of the two lands second merges main, records again and takes the next number.

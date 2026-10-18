@@ -137,7 +137,10 @@ is "B3 (fixture control): jr-rules holds engine/.gitignore with *.bak and the wo
    "$(git -C "$JBR" show "$JB3:engine/.gitignore" 2>&1)|$([ -e "$JBR/engine/.gitignore" ] && echo there)|$(_jb_ign engine/harness/x.bak)" "*.bak||"
 _jb_plus harness/x.bak; _jb_call
 is "B3 (control): against main, which has no such rule, an entry that is main plus harness/x.bak exits 1 and names it" "$JBRC|$(_jb_names harness/x.bak)" "1|named"
-_jb_call jr-rules
+# 2026-10-18 (Part C): the entry is compared whole, so the entry for jr-rules is cut
+# from jr-rules, whose engine/.gitignore it must hold, plus the one extra file.
+_jb_cut "$JB3" "$JBE"; git -C "$JBR" show "$JB3:engine/.gitignore" > "$JBE/.gitignore" 2>/dev/null
+printf 'only in the entry\n' > "$JBE/harness/x.bak"; _jb_call jr-rules
 is "B3: against jr-rules, whose engine/.gitignore ignores *.bak, the same entry exits 0, that line not printed" "$JBRC|$(_jb_names harness/x.bak)" "0|"
 _jr_off "$JBR" refs/remotes/origin/jr-rules
 

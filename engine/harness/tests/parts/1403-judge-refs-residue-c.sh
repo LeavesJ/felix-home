@@ -59,6 +59,7 @@ _jc_names() {   # REL -> named when JCO names REL: its own path, or an Only in l
     case "$r" in */*) r="${r#*/}"; d="${d:+$d/}$c" ;; *) r="" ;; esac
   done
 }
+_jc_has() { case "$JCO" in *"$1"*) printf named ;; esac; }   # TEXT -> named when JCO holds TEXT as it stands
 _jc_isentry() {   # -> entry when JCO is one line naming E, physically
   local p e
   case "$JCO" in ""|*$'\n'*) return 0 ;; esac
@@ -164,7 +165,7 @@ _jc_entry; printf 'x\n' > "$JCE/harness/plain.log"
 _jc_ok "C4 (control): an entry-only harness/plain.log, which *.log matches, is residue"
 for _jc_nm in 'a b and c.log' 'a: b.log' 'a"b.log' 'a*b.log' 'a?b.log' '-dash.log' 'trail.log '; do
   _jc_entry; printf 'x\n' > "$JCE/harness/$_jc_nm"
-  _jc_call; is "C4: an entry-only harness/$_jc_nm exits 1 and is named" "$JCRC|$(case "$JCO" in *"$_jc_nm"*) printf named ;; esac)" "1|named"
+  _jc_call; is "C4: an entry-only harness/$_jc_nm exits 1 and is named" "$JCRC|$(_jc_has "$_jc_nm")" "1|named"
 done
 _jc_entry; printf 'x\n' > "$JCE/harness/back\\slash.log"; _jc_call
 is "C4: an entry-only name with a backslash exits 1 and is named, the backslash escaped" "$JCRC|$(printf '%s' "$JCO" | LC_ALL=C grep -cF 'back\\slash.log')" "1|1"

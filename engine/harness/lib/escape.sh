@@ -181,10 +181,30 @@ _felix_escape_confined() {
   local root="$1" base="$2" f="$3" confine="$4" hunk plus minus
   [ -n "$confine" ] && [ "$confine" != "-" ] || return 1
 
-  hunk="$( { git -C "$root" diff -U0 "$base...HEAD" -- "$f" 2>/dev/null
-             git -C "$root" diff -U0 --cached -- "$f" 2>/dev/null
-             git -C "$root" diff -U0 -- "$f" 2>/dev/null
-           } | LC_ALL=C grep -E '^[-+]' | LC_ALL=C grep -vE '^(\+\+\+|---)')"
+  # Each source read to the end, or the row fires (2026-10-08). With the file
+  # itself replaced by a named pipe, the working-tree diff exited 128 and gave
+  # nothing. The committed hunk alone was confined, so the row was demoted over
+  # a change nobody could read. The committed hunk is asked only where it can
+  # exist. With no base, or no commit yet, `...HEAD` fails for want of a
+  # commit, and an empty answer there was always the right one.
+  #
+  # No external diff, no textconv and no colour (2026-10-08): the first two could
+  # print a confined-looking hunk for a change that is not one. A textconv that printed
+  # `liba>=1.0` for the old deps.txt and `liba>=2.0` for one that added evilpkg
+  # demoted the row. Why per call: above _felix_git_patch in resolve.sh. A
+  # binary marking leaves no +/- line here, so the row fires, as it should.
+  local one all=""
+  if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 "$base...HEAD" -- "$f" || return 1
+    all="$one"
+  fi
+  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 --cached -- "$f" || return 1
+  all="$all
+$one"
+  _felix_git_read one git -C "$root" diff --no-ext-diff --no-textconv --no-color -U0 -- "$f" || return 1
+  all="$all
+$one"
+  hunk="$(printf '%s\n' "$all" | LC_ALL=C grep -E '^[-+]' | LC_ALL=C grep -vE '^(\+\+\+|---)')"
   [ -n "$hunk" ] || return 1
 
   # Any line outside the confine means the row fires. A here-string, not a
@@ -308,16 +328,42 @@ felix_escapes() {
     return 0
   fi
 
-  paths="$(felix_changed_paths "$root" "$base")"
+  # A change git could not read to the end is unknown, on the same reserved
+  # channel as a base that names nothing (2026-10-08). A tracked named pipe at
+  # A.txt ended `git diff` there, so every line added after it was gone. This
+  # scanned an empty change and found it clean, credential and SQL included.
+  # The paths it did read still go through every channel below. The unknown row
+  # is said once, before them, and blocks the merge however they come out.
+  # The reason is git's own (felix_change_why), since a path, an index and a
+  # missing merge base each need a different fix.
+  local unread=""
+  if ! paths="$(felix_changed_paths "$root" "$base")"; then
+    unread=1
+    printf 'unknown\tCHANGED-PATHS\tgit could not list every path this change touches (%s), so the change was not scanned in full\n' \
+      "$(felix_change_why "$root" "$base")"
+  fi
   [ -n "$paths" ] || return 0
 
-  added="$(felix_added_lines "$root" "$base")"
+  if ! added="$(felix_added_lines "$root" "$base")" && [ -z "$unread" ]; then
+    unread=1
+    printf 'unknown\tADDED-LINES\tgit could not read every line this change adds (%s), so they were not scanned\n' \
+      "$(felix_change_why "$root" "$base")"
+  fi
 
   # disclose. Already tuned against real false positives and already in the
   # gate, so this is the same verdict the gate reaches, not a second opinion.
-  if [ -x "$FELIX_ESCAPE_SCAN" ] \
-       && ! ( cd "$root" && "$FELIX_ESCAPE_SCAN" "$base" >/dev/null 2>&1 ); then
-    printf 'disclose\tADDED-LINES\ta credential in the added lines; history keeps the blob\n'
+  # Exit 1 is a finding. Any other failure is a scan that did not read the
+  # change (2026-10-08), so it is unknown, not a credential and not clean.
+  # secret-scan exits 2 for that.
+  if [ -x "$FELIX_ESCAPE_SCAN" ]; then
+    local scan=0
+    ( cd "$root" && "$FELIX_ESCAPE_SCAN" "$base" >/dev/null 2>&1 ) || scan=$?
+    case "$scan" in
+      0) ;;
+      1) printf 'disclose\tADDED-LINES\ta credential in the added lines; history keeps the blob\n' ;;
+      *) [ -n "$unread" ] \
+           || printf 'unknown\tADDED-LINES\tthe secret scan could not read the added lines, so nothing says they hold no credential\n' ;;
+    esac
   fi
 
   while IFS= read -r f; do

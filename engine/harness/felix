@@ -53,6 +53,166 @@
 
 set -uo pipefail
 
+# 2026-10-08: the caller's environment must not change what a tool prints, nor
+# how this shell runs. The engine reads what grep, ls, gh, tar, git diff and
+# bash's own cd and read produce as data, and variables a person can export
+# change that. Measured on macOS (bash 3.2.57, BSD grep 2.6.0, bsdtar 3.5.3)
+# on main at 0.49.273:
+# - GREP_OPTIONS goes in front of every grep's own options. With -n,
+#   `felix doctor` read the declared capability ci as 1:ci and then called
+#   ci undeclared, and `felix ready`, `felix evidence`, `felix maintenance`,
+#   `felix stack plan` and `felix commission --status` changed their answers.
+#   GNU grep has ignored it since 3.6, so CI never saw any of this.
+# - CLICOLOR_FORCE makes ls (given CLICOLOR and a TERM) and gh write colour
+#   escapes into a pipe. GH_FORCE_TTY makes gh colour and pretty-print its
+#   --json output, and changes its tables.
+# - TAPE makes `tar -x` read that file instead of stdin, and
+#   TAR_READER_OPTIONS hands bsdtar options of the caller's.
+# - GIT_EXTERNAL_DIFF hands every `git diff` to another program, so
+#   bin/secret-scan passed a branch that adds a credential. GIT_DIFF_OPTS
+#   changes how many lines of context a diff carries.
+# - GIT_LITERAL_PATHSPECS made `:(exclude)d` exclude nothing, so a tree id
+#   taken over the rest moved. The other three change what a pathspec
+#   matches: under GIT_NOGLOB_PATHSPECS `*.txt` matched nothing, under
+#   GIT_GLOB_PATHSPECS nothing below a directory, and under
+#   GIT_ICASE_PATHSPECS `*.TXT` matched what `*.txt` does.
+# - TMOUT gives every `read` a timeout, so a loop over a slow producer ends
+#   early, as if the producer had finished.
+# - POSIXLY_CORRECT starts bash 3.2 in posix mode, where `<( )` is a syntax
+#   error, so `felix which` failed to load lib/detect.sh and others. Unsetting
+#   it takes bash back out of posix mode, however posix mode came on.
+# - CDPATH makes cd print a directory it found through it, so
+#   `$(cd dir && pwd)` captured the path twice. With CDPATH=.:/x,
+#   `engine/harness/felix which` could not find its own libraries.
+# - SHELLOPTS, when exported, turns on the options it names before the first
+#   line runs: errexit made `felix doctor` exit 1, and noglob changed what
+#   `felix ready` counts. It also stays exported, so this shell's own
+#   `set -uo pipefail` reached every child bash, and a probe or commissioning
+#   check written to run without pipefail ran with it.
+# TAR_OPTIONS (GNU tar) and QUOTING_STYLE (GNU ls) do to those tools what
+# GREP_OPTIONS and CLICOLOR_FORCE do here, and BASHOPTS does for shopt what
+# SHELLOPTS does for set (bash 4.1 and later). Those are documented, not
+# measured here.
+#
+# So every executable file under engine/harness begins, after its own set,
+# with the lines below. The options a caller's SHELLOPTS can turn on that
+# change what a command does are turned off, SHELLOPTS and BASHOPTS stop being
+# exported, and the sixteen names are removed. Every child inherits that: a
+# commissioning check, a probe, a setup or maintenance check, an obligation's
+# evidence, and a project's own gate under `felix gate`, which so runs as it
+# would on CI. One fact is kept first. lib/where.sh judges where a session's
+# command runs, and the session runs it under the caller's CDPATH, so that is
+# recorded, unexported, in _FELIX_CALLER_CDPATH before CDPATH is removed.
+# tests/run checks every such file for these lines ("no caller environment
+# changes what an engine tool prints").
+#
+# Left alone on purpose, or out of reach:
+# - GREP_COLOR and GREP_COLORS change no piped output unless colour is on,
+#   and colour comes on only through GREP_OPTIONS or a --color the engine
+#   never passes to grep.
+# - xtrace and verbose stay as a caller set them. They are how a person
+#   debugs this shell, and they write to stderr.
+# - Locale stays the person's. It is a reading of text, not extra options. A
+#   call that needs byte order has to set LC_ALL=C itself, and not every one
+#   does yet (lib/escape.sh's comm -23, found 2026-10-08).
+# - TMPDIR is where the engine makes its scratch, on purpose (tests/run,
+#   "the engine makes its scratch under TMPDIR").
+# - BASH_ENV has run, and exported functions are defined, before this line.
+#   Some CI hosts (CircleCI) load each step's setup through BASH_ENV, and a
+#   project's gate may need it. SHELLOPTS=noexec stops a script before its
+#   first line, and an exported function named unset voids this one, so
+#   nothing here can answer either.
+# - A name a BASH_ENV made readonly stays set. unset says so on stderr and
+#   removes the others.
+# - git takes colour from its configuration, which a caller can also set
+#   through GIT_CONFIG_* variables, and from GIT_PAGER_IN_USE (exported by
+#   git to whatever it starts beside a pager) when TERM is set and is not
+#   dumb. Removing the variables would drop the caller's other settings, so these
+#   lines leave colour to the pin below them.
+set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
+export -n SHELLOPTS BASHOPTS
+_FELIX_CALLER_CDPATH="${CDPATH-}"
+unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
+      GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
+      GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
+
+# 2026-10-08: and a person's git colour settings must not reach what the
+# engine parses. Told `always`, git writes colour escapes into a pipe, and it
+# can be told by any config file (system, global, repository, worktree, an
+# include) or by the environment: GIT_CONFIG_COUNT, or GIT_CONFIG_PARAMETERS,
+# which git itself exports to every child of `git -c`. Measured on git 2.54
+# with color.ui=always in a repository's own config:
+# - Coloured: `git diff`, `log --oneline`, `log -p`, `show`, `branch`,
+#   `grep` (with -l too), and `status --short` on a tree with changes.
+# - Plain: --porcelain, `git diff --name-only` and `--numstat`, a --format
+#   without %C or -p, and plumbing.
+# The engine reads the coloured ones as data, and each broke:
+# - bin/secret-scan kept no `^+` line, and passed a branch that added a
+#   credential.
+# - felix_added_lines read nothing, so the durable added-lines escape and
+#   classify's content rules saw nothing.
+# - A risk row's confine read an empty `^[-+]` hunk and fired on a confined
+#   change.
+# - `felix handoff` kept the coloured `??` lines and called a tree whose
+#   only changes were untracked dirty. SESSION_HANDOFF.md's Uncommitted
+#   block took them, escapes and all.
+# - felix_tree_id hashed the escapes into the tree's fingerprint.
+#
+# So every executable file under engine/harness pins git's colour off for
+# itself and every child: the engine's own calls, a project's gate under
+# `felix gate`, a table's check, and a provider. Right after the line above,
+# it appends thirteen entries to GIT_CONFIG_PARAMETERS:
+# - color.ui and the ten family keys set to never. An explicit
+#   color.diff=always beats color.ui=never wherever each is set, so color.ui
+#   alone was not enough.
+# - color.pager=false. Plumbing (`diff-tree -p`), `format-patch` and a
+#   %(color) in for-each-ref read no family key. Under GIT_PAGER_IN_USE they
+#   coloured a pipe until this was false. It is a bool: `never` makes git
+#   refuse to run.
+# - blame.coloring=none, the one documented colour switch outside color.*.
+# Why this shape:
+# - GIT_CONFIG_PARAMETERS, not GIT_CONFIG_COUNT. git reads it after every
+#   config file and after GIT_CONFIG_COUNT, and the later entry wins. A
+#   caller's `-c color.diff=always` beat a GIT_CONFIG_COUNT pin.
+# - Appended after one space, so every entry the caller set still applies.
+#   Not appended again when the value already ends with the pin, so an entry
+#   point started directly by another adds nothing. A `git -c` between two
+#   of them appends one more copy, which is harmless. GIT_CONFIG_COUNT is
+#   left as the caller set it.
+# - In the 'key=value' form every git since 1.7.3 reads, by its release
+#   notes. 2.31 and later
+#   also read it mixed with the 'key'='value' form a newer git writes.
+# - A case and parameter expansions, no fork, because post-tool runs on
+#   every tool call.
+# Not `--no-color` per call: that reaches only the engine's own calls, and
+# every later call would have to remember it. What it costs:
+# - Someone running felix in a terminal loses git's colour in whatever felix
+#   passes through to them.
+# - A child reads these values back from `git config`, and its own
+#   `git -c color.ui=always` no longer colours. A later `git -c` still wins
+#   for a family key, or with --color, so one call can still choose.
+# - For a person whose config says `always`, a receipt written by an
+#   unpinned engine stops matching its tree once.
+# Out of reach, and left alone:
+# - A `git` function from BASH_ENV or `export -f`, and a `git` earlier on
+#   PATH. Both are in place before these lines, and the function can
+#   redefine `unset` too.
+# - %C(always,...) in a person's format.pretty, for a `log` or `show` given
+#   no --format. Every engine `log` passes one, and every engine `show`
+#   reads a blob (rev:path), which format.pretty does not reach.
+# - The far side of a push to a local path, where git drops
+#   GIT_CONFIG_PARAMETERS.
+# - Settings that change what git prints without colour: diff.noprefix,
+#   diff.external, textconv, log.showSignature, status.branch.
+#   GIT_EXTERNAL_DIFF is one of the names unset above.
+# tests/run checks every executable file for these lines ("a person's git
+# colour configuration never reaches what the engine parses").
+_felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
+case " ${GIT_CONFIG_PARAMETERS-}" in
+  *" $_felix_git_pin") ;;
+  *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
+esac
+
 # Resolve through symlinks before locating the libraries.
 #
 # `felix install` ends by telling you to put this on PATH with a symlink, and
@@ -956,6 +1116,12 @@ cmd_gate() {
   # one both stop a session, but only one of them says what happened — and now
   # also what it did not check, and what it did, and the decision epoch it ran
   # under, so a fact that moves outside the tree stales it.
+  # No id, no receipt: felix_verify_record writes none, and says nothing about
+  # it. Said here, to stderr and unindented so no roster reads it as a check,
+  # because a green run followed by a Stop that cannot find its receipt reads
+  # as the hook being broken (2026-10-08).
+  [ -n "$tid" ] || printf 'felix gate: no receipt was written, because git could not read this tree in full%s\n' \
+    "$(_w="$(felix_tree_why "$root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -n "$_w" ] && printf ' (%s)' "$_w")" >&2
   local epoch_fields
   epoch_fields="$(felix_verify_epoch_fields "$proj" "$root")"
   felix_verify_record "$root" "$FELIX_HOME_DIR" "$rc" "$gate" "$tid" "$skipped" "$reported" \
@@ -1488,6 +1654,13 @@ closes #$issue"
   #
   # gh would reject this base anyway, client-side. Saying so first means the
   # reason given is the real one.
+  # Since 2026-10-08 `unknown` is also a change git could not read to the end,
+  # over a base that resolves, and the reason given must be the real one.
+  if [ "$tier" = "unknown" ] && felix_base_resolves "$root" "$cbase"; then
+    die "git could not read this change to the end ($(felix_change_why "$root" "$cbase")).
+  There is no tier to put on it, so no pull request was opened. Fix what git
+  names, then run this again."
+  fi
   [ "$tier" = "unknown" ] && die "the base '$base' names nothing this repository holds, so
   nothing was compared and there is no tier to put on this. No pull request
   was opened. Check --base, or the default branch, which is not \`main\`
@@ -1716,7 +1889,7 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 stamp=0 table=0 owed=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -1731,6 +1904,9 @@ cmd_merge() {
       # other kind.
       case "$kind:$subject" in
         escape:*)           esc=1 ;;
+        # A change git could not read to the end, by its pseudo-path
+        # (2026-10-08), is not a base that names nothing.
+        unknown:ADDED-LINES|unknown:CHANGED-PATHS) unread=1 ;;
         unknown:*)          unk=1 ;;
         commission:receipt) stamp=1 ;;
         commission:table)   stamp=1; table=1 ;;
@@ -1781,10 +1957,19 @@ EOF
       printf 'The base names nothing this repository holds — check --base, or the\n'
       printf 'default branch, which is not `main` everywhere. This says nothing\n'
       printf 'about whether the change escapes the tree; that was never asked.\n'
-    elif [ "$esc" -eq 1 ]; then
-      printf '\nMerging this writes something outside the tree that a revert does not\n'
-      printf 'reach, so it is the founder who decides. Show them the diff and the\n'
-      printf 'reversal path; a green gate is not the question here.\n'
+    else
+      # Beside the escape paragraph, not instead of it: an escape found in the
+      # part git did read is still the founder's.
+      if [ "$unread" -eq 1 ]; then
+        printf '\ngit could not read all of this change; the unknown row above quotes\n'
+        printf 'why. What is above covers only the part it read, and nothing here says\n'
+        printf 'the rest stays inside the tree. Fix what git names, then run this again.\n'
+      fi
+      if [ "$esc" -eq 1 ]; then
+        printf '\nMerging this writes something outside the tree that a revert does not\n'
+        printf 'reach, so it is the founder who decides. Show them the diff and the\n'
+        printf 'reversal path; a green gate is not the question here.\n'
+      fi
     fi
     # Said whatever else is said, beside an escape too: the founder is being
     # asked already, and a merge they clear would stop again on the receipt.
@@ -1829,7 +2014,7 @@ EOF
       printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
       printf 'commission for itself, so a green gate does not clear this.\n'
     fi
-    if [ "$unk" -eq 0 ] && [ "$esc" -eq 0 ]; then
+    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'
@@ -3942,7 +4127,13 @@ cmd_evidence() {
       printf '  [?] %-14s %s\n' "$name" "$reason"
     done
     printf '\nNothing was compared, so nothing above is a finding about this change.\n'
-    printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
+    # The row says which of two (2026-10-08): CHANGED-PATHS is a change git
+    # could not list, over a base that resolves, and its reason quotes git.
+    if grep -q '^unknown	CHANGED-PATHS	' <<<"$results"; then
+      printf 'git could not list all of it; fix what git names, then run this again.\n'
+    else
+      printf 'Check --base, or the default branch, which is not `main` everywhere.\n'
+    fi
     printf 'This says nothing about what the change owes; that was never asked.\n'
     return 1
   fi
@@ -4260,7 +4451,13 @@ $1"; shift ;;
       printf 'can be given. Name a branch or commit this checkout has.\n'
       return 1
     }
-    paths="$(felix_changed_paths "$root" "$base")"
+    # A list git broke off is not the change (2026-10-08). A corrupt index
+    # listed nothing, and this said "Nothing to scope" and exited 0.
+    paths="$(felix_changed_paths "$root" "$base")" || {
+      printf 'git could not list every path this change touches (%s),\n' "$(felix_change_why "$root" "$base")"
+      printf 'so nothing was scoped. Fix what git names, then scope it.\n'
+      return 1
+    }
   fi
   paths="$(printf '%s\n' "$paths" | grep -v '^$' | LC_ALL=C sort -u)"
   [ -n "$paths" ] || { printf 'No paths given and no changes found. Nothing to scope.\n'; return 0; }
@@ -4283,6 +4480,14 @@ $1"; shift ;;
   fi
   printf 'paths:\n'; printf '%s\n' "$paths" | sed 's|^|  |'
   printf '\nhighest tier: %s\n\n' "$sev"
+  # Not knowing is not in scope (2026-10-08). The classifier says `unknown` for a
+  # change it could not read to the end: a tracked named pipe hid the lines
+  # added after it, and this went on to "In scope" over them.
+  if [ "$sev" = "unknown" ]; then
+    printf 'NOT SCOPED. git could not read all of this change (%s),\n' "$(felix_change_why "$root" "$base")"
+    printf 'so no tier stands for it. Fix what git names, then scope it.\n'
+    return 1
+  fi
   if [ "$partial" -eq 1 ]; then
     printf 'Path rules only. No diff was given, so no content rule could run and a\n'
     printf 'credential or destructive SQL in the changes would not be seen here.\n'
@@ -4335,6 +4540,14 @@ cmd_classify() {
       [ "${t:-}" = "unknown" ] || continue
       printf '  %-7s %-46s %s\n' "$t" "$f" "$r"
     done
+    # The same tier since 2026-10-08 for a change git could not read to the
+    # end over a base that resolves; the rows above say which, and so does this.
+    if felix_base_resolves "$root" "$base"; then
+      printf '\nNot classified. This is not a green change and not a risky one; git\n'
+      printf 'could not read all of it, and the unknown row above quotes why. Fix what\n'
+      printf 'git names, then run this again.\n'
+      return 1
+    fi
     printf '\nNothing was compared. This is not a green change and not a risky one;\n'
     printf 'it is a base this repository cannot resolve. Check --base, or the\n'
     printf 'default branch, which is not `main` everywhere.\n'
@@ -5784,6 +5997,22 @@ EOF
   if [ -n "$tmiss" ]; then
     printf '\nquestions the template asks that this table lacks\n\n'
     printf '%s\n' "$tmiss" | sed 's/^/  /'
+  fi
+  local drift driftrc=0
+  drift="$(felix_commission_template_drift "$proj" "$tpl")" || driftrc=$?
+  if [ "$driftrc" -ne 0 ]; then
+    printf '\nThe template at %s/commissioning.tsv could not be read, or holds no row\n' "$tpl"
+    printf 'this engine runs, so no row here was compared with it.\n'
+  elif [ -n "$drift" ]; then
+    printf '\nrows that differ from the template'"'"'s row for the same need\n\n'
+    printf '%s\n' "$drift" | awk -F'\t' '{ printf "  %-22s %s\n", $1, $2 }'
+    printf '\nThis refuses nothing: a project may keep its own row on purpose. A row cut\n'
+    printf 'from an older template keeps what that template had. The template is\n'
+    printf '%s/commissioning.tsv.\n' "$tpl"
+    printf 'Changing a row here changes the table set. The receipt reads stale until\n'
+    printf 'felix commission runs again, each provider row'"'"'s answer goes stale, and a\n'
+    printf 'commission grant, where there is one, stops covering the table until\n'
+    printf 'felix autonomy --allow commission is run again.\n'
   fi
   local sun; sun="$(felix_commission_steps_unanswered "$proj" "$tpl")"
   if [ -n "$sun" ]; then

@@ -103,6 +103,9 @@ felix_receipt() {
   branch="$(felix_head_branch "$root")"
   head="$(felix_head_commit "$root")"
   tid="$(felix_tree_id "$root" "$home" 2>/dev/null || true)"
+  # Inside a repository an empty id is a tree git could not read in full
+  # (2026-10-08), and the document says it does not know which tree this is.
+  [ -z "$tid" ] && git -C "$root" rev-parse --git-dir >/dev/null 2>&1 && unknown="$unknown tree"
 
   # ---- what changed. An unresolvable base is a question nobody can answer, and
   # an empty list is an answer. Reporting the first as the second is the defect
@@ -114,10 +117,13 @@ felix_receipt() {
   # drifted. That is #56: the identical lesson sat in felix_kernel_dir one
   # function away from felix_changed_paths and was never propagated, so an
   # unresolvable base cleared every escape channel there.
-  local base_ok=0 paths=""
+  # A list git broke off is not known either (2026-10-08): it says `changed`
+  # unknown, and `known` is false over the paths it did read.
+  local base_ok=0 paths="" chg_ok=0
   if felix_base_resolves "$root" "$base"; then
     base_ok=1
-    paths="$(felix_changed_paths "$root" "$base" 2>/dev/null || true)"
+    if paths="$(felix_changed_paths "$root" "$base" 2>/dev/null)"; then chg_ok=1
+    else unknown="$unknown changed"; fi
   else
     unknown="$unknown changed"
   fi
@@ -128,6 +134,8 @@ felix_receipt() {
     findings="$(felix_classify_diff "$proj" "$base" "$root" 2>/dev/null || true)"
     tier="$(felix_classify_tier "$findings" 2>/dev/null || printf 'unknown')"
     [ -n "$tier" ] || tier="unknown"
+    # The classifier says unknown for a change it could not read (2026-10-08).
+    [ "$tier" = "unknown" ] && unknown="$unknown risk"
   else
     unknown="$unknown risk"
   fi
@@ -169,6 +177,12 @@ felix_receipt() {
   local esc="" founder="false" autonomous="true" granted="none"
   if [ "$base_ok" -eq 1 ]; then
     esc="$(felix_escapes "$proj" "$base" "$root" "$home" 2>/dev/null || true)"
+    # `unknown` from felix_escapes is a change it could not read (2026-10-08).
+    # It is no channel and not the founder's to decide, so it leaves the escape
+    # list for the unknown one. Left in, it set founder_required and read
+    # `blocked`, a person's decision about a tree nobody could read.
+    case "$esc" in unknown*|*$'\n'unknown*) unknown="$unknown escapes" ;; esac
+    esc="$(printf '%s\n' "$esc" | LC_ALL=C awk -F'\t' 'NF && $1 != "unknown"')"
     # What granted the authority, computed rather than asserted. `granted_by`
     # was the string literal "none" and no code path ever produced anything
     # else, while the `reviewed` channel genuinely grants — it is the one place
@@ -190,6 +204,7 @@ felix_receipt() {
     if [ -n "$home" ]; then
       local esc_ungranted
       esc_ungranted="$(felix_escapes "$proj" "$base" "$root" "" 2>/dev/null || true)"
+      esc_ungranted="$(printf '%s\n' "$esc_ungranted" | LC_ALL=C awk -F'\t' 'NF && $1 != "unknown"')"
       [ "$esc" = "$esc_ungranted" ] || granted="reviewed"
     fi
   fi
@@ -224,7 +239,7 @@ felix_receipt() {
          "$(_felix_rcpt_esc "$branch")" "$(_felix_rcpt_esc "$head")" \
          "$(_felix_rcpt_esc "$base")"   "$(_felix_rcpt_esc "$tid")"
   printf '  "changed": {"known": %s, "paths": %s},\n' \
-         "$([ "$base_ok" -eq 1 ] && printf 'true' || printf 'false')" \
+         "$([ "$chg_ok" -eq 1 ] && printf 'true' || printf 'false')" \
          "$(printf '%s\n' "$paths" | _felix_rcpt_arr)"
   printf '  "risk": {"tier": "%s", "findings": %s},\n' \
          "$tier" "$(printf '%s\n' "$findings" | _felix_rcpt_rows tier path reason)"

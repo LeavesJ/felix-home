@@ -164,11 +164,28 @@ felix_deployed_engine() {
   printf '%s' "$p"
 }
 
+# What the home pointer names, read the one way both of its readers read it.
+#
+# felix install writes the path verbatim with a newline after it, so the read
+# trims whitespace from the two ends and nothing inside. It deleted every
+# whitespace character until 2026-09-24, which turned a home under
+# `~/Library/Mobile Documents/` — iCloud's Documents, the ordinary place for
+# one — into `.../MobileDocuments/...`: a directory nobody wrote, so the
+# pointer never resolved, and the refusal sent the reader to a path that does
+# not exist. A pointer that is empty or only whitespace still reads as empty.
+_felix_home_pointer() {
+  local p LC_ALL=C
+  p="$(cat "$HOME/.felix-home" 2>/dev/null)" || p=""
+  p="${p#"${p%%[![:space:]]*}"}"
+  p="${p%"${p##*[![:space:]]}"}"
+  printf '%s' "$p"
+}
+
 felix_home() {
   local engine="$1"
   if [ -n "${FELIX_HOME:-}" ]; then printf '%s' "$FELIX_HOME"; return; fi
   if [ -f "$HOME/.felix-home" ]; then
-    local p; p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home")"
+    local p; p="$(_felix_home_pointer)"
     [ -n "$p" ] && [ -d "$p" ] && { printf '%s' "$p"; return; }
   fi
   # A plugin install is a frozen copy of the whole repository, projects/
@@ -637,7 +654,7 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(LC_ALL=C tr -d '[:space:]' < "$HOME/.felix-home" 2>/dev/null)"
+    p="$(_felix_home_pointer)"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then
@@ -802,6 +819,42 @@ _felix_merge_refs() {
 
 # Every path this branch touches, including what is staged but not committed.
 #
+# Run a git command that reads the working tree. Set the named variable to what
+# it printed, and return 0 only when it ran to the end and exited 0.
+#
+# 2026-10-08. git does not block on a named pipe at a tracked path, and it does
+# not skip one either. `git diff` and `git diff HEAD` print every path that sorts
+# before it, then exit 128: "cannot hash". A mode-000 file does the same, and a
+# corrupt index stops every diff before it prints anything. Every caller sent
+# that to /dev/null and kept what was printed, so each path after the pipe was
+# dropped in silence. The tree id of an edited tree came out as the clean
+# commit's, and secret-scan passed an added key.
+#
+# A non-zero exit is not an answer. Neither is an empty capture whose subshell
+# never ran, so the mark is written only after git returns 0. The mark is a
+# line of its own holding a control character. A bare trailing `.` was tried
+# first, and a partial diff whose last line is `+foo.` read as finished. No line
+# git prints in a diff, a status or a listing is that line. The variable still
+# gets the partial output on failure, for a caller that would rather list too
+# much than too little. Trailing newlines are stripped as `$(...)` strips them,
+# so what a caller hashes is byte for byte what it hashed before.
+_felix_git_read() {   # VAR command...
+  local _felix_gr_out _felix_gr_rc=1
+  _felix_gr_out="$("${@:2}" 2>/dev/null && printf '\n\037ok')"
+  case "$_felix_gr_out" in
+    *$'\n\037ok') _felix_gr_rc=0; _felix_gr_out="${_felix_gr_out%$'\n\037ok'}" ;;
+  esac
+  # Asked by `case`, never by comparing a `%` that removes nothing: in bash 3.2
+  # a `${v%$'\n'}` with no newline to remove is quadratic in the length of v.
+  # The first draft looped on that comparison, and a 1 MB diff took 13 s of
+  # CPU in a hook that runs at every stop (review, 2026-10-08).
+  while case "$_felix_gr_out" in *$'\n') true ;; *) false ;; esac; do
+    _felix_gr_out="${_felix_gr_out%$'\n'}"
+  done
+  printf -v "$1" '%s' "$_felix_gr_out"
+  return "$_felix_gr_rc"
+}
+
 # One function because there were four, and they drifted in the same direction.
 # Each tried `git diff --name-only base...HEAD` and fell back to `git diff base`
 # only when that came back EMPTY — so on a branch with commits, which is every
@@ -829,22 +882,208 @@ _felix_merge_refs() {
 # review of the table validator's contract, 2026-09-22, in a scratch clone.
 # The flag follows --name-only because the merge-race test injects a peer
 # checkout on `diff --name-only`, inside this very diff.
+#
+# Exits 1 when any of the three diffs did not finish (2026-10-08), and still
+# prints every path it did read. A list git broke off is not the list of what
+# changed, and a caller that decides on it must say it does not know. A tracked
+# named pipe does not trip this one: --name-only compares stat data and never
+# hashes, so it lists the pipe and exits 0. A corrupt index trips it, and so
+# does a branch that shares no history with the base (`no merge base`).
 felix_changed_paths() {
-  local root="$1" base="${2:-}" refs
-  {
-    if [ -n "$base" ]; then
-      # What merging would change, when that is computable and differs from what
-      # was typed. See _felix_merge_refs. Unquoted on purpose: it prints two refs.
-      if refs="$(_felix_merge_refs "$root" "$base")"; then
-        # shellcheck disable=SC2086
-        git -C "$root" diff --name-only --no-renames $refs 2>/dev/null
-      else
-        git -C "$root" diff --name-only --no-renames "$base...HEAD" 2>/dev/null
-      fi
+  local root="$1" base="${2:-}" refs out all="" rc=0
+  # The branch side only where there is a branch. On an unborn HEAD, an orphan
+  # checkout, `base...HEAD` fails for want of a commit, and "nothing committed
+  # here" was always the answer read from it, so it is not asked.
+  if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    # What merging would change, when that is computable and differs from what
+    # was typed. See _felix_merge_refs. Unquoted on purpose: it prints two refs.
+    if refs="$(_felix_merge_refs "$root" "$base")"; then
+      # shellcheck disable=SC2086
+      _felix_git_read out git -C "$root" diff --name-only --no-renames $refs || rc=1
+    else
+      _felix_git_read out git -C "$root" diff --name-only --no-renames "$base...HEAD" || rc=1
     fi
-    git -C "$root" diff --name-only --no-renames --cached 2>/dev/null
-    git -C "$root" diff --name-only --no-renames 2>/dev/null
-  } | LC_ALL=C grep -v '^$' | LC_ALL=C sort -u
+    all="$out"
+  fi
+  _felix_git_read out git -C "$root" diff --name-only --no-renames --cached || rc=1
+  all="$all
+$out"
+  _felix_git_read out git -C "$root" diff --name-only --no-renames || rc=1
+  all="$all
+$out"
+  printf '%s\n' "$all" | LC_ALL=C grep -v '^$' | LC_ALL=C sort -u
+  return "$rc"
+}
+
+# The patch the repository's content makes, whatever anyone configured about how
+# git shows one (2026-10-08). Read into VAR as _felix_git_read reads, and 0 only
+# when every read ran to the end. The arguments are a diff's revisions and
+# options, with no pathspec. Each read ends them with `--`: with a tracked file
+# named HEAD, `git diff HEAD` refused as ambiguous, so bin/secret-scan could
+# never call such a repository clean (a blind author's assertion, after review).
+#
+# Porcelain `git diff` prints what a person's settings and a branch's attributes
+# tell it to print. Measured on git 2.54, on a branch adding a credential line to
+# creds.py, each of these made bin/secret-scan exit 0, and felix_added_lines
+# read none of the line:
+# - An external diff: `diff.external`, GIT_EXTERNAL_DIFF, or an attribute
+#   `diff=<driver>` with `diff.<driver>.command`. git runs the program and prints
+#   nothing of its own.
+# - A textconv: `diff=<driver>` with `diff.<driver>.textconv`. git diffs the
+#   filter's output, so `sed d` hid the line and a rewrite showed another.
+# - A binary marking: the attribute `-diff` or `binary`, the same in the file
+#   core.attributesFile names, `diff.<driver>.binary`, or core.bigFileThreshold
+#   below the file's size. git prints "Binary files differ".
+# - Colour: color.ui or color.diff set to always puts an escape before each
+#   `+`, so no line read as added.
+# None of these needs the person's config. A committed .gitattributes is read
+# from the branch itself, so `creds.py -diff` in the branch blinded the scan of
+# that branch. The tree id hashes the same patch: under an external diff or an
+# empty textconv a clean tree and an edited one had one id, so a green receipt
+# read current over an edit no gate had seen.
+#
+# Why per call:
+# - A driver's name is anyone's to choose. No key turns every textconv or every
+#   driver command off, so --no-textconv and --no-ext-diff are the only
+#   switches, and they are per call. --no-ext-diff covers all three external
+#   forms. --no-color is per call here too, so these readers do not wait on a
+#   colour pin at the entry points.
+# - A binary marking has no switch either. --text reads every file as text, and
+#   was measured at 6.75 s CPU against 0.08 s on a branch adding a 20 MB random
+#   binary, most of it bash holding the bytes. So only a path git printed as
+#   binary is read again, and only when it is text by the rule git applies when
+#   no attribute speaks: each side present is at most 512 MiB, the default
+#   core.bigFileThreshold, and holds no NUL in its first 8000 bytes. A pair with
+#   a binary side is still unread, as git leaves it by default. That includes a
+#   branch that replaces a binary with text, which a review of this change
+#   found, a gap git's default leaves and this does not widen.
+# - Each path is named with --literal-pathspecs. The `:(literal)` magic that
+#   was tried first is itself switched off by GIT_LITERAL_PATHSPECS=1, and with
+#   it set the read again matched nothing and the scan exited 0. A read again
+#   must print a patch for each path it named, or it is not whole.
+#   GIT_GLOB_PATHSPECS or GIT_ICASE_PATHSPECS make git refuse the option, so
+#   with either set a binary-marked text file is unread: exit 2, not clean.
+# - Every read runs from the top of the work tree, so diff.relative cannot
+#   narrow it to the directory a caller named.
+# - The a/ and b/ prefixes are pinned, because diff.noprefix, diff.srcPrefix,
+#   diff.dstPrefix and diff.mnemonicPrefix change the `+++` header a reader takes
+#   a path from. bin/secret-scan does; `dstPrefix = b/fixtures/` made every file
+#   it read a fixture's, which it does not scan.
+# - --ignore-submodules=none, because diff.ignoreSubmodules and a committed
+#   .gitmodules `ignore = all` hid a moved submodule pointer.
+# - -M, rename detection as git's default has it, because diff.renames=copies
+#   would hide a copied file's lines. The content rules that read these lines
+#   ask what a change adds, and a pure move adds nothing. bin/secret-scan reads
+#   with --no-renames instead, since its fixture exclusion is a property of the
+#   path, and a key moved out of fixtures/ is a new key where it lands.
+# For a default configuration every flag here prints what git printed without
+# it, byte for byte, so no tree id changed when this landed.
+#
+# tests/run refuses an engine line that runs `git diff` without --no-ext-diff
+# and --no-textconv on it, unless the line asks only for names. Not covered,
+# and why:
+# - A clean filter, core.fsmonitor, assume-unchanged and skip-worktree change
+#   what git sees in the working tree, and they change what `git add` commits
+#   the same way.
+# - `git show <rev>:<path>`, `git grep` and `git diff --quiet` apply no textconv
+#   or external diff by default (measured).
+# - A working-tree-encoding file's side in the tree is judged on its bytes as
+#   stored there, so a UTF-16 file a person also marks binary stays unread.
+# - An added line that itself begins `++ ` prints as `+++` and is taken for a
+#   header: no setting is needed for that, and it is its own defect.
+# bin/secret-scan holds a copy of this, since it sources no library.
+_felix_git_patch() {   # VAR ROOT diff-args...
+  local _fgp_var="$1" _fgp_top _fgp_all="" _fgp_rec _fgp_meta="" _fgp_ok="" _fgp_rc=0 _fgp_n _fgp_st
+  local _fgp_bin=() _fgp_text=() _fgp_t=$'\t'
+  _fgp_top="$(git -C "$2" rev-parse --show-toplevel 2>/dev/null)"
+  [ -n "$_fgp_top" ] || { printf -v "$_fgp_var" '%s' ""; return 1; }
+  shift 2
+  _felix_git_read _fgp_all git -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none -M "$@" -- || _fgp_rc=1
+  # The paths git printed as binary. -z, read to NUL, because a path may hold
+  # any byte but that one. The mark is a record git never prints.
+  while IFS= read -r -d '' _fgp_rec; do
+    case "$_fgp_rec" in
+      -"$_fgp_t"-"$_fgp_t"*) _fgp_bin+=("${_fgp_rec#-"$_fgp_t"-"$_fgp_t"}") ;;
+      $'\037'ok) _fgp_ok=1 ;;
+    esac
+  done < <(git -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --numstat -z "$@" -- 2>/dev/null && printf '\037ok\0')
+  [ -n "$_fgp_ok" ] || _fgp_rc=1
+  if [ "${#_fgp_bin[@]}" -gt 0 ]; then
+    # Each one's sides, from --raw: `:oldmode newmode oldsha newsha status`, then
+    # the path. A deleted path adds nothing, and an unmerged one is left as git
+    # left it.
+    _fgp_ok=""
+    while IFS= read -r -d '' _fgp_rec; do
+      if [ -n "$_fgp_meta" ]; then
+        _fgp_st="${_fgp_meta##* }"
+        case "$_fgp_st" in
+          D*|U*) ;;
+          *) _fgp_n="${_fgp_meta#:* * }"
+             { [ "${_fgp_st#A}" != "$_fgp_st" ] || _felix_side_text "$_fgp_top" "${_fgp_n%% *}" "$_fgp_rec"; } \
+               && _fgp_n="${_fgp_n#* }" && _felix_side_text "$_fgp_top" "${_fgp_n%% *}" "$_fgp_rec" \
+               && _fgp_text+=("$_fgp_rec") ;;
+        esac
+        _fgp_meta=""
+        continue
+      fi
+      case "$_fgp_rec" in
+        :*) _fgp_meta="$_fgp_rec" ;;
+        $'\037'ok) _fgp_ok=1 ;;
+      esac
+    done < <(git --literal-pathspecs -C "$_fgp_top" diff --no-ext-diff --no-textconv --ignore-submodules=none --no-renames --no-abbrev --raw -z "$@" -- "${_fgp_bin[@]}" 2>/dev/null && printf '\037ok\0')
+    [ -n "$_fgp_ok" ] || _fgp_rc=1
+  fi
+  if [ "${#_fgp_text[@]}" -gt 0 ]; then
+    local _fgp_more
+    _felix_git_read _fgp_more git --literal-pathspecs -C "$_fgp_top" diff --no-ext-diff --no-textconv --no-color --src-prefix=a/ --dst-prefix=b/ --ignore-submodules=none --no-renames --text "$@" -- "${_fgp_text[@]}" || _fgp_rc=1
+    # A patch for each path asked for, or the read is not whole. Distinct
+    # headers, since a type change prints its path's header twice.
+    _fgp_n="$(printf '%s\n' "$_fgp_more" | LC_ALL=C awk '/^diff --git / && !s[$0]++ { n++ } END { print n + 0 }')"
+    [ "$_fgp_n" = "${#_fgp_text[@]}" ] || _fgp_rc=1
+    _fgp_all="$_fgp_all
+$_fgp_more"
+  fi
+  printf -v "$_fgp_var" '%s' "$_fgp_all"
+  return "$_fgp_rc"
+}
+
+# Whether one side of a pair is text by the rule git applies when no attribute
+# speaks: at most 512 MiB, and no NUL in its first 8000 bytes. A zero sha is the
+# file in the working tree, which git did not hash. There, a link is its
+# target's name, and anything else that is not a regular file counts as text,
+# to be read again unopened: a pipe would block here, and its diff fails, as an
+# unreadable path must. A side whose check cannot run also counts as text, and
+# a read again that then fails fails the whole.
+_felix_side_text() {   # TOP SHA PATH
+  local s n
+  if [ -z "${2//0/}" ]; then
+    { [ -L "$1/$3" ] || [ ! -f "$1/$3" ]; } && return 0
+    s="$(wc -c < "$1/$3" 2>/dev/null)"
+    n="$(head -c 8000 < "$1/$3" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)"
+  else
+    s="$(git -C "$1" cat-file -s "$2" 2>/dev/null)"
+    n="$(git -C "$1" cat-file blob "$2" 2>/dev/null | head -c 8000 | LC_ALL=C tr -cd '\000' | wc -c)"
+  fi
+  s="${s//[!0123456789]/}"; n="${n//[!0123456789]/}"
+  [ "${s:-0}" -le 536870912 ] && [ "${n:-0}" -eq 0 ]
+}
+
+# git's own first complaint about reading this change, one line with no tab, for
+# every sentence that says it could not be read (2026-10-08). The causes differ,
+# and so do their remedies: a tracked path git cannot hash, an index it cannot
+# read, or a branch with no merge base with the base. The first wording blamed a
+# path for all three. Asked again with stderr kept, because the readers above
+# keep stdout only, and only by a caller already holding a failed read.
+felix_change_why() {   # root [base]
+  local root="$1" base="${2:-}" why
+  why="$( {
+      if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+        git -C "$root" diff --no-ext-diff --no-textconv --stat "$base...HEAD" --
+      fi
+      git -C "$root" diff --no-ext-diff --no-textconv --stat --cached
+      git -C "$root" diff --no-ext-diff --no-textconv --stat
+    } 2>&1 >/dev/null | LC_ALL=C awk '!p && /^(error|fatal): / { gsub(/\t/, " "); print; p = 1 }')"
+  printf '%s\n' "${why:-git gave no reason when asked again}"
 }
 
 # Every line this branch ADDS, including staged and unstaged ones.
@@ -853,24 +1092,39 @@ felix_changed_paths() {
 # landed: knowing a path changed is not knowing what the change says. A content
 # rule reading only `base...HEAD` names a staged file and then inspects the
 # version without the staged content in it.
+#
+# Exits 1 when any of its diffs did not finish (2026-10-08), whatever lines it
+# printed. A tracked named pipe ends `git diff` at that path, so with a pipe at
+# A.txt every line added to src.txt was dropped and this printed nothing at all:
+# escape.sh and classify.sh then scanned an empty change and found it clean. It
+# used to exit with grep's status, 1 for a change that added no line, and no
+# caller read that; it exits 0 for a change it read to the end, lines or none.
+#
+# Each source through _felix_git_patch (2026-10-08), so what the change adds is
+# read whatever a driver, a textconv or a binary marking would have git print.
 felix_added_lines() {
-  local root="$1" base="${2:-}" refs
-  {
-    if [ -n "$base" ]; then
-      # The same correction as felix_changed_paths, and for the same reason: a
-      # content rule reading three-dot on a stacked branch scans lines the base
-      # already merged, so a credential the branch below it added is reported
-      # against this one.
-      if refs="$(_felix_merge_refs "$root" "$base")"; then
-        # shellcheck disable=SC2086
-        git -C "$root" diff $refs 2>/dev/null
-      else
-        git -C "$root" diff "$base...HEAD" 2>/dev/null
-      fi
+  local root="$1" base="${2:-}" refs out all="" rc=0
+  if [ -n "$base" ] && git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    # The same correction as felix_changed_paths, and for the same reason: a
+    # content rule reading three-dot on a stacked branch scans lines the base
+    # already merged, so a credential the branch below it added is reported
+    # against this one.
+    if refs="$(_felix_merge_refs "$root" "$base")"; then
+      # shellcheck disable=SC2086
+      _felix_git_patch out "$root" $refs || rc=1
+    else
+      _felix_git_patch out "$root" "$base...HEAD" || rc=1
     fi
-    git -C "$root" diff --cached 2>/dev/null
-    git -C "$root" diff 2>/dev/null
-  } | LC_ALL=C grep '^+' | LC_ALL=C grep -v '^+++'
+    all="$out"
+  fi
+  _felix_git_patch out "$root" --cached || rc=1
+  all="$all
+$out"
+  _felix_git_patch out "$root" || rc=1
+  all="$all
+$out"
+  printf '%s\n' "$all" | LC_ALL=C grep '^+' | LC_ALL=C grep -v '^+++'
+  return "$rc"
 }
 
 # A file as it will be committed, not as it was last committed.

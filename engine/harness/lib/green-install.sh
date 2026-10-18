@@ -116,12 +116,12 @@ cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME
 # tracked in every Felix home and read a byte of it: macOS's privacy control refuses the open,
 # which [ -r ] does not see. A file the open reached and found empty is no refusal.
 px=engine/.claude-plugin/plugin.json
-{ IFS= read -r -n 1 rb || { [ -f "$px" ] && [ ! -s "$px" ]; }; } 2>/dev/null < "$px" \
-  || owed "the trampoline cannot read FELIX_HOME_DIR ($FELIX_HOME_DIR): opening $px for reading failed, so no engine is run. macOS may be refusing the read: /bin/bash needs Full Disk Access (System Settings > Privacy & Security > Full Disk Access)" unreadable
+{ IFS= read -r -d '' -n 1 rb || { [ -f "$px" ] && [ ! -s "$px" ]; }; } 2>/dev/null < "$px" \
+  || owed "the trampoline cannot read FELIX_HOME_DIR ($FELIX_HOME_DIR): reading a byte of $px failed, so no engine is run. macOS may be refusing the read: /bin/bash needs Full Disk Access (System Settings > Privacy & Security > Full Disk Access)" unreadable
 # A31, recovery: a read that succeeds while the ledger's newest row says it failed is written down once,
 # as a row of kind readable and no notification, and the trampoline goes on. Only the newest row counts.
 if [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2)" = unreadable ]; then
-  printf '%s\treadable\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "the trampoline read FELIX_HOME_DIR ($FELIX_HOME_DIR) again: opening $px for reading worked, so the trampoline goes on to its other checks" >> "$ledger" 2>/dev/null
+  printf '%s\treadable\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "the trampoline read FELIX_HOME_DIR ($FELIX_HOME_DIR) again: reading a byte of $px worked, so the trampoline goes on to its other checks" >> "$ledger" 2>/dev/null
 fi
 # A24: an untracked .gitignore under engine/ would widen what the check below calls residue.
 un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list the home's untracked files under engine/, so no engine is run"

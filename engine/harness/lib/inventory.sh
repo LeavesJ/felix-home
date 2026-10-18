@@ -59,6 +59,13 @@
 # reads its HEAD's reflog; and a branch never pushed heads no PR, so under
 # --no-gh its PR states are no.
 #
+# Carried (step 6): a worktree, branch or remote row whose tip's content is not
+# landed, that holds no open PR, and whose tip another pushed branch (a
+# refs/remotes/origin ref but origin/HEAD, the default branch and its own name
+# on origin) already holds, is carried, not unproposed or pr-closed-unlanded;
+# git alone decides it, so --no-gh keeps it. lib/inventory-items.sh (_fi_carry)
+# reads the carriers with one for-each-ref --contains and names the outermost.
+#
 # A worktree git lists is read only when git, asked there, names that
 # directory as the top of a working tree of this repository: a directory
 # whose .git file is gone would otherwise be read as the checkout enclosing

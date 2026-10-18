@@ -88,7 +88,8 @@ _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 # has been told may read the home (A31), and names no version and no working
 # tree. Run by launchd every five minutes, it first opens a tracked file in the
 # home for reading (A31) and, when that fails, writes one unreadable row and runs
-# nothing. It then reads the version origin/main
+# nothing; when it succeeds after an unreadable row, it writes one readable row
+# first and goes on. It then reads the version origin/main
 # declares (no fetch), and runs that cache entry's `felix land --tick` only when
 # main's OWN felix_accepted_deploy_diff, read out of origin/main with git show
 # and sourced by bash in a subshell as felix merge's judge block does, says the
@@ -117,6 +118,11 @@ cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME
 px=engine/.claude-plugin/plugin.json
 { IFS= read -r -n 1 rb || { [ -f "$px" ] && [ ! -s "$px" ]; }; } 2>/dev/null < "$px" \
   || owed "the trampoline cannot read FELIX_HOME_DIR ($FELIX_HOME_DIR): opening $px for reading failed, so no engine is run. macOS may be refusing the read: /bin/bash needs Full Disk Access (System Settings > Privacy & Security > Full Disk Access)" unreadable
+# A31, recovery: a read that succeeds while the ledger's newest row says it failed is written down once,
+# as a row of kind readable and no notification, and the trampoline goes on. Only the newest row counts.
+if [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2)" = unreadable ]; then
+  printf '%s\treadable\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "the trampoline read FELIX_HOME_DIR ($FELIX_HOME_DIR) again: opening $px for reading worked, so the trampoline goes on to its other checks" >> "$ledger" 2>/dev/null
+fi
 # A24: an untracked .gitignore under engine/ would widen what the check below calls residue.
 un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list the home's untracked files under engine/, so no engine is run"
 [ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | LC_ALL=C sed -n 1p)): nothing runs until it is removed"

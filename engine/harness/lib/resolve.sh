@@ -726,33 +726,84 @@ felix_base_resolves() {
 # `gh pr merge`, so what a branch actually lands on is the REMOTE branch. The
 # local one is a cache of it that this workflow never refreshes.
 #
-# The same correction felix_kernel_dir already makes, in the same shape and for
-# the same reason — its comment records that hard-coding a branch name was
-# "green on a laptop that says main and red on a runner that says master".
+# Only a name whose remote-tracking ref exists is redirected to it. A sha, a
+# `HEAD~1`, a tag, or a branch that lives only here is returned as itself: a
+# local branch by its full name, and the rest as given, because rewriting those
+# would invent a base nobody named.
 #
-# Only a name whose remote-tracking ref exists is redirected. A sha, a `HEAD~1`,
-# a tag, or a branch that lives only here is taken exactly as given: rewriting
-# those would invent a base nobody named. `origin/HEAD~1` does not resolve, so
-# the loop falls through on its own rather than needing a rule about syntax.
+# What this returns is a FULL ref name, and every ref it looks up is looked up
+# by that exact name, never by a short one. Git resolves a short name by trying
+# `$GIT_DIR/<n>`, `refs/<n>`, `refs/tags/<n>`, `refs/heads/<n>` and only then
+# `refs/remotes/<n>` (gitrevisions), and every worktree of a repository shares
+# one ref store. So any session can create `refs/tags/origin/main`,
+# `refs/heads/origin/main` or `refs/origin/main`, and `origin/main` then names
+# THAT commit for every reader: the base, the staleness, the changed paths, and
+# the judge `felix merge` reads out of the base with `git show "$base:..."`.
+# A full name has no such order to be won. `origin/X` is taken to mean
+# `refs/remotes/origin/X` and nothing else (it does not fall through to a tag
+# or a local branch of that name, which is exactly what a decoy is). A name that
+# cannot be a ref-name component (`HEAD~1`, `main~1`, a sha, `v1^{tree}`) is
+# never looked up under refs/ at all: `HEAD~1` means this repository's own
+# `HEAD~1` even though a clone always has refs/remotes/origin/HEAD.
+#
+# An exact ref is looked up with `show-ref --verify`, which asks for that name
+# and no other, and its object is then peeled to a commit by sha. A name that
+# is not a commit (a tree, a blob) is no base.
+#
+# The same correction felix_kernel_dir makes, which now asks this function, and
+# for the same reason — its comment records that hard-coding a branch name was
+# "green on a laptop that says main and red on a runner that says master".
+# An empty NAME is `main`, as every caller's default is; an empty ROOT is
+# nothing, because `git -C ""` would read the current directory.
 #
 # No fetch, ever. The enforcing path has to work with no network, so this is as
 # current as the last fetch and never more. That is a real limit and it is still
 # strictly better than a ref the worktree workflow cannot advance at all.
 felix_base_ref() {
-  local root="${1:-}" base="${2:-}" ref
-  [ -n "$root" ] && [ -n "$base" ] || return 1
-  # A full ref name is taken as given: putting origin/ in front of it would name
-  # a ref any session can create. It is returned only when it is a commit.
-  case "$base" in refs/*)
-    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
-    return 1 ;;
+  local root="${1:-}" base="${2:-main}" ref lookup
+  [ -n "$root" ] || return 1
+  [ -n "$base" ] || base=main
+  case "$base" in -*) return 1 ;; esac
+  case "$base" in
+    refs/*)
+      # A full ref name is taken as given, and only when it is a commit. One
+      # that is a revision expression rather than a ref name (`refs/heads/x~1`)
+      # is asked the way it always was.
+      if git check-ref-format "$base" >/dev/null 2>&1; then
+        _felix_ref_commit "$root" "$base" || return 1
+      else
+        git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1 </dev/null || return 1
+      fi
+      printf '%s' "$base"; return 0 ;;
+    origin/*)
+      ref="refs/remotes/$base"
+      git check-ref-format "$ref" >/dev/null 2>&1 && _felix_ref_commit "$root" "$ref" || return 1
+      printf '%s' "$ref"; return 0 ;;
   esac
-  for ref in "origin/$base" "$base"; do
-    if git -C "$root" rev-parse --verify "$ref^{commit}" >/dev/null 2>&1; then
-      printf '%s' "$ref"; return 0
-    fi
-  done
-  return 1
+  # A full-length hex string is an object name to git before it is a ref name,
+  # so it is never looked up as one.
+  lookup=1
+  case "$base" in
+    *[!0123456789abcdef]*) ;;
+    *) case "${#base}" in 40|64) lookup=0 ;; esac ;;
+  esac
+  if [ "$lookup" -eq 1 ]; then
+    for ref in "refs/remotes/origin/$base" "refs/heads/$base"; do
+      git check-ref-format "$ref" >/dev/null 2>&1 || continue
+      if _felix_ref_commit "$root" "$ref"; then printf '%s' "$ref"; return 0; fi
+    done
+  fi
+  git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1 </dev/null || return 1
+  printf '%s' "$base"
+}
+
+# Whether REF, a full ref name, exists as exactly that and peels to a commit.
+# The object is read from the ref and then peeled by its sha, so no short-name
+# rule gets a say in which ref was meant.
+_felix_ref_commit() {   # ROOT REF
+  local sha
+  sha="$(git -C "$1" show-ref --verify -s -- "$2" 2>/dev/null </dev/null)" && [ -n "$sha" ] || return 1
+  git -C "$1" rev-parse --verify --quiet "$sha^{commit}" >/dev/null 2>&1 </dev/null
 }
 
 # The two refs to diff to see what MERGING this branch would change, or nothing
@@ -1029,11 +1080,11 @@ felix_kernel_dir() {
   # The branch being merged into, not the literal word "main". Hard-coding it
   # made this depend on `init.defaultBranch`, which is a property of whoever ran
   # it — green on a laptop that says main and red on a runner that says master.
-  for ref in "origin/$base" "$base"; do
-    git -C "$root" rev-parse --verify "$ref" >/dev/null 2>&1 && break
-    ref=""
-  done
-  [ -n "$ref" ] || return 1
+  # Resolved by felix_base_ref and not by a loop of its own: a loop over the
+  # short names `origin/$base` and `$base` is read by git in the order that
+  # lets a tag or a local branch called origin/main stand in for the remote's,
+  # and the version read here names the judge.
+  ref="$(felix_base_ref "$root" "$base")" || return 1
   ver="$(_felix_plugin_version "$root" "$ref")"
   [ -n "$ver" ] || return 1
   # FELIX_KERNEL_CACHE, not FELIX_PLUGIN_CACHE. toolbox.sh already owns that
@@ -1226,26 +1277,6 @@ $(if [ -n "$only" ]; then printf '%s\n' "$only"; else diff -rq "$src/$d" "$live/
 EOF
   done
   return "$rc"
-}
-
-# The branch being merged into, as a ref this repository can read: the
-# remote's copy first, so a local main that lags the remote is not what gets
-# certified, then the local one. Prints nothing and fails when neither
-# resolves, which is a repository that cannot say what was accepted.
-felix_base_ref() {
-  local root="$1" base="${2:-main}" ref
-  # A full ref name is taken as given: putting origin/ in front of it would name
-  # a ref any session can create. It is returned only when it is a commit.
-  case "$base" in refs/*)
-    if git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1; then printf '%s' "$base"; return 0; fi
-    return 1 ;;
-  esac
-  for ref in "origin/$base" "$base"; do
-    if git -C "$root" rev-parse --verify --quiet "$ref" >/dev/null 2>&1; then
-      printf '%s' "$ref"; return 0
-    fi
-  done
-  return 1
 }
 
 # Is the engine main accepted the one deployed? Both sides from the base

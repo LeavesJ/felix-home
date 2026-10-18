@@ -93,7 +93,7 @@ if [ "${1:-}" = "audit" ]; then shift; cmd_audit "$@"; exit $?; fi
 # say is in lib/inventory-host.sh, the one file a second host would replace.
 cmd_inventory() {
   local f
-  for f in inventory inventory-items inventory-gh inventory-orphans inventory-view inventory-host; do
+  for f in inventory inventory-items inventory-gh inventory-orphans inventory-view inventory-host inventory-chips; do
     # shellcheck disable=SC1090,SC1091
     . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
   done

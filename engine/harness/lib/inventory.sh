@@ -68,7 +68,7 @@
 # the loop only reads fields: a lookup in a bash string of a few thousand
 # refs costs seconds a time on bash 3.2, and a fork per helper, minutes.
 
-_FI_ORDER='hazard:shared-branch hazard:staged-revert live question blocked uncommitted unpushed unproposed pr-open pr-closed-unlanded orphan chip-unstarted handoff-pending'
+_FI_ORDER='hazard:shared-branch hazard:staged-revert live question blocked uncommitted unpushed unproposed pr-open pr-closed-unlanded carried orphan chip-unstarted handoff-pending'
 _FI_TAB=$'\t'
 _FI_NL=$'\n'
 _FI_PENDING="docs/handoff/pending"   # the layout lib/handoff.sh writes
@@ -360,6 +360,10 @@ _fi_host() {
 # remote-tracking ref or -, class, open PRs or -, newest PR number and state or -,
 # and the upstream whose remote-tracking ref is gone, or -.
 _fi_branch() {
+  _fi_branch0 "$@"
+  _fi_carry "$1" "$3"
+}
+_fi_branch0() {
   local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" gn="${8:--}" n hp=0
   _FI_UNP=no; _FI_UNPROP=no; _FI_PRO=no; _FI_PRC=no
   [ "$br" = - ] || [ "$br" = "${_FI_DEF#origin/}" ] || [ "$num" = - ] || hp=1
@@ -373,6 +377,7 @@ _fi_branch() {
   esac
   # A pruned upstream leaves no remote copy of the branch: it counts as not pushed.
   [ "$gn" = - ] || [ "$_FI_LV" = landed ] || _fi_add "upstream $gn is gone"
+  _FI_DETP="$_FI_DET"   # what _fi_carry keeps when another pushed branch holds the tip
   [ "$br" != - ] && [ "$br" != "${_FI_DEF#origin/}" ] || return 0   # the default branch heads no PR
   if [ "$_FI_GHOK" = 0 ]; then
     [ "$rr" != - ] || return 0
@@ -416,7 +421,7 @@ _fi_item() {
         _fi_states "$_FI_LV" live=$lv pr-open=yes ;;
     *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"
        [ "$k" != remote ] || _FI_PRO=no
-       _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC ;;
+       _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC carried=$_FI_CAR ;;
   esac
   _fi_sig; _fi_age "$dt"; _fi_row "$k" "$ref" "$_FI_S" "$own" "$_FI_A" "$_FI_LV" "$_FI_DET" "$_FI_SIG" "$br"
 }

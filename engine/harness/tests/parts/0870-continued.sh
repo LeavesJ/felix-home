@@ -449,8 +449,12 @@ is  "no run wrote a shell or awk error to stderr" "$_ivx" ""
 IVLIB="$REAL_HARNESS/lib/inventory.sh"; IVLIBH="$REAL_HARNESS/lib/inventory-host.sh"
 # The core may be split into parts beside it (lib/inventory-*.sh other than
 # the adapter); each part is held to what the core is held to.
+# The adapter is two files, lib/inventory-host.sh and lib/inventory-chips.sh,
+# which reads the proposals; the chips file is held to the adapter's rules and
+# to the shared ones, and is no part of the core.
+IVLIBC="$REAL_HARNESS/lib/inventory-chips.sh"
 IVPARTS=()
-for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
+for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && [ "$_ivf" != "$IVLIBC" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
 # Lines that are not comments, each prefixed with its file and line number.
 _ivcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@" 2>/dev/null; }
 # Each pattern sits in a function of its own, never inside "$(...)", where
@@ -458,14 +462,14 @@ _ivcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); 
 # line and the rule, and quotes no code.
 _ivwhere() { LC_ALL=C awk -F: -v w="$1" '{ printf "%s:%s %s; ", $1, $2, w }' | head -c 300; }
 _iv_hostin() { _ivcode "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '\.claude/projects|spawn_task|dismiss_task|tool_use|tool_result|\.jsonl' | _ivwhere 'names a transcript detail'; }
-_iv_ghin()   { _ivcode "$IVLIBH" | grep -E '(^|[^A-Za-z0-9_./-])gh[[:space:]]+(pr|api|repo|auth|issue|run|release|workflow|search)([[:space:]]|$)' | _ivwhere 'calls gh'; }
-_iv_bash4()  { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '(declare|local|typeset)[[:space:]]+-[a-zA-Z]*A|(^|[^a-z_])(mapfile|readarray|coproc)([^a-z_]|$)|\$\{[#!]?[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?(,,?|\^\^?)[^}]*\}|&>>|\|&|\$\{[A-Za-z_][A-Za-z0-9_]*:([[:space:]]+|\()-[0-9]' | _ivwhere 'bash 4 or later'; }
+_iv_ghin()   { _ivcode "$IVLIBH" "$IVLIBC" | grep -E '(^|[^A-Za-z0-9_./-])gh[[:space:]]+(pr|api|repo|auth|issue|run|release|workflow|search)([[:space:]]|$)' | _ivwhere 'calls gh'; }
+_iv_bash4()  { _ivcode "$IVLIB" "$IVLIBH" "$IVLIBC" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '(declare|local|typeset)[[:space:]]+-[a-zA-Z]*A|(^|[^a-z_])(mapfile|readarray|coproc)([^a-z_]|$)|\$\{[#!]?[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?(,,?|\^\^?)[^}]*\}|&>>|\|&|\$\{[A-Za-z_][A-Za-z0-9_]*:([[:space:]]+|\()-[0-9]' | _ivwhere 'bash 4 or later'; }
 # Strings and regular-expression literals are blanked before counting match's
 # arguments, so a regex holding commas is not a third argument.
-_iv_gawk()   { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | LC_ALL=C awk '
+_iv_gawk()   { _ivcode "$IVLIB" "$IVLIBH" "$IVLIBC" ${IVPARTS[@]+"${IVPARTS[@]}"} | LC_ALL=C awk '
   { s = $0; gsub(/"([^"\\]|\\.)*"/, "\"\"", s); gsub(/\/([^\/\\]|\\.)+\//, "//", s)
     if (s ~ /(^|[^a-z_])(gensub|asorti?|strftime|systime|patsplit)[[:space:]]*\(/ || s ~ /match\([^()]*,[^()]*,[^()]*\)/) print }' | _ivwhere 'gawk only'; }
-_iv_gitw()   { _ivcode "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E 'write-tree|stash[[:space:]]+create|update-index|update-ref|hash-object[^|;&]*[[:space:]]-w([[:space:]]|$)' | _ivwhere 'a git write'; }
+_iv_gitw()   { _ivcode "$IVLIB" "$IVLIBH" "$IVLIBC" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E 'write-tree|stash[[:space:]]+create|update-index|update-ref|hash-object[^|;&]*[[:space:]]-w([[:space:]]|$)' | _ivwhere 'a git write'; }
 IV_NAMES='lib/inventory|inventory\.sh|inventory-host|felix_inventory|cmd_inventory|felix inventory'
 _iv_enforcing() {
   grep -lE "$IV_NAMES" "$REAL_HARNESS"/hooks/* 2>/dev/null | tr '\n' ' '
@@ -476,7 +480,7 @@ _iv_enforcing() {
 [ -f "$IVLIB" ] && [ -f "$IVLIBH" ] && ok "lib/inventory.sh and lib/inventory-host.sh exist, the core and the host adapter" \
   || bad "lib/inventory.sh and lib/inventory-host.sh exist, the core and the host adapter" "missing: $([ -f "$IVLIB" ] || printf 'inventory.sh ')$([ -f "$IVLIBH" ] || printf 'inventory-host.sh')"
 _ivx=""
-for _ivf in "$IVLIB" "$IVLIBH" ${IVPARTS[@]+"${IVPARTS[@]}"}; do [ -f "$_ivf" ] && [ "$(wc -l < "$_ivf")" -ge 500 ] && _ivx="$_ivx ${_ivf##*/}"; done
+for _ivf in "$IVLIB" "$IVLIBH" "$IVLIBC" ${IVPARTS[@]+"${IVPARTS[@]}"}; do [ -f "$_ivf" ] && [ "$(wc -l < "$_ivf")" -ge 500 ] && _ivx="$_ivx ${_ivf##*/}"; done
 is  "each of them stays under 500 lines" "$_ivx" ""
 _ivx="$(_iv_hostin)"
 [ -f "$IVLIB" ] && [ -z "$_ivx" ] && ok "lib/inventory.sh reads no Claude Code transcript, which is the adapter's" \

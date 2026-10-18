@@ -3,6 +3,7 @@
 # The commit before the tip is therefore named by a branch made at it.
 _mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 printf '\nmerging\n'
+_widget_repo_build
 # The escape set decides nothing until something consults it. Felix had no way
 # to merge at all — the only merge-adjacent code in the engine turned on
 # GitHub's auto-merge and then waited for a person — so a rule saying "Felix

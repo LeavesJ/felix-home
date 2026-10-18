@@ -1,3 +1,4 @@
+_locale_bytes_vars
 # L4. No bracket expression in bash's own pattern syntax whose members are
 # only digits, digit ranges and . + _ -, holding a range between two digits.
 # Bash's own pattern syntax is a case arm, the right side of [[ == ]] or

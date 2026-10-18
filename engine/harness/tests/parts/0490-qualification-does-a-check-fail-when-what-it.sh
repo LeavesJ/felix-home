@@ -91,8 +91,7 @@ is  "and a reported checker whose name is part of a declared one's is still unqu
 # UTF-8 locale stops at it with "Illegal byte sequence", and ungoverned read
 # that as a table it could not read: a false cause, every time, for such a
 # table. Where no en_US UTF-8 locale is installed there is nothing to show.
-_u8="$(locale -a 2>/dev/null | awk '/^en_US\.(UTF-8|utf8)$/ && !n++')"
-_u8none="no en_US UTF-8 locale is installed here"
+_qualify_u8_probe
 QL8="$TMP/qual-not-utf8"; mkdir -p "$QL8"
 { printf 'alpha\ttrue\tviolation\tfail\tprintf caf\351 > x\n'
   printf 'beta\ttrue\tviolation\tfail\ttrue\n'; } > "$QL8/qualification.tsv"
@@ -105,6 +104,7 @@ fi
 # A table that exists and cannot be read is said, not resolved. Read as empty it
 # named all six controls missing and every reported checker unqualified: what a
 # table declaring nothing says, said about one nobody read.
+_qualify_unreadable_probe
 QUT="$TMP/qual-unreadable"; mkdir -p "$QUT"
 printf 'alpha\ttrue\tviolation\tfail\ttrue\n' > "$QUT/qualification.tsv"
 if [ "$_unreadable" -eq 1 ]; then

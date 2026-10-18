@@ -23,6 +23,7 @@ printf '\ncommissioning: a check says it could not be asked by exiting 2\n'
 # case stays red until claude/declared-unread-readers lands as well: on main
 # felix_toolbox_unwired prints nothing and returns 0 over a capabilities list
 # it could not read, so that row reads done.
+_cmstub_build
 _cutab="${CMU_TABLE:-$FROOT/harness/templates/commissioning.tsv}"
 _cudir="$TMP/cu-work"; _cup="$TMP/cu-proj"; _cur="$TMP/cu-root"
 mkdir -p "$_cudir/home" "$_cup" "$_cur"

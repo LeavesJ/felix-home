@@ -14,6 +14,7 @@ printf '\nfound after the blind part: felix status and the index, and a long lis
 # receipt for its present tree sits in RXH (it reads current), and RXLOG is the
 # claude stub's log. The control comes first: the row reads current, so the
 # fixture reaches the branch that computes the tree id.
+_rx_build gate-green 1110
 _rx_gr2() { _rx_field "$(_rx_st "$RXC" --tsv)" gate | cut -f2-; }
 is "the control: with a green receipt for the tree the gate row reads current" "$(_rx_gr2)" "$(printf 'value\tcurrent\t-')"
 mkdir -p "$RX/tmpd"
@@ -51,3 +52,4 @@ _rxt0="$(_rx_ms)"; _rxbig="$(RX_LIST="$RXBIG" _rx_rows reachy)"; _rxt1="$(_rx_ms
   || bad "a list of 300 servers is read and classified in under 8 s" "$(( _rxt1 - _rxt0 )) ms"
 is "and the declared plugin among them still reads connected" "$(_rx_pick "$_rxbig" ctx@m | cut -f1)" "connected"
 is "and the rows are still one for each plugin row, none of the others owning a server" "$(printf '%s\n' "$_rxbig" | grep -c .)" "7"
+_rx_cleanup 1110

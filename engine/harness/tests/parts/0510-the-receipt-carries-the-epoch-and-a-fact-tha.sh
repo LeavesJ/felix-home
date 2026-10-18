@@ -30,6 +30,7 @@
 # that tags every line it prints or fails whole. And --gate wanting at least
 # one verdict repeats what the refusals of no selected row and of fewer
 # verdicts than rows already make true.
+_widget_repo_build
 _QFSHIM="$TMP/fault-shim"; _QFC="$TMP/fault-shim.count"
 for _qfc in awk tr cut sort; do
   mkdir -p "$_QFSHIM/$_qfc"

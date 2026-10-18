@@ -16,6 +16,7 @@ printf '\nland on green: the amendment A29 (contract A29, blind)\n'
 # FILE, where no race exists. ctl/archive.fail makes it fail instead: exit 128
 # after writing nothing ("nothing") or the archive's first 1024 bytes ("part").
 # Each archive call is logged to log/archive.log as where<TAB>mode.
+_lg_build amend
 L7="$LG/round7"; mkdir -p "$L7"
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
 _fx_git "$LGH" reset -q --hard refs/remotes/origin/main >/dev/null 2>&1

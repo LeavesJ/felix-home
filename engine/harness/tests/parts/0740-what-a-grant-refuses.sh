@@ -2,6 +2,7 @@ printf '\nwhat a grant refuses\n'
 # A night is the one thing here nobody is awake to correct, so the refusals are
 # the feature. `felix overnight --start 0.5` that rounds, or `--start 100` that
 # is accepted, is a session running unattended for as long as it feels like.
+_overnight_build
 _ovreset "$NP"
 _ov felix_overnight_start "$NP" 8.5 5 "$NS" "half" >/dev/null 2>&1 \
   && bad "half an hour is not a whole number of hours" "accepted" \

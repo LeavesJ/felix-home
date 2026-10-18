@@ -68,6 +68,7 @@ if [ -x "$REAL_HARNESS/bin/hooks-events" ]; then
       "$("$REAL_HARNESS/bin/hooks-events" "$HE/unterminated.json" >/dev/null 2>&1; echo $?)" "2"
   is  "a directory is cannot-examine, not an empty binding" \
       "$("$REAL_HARNESS/bin/hooks-events" "$HE" >/dev/null 2>&1; echo $?)" "2"
+  _qualify_unreadable_probe
   if [ "$_unreadable" -eq 1 ]; then
     cp "$HE/hooks.json" "$HE/unreadable.json"; chmod 000 "$HE/unreadable.json"
     is  "and so is a file this user cannot read" \

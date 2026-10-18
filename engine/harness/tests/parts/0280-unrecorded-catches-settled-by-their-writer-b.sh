@@ -22,20 +22,13 @@ printf '\nunrecorded catches, settled by their writer (blind)\n'
 # the order of writes, and every silent case sits beside a case that differs in
 # the one property under test and still prompts.
 
-mkdir -p "$GP" "$MEM/guarded"
-_BWD="$MEM/guarded"; _BWK="$_BWD/mistakes.log"; _BWW="$_BWD/written.log"
-_BWL="$_BWD/lessons.md"; _BWV="$_BWD/DEVLOG.md"
+_memory_guarded_build
+_bw_build
 _BWFIRST='The gate caught something here and nothing has been written down since.'
-_BWN="$(date +%s)"
 
-_bwago()   { printf '%s' "$(( _BWN - $1 * 60 ))"; }
-_bwstamp() { date -r "$1" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$1" +%Y%m%d%H%M.%S; }
-_bwday()   { date -r "$1" +%Y-%m-%d 2>/dev/null || date -d "@$1" +%Y-%m-%d; }
-_bwmt()    { touch -t "$(_bwstamp "$1")" "$2"; }
 _BWTODAY="$(_bwday "$_BWN")"
 _BWDAY2="$(_bwday "$(( _BWN - 2 * 86400 ))")"
 
-_bwreset() { rm -f "$_BWK" "$_BWW" "$_BWL" "$_BWV"; }
 # a timed catch row, as the gate files it: branch checks epoch session
 _bwcatch() {
   printf '%s\t%s\t0123abc\t%s\t%s\t%s\n' "$(_bwday "$3")" "$1" "$2" "$3" "$4" >> "$_BWK"
@@ -60,8 +53,6 @@ _bwsays()  { _bwverdict "$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrec
 _bwsays0() { _bwverdict "$( ( . "$FROOT/harness/lib/guard.sh"; felix_guard_unrecorded "$GP" ) 2>/dev/null )"; }
 
 # throwaway checkouts
-_bwg() { git -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
-_bwrepo() { mkdir -p "$1" && ( cd "$1" && _bwg init -q -b "$2" && _bwg commit -q --allow-empty -m init ) >/dev/null 2>&1; }
 _bwhead() { git -C "$1" symbolic-ref --short -q HEAD 2>/dev/null \
               || { git -C "$1" rev-parse --git-dir >/dev/null 2>&1 && echo HEAD || echo '?'; }; }
 _BWR_THIS="$TMP/bw-this";   _bwrepo "$_BWR_THIS" bw/this

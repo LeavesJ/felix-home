@@ -1,4 +1,5 @@
 printf '\nstack provisioning\n'
+_cmstub_build; _plain_build
 # Classification is where the safety policy lives, so that is what is asserted.
 # These rows never install anything: the two that would are deliberately fake.
 {

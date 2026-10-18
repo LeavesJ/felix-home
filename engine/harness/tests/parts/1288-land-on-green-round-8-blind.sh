@@ -18,6 +18,7 @@ printf '\nland on green: the amendment A31 (contract A31, blind)\n'
 # A git first on the trampoline's PATH logs each call and runs the real one, so
 # "before anything else" can be seen: an unopenable file leaves it no call to
 # make. It sits ahead of the stubs only for the trampoline, never for felix land.
+_lg_build amend
 L8="$LG/round8"; L8CWD="$(pwd -P)"; mkdir -p "$L8/gitbin" "$L8/home2/engine/.claude-plugin"
 L8TR="$LGU/Library/Application Support/felix/land/lgh/tick"
 L8PL="$LGU/Library/LaunchAgents/felix.land.lgh.plist"

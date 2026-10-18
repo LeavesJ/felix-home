@@ -15,6 +15,7 @@ printf '\nland on green: the amendment A31, the read by the shell itself, the re
 # 3. Recovery keys on the newest row's kind, not on a word in its detail.
 # 4. An installed job: --install rewrites a pre-A31 pair and boots the old job
 #    out first; a --tick leaves an installed pair as it found it.
+_lg_build amend
 L9="$LG/round9"; L9CWD="$(pwd -P)"; mkdir -p "$L9/toolbin"; : > "$L9/tool.log"
 L9PJ="$LGH/engine/.claude-plugin/plugin.json"; cp -p "$L9PJ" "$L9/plugin.json.keep"
 L9TR="$LGU/Library/Application Support/felix/land/lgh/tick"; L9PL="$LGU/Library/LaunchAgents/felix.land.lgh.plist"

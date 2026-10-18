@@ -1,3 +1,4 @@
+_locale_bytes_vars
 # G1. Project binding. A home holding Web (acme/web) and web-admin
 # (acme/web-admin), and a checkout whose origin is acme/web-admin, so both
 # remote_match cells occur in the remote and the first project the glob
@@ -95,23 +96,6 @@ else
   for a in "$LGB_D_G3" "$LGB_D_G4" "$LGB_D_G5"; do skip "$a" "$LCB_NONE"; done
 fi
 
-# The lints read runtime code: felix, and every file under lib, hooks, bin and
-# templates that a shell runs (a .sh file, a sh or bash shebang, or a workflow
-# template). Copied from the neighbour's scope, under this prefix.
-_lgb_d_scope() {  # <harness dir>: the runtime files, one absolute path a line
-  local h="$1" f
-  [ -f "$h/felix" ] && printf '%s\n' "$h/felix"
-  ( cd "$h" && LC_ALL=C find lib hooks bin templates -type f 2>/dev/null ) | LC_ALL=C sort | while IFS= read -r f; do
-    case "$f" in *.sh|*.yml|*.yaml) printf '%s\n' "$h/$f"; continue ;; esac
-    LC_ALL=C grep -qE '^#!.*[/[:space:]](ba)?sh([[:space:]]|$)' <<<"$(head -1 "$h/$f" 2>/dev/null)" && printf '%s\n' "$h/$f"
-  done
-}
-_lgb_d_files() {  # <lint function> <prefix> [names] < paths: the lint over each path read
-  local fn="$1" pre="$2" names="${3:-}" f; local -a fs=()
-  while IFS= read -r f; do fs[${#fs[@]}]="$f"; done
-  [ "${#fs[@]}" -gt 0 ] || { printf 'no files\n'; return 0; }
-  if [ -n "$names" ]; then "$fn" "$pre" "$names" "${fs[@]}"; else "$fn" "$pre" "${fs[@]}"; fi
-}
 is  "the bash-collation lints' scope reaches felix, the libraries, the hooks, the bin scripts and the workflow template" \
     "$(_lgb_d_scope "$REAL_HARNESS" | LC_ALL=C sed "s|^$REAL_HARNESS/||; s|/.*||" | LC_ALL=C sort -u | LC_ALL=C tr '\n' ' ')" \
     "bin felix hooks lib templates "

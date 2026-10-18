@@ -41,32 +41,16 @@ exec </dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
-# REAL_HARNESS must name a harness before anything reads or copies it. A cd into
-# a path that does not exist leaves `$(cd X && pwd)` empty, and every copy below
-# then starts from "/": on 2026-10-08 at 18:04 a section runner handed this file
-# a harness path that did not exist, and the fixture copy, `cp -R "$src/."`, ran
-# as `cp -R /.` and wrote 123 GB before it was killed. A runner that sets its
-# own REAL_HARNESS on the line after the one above meets this check as well.
-# The same check refuses a section runner whose own REAL_HARNESS lands above
-# the line before this one, which left it naming the runner's directory: with
-# the runner in TMPDIR, the copy spent 48 minutes copying TMPDIR into itself
-# (2026-10-08). Put a runner's REAL_HARNESS after that line, wherever it is.
+# REAL_HARNESS must name a harness before anything reads or copies it: part 0203
+# has the two runs of 2026-10-08 that did not (`cp -R /.`, 123 GB). A section
+# runner sets its own REAL_HARNESS after the line above, wherever that line is.
 if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
 fi
-# This file is the driver: the helpers every assertion uses, then one line per
-# part that sources it, then the manifest comparison and the verdict. The
-# assertions live in parts/NNNN-*.sh, each cut where it parses alone, sourced in
-# the order of the lines below, and sharing this shell, so every variable and
-# function defined in one is there for the ones after it. They are sourced one
-# to a line and not in a loop on purpose: an arithmetic error inside $(( )) in
-# bash 3.2 discards the whole top-level command it sits in, and a loop would
-# make that the rest of the suite. Before 2026-10-10 this was one file of 43,000
-# lines, 2.8 MB, which an editor's post-edit scanner refused to read.
-# _suite_src is the suite's source as one stream, parts first and this file
-# last, for the assertions that read the suite's own text.
-_suite_src() { cat "$HERE"/parts/*.sh "$HERE/run"; }
+# The driver: the helpers every assertion uses, one line per part in parts/ (part
+# 1040 says why not a loop), then the manifest comparison and the verdict.
+# _suite_files, _suite_src and _suite_flat are defined in part 0003.
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict.
@@ -141,19 +125,10 @@ has_claude() { command -v claude >/dev/null 2>&1; }
 
 . "$HERE/parts/0002-fixture-git-commands-stay-in-tmp.sh"
 . "$HERE/parts/0003-the-lint-the-origin-record-and-the-exit-trap.sh"
-# The manifest of assertions this suite is supposed to reach, beside the suite
-# and tracked. Regenerated with `tests/run --record-assertions`, which is the
-# one command that changes it, so the diff on every PR says plainly which
-# assertions were added and which were removed. The same command runs
-# tests/red, which writes red.tsv beside it: this suite against the engine the
-# base ref holds, so "N fail against the previous engine" is a file in the
-# tree and not a sentence in a pull request. Red starts with the record run, not
-# after it: its suite needs this tree's manifest only for the comparison it
-# makes once that suite has ended, so the two run side by side and the record
-# run hands the manifest over with a mark file, `written` or `failed`. They ran
-# one after the other until 2026-10-12, when the suite was 1429 s of the gate's
-# 1565 s on a quiet machine. FELIX_TEST_NO_MANIFEST=1 is how that red run asks
-# this suite not to compare itself against a manifest that describes another tree.
+# The manifest of assertions this suite is supposed to reach, tracked beside it.
+# `tests/run --record-assertions` is the one command that changes it, and it runs
+# tests/red side by side (receipt.sh, "red, beside a record run"), which writes
+# red.tsv; FELIX_TEST_NO_MANIFEST=1 is how that red run asks this run not to compare.
 FELIX_TEST_MANIFEST="$HERE/assertions.tsv"
 FELIX_TEST_RECORD=0; _rcp_reuse=0
 while :; do case "${1:-}" in
@@ -186,37 +161,64 @@ fi
 _rcp_red=""
 if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ]; then _rcp_red_start "$TMP/manifest.mark"; fi
 
-# Memory has lived outside any checkout since 2026-08-14, so the fixture needs a
-# root of its own rather than a directory inside the fixture home.
-#
-# Exported, and that is not a detail. This suite drives the real CLI and the real
-# hooks as child processes; an unexported value would leave every one of them
-# resolving felix_mem_root to the default and writing the fixture's invented
-# projects into the developer's own memory — which is both a corrupted test and
-# a corrupted record, and neither would announce itself.
-MEM="$TMP/memory"
-export FELIX_MEMORY="$MEM"
-mkdir -p "$MEM"
-
-# No session, as on the CI runner. The gate files each catch under the session
-# its shell was given, and the Stop hook asks a session only about its own, so
-# a suite run from inside a session would file every fixture's catch under
-# that session and judge the hooks differently from CI. Cases that need one
-# set it where they need it.
-unset CLAUDE_CODE_SESSION_ID
-
-# Every lib that writes memory calls felix_mem_dir, which resolve.sh defines and
-# which the CLI and both hooks always source first. The subshells below source
-# one lib at a time, so without this they run under a load order production
-# never has. Worth stating because of how that fails: bash reports "command not
-# found" on stderr, the append is redirected to /dev/null, and the assertion
-# then reads as "memory was not written" — a wrong answer about the code rather
-# than about the test. Functions defined here are inherited by every subshell.
-. "$REAL_HARNESS/lib/resolve.sh"
-
 . "$HERE/parts/0004-the-widget-fixture.sh"
 
 . "$HERE/parts/0005-fixture-floor.sh"
+. "$HERE/parts/0006-the-lib-judges.sh"
+# The names defined so far, one a line, for _lib_clashes: a lib file may not take one.
+{ compgen -v; compgen -A function; } | LC_ALL=C sort -u > "$TMP/lib-before.names"
+# tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
+. "$HERE/lib/adopt-refusals.sh"
+. "$HERE/lib/attempt-step.sh"
+. "$HERE/lib/audit-review.sh"
+. "$HERE/lib/audit.sh"
+. "$HERE/lib/autocomm.sh"
+. "$HERE/lib/autonomy-lock.sh"
+. "$HERE/lib/bw.sh"
+. "$HERE/lib/candidates.sh"
+. "$HERE/lib/cm-stub.sh"
+. "$HERE/lib/commissioning.sh"
+. "$HERE/lib/deny-hook.sh"
+. "$HERE/lib/discover.sh"
+. "$HERE/lib/engine-manifest.sh"
+. "$HERE/lib/felix-cost.sh"
+. "$HERE/lib/felix-new-nocommission.sh"
+. "$HERE/lib/fresh-repos.sh"
+. "$HERE/lib/gate-repo.sh"
+. "$HERE/lib/gate-workflow.sh"
+. "$HERE/lib/gitproof.sh"
+. "$HERE/lib/gov-names.sh"
+. "$HERE/lib/hook-payload.sh"
+. "$HERE/lib/install-fixture.sh"
+. "$HERE/lib/inventory-blind-runs.sh"
+. "$HERE/lib/inventory-blind.sh"
+. "$HERE/lib/inventory-gizmo.sh"
+. "$HERE/lib/inventory.sh"
+. "$HERE/lib/land-on-green.sh"
+. "$HERE/lib/locale-bash-collation.sh"
+. "$HERE/lib/locale-bytes.sh"
+. "$HERE/lib/memory-guarded.sh"
+. "$HERE/lib/merge.sh"
+. "$HERE/lib/overnight.sh"
+. "$HERE/lib/probes.sh"
+. "$HERE/lib/qualify-controls.sh"
+. "$HERE/lib/qualify-needs.sh"
+. "$HERE/lib/qualify-sweep.sh"
+. "$HERE/lib/reach.sh"
+. "$HERE/lib/recon.sh"
+. "$HERE/lib/router.sh"
+. "$HERE/lib/stuck-pr.sh"
+. "$HERE/lib/unborn-repo.sh"
+. "$HERE/lib/unwritable.sh"
+. "$HERE/lib/user-prompt-hook.sh"
+. "$HERE/lib/widget-repo.sh"
+# The variables the lib files' functions read, set here, once, by the _vars
+# function of each file that has them: a lib file sets none as it is sourced (C2).
+# A copy of the driver (_suite_copy_driver) drops the lib lines and has no lib.
+if [ -d "$HERE/lib" ]; then
+  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
+  _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
+fi
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"
@@ -296,6 +298,7 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/parts/0650-ecosystem.sh"
 . "$HERE/parts/0660-continued.sh"
 . "$HERE/parts/0670-continued.sh"
+. "$HERE/parts/0671-continued.sh"
 . "$HERE/parts/0680-continued.sh"
 . "$HERE/parts/0681-continued.sh"
 . "$HERE/parts/0690-continued.sh"
@@ -367,6 +370,7 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/parts/1287-land-on-green-round-7-blind.sh"
 . "$HERE/parts/1288-land-on-green-round-8-blind.sh"
 . "$HERE/parts/1289-land-on-green-round-9-blind.sh"
+. "$HERE/parts/1290-gate-friction-c-blind.sh"
 . "$HERE/parts/1300-stuck-pr-page-blind.sh"
 . "$HERE/parts/1310-stuck-pr-page-states-blind.sh"
 . "$HERE/parts/1320-stuck-pr-page-readings-blind.sh"
@@ -391,17 +395,10 @@ unset CLAUDE_CODE_SESSION_ID
 # suite's own, and the red block's marker assertion pins this printf. Changing
 # it means changing tests/red.
 printf '\nreached\n'
-# What ran, against what is supposed to run. #67.
-#
-# The comparison is one-directional on purpose. An assertion in the manifest
-# that did NOT run is the defect — it is the silent kind, indistinguishable from
-# a passing suite. An assertion that ran and is not in the manifest is somebody
-# adding a test and forgetting to record it, which is noise rather than risk, so
-# it is reported and does not fail the run.
-#
-# Counted per name, not set-compared: some names legitimately appear more than
-# once (nineteen on 2026-10-01), and losing one of a pair is exactly as silent
-# as losing a unique one.
+# What ran, against what is supposed to run (#67). One way only: a manifest
+# assertion that did not run is the silent defect, and fails; one that ran and
+# is not listed is a forgotten record, and is noted. Counted per name, not as a
+# set: some names appear more than once (nineteen on 2026-10-01).
 _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
 

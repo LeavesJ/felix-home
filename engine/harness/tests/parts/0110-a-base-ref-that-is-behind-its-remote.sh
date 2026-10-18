@@ -1,4 +1,5 @@
 printf '\na base ref that is behind its remote\n'
+_widget_repo_build
 # #74, and the sibling of the section below. There the base ref was current and
 # the merge-base was frozen; here the base REF itself is behind.
 #

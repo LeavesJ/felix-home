@@ -1,3 +1,4 @@
+_locale_bytes_vars
 printf "\nbash's own collation and the BSD text tools decide nothing by locale\n"
 # The neighbour of the block above, for the two classes it leaves out. Measured
 # 2026-10-08 on macOS 26, bash 3.2.57, at b434425f (and main 6fe5f986), with a
@@ -653,11 +654,3 @@ if [ -n "$LCB_U8" ]; then is "$LGB_C_F6" "$(_lgb_c_ledger_in all)" "foo:1:2 zed:
 # in the UTF-8 locale, in a subshell around the one call, and asks for the same
 # answer. These are bash's own, not BSD's: glibc bash collates the same way,
 # so they can fail on Linux too wherever en_US.UTF-8 is installed.
-_lgb_d_in() {  # C|lang|all <command...>: one call in a chosen locale, in a subshell
-  local how="$1"; shift
-  case "$how" in
-    C)    ( export LC_ALL=C; "$@" ) ;;
-    lang) ( unset LC_ALL LC_COLLATE LC_CTYPE; export LANG="$LCB_U8"; "$@" ) ;;
-    all)  ( export LC_ALL="$LCB_U8"; "$@" ) ;;
-  esac
-}

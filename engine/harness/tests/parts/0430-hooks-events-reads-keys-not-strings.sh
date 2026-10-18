@@ -273,12 +273,12 @@ printf '*.log\n' > "$DCM/tree/.gitignore"
   && git -c user.name=t -c user.email=t@t commit -qm seed ) >/dev/null 2>&1
 DCMT="$(cd "$DCM/tree" && pwd -P)"
 # Deploy a ref's engine at a version the way the cache holds it: from the
-# commit rather than the disk, and without engine/.claude-plugin. Into a
+# commit rather than the disk, with engine/.claude-plugin (the judge compares it). Into a
 # fresh entry only; a tampered file is put back below from the same commit.
 _dcm_deploy() {   # ref, version
   mkdir -p "$DCMC/$2" "$DCM/x.$2"
   _fx_git "$DCMT" archive "$1" engine | tar -x -C "$DCM/x.$2"
-  for _d in harness hooks commands; do
+  for _d in harness hooks commands .claude-plugin; do
     [ -d "$DCM/x.$2/engine/$_d" ] && cp -R "$DCM/x.$2/engine/$_d" "$DCMC/$2/$_d"
   done
 }

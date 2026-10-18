@@ -26,7 +26,7 @@ is "B1-B4, B9 (fixture control): the residue fixture: main tracks keep.log, forc
 _jb_cut() {   # SHA DIR -> DIR holds the commit's engine/{harness,hooks,commands}, and nothing else
   rm -rf "$2" "$JB/x" "$JB/x.tar"; mkdir -p "$2" "$JB/x"
   _fx_git "$JBR" archive -o "$JB/x.tar" "$1" engine >/dev/null 2>&1 && tar -x -C "$JB/x" -f "$JB/x.tar"
-  for _d in harness hooks commands; do [ -d "$JB/x/engine/$_d" ] && cp -R "$JB/x/engine/$_d" "$2/$_d"; done
+  for _d in harness hooks commands .claude-plugin; do [ -d "$JB/x/engine/$_d" ] && cp -R "$JB/x/engine/$_d" "$2/$_d"; done
   rm -rf "$JB/x" "$JB/x.tar"
 }
 _jb_entry() { _jb_cut "$JB_M" "$JBE"; }

@@ -1276,16 +1276,17 @@ WALK_LINES
 
 # Git, run so that nothing of this machine enters its answer: no global or
 # system config, no global excludes file, none of the environment that points
-# git at another repository, and no stdin. A verifier whose verdict varies with
-# one machine's personal ignore rules is not a verifier. REPO is where it runs;
-# core.ignoreCase is pinned because git sets it by probing the filesystem, and a
-# rule that matches on one machine and not on the next is the same defect.
+# git at another repository, and stdin from /dev/null unless _FELIX_GIT_IN names
+# a file. A verifier whose verdict varies with one machine's personal ignore
+# rules is not a verifier. REPO is where it runs, or _FELIX_GIT_AT when that is
+# set; core.ignoreCase is pinned because git sets it by probing the filesystem,
+# and a rule that matches on one machine and not on the next is the same defect.
 _felix_git_rules() {   # REPO git-args...
   local r="$1"; shift
   env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
       -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT \
       HOME="$r" XDG_CONFIG_HOME="$r" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
-      git -C "$r" -c core.excludesFile=/dev/null -c core.ignoreCase=false "$@" </dev/null
+      git -C "${_FELIX_GIT_AT:-$r}" -c core.excludesFile=/dev/null -c core.ignoreCase=false "$@" <"${_FELIX_GIT_IN:-/dev/null}"
 }
 
 # A scratch repository at DIR that holds every .gitignore the commit SHA holds —
@@ -1312,32 +1313,6 @@ _felix_rules_repo() {   # ROOT SHA DIR
     git -C "$root" cat-file blob "$obj" > "$dir/$path" 2>/dev/null </dev/null || return 1
   done < "$dir.lst"
   rm -f "$dir.lst"
-}
-
-# Residue for the accepted form, which is the narrowest there is. Only a path
-# the cache entry alone holds can be residue, and only when a rule main
-# COMMITTED matches it. A path main ships is content whatever any rule says
-# (a file main force-added under *.log is main's), and so is a path the entry
-# lacks. Under commands/ nothing is residue at all: a Markdown file there is a
-# slash command, so an extra file is behaviour however an ignore rule reads it.
-#
-# The rules are asked with a path from the engine's parent, as the repository
-# holds it. A directory is asked with a trailing slash, because git matches a
-# directory-only pattern (`.claude-flow/`, the incident's own rule) only against
-# what it knows is a directory, and the entry's stray exists in no tree git can
-# look at. Measured (git 2.54): in a repository whose files do not exist,
-# check-ignore on `d/.claude-flow/x.json` answers ignored, since git takes every
-# leading component for a directory, and on `d/.claude-flow` answers not
-# ignored, so only the final component needs the slash. It is added by what the
-# entry actually holds there, not unconditionally: a FILE called data is not
-# matched by `data/` and so is not residue.
-_felix_residue_rules() {   # SCRATCH - KIND P FULL
-  local q
-  [ "$3" = live ] || return 1
-  case "$4" in commands|commands/*) return 1 ;; esac
-  q="engine/$4"
-  if [ -d "$5" ] && [ ! -L "$5" ]; then q="$q/"; fi
-  _felix_git_rules "$1" check-ignore -q -- "$q"
 }
 
 # Residue for the working-tree form: a path the repository itself declares
@@ -1395,24 +1370,192 @@ felix_deploy_diff() {
   _felix_deploy_walk "$src" "$live" _felix_residue_tree "$igroot" "$pre"
 }
 
+# A path as one line: a backslash, a newline and a tab are written \\, \n and \t,
+# so a name cannot be read as two paths or as two fields. Sets _FELIX_ESC.
+_felix_esc() {
+  local s="$1"
+  s="${s//\\/\\\\}"; s="${s//$'\n'/\\n}"; s="${s//$'\t'/\\t}"
+  _FELIX_ESC="$s"
+}
+
+# What main stores, from the commit and from nothing converted: one line a path,
+# `path TAB mode TAB blob`, the path from engine/ and escaped. git ls-tree reads
+# the tree object, so no filter, eol, export-ignore or ident setting of the home
+# (in .git/info/attributes, core.attributesFile, the config or a working-tree
+# .gitattributes) can touch it, which git archive did not promise.
+_felix_main_list() {   # ROOT SHA OUT
+  local rec meta path mode rest
+  git -C "$1" ls-tree -r -z --full-tree "$2" -- engine/ > "$3.raw" 2>/dev/null </dev/null || return 1
+  : > "$3"
+  while IFS= read -r -d '' rec; do
+    meta="${rec%%$'\t'*}"; path="${rec#*$'\t'}"
+    mode="${meta%% *}"; rest="${meta#* }"
+    _felix_esc "${path#engine/}"
+    printf '%s\t%s\t%s\n' "$_FELIX_ESC" "$mode" "${rest#* }" >> "$3"
+  done < "$3.raw"
+  rm -f "$3.raw"
+}
+
+# What the entry holds, by what it is and by its bytes as they lie on disk: one
+# line a path, `path TAB type TAB - TAB blob`, type d, f, l or o (a FIFO, a
+# socket, a device). A regular file's blob is git hash-object --no-filters, run
+# against the scratch repository R under no machine-local config, so the entry
+# is hashed raw and the way main's blobs are stored. A path git would read as
+# quoted or as two lines is hashed on its own. OUT.x lists the regular files that
+# have their owner execute bit, one escaped path a line.
+_felix_entry_list() {   # ENTRY SCRATCH OUT
+  local entry="$1" r="$2" out="$3" f p t h
+  : > "$out.safe"; : > "$out.x"; : > "$out"; : > "$out.fx"
+  ( cd "$entry" && find . -mindepth 1 -type f -perm -100 -print0 2>/dev/null ) > "$out.xraw" || return 1
+  while IFS= read -r -d '' f; do _felix_esc "${f#./}"; printf '%s\n' "$_FELIX_ESC" >> "$out.x"; done < "$out.xraw"
+  ( cd "$entry" && find . -mindepth 1 -print0 2>/dev/null ) > "$out.raw" || return 1
+  while IFS= read -r -d '' f; do
+    p="${f#./}"
+    if [ -L "$entry/$p" ]; then t=l
+    elif [ -d "$entry/$p" ]; then t=d
+    elif [ -f "$entry/$p" ]; then t=f
+    else t=o; fi
+    _felix_esc "$p"
+    if [ "$t" != f ]; then printf '%s\t%s\t-\t-\n' "$_FELIX_ESC" "$t" >> "$out"; continue; fi
+    case "$p" in
+      *$'\n'*|\"*) h="$(_FELIX_GIT_AT="$entry" _felix_git_rules "$r" --git-dir="$r/.git" hash-object --no-filters -- "$p" 2>/dev/null)" || h="-"
+                   printf '%s\tf\t-\t%s\n' "$_FELIX_ESC" "${h:--}" >> "$out" ;;
+      *) printf '%s\n' "$p" >> "$out.safe"; printf '%s\tf\t-\n' "$_FELIX_ESC" >> "$out.fx" ;;
+    esac
+  done < "$out.raw"
+  if [ -s "$out.safe" ]; then
+    _FELIX_GIT_AT="$entry" _FELIX_GIT_IN="$out.safe" _felix_git_rules "$r" --git-dir="$r/.git" \
+        hash-object --no-filters --stdin-paths > "$out.h" 2>/dev/null || return 1
+    [ "$(wc -l < "$out.h" | tr -d ' ')" = "$(wc -l < "$out.safe" | tr -d ' ')" ] || return 1
+    paste "$out.fx" "$out.h" >> "$out"
+  fi
+  rm -f "$out.raw" "$out.xraw" "$out.safe" "$out.fx" "$out.h"
+}
+
+# Residue for the accepted form, which is the narrowest there is. Only a path
+# the cache entry alone holds can be residue, only beneath harness/ or hooks/,
+# and only when a rule main COMMITTED matches it. A path main ships is content
+# whatever any rule says (a file main force-added under *.log is main's), and so
+# is a path the entry lacks. Any other top-level name is drift, and so is
+# anything under commands/ or .claude-plugin/: a Markdown file under commands/ is
+# a slash command, so an extra file is behaviour however an ignore rule reads it.
+# A path with a character that makes it ambiguous (a backslash, which stands for
+# a newline, a tab or a backslash itself, a quote, ` and `, `: `, a leading dash,
+# a glob character, a trailing space) is never residue either: a rule is not
+# trusted to mean the path it was matched against.
+#
+# The rules are asked with a path from the engine's parent, as the repository
+# holds it. A directory is asked with a trailing slash, because git matches a
+# directory-only pattern (`.claude-flow/`, the incident's own rule) only against
+# what it knows is a directory, and the entry's stray exists in no tree git can
+# look at. Measured (git 2.54): in a repository whose files do not exist,
+# check-ignore on `d/.claude-flow/x.json` answers ignored, since git takes every
+# leading component for a directory, and on `d/.claude-flow` answers not
+# ignored, so only the final component needs the slash. It is added by what the
+# entry actually holds there, not unconditionally: a FILE called data is not
+# matched by `data/` and so is not residue.
+_felix_residue_c() {   # SCRATCH PATH TYPE
+  local q="engine/$2"
+  case "$2" in harness/*|hooks/*) ;; *) return 1 ;; esac
+  case "$2" in
+    *\\*|*\"*|*" and "*|*": "*|*"/-"*|*" /"*|*" "|*[\*\?\[]*) return 1 ;;
+  esac
+  [ "$3" = d ] && q="$q/"
+  _felix_git_rules "$1" check-ignore -q -- "$q"
+}
+
+# The two lists compared, as lines `path TAB code [TAB type]` on stdout:
+#   D  both hold the path and it differs: the blob, the executable bit, or the
+#      type (a directory against a file, a symlink or a special file against
+#      anything main stores)
+#   M  main stores a path the entry lacks
+#   O  the entry alone holds it, at the top of what it alone holds
+#   S  the entry alone holds a symlink or a special file, anywhere
+# Directories are not content, so they are named only when they conflict or are
+# the top of what only the entry holds.
+_felix_compare_lists() {   # MAINLIST EXECLIST ENTRYLIST
+  LC_ALL=C awk '
+    function ls_(s,   i) { for (i = length(s); i > 0; i--) if (substr(s, i, 1) == "/") return i; return 0 }
+    BEGIN { FS = "\t" }
+    FILENAME == ARGV[1] {
+      mm[$1] = $2; mb[$1] = $3; p = $1
+      while ((i = ls_(p)) > 0) { p = substr(p, 1, i - 1); md[p] = 1 }
+      next }
+    FILENAME == ARGV[2] { xs[$1] = 1; next }
+    {
+      ep = $1; et = $2; eb = $4; seen[ep] = 1; ex = (ep in xs)
+      i = ls_(ep); par = (i > 0) ? substr(ep, 1, i - 1) : ""
+      top = (par == "" || (par in md))
+      if (et == "l" || et == "o") {
+        if ((ep in mm) || (ep in md)) print ep "\tD"; else print ep "\tS\t" et
+        next }
+      if (et == "d") {
+        if (ep in mm) print ep "\tD"
+        else if (!(ep in md) && top) print ep "\tO\td"
+        next }
+      if (ep in md) { print ep "\tD"; next }
+      if (ep in mm) {
+        m = mm[ep]
+        if ((m != "100644" && m != "100755") || mb[ep] != eb || ((m == "100755") != ex)) print ep "\tD"
+        next }
+      if (top) print ep "\tO\tf"
+    }
+    END { for (p in mm) if (!(p in seen)) print p "\tM" }
+  ' "$1" "$2" "$3" | LC_ALL=C sort
+}
+
+# The lines of the verdict, in diff's own shapes, for the compared lists; 1 when
+# there is any. LABEL names main's commit where diff would have named the
+# temporary directory main used to be extracted to.
+_felix_accepted_report() {   # SCRATCH ENTRY LABEL COMPARED
+  local r="$1" entry="$2" label="$3" p code t dir name rc=0
+  while IFS=$'\t' read -r p code t; do
+    [ -n "$p" ] || continue
+    case "$p" in */*) dir="/${p%/*}"; name="${p##*/}" ;; *) dir=""; name="$p" ;; esac
+    case "$code" in
+      D) printf 'Files %s/%s and %s/%s differ\n' "$label" "$p" "$entry" "$p" ;;
+      M) printf 'Only in %s%s: %s\n' "$label" "$dir" "$name" ;;
+      O) if _felix_residue_c "$r" "$p" "$t"; then continue; fi
+         printf 'Only in %s%s: %s\n' "$entry" "$dir" "$name" ;;
+      S) printf 'Only in %s%s: %s\n' "$entry" "$dir" "$name" ;;
+    esac
+    rc=1
+  done < "$4"
+  return "$rc"
+}
+
 # Is the engine main accepted the one deployed? Both sides from the base
 # (docs/2026-08-18-promotion-spec.md §4): the version main declares names the
-# cache entry, and main's own engine/{harness,hooks,commands} — read from the
-# commit, never from any working tree — is what that entry must hold. Every
-# checkout can answer this, which is what lets `felix merge` run from a
-# worktree (#2).
+# cache entry, and main's own engine — read from the commit, never from any
+# working tree — is what that entry must hold. Every checkout can answer this,
+# which is what lets `felix merge` run from a worktree (#2).
 #
 # The verdict depends on two things and no others: main's commit M, as
 # felix_base_ref names it, and the cache entry E. M is resolved to a commit ONCE,
-# and the version, the archive and the ignore rules are all read from that
-# commit, so a ref that moves mid-call cannot have one main's version judged
-# against another main's files. The checkout this runs in does not enter: not
-# its working tree, its index, its .git/info/exclude, its config, the branch it
-# has checked out, nor the machine's global excludes file. The one thing that
-# looks like it should enter is which paths are residue, and that too is M's
-# alone: a stray only E holds is residue when an ignore rule M itself committed
-# matches it (_felix_residue_rules), so an untracked .gitignore of `*` in the
-# home cannot turn an extra file in E, or drift in a file M ships, into residue.
+# and the version, the tree and the ignore rules are all read from that commit,
+# so a ref that moves mid-call cannot have one main's version judged against
+# another main's files. The checkout this runs in does not enter: not its
+# working tree, its index, its .git/info/exclude, its config, its attributes, the
+# branch it has checked out, nor the machine's global excludes file.
+#
+# Main's side is not extracted. git archive applies the home's conversions to
+# every file it writes (a smudge filter, eol, export-ignore, ident), so an entry
+# holding what a filter wrote read as main's. Main's side is the tree object
+# itself, path, mode and blob id (git ls-tree), and the entry's side is its files
+# as they lie on disk, hashed raw (git hash-object --no-filters). The comparison
+# is by path over the WHOLE entry, `.claude-plugin/` and any other top-level name
+# included, and by type and mode: a different blob, a different executable bit, a
+# symlink, FIFO or socket anywhere, or a file against a directory is drift.
+#
+# The one thing that looks like it should enter is which paths are residue, and
+# that too is M's alone: a stray only E holds beneath harness/ or hooks/ is
+# residue when an ignore rule M itself committed matches it
+# (_felix_residue_c), so an untracked .gitignore of `*` in the home cannot turn
+# an extra file in E, or drift in a file M ships, into residue.
+#
+# A TERM or INT delivered to the call removes the temporary directory it made
+# before the call ends, and the caller's own traps for them are put back when it
+# returns.
 #
 #   exit 0  identical; prints the entry
 #   exit 1  differs; every differing path on stdout, or one line naming the
@@ -1431,7 +1574,7 @@ felix_deploy_diff() {
 # disagree by construction. FELIX_KERNEL, the suite's override of the judge,
 # is not read: this asks about the real cache.
 felix_accepted_deploy_diff() {
-  local root="$1" base="${2:-main}" cache ref sha ver entry tmp d rc
+  local root="$1" base="${2:-main}" cache ref sha ver entry tmp rc told tint
   cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
   [ -d "$cache" ] || { printf 'cannot examine: no felix cache at %s\n' "$cache"; return 2; }
   ref="$(felix_base_ref "$root" "$base")" || { printf 'cannot examine: no %s or origin/%s in this repository\n' "$base" "$base"; return 2; }
@@ -1448,21 +1591,28 @@ felix_accepted_deploy_diff() {
   fi
   local tmpd="${TMPDIR:-/tmp}"
   tmp="$(mktemp -d "${tmpd%/}/felix-deploy.XXXXXX" 2>/dev/null)" || { printf 'cannot examine: no temporary directory\n'; return 2; }
-  for d in harness hooks commands; do
-    git -C "$root" cat-file -e "$sha:engine/$d" 2>/dev/null </dev/null || continue
-    # bsdtar stops reading at the end-of-archive marker, and git archive may
-    # still be writing its trailing padding then: into a closed pipe it dies
-    # of SIGPIPE, and pipefail read main's own entry as one that cannot be
-    # examined (192 of 1,500 runs under load). The rest is drained, so the
-    # status is git's and tar's own.
-    git -C "$root" archive "$sha" "engine/$d" 2>/dev/null </dev/null \
-      | { tar -x -C "$tmp" 2>/dev/null; r=$?; cat >/dev/null; exit "$r"; } \
-      || { rm -rf "$tmp"; printf 'cannot examine: could not read engine/%s at %s\n' "$d" "$ref"; return 2; }
-  done
-  _felix_rules_repo "$root" "$sha" "$tmp/rules" \
-    || { rm -rf "$tmp"; printf 'cannot examine: could not read the ignore rules main committed at %s\n' "$ref"; return 2; }
-  _felix_deploy_walk "$tmp/engine" "$entry" _felix_residue_rules "$tmp/rules" -; rc=$?
-  rm -rf "$tmp"
+  _FELIX_DEPLOY_TMP="$tmp"
+  told="$(trap -p TERM)"; tint="$(trap -p INT)"
+  trap 'rm -rf "$_FELIX_DEPLOY_TMP"; exit 143' TERM
+  trap 'rm -rf "$_FELIX_DEPLOY_TMP"; exit 130' INT
+  _felix_accepted_body "$root" "$sha" "$ref" "$entry" "$tmp"; rc=$?
+  rm -rf "$tmp"; _FELIX_DEPLOY_TMP=""
+  trap - TERM INT
+  [ -z "$told" ] || eval "$told"
+  [ -z "$tint" ] || eval "$tint"
   [ "$rc" -eq 0 ] && printf '%s\n' "$entry"
   return "$rc"
+}
+
+# The work of felix_accepted_deploy_diff inside the temporary directory it made.
+_felix_accepted_body() {   # ROOT SHA REF ENTRY TMP
+  local root="$1" sha="$2" ref="$3" entry="$4" tmp="$5"
+  _felix_rules_repo "$root" "$sha" "$tmp/rules" \
+    || { printf 'cannot examine: could not read the ignore rules main committed at %s\n' "$ref"; return 2; }
+  _felix_main_list "$root" "$sha" "$tmp/main.tsv" \
+    || { printf 'cannot examine: could not read the engine tree at %s\n' "$ref"; return 2; }
+  _felix_entry_list "$entry" "$tmp/rules" "$tmp/entry.tsv" \
+    || { printf 'cannot examine: could not read the entry at %s\n' "$entry"; return 2; }
+  _felix_compare_lists "$tmp/main.tsv" "$tmp/entry.tsv.x" "$tmp/entry.tsv" > "$tmp/compared.tsv"
+  _felix_accepted_report "$tmp/rules" "$entry" "main@${sha:0:12}" "$tmp/compared.tsv"
 }

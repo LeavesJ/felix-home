@@ -148,7 +148,7 @@ if [ -f "$_GING" ] && grep -q '^# -* tests -*$' "$_GING"; then
   _gin_deploy() {   # ref, version
     rm -rf "$GINC/$2" "$GIN/x"; mkdir -p "$GINC/$2" "$GIN/x"
     _fx_git "$GINT" archive "$1" engine | tar -x -C "$GIN/x"
-    for _d in harness hooks commands; do
+    for _d in harness hooks commands .claude-plugin; do
       [ -d "$GIN/x/engine/$_d" ] && cp -R "$GIN/x/engine/$_d" "$GINC/$2/$_d"
     done
     rm -rf "$GIN/x"

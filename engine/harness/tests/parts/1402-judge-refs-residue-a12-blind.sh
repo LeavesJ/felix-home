@@ -64,7 +64,7 @@ _j12_commit "$J12R" prose NOTES.md 'prose notes'
 _j12_entry() {   # -> the cache entry for 1.0.0 is m1's engine, cut from the commit
   rm -rf "$J12K/1.0.0" "$J12/x" "$J12/x.tar"; mkdir -p "$J12K/1.0.0" "$J12/x"
   _fx_git "$J12R" archive -o "$J12/x.tar" "$J12_M1" engine >/dev/null 2>&1 && tar -x -C "$J12/x" -f "$J12/x.tar"
-  for _d in harness hooks commands; do [ -d "$J12/x/engine/$_d" ] && cp -R "$J12/x/engine/$_d" "$J12K/1.0.0/$_d"; done
+  for _d in harness hooks commands .claude-plugin; do [ -d "$J12/x/engine/$_d" ] && cp -R "$J12/x/engine/$_d" "$J12K/1.0.0/$_d"; done
   rm -rf "$J12/x" "$J12/x.tar"
 }
 _j12_dry() {   # [BASE] -> J12RC and $J12/out: felix merge --dry-run (--base BASE when given), a fresh receipt first

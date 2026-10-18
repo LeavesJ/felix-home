@@ -273,7 +273,7 @@ JS_D="$(_jr_decoy_judge "$JSR" "$JS_M" "$JSK/1.0.0")"
 _js_entry() {   # -> the cache entry for 1.0.0 is main's engine, cut from the commit
   rm -rf "$JSK/1.0.0" "$JS/x" "$JS/x.tar"; mkdir -p "$JSK/1.0.0" "$JS/x"
   _fx_git "$JSR" archive -o "$JS/x.tar" "$JS_M" engine >/dev/null 2>&1 && tar -x -C "$JS/x" -f "$JS/x.tar"
-  for _d in harness hooks commands; do [ -d "$JS/x/engine/$_d" ] && cp -R "$JS/x/engine/$_d" "$JSK/1.0.0/$_d"; done
+  for _d in harness hooks commands .claude-plugin; do [ -d "$JS/x/engine/$_d" ] && cp -R "$JS/x/engine/$_d" "$JSK/1.0.0/$_d"; done
   rm -rf "$JS/x" "$JS/x.tar"
 }
 _js_dry() {   # -> JSRC and $JS/out: felix merge --dry-run in the checkout, a fresh receipt first
@@ -326,7 +326,7 @@ fi
 _jg_entry() {   # -> the cache entry for 0.0.1 is main's engine, cut from the commit
   rm -rf "$JGC/0.0.1" "$JG/x" "$JG/x.tar"; mkdir -p "$JGC/0.0.1" "$JG/x"
   _fx_git "$JGT" archive -o "$JG/x.tar" "$JG_M" engine >/dev/null 2>&1 && tar -x -C "$JG/x" -f "$JG/x.tar"
-  for _d in harness hooks commands; do [ -d "$JG/x/engine/$_d" ] && cp -R "$JG/x/engine/$_d" "$JGC/0.0.1/$_d"; done
+  for _d in harness hooks commands .claude-plugin; do [ -d "$JG/x/engine/$_d" ] && cp -R "$JG/x/engine/$_d" "$JGC/0.0.1/$_d"; done
   rm -rf "$JG/x" "$JG/x.tar"
 }
 _jg_inst() {   # -> the installed verdict word, then |decoy when the decoy's marker reached the output

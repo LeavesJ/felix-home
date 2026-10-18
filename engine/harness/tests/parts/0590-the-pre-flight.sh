@@ -197,7 +197,7 @@ case "$(cut -f4 "$MEM/widget/says.log" 2>/dev/null)" in
 esac
 
 # ...and the page shows it verbatim.
-out="$(cd "$REPO" && "$FELIX" monitor 2>&1)"
+out="$(cd "$REPO" && "$FELIX" monitor --log 2>&1)"
 MON2="$FROOT/state/monitor.html"
 grep -q '"says"' "$MON2" && ok "the page carries the speech" || bad "the page carries the speech"
 grep -q 'migration schema needs an index' "$MON2" \
@@ -207,7 +207,7 @@ grep -q 'migration schema needs an index' "$MON2" \
   # shape, an old line puts its text where the cause belongs, and the page
   # attributes a gate verdict to a prompt nobody typed. Both shapes must read.
   printf '%s\told-shape\tno session here\tthe words\n' "2020-01-01T00:00:00Z" >> "$MEM/widget/says.log"
-  ( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+  ( cd "$REPO" && "$FELIX" monitor --log >/dev/null 2>&1 )
   if grep -q '"kind":"old-shape","session":"","cause":"no session here","text":"the words"' "$MON2"; then
     ok "a record from before the session column still reads"
   else

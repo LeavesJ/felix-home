@@ -263,7 +263,7 @@ printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is
 # the only surface where a person can see what Felix actually did.
-out="$(cd "$REPO" && "$FELIX" monitor 2>&1)"
+out="$(cd "$REPO" && "$FELIX" monitor --log 2>&1)"
 MON="$FROOT/state/monitor.html"
 [ -s "$MON" ] && ok "renders a page" || bad "renders a page" "$out"
 if [ -s "$MON" ]; then
@@ -296,7 +296,7 @@ if [ -s "$MON" ]; then
   # to end the script early and put markup on the page.
   printf '%s\thostile\t9\t{"prompt":"</script\076<img src=x onerror=alert(1)\076"}\n' \
     "2026-01-01T00:00:00Z" >> "$MEM/widget/routes.log"
-  ( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+  ( cd "$REPO" && "$FELIX" monitor --log >/dev/null 2>&1 )
   # The payload survives as inert text — that is fine and even desirable, since
   # the page is for reading what happened. What must not survive is a bracket.
   if grep -q 'u003c/script' "$MON"; then

@@ -30,7 +30,7 @@ _jc_sha() { git -C "$JCR" rev-parse --verify -q "$1^{commit}" 2>/dev/null; }
 _jc_side() {   # NAME FILE TEXT -> the sha of a commit off M writing FILE, its branch deleted after
   ( _fx_cd "$JCR" && git checkout -q -b "jc-side-$1" "$JC_M" ) >/dev/null 2>&1
   mkdir -p "$(dirname "$JCR/$2")"; printf '%s\n' "$3" > "$JCR/$2"
-  ( _fx_cd "$JCR" && git add -A && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm "$1" \
+  ( _fx_cd "$JCR" && git add -f -A && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm "$1" \
     && git checkout -q main ) >/dev/null 2>&1
   _jc_sha "jc-side-$1"; _fx_git "$JCR" branch -q -D "jc-side-$1" >/dev/null 2>&1
 }
@@ -208,8 +208,8 @@ _jc_ok "C6 (control): an entry-only harness/data/x beneath a directory the data/
 
 # ------------------------------------------------------------------- C7 ---
 # A git first on PATH that blocks at the first read of M's engine, after the
-# call has made its temporary directory; the signal is sent to the call, then
-# the blocked git is killed so that the call can run its handler.
+# call has made its temporary directory; the signal is sent to the call and to the
+# blocked git together, as a terminal sends it to a process group.
 JC7="$JC/c7"; mkdir -p "$JC7/bin"
 command -v git > "$JC7/realgit"
 sed "s|@D@|$JC7|g" > "$JC7/bin/git" <<'JC7STUB'
@@ -232,7 +232,7 @@ _jc7() {   # SIGNAL -> exit|temporary directories left, when SIGNAL is sent to t
     pid=$!
     while [ ! -e "$JC7/ready" ] && [ "$n" -lt 50 ]; do sleep 0.2; n=$((n + 1)); done
     ls -A "$JC7/tmp" | wc -l | tr -d ' ' > "$JC7/atblock"
-    kill -"$1" "$pid" 2>/dev/null; sleep 0.2; kill "$(cat "$JC7/shimpid" 2>/dev/null)" 2>/dev/null
+    kill -"$1" "$pid" "$(cat "$JC7/shimpid" 2>/dev/null)" 2>/dev/null
     wait "$pid" >/dev/null 2>&1; echo "$?" > "$JC7/rc" ) > /dev/null 2>&1
   printf '%s|%s|%s' "$([ -e "$JC7/ready" ] && echo blocked)" "$(cat "$JC7/atblock" 2>/dev/null)" "$(ls -A "$JC7/tmp" | wc -l | tr -d ' ')"
 }
@@ -244,7 +244,7 @@ is "C7: and so does an INT" "$(_jc7 INT)" "blocked|1|0"
 # A .gitignore that M holds as a symlink adds no rules.
 JC_S="$(_jc_side sym engine/harness/tests/.gitignore.target 'scratch/')"
 ( _fx_cd "$JCR" && git checkout -q -b jc-side-sym2 "$JC_S" && ln -s .gitignore.target engine/harness/tests/.gitignore \
-  && git add -A && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm sym2 && git checkout -q main ) >/dev/null 2>&1
+  && git add -f -A && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm sym2 && git checkout -q main ) >/dev/null 2>&1
 JC_S2="$(_jc_sha jc-side-sym2)"; _fx_git "$JCR" branch -q -D jc-side-sym2 >/dev/null 2>&1
 _fx_git "$JCR" update-ref refs/remotes/origin/jc-sym "$JC_S2" >/dev/null 2>&1
 is "C8 (fixture control): jc-sym holds engine/harness/tests/.gitignore as a symlink (mode 120000) to a file that says scratch/" \
@@ -271,7 +271,7 @@ _jcm() {   # BASE -> JCMRC and $JCM/out: felix merge --dry-run --base BASE in th
 }
 _jcm_says() { LC_ALL=C grep -Fq 'felix merge takes only a ref name' "$JCM/out" && printf says; }
 is "C8 (fixture control): git reads the expression refs/heads/jrc-nope~0 through the decoy tag, and refs/heads/jrc-nope itself does not exist" \
-   "$(git -C "$JCMR" rev-parse --verify -q 'refs/heads/jrc-nope~0^{commit}' 2>/dev/null)|$(git -C "$JCMR" rev-parse --verify -q refs/heads/jrc-nope 2>/dev/null)" "$JCM_M|"
+   "$(git -C "$JCMR" rev-parse --verify -q 'refs/heads/jrc-nope~0^{commit}' 2>/dev/null)|$(git -C "$JCMR" show-ref --verify -q refs/heads/jrc-nope 2>/dev/null && echo exists)" "$JCM_M|"
 _jcm 'refs/heads/jrc-nope~0'
 is "C8: felix merge --dry-run --base refs/heads/jrc-nope~0, an expression and not a ref name, is refused, saying it takes only a ref name" "$([ "$JCMRC" -ne 0 ] && echo refused)|$(_jcm_says)" "refused|says"
 _jcm 'refs/tags/refs/heads/jrc-nope^{commit}'

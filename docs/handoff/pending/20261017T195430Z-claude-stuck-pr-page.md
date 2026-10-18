@@ -1,6 +1,6 @@
 ### 2026-10-17: the stuck-PR page, `felix land --prs` and `--queue` (Phase 0b step 5)
 
-**Engine 0.49.298 (placeholder; this branch, `claude/stuck-pr-page`, based on
+**Engine 0.49.299 (set at the carry; this branch, `claude/stuck-pr-page`, based on
 origin/main e95e5d3b).** The page says why each open pull request has not
 landed and who has to act. The contract is spec v2,
 `audits/2026-10-01-report-v5-review/specs/stuck-pr/spec-v2.md`. It supersedes the
@@ -157,6 +157,22 @@ not run on this branch.
   failure; the redirect sits on the `cksum`, not on the shell's `<`.
 - The budget row is unread on felix-home: the billing endpoint answers 404, and
   the token likely lacks the `user` scope. Widening it is the founder's.
+
+**At the carry (2026-10-18, the carrier).** Main was merged in twice: slot 18
+(0db47b70, .296) and A31 (1c5ca0d0, .297), with slot 3f (02634dfa) between. Two
+seams came out of it, each written into spec v2 first.
+- R11: A31 gave `felix land --status` a `last` line (the ledger's newest row of
+  any kind), and the `--prs` lander row did not have it, so a job macOS refuses
+  still read "ready, waits for the lander". The lander row now ends `; last
+  ledger row <time> <event>: <detail>` (`none`, or `not read` with the ledger
+  source row), read through `_gt_last_row` in `green-install.sh`, which
+  `--status` reads too. No PR's state changes. Part 1360 (178 assertions) was
+  written blind from R11 before the code (4f502dd0, 57 red).
+- R12: inventory A111 (part 0940) says no lib but `inventory*.sh` names
+  `inventory-`, and this page sources `inventory-gh.sh` for `_FI_JSON` and
+  `_FI_EPOCH`, as spec v2 section 9 says. A111 is restated: the two page
+  libraries may name `inventory-gh.sh` and nothing else of the inventory. Found
+  by the step 6 session's baseline run.
 
 **Owed at "you are next".** The carrier takes the record, the gate and the
 version number: 0.49.298 is a placeholder (.294 the escape batch, .295 A30, .296

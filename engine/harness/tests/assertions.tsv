@@ -313,6 +313,35 @@
 1	A2: a home diverged from origin/main installs nothing, deploys nothing and merges nothing
 1	A2: a home diverged from origin/main writes one deploy-owed row
 1	A2: the home is at origin/main after it
+1	A30, A6: and neither tick hands it to felix merge
+1	A30, A6: two ticks over the same held 42 write one skip row for it, not two
+1	A30, G4: a held 40 does not stop the tick: green unlabelled 42 after it lands on the same tick, the only felix merge run
+1	A30, G4: and 40 gets one skip row and no landing
+1	A30: (control) a green pull request with no label lands on that tick, felix merge run once there
+1	A30: a green pull request labelled bug, needs-founder and documentation is handed to felix merge nowhere and lands nothing
+1	A30: a green pull request labelled felix:founder: and that skip row's detail names the label as 42 carries it
+1	A30: a green pull request labelled felix:founder: and writes exactly one skip row for 42
+1	A30: a green pull request labelled felix:founder: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: a green pull request labelled felix:hold: and that skip row's detail names the label as 42 carries it
+1	A30: a green pull request labelled felix:hold: and writes exactly one skip row for 42
+1	A30: a green pull request labelled felix:hold: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: a green pull request labelled needs-founder: and that skip row's detail names the label as 42 carries it
+1	A30: a green pull request labelled needs-founder: and writes exactly one skip row for 42
+1	A30: a green pull request labelled needs-founder: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: a label that only contains a held name, felix:holder, holds nothing: green 42 lands on that tick, felix merge run once there, no skip row
+1	A30: a label that only contains a held name, needs-founder-later, holds nothing: green 42 lands on that tick, felix merge run once there, no skip row
+1	A30: a label that only contains a held name, not-needs-founder, holds nothing: green 42 lands on that tick, felix merge run once there, no skip row
+1	A30: and gets exactly one skip row
+1	A30: case: FELIX:FOUNDER holds as felix:founder does: and that skip row's detail names the label as 42 carries it
+1	A30: case: FELIX:FOUNDER holds as felix:founder does: and writes exactly one skip row for 42
+1	A30: case: FELIX:FOUNDER holds as felix:founder does: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: case: Felix:Hold holds as felix:hold does: and that skip row's detail names the label as 42 carries it
+1	A30: case: Felix:Hold holds as felix:hold does: and writes exactly one skip row for 42
+1	A30: case: Felix:Hold holds as felix:hold does: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: case: Needs-Founder holds as needs-founder does: and that skip row's detail names the label as 42 carries it
+1	A30: case: Needs-Founder holds as needs-founder does: and writes exactly one skip row for 42
+1	A30: case: Needs-Founder holds as needs-founder does: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
+1	A30: whose detail names needs-founder
 1	A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged
 1	A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged
 1	A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged
@@ -9620,6 +9649,8 @@
 1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under assume-unchanged (fixture control)
 1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under skip-worktree (fixture control)
 1	the land fixture: git status --porcelain shows nothing in the home, an edited projects/lgh/ file under assume-unchanged (fixture control)
+1	the land fixture: green, unlabelled and held by its worktree, 40 lands on one tick, felix merge run once there (fixture control)
+1	the land fixture: green, unlabelled and held by its worktree, 42 lands on one tick, felix merge run once there (fixture control)
 1	the land fixture: in br, origin/refs/remotes/origin/main names the decoy, refs/remotes/origin/main names main, l4tree a tree (fixture control)
 1	the land fixture: main holds projects/lgh/gate.sh; the home's, edited, carries skip-worktree, and git status shows nothing (fixture control)
 1	the land fixture: main's check accepts origin/main's 9.0.3 entry, and the home's HEAD is behind origin/main (fixture control)
@@ -9638,6 +9669,7 @@
 1	the land fixture: the file is ignored, and only the untracked .gitignore beside it shows in git status (fixture control)
 1	the land fixture: the file is untracked in the home (fixture control)
 1	the land fixture: the file is untracked under projects/lgh/ (fixture control)
+1	the land fixture: the gh stub lists a pull request's labels by name, case as carried (fixture control)
 1	the land fixture: the gh stub lists the pull requests and honours --jq (fixture control)
 1	the land fixture: the home is back at origin/main, and main's check accepts its entry (fixture control)
 1	the land fixture: the home is clean again: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored (fixture control)

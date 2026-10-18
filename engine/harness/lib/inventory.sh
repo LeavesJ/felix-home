@@ -225,7 +225,7 @@ _fi_cover() {
   if [ -n "$_FI_DEF" ]; then s=read; d="$_FI_DEF @ ${_FI_DEFSHA:0:8}; $(_fi_fetched)"
   else s="unknown,unknown:uncommitted,unknown:unpushed,unknown:unproposed,unknown:pr-closed-unlanded"
        d="no origin/HEAD, origin/main or origin/master whose tree this clone holds"; fi
-  [ "$_FI_PENDFAIL" = 0 ] || d="$d; handoff sections not read"
+  [ "$_FI_PENDFAIL" = 0 ] || { d="$d; handoff sections not read"; s="$s,unknown:handoff-pending"; }
   _fi_row cover default "$s" - - - "$d" - -
   if [ "$_FI_GHOK" = 0 ]; then s="unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded"; d="$_FI_GHSTATE"
   elif [ "$_FI_GHTRUNC" = 1 ]; then s="partial,unknown:unproposed"; d="$_FI_GHCMD: $_FI_GHN PRs, gh's limit: older PRs are not seen"
@@ -368,7 +368,7 @@ _fi_host() {
 # and the upstream whose remote-tracking ref is gone, or -.
 _fi_branch() {
   _fi_branch0 "$@"
-  _fi_carry "$1" "$3"
+  _fi_carry "$1" "$3" "$2"
 }
 _fi_branch0() {
   local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" gn="${8:--}" n hp=0

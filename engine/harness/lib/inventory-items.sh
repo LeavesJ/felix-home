@@ -125,18 +125,31 @@ _fi_revert() {
 # entries, and its detail is what it was before the pull request reading, plus
 # "carried by ...". The carriers are the refs/remotes/origin refs but origin/HEAD
 # and the default branch. A local branch or worktree is carried by one whose tip
-# equals or descends from its own and that is not its own name on origin; a
-# remote row only by a strict descendant that is not itself. Arguments: the tip
-# and its remote-tracking ref or -.
+# equals or descends from its own and that is not its own name on origin nor its
+# upstream; but when either of those two stands at its tip, the work is already
+# on origin under its own name, and only a strict descendant carries it, as for a
+# remote row (a remote row only by a strict descendant that is not itself): two
+# names pushed at one commit then carry neither the other, and some row always
+# remains to say the work needs a PR. Arguments: the tip, its remote-tracking ref
+# or -, and its branch or -.
 _fi_carry() {
-  local self="" strict=0 n cn cs h
+  local self="" n cn cs h rem=0
+  local -a pats=(refs/remotes/origin)
   _FI_CAR=no
   [ "$_FI_LV" != landed ] && [ "$_FI_PRO" != yes ] || return 0
   [ "$2" = - ] || self="refs/remotes/$2"
-  [ "$k" != remote ] || strict=1
-  _fi_git -C "$_FI_D" for-each-ref --contains="$1" --format='%(refname) %(objectname)' refs/remotes/origin 2>/dev/null \
-    | awk -v self="$self" -v def="refs/remotes/$_FI_DEF" -v tip="$1" -v strict="$strict" \
-        '$1 != "refs/remotes/origin/HEAD" && $1 != def && $1 != self && !(strict && $2 == tip) { print substr($1, 21) "\t" $2 }' > "$T/car"
+  # The local branch itself rides along (it holds its own tip) to say its upstream.
+  if [ "$k" = remote ]; then rem=1; elif [ "${3:--}" != - ]; then pats[1]="refs/heads/$3"; fi
+  _fi_git -C "$_FI_D" for-each-ref --contains="$1" --format='%(refname) %(objectname) %(upstream)' "${pats[@]}" 2>/dev/null \
+    | awk -v self="$self" -v def="refs/remotes/$_FI_DEF" -v tip="$1" -v remote="$rem" -v hb="refs/heads/${3:--}" '
+        $1 == hb { up = $3; next }
+        { L[++n] = $1; S[n] = $2 }
+        END { strict = remote
+          for (i = 1; i <= n; i++) if ((L[i] == self || (up != "" && L[i] == up)) && S[i] == tip) strict = 1
+          for (i = 1; i <= n; i++) {
+            if (L[i] == "refs/remotes/origin/HEAD" || L[i] == def || L[i] == self || (up != "" && L[i] == up)) continue
+            if (strict && S[i] == tip) continue
+            print substr(L[i], 21) "\t" S[i] } }' > "$T/car"
   [ -s "$T/car" ] || return 0
   n="$(awk 'END { print NR }' "$T/car")"
   if [ "$n" -gt 1 ]; then   # only the outermost: one that another carrier's tip strictly descends from is left out

@@ -18,6 +18,7 @@ _lw44_cell() {  # TEXT-PAGE NAME: the count the collapsed line says for NAME
 _lw44_has() {  # TEXT ELEMENT-PREFIX: whether a "; "-joined cell holds an element that begins so
   printf '%s\n' "$1" | LC_ALL=C awk -v w="$2" '{ n = split($0, e, "; "); for (i = 1; i <= n; i++) if (index(e[i], w) == 1) f = 1 } END { print (f ? "yes" : "no") }'; }
 
+LW44H="$LW/h44"; mkdir -p "$LW44H/.claude/projects"   # this part's own HOME, so it needs no other part's
 _lw_repo xb; XB="$LW/xb"
 mkdir -p "$XB/docs/handoff/pending"
 printf '### 2026-10-17 - a waiting section\n\nWhat was done.\n\n**Next:**\n- Do the next thing.\n' > "$XB/docs/handoff/pending/20261017T101010Z-lw44-handoff.md"
@@ -33,19 +34,19 @@ printf '#!/bin/bash\nfor a in "$@"; do [ "$a" != docs/handoff/pending/ ] || exit
 chmod +x "$LW44S/git"
 
 # ---- finding 1: proposed and handoff say a complete 0 when their source was not read --------
-_lw_run X1G "$LW_HP" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
-_lw_run X1N "$LW_HP" "$LW/cwd" monitor --tsv --repo "$XB" --no-host --no-gh
-_lw_run X1NX "$LW_HP" "$LW/cwd" monitor --repo "$XB" --no-host --no-gh
+_lw_run X1G "$LW44H" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
+_lw_run X1N "$LW44H" "$LW/cwd" monitor --tsv --repo "$XB" --no-host --no-gh
+_lw_run X1NX "$LW44H" "$LW/cwd" monitor --repo "$XB" --no-host --no-gh
 _lw_ghfail fixture_xb 'HTTP 502: Bad Gateway (https://api.github.com/graphql)'
-_lw_run X1F "$LW_HP" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
-_lw_run X1FX "$LW_HP" "$LW/cwd" monitor --repo "$XB" --no-host
+_lw_run X1F "$LW44H" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
+_lw_run X1FX "$LW44H" "$LW/cwd" monitor --repo "$XB" --no-host
 _lw_prs fixture_xb "$LW44PR"
 _lw44_path="$PATH"; PATH="$LW44S:$PATH"
-_lw_run X1H "$LW_HP" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
-_lw_run X1HX "$LW_HP" "$LW/cwd" monitor --repo "$XB" --no-host
-_lw_run X1I "$LW_HP" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
+_lw_run X1H "$LW44H" "$LW/cwd" monitor --tsv --repo "$XB" --no-host
+_lw_run X1HX "$LW44H" "$LW/cwd" monitor --repo "$XB" --no-host
+_lw_run X1I "$LW44H" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
 PATH="$_lw44_path"
-_lw_run X1R "$LW_HP" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
+_lw_run X1R "$LW44H" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
 is "finding 1: the five runs over xb exit 0 and the TSV runs hold 16 summaries (control)" \
    "$(_lw_rc X1G)$(_lw_rc X1N)$(_lw_rc X1NX)$(_lw_rc X1F)$(_lw_rc X1FX)$(_lw_rc X1H)$(_lw_rc X1HX) $(for _lwk in X1G X1N X1F X1H; do LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { printf "%d ", n + 0 }' "$(_lw_o $_lwk)"; done)" \
    "0000000 16 16 16 16 "
@@ -85,9 +86,9 @@ _lw_prs fixture_xc
 is "finding 2 fixture: feat-a, feat-b and feat-c sit at one commit, origin holds the first two there, u tracks origin/w at its tip while origin/u is its parent (fixture control)" \
    "$(_lwq "$XC" refs/heads/feat-a | cut -c1-8) $(_lwq "$XC" refs/remotes/origin/feat-a)$(_lwq "$XC" refs/remotes/origin/feat-b)$(_lwq "$XC" refs/heads/feat-c)|$(_lwg "$XC" rev-parse --abbrev-ref u@{upstream} 2>/dev/null) $(_lw_anc "$XC" "$LW44P" "$LW44T")$(_lwq "$XC" refs/remotes/origin/u)$(_lwq "$XC" refs/remotes/origin/w)" \
    "$(printf '%s' "$LW44X" | cut -c1-8) $LW44X$LW44X$LW44X|origin/w y$LW44P$LW44T"
-_lw_run X2 "$LW_HP" "$LW/cwd" inventory --tsv --repo "$XC" --no-host
-_lw_run X2N "$LW_HP" "$LW/cwd" inventory --tsv --repo "$XC" --no-host --no-gh
-_lw_run X2P "$LW_HP" "$LW/cwd" monitor --tsv --repo "$XC" --no-host
+_lw_run X2 "$LW44H" "$LW/cwd" inventory --tsv --repo "$XC" --no-host
+_lw_run X2N "$LW44H" "$LW/cwd" inventory --tsv --repo "$XC" --no-host --no-gh
+_lw_run X2P "$LW44H" "$LW/cwd" monitor --tsv --repo "$XC" --no-host
 is "finding 2: the runs over xc exit 0 (control)" "$(_lw_rc X2)$(_lw_rc X2N)$(_lw_rc X2P)" 000
 # finding 2: two pushed names at one commit, each with a local branch, do not carry each other.
 is "finding 2: feat-a, with its own name pushed at its tip and only feat-b's name at the same commit, is unproposed and not carried" \
@@ -111,9 +112,9 @@ _lw44_gd() {  # NAME GITDIR ARGS...: part 1400's _lw_run with GIT_DIR set after 
   ( cd "$LW/cwd" || exit 97
     exec env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR \
       -u CLAUDE_PLUGIN_ROOT -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR -u GIT_OBJECT_DIRECTORY -u GIT_OPTIONAL_LOCKS \
-      HOME="$LW_HP" FELIX_HOME="$LW_FH" FELIX_HOME_DIR="$LW_FH" FELIX_MEMORY="$LWM" FELIX_PLUGIN_CACHE="$LW/cache" \
-      FELIX_INVENTORY_TEMP_ROOTS="$LW/temproot" XDG_CONFIG_HOME="$LW_HP/.config" XDG_STATE_HOME="$LW_HP/.state" XDG_CACHE_HOME="$LW_HP/.cache" \
-      GH_CONFIG_DIR="$LW_HP/.config/gh" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$LW" \
+      HOME="$LW44H" FELIX_HOME="$LW_FH" FELIX_HOME_DIR="$LW_FH" FELIX_MEMORY="$LWM" FELIX_PLUGIN_CACHE="$LW/cache" \
+      FELIX_INVENTORY_TEMP_ROOTS="$LW/temproot" XDG_CONFIG_HOME="$LW44H/.config" XDG_STATE_HOME="$LW44H/.state" XDG_CACHE_HOME="$LW44H/.cache" \
+      GH_CONFIG_DIR="$LW44H/.config/gh" GIT_CONFIG_NOSYSTEM=1 GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$LW" \
       TMPDIR="$LWT" PATH="$LWB:$PATH" GIT_DIR="$gd" GIT_WORK_TREE="$LW/xb" "$FELIX" "$@" ) > "$LWX/$n.out" 2> "$LWX/$n.err"
   printf '%s\n' "$?" > "$LWX/$n.rc"
 }

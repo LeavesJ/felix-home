@@ -79,6 +79,7 @@ _lw_scratch() {
 felix_lost_work_page() {
   local d rc=0 irc lrc head
   local -a ia=() la=() repos=()
+  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY   # as felix inventory does: the scratch check below asks git
   if [ "${#_LW_REPOS[@]}" -gt 0 ]; then repos=("${_LW_REPOS[@]}"); else repos=("$PWD"); fi
   [ "$_LW_NOGH" = 0 ] || { ia[${#ia[@]}]=--no-gh; la[${#la[@]}]=--no-gh; }
   [ "$_LW_NOHOST" = 0 ] || ia[${#ia[@]}]=--no-host
@@ -96,7 +97,8 @@ felix_lost_work_page() {
     { _lw_filter < "$_LW_T/i.raw" | LC_ALL=C awk '{ print "I\t" $0 }'
       _lw_filter < "$_LW_T/l.raw" | LC_ALL=C awk '{ print "L\t" $0 }'; } > "$_LW_T/in"
     _lw_filter < "$_LW_T/l.err" | LC_ALL=C sed -n 1p > "$_LW_T/l.err1"
-    LC_ALL=C awk -F'\t' -v tsv="$_LW_TSV" -v lrc="$lrc" -v lerr="$(cat "$_LW_T/l.err1")" -v dflt="$d" -v order="$_LW_GROUPS" "$_LW_AWK" "$_LW_T/in"
+    # land's first stderr line and the repository path go in by the environment: -v would expand a backslash in either.
+    LW_LERR="$(cat "$_LW_T/l.err1")" LW_DFLT="$d" LC_ALL=C awk -F'\t' -v tsv="$_LW_TSV" -v lrc="$lrc" -v order="$_LW_GROUPS" "$_LW_AWK" "$_LW_T/in"
   done
   return "$rc"
 }
@@ -104,6 +106,7 @@ felix_lost_work_page() {
 # The page of one repository from its tagged rows: I the inventory's, L land's.
 # shellcheck disable=SC2016
 _LW_AWK='
+BEGIN { lerr = ENVIRON["LW_LERR"]; dflt = ENVIRON["LW_DFLT"] }
 function cl(x) { gsub(/[\t\r\n]/, " ", x); return x }
 function fw(s,    n) { n = index(s, ","); return n ? substr(s, 1, n - 1) : s }
 function has(s, w) { return index("," s ",", "," w ",") > 0 }
@@ -136,6 +139,11 @@ function calc(g,    r, inc, i, cr) {
     split("default prs chips", cr, " ")
     for (i = 1; i <= 3; i++) if (cv(cr[i]) != "read") { inc = 1; r = addr(r, covreason(cr[i])) }
     if (kc[g]) { inc = 1; r = addr(r, kc[g] " rows not decided") }
+  } else if (g == "proposed") {   # gh names the open pull requests: the prs cover row decides them
+    if (cv("prs") != "read") { inc = 1; r = covreason("prs") }
+    if (kc[g]) { inc = 1; r = addr(r, kc[g] " rows not decided") }
+  } else if (g == "handoff") {   # the pending listing failed: the inventory says so in the default cover row, in its states
+    if (("default" in cst) && has(cst["default"], "unknown:handoff-pending")) { inc = 1; r = covreason("default") }
   } else if (g == "pr-founder" || g == "pr-session" || g == "pr-lander") {
     if (ghbad) { inc = 1; r = ghreason() }
     if (NG["pr-unknown"] > 0) { inc = 1; r = addr(r, NG["pr-unknown"] " pull requests not decided") }
@@ -157,13 +165,14 @@ function rline(g, i,    f, s) {
   row = V[2] "\t" V[3] "\t" V[4] "\t" V[5] "\t" V[6] "\t" V[7] "\t" V[8] "\t" V[9]
   if ((tag == "I" && kind == "cover") || (tag == "L" && kind == "source")) {
     ncv++; CV[ncv] = row; CVT[ncv] = tag
-    if (tag == "I") { scov[V[4]] = fw(V[5]); cdet[V[4]] = V[9] }
+    if (tag == "I") { scov[V[4]] = fw(V[5]); cst[V[4]] = V[5]; cdet[V[4]] = V[9] }
     else if (V[4] == "gh") { ghseen = 1; ghst = V[5]; ghdet = V[9]; ghfw = fw(V[5]) }
     next }
   if (tag == "L" && kind == "pr") { o = V[6]; g = (o == "founder" || o == "session" || o == "lander" || o == "unknown" || o == "nobody") ? "pr-" o : "pr-unknown"; num = V[4]; sub(/^#/, "", num) }
   else { g = grp(V[5], V[8]); num = 0
     if (tag == "I") { st = V[5]
       if (has(st, "unknown:hazard:shared-branch") || has(st, "unknown:hazard:staged-revert")) kc["hazard"]++
+      if (has(st, "unknown:pr-open")) kc["proposed"]++
       if (has(st, "unknown:blocked")) kc["blocked"]++; if (has(st, "unknown:question")) kc["question"]++; if (has(st, "unknown:live")) kc["running"]++
       if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan") || has(st, "unknown:chip-unstarted")) kc["never-proposed"]++ } }
   n = ++NG[g]; R[g, n] = row; RT[g, n] = tag; RN[g, n] = num + 0

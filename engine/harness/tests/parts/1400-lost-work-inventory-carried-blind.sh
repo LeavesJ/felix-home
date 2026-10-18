@@ -274,7 +274,7 @@ _lwg "$CA" push -q origin "$LW1Y:refs/heads/carry" "$LW2Y:refs/heads/carry2" "$L
   "$LW3Z:refs/heads/twin-a" "$LW3Z:refs/heads/twin-b" "$LW4X:refs/heads/x4" "$LW4Y:refs/heads/y4" "$LW6Y:refs/heads/pr6" \
   "$LW7Y:refs/heads/c7" "$LW8Y:refs/heads/mid8" "$LW8Z:refs/heads/outer8" "$LW8Q1:refs/heads/q1" "$LW8Q2:refs/heads/q2" \
   "$LW8Q3:refs/heads/q3" "$LW8Q4:refs/heads/q4" "$LW9X:refs/heads/b9" "$LW9Y:refs/heads/c9" "$LW10X:refs/heads/b10" \
-  "$LW10Y:refs/heads/c10" "$LW11Y:refs/heads/c11" >/dev/null 2>&1
+  "$LW10Y:refs/heads/c10" "$LW11Y:refs/heads/c11" "$LW2X:refs/heads/feat2" >/dev/null 2>&1   # feat2 is pushed under its own name: see the note on B9.2
 _lwg "$CA" fetch -q origin >/dev/null 2>&1
 for _lwi in "feat1 $LW1X" "feat2 $LW2X" "alias3 $LW3X" "done5 $LWCA0" "b8 $LW8X" "b8b $LW8B" "b9 $LW9X" "b10 $LW10X" "b11 $LW11W"; do
   _lwg "$CA" branch -q ${_lwi% *} ${_lwi#* } >/dev/null 2>&1
@@ -311,7 +311,10 @@ is "B9.1: a branch whose tip a pushed branch strictly descends from, no PR anywh
 is "B9.1: its detail holds the element carried by origin/carry" "$(_lw_elem "$T1" branch feat1 'carried by origin/carry')" yes
 is "B9.1: the carrier's own row, the remote origin/carry, stays unproposed and is not carried (control)" \
    "$(_lw_many "$T1" remote origin/carry 0 unproposed carried)" "unproposed=yes carried=no"
-# B9.2
+# B9.2. The review round (finding 3) pushed feat2 as origin/feat2 at its tip. Contract A1 says --no-gh
+# "keeps unknown:pr-open as 5.1 says", and the inventory spec gives a branch never pushed under its own
+# name no unknown:pr-* under --no-gh (it heads no PR), so only a branch with an origin ref of its own can
+# keep the entry. feat2 is carried all the same, by origin/carry2, which strictly descends from it.
 is "B9.2: with an open same-repository PR #7 headed carry2, the branch it holds is carried, not unproposed" \
    "$(_lw_many "$T1" branch feat2 0 carried unproposed pr-open)" "carried=yes unproposed=no pr-open=no"
 is "B9.2: and its detail names the carrier as #7" "$(_lw_elem "$T1" branch feat2 'carried by #7')" yes

@@ -84,8 +84,11 @@ _gt_wt_asks() {   # DIR BRANCH SHA
 _gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 
-# The trampoline's static body. It is /bin/sh and names no version and no working
-# tree. Run by launchd every five minutes, it reads the version origin/main
+# The trampoline's static body. It is /bin/bash, the program macOS's privacy control
+# has been told may read the home (A31), and names no version and no working
+# tree. Run by launchd every five minutes, it first opens a tracked file in the
+# home for reading (A31) and, when that fails, writes one unreadable row and runs
+# nothing. It then reads the version origin/main
 # declares (no fetch), and runs that cache entry's `felix land --tick` only when
 # main's OWN felix_accepted_deploy_diff, read out of origin/main with git show
 # and sourced by bash in a subshell as felix merge's judge block does, says the
@@ -98,16 +101,22 @@ _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 _gt_trampoline_body() {
   cat <<'TRAMPOLINE'
 cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"
-owed() {   # DETAIL: say why nothing runs, once, and stop
-  t="$(printf 'deploy-owed\t%s' "$1")"
+owed() {   # DETAIL [KIND]: say why nothing runs, once, and stop; KIND is deploy-owed unless A31's unreadable
+  k="${2:-deploy-owed}"; t="$(printf '%s\t%s' "$k" "$1")"
   [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2,7)" = "$t" ] || {
     mkdir -p "$(dirname "$ledger")"
-    printf '%s\tdeploy-owed\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$1" >> "$ledger"
-    osascript -e "display notification \"Felix land: $1\" with title \"Felix: deploy-owed\"" >/dev/null 2>&1
+    printf '%s\t%s\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$k" "$1" >> "$ledger"
+    osascript -e "display notification \"Felix land: $1\" with title \"Felix: $k\"" >/dev/null 2>&1
   }
   echo "felix land: $1" >&2; exit 1
 }
 cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME_DIR ($FELIX_HOME_DIR), so no engine is run"
+# A31: entering a directory is not a read. Before anything else, and with no fork, open a file
+# tracked in every Felix home and read a byte of it: macOS's privacy control refuses the open,
+# which [ -r ] does not see. A file the open reached and found empty is no refusal.
+px=engine/.claude-plugin/plugin.json
+{ IFS= read -r -n 1 rb || { [ -f "$px" ] && [ ! -s "$px" ]; }; } 2>/dev/null < "$px" \
+  || owed "the trampoline cannot read FELIX_HOME_DIR ($FELIX_HOME_DIR): opening $px for reading failed, so no engine is run. macOS may be refusing the read: /bin/bash needs Full Disk Access (System Settings > Privacy & Security > Full Disk Access)" unreadable
 # A24: an untracked .gitignore under engine/ would widen what the check below calls residue.
 un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list the home's untracked files under engine/, so no engine is run"
 [ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | LC_ALL=C sed -n 1p)): nothing runs until it is removed"
@@ -146,7 +155,7 @@ _gt_install() {
   # FELIX_HOME is what the installed engine reads to find its home; the plist
   # names FELIX_HOME_DIR, which is the contract's word.
   {
-    printf '#!/bin/sh\n# Written by felix land --install; felix land --uninstall removes it.\n'
+    printf '#!/bin/bash\n# Written by felix land --install; felix land --uninstall removes it.\n'
     printf ': "${FELIX_HOME_DIR:=%s}"\nexport FELIX_HOME_DIR\nFELIX_HOME="$FELIX_HOME_DIR"; export FELIX_HOME\n' "$(_gt_sq "$FELIX_HOME_DIR")"
     printf 'ledger=%s\nFELIX_LAND_LEDGER="$ledger"; export FELIX_LAND_LEDGER\n' "$(_gt_sq "$_GT_LEDGER")"
     _gt_trampoline_body
@@ -156,7 +165,7 @@ _gt_install() {
     printf '<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">\n'
     printf '<plist version="1.0">\n<dict>\n'
     printf '  <key>Label</key><string>felix.land.%s</string>\n' "$(_gt_xml "$p")"
-    printf '  <key>ProgramArguments</key><array><string>%s</string></array>\n' "$(_gt_xml "$tr")"
+    printf '  <key>ProgramArguments</key><array><string>/bin/bash</string><string>%s</string></array>\n' "$(_gt_xml "$tr")"
     printf '  <key>StartInterval</key><integer>300</integer>\n  <key>RunAtLoad</key><true/>\n'
     printf '  <key>ProcessType</key><string>Interactive</string>\n'
     printf '  <key>EnvironmentVariables</key><dict>\n'
@@ -182,18 +191,22 @@ _gt_uninstall() {
 
 _gt_status() {   # [--tsv]: read-only, writes nothing and loads nothing
   local p tab; p="$(basename "$PROJ")"; tab="$(printf '\t')"
-  local ins=no lod=no pau=no rows=""
+  local ins=no lod=no pau=no rows="" last=""
   [ -f "$HOME/Library/LaunchAgents/felix.land.$p.plist" ] && ins=yes
   launchctl print "gui/$(id -u)/felix.land.$p" >/dev/null 2>&1 && lod=yes
   [ -e "$_GT_LAND/paused" ] && pau=yes
+  # A31: the newest row of any kind, so a job that cannot run shows at the next status.
+  [ -f "$_GT_LEDGER" ] && last="$(tail -n 1 "$_GT_LEDGER" 2>/dev/null)"
   # The last row of each pull request seen, in pull request order.
   [ -f "$_GT_LEDGER" ] && rows="$(LC_ALL=C awk -F'\t' '$3 != "-" { last[$3] = $0 } END { for (k in last) print last[k] }' "$_GT_LEDGER" \
                                    | LC_ALL=C sort -t "$tab" -k3,3n)"
   if [ "${1:-}" = "--tsv" ]; then
-    printf 'installed\t%s\nloaded\t%s\npaused\t%s\n' "$ins" "$lod" "$pau"
+    printf 'installed\t%s\nloaded\t%s\npaused\t%s\nlast\t%s\n' "$ins" "$lod" "$pau" "${last:-none}"
     [ -z "$rows" ] || printf '%s\n' "$rows"
   else
     printf 'installed  %s\nloaded     %s\npaused     %s\n' "$ins" "$lod" "$pau"
+    if [ -n "$last" ]; then printf '%s\n' "$last" | LC_ALL=C awk -F'\t' '{ printf "last       %s  %-19s  %s\n", $1, $2, $7 }'
+    else printf 'last       none\n'; fi
     [ -z "$rows" ] || printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '{ printf "#%-5s %-19s %-8s %s  %s\n", $3, $2, substr($4, 1, 7), $1, $7 }'
   fi
 }

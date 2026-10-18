@@ -1,8 +1,10 @@
 ### 2026-10-18: the lost-work page, `felix monitor`, and three inventory fixes (Phase 0b step 6)
 
-**Engine 0.49.299 (placeholder; this branch, `claude/lost-work-page`, cut from
-`claude/stuck-pr-page` at 6627e2ba, which sits on origin/main e95e5d3b).** It
-lands after step 5 (.298) and needs step 5 merged first. The contract is
+**Engine 0.49.301 (placeholder, set at "you are next"; this branch, `claude/lost-work-page`, cut from
+`claude/stuck-pr-page` at 6627e2ba, which sits on origin/main e95e5d3b).** The
+carrier's order on 2026-10-18: gate friction C .298, step 5 with 3f .299, #446
+.300, then step 6 about level with gate friction D. It needs step 5 merged
+first. The contract is
 `docs/2026-10-18-lost-work-page-contract.md`: Part A changes `felix inventory`,
 Part B adds the page.
 
@@ -81,11 +83,13 @@ awk `-v` that expanded backslashes in land's error line, `GIT_DIR` making the
 page refuse to run, and the upstream exclusion in A1.
 
 **Open.**
-- **Step 5's A111.** Part 0940's "inventory A111" fails on this branch and on
-  `claude/stuck-pr-page`: `lib/pr-status.sh:27` sources and
-  `lib/pr-status-gh.sh:9` names `inventory-gh.sh`. It is step 5's to settle
-  before its record; this branch inherits the outcome. `lib/lost-work.sh` names
-  none of them.
+- **Step 5's A111, settled by the carrier on step 5.** Part 0940's
+  "inventory A111" failed on `claude/stuck-pr-page` (and so here):
+  `lib/pr-status.sh:27` sources and `lib/pr-status-gh.sh:9` names
+  `inventory-gh.sh`. The carrier restated A111 on step 5 (spec v2 R12): those
+  two files may name `inventory-gh.sh` and nothing else of the inventory. This
+  branch gets it by merging main once step 5 lands, with step 5's R11 and the
+  A31 merge; `lib/lost-work.sh` names none of them and needs no change.
 - **Test gaps left (review finding 7).** Nothing pins S1-S3's "modified after
   the proposal", S1's exclusion of the proposer's file, or the page's scratch
   cleanup after a signal. Part 0940's library lists do not name
@@ -104,6 +108,6 @@ page refuse to run, and the upstream exclusion in A1.
   `unknown` (the listing then comes from HEAD, as before). That is one
   condition in `calc()` in `lib/lost-work.sh` if it should.
 
-**Next.** At "you are next": merge main (with step 5), set the version above
-main, run `tests/run --record-assertions` and red, then `felix gate`, and open
+**Next.** At "you are next" from the carrier, and not before: merge main
+(with step 5), set the version the carrier gives, run `tests/run --record-assertions` and red, then `felix gate`, and open
 the PR. Risk-red: new libs (`lost-work.sh`, `inventory-chips.sh`) and lib edits.

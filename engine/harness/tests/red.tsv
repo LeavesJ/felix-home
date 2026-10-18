@@ -9,4 +9,566 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	1c5ca0d0891ca01c9097c017e9bac12353169047	0.49.297
-run	0	11816	44
+run	575	11880	48
+R10 control: a plain risk row (no confine) makes #333 founder	1
+R10 control: and its detail lists the row once	1
+R10 control: one path under one confined row: #332 is not founder, it is ready	1
+R10: as content confine, the pattern, the count 4 and the first path	1
+R10: each pattern is named once	1
+R10: four paths under one confined row and no other rule: #330 is ready	1
+R10: its detail lists exactly two confined rows	1
+R10: its detail lists the confined row exactly once	1
+R10: on the text page too, #330's line lists the row once	1
+R10: one path under one confined row: the detail names the row's pattern	1
+R10: the detail never repeats the phrase per path	1
+R10: the first row once, with its count 2 and first path	1
+R10: the second row once, with its count 3 and first path	1
+R10: two different confined rows: #331 is ready	1
+R11 --repo control: and --repo two reads two's, not home's	1
+R11 --repo control: the home's page reads fixture/home's pull requests	1
+R11 --repo: --repo naming two names two's newest row: and the text page holds it	1
+R11 --repo: --repo naming two names two's newest row: both pages exit 0	1
+R11 --repo: --repo naming two names two's newest row: every row of the --tsv page has exactly eight columns	1
+R11 --repo: --repo naming two names two's newest row: on one line that names the lander	1
+R11 --repo: --repo naming two names two's newest row: the detail names the ledger's newest row once	1
+R11 --repo: --repo naming two names two's newest row: the lander row's detail ends with the clause	1
+R11 --repo: --repo naming two names two's newest row: the page has one lander source row	1
+R11 --repo: run from two's checkout, the same: and the text page holds it	1
+R11 --repo: run from two's checkout, the same: both pages exit 0	1
+R11 --repo: run from two's checkout, the same: every row of the --tsv page has exactly eight columns	1
+R11 --repo: run from two's checkout, the same: on one line that names the lander	1
+R11 --repo: run from two's checkout, the same: the detail names the ledger's newest row once	1
+R11 --repo: run from two's checkout, the same: the lander row's detail ends with the clause	1
+R11 --repo: run from two's checkout, the same: the page has one lander source row	1
+R11 --repo: the home's page names the home project's newest row: and the text page holds it	1
+R11 --repo: the home's page names the home project's newest row: both pages exit 0	1
+R11 --repo: the home's page names the home project's newest row: every row of the --tsv page has exactly eight columns	1
+R11 --repo: the home's page names the home project's newest row: on one line that names the lander	1
+R11 --repo: the home's page names the home project's newest row: the detail names the ledger's newest row once	1
+R11 --repo: the home's page names the home project's newest row: the lander row's detail ends with the clause	1
+R11 --repo: the home's page names the home project's newest row: the page has one lander source row	1
+R11 a carriage return in the detail is a space: and the text page holds it	1
+R11 a carriage return in the detail is a space: both pages exit 0	1
+R11 a carriage return in the detail is a space: every row of the --tsv page has exactly eight columns	1
+R11 a carriage return in the detail is a space: on one line that names the lander	1
+R11 a carriage return in the detail is a space: the detail names the ledger's newest row once	1
+R11 a carriage return in the detail is a space: the lander row's detail ends with the clause	1
+R11 a carriage return in the detail is a space: the page has one lander source row	1
+R11 a live lock, the newest row unreadable: and the text page holds it	1
+R11 a live lock, the newest row unreadable: both pages exit 0	1
+R11 a live lock, the newest row unreadable: every row of the --tsv page has exactly eight columns	1
+R11 a live lock, the newest row unreadable: on one line that names the lander	1
+R11 a live lock, the newest row unreadable: the detail names the ledger's newest row once	1
+R11 a live lock, the newest row unreadable: the lander row's detail ends with the clause	1
+R11 a live lock, the newest row unreadable: the page has one lander source row	1
+R11 job-level newest row (PR column -): and the text page holds it	1
+R11 job-level newest row (PR column -): both pages exit 0	1
+R11 job-level newest row (PR column -): every row of the --tsv page has exactly eight columns	1
+R11 job-level newest row (PR column -): on one line that names the lander	1
+R11 job-level newest row (PR column -): the detail names the ledger's newest row once	1
+R11 job-level newest row (PR column -): the lander row's detail ends with the clause	1
+R11 job-level newest row (PR column -): the page has one lander source row	1
+R11 newest row of any kind: a skip row for #402 is the one named: and the text page holds it	1
+R11 newest row of any kind: a skip row for #402 is the one named: both pages exit 0	1
+R11 newest row of any kind: a skip row for #402 is the one named: every row of the --tsv page has exactly eight columns	1
+R11 newest row of any kind: a skip row for #402 is the one named: on one line that names the lander	1
+R11 newest row of any kind: a skip row for #402 is the one named: the detail names the ledger's newest row once	1
+R11 newest row of any kind: a skip row for #402 is the one named: the lander row's detail ends with the clause	1
+R11 newest row of any kind: a skip row for #402 is the one named: the page has one lander source row	1
+R11 none control: and another: #402 is in state ready	1
+R11 none control: and another: #402 needs lander	1
+R11 none control: no ledger, so a green plain pull request: #401 is in state ready	1
+R11 none control: no ledger, so a green plain pull request: #401 needs lander	1
+R11 none control: paused no stays in the detail	1
+R11 none control: the ledger source row says none	1
+R11 none: and it comes before the clause	1
+R11 none: the lander row is not-live (no lock), as it was before R11	1
+R11 none: with no ledger file: and the text page holds it	1
+R11 none: with no ledger file: both pages exit 0	1
+R11 none: with no ledger file: every row of the --tsv page has exactly eight columns	1
+R11 none: with no ledger file: on one line that names the lander	1
+R11 none: with no ledger file: the detail names the ledger's newest row once	1
+R11 none: with no ledger file: the lander row's detail ends with the clause	1
+R11 none: with no ledger file: the page has one lander source row	1
+R11 paused control: paused yes stays in the detail	1
+R11 paused: a pull request is still ready, and needs the lander: #401 is in state ready	1
+R11 paused: a pull request is still ready, and needs the lander: #401 needs lander	1
+R11 paused: and the paused reason, the first line of the file	1
+R11 paused: paused yes comes before the clause	1
+R11 paused: the paused reason comes before the clause	1
+R11 paused: the text page holds the reason too	1
+R11 short row: a pull request is still ready: #401 is in state ready	1
+R11 short row: a pull request is still ready: #401 needs lander	1
+R11 short row: a pull request is still ready: #402 is in state ready	1
+R11 short row: a pull request is still ready: #402 needs lander	1
+R11 short row: a row of six columns: both pages exit 0	1
+R11 short row: a row of three columns: both pages exit 0	1
+R11 short row: every row of the --tsv page has eight columns, six columns in the ledger row	1
+R11 short row: every row of the --tsv page has eight columns, three columns in the ledger row	1
+R11 short row: the detail ends with the time and event and a colon, the detail empty (six columns)	1
+R11 short row: the detail ends with the time and event and a colon, the detail empty (three columns)	1
+R11 short row: the ledger source row says read	1
+R11 short row: the text page names the row (six columns)	1
+R11 short row: the text page names the row (three columns)	1
+R11 unread control: a directory where the ledger should be: the ledger row says unread	1
+R11 unread control: and a plain green pull request is unknown, as §5 says: #401 is in state unknown	1
+R11 unread control: and a plain green pull request is unknown, as §5 says: #401 needs unknown	1
+R11 unread control: land/ at mode 000: the ledger row says unread	1
+R11 unread: a directory where the ledger should be: and the text page holds it	1
+R11 unread: a directory where the ledger should be: both pages exit 0	1
+R11 unread: a directory where the ledger should be: every row of the --tsv page has exactly eight columns	1
+R11 unread: a directory where the ledger should be: on one line that names the lander	1
+R11 unread: a directory where the ledger should be: the detail names the ledger's newest row once	1
+R11 unread: a directory where the ledger should be: the lander row's detail ends with the clause	1
+R11 unread: a directory where the ledger should be: the page has one lander source row	1
+R11 unread: a land directory that cannot be searched: and the text page holds it	1
+R11 unread: a land directory that cannot be searched: both pages exit 0	1
+R11 unread: a land directory that cannot be searched: every row of the --tsv page has exactly eight columns	1
+R11 unread: a land directory that cannot be searched: on one line that names the lander	1
+R11 unread: a land directory that cannot be searched: the detail names the ledger's newest row once	1
+R11 unread: a land directory that cannot be searched: the lander row's detail ends with the clause	1
+R11 unread: a land directory that cannot be searched: the page has one lander source row	1
+R11 with paused present: and the text page holds it	1
+R11 with paused present: both pages exit 0	1
+R11 with paused present: every row of the --tsv page has exactly eight columns	1
+R11 with paused present: on one line that names the lander	1
+R11 with paused present: the detail names the ledger's newest row once	1
+R11 with paused present: the lander row's detail ends with the clause	1
+R11 with paused present: the page has one lander source row	1
+R11: #401, whose own newest row is a skip, is still ready: #401 is in state ready	1
+R11: #401, whose own newest row is a skip, is still ready: #401 needs lander	1
+R11: #402, whose own newest row is a refusal on the current main, is still refused: #402 is in state refused	1
+R11: #402, whose own newest row is a refusal on the current main, is still refused: #402 needs session	1
+R11: #402, whose own newest row is that skip, stays ready: #402 is in state ready	1
+R11: #402, whose own newest row is that skip, stays ready: #402 needs lander	1
+R11: and #401, with no row of its own, stays ready: #401 is in state ready	1
+R11: and #401, with no row of its own, stays ready: #401 needs lander	1
+R11: and #402, which has a skip row of its own earlier, stays ready: #402 is in state ready	1
+R11: and #402, which has a skip row of its own earlier, stays ready: #402 needs lander	1
+R11: and a pull request is still ready: #401 is in state ready	1
+R11: and a pull request is still ready: #401 needs lander	1
+R11: and its detail still holds the refusal's detail	1
+R11: no pull request's state changes: #401 stays ready and needs the lander: #401 is in state ready	1
+R11: no pull request's state changes: #401 stays ready and needs the lander: #401 needs lander	1
+R11: the lander row's state is live, unchanged by the newest row	1
+R11: the lander row's state is the same with an unreadable newest row: not-live	1
+R11: the ledger source row says read	1
+R11: the page's clause and --status's last row agree when the newest row is a pull request's	1
+R11: the page's clause and --status's last row are one row: time, event and detail agree	1
+R1: --queue exits 0, with --tsv and without	1
+R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/two	1
+R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once	1
+R1: under fixture/two (control)	1
+R2: a network error: one billing GET and no orgs/ GET	1
+R2: after a 404 the gh log holds one users/ GET	1
+R2: after a 502 the gh log holds exactly one billing GET	1
+R2: and adds the scope hint after the 404	1
+R2: and gives gh's first error line (control)	1
+R2: and it is the users/ GET	1
+R2: and no more billing GETs than those two	1
+R2: and the budget row says read	1
+R2: and the budget row says read (control)	1
+R2: and then one orgs/ GET	1
+R2: both answering 404: the budget row says unread	1
+R2: the billing GET answers: the gh log holds exactly one billing GET	1
+R2: the budget row says unread (control)	2
+R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/	1
+R2: users/ answers 404: the page exits 0	1
+R2: users/ answers 502: the page exits 0	1
+R3: a repository with neither origin/HEAD nor origin/main: the page exits 0 (control)	1
+R3: and #501 into main is stacked	1
+R3: and #501 into main was decided against it: ready (control)	1
+R3: and #502 into trunk is stacked (control)	1
+R3: and a plain green pull request into main was decided: #501 is ready (control)	1
+R3: and its origin row says default branch not read (control)	1
+R3: and its pull request was not decided: #901 is unknown (control)	1
+R3: and one into trunk is stacked (control)	1
+R3: origin/HEAD names main: the origin row says default branch main (origin/HEAD)	1
+R3: origin/HEAD naming trunk: the origin row says default branch trunk (origin/HEAD)	1
+R3: origin/HEAD wins over origin/main: #502 into trunk is ready	1
+R3: origin/main alone: the origin row says default branch main (origin/main)	1
+R3: the page with origin/HEAD naming main exits 0	1
+R3: the page with origin/main alone exits 0	1
+R4: and that is nine days ago, not the fresh fetch of another branch	1
+R4: and that is under an hour ago (control)	1
+R4: main moved just now: the origin row says when origin/main last moved (control)	1
+R4: the origin row says when origin/main last moved, from its reflog	1
+R4: the page after a fetch of another branch exits 0	1
+R4: the row still names the default branch (control)	1
+R5 clarified: --prs --tsv --repo on a directory whose name holds a tab exits 0, and so does the text page	1
+R5 clarified: and says it could not be read	1
+R5 clarified: every row of that page has exactly eight columns	1
+R5 clarified: it prints rows (control)	1
+R5 clarified: the gh source row speaks of the slug	1
+R5 control: the home's page exits 0	1
+R5: --prs in a repository whose slug holds a tab exits 0	1
+R5: --queue with a remote_match holding a tab exits 0	1
+R5: and its gh source row says why	1
+R5: and the other projects still list theirs: #601 once (control)	1
+R5: every line of --queue --tsv has eight columns (control)	1
+R5: every line of that --queue --tsv has eight columns	1
+R5: every line of that page, source rows too, has eight columns	1
+R5: its #801 is one pr row	1
+R5: its repo cell is not empty and holds no carriage return	1
+R5: maple has a gh source row whose repo cell holds a space where the tab was	1
+R5: maple's gh source row is unread, as R5 clarified says	1
+R5: of exactly eight columns	1
+R6: and #602 on one line	1
+R6: and founder #602 exactly once	1
+R6: and zeta's block names felix, whose block lists its pull requests	1
+R6: felix and zeta name one repository: founder #601 is listed exactly once	1
+R6: gh listed fixture/home once, not once per project: one pr list besides two's and three's	1
+R6: the text lists #601 on one line	1
+R6: zeta, second in name order, has a block of its own (control)	1
+R8 control: --queue lists the founder pull request #300 once	1
+R8 control: NBSP (C2 A0) and an accented letter are not controls and reach the page as they are	1
+R8 control: a plain title reaches the page unchanged	1
+R8 control: and #311, founder by its path	1
+R8 control: every pull request of the list has a row	1
+R8 control: in --queue, a plain title reaches the page unchanged	1
+R8 control: the billing GET failed: the budget row says unread	1
+R8 control: the lander row says paused yes	1
+R8 control: the ledger refused #320's head on the current main: refused	1
+R8 control: the pull request whose path holds ESC is founder	1
+R8 control: the pull request with a failed check is red	1
+R8 the detail of the newest row: ESC and BEL show as ?: and the text page holds it	1
+R8 the detail of the newest row: ESC and BEL show as ?: both pages exit 0	1
+R8 the detail of the newest row: ESC and BEL show as ?: every row of the --tsv page has exactly eight columns	1
+R8 the detail of the newest row: ESC and BEL show as ?: on one line that names the lander	1
+R8 the detail of the newest row: ESC and BEL show as ?: the detail names the ledger's newest row once	1
+R8 the detail of the newest row: ESC and BEL show as ?: the lander row's detail ends with the clause	1
+R8 the detail of the newest row: ESC and BEL show as ?: the page has one lander source row	1
+R8: --prs exits 0 over titles, a check name, a path, a ledger and a paused reason holding controls, TSV and text	1
+R8: --queue exits 0, TSV and text	1
+R8: a newline inside a title becomes a space	1
+R8: a tab inside a title becomes a space	1
+R8: a title holding BEL shows it as ?	1
+R8: a title holding C2 80, the first C1 control, shows it as ?	1
+R8: a title holding C2 9B shows it as ?	1
+R8: a title holding C2 9F, the last C1 control, shows it as ?	1
+R8: a title holding DEL shows it as ?	1
+R8: a title holding ESC shows it as ?	1
+R8: and on the text page	1
+R8: every row of the --prs --tsv page has exactly eight columns	1
+R8: every row of the --queue --tsv page has exactly eight columns	1
+R8: gh's error line holding ESC shows it as ?	1
+R8: in --queue, a newline inside a title becomes a space	1
+R8: in --queue, a tab inside a title becomes a space	1
+R8: in --queue, a title holding BEL shows it as ?	1
+R8: in --queue, a title holding C2 80 shows it as ?	1
+R8: in --queue, a title holding C2 9B shows it as ?	1
+R8: in --queue, a title holding C2 9F shows it as ?	1
+R8: in --queue, a title holding DEL shows it as ?	1
+R8: in --queue, a title holding ESC shows it as ?	1
+R8: the ledger's detail holding ESC shows it as ?, in a refusal	1
+R8: the ledger's detail holding ESC shows it as ?, in a skip	1
+R8: the paused reason holding ESC shows it as ?	1
+R8: the pull requests whose titles hold a tab and a newline are one --queue row each	1
+R8: the pull requests whose titles hold a tab and a newline are one row each	1
+case 10: exactly 100 files with a failed check: state 5 comes before 7: #113 is in state red	1
+case 10: exactly 100 files with a failed check: state 5 comes before 7: #113 needs session	1
+case 10: exactly 100 files, green, no label: #112 is in state unknown	1
+case 10: exactly 100 files, green, no label: #112 needs unknown	1
+case 11: a land-table founder row on origin/main matching a changed path: #114 is in state founder	1
+case 11: a land-table founder row on origin/main matching a changed path: #114 needs founder	1
+case 11: a pull request that reaches founder by a land row alone: #114 is in state unknown	1
+case 11: a pull request that reaches founder by a land row alone: #114 needs unknown	1
+case 11: the same kind of row only in the working tree makes nothing founder	1
+case 12: and gives gh's reason	1
+case 12: and without it	1
+case 12: gh failing still exits 0 with --tsv	1
+case 12: the gh source row says unread	1
+case 12: the page asked gh for the list once in each run	1
+case 12: the text page says pull requests not read, with the reason	1
+case 13: gh answering [] exits 0	1
+case 13: the gh source row says none	1
+case 13: the text page says no open pull requests	1
+case 14: a live pid under another start time was reused: not-live	1
+case 14: a live pid with an empty started: live	1
+case 14: a lock with a live pid and its start time: the lander row says live	1
+case 14: a paused file holding a reason: paused yes	1
+case 14: and the reason in the detail	1
+case 14: no lock: not-live	1
+case 15: BEHIND: the state is decided by the rest: #116 is in state ready	1
+case 15: BEHIND: the state is decided by the rest: #116 needs lander	1
+case 15: and carries the flag behind	1
+case 16: a head with no checks: #117 is in state unready	1
+case 16: a head with no checks: #117 needs session	1
+case 16: its detail says no checks ran on the head	1
+case 17: --prs --tsv prints its page and leaves the repositories and the land directories byte-identical	1
+case 17: --prs prints its page and leaves them byte-identical	1
+case 17: --queue --tsv prints its page and leaves them byte-identical	1
+case 17: --queue prints its page and leaves them byte-identical	1
+case 17: --repo prints its page and leaves both repositories and every land directory byte-identical	1
+case 17: gh was called with pr list and api only	1
+case 18: a title holding a tab gives one row	1
+case 18: of eight columns	1
+case 19: and --queue	1
+case 19: and its usage names --prs	1
+case 19: and prints the usage, which names --prs	3
+case 1: #101 appears in --queue exactly once	1
+case 1: and on one line of the --queue text	1
+case 1: and once in --queue --tsv	1
+case 1: in one --prs row	1
+case 1: risk.tsv changed, checks green: #101 is in state founder	1
+case 1: risk.tsv changed, checks green: #101 needs founder	1
+case 1: with a second and third escape table and two founder labels, #101 is still founder	1
+case 20: .github/workflows/x.yml: #123 is in state founder	1
+case 20: .github/workflows/x.yml: #123 needs founder	1
+case 20: by the rule authority	1
+case 20: by the rule commission	1
+case 20: by the rule execute	1
+case 20: by the rule exemption	1
+case 20: by the rule verifier	1
+case 20: ecosystem.tsv with only added lines: #122 is in state founder	1
+case 20: ecosystem.tsv with only added lines: #122 needs founder	1
+case 20: projects/felix/autonomy: #124 is in state founder	1
+case 20: projects/felix/autonomy: #124 needs founder	1
+case 20: qualification.tsv with one deleted line: #121 is in state founder	1
+case 20: qualification.tsv with one deleted line: #121 needs founder	1
+case 20: qualification.tsv with only added lines is not founder	1
+case 20: stack.tsv with only added lines: #125 is in state founder	1
+case 20: stack.tsv with only added lines: #125 needs founder	1
+case 21: and the detail also says trust base	1
+case 21: risk.tsv and engine/harness/felix, green: #119 is in state founder	1
+case 21: risk.tsv and engine/harness/felix, green: #119 needs founder	1
+case 22: a risk path row with a channel and no confine: #128 is in state founder	1
+case 22: a risk path row with a channel and no confine: #128 needs founder	1
+case 22: and the detail says the row was not evaluated	1
+case 22: by the rule risk	1
+case 22: the same row with a confine makes nothing founder	1
+case 23: a landed row on an older head decides nothing, nor a refused row of pull request 1340: #134 is in state ready	1
+case 23: a landed row on an older head decides nothing, nor a refused row of pull request 1340: #134 needs lander	1
+case 23: a session row on the head: #133 is in state refused	1
+case 23: a session row on the head: #133 needs session	1
+case 23: and the detail says the lander last saw that head	1
+case 23: the detail holds the refusal's detail	1
+case 23: the last ledger row refused this head on the current origin/main: #130 is in state refused	1
+case 23: the last ledger row refused this head on the current origin/main: #130 needs session	1
+case 23: the same row for an older head decides nothing: #132 is in state ready	1
+case 23: the same row for an older head decides nothing: #132 needs lander	1
+case 23: the same row on an older main decides nothing: #131 is in state ready	1
+case 23: the same row on an older main decides nothing: #131 needs lander	1
+case 24: a green draft with nothing else: #136 is in state unready	1
+case 24: a green draft with nothing else: #136 needs session	1
+case 24: and the detail a draft: the tick merges no draft	1
+case 24: with the flag draft	1
+case 25: both of them: #138 is in state unready	1
+case 25: both of them: #138 needs session	1
+case 25: each detail names the other: #137's	1
+case 25: each detail names the other: #138's	1
+case 25: two open green pull requests with one head branch: #137 is in state unready	1
+case 25: two open green pull requests with one head branch: #137 needs session	1
+case 26: Felix:Founder the same: #140 is in state founder	1
+case 26: Felix:Founder the same: #140 needs founder	1
+case 26: NEEDS-FOUNDER on a green pull request with no founder path: #139 is in state founder	1
+case 26: NEEDS-FOUNDER on a green pull request with no founder path: #139 needs founder	1
+case 27: a path holding DEL, printed as \u007f, which is outside printable ASCII: #168 is in state founder	1
+case 27: a path holding DEL, printed as \u007f, which is outside printable ASCII: #168 needs founder	1
+case 27: a path holding a byte outside printable ASCII: #144 is in state founder	1
+case 27: a path holding a byte outside printable ASCII: #144 needs founder	1
+case 27: a path holding a newline, printed as \n: #164 is in state founder	1
+case 27: a path holding a newline, printed as \n: #164 needs founder	1
+case 27: a path holding a tab, printed by gh as \t, green: #160 is in state founder	1
+case 27: a path holding a tab, printed by gh as \t, green: #160 needs founder	1
+case 27: a path holding the byte 001, printed as \u0001: #166 is in state founder	1
+case 27: a path holding the byte 001, printed as \u0001: #166 needs founder	1
+case 27: by the rule direction	3
+case 27: by the rule path-bytes	6
+case 27: docs/2026-09-23-roadmap.md: #143 is in state founder	1
+case 27: docs/2026-09-23-roadmap.md: #143 needs founder	1
+case 27: projects/felix/CLAUDE.md with a carriage return at its end, printed as \r: #165 is in state founder	1
+case 27: projects/felix/CLAUDE.md with a carriage return at its end, printed as \r: #165 needs founder	1
+case 27: projects/felix/CLAUDE.md: #141 is in state founder	1
+case 27: projects/felix/CLAUDE.md: #141 needs founder	1
+case 27: projects/felix/claude.md: #142 is in state founder	1
+case 27: projects/felix/claude.md: #142 needs founder	1
+case 28: a directory where the ledger should be: the ledger row says unread	1
+case 28: and a pull request that would otherwise be ready: #105 is in state unknown	1
+case 28: and a pull request that would otherwise be ready: #105 needs unknown	1
+case 28: and the pull request: #105 is in state ready	1
+case 28: and the pull request: #105 needs lander	1
+case 28: no ledger at all: the ledger row says none	1
+case 29: --repo exits 0	1
+case 29: and its detail is that ledger's	1
+case 29: every row names the second repository	1
+case 29: gh was asked for one list	1
+case 29: its pull requests, and none of the current repository's	1
+case 29: that project's ledger names #201's head in a session row: #201 is in state refused	1
+case 29: that project's ledger names #201's head in a session row: #201 needs session	1
+case 29: the current project's ledger row for 202 is not read: #202 is in state ready	1
+case 29: the current project's ledger row for 202 is not read: #202 needs lander	1
+case 2: the same with one failed check: #102 is in state red	1
+case 2: the same with one failed check: #102 needs session	1
+case 3: the same with a check still running: #103 is in state pending	1
+case 3: the same with a check still running: #103 needs nobody	1
+case 4: and is the flag mergeable-unknown	1
+case 4: mergeable CONFLICTING: #104 is in state needs-session	1
+case 4: mergeable CONFLICTING: #104 needs session	1
+case 4: mergeable UNKNOWN is not a conflict	1
+case 5: a ready pull request with no flag has the bare state	1
+case 5: green, not a draft, its own head branch, no founder or trust-base path, no ledger row: #105 is in state ready	1
+case 5: green, not a draft, its own head branch, no founder or trust-base path, no ledger row: #105 needs lander	1
+case 6: Felix:Hold the same: #107 is in state held	1
+case 6: Felix:Hold the same: #107 needs session	1
+case 6: felix:hold on a conflicting, red pull request: #106 is in state held	1
+case 6: felix:hold on a conflicting, red pull request: #106 needs session	1
+case 7: a head in a fork, with an escape path: #108 is in state outside	1
+case 7: a head in a fork, with an escape path: #108 needs nobody	1
+case 7: another author, with an escape path: #109 is in state outside	1
+case 7: another author, with an escape path: #109 needs nobody	1
+case 8: base claude/other: #110 is in state stacked	1
+case 8: base claude/other: #110 needs nobody	1
+case 8: the base is named in the detail	1
+case 9: engine/harness/felix changed, green: #111 is in state needs-attended	1
+case 9: engine/harness/felix changed, green: #111 needs session	1
+spec §1: --no-gh exits 0	1
+spec §2: --prs lists the pull requests with one gh pr list call	1
+spec §2: a founder row decided by a path says path-level	1
+spec §2: and says path-level	3
+spec §2: and the run removes that scratch directory	1
+spec §2: gh runs with its state and cache directories in a scratch directory, not the caller's	1
+spec §2: gh's configuration is left alone: GH_CONFIG_DIR is the caller's	1
+spec §2: origin/main is there: the origin row says read	1
+spec §2: the land table at origin/main was read	1
+spec §3, §5: and the --queue text says the list may be incomplete, not only that no founder entries were found	1
+spec §3: FELIX:HOLD on a green founder-lane pull request: held comes before founder: #150 is in state held	1
+spec §3: FELIX:HOLD on a green founder-lane pull request: held comes before founder: #150 needs session	1
+spec §3: and the --prs text says the list may be incomplete	1
+spec §3: and up to 1000 of them	1
+spec §3: at 1000 the gh source row of --prs says truncated	1
+spec §3: the gh pr list call asks for open pull requests	1
+spec §3: the gh source row of --queue --tsv says truncated	1
+spec §4.2: its detail says the default branch was not read	1
+spec §4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder: #301 is in state unknown	1
+spec §4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder: #301 needs unknown	1
+spec §4.3: a lock whose pid is dead names no live tick: the lander row says not-live	1
+spec §4.3: and #170, plain and green with no ledger row, is ready (control for what follows): #170 is in state ready	1
+spec §4.3: and #170, plain and green with no ledger row, is ready (control for what follows): #170 needs lander	1
+spec §4.3: and gives the first line of paused	1
+spec §4.3: and loaded no while launchctl print fails	1
+spec §4.3: and paused yes while paused exists	1
+spec §4.3: and the ledger row says read (control)	1
+spec §4.3: it is listed as the lander, the event, its detail	1
+spec §4.3: its detail says the lander cannot use it	1
+spec §4.3: its detail says the lander last saw the older head land	1
+spec §4.3: its detail says what the lander last saw	1
+spec §4.3: land/ at mode 000: the ledger is there but cannot be read, so its row says unread, not none	1
+spec §4.3: launchctl print succeeding: loaded yes	1
+spec §4.3: no paused file: paused no	1
+spec §4.3: only the last row counts: a skip after a refusal on the same head and main decides nothing: #135 is in state ready	1
+spec §4.3: only the last row counts: a skip after a refusal on the same head and main decides nothing: #135 needs lander	1
+spec §4.3: the job's plist there: installed yes	1
+spec §4.3: the lander row says installed no without the job's plist	1
+spec §4.3: the lander row's loaded is read with launchctl print, as --status reads it	1
+spec §4.3: the ledger is there: its source row says read	1
+spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows): #169 is in state refused	1
+spec §4.3: the ledger refused #169's head on the current origin/main (control for what follows): #169 needs session	1
+spec §4.3: the project's memory directory at mode 000, land/ and its ledger inside: the ledger row says unread, not none	1
+spec §4.4: a failing billing GET: the budget row says unread	1
+spec §4.4: and gives gh's first error line	1
+spec §4.4: and the budget row says unread, gh not asked	1
+spec §4.4: it gives the minutes used	1
+spec §4.4: of the minutes included	1
+spec §4.4: the budget is one gh api GET of the governed account's Actions billing	1
+spec §4.4: the budget was read	1
+spec §4.5: a backslash path the land row matches is founder by that row: #162 is in state founder	1
+spec §4.5: a backslash path the land row matches is founder by that row: #162 needs founder	1
+spec §4.5: a path holding a backslash, printable ASCII, green and nothing else: #161 is in state ready	1
+spec §4.5: a path holding a backslash, printable ASCII, green and nothing else: #161 needs lander	1
+spec §4.5: a pull request changing a path for each of eleven founder rules: #163 is in state founder	1
+spec §4.5: a pull request changing a path for each of eleven founder rules: #163 needs founder	1
+spec §4.5: a risk row only in the working tree makes nothing founder	1
+spec §4.5: by the rule land	1
+spec §4.5: each match is listed with its rule name, more than five of them: authority	1
+spec §4.5: each match is listed with its rule name, more than five of them: commission	1
+spec §4.5: each match is listed with its rule name, more than five of them: direction	1
+spec §4.5: each match is listed with its rule name, more than five of them: durable	1
+spec §4.5: each match is listed with its rule name, more than five of them: exception	1
+spec §4.5: each match is listed with its rule name, more than five of them: execute	1
+spec §4.5: each match is listed with its rule name, more than five of them: exemption	1
+spec §4.5: each match is listed with its rule name, more than five of them: land	1
+spec §4.5: each match is listed with its rule name, more than five of them: path-bytes	1
+spec §4.5: each match is listed with its rule name, more than five of them: risk	1
+spec §4.5: each match is listed with its rule name, more than five of them: verifier	1
+spec §4.5: its detail names the path as it is, with one backslash	1
+spec §4.5: its detail names the rule land	1
+spec §4: a StatusContext in state ERROR is a failed check: #148 is in state red	1
+spec §4: a StatusContext in state ERROR is a failed check: #148 needs session	1
+spec §4: a StatusContext in state PENDING has not finished: #149 is in state pending	1
+spec §4: a StatusContext in state PENDING has not finished: #149 needs nobody	1
+spec §4: a draft is a flag on every state: a red draft	1
+spec §4: a pull request changing two paths of the trust base: #167 is in state needs-attended	1
+spec §4: a pull request changing two paths of the trust base: #167 needs session	1
+spec §4: and the second	1
+spec §4: every condition that holds is listed: the first trust-base path	1
+spec §5: a land table felix_land_malformed refuses is unread	1
+spec §5: and a plain green pull request that reaches state 10 is unknown too: #170 is in state unknown	1
+spec §5: and a plain green pull request that reaches state 10 is unknown too: #170 needs unknown	1
+spec §5: and its ledger row is unread	1
+spec §5: and the direction rule: #141 is in state founder	1
+spec §5: and the direction rule: #141 needs founder	1
+spec §5: and the labels: #139 is in state founder	1
+spec §5: and the labels: #139 needs founder	1
+spec §5: and the land table is unread	1
+spec §5: and the pull request the ledger refused is unknown, never ready: #169 is in state unknown	1
+spec §5: and the pull request the ledger refused is unknown, never ready: #169 needs unknown	1
+spec §5: and the pull request the ledger refused is unknown: #169 is in state unknown	1
+spec §5: and the pull request the ledger refused is unknown: #169 needs unknown	1
+spec §5: its detail says the files were not read	1
+spec §5: its detail says the land table was not read	1
+spec §5: its detail says the lander's ledger was not read	2
+spec §5: the escape-table rules still decide founder: #122 is in state founder	1
+spec §5: the escape-table rules still decide founder: #122 needs founder	1
+spec §5: the gh source row says unread	1
+spec §5: the origin source row says no origin/main	1
+spec §5: the text page says pull requests not read	1
+spec §6.1: --no-gh still prints the six source rows, in the order gh land ledger lander budget origin	1
+spec §6.1: --queue --tsv prints eight columns on every line	1
+spec §6.1: --queue gives one gh source row per project naming a remote_match	1
+spec §6.1: a project whose gh failed has its gh source row in --queue, unread	1
+spec §6.1: a source row's owner, age_h and content are -	1
+spec §6.1: age_h is the hours since updatedAt	1
+spec §6.1: content is the full head SHA	1
+spec §6.1: every line of --prs --tsv has eight tab-separated columns	1
+spec §6.1: every row is a source row or a pr row	1
+spec §6.1: gh answered: its source row says read	1
+spec §6.1: one pr row per open pull request gh listed	1
+spec §6.1: pull requests come in ascending number	1
+spec §6.1: sources come first, then pull requests	1
+spec §6.1: the flags follow the state in the order draft, behind, mergeable-unknown	1
+spec §6.1: the home's founder pull requests, each once, in ascending order	1
+spec §6.1: the one whose path ends in a carriage return is one row of eight columns	1
+spec §6.1: the one whose path holds a newline is one row of eight columns	1
+spec §6.1: the pull request whose path holds a tab is one row of eight columns	1
+spec §6.1: the repo column is the owner/name slug on every row	1
+spec §6.1: the six source rows come in the order gh land ledger lander budget origin	1
+spec §6.1: two's founder pull requests in --queue are #101 alone: its ready and refused ones are not founder	1
+spec §6.2: a line is #N state title: detail	1
+spec §6.2: and a project with no founder pull request says so	1
+spec §6.2: and ready	1
+spec §6.2: and unknown	1
+spec §6.2: each pull request takes one line: one line for #118, whose title holds a tab	1
+spec §6.2: founder first, then sessions, then the lander, then nobody, then unknown	1
+spec §6.2: the --queue text says that project was not read, and why	1
+spec §6.2: the last line counts the pull requests per state: founder	1
+spec §6.2: the long title is on the page	1
+spec §6.2: the page over a title holding a C1 control exits 0	1
+spec §6.2: the queue's text lists the founder pull request	1
+spec §6.2: the title is cut at 60	1
+spec §6.2: the title is on the page	1
+spec §6.2: within a group in ascending number	1
+spec §6.3: --queue lists two's founder pull request #101 exactly once, under fixture/two, with two's head	1
+spec §6.3: and home's #101 exactly once, under fixture/home, with home's head	1
+spec §7: --prs --repo naming a directory no repository holds exits 1	1
+spec §7: --prs where no repository holds the directory exits 1	1
+spec §7: --queue exits 0 though one project was not read	1
+spec §7: a repository no project governs: the page prints and exits 0	1
+spec §7: a repository with no origin/main still exits 0	1
+spec §7: and its land table is unread	1
+spec §7: and the page still exits 0	1
+spec §7: each of the four runs exits 0	1
+spec §7: its lander row is unread	1
+spec §7: the four runs over 1000 pull requests exit 0	1
+spec §7: the page exits 0 while land/ cannot be searched	1
+spec §7: the page over escaped paths exits 0	1

@@ -768,8 +768,10 @@ _og_on=1
 # is this preamble and one cut block, and a run can also exit early. Whatever
 # the last section would have found is then reported on stderr and turns the
 # status to 1, an earlier non-zero status kept. When the last section did run,
-# _fx_final is set and the trap adds nothing. EXIT traps are not inherited by
-# subshells, so this runs in the suite's own shell and nowhere else.
+# _fx_final is set and the trap adds nothing. A child the suite forks can run
+# this trap too, when a signal reaches it before it has reset the traps it
+# inherited (part 0001 says how; slot 3f), so the report and the removal are
+# the shell's that made $TMP, and anywhere else the trap only exits.
 #
 # The removal and the exit are written into the trap itself, not into _fx_exit,
 # so no later definition of a function can take $TMP's removal away (asked by
@@ -790,7 +792,7 @@ _fx_exit() {   # RC -> RC, or 1 where RC is 0 and a check here failed
   fi
   return "$rc"
 }
-trap '_fx_rc=$?; set +u; _fx_exit "$_fx_rc"; _fx_rc=$?; rm -rf "$TMP"; exit "$_fx_rc"' EXIT
+trap '_fx_rc=$?; set +u; '"$_tmp_pid"'; if [ "$_tmp_me" = "$_tmp_by" ]; then _fx_exit "$_fx_rc"; _fx_rc=$?; rm -rf "$TMP"; fi; exit "$_fx_rc"' EXIT
 # The suite under test as the one file it was before 2026-10-10: the driver
 # with each `. "$HERE/parts/NAME"` and each `. "$HERE/lib/NAME"` line replaced
 # by that file (a lib file is where a helper two parts share lives, contract C2,

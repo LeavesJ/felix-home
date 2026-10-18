@@ -120,10 +120,11 @@ _db2_clear() { [ -z "$(_db2_ps "$1")" ]; }
 _db2_reap()  { local p; for p in $(_db2_ps "$(_db2_pid "$1")"); do kill -KILL "$p" 2>/dev/null; done; }
 # the unit processes of the current case: bash run --part, not perl (the holder may carry the same words)
 _db2_units() { ps -A -ww -o pid= -o stat= -o command= 2>/dev/null | K="$(_db2_key)" LC_ALL=C awk '$2 !~ /^Z/ && index($0, ENVIRON["K"]) && index($0, " --part ") && $3 !~ /perl/ { printf "%s ", $1 }'; }
-# KEY: how many unit processes (a --part process not below another) of the copies with KEY in their path run now
+# KEY: how many unit processes (a --part process, not perl, not below another) of the copies with KEY in their path run now. A holder that waits for a
+# slot is a perl and is not one; its unit, once it has a slot, is.
 _db2_snap() {
   ps -A -ww -o pid= -o ppid= -o stat= -o command= 2>/dev/null | K="$1" LC_ALL=C awk '
-    { u[$1] = (index($0, " --part ") && index($0, ENVIRON["K"]) && $3 !~ /^Z/); pp[$1] = $2 }
+    { u[$1] = (index($0, " --part ") && index($0, ENVIRON["K"]) && $3 !~ /^Z/ && $4 !~ /perl/); pp[$1] = $2 }
     END { n = 0; for (p in u) if (u[p] && !((pp[p] in u) && u[pp[p]])) n++; print n }'
 }
 _db2_peak() {   # KEY BGPID...: samples until those jobs have ended; _db2_pk is the most units seen at once
@@ -202,6 +203,22 @@ _db2_sl ctl; _db2_new ctl "$DB2/g-empty.tsv" + "$DB2/pp/ctl"/*.sh
 is "D6: the sleeper parts, released at once, pass under -j 2: exit 0, a receipt, and the third part ran (positive control)" "$_db2_rc $_db2_ctl" "0 1"
 rm -rf "$DB2/n/ctl"
 
+# ---- the controls for the checks that look at ps: units are counted and a perl carrying their words is not; a sleeper with the case's id is seen, and not once killed
+_db2_sel snapctl; mkdir -p "$_db2_c"; mkfifo "$_db2_c/ff" 2>/dev/null
+printf 'exec 3<> "$1"; read -t 60 -u 3 _x\n' > "$_db2_c/unit.sh"
+bash "$_db2_c/unit.sh" "$_db2_c/ff" --part 0010-x.sh & _db2_p1=$!
+bash "$_db2_c/unit.sh" "$_db2_c/ff" --part 0020-y.sh & _db2_p2=$!
+perl -e 'sleep 60' "$_db2_c/unit.sh" --part 0030-z.sh & _db2_p3=$!
+perl -e 'sleep 60' "$(_db2_id)" probe & _db2_p4=$!
+_db2_four() { [ "$(set -- $(_db2_ps ''); echo $#)" = 4 ]; }
+_db2_until 50 _db2_four
+_db2_x="$(_db2_snap "$(_db2_key)") $(set -- $(_db2_units); echo $#) $(set -- $(_db2_ps ''); echo $#)"
+kill -KILL "$_db2_p1" "$_db2_p2" "$_db2_p3" "$_db2_p4" 2>/dev/null
+for _db2_p in "$_db2_p1" "$_db2_p2" "$_db2_p3" "$_db2_p4"; do { wait "$_db2_p"; } 2>/dev/null; done
+_db2_y="$(_db2_until 25 _db2_clear '' && echo gone || echo "still [$(_db2_ps '')]")"
+is "D6: the process checks below see what they should: two unit processes and not the perl that carries their words, four processes of the case in all, and none once killed (control)" "$_db2_x $_db2_y" "2 2 4 gone"
+rm -rf "$DB2/n/snapctl"
+
 # ---- dispositions (D6): a unit starts with INT and QUIT as the parent had them, in each of the four ways
 _db2_dp() {   # CASE: three parts that print what perl reads of INT QUIT TERM HUP, and whether they ran as a unit; the last two are a group
   local f
@@ -215,13 +232,13 @@ X
 printf 'dg\t0020-db.sh\ndg\t0030-dc.sh\n' > "$DB2/g-dis.tsv"
 _db2_dp dis; _db2_new dis "$DB2/g-dis.tsv" + "$DB2/pp/dis"/*.sh
 for _db2_m in "DEFAULT DEFAULT" "IGNORE IGNORE" "IGNORE DEFAULT" "DEFAULT IGNORE"; do
-  _db2_i="${_db2_m% *}"; _db2_q="${_db2_m#* }"
-  _db2_I="$_db2_i"; _db2_Q="$_db2_q"; _db2_go d3 -j 3; _db2_wait
-  _db2_I="$_db2_i"; _db2_Q="$_db2_q"; _db2_go d1 -j 1; _db2_wait
+  _db2_i="${_db2_m% *}"; _db2_qv="${_db2_m#* }"
+  _db2_I="$_db2_i"; _db2_Q="$_db2_qv"; _db2_go d3 -j 3; _db2_wait
+  _db2_I="$_db2_i"; _db2_Q="$_db2_qv"; _db2_go d1 -j 1; _db2_wait
   _db2_x3="$(grep '^djy-sig:' "$_db2_c/d3.out" | LC_ALL=C sort | tr '\n' ' ')"; _db2_x1="$(grep '^djy-sig:' "$_db2_c/d1.out" | LC_ALL=C sort | tr '\n' ' ')"
-  _db2_k="$(grep -c "^djy-sig:INT=$_db2_i,QUIT=$_db2_q," "$_db2_c/d1.out")"
-  is "D6: -j 1 parts read INT $_db2_i and QUIT $_db2_q from a parent started that way, on all three parts (control)" "$_db2_k $(_db2_cnt "$_db2_c/d1.out" djy-mode:serial)" "3 3"
-  is "D6: from a parent with INT $_db2_i and QUIT $_db2_q the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads" \
+  _db2_k="$(grep -c "^djy-sig:INT=$_db2_i,QUIT=$_db2_qv," "$_db2_c/d1.out")"
+  is "D6: -j 1 parts read INT $_db2_i and QUIT $_db2_qv from a parent started that way, on all three parts (control)" "$_db2_k $(_db2_cnt "$_db2_c/d1.out" djy-mode:serial)" "3 3"
+  is "D6: from a parent with INT $_db2_i and QUIT $_db2_qv the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads" \
      "$(_db2_cnt "$_db2_c/d3.out" djy-mode:unit) $([ "$_db2_x3" = "$_db2_x1" ] && echo same || echo "differ [$_db2_x3] [$_db2_x1]")" "3 same"
 done
 rm -rf "$DB2/n/dis"
@@ -510,10 +527,10 @@ done
 _db2_new six "$DB2/g-empty.tsv" + "$DB2/pp/six"/*.sh
 _db2_go p --part 0010-f1.sh 0020-f2.sh 0030-f3.sh 0040-f4.sh 0050-f5.sh 0060-f6.sh; _db2_wait
 _db2_x="$(grep '^@@' "$_db2_c/p.out" | tr '\n' '|')"
-is "D1: --part takes six names: the prelude mark, a member mark for each in order, and the part mark naming all six, with exit 0" "$_db2_rc $_db2_x" \
+is "D2: --part takes six names and prints the prelude mark, a member mark for each in order, and the part mark naming all six, with exit 0" "$_db2_rc $_db2_x" \
    "0 @@prelude-done|@@member-done 0010-f1.sh|@@member-done 0020-f2.sh|@@member-done 0030-f3.sh|@@member-done 0040-f4.sh|@@member-done 0050-f5.sh|@@member-done 0060-f6.sh|@@part-done 0010-f1.sh 0020-f2.sh 0030-f3.sh 0040-f4.sh 0050-f5.sh 0060-f6.sh|"
 _db2_go p1 --part 0030-f3.sh; _db2_wait
-is "D1: and one name: the member between the two marks, and only that part's assertion after the prelude" \
+is "D2: and with one name the member sits between the two marks, and only that part's assertion after the prelude" \
    "$_db2_rc $(sed -n '/^@@prelude-done$/,$p' "$_db2_c/p1.out" | tr '\n' '|')" "0 @@prelude-done||djy-sec 0030-f3.sh|  ok    djy 0030-f3.sh|@@member-done 0030-f3.sh|@@part-done 0030-f3.sh|"
 _db2_E=(FELIX_TEST_PART_LOG="$_db2_c/x.log" FELIX_TEST_PART_RAN="$_db2_c/x.ran" FELIX_TEST_PART_END="$_db2_c/x.end"); _db2_go e -j 1; _db2_wait
 is "D1: the FELIX_TEST_PART_ variables alone do not make part mode: a run without --part reaches its end on stdout and writes none of the files (control)" \
@@ -670,8 +687,9 @@ ok "djy $DJ2N"
 X
 _db2_new fd "$DB2/g-empty.tsv" + "$DB2/pp/fd"/*.sh; _db2_go f3 -j 3; _db2_wait; _db2_go f1 -j 1; _db2_wait
 _db2_x3="$(sed -n 's/^djy-fds:\(.*\)$/\1/p' "$_db2_c/f3.out")"; _db2_x1="$(sed -n 's/^djy-fds:\(.*\)$/\1/p' "$_db2_c/f1.out")"; _db2_y3="$(sed -n 's/^djy-fds-ctl:\(.*\)$/\1/p' "$_db2_c/f3.out")"
+case "$_db2_y3" in *9*) _db2_y3=sees-9 ;; *) _db2_y3="ctl [$_db2_y3]" ;; esac   # not inside $( ): bash 3.2 ends the substitution at the pattern's )
 is "D6: a unit has no pipe or FIFO descriptor above 2 that the same part has not under -j 1, and the probe sees a FIFO a part opens itself" \
-   "$([ "$_db2_x3" = "$_db2_x1" ] && echo same || echo "[$_db2_x3] differs from [$_db2_x1]") $(case "$_db2_y3" in *9*) echo sees-9 ;; *) echo "ctl [$_db2_y3]" ;; esac) $(_db2_cnt "$_db2_c/f3.out" djy-mode:unit)" "same sees-9 1"
+   "$([ "$_db2_x3" = "$_db2_x1" ] && echo same || echo "[$_db2_x3] differs from [$_db2_x1]") $_db2_y3 $(_db2_cnt "$_db2_c/f3.out" djy-mode:unit)" "same sees-9 1"
 rm -rf "$DB2/n/fd"
 
 # ---- the part leaves the shell as it found it

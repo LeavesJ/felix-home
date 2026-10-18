@@ -24,7 +24,7 @@ for _l9t in head dd cat od wc xxd hexdump perl python3 ruby; do
   sed -e "s#@LOG@#$L9/tool.log#" -e "s#@NAME@#$_l9t#" -e "s#@REAL@#$_l9r#" > "$L9/toolbin/$_l9t" <<'L9WRAP'
 #!/bin/bash
 { printf '%s' '@NAME@'; for a in "$@"; do printf '\t%s' "$a"; done
-  printf '\tstdin-inode=%s\n' "$(stat -c %i /dev/fd/0 2>/dev/null || stat -f %i /dev/fd/0 2>/dev/null)"; } >> '@LOG@'
+  printf '\tstdin-inode=%s\n' "$(stat -L -c %i /dev/fd/0 2>/dev/null || stat -f %i /dev/fd/0 2>/dev/null)"; } >> '@LOG@'
 exec '@REAL@' "$@"
 L9WRAP
   chmod +x "$L9/toolbin/$_l9t"; L9TOOLS="$L9TOOLS $_l9t"
@@ -150,7 +150,7 @@ is "A31 (fixture control): the hand-written install is the old one: a /bin/sh tr
    "$(head -n 1 "$L9TR")|$([ -x "$L9TR" ] && echo tramp)|$(tr -d ' \t\r\n' < "$L9PL" | grep -cF "<key>ProgramArguments</key><array><string>$(printf '%s' "$L9TR" | tr -d ' ')</string></array>")" "#!/bin/sh|tramp|1"
 if command -v plutil >/dev/null 2>&1; then
   is "A31 (fixture control): plutil lints the hand-written plist and reads one ProgramArguments string" "$(plutil -lint -s "$L9PL" 2>&1)|$(plutil -extract ProgramArguments raw -o - "$L9PL" 2>&1)" "|1"
-fi
+else skip "A31 (fixture control): plutil lints the hand-written plist and reads one ProgramArguments string" "no plutil on this machine"; fi
 _lg_land --tick
 is "A31: a --tick run leaves the pre-A31 trampoline and plist byte for byte as they were, and boots nothing in or out" \
    "$LGRC|$(_l9_sum)|$(_lg_logs launchctl | grep -cE '^(bootstrap|bootout|load|unload)')" "0|$L9S0|0"
@@ -163,7 +163,7 @@ has "A31: and the plist's ProgramArguments become /bin/bash, then the trampoline
 if plutil -extract Label raw -o - "$L9PL" >/dev/null 2>&1; then
   is "A31: plutil reads the rewritten ProgramArguments as two strings: /bin/bash, then the trampoline's path with its space" \
      "$(plutil -extract ProgramArguments raw -o - "$L9PL" 2>&1)|$(plutil -extract ProgramArguments.0 raw -o - "$L9PL" 2>&1)|$(plutil -extract ProgramArguments.1 raw -o - "$L9PL" 2>&1)" "2|/bin/bash|$L9TR"
-else skip "A31: plutil reads the rewritten ProgramArguments as two strings" "no plutil that extracts raw values on this machine"; fi
+else skip "A31: plutil reads the rewritten ProgramArguments as two strings: /bin/bash, then the trampoline's path with its space" "no plutil that extracts raw values on this machine"; fi
 is "A31: --install rewrites both files: the hand-written marker is in neither" "$(grep -c 'hand-written pre-A31' "$L9TR")|$(grep -c 'hand-written pre-A31' "$L9PL")" "0|0"
 is "A31: the launchctl log shows a bootout of the job before the bootstrap of the plist" \
    "$(LC_ALL=C awk -v t="bootstrap gui/$LGUID $L9PL" '$1 == "bootout" && index($0, "felix.land.lgh") && !o { o = NR } $0 == t && !s { s = NR } END { if (o && s && o < s) print "bootout, then bootstrap"; else printf "bootout line %d, bootstrap line %d", o, s }' "$LGL/launchctl.log" 2>/dev/null)" "bootout, then bootstrap"

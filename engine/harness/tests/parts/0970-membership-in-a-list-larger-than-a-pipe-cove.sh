@@ -1,3 +1,7 @@
+# 2026-10-18 (judge refs): felix merge takes a full ref name as its base and
+# refuses an expression such as HEAD~1, which git reads in its short-name order.
+# The commit before the tip is therefore named by a branch made at it.
+_mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 printf '\nmembership in a list larger than a pipe: coverage, candidates and gaps\n'
 # Five engine tests asked whether a value was in a list by piping the list into
 # grep -q under pipefail. grep stops reading at its first match; the writer's
@@ -463,14 +467,14 @@ if [ "${_spc_n:-0}" -ge 262144 ] && [ "$_spc_first" = "engine/harness/lib/x.sh" 
 else
   bad "the merge fixture changes more paths than a pipe holds, the engine's first" "${_spc_n:-0} bytes, first: $_spc_first"
 fi
-_spc_felix "$_spc_early" merge --base HEAD~1 > "$TMP/_spc_mg.out" 2>&1; _spc_rc=$?
+_spc_felix "$_spc_early" merge --base "$(_mbase "$_spc_early")" > "$TMP/_spc_mg.out" 2>&1; _spc_rc=$?
 if [ "$_spc_rc" -eq 1 ] && grep -q 'judging itself' "$TMP/_spc_mg.out"; then
   ok "a judge identical to the tree is refused when the engine path sorts first of many"
 else
   bad "a judge identical to the tree is refused when the engine path sorts first of many" \
       "the engine change was missed and the candidate went on to be judged by itself (rc=$_spc_rc): $(cat "$TMP/_spc_mg.out")"
 fi
-_spc_felix "$_spc_late" merge --base HEAD~1 > "$TMP/_spc_mg.out" 2>&1; _spc_rc=$?
+_spc_felix "$_spc_late" merge --base "$(_mbase "$_spc_late")" > "$TMP/_spc_mg.out" 2>&1; _spc_rc=$?
 if [ "$_spc_rc" -eq 1 ] && grep -q 'judging itself' "$TMP/_spc_mg.out"; then
   ok "and the judge is refused when the engine path sorts last"
 else

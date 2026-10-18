@@ -1,3 +1,7 @@
+# 2026-10-18 (judge refs): felix merge takes a full ref name as its base and
+# refuses an expression such as HEAD~1, which git reads in its short-name order.
+# The commit before the tip is therefore named by a branch made at it.
+_mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 # The rest of the copy's contract, each line of it a way the rule above could
 # be kept and the suite still be wrong. Work not yet added to git is under
 # test, so untracked-and-not-ignored is carried; the CLI is run from the copy,
@@ -64,7 +68,7 @@ rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 _cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
     FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" FELIX_KERNEL="$KC2/1.0.0/harness" \
-    "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+    "$FELIX" merge --base "$(_mbase "$MR")" >/dev/null 2>&1 )
 is "a governed product merges with FELIX_KERNEL set and no engine installed" \
    "$(grep -c '^pr merge' "$TMP/gh.prod.log" | tr -d ' ')" "1"
 
@@ -114,7 +118,7 @@ _cm_stamp "$MR"
   : > "$TMP/gh.race.log"; rm -f "$TMP/race.fired"
   ( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG="$TMP/gh.race.log" \
       RACE_ON="$on" RACE_CMD="$cmd" RACE_FIRED="$TMP/race.fired" \
-      "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+      "$FELIX" merge --base "$(_mbase "$MR")" >/dev/null 2>&1 )
   RACE_RC=$?
   RACE_MERGES="$(grep -c '^pr merge' "$TMP/gh.race.log" | tr -d ' ')"
 }
@@ -157,7 +161,7 @@ _cm_stamp "$MR"
 rm -f "$TMP/race.fired"
 race_out="$( cd "$MR" && PATH="$GB:$GHB:$PATH" GHSTUB_LOG=/dev/null \
     RACE_ON="remote get-url" RACE_CMD="printf 'peer2\n' >> $MR/README.md" \
-    RACE_FIRED="$TMP/race.fired" "$FELIX" merge --base HEAD~1 2>&1 )"
+    RACE_FIRED="$TMP/race.fired" "$FELIX" merge --base "$(_mbase "$MR")" 2>&1 )"
 has "and names the working tree rather than the checkout" "$race_out" "tree       edited under it"
 case "$race_out" in
   *"The checkout moved"*) bad "and does not blame a checkout that did not move" "$race_out" ;;

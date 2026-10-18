@@ -1,3 +1,7 @@
+# 2026-10-18 (judge refs): felix merge takes a full ref name as its base and
+# refuses an expression such as HEAD~1, which git reads in its short-name order.
+# The commit before the tip is therefore named by a branch made at it.
+_mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 printf '\nthe line that does the work\n'
 # `felix merge` was shipped, deployed, written into the handoff as "Felix can
 # merge", and could never merge anything. `gh pr merge --repo <slug> --squash`
@@ -52,7 +56,7 @@ export GHSTUB_LOG="$TMP/gh.log"; : > "$GHSTUB_LOG"
 ( cd "$MR" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
 _cm_stamp "$MR"
-( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+( cd "$MR" && PATH="$GHB:$PATH" "$FELIX" merge --base "$(_mbase "$MR")" >/dev/null 2>&1 )
 mg="$(grep '^pr merge' "$GHSTUB_LOG" | head -1)"
 [ -n "$mg" ] && ok "felix merge reaches gh at all" \
              || bad "felix merge reaches gh at all" "gh was never invoked"
@@ -197,7 +201,7 @@ cp -R "$FROOT/harness" "$KC2/2.0.0/harness"          # the candidate's own
 _sgmerge() {
   : > "$TMP/gh.sg.log"
   ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
-      FELIX_KERNEL_CACHE="$KC2" "$FELIX" merge --base HEAD~1 >"$TMP/sg.out" 2>&1 )
+      FELIX_KERNEL_CACHE="$KC2" "$FELIX" merge --base "$(_mbase "$SG")" >"$TMP/sg.out" 2>&1 )
   SGRC=$?
   SGMERGES="$(grep -c '^pr merge' "$TMP/gh.sg.log" | tr -d ' ')"
 }
@@ -352,7 +356,7 @@ sed '/KERNEL2/d' "$FROOT/projects/widget/risk.tsv" > "$TMP/rv2" \
   felix_verify_record "$MR" "$FROOT" 0 "true" "$(felix_tree_id "$MR" "$FROOT")" )
 _cm_stamp "$MR"
 ( cd "$MR" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.prod.log" \
-    FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+    FELIX_KERNEL_CACHE="$TMP/no-cache-at-all" "$FELIX" merge --base "$(_mbase "$MR")" >/dev/null 2>&1 )
 is "a governed product merges with no installed engine at all" \
    "$(grep -c '^pr merge' "$TMP/gh.prod.log" | tr -d ' ')" "1"
 
@@ -384,7 +388,7 @@ rm -rf "$KC2/1.0.0/harness"; cp -R "$FROOT/harness" "$KC2/1.0.0/harness"
 _sgmerge_under() {
   : > "$TMP/gh.sg.log"
   ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
-      FELIX_KERNEL_CACHE="$KC2" env "$@" "$FELIX" merge --base HEAD~1 >"$TMP/sg.out" 2>&1 )
+      FELIX_KERNEL_CACHE="$KC2" env "$@" "$FELIX" merge --base "$(_mbase "$SG")" >"$TMP/sg.out" 2>&1 )
   SGRC=$?
   SGMERGES="$(grep -c '^pr merge' "$TMP/gh.sg.log" | tr -d ' ')"
 }
@@ -437,7 +441,7 @@ _sgrefused "and FELIX_KERNEL is refused before the cache is even consulted" "FEL
 _sgrecord
 : > "$TMP/gh.sg.log"
 ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
-    FELIX_KERNEL_CACHE="$KC2" "$FELIX" merge --base HEAD~1 --dry-run >"$TMP/sg.out" 2>&1 )
+    FELIX_KERNEL_CACHE="$KC2" "$FELIX" merge --base "$(_mbase "$SG")" --dry-run >"$TMP/sg.out" 2>&1 )
 _sgj="$(_sgline 'judged by ')"; _sgw="$(_sgline 'would squash')"
 if [ -n "$_sgj" ] && [ -n "$_sgw" ] && [ "$_sgj" -lt "$_sgw" ]; then
   ok  "a dry run names the judge before saying what it would squash"
@@ -475,7 +479,7 @@ is "the suite's copy of a harness holding one leaves it behind" \
 _sgdry() {   # <kernel cache> -> a dry run of the pinned merge, judged from that cache
   : > "$TMP/gh.sg.log"
   ( cd "$SG" && PATH="$GHB:$PATH" GHSTUB_LOG="$TMP/gh.sg.log" \
-      FELIX_KERNEL_CACHE="$1" "$FELIX" merge --base HEAD~1 --dry-run >"$TMP/sg.out" 2>&1 )
+      FELIX_KERNEL_CACHE="$1" "$FELIX" merge --base "$(_mbase "$SG")" --dry-run >"$TMP/sg.out" 2>&1 )
   SGRC=$?
 }
 _sgrecord; _sgdry "$KC3"

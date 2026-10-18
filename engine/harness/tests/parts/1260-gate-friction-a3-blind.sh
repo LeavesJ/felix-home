@@ -36,6 +36,11 @@ _gfd_tree_of() {   # pid -> it and every process below it
 
 # felix_tree_id as the base (PR A, 2e4d3b33) has it, kept here as a copy so the
 # id it prints can be compared with this tree's for the same state (C10.6).
+# Restated 2026-10-18 for slot 13, cut before A3: an unborn HEAD with something
+# staged hashes the staged diff too, so two staged contents no longer share the
+# id of a bare `git init`. That is the one change 13 made to the bytes of a
+# tree git reads in full, and the copy carries it so this control still asks
+# that A3 moves no id beyond it.
 cat > "$GFD/verify-base.sh" <<'GFD_BASE_VERIFY'
 FELIX_UNTRACKED_CAP="${FELIX_UNTRACKED_CAP:-500}"
 _felix_hash() { git hash-object --stdin 2>/dev/null; }
@@ -67,7 +72,7 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 felix_tree_id() {
-  local root="$1" home="${2:-}" head diff untracked n meta="" prefix="" f
+  local root="$1" home="${2:-}" head diff cached untracked n meta="" prefix="" f
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
   local exargs=()
@@ -79,6 +84,9 @@ EOF
   if [ -z "$head" ]; then
     head="unborn"
     diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    cached="$(git -C "$root" diff --cached -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    [ -z "$cached" ] || diff="$cached
+$diff"
   else
     diff="$(git -C "$root" diff HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
   fi

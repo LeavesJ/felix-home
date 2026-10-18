@@ -461,7 +461,7 @@ stack|felix_stack_plan|0|held|stack: a plan that prints an unknown action is hel
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is absent is held|usable\tfoo\tok\nabsent\tbar\tnot installed\n
 preflight|felix_ready_report|0|held|preflight: a route's plugin that is disabled is held|usable\tfoo\tok\ndisabled\tbar\tinstalled and switched off\n
 preflight|felix_ready_report|0|held|preflight: a report that could not list the plugins is held|unknown\tbar\tthe plugin list could not be read\n
-discover|felix_discover_cache_current|1|held|discover: a discovery cache that is not current is held|
+discover|felix_discover_cache_current|1|unknown|discover: a discovery cache that is not current is unknown|
 discover|felix_discover_adopt|0|held|discover: an adoption still to declare is held|already\tfoo\tllm\tlow\ndeclare\tbar\tllm\tlow\n
 human_steps|felix_setup_status|0|held|human_steps: a runbook step still to do is held|done\tgh_auth\tok\ntodo\tdeploy_key\tadd the deploy key\n
 stack|felix_stack_plan|1|done|stack: a manifest of comments, whose plan prints nothing and returns 1, reads done|

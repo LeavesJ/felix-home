@@ -213,7 +213,10 @@ DCH="$FROOT/state/discover"; mkdir -p "$DCH"
 { _dstamp; printf 'langfuse\tllm\tlow\n'; } > "$DCH/widget.tsv"
 DCW="$(cat "$DCH/widget.tsv")"
 out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
-is  "felix discover --inspect --quiet exits 2 when the catalogue cannot be read" "$rc" "2"
+# Exits with the status it refused with since 2026-10-01: 3 here, and 2 for rules
+# that could not be read, so that --adopt, which fills the cache with it, can say
+# which of the two it was. Still non-zero, which is what the `&&` above asks.
+is  "felix discover --inspect --quiet exits 3 when the catalogue cannot be read" "$rc" "3"
 is  "and prints nothing, not even the stamp" "$out" ""
 out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover 2>&1)"
 has "and the loud form says the catalogue was never seen" "$out" "could not be read"

@@ -71,8 +71,8 @@ unset CLAUDE_CODE_SESSION_ID
 # failed. GNU tar was not there to measure; skipping means it is never asked.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
   local src="$1" dest="$2" f
-  # An empty source would be copied as "/." (the 18:04 incident above
-  # REAL_HARNESS's check), so a source that is not a directory copies nothing.
+  # An empty source would be copied as "/." (the 18:04 incident at the
+  # driver's REAL_HARNESS check), so a source that is not a directory copies nothing.
   [ -n "$src" ] && [ -d "$src" ] || {
     printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
   mkdir -p "$dest" || return 1

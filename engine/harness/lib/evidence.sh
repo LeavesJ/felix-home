@@ -64,7 +64,16 @@ felix_evidence_check() {
     return 0
   fi
 
-  paths="$(felix_changed_paths "$root" "$base")"
+  # The same one row when git could not list the change to the end (2026-10-08).
+  # A list it broke off would read every rule it missed as n/a, which is the
+  # claim "this change does not touch that surface" about paths never seen.
+  # Named CHANGED-PATHS, as escape.sh names it, so a caller can tell it from a
+  # base that names nothing, and it carries git's reason.
+  if ! paths="$(felix_changed_paths "$root" "$base")"; then
+    printf 'unknown\tCHANGED-PATHS\tgit could not list every path this change touches (%s), so no rule was consulted\n' \
+      "$(felix_change_why "$root" "$base")"
+    return 0
+  fi
 
   while IFS=$'\t' read -r name when requires reason; do
     [ -n "${name:-}" ] || continue

@@ -420,6 +420,26 @@ cases are recorded and are not chased further.
     - It still exits 2 when `git archive` itself fails, and 1 when the entry
       differs. A reader that stops early never turns a failure into a pass.
 
+## Amended before install, 2026-10-16
+
+- **A30 (the founder's labels hold, as felix:hold does).** A founder-only pull
+  request is marked as a draft and labelled `needs-founder`. `felix inventory`
+  already reads both `needs-founder` and `felix:founder` as the founder's. The
+  tick held only `felix:hold`, so the label half of that hold did nothing.
+  GitHub will not merge a draft, so the founder runs `gh pr ready` and then
+  `gh pr merge`, and a live tick between the two would hand the pull request
+  to `felix merge`. That merge does not reliably refuse it: an escape table
+  that only gains rows passes, and new escape rows are not applied to their
+  own pull request. Found asking whether the job could merge the 7-11b escape
+  batch, before it was installed.
+    - A pull request carrying a label named `felix:hold`, `felix:founder` or
+      `needs-founder` gets one `skip` row and is never handed to `felix
+      merge`, whatever its gate run says. Names match without regard to case,
+      as GitHub's do.
+    - The skip row's detail names the label as the pull request carries it.
+    - A label whose name only contains one of these, such as
+      `not-needs-founder`, holds nothing.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

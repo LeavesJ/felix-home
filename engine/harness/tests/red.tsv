@@ -8,5 +8,678 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	e95e5d3bb7f2b55db3940d97951750d90ff97fa0	0.49.293
-run	0	10076	43
+base	origin/main	ddad08e11ece6b43560efbd5245e85dbc1469b4c	0.49.295
+run	673	10892	44
+Stop holds a session whose dirty tree holds a tracked pipe, though a green receipt stands for the clean tree (S1)	1
+SubagentStop declares the tree unverified though the receipt names the clean tree's id (S4)	1
+a branch sharing no history with the base is unknown, in git's own words (M3)	1
+a caller with IFS set to a tab gets the same lines	1
+a change that only deletes a line adds none, and that is read, not failed: exit 0, nothing printed (R3)	1
+a comparison that finds rows writes nothing: no table, no state, no memory	1
+a comparison that found a differing row exits 0	1
+a corrupt index leaves the tree id unknown (T1)	1
+a finished read is 0, its trailing newlines dropped as a substitution drops them (the read mark)	1
+a full felix commission run names the differing row too	1
+a key staged before the first commit, with no base anywhere, is found, exit 1 (h12)	1
+a malformed project row is not compared with the template's	1
+a malformed template row is not the template's row for its need; the well-formed one after it is	1
+a need only the project has prints nothing	1
+a need only the template has prints nothing here	1
+a need the project carries twice is compared row by row	1
+a pointer to a home whose path holds a space resolves to it	1
+a project table holding only comments prints nothing and exits 0	1
+a project's gate.sh under felix gate, started with GIT_PAGER_IN_USE set and a colour terminal, reads git diff-tree -p and git blame under blame.coloring=highlightRecent with no escape byte	1
+a read git broke off just after a line ending in a dot has not finished (the read mark)	1
+a regular file that cannot be read leaves no digest: nothing printed, a failing status (D1)	1
+a row differing from the template's in all six columns names all six, in table order	1
+a row equal only to the template's second row for its need is compared with the first	1
+a row equal to the first of the template's two rows for its need is not named	1
+a row equal to the template's prints nothing and exits 0	1
+a row with an empty cell is not compared, empty or - on either side	1
+a scan that exits 2 gives an unknown row, never disclose (E2)	1
+a template table holding only comments exits 1 and prints nothing	1
+a template whose every row is malformed exits 1 and prints nothing	1
+a tracked pipe sorting before an edit leaves the tree id unknown: nothing printed, a failing status (T1)	1
+a tracked regular file nobody may read leaves the tree id unknown (T1)	1
+a tree whose status git cannot give, a corrupt index, is not clean (T6)	1
+an absent project table prints nothing and exits 0	1
+an absent template table exits 1 and prints nothing	1
+an empty GIT_CONFIG_PARAMETERS becomes exactly the thirteen colour entries	1
+an unreadable template is said: it could not be read	1
+an untracked file named past ASCII changes the tree id, and so does a change to its size (M1)	1
+an untracked file named past ASCII is scanned, and its key found, exit 1 (H4)	1
+an untracked file nobody may read leaves the scan unfinished, exit 2 (h07)	1
+and a name git quotes whatever quotePath says is still counted by its presence (M1)	1
+and against a base, where the branch's own lines were read before the working tree failed (R1)	1
+and beside it GIT_CONFIG_PARAMETERS is exactly the thirteen colour entries	1
+and each of those, and each in the unattended template, is a commit read as running on Node 24 or composite, under the release its comment names	1
+and every other executable file under the engine begins with the same block, or one entry point keeps something the CLI removes	1
+and exits 2 with no base named too (U1)	1
+and fails over a corrupt index with no base given (R2)	1
+and felix doctor prints what it prints without GREP_OPTIONS	1
+and felix which governs from it	1
+and felix which prints what it prints without POSIXLY_CORRECT	1
+and felix_added_lines does under pipefail too (R3)	1
+and felix_added_lines exits 0 printing nothing (R3)	1
+and felix_added_lines prints it (after review)	1
+and felix_added_lines prints it and returns 0 (mutation survivor)	1
+and felix_added_lines prints its committed line (after review)	1
+and felix_changed_paths does under pipefail too (R3)	1
+and is indeterminate (E6)	1
+and is indeterminate too (E6)	1
+and it sees the caller's GIT_CONFIG_PARAMETERS with the thirteen colour entries appended after one space	1
+and its Uncommitted block reads exactly as it does with no colour configuration, without the untracked file	1
+and its reason names the pipe as git names it (S1)	1
+and its reason says the change was not scanned (E1)	1
+and its unstaged line (after review)	1
+and names it on stderr (X4)	1
+and names the pipe on stderr (X4)	1
+and no tool a bin script, handoff-check, starts is given any of them	1
+and no tool felix gate, probes, commission --status or doctor starts is given any of them, or grep, ls, gh and tar print what the caller asked for rather than what the engine reads	1
+and no tool felix which starts is given POSIXLY_CORRECT, or every bash it starts begins in posix mode too	1
+and no tool pre-tool starts is given GREP_OPTIONS	1
+and no tool the pre-tool hook starts is given any of them	1
+and no tool those runs start is given any of them	1
+and over a corrupt index the same (E4)	1
+and over a corrupt index the same table owes nothing it can claim: exit 2, nothing printed (E7)	1
+and over one sorting after it, where the added line was read before git died (R1)	1
+and prints a backup line saying NOT backed up (P1)	1
+and prints no backup committed line (P1)	1
+and quotes git, which names the pipe (M3)	1
+and says NOT backed up (P2)	1
+and says a provider row's answer goes stale	1
+and says it as additionalContext (S4)	1
+and says on stderr that it could not read the change (X1)	1
+and says the tree cannot be identified (S1)	1
+and so does engine/harness/bin/handoff-check run the same way	1
+and so does one sorting after the edit, which the diff reaches only once the edit is printed (T1)	1
+and so does one that exits 3 (E2)	1
+and so is a commissioning check felix commission --status runs	1
+and so is a probe felix probes starts in a bash -c	1
+and so is an untracked file whose name holds a newline, exit 1 (H4)	1
+and the SESSION_HANDOFF.md it writes holds no escape byte	1
+and the escapes (h42)	1
+and the same file tracked is scanned by --tree, exit 1 (H4)	1
+and the stop hook raises no refusal against it	1
+and the thirteen colour entries follow it after one space	1
+and the thirteen old-format colour entries follow it after one space	1
+and the verification log records that stop as blocked, one row (S3)	1
+and with GIT_EXTERNAL_DIFF=true exported it still does, or git hands the diff to that program and the scan reads nothing	1
+bin/secret-scan started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time	1
+but with that file a pipe in the working tree, its hunk is not read in full and the row fires (E3)	1
+colour forced on by a caller's GIT_CONFIG_COUNT entry is overridden: bin/secret-scan still finds the credential	1
+colour forced on by a caller's new-format GIT_CONFIG_PARAMETERS entry for a family key is overridden: bin/secret-scan still finds the credential	1
+colour forced on by a caller's old-format GIT_CONFIG_PARAMETERS entry is overridden: bin/secret-scan still finds the credential	1
+colour forced on by the person's global config is overridden: bin/secret-scan still finds the credential	1
+core.abbrev=12: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+core.abbrev=4 does not change the tree id of a binary file's edit (after review)	1
+core.abbrev=4 in GIT_CONFIG_PARAMETERS: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+core.abbrev=4 in GIT_CONFIG_PARAMETERS: the two edits give two different ids (R7)	1
+core.abbrev=4 in the global config file: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+core.abbrev=4 in the global config file: the two edits give two different ids (R7)	1
+core.abbrev=40: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+core.abbrev=4: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+core.abbrev=4: two binary edits whose blob ids share their first four hex digits give two different ids (R7)	1
+core.abbrev=no: T of a binary edit is the id it has with core.abbrev unset (R7)	1
+diff.ignoreSubmodules=all: T of the tree with the submodule moved is the id it has with no setting (R3)	1
+diff.ignoreSubmodules=all: T still tells the moved tree from the clean one (R3)	1
+diff.renames copies: A prints the copied file's lines (R4)	1
+diff.renames copies: S finds a credential in a file moved from fixtures/ to src/, exit 1 (R4)	1
+diff.renames copies: S finds a credential in the copy, exit 1 (R4)	1
+diff.renames copies: S finds a credential in the renamed file, exit 1 (R4)	1
+diff.renames true: S finds a credential in a file moved from fixtures/ to src/, exit 1 (R4)	1
+diff.renames true: S finds a credential in the renamed file, exit 1 (R4)	1
+diff.renames unset: S finds a credential in a file moved from fixtures/ to src/, exit 1 (R4)	1
+diff.renames unset: S finds a credential in the renamed file, exit 1 (R4)	1
+diff.renames=copies: A's output is byte for byte the one with it unset (R4)	1
+diff.renames=false: A's output is byte for byte the one with it unset (R4)	1
+each differing row names only the columns that differ, separated by single spaces	1
+each executable file's pin, run on its own, exports exactly the thirteen colour entries, appends them to a caller's entry and leaves a value already ending in them alone	1
+engine/harness/felix turns off the options a caller's SHELLOPTS can turn on, stops exporting SHELLOPTS and BASHOPTS, records the caller's CDPATH unexported and unsets all sixteen names, or one of them reaches what the engine runs	1
+every executable file has a pin, and no line of any of them holds a command substitution, a process substitution or a backtick	1
+every executable file under engine/harness pins git colour after its caller-environment unset line and before its first git command	1
+every executable file under the engine unsets all eight caller variables as its first command other than set, or one of them reaches a path resolution, a source or a tool before anything removes it	1
+every executable file's pin, held to one process, exports what it exports unheld and tries no fork	1
+every git call under felix receipt started with no GIT_CONFIG_PARAMETERS, its secret-scan child included, receives the thirteen colour entries exactly once	1
+felix classify there says Not classified and exits 1 (h17)	1
+felix commission --status prints the drift heading as its own line	1
+felix gate over a tree holding a tracked pipe leaves nothing the next read calls current (T8)	1
+felix gate there says on stderr that no receipt was written (h13)	1
+felix merge --dry-run there says git could not read all of the change (M3)	1
+felix next there ranks the unread change first, as not scanned in full (h33)	1
+felix pr there refuses, exit non-zero, saying git could not read the change (h14)	1
+felix receipt over a corrupt index lists changed as unknown (E6)	1
+felix receipt over a corrupt index says the changed paths are not known (h39, h44)	1
+felix receipt over a tracked pipe lists the tree as unknown (E6)	1
+felix receipt there lists risk as unknown (h41)	1
+felix scope over a corrupt index is not in scope and fails, where today it finds nothing to scope (E8)	1
+felix scope over a tracked pipe hiding the content is not in scope and fails (E8)	1
+felix started with no GIT_CONFIG_PARAMETERS hands its gate child exactly the thirteen colour entries	1
+felix_added_lines whose every read past the stacked base's own fails partway fails when it made one, and exits 0 when it made none (U2)	1
+felix_changed_paths fails over a corrupt index (R2)	1
+felix_classify_diff over a tracked pipe prints an unknown row, and the tier is unknown (E4)	1
+felix_escapes over a corrupt index prints an unknown row, since the changed paths were not read (E1)	1
+felix_escapes over a tracked pipe prints an unknown row, since the added lines were not read (E1)	1
+felix_evidence_check over a corrupt index, its base resolvable, prints exactly one row, unknown (E5)	1
+felix_land_owed exits 2 printing nothing when the changed paths cannot be read (E7)	1
+felix_merge_blockers passes that row through as unknown (E1)	1
+fields that read as the same number but differ in bytes are named	1
+hooks/session-start started with no GIT_CONFIG_PARAMETERS calls git with exactly the thirteen colour entries, every time	1
+ignore = all for the submodule in a committed .gitmodules: T still differs when its checkout moves (R3)	1
+lines come out in the project table's order, not the template's	1
+no engine source line runs porcelain git diff without --no-ext-diff and --no-textconv beside it (L)	1
+nor that the rest escapes nothing (M3)	1
+on an orphan branch with no commit yet, a staged key is found against a base that resolves, exit 1 (h11)	1
+on an unborn HEAD, two different staged contents have two ids, neither the id with nothing staged (T5, amended)	1
+one line per differing row: two spaces, the need padded to 22, the columns	1
+one that ends in only the last two of the colour entries gets all thirteen appended	1
+one that holds the thirteen colour entries earlier but ends in another entry gets them appended again	1
+one whose text ends like the thirteen colour entries, but not as whole entries, gets them appended	1
+run from fixtures/ under diff.relative, a key committed to fixtures/creds.py is judged as fixtures/creds.py, excluded, exit 0 (P1)	1
+run from fixtures/, an untracked key in fixtures/u.py is judged as fixtures/u.py, excluded, exit 0 (P1)	1
+run from sub/ under diff.relative, a key the branch committed to creds.py outside it is found, exit 1 (P2)	1
+run from sub/ under diff.relative, and the same key staged, exit 1 (P2)	1
+run from sub/ under diff.relative, and the same key unstaged, exit 1 (P2)	1
+run from sub/, an untracked key in outside.py at the top is found, exit 1 (P2)	1
+secret-scan --tree over a tracked path that is a socket exits 2 (X4)	1
+secret-scan --tree over a tracked pipe exits 2 (X4)	1
+secret-scan finds a key in a -diff file named -c1, exit 1 (after review)	1
+secret-scan finds a key in a -diff file named a*.txt beside a binary ab.txt, exit 1 (mutation survivor)	1
+submodule.sub.ignore=all: T of the tree with the submodule moved is the id it has with no setting (R3)	1
+submodule.sub.ignore=all: T still tells the moved tree from the clean one (R3)	1
+tests/red started with no GIT_CONFIG_PARAMETERS has exactly the thirteen colour entries on its first git call, and stops there when git refuses	1
+that receipt is stale, not current, once the tree holds an edit and a tracked pipe sorting before it (T7)	1
+the comparison is exact: a doubled space, a trailing space and letter case each differ	1
+the drift note names the command that re-arms a commission grant	1
+the drift note names the template table, not only its directory	1
+the drift note says a project may keep its own row on purpose	1
+the drift note says the receipt reads stale after a row changes	1
+the drift note shows the template's path	1
+the drift section follows the missing needs and comes before the unanswered steps	1
+the pulse makes no commit over a tracked pipe, HEAD unchanged (P1)	1
+the pulse over a corrupt index says NOT backed up, never that nothing is new (H2)	1
+the pulse over a tracked pipe names the path git could not stage (L2)	1
+under * -diff, a NUL past byte 8000 leaves a file text: S finds the committed credential added to it, exit 1 (R2)	1
+under * -diff, a NUL past byte 8000 leaves a file text: S finds the credential staged on an unborn HEAD, exit 1 (R2)	1
+under * -diff, a NUL past byte 8000 leaves a file text: S finds the staged credential added to it, exit 1 (R2)	1
+under * -diff, a NUL past byte 8000 leaves a file text: S finds the unstaged credential added to it, exit 1 (R2)	1
+under * -diff, a file whose mode alone changed, staged, nothing secret: A returns 0 (R6)	1
+under * -diff, a file whose mode alone changed, unstaged, nothing secret: A returns 0 (R6)	1
+under * -diff, a name - alone: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name - alone: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name - alone: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name - alone: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name - alone: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name - alone: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name --x: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name --x: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name --x: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name --x: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name --x: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name --x: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name -c1: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name -c1: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name -c1: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name -c1: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name -c1: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name -c1: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name -n: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name -n: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name -n: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name -n: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name -n: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name -n: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name :!x.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name :!x.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name :!x.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name :!x.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name :!x.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name :!x.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name :(glob)a*.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name :(glob)a*.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name :(glob)a*.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name :(glob)a*.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name :(glob)a*.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name :(glob)a*.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name :/top.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name :/top.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name :/top.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name :/top.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name :/top.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name :/top.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name :x.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name :x.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name :x.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name :x.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name :x.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name :x.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name HEAD: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name HEAD: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name HEAD: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name HEAD: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name HEAD: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name HEAD: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name a*b.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name a*b.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name a*b.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name a*b.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name a*b.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name a*b.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name creds[1].txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name creds[1].txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name creds[1].txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name creds[1].txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name creds[1].txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name creds[1].txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name ending in a space: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name ending in a space: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name ending in a space: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name ending in a space: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name ending in a space: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name ending in a space: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name holding " b/": A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name holding " b/": A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding " b/": A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding " b/": S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name holding " b/": S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name holding " b/": S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name holding a backslash: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a backslash: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a backslash: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a backslash: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name holding a backslash: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name holding a backslash: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name holding a double quote: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a double quote: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a double quote: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a double quote: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name holding a double quote: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name holding a double quote: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name holding a newline: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a newline: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a newline: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a newline: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name holding a newline: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name holding a newline: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name holding a tab: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a tab: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a tab: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name holding a tab: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name holding a tab: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name holding a tab: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name in a subdirectory: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name in a subdirectory: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name in a subdirectory: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name in a subdirectory: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name in a subdirectory: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name in a subdirectory: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name main: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name main: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name main: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name main: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name main: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name main: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name past ASCII: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name past ASCII: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name past ASCII: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name past ASCII: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name past ASCII: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name past ASCII: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name q?.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name q?.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name q?.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name q?.txt: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name q?.txt: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name q?.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a name with a space: A prints the committed credential's line and no byte of another file (R1)	1
+under * -diff, a name with a space: A prints the staged credential's line and no byte of another file (R1)	1
+under * -diff, a name with a space: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * -diff, a name with a space: S finds the committed credential, exit 1 (R1)	1
+under * -diff, a name with a space: S finds the staged credential, exit 1 (R1)	1
+under * -diff, a name with a space: S finds the unstaged credential, exit 1 (R1)	1
+under * -diff, a tracked link replaced by a regular file, staged, nothing secret: A returns 0 (R6)	1
+under * -diff, a tracked link replaced by a regular file, unstaged, nothing secret: A returns 0 (R6)	1
+under * -diff, creds[1].txt committed, GIT_GLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt committed, GIT_ICASE_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: A prints its line (R5)	1
+under * -diff, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: S finds the credential, exit 1 (R5)	1
+under * -diff, creds[1].txt committed, GIT_NOGLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt staged, GIT_GLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt staged, GIT_ICASE_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt staged, GIT_LITERAL_PATHSPECS=1: A prints its line (R5)	1
+under * -diff, creds[1].txt staged, GIT_LITERAL_PATHSPECS=1: S finds the credential, exit 1 (R5)	1
+under * -diff, creds[1].txt staged, GIT_NOGLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt unstaged, GIT_GLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt unstaged, GIT_ICASE_PATHSPECS=1: S never exits 0 (R5)	1
+under * -diff, creds[1].txt unstaged, GIT_LITERAL_PATHSPECS=1: A prints its line (R5)	1
+under * -diff, creds[1].txt unstaged, GIT_LITERAL_PATHSPECS=1: S finds the credential, exit 1 (R5)	1
+under * -diff, creds[1].txt unstaged, GIT_NOGLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * binary, a NUL past byte 8000 leaves a file text: S finds the committed credential added to it, exit 1 (R2)	1
+under * binary, a NUL past byte 8000 leaves a file text: S finds the credential staged on an unborn HEAD, exit 1 (R2)	1
+under * binary, a NUL past byte 8000 leaves a file text: S finds the staged credential added to it, exit 1 (R2)	1
+under * binary, a NUL past byte 8000 leaves a file text: S finds the unstaged credential added to it, exit 1 (R2)	1
+under * binary, a file whose mode alone changed, staged, nothing secret: A returns 0 (R6)	1
+under * binary, a file whose mode alone changed, unstaged, nothing secret: A returns 0 (R6)	1
+under * binary, a name --x: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name --x: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name --x: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name --x: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name --x: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name --x: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name -c1: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name -c1: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name -c1: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name -c1: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name -c1: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name -c1: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name -n: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name -n: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name -n: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name -n: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name -n: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name -n: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name :x.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name :x.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name :x.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name :x.txt: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name :x.txt: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name :x.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name a*b.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name a*b.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name a*b.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name a*b.txt: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name a*b.txt: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name a*b.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name creds[1].txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name creds[1].txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name creds[1].txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name creds[1].txt: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name creds[1].txt: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name creds[1].txt: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name in a subdirectory: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name in a subdirectory: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name in a subdirectory: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name in a subdirectory: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name in a subdirectory: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name in a subdirectory: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name past ASCII: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name past ASCII: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name past ASCII: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name past ASCII: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name past ASCII: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name past ASCII: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name q?.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name q?.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name q?.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name q?.txt: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name q?.txt: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name q?.txt: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a name with a space: A prints the committed credential's line and no byte of another file (R1)	1
+under * binary, a name with a space: A prints the staged credential's line and no byte of another file (R1)	1
+under * binary, a name with a space: A prints the unstaged credential's line and no byte of another file (R1)	1
+under * binary, a name with a space: S finds the committed credential, exit 1 (R1)	1
+under * binary, a name with a space: S finds the staged credential, exit 1 (R1)	1
+under * binary, a name with a space: S finds the unstaged credential, exit 1 (R1)	1
+under * binary, a tracked link replaced by a regular file, staged, nothing secret: A returns 0 (R6)	1
+under * binary, a tracked link replaced by a regular file, unstaged, nothing secret: A returns 0 (R6)	1
+under * binary, creds[1].txt committed, GIT_GLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under * binary, creds[1].txt committed, GIT_ICASE_PATHSPECS=1: S never exits 0 (R5)	1
+under * binary, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: A prints its line (R5)	1
+under * binary, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: S finds the credential, exit 1 (R5)	1
+under * binary, creds[1].txt committed, GIT_NOGLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under -diff in .git/info/attributes, a key in a file whose only NUL lies past its first 8000 bytes is found, exit 1 (B1)	1
+under -diff in .git/info/attributes, felix_added_lines prints the line the branch committed (B2)	1
+under -diff in .git/info/attributes, felix_added_lines prints the staged line (B2)	1
+under -diff in .git/info/attributes, felix_added_lines prints the unstaged line (B2)	1
+under -diff in .git/info/attributes, on a branch whose base moved on, felix_added_lines prints the committed line through the merge-tree refs (B2)	1
+under -diff in .git/info/attributes, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under -diff in .git/info/attributes, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under -diff in .git/info/attributes, secret-scan finds the same key staged, exit 1 (B1)	1
+under -diff in .git/info/attributes, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under -diff in a .gitattributes the branch commits, felix_added_lines prints the line the branch committed (B2)	1
+under -diff in a .gitattributes the branch commits, felix_added_lines prints the staged line (B2)	1
+under -diff in a .gitattributes the branch commits, felix_added_lines prints the unstaged line (B2)	1
+under -diff in a .gitattributes the branch commits, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under -diff in a .gitattributes the branch commits, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under -diff in a .gitattributes the branch commits, secret-scan finds the same key staged, exit 1 (B1)	1
+under -diff in a .gitattributes the branch commits, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under -diff in the file core.attributesFile names, felix_added_lines prints the line the branch committed (B2)	1
+under -diff in the file core.attributesFile names, felix_added_lines prints the staged line (B2)	1
+under -diff in the file core.attributesFile names, felix_added_lines prints the unstaged line (B2)	1
+under -diff in the file core.attributesFile names, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under -diff in the file core.attributesFile names, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under -diff in the file core.attributesFile names, secret-scan finds the same key staged, exit 1 (B1)	1
+under -diff in the file core.attributesFile names, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under -diff, with a tracked file nobody may read, secret-scan exits 2 (U2)	1
+under -diff, with a tracked path a named pipe, secret-scan exits 2 (U2)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, and tells two different edits of app.txt apart (D3)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, felix_added_lines prints the line the branch committed (D2)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, felix_added_lines prints the staged line (D2)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, felix_added_lines prints the unstaged line (D2)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, secret-scan finds the same key staged, exit 1 (D1)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under GIT_EXTERNAL_DIFF naming that program in the reader's environment, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under a diff driver set binary=true, felix_added_lines prints the line the branch committed (B2)	1
+under a diff driver set binary=true, felix_added_lines prints the staged line (B2)	1
+under a diff driver set binary=true, felix_added_lines prints the unstaged line (B2)	1
+under a diff driver set binary=true, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under a diff driver set binary=true, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under a diff driver set binary=true, secret-scan finds the same key staged, exit 1 (B1)	1
+under a diff driver set binary=true, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, and tells two different edits of app.txt apart (D3)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, felix_added_lines prints the line the branch committed (D2)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, felix_added_lines prints the staged line (D2)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, felix_added_lines prints the unstaged line (D2)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, secret-scan finds the same key staged, exit 1 (D1)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under a diff driver whose command is that program, its attribute in .git/info/attributes, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, a floor raised in place, unstaged, is read as confined and the row demoted (rule)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, and tells two different edits of app.txt apart (D3)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, felix_added_lines prints the line the branch committed (D2)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, felix_added_lines prints the staged line (D2)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, felix_added_lines prints the unstaged line (D2)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, felix_tree_id tells the clean tree from one with app.txt edited (D3)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, secret-scan finds the same key staged, exit 1 (D1)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under a textconv that prints nothing, its attribute in .git/info/attributes, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, a floor raised in place, unstaged, is read as confined and the row demoted (rule)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, and tells two different edits of app.txt apart (D3)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, felix_added_lines prints the line the branch committed (D2)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, felix_added_lines prints the staged line (D2)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, felix_added_lines prints the unstaged line (D2)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, felix_tree_id tells the clean tree from one with app.txt edited (D3)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, secret-scan finds the same key staged, exit 1 (D1)	1
+under a textconv that prints nothing, its attribute in a .gitattributes the branch commits, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, a floor raised in place, unstaged, is read as confined and the row demoted (rule)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, and tells two different edits of app.txt apart (D3)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, felix_added_lines prints the line the branch committed (D2)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, felix_added_lines prints the staged line (D2)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, felix_added_lines prints the unstaged line (D2)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, felix_tree_id tells the clean tree from one with app.txt edited (D3)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, secret-scan finds the same key staged, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in .git/info/attributes, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, a floor raised in place, unstaged, is read as confined and the row demoted (rule)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, and tells two different edits of app.txt apart (D3)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, felix_added_lines prints the line the branch committed (D2)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, felix_added_lines prints the staged line (D2)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, felix_added_lines prints the unstaged line (D2)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, felix_tree_id tells the clean tree from one with app.txt edited (D3)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, secret-scan finds the same key staged, exit 1 (D1)	1
+under a textconv that rewrites the content, its attribute in a .gitattributes the branch commits, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under a textconv that rewrites the content, on a branch whose base moved on, felix_added_lines prints the committed line through the merge-tree refs (D2)	1
+under binary in a .gitattributes the branch commits, felix_added_lines prints the line the branch committed (B2)	1
+under binary in a .gitattributes the branch commits, felix_added_lines prints the staged line (B2)	1
+under binary in a .gitattributes the branch commits, felix_added_lines prints the unstaged line (B2)	1
+under binary in a .gitattributes the branch commits, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under binary in a .gitattributes the branch commits, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under binary in a .gitattributes the branch commits, secret-scan finds the same key staged, exit 1 (B1)	1
+under binary in a .gitattributes the branch commits, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under color.diff=always, felix_added_lines prints the line the branch committed (rule)	1
+under color.diff=always, felix_added_lines prints the staged line (rule)	1
+under color.diff=always, felix_added_lines prints the unstaged line (rule)	1
+under color.diff=always, secret-scan finds a key the branch committed to a text file, exit 1 (rule)	1
+under color.diff=always, secret-scan finds the same key staged, exit 1 (rule)	1
+under color.diff=always, secret-scan finds the same key unstaged, exit 1 (rule)	1
+under color.ui=always, felix_added_lines prints the line the branch committed (rule)	1
+under color.ui=always, felix_added_lines prints the staged line (rule)	1
+under color.ui=always, felix_added_lines prints the unstaged line (rule)	1
+under color.ui=always, secret-scan finds a key the branch committed to a text file, exit 1 (rule)	1
+under color.ui=always, secret-scan finds the same key staged, exit 1 (rule)	1
+under color.ui=always, secret-scan finds the same key unstaged, exit 1 (rule)	1
+under core.abbrev=4, a second binary edit whose blob id shares four hex digits with the first has another tree id (after review)	1
+under core.bigFileThreshold below the file's size, felix_added_lines prints the line the branch committed (B2)	1
+under core.bigFileThreshold below the file's size, felix_added_lines prints the staged line (B2)	1
+under core.bigFileThreshold below the file's size, felix_added_lines prints the unstaged line (B2)	1
+under core.bigFileThreshold below the file's size, secret-scan finds a key staged on an unborn HEAD, exit 1 (B1)	1
+under core.bigFileThreshold below the file's size, secret-scan finds a key the branch committed to a text file, exit 1 (B1)	1
+under core.bigFileThreshold below the file's size, secret-scan finds the same key staged, exit 1 (B1)	1
+under core.bigFileThreshold below the file's size, secret-scan finds the same key unstaged, exit 1 (B1)	1
+under core.bigFileThreshold=8, a NUL past byte 8000 leaves a file text: S finds the committed credential added to it, exit 1 (R2)	1
+under core.bigFileThreshold=8, a NUL past byte 8000 leaves a file text: S finds the credential staged on an unborn HEAD, exit 1 (R2)	1
+under core.bigFileThreshold=8, a NUL past byte 8000 leaves a file text: S finds the staged credential added to it, exit 1 (R2)	1
+under core.bigFileThreshold=8, a NUL past byte 8000 leaves a file text: S finds the unstaged credential added to it, exit 1 (R2)	1
+under core.bigFileThreshold=8, a file whose mode alone changed, staged, nothing secret: A returns 0 (R6)	1
+under core.bigFileThreshold=8, a file whose mode alone changed, unstaged, nothing secret: A returns 0 (R6)	1
+under core.bigFileThreshold=8, a name --x: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name --x: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name --x: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name --x: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name --x: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name --x: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -c1: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -c1: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -c1: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -c1: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -c1: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -c1: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -n: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -n: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -n: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name -n: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -n: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name -n: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name :x.txt: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name a*b.txt: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name creds[1].txt: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name in a subdirectory: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name past ASCII: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name q?.txt: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name with a space: A prints the committed credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name with a space: A prints the staged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name with a space: A prints the unstaged credential's line and no byte of another file (R1)	1
+under core.bigFileThreshold=8, a name with a space: S finds the committed credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name with a space: S finds the staged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a name with a space: S finds the unstaged credential, exit 1 (R1)	1
+under core.bigFileThreshold=8, a tracked file replaced by a symbolic link, staged, nothing secret: A returns 0 (R6)	1
+under core.bigFileThreshold=8, a tracked link replaced by a regular file, staged, nothing secret: A returns 0 (R6)	1
+under core.bigFileThreshold=8, a tracked link replaced by a regular file, unstaged, nothing secret: A returns 0 (R6)	1
+under core.bigFileThreshold=8, creds[1].txt committed, GIT_GLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under core.bigFileThreshold=8, creds[1].txt committed, GIT_ICASE_PATHSPECS=1: S never exits 0 (R5)	1
+under core.bigFileThreshold=8, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: A prints its line (R5)	1
+under core.bigFileThreshold=8, creds[1].txt committed, GIT_LITERAL_PATHSPECS=1: S finds the credential, exit 1 (R5)	1
+under core.bigFileThreshold=8, creds[1].txt committed, GIT_NOGLOB_PATHSPECS=1: S never exits 0 (R5)	1
+under diff.dstPrefix=b/fixtures/, a key the branch committed to creds.py is judged as creds.py, exit 1 (P1)	1
+under diff.dstPrefix=b/fixtures/, and the same key staged, exit 1 (P1)	1
+under diff.dstPrefix=b/fixtures/, and the same key unstaged, exit 1 (P1)	1
+under diff.external carried in GIT_CONFIG_COUNT, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under diff.external carried in GIT_CONFIG_COUNT, and tells two different edits of app.txt apart (D3)	1
+under diff.external carried in GIT_CONFIG_COUNT, felix_added_lines prints the line the branch committed (D2)	1
+under diff.external carried in GIT_CONFIG_COUNT, felix_added_lines prints the staged line (D2)	1
+under diff.external carried in GIT_CONFIG_COUNT, felix_added_lines prints the unstaged line (D2)	1
+under diff.external carried in GIT_CONFIG_COUNT, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under diff.external carried in GIT_CONFIG_COUNT, secret-scan finds the same key staged, exit 1 (D1)	1
+under diff.external carried in GIT_CONFIG_COUNT, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under diff.external carried in GIT_CONFIG_COUNT, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under diff.external naming a made-up patch, on a branch whose base moved on, felix_added_lines prints the committed line through the merge-tree refs (D2)	1
+under diff.external naming a program that prints a made-up patch, a floor the branch swapped for another package is not called confined, so the row fires (D4)	1
+under diff.external naming a program that prints a made-up patch, and tells two different edits of app.txt apart (D3)	1
+under diff.external naming a program that prints a made-up patch, felix_added_lines prints the line the branch committed (D2)	1
+under diff.external naming a program that prints a made-up patch, felix_added_lines prints the staged line (D2)	1
+under diff.external naming a program that prints a made-up patch, felix_added_lines prints the unstaged line (D2)	1
+under diff.external naming a program that prints a made-up patch, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under diff.external naming a program that prints a made-up patch, secret-scan finds the same key staged, exit 1 (D1)	1
+under diff.external naming a program that prints a made-up patch, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under diff.external naming a program that prints a made-up patch, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under diff.external naming true, a floor raised in place, unstaged, is read as confined and the row demoted (rule)	1
+under diff.external naming true, and tells two different edits of app.txt apart (D3)	1
+under diff.external naming true, felix_added_lines prints the line the branch committed (D2)	1
+under diff.external naming true, felix_added_lines prints the staged line (D2)	1
+under diff.external naming true, felix_added_lines prints the unstaged line (D2)	1
+under diff.external naming true, felix_tree_id tells the clean tree from one with app.txt edited (D3)	1
+under diff.external naming true, secret-scan finds a key the branch committed to a text file, exit 1 (D1)	1
+under diff.external naming true, secret-scan finds the same key staged, exit 1 (D1)	1
+under diff.external naming true, secret-scan finds the same key unstaged, exit 1 (D1)	1
+under diff.external naming true, the edited tree's id is the one it has once the setting is taken away (D3)	1
+under diff.ignoreSubmodules=all, a moved submodule pointer still changes the tree id (after review)	1
+under diff.noprefix, a key committed to a real fixtures/creds.py is still excluded, exit 0 (P1)	1
+under diff.noprefix, a key committed to a_fixtures/creds.py, not a fixtures directory, is found, exit 1 (P1)	1
+under diff.renames=copies, a key the branch copies out of fixtures/ into src/ is found, exit 1 (rule)	1
+under diff.renames=copies, felix_added_lines still prints the lines of a file the branch copied (after review)	1
+under diff.renames=true, a key the branch moves out of fixtures/ into src/ is found, exit 1 (rule)	1
+under ignore = all in a committed .gitmodules, a moved submodule pointer still changes the tree id (after review)	1
+under pipefail, a template larger than a pipe holds is compared at its first row and its last	1
+with A.txt then a pipe, the scan exits 2, the change not read (X1)	1
+with CDPATH naming . and another engine, engine/harness/felix which run from the checkout's top resolves its libraries and prints what it prints without CDPATH, or cd prints the directory into the path it captures	1
+with GIT_CONFIG_PARAMETERS malformed, so git refuses every call, secret-scan exits 2, not 0 (U1)	1
+with GIT_GLOB_PATHSPECS=1, which makes git refuse a literal path, the scan does not call the change clean (after review, U2)	1
+with GIT_LITERAL_PATHSPECS=1, secret-scan finds a key in a -diff file named creds[1].txt, exit 1 (after review)	1
+with GREP_OPTIONS=-n exported, felix commission --status prints what it prints without it, or every row and surface it lists carries a line number	1
+with GREP_OPTIONS=-n exported, felix evidence names its rules and finds the gap it finds without it, or a rule reads as 1:code and the gap goes unreported	1
+with POSIXLY_CORRECT=1 exported, felix which exits 0 with no syntax error, or bash 3.2 reads the libraries in posix mode and refuses their <( )	1
+with SHELLOPTS, BASHOPTS, TAR_READER_OPTIONS, GIT_EXTERNAL_DIFF, GIT_DIFF_OPTS, the four GIT_*_PATHSPECS and TMOUT exported, the gate, a probe and a commissioning check are given none of them, or an exported SHELLOPTS hands the CLI's own pipefail to checks written to run without it	1
+with SHELLOPTS=errexit exported, felix doctor prints what it prints without it and exits as it does, or the first command that returns non-zero ends it	1
+with all eight exported, the gate felix gate starts in a bash -c is given none of them	1
+with colour forced on by the repository's own config, a change the risk row's confine allows still leaves that row's escape quiet in felix receipt	1
+with colour forced on by the repository's own config, a project's gate.sh under felix gate reads git log, diff, grep and status with no escape byte	1
+with colour forced on by the repository's own config, bin/secret-scan still finds a credential the branch adds, exits 1 and names it	1
+with colour forced on by the repository's own config, felix classify still sees the destructive-SQL content rule in the added lines	1
+with colour forced on by the repository's own config, felix handoff on a tree whose only change is untracked still prints that the tree is clean	1
+with colour forced on by the repository's own config, felix receipt names the same tree fingerprint for a dirty tree as with none	1
+with colour forced on by the repository's own config, felix receipt still escapes destructive SQL added in a migration as durable ADDED-LINES	1
+with no base ref anywhere, the uncommitted-only scan of the same unreadable tree exits 2 (X2)	1
+with no commit yet, a staged file replaced by a pipe leaves the tree id unknown (T2)	1
+with no diff setting, felix_tree_id of an unborn HEAD is the stacked base's (N1)	1
+with no diff setting, secret-scan finds a key staged on an unborn HEAD, exit 1 (N1)	1
+with no scratch index to ask the nested-repository question on, the pulse makes no commit (P2)	1
+with no setting, a NUL past byte 8000 leaves a file text: S finds the credential staged on an unborn HEAD, exit 1 (R2, guard)	1

@@ -134,17 +134,30 @@ fi
 LCB_D="$TMP/lc-detect"; LCB_DP="$TMP/lc-detect-proj"
 mkdir -p "$LCB_D/.github/workflows" "$LCB_D/tests" "$LCB_DP"
 printf 'on: push\n' > "$LCB_D/.github/workflows/ci.yml"; printf 'FROM scratch\n' > "$LCB_D/Dockerfile"
+#
+# Restated 2026-10-16, when claude/declared-not-text landed over this block:
+# felix_declared now calls a list whose listed line holds a byte outside tab
+# and printable ASCII no list, 2 with nothing printed, in every locale, so the
+# Latin-1 name can no longer reach the comparison and felix_undeclared returns
+# 2. The byte fixture asserts that, the same in C and UTF-8, and the ASCII one
+# (ci and Zeta, no byte) keeps the collation case: Zeta sorts before ci in
+# bytes and after it in the locale.
 printf 'ci\ncaf\351\nZeta\n' > "$LCB_DP/capabilities"
+LCB_DA="$TMP/lc-detect-proj-ascii"; mkdir -p "$LCB_DA"; printf 'ci\nZeta\n' > "$LCB_DA/capabilities"
 _lcb_undecl() {
   ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-    felix_undeclared "$LCB_D" "$LCB_DP" | tr '\n' ' '; printf 'rc=%s' "${PIPESTATUS[0]}" ) </dev/null 2>/dev/null
+    felix_undeclared "$LCB_D" "${LCB_P:-$LCB_DP}" | tr '\n' ' '; printf 'rc=%s' "${PIPESTATUS[0]}" ) </dev/null 2>/dev/null
 }
-is  "in C, the locale detect fixture's undeclared capabilities are deploy and tests" "$(_lcb_in C _lcb_undecl)" "deploy tests rc=0"
+is  "in C, the locale detect fixture's undeclared capabilities are deploy and tests" "$(LCB_P="$LCB_DA" _lcb_in C _lcb_undecl)" "deploy tests rc=0"
+is  "in C, a declared capability holding a byte that is not ASCII makes the list unread, so felix_undeclared names nothing and returns 2" \
+    "$(_lcb_in C _lcb_undecl)" "rc=2"
 LCB_D1="in a UTF-8 locale, a declared capability holding a byte that is not UTF-8 leaves felix_undeclared naming exactly what it names in C"
+LCB_D2="and in a UTF-8 locale the ASCII fixture's undeclared capabilities are deploy and tests, as in C"
 if [ -n "$LCB_U8" ]; then
-  is  "$LCB_D1" "$(_lcb_in all _lcb_undecl)" "deploy tests rc=0"
+  is  "$LCB_D1" "$(_lcb_in all _lcb_undecl)" "rc=2"
+  is  "$LCB_D2" "$(LCB_P="$LCB_DA" _lcb_in all _lcb_undecl)" "deploy tests rc=0"
 else
-  skip "$LCB_D1" "$LCB_NONE"
+  skip "$LCB_D1" "$LCB_NONE"; skip "$LCB_D2" "$LCB_NONE"
 fi
 
 # The lint. One matcher, _lcb_lint, called by the fixture checks and by the

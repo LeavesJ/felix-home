@@ -11,9 +11,11 @@
 # the text returned it, ended the shell with it, or was never run because the
 # checkout could not be entered; a `when` that does not parse is unknown and
 # never run; a `when` that ended the shell with 0 still applies. The check
-# column is pinned unchanged, because anything but 0, 126 and 127 there is
-# held, and held fails closed. Everything this touches is restored below and
-# everything it defines unset.
+# column was pinned here, anything but 0, 126 and 127 there held, until
+# 2026-10-08: a check that exits 2 could not be asked and is unknown, and so
+# is one that does not parse, parsed first as a `when` is. Every other
+# status still holds, and held fails closed. Everything this touches is
+# restored below and everything it defines unset.
 _commissioning_build alpha12
 cp "$CMP/commissioning.tsv" "$TMP/cmwc-table.keep"
 _cmwcrow() { printf '%s\t-\t-\t%s\t-\t%s\t9' "$1" "$2" "$3"; }   # need, when, check
@@ -142,10 +144,10 @@ has "and the missing function is named, not the when's status" \
     "$(_cmwcdt "$_cmwcrun" cmwc_efn)" "felix_cmwc_no_such_function"
 
 is  "a check that ends the shell on an unset variable is held, as before" "$(_cmwcst "$_cmwcrun" cmwc_c_unset)" "held"
-is  "a check that returns 2 is held, as before"                       "$(_cmwcst "$_cmwcrun" cmwc_c_two)"    "held"
+is  "a check that returns 2 could not be asked, and is unknown"        "$(_cmwcst "$_cmwcrun" cmwc_c_two)"    "unknown"
 is  "a check that exits 3 is held, as before"                         "$(_cmwcst "$_cmwcrun" cmwc_c_exit3)"  "held"
 is  "a check whose engine function ends the shell is held"            "$(_cmwcst "$_cmwcrun" cmwc_c_die)"    "held"
-is  "a check that does not parse is held, not unknown"                "$(_cmwcst "$_cmwcrun" cmwc_c_parse)"  "held"
+is  "a check that does not parse is unknown, on bash 3.2 as on 5"    "$(_cmwcst "$_cmwcrun" cmwc_c_parse)"  "unknown"
 is  "a check that writes returned to its descriptors 1 to 9 and exits 1 is held" "$(_cmwcst "$_cmwcrun" cmwc_c_fake)" "held"
 is  "a check naming a command that is not here is unknown, as before" "$(_cmwcst "$_cmwcrun" cmwc_c_missing)" "unknown"
 has "and it says a command in the check does not exist here" \

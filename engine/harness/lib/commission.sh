@@ -14,12 +14,14 @@
 # the check said yes or no. `not-applicable` asked nothing. `unknown` is the
 # state this table exists to make reachable: an instrument that is not
 # installed here, a `when` or check whose command does not exist, a `when`
-# that answers neither yes nor no, an engine function a check names that this
-# process has not loaded, a checkout that cannot be entered, or a lookup the
-# state is read from that could not be made: the declared capabilities, or the
-# engine functions a check names. It blocks the receipt and nothing can
-# demote it but the machine changing. `malformed` counts toward nothing and
-# fails the run.
+# that answers neither yes nor no, a `when` or check that does not parse, a
+# check that says it could not be asked (it exits 2), an engine function a
+# check names that this process has not loaded, a checkout that cannot be
+# entered, or a lookup the state is read from that could not be made: the
+# declared capabilities, or the engine functions a check names. It blocks the
+# receipt until the row can be asked: the machine changes, or, for a check
+# that said it could not be asked, a run whose answer makes it askable (a
+# discovery cache filled). `malformed` counts toward nothing and fails the run.
 # A row whose answer is a provider — a skill a session's model runs — is a
 # separate class by construction: it is `awaiting` until a file it cannot
 # write appears, it holds nothing, and awaiting, stale, partial or answered it
@@ -292,6 +294,18 @@ felix_commission_ask() {
   return "${4##* }"
 }
 
+# The detail of a row whose check exited 2: with no argument, printed; with
+# one, whether that detail is it. felix_commission_state prints it and
+# felix_commission_run recognises it, because that is the one unknown a row's
+# answer may still change, so it is one string in one place. A function and
+# not a variable, so a session's environment cannot stand in for it, and
+# printing it forks nothing.
+_felix_commission_unasked() {
+  local d='the check says it could not be asked here, so whether this is answered is not known'
+  [ "$#" -eq 0 ] && { printf '%s' "$d"; return 0; }
+  [ "$1" = "$d" ]
+}
+
 # state <TAB> detail <TAB> provenance, without running the answer.
 felix_commission_state() {
   local proj="$1" root="$2" need="$3" grounds="$4" instrument="$5" when="$6" answer="$7" check="$8"
@@ -331,12 +345,9 @@ felix_commission_state() {
   # `when` that crashed skipped its step. A shell that ended inside the text is
   # unknown even at 1, since an unset variable ends it with 1 too, and applies
   # at 0, which only the text's own exit gives. Parsing is asked first because
-  # eval hands a syntax error back as 1 on bash 3.2. The check below still
-  # reads anything but 0, 126 and 127 as held, which fails closed on its
-  # status. Not on its text: a check shaped `[ -z "$(lookup)" ]` reads a
-  # lookup whose fork failed inside it as empty, and passes. Three seeded
-  # checks have that shape, and changing them is a table change, the
-  # founder's (2026-10-01).
+  # eval hands a syntax error back as 1 on bash 3.2. The check below is read
+  # by its status alone, so a row that reads a lookup's text has to turn that
+  # text into a status itself, as the template's rows have since #393.
   if [ "$when" != "-" ]; then
     if ! BASH_ENV= "${BASH:-bash}" -n -c "$when" </dev/null 2>/dev/null; then
       printf 'unknown\tthe `when` test does not parse, so it was not run and whether this applies is not known\t%s\n' "$prov"; return 0
@@ -375,9 +386,23 @@ PROV
       fi
       return 0 ;;
   esac
+  # A check says yes with 0 and no with any status but these three, which say
+  # it could not be asked: 126 and 127, and 2, which a check returns for
+  # itself (2026-10-08). Until then 2 was a no, so a row whose lookup said it
+  # could not answer, as felix_toolbox_unwired does over a declared list it
+  # could not read, read held: a person's queue, OBSERVED, and a receipt that
+  # passed. 2 is what grep, test, diff and make -q return when they could not
+  # answer, and what the `when` above already reads as unknown. The check is
+  # parsed first, as the `when` is, because eval hands a syntax error back as
+  # 1 on bash 3.2 and as 2 on bash 5, and a check that does not parse would
+  # then read held on one and unknown on the other.
+  if ! BASH_ENV= "${BASH:-bash}" -n -c "$check" </dev/null 2>/dev/null; then
+    printf 'unknown\tthe check does not parse, so it was not run and whether this is answered is not known\t%s\n' "$prov"; return 0
+  fi
   felix_commission_ask "$root" "$check"; rc=$?
   case "$rc" in
     0)   printf 'done\tthe check passes\t%s\n' "$prov" ;;
+    2)   printf 'unknown\t'; _felix_commission_unasked; printf '\t%s\n' "$prov" ;;
     126) printf 'unknown\tthe checkout could not be entered\t%s\n' "$prov" ;;
     127) printf 'unknown\ta command in the check does not exist here\t%s\n' "$prov" ;;
     *)   printf 'held\tthe check does not pass\t%s\n' "$prov" ;;
@@ -390,7 +415,7 @@ PROV
 # status; `-` runs nothing, which is what --status and the gate use.
 felix_commission_run() {
   local proj="$1" root="$2" runner="${3:--}" tpl="${4:-}"
-  local need grounds instrument when answer check step st detail prov out arc line
+  local need grounds instrument when answer check step st detail prov out arc line rrc
   local uncomputed="this row's state could not be computed, so whether it holds is not known"
   export FELIX_PROJECT="$proj" FELIX_PROJECT_NAME="$(basename "$proj")" \
          FELIX_ROOT_DIR="$root" FELIX_MEMORY_DIR="$(felix_mem_dir "$proj")"
@@ -421,15 +446,32 @@ EOF
     # A real run writes every provider row's request afresh — the topology it
     # carries is what makes an answer current — and never in --status, which
     # writes nothing. A missing template is a row nobody can answer.
+    #
+    # And a request that returned 2 is one that could not be written because the
+    # declared list could not be read, which is not a missing template. Until
+    # 2026-10-01 the request wrote itself over an empty list and this branch
+    # never saw the difference; now the row says what happened to the request.
     if [ "$runner" != "-" ] && [ -n "$tpl" ] && command -v felix_commission_request >/dev/null 2>&1; then
       case "$answer" in
         provider:*)
-          if ! felix_commission_request "$proj" "$root" "$need" "$tpl" >/dev/null; then
-            st=unknown; detail="no request template for $need under $tpl/commission, so no session can answer it"
-          fi ;;
+          felix_commission_request "$proj" "$root" "$need" "$tpl" >/dev/null; rrc=$?
+          case "$rrc" in
+            0) ;;
+            2) st=unknown; detail="the request for $need could not be written: the capabilities this project declares could not be read" ;;
+            *) st=unknown; detail="no request template for $need under $tpl/commission, so no session can answer it" ;;
+          esac ;;
       esac
     fi
-    if [ "$st" = "held" ] && [ "$runner" != "-" ]; then
+    # A row's answer runs when its check said no, and when its check said it
+    # could not be asked, because the answer may be what makes it askable:
+    # discover --adopt fills the cache the discover check reads. Before
+    # 2026-10-08 such a check read held, so this runs the same answers as
+    # before and reports them truthfully. No other unknown runs its answer: an
+    # instrument, a command or a function that is missing, a checkout that
+    # cannot be entered, or a check that does not parse (held until
+    # 2026-10-08, so its answer ran then) is not anything an engine stage can
+    # change.
+    if [ "$runner" != "-" ] && { [ "$st" = "held" ] || { [ "$st" = "unknown" ] && _felix_commission_unasked "$detail"; }; }; then
       case "$answer" in
         felix:*)
           out="$( cd "$root" && "$runner" "$answer" 2>&1 )"; arc=$?
@@ -478,18 +520,37 @@ felix_commission_actor() {
   esac
 }
 
-# The two hashes validity is derived from. The table set, with a header per
-# file so an absent file differs from an empty one; and the detected surfaces.
+# The two hashes validity is derived from. The table set, with a header line
+# per file so that where one table ends and the next begins is hashed too (the
+# header does not tell an absent file from an empty one: both are the header
+# alone); and the detected surfaces.
+#
+# A table is its bytes when it is a regular file, nothing when it is absent, and
+# the one marker line when something is there that is not a regular file, which
+# is never opened. Until 2026-10-01 each was `cat`, so a `capabilities` link
+# whose target is gone hashed as no file at all, the same as a project that never
+# declared one, and a pipe by a table's name was opened and waited on for a writer
+# that never came, which hung every receipt check. A regular file, a link to one,
+# and no file hash as they did.
+#
+# A regular file that cannot be read hashes as a second marker line after
+# whatever `cat` did print, none for a mode with no read. Until 2026-10-08 its
+# errors were discarded and nothing followed, so it hashed exactly as no file and
+# as an empty one, and the table set could move from a table to nothing with the
+# receipt still current.
 felix_commission_policy_version() {
   local proj="$1" f
   # Each table is read only as a regular file. A pipe at any table's path held
   # the cat open for a writer that never came, so every caller of the policy
   # version (the commission grant, the epoch, merge) waited on it forever, and
-  # a link to a device read without end (2026-10-01). Skipped, the path hashes
-  # as an absent table always hashed, since cat printed nothing for one, so no
-  # hash over ordinary files moves and no receipt goes stale.
+  # a link to a device read without end (2026-10-01). Anything else at the
+  # path is never opened and hashes as the marker line above, not as an absent
+  # table; a regular file, a link to one and no file hash as they always did.
   for f in $FELIX_COMMISSION_TABLES; do
-    printf '== %s ==\n' "$f"; [ -f "$proj/$f" ] && cat "$proj/$f" 2>/dev/null
+    printf '== %s ==\n' "$f"
+    if [ -f "$proj/$f" ]; then cat "$proj/$f" 2>/dev/null || printf '<unreadable>\n'
+    elif [ -e "$proj/$f" ] || [ -L "$proj/$f" ]; then printf '<not a regular file>\n'
+    fi
   done | _felix_hash
 }
 felix_commission_caps_hash() { felix_detect "$1" 2>/dev/null | LC_ALL=C sort -u | _felix_hash; }
@@ -653,22 +714,39 @@ felix_commission_receipt_valid() {
 
 # What nothing serves, reaches, or grounds — enumerated from the checkout and
 # the declaration, never from this table. cap <TAB> served <TAB> reached <TAB> grounded.
+#
+# 0 with the rows on stdout, and 2 with nothing printed when the declared list
+# could not be read, or the union of it and what felix_detect shows could not be
+# made. Until 2026-10-01 an unread list was an empty one, so every capability only
+# the project declares dropped out of the union and out of "surfaces nothing
+# serves", and the section said fewer did than do. Both are read once with
+# felix_capture and the union walked in this shell. The first pass had no
+# here-document loop here, a pipe fed the loop; the failure it had was
+# felix_has_line's here-document on the probe rows, which is a temporary file on
+# bash 3.2, and one that could not be written called every grounded capability
+# ungrounded. The fix that mattered is membership by case. The probe rows are a
+# plain substitution, since a pipeline that ends in a sort has no status worth
+# asking of an absent table.
 felix_commission_gaps() {
-  local proj="$1" root="$2" cap served reached grounded probed
+  local proj="$1" root="$2" cap served reached grounded probed declared="" union="" rest nl=$'\n'
+  felix_declared_into declared "$proj" || return 2
+  felix_capture union _felix_capability_union "$root" "$declared" || return 2
   probed="$(command -v felix_probe_rows >/dev/null 2>&1 && felix_probe_rows "$proj" | cut -f2 | LC_ALL=C sort -u)"
-  { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u \
-    | while IFS= read -r cap; do
-        [ -n "$cap" ] || continue
-        served=no; reached=no; grounded=no
-        # One awk that decides at the end, not awk into grep -q: grep quitting
-        # at the first row can kill awk mid-write, and pipefail reads that as
-        # nothing serving the capability.
-        _felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c { s = 1 } END { exit !s }' && served=yes
-        [ -n "$(felix_toolbox_route_for "$proj" "$cap" 2>/dev/null)" ] && reached=yes
-        felix_has_line "$probed" "$cap" && grounded=yes
-        [ "$served$reached$grounded" = "yesyesyes" ] && continue
-        printf '%s\t%s\t%s\t%s\n' "$cap" "$served" "$reached" "$grounded"
-      done
+  rest="$union"
+  while [ -n "$rest" ]; do
+    cap="${rest%%$nl*}"
+    if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+    [ -n "$cap" ] || continue
+    served=no; reached=no; grounded=no
+    # One awk that decides at the end, not awk into grep -q: grep quitting
+    # at the first row can kill awk mid-write, and pipefail reads that as
+    # nothing serving the capability.
+    _felix_stack_rows "$proj" 2>/dev/null | awk -F'\t' -v c="$cap" '$5 == c { s = 1 } END { exit !s }' && served=yes
+    [ -n "$(felix_toolbox_route_for "$proj" "$cap" 2>/dev/null)" ] && reached=yes
+    case "$nl$probed$nl" in *"$nl$cap$nl"*) grounded=yes ;; esac
+    [ "$served$reached$grounded" = "yesyesyes" ] && continue
+    printf '%s\t%s\t%s\t%s\n' "$cap" "$served" "$reached" "$grounded"
+  done
   return 0
 }
 
@@ -681,6 +759,38 @@ felix_commission_template_missing() {
     [ -n "$need" ] || continue
     felix_has_line "$have" "$need" || printf '%s\n' "$need"
   done
+  return 0
+}
+
+# Rows whose need the template also asks but whose columns differ from the
+# template's row for it: need <TAB> the differing columns, in table order.
+# A table is cut from the template once; when the template later corrects a
+# row, every table cut before keeps the old one and the id-only comparison
+# above cannot see it. A project may keep a row on purpose, so this is a
+# report and nothing here writes or refuses. Exit 1 with no output when the
+# template yields no rows: nothing compared must not read as nothing differs.
+# Both tables come through felix_commission_rows, so a row the engine would
+# not run is not compared, and the template's first row is its row for a
+# need. Each is read once, into a variable, so the exit status is decided
+# before anything is compared; the awk reads to the end, so no writer is cut
+# off under pipefail. The sentinel (one field, where a row has seven)
+# separates the two tables. Fields are compared as strings: awk compares two
+# that look like numbers as numbers, and `1` against `1.0` is a difference.
+felix_commission_template_drift() {
+  local proj="$1" tpl="$2" trows prows
+  trows="$(felix_commission_rows "$tpl")"
+  [ -n "$trows" ] || return 1
+  prows="$(felix_commission_rows "$proj")"
+  [ -n "$prows" ] || return 0
+  { printf '%s\n' "$trows"; printf '@@\n'; printf '%s\n' "$prows"; } | awk -F'\t' '
+    BEGIN { split("grounds instrument when answer check step", name, " ") }
+    NF == 1 { mine = 1; next }
+    !mine { if (!($1 in seen)) { seen[$1] = 1; for (i = 2; i <= 7; i++) t[$1, i] = $i "" }; next }
+    $1 in seen {
+      out = ""
+      for (i = 2; i <= 7; i++) if (($i "") != t[$1, i]) out = out (out == "" ? "" : " ") name[i - 1]
+      if (out != "") printf "%s\t%s\n", $1, out
+    }'
   return 0
 }
 

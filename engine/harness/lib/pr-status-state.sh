@@ -83,13 +83,14 @@ _ps_ledger() {   # LEDGER W
 # lines in $1/pathattr. Tags: exemption, verifierlisted (listed in the escape
 # tables, not in the exemption subset; the page fires it only on a deleted
 # line), commission, execute, authority, exception, durable, direction,
-# trustbase, land, risk and riskconf (a risk row with a content confine, which
-# the page does not evaluate). A byte outside printable ASCII is read by the
-# deciding awk, which has the file's text.
+# trustbase, land and risk. A risk row with a content confine, which the page
+# does not evaluate, goes to $1/confrows instead: row number, pattern, path. A
+# byte outside printable ASCII is read by the deciding awk, which has the file's
+# text.
 _ps_pathattr() {   # W
-  local w="$1" p b rest e c tab LC_ALL=C
+  local w="$1" p b rest e c tab ri LC_ALL=C
   tab="$(printf '\t')"
-  : > "$w/pathattr"
+  : > "$w/pathattr"; : > "$w/confrows"
   LC_ALL=C cut -f2 "$w/files" | LC_ALL=C sort -u > "$w/paths"
   while IFS= read -r p; do
     [ -n "$p" ] || continue
@@ -115,10 +116,17 @@ _ps_pathattr() {   # W
   # channel, confine. Read with awk, because read would fold empty cells.
   _ps_blob "$_PS_PROJDIR" risk.tsv 2>/dev/null \
     | LC_ALL=C awk -F'\t' '/^[[:space:]]*(#|$)/ { next } $2 == "path" && $5 != "" && $5 != "-" { print (($6 != "" && $6 != "-") ? "c" : "e") "\t" $3 }' > "$w/riskpat"
+  ri=0
   while IFS="$tab" read -r c e; do
     [ -n "$e" ] || continue
-    if [ "$c" = c ]; then c=riskconf; else c=risk; fi
-    LC_ALL=C grep -E -- "$e" "$w/paths" 2>/dev/null | LC_ALL=C awk -v t="$c" '{ print $0 "\t" t }' >> "$w/pathattr"
+    if [ "$c" = c ]; then
+      # A confined row is not evaluated: row number, pattern, path, so the page
+      # lists the row once with how many paths it matched (R10).
+      ri=$(( ri + 1 ))
+      LC_ALL=C grep -E -- "$e" "$w/paths" 2>/dev/null | PS_E="$e" PS_RI="$ri" LC_ALL=C awk '{ print ENVIRON["PS_RI"] "\t" ENVIRON["PS_E"] "\t" $0 }' >> "$w/confrows"
+    else
+      LC_ALL=C grep -E -- "$e" "$w/paths" 2>/dev/null | LC_ALL=C awk '{ print $0 "\trisk" }' >> "$w/pathattr"
+    fi
   done < "$w/riskpat"
   return 0
 }
@@ -138,6 +146,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
     def = ENVIRON["PS_DEF"]; main = ENVIRON["PS_MAIN"]; land = ENVIRON["PS_LAND"]; landwhy = ENVIRON["PS_LANDWHY"]
     ledg = ENVIRON["PS_LEDGER"]; now = ENVIRON["PS_NOW"] + 0
     while ((getline ln < (W "/pathattr")) > 0) { split(ln, a, "\t"); TG[a[1]] = TG[a[1]] a[2] " " }
+    while ((getline ln < (W "/confrows")) > 0) { split(ln, a, "\t"); CRP[a[1]] = a[2]; CRS[a[1], a[3]] = 1; if (a[1] + 0 > ncr) ncr = a[1] + 0 }
     while ((getline ln < (W "/files")) > 0) { split(ln, a, "\t"); k = ++FN[a[1]]; FPATH[a[1], k] = a[2]; FDEL[a[1], k] = a[3] + 0 }
     while ((getline ln < (W "/ledger")) > 0) { split(ln, a, "\t"); LE[a[1]] = a[2]; LH[a[1]] = a[3]; LD[a[1]] = a[4]; HL[a[1]] = 1 }
     while ((getline ln < (W "/prs")) > 0) { split(ln, a, "\t"); np++; R[np] = ln; if (a[3] != "-") BR[a[3]] = BR[a[3]] " " a[1] }
@@ -172,6 +181,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
         labf = (index(lab, SEP "needs-founder" SEP) > 0 || index(lab, SEP "felix:founder" SEP) > 0)
         filesok = (nf < 100)
         items = ""; fc = 0; tbp = ""; hrl = ""
+        split("", CC); split("", CF)
         if (filesok) for (k = 1; k <= FN[n]; k++) {
           p = FPATH[n, k]; d = FDEL[n, k]; rl = ""
           if (tag(p, "commission")) rl = rl "commission "
@@ -185,11 +195,12 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
           if (land == "read" && tag(p, "land")) rl = rl "land "
           if (tag(p, "direction")) rl = rl "direction "
           if (p ~ /[^ -~]/) rl = rl "path-bytes "
-          if (tag(p, "riskconf")) add("risk row not evaluated: content confine, for " p)
+          for (q = 1; q <= ncr; q++) if ((q, p) in CRS) { CC[q]++; if (CC[q] == 1) CF[q] = p }
           if (rl != "") { sub(/ $/, "", rl); fc++
             if (fc <= 5) { r2 = rl; gsub(/ /, ", ", r2); items = items (items == "" ? "" : "; ") p " (" r2 ")" }
             else { m2 = split(rl, rw, " "); for (q = 1; q <= m2; q++) if (!((n, rw[q]) in HR)) { HR[n, rw[q]] = 1; hrl = hrl (hrl == "" ? "" : ", ") rw[q] } } }
           if (tag(p, "trustbase")) tbp = tbp (tbp == "" ? "" : ", ") p }
+        for (q = 1; q <= ncr; q++) if (CC[q] > 0) add("risk row not evaluated: content confine, " CRP[q] ", for " CC[q] " paths: " CF[q])
         if (fc > 5) items = items "; and " (fc - 5) " more: " hrl
         founder = (labf || fc > 0)
         l1 = (index(lab, SEP "needs-founder" SEP) > 0); l2 = (index(lab, SEP "felix:founder" SEP) > 0)

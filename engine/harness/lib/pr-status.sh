@@ -147,6 +147,9 @@ _ps_collect() {   # DIR PROJDIR SLUG NAME W
     _ps_pathattr "$w"
     _ps_decide "$w" "$owner" "$_PS_DEF" "$_PS_MAIN"
   fi
+  # No owner/name slug (a remote holding a tab or newline, or no GitHub remote):
+  # gh was asked in the checkout, and the row says the slug could not be read (R5).
+  _ps_slug_ok "$slug" || _PS_GHWHY="$_PS_GHWHY (the owner/name slug could not be read from the remote)"
   _ps_srow "$w/s.gh" gh "$_PS_GHST" "$_PS_GHWHY"
 }
 

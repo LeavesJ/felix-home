@@ -43,15 +43,19 @@ _ps_err1() {   # FILE
 # and an escaped printable ASCII character the character itself, so that a
 # changed path holding a tab is seen as holding a byte outside printable ASCII
 # and a path holding a backslash is not. Any other \uXXXX is outside printable
-# ASCII too. \" stays for the flattener.
+# ASCII too. \" stays for the flattener. A tab, newline and carriage return are
+# byte 001, which a cell shows as a space; every other control (\b, \f, ESC,
+# BEL, DEL and the C1 controls written \u0080 to \u009f) is byte 004, which a
+# cell shows as ? (spec R8, its reach).
 # shellcheck disable=SC2016
-_PS_UNESC='BEGIN { c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); hx = "0123456789abcdef" }
-  { gsub(/\\\\/, c2); gsub(/\\[nrtbf]/, c1); gsub(/\\\//, "/")
+_PS_UNESC='BEGIN { c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); c4 = sprintf("%c", 4); hx = "0123456789abcdef" }
+  { gsub(/\\\\/, c2); gsub(/\\[nrt]/, c1); gsub(/\\[bf]/, c4); gsub(/\\\//, "/")
     while (match($0, /\\u[0123456789abcdefABCDEF][0123456789abcdefABCDEF][0123456789abcdefABCDEF][0123456789abcdefABCDEF]/)) {
       h = tolower(substr($0, RSTART + 2, 4)); r = c1
       if (substr(h, 1, 2) == "00") {
         v = (index(hx, substr(h, 3, 1)) - 1) * 16 + (index(hx, substr(h, 4, 1)) - 1)
-        if (v == 34) r = "\\\""; else if (v == 92) r = c2; else if (v >= 32 && v < 127) r = sprintf("%c", v) }
+        if (v == 34) r = "\\\""; else if (v == 92) r = c2; else if (v >= 32 && v < 127) r = sprintf("%c", v)
+        else if ((v < 32 && v != 9 && v != 10 && v != 13) || v == 127 || (v >= 128 && v < 160)) r = c4 }
       $0 = substr($0, 1, RSTART - 1) r substr($0, RSTART + RLENGTH) }
     print }'
 
@@ -67,10 +71,10 @@ _PS_UNESC='BEGIN { c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); hx = "012345678
 # anything else has not finished. The files table is number, path, deleted lines.
 # shellcheck disable=SC2016
 _PS_TABLES='function nz(s) { return s == "" ? "-" : s }
-  BEGIN { pf = ENVIRON["PS_PF"]; ff = ENVIRON["PS_FF"]; bs = sprintf("%c", 92); c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); sep = sprintf("%c", 3) }
+  BEGIN { pf = ENVIRON["PS_PF"]; ff = ENVIRON["PS_FF"]; bs = sprintf("%c", 92); c1 = sprintf("%c", 1); c2 = sprintf("%c", 2); sep = sprintf("%c", 3); c4 = sprintf("%c", 4) }
   function un(x, keep,   k, e) { e = ""; k = 0
     while ((k = index(x, c2)) > 0) x = substr(x, 1, k - 1) bs substr(x, k + 1)
-    if (!keep) gsub(c1, " ", x)
+    if (!keep) { gsub(c1, " ", x); gsub(c4, "?", x) }
     return x }
   { i = $1; p = $2; v = $3; gsub(/[\t\r]/, " ", v); v = un(v, p ~ /^files[.][0123456789]+[.]path$/)
     if (!(i in S)) { S[i] = 1; O[++n] = i }

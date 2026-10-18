@@ -353,7 +353,7 @@ _gt_dup() { case $'\n'"$_GT_DUPS"$'\n' in *$'\n'"$1"$'\n'*) return 0 ;; esac; re
 _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it landed
   local n="$1" br="$2" sha="$3" why files dir wt out rc t0 frc
   if   [ "$4" = true ]; then why="a draft"
-  elif [ "$5" = true ]; then why="labelled felix:hold"
+  elif [ "$5" != - ]; then why="labelled $5"
   elif [ "$7" = true ]; then why="cross-repository: the head is not in this repository"
   elif [ "$6" = CONFLICTING ]; then why="conflicting with main"
   elif [ "$8" != main ]; then why="its base is $8, not main: only pull requests into main are merged"
@@ -385,12 +385,16 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it
 }
 
 # --- the tick ---------------------------------------------------------------
-_gt_prs() {   # prints "number branch oid draft hold mergeable cross" lines, ascending
+# A30: the founder's labels hold as felix:hold does, matched without regard to
+# case as GitHub's are. The hold column is the first such label as the pull
+# request carries it, or - when it carries none.
+_gt_prs() {   # prints "number branch oid draft hold mergeable cross base" lines, ascending
   local out n
   out="$(gh pr list ${_GT_REPO:+--repo "$_GT_REPO"} --state open --limit 200 \
           --json number,headRefName,headRefOid,isDraft,labels,mergeable,isCrossRepository,baseRefName \
           --jq 'length, (.[] | [(.number | tostring), (.headRefName // "-"), (.headRefOid // "-"), (.isDraft | tostring),
-                (((.labels // []) | any(.name == "felix:hold")) | tostring), (.mergeable // "UNKNOWN"),
+                ([(.labels // [])[] | (.name // "") | select(ascii_downcase | . == "felix:hold" or . == "felix:founder" or . == "needs-founder")] | .[0] // "-"),
+                (.mergeable // "UNKNOWN"),
                 (.isCrossRepository | tostring), (.baseRefName // "-")] | join("\t"))' 2>/dev/null)" || return 1
   n="$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"
   case "$n" in ""|*[!0123456789]*) return 1 ;; esac

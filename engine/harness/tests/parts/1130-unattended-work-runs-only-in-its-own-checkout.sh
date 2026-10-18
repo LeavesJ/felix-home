@@ -436,7 +436,11 @@ _ow_wc() { [ -f "$1" ] && awk 'END { print NR }' "$1" || echo absent; }
 # Restated 2026-10-16 to the sizes the weekly batch's slots 7 to 11b leave,
 # 36, 78 and 49 lines more than main held: a later change that grows one
 # restates its bound here, so the growth is seen in review, never unremarked.
-for _f in hooks/session-start:762 lib/commission.sh:776 lib/discover.sh:1565; do
+# Restated 2026-10-17 for slots 13 to 20: 18 more lines in session-start (the
+# caller-environment preamble every hook gained), 32 in commission.sh (the
+# template drift report) and 15 in discover.sh (no digest over a file git
+# could not read).
+for _f in hooks/session-start:780 lib/commission.sh:808 lib/discover.sh:1580; do
   _owv="$(_ow_wc "$FROOT/harness/${_f%%:*}")"
   [ "$_owv" != absent ] && [ "$_owv" -le "${_f#*:}" ] && ok "B40: ${_f%%:*} is no longer than ${_f#*:} lines" || bad "B40: ${_f%%:*} is no longer than ${_f#*:} lines" "$_owv"
 done

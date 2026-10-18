@@ -22,6 +22,14 @@
 
 FELIX_UNTRACKED_CAP="${FELIX_UNTRACKED_CAP:-500}"
 
+# Every read of the working tree here goes through _felix_git_read, which lives
+# in resolve.sh. The CLI and every hook source that first. Sourced here too
+# rather than assumed, as escape.sh does for felix_changed_paths: a missing
+# helper would make every tree unknown, which is safe and useless.
+if ! command -v _felix_git_read >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+fi
+
 _felix_hash() { git hash-object --stdin 2>/dev/null; }
 
 _felix_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
@@ -263,7 +271,13 @@ felix_tree_dirty() {
   while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
 $(_felix_tree_excludes "$root" "$home")
 EOF
-  [ -n "$(git -C "$root" status --porcelain -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)" ]
+  # A status git could not finish is not a clean tree (2026-10-08). A corrupt
+  # index made `git status` exit 128 with nothing on stdout, and this read the
+  # empty answer as clean, so Stop let the session go without asking about the
+  # tree. Not a repository at all is still `1`, above: nothing is known there.
+  local st
+  _felix_git_read st git -C "$root" status --porcelain -- . "${exargs[@]+"${exargs[@]}"}" || return 0
+  [ -n "$st" ]
 }
 
 # Identity of a working tree: the commit it sits on, the content of every
@@ -299,6 +313,37 @@ _felix_tree_excludes() {
   printf ':(exclude)%sprojects/*/maintenance.log\n' "$rel"
 }
 
+# A tree git could not read in full has no identity (2026-10-08): this prints
+# nothing and returns 2 (1 still means not a repository). With a named pipe at
+# projects/x/deny.tsv and an edit to src.txt, `git diff HEAD` printed nothing
+# and exited 128, and the id of that silence was the clean commit's, so a green
+# receipt read current over an edit no gate had seen. A mode-000 file and a
+# corrupt index did the same. Every caller treats an empty id as unknown: no
+# receipt is written, felix_verify_current calls it stale, and Stop holds.
+# Leaving the unreadable path out would be the defect itself, a tree id that
+# silently ignores a path. An untracked pipe is no part of any tree (git lists
+# none), and a path the excludes leave out is no part of the id.
+#
+# A tree git reads in full hashes the bytes it hashed before, with two
+# exceptions found by the review of this change, each a tree whose old id left
+# something out. An unborn HEAD with something staged hashed only index against
+# tree, so two staged contents shared the id of an empty `git init`. And an
+# untracked name git quoted, every name past ASCII by default, a macOS
+# screenshot included, went to stat under a spelling that names no file.
+#
+# The diff runs with no external diff, no textconv, no colour, and every
+# submodule shown (2026-10-08). Under `diff.external`, GIT_EXTERNAL_DIFF, a
+# driver command or a textconv that prints nothing, git printed nothing for the
+# edited file, so an edit hashed exactly as the clean tree did. Under
+# diff.ignoreSubmodules=all, or `ignore = all` in a committed .gitmodules, a
+# moved submodule pointer did the same. Why per call, and what else was
+# measured: above _felix_git_patch in resolve.sh. A binary marking needs nothing
+# here, because the patch's `index` line still names both blobs. That line is
+# all the id sees of a binary file's edit, so core.abbrev is pinned to auto,
+# git's default: core.abbrev=4 cut it to 16 bits of each blob id, and an edit
+# found to share them hashed as the edit a receipt was written for. For a
+# default configuration the bytes are unchanged, so this too staled no receipt.
+#
 # Arguments after the second are pathspecs added to the exclusions, for the
 # diff and for the untracked list alike, each exactly as given: `:(exclude)x`
 # names a path to leave out, and nothing here adds the prefix. The suite's
@@ -330,7 +375,7 @@ felix_tree_id_on() {   # <root> <commit> [home] [pathspec...]
 # the unborn case included; otherwise it is the commit that stands in for HEAD,
 # in the hash and as the base of the diff.
 _felix_tree_id_on() {   # <root> <at> <home> [pathspec...]
-  local root="$1" at="$2" home="${3:-}" head diff untracked n meta="" prefix="" f base=HEAD
+  local root="$1" at="$2" home="${3:-}" head diff cached untracked n=0 meta="" quoted="" prefix="" f id base=HEAD
   shift 3
   git -C "$root" rev-parse --git-dir >/dev/null 2>&1 || return 1
   local ex; ex="$(_felix_tree_excludes "$root" "$home")"
@@ -352,32 +397,83 @@ EOF
     # a real state — it is what `git init` leaves, and what this suite's own
     # fixture is — and every naive implementation of this dies there.
     head="unborn"
-    diff="$(git -C "$root" diff -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    _felix_git_read diff git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    # What is staged, against nothing. Added only when there is any, so the id
+    # of a bare `git init` is the one it always was.
+    _felix_git_read cached git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none --cached -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+    [ -z "$cached" ] || diff="$cached
+$diff"
   else
-    diff="$(git -C "$root" diff "$base" -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null)"
+    _felix_git_read diff git -C "$root" -c core.abbrev=auto diff --no-ext-diff --no-textconv --no-color --ignore-submodules=none "$base" -- . "${exargs[@]+"${exargs[@]}"}" || return 2
   fi
 
-  untracked="$(git -C "$root" ls-files --others --exclude-standard \
-                 -- . "${exargs[@]+"${exargs[@]}"}" 2>/dev/null | LC_ALL=C sort)"
-  n="$(printf '%s' "$untracked" | grep -c . 2>/dev/null)" || n=0
+  # quotePath off, so a name past ASCII is listed as the bytes stat can open.
+  _felix_git_read untracked git -c core.quotePath=false -C "$root" ls-files --others --exclude-standard \
+    -- . "${exargs[@]+"${exargs[@]}"}" || return 2
+  if [ -n "$untracked" ]; then
+    # A sort or a count that died reads as no untracked file, so either one
+    # coming back empty over a list that was not is unknown too.
+    untracked="$(printf '%s\n' "$untracked" | LC_ALL=C sort)"
+    n="$(printf '%s' "$untracked" | grep -c .)"
+    case "$n" in ''|0|*[!0123456789]*) return 2 ;; esac
+  fi
 
-  if [ "${n:-0}" -gt "$FELIX_UNTRACKED_CAP" ]; then
+  if [ "$n" -gt "$FELIX_UNTRACKED_CAP" ]; then
     # A repository in this state has larger problems than receipt precision, and
     # the hook has to stay fast whatever it is handed.
     prefix="coarse:"
     meta="$n untracked"
-  elif [ "${n:-0}" -gt 0 ]; then
+  elif [ "$n" -gt 0 ]; then
     local files=()
     while IFS= read -r f; do
-      [ -n "$f" ] && files+=("$root/$f")
+      [ -n "$f" ] || continue
+      # git still quotes a name holding a control character, `"` or `\`,
+      # quotePath or not, and that spelling names no file. Such a file is
+      # counted by its presence, and a change to its bytes is not seen.
+      case "$f" in
+        \"*) quoted="$quoted$f ?
+" ;;
+        *)   files+=("$root/$f") ;;
+      esac
     done <<EOF
 $untracked
 EOF
-    meta="$(_felix_meta_all "${files[@]}")"
+    if [ "${#files[@]}" -gt 0 ]; then
+      meta="$(_felix_meta_all "${files[@]}")"
+      # Every file stat was given and none answered: a stat that never ran.
+      # One vanished between the listing and stat is simply not there.
+      [ -n "$meta" ] || return 2
+    fi
+    [ -z "$quoted" ] || meta="$meta${meta:+
+}${quoted%
+}"
   fi
 
-  printf '%s%s' "$prefix" \
-    "$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"
+  id="$(printf '%s\n%s\n%s' "$head" "$diff" "$meta" | _felix_hash)"
+  [ -n "$id" ] || return 2
+  printf '%s%s' "$prefix" "$id"
+}
+
+# Why felix_tree_id could not identify this tree, in git's own words: the first
+# `error:` or `fatal:` line git prints for the same reads, or nothing when every
+# one of them succeeds now. With a pipe at m.txt that is "error: m.txt:
+# unsupported file type". Only a caller already holding an unknown id asks, so
+# the cost of a second diff lands where the first one failed.
+felix_tree_why() {
+  local root="$1" home="${2:-}" f err
+  local exargs=()
+  while IFS= read -r f; do [ -n "$f" ] && exargs+=("$f"); done <<EOF
+$(_felix_tree_excludes "$root" "$home")
+EOF
+  if git -C "$root" rev-parse -q --verify HEAD >/dev/null 2>&1; then
+    err="$(git -C "$root" diff --no-ext-diff --no-textconv --stat HEAD -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
+  else
+    err="$(git -C "$root" diff --no-ext-diff --no-textconv --stat -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
+  fi
+  [ -n "$err" ] \
+    || err="$(git -C "$root" ls-files --others --exclude-standard -- . "${exargs[@]+"${exargs[@]}"}" 2>&1 >/dev/null)"
+  # awk reads to the end, so nothing upstream is cut off for pipefail to misread.
+  printf '%s\n' "$err" | awk '!p && /^(error|fatal): / { print; p = 1 }'
 }
 
 # One receipt per repository, overwritten each run. History of decisions lives in

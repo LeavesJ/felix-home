@@ -290,9 +290,8 @@ fi
 # tell. Deleted on a pass, where nothing points at it; kept on a failure, where
 # the path is printed.
 GTLOG_DIR="${TMPDIR:-/tmp}"; GTLOG_DIR="${GTLOG_DIR%/}"; GTLOG=""
-# The suite runs its parts as many at a time as this machine has cores (contract
-# D1): sysctl, then getconf, then 1, held to 1 to 64, and not on GitHub's runner,
-# whose gate runs one at a time. The argument list below stays --reuse.
+# The suite runs as many parts at once as the machine has cores (contract D1):
+# sysctl, then getconf, then 1, held to 1 to 64; never on GitHub's runner.
 GTJOBS=""
 if [ "${GITHUB_ACTIONS:-}" != true ]; then
   GTJOBS="$(sysctl -n hw.ncpu 2>/dev/null)"
@@ -300,7 +299,7 @@ if [ "${GITHUB_ACTIONS:-}" != true ]; then
   case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS=1 ;; esac
   GTJOBS="${GTJOBS#"${GTJOBS%%[!0]*}"}"
   case "$GTJOBS" in '') GTJOBS=1 ;; ?|??) ;; *) GTJOBS=64 ;; esac
-  [ "$GTJOBS" -ge 1 ] || GTJOBS=1; [ "$GTJOBS" -le 64 ] || GTJOBS=64
+  [ "$GTJOBS" -le 64 ] || GTJOBS=64
 fi
 if [ "${SKIP_REST:-0}" -eq 1 ]; then
   printf '  %-18s skipped (the deployed engine is not this tree)\n' tests
@@ -342,7 +341,7 @@ elif env ${GTJOBS:+FELIX_TEST_JOBS=$GTJOBS} ./engine/harness/tests/run --reuse >
 else
   GTRC=$?
   fail tests
-  # A refusal (exit 2) has no FAIL line to show: its one line is the log's last.
+  # A refusal (exit 2) has no FAIL line: its one line is the log's last.
   [ "$GTRC" -ne 2 ] || printf '    %s\n' "$(tail -1 "$GTLOG")"
   # The evidence, not only the verdict (#86 again, one check over). bad() puts
   # its detail on the line AFTER `FAIL`, and this printed the FAIL line alone —

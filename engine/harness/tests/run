@@ -12,6 +12,7 @@
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
+#   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
 

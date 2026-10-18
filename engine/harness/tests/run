@@ -284,6 +284,7 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/parts/0572-allow-says-allowed-only-when-the-grant-holds.sh"
 . "$HERE/parts/0573-the-autonomy-file-has-one-writer-at-a-time.sh"
 . "$HERE/parts/0574-revoke-then-allow-on-a-last-line-with-no-new.sh"
+. "$HERE/parts/0575-the-suite-s-exit-trap-acts-only-in-its-own-shell.sh"
 . "$HERE/parts/0579-the-commission-grant-is-bound-to-its-table.sh"
 . "$HERE/parts/0580-tidying-with-the-checks-that-make-it-safe.sh"
 . "$HERE/parts/0590-the-pre-flight.sh"

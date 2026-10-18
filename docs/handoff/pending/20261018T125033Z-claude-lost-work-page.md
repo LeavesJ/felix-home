@@ -53,14 +53,16 @@ unproposed, closed or undecided rows carried. After, the page at d3a311c4 run on
 sessions, at least 4 open questions (2 rows not decided), 4 PRs waiting on a
 session, carried 19, landed 458.
 
-**Tests.** Five new parts, sourced before 9990: 1400 (A1), 1410 (A2, A3), 1420
-(the page's groups, TSV, read-only, filter), 1430 (unknown readings, log page,
-usage, exit) and 1440 (the review round). 1400-1430 hold 145 assertions written
+**Tests.** Five new parts, sourced before 9990, numbered 1450-1490 since the
+carrier's word on 2026-10-18 (#446, landing first, adds 1400-1403; earlier
+evidence in the audit folder names them 1400-1440 in the same order): 1450
+(A1), 1460 (A2, A3), 1470 (the page's groups, TSV, read-only, filter), 1480
+(unknown readings, log page, usage, exit) and 1490 (the review round). 1450-1480 hold 145 assertions written
 blind from the contract before any implementation (Opus); on the pre-build
 tree they gave 21 passed and 124 failed, the 21 being fixture controls and two
 pins of the old `--log` behaviour (evidence:
 `audits/2026-10-18-lost-work-page/red-evidence.md` under the memory root).
-1440 holds 21 assertions for the review's findings, shown red before each fix.
+1490 holds 21 assertions for the review's findings, shown red before each fix.
 Changed existing parts:
 - 0590 and 0600: six `felix monitor` calls now say `felix monitor --log`
   (contract B9.40); no name or expected value changed. Two of them are in
@@ -71,7 +73,7 @@ Changed existing parts:
   will show two names gone and two added.
 - 0870: `lib/inventory-chips.sh` is included in the host adapter's lints.
 A parts-alone smoke (0001-0005 plus 0590, 0600, 0810, 0860-0920, 0940,
-0990-0998, 1020, 1040, 1090, 1300-1360, 1400-1440) on the merge with main, at
+0990-0998, 1020, 1040, 1090, 1300-1360, 1450-1490) on the merge with main, at
 ff376654, gave 2208 passed, 10 failed, 1 skipped. Seven of the failures are in
 0590/0600 and fail the same way on the pre-build export: those parts need
 helpers (`_stage`, `_reset`, `PLAIN`) from parts the smoke does not run. The
@@ -82,7 +84,7 @@ The carrier's ruling on those: if they still fail alone on main with C, that
 is a C4 gap for row 0, not this branch's.
 B9.2 and A111, which failed before the merge, now pass. **The full suite, `--record-assertions`, red and the gate
 were not run on this branch**: it has no landing slot yet.
-The carrier's two record seams were checked on 1400-1440. No name starts with a
+The carrier's two record seams were checked on 1450-1490. No name starts with a
 non-ASCII byte. Two names carried what the engine printed (B9.26's row count,
 and B9.30/31's "at least N" for work that never reached a PR), so a red tree
 would name assertions the record lacks. ff376654 makes both fixed strings and
@@ -108,10 +110,10 @@ page refuse to run, and the upstream exclusion in A1.
   the proposal", S1's exclusion of the proposer's file, or the page's scratch
   cleanup after a signal. Part 0940's library lists do not name
   `inventory-chips.sh`. These need a blind round.
-- **The parts do not yet run alone, which C (#444) requires (its C4).** 1410,
-  1420, 1430 and 1440 call 1400's `_lw_*` helpers and read the fixture 1400
-  builds (`LW`, `LW_F`, `LWC`, `LWM`, `LWT`, `LWX`, `LWL`); 1430 also reads
-  1420's page fixture (`PG`, `PGR`, `LWW`, `LW_HP`, `LW_HEAD`, `LWK`). None
+- **The parts do not yet run alone, which C (#444) requires (its C4).** 1460,
+  1470, 1480 and 1490 call 1450's `_lw_*` helpers and read the fixture 1450
+  builds (`LW`, `LW_F`, `LWC`, `LWM`, `LWT`, `LWX`, `LWL`); 1480 also reads
+  1470's page fixture (`PG`, `PGR`, `LWW`, `LW_HP`, `LW_HEAD`, `LWK`). None
   uses step 5's `_sp_*`. After C lands and main is merged: move the helpers
   and both fixtures into `tests/lib/lost-work.sh` in C's form (definitions
   only, a `_lost_work_vars`, an idempotent `_lw_build [page]` each part

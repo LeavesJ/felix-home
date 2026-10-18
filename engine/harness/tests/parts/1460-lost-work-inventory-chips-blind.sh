@@ -1,7 +1,7 @@
 # >>> lost-work-inventory-chips
 printf '\nthe lost-work page, step 6: felix inventory chips from start_session, and what started means (contract A2, A3, B9.13-25, blind)\n'
 # Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on the stubs,
-# builders and readers part 1400 defines. Repository ch; every proposal is
+# builders and readers part 1450 defines. Repository ch; every proposal is
 # made from sessions filed under its main worktree. Two records roots: hc0
 # holds the proposing sessions only, so every chip they propose is shown to
 # exist (the control run CH0); hc1 is a copy of hc0, mtimes kept, plus the

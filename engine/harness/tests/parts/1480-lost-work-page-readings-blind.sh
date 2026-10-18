@@ -1,7 +1,7 @@
 # >>> lost-work-page-readings
 printf '\nthe lost-work page, step 6: unknown is said, the log page, usage, exit status, two repositories (contract B1, B4, B6, B8, B9.29-31, 35-38, blind)\n'
-# Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on part 1420's
-# page fixture pg and part 1400's helpers. nop is a second repository no
+# Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on part 1470's
+# page fixture pg and part 1450's helpers. nop is a second repository no
 # project governs. No run here passes --open past argument checking; open is
 # a stub besides, so a page that still opens opens nothing.
 _lw_sum() { LC_ALL=C awk -F'\t' -v g="$2" -v k="$3" -v r="${4:-}" '$2 == "summary" && $1 == g && (r == "" || $3 == r) { print $k; exit }' "$1" 2>/dev/null; }

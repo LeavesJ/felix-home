@@ -1,6 +1,6 @@
 # >>> lost-work-page-groups
 printf '\nthe lost-work page, step 6: felix monitor groups, --tsv, counts, the text page, read-only (contract B1-B7, B9.26-28, 32-34, 39, blind)\n'
-# Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on part 1400's
+# Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on part 1450's
 # stubs, builders and readers. The page repository pg is also the Felix home
 # (FELIX_HOME), as step 5's fixture is: projects/pg governs
 # github.com/fixture/pg, with a land table and a risk table at origin/main and
@@ -9,7 +9,7 @@ printf '\nthe lost-work page, step 6: felix monitor groups, --tsv, counts, the t
 # #301 founder (needs-founder, green), #302 session (a failed check), #303
 # lander (green, nothing else; its head b303 also carries lw-carried-q7),
 # #304 nobody (a check still running), #305 unknown (exactly 100 files, green).
-# Part 1430 runs the page again over this fixture.
+# Part 1480 runs the page again over this fixture.
 _lw_repo pg; PG="$LW/pg"; LWPG0="$(_lwq "$PG" refs/heads/main)"
 mkdir -p "$PG/projects/pg" "$PG/docs/handoff/pending"
 printf '{\n  "name": "pg",\n  "remote_match": "github.com/fixture/pg",\n  "gate": "true"\n}\n' > "$PG/projects/pg/project.json"

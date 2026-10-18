@@ -676,8 +676,8 @@ rows, 79 s wall and 62 s CPU.
 - **Bash 3.2, the C locale** for every grep, awk, sort, tr and cut; digit
   brackets spelled out; no here-string; no pipe into a grep that can stop early
   (inventory spec §1); no string append that grows with input.
-- **Tests** in new parts numbered from 1400 (step 5 holds 1300 to 1350 and may
-  add rounds). Fixture git commands through `_fx_cd` or `_fx_git`.
+- **Tests** in new parts numbered from 1450 (step 5 holds 1300 to 1360, #446
+  1400 to 1403 and slot 18 1500 to 1540). Fixture git commands through `_fx_cd` or `_fx_git`.
 - **Help and docs.** `felix help`'s monitor line, the header comment of
   `engine/harness/felix`, and `engine/commands/felix.md`'s `felix monitor
   --open` bullet change to name the page and `--log`.

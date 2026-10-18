@@ -3,8 +3,8 @@ printf '\nthe lost-work page, step 6: the shared fixture, and felix inventory ca
 # Blind, written from docs/2026-10-18-lost-work-page-contract.md alone on
 # 2026-10-17, before lib/lost-work.sh and the A1-A3 inventory changes existed.
 # No engine code was read for an expected value: engine/harness/felix was read
-# only for how inventory, land and monitor are dispatched. Parts 1410, 1420
-# and 1430 use the stubs, builders, runner and readers this part defines; each
+# only for how inventory, land and monitor are dispatched. Parts 1460, 1470
+# and 1480 use the stubs, builders, runner and readers this part defines; each
 # builds its own repositories under $LW and none reads another's fixture.
 #
 # The shared fixture. Every repository is a clone of a bare origin at

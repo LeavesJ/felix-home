@@ -1,9 +1,9 @@
 # >>> lost-work-review-fixes
 printf '\nthe lost-work page, step 6: the review round (findings 1, 2, 5 and 6 of audits/2026-10-18-lost-work-page/review.md)\n'
-# Written after part 1400-1430 and the Opus review, one assertion set for each
+# Written after part 1450-1480 and the Opus review, one assertion set for each
 # finding, red against the code the review read (30264fa6) and green against
-# the fix. It uses part 1400's stubs, builders and readers, so a run of this
-# part alone names 1400 as well. Finding 3 is part 1400's own fixture (feat2 is
+# the fix. It uses part 1450's stubs, builders and readers, so a run of this
+# part alone names 1450 as well. Finding 3 is part 1450's own fixture (feat2 is
 # pushed under its own name there now) and finding 4 has no assertion: it is
 # reachable only through a land die message holding a backslash.
 #
@@ -107,7 +107,7 @@ is "finding 6: u, whose upstream origin/w holds its tip while origin/u is older,
    "$(_lw_many "$(_lw_o X2)" branch u 0 carried) $(_lw_elem "$(_lw_o X2)" branch u 'carried by origin/w')" "carried=no no"
 
 # ---- finding 5: GIT_DIR in the caller's environment ----------------------------------------------
-_lw44_gd() {  # NAME GITDIR ARGS...: part 1400's _lw_run with GIT_DIR set after the variables it unsets
+_lw44_gd() {  # NAME GITDIR ARGS...: part 1450's _lw_run with GIT_DIR set after the variables it unsets
   local n="$1" gd="$2"; shift 2
   ( cd "$LW/cwd" || exit 97
     exec env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR \

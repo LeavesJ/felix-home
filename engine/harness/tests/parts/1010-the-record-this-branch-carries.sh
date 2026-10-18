@@ -347,12 +347,18 @@ _rt_judge "$REAL_HARNESS/../.."
 # bare, and that line between the `if` that opens record mode and its `fi`.
 # Nothing else in the driver or the parts names it.
 _rtcall="_rt_judge \"\$REAL_HARNESS/../..\""
-is "the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else" \
-   "$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next } $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++ }
-                          END { printf "%d exact, %d naming it", x, y }' "$HERE"/parts/*.sh)|$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next }
+# The parts and the lib files: "nowhere else" holds of tests/lib too (contract C3).
+_rtfiles=(); while IFS= read -r _rtf; do case "$_rtf" in */run) ;; *) _rtfiles[${#_rtfiles[@]}]="$_rtf" ;; esac; done < <(_suite_files)
+_rtgot="$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next } $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++ }
+                          END { printf "%d exact, %d naming it", x, y }' "${_rtfiles[@]}")|$(_C="$_rtcall" awk '/^[[:space:]]*#/ { next }
                           /^if \[ "\$FELIX_TEST_RECORD" -eq 1 \]; then$/ { r = 1 } r && /^fi$/ { r = 0 }
                           $0 == ENVIRON["_C"] { x++ } index($0, ENVIRON["_C"]) { y++; if (r) z++ }
-                          END { printf "%d exact, %d naming it, %d in the record branch", x, y, z }' "$HERE/run")" \
+                          END { printf "%d exact, %d naming it, %d in the record branch", x, y, z }' "$HERE/run")"
+# A count that is off says which files name the call, for whoever reads the red.
+[ "$_rtgot" = "1 exact, 1 naming it|0 exact, 1 naming it, 1 in the record branch" ] \
+  || _rtgot="$_rtgot [named in: $(grep -lF -- "$_rtcall" "${_rtfiles[@]}" "$HERE/run" | tr '\n' ' ')]"
+is "the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else" \
+   "$_rtgot" \
    "1 exact, 1 naming it|0 exact, 1 naming it, 1 in the record branch"
 # Whether a helper printed one line whose first word is the verdict asked for
 # and whose rest holds each phrase given.

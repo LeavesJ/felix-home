@@ -18,6 +18,10 @@ printf '\nqualification: a control whose premise is absent\n'
 # Authored by a subagent given this behaviour in prose and forbidden the
 # runner's source. That records the method; it is not a property anyone can
 # check from here.
+_widget_repo_build
+_qualify_unreadable_probe
+_qualify_shim_build
+_qualify_gshim_build
 QPP="$TMP/premproj"; QPR="$TMP/premrepo"; mkdir -p "$QPP" "$QPR" "$MEM/premproj"
 ( _fx_cd "$QPR" && git init -q -b main && printf 'clean\n' > a.txt && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1

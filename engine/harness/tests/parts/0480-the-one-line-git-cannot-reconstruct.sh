@@ -3,6 +3,8 @@
 # copy on disk ships storybook/css skills and no description at all. The blurb
 # is how a tracing plugin and an inference provider were both misfiled; the
 # cache row must carry what the thing ships.
+_widget_repo_build
+_recon_build
 printf 'llm\nfrontend\n' > "$FROOT/projects/reconproj/capabilities"
 DQSRC="$TMP/discover-quiet-src"
 mkdir -p "$DQSRC/skills/storybook-css" "$DQSRC/.claude-plugin"
@@ -171,6 +173,7 @@ _hgref "a stamp with no full stop after the date is refused" '# Handoff\n\nRegen
 _hgref "a file of one newline is not the empty placeholder" '\n'
 
 # The CLI. The widget's handoff is saved first and put back after.
+[ -e "$MEM/widget/lifecycle.log" ] || : > "$MEM/widget/lifecycle.log"
 WHF="$MEM/widget/SESSION_HANDOFF.md"
 cp -p "$WHF" "$TMP/widget-handoff.saved" 2>/dev/null; _hgw=$?
 _hgbig "$WHF"; cp "$WHF" "$TMP/widget-big.keep"; _hgwl="$(_hgls "$MEM/widget")"

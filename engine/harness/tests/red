@@ -360,6 +360,19 @@ if [ -d "$HERE/parts" ]; then
     && cp -R "$HERE/parts/." "$TREE/engine/harness/tests/parts/" 2>/dev/null \
     || _none "could not place tests/parts into the tree at $BASE"
 fi
+# The driver sources tests/lib/*.sh as well (contract C2), by name. Unlike the
+# parts these replace the base's as a whole: every check that reads the suite's
+# text reads tests/lib/*.sh through _suite_files, a glob, so a lib file only the
+# base has, though the driver never sources it, would be read by those checks
+# and its violations counted against this tree. The base's directory goes first,
+# and this tree's lib is placed where it has one.
+rm -rf "$TREE/engine/harness/tests/lib" 2>/dev/null
+[ ! -e "$TREE/engine/harness/tests/lib" ] || _none "could not clear tests/lib out of the tree at $BASE"
+if [ -d "$HERE/lib" ]; then
+  mkdir -p "$TREE/engine/harness/tests/lib" 2>/dev/null \
+    && cp -R "$HERE/lib/." "$TREE/engine/harness/tests/lib/" 2>/dev/null \
+    || _none "could not place tests/lib into the tree at $BASE"
+fi
 
 # The suite runs with the caller's TMPDIR, as it does by hand, so its own
 # mktemp root is made where a plain run makes it. Until 2026-09-24 it ran with

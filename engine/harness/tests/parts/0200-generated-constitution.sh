@@ -1,53 +1,6 @@
-_fa_o="$(_fs_cm "$_fa_r")"
-grep -qx ci "$_fa_p/capabilities" 2>/dev/null \
-  && ok  "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" \
-  || bad "a full felix commission adopts what the checkout shows before it runs: capabilities holds ci" "[$(cat "$_fa_p/capabilities")]"
-case "$_fa_o" in
-  *"adopted before this run, because the checkout shows them:"*"ci("*) ok  "and the report says so, naming ci with what it added" ;;
-  *) bad "and the report says so, naming ci with what it added" "$(printf '%s\n' "$_fa_o" | head -n 4)" ;;
-esac
-is "and setup.tsv gains ci's two slug rows with {{REPO}} kept" \
-   "$(awk -F'\t' '($1 == "risk-labels" || $1 == "ci-anthropic-key") && index($4, "--repo {{REPO}}") { print $1 }' "$_fa_p/setup.tsv" | tr '\n' ' ')" \
-   "risk-labels ci-anthropic-key "
-is "so nothing is left undeclared after the run" "$(_fa_undecl)" ""
-_fa_pv0="$(_fa_pv)"
-_fa_ss="$(cd "$_fa_r" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
-case "$_fa_ss" in
-  *"Adopted automatically"*)  bad "the next session start has nothing left to adopt" "$(printf '%s' "$_fa_ss" | head -c 300)" ;;
-  *'"hookSpecificOutput"'*)   ok  "the next session start has nothing left to adopt" ;;
-  *)                          bad "the next session start has nothing left to adopt" "the hook printed no banner, so no adoption line proves nothing" ;;
-esac
-_fa_pv1="$(_fa_pv)"
-if [ -n "$_fa_pv0" ] && [ "$_fa_pv0" = "$_fa_pv1" ]; then
-  ok  "and the commissioning policy version does not move"
-else
-  bad "and the commissioning policy version does not move" "[$_fa_pv0] then [$_fa_pv1]"
-fi
-_fa_rl="$(_fs_cm "$_fa_r" --status | grep 'receipt:')"
-case "$_fa_rl" in
-  ''|*"stale (table set moved"*) bad "so the receipt the run wrote is not stale at the next read" "[$_fa_rl]" ;;
-  *)                             ok  "so the receipt the run wrote is not stale at the next read" ;;
-esac
-
-cp "$_fa_p/capabilities" "$TMP/fa-caps.1"
-_fa_u="$(_fa_undecl)"
-_fa_o="$(_fs_cm "$_fa_r")"
-if [ -n "$_fa_u" ]; then
-  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "the fixture still had [$_fa_u] undeclared"
-elif ! cmp -s "$_fa_p/capabilities" "$TMP/fa-caps.1"; then
-  bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "capabilities now [$(cat "$_fa_p/capabilities")]"
-else
-  case "$_fa_o" in
-    *"adopted before this run"*)     bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "$_fa_o" ;;
-    *"commissioning for adoptproj"*) ok  "a second full run with nothing undeclared prints no adoption line and changes no capability" ;;
-    *)                               bad "a second full run with nothing undeclared prints no adoption line and changes no capability" "no report: $_fa_o" ;;
-  esac
-fi
-
-[ -n "$_fh_sp" ] && { kill "$_fh_sp" 2>/dev/null; wait "$_fh_sp" 2>/dev/null; }
-[ "$_fh_dlock_mine" -eq 1 ] && rmdir "$_fh_dlock" 2>/dev/null
-
 printf '\ngenerated constitution\n'
+_plain_build
+_stranger_build
 CDIR="$FROOT/projects/stranger"
 [ -s "$CDIR/CLAUDE.md" ] && ok "onboarding writes one" || bad "onboarding writes one"
 has "it names the verification command" "$(cat "$CDIR/CLAUDE.md")" "felix gate"
@@ -61,19 +14,7 @@ case "$(cat "$CDIR/CLAUDE.md")" in
 esac
 
 printf '\nlessons are mounted, not offered\n'
-cat > "$MEM/widget/lessons.md" <<'LES'
-# widget lessons
-
-## Checklist
-1. run the gate
-2. update the devlog
-
-## Seeded principles
-- **L-1 Migrations need a rollback path.** Long evidence about a migration that
-  went wrong, with detail nobody needs mounted on every single turn.
-- **L-2 Browser tests belong on critical flows.** More evidence, equally long,
-  equally irrelevant until someone is actually touching the browser layer.
-LES
+_lessons_build force
 
 out="$(cd "$REPO" && "$FELIX" lessons --for "changing a migration" 2>&1)"
 has "matches the relevant lesson"   "$out" "L-1"
@@ -294,51 +235,8 @@ printf '\nfixture git proof\n'
 # and the record's line field is compared with that. Under `ulimit -S -u 1` a
 # fork inside a subshell aborts that subshell at once, with status 128 and no
 # retry, so a probe that forks prints nothing after the fork.
-_gp="$TMP/fixture-git-proof"; mkdir -p "$_gp/plain" "$_gp/kid"
-: > "$_gp/afile"; ln -s / "$_gp/link-out"; ln -s "$_gp/plain" "$_gp/link-in"
-_gp_phys() { [ -n "${1:-}" ] && [ -d "$1" ] && ( cd -P "$1" && pwd -P ); }
-_gp_get()  { printf '%s\n' "$1" | sed -n "s/^$2 //p"; }
-_gp_tmpp="$(_gp_phys "$TMP")"
-_gp_start="$(pwd -P)"
-_gp_url="https://example.invalid/gp/stand-in.git"
-_gp_rec0=0
-[ -n "${FELIX_TEST_FXREFUSED:-}" ] && [ -f "$FELIX_TEST_FXREFUSED" ] \
-  && _gp_rec0="$(wc -l < "$FELIX_TEST_FXREFUSED" | tr -d ' ')"
+_gitproof_base
 
-# The stand-in builder. It refuses any target that is not physically under
-# the directory it is given as $2, sheds the GIT_DIR family and GIT_CONFIG, and
-# sets its own ceiling at the target's parent before git runs, so a failed
-# `git init` cannot climb to a repository above. Each stand-in carries what
-# the incident destroyed: an origin, a ref under refs/remotes/origin, and a
-# branch whose upstream is origin. With "spare" it also gets a second remote
-# with no refs. No fetch, so no URL is ever dialled.
-cat > "$_gp/build.sh" <<'GPBUILD'
-set -u
-unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_CONFIG
-[ -n "${1:-}" ] && [ -n "${2:-}" ] || exit 3
-mkdir -p "$1/sub" || exit 3
-t="$(cd -P "$2" && pwd -P)" && d="$(cd -P "$1" && pwd -P)" || exit 3
-case "$d" in "$t"/?*) ;; *) exit 4 ;; esac
-GIT_CEILING_DIRECTORIES="${d%/*}"; export GIT_CEILING_DIRECTORIES
-cd "$d" || exit 3
-git init -q -b main . >/dev/null 2>&1 && [ -d "$d/.git" ] || exit 5
-[ "$(git rev-parse --absolute-git-dir 2>/dev/null)" = "$d/.git" ] || exit 6
-git -c user.name=t -c user.email=t@t -c commit.gpgsign=false \
-    commit -q --no-verify --allow-empty -m stand-in >/dev/null 2>&1 || exit 7
-git remote add origin https://example.invalid/gp/stand-in.git || exit 8
-git update-ref refs/remotes/origin/main HEAD || exit 8
-git config branch.main.remote origin && git config branch.main.merge refs/heads/main || exit 8
-if [ "${3:-}" = spare ]; then git remote add spare https://example.invalid/gp/spare.git || exit 8; fi
-exit 0
-GPBUILD
-_gp_build() { bash "$_gp/build.sh" "$1" "$TMP" "${2:-}" >/dev/null 2>&1; }
-# What git reads in a stand-in, one key a line. Reads only.
-_gp_state() {   # <checkout>
-  printf 'url %s\n'  "$(git -C "$1" config --get remote.origin.url 2>/dev/null)"
-  printf 'refs %s\n' "$(git -C "$1" for-each-ref refs/remotes/origin 2>/dev/null | wc -l | tr -d ' ')"
-  printf 'up %s\n'   "$(git -C "$1" config --get branch.main.remote 2>/dev/null)"
-}
-_gp_home="$_gp/home"; _gp_build "$_gp_home"; _gp_homep="$(_gp_phys "$_gp_home")"
 _gp_s="$(_gp_state "$_gp_home")"
 # A control on this block's own fixture: it passes on any suite, main's
 # included, and says whether everything below measures the code or the
@@ -353,8 +251,7 @@ fi
 # C1, C2, C11. The three functions exist in the suite's shell, and each is
 # defined above the first section header, so a section runner cut at the
 # line before that header carries them.
-_gp_src="$(_suite_flat)"
-_gp_pre="$(grep -n "^printf '\\\\n" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
+_gitproof_src
 for _gp_f in _fx_cd _fx_git _fx_lint; do
   _gp_d="$(grep -nE "^(function[[:space:]]+)?${_gp_f}[[:space:]]*\(\)" "$_gp_src" 2>/dev/null | head -1 | cut -d: -f1)"
   if ! declare -F "$_gp_f" >/dev/null 2>&1; then
@@ -775,12 +672,6 @@ git -C "$N_c10" rev-parse HEAD
 command git -C "$N_c11" config --get k
 echo git -C "$N_c12" config k v
 GPLINT
-_gp_lint_is() {   # <name> <file> <status wanted>
-  local o rc
-  if ! declare -F _fx_lint >/dev/null 2>&1; then bad "$1" "_fx_lint is not defined"; return 0; fi
-  o="$(_fx_lint "$2" 2>/dev/null)"; rc=$?
-  is "$1" "$o|rc=$rc" "$(grep -nE '\$\{?S_' "$2")|rc=$3"
-}
 _gp_lint_is "_fx_lint reports a raw cd on a variable before every kind of git write, one N:text line each, and exits 1" "$_gp/lint/writes" 1
 _gp_lint_is "_fx_lint passes over a raw cd on a variable before every git read, and exits 0" "$_gp/lint/reads" 0
 _gp_lint_is "_fx_lint passes over literal operands, _fx_cd, _fx_git, git out of command position, and closed groups" "$_gp/lint/others" 0
@@ -824,65 +715,13 @@ chmod 644 "$_gp/lint/locked"
 # C7 compares mtimes with `test -nt`, which resolves to whole seconds, so a
 # child that moves a remote sleeps a second first. The move then lands in a
 # later second than the snapshot.
-_gp_hdr="printf '\\nthe run stayed inside its temporary directory\\n'"
-_gp_mark="printf '\\nreached\\n'"
-_gp_c5="no fixture git command was refused for a directory outside the suite's temporary directory"
-_gp_c8="the remotes of the checkout this run started in did not move while it ran"
-_gp_cutx() {   # the lines from C5 and C8's header to the line before the marker
-  GP_H="$_gp_hdr" GP_M="$_gp_mark" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"] }
-    $0 == h { on = 1 } on && $0 == m { exit } on { print }' "$_gp_src"
-}
+_gitproof_kids
 _gp_o="$(GP_H="$_gp_hdr" GP_M="$_gp_mark" GP_P="printf '\\n" awk 'BEGIN { h = ENVIRON["GP_H"]; m = ENVIRON["GP_M"]; p = ENVIRON["GP_P"] }
   $0 == h { n++; if (!s) s = NR; next }
   s && !e && $0 == m { e = NR; next }
   s && !e && index($0, p) == 1 { x++ }
   END { printf "%d %d", n, (e > s ? 0 : 1) + x }' "$_gp_src" 2>/dev/null)"
 is "the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker" "$_gp_o" "1 0"
-_gp_harness="$_gp/harness"; _copy_content "$REAL_HARNESS" "$_gp_harness"
-_gp_none="$_gp/none"; mkdir -p "$_gp_none"
-cat > "$_gp/kid-lib.sh" <<'GPKID'
-# fixture git proof: what this child may do to its stand-in, and nothing else
-_gpk_ok() {
-  [ -n "${GP_STAND:-}" ] && [ -n "${GP_TMPP:-}" ] && [ -d "$GP_STAND/.git" ] || return 1
-  case "$(cd -P "$GP_STAND" 2>/dev/null && pwd -P)/" in "$GP_TMPP"/?*) return 0 ;; esac
-  return 1
-}
-_gpk_git() {
-  _gpk_ok || { printf 'no stand-in [%s]\n' "${GP_STAND:-}" >> "$GP_OUT/kid.err"; return 3; }
-  ( unset GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_CONFIG
-    git --git-dir="$GP_STAND/.git" "$@" ) >/dev/null 2>&1
-}
-printf '%s\n' "$TMP" > "$GP_OUT/tmp"
-GPKID
-cat > "$_gp/kid-tail.sh" <<'GPKID'
-printf 'gp-fail %s\n' "$FAIL"
-exit 0
-GPKID
-_gp_kid() {   # <name> <cut: 0|1>, body on stdin: writes $_gp/kid/<name>/run
-  local d="$_gp/kid/$1"; mkdir -p "$d"; cat > "$d/body.sh"
-  { [ -n "$_gp_pre" ] && awk -v n="$_gp_pre" 'NR < n { print; if ($0 ~ /^REAL_HARNESS=/) print "REAL_HARNESS=\"$GP_HARNESS\"" }' "$_gp_src"
-    cat "$_gp/kid-lib.sh" "$d/body.sh"
-    if [ "$2" = 1 ]; then _gp_cutx; cat "$_gp/kid-tail.sh"; fi; } > "$d/run"
-}
-_gp_run() {   # <name> <start dir> [stand-in] [harness]: out, err and rc beside the child
-  local d="$_gp/kid/$1"
-  if [ -z "${2:-}" ] || [ ! -d "$2" ]; then printf 'not started' > "$d/err"; : > "$d/out"; printf 'x' > "$d/rc"; return 0; fi
-  ( cd "$2" && GP_OUT="$d" GP_STAND="${3:-}" GP_TMPP="$_gp_tmpp" GP_HARNESS="${4:-$_gp_harness}" \
-      bash "$d/run" > "$d/out" 2> "$d/err"; printf '%s' "$?" > "$d/rc" )
-}
-_gp_rc()   { cat "$_gp/kid/$1/rc" 2>/dev/null; }
-_gp_has()  { grep -Fxq -- "$2" "$_gp/kid/$1/out" 2>/dev/null; }                 # <kid> <exact stdout line>
-_gp_err()  { grep -c -- "^$2" "$_gp/kid/$1/err" 2>/dev/null | tr -d ' '; }      # <kid> <stderr line prefix>: how many
-_gp_detail() {   # <kid> <assertion name>: what bad printed under it
-  GP_N="  FAIL  $2" awk 'f && (/^  (ok|FAIL|skip)  / || /^gp-fail /) { exit } f { print } $0 == ENVIRON["GP_N"] { f = 1 }' \
-    "$_gp/kid/$1/out" 2>/dev/null
-}
-_gp_samecfg() {   # <reported path> <stand-in>: the path is the stand-in's .git/config, physically
-  [ "${1##*/}" = config ] && [ -n "$(_gp_phys "$2/.git")" ] && [ "$(_gp_phys "${1%/*}")" = "$(_gp_phys "$2/.git")" ]
-}
-_gp_gone() {   # <kid>: the child's $TMP no longer exists
-  local t; t="$(cat "$_gp/kid/$1/tmp" 2>/dev/null)"; [ -n "$t" ] && [ ! -e "$t" ]
-}
 
 # C8 skips, C5 passes, and the trap stays quiet, in a run that started in no
 # checkout and whose harness is in none.
@@ -904,16 +743,7 @@ fi
 # the guard's per-assertion check costs no fork. That half alone would pass on
 # a suite with no guard at all, so it counts only where the moved-remote child
 # below shows the guard is there.
-_gp_same="$_gp/stand-same"; _gp_build "$_gp_same"
-_gp_kid same 1 <<'GPKID'
-ok "gp child: an assertion before anything else"
-( ulimit -S -u 1 2>/dev/null || exit 0
-  ulimit -S -u > "$GP_OUT/fork.limit"
-  _ran "gp child: an assertion recorded with no fork available" 2> "$GP_OUT/fork.err" )
-ok "gp child: an assertion after the fork probe"
-true
-GPKID
-_gp_run same "$_gp_same/sub" "$_gp_same"
+_gitproof_kid_same
 if _gp_has same "  ok    $_gp_c5" && _gp_has same "  ok    $_gp_c8" && [ "$(_gp_rc same)" = 0 ] && [ "$(_gp_err same 'tests/run:')" = 0 ]; then
   ok  "a run whose remotes did not move passes the refusal and origin checks and exits 0"
 else

@@ -9,6 +9,7 @@
 # inspection, the tiering, the capability match and the admit call — is the
 # shipped code running against a plugin tree on disk, because stubbing the
 # tiering would assert only that the test agrees with itself.
+_commissioning_build after-0700
 _admroot="$TMP/nominated"; rm -rf "$_admroot"
 mkdir -p "$_admroot/clean/skills/llm-eval"
 mkdir -p "$_admroot/withmcp/skills/llm-eval"

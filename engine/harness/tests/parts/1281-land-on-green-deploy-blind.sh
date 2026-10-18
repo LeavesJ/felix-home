@@ -12,11 +12,7 @@ printf '\nland on green: deploy what main holds, and install the job (contract G
 # ctl/procs that the pgrep stub matches with grep -E. The contract does not say
 # whether a tick that completes an owed deploy goes on to merge in the same
 # tick, so the deploy scenarios list no pull request where that would matter.
-LGV="$LGC/felix/felix"
-_lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"; }
-_lg_inst() { _lg_logs felix | LC_ALL=C awk -F'\t' 'index($3, "install") == 1'; }
-_lg_ninst() { _lg_inst | wc -l | tr -d ' '; }
-_lg_mainv() { git -C "$LGH" show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p'; }
+_lg_build after-1280
 _lg_paused_same() {   # WHAT EVENT -> paused holds the reason the EVENT row gives
   local p d; p="$(cat "$LAND/paused" 2>/dev/null)"; d="$(_lg_f "$2" "" 7)"
   if [ -n "$p" ] && [ -n "$d" ] && { case "$d" in *"$p"*) true ;; *) case "$p" in *"$d"*) true ;; *) false ;; esac ;; esac; }; then

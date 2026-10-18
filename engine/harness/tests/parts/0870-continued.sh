@@ -1,28 +1,5 @@
 # ---- the runs ------------------------------------------------------------
-# felix from the main clone, with the stand-ins first on PATH, the scratch
-# HOME and TMPDIR, nothing of Felix's in the environment, no system git config,
-# only the file transport, and discovery stopped at the scratch root.
-_ivrun() {  # [--path P] [--cwd D] [--bash B] [--home H] [--troots R] felix-args...
-  local p="$IVSTUB:$PATH" d="$IVM" b="" h="$IVH" tr="" trs=0
-  while :; do
-    case "${1:-}" in
-      --path) p="$2"; shift 2 ;;
-      --cwd)  d="$2"; shift 2 ;;
-      --bash) b="$2"; shift 2 ;;
-      --home) h="$2"; shift 2 ;;
-      --troots) tr="$2"; trs=1; shift 2 ;;
-      *) break ;;
-    esac
-  done
-  ( cd "$d" || exit 97
-    unset FELIX_HOME FELIX_MEMORY FELIX_KERNEL FELIX_KERNEL_CACHE FELIX_PLUGIN_CACHE CLAUDE_PLUGIN_ROOT \
-          CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OPTIONAL_LOCKS GIT_CEILING_DIRECTORIES \
-          FELIX_INVENTORY_TEMP_ROOTS
-    export HOME="$h" TMPDIR="$IVT" PATH="$p" XDG_CONFIG_HOME="$IVH/.config" GIT_CONFIG_NOSYSTEM=1 \
-           GIT_ALLOW_PROTOCOL=file GIT_TERMINAL_PROMPT=0 GIT_CEILING_DIRECTORIES="$IV"
-    [ "$trs" = 0 ] || export FELIX_INVENTORY_TEMP_ROOTS="$tr"
-    if [ -n "$b" ]; then "$b" "$IVF" "$@"; else "$IVF" "$@"; fi ) 2>>"$IV_ERR"
-}
+_iv_build
 # The help may go to either stream; _ivrun keeps stderr in $IV_ERR, empty
 # until now.
 case "$(_ivrun)$(cat "$IV_ERR")" in
@@ -31,18 +8,7 @@ case "$(_ivrun)$(cat "$IV_ERR")" in
 esac
 : > "$IV_ERR"
 
-# The live session and a fresh subagent transcript are written last, so their
-# ages at the runs are minutes, then everything is listed and checksummed.
-_ivopen "$IVW/wt-live" 99999999-0000-4000-8000-000000000001
-_au_say  "$(_ivago 4 iso)" 'watch the build'
-_au_tool toolu_l1 Bash '{"command":"make watch","description":"Watch the build"}'
-_au_a    "$(_ivago 3 iso)" msg_l1 '"tool_use"' "$_AU_B"
-_ivtouch "$_AU_F" 3
-_au_open "$(_ive "$IVW/wt-answered")/$IV_NID/subagents/agent-a1.jsonl" agent-a1
-_au_say  "$(_ivago 2 iso)" 'look into it'
-_au_stop "$(_ivago 1 iso)" msg_sub 'Found it. Anything else?'
-_ivtouch "$_AU_F" 1
-_iv_sum=cksum; command -v shasum >/dev/null 2>&1 && _iv_sum=shasum
+_iv_build live
 _iv_snap() {
   local d
   for d in "$IVW" "$IVW2" "$IVO" "$IVO2" "$IVH"; do
@@ -53,72 +19,6 @@ _iv_snap() {
 _iv_before="$(_iv_snap)"
 : > "$IV/marker"
 
-# ---- reading the rows ----------------------------------------------------
-# _iv_sel FILE TOKEN puts the rows naming TOKEN in $IV/sel; _iv_q asks a
-# question of them and needs at least one row. A chip's or a handoff's row
-# may name the worktree it came from, and is never that worktree's row.
-_iv_sel() { LC_ALL=C awk -F'\t' -v t="$2" '
-    $1 == "kind" && $4 == "states" { next }
-    { x = " " $4 " "; gsub(/[^a-z:-]+/, " ", x) }
-    index(x, " chip-unstarted ") || index(x, " handoff-pending ") { next }
-    index($3, t) { r[++n] = $0; next }
-    index($0, t) { o[++m] = $0 }
-    END { if (n) { for (i = 1; i <= n; i++) print r[i] } else { for (i = 1; i <= m; i++) print o[i] } }' "$1" > "$IV/sel"; }
-_iv_selstate() { LC_ALL=C awk -F'\t' -v s="$2" '
-    $1 == "kind" && $4 == "states" { next }
-    { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) { print; break } }' "$1" > "$IV/sel"; }
-#   lead S     every row's first state is S      hold S    some row holds S
-#   lack S     no row holds S                    word C:W  some row has word W in column C (0: the line)
-#   noword C:W no row has it                     num L:H   some row's age_h or detail holds a number in L..H
-#   dnum L:H   some row's detail holds one
-_iv_q() { LC_ALL=C awk -F'\t' -v m="$1" -v a="$2" '
-  function has(s,   x, k, i, t) { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) return 1; return 0 }
-  function lead(   x, t) { x = $4; gsub(/[^a-z:-]+/, " ", x); split(x, t, " "); return t[1] }
-  function word(c, w,   x) { x = tolower(c == 0 ? $0 : $c); return x ~ ("(^|[^a-z])" w "([^a-z]|$)") }
-  function num(s, lo, hi,   v) { while (match(s, /[0-9]+(\.[0-9]+)?/)) { v = substr(s, RSTART, RLENGTH) + 0; if (v >= lo && v <= hi) return 1; s = substr(s, RSTART + RLENGTH) } return 0 }
-  { n++; split(a, p, ":")
-    if (m == "lead") { if (lead() != a) b = 1 }
-    else if (m == "hold") { if (has(a)) g = 1 }
-    else if (m == "lack") { if (has(a)) b = 1 }
-    else if (m == "word") { if (word(p[1] + 0, p[2])) g = 1 }
-    else if (m == "noword") { if (word(p[1] + 0, p[2])) b = 1 }
-    else if (m == "num") { if (num($6 " " $8, p[1] + 0, p[2] + 0)) g = 1 }
-    else if (m == "dnum") { if (num($8, p[1] + 0, p[2] + 0)) g = 1 } }
-  END { if (!n || b) exit 1; if (m == "hold" || m == "word" || m == "num" || m == "dnum") exit g ? 0 : 1; exit 0 }' "$IV/sel"; }
-# The table's states on each selected row, rows joined by " | ".
-_iv_states() { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
-  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) known[a[i]] = 1 }
-  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); r = ""
-    for (i = 1; i <= k; i++) if (s[i] in known) r = r (r == "" ? "" : " ") s[i]
-    out = out (NR > 1 ? " | " : "") r }
-  END { print out }' "$IV/sel"; }
-_iv_diag() { if [ -s "$IV/sel" ]; then tr '\t\n' '|;' < "$IV/sel" | head -c 700; else printf 'no row names it; stderr: '; tail -c 300 "$IV_ERR" | tr '\n' ' '; fi; }
-_iv_chk() {  # name file token mode arg
-  _iv_sel "$2" "$3"
-  if _iv_q "$4" "$5"; then ok "$1"; else bad "$1" "$(_iv_diag)"; fi; }
-_ivgh() { if [ "$IV_JQ" = 1 ]; then "$@"; else skip "$2" "no jq for the gh stand-in"; fi; }
-_iv_count() { LC_ALL=C awk -F'\t' -v s="$2" '
-  $1 == "kind" && $4 == "states" { next }
-  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, t, " "); for (i = 1; i <= k; i++) if (t[i] == s) { c++; break } }
-  END { print c + 0 }' "$1"; }
-_iv_fields() { LC_ALL=C awk -F'\t' 'NF && NF != 8 { printf "line %d has %d fields; ", NR, NF }' "$1"; }
-_iv_blank()  { LC_ALL=C awk -F'\t' 'NF == 8 && ($1 == "" || $2 == "" || $3 == "" || $4 == "") { printf "line %d; ", NR }' "$1"; }
-_iv_repos()  { LC_ALL=C awk -F'\t' '$1 == "kind" && $4 == "states" { next } NF { r[$2] = 1 } END { for (k in r) print k }' "$1"; }
-_iv_order()  { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
-  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) r[a[i]] = i }
-  $1 == "kind" && $4 == "states" { next }
-  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); l = 0
-    for (i = 1; i <= k; i++) if (s[i] in r) { if (r[s[i]] < l) { printf "%s [%s]; ", $3, $4; break } l = r[s[i]] } }' "$1"; }
-_iv_landx()  { LC_ALL=C awk -F'\t' -v o="$IV_ORDER" '
-  BEGIN { n = split(o, a, " "); for (i = 1; i <= n; i++) r[a[i]] = 1 }
-  $1 == "kind" && $4 == "states" { next }
-  { x = $4; gsub(/[^a-z:-]+/, " ", x); k = split(x, s, " "); L = 0; X = 0
-    for (i = 1; i <= k; i++) { if (s[i] == "landed") L = 1; else if (s[i] != "live" && (s[i] in r)) X = 1 }
-    if (L && X) printf "%s [%s]; ", $3, $4 }' "$1"; }
-_iv_kinds()  { LC_ALL=C awk -F'\t' -v g="${2:-}" '$1 == "kind" && $4 == "states" { next } NF && $2 != g { print $1 "\t" $4 }' "$1" | LC_ALL=C sort; }
-_iv_named()  { local f="$1" n m=""; shift; for n in "$@"; do grep -qF -- "$n" "$f" || m="$m $n"; done; printf '%s' "$m"; }
-_iv_col2()   { LC_ALL=C awk -F'\t' 'NR == 1 { print $2 }' "$IV/sel"; }
-_ivnr()      { LC_ALL=C awk 'END { print NR }' "$1"; }
 
 # ---- --tsv ---------------------------------------------------------------
 # Every run that reads items names the repository with --repo, from inside
@@ -266,10 +166,6 @@ else bad "a section waiting in docs/handoff/pending on main is handoff-pending, 
 # ---- the human report ----------------------------------------------------
 IV_HU="$IV/human.txt"; _ivrun inventory --repo "$IVM" > "$IV_HU"; IV_RCH=$?
 is  "felix inventory with no flag exits 0" "$IV_RCH" "0"
-_ivln()  { LC_ALL=C awk -v a="$2" -v b="$3" 'index($0, a) || index($0, b) { print NR; exit }' "$1"; }
-_ivlnw() { LC_ALL=C awk -v w="$2" 'tolower($0) ~ ("(^|[^a-z])" w) { print NR; exit }' "$1"; }
-_ivmin() { local m="" v; for v in "$@"; do [ -n "$v" ] || continue; if [ -z "$m" ] || [ "$v" -lt "$m" ]; then m="$v"; fi; done; printf '%s' "$m"; }
-_ivcnt() { LC_ALL=C awk -v w="$2" 'tolower($0) ~ ("(^|[^a-z])" w "([^a-z]|$)") && /[0-9]/ { f = 1 } END { exit f ? 0 : 1 }' "$1"; }
 IV_HH="$(_ivmin "$(_ivln "$IV_HU" wt-revert topic/revert)" "$(_ivln "$IV_HU" wt-share topic/shared)" "$(_ivlnw "$IV_HU" hazard)")"
 IV_HL="$(_ivmin "$(_ivlnw "$IV_HU" landed)" "$(_ivln "$IV_HU" wt-squash topic/squash)")"
 if [ -n "$IV_HH" ] && [ -n "$IV_HL" ] && [ "$IV_HH" -lt "$IV_HL" ]; then ok "its human output lists hazards before any landed item or count"
@@ -292,9 +188,6 @@ _ivcnt "$IV_HU" live && _ivcnt "$IV_HU" landed && ok "and it ends with counts of
 _ivg0="$(wc -l < "$IVGH_LOG" | tr -d ' ')"
 IV_T3="$IV/t3.tsv"; _ivrun inventory --tsv --no-gh --repo "$IVM" > "$IV_T3"; IV_RC3=$?
 is  "felix inventory --tsv --no-gh exits 0" "$IV_RC3" "0"
-# A run that printed nothing asked nothing and reported nothing, so each
-# absence below counts only over a run that gave rows.
-_ivrows() { [ -s "$1" ] && printf '%s' "$2" || printf 'no rows'; }
 is  "--no-gh asks gh nothing" "$(_ivrows "$IV_T3" "$(( $(wc -l < "$IVGH_LOG") - _ivg0 ))")" "0"
 is  "--no-gh reports no row pr-open or pr-closed-unlanded" "$(_ivrows "$IV_T3" "$(_iv_count "$IV_T3" pr-open) $(_iv_count "$IV_T3" pr-closed-unlanded)")" "0 0"
 grep -qi unknown "$IV_T3" && ok "--no-gh says unknown for what only GitHub could say" \
@@ -321,19 +214,7 @@ if [ "$IV_JQ" = 1 ]; then _iv_sel "$IV_T4" 4103; _iv_q hold pr-open || _ivx=1; f
   || bad "under --no-host what git and gh decide stands: the staged revert, the uncommitted worktree and an open pull request" "$(_iv_diag)"
 
 # ---- no gh on PATH at all ------------------------------------------------
-# A directory of links to everything on PATH but gh, first found first.
-mkdir -p "$IV/nogh"
-_ivifs="$IFS"; IFS=:
-for _ivd in $PATH; do
-  IFS="$_ivifs"
-  [ -d "$_ivd" ] || continue
-  for _ivf in "$_ivd"/*; do
-    _ivn="${_ivf##*/}"
-    [ "$_ivn" = gh ] && continue
-    [ -e "$IV/nogh/$_ivn" ] || [ -L "$IV/nogh/$_ivn" ] || { [ -x "$_ivf" ] && [ ! -d "$_ivf" ] && ln -s "$_ivf" "$IV/nogh/$_ivn"; }
-  done
-done
-IFS="$_ivifs"
+_iv_nogh
 if PATH="$IV/nogh" command -v gh >/dev/null 2>&1 || ! PATH="$IV/nogh" command -v git >/dev/null 2>&1; then
   bad "the fixture: a PATH that holds git and no gh" "gh: $(PATH="$IV/nogh" command -v gh) git: $(PATH="$IV/nogh" command -v git)"
 else
@@ -452,24 +333,6 @@ _ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not foun
 is  "no run wrote a shell or awk error to stderr" "$_ivx" ""
 
 # ---- the code ------------------------------------------------------------
-# The spec puts git and GitHub in lib/inventory.sh and what only Claude Code's
-# transcripts say in lib/inventory-host.sh, one adapter, so a second host is a
-# second adapter. Comments are left out: they may name what the other holds.
-IVLIB="$REAL_HARNESS/lib/inventory.sh"; IVLIBH="$REAL_HARNESS/lib/inventory-host.sh"
-# The core may be split into parts beside it (lib/inventory-*.sh other than
-# the adapter); each part is held to what the core is held to.
-# The adapter is two files, lib/inventory-host.sh and lib/inventory-chips.sh,
-# which reads the proposals; the chips file is held to the adapter's rules and
-# to the shared ones, and is no part of the core.
-IVLIBC="$REAL_HARNESS/lib/inventory-chips.sh"
-IVPARTS=()
-for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && [ "$_ivf" != "$IVLIBC" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
-# Lines that are not comments, each prefixed with its file and line number.
-_ivcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@" 2>/dev/null; }
-# Each pattern sits in a function of its own, never inside "$(...)", where
-# bash 3.2 can brace-expand a quoted literal. A finding names the file, the
-# line and the rule, and quotes no code.
-_ivwhere() { LC_ALL=C awk -F: -v w="$1" '{ printf "%s:%s %s; ", $1, $2, w }' | head -c 300; }
 _iv_hostin() { _ivcode "$IVLIB" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '\.claude/projects|spawn_task|dismiss_task|tool_use|tool_result|\.jsonl' | _ivwhere 'names a transcript detail'; }
 _iv_ghin()   { _ivcode "$IVLIBH" "$IVLIBC" | grep -E '(^|[^A-Za-z0-9_./-])gh[[:space:]]+(pr|api|repo|auth|issue|run|release|workflow|search)([[:space:]]|$)' | _ivwhere 'calls gh'; }
 _iv_bash4()  { _ivcode "$IVLIB" "$IVLIBH" "$IVLIBC" ${IVPARTS[@]+"${IVPARTS[@]}"} | grep -E '(declare|local|typeset)[[:space:]]+-[a-zA-Z]*A|(^|[^a-z_])(mapfile|readarray|coproc)([^a-z_]|$)|\$\{[#!]?[A-Za-z_][A-Za-z0-9_]*(\[[^]]*\])?(,,?|\^\^?)[^}]*\}|&>>|\|&|\$\{[A-Za-z_][A-Za-z0-9_]*:([[:space:]]+|\()-[0-9]' | _ivwhere 'bash 4 or later'; }

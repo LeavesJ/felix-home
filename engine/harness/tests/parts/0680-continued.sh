@@ -1,14 +1,3 @@
-rm -rf "$_cucrp" "$_cucrr" "$_cucrhome" "$TMP/cucr-plugin" "$MEM/cucrproj"
-rm -f "$TMP/cucr-setup-ran" "$TMP/cucr-maint-ran"
-[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*cucrproj*' -exec rm -rf {} + 2>/dev/null
-case "$_cucrmade" in *commission*) rmdir "$FROOT/state/commission" 2>/dev/null ;; esac
-case "$_cucrmade" in state*) rmdir "$FROOT/state" 2>/dev/null ;; esac
-is  "and this block leaves the projects, the state and the memory as it found them" "$(_cucrfixture)" "$_cucrfound"
-unset -f _cucrfixture _cucrlib _cucrnext _cucrpulse _cucrcli _cucrline _cucrsays _cucrboth _cucrran _cucrstart _cucrowed _cucrseen
-unset _cucrfound _cucrmade _cucrp _cucrr _cucrhome _cucrwhy _cucrsu1 _cucrms1 _cucrms0 _cucrsp1 _cucrnx1 _cucrnx0 _cucrn6 _cucrpu1 \
-      _cucrout _cucrrc _cucrunread _cucrs1 _cucrs2 _cucrs3 _cucrow
-
-
 # Every other reader of the declared capabilities says the list could not be read, never that it is empty (1 of 2).
 #
 # felix_declared returns 2 when something is at `capabilities` and could not be
@@ -988,3 +977,18 @@ is  "a full run over an empty capabilities file adopts what the checkout shows a
     "$(_durdsays " $(_durdcaps)" ' ci ') $(_durdbegins "$_durdout" "$_durdadopted")" "said said"
 is  "and the run over an empty capabilities file never prints Capability drift was not checked" "$(_durdran "$_durdout") $(_durdsays "$_durdout" 'Capability drift was not checked')" "ran silent"
 
+
+rm -rf "$_durdp" "$_durdr" "$_durdhome" "$_durdbin" "$MEM/durdproj" "$_durdgone"
+rm -f "$_durdasked" "$TMP/durd-stack.keep" "$TMP/durd-setup.keep" "$TMP/durd-caps.keep"
+[ -d "$FROOT/state" ] && find "$FROOT/state" -name '*durdproj*' -exec rm -rf {} + 2>/dev/null
+_durdnl='
+'
+find "$FROOT/state" -depth -type d 2>/dev/null | while IFS= read -r _durdd; do
+  case "$_durdnl$_durddirs$_durdnl" in *"$_durdnl$_durdd$_durdnl"*) ;; *) rmdir "$_durdd" 2>/dev/null ;; esac
+done
+is  "and the block for felix commission over an unread declared list leaves the projects, the state and the memory as it found them" \
+    "$(_durdfixture)" "$_durdfound"
+unset -f _durdfixture _durdset _durdcli _durdline _durdsays _durdbegins _durdat _durdrow1 _durdsum _durdran _durdlink \
+         _durdtarget _durdsame _durdcaps
+unset _durdfound _durddirs _durdp _durdr _durdhome _durdbin _durdasked _durdgone _durdwhy _durddrift _durdadopted \
+      _durddet _durdout _durdls _durdrun _durdn _durdhead _durdat2 _durdfirst _durdnl _durdd

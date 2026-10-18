@@ -1,3 +1,4 @@
+_qualify_sweep_build
 # 3b. The pid from a sh that forks: a sh first on PATH that runs /bin/sh
 # without exec, as a wrapper may. While its row holds, the record names the
 # row's own live process; or there is none, and the row ran nothing. Never a
@@ -491,3 +492,4 @@ is  "a row whose mutation swaps its own base for a symlink to a directory outsid
     "swapped:$(ls -A "$T" 2>/dev/null | awk '/^felix-qualify\.[A-Za-z0-9]+\.aside$/ { n++ } END { print n + 0 }') outside:[$(ls -A "$d/outside" 2>/dev/null | LC_ALL=C sort | tr '\n' ' ')] err:$(cat "$d/outside/err" 2>/dev/null || echo gone)" \
     "swapped:1 outside:[err keep ] err:precious"
 
+_qualify_sweep_cleanup

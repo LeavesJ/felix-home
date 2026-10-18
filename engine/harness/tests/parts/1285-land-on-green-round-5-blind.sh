@@ -12,6 +12,7 @@ printf '\nland on green: the amendments A23-A28 (contract A23-A28, blind)\n'
 # The home's felix stub logs every call it gets to log/felix.log and its
 # session-start hook to log/hook.log, so "no home code runs" is both logs
 # holding no install, gate or session-start line.
+_lg_build amend
 L5="$LG/round5"; mkdir -p "$L5"
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
 _fx_git "$LGH" reset -q --hard refs/remotes/origin/main >/dev/null 2>&1

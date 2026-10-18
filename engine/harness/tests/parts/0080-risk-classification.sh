@@ -1,12 +1,5 @@
 printf '\nrisk classification\n'
-cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
-( _fx_cd "$REPO" && git add -A >/dev/null 2>&1
-  git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
-
-_classify() { ( cd "$REPO" && "$FELIX" classify --base HEAD~0 2>/dev/null ); }
-_stage() { ( _fx_cd "$REPO" && git add -A >/dev/null 2>&1 && \
-             git -c user.name=t -c user.email=t@t commit -qm c >/dev/null 2>&1 ); }
-_reset() { ( _fx_cd "$REPO" && git reset -q --hard HEAD~1 >/dev/null 2>&1 ); }
+_widget_repo_build
 
 printf 'notes\n' > "$REPO/README.md"; _stage
 out="$( cd "$REPO" && "$FELIX" classify --base HEAD~1 2>&1 )"

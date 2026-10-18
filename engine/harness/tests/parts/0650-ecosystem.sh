@@ -266,40 +266,10 @@ printf '\ncommissioning: one moment, one table, one policy\n'
 # command a person typed in order and felix new printed the order; now a row
 # names a need, an instrument, an engine stage that answers it and a check
 # that decides, and `unknown` is reachable by construction.
-CMP="$FROOT/projects/cmproj"; CMR="$TMP/cm-repo"
-mkdir -p "$CMP" "$CMR/src" "$MEM/cmproj"
-( _fx_cd "$CMR" && git init -q -b main && printf 'x\n' > src/a.txt && printf 'KEY=\n' > .env.example
-  git add -A && git -c user.name=t -c user.email=t@t commit -qm init
-  printf 'y\n' > src/b.txt && git add -A && git -c user.name=t -c user.email=t@t commit -qm two ) >/dev/null 2>&1
-CMR="$(cd "$CMR" && pwd -P)"
-printf 'cmproj\n' > "$CMR/.felix"
-printf '{"name":"cmproj","gate":"true"}\n' > "$CMP/project.json"
-: > "$CMP/capabilities"
-printf '# k\tn\ts\tr\tc\n' > "$CMP/stack.tsv"
-cp "$FROOT/harness/templates/profiles.tsv" "$FROOT/harness/templates/routes.tsv" "$CMP/"
-_cmtable() { { printf '# need\tgrounds\tinstrument\twhen\tanswer\tcheck\tstep\n'
-               for r in "$@"; do printf '%s\n' "$r"; done; } > "$CMP/commissioning.tsv"; }
-_cm() { ( FELIX_HOME_DIR="$FROOT"; PATH="$CMSTUB:$PATH"
-          . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"; . "$FROOT/harness/lib/stack.sh"
-          . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/toolbox.sh"
-          . "$FROOT/harness/lib/discover.sh"; . "$FROOT/harness/lib/ready.sh"; . "$FROOT/harness/lib/commission.sh"
-          . "$FROOT/harness/lib/commission-provider.sh"
-          "$@" ); }
+_commissioning_build alpha12
 _cmstate() { _cm felix_commission_run "$CMP" "$CMR" - | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
 _cmdetail() { _cm felix_commission_run "$CMP" "$CMR" - | awk -F'\t' -v n="$1" '$1 == n { print $6 }'; }
 
-_cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
-         'plain	-	-	-	-	printf x | grep -q x	9' \
-         'beta	-	-	-	felix:toolbox --route	test -f src/made-by-answer	5' \
-         'gamma	-	definitely-not-a-real-command-xyz	-	-	true	5' \
-         'delta	-	-	definitely-not-a-real-command-xyz	-	true	5' \
-         'eps	billing	-	-	-	true	6' \
-         'zeta	-	-	-	-	[ -z "$(felix_no_such_function)" ]	7' \
-         'eta	-	-	-	-	! true	9' \
-         'theta	-	-	-	felix:rm -rf	true	9' \
-         'iota	-	-	-	-	true	99' \
-         'kappa	-	-	-	-	true' \
-         'prov	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4'
 is  "seven-field rows with an engine-stage answer and a check that can fail are rows" \
     "$(_cm felix_commission_rows "$CMP" | cut -f1 | tr '\n' ' ')" "alpha plain beta gamma delta eps zeta prov "
 _cmmal="$(_cm felix_commission_malformed "$CMP")"

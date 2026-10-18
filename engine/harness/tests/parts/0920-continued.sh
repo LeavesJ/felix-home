@@ -1,5 +1,5 @@
 # ---- m: arguments, environment, signals and gh's failures ----------------
-_ibm_five() { IB_BR=""; _ibsess "$IB/mw/five" s-five; _ib_h 10 'go'; _ib_a 9 'Done.'; _ibage "$IB_F" 9; }
+_ib_build h
 IB_BR=""; _ibsess "$IB/m" s-old20; _ib_h 28802 'note what is left'
 _ib_chip 28801 toolu_99 task_01d0 'Twenty days old' "$IB_P99"; _ib_a 28800 'Noted.'; _ibage "$IB_F" 28800
 _ibm_five; _ibrun A5a -- inventory --repo "$IB/m" --tsv --no-gh --live 999999
@@ -75,29 +75,6 @@ _ibrun A29 -- inventory --repo "$IB/m" --tsv --no-host
 rm -f "$IB/gh/fail-open"
 is  "inventory A29: when only the second gh call fails, PR facts are unknown and no row is pr-open" \
     "$(_ibst A29 cover prs | LC_ALL=C awk -F, '{ print $1 }') $(LC_ALL=C awk -F'\t' 'index("," $4 ",", ",pr-open,") { n++ } END { print n + 0 }' "$(_ibo A29)")" "unknown 0"
-# Signals: gh answers slowly; the run is sent TERM, HUP or INT while it waits.
-_ibsig() {  # signal -> "gone" when the run exited and left no scratch
-  local sig="$1" pid gp i=0 sd
-  rm -f "$IB/gh.pid" "$IB/gh.log" "$IB/gh/release"; : > "$IB/gh/slow"
-  ( cd "$IB/cwd" || exit 97
-    unset FELIX_HOME FELIX_MEMORY CLAUDE_CONFIG_DIR GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE XDG_STATE_HOME XDG_CACHE_HOME
-    export HOME="$IB/home" TMPDIR="$IB/tmp" FELIX_INVENTORY_TEMP_ROOTS="$IB/temproot" PATH="$IB/stub:$PATH" \
-           GIT_CONFIG_NOSYSTEM=1 GIT_CEILING_DIRECTORIES="$IB"
-    exec perl -e '$SIG{INT} = "DEFAULT"; $SIG{QUIT} = "DEFAULT"; exec @ARGV or exit 127' "$IBF" inventory --repo "$IB/m" --tsv --no-host ) >/dev/null 2>&1 &
-  pid=$!
-  while [ ! -s "$IB/gh.pid" ] && [ "$i" -lt 900 ] && kill -0 "$pid" 2>/dev/null; do sleep 0.2; i=$((i + 1)); done
-  rm -f "$IB/gh/slow"
-  if [ ! -s "$IB/gh.pid" ]; then kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; printf 'gh was never reached'; return; fi
-  gp="$(cat "$IB/gh.pid")"; sd="$(LC_ALL=C awk -F'|' 'END { s = $5; sub(/\/[^\/]*$/, "", s); print s }' "$IB/gh.log")"
-  kill "-$sig" "$pid" 2>/dev/null
-  : > "$IB/gh/release"   # only now: until the signal is sent the run is still waiting on gh
-  i=0; while kill -0 "$pid" 2>/dev/null && [ "$i" -lt 300 ]; do sleep 0.2; i=$((i + 1)); done
-  kill -0 "$pid" 2>/dev/null && { kill -KILL "$pid" 2>/dev/null; wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null; printf 'still running after %s' "$sig"; return; }
-  wait "$pid" 2>/dev/null; kill "$gp" 2>/dev/null
-  if [ -z "$sd" ]; then printf 'gh saw no XDG_STATE_HOME'
-  elif [ -e "$sd" ]; then printf 'the scratch is left: %s' "$sd"
-  elif [ -n "$(ls -A "$IB/tmp")" ]; then printf 'TMPDIR holds: %s' "$(ls -A "$IB/tmp" | tr '\n' ' ')"
-  else printf gone; fi; }
 if command -v perl >/dev/null 2>&1; then
   for _ibn in TERM HUP INT; do
     is  "inventory A14: the scratch directory is removed when the run is sent $_ibn" "$(_ibsig "$_ibn")" "gone"
@@ -259,7 +236,6 @@ IB_BR=""; _ibsess "$IB/vw/blk" s-vblk; _ib_h 40 'watch it'
 _ib_tu 35 toolu_v1 Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'; _ibage "$IB_F" 35
 _ibrun V1 -- inventory --repo "$IB/v" --tsv; _ibrun V2 -- inventory --repo "$IB/v"
 IB_V="$(_ibo V2)"
-IB_LABELS='hazard:shared-branch|hazard:staged-revert|live|question|blocked|uncommitted|unpushed|unproposed|pr-open|pr-closed-unlanded|carried|orphan|chip-unstarted|handoff-pending|undecided, content not landed|in temporary directories'
 # A heading is a group's label and its count alone on a line; _ibhead prints
 # "line count" for a label, _ibgroup the heading above the first line holding
 # a text.
@@ -316,17 +292,7 @@ is  "inventory A108: a temp row is listed once, under in temporary directories, 
 # PR base it reads follow the ruling of 2026-10-02 (spec section 4.3 rule 2 and
 # section 7: a merged PR lands its head only when its base is the default
 # branch); B4 follows its R2 (section 4.4) and B2, B3 its R3 (section 5.2).
-# _ibgroup2 VIEW TEXT: the group heading above the first line holding TEXT
-# after a heading, so the repository's own path line above the groups is not
-# it; "unlisted" when no such line.
-_ibgroup2() { LC_ALL=C awk -v t="$2" -v labs="$IB_LABELS" 'BEGIN { n = split(labs, L, "|") }
-    { s = $0; sub(/^[ \t]+/, "", s); h = 0
-      for (i = 1; i <= n; i++) if (substr(s, 1, length(L[i])) == L[i]) { r = substr(s, length(L[i]) + 1); if (r ~ /^[ \t:(]*[0-9]+[)]?[ \t]*$/) { g = L[i]; h = 1 } }
-      if (!h && g != "" && index($0, t)) { print g; f = 1; exit } }
-    END { if (!f) print "unlisted" }' "$1"; }
 _ibnothing() { _ibnb "$1" | LC_ALL=C awk 'END { if (match($0, /orphans holding nothing unique [0-9]+/)) { s = substr($0, RSTART, RLENGTH); sub(/.* /, "", s); print s } else print "no counts line" }'; }
-# An element of a detail holding every word given: "said" or "unsaid".
-_ibsaid() { LC_ALL=C awk -v ws="$1" 'BEGIN { m = split(ws, W, " ") } { n = split($0, e, "; "); for (i = 1; i <= n; i++) { k = 0; for (j = 1; j <= m; j++) if (index(tolower(e[i]), W[j])) k++; if (k == m) f = 1 } } END { print (f ? "said" : "unsaid") }'; }
 
 # B1 (f8): Claude Code keeps a project's auto-memory in <E>/memory/, beside the
 # session files and written from any worktree. Section 6.3 counts only files

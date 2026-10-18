@@ -27,6 +27,7 @@ printf '\nfound in review: reach reads the list from an empty directory, and the
 #
 # Uses the fixtures part 1100 leaves behind: RXH (the project reachy and its
 # stack), RXPC, RXMEM, RXLA (LIST-A), RXR4 (its rows) and the helpers.
+_rx_build base 1120
 RZ="$(mktemp -d "$RXBASE/rz.XXXXXX")"; RZ="$(cd "$RZ" && pwd -P)"
 RZB="$RZ/bin"; RZT="$RZ/tmp"; RZU="$RZ/user"; RZC="$RZ/hostile-checkout"
 mkdir -p "$RZB" "$RZT" "$RZU"

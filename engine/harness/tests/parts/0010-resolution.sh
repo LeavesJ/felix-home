@@ -30,7 +30,7 @@ has "a project that has qualified nothing is skipped, not failed" \
     "$out" "no qualification.tsv for widget"
 
 printf '\nungoverned directories\n'
-PLAIN="$TMP/unrelated"; mkdir -p "$PLAIN"; ( _fx_cd "$PLAIN" && git init -q -b main )
+_plain_build
 out="$(cd "$PLAIN" && "$FELIX" gate 2>&1)"; rc=$?
 is  "ungoverned repo refuses to run a gate" "$rc" "2"
 has "and says which projects it knows"      "$out" "Known projects:"
@@ -175,37 +175,14 @@ is "hook silent in ungoverned repo" "${#out}" "0"
 is "hook still exits 0 there"       "$rc" "0"
 
 printf '\nonboarding a stranger project\n'
-# A `claude` that logs every argument line and REFUSES any shape the suite
-# never taught it, so an assertion that depends on it can fail. It exists
-# because felix new now commissions — runs discover --adopt, stack apply
-# --yes and ready --fix — and the real cli on this machine would take those
-# to the network. Every test that runs felix new goes through it.
-CMSTUB="$TMP/cm-stub"; mkdir -p "$CMSTUB"; CMSTUB_LOG="$TMP/cm-stub.log"; : > "$CMSTUB_LOG"
-cat > "$CMSTUB/claude" <<STUB
-#!/usr/bin/env bash
-printf '%s\n' "\$*" >> "$CMSTUB_LOG"
-case "\$*" in
-  "plugin list --json"|"plugin list --json --available") printf '[]\n' ;;
-  "plugin marketplace list"*|"mcp list"*) : ;;
-  "plugin install "*|"plugin enable "*|"plugin marketplace add "*|"plugin update"*) : ;;
-  *) printf 'stub: untaught shape: %s\n' "\$*" >&2; exit 2 ;;
-esac
-STUB
-chmod +x "$CMSTUB/claude"
+# The `claude` stub (see tests/lib/cm-stub.sh): every test that runs felix new goes through it.
+_cmstub_build
 
 # The claim under test: someone who downloads Felix gets what Elenchus got,
 # without hand-writing any of it. A Node app with no git remote, nothing to do
-# with anything already here.
-STRANGE="$TMP/stranger"
-mkdir -p "$STRANGE"
-( _fx_cd "$STRANGE" && git init -q -b main )
-cat > "$STRANGE/package.json" <<'JSON'
-{ "name": "stranger", "scripts": { "verify": "echo ok" },
-  "dependencies": { "express": "^4", "stripe": "^17" },
-  "devDependencies": { "playwright": "^1" } }
-JSON
-
-out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; rc=$?
+# with anything already here. _stranger_build (tests/lib/cm-stub.sh) makes it
+# and runs felix new over it; its output and exit status are read back here.
+_stranger_build; out="$_stranger_out"; rc="$_stranger_rc"
 is  "felix new exits 0"            "$rc" "0"
 has "detects from their manifest"  "$out" "billing"
 has "guesses their gate"           "$out" "npm run verify"

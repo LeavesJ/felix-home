@@ -1,6 +1,7 @@
 # Gaining refs is not moving: a concurrent fetch does it. Nor is a config
 # write that leaves every url and pushurl as it was, which makes the guard
 # re-read mid-run and must leave no C7 record.
+_gitproof_build; _gitproof_kid_same
 _gp_gain="$_gp/stand-gain"; _gp_build "$_gp_gain" spare
 _gp_kid gain 1 <<'GPKID'
 ok "gp child: an assertion before the stand-in gains refs"
@@ -28,19 +29,7 @@ fi
 # record. C7 recorded the first move only, between the assertions on either
 # side of it. Because C5 and C8 ran, the trap adds nothing and keeps the 0 the
 # tail exits with.
-_gp_url1="$_gp/stand-url"; _gp_build "$_gp_url1"
-_gp_kid url 1 <<'GPKID'
-ok "gp child: an assertion before the remote moves"
-sleep 1
-_gpk_git remote set-url origin https://example.invalid/gp/moved.git
-ok "gp child: the first assertion after the remote moves"
-sleep 1
-_gpk_git remote set-url origin https://example.invalid/gp/moved-again.git
-ok "gp child: the second assertion after the remote moves"
-[ -e "$TMP/origin-moved" ] && cp "$TMP/origin-moved" "$GP_OUT/origin-moved"
-true
-GPKID
-_gp_run url "$_gp_url1/sub" "$_gp_url1"
+_gitproof_kid_url
 _gp_d="$(_gp_detail url "$_gp_c8")"
 if [ "$(git -C "$_gp_url1" config --get remote.origin.url 2>/dev/null)" != "https://example.invalid/gp/moved-again.git" ]; then
   _gp_x="not exercised: the stand-in's origin was not moved [$(cat "$_gp/kid/url/kid.err" 2>/dev/null)]"

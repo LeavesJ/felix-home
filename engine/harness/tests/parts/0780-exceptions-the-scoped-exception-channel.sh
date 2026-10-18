@@ -10,6 +10,9 @@
 #
 # Written blind against the contract, before the implementation was read.
 printf '\nexceptions: the scoped exception channel\n'
+# _cdtopo and _cdepoch (tests/lib/candidates.sh) put CMSTUB first on PATH, and the
+# seed assertion at the end reads the stranger project that felix new onboarded.
+_cmstub_build; _stranger_build
 
 _xc_row()    { local IFS=$'\t'; printf '%s\n' "$*"; }
 _xc_hash()   { local l; l="$(awk -F'\t' -v n="$2" '$1==n{print; exit}' "$1")"

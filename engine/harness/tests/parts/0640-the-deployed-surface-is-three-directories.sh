@@ -8,6 +8,7 @@ printf '\nthe deployed surface is three directories\n'
 #
 # Both sides get hooks/ first, matching, and the control runs before the
 # tamper — a guard that refuses everything passes every tamper test.
+_install_fixture_build after-0630
 cp -R "$ICACHE/harness/." "$ISRC/engine/harness/"
 mkdir -p "$ISRC/engine/hooks" "$ICACHE/hooks"
 printf '{ "hooks": { "SessionStart": [] } }\n' > "$ISRC/engine/hooks/hooks.json"
@@ -219,17 +220,6 @@ printf '\nindependence\n'
 # one - and disagreed with the gate, which used `ls -1 projects` and so counted
 # plain files too. Two hand-rolled enumerators, already divergent, under an
 # assertion that claimed they were in step.
-_REALP="$(cd "$REAL_HARNESS/../.." && pwd)/projects"
-_gov_names() {   # every governed project except the engine's own name
-  local meta n
-  [ -d "$_REALP" ] || return 0
-  for meta in "$_REALP"/*/project.json; do
-    [ -f "$meta" ] || continue
-    n="${meta%/project.json}"; n="${n##*/}"
-    [ "$n" = "felix" ] && continue
-    printf '%s\n' "$n"
-  done
-}
 runtime=("$FROOT/harness/felix" "$FROOT/harness/lib" "$FROOT/harness/hooks" "$FROOT/harness/bin")
 
 # Armed before it is trusted. This is a negative assertion over a generated set,

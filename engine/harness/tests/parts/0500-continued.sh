@@ -5,8 +5,11 @@
 # the one project with rows met every one of them. What it can do is turn red
 # the day a checker stops catching what it used to, which is the only moment a
 # qualification suite earns its keep.
+_qualify_unreadable_probe
+_qualify_u8_probe
+_qualify_shim_build
+_widget_repo_build
 cp "$FROOT/projects/widget/qualification.tsv" "$TMP/qual.keep" 2>/dev/null || true
-_qcheck='! grep -rqI FORBIDDEN . 2>/dev/null'
 printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck" \
   > "$FROOT/projects/widget/qualification.tsv"
 ( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qrc=$?
@@ -51,7 +54,6 @@ esac
 # Without --gate the report may read the table once more, for the roster gap.
 _qlgate()  { ( cd "$REPO" && "$FELIX" qualify --gate 2>&1 ); }
 _qlplain() { ( cd "$REPO" && "$FELIX" qualify 2>&1 ); }
-_qlw="$FROOT/projects/widget/qualification.tsv"
 is  "felix qualify --gate reads qualification.tsv exactly once" "$(_qreads _qlgate)" "1"
 _qlpr="$(_qreads _qlplain)"
 case "$_qlpr" in
@@ -402,38 +404,13 @@ fi
 # below that its row loop. It never kills the CLI, nor the suite, and leaves a
 # mark when it has killed, so a run it never reached is a failure and not a
 # pass. Both controls are met, so the death is the only reason to refuse.
-_QGSHIM="$TMP/git-shim"; mkdir -p "$_QGSHIM"; _qgit="$(command -v git)"
-cat > "$_QGSHIM/git" <<EOF
-#!/bin/sh
-case " \$* " in
-  *" worktree add "*)
-    printf x >> "\$QKILL_COUNT"
-    if [ "\$((\$(wc -c < "\$QKILL_COUNT")))" -eq "\${QKILL_AT:-0}" ]; then
-      chain=""; p="\$PPID"
-      while [ -n "\$p" ] && [ "\$p" -gt 1 ]; do
-        case "\$(ps -ww -o command= -p "\$p")" in
-          *"\$QKILL_FELIX "*) chain="\$p \$chain" ;;
-          *) break ;;
-        esac
-        p="\$(ps -o ppid= -p "\$p" | tr -d ' ')"
-      done
-      set -- \$chain
-      [ "\$#" -gt "\${QKILL_BELOW:-1}" ] || exit 1
-      shift "\${QKILL_BELOW:-1}"
-      [ "\$1" != "\$QKILL_SPARE" ] && kill -KILL "\$1" && printf '%s\n' "\$1" > "\$QKILL_COUNT.killed"
-      exit 1
-    fi ;;
-esac
-exec "$_qgit" "\$@"
-EOF
-chmod +x "$_QGSHIM/git"
+_qualify_gshim_build
 _qkill() {   # K: felix qualify --gate with its Kth worktree add killing the row loop
   : > "$_QSC"; rm -f "$_QSC.killed"
   _qsout="$( cd "$REPO" && PATH="$_QGSHIM:$PATH" QKILL_COUNT="$_QSC" QKILL_AT="$1" \
              QKILL_FELIX="$FELIX" QKILL_SPARE="$$" "$FELIX" qualify --gate 2>&1 )"; _qsrc=$?
   [ -s "$_QSC.killed" ]
 }
-_qknone="the wrapped git killed nothing, so no run was cut short"
 { printf 'demo\t%s\tviolation\tfail\tprintf FORBIDDEN > bad.txt\n' "$_qcheck"
   printf 'demo\t%s\trestoration\tpass\ttrue\n' "$_qcheck"; } > "$_qlw"
 ( cd "$REPO" && "$FELIX" qualify --gate >/dev/null 2>&1 ); _qrc=$?

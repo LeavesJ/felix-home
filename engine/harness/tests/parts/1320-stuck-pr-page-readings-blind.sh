@@ -3,6 +3,7 @@ printf '\nthe stuck-PR page: the queue once, the lock, the ledger, --repo and th
 # Blind, from spec v2 alone, on the fixture part 1300 builds. Each section
 # sets its own gh answers, ledger and lock, and the last one moves origin/main,
 # so it runs last. The fixture is removed at the end of this part.
+_sp_build
 
 # ---- case 1: exactly one entry, however many rules and labels (§6.3) ----------
 _sp_ledger; _sp_logs0
@@ -68,7 +69,7 @@ _sp_is "case 28: and the pull request" "$SPX/noledger.tsv" 105 ready lander
 
 # ---- case 29: --repo DIR reads that repository and that project's ledger ---------
 _sp_ledger; _sp_logs0; mkdir -p "$SP2/deep/er"
-_sp_prs fixture_home "${SPLIST[@]}"
+_sp_list; _sp_prs fixture_home "${SPLIST[@]}"
 _sp_prs fixture_two "$(_sp_pr 202 notes/202.md:0 green sha="$(_sp_two 202)" repo=fixture/two)" \
                     "$(_sp_pr 201 notes/201.md:0 green sha="$(_sp_two 201)" repo=fixture/two)"
 _sps0="$(_sp_snapall)"

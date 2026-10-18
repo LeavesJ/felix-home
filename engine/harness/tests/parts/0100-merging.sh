@@ -1,4 +1,5 @@
 printf '\nmerging\n'
+_widget_repo_build
 # The escape set decides nothing until something consults it. Felix had no way
 # to merge at all — the only merge-adjacent code in the engine turned on
 # GitHub's auto-merge and then waited for a person — so a rule saying "Felix

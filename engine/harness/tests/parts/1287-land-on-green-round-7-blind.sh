@@ -12,6 +12,7 @@ printf '\nland on green: the amendment A30 (contract A30, blind)\n'
 # not to merge, so a tick that hands the pull request to felix merge ignored it.
 # The contract leaves the skip row's words open, so its detail is held only to
 # naming the label as the pull request carries it, case and all.
+_lg_build amend
 _l8_lab() {   # NAME... -> a labels array as gh lists it, one object per name
   local n s="" o="" i=0
   for n in "$@"; do

@@ -1,16 +1,10 @@
 printf '\nthe intent router\n'
 # Say what you are doing and get the right kit, without naming it. The chain is
 # routes.tsv -> profiles.tsv -> stack.tsv, and only the first link is new.
-cp "$REAL_HARNESS/templates/routes.tsv"   "$FROOT/projects/widget/routes.tsv"
-cp "$REAL_HARNESS/templates/profiles.tsv" "$FROOT/projects/widget/profiles.tsv"
-cat > "$FROOT/projects/widget/stack.tsv" <<'EOF'
-plugin	frontend-design@claude-plugins-official	-	low	frontend
-plugin	playwright@claude-plugins-official	-	low	e2e
-skill	impeccable	-	low	frontend
-EOF
-printf 'frontend\ne2e\n' > "$FROOT/projects/widget/capabilities"
-
-_route() { ( cd "${2:-$REPO}" && "$FELIX" route --for "$1" 2>&1 ); }
+_widget_repo_build
+_router_build tables
+_lessons_build
+_gate_catch_build
 
 out="$(_route "let us build the results page")"
 has "a frontend prompt routes to frontend" "$out" "frontend"
@@ -444,3 +438,169 @@ _p264_amid "a message from another session is not routed, and moves nothing in t
 _p264_amid "nor is a task notification" p264-tn \
   '<task-notification>\n<task-id>b7x2k9</task-id>\n<tool-use-id>toolu_01AbCdEf</tool-use-id>\n<output-file>/private/tmp/t/b7x2k9.output</output-file>\n<status>completed</status>\n<summary>Background command \"run the migration\" completed (exit code 0)</summary>\n</task-notification>'
 
+# A summary session still ends like any other, and nothing at its end knew it
+# for one. In a tree with work no gate had seen, Stop held it and told the
+# summarising model to run the gate; a tool call made on that advice went to
+# state/ledger, and SessionEnd folded it into ledger.d, the phantom back in the
+# denominator the prompt hook had kept it out of. So the prompt hook leaves a
+# marker for the session in place of a record, and Stop and SessionEnd do
+# nothing at all for a session that carries one.
+printf 'unverified\n' >> "$P264R/WIDGET.txt"
+# The control first: a person's session in the same tree is held.
+_p264_prompt "$(_p264_payload p264-heldctl 'let us build the results page')" "$P264R" >/dev/null
+case "$(_p264_stop "$P264R" p264-heldctl)" in
+  *'"decision"'*'"block"'*) ok  "a person's session in a tree no gate has seen is held" ;;
+  *)                        bad "a person's session in a tree no gate has seen is held" ;;
+esac
+# A marker is not a way out. Every prompt a person types marks the session and a
+# summary never does, so a marker beside a mark is not what it says.
+mkdir -p "$FROOT/state/machine" && : > "$FROOT/state/machine/p264-heldctl"
+# Restated for the hold once per tree (slot 2a, part B), not blind: the session
+# was held on this tree a moment ago, so the stop is judged and is debt, a row
+# in verification.log. A marker that excused it would end it with no row.
+_p264n0="$(awk 'END { print NR + 0 }' "$MEM/widget/verification.log" 2>/dev/null)"
+_p264o="$(_p264_stop "$P264R" p264-heldctl)"
+is  "and a marker laid in a session a person has typed into does not excuse it: the stop is judged, as debt on the tree it was held on" \
+    "$(( $(awk 'END { print NR + 0 }' "$MEM/widget/verification.log" 2>/dev/null) - _p264n0 )):$(tail -1 "$MEM/widget/verification.log" 2>/dev/null | cut -f2):[$_p264o]" "1:debt:[]"
+_b="$(_p264_snap)"
+_p264_prompt "$(_p264_payload p264-sumstop "$P264_REQ")" "$P264R" >/dev/null
+[ -e "$FROOT/state/machine/p264-sumstop" ] \
+  && ok  "a summary request leaves a marker for its session in place of a record" \
+  || bad "a summary request leaves a marker for its session in place of a record" "no $FROOT/state/machine/p264-sumstop"
+# SessionStart wrote the session's startup row before any prompt came, and
+# could not know. The one row the request adds is how a reader of
+# lifecycle.log drops that session: kind summary, its id, its transcript.
+is "and one lifecycle row for that session, of kind summary, naming its transcript" \
+  "$(awk -F'\t' '$3=="p264-sumstop" { print $2 " " $8 }' "$MEM/widget/lifecycle.log" 2>/dev/null)" \
+  "summary $P264/p264-sumstop.jsonl"
+is "and a person's prompt adds no lifecycle row at all" \
+  "$(awk -F'\t' '$3=="p264-heldctl"' "$MEM/widget/lifecycle.log" 2>/dev/null | wc -l | tr -d ' ')" "0"
+out="$(_p264_stop "$P264R" p264-sumstop)"
+is "and Stop neither holds that session nor tells it anything" "${#out}" "0"
+_m="$(_p264_snap)"
+_p264_same "and records no hold for it in says.log or verification.log" \
+  "$(_p264_of 'says|verif' "$_b")" "$(_p264_of 'says|verif' "$_m")"
+# A tool call it makes anyway, and then its end.
+( cd "$P264R" && printf '{"session_id":"p264-sumstop","hook_event_name":"PostToolUse","tool_name":"Bash","tool_input":{"command":"ls"}}' \
+    | "$FROOT/harness/hooks/post-tool" >/dev/null 2>&1 )
+_p264_end p264-sumstop "$P264R"
+_a="$(_p264_snap)"
+_p264_same "and SessionEnd folds nothing of it into ledger.d" \
+  "$(_p264_of ledger.d "$_b")" "$(_p264_of ledger.d "$_a")"
+[ -e "$FROOT/state/machine/p264-sumstop" ] \
+  && bad "and takes the marker away with the session" "still there" \
+  || ok  "and takes the marker away with the session"
+# No id, nothing to key a marker on and nothing that could read one back.
+_b="$(_p264_snap)"
+( cd "$P264R" && printf '{"hook_event_name":"UserPromptSubmit","prompt":"%s"}' "$P264_REQ" \
+    | "$FROOT/harness/hooks/user-prompt" >/dev/null 2>&1 )
+_a="$(_p264_snap)"
+_p264_same "a summary request with no session id leaves no marker" \
+  "$(_p264_of state/machine "$_b")" "$(_p264_of state/machine "$_a")"
+# Nothing else either: what the prompt hook may do with a prompt is the
+# prompt's kind, and the kind is the same with or without an id.
+_p264_same "and records nothing else for it: no brief, no route, no mark, no route state" \
+  "$(_p264_of 'says|routes|state/session|state/ledger|state/route' "$_b")" \
+  "$(_p264_of 'says|routes|state/session|state/ledger|state/route' "$_a")"
+# Stop has no id to find a marker by, so it does what it always did, and the
+# tree here holds work no gate has seen.
+case "$( cd "$P264R" && printf '{"hook_event_name":"Stop","stop_hook_active":false}' \
+           | "$FROOT/harness/hooks/stop" 2>&1 )" in
+  *'"decision"'*'"block"'*) ok  "and Stop, with no id, holds that tree as it always did" ;;
+  *)                        bad "and Stop, with no id, holds that tree as it always did" ;;
+esac
+# And with the gate green on that tree, what Stop says to a person at the end,
+# whichever of its notices that is, is not said to the summary either.
+( cd "$P264R" && . "$FROOT/harness/lib/verify.sh"
+  felix_verify_record "$P264R" "$FROOT" 0 "gate" "$(felix_tree_id "$P264R" "$FROOT")" "" >/dev/null 2>&1 )
+_p264_prompt "$(_p264_payload p264-greenctl 'let us build the results page')" "$P264R" >/dev/null
+out="$(_p264_stop "$P264R" p264-greenctl)"
+[ -n "$out" ] \
+  && ok  "a person's session that ends on a green gate is still spoken to at its end" \
+  || bad "a person's session that ends on a green gate is still spoken to at its end" "Stop said nothing"
+_p264_prompt "$(_p264_payload p264-sumgreen "$P264_REQ")" "$P264R" >/dev/null
+out="$(_p264_stop "$P264R" p264-sumgreen)"
+if [ -z "$out" ] && [ ! -e "$FROOT/state/verified/p264-sumgreen" ]; then
+  ok  "and a summary session is not"
+else
+  bad "and a summary session is not" "printed ${#out} chars; verified: $(ls "$FROOT/state/verified" 2>/dev/null | grep p264 | tr '\n' ' ')"
+fi
+_p264_end p264-sumgreen "$P264R"
+rm -f "$( . "$FROOT/harness/lib/verify.sh"; _felix_receipt_path "$P264R" "$FROOT")"
+
+# The sessions recorded before this are removed from ledger.d by a one-off pass,
+# and that has to stay done. `felix ledger` and `felix stack` fold every session
+# whose record is behind what is on disk, and session-start counts the same set
+# to hedge the unmounts it proposes. An old summary session's appends are still
+# on disk, its mark is a commit this repository owns, and its fold is exactly
+# what the pass took away: so the next `felix ledger` folded it straight back,
+# and until then session-start held every unmount on its account. Built here as
+# the old prompt hook left one, in a home of its own so the catch-up walks
+# nothing else, beside a person's session in the same state as the control.
+L264="$P264/catchup"; mkdir -p "$L264/home/state/ledger" "$L264/home/state/session" "$L264/mem" "$L264/bin"
+_l264_head="$(git -C "$REPO" rev-parse HEAD 2>/dev/null)"
+# Whether a brief row can be the platform's turns on when it was written:
+# before the day route.sh gives for the wording, no engine matched the request
+# and it was briefed like a prompt. felix_say stamps the row with the time it
+# writes it, so the clock here is the fixture's, a `date` that says what it is
+# told, and the day is read from route.sh rather than copied.
+printf '#!/bin/sh\nprintf "%%s\\n" "$L264_AT"\n' > "$L264/bin/date"; chmod +x "$L264/bin/date"
+_l264_day="$( . "$FROOT/harness/lib/route.sh"; printf '%s' "${_FELIX_ROUTE_SESSION_REQUESTS[2]:-}" )"
+_l264_say() {    # sid, what was asked as the prompt hook held it, when: one brief row
+  ( FELIX_MEMORY="$L264/mem" L264_AT="$3" PATH="$L264/bin:$PATH"; export FELIX_MEMORY L264_AT PATH
+    . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/say.sh"
+    felix_say "$FROOT/projects/widget" brief "Use this now: superpowers:systematic-debugging" "$2" "$1" )
+}
+_l264_sess() {   # sid, what was asked, when, [what it reached for]: a session nothing folded
+  printf '%s\n' "$_l264_head" > "$L264/home/state/session/$1"
+  printf 'named\tsuperpowers:systematic-debugging\n' > "$L264/home/state/ledger/$1.tsv"
+  [ -z "${4:-}" ] || printf '%s\n' "$4" >> "$L264/home/state/ledger/$1.tsv"
+  _l264_say "$1" "$2" "$3"
+}
+_l264_sess p264-oldsum    "$P264_REQ" 2026-09-10T21:04:57Z
+_l264_sess p264-oldperson 'the build is broken and the stacktrace shows a crash on reproduce' 2026-09-10T21:10:00Z
+# Sourced the way session-start sources it, ledger.sh without route.sh.
+_l264() { ( FELIX_MEMORY="$L264/mem"; export FELIX_MEMORY
+            . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/ledger.sh"
+            "$1" "$FROOT/projects/widget" "$L264/home" "$REPO" ) 2>&1; }
+is "session-start counts a person's unfolded session as stranded, and not an old summary session" \
+   "$(_l264 felix_ledger_stranded)" "1"
+# The first 200 characters are all of the request a brief row keeps, and a
+# person can paste them too. The prompt hook reads a person who stops short of
+# the whole opening and closing as a person and briefs them, so the row is
+# theirs when it was written on the day route.sh gives or after, and a session
+# in which it is one brief among others is a person's whenever it was written:
+# the platform's request was its session's only prompt. Passed over, either
+# one was never folded or counted, and what it reached for went with it.
+_l264_sess p264-newshare \
+  "${P264_OPEN:0:200}"'debt I should pay down first, and fix the hook that keeps blocking me' \
+  "${_l264_day}T12:00:00Z" 'skill	superpowers:systematic-debugging'
+is "and counts a person's session whose prompt shares the request's first 200 characters" \
+   "$(_l264 felix_ledger_stranded)" "2"
+_l264_sess p264-oldmixed 'the build is broken and the stacktrace shows a crash on reproduce' 2026-09-10T20:00:00Z
+_l264_say  p264-oldmixed "${P264_OPEN:0:200}"'debt I should pay down first' 2026-09-10T20:30:00Z
+is "and an older one in which such a prompt was one of several" \
+   "$(_l264 felix_ledger_stranded)" "3"
+_l264 felix_ledger_catchup >/dev/null
+[ -f "$L264/mem/widget/ledger.d/p264-oldperson.tsv" ] \
+  && ok  "felix ledger still folds a person's session nothing folded" \
+  || bad "felix ledger still folds a person's session nothing folded" "no ledger.d/p264-oldperson.tsv"
+[ -f "$L264/mem/widget/ledger.d/p264-oldsum.tsv" ] \
+  && bad "but no longer folds an old summary session back into ledger.d" "$(cat "$L264/mem/widget/ledger.d/p264-oldsum.tsv")" \
+  || ok  "but no longer folds an old summary session back into ledger.d"
+has "and still folds the person's whose prompt shares its first 200 characters, with what it reached for" \
+    "$(cat "$L264/mem/widget/ledger.d/p264-newshare.tsv" 2>/dev/null)" "skill	superpowers:systematic-debugging	1"
+[ -f "$L264/mem/widget/ledger.d/p264-oldmixed.tsv" ] \
+  && ok  "and folds the older one in which such a prompt was one of several" \
+  || bad "and folds the older one in which such a prompt was one of several" "no ledger.d/p264-oldmixed.tsv"
+
+rm -f "$FROOT/state/session"/p264-* "$FROOT/state/ledger"/p264-*.tsv \
+      "$FROOT/state/route"/p264-* "$FROOT/state/shape"/p264-* "$MEM/widget/ledger.d"/p264-*.tsv \
+      "$FROOT/state/verified"/p264-* "$FROOT/state/skipped"/p264-* "$FROOT/state/machine"/p264-*
+[ "$_p264_ld" = 1 ] || rmdir "$MEM/widget/ledger.d" 2>/dev/null
+for _f in says.log routes.log verification.log; do
+  if [ -f "$P264/$_f.keep" ]; then cp -p "$P264/$_f.keep" "$MEM/widget/$_f"; else rm -f "$MEM/widget/$_f"; fi
+done
+# Asserted, not assumed, for the reason given at the fixture's first cleanup.
+_p264_same "the #264 block leaves the logs and the session state as it found them" \
+  "$_p264_found" "$(_p264_snap)"

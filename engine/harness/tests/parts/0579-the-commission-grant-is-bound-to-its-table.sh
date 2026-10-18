@@ -7,12 +7,7 @@
 # would become code that runs unattended, forever, with nothing on any surface
 # to show it. The stamp is the binding: a table edited after the grant does not
 # inherit it, and re-granting is a person's act of reading what changed.
-AUC="$TMP/autocomm"; mkdir -p "$AUC" "$MEM/autocomm"
-printf 'envelope	-	-	-	person	test -f "$FELIX_PROJECT/CLAUDE.md"	none
-' > "$AUC/commissioning.tsv"
-printf '# what Felix may do here unattended
-commission
-' > "$AUC/autonomy"
+_autocomm_build
 _ac() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
           . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
           felix_autonomy_commission_current "$AUC" && echo current || echo stale ); }

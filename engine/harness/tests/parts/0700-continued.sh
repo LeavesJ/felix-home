@@ -1,120 +1,4 @@
-# The reader. A current receipt, rewritten in place.
-_cm _cmrcwrite "$_cmrcfull" >/dev/null
-cp "$_cmrcrc" "$TMP/cmrc-good.receipt"
-_cmrcvalid() { local _cmrcv _cmrcvr
-  _cmrcv="$(_cm felix_commission_receipt_valid "$FROOT" "$CMP" "$CMR" 2>/dev/null)"; _cmrcvr=$?
-  printf '%s %s' "$_cmrcvr" "$_cmrcv"; }
-_cmrcredo() { awk -F'\t' -v OFS='\t' "$1" "$TMP/cmrc-good.receipt" > "$TMP/cmrc-redo.receipt" \
-                && mv "$TMP/cmrc-redo.receipt" "$_cmrcrc"; }
-_cmrcbegins() { case "$2" in "$3"*) ok "$1" ;; *) bad "$1" "[$2] does not begin [$3]" ;; esac; }
-_cmrcbegins "a current well-formed receipt still reads valid" "$(_cmrcvalid)" "0 commissioned"
-_cmrcredo '{ $5 = "held"; $7 = "1"; print }'
-_cmrcbegins "and a current well-formed held receipt still reads valid, held" "$(_cmrcvalid)" "0 held"
-_cmrcredo '{ for (i = 6; i <= 10; i++) $i = ""; print }'
-_cmrcbegins "a receipt whose counts are empty is unreadable, not valid" "$(_cmrcvalid)" "1 unreadable ("
-_cmrcredo '{ $8 = "?"; print }'
-_cmrcbegins "a receipt whose unknown count is ? is unreadable" "$(_cmrcvalid)" "1 unreadable ("
-_cmrcredo '{ $5 = "finished"; print }'
-_cmrcbegins "a receipt whose result is a word no run writes is unreadable" "$(_cmrcvalid)" "1 unreadable ("
-_cmrcredo '{ $5 = "indeterminate"; $8 = ""; print }'
-_cmrcbegins "an indeterminate receipt with a count missing still reads indeterminate first" "$(_cmrcvalid)" "1 indeterminate"
-_cmrcredo '{ $2 = "cmrc-not-the-table"; $8 = ""; print }'
-_cmrcbegins "a stale receipt with a count missing still reads stale first" "$(_cmrcvalid)" "1 stale (table set moved"
-# Added after review, not blind: each end of the count fields alone, and the
-# claude cli having changed since, which announces and returns 0 for a
-# well-formed receipt and must not for one whose counts no run wrote.
-_cmrcredo '{ $6 = ""; print }'
-_cmrcbegins "a receipt whose done count alone is empty is unreadable" "$(_cmrcvalid)" "1 unreadable ("
-_cmrcredo '{ $10 = "?"; print }'
-_cmrcbegins "a receipt whose awaiting count alone is ? is unreadable" "$(_cmrcvalid)" "1 unreadable ("
-_cmrcredo '{ $4 = "cmrc-older-claude"; print }'
-_cmrcbegins "a well-formed receipt from an older claude cli still reads valid, and says so" "$(_cmrcvalid)" "0 commissioned (the claude cli changed since"
-_cmrcredo '{ $4 = "cmrc-older-claude"; for (i = 6; i <= 10; i++) $i = ""; print }'
-_cmrcbegins "a receipt from an older claude cli whose counts are empty is unreadable, not announced" "$(_cmrcvalid)" "1 unreadable ("
-
-# The command. Two stubs appended to the fixture's copy of the library, each
-# idle unless the run is handed its variable: the check on a row's state ends
-# the loop's shell at the call FELIX_CMRC_DIE_AT names, and the counts print
-# FELIX_CMRC_COUNTS. The copy is put back the moment the last run returns.
-_cmtable "$(printf 'cmrc_first\t-\t-\t-\t-\ttest -f src/a.txt\t9')" \
-         "$(printf 'cmrc_held\t-\t-\t-\t-\ttest -f cmrc-no-such-file\t9')" \
-         "$(printf 'cmrc_last\t-\t-\t-\t-\ttest -f src/a.txt\t9')"
-cat >> "$_cmrclib" <<'CMRCLIB'
-_cmrc_known_def="$(declare -f _felix_commission_state_known)"
-eval "_cmrc_real_known${_cmrc_known_def#_felix_commission_state_known}"
-_felix_commission_state_known() {
-  if [ -n "${FELIX_CMRC_DIE_AT:-}" ]; then
-    _cmrc_known_n=$(( ${_cmrc_known_n:-0} + 1 ))
-    [ "$_cmrc_known_n" -lt "$FELIX_CMRC_DIE_AT" ] || exit 128
-  fi
-  _cmrc_real_known "$@"; }
-_cmrc_counts_def="$(declare -f felix_commission_counts)"
-eval "_cmrc_real_counts${_cmrc_counts_def#felix_commission_counts}"
-felix_commission_counts() {
-  if [ -n "${FELIX_CMRC_COUNTS:-}" ]; then printf '%s' "$FELIX_CMRC_COUNTS"; return 0; fi
-  _cmrc_real_counts "$@"; }
-CMRCLIB
-_cmrccli() { local _cmrcd="$1" _cmrck="$2"; shift 2
-  ( cd "$CMR" && FELIX_CMRC_DIE_AT="$_cmrcd" FELIX_CMRC_COUNTS="$_cmrck" PATH="$CMSTUB:$PATH" \
-      "$FELIX" commission "$@" 2>&1 ); }
-_cmrcclean="$(_cmrccli '' '')"; _cmrccleanx=$?; _cmrccleanr="$(_cmrcresult)"
-_cmrcstat="$(_cmrccli 2 '' --status)"
-_cmrcshortcli="$(_cmrccli 2 '')"; _cmrcshortx=$?; _cmrcshortr="$(_cmrcresult)"
-_cmrcqcli="$(_cmrccli '' '1 1 ? 0 0 0')"; _cmrcqx=$?; _cmrcqr="$(_cmrcresult)"
-_cmrcallq="$(_cmrccli '' '? ? ? ? ? ?')"; _cmrcallqx=$?; _cmrcallqr="$(_cmrcresult)"
-cp "$TMP/cmrc-lib.keep" "$_cmrclib"
-is  "and the engine copy the command ran from is put back byte for byte" \
-    "$(cksum < "$_cmrclib")" "$(cksum < "$TMP/cmrc-lib.keep")"
-
-case "$_cmrcclean" in
-  *'the run reported'*) bad "a full run that printed every row says nothing about rows missing" \
-                            "$(printf '%s\n' "$_cmrcclean" | grep 'the run reported')" ;;
-  *)                    ok  "a full run that printed every row says nothing about rows missing" ;;
-esac
-is  "and writes held over the held row, exiting 0" "$_cmrccleanr $_cmrccleanx" "held 0"
-_cmrcreported() { printf '%s\n' "$1" | grep -o 'the run reported [0-9]* of [0-9]* rows' | head -1; }
-is  "--status over a run whose loop ended on its second row says it reported 1 of 3 rows" \
-    "$(_cmrcreported "$_cmrcstat")" "the run reported 1 of 3 rows"
-is  "a full run whose loop ended on its second row says it reported 1 of 3 rows" \
-    "$(_cmrcreported "$_cmrcshortcli")" "the run reported 1 of 3 rows"
-is  "and writes the receipt indeterminate and exits 1" "$_cmrcshortr $_cmrcshortx" "indeterminate 1"
-case "$_cmrcqcli" in
-  *'integer expression expected'*)
-     bad "a full run whose unknown count reads ? writes no integer expression expected anywhere" \
-         "$(printf '%s\n' "$_cmrcqcli" | grep 'integer expression expected')" ;;
-  *) ok  "a full run whose unknown count reads ? writes no integer expression expected anywhere" ;;
-esac
-is  "and writes the receipt indeterminate and exits 1, not held" "$_cmrcqr $_cmrcqx" "indeterminate 1"
-# Added after review, not blind. The summary line and the two sections after
-# it test the held, malformed, awaiting and unknown counts, and only the
-# unknown one was ever ?. And the sentence under a short run says only what is
-# true of the receipt: --status writes none, so it may not say indeterminate.
-case "$_cmrcallq" in
-  *'integer expression expected'*)
-     bad "a full run whose every count reads ? writes no integer expression expected anywhere" \
-         "$(printf '%s\n' "$_cmrcallq" | grep 'integer expression expected')" ;;
-  *) ok  "a full run whose every count reads ? writes no integer expression expected anywhere" ;;
-esac
-is  "and writes the receipt indeterminate and exits 1" "$_cmrcallqr $_cmrcallqx" "indeterminate 1"
-has "--status over a short run says a receipt over it would be indeterminate" "$_cmrcstat" "would be indeterminate"
-case "$_cmrcstat" in
-  *'was written indeterminate'*) bad "and does not say one was written" "$(printf '%s\n' "$_cmrcstat" | grep 'was written')" ;;
-  *)                             ok  "and does not say one was written" ;;
-esac
-has "a full run over a short run says the receipt was written indeterminate" "$_cmrcshortcli" "The receipt was written indeterminate"
-
-cp "$TMP/cmrc-table.keep" "$CMP/commissioning.tsv"
-if [ -f "$TMP/cmrc-receipt.keep" ]; then mv "$TMP/cmrc-receipt.keep" "$_cmrcrc"; else rm -f "$_cmrcrc"; fi
-if [ -f "$TMP/cmrc-log.keep" ]; then mv "$TMP/cmrc-log.keep" "$_cmrclog"; else rm -f "$_cmrclog"; fi
-rm -f "$TMP/cmrc-table.keep" "$TMP/cmrc-lib.keep" "$TMP/cmrc-stderr" "$TMP/cmrc-good.receipt" "$TMP/cmrc-redo.receipt"
-is  "and this block leaves the table, the receipt, the log, the engine copy and every cmrc- file as it found them" \
-    "$(_cmrcfixture)" "$_cmrcfound"
-unset -f _cmrcfixture _cmrccomplete _cmrcwrite _cmrcresult _cmrcline _cmrcdie _cmrccounts _cmrcfields _cmrcerr \
-         _cmrcblank _cmrcplain _cmrcvalid _cmrcredo _cmrcbegins _cmrccli _cmrcreported _cmrcl1
-unset _cmrcrc _cmrclib _cmrclog _cmrcfound _cmrcfull _cmrcalpha _cmrcauto _cmrcstray _cmrctwice _cmrcshort _cmrcwhole \
-      _cmrcrows _cmrcgap _cmrcclean _cmrccleanx _cmrccleanr _cmrcstat _cmrcshortcli _cmrcshortx _cmrcshortr \
-      _cmrcqcli _cmrcqx _cmrcqr _cmrcallq _cmrcallqx _cmrcallqr
-
+_commissioning_build after-0690
 # What nothing serves, reaches or grounds, enumerated from the checkout.
 has "a detected surface no row serves, reaches or grounds is named with all three misses" \
     "$(_cm felix_commission_gaps "$CMP" "$CMR")" "secrets	no	no	no"
@@ -473,7 +357,6 @@ fi
 
 # The command: refuses the absent and empty table, writes the receipt, reads
 # it back, and says who answers what is held.
-_cmcli() { ( cd "$CMR" && PATH="$CMSTUB:$PATH" "$FELIX" commission "$@" 2>&1 ); }
 mv "$CMP/commissioning.tsv" "$CMP/commissioning.keep"
 _cmo="$(_cmcli)"; _cmrc=$?
 is  "felix commission on a project without the table exits 1" "$_cmrc" "1"
@@ -700,7 +583,6 @@ _cmtable 'alpha	-	-	-	-	test -f src/a.txt	3' \
          'automation_surveyed	-	-	-	provider:claude-code-setup:claude-automation-recommender	-	4' \
          'constitution_audited	-	-	-	provider:claude-md-management:claude-md-improver	-	4'
 rm -rf "$MEM/cmproj/commission"; : > "$MEM/cmproj/commissioning.log"
-_cmp() { _cm felix_commission_provider_state "$CMP" "$CMR" "$1" | cut -f1; }
 _cmreq="$MEM/cmproj/commission/requests/automation_surveyed.md"
 _cmans="$MEM/cmproj/commission/automation_surveyed.tsv"
 _cmtopo="$(_cm felix_commission_topology "$CMP" "$CMR")"

@@ -13,6 +13,7 @@ printf '\nland on green: the amendments A17-A22 (contract A17-A22, blind)\n'
 # exists while it runs, and land execs ctl/land.exec when that file is there,
 # which is how the trampoline is made to run a tick that cannot resolve its
 # project (A22).
+_lg_build amend
 L4="$LG/round4"; mkdir -p "$L4/noproj"
 _fx_git "$LGH" fetch -q origin >/dev/null 2>&1; _fx_git "$LGH" checkout -q main >/dev/null 2>&1
 _fx_git "$LGH" reset -q --hard refs/remotes/origin/main >/dev/null 2>&1
@@ -24,10 +25,6 @@ _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qam 'round 4 stub' >/dev
 _fx_git "$LGH" push -q origin main >/dev/null 2>&1
 L4V="$(_l3_mainv)"; [ -n "$L4V" ] && _lg_cache "$L4V"; L4E="$LGV/$L4V/harness/felix"
 L4M="$(git -C "$LGH" rev-parse refs/remotes/origin/main 2>/dev/null)"
-_l4_acc() {   # BASE -> this tree's felix_accepted_deploy_diff on the home, against the fixture cache: its status
-  ( unset FELIX_KERNEL_CACHE; FELIX_PLUGIN_CACHE="$LGC"
-    . "$REAL_HARNESS/lib/resolve.sh" >/dev/null 2>&1; felix_accepted_deploy_diff "$LGH" "$1" >/dev/null 2>&1 ); echo "$?"
-}
 is "the land fixture: main's felix stub carries the round 4 lines, the home is at origin's main, and main's check accepts its entry (fixture control)" \
    "$(LC_ALL=C grep -cE 'land\.exec|verifying\.log' "$L4E" 2>/dev/null)|$(git -C "$LGH" rev-parse HEAD 2>&1)|$(_l4_acc refs/remotes/origin/main)" \
    "2|$(git -C "$LGO" rev-parse main 2>&1)|0"

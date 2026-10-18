@@ -1,3 +1,5 @@
+_fc_init
+_fc_fixture r1 r6 r11 rE rN
 # ======================================================================
 # Addendum 2026-10-11, written blind: the ten items the contract gained after
 # the adversarial review, and the amended "every *.jsonl under subagents/".

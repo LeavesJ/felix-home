@@ -1,3 +1,5 @@
+_fc_init
+_fc_fixture r1 r6
 # ======================================================================
 # The window: the plan week, and where a record falls against its edges.
 # ======================================================================
@@ -139,31 +141,11 @@ is  "felix cost --since followed by another flag, not a value, is a usage error"
 # Twelve record directories, thirteen responses over five days and three
 # models, each in millions so the text view reads whole numbers. Against a cap
 # of 100M every percent is the millions.
-_fc_mk r11
-FC_K=0
-while read -r FC_E FC_TS FC_M FC_IN; do
-  FC_K=$((FC_K+1))
-  _fc_in "$FC/r11/projects/$FC_E/s1.jsonl" "msg_K$FC_K" "$FC_TS" "$FC_M" "$FC_IN"
-done <<'FCEOF'
--Users-dev-aa 2026-10-12T10:00:00.000Z claude-haiku-5-5 1000000
--Users-dev-bb 2026-10-09T10:00:00.000Z claude-opus-5-5 6000000
--Users-dev-bb 2026-10-13T10:00:00.000Z claude-opus-5-5 6000000
--Users-dev-cc 2026-10-10T10:00:00.000Z claude-haiku-5-5 2000000
--Users-dev-dd 2026-10-14T10:00:00.000Z claude-opus-5-5 11000000
--Users-dev-ee 2026-10-09T10:00:00.000Z claude-sonnet-5-5 3000000
--Users-dev-ff 2026-10-12T10:00:00.000Z claude-sonnet-5-5 10000000
--Users-dev-gg 2026-10-13T10:00:00.000Z claude-sonnet-5-5 4000000
--Users-dev-hh 2026-10-14T10:00:00.000Z claude-haiku-5-5 9000000
--Users-dev-ii 2026-10-10T10:00:00.000Z claude-haiku-5-5 5000000
--Users-dev-jj 2026-10-09T10:00:00.000Z claude-opus-5-5 8000000
--Users-dev-kk 2026-10-12T10:00:00.000Z claude-sonnet-5-5 6000000
--Users-dev-ll 2026-10-14T10:00:00.000Z claude-sonnet-5-5 7000000
-FCEOF
+_fc_fixture r11
 # Worktrees: bb 6+6=12, dd 11, ff 10, hh 9, jj 8, ll 7, kk 6, ii 5, gg 4, ee 3, cc 2, aa 1 (78 in all).
 # Days: 10-09 bb6+ee3+jj8=17 (3), 10-10 cc2+ii5=7 (2), 10-12 aa1+ff10+kk6=17 (3),
 #       10-13 bb6+gg4=10 (2), 10-14 dd11+hh9+ll7=27 (3); 10-11 has nothing and no row.
 # Models: opus bb6+bb6+dd11+jj8=31 (4), sonnet ee3+ff10+gg4+kk6+ll7=30 (5), haiku aa1+cc2+hh9+ii5=17 (4).
-_fc_run11() { FCCFG="$FC/r11" FCNOW=2026-10-14T20:00:00Z FCCAP=100 _fc "$@"; }
 FC_WT="-Users-dev-bb 12000000.00 12.0 2 -Users-dev-dd 11000000.00 11.0 1 -Users-dev-ff 10000000.00 10.0 1 -Users-dev-hh 9000000.00 9.0 1 -Users-dev-jj 8000000.00 8.0 1 -Users-dev-ll 7000000.00 7.0 1 -Users-dev-kk 6000000.00 6.0 1 -Users-dev-ii 5000000.00 5.0 1 -Users-dev-gg 4000000.00 4.0 1 -Users-dev-ee 3000000.00 3.0 1 -Users-dev-cc 2000000.00 2.0 1 -Users-dev-aa 1000000.00 1.0 1"
 FC_DY="2026-10-09 17000000.00 17.0 3 2026-10-10 7000000.00 7.0 2 2026-10-12 17000000.00 17.0 3 2026-10-13 10000000.00 10.0 2 2026-10-14 27000000.00 27.0 3"
 FC_MD="claude-opus-5-5 31000000.00 31.0 4 claude-sonnet-5-5 30000000.00 30.0 5 claude-haiku-5-5 17000000.00 17.0 4"
@@ -331,17 +313,12 @@ FCCFG="$FC/nope" _fc --tsv
 _fc_unknown_tsv "felix cost --tsv: with no records root"
 FCCFG="$FC/nope" _fc
 _fc_unknown_text "felix cost (text): with no records root"
-_fc_mk rE
+_fc_fixture rE
 FCCFG="$FC/rE" _fc --tsv
 _fc_unknown_tsv "felix cost --tsv: with a records root that holds no transcript at all"
 FCCFG="$FC/rE" _fc
 _fc_unknown_text "felix cost (text): with a records root that holds no transcript at all"
-_fc_mk rN
-FC_NP="$FC/rN/projects"
-_fc_in "$FC_NP/x.jsonl" msg_Q1 "$FCT0" m-q 100
-_fc_in "$FC_NP/-Users-dev-q/s1/other/y.jsonl" msg_Q2 "$FCT0" m-q 100
-_fc_in "$FC_NP/-Users-dev-q/z.txt" msg_Q3 "$FCT0" m-q 100
-mkdir -p "$FC_NP/-Users-dev-q/dir.jsonl" "$FC_NP/-Users-dev-q/s1/subagents"
+_fc_fixture rN
 FCCFG="$FC/rN" _fc --tsv
 _fc_unknown_tsv "felix cost --tsv: with files only where none is read, no *.jsonl at either read depth"
 _fc_mk rZ

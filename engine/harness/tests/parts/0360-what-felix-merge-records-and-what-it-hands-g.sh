@@ -465,19 +465,7 @@ printf '\nwhat you are about to commit\n'
 # Worse than a wrong report: felix_escapes reads the same way, so on any real
 # branch a staged workflow change or a staged credential was invisible to the
 # merge gate. lessons.sh had it right all along and nothing made the rest agree.
-STG="$TMP/stagedrepo"; mkdir -p "$STG"
-( _fx_cd "$STG" && git init -q -b main )
-STG="$(cd "$STG" && pwd -P)"
-printf 'widget\n' > "$STG/.felix"; printf 'x\n' > "$STG/seed.txt"
-( _fx_cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1 )
-BASE_SHA="$(git -C "$STG" rev-parse HEAD)"
-# A commit ahead of base, so `base...HEAD` is non-empty and the fallback is dead.
-printf 'notes\n' > "$STG/README.md"
-( _fx_cd "$STG" && git add -A >/dev/null 2>&1 && git -c user.name=t -c user.email=t@t commit -qm ahead >/dev/null 2>&1 )
-
-mkdir -p "$STG/.github/workflows"
-printf 'on: push\n' > "$STG/.github/workflows/ci.yml"
-( _fx_cd "$STG" && git add .github >/dev/null 2>&1 )   # staged, deliberately not committed
+_staged_repo_build
 
 _sesc() { ( cd "$STG" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/verify.sh"
             . "$FROOT/harness/lib/review.sh"; . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib/obligations.sh"

@@ -1,3 +1,5 @@
+_autonomy_revoke_vars
+_autonomy_lock_build
 # F3. With stdout closed, bash 3.2 kept a "revoked:" it could not print in
 # its buffer, and the next command substitution or subshell flushed it into
 # what it captured or wrote. A revoke of tidy with an allow of commission

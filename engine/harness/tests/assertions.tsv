@@ -346,6 +346,169 @@
 1	A30: case: Needs-Founder holds as needs-founder does: and writes exactly one skip row for 42
 1	A30: case: Needs-Founder holds as needs-founder does: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
 1	A30: whose detail names needs-founder
+1	A31 (fixture control): --install exits 0 and leaves the plist and an executable trampoline
+1	A31 (fixture control): a run with a plugin.json holding bytes exits 0 and runs main's entry's tick once: that is the status of a run that goes on
+1	A31 (fixture control): a wrapper runs the real tool and logs its standard input: cat prints plugin.json and logs plugin.json's inode
+1	A31 (fixture control): and with a directory in its place the log still holds the inode of what a tool was handed
+1	A31 (fixture control): each wrapper logs its call once, the line starting with the tool's name
+1	A31 (fixture control): main's cache entry is gone, and plugin.json is the home's file, which opens
+1	A31 (fixture control): plugin.json is a directory: [ -r ] passes
+1	A31 (fixture control): plugin.json is a file of mode 000 that cannot be opened
+1	A31 (fixture control): plugin.json is a socket: [ -r ] passes and opening it for reading is refused
+1	A31 (fixture control): plugin.json is a symbolic link to /dev/zero: [ -f ] says it is not a regular file, [ -r ] says it is readable, it opens, and a byte reads
+1	A31 (fixture control): plugin.json is an empty regular file: [ -f ] and [ -r ] pass, it opens, and no byte reads
+1	A31 (fixture control): plugin.json is the home's file again, as it was
+1	A31 (fixture control): plutil lints the hand-written plist and reads one ProgramArguments string
+1	A31 (fixture control): recovery: with plugin.json a directory the first run writes the unreadable row, the ledger's only row, sends one notification, runs nothing and exits 1
+1	A31 (fixture control): the FELIX_HOME_DIR below does not exist
+1	A31 (fixture control): the git wrapper sees the trampoline's own git when the open succeeds, so no git in the cases below means it ran before them
+1	A31 (fixture control): the hand-written install is the old one: a /bin/sh trampoline that is executable, and a plist whose ProgramArguments is the one trampoline path
+1	A31 (fixture control): the home holds no change, tracked or untracked, under engine/
+1	A31 (fixture control): the home is on main at origin's main, holds no change under engine/, and --install leaves an executable trampoline
+1	A31 (fixture control): the home is on main at origin's main, which declares a version, and plugin.json is a file it can read
+1	A31 (fixture control): the home's plugin.json is the file it was, and the part leaves the working directory where it found it
+1	A31 (fixture control): the home's plugin.json is the file it was, the job is uninstalled, and the part leaves the working directory where it found it
+1	A31 (fixture control): the next run reads the home, goes on, and writes one readable row after the one unreadable row
+1	A31 (fixture control): the second home's plugin.json is a socket
+1	A31 (fixture control): the unreadable row's detail holds Full Disk Access, so the words the readable row must lack are ones its predecessor held
+1	A31 (fixture control): the wrappers are first on the trampoline's PATH: every tool resolves to its wrapper
+1	A31 (fixture control): with plugin.json a directory the trampoline refuses: exit 1, one unreadable row, no felix
+1	A31 (fixture control): with plugin.json a file of mode 000 the trampoline refuses: exit 1, one unreadable row, no felix
+1	A31 (fixture control): with the wrappers first on PATH a normal run goes on as before: exit 0, and main's entry's felix land --tick runs once
+1	A31: --install over a loaded pre-A31 job exits 0, and the trampoline's first line becomes #!/bin/bash
+1	A31: --install rewrites both files: the hand-written marker is in neither
+1	A31: --status --tsv exits 0
+1	A31: --status --tsv keeps installed, loaded and paused as its first three lines
+1	A31: --status --tsv prints a fourth line: last, a tab, then the ledger's newest row exactly as the ledger has it, a row whose pull request is - included
+1	A31: --status --tsv prints one last line
+1	A31: --status writes nothing: the land directory and LaunchAgents are as they were, and launchctl bootstraps and boots out nothing
+1	A31: a --tick run leaves the pre-A31 trampoline and plist byte for byte as they were, and boots nothing in or out
+1	A31: a --tick run leaves the rewritten trampoline and plist byte for byte as they were, and boots nothing in or out
+1	A31: a FELIX_HOME_DIR that does not exist: its title is exactly Felix: deploy-owed
+1	A31: a FELIX_HOME_DIR that does not exist: the detail says the home cannot be entered
+1	A31: a FELIX_HOME_DIR that does not exist: the row is seven tab-separated fields with - for pull request, head and worktree
+1	A31: a FELIX_HOME_DIR that does not exist: the trampoline runs no felix at all
+1	A31: a FELIX_HOME_DIR that does not exist: two identical runs send one notification
+1	A31: a FELIX_HOME_DIR that does not exist: two identical runs write exactly one row, of kind deploy-owed, and no unreadable row and no other row
+1	A31: a normal run: and none has plugin.json open as its standard input, so the read is the shell's own
+1	A31: a normal run: no logged call to head, dd, cat, od, wc, xxd, hexdump, perl, python3 or ruby names plugin.json or engine/.claude-plugin
+1	A31: a refusal, with plugin.json a directory: and none has plugin.json open as its standard input, so the read is the shell's own
+1	A31: a refusal, with plugin.json a directory: no logged call to head, dd, cat, od, wc, xxd, hexdump, perl, python3 or ruby names plugin.json or engine/.claude-plugin
+1	A31: a refusal, with plugin.json a file of mode 000: and none has plugin.json open as its standard input, so the read is the shell's own
+1	A31: a refusal, with plugin.json a file of mode 000: no logged call to head, dd, cat, od, wc, xxd, hexdump, perl, python3 or ruby names plugin.json or engine/.claude-plugin
+1	A31: an unreadable home shows at the next status: --status --tsv's last line is the trampoline's own unreadable row
+1	A31: and PR 5's newest row
+1	A31: and PR 6's row, both after line 4
+1	A31: and boots the plist in once: one bootstrap
+1	A31: and holds no Full Disk Access
+1	A31: and holds no cannot
+1	A31: and holds no failed
+1	A31: and its detail
+1	A31: and its kind
+1	A31: and names Full Disk Access there
+1	A31: and not PR 5's earlier row
+1	A31: and not a pull request's earlier rows
+1	A31: and plain --status says unreadable on its last line
+1	A31: and shows the newest row's time
+1	A31: and that pull request's row also follows last, as before
+1	A31: and that row names the second home
+1	A31: and the plist's ProgramArguments become /bin/bash, then the trampoline's path, and nothing else
+1	A31: and writes no unreadable row and sends no notification
+1	A31: no pull request's row comes before last
+1	A31: paused yes does not move last: the fourth line is still the newest row
+1	A31: plain --status keeps installed, loaded and paused, each yes or no, as its first three lines
+1	A31: plain --status with no ledger says last, then none, on its fourth line
+1	A31: plain --status's fourth line starts with last
+1	A31: plutil reads ProgramArguments as two strings: /bin/bash, then the trampoline's path with its space
+1	A31: plutil reads the rewritten ProgramArguments as two strings: /bin/bash, then the trampoline's path with its space
+1	A31: recovery: a refusal after a recovery is a new unreadable row and a new notification, because the previous row, the readable one, differs: exit 1, three rows, two notifications
+1	A31: recovery: a run whose read succeeds after an unreadable row goes on: exit status as a normal run, and main's entry's felix land --tick runs once
+1	A31: recovery: a second run whose read succeeds writes no second readable row, sends nothing, and goes on
+1	A31: recovery: after it, --status --tsv exits 0 and its last line holds the readable row, as the ledger has it
+1	A31: recovery: and says it read the home
+1	A31: recovery: and that row is of kind readable
+1	A31: recovery: and the next recovery writes its own readable row and sends nothing: two readable rows, four rows, still two notifications
+1	A31: recovery: and the one notification is the deploy-owed row's, titled exactly Felix: deploy-owed: the readable row sent none
+1	A31: recovery: and the readable row carries a time
+1	A31: recovery: it writes exactly one row of kind readable, after the unreadable row, and no other: the ledger reads unreadable, readable
+1	A31: recovery: no notification is sent for the readable row: the one notification is the unreadable row's
+1	A31: recovery: plain --status's last line says readable
+1	A31: recovery: the readable row is seven tab-separated fields with - for pull request, head and worktree
+1	A31: recovery: the readable row is written first, and the trampoline then goes on: with main's entry gone, the ledger reads unreadable, readable, deploy-owed, and the run exits 1 having run no felix
+1	A31: recovery: the readable row's detail names FELIX_HOME_DIR
+1	A31: recovery: the unreadable row is as it was, the ledger only appended to
+1	A31: recovery: with the ledger's newest row an unreadable one, a run whose read succeeds writes one readable row after it, leaves it as it was, sends nothing, and goes on
+1	A31: recovery: with the newest row of kind deploy-owed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind deploy-owed, its detail holding unreadable, and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on
+1	A31: recovery: with the newest row of kind deployed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind deployed-unverified and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind deployed-unverified, its detail holding unreadable, and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on
+1	A31: recovery: with the newest row of kind founder and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind gh and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind landed and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind paused and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind paused, its detail holding unreadable, and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on
+1	A31: recovery: with the newest row of kind refused and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind session and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: recovery: with the newest row of kind skip and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: the launchctl log shows a bootout of the job before the bootstrap of the plist
+1	A31: the open comes before A1's check: with main's cache entry gone, the unopenable file writes the unreadable row alone and no deploy-owed row
+1	A31: the plist's ProgramArguments are /bin/bash, then the trampoline's path, and nothing else
+1	A31: the pull requests' rows follow last, as before: PR 5's newest row
+1	A31: the pull requests' rows follow last: PR 6's landed row
+1	A31: the readable row has a detail
+1	A31: the readable row's detail says again
+1	A31: the row is written again when it differs from the previous one: a second home gives a second row and a second notification, and exit 1
+1	A31: the run that recovers: and none has plugin.json open as its standard input, so the read is the shell's own
+1	A31: the run that recovers: no logged call to head, dd, cat, od, wc, xxd, hexdump, perl, python3 or ruby names plugin.json or engine/.claude-plugin
+1	A31: the trampoline's first line is #!/bin/bash
+1	A31: with a pull request's row newest, --status --tsv's last line is that row exactly as the ledger has it
+1	A31: with an empty ledger, --status --tsv prints four lines, the fourth last, a tab, none
+1	A31: with no ledger, --status --tsv prints four lines, the fourth last, a tab, none
+1	A31: with plugin.json a directory (a trampoline that reads a byte refuses it; one that only opens does not): and send one notification titled Felix: unreadable
+1	A31: with plugin.json a directory (a trampoline that reads a byte refuses it; one that only opens does not): it runs no felix at all
+1	A31: with plugin.json a directory (a trampoline that reads a byte refuses it; one that only opens does not): the trampoline exits 1, on each of two runs
+1	A31: with plugin.json a directory (a trampoline that reads a byte refuses it; one that only opens does not): two identical runs write one row of kind unreadable, and no other row
+1	A31: with plugin.json a directory, the refusal as the contract words it: and says macOS may be refusing the read
+1	A31: with plugin.json a directory, the refusal as the contract words it: and that /bin/bash needs Full Disk Access
+1	A31: with plugin.json a directory, the refusal as the contract words it: and the notification carries the detail
+1	A31: with plugin.json a directory, the refusal as the contract words it: and where to give it, as the contract writes it
+1	A31: with plugin.json a directory, the refusal as the contract words it: it ran no git: no git call came before the refusal
+1	A31: with plugin.json a directory, the refusal as the contract words it: naming Full Disk Access
+1	A31: with plugin.json a directory, the refusal as the contract words it: the detail names FELIX_HOME_DIR
+1	A31: with plugin.json a file it can open, the trampoline goes on as before: it runs main's entry's felix land --tick once and exits 0
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: and says macOS may be refusing the read
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: and that /bin/bash needs Full Disk Access
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: and the notification carries the detail
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: and where to give it, as the contract writes it
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: it ran no git: no git call came before the refusal
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: naming Full Disk Access
+1	A31: with plugin.json a file of mode 000, the refusal as the contract words it: the detail names FELIX_HOME_DIR
+1	A31: with plugin.json a file of mode 000: and send one notification titled Felix: unreadable
+1	A31: with plugin.json a file of mode 000: it runs no felix at all
+1	A31: with plugin.json a file of mode 000: the trampoline exits 1, on each of two runs
+1	A31: with plugin.json a file of mode 000: two identical runs write one row of kind unreadable, and no other row
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and carries the detail
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and it carries a time
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and says macOS may be refusing the read
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and send one notification
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and that /bin/bash needs Full Disk Access
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): and where to give it, as the contract writes it
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): it runs no felix at all, so no felix land --tick
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): it runs no git: nothing comes before the open
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): naming Full Disk Access
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): the detail names FELIX_HOME_DIR
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): the notification is titled Felix: unreadable
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): the row is seven tab-separated fields with - for pull request, head and worktree
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): the trampoline exits 1, on each of two runs
+1	A31: with plugin.json a socket ([ -r ] passes, the open is refused): two identical runs write one row of kind unreadable, and no other row
+1	A31: with plugin.json a symbolic link to /dev/zero (it opens and a byte reads, but [ -f ] says it is not a regular file): and writes no row of any kind, so no unreadable row, and sends no notification
+1	A31: with plugin.json a symbolic link to /dev/zero (it opens and a byte reads, but [ -f ] says it is not a regular file): the trampoline goes on: exit status as a normal run, and main's entry's felix land --tick runs once
+1	A31: with plugin.json an empty regular file (it opens and has no byte to read, which is not a refusal): and writes no row of any kind, so no unreadable row, and sends no notification
+1	A31: with plugin.json an empty regular file (it opens and has no byte to read, which is not a refusal): the trampoline goes on: exit status as a normal run, and main's entry's felix land --tick runs once
+1	A31: with plugin.json readable and main's cache entry gone, the trampoline exits 1 on each of two runs and runs no felix
+1	A31: with plugin.json readable and main's cache entry gone, two runs send one notification, and its title is exactly Felix: deploy-owed
+1	A31: with plugin.json readable and main's cache entry gone, two runs write exactly one row, of kind deploy-owed, and no unreadable row and no other row
 1	A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged
 1	A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged
 1	A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged

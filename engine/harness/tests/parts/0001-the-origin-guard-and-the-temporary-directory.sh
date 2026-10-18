@@ -163,6 +163,18 @@ _og_add() {
 _og_add "$_og_start" start
 _og_add "$REAL_HARNESS"
 
+# This shell's pid, never $$, which a child keeps from its parent: BASHPID in
+# bash 4 and later, and in bash 3.2, which has none, the PPID of a sh exec'd
+# in a $(...) of this shell, which is this shell (lib/qualify-run.sh reads its
+# own the same way). _tmp_pid is that read as text, so each EXIT trap below
+# can make it again in whichever process runs it. No pid, no suite: those
+# traps tell this shell from a child by it.
+_tmp_pid='if [ "${BASH_VERSINFO[0]}" -ge 4 ]; then _tmp_me="$BASHPID"; else _tmp_me="$(exec /bin/sh -c '\''echo "$PPID"'\'' 2>/dev/null)"; fi'
+eval "$_tmp_pid"; _tmp_by="$_tmp_me"
+case "$_tmp_by" in ''|*[!0123456789]*)
+  printf 'tests/run: could not read this shell'\''s pid ([%s]); not starting\n' "$_tmp_by" >&2
+  exit 1 ;;
+esac
 TMP="$(mktemp -d)"
 # No directory, no suite. The substitution forks twice, and when the inner fork
 # fails under load it hands back nothing with status 128 while this shell
@@ -176,7 +188,17 @@ TMP="$(mktemp -d)"
 # GNU mktemp names a relative TMPDIR relatively, and the suite is about to
 # leave the directory that name is relative to.
 case "$TMP" in /*) ;; *) TMP="$PWD/$TMP" ;; esac
-trap 'rm -rf "$TMP"' EXIT
+# Only the shell that made $TMP removes it. A child bash forks keeps this trap
+# until it resets the traps it inherited, and bash 5.2 acts on an INT or TERM
+# that reached it before then: execute_in_subshell checks for a terminating
+# signal first, and runs the EXIT trap it still holds. Part 0573 sends INT to
+# a run it forked a moment before, and on 2026-10-16 that child removed $TMP
+# on Linux CI while the suite carried on without it (slot 3f). So the trap
+# reads the pid of the process running it and removes $TMP only when that is
+# _tmp_by. One that cannot read it leaves $TMP: a leak, never a removal from
+# under a suite still running. Not BASH_SUBSHELL: nothing says a child bash
+# has counted itself a subshell by the time it acts on the signal.
+trap "$_tmp_pid"'; [ "$_tmp_me" != "$_tmp_by" ] || rm -rf "$TMP"' EXIT
 # No fixture git command reaches a repository outside $TMP. On 2026-10-08 one
 # did. A section runner took this preamble and the setup block, but not the
 # helpers that make the block's fixture directories, so its roots came out

@@ -122,6 +122,16 @@ _ps_lander() {   # NAME LANDDIR W
     first="$(LC_ALL=C sed -n 1p "$2/paused" 2>/dev/null | LC_ALL=C tr '\t\r' '  ')"
     det="$det: ${first:-no reason given}"
   fi
+  # R11: the ledger's newest row of any kind, as felix land --status reads it
+  # (A31), so a job that cannot act shows here. No PR's state changes for it.
+  case "$_PS_LEDGER" in
+    read) _gt_last_row "$2/ledger.tsv"
+          if [ -n "$_GT_LAST" ]; then
+            det="$det; last ledger row $(printf '%s\n' "$_GT_LAST" | LC_ALL=C awk -F'\t' '{ gsub(/\r/, " "); print $1 " " $2 ": " $7; exit }')"
+          else det="$det; last ledger row none"; fi ;;
+    none) det="$det; last ledger row none" ;;
+    *) det="$det; last ledger row not read" ;;
+  esac
   _ps_srow "$3/s.lander" lander "$st" "$det"
 }
 

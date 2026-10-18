@@ -206,12 +206,21 @@ _gt_job_state() {   # NAME LANDDIR
   return 0
 }
 
+# The ledger $1's newest row of any kind, whole, in _GT_LAST; empty when the
+# file is absent or holds no row. felix land --status (A31) and --prs (R11)
+# both read it here, so the two cannot drift.
+_gt_last_row() {   # LEDGER
+  _GT_LAST=""
+  [ -f "$1" ] && _GT_LAST="$(LC_ALL=C tail -n 1 "$1" 2>/dev/null)"
+  return 0
+}
+
 _gt_status() {   # [--tsv]: read-only, writes nothing and loads nothing
   local p tab; p="$(basename "$PROJ")"; tab="$(printf '\t')"
   local ins lod pau rows="" last=""
   _gt_job_state "$p" "$_GT_LAND"; ins="$_GT_INS"; lod="$_GT_LOD"; pau="$_GT_PAU"
   # A31: the newest row of any kind, so a job that cannot run shows at the next status.
-  [ -f "$_GT_LEDGER" ] && last="$(tail -n 1 "$_GT_LEDGER" 2>/dev/null)"
+  _gt_last_row "$_GT_LEDGER"; last="$_GT_LAST"
   # The last row of each pull request seen, in pull request order.
   [ -f "$_GT_LEDGER" ] && rows="$(LC_ALL=C awk -F'\t' '$3 != "-" { last[$3] = $0 } END { for (k in last) print last[k] }' "$_GT_LEDGER" \
                                    | LC_ALL=C sort -t "$tab" -k3,3n)"

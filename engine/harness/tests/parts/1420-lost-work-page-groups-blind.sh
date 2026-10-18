@@ -222,7 +222,7 @@ _lw_tl() { LC_ALL=C awk -v r="$2 " '{ s = $0; sub(/^ +/, "", s); if (index(s, r)
 _lw_tn() { LC_ALL=C awk -v r="$2" '{ s = $0; while ((i = index(s, r)) > 0) { z = substr(s, i + length(r), 1); if (z == "" || z == " " || z == ":" || z == ",") { n++; break } s = substr(s, i + length(r)) } } END { print n + 0 }' "$1"; }
 is "B9.33: the hazard row is listed, while the running, carried and landed rows appear on no line of the text page" \
    "$(_lw_tl "$X" "$LWW/share-a-q1") $(_lw_tn "$X" "$LWW/live-q4") $(_lw_tn "$X" lw-carried-q7) $(_lw_tn "$X" lw-landed-q8)" "1 0 0 0"
-_lwo="$(LC_ALL=C awk -F'\t' '$1 == "handoff" { print $4; exit }' "$P")"
+_lwo="$(LC_ALL=C awk -F'\t' '$1 == "handoff" && $2 != "summary" { print $4; exit }' "$P")"
 is "B9.33: nor the handoff row" "$([ -n "$_lwo" ] && _lw_tn "$X" "$_lwo" || echo 'no handoff row')" 0
 is "B9.33: the hazard, blocked, question, unproposed, chip and PR rows are each listed once" \
    "$(for _lwi in "$LWW/share-a-q1" "$LWW/share-b-q1" "$LWW/blocked-q2" "$LWW/ask-q3" lw-unprop-q5 task_c0ffee01 '#301' '#302' '#303' '#305'; do printf '%s' "$(_lw_tl "$X" "$_lwi")"; done)" "1111111111"

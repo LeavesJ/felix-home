@@ -415,7 +415,7 @@ $diff"
     # coming back empty over a list that was not is unknown too.
     untracked="$(printf '%s\n' "$untracked" | LC_ALL=C sort)"
     n="$(printf '%s' "$untracked" | grep -c .)"
-    case "$n" in ''|0|*[!0-9]*) return 2 ;; esac
+    case "$n" in ''|0|*[!0123456789]*) return 2 ;; esac
   fi
 
   if [ "$n" -gt "$FELIX_UNTRACKED_CAP" ]; then

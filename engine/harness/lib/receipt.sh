@@ -182,7 +182,7 @@ felix_receipt() {
     # list for the unknown one. Left in, it set founder_required and read
     # `blocked`, a person's decision about a tree nobody could read.
     case "$esc" in unknown*|*$'\n'unknown*) unknown="$unknown escapes" ;; esac
-    esc="$(printf '%s\n' "$esc" | awk -F'\t' 'NF && $1 != "unknown"')"
+    esc="$(printf '%s\n' "$esc" | LC_ALL=C awk -F'\t' 'NF && $1 != "unknown"')"
     # What granted the authority, computed rather than asserted. `granted_by`
     # was the string literal "none" and no code path ever produced anything
     # else, while the `reviewed` channel genuinely grants — it is the one place
@@ -204,7 +204,7 @@ felix_receipt() {
     if [ -n "$home" ]; then
       local esc_ungranted
       esc_ungranted="$(felix_escapes "$proj" "$base" "$root" "" 2>/dev/null || true)"
-      esc_ungranted="$(printf '%s\n' "$esc_ungranted" | awk -F'\t' 'NF && $1 != "unknown"')"
+      esc_ungranted="$(printf '%s\n' "$esc_ungranted" | LC_ALL=C awk -F'\t' 'NF && $1 != "unknown"')"
       [ "$esc" = "$esc_ungranted" ] || granted="reviewed"
     fi
   fi

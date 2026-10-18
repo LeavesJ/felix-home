@@ -1064,7 +1064,7 @@ _felix_side_text() {   # TOP SHA PATH
     s="$(git -C "$1" cat-file -s "$2" 2>/dev/null)"
     n="$(git -C "$1" cat-file blob "$2" 2>/dev/null | head -c 8000 | LC_ALL=C tr -cd '\000' | wc -c)"
   fi
-  s="${s//[!0-9]/}"; n="${n//[!0-9]/}"
+  s="${s//[!0123456789]/}"; n="${n//[!0123456789]/}"
   [ "${s:-0}" -le 536870912 ] && [ "${n:-0}" -eq 0 ]
 }
 

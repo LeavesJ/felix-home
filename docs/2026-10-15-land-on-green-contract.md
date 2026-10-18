@@ -440,6 +440,42 @@ cases are recorded and are not chased further.
     - A label whose name only contains one of these, such as
       `not-needs-founder`, holds nothing.
 
+## Amended after install, 2026-10-18
+
+- **A31 (the job runs where macOS lets it read the home).** The job was
+  installed on felix-home at 0.49.295, and its first tick looked at nothing.
+  macOS's privacy control refuses a launchd job every read under `~/Documents`
+  unless the program launchd started has been given Full Disk Access. The
+  trampoline began `#!/bin/sh`, and `/bin/sh` has no such grant. Its `cd` into
+  the home succeeded, because entering a directory is not a read, so A10's row
+  for an unenterable home never fired. The tick then could not read `.felix`
+  ("Operation not permitted") and wrote an `unresolved` row. The founder gave
+  `/bin/bash` Full Disk Access on 2026-10-02, for the pulse job. Two transient
+  launchd jobs measured the difference on 2026-10-18: under `/bin/sh` neither
+  `.felix` nor `git` could read the home, and under `/bin/bash` both could.
+    - **The program.** The plist's `ProgramArguments` are `/bin/bash`, then the
+      trampoline's path. The trampoline's first line is `#!/bin/bash`.
+    - **A read, not an entry.** After it enters `$FELIX_HOME_DIR`, and before
+      anything else, the trampoline opens the home's
+      `engine/.claude-plugin/plugin.json` for reading. Opening a file is what
+      the privacy control refuses, and the file is tracked in every Felix home.
+      A permission test (`[ -r ]`) is not enough: it passes where the open is
+      refused.
+    - **What it writes.** When that open fails, the trampoline writes one row of
+      kind `unreadable` whose detail names `$FELIX_HOME_DIR` and says that
+      macOS may be refusing the read, and that `/bin/bash` needs Full Disk
+      Access (System Settings > Privacy & Security > Full Disk Access). It sends
+      a notification titled `Felix: unreadable` and exits 1. It runs no engine.
+      The row and the notification are written only when they differ from the
+      previous row, as A10's are.
+    - **The status says so.** `--status` prints a fourth line after `paused`:
+      `last`, then the ledger's newest row of any kind, or `none` when the
+      ledger has no row. Plain, the line shows that row's time, kind and
+      detail. With `--tsv` it is `last`, a tab, then the row as the ledger has
+      it, or `none`. The rows of each pull request seen follow it, as before.
+      An install whose job cannot run therefore shows it at the next status,
+      without anyone reading the ledger.
+
 ## Not in this
 
 - Integration, re-gating, version and record bookkeeping, the clone, the arming

@@ -364,6 +364,8 @@ unset CLAUDE_CODE_SESSION_ID
 . "$HERE/parts/1285-land-on-green-round-5-blind.sh"
 . "$HERE/parts/1286-land-on-green-round-6-blind.sh"
 . "$HERE/parts/1287-land-on-green-round-7-blind.sh"
+. "$HERE/parts/1288-land-on-green-round-8-blind.sh"
+. "$HERE/parts/1289-land-on-green-round-9-blind.sh"
 . "$HERE/parts/1400-judge-refs-residue-blind.sh"
 . "$HERE/parts/1401-judge-refs-residue-b-blind.sh"
 . "$HERE/parts/1402-judge-refs-residue-a12-blind.sh"

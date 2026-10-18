@@ -197,6 +197,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/land-on-green.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"
+. "$HERE/lib/lost-work.sh"
 . "$HERE/lib/memory-guarded.sh"
 . "$HERE/lib/merge.sh"
 . "$HERE/lib/overnight.sh"

@@ -2,8 +2,8 @@
 printf '\nthe lost-work page, step 6: the review round (findings 1, 2, 5 and 6 of audits/2026-10-18-lost-work-page/review.md)\n'
 # Written after part 1450-1480 and the Opus review, one assertion set for each
 # finding, red against the code the review read (30264fa6) and green against
-# the fix. It uses part 1450's stubs, builders and readers, so a run of this
-# part alone names 1450 as well. Finding 3 is part 1450's own fixture (feat2 is
+# the fix. It uses the stubs, builders and readers in tests/lib/lost-work.sh,
+# which were part 1450's. Finding 3 is part 1450's own fixture (feat2 is
 # pushed under its own name there now) and finding 4 has no assertion: it is
 # reachable only through a land die message holding a backslash.
 #
@@ -12,6 +12,7 @@ printf '\nthe lost-work page, step 6: the review round (findings 1, 2, 5 and 6 o
 #       branch that tracks it, and feat-c, a local name never pushed at that
 #       commit; u, whose own name origin/u is older than its upstream origin/w
 #       at its tip: findings 2 and 6.
+_lw_build
 _lw44_sum() { LC_ALL=C awk -F'\t' -v g="$2" -v k="$3" '$2 == "summary" && $1 == g { print $k; exit }' "$1" 2>/dev/null; }
 _lw44_cell() {  # TEXT-PAGE NAME: the count the collapsed line says for NAME
   LC_ALL=C awk -v w="$2" '/^  collapsed: / { s = $0; i = index(s, w " "); if (i) { s = substr(s, i + length(w) + 1); sub(/,.*/, "", s); print s } exit }' "$1" 2>/dev/null; }

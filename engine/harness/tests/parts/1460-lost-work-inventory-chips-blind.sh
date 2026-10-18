@@ -1,13 +1,15 @@
 # >>> lost-work-inventory-chips
 printf '\nthe lost-work page, step 6: felix inventory chips from start_session, and what started means (contract A2, A3, B9.13-25, blind)\n'
 # Blind, from docs/2026-10-18-lost-work-page-contract.md alone, on the stubs,
-# builders and readers part 1450 defines. Repository ch; every proposal is
-# made from sessions filed under its main worktree. Two records roots: hc0
-# holds the proposing sessions only, so every chip they propose is shown to
-# exist (the control run CH0); hc1 is a copy of hc0, mtimes kept, plus the
+# builders and readers of tests/lib/lost-work.sh (part 1450's when written).
+# Repository ch; every proposal is made from sessions filed under its main
+# worktree. Two records roots: hc0 holds the proposing sessions only, so every
+# chip they propose is shown to exist (the control run CH0); hc1 is a copy of
+# hc0, mtimes kept, plus the
 # sessions that start some of them (CH1). Proposals are 600 minutes old, the
 # starting sessions 300, so each starter is modified after the proposal; the
 # two expiry chips are 170 hours old, inside the default 14-day window.
+_lw_build
 _lw_repo ch; CH="$LW/ch"; CHR="$(_lw_mainwt "$CH")"
 _lwg "$CH" worktree add -q -b q25 "$LW/ch-q25" main >/dev/null 2>&1
 _lwg "$CH" worktree add -q -b q25c "$LW/ch-q25c" main >/dev/null 2>&1

@@ -9,52 +9,9 @@ printf '\nthe lost-work page, step 6: felix monitor groups, --tsv, counts, the t
 # #301 founder (needs-founder, green), #302 session (a failed check), #303
 # lander (green, nothing else; its head b303 also carries lw-carried-q7),
 # #304 nobody (a check still running), #305 unknown (exactly 100 files, green).
-# Part 1480 runs the page again over this fixture.
-_lw_repo pg; PG="$LW/pg"; LWPG0="$(_lwq "$PG" refs/heads/main)"
-mkdir -p "$PG/projects/pg" "$PG/docs/handoff/pending"
-printf '{\n  "name": "pg",\n  "remote_match": "github.com/fixture/pg",\n  "gate": "true"\n}\n' > "$PG/projects/pg/project.json"
-printf '# pg\n' > "$PG/projects/pg/CLAUDE.md"
-printf 'landdir/.*\tfounder\t-\t-\n' > "$PG/projects/pg/land.tsv"
-printf 'red\tpath\t^riskdir/plain/\ta person reads these\treviewed\t-\n' > "$PG/projects/pg/risk.tsv"
-printf '### 2026-10-16 - the page waits\n\nThe page was designed here and not built.\n\n**Next:**\n- Build the page.\n' \
-  > "$PG/docs/handoff/pending/20261016T101010Z-lw-handoff-q6.md"
-_lwg "$PG" add -A >/dev/null 2>&1; _lwg "$PG" commit -qm 'the project and a pending handoff section' >/dev/null 2>&1
-_lwg "$PG" push -q origin main >/dev/null 2>&1
-PGR="$(_lw_mainwt "$PG")"; LWPGM="$(_lwq "$PG" refs/heads/main)"
-LW_FH="$PG"
-for _lwi in 301 302 304 305; do _lw_mk "$PG" "$LWPGM" "head $_lwi" "n$_lwi.txt" "$_lwi"; eval "LWH$_lwi=\$LWC"; done
-_lw_mk "$PG" "$LWPGM" 'carried work' q7.txt q7; LWQ7X="$LWC"; _lw_mk "$PG" "$LWQ7X" 'head 303' n303.txt 303; LWH303="$LWC"
-_lw_mk "$PG" "$LWPGM" 'unproposed work' q5.txt q5; LWQ5="$LWC"
-_lwg "$PG" push -q origin "$LWH301:refs/heads/b301" "$LWH302:refs/heads/b302" "$LWH303:refs/heads/b303" "$LWH304:refs/heads/b304" \
-  "$LWH305:refs/heads/b305" "$LWQ5:refs/heads/lw-unprop-q5" >/dev/null 2>&1
-_lwg "$PG" fetch -q origin >/dev/null 2>&1
-_lwg "$PG" branch -q lw-unprop-q5 "$LWQ5" >/dev/null 2>&1; _lwg "$PG" branch -q --set-upstream-to=origin/lw-unprop-q5 lw-unprop-q5 >/dev/null 2>&1
-_lwg "$PG" branch -q lw-carried-q7 "$LWQ7X" >/dev/null 2>&1
-_lwg "$PG" branch -q lw-landed-q8 "$LWPG0" >/dev/null 2>&1
-_lwg "$PG" branch -q lw-shared-q1 "$LWPGM" >/dev/null 2>&1
-LWW="$LW/pg-wt"; mkdir -p "$LWW"
-_lwg "$PG" worktree add -q "$LWW/share-a-q1" lw-shared-q1 >/dev/null 2>&1
-_lwg "$PG" worktree add -q -f "$LWW/share-b-q1" lw-shared-q1 >/dev/null 2>&1
-for _lwi in blocked-q2 ask-q3 live-q4 dirty-q9; do _lwg "$PG" worktree add -q -b "lw-$_lwi" "$LWW/$_lwi" "$LWPGM" >/dev/null 2>&1; done
-printf 'work in progress\n' > "$LWW/live-q4/wip.txt"; printf 'never committed\n' > "$LWW/dirty-q9/new.txt"
-_lw_prs fixture_pg "$(_lw_pr 301 b301 "$LWH301" green notes/301.md labels=needs-founder repo=fixture/pg)" \
-  "$(_lw_pr 302 b302 "$LWH302" red notes/302.md repo=fixture/pg)" "$(_lw_pr 303 b303 "$LWH303" green notes/303.md repo=fixture/pg)" \
-  "$(_lw_pr 304 b304 "$LWH304" running notes/304.md repo=fixture/pg)" "$(_lw_pr 305 b305 "$LWH305" green @100 repo=fixture/pg)"
-# The page's records: the chip (its title holding ESC and BEL as raw bytes),
-# the blocked call, the question, and the live session written last.
-LW_HP="$LW/hp"; LW_RR="$LW_HP/.claude/projects"; mkdir -p "$LW_RR"
-LWESC="$(printf '\033')"; LWBEL="$(printf '\007')"
-LW_CHIPT="Page chip ${LWESC}[31m red ${LWBEL} bell"
-LWS_PG=d0d0d0d0-0000-4000-8000-0000000000aa; LWS_BLK=d0d0d0d0-0000-4000-8000-0000000000b2; LWS_ASK=d0d0d0d0-0000-4000-8000-0000000000a3
-_lw_sess "$PGR" "$LWS_PG"; _lw_h 652 'file the follow-ups'
-_lw_spawn 651 toolu_pg task_c0ffee01 "$LW_CHIPT" "$(_lw_p 'Page task: make the page print its groups in the order the contract gives them.' 130)"
-_lw_a 650 'Filed.'; _lw_age "$LW_F" 650
-_lw_sess "$LWW/blocked-q2" "$LWS_BLK"; _lw_h 292 'run the daily watch'
-_lw_tu 290 toolu_blk Bash '{"command":"watch-the-ledger","description":"Watch the ledger"}'; _lw_age "$LW_F" 290
-_lw_sess "$LWW/ask-q3" "$LWS_ASK"; _lw_h 202 'prepare the push'
-_lw_a 200 'The branch is ready. Shall I push it?'; _lw_age "$LW_F" 200
-_lw_sess "$LWW/live-q4" d0d0d0d0-0000-4000-8000-0000000000a4; _lw_h 2 'watch the build'
-_lw_tu 1 toolu_live Bash '{"command":"make watch","description":"Watch the build"}'; _lw_age "$LW_F" 1
+# Part 1480 runs the page again over this fixture. _lw_pg_build in
+# tests/lib/lost-work.sh builds it (moved there for gate friction C).
+_lw_build; _lw_pg_build
 is "B9.26 fixture: lw-carried-q7 is a proper ancestor of #303's head, the shared branch is in two worktrees, and lw-landed-q8 is on main (fixture control)" \
    "$(_lw_anc "$PG" "$LWQ7X" "$LWH303")$(_lw_anc "$PG" "$LWQ7X" refs/remotes/origin/main)$(_lw_anc "$PG" "$LWPG0" refs/remotes/origin/main) $(_lwg "$PG" worktree list --porcelain 2>/dev/null | LC_ALL=C grep -c '^branch refs/heads/lw-shared-q1$')" \
    "yny 2"
@@ -69,8 +26,6 @@ _lw_snap() {  # REPO DIR...: refs, index, config, HEAD and object count of REPO,
   _lwg "$r" count-objects -v 2>&1 | LC_ALL=C grep -E '^(count|in-pack|packs|size-pack):'
   for d in "$@"; do ( cd "$d" && find . -print | LC_ALL=C sort && find . -type f -exec cksum {} + | LC_ALL=C sort ) 2>&1; done
 }
-# The number of summary rows in a page TSV.
-_lw_n16() { LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { print n + 0 }' "$1" 2>/dev/null; }
 rm -rf "$LWL"; mkdir -p "$LWL"; rm -f "$PG/state/monitor.html"
 _lwsnap0="$(_lw_snap "$PG" "$PG" "$LWM")"
 _lw_run PT "$LW_HP" "$LW/cwd" monitor --tsv --repo "$PG"
@@ -107,7 +62,6 @@ is "B2: the page ran its sources and opened nothing" "$LW_RAN|$([ -e "$LWL/open.
 # sources' rows, each put through B7's filter for bytes below 0x20 (tab and
 # line feed kept) and 0x7f. The age_h cell and the digits of the detail are
 # read as N on both sides: they are times, and the runs are seconds apart.
-_lw_norm() { LC_ALL=C tr '\001-\010\013-\037\177' '?' | LC_ALL=C awk -F'\t' 'BEGIN { OFS = "\t" } { $6 = "N"; gsub(/[0123456789]+/, "N", $8); print }' | LC_ALL=C sort; }
 _lwa="$(LC_ALL=C awk -F'\t' '$2 != "summary"' "$P" | LC_ALL=C cut -f2- | _lw_norm)"
 _lwb="$(cat "$(_lw_o IV)" "$(_lw_o LD)" | _lw_norm)"
 is "B9.27: the page's non-summary rows, first column cut, equal the rows of felix inventory --tsv and felix land --prs --tsv as a multiset" \
@@ -199,7 +153,6 @@ is "B9.32: and pr-founder's reason says 1 pull requests not decided" "$(_lw_elem
 is "B9.32: pr-unknown and pr-nobody stay complete while gh was read" "$(_lw_st "$P" summary pr-unknown 1) $(_lw_st "$P" summary pr-nobody 1)" "complete complete"
 
 # ---- B6, B9.33: the text page -----------------------------------------------------------
-LW_HEAD='felix monitor: read-only. It wrote nothing, fetched nothing and acted on nothing; it read felix inventory and felix land --prs.'
 is "B6: the first line says what the page did and did not do, once" \
    "$(LC_ALL=C sed -n 1p "$X")|$(LC_ALL=C awk -v h="$LW_HEAD" '$0 == h { n++ } END { print n + 0 }' "$X")" "$LW_HEAD|1"
 is "B6: the block is headed by the repository's path, then one read line per cover row, the inventory's then land's" \

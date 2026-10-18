@@ -124,19 +124,39 @@ read-only contract and the unknown readings, in two reports.
   lowercased and read once under the first project, with a note naming the
   second.
 
+**Rounds 2 and 3, after the review (2026-10-17 and 18).** The fixes above went
+back into the contract as amendments R1 to R10 at the end of spec v2, and each
+was written blind again before it was checked.
+- Part 1340 (R1 to R6, 86 assertions) found two fixes that had not landed. The
+  origin row named the default branch but not where it came from (R3). The age
+  of main came from `git reflog --format=%ct`, which is the commit's time, not
+  the time the ref moved, so a fresh fetch of another branch made main look
+  fresh (R4). Both fixed in 753f41dc.
+- A mutation round on 1340 caught 10 of 13 mutants. The three survivors (the
+  `--prs` repo-cell cleaning, DEL, and low controls in the terminal filter) became
+  part 1350 (82 assertions), with R10: a confined risk row is listed once, with
+  its pattern, its path count and its first path. 1350 also found that gh's
+  `\u00XX` escapes of ESC and BEL in titles and check names came out as spaces,
+  and that the `gh` row did not say when the slug could not be read. Fixed in
+  c0f9f8ac. A second mutation round caught all 8 of its mutants.
+- R10 came from running the page on felix-home itself (read-only, the tick's
+  `land/` unchanged): one tests-glob risk row printed 25 times in #443's line and
+  buried the founder rules. It now prints `for 14 paths`, and `for 1 path` when
+  one matches (d8013c8c).
+
+**Tests now.** Six parts: 1300, 1310, 1320, 1330, 1340 and 1350. A partial
+smoke of parts 0001-0005 and 1300-1350 at d8013c8c reached the end: 603 passed,
+0 failed. Land on green (0001-0005, 1280-1286: 573/0, 4 skipped), the locale
+lints (0990-0999: 403/0) and the part rules (1040: 67/0) give the same counts
+on this branch as on origin/main. The full suite, the record and the gate were
+not run on this branch.
+
 **Open.**
-- Spec v2 sections 2 and 4.2 still lack the line saying the queue reads a
-  non-checkout project's default branch with a `gh api repos/<owner>/<name>`
-  GET. The spec lives under ~/.felix/memory, outside this checkout, so it was not
-  edited here.
-- No blind assertion covers the F6 origin-row wording, the F8 reflog age, the F7
-  tab-in-slug cleanup, the F10 duplicate-slug dedupe or the F5 "exactly one
-  billing call" count. The code was changed and no regression showed, but those
-  are untested. Assertions were added only for the title filter, the title cut
-  and the ungoverned repository.
 - The 1300 snapshot helper prints `FETCH_HEAD: No such file or directory` to the
   smoke log for a fixture repository that has no FETCH_HEAD. It is noise, not a
   failure; the redirect sits on the `cksum`, not on the shell's `<`.
+- The budget row is unread on felix-home: the billing endpoint answers 404, and
+  the token likely lacks the `user` scope. Widening it is the founder's.
 
 **Owed at "you are next".** The carrier takes the record, the gate and the
 version number: 0.49.298 is a placeholder (.294 the escape batch, .295 A30, .296

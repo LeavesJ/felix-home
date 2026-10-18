@@ -1,7 +1,7 @@
 # tests/lib/cm-stub.sh: the `claude` stub on PATH, the ungoverned repository, and
 # the stranger project.
 # Used by parts 0010 (builds all three), 0070 0180 0190 0220 0400 0450 0580 0650
-# 0660-0710 0720 0730 0780 0820 0850 (CMSTUB, CMSTUB_LOG), 0070 0200 0220 0250
+# 0660-0711 0720 0730 0780 0820 0850 (CMSTUB, CMSTUB_LOG), 0070 0200 0220 0250
 # 0600 (PLAIN) and 0200 0780 (the stranger project). Moved from
 # parts/0010-resolution.sh: _plain_build from line 33 (PLAIN), _cmstub_build from
 # lines 183-196 (CMSTUB, CMSTUB_LOG, the stub), _stranger_build from lines 184-193.

@@ -1,5 +1,5 @@
 # tests/lib/commissioning.sh: the commissioning fixture, cmproj, and its helpers.
-# Used by 0650 (builds it), 0660 0670 0680 0690 0700 (each reads it as the part
+# Used by 0650 (builds it), 0660 0670 0680 0681 0690 0700 (each reads it as the part
 # before left it) and 0710 (reads it as 0700 left it). Moved from
 # parts/0650-ecosystem.sh: the fixture from lines 269-279 (CMP, CMR, the
 # repository, the project files), _cmtable from 280-281, _cm from 282-287 and

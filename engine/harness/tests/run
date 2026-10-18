@@ -320,6 +320,7 @@ fi
 . "$HERE/parts/0650-ecosystem.sh"
 . "$HERE/parts/0660-continued.sh"
 . "$HERE/parts/0670-continued.sh"
+. "$HERE/parts/0671-continued.sh"
 . "$HERE/parts/0680-continued.sh"
 . "$HERE/parts/0681-continued.sh"
 . "$HERE/parts/0690-continued.sh"

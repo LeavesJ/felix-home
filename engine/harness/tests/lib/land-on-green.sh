@@ -1,6 +1,6 @@
 # tests/lib/land-on-green.sh: the land-on-green fixture, its helpers, and the builder that gives parts 1280-1287 the same state.
-# Used by 1280 (builds it), 1281 1282 1283 1284 1285 1286, and 1287, which calls _lg_build too (it lands with A30,
-# and is not in this tree). Moved from parts/1280-land-on-green-blind.sh: lines 24-28, 30-94, 96-150, 166-179 and 183
+# Used by 1280 (builds it), 1281 1282 1283 1284 1285 1286 and 1287, each of which calls _lg_build (1287 landed with A30
+# and 0.49.295). Moved from parts/1280-land-on-green-blind.sh: lines 24-28, 30-94, 96-150, 166-179 and 183
 # (the fixture, now step base of _lg_build), line 29 (_lg_put), lines 151-165 (_lg_branch, _lg_more, _lg_sha) and
 # 184-215 (_lg_land to _lg_osa), verbatim, and lines 363-364 (_lg_scratch); from parts/1281-land-on-green-deploy-blind.sh:
 # line 15 (LGV, in step base), 16-19 (_lg_cache, _lg_inst, _lg_ninst, _lg_mainv); from parts/1282-land-on-green-round-2-blind.sh:

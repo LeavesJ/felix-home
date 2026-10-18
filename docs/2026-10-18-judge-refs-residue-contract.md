@@ -84,6 +84,14 @@ different commit from the one meant: `refs/tags/X`, `refs/heads/X` or
   while a decoy is present. Its changed paths are those of the real base,
   not the decoy's.
 
+- **A12.** Added after the blind round. Today, when `felix_base_ref` fails,
+  `felix merge` falls back to the name as given: `|| printf '%s' "$base"`.
+  For `origin/X` with no remote-tracking ref, that name is exactly what a
+  decoy answers to. So when `felix_base_ref` cannot resolve the base,
+  `felix merge` refuses. It never reads judge code, version or changed paths
+  through the name as given. The report-only readers (pr, next, receipt,
+  evidence, classify) keep their fallback.
+
 A message that prints the base may now print `refs/remotes/origin/main`.
 That is accepted.
 

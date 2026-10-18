@@ -178,6 +178,10 @@ seams came out of it, each written into spec v2 first.
   other branch, so the red run named two assertions the manifest did not
   list. R5, clarified, already fixes unread; the block now asserts that
   alone, with one new name for the unread state itself.
+- Record 2 passed (12464/0/43), and the gate's schema check refused red.tsv:
+  158 assertion names in parts 1300-1330 began with `§`, and red.tsv's first
+  cell is a name, so 150 of its lines began with a non-ASCII byte
+  (lib/table.sh, nonascii-lead). Each such name now begins `spec §`.
 
 **Landing.** One engine PR with slot 3f, risk-red because it adds lib files,
 recorded and gated by the carrier at 0.49.298 on main 1c5ca0d0 (.297). It goes

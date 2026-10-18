@@ -17,11 +17,11 @@ is "case 1: in one --prs row" "$(_sp_nrow "$SPX/once.tsv" 101)" 1
 is "case 1: and once in --queue --tsv" \
    "$(LC_ALL=C awk -F'\t' '$1 == "pr" && $3 == "#101"' "$SPX/once.queue.tsv" | LC_ALL=C awk 'END { print NR }')" 1
 is "case 1: and on one line of the --queue text" "$(_sp_tline "$SPX/once.queue.txt" 101 | LC_ALL=C awk 'END { print NR }')" 1
-is "§6.1: a project whose gh failed has its gh source row in --queue, unread" \
+is "spec §6.1: a project whose gh failed has its gh source row in --queue, unread" \
    "$(LC_ALL=C awk -F'\t' '$1 == "source" && $3 == "gh" && $2 == "fixture/two" { print $4 }' "$SPX/once.queue.tsv")" "unread"
-has "§6.2: the --queue text says that project was not read, and why" "$(cat "$SPX/once.queue.txt")" "two: not read: "
-has "§6.2: and a project with no founder pull request says so" "$(cat "$SPX/once.queue.txt")" "three: no founder entries"
-is "§7: --queue exits 0 though one project was not read" "$(cat "$SPX/once.queue.txt.rc")$(cat "$SPX/once.queue.tsv.rc")" "00"
+has "spec §6.2: the --queue text says that project was not read, and why" "$(cat "$SPX/once.queue.txt")" "two: not read: "
+has "spec §6.2: and a project with no founder pull request says so" "$(cat "$SPX/once.queue.txt")" "three: no founder entries"
+is "spec §7: --queue exits 0 though one project was not read" "$(cat "$SPX/once.queue.txt.rc")$(cat "$SPX/once.queue.tsv.rc")" "00"
 
 # ---- case 14: the lander source row (§4.3) ------------------------------------
 _sp_prs fixture_home; _sp_prs fixture_two
@@ -46,11 +46,11 @@ _sp_land "$SPH" --prs --tsv --no-gh; _spo="$(_sp_srcf "$SPX/out" lander 8)"
 has "case 14: a paused file holding a reason: paused yes" "$_spo" "paused yes"
 has "case 14: and the reason in the detail" "$_spo" "deploy window"
 _sp_lacks "case 14: its first line only" "$_spo" "the rest of it"
-has "§4.3: the job's plist there: installed yes" "$_spo" "installed yes"
-has "§4.3: launchctl print succeeding: loaded yes" "$_spo" "loaded yes"
+has "spec §4.3: the job's plist there: installed yes" "$_spo" "installed yes"
+has "spec §4.3: launchctl print succeeding: loaded yes" "$_spo" "loaded yes"
 rm -f "$SPLAND/paused"
 _sp_land "$SPH" --prs --tsv --no-gh
-has "§4.3: no paused file: paused no" "$(_sp_srcf "$SPX/out" lander 8)" "paused no"
+has "spec §4.3: no paused file: paused no" "$(_sp_srcf "$SPX/out" lander 8)" "paused no"
 rm -f "$SPU/Library/LaunchAgents/felix.land.felix.plist" "$SPK/loaded"
 
 # ---- case 28: the ledger unreadable, and absent (§4.3, §5) ----------------------
@@ -60,7 +60,7 @@ rm -f "$SPLAND/ledger.tsv"; mkdir -p "$SPLAND/ledger.tsv"
 _sp_land "$SPH" --prs --tsv; _sp_keep ledgerdir.tsv
 is "case 28: a directory where the ledger should be: the ledger row says unread" "$(_sp_srcf "$SPX/ledgerdir.tsv" ledger 4)" "unread"
 _sp_is "case 28: and a pull request that would otherwise be ready" "$SPX/ledgerdir.tsv" 105 unknown unknown
-has "§5: its detail says the lander's ledger was not read" "$(_sp_f "$SPX/ledgerdir.tsv" 105 8)" "the lander's ledger not read"
+has "spec §5: its detail says the lander's ledger was not read" "$(_sp_f "$SPX/ledgerdir.tsv" 105 8)" "the lander's ledger not read"
 rm -rf "$SPLAND/ledger.tsv"
 _sp_land "$SPH" --prs --tsv; _sp_keep noledger.tsv
 is "case 28: no ledger at all: the ledger row says none" "$(_sp_srcf "$SPX/noledger.tsv" ledger 4)" "none"
@@ -88,11 +88,11 @@ rm -rf "$SP2/deep"
 _sp_logs0
 _sp_prs fixture_three "$(_sp_pr 301 notes/301.md:0 green labels=needs-founder repo=fixture/three)"   # the case-1 section above left three at []
 _sp_land "$SPH" --prs --tsv --repo "$SP3"; _sp_keep three.tsv
-is "§7: a repository with no origin/main still exits 0" "$(cat "$SPX/three.tsv.rc")" 0
-has "§5: the origin source row says no origin/main" "$(_sp_src "$SPX/three.tsv" origin)" "no origin/main"
-is "§5: and the land table is unread" "$(_sp_srcf "$SPX/three.tsv" land 4)" "unread"
-_sp_is "§4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder" "$SPX/three.tsv" 301 unknown unknown
-has "§4.2: its detail says the default branch was not read" "$(_sp_f "$SPX/three.tsv" 301 8)" "default branch not read"
+is "spec §7: a repository with no origin/main still exits 0" "$(cat "$SPX/three.tsv.rc")" 0
+has "spec §5: the origin source row says no origin/main" "$(_sp_src "$SPX/three.tsv" origin)" "no origin/main"
+is "spec §5: and the land table is unread" "$(_sp_srcf "$SPX/three.tsv" land 4)" "unread"
+_sp_is "spec §4.2: with neither origin/HEAD nor origin/main, a pull request labelled needs-founder" "$SPX/three.tsv" 301 unknown unknown
+has "spec §4.2: its detail says the default branch was not read" "$(_sp_f "$SPX/three.tsv" 301 8)" "default branch not read"
 
 # ---- §4.4: the budget unread ------------------------------------------------------
 _sp_logs0; _sp_prs fixture_home
@@ -100,11 +100,11 @@ _spl="HTTP 404: Not Found (https://api.github.com/users/fixture/settings/billing
 while [ "${#_spl}" -lt 120 ]; do _spl="$_spl."; done
 printf '1\n' > "$SPK/api.rc"; printf '%sZZZZZZZZZZZZZZZZZZZZ\nsecond line of the error\n' "$_spl" > "$SPK/api.err"
 _sp_land "$SPH" --prs --tsv; _sp_keep budget.tsv
-is "§4.4: a failing billing GET: the budget row says unread" "$(_sp_srcf "$SPX/budget.tsv" budget 4)" "unread"
-has "§4.4: and gives gh's first error line" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "$_spl"
-_sp_lacks "§4.4: cut at 120 characters" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "Z"
-_sp_lacks "§4.4: its first line only" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "second line"
-is "§7: and the page still exits 0" "$(cat "$SPX/budget.tsv.rc")" 0
+is "spec §4.4: a failing billing GET: the budget row says unread" "$(_sp_srcf "$SPX/budget.tsv" budget 4)" "unread"
+has "spec §4.4: and gives gh's first error line" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "$_spl"
+_sp_lacks "spec §4.4: cut at 120 characters" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "Z"
+_sp_lacks "spec §4.4: its first line only" "$(_sp_srcf "$SPX/budget.tsv" budget 8)" "second line"
+is "spec §7: and the page still exits 0" "$(cat "$SPX/budget.tsv.rc")" 0
 rm -f "$SPK/api.rc" "$SPK/api.err"
 
 # ---- case 11 and §5: a malformed land table at origin/main ------------------------
@@ -120,12 +120,12 @@ _sp_prs fixture_home "$(_sp_pr 141 projects/felix/CLAUDE.md:0 green)" "$(_sp_pr 
                      "$(_sp_pr 122 projects/felix/ecosystem.tsv:0 green)" "$(_sp_pr 114 landdir/x.md:0 green)"
 _sp_land "$SPH" --prs --tsv; _sp_keep malformed.tsv
 M="$SPX/malformed.tsv"
-is "§5: a land table felix_land_malformed refuses is unread" "$(_sp_srcf "$M" land 4)" "unread"
+is "spec §5: a land table felix_land_malformed refuses is unread" "$(_sp_srcf "$M" land 4)" "unread"
 _sp_is "case 11: a pull request that reaches founder by a land row alone" "$M" 114 unknown unknown
-has "§5: its detail says the land table was not read" "$(_sp_f "$M" 114 8)" "land table not read: "
-_sp_is "§5: the escape-table rules still decide founder" "$M" 122 founder founder
-_sp_is "§5: and the direction rule" "$M" 141 founder founder
-_sp_is "§5: and the labels" "$M" 139 founder founder
+has "spec §5: its detail says the land table was not read" "$(_sp_f "$M" 114 8)" "land table not read: "
+_sp_is "spec §5: the escape-table rules still decide founder" "$M" 122 founder founder
+_sp_is "spec §5: and the direction rule" "$M" 141 founder founder
+_sp_is "spec §5: and the labels" "$M" 139 founder founder
 
 # ---- the fixture is removed -------------------------------------------------------
 rm -rf "$SP"

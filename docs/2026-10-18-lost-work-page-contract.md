@@ -53,15 +53,21 @@ all of these hold:
 3. some carrier reaches its tip, where "reaches" means:
     - for a `branch` or `worktree` row: the carrier's tip equals the item's tip
       or descends from it, and the carrier is not the item's own name on origin
-      (§3 Proposes: its own name, or its upstream's short name);
+      (§3 Proposes: its own name, or its upstream's short name); but when the
+      item's own name or its upstream stands at its tip on origin, the work is
+      already pushed under its own name, and only a strict descendant carries
+      it, as for a `remote` row (review round, finding 2);
     - for a `remote` row: the carrier's tip strictly descends from the item's
       tip (equal tips do not count), and the carrier is not the item itself.
 
     A worktree on a detached HEAD has no own name; its tip is `HEAD`.
 
 Two remote refs at one commit therefore carry neither each other: each stays
-`unproposed`, and §4.7 marks them `possible-duplicate`. A strict ancestry
-relation has no cycles, so some row always remains to say the work needs a PR.
+`unproposed`, and §4.7 marks them `possible-duplicate`. The same holds for two
+pushed names at one commit that each have a local branch or worktree: the
+local rows are strict too (above), so neither is carried by the other's name.
+A strict ancestry relation has no cycles, so some row always remains to say the
+work needs a PR.
 
 **What it replaces.** When `carried` holds, the row holds neither `unproposed`
 nor `pr-closed-unlanded`, nor their `unknown:` entries. A closed PR's number may
@@ -348,7 +354,9 @@ Each group except `cover` has a count and a completeness, `complete` or
 | `never-proposed` | the `default`, `prs` or `chips` cover row is not `read`, or some row carries `unknown:` of `uncommitted`, `unpushed`, `unproposed`, `pr-closed-unlanded`, `orphan` or `chip-unstarted` |
 | `pr-founder`, `pr-session`, `pr-lander` | land's `gh` source row is not `read` or `none`, or land printed no `gh` source row, or some `pr` row is in group `pr-unknown` |
 | `pr-unknown`, `pr-nobody` | land's `gh` source row is not `read` or `none`, or land printed no `gh` source row |
-| `proposed`, `carried`, `handoff`, `undecided`, `landed`, `quiet` | never |
+| `proposed` | the inventory's `prs` cover row is not `read`, or some row carries `unknown:pr-open` |
+| `handoff` | the inventory's `default` cover row carries `unknown:handoff-pending` in its states (the listing of the pending directory failed) |
+| `carried`, `undecided`, `landed`, `quiet` | never |
 
 A `pr` row in `pr-unknown` makes the three groups above it incomplete because
 step 5 decides `unknown` before `founder`, `needs-attended`, `refused` and

@@ -10,7 +10,6 @@ printf '\njudge refs and residue: residue from the committed rules of main (cont
 # under *.log, and a file named out that the rule out/ names only as a
 # directory. Its rules are the root's .gitignore and engine/harness/tests'
 # (scratch/). E is the cache entry for main's 4.0.0, cut from the commit.
-. "$HERE/lib/judge-refs.sh"   # its helpers and builders, shared with 1400
 JB="$TMP/jr-b"; JBR="$JB/home"; JBC="$JB/cache"; JBV="$JBC/felix/felix"; JBE="$JBV/4.0.0"
 mkdir -p "$JBR/engine/harness/lib" "$JBR/engine/harness/tests" "$JBR/engine/hooks" "$JBR/engine/commands" "$JBV"
 JBR="$(cd "$JBR" && pwd -P)"

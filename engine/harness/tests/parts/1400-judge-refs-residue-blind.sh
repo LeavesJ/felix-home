@@ -13,7 +13,6 @@ printf '\njudge refs and residue: the base ref by its full name (contract A1-A11
 # A decoy is a ref at another commit than the one meant, under a name git's
 # short-name order reads first: refs/<x>, refs/tags/<x>, refs/heads/<x>, then
 # refs/remotes/<x>. "|0" after an output is exit 0, "|X" any other exit.
-. "$HERE/lib/judge-refs.sh"   # its helpers and builders, shared with 1401
 JR="$TMP/jr"; mkdir -p "$JR"
 _jr_all() { local r="$1" s="$2" f o=""; shift 2; for f in "$@"; do [ "$(_jr_sha "$r" "$f")" = "$s" ] || o="$o $f"; done; printf '%s' "$o"; }   # the refs not at the commit
 

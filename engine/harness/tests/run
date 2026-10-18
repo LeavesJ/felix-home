@@ -194,6 +194,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/inventory-blind.sh"
 . "$HERE/lib/inventory-gizmo.sh"
 . "$HERE/lib/inventory.sh"
+. "$HERE/lib/judge-refs.sh"
 . "$HERE/lib/land-on-green.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"

@@ -76,7 +76,10 @@ ff376654, gave 2208 passed, 10 failed, 1 skipped. Seven of the failures are in
 0590/0600 and fail the same way on the pre-build export: those parts need
 helpers (`_stage`, `_reset`, `PLAIN`) from parts the smoke does not run. The
 other three were the capabilities block's bare `felix monitor`, restated in
-the next commit; that commit's smoke was not run, because peers were recording.
+5ac72182; 0600 alone then gave 259 passed and 5 failed, all five of the
+block's monitor assertions passing and the five failures the alone-only ones.
+The carrier's ruling on those: if they still fail alone on main with C, that
+is a C4 gap for row 0, not this branch's.
 B9.2 and A111, which failed before the merge, now pass. **The full suite, `--record-assertions`, red and the gate
 were not run on this branch**: it has no landing slot yet.
 The carrier's two record seams were checked on 1400-1440. No name starts with a

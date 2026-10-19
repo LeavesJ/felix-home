@@ -35,6 +35,32 @@ printf '\nFelix refuses a pattern kill (blind)\n'
 # The amendment's own examples are cases here, allowed and refused. `pkill -P 1234`,
 # which the first version of this part refused, is allowed now.
 #
+# Amended again the same day ("Amended again 2026-10-19, after the adversarial
+# round", binding over everything above), after a reviewer found pattern kills the
+# row let through and allowed commands it refused:
+# A4: a quoted pattern is one word, so `pkill -f 'vite|esbuild'` is refused.
+# A5: pids taken from an unbound pgrep and then killed are a pattern kill, whatever
+#     carries them: a variable, a for loop (parentheses or backquotes), a while
+#     read loop, a process substitution into xargs or read, `kill -9 -$(...)`, a
+#     script handed to `bash -c`.
+# A6: a pid-bound selector whose pid comes from a pattern is not pid-bound
+#     (`pkill -P $(pgrep -f x)`), nor is a -P list that holds 1 (`"$pid,1"`).
+# A7: more positions (after a case pattern's `)`, behind a redirect, after find's
+#     -exec, blanks or a line break or sudo inside the substitution) and wrappers
+#     (watch, caffeinate -i, stdbuf -oL, arch -arm64, setsid, ionice -c3, builtin,
+#     sudo -iu me, env -C /tmp).
+# A8: allowed, as none sends a signal to a pattern's pids: `kill -s 0 $(pgrep ...)`,
+#     `pgrep ... | xargs kill -0`, `PKILL=/usr/bin/pkill`, `echo then killall the
+#     rest`, a pgrep counted by wc after a kill by pid, and a pid-bound pgrep killed.
+# Every example the amendment lists is a case here. Its known limits (a pgrep
+# substitution that is not the last body appended, a check ending a command that
+# killed by pid, quoted sed/cp/rm/touch operands holding `; pkill`, remote
+# commands, combined flags like -fP, `pkill --help`, a nested substitution, a
+# double-quoted `bash -c "...$(...)"`, `echo 'pkill -f x' | bash`, `env -S`,
+# `$(which pkill)`, pids passed through a file) are asserted neither way; no case
+# here is one of them, and the cases of the wc count end in a count, not a bare
+# `"$(pgrep -fl x)"`.
+#
 # Readings, where the contract leaves room. The wrappers of C1 and the positions of
 # C1 are tried on pkill and killall; C2 is tried bare, behind `true &&`, and with
 # the substitution double-quoted, which still runs it. `kill $(cat pidfile)` and
@@ -51,7 +77,21 @@ printf '\nFelix refuses a pattern kill (blind)\n'
 # in a command is judged by itself (`kill $(pgrep -P 1234) $(pgrep -f x)` is
 # refused); a pgrep piped through head into `xargs kill` is judged as the pgrep is;
 # and `kill -0` frees only itself, so a `kill -9 $(pgrep -f x)` beside it is still
-# refused.
+# refused. For A4 to A8, mine: a `;`, `&&`, `||`, `&` or `(` inside a quoted
+# pattern does not end the command; a quoted alternation beside a real `-P 1234` is
+# allowed, as is text that holds alternations of kill words (`grep -E
+# 'pkill|killall'`); the `;` and line-break spellings of A5's variable form, and
+# `sh -c`, `sudo bash -c` and `xargs -I{}` are refused as their listed twins are;
+# a loop, a read loop or a process substitution fed by a pid-bound pgrep, and one
+# that only echoes an unbound pgrep's pids or tests them with `kill -0`, is
+# allowed; a -P list is refused wherever its 1 stands (first, last, glued, behind a
+# variable) and allowed when it holds other ppids, 10 and 11 among them; `env -i`,
+# `nohup setsid`, `sudo caffeinate -i`, `sudo kill`, an `env A=1 pgrep` inside the
+# substitution, a backquote with blanks, and a case arm after another arm are
+# A7's positions and wrappers too, while the same words after echo, find's -name,
+# or in front of another command (watch pgrep, caffeinate sleep, sudo -iu me ls) are
+# allowed; `then`, `else`, `do`, `time` and `!` after echo are words, and
+# `KILLALL=` and `export PKILL=` are assignments, as `PKILL=` is.
 #
 # Every part runs alone: this one makes its own checkout, bound to the widget
 # project by marker, and relies on nothing an earlier part left but what the
@@ -315,6 +355,167 @@ printf '\npattern kill (A3): and a kill beside it that does send one is still re
 _pk_cases 2 <<'J'
 kill -0 $(pgrep -f x); kill -9 $(pgrep -f x)
 until ! kill -0 $(pgrep -f x); do kill -9 $(pgrep -f x); done
+J
+
+printf '\npattern kill (A4): a quoted pattern is one word, and is still a pattern\n'
+_pk_cases 2 <<'J'
+pkill -f 'vite|esbuild'
+pkill -9 -f "uvicorn|gunicorn"
+kill -9 $(pgrep -f "tests/(run|red)")
+pgrep -f 'a|b' | xargs kill
+pkill -f 'a b|c d'
+pkill -x 'node|npm'
+pkill -f 'foo(bar|baz)'
+pkill -f "x;y"
+pkill -f 'a && b'
+pkill -f 'a & b'
+pkill -f 'x|-P 1234'
+kill $(pgrep -f 'x || y')
+pgrep -f "a||b" | xargs -r kill -9
+pgrep -f 'one;two' | xargs kill
+killall 'a|b'
+J
+
+printf '\npattern kill (A4): and text, or a pid-bound search, with a quoted alternation is allowed\n'
+_pk_cases 0 <<'J'
+pkill -P 1234 -f 'vite|esbuild'
+kill $(pgrep -P 1234 -f 'a|b')
+grep -E 'pkill|killall' lib/x.sh
+grep -nE "vite|pkill" notes.md
+echo "pkill|killall"
+git log --grep='pkill\|killall'
+J
+
+printf '\npattern kill (A5): pids taken from an unbound pgrep and then killed, whatever carries them\n'
+_pk_cases 2 <<'J'
+PID=$(pgrep -f x) && kill -9 $PID
+PID=$(pgrep -f x); kill -9 $PID
+pids=$(pgrep -f x)<NL>kill $pids
+for p in $(pgrep -f x); do kill $p; done
+for p in `pgrep -f x`; do kill $p; done
+for p in $(pgrep -f 'a b'); do kill -9 "$p"; done
+for p in `pgrep x`; do echo $p; kill -TERM $p; done
+pgrep -f x | while read p; do kill $p; done
+pgrep -f x | while read -r p; do kill $p; done
+pgrep -f x | while read p; do echo "$p"; kill $p; done
+pgrep -f x | while read -r p; do echo "$p"; ps -p $p; kill -9 $p; done
+while read p; do kill $p; done < <(pgrep -f x)
+while read -r p; do echo $p; kill -9 $p; done < <(pgrep -f x)
+xargs kill < <(pgrep -f x)
+xargs -r kill -9 < <(pgrep -f x)
+kill -9 -$(pgrep -f x)
+kill -- -$(pgrep -f 'a b')
+timeout 10 bash -c 'kill $(pgrep -f x)'
+bash -c 'kill $(pgrep -f x)'
+sh -c 'pgrep -f x | xargs kill'
+sudo bash -c 'pkill -f x'
+pgrep -f x | xargs -I{} kill -9 {}
+J
+
+printf '\npattern kill (A5): and the same with a search bound to a pid, or with no signal sent, is allowed\n'
+_pk_cases 0 <<'J'
+PID=$(pgrep -P 1234) && kill -9 $PID
+for p in $(pgrep -P 1234); do kill $p; done
+pgrep -P 1234 | while read p; do kill $p; done
+while read p; do kill $p; done < <(pgrep -P 1234)
+xargs kill < <(pgrep -P 1234)
+for p in $(pgrep -f x); do echo $p; done
+pgrep -f x | while read -r p; do ps -p $p; done
+while read p; do ps -p $p; done < <(pgrep -f x)
+for p in $(pgrep -f x); do kill -0 $p && echo up; done
+J
+
+printf '\npattern kill (A6): a pid-bound selector whose pid comes from a pattern, or a list holding 1, is not bound\n'
+_pk_cases 2 <<'J'
+pkill -P $(pgrep -f tests/run)
+pkill -P "$pid,1" -f x
+pkill -P 1234,1 -f x
+pkill -P 1,1234 -f x
+pkill -P "1,$pid" -f x
+pkill -P1,2 -f x
+pkill -P 1,2
+pkill -TERM -P $(pgrep -f x)
+pkill -P `pgrep -f x`
+pkill -P "$(pgrep -f x)"
+J
+
+printf '\npattern kill (A6): and a list of other ppids is bound\n'
+_pk_cases 0 <<'J'
+pkill -P 1234,5678
+pkill -P 10,11
+pkill -P "$a,$b"
+J
+
+printf '\npattern kill (A7): more positions are refused\n'
+_pk_cases 2 <<'J'
+case "$1" in stop) pkill -f server;; esac
+case "$1" in start) ./run;; stop) killall server;; esac
+case $x in a|b) pkill -f x ;; *) : ;; esac
+2>/dev/null pkill -f x
+>/dev/null 2>&1 pkill -f x
+2>&1 killall node
+find /tmp -name x -exec pkill -f {} \;
+find . -name y -exec killall -9 node \;
+kill $( pgrep -f x )
+kill $(<NL>pgrep -f x<NL>)
+kill ` pgrep -f x `
+kill $(sudo pgrep -f x)
+kill -9 $( sudo pgrep -f x )
+kill $(env A=1 pgrep -f x)
+sudo kill -9 $(pgrep -f x)
+J
+
+printf '\npattern kill (A7): and so are more wrappers\n'
+_pk_cases 2 <<'J'
+watch pkill -f x
+caffeinate -i pkill -f x
+stdbuf -oL pkill -f x
+arch -arm64 pkill -f x
+setsid pkill -f x
+ionice -c3 pkill -f x
+builtin pkill -f x
+sudo -iu me pkill -f x
+env -C /tmp pkill -f x
+env -i pkill -f x
+nohup setsid pkill -f x
+sudo caffeinate -i killall node
+J
+
+printf '\npattern kill (A7): and the same words round something else are allowed\n'
+_pk_cases 0 <<'J'
+case "$1" in stop) echo pkill -f server;; esac
+2>/dev/null echo killall
+find /tmp -name pkill -print
+find . -name 'killall*' -exec ls {} \;
+watch -n 5 pgrep -fl x
+caffeinate -i sleep 5
+sudo -iu me ls
+env -C /tmp ls pkill-notes
+kill $( pgrep -P 1234 )
+kill $(sudo pgrep -P 1234)
+J
+
+printf '\npattern kill (A8): none of these sends a signal to a pattern'"'"'s pids, so all are allowed\n'
+_pk_cases 0 <<'J'
+kill -s 0 $(pgrep -f x)
+kill -s 0 "$(pgrep -f 'a b')"
+pgrep -f x | xargs kill -0
+pgrep -f x | xargs -r kill -s 0
+pgrep -f x | xargs -n 1 kill -0
+PKILL=/usr/bin/pkill
+KILLALL=/usr/bin/killall
+export PKILL=/usr/bin/pkill
+echo then killall the rest
+echo else pkill it
+echo do pkill -f x
+echo time killall node
+echo ! pkill -f x
+kill -STOP $root; kill -KILL $root; echo "left: $(pgrep -f tests/run | wc -l)"
+kill -TERM 1234; echo "left: $(pgrep -f x | wc -l)"
+kill 1234; pgrep -fl x | wc -l
+kill $pid && echo "$(pgrep -f x | wc -l) left"
+n=$(pgrep -f x | wc -l); kill -9 "$root"; echo $n
+p=$(pgrep -P $pid); kill $p
 J
 
 printf '\npattern kill: text that names a pattern kill is allowed\n'

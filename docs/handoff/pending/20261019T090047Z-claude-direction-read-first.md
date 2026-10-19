@@ -6,8 +6,9 @@ standing", so a fresh session knows which roadmap is current. Felix's copy is
 (2b8a6d21) and merged only on the founder's yes. This engine change is
 independent of it: with no such file, nothing changes, so it can land first.
 
-Branch `claude/direction-read-first`, engine head 4f823a9d (this section
-rides on top of it), PR LeavesJ/felix-home#452, draft.
+Branch `claude/direction-read-first`, PR LeavesJ/felix-home#452, draft. The
+session-start change is 4f823a9d, and A32's is 718fa868; this section rides
+on top of both.
 **Record + gate owed at slot.**
 
 **Contract.** `docs/2026-10-19-direction-read-first-contract.md`, with
@@ -65,6 +66,27 @@ Not taken, and why:
   as it does HANDOFF.md, and the file itself says that a branch changing it is
   proposing direction.
 - Saying in `felix status` that a link at D was refused. A possible follow-up.
+
+**Land on green holds it too (A32).** Verification for the starting session
+found a gap: the land-on-green tick did not treat `docs/direction.md` as a
+direction document. G5's patterns are `projects/*/CLAUDE.md` and
+`docs/*roadmap*`, so a pull request editing only the direction file would
+have landed on green CI with nobody present.
+- `engine/harness/lib/green-tick.sh`, `_gt_direction`: the exact path
+  `docs/direction.md`, case-folded as A3 folds the others, is a direction
+  document. The tick writes a `founder` row for it, and the stuck-PR page,
+  which reads the same function, names it as one.
+- It is the exact path, not a pattern. `docs/direction-notes.md` and
+  `docs/old/direction.md` are not held, because the hook names that one path
+  and a needless founder stop is the cost to avoid.
+- The fix only adds a hold, so it narrows what lands. `green-tick.sh` is not
+  in `FELIX_TRUST_BASE`.
+- Contract: `docs/2026-10-15-land-on-green-contract.md`, G5 and A32.
+- Part 1560 is blind and has 49 assertions. Run alone:
+  - 23 FAIL on main's `green-tick.sh`, and 0 FAIL (111 ok) on the branch;
+  - parts 1280, 1282 and 1310 alone: 0 FAIL;
+  - mutants, 4 of 4 killed: `docs/*direction*`, `*docs/direction.md`,
+    `docs/*direction.md`, and a match without the case fold.
 
 **Order.** This enters the weekly batch under 0cw fix intake, unless the
 carrier gives it a slot. #450 (.301) and the pattern-kill row (.302) go first.

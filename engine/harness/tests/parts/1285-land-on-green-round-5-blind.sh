@@ -193,8 +193,11 @@ _l5_clean
 printf 'stray\n' > "$LGV/$L5V/harness/a24-stray.sh"
 is "the land fixture: with a stray in main's entry, main's check rejects it (fixture control)" "$(_l4_acc refs/remotes/origin/main)" "1"
 printf 'a24-stray.sh\n' > "$LGH/engine/harness/.gitignore"
-is "the land fixture: an untracked .gitignore in the home that ignores the stray makes main's check accept that entry (fixture control)" \
-   "$(_l4_acc refs/remotes/origin/main)" "0"
+# 2026-10-18 (judge refs): main's check reads main's committed ignore rules only,
+# so an untracked .gitignore in the home no longer makes it accept the stray. The
+# trampoline's untracked-file refusal below is asserted as before.
+is "the land fixture: an untracked .gitignore in the home that ignores the stray no longer makes main's check accept that entry (fixture control)" \
+   "$(_l4_acc refs/remotes/origin/main)" "1"
 _lg_reset; _la_tramp
 is "A24: with an untracked .gitignore under the home's engine/ that makes main's check accept a stray, the trampoline runs no felix land --tick" \
    "$(_la_ticks)" "0"

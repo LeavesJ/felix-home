@@ -8,5 +8,164 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	96074341c8104d8dccd1a6d0490f1f9efc209ee2	0.49.298
-run	0	12547	44
+base	origin/main	655606cfa97750125b971e49430f6b07ae48703e	0.49.299
+run	159	12729	44
+A1 (decoys: all): and what it prints names the commit refs/remotes/origin/main names	1
+A1 (decoys: all): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: none): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A1 (decoys: refs/heads/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A1 (decoys: refs/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/tags/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A1 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A1 (decoys: refs/tags/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
+A10 (refs/heads/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it	1
+A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry main's engine, installed is ok, and nothing the decoy prints reaches it	1
+A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it	1
+A11 (decoys: refs/heads/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds	1
+A11 (decoys: refs/tags/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds	1
+A12 (1, decoys: refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
+A12 (1, decoys: refs/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
+A12 (1, decoys: refs/remotes/origin/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
+A12 (1, decoys: refs/tags/origin/jr12 refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
+A12 (1, decoys: refs/tags/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
+A12 (3): felix merge --dry-run --base <main's own sha> refuses, saying it needs a full ref name	1
+A12 (3): felix merge --dry-run --base HEAD~1, which is main's commit, refuses, saying it needs a full ref name	1
+A12 (3, no decoy): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name	1
+A12 (3, refs/tags/main at d2): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name, and the decoy's resolve.sh never runs	1
+A17: given main, with no origin/main, it returns refs/heads/main	1
+A17: given main, with origin/main there, it returns refs/remotes/origin/main	1
+A2 (decoys: all): and what it prints names the commit refs/remotes/origin/main names	1
+A2 (decoys: all): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (decoys: none): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A2 (decoys: refs/heads/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A2 (decoys: refs/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (decoys: refs/remotes/origin/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A2 (decoys: refs/remotes/origin/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
+A2 (decoys: refs/tags/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
+A2 (no refs/remotes/origin/jr-gone, decoys: all): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
+A2 (no refs/remotes/origin/jr-gone, decoys: refs/heads/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
+A2 (no refs/remotes/origin/jr-gone, decoys: refs/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
+A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
+A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
+A3 (decoys: all): and what it prints names the commit refs/heads/feat names	1
+A3 (decoys: all): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
+A3 (decoys: none): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
+A3 (decoys: refs/feat): and what it prints names the commit refs/heads/feat names	1
+A3 (decoys: refs/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
+A3 (decoys: refs/remotes/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
+A3 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/heads/main and exits 0	1
+A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names	1
+A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
+A4 (a branch with a revision suffix, with refs/remotes/origin/main present): and what it prints names the commit main~1 names	1
+A4 (a branch with a revision suffix, with refs/remotes/origin/main present): felix_base_ref given main~1 prints exactly main~1 and exits 0	1
+A4 (a revision suffix, with refs/remotes/origin/HEAD present): and what it prints names the commit HEAD~1 names	1
+A4 (a revision suffix, with refs/remotes/origin/HEAD present): felix_base_ref given HEAD~1 prints exactly HEAD~1 and exits 0	1
+A4 (a tree by its sha): felix_base_ref given its sha prints nothing and exits non-zero	1
+A6 (with a local main only): felix_base_ref given an empty name prints exactly refs/heads/main and exits 0	1
+A6 (with refs/remotes/origin/main): felix_base_ref given an empty name prints exactly refs/remotes/origin/main and exits 0	1
+A6: an empty ROOT, called from inside a repository that has refs/remotes/origin/main, exits non-zero and prints nothing	1
+A6: and so it does from inside a repository with a local main only	1
+A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A1	1
+A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A2	1
+A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A3	1
+A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A4	1
+A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A6	1
+A8 (decoys: refs/heads/origin/main): and so does felix_kernel_dir given no name	1
+A8 (decoys: refs/heads/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
+A8 (decoys: refs/origin/main): and so does felix_kernel_dir given no name	1
+A8 (decoys: refs/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
+A8 (decoys: refs/tags/origin/main): and so does felix_kernel_dir given no name	1
+A8 (decoys: refs/tags/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
+A9 (refs/heads/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
+A9 (refs/tags/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
+B1 (a): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
+B1 (a): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
+B1 (a): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
+B1 (b): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
+B1 (c): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
+B1 (d): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
+B1 (d): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
+B1 (d): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
+B1 (e): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
+B1 (e): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
+B1 (e): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
+B1 (f): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
+B1 (f): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
+B1 (f): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
+B10: with an untracked engine/.gitignore of * in the checkout, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
+B10: with an untracked engine/.gitignore of * in the home, installed still fails	1
+B2 (a): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
+B2 (a): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (a): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
+B2 (b): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (c): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
+B2 (c): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (c): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
+B2 (d): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
+B2 (d): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (d): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
+B2 (e): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
+B2 (e): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (e): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
+B2 (f): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
+B2 (f): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (f): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
+B2 (g): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2 (no variant): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
+B2: an entry that lacks harness/keep.log, which main force-added under *.log, exits 1 and names it	1
+B3 (nested rule deleted from the working tree): an entry that is main plus harness/tests/scratch/y exits 0, that line not printed	1
+B3 (nested rule negated in the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed	1
+B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/.claude-flow/x.json exits 0, that line not printed	1
+B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed	1
+B3: against jr-rules, whose engine/.gitignore ignores *.bak, the same entry exits 0, that line not printed	1
+B4: an entry that is main plus commands/.claude-flow/evil.md exits 1 and names it	1
+B4: an entry that is main plus commands/data/evil.md exits 1 and names it	1
+B4: an entry that is main plus commands/x.log exits 1 and names it	1
+B5: with refs/remotes/origin/jr5 moved to m2 after any one of the call's git commands, the verdict is one commit's: exit 0 and that commit's entry	1
+B9: a content difference in harness/keep.log, tracked and force-added under *.log, exits 1 and names it	1
+B9: a content difference in harness/out, tracked, which out/ names only as a directory, exits 1 and names it	1
+C1 (autocrlf), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
+C1 (autocrlf): a faithful entry is accepted: the entry exits 0 and prints itself	1
+C1 (eol), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
+C1 (eol): a faithful entry is accepted: the entry exits 0 and prints itself	1
+C1 (exportignore): a faithful entry is accepted: the entry exits 0 and prints itself	1
+C1 (filter-file), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
+C1 (filter-file): a faithful entry is accepted: the entry exits 0 and prints itself	1
+C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
+C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself	1
+C2: an entry that holds a top-level .claude-flow/, which M's .claude-flow/ rule matches (residue is only beneath harness/ and hooks/): exits 1 and names .claude-flow	1
+C2: an entry that holds a top-level .mcp.json: exits 1 and names .mcp.json	1
+C2: an entry that holds a top-level agents/ M does not ship: exits 1 and names agents	1
+C2: an entry that lacks .claude-plugin/, which M ships: exits 1 and names .claude-plugin	1
+C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json	1
+C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json	1
+C3: an entry whose harness/felix lost its executable bit (M's mode is 100755): exits 1 and names harness/felix	1
+C3: an entry whose harness/lib/x.sh gained the executable bit (M's mode is 100644): exits 1 and names harness/lib/x.sh	1
+C3: an entry whose harness/lib/x.sh is a symlink to a file with M's very bytes: exits 1 and names harness/lib/x.sh	1
+C4: an entry-only harness/-dash.log exits 1 and is named	1
+C4: an entry-only harness/a b and c.log exits 1 and is named	1
+C4: an entry-only harness/a"b.log exits 1 and is named	1
+C4: an entry-only harness/a*b.log exits 1 and is named	1
+C4: an entry-only harness/a: b.log exits 1 and is named	1
+C4: an entry-only harness/a?b.log exits 1 and is named	1
+C4: an entry-only name with a backslash exits 1 and is named, the backslash escaped	1
+C4: an entry-only name with a newline exits 1, its line is one line that holds the newline as \n and cannot be read as two paths	1
+C4: an entry-only name with a tab exits 1, and its line is one line with the tab escaped	1
+C5: with the decoy in place, the entry for main's 4.0.0 that is M plus harness/extra: exits 1 and names harness/extra	1
+C6: an entry-only FILE harness/data, which M's data/ rule does not match (it names a directory): exits 1 and names harness/data	1
+C7: a TERM delivered to the call midway, while it holds its temporary directory (1 at the block), leaves none behind	1
+C8: and so is refs/tags/refs/heads/jrc-nope^{commit}	1
+C8: felix merge --dry-run --base refs/heads/jrc-nope~0, an expression and not a ref name, is refused, saying it takes only a ref name	1
+a bare branch name prefers the remote-tracking ref	1
+a local-only branch is taken by its full name	1
+found after the blind round (not blind): felix merge --dry-run --base <a sha> refuses, saying it judges and merges against a full ref name	1
+found after the blind round (not blind): felix merge --dry-run --base jr-prose~1, with a tag named jr-prose at a decoy, refuses, saying it judges and merges against a full ref name	1
+saying the branch is behind refs/remotes/origin/main, or the CLI hands the report a base other than the one it compared	1
+the land fixture: an untracked .gitignore in the home that ignores the stray no longer makes main's check accept that entry (fixture control)	1

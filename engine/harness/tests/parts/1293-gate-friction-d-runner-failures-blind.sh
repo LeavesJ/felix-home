@@ -1,7 +1,7 @@
 # >>> gate-friction-d-runner-failures-blind
-printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 7)\n'
-# Blind, written from contract D revision 7 alone (docs/2026-10-18-gate-friction-
-# contract-d.md: D3, D4, D8, R1, R7, R8, R12). Nothing here was read off an
+printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 8)\n'
+# Blind, written from contract D revision 8 alone (docs/2026-10-18-gate-friction-
+# contract-d.md: D3, D4, D8, R1, R7, R12, R16). Nothing here was read off an
 # implementation; tests/run, tests/red and tests/receipt.sh are run, never read,
 # in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each
 # with planted parts of this block's own. Every case points TMPDIR at a fixture
@@ -10,7 +10,7 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # group to hold no live process, stopped or running (zombies aside), for 30 s;
 # what is left is named, then sent CONT and KILL by pid. Nothing is killed by
 # pattern. Names say the clause: D3 the runner's failures and the log, D4 the
-# record, R1 red's tree, R7 the log's shape, R8 the shell a unit leaves.
+# record, R1 red's tree, R7 the log's shape, R8 and R16 the shell a unit leaves.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB3="$TMP/db3"
 mkdir -p "$DB3/pp/std" "$DB3/n"
@@ -121,20 +121,20 @@ is "D8: a -j 3 run of planted passing parts in a copy with a manifest exits 0 an
 is "R12: and it leaves no process in its group, stopped or running (control)" "$_db3_cl" ok
 _db3_new rc --red "$DB3/g-empty.tsv" "$DB3/man.tsv" "$DB3/pp/std"/*.sh
 _db3_run r3 -j 3 --record-assertions
-case "$_db3_rc|$(_db3_redrows)" in 0\|base$'\t'origin/main$'\t'*$'\t'0.0.1\|run$'\t'0$'\t'[0-9]*$'\t'[0-9]*\|) cmp -s "$DB3/man.tsv" "$_db3_T/assertions.tsv" || _db3_ctlr=1 ;; esac
+case "$_db3_rc|$(_db3_redrows)" in 0\|base$'\t'origin/main$'\t'*$'\t'0.0.1\|run$'\t'0$'\t'[0123456789]*$'\t'[0123456789]*\|) cmp -s "$DB3/man.tsv" "$_db3_T/assertions.tsv" || _db3_ctlr=1 ;; esac
 is "D8: a -j 3 record run of planted passing parts rewrites the manifest and leaves red.tsv with counts (runner-failure copy, positive control)" "$_db3_ctlr $_db3_cl" "1 ok"
 rm -rf "$DB3/n/pn" "$DB3/n/ctl" "$DB3/n/rc"
 
 # ---- the runner's own failures (D3), and what they do to a record run (D4, R1)
 # CASE GROUPS DESC EXPECT...: pp/CASE under -j 3, then under -j 3 --record-assertions in a --red copy. _db3_hook runs in each copy before its run,
-# _db3_post after the plain run (it asserts _db3_postn); _db3_skip says why to reach every name below as a skip.
+# _db3_post after the plain run (it asserts the names in _db3_postn, one a line); _db3_skip says why to reach every name below as a skip.
 _db3_rf() {
   local n="$1" g="$2" d="$3" a1 a2 a3; shift 3
   a1="D3: $d fails with its runner line, exits 1 and leaves no receipt and no process"
   a2="D4: $d in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -"
   a3="R1: and once the record run after $d has exited no process of red's tree is left, stopped or running"
   if [ -n "$_db3_skip" ]; then
-    skip "$a1" "$_db3_skip"; skip "$a2" "$_db3_skip"; skip "$a3" "$_db3_skip"; [ -z "$_db3_postn" ] || skip "$_db3_postn" "$_db3_skip"
+    skip "$a1" "$_db3_skip"; skip "$a2" "$_db3_skip"; skip "$a3" "$_db3_skip"; while IFS= read -r _db3_pn; do [ -z "$_db3_pn" ] || skip "$_db3_pn" "$_db3_skip"; done <<< "$_db3_postn"
     _db3_skip=""; _db3_hook=""; _db3_post=""; _db3_postn=""; return 0
   fi
   if _db3_new "$n" "$g" "$DB3/pman.tsv" "$DB3/pp/$n"/*.sh; then
@@ -214,10 +214,18 @@ printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx trap5"
 trap 'rm -rf "$TMP"; exit 5' EXIT
 X
-_db3_pt5() { _db3_run t1 -j 1; is "$_db3_postn" "$_db3_rc $_db3_cl" "5 ok"; }
-_db3_post=_db3_pt5; _db3_postn="D3: the part that replaces the EXIT trap with one that exits 5 makes a -j 1 run exit 5 (control)"
+_db3_pt5() {
+  local n1="${_db3_postn%%$'\n'*}" n2="${_db3_postn#*$'\n'}"
+  is "$n2" "$(LC_ALL=C awk -v a="  FAIL  part process ended with status 5: 0020-pb.sh" -v u="  FAIL  part left the shell changed for the parts after it: 0020-pb.sh" '
+      $0 == a { na++; ia = NR } $0 == u { nu++; iu = NR; on = 1; next }
+      on && index($0, "  | ") == 1 { b = b substr($0, 5) "|"; next } { on = 0 }
+      END { print na + 0, nu + 0, (ia && iu > ia) ? "after" : "not-after", b }' "$_db3_c/p.out")" "1 1 after trap on EXIT changed|"
+  _db3_run t1 -j 1; is "$n1" "$_db3_rc $_db3_cl" "5 ok"
+}
+_db3_post=_db3_pt5; _db3_postn="D3: the part that replaces the EXIT trap with one that exits 5 makes a -j 1 run exit 5 (control)
+R16: and under -j 3 the status-5 failure is followed by the seventh failure of that unit, and its one bar line is trap on EXIT changed"
 _db3_rf trap5 "$DB3/g-empty.tsv" "a part that replaces the EXIT trap with one that removes \$TMP and exits 5" \
-   "part process ended with status 5: 0020-pb.sh" "!part did not finish" "!part ended without its mark"
+   "part process ended with status 5: 0020-pb.sh" "part left the shell changed for the parts after it: 0020-pb.sh" "!part did not finish" "!part ended without its mark"
 # The units' preludes alone. The copy's 0006 gets a line that does nothing the first time it runs, in the parent's prelude, which makes a marker file,
 # and does PLANT in every prelude after it, the units'. Each unit's prelude lines are then printed behind a bar, so none reads as an assertion.
 _db3_plant() {   # PLANT: the copy's 0006 runs PLANT only where the marker file exists
@@ -296,12 +304,30 @@ is "R8: a unit that leaves the shell changed in red's suite only is left out of 
    "$_db3_rc $_db3_cl $_db3_n $_db3_f $_db3_x" "0 ok 0 0 counts"
 rm -rf "$DB3/n/rshl"
 
+# ---- red acts on a failed mark while its suite runs (R1): the record run's runner failure, with a part in red's suite that sleeps 90 s
+# 0020 sleeps only where FELIX_TEST_NO_MANIFEST=1, which only red's suite sees; 0030 dies only in the record run, which fails it. The record run must not
+# wait for red's suite (nor for the bound it gives red, 60 s): red ends its suite on the mark, so the record run exits well under 30 s.
+_db3_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
+mkdir -p "$DB3/pp/rsl"; cp "$DB3/pp/std/0010-pa.sh" "$DB3/pp/rsl/"
+printf '%s\n' 'printf "\ndjx-sec 0020-pb.sh\n"' 'ok "djx b1"' '[ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ] || sleep 90' 'ok "djx b2"' > "$DB3/pp/rsl/0020-pb.sh"
+printf '%s\n' 'printf "\ndjx-sec 0030-pc.sh\n"' 'ok "djx c1"' '[ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ] || kill -9 $$' 'ok "djx c2"' > "$DB3/pp/rsl/0030-pc.sh"
+_db3_new rsl --red "$DB3/g-empty.tsv" "$DB3/man.tsv" "$DB3/pp/rsl"/*.sh
+_db3_t0="$(_db3_ms)"; _db3_run r -j 3 --record-assertions; _db3_t1="$(_db3_ms)"
+is "R1: a record run with a runner failure, while red's suite runs a part that sleeps 90 s, exits 1 within 30 s, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \
+   "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")" "ok within-30s"
+is "R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it" "$_db3_ex $_db3_cl" "ok ok"
+rm -rf "$DB3/n/rsl"
+
 # ---- the parent's own state under -j N (D3): a failure the parent alone makes is not lost when the units end well
 # The copy's 0006 does nothing in a unit's prelude (the marker is there) and, in the parent's only, fails an assertion, plants a refusal record, and moves
 # the origin's config (newer than the guard's stamp, so the next assertion sees it) and puts it back: put back is not unmoved.
 mkdir -p "$DB3/pp/par"; cp "$DB3/pp/std"/*.sh "$DB3/pp/par/"
 _db3_n9a="no fixture git command was refused for a directory outside the suite's temporary directory"
+_db3_n9b="fixture floor: at the end of the suite it still stands in cwd inside its temporary directory, under a ceiling at that directory's parent"
 _db3_n9c="the remotes of the checkout this run started in did not move while it ran"
+# each of the three names the cases below read is one 9990 prints: "missing" and the name for one that is not (a name that is not 9990's would make its case read a FAIL that never comes)
+_db3_x=""; for _db3_n in "$_db3_n9a" "$_db3_n9b" "$_db3_n9c"; do grep -qF -e "$_db3_n" "$HERE"/parts/9990-*.sh || _db3_x="$_db3_x missing [$_db3_n]"; done
+is "D3: the three 9990 names the cases below read are 9990's (control)" "${_db3_x:-ok}" ok
 _db3_parent() {
   local f m="$_db3_c/par.marker"
   for f in "$_db3_T"/parts/0006-*.sh; do
@@ -316,8 +342,6 @@ is "D3: and under -j 1, where one shell runs everything, the same three (control
 rm -rf "$DB3/n/par"
 
 # ---- assertion failures (D3, D4): their own FAIL, exit 1, and the manifest written as -j 1 writes it
-is "D3: the two 9990 names the cases below read are 9990's (control)" "$(grep -qF -e "$_db3_n9a" "$HERE"/parts/9990-*.sh && grep -qF -e "the fixture floor still holds" "$HERE"/parts/9990-*.sh; echo ok)" ok
-_db3_n9b="fixture floor: at the end of the suite it still stands in cwd inside its temporary directory, under a ceiling at that directory's parent"
 _db3_af() {   # CASE DESC FAILNAME: pp/CASE under -j 3: that FAIL once, no runner failure, exit 1, no receipt; and the record run's manifest is -j 1's
   local n="$1" d="$2" w="$3" a b
   _db3_new "$n" "$DB3/g-empty.tsv" "$DB3/pman.tsv" "$DB3/pp/$n"/*.sh; _db3_run p -j 3
@@ -350,63 +374,7 @@ ok "djx afloor one"
 X
 _db3_af afloor "a unit that ends outside its \$TMP/cwd" "$_db3_n9b"
 
-# ---- the shell a unit leaves (R8): sixteen planted parts, twelve that leave it changed and four that do not
-mkdir -p "$DB3/pp/sh"; _db3_i=0; _db3_sn=(); _db3_sd=(); _db3_sr=(); _db3_sk=""; _db3_w="part left the shell changed for the parts after it"
-_db3_ul="$(ulimit -S -n 2>/dev/null)"; case "$_db3_ul" in ''|*[!0123456789]*) _db3_ul=0 ;; esac
-# the first two functions tests/lib defines, other than its _vars functions: a part redefines the first and unsets the second
-_db3_fn=($(LC_ALL=C awk '/^_[a-z0-9_]+\(\) *[{]/ { s = $1; sub(/\(\).*/, "", s); if (s !~ /_vars$/ && !(s in seen) && ++k <= 2) { seen[s] = 1; print s } }' "$HERE"/lib/*.sh))
-_db3_sp() {   # NAME DESC EXPECT CODE: part pp/sh/NNN0-NAME.sh does CODE and then an ok. EXPECT is the change line as a regex, @FILE for the one the part wrote to $DJX_DIR/FILE, - for none
-  _db3_i=$((_db3_i + 1)); local f; f="$(printf '%04d' $((_db3_i * 10)))-$1.sh"
-  printf 'printf "\\ndjx-sec %s\\n"\n%s\nok "djx shell %s"\n' "$f" "$4" "$1" > "$DB3/pp/sh/$f"
-  _db3_sn[$_db3_i]="$1"; _db3_sd[$_db3_i]="$2"; _db3_sr[$_db3_i]="$3"
-}
-_db3_sp umask  "umask 077 left set" '@exp.umask' '_w="$(umask)"; umask 077; printf "umask %s is now %s\n" "$_w" "$(umask)" > "$DJX_DIR/exp.umask"'
-_db3_sp shopt  "shopt -s nullglob left set" 'shopt -u nullglob is now shopt -s nullglob' 'shopt -s nullglob'
-_db3_sp trap   "a trap on USR1 left set" 'trap on .*USR1.* added' 'trap : USR1'
-_db3_sp path   "PATH changed" 'export PATH changed' 'PATH="$PATH:/djx/none"'
-_db3_sp unexp  "an exported variable the case set, unset" 'export DJX_KEEP removed' 'unset DJX_KEEP'
-_db3_sp fnre   "a function of tests/lib redefined" "function ${_db3_fn[0]:-NONE} changed" "${_db3_fn[0]:-NONE}() { :; }"
-_db3_sp fnun   "a function of tests/lib unset, as part 0290 did" "function ${_db3_fn[1]:-NONE} removed" "unset -f ${_db3_fn[1]:-NONE}"
-_db3_sp git    "git() { :; } left defined" 'function git added over a command' 'git() { :; }'
-_db3_sp gitdir "GIT_DIR exported" 'export GIT_DIR added' 'export GIT_DIR=/djx/x'
-_db3_sp felix  "FELIX given another value" 'variable FELIX changed' 'FELIX=/djx/other'
-_db3_sp fd7    "descriptor 7 left open" 'descriptor 7 opened' 'exec 7>/dev/null'
-if [ "$_db3_ul" -ge 8 ]; then _db3_sp ulimit "a soft limit lowered with ulimit -S" 'ulimit -a: .* is now .*' 'ulimit -S -n "$((DJX_ULIM - 1))"'
-else _db3_sp ulimit "a soft limit lowered with ulimit -S" - ':'; _db3_sk="the soft limit on open files is [$(ulimit -S -n 2>/dev/null)], not a number to lower"; fi
-_db3_sc=$_db3_i
-_db3_sp newexp "a new export outside the steering list" - 'export DJX_NEW_EXPORT=1'
-_db3_sp newvar "a new variable" - 'djx_new_variable=1'
-_db3_sp newfn  "a new function that hides no builtin, keyword or command" - 'djx_new_function() { :; }'
-_db3_sp libvar "a variable of tests/lib changed" - 'IB_BR=x; _AU_F=/djx/changed'
-_db3_sh() {   # OUT UNIT REGEX: ok when UNIT's seventh failure is printed once and a "  | " line right after it, before any other, matches REGEX
-  LC_ALL=C R="$3" awk -v u="  FAIL  $_db3_w: $2" '
-    $0 == u { n++; on = 1; next }
-    on && index($0, "  | ") == 1 { if (substr($0, 5) ~ ("^" ENVIRON["R"] "$")) m = 1; next }
-    { on = 0 }
-    END { if (n == 1 && m) print "ok"; else print "failure printed " n + 0 " times, change line " (m ? "found" : "not found") }' "$_db3_c/$1"
-}
-_db3_unit() { printf '%04d-%s.sh' $(($1 * 10)) "${_db3_sn[$1]}"; }
-_db3_xx=(); _db3_k=1; while [ "$_db3_k" -le "$_db3_sc" ]; do [ "${_db3_sr[$_db3_k]}" = - ] || _db3_xx[${#_db3_xx[@]}]="$_db3_w: $(_db3_unit "$_db3_k")"; _db3_k=$((_db3_k + 1)); done
-_db3_new sh "$DB3/g-empty.tsv" "$DB3/pman.tsv" "$DB3/pp/sh"/*.sh; _db3_E=(DJX_ULIM="$_db3_ul"); _db3_run s3 -j 3
-is "R8: the parts that leave the shell changed each give the seventh failure, once, and the four that do not give none: the run exits 1, counts them in its summary, leaves no receipt and no process" \
-   "$(_db3_chk s3 "${_db3_xx[@]}" "!$_db3_w: $(_db3_unit 13)" "!$_db3_w: $(_db3_unit 14)" "!$_db3_w: $(_db3_unit 15)" "!$_db3_w: $(_db3_unit 16)") $_db3_cl" "ok ok"
-_db3_k=1; while [ "$_db3_k" -le "$_db3_sc" ]; do
-  _db3_re="${_db3_sr[$_db3_k]}"; case "$_db3_re" in @*) _db3_re="$(head -n 1 "$_db3_c/${_db3_re#@}" 2>/dev/null)" ;; esac
-  if [ "${_db3_sr[$_db3_k]}" = - ]; then skip "R8: ${_db3_sd[$_db3_k]} gives the seventh failure with its change line" "$_db3_sk"
-  else is "R8: ${_db3_sd[$_db3_k]} gives the seventh failure with its change line" "$(_db3_sh s3.out "$(_db3_unit "$_db3_k")" "$_db3_re")" ok; fi
-  _db3_k=$((_db3_k + 1))
-done
-_db3_new shp "$DB3/g-empty.tsv" "$DB3/pman.tsv" "$DB3/pp/sh"/01[3456]0-*.sh; _db3_run sp -j 3
-_db3_x=""; _db3_k=13; while [ "$_db3_k" -le 16 ]; do
-  _db3_x="$_db3_x $(_db3_line "$_db3_c/sp.out" "  ok    djx shell ${_db3_sn[$_db3_k]}")$(_db3_cnt "$_db3_c/sp.out" "  FAIL  $_db3_w: $(_db3_unit "$_db3_k")")"; _db3_k=$((_db3_k + 1)); done
-is "R8: a part that exports a new name outside the steering list, one that sets a new variable, one that defines a new function that hides nothing and one that changes a variable of tests/lib each pass under -j 3: the run exits 0, leaves a receipt and no process" \
-   "$_db3_rc $(_db3_rcpt) $_db3_cl$_db3_x" "0 present ok 10 10 10 10"
-_db3_new sj "$DB3/g-empty.tsv" "$DB3/pman.tsv" "$DB3/pp/sh"/*.sh; _db3_E=(DJX_ULIM="$_db3_ul"); _db3_lim=100; _db3_run s1 -j 1; _db3_lim=150
-is "R8: under -j 1 none of the sixteen gives the seventh failure: a change carries to the parts after it, as it always did" "$(_db3_cnt "$_db3_c/s1.out" "  FAIL  $_db3_w") $_db3_cl" "0 ok"
-_db3_new sr --red "$DB3/g-empty.tsv" "$DB3/man.tsv" "$DB3/pp/sh"/00[123456789]0-*.sh "$DB3/pp/sh"/01[012]0-*.sh; _db3_E=(DJX_ULIM="$_db3_ul"); _db3_run r -j 3 --record-assertions
-is "R8: in a record run the seventh failure writes no manifest, and red.tsv holds the rows base - - - and run - - -" "$(_db3_chkr r "${_db3_xx[@]}")" ok
-is "R1: and once that record run has exited no process of red's tree is left, stopped or running" "$_db3_ex" ok
-rm -rf "$DB3/n/sh" "$DB3/n/shp" "$DB3/n/sj" "$DB3/n/sr"
+# ---- the shell a unit leaves (R8, R16) is part 1295's
 
 # ---- the gate (D1, R10): gate.sh beside a stub tests/run that records its arguments and FELIX_TEST_JOBS
 _db3_G="$DB3/gt"; mkdir -p "$_db3_G/engine/harness/tests" "$_db3_G/projects/felix" "$DB3/gtmp" "$DB3/gout"

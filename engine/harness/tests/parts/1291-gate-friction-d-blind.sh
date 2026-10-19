@@ -1,12 +1,12 @@
 # >>> gate-friction-d-blind
-printf '\ngate friction D: the parallel runner, part mode, groups and slots (blind, revision 7)\n'
-# Blind, written from contract D (docs/2026-10-18-gate-friction-contract-d.md, revision 7) alone. Nothing here was read off an implementation;
+printf '\ngate friction D: the parallel runner, part mode, groups and slots (blind, revision 8)\n'
+# Blind, written from contract D (docs/2026-10-18-gate-friction-contract-d.md, revision 8) alone. Nothing here was read off an implementation;
 # tests/run, tests/red and tests/receipt.sh are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each
 # with planted parts of this block's own. Every case points TMPDIR at a fixture directory, so none touches the machine's slots; every inner run is
 # under a bounded runner that makes its own process group and resets INT, QUIT, HUP and TERM as the case asks; every case ends by asking that group
 # to hold no live process, stopped or running, for 30 s, and what is left is named and then sent CONT and KILL by pid. Nothing is killed by pattern.
 # Names say the clause: D1 the interface, D2 a unit and part mode, D3 the log and the verdict, D4 the record, red and the durations, D5 groups, D6
-# the runner (signals, slots, holders), D8 the fixtures, R9 and R10 the amendments. The runner's own failures are part 1293's.
+# the runner (signals, slots, holders), D8 the fixtures, R9, R10 and R17 the amendments. The runner's own failures are part 1293's.
 # Readings taken where the contract leaves room: a refusal is told by its exit status (2), one stderr line and no $TMP made (a mktemp on PATH that
 # writes down its calls); a FELIX_TEST_JOBS that is set and empty is not a valid N; a member the driver does not source, in groups.tsv, is not asked.
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others mean something.
@@ -258,6 +258,14 @@ done
 is "D5: the tree's own groups.tsv puts 0900, 0910, 0920, 0930 and 0940 in one group" \
    "$(set -- $_db1_ib; a="${1:-}"; n=$#; for x in "$@"; do [ "$x" = "$a" ] || n=0; done; echo "$n parts in one group")" "5 parts in one group"
 is "D5: and that group is ib" "${_db1_ib%% *}" ib
+# R17: 1100, 1110 and 1120 hand the reach fixture on from one to the next, so they are a second group, rx
+_db1_rx=""
+for _db1_a in 1100 1110 1120; do
+  _db1_f="$(cd "$HERE/parts" && ls "$_db1_a"-*.sh 2>/dev/null | sed -n 1p)"
+  _db1_rx="$_db1_rx$(awk -F'\t' -v p="$_db1_f" '/^#/ { next } $2 == p { print $1; exit }' "$_db1_rg" 2>/dev/null) "
+done
+is "R17: the tree's own groups.tsv puts 1100, 1110 and 1120 in one group, and that group is rx, a second one beside ib" \
+   "$(set -- $_db1_rx; a="${1:-}"; n=$#; for x in "$@"; do [ "$x" = "$a" ] || n=0; done; echo "$n parts in group ${a:-none}")" "3 parts in group rx"
 mkdir -p "$DB1/pp/real"
 while IFS= read -r _db1_f; do [ -f "$HERE/parts/$_db1_f" ] && printf 'ok "djx stand-in %s"\n' "$_db1_f" > "$DB1/pp/real/$_db1_f"
 done < <(awk -F'\t' '!/^#/ && NF >= 2 { print $2 }' "$_db1_rg" 2>/dev/null | LC_ALL=C sort -u)
@@ -277,8 +285,8 @@ mkdir -p "$DB1/pp/grp"
 printf '%s\n' 'printf "\ndjx-sec 0010-ga.sh\n"' 'printf "djx-jobs:%s\n" "${FELIX_TEST_JOBS-unset}"' \
   'mkdir -p "$TMP/djx-g"; : > "$TMP/djx-g/a"; printf "%s\n" "$$" > "$DJX_DIR/pid.a"' > "$DB1/pp/grp/0010-ga.sh"
 printf '%s\n' 'printf "\ndjx-sec 0020-gb.sh\n"' 'mkdir -p "$TMP/djx-g"; : > "$TMP/djx-g/b"; printf "%s\n" "$$" > "$DJX_DIR/pid.b"' > "$DB1/pp/grp/0020-gb.sh"
-printf '%s\n' 'printf "\ndjx-sec 0030-gc.sh\n"' 'printf "%s\n" "$$" > "$DJX_DIR/pid.c"' '_n="$(ls "$TMP/djx-g" 2>/dev/null | wc -l | tr -d " ")"' \
-  '[ "$_n" = 2 ] && ok "djx group C sees the files of A and B" || bad "djx group C sees the files of A and B" "the directory holds $_n files"' > "$DB1/pp/grp/0030-gc.sh"
+printf '%s\n' 'printf "\ndjx-sec 0030-gc.sh\n"' 'printf "%s\n" "$$" > "$DJX_DIR/pid.c"' 'djx_n="$(ls "$TMP/djx-g" 2>/dev/null | wc -l | tr -d " ")"' \
+  '[ "$djx_n" = 2 ] && ok "djx group C sees the files of A and B" || bad "djx group C sees the files of A and B" "the directory holds $djx_n files"; unset djx_n' > "$DB1/pp/grp/0030-gc.sh"
 printf 'grp\t0010-ga.sh\ngrp\t0020-gb.sh\ngrp\t0030-gc.sh\n' > "$DB1/g-grp.tsv"
 printf '\n# a comment\n\ngrp\t0010-ga.sh\n\ngrp\t0020-gb.sh\n\n\ngrp\t0030-gc.sh\n\n' > "$DB1/g-grpb.tsv"
 _db1_pids() { cat "$_db1_c"/pid.? 2>/dev/null | LC_ALL=C sort -u | wc -l | tr -d ' '; }

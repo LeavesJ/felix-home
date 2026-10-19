@@ -155,7 +155,7 @@ function rline(g, i,    f, s) {
   split(R[g, i], f, "\t")
   s = f[3] " " f[4]
   if (f[6] != "-") s = s ", " f[6] "h"
-  if (RT[g, i] == "I" && f[5] != "-" && f[5] != "unknown") s = s ", session " substr(f[5], 1, 8)
+  if (RTAG[g, i] == "I" && f[5] != "-" && f[5] != "unknown") s = s ", session " substr(f[5], 1, 8)
   return "      " s ": " f[8]
 }
 { if ($1 != "I" && $1 != "L") next
@@ -175,7 +175,8 @@ function rline(g, i,    f, s) {
       if (has(st, "unknown:pr-open")) kc["proposed"]++
       if (has(st, "unknown:blocked")) kc["blocked"]++; if (has(st, "unknown:question")) kc["question"]++; if (has(st, "unknown:live")) kc["running"]++
       if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan") || has(st, "unknown:chip-unstarted")) kc["never-proposed"]++ } }
-  n = ++NG[g]; R[g, n] = row; RT[g, n] = tag; RN[g, n] = num + 0
+  # RTAG, not RT: gawk, the awk of the Linux CI runner, keeps RT as a scalar and stops on it as an array.
+  n = ++NG[g]; R[g, n] = row; RTAG[g, n] = tag; RN[g, n] = num + 0
 }
 END {
   if (repo == "") repo = dflt
@@ -184,9 +185,9 @@ END {
   for (gi = 1; gi <= ng; gi++) {
     g = G[gi]; calc(g)
     if (substr(g, 1, 3) == "pr-") for (i = 2; i <= NG[g]; i++) {   # land pr rows by ascending number
-      r = R[g, i]; t = RT[g, i]; m = RN[g, i]
-      for (j = i; j > 1 && RN[g, j - 1] > m; j--) { R[g, j] = R[g, j - 1]; RT[g, j] = RT[g, j - 1]; RN[g, j] = RN[g, j - 1] }
-      R[g, j] = r; RT[g, j] = t; RN[g, j] = m } }
+      r = R[g, i]; t = RTAG[g, i]; m = RN[g, i]
+      for (j = i; j > 1 && RN[g, j - 1] > m; j--) { R[g, j] = R[g, j - 1]; RTAG[g, j] = RTAG[g, j - 1]; RN[g, j] = RN[g, j - 1] }
+      R[g, j] = r; RTAG[g, j] = t; RN[g, j] = m } }
   if (tsv == 1) {
     for (gi = 1; gi <= ng; gi++) { g = G[gi]
       printf "%s\tsummary\t%s\t%s\t%s\t-\t-\t%s\t%s\n", g, repo, g, (INC[g] ? "incomplete" : "complete"), (INC[g] && !NG[g] ? "unknown" : NG[g] + 0), (INC[g] ? REA[g] : "-") }

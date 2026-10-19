@@ -108,6 +108,15 @@ origin/main 50601023 (0.49.300) gave 140 failed, 12914 passed, 44 skipped, the
 of the review's findings in 1490, and N7's two renames in 0920.
 `bin/schema-check .` accepted every row, and `felix gate` passed on 398a4427
 in this worktree, its tests reused from the record.
+**CI on Linux failed it** (run 39217941998, on 17230ff3): the page printed no
+rows, so B1, B5, B8, B9.26 and B9.27 failed. The gate printed 13 failures and
+a broken pipe; 1470 alone under gawk fails 33, so the list was cut short. The runner's awk is gawk, which keeps `RT` as a builtin scalar;
+the page's awk kept each row's source tag in an array named `RT`, and gawk
+stopped at the first land row with "attempt to use scalar `RT' as an array".
+macOS awk and mawk have no `RT`, so no local run saw it. The array is `RTAG`
+now. With a gawk 5.4.1 put first on PATH, 1470 alone went from 33 failed to
+0, and 1450-1490, 0590, 0600, 0870 and 0920 each pass alone under gawk as under
+macOS awk. No assertion changed, so the manifest and red.tsv stand.
 The carrier's two record seams were checked on 1450-1490. No name starts with a
 non-ASCII byte. Two names carried what the engine printed (B9.26's row count,
 and B9.30/31's "at least N" for work that never reached a PR), so a red tree
@@ -148,13 +157,20 @@ page refuse to run, and the upstream exclusion in A1.
   state and detail only.
 - **Unobserved.** S3 has no example in the records yet, so it counts any
   result. The seven-day card expiry is what the desktop's result text says.
+- **The page ignores its own awk's status.** `felix_lost_work_page` sets the
+  exit only from the inventory, so when the page's awk stopped on Linux the
+  page exited 0 with nothing on stdout: a silent 0, which the contract's
+  "unknown, never 0" forbids. It should exit 1 and name the repository, with a
+  test that makes the awk fail. And no lint stops a gawk builtin name
+  (`RT`, `FPAT`, `and`, `or`, ...) used as an awk identifier in `lib/`; macOS
+  runs never meet one.
 - `handoff` is not made incomplete when the `default` cover row is merely
   `unknown` (the listing then comes from HEAD, as before). That is one
   condition in `calc()` in `lib/lost-work.sh` if it should.
 
-**Next.** PR LeavesJ/felix-home#450 at 0.49.301. It touches no founder or
-escape path, so the land job merges it on green CI, and the carrier deploys
-after the merge. Then the open items above. Risk-red: new libs
+**Next.** PR LeavesJ/felix-home#450 at 0.49.301, with the `RTAG` fix. It
+touches no founder or escape path, so the land job merges it on green CI, and
+the carrier deploys after the merge. Then the open items above. Risk-red: new libs
 (`lost-work.sh`, `inventory-chips.sh`) and lib edits. This branch's parts were
 checked alone against their serial run (the 166 pairs above); the record ran
 the whole suite in order, not each part alone.

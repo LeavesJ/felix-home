@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 6** (2026-10-18 UTC) answers five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 7** (2026-10-19 UTC) amends revision 6 after the first review of its build, in the last section, which names what each amendment replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -324,3 +324,165 @@ The blind part runs in CI under bash 5 as well. Every case that measures a shell
 - Splitting long parts or the first group.
 - Re-judging a `-j` record run in the parent.
 - Any change outside `tests/`, projects/felix/gate.sh and risk.tsv's one row.
+
+## Amended after review 1 (revision 7, 2026-10-19)
+
+Four lenses reviewed revision 6's build (ae7d1099..266d4bde, with main 655606cf merged in after it). Their reports are in audits/2026-10-18-gate-friction-d/, with the builders' reports (round-1-build1 to 3) and the notes kept during the build (findings-for-review.md). Each amendment names the clauses it changes and the lines it replaces; every line it does not name stands. What an amendment's "D8 gains" lists is added to D8's cases for the blind part. Findings are cited by report and number, numbered in each file's order from 1: **processes** (review-1-processes-and-signals.json), **tests** (review-1-tests-catch-mutations.json), **conformance** (review-1-conformance.json), **weaken** (review-1-weaken-no-check.json), and **notes** 1 to 3 (findings-for-review.md, its entries of 20:55Z, 21:50Z and 22:41Z).
+
+Wherever revision 6 counts D3's runner failures or their prefixes as six (D3, D4, D8), read seven: R8 adds one.
+
+### R1. D4, D6: a record run that ends on a runner failure waits for red
+
+Answers processes 1 and notes 1 (its second question) and 3. Revision 6's run wrote `failed` and exited 1 at once, and its EXIT trap removed `$TMP`, the mark with it. Red's monitor then saw no mark and a gone record run, receipt.sh's watcher saw a gone record run, and both stopped red's tree in the same second. Four of red's suites were found stopped under pid 1 in that shape (notes 1 and 3, and two in processes 1). R1 replaces D4's sentences from "`_par_run` itself prints" to "red's suite never sets it", and D6's "apart from the one `_rcp_mark` call D4 names".
+- **The run.** `_par_run` prints the log and the runner's failures and writes no manifest, as before. Where `_rcp_red` is set, it then (1) writes the mark with `_rcp_mark failed "$TMP/manifest.mark"`, (2) calls `_rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" 60`, and (3) exits 1, still before the 9990 line. Where `_rcp_red` is unset (red's suite never sets it), it exits 1 after the log. So the mark stays readable until red has acted on it or been ended, and only then does the EXIT trap remove `$TMP`.
+- **`_rcp_red_end` takes a bound.** Its third argument, when given, is a number of seconds. It waits for red as now (`_rcp_red_alive`, every 0.1 s for 2 s, then every second), for at most that long. If red still runs then, it ends red's tree with `_rcp_stop "$_rcp_red"` (R2). It then prints red's output and ends the watcher, as now. The tail's call passes no bound and is unchanged.
+- **Red acts on `failed` while its suite runs.** On each pass, red's monitor also ends red's suite (R2) when the mark is a regular file whose first line is `failed`. Once its suite and monitor have ended, and before it reads the suite's log, red looks at the mark: a regular file whose first line is `failed` is refused at once, with the reason red gives that mark today, `the record run did not write a manifest (failed)`. red.tsv then holds `base - - -` and `run - - -`, as after the whole suite, only sooner (revision 6's red read the mark only after its suite had run to its end). This holds for a serial record run's `failed` mark too.
+- **What is left.** Once such a record run has exited, its watcher has been ended, and no process of red's tree is left, stopped or running.
+- **0007 and receipt.sh.** 0007 uses two things of receipt.sh, `_rcp_mark failed` and the bounded `_rcp_red_end`, each only where `_rcp_red` is set.
+- **D8 gains:** in a `--red` record copy, every runner-failure case finds red's tree gone once the record run has exited (R12's group check), and red.tsv as D8 says.
+
+### R2. D6: every stopper
+
+Answers processes 1 and 2 and notes 1 (its second question) and 3. Revision 6's ending replaced the set of pids it held with each new listing, so a listing that failed or came back short lost pids it had already stopped. Red's and receipt.sh's stoppers took one listing and sent STOP and then KILL to it, so a stopper killed between the two left its tree stopped. R2 replaces D6's ending steps 1 to 3 (step 4 stands). It binds every stopper alike: the ending, red's `_stop_tree`, receipt.sh's `_rcp_stop`, and R4's two endings (a lost unit's holder, and a holder's own unit).
+
+A stopper is given its roots (the running wrappers, R3's included; red's suite; red; a holder; a unit). It:
+1. holds one set of pids, which starts as its roots and only grows: no pid is ever taken out of it;
+2. lists with `ps -A -o pid=,ppid=` and adds every descendant, in that listing, of every pid in the set, so every listing is seeded with the whole set. A listing that comes back empty (ps failed, or printed no line) is taken again, up to five tries in all, 0.2 s apart; after the fifth the stopper goes on with the set it holds;
+3. sends TERM to every pid in the set, and waits for its roots to go, up to 10 s (30 s in `_rcp_stop`), as now;
+4. lists again, adds, and sends STOP to every pid in the set, repeating while a listing adds a pid, up to 30 times;
+5. sends KILL to every pid in the set;
+6. lists once more, adds, and sends KILL and then CONT to every pid in the set.
+
+**A stopper ignores TERM while it stops.**
+- The ending ignores INT, TERM, HUP and QUIT from its first step, whether `_par_sig` or `_fx_exit` called it.
+- Red's monitor ignores TERM from the moment it begins to stop red's suite, before it writes `$TMP/gone`. Red, once its suite has ended, sends TERM to the monitor and then waits for it, and `_abort` does the same: a monitor that is not stopping ends at once, and one that is stopping is waited for, not killed.
+- `_rcp_stop` runs its steps in a subshell that ignores TERM, and waits for it, so the stop goes on to its end while its caller (the watcher, or the record run's shell) keeps its own disposition.
+- The parent's ending of a lost unit's holder holds INT, TERM, HUP and QUIT: a trap records the first to come, and once that ending is done the parent acts on it as D6 says. The holder's TERM handler already returns while it has a child, so its ending of its unit goes on.
+
+**What this gives.** A TERM cannot leave a stopper half done, and when two stoppers work on one tree, the one that finishes last sends KILL and then CONT to all it found. A process can still be left stopped by a stopper that is itself stopped or killed between its STOP and its KILL, when no other stopper that found the process finishes after it; a KILL sent to a process group reaches the stopped processes in it as well. receipt.sh stays under 500 lines (room is made inside it), and red grows as little as it can.
+
+**D8 gains:** a `ps` put first on PATH that fails on the ending's first, second or third listing. With a unit that ignores TERM and forks when it gets one, the parent is sent TERM, and nothing of the run is left, stopped or running.
+
+### R3. D6: a wrapper being forked is recorded
+
+Answers processes 3. Revision 6 recorded a wrapper's pid and state on the line after its fork. Bash runs a pending trap between the two, so a signal that landed there was handled with the wrapper unrecorded, and its holder and unit ran on after the parent had gone. R3 adds to D6's wrapper bullet.
+- **Before the fork** the parent marks the unit running with no pid and keeps the value `$!` has then; **after it**, it takes the wrapper's pid from `$!`. The ending (R2) takes `$!` as the wrapper of a running unit with no pid when `$!` differs from the value kept; when it does not, the fork had not happened. On bash 3.2, `$!` already names the new child when the trap runs (processes 3 measured it 12 times of 12).
+- **D8 gains:** a copy of many short units under `-j 4`, sent TERM at a spread of short delays after it starts, leaves no wrapper, holder or unit once the parent has exited.
+
+### R4. D6: units that outlive their wrapper, QUIT, and the holder's streams
+
+Answers processes 4 and 8, and conformance 10 (the slot file) and 15. R4 replaces, in D6's holder step 3, "writes the epoch at which it took it to the file the wrapper names", and D6's exit statuses.
+- **The slot file.** The holder writes the file its wrapper names (`$TMP/pj/slot.I`) whole each time, through a sibling file and a rename. At its start, before its first try, it writes line 1 `- -`, and line 2: its pid, a space, and its start time as `ps -o lstart= -p PID` prints it, without the newline. Once it holds a slot, line 1 becomes `SLOT-EPOCH FIRST-TRY-EPOCH` (R6), and line 2 stays.
+- **A lost unit** (a wrapper gone without a line, D6) has its holder's tree ended as R2 says. The parent reads line 2 of the unit's slot file, and ends the tree only when `ps -o lstart= -p PID` prints the same start time. With no line 2, or with another start time (the pid was reused), nothing is signalled. The unit fails as before (`part ended without its mark`).
+- **A holder whose wrapper is gone.** The holder keeps its parent's pid from its start, and compares its parent's pid with it at least once a second, while it waits for a slot and while its unit runs, and once more just before it forks. When they differ, its wrapper is gone and it belongs to pid 1 or a subreaper. It then starts no unit; if its unit runs, it ends the unit's tree as R2 says and reaps it; either way it exits 2. Its wait for its unit is therefore a poll (`waitpid` with WNOHANG). The status it exits with when its unit ends (D6 holder step 4) is unchanged.
+- **QUIT.** The parent traps QUIT as it traps INT, TERM and HUP. On QUIT it ends its units and exits 131. A parent started with QUIT ignored cannot trap it, and goes on as a serial run does. An interrupted run exits 130 on INT, 131 on QUIT, 143 on TERM and 129 on HUP.
+- **The holder's streams.** The wrapper starts the holder with stdout and stderr appended to the unit's log, `$TMP/pj/log.I`. So no holder, unit or process below them holds the caller's stdout or stderr.
+- **D8 gains:**
+  - a wrapper killed with `kill -9` while its unit runs a member longer than the parent's silence (D6's `read -t`): the unit fails without its mark, and once the parent has exited, neither that holder nor that unit runs;
+  - a wrapper killed with `kill -9` while its holder waits for a slot another process holds: once the slot is let go, no unit of that holder starts, and the holder is gone within 3 s;
+  - QUIT sent to a parent started with QUIT at its default: exit 131, no `reached`, no unit, holder or wrapper left, and no receipt;
+  - while a unit runs, its holder's stdout and stderr are the unit's log.
+
+### R5. D6a: the slots directory
+
+Answers processes 6, conformance 11 and notes 2. D6a is new. It stands after D6's slots bullet, and replaces the second and third sentences of that bullet's first sub-bullet (from "The parent makes the directory"). D is `${TMPDIR:-/tmp}/felix-suite-slots`, a name that does not change.
+- **A relative D** is taken relative to the directory the run started in (`_og_start`), before anything is made or checked, so the parent and every holder name one absolute path. **A missing D** is made with `mkdir -p -m 0700`, which gives D, and only D, that mode.
+- **The checks.** Then, whoever made D, the parent checks it before it starts any wrapper. Each failure refuses with exit 2 and the line `tests/run: the slots directory [D]`, followed by `cannot be made` (the mkdir failed and nothing is at D), `is a symbolic link` (its last component is one, whatever it points to), `is not a directory`, `is not owned by this user` (its owner is not the effective user), or `is writable by its group or by others` (its mode has 020 or 002).
+- **Every entry.** Every name in D other than `.` and `..` must be a regular file and not a symbolic link, names that start with a dot and names above K-1 included. Any other refuses with exit 2 and `tests/run: [D/NAME] is not a regular file: the slots directory holds slot files and nothing else`, and is never opened. Then, as before, the parent makes any missing slot file 0 to K-1 and takes and drops one lock, and refuses with exit 2 and one line when it cannot.
+- **No time limit.** No wait gets one. With the owner and mode checks no other user can hold a slot, and R6 shows a stuck holder of this user's.
+- **D8 gains:** D a symbolic link, and D at mode 0775 and at 0757, are refused; a missing D is made at mode 0700; under a relative TMPDIR the slot files are made below the start directory and the run passes; a directory named `.x`, and a directory named `9` beside `FELIX_TEST_SLOTS=2`, are each refused.
+
+### R6. D6: a wait for a slot is visible while it lasts, and S
+
+Answers processes 7, conformance 10 (S) and notes 2. R6 replaces D6's "D3's note's S is that epoch minus the moment the wrapper started", and D6's `read -t 30`.
+- **T** is `FELIX_TEST_SLOT_NOTE` when that is a positive integer in plain decimal, with no sign, no leading zero and at most six digits, so a test can use 2. Anything else, or unset, means 300. The parent reads it once, when `_par_run` begins. It reads its FIFO with `read -t W`, W being T when T is below 30, and 30 otherwise.
+- **The line.** On every return from that read, a line or a timeout, the parent looks at each running unit that has not had the line. When the unit's slot file (R4) is missing or its first field is `-`, and its wrapper started T or more seconds before (by the shell's `$SECONDS`, so nothing forks), the parent prints to stderr, once for that unit, `tests/run: UNIT has waited T s for a slot and goes on waiting`. It takes nothing over and touches no lock: the unit starts when its holder gets a slot. With T at 300, W stays 30, and the parent's CPU bound stands.
+- **S** is the epoch at which the holder took its slot minus the epoch of its first try for one, and 0 when that first try got one. Both are on line 1 of the slot file (R4).
+- **D8 gains:** with `FELIX_TEST_SLOTS=1`, the slot held by another process, and `FELIX_TEST_SLOT_NOTE=2`, the parent's stderr holds the line for the waiting unit once, before the slot is let go, and the run then passes. With the slot free there is no such line.
+
+### R7. D2, D3: the wait note's shape, a unit's `reached`, and a prelude FAIL on a partial line
+
+Answers tests 2, conformance 2 and 9, and weaken 6 and 7.
+- **The note.** The wait note stays `  note  UNIT waited S s for a slot`. A reader tells it from the tail's `  note  N assertion(s) ran that the manifest does not list.` by that shape alone, `^  note  [^ ]+ waited [0123456789]+ s for a slot$`. Counting every `  note  ` line counts the tail's note too.
+- **`reached`.** A `reached` line after `@@prelude-done` in a unit's file is printed in its place as `  | reached`, so the log shows it and it reads as no completion marker. It still gives `part printed a line the runner owns: UNIT`. This replaces "the runner lines are removed" for that one line.
+- **A prelude FAIL on a partial line.** The end file gains the record `prefail N`, N being the unit's FAIL counter at `@@prelude-done`: what its prelude counted. The parent also reports `part's prelude failed: UNIT` (the lines from before the mark following, prefixed) when N is above the number of the file's lines before `@@prelude-done` that start `  FAIL  `. An end file without `prefail` is not readable (D3). D2 step 4's list and D3's prelude bullet gain this.
+- **D8 gains:** a copy whose manifest lists only the stubs, so that the tail prints its own note, where a unit that waited gives exactly one line of the note's shape; a part that prints `reached`, which shows `  | reached` and gives the owned-line failure; and a line planted in the copy's 0006 that, in units only, prints a FAIL onto a partial line, which gives `part's prelude failed: UNIT` for every unit.
+
+### R8. D2, D3, D5: the shell a unit leaves
+
+Answers weaken 2. A serial run carries umask, options, traps, exports and functions from each part to the parts after it, and a unit's run carries them nowhere. Revision 6 judged none of them, so a part that leaves one changed can fail the parts after it under `-j 1` while `-j N` passes.
+- **`_pm_start` records**, as its last act and into files of the unit's `$TMP`: the output of `umask`, `set +o`, `shopt -p` and `trap -p`; for every variable exported then, inherited ones included, the line `export -p` prints for it, except PWD and OLDPWD (the floor judges the directory); and, for every function `declare -F` lists then, a digest of the text `declare -f` prints for it.
+- **`_pm_fin`**, first, before anything else it does, takes them again and compares. Each change is one line: `umask WAS is now NOW`; `WAS-LINE is now NOW-LINE` for a `set +o` or `shopt -p` line that differs (`shopt -u nullglob is now shopt -s nullglob`); `trap on SIGNAL changed`, `added` or `removed`; `export NAME changed` or `removed`, with no value printed; `function NAME changed` or `removed`. An export or a function a part adds is not a change.
+- **The end file** gains `shell ok`, or `shell changed` followed by one `shellmsg LINE` per change. An end file without a `shell` record is not readable (D3). D2 step 4's list gains it.
+- **The seventh runner failure.** `shell changed` gives `  FAIL  part left the shell changed for the parts after it: UNIT`, after the unit's other runner failures, followed by each change as `  | LINE`. It is a runner failure like D3's other six: it adds 1 to FAIL and calls no `_ran`; it withholds the manifest in a record run and leaves no receipt; red leaves it out of its counts and names with the other six prefixes, and refuses no log for it; and no manifest name starts with its prefix. Under `-j 1` nothing is compared: a change carries to the parts after it, as today.
+- **The class (D5, D8's evidence).** The instrumented serial run also records, for each part, every shell change it leaves: what `_pm_fin` compares, the names it newly exports and the functions it newly defines. The PR shows each change found as harmless (with the reason) or remedied (with the commit).
+- **D8 gains:** under `-j 3`, each of these planted parts gives the seventh failure with its `  | ` line, exit 1 and no receipt, and in a `--red` record copy no manifest: `umask 077` left set; `shopt -s nullglob` left set; `trap : USR1` left set; PATH changed; a variable the case exported before the run unset; a function of tests/lib redefined. A part that exports a new name passes. Under `-j 1`, none of them gives the seventh failure.
+
+### R9. D5: a third remedy, part 0710, risk.tsv and groups.tsv
+
+Answers weaken 1 and 3, and conformance 12.
+- **Builders.** A part cannot be grouped when its inputs come from parts that are not contiguous with it, or from more than six. It then gets them from tests/lib builders that make every input the serial run hands it, as C's do. A builder makes each input as the serial run leaves it for that part, in everything the part reads. It does nothing once the input is there, so in the serial run only the first caller builds, and the serial run is unchanged.
+- **Part 0710 is the first.** In the serial run, its check of every `projects/*/stack.tsv` (0710:259-279) reads the manifests of five projects:
+  - cmproj and cmstranger, from `_commissioning_build after-0700`, which 0710:12 already calls;
+  - stranger, which 0010 makes through `_stranger_build` (tests/lib/cm-stub.sh);
+  - setupproj (0190:203-208) and cmwebapp (0700:520-527). Their fixtures move into tests/lib builders, which 0190 and 0700 call in their place, as 0010 calls `_stranger_build`.
+
+  0710 calls all three builders before its check. The PR shows, from one `-j 1` and one `-j 8` run, that 0710's glob finds the same projects, with stack.tsv files holding the same rows.
+- **risk.tsv.** D5's clause also gives yellow verifier rows with no confine to `^engine/harness/tests/parts/0007-the-parallel-runner\.sh$` and to `^engine/harness/tests/(red|receipt\.sh)$`, for groups.tsv's reason: a change there can weaken a check without removing an assertion line. "Not in this"'s last bullet now reads "Any change outside `tests/`, projects/felix/gate.sh, risk.tsv's three rows, and the one row in engine/harness/templates/schemas.tsv that declares groups.tsv". That row is 377b12e9, which part 0730 needs, since it refuses an undeclared tracked table.
+- **groups.tsv** ignores empty lines, as it ignores comments.
+- **D8 gains:** a groups.tsv with empty lines among its members gives the same groups as one without them.
+
+### R10. D1 and D4: FELIX_TEST_JOBS where N must be 1
+
+Answers conformance 7 and 8, and weaken 8.
+- **The gate.** When `GITHUB_ACTIONS` is `true`, gate.sh runs tests/run with `FELIX_TEST_JOBS` removed from its environment (`env -u FELIX_TEST_JOBS`), so CI's gate runs N = 1 whatever it inherited. Otherwise it sets the variable to the core count, as D1 says.
+- **Red** removes `FELIX_TEST_JOBS` as well as `FELIX_TEST_RED_JOBS` from its environment when it starts, so its suite runs `-j N` only from a valid `FELIX_TEST_RED_JOBS`.
+- **D8 gains:** the gate with `GITHUB_ACTIONS=true` and `FELIX_TEST_JOBS=7`, where the stub sees it unset; red by hand with `FELIX_TEST_JOBS=3`, where its suite runs serially; and red by hand with `FELIX_TEST_JOBS=abc`, where its suite does not refuse.
+
+### R11. D7: the budget, as it now is
+
+Answers conformance 16. Slot 18 is in C, which landed on main as 655606cf. The driver is 470 lines there, and 475 on this branch after main's merge. Its limit is 500 (1040:23), and R12's two part lines bring it to 477. The build shows that one count. R11 replaces the premise line "The driver is 458 lines on C. Slot 18 adds about 31, and 1040:23 caps it at 500.", D7's budget bullet with its two sub-bullets, and D8's last evidence bullet, which now reads "The driver's line count on D's tree."
+
+### R12. D8: the blind parts
+
+Answers tests 3 and 15, conformance 3, 4 and 5, weaken 4, processes 5 and notes 1 (its first question). On 2026-10-18 at 23:05:50Z a reviewer's `pkill -f 'sleep 3'` could reach 1292's fixtures in other sessions' runs. R12 adds to D8's opening.
+- **Every case ends every process it started.** Each inner run goes under a bounded runner that makes its own process group, as 1291 and 1292 do. After the run, and in a `--red` copy after red has gone, the case waits up to 30 s for that group to hold no process, stopped or running, zombies aside, read from `ps -A -o pid=,pgid=,stat=`. It fails when a process is left, naming it, and then sends CONT and then KILL to every pid left in the group, so the part never leaks. A process the case starts outside such a group (a slot holder, a sleeper) is ended by the pid the case recorded.
+- **Bounded runners.** Every bounded runner sets, in its child before exec, INT and QUIT as the case asks, and HUP and TERM to their defaults, so the HUP and TERM cases hold under nohup.
+- **No pattern kills.** No case kills by pattern: no pkill, no killall, no pgrep piped to kill. Every signal goes to a pid the case recorded, or to its own process group.
+- **The cut.** Parts 1291 and 1292 are cut along their sections: 1291 into 1291 and 1293, and 1292 into 1292 and 1294. Each of the four is at most 600 lines and is meant to run alone in at most five minutes on a quiet machine, and the PR reports each one's wall time alone. The driver gains the two part lines, in number order. The cut removes no case, and the sleepers are cut to what their cases need.
+- **Skip branches.** A case that measures the shell and branches reaches, in its skip branch, exactly the names its run branch reaches, each once.
+
+### Every other finding
+
+Test fixes go to a blind author with this revision, before any code fix. Code fixes go to the builders once the new blind tests are red.
+
+**Test fixes (no contract change):**
+- tests 1, conformance 1, weaken 5: run by hand, a part sees `FELIX_TEST_RECORD` as 0 (run:141 sets it), so 1291 expects `djx-rec:0`.
+- tests 2, conformance 2, weaken 6: 1292's two note counts match R7's shape.
+- tests 4: a `--red` case with a runner failure in red's suite only, from a part that dies only under `FELIX_TEST_NO_MANIFEST=1`, and its twin that prints `reached` there only.
+- tests 5: the reverse marker cases, in which only the parent's prelude fails, records a refusal, or moves the origin.
+- tests 6: every interrupt case finds the slot files afterwards, with the same names and inode numbers.
+- tests 7: a background child that a unit leaves running holds no slot lock.
+- tests 8: every planted part prints `djx-rec`, so a `-j` record run shows `FELIX_TEST_RECORD=1` in every unit, and a plain run shows 0.
+- tests 9: the check that 0001 sets the jobs variable before `$TMP` skips comments and looks for an assignment.
+- tests 10: the hostile durations rows go to units that have no other row, and the error grep gains `value too great`.
+- tests 11: red over a base whose groups.tsv the tree lacks; an invalid `FELIX_TEST_RED_JOBS`; and the `-j 3` name made to say what 1291:150 measures.
+- tests 12: a unit with no `@@prelude-done` at all gives `part's prelude failed`.
+- tests 13: an empty `FELIX_TEST_JOBS`, `--part` naming 0007, and `FELIX_TEST_JOBS` unset in parts when `-j` is also given.
+- tests 14: "within two seconds" timed in milliseconds, the overlap cap sampled from unit processes, and 1292:545's name made to say what it checks.
+- conformance 6: the unit-prelude case asserts red.tsv's two rows, as every other runner-failure case does.
+
+**Code fixes (no contract change):**
+- conformance 13: red makes its filtered log with `grep -a`, or drops the prefixes inside its existing awk passes, so a NUL byte cannot turn the log into "Binary file matches".
+- conformance 14: `_par_order` and `_par_cores` spell their digit sets out, as `[123456789]` and `[!0123456789]`.
+
+**Deliberately not taken:**
+- processes 1's other remedy, the mark kept outside `$TMP`: R1 keeps it there and waits for red instead.
+- processes 2's refusal before the first wrapper when `ps` does not list the parent: R2's retried, growing listing covers a listing that fails at the ending, and a refusal at the start would stop a run over a passing ps failure that the run might never meet again.
+- processes 4's other remedy (D6 says QUIT is not covered) and conformance 15's (D6 says a lost unit's holder is outside the ending): R4 covers both.
+- processes 7's line from the holder: the holder's stderr is now its unit's log (R4), which is printed only once the unit ends, so the line comes from the parent (R6).
+- conformance 9's other remedy, a unit's `reached` removed: R7 prints it.
+- conformance 10's other remedy, S measured from the wrapper's start: R6 makes the build's reading the rule, so a loaded machine's perl start-up never reads as a wait.
+- conformance 11's other remedy, D6 and D8 narrowed to a slot's name: R5 checks every entry.
+- conformance 12's other remedy, an empty groups.tsv line refused: R9 ignores it.
+- tests 3, conformance 3 and weaken 4's other remedy, HUP probed and the case skipped when it is ignored: R12's runners reset HUP and TERM, so the cases run under nohup and never skip for it.

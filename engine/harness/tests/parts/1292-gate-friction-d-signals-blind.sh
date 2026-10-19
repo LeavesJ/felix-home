@@ -346,9 +346,10 @@ X
   [ -z "$n" ] || _db2_E=(PATH="$DB2/psshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_PSFAIL="$n" DJ2_PSTRIG="$_db2_c/trig" DJ2_PSCNT="$_db2_c/pscnt")
   _db2_lim=150; _db2_go i -j 2
   _db2_until 450 _db2_up 0010-ka.sh || r=" no unit came up;"
+  _db2_ino0="$(_db2_inos "$_db2_tmp")"; [ -n "$_db2_ino0" ] || r="$r no slot file before the signal;"
   sleep 0.5; : > "$_db2_c/trig"
   _db2_stop i TERM; r="$r$_db2_late"
-  g="$(_db2_gone i 143)"; [ "$g" = ok ] || r="$r$g"
+  g="$(_db2_gone i 143)"; _db2_ino0=""; [ "$g" = ok ] || r="$r$g"
   case "$m" in h|u) [ -s "$_db2_c/gc.pids" ] || r="$r the TERM never reached the child, which forked nothing;" ;; esac
   y="$({ wc -l < "$_db2_c/pscnt"; } 2>/dev/null | tr -d ' ')"
   [ -z "$n" ] || [ "${y:-0}" -ge "$n" ] || r="$r the ending asked for ${y:-0} listings, so listing $n never failed;"
@@ -469,9 +470,9 @@ rm -rf "$DB2/n/lc"
 # ---- a record run that is interrupted writes no manifest (D6, what it leaves), and red's tree goes with it
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
 _db2_lim=150; _db2_go r -j 2 --record-assertions
-_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; sleep 0.5
-_db2_stop r TERM; _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt)"
-_db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent"
+_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
+_db2_stop r TERM; _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)"; _db2_ino0=""
+_db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent slots-kept"
 rm -rf "$DB2/n/rrt"
 
 # ---- no unit holds the FIFO the parent reads (D6, the wrapper): no pipe descriptor above 2 in a unit that a serial part has not

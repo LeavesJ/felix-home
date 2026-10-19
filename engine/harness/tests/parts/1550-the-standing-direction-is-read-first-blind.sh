@@ -1,8 +1,17 @@
-printf '\nthe standing direction is read first (contract P1-P8, A1-A5, W1-W2, G1, blind)\n'
+printf '\nthe standing direction is read first (contract P1-P8, A1-A5, W1-W2, G1, as amended, blind)\n'
 # Blind, from docs/2026-10-19-direction-read-first-contract.md alone, written
-# 2026-10-19. Not read: hooks/session-start and anything under lib/. How to run
-# the hook and read its context was learned from part 0010, which runs it the
-# same way.
+# 2026-10-19 and brought to its Amendment 1 (84b99661) the same day: the
+# direction line's new text, and its new place directly above the reading
+# list. Not read: hooks/session-start, anything under lib/, or any diff of
+# them. How to run the hook and read its context was learned from part 0010,
+# which runs it the same way.
+#
+# P9 (no link at R/docs or at D is followed) has no case here. What it guards
+# against is a link into a mount that does not answer, and a fixture cannot
+# make one without a hung mount, which needs privileges and could hang the
+# suite. A link that resolves fine looks the same to the hook whether it was
+# followed or not, so a case built from one would pass without testing P9.
+# A2 and A3 test the links' outcome, never naming D through one.
 #
 # Why this part exists: a project keeps docs/direction.md as the one document
 # with the say in standing, and the session-start hook is the only thing that
@@ -20,8 +29,12 @@ printf '\nthe standing direction is read first (contract P1-P8, A1-A5, W1-W2, G1
 #
 # Readings taken where the contract leaves a choice, each the strictest the
 # text supports:
-# - R is spelled physically (pwd -P) and P as $FROOT/projects/widget, the
-#   spellings part 0010 finds the hook using for HANDOFF.md and the constitution.
+# - R is spelled physically (pwd -P), as the contract's Terms now say, and P as
+#   $FROOT/projects/widget, the spelling part 0010 finds the hook using for the
+#   constitution. The direction line has no indent, as the Terms now say too.
+# - The reading list is the lines from the one that begins Read before
+#   planning: down to the next blank line (Terms, as amended). The direction
+#   line stands above it and is not one of its lines.
 # - "The context" is the additionalContext string with its JSON escapes
 #   decoded. It is written to a file followed by one newline, so a comparison
 #   with cmp sees every byte of it, a trailing newline included.
@@ -31,12 +44,16 @@ printf '\nthe standing direction is read first (contract P1-P8, A1-A5, W1-W2, G1
 #   reading list, or anything at D during the pair fails the comparison with
 #   CONTROL DIFFERED; it never passes it. Each checkout gets one warm-up run
 #   first, so a once-only line is spent before any control.
-# - P4: the line after the direction line is empty and the one after that
-#   begins the None of those paragraph.
+# - P4: the line directly above the reading list is the direction line, and
+#   the line above that is empty. The list's last line is the last entry the
+#   list holds with nothing at D, the line after it is empty, and the one after
+#   that begins the None of those paragraph.
+# - P3: with D the list is the absent list with exactly one line more, D's,
+#   before the constitution, and nothing after its last entry.
 # - P5: D is the full path, counted as text anywhere in the context; the
 #   direction line is counted both as text and as whole lines.
-# - P6: "delete the direction line" deletes its first copy only, so a second
-#   copy fails the comparison as well as P5. "Still its own paragraph after
+# - P6: "delete the direction line" deletes its first copy only, wherever it
+#   stands, so a second copy fails the comparison as well as P5. "Still its own paragraph after
 #   None of those" is read as the very next paragraph, which is where it is today.
 # - P8: each odd D is compared with a D of one ordinary line run just before it,
 #   after the control.
@@ -65,7 +82,7 @@ _fx_git "$DF_R" add .felix >/dev/null 2>&1
 _fx_git "$DF_R" -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm one >/dev/null 2>&1
 DF_P="$FROOT/projects/widget"; DF_D="$DF_R/docs/direction.md"
 DF_I="$(printf '%19s' '')"
-DF_L='docs/direction.md is the standing direction: it wins over older roadmaps, handoff sections and memory notes.'
+DF_L='docs/direction.md is the standing direction: where an older roadmap, handoff section or memory note disagrees with it, it wins.'
 DF_TEXT='The roadmap of 2026-10-19 is the one in force.'
 
 _df_hook() {   # NAME [DIR]: one run of the hook from DIR (DF_R when none), stdin /dev/null, under a 30-second bound that ends its whole process group; both streams to NAME.raw, the exit in _df_rc, the context to NAME.ctx
@@ -96,7 +113,7 @@ _df_decode() {   # RAW: the additionalContext string of the hook's JSON, its esc
       exit 1
     }' "$1"
 }
-_df_q() {   # CTX WHAT: a fact about the reading list in CTX. WHAT is a line number, last, n (its lines, 0 when there is none) or next (the line after it, a bar, then the line after that, cut to the None of those sentence when it begins with it)
+_df_q() {   # CTX WHAT: a fact about the reading list in CTX. WHAT is a line number, last, n (its lines, 0 when there is none), above (the line two above it, a bar, the line directly above it) or next (the line after it, a bar, then the line after that, cut to the None of those sentence when it begins with it)
   LC_ALL=C awk -v w="$2" '
     { L[NR] = $0 }
     END {
@@ -105,6 +122,7 @@ _df_q() {   # CTX WHAT: a fact about the reading list in CTX. WHAT is a line num
       for (e = s; e <= NR && L[e] != ""; e++) { }
       if (w == "n") print e - s
       else if (w == "last") print L[e - 1]
+      else if (w == "above") print ((s > 2) ? L[s - 2] : "(no line)") "|" ((s > 1) ? L[s - 1] : "(no line)")
       else if (w == "next") { t = "None of those are loaded for you."; print L[e] "|" ((index(L[e + 1], t) == 1) ? t : L[e + 1]) }
       else if (w + 0 >= 1 && s + w - 1 < e) print L[s + w - 1]
     }' "$1"
@@ -118,12 +136,12 @@ _df_count() {   # CTX TEXT: how many times TEXT occurs in the context in CTX
 _df_lines() {   # CTX LINE: how many lines of the context in CTX are exactly LINE
   _DF_T="$2" LC_ALL=C awk '$0 == ENVIRON["_DF_T"] { n++ } END { print n + 0 }' "$1"
 }
-_df_p3() {   # PRESENT ABSENT: "same" when PRESENT's reading list is ABSENT's with one line more before the constitution and one after the last entry, every entry after the constitution unchanged and in order; else what differs
+_df_p3() {   # PRESENT ABSENT: "same" when PRESENT's reading list is ABSENT's with one line more, before the constitution, every entry after the constitution unchanged and in order and nothing after the last; else what differs
   LC_ALL=C awk '
     FILENAME == ARGV[1] { if (!pf && index($0, "Read before planning: ") == 1) pf = 1; if (pf == 1) { if ($0 == "") pf = 2; else p[++np] = $0 } next }
     { if (!af && index($0, "Read before planning: ") == 1) af = 1; if (af == 1) { if ($0 == "") af = 2; else a[++na] = $0 } }
     END {
-      if (np != na + 2) { printf "the reading list has %d lines with D and %d with nothing at D\n", np, na; exit }
+      if (np != na + 1) { printf "the reading list has %d lines with D and %d with nothing at D\n", np, na; exit }
       for (i = 2; i <= na; i++) if (p[i + 1] != a[i]) { printf "entry %d is [%s], and with nothing at D [%s]\n", i, p[i + 1], a[i]; exit }
       print "same"
     }' "$1" "$2"
@@ -149,9 +167,9 @@ _df_added() {   # PRESENT ABSENT ROOT SKIP: the lines of PRESENT that ABSENT doe
     !($0 in h) && $0 != ENVIRON["_DF_S"] { s = $0; r = ENVIRON["_DF_R"]; while (r != "" && (i = index(s, r)) > 0) s = substr(s, 1, i - 1) "R" substr(s, i + length(r)); o = o "|" s }
     END { print o }' "$2" "$1"
 }
-_df_paras() {   # CTX: how far after the reading list None of those begins, how far after that Also on disk begins, and whether that paragraph holds the direction line
+_df_paras() {   # CTX: how far after the reading list's paragraph (the direction line above the list opens it) None of those begins, how far after that Also on disk begins, and whether that paragraph holds the direction line
   _DF_T="$DF_L" LC_ALL=C awk -v RS= '
-    !r && index($0, "Read before planning: ") == 1 { r = NR }
+    !r && (index($0, "Read before planning: ") == 1 || index($0, "\nRead before planning: ")) { r = NR }
     !n && index($0, "None of those are loaded for you.") == 1 { n = NR }
     !a && index($0, "Also on disk, and not direction:") == 1 { a = NR; h = index($0, ENVIRON["_DF_T"]) ? "holds the direction line" : "clean" }
     END { printf "%d|%d|%s\n", n - r, a - n, h }' "$1"
@@ -204,9 +222,15 @@ _df_pblock() {   # TAG LABEL DIR DPATH PDIR: P1-P7 with DPATH as D, run from DIR
   esac
   is "P3 ($l): every entry the list holds with nothing at D follows the constitution, in the same order and indent, with nothing else added" \
      "$(_df_p3 "$c" "$a")" "same"
-  is "P4 ($l): the direction line is the last line of the reading list" "$(_df_q "$c" last)" "$DF_L"
-  is "P4 ($l): and the blank line and the paragraph beginning None of those are loaded for you follow it" \
-     "$(_df_q "$c" next)" "|None of those are loaded for you."
+  # P4, as amended: the line stands above the list, where the list's first line
+  # stands today, so the paragraph after the list still follows today's last
+  # entry. Where the constitution is the only entry today, the last entry with
+  # D is the constitution on its indented second line.
+  is "P4 ($l): the line directly above the reading list is the direction line, and the line above that is blank" \
+     "$(_df_q "$c" above)" "|$DF_L"
+  if [ "$(_df_q "$a" n)" = 1 ]; then _df_le="$DF_I$p/CLAUDE.md"; else _df_le="$(_df_q "$a" last)"; fi
+  is "P4 ($l): the reading list ends with the last entry it holds with nothing at D, followed by the blank line and the paragraph beginning None of those are loaded for you, as today" \
+     "$(_df_q "$c" last)|$(_df_q "$c" next)" "$_df_le||None of those are loaded for you."
   is "P5 ($l): the full path of docs/direction.md appears exactly once in the context" "$(_df_count "$c" "$d")" "1"
   is "P5 ($l): and the direction line exactly once, as text and as a line" "$(_df_count "$c" "$DF_L")|$(_df_lines "$c" "$DF_L")" "1|1"
   _df_strip "$t.d" "$p"
@@ -223,8 +247,8 @@ is "direction read first (fixture control): the part's own checkout binds widget
    "$_df_rc|$(_df_count "$DF_O/warm.ctx" "Project: widget")|$(_df_q "$DF_O/warm.ctx" n)" "0|1|1"
 
 # ------------------------------------------------------------ bare checkout ---
-# The smallest list: the constitution alone today, so the direction file, the
-# constitution and the direction line are the whole of it.
+# The smallest list: the constitution alone today, so with D the list is the
+# direction file and the constitution, and the direction line stands above it.
 _df_bare
 _df_pblock bare "a bare checkout" "$DF_R" "$DF_D" "$DF_P"
 # A1, from the bare control: what today's engine gives with nothing at D.
@@ -363,7 +387,7 @@ is "W2: and docs/direction.md appears nowhere in it" "$(_df_count "$DF_O/w2.v.ct
 rm -rf "${DF_S:?}/docs"
 
 # ---------------------------------------------------- HANDOFF.md, pending ---
-# HANDOFF.md alone: the direction line comes after it, not after the constitution.
+# HANDOFF.md alone: it stays the list's last entry, with the direction line above the list.
 _df_bare; printf '# handoff\n' > "$DF_R/HANDOFF.md"
 _df_pblock handoff "HANDOFF.md alone" "$DF_R" "$DF_D" "$DF_P"
 is "P3 (HANDOFF.md alone): HANDOFF.md is the third line, behind the indent" "$(_df_q "$DF_O/handoff.d.ctx" 3)" "$DF_I$DF_R/HANDOFF.md"
@@ -380,8 +404,8 @@ is "A1 (HANDOFF.md, seven pending sections and a session handoff): with nothing 
    "$(_df_listbar "$DF_O/full.c2.ctx")" "Read before planning: $DF_P/CLAUDE.md|$_df_today"
 is "A1 (HANDOFF.md, seven pending sections and a session handoff): and the context holds docs/direction.md nowhere" \
    "$(_df_count "$DF_O/full.c2.ctx" docs/direction.md)" "0"
-is "P1-P4 (HANDOFF.md, seven pending sections and a session handoff): with D the reading list is D, the constitution, today's entries, then the direction line, line for line" \
-   "$(_df_listbar "$DF_O/full.d.ctx")" "Read before planning: $DF_D|$DF_I$DF_P/CLAUDE.md|$_df_today|$DF_L"
+is "P1-P4 (HANDOFF.md, seven pending sections and a session handoff): with D a blank line and the direction line stand directly before the reading list, which is D, the constitution and today's entries, line for line" \
+   "$(_df_q "$DF_O/full.d.ctx" above)|$(_df_listbar "$DF_O/full.d.ctx")" "|$DF_L|Read before planning: $DF_D|$DF_I$DF_P/CLAUDE.md|$_df_today"
 is "P3 (HANDOFF.md, seven pending sections and a session handoff): D is not counted among the pending sections, so the count of older ones is the same with and without it" \
    "$(_df_count "$DF_O/full.d.ctx" "and 2 older in $_df_pp/")|$(_df_count "$DF_O/full.c2.ctx" "and 2 older in $_df_pp/")" "1|1"
 is "P6 (HANDOFF.md, seven pending sections and a session handoff): the session handoff is still its own paragraph right after None of those, and the direction line is not in it" \
@@ -389,16 +413,17 @@ is "P6 (HANDOFF.md, seven pending sections and a session handoff): the session h
 is "P6 (HANDOFF.md, seven pending sections and a session handoff): and that paragraph still names the session handoff" \
    "$(_df_count "$DF_O/full.d.ctx" "Also on disk, and not direction: $DF_M/widget/SESSION_HANDOFF.md")" "1"
 
-# Exactly five pending: no count of older ones, so the direction line follows
-# the fifth section directly.
+# Exactly five pending: no count of older ones, so the list ends with the
+# fifth section, and the direction line stands above the list, not after it.
 _df_bare; _df_pending 5
 _df_pblock five "exactly five pending sections" "$DF_R" "$DF_D" "$DF_P"
 case "$(_df_listbar "$DF_O/five.d.ctx")$(_df_listbar "$DF_O/five.c2.ctx")" in
   *" older in "*) bad "P3 (exactly five pending sections): no line counts older ones, with or without D" "$(_df_listbar "$DF_O/five.d.ctx")" ;;
   *)              ok  "P3 (exactly five pending sections): no line counts older ones, with or without D" ;;
 esac
-is "P4 (exactly five pending sections): the direction line comes directly after the oldest of the five" \
-   "$(_df_q "$DF_O/five.d.ctx" 7)|$(_df_q "$DF_O/five.d.ctx" 8)" "$DF_I$DF_R/docs/handoff/pending/20260101T000000Z-s.md|$DF_L"
+is "P4 (exactly five pending sections): the reading list ends with the oldest of the five, and a blank line and the direction line stand directly before its first line" \
+   "$(_df_q "$DF_O/five.d.ctx" n)|$(_df_q "$DF_O/five.d.ctx" last)|$(_df_q "$DF_O/five.d.ctx" above)" \
+   "7|$DF_I$DF_R/docs/handoff/pending/20260101T000000Z-s.md||$DF_L"
 _df_bare
 
 # --------------------------------------------------------- linked worktree ---

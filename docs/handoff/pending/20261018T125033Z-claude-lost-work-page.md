@@ -100,8 +100,14 @@ other three were the capabilities block's bare `felix monitor`, restated in
 block's monitor assertions passing and the five failures the alone-only ones.
 The carrier's ruling on those: if they still fail alone on main with C, that
 is a C4 gap for row 0, not this branch's.
-B9.2 and A111, which failed before the merge, now pass. **The full suite, `--record-assertions`, red and the gate
-were not run on this branch**: it has no landing slot yet.
+B9.2 and A111, which failed before the merge, now pass.
+**At .301** the record on 130d6686 gave 13059 passed, 0 failed, 43 skipped;
+the manifest gained 168 names and lost 2 (N7's renames). Red against
+origin/main 50601023 (0.49.300) gave 140 failed, 12914 passed, 44 skipped, the
+140 all this branch's: 124 from the blind parts 1450-1480 (Parts A and B), 14
+of the review's findings in 1490, and N7's two renames in 0920.
+`bin/schema-check .` accepted every row, and `felix gate` passed on 398a4427
+in this worktree, its tests reused from the record.
 The carrier's two record seams were checked on 1450-1490. No name starts with a
 non-ASCII byte. Two names carried what the engine printed (B9.26's row count,
 and B9.30/31's "at least N" for work that never reached a PR), so a red tree
@@ -132,7 +138,7 @@ page refuse to run, and the upstream exclusion in A1.
   from 1480; `_lw_build` now gives it the empty `nohome`, alone and in order.
   Its repositories xb and xc are governed by neither, and its 21 assertions
   pass both ways.
-- **`tests/run` is at 476 lines, sourcing 176 parts and 45 lib files.** A few
+- **`tests/run` is at 481 lines, sourcing 180 parts and 46 lib files.** A few
   more parts will need the driver split or its part list moved.
 - **Noise the page shows.** Subagent and workflow worktrees (`agent-*`,
   `wf_*`) holding unpushed blind branches make up a large share of "work that
@@ -146,9 +152,9 @@ page refuse to run, and the upstream exclusion in A1.
   `unknown` (the listing then comes from HEAD, as before). That is one
   condition in `calc()` in `lib/lost-work.sh` if it should.
 
-**Next.** At "you are next" from the carrier, and not before: merge main again
-if it has moved, set the version the carrier gives, run
-`tests/run --record-assertions` and red, run `engine/harness/bin/schema-check`,
-then `felix gate`, and open the PR. Risk-red: new libs (`lost-work.sh`, `inventory-chips.sh`) and lib edits.
-The record checks C1 across the whole suite; this branch's own share was
-checked alone as above.
+**Next.** PR LeavesJ/felix-home#450 at 0.49.301. It touches no founder or
+escape path, so the land job merges it on green CI, and the carrier deploys
+after the merge. Then the open items above. Risk-red: new libs
+(`lost-work.sh`, `inventory-chips.sh`) and lib edits. This branch's parts were
+checked alone against their serial run (the 166 pairs above); the record ran
+the whole suite in order, not each part alone.

@@ -305,16 +305,33 @@ is "R8: a unit that leaves the shell changed in red's suite only is left out of 
 rm -rf "$DB3/n/rshl"
 
 # ---- red acts on a failed mark while its suite runs (R1): the record run's runner failure, with a part in red's suite that sleeps 90 s
-# 0020 sleeps only where FELIX_TEST_NO_MANIFEST=1, which only red's suite sees; 0030 dies only in the record run, which fails it. The record run must not
-# wait for red's suite (nor for the bound it gives red, 60 s): red ends its suite on the mark, so the record run exits well under 30 s.
+# 0020 sleeps only where FELIX_TEST_NO_MANIFEST=1, which only red's suite sees, and writes the millisecond it starts to sleep into a file; 0030 dies only in
+# the record run, which fails it, and first waits (20 s at most) for that file, so the failure always comes while red's suite sleeps. The record run must
+# not wait for red's suite (nor for the bound it gives red, 60 s): red ends its suite on the mark, so it exits within 30 s of the sleeper's start.
 _db3_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 mkdir -p "$DB3/pp/rsl"; cp "$DB3/pp/std/0010-pa.sh" "$DB3/pp/rsl/"
-printf '%s\n' 'printf "\ndjx-sec 0020-pb.sh\n"' 'ok "djx b1"' '[ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ] || sleep 90' 'ok "djx b2"' > "$DB3/pp/rsl/0020-pb.sh"
-printf '%s\n' 'printf "\ndjx-sec 0030-pc.sh\n"' 'ok "djx c1"' '[ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ] || kill -9 $$' 'ok "djx c2"' > "$DB3/pp/rsl/0030-pc.sh"
+cat > "$DB3/pp/rsl/0020-pb.sh" <<'X'
+printf '\ndjx-sec 0020-pb.sh\n'
+ok "djx b1"
+[ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ] || { perl -MTime::HiRes=time -e 'printf "%d\n", time * 1000' > "$DJX_DIR/slept.$$"; sleep 90; }
+ok "djx b2"
+X
+cat > "$DB3/pp/rsl/0030-pc.sh" <<'X'
+printf '\ndjx-sec 0030-pc.sh\n'
+ok "djx c1"
+if [ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ]; then
+  djx_i=0; while [ -z "$(ls "$DJX_DIR"/slept.* 2>/dev/null)" ] && [ "$djx_i" -lt 100 ]; do sleep 0.2; djx_i=$((djx_i + 1)); done
+  kill -9 $$
+fi
+ok "djx c2"
+X
 _db3_new rsl --red "$DB3/g-empty.tsv" "$DB3/man.tsv" "$DB3/pp/rsl"/*.sh
-_db3_t0="$(_db3_ms)"; _db3_run r -j 3 --record-assertions; _db3_t1="$(_db3_ms)"
-is "R1: a record run with a runner failure, while red's suite runs a part that sleeps 90 s, exits 1 within 30 s, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \
-   "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")" "ok within-30s"
+_db3_start r -j 3 --record-assertions; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; _db3_cl="$(_db3_clean)"
+[ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
+_db3_t0="$(cat "$_db3_c"/slept.* 2>/dev/null | sed -n 1p)"
+case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")" ;; esac
+is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \
+   "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_x" "ok within-30s"
 is "R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it" "$_db3_ex $_db3_cl" "ok ok"
 rm -rf "$DB3/n/rsl"
 

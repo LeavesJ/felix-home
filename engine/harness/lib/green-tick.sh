@@ -295,13 +295,16 @@ _gt_files() {   # PR SHA
   { printf '%s\n' "$out" | LC_ALL=C sed '1d'; printf '%s\n' "$g"; } | LC_ALL=C awk 'NF && !seen[$0]++'
 }
 
-# G5. These two patterns are an engine constant and name no project.
+# G5. These two patterns and one exact path are an engine constant and name no
+# project. The path is docs/direction.md at the repository root (A32, 2026-10-19):
+# the standing direction file the session-start hook names first, matched exactly
+# and not as a pattern, so unrelated files are not held for the founder.
 _gt_direction() {   # FILES -> the first path that is a direction document
   local f lc LC_ALL=C
   while IFS= read -r f; do
     # This Mac's file system folds case, so projects/x/claude.md is the founder's CLAUDE.md.
     lc="$(printf '%s' "$f" | tr 'A-Z' 'a-z')"
-    case "$lc" in projects/*/claude.md|docs/*roadmap*) printf '%s' "$f"; return 0 ;; esac
+    case "$lc" in projects/*/claude.md|docs/*roadmap*|docs/direction.md) printf '%s' "$f"; return 0 ;; esac
   done <<EOF
 $1
 EOF

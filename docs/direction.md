@@ -17,8 +17,8 @@ document; it is being built on `claude/direction-read-first`). Until then,
 open it as a draft labelled `needs-founder`, or the tick will land it on
 green.
 
-As of: 2026-10-19. Last decision recorded: the capability lane stays, with
-need intake built now and capability authority waiting on trust (§4, row 25).
+As of: 2026-10-19. Last decision recorded: derived rows may bind without his
+per-row admission, within five bounds, and nothing is armed yet (§4, row 27).
 
 **How a session uses it.**
 1. Read this file first, then the constitution
@@ -121,10 +121,9 @@ none of them rly work without my involvement." The measurements agree.
     2. **Admission.** Admitted obligations against those proposed. Today it is
         0 of 22. Felix cannot close this loop alone, because admission is the
         founder's act.
-        - The 10-18 brief recommends that Felix may later admit
-          witness-backed TASK_BLOCKING rows itself, after control 7 and the
-          judge pin.
-        - That is open in §6.
+        - On 10-19 he said yes to derived rows binding without his
+          per-row admission, within bounds (row 27). Nothing is armed yet,
+          and §5 lists what must be true first.
     3. **Direction currency.** Whether a fresh session starts from this file
         instead of rebuilding direction from memory notes.
         - On main, the session-start hook does not name this file yet.
@@ -168,6 +167,7 @@ changed, the row states its current form.
 | 24 | 10-15 | Land on green. Live since 10-18. A launchd tick runs `felix merge` with nobody present on an open PR only if it meets all of these: it is not a draft; it carries no label named `felix:hold`, `felix:founder` or `needs-founder` (other labels hold nothing); it is not cross-repository and does not conflict; it touches no `projects/*/CLAUDE.md` or `docs/*roadmap*` path; CI's gate run passed on the exact head (C9); and a home worktree holds that branch at that head. Judge-changing PRs are included. These are the main conditions, not all of them. `felix merge` must then pass in that worktree, which needs a green `felix gate` receipt there for this exact tree (a scratch clone's receipt is invisible to it). The contract also holds a PR whose base is not main (A12), whose head branch heads another open PR (A19), or whose paths are not plain ASCII (A9). The tick merges nothing while paused or while a deploy is owed or has just run (G2, G3, A11), lands one PR per tick, and lands nothing while the Mac sleeps. | `docs/2026-10-15-land-on-green-contract.md` |
 | 25 | 10-19 | "Keep the 09-25 lane: build intake now, and gate capability authority (dispatch, leases, floor) on the trust milestones." | pending 20261019T071844Z |
 | 26 | 10-19 | Felix refuses pattern kills with a deny row (his answer: "Refuse them"). He merges it himself. Nothing holds it mechanically: adding a row to `deny.tsv` fires no escape channel (`lib/escape.sh` treats adding as free). Landing it also changes a commission table (`deny.tsv` is in `FELIX_COMMISSION_TABLES`), so later merges wait until he re-stamps the commission. Open it as a draft labelled `needs-founder`. | carrier state |
+| 27 | 10-19 | Derived rows may bind without his per-row admission (thesis Decision 2(b), intent design §11c, and §11d's task-blocking half). His words: "Yes to derived rows binding without my admission, with your five bounds." The bounds: (1) task scope only, never a release and never an escape channel; (2) witness-backed rows only, never a single model finding (`lib/candidates.sh` keeps refusing that); (3) the row's checker has qualified on seeded mutations; (4) nothing is armed before control 7 and the judge pin (row 25); (5) visibly Felix's: a Felix-authored commit he can tell from his, a person clears a false block with a dated exception, only people loosen, and a row retires after false blocks. Felix uses the grant first for instances of class rules he has admitted; a model-proposed candidate stays advisory until that path has run. | pending 20261019T071844Z |
 
 Two things follow from rows 13, 24 and 25 together:
 - Landing with nobody present is governed by row 24, and it is live.
@@ -277,6 +277,20 @@ sealed, measured number. The order is Felix's call:
   denominator, and admission drafts for the founder), then item 4, then
   item 3 once its ceiling is set.
 - **Authority side.** Items 5 to 10 keep the trust gates set out in row 25.
+- **Before row 27 arms anything.** These were found on 10-19, after his
+  yes, and each is a build, not a new decision:
+    - Task scope is not built. Today one failing TASK_BLOCKING row fails the
+      whole obligations gate (`felix` obligations section), so it would hold
+      every pull request on the project. A derived row must hold only a
+      change that touches the surfaces its grounds name.
+    - The admission line is a convention. Adding a row to
+      `obligations.tsv` fires no escape channel, so a blocking addition must
+      be made to escape before "visibly Felix's" means anything.
+    - Exceptions are read only for felix-home. A product project's tables
+      live in felix-home, so its owner has no clearance path yet.
+    - Each class gets a shadow run first: would-holds logged with the gate
+      unaffected, on two projects in two ecosystems, under a bound declared
+      before the window.
 
 **Not before March:** `felix dispatch` beyond the one tick, and leases with
 real authority. Also deferred:
@@ -302,8 +316,6 @@ and not again until he raises it, unless its line names a later moment.
 
 **Decisions:**
 - Admit or refuse the 22 candidates (Elenchus 7, Veldra 15).
-- Whether Felix may later admit witness-backed TASK_BLOCKING rows itself.
-  That could happen only after control 7 and the judge pin.
 - Whether the thesis's leakage-per-objective definition replaces or refines
   the 08-12 objective.
 - The aim he raised on 10-19: rely on Felix to build production-ready work
@@ -314,7 +326,9 @@ and not again until he raises it, unless its line names a later moment.
 - Who the endgame's novice is: a person who owns the product but is not an
   engineer, or also someone who will not own or understand the code. The
   vibe-coding brief (§7) shows that ownership is something Felix cannot
-  supply. Its §12 designs the test that separates the two cases.
+  supply. Its §12 designs the test that separates the two cases. Asked on
+  10-19 with a six-level ladder of sample inputs, for a founder and for an
+  engineer; he will say which level each should aim for.
 - The interface proposals of 10-09 (data contract first, unknown is not
   zero, no shell before about three surfaces, read-only first, two
   audiences).
@@ -328,7 +342,8 @@ and not again until he raises it, unless its line names a later moment.
 **Consents:**
 - The corpus spending ceiling: $96-349 for one corpus at 3 runs, or $172-632
   with the replication. Lane item 3 (the corpus) waits on it. It was asked
-  in the 10-18 brief; ask again only when the corpus is about to run.
+  in the 10-18 brief; ask again only when the corpus is about to run. He
+  confirmed that on 10-19 ("we'll talk about it when that day arrives").
 - The API key for the D3 tick, and its spend limit. Ask only when the tick is
   near.
 
@@ -369,7 +384,7 @@ A design here is not a commitment. It becomes a build target in two cases:
 | Design | What it says | Status |
 |---|---|---|
 | `docs/2026-10-18-capability-plane-thesis.md` | The capability plane's charter (v3.2 invariant 4), seven invariants I1-I7, the anti-slop contract, and autonomy as leakage per objective. | Decided parts are row 25 and the lane order. The rest is on file. |
-| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. |
+| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. §11c, and §11d's task-blocking half, are decided by row 27; the rest are open. |
 | `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` | What separates AI-assisted engineering from vibe coding: what the work is held to, not who types it. It sets out a full answer part by part, its limits, the probable partial answer with the measurement that would show it is enough, and what makes the capability plane more than dispatch. | On file. Research, not direction. Its zero-token pre-checks (proxy-conflict signals over transcripts, miss-to-layer classification of coded leakage turns) are candidate lane items. |
 | Reflection triggers (memory, 08-18) | Felix questions its inputs but not its method; it needs enumerated trigger moments. | Open. |
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |

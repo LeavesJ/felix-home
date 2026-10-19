@@ -130,3 +130,18 @@ lands, any pull request that touches the file is opened as a draft labelled
 `needs-founder`. The pattern-kill deny row is held the same way: the founder
 merges it himself, and adding to `deny.tsv` fires no escape channel, so
 nothing holds it mechanically.
+
+**Founder decisions, later on 10-19.**
+- Derived rows binding without his per-row admission (thesis Decision 2(b),
+  brief §14 item 2): "Yes to derived rows binding without my admission, with
+  your five bounds. Record it in the direction file." Recorded as direction
+  row 27. A review after his yes found that task scope is not built (one
+  failing TASK_BLOCKING row fails the whole gate), that adding a blocking
+  row to `obligations.tsv` fires no escape, and that exceptions are read
+  only for felix-home. These are builds before anything arms, listed in
+  direction §5.
+- The corpus spending ceiling: "we'll talk it abt it when that day
+  arrives". Asked again only when the corpus is about to run.
+- Who the endgame's novice is: he asked for six sample inputs, from most
+  vague to most detailed, for a founder and for an engineer, and will say
+  which balance fits. His answer is pending.

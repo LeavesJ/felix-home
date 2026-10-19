@@ -20,15 +20,38 @@ printf '\nFelix refuses a pattern kill (blind)\n'
 # Every name is emitted on every run, whatever the hook answered. A refused case
 # wants exit 2 and the row's whole reason on stderr; an allowed case wants exit 0.
 #
+# Amended the same day, still blind, after the contract's last section ("Amended
+# 2026-10-19, after the corpus check", binding over C1 to C3). The row's first
+# draft refused 186 of the 4705 distinct commands naming kill in the machine's
+# transcripts; about 155 were real pattern kills, and the rest were `pkill -P
+# <pid>` (the children of a pid the session holds, the reason's own "then its tree
+# by pid"), one `pgrep -P "$P" | xargs kill`, and three `kill -0` loops. So:
+# A1: pkill is refused unless it carries a pid-bound selector, `-P <ppid>` or
+#     `-F <pidfile>` (`-P123`, `-P "$p"` and `-P $p` alike); `-P 1` is not
+#     pid-bound, as pid 1 parents every orphan; killall is always refused.
+# A2: `kill $(pgrep ...)` and `pgrep ... | xargs kill` are refused unless that
+#     pgrep carries a pid-bound selector, under the same rule.
+# A3: `kill -0` sends no signal, so `kill -0 $(pgrep -f x)` is allowed.
+# The amendment's own examples are cases here, allowed and refused. `pkill -P 1234`,
+# which the first version of this part refused, is allowed now.
+#
 # Readings, where the contract leaves room. The wrappers of C1 and the positions of
 # C1 are tried on pkill and killall; C2 is tried bare, behind `true &&`, and with
-# the substitution double-quoted, which still runs it. `pkill -P 1234` is refused:
-# C1 says any options, and the engine's own tests/parts/0350 line that does it sits
-# in a script body, which the hook does not judge. `kill $(cat pidfile)` and
+# the substitution double-quoted, which still runs it. `kill $(cat pidfile)` and
 # `kill $(jobs -p)` are allowed, as the contract's last section says. What the
 # reason must say is asserted by plain words only: `session` for the harm, `pid` for
 # the way, and `$!` or `pidfile` for where the pid comes from; the wording of the
-# rest (STOP then KILL the root, then its tree by pid) is the row's.
+# rest (STOP then KILL the root, then its tree by pid) is the row's. Mine, along
+# the lines of A1 to A3 and not in its text: pgrep takes `-F` as pkill does ("the
+# same rule"); a command with a pid-bound selector and a pattern both
+# (`pkill -P 1234 -f x`) carries the selector and is allowed, and `-P 1` among
+# other options is refused wherever it stands, glued or not, while a ppid that
+# merely begins with 1 (10, 11) is allowed; `-P 1234` inside a quoted pattern is
+# the pattern, not a selector, and `-f run.pid` is a pattern, not `-F`; each pgrep
+# in a command is judged by itself (`kill $(pgrep -P 1234) $(pgrep -f x)` is
+# refused); a pgrep piped through head into `xargs kill` is judged as the pgrep is;
+# and `kill -0` frees only itself, so a `kill -9 $(pgrep -f x)` beside it is still
+# refused.
 #
 # Every part runs alone: this one makes its own checkout, bound to the widget
 # project by marker, and relies on nothing an earlier part left but what the
@@ -128,7 +151,6 @@ pkill -f 'sleep 3'
 pkill node
 pkill -9 -x python
 pkill -u 501 node
-pkill -P 1234
 pkill -TERM -f "next dev"
 killall node
 killall -9 Safari
@@ -211,6 +233,88 @@ ps -axo pid,command | grep tests/run
 p=$(pgrep -f x); echo "$p"
 pgrep -f x | wc -l
 pgrep -f x | xargs ps -o pid,command -p
+J
+
+printf '\npattern kill (A1): pkill bound to a pid or a pidfile you hold is allowed\n'
+_pk_cases 0 <<'J'
+pkill -P 1234
+pkill -P1234
+pkill -P "$pid"
+pkill -P $p
+pkill -P$p
+pkill -TERM -P "$pid"
+pkill -9 -P $p
+pkill -TERM -P 80490; kill -TERM 80490
+pkill -P 10
+pkill -P 11 -f x
+pkill -P 1234 -f x
+pkill -f x -P 1234
+pkill -F run.pid
+pkill -F "$pidfile"
+pkill -F/tmp/run.pid
+pkill -9 -F /tmp/run.pid
+pkill -TERM -F "$TMP/run.pid"
+sudo pkill -P 1234
+true && pkill -P 1234
+timeout 5 pkill -TERM -P "$pid"
+J
+
+printf '\npattern kill (A1): and without one, or bound to pid 1, it is still refused\n'
+_pk_cases 2 <<'J'
+pkill -P 1 -f x
+pkill -f x -u me
+pkill -9 x
+pkill -9 -P 1
+pkill -P1 -f x
+pkill -f x -P 1
+pkill -TERM -P 1 node
+pkill -f 'worker -P 1234'
+pkill -f run.pid
+killall -P 1234 node
+J
+
+printf '\npattern kill (A2): a kill fed by a search bound to a pid you hold is allowed\n'
+_pk_cases 0 <<'J'
+pgrep -P "$P" | xargs kill
+kill $(pgrep -P 1234)
+kill -9 $(pgrep -P $p)
+kill `pgrep -P 1234`
+kill -TERM $(pgrep -f x -P 1234)
+pgrep -P1234 | xargs -r kill -9
+pgrep -P 1234 | head -5 | xargs kill
+pgrep -f x -P 1234 | xargs kill
+kill $(pgrep -F run.pid)
+pgrep -F run.pid | xargs kill
+J
+
+printf '\npattern kill (A2): and a search bound to nothing, or to pid 1, is still refused\n'
+_pk_cases 2 <<'J'
+pgrep -P 1 -f x | xargs kill
+pgrep -P1 -f x | xargs -r kill -9
+kill $(pgrep -P 1 -f x)
+kill -9 $(pgrep -f x -P 1)
+pgrep -f x | head -5 | xargs kill
+kill $(pgrep -f 'a -P 1234')
+kill $(pgrep -P 1234) $(pgrep -f x)
+J
+
+printf '\npattern kill (A3): kill -0 sends no signal, so it is allowed\n'
+_pk_cases 0 <<'J'
+kill -0 $(pgrep -f x)
+until ! kill -0 $(pgrep -f x); do sleep 5; done
+kill -0 $(pgrep x)
+kill -0 "$(pgrep -f x)"
+kill -0 `pgrep -f x`
+kill -0 $(pgrep -f x) && echo alive
+! kill -0 $(pgrep -f x)
+while kill -0 $(pgrep -f 'a b') 2>/dev/null; do sleep 1; done
+if kill -0 $(pgrep -f x); then echo up; fi
+J
+
+printf '\npattern kill (A3): and a kill beside it that does send one is still refused\n'
+_pk_cases 2 <<'J'
+kill -0 $(pgrep -f x); kill -9 $(pgrep -f x)
+until ! kill -0 $(pgrep -f x); do kill -9 $(pgrep -f x); done
 J
 
 printf '\npattern kill: text that names a pattern kill is allowed\n'

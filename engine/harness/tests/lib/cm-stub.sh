@@ -68,19 +68,57 @@ JSON
   _stranger_out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; _stranger_rc=$?
 }
 
+# _fsgh_build: the gh and ssh stubs 0190 asks about setup rows with (0190:152-181 made them in the part), in $TMP/fs-gh,
+# and _fs_path, the PATH 0190's commands and _setupproj_build's felix new run with: the stubs, the claude stub, PATH.
+# Sets _fs_gh, _fs_ghlog, _fs_sshlog and _fs_path; makes the directory only when it is not there.
+_fsgh_build() {
+  _cmstub_build
+  _fs_gh="$TMP/fs-gh"; _fs_ghlog="$TMP/fs-gh.log"; _fs_sshlog="$TMP/fs-ssh.log"; _fs_path="$_fs_gh:$CMSTUB:$PATH"
+  [ -x "$_fs_gh/gh" ] && [ -x "$_fs_gh/ssh" ] && return 0
+  mkdir -p "$_fs_gh"; : > "$_fs_ghlog"
+cat > "$_fs_gh/gh" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$_fs_ghlog"
+case "\$*" in
+  *"--repo acme/widget"*) printf 'needs-founder\nANTHROPIC_API_KEY\n'; exit 0 ;;
+esac
+printf 'no git remotes found\n' >&2
+exit 1
+STUB
+chmod +x "$_fs_gh/gh"
+# ssh, for the one question the engine asks it: `ssh -G <host>`, what an ssh
+# alias stands for. The real one reads the person's own ~/.ssh/config, found
+# through the password database rather than $HOME, so no suite HOME can hide
+# it; this one knows a single alias, `work`, standing for github.com, and reads
+# any other host back as itself, which is what ssh -G does for a host nothing
+# configures. It logs its arguments, and refuses anything but -G.
+: > "$_fs_sshlog"
+cat > "$_fs_gh/ssh" <<STUB
+#!/usr/bin/env bash
+printf '%s\n' "\$*" >> "$_fs_sshlog"
+[ "\${1:-}" = "-G" ] || { printf 'stub: only -G\n' >&2; exit 255; }
+for _h in "\$@"; do :; done
+case "\$_h" in
+  work) printf 'user git\nhostname github.com\nport 22\n' ;;
+  *)    printf 'user git\nhostname %s\nport 22\n' "\$_h" ;;
+esac
+STUB
+chmod +x "$_fs_gh/ssh"
+}
+
 # _setupproj_build: setupproj, which 0190 onboards with felix new --no-commission in
 # a checkout with a CI workflow and no remote, and 0710 reads the manifest of. Sets
 # _fs_n (the checkout, physical), _fs_p (the project) and _fs_nrc (felix new's exit
-# status; set only when this call builds). felix new reads no gh or ssh with no remote.
+# status; set only when this call builds). felix new runs with 0190's gh stub directory first on PATH (_fsgh_build), as 0190 does.
 _setupproj_build() {
   _fs_p="$FROOT/projects/setupproj"
   [ -f "$_fs_p/project.json" ] && [ -f "$TMP/fs-new/.felix" ] && { _fs_n="$(cd "$TMP/fs-new" && pwd -P)"; return 0; }
-  _cmstub_build
+  _fsgh_build
   _fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
   ( _fx_cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
   printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
   _fs_n="$(cd "$_fs_n" && pwd -P)"
-  ( cd "$_fs_n" && PATH="$CMSTUB:$PATH" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
+  ( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
 }
 
 # _cmwebapp_build: cmwebapp, a web app with a file named hooks.json, which 0700
@@ -115,7 +153,10 @@ _hookproj_build() {
   _hook_out2="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 }
 
-# _grounded_projects: the projects whose stack.tsv has the grounding column when 0710
-# starts in the serial run: the five this file's builders and _commissioning_build
-# (commissioning.sh) make. 0710 fails when a manifest it finds belongs to none of them.
-_grounded_projects() { printf '%s\n' stranger setupproj cmwebapp hookproj cmstranger; }
+# _grounded_projects: the projects whose stack.tsv has the grounding column when 0710 starts, one a line: its name,
+# a tab, and the function that builds it. 0710 fails when a manifest it finds belongs to none of them, and when one
+# of them has no grounded manifest (contract D, R9, R17).
+_grounded_projects() {
+  printf '%s\t%s\n' cmstranger _commissioning_build cmwebapp _cmwebapp_build hookproj _hookproj_build \
+    setupproj _setupproj_build stranger _stranger_build
+}

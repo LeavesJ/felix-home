@@ -12,3 +12,9 @@ ib	0910-continued.sh
 ib	0920-continued.sh
 ib	0930-continued.sh
 ib	0940-the-handoff-as-sections-no-two-sessions-writ.sh
+# rx: 1100 builds the reach fixture (tests/lib/reach.sh), 1110 takes it up and 1120 takes it up and removes
+# its base, so under -j N they run in one process, in order. Where $TMP's ancestors are writable by others
+# the base is a directory outside $TMP that the fixture guard's roots gain, and 1120 puts them back.
+rx	1100-declared-tools-reach-the-pulse-and-felix-status.sh
+rx	1110-found-after-the-blind-part-status-index-and-long-list.sh
+rx	1120-found-in-review-reach-runs-in-an-empty-directory.sh

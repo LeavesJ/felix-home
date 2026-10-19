@@ -380,6 +380,7 @@ fi
 . "$HERE/parts/1293-gate-friction-d-runner-failures-blind.sh"
 . "$HERE/parts/1294-gate-friction-d-slots-blind.sh"
 . "$HERE/parts/1295-gate-friction-d-shell-blind.sh"
+. "$HERE/parts/1296-gate-friction-d-losses-blind.sh"
 . "$HERE/parts/1300-stuck-pr-page-blind.sh"
 . "$HERE/parts/1310-stuck-pr-page-states-blind.sh"
 . "$HERE/parts/1320-stuck-pr-page-readings-blind.sh"

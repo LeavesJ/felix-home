@@ -1,5 +1,5 @@
 # >>> gate-friction-d-slots-blind
-printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 7)\n'
+printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 8)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -16,7 +16,10 @@ printf '\ngate friction D: slots, the slots directory, the gate and the log (bli
 # Readings taken where the contract leaves room, for the reviewers to confirm:
 # - "A -j 1 run takes none" is read as: it is not held up by a slot another process holds;
 # - the slots directory's refusal line is read as starting "tests/run: the slots directory [" and holding the
-#   phrase R5 names for the failure, and an entry's as "tests/run: [" with "is not a regular file";
+#   phrase R5 names for the failure, and an entry's as "tests/run: [D/NAME] is not a regular file" (R19);
+# - R6's line is read as printed within T + 3 s (5 s) of the end of the parent's prelude, timed in a perl that
+#   waits for the mark the case plants at the end of 0006; the 2 s after a kill -9 is timed in the perl (djk.pl)
+#   that takes the ps listing, from the kill to the start of the first listing that shows a unit;
 # - the wait note is told from the tail's note by R7's shape alone; a case with a manifest of the stubs only has
 #   both, and counts each by its own shape;
 # - the holder's own failure (the parent's lock passed, the holder's did not) is a unit with no mark;
@@ -40,6 +43,38 @@ $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
 alarm $t; waitpid $p, 0;
 exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
 DB4PL
+cat > "$DB4/lag.pl" <<'DB4LAG'
+# lag.pl PREGLOB FILE LINE MAXSEC: waits for a file that PREGLOB matches (at most MAXSEC s), then for FILE to hold a line that is exactly LINE; prints the ms
+# from the first to the second, "none" when the line did not come, "no-prelude" when the first never did.
+use Time::HiRes qw(time sleep);
+my ($g, $f, $l, $m) = @ARGV;
+my $end = time + $m; my $t0;
+while (time < $end) { if (glob($g)) { $t0 = time; last } sleep 0.02 }
+defined $t0 or do { print "no-prelude\n"; exit 0 };
+while (time < $end) {
+  if (open(my $h, "<", $f)) { while (<$h>) { chomp; if ($_ eq $l) { printf "%d\n", (time - $t0) * 1000; exit 0 } } close $h }
+  sleep 0.02;
+}
+print "none\n";
+DB4LAG
+cat > "$DB4/djk.pl" <<'DB4DJK'
+# djk.pl KILLPID MAXMS KEY: kills KILLPID with KILL, takes the time T0, then takes ps listings until one shows a live unit process (a --part process whose command
+# line holds KEY, not perl, not a zombie) or MAXMS ms have passed. Prints "seen MS" (MS: from T0 to the start of that listing) or "none MS".
+use Time::HiRes qw(time sleep);
+my ($kp, $max, $key) = @ARGV;
+kill "KILL", $kp;
+my $t0 = time;
+while (1) {
+  my $t = time;
+  for my $l (split /\n/, `ps -A -ww -o pid= -o stat= -o command= 2>/dev/null`) {
+    next unless $l =~ /^\s*(\d+)\s+(\S+)\s+(\S+)(.*)$/;
+    next if $2 =~ /^Z/ || $1 == $$ || $3 =~ /perl/;
+    printf "seen %d\n", ($t - $t0) * 1000 and exit 0 if index($l, $key) >= 0 && index($l, " --part ") >= 0;
+  }
+  if (($t - $t0) * 1000 > $max) { printf "none %d\n", (time - $t0) * 1000; exit 0 }
+  sleep 0.05;
+}
+DB4DJK
 _db4_until() { local n="$1" i=0; shift; while [ "$i" -lt "$n" ]; do "$@" && return 0; sleep 0.2; i=$((i + 1)); done; "$@"; }
 _db4_cnt() { LC_ALL=C awk -v l="$2" '$0 == l { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # FILE LINE: lines that are exactly LINE
 _db4_pfx() { LC_ALL=C awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # FILE PREFIX: lines that start with it
@@ -115,10 +150,10 @@ _db4_snap() {
     { u[$1] = (index($0, " --part ") && index($0, ENVIRON["K"]) && $3 !~ /^Z/ && $4 !~ /perl/); pp[$1] = $2 }
     END { n = 0; for (p in u) if (u[p] && !((pp[p] in u) && u[pp[p]])) n++; print n }'
 }
-_db4_peak() {   # KEY BGPID...: samples until those jobs have ended; _db4_pk is the most units seen at once
-  local k="$1" m=0 n b alive; shift
-  while :; do
-    alive=0; for b in "$@"; do ! kill -0 "$b" 2>/dev/null || alive=1; done
+_db4_peak() {   # KEY BGPID...: samples until those jobs have ended, or for at most _db4_lim * 7 samples (bounded: a pid taken again would keep kill -0 true); _db4_pk is the most units seen at once
+  local k="$1" m=0 n b alive i=0; shift
+  while [ "$i" -lt $((_db4_lim * 7)) ]; do
+    i=$((i + 1)); alive=0; for b in "$@"; do ! kill -0 "$b" 2>/dev/null || alive=1; done
     [ "$alive" = 1 ] || break
     n="$(_db4_snap "$k")"; [ "${n:-0}" -le "$m" ] || m="$n"
     sleep 0.15
@@ -194,7 +229,7 @@ rm -rf "$DB4/n/snapctl"
 
 # ---- an interrupt while a holder waits, and a slot freed by kill -9 (D6): one slot, held by a process of mine, two parts waiting for it. Slot 0 stays the file I locked
 _db4_hw() {   # CASE MODE: MODE term sends TERM to the parent, MODE free kills my holder with kill -9; _db4_x is the verdict
-  local c="$1" m="$2" r="" t0 t1 i g n0
+  local c="$1" m="$2" r="" t0 g n0
   _db4_q "$c"; _db4_td="$DB4/td-$c"; rm -rf "$_db4_td"; mkdir -p "$_db4_td"
   if ! _db4_new "$c" "$DB4/g-empty.tsv" + "$DB4/pp/$c"/0010-qa.sh "$DB4/pp/$c"/0020-qb.sh; then _db4_x="the copy could not be made"; _db4_td=""; return 0; fi
   _db4_pre; _db4_hold "$_db4_tmp/felix-suite-slots/0"; _db4_ino0="$(_db4_inos "$_db4_tmp")"; n0="$_db4_ino0"
@@ -208,9 +243,11 @@ _db4_hw() {   # CASE MODE: MODE term sends TERM to the parent, MODE free kills m
     [ -z "$(_db4_started)" ] || r="$r a unit started after the parent had exited ($(_db4_started));"
     [ -z "$(_db4_units)" ] || r="$r a unit process ran after the parent had exited;"
   else
-    t0="$(_db4_ms)"; kill -KILL "$_db4_hp" 2>/dev/null; { wait "$_db4_hp"; } 2>/dev/null; _db4_hp=0
-    t1=""; i=0; while [ "$i" -lt 60 ]; do [ -z "$(_db4_units)" ] || { t1="$(_db4_ms)"; break; }; sleep 0.05; i=$((i + 1)); done
-    if [ -z "$t1" ]; then r="$r no unit process within 3 s of the kill -9;"; elif [ $((t1 - t0)) -gt 2000 ]; then r="$r the unit appeared $((t1 - t0)) ms after the kill -9;"; fi
+    t0="$(perl "$DB4/djk.pl" "$_db4_hp" 6000 "$(_db4_key)")"; { wait "$_db4_hp"; } 2>/dev/null; _db4_hp=0
+    case "$t0" in
+      seen*) [ "${t0#seen }" -le 2000 ] || r="$r the unit appeared ${t0#seen } ms after the kill -9, timed in the perl that took the listing;" ;;
+      *) r="$r no unit process within 6 s of the kill -9 ($t0);" ;;
+    esac
     _db4_wait
     [ "$_db4_rc" = 0 ] || r="$r exit $_db4_rc, not 0;"
     [ "$(_db4_rcpt)" = present ] || r="$r no receipt;"
@@ -354,19 +391,21 @@ _db4_rn "R5: the slots directory a symbolic link, whatever it points to, is refu
 _db4_rn "R5: the slots directory at mode 0775, writable by its group, is refused: exit 2 and one line" r5-775 m775 "the slots directory [" "is writable by its group or by others"
 _db4_rn "R5: the slots directory at mode 0757, writable by others, is refused: exit 2 and one line" r5-757 m757 "the slots directory [" "is writable by its group or by others"
 _db4_rn "R5: a regular file where the slots directory should be is refused: exit 2 and one line" r5-file file "the slots directory [" "is not a directory"
-_db4_rn "R5: a directory named .x in the slots directory, a name no slot has, is refused with exit 2 and the entry named" r5-dotx dotx "tests/run: [" "/.x] is not a regular file"
-_db4_rn "R5: a directory named 9 in the slots directory beside FELIX_TEST_SLOTS=2, a name beyond slot K-1, is refused with exit 2 and the entry named" r5-nine nine "tests/run: [" "/9] is not a regular file"
+_db4_rn "R5: a directory named .x in the slots directory, a name no slot has, is refused with exit 2 and the entry named" r5-dotx dotx "[" "/.x] is not a regular file"
+_db4_rn "R5: a directory named 9 in the slots directory beside FELIX_TEST_SLOTS=2, a name beyond slot K-1, is refused with exit 2 and the entry named" r5-nine nine "[" "/9] is not a regular file"
 
 # ---- a wait for a slot is visible while it lasts (R6). One part, one slot held by a perl of mine, FELIX_TEST_SLOT_NOTE=2
-_db4_q nt; _db4_td="$DB4/td-nt"; rm -rf "$_db4_td"; mkdir -p "$_db4_td"; _db4_new nt "$DB4/g-empty.tsv" + "$DB4/pp/nt"/0010-qa.sh
+_db4_q nt; _db4_td="$DB4/td-nt"; rm -rf "$_db4_td"; mkdir -p "$_db4_td"; _db4_new nt "$DB4/g-empty.tsv" + "$DB4/pp/nt"/0010-qa.sh; _db4_pre
 _db4_hold "$_db4_tmp/felix-suite-slots/0"
 _db4_S=1; _db4_E=(FELIX_TEST_SLOT_NOTE=2); _db4_lim=100; _db4_go n -j 2
 _db4_nl='tests/run: 0010-qa.sh has waited 2 s for a slot and goes on waiting'
 _db4_ln() { [ "$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")" -ge 1 ]; }
-_db4_until 250 _db4_ln; _db4_x="$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")"; sleep 3
+_db4_lagv="$(perl "$DB4/lag.pl" "$_db4_c/pre.done.*" "$_db4_c/n.err" "$_db4_nl" 60)"
+_db4_until 25 _db4_ln; _db4_x="$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")"; sleep 3
 _db4_x="$_db4_x $(_db4_cnt "$_db4_c/n.err" "$_db4_nl") [$(_db4_started)] $(_db4_alive "$_db4_hp" && echo held || echo gone)"
 _db4_unhold; _db4_wait; _db4_x="$_db4_x $_db4_rc $(_db4_cnt "$_db4_c/n.err" "$_db4_nl") $(_db4_rcpt)"
 _db4_is "R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 3 s later), nothing has started, and the run passes once the slot is let go" "$_db4_x" "1 1 [] held 0 1 present"
+_db4_is "R6: the line comes within T + 3 s, 5 s, of the end of the parent's prelude, T being 2, timed in a perl that waits for the mark planted at the end of 0006: a read that waited 30 s for it would print it at 30 s" "$([ "$_db4_lagv" -le 5000 ] 2>/dev/null && echo in-time || echo "after [$_db4_lagv] ms")" in-time
 _db4_td=""; rm -rf "$DB4/n/nt" "$DB4/td-nt"
 _db4_q nu; _db4_new nu "$DB4/g-empty.tsv" + "$DB4/pp/nu"/0010-qa.sh
 _db4_E=(FELIX_TEST_SLOT_NOTE=10); _db4_go n -j 2; _db4_wait
@@ -582,7 +621,15 @@ _db4_w fm 0020-fb.sh <<'X'
 ok "djy $DJ4N"
 X
 _db4_new fm "$DB4/g-empty.tsv" + "$DB4/pp/fm"/*.sh; _db4_go f -j 3; _db4_wait
-_db4_is "D3: a line a unit's own EXIT trap prints after the mark is printed as written, once, and no runner line shows" "$(_db4_cnt "$_db4_c/f.out" djy-after-mark) $(grep -c '^@@' "$_db4_c/f.out")" "1 0"
+_db4_fo="$(LC_ALL=C awk '
+  $0 == "djy-after-mark" { a = NR; na++ }
+  $0 == "  ok    djy 0010-fa.sh" { o = NR }
+  $0 == "  FAIL  part left the shell changed for the parts after it: 0010-fa.sh" { f = NR; nf++ }
+  $0 == "  | trap on EXIT changed" { p = NR; np++ }
+  $0 == "djy-sec 0020-fb.sh" { s2 = NR }
+  END { printf "%d %d %d %s %s %s %s", na + 0, nf + 0, np + 0, (o && a > o) ? "after-its-lines" : "order-wrong", (a && f > a) ? "fail-after" : "fail-order-wrong", (f && p == f + 1) ? "detail-next" : "detail-wrong", (p && s2 > p) ? "in-its-place" : "place-wrong" }' "$_db4_c/f.out")"
+_db4_is "R16: a line a unit's own EXIT trap prints after the mark is printed as written, once, after the unit's other lines, with no @@ line; after it come the unit's runner failure 'part left the shell changed for the parts after it' and, next, '  | trap on EXIT changed', before the next unit's section; the run exits 1 and leaves no receipt" \
+   "$_db4_fo $(grep -c '^@@' "$_db4_c/f.out") $_db4_rc $(_db4_rcpt)" "1 1 1 after-its-lines fail-after detail-next in-its-place 0 1 absent"
 rm -rf "$DB4/n/fm"
 
 # ---- the part leaves the shell as it found it

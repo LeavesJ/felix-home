@@ -1794,12 +1794,32 @@ cmd_merge() {
     esac
   done
 
-  # origin/<base> when it exists, and the name as given otherwise. `main` is a
-  # local ref a worktree can never advance, so it goes stale silently and the
-  # comparison is then against whatever the primary checkout last pulled (#74).
-  # Resolved here rather than inside the diff functions so every line this
-  # command prints names the ref it actually used.
-  base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
+  # refs/remotes/origin/<base> when it exists, and the local branch or the
+  # revision as given otherwise. `main` is a local ref a worktree can never
+  # advance, so it goes stale silently and the comparison is then against
+  # whatever the primary checkout last pulled (#74). Resolved here rather than
+  # inside the diff functions so every line this command prints names the ref it
+  # actually used.
+  #
+  # A base that does not resolve is a refusal, not the name as given. Every
+  # other reader of a base may report on a name it cannot resolve, but this one
+  # reads the judge's code, the version that names the judge, and the changed
+  # paths out of it. For `origin/X` with no remote-tracking ref, the name as
+  # given is exactly what a tag or a local branch called origin/X answers to.
+  #
+  # And only a FULL ref name is a base here. felix_base_ref hands back a name as
+  # given (a sha, `main~1`, a tag) when no remote-tracking or local branch
+  # carries it, and an expression such as `main~1` is read by git in its
+  # short-name order, where a tag called main comes first. The report-only
+  # readers can live with that; the command that judges and merges cannot.
+  local given="$base"
+  base="$(felix_base_ref "$root" "$base" 2>/dev/null)" \
+    || _felix_merge_die "$dry" "$proj" "$named" usage "felix: cannot tell which commit '$given' names in this repository (as a remote-tracking branch, a local branch or a revision), so there is no base to merge against. Fetch the remote, or name a base that exists with --base."
+  case "$base" in
+    refs/*) git check-ref-format "$base" >/dev/null 2>&1 \
+              || _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' is an expression that begins with refs/, not a ref name, and felix merge takes only a ref name that exists: git reads an expression such as refs/heads/x~0 through its short-name order, where a tag called refs/heads/x answers first. Name the ref itself with --base." ;;
+    *) _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' resolves here only as given, not as a full ref name, and felix merge judges and merges against a full ref name or not at all, because an expression such as main~1 still reaches git's short-name order. Name a branch that has a remote-tracking ref or a local branch, or a refs/ name, with --base." ;;
+  esac
 
   # Read before anything is verified, and read again immediately before the
   # merge. Every blocker below is a claim about one checkout, and the branch is

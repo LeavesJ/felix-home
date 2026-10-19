@@ -296,10 +296,12 @@ _gc_cl() { case "$1" in *"ADDED-LINES"*"destructive SQL"*) printf 'content-rule'
 # with a value felix already pinned. Its calls are the ones without -C: felix's
 # own diff calls name the repository with -C, and secret-scan reads its working
 # directory. Flags it may gain (--no-color, --no-pager) are allowed for.
+# 2026-10-18, judge refs: felix receipt hands its base on by full name, so the
+# child's diff names refs/heads/main...HEAD here, where the fixture has no origin.
 _gc_scanran() {   # ran, when some recorded call is a diff of main...HEAD with no -C before the diff
   LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { if ($i == "-C") next; if ($i == "diff") break }
                   if (i > NF) next
-                  for (j = i + 1; j <= NF; j++) if ($j == "main...HEAD") { n++; next } }
+                  for (j = i + 1; j <= NF; j++) if ($j == "main...HEAD" || $j == "refs/heads/main...HEAD") { n++; next } }
                 END { if (n) printf "ran"; else printf "no call of its was recorded" }' "$GCH/shim.args"
 }
 : > "$GCH/shim.log"; : > "$GCH/shim.args"

@@ -351,6 +351,8 @@ printf '{ "version": "1.0.0" }\n' > "$L1SG/engine/.claude-plugin/plugin.json"
   && _l1commit -m 'main moves on' && git checkout -q l1-blind-self )
 mkdir -p "$L1KC/1.0.0" "$L1KC/2.0.0"
 cp -R "$FROOT/harness" "$L1KC/1.0.0/harness"; cp -R "$FROOT/harness" "$L1KC/2.0.0/harness"
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+mkdir -p "$L1KC/1.0.0/.claude-plugin"; printf '{ "version": "1.0.0" }\n' > "$L1KC/1.0.0/.claude-plugin/plugin.json"
 L1SGTID="$(_l1rec "$L1SG")"
 
 _l1run "$L1SG" l1-blind-sess-e FELIX_KERNEL="$L1KC/1.0.0/harness" -- --base main

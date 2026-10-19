@@ -33,11 +33,15 @@ is "the fixture really has a base ref behind its remote" \
 # felix_base_ref is what every command should resolve its base through.
 _bref() { ( cd "$STALE" && . "$FROOT/harness/lib/resolve.sh"
             felix_base_ref "$STALE" "$1" 2>/dev/null || printf 'NONE' ); }
-is "a bare branch name prefers the remote-tracking ref" "$(_bref main)" "origin/main"
+# 2026-10-18 (judge refs): felix_base_ref now returns the FULL name of the ref it
+# chose, since the short name origin/main is read by git after tags and local
+# branches any session can plant. The ref chosen is the same.
+is "a bare branch name prefers the remote-tracking ref" "$(_bref main)" "refs/remotes/origin/main"
 # And only when that ref exists. A sha, a HEAD~n, or a purely local branch must
 # be taken exactly as given — rewriting those would invent a base nobody named.
 is "a revision expression is taken as given"  "$(_bref 'HEAD~1')" "HEAD~1"
-is "a local-only branch is taken as given"    "$(_bref feat)"     "feat"
+# 2026-10-18 (judge refs): a branch that lives only here is returned by its full name.
+is "a local-only branch is taken by its full name" "$(_bref feat)"     "refs/heads/feat"
 is "a base that names nothing is refused"     "$(_bref no-such)"  "NONE"
 
 _stale_paths() { ( cd "$STALE" && . "$FROOT/harness/lib/resolve.sh"

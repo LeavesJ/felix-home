@@ -765,8 +765,9 @@ is  "and shows no behind or owed blocker, or a report-only check would be read a
     "$(_lt_blockerish "$_ltout")" ""
 is  "while it adds exactly one would-refuse row to the widget's says.log, or cmd_merge never reaches the report" \
     "$((_ltn1 - _ltn0))" "1"
-has "saying the branch is behind origin/main, or the CLI hands the report a base other than the one it compared" \
-    "$(_lt_said widget | tail -1 | cut -f5)" ": behind: origin/main "
+# 2026-10-18 (judge refs): felix merge hands the report the full name of its base.
+has "saying the branch is behind refs/remotes/origin/main, or the CLI hands the report a base other than the one it compared" \
+    "$(_lt_said widget | tail -1 | cut -f5)" ": behind: refs/remotes/origin/main "
 _ltn0="$(_lt_nsaid widget)"; ( cd "$LT_P" && "$FELIX" merge --base main --dry-run >/dev/null 2>&1 ); _ltn1="$(_lt_nsaid widget)"
 is  "a felix merge --dry-run on the same checkout adds no would-refuse row, or cmd_merge does not tell the report that a dry run is one" \
     "$((_ltn1 - _ltn0))" "0"

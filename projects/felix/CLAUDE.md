@@ -37,6 +37,10 @@ documents change what Felix is, who it is for, or the order it is built in:
 Such a document is shown to the founder and merged only after a yes. Once it
 lands, the founder gives the delivery one word: yes, partial or no.
 
+The current statement of direction is `docs/direction.md`. Where an older
+roadmap, handoff section or memory note disagrees with it, it wins, and a
+change of direction edits it in the same pull request.
+
 Nothing else waits. Engineering, fixes, tables, action items, handoffs, and
 documents that only record what the founder said all merge on green, as
 before. Asking for a yes on any of those is a needless stop, the most common

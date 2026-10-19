@@ -17,7 +17,9 @@ It says what must be true, not how.
   one JSON object; **the context** is the decoded value of its
   `additionalContext`, with `\n` read as a newline.
 - **R**: the root of the repository the working directory is in. The hook
-  finds it as it does today. In a linked worktree it is the worktree's root.
+  finds it as it does today, and spells it as it spells `R/HANDOFF.md` today
+  (physically, so `/private/var` and not `/var` on macOS). In a linked
+  worktree it is the worktree's root.
 - **P**: the governed project's directory in the Felix home, so that the
   constitution is `P/CLAUDE.md`.
 - **D**: the path `R/docs/direction.md`.
@@ -27,7 +29,8 @@ It says what must be true, not how.
 - **Named**: D appears in the context.
 - **Regular**: D exists, is a regular file, and is not a symbolic link; and
   `R/docs` is not a symbolic link either.
-- **The direction line**: exactly this text, as a line of its own:
+- **The direction line**: exactly this text, as a line of its own with no
+  indent:
 
   ```
   docs/direction.md is the standing direction: it wins over older roadmaps, handoff sections and memory notes.

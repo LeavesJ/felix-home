@@ -142,6 +142,17 @@ nothing holds it mechanically.
   direction §5.
 - The corpus spending ceiling: "we'll talk it abt it when that day
   arrives". Asked again only when the corpus is about to run.
-- Who the endgame's novice is: he asked for six sample inputs, from most
-  vague to most detailed, for a founder and for an engineer, and will say
-  which balance fits. His answer is pending.
+- Who the endgame's novice is. Shown a six-level ladder of sample inputs
+  for a founder and for an engineer, he answered: "I think founders L3 and
+  engineers L2 to L3 is not too bad....but we should be ready to
+  dynamically adjust so for founder <L3 we're able to at least to the best
+  of our ability rederive the L3-L6 elements therefore before building ask
+  them some questions (even inspire them) yk...for engineers it's more
+  about reliability and whether not we really one shot what they request
+  for they don't have to come back to thsi so I think L2 makes sense, L1
+  should again be accounted for." He added that concurrency and
+  parallelism matter a lot more to corporate users than to founders, and
+  that the MVP will most likely be at his mother's company, "so just to
+  keep this in mind". Recorded as direction row 28. Felix's reading: for a
+  founder below level 3, the questions come before building, not batched
+  after, which is earlier than intent design §11b recommends.

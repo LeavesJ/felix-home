@@ -17,8 +17,10 @@ document; it is being built on `claude/direction-read-first`). Until then,
 open it as a draft labelled `needs-founder`, or the tick will land it on
 green.
 
-As of: 2026-10-19. Last decision recorded: derived rows may bind without his
-per-row admission, within five bounds, and nothing is armed yet (§4, row 27).
+As of: 2026-10-19. Last decisions recorded: derived rows may bind without his
+per-row admission, within five bounds, with nothing armed yet (§4, row 27);
+and the endgame serves founders at about level 3 of input and engineers at
+about level 2, from one core (row 28).
 
 **How a session uses it.**
 1. Read this file first, then the constitution
@@ -168,6 +170,7 @@ changed, the row states its current form.
 | 25 | 10-19 | "Keep the 09-25 lane: build intake now, and gate capability authority (dispatch, leases, floor) on the trust milestones." | pending 20261019T071844Z |
 | 26 | 10-19 | Felix refuses pattern kills with a deny row (his answer: "Refuse them"). He merges it himself. Nothing holds it mechanically: adding a row to `deny.tsv` fires no escape channel (`lib/escape.sh` treats adding as free). Landing it also changes a commission table (`deny.tsv` is in `FELIX_COMMISSION_TABLES`), so later merges wait until he re-stamps the commission. Open it as a draft labelled `needs-founder`. | carrier state |
 | 27 | 10-19 | Derived rows may bind without his per-row admission (thesis Decision 2(b), intent design §11c, and §11d's task-blocking half). His words: "Yes to derived rows binding without my admission, with your five bounds." The bounds: (1) task scope only, never a release and never an escape channel; (2) witness-backed rows only, never a single model finding (`lib/candidates.sh` keeps refusing that); (3) the row's checker has qualified on seeded mutations; (4) nothing is armed before control 7 and the judge pin (row 25); (5) visibly Felix's: a Felix-authored commit he can tell from his, a person clears a false block with a dated exception, only people loosen, and a row retires after false blocks. Felix uses the grant first for instances of class rules he has admitted; a model-proposed candidate stays advisory until that path has run. | pending 20261019T071844Z |
+| 28 | 10-19 | Two users share one Felix core. **Founders** turn a novel idea into something real; their input should be around level 3 of the 10-19 ladder (the idea plus its stakes: who uses it, how mature, what must never happen, money and time). Below level 3, Felix re-derives the level 3 to 6 elements (stakes, a product brief, an engineering plan, a design contract) as best it can and, before building, asks the founder questions and offers options that may inspire them. **Engineers** want reliability: one shot, so they do not have to come back; their input should be around level 2 (the issue text), and level 1, a one-line wish, must still be handled. Concurrency and parallelism matter more to corporate users than to founders, and the first outside deployment is likely the subcontractor test in §6, so keep that weight in view. His words: "for founder <L3 we're able to at least to the best of our ability rederive the L3-L6 elements therefore before building ask them some questions (even inspire them)"; "for engineers it's more about reliability and whether not we really one shot what they request for they don't have to come back". | pending 20261019T071844Z |
 
 Two things follow from rows 13, 24 and 25 together:
 - Landing with nobody present is governed by row 24, and it is live.
@@ -323,12 +326,10 @@ and not again until he raises it, unless its line names a later moment.
   adaptation. The design is on file (§7). Its §11 asks eight decisions,
   each with a recommended answer. The first is how his words become binding:
   through a terminal command that a session cannot run for him.
-- Who the endgame's novice is: a person who owns the product but is not an
-  engineer, or also someone who will not own or understand the code. The
-  vibe-coding brief (§7) shows that ownership is something Felix cannot
-  supply. Its §12 designs the test that separates the two cases. Asked on
-  10-19 with a six-level ladder of sample inputs, for a founder and for an
-  engineer; he will say which level each should aim for.
+- Whether Felix must also produce engineering for someone who will not own
+  or understand the code. Row 28 names founders and engineers, both owners;
+  the non-owner case was not raised. The vibe-coding brief's §12 designs the
+  test that separates the two. Ask only if a build step reaches it.
 - The interface proposals of 10-09 (data contract first, unknown is not
   zero, no shell before about three surfaces, read-only first, two
   audiences).
@@ -384,7 +385,7 @@ A design here is not a commitment. It becomes a build target in two cases:
 | Design | What it says | Status |
 |---|---|---|
 | `docs/2026-10-18-capability-plane-thesis.md` | The capability plane's charter (v3.2 invariant 4), seven invariants I1-I7, the anti-slop contract, and autonomy as leakage per objective. | Decided parts are row 25 and the lane order. The rest is on file. |
-| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. §11c, and §11d's task-blocking half, are decided by row 27; the rest are open. |
+| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. §11c, and §11d's task-blocking half, are decided by row 27. Row 28 moves §11b's questions before building for a founder below level 3. The rest are open. |
 | `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` | What separates AI-assisted engineering from vibe coding: what the work is held to, not who types it. It sets out a full answer part by part, its limits, the probable partial answer with the measurement that would show it is enough, and what makes the capability plane more than dispatch. | On file. Research, not direction. Its zero-token pre-checks (proxy-conflict signals over transcripts, miss-to-layer classification of coded leakage turns) are candidate lane items. |
 | Reflection triggers (memory, 08-18) | Felix questions its inputs but not its method; it needs enumerated trigger moments. | Open. |
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |

@@ -2,39 +2,61 @@
 # unit of $_sj_units (part 0001) to a process of its own, at most $_suite_jobs at
 # a time, and judges what they leave. The driver calls it once, under -j N, in
 # place of the part lines, which it then reads as no-ops. This part defines
-# functions and variables and runs nothing when sourced, makes no assertion, and
-# is self-contained: it uses nothing of receipt.sh but the one _rcp_mark call
-# that ends a record run whose unit failed. It is not in _suite_preamble.
+# functions and variables, runs nothing when sourced, makes no assertion, and is
+# self-contained: of receipt.sh it uses only _rcp_mark and the bounded
+# _rcp_red_end, where a record run's unit failed (R1). It is not in _suite_preamble.
 #
 # A unit is `bash tests/run --part NAME...` (part mode, 0001) in the directory
 # the parent was started in, with its log, ran file and end file in $TMP/pj.
-# What starts it, from the outside in:
+# From the outside in:
 # - a wrapper, a ( ) subshell in this shell's job table: it closes the FIFO for
-#   what it runs, runs the holder in the foreground, writes "UNIT STATUS" to the
-#   FIFO as one line, and traps TERM (the trap runs once the holder has ended
-#   and exits without writing). The shell's own "Killed" notices go to
-#   /dev/null; the holder and the unit keep the wrapper's stderr.
+#   what it runs, runs the holder in the foreground with stdout and stderr
+#   appended to the unit's log (R4), writes "UNIT STATUS" to the FIFO as one
+#   line, and traps TERM (run once the holder has ended; it exits, writing nothing).
 # - a holder, one perl: it waits for a slot (a flock on a regular file of
-#   ${TMPDIR:-/tmp}/felix-suite-slots, tried in turn, once a second), writes
-#   "SLOT-EPOCH WAIT-FROM-EPOCH" to the file the wrapper names (the second is
-#   when it began to wait: the first again when the first try got a slot, so a
-#   stall of a loaded machine before that try is no wait), forks, and execs the
-#   unit in the child with INT and QUIT as this shell had them and every signal
-#   it changed put back. The slot file is close-on-exec, so the unit holds no
-#   lock; the kernel drops the holder's lock when the holder goes, however.
-#   Its TERM handler exits 143 while it has no child and otherwise returns, and
-#   TERM is blocked across the fork so that no unit is made and then orphaned.
-# This shell reads the FIFO (held open read-write) with read -t 30 and forks
-# nothing while it waits. A wrapper gone without a line is found by kill -0 on a
-# silence and ends its unit as one with no mark.
+#   ${TMPDIR:-/tmp}/felix-suite-slots, tried in turn, once a second) and writes
+#   the slot file the wrapper names, whole each time (R4): line 1 "- -" until it
+#   holds a slot, then "SLOT-EPOCH FIRST-TRY-EPOCH"; line 2 its pid and start
+#   time. It forks and execs the unit in the child with INT and QUIT as this shell
+#   had them and every signal it changed put back. The slot file is close-on-exec,
+#   so the unit holds no lock; the kernel drops the holder's lock when it goes. Its
+#   TERM handler exits 143 while it has no child and otherwise returns, and TERM is
+#   blocked across the fork. It compares its parent's pid with the one it started
+#   with once a second while it waits and while the unit runs (a poll), and before
+#   it forks: when the wrapper is gone it starts no unit, or ends the unit's tree
+#   as R2 says, and exits 2.
+# This shell reads the FIFO (held open read-write) with read -t and forks nothing
+# while it waits. A wrapper gone without a line is found by kill -0 on a silence,
+# ends its unit as one with no mark and has its holder ended (R4). A unit whose
+# holder has had no slot for FELIX_TEST_SLOT_NOTE s (300) is said once on stderr (R6).
 _pj_pl='use Fcntl qw(:flock);
 use POSIX ();
 my ($dir, $k, $ef, $si, $sq, @cmd) = @ARGV;
-my $t0 = time;
-my ($pid, $old) = (undef, $SIG{TERM});
+my ($t0, $pp, $pid, $old, %S) = (time, getppid, undef, $SIG{TERM});
 $SIG{TERM} = sub { exit 143 unless defined $pid };
+my $st = `ps -o lstart= -p $$ 2>/dev/null`;
+$st =~ s/^\s+|\s+$//g;
+sub slot { open(my $o, ">", "$ef.t") or exit 2; print $o "$_[0]\n$$ $st\n"; close $o or exit 2; rename("$ef.t", $ef) or exit 2 }
+sub grow {
+  my ($n, @l, %kid, @q, $a) = (0);
+  while ($n++ < 5) { @l = `ps -A -o pid=,ppid= 2>/dev/null`; last if @l; select(undef, undef, undef, 0.2) if $n < 5 }
+  for (@l) { my ($c, $p) = split; push @{ $kid{$p} }, $c }
+  @q = keys %S;
+  while (@q) { my $p = shift @q; for my $c (@{ $kid{$p} || [] }) { next if $S{$c}++; $a++; push @q, $c } }
+  $a || 0
+}
+sub endtree {
+  %S = ($_[0] => 1); grow();
+  kill TERM => keys %S;
+  for (1 .. 100) { last if waitpid($_[0], POSIX::WNOHANG()) != 0; select(undef, undef, undef, 0.1) }
+  for (1 .. 30) { my $a = grow(); kill STOP => keys %S; last unless $a }
+  kill KILL => keys %S; grow(); kill KILL => keys %S; kill CONT => keys %S;
+  waitpid($_[0], 0);
+}
+slot("- -");
 my ($got, $w);
 SLOT: while (1) {
+  exit 2 if getppid() != $pp;
   for my $i (0 .. $k - 1) {
     open(my $fh, "<", "$dir/$i") or exit 2;
     if (flock($fh, LOCK_EX | LOCK_NB)) { $got = $fh; last SLOT }
@@ -45,9 +67,8 @@ SLOT: while (1) {
   sleep 1;
 }
 my $t1 = time;
-open(my $o, ">", $ef) or exit 2;
-print $o $t1, " ", ($w ? $t0 : $t1), "\n";
-close $o or exit 2;
+slot($t1 . " " . ($w ? $t0 : $t1));
+exit 2 if getppid() != $pp;
 my $set = POSIX::SigSet->new(POSIX::SIGTERM());
 POSIX::sigprocmask(POSIX::SIG_BLOCK(), $set);
 $pid = fork;
@@ -60,8 +81,13 @@ if (!$pid) {
   exit 127;
 }
 POSIX::sigprocmask(POSIX::SIG_UNBLOCK(), $set);
-my $r;
-while (1) { $r = waitpid($pid, 0); last if $r == $pid || ($r < 0 && !$!{EINTR}); }
+my ($r, $last) = (0, time);
+while (1) {
+  $r = waitpid($pid, POSIX::WNOHANG());
+  last if $r != 0;
+  if (time() != $last) { $last = time; if (getppid() != $pp) { endtree($pid); exit 2 } }
+  select(undef, undef, undef, 0.05);
+}
 my $s = $?;
 exit($r == $pid ? (($s & 127) ? 128 + ($s & 127) : $s >> 8) : 2);'
 # How INT and QUIT stand in this shell, read from a foreground child before any
@@ -74,24 +100,27 @@ _pj_lkpl='use Fcntl qw(:flock);
 open(my $h, "<", $ARGV[0]) or exit 3;
 if (flock($h, LOCK_EX | LOCK_NB)) { flock($h, LOCK_UN); exit 0 }
 exit($!{EWOULDBLOCK} ? 0 : 4)'
-# Seed pids on -v seed, "pid ppid" a line on stdin: prints the number of pids
-# added, then the seed pids the listing holds with everything below them.
-_pj_tw='BEGIN { n = split(seed, S, " "); for (j = 1; j <= n; j++) want[S[j]] = 1 }
-{ present[$1] = 1; kid[$2] = kid[$2] " " $1 }
+# The slots directory D, checked by one perl (R5): exit 10 nothing at D, 11 a symbolic link, 12
+# not a directory, 13 not owned by the effective user, 14 writable by group or others, 15 not
+# readable; 16 an entry that is not a regular file (its path is printed): every name but . and ..
+_pj_dpl='my $d = shift; my @s = lstat($d) or exit 10;
+-l _ and exit 11; -d _ or exit 12; $s[4] == $> or exit 13; $s[2] & 022 and exit 14;
+opendir(my $h, $d) or exit 15;
+for (sort readdir $h) { next if /^[.][.]?$/; lstat("$d/$_") and -f _ or do { print "$d/$_"; exit 16 } }'
+# The set of pids a stopper holds (R2), "pid ppid" a line on stdin, the set on -v seed: prints
+# the number of lines read, the number of pids added, then the whole set and everything below it.
+_pj_tw='{ k[$2] = k[$2] " " $1 }
 END {
-  q = ""; for (j = 1; j <= n; j++) if (S[j] in present) q = q " " S[j]
-  out = ""; add = 0
+  q = seed; out = ""; add = 0; n = split(seed, S, " "); for (j = 1; j <= n; j++) want[S[j]] = 1
   while (q != "") {
     m = split(q, A, " "); q = ""
     for (j = 1; j <= m; j++) {
-      p = A[j]
-      if (p == "" || (p in seen)) continue
-      seen[p] = 1; out = out " " p
-      if (!(p in want)) add++
-      q = q kid[p]
+      p = A[j]; if (p == "" || (p in seen)) continue
+      seen[p] = 1; out = out " " p; if (!(p in want)) add++
+      q = q k[p]
     }
   }
-  print add out
+  print NR, add out
 }'
 # One unit's log, as D3 prints it. -v unit, mem (its part files, blank between),
 # efail (the FAIL counter its end file holds, -1 when unknown), rc (the holder's
@@ -157,21 +186,32 @@ _par_cores() {
   [ "$n" -le 64 ] || n=64
   _pj_k="$n"
 }
-# Makes the slot directory and every slot file, then takes and drops one lock;
-# refuses (exit 2, one line) when it cannot, or when a name there is not a
-# regular file, which it never opens. -> _pj_sd and _pj_k.
+# Makes the slots directory (0700, an absolute path: R5), checks it and every name in it, makes
+# every slot file, then takes and drops one lock; refuses (exit 2, one line) when it cannot, and
+# never opens a name that is not a regular file. -> _pj_sd and _pj_k.
 _par_slots() {
-  local d="${TMPDIR:-/tmp}/felix-suite-slots" f i=0
+  local d="${TMPDIR:-/tmp}/felix-suite-slots" f i=0 v e
   if [ -n "${FELIX_TEST_SLOTS+x}" ]; then
     _sj_n "$FELIX_TEST_SLOTS" || _sj_die "FELIX_TEST_SLOTS is [$FELIX_TEST_SLOTS]: it must be a number from 1 to 64 in plain decimal"
     _pj_k="$FELIX_TEST_SLOTS"
   else
     _par_cores
   fi
-  { mkdir -p "$d" && [ -d "$d" ]; } 2>/dev/null || _sj_die "cannot make the slots directory [$d]"
+  case "$d" in /*) ;; *) d="${_og_start%/}/$d" ;; esac
+  [ -e "$d" ] || [ -L "$d" ] || mkdir -p -m 0700 "$d" 2>/dev/null
+  v="$(perl -e "$_pj_dpl" "$d" 2>/dev/null)"; e=$?
+  case "$e" in
+    0) ;;
+    10) _sj_die "the slots directory [$d] cannot be made" ;;
+    11) _sj_die "the slots directory [$d] is a symbolic link" ;;
+    12) _sj_die "the slots directory [$d] is not a directory" ;;
+    13) _sj_die "the slots directory [$d] is not owned by this user" ;;
+    14) _sj_die "the slots directory [$d] is writable by its group or by others" ;;
+    16) _sj_die "[$v] is not a regular file: the slots directory holds slot files and nothing else" ;;
+    *)  _sj_die "the slots directory [$d] cannot be read (perl is needed)" ;;
+  esac
   while [ "$i" -lt "$_pj_k" ]; do
     f="$d/$i"
-    if [ -L "$f" ] || { [ -e "$f" ] && [ ! -f "$f" ]; }; then _sj_die "[$f] is not a regular file: the slots directory holds slot files and nothing else"; fi
     [ -e "$f" ] || : 2>/dev/null >> "$f" || _sj_die "cannot make the slot file [$f]"
     [ -r "$f" ] || _sj_die "cannot open the slot file [$f]"
     i=$((i + 1))
@@ -317,77 +357,127 @@ _par_ev() {
     i=$((i + 1))
   done
 }
-# After 30 s of silence: a wrapper that is gone without a line (killed, say) ends
-# its unit as one with no mark. One more second is given to a line that was
-# written as the wrapper went.
+# The set of pids a stopper holds, _pj_set, gains everything below it in a ps listing; an empty
+# listing is taken again, five tries in all, 0.2 s apart (R2). -> _pj_set, _pj_add.
+_par_grow() {
+  local o="" t=0
+  while [ "$t" -lt 5 ]; do
+    o="$(ps -A -o pid=,ppid= 2>/dev/null | LC_ALL=C awk -v seed="$_pj_set" "$_pj_tw")"
+    t=$((t + 1))
+    case "$o" in "0 "*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+  done
+  case "$o" in [0123456789]*" "[0123456789]*) set -- $o; _pj_add="$2"; shift 2; _pj_set="$*" ;; *) _pj_add=0 ;; esac
+}
+# A stopper (R2) for the roots in _pj_set. The set only grows. TERM to all of it, the roots given
+# up to 10 s, then STOP to all of it while a listing adds a pid (30 times at most), KILL, one more
+# listing, KILL and then CONT to all. The caller ignores or holds its signals around it.
+_par_k() { local p; for p in $_pj_set; do kill -"$1" "$p" 2>/dev/null; done; }
+_par_stop() {
+  local p roots="$_pj_set" n=0 up
+  _par_grow; _par_k TERM
+  while [ "$n" -lt 50 ]; do
+    up=""; for p in $roots; do ! kill -0 "$p" 2>/dev/null || up=1; done
+    [ -n "$up" ] || break
+    sleep 0.2; n=$((n + 1))
+  done
+  n=0
+  while [ "$n" -lt 30 ]; do _par_grow; _par_k STOP; [ "$_pj_add" -gt 0 ] || break; n=$((n + 1)); done
+  _par_k KILL; _par_grow; _par_k KILL; _par_k CONT
+}
+# The signals, armed for the runner; or held, so that the first to come is kept (R2) and acted on
+# once what the parent was doing is done.
+_par_arm()  { trap '_par_sig 130' INT; trap '_par_sig 143' TERM; trap '_par_sig 129' HUP; trap '_par_sig 131' QUIT; }
+_par_hold() { _pj_sq=""; trap '_pj_sq="${_pj_sq:-130}"' INT; trap '_pj_sq="${_pj_sq:-143}"' TERM; trap '_pj_sq="${_pj_sq:-129}"' HUP; trap '_pj_sq="${_pj_sq:-131}"' QUIT; }
+# Unit I's wrapper is gone without a line (R4). Its holder, named by line 2 of the slot file
+# with the start time it had, is ended if that pid still has that start time.
+_par_lost() {
+  local a="" b="" p s
+  { { read -r a; read -r b; } < "$_pj_dir/slot.$1"; } 2>/dev/null
+  p="${b%% *}"; s="${b#* }"
+  case "$p" in ""|*[!0123456789]*) return 0 ;; esac
+  [ -n "$s" ] && [ "$s" != "$b" ] || return 0
+  b="$(ps -o lstart= -p "$p" 2>/dev/null)"; b="${b#"${b%%[! ]*}"}"; b="${b%"${b##*[! ]}"}"
+  [ "$b" = "$s" ] || return 0
+  _par_hold; _pj_set="$p"; _par_stop
+  _par_arm; [ -z "$_pj_sq" ] || _par_sig "$_pj_sq"
+}
+# After a silence (T s, 30 at most): a wrapper that is gone without a line (killed, say) ends
+# its unit as one with no mark. One more second is given to a line that was written as the
+# wrapper went.
 _par_gone() {
   local i=0 g="" l
   while [ "$i" -lt "$_pj_n" ]; do
-    if [ "${_pj_s[$i]}" = 1 ] && ! kill -0 "${_pj_pid[$i]}" 2>/dev/null; then g="$g $i"; fi
+    if [ "${_pj_s[$i]}" = 1 ] && [ -n "${_pj_pid[$i]}" ] && ! kill -0 "${_pj_pid[$i]}" 2>/dev/null; then g="$g $i"; fi
     i=$((i + 1))
   done
   [ -n "$g" ] || return 0
   if read -r -t 1 -u 63 l; then _par_ev "$l"; return 0; fi
-  for i in $g; do _pj_rc[i]=lost; _par_fin "$i"; done
+  for i in $g; do _par_lost "$i"; _pj_rc[i]=lost; _par_fin "$i"; done
 }
-# Starts unit I: a wrapper (see the head of this file) for its holder.
+# R6: a unit whose holder has had no slot for T s since its wrapper started is said once on stderr.
+_par_nt() {
+  local i=0 a
+  while [ "$i" -lt "$_pj_n" ]; do
+    if [ "${_pj_s[$i]}" = 1 ] && [ -z "${_pj_nt[$i]:-}" ] && [ "$((SECONDS - ${_pj_ws[$i]}))" -ge "$_pj_T" ]; then
+      a=""; { read -r a < "$_pj_dir/slot.$i"; } 2>/dev/null
+      case "$a" in ""|"- "*) _pj_nt[i]=1; printf 'tests/run: %s has waited %s s for a slot and goes on waiting\n' "${_pj_nm[$i]}" "$_pj_T" >&2 ;; esac
+    fi
+    i=$((i + 1))
+  done
+}
+# Starts unit I: a wrapper (see the head of this file) for its holder. The unit is marked running
+# with no pid before the fork, and the pid is taken from $! after it (R3), so an ending that comes
+# between sees the wrapper by $! differing from _pj_bg0.
 _par_start() {
   local i="$1" nm="${_pj_nm[$1]}" mb="${_pj_mb[$1]}"
   : > "$_pj_dir/log.$i"
+  _pj_bg0="$!"; _pj_s[i]=1; _pj_pid[i]=""; _pj_ws[i]="$SECONDS"
   (
     trap 'exit 143' TERM
     cd "${_og_start:-.}" || exit 125
-    exec 3>&2 2>/dev/null
+    exec >/dev/null 2>&1
     export FELIX_TEST_PART_LOG="$_pj_dir/log.$i" FELIX_TEST_PART_RAN="$_pj_dir/ran.$i" FELIX_TEST_PART_END="$_pj_dir/end.$i"
     [ "$FELIX_TEST_RECORD" != 1 ] || export FELIX_TEST_PART_RECORD=1
-    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$BASH" "$HERE/run" --part $mb 2>&3 3>&- 63>&-
+    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
     printf '%s %s\n' "$nm" "$?" >&63
   ) &
-  _pj_pid[i]=$!; _pj_s[i]=1
+  _pj_pid[i]=$!
 }
-# The ending (D6): every wrapper still running, with all that runs below it, is
-# asked to end, given up to 10 s, then listed again with everything below every
-# pid held so far (a child moved to pid 1 and what it forked since), stopped, and
-# listed again until a listing adds nothing, then killed; and every wrapper is
-# waited for, so that each unit is reaped before this shell goes. Slots are not
-# touched: each holder's lock goes with it.
+# The ending (D6, R2): every wrapper still running, and the one being forked, with all that
+# runs below it, is ended by the stopper, INT, TERM, HUP and QUIT ignored from the first step;
+# then every wrapper is waited for, so that each unit has been reaped before this shell goes.
+# Slots are not touched: each holder's lock goes with it.
 _par_end() {
-  local i=0 r="" held out add p n=0
+  local bg="$!" i=0 p
+  trap '' INT TERM HUP QUIT
+  _pj_set=""
   while [ "$i" -lt "${_pj_n:-0}" ]; do
-    [ "${_pj_s[$i]:-0}" != 1 ] || r="$r ${_pj_pid[$i]}"
+    if [ "${_pj_s[$i]:-0}" = 1 ]; then
+      if [ -n "${_pj_pid[$i]:-}" ]; then _pj_set="$_pj_set ${_pj_pid[$i]}"
+      elif [ -n "$bg" ] && [ "$bg" != "${_pj_bg0:-}" ]; then _pj_set="$_pj_set $bg"; fi
+    fi
     i=$((i + 1))
   done
-  [ -n "$r" ] || return 0
-  out="$(ps -A -o pid=,ppid= 2>/dev/null | LC_ALL=C awk -v seed="$r" "$_pj_tw")"
-  set -- $out; [ "$#" -eq 0 ] || shift; held="$*"
-  for p in $held $r; do kill -TERM "$p" 2>/dev/null; done
-  while [ "$n" -lt 50 ]; do
-    out=""; for p in $r; do ! kill -0 "$p" 2>/dev/null || out=1; done
-    [ -n "$out" ] || break
-    sleep 0.2; n=$((n + 1))
-  done
-  n=0
-  while [ "$n" -lt 30 ]; do
-    out="$(ps -A -o pid=,ppid= 2>/dev/null | LC_ALL=C awk -v seed="$held" "$_pj_tw")"
-    set -- $out; add="${1:-0}"; [ "$#" -eq 0 ] || shift; held="$*"
-    for p in $held; do kill -STOP "$p" 2>/dev/null; done
-    [ "$add" -gt 0 ] || break
-    n=$((n + 1))
-  done
-  for p in $held $r; do kill -KILL "$p" 2>/dev/null; done
-  for p in $r; do { wait "$p"; } 2>/dev/null; done
+  [ -n "$_pj_set" ] || return 0
+  p="$_pj_set"; _par_stop
+  for i in $p; do { wait "$i"; } 2>/dev/null; done
   i=0
   while [ "$i" -lt "$_pj_n" ]; do [ "${_pj_s[$i]}" != 1 ] || _pj_s[i]=9; i=$((i + 1)); done
 }
-_par_sig() { trap '' INT TERM HUP; _par_end; exit "$1"; }
+_par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
 # The runner. Under -j N the driver calls it after the prelude; it leaves, for
 # 9990, _pj_9fl, _pj_9rf, _pj_9om and _pj_9ob/_pj_9os/_pj_9ok, adds the units'
 # ran files to $FELIX_TEST_RAN and their counts to PASS, FAIL and SKIP, writes
 # the durations (D4), and ends with _par_done=1. A record run with any runner
-# failure writes the mark `failed` and exits 1 here, before 9990 (D4).
+# failure writes the mark `failed`, waits for red up to 60 s (R1) and exits 1 here,
+# before 9990 (D4).
 _par_run() {
   local i p l def
-  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=()
+  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""
+  ( : ) & { wait "$!"; } 2>/dev/null   # $! is set from here on, which _par_start and _par_end read under set -u
+  _pj_T="${FELIX_TEST_SLOT_NOTE-}"
+  case "$_pj_T" in ""|0*|*[!0123456789]*) _pj_T=300 ;; *) [ "${#_pj_T}" -le 6 ] || _pj_T=300 ;; esac
+  _pj_W=30; [ "$_pj_T" -ge 30 ] || _pj_W="$_pj_T"
   _pj_9fl=""; _pj_9rf=""; _pj_9om=""; _pj_9ob=0; _pj_9os=0; _pj_9ok=0
   mkdir -p "$_pj_dir" || _sj_die "cannot make [$_pj_dir]"
   _par_order
@@ -398,7 +488,7 @@ _par_run() {
   mkfifo "$_pj_dir/fifo" 2>/dev/null && { exec 63<> "$_pj_dir/fifo"; } 2>/dev/null || _sj_die "cannot make the FIFO [$_pj_dir/fifo]"
   def="$(declare -f _fx_exit)" && eval "_par_fx_exit0${def#_fx_exit}"
   _fx_exit() { _par_end; _par_fx_exit0 "$@"; }
-  trap '_par_sig 130' INT; trap '_par_sig 143' TERM; trap '_par_sig 129' HUP
+  _par_arm
   while [ "$_pj_pr" -lt "$_pj_n" ]; do
     while [ "$_pj_run" -lt "$_suite_jobs" ] && [ "$_pj_qi" -lt "$_pj_n" ]; do
       _par_start "${_pj_q[$_pj_qi]}"
@@ -406,14 +496,15 @@ _par_run() {
     done
     _par_flush
     [ "$_pj_pr" -lt "$_pj_n" ] || break
-    if read -r -t 30 -u 63 l; then _par_ev "$l"; else _par_gone; fi
+    if read -r -t "$_pj_W" -u 63 l; then _par_ev "$l"; else _par_gone; fi
+    _par_nt
   done
   exec 63>&-
-  trap - INT TERM HUP
   if [ "$_pj_rfn" -gt 0 ] && [ "$FELIX_TEST_RECORD" = 1 ]; then
-    [ -z "${_rcp_red:-}" ] || _rcp_mark failed "$TMP/manifest.mark"
+    [ -z "${_rcp_red:-}" ] || { _rcp_mark failed "$TMP/manifest.mark"; _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" 60; }
     exit 1
   fi
+  trap - INT TERM HUP QUIT
   if [ "$_pj_rfn" -eq 0 ] && [ -n "$_pj_df" ] && [ ! -L "$_pj_df" ] && { [ ! -e "$_pj_df" ] || [ -f "$_pj_df" ]; }; then
     {
       i=0

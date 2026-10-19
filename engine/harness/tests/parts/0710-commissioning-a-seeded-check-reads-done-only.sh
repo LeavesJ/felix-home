@@ -13,7 +13,7 @@ _commissioning_build after-0700
 # The manifests the check below reads (R9): every project the parts before 0710 leave with a
 # stack.tsv that carries the grounding column, which the serial run has and a run of this part alone
 # is handed here. Each builder finds what is already built and does nothing; _grounded_projects names them.
-_stranger_build; _setupproj_build; _cmwebapp_build; _hookproj_build; _router_build routed
+_stranger_build; _setupproj_build; _cmwebapp_build; _hookproj_build
 _admroot="$TMP/nominated"; rm -rf "$_admroot"
 mkdir -p "$_admroot/clean/skills/llm-eval"
 mkdir -p "$_admroot/withmcp/skills/llm-eval"

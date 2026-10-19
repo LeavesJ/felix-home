@@ -10,7 +10,7 @@
 # calls every one of them: _hookproj_build from parts/0060 (HOOKREPO, 396-409),
 # _setupproj_build from parts/0190 (175-181), _cmwebapp_build from parts/0700
 # (520-526). _grounded_projects names what the builders in this file make, and
-# what 0710 makes itself with _commissioning_build (commissioning.sh).
+# cmstranger, which 0710 makes itself with _commissioning_build (commissioning.sh).
 # Definitions only. A builder sets its variables first and does nothing more when
 # its fixture is already there, so in the serial run only the first caller builds.
 
@@ -115,7 +115,7 @@ _hookproj_build() {
   _hook_out2="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
 }
 
-# _grounded_projects: the projects whose stack.tsv has the grounding column that a
-# builder makes for part 0710: this file's, stranger's, cmproj's and cmstranger's
-# (_commissioning_build). 0710 fails when a manifest it finds belongs to none of them.
-_grounded_projects() { printf '%s\n' stranger setupproj cmwebapp hookproj cmproj cmstranger; }
+# _grounded_projects: the projects whose stack.tsv has the grounding column when 0710
+# starts in the serial run: the five this file's builders and _commissioning_build
+# (commissioning.sh) make. 0710 fails when a manifest it finds belongs to none of them.
+_grounded_projects() { printf '%s\n' stranger setupproj cmwebapp hookproj cmstranger; }

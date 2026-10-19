@@ -8,7 +8,11 @@ printf '\nthe suite is a driver and the parts it sources\n'
 # that never runs, and the manifest would only say so after a full record; a
 # part that is not named like the others is skipped by nothing and listed by
 # nobody; a part that grows without a cut is the file this replaced; and a
-# part that does not parse alone was cut inside a construct.
+# part that does not parse alone was cut inside a construct. The driver sources
+# the parts one to a line and not in a loop on purpose: an arithmetic error
+# inside $(( )) in bash 3.2 discards the whole top-level command it sits in, and
+# a loop would make that the rest of the suite. The parts share its shell, in
+# the order of its lines.
 _pt="$HERE/parts"
 is  "every file in parts is sourced by the driver once and in name order, and the driver sources none that is not there" \
     "$(sed -n 's|^\. "\$HERE/parts/\(.*\)"$|\1|p' "$HERE/run")" "$(cd "$_pt" && LC_ALL=C ls | LC_ALL=C sort)"

@@ -17,9 +17,15 @@ is  "inventory A110: no inventory library uses a here-document or here-string, j
        if (s ~ /(^|[;&|(`]|then|do|else)[[:space:]]*claude[[:space:]]/) printf "%s claude; ", substr($0, 1, index($0, ":") - 1) }')" ""
 is  "inventory A111: the host adapter runs no git" \
     "$(_ibmissing)$([ -f "$IBL/inventory-host.sh" ] && _ibcode "$IBL/inventory-host.sh" | LC_ALL=C awk -F: '{ s = $0; sub(/^[^:]*:[^:]*:/, "", s) } s ~ /(^|[;&|(`{]|then|do|else|\$\()[[:space:]]*(command[[:space:]]+)?git[[:space:]]/ { printf "line %s; ", $2 }')" ""
+# Restated 2026-10-18 for the stuck-PR page (step 5), whose spec v2 section 9 says
+# to reuse the inventory's JSON flattener _FI_JSON and epoch function _FI_EPOCH
+# from lib/inventory-gh.sh. Those are parser code, not the inventory's facts, and
+# the page only shows, so the advisory rule this guards still holds. The two page
+# libraries may name inventory-gh.sh and nothing else of the inventory: not
+# inventory.sh, not felix_inventory, not another inventory- file.
 is  "inventory A111: no hook and no other library names the inventory, and felix names felix_inventory only after audit's early arm" \
     "$(_ibmissing)$(for _ibf in "$REAL_HARNESS"/hooks/* "$IBL"/*.sh; do case "${_ibf##*/}" in (inventory*.sh) continue ;; esac
-       [ -f "$_ibf" ] && LC_ALL=C awk -v f="${_ibf##*/}" '/inventory\.sh|inventory-|felix_inventory/ { printf "%s:%d; ", f, FNR; exit }' "$_ibf"; done)$(LC_ALL=C awk '/^[[:space:]]*if \[ "\$\{1:-\}" = "audit" \]/ { a = NR } /felix_inventory/ { if (!a || NR <= a || NR > a + 15) printf "felix:%d; ", NR; n++ } END { if (!n) printf "felix names no felix_inventory" }' "$REAL_HARNESS/felix")" ""
+       [ -f "$_ibf" ] && LC_ALL=C awk -v f="${_ibf##*/}" '{ l = $0; if (f == "pr-status.sh" || f == "pr-status-gh.sh") gsub(/inventory-gh\.sh/, "", l) } l ~ /inventory\.sh|inventory-|felix_inventory/ { printf "%s:%d; ", f, FNR; exit }' "$_ibf"; done)$(LC_ALL=C awk '/^[[:space:]]*if \[ "\$\{1:-\}" = "audit" \]/ { a = NR } /felix_inventory/ { if (!a || NR <= a || NR > a + 15) printf "felix:%d; ", NR; n++ } END { if (!n) printf "felix names no felix_inventory" }' "$REAL_HARNESS/felix")" ""
 _ibnames="elenchus felix-home widget behaviorchangebench"
 for _ibd in "$REAL_HARNESS"/../../projects/*/; do [ -d "$_ibd" ] || continue; _ibn="${_ibd%/}"; _ibn="${_ibn##*/}"; [ "$_ibn" = felix ] || _ibnames="$_ibnames $_ibn"; done
 is  "inventory A112: the inventory libraries name no project" \

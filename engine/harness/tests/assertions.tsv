@@ -120,6 +120,9 @@
 1	A1 (decoys: refs/tags/origin/main) (fixture control): each decoy names the decoy commit
 1	A1 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names
 1	A1 (decoys: refs/tags/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 fixture: b9 and b10 track their own names, and wt7 holds one untracked file (fixture control)
+1	A1 fixture: each carried tip is a proper ancestor of its carrier, the unpushed tip of none, and no case tip is on main (fixture control)
+1	A1 fixture: origin holds every pushed name at its commit, and origin/HEAD is main (fixture control)
 1	A1-A7 (fixture control): the base-ref fixture: in the repository with no remote, main, feat and its decoy are three commits
 1	A1-A7 (fixture control): the base-ref fixture: main, refs/remotes/origin/main and the decoy are three commits, origin/HEAD names origin/main, and HEAD~1 is not origin/HEAD~1
 1	A10 (fixture control): with the cache entry main's engine and no decoy, installed is ok
@@ -219,6 +222,7 @@
 1	A19: two green open pull requests with one headRefName: neither is merged
 1	A1: an entry main's check accepts runs: its felix land --tick is the one tick invoked
 1	A1: and the trampoline writes no deploy-owed row
+1	A1: both inventory runs over ca exit 0 and print rows (control)
 1	A1: each case is named apart from the others in its row
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): and send one notification
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): it exits 1, both runs
@@ -278,6 +282,7 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
 1	A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed
 1	A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install
@@ -408,6 +413,7 @@
 1	A2: a home diverged from origin/main also writes paused
 1	A2: a home diverged from origin/main installs nothing, deploys nothing and merges nothing
 1	A2: a home diverged from origin/main writes one deploy-owed row
+1	A2: both inventory runs over ch exit 0, and each lists a chip (control)
 1	A2: the home is at origin/main after it
 1	A3 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A3 (decoys: all): and what it prints names the commit refs/heads/feat names
@@ -426,6 +432,7 @@
 1	A3 (decoys: refs/tags/feat) (fixture control): each decoy names the decoy commit
 1	A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names
 1	A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
+1	A3 fixture: the s20 starter's first user record is two text items, the first ending in a reminder and a blank line (fixture control)
 1	A30, A6: and neither tick hands it to felix merge
 1	A30, A6: two ticks over the same held 42 write one skip row for it, not two
 1	A30, G4: a held 40 does not stop the tick: green unlabelled 42 after it lands on the same tick, the only felix merge run
@@ -786,6 +793,50 @@
 1	B11: the lookalike checkout never runs felix commission
 1	B11: the none checkout never runs felix commission
 1	B11: the substring checkout never runs felix commission
+1	B12.1: and it reads at least 200 programs, said on its last row
+1	B12.1: on engine/harness/lib/*.sh read together, _awk_names exits 0 and prints no name, unread or open row
+1	B12.2: and every name row it prints is for that copy and RT
+1	B12.2: and one of them stands on the line of that copy's n = ++NG[g]
+1	B12.2: with RTAG written RT in a copy of lib/lost-work.sh, _awk_names over the copies exits 1
+1	B12.3: -v RT=1 is caught on the line of that word
+1	B12.3: ERRNO as an awk variable is caught
+1	B12.3: PROCINFO as an array is caught
+1	B12.3: a function's second argument, passed by its callers: a row on each caller's line
+1	B12.3: a program across lines: the row is on the line the identifier stands on, not the line awk is on
+1	B12.3: a program after ! is caught
+1	B12.3: a program after LC_ALL=C is caught
+1	B12.3: a program after an opening brace is caught
+1	B12.3: a program after if is caught
+1	B12.3: a program after then is caught
+1	B12.3: a program assigned with local is caught on the assignment's line
+1	B12.3: a program in a command substitution in an unquoted here-document body is caught
+1	B12.3: a program in a command substitution inside double quotes is caught
+1	B12.3: a program joined from a variable and a single-quoted part: both parts are read
+1	B12.3: a program under xargs -0 is caught
+1	B12.3: a program variable assigned in another file given in the same call is caught in the file that assigns it
+1	B12.3: a variable assigned from another is followed to the first assignment
+1	B12.3: an inline program: its name row on the identifier's line, exit 1
+1	B12.3: and( as a call is caught
+1	B12.3: every run over a form's fixture ends with its one programs row, a count above 0
+1	B12.3: mktime( as a call is caught
+1	B12.3: or as a parameter name is caught
+1	B12.4: RT as a bash variable outside awk is no name row
+1	B12.4: RTAG, PRT, ORT_ and and_x are no name rows
+1	B12.4: a listed name in a bash comment is no name row
+1	B12.4: a listed name in a printf format is no name row
+1	B12.4: a listed name in a quoted here-document body is no name row
+1	B12.4: a listed name in a sed or grep argument is no name row
+1	B12.4: a listed name in a single-quoted string assigned to a variable no awk command reads is no name row
+1	B12.4: a listed name inside a regular-expression literal is no name row
+1	B12.4: a listed name inside an awk comment is no name row
+1	B12.4: a listed name inside an awk string is no name row
+1	B12.5: $@ as a program is unread, exit 1
+1	B12.5: a file ending inside a here-document is open on the line of its operator, exit 1
+1	B12.5: a file ending inside a single quote is open on the line the quote opened, exit 1
+1	B12.5: a program in a command substitution is unread, on its word's line, exit 1
+1	B12.5: a program variable nothing assigns is unread: prog-g2.sh given without the file that assigns it, exit 1
+1	B12.5: awk -f is unread, exit 1
+1	B12.6: a file with no awk command: exit 1, and programs 0 is its one row
 1	B12: a stale-stamped project in an unowned checkout writes no bg.log line of any kind
 1	B12: a tableless project in an unowned checkout writes no bg.log line of any kind
 1	B12: a ungranted project in an unowned checkout writes no bg.log line of any kind
@@ -821,12 +872,23 @@
 1	B19: the lookalike checkout never runs graphify
 1	B19: the none checkout never runs graphify
 1	B19: the substring checkout never runs graphify
+1	B1: --help and -h print the usage to stdout, naming --log, and exit 0
+1	B1: --live of seven digits: exit 2 and nothing on stdout
+1	B1: --live of seven digits: the usage on stderr names --log
+1	B1: a page option with --every: exit 2 and nothing on stdout
+1	B1: a page option with --every: the usage on stderr names --log
+1	B1: a value the inventory would refuse, --days abc: exit 2 and nothing on stdout
+1	B1: a value the inventory would refuse, --days abc: the usage on stderr names --log
+1	B1: an option missing its value, --repo: exit 2 and nothing on stdout
+1	B1: an option missing its value, --repo: the usage on stderr names --log
 1	B1: and fails against that engine with no claude anywhere on PATH
 1	B1: the block has a positive control besides those two, and it passes
 1	B1: the block's discovery writes nothing fails against an engine whose plain felix discover appends a row to stack.tsv, with a claude on PATH the block did not write
 1	B1: the block's positive control fails when widget declares nothing the discovery rules name, so no catalogue entry can list
 1	B1: the block's two assertions keep their names and pass: discovery writes nothing, there is no --yes
 1	B1: the discovery block runs felix discover only with a claude the suite wrote first on PATH, never one it found there
+1	B1: the line for monitor in felix help names --log
+1	B1: with no --repo the page reads the repository holding the current directory
 1	B2 (a): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
 1	B2 (a): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
 1	B2 (a): an entry whose harness/lib/x.sh differs from main exits 1 and names it
@@ -869,6 +931,8 @@
 1	B23: nor a Not adopted line
 1	B2: an entry that lacks harness/keep.log, which main force-added under *.log, exits 1 and names it
 1	B2: the gh stub part 0900 writes no longer sleeps 30 s unconditionally once it has written its pid
+1	B2: the page ran its sources and opened nothing
+1	B2: the page ran its sources, and every gh api call it caused is a GET
 1	B2: when _ibsig sends the signal the gh stub is still waiting, and the run then leaves no scratch (control)
 1	B3 (control), the negation: an entry that is main plus harness/keep.tmp exits 1 and names it
 1	B3 (control), the negation: an entry that is main plus harness/other.tmp exits 0, that line not printed
@@ -929,9 +993,17 @@
 1	B5 (fixture control): in every moved run the stub moved refs/remotes/origin/jr5 to m2
 1	B5 (fixture control): unmoved, the call runs at least two git commands through the stub, exits 0 and prints the entry for m1's version
 1	B5 (fixture control): with no stub, each commit alone is accepted against its own version's entry
+1	B5: a complete summary's detail is -
+1	B5: a source row's repo cell is its source's own: the main worktree path for the inventory, the slug for land
 1	B5: with refs/remotes/origin/jr5 moved to m2 after any one of the call's git commands, the verdict is one commit's: exit 0 and that commit's entry
 1	B6 (fixture control): with the machine's global config naming an excludes file of *, git in the home ignores engine/harness/jr-x
+1	B6, B8: with no repository read at all, exit 1 and the first line only
+1	B6: a land pr row line is <ref> <states>
+1	B6: an inventory row line is <ref> <states>, then the session's first 8 characters
 1	B6: and an entry equal to main exits 0 and prints the entry
+1	B6: each heading says its count as B4 says it, with the reasons after an incomplete group
+1	B6: the block is headed by the repository's path, then one read line per cover row, the inventory's then land's
+1	B6: the first line says what the page did and did not do, once
 1	B6: under that global config, an entry that is main plus one extra file exits 1 and names it
 1	B7: a call that exits 0 leaves nothing it made behind and reads nothing from stdin
 1	B7: a call that exits 1 leaves nothing it made behind and reads nothing from stdin
@@ -947,12 +1019,152 @@
 1	B8: a repository that holds a submodule is still own when its own origin is the project's
 1	B8: a submodule is not own though its origin is the project's (1 submodule)
 1	B8: a version main declares with nothing installed at it exits 1 with the one line that says so
+1	B8: and --tsv prints nothing and exits 1
+1	B8: and both say B8's line for A on stderr, once each
+1	B8: and under --tsv that line too is B8's, said once
 1	B8: exit 0 prints the entry path, one line, and nothing else
+1	B8: in both two-repository runs the line for A is B8's, said once
+1	B8: that stderr line is felix monitor: <the directory as given>: the page could not be made from its rows (awk exited 2), said once
 1	B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it
+1	B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 16 summaries
+1	B8: when the page's awk prints its rows and then exits 2, the text page is the first line alone and exits 1
 1	B9 (control): a content difference in lib/x.sh exits 1 and names it
 1	B9 (control): an untracked, ignored stray in SRC stays residue: exit 0
 1	B9 (control): and so does one in LIVE: exit 0
 1	B9 (control): felix_deploy_diff on the home's engine and a copy of main's exits 0
+1	B9.10: a branch with its own open PR, inside another PR's head, is pr-open and not carried (control)
+1	B9.11: a branch with one unpushed commit on a carried base is unpushed and not carried (control)
+1	B9.12: carried sits between pr-closed-unlanded and orphan: no row breaks the state order, and some row holds carried
+1	B9.13: a start_session with initiation own_initiative and a task id in its result is a chip: its states, title as detail, proposing session as owner
+1	B9.14: initiation after title and prompt is still a chip; user_asked, offer and proposal_id make none
+1	B9.15: the result's task id is a chip, and a card the result says is still waiting makes no row
+1	B9.16: a proposal whose record holds task nowhere outside its result, in a file naming spawn_task nowhere, is a chip
+1	B9.17: dismiss_task naming a start_session chip's id removes it, while an undismissed one stays
+1	B9.18: a start_session chip 168 hours old or more has the detail element card expired, and a spawn_task chip of the same age none
+1	B9.19: a spawn_task whose result says the permission was denied makes no row
+1	B9.19: a spawn_task with no tool_result in its file is a row whose ref is the tool_use id, states unknown:chip-unstarted
+1	B9.19: its detail is the title, ending no result recorded for the proposal
+1	B9.1: a branch whose tip a pushed branch strictly descends from, no PR anywhere, is carried and not unproposed
+1	B9.1: its detail holds the element carried by origin/carry
+1	B9.1: the carrier's own row, the remote origin/carry, stays unproposed and is not carried (control)
+1	B9.20: a chip whose starter's first user record is the two-item reminder form is started: a row before, none after
+1	B9.20: the same with the reminder not ending in a blank line (control)
+1	B9.21: a start_session chip whose starter's first text is framed by Background and Task is started
+1	B9.22: a prompt shorter than 120 characters, started by a text that goes on after it, is started
+1	B9.23: a custom-title equal to the chip's title, in another file modified after, starts it; the first text is unrelated
+1	B9.23: the same title only in the proposer's own file starts nothing, nor a title one character off, while the exact title does
+1	B9.24: a start_session carrying the chip's id as proposal_id, with a result, starts it
+1	B9.24: the same call with no result in its file does not, while the one with a result does
+1	B9.25: a session whose last assistant text asks, answered in the two-item reminder form, is not question
+1	B9.25: the same session left unanswered is question (control)
+1	B9.26 fixture: lw-carried-q7 is a proper ancestor of #303's head, the shared branch is in two worktrees, and lw-landed-q8 is on main (fixture control)
+1	B9.26: and land's own rows say those owners (control)
+1	B9.26: every row's group is the one B3 gives
+1	B9.26: land's PRs go by owner: #301 pr-founder, #302 pr-session, #303 pr-lander, #304 pr-nobody, #305 pr-unknown
+1	B9.26: the blocked worktree is blocked, the question worktree question
+1	B9.26: the carried branch is carried, the landed branch landed
+1	B9.26: the live worktree with uncommitted work is running
+1	B9.26: the pending handoff section is handoff
+1	B9.26: the shared-branch worktrees are hazard
+1	B9.26: the unproposed branch, the uncommitted worktree and the unstarted chip are never-proposed
+1	B9.27 control: the two sources alone exit 0 and print rows
+1	B9.27: every page row has nine tab-separated columns
+1	B9.27: the page's non-summary rows, first column cut, equal the rows of felix inventory --tsv and felix land --prs --tsv as a multiset
+1	B9.28: and holds no other summary row
+1	B9.28: each summary's content is the number of rows in its group, and its state is the completeness B4 gives
+1	B9.28: the page opens with 16 summary rows, in B5's group order, each with ref the group and owner and age -
+1	B9.29: and blocked's reason names sessions unknown: --no-host
+1	B9.29: the blocked, question and running summaries are incomplete, with content unknown
+1	B9.29: the collapsed line says running unknown
+1	B9.29: the text has one blocked sessions heading, and never blocked sessions: 0
+1	B9.29: the text says blocked sessions: unknown, with the reason
+1	B9.29: under --no-host the page exits 0 and the TSV holds its 16 summaries
+1	B9.2: and its detail names the carrier as #7
+1	B9.2: and under --no-gh the carrier is written origin/carry2
+1	B9.2: under --no-gh it is still carried and keeps unknown:pr-open
+1	B9.2: with an open same-repository PR #7 headed carry2, the branch it holds is carried, not unproposed
+1	B9.30: --no-gh exits 0, with the TSV's 16 summaries
+1	B9.30: under --no-gh every pr- summary is incomplete, with content unknown
+1	B9.30: under --no-gh never-proposed is incomplete and its content is its row count
+1	B9.30: under --no-gh never-proposed's reasons name the prs cover row
+1	B9.30: under --no-gh the text says pull requests waiting on the founder: unknown
+1	B9.30: under --no-gh the text says work that never reached a PR: at least its row count, naming prs
+1	B9.30: under --no-gh the uncommitted worktree is still in never-proposed
+1	B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 16 summaries
+1	B9.31: the page's sources asked the stub for the pull requests, and it failed them
+1	B9.31: with gh failing every pr- summary is incomplete, with content unknown
+1	B9.31: with gh failing never-proposed is incomplete and its content is its row count
+1	B9.31: with gh failing never-proposed's reasons name the prs cover row
+1	B9.31: with gh failing the text says pull requests waiting on the founder: unknown
+1	B9.31: with gh failing the text says work that never reached a PR: at least its row count, naming prs
+1	B9.31: with gh failing the uncommitted worktree is still in never-proposed
+1	B9.32: and pr-founder's reason says 1 pull requests not decided
+1	B9.32: pr-unknown and pr-nobody stay complete while gh was read
+1	B9.32: with one PR in pr-unknown, pr-founder, pr-session and pr-lander are incomplete
+1	B9.33: nor the handoff row
+1	B9.33: the PR waiting on a session is listed and the one waiting on nobody collapsed
+1	B9.33: the collapsed line comes last, after every heading, with the collapsed groups' counts
+1	B9.33: the hazard row is listed, while the running, carried and landed rows appear on no line of the text page
+1	B9.33: the hazard, blocked, question, unproposed, chip and PR rows are each listed once
+1	B9.33: the needs-you headings are all there, in B6's order, under needs you
+1	B9.34: after felix monitor --tsv the repository's refs, index, config, HEAD and object count, the home and the memory root are unchanged
+1	B9.34: and after felix monitor as text
+1	B9.34: gh was asked something, and only pr list and api
+1	B9.34: launchctl was asked, and only print
+1	B9.34: neither run wrote state/monitor.html
+1	B9.34: the page ran its sources, and its scratch directory and theirs are gone when it ends
+1	B9.35: felix monitor --bogus: exit 2 and nothing on stdout
+1	B9.35: felix monitor --bogus: the usage on stderr names --log
+1	B9.35: felix monitor --every 5 implies --log: it renders once, writes the page and exits 0
+1	B9.35: felix monitor --log --tsv: exit 2 and nothing on stdout
+1	B9.35: felix monitor --log --tsv: the usage on stderr names --log
+1	B9.35: felix monitor --log exits 0 and writes state/monitor.html under the home
+1	B9.35: felix monitor --open --repo x: exit 2 and nothing on stdout
+1	B9.35: felix monitor --open --repo x: the usage on stderr names --log
+1	B9.35: no usage run opened anything
+1	B9.36: a --repo naming no repository, then the fixture: exit 1
+1	B9.36: a stderr line names the first
+1	B9.36: and the fixture's block is printed
+1	B9.37: each source row is its source's own, repo cell and all: the rows equal the four source runs' as a multiset
+1	B9.37: every row of the first repository comes before every row of the second
+1	B9.37: the TSV holds 16 summaries for each, the first repository's first
+1	B9.37: the text has two blocks, the first repository's first, under one first line
+1	B9.37: two --repo options exit 0, and the TSV holds 16 summaries for each
+1	B9.38: a repository no project governs: the page exits 0 and prints its 16 summaries
+1	B9.38: and land alone says the same three are unread (control)
+1	B9.38: and land's land, ledger and lander rows are unread
+1	B9.38: with step 5's detail, as land alone prints it
+1	B9.39 control: the inventory alone prints the chip's title with its ESC and BEL bytes
+1	B9.39: the TSV prints ? for the ESC and the BEL of a chip title
+1	B9.39: the chip is on the page, and no ESC or BEL byte reaches either page
+1	B9.39: the text page prints them as ? too
+1	B9.3: a local branch whose tip equals origin/other3's (another name, no upstream) is carried by it
+1	B9.3: two remote rows at one commit carry neither each other: both unproposed, neither carried (control)
+1	B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call
+1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 32 summaries
+1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 16 summaries
+1	B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the real awk otherwise, the first-call stub fails only its first such call, and the late stub prints what the real awk prints and exits 2 (fixture control)
+1	B9.41: a stderr line names A and holds awk exited 2
+1	B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2
+1	B9.41: and a stderr line holds the directory as given and awk exited 2
+1	B9.41: and its stdout is the first line alone
+1	B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk
+1	B9.41: and the TSV is exactly what felix monitor --tsv --repo B prints with the real awk
+1	B9.41: no stderr line names B
+1	B9.41: under --tsv a stderr line names A and holds awk exited 2
+1	B9.41: under --tsv no stderr line names B
+1	B9.41: with the first-call stub, --repo A --repo B exits 1, the stub having failed the page's first order= call
+1	B9.41: with the first-call stub, --tsv --repo A --repo B exits 1, the stub having failed the page's first order= call
+1	B9.41: with the stub, felix monitor --repo A exits 1
+1	B9.41: with the stub, felix monitor --tsv --repo A exits 1 with nothing on stdout
+1	B9.4: a remote row origin/x4 that origin/y4 strictly descends from is carried, and the detail names origin/y4
+1	B9.5: a branch whose tip origin/main reaches is landed, never carried, though every carrier descends from it (control)
+1	B9.6: a detached worktree whose HEAD an open PR's head descends from is carried, by #60
+1	B9.6: under --no-gh the same worktree reads carried by origin/pr6 (A1 detail)
+1	B9.7: a worktree with an uncommitted change on a carried tip reads uncommitted,carried
+1	B9.8: of four outermost carriers, three are named by name and the fourth counted
+1	B9.8: of two carriers, origin/outer8 descending from origin/mid8, only origin/outer8 is named
+1	B9.9: a branch whose newest PR was closed unmerged, and whose tip a carrier reaches, is carried and not pr-closed-unlanded
 1	B9: a content difference in harness/keep.log, tracked and force-added under *.log, exits 1 and names it
 1	B9: a content difference in harness/out, tracked, which out/ names only as a directory, exits 1 and names it
 1	B9: a session start in a submodule runs no felix commission and logs one refused-not-own line, none ran
@@ -8828,6 +9040,27 @@
 1	fields that read as the same number but differ in bytes are named
 1	fifteen are refused, each with a reason
 1	files under .git are not counted
+1	finding 1: and its reason names the prs cover row
+1	finding 1: and the failed listing does not make never-proposed incomplete for the default facet, which was read (control)
+1	finding 1: and the text page says proposed unknown
+1	finding 1: so handoff is incomplete with no rows and says unknown, naming the default cover row
+1	finding 1: the five runs over xb exit 0 and the TSV runs hold 16 summaries (control)
+1	finding 1: the text page says handoff sections unknown, never handoff sections 0
+1	finding 1: the text page says proposed unknown under --no-gh, never proposed 0
+1	finding 1: under --no-gh proposed is incomplete and its content unknown, not 0
+1	finding 1: with gh failing proposed is incomplete and unknown
+1	finding 1: with gh read, proposed is complete and the pending section is one complete handoff row (control)
+1	finding 1: with the pending listing failed the default cover row keeps read and adds unknown:handoff-pending (the control reads read alone)
+1	finding 2 fixture: feat-a, feat-b and feat-c sit at one commit, origin holds the first two there, u tracks origin/w at its tip while origin/u is its parent (fixture control)
+1	finding 2: and so is feat-b
+1	finding 2: feat-a, with its own name pushed at its tip and only feat-b's name at the same commit, is unproposed and not carried
+1	finding 2: feat-c, never pushed under its own name, is carried by an equal tip and not unproposed (control)
+1	finding 2: the page lists both under work that never reached a PR
+1	finding 2: the runs over xc exit 0 (control)
+1	finding 3: under --no-gh a never-pushed branch is still carried and gains no unknown:pr-open (inventory spec 5.1)
+1	finding 5: and says nothing on stderr
+1	finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 16 summaries
+1	finding 6: u, whose upstream origin/w holds its tip while origin/u is older, is not carried by its own upstream
 1	finds a plan the prompt points at
 1	finds plugins
 1	finds the route a capability belongs to
@@ -9373,8 +9606,8 @@
 1	inventory N3: with no record time in the window, the file's time stands in, and the detail says so
 1	inventory N4: an assistant record that puts its message first is read by the role inside it, and a record of another type nesting a message is passed over
 1	inventory N5: and fetched 5h ago for a clone whose FETCH_HEAD is 5h10m old
-1	inventory N7: a branch whose commit sits on another remote branch only holds no state, its content not, so it is not landed
-1	inventory N7: and the view lists it under undecided, content not landed
+1	inventory N7: a branch whose commit sits on another remote branch only is carried, its content not, so it is not landed
+1	inventory N7: and the view lists it under carried
 1	inventory N8: an inventory of a repository that shows signatures runs no gpg
 1	inventory N8: and every one carries -c log.showSignature=false, so a user's showSignature runs no gpg
 1	inventory N8: the fixture: a plain git log in g runs its gpg

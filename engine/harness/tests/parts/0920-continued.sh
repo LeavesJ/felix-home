@@ -265,9 +265,12 @@ is  "inventory A106, A68: a landed branch and an orphan holding nothing unique a
     "$(LC_ALL=C awk '/(^|[^a-z])vland([^a-z]|$)/ { f = 1 } END { print (f ? "listed" : "unlisted") }' "$IB_V") $(case "$(cat "$IB_V")" in (*"$IB/vw/lostv"*) echo listed ;; (*) echo unlisted ;; esac)" "unlisted unlisted"
 is  "inventory A68: that orphan's row counts none of its files, and its content is landed" \
     "$(_ibcol V1 orphan "$IB/vw/lostv" 8 | LC_ALL=C awk '{ print (/^0 of / ? "none" : $0) }') $(_ibcol V1 orphan "$IB/vw/lostv" 7)" "none landed"
-is  "inventory N7: a branch whose commit sits on another remote branch only holds no state, its content not, so it is not landed" \
-    "$(_ibst V1 branch other-ref) $(_ibcol V1 branch other-ref 7)" "- not"
-is  "inventory N7: and the view lists it under undecided, content not landed" "$(_ibgroup "$IB_V" other-ref)" "undecided, content not landed"
+# Step 6 (contract A1): such a branch used to hold no state and sat under
+# "undecided, content not landed"; another pushed branch holding its commit now
+# makes it carried, and the view lists it under that heading.
+is  "inventory N7: a branch whose commit sits on another remote branch only is carried, its content not, so it is not landed" \
+    "$(_ibst V1 branch other-ref) $(_ibcol V1 branch other-ref 7)" "carried not"
+is  "inventory N7: and the view lists it under carried" "$(_ibgroup "$IB_V" other-ref)" "carried"
 _ibrun NV -- inventory --repo "$IB/noorigin" --no-host
 is  "inventory A107: an undecided row with content unknown is counted, not listed" \
     "$(LC_ALL=C awk '/(^|[^a-z])side([^a-z]|$)/ { f = 1 } END { print (f ? "listed" : "unlisted") }' "$(_ibo NV)") $(_ibnb "$(_ibo NV)" | LC_ALL=C awk 'END { sub(/.*nothing decided but unknown /, ""); print ($0 + 0 >= 1 ? "counted" : "uncounted") }')" "unlisted counted"

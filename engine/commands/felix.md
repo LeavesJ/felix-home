@@ -84,7 +84,9 @@ anything yet — find out what is here first, then propose.
 ## What it does whether or not anybody asks
 
 Say this plainly, because most of Felix is not commands anybody types. It binds
-the session and names the constitution and handoff as required reading; it
+the session and names the constitution and handoff as required reading, with
+the repository's `docs/direction.md`, when it has one, first, as the standing
+direction; it
 routes each prompt and mounts the lessons that match; it **refuses** Bash
 commands the project has forbidden, through `PreToolUse`; it records every tool
 call and folds that into a ledger at session end, including a zero for

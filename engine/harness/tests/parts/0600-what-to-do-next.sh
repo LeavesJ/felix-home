@@ -265,7 +265,7 @@ printf '\nthe monitor\n'
 # A hook's additionalContext reaches the model and never the terminal, so every
 # routing decision and every gate verdict happens behind glass. The monitor is
 # the only surface where a person can see what Felix actually did.
-out="$(cd "$REPO" && "$FELIX" monitor 2>&1)"
+out="$(cd "$REPO" && "$FELIX" monitor --log 2>&1)"
 MON="$FROOT/state/monitor.html"
 [ -s "$MON" ] && ok "renders a page" || bad "renders a page" "$out"
 if [ -s "$MON" ]; then
@@ -298,7 +298,7 @@ if [ -s "$MON" ]; then
   # to end the script early and put markup on the page.
   printf '%s\thostile\t9\t{"prompt":"</script\076<img src=x onerror=alert(1)\076"}\n' \
     "2026-01-01T00:00:00Z" >> "$MEM/widget/routes.log"
-  ( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+  ( cd "$REPO" && "$FELIX" monitor --log >/dev/null 2>&1 )
   # The payload survives as inert text — that is fine and even desirable, since
   # the page is for reading what happened. What must not survive is a bracket.
   if grep -q 'u003c/script' "$MON"; then
@@ -513,7 +513,7 @@ _mcwb="$(_mc_fp "$MCWC")"; _mcpb="$(_mc_fp "$MCPG")"; mkdir -p "$MCK"
 { [ -e "$MCWC" ] || [ -L "$MCWC" ]; } && mv "$MCWC" "$MCK/capabilities"
 [ -f "$MCPG" ] && cp -p "$MCPG" "$MCK/monitor.html"
 mkdir "$MCWC"; rm -f "$MCPG"
-( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 ); is "felix monitor with an unread list exits 0" "$?" "0"
+( cd "$REPO" && "$FELIX" monitor --log >/dev/null 2>&1 ); is "felix monitor with an unread list exits 0" "$?" "0"
 [ -s "$MCPG" ] && ok "felix monitor with an unread list writes the page" || bad "felix monitor with an unread list writes the page"
 grep -qF "$MCU" "$MCPG" 2>/dev/null && ok "felix monitor's page says the unread list as not known" \
   || bad "felix monitor's page says the unread list as not known"
@@ -521,7 +521,7 @@ rmdir "$MCWC"; { [ -e "$MCK/capabilities" ] || [ -L "$MCK/capabilities" ]; } && 
 # After review, not blind: the read half through felix monitor, so a felix that
 # reads every list as unread is caught too. Widget's own member, not a grep of
 # the page, which holds whatever other projects this suite left unread.
-( cd "$REPO" && "$FELIX" monitor >/dev/null 2>&1 )
+( cd "$REPO" && "$FELIX" monitor --log >/dev/null 2>&1 )
 _mcwr="$(_mc_f "$(_mc_page page "$MCPG" widget)" caps | tr ';' '\n' | sed -n 's/^widget=//p')"
 case "$_mcwr" in '['*) _mcwr="an array" ;; esac
 _mc_is "and felix monitor says widget's list as read once it is put back" "$_mcwr" "an array"

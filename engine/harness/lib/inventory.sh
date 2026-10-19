@@ -59,6 +59,13 @@
 # reads its HEAD's reflog; and a branch never pushed heads no PR, so under
 # --no-gh its PR states are no.
 #
+# Carried (step 6): a worktree, branch or remote row whose tip's content is not
+# landed, that holds no open PR, and whose tip another pushed branch (a
+# refs/remotes/origin ref but origin/HEAD, the default branch and its own name
+# on origin) already holds, is carried, not unproposed or pr-closed-unlanded;
+# git alone decides it, so --no-gh keeps it. lib/inventory-items.sh (_fi_carry)
+# reads the carriers with one for-each-ref --contains and names the outermost.
+#
 # A worktree git lists is read only when git, asked there, names that
 # directory as the top of a working tree of this repository: a directory
 # whose .git file is gone would otherwise be read as the checkout enclosing
@@ -68,7 +75,7 @@
 # the loop only reads fields: a lookup in a bash string of a few thousand
 # refs costs seconds a time on bash 3.2, and a fork per helper, minutes.
 
-_FI_ORDER='hazard:shared-branch hazard:staged-revert live question blocked uncommitted unpushed unproposed pr-open pr-closed-unlanded orphan chip-unstarted handoff-pending'
+_FI_ORDER='hazard:shared-branch hazard:staged-revert live question blocked uncommitted unpushed unproposed pr-open pr-closed-unlanded carried orphan chip-unstarted handoff-pending'
 _FI_TAB=$'\t'
 _FI_NL=$'\n'
 _FI_PENDING="docs/handoff/pending"   # the layout lib/handoff.sh writes
@@ -218,7 +225,7 @@ _fi_cover() {
   if [ -n "$_FI_DEF" ]; then s=read; d="$_FI_DEF @ ${_FI_DEFSHA:0:8}; $(_fi_fetched)"
   else s="unknown,unknown:uncommitted,unknown:unpushed,unknown:unproposed,unknown:pr-closed-unlanded"
        d="no origin/HEAD, origin/main or origin/master whose tree this clone holds"; fi
-  [ "$_FI_PENDFAIL" = 0 ] || d="$d; handoff sections not read"
+  [ "$_FI_PENDFAIL" = 0 ] || { d="$d; handoff sections not read"; s="$s,unknown:handoff-pending"; }
   _fi_row cover default "$s" - - - "$d" - -
   if [ "$_FI_GHOK" = 0 ]; then s="unknown,unknown:pr-open,unknown:unproposed,unknown:pr-closed-unlanded"; d="$_FI_GHSTATE"
   elif [ "$_FI_GHTRUNC" = 1 ]; then s="partial,unknown:unproposed"; d="$_FI_GHCMD: $_FI_GHN PRs, gh's limit: older PRs are not seen"
@@ -360,6 +367,10 @@ _fi_host() {
 # remote-tracking ref or -, class, open PRs or -, newest PR number and state or -,
 # and the upstream whose remote-tracking ref is gone, or -.
 _fi_branch() {
+  _fi_branch0 "$@"
+  _fi_carry "$1" "$3" "$2"
+}
+_fi_branch0() {
   local tip="$1" br="$2" rr="$3" cl="$4" op="$5" num="$6" st="$7" gn="${8:--}" n hp=0
   _FI_UNP=no; _FI_UNPROP=no; _FI_PRO=no; _FI_PRC=no
   [ "$br" = - ] || [ "$br" = "${_FI_DEF#origin/}" ] || [ "$num" = - ] || hp=1
@@ -373,6 +384,7 @@ _fi_branch() {
   esac
   # A pruned upstream leaves no remote copy of the branch: it counts as not pushed.
   [ "$gn" = - ] || [ "$_FI_LV" = landed ] || _fi_add "upstream $gn is gone"
+  _FI_DETP="$_FI_DET"   # what _fi_carry keeps when another pushed branch holds the tip
   [ "$br" != - ] && [ "$br" != "${_FI_DEF#origin/}" ] || return 0   # the default branch heads no PR
   if [ "$_FI_GHOK" = 0 ]; then
     [ "$rr" != - ] || return 0
@@ -416,7 +428,7 @@ _fi_item() {
         _fi_states "$_FI_LV" live=$lv pr-open=yes ;;
     *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"
        [ "$k" != remote ] || _FI_PRO=no
-       _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC ;;
+       _fi_states "$_FI_LV" unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC carried=$_FI_CAR ;;
   esac
   _fi_sig; _fi_age "$dt"; _fi_row "$k" "$ref" "$_FI_S" "$own" "$_FI_A" "$_FI_LV" "$_FI_DET" "$_FI_SIG" "$br"
 }

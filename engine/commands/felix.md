@@ -29,8 +29,11 @@ Felix is already working here. Report, briefly and in plain language:
   the memory root's `commission/requests/` a session has not yet answered.
   If any are awaiting, run the skill each names and write the answer file it
   names; that is the one thing here only a session can do
-- `felix monitor --open` — offer it, do not run it unasked; it is a page showing
-  every routing decision and gate verdict, which is otherwise unobservable
+- `felix monitor` — the lost-work page: what needs the founder first (hazards,
+  blocked sessions, open questions, work that never reached a PR, pull requests
+  by who has to act), read-only; it is safe to run. `felix monitor --log --open`
+  — offer it, do not run it unasked; it is a page showing every routing
+  decision and gate verdict, which is otherwise unobservable
 - `felix overnight` — whether a night is running. If one is, its standing
   direction is already in this session's context and needs no repeating: keep
   working rather than stopping to report, and write down anything that needs

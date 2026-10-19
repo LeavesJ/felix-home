@@ -97,6 +97,36 @@
 1	.lsp.json at the root is medium
 1	/ itself: claude was not run
 1	/ itself: the list is unread, with the sentence that says why
+1	A1 (decoys: all) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: all): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: none): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: none): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/heads/origin/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/heads/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/origin/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/remotes/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/remotes/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/tags/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/tags/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/tags/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 (decoys: refs/tags/origin/main) (fixture control): each decoy names the decoy commit
+1	A1 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A1 (decoys: refs/tags/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1-A7 (fixture control): the base-ref fixture: in the repository with no remote, main, feat and its decoy are three commits
+1	A1-A7 (fixture control): the base-ref fixture: main, refs/remotes/origin/main and the decoy are three commits, origin/HEAD names origin/main, and HEAD~1 is not origin/HEAD~1
+1	A10 (fixture control): with the cache entry main's engine and no decoy, installed is ok
+1	A10 (no decoy) (fixture control): with the cache entry one comment off main's engine, installed fails
+1	A10 (refs/heads/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it
+1	A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry main's engine, installed is ok, and nothing the decoy prints reaches it
+1	A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it
 1	A10: a deploy owed is written once and notified once over two identical ticks
 1	A10: a failing fetch is written once and notified once over two identical ticks
 1	A10: a tick that cannot resolve its project sends a notification
@@ -106,10 +136,44 @@
 1	A10: and writes a row
 1	A10: and writes one row into the ledger written into it, over two identical runs
 1	A10: gh auth status failing is written once and notified once over two identical ticks
+1	A11 (decoys: none): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
+1	A11 (decoys: refs/heads/origin/main) (fixture control): git's own short name origin/main now names the decoy
+1	A11 (decoys: refs/heads/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
+1	A11 (decoys: refs/tags/origin/main) (fixture control): git's own short name origin/main now names the decoy
+1	A11 (decoys: refs/tags/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
 1	A11: a tick that deploys, and verifies, merges nothing though a green candidate waits
 1	A11: a tick whose deploy ends deployed-unverified merges nothing
 1	A11: the next tick merges it
 1	A11: with the engine just deployed
+1	A12 (1, decoys: refs/heads/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/jr12 names the decoy
+1	A12 (1, decoys: refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs
+1	A12 (1, decoys: refs/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/jr12 names the decoy
+1	A12 (1, decoys: refs/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs
+1	A12 (1, decoys: refs/remotes/origin/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/origin/jr12 names the decoy
+1	A12 (1, decoys: refs/remotes/origin/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs
+1	A12 (1, decoys: refs/tags/origin/jr12 refs/heads/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/jr12 names the decoy
+1	A12 (1, decoys: refs/tags/origin/jr12 refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs
+1	A12 (1, decoys: refs/tags/origin/jr12) (fixture control): there is no refs/remotes/origin/jr12, and git's own origin/jr12 names the decoy
+1	A12 (1, decoys: refs/tags/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs
+1	A12 (2) (fixture control): none of those names a commit
+1	A12 (2): felix merge --dry-run --base jr12-nowhere, which names nothing, refuses and no judge accepts
+1	A12 (2): felix merge --dry-run --base origin/jr12-nowhere, which names nothing, refuses and no judge accepts
+1	A12 (2): felix merge --dry-run --base refs/heads/jr12-nowhere, which names nothing, refuses and no judge accepts
+1	A12 (2): felix merge --dry-run --base refs/remotes/origin/jr12-nowhere, which names nothing, refuses and no judge accepts
+1	A12 (3): felix merge --dry-run --base <main's own sha> refuses, saying it needs a full ref name
+1	A12 (3): felix merge --dry-run --base HEAD~1, which is main's commit, refuses, saying it needs a full ref name
+1	A12 (3, no decoy): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name
+1	A12 (3, refs/tags/main at d2) (fixture control): git's own main~1 is the decoy d1, not main's m0
+1	A12 (3, refs/tags/main at d2): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name, and the decoy's resolve.sh never runs
+1	A12 (4, control): after the decoys are gone, --base main passes the judge again
+1	A12 (4, control): with --base main and refs/remotes/origin/main present, the dry run passes the judge as before
+1	A12 (4, control): with --base main and the cache entry one comment off, the dry run refuses for the judge as before
+1	A12 (4, control): with --base origin/main, the dry run passes the judge as before
+1	A12 (4, control): with --base refs/remotes/origin/main, the dry run passes the judge as before
+1	A12 (4, control): with the default base and the cache entry main's engine, the dry run passes the judge as before
+1	A12 (4, control): with the default base and the cache entry one comment off, the dry run refuses for the judge as before
+1	A12 (fixture control): m0, m1 (main and refs/remotes/origin/main), the prose branch checked out, and the decoy d1 off m1 with its child d2
+1	A12 (fixture control): the decoy's resolve.sh, sourced on its own, prints the entry, exits 0 and leaves its line
 1	A12: a green pull request into release, not main, gets one skip row and is not merged
 1	A12: and the skip row names the base
 1	A12: the tick asks gh pr list for baseRefName
@@ -135,8 +199,8 @@
 1	A17: given a refs/ name that does not resolve, it tries nothing else: origin/refs/heads/absent resolves, and it still fails, printing nothing
 1	A17: given a refs/ name that resolves to a tree, not a commit, it fails, printing nothing
 1	A17: given a short name that resolves neither way, it fails, as before
-1	A17: given main, with no origin/main, it returns main, as before
-1	A17: given main, with origin/main there, it returns origin/main, as before
+1	A17: given main, with no origin/main, it returns refs/heads/main
+1	A17: given main, with origin/main there, it returns refs/remotes/origin/main
 1	A17: given refs/heads/main it returns it as it is
 1	A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: the tick finds the deploy owed: one deploy-owed row, nothing installed, nothing merged
 1	A17: with a tag and a branch named origin/refs/remotes/origin/main at the decoy: the trampoline runs no felix land --tick, from that entry or any
@@ -186,6 +250,34 @@
 1	A1: with origin/main's version unreadable: the row names the case
 1	A1: with origin/main's version unreadable: the trampoline runs no felix land --tick, from any cache entry or tree
 1	A1: with origin/main's version unreadable: two runs write one deploy-owed row
+1	A2 (decoys: all) (fixture control): each decoy names the decoy commit
+1	A2 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: all): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (decoys: none): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: none): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (decoys: refs/heads/origin/main) (fixture control): each decoy names the decoy commit
+1	A2 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: refs/heads/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (decoys: refs/origin/main) (fixture control): each decoy names the decoy commit
+1	A2 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: refs/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (decoys: refs/remotes/origin/origin/main) (fixture control): each decoy names the decoy commit
+1	A2 (decoys: refs/remotes/origin/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: refs/remotes/origin/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (decoys: refs/tags/origin/main) (fixture control): each decoy names the decoy commit
+1	A2 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A2 (decoys: refs/tags/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A2 (no refs/remotes/origin/jr-gone, decoys: all) (fixture control): each decoy names the decoy commit
+1	A2 (no refs/remotes/origin/jr-gone, decoys: all): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 (no refs/remotes/origin/jr-gone, decoys: none): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/heads/origin/jr-gone) (fixture control): each decoy names the decoy commit
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/heads/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/origin/jr-gone) (fixture control): each decoy names the decoy commit
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone) (fixture control): each decoy names the decoy commit
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
+1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2, A4: the tick fetched, and pulled the home
 1	A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed
 1	A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install
@@ -317,6 +409,23 @@
 1	A2: a home diverged from origin/main installs nothing, deploys nothing and merges nothing
 1	A2: a home diverged from origin/main writes one deploy-owed row
 1	A2: the home is at origin/main after it
+1	A3 (decoys: all) (fixture control): each decoy names the decoy commit
+1	A3 (decoys: all): and what it prints names the commit refs/heads/feat names
+1	A3 (decoys: all): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
+1	A3 (decoys: none): and what it prints names the commit refs/heads/feat names
+1	A3 (decoys: none): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
+1	A3 (decoys: refs/feat) (fixture control): each decoy names the decoy commit
+1	A3 (decoys: refs/feat): and what it prints names the commit refs/heads/feat names
+1	A3 (decoys: refs/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
+1	A3 (decoys: refs/remotes/feat) (fixture control): each decoy names the decoy commit
+1	A3 (decoys: refs/remotes/feat): and what it prints names the commit refs/heads/feat names
+1	A3 (decoys: refs/remotes/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
+1	A3 (decoys: refs/remotes/main) (fixture control): each decoy names the decoy commit
+1	A3 (decoys: refs/remotes/main): and what it prints names the commit refs/heads/main names
+1	A3 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/heads/main and exits 0
+1	A3 (decoys: refs/tags/feat) (fixture control): each decoy names the decoy commit
+1	A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names
+1	A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
 1	A30, A6: and neither tick hands it to felix merge
 1	A30, A6: two ticks over the same held 42 write one skip row for it, not two
 1	A30, G4: a held 40 does not stop the tick: green unlabelled 42 after it lands on the same tick, the only felix merge run
@@ -526,6 +635,16 @@
 1	A3: a pull request touching projects/lgh/claude.md is held with one founder row and not merged
 1	A3: a pull request whose file list cannot be read gets one skip row and is not merged
 1	A3: and the skip row says the files could not be read
+1	A4 (a branch with a revision suffix, with refs/remotes/origin/main present): and what it prints names the commit main~1 names
+1	A4 (a branch with a revision suffix, with refs/remotes/origin/main present): felix_base_ref given main~1 prints exactly main~1 and exits 0
+1	A4 (a commit by its sha): and what it prints names the commit its sha names
+1	A4 (a commit by its sha): felix_base_ref given its sha prints exactly its sha and exits 0
+1	A4 (a name that resolves nowhere): felix_base_ref given jr-nope prints nothing and exits non-zero
+1	A4 (a revision suffix, with refs/remotes/origin/HEAD present): and what it prints names the commit HEAD~1 names
+1	A4 (a revision suffix, with refs/remotes/origin/HEAD present): felix_base_ref given HEAD~1 prints exactly HEAD~1 and exits 0
+1	A4 (a tag by its name): and what it prints names the commit v1 names
+1	A4 (a tag by its name): felix_base_ref given v1 prints exactly v1 and exits 0
+1	A4 (a tree by its sha): felix_base_ref given its sha prints nothing and exits non-zero
 1	A4: a live lock older than 45 minutes gives one stuck row and one notification over two ticks, and its holder is not signalled
 1	A4: a tick finding a live lock younger than 45 minutes writes no stuck row
 1	A4: a tick whose process group gets TERM, as the watchdog sends it, writes one timeout row
@@ -534,19 +653,50 @@
 1	A4: and sends one notification for it
 1	A4: every git fetch and git pull runs with GIT_TERMINAL_PROMPT=0, GIT_HTTP_LOW_SPEED_LIMIT=1000 and GIT_HTTP_LOW_SPEED_TIME=60
 1	A4: the watchdog sends TERM after 30 minutes
+1	A5 (a refs/ name that names a tree): felix_base_ref given refs/tags/jr-tree prints nothing and exits non-zero
+1	A5 (a refs/ name that names nothing, origin/refs/heads/jr-absent there) (fixture control): each decoy names the decoy commit
+1	A5 (a refs/ name that names nothing, origin/refs/heads/jr-absent there): felix_base_ref given refs/heads/jr-absent prints nothing and exits non-zero
+1	A5 (every decoy for origin/main in place) (fixture control): each decoy names the decoy commit
+1	A5 (every decoy for origin/main in place): and what it prints names the commit refs/remotes/origin/main names
+1	A5 (every decoy for origin/main in place): felix_base_ref given refs/remotes/origin/main prints exactly refs/remotes/origin/main and exits 0
+1	A5 (refs/heads/main): and what it prints names the commit refs/heads/main names
+1	A5 (refs/heads/main): felix_base_ref given refs/heads/main prints exactly refs/heads/main and exits 0
 1	A5: a lock whose pid is live and whose started is absent is not taken: the tick asks gh nothing
 1	A5: a lock whose pid is live and whose started is empty is not taken: the tick asks gh nothing
 2	A5: and its holder is not signalled
 2	A5: and that lock is left as it was
 1	A5: and the lock is released after the race
 1	A5: two ticks racing one dead lock leave exactly one taker, in each of five rounds
+1	A6 (with a local main only): and what it prints names the commit refs/heads/main names
+1	A6 (with a local main only): felix_base_ref given an empty name prints exactly refs/heads/main and exits 0
+1	A6 (with refs/remotes/origin/main): and what it prints names the commit refs/remotes/origin/main names
+1	A6 (with refs/remotes/origin/main): felix_base_ref given an empty name prints exactly refs/remotes/origin/main and exits 0
 1	A6: a refusal whose detail changed writes one new refused row and one new notification
+1	A6: an empty ROOT, called from inside a repository that has refs/remotes/origin/main, exits non-zero and prints nothing
 1	A6: and one notification each for the founder and the refused row
+1	A6: and so it does from inside a repository with a local main only
 1	A6: one refused row for a refused one
 1	A6: one session row for one no checkout holds
 1	A6: two identical ticks write one founder row for a held pull request
+1	A7 (fixture control): at least one felix_base_ref definition was found under engine/harness, and each one cut out parses on its own
+1	A7 (fixture control): loading the libraries felix sources at its top level, in its order, includes lib/resolve.sh and defines felix_base_ref
 1	A7: and writes no paused file
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A1
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A2
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A3
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A4
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A5
+1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A6
 1	A7: felix land --pause with two reasons prints usage and exits 2
+1	A8 (decoys: none): and so does felix_kernel_dir given no name
+1	A8 (decoys: none): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
+1	A8 (decoys: refs/heads/origin/main): and so does felix_kernel_dir given no name
+1	A8 (decoys: refs/heads/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
+1	A8 (decoys: refs/origin/main): and so does felix_kernel_dir given no name
+1	A8 (decoys: refs/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
+1	A8 (decoys: refs/tags/origin/main): and so does felix_kernel_dir given no name
+1	A8 (decoys: refs/tags/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
+1	A8 (fixture control): refs/remotes/origin/main declares 1.0.0, the decoy 6.6.6, and the cache holds an entry for each
 1	A8: with a local branch named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs
 1	A8: with a local branch named origin/main, nothing is paused
 1	A8: with a local branch named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
@@ -557,12 +707,67 @@
 1	A8: with a tag named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
 1	A8: with a tag named origin/main, the trampoline runs main's accepted entry, not the one the short name declares
 1	A8: with a tag named origin/main, the trampoline writes no deploy-owed row
+1	A9 (fixture control): the decoy commit's resolve.sh defines a felix_accepted_deploy_diff that prints the entry and exits 0
+1	A9 (fixture control): with the cache entry main's engine and no decoy, the dry run passes the judge: it says the judge is byte-identical to main
+1	A9 (no decoy) (fixture control): with the cache entry one comment off main's engine, felix merge --dry-run refuses: the judge is not the engine main accepted
+1	A9 (refs/heads/origin/main at the decoy) (fixture control): git's own short name origin/main names the decoy
+1	A9 (refs/heads/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted
+1	A9 (refs/tags/origin/main at the decoy) (fixture control): git's own short name origin/main names the decoy
+1	A9 (refs/tags/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted
 1	A9: a plain ASCII docs/notes.md still merges
 1	A9: a pull request whose changed path holds U+017F (projectſ/lgh/CLAUDE.md) gets one founder row and is not merged
 1	A9: a pull request whose changed path holds a byte >= 0x80 (notes/café.md) gets one founder row and is not merged
 1	A9: a pull request whose changed path holds a byte >= 0x80 only in its old name, renamed away gets one founder row and is not merged
 1	A9: a pull request whose changed path holds a newline gets one founder row and is not merged
 1	A9: a pull request whose changed path holds a tab gets one founder row and is not merged
+1	B1 (a) (fixture control): git in the home now ignores engine/hooks/jr-x
+1	B1 (a): an entry equal to main exits 0 and prints the entry
+1	B1 (a): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (a): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (a): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (b) (fixture control): git in the home now ignores engine/commands/jr-x
+1	B1 (b): an entry equal to main exits 0 and prints the entry
+1	B1 (b): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (b): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (b): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (c) (fixture control): git in the home now ignores engine/harness/jr-x
+1	B1 (c): an entry equal to main exits 0 and prints the entry
+1	B1 (c): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (c): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (c): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (d) (fixture control): git in the home now ignores engine/hooks/jr-x
+1	B1 (d): an entry equal to main exits 0 and prints the entry
+1	B1 (d): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (d): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (d): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (e) (fixture control): git in the home now ignores engine/hooks/jr-x
+1	B1 (e): an entry equal to main exits 0 and prints the entry
+1	B1 (e): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (e): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (e): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (f) (fixture control): the home is on a branch whose .gitignore ignores engine/hooks/jr-x
+1	B1 (f): an entry equal to main exits 0 and prints the entry
+1	B1 (f): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (f): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (f): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (g) (fixture control): git in the home now ignores engine/hooks/jr-x
+1	B1 (g): an entry equal to main exits 0 and prints the entry
+1	B1 (g): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (g): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (g): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (h) (fixture control): the root .gitignore is gone from the working tree, and git there ignores nothing of main's
+1	B1 (h): an entry equal to main exits 0 and prints the entry
+1	B1 (h): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (h): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (h): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1 (no variant): an entry equal to main exits 0 and prints the entry
+1	B1 (no variant): an entry that is main plus one extra file under commands/ exits 1, and the line names that file
+1	B1 (no variant): an entry that is main plus one extra file under harness/ exits 1, and the line names that file
+1	B1 (no variant): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file
+1	B1-B4, B9 (fixture control): the residue fixture: every variant is undone, and the home is on main with nothing to report
+1	B1-B4, B9 (fixture control): the residue fixture: main tracks keep.log, force-added under *.log, and out, which out/ names only as a directory
+1	B10 (no .gitignore) (fixture control): with the entry main plus commands/extra.md, felix merge --dry-run refuses: the judge is not the engine main accepted
+1	B10 (no .gitignore) (fixture control): with the entry main plus commands/extra.md, installed fails
 1	B10: an own checkout with a current grant runs felix commission once, in the checkout root
 1	B10: and bg.log gains a ran line for the root
 1	B10: and bg.log gains its ran line (own-case)
@@ -571,6 +776,8 @@
 1	B10: the own-case spelling runs felix commission once, in the checkout root
 1	B10: the own-scp spelling runs felix commission once, in the checkout root
 1	B10: the own-ssh spelling runs felix commission once, in the checkout root
+1	B10: with an untracked engine/.gitignore of * in the checkout, felix merge --dry-run still refuses because the judge is not the engine main accepted
+1	B10: with an untracked engine/.gitignore of * in the home, installed still fails
 1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (fork)
 1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (lookalike)
 1	B11: and bg.log gains exactly one line <UTC ts> refused-not-own <root> (none)
@@ -620,6 +827,30 @@
 1	B1: the block's positive control fails when widget declares nothing the discovery rules name, so no catalogue entry can list
 1	B1: the block's two assertions keep their names and pass: discovery writes nothing, there is no --yes
 1	B1: the discovery block runs felix discover only with a claude the suite wrote first on PATH, never one it found there
+1	B2 (a): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (a): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (a): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (b): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (b): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (b): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (c): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (c): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (c): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (d): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (d): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (d): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (e): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (e): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (e): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (f): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (f): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (f): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (g): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (g): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (g): an entry whose harness/lib/x.sh differs from main exits 1 and names it
+1	B2 (no variant): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it
+1	B2 (no variant): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it
+1	B2 (no variant): an entry whose harness/lib/x.sh differs from main exits 1 and names it
 1	B20: an own checkout granted tidy removes the held untracked rival
 1	B20: and backs it up under state/rivals
 1	B20: and the context says what it removed
@@ -636,8 +867,23 @@
 1	B23: an unowned checkout leaves capabilities, stack.tsv, setup.tsv and setup/ byte-identical
 1	B23: and its context holds no Adopted automatically line
 1	B23: nor a Not adopted line
+1	B2: an entry that lacks harness/keep.log, which main force-added under *.log, exits 1 and names it
 1	B2: the gh stub part 0900 writes no longer sleeps 30 s unconditionally once it has written its pid
 1	B2: when _ibsig sends the signal the gh stub is still waiting, and the run then leaves no scratch (control)
+1	B3 (control), the negation: an entry that is main plus harness/keep.tmp exits 1 and names it
+1	B3 (control), the negation: an entry that is main plus harness/other.tmp exits 0, that line not printed
+1	B3 (control), the nested rule: an entry that is main plus harness/tests/scratch/y exits 0, that line not printed
+1	B3 (control): against main, which has no such rule, an entry that is main plus harness/x.bak exits 1 and names it
+1	B3 (control): an entry that is main plus harness/jr-unmatched.sh exits 1 and names it
+1	B3 (control): an entry that is main plus harness/tests/.claude-flow/x.json exits 0, that line not printed
+1	B3 (control): an entry that is main plus harness/tests/x.log exits 0, that line not printed
+1	B3 (fixture control): jr-rules holds engine/.gitignore with *.bak and the working tree does not, and git there does not ignore engine/harness/x.bak
+1	B3 (nested rule deleted from the working tree) (fixture control): git in the home no longer ignores engine/harness/tests/scratch/y
+1	B3 (nested rule deleted from the working tree): an entry that is main plus harness/tests/scratch/y exits 0, that line not printed
+1	B3 (nested rule negated in the working tree) (fixture control): git in the home no longer ignores engine/harness/tests/x.log
+1	B3 (nested rule negated in the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed
+1	B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/.claude-flow/x.json exits 0, that line not printed
+1	B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed
 1	B30: adoption alone withheld says Withheld: adoption.
 1	B30: the lookalike checkout's last paragraph is the one line
 1	B31: the substring-bound checkout says it was bound by an origin that only contains the remote_match
@@ -661,6 +907,8 @@
 1	B35: the systemMessage carries no withheld line (lookalike)
 1	B35: the systemMessage carries no withheld line (none)
 1	B35: the systemMessage carries no withheld line (substring)
+1	B3: against jr-rules, whose engine/.gitignore ignores *.bak, the same entry exits 0, that line not printed
+1	B4 (control), main's data/ rule outside commands/: an entry that is main plus harness/data/evil.md exits 0, that line not printed
 1	B40: 1130-unattended-work-runs-only-in-its-own-checkout.sh is under 500 lines
 1	B40: hooks/session-start is no longer than 780 lines
 1	B40: lib/commission.sh is no longer than 808 lines
@@ -672,24 +920,112 @@
 1	B42: no commissioning, no graph refresh, no tidying and no adoption ran in an own checkout
 1	B42: the hook still emits its JSON and exits 0
 1	B4: _sr_env's other four fields are bash, locale, path and claude, in that order, on one line (control)
+1	B4: an entry that is main plus commands/.claude-flow/evil.md exits 1 and names it
+1	B4: an entry that is main plus commands/data/evil.md exits 1 and names it
+1	B4: an entry that is main plus commands/x.log exits 1 and names it
 1	B4: where scutil gives a valid LocalHostName, _sr_env's host is that name
 1	B4: where scutil is absent or gives nothing valid, _sr_env's host is uname -n
 1	B4: with a uname on PATH that names a new host on every call, two _sr_env calls give the same host, and not the stub's
+1	B5 (fixture control): in every moved run the stub moved refs/remotes/origin/jr5 to m2
+1	B5 (fixture control): unmoved, the call runs at least two git commands through the stub, exits 0 and prints the entry for m1's version
+1	B5 (fixture control): with no stub, each commit alone is accepted against its own version's entry
+1	B5: with refs/remotes/origin/jr5 moved to m2 after any one of the call's git commands, the verdict is one commit's: exit 0 and that commit's entry
+1	B6 (fixture control): with the machine's global config naming an excludes file of *, git in the home ignores engine/harness/jr-x
+1	B6: and an entry equal to main exits 0 and prints the entry
+1	B6: under that global config, an entry that is main plus one extra file exits 1 and names it
+1	B7: a call that exits 0 leaves nothing it made behind and reads nothing from stdin
+1	B7: a call that exits 1 leaves nothing it made behind and reads nothing from stdin
+1	B7: a call that exits 2 leaves nothing it made behind and reads nothing from stdin
 1	B7: an origin carrying a token as userinfo is own (it ran)
 1	B7: and the unowned one with a token still says its line
 1	B7: no file under the home, the memory root, HOME, TMPDIR or the logs holds the token, nor any output
 1	B7: the predicate and the line, called directly, answer
+1	B8: a base that names nothing exits 2 and prints cannot examine
+1	B8: a content difference exits 1 with a line in diff's own shape, Files A and B differ
+1	B8: a file one side holds exits 1 with a line in diff's own shape, Only in <dir>: <name>
 1	B8: a repository is unknown when git cannot say whether it is a submodule (2 unread)
 1	B8: a repository that holds a submodule is still own when its own origin is the project's
 1	B8: a submodule is not own though its origin is the project's (1 submodule)
+1	B8: a version main declares with nothing installed at it exits 1 with the one line that says so
+1	B8: exit 0 prints the entry path, one line, and nothing else
 1	B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it
+1	B9 (control): a content difference in lib/x.sh exits 1 and names it
+1	B9 (control): an untracked, ignored stray in SRC stays residue: exit 0
+1	B9 (control): and so does one in LIVE: exit 0
+1	B9 (control): felix_deploy_diff on the home's engine and a copy of main's exits 0
+1	B9: a content difference in harness/keep.log, tracked and force-added under *.log, exits 1 and names it
+1	B9: a content difference in harness/out, tracked, which out/ names only as a directory, exits 1 and names it
 1	B9: a session start in a submodule runs no felix commission and logs one refused-not-own line, none ran
 1	B9: and keeps its untracked rival, byte-identical
 1	B9: and says adoption was withheld too
 1	B9: and says what was withheld, and why
 1	B9: and with a Cargo.toml it adopts nothing into the project's capabilities
+1	C (fixture control): an entry cut from M with nothing converting: the entry exits 0 and prints itself
+1	C (fixture control): the home is on main with nothing to report, M ships a file under an executable bit, and refs/remotes/origin/main is M
+1	C1 (autocrlf) (fixture control): git archive of M in this home writes harness/lib/x.sh with a carriage return
+1	C1 (autocrlf), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
+1	C1 (autocrlf): a faithful entry is accepted: the entry exits 0 and prints itself
+1	C1 (eol) (fixture control): git archive of M in this home writes harness/lib/x.sh with a carriage return
+1	C1 (eol), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
+1	C1 (eol): a faithful entry is accepted: the entry exits 0 and prints itself
+1	C1 (exportignore) (fixture control): git archive of M in this home leaves harness/lib/x.sh out
+1	C1 (exportignore), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
+1	C1 (exportignore): a faithful entry is accepted: the entry exits 0 and prints itself
+1	C1 (filter-file) (fixture control): git archive of M in this home writes EVIL CODE for harness/lib/x.sh
+1	C1 (filter-file), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
+1	C1 (filter-file): a faithful entry is accepted: the entry exits 0 and prints itself
+1	C1 (filter-info) (fixture control): git archive of M in this home writes EVIL CODE for harness/lib/x.sh
+1	C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
+1	C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself
+1	C1 (fixture control): every conversion is off again, and the faithful entry is accepted
+1	C2 (control): strays M's rules match, beneath hooks/ and harness/, are residue: the entry exits 0 and prints itself
+1	C2: an entry that holds a top-level .claude-flow/, which M's .claude-flow/ rule matches (residue is only beneath harness/ and hooks/): exits 1 and names .claude-flow
+1	C2: an entry that holds a top-level .mcp.json: exits 1 and names .mcp.json
+1	C2: an entry that holds a top-level agents/ M does not ship: exits 1 and names agents
+1	C2: an entry that lacks .claude-plugin/, which M ships: exits 1 and names .claude-plugin
+1	C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json
+1	C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json
+1	C3 (control): an entry with M's modes everywhere: the entry exits 0 and prints itself
+1	C3: an entry whose harness/felix lost its executable bit (M's mode is 100755): exits 1 and names harness/felix
+1	C3: an entry whose harness/lib/x.sh gained the executable bit (M's mode is 100644): exits 1 and names harness/lib/x.sh
+1	C3: an entry whose harness/lib/x.sh is a symlink to a file with M's very bytes: exits 1 and names harness/lib/x.sh
+1	C3: an entry with a FIFO only it holds: exits 1 and names harness/fifo
+1	C3: an entry with a directory where M ships the file harness/lib/x.sh: exits 1 and names harness/lib/x.sh
+1	C3: an entry with a file where M ships the directory harness/lib: exits 1 and names harness/lib
+1	C3: an entry with a socket only it holds: exits 1 and names harness/sock
+1	C3: an entry with a symlink only it holds: exits 1 and names harness/link
+1	C4 (control): an entry-only harness/plain.log, which *.log matches, is residue: the entry exits 0 and prints itself
+1	C4: a differing path whose name holds ' and ' exits 1 and is named whole: exits 1 and names harness/two and words.sh
+1	C4: a differing path whose name holds ': ' exits 1 and is named whole: exits 1 and names harness/c: d.sh
+1	C4: an entry-only harness/-dash.log exits 1 and is named
+1	C4: an entry-only harness/a b and c.log exits 1 and is named
+1	C4: an entry-only harness/a"b.log exits 1 and is named
+1	C4: an entry-only harness/a*b.log exits 1 and is named
+1	C4: an entry-only harness/a: b.log exits 1 and is named
+1	C4: an entry-only harness/a?b.log exits 1 and is named
+1	C4: an entry-only harness/trail.log  exits 1 and is named
+1	C4: an entry-only name with a backslash exits 1 and is named, the backslash escaped
+1	C4: an entry-only name with a newline exits 1, its line is one line that holds the newline as \n and cannot be read as two paths
+1	C4: an entry-only name with a tab exits 1, and its line is one line with the tab escaped
+1	C5 (control): with the decoy in place, an entry equal to M: the entry exits 0 and prints itself
+1	C5 (fixture control): git's own short name origin/main names the decoy, which declares 6.6.6, and the cache holds an entry for it
+1	C5 (fixture control): git's own short name origin/main now names the decoy, whose engine/.gitignore is *
+1	C5: with the decoy in place, an entry that is M plus harness/extra: exits 1 and names harness/extra
+1	C5: with the decoy in place, an entry that is M plus hooks/extra: exits 1 and names hooks/extra
+1	C5: with the decoy in place, the entry for main's 4.0.0 that is M plus harness/extra: exits 1 and names harness/extra
+1	C6 (control): an entry-only harness/data/x beneath a directory the data/ rule matches is residue: the entry exits 0 and prints itself
+1	C6: an entry-only FILE harness/data, which M's data/ rule does not match (it names a directory): exits 1 and names harness/data
 1	C7 records the assertion before the move and the assertion after it, and the stand-in's config
 1	C7 writes one record, at the first move, with the state before and the state then
+1	C7: a TERM delivered to the call midway, while it holds its temporary directory (1 at the block), leaves none behind
+1	C7: and so does an INT
+1	C8 (control): --base main, a ref name that exists, is not refused for that reason
+1	C8 (control): and neither is --base refs/heads/main
+1	C8 (fixture control): git reads the expression refs/heads/jrc-nope~0 through the decoy tag, and refs/heads/jrc-nope itself does not exist
+1	C8 (fixture control): jc-sym holds engine/harness/tests/.gitignore as a symlink (mode 120000) to a file that says scratch/
+1	C8: against jc-sym, an entry-only harness/tests/scratch/y is not residue: a symlinked .gitignore adds no rules
+1	C8: and so is refs/tags/refs/heads/jrc-nope^{commit}
+1	C8: felix merge --dry-run --base refs/heads/jrc-nope~0, an expression and not a ref name, is refused, saying it takes only a ref name
 1	C9.1: and that was asked of gh run list
 1	C9.1: for the workflow felix_gate_workflow names (ci-gate.yml here)
 1	C9.2: a reused receipt with the gate workflow's success on the head clears every blocker
@@ -2443,7 +2779,7 @@
 1	a local branch is not a remote-tracking ref, though it holds main's commit: exit 2, one line
 1	a local branch whose tip precedes a merged pull request's head is landed, though main's squash of it was edited
 1	a local server declared inline in plugin.json is medium
-1	a local-only branch is taken as given
+1	a local-only branch is taken by its full name
 1	a lock 31 minutes old is broken and the refresh runs (D10)
 1	a lock in another project's directory does not stop a widget revoke of commission
 1	a lock whose owner has exited is taken over, and the pair joined
@@ -8529,6 +8865,11 @@
 1	folds are ordered by tip time, newest first, not by name or by id
 1	followed by the log's first line and its last, each indented to column 21
 1	for every gate check that file actually covers
+1	found after the blind round (not blind) (fixture control): git reads the upper-case spelling of main's sha as that commit, though a branch of that name exists at the decoy
+1	found after the blind round (not blind) (fixture control): with --base main, which refs/remotes/origin/main carries, the dry run passes the judge
+1	found after the blind round (not blind): felix merge --dry-run --base <a sha> refuses, saying it judges and merges against a full ref name
+1	found after the blind round (not blind): felix merge --dry-run --base jr-prose~1, with a tag named jr-prose at a decoy, refuses, saying it judges and merges against a full ref name
+1	found after the blind round (not blind): felix_base_ref given the upper-case spelling of a sha prints it unchanged, and does not print the branch of that name
 1	four sweeps started together over three dead bases, in each of three rounds, leave none of them on disk or registered, print nothing on stdout, and say no felix: line
 1	fragments that cannot pair keep their bytes and their places
 1	free text matches the catalogue
@@ -9805,7 +10146,7 @@
 1	saying seeding never overwrites
 1	saying so
 1	saying so plainly
-1	saying the branch is behind origin/main, or the CLI hands the report a base other than the one it compared
+1	saying the branch is behind refs/remotes/origin/main, or the CLI hands the report a base other than the one it compared
 1	saying what is missing
 1	saying which branch is behind which base, by both commits, or the row would not say what to merge
 1	saying why
@@ -10897,7 +11238,7 @@
 1	the land fixture: a tag and a branch named origin/refs/remotes/origin/main name the decoy, and refs/remotes/origin/main names main (fixture control)
 1	the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)
 1	the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)
-1	the land fixture: an untracked .gitignore in the home that ignores the stray makes main's check accept that entry (fixture control)
+1	the land fixture: an untracked .gitignore in the home that ignores the stray no longer makes main's check accept that entry (fixture control)
 1	the land fixture: an untracked file under engine/, cleared: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored, the home is at origin's main, and main's check accepts its entry (fixture control)
 1	the land fixture: b82's lock reason holds \001 and, read with NUL or \001 as a separator, a record for other on b81 (fixture control, \001)
 1	the land fixture: b82's lock reason holds newline and, read with NUL or newline as a separator, a record for other on b81 (fixture control, newline)

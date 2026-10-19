@@ -184,11 +184,16 @@ if [ -d "$GCACHE" ]; then
   # tests block below records for the suite log, one check up.
   GDRIFT=""
   GWHY=""
-  # The branch being merged into, as felix_kernel_dir resolves it: origin/main
-  # first, so a local main that lags the remote is not what gets certified.
+  # The branch being merged into, as felix_base_ref resolves it: the remote's
+  # copy first, so a local main that lags the remote is not what gets
+  # certified. By FULL name, each looked up as exactly that ref and checked to
+  # be a commit: the short name origin/main is read by git after refs/origin/main,
+  # refs/tags/origin/main and refs/heads/origin/main, which any session can
+  # create, and this base names the resolve.sh that is then run as the judge.
   GBASE=""
-  for GREF in origin/main main; do
-    git rev-parse --verify "$GREF" >/dev/null 2>&1 && { GBASE="$GREF"; break; }
+  for GREF in refs/remotes/origin/main refs/heads/main; do
+    GSHA="$(git show-ref --verify -s -- "$GREF" 2>/dev/null </dev/null)" || continue
+    git rev-parse --verify --quiet "$GSHA^{commit}" >/dev/null 2>&1 </dev/null && { GBASE="$GREF"; break; }
   done
   GVER=""
   [ -n "$GBASE" ] && GVER="$(git show "$GBASE:engine/.claude-plugin/plugin.json" 2>/dev/null \

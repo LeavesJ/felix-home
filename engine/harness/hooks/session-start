@@ -531,19 +531,21 @@ fi
 # rather than leaving a path and hoping.
 #
 # A project keeps one standing direction document at docs/direction.md (decided
-# 2026-10-19). It is named first because it outranks older roadmaps, handoff
-# sections and memory notes. It is never opened here: the test is a stat, so a
-# pipe at that path cannot hang session start. A link, or anything that is not a
-# regular file, is not named at all, because the line added below tells the
-# model this file outranks everything else, so it must be the checkout's own.
+# 2026-10-19). It is named first, under one line saying that where an older
+# roadmap, handoff section or memory note disagrees with it, it wins. The line
+# stands above the list so the next paragraph's "None of those" still points at
+# the list. Nothing here opens the file: it is a stat, and the links are checked
+# before anything follows them, so neither a pipe nor a link into a mount that
+# does not answer can hang session start. A file that is a link, or sits under a
+# linked docs/, or is not a regular file is not named, because a file that
+# claims precedence must be one the checkout holds at that path. Contract:
+# docs/2026-10-19-direction-read-first-contract.md.
 read_lines="Read before planning: ${PROJ}/CLAUDE.md"
-_direction_line=""
-if [ -f "${_repo_root}/docs/direction.md" ] && [ ! -L "${_repo_root}/docs/direction.md" ] \
-   && [ ! -L "${_repo_root}/docs" ]; then
-  read_lines="Read before planning: ${_repo_root}/docs/direction.md
+_dirdoc="${_repo_root}/docs/direction.md"
+if [ ! -L "${_repo_root}/docs" ] && [ ! -L "$_dirdoc" ] && [ -f "$_dirdoc" ]; then
+  read_lines="docs/direction.md is the standing direction: where an older roadmap, handoff section or memory note disagrees with it, it wins.
+Read before planning: ${_dirdoc}
                    ${PROJ}/CLAUDE.md"
-  _direction_line="
-docs/direction.md is the standing direction: it wins over older roadmaps, handoff sections and memory notes."
 fi
 [ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
                    ${_repo_root}/HANDOFF.md"
@@ -563,7 +565,6 @@ $(printf '%s\n' "$_pending" | head -5 | sed 's/^/                   /')"
   [ "$_npend" -gt 5 ] && read_lines="${read_lines}
                    and $((_npend - 5)) older in ${_repo_root}/docs/handoff/pending/"
 fi
-read_lines="${read_lines}${_direction_line}"
 
 # The session handoff is named apart from those, because it is not direction.
 # A prior session wrote it, sometimes from another worktree, and on a detached

@@ -228,8 +228,12 @@ IV_NID=c3c3c3c3-0000-4000-8000-000000000002
 IVLIB="$REAL_HARNESS/lib/inventory.sh"; IVLIBH="$REAL_HARNESS/lib/inventory-host.sh"
 # The core may be split into parts beside it (lib/inventory-*.sh other than
 # the adapter); each part is held to what the core is held to.
+# The adapter is two files, lib/inventory-host.sh and lib/inventory-chips.sh,
+# which reads the proposals; the chips file is held to the adapter's rules and
+# to the shared ones, and is no part of the core.
+IVLIBC="$REAL_HARNESS/lib/inventory-chips.sh"
 IVPARTS=()
-for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
+for _ivf in "$REAL_HARNESS"/lib/inventory-*.sh; do [ -f "$_ivf" ] && [ "$_ivf" != "$IVLIBH" ] && [ "$_ivf" != "$IVLIBC" ] && IVPARTS[${#IVPARTS[@]}]="$_ivf"; done
 _iv_fixture
 case "${1:-}" in live|runs) _iv_live ;; esac
 case "${1:-}" in runs) _iv_runs ;; esac

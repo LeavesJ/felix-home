@@ -1,3 +1,7 @@
+# 2026-10-18 (judge refs): felix merge takes a full ref name as its base and
+# refuses an expression such as HEAD~1, which git reads in its short-name order.
+# The commit before the tip is therefore named by a branch made at it.
+_mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 printf '\nmerging\n'
 _widget_repo_build
 # The escape set decides nothing until something consults it. Felix had no way
@@ -159,7 +163,7 @@ cp "$TMP/ev.keep" "$FROOT/projects/widget/evidence.tsv"
 # The command itself must refuse without reaching the network. gh is not called,
 # so this assertion holds on a runner with no credentials and no remote.
 mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/900.sql"; _stage
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 2>&1 )"; rc=$?
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" 2>&1 )"; rc=$?
 is  "felix merge refuses on an escape"  "$rc" "3"
 has "and names the channel"             "$out" "durable"
 has "and says what would have to change" "$out" "founder"
@@ -169,7 +173,7 @@ printf 'ordinary\n' > "$REPO/README.md"; _stage
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 _cm_stamp
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"; rc=$?
 is  "and reports a clear merge without performing one" "$rc" "0"
 has "saying so plainly"                                "$out" "nothing escapes"
 _reset
@@ -204,7 +208,7 @@ printf '# a row added under the commission receipt\n' >> "$FROOT/projects/widget
 is  "and once it has, the grant no longer covers them"                 "$(_mgrant)" "stale"
 is  "a table moved under the commission receipt is the branch's only blocker" \
     "$(_blk | cut -f1,2)" "commission	receipt"
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; rc=$?
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"; rc=$?
 is  "felix merge refuses on a stale commission receipt alone" "$rc" "3"
 has "and says the merge waits for the founder"                "$out" "waits for the founder"
 is  "naming the grant they re-arm, on a line of its own" \
@@ -218,7 +222,7 @@ _mlacks "nor say that none of it is a founder decision"       "$out" "none of it
 # is still the founder's, and the red gate is still Felix's to run again.
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 1 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"
 has "a red gate beside the stale receipt is listed too"             "$out" "unverified"
 has "and the commission is still named as the founder's"            "$out" "waits for the founder"
 has "while the red gate is handed back as work Felix owes"          "$out" "work Felix owes"
@@ -232,7 +236,7 @@ _mlacks "without claiming that none of it is a founder decision"    "$out" "none
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" >/dev/null 2>&1 )
 is  "a grant re-armed over the moved tables is current, and the receipt still the one blocker" \
     "$(_mgrant) $(_blk | cut -f1,2)" "current commission	receipt"
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"
 has "under a current grant it says the next session start re-commissions" \
     "$out" "next session started in this"
 _mlacks "and asks for no re-arm the grant does not need"            "$out" "felix autonomy --allow commission"
@@ -242,7 +246,7 @@ _mlacks "and is still not work Felix owes"                          "$out" "work
 # asking for a standing consent to unattended runs that this merge does not
 # need: felix commission by hand clears the receipt without one.
 ( cd "$REPO" && "$FELIX" autonomy --revoke commission >/dev/null 2>&1 )
-out="$( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"
+out="$( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 )"
 has "with no grant the merge still waits for the founder"           "$out" "waits for the founder"
 is  "naming the commission run on a line of its own" \
     "$(printf '%s\n' "$out" | grep -cx '  felix commission')" "1"
@@ -271,7 +275,7 @@ is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsu
 
 cp "$FROOT/harness/lib/escape.sh" "$TMP/esc.keep"
 printf 'felix_merge_blockers() { cat "%s"; }\n' "$TMP/mblk.tsv" >> "$FROOT/harness/lib/escape.sh"
-_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base HEAD~1 --dry-run 2>&1 ); }
+_mclose() { printf "$1" > "$TMP/mblk.tsv"; ( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" --dry-run 2>&1 ); }
 printf 'ordinary\n' > "$REPO/README.md"; _stage
 
 for _mk in 'unverified\ttree\tno green receipt for this exact tree; run felix gate' \
@@ -417,7 +421,7 @@ printf '\nthe one number Felix is trying to move\n'
 # parsing approach this project already rejected twice.
 mkdir -p "$REPO/migrations"; printf 'x\n' > "$REPO/migrations/950.sql"; _stage
 before="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
-( cd "$REPO" && "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" >/dev/null 2>&1 )
 after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 [ "$after" -gt "$before" ] \
   && ok "a merge stopped for the founder is recorded as one" \
@@ -430,7 +434,7 @@ _reset
 # gate as founder time would make the number improve by running the gate less.
 printf 'notes\n' > "$REPO/README.md"; _stage
 before="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
-( cd "$REPO" && "$FELIX" merge --base HEAD~1 >/dev/null 2>&1 )
+( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" >/dev/null 2>&1 )
 after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
 _reset

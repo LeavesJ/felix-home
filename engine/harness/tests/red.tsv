@@ -8,5 +8,19 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	96074341c8104d8dccd1a6d0490f1f9efc209ee2	0.49.298
-run	0	12547	44
+base	origin/main	bfa9a9cffb9efd80072e8575cef5b935d7d82403	0.49.301
+run	14	13107	44
+B8: and --tsv prints nothing and exits 1	1
+B8: and both say B8's line for A on stderr, once each	1
+B8: and under --tsv that line too is B8's, said once	1
+B8: in both two-repository runs the line for A is B8's, said once	1
+B8: that stderr line is felix monitor: <the directory as given>: the page could not be made from its rows (awk exited 2), said once	1
+B8: when the page's awk prints its rows and then exits 2, the text page is the first line alone and exits 1	1
+B9.41: a stderr line names A and holds awk exited 2	1
+B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2	1
+B9.41: and a stderr line holds the directory as given and awk exited 2	1
+B9.41: under --tsv a stderr line names A and holds awk exited 2	1
+B9.41: with the first-call stub, --repo A --repo B exits 1, the stub having failed the page's first order= call	1
+B9.41: with the first-call stub, --tsv --repo A --repo B exits 1, the stub having failed the page's first order= call	1
+B9.41: with the stub, felix monitor --repo A exits 1	1
+B9.41: with the stub, felix monitor --tsv --repo A exits 1 with nothing on stdout	1

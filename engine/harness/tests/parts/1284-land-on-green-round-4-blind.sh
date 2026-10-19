@@ -59,8 +59,9 @@ is "A17: given a refs/ name that does not resolve, it tries nothing else: origin
    "$(_l4_br br refs/heads/absent)" "|1"
 is "A17: given a refs/ name that resolves to a tree, not a commit, it fails, printing nothing" "$(_l4_br br refs/tags/l4tree)" "|1"
 is "A17: given refs/heads/main it returns it as it is" "$(_l4_br br refs/heads/main)" "refs/heads/main|0"
-is "A17: given main, with origin/main there, it returns origin/main, as before" "$(_l4_br br main)" "origin/main|0"
-is "A17: given main, with no origin/main, it returns main, as before" "$(_l4_br br2 main)" "main|0"
+# 2026-10-18 (judge refs): the same refs, now returned by their full names (contract A1, A3).
+is "A17: given main, with origin/main there, it returns refs/remotes/origin/main" "$(_l4_br br main)" "refs/remotes/origin/main|0"
+is "A17: given main, with no origin/main, it returns refs/heads/main" "$(_l4_br br2 main)" "refs/heads/main|0"
 is "A17: given a short name that resolves neither way, it fails, as before" "$(_l4_br br2 nope)" "|1"
 
 # The decoy in the home: a commit no one pushed, at main's version number, with
@@ -69,10 +70,10 @@ is "A17: given a short name that resolves neither way, it fails, as before" "$(_
 _fx_git "$LGH" worktree add -q -b l4-decoy "$L4/decoy" main >/dev/null 2>&1
 printf 'core decoy\n' > "$L4/decoy/engine/harness/lib/core.sh"
 _fx_git "$L4/decoy" -c user.name=t -c user.email=t@t commit -qam decoy >/dev/null 2>&1
-L4X="$(git -C "$L4/decoy" rev-parse HEAD 2>/dev/null)"; rm -rf "$L4/rogue-harness"; cp -R "$L4/decoy/engine/harness" "$L4/rogue-harness"
+L4X="$(git -C "$L4/decoy" rev-parse HEAD 2>/dev/null)"; rm -rf "$L4/rogue-harness"; mkdir -p "$L4/rogue-harness"; cp -R "$L4/decoy/engine/." "$L4/rogue-harness/"   # 2026-10-18: the whole engine, since the entry is compared whole
 _fx_git "$LGH" tag l4-keep "$L4X" >/dev/null 2>&1
 _fx_git "$LGH" worktree remove --force "$L4/decoy" >/dev/null 2>&1; _fx_git "$LGH" branch -q -D l4-decoy >/dev/null 2>&1
-_l4_rogue() { rm -rf "$LGV/$L4V"; mkdir -p "$LGV/$L4V"; cp -R "$L4/rogue-harness" "$LGV/$L4V/harness"; }
+_l4_rogue() { rm -rf "$LGV/$L4V"; mkdir -p "$LGV/$L4V"; cp -R "$L4/rogue-harness/." "$LGV/$L4V/"; }
 _l4_decoy() { _fx_git "$LGH" tag origin/refs/remotes/origin/main "$L4X" >/dev/null 2>&1
   _fx_git "$LGH" branch -q origin/refs/remotes/origin/main "$L4X" >/dev/null 2>&1; }
 _l4_nodecoy() { _fx_git "$LGH" tag -d origin/refs/remotes/origin/main >/dev/null 2>&1

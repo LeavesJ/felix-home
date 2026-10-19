@@ -76,7 +76,7 @@ _fi_worktree() {
   # A directory that holds no working tree of this repository is read as an orphan is.
   if [ "$orph" = yes ]; then content="$_FI_OC"; else _fi_worse "$_FI_LV" "$ucv"; content="$_FI_W"; fi
   _fi_states "$content" hazard:shared-branch=$shd hazard:staged-revert=$rev live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" \
-    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC orphan=$orph
+    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC carried=$_FI_CAR orphan=$orph
   _fi_age "$when"; _fi_row worktree "$ref" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$content" "$_FI_DET" "$_FI_SIG" "$br"
 }
 # _FI_DD as the worktree's uncommitted state (unc), its content (ucv: none of
@@ -119,6 +119,62 @@ _fi_revert() {
   [ "$rev" = yes ] || [ "$unk" = 0 ] || rev=unknown
 }
 
+# Whether another pushed branch already holds a tip (A1, "carried"), after
+# _fi_branch0 has read the tip's own states: _FI_CAR is yes or no, and when yes
+# the row holds neither unproposed nor pr-closed-unlanded, nor their unknown
+# entries, and its detail is what it was before the pull request reading, plus
+# "carried by ...". The carriers are the refs/remotes/origin refs but origin/HEAD
+# and the default branch. A local branch or worktree is carried by one whose tip
+# equals or descends from its own and that is not its own name on origin nor its
+# upstream; but when either of those two stands at its tip, the work is already
+# on origin under its own name, and only a strict descendant carries it, as for a
+# remote row (a remote row only by a strict descendant that is not itself): two
+# names pushed at one commit then carry neither the other, and some row always
+# remains to say the work needs a PR. Arguments: the tip, its remote-tracking ref
+# or -, and its branch or -.
+_fi_carry() {
+  local self="" n cn cs h rem=0
+  local -a pats=(refs/remotes/origin)
+  _FI_CAR=no
+  [ "$_FI_LV" != landed ] && [ "$_FI_PRO" != yes ] || return 0
+  [ "$2" = - ] || self="refs/remotes/$2"
+  # The local branch itself rides along (it holds its own tip) to say its upstream.
+  if [ "$k" = remote ]; then rem=1; elif [ "${3:--}" != - ]; then pats[1]="refs/heads/$3"; fi
+  _fi_git -C "$_FI_D" for-each-ref --contains="$1" --format='%(refname) %(objectname) %(upstream)' "${pats[@]}" 2>/dev/null \
+    | awk -v self="$self" -v def="refs/remotes/$_FI_DEF" -v tip="$1" -v remote="$rem" -v hb="refs/heads/${3:--}" '
+        $1 == hb { up = $3; next }
+        { L[++n] = $1; S[n] = $2 }
+        END { strict = remote
+          for (i = 1; i <= n; i++) if ((L[i] == self || (up != "" && L[i] == up)) && S[i] == tip) strict = 1
+          for (i = 1; i <= n; i++) {
+            if (L[i] == "refs/remotes/origin/HEAD" || L[i] == def || L[i] == self || (up != "" && L[i] == up)) continue
+            if (strict && S[i] == tip) continue
+            print substr(L[i], 21) "\t" S[i] } }' > "$T/car"
+  [ -s "$T/car" ] || return 0
+  n="$(awk 'END { print NR }' "$T/car")"
+  if [ "$n" -gt 1 ]; then   # only the outermost: one that another carrier's tip strictly descends from is left out
+    : > "$T/car.d"; mkdir -p "$T/cc"
+    while IFS="$_FI_TAB" read -r cn cs <&3; do
+      [ -s "$T/cc/$cs" ] || _fi_git -C "$_FI_D" for-each-ref --contains="$cs" --format='%(objectname)' refs/remotes/origin 2>/dev/null > "$T/cc/$cs"
+      awk -v cs="$cs" -v cf="$T/cc/$cs" 'FILENAME == cf { if ($1 != cs) D[$1] = 1; next } { if ($2 in D) f = 1 } END { exit f }' "$T/cc/$cs" "$T/car" || continue
+      printf '%s\t%s\n' "$cn" "$cs" >> "$T/car.d"
+    done 3< "$T/car"
+    cp "$T/car.d" "$T/car"
+  fi
+  [ -f "$T/prnum" ] || awk -F'\t' '$2 == "OPEN" && $10 != 1 && $1 + 0 > N[$3] + 0 { N[$3] = $1 } END { for (h in N) printf "%s\t%s\n", h, N[h] }' "$T/prs" > "$T/prnum"
+  # #n carriers by ascending number, then origin/<name> by name, three named, the rest counted.
+  h="$(awk -F'\t' -v pf="$T/prnum" '
+    FILENAME == pf { PN[$1] = $2; next }
+    { if ($1 in PN) P[++np] = PN[$1] + 0; else O[++no] = "origin/" $1 }
+    END { for (i = 2; i <= np; i++) for (j = i; j > 1 && P[j] < P[j - 1]; j--) { x = P[j]; P[j] = P[j - 1]; P[j - 1] = x }
+      for (i = 2; i <= no; i++) for (j = i; j > 1 && O[j] < O[j - 1]; j--) { x = O[j]; O[j] = O[j - 1]; O[j - 1] = x }
+      for (i = 1; i <= np; i++) L[++t] = "#" P[i]; for (i = 1; i <= no; i++) L[++t] = O[i]
+      for (i = 1; i <= t && i <= 3; i++) printf "%s%s", (i > 1 ? ", " : ""), L[i]
+      if (t > 3) printf ", and %d more", t - 3 }' "$T/prnum" "$T/car")"
+  [ -n "$h" ] || return 0
+  _FI_CAR=yes; _FI_UNPROP=no; _FI_PRC=no; _FI_DET="$_FI_DETP"; _fi_add "carried by $h"
+}
+
 # The pending directory's section files in the default branch's tree (else
 # HEAD's) into $T/pend. A listing that fails is no list of none: _FI_PENDFAIL,
 # which the default cover row says. An unborn HEAD holds nothing to list.
@@ -158,7 +214,7 @@ _fi_handoff() {
 _fi_chipsread() {
   _FI_CHU=0; : > "$T/chips"
   [ "$_FI_HOSTOK" = 1 ] || return 0
-  felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" "$T/chipu" > "$T/chips" || : > "$T/chips"
+  mkdir -p "$T/hc"; felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" "$T/chipu" "$T/hc" > "$T/chips" || : > "$T/chips"
   awk -F'\t' '$4 == "unknown" { f = 1 } END { exit !f }' "$T/chips" && _FI_CHU="$(cat "$T/chipu" 2>/dev/null)"
   case "$_FI_CHU" in ''|*[!0123456789]*) _FI_CHU=0 ;; esac
   return 0

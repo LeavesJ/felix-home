@@ -388,6 +388,7 @@ fi
 . "$HERE/parts/1520-git-readers-fail-closed.sh"
 . "$HERE/parts/1530-patch-reads-the-repository-not-a-diff-setting.sh"
 . "$HERE/parts/1540-patch-reads-the-review-s-cases-and-findings.sh"
+. "$HERE/parts/1550-the-standing-direction-is-read-first-blind.sh"
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 
 # The suite's completion marker: tests/red counts a red run only when a line

@@ -25,9 +25,10 @@
 #   (a poll), and before it forks, it checks its wrapper (its parent's pid) and the -j
 #   parent (kill 0; and, every 10 s, that its wrapper's parent is still that pid: R20): when either is
 #   gone it starts no unit, or ends the unit's tree as R14 and R21 say, and exits 2. It writes the unit's pid and start
-#   time to unit.I once it has forked, before the unit runs (R15, R22).
+#   time to unit.I once it has forked, before the unit runs: the forked child reads one byte from a pipe
+#   before it execs, and the holder writes it after unit.I (R15, R22).
 # Part mode (part 0001) also records the shell a unit starts with and compares it when the unit
-# ends (_pm_snap, _pm_diff below; R8): a change a part leaves in the shell is the seventh runner
+# ends (_pm_snap, _pm_diff below; R8, R24: a builtin of the snapshot that fails is "could not be compared"): a change a part leaves in the shell is the seventh runner
 # failure, printed by _par_show after the unit's others, since a serial run carries it to the parts after.
 # This shell reads the FIFO (held open read-write) with a plain read, never read -t (R13: a
 # trap run while a timed read blocks is cut short by its alarm), and forks nothing while it

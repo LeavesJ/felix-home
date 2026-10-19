@@ -377,47 +377,49 @@ _rcp_drop() {   # <root>
 }
 
 # ------------------------------------------------------------ red, beside a record run
-# A record run starts tests/red when it starts, and the two run side by side.
-# Red is the record run's own child and is disowned at once: a part that ends in
-# a bare `wait` (parts 0150 and 0330 do) waits for every job its shell holds,
-# red waits for the mark the record run writes after the parts, and a job table
-# holding red made every record run wait on itself. So the record run learns
-# that red has finished from the process table: red's pid and the start time ps
-# gives it, together, since a pid alone is reused (the suite forks a hundred
-# thousand processes in fifteen minutes).
+# A record run starts tests/red when it starts, and the two run side by side. Red is the record
+# run's own child and is disowned at once: a part that ends in a bare `wait` (0150, 0330) waits for
+# every job its shell holds, red waits for the mark the record run writes after the parts, and a job
+# table holding red made every record run wait on itself. So the record run learns that red has
+# finished from the process table: red's pid and its start time together, since a pid alone is
+# reused (the suite forks a hundred thousand processes in fifteen minutes).
 
-# The set of pids a stopper holds (R2) only grows: each listing is seeded with all of it, and an
-# empty one is taken again (five tries in all, 0.2 s apart). -> _rcp_set, _rcp_add.
-_rcp_grow() {
-  local o="" t=0
+# The set a stopper holds (R2, R14): "pid;start|..." members, a start being what ps gave the pid when it
+# joined ("": any); one is signalled only while the latest non-empty listing shows its pid with that start.
+# Each listing is seeded with the members present in it; an empty one is taken again (5 tries, 0.2 s apart).
+_rcp_grow() {   # -> _rcp_set, _rcp_add, _rcp_pres
+  local o="" t=0 r tab=$'\t'
   while [ "$t" -lt 5 ]; do
-    o="$(ps -A -o pid=,ppid= 2>/dev/null | awk -v seed="$_rcp_set" '{ k[$2] = k[$2] " " $1 }
-      END { q = seed; n = split(seed, S, " "); for (j = 1; j <= n; j++) w[S[j]] = 1
-            while (q != "") { m = split(q, A, " "); q = ""
-              for (j = 1; j <= m; j++) { p = A[j]; if (p == "" || (p in sn)) continue; sn[p] = 1; out = out " " p; if (!(p in w)) add++; q = q k[p] } }
-            print NR, (add + 0) out }')"
-    t=$((t + 1)); case "$o" in "0 "*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+    o="$(ps -A -o pid= -o ppid= -o lstart= 2>/dev/null | awk -v seed="$_rcp_set" '{ s = $0; sub(/^ *[0-9]+ +[0-9]+ */, "", s); sub(/ +$/, "", s); R[$1] = s; K[$2] = K[$2] " " $1 }
+      END { n = split(seed, M, "|"); for (i = 1; i <= n; i++) if (M[i] != "") { split(M[i], a, ";"); m++; sp[m] = a[1]; ss[m] = a[2]; have[M[i]] = 1 }
+        for (i = 1; i <= m; i++) if (NR && (sp[i] in R) && (ss[i] == "" || ss[i] == R[sp[i]])) { pres[sp[i]] = 1; if (!(sp[i] in vis)) { vis[sp[i]] = 1; Q[++qn] = sp[i] } }
+        for (h = 1; h <= qn; h++) { nc = split(K[Q[h]], C, " "); for (j = 1; j <= nc; j++) { c = C[j]; pres[c] = 1
+          if (!((c ";" R[c]) in have)) { have[c ";" R[c]] = 1; m++; sp[m] = c; ss[m] = R[c]; add++ }
+          if (!(c in vis)) { vis[c] = 1; Q[++qn] = c } } }
+        for (i = 1; i <= m; i++) out = out (i > 1 ? "|" : "") sp[i] ";" ss[i]
+        for (c in pres) pl = pl " " c
+        printf "%d\t%d\t%s\t%s\n", NR, add + 0, out, pl }')"
+    t=$((t + 1)); case "$o" in ""|"0$tab"*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
   done
-  case "$o" in [0123456789]*" "[0123456789]*) set -- $o; _rcp_add="$2"; shift 2; _rcp_set="$*" ;; *) _rcp_add=0 ;; esac
+  _rcp_add=0
+  case "$o" in [123456789]*"$tab"*) r="${o#*"$tab"}"; _rcp_add="${r%%"$tab"*}"; r="${r#*"$tab"}"; _rcp_set="${r%%"$tab"*}"; _rcp_pres="${r#*"$tab"}" ;; esac
 }
-
-# A tree ended: TERM to every pid held, so that the suite's own EXIT trap removes its temporary
-# directory and red's its base checkout; the root given up to 30 s to go; then STOP to all while a
-# listing adds a pid (30 times at most), KILL, one more listing, and KILL and then CONT to all, so
-# that nothing forks while it is ended and nothing is left stopped. It runs in a subshell that
-# ignores TERM and is waited for: the stop goes to its end, and its caller keeps its disposition.
-_rcp_stop() {   # <pid>
+# Red's tree ended: TERM to the members present, so that the suite's own EXIT trap removes its temporary
+# directory and red's its base checkout; red given up to 30 s to go; then STOP while a listing adds a member
+# (30 times at most), KILL, one more listing, KILL and then CONT. It runs in a subshell that ignores TERM
+# and is waited for, so the stop goes to its end and its caller keeps its disposition.
+_rcp_stop() {   # <red's pid>, with the start time _rcp_redsig gave it
   (
-    local p n=0
+    local p n=0 s="$_rcp_redsig"
     trap '' TERM
-    _rcp_set="$1"; _rcp_grow; _rcp_k TERM
+    s="${s#"${s%%[! ]*}"}"; _rcp_set="$1;${s%"${s##*[! ]}"}"; _rcp_pres="$1"; _rcp_grow; _rcp_k TERM
     while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
     n=0
     while [ "$n" -lt 30 ]; do _rcp_grow; _rcp_k STOP; [ "$_rcp_add" -gt 0 ] || break; n=$((n + 1)); done
     _rcp_k KILL; _rcp_grow; _rcp_k KILL; _rcp_k CONT
   )
 }
-_rcp_k() { local p; for p in $_rcp_set; do kill -"$1" "$p" 2>/dev/null; done; }
+_rcp_k() { local p; for p in $_rcp_pres; do kill -"$1" "$p" 2>/dev/null; done; }
 
 _rcp_red_alive() {   # status 0 while the red this run started is still running
   [ -n "${_rcp_red:-}" ] && [ "${_rcp_redgone:-0}" = 0 ] && kill -0 "$_rcp_red" 2>/dev/null || return 1

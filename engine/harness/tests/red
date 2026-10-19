@@ -193,27 +193,31 @@ _none() {
   exit 2
 }
 
-# A tree of processes ended (R2), as _rcp_stop in receipt.sh, which this does not load: the set
-# of pids only grows, each listing is seeded with all of it and an empty one is taken again (five
-# tries, 0.2 s apart). TERM to all, the root given up to 10 s, STOP to all while a listing adds a
-# pid (30 times at most), KILL, one more listing, then KILL and CONT to all, so that nothing forks
-# meanwhile and nothing is left stopped. A caller ignores TERM first (_abort, the monitor).
-_grow() {   # -> SET gains everything below it, ADD how many
-  local o="" t=0
+# A tree ended (R2, R14), as _rcp_stop in receipt.sh, which this does not load: the set is "pid;start|..."
+# members (a start is what ps gave the pid when it joined; "": any), each signalled only while the latest
+# non-empty listing shows its pid with that start; an empty listing is taken again (five tries, 0.2 s apart).
+# TERM, the root given up to 10 s, STOP while a listing adds a member (30 times), KILL, a listing, KILL, CONT.
+_grow() {   # -> SET gains everything below a member present, ADD how many, PRES the pids present
+  local o="" t=0 r tab=$'\t'
   while [ "$t" -lt 5 ]; do
-    o="$(ps -A -o pid= -o ppid= 2>/dev/null | awk -v seed="$SET" '{ k[$2] = k[$2] " " $1 }
-      END { q = seed; n = split(seed, S, " "); for (j = 1; j <= n; j++) w[S[j]] = 1
-            while (q != "") { m = split(q, A, " "); q = ""
-              for (j = 1; j <= m; j++) { p = A[j]; if (p == "" || (p in sn)) continue; sn[p] = 1; out = out " " p; if (!(p in w)) add++; q = q k[p] } }
-            print NR, (add + 0) out }')"
-    t=$((t + 1)); case "$o" in "0 "*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+    o="$(ps -A -o pid= -o ppid= -o lstart= 2>/dev/null | awk -v seed="$SET" '{ s = $0; sub(/^ *[0-9]+ +[0-9]+ */, "", s); sub(/ +$/, "", s); R[$1] = s; K[$2] = K[$2] " " $1 }
+      END { n = split(seed, M, "|"); for (i = 1; i <= n; i++) if (M[i] != "") { split(M[i], a, ";"); m++; sp[m] = a[1]; ss[m] = a[2]; have[M[i]] = 1 }
+        for (i = 1; i <= m; i++) if (NR && (sp[i] in R) && (ss[i] == "" || ss[i] == R[sp[i]])) { pres[sp[i]] = 1; if (!(sp[i] in vis)) { vis[sp[i]] = 1; Q[++qn] = sp[i] } }
+        for (h = 1; h <= qn; h++) { nc = split(K[Q[h]], C, " "); for (j = 1; j <= nc; j++) { c = C[j]; pres[c] = 1
+          if (!((c ";" R[c]) in have)) { have[c ";" R[c]] = 1; m++; sp[m] = c; ss[m] = R[c]; add++ }
+          if (!(c in vis)) { vis[c] = 1; Q[++qn] = c } } }
+        for (i = 1; i <= m; i++) out = out (i > 1 ? "|" : "") sp[i] ";" ss[i]
+        for (c in pres) pl = pl " " c
+        printf "%d\t%d\t%s\t%s\n", NR, add + 0, out, pl }')"
+    t=$((t + 1)); case "$o" in ""|"0$tab"*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
   done
-  case "$o" in [0123456789]*" "[0123456789]*) set -- $o; ADD="$2"; shift 2; SET="$*" ;; *) ADD=0 ;; esac
+  ADD=0
+  case "$o" in [123456789]*"$tab"*) r="${o#*"$tab"}"; ADD="${r%%"$tab"*}"; r="${r#*"$tab"}"; SET="${r%%"$tab"*}"; PRES="${r#*"$tab"}" ;; esac
 }
-_k() { local p; for p in $SET; do kill -"$1" "$p" 2>/dev/null; done; }
-_stop_tree() {   # <pid>
-  local n=0
-  SET="$1"; _grow; _k TERM
+_k() { local p; for p in $PRES; do kill -"$1" "$p" 2>/dev/null; done; }
+_stop_tree() {   # <pid>, with the start time ps gave it in SUITE_ST
+  local n=0 s="$SUITE_ST"
+  s="${s#"${s%%[! ]*}"}"; SET="$1;${s%"${s##*[! ]}"}"; PRES="$1"; _grow; _k TERM
   while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
   n=0
   while [ "$n" -lt 30 ]; do _grow; _k STOP; [ "$ADD" -gt 0 ] || break; n=$((n + 1)); done
@@ -255,7 +259,7 @@ _gone() {
   case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
   return 1
 }
-SUITE=""; MON=""
+SUITE=""; SUITE_ST=""; MON=""
 _failed() { local f=""; [ -f "$MARK" ] || return 1; { IFS= read -r f < "$MARK"; } 2>/dev/null; [ "$f" = failed ]; }   # the record run said it failed (R1)
 # Ended by a signal (the record run's, or a Ctrl-C): its suite and the monitor
 # are ended, the base checkout goes with the trap below, and the retraction is
@@ -442,7 +446,7 @@ if [ "$AFTER" -eq 1 ]; then
   # and what a process ignores its children ignore too). Run by hand without
   # --after, the suite is as it was.
   ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1 &
-  SUITE=$!
+  SUITE=$!; SUITE_ST="$(ps -o lstart= -p "$SUITE" 2>/dev/null)"
   ( sl=""; trap 'kill "$sl" 2>/dev/null; exit' TERM   # ended at once, and no sleep left behind
     while kill -0 "$SUITE" 2>/dev/null; do
       if { [ ! -e "$MARK" ] && _gone; } || _failed; then trap '' TERM; : > "$TMP/gone"; _stop_tree "$SUITE"; break; fi

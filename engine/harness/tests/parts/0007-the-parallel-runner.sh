@@ -22,44 +22,60 @@
 #   holds no lock; the kernel drops the holder's lock when it goes. Its TERM
 #   handler exits 143 while it has no child and otherwise returns, and TERM is
 #   blocked across the fork. Once a second while it waits and while the unit runs
-#   (a poll), and before it forks, it compares its parent's pid with the one it
-#   started with: when the wrapper is gone it starts no unit, or ends the unit's
-#   tree as R2 says, and exits 2.
+#   (a poll), and before it forks, it checks its wrapper (its parent's pid) and the -j
+#   parent (kill 0; its start time every 10 s): when either is gone it starts no unit,
+#   or ends the unit's tree as R14 says, and exits 2. It writes the unit's pid and start
+#   time to unit.I after it forks (R15).
 # Part mode (part 0001) also records the shell a unit starts with and compares it when the unit
 # ends (_pm_snap, _pm_diff below; R8): a change a part leaves in the shell is the seventh runner
 # failure, printed by _par_show after the unit's others, since a serial run carries it to the parts after.
-# This shell reads the FIFO (held open read-write) with read -t and forks nothing
-# while it waits. A wrapper gone without a line is found by kill -0 on a silence,
-# ends its unit as one with no mark and has its holder ended (R4). A unit whose
-# holder has had no slot for FELIX_TEST_SLOT_NOTE s (300) is said once on stderr (R6).
+# This shell reads the FIFO (held open read-write) with a plain read, never read -t (R13: a
+# trap run while a timed read blocks is cut short by its alarm), and forks nothing while it
+# waits. A ticker perl writes @@tick to the FIFO every W s. On a tick, a wrapper that is not in the
+# job table and has no line is gone (R14), ends its unit as one with no mark and has its holder
+# ended (R4). A unit whose holder has had no slot for FELIX_TEST_SLOT_NOTE s (300) is said once on stderr (R6).
 _pj_pl='use Fcntl qw(:flock);
 use POSIX ();
-my ($dir, $k, $ef, $si, $sq, @cmd) = @ARGV;
-my ($pp, $pid, $old, %S) = (getppid, undef, $SIG{TERM});
+my ($dir, $k, $ef, $si, $sq, $mp, $mst, $uf, @cmd) = @ARGV;
+my ($pp, $pid, $old, @M, %H, @P) = (getppid, undef, $SIG{TERM});
 $SIG{TERM} = sub { exit 143 unless defined $pid };
-my $st = `ps -o lstart= -p $$ 2>/dev/null`;
-$st =~ s/^\s+|\s+$//g;
-sub slot { open(my $o, ">", "$ef.t") or exit 2; print $o "$_[0]\n$$ $st\n"; close $o or exit 2; rename("$ef.t", $ef) or exit 2 }
-sub grow {
-  my ($n, @l, %kid, @q, $a) = (0);
-  while ($n++ < 5) { @l = `ps -A -o pid=,ppid= 2>/dev/null`; last if @l; select(undef, undef, undef, 0.2) if $n < 5 }
-  for (@l) { my ($c, $p) = split; push @{ $kid{$p} }, $c }
-  @q = keys %S;
-  while (@q) { my $p = shift @q; for my $c (@{ $kid{$p} || [] }) { next if $S{$c}++; $a++; push @q, $c } }
+sub trim { my $x = shift; $x =~ s/^\s+|\s+$//g; $x }
+sub wr { my ($f, $t, $z) = @_; my $o; (open($o, ">", "$f.t") and print({$o} $t) and close($o) and rename("$f.t", $f)) or $z or exit 2 }
+my $st = trim(`ps -o lstart= -p $$ 2>/dev/null`);
+my $lq = time;
+sub gone {   # the wrapper or the -j parent is gone, or the parent has another start time (R4, R15)
+  return 1 if getppid() != $pp or !kill(0, $mp);
+  return 0 unless $_[0] || time - $lq >= 10;
+  $lq = time; my $x = trim(`ps -o lstart= -p $mp 2>/dev/null`);
+  $x ne "" && $mst ne "" && $x ne $mst
+}
+sub add { $H{"$_[0];$_[1]"}++ ? 0 : (push(@M, [@_]) && 1) }
+sub grow {   # R14: members are a pid and a start time; a listing seeds from the members present in it
+  my ($n, @l, %R, %Q, @q, $a) = (0);
+  while ($n++ < 5) { @l = `ps -A -o pid= -o ppid= -o lstart= 2>/dev/null`; last if @l; select(undef, undef, undef, 0.2) if $n < 5 }
+  return 0 unless @l;
+  for (@l) { next unless /^\s*(\d+)\s+(\d+)\s+(.*?)\s*$/; $R{$1} = [$2, $3]; push @{ $Q{$2} }, $1 }
+  my %v;
+  for my $m (@M) {
+    $m->[1] = (exists $R{$m->[0]} && $R{$m->[0]}[0] == $$) ? $R{$m->[0]}[1] : "~" if $m->[1] eq "@";
+    push @q, $m->[0] if exists $R{$m->[0]} && ($m->[1] eq "" || $m->[1] eq $R{$m->[0]}[1]) && !$v{$m->[0]}++;
+  }
+  for (my $h = 0; $h < @q; $h++) { for my $c (@{ $Q{$q[$h]} || [] }) { $a += add($c, $R{$c}[1]); push @q, $c unless $v{$c}++ } }
+  @P = @q;
   $a || 0
 }
 sub endtree {
-  %S = ($_[0] => 1); grow();
-  kill TERM => keys %S;
+  (@M, %H) = (); add($_[0], "@"); @P = ($_[0]); grow();
+  kill TERM => @P;
   for (1 .. 100) { last if waitpid($_[0], POSIX::WNOHANG()) != 0; select(undef, undef, undef, 0.1) }
-  for (1 .. 30) { my $a = grow(); kill STOP => keys %S; last unless $a }
-  kill KILL => keys %S; grow(); kill KILL => keys %S; kill CONT => keys %S;
+  for (1 .. 30) { my $a = grow(); kill STOP => @P; last unless $a }
+  kill KILL => @P; grow(); kill KILL => @P; kill CONT => @P;
   waitpid($_[0], 0);
 }
-slot("- -");
+wr($ef, "- -\n$$ $st\n");
 my ($got, $w, $t0) = (undef, undef, time);
 SLOT: while (1) {
-  exit 2 if getppid() != $pp;
+  exit 2 if gone();
   for my $i (0 .. $k - 1) {
     open(my $fh, "<", "$dir/$i") or exit 2;
     if (flock($fh, LOCK_EX | LOCK_NB)) { $got = $fh; last SLOT }
@@ -70,8 +86,8 @@ SLOT: while (1) {
   sleep 1;
 }
 my $t1 = time;
-slot($t1 . " " . ($w ? $t0 : $t1));
-exit 2 if getppid() != $pp;
+wr($ef, $t1 . " " . ($w ? $t0 : $t1) . "\n$$ $st\n");
+exit 2 if gone(1);
 my $set = POSIX::SigSet->new(POSIX::SIGTERM());
 POSIX::sigprocmask(POSIX::SIG_BLOCK(), $set);
 $pid = fork;
@@ -84,11 +100,13 @@ if (!$pid) {
   exit 127;
 }
 POSIX::sigprocmask(POSIX::SIG_UNBLOCK(), $set);
+my $us = trim(`ps -o lstart= -p $pid 2>/dev/null`);
+wr($uf, "$pid $us\n", 1) if $us ne "";
 my ($r, $last) = (0, time);
 while (1) {
   $r = waitpid($pid, POSIX::WNOHANG());
   last if $r != 0;
-  if (time() != $last) { $last = time; if (getppid() != $pp) { endtree($pid); exit 2 } }
+  if (time() != $last) { $last = time; if (gone()) { endtree($pid); exit 2 } }
   select(undef, undef, undef, 0.05);
 }
 my $s = $?;
@@ -110,20 +128,47 @@ _pj_dpl='my $d = shift; my @s = lstat($d) or exit 10;
 -l _ and exit 11; -d _ or exit 12; $s[4] == $> or exit 13; $s[2] & 022 and exit 14;
 opendir(my $h, $d) or exit 15;
 for (sort readdir $h) { next if /^[.][.]?$/; lstat("$d/$_") and -f _ or do { print "$d/$_"; exit 16 } }'
-# The set of pids a stopper holds (R2), "pid ppid" a line on stdin, the set on -v seed: prints
-# the number of lines read, the number of pids added, then the whole set and everything below it.
-_pj_tw='{ k[$2] = k[$2] " " $1 }
+# The set a stopper holds (R2, R14): members "pid;start" joined by "|" on -v seed, a member being a pid and
+# the start time it had when it joined (empty: any; "@": a root whose start is taken from the first non-empty
+# listing, when its row has -v par as its parent, and otherwise never present). Reads ps -A -o pid= -o ppid= -o
+# lstart=. Prints, tab separated: the rows read, the members added (everything below a member present in this
+# listing), the whole set, and the pids present in it.
+_pj_tw='{ p = $1; s = $0; sub(/^ *[0-9]+ +[0-9]+ */, "", s); sub(/ +$/, "", s); R[p] = s; P[p] = $2; K[$2] = K[$2] " " p }
 END {
-  q = seed; out = ""; add = 0; n = split(seed, S, " "); for (j = 1; j <= n; j++) want[S[j]] = 1
-  while (q != "") {
-    m = split(q, A, " "); q = ""
-    for (j = 1; j <= m; j++) {
-      p = A[j]; if (p == "" || (p in seen)) continue
-      seen[p] = 1; out = out " " p; if (!(p in want)) add++
-      q = q k[p]
+  n = split(seed, M, "|")
+  for (i = 1; i <= n; i++) {
+    if (M[i] == "") continue
+    split(M[i], a, ";"); p = a[1]; s = a[2]
+    if (s == "@" && NR) s = ((p in R) && P[p] == par) ? R[p] : "~"
+    m++; sp[m] = p; ss[m] = s; have[p ";" s] = 1
+  }
+  for (i = 1; i <= m; i++)
+    if (NR && (sp[i] in R) && (ss[i] == "" || ss[i] == R[sp[i]])) { pres[sp[i]] = 1; if (!(sp[i] in vis)) { vis[sp[i]] = 1; Q[++qn] = sp[i] } }
+  for (h = 1; h <= qn; h++) {
+    nc = split(K[Q[h]], C, " ")
+    for (j = 1; j <= nc; j++) {
+      c = C[j]; pres[c] = 1
+      if (!((c ";" R[c]) in have)) { have[c ";" R[c]] = 1; m++; sp[m] = c; ss[m] = R[c]; add++ }
+      if (!(c in vis)) { vis[c] = 1; Q[++qn] = c }
     }
   }
-  print NR, add out
+  out = ""; for (i = 1; i <= m; i++) out = out (i > 1 ? "|" : "") sp[i] ";" ss[i]
+  pl = ""; for (c in pres) pl = pl " " c
+  printf "%d\t%d\t%s\t%s\n", NR, add + 0, out, pl
+}'
+# The ticker (R13): writes @@tick to the FIFO every W s, so that the parent reads with no alarm pending.
+_pj_tkpl='use POSIX ();
+my ($f, $w) = @ARGV;
+$SIG{TERM} = $SIG{HUP} = "DEFAULT";
+POSIX::sigprocmask(POSIX::SIG_UNBLOCK(), POSIX::SigSet->new(POSIX::SIGTERM(), POSIX::SIGHUP()));
+my ($pp, $l) = (getppid, time);
+sysopen(my $h, $f, POSIX::O_WRONLY() | POSIX::O_NONBLOCK()) or exit 1;
+while (1) {
+  select(undef, undef, undef, 1);
+  exit 0 if getppid() != $pp;
+  next if time - $l < $w;
+  $l = time;
+  defined syswrite($h, "\@\@tick\n") or $!{EAGAIN} or exit 0;
 }'
 # The shell a unit leaves (R8). _pm_snap writes this shell's state to a file; _pm_diff sets _pm_chg to one line
 # a change between the two that part mode takes, at _pm_start and _pm_fin (part 0001). Both use no variable whose
@@ -435,7 +480,8 @@ _par_flush() {
     _pj_pr=$((_pj_pr + 1))
   done
 }
-# A line from the FIFO: "UNIT STATUS".
+# A line from the FIFO: "UNIT STATUS". A status above 128 may be a holder killed under its unit
+# (R15): the unit it recorded in unit.I is then ended, if it still runs.
 _par_ev() {
   local l="$1" nm st i=0
   nm="${l% *}"; st="${l##* }"
@@ -443,29 +489,38 @@ _par_ev() {
   while [ "$i" -lt "$_pj_n" ]; do
     if [ "${_pj_nm[$i]}" = "$nm" ]; then
       [ "${_pj_s[$i]}" = 1 ] || return 0
+      [ "${#st}" -gt 3 ] || [ "$st" -le 128 ] || _par_unit "$i"
       _pj_rc[i]="$st"; _par_fin "$i"
       return 0
     fi
     i=$((i + 1))
   done
 }
-# The set of pids a stopper holds, _pj_set, gains everything below it in a ps listing; an empty
-# listing is taken again, five tries in all, 0.2 s apart (R2). -> _pj_set, _pj_add.
+# The set a stopper holds, _pj_set (see _pj_tw), gains everything below a member present in a
+# listing; an empty listing is taken again, five tries in all, 0.2 s apart (R2, R14). A listing
+# that comes back empty leaves _pj_pres, the pids to signal, as the last non-empty one had it.
+# -> _pj_set, _pj_add, _pj_pres.
 _par_grow() {
-  local o="" t=0
+  local o="" t=0 r tab=$'\t'
   while [ "$t" -lt 5 ]; do
-    o="$(ps -A -o pid=,ppid= 2>/dev/null | LC_ALL=C awk -v seed="$_pj_set" "$_pj_tw")"
+    o="$(ps -A -o pid= -o ppid= -o lstart= 2>/dev/null | LC_ALL=C awk -v seed="$_pj_set" -v par="${_pj_par:-}" "$_pj_tw")"
     t=$((t + 1))
-    case "$o" in "0 "*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+    case "$o" in ""|"0$tab"*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
   done
-  case "$o" in [0123456789]*" "[0123456789]*) set -- $o; _pj_add="$2"; shift 2; _pj_set="$*" ;; *) _pj_add=0 ;; esac
+  _pj_add=0
+  case "$o" in
+    [123456789]*"$tab"*) r="${o#*"$tab"}"; _pj_add="${r%%"$tab"*}"; r="${r#*"$tab"}"; _pj_set="${r%%"$tab"*}"; _pj_pres="${r#*"$tab"}" ;;
+  esac
 }
-# A stopper (R2) for the roots in _pj_set. The set only grows. TERM to all of it, the roots given
-# up to 10 s, then STOP to all of it while a listing adds a pid (30 times at most), KILL, one more
-# listing, KILL and then CONT to all. The caller ignores or holds its signals around it.
-_par_k() { local p; for p in $_pj_set; do kill -"$1" "$p" 2>/dev/null; done; }
+_par_pids() { local IFS='|' e; _pj_pres=""; for e in $_pj_set; do _pj_pres="$_pj_pres ${e%%;*}"; done; }
+# A stopper (R14) for the roots in _pj_set, with _pj_par the process they are children of. The
+# set only grows, and a member is signalled only while the latest non-empty listing shows its pid
+# with its start time. TERM, the roots given up to 10 s, STOP while a listing adds a member (30
+# times at most), KILL, one more listing, KILL and then CONT. The caller ignores or holds its signals.
+_par_k() { local p; for p in $_pj_pres; do kill -"$1" "$p" 2>/dev/null; done; }
 _par_stop() {
-  local p roots="$_pj_set" n=0 up
+  local p roots n=0 up
+  _par_pids; roots="$_pj_pres"
   _par_grow; _par_k TERM
   while [ "$n" -lt 50 ]; do
     up=""; for p in $roots; do ! kill -0 "$p" 2>/dev/null || up=1; done
@@ -480,31 +535,57 @@ _par_stop() {
 # once what the parent was doing is done.
 _par_arm()  { trap '_par_sig 130' INT; trap '_par_sig 143' TERM; trap '_par_sig 129' HUP; trap '_par_sig 131' QUIT; }
 _par_hold() { _pj_sq=""; trap '_pj_sq="${_pj_sq:-130}"' INT; trap '_pj_sq="${_pj_sq:-143}"' TERM; trap '_pj_sq="${_pj_sq:-129}"' HUP; trap '_pj_sq="${_pj_sq:-131}"' QUIT; }
+# Ends the tree of PID, held with START, when that pid still has that start time, holding the
+# signals meanwhile as R2 says and acting on the first to come once it is done.
+_par_endp() {
+  local b
+  case "$1" in ""|*[!0123456789]*) return 0 ;; esac
+  [ -n "$2" ] || return 0
+  b="$(ps -o lstart= -p "$1" 2>/dev/null)"; b="${b#"${b%%[! ]*}"}"; b="${b%"${b##*[! ]}"}"
+  [ "$b" = "$2" ] || return 0
+  _par_hold; _pj_set="$1;$2"; _pj_par=""; _par_stop
+  _par_arm; [ -z "$_pj_sq" ] || _par_sig "$_pj_sq"
+}
 # Unit I's wrapper is gone without a line (R4). Its holder, named by line 2 of the slot file
 # with the start time it had, is ended if that pid still has that start time.
 _par_lost() {
   local a="" b="" p s
   { { read -r a; read -r b; } < "$_pj_dir/slot.$1"; } 2>/dev/null
   p="${b%% *}"; s="${b#* }"
-  case "$p" in ""|*[!0123456789]*) return 0 ;; esac
-  [ -n "$s" ] && [ "$s" != "$b" ] || return 0
-  b="$(ps -o lstart= -p "$p" 2>/dev/null)"; b="${b#"${b%%[! ]*}"}"; b="${b%"${b##*[! ]}"}"
-  [ "$b" = "$s" ] || return 0
-  _par_hold; _pj_set="$p"; _par_stop
-  _par_arm; [ -z "$_pj_sq" ] || _par_sig "$_pj_sq"
+  [ "$s" != "$b" ] || return 0
+  _par_endp "$p" "$s"
 }
-# After a silence (T s, 30 at most): a wrapper that is gone without a line (killed, say) ends
-# its unit as one with no mark. One more second is given to a line that was written as the
-# wrapper went.
+# Unit I's holder ended with a status above 128 (R15): the unit it recorded in unit.I, a pid and
+# its start time, is ended if it still runs.
+_par_unit() {
+  local a="" p s
+  { read -r a < "$_pj_dir/unit.$1"; } 2>/dev/null
+  p="${a%% *}"; s="${a#* }"
+  [ "$s" != "$a" ] || return 0
+  _par_endp "$p" "$s"
+}
+# After a tick (R13), and so after a silence of W s: a wrapper that is not in this shell's job
+# table and has no line is gone (R14: its pid is not asked about, since it may be another
+# process's by now). @@gone goes into the FIFO and is read back, handling every line before it;
+# the wrapper writes its line before it exits, so a wrapper found gone has had its line read
+# by then. One still without one ends its unit as one with no mark (R4).
 _par_gone() {
-  local i=0 g="" l
+  local i=0 g="" l jl=" "
+  { builtin jobs -rp > "$_pj_dir/jobs"; } 2>/dev/null || return 0
+  while IFS= read -r l; do jl="$jl$l "; done < "$_pj_dir/jobs"
   while [ "$i" -lt "$_pj_n" ]; do
-    if [ "${_pj_s[$i]}" = 1 ] && [ -n "${_pj_pid[$i]}" ] && ! kill -0 "${_pj_pid[$i]}" 2>/dev/null; then g="$g $i"; fi
+    if [ "${_pj_s[$i]}" = 1 ] && [ -n "${_pj_pid[$i]}" ]; then case "$jl" in *" ${_pj_pid[$i]} "*) ;; *) g="$g $i" ;; esac; fi
     i=$((i + 1))
   done
   [ -n "$g" ] || return 0
-  if read -r -t 1 -u 63 l; then _par_ev "$l"; return 0; fi
-  for i in $g; do _par_lost "$i"; _pj_rc[i]=lost; _par_fin "$i"; done
+  printf '@@gone\n' >&63
+  while read -r -u 63 l; do
+    case "$l" in "@@gone") break ;; "@@tick") ;; *) _par_ev "$l" ;; esac
+  done
+  for i in $g; do
+    [ "${_pj_s[$i]}" = 1 ] || continue
+    _par_lost "$i"; _pj_rc[i]=lost; _par_fin "$i"
+  done
 }
 # R6: a unit whose holder has had no slot for T s since its wrapper started is said once on stderr.
 _par_nt() {
@@ -530,29 +611,33 @@ _par_start() {
     exec >/dev/null 2>&1
     export FELIX_TEST_PART_LOG="$_pj_dir/log.$i" FELIX_TEST_PART_RAN="$_pj_dir/ran.$i" FELIX_TEST_PART_END="$_pj_dir/end.$i"
     [ "$FELIX_TEST_RECORD" != 1 ] || export FELIX_TEST_PART_RECORD=1
-    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
+    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$_pj_pp" "$_pj_ps" "$_pj_dir/unit.$i" "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
     printf '%s %s\n' "$nm" "$?" >&63
   ) &
   _pj_pid[i]=$!
 }
-# The ending (D6, R2): every wrapper running, and the one being forked, is ended with all that
-# runs below it by the stopper, INT, TERM, HUP and QUIT ignored from the first step; then each
-# is waited for, so every unit is reaped before this shell goes. Slots are not touched.
+# The ending (D6, R2, R14): every wrapper running, the one being forked and the ticker (R13) are
+# ended with all that runs below them by the stopper, INT, TERM, HUP and QUIT ignored from the
+# first step; then each is waited for, so every unit is reaped before this shell goes. Roots are
+# members "pid;@": their start times come from the first listing, where this shell is their
+# parent. Slots are not touched.
 _par_end() {
-  local bg="$!" i=0 p
+  local bg="$!" i=0 p rl=""
   trap '' INT TERM HUP QUIT
-  _pj_set=""
+  _pj_set=""; _pj_par="$$"
   while [ "$i" -lt "${_pj_n:-0}" ]; do
     if [ "${_pj_s[$i]:-0}" = 1 ]; then
-      if [ -n "${_pj_pid[$i]:-}" ]; then _pj_set="$_pj_set ${_pj_pid[$i]}"
-      elif [ -n "$bg" ] && [ "$bg" != "${_pj_bg0:-}" ]; then _pj_set="$_pj_set $bg"; fi
+      if [ -n "${_pj_pid[$i]:-}" ]; then rl="$rl ${_pj_pid[$i]}"
+      elif [ -n "$bg" ] && [ "$bg" != "${_pj_bg0:-}" ]; then rl="$rl $bg"; fi
     fi
     i=$((i + 1))
   done
+  rl="$rl ${_pj_tk:-}"
+  for p in $rl; do _pj_set="${_pj_set:+$_pj_set|}$p;@"; done
   [ -n "$_pj_set" ] || return 0
-  p="$_pj_set"; _par_stop
-  for i in $p; do { wait "$i"; } 2>/dev/null; done
-  i=0
+  _par_stop
+  for i in $rl; do { wait "$i"; } 2>/dev/null; done
+  _pj_tk=""; i=0
   while [ "$i" -lt "$_pj_n" ]; do [ "${_pj_s[$i]}" != 1 ] || _pj_s[i]=9; i=$((i + 1)); done
 }
 _par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
@@ -564,7 +649,8 @@ _par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
 # before 9990 (D4).
 _par_run() {
   local i p l def
-  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""
+  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""; _pj_tk=""; _pj_pp="$$"
+  _pj_ps="$(ps -o lstart= -p "$$" 2>/dev/null)"; _pj_ps="${_pj_ps#"${_pj_ps%%[! ]*}"}"; _pj_ps="${_pj_ps%"${_pj_ps##*[! ]}"}"
   ( : ) & { wait "$!"; } 2>/dev/null   # $! is set from here on, which _par_start and _par_end read under set -u
   _pj_T="${FELIX_TEST_SLOT_NOTE-}"
   case "$_pj_T" in ""|0*|*[!0123456789]*) _pj_T=300 ;; *) [ "${#_pj_T}" -le 6 ] || _pj_T=300 ;; esac
@@ -580,6 +666,8 @@ _par_run() {
   def="$(declare -f _fx_exit)" && eval "_par_fx_exit0${def#_fx_exit}"
   _fx_exit() { _par_end; _par_fx_exit0 "$@"; }
   _par_arm
+  perl -e "$_pj_tkpl" "$_pj_dir/fifo" "$_pj_W" </dev/null >/dev/null 2>&1 63>&- &
+  _pj_tk=$!
   while [ "$_pj_pr" -lt "$_pj_n" ]; do
     while [ "$_pj_run" -lt "$_suite_jobs" ] && [ "$_pj_qi" -lt "$_pj_n" ]; do
       _par_start "${_pj_q[$_pj_qi]}"
@@ -587,9 +675,11 @@ _par_run() {
     done
     _par_flush
     [ "$_pj_pr" -lt "$_pj_n" ] || break
-    if read -r -t "$_pj_W" -u 63 l; then _par_ev "$l"; else _par_gone; fi
+    read -r -u 63 l || { sleep 1; l="@@tick"; }
+    case "$l" in "@@tick") _par_gone ;; *) _par_ev "$l" ;; esac
     _par_nt
   done
+  { kill -KILL "$_pj_tk"; wait "$_pj_tk"; } 2>/dev/null; _pj_tk=""
   exec 63>&-
   if [ "$_pj_rfn" -gt 0 ] && [ "$FELIX_TEST_RECORD" = 1 ]; then
     [ -z "${_rcp_red:-}" ] || { _rcp_mark failed "$TMP/manifest.mark"; _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" 60; }

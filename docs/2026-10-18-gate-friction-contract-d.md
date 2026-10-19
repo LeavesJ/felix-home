@@ -528,7 +528,7 @@ Test fixes go to a blind author with this revision, before any code fix. Code fi
 
 ## Amended after review 2 (revision 8, 2026-10-19)
 
-Two lenses reviewed revision 7's build (565e0711..edb64588, with main b103f04a, 0.49.302, merged in at 286fbca0). Their reports are in audits/2026-10-18-gate-friction-d/, cited by report and number, numbered in each file's findings from 1: **proc2** (review-2-processes-and-tests.json) and **conf2** (review-2-conformance-and-weakening.json). The round-1 fix reports are cited as **buildA**, **buildB**, **blind1** and **blind2** (fix-1-buildA.txt, fix-1-buildB.txt, fix-1-blind1.txt, fix-1-blind2.txt). Revision 7's conventions hold: each amendment names the clauses and lines it replaces, every line it does not name stands, and its "D8 gains" are added to D8's cases for the blind parts. File and line references are to edb64588. Every measurement this section reports as made for it was made on this Mac's /bin/bash 3.2.57 on 2026-10-19.
+Two lenses reviewed revision 7's build (565e0711..edb64588, with main b103f04a, 0.49.302, merged in at 286fbca0). Their reports are in audits/2026-10-18-gate-friction-d/, cited by report and number, numbered in each file's findings from 1: **proc2** (review-2-processes-and-tests.json) and **conf2** (review-2-conformance-and-weakening.json). The round-1 fix reports are cited as **buildA**, **buildB**, **blind1** and **blind2** (fix-1-buildA.txt, fix-1-buildB.txt, fix-1-blind1.txt, fix-1-blind2.txt). Revision 7's conventions hold: each amendment names the clauses and lines it replaces, every line it does not name stands, and its "D8 gains" are added to D8's cases for the blind parts. File and line references are to edb64588. Every measurement this section reports as made for it was made on this Mac's /bin/bash 3.2.57 on 2026-10-19. A read-only review of this section's first text found two more, cited as **rev8** 1 and 2 in its order (a ticker started with TERM ignored, and R14's presence decided by pid alone); R13 and R14 answer them.
 
 ### R13. D6, R6: the parent never waits in an alarm-timed read
 
@@ -537,8 +537,10 @@ Answers proc2 1 and 4. On bash 3.2 a trap runs inside the signal handler while `
 - an EXIT trap that runs 4 s, run by an untrapped USR1 sent 1 s into `read -t 3`, was cut when the shell died with 142 (SIGALRM). During a plain `read` it ran to its end, and the shell then died of USR1 (158).
 
 So the ending can stop between STOP and KILL and leave processes stopped, holding their slots. Bash 5.2 was not measured, and the rule below does not depend on it. R13 replaces R6's sentence "It reads its FIFO with `read -t W`, W being T when T is below 30, and 30 otherwise.", R6's "On every return from that read, a line or a timeout", D6's "with `read -t 30`" and its "On a timeout" (R14 replaces the rest of that sentence), and, in R4's first D8 gain, "the parent's silence (D6's `read -t`)", which now reads "W (R13)".
-- **The ticker.** One perl, which the parent starts in `_par_run` once its FIFO is open and before its first wrapper, as a job of its own, with stdin, stdout and stderr on /dev/null and descriptor 63 closed. It opens the FIFO for writing itself and writes the line `@@tick` to it every W seconds. Once a second it compares its parent's pid with the one it started with, and it exits when they differ or a write fails. W stays R6's: T when T is below 30, else 30.
-- **One of the ending's roots.** The ending's roots (R2) are the running wrappers, R3's included, and the ticker, in `_par_sig` and in `_fx_exit` alike. `_fx_exit` runs the ending whenever wrappers or the ticker still run, and the ending's step 4 waits for the ticker too. When its loop ends with no signal, the parent sends TERM to the ticker's pid and waits for it, before it closes the FIFO.
+- **The ticker.** One perl, which the parent starts in `_par_run` once its FIFO is open and before its first wrapper, as a job of its own, with stdin, stdout and stderr on /dev/null and descriptor 63 closed. It opens the FIFO for writing itself and writes the line `@@tick` to it every W seconds, each line with one `syswrite`. Once a second it compares its parent's pid with the one it started with, and it exits when they differ or a write fails. W stays R6's: T when T is below 30, else 30.
+  - **Its signals.** Its first act is to set TERM and HUP to their defaults and unblock them, as 0530:417's perl sets INT, TERM and HUP to theirs. A ticker started by a parent that ignores TERM or HUP would otherwise ignore them too, and it exits only on a change of parent or a failed write, so a TERM to it would end nothing (rev8 1). INT and QUIT stay as every job starts with them, ignored (What decided the list).
+  - Measured for this revision: under `perl -e '$SIG{TERM}=$SIG{HUP}="IGNORE"; exec @ARGV' /bin/bash`, a perl started with `&` read both as `IGNORE` and was still running after a TERM. Once it had set them to `DEFAULT`, a TERM ended it, and `wait` returned 143.
+- **One of the ending's roots.** The ending's roots (R2) are the running wrappers, R3's included, and the ticker, in `_par_sig` and in `_fx_exit` alike. `_fx_exit` runs the ending whenever wrappers or the ticker still run, and the ending's `wait` (D6's step 4) waits for the ticker too. When its loop ends with no signal, the parent sends KILL to the ticker's pid and waits for it, before it closes the FIFO. The ticker holds nothing, and each `@@tick` is one write of 7 bytes, below PIPE_BUF, so a KILL leaves no part of a line in the FIFO, and it ends the ticker whatever its dispositions and its signal mask.
 - **Reads.** Every read of the FIFO is a plain `read -r -u 63`. A `@@tick` stands for what a timeout was: in the main loop it is followed by `_par_gone` (R14), as a timeout was. R6's look at the waiting units follows every line the parent reads, a `@@tick` or another.
 - **`_par_gone`'s one more second.** The second that `_par_gone` gave to a line written as its wrapper went (`read -t 1`, 0007:506) is given by the FIFO's order instead.
   - The parent writes the line `@@gone` to its own FIFO with the builtin printf and reads on. It handles every line before it as the main loop does, and passes over a `@@tick` among them.
@@ -551,21 +553,39 @@ So the ending can stop between STOP and KILL and leave processes stopped, holdin
 - **D8 gains:**
   - with `FELIX_TEST_SLOT_NOTE=2` (W is 2, so the ending outlasts what a 2 s `read -t` left it) and a unit that ignores TERM, TERM to the parent once the unit is up gives exit 143, no `reached`, nothing of the run left, stopped or running, and no slot held;
   - the same with INT, sent to a parent started with INT at its default, and a unit that ends at once when signalled, gives exit 130;
-  - USR1, which the parent does not trap, sent while two units run: the EXIT trap's ending completes, no `reached` is printed, and nothing of the run is left.
+  - USR1, which the parent does not trap, sent while two units run: the EXIT trap's ending completes, no `reached` is printed, and nothing of the run is left;
+  - in proc2 7(a)'s dispositions runs, the parent started with TERM ignored, and the one started with HUP ignored, each run their `-j 3` copy of units that pass and exit 0, not run.pl's 124, and once each has exited nothing of its process group is left, the ticker included (rev8 1).
 
 ### R14. D6, R2: a pid that may have been reused
 
-Answers proc2 9. A stopper's set only grows (R2), so a pid that exited during the TERM wait still got the last KILL, whatever process held that pid by then. And `kill -0` of a wrapper that bash had already reaped asked about whatever process held its pid next. R14 replaces R2's steps 5 and 6, and D6's "checks each running wrapper's pid with `kill -0`, a builtin".
-- **KILL and CONT.** Steps 5 and 6 become:
-  5. sends KILL to the pids of the set that are present in the most recent listing that came back non-empty;
-  6. lists once more, adds, and sends KILL and then CONT to the pids of the set present in the most recent listing that came back non-empty.
+Answers proc2 9 and rev8 2. A stopper's set only grows (R2), so a pid that exited during the TERM wait still got STOP and the last KILL, whatever process held that pid by then. This section's first text sent KILL only to the pids of the set present in the latest listing, decided by pid alone. A reused pid is an ordinary row of `ps -A -o pid=,ppid=`, so that closed only the microseconds between the last listing and the KILL, and step 4's STOP still went to the whole set (rev8 2). And `kill -0` of a wrapper that bash had already reaped asked about whatever process held its pid next. R14 replaces R2's steps 1 to 6, with their "lists with `ps -A -o pid=,ppid=`", and D6's "checks each running wrapper's pid with `kill -0`, a builtin". As R2 does, it binds every stopper: the ending, red's `_stop_tree`, receipt.sh's `_rcp_stop`, the parent's endings of a unit's tree (R4, R15), and the holder's own stopper (its perl, 0007:51-58). Wherever this contract says "as R2 says", R2 reads as R14 has it.
+- **A member is a pid and its start time.** Every listing is `ps -A -o pid= -o ppid= -o lstart=`. lstart, which holds blanks, is the last column, so a row's start time is the rest of its line after its second field, with the blanks at its two ends trimmed and those inside kept. That is what `ps -o lstart= -p PID` prints, trimmed as R4 trims it. Measured for this revision: macOS pads the column with blanks at its end, and the two agree once trimmed. Each member of the set is held with the start time it had when it joined:
+  - a descendant, with the start time of its row in the listing that adds it;
+  - a root whose caller recorded its start time, with that one: a lost unit's holder (line 2 of its slot file, R4), a unit whose holder died (`unit.I`, R15), red in receipt.sh (`_rcp_redsig`, receipt.sh:439), and red's suite, whose start time red now reads with `ps -o lstart= -p` right after it starts it, as receipt.sh reads red's;
+  - any other root, a child of the process that runs the stopper, which lives while it stops: the `-j` parent's wrappers and ticker, and a holder's own unit. It takes its start time from its row in the first non-empty listing, when that row has that process (`$$` in the parent's shell, the holder's own pid in its perl) as its parent. A root that listing does not show with that parent is never present;
+  - a root whose recorded start time is empty (ps gave no answer when it was read): it is present in a listing that has a row with its pid, as R2 had it.
+- **Present.** A member is present in a listing when the listing has a row with its pid and its start time. A row with its pid and another start time is another process. No later listing shows that pid with the member's start time again, so a member found so is never signalled again.
+- **The steps.** A stopper:
+  1. holds one set of members, which starts as its roots and only grows: no member is ever taken out of it;
+  2. lists, and adds every descendant, in that listing, of every member present in it. A listing that comes back empty (ps failed, or printed no line) is taken again, up to five tries in all, 0.2 s apart; after the fifth the stopper goes on with the set it holds;
+  3. sends TERM to every member present in the most recent non-empty listing, and waits for its roots to go, up to 10 s (30 s in `_rcp_stop`), as now;
+  4. lists again, adds, and sends STOP to every member present in the most recent non-empty listing, repeating while a listing adds a member, up to 30 times;
+  5. sends KILL to every member present in the most recent non-empty listing;
+  6. lists once more, adds, and sends KILL and then CONT to every member present in the most recent non-empty listing.
 
-  A pid of the set absent from that listing has exited, and any later holder of that pid is another process. When every listing the stopper took came back empty, steps 5 and 6 use the whole set. Steps 1 to 4 stand. As R2 does, this binds every stopper: the ending, red's `_stop_tree`, receipt.sh's `_rcp_stop`, the parent's endings of a unit's tree (R4, R15), and the holder's own stopper (its perl, 0007:51-58), which works the same way.
+  When every listing the stopper took came back empty, no descendant has joined, and steps 3 to 6 signal every root by its pid, as R2 had it.
+- **Nothing it stopped is left stopped.** A member sent STOP was present in the listing just before it. A stopped process cannot exit by itself, so until some stopper's KILL ends it, every later listing shows it, and step 5 or step 6 sends it KILL.
+- **The wait** in step 3 is unchanged. A root's pid taken again during it can only make it last to its bound.
+- **What is left.**
+  - A pid taken again by a process that started within the same second as the member it replaces reads as that member. That needs the pid space (99999 on macOS) to wrap within that second.
+  - When every try of a step's own listing came back empty, its signals read an older listing, and a pid taken again since that one is not told apart.
+  - procps derives the start time it prints from the boot time in /proc/stat, which a step of the clock moves. A step while a stopper works on ubuntu would make its members read as not present, and it would send them nothing more, so what it had stopped would stay stopped until another stopper ends it. macOS keeps a process's start time with the process. Not measured.
 - **A wrapper gone.** `_par_gone` tells that a wrapper is gone from the shell's own job table, not from `kill -0`. It writes `builtin jobs -rp` to `$TMP/pj/jobs`, with stderr to /dev/null, and reads it back with `read`, which forks nothing. A running unit's wrapper whose pid that file does not hold is gone.
   - The builder measures on bash 3.2, and reports, that `jobs -rp` lists a running `( ) &` wrapper, stops listing it once it has ended, killed or not, and that the ending's `wait` for it still returns.
   - Measured for this revision: a `sleep 3 &` was listed; 0.2 s after a TERM it was not; `wait` for it then returned 143. A child started as `( sleep 2 & )` was never listed.
 - **Unchanged.** The holder's check of its parent (R4).
-- **D8 gains:** none. A pid reused within a run cannot be made on demand.
+- **D8 gains.** A reused pid cannot be made on demand, but a start time that differs can be shown:
+  - a `ps` put first on PATH that runs the real one and passes its output on, except that from the ending's second listing on it prints a start time one second later on the row of a planted process P. P is started with `&` by a unit, writes its pid to a file, appends one line to a second file for each TERM it gets, and goes on running. TERM to the parent once P is up: once the parent has exited, P runs and is not stopped (its `ps -o stat=` holds no `T`), and its second file holds exactly one line. The case then ends P by its pid.
 
 ### R15. D6, R4: the parent killed with -9, and a holder killed with -9
 
@@ -677,7 +697,7 @@ Answers blind1's and blind2's ambiguities. Each pins a reading, and none changes
 - **R5's refusal lines** are `tests/run: the slots directory [D] ` followed by the phrase, with one space: `tests/run: the slots directory [D] is a symbolic link`. The entry line stays `tests/run: [D/NAME] is not a regular file: the slots directory holds slot files and nothing else` (blind2 1).
 - **A set but empty `FELIX_TEST_JOBS`** is refused. D1 takes N from the variable "when that is set" and refuses "a `FELIX_TEST_JOBS` that is not a valid N". A variable set to the empty string is set, and the empty string is no N from 1 to 64. So it exits 2 with one stderr line before `$TMP` is made, as blind1 asserts and the build does (0001:110-112).
 - **R1's "once such a record run has exited"** means that no process of red's tree is in both of two `ps` listings taken 0.1 s apart, the first right after the record run's exit (blind1).
-- **R2's "the ending's Nth listing"** is the Nth `ps -A -o pid=,ppid=` call the ending makes after the signal. A listing taken again because it came back empty is a call of its own (blind2 2).
+- **R2's "the ending's Nth listing"** is the Nth `ps -A` call the ending makes after the signal, R14's `ps -A -o pid= -o ppid= -o lstart=`. A listing taken again because it came back empty is a call of its own (blind2 2).
 - **red.tsv's rows** `base - - -` and `run - - -` are tab-separated, as red writes them (red:190) (blind2 6).
 
 ### The evidence, still owed
@@ -688,14 +708,14 @@ conf2 6's evidence is unchanged and still owed: the instrumented sweep (R8, R16)
 
 Test fixes go to a blind author with this revision, before any code fix. Code fixes go to the builders once the new blind tests are red.
 
-**Answered by an amendment:** proc2 1 and 4 (R13), 6 (R18), 9 (R14) and 10 (R15); conf2 1, 2, 3, 8 and 9 (R16), and 4, 7 and 13 (R17). conf2 5 is R16's D8 gains, and conf2 6 is the evidence above.
+**Answered by an amendment:** proc2 1 and 4 (R13), 6 (R18), 9 (R14) and 10 (R15); conf2 1, 2, 3, 8 and 9 (R16), and 4, 7 and 13 (R17); rev8 1 (R13) and 2 (R14). conf2 5 is R16's D8 gains, and conf2 6 is the evidence above.
 
 **Test fixes (no contract change):**
 - proc2 2: 1292:448 tests `-f` on the unit's log after the EXIT trap has removed `$TMP`. The regular-file test is taken while the unit runs, before 1292:447.
 - proc2 3: 1294:357-358 pass `tests/run: [` into a pattern (1294:340) that already starts with `tests/run: `. The phrase becomes `[`, or the whole entry path.
 - proc2 5: the lu and hk cases run without `FELIX_TEST_SLOT_NOTE` (W = 30). Within 3 s of the wrapper's kill, only the holder's own check can then end the holder and unit, and the case checks this while the parent still runs. A new case pins the parent's ending of a lost unit's holder: with W = 2, STOP goes to the holder and then KILL to its wrapper. Once the parent has exited, the holder and its unit are gone and the unit failed without its mark.
 - proc2 7:
-  - (a) run.pl takes TERM and HUP dispositions as well. The dispositions case gains a parent started with TERM ignored and one started with HUP ignored, where the `-j 3` units read what the `-j 1` parts read;
+  - (a) run.pl takes TERM and HUP dispositions as well. The dispositions case gains a parent started with TERM ignored and one started with HUP ignored, where the `-j 3` units read what the `-j 1` parts read, and each run asserts R13's last D8 gain (rev8 1);
   - (b) is R13's USR1 case;
   - (c) TERM sent twice, 0.5 s apart, to a parent whose unit ignores TERM gives exit 143, nothing left, and no stderr line printed twice.
 - proc2 8:

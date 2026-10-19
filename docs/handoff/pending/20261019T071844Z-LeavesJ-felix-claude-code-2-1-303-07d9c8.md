@@ -26,8 +26,8 @@ milestones. Reword deck slide 13 to match."
     - the seeded-omission corpus, with a second-family arm and a
       strongest-host arm added by protocol amendment;
     - Codex read-only as a second-family author;
-    - the mods round (#417), extended with Q9-Q14. A lane session started it
-      on 2026-10-19, and its record goes to `audits/2026-10-19-mods-round/`.
+    - the mods round (#417), extended with Q9-Q14. Its record is
+      `audits/2026-10-19-mods-round/`, and a pending section reports it.
 - **Authority side.** Each of these keeps its trust gate:
     - the attended dispatch tick (D3), after the dry-run lease;
     - any lease that grants real authority;
@@ -100,3 +100,33 @@ The constitution gains one sentence naming it, which is why this pull request
 waits on the founder's yes. A small engine change is proposed separately: the
 session-start hook should name `docs/direction.md` first in its reading list
 (`engine/harness/hooks/session-start`, around line 532).
+
+**Two documents on file, not build targets.** Both answer questions the
+founder asked on 10-19, and both are listed in `docs/direction.md` §7.
+- `docs/2026-10-19-intent-to-build-design.md`: how a few sentences of scope
+  become an admitted, checkable build, and how Felix improves its own tables.
+  Felix is deterministic about the frame, and models write the content as
+  typed answers. Its first slice, situations owed (report-only), is proposed
+  as a lane intake item. Its §11 asks eight decisions, each with a
+  recommended answer.
+- `docs/2026-10-19-ai-engineering-vs-vibe-coding.md`: what the work is held
+  to separates the two, not who types it. It sets out a full answer part by
+  part, its limits, and the probable partial answer, with the measurement
+  that would show it is enough. It also says what makes the capability plane
+  more than dispatch.
+
+The evidence is in the memory root's `audits/2026-10-19-intent-and-vibe-coding/`.
+It holds the sweeps, the fact-check verdicts (63 verified, 41 paraphrase-ok,
+3 unverified, 3 wrong), the theories, the attempts and their refutations, and
+the workflow scripts. The brief went through three verification rounds,
+which fixed 43, then 35, then the remainder.
+
+**Found in verification, now in build.** The land-on-green tick's founder
+patterns (G5) do not include `docs/direction.md`, so a later pull request
+that edits only that file would land on green with nobody present. The
+direction-first engine branch (`claude/direction-read-first`) adds it as
+contract amendment A32, beside the session-start change. Until that branch
+lands, any pull request that touches the file is opened as a draft labelled
+`needs-founder`. The pattern-kill deny row is held the same way: the founder
+merges it himself, and adding to `deny.tsv` fires no escape channel, so
+nothing holds it mechanically.

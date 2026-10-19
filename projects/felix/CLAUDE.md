@@ -39,7 +39,9 @@ lands, the founder gives the delivery one word: yes, partial or no.
 
 The current statement of direction is `docs/direction.md`. Where an older
 roadmap, handoff section or memory note disagrees with it, it wins, and a
-change of direction edits it in the same pull request.
+change of direction edits it in the same pull request. It is a direction
+document, so any change to it waits for the yes, even one that only folds in
+his recorded words; the pending section that records them merges on green.
 
 Nothing else waits. Engineering, fixes, tables, action items, handoffs, and
 documents that only record what the founder said all merge on green, as

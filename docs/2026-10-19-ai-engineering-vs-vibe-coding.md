@@ -13,9 +13,9 @@ Every claim about a person rests on a finding graded VERIFIED or PARAPHRASE_OK. 
 **Standing.** This is research, not direction. It decides nothing. `docs/direction.md` §7 lists it as a design on file. Any proposal here becomes a build target only through that file, and only after the founder's yes. Sections 10 to 13 are the deepening pass. Sections 1 to 9 were corrected where that pass showed them wrong.
 
 **What it concluded, in three lines.**
-- **Probable partial answer (section 12).** For a person who owns the product, Felix could probably hold work to engineering on everything class-level, observable and elicitable, with design fit contested. For a non-owner it stays partial. None of this is built for another project today: 0 of 22 candidates are admitted, and there is no dispatch.
-- **Capability plane (sections 6 and 13).** Felix rents the labor and the noticing. It owns the standing list of what is owed, who writes the check, which units of work run and in what order, and retirement on outcomes. It is only dispatch if arm D does not beat the off-the-shelf composite A+ on recall at the false-block bound (section 13, last subsection).
-- **Three decisions are yours (section 14):** who the endgame's novice is; whether a bounded derived row class may later bind without your admission, which is part of Decision 2(b); and the unattended credential plus a spending ceiling. The ceiling unblocks the measurements in sections 8 and 12, but dispatch still waits on the trust gates.
+- **Probable partial answer (section 12).** For a person who owns the product, Felix could probably hold work to engineering on everything class-level, observable and elicitable, with design fit contested. For a non-owner it stays partial. Apart from path tiers, the obligations ledger and tree receipts, none of it is built for another project today: 0 of 22 candidates are admitted, and there is no dispatch.
+- **Capability plane (sections 6 and 13).** Felix rents the labor and the noticing. By design it keeps the standing list of what is owed, who writes the check, which units of work run and in what order, and retirement on outcomes; most of that is not built yet. It is only dispatch if arm D does not beat the off-the-shelf composite A+ on recall at the false-block bound and arm C matches arm D (section 13, last subsection).
+- **Three decisions are yours (section 14):** who the endgame's novice is; whether a bounded derived row class may later bind without your admission, which widens Decision 2(b) and is decided with it; and the unattended credential plus a spending ceiling. The ceiling unblocks section 8's corpus run and the cheap first version of section 12's measurement; dispatch still waits on the trust gates.
 
 ---
 
@@ -28,11 +28,11 @@ The code does not separate the two, and neither does the person typing it. The s
 - a record that outlives the session, so the next change answers to the same standard and every miss becomes a standing check;
 - a named person who answers for the result for as long as anyone depends on it.
 
-Architecture is the same standard applied across changes. Each change is checked against the recorded decisions of the changes before it, and the chosen representation removes special cases instead of adding them (factors 7 and 9). No single diff shows either. That is why vibe-coded changes that can each be justified can still wreck a system (PR8, TH2). This is the least-evidenced part of the answer.
+Architecture is the same standard applied across changes. Each change is checked against the recorded decisions of the changes before it, and the chosen representation removes special cases instead of adding them (factors 7 and 9). No single diff shows either. That is why changes that can each be justified can still wreck a system, whether vibe-coded (PR8) or written by hand (TH2). This is the least-evidenced part of the answer.
 
 The founder suspected the difference is reasoning. That is partly right, but the reasoning that matters is about the acceptance standard, not the code: what is owed, what would show this is wrong, and whether this change extends the design or patches around it. Today's models can do several of these moves when something prompts them. Their verdict on their own work is not evidence (TH15, TH16, CH23; the first two are 2025-era), and they cannot supply facts that are not in their context. Engineering has always been mostly that surrounding standard. Agents made it visible because they made typing free.
 
-**Can it be tackled? Partly.** Work can be held deterministically to the part of the standard where three things are true: the deciding facts are recorded, the properties fall into classes a machine can check, and the checks stand outside the producer (section 12). Three things cannot be supplied: a stake, a person's comprehension, and a verdict on design fit (section 10, F12, F14, F15). The measurement in section 12 decides whether the rest is enough.
+**Can it be tackled? Partly.** Work can be held deterministically to the part of the standard where three things are true: the deciding facts are recorded, the properties fall into classes a machine can check, and the checks stand outside the producer (section 12). Some things cannot be supplied: a stake, a person's comprehension, a verdict on design fit, and obligations that are in no class and that nobody states (section 10, F3, F12, F14, F15). The measurement in section 12 decides whether the rest is enough.
 
 **The sentence to carry:** The same model writes both. Vibe coding holds the work to the prompt and to what a run shows. Engineering holds it to everything it owes, including what nobody said, judged by a check its author did not write and has seen fail, kept standing after the session, and answered for by someone who will live with the result.
 
@@ -68,7 +68,7 @@ If the AI reliably did the boring part, none of these would happen. The "boring"
 - Torvalds judged the AI's attempt in his own C domain poor and did it himself (TO18). He also keeps the data representation and interfaces (TO6, TO7).
 - Cherny hand-wrote the parts he had strong opinions about (CH3).
 
-So today the person still keeps novel, long-lived representation choices (F9), refusal and risk. They keep them because those choices are irreversible and fall outside any class row, not because they are hard. Recurring representation choices, such as identity keys and whether row-level security is sufficient, can become class rows (F8). The "chores" half of the trope fails outright (2.3). The difference from the trope is the dividing line. It is not hard versus easy. It is three other splits:
+So today the person still keeps novel, long-lived representation choices (F9), refusal and risk. This brief reads the reason as irreversibility and the lack of any class row, not difficulty, but the evidence above does not separate the two. Recurring representation choices, such as identity keys and whether row-level security is sufficient, can become class rows (F8). The "chores" half of the trope fails outright (2.3). The difference from the trope is the dividing line. It is not hard versus easy. It is three other splits:
 - the producer of the work versus the party that judges it;
 - a session versus a standing record;
 - facts a probe can observe versus facts only a person knows.
@@ -79,7 +79,7 @@ Those three lines can be tested, and the trope's line cannot.
 
 ## 3. What the people actually show
 
-**Boris Cherny (Claude Code).** His involvement cannot be counted in lines, because he typed none from about November 2025 (CH1, CH13). It went into three things, all decisions rather than typing: choosing what to build among working prototypes, designing the verification that lets him look only at final results, and turning each correction into a lasting rule. He ran about 10-15 sessions in parallel and described his job as context switching (CH4, CH6, CH11). What he kept changed over time:
+**Boris Cherny (Claude Code).** His involvement cannot be counted in lines, because he typed none from about November 2025 (CH1, CH13). It went into decisions rather than typing (listed below the table). He ran about 10-15 sessions in parallel and described his job as context switching (CH4). What he kept changed over time:
 
 | Date | His working mode | Status |
 |---|---|---|
@@ -211,7 +211,7 @@ Section 13 lists the rest.
 
 This is the thesis's I1-I7 applied to the founder's question. It is not a new architecture.
 
-**Built today** (felix-home unless stated):
+**Built today** (felix-home unless stated; path tiers, the obligations ledger and tree receipts also run on every governed project):
 - the Stop hold, the gate and deny rows;
 - tree-bound receipts, which go stale when the tree changes;
 - UNKNOWN holds (felix-home only);
@@ -233,7 +233,7 @@ In short, Felix is a strong "no" and a weak "yes". It performs no unattended cap
     - decision rows with the alternatives rejected.
 
     Every row is grounded in OBSERVED or DECLARED facts (I1). Derivation from tests, consumers and revert history is advisory until admitted. The founding case, the missing obligation, stays the priority. Preservation rows add to it and do not replace it.
-2. **Independent "done" (factors 1, 5).** The capability plane allocates who writes the acceptance check. It is never the producer (I5). The check counts only after it has been shown failing on seeded mutations of an implementation, decoupled controls included (invariant 5). Failing on an empty tree is not enough, because a check keyed on a lexical shadow fails there too. Every dispatched worker's answer file must list what it could not build, test or reproduce, as the kernel requires for bug-fix work (TO20). A missing list is a hold. A list feeds the residual only once its worker's lists have named seeded gaps (section 12, item 5).
+2. **Independent "done" (factors 1, 5).** The capability plane allocates who writes the acceptance check. It is never the producer (I5). The check counts only after it has been shown failing on seeded mutations of an implementation, decoupled controls included (invariant 5). Failing on an empty tree is not enough, because a check keyed on a lexical shadow fails there too. Every dispatched worker's answer file must list what it could not build, test or reproduce, as the kernel requires for bug-fix work (TO20). A missing list is a hold. A worker's gap list feeds the residual only after that worker's lists have named seeded gaps in qualification (section 12, item 5).
 3. **Moves fired by state (factor 6).**
     - Interrogation of the objective at start, with ASSUMED as the default tag.
     - A premortem when a plan is committed.
@@ -277,7 +277,7 @@ Every candidate sentence the theories drafted overclaimed in the present tense. 
 > The same model writes throwaway code and engineered code. The difference is what the work is held to. Felix is being built to hold a project's work to what it owes, including what nobody asked for, checked by something other than the thing that wrote it, and to say plainly what it has not checked.
 
 **What is true today, on Felix's own repository:**
-> Felix will not let a session call its work done while a hold is open. It binds each passing check to the exact revision it ran on and marks it stale when the tree changes. On its own repository it holds on unknowns instead of reporting them as passes. Felix can propose what a change owes from what its probes observe. None of those proposals has yet been admitted (0 of 22).
+> Felix will not let a session call its work done while a hold is open. It binds each passing check to the exact revision it ran on and marks it stale when the tree changes. On its own repository it holds on unknowns instead of reporting them as passes. Felix can ask a model to propose what a project owes, and keeps only proposals grounded on what its probes observe. None of the 22 proposed so far has been admitted.
 
 Notes on wording:
 - Describe the user's role as supplying what only they can know: what matters, how much risk is acceptable, and what is throwaway. Do not describe it as "doing less engineering".
@@ -325,11 +325,11 @@ Report intervals; n is small.
 **What would change the direction:**
 - **B roughly equals C:** the value is independent checks, not triggered reasoning. Cut the move-firing and invest in check-writing and discharge.
 - **The model swap (A+ against A-weak) moves results more than any loop arm:** the capability-plane direction loses its basis for this generation. Re-run each generation.
-- **D's recall is roughly A+'s:** Felix cannot yet derive what nobody stated, and the omission-engine claim stays unproven. If C also matches D, this is section 13's "only dispatch" result: investigate it under roadmap §5 as amended before deciding whether derivation stays the top build priority. Either way it is not a thing to claim.
+- **D's recall is roughly A+'s:** Felix cannot yet derive what nobody stated, and the omission-engine claim stays unproven. If C also matches D, this is section 13's "only dispatch" result: investigate it under roadmap §5 as amended before changing where derivation sits in the lane order (direction §5). Either way it is not a thing to claim.
 - **Gains come only from more blocking:** the result fails, whatever the recall.
 - **E shows less drift and fewer repeated miss classes than C:** the standing record is the asset to build first.
 
-**Precondition.** Unattended dispatch needs its own credential and a spending ceiling sized against the weekly token allowance. Supplying both is the founder's act. Both are needed but not enough: unattended dispatch also waits on the trust gates of direction row 25 (control 7, the judge pin and the arming sitting), and dispatch beyond the one D3 tick is not before March. Until then, any run with a person in the loop is reported as a pilot that a person ticked, and it does not count as Felix progress.
+**Precondition.** Unattended dispatch needs its own credential and a spending ceiling sized against the weekly token allowance. Supplying both is the founder's act. Both are needed but not enough: unattended dispatch also waits on the trust gates of direction row 25 (the step 15 judge pin and the arming sitting), and dispatch beyond the one attended D3 tick (direction row 17: one attended dispatch before March under a dollar cap) is not before March. Until then, any run with a person in the loop is reported as a pilot that a person ticked, and it does not count as Felix progress.
 
 ---
 
@@ -350,7 +350,7 @@ A narrower variant, "acceptance-function coverage" from the first refutation, sa
 - **Where it loses.** It cannot explain why owners with the same intent still miss unstated obligations (EV1, EV3, and the rate limit, which an owner missed). It cannot explain why owners need outside instruments because their own confidence is wrong (EV1, EV10). Ownership is necessary, not sufficient.
 - **Where it wins.** Felix cannot supply ownership. The rival also predicts something the main answer must face: for a person who does not own or understand the system, Felix's returns ("what is the risk envelope?", "should this exist?") will get low-resolution answers or rubber stamps. So the gains from arms B to E should be largest where an owner already exists. That cuts against the endgame's novice case, where expert and novice differ only in the resolution of the constraints they supply.
 
-**The honest position.** Felix is designed to supply three of the four parts: obligations of known classes, from observed and declared facts; checks written under a separate lease (by the same vendor's models until the second-family author runs); and persistence. None of the three is built for another project today. The fourth, a person who answers for the result, it cannot supply. It can make the answer precise, current and bounded: a signature over a hash of what was not checked at or above the release's consequence tier, void when that changes (section 12). That is a proxy for ownership, not ownership. The test that separates the main answer from this rival is to hand a working loop to a non-owner and see whether it still produces engineering. Section 12 designs it.
+**The honest position.** Felix is designed to supply three of the four parts: obligations of known classes, from observed and declared facts; checks written under a separate lease (by the same vendor's models until the second-family author runs); and persistence. Of the three, only persistence is partly built for another project today (the ledger and tree receipts); derived obligations and separately leased checks are not. The fourth, a person who answers for the result, it cannot supply. It can make the answer precise, current and bounded: a signature over a hash of what was not checked at or above the release's consequence tier, void when that changes (section 12). That is a proxy for ownership, not ownership. The test that separates the main answer from this rival is to hand a working loop to a non-owner and see whether it still produces engineering. Section 12 designs it.
 
 ---
 
@@ -378,8 +378,8 @@ Each part gets one mark:
 
 Status words follow the intent design:
 - **built**: in the engine;
-- **specified**: written in v3.2, the amendments or the thesis;
-- **new**: not built, and proposed in the intent design or here (the cell says which).
+- **specified**: written in v3.2, the amendments, the thesis or the 0cw handoff;
+- **new**: not built; proposed in the intent design or in this brief.
 
 ### The parts
 
@@ -405,7 +405,7 @@ Status words follow the intent design:
 
 ### What the table says
 
-- **For a person who owns the product,** every part is "now" or "assumption" except F3, F12, F14, the insight half of F9, and F15, which the owner supplies.
+- **For a person who owns the product,** every part is "now" or "assumption" except F3, F12, F14 and the insight half of F9. F15, the stake, is out of reach for Felix, and the owner supplies it.
     - Half of F3, the first instance, binds human teams as well. So does F12: their judgment of design fit belongs to people, and people get it wrong (TH2, PR8).
     - F14 is contested. Anthropic's team says nobody needs a full mental model (CH15). Naur says the theory cannot be rebuilt from documents (TH3).
     - So, measured against engineering, a full answer for an owner is probably reachable. It has one contested gap (design fit, and the theory behind it) and one bound: the owner's own resolution on F2 and F3. Felix goes for it.
@@ -432,7 +432,7 @@ The limits fall into four groups:
 
 Felix inherits these exactly as any team does. They do not stand between Felix and engineering.
 
-| | Limit | Hard or soft | Evidence | What Felix would do (unbuilt unless marked built) |
+| | Limit | Hard or soft | Evidence | What Felix does or would do (status in section 12) |
 |---|---|---|---|---|
 | L1 | Facts that do not exist yet: future users, load, attackers, rules, the person's later intent | Hard | Assumptions decay as the world moves (TH8). Clients cannot specify a system before trying versions of it (TH5). | Records each assumption with what would invalidate it, and marks it STALE when its grounding fact moves. Maturity rows owe post-deploy verification and rollback whatever happens later (intent design §6). |
 | L2 | No general procedure decides what a program does, so every check covers only a stated claim | Hard | 29.6% of plausible patches diverge from the human fix (TH19). 38% passed tests, yet 0 of 15 were mergeable (EV3). | Receipts are "valid for their explicit claims". Felix never says "proven" or "production-ready". |
@@ -442,7 +442,7 @@ Felix inherits these exactly as any team does. They do not stand between Felix a
 
 ### 11b. What separates engineering from vibe coding, which Felix cannot supply alone
 
-| | Limit | Hard or soft | Evidence | What Felix would do (unbuilt unless marked built) |
+| | Limit | Hard or soft | Evidence | What Felix does or would do (status in section 12) |
 |---|---|---|---|---|
 | L6 | A party with a stake, who answers for the result | Hard | The kernel keeps the human Signed-off-by (TO20). An agent's approval never counts as a person's (CH14). Trust scales through accountable people (TO10). The line between vibe coding and engineering follows lifespan and maintenance (CH3, TO5, TO12). | The owner contract (§12). Prints "unsigned" and "no named owner". Routes accountability to each project's owner, never to Felix's founder. |
 | L7 | Facts only a person holds: business rules, who may see what, how long a part must live | Soft (they can be asked), but capped by the person's resolution | AI misses business rules and local patterns (EV11). Whether RLS is sufficient depends on who should see what (EV18). Clients do not know what they want (TH5). | Asks only when the answers change what is owed, phrased as outcomes and batched. Offers working options where a description would get a low-resolution answer (CH11). |
@@ -450,14 +450,14 @@ Felix inherits these exactly as any team does. They do not stand between Felix a
 
 ### 11c. Contested
 
-| | Limit | Hard or soft | Evidence | What Felix would do (unbuilt unless marked built) |
+| | Limit | Hard or soft | Evidence | What Felix does or would do (status in section 12) |
 |---|---|---|---|---|
 | L9 | Design fit across changes | Contested in principle; hard for the enforcing path | Naur: a theory cannot be rebuilt from documents (TH3), and locally correct patches destroyed a compiler's structure (TH2). Against: a similar theory rebuilt by experiment (TH23); Anthropic's team says nobody needs a full model (CH15); no code-level maintainability penalty on a scoped feature (EV8). PR8's case is dated by its own witness to February 2026. | Holds structural rows and drift counts. Would supply an advisory design-fit review written by a second model family, once the Codex read-only author runs (direction row 19). The review fires deterministically on the three-round cap (CH16), on repeated edit/test cycles (TH15) or on a drift count. It goes to the person when consequence demands (I2's person route). It files candidate rows, never a hold. Prints "design fit not checked" on any change that touches a recorded decision without that review. |
 | L10 | The person's comprehension, which erodes as Felix succeeds | Soft evidence; the direction is structural | Delegating the thinking cost comprehension, most of all in debugging (EV6, junior engineers). An explanation gate cut later failure (EV7: novices, LLM judge). Anthropic names a paradox of supervision (CH18). | Cannot enforce comprehension (invariants 2 and 5). Phrases every return as what it commits the person to. Counts returns that cannot be phrased that way, and treats a rising count as a defect. Offers explanations on request, never as a gate. |
 
 ### 11d. Gaps in Felix today
 
-| | Limit | Hard or soft | Evidence | What Felix would do (unbuilt unless marked built) |
+| | Limit | Hard or soft | Evidence | What Felix does or would do (status in section 12) |
 |---|---|---|---|---|
 | L11 | Attention collapses with volume | Hard that attention is finite; soft how much Felix spends | 93% of permission prompts are approved (CH20). 22 candidates have waited since 09-26. The router runs at about 2% precision, with 106 declines (direction §2). | Prints a return budget per objective beside recall. Turns an answer that never varies into a default. Treats a return left past a set age as a design defect, not a reason to send a reminder. |
 | L12 | Admission: the bottleneck is checker qualification, then the founder's commit | Soft | 0 of 22 admitted. Every candidate's checker was found flawed on blind re-check (thesis I2, §8). | Qualifies before asking for admission. Class rows with blind siblings spread the cost of admission but do not fix it. Decision 2(b), after control 7 and the pin, is the route this brief builds on to take the founder out of this loop. |
@@ -466,9 +466,9 @@ Felix inherits these exactly as any team does. They do not stand between Felix a
 | L15 | Moves the next model absorbs | A clock, not a limit | Sonnet 4 already detected underspecification 74% of the time under a neutral prompt (TH18). The docs ship an interview pattern (CH23). A fan site reports plan mode dropped (CH8). | Builds durable pieces first. Specifies moves as contracts (trigger, artifact, independence, persistence). Re-runs arm C against arm B each generation and deletes any move a plain session matches. |
 | L16 | Cost | Soft, but binding now | One corpus at 3 runs costs $96-349, and $172-632 with replication. Spend caps were soft in 39 of 39 runs (thesis §2, §11). Independence adds one to three leases per obligation at B2 and above (thesis I5; intent design §4). | Confines independence to work whose consequence demands it. Runs zero-token checks first. Puts a spend limit on every lease and records each breach. |
 | L17 | Same-user state | Soft: a deployment choice, not a principle | Receipts are unsigned files that any same-user process can write, and lease records will be too once leases exist. The server-side wall stands on one of five governed repositories (thesis I5, §9). | Claims tamper-evident only. A separate OS user, a key held off the machine, or a server-side required check would change this. Builds the wall repository by repository and prints which ones have it. |
-| L18 | Thin, same-family evidence | Soft | Key Cherny points are secondary (CH8, CH22). Ownership of the claude.dev domain is unconfirmed (CH14-CH16). The comprehension studies are of learners (EV6, EV7). Most findings on model behaviour come from 2025-era models (TH15, TH16, TH18, EV3). Every sweep, theory and refutation behind this brief came from one model family. | Gives enforcing force only to factors 1-5. Parts resting on factors 6, 7 and 9 (F9-F13, F17) stay advisory or assumption-marked until their tests run. Has the Codex read-only author read the claims this brief acts on. |
+| L18 | Thin, same-family evidence | Soft | Key Cherny points are secondary (CH8, CH22). Ownership of the claude.dev domain is unconfirmed (CH14-CH16). The comprehension studies are of learners (EV6, EV7). Most findings on model behaviour come from 2025-era models (TH15, TH16, TH18, EV3). Every sweep, theory and refutation behind this brief came from one model family. | Gives enforcing force only to factors 1-5. Parts resting on factors 6, 7 and 9 (F9, F11-F13, F17, and F10's deletion half) stay advisory or assumption-marked until their tests run; F10's refusal by trace needs no assumption. Has the Codex read-only author read the claims this brief acts on. |
 
-None of this removes the founder from the landing loop (0 merges). The admission loop closes only through Decision 2(b). Felix says so whenever it proposes these pieces (direction §3).
+None of this removes the founder from the landing loop (0 merges). Decision 2(b) is the route this brief builds on to take the founder out of the admission loop, and only for task-blocking rows. Felix says so whenever it proposes these pieces (direction §3).
 
 ## 12. The probable partial answer
 
@@ -494,7 +494,7 @@ Each item ends with its status as of 10-19.
     *Status: path tiers built.*
 4. **Every miss becomes a candidate class row.** Each revert, failed gate and incident is joined mechanically to the layer that should have caught it. The resulting row is tested on blind fixtures and a prevention replay, and enters at ADVISORY. Task-blocking force depends on founder Decision 2(b) and intent design §11d.
     *Status: new.*
-5. **Reversible gaps are discharged by a leased worker.** The worker must list what it could not build, test or reproduce. The list counts for something only once it has named seeded gaps.
+5. **Reversible gaps are discharged by a leased worker.** The worker must list what it could not build, test or reproduce. A worker's list counts only once that worker's lists have named seeded gaps in qualification.
     *Status: no dispatch; gated by row 25.*
 6. **Questions go out only when the answers change what is owed.** They are phrased as outcomes and batched. Where a description would get a weak answer, the person picks between thin working options.
     *Status: new; the options need leases.*
@@ -570,7 +570,7 @@ Engineering differs from vibe coding in what the work is held to. Felix can hold
 
 ### The measurement that would show it is enough
 
-**Setup.** This is a second experiment, separate from section 8's arms A+ to E. Section 8 asks which parts of the loop add value; this one asks whose answers to Felix's returns are enough. It reuses section 8's protocol, ecosystems and seeds. All arms run on the sealed seeded-omission protocol. Each ecosystem gets five dependent objectives, each given as a one-line prompt, and every arm uses the same pinned model ids.
+**Setup.** This is a second experiment, separate from section 8's arms A+ to E. Section 8 asks which parts of the loop add value; this one asks whose answers to Felix's returns are enough. It reuses section 8's protocol, ecosystems and seed-derivation method, with the seed exclusions below. All arms run on the sealed seeded-omission protocol. Each ecosystem gets five dependent objectives, each given as a one-line prompt, and every arm uses the same pinned model ids.
 
 **Arms.**
 - **Eng:** an experienced engineer with the strongest composite tooling (section 13) and no Felix. This is the engineering reference.
@@ -619,7 +619,7 @@ Engineering differs from vibe coding in what the work is held to. Felix can hold
 
 Felix rents the labor and the noticing.
 
-**What Factory already does, and where Felix differs.** Factory derives a validation contract from intent inside one mission. The user can skip it, it is not bound to a commit, and it never goes stale. A cross-vendor validator has also been reported, unverified. Felix's difference is a contract that stands across missions, is grounded in observed and declared facts with a denominator, binds to a commit, goes stale and blocks, with independence allocated on a lease. Deriving obligations from intent is not, by itself, a Felix advantage.
+**What Factory already does, and where Felix differs.** Factory derives a validation contract from intent inside one mission. The user can skip it, it is not bound to a commit, and it never goes stale. A cross-vendor validator has also been reported, unverified. Felix's intended difference is a contract that would stand across missions, be grounded in observed and declared facts with a denominator, bind to a commit, go stale and block, with independence allocated on a lease. Apart from the ledger and tree receipts, which bind, go stale and block on every governed project, none of it is built for another project yet: derived grounding with a denominator and leased independence are not. Deriving obligations from intent is not, by itself, a Felix advantage.
 
 **Where the two planes meet is the row lifecycle.** This is v3.2's existing boundary, not a new mechanism:
 1. The capability plane proposes a row.
@@ -726,9 +726,9 @@ If that happens, the ledger adds nothing that off-the-shelf parts plus an indepe
 
 Only where his judgement is needed.
 
-1. **Who is the novice in the endgame?** Evidence points to ownership as a condition Felix cannot supply. Is Felix's target the person who owns the outcome but lacks engineering expertise, or must it also produce engineering for someone who will not own or understand the code? This decides whether ownership (F15, L6) and understanding (factor 8, L10) are conditions Felix asks of the user, or residual Felix prints as "no named owner". Felix cannot fill either (section 10, F14 and F15). Section 12's measurement (arms O, Ni and Nb) answers the empirical half; which person Felix is for is the founder's.
+1. **Who is the novice in the endgame?** Evidence points to ownership as a condition Felix cannot supply. Is Felix's target the person who owns the outcome but lacks engineering expertise, or must it also produce engineering for someone who will not own or understand the code? This decides whether ownership (F15, L6) and understanding (factor 8, L10) are conditions Felix asks of the user, or residual Felix prints ("no named owner" for ownership; nothing implying understanding for comprehension). Felix cannot fill either (section 10, F14 and F15). Section 12's measurement (arms O, Ni and Nb) answers the empirical half; which person Felix is for is the founder's.
 2. **Can any derived row class bind without your admission?** This is pending Decision 2(b): only after control 7 and the judge pin, and only for rows whose checkers have qualified (L12; section 10, excluded claim 2). A narrowly bounded class, for example a preservation row derived from an observed consumer contract that may hold a task but never a channel, would remove your commit from the loop, not the qualification step. It widens Decision 2(b) and intent design §11c and is decided with them. This is an authority question, so it is yours.
-3. **The unattended credential and a spending ceiling for the experiment.** This is the founder's act that unblocks section 8's corpus run and section 12's measurement. Section 6's dispatch and discharge also wait on the trust gates of direction row 25 (section 10, F7).
+3. **The unattended credential and a spending ceiling for the experiment.** This is the founder's act that unblocks section 8's corpus run and the cheap first version of section 12's measurement; the full measurement also needs outside participants. Section 6's dispatch and discharge also wait on the trust gates of direction row 25 (section 10, F7).
 
 ---
 

@@ -17,14 +17,14 @@
 #   ${TMPDIR:-/tmp}/felix-suite-slots, tried in turn, once a second) and writes
 #   the slot file the wrapper names, whole each time (R4): line 1 "- -" until it
 #   holds a slot, then "SLOT-EPOCH FIRST-TRY-EPOCH"; line 2 its pid and start
-#   time. It forks and execs the unit in the child with INT and QUIT as this shell
-#   had them and every signal it changed put back. The slot file is close-on-exec,
-#   so the unit holds no lock; the kernel drops the holder's lock when it goes. Its
-#   TERM handler exits 143 while it has no child and otherwise returns, and TERM is
-#   blocked across the fork. It compares its parent's pid with the one it started
-#   with once a second while it waits and while the unit runs (a poll), and before
-#   it forks: when the wrapper is gone it starts no unit, or ends the unit's tree
-#   as R2 says, and exits 2.
+#   time. It forks and execs the unit with INT and QUIT as this shell had them and
+#   every signal it changed put back. The slot file is close-on-exec, so the unit
+#   holds no lock; the kernel drops the holder's lock when it goes. Its TERM
+#   handler exits 143 while it has no child and otherwise returns, and TERM is
+#   blocked across the fork. Once a second while it waits and while the unit runs
+#   (a poll), and before it forks, it compares its parent's pid with the one it
+#   started with: when the wrapper is gone it starts no unit, or ends the unit's
+#   tree as R2 says, and exits 2.
 # This shell reads the FIFO (held open read-write) with read -t and forks nothing
 # while it waits. A wrapper gone without a line is found by kill -0 on a silence,
 # ends its unit as one with no mark and has its holder ended (R4). A unit whose
@@ -32,7 +32,7 @@
 _pj_pl='use Fcntl qw(:flock);
 use POSIX ();
 my ($dir, $k, $ef, $si, $sq, @cmd) = @ARGV;
-my ($t0, $pp, $pid, $old, %S) = (time, getppid, undef, $SIG{TERM});
+my ($pp, $pid, $old, %S) = (getppid, undef, $SIG{TERM});
 $SIG{TERM} = sub { exit 143 unless defined $pid };
 my $st = `ps -o lstart= -p $$ 2>/dev/null`;
 $st =~ s/^\s+|\s+$//g;
@@ -54,7 +54,7 @@ sub endtree {
   waitpid($_[0], 0);
 }
 slot("- -");
-my ($got, $w);
+my ($got, $w, $t0) = (undef, undef, time);
 SLOT: while (1) {
   exit 2 if getppid() != $pp;
   for my $i (0 .. $k - 1) {
@@ -425,9 +425,9 @@ _par_nt() {
     i=$((i + 1))
   done
 }
-# Starts unit I: a wrapper (see the head of this file) for its holder. The unit is marked running
-# with no pid before the fork, and the pid is taken from $! after it (R3), so an ending that comes
-# between sees the wrapper by $! differing from _pj_bg0.
+# Starts unit I: a wrapper (see the head of this file) for its holder. The unit is marked
+# running with no pid before the fork and takes it from $! after (R3): an ending between
+# the two finds the wrapper by $! differing from _pj_bg0.
 _par_start() {
   local i="$1" nm="${_pj_nm[$1]}" mb="${_pj_mb[$1]}"
   : > "$_pj_dir/log.$i"
@@ -443,10 +443,9 @@ _par_start() {
   ) &
   _pj_pid[i]=$!
 }
-# The ending (D6, R2): every wrapper still running, and the one being forked, with all that
-# runs below it, is ended by the stopper, INT, TERM, HUP and QUIT ignored from the first step;
-# then every wrapper is waited for, so that each unit has been reaped before this shell goes.
-# Slots are not touched: each holder's lock goes with it.
+# The ending (D6, R2): every wrapper running, and the one being forked, is ended with all that
+# runs below it by the stopper, INT, TERM, HUP and QUIT ignored from the first step; then each
+# is waited for, so every unit is reaped before this shell goes. Slots are not touched.
 _par_end() {
   local bg="$!" i=0 p
   trap '' INT TERM HUP QUIT

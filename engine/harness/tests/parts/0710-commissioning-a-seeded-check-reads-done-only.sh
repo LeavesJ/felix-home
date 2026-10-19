@@ -10,9 +10,7 @@
 # shipped code running against a plugin tree on disk, because stubbing the
 # tiering would assert only that the test agrees with itself.
 _commissioning_build after-0700
-# The manifests the check below reads (R9): every project the parts before 0710 leave with a
-# stack.tsv that carries the grounding column, which the serial run has and a run of this part alone
-# is handed here. Each builder finds what is already built and does nothing; _grounded_projects names them.
+# The manifests the serial run hands the check below (R9), built here for a run of this part alone; _grounded_projects names them.
 _stranger_build; _setupproj_build; _cmwebapp_build; _hookproj_build
 _admroot="$TMP/nominated"; rm -rf "$_admroot"
 mkdir -p "$_admroot/clean/skills/llm-eval"
@@ -269,8 +267,7 @@ has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMS
 # The invariant that actually holds everywhere is the shape: six fields, and a
 # grounding this policy recognises.
 _gfiles="$(grep -l $'\tgrounding$' "$FROOT"/projects/*/stack.tsv 2>/dev/null)"
-# A manifest of a project that no builder makes would be read by the serial run and by no run of this part
-# alone, so a part added before 0710 that leaves one fails here until its project has a builder (R9).
+# A manifest no builder makes would be read by the serial run and by no run of this part alone: fail until it has one (R9).
 _gnl=" $(_grounded_projects | tr '\n' ' ')"; _gnb=""
 for _gnf in $_gfiles; do _gnp="${_gnf%/stack.tsv}"; _gnp="${_gnp##*/}"; case "$_gnl" in *" $_gnp "*) ;; *) _gnb="$_gnb $_gnp" ;; esac; done
 [ -n "$_gfiles" ] && [ -z "$_gnb" ] && ok "the engine writes manifests carrying the grounding column" \

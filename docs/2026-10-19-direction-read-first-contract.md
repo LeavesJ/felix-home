@@ -23,9 +23,9 @@ It says what must be true, not how.
 - **P**: the governed project's directory in the Felix home, so that the
   constitution is `P/CLAUDE.md`.
 - **D**: the path `R/docs/direction.md`.
-- **The reading list**: the paragraph of the context that begins
-  `Read before planning: `. Its continuation lines are indented with exactly
-  19 spaces, as they are today.
+- **The reading list**: the lines of the context from the one that begins
+  `Read before planning: ` down to the next blank line. Its continuation lines
+  are indented with exactly 19 spaces, as they are today.
 - **Named**: D appears in the context.
 - **Regular**: D exists, is a regular file, and is not a symbolic link; and
   `R/docs` is not a symbolic link either.
@@ -33,7 +33,7 @@ It says what must be true, not how.
   indent:
 
   ```
-  docs/direction.md is the standing direction: it wins over older roadmaps, handoff sections and memory notes.
+  docs/direction.md is the standing direction: where an older roadmap, handoff section or memory note disagrees with it, it wins.
   ```
 
 ## Present: D is regular
@@ -47,8 +47,10 @@ It says what must be true, not how.
   newest five of `R/docs/handoff/pending/*.md`, newest first, then
   `and N older in R/docs/handoff/pending/` when there are more than five.
   D is not counted among the pending sections, and N is unchanged by D.
-- **P4.** The direction line is the last line of the reading list: it comes
-  directly after the list's last entry, with no blank line between, and it is
+- **P4.** The direction line is the line directly before
+  `Read before planning: R/docs/direction.md`, with no blank line between
+  them, and the line before the direction line is blank: it stands where the
+  reading list's first line stands today. The reading list's last entry is
   followed by the blank line and then the paragraph beginning
   `None of those are loaded for you.`, as today.
 - **P5.** D appears exactly once in the context, and the direction line
@@ -68,6 +70,9 @@ It says what must be true, not how.
   bytes include quotes, backslashes, newlines, a NUL, the text
   `Read before planning:` or the direction line itself all give the same
   context as a file holding one ordinary line.
+- **P9.** No symbolic link at `R/docs` or at D is followed to decide whether
+  D is named, so a link into a mount that does not answer cannot stall
+  session start through this check.
 
 ## Absent or not regular
 
@@ -123,3 +128,18 @@ comparison between two runs is meaningful only if two consecutive runs with
 nothing at D already agree byte for byte in that fixture. Each comparison
 first runs that control and fails loudly, rather than passing, if the control
 itself differs.
+
+## Amendment 1, 2026-10-19, from the adversarial review
+
+- The direction line's text was `... it wins over older roadmaps, handoff
+  sections and memory notes.`, which reads "older" as applying to roadmaps
+  only, so it told the model the file beats every handoff section and memory
+  note, newer ones included. The file it names says the opposite for a
+  founder decision dated after its "As of" line. The text above now scopes
+  "older" to all three.
+- P4 put the direction line last in the reading list. The next paragraph
+  opens "None of those are loaded for you. They carry standing direction",
+  whose nearest antecedent was then the material the line had just said the
+  file outranks. The line now stands above the list, and the paragraph after
+  the list is as it is today.
+- P9 is new: the link checks come before anything that follows a link.

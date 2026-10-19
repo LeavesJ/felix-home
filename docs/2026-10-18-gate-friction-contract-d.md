@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 8** (2026-10-19 UTC) amends revision 7 after the second review of its build, in the last section. Revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the section before it. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 9** (2026-10-19 UTC) amends revision 8 after the third review of its build, in the last section. Revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the section before it, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -737,3 +737,165 @@ Test fixes go to a blind author with this revision, before any code fix. Code fi
 - conf2 3's other remedy, a steering list derived from every `${NAME` the engine reads and kept current by a lint: R16 counts every added export, with an empty allowlist that only a revision grows.
 - conf2 7's other remedy, 1100 made the owner that removes the base: R17 groups the three parts, as they were written to run.
 - conf2 9's digest of `$*`, and its hash entries whose path differs from `type -P`: R16 compares each positional parameter's text, and leaves the hash table out, with its reason.
+
+## Amended after review 3 (revision 9, 2026-10-19)
+
+Two lenses reviewed revision 8's build (286fbca0..2e8de446). Their reports are in audits/2026-10-18-gate-friction-d/, cited by report and number, numbered in each file's findings from 1: **proc3** (review-3-processes-and-tests.json) and **conf3** (review-3-conformance-and-weakening.json). In this section, round 2's fix reports are cited as **buildA**, **buildB**, **blind1** and **blind2** (fix-2-buildA.txt, fix-2-buildB.txt, fix-2-blind1.txt, fix-2-blind2.txt). Revision 7's conventions hold: each amendment names the clauses and lines it replaces, every line it does not name stands, and its "D8 gains" are added to D8's cases for the blind parts. File and line references are to 2e8de446. Every measurement this section reports as made for it was made on this Mac's /bin/bash 3.2.57 on 2026-10-19.
+
+Every case this revision adds must be red against a build without the rule it names. Where the build already has that rule (R2's ignore, R13's read-back, R14, R15(a)'s check while a holder waits, and R16's guards and comparisons), the case is shown red against a copy of the build with the rule taken out, and the report names what was taken out and the FAIL it gave.
+
+### R20. R15(a): the parent gone, told without a start time
+
+Answers proc3 6. On Linux, procps prints lstart as /proc/stat's btime plus the process's start ticks, and btime moves when the wall clock is stepped (settimeofday, chrony's makestep, a leap second). R15(a) had every holder read the `-j` parent's start time every 10 s and take an answer that differed for the parent gone (0007:46-51), and end its unit's tree (0007:109). A clock step during a Linux `-j` run would then end every running unit while the parent lived. R20 replaces, in R15(a):
+- in its lead, "and its start time as `ps -o lstart= -p PID` prints it, blanks trimmed. The parent reads its own start time once, at the head of `_par_run`.";
+- the sub-bullet "At least once every 10 s, and just before it forks, it also reads the parent's start time with `ps -o lstart=`. An answer that is not empty and differs from the one it was given is the parent gone: another process has its pid. An empty answer decides nothing until the next check.";
+- in the sub-bullet after it, "or started at another time".
+
+The texts:
+- **What the holder is given.** The `-j` parent's pid. The parent's start time is no longer passed to it, and the parent no longer reads its own at the head of `_par_run` (0007:770).
+- **Once a second.** The holder keeps its `kill 0` of the parent's pid wherever R4 has it check its wrapper: at least once a second while it waits for a slot and while its unit runs, and once more just before it forks. A failure, for any reason, is the parent gone, as R15(a) says.
+- **Every 10 s, and just before it forks**, it also checks that its wrapper's parent is still the `-j` parent's pid: `ps -o ppid= -p WRAPPER`, WRAPPER being its own parent's pid, which it keeps from its start (R4), the answer's blanks trimmed. It asks only while its own parent is still that pid (R4's check), so WRAPPER names its wrapper. An answer that is a pid other than the `-j` parent's is the parent gone. A wrapper whose parent died is reparented, to pid 1 or a subreaper, and a new process that takes the parent's pid is not the wrapper's parent, so neither a clock step nor a pid taken again moves the answer. An empty answer decides nothing until the next check.
+- **Unchanged.** The holder treats the parent gone exactly as its wrapper gone (R4): it starts no unit; if its unit runs, it ends the unit's tree as R2 says (R14, R21) and reaps it; either way it exits 2. R15(a)'s "So within about 3 s of a kill -9 of the parent" stands: the `kill 0` finds a dead parent whose pid is free within a second, and the check of the wrapper's parent finds one whose pid was taken again within 10 s, as R15(a)'s start-time check did.
+- **D8 gains:** R28's case of the parent killed with `kill -9` while a holder waits for a slot (proc3 8) runs under these checks.
+
+### R21. R14: what a stopper has stopped, it signals by its pid
+
+Answers proc3 6 for R14's members, and the Linux risk R14 states under "What is left". A step of the clock on ubuntu moves the start time procps prints for every process at once (R20). Under R14, a member stopped before a step read as not present after it and was sent no KILL, so what the stopper had stopped stayed stopped, with what it held: a holder, its slot. R21 adds to R14's "Present" bullet and to its steps 4 to 6, and replaces R14's bullet "Nothing it stopped is left stopped" and the third sub-bullet of its "What is left". As R14 does, it binds every stopper: the ending, red's `_stop_tree`, receipt.sh's `_rcp_stop`, the parent's endings of a unit's tree (R4, R15), and the holder's own stopper. Wherever this contract says "as R2 says", R2 reads as R14 has it with R21. receipt.sh stays under 500 lines (room is made inside it), and red grows as little as it can, as R2 says.
+- **Stopped, then by its pid.** A member that the stopper sent STOP to, while a listing showed it with its start time, is signalled by its pid in the stopper's later steps (step 4's further rounds of STOP, step 5's KILL, then step 6's KILL and CONT after the last listing), with no further start-time check, whatever a later listing shows of it. R14's "Present" bullet gains: "A member this stopper has sent STOP is the exception: R21 signals it by its pid from then on."
+- **Nothing it stopped is left stopped** (in place of R14's bullet). A member sent STOP was present in the listing just before it. A stopped process cannot exit, so its pid cannot pass to another process until a KILL ends it. Step 5 sends it KILL by that pid. So a clock step during a stop can no longer leave stopped what the stopper stopped.
+- **Unchanged.** R14's start-time check stays for every member not yet stopped, and for TERM: step 3's TERM, and step 4's STOP to a member not yet stopped, go only to members present in the most recent non-empty listing.
+- **What is left** (in place of R14's third sub-bullet):
+  - *Two stoppers on one tree.* When the other one's KILL ends a member this one has stopped, and its pid is taken again before this stopper's KILL, within the same stop, this stopper's KILL and CONT reach the process that took the pid. R14 would have told that process apart by its start time. As R14's first residue does, it needs the pid space to wrap within that time.
+  - *A clock step on ubuntu.* After it, no member that joined before it reads as present by its start time. Such a member not yet stopped has had TERM, if a listing before the step showed it, and nothing more, and nothing it forks is found: it runs on, never stopped. Where a recorded start time no longer matches (a lost unit's holder, from `slot.I`; a unit whose holder died, from `unit.I`; red, from `_rcp_redsig`; red's suite, from `SUITE_ST`), nothing is signalled, and the process runs on, never stopped. macOS keeps a process's start time with the process. Not measured.
+- **D8 gains:** the twin of R14's case (R28). A `ps` first on PATH, like that case's, leaves out of the ending's first listing the row of R, a child that P starts when it starts, and shows it from the second listing on, so that the ending's second listing (step 4's first round) adds a member and step 4 makes a second round, with the ending's third listing. It shifts P's start time by one second only from that third listing on, after P was sent STOP. P ignores TERM. Once the parent has exited, P and R are gone, and nothing of the run is left, stopped or running. Against a build without R21, P is left stopped.
+
+### R22. R15(b): no unit runs before `unit.I` is written
+
+Answers conf3 5. The holder wrote `unit.I` after a `ps -o lstart=` that it ran once its unit was forked and running, and skipped the write when ps printed nothing (0007:93-104). A holder killed with -9 in that window left its unit running below pid 1, with its slot free and no `unit.I`, which is the loss R15(b) exists to close; one fork and exec of ps takes seconds at the load average of about 90 that conf3 saw. R22 replaces R15(b)'s "Right after it forks its unit, the holder writes one line to `$TMP/pj/unit.I`" with "Once it has forked its unit, and before the unit runs, the holder writes one line to `$TMP/pj/unit.I`", and adds to D6's holder step 3.
+- **The pipe.** The holder gives the forked child a pipe, and the child reads one byte from it before it execs the unit, once it has set its signals as D6's holder step 3 says. The child closes the pipe's write end before it reads, and the holder closes its read end. Both ends are close-on-exec, as perl opens them, so the unit holds neither.
+- **The order.** The holder writes `unit.I`, whole, through a sibling file and a rename, and only then writes the byte.
+- **A holder that dies first** gives the child EOF, since the holder held the pipe's only other write end, and the child exits 2 without running the unit. A missing `unit.I` then always means no unit ran, so R15(b)'s "With no `unit.I`, or another start time, nothing is signalled" leaves nothing running that a `unit.I` would have named.
+- **No start time.** A `ps -o lstart=` that prints nothing for the child is taken again, up to five tries in all, 0.2 s apart. When the fifth prints nothing too, or `unit.I` cannot be written, the holder closes the pipe without writing the byte, so the child exits 2 without running the unit. The holder reaps it and exits 2, and the unit has no mark (D3).
+- **D8 gains:** none in this revision. The window was one `ps` call, and R22 closes it by construction.
+
+### R23. R13: the ticker's fork and its last KILL
+
+Answers proc3 7. R13 makes the ticker one of the ending's roots, and R14 sends nothing to a pid that may be another process's. The build broke both at an edge:
+- the ticker is forked after `_par_arm` and its pid taken from `$!` on the next line (0007:785-787), so a signal between the two ran an ending without it as a root;
+- the loop's end sent KILL to the ticker's pid whether or not the ticker still ran (0007:799), and a ticker ended from outside, which R13's "What is left" allows, may have left its pid to another process.
+
+R23 adds to R13's "One of the ending's roots", and replaces its sentence "When its loop ends with no signal, the parent sends KILL to the ticker's pid and waits for it, before it closes the FIFO."
+- **The fork.** The parent keeps the value `$!` has just before the ticker's fork. The ending takes `$!` as the ticker when the ticker's pid is still unset and `$!` differs from that value, as R3 does for a wrapper. When it does not differ, the fork had not happened.
+- **The last KILL.** When its loop ends with no signal, the parent sends KILL to the ticker only while `builtin jobs -rp` lists the ticker's pid, the job-table test `_par_gone` uses for a wrapper (R14). It then waits for the ticker, listed or not, before it closes the FIFO.
+- **D8 gains:** none. The fork window lasts microseconds, and the KILL's harm needs a pid taken again; both rest on review, as R18 says of R3's fork window.
+
+### R24. R16: every builtin's status, aliases and readonly functions
+
+Answers conf3 4 and 8.
+- **Every status counts.** The status of every builtin call in the snapshot counts, in `_pm_take0`, `_pm_take1` and `_pm_snap`, `enable -n` and the `builtin enable NAME` that enables again included. If one fails (enable disabled, for example), `_pm_fin` reports `the shell state could not be compared`, as R16's "What cannot be guarded" says of a step of the comparison that fails, and the unit gets the seventh failure, never `shell ok`.
+  - A non-zero status that is itself the answer is no failure: a descriptor test, a `read` at the end of its input, `declare -p` of a name that is not set, and `compgen -v LC_` with no match.
+  - Measured for this revision, in a shell with nothing disabled, no alias and no job: `umask`, `set +o`, `shopt -p`, `trap -p`, `ulimit -a`, `ulimit -Ha`, `export -p`, `jobs -rp`, `enable -n`, `dirs -p`, `readonly -p`, `declare -f`, `compgen -b`, `compgen -k`, `alias -p` and `readonly -f` each exited 0; `compgen -v LC_` with no LC_ variable, and `declare -p` of an unset name, exited 1.
+  - conf3 4 measured why: once `enable -n enable` has run, `builtin enable -n` prints nothing, so the list read empty, as at `_pm_start`, and the unit read `shell ok`, while under `-j 1` every later `enable` fails. Measured for this revision: the call then fails with `builtin: enable: not a shell builtin`, status 1.
+  - R16's "What cannot be guarded" loses "or `enable`" from "A function named `builtin`, or `builtin` or `enable` disabled". A unit that disables `enable` still writes its end file and its mark, and gets the seventh failure. A function named `builtin`, or `builtin` disabled, stays as R16 says.
+- **Aliases and readonly functions.** `_pm_snap` also takes `builtin alias -p` and `builtin readonly -f`, and `_pm_fin` compares them:
+  - `alias NAME added`, `alias NAME changed` or `alias NAME removed`, from the `alias NAME=` lines;
+  - `readonly function NAME added`, for a `declare -fr NAME` line that `_pm_start` did not have. Measured for this revision: `readonly -f` prints each readonly function's text and then `declare -fr NAME`, and `alias -p` prints `alias NAME='VALUE'`.
+  - Under `-j 1` an alias carries to every later part that sets `expand_aliases`, and a readonly function makes a later part that defines that name fail. No part or lib file sets an alias or `expand_aliases` today (conf3 8).
+  - R16's "Not compared, with the reason" is unchanged: the command hash table stays its one entry.
+- **D8 gains:** under `-j 3`, each of these planted parts gives the seventh failure with exactly the `  | ` line shown, exit 1 and no receipt, and in a `--red` record copy no manifest, as R16's cases do; under `-j 1` none gives it:
+  - `enable -n enable`: `the shell state could not be compared`;
+  - `alias djx_al=true`: `alias djx_al added`;
+  - `djx_rf() { :; }; readonly -f djx_rf`: `readonly function djx_rf added`.
+
+### R25. R16's class clause: what the serial sweep shows, and what binds
+
+Answers conf3 6. buildB's sweep with R16's comparator (sweep-shell-r8, 181 parts) found 25 change lines in five parts, all of them function rows. None was remedied, and the record does not mark them, though buildB's report gives their reason. A serial sweep compares each part with what the parts before it left, not with the prelude, as a unit does. R25 replaces, in R16's "The class (D5)", "Every change it finds is remedied in its part or helper, and none is kept."
+- **What it shows.** The serial sweep shows only changes a part makes whatever ran before it. A change that exists only because an earlier part made something is serial-only, and a change that a part makes only when an earlier part has not (`[ -n "${X-}" ] || export X=...`) it cannot show. Every change it shows that a unit would also report is remedied in its part or helper, and none is kept.
+- **Its five function rows are serial-only.** Each function is defined by an earlier part, never by the prelude or tests/lib, so no unit holds it at `_pm_start` and no unit reports it:
+  - 0160: `function _tr changed`. `_tr` is defined by 0080;
+  - 0290: the 18 lines `function NAME removed` for `_bwbadrow`, `_bwbytes`, `_bwcatch`, `_bwhead`, `_bwlast`, `_bwlesson`, `_bwlog`, `_bwnf`, `_bwpick`, `_bwprose`, `_bwrows`, `_bwsays`, `_bwsays0`, `_bwsess`, `_bwuntimed`, `_bwverdict`, `_bwwhen` and `_bwwrote`. All 18 are defined by 0280;
+  - 0370: `function _rf changed` and `function _sev changed`. `_rf` is defined by 0330, and `_sev` by 0360;
+  - 0600: `function _nd changed`. `_nd` is defined by 0420;
+  - 1230 (1230-gate-friction-a-addendum-blind): `function _gfb_dead changed`, `function _gfb_git changed` and `function _gfb_said changed`. All three are defined by 1210.
+
+  The record (rec-p2A.tsv, rec-p2B.tsv and rec-p2D.tsv) marks each of these rows serial-only, with the part that defines the function.
+- **What binds.** Showing that no unit gives the seventh failure is the owed `-j 1` against `-j 8` run of the real suite, with R16's comparator as R24 has it. That run is the evidence that binds; the sweep is not. "The evidence, still owed" stands, with this.
+
+### R26. R12: a blind part's length
+
+Answers proc3 5. R12 capped each of 1291 to 1294 at 600 lines, and 1294 is 640 (593 at 286fbca0). R26 replaces R12's "Each of the four is at most 600 lines and is meant to run alone in at most five minutes on a quiet machine, and the PR reports each one's wall time alone."
+- **The limit.** The 600-line cap on each blind part (1291 to 1296) is replaced by the suite's own limit for a part, 1000 lines (1040:25).
+- **What R12 wanted** is run time: each blind part runs alone in about five minutes on a quiet machine, and the PR reports each one's wall time alone.
+- **1294**, at 640 lines, runs alone in about 220 s (216 s in buildB's count, 236 s in blind2's).
+- **D8 gains:** none.
+
+### R27. D8: what the TERM-twice and dispositions cases pin, and R2's ignore where it can be seen
+
+Answers proc3 4.
+- **1296's TERM-twice case** (proc2 7(c), 1296:254-255) is a check that a second TERM during the ending changes nothing: exit 143, nothing of the run left, stopped or running, no slot held, no receipt, and no line of its stderr printed twice. Its name says so and does not name R2, for example "D6: a second TERM sent to the parent during its ending changes nothing: ...". The parent's own ignore of TERM rests on review. exA in proc3 measured why it cannot be observed there: on bash 3.2 the second TERM is held back while the first trap runs, and is delivered when that trap's `exit` leaves the handler, so a parent without the ignore runs its trap a second time, finds every unit ended and no ticker, and exits 143 again.
+- **R2's ignore, where it can be seen.** The second TERM goes to a stopper of red's tree while it stops a suite whose unit ignores TERM (in red's suite only, under `FELIX_TEST_NO_MANIFEST=1`). Nothing of red's tree is left, stopped or running. Two `--red` record cases:
+  - *red's monitor.* The record run has a runner failure while red's suite runs that unit, as conf2 12's case has it, so red's monitor stops red's suite (R1). A second TERM is sent to red's monitor while it stops. The record run exits before `_rcp_red_end`'s 60 s bound (R1) has passed: a monitor ended between its STOP and its KILL leaves red's suite stopped, and the record run then waits out that bound;
+  - *the record run's watcher.* The record run is killed with `kill -9` while red's suite runs that unit, so its watcher stops red's tree (`_rcp_stop`). A second TERM is sent to the watcher while it stops.
+
+  Each is red against a build whose stopper there does not ignore TERM. To be so, the case makes its second TERM land between that stopper's STOP and its KILL, for example with a `ps` first on PATH that makes that stopper's listings slow once a trigger file exists, and its comment says how.
+- **1292's dispositions runs** (1292:310-338) drop "the ticker included" and the rev8 1 claim from their names and their comment. R27 replaces, in R13's last D8 gain, ", the ticker included (rev8 1)" with nothing, and adds to R13's "Its signals": "With TERM ignored at the parent, the ticker's reset cannot be observed in those runs: the units ignore TERM too, and the normal end KILLs the ticker. The same holds of the run started with HUP ignored, which also ends normally. The reset rests on review, and on R13's measurement of a perl that sets them to their defaults."
+
+### R28. D8: the cases review 3 found missing
+
+Answers proc3 1, 2, 3 and 8, and conf3 1, 2, 3 and 7. Each goes to the blind authors.
+- **A run's slot file, from the run itself** (proc3 1, a blocker). 1296's lh and hh cases find a run's slot file from the run: the planted part writes the directory of `FELIX_TEST_PART_LOG` (the parent's `$TMP/pj`, D2) to a file of the case's fixture directory, and the case reads `slot.*` there and nowhere else. No case globs where `mktemp -d` might have put a run's `$TMP`. GNU mktemp honours TMPDIR and macOS's ignores it, so 1296's glob beside the suite's own `$TMP` (1296:146-149) finds nothing on ubuntu, which fails both cases on every CI run, and reads other sessions' runs' files on macOS. The reading at 1296:23-26 is corrected with it.
+- **R14's case, as R14 writes it** (proc3 2, conf3 1).
+  - *The shim.* A `ps` first on PATH runs the real one and passes its output on. Once a trigger file exists, it counts each `ps -A` call whose arguments hold `ppid=`, as R19 counts the ending's listings (so a holder's `ps -o ppid= -p` of R20 is not counted), and from the second such listing on it prints the row of P with a start time one second later.
+  - *P.* A unit starts P with `&`. P writes its pid to a file, appends one line to a second file for each TERM it gets, and goes on running.
+  - *The run.* The case writes the trigger and sends TERM to the parent once P is up. The unit dies on that TERM before the second listing, so P, reparented, is a member held with its first listing's start time, and is not present from the second listing on.
+  - *After the parent has exited:* P runs and is not stopped (its `ps -o stat=` holds no `T`), and its second file holds exactly one line. The case then ends P by its recorded pid.
+  - It is red against a stopper that signals by pid alone, as R2's did. R21's twin is its companion.
+- **R13's `@@gone` read-back** (proc3 3). 1296's lost-holder case (lh, 1296:258) gets, in place of its quick part 0020-lq.sh, a part that waits for a release file (bounded) and then passes. The case writes that file about 5 s after the wrapper's kill -9. With W = 2 the parent is then inside its ending of the stopped holder (about 10 s, since a stopped holder answers `kill -0`), so it has fallen W behind its ticker, at least one `@@tick` precedes that unit's line in the FIFO, and the first `_par_gone` after the ending finds that unit's wrapper gone. The unit reads as ok, not as lost: its `  ok    ` line once, and no `part ended without its mark` line naming it. It is red against a build that marks a wrapper found gone lost at once, or that waits only for the next `@@tick`.
+- **The parent killed while a holder waits** (proc3 8). With `FELIX_TEST_SLOTS=1` and the slot's lock held by the case's own perl, recorded by its pid, a `-j 2` run of two parts. Once the parent's prelude has ended (the mark planted at the end of 0006, as 1294's R6 case plants it) and 2 s have passed, the parent is killed with `kill -9`. Within 3 s nothing of the run is left, stopped or running, and no unit starts once the case lets the slot go. It is red against a holder that checks the `-j` parent only while its unit runs.
+- **R16's guard, with functions that do not forward** (conf3 2). Each of these planted parts sits beside `umask 077`, each in its own `-j 3` part outside the `-j 1` set, since under `-j 1` it would break the parts after it. Each gives the seventh failure with exactly these `  | ` lines, WAS being the case's own umask:
+  - `perl() { :; }`: `umask WAS is now 0077` and `function perl added over a command`;
+  - `compgen() { :; }`: `umask WAS is now 0077` and `function compgen added over a builtin`;
+  - `declare() { :; }`: `umask WAS is now 0077` and `function declare added over a builtin`.
+
+  With functions that forward, as R16's cases plant them, a comparator that calls perl or export by name gives the same lines as one that calls them through `builtin` and `builtin command`, so those cases pin nothing of the guard. conf3 2 measured a mutant `_pm_x() { "$@"; }`: beside `perl() { command perl "$@"; }` it gave the build's two lines, and beside `perl() { :; }` none, where the build gave both. So R16's two forwarding cases, `export() { builtin export "$@"; }` and `perl() { command perl "$@"; }` beside `umask 077`, are no longer cases of the seventh failure. They stay only as `-j 1` controls.
+- **R16's comparisons that had no case** (conf3 3). Under `-j 3`, each of these planted parts gives the seventh failure with exactly the `  | ` line shown, exit 1 and no receipt, as R16's cases do:
+  - `CDPATH=/djx`: `variable CDPATH added`;
+  - `LC_COLLATE=C`, plain, with LC_COLLATE absent from the run's environment: `variable LC_COLLATE added`;
+  - `OPTIND=5`: `variable OPTIND changed`;
+  - `trap - EXIT`, numbered last, so that the `-j 1` run reaches every part: `trap on EXIT removed`;
+  - a two-member group in the copy's groups.tsv whose first member runs `shopt -s nullglob`: one seventh failure, naming the group's unit, with `  | shopt -u nullglob is now shopt -s nullglob`.
+- **1293's R1 sleeper** (conf3 7). Its wait for red's suite to reach the sleeper (1293:323, `-lt 100`, 20 s) is raised to 60 s (`-lt 300`). The run's 150 s bound still holds.
+
+### Every finding of review 3, and where it went
+
+Test fixes go to a blind author with this revision, before any code fix: R27, R28, and the D8 gains of R21 and R24. Code fixes go to the builders once the new blind tests are red: R20, R21, R22, R23 and R24.
+
+- proc3 1 (blocker, test): R28, a run's slot file read from the run itself.
+- proc3 2 (major, test): R28, R14's case as R14 writes it; R21 adds its twin.
+- proc3 3 (major, test): R28, the `@@gone` read-back case.
+- proc3 4 (minor, test): R27, (a) the TERM-twice case renamed and R2's ignore pinned at red's monitor and the watcher, (b) the dispositions names, and R13's note.
+- proc3 5 (minor, test): R26, the suite's 1000-line limit in place of 600.
+- proc3 6 (minor, contract): R20, the holder's check of the parent without a start time; R21, the stoppers' stopped members signalled by pid.
+- proc3 7 (minor, code): R23, both edges of the ticker.
+- proc3 8 (minor, test): R28, the parent killed while a holder waits for a slot.
+- conf3 1 (major, test): R28, with proc3 2.
+- conf3 2 (major, contract): R28, shadows that do not forward; R16's forwarding cases become `-j 1` controls.
+- conf3 3 (major, contract): R28, the watched variables, OPTIND, a trap removed and a group.
+- conf3 4 (minor, code): R24, every builtin's status counts; `enable -n enable` is in its D8 gains.
+- conf3 5 (minor, contract): R22, the pipe that holds the unit until `unit.I` is written.
+- conf3 6 (minor, contract): R25, the sweep's five rows serial-only, and the `-j 1` against `-j 8` run as the evidence that binds.
+- conf3 7 (minor, test): R28, the sleeper wait at 60 s.
+- conf3 8 (minor, contract): R24, aliases and readonly functions compared; both are in its D8 gains.
+
+conf2 6, the evidence, is still owed and not re-reported (R25).
+
+**Deliberately not taken:**
+- proc3 1's lesser remedy, a second glob of the case's own TMPDIR: the run names its own directory, so no case guesses where `mktemp -d` put it.
+- proc3 5's other remedies, a block moved out of 1294 or a new part: R26 replaces the cap with the limit every part has.
+- proc3 6's second way, field 22 of /proc/PID/stat: R20 asks for the wrapper's parent, which needs no Linux branch. Its "the same choice for R14's members" is answered by R21 instead: what a stopper has stopped it signals by pid, and the start time stays for the rest.
+- proc3 7's third remedy, R13 amended to accept both edges: R23 closes them.
+- conf3 1's further cases for the holder's `endtree` and red's `_stop_tree`: not in this revision. The parent's ending is the one stopper with a start-time case; the start-time checks of the holder's, red's and receipt.sh's stoppers rest on review.
+- conf3 4's line `builtin enable disabled`: R24 reports `the shell state could not be compared`, as R16 does for a step that fails.
+- conf3 5's other remedy, the window named under "What is left": R22 closes it.
+- conf3 7's other remedy, the case skipped when no slept file appears: R28 raises the wait.
+- conf3 8's other remedy, both listed as not compared, with a lint: R24 compares them.

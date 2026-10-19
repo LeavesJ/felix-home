@@ -793,6 +793,50 @@
 1	B11: the lookalike checkout never runs felix commission
 1	B11: the none checkout never runs felix commission
 1	B11: the substring checkout never runs felix commission
+1	B12.1: and it reads at least 200 programs, said on its last row
+1	B12.1: on engine/harness/lib/*.sh read together, _awk_names exits 0 and prints no name, unread or open row
+1	B12.2: and every name row it prints is for that copy and RT
+1	B12.2: and one of them stands on the line of that copy's n = ++NG[g]
+1	B12.2: with RTAG written RT in a copy of lib/lost-work.sh, _awk_names over the copies exits 1
+1	B12.3: -v RT=1 is caught on the line of that word
+1	B12.3: ERRNO as an awk variable is caught
+1	B12.3: PROCINFO as an array is caught
+1	B12.3: a function's second argument, passed by its callers: a row on each caller's line
+1	B12.3: a program across lines: the row is on the line the identifier stands on, not the line awk is on
+1	B12.3: a program after ! is caught
+1	B12.3: a program after LC_ALL=C is caught
+1	B12.3: a program after an opening brace is caught
+1	B12.3: a program after if is caught
+1	B12.3: a program after then is caught
+1	B12.3: a program assigned with local is caught on the assignment's line
+1	B12.3: a program in a command substitution in an unquoted here-document body is caught
+1	B12.3: a program in a command substitution inside double quotes is caught
+1	B12.3: a program joined from a variable and a single-quoted part: both parts are read
+1	B12.3: a program under xargs -0 is caught
+1	B12.3: a program variable assigned in another file given in the same call is caught in the file that assigns it
+1	B12.3: a variable assigned from another is followed to the first assignment
+1	B12.3: an inline program: its name row on the identifier's line, exit 1
+1	B12.3: and( as a call is caught
+1	B12.3: every run over a form's fixture ends with its one programs row, a count above 0
+1	B12.3: mktime( as a call is caught
+1	B12.3: or as a parameter name is caught
+1	B12.4: RT as a bash variable outside awk is no name row
+1	B12.4: RTAG, PRT, ORT_ and and_x are no name rows
+1	B12.4: a listed name in a bash comment is no name row
+1	B12.4: a listed name in a printf format is no name row
+1	B12.4: a listed name in a quoted here-document body is no name row
+1	B12.4: a listed name in a sed or grep argument is no name row
+1	B12.4: a listed name in a single-quoted string assigned to a variable no awk command reads is no name row
+1	B12.4: a listed name inside a regular-expression literal is no name row
+1	B12.4: a listed name inside an awk comment is no name row
+1	B12.4: a listed name inside an awk string is no name row
+1	B12.5: $@ as a program is unread, exit 1
+1	B12.5: a file ending inside a here-document is open on the line of its operator, exit 1
+1	B12.5: a file ending inside a single quote is open on the line the quote opened, exit 1
+1	B12.5: a program in a command substitution is unread, on its word's line, exit 1
+1	B12.5: a program variable nothing assigns is unread: prog-g2.sh given without the file that assigns it, exit 1
+1	B12.5: awk -f is unread, exit 1
+1	B12.6: a file with no awk command: exit 1, and programs 0 is its one row
 1	B12: a stale-stamped project in an unowned checkout writes no bg.log line of any kind
 1	B12: a tableless project in an unowned checkout writes no bg.log line of any kind
 1	B12: a ungranted project in an unowned checkout writes no bg.log line of any kind
@@ -975,9 +1019,15 @@
 1	B8: a repository that holds a submodule is still own when its own origin is the project's
 1	B8: a submodule is not own though its origin is the project's (1 submodule)
 1	B8: a version main declares with nothing installed at it exits 1 with the one line that says so
+1	B8: and --tsv prints nothing and exits 1
+1	B8: and both say B8's line for A on stderr, once each
+1	B8: and under --tsv that line too is B8's, said once
 1	B8: exit 0 prints the entry path, one line, and nothing else
+1	B8: in both two-repository runs the line for A is B8's, said once
+1	B8: that stderr line is felix monitor: <the directory as given>: the page could not be made from its rows (awk exited 2), said once
 1	B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it
 1	B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 16 summaries
+1	B8: when the page's awk prints its rows and then exits 2, the text page is the first line alone and exits 1
 1	B9 (control): a content difference in lib/x.sh exits 1 and names it
 1	B9 (control): an untracked, ignored stray in SRC stays residue: exit 0
 1	B9 (control): and so does one in LIVE: exit 0
@@ -1090,6 +1140,23 @@
 1	B9.39: the text page prints them as ? too
 1	B9.3: a local branch whose tip equals origin/other3's (another name, no upstream) is carried by it
 1	B9.3: two remote rows at one commit carry neither each other: both unproposed, neither carried (control)
+1	B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call
+1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 32 summaries
+1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 16 summaries
+1	B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the real awk otherwise, the first-call stub fails only its first such call, and the late stub prints what the real awk prints and exits 2 (fixture control)
+1	B9.41: a stderr line names A and holds awk exited 2
+1	B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2
+1	B9.41: and a stderr line holds the directory as given and awk exited 2
+1	B9.41: and its stdout is the first line alone
+1	B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk
+1	B9.41: and the TSV is exactly what felix monitor --tsv --repo B prints with the real awk
+1	B9.41: no stderr line names B
+1	B9.41: under --tsv a stderr line names A and holds awk exited 2
+1	B9.41: under --tsv no stderr line names B
+1	B9.41: with the first-call stub, --repo A --repo B exits 1, the stub having failed the page's first order= call
+1	B9.41: with the first-call stub, --tsv --repo A --repo B exits 1, the stub having failed the page's first order= call
+1	B9.41: with the stub, felix monitor --repo A exits 1
+1	B9.41: with the stub, felix monitor --tsv --repo A exits 1 with nothing on stdout
 1	B9.4: a remote row origin/x4 that origin/y4 strictly descends from is carried, and the detail names origin/y4
 1	B9.5: a branch whose tip origin/main reaches is landed, never carried, though every carrier descends from it (control)
 1	B9.6: a detached worktree whose HEAD an open PR's head descends from is carried, by #60

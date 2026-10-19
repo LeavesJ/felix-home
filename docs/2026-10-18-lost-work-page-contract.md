@@ -470,11 +470,23 @@ text come from transcripts.
 
 - 0: every named repository was read, including when sources inside it were
   unread.
-- 1: a named repository could not be read: the inventory exited 1 for it. Its
-  line goes to stderr, and every other repository is still printed.
+- 1: a named repository could not be read: the inventory exited 1 for it, or
+  the page's own awk, which groups and counts its rows, exited non-zero. Its
+  line goes to stderr, and every other repository is still printed. For the
+  awk the line is `felix monitor: <the directory as given>: the page could not
+  be made from its rows (awk exited <status>)`, and nothing of that
+  repository reaches stdout: no block on the text page and no row in `--tsv`,
+  not even the part the awk printed before it stopped.
 - 2: usage.
 
 The log page's exit status is unchanged.
+
+*Amended 2026-10-19.* On the Linux CI runner, whose awk is gawk, the page's awk
+stopped at its first land row on an array named `RT`, a gawk builtin scalar.
+The page exited 0 with nothing on stdout: a silent 0, which B4 forbids. The
+array is `RTAG` since 8d181f37; this clause makes any later failure of the
+same kind exit 1 and say which repository it was, and B12 adds the lint that
+would have caught the name.
 
 ## B9. What the assertions must cover
 
@@ -609,6 +621,22 @@ case names what it pins.
     page** (part 0590 around lines 200-215 and part 0600 around lines 266-305
     on this branch) are restated to run `felix monitor --log`. No assertion is
     deleted, and their names stay.
+41. **The page's awk failing** (added 2026-10-19, B8). An `awk` ahead of the
+    real one on PATH exits 2 when one of its arguments begins `order=` and
+    otherwise runs the real awk. `order=` is the page's own call: neither
+    `felix inventory --tsv` nor `felix land --prs --tsv` passes an argument
+    so spelled. With it, `felix monitor --repo <fixture>` exits 1, its stdout
+    is the first line alone, and a stderr line holds the fixture's directory as
+    given and `awk exited 2`; `felix monitor --tsv --repo <fixture>` exits 1
+    with nothing on stdout and the same stderr line. With a stub that fails
+    only the first `order=` call it sees (the page reads the repositories one
+    at a time, in the order given): `--repo <A> --repo <B>` exits 1, the
+    stderr line names A and no stderr line names B, and stdout is exactly what
+    `felix monitor --repo <B>` prints with the real awk; the same with `--tsv`
+    against `felix monitor --tsv --repo <B>`. The same runs with the real awk
+    exit 0 (control).
+42. **The gawk-name lint** (added 2026-10-19, B12): what B12 lists under
+    "Tests".
 
 ## B10. Measured on felix-home, 2026-10-18
 
@@ -687,3 +715,121 @@ rows, 79 s wall and 62 s CPU.
   assertions from this file alone (Opus), the implementation shown red first
   (Sonnet, high), one Opus review of the read-only contract, the unknown
   readings and A3 if the week's tokens allow, fixes, gate, PR, handoff section.
+
+## B12. No gawk builtin name in lib's awk (added 2026-10-19)
+
+**Defect.** The Linux CI runner's awk is gawk; macOS ships BWK awk. gawk
+reserves names the other two leave free, so a program that uses one as its own
+identifier passes every local run and fails, or reads differently, on Linux.
+The page's row-tag array was named `RT`; gawk stopped on it (B8's amendment).
+No check in the suite reads for such a name.
+
+**The names**, exact case. Variables: `RT FPAT FIELDWIDTHS IGNORECASE PROCINFO
+ERRNO ARGIND BINMODE LINT PREC ROUNDMODE SYMTAB FUNCTAB TEXTDOMAIN`. Functions:
+`and or xor compl lshift rshift gensub asort asorti patsplit isarray typeof
+strtonum strftime systime mktime`.
+
+**Where.** `engine/harness/tests/lib/awk-names.sh` defines `_awk_names FILE...`
+and runs nothing at source time (contract C2). It reads the files given as one
+set: an assignment or a call in any of them resolves a reference in any.
+
+**Output**, tab-separated, one row each, in any order but `programs` last:
+
+| row | when |
+|---|---|
+| `name FILE LINE IDENT` | a listed name used as an identifier in an awk program's text, or as the variable of a `-v NAME=...` option or a `NAME=...` operand of an awk command |
+| `unread FILE LINE WHAT` | a part of a program the lint cannot read (below), WHAT saying which |
+| `open FILE LINE WHAT` | a quote, `$(`, `${` or here-document still open at the end of FILE, LINE where it opened |
+| `programs N` | the number of program texts it read: program words, assignments and call arguments |
+
+FILE is the path as given. LINE is the line of FILE the identifier stands on;
+for a `-v` or operand variable, the line of that word; for `unread`, the line
+of the word it could not read. Exit 0 when it printed no `name`, `unread` or
+`open` row and N is above 0; else 1. A lint that read nothing does not pass.
+
+**Reading a file as bash does.** Words are split at blanks, and commands at a
+newline, `;`, `&`, `|`, `(` and `)`. A word may join unquoted characters, a
+backslash and the character it escapes, `'...'`, `$'...'` and `"..."` (inside
+which a backslash escapes `$`, a backtick, `"` and itself). `#` at the start
+of a word begins a comment to the end of the line. A backslash at the end of a
+line, outside single quotes, joins the next. `$(` opens a command of its own,
+inside a word or inside double quotes, closed by its matching `)`; `${` opens
+an expansion closed by its matching `}`. `<<WORD` and `<<-WORD` open a
+here-document whose body begins on the next line and ends at a line holding
+WORD alone (after leading tabs, for `<<-`); a body whose WORD was quoted in
+any way is skipped whole, and in any other body only its `$( )` commands are
+read. `<<<` is a here-string, not a here-document.
+
+**An awk command.** In a simple command, skip in any order the assignments
+`NAME=value` and the words `! { } if then elif else while until do`; then a
+wrapper, `xargs env nice nohup command exec time builtin`, with the words
+after it that begin with `-` or are assignments, as often as one follows. The
+next word is the command word. If it is `awk`, or a path ending in `/awk`,
+the command is an awk command, and its program is the first word after awk
+that is none of: `-F` and its argument (attached or the next word), `-v` and
+its argument (likewise), `--` (the program is the word after it), another word
+beginning with `-`, or a redirection (a word beginning with digits or nothing,
+then `<` or `>`; the next word too when the operator stands alone). `-f` and
+its argument make the program a file: an `unread` row.
+
+**A program's text** is its word's characters, quoted or not, with each
+expansion taken as a placeholder that is no identifier. Each expansion in the
+word is followed:
+
+- `$NAME` or `${NAME...}`: a program variable. Its text is the value of every
+  assignment of NAME in the files, bare, as a command's prefix, or after
+  `local readonly export declare typeset`, each read like a program word, its
+  own expansions followed in turn. A NAME nothing assigns is `unread`.
+- `$1`-`$9`, `${N}` or `${N...}` inside a function F (defined `F()` or
+  `function F`): F's Nth argument, whose text is the Nth argument word of
+  every simple command whose command word is F, each read like a program word.
+  An F nothing calls with N arguments is `unread`.
+- `${#...}`, a length: a placeholder, nothing to follow.
+- a command substitution, or any other special or positional parameter
+  (`$@ $* $# $? $$ $! $- $0`, `${!...}`, `$1` outside a function): `unread`.
+
+**An identifier** in program text is a maximal `[A-Za-z_][A-Za-z0-9_]*` that
+stands outside a string, a regular-expression literal, a comment and a number,
+so `RTAG` holds no `RT` and `"RT"` is no identifier. A string is `"..."`, in
+which a backslash escapes the next character. A comment runs from `#` to the
+end of the line. A number begins with a digit, or a `.` before a digit, and
+runs over letters, digits, `_` and `.`. A `/` opens a regular-expression
+literal unless the last thing before it on its line, blanks aside, is an
+identifier other than `return`, `print` and `printf`, a number, `)` or `]`, in
+which case it divides. A backslash inside a literal escapes the next
+character, and a bracket expression inside it may hold `/`. Strings and
+literals end at the end of the line at the latest.
+
+**Tests**, in a new part:
+
+1. On `engine/harness/lib/*.sh`, read together, `_awk_names` exits 0, prints
+   no `name`, `unread` or `open` row, and reads at least 200 programs.
+2. The defect, replayed: the same files with `RTAG` written `RT` in a copy of
+   `lib/lost-work.sh`: exit 1, and `name` rows for that copy and `RT`, one of
+   them on the line that copy's `n = ++NG[g]` stands on.
+3. Each form, in a fixture file, is caught: an inline program; one across
+   lines; one after `LC_ALL=C` and after `!`, `if`, `then` and `{`; one under
+   `xargs -0`; one in `$(...)` inside double quotes; one in a `$( )` in an
+   unquoted here-document body; a program variable assigned in another file
+   given in the same call; one assigned with `local`; a program joined from a
+   variable and a single-quoted part; a variable assigned from another; a
+   function's `$2` passed by its callers; `-v RT=1`; `ERRNO` as an awk
+   variable, `PROCINFO` as an array, `and(` and `mktime(` as calls, `or` as a
+   parameter name. Each gives its `name` row on the identifier's line.
+4. None of these is a `name` row: the names inside an awk string, a regex
+   literal and an awk comment; `RTAG`, `PRT`, `ORT_`, `and_x`; a name in a bash
+   comment, in a printf format, in a `sed` or `grep` argument, in a
+   single-quoted string assigned to a variable no awk command reads, in a
+   quoted here-document body, and as a bash variable `$RT` outside awk.
+5. `unread` for a program in `$(...)`, for `awk -f`, for a variable nothing
+   assigns, and for `$@` as a program; `open` for a file ending inside a
+   single quote and for one ending inside a here-document.
+6. Exit 1 and `programs 0` for a file with no awk command at all.
+
+**Measured on this branch (8d181f37 with the B8 fix).** `_awk_names` over the
+83 files of `lib/*.sh` reads 280 program texts and prints no other row, under
+BWK awk and gawk 5.4.1. Every awk command a grep finds outside comment lines is
+read, the eight whose program starts on a continuation line included; the 19
+program variables resolve to awk programs, and `_felix_qualify_read`'s `$2` to
+its three callers' actions. Run on `lib/lost-work.sh` at 17230ff3, before the
+rename, it prints six `name` rows for `RT`.

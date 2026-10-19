@@ -389,6 +389,8 @@ fi
 . "$HERE/parts/1470-lost-work-page-groups-blind.sh"
 . "$HERE/parts/1480-lost-work-page-readings-blind.sh"
 . "$HERE/parts/1490-lost-work-review-fixes.sh"
+. "$HERE/parts/1495-lost-work-page-awk-fails-blind.sh"
+. "$HERE/parts/1497-lib-awk-gawk-names-blind.sh"
 . "$HERE/parts/1500-git-colour-never-reaches-what-the-engine-parses.sh"
 . "$HERE/parts/1510-no-caller-environment-changes-a-tool-s-output.sh"
 . "$HERE/parts/1520-git-readers-fail-closed.sh"

@@ -257,8 +257,9 @@ reaches it.
   the 08-12 objective.
 - The aim he raised on 10-19: rely on Felix to build production-ready work
   and PRs from a few sentences of scope, with recursive improvement and
-  adaptation. The design is on file (§7). Its first unattended slice enters
-  the lane only after the founder's yes.
+  adaptation. The design is on file (§7). Its §11 asks eight decisions,
+  each with a recommended answer. The first is how his words become binding:
+  through a terminal command that a session cannot run for him.
 - The interface proposals of 10-09 (data contract first, unknown is not
   zero, no shell before about three surfaces, read-only first, two
   audiences).
@@ -311,7 +312,7 @@ A design here is not a commitment. It becomes a build target in two cases:
 | Design | What it says | Status |
 |---|---|---|
 | `docs/2026-10-18-capability-plane-thesis.md` | The capability plane's charter (v3.2 invariant 4), seven invariants I1-I7, the anti-slop contract, and autonomy as leakage per objective. | Decided parts are row 25 and the lane order. The rest is on file. |
-| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and keeps improving how it does that. | In progress (§10). |
+| `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. |
 | `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` | What separates AI-assisted engineering from vibe coding, what Felix can do about it, and the limits of the answer. | In progress (§10). |
 | Reflection triggers (memory, 08-18) | Felix questions its inputs but not its method; it needs enumerated trigger moments. | Open. |
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |

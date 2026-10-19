@@ -111,8 +111,9 @@ write a row every five minutes.
 
 - **Direction documents.** For each candidate, the tick reads
   `gh pr view <n> --json files`. If any path matches `projects/*/CLAUDE.md` or
-  `docs/*roadmap*`, the tick skips it with a `founder` row: those merge on the
-  founder's yes. The two patterns are an engine constant and name no project.
+  `docs/*roadmap*`, or is `docs/direction.md` (A32), the tick skips it with a
+  `founder` row: those merge on the founder's yes. The two patterns and the
+  path are an engine constant and name no project.
 - **The checkout.** The tick reads `git -C "$FELIX_HOME_DIR" worktree list
   --porcelain` and looks for a worktree whose branch is `refs/heads/<headRefName>`
   and whose HEAD is `headRefOid`.
@@ -493,6 +494,32 @@ cases are recorded and are not chased further.
       installed before it keeps its `/bin/sh` trampoline and its plist until
       `felix land --install` is run again, on the founder's yes, which rewrites
       both and boots the old job out first.
+
+## Amended 2026-10-19
+
+- **A32 (the standing direction file is a direction document).** On
+  2026-10-19 a project's standing direction moved into one file,
+  `docs/direction.md` at the repository root, which the session-start hook
+  now names first (`docs/2026-10-19-direction-read-first-contract.md`). It
+  merges on the founder's yes, as a roadmap does. Neither of G5's patterns
+  matched it, so a pull request that changed only that file would have been
+  landed on green CI with nobody present.
+    - A path that equals `docs/direction.md` after A3's case fold is a
+      direction document. The tick writes one `founder` row for the pull
+      request and never hands it to `felix merge`, exactly as for the two
+      patterns. So `Docs/Direction.md` holds too, and so does a rename to or
+      away from the path (A3).
+    - The match is the exact path. `docs/direction-notes.md`,
+      `docs/old/direction.md`, `notes/docs/direction.md` and
+      `projects/x/docs/direction.md` are not direction documents by this
+      rule, though another rule may still hold them. Why exact: the
+      session-start hook names that one path as the standing direction and no
+      other, and a pattern would hold unrelated files for the founder. A
+      needless stop is the cost the split between direction and engineering
+      was made to cut.
+    - The two patterns are unchanged.
+    - Every reader of G5's rule sees the same answer. The stuck-PR page
+      (`felix land --prs`) names the path as a direction document.
 
 ## Not in this
 

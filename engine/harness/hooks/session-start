@@ -529,7 +529,24 @@ fi
 # repository's HANDOFF.md, which Claude Code does not load either. Pointing at
 # them is the whole delivery mechanism, so say plainly that they are required
 # rather than leaving a path and hoping.
+#
+# A project keeps one standing direction document at docs/direction.md (decided
+# 2026-10-19). It is named first, under one line saying that where an older
+# roadmap, handoff section or memory note disagrees with it, it wins. The line
+# stands above the list so the next paragraph's "None of those" still points at
+# the list. Nothing here opens the file: it is a stat, and the links are checked
+# before anything follows them, so neither a pipe nor a link into a mount that
+# does not answer can hang session start. A file that is a link, or sits under a
+# linked docs/, or is not a regular file is not named, because a file that
+# claims precedence must be one the checkout holds at that path. Contract:
+# docs/2026-10-19-direction-read-first-contract.md.
 read_lines="Read before planning: ${PROJ}/CLAUDE.md"
+_dirdoc="${_repo_root}/docs/direction.md"
+if [ ! -L "${_repo_root}/docs" ] && [ ! -L "$_dirdoc" ] && [ -f "$_dirdoc" ]; then
+  read_lines="docs/direction.md is the standing direction: where an older roadmap, handoff section or memory note disagrees with it, it wins.
+Read before planning: ${_dirdoc}
+                   ${PROJ}/CLAUDE.md"
+fi
 [ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
                    ${_repo_root}/HANDOFF.md"
 

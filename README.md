@@ -440,8 +440,9 @@ Installing changes your setup, so read this part first:
 - The plugin loads in every Claude Code session on the machine and records
   which tools each session calls.
 - In a governed project it adds text to sessions: a note at start naming the
-  project's constitution and handoff to read, recorded lessons that match a
-  prompt, and a note to each subagent. It logs the first 160 bytes of each prompt, and up to 200
+  project's constitution and handoff to read (first of all the repository's
+  `docs/direction.md`, as its standing direction, when that is a regular
+  file), recorded lessons that match a prompt, and a note to each subagent. It logs the first 160 bytes of each prompt, and up to 200
   beside anything Felix says, to the project's memory directory. It suggests a
   tool the first time a session's prompt matches one of its routes. It clones
   candidate plugins once a week to read them, and adds catalogue rows for
@@ -549,7 +550,7 @@ never deletes your rules or memory. The rest is by hand:
 
 | Event | What Felix does |
 |:---|:---|
-| Session start | Names the project's constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery weekly in the background |
+| Session start | Names the project's standing direction first (the repository's `docs/direction.md`, when it has one, which wins where an older roadmap, handoff section or memory note disagrees with it), then its constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery weekly in the background |
 | Prompt | Mounts recorded lessons that match the prompt, and names a tool on the first routed turn. Logs the first 160 bytes of each prompt, and up to 200 beside anything Felix says, to the project's memory directory |
 | Before a tool call | Refuses what the project's `deny.tsv` names, with the reason. A new project has no rows |
 | After a tool call | Appends one ledger line. Async, never blocks |

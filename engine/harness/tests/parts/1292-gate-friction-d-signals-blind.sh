@@ -327,14 +327,20 @@ _db2_intr i-ign TERM 143 IGNORE IGNORE
 _db2_is "D6: TERM to a parent started with INT and QUIT both ignored: exit 143, with the same afterwards" "$_db2_x" ok
 
 # ---- a child that ignores TERM and is moved to pid 1 when its unit dies, and what it forks (D6, the ending). With a ps first on PATH that fails the ending's Nth listing (R2)
-_db2_igr() {   # CASE MODE [N]: a unit starts that child with & and waits; TERM to the parent; afterwards nothing of the run runs, stopped or not
+_db2_igr() {   # CASE MODE [N]: MODE n h s: a unit starts that child with & and waits, MODE u: the unit itself ignores TERM and forks a sleeper on it; TERM to the parent; afterwards nothing of the run runs, stopped or not
   local c="$1" m="$2" n="${3:-}" r="" g y
-  _db2_w "$c" 0010-ka.sh <<'X'
+  if [ "$m" = u ]; then _db2_w "$c" 0010-ka.sh <<'X'
+trap 'perl -e "sleep 300" "$DJ2I" gc & echo $! >> "$DJ2D/gc.pids"' TERM
+: > "$DJ2D/up.$DJ2N"
+while :; do sleep 0.1; done
+X
+  else _db2_w "$c" 0010-ka.sh <<'X'
 perl "$DJ2L/ign.pl" "$DJ2D" "$DJ2I" "$(cat "$DJ2D/mode")" &
 until [ -s "$DJ2D/ign.pid" ]; do sleep 0.1; done
 : > "$DJ2D/up.$DJ2N"
 wait
 X
+  fi
   _db2_new "$c" "$DB2/g-empty.tsv" + "$DB2/pp/$c"/0010-ka.sh || { _db2_x="the copy could not be made"; return 0; }
   printf '%s' "$m" > "$_db2_c/mode"
   [ -z "$n" ] || _db2_E=(PATH="$DB2/psshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_PSFAIL="$n" DJ2_PSTRIG="$_db2_c/trig" DJ2_PSCNT="$_db2_c/pscnt")
@@ -343,7 +349,7 @@ X
   sleep 0.5; : > "$_db2_c/trig"
   _db2_stop i TERM; r="$r$_db2_late"
   g="$(_db2_gone i 143)"; [ "$g" = ok ] || r="$r$g"
-  case "$m" in h) [ -s "$_db2_c/gc.pids" ] || r="$r the TERM never reached the child, which forked nothing;" ;; esac
+  case "$m" in h|u) [ -s "$_db2_c/gc.pids" ] || r="$r the TERM never reached the child, which forked nothing;" ;; esac
   y="$({ wc -l < "$_db2_c/pscnt"; } 2>/dev/null | tr -d ' ')"
   [ -z "$n" ] || [ "${y:-0}" -ge "$n" ] || r="$r the ending asked for ${y:-0} listings, so listing $n never failed;"
   _db2_kf "$_db2_c/gc.pids" "$_db2_c/ign.pid"
@@ -356,11 +362,9 @@ _db2_is "D6: and so is the sleeper that child forked in its TERM handler, which 
 _db2_igr g-s s
 _db2_is "D6: and so are the sleepers a child forks every 20 ms from its first TERM on, which only STOP can hold still" "$_db2_x" ok
 for _db2_n in 1 2 3; do
-  _db2_igr "r2-$_db2_n" h "$_db2_n"
-  _db2_is "R2: with the ending's listing number $_db2_n failing (a ps first on PATH that exits 1 once), a child that ignores TERM and forks on it leaves nothing, stopped or running, once the parent has exited with 143" "$_db2_x" ok
+  _db2_igr "r2-$_db2_n" u "$_db2_n"
+  _db2_is "R2: with the ending's listing number $_db2_n failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143" "$_db2_x" ok
 done
-_db2_igr r2-3s s 3
-_db2_is "R2: and with the third listing failing while a child forks every 20 ms from its first TERM on, which takes the ending several rounds, nothing is left either" "$_db2_x" ok
 
 # ---- a wrapper being forked (R3): TERM at a spread of short delays after the parent's prelude, over many short units under -j 4, leaves no wrapper, holder or unit once the parent has exited
 for _db2_n in 1 2 3 4 5 6 7 8 9 10 11 12; do _db2_w r3 "$(printf '%04d' $((_db2_n * 10)))-r$_db2_n.sh" <<'X'

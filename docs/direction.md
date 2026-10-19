@@ -260,6 +260,10 @@ reaches it.
   adaptation. The design is on file (§7). Its §11 asks eight decisions,
   each with a recommended answer. The first is how his words become binding:
   through a terminal command that a session cannot run for him.
+- Who the endgame's novice is: a person who owns the product but is not an
+  engineer, or also someone who will not own or understand the code. The
+  vibe-coding brief (§7) shows that ownership is something Felix cannot
+  supply. Its §12 designs the test that separates the two cases.
 - The interface proposals of 10-09 (data contract first, unknown is not
   zero, no shell before about three surfaces, read-only first, two
   audiences).
@@ -313,7 +317,7 @@ A design here is not a commitment. It becomes a build target in two cases:
 |---|---|---|
 | `docs/2026-10-18-capability-plane-thesis.md` | The capability plane's charter (v3.2 invariant 4), seven invariants I1-I7, the anti-slop contract, and autonomy as leakage per objective. | Decided parts are row 25 and the lane order. The rest is on file. |
 | `docs/2026-10-19-intent-to-build-design.md` | How Felix turns a few sentences of scope into an admitted, checkable build, and improves its own tables. Felix is deterministic about the frame; models write the content as typed answers. | On file. Its first slice, situations owed (report-only, with admission drafts), is proposed as a lane intake item. Its §11 lists eight founder decisions, each with a recommended answer. |
-| `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` | What separates AI-assisted engineering from vibe coding, what Felix can do about it, and the limits of the answer. | In progress (§10). |
+| `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` | What separates AI-assisted engineering from vibe coding: what the work is held to, not who types it. It sets out a full answer part by part, its limits, the probable partial answer with the measurement that would show it is enough, and what makes the capability plane more than dispatch. | On file. Research, not direction. Its zero-token pre-checks (proxy-conflict signals over transcripts, miss-to-layer classification of coded leakage turns) are candidate lane items. |
 | Reflection triggers (memory, 08-18) | Felix questions its inputs but not its method; it needs enumerated trigger moments. | Open. |
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |
 
@@ -375,10 +379,11 @@ Older text still says some of these. Where it does, this file and §4 govern.
 - **Live state stays out.** Steps landing, PR numbers and versions are read
   by command. That way an engineering PR never needs to touch this file,
   and never waits for a yes because of it.
-- **Two designs are still being written:** the intent-to-build design and
-  the vibe-coding brief. When they are on file, §7 links them. Their first
-  unattended slice is proposed for the lane, and is not placed there by
-  this file.
+- **Designs reach the build order only through this file.** The
+  intent-to-build design and the vibe-coding brief are on file (§7). A slice
+  of either enters §5 in one of two ways: a founder decision recorded in §4,
+  or a lane item placed by Felix under row 15. A design on file is never
+  placed by itself.
 - **Pointers to this file.**
     - `MEMORY.md` names it on its first line.
     - The constitution names it in "The split", beside the list of what

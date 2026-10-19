@@ -826,10 +826,13 @@ literals end at the end of the line at the latest.
    single quote and for one ending inside a here-document.
 6. Exit 1 and `programs 0` for a file with no awk command at all.
 
-**Measured on this branch (8d181f37 with the B8 fix).** `_awk_names` over the
-83 files of `lib/*.sh` reads 280 program texts and prints no other row, under
-BWK awk and gawk 5.4.1. Every awk command a grep finds outside comment lines is
-read, the eight whose program starts on a continuation line included; the 19
-program variables resolve to awk programs, and `_felix_qualify_read`'s `$2` to
-its three callers' actions. Run on `lib/lost-work.sh` at 17230ff3, before the
-rename, it prints six `name` rows for `RT`.
+**Measured on this branch (origin/main ff592e55, step 6 as #450, with the B8
+fix).** `_awk_names` over the 83 files of `lib/*.sh` reads 280 program texts
+and prints no other row, under BWK awk and gawk 5.4.1. Every awk command a grep
+finds outside comment lines is read, the eight whose program starts on a
+continuation line included; the 19 program variables resolve to awk programs,
+and `_felix_qualify_read`'s `$2` to its three callers' actions. Run on
+`lib/lost-work.sh` at 17230ff3, before the rename, it prints six `name` rows
+for `RT`. Over `lib/*.sh` with `felix`, `hooks/*` and `bin/*` added (21 more
+files) it reads 366 and prints no other row; the part reads `lib/*.sh` only, as
+this section asks.

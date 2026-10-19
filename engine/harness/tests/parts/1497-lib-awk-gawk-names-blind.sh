@@ -58,7 +58,7 @@ _an97_l1="$(_an97_got lib)"
 is "B12.1: on engine/harness/lib/*.sh read together, _awk_names exits 0 and prints no name, unread or open row" "${_an97_l1:0:600}" "0|"
 _an97_k="$(_an97_n lib)"
 is "B12.1: and it reads at least 200 programs, said on its last row" \
-   "$(_an97_last lib)|$(case "$_an97_k" in '') printf 'no count' ;; *) if [ "$_an97_k" -ge 200 ]; then printf 'at least 200'; else printf '%s' "$_an97_k"; fi ;; esac)" \
+   "$(_an97_last lib)|$(case "$_an97_k" in ('') printf 'no count' ;; (*) if [ "$_an97_k" -ge 200 ]; then printf 'at least 200'; else printf '%s' "$_an97_k"; fi ;; esac)" \
    "last|at least 200"
 
 # ---- item 2: the defect replayed -------------------------------------------------------

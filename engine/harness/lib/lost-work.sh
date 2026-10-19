@@ -76,8 +76,11 @@ _lw_scratch() {
 }
 
 # felix_lost_work_page: the page over _LW_REPOS, as the arguments set them.
+# Status 1 when a repository could not be read: the inventory failed for it, or
+# the page's own awk did (contract B8). Either way the other repositories are
+# still printed, and the one that failed prints nothing on stdout.
 felix_lost_work_page() {
-  local d rc=0 irc lrc head
+  local d rc=0 irc lrc arc head
   local -a ia=() la=() repos=()
   unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY   # as felix inventory does: the scratch check below asks git
   if [ "${#_LW_REPOS[@]}" -gt 0 ]; then repos=("${_LW_REPOS[@]}"); else repos=("$PWD"); fi
@@ -98,7 +101,12 @@ felix_lost_work_page() {
       _lw_filter < "$_LW_T/l.raw" | LC_ALL=C awk '{ print "L\t" $0 }'; } > "$_LW_T/in"
     _lw_filter < "$_LW_T/l.err" | LC_ALL=C sed -n 1p > "$_LW_T/l.err1"
     # land's first stderr line and the repository path go in by the environment: -v would expand a backslash in either.
-    LW_LERR="$(cat "$_LW_T/l.err1")" LW_DFLT="$d" LC_ALL=C awk -F'\t' -v tsv="$_LW_TSV" -v lrc="$lrc" -v order="$_LW_GROUPS" "$_LW_AWK" "$_LW_T/in"
+    # The block is printed only when the awk finished: one that stops part way has
+    # counted nothing for sure, and on Linux gawk it once stopped at the first row
+    # and the page said nothing and exited 0.
+    LW_LERR="$(cat "$_LW_T/l.err1")" LW_DFLT="$d" LC_ALL=C awk -F'\t' -v tsv="$_LW_TSV" -v lrc="$lrc" -v order="$_LW_GROUPS" "$_LW_AWK" "$_LW_T/in" > "$_LW_T/page"; arc=$?
+    if [ "$arc" = 0 ]; then cat "$_LW_T/page"
+    else rc=1; printf 'felix monitor: %s: the page could not be made from its rows (awk exited %s)\n' "$d" "$arc" >&2; fi
   done
   return "$rc"
 }

@@ -149,7 +149,7 @@ esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" || exit 2
 OUT="$HERE/red.tsv"
-RJ="${FELIX_TEST_RED_JOBS-}"; unset FELIX_TEST_RED_JOBS   # D4: read once, never passed on; kept only if it is an N
+RJ="${FELIX_TEST_RED_JOBS-}"; unset FELIX_TEST_RED_JOBS FELIX_TEST_JOBS   # D4, R10: read once, never passed on, the other never read; kept only if it is an N
 case "$RJ" in [123456789]|[12345][0123456789]|6[01234]) ;; *) RJ="" ;; esac
 
 # --after <mark> <pid>, taken apart here and judged after the retraction below,
@@ -463,8 +463,8 @@ fi
 _reap
 cp "$RAW" "$LOG" 2>/dev/null || _none "could not keep the log of the suite against $BASE"
 
-# The runner's own failure lines (D3, by their six prefixes) are left out of the counts and the names (LOGF).
-LOGF="$LOG.f"; grep -aEv "^  FAIL  part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: )" "$LOG" > "$LOGF"
+# The runner's own failure lines (D3, R8, by their seven prefixes) are left out of the counts and the names (LOGF).
+LOGF="$LOG.f"; grep -aEv "^  FAIL  part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: | left the shell changed for the parts after it: )" "$LOG" > "$LOGF"
 PASSED="$(grep -c '^  ok    ' "$LOG")"
 FAILED="$(grep -c '^  FAIL  ' "$LOGF")"
 SKIPPED="$(grep -c '^  skip  ' "$LOG")"

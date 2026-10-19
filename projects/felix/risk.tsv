@@ -41,6 +41,8 @@ yellow	path	^engine/harness/templates/	seeds every new project, but only at crea
 yellow	path	^projects/[^/]+/gate\.sh$	a gate that cannot fail is not a gate	verifier	count:^[[:space:]]*(pass|fail|check) 
 yellow	path	^engine/harness/tests/(run|parts/[^/]+\.sh)$	weakening the suite is how a gate stops being one	verifier	count:^[[:space:]]*(ok|is|has|bad) 
 yellow	path	^engine/harness/tests/groups\.tsv$	regrouping can weaken an assertion without removing a line, so every change to the file is read by the verifier and no count stands in for it	verifier
+yellow	path	^engine/harness/tests/parts/0007-the-parallel-runner\.sh$	a change to the runner can weaken a check without removing an assertion line (what counts as a runner failure, what a unit is read for), so every change is read by the verifier and no count stands in for it	verifier
+yellow	path	^engine/harness/tests/(red|receipt\.sh)$	what red counts and leaves out, and what the receipt and the stoppers end, can weaken a check without removing an assertion line, so every change is read by the verifier and no count stands in for it	verifier
 yellow	path	^engine/harness/tests/lib/[^/]+\.sh$	the helpers and fixture builders the parts share: weakening one weakens every part that calls it	verifier	count:^[[:space:]]*(ok|is|has|bad) 
 yellow	path	^engine/harness/lib/table\.sh$	the table validator; a refusal taken out of it is a shape two readers read apart, accepted again	verifier	count:\\t[a-z][a-z-]*\\t
 yellow	path	^engine/harness/bin/schema-check$	the schema check; a refusal taken out of it is a table the gate stops asking about	verifier	count:(^|[^_a-z])add "

@@ -1,8 +1,9 @@
 # Groups of parts that run as one unit under tests/run -j N (contract D5).
-# A line is a group's name, a tab, and a part's file name. A group's lines are
-# adjacent, its members follow one another in the driver's order with no part
-# between, it has two to six, a part is in at most one, and none of 0001 to 0009
-# or 9990 is in any. tests/run -j 1 does not read this file.
+# A line is a group's name, a tab, and a part's file name; empty lines and lines
+# starting # are ignored. A group's lines are adjacent, its members follow one
+# another in the driver's order with no part between, it has two to six, a part
+# is in at most one, and none of 0001 to 0009 or 9990 is in any. tests/run -j 1
+# does not read this file.
 #
 # ib: 0940 reads the $IB/runs/*.err files that 0900 to 0930 write (97 files in
 # order, 28 alone), so under -j N they run in one process, in order.

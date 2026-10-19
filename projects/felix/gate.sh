@@ -291,7 +291,7 @@ fi
 # the path is printed.
 GTLOG_DIR="${TMPDIR:-/tmp}"; GTLOG_DIR="${GTLOG_DIR%/}"; GTLOG=""
 # The suite runs as many parts at once as the machine has cores (contract D1):
-# sysctl, then getconf, then 1, held to 1 to 64; never on GitHub's runner.
+# sysctl, then getconf, then 1, to 64; never on GitHub's runner, which drops an inherited one (R10).
 GTJOBS=""
 if [ "${GITHUB_ACTIONS:-}" != true ]; then
   GTJOBS="$(sysctl -n hw.ncpu 2>/dev/null)"
@@ -308,7 +308,7 @@ elif [ "${1:-}" = "--quick" ]; then
 elif ! GTLOG="$(mktemp "$GTLOG_DIR/felix-gate-tests.XXXXXX" 2>/dev/null)" || [ -z "$GTLOG" ]; then
   fail tests
   printf '    could not make a log file for the suite under %s\n' "$GTLOG_DIR"
-elif env ${GTJOBS:+FELIX_TEST_JOBS=$GTJOBS} ./engine/harness/tests/run --reuse >"$GTLOG" 2>&1; then
+elif env -u FELIX_TEST_JOBS ${GTJOBS:+FELIX_TEST_JOBS=$GTJOBS} ./engine/harness/tests/run --reuse >"$GTLOG" 2>&1; then
   # --reuse answers from the receipt a passed run left for this exact tree
   # (tests/receipt.sh), and runs the suite itself when there is none, so a pass
   # here is a pass either way; what differs is that it says which. A reused run

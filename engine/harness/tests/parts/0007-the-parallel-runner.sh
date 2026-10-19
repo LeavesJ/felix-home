@@ -122,8 +122,87 @@ END {
   }
   print NR, add out
 }'
+# The shell a unit leaves (R8). _pm_snap writes this shell's state to a file; _pm_diff sets _pm_chg to one line
+# a change between the two that part mode takes, at _pm_start and _pm_fin (part 0001). Both use no variable whose
+# name does not start _pm, so what they read is the parts' shell and not their own. The perl is given the two
+# snapshots and $TMP/lib-before.names; "+fn NAME" lines it prints are functions added, which bash classifies.
+_pm_pl='use strict;
+my ($bf, $af, $nf) = @ARGV;
+sub rd { open(my $h, "<", $_[0]) or return ""; local $/; my $t = <$h>; close $h; defined $t ? $t : "" }
+sub parse { my %s; my $t = shift; while ($t =~ /^\@\@pm:(\w+)([^\n]*)\n(.*?)(?=^\@\@pm:|\z)/msg) { $s{$1} = [$2, $3] } \%s }
+sub ln { my $t = shift; $t =~ s/\n\z//; split /\n/, $t, -1 }
+sub recs { my (%h, $c); for (split /^/m, shift) { if (/^declare -(\S+) ([A-Za-z_][A-Za-z0-9_]*)(?:=|$)/) { $c = $2; $h{$c} = [$1, $_] } elsif (defined $c) { $h{$c}[1] .= $_ } } \%h }
+sub trp { my %h; for (split /(?=^trap -- )/m, shift) { (my $x = $_) =~ s/\s+\z//; $h{$1} = $x if $x =~ /^trap -- .*?(\S+)\z/s } \%h }
+sub fns { my (%h, $c); for (split /^/m, shift) { if (/^([^\s()]+) \(\)\s*$/) { $c = $1; $h{$c} = $_ } elsif (defined $c) { $h{$c} .= $_ } } \%h }
+my ($B, $A) = (parse(rd($bf)), parse(rd($af)));
+unless (exists $B->{end} && exists $A->{end}) { print "the shell state could not be read back to compare it\n"; exit 0 }
+my @o;
+my ($w, $n) = ((ln($B->{um}[1]))[0], (ln($A->{um}[1]))[0]);
+push @o, "umask $w is now $n" if $w ne $n;
+for my $k (qw(set shopt)) {
+  my (%w, %n);
+  for (ln($B->{$k}[1])) { $w{$1} = $_ if /(\S+)$/ }
+  for (ln($A->{$k}[1])) { $n{$1} = $_ if /(\S+)$/ }
+  for (sort keys %w) { push @o, "$w{$_} is now " . (defined $n{$_} ? $n{$_} : "gone") if !defined $n{$_} || $n{$_} ne $w{$_} }
+}
+for my $k (qw(ul uh)) {
+  my @w = ln($B->{$k}[1]); my @n = ln($A->{$k}[1]);
+  for my $i (0 .. ($#w > $#n ? $#w : $#n)) {
+    my ($x, $y) = (defined $w[$i] ? $w[$i] : "", defined $n[$i] ? $n[$i] : "");
+    push @o, ($k eq "ul" ? "ulimit -a: " : "ulimit -Ha: ") . "$x is now $y" if $x ne $y;
+  }
+}
+my ($tw, $tn) = (trp($B->{trap}[1]), trp($A->{trap}[1]));
+for (sort keys %$tw) { push @o, "trap on $_ " . (exists $tn->{$_} ? "changed" : "removed") if !exists $tn->{$_} || $tn->{$_} ne $tw->{$_} }
+for (sort keys %$tn) { push @o, "trap on $_ added" unless exists $tw->{$_} }
+my (%fw, %fa); $fw{$_} = 1 for split " ", $B->{fds}[0]; $fa{$_} = 1 for split " ", $A->{fds}[0];
+for (0 .. 9) { push @o, "descriptor $_ opened" if $fa{$_} && !$fw{$_}; push @o, "descriptor $_ closed" if $fw{$_} && !$fa{$_} }
+my ($xw, $xa) = (recs($B->{exp}[1]), recs($A->{exp}[1]));
+my %st = map { $_ => 1 } qw(LANG TZ HOME TMPDIR PATH CDPATH ENV BASH_ENV SHELLOPTS BASHOPTS POSIXLY_CORRECT XDG_CONFIG_HOME);
+for (sort keys %$xw) {
+  next if /^(?:PWD|OLDPWD)$/;
+  if (!exists $xa->{$_}) { push @o, "export $_ removed" } elsif ($xa->{$_}[1] ne $xw->{$_}[1]) { push @o, "export $_ changed" }
+}
+for (sort keys %$xa) { push @o, "export $_ added" if !exists $xw->{$_} && (/^(?:GIT_|LC_|FELIX_)/ || $st{$_}) }
+my %nm; if (open(my $h, "<", $nf)) { while (my $l = <$h>) { chomp $l; $nm{$l} = 1 } close $h } else { push @o, "the prelude names [$nf] could not be read" }
+my %xc = map { $_ => 1 } qw(PASS FAIL SKIP _fx_walkroot _fx_r SHELLOPTS PWD OLDPWD COLUMNS DIRSTACK EPOCHREALTIME EPOCHSECONDS FUNCNAME GROUPS HISTCMD LINENO LINES OPTARG OPTERR OPTIND PIPESTATUS RANDOM REPLY SECONDS SRANDOM _);
+my ($dw, $da) = (recs($B->{decl}[1]), recs($A->{decl}[1]));
+for (sort keys %$dw) {
+  next if $dw->{$_}[0] =~ /x/ || !$nm{$_} || $xc{$_} || /^(?:_og_|_pm|_par_|_pj_|BASH)/;
+  if (!exists $da->{$_}) { push @o, "variable $_ removed" } elsif ($da->{$_}[1] ne $dw->{$_}[1]) { push @o, "variable $_ changed" }
+}
+my ($gw, $ga) = (fns($B->{fn}[1]), fns($A->{fn}[1]));
+for (sort keys %$gw) { if (!exists $ga->{$_}) { push @o, "function $_ removed" } elsif ($ga->{$_} ne $gw->{$_}) { push @o, "function $_ changed" } }
+for (sort keys %$ga) { push @o, "+fn $_" unless exists $gw->{$_} }
+print "$_\n" for @o'
+_pm_snap() {   # FILE; the variables are asked for by name (bash 3.2 prints declare -p with no name in set's form)
+  local _pm_i=0 _pm_d="" _pm_v
+  while [ "$_pm_i" -le 9 ]; do { true >&"$_pm_i"; } 2>/dev/null && _pm_d="$_pm_d $_pm_i"; _pm_i=$((_pm_i + 1)); done
+  { printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; umask; printf '@@pm:set\n'; set +o; printf '@@pm:shopt\n'; shopt -p
+    printf '@@pm:trap\n'; trap -p; printf '@@pm:ul\n'; ulimit -a; printf '@@pm:uh\n'; ulimit -Ha
+    printf '@@pm:exp\n'; export -p; printf '@@pm:decl\n'
+    while IFS= read -r _pm_v; do declare -p "$_pm_v"; done < "$TMP/lib-before.names"
+    printf '@@pm:fn\n'; declare -f; printf '@@pm:end\n'; } > "$1" 2>/dev/null
+}
+_pm_diff() {
+  local _pm_l _pm_b="" _pm_k=""
+  _pm_chg=""
+  perl -e "$_pm_pl" "$TMP/pm.0" "$TMP/pm.1" "$TMP/lib-before.names" > "$TMP/pm.out" 2>&1 || _pm_chg="the shell state could not be compared"$'\n'
+  while IFS= read -r _pm_l; do
+    case "$_pm_l" in
+      "+fn "*)
+        _pm_l="${_pm_l#+fn }"
+        [ -n "$_pm_b" ] || { _pm_b=$'\n'"$(compgen -b)"$'\n'; _pm_k=$'\n'"$(compgen -k)"$'\n'; }
+        case "$_pm_b" in *$'\n'"$_pm_l"$'\n'*) _pm_chg="${_pm_chg}function $_pm_l added over a builtin"$'\n'; continue ;; esac
+        case "$_pm_k" in *$'\n'"$_pm_l"$'\n'*) _pm_chg="${_pm_chg}function $_pm_l added over a keyword"$'\n'; continue ;; esac
+        [ -z "$(PATH="$_pm_path0" type -P -- "$_pm_l" 2>/dev/null)" ] || _pm_chg="${_pm_chg}function $_pm_l added over a command"$'\n' ;;
+      *) _pm_chg="$_pm_chg$_pm_l"$'\n' ;;
+    esac
+  done < "$TMP/pm.out"
+}
 # One unit's log, as D3 prints it. -v unit, mem (its part files, blank between),
-# efail (the FAIL counter its end file holds, -1 when unknown), rc (the holder's
+# efail (the FAIL counter its end file holds, -1 when unknown), epf (what its
+# prelude counted, from `prefail`, -1 when unknown), rc (the holder's
 # exit status, or lost), note (a line or empty) and stats (a file). It prints
 # the note; then, if the file has a FAIL before @@prelude-done or no
 # @@prelude-done at all, a failure and the lines before it behind two spaces, a
@@ -144,7 +223,7 @@ BEGIN {
 }
 {
   l = $0
-  if (l == "@@prelude-done") { if (s == 0) { s = 1; pre(prefail) } else bad = 1; next }
+  if (l == "@@prelude-done") { if (s == 0) { s = 1; pre(npf > 0 || epf > npf) } else bad = 1; next }
   if (substr(l, 1, 14) == "@@member-done ") {
     j = substr(l, 15)
     if (s == 1 && !mk && (j in idx) && idx[j] > last) { last = idx[j]; done[last] = 1 } else bad = 1
@@ -154,8 +233,8 @@ BEGIN {
     if (s == 1 && !mk && substr(l, 13) == mem) mk = 1; else bad = 1
     next
   }
-  if (l == "reached") { bad = 1; next }
-  if (s == 0) { P[++np] = l; if (substr(l, 1, 8) == "  FAIL  ") prefail = 1; next }
+  if (l == "reached") { bad = 1; if (s == 0) P[++np] = l; else print "  | reached"; next }
+  if (s == 0) { P[++np] = l; if (substr(l, 1, 8) == "  FAIL  ") npf++; next }
   h = substr(l, 1, 8)
   if (h == "  ok    ") nok++
   else if (h == "  FAIL  ") nf++
@@ -178,8 +257,8 @@ END {
 _par_cores() {
   local n
   n="$(sysctl -n hw.ncpu 2>/dev/null)"
-  case "$n" in ""|*[!0-9]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
-  case "$n" in ""|*[!0-9]*) n=1 ;; esac
+  case "$n" in ""|*[!0123456789]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
+  case "$n" in ""|*[!0123456789]*) n=1 ;; esac
   n="${n#"${n%%[!0]*}"}"
   [ -n "$n" ] || n=1
   [ "${#n}" -le 2 ] || n=64
@@ -242,7 +321,7 @@ _par_order() {
     while IFS= read -r l || [ -n "$l" ]; do
       case "$l" in *"$tab"*) ;; *) continue ;; esac
       s="${l%%"$tab"*}"; u="${l#*"$tab"}"
-      case "$s" in 0) ;; [1-9]*) case "$s" in *[!0-9]*) continue ;; esac ;; *) continue ;; esac
+      case "$s" in 0) ;; [123456789]*) case "$s" in *[!0123456789]*) continue ;; esac ;; *) continue ;; esac
       [ "${#s}" -le 18 ] || continue
       i=0
       while [ "$i" -lt "$_pj_n" ]; do
@@ -260,7 +339,7 @@ _par_order() {
   done
   k=0
   while IFS="$tab" read -r a b ix; do
-    case "$ix" in ""|*[!0-9]*) continue ;; esac
+    case "$ix" in ""|*[!0123456789]*) continue ;; esac
     _pj_q[k]="$ix"; k=$((k + 1))
   done < <(printf '%s' "$lines" | LC_ALL=C sort -t "$tab" -k1,1 -k2,2r -k3,3n)
   if [ "$k" -ne "$_pj_n" ]; then
@@ -268,14 +347,16 @@ _par_order() {
     while [ "$i" -lt "$_pj_n" ]; do _pj_q[i]="$i"; i=$((i + 1)); done
   fi
 }
-# Unit I's end file (D2, D3) -> _pe_fail, its FAIL counter or -1; and, for 9990
+# Unit I's end file (D2, D3) -> _pe_fail, its FAIL counter or -1, _pe_pf, the FAIL
+# counter at its @@prelude-done (R7), _pe_sh (1 when it left the shell changed) and
+# _pe_shm, the changes a line each (R8); and, for 9990
 # under -j N, one line a fact in _pj_9fl (floors that read bad), _pj_9rf
 # (refusals) and _pj_9om (origin messages), the verdicts counted in _pj_9ob,
 # _pj_9os and _pj_9ok. A file that is missing, cut short (no `end` record) or
 # without a verdict makes all three bad.
 _par_endrec() {
-  local nm f l tag txt fl="" fm="" rf="" ov="" om="" n=-1 dn="" good=1 tab=$'\t'
-  nm="${_pj_nm[$1]}"; f="$_pj_dir/end.$1"; _pe_fail=-1
+  local nm f l tag txt fl="" fm="" rf="" ov="" om="" n=-1 pf=-1 sh="" shm="" dn="" good=1 tab=$'\t'
+  nm="${_pj_nm[$1]}"; f="$_pj_dir/end.$1"; _pe_fail=-1; _pe_pf=-1; _pe_sh=0; _pe_shm=""
   if [ -f "$f" ] && [ -r "$f" ]; then
     while IFS= read -r l || [ -n "$l" ]; do
       case "$l" in *"$tab"*) tag="${l%%"$tab"*}"; txt="${l#*"$tab"}" ;; *) tag="$l"; txt="" ;; esac
@@ -285,19 +366,23 @@ _par_endrec() {
         refused)  rf="$rf$nm: $txt"$'\n' ;;
         og)       ov="$txt" ;;
         ogmsg)    om="$om$nm: $txt"$'\n' ;;
-        fail)     case "$txt" in ""|*[!0-9]*) ;; *) [ "${#txt}" -gt 9 ] || n="$txt" ;; esac ;;
+        fail)     case "$txt" in ""|*[!0123456789]*) ;; *) [ "${#txt}" -gt 9 ] || n="$txt" ;; esac ;;
+        prefail)  case "$txt" in ""|*[!0123456789]*) ;; *) [ "${#txt}" -gt 9 ] || pf="$txt" ;; esac ;;
+        shell)    sh="$txt" ;;
+        shellmsg) shm="$shm$txt"$'\n' ;;
         end)      dn=1 ;;
       esac
     done < "$f"
   fi
   case "$fl" in ok|bad) ;; *) good="" ;; esac
   case "$ov" in ok|skip|bad) ;; *) good="" ;; esac
-  [ "$n" -ge 0 ] && [ "$dn" = 1 ] || good=""
+  case "$sh" in ok|changed) ;; *) good="" ;; esac
+  [ "$n" -ge 0 ] && [ "$pf" -ge 0 ] && [ "$dn" = 1 ] || good=""
   if [ -z "$good" ]; then
-    fl=bad; ov=bad; n=-1
+    fl=bad; ov=bad; n=-1; pf=-1; sh=""
     fm="$nm: it left no readable end file"$'\n'; rf="$fm"; om="$fm"
   fi
-  _pe_fail="$n"
+  _pe_fail="$n"; _pe_pf="$pf"; [ "$sh" != changed ] || { _pe_sh=1; _pe_shm="$shm"; }
   if [ "$fl" = bad ]; then [ -n "$fm" ] || fm="$nm: its floor read bad"$'\n'; _pj_9fl="$_pj_9fl$fm"; fi
   _pj_9rf="$_pj_9rf$rf"
   case "$ov" in
@@ -312,27 +397,31 @@ _par_fin() {
   local i="$1" ep="" st="" now
   _pj_s[i]=2; _pj_run=$((_pj_run - 1)); _pj_t[i]=0; _pj_w[i]=0
   { read -r ep st < "$_pj_dir/slot.$i"; } 2>/dev/null
-  case "$ep" in ""|*[!0-9]*) return 0 ;; esac
-  case "$st" in ""|*[!0-9]*) st="$ep" ;; esac
+  case "$ep" in ""|*[!0123456789]*) return 0 ;; esac
+  case "$st" in ""|*[!0123456789]*) st="$ep" ;; esac
   [ "${#ep}" -le 12 ] && [ "${#st}" -le 12 ] || return 0
   now="$(date +%s)"
-  case "$now" in ""|*[!0-9]*) return 0 ;; esac
+  case "$now" in ""|*[!0123456789]*) return 0 ;; esac
   [ "$now" -lt "$ep" ] || _pj_t[i]=$((now - ep))
   [ "$ep" -lt "$st" ] || _pj_w[i]=$((ep - st))
 }
 # Prints unit I (D3) and adds what its log holds to PASS, FAIL and SKIP.
 _par_show() {
-  local i="$1" nm="${_pj_nm[$1]}" note="" a=0 b=0 c=0 d=0 st="$_pj_dir/stats" w
+  local i="$1" nm="${_pj_nm[$1]}" note="" a=0 b=0 c=0 d=0 st="$_pj_dir/stats" w l
   _par_endrec "$i"
   w="${_pj_w[$i]}"
   if [ "$w" -gt 1 ]; then note="  note  $nm waited $w s for a slot"; fi
   rm -f "$st"
-  LC_ALL=C awk -v unit="$nm" -v mem="${_pj_mb[$i]}" -v efail="$_pe_fail" -v rc="${_pj_rc[$i]}" -v note="$note" -v stats="$st" \
+  LC_ALL=C awk -v unit="$nm" -v mem="${_pj_mb[$i]}" -v efail="$_pe_fail" -v epf="$_pe_pf" -v rc="${_pj_rc[$i]}" -v note="$note" -v stats="$st" \
     "$_pj_aw" "$_pj_dir/log.$i" 2>/dev/null
   if [ -f "$st" ]; then { read -r a b c d < "$st"; } 2>/dev/null; fi
   case "$a$b$c$d" in
-    ""|*[!0-9]*) a=0; b=0; c=0; d=1; printf '  FAIL  part ended without its mark: %s\n' "$nm" ;;
+    ""|*[!0123456789]*) a=0; b=0; c=0; d=1; printf '  FAIL  part ended without its mark: %s\n' "$nm" ;;
   esac
+  if [ "$_pe_sh" = 1 ]; then   # R8: the seventh runner failure, after the unit's others
+    printf '  FAIL  part left the shell changed for the parts after it: %s\n' "$nm"; d=$((d + 1))
+    while IFS= read -r l; do printf '  | %s\n' "$l"; done <<< "${_pe_shm%$'\n'}"
+  fi
   PASS=$((PASS + a)); FAIL=$((FAIL + b + d)); SKIP=$((SKIP + c)); _pj_rfn=$((_pj_rfn + d))
 }
 # Prints, in the driver's order, every unit that has ended once all before it have.
@@ -347,7 +436,7 @@ _par_flush() {
 _par_ev() {
   local l="$1" nm st i=0
   nm="${l% *}"; st="${l##* }"
-  case "$st" in ""|*[!0-9]*) return 0 ;; esac
+  case "$st" in ""|*[!0123456789]*) return 0 ;; esac
   while [ "$i" -lt "$_pj_n" ]; do
     if [ "${_pj_nm[$i]}" = "$nm" ]; then
       [ "${_pj_s[$i]}" = 1 ] || return 0

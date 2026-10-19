@@ -43,8 +43,8 @@ _sj_member() {
 # name, a tab and a part's file name; the part is one the driver sources, not
 # 0001 to 0009 and not 9990; it is in no other group; a group's lines are
 # adjacent; its members follow one another in the driver's order with no part
-# between; a group has two to six members. Lines starting # are comments and an
-# empty file is no groups.
+# between; a group has two to six members. Lines starting # are comments, empty
+# lines are ignored (R9), and an empty file is no groups.
 _sj_groups() {
   local f="$HERE/groups.tsv" l g m ln=0 pg="" pm="" n=0 gs=" " cb="" h="groups.tsv line "
   _sj_gof=" "
@@ -84,7 +84,7 @@ _sj_mkunits() {
 }
 _suite_jobs=""; _sj_given=""; _sj_st=""; _sj_part=""; _sj_flags=""; _sj_ord=" "; _sj_units=""; _sj_gof=" "
 _pm1=""; _pm2=""; _pm3=""; _pm4=""; _pm5=""; _pm6=""; _pm_n=0
-_pm_log=""; _pm_ranf=""; _pm_endf=""; _pm_rec=""; _pm_f0=0; _pm_out=-
+_pm_log=""; _pm_ranf=""; _pm_endf=""; _pm_rec=""; _pm_f0=0; _pm_out=-; _pm_chg=""; _pm_path0=""
 for _sj_a in "$@"; do
   if [ "$_sj_st" = j ]; then
     _sj_n "$_sj_a" || _sj_die "-j takes a number from 1 to 64 in plain decimal as its next word, not [$_sj_a]"
@@ -164,12 +164,14 @@ _pm_where() {
 }
 _pm_nl() { if [ "$_pm_out" = - ]; then printf '\n'; else [ -z "$(tail -c 1 "$_pm_out" 2>/dev/null)" ] || printf '\n'; fi; }
 # The prelude is done: from here the names reached go to the ran file the parent
-# named, and only there. FAIL is counted from here.
+# named, and only there. FAIL is counted from here. Its last act is to record the
+# shell's state for _pm_fin to compare (part 0007, R8), where an end file is wanted.
 _pm_start() {
   _pm_where; _pm_nl; printf '@@prelude-done\n'
   _pm_f0="$FAIL"
   [ -z "$_pm_ranf" ] || FELIX_TEST_RAN="$_pm_ranf"
   [ "$_pm_rec" != 1 ] || FELIX_TEST_RECORD=1
+  _pm_path0="$PATH"; [ -z "$_pm_endf" ] || _pm_snap "$TMP/pm.0"
 }
 _pm_done() { _pm_nl; printf '@@member-done %s\n' "$1"; }
 # The end of part mode: the end state is written to the end file, as 9990's three
@@ -180,7 +182,8 @@ _pm_done() { _pm_nl; printf '@@member-done %s\n' "$1"; }
 #   refused LINE, one for each line of the refusal log;
 #   og ok|skip|bad, the origin check's verdict, then ogmsg LINE for each line of
 #   its message;
-#   fail N, the FAIL counted since @@prelude-done;
+#   fail N, the FAIL counted since @@prelude-done; prefail N, what the prelude counted;
+#   shell ok, or shell changed and shellmsg LINE for each change (R8);
 #   end 1, last: a file without it was cut short.
 # _og_check is called by name, as 9990 calls it.
 # TAG TEXT -> _pm_r gains one record for each line of TEXT.
@@ -193,6 +196,7 @@ _pm_add() {
   done
 }
 _pm_fin() {
+  [ -z "$_pm_endf" ] || { _pm_snap "$TMP/pm.1"; _pm_diff; }   # first, before a local of this function's own exists
   local here want cv cvp cw
   here="$(pwd -P)"
   want="$([ -d "$TMP/cwd" ] && cd "$TMP/cwd" && pwd -P)"
@@ -204,7 +208,9 @@ _pm_fin() {
   else _pm_add floor bad; _pm_add floormsg "it stands in [$here], and $TMP/cwd is [${want:-not a directory}]; a child sees GIT_CEILING_DIRECTORIES [$cv], and the parent of $TMP is [$cw]"; fi
   if [ -s "$FELIX_TEST_FXREFUSED" ]; then _pm_add refused "$(cat "$FELIX_TEST_FXREFUSED")"; fi
   _og_check
-  _pm_add og "$_og_v"; _pm_add ogmsg "$_og_msg"; _pm_add fail "$((FAIL - _pm_f0))"; _pm_add end 1
+  _pm_add og "$_og_v"; _pm_add ogmsg "$_og_msg"; _pm_add fail "$((FAIL - _pm_f0))"; _pm_add prefail "$_pm_f0"
+  if [ -z "$_pm_chg" ]; then _pm_add shell ok; else _pm_add shell changed; _pm_add shellmsg "${_pm_chg%$'\n'}"; fi
+  _pm_add end 1
   if [ -n "$_pm_endf" ]; then
     { printf '%s' "$_pm_r" > "$_pm_endf.tmp" && mv -f "$_pm_endf.tmp" "$_pm_endf"; } 2>/dev/null \
       || printf 'tests/run: part mode could not write its end file [%s]\n' "$_pm_endf" >&2

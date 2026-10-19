@@ -25,6 +25,9 @@
 #   (a poll), and before it forks, it compares its parent's pid with the one it
 #   started with: when the wrapper is gone it starts no unit, or ends the unit's
 #   tree as R2 says, and exits 2.
+# Part mode (part 0001) also records the shell a unit starts with and compares it when the unit
+# ends (_pm_snap, _pm_diff below; R8): a change a part leaves in the shell is the seventh runner
+# failure, printed by _par_show after the unit's others, since a serial run carries it to the parts after.
 # This shell reads the FIFO (held open read-write) with read -t and forks nothing
 # while it waits. A wrapper gone without a line is found by kill -0 on a silence,
 # ends its unit as one with no mark and has its holder ended (R4). A unit whose

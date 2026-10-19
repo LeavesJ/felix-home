@@ -1,12 +1,18 @@
 # tests/lib/cm-stub.sh: the `claude` stub on PATH, the ungoverned repository, and
-# the stranger project.
+# the stranger project; and the other projects whose stack.tsv carries the
+# grounding column, which part 0710 judges every row of (contract D, R9).
 # Used by parts 0010 (builds all three), 0070 0180 0190 0220 0400 0450 0580 0650
 # 0660-0711 0720 0730 0780 0820 0850 (CMSTUB, CMSTUB_LOG), 0070 0200 0220 0250
 # 0600 (PLAIN) and 0200 0780 (the stranger project). Moved from
 # parts/0010-resolution.sh: _plain_build from line 33 (PLAIN), _cmstub_build from
 # lines 183-196 (CMSTUB, CMSTUB_LOG, the stub), _stranger_build from lines 184-193.
+# Also 0060 (builds hookproj), 0190 (setupproj), 0700 (cmwebapp) and 0710, which
+# calls every one of them: _hookproj_build from parts/0060 (HOOKREPO, 396-409),
+# _setupproj_build from parts/0190 (175-181), _cmwebapp_build from parts/0700
+# (520-526). _grounded_projects names what the builders in this file make, and
+# what 0710 makes itself with _commissioning_build (commissioning.sh).
 # Definitions only. A builder sets its variables first and does nothing more when
-# its fixture is already there, so in the serial run only 0010's call builds.
+# its fixture is already there, so in the serial run only the first caller builds.
 
 # _plain_build: PLAIN is $TMP/unrelated, an ungoverned git repository.
 _plain_build() {
@@ -61,3 +67,55 @@ _stranger_build() {
 JSON
   _stranger_out="$(cd "$STRANGE" && PATH="$CMSTUB:$PATH" "$FELIX" new stranger 2>&1)"; _stranger_rc=$?
 }
+
+# _setupproj_build: setupproj, which 0190 onboards with felix new --no-commission in
+# a checkout with a CI workflow and no remote, and 0710 reads the manifest of. Sets
+# _fs_n (the checkout, physical), _fs_p (the project) and _fs_nrc (felix new's exit
+# status; set only when this call builds). felix new reads no gh or ssh with no remote.
+_setupproj_build() {
+  _fs_p="$FROOT/projects/setupproj"
+  [ -f "$_fs_p/project.json" ] && [ -f "$TMP/fs-new/.felix" ] && { _fs_n="$(cd "$TMP/fs-new" && pwd -P)"; return 0; }
+  _cmstub_build
+  _fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
+  ( _fx_cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
+  printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
+  _fs_n="$(cd "$_fs_n" && pwd -P)"
+  ( cd "$_fs_n" && PATH="$CMSTUB:$PATH" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
+}
+
+# _cmwebapp_build: cmwebapp, a web app with a file named hooks.json, which 0700
+# creates with felix new and asks about its obligations. Sets CMW and _cmw (felix
+# new's output; set only when this call builds).
+_cmwebapp_build() {
+  CMW="$TMP/cm-webapp"
+  [ -f "$FROOT/projects/cmwebapp/project.json" ] && [ -f "$CMW/.felix" ] && return 0
+  _cmstub_build
+  mkdir -p "$CMW/src/config"
+  ( _fx_cd "$CMW" && git init -q -b main && printf '{"webhooks":[]}\n' > src/config/hooks.json \
+    && printf '{ "name": "w", "scripts": { "verify": "echo ok" } }\n' > package.json \
+    && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
+  _cmw="$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" new cmwebapp 2>&1)"
+}
+
+# _hookproj_build: hookproj, the project the session-start hook adopts in 0060, whose
+# stack.tsv the adoption gives the grounding header. Sets HOOKREPO (its own checkout),
+# and _hook_out1 and _hook_out2, the hook's output in the bare repository and again
+# once a requirements.txt names sentry-sdk (set only when this call builds).
+_hookproj_build() {
+  HOOKREPO="$TMP/hookrepo"
+  [ -f "$FROOT/projects/hookproj/stack.tsv" ] && [ -f "$HOOKREPO/requirements.txt" ] && return 0
+  mkdir -p "$HOOKREPO"
+  ( _fx_cd "$HOOKREPO" && git init -q -b main && git config remote.origin.url https://github.com/example.com/hookproj )  # own checkout, see _anl4_hook
+  printf 'hookproj\n' > "$HOOKREPO/.felix"
+  mkdir -p "$FROOT/projects/hookproj" "$MEM/hookproj"
+  printf '{"name":"hookproj","remote_match":"example.com/hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"
+  printf '# h\n' > "$FROOT/projects/hookproj/CLAUDE.md"
+  _hook_out1="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+  printf 'sentry-sdk\n' > "$HOOKREPO/requirements.txt"
+  _hook_out2="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
+}
+
+# _grounded_projects: the projects whose stack.tsv has the grounding column that a
+# builder makes for part 0710: this file's, stranger's, cmproj's and cmstranger's
+# (_commissioning_build). 0710 fails when a manifest it finds belongs to none of them.
+_grounded_projects() { printf '%s\n' stranger setupproj cmwebapp hookproj cmproj cmstranger; }

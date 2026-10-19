@@ -9,8 +9,8 @@
 # Definitions only. _bw_build assigns the five path names first, the same strings
 # every time. It then returns when _BWN is set, which is the case in the serial run
 # after 0280's call: the clock-valued _BWN and _BWT are assigned once, so a later
-# call leaves the minutes 0280 stated as they were. 0290 unsets all of these when
-# it ends.
+# call leaves the minutes 0280 stated as they were. These are the prelude's from
+# the first line of the suite on: 0290 unsets only the names it and 0280 define.
 
 _bwago()   { printf '%s' "$(( _BWN - $1 * 60 ))"; }
 _bwstamp() { date -r "$1" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$1" +%Y%m%d%H%M.%S; }

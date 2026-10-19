@@ -200,12 +200,8 @@ _fs_nogh="No GitHub remote yet, so {{REPO}} below is left as written; it fills i
 is "the setup template holds the two rows that need a GitHub slug" \
    "$(printf '%s\n' "$_fs_reporows" | cut -f1 | tr '\n' ' ')" "risk-labels ci-anthropic-key "
 
-# felix new, in a checkout with CI and no remote.
-_fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
-( _fx_cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
-printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
-_fs_n="$(cd "$_fs_n" && pwd -P)"; _fs_p="$FROOT/projects/setupproj"
-( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
+# felix new, in a checkout with CI and no remote (_setupproj_build, tests/lib/cm-stub.sh).
+_setupproj_build
 _fs_saved="$(awk -F'\t' '$1 == "risk-labels" || $1 == "ci-anthropic-key"' "$_fs_p/setup.tsv" 2>/dev/null)"
 if [ "$_fs_nrc" -ne 0 ] || [ "$(printf '%s\n' "$_fs_saved" | grep -c .)" != "2" ]; then
   bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "felix new exited $_fs_nrc, saved [$_fs_saved]"

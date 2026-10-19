@@ -153,6 +153,9 @@ nothing holds it mechanically.
   should again be accounted for." He added that concurrency and
   parallelism matter a lot more to corporate users than to founders, and
   that the MVP will most likely be at his mother's company, "so just to
-  keep this in mind". Recorded as direction row 28. Felix's reading: for a
+  keep this in mind". He then clarified: "the 'corporate' = 'engineers'
+  here", and "my idea of 'rederivation' sounds a lot simpler than it
+  acutally is but...again one ward we're emphasizing, from the resaerch as
+  well, 'maturity'". Recorded as direction row 28. Felix's reading: for a
   founder below level 3, the questions come before building, not batched
   after, which is earlier than intent design §11b recommends.

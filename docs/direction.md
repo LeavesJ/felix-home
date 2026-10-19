@@ -170,7 +170,7 @@ changed, the row states its current form.
 | 25 | 10-19 | "Keep the 09-25 lane: build intake now, and gate capability authority (dispatch, leases, floor) on the trust milestones." | pending 20261019T071844Z |
 | 26 | 10-19 | Felix refuses pattern kills with a deny row (his answer: "Refuse them"). He merges it himself. Nothing holds it mechanically: adding a row to `deny.tsv` fires no escape channel (`lib/escape.sh` treats adding as free). Landing it also changes a commission table (`deny.tsv` is in `FELIX_COMMISSION_TABLES`), so later merges wait until he re-stamps the commission. Open it as a draft labelled `needs-founder`. | carrier state |
 | 27 | 10-19 | Derived rows may bind without his per-row admission (thesis Decision 2(b), intent design §11c, and §11d's task-blocking half). His words: "Yes to derived rows binding without my admission, with your five bounds." The bounds: (1) task scope only, never a release and never an escape channel; (2) witness-backed rows only, never a single model finding (`lib/candidates.sh` keeps refusing that); (3) the row's checker has qualified on seeded mutations; (4) nothing is armed before control 7 and the judge pin (row 25); (5) visibly Felix's: a Felix-authored commit he can tell from his, a person clears a false block with a dated exception, only people loosen, and a row retires after false blocks. Felix uses the grant first for instances of class rules he has admitted; a model-proposed candidate stays advisory until that path has run. | pending 20261019T071844Z |
-| 28 | 10-19 | Two users share one Felix core. **Founders** turn a novel idea into something real; their input should be around level 3 of the 10-19 ladder (the idea plus its stakes: who uses it, how mature, what must never happen, money and time). Below level 3, Felix re-derives the level 3 to 6 elements (stakes, a product brief, an engineering plan, a design contract) as best it can and, before building, asks the founder questions and offers options that may inspire them. **Engineers** want reliability: one shot, so they do not have to come back; their input should be around level 2 (the issue text), and level 1, a one-line wish, must still be handled. Concurrency and parallelism matter more to corporate users than to founders, and the first outside deployment is likely the subcontractor test in §6, so keep that weight in view. His words: "for founder <L3 we're able to at least to the best of our ability rederive the L3-L6 elements therefore before building ask them some questions (even inspire them)"; "for engineers it's more about reliability and whether not we really one shot what they request for they don't have to come back". | pending 20261019T071844Z |
+| 28 | 10-19 | Two users share one Felix core. **Founders** turn a novel idea into something real; their input should be around level 3 of the 10-19 ladder (the idea plus its stakes: who uses it, how mature, what must never happen, money and time). Below level 3, Felix re-derives the level 3 to 6 elements (stakes, a product brief, an engineering plan, a design contract) as best it can and, before building, asks the founder questions and offers options that may inspire them. Maturity (prototype, private beta, public, production) is the element the rest keys on, as the research also found, so it is established first; re-deriving the others is harder than it sounds. **Engineers** want reliability: one shot, so they do not have to come back; their input should be around level 2 (the issue text), and level 1, a one-line wish, must still be handled. The engineers are the corporate users. Concurrency and parallelism matter more to them than to founders, and the first outside deployment is likely the subcontractor test in §6, so keep that weight in view. His words: "for founder <L3 we're able to at least to the best of our ability rederive the L3-L6 elements therefore before building ask them some questions (even inspire them)"; "for engineers it's more about reliability and whether not we really one shot what they request for they don't have to come back"; "the 'corporate' = 'engineers' here"; "my idea of 'rederivation' sounds a lot simpler than it acutally is but...again one ward we're emphasizing, from the resaerch as well, 'maturity'". | pending 20261019T071844Z |
 
 Two things follow from rows 13, 24 and 25 together:
 - Landing with nobody present is governed by row 24, and it is live.
@@ -292,8 +292,31 @@ sealed, measured number. The order is Felix's call:
     - Exceptions are read only for felix-home. A product project's tables
       live in felix-home, so its owner has no clearance path yet.
     - Each class gets a shadow run first: would-holds logged with the gate
-      unaffected, on two projects in two ecosystems, under a bound declared
-      before the window.
+      unaffected, under a bound a person sets (or a trust-base default),
+      never the proposer. A shadow bounds false blocks only on the projects
+      it ran on, so an instance binds on a project only after that
+      project's own window stays under the bound.
+    - A change must not blind its own hold. A row is read at the merge base
+      and at the head: a row ACTIVE at base keeps holding unless a probe at
+      head reads empty with a witness, and "could not look" after ACTIVE
+      reads UNKNOWN and holds. A change that turns a row from SATISFIED to
+      not SATISFIED is held wherever it edits; only rows already failing at
+      base are limited to the surfaces a change touches.
+    - Additions to the tables that decide whether a blocking class applies
+      (`probes.tsv`, the detection patterns) must escape, since one added
+      probe could retire a hold.
+    - Code that weakens the derivation lands on green today, because row 24
+      includes judge-changing pull requests. Before anything arms, a pull
+      request touching the class table or the derivation, binding,
+      detection or obligations code must be held for a person. That amends
+      row 24, so it is his decision, asked when the build reaches it.
+    - A product project's exceptions open only after the boundary reads the
+      home's diff and roadmap step 18's deny rows exist; earlier, an
+      exception would be a grant a session can give itself.
+    - The land ledger names which obligation failed a gate, so held merges
+      can be traced to derived rows.
+    - The review behind this list is in the memory root,
+      `audits/2026-10-19-intent-and-vibe-coding/row27-and-ladder-review.json`.
 
 **Not before March:** `felix dispatch` beyond the one tick, and leases with
 real authority. Also deferred:
@@ -310,6 +333,11 @@ its precondition holds.
 - The after-measure of hold-once and `felix cost`, now due.
 - Gate time on the 48 GB laptop: pre-A main against A+A3, then B and C.
 - The handoff fold: 40 pending sections wait.
+- Two zero-token counts for row 27, before any build: how many row
+  admissions one class admission would replace across the governed
+  projects (the 22 candidates name 22 different properties), and
+  `engine_deployed`'s gate failures by cause (it failed this file's own
+  gate on 10-19 because 0.49.301 was not yet deployed).
 
 ## 6. Open, waiting on the founder
 

@@ -529,7 +529,22 @@ fi
 # repository's HANDOFF.md, which Claude Code does not load either. Pointing at
 # them is the whole delivery mechanism, so say plainly that they are required
 # rather than leaving a path and hoping.
+#
+# A project keeps one standing direction document at docs/direction.md (decided
+# 2026-10-19). It is named first because it outranks older roadmaps, handoff
+# sections and memory notes. It is never opened here: the test is a stat, so a
+# pipe at that path cannot hang session start. A link, or anything that is not a
+# regular file, is not named at all, because the line added below tells the
+# model this file outranks everything else, so it must be the checkout's own.
 read_lines="Read before planning: ${PROJ}/CLAUDE.md"
+_direction_line=""
+if [ -f "${_repo_root}/docs/direction.md" ] && [ ! -L "${_repo_root}/docs/direction.md" ] \
+   && [ ! -L "${_repo_root}/docs" ]; then
+  read_lines="Read before planning: ${_repo_root}/docs/direction.md
+                   ${PROJ}/CLAUDE.md"
+  _direction_line="
+docs/direction.md is the standing direction: it wins over older roadmaps, handoff sections and memory notes."
+fi
 [ -f "${_repo_root}/HANDOFF.md" ] && read_lines="${read_lines}
                    ${_repo_root}/HANDOFF.md"
 
@@ -548,6 +563,7 @@ $(printf '%s\n' "$_pending" | head -5 | sed 's/^/                   /')"
   [ "$_npend" -gt 5 ] && read_lines="${read_lines}
                    and $((_npend - 5)) older in ${_repo_root}/docs/handoff/pending/"
 fi
+read_lines="${read_lines}${_direction_line}"
 
 # The session handoff is named apart from those, because it is not direction.
 # A prior session wrote it, sometimes from another worktree, and on a detached

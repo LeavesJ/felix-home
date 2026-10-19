@@ -68,7 +68,9 @@ _lg_prs() { local IFS=,; printf '[%s]\n' "$*" > "$LGK/prs.json"; }
 _lg_green() { local n s; for n in "$@"; do s="$(_lg_sha "$n")"; printf 'completed\tsuccess\t%s\n' "$s" > "$LGK/runs.$s"; done; }
 _lg_osa() { case "$(_lg_logs osa)" in *"$1"*) ok "$2" ;; *) bad "$2" "osascript was called with: $(_lg_logs osa | cut -f1 | head -8 | tr '\n' '|')" ;; esac; }
 
-_lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"; }
+# 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+_lg_cache() { rm -rf "$LGV/$1"; mkdir -p "$LGV/$1/.claude-plugin"; cp -R "$LGH/engine/harness" "$LGV/$1/harness"
+              printf '{ "name": "felix", "version": "%s" }\n' "$1" > "$LGV/$1/.claude-plugin/plugin.json"; }
 _lg_inst() { _lg_logs felix | LC_ALL=C awk -F'\t' 'index($3, "install") == 1'; }
 _lg_ninst() { _lg_inst | wc -l | tr -d ' '; }
 _lg_mainv() { git -C "$LGH" show origin/main:engine/.claude-plugin/plugin.json 2>/dev/null | sed -n 's/.*"version": *"\([^"]*\)".*/\1/p'; }
@@ -227,6 +229,7 @@ case "${1:-}" in
     [ -n "$v" ] || exit 8
     rm -rf "$LG/cache/felix/felix/$v"; mkdir -p "$LG/cache/felix/felix/$v"
     cp -R "$d" "$LG/cache/felix/felix/$v/harness" || exit 7
+    cp -R "$d/../.claude-plugin" "$LG/cache/felix/felix/$v/.claude-plugin" || exit 7
     [ ! -f "$K/install.taint" ] || printf 'taint\n' > "$LG/cache/felix/felix/$v/harness/taint"
     exit 0 ;;
   gate) rc=0; [ -f "$K/gate.rc" ] && rc="$(cat "$K/gate.rc")"; exit "$rc" ;;
@@ -246,6 +249,8 @@ LGSTUB
     _fx_git "$LGH" -c user.name=t -c user.email=t@t commit -qm base >/dev/null 2>&1
     _fx_git "$LGH" push -q -u origin main >/dev/null 2>&1
     mkdir -p "$LGC/felix/felix/9.0.0"; cp -R "$LGH/engine/harness" "$LGC/felix/felix/9.0.0/harness"
+    # 2026-10-18 (judge refs, Part C): the entry is compared whole, so it holds main's manifest too.
+    cp -R "$LGH/engine/.claude-plugin" "$LGC/felix/felix/9.0.0/.claude-plugin"
     mkdir -p "$LGU/.claude/plugins"; ln -s "$LGC" "$LGU/.claude/plugins/cache"
 
     : > "$LG/shas"

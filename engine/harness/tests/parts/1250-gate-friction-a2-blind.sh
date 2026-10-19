@@ -1,3 +1,7 @@
+# 2026-10-18 (judge refs): felix merge takes a full ref name as its base and
+# refuses an expression such as HEAD~1, which git reads in its short-name order.
+# The commit before the tip is therefore named by a branch made at it.
+_mbase() { _fx_git "$1" update-ref refs/heads/jr-mbase HEAD~1 >/dev/null 2>&1; printf 'refs/heads/jr-mbase'; }
 printf '\na reused tests verdict merges only on a green CI gate (contract A2, blind)\n'
 # Written from docs/2026-10-12-gate-friction-contract-a2.md alone, C9.1 to
 # C9.5. felix-home has no branch protection and `felix merge` asks CI nothing:
@@ -255,7 +259,7 @@ done
 # The dry run also carries the cancelled conclusion, so it is judged once,
 # through the CLI, and not again through the judge.
 _gfcCase runs "$(_gfcRun 40 "$_gfcH" completed cancelled ci-gate.yml)"
-_gfcOut="$( cd "${_gfcR:?}" && GIT_ALLOW_PROTOCOL=file PATH="$_gfcPATH" "$FELIX" merge --base HEAD~1 --dry-run 2>&1 )"; _gfcRc=$?
+_gfcOut="$( cd "${_gfcR:?}" && GIT_ALLOW_PROTOCOL=file PATH="$_gfcPATH" "$FELIX" merge --base "$(_mbase "${_gfcR:?}")" --dry-run 2>&1 )"; _gfcRc=$?
 _gfcIs "C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled" "$_gfcRc" "3"
 _gfcHas "C9.5: and prints the blocker on its own line, as the others are printed" "$_gfcOut" \
     "$(printf '  %-11s %-22s %s' unverified tests "$_gfcPre")"

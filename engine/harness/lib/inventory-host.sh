@@ -140,7 +140,7 @@ _FI_HOST_AWK='
       sub(/^( |\\n|\\t|\\r)+/, "", r)
       if (substr(r, 1, length(ENV_O)) != ENV_O) break
       if (!(e = index(r, ENV_C))) return ""
-      r = substr(r, e + length(ENV_C))
+      r = substr(r, e + length(ENV_C)); sub(/^( |\\n|\\t|\\r)+/, "", r)   # the blanks that follow a block go with it
       if (substr(r, 1, length(K_NXT)) == K_NXT) r = substr(r, length(K_NXT) + 1)   # a reminder item of its own: its text is the next item
     }
     e = substr(r, 1, 1)
@@ -417,68 +417,5 @@ felix_inv_host_owners() {
       done
 }
 
-# Chips proposed in the sessions of the record directories in SCOPEFILE
-# modified within DAYS days that no session was started from and none withdrew.
-#   felix_inv_host_chips NOW DAYS SCOPEFILE [COUNTFILE]
-# prints one line per chip: id session epoch flag title, the flag unknown when a
-# file the run could not read may have started it, else -. Status 1, and nothing
-# printed, when the records cannot be read. COUNTFILE, when given and there are
-# chips, gets how many unreadable session files under the root are later than
-# the oldest proposal, for the cover row.
-felix_inv_host_chips() {
-  local root now="$1" days="$2" e f list chips mins lo mm um
-  root="$(_fi_host_root)" || return 1
-  list="$(while IFS= read -r e; do
-            find "$e" -maxdepth 1 -type f -name '*.jsonl' -mmin -$((days * 1440)) 2>/dev/null
-          done < "$3" | tr '\n' '\000' | xargs -0 grep -l -F -e '"name":"mcp__ccd_session__spawn_task","input":{' -- 2>/dev/null)"
-  [ -n "$list" ] || return 0
-  # Each file's lines holding task, after a line naming the file (\002
-  # cannot start a JSON line).
-  chips="$(printf '%s\n' "$list" | while IFS= read -r f; do printf '\002%s\n' "$f"; grep -F -e task -- "$f" 2>/dev/null; done | awk "$_FI_HOST_AWK"'
-    BEGIN {
-      SP = "\"name\":\"mcp__ccd_session__spawn_task\",\"input\":{"; KP = "\"prompt\":\""
-      DI = "\"name\":\"mcp__ccd_session__dismiss_task\",\"input\":{"
-    }
-    substr($0, 1, 1) == "\002" { s = $0; sub(/.*\//, "", s); sub(/[.]jsonl$/, "", s); gsub(/\t/, " ", s); next }
-    { l = $0
-      if (p = index(l, SP)) {
-        if (kind(l) != "a") next
-        n = split(substr(l, 1, p - 1), P, "\"id\":\""); id = substr(P[n], 1, index(P[n], Q) - 1)
-        r = substr(l, p + length(SP))
-        if (id == "" || (id in CS) || !(q = index(r, KP))) next
-        CS[id] = s; CT[id] = cut120(dec(val(r, "\"title\":\""))); CK[id] = key(substr(r, q + length(KP)))
-        CE[id] = tsof(l)
-      } else if (p = index(l, DI)) DIS[val(substr(l, p), "\"task_id\":\"")] = 1
-      else if ((p = index(l, K_TID)) && (q = index(l, "task_id: task_"))) {
-        id = substr(l, p + length(K_TID)); id = substr(id, 1, index(id, Q) - 1)
-        t = substr(l, q + 9); match(t, /^[A-Za-z0-9_]+/); TASK[id] = substr(t, 1, RLENGTH)
-      }
-    }
-    END {
-      for (id in CS) {
-        t = (id in TASK) ? TASK[id] : id
-        if (!(t in DIS)) printf "%s\t%s\t%s\t%s\t%s\n", t, CS[id], (CE[id] == "" ? "-" : CE[id]), CT[id], CK[id]
-      }
-    }')"
-  [ -n "$chips" ] || return 0
-  # The session files under the records modified since the oldest chip that
-  # begin with a prompt some chip carries, and when each was last modified: a
-  # chip was started by one modified after it was proposed.
-  mins="$(printf '%s\n' "$chips" | awk -F'\t' -v now="$now" '$3 != "-" && (o == "" || $3 < o) { o = $3 } END { print (o == "" ? 0 : int((now - o) / 60) + 2), o + 0 }')"
-  lo="${mins#* }"; mins="${mins% *}"; [ "${mins:-0}" -gt 0 ] || mins=$((days * 1440))
-  # A file the run cannot read, in any record directory under the root and modified after a proposal, may have started the chip.
-  um="$(find "$root" -mindepth 1 -maxdepth 1 -type d 2>/dev/null | _fi_host_unr "$mins" "$lo")"
-  [ -z "${4:-}" ] || printf '%s\n' "${um%% *}" > "$4"; um="${um#* }"
-  mm="$({ printf '%s\n' "$chips"; printf '\001\n'; find "$root" -mindepth 2 -maxdepth 2 -type f -name '*.jsonl' -mmin -"$mins" 2>/dev/null; } | awk -F'\t' "$_FI_HOST_AWK"'
-      $0 == "\001" { files = 1; next }
-      !files { C[$5] = 1; next }
-      { f = $0; while ((getline l < f) > 0) if (kind(l) == "u" && (h = human(l)) != "") { if ((k = key(h)) in C) print k "\t" f; break }
-        close(f) }' | while IFS= read -r f; do printf '%s\t%s\n' "${f%%$'\t'*}" "$(_fi_mtime "${f#*$'\t'}")"; done)"
-  { printf '%s\n' "$chips"; printf '\001\n'; printf '%s\n' "$mm"; } | awk -F'\t' -v um="$um" '
-    $0 == "\001" { files = 1; next }
-    !files { C[++n] = $0; next }
-    { if ($2 + 0 > M[$1] + 0) M[$1] = $2 }
-    END { for (i = 1; i <= n; i++) { split(C[i], c, "\t")
-        if ((c[5] in M) && (c[3] == "-" || M[c[5]] + 0 > c[3] + 0)) continue
-        printf "%s\t%s\t%s\t%s\t%s\n", c[1], c[2], c[3], (um + 0 > 0 && (c[3] == "-" || um + 0 > c[3] + 0)) ? "unknown" : "-", c[4] } }'
-}
+# The chips (proposed cards nobody started) are read by lib/inventory-chips.sh,
+# the second file of this adapter.

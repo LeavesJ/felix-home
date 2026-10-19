@@ -211,14 +211,14 @@ if [ -d "$HERE/lib" ]; then
 fi
 # The hand-over (contract D2, D7): part mode runs its members here and exits; a
 # -j N run hands the parts to the runner and reads the part lines below as no-ops.
-[ -z "${_pm1:-}" ] || _pm_start
+[ -z "${_pm1:-}" ] || _pm_start "$@"
 [ -z "${_pm1:-}" ] || . "$HERE/parts/$_pm1"; [ -z "${_pm1:-}" ] || _pm_done "$_pm1"
 [ -z "${_pm2:-}" ] || . "$HERE/parts/$_pm2"; [ -z "${_pm2:-}" ] || _pm_done "$_pm2"
 [ -z "${_pm3:-}" ] || . "$HERE/parts/$_pm3"; [ -z "${_pm3:-}" ] || _pm_done "$_pm3"
 [ -z "${_pm4:-}" ] || . "$HERE/parts/$_pm4"; [ -z "${_pm4:-}" ] || _pm_done "$_pm4"
 [ -z "${_pm5:-}" ] || . "$HERE/parts/$_pm5"; [ -z "${_pm5:-}" ] || _pm_done "$_pm5"
 [ -z "${_pm6:-}" ] || . "$HERE/parts/$_pm6"; [ -z "${_pm6:-}" ] || _pm_done "$_pm6"
-[ -z "${_pm1:-}" ] || _pm_fin
+[ -z "${_pm1:-}" ] || _pm_fin "$@"
 [ -z "${_pm1:-}" ] || exit 3
 [ "$_suite_jobs" -le 1 ] || _par_run
 [ "$_suite_jobs" -le 1 ] || [ "${_par_done:-}" = 1 ] || exit 1

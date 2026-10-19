@@ -170,10 +170,36 @@ while (1) {
   $l = time;
   defined syswrite($h, "\@\@tick\n") or $!{EAGAIN} or exit 0;
 }'
-# The shell a unit leaves (R8). _pm_snap writes this shell's state to a file; _pm_diff sets _pm_chg to one line
-# a change between the two that part mode takes, at _pm_start and _pm_fin (part 0001). Both use no variable whose
-# name does not start _pm, so what they read is the parts' shell and not their own. The perl is given the two
-# snapshots and $TMP/lib-before.names; "+fn NAME" lines it prints are functions added, which bash classifies.
+# Part mode's functions (contract D2, R8, R16). A unit's output goes to its log, the runner lines are lines of their
+# own that the parent reads back, and a member is one driver line of its own. _pm_nl ends a partial last line, so a
+# runner line starts one of its own: from the log's last byte, or, by hand, from stdout's where that is a regular
+# file this run may read, found through /proc or, on macOS, by F_GETPATH (where it is not, a line is ended whether
+# or not one needs it). A path is used, never /dev/stdout: a child's stdout is its own.
+#
+# The shell a unit leaves (R8, R16). _pm_take0 records this shell's state in $TMP/pm.0 as the last act of _pm_start;
+# _pm_take1 takes it again as the first act of _pm_fin, in $TMP/pm.1, and _pm_diff sets _pm_chg to one line a change.
+# None of these has a local variable and each name they set starts _pm, so what they read is the parts' shell and
+# not their own. Each builtin they use is called through `builtin`, so that no function a part leaves can stand in
+# for it; each command they run is called through _pm_x, which is `builtin command` with the PATH _pm_start
+# recorded; and _pm_p prints through the builtin and falls back to the printf command when a part disabled it.
+# _pm_take1 takes `enable -n` first of all and enables again each builtin that was not disabled at the start,
+# so that the rest can be taken; the lines it compares are the ones it took first. The perl is given the two
+# snapshots and $TMP/lib-before.names; the "+fn NAME" lines it prints are functions added, which bash classifies.
+_pm_x() { PATH="$_pm_path0" builtin command "$@"; }
+_pm_p() { builtin printf "$@" 2>/dev/null || PATH="$_pm_path0" builtin command printf "$@" 2>/dev/null; }
+_pm_where() {
+  _pm_d="$TMP/pm.path"; _pm_out=-
+  [[ -z $_pm_log ]] || { _pm_out="$_pm_log"; builtin return 0; }
+  [[ -f /dev/stdout ]] || builtin return 0
+  _pm_q="$(_pm_x readlink "/proc/$$/fd/1" 2>/dev/null)"
+  if [[ -z $_pm_q ]]; then
+    _pm_x perl -e 'open(F, ">&=", 3) or exit 1; my $p = "\0" x 1024; fcntl(F, 50, $p) or exit 1; $p =~ s/\0.*//s; print "$p\n"' 3>&1 > "$_pm_d" 2>/dev/null || builtin return 0
+    IFS= builtin read -r _pm_q < "$_pm_d" 2>/dev/null || _pm_q=""
+  fi
+  [[ -f $_pm_q && -r $_pm_q ]] && _pm_out="$_pm_q"
+  builtin return 0
+}
+_pm_nl() { if [[ $_pm_out == - ]]; then _pm_p '\n'; else [[ -z "$(_pm_x tail -c 1 "$_pm_out" 2>/dev/null)" ]] || _pm_p '\n'; fi; }
 _pm_pl='use strict;
 my ($bf, $af, $nf) = @ARGV;
 sub rd { open(my $h, "<", $_[0]) or return ""; local $/; my $t = <$h>; close $h; defined $t ? $t : "" }
@@ -182,8 +208,11 @@ sub ln { my $t = shift; $t =~ s/\n\z//; split /\n/, $t, -1 }
 sub recs { my (%h, $c); for (split /^/m, shift) { if (/^declare -(\S+) ([A-Za-z_][A-Za-z0-9_]*)(?:=|$)/) { $c = $2; $h{$c} = [$1, $_] } elsif (defined $c) { $h{$c}[1] .= $_ } } \%h }
 sub trp { my %h; for (split /(?=^trap -- )/m, shift) { (my $x = $_) =~ s/\s+\z//; $h{$1} = $x if $x =~ /^trap -- .*?(\S+)\z/s } \%h }
 sub fns { my (%h, $c); for (split /^/m, shift) { if (/^([^\s()]+) \(\)\s*$/) { $c = $1; $h{$c} = $_ } elsif (defined $c) { $h{$c} .= $_ } } \%h }
+sub names { my ($t, $re) = @_; my %h; for (ln($t)) { $h{$1} = 1 if /^$re$/ } \%h }
 my ($B, $A) = (parse(rd($bf)), parse(rd($af)));
-unless (exists $B->{end} && exists $A->{end}) { print "the shell state could not be read back to compare it\n"; exit 0 }
+for my $s (qw(fds um set shopt trap ul uh exp decl wat jobs en dirs ro pos fn end)) {
+  unless (exists $B->{$s} && exists $A->{$s}) { print "the shell state could not be read back to compare it\n"; exit 0 }
+}
 my @o;
 my ($w, $n) = ((ln($B->{um}[1]))[0], (ln($A->{um}[1]))[0]);
 push @o, "umask $w is now $n" if $w ne $n;
@@ -206,47 +235,135 @@ for (sort keys %$tn) { push @o, "trap on $_ added" unless exists $tw->{$_} }
 my (%fw, %fa); $fw{$_} = 1 for split " ", $B->{fds}[0]; $fa{$_} = 1 for split " ", $A->{fds}[0];
 for (0 .. 9) { push @o, "descriptor $_ opened" if $fa{$_} && !$fw{$_}; push @o, "descriptor $_ closed" if $fw{$_} && !$fa{$_} }
 my ($xw, $xa) = (recs($B->{exp}[1]), recs($A->{exp}[1]));
-my %st = map { $_ => 1 } qw(LANG TZ HOME TMPDIR PATH CDPATH ENV BASH_ENV SHELLOPTS BASHOPTS POSIXLY_CORRECT XDG_CONFIG_HOME);
 for (sort keys %$xw) {
   next if /^(?:PWD|OLDPWD)$/;
   if (!exists $xa->{$_}) { push @o, "export $_ removed" } elsif ($xa->{$_}[1] ne $xw->{$_}[1]) { push @o, "export $_ changed" }
 }
-for (sort keys %$xa) { push @o, "export $_ added" if !exists $xw->{$_} && (/^(?:GIT_|LC_|FELIX_)/ || $st{$_}) }
+for (sort keys %$xa) { push @o, "export $_ added" if !exists $xw->{$_} && !/^(?:PWD|OLDPWD)$/ }
 my %nm; if (open(my $h, "<", $nf)) { while (my $l = <$h>) { chomp $l; $nm{$l} = 1 } close $h } else { push @o, "the prelude names [$nf] could not be read" }
-my %xc = map { $_ => 1 } qw(PASS FAIL SKIP _fx_walkroot _fx_r SHELLOPTS PWD OLDPWD COLUMNS DIRSTACK EPOCHREALTIME EPOCHSECONDS FUNCNAME GROUPS HISTCMD LINENO LINES OPTARG OPTERR OPTIND PIPESTATUS RANDOM REPLY SECONDS SRANDOM _);
+my %xc = map { $_ => 1 } qw(PASS FAIL SKIP _fx_walkroot _fx_r SHELLOPTS PWD OLDPWD COLUMNS DIRSTACK EPOCHREALTIME EPOCHSECONDS FUNCNAME GROUPS HISTCMD LINENO LINES OPTARG OPTERR PIPESTATUS RANDOM REPLY SECONDS SRANDOM _);
 my ($dw, $da) = (recs($B->{decl}[1]), recs($A->{decl}[1]));
 for (sort keys %$dw) {
   next if $dw->{$_}[0] =~ /x/ || !$nm{$_} || $xc{$_} || /^(?:_og_|_pm|_par_|_pj_|BASH)/;
   if (!exists $da->{$_}) { push @o, "variable $_ removed" } elsif ($da->{$_}[1] ne $dw->{$_}[1]) { push @o, "variable $_ changed" }
 }
+my %wn = map { $_ => 1 } qw(CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT);
+my ($ww, $wa) = (recs($B->{wat}[1]), recs($A->{wat}[1]));
+for (sort keys %$wa) { push @o, "variable $_ added" if !exists $ww->{$_} && $wa->{$_}[0] !~ /x/ && ($wn{$_} || /^LC_/) }
+my %jw = map { $_ => 1 } split " ", $B->{jobs}[1];
+for (split " ", $A->{jobs}[1]) { push @o, "job $_ left running" unless $jw{$_} }
+my ($ew, $ea) = (names($B->{en}[1], "enable -n (\\S+)"), names($A->{en}[1], "enable -n (\\S+)"));
+for (sort keys %$ea) { push @o, "builtin $_ disabled" unless $ew->{$_} }
+for (sort keys %$ew) { push @o, "builtin $_ enabled" unless $ea->{$_} }
+my @dw = ln($B->{dirs}[1]); my @da = ln($A->{dirs}[1]);
+push @o, "directory stack changed" if join("\n", @dw[1 .. $#dw]) ne join("\n", @da[1 .. $#da]);
+my ($rw, $ra) = (names($B->{ro}[1], "declare -\\S*r\\S* (\\w+)\\b.*"), names($A->{ro}[1], "declare -\\S*r\\S* (\\w+)\\b.*"));
+for (sort keys %$ra) { push @o, "readonly $_ added" unless $rw->{$_} }
+push @o, "positional parameters changed" if $B->{pos}[0] . "\n" . $B->{pos}[1] ne $A->{pos}[0] . "\n" . $A->{pos}[1];
 my ($gw, $ga) = (fns($B->{fn}[1]), fns($A->{fn}[1]));
 for (sort keys %$gw) { if (!exists $ga->{$_}) { push @o, "function $_ removed" } elsif ($ga->{$_} ne $gw->{$_}) { push @o, "function $_ changed" } }
 for (sort keys %$ga) { push @o, "+fn $_" unless exists $gw->{$_} }
 print "$_\n" for @o'
-_pm_snap() {   # FILE; the variables are asked for by name (bash 3.2 prints declare -p with no name in set's form)
-  local _pm_i=0 _pm_d="" _pm_v
-  while [ "$_pm_i" -le 9 ]; do { true >&"$_pm_i"; } 2>/dev/null && _pm_d="$_pm_d $_pm_i"; _pm_i=$((_pm_i + 1)); done
-  { printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; umask; printf '@@pm:set\n'; set +o; printf '@@pm:shopt\n'; shopt -p
-    printf '@@pm:trap\n'; trap -p; printf '@@pm:ul\n'; ulimit -a; printf '@@pm:uh\n'; ulimit -Ha
-    printf '@@pm:exp\n'; export -p; printf '@@pm:decl\n'
-    while IFS= read -r _pm_v; do declare -p "$_pm_v"; done < "$TMP/lib-before.names"
-    printf '@@pm:fn\n'; declare -f; printf '@@pm:end\n'; } > "$1" 2>/dev/null
+# FILE ARG...: the state, the arguments being the positional parameters of the shell that is compared.
+_pm_snap() {
+  _pm_o="$1"; builtin shift
+  _pm_d=""; _pm_i=0
+  while [[ $_pm_i -le 9 ]]; do
+    case "$_pm_i" in
+      1) { builtin true <&1; } 2>/dev/null ;;
+      2) builtin true >&2 ;;
+      *) { builtin true >&"$_pm_i"; } 2>/dev/null ;;
+    esac && _pm_d="$_pm_d $_pm_i"
+    _pm_i=$((_pm_i + 1))
+  done
+  builtin printf '%s\n' CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT > "$_pm_o.w" 2>/dev/null
+  builtin compgen -v LC_ >> "$_pm_o.w" 2>/dev/null
+  { builtin printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; builtin umask; builtin printf '@@pm:set\n'; builtin set +o; builtin printf '@@pm:shopt\n'; builtin shopt -p
+    builtin printf '@@pm:trap\n'; builtin trap -p; builtin printf '@@pm:ul\n'; builtin ulimit -a; builtin printf '@@pm:uh\n'; builtin ulimit -Ha
+    builtin printf '@@pm:exp\n'; builtin export -p; builtin printf '@@pm:decl\n'
+    while IFS= builtin read -r _pm_v; do builtin declare -p "$_pm_v"; done < "$TMP/lib-before.names"
+    builtin printf '@@pm:wat\n'
+    while IFS= builtin read -r _pm_v; do builtin declare -p "$_pm_v"; done < "$_pm_o.w"
+    builtin printf '@@pm:jobs\n'; builtin jobs -rp; builtin printf '@@pm:en\n%s\n' "$_pm_en1"
+    builtin printf '@@pm:dirs\n'; builtin dirs -p; builtin printf '@@pm:ro\n'; builtin readonly -p
+    builtin printf '@@pm:pos %s\n' "$#"; for _pm_v in "$@"; do builtin printf '%q\n' "$_pm_v"; done
+    builtin printf '@@pm:fn\n'; builtin declare -f; builtin printf '@@pm:end\n'; } > "$_pm_o" 2>/dev/null
+}
+_pm_take0() { _pm_en0="$(builtin enable -n 2>/dev/null)"; _pm_en1="$_pm_en0"; _pm_snap "$TMP/pm.0" "$@"; }
+_pm_take1() {
+  _pm_en1="$(builtin enable -n 2>/dev/null)"; _pm_e="$_pm_en1"
+  while [[ -n $_pm_e ]]; do
+    _pm_l="${_pm_e%%$'\n'*}"
+    if [[ $_pm_e == *$'\n'* ]]; then _pm_e="${_pm_e#*$'\n'}"; else _pm_e=""; fi
+    [[ $'\n'"$_pm_en0"$'\n' == *$'\n'"$_pm_l"$'\n'* ]] || builtin enable "${_pm_l#enable -n }" 2>/dev/null
+  done
+  _pm_snap "$TMP/pm.1" "$@"; _pm_diff
 }
 _pm_diff() {
-  local _pm_l _pm_b="" _pm_k=""
   _pm_chg=""
-  perl -e "$_pm_pl" "$TMP/pm.0" "$TMP/pm.1" "$TMP/lib-before.names" > "$TMP/pm.out" 2>&1 || _pm_chg="the shell state could not be compared"$'\n'
-  while IFS= read -r _pm_l; do
-    case "$_pm_l" in
-      "+fn "*)
-        _pm_l="${_pm_l#+fn }"
-        [ -n "$_pm_b" ] || { _pm_b=$'\n'"$(compgen -b)"$'\n'; _pm_k=$'\n'"$(compgen -k)"$'\n'; }
-        case "$_pm_b" in *$'\n'"$_pm_l"$'\n'*) _pm_chg="${_pm_chg}function $_pm_l added over a builtin"$'\n'; continue ;; esac
-        case "$_pm_k" in *$'\n'"$_pm_l"$'\n'*) _pm_chg="${_pm_chg}function $_pm_l added over a keyword"$'\n'; continue ;; esac
-        [ -z "$(PATH="$_pm_path0" type -P -- "$_pm_l" 2>/dev/null)" ] || _pm_chg="${_pm_chg}function $_pm_l added over a command"$'\n' ;;
-      *) _pm_chg="$_pm_chg$_pm_l"$'\n' ;;
-    esac
+  _pm_x perl -e "$_pm_pl" "$TMP/pm.0" "$TMP/pm.1" "$TMP/lib-before.names" > "$TMP/pm.out" 2>&1 || _pm_chg="the shell state could not be compared"$'\n'
+  _pm_b=""; _pm_k=""
+  while IFS= builtin read -r _pm_l; do
+    if [[ $_pm_l == "+fn "* ]]; then
+      _pm_l="${_pm_l#+fn }"
+      [[ -n $_pm_b ]] || { _pm_b=$'\n'"$(builtin compgen -b)"$'\n'; _pm_k=$'\n'"$(builtin compgen -k)"$'\n'; }
+      if [[ $_pm_b == *$'\n'"$_pm_l"$'\n'* ]]; then _pm_chg="${_pm_chg}function $_pm_l added over a builtin"$'\n'
+      elif [[ $_pm_k == *$'\n'"$_pm_l"$'\n'* ]]; then _pm_chg="${_pm_chg}function $_pm_l added over a keyword"$'\n'
+      elif [[ -n "$(PATH="$_pm_path0" builtin type -P -- "$_pm_l" 2>/dev/null)" ]]; then _pm_chg="${_pm_chg}function $_pm_l added over a command"$'\n'
+      fi
+    else _pm_chg="$_pm_chg$_pm_l"$'\n'
+    fi
   done < "$TMP/pm.out"
+}
+_pm_start() {
+  _pm_path0="$PATH"; _pm_where; _pm_nl; _pm_p '@@prelude-done\n'
+  _pm_f0="$FAIL"
+  [[ -z $_pm_ranf ]] || FELIX_TEST_RAN="$_pm_ranf"
+  [[ $_pm_rec != 1 ]] || FELIX_TEST_RECORD=1
+  [[ -z $_pm_endf ]] || _pm_take0 "$@"
+}
+_pm_done() { _pm_nl; _pm_p '@@member-done %s\n' "$1"; }
+# The end of part mode: the end state is written to the end file, as 9990's three checks make it for this shell,
+# and not asserted; the floor is set final, the mark is printed and the run exits 0 whatever it counted. The end
+# file is written whole by one mv and holds one record a line, a tag, a tab, the text:
+#   floor ok|bad, then floormsg LINE for each line of a bad floor's detail;
+#   refused LINE, one for each line of the refusal log;
+#   og ok|skip|bad, the origin check's verdict, then ogmsg LINE for each line of its message;
+#   fail N, the FAIL counted since @@prelude-done; prefail N, what the prelude counted;
+#   shell ok, or shell changed and shellmsg LINE for each change (R8, R16);
+#   end 1, last: a file without it was cut short.
+# _og_check is called by name, as 9990 calls it. TAG TEXT -> _pm_r gains one record for each line of TEXT.
+_pm_add() {
+  _pm_ar="$2"
+  while [[ -n $_pm_ar ]]; do
+    _pm_al="${_pm_ar%%$'\n'*}"
+    if [[ $_pm_ar == *$'\n'* ]]; then _pm_ar="${_pm_ar#*$'\n'}"; else _pm_ar=""; fi
+    _pm_r="$_pm_r$1"$'\t'"$_pm_al"$'\n'
+  done
+}
+_pm_fin() {
+  [[ -z $_pm_endf ]] || _pm_take1 "$@"   # first, before anything else it does
+  _pm_hr="$(builtin pwd -P)"
+  _pm_wn="$([[ -d $TMP/cwd ]] && builtin cd "$TMP/cwd" && builtin pwd -P)"
+  _pm_cv="$(_pm_x printenv GIT_CEILING_DIRECTORIES 2>/dev/null || builtin printf '(unset)')"
+  _pm_cp="$([[ -n $_pm_cv && -d $_pm_cv ]] && builtin cd "$_pm_cv" && builtin pwd -P)"
+  _pm_pt="${TMP%/*}"; [[ -n $_pm_pt ]] || _pm_pt=/
+  _pm_cw="$(builtin cd "$_pm_pt" && builtin pwd -P)"
+  _pm_r=""
+  if [[ -n $_pm_wn && $_pm_hr == "$_pm_wn" && -n $_pm_cp && $_pm_cp == "$_pm_cw" ]]; then _pm_add floor ok
+  else _pm_add floor bad; _pm_add floormsg "it stands in [$_pm_hr], and $TMP/cwd is [${_pm_wn:-not a directory}]; a child sees GIT_CEILING_DIRECTORIES [$_pm_cv], and the parent of $TMP is [$_pm_cw]"; fi
+  if [[ -s $FELIX_TEST_FXREFUSED ]]; then _pm_add refused "$(< "$FELIX_TEST_FXREFUSED")"; fi
+  _og_check
+  _pm_add og "$_og_v"; _pm_add ogmsg "$_og_msg"; _pm_add fail "$((FAIL - _pm_f0))"; _pm_add prefail "$_pm_f0"
+  if [[ -z $_pm_chg ]]; then _pm_add shell ok; else _pm_add shell changed; _pm_add shellmsg "${_pm_chg%$'\n'}"; fi
+  _pm_add end 1
+  if [[ -n $_pm_endf ]]; then
+    { builtin printf '%s' "$_pm_r" > "$_pm_endf.tmp" && _pm_x mv -f "$_pm_endf.tmp" "$_pm_endf"; } 2>/dev/null \
+      || _pm_p 'tests/run: part mode could not write its end file [%s]\n' "$_pm_endf" >&2
+  fi
+  _fx_final=1
+  _pm_nl; _pm_p '@@part-done %s\n' "${_pm1}${_pm2:+ $_pm2}${_pm3:+ $_pm3}${_pm4:+ $_pm4}${_pm5:+ $_pm5}${_pm6:+ $_pm6}"
+  builtin exit 0
 }
 # One unit's log, as D3 prints it. -v unit, mem (its part files, blank between),
 # efail (the FAIL counter its end file holds, -1 when unknown), epf (what its

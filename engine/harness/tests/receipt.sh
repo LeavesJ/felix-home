@@ -411,15 +411,15 @@ _rcp_grow() {   # -> _rcp_set, _rcp_add, _rcp_pres
 _rcp_stop() {   # <red's pid>, with the start time _rcp_redsig gave it
   (
     local p n=0 s="$_rcp_redsig"
-    trap '' TERM
+    trap '' TERM; _rcp_stp=""
     s="${s#"${s%%[! ]*}"}"; _rcp_set="$1;${s%"${s##*[! ]}"}"; _rcp_pres="$1"; _rcp_grow; _rcp_k TERM
     while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
     n=0
-    while [ "$n" -lt 30 ]; do _rcp_grow; _rcp_k STOP; [ "$_rcp_add" -gt 0 ] || break; n=$((n + 1)); done
+    while [ "$n" -lt 30 ]; do _rcp_grow; _rcp_k STOP; _rcp_stp="$_rcp_stp $_rcp_pres"; [ "$_rcp_add" -gt 0 ] || break; n=$((n + 1)); done
     _rcp_k KILL; _rcp_grow; _rcp_k KILL; _rcp_k CONT
   )
 }
-_rcp_k() { local p; for p in $_rcp_pres; do kill -"$1" "$p" 2>/dev/null; done; }
+_rcp_k() { local p; for p in $_rcp_pres $_rcp_stp; do kill -"$1" "$p" 2>/dev/null; done; }
 
 _rcp_red_alive() {   # status 0 while the red this run started is still running
   [ -n "${_rcp_red:-}" ] && [ "${_rcp_redgone:-0}" = 0 ] && kill -0 "$_rcp_red" 2>/dev/null || return 1

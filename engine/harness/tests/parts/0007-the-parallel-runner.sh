@@ -23,9 +23,9 @@
 #   handler exits 143 while it has no child and otherwise returns, and TERM is
 #   blocked across the fork. Once a second while it waits and while the unit runs
 #   (a poll), and before it forks, it checks its wrapper (its parent's pid) and the -j
-#   parent (kill 0; its start time every 10 s): when either is gone it starts no unit,
-#   or ends the unit's tree as R14 says, and exits 2. It writes the unit's pid and start
-#   time to unit.I after it forks (R15).
+#   parent (kill 0; and, every 10 s, that its wrapper's parent is still that pid: R20): when either is
+#   gone it starts no unit, or ends the unit's tree as R14 and R21 say, and exits 2. It writes the unit's pid and start
+#   time to unit.I once it has forked, before the unit runs (R15, R22).
 # Part mode (part 0001) also records the shell a unit starts with and compares it when the unit
 # ends (_pm_snap, _pm_diff below; R8): a change a part leaves in the shell is the seventh runner
 # failure, printed by _par_show after the unit's others, since a serial run carries it to the parts after.
@@ -36,18 +36,18 @@
 # ended (R4). A unit whose holder has had no slot for FELIX_TEST_SLOT_NOTE s (300) is said once on stderr (R6).
 _pj_pl='use Fcntl qw(:flock);
 use POSIX ();
-my ($dir, $k, $ef, $si, $sq, $mp, $mst, $uf, @cmd) = @ARGV;
-my ($pp, $pid, $old, @M, %H, @P) = (getppid, undef, $SIG{TERM});
+my ($dir, $k, $ef, $si, $sq, $mp, $uf, @cmd) = @ARGV;
+my ($pp, $pid, $old, @M, %H, @P, @S) = (getppid, undef, $SIG{TERM});
 $SIG{TERM} = sub { exit 143 unless defined $pid };
 sub trim { my $x = shift; $x =~ s/^\s+|\s+$//g; $x }
-sub wr { my ($f, $t, $z) = @_; my $o; (open($o, ">", "$f.t") and print({$o} $t) and close($o) and rename("$f.t", $f)) or $z or exit 2 }
+sub wr { my ($f, $t, $z) = @_; my $o; (open($o, ">", "$f.t") and print({$o} $t) and close($o) and rename("$f.t", $f)) ? 1 : $z ? 0 : exit 2 }
 my $st = trim(`ps -o lstart= -p $$ 2>/dev/null`);
 my $lq = time;
-sub gone {   # the wrapper or the -j parent is gone, or the parent has another start time (R4, R15)
+sub gone {   # the wrapper or the -j parent is gone, or the parent of the wrapper is another pid (R4, R15, R20)
   return 1 if getppid() != $pp or !kill(0, $mp);
   return 0 unless $_[0] || time - $lq >= 10;
-  $lq = time; my $x = trim(`ps -o lstart= -p $mp 2>/dev/null`);
-  $x ne "" && $mst ne "" && $x ne $mst
+  $lq = time; my $x = trim(`ps -o ppid= -p $pp 2>/dev/null`);
+  $x =~ /^\d+$/ && $x != $mp
 }
 sub add { $H{"$_[0];$_[1]"}++ ? 0 : (push(@M, [@_]) && 1) }
 sub grow {   # R14: members are a pid and a start time; a listing seeds from the members present in it
@@ -64,12 +64,12 @@ sub grow {   # R14: members are a pid and a start time; a listing seeds from the
   @P = @q;
   $a || 0
 }
-sub endtree {
-  (@M, %H) = (); add($_[0], "@"); @P = ($_[0]); grow();
+sub endtree {   # R21: what it sent STOP it signals by pid from then on
+  (@M, %H, @S) = (); add($_[0], "@"); @P = ($_[0]); grow();
   kill TERM => @P;
   for (1 .. 100) { last if waitpid($_[0], POSIX::WNOHANG()) != 0; select(undef, undef, undef, 0.1) }
-  for (1 .. 30) { my $a = grow(); kill STOP => @P; last unless $a }
-  kill KILL => @P; grow(); kill KILL => @P; kill CONT => @P;
+  for (1 .. 30) { my $a = grow(); kill STOP => @P, @S; push @S, @P; last unless $a }
+  kill KILL => @P, @S; grow(); kill KILL => @P, @S; kill CONT => @P, @S;
   waitpid($_[0], 0);
 }
 wr($ef, "- -\n$$ $st\n");
@@ -90,18 +90,24 @@ wr($ef, $t1 . " " . ($w ? $t0 : $t1) . "\n$$ $st\n");
 exit 2 if gone(1);
 my $set = POSIX::SigSet->new(POSIX::SIGTERM());
 POSIX::sigprocmask(POSIX::SIG_BLOCK(), $set);
+pipe(my $rd, my $wp) or exit 2;
 $pid = fork;
 defined $pid or exit 2;
 if (!$pid) {
   $SIG{TERM} = defined $old ? $old : "DEFAULT";
   POSIX::sigprocmask(POSIX::SIG_UNBLOCK(), $set);
   $SIG{INT} = $si; $SIG{QUIT} = $sq;
+  close $wp;
+  sysread($rd, my $b, 1) or exit 2;   # R22: the unit waits for unit.I
   exec { $cmd[0] } @cmd;
   exit 127;
 }
 POSIX::sigprocmask(POSIX::SIG_UNBLOCK(), $set);
-my $us = trim(`ps -o lstart= -p $pid 2>/dev/null`);
-wr($uf, "$pid $us\n", 1) if $us ne "";
+close $rd;
+my $us = "";
+for (1 .. 5) { $us = trim(`ps -o lstart= -p $pid 2>/dev/null`); last if $us ne ""; select(undef, undef, undef, 0.2) if $_ < 5 }
+if ($us ne "" and wr($uf, "$pid $us\n", 1)) { $SIG{PIPE} = "IGNORE"; syswrite($wp, "x") } else { close $wp; waitpid($pid, 0); exit 2 }
+close $wp;
 my ($r, $last) = (0, time);
 while (1) {
   $r = waitpid($pid, POSIX::WNOHANG());
@@ -208,9 +214,10 @@ sub ln { my $t = shift; $t =~ s/\n\z//; split /\n/, $t, -1 }
 sub recs { my (%h, $c); for (split /^/m, shift) { if (/^declare -(\S+) ([A-Za-z_][A-Za-z0-9_]*)(?:=|$)/) { $c = $2; $h{$c} = [$1, $_] } elsif (defined $c) { $h{$c}[1] .= $_ } } \%h }
 sub trp { my %h; for (split /(?=^trap -- )/m, shift) { (my $x = $_) =~ s/\s+\z//; $h{$1} = $x if $x =~ /^trap -- .*?(\S+)\z/s } \%h }
 sub fns { my (%h, $c); for (split /^/m, shift) { if (/^([^\s()]+) \(\)\s*$/) { $c = $1; $h{$c} = $_ } elsif (defined $c) { $h{$c} .= $_ } } \%h }
+sub als { my (%h, $c); for (split /^/m, shift) { if (/^alias ([^=\s]+)=/) { $c = $1; $h{$c} = $_ } elsif (defined $c) { $h{$c} .= $_ } } \%h }
 sub names { my ($t, $re) = @_; my %h; for (ln($t)) { $h{$1} = 1 if /^$re$/ } \%h }
 my ($B, $A) = (parse(rd($bf)), parse(rd($af)));
-for my $s (qw(fds um set shopt trap ul uh exp decl wat jobs en dirs ro pos fn end)) {
+for my $s (qw(fds um set shopt trap ul uh exp decl wat jobs en dirs ro pos al rf fn end)) {
   unless (exists $B->{$s} && exists $A->{$s}) { print "the shell state could not be read back to compare it\n"; exit 0 }
 }
 my @o;
@@ -259,6 +266,11 @@ my @dw = ln($B->{dirs}[1]); my @da = ln($A->{dirs}[1]);
 push @o, "directory stack changed" if join("\n", @dw[1 .. $#dw]) ne join("\n", @da[1 .. $#da]);
 my ($rw, $ra) = (names($B->{ro}[1], "declare -\\S*r\\S* (\\w+)\\b.*"), names($A->{ro}[1], "declare -\\S*r\\S* (\\w+)\\b.*"));
 for (sort keys %$ra) { push @o, "readonly $_ added" unless $rw->{$_} }
+my ($aw, $aa) = (als($B->{al}[1]), als($A->{al}[1]));
+for (sort keys %$aw) { if (!exists $aa->{$_}) { push @o, "alias $_ removed" } elsif ($aa->{$_} ne $aw->{$_}) { push @o, "alias $_ changed" } }
+for (sort keys %$aa) { push @o, "alias $_ added" unless exists $aw->{$_} }
+my ($rfw, $rfa) = (names($B->{rf}[1], "declare -fr (\\S+)"), names($A->{rf}[1], "declare -fr (\\S+)"));
+for (sort keys %$rfa) { push @o, "readonly function $_ added" unless $rfw->{$_} }
 push @o, "positional parameters changed" if $B->{pos}[0] . "\n" . $B->{pos}[1] ne $A->{pos}[0] . "\n" . $A->{pos}[1];
 my ($gw, $ga) = (fns($B->{fn}[1]), fns($A->{fn}[1]));
 for (sort keys %$gw) { if (!exists $ga->{$_}) { push @o, "function $_ removed" } elsif ($ga->{$_} ne $gw->{$_}) { push @o, "function $_ changed" } }
@@ -278,30 +290,32 @@ _pm_snap() {
   done
   builtin printf '%s\n' CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT > "$_pm_o.w" 2>/dev/null
   builtin compgen -v LC_ >> "$_pm_o.w" 2>/dev/null
-  { builtin printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; builtin umask; builtin printf '@@pm:set\n'; builtin set +o; builtin printf '@@pm:shopt\n'; builtin shopt -p
-    builtin printf '@@pm:trap\n'; builtin trap -p; builtin printf '@@pm:ul\n'; builtin ulimit -a; builtin printf '@@pm:uh\n'; builtin ulimit -Ha
-    builtin printf '@@pm:exp\n'; builtin export -p; builtin printf '@@pm:decl\n'
+  { builtin printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; builtin umask || _pm_bad=1; builtin printf '@@pm:set\n'; builtin set +o || _pm_bad=1; builtin printf '@@pm:shopt\n'; builtin shopt -p || _pm_bad=1
+    builtin printf '@@pm:trap\n'; builtin trap -p || _pm_bad=1; builtin printf '@@pm:ul\n'; builtin ulimit -a || _pm_bad=1; builtin printf '@@pm:uh\n'; builtin ulimit -Ha || _pm_bad=1
+    builtin printf '@@pm:exp\n'; builtin export -p || _pm_bad=1; builtin printf '@@pm:decl\n'
     while IFS= builtin read -r _pm_v; do builtin declare -p "$_pm_v"; done < "$TMP/lib-before.names"
     builtin printf '@@pm:wat\n'
     while IFS= builtin read -r _pm_v; do builtin declare -p "$_pm_v"; done < "$_pm_o.w"
-    builtin printf '@@pm:jobs\n'; builtin jobs -rp; builtin printf '@@pm:en\n%s\n' "$_pm_en1"
-    builtin printf '@@pm:dirs\n'; builtin dirs -p; builtin printf '@@pm:ro\n'; builtin readonly -p
+    builtin printf '@@pm:jobs\n'; builtin jobs -rp || _pm_bad=1; builtin printf '@@pm:en\n%s\n' "$_pm_en1"
+    builtin printf '@@pm:dirs\n'; builtin dirs -p || _pm_bad=1; builtin printf '@@pm:ro\n'; builtin readonly -p || _pm_bad=1
     builtin printf '@@pm:pos %s\n' "$#"; for _pm_v in "$@"; do builtin printf '%q\n' "$_pm_v"; done
-    builtin printf '@@pm:fn\n'; builtin declare -f; builtin printf '@@pm:end\n'; } > "$_pm_o" 2>/dev/null
+    builtin printf '@@pm:al\n'; builtin alias -p || _pm_bad=1; builtin printf '@@pm:rf\n'; builtin readonly -f || _pm_bad=1
+    builtin printf '@@pm:fn\n'; builtin declare -f || _pm_bad=1; builtin printf '@@pm:end\n'; } > "$_pm_o" 2>/dev/null
 }
-_pm_take0() { _pm_en0="$(builtin enable -n 2>/dev/null)"; _pm_en1="$_pm_en0"; _pm_snap "$TMP/pm.0" "$@"; }
+_pm_take0() { _pm_bad=""; _pm_en0="$(builtin enable -n 2>/dev/null)" || _pm_bad=1; _pm_en1="$_pm_en0"; _pm_snap "$TMP/pm.0" "$@"; }
 _pm_take1() {
-  _pm_en1="$(builtin enable -n 2>/dev/null)"; _pm_e="$_pm_en1"
+  _pm_en1="$(builtin enable -n 2>/dev/null)" || _pm_bad=1; _pm_e="$_pm_en1"
   while [[ -n $_pm_e ]]; do
     _pm_l="${_pm_e%%$'\n'*}"
     if [[ $_pm_e == *$'\n'* ]]; then _pm_e="${_pm_e#*$'\n'}"; else _pm_e=""; fi
-    [[ $'\n'"$_pm_en0"$'\n' == *$'\n'"$_pm_l"$'\n'* ]] || builtin enable "${_pm_l#enable -n }" 2>/dev/null
+    [[ $'\n'"$_pm_en0"$'\n' == *$'\n'"$_pm_l"$'\n'* ]] || builtin enable "${_pm_l#enable -n }" 2>/dev/null || _pm_bad=1
   done
   _pm_snap "$TMP/pm.1" "$@"; _pm_diff
 }
 _pm_diff() {
   _pm_chg=""
-  _pm_x perl -e "$_pm_pl" "$TMP/pm.0" "$TMP/pm.1" "$TMP/lib-before.names" > "$TMP/pm.out" 2>&1 || _pm_chg="the shell state could not be compared"$'\n'
+  _pm_x perl -e "$_pm_pl" "$TMP/pm.0" "$TMP/pm.1" "$TMP/lib-before.names" > "$TMP/pm.out" 2>&1 || _pm_bad=1
+  [[ -z $_pm_bad ]] || _pm_chg="the shell state could not be compared"$'\n'
   _pm_b=""; _pm_k=""
   while IFS= builtin read -r _pm_l; do
     if [[ $_pm_l == "+fn "* ]]; then
@@ -632,12 +646,13 @@ _par_grow() {
 _par_pids() { local IFS='|' e; _pj_pres=""; for e in $_pj_set; do _pj_pres="$_pj_pres ${e%%;*}"; done; }
 # A stopper (R14) for the roots in _pj_set, with _pj_par the process they are children of. The
 # set only grows, and a member is signalled only while the latest non-empty listing shows its pid
-# with its start time. TERM, the roots given up to 10 s, STOP while a listing adds a member (30
-# times at most), KILL, one more listing, KILL and then CONT. The caller ignores or holds its signals.
-_par_k() { local p; for p in $_pj_pres; do kill -"$1" "$p" 2>/dev/null; done; }
+# with its start time, except that one sent STOP is signalled by its pid from then on (R21). TERM,
+# the roots given up to 10 s, STOP while a listing adds a member (30 times at most), KILL, one more
+# listing, KILL and then CONT. The caller ignores or holds its signals.
+_par_k() { local p; for p in $_pj_pres $_pj_stp; do kill -"$1" "$p" 2>/dev/null; done; }
 _par_stop() {
   local p roots n=0 up
-  _par_pids; roots="$_pj_pres"
+  _par_pids; roots="$_pj_pres"; _pj_stp=""
   _par_grow; _par_k TERM
   while [ "$n" -lt 50 ]; do
     up=""; for p in $roots; do ! kill -0 "$p" 2>/dev/null || up=1; done
@@ -645,7 +660,7 @@ _par_stop() {
     sleep 0.2; n=$((n + 1))
   done
   n=0
-  while [ "$n" -lt 30 ]; do _par_grow; _par_k STOP; [ "$_pj_add" -gt 0 ] || break; n=$((n + 1)); done
+  while [ "$n" -lt 30 ]; do _par_grow; _par_k STOP; _pj_stp="$_pj_stp $_pj_pres"; [ "$_pj_add" -gt 0 ] || break; n=$((n + 1)); done
   _par_k KILL; _par_grow; _par_k KILL; _par_k CONT
 }
 # The signals, armed for the runner; or held, so that the first to come is kept (R2) and acted on
@@ -686,12 +701,16 @@ _par_unit() {
 # process's by now). @@gone goes into the FIFO and is read back, handling every line before it;
 # the wrapper writes its line before it exits, so a wrapper found gone has had its line read
 # by then. One still without one ends its unit as one with no mark (R4).
+_par_jl() {   # -> _pj_jl, the pids of this shell's running jobs, each between blanks; fails when the table cannot be read
+  local l; _pj_jl=" "
+  { builtin jobs -rp > "$_pj_dir/jobs"; } 2>/dev/null || return 1
+  while IFS= read -r l; do _pj_jl="$_pj_jl$l "; done < "$_pj_dir/jobs"
+}
 _par_gone() {
-  local i=0 g="" l jl=" "
-  { builtin jobs -rp > "$_pj_dir/jobs"; } 2>/dev/null || return 0
-  while IFS= read -r l; do jl="$jl$l "; done < "$_pj_dir/jobs"
+  local i=0 g="" l
+  _par_jl || return 0
   while [ "$i" -lt "$_pj_n" ]; do
-    if [ "${_pj_s[$i]}" = 1 ] && [ -n "${_pj_pid[$i]}" ]; then case "$jl" in *" ${_pj_pid[$i]} "*) ;; *) g="$g $i" ;; esac; fi
+    if [ "${_pj_s[$i]}" = 1 ] && [ -n "${_pj_pid[$i]}" ]; then case "$_pj_jl" in *" ${_pj_pid[$i]} "*) ;; *) g="$g $i" ;; esac; fi
     i=$((i + 1))
   done
   [ -n "$g" ] || return 0
@@ -728,12 +747,12 @@ _par_start() {
     exec >/dev/null 2>&1
     export FELIX_TEST_PART_LOG="$_pj_dir/log.$i" FELIX_TEST_PART_RAN="$_pj_dir/ran.$i" FELIX_TEST_PART_END="$_pj_dir/end.$i"
     [ "$FELIX_TEST_RECORD" != 1 ] || export FELIX_TEST_PART_RECORD=1
-    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$_pj_pp" "$_pj_ps" "$_pj_dir/unit.$i" "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
+    perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$_pj_pp" "$_pj_dir/unit.$i" "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
     printf '%s %s\n' "$nm" "$?" >&63
   ) &
   _pj_pid[i]=$!
 }
-# The ending (D6, R2, R14): every wrapper running, the one being forked and the ticker (R13) are
+# The ending (D6, R2, R14): every wrapper running, the one being forked and the ticker (R13, R23) are
 # ended with all that runs below them by the stopper, INT, TERM, HUP and QUIT ignored from the
 # first step; then each is waited for, so every unit is reaped before this shell goes. Roots are
 # members "pid;@": their start times come from the first listing, where this shell is their
@@ -749,12 +768,12 @@ _par_end() {
     fi
     i=$((i + 1))
   done
-  rl="$rl ${_pj_tk:-}"
+  if [ -n "${_pj_tk:-}" ]; then rl="$rl $_pj_tk"; elif [ "$bg" != "${_pj_bg0:-}" ]; then rl="$rl $bg"; fi
   for p in $rl; do _pj_set="${_pj_set:+$_pj_set|}$p;@"; done
   [ -n "$_pj_set" ] || return 0
   _par_stop
   for i in $rl; do { wait "$i"; } 2>/dev/null; done
-  _pj_tk=""; i=0
+  _pj_tk=""; _pj_bg0="$bg"; i=0
   while [ "$i" -lt "$_pj_n" ]; do [ "${_pj_s[$i]}" != 1 ] || _pj_s[i]=9; i=$((i + 1)); done
 }
 _par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
@@ -767,8 +786,8 @@ _par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
 _par_run() {
   local i p l def
   _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""; _pj_tk=""; _pj_pp="$$"
-  _pj_ps="$(ps -o lstart= -p "$$" 2>/dev/null)"; _pj_ps="${_pj_ps#"${_pj_ps%%[! ]*}"}"; _pj_ps="${_pj_ps%"${_pj_ps##*[! ]}"}"
   ( : ) & { wait "$!"; } 2>/dev/null   # $! is set from here on, which _par_start and _par_end read under set -u
+  _pj_bg0="$!"   # and the ticker's fork is told by $! differing from it (R23), as a wrapper's is
   _pj_T="${FELIX_TEST_SLOT_NOTE-}"
   case "$_pj_T" in ""|0*|*[!0123456789]*) _pj_T=300 ;; *) [ "${#_pj_T}" -le 6 ] || _pj_T=300 ;; esac
   _pj_W=30; [ "$_pj_T" -ge 30 ] || _pj_W="$_pj_T"
@@ -796,7 +815,8 @@ _par_run() {
     case "$l" in "@@tick") _par_gone ;; *) _par_ev "$l" ;; esac
     _par_nt
   done
-  { kill -KILL "$_pj_tk"; wait "$_pj_tk"; } 2>/dev/null; _pj_tk=""
+  if _par_jl; then case "$_pj_jl" in *" $_pj_tk "*) kill -KILL "$_pj_tk" 2>/dev/null ;; esac; else kill -KILL "$_pj_tk" 2>/dev/null; fi   # R23: only a ticker still running
+  { wait "$_pj_tk"; } 2>/dev/null; _pj_tk=""; _pj_bg0="$!"
   exec 63>&-
   if [ "$_pj_rfn" -gt 0 ] && [ "$FELIX_TEST_RECORD" = 1 ]; then
     [ -z "${_rcp_red:-}" ] || { _rcp_mark failed "$TMP/manifest.mark"; _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" 60; }

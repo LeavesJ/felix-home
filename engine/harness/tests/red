@@ -214,13 +214,13 @@ _grow() {   # -> SET gains everything below a member present, ADD how many, PRES
   ADD=0
   case "$o" in [123456789]*"$tab"*) r="${o#*"$tab"}"; ADD="${r%%"$tab"*}"; r="${r#*"$tab"}"; SET="${r%%"$tab"*}"; PRES="${r#*"$tab"}" ;; esac
 }
-_k() { local p; for p in $PRES; do kill -"$1" "$p" 2>/dev/null; done; }
+_k() { local p; for p in $PRES $PST; do kill -"$1" "$p" 2>/dev/null; done; }   # R21: a member sent STOP is signalled by its pid from then on
 _stop_tree() {   # <pid>, with the start time ps gave it in SUITE_ST
-  local n=0 s="$SUITE_ST"
+  local n=0 s="$SUITE_ST"; PST=""
   s="${s#"${s%%[! ]*}"}"; SET="$1;${s%"${s##*[! ]}"}"; PRES="$1"; _grow; _k TERM
   while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
   n=0
-  while [ "$n" -lt 30 ]; do _grow; _k STOP; [ "$ADD" -gt 0 ] || break; n=$((n + 1)); done
+  while [ "$n" -lt 30 ]; do _grow; _k STOP; PST="$PST $PRES"; [ "$ADD" -gt 0 ] || break; n=$((n + 1)); done
   _k KILL; _grow; _k KILL; _k CONT
 }
 # Whatever still holds this run's temporary path in its command line is a stray

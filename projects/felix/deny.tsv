@@ -133,3 +133,40 @@ Bash	git( +-[^ ]+( +[^ ]+)?)* +symbolic-ref( +(-m +[^ ]+|-m[^ ]+|-[^m ][^ ]*|[^ 
 Bash	git( +-[^ ]+( +[^ ]+)?)* +(fetch|push)[^;&|]*refs/remotes/	a remote-tracking ref is what the remote said, and the exception table is read from it; only a plain fetch may move it	checkout
 Bash	git( +-[^ ]+( +[^ ]+)?)* +remote +(add|set-url|rename|remove|rm)( |$)	the remote is where the person is; a session that rewrites it chooses what refs/remotes/origin/main means	checkout
 Bash	git( +-[^ ]+( +[^ ]+)?)* +push[^;&|]* \+?([^ ]*:)?(refs/heads/)?main([[:space:];&|)]|$)	main is merged through felix merge and a person, never pushed from a session; the exception table is read from it
+#
+# A pattern kill reaches every process on the machine whose name or command
+# line matches, and this machine runs several sessions' suites at once. Twice an
+# agent killed by pattern although its prompt forbade it, on 2026-09-25
+# (`pkill -f 'engine/harness/tests/run'`) and on 2026-10-18 (`pkill -f 'sleep
+# 3'`), and each time the pattern reached other sessions' runs. A prompt did not
+# hold, so this row does, by the founder's decision of 2026-10-19. The contract
+# and its amendment are in audits/2026-10-19-pattern-kill-deny/contract.md.
+#
+# Refused at a command's position: the start, after a separator, after `then`,
+# `do`, `else`, `time` or `!`, or as the body of a substitution or a `-c`
+# script. A wrapper may come first (VAR=val, sudo, env, nice, timeout, xargs,
+# nohup, time, exec, command), and any path may lead the command word:
+#   - killall;
+#   - pkill, unless one of its words binds it to a pid: -P with a parent other
+#     than 1 (pid 1 is the parent of every orphan), or -F with a pidfile. Those
+#     kill the tree of a pid the session holds, which is the way the reason
+#     gives;
+#   - kill whose argument is a substitution running such a pgrep. The reading
+#     puts each substitution's body after the main text, in order, so this
+#     matches when that pgrep is the last body. `kill $(cat run.pid); pgrep -fl
+#     x`, a kill by pidfile followed by a check, stays allowed. So does
+#     `kill -0`, which sends no signal;
+#   - such a pgrep piped, through any stages, into xargs kill.
+# Allowed: kill with a pid, `$!`, a job, a process group or a pidfile's pid;
+# pgrep and ps on their own; any of these words as data. `command -v pkill`
+# only prints, so `command` takes no option here. Not seen, as by every row: a
+# command built at run time (eval, `$cmd`) and a command word with a backslash
+# in it.
+#
+# Measured on 2026-10-19 over the 4705 distinct commands naming kill in this
+# machine's transcripts. It refuses 159, every one a pkill -f, a kill fed by
+# pgrep -f, or a pgrep -f piped to xargs kill. The draft before the amendment
+# also refused 25 pid-bound `pkill -P` tree kills and 3 `kill -0` liveness
+# loops. A match costs 0.2 ms of CPU on a short command and 8 ms on a
+# 30,000-character reading (the costliest row before it, 3.6 ms).
+Bash	(^ *|[;&|({!] +|[ ;&|({!](then|do|else|time|if|elif|while|until) +)(([A-Za-z_][A-Za-z0-9_]*=[^ ;&|]*|(([^ ;&|]*/)?(sudo|doas|env|nice|g?timeout|xargs|nohup|time|exec)( +-[^ ;&|]*| +-[ugnskIPLa] +[^ ;&|]+| +[A-Za-z_][A-Za-z0-9_]*=[^ ;&|]*| +[0-9][^ ;&|]*)*|([^ ;&|]*/)?command)) +)*([^ ;&|]*/)?(pkill( +(([^- ;&|]|&>)[^ ;|]*|-[^PF ;&|][^ ;|]*|-[PF][A-Z][^ ;|]*|-P1|-P +1))*( *$| +[;&|)])|killall( |$)|kill( +(([^- ;&|]|&>)[^ ;|]*|-[^0 ;&|][^ ;|]*|-0[^ ;|]+|-))* +(\$\(_\)|_)( .*)? ; ([^ ;&|]*/)?pgrep( +(([^- ;&|]|&>)[^ ;|]*|-[^PF ;&|][^ ;|]*|-[PF][A-Z][^ ;|]*|-P1|-P +1))*( +\|[^;]*)? *$|pgrep( +(([^- ;&|]|&>)[^ ;|]*|-[^PF ;&|][^ ;|]*|-[PF][A-Z][^ ;|]*|-P1|-P +1))*( +\|[^;&]*)? +\| +((([^ ;&|]*/)?(sudo|doas|env|nice|g?timeout|xargs|nohup|time|exec)( +-[^ ;&|]*| +-[ugnskIPLa] +[^ ;&|]+| +[A-Za-z_][A-Za-z0-9_]*=[^ ;&|]*| +[0-9][^ ;&|]*)*|([^ ;&|]*/)?command) +)*([^ ;&|]*/)?kill( |$))	a pattern kill reaches other sessions' runs on this machine; kill only the pid you started ($! or a pidfile): STOP then KILL the root, then its tree by pid

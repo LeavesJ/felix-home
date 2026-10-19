@@ -67,15 +67,15 @@ _db5_new() {
   rm -rf "$_db5_c"; mkdir -p "$_db5_tmp" || return 1
   _suite_copy_tree ${r:+"$r"} "$_db5_F" "$@"
 }
-# LABEL ARG...: the copy's driver in the background under a bounded runner (stdout LABEL.out, stderr LABEL.err, the group's id LABEL.pid). LC_ALL and
-# CLAUDE_CONFIG_DIR are taken out of its environment, so that a part that exports them adds them.
+# LABEL ARG...: the copy's driver in the background under a bounded runner (stdin /dev/null, stdout LABEL.out, stderr LABEL.err, the group's id
+# LABEL.pid). LC_ALL and CLAUDE_CONFIG_DIR are taken out of its environment, so that a part that exports them adds them.
 _db5_start() {
   local l="$1"; shift
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u CLAUDE_CONFIG_DIR \
       TMPDIR="$_db5_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
       perl "$DB5/run.pl" "$_db5_lim" "$_db5_c/$l.pid" "$BASH" "$_db5_T/run" "$@" \
-  ) > "$_db5_c/$l.out" 2> "$_db5_c/$l.err" &
+  ) < /dev/null > "$_db5_c/$l.out" 2> "$_db5_c/$l.err" &
   _db5_bg=$!; _db5_pf[${#_db5_pf[@]}]="$_db5_c/$l.pid"
 }
 _db5_wait() { { wait "$_db5_bg"; } 2>/dev/null; _db5_rc=$?; _db5_E=(); }
@@ -143,7 +143,7 @@ _db5_uh="$("$BASH" -c 'for f in c s n d f l m t v u; do
     echo "$f $s"; exit 0
   done' 2>/dev/null)"
 _db5_ulf="${_db5_uh% *}"; _db5_uls="${_db5_uh#* }"
-_db5_umk='djx_w="$(umask)"; umask 077; printf "umask %s is now %s\n" "$djx_w" "$(umask)"'
+_db5_umk='djx_w="$(umask)"; case "$djx_w" in 0077|077) umask 027 ;; *) umask 077 ;; esac; printf "umask %s is now %s\n" "$djx_w" "$(umask)"'
 
 _db5_sp R8 umask "umask 077 left set" x "$_db5_umk"' > "$DJX_DIR/exp.umask"; unset djx_w'
 _db5_sp R8 shopt "shopt -s nullglob left set" x 'shopt -s nullglob' 'shopt -u nullglob is now shopt -s nullglob'
@@ -181,7 +181,10 @@ _db5_sp R8 gitdir "GIT_DIR exported" x 'export GIT_DIR=/djx/x' 'export GIT_DIR a
 _db5_sp R16 expfn "export() { builtin export \"\$@\"; } left defined" x 'export() { builtin export "$@"; }' 'function export added over a builtin'
 _db5_sp R16 perlum "perl() { command perl \"\$@\"; } beside umask 077" x "$_db5_umk"' > "$DJX_DIR/exp.perlum"; unset djx_w
 printf "function perl added over a command\n" >> "$DJX_DIR/exp.perlum"; perl() { command perl "$@"; }'
-_db5_sp R16 pipefail "set -o pipefail" x 'set -o pipefail' 'set +o pipefail is now set -o pipefail'
+# the driver runs under set -uo pipefail (tests/run:17), so a bare set -o pipefail would change nothing: the part measures the option in its own shell and flips it
+_db5_sp R16 pipefail "the set -o pipefail option flipped from what the unit's shell has" x 'djx_w="$(set +o | grep " pipefail$")"
+case "$djx_w" in "set -o pipefail") set +o pipefail ;; *) set -o pipefail ;; esac
+printf "%s is now %s\n" "$djx_w" "$(set +o | grep " pipefail$")" > "$DJX_DIR/exp.pipefail"; unset djx_w'
 _db5_sp R16 fd0 "exec 0<&-" x 'exec 0<&-' 'descriptor 0 closed'
 _db5_sp R16 enable "enable -n printf" x 'enable -n printf' 'builtin printf disabled'
 _db5_sp R16 fd2 "exec 2>&-" x 'exec 2>&-' 'descriptor 2 closed'

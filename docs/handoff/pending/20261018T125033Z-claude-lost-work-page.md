@@ -1,12 +1,12 @@
 ### 2026-10-18: the lost-work page, `felix monitor`, and three inventory fixes (Phase 0b step 6)
 
-**Engine 0.49.301 (placeholder, set at "you are next"; this branch, `claude/lost-work-page`, cut from
+**Engine 0.49.300 (this branch, `claude/lost-work-page`, cut from
 `claude/stuck-pr-page` at 6627e2ba; origin/main 96074341, step 5 as #449 at
 0.49.298, merged in at 237439dc; origin/main 655606cf, gate friction C as #444
-at 0.49.299, merged in at b7782a94).** The
-carrier's order on 2026-10-18: gate friction C .298, step 5 with 3f .299, #446
-.300, then step 6 about level with gate friction D, from .301 by
-gate-readiness. The contract is
+at 0.49.299, merged in at b7782a94).** The carrier gave step 6 .300 on
+2026-10-18, ahead of #446, which is green but waits on the founder's merge
+(step 5's precedent): whichever lands second merges main again, records again
+and takes the next number. The contract is
 `docs/2026-10-18-lost-work-page-contract.md`: Part A changes `felix inventory`,
 Part B adds the page.
 

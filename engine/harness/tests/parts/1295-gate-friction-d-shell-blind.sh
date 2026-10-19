@@ -1,13 +1,17 @@
 # >>> gate-friction-d-shell-blind
-printf '\ngate friction D: the shell a unit leaves for the parts after it (blind, revision 8)\n'
-# Blind, written from contract D revision 8 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16). Nothing here was read off an
+printf '\ngate friction D: the shell a unit leaves for the parts after it (blind, revision 9)\n'
+# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16, R24, R28). Nothing here was read off an
 # implementation; tests/run is run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each with planted parts of
 # this block's own. Every case points TMPDIR at a fixture directory, runs every inner run under a bounded runner that makes its own process group and
 # resets HUP and TERM, and ends by asking that group to hold no live process, stopped or running (zombies aside), for 30 s; what is left is named,
 # then sent CONT and KILL by pid. Nothing is killed by pattern: a sleeper a planted part leaves is ended by the pid it wrote down.
 # The planted parts are one set, each doing one thing to the shell and then printing its own ok line. They are numbered so that the ones that spoil
-# the shell for what follows (a closed descriptor, a disabled printf, a replaced EXIT trap) come last, so a -j 1 run reaches every one.
-# Names say the clause: R8 the first comparison, R16 what it was widened to. Each change line is the one the contract gives, as written.
+# the shell for what follows (a closed descriptor, a disabled printf or enable, a removed EXIT trap) come last, so a -j 1 run reaches every one.
+# Four kinds: x leaves the shell changed (the seventh failure under -j 3, none under -j 1); p passes; s is skipped; j is a part that is only judged
+# under -j 3 and left out of the -j 1 run, since a function that forwards nothing (perl() { :; }) would break the parts after it there (R28); c is a
+# part that only the -j 1 run holds, a control (a function that forwards, which R28 no longer counts as a case of the seventh failure).
+# Names say the clause: R8 the first comparison, R16 what it was widened to, R24 every builtin's status, aliases and readonly functions, R28 the
+# shadows that forward nothing, the watched variables, a trap removed and a group. Each change line is the one the contract gives, as written.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB5="$TMP/db5"
 mkdir -p "$DB5/pp/std" "$DB5/pp/sh" "$DB5/exp" "$DB5/n"
@@ -68,11 +72,11 @@ _db5_new() {
   _suite_copy_tree ${r:+"$r"} "$_db5_F" "$@"
 }
 # LABEL ARG...: the copy's driver in the background under a bounded runner (stdin /dev/null, stdout LABEL.out, stderr LABEL.err, the group's id
-# LABEL.pid). LC_ALL and CLAUDE_CONFIG_DIR are taken out of its environment, so that a part that exports them adds them.
+# LABEL.pid). LC_ALL, LC_COLLATE and CLAUDE_CONFIG_DIR are taken out of its environment, so that a part that exports them adds them.
 _db5_start() {
   local l="$1"; shift
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
-      -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u CLAUDE_CONFIG_DIR \
+      -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR \
       TMPDIR="$_db5_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
       perl "$DB5/run.pl" "$_db5_lim" "$_db5_c/$l.pid" "$BASH" "$_db5_T/run" "$@" \
   ) < /dev/null > "$_db5_c/$l.out" 2> "$_db5_c/$l.err" &
@@ -120,8 +124,8 @@ _db5_bars() {
     END { if (n != 1) { print "[the failure was printed " n + 0 " times]"; exit } for (i = 1; i <= k; i++) print b[i] }' "$_db5_c/$1" | LC_ALL=C sort
 }
 # The planted parts. _db5_sp NAME DESC KIND CODE [EXPECTED-LINE...]: part NNN0-NAME.sh does CODE and then its own ok line. KIND x: it leaves the shell
-# changed, and the seventh failure's bar lines are exactly the EXPECTED-LINEs (none given: the part writes them to $DJX_DIR/exp.NAME); p: it passes;
-# s: skipped, the part does nothing, and _db5_skr says why.
+# changed, and the seventh failure's bar lines are exactly the EXPECTED-LINEs (none given: the part writes them to $DJX_DIR/exp.NAME); j: as x, but
+# only the -j 3 run holds it; c: as p, but only the -j 1 run holds it; p: it passes; s: skipped, the part does nothing, and _db5_skr says why.
 _db5_i=0; _db5_sn=(); _db5_sd=(); _db5_sk=(); _db5_sc=(); _db5_sr=(); _db5_skr=
 _db5_sp() {
   local f
@@ -166,6 +170,9 @@ _db5_sp R16 roots "a change to _fx_roots, an underscore-prefixed prelude variabl
 _db5_sp R16 keep "a new value for an export the case made before the run" x 'DJX_KEEP=2' 'export DJX_KEEP changed'
 _db5_sp R16 lcall "export LC_ALL=C, with LC_ALL absent from the run's environment" x 'export LC_ALL=C' 'export LC_ALL added'
 _db5_sp R16 cfgdir "export CLAUDE_CONFIG_DIR=/x, with it absent from the run's environment" x 'export CLAUDE_CONFIG_DIR=/x' 'export CLAUDE_CONFIG_DIR added'
+_db5_sp R28 cdpath "CDPATH=/djx, a plain variable the main shell itself reads" x 'CDPATH=/djx' 'variable CDPATH added'
+_db5_sp R28 lccoll "LC_COLLATE=C plain, with LC_COLLATE absent from the run's environment" x 'LC_COLLATE=C' 'variable LC_COLLATE added'
+_db5_sp R28 optind "OPTIND=5" x 'OPTIND=5' 'variable OPTIND changed'
 _db5_sp R16 posn "set -- a b c" x 'set -- a b c' 'positional parameters changed'
 _db5_sp R16 pushd "pushd of the working directory, which leaves the stack changed and the directory as found" x 'pushd "$PWD" >/dev/null' 'directory stack changed'
 _db5_sp R16 ro "readonly djx_ro=1" x 'readonly djx_ro=1' 'readonly djx_ro added'
@@ -178,25 +185,38 @@ else _db5_skr="no resource has a hard limit above its soft one that this bash ca
 _db5_sp R8 path "PATH changed" x 'PATH="$PATH:/djx/none"' 'export PATH changed'
 _db5_sp R8 git "git() { :; } left defined" x 'git() { :; }' 'function git added over a command'
 _db5_sp R8 gitdir "GIT_DIR exported" x 'export GIT_DIR=/djx/x' 'export GIT_DIR added'
-_db5_sp R16 expfn "export() { builtin export \"\$@\"; } left defined" x 'export() { builtin export "$@"; }' 'function export added over a builtin'
-_db5_sp R16 perlum "perl() { command perl \"\$@\"; } beside umask 077" x "$_db5_umk"' > "$DJX_DIR/exp.perlum"; unset djx_w
-printf "function perl added over a command\n" >> "$DJX_DIR/exp.perlum"; perl() { command perl "$@"; }'
+# functions that forward to the real tool pin nothing of the guard (a comparator that calls perl or export by name reads the same through them), so under -j 3 they
+# are no case of the seventh failure (R28): they stay as -j 1 controls. The ones that forward nothing are the cases, each in a unit of its own, beside umask 077.
+_db5_sp R16 expfn "export() { builtin export \"\$@\"; } left defined, a -j 1 control" c 'export() { builtin export "$@"; }'
+_db5_sp R16 perlum "perl() { command perl \"\$@\"; } beside umask 077, a -j 1 control" c "$_db5_umk"' > "$DJX_DIR/exp.perlum"; unset djx_w; perl() { command perl "$@"; }'
+_db5_sp R28 shperl "perl() { :; } beside umask 077" j "$_db5_umk"' > "$DJX_DIR/exp.shperl"; unset djx_w
+printf "function perl added over a command\n" >> "$DJX_DIR/exp.shperl"; perl() { :; }'
+_db5_sp R28 shcomp "compgen() { :; } beside umask 077" j "$_db5_umk"' > "$DJX_DIR/exp.shcomp"; unset djx_w
+printf "function compgen added over a builtin\n" >> "$DJX_DIR/exp.shcomp"; compgen() { :; }'
+_db5_sp R28 shdecl "declare() { :; } beside umask 077" j "$_db5_umk"' > "$DJX_DIR/exp.shdecl"; unset djx_w
+printf "function declare added over a builtin\n" >> "$DJX_DIR/exp.shdecl"; declare() { :; }'
 # the driver runs under set -uo pipefail (tests/run:17), so a bare set -o pipefail would change nothing: the part measures the option in its own shell and flips it
 _db5_sp R16 pipefail "the set -o pipefail option flipped from what the unit's shell has" x 'djx_w="$(set +o | grep " pipefail$")"
 case "$djx_w" in "set -o pipefail") set +o pipefail ;; *) set -o pipefail ;; esac
 printf "%s is now %s\n" "$djx_w" "$(set +o | grep " pipefail$")" > "$DJX_DIR/exp.pipefail"; unset djx_w'
 _db5_sp R16 fd0 "exec 0<&-" x 'exec 0<&-' 'descriptor 0 closed'
 _db5_sp R16 enable "enable -n printf" x 'enable -n printf' 'builtin printf disabled'
+_db5_sp R24 enabl2 "enable -n enable, which hides the list of disabled builtins from the comparison" x 'enable -n enable' 'the shell state could not be compared'
+_db5_sp R24 alias "alias djx_al=true" x 'alias djx_al=true' 'alias djx_al added'
+_db5_sp R24 rofn "a readonly function" x 'djx_rf() { :; }; readonly -f djx_rf' 'readonly function djx_rf added'
 _db5_sp R16 fd2 "exec 2>&-" x 'exec 2>&-' 'descriptor 2 closed'
 _db5_sp R16 trapexit "trap 'printf \"djx-exit\\n\"' EXIT" x 'trap '"'"'printf "djx-exit\n"'"'"' EXIT' 'trap on EXIT changed'
+_db5_sp R28 trapnone "trap - EXIT, the prelude's EXIT trap removed, numbered last so that the -j 1 run reaches every part" x 'trap - EXIT' 'trap on EXIT removed'
 _db5_n=$_db5_i
-_db5_all=(); _db5_px=(); _db5_pp=(); _db5_xx=(); _db5_k=1
+_db5_a1=(); _db5_a3=(); _db5_px=(); _db5_pp=(); _db5_xx=(); _db5_k=1   # the -j 1 set, the -j 3 set, the parts that fail, the ones that pass, their failures
 while [ "$_db5_k" -le "$_db5_n" ]; do
-  _db5_f="$DB5/pp/sh/$(_db5_unit "$_db5_k")"; _db5_all[${#_db5_all[@]}]="$_db5_f"
+  _db5_f="$DB5/pp/sh/$(_db5_unit "$_db5_k")"
   case "${_db5_sk[$_db5_k]}" in
-    x) _db5_px[${#_db5_px[@]}]="$_db5_f"; _db5_xx[${#_db5_xx[@]}]="$_db5_w: $(_db5_unit "$_db5_k")" ;;
+    x|j) _db5_px[${#_db5_px[@]}]="$_db5_f"; _db5_xx[${#_db5_xx[@]}]="$_db5_w: $(_db5_unit "$_db5_k")" ;;
     p) _db5_pp[${#_db5_pp[@]}]="$_db5_f" ;;
   esac
+  case "${_db5_sk[$_db5_k]}" in j) ;; *) _db5_a1[${#_db5_a1[@]}]="$_db5_f" ;; esac
+  case "${_db5_sk[$_db5_k]}" in c) ;; *) _db5_a3[${#_db5_a3[@]}]="$_db5_f" ;; esac
   _db5_k=$((_db5_k + 1))
 done
 _db5_oks() {   # OUT KINDS: the ok line of every planted part of those kinds is in OUT exactly once: "ok", or the names of those that are not
@@ -220,17 +240,17 @@ is "R8: a new plain variable, a new function that hides nothing and a change to 
 rm -rf "$DB5/n/sp"
 
 # ---- every part together under -j 3: the seventh failure of each, once, with exactly its change lines
-_db5_new sh "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_all[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_run s3 -j 3
+_db5_new sh "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_a3[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_run s3 -j 3
 _db5_ny=(); _db5_k=1; while [ "$_db5_k" -le "$_db5_n" ]; do
   case "${_db5_sk[$_db5_k]}" in p) _db5_ny[${#_db5_ny[@]}]="!$_db5_w: $(_db5_unit "$_db5_k")" ;; esac; _db5_k=$((_db5_k + 1)); done
 is "R8: every part that leaves the shell changed gives the seventh failure, once, and the ones that do not give none: the run exits 1, counts them in its summary, leaves no receipt and no process, and every part printed its ok line once" \
-   "$(_db5_chk s3 "${_db5_xx[@]}" ${_db5_ny[@]+"${_db5_ny[@]}"}) $_db5_cl $(_db5_oks s3.out xps)" "ok ok ok"
+   "$(_db5_chk s3 "${_db5_xx[@]}" ${_db5_ny[@]+"${_db5_ny[@]}"}) $_db5_cl $(_db5_oks s3.out xpsj)" "ok ok ok"
 _db5_k=1; while [ "$_db5_k" -le "$_db5_n" ]; do
   _db5_nm="${_db5_sn[$_db5_k]}"; _db5_t="${_db5_sc[$_db5_k]}: ${_db5_sd[$_db5_k]} gives the seventh failure with exactly its change line"
   case "${_db5_sk[$_db5_k]}" in
     s) skip "$_db5_t" "${_db5_sr[$_db5_k]}" ;;
     p) ;;
-    x)
+    x|j)
       _db5_e="$(if [ -f "$DB5/exp/$_db5_nm" ]; then cat "$DB5/exp/$_db5_nm"; else cat "$_db5_c/exp.$_db5_nm" 2>/dev/null; fi | LC_ALL=C sort)"
       _db5_g="$(_db5_bars s3.out "$(_db5_unit "$_db5_k")")"
       is "$_db5_t" "$([ -n "$_db5_e" ] && [ "$_db5_g" = "$_db5_e" ] && echo ok || echo "got [$(printf '%s' "$_db5_g" | tr '\n' '|')], wanted [$(printf '%s' "$_db5_e" | tr '\n' '|')]")" ok ;;
@@ -238,10 +258,20 @@ _db5_k=1; while [ "$_db5_k" -le "$_db5_n" ]; do
   _db5_k=$((_db5_k + 1))
 done
 
+# ---- R28: a group's unit is compared over its members: the first of two members leaves nullglob set, and the unit gives one seventh failure, named for the group
+mkdir -p "$DB5/pp/grp"; printf 'djg\t0010-ga.sh\ndjg\t0020-gb.sh\n' > "$DB5/g-grp.tsv"
+printf '%s\n' 'printf "\ndjx-sec 0010-ga.sh\n"' 'shopt -s nullglob' 'ok "djx grp a"' > "$DB5/pp/grp/0010-ga.sh"
+printf '%s\n' 'printf "\ndjx-sec 0020-gb.sh\n"' 'ok "djx grp b"' > "$DB5/pp/grp/0020-gb.sh"
+_db5_new sg "$DB5/g-grp.tsv" "$DB5/pman.tsv" "$DB5/pp/grp/0010-ga.sh" "$DB5/pp/grp/0020-gb.sh"; _db5_run g3 -j 3
+is "R28: a two-member group whose first member leaves nullglob set gives one seventh failure naming the group's unit, exit 1, no receipt, no process, and both members printed their ok line once" \
+   "$(_db5_chk g3 "$_db5_w: djg" "!$_db5_w: 0010-ga.sh" "!$_db5_w: 0020-gb.sh") $_db5_cl $(_db5_line "$_db5_c/g3.out" '  ok    djx grp a') $(_db5_line "$_db5_c/g3.out" '  ok    djx grp b')" "ok ok 1 1"
+is "R28: and its one bar line is shopt -u nullglob is now shopt -s nullglob" "$(_db5_bars g3.out djg)" "shopt -u nullglob is now shopt -s nullglob"
+rm -rf "$DB5/n/sg"
+
 # ---- under -j 1 nothing is compared: none of them gives the seventh failure, and the run is known to have reached every part
-_db5_new sj "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_all[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_lim=100; _db5_run s1 -j 1; _db5_lim=150
-is "R8: under -j 1 none of them gives the seventh failure, a change carrying to the parts after it as it always did, and every part printed its ok line once, so the run reached them all" \
-   "$(_db5_cnt "$_db5_c/s1.out" "  FAIL  $_db5_w") $(_db5_oks s1.out xps) $_db5_cl" "0 ok ok"
+_db5_new sj "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_a1[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_lim=100; _db5_run s1 -j 1; _db5_lim=150
+is "R8: under -j 1 none of them gives the seventh failure (R24, R28 included), a change carrying to the parts after it as it always did, and every part of the -j 1 set printed its ok line once, so the run reached them all" \
+   "$(_db5_cnt "$_db5_c/s1.out" "  FAIL  $_db5_w") $(_db5_oks s1.out xpsc) $_db5_cl" "0 ok ok"
 
 # ---- a record run: the seventh failure writes no manifest, and red.tsv holds the two retraction rows
 _db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_run r -j 3 --record-assertions

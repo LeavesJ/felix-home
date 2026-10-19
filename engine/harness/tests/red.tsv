@@ -8,164 +8,145 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	655606cfa97750125b971e49430f6b07ae48703e	0.49.299
-run	159	12729	44
-A1 (decoys: all): and what it prints names the commit refs/remotes/origin/main names	1
-A1 (decoys: all): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: none): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A1 (decoys: refs/heads/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A1 (decoys: refs/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/tags/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A1 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A1 (decoys: refs/tags/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0	1
-A10 (refs/heads/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it	1
-A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry main's engine, installed is ok, and nothing the decoy prints reaches it	1
-A10 (refs/tags/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it	1
-A11 (decoys: refs/heads/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds	1
-A11 (decoys: refs/tags/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds	1
-A12 (1, decoys: refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
-A12 (1, decoys: refs/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
-A12 (1, decoys: refs/remotes/origin/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
-A12 (1, decoys: refs/tags/origin/jr12 refs/heads/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
-A12 (1, decoys: refs/tags/origin/jr12): felix merge --dry-run --base origin/jr12 refuses, no judge accepts, and the decoy's resolve.sh never runs	1
-A12 (3): felix merge --dry-run --base <main's own sha> refuses, saying it needs a full ref name	1
-A12 (3): felix merge --dry-run --base HEAD~1, which is main's commit, refuses, saying it needs a full ref name	1
-A12 (3, no decoy): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name	1
-A12 (3, refs/tags/main at d2): felix merge --dry-run --base main~1 refuses, saying it needs a full ref name, and the decoy's resolve.sh never runs	1
-A17: given main, with no origin/main, it returns refs/heads/main	1
-A17: given main, with origin/main there, it returns refs/remotes/origin/main	1
-A2 (decoys: all): and what it prints names the commit refs/remotes/origin/main names	1
-A2 (decoys: all): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (decoys: none): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (decoys: refs/heads/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A2 (decoys: refs/heads/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (decoys: refs/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A2 (decoys: refs/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (decoys: refs/remotes/origin/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A2 (decoys: refs/remotes/origin/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names	1
-A2 (decoys: refs/tags/origin/main): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0	1
-A2 (no refs/remotes/origin/jr-gone, decoys: all): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
-A2 (no refs/remotes/origin/jr-gone, decoys: refs/heads/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
-A2 (no refs/remotes/origin/jr-gone, decoys: refs/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
-A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
-A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero	1
-A3 (decoys: all): and what it prints names the commit refs/heads/feat names	1
-A3 (decoys: all): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
-A3 (decoys: none): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
-A3 (decoys: refs/feat): and what it prints names the commit refs/heads/feat names	1
-A3 (decoys: refs/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
-A3 (decoys: refs/remotes/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
-A3 (decoys: refs/remotes/main): felix_base_ref given main prints exactly refs/heads/main and exits 0	1
-A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names	1
-A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0	1
-A4 (a branch with a revision suffix, with refs/remotes/origin/main present): and what it prints names the commit main~1 names	1
-A4 (a branch with a revision suffix, with refs/remotes/origin/main present): felix_base_ref given main~1 prints exactly main~1 and exits 0	1
-A4 (a revision suffix, with refs/remotes/origin/HEAD present): and what it prints names the commit HEAD~1 names	1
-A4 (a revision suffix, with refs/remotes/origin/HEAD present): felix_base_ref given HEAD~1 prints exactly HEAD~1 and exits 0	1
-A4 (a tree by its sha): felix_base_ref given its sha prints nothing and exits non-zero	1
-A6 (with a local main only): felix_base_ref given an empty name prints exactly refs/heads/main and exits 0	1
-A6 (with refs/remotes/origin/main): felix_base_ref given an empty name prints exactly refs/remotes/origin/main and exits 0	1
-A6: an empty ROOT, called from inside a repository that has refs/remotes/origin/main, exits non-zero and prints nothing	1
-A6: and so it does from inside a repository with a local main only	1
-A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A1	1
-A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A2	1
-A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A3	1
-A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A4	1
-A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A6	1
-A8 (decoys: refs/heads/origin/main): and so does felix_kernel_dir given no name	1
-A8 (decoys: refs/heads/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
-A8 (decoys: refs/origin/main): and so does felix_kernel_dir given no name	1
-A8 (decoys: refs/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
-A8 (decoys: refs/tags/origin/main): and so does felix_kernel_dir given no name	1
-A8 (decoys: refs/tags/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares	1
-A9 (refs/heads/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
-A9 (refs/tags/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
-B1 (a): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
-B1 (a): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
-B1 (a): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
-B1 (b): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
-B1 (c): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
-B1 (d): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
-B1 (d): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
-B1 (d): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
-B1 (e): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
-B1 (e): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
-B1 (e): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
-B1 (f): an entry that is main plus one extra file under commands/ exits 1, and the line names that file	1
-B1 (f): an entry that is main plus one extra file under harness/ exits 1, and the line names that file	1
-B1 (f): an entry that is main plus one extra file under hooks/ exits 1, and the line names that file	1
-B10: with an untracked engine/.gitignore of * in the checkout, felix merge --dry-run still refuses because the judge is not the engine main accepted	1
-B10: with an untracked engine/.gitignore of * in the home, installed still fails	1
-B2 (a): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
-B2 (a): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (a): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
-B2 (b): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (c): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
-B2 (c): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (c): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
-B2 (d): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
-B2 (d): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (d): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
-B2 (e): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
-B2 (e): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (e): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
-B2 (f): an entry that lacks harness/lib/x.sh, which main ships, exits 1 and names it	1
-B2 (f): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (f): an entry whose harness/lib/x.sh differs from main exits 1 and names it	1
-B2 (g): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2 (no variant): an entry whose harness/keep.log, which main force-added under *.log, differs exits 1 and names it	1
-B2: an entry that lacks harness/keep.log, which main force-added under *.log, exits 1 and names it	1
-B3 (nested rule deleted from the working tree): an entry that is main plus harness/tests/scratch/y exits 0, that line not printed	1
-B3 (nested rule negated in the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed	1
-B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/.claude-flow/x.json exits 0, that line not printed	1
-B3 (root .gitignore deleted from the working tree): an entry that is main plus harness/tests/x.log exits 0, that line not printed	1
-B3: against jr-rules, whose engine/.gitignore ignores *.bak, the same entry exits 0, that line not printed	1
-B4: an entry that is main plus commands/.claude-flow/evil.md exits 1 and names it	1
-B4: an entry that is main plus commands/data/evil.md exits 1 and names it	1
-B4: an entry that is main plus commands/x.log exits 1 and names it	1
-B5: with refs/remotes/origin/jr5 moved to m2 after any one of the call's git commands, the verdict is one commit's: exit 0 and that commit's entry	1
-B9: a content difference in harness/keep.log, tracked and force-added under *.log, exits 1 and names it	1
-B9: a content difference in harness/out, tracked, which out/ names only as a directory, exits 1 and names it	1
-C1 (autocrlf), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
-C1 (autocrlf): a faithful entry is accepted: the entry exits 0 and prints itself	1
-C1 (eol), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
-C1 (eol): a faithful entry is accepted: the entry exits 0 and prints itself	1
-C1 (exportignore): a faithful entry is accepted: the entry exits 0 and prints itself	1
-C1 (filter-file), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
-C1 (filter-file): a faithful entry is accepted: the entry exits 0 and prints itself	1
-C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh	1
-C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself	1
-C2: an entry that holds a top-level .claude-flow/, which M's .claude-flow/ rule matches (residue is only beneath harness/ and hooks/): exits 1 and names .claude-flow	1
-C2: an entry that holds a top-level .mcp.json: exits 1 and names .mcp.json	1
-C2: an entry that holds a top-level agents/ M does not ship: exits 1 and names agents	1
-C2: an entry that lacks .claude-plugin/, which M ships: exits 1 and names .claude-plugin	1
-C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json	1
-C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json	1
-C3: an entry whose harness/felix lost its executable bit (M's mode is 100755): exits 1 and names harness/felix	1
-C3: an entry whose harness/lib/x.sh gained the executable bit (M's mode is 100644): exits 1 and names harness/lib/x.sh	1
-C3: an entry whose harness/lib/x.sh is a symlink to a file with M's very bytes: exits 1 and names harness/lib/x.sh	1
-C4: an entry-only harness/-dash.log exits 1 and is named	1
-C4: an entry-only harness/a b and c.log exits 1 and is named	1
-C4: an entry-only harness/a"b.log exits 1 and is named	1
-C4: an entry-only harness/a*b.log exits 1 and is named	1
-C4: an entry-only harness/a: b.log exits 1 and is named	1
-C4: an entry-only harness/a?b.log exits 1 and is named	1
-C4: an entry-only name with a backslash exits 1 and is named, the backslash escaped	1
-C4: an entry-only name with a newline exits 1, its line is one line that holds the newline as \n and cannot be read as two paths	1
-C4: an entry-only name with a tab exits 1, and its line is one line with the tab escaped	1
-C5: with the decoy in place, the entry for main's 4.0.0 that is M plus harness/extra: exits 1 and names harness/extra	1
-C6: an entry-only FILE harness/data, which M's data/ rule does not match (it names a directory): exits 1 and names harness/data	1
-C7: a TERM delivered to the call midway, while it holds its temporary directory (1 at the block), leaves none behind	1
-C8: and so is refs/tags/refs/heads/jrc-nope^{commit}	1
-C8: felix merge --dry-run --base refs/heads/jrc-nope~0, an expression and not a ref name, is refused, saying it takes only a ref name	1
-a bare branch name prefers the remote-tracking ref	1
-a local-only branch is taken by its full name	1
-found after the blind round (not blind): felix merge --dry-run --base <a sha> refuses, saying it judges and merges against a full ref name	1
-found after the blind round (not blind): felix merge --dry-run --base jr-prose~1, with a tag named jr-prose at a decoy, refuses, saying it judges and merges against a full ref name	1
-saying the branch is behind refs/remotes/origin/main, or the CLI hands the report a base other than the one it compared	1
-the land fixture: an untracked .gitignore in the home that ignores the stray no longer makes main's check accept that entry (fixture control)	1
+base	origin/main	50601023bec1d91f95522ace039a71390012d80b	0.49.300
+run	140	12914	44
+B1: --help and -h print the usage to stdout, naming --log, and exit 0	1
+B1: --live of seven digits: exit 2 and nothing on stdout	1
+B1: --live of seven digits: the usage on stderr names --log	1
+B1: a page option with --every: exit 2 and nothing on stdout	1
+B1: a page option with --every: the usage on stderr names --log	1
+B1: a value the inventory would refuse, --days abc: exit 2 and nothing on stdout	1
+B1: a value the inventory would refuse, --days abc: the usage on stderr names --log	1
+B1: an option missing its value, --repo: exit 2 and nothing on stdout	1
+B1: an option missing its value, --repo: the usage on stderr names --log	1
+B1: the line for monitor in felix help names --log	1
+B1: with no --repo the page reads the repository holding the current directory	1
+B2: the page ran its sources and opened nothing	1
+B2: the page ran its sources, and every gh api call it caused is a GET	1
+B5: a complete summary's detail is -	1
+B5: a source row's repo cell is its source's own: the main worktree path for the inventory, the slug for land	1
+B6, B8: with no repository read at all, exit 1 and the first line only	1
+B6: a land pr row line is <ref> <states>	1
+B6: an inventory row line is <ref> <states>, then the session's first 8 characters	1
+B6: each heading says its count as B4 says it, with the reasons after an incomplete group	1
+B6: the block is headed by the repository's path, then one read line per cover row, the inventory's then land's	1
+B6: the first line says what the page did and did not do, once	1
+B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 16 summaries	1
+B9.12: carried sits between pr-closed-unlanded and orphan: no row breaks the state order, and some row holds carried	1
+B9.13: a start_session with initiation own_initiative and a task id in its result is a chip: its states, title as detail, proposing session as owner	1
+B9.14: initiation after title and prompt is still a chip; user_asked, offer and proposal_id make none	1
+B9.15: the result's task id is a chip, and a card the result says is still waiting makes no row	1
+B9.16: a proposal whose record holds task nowhere outside its result, in a file naming spawn_task nowhere, is a chip	1
+B9.17: dismiss_task naming a start_session chip's id removes it, while an undismissed one stays	1
+B9.18: a start_session chip 168 hours old or more has the detail element card expired, and a spawn_task chip of the same age none	1
+B9.19: a spawn_task whose result says the permission was denied makes no row	1
+B9.19: a spawn_task with no tool_result in its file is a row whose ref is the tool_use id, states unknown:chip-unstarted	1
+B9.19: its detail is the title, ending no result recorded for the proposal	1
+B9.1: a branch whose tip a pushed branch strictly descends from, no PR anywhere, is carried and not unproposed	1
+B9.1: its detail holds the element carried by origin/carry	1
+B9.20: a chip whose starter's first user record is the two-item reminder form is started: a row before, none after	1
+B9.21: a start_session chip whose starter's first text is framed by Background and Task is started	1
+B9.22: a prompt shorter than 120 characters, started by a text that goes on after it, is started	1
+B9.23: a custom-title equal to the chip's title, in another file modified after, starts it; the first text is unrelated	1
+B9.23: the same title only in the proposer's own file starts nothing, nor a title one character off, while the exact title does	1
+B9.24: a start_session carrying the chip's id as proposal_id, with a result, starts it	1
+B9.24: the same call with no result in its file does not, while the one with a result does	1
+B9.25: a session whose last assistant text asks, answered in the two-item reminder form, is not question	1
+B9.26: every row's group is the one B3 gives	1
+B9.26: land's PRs go by owner: #301 pr-founder, #302 pr-session, #303 pr-lander, #304 pr-nobody, #305 pr-unknown	1
+B9.26: the blocked worktree is blocked, the question worktree question	1
+B9.26: the carried branch is carried, the landed branch landed	1
+B9.26: the live worktree with uncommitted work is running	1
+B9.26: the pending handoff section is handoff	1
+B9.26: the shared-branch worktrees are hazard	1
+B9.26: the unproposed branch, the uncommitted worktree and the unstarted chip are never-proposed	1
+B9.27: every page row has nine tab-separated columns	1
+B9.27: the page's non-summary rows, first column cut, equal the rows of felix inventory --tsv and felix land --prs --tsv as a multiset	1
+B9.28: and holds no other summary row	1
+B9.28: each summary's content is the number of rows in its group, and its state is the completeness B4 gives	1
+B9.28: the page opens with 16 summary rows, in B5's group order, each with ref the group and owner and age -	1
+B9.29: and blocked's reason names sessions unknown: --no-host	1
+B9.29: the blocked, question and running summaries are incomplete, with content unknown	1
+B9.29: the collapsed line says running unknown	1
+B9.29: the text has one blocked sessions heading, and never blocked sessions: 0	1
+B9.29: the text says blocked sessions: unknown, with the reason	1
+B9.29: under --no-host the page exits 0 and the TSV holds its 16 summaries	1
+B9.2: and its detail names the carrier as #7	1
+B9.2: and under --no-gh the carrier is written origin/carry2	1
+B9.2: under --no-gh it is still carried and keeps unknown:pr-open	1
+B9.2: with an open same-repository PR #7 headed carry2, the branch it holds is carried, not unproposed	1
+B9.30: --no-gh exits 0, with the TSV's 16 summaries	1
+B9.30: under --no-gh every pr- summary is incomplete, with content unknown	1
+B9.30: under --no-gh never-proposed is incomplete and its content is its row count	1
+B9.30: under --no-gh never-proposed's reasons name the prs cover row	1
+B9.30: under --no-gh the text says pull requests waiting on the founder: unknown	1
+B9.30: under --no-gh the text says work that never reached a PR: at least its row count, naming prs	1
+B9.30: under --no-gh the uncommitted worktree is still in never-proposed	1
+B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 16 summaries	1
+B9.31: the page's sources asked the stub for the pull requests, and it failed them	1
+B9.31: with gh failing every pr- summary is incomplete, with content unknown	1
+B9.31: with gh failing never-proposed is incomplete and its content is its row count	1
+B9.31: with gh failing never-proposed's reasons name the prs cover row	1
+B9.31: with gh failing the text says pull requests waiting on the founder: unknown	1
+B9.31: with gh failing the text says work that never reached a PR: at least its row count, naming prs	1
+B9.31: with gh failing the uncommitted worktree is still in never-proposed	1
+B9.32: and pr-founder's reason says 1 pull requests not decided	1
+B9.32: pr-unknown and pr-nobody stay complete while gh was read	1
+B9.32: with one PR in pr-unknown, pr-founder, pr-session and pr-lander are incomplete	1
+B9.33: nor the handoff row	1
+B9.33: the PR waiting on a session is listed and the one waiting on nobody collapsed	1
+B9.33: the collapsed line comes last, after every heading, with the collapsed groups' counts	1
+B9.33: the hazard row is listed, while the running, carried and landed rows appear on no line of the text page	1
+B9.33: the hazard, blocked, question, unproposed, chip and PR rows are each listed once	1
+B9.33: the needs-you headings are all there, in B6's order, under needs you	1
+B9.34: after felix monitor --tsv the repository's refs, index, config, HEAD and object count, the home and the memory root are unchanged	1
+B9.34: and after felix monitor as text	1
+B9.34: gh was asked something, and only pr list and api	1
+B9.34: launchctl was asked, and only print	1
+B9.34: neither run wrote state/monitor.html	1
+B9.34: the page ran its sources, and its scratch directory and theirs are gone when it ends	1
+B9.35: felix monitor --bogus: exit 2 and nothing on stdout	1
+B9.35: felix monitor --bogus: the usage on stderr names --log	1
+B9.35: felix monitor --log --tsv: exit 2 and nothing on stdout	1
+B9.35: felix monitor --log --tsv: the usage on stderr names --log	1
+B9.35: felix monitor --open --repo x: exit 2 and nothing on stdout	1
+B9.35: felix monitor --open --repo x: the usage on stderr names --log	1
+B9.35: no usage run opened anything	1
+B9.36: a --repo naming no repository, then the fixture: exit 1	1
+B9.36: a stderr line names the first	1
+B9.36: and the fixture's block is printed	1
+B9.37: each source row is its source's own, repo cell and all: the rows equal the four source runs' as a multiset	1
+B9.37: every row of the first repository comes before every row of the second	1
+B9.37: the TSV holds 16 summaries for each, the first repository's first	1
+B9.37: the text has two blocks, the first repository's first, under one first line	1
+B9.37: two --repo options exit 0, and the TSV holds 16 summaries for each	1
+B9.38: a repository no project governs: the page exits 0 and prints its 16 summaries	1
+B9.38: and land's land, ledger and lander rows are unread	1
+B9.38: with step 5's detail, as land alone prints it	1
+B9.39: the TSV prints ? for the ESC and the BEL of a chip title	1
+B9.39: the chip is on the page, and no ESC or BEL byte reaches either page	1
+B9.39: the text page prints them as ? too	1
+B9.3: a local branch whose tip equals origin/other3's (another name, no upstream) is carried by it	1
+B9.4: a remote row origin/x4 that origin/y4 strictly descends from is carried, and the detail names origin/y4	1
+B9.6: a detached worktree whose HEAD an open PR's head descends from is carried, by #60	1
+B9.6: under --no-gh the same worktree reads carried by origin/pr6 (A1 detail)	1
+B9.7: a worktree with an uncommitted change on a carried tip reads uncommitted,carried	1
+B9.8: of four outermost carriers, three are named by name and the fourth counted	1
+B9.8: of two carriers, origin/outer8 descending from origin/mid8, only origin/outer8 is named	1
+B9.9: a branch whose newest PR was closed unmerged, and whose tip a carrier reaches, is carried and not pr-closed-unlanded	1
+finding 1: and its reason names the prs cover row	1
+finding 1: and the text page says proposed unknown	1
+finding 1: so handoff is incomplete with no rows and says unknown, naming the default cover row	1
+finding 1: the five runs over xb exit 0 and the TSV runs hold 16 summaries (control)	1
+finding 1: the text page says handoff sections unknown, never handoff sections 0	1
+finding 1: the text page says proposed unknown under --no-gh, never proposed 0	1
+finding 1: under --no-gh proposed is incomplete and its content unknown, not 0	1
+finding 1: with gh failing proposed is incomplete and unknown	1
+finding 1: with gh read, proposed is complete and the pending section is one complete handoff row (control)	1
+finding 1: with the pending listing failed the default cover row keeps read and adds unknown:handoff-pending (the control reads read alone)	1
+finding 2: feat-c, never pushed under its own name, is carried by an equal tip and not unproposed (control)	1
+finding 2: the page lists both under work that never reached a PR	1
+finding 3: under --no-gh a never-pushed branch is still carried and gains no unknown:pr-open (inventory spec 5.1)	1
+finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 16 summaries	1
+inventory N7: a branch whose commit sits on another remote branch only is carried, its content not, so it is not landed	1
+inventory N7: and the view lists it under carried	1

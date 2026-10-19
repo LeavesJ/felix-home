@@ -1,5 +1,5 @@
 # >>> gate-friction-d-signals-blind
-printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 8)\n'
+printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 9)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -8,6 +8,11 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # dispositions and holders, with R2 to R4 (every stopper, units that outlive their wrapper). Revision 8 fixes here:
 # proc2 2 (the holder-streams file test while the unit runs), 5 (R4's two mechanisms apart), 6 (R18, the start-up
 # check's name), 7a (TERM and HUP dispositions) and conf2 2 (the lingering child is no job of the unit's shell).
+# Revision 9 fix here: proc3 4(b) (R27): the TERM-ignored and HUP-ignored dispositions runs no longer claim to show the
+# ticker's reset. With TERM ignored at the parent every unit inherits it ignored, and the run ends normally, which ends the
+# ticker with KILL, never TERM; the same holds of the run started with HUP ignored. So the ticker's reset cannot be observed
+# in those runs and rests on review and on R13's measurement of a perl that sets them to their defaults; what the runs pin is
+# that units read what a -j 1 run reads, that the run passes with exit 0 (not the runner's 124) and that nothing of its group is left.
 # Names say the clause: D6 the runner, R2 R4 R13 R18 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
@@ -307,7 +312,7 @@ _db2_x="$_db2_x $(_db2_until 25 _db2_clear '' && echo gone || echo still)"; _db2
 is "R12: the group check names a process left in the run's group after the leader exited, and ends it (control)" "$_db2_x" "named gone"
 rm -rf "$DB2/n/gctl"
 
-# ---- dispositions (D6, R13): a unit starts with INT and QUIT as the parent had them, in each of the four ways, and with TERM or HUP as it had them when the parent started with one of them ignored (a ticker the parent starts must not keep it)
+# ---- dispositions (D6, R13): a unit starts with INT and QUIT as the parent had them, in each of the four ways, and with TERM or HUP as it had them when the parent started with one of them ignored. The ticker's own reset of TERM and HUP cannot be seen here (R27): the units ignore them too, and the normal end KILLs the ticker
 _db2_dp() {   # CASE: three parts that print what perl reads of INT QUIT TERM HUP, and whether they ran as a unit; the last two are a group
   local f
   for f in 0010-da.sh 0020-db.sh 0030-dc.sh; do _db2_w "$1" "$f" <<'X'
@@ -334,7 +339,7 @@ for _db2_m in "DEFAULT DEFAULT DEFAULT DEFAULT" "IGNORE IGNORE DEFAULT DEFAULT" 
     _db2_w3=TERM; [ "$_db2_hv" = IGNORE ] && _db2_w3=HUP
     _db2_is "D6: -j 1 parts read $_db2_w3 ignored, and the other three signals at their defaults, from a parent started that way, on all three parts (control)" "$_db2_k $(_db2_cnt "$_db2_c/d1.out" djy-mode:serial)" "3 3"
     _db2_leak="$_db2_l3"
-    _db2_is "R13: from a parent started with $_db2_w3 ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group, the ticker included" \
+    _db2_is "R13: from a parent started with $_db2_w3 ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group" \
        "$(_db2_cnt "$_db2_c/d3.out" djy-mode:unit) $([ "$_db2_x3" = "$_db2_x1" ] && echo same || echo "differ [$_db2_x3] [$_db2_x1]") $_db2_r3" "3 same 0"
   fi
 done

@@ -998,7 +998,7 @@ Answers proc4 2. R19 pins the ending's Nth listing as its Nth `ps -A` call. 1292
 Answers proc4 3. R20's own check, that its wrapper's parent is still the `-j` parent, had no case. R28's pw case kills the parent with -9, whose pid is then free, and the holder's `kill 0` (0007:47) finds it gone before R20's check (0007:48-51) is reached. So a holder without R20's check passed every blind part, and so did one that kept R15's start-time comparison, the Linux clock-step hazard R20 removes. R35 adds to R20's "D8 gains".
 - **The shim.** Once a gate file exists, a `ps` first on PATH answers a holder's `ps -o ppid= -p WRAPPER` (a call whose arguments hold `ppid=` and ` -p `, and not ` -A `) with `1`. Every other call is the real ps's.
 - **The run.** A `-j 2` run of one long part, with the gate written once the unit is up.
-- **Expected.** Within 12 s the unit is gone, and the parent, still running, fails it as ended without its mark (`part ended without its mark: UNIT`; the holder exits 2). Exit 1, no receipt, and nothing of the run left, stopped or running.
+- **Expected.** Within 20 s the unit is gone (the holder asks at most once every 10 s, and under load the shim, ps and the stopper's listings take seconds more; review 5 measured 1.9 to 7.4 s at load 6), and the parent, still running, fails it as ended without its mark (`part ended without its mark: UNIT`; the holder exits 2). Exit 1, no receipt, and nothing of the run left, stopped or running.
 - **Red.** It is red against a holder without R20's check, and against one that compares the parent's start time as R15 did.
 
 ### R36. R28's pw case: the kill waits for a holder

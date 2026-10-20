@@ -492,7 +492,7 @@ rm -rf "$DB2/n/hk" "$DB2/td-hk"; _db2_td=""
 
 # ---- R20, R35: a holder also asks, at least every 10 s and just before it forks, who its wrapper's parent is (ps -o ppid= -p WRAPPER), and takes a pid other than the -j parent's for the parent gone.
 # The kill 0 of the parent's pid does not see that while the pid is alive, and R15's start-time comparison is the Linux clock-step hazard R20 removes. A ps first on PATH answers that one call (its arguments
-# hold ppid= and -p and no -A) with 1 once a gate file exists, and logs each answer it gave in $DJ2_PSCNT. The gate is written once the unit is up: within 12 s the unit is gone, the parent fails it without its mark
+# hold ppid= and -p and no -A) with 1 once a gate file exists, and logs each answer it gave in $DJ2_PSCNT. The gate is written once the unit is up: within 20 s the unit is gone, the parent fails it without its mark
 cat > "$DB2/oshim/ps" <<'DB2OS'
 #!/bin/sh
 # The real ps ($DJ2_PSREAL), except that once the file $DJ2_GATE exists a call that holds ppid= and -p and no -A prints 1 (and is logged in $DJ2_PSCNT).
@@ -515,7 +515,7 @@ _db2_lim=100; _db2_go o -j 2
 _db2_r=""; _db2_until 450 _db2_up 0010-oa.sh || _db2_r=" no unit came up;"
 _db2_ino0="$(_db2_inos "$_db2_tmp")"
 : > "$_db2_c/gate"
-_db2_y="$(perl "$DB2/djk.pl" 0 0 - 12000 pidfile "$_db2_c/or.pids")"
+_db2_y="$(perl "$DB2/djk.pl" 0 0 - 20000 pidfile "$_db2_c/or.pids")"
 : > "$_db2_c/release"
 _db2_wait
 # the run is not interrupted: it ends by itself with the unit's failure, so it reaches its end (reached is printed) and _db2_gone's reached test does not apply
@@ -526,7 +526,7 @@ _db2_until 25 _db2_clear "$(_db2_pid o)" || _db2_r="$_db2_r still running: $(_db
 [ "$(_db2_rcpt)" = absent ] || _db2_r="$_db2_r a receipt was left;"
 _db2_ino0=""
 _db2_x="${_db2_y%% *} $([ "$(wc -l < "$_db2_c/oans" 2>/dev/null | tr -d ' ')" -ge 1 ] 2>/dev/null && echo asked || echo not-asked) $(_db2_cnt "$_db2_c/o.out" '  FAIL  part ended without its mark: 0010-oa.sh')${_db2_r:- ok}"
-_db2_is "R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 12 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left" "$_db2_x" "gone asked 1 ok"
+_db2_is "R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 20 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left" "$_db2_x" "gone asked 1 ok"
 rm -rf "$DB2/n/or"
 
 # while a unit runs, its holder's stdout and stderr are the unit's log: one regular file, the one the unit's own stdout is

@@ -42,6 +42,7 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 # - R22: the holder's ps -o lstart= -p for the unit it forked is the first such call after the gate file (the holder's
 #   own was made before it took its first try, while the case held the slot). One case makes every such call print
 #   nothing, one holds the first and kills the holder with kill -9 in that window; the unit must not run in either.
+# R37 (revision 11, D8 gains a and b) is the block at the end, between "R37 begin" and "R37 end".
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB6="$TMP/db6"; mkdir -p "$DB6/n" "$DB6/pp" "$DB6/psshim"
 _db6_E=(); _db6_I=DEFAULT; _db6_Q=DEFAULT; _db6_lim=100; _db6_S=8; _db6_td=""; _db6_hp=0; _db6_ctl=0; _db6_bg=0; _db6_rc=0; _db6_lab=""
@@ -520,8 +521,263 @@ _db6_is "R22: where every ps -o lstart= for the forked unit prints nothing (five
 _db6_u22 u22-block block
 _db6_is "R22: with the holder's ps -o lstart= for the forked unit held and the holder then killed with kill -9, the unit, held back until unit.I is written, finds its holder gone and exits without running the member: it never ran, has no mark (once), exit 1, no receipt, and nothing of the run is left" "$_db6_x" "1 1 [] absent"
 
+# ---- R37 begin
+printf '\nR37: no pipe into a tar that extracts (D8 gains a and b, blind, author 2; revision 11)\n'
+# Written on 2026-10-20 from contract D, revision 11 (R37), by an author who read no implementation of _copy_content's fix.
+# (a) A tar first on PATH, written here, stands in for bsdtar's two habits (1286's stand-in git has the first): after the host's tar has written
+# an archive, and a pause of 0.5 s, it writes 1 MiB of zero bytes more where the archive went (stdout for -f - or no -f, else appended to the file),
+# and its extractor reads 512-byte records up to and including the end-of-archive marker (two zero records) and no further, then closes its input
+# and extracts what it read with the host's tar. So a pipe from a writer into it fails the writer's next write; an archive written whole to a file does not.
+# It calls the host's tar through the path `command -v tar` gave before it was put on PATH, held in DB7_TAR, and logs each call's mode in DB7_LOG.
+# The control's pipe is written with a variable that holds the bare word, so the lint of (b) does not name it (it is the one pipe the lint leaves).
+# Readings taken where the contract leaves room, for the reviewers to confirm:
+# - the case is run by bash -c under run.pl (a bounded runner with its own process group, as the other cases), with _copy_content's text from declare -f,
+#   the suite's pipefail set, TMPDIR a directory of the case's under $TMP, and R12's group check after it;
+# - the source is a git checkout with tracked.txt and sub/deep.txt committed and untracked.txt not ignored; "nothing else" is find's whole listing of the destination;
+# - (b) is one awk matcher over the five places the contract names (tests/parts, tests/lib, lib, bin, felix), 1286 allowed by its exact file name; its samples
+#   are the contract's, and the rest of what the contract says of the reading (quoted strings and trailing comments read as code, a pipe that ends a line
+#   carrying onto the next line of code, comment and blank lines in between, an || that carries nothing, what it does not see) is pinned beside them;
+# - this part's own lines are built so that the lint names none: the samples carry the word through a variable, and the awk is not a pipe into the word.
+# An assertion whose name ends in (control) passes before D is built on purpose.
+DB7="$TMP/db7"; mkdir -p "$DB7/bin" "$DB7/tmp" "$DB7/s" "$DB7/plain"
+_db7_host="$(command -v tar)"; case "$_db7_host" in /*) ;; *) _db7_host=/usr/bin/tar ;; esac
+_db7_rc=0; _db7_x=""; _db7_k=0; _db7_T=ta; _db7_T=${_db7_T}r
+cat > "$DB7/bin/tar" <<'DB7TAR'
+#!/usr/bin/env perl
+# tar for R37: the host's tar ($DB7_TAR), with bsdtar's two habits. -c: the host's tar, then after 0.5 s 1 MiB of zero bytes more where the archive went.
+# -x: reads its archive in records of 512 bytes up to the end-of-archive marker (two zero records) and no further, closes its input, extracts what it read.
+use strict; use warnings;
+my $real = $ENV{DB7_TAR}; my $log = $ENV{DB7_LOG}; my $tmpd = $ENV{DB7_TMPD};
+my @a = @ARGV;
+$a[0] = "-$a[0]" if @a && $a[0] =~ /^[A-Za-z]+$/;
+my ($mode, $fi, $fv, $eq) = ("", -1, undef, 0);
+for (my $i = 0; $i < @a; $i++) {
+  my $w = $a[$i];
+  last if $w eq "--";
+  if ($w eq "--create") { $mode = "c"; next }
+  if ($w eq "--extract" || $w eq "--get") { $mode = "x"; next }
+  if ($w eq "--list") { $mode = "t"; next }
+  if ($w eq "--file") { $fi = $i + 1; $fv = $a[$fi]; $i++; next }
+  if ($w =~ /^--file=(.*)$/) { $fi = $i; $eq = 1; $fv = $1; next }
+  next if $w =~ /^--/;
+  if ($w =~ /^-(.+)$/) {
+    my $c = $1;
+    for (my $k = 0; $k < length($c); $k++) {
+      my $l = substr($c, $k, 1);
+      if ($l eq "c" || $l eq "x" || $l eq "t") { $mode = $l }
+      if (index("fCTXIb", $l) >= 0) {
+        exit 99 if $k < length($c) - 1;
+        if ($l eq "f") { $fi = $i + 1; $fv = $a[$fi] }
+        $i++; last;
+      }
+    }
+  }
+}
+if (open(my $lg, ">>", $log)) { print $lg ($mode || "?"), "\n"; close $lg }
+sub status { my ($s) = @_; return ($s & 127) ? 128 + ($s & 127) : $s >> 8 }
+if ($mode eq "c") {
+  my $s = system { $real } $real, @a;
+  exit status($s) if $s != 0;
+  select(undef, undef, undef, 0.5);
+  my $z = "\0" x 1048576;
+  if (!defined $fv || $fv eq "-") {
+    my $o = 0;
+    while ($o < length($z)) { my $n = syswrite(STDOUT, $z, length($z) - $o, $o); defined $n or exit 141; $o += $n }
+  } else {
+    open(my $h, ">>", $fv) or exit 1;
+    binmode $h; print $h $z; close $h or exit 1;
+  }
+  exit 0;
+}
+if ($mode eq "x") {
+  my $in;
+  my $fromstdin = (!defined $fv || $fv eq "-");
+  if ($fromstdin) { $in = \*STDIN } else { open($in, "<", $fv) or exit 2 }
+  binmode $in;
+  my $tmp = "$tmpd/x.$$";
+  open(my $o, ">", $tmp) or exit 2;
+  binmode $o;
+  my $zero = "\0" x 512; my $zc = 0;
+  while ($zc < 2) {
+    my $rec = "";
+    while (length($rec) < 512) { my $n = sysread($in, $rec, 512 - length($rec), length($rec)); last unless $n }
+    last if $rec eq "";
+    print $o $rec;
+    if ($rec eq $zero) { $zc++ } else { $zc = 0 }
+    last if length($rec) < 512;
+  }
+  close $o;
+  close $in unless $fromstdin;
+  if ($fi >= 0) { $a[$fi] = $eq ? "--file=-" : "-" } else { push @a, "-f", "-" }
+  open(STDIN, "<", $tmp) or exit 2;
+  my $s = system { $real } $real, @a;
+  unlink $tmp;
+  exit status($s);
+}
+my $s = system { $real } $real, @a;
+exit status($s);
+DB7TAR
+chmod +x "$DB7/bin/tar"
+# LABEL SCRIPT ARG...: bash -c SCRIPT with the stand-in first on PATH, TMPDIR a directory of the case's, under run.pl (a bounded runner that leads a process group of its
+# own, INT and QUIT at their defaults), then R12's group check; _db7_rc is the status
+_db7_run() {
+  local l="$1" sc="$2"; shift 2
+  perl "$DB6/run.pl" 90 DEFAULT DEFAULT "$DB7/$l.pid" env PATH="$DB7/bin:$PATH" TMPDIR="$DB7/tmp" DB7_TAR="$_db7_host" DB7_LOG="$DB7/tar.log" DB7_TMPD="$DB7/tmp" \
+    "$BASH" -c "$sc" _ "$@" > "$DB7/$l.out" 2> "$DB7/$l.err"
+  _db7_rc=$?
+  _db6_grp "$(cat "$DB7/$l.pid" 2>/dev/null)"
+}
+_db7_pay() { printf 'R37 payload of %s\n' "$1"; seq 1 300; }
+_db7_pay plain > "$DB7/plain/f.txt"
+mkdir -p "$DB7/src/sub"
+_db7_pay tracked > "$DB7/src/tracked.txt"; _db7_pay deep > "$DB7/src/sub/deep.txt"
+( _fx_cd "$DB7/src" && git init -q -b main && git add tracked.txt sub/deep.txt \
+    && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
+_db7_pay untracked > "$DB7/src/untracked.txt"
+_db7_cnt() { LC_ALL=C awk -v m="$1" '$0 == m { n++ } END { print n + 0 }' "$DB7/tar.log" 2>/dev/null || echo 0; }   # MODE: how many calls the log holds of it
+
+# the stand-in, checked: an archive written whole to a file gets the padding and extracts, exit 0, the bytes the same
+: > "$DB7/tar.log"; rm -rf "$DB7/o1"; mkdir -p "$DB7/o1/x"
+_db7_run k1 'set -o pipefail; t=tar; "$t" -c -f "$1/a.tar" -C "$2" . && "$t" -x -f "$1/a.tar" -C "$1/x"' "$DB7/o1" "$DB7/plain"
+_db7_x="$_db7_rc $([ "$(wc -c < "$DB7/o1/a.tar" 2>/dev/null | tr -d ' ')" -gt 1048576 ] 2>/dev/null && echo padded || echo short) $(cmp -s "$DB7/plain/f.txt" "$DB7/o1/x/f.txt" && echo same || echo differs) c$(_db7_cnt c) x$(_db7_cnt x)"
+_db6_is "R37: the stand-in tar writes an archive to a file with 1 MiB of padding after it, and extracts it whole: exit 0, the same bytes, one call of each mode (fixture control)" "$_db7_x" "0 padded same c1 x1"
+# its pipe: a writer into the extractor fails on each of three runs, and the log shows both modes called
+: > "$DB7/tar.log"; _db7_x=""
+for _db7_k in 1 2 3; do
+  rm -rf "$DB7/o2"; mkdir -p "$DB7/o2/d"
+  _db7_run k2 'set -o pipefail; t=tar; "$t" -c -f - -C "$1" . | "$t" -x -f - -C "$2"' "$DB7/plain" "$DB7/o2/d"
+  if [ "$_db7_rc" = 0 ]; then _db7_x="$_db7_x pass"; else _db7_x="$_db7_x fail"; fi
+done
+if [ "$(_db7_cnt c)" -ge 1 ] && [ "$(_db7_cnt x)" -ge 1 ]; then _db7_x="$_db7_x both"; else _db7_x="$_db7_x modes(c$(_db7_cnt c) x$(_db7_cnt x))"; fi
+_db6_is "R37: with the stand-in tar first on PATH, one tar writing an archive to a pipe that a second tar extracts from fails under pipefail on each of three runs, and the log shows both modes called (fixture control)" "$_db7_x" " fail fail fail both"
+# the case: _copy_content under the stand-in
+rm -rf "$DB7/dest"
+_db7_run k3 "$(declare -f _copy_content); set -o pipefail; _copy_content \"\$1\" \"\$2\"" "$DB7/src" "$DB7/dest"
+_db7_x="$_db7_rc"
+for _db7_f in tracked.txt untracked.txt sub/deep.txt; do
+  if cmp -s "$DB7/src/$_db7_f" "$DB7/dest/$_db7_f" 2>/dev/null; then _db7_x="$_db7_x same"; else _db7_x="$_db7_x differs($_db7_f)"; fi
+done
+_db7_x="$_db7_x [$(cd "$DB7/dest" 2>/dev/null && find . | LC_ALL=C sort | tr '\n' ' ')]"
+_db6_is "R37: _copy_content, with a tar first on PATH that writes past the end-of-archive marker and an extractor that stops there, and pipefail set, copies a checkout's tracked file, untracked file and file in a subdirectory: it returns 0, each has the same bytes, and nothing else is in the destination" \
+  "$_db7_x" "0 same same same [. ./sub ./sub/deep.txt ./tracked.txt ./untracked.txt ]"
+
+# (b) the lint: one matcher, the samples as the contract lists them, then the five places
+_db7_scan() {
+  LC_ALL=C awk '
+    # tar, after the words that may stand before it, given an option that extracts.
+    function early(s,   n, w, i, c) {
+      sub(/^[ \t]+/, "", s)
+      while (s ~ /^(command|env|nice|time)[ \t]/ || s ~ /^[(]/ || s ~ /^[{][ \t]/) {
+        if (s ~ /^[(]/) sub(/^[(][ \t]*/, "", s)
+        else if (s ~ /^[{]/) sub(/^[{][ \t]+/, "", s)
+        else sub(/^[^ \t]*[ \t]+/, "", s)
+      }
+      if (s !~ /^tar[ \t]/) return 0
+      sub(/(\||;|&&|[ \t]#).*/, "", s)
+      n = split(s, w, /[ \t]+/)
+      for (i = 2; i <= n; i++) {
+        c = w[i]
+        if (c == ")" || c == "}" || c == "&") break
+        if (c ~ /^--/) { if (c ~ /^--(extract|get)(=|$)/) return 1; continue }
+        if (c ~ /^-./) { if (c ~ /x/) return 1; continue }
+        if (i == 2 && c ~ /^[A-Za-z]+$/ && c ~ /x/) return 1
+      }
+      return 0
+    }
+    FNR == 1 { open = 0 }
+    /^[ \t]*(#|$)/ { next }
+    {
+      hit = open && early($0)
+      rest = $0
+      while (!hit && (j = index(rest, "|")) > 0) {
+        if (substr(rest, j + 1, 1) == "|") { rest = substr(rest, j + 2); continue }
+        rest = substr(rest, j + 1)
+        hit = early(rest)
+      }
+      if (hit) print FILENAME ":" FNR
+      t = $0; sub(/[ \t]*(\\[ \t]*)?$/, "", t)
+      open = (t ~ /(^|[^|])[|]([ \t]+#.*)?$/)
+    }
+  ' "$@"
+}
+_db7_f() {   # SAMPLE: the line numbers the matcher names in it
+  printf '%s\n' "$1" > "$DB7/s/sample"
+  ( cd "$DB7/s" && _db7_scan sample ) | awk -F: '{ printf "%s%s", s, $NF; s = " " }'
+}
+_db6_is "R37: the lint flags a pipe into tar with x among its options: -x, none after the pipe, the old style xf, -x after another option, -xO, --extract and --get" \
+  "$(_db7_f "x | $_db7_T -x -C d
+x |$_db7_T -xf -
+x | $_db7_T xf -
+x | $_db7_T -C d -x
+x | $_db7_T -xO | sed -n 1p
+x | $_db7_T --extract -f -
+x | $_db7_T --get")" "1 2 3 4 5 6 7"
+_db6_is "R37: the lint flags it behind command, env, nice and time" \
+  "$(_db7_f "x | command $_db7_T -x
+x | env $_db7_T -x
+x | nice $_db7_T -x
+x | time $_db7_T -x")" "1 2 3 4"
+_db6_is "R37: the lint flags it inside a subshell and a brace group" \
+  "$(_db7_f "x | ( $_db7_T -x -C d )
+x | { $_db7_T -x; }")" "1 2"
+_db6_is "R37: the lint flags a tar -x on the line after a pipe that ends a line, and a line that starts with the pipe" \
+  "$(_db7_f "x |
+  $_db7_T -x
+y
+| $_db7_T -x")" "2 4"
+_db6_is "R37: the lint flags it on the line after a pipe that a comment follows, and across comment and blank lines" \
+  "$(_db7_f "x |   # why it is piped
+  $_db7_T -x
+y |
+# a note
+
+  $_db7_T -x")" "2 6"
+_db6_is "R37: the lint leaves an ||, a tar -x with no pipe before it, a pipe into tar that writes or lists, a long option holding x, a pipe after tar -x, and a comment line" \
+  "$(_db7_f "x || $_db7_T -x -f a.tar
+$_db7_T -x -f a.tar
+x | $_db7_T -c -f -
+x | $_db7_T -t
+x | $_db7_T -c --exclude=y -f -
+$_db7_T -xO -f a.tar | sed -n 1p
+$_db7_T -c -f - . | cat > a.tar
+# x | $_db7_T -x")" ""
+_db6_is "R37: the lint carries no || that ends a line onto the next line" \
+  "$(_db7_f "a ||
+  $_db7_T -x -f a.tar")" ""
+_db6_is "R37: the lint reads a quoted string and a code line's trailing comment as code" \
+  "$(_db7_f "printf 'use: x | $_db7_T -x\\n'
+foo  # see x | $_db7_T -x")" "1 2"
+_db6_is "R37: the lint does not see a tar named through a variable (the control's own pipe), by its path, behind a VAR= prefix, or behind a wrapper's options" \
+  "$(_db7_f '"$t" -c -f - DIR | "$t" -x -f - -C DEST'"
+x | \"\$t\" -x -f -
+x | /usr/bin/$_db7_T -x
+x | LC_ALL=C $_db7_T -x
+x | nice -n 15 $_db7_T -x")" ""
+
+# the five places: tests/parts, tests/lib, lib, bin and felix
+_db7_files() { find "$HERE/parts" "$HERE/lib" "$REAL_HARNESS/lib" "$REAL_HARNESS/bin" -type f 2>/dev/null | LC_ALL=C sort; printf '%s\n' "$REAL_HARNESS/felix"; }
+_db7_tree() {
+  local f; set --
+  while IFS= read -r f; do set -- "$@" "$f"; done < <(_db7_files)
+  [ "$#" -gt 1 ] || return 1
+  _db7_scan "$@" | LC_ALL=C awk -v r="$REAL_HARNESS/" 'index($0, r) == 1 { $0 = substr($0, length(r) + 1) } { print }'
+}
+_db7_raw="$(_db7_tree)"
+_db7_n="$(printf '%s\n' "$_db7_raw" | LC_ALL=C awk -F: '$1 ~ /(^|\/)1286-land-on-green-round-6-blind[.]sh$/ { printf "%s ", $2 }')"
+_db7_x="$(LC_ALL=C awk -v h=" $_db7_n" 'index(h, " " FNR " ") && index($0, "archive") { n++ } END { print n + 0 }' "$HERE"/parts/1286-land-on-green-round-6-blind.sh 2>/dev/null)"
+is "R37: the lint names 1286's own pipe of git archive into tar -x, so it reads the parts directory (control)" "$([ "$_db7_x" -ge 1 ] 2>/dev/null && echo named || echo "not named (hits in 1286: [$_db7_n])")" "named"
+_db7_sites="$(printf '%s\n' "$_db7_raw" | LC_ALL=C awk -F: '$1 !~ /(^|\/)1286-land-on-green-round-6-blind[.]sh$/ && NF > 1 { printf "%s ", $0 }')"
+if [ -z "$_db7_sites" ]; then
+  ok "R37: no file of tests/parts, tests/lib, lib, bin or felix other than 1286 pipes into a tar that extracts"
+else
+  bad "R37: no file of tests/parts, tests/lib, lib, bin or felix other than 1286 pipes into a tar that extracts" "named at: $_db7_sites"
+fi
+is "R37: this part holds no line the lint names, the stand-in case's and the samples' lines included" "$(_db7_scan "$HERE/parts/1296-gate-friction-d-losses-blind.sh" | tr '\n' ' ')" ""
+unset _db7_raw _db7_n _db7_x _db7_sites
+# ---- R37 end
+
 # ---- the part leaves the shell as it found it
-rm -rf "${DB6:?}"
-unset -f $(compgen -A function _db6_) 2>/dev/null
-unset $(compgen -A variable _db6_) DB6 2>/dev/null
+rm -rf "${DB6:?}" "${DB7:?}"
+unset -f $(compgen -A function _db6_) $(compgen -A function _db7_) 2>/dev/null
+unset $(compgen -A variable _db6_) $(compgen -A variable _db7_) DB6 DB7 2>/dev/null
 # <<< gate-friction-d-losses-blind

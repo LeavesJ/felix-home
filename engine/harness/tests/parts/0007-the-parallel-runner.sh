@@ -255,7 +255,7 @@ for (sort keys %$dw) {
   next if $dw->{$_}[0] =~ /x/ || !$nm{$_} || $xc{$_} || /^(?:_og_|_pm|_par_|_pj_|BASH)/;
   if (!exists $da->{$_}) { push @o, "variable $_ removed" } elsif ($da->{$_}[1] ne $dw->{$_}[1]) { push @o, "variable $_ changed" }
 }
-my %wn = map { $_ => 1 } qw(CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT);
+my %wn = map { $_ => 1 } qw(CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT EXECIGNORE FUNCNEST BASH_COMPAT CHILD_MAX);
 my ($ww, $wa) = (recs($B->{wat}[1]), recs($A->{wat}[1]));
 for (sort keys %$wa) { push @o, "variable $_ added" if !exists $ww->{$_} && $wa->{$_}[0] !~ /x/ && ($wn{$_} || /^LC_/) }
 my %jw = map { $_ => 1 } split " ", $B->{jobs}[1];
@@ -270,7 +270,7 @@ for (sort keys %$ra) { push @o, "readonly $_ added" unless $rw->{$_} }
 my ($aw, $aa) = (als($B->{al}[1]), als($A->{al}[1]));
 for (sort keys %$aw) { if (!exists $aa->{$_}) { push @o, "alias $_ removed" } elsif ($aa->{$_} ne $aw->{$_}) { push @o, "alias $_ changed" } }
 for (sort keys %$aa) { push @o, "alias $_ added" unless exists $aw->{$_} }
-my ($rfw, $rfa) = (names($B->{rf}[1], "declare -fr (\\S+)"), names($A->{rf}[1], "declare -fr (\\S+)"));
+my ($rfw, $rfa) = (names($B->{rf}[1], "declare -f\\S*r\\S* (\\S+)"), names($A->{rf}[1], "declare -f\\S*r\\S* (\\S+)"));
 for (sort keys %$rfa) { push @o, "readonly function $_ added" unless $rfw->{$_} }
 push @o, "positional parameters changed" if $B->{pos}[0] . "\n" . $B->{pos}[1] ne $A->{pos}[0] . "\n" . $A->{pos}[1];
 my ($gw, $ga) = (fns($B->{fn}[1]), fns($A->{fn}[1]));
@@ -289,7 +289,7 @@ _pm_snap() {
     esac && _pm_d="$_pm_d $_pm_i"
     _pm_i=$((_pm_i + 1))
   done
-  builtin printf '%s\n' CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT > "$_pm_o.w" 2>/dev/null
+  builtin printf '%s\n' CDPATH GLOBIGNORE LANG TZ TMOUT TIMEFORMAT POSIXLY_CORRECT EXECIGNORE FUNCNEST BASH_COMPAT CHILD_MAX > "$_pm_o.w" 2>/dev/null
   builtin compgen -v LC_ >> "$_pm_o.w" 2>/dev/null
   { builtin printf '@@pm:fds%s\n@@pm:um\n' "$_pm_d"; builtin umask || _pm_bad=1; builtin printf '@@pm:set\n'; builtin set +o || _pm_bad=1; builtin printf '@@pm:shopt\n'; builtin shopt -p || _pm_bad=1
     builtin printf '@@pm:trap\n'; builtin trap -p || _pm_bad=1; builtin printf '@@pm:ul\n'; builtin ulimit -a || _pm_bad=1; builtin printf '@@pm:uh\n'; builtin ulimit -Ha || _pm_bad=1
@@ -769,7 +769,7 @@ _par_end() {
     fi
     i=$((i + 1))
   done
-  if [ -n "${_pj_tk:-}" ]; then rl="$rl $_pj_tk"; elif [ "$bg" != "${_pj_bg0:-}" ]; then rl="$rl $bg"; fi
+  if [ -n "${_pj_tk:-}" ]; then rl="$rl $_pj_tk"; elif [ -n "${_pj_tkf:-}" ] && [ -n "$bg" ] && [ "$bg" != "${_pj_bg0:-}" ]; then rl="$rl $bg"; fi   # R30: $! is the ticker's only inside its fork window
   for p in $rl; do _pj_set="${_pj_set:+$_pj_set|}$p;@"; done
   [ -n "$_pj_set" ] || return 0
   _par_stop
@@ -786,9 +786,8 @@ _par_sig() { trap '' INT TERM HUP QUIT; _par_end; exit "$1"; }
 # before 9990 (D4).
 _par_run() {
   local i p l def
-  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""; _pj_tk=""; _pj_pp="$$"
+  _pj_dir="$TMP/pj"; _pj_rfn=0; _pj_pr=0; _pj_qi=0; _pj_run=0; _pj_s=(); _pj_pid=(); _pj_rc=(); _pj_t=(); _pj_w=(); _pj_ws=(); _pj_nt=(); _pj_sq=""; _pj_tk=""; _pj_tkf=""; _pj_pp="$$"
   ( : ) & { wait "$!"; } 2>/dev/null   # $! is set from here on, which _par_start and _par_end read under set -u
-  _pj_bg0="$!"   # and the ticker's fork is told by $! differing from it (R23), as a wrapper's is
   _pj_T="${FELIX_TEST_SLOT_NOTE-}"
   case "$_pj_T" in ""|0*|*[!0123456789]*) _pj_T=300 ;; *) [ "${#_pj_T}" -le 6 ] || _pj_T=300 ;; esac
   _pj_W=30; [ "$_pj_T" -ge 30 ] || _pj_W="$_pj_T"
@@ -803,8 +802,9 @@ _par_run() {
   def="$(declare -f _fx_exit)" && eval "_par_fx_exit0${def#_fx_exit}"
   _fx_exit() { _par_end; _par_fx_exit0 "$@"; }
   _par_arm
+  _pj_bg0="$!"; _pj_tkf=1   # R30: the value kept just before the fork; the ending reads $! as the ticker only while _pj_tkf is set
   perl -e "$_pj_tkpl" "$_pj_dir/fifo" "$_pj_W" </dev/null >/dev/null 2>&1 63>&- &
-  _pj_tk=$!
+  _pj_tk=$!; _pj_tkf=""
   while [ "$_pj_pr" -lt "$_pj_n" ]; do
     while [ "$_pj_run" -lt "$_suite_jobs" ] && [ "$_pj_qi" -lt "$_pj_n" ]; do
       _par_start "${_pj_q[$_pj_qi]}"
@@ -816,9 +816,9 @@ _par_run() {
     case "$l" in "@@tick") _par_gone ;; *) _par_ev "$l" ;; esac
     _par_nt
   done
-  if _par_jl; then case "$_pj_jl" in *" $_pj_tk "*) kill -KILL "$_pj_tk" 2>/dev/null ;; esac; else kill -KILL "$_pj_tk" 2>/dev/null; fi   # R23: only a ticker still running
+  exec 63>&-   # R30: before the wait; the ticker's next write then fails and it ends, so the wait returns
+  if _par_jl; then case "$_pj_jl" in *" $_pj_tk "*) kill -KILL "$_pj_tk" 2>/dev/null ;; esac; fi   # R23, R30: only a ticker still running, and no KILL by pid when the table cannot be read
   { wait "$_pj_tk"; } 2>/dev/null; _pj_tk=""; _pj_bg0="$!"
-  exec 63>&-
   if [ "$_pj_rfn" -gt 0 ] && [ "$FELIX_TEST_RECORD" = 1 ]; then
     [ -z "${_rcp_red:-}" ] || { _rcp_mark failed "$TMP/manifest.mark"; _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" 60; }
     exit 1

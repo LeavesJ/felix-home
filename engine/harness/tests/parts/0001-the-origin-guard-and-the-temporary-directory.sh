@@ -321,6 +321,11 @@ case "$_tmp_by" in ''|*[!0123456789]*)
   printf 'tests/run: could not read this shell'\''s pid ([%s]); not starting\n' "$_tmp_by" >&2
   exit 1 ;;
 esac
+# R29: GNU mktemp honours TMPDIR and names a relative one relatively. Made absolute
+# against the start directory, once, before $TMP is, so that mktemp, the slots
+# directory and every child, units and parts included, see one path. (An empty
+# TMPDIR stays as it is: mktemp reads it as unset.)
+case "${TMPDIR-}" in ''|/*) ;; *) TMPDIR="$_og_start/$TMPDIR"; export TMPDIR ;; esac
 TMP="$(mktemp -d)"
 # No directory, no suite. The substitution forks twice, and when the inner fork
 # fails under load it hands back nothing with status 128 while this shell

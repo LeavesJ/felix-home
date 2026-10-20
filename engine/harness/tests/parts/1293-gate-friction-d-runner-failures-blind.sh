@@ -1,7 +1,7 @@
 # >>> gate-friction-d-runner-failures-blind
-printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 9)\n'
-# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-
-# contract-d.md: D3, D4, D8, R1, R7, R12, R16, R27, R28). Nothing here was read off an
+printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 10)\n'
+# Blind, written from contract D revision 10 alone (docs/2026-10-18-gate-friction-
+# contract-d.md: D3, D4, D8, R1, R7, R12, R16, R27, R28, R30, R32, R33). Nothing here was read off an
 # implementation; tests/run, tests/red and tests/receipt.sh are run, never read,
 # in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each
 # with planted parts of this block's own. Every case points TMPDIR at a fixture
@@ -11,7 +11,8 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # what is left is named, then sent CONT and KILL by pid. Nothing is killed by
 # pattern. Names say the clause: D3 the runner's failures and the log, D4 the
 # record, R1 red's tree, R7 the log's shape, R8 and R16 the shell a unit leaves,
-# R27 a TERM sent to a stopper of red's tree while it stops.
+# R27 a TERM sent to a stopper of red's tree while it stops (R32 red's monitor on bash 5.2, R33 the watcher's stopper found whatever /bin/sh is), R30 the end of a run
+# whose parent cannot read its job table.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB3="$TMP/db3"
 mkdir -p "$DB3/pp/std" "$DB3/n"
@@ -472,14 +473,14 @@ _db3_r27() {
 _db3_c27m() {
   _db3_r27 r27m mon
   case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 45000 ] && echo within-45s || echo "took $((_db3_t1 - _db3_t0)) ms")" ;; esac
-  is "R27: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM, changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped" \
+  is "R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped" \
      "$_db3_x $_db3_w" "within-45s between-stop-and-kill"
-  is "R27: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running" "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_ex $_db3_cl" "ok ok ok"
+  is "R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running" "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_ex $_db3_cl" "ok ok ok"
   rm -rf "$DB3/n/r27m"
 }
 _db3_c27w() {
   _db3_r27 r27w wat
-  is "R27: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps, between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped" \
+  is "R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped" \
      "$_db3_w $_db3_ex $_db3_cl" "between-stop-and-kill ok ok"
   rm -rf "$DB3/n/r27w"
 }

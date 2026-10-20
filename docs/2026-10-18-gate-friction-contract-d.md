@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 9** (2026-10-19 UTC) amends revision 8 after the third review of its build, in the last section. Revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the section before it, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 10** (2026-10-20 UTC) amends revision 9 after the fourth review of its build and CI's first Linux run of it, in the last section. Revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the section before it, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -905,3 +905,117 @@ conf2 6, the evidence, is still owed and not re-reported (R25).
 - conf3 5's other remedy, the window named under "What is left": R22 closes it.
 - conf3 7's other remedy, the case skipped when no slept file appears: R28 raises the wait.
 - conf3 8's other remedy, both listed as not compared, with a lint: R24 compares them.
+
+## Amended after review 4 and CI's first Linux run (revision 10, 2026-10-20)
+
+Two lenses reviewed revision 9's build (2e8de446..637cfe0f, with main 3999c182 merged in at 36a1ad25). Their reports are in audits/2026-10-18-gate-friction-d/, cited by report and number, numbered in each file's findings from 1: **proc4** (review-4-processes-and-tests.json) and **conf4** (review-4-conformance-and-weakening.json).
+
+**ci456** is CI's run of this branch at 36a1ad25 (draft PR #456, run 39344632376, kept there as ci-456-run-39344632376.log): ubuntu, bash 5.2, dash as /bin/sh, GNU coreutils and procps. Its suite ran every part at `-j 1`, the blind parts' inner `-j` runs included, and failed exactly four assertions:
+- two that say only that the record and the version are owed: red.tsv's base, and this engine's version above origin/main's;
+- **(1)** 1293's R27 monitor case: `expected [within-45s between-stop-and-kill] got [within-45s no stopped process when the TERM was sent [stopped=0]]`, as conf4 2 predicted;
+- **(2)** 1294's "R5: under a relative TMPDIR the slot files are made below the directory the run started in": `expected [0 0 1 2  4] got [1  0]`, exit 1 and no unit started.
+
+Every other case of 1291 to 1296 passed there, 1293's R27 watcher case among them, which conf4 1 predicted would fail there.
+
+Revision 7's conventions hold: each amendment names the clauses and lines it replaces, every line it does not name stands, and its "D8 gains" are added to D8's cases for the blind parts. File and line references are to 36a1ad25. Revision 9's rule holds for every case this revision adds: it is red against a build without the rule it names, and where the build already has that rule, against a copy of the build with the rule taken out, the report naming what was taken out and the FAIL it gave. Where this section says it simulated Linux, it did so on this Mac on 2026-10-20 (UTC), with /bin/bash 3.2.57, and says what it simulated.
+
+### R29. R5, D2: a relative TMPDIR is made absolute before `$TMP`
+
+Answers ci456 (2). GNU mktemp honours TMPDIR, so under a relative TMPDIR the name `mktemp -d` gives (0001:324) is relative. macOS's mktemp ignores TMPDIR, which is why no run here showed it. R29 adds to R5's first bullet and to D2.
+- **The rule.** A relative TMPDIR is made absolute against the directory the run started in (`_og_start`, 0001:188), and exported, before part 0001 makes the run's `$TMP`. So GNU mktemp, the slots directory (R5's D) and every child, every unit included (D2), see one absolute path.
+- **An empty TMPDIR** stays as unset: it is not made absolute, and `${TMPDIR:-/tmp}` and mktemp read it as unset, as now.
+- **Unchanged.** R5's sentence on a relative D stands; the run's own TMPDIR no longer gives one. 0001:336, which makes a relative `$TMP` absolute, stands.
+- **D8 gains:** none new. 1294's existing R5 relative-TMPDIR case (1294:310-313) is the case, and it failed on CI's ubuntu (ci456) against the build R29 replaces. Also: a case that runs a copy with a GNU-style mktemp first on PATH, one that honours TMPDIR and prints the name it made as TMPDIR gave it, so that the Mac shows what ubuntu showed.
+- **Found while this revision was written, and open.** What ended ci456's run is 0001's enclosure check (0001:432-433), and R29 does not move it.
+  - The case starts its run in its fixture checkout F (1294:103, `cd "$_db4_F"`), which `_suite_copy_tree` makes a git checkout (0003:907). Its TMPDIR, `reltmp`, names `$F/reltmp`.
+  - So under GNU mktemp `$TMP` is made below F, made absolute or not. 0001 then refuses with exit 1 (`tests/run: F holds a .git, and ... is below it ...; not starting`) before 0007 runs: no slots directory, no unit, ci456's `1  0`.
+  - Simulated: 0001's own `_fixture_enclosed`, run in `$TMP/cwd` of a `$TMP` that a GNU-style mktemp stand-in made from inside a git checkout, found the checkout's `.git` (status 0) with TMPDIR `reltmp` and again with that TMPDIR made absolute. With TMPDIR `../r29out`, outside the checkout, it found none (status 1).
+  - So with R29 built, 1294's case and the GNU-mktemp case above still exit 1 under GNU mktemp. They pass only with a relative TMPDIR that names a directory outside F (`../reltmp`, for example, with the slot files then expected below `$_db4_c/reltmp`), or with the run started outside F. This text does not decide which.
+
+### R30. R23: the ticker's fork window, and the last KILL
+
+Answers proc4 1. A process substitution sets `$!` as well: proc4 1 measured it on bash 3.2, and read in bash 5.2's make_child that it holds there. `_par_order` runs one (0007:524) after the kept value is taken (0007:791) and before the ticker's fork, and the driver runs one in the parent after `_par_run` (run:471). So the ending that `_fx_exit` runs at every `-j` run's end took a dead substitution's pid for the ticker and ran a stopper over it, and would take any job started after `_par_run` for the ticker too. R30 replaces R23's "The fork" bullet, and adds to its "The last KILL".
+- **The window.** The comparison of `$!` with the kept value holds only between the ticker's fork and `_pj_tk=$!`. A flag set just before the fork and cleared just after it bounds it: the ending takes `$!` as the ticker only while that flag is set, the ticker's pid is unset, and `$!` differs from the kept value. The kept value is taken right before the fork, after `_par_order`.
+- **The last KILL.** When the job table cannot be read at the loop's end (`_par_jl` fails), the parent sends no KILL by pid. The wait then reaps the ticker. This replaces the build's fallback (0007:819), which sent KILL by pid alone.
+- **Found while this revision was written, and open.**
+  - The ticker exits only on a change of parent or a failed write (R13). Its writes are non-blocking, and a full FIFO's EAGAIN is passed over (0007:172-178).
+  - The parent holds the FIFO open for reading until after that wait (0007:820-821, R23's "before it closes the FIFO").
+  - So in that branch, with the ticker still running, the wait does not return. That is read from the code, not measured.
+  - Closing the FIFO before the wait in that branch alone would make the ticker's next write fail, within W, and the wait would then reap it. This text does not decide it.
+- **D8 gains:** none. The fork window lasts microseconds, as R23 says.
+
+### R31. R24, R16: readonly functions with other flags, four more watched variables, and descriptors from 10 up
+
+Answers conf4 3. Each is shell state a serial run carries to the parts after it, which `-j N` did not compare. No part does any of them today (conf4 3 grepped parts/ and lib/).
+- **Readonly functions.** R24's readonly-function line matches any `declare -f` flags that hold `r`, `declare -frx` and `declare -frt` among them, as well as `declare -fr`. conf4 3 measured that 0007:273's `declare -fr (\S+)` gives no line for a readonly function that is also exported (`declare -frx NAME`) or traced (`declare -frt NAME`). R24's variable line already allows other flags (0007:268).
+- **Watched variables.** R16's "Plain variables the main shell itself reads" gains EXECIGNORE, FUNCNEST, BASH_COMPAT and CHILD_MAX, which bash 4 and 5 read (0007:258 and 0007:292). bash 3.2 reads none of them, so their effect cannot be measured here, but the comparison is by name and reads the same under 3.2 and 5.2. BASH_COMPAT is watched although its name starts `BASH`: R8's exclusion list binds the recorded plain variables, not this list.
+- **Descriptors 10 and above** are not compared, and join R16's "Not compared, with the reason", beside the command hash table. The reason: bash can name them only by globbing /dev/fd, whose own directory descriptor moves the set. Descriptors 0 to 9 stay compared as R16 has them.
+  - **The lint.** A lint checks that no line of a part or of tests/lib opens one at the top level (`exec {NAME}>`, or `exec N>` with N from 10 up).
+  - Today's lines that open one are not at the top level: 0007:802 opens 63 inside `_par_run`, and 0750:319-327 open 11 inside functions' subshells, through `eval`.
+- **D8 gains:**
+  - under `-j 3`, each of these planted parts gives the seventh failure with exactly the `  | ` line shown, exit 1 and no receipt, and in a `--red` record copy no manifest, as R24's cases do; under `-j 1` neither gives it:
+    - a readonly exported function, `djx_rx() { :; }; readonly -f djx_rx; export -f djx_rx`: `readonly function djx_rx added`;
+    - `EXECIGNORE='*/djx'`, plain, with EXECIGNORE absent from the run's environment: `variable EXECIGNORE added`;
+  - the lint: it passes on the tree's parts and tests/lib, and fails on a planted part with a top-level `exec 11>/dev/null`, and on one with a top-level `exec {djx_fd}>/dev/null`.
+
+### R32. R27's monitor case on bash 5.2
+
+Answers ci456 (1) and conf4 2. R32 adds to R27's monitor case.
+- **What each bash does.** On bash 5.2, red's `( cd "$TREE" && ... bash run ... ) &` (red:448-449) runs its last command in place, so SUITE is the `-j` parent itself. Bash 3.2 forks there: SUITE is the subshell, and the `-j` parent is its child.
+  - conf4 2 measured 3.2, and read 5.2's execute_cmd.c (`optimize_subshell_command`, `optimize_connection_fork`).
+  - So on 5.2 the suite's own ending, whose listings the case's shim did not hold (1293:372-375), ended the TERM-ignoring unit about when the monitor's wait for its root ended. The monitor's second listing then found nothing new, and its third came after its KILL: ci456's `stopped=0`.
+- **The hold.** In mon mode the case's shim holds every ending listing (R19's `ps -A ... ppid=` call) made by a process of red's suite, bounded, until the TERM is sent, as wat mode holds red's tree. So the suite's own ending stops nothing before the monitor's STOP, on 3.2 and 5.2 alike.
+- **The comment.** The case's comment (1293:340-352) says what each bash does.
+- **Red.** The case stays red against a monitor that does not ignore TERM.
+
+### R33. R27's watcher case: green on ubuntu, and not resting on /bin/sh
+
+Answers conf4 1. R27's watcher case passed on CI's ubuntu (ci456), against conf4 1's prediction. Why it passed there was not measured. R33 adds to R27's "Which process".
+- **conf4 1's reading** stays in the contract as the reason to make the shim's identification independent of /bin/sh.
+  - A holder lists through perl's backticks (`endtree`'s listing, 0007:56), which run `/bin/sh -c`.
+  - On ubuntu /bin/sh is dash, which execs the listing's ps in place. So the ps's parent is the holder's perl, and its grandparent is the holder's wrapper, a fork of the record run whose command line holds `--record-assertions`. Wat mode (1293:376-377) then counts the record run's holder as the watcher's stopper.
+  - conf4 1 measured /bin/dash here: the listed ps's parent was the perl itself, and under /bin/sh (bash 3.2 on this Mac) it was the sh.
+- **The rule.** The shim counts a listing as the stopper's only when the listing's parent is a `$( )` subshell of the stopper, which keeps its parent's command line: the ps's parent has the grandparent's command line. A perl or an sh has its own.
+- **Both shells.** The case is required to stay green on both shells. Here it is also run with /bin/dash as the sh perl uses, for example on a copy whose holder runs its listing through `/bin/dash -c`, since perl's /bin/sh cannot be changed here.
+- **Red.** It stays red against both of R27's watcher mutants.
+
+### R34. R19: R2's shim in 1292 counts only `ps -A` calls
+
+Answers proc4 2. R19 pins the ending's Nth listing as its Nth `ps -A` call. 1292's R2 shim counts every call whose arguments hold `ppid=` (1292:83), so a holder's `ps -o ppid= -p WRAPPER`, which R20 makes every 10 s (0007:48-50), takes a number. proc4 2 measured the holder's calls at 0, 10 and 20 s. So the case named for the second listing failed a holder's check, and step 4's second round was never failed. R34 adds to R19's listing pin.
+- **The pin.** R2's shim in 1292 counts only `ps -A` calls, as R19 defines a listing. A holder's `ps -o ppid= -p` (R20) is never counted. 1296's shims already count so (R28).
+- **D8 gains:** no new case. R2's three cases then fail the ending's first, second and third listings, as their names say.
+
+### R35. R20's D8 gain: an orphan case
+
+Answers proc4 3. R20's own check, that its wrapper's parent is still the `-j` parent, had no case. R28's pw case kills the parent with -9, whose pid is then free, and the holder's `kill 0` (0007:47) finds it gone before R20's check (0007:48-51) is reached. So a holder without R20's check passed every blind part, and so did one that kept R15's start-time comparison, the Linux clock-step hazard R20 removes. R35 adds to R20's "D8 gains".
+- **The shim.** Once a gate file exists, a `ps` first on PATH answers a holder's `ps -o ppid= -p WRAPPER` (a call whose arguments hold `ppid=` and ` -p `, and not ` -A `) with `1`. Every other call is the real ps's.
+- **The run.** A `-j 2` run of one long part, with the gate written once the unit is up.
+- **Expected.** Within 12 s the unit is gone, and the parent, still running, fails it as ended without its mark (`part ended without its mark: UNIT`; the holder exits 2). Exit 1, no receipt, and nothing of the run left, stopped or running.
+- **Red.** It is red against a holder without R20's check, and against one that compares the parent's start time as R15 did.
+
+### R36. R28's pw case: the kill waits for a holder
+
+Answers proc4 4. The pw case killed the parent 2 s after the mark at the end of the copy's 0006 (1296:472-473). After 0006 the parent still sources 0007 and the lib files and runs `_par_run`'s setup before it forks a wrapper, so under load the kill could land before any holder existed, and the case then passed for any build, R15(a)'s mutant included.
+- **The text.** R36 replaces, in R28's "The parent killed while a holder waits", "and 2 s have passed" with "and a holder has written its slot line (1296's `_db6_hpid_up`) and at least one slot poll has run". So the parent is killed then, not 2 s after the prelude mark.
+- **Unchanged.** The case's check that no unit has started while the slot was held elsewhere stays, as do its other checks.
+
+### Every finding of review 4 and of ci456, and where it went
+
+Test fixes go to a blind author with this revision, before any code fix: R32, R33, R34, R35 and R36, and the D8 gains of R29 and R31. Code fixes go to the builders once the new blind tests are red: R29, R30 and R31.
+
+- proc4 1 (minor, code): R30, the comparison of `$!` held to the ticker's fork, the kept value taken after `_par_order`, and no KILL by pid when the job table cannot be read.
+- proc4 2 (minor, test): R34, 1292's R2 shim counts only `ps -A` calls.
+- proc4 3 (minor, test): R35, the orphan case for R20's check.
+- proc4 4 (minor, test): R36, the pw case's kill waits for a holder's slot line and a slot poll.
+- conf4 1 (blocker, test): R33. The case passed on ubuntu (ci456) against its prediction; its reading of dash stays as the reason for the shim's new rule, and the case is run with /bin/dash here.
+- conf4 2 (major, test): R32, mon mode holds red's suite's listings; it is ci456 (1).
+- conf4 3 (minor, contract): R31, (a) readonly functions with any flags that hold `r`, (b) descriptors 10 and above not compared, with the reason and a lint, (c) EXECIGNORE, FUNCNEST, BASH_COMPAT and CHILD_MAX watched.
+- ci456 (1), 1293's R27 monitor case: R32.
+- ci456 (2), 1294's R5 relative-TMPDIR case: R29, with R29's open item (the case's TMPDIR lies inside its fixture checkout, which 0001 refuses).
+- ci456's other two FAILs, red.tsv's base and this engine's version above origin/main's: owed at the carrier's record and version, as for every build of D. No contract change.
+- conf4's summary, missing evidence: the reports of the red-against-a-mutant runs that revision 9's preamble asks for are not named for R27's and R28's cases. They are owed with the next round's reports, with those of this revision's cases.
+
+**Open, not decided in this text:** R29's (the relative TMPDIR the case uses, or where its run starts) and R30's (the wait for a ticker that still runs when the job table cannot be read).
+
+**Deliberately not taken:**
+- conf4 3 (b)'s first remedy, descriptors 10 and above compared from /dev/fd or /proc/$$/fd minus the runner's own: R31 lists them as not compared, for its reason, with a lint.

@@ -1,6 +1,6 @@
 # >>> gate-friction-d-shell-blind
 printf '\ngate friction D: the shell a unit leaves for the parts after it (blind, revision 9)\n'
-# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16, R24, R28). Nothing here was read off an
+# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16, R24, R28), with R31 of revision 10 added. Nothing here was read off an
 # implementation; tests/run is run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each with planted parts of
 # this block's own. Every case points TMPDIR at a fixture directory, runs every inner run under a bounded runner that makes its own process group and
 # resets HUP and TERM, and ends by asking that group to hold no live process, stopped or running (zombies aside), for 30 s; what is left is named,
@@ -72,11 +72,11 @@ _db5_new() {
   _suite_copy_tree ${r:+"$r"} "$_db5_F" "$@"
 }
 # LABEL ARG...: the copy's driver in the background under a bounded runner (stdin /dev/null, stdout LABEL.out, stderr LABEL.err, the group's id
-# LABEL.pid). LC_ALL, LC_COLLATE and CLAUDE_CONFIG_DIR are taken out of its environment, so that a part that exports them adds them.
+# LABEL.pid). LC_ALL, LC_COLLATE, CLAUDE_CONFIG_DIR and EXECIGNORE are taken out of its environment, so that a part that exports them adds them.
 _db5_start() {
   local l="$1"; shift
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
-      -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR \
+      -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR -u EXECIGNORE \
       TMPDIR="$_db5_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
       perl "$DB5/run.pl" "$_db5_lim" "$_db5_c/$l.pid" "$BASH" "$_db5_T/run" "$@" \
   ) < /dev/null > "$_db5_c/$l.out" 2> "$_db5_c/$l.err" &
@@ -204,6 +204,8 @@ _db5_sp R16 enable "enable -n printf" x 'enable -n printf' 'builtin printf disab
 _db5_sp R24 enabl2 "enable -n enable, which hides the list of disabled builtins from the comparison" x 'enable -n enable' 'the shell state could not be compared'
 _db5_sp R24 alias "alias djx_al=true" x 'alias djx_al=true' 'alias djx_al added'
 _db5_sp R24 rofn "a readonly function" x 'djx_rf() { :; }; readonly -f djx_rf' 'readonly function djx_rf added'
+_db5_sp R31 rxfn "a readonly function that is also exported, which a readonly function with only the r flag does not cover" x 'djx_rx() { :; }; readonly -f djx_rx; export -f djx_rx' 'readonly function djx_rx added'
+_db5_sp R31 execign "EXECIGNORE='*/djx' plain, with EXECIGNORE absent from the run's environment" x "EXECIGNORE='*/djx'" 'variable EXECIGNORE added'
 _db5_sp R16 fd2 "exec 2>&-" x 'exec 2>&-' 'descriptor 2 closed'
 _db5_sp R16 trapexit "trap 'printf \"djx-exit\\n\"' EXIT" x 'trap '"'"'printf "djx-exit\n"'"'"' EXIT' 'trap on EXIT changed'
 _db5_sp R28 trapnone "trap - EXIT, the prelude's EXIT trap removed, numbered last so that the -j 1 run reaches every part" x 'trap - EXIT' 'trap on EXIT removed'
@@ -278,6 +280,248 @@ _db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_E=(DJX
 is "R8: in a record run the seventh failure writes no manifest, and red.tsv holds the rows base - - - and run - - -, with no process left" "$(_db5_chkr r "${_db5_xx[@]}") $_db5_cl" "ok ok"
 is "R1: and once that record run has exited no process of red's tree is left, stopped or running" "$_db5_ex" ok
 rm -rf "$DB5/n/sh" "$DB5/n/sj" "$DB5/n/sr"
+
+
+# ---- R31: descriptors 10 and above are not compared (bash can name them only by globbing /dev/fd), so a lint holds the line: no line of a part or of tests/lib opens
+# one at the top level, outside every function body and subshell, where it would reach every later part of a -j 1 run. The lint is a scan of the files' text, made here
+# and not in the build: tl.awk follows function bodies, brace groups, subshells, substitutions, arithmetic, case arms, quotes, comments and here-documents from the start
+# of a file, and names each exec there that opens a descriptor of 10 or above (a number from 10 up, or a {NAME}) with FILE:LINE:TEXT; closing one (>&-) is no opening.
+# It reads only the files where a line could match, and reports a file whose nesting it loses (FILE:0:). A pipeline or a background group counts as top level, so
+# the lint errs toward a finding. This block writes the word and the number together only inside the here-documents below, which the lint skips.
+cat > "$DB5/tl.awk" <<'DB5TL'
+function tl(   i) { for (i = 1; i <= sp; i++) if (stk[i] == "F" || stk[i] == "S" || stk[i] == "B" || stk[i] == "A") return 0; return 1 }
+function add(s,   j) { for (j = 1; j <= length(s); j++) { sx = sx substr(s, j, 1); ctx[length(sx)] = tl() } }
+function cmdpos(t) { sub(/[ \t]+$/, "", t); return (t == "" || t ~ /[;&|(){`!]$/ || t ~ /(^|[^A-Za-z0-9_])(then|do|else|elif|if|while|until)$/) }
+function push(k) { sp++; stk[sp] = k; ad[sp] = 0; sv[sp] = svq; svq = "" }
+function pop() { if (sv[sp] != "") q = sv[sp]; sp-- }
+function fin() { if (sp != 0 || q != "" || nh != 0) print pf ":0:lost the nesting (open " sp ", quote [" q "], heredocs " nh ")" }
+FNR == 1 { if (NR > 1) fin(); pf = FILENAME; sp = 0; q = ""; nh = 0; pd = 0; pend = ""; pk = 0; evalq = 0 }
+END { if (NR > 0) fin() }
+{
+  if (nh > 0) {
+    t = $0; if (hdash[1]) sub(/^\t+/, "", t)
+    if (t == hd[1]) { for (j = 1; j < nh; j++) { hd[j] = hd[j + 1]; hdash[j] = hdash[j + 1] }; nh-- }
+    next
+  }
+  line = $0; n = length(line); sx = ""; split("", ctx)
+  for (i = 1; i <= n; i++) {
+    c = substr(line, i, 1); p = (i > 1) ? substr(line, i - 1, 1) : " "; nx = (i < n) ? substr(line, i + 1, 1) : " "
+    if (q == "'") { if (c == "'") q = ""; add(evalq ? c : " "); continue }
+    if (q == "$") { if (c == "\\") { add(" "); i++; add(" ") } else { if (c == "'") q = ""; add(" ") }; continue }
+    if (q == "\"") {
+      if (c == "$" && nx == "(") { svq = "\""; q = ""; if (substr(line, i + 2, 1) == "(") { push("A"); add(evalq ? "$((" : "   "); i += 2 } else { push("S"); add(evalq ? "$(" : "  "); i++ }; continue }
+      if (c == "\\") { add(evalq ? c : " "); i++; if (i <= n) add(evalq ? substr(line, i, 1) : " ") }
+      else { if (c == "\"") q = ""; add(evalq ? c : " ") }
+      continue
+    }
+    if (c == "\\") { add(" "); i++; if (i <= n) add(" "); continue }
+    if (c == "'" || c == "\"") { evalq = (sx ~ /(^|[^A-Za-z0-9_])eval[ \t]+$/); q = c; add(evalq ? c : " "); continue }
+    if (c == "$" && nx == "'") { q = "$"; add("  "); i++; continue }
+    if (c == "#" && (i == 1 || p ~ /[ \t;&|()]/)) break
+    if (pd > 0) { if (c == "{") pd++; else if (c == "}") pd--; add(c); continue }
+    if (c == "$" && nx == "{") { pd = 1; add("${"); i++; continue }
+    if (pend == "F" && !pk && c !~ /[ \t{(]/) pend = ""
+    if (c == "<" && nx == "<" && substr(line, i, 3) != "<<<" && p != "<" && !(sp > 0 && stk[sp] == "A")) {
+      r = substr(line, i + 2); d = 0
+      if (substr(r, 1, 1) == "-") { d = 1; r = substr(r, 2) }
+      sub(/^[ \t]+/, "", r)
+      if (r ~ /^['"\\A-Za-z_]/) {
+        if (match(r, /^'[^']*'/) || match(r, /^"[^"]*"/)) w = substr(r, 2, RLENGTH - 2)
+        else { match(r, /^[\\A-Za-z_][A-Za-z0-9_]*/); w = substr(r, 1, RLENGTH); sub(/^\\/, "", w) }
+        nh++; hd[nh] = w; hdash[nh] = d
+      }
+      add("<<"); i++; continue
+    }
+    if (c == "(" && nx == "(") { push("A"); add("  "); i++; continue }
+    if (c == "(") {
+      if (sp > 0 && stk[sp] == "A") { ad[sp]++; add(c); continue }
+      rest = substr(line, i + 1)
+      if (rest ~ /^[ \t]*\)/) {
+        tt = sx; sub(/[ \t]+$/, "", tt)
+        if (!pk && match(tt, /[A-Za-z_][A-Za-z0-9_.:@-]*$/) && cmdpos(substr(tt, 1, RSTART - 1))) pend = "F"
+        match(rest, /\)/); add("(" substr(rest, 1, RSTART)); i += RSTART; continue
+      }
+      pend = ""; push("S"); add(c); continue
+    }
+    if (c == ")") {
+      if (sp > 0 && stk[sp] == "A") { if (ad[sp] > 0) ad[sp]--; else { pop(); if (nx == ")") { add(c); i++ } } }
+      else if (sp > 0 && stk[sp] == "S") pop()
+      add(c); continue
+    }
+    if (c == "`") { if (sp > 0 && stk[sp] == "B") pop(); else push("B"); add(c); continue }
+    if (c == "{" && (i == 1 || p ~ /[ \t;&|(]/) && (i == n || nx ~ /[ \t]/)) { push(pend == "F" ? "F" : "G"); pend = ""; pk = 0; add(c); continue }
+    if (c == "}" && (i == 1 || p ~ /[ \t;&]/) && (i == n || nx ~ /[ \t;&|)<>]/)) { if (sp > 0 && (stk[sp] == "F" || stk[sp] == "G")) sp--; add(c); continue }
+    if (c ~ /[A-Za-z_]/ && p !~ /[A-Za-z0-9_]/) {
+      match(substr(line, i), /^[A-Za-z_][A-Za-z0-9_]*/); w = substr(line, i, RLENGTH)
+      after = (i + RLENGTH <= n) ? substr(line, i + RLENGTH, 1) : " "
+      if (after ~ /[ \t;)&|]/) {
+        if (w == "case" && cmdpos(sx)) push("C")
+        else if (w == "function" && cmdpos(sx)) { pend = "F"; pk = 1 }
+        else if (w == "esac" && sp > 0 && stk[sp] == "C") sp--
+      }
+      add(w); i += RLENGTH - 1; continue
+    }
+    add(c)
+  }
+  L = length(sx)
+  for (k = 1; k + 4 <= L; k++) {
+    if (substr(sx, k, 4) != "exec" || !(k == 1 || substr(sx, k - 1, 1) !~ /[A-Za-z0-9_]/) || substr(sx, k + 4, 1) !~ /[ \t]/ || !ctx[k]) continue
+    tail = substr(sx, k + 4); gsub(/&&/, ";", tail); gsub(/\|\|/, ";", tail); sub(/[;|)].*/, "", tail)
+    gsub(/([{][A-Za-z_][A-Za-z0-9_]*[}]|[0-9]+)[<>]&-/, " ", tail)
+    if (tail ~ /(^|[ \t])([{][A-Za-z_][A-Za-z0-9_]*[}]|[1-9][0-9]+)[<>]/) { print FILENAME ":" FNR ":" line; break }
+  }
+}
+DB5TL
+cat > "$DB5/shapes.txt" <<'DB5SH'
+== a1
+exec 11>/dev/null
+== a2
+exec {djx_fd}>/dev/null
+== a3
+exec 12<f
+== a4
+exec 10<>f
+== a5
+exec {fd}<f
+== a6
+exec 3>&1 11>x
+== a7
+eval "exec 11>x"
+== a8
+if true; then exec 11>x; fi
+== a9
+for i in 1 2; do
+  exec 11>x
+done
+== a10
+{ exec 11>x; }
+== a11
+f() { :; }
+f
+exec 11>/dev/null
+== a12
+case $x in
+  a) exec 11>x ;;
+esac
+== a13
+f() {
+  :
+}
+g() { :; }
+exec 100>x
+== a14
+f() { echo hi; }; exec 11>/dev/null
+== a15
+exec 11>&2
+== a16
+[ -n "$x" ] && exec 11>x
+== a17
+while read -r l; do exec 11>x; done < f
+== a18
+f() { echo "$(date)"; }
+exec 11>x
+== a19
+cat <<EOF
+text
+EOF
+exec 11>x
+== a20
+x=$(printf '%s' "$(echo ")")")
+exec 11>x
+== n1
+f() { exec 11>/dev/null; }
+== n2
+f() {
+  exec 11>x
+}
+g() {
+  if x; then
+    exec {fd}>y
+  fi
+}
+== n3
+( exec 11>x )
+== n4
+x=$(exec 11>x)
+== n5
+exec 63>&-
+== n6
+exec 9>x
+== n7
+# exec 11>x
+== n8
+cat <<EOF
+exec 11>x
+EOF
+:
+== n9
+printf '%s\n' 'exec 11>x'
+== n10
+echo "exec 11>x"
+== n11
+function f {
+  exec 11>x
+}
+== n12
+f()
+{
+  exec 11>x
+}
+== n13
+f() ( exec 11>x )
+== n14
+exec {fd}>&-
+== n15
+f() { eval "exec 11>&2"; }
+== n16
+cat <<-'EOF'
+	exec 11>x
+	EOF
+:
+== n17
+case $x in
+  a) f() { exec 11>x; } ;;
+esac
+== n18
+exec 3>&1
+== n19
+x="$(exec 11>x)"
+== n20
+f() {
+  case $x in a) exec 11>x ;; esac
+}
+== n21
+x=$(case $y in a) exec 11>x ;; esac)
+== n22
+f() { echo "$(date)"; exec 11>x; }
+DB5SH
+_db5_x=ex; _db5_x="${_db5_x}ec"
+_db5_tlint() {   # FILE...: FILE:LINE:TEXT of every top-level exec that opens a descriptor of 10 or above, nothing when there is none
+  local c
+  c="$(LC_ALL=C grep -lE 'exec[[:space:]]([^#]*[[:space:]])?([{][A-Za-z_][A-Za-z0-9_]*[}]|[1-9][0-9]+)[<>]' "$@" 2>/dev/null)"
+  [ -n "$c" ] || return 0
+  LC_ALL=C awk -f "$DB5/tl.awk" $c
+}
+# NAME PLANT FILE: a copy of the tree's parts and lib in $DB5/lint/NAME with the line PLANT added at the end of FILE: "ok" when the lint names that line and no other
+_db5_tlc() {
+  local d="$DB5/lint/$1" n
+  rm -rf "$d"; mkdir -p "$d" && cp -R "$HERE/parts" "$HERE/lib" "$d/" || { printf 'the copy could not be made'; return 0; }
+  printf '\n%s\n' "$2" >> "$d/$3"; n="$(awk 'END { print NR }' "$d/$3")"
+  printf '%s\n' "$d/$3:$n:$2" > "$d/want"
+  _db5_tlint "$d"/parts/*.sh "$d"/lib/*.sh > "$d/got"
+  cmp -s "$d/got" "$d/want" && printf ok || printf 'got [%s], wanted [%s]' "$(cat "$d/got")" "$(cat "$d/want")"
+}
+is "R31: no line at the top level of a part or of tests/lib opens a descriptor of 10 or above (exec {NAME}> or <, or exec N> or < with N from 10 up): today's lines are inside functions" \
+   "$(_db5_tlint "$HERE"/parts/*.sh "$HERE"/lib/*.sh)" ""
+is "R31: the lint fails on a copy of the tree with exec 11>/dev/null planted at the top level of a part, naming that line and no other" \
+   "$(_db5_tlc p11 "$_db5_x 11>/dev/null" parts/0007-the-parallel-runner.sh)" ok
+is "R31: and on a copy with exec {djx_fd}>/dev/null planted at the top level of a lib file, naming that line and no other" \
+   "$(_db5_tlc pnm "$_db5_x {djx_fd}>/dev/null" lib/gitproof.sh)" ok
+mkdir -p "$DB5/shapes"; awk -v d="$DB5/shapes" '/^== / { if (f != "") close(f); f = d "/" $2 ".sh"; next } { print > f }' "$DB5/shapes.txt"
+is "R31: the lint names the tops of files, of loops, of brace groups and of case arms, and not what is in a function (one line or many), a subshell, a substitution, a comment, a here-document, a string, a close or a descriptor below 10" \
+   "$(_db5_tlint "$DB5"/shapes/*.sh | sed 's|.*/\([an][0-9]*\)[.]sh:.*|\1|' | LC_ALL=C sort -u | tr '\n' ' ')" \
+   "$(sed -n 's/^== \(a[0-9]*\)$/\1/p' "$DB5/shapes.txt" | LC_ALL=C sort -u | tr '\n' ' ')"
+rm -rf "$DB5/lint" "$DB5/shapes"
 
 is "R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given" "${_db5_leak:-none}" none
 unset -f $(compgen -A function _db5_) 2>/dev/null

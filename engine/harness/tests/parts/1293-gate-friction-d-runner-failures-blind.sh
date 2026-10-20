@@ -337,7 +337,7 @@ is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a p
 is "R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it" "$_db3_ex $_db3_cl" "ok ok"
 rm -rf "$DB3/n/rsl"
 
-# ---- a TERM sent to a stopper of red's tree while it stops, between its STOP and its KILL (R27, R2's ignore where it can be seen)
+# ---- a TERM sent to a stopper of red's tree while it stops, between its STOP and its KILL (R27, R2's ignore where it can be seen; R32, R33)
 # Red ends its suite, and a stopper that ends a tree with a TERM-ignoring unit in it is not to be ended itself half way: red's monitor (after a record run's
 # runner failure) and the record run's watcher (after the record run is killed with kill -9). Each case plants, in red's suite only
 # (FELIX_TEST_NO_MANIFEST=1), a unit that makes the file trig and the file slept.PID (the millisecond it starts), and turns into a perl that ignores TERM and forks
@@ -347,9 +347,20 @@ rm -rf "$DB3/n/rsl"
 # STOP and the KILL: it is held (15 s at most) until the case has sent that stopper a TERM, and the shim names the stopper's pid in the file held first. The
 # case counts the stopped processes of the group as it sends the TERM (one that lands after the KILL pins nothing, so no stopped process fails the case), and
 # sends it only to a pid whose command line is red's or a record run's. A stopper that does not ignore TERM dies there, leaving what it had stopped stopped.
+# Which listings are the stopper's (R33): only one whose parent is a $( ) subshell of the stopper, which keeps its parent's command line, so the parent's
+# command line is the grandparent's. A holder lists through perl's backticks, which run /bin/sh -c: on ubuntu /bin/sh is dash, which execs the listing's ps in
+# place, so its parent is the holder's perl (its own command line) and its grandparent a wrapper, a fork of the record run with the record run's command line,
+# which a test of the grandparent alone takes for the watcher's stopper. Under macOS's /bin/sh (bash 3.2) the parent is the sh, so no shell makes the shim wrong.
 # In the watcher case the shim also holds, until the TERM has been sent (100 s at most), every listing that a process of red's tree makes (its callers are red,
 # its monitor, its suite's own parent), so that red's own stoppers cannot end the tree within the 30 s the watcher's stopper waits for red, which would leave
 # that stopper nothing to stop. Measured on this build: the monitor is red's child with red's command line, and so is the subshell that runs _rcp_stop.
+# In the monitor case it holds, until the TERM has been sent (75 s at most), every listing made by a process of red's suite (R32): one whose caller's command
+# line is not red's (the -j parent, a holder, a wrapper), so that the suite's own ending stops nothing before the monitor's STOP. What each bash does matters
+# there: red starts its suite as ( cd "$TREE" && ... bash run -j N ) &. Bash 3.2 forks for the last command, so SUITE (the monitor's root) is that subshell,
+# which dies at the monitor's TERM, and the -j parent is its child, in its own ending with a TERM-ignoring unit under it. Bash 5.2 runs the last command in
+# place, so SUITE is the -j parent itself: it lives through the monitor's wait for its root, and its own ending (TERM to the unit, a 10 s wait for it, then
+# STOP and KILL) would end the unit about when that wait ends, before the monitor's second listing finds the new sleep (CI's ubuntu run gave stopped=0). With
+# the hold the -j parent's ending cannot get past its first listing until the TERM has been sent, on either bash. Checked here by a copy whose red execs bash there.
 mkdir -p "$DB3/psh"
 cat > "$DB3/psh/ps" <<'DB3PSH'
 #!/bin/sh
@@ -359,6 +370,7 @@ R="$DJX_PSREAL"
 gp=$("$R" -o ppid= -p "$PPID" 2>/dev/null); gp=$(echo $gp)
 [ -n "$gp" ] || exec "$R" "$@"
 gc=$("$R" -o command= -p "$gp" 2>/dev/null)
+pc0=$("$R" -o command= -p "$PPID" 2>/dev/null)
 inred=0; a=$gp; i=0
 while [ "$i" -lt 8 ] && [ -n "$a" ] && [ "$a" -gt 1 ] 2>/dev/null; do
   c=$("$R" -o command= -p "$a" 2>/dev/null)
@@ -370,11 +382,14 @@ hold() { i=0; while [ ! -e "$DJX_DIR/$1" ] && [ "$i" -lt "$2" ]; do sleep 0.2; i
 stopper=0
 case "$DJX_MODE" in
   mon) if [ "$inred" = 1 ]; then
-         case "$gc" in *tests/red\ --after*) pp=$("$R" -o ppid= -p "$gp" 2>/dev/null); pc=$("$R" -o command= -p "$(echo $pp)" 2>/dev/null)
-           case "$pc" in *tests/red\ --after*) stopper=1 ;; esac ;; esac
+         case "$gc" in
+           *tests/red\ --after*) pp=$("$R" -o ppid= -p "$gp" 2>/dev/null); pc=$("$R" -o command= -p "$(echo $pp)" 2>/dev/null)
+             case "$pc" in *tests/red\ --after*) stopper=1 ;; esac ;;
+           *) hold termsent 375 ;;
+         esac
        fi ;;
   wat) if [ "$inred" = 1 ]; then hold release 500
-       else case "$gc" in *--record-assertions*) stopper=1 ;; esac; fi ;;
+       else case "$gc" in *--record-assertions*) [ "$pc0" != "$gc" ] || stopper=1 ;; esac; fi ;;
 esac
 if [ "$stopper" = 1 ]; then
   echo x >> "$DJX_DIR/cnt.$gp"; n=$(wc -l < "$DJX_DIR/cnt.$gp"); n=$(echo $n)
@@ -426,7 +441,7 @@ _db3_ctl27() {
   i=0; while [ ! -s "$_db3_c/held" ] && [ "$i" -lt 400 ]; do
     sleep 0.2; i=$((i + 1)); [ $((i % 5)) -ne 0 ] || [ -n "$(_db3_gm $g)" ] || break
   done
-  [ -s "$_db3_c/held" ] || { echo none > "$_db3_c/ctl.res"; return 0; }
+  [ -s "$_db3_c/held" ] || { echo none > "$_db3_c/ctl.res"; : > "$_db3_c/termsent"; : > "$_db3_c/release"; return 0; }
   p="$(cat "$_db3_c/held")"
   n="$(ps -A -o pid= -o pgid= -o stat= 2>/dev/null | G=" $g " LC_ALL=C awk 'index(ENVIRON["G"], " " $2 " ") && $3 ~ /^T/ { n++ } END { print n + 0 }')"
   c="$(ps -o command= -p "$p" 2>/dev/null)"
@@ -470,6 +485,37 @@ _db3_c27w() {
 }
 _db3_c27m
 _db3_c27w
+
+# ---- the end of a -j run whose parent cannot read its job table (R30): no KILL by pid, and the FIFO closed before the wait for the ticker
+# The parent reads its job table through a file of its own, $TMP/pj/jobs (the contract names it: `builtin jobs -rp` written there, and a read that fails when
+# that path cannot be written). A unit is sourced in a shell that keeps its log as $_pm_log, the parent's $TMP/pj/log.N, so ${_pm_log%/*}/jobs is that file: the
+# planted part replaces it with a directory (rm -f, then mkdir, again if the parent wrote the file in between), sleeps 10 s, which is 2W for
+# FELIX_TEST_SLOT_NOTE=5, so that at least one tick's read fails while the unit runs, writes the millisecond it ends and passes. The run (-j 2, slots for all)
+# must exit 0 within 15 s of that time, and leave nothing, the ticker included: with the table unreadable at the loop's end the parent sends the ticker no KILL
+# by pid (it may be another process's), so it ends only because the parent closes the FIFO first, and its next write then fails. A parent that closes the FIFO
+# after its wait for the ticker waits for ever; the runner's bound (150 s) ends it as 124.
+_db3_mk jtab <<'X'
+printf '\ndjx-sec 0020-pb.sh\n'
+ok "djx jt before"
+djx_d="${_pm_log:-}"; djx_d="${djx_d%/*}"; djx_i=0
+if [ -n "${_pm_log:-}" ]; then
+  while [ ! -d "$djx_d/jobs" ] && [ "$djx_i" -lt 50 ]; do rm -f "$djx_d/jobs"; mkdir "$djx_d/jobs" 2>/dev/null; djx_i=$((djx_i + 1)); done
+  [ ! -d "$djx_d/jobs" ] || : > "$DJX_DIR/jobsdir.ok"
+fi
+sleep 10
+perl -MTime::HiRes=time -e 'printf "%d\n", time * 1000' > "$DJX_DIR/jt.end"
+ok "djx jt after"
+X
+_db3_new jtab "$DB3/g-empty.tsv" - "$DB3/pp/jtab"/*.sh
+_db3_E=(FELIX_TEST_SLOT_NOTE=5)
+_db3_start t -j 2; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; _db3_cl="$(_db3_clean)"
+[ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
+_db3_t0="$(sed -n 1p "$_db3_c/jt.end" 2>/dev/null)"
+case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="the part never reached its end" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 15000 ] && echo within-15s || echo "took $((_db3_t1 - _db3_t0)) ms")" ;; esac
+is "R30: a -j 2 run whose parent cannot read its job table at the end of its loop (the unit made \$TMP/pj/jobs a directory) exits 0 within 15 s of the unit's end, the ticker's wait not hanging, and the unit's directory was made" \
+   "$_db3_rc $_db3_x $([ -e "$_db3_c/jobsdir.ok" ] && echo planted || echo not-planted)" "0 within-15s planted"
+is "R30: and it leaves nothing of its group, stopped or running, the ticker included" "$_db3_ex $_db3_cl" "ok ok"
+rm -rf "$DB3/n/jtab"
 
 # ---- the parent's own state under -j N (D3): a failure the parent alone makes is not lost when the units end well
 # The copy's 0006 does nothing in a unit's prelude (the marker is there) and, in the parent's only, fails an assertion, plants a refusal record, and moves

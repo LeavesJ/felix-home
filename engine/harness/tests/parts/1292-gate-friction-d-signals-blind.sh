@@ -1,5 +1,5 @@
 # >>> gate-friction-d-signals-blind
-printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 10)\n'
+printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 11)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -16,7 +16,12 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # Revision 10 fixes here: proc4 2 (R34): the ps shim of the R2 cases counts only `ps -A` calls, as R19 defines the ending's listing, so a
 # holder's `ps -o ppid= -p WRAPPER` (R20, every 10 s) never takes a number; and proc4 3 (R35): a case for R20's own check, that a holder's
 # wrapper still has the -j parent as its parent, with a ps first on PATH that answers that one call with 1 once a gate file exists.
-# Names say the clause: D6 the runner, R2 R4 R13 R18 R20 the amendments.
+# Revision 11 fix here: ev1 2 (R38): the record run's TERM case (D6, "TERM to a record run under -j 2") sends its TERM only once red's suite has started its
+# own sleeper children and holds, read from a file the red-only side writes (rup.NAME, written where FELIX_TEST_NO_MANIFEST=1, which only red's suite sees).
+# Before, the TERM could land before red's suite had started a child, and the one-list stopper of a build without R1 (the base's tests/red and receipt.sh, as
+# red's suite runs this part) then missed it: the case was red on some runs and not on others, so red.tsv could not be reproduced. The parts' up.NAME is now
+# the record run's alone, so "both units up" is read of the record run's units, not of red's. The case's name and its checks stand.
+# Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
 # slots; it runs the copy under a bounded runner (run.pl) that makes the run's process group and starts it with
@@ -234,6 +239,7 @@ _db2_hold() {   # SLOTFILE: a perl of mine holds its lock until _db2_unhold; _db
 _db2_unhold() { [ "$_db2_hp" = 0 ] || { kill -KILL "$_db2_hp" 2>/dev/null; { wait "$_db2_hp"; } 2>/dev/null; }; _db2_hp=0; return 0; }
 _db2_started() { local f r=""; for f in "$_db2_c"/started.*; do [ -e "$f" ] && r="$r${f##*/} "; done; printf '%s' "$r"; }
 _db2_up() { test -e "$_db2_c/up.$1"; }
+_db2_rup() { test -e "$_db2_c/rup.0010-sa.sh" && test -e "$_db2_c/rup.0020-sb.sh"; }   # R38: red's suite has started both sleepers and holds
 _db2_pre()   { local f; for f in "$_db2_T"/parts/0006-*.sh; do printf '\n: > "%s/pre.done.$$"\n' "$_db2_c" >> "$f"; done; }   # the parent's prelude is done
 _db2_pre_up() { ls "$_db2_c"/pre.done.* >/dev/null 2>&1; }
 # "ok", or what an interrupted run left behind: LABEL STATUS (the slot files keep their names and inodes when _db2_ino0 was taken)
@@ -264,14 +270,14 @@ ok "djy $DJ2N"
 X
   done
 }
-_db2_sl() {   # CASE: two parts that start a sleeping child and wait for a release file, and a third that only notes it started
+_db2_sl() {   # CASE: two parts that start a sleeping child and wait for a release file, and a third that only notes it started; up.NAME says so in a record run or a plain one, rup.NAME in red's suite (R38)
   local f
   for f in 0010-sa.sh 0020-sb.sh; do _db2_w "$1" "$f" <<'X'
 : > "$DJ2D/started.$DJ2N"
 perl -e 'open(my $h, ">", $ARGV[0]); close $h; sleep 300' "$DJ2D/ch.$DJ2N" "$DJ2I" sl &
 _k=$!
 until [ -e "$DJ2D/ch.$DJ2N" ]; do sleep 0.1; done
-: > "$DJ2D/up.$DJ2N"
+if [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ]; then : > "$DJ2D/rup.$DJ2N"; else : > "$DJ2D/up.$DJ2N"; fi
 while [ ! -e "$DJ2D/release" ]; do sleep 0.2; done
 kill "$_k" 2>/dev/null; wait "$_k" 2>/dev/null
 ok "djy $DJ2N"
@@ -569,7 +575,7 @@ rm -rf "$DB2/n/lc"
 # ---- a record run that is interrupted writes no manifest (D6, what it leaves), and red's tree goes with it
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
 _db2_lim=150; _db2_go r -j 2 --record-assertions
-_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
+_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; _db2_until 300 _db2_rup; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
 _db2_stop r TERM; _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)"; _db2_ino0=""
 _db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent slots-kept"
 rm -rf "$DB2/n/rrt"

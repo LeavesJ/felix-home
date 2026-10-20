@@ -1,7 +1,7 @@
 # >>> gate-friction-d-runner-failures-blind
-printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 10)\n'
-# Blind, written from contract D revision 10 alone (docs/2026-10-18-gate-friction-
-# contract-d.md: D3, D4, D8, R1, R7, R12, R16, R27, R28, R30, R32, R33). Nothing here was read off an
+printf '\ngate friction D: a unit that goes wrong, what that does to a run and to a record run, and the gate (blind, revision 11)\n'
+# Blind, written from contract D revision 11 alone (docs/2026-10-18-gate-friction-
+# contract-d.md: D3, D4, D8, R1, R7, R12, R16, R27, R28, R30, R32, R33, R38). Nothing here was read off an
 # implementation; tests/run, tests/red and tests/receipt.sh are run, never read,
 # in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each
 # with planted parts of this block's own. Every case points TMPDIR at a fixture
@@ -12,10 +12,44 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # pattern. Names say the clause: D3 the runner's failures and the log, D4 the
 # record, R1 red's tree, R7 the log's shape, R8 and R16 the shell a unit leaves,
 # R27 a TERM sent to a stopper of red's tree while it stops (R32 red's monitor on bash 5.2, R33 the watcher's stopper found whatever /bin/sh is), R30 the end of a run
-# whose parent cannot read its job table.
+# whose parent cannot read its job table, R38 the 13 R1 leftover cases below (the "and once the record run after ... has exited" names of _db3_rf).
+# R38: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so a record run that ends on a runner failure
+# exits there only once red's suite has ended by itself, and what is left of red's tree then is a matter of timing. Each _db3_rf case therefore plants, in
+# its record half only (DJX_HOLD names hold.pl, which the case gives that run alone), a red-only holder H: red's suite, at the planted step, makes the case's
+# hold.dir (only the first to do so goes on), starts H (a process that ends within 0.2 s of hold.release appearing, and on its own 60 s after it started),
+# writes hold.pid and hold.start, then waits until hold.go exists and C = 10 s more. The record run's own units wait for hold.start (60 s at most) and write
+# hold.go, then fail as the case says. Against a build without R1 red's suite goes on after C and ends by itself, leaving H running, so the record run
+# exits with H in its group at both of _db3_atexit's listings; against D's build red's monitor ends red's suite on the failed mark while the step holds, H
+# with it, so nothing is left. _db3_run writes hold.release as soon as _db3_atexit has listed, so _db3_clean waits about a second, not its 30 s. The step is
+# one perl process (no short-lived child to be left behind), run by the part's one line, so the unit's shell is not changed.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB3="$TMP/db3"
 mkdir -p "$DB3/pp/std" "$DB3/n"
+cat > "$DB3/hold.pl" <<'DB3HOLD'
+# hold.pl SIDE DIR (R38): SIDE 1 is red's suite (FELIX_TEST_NO_MANIFEST=1), anything else the record run. DIR is the case's directory.
+use strict; use Time::HiRes qw(time sleep);
+my ($side, $d) = @ARGV;
+sub ms { sprintf "%d\n", time * 1000 }
+sub put { my ($f, $t) = @_; open(my $h, ">", "$f.t") or return; print $h $t; close $h; rename "$f.t", $f }
+if ($side eq "1") {
+  mkdir "$d/hold.dir" or exit 0;
+  $SIG{TERM} = sub { put("$d/hold.ended", ms()); exit 143 };
+  my $t0 = time; my $h = fork; defined $h or exit 0;
+  if (!$h) {
+    open(STDIN, "<", "/dev/null"); open(STDOUT, ">", "/dev/null"); open(STDERR, ">", "/dev/null");
+    $SIG{TERM} = "DEFAULT";
+    sleep 0.1 until -e "$d/hold.release" || time > $t0 + 60;
+    exit 0;
+  }
+  put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
+  my $e = $t0 + 60; sleep 0.1 until -e "$d/hold.go" || time > $e;
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e }
+} else {
+  my $e = time + 60; sleep 0.1 until -e "$d/hold.start" || time > $e;
+  put("$d/hold.go", ms());
+}
+DB3HOLD
+_db3_HL='[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'
 _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; _db3_ctl=0; _db3_ctlr=0; _db3_pf=(); _db3_cl=ok; _db3_ex=ok; _db3_leak=""; _db3_skip=""; _db3_hook=""; _db3_post=""; _db3_postn=""
 cat > "$DB3/run.pl" <<'DB3PL'
 my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
@@ -26,6 +60,7 @@ alarm $t; waitpid $p, 0;
 exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
 DB3PL
 : > "$DB3/g-empty.tsv"; printf '1\tdjx a1\n' > "$DB3/man.tsv"
+_db3_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 _db3_until() { local n="$1" i=0; shift; while [ "$i" -lt "$n" ]; do "$@" && return 0; sleep 0.2; i=$((i + 1)); done; "$@"; }
 _db3_cnt()  { LC_ALL=C awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0 }' "$1" 2>/dev/null; }   # FILE PREFIX: lines starting with it
 _db3_line() { grep -cxF -e "$2" "$1" 2>/dev/null; }   # FILE LINE: lines that are exactly it
@@ -72,9 +107,14 @@ _db3_start() {
   _db3_bg=$!; _db3_pf[${#_db3_pf[@]}]="$_db3_c/$l.pid"
 }
 _db3_wait() { { wait "$_db3_bg"; } 2>/dev/null; _db3_rc=$?; _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; }
-_db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findings _db3_leak keeps
-  _db3_start "$@"; _db3_wait; _db3_ex="$(_db3_atexit)"; _db3_cl="$(_db3_clean)"
+_db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findings _db3_leak keep
+  _db3_start "$@"; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"
+  : > "$_db3_c/hold.release"   # R38: the red-only holder ends (within 0.2 s) as soon as the listings are taken, so _db3_clean has about a second to wait for
+  _db3_cl="$(_db3_clean)"
   [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
+  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, in ms
+  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db3_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s ex %s\n' "${_db3_c##*/}" \
+    "$([ -e "$_db3_c/hold.ended" ] && echo $(($(cat "$_db3_c/hold.ended") - $(cat "$_db3_c/hold.go"))) || echo natural)" "$((_db3_t1 - $(cat "$_db3_c/hold.go")))" "$_db3_ex" >> "$DJX_MLOG"
 }
 _db3_rcpt() { if [ -f "$_db3_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db3_last() { tail -n 1 "$_db3_c/$1.out" 2>/dev/null; }
@@ -148,7 +188,8 @@ _db3_rf() {
   rm -rf "$DB3/n/$n"
   if _db3_new "$n-r" --red "$g" "$DB3/man.tsv" "$DB3/pp/$n"/*.sh; then
     [ -z "$_db3_hook" ] || "$_db3_hook"
-    _db3_run r -j 3 --record-assertions
+    _db3_E=(DJX_HOLD="$DB3/hold.pl"); _db3_lim=240   # R38: the red-only holder, for this run alone
+    _db3_run r -j 3 --record-assertions; unset _db3_lim
     is "$a2" "$(_db3_chkr r "$@")" ok
     is "$a3" "$_db3_ex" ok
   else bad "$a2" "the copy could not be made"; bad "$a3" "the copy could not be made"; fi
@@ -157,6 +198,7 @@ _db3_rf() {
 _db3_mk kill9 <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx kill9 before"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 kill -9 $$
 ok "djx kill9 after"
 X
@@ -165,6 +207,7 @@ _db3_rf kill9 "$DB3/g-empty.tsv" "a unit killed with kill -9 while it runs a mem
 _db3_mk lastkill <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx lastkill member"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 _og_check() { : > "$DJX_DIR/killed.lastkill"; kill -9 $$; }
 X
 _db3_rf lastkill "$DB3/g-empty.tsv" "a unit killed after its last member and before its mark" \
@@ -172,12 +215,14 @@ _db3_rf lastkill "$DB3/g-empty.tsv" "a unit killed after its last member and bef
 _db3_mk exit0 <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx exit0 before"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 exit 0
 X
 _db3_rf exit0 "$DB3/g-empty.tsv" "a part that runs exit 0" "part did not finish: 0020-pb.sh" "part ended without its mark: 0020-pb.sh"
 _db3_mk setu <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx setu before"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 : "$djx_unbound_variable_zz"
 ok "djx setu after"
 X
@@ -185,6 +230,7 @@ _db3_rf setu "$DB3/g-empty.tsv" "a part that dies on an unbound variable under s
 _db3_mk reached <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx reached"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 printf 'reached\n'
 X
 _db3_pr7() { is "$_db3_postn" "$(_db3_line "$_db3_c/p.out" '  | reached') $([ "$(_db3_line "$_db3_c/p.out" reached)" -le 1 ] && echo one-or-none || echo two)" "1 one-or-none"; }
@@ -192,6 +238,7 @@ _db3_post=_db3_pr7; _db3_postn="R7: a part's own reached line is printed in its 
 _db3_rf reached "$DB3/g-empty.tsv" "a part that prints reached" "part printed a line the runner owns: 0020-pb.sh" "!part did not finish" "!part ended without its mark"
 _db3_mk forged <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 printf '@@prelude-done\n'
 X
 printf '%s\n' 'printf "\ndjx-sec 0030-pc.sh\n"' 'printf "@@member-done 0030-pc.sh\n"' > "$DB3/pp/forged/0030-pc.sh"
@@ -201,12 +248,13 @@ _db3_rf forged "$DB3/g-empty.tsv" "parts that print a runner line (a second @@pr
    "!part printed a line the runner owns: 0010-pa.sh"
 mkdir -p "$DB3/pp/gdie"; printf 'grp\t0010-ga.sh\ngrp\t0020-gb.sh\ngrp\t0030-gc.sh\n' > "$DB3/g-grp.tsv"
 printf '%s\n' 'printf "\ndjx-sec 0010-ga.sh\n"' 'ok "djx gdie a"' > "$DB3/pp/gdie/0010-ga.sh"
-printf '%s\n' 'printf "\ndjx-sec 0020-gb.sh\n"' 'ok "djx gdie b"' 'kill -9 $$' > "$DB3/pp/gdie/0020-gb.sh"
+printf '%s\n' 'printf "\ndjx-sec 0020-gb.sh\n"' 'ok "djx gdie b"' '[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"' 'kill -9 $$' > "$DB3/pp/gdie/0020-gb.sh"
 printf '%s\n' 'printf "\ndjx-sec 0030-gc.sh\n"' 'ok "djx gdie c"' > "$DB3/pp/gdie/0030-gc.sh"
 _db3_rf gdie "$DB3/g-grp.tsv" "a group member that dies" "part did not finish: 0020-gb.sh" "part did not finish: 0030-gc.sh" \
    "part ended without its mark: grp" "!part did not finish: 0010-ga.sh"
 _db3_mk partial <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 printf 'djx partial text'
 bad "djx lands on a partial line"
 X
@@ -214,6 +262,7 @@ _db3_rf partial "$DB3/g-empty.tsv" "a part whose bad line lands on a partial lin
 _db3_mk trap5 <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
 ok "djx trap5"
+[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"
 trap 'rm -rf "$TMP"; exit 5' EXIT
 X
 _db3_pt5() {
@@ -231,7 +280,7 @@ _db3_rf trap5 "$DB3/g-empty.tsv" "a part that replaces the EXIT trap with one th
 # The units' preludes alone. The copy's 0006 gets a line that does nothing the first time it runs, in the parent's prelude, which makes a marker file,
 # and does PLANT in every prelude after it, the units'. Each unit's prelude lines are then printed behind a bar, so none reads as an assertion.
 _db3_plant() {   # PLANT: the copy's 0006 runs PLANT only where the marker file exists
-  local f; for f in "$_db3_T"/parts/0006-*.sh; do printf '\nif [ -e "%s" ]; then %s; else : > "%s"; fi\n' "$_db3_c/pre.marker" "$1" "$_db3_c/pre.marker" >> "$f"; done
+  local f; for f in "$_db3_T"/parts/0006-*.sh; do printf '\nif [ -e "%s" ]; then %s; %s; else : > "%s"; fi\n' "$_db3_c/pre.marker" "$_db3_HL" "$1" "$_db3_c/pre.marker" >> "$f"; done
 }
 mkdir -p "$DB3/pp/pre"; cp "$DB3/pp/std"/*.sh "$DB3/pp/pre/"
 _db3_h6() { _db3_plant 'bad "djx planted prelude failure"'; }
@@ -255,7 +304,7 @@ printf 'echo S1\na[1/0]=1\necho S2\n' > "$DB3/cut.sh"; printf '. "%s"; echo SAME
 _db3_m="$("$BASH" "$DB3/cut.drv" 2>/dev/null | tr '\n' ' ')"
 mkdir -p "$DB3/pp/acut"; printf 'acut\t0010-ka.sh\nacut\t0020-kb.sh\nacut\t0030-kc.sh\n' > "$DB3/g-acut.tsv"
 printf '%s\n' 'printf "\ndjx-sec 0010-ka.sh\n"' 'ok "djx acut a"' > "$DB3/pp/acut/0010-ka.sh"
-printf '%s\n' 'printf "\ndjx-sec 0020-kb.sh\n"' 'ok "djx acut b before"' 'a[1/0]=1' 'ok "djx acut b after"' > "$DB3/pp/acut/0020-kb.sh"
+printf '%s\n' 'printf "\ndjx-sec 0020-kb.sh\n"' 'ok "djx acut b before"' '[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"' 'a[1/0]=1' 'ok "djx acut b after"' > "$DB3/pp/acut/0020-kb.sh"
 printf '%s\n' 'printf "\ndjx-sec 0030-kc.sh\n"' 'ok "djx acut c"' > "$DB3/pp/acut/0030-kc.sh"
 _db3_pcut() { is "$_db3_postn" "$(_db3_line "$_db3_c/p.out" '  ok    djx acut c') $(_db3_line "$_db3_c/p.out" '  ok    djx acut b after')" "1 0"; }
 _db3_post=_db3_pcut; _db3_postn="D2: and the member after it ran, as the next part line does in a serial run"
@@ -311,7 +360,6 @@ rm -rf "$DB3/n/rshl"
 # the record run, which fails it, and first waits (60 s at most, since red's base checkout and its units' preludes can take longer than the record run's
 # own under load) for that file, so the failure always comes while red's suite sleeps. The record run must
 # not wait for red's suite (nor for the bound it gives red, 60 s): red ends its suite on the mark, so it exits within 30 s of the sleeper's start.
-_db3_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 mkdir -p "$DB3/pp/rsl"; cp "$DB3/pp/std/0010-pa.sh" "$DB3/pp/rsl/"
 cat > "$DB3/pp/rsl/0020-pb.sh" <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'

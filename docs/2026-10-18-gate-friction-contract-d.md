@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 10** (2026-10-20 UTC) amends revision 9 after the fourth review of its build and CI's first Linux run of it, in the last section. Revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the section before it, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 11** (2026-10-20 UTC) amends revision 10 after the first pass of D8's evidence on its build, in the last section. Revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the section before it, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -1027,3 +1027,85 @@ Test fixes go to a blind author with this revision, before any code fix: R32, R3
 
 **Deliberately not taken:**
 - conf4 3 (b)'s first remedy, descriptors 10 and above compared from /dev/fd or /proc/$$/fd minus the runner's own: R31 lists them as not compared, for its reason, with a lint.
+
+## Amended after the first evidence pass (revision 11, 2026-10-20)
+
+The first pass of D8's evidence ran on frozen clones of 14b5ec35 (revision 10's build through e731b937, with main e3636d40 merged in), each started from perl with INT and QUIT at their defaults. Its findings are audits/2026-10-18-gate-friction-d/evidence/findings-ev1.md, cited as **ev1** N, N being its numbered items. Its runs are in evidence/runs/: **j1**, the serial record run (`--record-assertions`, 09:51:35-11:16:42Z), and **j8**, the parallel one (`-j 8 --record-assertions`, 09:01:26-09:51:35Z), each with its log.tsv, red.tsv and summary.json, and **compare-j1-j8.txt**, the comparison ev-compare.py made of the two. Load was 7 to 210 during j8 and 9 to 30 during j1.
+
+Revision 7's conventions hold: each amendment names the clauses and lines it replaces, every line it does not name stands, and its "D8 gains" are added to D8's cases for the blind parts. File and line references are to 14b5ec35. Revision 9's rule holds for every case this revision adds: it is red against a build without the rule it names, and where the build already has that rule, against a copy of the build with the rule taken out, the report naming what was taken out and the FAIL it gave. The figures this section gives are ev1's, measured on this Mac on 2026-10-20 (UTC) under that load; what it read from the tree at 14b5ec35 itself, it names by file and line.
+
+### R37. D5, D8: no pipe into a tar that extracts
+
+Answers ev1 1. R37 adds to D5 and to D8.
+- **What failed.** j8 failed six assertions of 1291 that j1 passed: two of D1, two of D2, one of D4 and one of R9, all on its grp copy, each run of which exited 127. Just before them the unit printed two lines, `tar: Write error` and `tar: Error exit delayed from previous errors.`, and `_suite_copy_tree` had returned 1 at its `_copy_content`, so the copy had no `run`, and 1291 does not check `_db1_new grp`'s status (1291:294).
+- **Why.** `_copy_content` (0004:83-87) runs `( ... | tar -c --null -T - -f - ) | tar -x -f - -C "$dest"` under the suite's pipefail. macOS bsdtar 3.5.3's extractor stops reading at the end-of-archive marker and does not drain its input. When the writer still has records to write at that moment, its next write fails with EPIPE, it reports `Write error`, and the pipeline fails. ev1 1 reproduced it: a writer that writes after the archive's end gets `Broken pipe` while the extractor exits 0.
+- **The class.** It is the class of the land contract's A29 (docs/2026-10-15-land-on-green-contract.md:409-421): `git archive | tar -x` under pipefail failed 192 of 1,500 runs on a fixture-sized engine with ten loops at once, and A29 moved main's check off the pipe. The suite kept the pipe, and it is of 0960's class too, a reader that stops early under pipefail, which 0960's lint reads only for grep.
+- **The rule.** Every tar extraction in engine/harness reads an archive written whole to a file first (`tar -c -f FILE`, `git archive -o FILE`), FILE being a file of the call's own under `$TMP`, never a pipe. A `tar -xO -f FILE` whose output is piped to a reader that reads to its end, as 1403's `sed -n 1p` and `grep -c` do, is no extraction from a pipe. The sites at 14b5ec35:
+  - 0004:83-87, `_copy_content`;
+  - 0430:281, 0440:150 and 0940:237, each `git archive | tar -x`;
+  - 1403:85 and 1403:109, each `git archive | tar -xO | ...`;
+  - none in tests/lib, lib, bin or felix.
+- **The control stays.** 1286's `_l7_plain` (1286:78-83) pipes `git archive` into `tar -x` on purpose. It is A29's fixture control: with 1286's stand-in git first on PATH, the pipe fails on each of three runs (1286:86-89). It stays as it is.
+- **Why in D.** D's load makes the race fire: ev1 1 saw one copy fail among the thousands of tar pipes of a `-j 8` record run at load about 200. That one firing changed six verdicts of the equivalence evidence, so `-j 1` and `-j 8` differed by more than D's own differences. A29 measured the class, so R37 does not wait for it to fire again.
+- **Outside D.** projects/felix/snapshot.sh:224 has the same pipe (ev1 1). It is outside what D changes ("Not in this"), and ev1 noted it in memory for its own change.
+- **D8 gains:**
+  - **(a) `_copy_content` whole under a reader that stops early.**
+    - *The stand-in.* A `tar` first on PATH, written by the case, which calls the host's tar by the path `command -v tar` gave before the stand-in was put on PATH. For `-c` it runs the host's tar with the same arguments and then, after a pause (0.5 s, as 1286's stand-in git has it), writes 1 MiB of zero bytes more where the archive went: to standard output when the archive is `-f -` or no `-f` is given, else appended to the file `-f` names. That is what 1286's stand-in git does for `git archive` (1286:71-73). For `-x` it reads its archive, from standard input when the archive is `-f -` or no `-f` is given, else from the file, in records of 512 bytes, up to and including the end-of-archive marker (two records of zeros) and no further, as bsdtar does. It then extracts what it read with the host's tar and exits with that tar's status. So the case means the same under GNU tar, which reads its input to the end. It logs each call's mode to a file of the case.
+    - *Its control.* With the stand-in on PATH, `tar -c -f - DIR | tar -x -f - -C DEST` under pipefail fails on each of three runs, and the log shows both modes called (fixture control, as 1286:86-89 has it for git archive).
+    - *The case.* With the stand-in first on PATH and pipefail set, as the suite sets it, `_copy_content` copies a source that is a git checkout holding a tracked file, an untracked file that is not ignored, and a file in a subdirectory. It returns 0, and the destination holds each of them with the same bytes, and nothing else.
+    - *Red.* It is red against a `_copy_content` that pipes, as 0004:83-87 does at 14b5ec35.
+  - **(b) The lint.** One matcher, in the manner of 0960's `_spl_scan` (0960:9-52), over every file of engine/harness/tests/parts, engine/harness/tests/lib, engine/harness/lib and engine/harness/bin, and engine/harness/felix.
+    - *What it names.* file:line wherever a `|` that is not half of `||` is followed, after optional `command`, `env`, `nice`, `time`, `(` and `{` words, by `tar` with an option word or cluster that holds `x`, or `--extract` or `--get`. An option word or cluster is a word after `tar` that starts with one dash and is not `-` alone (`-x`, `-xO`, `-xzf`), or tar's first word when it has no dash (`xf`, the old style); a long option other than `--extract` and `--get` (`--exclude=x`) is not one.
+    - *How it reads, as 0960's matcher reads.* Comment lines are skipped. A pipe that ends a line, or ends its code before a comment, carries onto the next line of code, and a line may start with the pipe. Quoted strings and trailing comments are read as code, so a string or a comment holding the shape is named.
+    - *On the tree.* On the tree this round lands it names only 1286's control, which it allows by the part's name. At 14b5ec35 it names 1286:78 (the control's head comment), 1286:81 (its pipe) and 1286:88 (the assertion's name, a quoted string), and the six sites of R37's list, so it is red against 14b5ec35. The part that holds the lint holds no line the lint names: its samples are built from pieces at run time, as D1's blind part builds the jobs variable's name.
+    - *Samples*, each a file in a `mktemp -d`, as 0960's are. It flags `x | tar -x -C d`, `x |tar -xf -`, `x | tar xf -`, `x | tar -C d -x`, `x | tar -xO | sed -n 1p`, `x | tar --extract -f -`, `x | tar --get`, `x | command tar -x`, `x | env tar -x`, `x | nice tar -x`, `x | time tar -x`, `x | ( tar -x -C d )`, `x | { tar -x; }`, a pipe that ends a line with `tar -x` on the next, and a line that starts `| tar -x`. It passes `x || tar -x -f a.tar`, `tar -x -f a.tar`, `x | tar -c -f -`, `x | tar -t`, `x | tar -c --exclude=y -f -`, `tar -xO -f a.tar | sed -n 1p`, `tar -c -f - . | cat > a.tar`, and a comment line holding `x | tar -x`.
+    - *What it does not see*, as 0960 lists its own: a VAR=value prefix, a wrapper given options of its own (`nice -n 15`), a tar named by its path or through a variable, a pipe into a function that runs tar, and code built at run time with eval.
+
+### R38. D8: R1's leftover cases and 1292's interrupted record run, red against the base on every run
+
+Answers ev1 2. R38 adds to R1's D8 gains and to D8's evidence.
+- **What differs.** j1's red.tsv names 35 failures and j8's 37, and 31 are in both. The rest are cases that look for a process of red's tree left after a record run: among 1293's R1 names, 4 only in j1 and 4 only in j8; 1295's R1 name only in j8 (ev1 2 counts it with 1293's, as 5); and 1292's D6 case only in j8. Each of the 13 names 1293:137 makes was red in at least one of the two runs, and 8 of them in one only.
+- **Why.** Red's suite runs these cases on the base's tests/red and tests/receipt.sh. Red copies only run, parts, lib and groups.tsv into the base, so `_suite_copy_tree` builds each copy with the base's red and receipt.sh, which lack R1 and R2's stoppers (origin/main's `_rcp_red_end` takes no bound, and its `_rcp_stop` is the one "What decided the list" describes: TERM, a wait, then STOP and KILL to one list). Against such a build, whether a process of red's tree is left when the case looks is a matter of timing. So each case is red only some of the time against the build it must be red against, and red.tsv cannot be the same from one run to the next.
+- **The names.**
+  - 1293's 13 names "R1: and once the record run after ... has exited no process of red's tree is left, stopped or running", one for each runner failure of `_db3_rf` (1293:137, its calls at 1293:163-263);
+  - 1295's "R1: and once that record run has exited no process of red's tree is left, stopped or running" (1295:281);
+  - 1292's "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" (1292:574).
+- **The rule.** Each of these names fails on every run against a build that lacks the rule it names, as red's suite runs it: with the base's tests/red and tests/receipt.sh in each copy. Each passes on every run against D's build.
+- **D8 gains**, as evidence: for each of these cases, three runs against a copy whose tests/red and tests/receipt.sh are origin/main's (`git show origin/main:<path>`) fail every one of its names, and three runs against the branch pass them. The reports of those runs are the evidence, in the PR.
+- **D8's red.tsv clause stands.** After R38 the evidence pass checks that the `-j 1` and `-j 8` record runs give byte-identical red.tsv.
+
+### R39. D8's equivalence clause, D4: the serial record's re-judge section
+
+Answers ev1 4. R39 adds to D8's evidence clause "Equivalence on the real suite".
+- **What differs.** Under `-j N` a record run is not re-judged (D4's re-judge bullet): the tail prints `  no record judge in this suite: the record is not re-judged` (run:448). Under `-j 1` it prints an empty line, `the record this run wrote` and the record judge's names (run:441-446). So the serial record's re-judge section has no `-j` counterpart.
+  - In ev1 4 it was the one difference in the order of the part sections (compare-j1-j8.txt: the first difference at line 303, `the record this run wrote` against the summary, 305 lines serial and 304 parallel).
+  - Beside ev1 1's six, it was the one difference in the (verdict, name) multiset: the serial run had one FAIL more of "this engine's version is above origin/main's when this tree holds commits origin/main lacks", and the three ok lines of red.tsv's record checks.
+- **The section** is the serial run's lines from `the record this run wrote` to the summary that are the record judge's: the header, the judge's assertion lines and their detail lines. The tail's manifest comparison after it (`  ok    every assertion in the manifest was reached`, run:475) is printed by both runs, and stays compared.
+- **The checks.** D8's multiset check and its section-order check leave that section out of the serial run, and the evidence says so, naming the lines left out.
+- **Unchanged.** Everything else in them stands: skips compared by name and by reason, 0573's and 0574's signal cases, the manifest byte for byte, and red.tsv (R38).
+
+### Recorded, with no change
+
+- **ev1 3, the stray lines.** The verdicts are unchanged. Each is a D5 candidate, judged in the PR from the class sweep (D5, D8's "The class"), which runs serially now under evidence/runs/d5:
+  - 0140:208-215 keeps and restores `$FROOT/projects/widget/risk.tsv`, and 0450:376 and 387 keep and restore `widget/maintenance.tsv`. Both are files an earlier part made; in a unit they are absent, and `cp` prints `No such file or directory`;
+  - 0580:274 redirects into `$FROOT/state/discover/`, which an earlier part makes, and its fallback makes it; 0580:341 and 343 read `$FROOT/projects/widget/stack.tsv`, absent in j8's unit;
+  - 0780:31 (`_xc_col`, `printf | awk '... exit'`) printed `write error: Broken pipe` under load, a reader that stops early, of 0960's class;
+  - the parent's R6 notes, `has waited 300 s for a slot`, for 5 units, with the record run and red each at `-j 8` on 10 cores;
+  - lines that differ only in a pid or a line number: 0350's `Terminated` and 1296's `Killed: 9 perl`.
+- **ev1 5 and 6, the parent.** They meet D8.
+  - The parent's own CPU over the `-j 8` run was 3.0 s at its last 1 s sample, 0.7 s before its end, so at most 5 s.
+  - While a planted 20 s unit ran (seconds 2 to 24 of p20b/children.txt), the parent's only children were its three wrappers and its ticker, as R13 has D8 read. A `(bash)` of the prelude at seconds 0 and 1, and the tail's `rm` at second 25, came before and after the unit ran.
+- **ev1 5, the cost.** The cost clause (D8's "Cost, on a quiet machine") is measured after this round, on the tree that lands, with the plain pair (p8 and p1) moved there as ev1 5 says. ev1 5's record-run numbers are reported beside it as measured under load: j1 used 8,354 s of CPU (record and red, getrusage) over 5,107 s of wall, and j8 12,657 s over 3,009 s, above the bound of 9,121 s (1.05 times serial, plus 2 s for each of 175 units), with red at `-j 8` beside the record, so 350 units in all, at load 7 to 210. Savings are still claimed only from CPU measured quiet.
+- **ev1 4, the rest.** assertions.tsv was byte-identical; both runs had no runner failure and no "part left the shell changed", which is R8's evidence gain and R25's binding evidence on 14b5ec35. The evidence pass is run again on the tree this round lands, with R38 and R39.
+- **ev1 1, 1291:294.** 1291 does not check `_db1_new grp`'s status, so a copy that cannot be made fails its cases with exit 127 and no line naming the copy. With R37 the copy no longer fails this way. No change in this revision.
+
+### Every item of ev1, and where it went
+
+Test fixes go to a blind author with this revision, before any code fix: R37's D8 gains (a) and (b), and R38's cases. Code fixes go to the builders once the new blind tests are red: R37's six sites. R39 changes the evidence pass's comparison (ev-compare.py), not the suite.
+
+- ev1 1 (the tar race, the A29 class): R37, every extraction reads an archive written whole to a file, at 0004:83-87, 0430:281, 0440:150, 0940:237, 1403:85 and 1403:109, with 1286's control kept; its D8 gains are `_copy_content` under a stand-in tar and the lint. projects/felix/snapshot.sh:224 is outside D. 1291:294's unchecked status is recorded, with no change.
+- ev1 2 (red.tsv not reproducible): R38, R1's 14 leftover names and 1292's D6 case red against the base on every run, shown by three runs each way; D8's byte-identical red.tsv clause stands.
+- ev1 3 (stray lines): recorded, with no change; D5 candidates, judged in the PR from the class sweep.
+- ev1 4 (order and manifest): R39, the serial re-judge section left out of the multiset and section-order checks, saying so; the manifest's identity and the absence of runner failures and of the seventh failure are recorded, and the pass is run again after this round.
+- ev1 5 (the parent and cost): the parent's 3.0 s meets D8; the cost clause is measured after this round on the tree that lands, with ev1 5's record-run numbers beside it as measured under load.
+- ev1 6 (the planted 20 s unit): meets D8, as R13 reads it.

@@ -1,5 +1,5 @@
 # >>> gate-friction-d-slots-blind
-printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 8)\n'
+printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 10)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -307,11 +307,50 @@ rm -rf "$_db4_td"; mkdir -p "$_db4_td"; _db4_S=""; _db4_go a -j 2; _db4_wait
 _db4_x="$(_db4_slotnames "$_db4_td")"; _db4_y="$(set -- $_db4_x; echo $#)"
 _db4_is "D6: with FELIX_TEST_SLOTS unset the slots are as many as the cores (sysctl, then getconf, then 1, held to 1 to 64), all regular files" "$_db4_rc $_db4_y $(printf '%s' "$_db4_x" | grep -c 'not a file')" "0 $(_db4_cores) 0"
 _db4_td=""; rm -rf "$DB4/n/sf" "$DB4/td-sf"
-# a relative TMPDIR is taken relative to the directory the run started in, so the parent and every holder name one directory (R5)
-_db4_q rl; _db4_td=""; _db4_new rl "$DB4/g-empty.tsv" + "$DB4/pp/rl"/*.sh; mkdir -p "$_db4_F/reltmp"; _db4_tmp=reltmp
+# a TMPDIR relative to the directory the run started in is taken relative to it, so the parent and every holder name one directory (R5). ../reltmp from the copy's checkout F names $_db4_c/reltmp, outside F's
+# checkout (0001 refuses a $TMP made inside it, ci456) and still under $TMP (R12)
+_db4_q rl; _db4_td=""; _db4_new rl "$DB4/g-empty.tsv" + "$DB4/pp/rl"/*.sh; mkdir -p "$_db4_c/reltmp"; _db4_tmp=../reltmp
 _db4_S=3; _db4_go a -j 2; _db4_wait
-_db4_is "R5: under a relative TMPDIR the slot files are made below the directory the run started in, and the run passes: its holders found the files the parent made" "$_db4_rc $(_db4_slotnames "$_db4_F/reltmp") $(_db4_started | wc -w | tr -d ' ')" "0 0 1 2  4"
+_db4_is "R5: under a TMPDIR relative to the directory the run started in, the slot files are made below that directory, and the run passes: its holders found the files the parent made" "$_db4_rc $(_db4_slotnames "$_db4_c/reltmp") $(_db4_started | wc -w | tr -d ' ')" "0 0 1 2  4"
 rm -rf "$DB4/n/rl"
+# R29: a relative TMPDIR is made absolute against the directory the run started in, and exported, before 0001 makes $TMP. GNU mktemp honours TMPDIR, macOS's ignores it (ci456), so a GNU-style mktemp is put first on
+# PATH: only a bare `mktemp -d` honours TMPDIR, makes ${TMPDIR:-/tmp}/tmp.N and prints it as TMPDIR gave it (relative when TMPDIR is), and when it cannot it prints mkdir's line and exits 1; every other form goes to the real one.
+# A part stands in $TMP/cwd (and a unit's in its own run's), so a bare mktemp -d there reads the relative TMPDIR from the wrong place unless every process was given the absolute one
+mkdir -p "$DB4/mkshim"
+cat > "$DB4/mkshim/mktemp" <<'DB4MK'
+#!/bin/sh
+if [ "$#" = 1 ] && [ "$1" = -d ]; then
+  d="${TMPDIR:-/tmp}"; i=0
+  while [ -e "$d/tmp.$$.$i" ]; do i=$((i + 1)); done
+  mkdir -m 0700 "$d/tmp.$$.$i" || exit 1
+  printf '%s\n' "$d/tmp.$$.$i"; exit 0
+fi
+if [ -x /usr/bin/mktemp ]; then exec /usr/bin/mktemp "$@"; fi
+exec /bin/mktemp "$@"
+DB4MK
+chmod +x "$DB4/mkshim/mktemp"
+_db4_w mk 0010-ma.sh <<'X'
+_mk="$(mktemp -d 2>"$DJ4D/mk.err")"; _mks=$?
+printf '%s %s\n' "$_mks" "$_mk" > "$DJ4_MKOUT"
+ok "djy $DJ4N"
+X
+_db4_mkc() {   # JOBS: the copy of case mk under -j JOBS with the shim first on PATH and TMPDIR ../reltmp; _db4_x is "STATUS PART-STATUS below" or what was found instead
+  local j="$1" st=none nm="" ph="" bs="" bl
+  _db4_td=""; _db4_new mk "$DB4/g-empty.tsv" + "$DB4/pp/mk"/0010-ma.sh || { _db4_x="the copy could not be made"; return 0; }
+  mkdir -p "$_db4_c/reltmp"; _db4_tmp=../reltmp
+  _db4_E=(PATH="$DB4/mkshim:$PATH" DJ4_MKOUT="$_db4_c/mk.out.txt")
+  _db4_S=3; _db4_go a -j "$j"; _db4_wait
+  read -r st nm < "$_db4_c/mk.out.txt" 2>/dev/null
+  bs="$(cd "$_db4_c/reltmp" && pwd -P)"
+  case "$nm" in /*) [ -d "$nm" ] && ph="$(cd "$nm" && pwd -P)" ;; esac
+  case "$ph" in "$bs"/?*) bl=below ;; *) bl="not-below [name ${nm:-none} physical ${ph:-none}; $(head -n 1 "$_db4_c/mk.err" 2>/dev/null)]" ;; esac
+  _db4_x="$_db4_rc $st $bl"
+  rm -rf "$DB4/n/mk"
+}
+_db4_mkc 2
+_db4_is "R29: under a TMPDIR relative to the directory the run started in and a GNU-style mktemp first on PATH, a part's bare mktemp -d from its working directory lands below that directory, run under -j 2: the run passes and the part's status is 0" "$_db4_x" "0 0 below"
+_db4_mkc 1
+_db4_is "R29: and under -j 1 the same: exit 0, the part's mktemp -d status 0, and the directory it made is below that directory" "$_db4_x" "0 0 below"
 
 # slots that cannot be taken: the parent refuses, exit 2 and one line, before it starts a unit
 _db4_srv() {   # the -j 2 run in the current copy is refused; _db4_v is "ok" or what differed

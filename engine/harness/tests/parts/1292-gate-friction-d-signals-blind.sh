@@ -1,5 +1,5 @@
 # >>> gate-friction-d-signals-blind
-printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 9)\n'
+printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 10)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -13,7 +13,10 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # ticker with KILL, never TERM; the same holds of the run started with HUP ignored. So the ticker's reset cannot be observed
 # in those runs and rests on review and on R13's measurement of a perl that sets them to their defaults; what the runs pin is
 # that units read what a -j 1 run reads, that the run passes with exit 0 (not the runner's 124) and that nothing of its group is left.
-# Names say the clause: D6 the runner, R2 R4 R13 R18 the amendments.
+# Revision 10 fixes here: proc4 2 (R34): the ps shim of the R2 cases counts only `ps -A` calls, as R19 defines the ending's listing, so a
+# holder's `ps -o ppid= -p WRAPPER` (R20, every 10 s) never takes a number; and proc4 3 (R35): a case for R20's own check, that a holder's
+# wrapper still has the -j parent as its parent, with a ps first on PATH that answers that one call with 1 once a gate file exists.
+# Names say the clause: D6 the runner, R2 R4 R13 R18 R20 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
 # slots; it runs the copy under a bounded runner (run.pl) that makes the run's process group and starts it with
@@ -41,7 +44,7 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others
 # mean something. Against a tree where -j is not understood every run below is a serial one, so each case that
 # would pass serially also asks for something only -j gives.
-DB2="$TMP/db2"; mkdir -p "$DB2/n" "$DB2/pp" "$DB2/psshim"
+DB2="$TMP/db2"; mkdir -p "$DB2/n" "$DB2/pp" "$DB2/psshim" "$DB2/oshim"
 _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=100; _db2_S=8; _db2_td=""; _db2_hp=0; _db2_ctl=0; _db2_bg=0; _db2_rc=0; _db2_lab=""
 _db2_leak=""; _db2_ino0=""; _db2_pipe=0; _db2_late=""; _db2_x=""; _db2_gn=150
 : > "$DB2/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB2/man.tsv"
@@ -78,9 +81,10 @@ while (1) { select(undef, undef, undef, 0.02); spawn() if $t && $mode eq "s" }
 DB2IGN
 cat > "$DB2/psshim/ps" <<'DB2PS'
 #!/bin/sh
-# The real ps ($DJ2_PSREAL), except that the DJ2_PSFAIL-th listing (an argument that holds ppid=) asked for once the file $DJ2_PSTRIG exists
-# fails with no output and status 1. Every listing asked for after the trigger is counted in $DJ2_PSCNT.
-case " $* " in *ppid=*)
+# The real ps ($DJ2_PSREAL), except that the DJ2_PSFAIL-th listing asked for once the file $DJ2_PSTRIG exists fails with no output and status 1. A listing is a
+# `ps -A` call whose arguments hold ppid= (R19, R34): the ending's. A holder's `ps -o ppid= -p WRAPPER` (R20, every 10 s) holds no -A and is never counted.
+# Every listing asked for after the trigger is counted in $DJ2_PSCNT.
+case " $* " in *" -A "*ppid=*)
   if [ -e "$DJ2_PSTRIG" ]; then
     echo x >> "$DJ2_PSCNT"
     [ "$(wc -l < "$DJ2_PSCNT" | tr -d ' ')" != "$DJ2_PSFAIL" ] || exit 1
@@ -485,6 +489,45 @@ _db2_wait; _db2_x="$_db2_rc $(_db2_cnt "$_db2_c/h.out" '  FAIL  part ended witho
 _db2_unhold; _db2_ino0=""
 _db2_is "R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent silent (W = 30) the holder is gone within 3 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt" "$_db2_x" "1 1 absent"
 rm -rf "$DB2/n/hk" "$DB2/td-hk"; _db2_td=""
+
+# ---- R20, R35: a holder also asks, at least every 10 s and just before it forks, who its wrapper's parent is (ps -o ppid= -p WRAPPER), and takes a pid other than the -j parent's for the parent gone.
+# The kill 0 of the parent's pid does not see that while the pid is alive, and R15's start-time comparison is the Linux clock-step hazard R20 removes. A ps first on PATH answers that one call (its arguments
+# hold ppid= and -p and no -A) with 1 once a gate file exists, and logs each answer it gave in $DJ2_PSCNT. The gate is written once the unit is up: within 12 s the unit is gone, the parent fails it without its mark
+cat > "$DB2/oshim/ps" <<'DB2OS'
+#!/bin/sh
+# The real ps ($DJ2_PSREAL), except that once the file $DJ2_GATE exists a call that holds ppid= and -p and no -A prints 1 (and is logged in $DJ2_PSCNT).
+case " $* " in
+  *" -A "*) ;;
+  *ppid=*" -p "*) if [ -e "$DJ2_GATE" ]; then echo x >> "$DJ2_PSCNT"; echo 1; exit 0; fi ;;
+esac
+exec "$DJ2_PSREAL" "$@"
+DB2OS
+chmod +x "$DB2/oshim/ps"
+_db2_w or 0010-oa.sh <<'X'
+printf '%s %s\n' "$$" "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" > "$DJ2D/or.pids"
+: > "$DJ2D/up.$DJ2N"
+_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 450 ]; do sleep 0.2; _i=$((_i + 1)); done
+ok "djy $DJ2N"
+X
+_db2_new or "$DB2/g-empty.tsv" + "$DB2/pp/or"/0010-oa.sh
+_db2_E=(PATH="$DB2/oshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_GATE="$_db2_c/gate" DJ2_PSCNT="$_db2_c/oans")
+_db2_lim=100; _db2_go o -j 2
+_db2_r=""; _db2_until 450 _db2_up 0010-oa.sh || _db2_r=" no unit came up;"
+_db2_ino0="$(_db2_inos "$_db2_tmp")"
+: > "$_db2_c/gate"
+_db2_y="$(perl "$DB2/djk.pl" 0 0 - 12000 pidfile "$_db2_c/or.pids")"
+: > "$_db2_c/release"
+_db2_wait
+# the run is not interrupted: it ends by itself with the unit's failure, so it reaches its end (reached is printed) and _db2_gone's reached test does not apply
+[ "$_db2_rc" = 1 ] || _db2_r="$_db2_r exit $_db2_rc, not 1;"
+_db2_until 25 _db2_clear "$(_db2_pid o)" || _db2_r="$_db2_r still running: $(_db2_ps "$(_db2_pid o)");"
+[ -z "$(_db2_held "$_db2_tmp")" ] || _db2_r="$_db2_r a slot is still held;"
+[ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] || _db2_r="$_db2_r the slot files changed;"
+[ "$(_db2_rcpt)" = absent ] || _db2_r="$_db2_r a receipt was left;"
+_db2_ino0=""
+_db2_x="${_db2_y%% *} $([ "$(wc -l < "$_db2_c/oans" 2>/dev/null | tr -d ' ')" -ge 1 ] 2>/dev/null && echo asked || echo not-asked) $(_db2_cnt "$_db2_c/o.out" '  FAIL  part ended without its mark: 0010-oa.sh')${_db2_r:- ok}"
+_db2_is "R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 12 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left" "$_db2_x" "gone asked 1 ok"
+rm -rf "$DB2/n/or"
 
 # while a unit runs, its holder's stdout and stderr are the unit's log: one regular file, the one the unit's own stdout is
 _db2_w hs 0010-ha.sh <<'X'

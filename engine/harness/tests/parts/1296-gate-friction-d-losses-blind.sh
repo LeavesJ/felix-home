@@ -1,5 +1,5 @@
 # >>> gate-friction-d-losses-blind
-printf '\ngate friction D: the ending under a short read, a lost holder, a parent and a holder killed (blind, author 2; revision 9)\n'
+printf '\ngate friction D: the ending under a short read, a lost holder, a parent and a holder killed (blind, author 2; revision 10)\n'
 # Blind, written on 2026-10-19 from contract D, revision 9 (D1 to D8, "Amended after review 1", "Amended after review 2"
 # and "Amended after review 3"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh are run,
 # never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted parts of this block's
@@ -462,15 +462,18 @@ _db6_is "R14: a ps that shows planted process P's start one second later from th
 _db6_pr r21 twin
 _db6_is "R21: with R, P's child, left out of the ending's first listing and shown from the second, so that step 4 makes a second round, and P's start shifted from the third listing on, after P was sent STOP, P that ignores TERM and R are both gone once the parent has exited with 143, nothing of the run left stopped or running (what a stopper has stopped it signals by its pid)" "$_db6_x" "143 P-gone R-gone none-else [] 0 absent"
 
-# ---- R15 (a), R20: the parent killed with kill -9 while a holder WAITS for a slot (R28). One slot, its lock held by a perl of mine, two parts: once the parent's prelude has ended and 2 s have passed the parent is
-# killed with kill -9. Within 3 s nothing of the run is left, stopped or running; and once I let the slot go no unit starts. A holder that checks the parent only while its unit runs outlives the run, waiting
+# ---- R15 (a), R20: the parent killed with kill -9 while a holder WAITS for a slot (R28, R36). One slot, its lock held by a perl of mine, two parts: once the parent's prelude has ended, a holder has written its slot line
+# (_db6_hpid_up) and 1.5 s have passed (the holder tries each slot, then waits 1 s and tries again, so at least one poll has run) the parent is killed with kill -9. After the prelude's mark the parent still sources 0007 and
+# the lib files before it forks a wrapper, so a kill 2 s after the mark could land before any holder existed and pass for every build. Within 3 s nothing of the run is left, stopped or running; and once I let the slot go no unit
+# starts. A holder that checks the parent only while its unit runs outlives the run, waiting
 _db6_quick pw 0010-wa.sh; _db6_quick pw 0020-wb.sh
 _db6_td="$DB6/td-pw"; rm -rf "$_db6_td"; mkdir -p "$_db6_td"
 _db6_new pw "$DB6/g-empty.tsv" + "$DB6/pp/pw"/*.sh
 _db6_pre; _db6_hold "$_db6_tmp/felix-suite-slots/0"; _db6_ino0="$(_db6_inos "$_db6_tmp")"
 _db6_S=1; _db6_lim=150; _db6_go w -j 2
 _db6_r=""; _db6_until 450 _db6_pre_up || _db6_r=" the parent's prelude never ended;"
-sleep 2
+_db6_until 450 _db6_hpid_up || _db6_r="$_db6_r no holder wrote its slot line before the kill;"
+sleep 1.5
 [ -z "$(_db6_started)" ] || _db6_r="$_db6_r a unit ran while the slot was held elsewhere ($(_db6_started));"
 _db6_g="$(_db6_pid w)"
 _db6_y="$(perl "$DB6/djk.pl" KILL "$_db6_g" - 3000 group "$_db6_g" "$(_db6_key)" "$(_db6_id)")"

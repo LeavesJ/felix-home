@@ -54,14 +54,14 @@ if ($side eq "1") {
   if (!$h) {
     open(STDIN, "<", "/dev/null"); open(STDOUT, ">", "/dev/null"); open(STDERR, ">", "/dev/null");
     $SIG{TERM} = "DEFAULT";
-    sleep 0.1 until -e "$d/hold.release" || time > $t0 + $B + 30;
+    sleep 0.1 until -e "$d/hold.release" || ! -d $d || time > $t0 + $B + 30;
     exit 0;
   }
   put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
-  my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || time > $e;
-  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e } else { put("$d/hold.nogo", ms()) }
+  my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || ! -d $d || time > $e;
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d } else { put("$d/hold.nogo", ms()) }
 } else {
-  my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || time > $e;
+  my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || ! -d $d || time > $e;
   if (-e "$d/hold.start") { put("$d/hold.go", ms()) } else { put("$d/hold.miss", ms()) }
 }
 DB5HOLD

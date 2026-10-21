@@ -25,6 +25,9 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: _db3_ex is not ok when hold.miss or hold.nogo exists, or when the run ended at its bound (exit 124).
 # The sleeper case (R1) holds the same way: its red-only step is one perl process (slp.pl) that writes slept.PID, forks a holder H as hold.pl's step does, sleeps 90 s and exits, so against the base H is still running at the record run's exit.
 # The r27 cases' waits (their 0030 unit's for the sleeper, the ps shim's holds, the controller's waits) last until their run bound (150 s) has passed, and the unit that waits to be killed sleeps that long (R44).
+# R44 and R45 after review: every hold also ends once its case directory is gone (hold.pl's H, step and record half, slp.pl's holder and its 90 s sleep, the ps shim's holds, the 0030 and wat units' waits, the controller's), so a part stopped
+# in the middle of a case leaves no process polling a deleted directory; slp.pl falls through to its sleep when it cannot fork its holder and writes slp.nofork, which fails the sleeper case's second name on either build. The ps shim names the
+# stopper it counts, the monitor (mode mon) or the watcher's stopper (wat), by the R45 fallback: the same pid at two listings at least 0.2 s apart (twice_02), on top of the shape that each mode tests; a $( ) or a probe lists once.
 # R41: every nested run (the gate's too) has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template
 # "$TMPDIR/tmp.XXXXXXXXXX" to the host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it
 # made to mktemp.log. The closing assertion says that the log is not empty (the stand-in was reached) and that every path in it is under this part's own case directories. A case that
@@ -59,14 +62,14 @@ if ($side eq "1") {
   if (!$h) {
     open(STDIN, "<", "/dev/null"); open(STDOUT, ">", "/dev/null"); open(STDERR, ">", "/dev/null");
     $SIG{TERM} = "DEFAULT";
-    sleep 0.1 until -e "$d/hold.release" || time > $t0 + $B + 30;
+    sleep 0.1 until -e "$d/hold.release" || ! -d $d || time > $t0 + $B + 30;
     exit 0;
   }
   put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
-  my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || time > $e;
-  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e } else { put("$d/hold.nogo", ms()) }
+  my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || ! -d $d || time > $e;
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d } else { put("$d/hold.nogo", ms()) }
 } else {
-  my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || time > $e;
+  my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || ! -d $d || time > $e;
   if (-e "$d/hold.start") { put("$d/hold.go", ms()) } else { put("$d/hold.miss", ms()) }
 }
 DB3HOLD
@@ -76,14 +79,15 @@ cat > "$DB3/slp.pl" <<'DB3SLP'
 use strict; use Time::HiRes qw(time sleep);
 my ($d) = @ARGV; my $B = $ENV{DJX_LIM} || 240; my $t0 = time;
 if (open(my $f, ">", "$d/slept.$$")) { printf $f "%d\n", time * 1000; close $f }
-my $h = fork; defined $h or exit 0;
-if (!$h) {
+my $h = fork;
+if (!defined $h) { if (open(my $f, ">", "$d/slp.nofork")) { close $f } }   # no holder: the step still sleeps its 90 s, and the case fails R1's second name (it cannot tell the base from D's build)
+elsif (!$h) {
   open(STDIN, "<", "/dev/null"); open(STDOUT, ">", "/dev/null"); open(STDERR, ">", "/dev/null");
   $SIG{TERM} = "DEFAULT";
-  sleep 0.1 until -e "$d/hold.release" || time > $t0 + $B + 30;
+  sleep 0.1 until -e "$d/hold.release" || ! -d $d || time > $t0 + $B + 30;
   exit 0;
 }
-sleep 90;
+sleep 0.1 while time < $t0 + 90 && -d $d;
 DB3SLP
 _db3_HL='[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'
 _db3_hlim=240; _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; _db3_ctl=0; _db3_ctlr=0; _db3_pf=(); _db3_cl=ok; _db3_ex=ok; _db3_leak=""; _db3_skip=""; _db3_hook=""; _db3_post=""; _db3_postn=""
@@ -417,7 +421,7 @@ cat > "$DB3/pp/rsl/0030-pc.sh" <<'X'
 printf '\ndjx-sec 0030-pc.sh\n'
 ok "djx c1"
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ]; then
-  djx_i=0; while [ -z "$(ls "$DJX_DIR"/slept.* 2>/dev/null)" ] && [ "$djx_i" -lt $((${DJX_LIM:-240} * 5)) ]; do sleep 0.2; djx_i=$((djx_i + 1)); done
+  djx_i=0; while [ -z "$(ls "$DJX_DIR"/slept.* 2>/dev/null)" ] && [ -d "$DJX_DIR" ] && [ "$djx_i" -lt $((${DJX_LIM:-240} * 5)) ]; do sleep 0.2; djx_i=$((djx_i + 1)); done
   kill -9 $$
 fi
 ok "djx c2"
@@ -428,6 +432,7 @@ _db3_start r -j 3 --record-assertions; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex=
 [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
 _db3_t0="$(cat "$_db3_c"/slept.* 2>/dev/null | sed -n 1p)"
 case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper"; _db3_ex="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")"; [ "$_db3_rc" != 124 ] || _db3_ex="the run reached its bound" ;; esac
+[ ! -e "$_db3_c/slp.nofork" ] || _db3_ex="red's suite could not fork the sleeper's holder"   # R44: no holder, so the second name cannot tell the base from D's build
 is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \
    "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_x" "ok within-30s"
 is "R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it" "$_db3_ex $_db3_cl" "ok ok"
@@ -474,8 +479,12 @@ while [ "$i" -lt 8 ] && [ -n "$a" ] && [ "$a" -gt 1 ] 2>/dev/null; do
   a=$("$R" -o ppid= -p "$a" 2>/dev/null); a=$(echo $a); i=$((i + 1))
 done
 case "$gc" in *tests/run\ -j\ 3) inred=1 ;; esac
-hold() { i=0; while [ ! -e "$DJX_DIR/$1" ] && [ "$i" -lt "$((${DJX_LIM:-150} * 5))" ]; do sleep 0.2; i=$((i + 1)); done; }   # R44: until the file is there or the case's run bound has passed; the count in the second argument is the old fixed one and is not used
+hold() { i=0; while [ ! -e "$DJX_DIR/$1" ] && [ -d "$DJX_DIR" ] && [ "$i" -lt "$((${DJX_LIM:-150} * 5))" ]; do sleep 0.2; i=$((i + 1)); done; }   # R44: until the file is there or the case's run bound has passed; the count in the second argument is the old fixed one and is not used
 stopper=0
+# R45: a finder that cannot name its process by what only that process carries (the monitor and the watcher's stopper are forks, with red's command line or the record run's) waits
+# until the same pid holds the shape at two listings at least 0.2 s apart. twice_02 FILE: "first" the first time FILE is used (it records the time), "twice" from the next on, after
+# waiting out the 0.2 s since that first time; nothing when FILE cannot be made. So a $( ) or a probe, which lists once as the pid it is, is never taken for the stopper.
+twice_02() { perl -MTime::HiRes=time,sleep -e '$f = shift; if (!-e $f) { open(H, ">", $f) or exit; printf H "%.3f\n", time; close H; print "first"; exit } open(H, "<", $f); $t = <H> + 0; $w = $t + 0.2 - time; sleep $w if $w > 0; print "twice"' "$1"; }
 case "$DJX_MODE" in
   mon) if [ "$inred" = 1 ]; then
          case "$gc" in
@@ -488,7 +497,10 @@ case "$DJX_MODE" in
        else case "$gc" in *--record-assertions*) [ "$pc0" != "$gc" ] || [ "$gp" = "$(cat "$DJX_DIR/r.pid" 2>/dev/null)" ] || stopper=1 ;; esac; fi ;;
 esac
 if [ "$stopper" = 1 ]; then
-  echo x >> "$DJX_DIR/cnt.$gp"; n=$(wc -l < "$DJX_DIR/cnt.$gp"); n=$(echo $n)
+  echo x >> "$DJX_DIR/cnt.$gp"; n=$(wc -l < "$DJX_DIR/cnt.$gp"); n=$(echo $n)   # the stopper's listings are counted from its first (which changes nothing); the count is of the pid, so the first sight is listing 1
+  [ "$(twice_02 "$DJX_DIR/seen.$gp")" = twice ] || stopper=0
+fi
+if [ "$stopper" = 1 ]; then
   case "$n" in
     2) sleep 1.5 ;;
     3) echo "$gp" > "$DJX_DIR/held.tmp"; mv "$DJX_DIR/held.tmp" "$DJX_DIR/held"; hold termsent 75; sleep 0.5 ;;
@@ -514,8 +526,8 @@ cat > "$DB3/pp/r27/0030-pc.sh" <<'X'
 printf '\ndjx-sec 0030-pc.sh\n'
 ok "djx c1"
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ]; then
-  djx_i=0; while [ -z "$(ls "$DJX_DIR"/slept.* 2>/dev/null)" ] && [ "$djx_i" -lt $((${DJX_LIM:-150} * 5)) ]; do sleep 0.2; djx_i=$((djx_i + 1)); done
-  [ "$DJX_MODE" != wat ] || sleep "${DJX_LIM:-150}"
+  djx_i=0; while [ -z "$(ls "$DJX_DIR"/slept.* 2>/dev/null)" ] && [ -d "$DJX_DIR" ] && [ "$djx_i" -lt $((${DJX_LIM:-150} * 5)) ]; do sleep 0.2; djx_i=$((djx_i + 1)); done
+  if [ "$DJX_MODE" = wat ]; then djx_i=0; while [ -d "$DJX_DIR" ] && [ "$djx_i" -lt $((${DJX_LIM:-150} * 5)) ]; do sleep 0.2; djx_i=$((djx_i + 1)); done; fi   # R44: sleeps B, and ends once the case directory is gone
   kill -9 $$
 fi
 ok "djx c2"
@@ -527,16 +539,17 @@ _db3_emptyby() { local g i=0; g="$(_db3_gs)"; [ -n "${g// /}" ] || return 0; whi
 # pid the runner wrote
 _db3_ctl27() {
   local i=0 p c g n b="${_db3_lim:-150}"   # R44: every wait lasts until the case's run bound has passed
-  while [ ! -s "$_db3_c/r.pid" ] && [ "$i" -lt "$((b * 10))" ]; do sleep 0.1; i=$((i + 1)); done
+  while [ ! -s "$_db3_c/r.pid" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 10))" ]; do sleep 0.1; i=$((i + 1)); done
   g="$(_db3_gs)"
   if [ "$1" = wat ]; then
-    while [ -z "$(ls "$_db3_c"/slept.* 2>/dev/null)" ] && [ "$i" -lt "$((b * 5))" ]; do sleep 0.2; i=$((i + 1)); done
+    while [ -z "$(ls "$_db3_c"/slept.* 2>/dev/null)" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 5))" ]; do sleep 0.2; i=$((i + 1)); done
     p="$(cat "$_db3_c/r.pid" 2>/dev/null)"; c="$(ps -o command= -p "$p" 2>/dev/null)"
     case "$c" in *--record-assertions*) kill -KILL "$p" 2>/dev/null ;; esac
   fi
-  i=0; while [ ! -s "$_db3_c/held" ] && [ "$i" -lt "$((b * 5))" ]; do
+  i=0; while [ ! -s "$_db3_c/held" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 5))" ]; do
     sleep 0.2; i=$((i + 1)); [ $((i % 5)) -ne 0 ] || [ -n "$(_db3_gm $g)" ] || break
   done
+  [ -d "$_db3_c" ] || return 0   # R44: the case directory is gone (the part was stopped): nothing to write into
   [ -s "$_db3_c/held" ] || { echo none > "$_db3_c/ctl.res"; : > "$_db3_c/termsent"; : > "$_db3_c/release"; return 0; }
   p="$(cat "$_db3_c/held")"
   n="$(ps -A -o pid= -o pgid= -o stat= 2>/dev/null | G=" $g " LC_ALL=C awk 'index(ENVIRON["G"], " " $2 " ") && $3 ~ /^T/ { n++ } END { print n + 0 }')"

@@ -158,7 +158,8 @@ _db3_hv() {
   elif [ "$_db3_rc" = 124 ]; then printf 'the run reached its bound'
   else printf '%s' "$1"; fi
 }
-_db3_rel() { local v; v="$(cat "$_db3_c/$1" 2>/dev/null)"; case "$v" in ""|*[!0123456789]*) printf none ;; *) printf '%s' "$((v - $(cat "$_db3_c/run.start" 2>/dev/null || echo 0)))" ;; esac; }   # FILE: its ms, from the run's start
+_db3_df() { local a="${1:-}" b="${2:-}"; case "$a" in ""|*[!0123456789]*) printf none; return 0 ;; esac; case "$b" in ""|*[!0123456789]*) printf none; return 0 ;; esac; printf '%s' "$((10#$a - 10#$b))"; }   # A B: A - B in ms, or none when either is not a number (a missing or empty file must not end the part: R46 evidence fields)
+_db3_rel() { _db3_df "$(cat "$_db3_c/$1" 2>/dev/null)" "$(cat "$_db3_c/run.start" 2>/dev/null)"; }   # FILE: its ms, from the run's start (none when either is missing)
 _db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findings _db3_leak keep
   local e h=0; for e in ${_db3_E[@]+"${_db3_E[@]}"}; do case "$e" in DJX_HOLD=*) h=1 ;; esac; done   # a run that holds is given DJX_HOLD
   _db3_start "$@"; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; [ "$h" = 0 ] || _db3_ex="$(_db3_hv "$_db3_ex")"
@@ -167,8 +168,8 @@ _db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findi
   [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
   # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, and (R46) the times to hold.start, hold.go and the exit from the run's start, in ms
   [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db3_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s ex %s\n' "${_db3_c##*/}" \
-    "$([ -e "$_db3_c/hold.ended" ] && echo $(($(cat "$_db3_c/hold.ended") - $(cat "$_db3_c/hold.go"))) || echo natural)" "$((_db3_t1 - $(cat "$_db3_c/hold.go")))" \
-    "$(_db3_rel hold.start)" "$(_db3_rel hold.go)" "$((_db3_t1 - $(cat "$_db3_c/run.start")))" "$_db3_ex" >> "$DJX_MLOG"
+    "$([ -e "$_db3_c/hold.ended" ] && _db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/hold.go" 2>/dev/null)")" \
+    "$(_db3_rel hold.start)" "$(_db3_rel hold.go)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")" "$_db3_ex" >> "$DJX_MLOG"
 }
 _db3_rcpt() { if [ -f "$_db3_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db3_last() { tail -n 1 "$_db3_c/$1.out" 2>/dev/null; }
@@ -436,7 +437,7 @@ _db3_lim="$_db3_hlim"; _db3_E=(DJX_SLP="$DB3/slp.pl" DJX_LIM="$_db3_hlim")
 _db3_start r -j 3 --record-assertions; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; : > "$_db3_c/hold.release"; _db3_cl="$(_db3_clean)"; unset _db3_lim
 [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
 _db3_t0="$(cat "$_db3_c"/slept.* 2>/dev/null | sed -n 1p)"
-case "$_db3_t0" in ""|*[!0123456789]*) ;; *) [ -z "${DJX_MLOG:-}" ] || printf '%s start-to-slept %s start-to-exit %s\n' "${_db3_c##*/}" "$((_db3_t0 - $(cat "$_db3_c/run.start")))" "$((_db3_t1 - $(cat "$_db3_c/run.start")))" >> "$DJX_MLOG" ;; esac   # R46 evidence only
+case "$_db3_t0" in ""|*[!0123456789]*) ;; *) [ -z "${DJX_MLOG:-}" ] || printf '%s start-to-slept %s start-to-exit %s\n' "${_db3_c##*/}" "$(_db3_df "$_db3_t0" "$(cat "$_db3_c/run.start" 2>/dev/null)")" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")" >> "$DJX_MLOG" ;; esac   # R46 evidence only
 case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper"; _db3_ex="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")"; [ "$_db3_rc" != 124 ] || _db3_ex="the run reached its bound" ;; esac
 [ ! -e "$_db3_c/slp.nofork" ] || _db3_ex="red's suite could not fork the sleeper's holder"   # R44: no holder, so the second name cannot tell the base from D's build
 is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \

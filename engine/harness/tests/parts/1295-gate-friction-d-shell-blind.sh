@@ -144,7 +144,8 @@ _db5_hv() {
   elif [ "$_db5_rc" = 124 ]; then printf 'the run reached its bound'
   else printf '%s' "$1"; fi
 }
-_db5_rel() { local v; v="$(cat "$_db5_c/$1" 2>/dev/null)"; case "$v" in ""|*[!0123456789]*) printf none ;; *) printf '%s' "$((v - $(cat "$_db5_c/run.start" 2>/dev/null || echo 0)))" ;; esac; }   # FILE: its ms, from the run's start
+_db5_df() { local a="${1:-}" b="${2:-}"; case "$a" in ""|*[!0123456789]*) printf none; return 0 ;; esac; case "$b" in ""|*[!0123456789]*) printf none; return 0 ;; esac; printf '%s' "$((10#$a - 10#$b))"; }   # A B: A - B in ms, or none when either is not a number (a missing or empty file must not end the part: R46 evidence fields)
+_db5_rel() { _db5_df "$(cat "$_db5_c/$1" 2>/dev/null)" "$(cat "$_db5_c/run.start" 2>/dev/null)"; }   # FILE: its ms, from the run's start (none when either is missing)
 _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findings _db5_leak keeps
   local e h=0; for e in ${_db5_E[@]+"${_db5_E[@]}"}; do case "$e" in DJX_HOLD=*) h=1 ;; esac; done   # a run that holds is given DJX_HOLD
   _db5_start "$@"; _db5_wait; _db5_reap; _db5_t1="$(_db5_ms)"; _db5_ex="$(_db5_atexit)"; [ "$h" = 0 ] || _db5_ex="$(_db5_hv "$_db5_ex")"
@@ -153,8 +154,8 @@ _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findi
   [ "$_db5_cl" = ok ] || _db5_leak="$_db5_leak [$_db5_c: $_db5_cl]"
   # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, and (R46) the times to hold.start, hold.go and the exit from the run's start, in ms
   [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s ex %s\n' "${_db5_c##*/}" \
-    "$([ -e "$_db5_c/hold.ended" ] && echo $(($(cat "$_db5_c/hold.ended") - $(cat "$_db5_c/hold.go"))) || echo natural)" "$((_db5_t1 - $(cat "$_db5_c/hold.go")))" \
-    "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$((_db5_t1 - $(cat "$_db5_c/run.start")))" "$_db5_ex" >> "$DJX_MLOG"
+    "$([ -e "$_db5_c/hold.ended" ] && _db5_df "$(cat "$_db5_c/hold.ended" 2>/dev/null)" "$(cat "$_db5_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/hold.go" 2>/dev/null)")" \
+    "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/run.start" 2>/dev/null)")" "$_db5_ex" >> "$DJX_MLOG"
 }
 _db5_rcpt() { if [ -f "$_db5_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db5_last() { tail -n 1 "$_db5_c/$1.out" 2>/dev/null; }

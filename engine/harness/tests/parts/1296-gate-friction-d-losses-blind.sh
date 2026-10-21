@@ -1,5 +1,5 @@
 # >>> gate-friction-d-losses-blind
-printf '\ngate friction D: the ending under a short read, a lost holder, a parent and a holder killed (blind, author 2; revision 10)\n'
+printf '\ngate friction D: the ending under a short read, a lost holder, a parent and a holder killed (blind, author 2; revision 12)\n'
 # Blind, written on 2026-10-19 from contract D, revision 9 (D1 to D8, "Amended after review 1", "Amended after review 2"
 # and "Amended after review 3"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh are run,
 # never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted parts of this block's
@@ -42,9 +42,28 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 # - R22: the holder's ps -o lstart= -p for the unit it forked is the first such call after the gate file (the holder's
 #   own was made before it took its first try, while the case held the slot). One case makes every such call print
 #   nothing, one holds the first and kills the holder with kill -9 in that window; the unit must not run in either.
-# R37 (revision 11, D8 gains a and b) is the block at the end, between "R37 begin" and "R37 end".
+# R37 (revision 11, D8 gains a and b) is the block at the end, between "R37 begin" and "R37 end", with R42 (a) and (b) of revision 12 (a skipped name, and the lint over every text file
+# under engine/harness but the three tables, with groups and backslash continuations read).
+# R41 (revision 12): every nested run has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX"
+# to the host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it made to mktemp.log.
+# The closing assertion says that the log is not empty (the stand-in was reached) and that every path in it is under this part's own case directories. A case that puts its own PATH
+# in _db6_E (the ps shims) has the stand-in directory put in front of that PATH by _db6_run.
 # An assertion whose name ends in (control) passes before D is built on purpose.
-DB6="$TMP/db6"; mkdir -p "$DB6/n" "$DB6/pp" "$DB6/psshim"
+DB6="$TMP/db6"; mkdir -p "$DB6/n" "$DB6/pp" "$DB6/psshim" "$DB6/mk"
+_db6_mkreal="$(command -v mktemp)"
+cat > "$DB6/mk/mktemp" <<'DB6MK'
+#!/bin/sh
+# mktemp for R41: the host's ($DB6_MKREAL), logging each path it made to $DB6_MKLOG. With no template argument (only options) it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX".
+t=0
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+if [ "$t" = 0 ] && [ -n "${TMPDIR:-}" ]; then   # R41-RULE
+  set -- "$@" "${TMPDIR%/}/tmp.XXXXXXXXXX"
+fi
+out="$("$DB6_MKREAL" "$@")" || exit $?
+printf '%s\n' "$out" >> "$DB6_MKLOG"
+printf '%s\n' "$out"
+DB6MK
+chmod +x "$DB6/mk/mktemp"; : > "$DB6/mktemp.log"
 _db6_E=(); _db6_I=DEFAULT; _db6_Q=DEFAULT; _db6_lim=100; _db6_S=8; _db6_td=""; _db6_hp=0; _db6_ctl=0; _db6_bg=0; _db6_rc=0; _db6_lab=""
 _db6_leak=""; _db6_ino0=""; _db6_late=""; _db6_x=""; _db6_gn=150; _db6_W=""; _db6_twice=""; _db6_ol=""
 : > "$DB6/g-empty.tsv"
@@ -163,9 +182,12 @@ _db6_new() {
 }
 # ARG...: the copy's driver under run.pl, TMPDIR $_db6_tmp, INT and QUIT as _db6_I and _db6_Q, FELIX_TEST_SLOTS=$_db6_S (none when empty), _db6_E added
 _db6_run() {
+  local e p=0
+  _db6_ea=(); for e in ${_db6_E[@]+"${_db6_E[@]}"}; do case "$e" in PATH=*) e="PATH=$DB6/mk:${e#PATH=}"; p=1 ;; esac; _db6_ea[${#_db6_ea[@]}]="$e"; done
+  [ "$p" = 1 ] || _db6_ea[${#_db6_ea[@]}]="PATH=$DB6/mk:$PATH"
   ( cd "$_db6_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u FELIX_TEST_RED_JOBS -u PERL5OPT TMPDIR="$_db6_tmp" \
-      ${_db6_S:+FELIX_TEST_SLOTS=$_db6_S} ${_db6_E[@]+"${_db6_E[@]}"} perl "$DB6/run.pl" "$_db6_lim" "$_db6_I" "$_db6_Q" "$_db6_c/$_db6_lab.pid" \
+      DB6_MKREAL="$_db6_mkreal" DB6_MKLOG="$DB6/mktemp.log" ${_db6_S:+FELIX_TEST_SLOTS=$_db6_S} ${_db6_ea[@]+"${_db6_ea[@]}"} perl "$DB6/run.pl" "$_db6_lim" "$_db6_I" "$_db6_Q" "$_db6_c/$_db6_lab.pid" \
       "$BASH" "$_db6_T/run" "$@" )
 }
 # LABEL ARG...: the run in the background; its pid file is $_db6_c/LABEL.pid (the run's group), its output LABEL.out and LABEL.err
@@ -622,7 +644,7 @@ chmod +x "$DB7/bin/tar"
 # own, INT and QUIT at their defaults), then R12's group check; _db7_rc is the status
 _db7_run() {
   local l="$1" sc="$2"; shift 2
-  perl "$DB6/run.pl" 90 DEFAULT DEFAULT "$DB7/$l.pid" env PATH="$DB7/bin:$PATH" TMPDIR="$DB7/tmp" DB7_TAR="$_db7_host" DB7_LOG="$DB7/tar.log" DB7_TMPD="$DB7/tmp" \
+  perl "$DB6/run.pl" 90 DEFAULT DEFAULT "$DB7/$l.pid" env PATH="$DB7/bin:$DB6/mk:$PATH" TMPDIR="$DB7/tmp" DB6_MKREAL="$_db6_mkreal" DB6_MKLOG="$DB6/mktemp.log" DB7_TAR="$_db7_host" DB7_LOG="$DB7/tar.log" DB7_TMPD="$DB7/tmp" \
     "$BASH" -c "$sc" _ "$@" > "$DB7/$l.out" 2> "$DB7/$l.err"
   _db7_rc=$?
   _db6_grp "$(cat "$DB7/$l.pid" 2>/dev/null)"
@@ -661,45 +683,107 @@ _db7_x="$_db7_x [$(cd "$DB7/dest" 2>/dev/null && find . | LC_ALL=C sort | tr '\n
 _db6_is "R37: _copy_content, with a tar first on PATH that writes past the end-of-archive marker and an extractor that stops there, and pipefail set, copies a checkout's tracked file, untracked file and file in a subdirectory: it returns 0, each has the same bytes, and nothing else is in the destination" \
   "$_db7_x" "0 same same same [. ./sub ./sub/deep.txt ./tracked.txt ./untracked.txt ]"
 
-# (b) the lint: one matcher, the samples as the contract lists them, then the five places
-_db7_scan() {
-  LC_ALL=C awk '
-    # tar, after the words that may stand before it, given an option that extracts.
-    function early(s,   n, w, i, c) {
-      sub(/^[ \t]+/, "", s)
-      while (s ~ /^(command|env|nice|time)[ \t]/ || s ~ /^[(]/ || s ~ /^[{][ \t]/) {
-        if (s ~ /^[(]/) sub(/^[(][ \t]*/, "", s)
-        else if (s ~ /^[{]/) sub(/^[{][ \t]+/, "", s)
-        else sub(/^[^ \t]*[ \t]+/, "", s)
-      }
-      if (s !~ /^tar[ \t]/) return 0
-      sub(/(\||;|&&|[ \t]#).*/, "", s)
-      n = split(s, w, /[ \t]+/)
-      for (i = 2; i <= n; i++) {
-        c = w[i]
-        if (c == ")" || c == "}" || c == "&") break
-        if (c ~ /^--/) { if (c ~ /^--(extract|get)(=|$)/) return 1; continue }
-        if (c ~ /^-./) { if (c ~ /x/) return 1; continue }
-        if (i == 2 && c ~ /^[A-Za-z]+$/ && c ~ /x/) return 1
-      }
-      return 0
-    }
-    FNR == 1 { open = 0 }
-    /^[ \t]*(#|$)/ { next }
-    {
-      hit = open && early($0)
-      rest = $0
-      while (!hit && (j = index(rest, "|")) > 0) {
-        if (substr(rest, j + 1, 1) == "|") { rest = substr(rest, j + 2); continue }
-        rest = substr(rest, j + 1)
-        hit = early(rest)
-      }
-      if (hit) print FILENAME ":" FNR
-      t = $0; sub(/[ \t]*(\\[ \t]*)?$/, "", t)
-      open = (t ~ /(^|[^|])[|]([ \t]+#.*)?$/)
-    }
-  ' "$@"
+# R42 (a): a tracked file deleted from the working tree is skipped (git lists it, the disk has not), and the skip is no failure even when it is the last path git lists. The source has a.txt and
+# sub/b.txt tracked, zz-gone.txt tracked and then removed, and c-untracked.txt not ignored (git lists the untracked first, so the deleted file is the last); the case measures which path is last.
+mkdir -p "$DB7/src2/sub"
+_db7_pay a > "$DB7/src2/a.txt"; _db7_pay b > "$DB7/src2/sub/b.txt"; _db7_pay z > "$DB7/src2/zz-gone.txt"
+( _fx_cd "$DB7/src2" && git init -q -b main && git add a.txt sub/b.txt zz-gone.txt \
+    && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm base ) >/dev/null 2>&1
+rm -f "$DB7/src2/zz-gone.txt"; _db7_pay c > "$DB7/src2/c-untracked.txt"
+_db7_last="$(cd "$DB7/src2" && git ls-files -co --exclude-standard -z . | tr '\0' '\n' | tail -n 1)"
+rm -rf "$DB7/dest2"
+_db7_run k4 "$(declare -f _copy_content); set -o pipefail; _copy_content \"\$1\" \"\$2\"" "$DB7/src2" "$DB7/dest2"
+_db7_x="$_db7_rc $_db7_last"
+for _db7_f in a.txt sub/b.txt c-untracked.txt; do
+  if cmp -s "$DB7/src2/$_db7_f" "$DB7/dest2/$_db7_f" 2>/dev/null; then _db7_x="$_db7_x same"; else _db7_x="$_db7_x differs($_db7_f)"; fi
+done
+_db7_x="$_db7_x [$(cd "$DB7/dest2" 2>/dev/null && find . | LC_ALL=C sort | tr '\n' ' ')]"
+_db6_is "R42: _copy_content, with the last path git lists a tracked file deleted from the working tree and pipefail set, returns 0 and copies every other file with the same bytes, and nothing else is in the destination" \
+  "$_db7_x" "0 zz-gone.txt same same same [. ./a.txt ./c-untracked.txt ./sub ./sub/b.txt ]"
+
+# (b) the lint: one matcher (perl, in scan.pl), the samples as the contract lists them, then every text file under engine/harness but the three tables
+# scan.pl FILE...: FILE:LINE of the line of each extracting tar that a pipe feeds. A file is read as a stream of its code lines: comment and blank lines are left out, a line that ends in a backslash
+# runs on into the next, and the text of a trailing comment stays (it is read as code). After a pipe (a | that is not half of ||), blanks, newlines and a comment that follows the pipe on its
+# line are passed over, then the words command, env, nice and time; what stands there is an extracting tar, or a ( group, or a { group, any of whose simple commands (its text split at &&, ||, |,
+# ; and line ends, up to the group's own close) is one. An extracting tar is the word tar given an option word that holds x (-x, -xO, -xzf, --extract, --get), or xf and the like as its first word.
+cat > "$DB7/scan.pl" <<'DB7SCAN'
+use strict; use warnings;
+sub xtar {
+  my ($s, $i) = @_;
+  pos($s) = $i;
+  while ($s =~ /\G(?:command|env|nice|time)[ \t]+/gc) { $i = pos($s) }
+  pos($s) = $i;
+  return -1 unless $s =~ /\Gtar(?=[ \t])/gc;
+  my $rest = substr($s, $i + 3, 4000);
+  $rest =~ s/(?:\||;|&&|\n|[ \t]#).*//s;
+  my @w = grep { $_ ne "" } split /[ \t]+/, $rest;
+  for my $k (0 .. $#w) {
+    my $c = $w[$k];
+    last if $c eq ")" || $c eq "}" || $c eq "&";
+    if ($c =~ /\A--/) { return $i if $c =~ /\A--(?:extract|get)(?:=|\z)/; next }
+    if ($c =~ /\A-./) { return $i if $c =~ /x/; next }
+    return $i if $k == 0 && $c =~ /\A[A-Za-z]+\z/ && $c =~ /x/;
+  }
+  return -1;
 }
+my %hit;
+for my $f (@ARGV) {
+  open(my $h, "<", $f) or next;
+  my ($s, @st, @no) = ("");
+  my ($n, $cont) = (0, 0);
+  while (my $l = <$h>) {
+    $n++; chomp $l;
+    next if !$cont && $l =~ /\A[ \t]*(?:#|\z)/;
+    push @st, length($s); push @no, $n;
+    if ($l =~ /\\[ \t]*\z/) { $l =~ s/\\[ \t]*\z/ /; $s .= $l; $cont = 1 }
+    else { $s .= $l . "\n"; $cont = 0 }
+  }
+  close $h;
+  my $line = sub { my ($o) = @_; my ($lo, $hi) = (0, $#st); while ($lo < $hi) { my $m = int(($lo + $hi + 1) / 2); if ($st[$m] <= $o) { $lo = $m } else { $hi = $m - 1 } } $no[$lo] };
+  my $len = length($s); my $p = 0;
+  while (($p = index($s, "|", $p)) >= 0) {
+    if (substr($s, $p + 1, 1) eq "|") { $p += 2; next }
+    my $q = $p + 1;
+    for (;;) {
+      $q++ while $q < $len && substr($s, $q, 1) =~ /[ \t\n]/;
+      if (substr($s, $q, 1) eq "#") { $q++ while $q < $len && substr($s, $q, 1) ne "\n"; next }
+      last;
+    }
+    my $t = $q;
+    pos($s) = $t;
+    while ($s =~ /\G(?:command|env|nice|time)[ \t]+/gc) { $t = pos($s) }
+    my $o = substr($s, $t, 1);
+    if ($o eq "(" || ($o eq "{" && substr($s, $t + 1, 1) =~ /[ \t\n]/)) {
+      my $d = 0; my $e;
+      for ($e = $t; $e < $len; $e++) {
+        my $x = substr($s, $e, 1);
+        if ($o eq "(") { $d++ if $x eq "("; if ($x eq ")") { $d--; last if $d == 0 } }
+        else {
+          my $pv = $e > 0 ? substr($s, $e - 1, 1) : " "; my $nx = substr($s, $e + 1, 1);
+          $d++ if $x eq "{" && $pv =~ /[ \t\n;&|(]/ && $nx =~ /[ \t\n]/;
+          if ($x eq "}" && $pv =~ /[ \t\n;&]/ && ($nx eq "" || $nx =~ /[ \t\n;&|)<>]/)) { $d--; last if $d == 0 }
+        }
+      }
+      my $b0 = $t + 1; my $body = substr($s, $b0, $e - $t - 1);
+      pos($body) = 0;
+      while (pos($body) < length($body)) {
+        $body =~ /\G(.*?)(?:&&|\|\||\||;|\n|\z)/gcs or last;
+        my ($ss, $mend) = ($-[1], $+[0]);
+        my $seg = $1; my $lead = $seg =~ /\A[ \t({!]*/ ? length($&) : 0;
+        my $r = xtar($body, $ss + $lead);
+        $hit{"$f:" . $line->($b0 + $r)} = 1 if $r >= 0;
+        last if $mend >= length($body);
+      }
+    } else {
+      my $r = xtar($s, $t);
+      $hit{"$f:" . $line->($r)} = 1 if $r >= 0;
+    }
+    $p = $q > $p ? $q : $p + 1;
+  }
+}
+print "$_\n" for sort { my ($fa, $la) = $a =~ /\A(.*):(\d+)\z/; my ($fb, $lb) = $b =~ /\A(.*):(\d+)\z/; $fa cmp $fb || $la <=> $lb } keys %hit;
+DB7SCAN
+_db7_scan() { perl "$DB7/scan.pl" "$@"; }
 _db7_f() {   # SAMPLE: the line numbers the matcher names in it
   printf '%s\n' "$1" > "$DB7/s/sample"
   ( cd "$DB7/s" && _db7_scan sample ) | awk -F: '{ printf "%s%s", s, $NF; s = " " }'
@@ -753,28 +837,75 @@ x | \"\$t\" -x -f -
 x | /usr/bin/$_db7_T -x
 x | LC_ALL=C $_db7_T -x
 x | nice -n 15 $_db7_T -x")" ""
+# R42 (b): groups whose later commands extract, and options on past a trailing backslash. The line named is the line of the tar word.
+_db6_is "R42: the lint flags a pipe into a group when a later command of the group extracts: after && in a ( group, after || and ; in a ( group, and after ; in a { group" \
+  "$(_db7_f "x | (cd \"\$d\" && $_db7_T -xf -)
+x | ( cd \"\$d\" || exit 1; $_db7_T -x -f - )
+x | { cd \"\$d\"; $_db7_T -x; }")" "1 2 3"
+_db6_is "R42: the lint flags a ( group that opens on the pipe's line and holds the cd and the extracting tar on lines of their own, and a { group the same" \
+  "$(_db7_f "x | (
+  cd \"\$d\"
+  $_db7_T -x -f -
+)
+y | {
+  cd \"\$d\"
+  $_db7_T -x
+}")" "3 7"
+_db6_is "R42: the lint flags tar's option x on the line after a trailing backslash, and on a line two on after another option line" \
+  "$(_db7_f "x | $_db7_T -C \"\$d\" \\
+    -x -f -
+y | $_db7_T -C \"\$d\" \\
+    -f - \\
+    -x")" "1 3"
+_db6_is "R42: the lint leaves a group that only writes or lists, an extracting tar after the group's own close, and a backslash continuation with no x" \
+  "$(_db7_f "x | ( cd \"\$d\" && $_db7_T -c -f - . )
+x | { cd \"\$d\"; $_db7_T -t; }
+x | ( cd \"\$d\" && cat ); $_db7_T -x -f a.tar
+x | $_db7_T -C \"\$d\" \\
+    -c -f -")" ""
 
-# the five places: tests/parts, tests/lib, lib, bin and felix
-_db7_files() { find "$HERE/parts" "$HERE/lib" "$REAL_HARNESS/lib" "$REAL_HARNESS/bin" -type f 2>/dev/null | LC_ALL=C sort; printf '%s\n' "$REAL_HARNESS/felix"; }
-_db7_tree() {
-  local f; set --
-  while IFS= read -r f; do set -- "$@" "$f"; done < <(_db7_files)
-  [ "$#" -gt 1 ] || return 1
-  _db7_scan "$@" | LC_ALL=C awk -v r="$REAL_HARNESS/" 'index($0, r) == 1 { $0 = substr($0, length(r) + 1) } { print }'
+# the scope: every text file under a root but tests/assertions.tsv, tests/red.tsv and tests/groups.tsv, and no binary file
+_db7_files() {   # ROOT: the paths, one a line
+  find "$1" -type f 2>/dev/null | LC_ALL=C sort | while IFS= read -r f; do
+    case "$f" in "$1/tests/assertions.tsv"|"$1/tests/red.tsv"|"$1/tests/groups.tsv") ;; *) printf '%s\n' "$f" ;; esac
+  done | perl -ne 'chomp; print "$_\n" unless -B $_ && -s $_'
 }
-_db7_raw="$(_db7_tree)"
+_db7_tree() {   # ROOT: the lint over every file of _db7_files, as ROOT-relative FILE:LINE
+  local r="$1" f; set --
+  while IFS= read -r f; do set -- "$@" "$f"; done < <(_db7_files "$r")
+  [ "$#" -gt 0 ] || return 1
+  _db7_scan "$@" | LC_ALL=C awk -v r="$r/" 'index($0, r) == 1 { $0 = substr($0, length(r) + 1) } { print }'
+}
+_db7_scope() {   # a planted root, the shape in each file of it: the ones named, sorted
+  local r="$DB7/scope" f
+  rm -rf "$r"; mkdir -p "$r/tests/parts" "$r/tests/lib" "$r/hooks" "$r/lib" "$r/bin" "$r/templates/setup"
+  for f in tests/run tests/red tests/receipt.sh tests/parts/p.sh tests/lib/l.sh hooks/h.sh lib/l.sh bin/b templates/t.yml templates/setup/s.sh felix tests/assertions.tsv tests/red.tsv tests/groups.tsv; do
+    printf 'x | %s -x -f -\n' "$_db7_T" > "$r/$f"
+  done
+  printf 'x | %s -x -f -\n\0\0\0\0\0\0\0\0' "$_db7_T" > "$r/bin/blob"
+  _db7_tree "$r" | LC_ALL=C sort | tr '\n' ' '
+}
+_db6_is "R42: the lint reads every text file under the root but the three tables (tests/assertions.tsv, tests/red.tsv, tests/groups.tsv): tests/run, tests/red, tests/receipt.sh, hooks, templates, lib, bin, felix, tests/lib and tests/parts are named, a binary file is not" \
+  "$(_db7_scope)" "bin/b:1 felix:1 hooks/h.sh:1 lib/l.sh:1 templates/setup/s.sh:1 templates/t.yml:1 tests/lib/l.sh:1 tests/parts/p.sh:1 tests/receipt.sh:1 tests/red:1 tests/run:1 "
+
+# the tree
+_db7_raw="$(_db7_tree "$REAL_HARNESS")"
 _db7_n="$(printf '%s\n' "$_db7_raw" | LC_ALL=C awk -F: '$1 ~ /(^|\/)1286-land-on-green-round-6-blind[.]sh$/ { printf "%s ", $2 }')"
 _db7_x="$(LC_ALL=C awk -v h=" $_db7_n" 'index(h, " " FNR " ") && index($0, "archive") { n++ } END { print n + 0 }' "$HERE"/parts/1286-land-on-green-round-6-blind.sh 2>/dev/null)"
 is "R37: the lint names 1286's own pipe of git archive into tar -x, so it reads the parts directory (control)" "$([ "$_db7_x" -ge 1 ] 2>/dev/null && echo named || echo "not named (hits in 1286: [$_db7_n])")" "named"
 _db7_sites="$(printf '%s\n' "$_db7_raw" | LC_ALL=C awk -F: '$1 !~ /(^|\/)1286-land-on-green-round-6-blind[.]sh$/ && NF > 1 { printf "%s ", $0 }')"
 if [ -z "$_db7_sites" ]; then
-  ok "R37: no file of tests/parts, tests/lib, lib, bin or felix other than 1286 pipes into a tar that extracts"
+  ok "R42: no text file under engine/harness other than 1286 (the three tables aside: tests/lib, tests/run, tests/red, tests/receipt.sh, hooks, lib, bin, templates, felix and the parts) pipes into a tar that extracts"
 else
-  bad "R37: no file of tests/parts, tests/lib, lib, bin or felix other than 1286 pipes into a tar that extracts" "named at: $_db7_sites"
+  bad "R42: no text file under engine/harness other than 1286 (the three tables aside: tests/lib, tests/run, tests/red, tests/receipt.sh, hooks, lib, bin, templates, felix and the parts) pipes into a tar that extracts" "named at: $_db7_sites"
 fi
 is "R37: this part holds no line the lint names, the stand-in case's and the samples' lines included" "$(_db7_scan "$HERE/parts/1296-gate-friction-d-losses-blind.sh" | tr '\n' ' ')" ""
 unset _db7_raw _db7_n _db7_x _db7_sites
 # ---- R37 end
+
+# R41: the stand-in mktemp was reached by the nested runs, and every path it logged is under this part's own case directories
+_db6_x="$(LC_ALL=C awk -v p="$DB6/n/" -v q="$DB6/td-" -v r="$DB7/" '{ t++; if (index($0, p) != 1 && index($0, q) != 1 && index($0, r) != 1) { o++; if (o <= 3) b = b " [" $0 "]" } } END { if (t == 0) print "no path logged"; else if (o) print o " of " t " outside:" b; else print "ok" }' "$DB6/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for this part's nested runs (a run's \$TMP among them) is under this part's own case directories, and it logged some" "${_db6_x:-no log}" ok
 
 # ---- the part leaves the shell as it found it
 rm -rf "${DB6:?}" "${DB7:?}"

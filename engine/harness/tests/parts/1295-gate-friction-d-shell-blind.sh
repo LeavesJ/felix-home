@@ -1,6 +1,6 @@
 # >>> gate-friction-d-shell-blind
-printf '\ngate friction D: the shell a unit leaves for the parts after it (blind, revision 9)\n'
-# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16, R24, R28), with R31 of revision 10 added. Nothing here was read off an
+printf '\ngate friction D: the shell a unit leaves for the parts after it (blind, revision 12)\n'
+# Blind, written from contract D revision 9 alone (docs/2026-10-18-gate-friction-contract-d.md: D3, D8, R8, R12, R16, R24, R28), with R31 of revision 10, R38 of revision 11 and R41 and R42 (e) of revision 12 added. Nothing here was read off an
 # implementation; tests/run is run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each with planted parts of
 # this block's own. Every case points TMPDIR at a fixture directory, runs every inner run under a bounded runner that makes its own process group and
 # resets HUP and TERM, and ends by asking that group to hold no live process, stopped or running (zombies aside), for 30 s; what is left is named,
@@ -12,9 +12,59 @@ printf '\ngate friction D: the shell a unit leaves for the parts after it (blind
 # part that only the -j 1 run holds, a control (a function that forwards, which R28 no longer counts as a case of the seventh failure).
 # Names say the clause: R8 the first comparison, R16 what it was widened to, R24 every builtin's status, aliases and readonly functions, R28 the
 # shadows that forward nothing, the watched variables, a trap removed and a group. Each change line is the one the contract gives, as written.
+# R41: every nested run has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX" to the
+# host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it made to mktemp.log.
+# The closing assertions say that the log is not empty (the stand-in was reached) and that every path in it is under this part's own case directories.
+# R42 (e), after R38: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so the record run's exit with a runner failure is, there, only
+# after red's suite has ended by itself, and what is left of red's tree then is a matter of timing. The record run therefore gives red's suite (DJX_HOLD names hold.pl, for that run
+# alone) a red-only holder H, planted in the last part that fails (the line sits before its change): where FELIX_TEST_NO_MANIFEST=1 the part makes the case's hold.dir (only the first
+# to do so goes on), starts H (a process that ends within 0.2 s of hold.release appearing, and on its own 60 s after it started),
+# writes hold.pid and hold.start and waits until hold.go exists and C = 10 s more; in the record run the same part waits for hold.start (60 s at most) and writes hold.go. That part
+# is the last to start in the record run, so its failure comes a second or two after hold.go (DJX_MLOG, when it names a file, logs the measure): against D's build red's monitor ends red's suite on the failed mark while the step holds,
+# H with it, and nothing of red's tree is left when the record run exits; against a build without R1 red's suite goes on after C and ends by itself, leaving H running, and the
+# name fails on every run. _db5_run writes hold.release as soon as _db5_atexit has listed, before _db5_clean. The step is one perl process (no short-lived child to be left behind).
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB5="$TMP/db5"
-mkdir -p "$DB5/pp/std" "$DB5/pp/sh" "$DB5/exp" "$DB5/n"
+mkdir -p "$DB5/pp/std" "$DB5/pp/sh" "$DB5/exp" "$DB5/n" "$DB5/mk"
+_db5_mkreal="$(command -v mktemp)"
+cat > "$DB5/mk/mktemp" <<'DB5MK'
+#!/bin/sh
+# mktemp for R41: the host's ($DB5_MKREAL), logging each path it made to $DB5_MKLOG. With no template argument (only options) it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX".
+t=0
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+if [ "$t" = 0 ] && [ -n "${TMPDIR:-}" ]; then   # R41-RULE
+  set -- "$@" "${TMPDIR%/}/tmp.XXXXXXXXXX"
+fi
+out="$("$DB5_MKREAL" "$@")" || exit $?
+printf '%s\n' "$out" >> "$DB5_MKLOG"
+printf '%s\n' "$out"
+DB5MK
+chmod +x "$DB5/mk/mktemp"; : > "$DB5/mktemp.log"
+cat > "$DB5/hold.pl" <<'DB5HOLD'
+# hold.pl SIDE DIR (R42 e, as part 1293's): SIDE 1 is red's suite (FELIX_TEST_NO_MANIFEST=1), anything else the record run. DIR is the case's directory.
+use strict; use Time::HiRes qw(time sleep);
+my ($side, $d) = @ARGV;
+sub ms { sprintf "%d\n", time * 1000 }
+sub put { my ($f, $t) = @_; open(my $h, ">", "$f.t") or return; print $h $t; close $h; rename "$f.t", $f }
+if ($side eq "1") {
+  mkdir "$d/hold.dir" or exit 0;
+  $SIG{TERM} = sub { put("$d/hold.ended", ms()); exit 143 };
+  my $t0 = time; my $h = fork; defined $h or exit 0;
+  if (!$h) {
+    open(STDIN, "<", "/dev/null"); open(STDOUT, ">", "/dev/null"); open(STDERR, ">", "/dev/null");
+    $SIG{TERM} = "DEFAULT";
+    sleep 0.1 until -e "$d/hold.release" || time > $t0 + 60;
+    exit 0;
+  }
+  put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
+  my $e = $t0 + 60; sleep 0.1 until -e "$d/hold.go" || time > $e;
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e }
+} else {
+  my $e = time + 60; sleep 0.1 until -e "$d/hold.start" || time > $e;
+  put("$d/hold.go", ms());
+}
+DB5HOLD
+_db5_HL='[ -z "${DJX_HOLD:-}" ] || command perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'   # command: a serial red suite runs the earlier parts first, one of which defines a perl that does nothing
 _db5_E=(); _db5_pf=(); _db5_cl=ok; _db5_ex=ok; _db5_leak=""; _db5_ctl=0; _db5_lim=150
 cat > "$DB5/run.pl" <<'DB5PL'
 my ($t, $f) = splice(@ARGV, 0, 2);
@@ -77,15 +127,21 @@ _db5_start() {
   local l="$1"; shift
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR -u EXECIGNORE \
-      TMPDIR="$_db5_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
+      TMPDIR="$_db5_tmp" PATH="$DB5/mk:$PATH" DB5_MKREAL="$_db5_mkreal" DB5_MKLOG="$DB5/mktemp.log" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
       perl "$DB5/run.pl" "$_db5_lim" "$_db5_c/$l.pid" "$BASH" "$_db5_T/run" "$@" \
   ) < /dev/null > "$_db5_c/$l.out" 2> "$_db5_c/$l.err" &
   _db5_bg=$!; _db5_pf[${#_db5_pf[@]}]="$_db5_c/$l.pid"
 }
 _db5_wait() { { wait "$_db5_bg"; } 2>/dev/null; _db5_rc=$?; _db5_E=(); }
+_db5_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findings _db5_leak keeps
-  _db5_start "$@"; _db5_wait; _db5_reap; _db5_ex="$(_db5_atexit)"; _db5_cl="$(_db5_clean)"
+  _db5_start "$@"; _db5_wait; _db5_reap; _db5_t1="$(_db5_ms)"; _db5_ex="$(_db5_atexit)"
+  : > "$_db5_c/hold.release"   # R42 (e): the red-only holder ends (within 0.2 s) as soon as the listings are taken, so _db5_clean has about a second to wait for
+  _db5_cl="$(_db5_clean)"
   [ "$_db5_cl" = ok ] || _db5_leak="$_db5_leak [$_db5_c: $_db5_cl]"
+  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, in ms
+  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s ex %s\n' "${_db5_c##*/}" \
+    "$([ -e "$_db5_c/hold.ended" ] && echo $(($(cat "$_db5_c/hold.ended") - $(cat "$_db5_c/hold.go"))) || echo natural)" "$((_db5_t1 - $(cat "$_db5_c/hold.go")))" "$_db5_ex" >> "$DJX_MLOG"
 }
 _db5_rcpt() { if [ -f "$_db5_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db5_last() { tail -n 1 "$_db5_c/$1.out" 2>/dev/null; }
@@ -221,6 +277,9 @@ while [ "$_db5_k" -le "$_db5_n" ]; do
   case "${_db5_sk[$_db5_k]}" in c) ;; *) _db5_a3[${#_db5_a3[@]}]="$_db5_f" ;; esac
   _db5_k=$((_db5_k + 1))
 done
+# R42 (e): the last part that fails gets the hold line, before its change (its second line); every other run has no DJX_HOLD, and the line then does nothing
+_db5_hf="${_db5_px[${#_db5_px[@]} - 1]}"
+{ sed -n 1p "$_db5_hf"; printf '%s\n' "$_db5_HL"; sed -n '2,$p' "$_db5_hf"; } > "$_db5_hf.t" && mv "$_db5_hf.t" "$_db5_hf"
 _db5_oks() {   # OUT KINDS: the ok line of every planted part of those kinds is in OUT exactly once: "ok", or the names of those that are not
   local k=1 r="" c
   while [ "$k" -le "$_db5_n" ]; do
@@ -276,7 +335,8 @@ is "R8: under -j 1 none of them gives the seventh failure (R24, R28 included), a
    "$(_db5_cnt "$_db5_c/s1.out" "  FAIL  $_db5_w") $(_db5_oks s1.out xpsc) $_db5_cl" "0 ok ok"
 
 # ---- a record run: the seventh failure writes no manifest, and red.tsv holds the two retraction rows
-_db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_run r -j 3 --record-assertions
+_db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_E=(DJX_ULIM="$_db5_ul" DJX_HOLD="$DB5/hold.pl"); _db5_lim=240   # R42 (e): the red-only holder, for this run alone
+_db5_run r -j 3 --record-assertions; _db5_lim=150
 is "R8: in a record run the seventh failure writes no manifest, and red.tsv holds the rows base - - - and run - - -, with no process left" "$(_db5_chkr r "${_db5_xx[@]}") $_db5_cl" "ok ok"
 is "R1: and once that record run has exited no process of red's tree is left, stopped or running" "$_db5_ex" ok
 rm -rf "$DB5/n/sh" "$DB5/n/sj" "$DB5/n/sr"
@@ -524,6 +584,9 @@ is "R31: the lint names the tops of files, of loops, of brace groups and of case
 rm -rf "$DB5/lint" "$DB5/shapes"
 
 is "R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given" "${_db5_leak:-none}" none
+# R41: the stand-in mktemp was reached by the nested runs, and every path it logged is under this part's own case directories
+_db5_x="$(LC_ALL=C awk -v p="$DB5/n/" '{ t++; if (index($0, p) != 1) { o++; if (o <= 3) b = b " [" $0 "]" } } END { if (t == 0) print "no path logged"; else if (o) print o " of " t " outside:" b; else print "ok" }' "$DB5/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for this part's nested runs (a run's \$TMP among them) is under this part's own case directories, and it logged some" "${_db5_x:-no log}" ok
 unset -f $(compgen -A function _db5_) 2>/dev/null
 unset $(compgen -A variable _db5_) DB5 2>/dev/null
 # <<< gate-friction-d-shell-blind

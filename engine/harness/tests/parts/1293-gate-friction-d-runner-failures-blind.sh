@@ -22,9 +22,27 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # exits with H in its group at both of _db3_atexit's listings; against D's build red's monitor ends red's suite on the failed mark while the step holds, H
 # with it, so nothing is left. _db3_run writes hold.release as soon as _db3_atexit has listed, so _db3_clean waits about a second, not its 30 s. The step is
 # one perl process (no short-lived child to be left behind), run by the part's one line, so the unit's shell is not changed.
+# R41: every nested run (the gate's too) has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template
+# "$TMPDIR/tmp.XXXXXXXXXX" to the host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it
+# made to mktemp.log. The closing assertion says that the log is not empty (the stand-in was reached) and that every path in it is under this part's own case directories. A case that
+# puts its own PATH in _db3_E (the ps shims of R27) has the stand-in directory put in front of that PATH by _db3_start.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB3="$TMP/db3"
-mkdir -p "$DB3/pp/std" "$DB3/n"
+mkdir -p "$DB3/pp/std" "$DB3/n" "$DB3/mk"
+_db3_mkreal="$(command -v mktemp)"
+cat > "$DB3/mk/mktemp" <<'DB3MK'
+#!/bin/sh
+# mktemp for R41: the host's ($DB3_MKREAL), logging each path it made to $DB3_MKLOG. With no template argument (only options) it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX".
+t=0
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+if [ "$t" = 0 ] && [ -n "${TMPDIR:-}" ]; then   # R41-RULE
+  set -- "$@" "${TMPDIR%/}/tmp.XXXXXXXXXX"
+fi
+out="$("$DB3_MKREAL" "$@")" || exit $?
+printf '%s\n' "$out" >> "$DB3_MKLOG"
+printf '%s\n' "$out"
+DB3MK
+chmod +x "$DB3/mk/mktemp"; : > "$DB3/mktemp.log"
 cat > "$DB3/hold.pl" <<'DB3HOLD'
 # hold.pl SIDE DIR (R38): SIDE 1 is red's suite (FELIX_TEST_NO_MANIFEST=1), anything else the record run. DIR is the case's directory.
 use strict; use Time::HiRes qw(time sleep);
@@ -98,10 +116,12 @@ _db3_new() {
 }
 # LABEL ARG...: the copy's driver in the background under a bounded runner (stdout LABEL.out, stderr LABEL.err, the group's id LABEL.pid)
 _db3_start() {
-  local l="$1"; shift
+  local l="$1" e p=0; shift
+  _db3_ea=(); for e in ${_db3_E[@]+"${_db3_E[@]}"}; do case "$e" in PATH=*) e="PATH=$DB3/mk:${e#PATH=}"; p=1 ;; esac; _db3_ea[${#_db3_ea[@]}]="$e"; done
+  [ "$p" = 1 ] || _db3_ea[${#_db3_ea[@]}]="PATH=$DB3/mk:$PATH"
   ( cd "$_db3_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT \
-      TMPDIR="$_db3_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db3_c" DJX_CFG="$_db3_F/.git/config" DJX_KEEP=1 ${_db3_E[@]+"${_db3_E[@]}"} \
+      TMPDIR="$_db3_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db3_c" DJX_CFG="$_db3_F/.git/config" DJX_KEEP=1 DB3_MKREAL="$_db3_mkreal" DB3_MKLOG="$DB3/mktemp.log" ${_db3_ea[@]+"${_db3_ea[@]}"} \
       perl "$DB3/run.pl" "${_db3_lim:-150}" "$_db3_INT" "$_db3_QUIT" "$_db3_c/$l.pid" "$BASH" "$_db3_T/run" "$@" \
   ) > "$_db3_c/$l.out" 2> "$_db3_c/$l.err" &
   _db3_bg=$!; _db3_pf[${#_db3_pf[@]}]="$_db3_c/$l.pid"
@@ -640,7 +660,7 @@ chmod +x "$_db3_G/engine/harness/tests/run"
 _db3_gate() {   # LABEL ENV...: gate.sh in the fixture, the stub recording as LABEL
   local l="$1"; shift
   ( cd "${_db3_G:?}" && perl "$DB3/run.pl" 90 DEFAULT DEFAULT "$DB3/gout/$l.pid" env -u FELIX_TEST_NO_MANIFEST -u GITHUB_ACTIONS -u FELIX_TEST_JOBS \
-      FELIX_KERNEL_CACHE="$_db3_G/no-cache" TMPDIR="$DB3/gtmp" DJX_OUT="$DB3/gout" DJX_L="$l" ${1+"$@"} bash projects/felix/gate.sh ) > "$DB3/gout/$l.out" 2>&1
+      FELIX_KERNEL_CACHE="$_db3_G/no-cache" TMPDIR="$DB3/gtmp" PATH="$DB3/mk:$PATH" DB3_MKREAL="$_db3_mkreal" DB3_MKLOG="$DB3/mktemp.log" DJX_OUT="$DB3/gout" DJX_L="$l" ${1+"$@"} bash projects/felix/gate.sh ) > "$DB3/gout/$l.out" 2>&1
 }
 _db3_gate g1; _db3_gate g2 GITHUB_ACTIONS=true; _db3_gate g3 DJX_EXIT2=1; _db3_gate g4 GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
 is "D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)" "$(cat "$DB3/gout/g1.jobs" 2>/dev/null)" "$(_db3_cores)"
@@ -650,6 +670,9 @@ is "D1: and its argument list stays --reuse, in all three (control)" "$(cat "$DB
 is "D1: when tests/run exits 2, the log's last line is shown under tests FAIL" \
    "$(LC_ALL=C awk '/^  tests +FAIL$/ { f = 1; next } f && index($0, "djx stub: a refusal of its own") { h = 1 } END { print f + 0, h + 0 }' "$DB3/gout/g3.out" 2>/dev/null)" "1 1"
 is "R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given" "${_db3_leak:-none}" none
+# R41: the stand-in mktemp was reached by the nested runs, and every path it logged is under this part's own case directories
+_db3_x="$(LC_ALL=C awk -v p="$DB3/n/" -v q="$DB3/gtmp/" '{ t++; if (index($0, p) != 1 && index($0, q) != 1) { o++; if (o <= 3) b = b " [" $0 "]" } } END { if (t == 0) print "no path logged"; else if (o) print o " of " t " outside:" b; else print "ok" }' "$DB3/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for this part's nested runs (a run's \$TMP among them) is under this part's own case directories, and it logged some" "${_db3_x:-no log}" ok
 unset -f $(compgen -A function _db3_) 2>/dev/null
 unset $(compgen -A variable _db3_) DB3 2>/dev/null
 # <<< gate-friction-d-runner-failures-blind

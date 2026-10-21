@@ -17,16 +17,16 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # exits there only once red's suite has ended by itself, and what is left of red's tree then is a matter of timing. Each _db3_rf case therefore plants, in
 # its record half only (DJX_HOLD names hold.pl, which the case gives that run alone, and DJX_LIM the case's run bound B, 240 s, the same as _db3_lim), a red-only holder H: red's suite, at the planted step, makes the case's
 # hold.dir (only the first to do so goes on), starts H (a process that ends within 0.2 s of hold.release appearing, and on its own only once B + 30 s have passed since it started),
-# writes hold.pid and hold.start, then waits until hold.go exists, for B at most (without it, it writes hold.nogo and goes on), and C = 10 s more. The record run's own units wait for hold.start (B at most; if it never came they write hold.miss and no hold.go) and write
+# writes hold.pid and hold.start, then waits until hold.go exists, for B at most (without it, it goes on all the same, R46), and C = 10 s more. The record run's own units wait for hold.start (B at most; if it never came they write no hold.go, R46) and write
 # hold.go, then fail as the case says. Against a build without R1 red's suite goes on after C and ends by itself, leaving H running, so the record run
 # exits with H in its group at both of _db3_atexit's listings; against D's build red's monitor ends red's suite on the failed mark while the step holds, H
 # with it, so nothing is left. _db3_run writes hold.release as soon as _db3_atexit has listed, so _db3_clean waits about a second, not its 30 s. The step is
 # one perl process (no short-lived child to be left behind), run by the part's one line, so the unit's shell is not changed.
-# R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: _db3_ex is not ok when hold.miss or hold.nogo exists, or when the run ended at its bound (exit 124).
+# R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: R46: _db3_hv gives R1's verdict on a record half that holds, ok only when hold.start exists (else "red's suite never reached its hold"), hold.go exists (else "the record run never reached its hold"), the run did not end at its bound (exit 124: "the run reached its bound") and the listings at the exit find nothing, the first that fails giving the got. hold.miss and hold.nogo are not written: run.pl's KILL at B comes before either could be. DJX_MLOG's line for a case that held also gives, in ms from the run's start (_db3_start writes it to run.start), the times to hold.start, to hold.go and to the exit.
 # The sleeper case (R1) holds the same way: its red-only step is one perl process (slp.pl) that writes slept.PID, forks a holder H as hold.pl's step does, sleeps 90 s and exits, so against the base H is still running at the record run's exit.
 # The r27 cases' waits (their 0030 unit's for the sleeper, the ps shim's holds, the controller's waits) last until their run bound (150 s) has passed, and the unit that waits to be killed sleeps that long (R44).
 # R44 and R45 after review: every hold also ends once its case directory is gone (hold.pl's H, step and record half, slp.pl's holder and its 90 s sleep, the ps shim's holds, the 0030 and wat units' waits, the controller's), so a part stopped
-# in the middle of a case leaves no process polling a deleted directory; slp.pl falls through to its sleep when it cannot fork its holder and writes slp.nofork, which fails the sleeper case's second name on either build. The ps shim names the
+# in the middle of a case leaves no process polling a deleted directory; slp.pl falls through to its sleep when it cannot fork its holder and writes slp.nofork, which fails the sleeper case's second name on either build (R46: its verdict needs slept.* the same way, before the bound and the listings). The ps shim names the
 # stopper it counts, the monitor (mode mon) or the watcher's stopper (wat), by the R45 fallback: the same pid at two listings at least 0.2 s apart (twice_02), on top of the shape that each mode tests; a $( ) or a probe lists once.
 # R41: every nested run (the gate's too) has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template
 # "$TMPDIR/tmp.XXXXXXXXXX" to the host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it
@@ -67,10 +67,10 @@ if ($side eq "1") {
   }
   put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
   my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || ! -d $d || time > $e;
-  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d } else { put("$d/hold.nogo", ms()) }
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d }
 } else {
   my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || ! -d $d || time > $e;
-  if (-e "$d/hold.start") { put("$d/hold.go", ms()) } else { put("$d/hold.miss", ms()) }
+  if (-e "$d/hold.start") { put("$d/hold.go", ms()) }
 }
 DB3HOLD
 cat > "$DB3/slp.pl" <<'DB3SLP'
@@ -141,6 +141,7 @@ _db3_start() {
   local l="$1" e p=0; shift
   _db3_ea=(); for e in ${_db3_E[@]+"${_db3_E[@]}"}; do case "$e" in PATH=*) e="PATH=$DB3/mk:${e#PATH=}"; p=1 ;; esac; _db3_ea[${#_db3_ea[@]}]="$e"; done
   [ "$p" = 1 ] || _db3_ea[${#_db3_ea[@]}]="PATH=$DB3/mk:$PATH"
+  _db3_ms > "$_db3_c/run.start"   # R46: the run's start, ms (evidence fields of DJX_MLOG)
   ( cd "$_db3_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT \
       TMPDIR="$_db3_tmp" FELIX_TEST_SLOTS=8 DJX_DIR="$_db3_c" DJX_CFG="$_db3_F/.git/config" DJX_KEEP=1 DB3_MKREAL="$_db3_mkreal" DB3_MKLOG="$DB3/mktemp.log" ${_db3_ea[@]+"${_db3_ea[@]}"} \
@@ -149,21 +150,25 @@ _db3_start() {
   _db3_bg=$!; _db3_pf[${#_db3_pf[@]}]="$_db3_c/$l.pid"
 }
 _db3_wait() { { wait "$_db3_bg"; } 2>/dev/null; _db3_rc=$?; _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; }
-# R44: R1's verdict on a record run that held: not ok when the hold did not happen (hold.miss: red's suite never reached its step; hold.nogo: the record run never reached its wait) or when the run ended at its bound (exit 124)
+# R46: R1's verdict on a record run that held ($1: what the listings at its exit found): the first of these that fails gives the got. hold.start missing: red's suite never reached its step; hold.go missing: the record run never reached its wait;
+# the run ended at its bound (exit 124); else what the listings found.
 _db3_hv() {
-  if [ -e "$_db3_c/hold.miss" ]; then printf "red's suite never reached its hold"
-  elif [ -e "$_db3_c/hold.nogo" ]; then printf 'the record run never reached its hold'
+  if [ ! -e "$_db3_c/hold.start" ]; then printf "red's suite never reached its hold"
+  elif [ ! -e "$_db3_c/hold.go" ]; then printf 'the record run never reached its hold'
   elif [ "$_db3_rc" = 124 ]; then printf 'the run reached its bound'
   else printf '%s' "$1"; fi
 }
+_db3_rel() { local v; v="$(cat "$_db3_c/$1" 2>/dev/null)"; case "$v" in ""|*[!0123456789]*) printf none ;; *) printf '%s' "$((v - $(cat "$_db3_c/run.start" 2>/dev/null || echo 0)))" ;; esac; }   # FILE: its ms, from the run's start
 _db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findings _db3_leak keep
-  _db3_start "$@"; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; _db3_ex="$(_db3_hv "$_db3_ex")"
+  local e h=0; for e in ${_db3_E[@]+"${_db3_E[@]}"}; do case "$e" in DJX_HOLD=*) h=1 ;; esac; done   # a run that holds is given DJX_HOLD
+  _db3_start "$@"; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; [ "$h" = 0 ] || _db3_ex="$(_db3_hv "$_db3_ex")"
   : > "$_db3_c/hold.release"   # R38: the red-only holder ends (within 0.2 s) as soon as the listings are taken, so _db3_clean has about a second to wait for
   _db3_cl="$(_db3_clean)"
   [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
-  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, in ms
-  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db3_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s ex %s\n' "${_db3_c##*/}" \
-    "$([ -e "$_db3_c/hold.ended" ] && echo $(($(cat "$_db3_c/hold.ended") - $(cat "$_db3_c/hold.go"))) || echo natural)" "$((_db3_t1 - $(cat "$_db3_c/hold.go")))" "$_db3_ex" >> "$DJX_MLOG"
+  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, and (R46) the times to hold.start, hold.go and the exit from the run's start, in ms
+  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db3_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s ex %s\n' "${_db3_c##*/}" \
+    "$([ -e "$_db3_c/hold.ended" ] && echo $(($(cat "$_db3_c/hold.ended") - $(cat "$_db3_c/hold.go"))) || echo natural)" "$((_db3_t1 - $(cat "$_db3_c/hold.go")))" \
+    "$(_db3_rel hold.start)" "$(_db3_rel hold.go)" "$((_db3_t1 - $(cat "$_db3_c/run.start")))" "$_db3_ex" >> "$DJX_MLOG"
 }
 _db3_rcpt() { if [ -f "$_db3_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db3_last() { tail -n 1 "$_db3_c/$1.out" 2>/dev/null; }
@@ -431,6 +436,7 @@ _db3_lim="$_db3_hlim"; _db3_E=(DJX_SLP="$DB3/slp.pl" DJX_LIM="$_db3_hlim")
 _db3_start r -j 3 --record-assertions; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; : > "$_db3_c/hold.release"; _db3_cl="$(_db3_clean)"; unset _db3_lim
 [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
 _db3_t0="$(cat "$_db3_c"/slept.* 2>/dev/null | sed -n 1p)"
+case "$_db3_t0" in ""|*[!0123456789]*) ;; *) [ -z "${DJX_MLOG:-}" ] || printf '%s start-to-slept %s start-to-exit %s\n' "${_db3_c##*/}" "$((_db3_t0 - $(cat "$_db3_c/run.start")))" "$((_db3_t1 - $(cat "$_db3_c/run.start")))" >> "$DJX_MLOG" ;; esac   # R46 evidence only
 case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper"; _db3_ex="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 30000 ] && echo within-30s || echo "took $((_db3_t1 - _db3_t0)) ms")"; [ "$_db3_rc" != 124 ] || _db3_ex="the run reached its bound" ;; esac
 [ ! -e "$_db3_c/slp.nofork" ] || _db3_ex="red's suite could not fork the sleeper's holder"   # R44: no holder, so the second name cannot tell the base from D's build
 is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \

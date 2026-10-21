@@ -19,11 +19,11 @@ printf '\ngate friction D: the shell a unit leaves for the parts after it (blind
 # after red's suite has ended by itself, and what is left of red's tree then is a matter of timing. The record run therefore gives red's suite (DJX_HOLD names hold.pl, for that run
 # alone, and DJX_LIM the case's run bound B, 240 s, the same as _db5_lim) a red-only holder H, planted in the last part that fails (the line sits before its change): where FELIX_TEST_NO_MANIFEST=1 the part makes the case's hold.dir (only the first
 # to do so goes on), starts H (a process that ends within 0.2 s of hold.release appearing, and on its own only once B + 30 s have passed since it started),
-# writes hold.pid and hold.start and waits until hold.go exists, for B at most (without it, it writes hold.nogo and goes on), and C = 10 s more; in the record run the same part waits for hold.start (B at most; if it never came it writes hold.miss and no hold.go)
+# writes hold.pid and hold.start and waits until hold.go exists, for B at most (without it, it goes on all the same, R46), and C = 10 s more; in the record run the same part waits for hold.start (B at most; if it never came it writes no hold.go, R46)
 # and writes hold.go. That part is the last to start in the record run, so its failure comes a second or two after hold.go (DJX_MLOG, when it names a file, logs the measure): against D's build red's monitor ends red's suite on the failed mark while the step holds,
 # H with it, and nothing of red's tree is left when the record run exits; against a build without R1 red's suite goes on after C and ends by itself, leaving H running, and the
 # name fails on every run. _db5_run writes hold.release as soon as _db5_atexit has listed, before _db5_clean. The step is one perl process (no short-lived child to be left behind).
-# R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: _db5_ex is not ok when hold.miss or hold.nogo exists, or when the run ended at its bound (exit 124).
+# R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: R46: _db5_hv gives R1's verdict on a record half that holds, ok only when hold.start exists (else "red's suite never reached its hold"), hold.go exists (else "the record run never reached its hold"), the run did not end at its bound (exit 124: "the run reached its bound") and the listings at the exit find nothing, the first that fails giving the got. hold.miss and hold.nogo are not written: run.pl's KILL at B comes before either could be. DJX_MLOG's line for a case that held also gives, in ms from the run's start (_db5_start writes it to run.start), the times to hold.start, to hold.go and to the exit.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB5="$TMP/db5"
 mkdir -p "$DB5/pp/std" "$DB5/pp/sh" "$DB5/exp" "$DB5/n" "$DB5/mk"
@@ -59,10 +59,10 @@ if ($side eq "1") {
   }
   put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
   my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || ! -d $d || time > $e;
-  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d } else { put("$d/hold.nogo", ms()) }
+  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d }
 } else {
   my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || ! -d $d || time > $e;
-  if (-e "$d/hold.start") { put("$d/hold.go", ms()) } else { put("$d/hold.miss", ms()) }
+  if (-e "$d/hold.start") { put("$d/hold.go", ms()) }
 }
 DB5HOLD
 _db5_HL='[ -z "${DJX_HOLD:-}" ] || command perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'   # command: a serial red suite runs the earlier parts first, one of which defines a perl that does nothing
@@ -126,6 +126,7 @@ _db5_new() {
 # LABEL.pid). LC_ALL, LC_COLLATE, CLAUDE_CONFIG_DIR and EXECIGNORE are taken out of its environment, so that a part that exports them adds them.
 _db5_start() {
   local l="$1"; shift
+  _db5_ms > "$_db5_c/run.start"   # R46: the run's start, ms (evidence fields of DJX_MLOG)
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR -u EXECIGNORE \
       TMPDIR="$_db5_tmp" PATH="$DB5/mk:$PATH" DB5_MKREAL="$_db5_mkreal" DB5_MKLOG="$DB5/mktemp.log" FELIX_TEST_SLOTS=8 DJX_DIR="$_db5_c" DJX_PL="$DB5" DJX_KEEP=1 ${_db5_E[@]+"${_db5_E[@]}"} \
@@ -135,21 +136,25 @@ _db5_start() {
 }
 _db5_wait() { { wait "$_db5_bg"; } 2>/dev/null; _db5_rc=$?; _db5_E=(); }
 _db5_ms() { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
-# R44: R1's verdict on a record run that held: not ok when the hold did not happen (hold.miss: red's suite never reached its step; hold.nogo: the record run never reached its wait) or when the run ended at its bound (exit 124)
+# R46: R1's verdict on a record run that held ($1: what the listings at its exit found): the first of these that fails gives the got. hold.start missing: red's suite never reached its step; hold.go missing: the record run never reached its wait;
+# the run ended at its bound (exit 124); else what the listings found.
 _db5_hv() {
-  if [ -e "$_db5_c/hold.miss" ]; then printf "red's suite never reached its hold"
-  elif [ -e "$_db5_c/hold.nogo" ]; then printf 'the record run never reached its hold'
+  if [ ! -e "$_db5_c/hold.start" ]; then printf "red's suite never reached its hold"
+  elif [ ! -e "$_db5_c/hold.go" ]; then printf 'the record run never reached its hold'
   elif [ "$_db5_rc" = 124 ]; then printf 'the run reached its bound'
   else printf '%s' "$1"; fi
 }
+_db5_rel() { local v; v="$(cat "$_db5_c/$1" 2>/dev/null)"; case "$v" in ""|*[!0123456789]*) printf none ;; *) printf '%s' "$((v - $(cat "$_db5_c/run.start" 2>/dev/null || echo 0)))" ;; esac; }   # FILE: its ms, from the run's start
 _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findings _db5_leak keeps
-  _db5_start "$@"; _db5_wait; _db5_reap; _db5_t1="$(_db5_ms)"; _db5_ex="$(_db5_atexit)"; _db5_ex="$(_db5_hv "$_db5_ex")"
+  local e h=0; for e in ${_db5_E[@]+"${_db5_E[@]}"}; do case "$e" in DJX_HOLD=*) h=1 ;; esac; done   # a run that holds is given DJX_HOLD
+  _db5_start "$@"; _db5_wait; _db5_reap; _db5_t1="$(_db5_ms)"; _db5_ex="$(_db5_atexit)"; [ "$h" = 0 ] || _db5_ex="$(_db5_hv "$_db5_ex")"
   : > "$_db5_c/hold.release"   # R42 (e): the red-only holder ends (within 0.2 s) as soon as the listings are taken, so _db5_clean has about a second to wait for
   _db5_cl="$(_db5_clean)"
   [ "$_db5_cl" = ok ] || _db5_leak="$_db5_leak [$_db5_c: $_db5_cl]"
-  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, in ms
-  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s ex %s\n' "${_db5_c##*/}" \
-    "$([ -e "$_db5_c/hold.ended" ] && echo $(($(cat "$_db5_c/hold.ended") - $(cat "$_db5_c/hold.go"))) || echo natural)" "$((_db5_t1 - $(cat "$_db5_c/hold.go")))" "$_db5_ex" >> "$DJX_MLOG"
+  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, and (R46) the times to hold.start, hold.go and the exit from the run's start, in ms
+  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s ex %s\n' "${_db5_c##*/}" \
+    "$([ -e "$_db5_c/hold.ended" ] && echo $(($(cat "$_db5_c/hold.ended") - $(cat "$_db5_c/hold.go"))) || echo natural)" "$((_db5_t1 - $(cat "$_db5_c/hold.go")))" \
+    "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$((_db5_t1 - $(cat "$_db5_c/run.start")))" "$_db5_ex" >> "$DJX_MLOG"
 }
 _db5_rcpt() { if [ -f "$_db5_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db5_last() { tail -n 1 "$_db5_c/$1.out" 2>/dev/null; }

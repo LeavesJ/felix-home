@@ -36,14 +36,15 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 #   first listing that shows what was asked for (the listing's own cost is not charged to the run);
 # - R14 and R21 are told apart from a pid-only stopper by a ps first on PATH (ps/ in this block's directory): it runs the
 #   real ps and passes its output on, and once a gate file exists it counts the listings that hold -A, ppid= and lstart=
-#   and whose caller is the -j parent's ending (R47: the shim walks its ancestors with the real ps up to the pid in the run's pid file, the -j parent, and counts the call only when its parent is the -j parent
-#   or it comes from one process between (a $( ) or a perl of the -j parent) or from a perl behind its sh; a call from below a wrapper or a holder, as the listing at 0007:55 made in a holder's ending is, goes to the real ps and is not
-#   counted) and changes what the listings print: R14 prints P's start time one second later from the second listing on; R21 leaves R (P's child) out of the first and shifts P from the third on.
-#   Each counted call is logged (pscalls: its number, its caller's pid and parent pid, and the caller's command line), and the case checks from that log that every call it failed or shifted was the -j parent's
-#   (a got that says whose call it was otherwise); with DJX_MLOG naming a file the log is appended to it, with the case's name, before the case's directory goes (evidence only).
+#   and whose caller is the -j parent's ending (R47: the shim walks its ancestors with the real ps up to the pid in the run's pid file, the -j parent, and counts the call only when the walk reaches it, no process on the walk is a holder (its command line holds
+#   " --part " and the case's key), and either nothing, one process (a $( ) or a perl of the -j parent) or an sh behind a perl is between; a call from below a holder or a wrapper, as the listing at 0007:55 made in a holder's ending is, goes to the real ps
+#   and is not counted). Each counted call is logged (pscalls: its number, the -j parent's pid and the chain of pid:command from the caller up to the -j parent); the case reads the -j parent's own command line with ps once the run is up and checks, from the log,
+#   that every process between each counted call and the -j parent has exactly that command line or is a perl or an sh with no " --part " (a got that names the pid, the command and the chain otherwise: whose call it was); the check does not use the shim's own
+#   decision. With DJX_MLOG naming a file the log is appended to it, with the case's name, before the case's directory goes (evidence only).
 #   The date is shifted by perl (Time::Local); where its shape is not the one ps prints here, a suffix makes it differ;
 # - R22: the holder's ps -o lstart= -p for the unit it forked is the first such call after the gate file (the holder's
-#   own was made before it took its first try, while the case held the slot). One case makes every such call print
+#   own was made before it took its first try, while the case held the slot). R47: the block mode holds only a call whose parent, or parent's parent, is the holder (the first word of the skip file); it logs that call's
+#   caller (pid, parent pid, command line) to a file of the case, and the case adds a got clause when the caller is not the holder. One case makes every such call print
 #   nothing, one holds the first and kills the holder with kill -9 in that window; the unit must not run in either.
 # R37 (revision 11, D8 gains a and b) is the block at the end, between "R37 begin" and "R37 end", with R42 (a) and (b) of revision 12 (a skipped name, and the lint over every text file
 # under engine/harness but the three tables, with groups and backslash continuations read).

@@ -72,6 +72,8 @@ unset CLAUDE_CODE_SESSION_ID
 # non-zero — and under this suite's pipefail that exit becomes the copy's
 # status, so a developer's unstaged deletion would read as a copy that
 # failed. GNU tar was not there to measure; skipping means it is never asked.
+# A skipped name is no failure of the loop either (R42): the body is an if, so the
+# status of the loop is 0 when the last name git lists is one it skipped.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
   local src="$1" dest="$2" f arc rc
   # An empty source would be copied as "/." (the 18:04 incident at the
@@ -86,7 +88,7 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
     arc="$(mktemp "${TMP:-${TMPDIR:-/tmp}}/copy-content.XXXXXX")" || return 1
     ( cd "$src" && git ls-files -co --exclude-standard -z . \
         | while IFS= read -r -d '' f; do
-            { [ -e "$f" ] || [ -L "$f" ]; } && printf '%s\0' "$f"
+            if [ -e "$f" ] || [ -L "$f" ]; then printf '%s\0' "$f"; fi
           done \
         | tar -c --null -T - -f "$arc" ); rc=$?
     [ "$rc" -eq 0 ] && { tar -x -f "$arc" -C "$dest"; rc=$?; }

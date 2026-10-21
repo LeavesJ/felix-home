@@ -373,7 +373,8 @@ has "and due from the worktree too, which is where the session is"    "$(_mst "$
 # Saved and put back: the widget's table is built by an earlier section and
 # read by later ones, and a fixture left holding this section's rows would
 # change what those sections see without any of them saying so.
-cp "$FROOT/projects/widget/maintenance.tsv" "$TMP/maint.keep"
+# Kept only where it exists: run alone it is absent, and it is then taken away again below.
+_maint_had=0; if [ -f "$FROOT/projects/widget/maintenance.tsv" ]; then cp "$FROOT/projects/widget/maintenance.tsv" "$TMP/maint.keep"; _maint_had=1; fi
 printf 'graphify\t0\talways\tthe map\ttest -f WIDGET.txt\n' > "$FROOT/projects/widget/maintenance.tsv"
 out="$(cd "$REPO" && "$FELIX" maintenance 2>&1)"
 has "felix maintenance renders a passing check as such"   "$out" "check passed"
@@ -384,5 +385,5 @@ case "$out" in
   *"-d ago"*|*"every 0d"*) bad "and never as a clock reading nobody wrote" "$out" ;;
   *)                       ok  "and never as a clock reading nobody wrote" ;;
 esac
-cp "$TMP/maint.keep" "$FROOT/projects/widget/maintenance.tsv"
+if [ "$_maint_had" = 1 ]; then cp "$TMP/maint.keep" "$FROOT/projects/widget/maintenance.tsv"; else rm -f "$FROOT/projects/widget/maintenance.tsv"; fi
 

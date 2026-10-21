@@ -199,13 +199,31 @@ printf '#!/usr/bin/env bash\n[ "$1" = gate ] || exec "%s" "$@"\nprintf "gate\\n"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "%s/gh.log"\ncase "$1 $2" in "pr list") printf "7\\n" ;; esac\nexit 0\n' \
   "$VP" > "$VP/vbin/gh"
 chmod +x "$VP/felix/engine/harness/felix" "$VP/vbin/gh"
+# The step's `named="$(mktemp)"` is never removed, and on macOS a template-less mktemp ignores
+# TMPDIR, so the step runs with a mktemp first on its PATH that gives it the template
+# "$TMPDIR/tmp.XXXXXXXXXX" (TMPDIR a directory of this part's own) and logs each path it made.
+mkdir -p "$VP/tmpd"; _vmkreal="$(command -v mktemp)"
+cat > "$VP/vbin/mktemp" <<'VPMK'
+#!/bin/sh
+# mktemp for R41: the host's ($VP_MKREAL), logging each path it made to $VP_MKLOG. With no template argument (only options) it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX".
+t=0
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+if [ "$t" = 0 ] && [ -n "${TMPDIR:-}" ]; then
+  set -- "$@" "${TMPDIR%/}/tmp.XXXXXXXXXX"
+fi
+out="$("$VP_MKREAL" "$@")" || exit $?
+printf '%s\n' "$out" >> "$VP_MKLOG"
+printf '%s\n' "$out"
+VPMK
+chmod +x "$VP/vbin/mktemp"; : > "$VP/mktemp.log"
 # The judge the verify step checks is unchanged: a checkout, as in the job,
 # with a risk table of its own in it.
 mkdir -p "$VP/felix/projects/widget"
 cp "$REAL_HARNESS/templates/risk.tsv" "$VP/felix/projects/widget/risk.tsv"
 ( _fx_cd "$VP/felix" && git init -q -b main && git add -A \
   && git -c user.name=t -c user.email=t@t commit -qm felix ) >/dev/null 2>&1
-cp "$FROOT/projects/widget/risk.tsv" "$VP/risk.keep"
+# Kept only where it exists: run alone it is absent, and it is then taken away again at the end.
+_vrisk_had=0; if [ -f "$FROOT/projects/widget/risk.tsv" ]; then cp "$FROOT/projects/widget/risk.tsv" "$VP/risk.keep"; _vrisk_had=1; fi
 cp "$REAL_HARNESS/templates/risk.tsv" "$FROOT/projects/widget/risk.tsv"
 # The implicated set the scope step would hand on as its output, src/a.txt
 # unless a test says otherwise; _verify passes it in as the job would.
@@ -223,6 +241,7 @@ _vfix() { rm -rf "$VP/remote.git" "$VP/repo"
 _verify() { : > "$VP/out"; : > "$VP/gate.log"; : > "$VP/gh.log"
   ( cd "$VP/repo" && IMPLICATED="$(cat "$VP/implicated.txt" 2>/dev/null)" VERIFY_GATE_RC="$1" \
       GITHUB_OUTPUT="$VP/out" BRANCH=fix/x PATH="$VP/vbin:$PATH" \
+      TMPDIR="$VP/tmpd" VP_MKREAL="$_vmkreal" VP_MKLOG="$VP/mktemp.log" \
       bash -e "$VP/step.sh" ) > "$VP/log" 2>&1; _vrc=$?
   _vgot="exit $_vrc, remote $([ "$(git --git-dir="$VP/remote.git" rev-parse fix/x)" = "$_v0" ] \
     && echo unchanged || echo moved), gate $(wc -l < "$VP/gate.log" | tr -d ' '), pushed=$(sed -n 's/^pushed=//p' "$VP/out" | head -1)"
@@ -337,7 +356,10 @@ for _k in $(grep -o 'steps\.push\.outputs\.[a-z_]*' "$UT" | sed 's/.*\.//' | sor
   grep -q "echo \"$_k=" "$VP/step.sh" || _vpunwritten="$_vpunwritten $_k"
 done
 is  "every steps.push output the template reads is one the verify step writes" "${_vpunwritten:-none}" "none"
-cp "$VP/risk.keep" "$FROOT/projects/widget/risk.tsv"
+# R41 (b): the stand-in mktemp was reached by the step, and every path it logged is under $TMP
+_mkx="$(LC_ALL=C awk -v p="$TMP/" '{ t++; if (index($0, p) != 1) { o++; if (o <= 3) b = b " [" $0 "]" } } END { if (t == 0) print "no path logged"; else if (o) print o " of " t " outside:" b; else print "ok" }' "$VP/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for the verify step's runs is under \$TMP, and it logged some" "${_mkx:-no log}" ok
+if [ "$_vrisk_had" = 1 ]; then cp "$VP/risk.keep" "$FROOT/projects/widget/risk.tsv"; else rm -f "$FROOT/projects/widget/risk.tsv"; fi
 
 # The job that runs the gate again, read out of the template: what it waits
 # for, what its token may do, and what it asks GitHub for. It holds actions:

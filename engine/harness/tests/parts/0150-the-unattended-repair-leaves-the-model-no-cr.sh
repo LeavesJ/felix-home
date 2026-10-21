@@ -79,6 +79,23 @@ done
 exit 0
 STUB
 chmod +x "$UC/felix/engine/harness/felix" "$UC/bin/git"
+# The step's `named="$(mktemp)"` is never removed, and on macOS a template-less mktemp ignores
+# TMPDIR: the step runs with a mktemp first on its PATH that gives it the template
+# "$TMPDIR/tmp.XXXXXXXXXX" (TMPDIR a directory of this part's own) and logs each path it made.
+mkdir -p "$UC/tmpd"; _ucmkreal="$(command -v mktemp)"
+cat > "$UC/bin/mktemp" <<'UCMK'
+#!/bin/sh
+# mktemp for R41: the host's ($UC_MKREAL), logging each path it made to $UC_MKLOG. With no template argument (only options) it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX".
+t=0
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+if [ "$t" = 0 ] && [ -n "${TMPDIR:-}" ]; then
+  set -- "$@" "${TMPDIR%/}/tmp.XXXXXXXXXX"
+fi
+out="$("$UC_MKREAL" "$@")" || exit $?
+printf '%s\n' "$out" >> "$UC_MKLOG"
+printf '%s\n' "$out"
+UCMK
+chmod +x "$UC/bin/mktemp"; : > "$UC/mktemp.log"
 # A placeholder by secret-scan's own rule (an "example" in the value): since
 # #342 taught the scan ghs_ tokens, a real-looking value here was a line the
 # public snapshot's credential scan refused to publish.
@@ -86,6 +103,7 @@ _uctok="ghs_exampletokenexampletokenexample"
 : > "$UC/git.log"; : > "$UC/git.cred"
 ( cd "$UC/repo" && UC_LOG="$UC/git.log" GITHUB_TOKEN="$_uctok" IMPLICATED=src/a.txt GITHUB_OUTPUT="$UC/out.gh" \
     BRANCH=fix/x PATH="$UC/bin:$PATH" \
+    TMPDIR="$UC/tmpd" UC_MKREAL="$_ucmkreal" UC_MKLOG="$UC/mktemp.log" \
     bash -e "$UC/step.sh" ) > "$UC/out" 2>&1; _ucrc=$?
 [ "$_ucrc" -eq 0 ] && ok  "a green gate pushes the repair" \
                    || bad "a green gate pushes the repair" "exit $_ucrc: $(cat "$UC/out")"
@@ -96,6 +114,9 @@ case "$(cat "$UC/git.log")" in
   *"$_uctok"*) bad "and the token is in no argument git was given" "$(grep -n "$_uctok" "$UC/git.log")" ;;
   *)           ok  "and the token is in no argument git was given" ;;
 esac
+# R41 (b): the stand-in mktemp was reached by the step, and every path it logged is under $TMP
+_mkx="$(LC_ALL=C awk -v p="$TMP/" '{ t++; if (index($0, p) != 1) { o++; if (o <= 3) b = b " [" $0 "]" } } END { if (t == 0) print "no path logged"; else if (o) print o " of " t " outside:" b; else print "ok" }' "$UC/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for the push step's run is under \$TMP, and it logged some" "${_mkx:-no log}" ok
 printf '\nthe unattended repair denies the model its own environment\n'
 # The attempt step runs with ANTHROPIC_API_KEY in its environment, so the
 # claude process it starts carries the key, and on Linux a process's

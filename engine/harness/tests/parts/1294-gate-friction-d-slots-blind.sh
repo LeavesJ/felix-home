@@ -28,7 +28,7 @@ printf '\ngate friction D: slots, the slots directory, the gate and the log (bli
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB4="$TMP/db4"; mkdir -p "$DB4/n" "$DB4/pp"
 _db4_E=(); _db4_I=DEFAULT; _db4_Q=DEFAULT; _db4_lim=100; _db4_S=8; _db4_td=""; _db4_hp=0; _db4_ctl=0; _db4_bg=0; _db4_rc=0; _db4_lab=""
-_db4_leak=""; _db4_ino0=""; _db4_late=""; _db4_x=""; _db4_gn=150; _db4_gskip=""
+_db4_leak=""; _db4_ino0=""; _db4_late=""; _db4_x=""; _db4_gn=150; _db4_gskip=""; _db4_nomk=0
 : > "$DB4/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB4/man.tsv"
 cat > "$DB4/run.pl" <<'DB4PL'
 # run.pl LIMIT INT QUIT PIDFILE CMD...: CMD leads a process group of its own, started with INT and QUIT as given, HUP and TERM at their
@@ -43,6 +43,21 @@ $SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
 alarm $t; waitpid $p, 0;
 exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
 DB4PL
+# R41 (a): a stand-in mktemp first on PATH in every nested run but the placement cases of R5 and R29 (_db4_nomk=1: those keep the mktemp they have). Given no
+# template (options only) it adds "$TMPDIR/tmp.XXXXXXXXXX", so the run's $TMP is below the case's TMPDIR on macOS too, where a template-less mktemp -d ignores
+# TMPDIR; otherwise it passes its arguments on. It calls the host's mktemp by the path found before the stand-in was on PATH ($DJ4_MKREAL) and logs each path it
+# made to $DJ4_MKLOG, one file for the whole part, which the closing assertion reads.
+mkdir -p "$DB4/mkstand"; _db4_mkreal="$(command -v mktemp)"; : > "$DB4/mktemp.log"
+cat > "$DB4/mkstand/mktemp" <<'DB4MS'
+#!/bin/sh
+t=
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+[ -n "$t" ] || set -- "$@" "${TMPDIR:-/tmp}/tmp.XXXXXXXXXX"
+p="$("$DJ4_MKREAL" "$@")" || exit $?
+[ -z "${DJ4_MKLOG:-}" ] || printf '%s\n' "$p" >> "$DJ4_MKLOG"
+printf '%s\n' "$p"
+DB4MS
+chmod +x "$DB4/mkstand/mktemp"
 cat > "$DB4/lag.pl" <<'DB4LAG'
 # lag.pl PREGLOB FILE LINE MAXSEC: waits for a file that PREGLOB matches (at most MAXSEC s), then for FILE to hold a line that is exactly LINE; prints the ms
 # from the first to the second, "none" when the line did not come, "no-prelude" when the first never did.
@@ -102,9 +117,14 @@ _db4_new() {
 # empty), _db4_E added to its environment; its pid file is $_db4_c/LABEL.pid (the run's group), its output LABEL.out and LABEL.err
 _db4_go() {
   _db4_lab="$1"; shift
+  local e p="$DB4/mkstand:"; local -a k pe; k=(); pe=()
+  [ "$_db4_nomk" != 1 ] || p=""
+  [ -z "$p" ] || pe[0]="PATH=$p$PATH"
+  for e in ${_db4_E[@]+"${_db4_E[@]}"}; do case "$e" in PATH=*) e="PATH=$p${e#PATH=}" ;; esac; k[${#k[@]}]="$e"; done   # a case's own PATH keeps the stand-in first
   ( cd "$_db4_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u FELIX_TEST_RED_JOBS -u PERL5OPT TMPDIR="$_db4_tmp" \
-      ${_db4_S:+FELIX_TEST_SLOTS=$_db4_S} ${_db4_E[@]+"${_db4_E[@]}"} perl "$DB4/run.pl" "$_db4_lim" "$_db4_I" "$_db4_Q" "$_db4_c/$_db4_lab.pid" \
+      ${pe[@]+"${pe[@]}"} DJ4_MKREAL="$_db4_mkreal" DJ4_MKLOG="$DB4/mktemp.log" \
+      ${_db4_S:+FELIX_TEST_SLOTS=$_db4_S} ${k[@]+"${k[@]}"} perl "$DB4/run.pl" "$_db4_lim" "$_db4_I" "$_db4_Q" "$_db4_c/$_db4_lab.pid" \
       "$BASH" "$_db4_T/run" "$@" ) > "$_db4_c/$_db4_lab.out" 2> "$_db4_c/$_db4_lab.err" &
   _db4_bg=$!
 }
@@ -120,7 +140,7 @@ _db4_grp() {
   for p in $(printf '%s\n' "$l" | sed 's/:.*//'); do kill -CONT "$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; done
 }
 _db4_wait0() { { wait "$_db4_bg"; } 2>/dev/null; _db4_rc=$?; }
-_db4_fin() { _db4_grp "$(_db4_pid "$_db4_lab")"; _db4_E=(); _db4_I=DEFAULT; _db4_Q=DEFAULT; _db4_lim=100; _db4_S=8; }
+_db4_fin() { _db4_grp "$(_db4_pid "$_db4_lab")"; _db4_E=(); _db4_I=DEFAULT; _db4_Q=DEFAULT; _db4_lim=100; _db4_S=8; _db4_nomk=0; }
 _db4_wait() { _db4_wait0; _db4_fin; }
 # LABEL SIGNAL: SIGNAL to the driver, then at most 45 s for it to end (a run still there is killed by group, and _db4_late says so)
 _db4_stop() {
@@ -310,7 +330,7 @@ _db4_td=""; rm -rf "$DB4/n/sf" "$DB4/td-sf"
 # a TMPDIR relative to the directory the run started in is taken relative to it, so the parent and every holder name one directory (R5). ../reltmp from the copy's checkout F names $_db4_c/reltmp, outside F's
 # checkout (0001 refuses a $TMP made inside it, ci456) and still under $TMP (R12)
 _db4_q rl; _db4_td=""; _db4_new rl "$DB4/g-empty.tsv" + "$DB4/pp/rl"/*.sh; mkdir -p "$_db4_c/reltmp"; _db4_tmp=../reltmp
-_db4_S=3; _db4_go a -j 2; _db4_wait
+_db4_nomk=1; _db4_S=3; _db4_go a -j 2; _db4_wait   # R41: a placement case keeps its mktemp
 _db4_is "R5: under a TMPDIR relative to the directory the run started in, the slot files are made below that directory, and the run passes: its holders found the files the parent made" "$_db4_rc $(_db4_slotnames "$_db4_c/reltmp") $(_db4_started | wc -w | tr -d ' ')" "0 0 1 2  4"
 rm -rf "$DB4/n/rl"
 # R29: a relative TMPDIR is made absolute against the directory the run started in, and exported, before 0001 makes $TMP. GNU mktemp honours TMPDIR, macOS's ignores it (ci456), so a GNU-style mktemp is put first on
@@ -339,7 +359,7 @@ _db4_mkc() {   # JOBS: the copy of case mk under -j JOBS with the shim first on 
   _db4_td=""; _db4_new mk "$DB4/g-empty.tsv" + "$DB4/pp/mk"/0010-ma.sh || { _db4_x="the copy could not be made"; return 0; }
   mkdir -p "$_db4_c/reltmp"; _db4_tmp=../reltmp
   _db4_E=(PATH="$DB4/mkshim:$PATH" DJ4_MKOUT="$_db4_c/mk.out.txt")
-  _db4_S=3; _db4_go a -j "$j"; _db4_wait
+  _db4_nomk=1; _db4_S=3; _db4_go a -j "$j"; _db4_wait   # R41: a placement case keeps its mktemp (its own GNU-style one)
   read -r st nm < "$_db4_c/mk.out.txt" 2>/dev/null
   bs="$(cd "$_db4_c/reltmp" && pwd -P)"
   case "$nm" in /*) [ -d "$nm" ] && ph="$(cd "$nm" && pwd -P)" ;; esac
@@ -670,6 +690,10 @@ _db4_fo="$(LC_ALL=C awk '
 _db4_is "R16: a line a unit's own EXIT trap prints after the mark is printed as written, once, after the unit's other lines, with no @@ line; after it come the unit's runner failure 'part left the shell changed for the parts after it' and, next, '  | trap on EXIT changed', before the next unit's section; the run exits 1 and leaves no receipt" \
    "$_db4_fo $(grep -c '^@@' "$_db4_c/f.out") $_db4_rc $(_db4_rcpt)" "1 1 1 after-its-lines fail-after detail-next in-its-place 0 1 absent"
 rm -rf "$DB4/n/fm"
+
+# ---- R41 (a): what the stand-in made is all below this part's own case directories (the run's TMPDIR), so nothing of the nested runs is left in the host's temporary directory
+_db4_x="$(LC_ALL=C awk -v a="$DB4/n/" -v b="$DB4/td-" 'index($0, a) == 1 || index($0, b) == 1 { n++; next } { o = o " " $0 } END { if (n > 0 && o == "") print "all below"; else print n + 0 " below, outside:" o }' "$DB4/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for this part's nested runs is below one of the part's own case directories, and it logged some" "$_db4_x" "all below"
 
 # ---- the part leaves the shell as it found it
 _db4_unhold

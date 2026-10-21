@@ -21,7 +21,10 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # Before, the TERM could land before red's suite had started a child, and the one-list stopper of a build without R1 (the base's tests/red and receipt.sh, as
 # red's suite runs this part) then missed it: the case was red on some runs and not on others, so red.tsv could not be reproduced. The parts' up.NAME is now
 # the record run's alone, so "both units up" is read of the record run's units, not of red's. The case's name and its checks stand.
-# Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 the amendments.
+# Revision 12 fix here: proc5 2 (R42 (d)): the record run's TERM case waits for rup.0010-sa.sh alone, 60 s at most, then at most 5 s for rup.0020-sb.sh, which only a
+# -j 2 red's suite (the branch's) writes; against the base, red's suite is serial and holds in 0010-sa, so the old wait for both always ran its 60 s and the
+# case's waits (90 + 15 + 60 + 0.5 + 45 s) passed its 150 s run bound. The run bound is 240 s. The case's name and its checks stand.
+# Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 R40 R41 R42 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
 # slots; it runs the copy under a bounded runner (run.pl) that makes the run's process group and starts it with
@@ -98,6 +101,20 @@ esac
 exec "$DJ2_PSREAL" "$@"
 DB2PS
 chmod +x "$DB2/psshim/ps"
+# R41 (a): a stand-in mktemp first on PATH in every nested run. Given no template (options only) it adds "$TMPDIR/tmp.XXXXXXXXXX", so the run's $TMP is below the
+# case's TMPDIR on macOS too, where a template-less mktemp -d ignores TMPDIR; otherwise it passes its arguments on. It calls the host's mktemp by the path found
+# before the stand-in was on PATH ($DJ2_MKREAL) and logs each path it made to $DJ2_MKLOG, one file for the whole part, which the closing assertion reads.
+mkdir -p "$DB2/mkshim"; _db2_mkreal="$(command -v mktemp)"; : > "$DB2/mktemp.log"
+cat > "$DB2/mkshim/mktemp" <<'DB2MK'
+#!/bin/sh
+t=
+for a in "$@"; do case "$a" in -*) ;; *) t=1 ;; esac; done
+[ -n "$t" ] || set -- "$@" "${TMPDIR:-/tmp}/tmp.XXXXXXXXXX"
+p="$("$DJ2_MKREAL" "$@")" || exit $?
+[ -z "${DJ2_MKLOG:-}" ] || printf '%s\n' "$p" >> "$DJ2_MKLOG"
+printf '%s\n' "$p"
+DB2MK
+chmod +x "$DB2/mkshim/mktemp"
 cat > "$DB2/djk.pl" <<'DB2DJK'
 # djk.pl SIG KILLPID WAITFILE MAXMS MODE ARG...: sends SIG to KILLPID (0: none), waits for the file WAITFILE (- : none; at most 120 s), takes the time T0, then
 # takes ps listings until what MODE asks about has gone or MAXMS ms have passed. MODE pids PID...: those pids; MODE pidfile FILE: the pids in that
@@ -144,10 +161,13 @@ _db2_new() {
   fi
   _suite_copy_tree ${r:+"$r"} "$_db2_F" "$@"
 }
-_db2_run() {   # ARG...: the copy's driver under run.pl, TMPDIR $_db2_tmp, INT and QUIT as _db2_I and _db2_Q, FELIX_TEST_SLOTS=$_db2_S (none when empty), _db2_E added
+_db2_run() {   # ARG...: the copy's driver under run.pl, TMPDIR $_db2_tmp, INT and QUIT as _db2_I and _db2_Q, FELIX_TEST_SLOTS=$_db2_S (none when empty), _db2_E added; the mktemp stand-in first on PATH (R41)
+  local e; local -a k; k=()
+  for e in ${_db2_E[@]+"${_db2_E[@]}"}; do case "$e" in PATH=*) e="PATH=$DB2/mkshim:${e#PATH=}" ;; esac; k[${#k[@]}]="$e"; done   # a case's own PATH keeps the stand-in first
   ( cd "$_db2_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u FELIX_TEST_RED_JOBS -u PERL5OPT TMPDIR="$_db2_tmp" \
-      ${_db2_S:+FELIX_TEST_SLOTS=$_db2_S} ${_db2_E[@]+"${_db2_E[@]}"} perl "$DB2/run.pl" "$_db2_lim" "$_db2_I" "$_db2_Q" "$_db2_Tm" "$_db2_Hu" "$_db2_c/$_db2_lab.pid" \
+      PATH="$DB2/mkshim:$PATH" DJ2_MKREAL="$_db2_mkreal" DJ2_MKLOG="$DB2/mktemp.log" \
+      ${_db2_S:+FELIX_TEST_SLOTS=$_db2_S} ${k[@]+"${k[@]}"} perl "$DB2/run.pl" "$_db2_lim" "$_db2_I" "$_db2_Q" "$_db2_Tm" "$_db2_Hu" "$_db2_c/$_db2_lab.pid" \
       "$BASH" "$_db2_T/run" "$@" )
 }
 # LABEL ARG...: the run in the background; its pid file is $_db2_c/LABEL.pid (the run's group), its output LABEL.out and LABEL.err. With _db2_pipe=1 the
@@ -239,7 +259,7 @@ _db2_hold() {   # SLOTFILE: a perl of mine holds its lock until _db2_unhold; _db
 _db2_unhold() { [ "$_db2_hp" = 0 ] || { kill -KILL "$_db2_hp" 2>/dev/null; { wait "$_db2_hp"; } 2>/dev/null; }; _db2_hp=0; return 0; }
 _db2_started() { local f r=""; for f in "$_db2_c"/started.*; do [ -e "$f" ] && r="$r${f##*/} "; done; printf '%s' "$r"; }
 _db2_up() { test -e "$_db2_c/up.$1"; }
-_db2_rup() { test -e "$_db2_c/rup.0010-sa.sh" && test -e "$_db2_c/rup.0020-sb.sh"; }   # R38: red's suite has started both sleepers and holds
+_db2_rup() { test -e "$_db2_c/rup.$1"; }   # NAME: R38, R42 (d): red's suite has started that sleeper and holds (a serial red's suite never starts 0020-sb)
 _db2_pre()   { local f; for f in "$_db2_T"/parts/0006-*.sh; do printf '\n: > "%s/pre.done.$$"\n' "$_db2_c" >> "$f"; done; }   # the parent's prelude is done
 _db2_pre_up() { ls "$_db2_c"/pre.done.* >/dev/null 2>&1; }
 # "ok", or what an interrupted run left behind: LABEL STATUS (the slot files keep their names and inodes when _db2_ino0 was taken)
@@ -574,8 +594,8 @@ rm -rf "$DB2/n/lc"
 
 # ---- a record run that is interrupted writes no manifest (D6, what it leaves), and red's tree goes with it
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
-_db2_lim=150; _db2_go r -j 2 --record-assertions
-_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; _db2_until 300 _db2_rup; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
+_db2_lim=240; _db2_go r -j 2 --record-assertions   # R42 (d): 90 + 15 + 60 + 5 + 0.5 + 45 = 215.5 s of waits fit in 240
+_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; _db2_until 300 _db2_rup 0010-sa.sh; _db2_until 25 _db2_rup 0020-sb.sh; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
 _db2_stop r TERM; _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)"; _db2_ino0=""
 _db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent slots-kept"
 rm -rf "$DB2/n/rrt"
@@ -596,6 +616,10 @@ case "$_db2_y3" in *9*) _db2_y3=sees-9 ;; *) _db2_y3="ctl [$_db2_y3]" ;; esac   
 _db2_is "D6: a unit has no pipe or FIFO descriptor above 2 that the same part has not under -j 1, and the probe sees a FIFO a part opens itself" \
    "$([ "$_db2_x3" = "$_db2_x1" ] && echo same || echo "[$_db2_x3] differs from [$_db2_x1]") $_db2_y3 $(_db2_cnt "$_db2_c/f3.out" djy-mode:unit)" "same sees-9 1"
 rm -rf "$DB2/n/fd"
+
+# ---- R41 (a): what the stand-in made is all below this part's own case directories (the run's TMPDIR), so nothing of the nested runs is left in the host's temporary directory
+_db2_x="$(LC_ALL=C awk -v a="$DB2/n/" -v b="$DB2/td-" 'index($0, a) == 1 || index($0, b) == 1 { n++; next } { o = o " " $0 } END { if (n > 0 && o == "") print "all below"; else print n + 0 " below, outside:" o }' "$DB2/mktemp.log" 2>/dev/null)"
+is "R41: every path the mktemp stand-in logged for this part's nested runs is below one of the part's own case directories, and it logged some" "$_db2_x" "all below"
 
 # ---- the part leaves the shell as it found it
 _db2_unhold

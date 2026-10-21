@@ -266,6 +266,22 @@ for _db1_a in 1100 1110 1120; do
 done
 is "R17: the tree's own groups.tsv puts 1100, 1110 and 1120 in one group, and that group is rx, a second one beside ib" \
    "$(set -- $_db1_rx; a="${1:-}"; n=$#; for x in "$@"; do [ "$x" = "$a" ] || n=0; done; echo "$n parts in group ${a:-none}")" "3 parts in group rx"
+# R40: 0200 and 0201 share _gp_rec0 (the suite's refusal record's length), so they are a group, gp; 0810 to 0850 share the audit fixture's stub
+# log and snapshots, so they are a group, au. Both are found in the tree's groups.tsv in the shape of ib's and rx's checks above.
+_db1_gpr=""
+for _db1_a in 0200 0201; do
+  _db1_f="$(cd "$HERE/parts" && ls "$_db1_a"-*.sh 2>/dev/null | sed -n 1p)"
+  _db1_gpr="$_db1_gpr$(awk -F'\t' -v p="$_db1_f" '/^#/ { next } $2 == p { print $1; exit }' "$_db1_rg" 2>/dev/null) "
+done
+is "R40: the tree's own groups.tsv puts 0200 and 0201 in one group, and that group is gp" \
+   "$(set -- $_db1_gpr; a="${1:-}"; n=$#; for x in "$@"; do [ "$x" = "$a" ] || n=0; done; echo "$n parts in group ${a:-none}")" "2 parts in group gp"
+_db1_aur=""
+for _db1_a in 0810 0820 0830 0840 0850; do
+  _db1_f="$(cd "$HERE/parts" && ls "$_db1_a"-*.sh 2>/dev/null | sed -n 1p)"
+  _db1_aur="$_db1_aur$(awk -F'\t' -v p="$_db1_f" '/^#/ { next } $2 == p { print $1; exit }' "$_db1_rg" 2>/dev/null) "
+done
+is "R40: and it puts 0810, 0820, 0830, 0840 and 0850 in one group, and that group is au, a third one beside ib and rx" \
+   "$(set -- $_db1_aur; a="${1:-}"; n=$#; for x in "$@"; do [ "$x" = "$a" ] || n=0; done; echo "$n parts in group ${a:-none}")" "5 parts in group au"
 mkdir -p "$DB1/pp/real"
 while IFS= read -r _db1_f; do [ -f "$HERE/parts/$_db1_f" ] && printf 'ok "djx stand-in %s"\n' "$_db1_f" > "$DB1/pp/real/$_db1_f"
 done < <(awk -F'\t' '!/^#/ && NF >= 2 { print $2 }' "$_db1_rg" 2>/dev/null | LC_ALL=C sort -u)

@@ -51,6 +51,10 @@ changed it. The evidence and the cost on the tree that lands are in the PR.
   - 0580 seeds widget's stack.tsv when a run alone has none.
   - 0140 and 0150 run the unattended template's step with a `mktemp` that
     lands under `$TMP`.
+  - Red's monitor and the record run's watcher leave no `sleep` behind when
+    they are ended. Their TERM trap only records the signal, and the loop
+    sends KILL to the sleep it holds (R43, found by the second evidence
+    pass).
 - **Tests.** Six blind parts, 1291 to 1296, written from the contract alone
   and red before each build. The two `mktemp` checks in 0140 and 0150 were
   written by the builder; a reviewer checked them against the contract, and
@@ -70,4 +74,7 @@ minutes.
   made fails its cases with exit 127 and no line naming the copy.
 - 0780:31 and 0190:376 and :384 print `Broken pipe` under load: a reader that
   stops early (0960's class), with no verdict lost.
+- Two fixture stubs sleep in a child that a TERM trap ends: 1285:333 leaves
+  its `sleep 0.1` on every TERM, and 0660:246 can signal a stale `$!`.
+  Neither is in red's tree.
 - If #455 lands first, D re-versions to 0.49.304 and records again.

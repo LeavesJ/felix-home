@@ -463,7 +463,7 @@ _rcp_red_settle() {
 _rcp_watch() {   # <record run's pid>: once it is gone, red and what red started are ended
   local s="" z=0; trap 'z=1' TERM   # R43: a TERM from _rcp_red_end is only recorded; the loop acts on it once it holds the sleep's pid
   while [ "$z" = 0 ] && kill -0 "$1" 2>/dev/null; do sleep 1 & s=$!; [ "$z" = 1 ] || { wait "$s"; [ "$z" = 1 ] || s=""; }; done
-  [ -z "$s" ] || case " $(builtin jobs -rp) " in *" $s "*) kill "$s" 2>/dev/null ;; esac; trap exit TERM; [ "$z" = 0 ] || exit
+  [ -z "$s" ] || case " $(builtin jobs -rp) " in *" $s "*) kill -KILL "$s" 2>/dev/null ;; esac; trap exit TERM; [ "$z" = 0 ] || exit
   ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
 }
 

@@ -452,7 +452,7 @@ if [ "$AFTER" -eq 1 ]; then
       if { [ ! -e "$MARK" ] && _gone; } || _failed; then trap '' TERM; [ "$z" = 1 ] || { : > "$TMP/gone"; _stop_tree "$SUITE"; }; break; fi
       sleep 1 & sl=$!; [ "$z" = 1 ] || { wait "$sl"; [ "$z" = 1 ] || sl=""; }
     done
-    [ -z "$sl" ] || case " $(builtin jobs -rp) " in *" $sl "*) kill "$sl" 2>/dev/null ;; esac ) > /dev/null 2>&1 &
+    [ -z "$sl" ] || case " $(builtin jobs -rp) " in *" $sl "*) kill -KILL "$sl" 2>/dev/null ;; esac ) > /dev/null 2>&1 &
   MON=$!
   wait "$SUITE"; RC=$?
   kill "$MON" 2>/dev/null; wait "$MON" 2>/dev/null

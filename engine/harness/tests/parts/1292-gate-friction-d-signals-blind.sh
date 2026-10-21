@@ -185,10 +185,12 @@ _db2_go() {
   _db2_dl=$((SECONDS + _db2_lim + 5))   # R44: the run's own bound (run.pl's KILL at _db2_lim) and 5 s more; a wait for an event of the run lasts until then
 }
 # R44: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's own bound has passed (_db2_dl: _db2_lim + 5 s from _db2_go, by when run.pl has killed
-# the run), and says which: 0 when it held, 1 when the event never came. Never a fixed wait shorter than the run's bound.
+# the run), and says which: 0 when it held, 1 when the event never came. Never a fixed wait shorter than the run's bound. When it did not come, _db2_why
+# (set by the first miss only) says which stopped the wait: "the run ended" or "the bound of the run passed", for the got text.
 _db2_evt() {
   while ! "$@"; do
-    [ "$SECONDS" -lt "$_db2_dl" ] && kill -0 "$_db2_bg" 2>/dev/null || break
+    if ! kill -0 "$_db2_bg" 2>/dev/null; then _db2_why="${_db2_why:-the run ended}"; break; fi
+    if [ "$SECONDS" -ge "$_db2_dl" ]; then _db2_why="${_db2_why:-the bound of the run passed}"; break; fi
     sleep 0.2
   done
   "$@"
@@ -613,12 +615,12 @@ rm -rf "$DB2/n/lc"
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
 _db2_lim=240; _db2_go r -j 2 --record-assertions   # R44: the waits below last until this bound (240 s, plus 5), not 90 + 15 + 60 s
 _db2_miss=""   # R44: each wait lasts until the run's own bound, and an event that never came fails the name (the got text says which) instead of the TERM going on as though it had
-_db2_evt _db2_up 0010-sa.sh || _db2_miss="$_db2_miss up.0010-sa.sh"
+_db2_why=""; _db2_evt _db2_up 0010-sa.sh || _db2_miss="$_db2_miss up.0010-sa.sh"
 _db2_evt _db2_up 0020-sb.sh || _db2_miss="$_db2_miss up.0020-sb.sh"
 _db2_evt _db2_rup 0010-sa.sh || _db2_miss="$_db2_miss rup.0010-sa.sh"
 _db2_until 25 _db2_rup 0020-sb.sh   # optional by R42 (d): only a -j 2 red's suite writes it, a serial one (the base's) never does, so it is not waited for to the bound
 sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
-if [ -z "$_db2_miss" ]; then _db2_stop r TERM bound; else _db2_stop r KILL bound; _db2_miss=" [no TERM was sent: these never came before the run's bound:$_db2_miss]"; fi
+if [ -z "$_db2_miss" ]; then _db2_stop r TERM bound; else _db2_stop r KILL bound; _db2_miss=" [no TERM was sent: these never came before ${_db2_why:-the bound of the run passed}:$_db2_miss]"; fi
 _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)${_db2_miss}${_db2_late}"; _db2_ino0=""; _db2_miss=""
 _db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent slots-kept"
 rm -rf "$DB2/n/rrt"

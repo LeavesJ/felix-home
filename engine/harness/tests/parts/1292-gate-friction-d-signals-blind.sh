@@ -24,6 +24,9 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # Revision 12 fix here: proc5 2 (R42 (d)): the record run's TERM case waits for rup.0010-sa.sh alone, 60 s at most, then at most 5 s for rup.0020-sb.sh, which only a
 # -j 2 red's suite (the branch's) writes; against the base, red's suite is serial and holds in 0010-sa, so the old wait for both always ran its 60 s and the
 # case's waits (90 + 15 + 60 + 0.5 + 45 s) passed its 150 s run bound. The run bound is 240 s. The case's name and its checks stand.
+# Revision 14 fixes here: R45 (_db2_wh finds the hk case's holder by what only it carries, a perl whose command line holds " --part " and the case's key, and the wrapper as its
+# parent, so no transient child of the -j parent can be taken for them) and R44 (the record run's TERM case waits for up.NAME and rup.NAME, and for the run to end after its
+# TERM, until the case's own run bound has passed, and a wait whose event never came fails the name, with a got text saying so, instead of the TERM going on as though it had).
 # Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 R40 R41 R42 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
@@ -54,7 +57,7 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # would pass serially also asks for something only -j gives.
 DB2="$TMP/db2"; mkdir -p "$DB2/n" "$DB2/pp" "$DB2/psshim" "$DB2/oshim"
 _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=100; _db2_S=8; _db2_td=""; _db2_hp=0; _db2_ctl=0; _db2_bg=0; _db2_rc=0; _db2_lab=""
-_db2_leak=""; _db2_ino0=""; _db2_pipe=0; _db2_late=""; _db2_x=""; _db2_gn=150
+_db2_leak=""; _db2_ino0=""; _db2_pipe=0; _db2_late=""; _db2_x=""; _db2_gn=150; _db2_dl=0; _db2_miss=""
 : > "$DB2/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB2/man.tsv"
 cat > "$DB2/run.pl" <<'DB2PL'
 # run.pl LIMIT INT QUIT TERM HUP PIDFILE CMD...: CMD leads a process group of its own, started with INT QUIT TERM and HUP as given (the cases
@@ -179,6 +182,16 @@ _db2_go() {
   else _db2_run "$@" > "$_db2_c/$_db2_lab.out" 2> "$_db2_c/$_db2_lab.err" &
   fi
   _db2_bg=$!
+  _db2_dl=$((SECONDS + _db2_lim + 5))   # R44: the run's own bound (run.pl's KILL at _db2_lim) and 5 s more; a wait for an event of the run lasts until then
+}
+# R44: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's own bound has passed (_db2_dl: _db2_lim + 5 s from _db2_go, by when run.pl has killed
+# the run), and says which: 0 when it held, 1 when the event never came. Never a fixed wait shorter than the run's bound.
+_db2_evt() {
+  while ! "$@"; do
+    [ "$SECONDS" -lt "$_db2_dl" ] && kill -0 "$_db2_bg" 2>/dev/null || break
+    sleep 0.2
+  done
+  "$@"
 }
 _db2_pid() { cat "$_db2_c/$1.pid" 2>/dev/null; }
 _db2_gl()  { ps -A -ww -o pid= -o pgid= -o stat= -o command= 2>/dev/null | G="$1" LC_ALL=C awk '$2 == ENVIRON["G"] && $3 !~ /^Z/ { c = $0; sub(/^ *[0-9]+ +[0-9]+ +[^ ]+ +/, "", c); printf "%s:%s:%s\n", $1, $3, substr(c, 1, 50) }'; }
@@ -202,12 +215,14 @@ _db2_fin() {
   _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=100; _db2_S=8; _db2_pipe=0
 }
 _db2_wait() { _db2_wait0; _db2_fin; }
-# LABEL SIGNAL: SIGNAL to the driver, then at most 45 s for it to end (a run still there is killed by group, and _db2_late says so)
+# LABEL SIGNAL [bound]: SIGNAL to the driver, then at most 45 s for it to end (a run still there is killed by group, and _db2_late says so). With bound (R44) the wait
+# lasts until the run's own bound has passed (at least 45 s), where run.pl's KILL has ended it; a run still there then is killed by group and _db2_late says so
 _db2_stop() {
-  local p i=0; p="$(_db2_pid "$1")"; _db2_late=""
+  local p i=0 n=225 w="45 s after the signal"; p="$(_db2_pid "$1")"; _db2_late=""
+  if [ "${3:-}" = bound ]; then n=$(( (_db2_dl - SECONDS) * 5 )); [ "$n" -ge 225 ] || n=225; w="there when the run's bound had passed"; fi
   [ -z "$p" ] || kill -"$2" "$p" 2>/dev/null
-  while [ "$i" -lt 225 ]; do kill -0 "$p" 2>/dev/null || break; sleep 0.2; i=$((i + 1)); done
-  if kill -0 "$p" 2>/dev/null; then _db2_late=" the parent was still running 45 s after the signal;"; kill -KILL -- "-$p" 2>/dev/null; fi
+  while [ "$i" -lt "$n" ]; do kill -0 "$p" 2>/dev/null || break; sleep 0.2; i=$((i + 1)); done
+  if kill -0 "$p" 2>/dev/null; then _db2_late=" the parent was still running $w;"; kill -KILL -- "-$p" 2>/dev/null; fi
   _db2_wait
 }
 _db2_rcpt() { if [ -f "$_db2_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
@@ -229,10 +244,12 @@ _db2_kf() {   # FILE...: ends the pids those files record, each only while its c
 }
 # the unit processes of the current case: bash run --part, not perl (the holder may carry the same words)
 _db2_units() { ps -A -ww -o pid= -o stat= -o command= 2>/dev/null | K="$(_db2_key)" LC_ALL=C awk '$2 !~ /^Z/ && index($0, ENVIRON["K"]) && index($0, " --part ") && $3 !~ /perl/ { printf "%s ", $1 }'; }
-# DRIVERPID: "wrapper holder" - a child of the driver that has a perl child, which waits for a slot or runs a unit
+# DRIVERPID: "wrapper holder" (R45). The holder is named by what only it carries: a perl whose command line holds " --part " and this case's key (as _db2_uh names a
+# unit), and the wrapper is its parent, which must be a child of the driver. Not "a child of the driver that has a perl child": the -j parent's own transient
+# children (the perls of its $( ), its lock probe) have a perl child for a moment, and none of them carries the case's key and " --part ".
 _db2_wh() {
-  ps -A -ww -o pid= -o ppid= -o command= 2>/dev/null | D="$1" LC_ALL=C awk '{ pp[$1] = $2; c[$1] = $3 }
-    END { for (q in pp) if (c[q] ~ /perl/ && (pp[q] in pp) && pp[pp[q]] == ENVIRON["D"]) { print pp[q], q; exit } }'
+  ps -A -ww -o pid= -o ppid= -o command= 2>/dev/null | D="$1" K="$(_db2_key)" LC_ALL=C awk '{ pp[$1] = $2; c[$1] = $0; w[$1] = $3 }
+    END { for (q in pp) if (w[q] ~ /perl/ && index(c[q], ENVIRON["K"]) && index(c[q], " --part ") && (pp[q] in pp) && pp[pp[q]] == ENVIRON["D"]) { print pp[q], q; exit } }'
 }
 # "unit holder": a bash run --part below a perl in the current case
 _db2_uh() {
@@ -594,9 +611,15 @@ rm -rf "$DB2/n/lc"
 
 # ---- a record run that is interrupted writes no manifest (D6, what it leaves), and red's tree goes with it
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
-_db2_lim=240; _db2_go r -j 2 --record-assertions   # R42 (d): 90 + 15 + 60 + 5 + 0.5 + 45 = 215.5 s of waits fit in 240
-_db2_until 450 _db2_up 0010-sa.sh; _db2_until 75 _db2_up 0020-sb.sh; _db2_until 300 _db2_rup 0010-sa.sh; _db2_until 25 _db2_rup 0020-sb.sh; sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
-_db2_stop r TERM; _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)"; _db2_ino0=""
+_db2_lim=240; _db2_go r -j 2 --record-assertions   # R44: the waits below last until this bound (240 s, plus 5), not 90 + 15 + 60 s
+_db2_miss=""   # R44: each wait lasts until the run's own bound, and an event that never came fails the name (the got text says which) instead of the TERM going on as though it had
+_db2_evt _db2_up 0010-sa.sh || _db2_miss="$_db2_miss up.0010-sa.sh"
+_db2_evt _db2_up 0020-sb.sh || _db2_miss="$_db2_miss up.0020-sb.sh"
+_db2_evt _db2_rup 0010-sa.sh || _db2_miss="$_db2_miss rup.0010-sa.sh"
+_db2_until 25 _db2_rup 0020-sb.sh   # optional by R42 (d): only a -j 2 red's suite writes it, a serial one (the base's) never does, so it is not waited for to the bound
+sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
+if [ -z "$_db2_miss" ]; then _db2_stop r TERM bound; else _db2_stop r KILL bound; _db2_miss=" [no TERM was sent: these never came before the run's bound:$_db2_miss]"; fi
+_db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)${_db2_miss}${_db2_late}"; _db2_ino0=""; _db2_miss=""
 _db2_is "D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group" "$_db2_rc $_db2_x" "143 both-up same 0 0 absent slots-kept"
 rm -rf "$DB2/n/rrt"
 

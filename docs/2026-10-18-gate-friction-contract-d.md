@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 14** (2026-10-21 UTC) amends revision 13 after the third pass of D8's evidence on its build, in the last section. Revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 15** (2026-10-21 UTC) amends revision 14 after its review, in the last section. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the section before it, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -1373,3 +1373,44 @@ Test fixes go to the blind authors with this revision. No code changes.
 - j8c's red.tsv with 1293's sleeper name and j1c's without it: R44's sleeper case.
 - j1c's one FAIL, 1292's hk case: R45. A finder names its process by what only that process carries.
 - j8b's red.tsv with 1282's A5: recorded, with no change.
+
+## Amended after revision 14's review (revision 15, 2026-10-21)
+
+Revision 14's round is wf_fab2a319-d80: blind author A on 1291, 1292 and 1294 (a496cd64), blind author B on 1293, 1295 and 1296 (85378083), an Opus review of both, and its fixes back to blind authors (3c008026 for A, 555848c1 for B). The review's findings that the contract left unsaid are answered here. Its findings on the parts went to their authors, and are not repeated. File and line references are to 555848c1. Revision 7's conventions hold.
+
+### R46. R44: a hold that did not happen is seen by what is missing, not by a file that says so
+
+Answers the review's first major finding. R46 replaces R44's "R1's verdict" bullet, and the words "writes hold.nogo and goes on" and "writes hold.miss" in R44's step and record-half bullets. Every other line of R44 stands.
+- **What is wrong.** R44 has a missed hold seen by hold.miss or hold.nogo (1293:70, 73; 1295:62, 65), which the step and the record half write once B has passed since they started. Both start after run.pl's alarm, which is B from the run's start, and both are in run.pl's group. So run.pl's KILL at B always comes first, and neither file is ever written: a missed hold is only ever seen as "the run reached its bound". Worse, a hold that never happened can pass on D's build. Say the record run fails before it reaches its hold line (a regression that fails it earlier, or a planted line after the failure). Then red's monitor ends red's suite before it reaches the step: no hold.start, no H, no hold.miss and nothing left, so the name passes with nothing held.
+- **The rule.** R1's verdict on a record half that holds (`_db5_ex`, and `_db3_ex` for R38's 13 cases) is ok only when all of these hold:
+  - hold.start exists; else "red's suite never reached its hold";
+  - hold.go exists; else "the record run never reached its hold";
+  - the run did not end at its bound (run.pl's exit 124); else "the run reached its bound";
+  - the listings at the exit find nothing; else, as now, "left at its exit: ...".
+  The first that fails gives the got. On a pass both files exist on either build, so no expected value changes. The sleeper case's verdict likewise needs slept.* ("red's suite never reached the sleeper"). hold.miss and hold.nogo are dropped. The step still goes on without hold.go once B has passed, and the record half still writes no hold.go without hold.start.
+- **Evidence only.** DJX_MLOG's line for a case that held gains three fields, each in ms from the run's start: to hold.start, to hold.go, and to the exit. The run's start is written by `_db3_start` and `_db5_start` into the case's directory. The evidence gives the largest run-start-to-exit under load against B, beside the largest go-to-step-end against C.
+
+### R47. R45's class: a ps shim that counts calls counts only the caller it means
+
+Answers the review's minor finding on 1292:93-102 and 1296:119-145. R47 adds to R45's class and to R19, R34, R14 and R21's cases. It replaces no line.
+- **What is wrong.** 1292's ps shim fails the DJ2_PSFAIL-th call whose arguments hold `-A` and `ppid=`, and 1296's counts the calls that hold `-A`, `ppid=` and `lstart=`. Each comment says only the ending lists like that, since a holder's `ps -o ppid= -p WRAPPER` holds no `-A`. But the tree listing at 0007:55 (`ps -A -o pid= -o ppid= -o lstart=`, in `grow`) runs in whatever process ends a tree, a holder's ending included. A holder whose wrapper or parent goes away during the parent's ending can then take the counted call. The case's name ("R2: with the ending's listing number N failing ...", 1292's r2-N cases; 1296's skew and twin rounds) can then pass without the stopper it means ever seeing the failed or shifted listing: a pass that judged nothing.
+- **The rule.** A shim that picks a call by its count counts only calls whose caller is the process the case means. For these cases that is the -j parent's ending: a ps whose parent is the -j parent, or a `$( )` or perl of it whose parent is the -j parent, read from the case's pid file. A call from below a holder (a ps with a holder's perl among its ancestors under the -j parent) is passed to the real ps and not counted. Each counted call is also logged with its caller's pid and command line, and the case checks, from that log, that the call it failed or shifted was the one it meant. A case that finds otherwise fails its name with a got that says whose call it was.
+- **R45's "says in its name".** R45's fallback, a finder that waits for the same pid at two listings 0.2 s apart, says which shape it waits for in a comment beside the finder, not in an assertion name. No assertion name changes for it.
+- **D8 gains, as evidence.** 1292 and 1296 each run alone through the one-part runner on the branch, three times, at 0 FAIL, and each log of counted calls shows only the callers the cases mean.
+
+### R48. 1294's R1 name says only what it checks
+
+Answers the review's minor finding on 1294:632-636. R48 changes one assertion name, which the record run carries into assertions.tsv.
+- **What is wrong.** 1294's "R1: and it writes no manifest, nothing of red's tree is left once it has exited, and red.tsv holds exactly the rows base - - - and run - - -" (1294:635) checks the manifest and red.tsv's rows. "Nothing of red's tree is left once it has exited" is not checked at the exit: it is `_db4_fin`'s 30 s group drain, whose finding goes to the D4 name before it. Against a build without R1 the base's leftover `sleep 1` ends within those 30 s, so the name passes there while it claims an R1 leftover check. R38's list of 14 leaves it out.
+- **The rule.** The name drops the clause it does not check. It becomes "R1: and it writes no manifest, and red.tsv holds exactly the rows base - - - and run - - -", with its got and expected value unchanged. The at-exit check of a record run after a unit killed by kill -9 is 1293's, with R38's hold: its kill9 case's R1 name. That makes 14 at-exit R1 names, R38's list, and none claims what it does not check.
+
+### Every finding of revision 14's review, and where it went
+
+- Major, R44's verdict is negative-only and its files can never be written: R46 (B: 1293, 1295).
+- Major, the evidence not yet run and the run bound's margin not measured: R46's evidence fields (B), and the evidence pass on the tree this round lands, which reports both margins.
+- Minor, 1294's R1 name claims a check it does not make: R48 (A: 1294).
+- Minor, slp.pl ends its step when it cannot fork its holder: fixed by B in 555848c1 (it keeps its sleep and writes slept.nofork, and the verdict names it).
+- Minor, holds outlive an interrupted part for up to 270 s: fixed by B in 555848c1 (each hold also ends once its case directory is gone).
+- Minor, the watcher finder of 1293's ps shim works by exclusion: fixed by B in 555848c1 (R45's fallback, the same pid at two listings 0.2 s apart).
+- Minor, call-counting ps shims count a holder's listing: R47 (A: 1292; B: 1296).
+- Minor, 1292's `_db2_evt` got text says "before the run's bound" when the run ended: fixed by A in 3c008026.

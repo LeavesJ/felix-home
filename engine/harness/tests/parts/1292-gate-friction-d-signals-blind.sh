@@ -27,6 +27,9 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # Revision 14 fixes here: R45 (_db2_wh finds the hk case's holder by what only it carries, a perl whose command line holds " --part " and the case's key, and the wrapper as its
 # parent, so no transient child of the -j parent can be taken for them) and R44 (the record run's TERM case waits for up.NAME and rup.NAME, and for the run to end after its
 # TERM, until the case's own run bound has passed, and a wait whose event never came fails the name, with a got text saying so, instead of the TERM going on as though it had).
+# Revision 15 fix here: R47 (the ps shim of the R2 cases counts only calls whose caller is the -j parent's ending, the -j parent or a $( ) or perl of it, and passes a call from below
+# a holder, from a holder's wrapper or from a process the -j parent no longer holds to the real ps; each counted call is logged with its caller's chain and command line, and each r2-N
+# case checks from that log that the call it failed was the one it meant, else its name fails with a got that says whose call it was).
 # Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 R40 R41 R42 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
@@ -92,13 +95,33 @@ while (1) { select(undef, undef, undef, 0.02); spawn() if $t && $mode eq "s" }
 DB2IGN
 cat > "$DB2/psshim/ps" <<'DB2PS'
 #!/bin/sh
-# The real ps ($DJ2_PSREAL), except that the DJ2_PSFAIL-th listing asked for once the file $DJ2_PSTRIG exists fails with no output and status 1. A listing is a
-# `ps -A` call whose arguments hold ppid= (R19, R34): the ending's. A holder's `ps -o ppid= -p WRAPPER` (R20, every 10 s) holds no -A and is never counted.
-# Every listing asked for after the trigger is counted in $DJ2_PSCNT.
+# The real ps ($DJ2_PSREAL), except that the DJ2_PSFAIL-th counted listing asked for once the file $DJ2_PSTRIG exists fails with no output and status 1. R47: a call is counted
+# only when it is the -j parent's ending: a `ps -A` call whose arguments hold ppid= (R19, R34) and whose caller is the -j parent (the pid in the file $DJ2_PSJP) or a $( ) or
+# perl of it, reached from this call by parent links with no holder (a perl whose command line holds " --part " and $DJ2_PSKEY) and no holder's wrapper (a child of the -j
+# parent with such a holder as its child) on the way. A call from below a holder (the tree listing of 0007's `grow` runs in a holder's ending as well), from a holder's wrapper,
+# or from a process the -j parent no longer holds (a holder at pid 1) goes to the real ps, uncounted. A holder's `ps -o ppid= -p WRAPPER` (R20, every 10 s) holds no -A and is
+# never looked at. Each counted call is logged in $DJ2_PSCNT as "N<TAB>caller>...>-j parent<TAB>the caller's command line"; each passed call after the trigger in $DJ2_PSCNT.pass.
 case " $* " in *" -A "*ppid=*)
   if [ -e "$DJ2_PSTRIG" ]; then
-    echo x >> "$DJ2_PSCNT"
-    [ "$(wc -l < "$DJ2_PSCNT" | tr -d ' ')" != "$DJ2_PSFAIL" ] || exit 1
+    v="$("$DJ2_PSREAL" -A -ww -o pid= -o ppid= -o command= 2>/dev/null | S=$$ J="$(cat "$DJ2_PSJP" 2>/dev/null)" K="$DJ2_PSKEY" LC_ALL=C awk '
+      { pid = $1; pp[pid] = $2; c = $0; sub(/^ *[0-9]+ +[0-9]+ +/, "", c); cm[pid] = c; split(c, a, " "); b = a[1]; sub(/.*\//, "", b)
+        if (b ~ /^perl/ && index(c, " --part ") && index(c, ENVIRON["K"])) hold[pid] = 1 }
+      END { J = ENVIRON["J"]; S = ENVIRON["S"]; for (h in hold) wr[pp[h]] = 1
+        q = pp[S]; ch = ""; bad = ""; n = 0
+        while (q != "" && q != 0 && n < 30) { ch = ch (ch == "" ? "" : ">") q
+          if (q == J) break
+          if (q in hold) bad = "below a holder"; else if (q in wr) bad = "below a holder wrapper"
+          q = pp[q]; n++ }
+        if (J == "" || q != J) print "pass\t" ch "\tnot reached from the -j parent"
+        else if (bad != "") print "pass\t" ch "\t" bad
+        else print "count\t" ch "\t" cm[pp[S]] }')"
+    case "$v" in
+      count"	"*)
+        n="$({ wc -l < "$DJ2_PSCNT"; } 2>/dev/null | tr -d ' ')"; n=$(( ${n:-0} + 1 ))
+        printf '%s\t%s\n' "$n" "${v#count	}" >> "$DJ2_PSCNT"
+        [ "$n" != "$DJ2_PSFAIL" ] || exit 1 ;;
+      pass"	"*) printf '%s\n' "${v#pass	}" >> "$DJ2_PSCNT.pass" ;;
+    esac
   fi ;;
 esac
 exec "$DJ2_PSREAL" "$@"
@@ -423,6 +446,20 @@ _db2_intr i-ign TERM 143 IGNORE IGNORE
 _db2_is "D6: TERM to a parent started with INT and QUIT both ignored: exit 143, with the same afterwards" "$_db2_x" ok
 
 # ---- a child that ignores TERM and is moved to pid 1 when its unit dies, and what it forks (D6, the ending). With a ps first on PATH that fails the ending's Nth listing (R2)
+# R47: FILE JP N: from the log of counted calls (N, TAB, the chain of pids from the caller up to the -j parent, TAB, the caller's command line), whose call the failed one was. Prints
+# nothing when the call numbered N is in the log and every logged call has the -j parent (the pid JP of the case's pid file) at the top of its chain and a caller that is no holder
+# or unit (no " --part " in its command line); else a sentence that says whose call it was, for the case's got text
+_db2_psown() {
+  LC_ALL=C awk -F'\t' -v jp="$2" -v n="$3" '
+    { m = split($2, a, ">"); top = a[m]; why = ""
+      if (top != jp) why = "it did not come from the -j parent (" jp ") but from the top of the chain " $2
+      else if (index($3, " --part ")) why = "its caller is a holder or a unit"
+      if ($1 == n) { seen = 1; who = "pid " a[1] " (chain " $2 "; command line [" $3 "])" }
+      if (why != "" && !bad) { bad = 1; bn = $1; bw = "pid " a[1] " (chain " $2 "; command line [" $3 "]): " why } }
+    END { if (!seen) printf " listing %s, the one to fail, is not in the log of counted calls;", n
+      else if (bad && bn == n) printf " listing %s failed was a call of %s, not the -j parent'"'"'s ending;", n, bw
+      else if (bad) printf " counted call %s was a call of %s;", bn, bw }' "$1" 2>/dev/null
+}
 _db2_igr() {   # CASE MODE [N]: MODE n h s: a unit starts that child with & and waits, MODE u: the unit itself ignores TERM and forks a sleeper on it; TERM to the parent; afterwards nothing of the run runs, stopped or not
   local c="$1" m="$2" n="${3:-}" r="" g y
   if [ "$m" = u ]; then _db2_w "$c" 0010-ka.sh <<'X'
@@ -439,7 +476,7 @@ X
   fi
   _db2_new "$c" "$DB2/g-empty.tsv" + "$DB2/pp/$c"/0010-ka.sh || { _db2_x="the copy could not be made"; return 0; }
   printf '%s' "$m" > "$_db2_c/mode"
-  [ -z "$n" ] || _db2_E=(PATH="$DB2/psshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_PSFAIL="$n" DJ2_PSTRIG="$_db2_c/trig" DJ2_PSCNT="$_db2_c/pscnt")
+  [ -z "$n" ] || _db2_E=(PATH="$DB2/psshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_PSFAIL="$n" DJ2_PSTRIG="$_db2_c/trig" DJ2_PSCNT="$_db2_c/pscnt" DJ2_PSJP="$_db2_c/i.pid" DJ2_PSKEY="$(_db2_key)")
   _db2_lim=150; _db2_go i -j 2
   _db2_until 450 _db2_up 0010-ka.sh || r=" no unit came up;"
   _db2_ino0="$(_db2_inos "$_db2_tmp")"; [ -n "$_db2_ino0" ] || r="$r no slot file before the signal;"
@@ -449,6 +486,8 @@ X
   case "$m" in h|u) [ -s "$_db2_c/gc.pids" ] || r="$r the TERM never reached the child, which forked nothing;" ;; esac
   y="$({ wc -l < "$_db2_c/pscnt"; } 2>/dev/null | tr -d ' ')"
   [ -z "$n" ] || [ "${y:-0}" -ge "$n" ] || r="$r the ending asked for ${y:-0} listings, so listing $n never failed;"
+  [ -z "$n" ] || r="$r$(_db2_psown "$_db2_c/pscnt" "$(_db2_pid i)" "$n")"
+  [ -z "$n" ] || [ -z "${DJX_PSLOG:-}" ] || { printf '== %s: failed call %s, counted calls (N, caller>...>-j parent, caller command), then passed calls\n' "$c" "$n"; cat "$_db2_c/pscnt" 2>/dev/null; echo "-- passed"; cat "$_db2_c/pscnt.pass" 2>/dev/null; } >> "$DJX_PSLOG"
   _db2_kf "$_db2_c/gc.pids" "$_db2_c/ign.pid"
   _db2_x="${r:-ok}"; rm -rf "$_db2_c"
 }

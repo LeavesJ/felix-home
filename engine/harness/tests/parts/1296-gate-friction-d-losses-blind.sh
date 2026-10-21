@@ -36,8 +36,11 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 #   first listing that shows what was asked for (the listing's own cost is not charged to the run);
 # - R14 and R21 are told apart from a pid-only stopper by a ps first on PATH (ps/ in this block's directory): it runs the
 #   real ps and passes its output on, and once a gate file exists it counts the listings that hold -A, ppid= and lstart=
-#   (the ending's; a holder's ps -o ppid= -p holds no -A) and changes what the listings print: R14 prints P's start time
-#   one second later from the second listing on; R21 leaves R (P's child) out of the first and shifts P from the third on.
+#   and whose caller is the -j parent's ending (R47: the shim walks its ancestors with the real ps up to the pid in the run's pid file, the -j parent, and counts the call only when its parent is the -j parent
+#   or it comes from one process between (a $( ) or a perl of the -j parent) or from a perl behind its sh; a call from below a wrapper or a holder, as the listing at 0007:55 made in a holder's ending is, goes to the real ps and is not
+#   counted) and changes what the listings print: R14 prints P's start time one second later from the second listing on; R21 leaves R (P's child) out of the first and shifts P from the third on.
+#   Each counted call is logged (pscalls: its number, its caller's pid and parent pid, and the caller's command line), and the case checks from that log that every call it failed or shifted was the -j parent's
+#   (a got that says whose call it was otherwise); with DJX_MLOG naming a file the log is appended to it, with the case's name, before the case's directory goes (evidence only).
 #   The date is shifted by perl (Time::Local); where its shape is not the one ps prints here, a suffix makes it differ;
 # - R22: the holder's ps -o lstart= -p for the unit it forked is the first such call after the gate file (the holder's
 #   own was made before it took its first try, while the case held the slot). One case makes every such call print
@@ -119,8 +122,8 @@ DB6P
 cat > "$DB6/psshim/ps" <<'DB6SH'
 #!/usr/bin/env perl
 # ps for R14, R21 and R22: the real ps ($DJ6_PSREAL), except by $DJ6_MODE once the file $DJ6_GATE exists.
-#   skew:  a listing that holds -A, ppid= and lstart= (the ending's; a holder's ps -o ppid= -p holds no -A) is counted in $DJ6_CNT. From the second on, the row of the pid in the file $DJ6_P shows a
-#          start time one second later (R14).
+#   skew:  a listing that holds -A, ppid= and lstart= and whose caller is the -j parent's ending (R47: the pid in the file $DJ6_JP; see the walk below) is counted in $DJ6_CNT and logged in $DJ6_CLOG. From the second on, the row of the pid in the file $DJ6_P shows a
+#          start time one second later (R14). A listing from anywhere else (a holder's, a wrapper's) goes to the real ps, uncounted.
 #   twin:  the same count. The first listing leaves out the row of the pid in the file $DJ6_R, the second is as it is, and from the third on the row of $DJ6_P is shifted (R21).
 #   blank: a call that holds lstart= and -p, for a pid that is not in the file $DJ6_SKIPF (the holder's own and the parent's), prints nothing and fails: the start time of the unit a holder forked (R22).
 #   block: the first such call (once: mkdir $DJ6_ONCE) writes its pid to $DJ6_BLK, waits for the file $DJ6_GO (at most 25 s), and then runs the real ps (R22).
@@ -140,8 +143,26 @@ if ($mode eq "blank" || $mode eq "block") {
   real();
 }
 real() unless $args =~ / -A / && $args =~ /ppid=/ && $args =~ /lstart=/;
+# R47: whose call is this? Walk the ancestors with the real ps up to the -j parent (the pid in $DJ6_JP): @ch holds them, nearest first, as pid:command. It is the -j parent's own ending when the parent is the -j parent (no
+# ancestor between), or one process is between (a $( ) subshell, or a perl, of the -j parent), or two are and the outer one is a perl (perl's backticks run an sh). Anything deeper, or not under the -j parent at all, is a wrapper's or a
+# holder's call (a ps below a holder's perl has a wrapper between it and the -j parent), and goes to the real ps, uncounted.
+my $jp = rd($ENV{DJ6_JP} || ""); my @ch = (); my $found = 0;
+if ($jp =~ /^\d+$/) {
+  my $q = getppid();
+  for (1 .. 12) {
+    last if $q <= 1;
+    if ($q == $jp) { $found = 1; last }
+    open(my $u, "-|", $real, "-ww", "-o", "ppid=", "-o", "command=", "-p", $q) or last;
+    my $l = <$u>; close $u; defined $l && $l =~ /^\s*(\d+)\s+(.*?)\s*$/ or last;
+    push @ch, "$q:$2"; $q = $1;
+  }
+}
+my $mine = $found && (@ch <= 1 || (@ch == 2 && $ch[1] =~ /^\d+:(?:\S*\/)?perl(?:\s|$)/));
+real() unless $mine;
 open(my $c, ">>", $ENV{DJ6_CNT}) or real(); print $c "x\n"; close $c;
 my $n = 0; if (open(my $c2, "<", $ENV{DJ6_CNT})) { $n++ while <$c2>; close $c2 }
+{ my ($cp, $cc) = @ch ? split(/:/, $ch[-1], 2) : ($jp, "the -j parent itself");   # the caller: the outermost process between, a child of the -j parent, or the -j parent itself; logged as: number, its pid, its parent's pid, its command line
+  if (open(my $lg, ">>", $ENV{DJ6_CLOG} || "/dev/null")) { print $lg "$n $cp ", (@ch ? $jp : "-"), " $cc\n"; close $lg } }
 my $p = rd($ENV{DJ6_P} || ""); my $r = rd($ENV{DJ6_R} || "");
 my ($hide, $shift) = ("", "");
 if ($mode eq "skew") { $shift = $p if $n >= 2 } elsif ($mode eq "twin") { $hide = $r if $n == 1; $shift = $p if $n >= 3 }
@@ -453,6 +474,15 @@ rm -rf "$DB6/n/hh"
 # listing's start time, and is not present in the second: a stopper that signals by pid alone STOPs and KILLs it. R21's twin (mode twin): R, a child P starts, is left out of the first listing and shown
 # from the second, so the second listing adds a member and step 4 makes a second round with the third listing, where P's start is shifted after P was sent STOP; P ignores TERM. What a stopper has
 # stopped it signals by its pid from then on, so P and R are gone; a build without that leaves P stopped.
+# JPFILE LOG N: R47. Nothing when the log holds N or more lines, each with the -j parent (the pid in JPFILE) as its caller (the caller's pid) or as the caller's parent, else what was wrong,
+# saying whose call it was: "listing K was called by PID (COMMAND), not by the -j parent's ending (pid J);"
+_db6_who() {
+  LC_ALL=C awk -v j="$(cat "$1" 2>/dev/null)" -v want="$3" '
+    BEGIN { if (j == "") printf " the -j parent'"'"'s pid is not known, so whose calls were counted cannot be told;" }
+    { k++; c = $0; sub(/^[^ ]+ [^ ]+ [^ ]+ /, "", c)
+      if (j != "" && $2 != j && $3 != j) printf " listing %s was called by %s (%s), not by the -j parent'"'"'s ending (pid %s);", $1, $2, substr(c, 1, 60), j }
+    END { if (k + 0 < want + 0) printf " the log of counted calls holds %d lines, not the %d listings counted;", k, want }' "$2" 2>/dev/null
+}
 # CASE MODE: _db6_x is "ok", or what was wrong
 _db6_pr() {
   local c="$1" m="$2" r="" g p q lc w
@@ -466,7 +496,7 @@ wait
 X
   _db6_new "$c" "$DB6/g-empty.tsv" + "$DB6/pp/$c"/0010-pa.sh || { _db6_x="the copy could not be made"; return 0; }
   if [ "$m" = twin ]; then printf '%s' "$_db6_c/r.pid" > "$_db6_c/rarg"; else printf '%s' - > "$_db6_c/rarg"; fi
-  _db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE="$m" DJ6_GATE="$_db6_c/gate" DJ6_CNT="$_db6_c/pscnt" DJ6_P="$_db6_c/p.pid" DJ6_R="$_db6_c/r.pid")
+  _db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE="$m" DJ6_GATE="$_db6_c/gate" DJ6_CNT="$_db6_c/pscnt" DJ6_P="$_db6_c/p.pid" DJ6_R="$_db6_c/r.pid" DJ6_JP="$_db6_c/i.pid" DJ6_CLOG="$_db6_c/pscalls")
   _db6_lim=150; _db6_go i -j 2
   _db6_until 450 _db6_up 0010-pa.sh || r=" no unit came up;"
   sleep 0.5; : > "$_db6_c/gate"
@@ -475,9 +505,11 @@ X
   [ -n "$p" ] || r="$r P never wrote its pid;"
   if [ "$m" = twin ]; then _db6_only "$g" 0; w=3; else _db6_only "$g" "${p:-0}"; w=2; fi
   lc="$(wc -l < "$_db6_c/pscnt" 2>/dev/null | tr -d ' ')"; [ "${lc:-0}" -ge "$w" ] 2>/dev/null || r="$r the ending asked for ${lc:-0} listings, so listing $w never came;"
+  r="$r$(_db6_who "$_db6_c/i.pid" "$_db6_c/pscalls" "${lc:-0}")"   # R47: every listing it counted, so every one it failed or shifted, was the -j parent's
   if [ "$m" = twin ]; then _db6_x="$_db6_rc P-$(_db6_pst "${p:-0}") R-$(_db6_pst "${q:-0}") ${_db6_ol:-none-else} [$(_db6_held "$_db6_tmp")] $(_db6_cnt "$_db6_c/i.out" reached) $(_db6_rcpt)${r}"
   else _db6_x="$_db6_rc P-$(_db6_pst "${p:-0}") terms-$(wc -l < "$_db6_c/p.terms" 2>/dev/null | tr -d ' ') ${_db6_ol:-none-else} [$(_db6_held "$_db6_tmp")] $(_db6_cnt "$_db6_c/i.out" reached) $(_db6_rcpt)${r}"
   fi
+  [ -z "${DJX_MLOG:-}" ] || sed "s/^/${c} pscalls /" "$_db6_c/pscalls" >> "$DJX_MLOG" 2>/dev/null   # evidence only: the counted calls and their callers
   _db6_kf "$_db6_c/p.pid" "$_db6_c/r.pid"; _db6_fin; rm -rf "$_db6_c"
 }
 _db6_pr r14 skew

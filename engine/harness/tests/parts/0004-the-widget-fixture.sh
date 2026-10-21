@@ -73,18 +73,25 @@ unset CLAUDE_CODE_SESSION_ID
 # status, so a developer's unstaged deletion would read as a copy that
 # failed. GNU tar was not there to measure; skipping means it is never asked.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
-  local src="$1" dest="$2" f
+  local src="$1" dest="$2" f arc rc
   # An empty source would be copied as "/." (the 18:04 incident at the
   # driver's REAL_HARNESS check), so a source that is not a directory copies nothing.
   [ -n "$src" ] && [ -d "$src" ] || {
     printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
   mkdir -p "$dest" || return 1
   if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
+    # The archive is written whole to a file of this call's own, then read: an extractor
+    # that stops at the end-of-archive marker (bsdtar) must not sit at the end of a pipe
+    # under pipefail, where the writer's next write fails (R37).
+    arc="$(mktemp "${TMP:-${TMPDIR:-/tmp}}/copy-content.XXXXXX")" || return 1
     ( cd "$src" && git ls-files -co --exclude-standard -z . \
         | while IFS= read -r -d '' f; do
             { [ -e "$f" ] || [ -L "$f" ]; } && printf '%s\0' "$f"
           done \
-        | tar -c --null -T - -f - ) | tar -x -f - -C "$dest"
+        | tar -c --null -T - -f "$arc" ); rc=$?
+    [ "$rc" -eq 0 ] && { tar -x -f "$arc" -C "$dest"; rc=$?; }
+    rm -f "$arc"
+    return "$rc"
   else
     cp -R "$src/." "$dest/"
   fi

@@ -447,11 +447,12 @@ if [ "$AFTER" -eq 1 ]; then
   # --after, the suite is as it was.
   ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1 &
   SUITE=$!; SUITE_ST="$(ps -o lstart= -p "$SUITE" 2>/dev/null)"
-  ( sl=""; trap 'kill "$sl" 2>/dev/null; exit' TERM   # ended at once, and no sleep left behind
-    while kill -0 "$SUITE" 2>/dev/null; do
-      if { [ ! -e "$MARK" ] && _gone; } || _failed; then trap '' TERM; : > "$TMP/gone"; _stop_tree "$SUITE"; break; fi
-      sleep 1 & sl=$!; wait "$sl"
-    done ) > /dev/null 2>&1 &
+  ( sl=""; z=0; trap 'z=1' TERM   # R43: a TERM is only recorded; the loop acts on it once it holds the sleep's pid, so none is left behind
+    while [ "$z" = 0 ] && kill -0 "$SUITE" 2>/dev/null; do
+      if { [ ! -e "$MARK" ] && _gone; } || _failed; then trap '' TERM; [ "$z" = 1 ] || { : > "$TMP/gone"; _stop_tree "$SUITE"; }; break; fi
+      sleep 1 & sl=$!; [ "$z" = 1 ] || { wait "$sl"; [ "$z" = 1 ] || sl=""; }
+    done
+    [ -z "$sl" ] || case " $(builtin jobs -rp) " in *" $sl "*) kill "$sl" 2>/dev/null ;; esac ) > /dev/null 2>&1 &
   MON=$!
   wait "$SUITE"; RC=$?
   kill "$MON" 2>/dev/null; wait "$MON" 2>/dev/null

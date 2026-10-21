@@ -627,12 +627,12 @@ _db4_go o3 -j 3; _db4_wait
 _db4_is "D3: and inside a unit it does the same under -j 3: the unit's verdict is bad, so the origin assertion FAILs once and the run exits 1" \
    "$_db4_rc $(_db4_cnt "$_db4_c/o3.out" "  FAIL  $_db4_n9c") $(_db4_last o3 | grep -c ' (counted from lines)$')" "1 1 1"
 rm -rf "$DB4/n/om"
-# a record run with a runner failure ends in the runner, before 9990's lines and the record's, writes no manifest, and leaves nothing of red's tree (D4, R1)
+# a record run with a runner failure ends in the runner, before 9990's lines and the record's, writes no manifest, and leaves nothing of red's tree (D4: _db4_fin's group drain, whose finding goes to the D4 name; R1, R48: the manifest and red.tsv's rows)
 _db4_new rk --red "$DB4/g-empty.tsv" "$DB4/man.tsv" "$DB4/pp/dk"/*.sh
 _db4_lim=150; _db4_go r -j 3 --record-assertions; _db4_wait
 _db4_x="$_db4_rc $(grep -cF -e "$_db4_n9a" -e "$_db4_n9b" -e "$_db4_n9c" "$_db4_c/r.out") $(_db4_pfx "$_db4_c/r.out" '  recorded ') $(_db4_cnt "$_db4_c/r.out" reached) $(_db4_cnt "$_db4_c/r.out" '  FAIL  part ended without its mark: 0020-kb.sh')"
 _db4_is "D4: a record run with a unit killed exits 1 in the runner: none of 9990's three lines, no recorded line, no reached, and the unit's failure printed" "$_db4_x" "1 0 0 0 1"
-_db4_is "R1: and it writes no manifest, nothing of red's tree is left once it has exited, and red.tsv holds exactly the rows base - - - and run - - -" \
+_db4_is "R1: and it writes no manifest, and red.tsv holds exactly the rows base - - - and run - - -" \
    "$(cmp -s "$DB4/man.tsv" "$_db4_T/assertions.tsv" && echo same || echo changed) $(grep -v '^#' "$_db4_T/red.tsv" 2>/dev/null | tr '\t' ' ' | tr '\n' '|')" "same base - - -|run - - -|"
 rm -rf "$DB4/n/rk"
 

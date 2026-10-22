@@ -3,7 +3,7 @@
 **Engine 0.49.303 (this branch, `claude/gate-friction-d`, on origin/main
 e3636d40).** Row 0's last step, after C (#444, 0.49.299), which made every
 part run alone. The contract is `docs/2026-10-18-gate-friction-contract-d.md`,
-revision 12. Its amendment sections record every review and evidence pass that
+revision 15. Its amendment sections record every review and evidence pass that
 changed it. The evidence and the cost on the tree that lands are in the PR.
 
 **What changed.**
@@ -59,6 +59,16 @@ changed it. The evidence and the cost on the tree that lands are in the PR.
   and red before each build. The two `mktemp` checks in 0140 and 0150 were
   written by the builder; a reviewer checked them against the contract, and
   they are red without the stand-in.
+- **The blind parts' own fixes (revisions 14 and 15).** These came from the
+  third evidence pass and its reviews, and are test-only:
+  - a red-only hold lasts as long as its case's run, and the R1 verdict needs
+    positive evidence that the hold happened (R44, R46);
+  - the 90 s sleeper case got a holder;
+  - a process finder names its process by its ` --part ` and the case's key
+    (R45);
+  - the ps stand-ins that count listings count only the -j parent's ending
+    (R47);
+  - 1294's R1 name drops a clause it never checked (R48).
 
 **How to use it.** `engine/harness/tests/run -j 8` for a whole run. A long
 pole bounds the wall time: ib, and the D blind parts 1291 to 1294, each a few
@@ -77,4 +87,10 @@ minutes.
 - Two fixture stubs sleep in a child that a TERM trap ends: 1285:333 leaves
   its `sleep 0.1` on every TERM, and 0660:246 can signal a stale `$!`.
   Neither is in red's tree.
+- 1282's A5 ("two ticks racing one dead lock ...", land-on-green's) fails
+  against main only under load, so whether red.tsv names it depends on the
+  load. It is outside D.
+- R47's pass path, a holder's listing during the parent's ending, never came
+  up inside a part. The authors checked it with stand-in process trees, and
+  CI's bash 5.2 run is the other shell.
 - If #455 lands first, D re-versions to 0.49.304 and records again.

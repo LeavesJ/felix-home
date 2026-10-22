@@ -12,6 +12,7 @@
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
+#   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
 
@@ -53,28 +54,12 @@ fi
 # _suite_files, _suite_src and _suite_flat are defined in part 0003.
 
 PASS=0; FAIL=0
-# Every assertion that RAN, by name, whatever its verdict.
-#
-# #67: two assertions execute on macOS and never run on the Linux runner — no
-# pass, no fail, no skip line. Measured as a constant gap of 2 across three
-# unrelated commits, including a pre-session main, and not caused by the
-# `claude` CLI: hiding claude locally converts four passes into four skips and
-# leaves the attempted total unchanged, while CI attempts two fewer.
-#
-# A total alone cannot say which two. This records names so the suite can
-# compare what it ran against what it is supposed to run, and name the
-# difference. A count that silently drops is indistinguishable from a passing
-# run, which is the property this repository most needs not to have.
-#
-# Appended to a file rather than accumulated in a variable, because a shell
-# variable does not survive the subshells some of these assertions run inside —
-# the same reason PASS and FAIL are incremented in the main shell only.
+# Every assertion that RAN, by name, whatever its verdict: why, and why in a file,
+# at the end of part 0001, where the file is made.
 FELIX_TEST_RAN=""
-# Each name is also offered to the origin guard (_og_tick, in the preamble below,
-# armed once $TMP exists): one builtin comparison of a watched config's mtime with
-# a stamp, and no fork unless that config changed. It is called only when its
-# state exists, so the helper block tests/red lifts out of this file and runs on
-# its own (this line to skip(), below) stays silent under set -u.
+# Each name is also offered to the origin guard (_og_tick, part 0003) once its state
+# exists, so the helper block tests/red lifts out of this file (this line to
+# skip(), below) stays silent under set -u.
 _ran() { [ -n "$FELIX_TEST_RAN" ] || return 0; [ -z "${_og_on:-}" ] || _og_tick "$1"; printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
 # The ran file, one name a line, as count<TAB>name rows sorted by name: the
 # manifest's shape. The name is kept exactly as the suite printed it. Until
@@ -134,6 +119,8 @@ FELIX_TEST_RECORD=0; _rcp_reuse=0
 while :; do case "${1:-}" in
   --record-assertions) FELIX_TEST_RECORD=1; shift ;;
   --reuse)             _rcp_reuse=1; shift ;;
+  -j)                  shift 2 ;;
+  --part)              shift "$#" ;;
   *)                   break ;;
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
@@ -144,6 +131,7 @@ esac; done
 # the file, which red does not copy into the base.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then _rcp_why="this is a red run"
+elif [ -n "${_pm1:-}" ]; then _rcp_why="this is part mode"
 elif . "$HERE/receipt.sh" 2>/dev/null; then _rcp_on=1
 else _rcp_why="no tests/receipt.sh beside this suite"; fi
 [ "$_rcp_on" -eq 1 ] || [ "$_rcp_reuse" -eq 0 ] || printf 'not reused: %s\n' "$_rcp_why"
@@ -165,6 +153,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 
 . "$HERE/parts/0005-fixture-floor.sh"
 . "$HERE/parts/0006-the-lib-judges.sh"
+. "$HERE/parts/0007-the-parallel-runner.sh"
 # The names defined so far, one a line, for _lib_clashes: a lib file may not take one.
 { compgen -v; compgen -A function; } | LC_ALL=C sort -u > "$TMP/lib-before.names"
 # tests/lib/*.sh, one line each, in name order (contract C2); none runs anything.
@@ -215,13 +204,25 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
 . "$HERE/lib/widget-repo.sh"
-# The variables the lib files' functions read, set here, once, by the _vars
-# function of each file that has them: a lib file sets none as it is sourced (C2).
-# A copy of the driver (_suite_copy_driver) drops the lib lines and has no lib.
+# The lib files' variables are set here, once, by their _vars functions (part 0006).
 if [ -d "$HERE/lib" ]; then
   _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
   _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
 fi
+# The hand-over (contract D2, D7): part mode runs its members here and exits; a
+# -j N run hands the parts to the runner and reads the part lines below as no-ops.
+[ -z "${_pm1:-}" ] || _pm_start "$@"
+[ -z "${_pm1:-}" ] || . "$HERE/parts/$_pm1"; [ -z "${_pm1:-}" ] || _pm_done "$_pm1"
+[ -z "${_pm2:-}" ] || . "$HERE/parts/$_pm2"; [ -z "${_pm2:-}" ] || _pm_done "$_pm2"
+[ -z "${_pm3:-}" ] || . "$HERE/parts/$_pm3"; [ -z "${_pm3:-}" ] || _pm_done "$_pm3"
+[ -z "${_pm4:-}" ] || . "$HERE/parts/$_pm4"; [ -z "${_pm4:-}" ] || _pm_done "$_pm4"
+[ -z "${_pm5:-}" ] || . "$HERE/parts/$_pm5"; [ -z "${_pm5:-}" ] || _pm_done "$_pm5"
+[ -z "${_pm6:-}" ] || . "$HERE/parts/$_pm6"; [ -z "${_pm6:-}" ] || _pm_done "$_pm6"
+[ -z "${_pm1:-}" ] || _pm_fin "$@"
+[ -z "${_pm1:-}" ] || exit 3
+[ "$_suite_jobs" -le 1 ] || _par_run
+[ "$_suite_jobs" -le 1 ] || [ "${_par_done:-}" = 1 ] || exit 1
+[ "$_suite_jobs" -le 1 ] || { shopt -s expand_aliases; alias .=:; }
 . "$HERE/parts/0010-resolution.sh"
 . "$HERE/parts/0020-adopting-over-a-capabilities-entry-that-is-n.sh"
 . "$HERE/parts/0030-appends-onto-a-hand-written-last-line.sh"
@@ -374,6 +375,12 @@ fi
 . "$HERE/parts/1288-land-on-green-round-8-blind.sh"
 . "$HERE/parts/1289-land-on-green-round-9-blind.sh"
 . "$HERE/parts/1290-gate-friction-c-blind.sh"
+. "$HERE/parts/1291-gate-friction-d-blind.sh"
+. "$HERE/parts/1292-gate-friction-d-signals-blind.sh"
+. "$HERE/parts/1293-gate-friction-d-runner-failures-blind.sh"
+. "$HERE/parts/1294-gate-friction-d-slots-blind.sh"
+. "$HERE/parts/1295-gate-friction-d-shell-blind.sh"
+. "$HERE/parts/1296-gate-friction-d-losses-blind.sh"
 . "$HERE/parts/1300-stuck-pr-page-blind.sh"
 . "$HERE/parts/1310-stuck-pr-page-states-blind.sh"
 . "$HERE/parts/1320-stuck-pr-page-readings-blind.sh"
@@ -398,6 +405,7 @@ fi
 . "$HERE/parts/1530-patch-reads-the-repository-not-a-diff-setting.sh"
 . "$HERE/parts/1540-patch-reads-the-review-s-cases-and-findings.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
+! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 
 # The suite's completion marker: tests/red counts a red run only when a line
@@ -481,5 +489,6 @@ fi
 [ "$_rcp_on" -ne 1 ] || _rcp_finish "$_rcp_root" "$FELIX_TEST_RECORD" "$_rcp_cmp" "$_rcp_judged" "$PASS" "$FAIL" "$SKIP"
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d skipped' "$SKIP"
+[ "$_suite_jobs" -le 1 ] || printf ' (counted from lines)'
 printf '\n'
 [ "$FAIL" -eq 0 ] || exit 1

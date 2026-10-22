@@ -329,7 +329,7 @@ _iv_ghwrites() { LC_ALL=C awk '
       if ((m != "" && m != "GET") || (f && m != "GET")) k = 0 }
     if (!k) printf "gh %s; ", $0 }' "$IVGH_LOG"; }
 is  "every gh call it made is a read: pr list, view or checks, repo view, auth status, or an api GET" "$(_ivrows "$IV_T1" "$(_iv_ghwrites)")" ""
-_ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: ' "$IV_ERR" | head -n 3 | tr '\n' ';')"
+_ivx="$(grep -E 'bad substitution|syntax error|unbound variable|command not found|invalid option|not a valid identifier|division by 0|awk: |Permission denied' "$IV_ERR" | head -n 3 | tr '\n' ';')"
 is  "no run wrote a shell or awk error to stderr" "$_ivx" ""
 
 # ---- the code ------------------------------------------------------------

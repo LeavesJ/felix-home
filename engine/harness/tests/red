@@ -121,6 +121,10 @@
 #           argument, a record run that ended before it wrote the manifest and
 #           one whose mark does not read `written`. red.tsv says so.
 #
+# Under -j (contract D4): FELIX_TEST_RED_JOBS, read once and unset, runs the suite with -j N, and
+# this tree's tests/groups.tsv goes in with run, parts and lib. The runner's own failure lines (D3)
+# name no assertion and are not counted; one that says a unit's prelude failed refuses the log.
+#
 # One trap, from HANDOFF §5: a test for a hang leaks the hang unless its
 # watchdog kills the children, and a red run is where such tests fail (_reap).
 set -uo pipefail
@@ -145,6 +149,8 @@ esac
 
 HERE="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)" || exit 2
 OUT="$HERE/red.tsv"
+RJ="${FELIX_TEST_RED_JOBS-}"; unset FELIX_TEST_RED_JOBS FELIX_TEST_JOBS   # D4, R10: read once, never passed on, the other never read; kept only if it is an N
+case "$RJ" in [123456789]|[12345][0123456789]|6[01234]) ;; *) RJ="" ;; esac
 
 # --after <mark> <pid>, taken apart here and judged after the retraction below,
 # so a bad one is said in red.tsv as every other refusal is. It is the first
@@ -187,26 +193,35 @@ _none() {
   exit 2
 }
 
-# A tree of processes ended: all of it asked to end (so the suite's own EXIT trap
-# removes its temporary directory), the root given up to 10 s to go, what is left
-# stopped and then killed, the whole list at once so that nothing forks meanwhile.
-# As _rcp_stop in receipt.sh, which this does not load: red runs in the base's
-# tree as well as this one.
-_tree() {   # <pid>: it and every process below it, on one line
-  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
-    { kids[$2] = kids[$2] " " $1 }
-    END { q = root; out = ""
-          while (q != "") { n = split(q, a, " "); q = ""
-                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
-          print out }'
+# A tree ended (R2, R14), as _rcp_stop in receipt.sh, which this does not load: the set is "pid;start|..."
+# members (a start is what ps gave the pid when it joined; "": any), each signalled only while the latest
+# non-empty listing shows its pid with that start; an empty listing is taken again (five tries, 0.2 s apart).
+# TERM, the root given up to 10 s, STOP while a listing adds a member (30 times), KILL, a listing, KILL, CONT.
+_grow() {   # -> SET gains everything below a member present, ADD how many, PRES the pids present
+  local o="" t=0 r tab=$'\t'
+  while [ "$t" -lt 5 ]; do
+    o="$(ps -A -o pid= -o ppid= -o lstart= 2>/dev/null | awk -v seed="$SET" '{ s = $0; sub(/^ *[0-9]+ +[0-9]+ */, "", s); sub(/ +$/, "", s); R[$1] = s; K[$2] = K[$2] " " $1 }
+      END { n = split(seed, M, "|"); for (i = 1; i <= n; i++) if (M[i] != "") { split(M[i], a, ";"); m++; sp[m] = a[1]; ss[m] = a[2]; have[M[i]] = 1 }
+        for (i = 1; i <= m; i++) if (NR && (sp[i] in R) && (ss[i] == "" || ss[i] == R[sp[i]])) { pres[sp[i]] = 1; if (!(sp[i] in vis)) { vis[sp[i]] = 1; Q[++qn] = sp[i] } }
+        for (h = 1; h <= qn; h++) { nc = split(K[Q[h]], C, " "); for (j = 1; j <= nc; j++) { c = C[j]; pres[c] = 1
+          if (!((c ";" R[c]) in have)) { have[c ";" R[c]] = 1; m++; sp[m] = c; ss[m] = R[c]; add++ }
+          if (!(c in vis)) { vis[c] = 1; Q[++qn] = c } } }
+        for (i = 1; i <= m; i++) out = out (i > 1 ? "|" : "") sp[i] ";" ss[i]
+        for (c in pres) pl = pl " " c
+        printf "%d\t%d\t%s\t%s\n", NR, add + 0, out, pl }')"
+    t=$((t + 1)); case "$o" in ""|"0$tab"*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+  done
+  ADD=0
+  case "$o" in [123456789]*"$tab"*) r="${o#*"$tab"}"; ADD="${r%%"$tab"*}"; r="${r#*"$tab"}"; SET="${r%%"$tab"*}"; PRES="${r#*"$tab"}" ;; esac
 }
-_stop_tree() {   # <pid>
-  local list p n=0
-  list="$(_tree "$1")"
-  for p in $list; do kill -TERM "$p" 2>/dev/null; done
+_k() { local p; for p in $PRES $PST; do kill -"$1" "$p" 2>/dev/null; done; }   # R21: a member sent STOP is signalled by its pid from then on
+_stop_tree() {   # <pid>, with the start time ps gave it in SUITE_ST
+  local n=0 s="$SUITE_ST"; PST=""
+  s="${s#"${s%%[! ]*}"}"; SET="$1;${s%"${s##*[! ]}"}"; PRES="$1"; _grow; _k TERM
   while [ "$n" -lt 100 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
-  for p in $list; do kill -STOP "$p" 2>/dev/null; done
-  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+  n=0
+  while [ "$n" -lt 30 ]; do _grow; _k STOP; PST="$PST $PRES"; [ "$ADD" -gt 0 ] || break; n=$((n + 1)); done
+  _k KILL; _grow; _k KILL; _k CONT
 }
 # Whatever still holds this run's temporary path in its command line is a stray
 # of this run, and is ended (HANDOFF §5, below).
@@ -244,16 +259,18 @@ _gone() {
   case "$pp" in ''|*[!0-9]*) ;; *) [ "$pp" = "$PPID0" ] || return 0 ;; esac
   return 1
 }
-SUITE=""; MON=""
+SUITE=""; SUITE_ST=""; MON=""
+_failed() { local f=""; [ -f "$MARK" ] || return 1; { IFS= read -r f < "$MARK"; } 2>/dev/null; [ "$f" = failed ]; }   # the record run said it failed (R1)
 # Ended by a signal (the record run's, or a Ctrl-C): its suite and the monitor
 # are ended, the base checkout goes with the trap below, and the retraction is
 # written again, so that a signal before the first write, or in the middle of
 # the last, leaves red.tsv saying nothing was shown. Armed ahead of the
 # retraction for that reason; --after only, since run by hand the suite is a
-# foreground command and a signal waits for it.
+# foreground command and a signal waits for it. A monitor that is stopping the
+# suite ignores TERM and is waited for, not killed (R2).
 _abort() {   # <exit status>
   trap '' INT TERM HUP
-  [ -z "$MON" ] || kill "$MON" 2>/dev/null
+  [ -z "$MON" ] || { kill "$MON" 2>/dev/null; wait "$MON" 2>/dev/null; }
   [ -z "$SUITE" ] || _stop_tree "$SUITE"
   _reap
   { _header; printf 'base\t-\t-\t-\nrun\t-\t-\t-\n'; } | _put 2>/dev/null
@@ -374,6 +391,10 @@ if [ -d "$HERE/lib" ]; then
     || _none "could not place tests/lib into the tree at $BASE"
 fi
 
+# tests/groups.tsv (D5) is this tree's too: the base's goes first, and none is placed when this tree has none.
+rm -f "$TREE/engine/harness/tests/groups.tsv" 2>/dev/null; [ ! -e "$TREE/engine/harness/tests/groups.tsv" ] || _none "could not clear tests/groups.tsv out of the tree at $BASE"
+[ ! -f "$HERE/groups.tsv" ] || cp "$HERE/groups.tsv" "$TREE/engine/harness/tests/groups.tsv" 2>/dev/null || _none "could not place tests/groups.tsv into the tree at $BASE"
+
 # The suite runs with the caller's TMPDIR, as it does by hand, so its own
 # mktemp root is made where a plain run makes it. Until 2026-09-24 it ran with
 # TMPDIR under this run's directory, so that its root would go with this run
@@ -424,30 +445,39 @@ if [ "$AFTER" -eq 1 ]; then
   # suite already did in every record run (the record run starts red as a job,
   # and what a process ignores its children ignore too). Run by hand without
   # --after, the suite is as it was.
-  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1 &
-  SUITE=$!
-  ( while kill -0 "$SUITE" 2>/dev/null; do
-      if [ ! -e "$MARK" ] && _gone; then : > "$TMP/gone"; _stop_tree "$SUITE"; break; fi
-      sleep 1
-    done ) > /dev/null 2>&1 &
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1 &
+  SUITE=$!; SUITE_ST="$(ps -o lstart= -p "$SUITE" 2>/dev/null)"
+  ( sl=""; z=0; trap 'z=1' TERM   # R43: a TERM is only recorded; the loop acts on it once it holds the sleep's pid, so none is left behind
+    while [ "$z" = 0 ] && kill -0 "$SUITE" 2>/dev/null; do
+      if { [ ! -e "$MARK" ] && _gone; } || _failed; then trap '' TERM; [ "$z" = 1 ] || { : > "$TMP/gone"; _stop_tree "$SUITE"; }; break; fi
+      sleep 1 & sl=$!; [ "$z" = 1 ] || { wait "$sl"; [ "$z" = 1 ] || sl=""; }
+    done
+    [ -z "$sl" ] || case " $(builtin jobs -rp) " in *" $sl "*) kill -KILL "$sl" 2>/dev/null ;; esac ) > /dev/null 2>&1 &
   MON=$!
   wait "$SUITE"; RC=$?
-  kill "$MON" 2>/dev/null
-  [ ! -e "$TMP/gone" ] || { _reap; _none "the record run ended before it wrote the manifest"; }
+  kill "$MON" 2>/dev/null; wait "$MON" 2>/dev/null
+  _reap
+  # A mark that reads `failed` ends the suite and is refused here, before its log is read (R1).
+  _first=""; [ ! -f "$MARK" ] || { IFS= read -r _first < "$MARK"; } 2>/dev/null
+  [ "$_first" != failed ] || _none "the record run did not write a manifest (failed)"
+  [ ! -e "$TMP/gone" ] || _none "the record run ended before it wrote the manifest"
 else
-  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ) > "$RAW" 2>&1
+  ( cd "$TREE" && FELIX_TEST_NO_MANIFEST=1 bash engine/harness/tests/run ${RJ:+-j $RJ} ) > "$RAW" 2>&1
   RC=$?
 fi
 _reap
 cp "$RAW" "$LOG" 2>/dev/null || _none "could not keep the log of the suite against $BASE"
 
+# The runner's own failure lines (D3, R8, by their seven prefixes) are left out of the counts and the names (LOGF).
+LOGF="$LOG.f"; grep -aEv "^  FAIL  part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: | left the shell changed for the parts after it: )" "$LOG" > "$LOGF"
 PASSED="$(grep -c '^  ok    ' "$LOG")"
-FAILED="$(grep -c '^  FAIL  ' "$LOG")"
+FAILED="$(grep -c '^  FAIL  ' "$LOGF")"
 SKIPPED="$(grep -c '^  skip  ' "$LOG")"
 awk '/^  (ok    |FAIL  |skip  )/ { a = NR } $0 == "reached" { r = NR }
      END { exit (r + 0 > a + 0) ? 0 : 1 }' "$LOG" \
   || _none "the suite against $BASE did not finish (exit $RC after $((PASSED + FAILED + SKIPPED)) assertions)"
 [ "$((PASSED + FAILED + SKIPPED))" -gt 0 ] || _none "the suite reached no assertion against $BASE"
+! grep -Eq "^  FAIL  part(.s prelude failed: | printed a line the runner owns: )" "$LOG" || _none "the suite against $BASE failed in a unit's prelude or printed a line its runner owns"
 
 # With --after the record run may still be writing the manifest, so it is waited
 # for here, after the checks above: a suite that did not finish is refused
@@ -503,7 +533,7 @@ printf '%s\n' "$MAN" | LC_ALL=C awk '
     for (n in want) if (want[n] > got[n] + 0) short[n] = want[n] - got[n]
     for (n in fail) printf "%.0f\t%.0f\t%s\n", fail[n], short[n] + 0, n
     for (n in short) if (!(n in fail)) printf "0\t%.0f\t%s\n", short[n], n
-  }' - "$LOG" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
+  }' - "$LOGF" > "$CMP" 2>/dev/null || _none "could not compare the run against assertions.tsv"
 read -r FAILED_ALL TOTAL UNREACHED <<< "$(RED_F="$FAILED" RED_P="$PASSED" RED_S="$SKIPPED" LC_ALL=C awk -F'\t' '
   { u += $2 } END { f = ENVIRON["RED_F"] + u; printf "%.0f %.0f %.0f\n", f, f + ENVIRON["RED_P"] + ENVIRON["RED_S"], u }' "$CMP")"
 # Defensive, asked by no fixture: the awk above prints three numbers whatever it reads.

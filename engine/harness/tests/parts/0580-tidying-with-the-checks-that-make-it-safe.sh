@@ -271,7 +271,8 @@ case "$( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp "$DRS" )" in
 esac
 # Through the command, with the stub cli: a mismatched cache is refilled
 # before anything is adopted, and an empty result is a stamp and no prose.
-printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv" 2>/dev/null || { mkdir -p "$FROOT/state/discover"; printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"; }
+mkdir -p "$FROOT/state/discover"
+printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"
 out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" discover --adopt 2>&1)"
 has "discover --adopt refills a cache the current rules did not write" "$out" "filling the discovery cache"
 is  "and the refilled cache begins with the stamp" \
@@ -338,9 +339,18 @@ case "\$*" in
 esac
 DSSTUB
 chmod +x "$DSTUB/claude"
+# Serially widget's stack.tsv holds the three rows _router_build tables writes (0230 is the last
+# part before this one to change it); run alone it is absent, and a discover that rewrote an
+# existing file would show only serially. So when it is absent the block writes those rows,
+# and takes them away again after its last read.
+_dstk_wrote=0
+if [ ! -f "$FROOT/projects/widget/stack.tsv" ]; then
+  printf 'plugin\tfrontend-design@claude-plugins-official\t-\tlow\tfrontend\nplugin\tplaywright@claude-plugins-official\t-\tlow\te2e\nskill\timpeccable\t-\tlow\tfrontend\n' > "$FROOT/projects/widget/stack.tsv" && _dstk_wrote=1
+fi
 before="$(cksum < "$FROOT/projects/widget/stack.tsv")"
 out="$(cd "$REPO" && PATH="$DSTUB:$PATH" "$FELIX" discover 2>&1)"; rc=$?
 after="$(cksum < "$FROOT/projects/widget/stack.tsv")"
+[ "$_dstk_wrote" = 1 ] && rm -f "$FROOT/projects/widget/stack.tsv"
 is "discovery writes nothing" "$after" "$before"
 # Without this, "writes nothing" can pass over a run that matched nothing or
 # stopped early: a statement about a path nothing walked. The decoy must not

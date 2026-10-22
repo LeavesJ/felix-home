@@ -81,8 +81,11 @@ _jc_ok "C (fixture control): an entry cut from M with nothing converting"
 # the home does, and an entry with one changed file is not.
 printf '#!/bin/sh\ncat >/dev/null\nprintf "EVIL CODE\\n"\n' > "$JC/smudge.sh"; chmod +x "$JC/smudge.sh"
 printf '* filter=jcf\n' > "$JC/attrs-file"
+_jc_arcf() {   # REL -> git archive of M in the home for engine/REL, written whole to $JC/arch.tar (not a pipe: R37); no file where git writes none
+  rm -f "$JC/arch.tar"; _fx_git "$JCR" archive -o "$JC/arch.tar" "$JC_M" "engine/$1" >/dev/null 2>&1; return 0
+}
 _jc_arch() {   # REL -> what git archive of M in the home writes for REL: its first line, or "(absent)"
-  local o; o="$(_fx_git "$JCR" archive "$JC_M" "engine/$1" 2>/dev/null | tar -xO 2>/dev/null | LC_ALL=C sed -n 1p | tr -d '\r')"
+  local o; _jc_arcf "$1"; o="$(tar -xO -f "$JC/arch.tar" 2>/dev/null | LC_ALL=C sed -n 1p | tr -d '\r')"; rm -f "$JC/arch.tar"
   printf '%s' "${o:-(absent)}"
 }
 _jc_conv() {   # VARIANT on|off -> the home converts (on) or does not (off)
@@ -106,7 +109,7 @@ for _jc_v in filter-info filter-file eol autocrlf exportignore; do
   case "$_jc_v" in
     filter-*)  is "C1 ($_jc_v) (fixture control): git archive of M in this home writes EVIL CODE for harness/lib/x.sh" "$(_jc_arch harness/lib/x.sh)" "EVIL CODE" ;;
     eol|autocrlf) is "C1 ($_jc_v) (fixture control): git archive of M in this home writes harness/lib/x.sh with a carriage return" \
-                     "$(_fx_git "$JCR" archive "$JC_M" engine/harness/lib/x.sh 2>/dev/null | tar -xO 2>/dev/null | LC_ALL=C grep -c "$(printf '\r')")" "1" ;;
+                     "$(_jc_arcf harness/lib/x.sh; tar -xO -f "$JC/arch.tar" 2>/dev/null | LC_ALL=C grep -c "$(printf '\r')"; rm -f "$JC/arch.tar")" "1" ;;
     exportignore) is "C1 ($_jc_v) (fixture control): git archive of M in this home leaves harness/lib/x.sh out" "$(_jc_arch harness/lib/x.sh)" "(absent)" ;;
   esac
   _jc_ok "C1 ($_jc_v): a faithful entry is accepted"

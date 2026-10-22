@@ -8,161 +8,45 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	3999c182ad8c3e7110fe533873ab02727842172b	0.49.302
-run	156	13253	44
-pattern kill refused: ! pkill -f x	1
-pattern kill refused: (pkill -f x)	1
-pattern kill refused: ./tools/pkill -f x	1
-pattern kill refused: /opt/homebrew/bin/pkill -f x	1
-pattern kill refused: /usr/bin/killall node	1
-pattern kill refused: /usr/bin/pkill -f x	1
-pattern kill refused: /usr/local/bin/killall -9 Dock	1
-pattern kill refused: 2>&1 killall node	1
-pattern kill refused: 2>/dev/null pkill -f x	1
-pattern kill refused: >/dev/null 2>&1 pkill -f x	1
-pattern kill refused: PID=$(pgrep -f x) && kill -9 $PID	1
-pattern kill refused: PID=$(pgrep -f x); kill -9 $PID	1
-pattern kill refused: arch -arm64 pkill -f x	1
-pattern kill refused: bash -c 'kill $(pgrep -f x)'	1
-pattern kill refused: builtin pkill -f x	1
-pattern kill refused: caffeinate -i pkill -f x	1
-pattern kill refused: case "$1" in start) ./run;; stop) killall server;; esac	1
-pattern kill refused: case "$1" in stop) pkill -f server;; esac	1
-pattern kill refused: case $x in a|b) pkill -f x ;; *) : ;; esac	1
-pattern kill refused: command pkill -f x	1
-pattern kill refused: echo "$(pkill -f x)"	1
-pattern kill refused: echo $(pkill -f x)	1
-pattern kill refused: echo `pkill -f x`	1
-pattern kill refused: echo hi<NL>pkill -f x	1
-pattern kill refused: echo node | xargs pkill	1
-pattern kill refused: echo x | pkill -f y	1
-pattern kill refused: env -C /tmp pkill -f x	1
-pattern kill refused: env -i pkill -f x	1
-pattern kill refused: env A=1 B=2 killall node	1
-pattern kill refused: env A=1 pkill -f x	1
-pattern kill refused: exec pkill -f x	1
-pattern kill refused: false || pkill -f x	1
-pattern kill refused: find . -name y -exec killall -9 node \;	1
-pattern kill refused: find /tmp -name x -exec pkill -f {} \;	1
-pattern kill refused: for i in 1 2; do pkill -f x; done	1
-pattern kill refused: for p in $(pgrep -f 'a b'); do kill -9 "$p"; done	1
-pattern kill refused: for p in $(pgrep -f x); do kill $p; done	1
-pattern kill refused: for p in `pgrep -f x`; do kill $p; done	1
-pattern kill refused: for p in `pgrep x`; do echo $p; kill -TERM $p; done	1
-pattern kill refused: if false; then :; else pkill -f x; fi	1
-pattern kill refused: if true; then pkill -f x; fi	1
-pattern kill refused: ionice -c3 pkill -f x	1
-pattern kill refused: kill $( pgrep -f x )	1
-pattern kill refused: kill $(<NL>pgrep -f x<NL>)	1
-pattern kill refused: kill $(env A=1 pgrep -f x)	1
-pattern kill refused: kill $(pgrep -P 1 -f x)	1
-pattern kill refused: kill $(pgrep -P 1234) $(pgrep -f x)	1
-pattern kill refused: kill $(pgrep -f 'a -P 1234')	1
-pattern kill refused: kill $(pgrep -f 'x || y')	1
-pattern kill refused: kill $(pgrep -f x)	1
-pattern kill refused: kill $(sudo pgrep -f x)	1
-pattern kill refused: kill -- -$(pgrep -f 'a b')	1
-pattern kill refused: kill -0 $(pgrep -f x); kill -9 $(pgrep -f x)	1
-pattern kill refused: kill -9 "$(pgrep -f x)"	1
-pattern kill refused: kill -9 $( sudo pgrep -f x )	1
-pattern kill refused: kill -9 $(pgrep -f "tests/(run|red)")	1
-pattern kill refused: kill -9 $(pgrep -f 'a b')	1
-pattern kill refused: kill -9 $(pgrep -f x -P 1)	1
-pattern kill refused: kill -9 -$(pgrep -f x)	1
-pattern kill refused: kill -TERM $(pgrep -d' ' x)	1
-pattern kill refused: kill ` pgrep -f x `	1
-pattern kill refused: kill `pgrep x`	1
-pattern kill refused: killall 'a|b'	1
-pattern kill refused: killall -9 Safari	1
-pattern kill refused: killall -P 1234 node	1
-pattern kill refused: killall -q -s TERM sleep	1
-pattern kill refused: killall node	1
-pattern kill refused: ls; pkill -f x	1
-pattern kill refused: ls;pkill -f x	1
-pattern kill refused: nice -n 5 pkill -f x	1
-pattern kill refused: nice pkill -f x	1
-pattern kill refused: nohup pkill -f x	1
-pattern kill refused: nohup setsid pkill -f x	1
-pattern kill refused: pgrep -P 1 -f x | xargs kill	1
-pattern kill refused: pgrep -P1 -f x | xargs -r kill -9	1
-pattern kill refused: pgrep -f "a||b" | xargs -r kill -9	1
-pattern kill refused: pgrep -f 'a b' | xargs -r -n1 kill -TERM	1
-pattern kill refused: pgrep -f 'a|b' | xargs kill	1
-pattern kill refused: pgrep -f 'one;two' | xargs kill	1
-pattern kill refused: pgrep -f x | head -5 | xargs kill	1
-pattern kill refused: pgrep -f x | while read -r p; do echo "$p"; ps -p $p; kill -9 $p; done	1
-pattern kill refused: pgrep -f x | while read -r p; do kill $p; done	1
-pattern kill refused: pgrep -f x | while read p; do echo "$p"; kill $p; done	1
-pattern kill refused: pgrep -f x | while read p; do kill $p; done	1
-pattern kill refused: pgrep -f x | xargs -I{} kill -9 {}	1
-pattern kill refused: pgrep -f x | xargs -n 1 kill	1
-pattern kill refused: pgrep -f x | xargs kill	1
-pattern kill refused: pgrep x | xargs -r kill -9	1
-pattern kill refused: pids=$(pgrep -f x)<NL>kill $pids	1
-pattern kill refused: pkill -9 -P 1	1
-pattern kill refused: pkill -9 -f "uvicorn|gunicorn"	1
-pattern kill refused: pkill -9 -x python	1
-pattern kill refused: pkill -9 x	1
-pattern kill refused: pkill -P "$(pgrep -f x)"	1
-pattern kill refused: pkill -P "$pid,1" -f x	1
-pattern kill refused: pkill -P "1,$pid" -f x	1
-pattern kill refused: pkill -P $(pgrep -f tests/run)	1
-pattern kill refused: pkill -P 1 -f x	1
-pattern kill refused: pkill -P 1,1234 -f x	1
-pattern kill refused: pkill -P 1,2	1
-pattern kill refused: pkill -P 1234,1 -f x	1
-pattern kill refused: pkill -P `pgrep -f x`	1
-pattern kill refused: pkill -P1 -f x	1
-pattern kill refused: pkill -P1,2 -f x	1
-pattern kill refused: pkill -TERM -P $(pgrep -f x)	1
-pattern kill refused: pkill -TERM -P 1 node	1
-pattern kill refused: pkill -TERM -f "next dev"	1
-pattern kill refused: pkill -f "x;y"	1
-pattern kill refused: pkill -f 'a & b'	1
-pattern kill refused: pkill -f 'a && b'	1
-pattern kill refused: pkill -f 'a b|c d'	1
-pattern kill refused: pkill -f 'engine/harness/tests/run'	1
-pattern kill refused: pkill -f 'foo(bar|baz)'	1
-pattern kill refused: pkill -f 'sleep 3'	1
-pattern kill refused: pkill -f 'vite|esbuild'	1
-pattern kill refused: pkill -f 'worker -P 1234'	1
-pattern kill refused: pkill -f 'x|-P 1234'	1
-pattern kill refused: pkill -f run.pid	1
-pattern kill refused: pkill -f x -P 1	1
-pattern kill refused: pkill -f x -u me	1
-pattern kill refused: pkill -u 501 node	1
-pattern kill refused: pkill -x 'node|npm'	1
-pattern kill refused: pkill node	1
-pattern kill refused: printf 'a\nb\n' | xargs -n 1 killall	1
-pattern kill refused: setsid pkill -f x	1
-pattern kill refused: sh -c 'pgrep -f x | xargs kill'	1
-pattern kill refused: sleep 1 & pkill -f x	1
-pattern kill refused: stdbuf -oL pkill -f x	1
-pattern kill refused: sudo -iu me pkill -f x	1
-pattern kill refused: sudo bash -c 'pkill -f x'	1
-pattern kill refused: sudo caffeinate -i killall node	1
-pattern kill refused: sudo kill -9 $(pgrep -f x)	1
-pattern kill refused: sudo killall node	1
-pattern kill refused: sudo nohup pkill -f x	1
-pattern kill refused: sudo pkill -f x	1
-pattern kill refused: time pkill -f x	1
-pattern kill refused: timeout 10 bash -c 'kill $(pgrep -f x)'	1
-pattern kill refused: timeout 5 pkill -f x	1
-pattern kill refused: true && kill $(pgrep -f x)	1
-pattern kill refused: true && pkill -f x	1
-pattern kill refused: until ! kill -0 $(pgrep -f x); do kill -9 $(pgrep -f x); done	1
-pattern kill refused: watch pkill -f x	1
-pattern kill refused: while read -r p; do echo $p; kill -9 $p; done < <(pgrep -f x)	1
-pattern kill refused: while read p; do kill $p; done < <(pgrep -f x)	1
-pattern kill refused: xargs -r kill -9 < <(pgrep -f x)	1
-pattern kill refused: xargs kill < <(pgrep -f x)	1
-pattern kill refused: { pkill -f x; }	1
-pattern kill row: exactly one row in projects/felix/deny.tsv has a reason beginning a pattern kill	1
-pattern kill row: it has three columns, so no checkout scope	1
-pattern kill row: it holds two tabs, so the reason holds none	1
-pattern kill row: it is a Bash row	1
-pattern kill row: the reason is printable ASCII	1
-pattern kill row: the reason is under 200 bytes	1
-pattern kill row: the reason names the harm, other sessions	1
-pattern kill row: the reason names the way, a pid	1
-pattern kill row: the reason says the pid comes from $! or a pidfile	1
+base	origin/main	e3636d4035d230ba4536413371a68ad47120f051	0.49.302
+run	40	13446	44
+D1: a FELIX_TEST_JOBS the caller already had is replaced by the core count	1
+D1: only the value true stops it: GITHUB_ACTIONS=false still sets the core count	1
+D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not	1
+D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it	1
+D1: when tests/run exits 2, the log's last line is shown under tests FAIL	1
+D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run, and its argument list stays --reuse	1
+D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)	1
+D4: a unit that dies in red's suite only: the record run exits 0, no process is left, and red.tsv counts the run with name rows that add up to its failed count	1
+D4: a unit that prints reached in red's suite only makes red refuse the log, the record run having passed: red.tsv holds the rows base - - - and run - - -	1
+D4: and no name row starts with one of the runner's seven failure prefixes, and djx b2, which the dead unit never reached, is named by its shortfall of one	1
+D4: and over a base that has one and a tree that has none, red removes the base's: its -j suite refuses, and red.tsv holds the rows base - - - and run - - -	1
+D4: red's suite ran its three units as three separate processes, which a serial suite does not (FELIX_TEST_RED_JOBS)	1
+R10: and with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 it inherited, the stub sees it unset	1
+R10: and with a valid FELIX_TEST_RED_JOBS=2 its suite runs -j 2: the three parts ran in three processes, whatever FELIX_TEST_JOBS says	1
+R10: red by hand with FELIX_TEST_JOBS=3 runs its suite serially: one process ran the three parts, and red.tsv counts	1
+R10: with FELIX_TEST_JOBS=abc and an invalid FELIX_TEST_RED_JOBS red's suite does not refuse and runs serially	1
+R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse	1
+R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
+R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it	1
+R1: and once that record run has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a FAIL in the units' prelude only has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a FAIL printed onto a partial line in the units' prelude only has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a group member that dies has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a member whose sourcing a top-level a[1/0]=1 cuts short, while later members run has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a part that dies on an unbound variable under set -u has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a part that prints reached has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a part that replaces the EXIT trap with one that removes $TMP and exits 5 has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a part that runs exit 0 has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a part whose bad line lands on a partial line has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a unit killed after its last member and before its mark has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a unit killed with kill -9 while it runs a member has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
+R1: and once the record run after parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) has exited no process of red's tree is left, stopped or running	1
+R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped	1
+R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running	1
+R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped	1
+R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/(red|receipt\.sh)$	1
+R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/groups\.tsv$	1
+R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/parts/0007-the-parallel-runner\.sh$	1
+this repository's every table is declared and accepted	1

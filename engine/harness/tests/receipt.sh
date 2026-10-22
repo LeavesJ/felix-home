@@ -8,14 +8,13 @@
 # is where the receipt's rules live so that the driver only decides when to ask.
 #
 # Why it exists. An engine change paid for the whole suite three times before
-# it landed: the record run, the red run the record run then made, and the
-# gate. Measured on a quiet machine on 2026-10-10 the suite was 1429 s of the
-# gate's 1565 s (audits/2026-10-10-gate-time). The record run and red now run
-# side by side, and the third pass is the gate's `tests` check asking this file
-# whether the tree it is about to gate is one a run already passed. The design
-# is docs/2026-10-12-gate-friction-design.md, section 3; the rules are
-# docs/2026-10-12-gate-friction-contract-a.md, C4 and C5, and, for the one commit
-# that records a run, contract-a3.md, C10 (_sr_bridge).
+# it landed: the record run, the red run it then made, and the gate (1429 s of
+# the gate's 1565 s on a quiet machine, 2026-10-10, audits/2026-10-10-gate-time).
+# The record run and red now run side by side, and the third pass is the gate's
+# `tests` check asking this file whether the tree it is about to gate is one a
+# run already passed. The design is docs/2026-10-12-gate-friction-design.md,
+# section 3; the rules are contract-a.md, C4 and C5, and contract-a3.md, C10
+# (_sr_bridge), in docs/2026-10-12-gate-friction-*.
 #
 # One receipt for each checkout, one line, tab-separated, in the checkout's git
 # directory (git rev-parse --git-path), which is outside the tree: writing it
@@ -39,27 +38,22 @@
 # leaves an earlier pass standing for the gate to find.
 #
 # What a receipt names, and what it does not. The tree id covers every tracked
-# and untracked file under the root and the commit HEAD names. The assertions
-# also read things the tree does not hold. The receipt names these: the host,
-# the bash version, the locale, the PATH (by hash), whether a `claude` CLI is on
-# it (some assertions turn into skips), and the commit refs/remotes/origin/main
-# names (part 1010's judge reads it: _rtn3 and _rtn4 compare this tree with it,
-# so a fetch that moves it can turn a pass into a fail with the tree unchanged).
-# A receipt refuses with `origin/main moved` when that commit is not the one
-# recorded, or cannot be read while one was.
+# and untracked file under the root and the commit HEAD names. The receipt also
+# names what the assertions read and the tree does not hold: the host, the bash
+# version, the locale, the PATH (by hash), whether a `claude` CLI is on it (some
+# assertions turn into skips), and the commit refs/remotes/origin/main names
+# (part 1010's judge compares this tree with it, so a fetch that moves it can
+# turn a pass into a fail with the tree unchanged). It refuses with `origin/main
+# moved` when that commit is not the one recorded, or cannot be read while one was.
 # Everything else is covered by the twelve-hour bound alone, and is not named:
 #  - the memory root's lessons.md, read from ~/.felix/memory/felix by part 0590;
-#  - the plugin install state: what `claude plugin list --json` answers (the
-#    engine_deployed obligation reads it through felix_deployed_engine, part
-#    0440) and the deployed plugin cache and marketplace registry under
-#    ~/.claude/plugins, which the gate's `installed` check and the readers in
-#    parts 0110, 0430, 0590 and 0800 consult wherever a test is not handed a
-#    cache of its own; the receipt names only whether `claude` is on PATH;
+#  - the plugin install state: what `claude plugin list --json` answers (part
+#    0440, felix_deployed_engine) and the deployed plugin cache and marketplace
+#    registry under ~/.claude/plugins, which the gate's `installed` check and
+#    parts 0110, 0430, 0590 and 0800 consult wherever a test has no cache of its own;
 #  - the user's real HOME where the suite does not set one: ~/.felix-home, the
-#    Claude settings directory, the global git configuration and its global
-#    excludes file (the driver's own comments record the last one);
-#  - the version of git and of the other tools on PATH, which the path hash
-#    names only as a path;
+#    Claude settings directory, the global git configuration and its excludes file;
+#  - the version of git and of the other tools on PATH, which the hash names only as a path;
 #  - the machine: its load, clock, process cap, free disk and network, which the
 #    timing-bound assertions and the ones that fork heavily answer to;
 #  - gh and the network, where an assertion is not given a stub of its own.
@@ -67,11 +61,10 @@
 #
 # What a receipt cannot say, plainly. It is a file a session can write, as the
 # gate's own receipt is that `felix merge` already trusts. Reuse adds no new
-# kind of trust, and GitHub CI still runs the whole suite on Linux before
-# anything merges. What it does refuse is the honest mistakes: a tree that
-# moved, a run that failed, a different bash, a different host, a `claude` CLI
-# that turns skips into passes or back, a main that moved, a receipt older than
-# twelve hours.
+# kind of trust, and GitHub CI still runs the whole suite on Linux before anything
+# merges. It refuses the honest mistakes: a tree that moved, a run that failed, a
+# different bash or host, a `claude` CLI that turns skips into passes or back, a
+# main that moved, a receipt older than twelve hours.
 
 _SR_LIB="$(CDPATH= cd "$(dirname "${BASH_SOURCE[0]}")/../lib" 2>/dev/null && pwd)/verify.sh"
 
@@ -102,12 +95,10 @@ _sr_path() {   # <root> -> the absolute path; status 1 and nothing when <root> i
 # The tree as felix_tree_id names it, with Felix's home left empty so nothing is
 # excluded: a suite run judges the whole checkout. `stable` also leaves out the
 # two files a record run rewrites while it runs, the manifest and red.tsv, so a
-# record run can say that nothing else moved (C8). A coarse id, the one a tree
-# with more untracked files than the cap gets, is a hash of a count and not of
-# the tree, and a receipt keyed to it would stand for any tree with as many
-# stray files, so it counts as an id that cannot be had. Nothing is written to
-# stderr: a message here would reach the log of a run that is deciding whether
-# it was reused.
+# record run can say that nothing else moved (C8). A coarse id (a tree with more
+# untracked files than the cap) is a hash of a count, not of the tree, so it
+# counts as an id that cannot be had. Nothing is written to stderr: a message
+# here would reach the log of a run that is deciding whether it was reused.
 _sr_tree() {   # <root> [stable] -> the id; status 1 and nothing when it cannot be had
   local id
   _sr_top "$1" || return 1
@@ -151,17 +142,16 @@ _sr_origin() {   # <root>
 }
 
 # The bridged tree id (rule C10, contract A3, 2026-10-12): the id of the tree a
-# receipt names, asked of a checkout that has been committed since. PR A's reuse
-# never fired in the one flow it was built for. A record run ends with the
-# manifest and red.tsv changed and not committed; the landing order is record,
-# commit, gate, because the gate's receipt and `felix merge` judge the tree that
-# is pushed; and the commit moves HEAD, which the tree id hashes, so the gate
-# found `another tree` and ran the whole suite again. The content the gate would
-# test was byte for byte the content the run passed, and only the commit naming
-# it was new. So where HEAD has exactly one parent, the id is asked as it would
-# be if HEAD named that parent: the diff of the working tree against the parent,
-# the same untracked files, the same hash (felix_tree_id_on, one code path with
-# felix_tree_id). A root commit, an unborn HEAD and a merge have no bridged id.
+# receipt names, asked of a checkout that has been committed since. A record run
+# ends with the manifest and red.tsv changed and not committed; the landing order
+# is record, commit, gate, because the gate's receipt and `felix merge` judge the
+# tree that is pushed; and the commit moves HEAD, which the tree id hashes, so the
+# gate found `another tree` and ran the whole suite again, though the content was
+# byte for byte what the run passed. So where HEAD has exactly one parent, the id
+# is asked as it would be if HEAD named that parent: the diff of the working tree
+# against the parent, the same untracked files, the same hash (felix_tree_id_on,
+# one code path with felix_tree_id). A root commit, an unborn HEAD and a merge
+# have no bridged id.
 #
 # It stands only if the receipt's tree id is that id, which says the parent is the
 # commit the run had at HEAD and the working tree holds, against it, what the run
@@ -171,15 +161,13 @@ _sr_origin() {   # <root>
 # origin/main (`-` holds nothing back). Part 1010's judge asks what a committed
 # tree is asked (merge-base and ancestry against origin/main, _rtn3 and _rtn4)
 # only of a tree that holds a commit origin/main lacks, and skips both for one
-# whose HEAD origin/main already held; a run at such a parent was not asked what
-# the commit is. Searched on 2026-10-12 (the parts, the driver, red, this file):
-# one read of the checkout's git state has an answer the commit can change,
-# `merge-base HEAD origin/main` (_rt_record_holds): with two equally good bases
-# of a criss-cross that share a commit second, git's pick can move when a commit
-# is put on top, and part 1010's _rtn3 with it (review finding C10-1). So the
-# parent and the recorded origin/main must have exactly one best base (C10.3e).
-# The rest read refs and objects the commit leaves alone, fixtures, or the
-# tracked set, which the id covers: a file the commit adds shows in the diff.
+# whose HEAD origin/main already held. One read of the checkout's git state has
+# an answer the commit can change, `merge-base HEAD origin/main`
+# (_rt_record_holds): with two equally good bases of a criss-cross that share a
+# commit second, git's pick can move when a commit is put on top (review finding
+# C10-1). So the parent and the recorded origin/main must have exactly one best
+# base (C10.3e). The rest read refs and objects the commit leaves alone, fixtures,
+# or the tracked set, which the id covers: a file the commit adds shows in the diff.
 # Prints `head <HEAD's full sha>` where it stands, `held` where the ids agree
 # and the ancestry does not, and nothing otherwise.
 _sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it recorded, or -> -> head <sha> | held | nothing
@@ -206,13 +194,11 @@ _sr_bridge() {   # <root> <the receipt's tree id> <the origin/main commit it rec
 # Whether a run may be answered from the receipt: `reuse <passed> <failed>
 # <skipped> <end> <mode>`, with the full sha of HEAD as a seventh field where the
 # receipt stands on the bridged id (_sr_bridge), or `run <reason>`, the first
-# reason that applies, in the order a person would find it out. One line either
-# way and status 0, so a caller reads the line and not the status. The fields
-# are digits and are never put through $(( )): a leading zero is an octal error
-# there, and in bash 3.2 an arithmetic error discards the whole command it sits
-# in. The tabs are counted and cut with parameter expansion because read with a
-# tab in IFS folds a run of tabs into one and would read an empty field as no
-# field at all.
+# reason that applies. One line either way and status 0, so a caller reads the
+# line and not the status. The fields are digits and are never put through
+# $(( )): a leading zero is an octal error there, and in bash 3.2 an arithmetic
+# error discards the whole command it sits in. The tabs are counted and cut with
+# parameter expansion because read with a tab in IFS folds a run of tabs into one.
 _sr_check() {   # <root>
   local root="$1" p rec line t="" f1 f2 f3 f4 f5 f6 f7 f8 f9 rest now cur fe fo b=""
   p="$(_sr_path "$root")" || { echo "run no checkout"; return 0; }
@@ -274,9 +260,8 @@ _sr_check() {   # <root>
 # What `tests/run --reuse` prints when the receipt stands: the line the gate
 # shows first and the summary it shows last. The time is the local one the run
 # ended at, BSD date's -r first and GNU's -d @ if that is the one here, and the
-# skipped clause is left out when nothing was skipped, as the summary of a run
-# leaves it out. A receipt that stands on the bridged id (a seventh field, HEAD's
-# sha) says so in the sentence: the commit is disclosed, and the sentence still
+# skipped clause is left out when nothing was skipped. A receipt that stands on the
+# bridged id (a seventh field, HEAD's sha) says so in the sentence, which still
 # ends the way projects/felix/gate.sh looks for, so the gate reports the run as
 # reused and the receipt it writes carries tests:reused.
 _rcp_reused() {   # <the `reuse ...` line _sr_check printed>
@@ -325,12 +310,11 @@ _rcp_begin() {   # <root> -> sets _rcp_t0, _rcp_s0, _rcp_e0, _rcp_o0 and _rcp_st
 # tree on purpose, since it and red rewrite the manifest and red.tsv, so it
 # compares the tree with those two files left out, and says its record was
 # judged. That is sound because nothing in the suite but the judged checks reads
-# those two files' content; every other mention of them reads a fixture (the
-# design checked parts 0440, 0720, 0730, 0740, 0990 and 1000 on 2026-10-12, and
-# a search of the parts for a read of the real files, by HERE or REAL_HARNESS,
-# finds none outside part 1010), and the build shows it with the suite run twice
-# on one tree under two different valid records. The tree id written is the full
-# one taken now. Any other run has already taken the last receipt away.
+# those two files' content (the design checked parts 0440, 0720, 0730, 0740, 0990
+# and 1000 on 2026-10-12; a search of the parts for a read of the real files, by
+# HERE or REAL_HARNESS, finds none outside part 1010; and the build shows it with
+# the suite run twice on one tree under two different valid records). The tree
+# id written is the full one taken now. Any other run took the last receipt away.
 _rcp_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> <passed> <failed> <skipped>
   local root="$1" mode=normal t1="" s1="" ok=0 e1
   [ "$2" = 1 ] && mode=record
@@ -353,10 +337,9 @@ _rcp_finish() {   # <root> <record: 1 or 0> <compared: 1 or 0> <judged: 1 or 0> 
 }
 
 # A receipt path that holds something other than a regular file is left alone,
-# written through by nothing and removed by nothing: a symbolic link would be
-# followed to wherever it points and a directory would take the temporary file
-# in as a member. Said once, so that the run that declined is not mistaken for
-# one that wrote.
+# written through and removed by nothing: a link would be followed to wherever it
+# points, a directory would take the temporary file in as a member. Said once,
+# so that the run that declined is not mistaken for one that wrote.
 _rcp_said=""
 _rcp_plain() {   # <path>: status 0 when nothing is there or a regular file is
   if [ -L "$1" ] || { [ -e "$1" ] && [ ! -f "$1" ]; }; then
@@ -394,37 +377,49 @@ _rcp_drop() {   # <root>
 }
 
 # ------------------------------------------------------------ red, beside a record run
-# A record run starts tests/red when it starts, and the two run side by side.
-# Red is the record run's own child and is disowned at once: a part that ends in
-# a bare `wait` (parts 0150 and 0330 do) waits for every job its shell holds,
-# red waits for the mark the record run writes after the parts, and a job table
-# holding red made every record run wait on itself. So the record run learns
-# that red has finished from the process table, not the job table: red's pid and
-# the start time ps gives it, together, since a pid alone is reused (red can end
-# minutes before the record run does, and the suite forks a hundred thousand
-# processes in fifteen).
+# A record run starts tests/red when it starts, and the two run side by side. Red is the record
+# run's own child and is disowned at once: a part that ends in a bare `wait` (0150, 0330) waits for
+# every job its shell holds, red waits for the mark the record run writes after the parts, and a job
+# table holding red made every record run wait on itself. So the record run learns that red has
+# finished from the process table: red's pid and its start time together, since a pid alone is
+# reused (the suite forks a hundred thousand processes in fifteen minutes).
 
-_rcp_tree() {   # <pid>: it and every process below it, on one line
-  ps -A -o pid= -o ppid= 2>/dev/null | awk -v root="$1" '
-    { kids[$2] = kids[$2] " " $1 }
-    END { q = root; out = ""
-          while (q != "") { n = split(q, a, " "); q = ""
-                            for (i = 1; i <= n; i++) if (a[i] != "") { out = out " " a[i]; q = q kids[a[i]] } }
-          print out }'
+# The set a stopper holds (R2, R14): "pid;start|..." members, a start being what ps gave the pid when it
+# joined ("": any); one is signalled only while the latest non-empty listing shows its pid with that start.
+# Each listing is seeded with the members present in it; an empty one is taken again (5 tries, 0.2 s apart).
+_rcp_grow() {   # -> _rcp_set, _rcp_add, _rcp_pres
+  local o="" t=0 r tab=$'\t'
+  while [ "$t" -lt 5 ]; do
+    o="$(ps -A -o pid= -o ppid= -o lstart= 2>/dev/null | awk -v seed="$_rcp_set" '{ s = $0; sub(/^ *[0-9]+ +[0-9]+ */, "", s); sub(/ +$/, "", s); R[$1] = s; K[$2] = K[$2] " " $1 }
+      END { n = split(seed, M, "|"); for (i = 1; i <= n; i++) if (M[i] != "") { split(M[i], a, ";"); m++; sp[m] = a[1]; ss[m] = a[2]; have[M[i]] = 1 }
+        for (i = 1; i <= m; i++) if (NR && (sp[i] in R) && (ss[i] == "" || ss[i] == R[sp[i]])) { pres[sp[i]] = 1; if (!(sp[i] in vis)) { vis[sp[i]] = 1; Q[++qn] = sp[i] } }
+        for (h = 1; h <= qn; h++) { nc = split(K[Q[h]], C, " "); for (j = 1; j <= nc; j++) { c = C[j]; pres[c] = 1
+          if (!((c ";" R[c]) in have)) { have[c ";" R[c]] = 1; m++; sp[m] = c; ss[m] = R[c]; add++ }
+          if (!(c in vis)) { vis[c] = 1; Q[++qn] = c } } }
+        for (i = 1; i <= m; i++) out = out (i > 1 ? "|" : "") sp[i] ";" ss[i]
+        for (c in pres) pl = pl " " c
+        printf "%d\t%d\t%s\t%s\n", NR, add + 0, out, pl }')"
+    t=$((t + 1)); case "$o" in ""|"0$tab"*) [ "$t" -ge 5 ] || sleep 0.2 ;; *) break ;; esac
+  done
+  _rcp_add=0
+  case "$o" in [123456789]*"$tab"*) r="${o#*"$tab"}"; _rcp_add="${r%%"$tab"*}"; r="${r#*"$tab"}"; _rcp_set="${r%%"$tab"*}"; _rcp_pres="${r#*"$tab"}" ;; esac
 }
-
-# A tree ended: every process in it is asked to end, so that the suite's own
-# EXIT trap removes its temporary directory and red's removes its base checkout,
-# the root is given up to 30 s to go, and what is left is stopped and then
-# killed, the whole list at once, so that nothing forks while it is being ended.
-_rcp_stop() {   # <pid>
-  local list p n=0
-  list="$(_rcp_tree "$1")"
-  for p in $list; do kill -TERM "$p" 2>/dev/null; done
-  while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
-  for p in $list; do kill -STOP "$p" 2>/dev/null; done
-  for p in $list; do kill -KILL "$p" 2>/dev/null; done
+# Red's tree ended: TERM to the members present, so that the suite's own EXIT trap removes its temporary
+# directory and red's its base checkout; red given up to 30 s to go; then STOP while a listing adds a member
+# (30 times at most), KILL, one more listing, KILL and then CONT. It runs in a subshell that ignores TERM
+# and is waited for, so the stop goes to its end and its caller keeps its disposition.
+_rcp_stop() {   # <red's pid>, with the start time _rcp_redsig gave it
+  (
+    local p n=0 s="$_rcp_redsig"
+    trap '' TERM; _rcp_stp=""
+    s="${s#"${s%%[! ]*}"}"; _rcp_set="$1;${s%"${s##*[! ]}"}"; _rcp_pres="$1"; _rcp_grow; _rcp_k TERM
+    while [ "$n" -lt 300 ] && kill -0 "$1" 2>/dev/null; do sleep 0.1; n=$((n + 1)); done
+    n=0
+    while [ "$n" -lt 30 ]; do _rcp_grow; _rcp_k STOP; _rcp_stp="$_rcp_stp $_rcp_pres"; [ "$_rcp_add" -gt 0 ] || break; n=$((n + 1)); done
+    _rcp_k KILL; _rcp_grow; _rcp_k KILL; _rcp_k CONT
+  )
 }
+_rcp_k() { local p; for p in $_rcp_pres $_rcp_stp; do kill -"$1" "$p" 2>/dev/null; done; }
 
 _rcp_red_alive() {   # status 0 while the red this run started is still running
   [ -n "${_rcp_red:-}" ] && [ "${_rcp_redgone:-0}" = 0 ] && kill -0 "$_rcp_red" 2>/dev/null || return 1
@@ -466,7 +461,9 @@ _rcp_red_settle() {
 }
 
 _rcp_watch() {   # <record run's pid>: once it is gone, red and what red started are ended
-  while kill -0 "$1" 2>/dev/null; do sleep 1; done
+  local s="" z=0; trap 'z=1' TERM   # R43: a TERM from _rcp_red_end is only recorded; the loop acts on it once it holds the sleep's pid
+  while [ "$z" = 0 ] && kill -0 "$1" 2>/dev/null; do sleep 1 & s=$!; [ "$z" = 1 ] || { wait "$s"; [ "$z" = 1 ] || s=""; }; done
+  [ -z "$s" ] || case " $(builtin jobs -rp) " in *" $s "*) kill -KILL "$s" 2>/dev/null ;; esac; trap exit TERM; [ "$z" = 0 ] || exit
   ! _rcp_red_alive || { _rcp_red_settle; _rcp_stop "$_rcp_red"; }
 }
 
@@ -486,12 +483,15 @@ _rcp_mark() {   # <written|failed> <mark>
 
 # After the recorded line: what red said, every line indented by two spaces, once
 # red has finished; or why there is nothing of it.
-_rcp_red_end() {   # <mark> <red's output file>
-  local n=0
+_rcp_red_end() {   # <mark> <red's output file> [<seconds red may take: then its tree is ended>]
+  local n=0 t0="$SECONDS"
   if [ "$_rcp_nomark" = 1 ]; then
     printf '  red not run: the record run could not write its mark (%s)\n' "$1"
   else
-    while _rcp_red_alive; do n=$((n + 1)); if [ "$n" -le 20 ]; then sleep 0.1; else sleep 1; fi; done
+    while _rcp_red_alive; do
+      [ -z "${3:-}" ] || [ "$((SECONDS - t0))" -lt "$3" ] || { _rcp_stop "$_rcp_red"; break; }
+      n=$((n + 1)); if [ "$n" -le 20 ]; then sleep 0.1; else sleep 1; fi
+    done
     sed 's/^/  /' < "$2"
   fi
   [ -z "${_rcp_wd:-}" ] || kill "$_rcp_wd" 2>/dev/null

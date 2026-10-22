@@ -422,4 +422,5 @@ is  "reach.sh sources reach-read.sh, so every caller of the read has it" \
     "$(awk '/reach-read\.sh/ && !/^[[:space:]]*#/ { n++ } END { print n + 0 }' "$FROOT/harness/lib/reach.sh")" "1"
 _rz_reset
 # The fixtures of parts 1100 to 1120 lived under HOME on a runner whose temporary directory is under a world-writable /tmp (see part 1100); they go with the part.
-[ "$RXBASE" = "$TMP" ] || { _fx_root_del "$RXBASE"; rm -rf "$RXBASE"; }
+# and the fixture guard's roots go back to what they were before the base was added, byte for byte, so the group of 1100 to 1120 leaves them as its prelude made them.
+[ "$RXBASE" = "$TMP" ] || { _fx_root_del "$RXBASE"; rm -rf "$RXBASE"; _fx_roots="$RX_ROOTS0"; }

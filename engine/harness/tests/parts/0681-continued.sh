@@ -563,10 +563,10 @@ is  "felix_final_filter admits a text holding a here-document" \
 # admitted; and a column that is not judged behaves exactly as before. Each
 # refused row carries a side effect, so "refused" can be told from "ran and
 # was read as failing".
-_ffw="$FROOT/projects/widget"
+_ffwd="$FROOT/projects/widget"
 for _fft in obligations.tsv setup.tsv maintenance.tsv; do
   rm -f "$TMP/ff-w-$_fft.keep"
-  [ -f "$_ffw/$_fft" ] && cp "$_ffw/$_fft" "$TMP/ff-w-$_fft.keep"
+  [ -f "$_ffwd/$_fft" ] && cp "$_ffwd/$_fft" "$TMP/ff-w-$_fft.keep"
 done
 _commissioning_build alpha12
 cp "$CMP/commissioning.tsv" "$TMP/ff-cm.keep"
@@ -622,7 +622,7 @@ is  "and neither the library nor the command ran a refused commissioning check" 
 # obligations.tsv: evidence is judged, applies is not.
 _ffob()   { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/probes.sh"
               . "$FROOT/harness/lib/obligations.sh"; "$@" ) 2>/dev/null; }
-_ffomal() { _ffob felix_obligation_malformed "$_ffw" | grep "^$1: "; }
+_ffomal() { _ffob felix_obligation_malformed "$_ffwd" | grep "^$1: "; }
 { printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\n'
   printf 'ffo_last\tADVISORY\tdeterministic\t-\t%s\t-\tevidence ending in tail\n'         'printf a | tail -1'
   printf 'ffo_orexit\tADVISORY\tdeterministic\t-\t%s\t-\tevidence ending in wc or exit\n' 'printf a | wc -l || exit 1'
@@ -630,16 +630,16 @@ _ffomal() { _ffob felix_obligation_malformed "$_ffw" | grep "^$1: "; }
   printf 'ffo_headsub\tADVISORY\tdeterministic\t-\t%s\t-\thead in a substitution\n'       '[ "$(printf a | head -1)" = a ]'
   printf 'ffo_headmid\tADVISORY\tdeterministic\t-\t%s\t-\thead mid-pipeline\n'            'printf y | head -5 | grep -q y'
   printf 'ffo_applies\tADVISORY\tdeterministic\t%s\ttrue\t-\tan applies ending in tail\n' 'false | tail -1'
-} > "$_ffw/obligations.tsv"
+} > "$_ffwd/obligations.tsv"
 is  "obligation rows omit every evidence a final filter makes unfailable, and keep the rest in file order" \
-    "$(_ffob felix_obligation_rows "$_ffw" | cut -f1 | tr '\n' ' ')" "fixture ffo_headsub ffo_headmid ffo_applies "
+    "$(_ffob felix_obligation_rows "$_ffwd" | cut -f1 | tr '\n' ' ')" "fixture ffo_headsub ffo_headmid ffo_applies "
 has "an evidence ending in | tail is refused as <obligation>: <reason>, naming tail" "$(_ffomal ffo_last)" "tail"
 has "and says the evidence's tail succeeds whatever it is fed" "$(_ffomal ffo_last)" "succeeds whatever it is fed"
 has "an evidence ending in | wc -l || exit 1 is refused, naming wc" "$(_ffomal ffo_orexit)" "wc"
 is  "an evidence with | head -1 inside \$( ) is not refused" "$(_ffomal ffo_headsub)" ""
 is  "an evidence with head mid-pipeline before grep -q is not refused" "$(_ffomal ffo_headmid)" ""
 is  "an applies ending in | tail is not judged" "$(_ffomal ffo_applies)" ""
-_fforun="$(_ffob felix_obligations_run "$_ffw" "$REPO")"
+_fforun="$(_ffob felix_obligations_run "$_ffwd" "$REPO")"
 _ffost() { printf '%s\n' "$_fforun" | awk -F'\t' -v n="$1" '$1 == n { print $4 "\t" $5 }'; }
 is  "the evidence with | head -1 inside \$( ) is examined, and holds" "$(_ffost ffo_headsub)" "ACTIVE${_ffT}SATISFIED"
 is  "the evidence with head mid-pipeline is examined, and holds"      "$(_ffost ffo_headmid)" "ACTIVE${_ffT}SATISFIED"
@@ -660,15 +660,15 @@ _ffsu() { ( cd "$REPO" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/l
   printf 'ffs_or\ta step ending in sort or exit\talways\t%s\n'             'printf a | sort || exit 1'
   printf 'ffs_mid\ta step with head mid-pipeline\talways\t%s\n'            'printf y | head -5 | grep -q y'
   printf 'ffs_sub\ta step with head in a substitution\talways\t%s\n'       '[ "$(printf a | head -1)" = a ]'
-} > "$_ffw/setup.tsv"
-_ffsust="$(_ffsu felix_setup_status "$_ffw")"
+} > "$_ffwd/setup.tsv"
+_ffsust="$(_ffsu felix_setup_status "$_ffwd")"
 has "a setup check whose status is a final tail's reads todo"   "$_ffsust" "todo${_ffT}ffs_ran${_ffT}"
 is  "and the refused setup check is never run"                "$(_ffnot "$TMP/ffsran")" "not run"
 has "a setup check ending in | sort || exit 1 reads todo"      "$_ffsust" "todo${_ffT}ffs_or${_ffT}"
 has "a setup check with head mid-pipeline is run, and done"    "$_ffsust" "done${_ffT}ffs_mid${_ffT}"
 has "a setup check with head inside \$( ) is run, and done"    "$_ffsust" "done${_ffT}ffs_sub${_ffT}"
 has "a setup check of one command is still done"               "$_ffsust" "done${_ffT}ffs_true${_ffT}"
-_ffsumal="$(_ffsu felix_setup_malformed "$_ffw")"
+_ffsumal="$(_ffsu felix_setup_malformed "$_ffwd")"
 _ffsuwhy() { printf '%s\n' "$_ffsumal" | awk -F'\t' -v n="$1" '$1 == n { print $2 }'; }
 has "felix_setup_malformed prints the refused row as id and a reason naming tail" "$(_ffsuwhy ffs_ran)" "tail"
 has "and saying the setup check's tail succeeds whatever it is fed"             "$(_ffsuwhy ffs_ran)" "succeeds whatever it is fed"
@@ -693,12 +693,12 @@ is  "and felix setup never ran the refused check either"        "$(_ffnot "$TMP/
 # maintenance.tsv: an event row's check is judged, and a refused one is due
 # without being run.
 _ffmt() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-            . "$FROOT/harness/lib/maintenance.sh"; felix_maint_status "$_ffw" "$REPO" ) 2>/dev/null; }
+            . "$FROOT/harness/lib/maintenance.sh"; felix_maint_status "$_ffwd" "$REPO" ) 2>/dev/null; }
 { printf 'ffm_ran\t0\talways\ta check ending in tail\t%s\n'  "touch \"$TMP/ffmran\"; false | tail -1"
   printf 'ffm_mid\t0\talways\thead mid-pipeline\t%s\n'       'printf y | head -5 | grep -q y'
   printf 'ffm_sub\t0\talways\thead in a substitution\t%s\n'  '[ "$(printf a | head -1)" = a ]'
   printf 'ffm_fail\t0\talways\ta check that fails\tfalse\n'
-} > "$_ffw/maintenance.tsv"
+} > "$_ffwd/maintenance.tsv"
 _ffmst="$(_ffmt)"
 _ffmrow() { printf '%s\n' "$_ffmst" | awk -F'\t' -v n="$1" '$2 == n'; }
 is  "a maintenance check whose status is a final tail's is due, as refused" \
@@ -754,12 +754,12 @@ EOF
 }
 for _fft in commissioning.tsv obligations.tsv setup.tsv maintenance.tsv; do
   case "$_fft" in
-    commissioning.tsv) _ffp='$5 !~ /^provider:/ { print $6 }' ;;
-    obligations.tsv)   _ffp='{ print $5 }' ;;
-    setup.tsv)         _ffp='{ print $4 }' ;;
-    maintenance.tsv)   _ffp='NF >= 5 && $5 != "-" && $5 != "" { print $5 }' ;;
+    commissioning.tsv) _ffpc='$5 !~ /^provider:/ { print $6 }' ;;
+    obligations.tsv)   _ffpc='{ print $5 }' ;;
+    setup.tsv)         _ffpc='{ print $4 }' ;;
+    maintenance.tsv)   _ffpc='NF >= 5 && $5 != "-" && $5 != "" { print $5 }' ;;
   esac
-  _ffto="$(_fftpl "$_fft" "$_ffp")"
+  _ffto="$(_fftpl "$_fft" "$_ffpc")"
   case "$_ffto" in
     [1-9]*' checked; none refused') ok  "every judged command in templates/$_fft is admitted" ;;
     *)                              bad "every judged command in templates/$_fft is admitted" "$_ffto" ;;
@@ -768,12 +768,12 @@ done
 
 cp "$TMP/ff-cm.keep" "$CMP/commissioning.tsv"
 for _fft in obligations.tsv setup.tsv maintenance.tsv; do
-  if [ -f "$TMP/ff-w-$_fft.keep" ]; then mv "$TMP/ff-w-$_fft.keep" "$_ffw/$_fft"; else rm -f "$_ffw/$_fft"; fi
+  if [ -f "$TMP/ff-w-$_fft.keep" ]; then mv "$TMP/ff-w-$_fft.keep" "$_ffwd/$_fft"; else rm -f "$_ffwd/$_fft"; fi
 done
 rm -rf "$_ffpp"
 rm -f "$TMP/ff-cm.keep" "$TMP/ffcran" "$TMP/fforan" "$TMP/ffsran" "$TMP/ffmran"
 unset -f _ffc _ffnot _ffcrow _ffcmal _ffcst _ffob _ffomal _ffost _ffsu _ffsuwhy _ffmt _ffmrow \
          _ffpr _ffpst _fftpl
-unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffw _fft _ffp _ffto _ffcrun _ffccli _fforun _ffocli \
+unset _ffT _ffo _ffr _ffl _ffstage _fftx _ffwhy _ffwd _fft _ffpc _ffto _ffcrun _ffccli _fforun _ffocli \
       _ffsust _ffsumal _ffsucli _ffsuunder _ffmst _ffmcli _ffpp _ffprun
 

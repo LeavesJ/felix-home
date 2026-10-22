@@ -1,3 +1,6 @@
+# Red has started (or is not to be): the N a record run under -j N handed it
+# (part 0001) goes now, so that no part, unit or fixture sees it.
+unset FELIX_TEST_RED_JOBS
 # MEM, the session unset and resolve.sh moved here from the driver with
 # _copy_content below, 2026-10-17, for the same 500 lines; they ran just
 # before this part there, so they run in the same order here.
@@ -69,19 +72,28 @@ unset CLAUDE_CODE_SESSION_ID
 # non-zero — and under this suite's pipefail that exit becomes the copy's
 # status, so a developer's unstaged deletion would read as a copy that
 # failed. GNU tar was not there to measure; skipping means it is never asked.
+# A skipped name is no failure of the loop either (R42): the body is an if, so the
+# status of the loop is 0 when the last name git lists is one it skipped.
 _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, less what git ignores
-  local src="$1" dest="$2" f
+  local src="$1" dest="$2" f arc rc
   # An empty source would be copied as "/." (the 18:04 incident at the
   # driver's REAL_HARNESS check), so a source that is not a directory copies nothing.
   [ -n "$src" ] && [ -d "$src" ] || {
     printf 'tests/run: _copy_content refused source [%s]: not a directory\n' "$src" >&2; return 1; }
   mkdir -p "$dest" || return 1
   if [ -n "$(git -C "$src" ls-files -c . 2>/dev/null | head -1)" ]; then
+    # The archive is written whole to a file of this call's own, then read: an extractor
+    # that stops at the end-of-archive marker (bsdtar) must not sit at the end of a pipe
+    # under pipefail, where the writer's next write fails (R37).
+    arc="$(mktemp "${TMP:-${TMPDIR:-/tmp}}/copy-content.XXXXXX")" || return 1
     ( cd "$src" && git ls-files -co --exclude-standard -z . \
         | while IFS= read -r -d '' f; do
-            { [ -e "$f" ] || [ -L "$f" ]; } && printf '%s\0' "$f"
+            if [ -e "$f" ] || [ -L "$f" ]; then printf '%s\0' "$f"; fi
           done \
-        | tar -c --null -T - -f - ) | tar -x -f - -C "$dest"
+        | tar -c --null -T - -f "$arc" ); rc=$?
+    [ "$rc" -eq 0 ] && { tar -x -f "$arc" -C "$dest"; rc=$?; }
+    rm -f "$arc"
+    return "$rc"
   else
     cp -R "$src/." "$dest/"
   fi

@@ -278,7 +278,8 @@ DCMT="$(cd "$DCM/tree" && pwd -P)"
 # fresh entry only; a tampered file is put back below from the same commit.
 _dcm_deploy() {   # ref, version
   mkdir -p "$DCMC/$2" "$DCM/x.$2"
-  _fx_git "$DCMT" archive "$1" engine | tar -x -C "$DCM/x.$2"
+  _fx_git "$DCMT" archive -o "$DCM/x.$2.tar" "$1" engine && tar -x -f "$DCM/x.$2.tar" -C "$DCM/x.$2"
+  rm -f "$DCM/x.$2.tar"
   for _d in harness hooks commands .claude-plugin; do
     [ -d "$DCM/x.$2/engine/$_d" ] && cp -R "$DCM/x.$2/engine/$_d" "$DCMC/$2/$_d"
   done

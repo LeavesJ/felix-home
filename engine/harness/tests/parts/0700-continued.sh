@@ -520,11 +520,7 @@ esac
 # template's applies once asked only for a tracked path ending in hooks.json,
 # so a web app with src/config/hooks.json was handed an ACTIVE obligation
 # whose evidence is a hold — UNKNOWN, blocking — on the day it was created.
-CMW="$TMP/cm-webapp"; mkdir -p "$CMW/src/config"
-( _fx_cd "$CMW" && git init -q -b main && printf '{"webhooks":[]}\n' > src/config/hooks.json \
-  && printf '{ "name": "w", "scripts": { "verify": "echo ok" } }\n' > package.json \
-  && git add -A && git -c user.name=t -c user.email=t@t commit -qm init ) >/dev/null 2>&1
-_cmw="$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" new cmwebapp 2>&1)"
+_cmwebapp_build   # tests/lib/cm-stub.sh: the web app, felix new over it (CMW, _cmw)
 is  "a stranger that is not a plugin is created without a blocking obligation" \
     "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>/dev/null | grep -c 'DORMANT')" "1"
 case "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>&1)" in

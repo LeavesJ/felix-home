@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 16** (2026-10-22 UTC) records D8's cost clause as measured, after D landed as #456, and sets how the gate's N is chosen, in the last section. Revision 15 (2026-10-21 UTC) amended revision 14 after its review, in the section before it. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the one before that, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 16** (2026-10-22 UTC) records D8's cost clause as measured, after D landed as #456, sets how the gate's N is chosen, and by that rule makes it the performance-core count, in the last section. Revision 15 (2026-10-21 UTC) amended revision 14 after its review, in the section before it. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the one before that, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -1418,7 +1418,7 @@ Answers the review's minor finding on 1294:632-636. R48 changes one assertion na
 
 ## Recorded after D landed (revision 16, 2026-10-22)
 
-D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merged it on its gate pass at f5a87d6c and green CI. Main's tree is f5a87d6c's (3399c400). This revision records the one D8 clause that was measured and not met, and sets how the gate's N is chosen. It changes no rule of D1 to D8 yet. Revision 7's conventions hold.
+D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merged it on its gate pass at f5a87d6c and green CI. Main's tree is f5a87d6c's (3399c400). This revision records the one D8 clause that was measured and not met, and sets how the gate's N is chosen (R49, R50). By that rule, R51 replaces D1's gate bullet. It changes no other rule of D1 to D8. Revision 7's conventions hold.
 
 ### R49. D8's cost clause, as measured: not met at `-j 8`
 
@@ -1456,3 +1456,52 @@ D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merg
   - **The machine.** The runs are on the 16 GB Mac. The founder has decided to move to a 48 GB laptop (2026-10-14), where gate time is re-measured on its own machine. An N chosen here is re-measured there by the same rule, before it is called that machine's.
   - **Its round.** Changing gate.sh is its own round: blind authors red first, then the builder, then review. The round covers D1's gate bullet and the parts that pin the gate's N to the core count (1293's `_db3_cores`, 1294's `_db4_cores`, 0007).
   - **The slots.** The slot count K stays the core count unless these runs show a reason to change it.
+
+### R51. R50's runs, and the gate's N becomes the performance-core count
+
+R51 records R50's runs and what its rule gives. It replaces D1's gate bullet as below, and corrects R50's list of parts: 0007's `_par_cores` gives the slots, not the gate's N, and does not change.
+
+- **The runs.** The files are audits/2026-10-18-gate-friction-d/evidence/runs/cost6.log, cost6.mem and cost6-table.txt, and runs/p10f, p4f, p8f and p6f.
+  - The chain started at 08:43:56Z, at a one-minute load of 14.3, and ended at 10:17:31Z.
+  - Each run started as the one before it ended, so only the first started quiet. p4f started at a load of 110, p8f at 15 and p6f at 39.
+  - Every run exited 0, with 13,508 passed, 0 failed and 22 skipped, and wrote the same assertions.tsv as p1e.
+
+  | run | N | wall | user | sys | CPU | × serial CPU | × less wall | machine swapins |
+  |---|---|---|---|---|---|---|---|---|
+  | p10f | 10 | 1,497 s | 2,183 s | 3,743 s | 5,926 s | 1.44 | 3.20 | 6.66 M |
+  | p8e | 8 | 1,250 s | 2,190 s | 3,499 s | 5,689 s | 1.38 | 3.83 | not recorded |
+  | p8f | 8 | 1,195 s | 2,098 s | 3,428 s | 5,526 s | 1.34 | 4.00 | 1.46 M |
+  | p6f | 6 | 1,293 s | 2,046 s | 3,306 s | 5,353 s | 1.30 | 3.70 | 1.65 M |
+  | p4f | 4 | 1,629 s | 1,989 s | 3,116 s | 5,104 s | 1.24 | 2.94 | 3.21 M |
+
+  Every run is over R49's bound of 4,670 s, and CPU falls with N at every step.
+- **The paging.** The swapins are vm_stat's count of pages, for the whole machine over each run, not for the suite alone. Swap in use stayed between 20.3 and 21.9 GB throughout. The machine paged during every run, and the counts do not follow N, so they do not say how much of the sys is the suite's paging. R49's two causes both stand.
+- **The rule.**
+  - The noise is 55 s: p8e's 1,250 s against p8f's 1,195 s.
+  - The shortest wall is `-j 8`'s mean, 1,223 s, and 10% above it is 1,345 s.
+  - `-j 6` (1,293 s) and `-j 8` are within that; `-j 4` (1,629 s) and `-j 10` (1,497 s) are not.
+  - So the rule picks `-j 6`.
+- **What it maps to.** R50 lets the default be only a rule over what a machine reports: the core count, which is 10 here, or the performance-core count, which is 8 here. Neither is 6.
+  - **No rule fitted to 6.** Three fifths of the cores, or two fewer than the performance cores, would be this one machine's number dressed as a rule. R50 forbids that.
+  - **The performance-core count.** Of the two rules R50 allows, it is the smaller, and it is within the band. So the gate's default becomes the performance-core count. On this machine that is 8, for 18% less wall than today's 10 (1,223 s against 1,497 s) and 5% less CPU (5,608 s against 5,926 s).
+  - **What 6 would give.** `-j 6` would use another 4.5% less CPU (5,353 s) for 6% more wall. That is recorded here, and R50's rule is run again on the 48 GB laptop.
+- **Why `-j 10` is slower.** `-j 10` was 22% slower than `-j 8` with two more units at once. The runs do not say why. The two efficiency cores run a unit more slowly, and ten units hold more memory than eight; either would do it.
+- **The gate, replacing D1's gate bullet.** projects/felix/gate.sh sets `FELIX_TEST_JOBS` for its call to tests/run as follows:
+  1. `sysctl -n hw.perflevel0.physicalcpu`, when it answers with digits only and the number is at least 1;
+  2. otherwise, exactly as before: `sysctl -n hw.ncpu`, then `getconf _NPROCESSORS_ONLN`, then 1, whichever first answers with a number;
+  3. held to 1 to 64, as before.
+
+  It still sets nothing when `GITHUB_ACTIONS` is `true`. A performance-core count that is empty, fails, is not digits only, or is zero (`0`, `00`) falls to step 2. Its argument list stays `--reuse`, and a refusal still shows the log's last line under `tests FAIL`.
+- **The slots do not change.** K stays the core count (D3's slots bullet, 0007's `_par_cores`). Every `-j` run on the machine shares the slots, red's included, and they are not the gate's N.
+- **The parts.** 1293 and 1294 pin the gate's N to the core count: 1293's D1 name at 1293:713, and 1294's D1 names at 1294:536, 538 and 539, against `_db3_cores` and `_db4_cores`. Their blind author changes them to expect the gate's N by the rule above.
+  - **Names.** A name that says "the core count" for the gate's N says "the performance-core count, else the core count". 1294:328's D6 name is about the slots, and keeps the core count.
+  - **The stub answers each key apart.** 1294's sysctl stub (1294:493-504) answers every key with `DJ4_sysctl`, so it cannot show which key gate.sh asked first. It gains a way to answer `hw.perflevel0.physicalcpu` and `hw.ncpu` each with its own value, or to fail for one.
+  - **New holds in 1294,** each through gate.sh with the stub:
+    - the performance-core count answers first, over a different `hw.ncpu`;
+    - a performance-core count that fails, is empty, is `0`, or is not a number falls to `hw.ncpu`, and from there as before;
+    - a performance-core count of 200 is held to 64.
+  - **The old holds.** `_db4_gm`'s six holds keep their meaning with the performance-core key left unanswered.
+- **D8 gains.**
+  - Through the stub, on any machine, the new holds are red against 0.49.303's gate.sh and green on the build.
+  - On a machine whose sysctl reports a performance-core count that differs from its core count (this one: 8 and 10), 1293's and 1294's D1 names are red against 0.49.303's gate.sh too.
+- **The round.** Blind authors write the parts red first, from this section and D1 alone. The builder changes gate.sh. An Opus review follows, and its test findings go back to a blind author.

@@ -1,15 +1,15 @@
 ### 2026-10-22: the gate's N is measured, and D's cost clause is recorded as missed
 
 **Engine 0.49.305 (this branch, `claude/gate-friction-d-cost`, on origin/main
-10381d82, 0.49.303; #455 holds 0.49.304).** This is D's follow-up after #456 landed. The
-contract is `docs/2026-10-18-gate-friction-contract-d.md`, revision 16: R49 to
+10381d82, 0.49.303; #455 holds 0.49.304).** This is D's follow-up after #456
+landed. The contract is `docs/2026-10-18-gate-friction-contract-d.md`, revision 16: R49 to
 R52, in its last section. The land-on-green contract gains A33.
 
 **What changed.**
 - **The gate's N.** projects/felix/gate.sh now sets `FELIX_TEST_JOBS` to
-  `sysctl -n hw.perflevel0.logicalcpu` when that answers a number of at least
-  1. Otherwise it uses the core count, as before: `hw.ncpu`, then getconf,
-  then 1. N is held to 1 to 64. On this M1 Pro, N goes from 10 to 8. A machine
+  `sysctl -n hw.perflevel0.logicalcpu` when that answers a number that is
+  at least one. Otherwise it uses the core count, as before: `hw.ncpu`, then
+  getconf, then 1. N is held to 1 to 64. On this M1 Pro, N goes from 10 to 8. A machine
   with one performance level, or with two threads per core, keeps the N it had.
   The slots K stay the core count.
 - **Parts 1293 and 1294.** Their D1 names expect that rule, written blind

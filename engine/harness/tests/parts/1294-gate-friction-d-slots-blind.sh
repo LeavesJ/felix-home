@@ -100,7 +100,7 @@ _db4_cores() { local n; n="$(sysctl -n hw.ncpu 2>/dev/null)"; case "$n" in ''|*[
   case "$n" in ''|*[!0123456789]*) n=1 ;; esac; [ "$n" -ge 1 ] || n=1; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
 # The gate's N (R51): sysctl's performance-core count when it answers with digits only and at least 1; else the core count (_db4_cores: hw.ncpu, then getconf, then 1); held to 1 to 64.
 # _db4_cores stays the slots' count (D6): the slots name below reads it, not this
-_db4_gaten() { local n; n="$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null)"
+_db4_gaten() { local n; n="$(sysctl -n hw.perflevel0.logicalcpu 2>/dev/null)"
   case "$n" in ''|*[!0123456789]*) n="" ;; *) n=$((10#$n)); [ "$n" -ge 1 ] || n="" ;; esac
   [ -n "$n" ] || n="$(_db4_cores)"; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
 _db4_sel() { _db4_c="$DB4/n/$1"; _db4_F="$_db4_c/f"; _db4_T="$_db4_F/engine/harness/tests"; _db4_tmp="${_db4_td:-$_db4_c/tmp}"; }
@@ -499,13 +499,13 @@ DB4ST
     cat > "$DG/shim/$_db4_t" <<'DB4SH'
 #!/bin/sh
 # the tool of this name, unless DJ4_<name> is set: then it answers with that (and fails where it is empty)
-# sysctl also answers hw.perflevel0.physicalcpu from DJ4_sysctl_perf and hw.ncpu from DJ4_sysctl_ncpu, each apart from the other and from DJ4_sysctl: a value answers with it,
+# sysctl also answers hw.perflevel0.logicalcpu from DJ4_sysctl_perf and hw.ncpu from DJ4_sysctl_ncpu, each apart from the other and from DJ4_sysctl: a value answers with it,
 # an empty value answers with an empty line and status 0, and djy-fail fails (status 1, no output). A key whose variable is unset goes on to DJ4_sysctl, then to the real sysctl
 n="${0##*/}"
 if [ "$n" = sysctl ]; then
   k=; for a in "$@"; do case "$a" in hw.*) k="$a" ;; esac; done
   case "$k" in
-    hw.perflevel0.physicalcpu) v="${DJ4_sysctl_perf-djy-unset}" ;;
+    hw.perflevel0.logicalcpu) v="${DJ4_sysctl_perf-djy-unset}" ;;
     hw.ncpu) v="${DJ4_sysctl_ncpu-djy-unset}" ;;
     *) v=djy-unset ;;
   esac
@@ -554,7 +554,7 @@ _db4_g "D1: with GITHUB_ACTIONS=true it sets nothing, and the argument list is -
 _db4_g "D1: only the value true stops it: GITHUB_ACTIONS=false still sets the performance-core count, else the core count" ok _db4_gc g3 "$(_db4_gaten)" GITHUB_ACTIONS=false
 _db4_g "D1: a FELIX_TEST_JOBS the caller already had is replaced by the performance-core count, else the core count" ok _db4_gc g4 "$(_db4_gaten)" FELIX_TEST_JOBS=7
 _db4_g "R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse" ok _db4_gc g12 unset GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
-_db4_g "D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not" "ok ok ok ok ok ok" _db4_gm
+_db4_g "D1: with one sysctl answer given to every key, step 1 (the performance-core key) takes it: 200 is held to 64 and 3 is used; where every sysctl key fails or answers a non-number, getconf answers, then 1" "ok ok ok ok ok ok" _db4_gm
 # R51: the performance-core count, apart from the core count. Each case gives the stub both keys (or fails one); a case that tests hw.ncpu's step makes the performance-core key fail.
 _db4_gp() {   # (a) the performance-core count answers first, over a different hw.ncpu (and over a failing one, and over getconf)
   _db4_gc g13 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g14 8 DJ4_sysctl_perf=8 DJ4_sysctl_ncpu=4; printf ' '
@@ -573,15 +573,19 @@ _db4_gh() {   # (c) a performance-core count above 64 is held to 64 (200, 65), 6
   _db4_gc g32 64 DJ4_sysctl_perf=200 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g33 64 DJ4_sysctl_perf=65 DJ4_sysctl_ncpu=3; printf ' '
   _db4_gc g34 64 DJ4_sysctl_perf=64 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g35 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12
 }
-_db4_g "R51: the performance-core count answers first: hw.perflevel0.physicalcpu 6 over a different hw.ncpu 12 gives 6, 8 over 4 gives 8, and a failing hw.ncpu or a getconf does not change it" "ok ok ok ok" _db4_gp
+_db4_gz() {   # (R52) a count of 08 is digits only and is 8, and 09 is 9 (so a build that reads another key cannot pass by that key giving 8 on this machine); a count of exactly 1 is 1; each over an hw.ncpu of 12
+  _db4_gc g36 8 DJ4_sysctl_perf=08 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g38 9 DJ4_sysctl_perf=09 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g37 1 DJ4_sysctl_perf=1 DJ4_sysctl_ncpu=12
+}
+_db4_g "R51: the performance-core count answers first: hw.perflevel0.logicalcpu 6 over a different hw.ncpu 12 gives 6, 8 over 4 gives 8, and a failing hw.ncpu or a getconf does not change it" "ok ok ok ok" _db4_gp
 _db4_g "R51: a performance-core count whose call fails falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g17 djy-fail
 _db4_g "R51: a performance-core count that is empty falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g18 ""
 _db4_g "R51: a performance-core count of 0 falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g19 0
 _db4_g "R51: a performance-core count of 00 falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g20 00
 _db4_g "R51: a performance-core count that is not a number (abc) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g21 abc
 _db4_g "R51: a performance-core count that is not digits only (6x) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g22 6x
-_db4_g "R51: with the performance-core key failing, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; a performance-core count of 6 over the same keys is used" "ok ok ok ok ok ok ok" _db4_gf
+_db4_g "R51: with the performance-core key (hw.perflevel0.logicalcpu) failing, or set to 0 in one case, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; a performance-core count of 6 over the same keys is used" "ok ok ok ok ok ok ok" _db4_gf
 _db4_g "R51: a performance-core count of 200 is held to 64, so are 65 and the largest N 64 itself, and a count of 6 over the same hw.ncpu is not held" "ok ok ok ok" _db4_gh
+_db4_g "R52: a performance-core count of 08 over an hw.ncpu of 12 gives 8 and 09 gives 9 (the leading zero is stripped), and a count of 1 over 12 gives 1" "ok ok ok" _db4_gz
 _db4_g "D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it" "1 1 failed" _db4_gx
 
 # ---- the interface: the largest N, six names of --part, and part mode keyed on its argument alone (D1, D2)

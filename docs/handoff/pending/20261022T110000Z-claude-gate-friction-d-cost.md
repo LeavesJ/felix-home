@@ -1,7 +1,7 @@
 ### 2026-10-22: the gate's N is measured, and D's cost clause is recorded as missed
 
-**Engine version at its record (this branch, `claude/gate-friction-d-cost`, on
-origin/main 10381d82, 0.49.303).** This is D's follow-up after #456 landed. The
+**Engine 0.49.305 (this branch, `claude/gate-friction-d-cost`, on origin/main
+10381d82, 0.49.303; #455 holds 0.49.304).** This is D's follow-up after #456 landed. The
 contract is `docs/2026-10-18-gate-friction-contract-d.md`, revision 16: R49 to
 R52, in its last section. The land-on-green contract gains A33.
 

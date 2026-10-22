@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 15** (2026-10-21 UTC) amends revision 14 after its review, in the last section. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the section before it, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 16** (2026-10-22 UTC) records D8's cost clause as measured, after D landed as #456, and sets how the gate's N is chosen, in the last section. Revision 15 (2026-10-21 UTC) amended revision 14 after its review, in the section before it. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the one before that, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -1415,3 +1415,38 @@ Answers the review's minor finding on 1294:632-636. R48 changes one assertion na
 - Minor, the watcher finder of 1293's ps shim works by exclusion: fixed by B in 555848c1 (R45's fallback, the same pid at two listings 0.2 s apart).
 - Minor, call-counting ps shims count a holder's listing: R47 (A: 1292; B: 1296).
 - Minor, 1292's `_db2_evt` got text says "before the run's bound" when the run ended: fixed by A in 3c008026.
+
+## Recorded after D landed (revision 16, 2026-10-22)
+
+D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merged it on its gate pass at f5a87d6c and green CI. Main's tree is f5a87d6c's (3399c400). This revision records the one D8 clause that was measured and not met, and sets how the gate's N is chosen. It changes no rule of D1 to D8 yet. Revision 7's conventions hold.
+
+### R49. D8's cost clause, as measured: not met at `-j 8`
+
+- **The runs.** p8e ran `-j 8`, and then p1e ran with no `-j`. Both ran in clones of f5a87d6c over e3636d40, and ev-drive.py took the suite parent's and its children's getrusage. The files are audits/2026-10-18-gate-friction-d/evidence/runs/p8e, runs/p1e and runs/compare-p1e-p8e.txt. No other suite ran during either. An orphaned process of the session's own (pid 89977, using about one core since 10-13) was found and stopped first. The pair begun before that (p8d) was stopped, and is not used.
+- **The numbers.**
+
+  | run | wall | user | sys | CPU |
+  |---|---|---|---|---|
+  | p1e | 4,784 s | 1,745 s | 2,379 s | 4,124 s |
+  | p8e | 1,250 s | 2,190 s | 3,499 s | 5,689 s |
+
+  The bound is 4,124 × 1.05 + 2 s × 170 units = 4,670 s. p8e is 1,019 s over it. It used 1.38 times the serial CPU for 3.83 times less wall. Of the 1,565 s more, 1,120 s is sys and 445 s user.
+- **Where it went.** It is not the runner: the `-j` parent's own CPU was 1.9 s, and D8 allows 5 s. The units' walls at `-j 8` sum to 9,411 s, about twice the serial run's whole wall. So a unit beside seven others ran about twice as long as it did alone, and the suite's CPU grew by 38%, most of it in the kernel. The suite forks and execs a great deal, and that costs more sys when eight units do it at once. This is read from the totals, not from a profile. R50's runs show how it grows with N.
+- **What it changes.** D claims no CPU saving and no CPU parity. `-j` buys wall with more CPU, measured at 1.38 times at 8. The clause stays as written. Re-fitting it to the number would weaken a check by re-defining it. A later change that claims to meet the clause is measured against it as written.
+- **The landing.** #456 landed with the clause not met, by Felix's decision. The clause bounds a claim (D8: "Savings are claimed only from CPU measured quiet"), and D makes no such claim. Every other D8 clause was met, and #456's body reported the miss.
+
+### R50. The gate's N is measured, not assumed
+
+- **What is wrong.** D1 has the gate run at the core count. That is hw.ncpu: 10 on the machine D was built on, which has 8 performance cores and 2 efficiency cores. The count was chosen, not measured. The cost runs measured `-j 8`, not the 10 the gate uses. Nothing measured whether fewer units at once give nearly the same wall for less CPU.
+- **The runs.** Four quiet runs: `-j 10`, `-j 4`, `-j 8` again and `-j 6`, in that order.
+  - Each runs in its own clone of f5a87d6c over e3636d40, made by ev-clone-at.sh.
+  - Each goes through ev-chain2.sh and ev-run.sh, as R49's did.
+  - They run one at a time under the carrier's slot. The chain starts only when the one-minute load is below 15, and each run's load at its start and end is recorded.
+  - p1e is the serial run for all four.
+  - The second `-j 8` run repeats p8e. Its difference from p8e is the noise the rule is read against.
+- **The rule, fixed before the runs.** The gate's default is the smallest measured N whose wall is within 10% of the shortest measured wall. Two walls that differ by less than the two `-j 8` walls do are read as equal. Each run's CPU is reported beside its wall, against R49's bound.
+- **What follows.**
+  - **The core count.** If the rule picks it, D1 stands, and this section records the runs.
+  - **Another N.** That N becomes a rule over what any machine reports: the core count, or sysctl's performance-core count `hw.perflevel0.physicalcpu` where it has one. A stranger's machine is then not given this machine's number.
+  - **Its round.** Changing gate.sh is its own round: blind authors red first, then the builder, then review. The round covers D1's gate bullet and the parts that pin the gate's N to the core count (1293's `_db3_cores`, 1294's `_db4_cores`, 0007).
+  - **The slots.** The slot count K stays the core count unless these runs show a reason to change it.

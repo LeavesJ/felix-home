@@ -98,6 +98,11 @@ _db4_tn()  { LC_ALL=C awk '/^  note  [0123456789]+ assertion\(s\) ran that the m
 _db4_ms()  { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 _db4_cores() { local n; n="$(sysctl -n hw.ncpu 2>/dev/null)"; case "$n" in ''|*[!0123456789]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
   case "$n" in ''|*[!0123456789]*) n=1 ;; esac; [ "$n" -ge 1 ] || n=1; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
+# The gate's N (R51): sysctl's performance-core count when it answers with digits only and at least 1; else the core count (_db4_cores: hw.ncpu, then getconf, then 1); held to 1 to 64.
+# _db4_cores stays the slots' count (D6): the slots name below reads it, not this
+_db4_gaten() { local n; n="$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null)"
+  case "$n" in ''|*[!0123456789]*) n="" ;; *) n=$((10#$n)); [ "$n" -ge 1 ] || n="" ;; esac
+  [ -n "$n" ] || n="$(_db4_cores)"; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
 _db4_sel() { _db4_c="$DB4/n/$1"; _db4_F="$_db4_c/f"; _db4_T="$_db4_F/engine/harness/tests"; _db4_tmp="${_db4_td:-$_db4_c/tmp}"; }
 # CASE [--red] GROUPS MANIFEST STUB...: the copy at $DB4/n/CASE and its fixture TMPDIR; 1 when it could not be made. A MANIFEST of + is a manifest
 # of one row for each STUB that says ok "djy $DJ4N", so that a run that passes has compared one and leaves a receipt; - is none
@@ -494,7 +499,18 @@ DB4ST
     cat > "$DG/shim/$_db4_t" <<'DB4SH'
 #!/bin/sh
 # the tool of this name, unless DJ4_<name> is set: then it answers with that (and fails where it is empty)
+# sysctl also answers hw.perflevel0.physicalcpu from DJ4_sysctl_perf and hw.ncpu from DJ4_sysctl_ncpu, each apart from the other and from DJ4_sysctl: a value answers with it,
+# an empty value answers with an empty line and status 0, and djy-fail fails (status 1, no output). A key whose variable is unset goes on to DJ4_sysctl, then to the real sysctl
 n="${0##*/}"
+if [ "$n" = sysctl ]; then
+  k=; for a in "$@"; do case "$a" in hw.*) k="$a" ;; esac; done
+  case "$k" in
+    hw.perflevel0.physicalcpu) v="${DJ4_sysctl_perf-djy-unset}" ;;
+    hw.ncpu) v="${DJ4_sysctl_ncpu-djy-unset}" ;;
+    *) v=djy-unset ;;
+  esac
+  case "$v" in djy-unset) ;; djy-fail) exit 1 ;; *) echo "$v"; exit 0 ;; esac
+fi
 eval "v=\${DJ4_$n-djy-unset}"
 if [ "$v" != djy-unset ]; then [ -n "$v" ] || exit 1; echo "$v"; exit 0; fi
 [ -x "@REAL@" ] || exit 1
@@ -508,7 +524,7 @@ fi
 _db4_gate() {   # LABEL NAME=value...: gate.sh in the fixture; its output is $DG/out/LABEL.out, its status _db4_grc; what its group left is in LABEL.leak
   local l="$1"; shift
   rm -f "$DG/out/$l.args" "$DG/out/$l.jobs"
-  ( cd "${DGC:?}" && exec env -u GITHUB_ACTIONS -u FELIX_TEST_JOBS -u FELIX_TEST_NO_MANIFEST -u DJ4_EXIT2 -u DJ4_sysctl -u DJ4_getconf HOME="$DG/home" \
+  ( cd "${DGC:?}" && exec env -u GITHUB_ACTIONS -u FELIX_TEST_JOBS -u FELIX_TEST_NO_MANIFEST -u DJ4_EXIT2 -u DJ4_sysctl -u DJ4_getconf -u DJ4_sysctl_perf -u DJ4_sysctl_ncpu HOME="$DG/home" \
       FELIX_KERNEL_CACHE="$DG/nocache" TMPDIR="$DG/tmp" PATH="$DG/shim:$PATH" DJ4_OUT="$DG/out" DJ4_L="$l" ${1+"$@"} \
       perl "$DB4/run.pl" 90 DEFAULT DEFAULT "$DG/out/$l.pid" bash projects/felix/gate.sh ) > "$DG/out/$l.out" 2>&1
   _db4_grc=$?; _db4_leak=""; _db4_grp "$(cat "$DG/out/$l.pid" 2>/dev/null)"; printf '%s' "$_db4_leak" > "$DG/out/$l.leak"; _db4_leak=""
@@ -533,12 +549,39 @@ _db4_g() {   # NAME WANT CMD...: is NAME (the output of CMD... being WANT), or a
   local n="$1" w="$2"; shift 2
   if [ -n "$_db4_gskip" ]; then skip "$n" "$_db4_gskip"; else is "$n" "$("$@")" "$w"; fi
 }
-_db4_g "D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run, and its argument list stays --reuse" ok _db4_gc g1 "$(_db4_cores)"
+_db4_g "D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the performance-core count, else the core count, for its call to tests/run, and its argument list stays --reuse" ok _db4_gc g1 "$(_db4_gaten)"
 _db4_g "D1: with GITHUB_ACTIONS=true it sets nothing, and the argument list is --reuse (control)" ok _db4_gc g2 unset GITHUB_ACTIONS=true
-_db4_g "D1: only the value true stops it: GITHUB_ACTIONS=false still sets the core count" ok _db4_gc g3 "$(_db4_cores)" GITHUB_ACTIONS=false
-_db4_g "D1: a FELIX_TEST_JOBS the caller already had is replaced by the core count" ok _db4_gc g4 "$(_db4_cores)" FELIX_TEST_JOBS=7
+_db4_g "D1: only the value true stops it: GITHUB_ACTIONS=false still sets the performance-core count, else the core count" ok _db4_gc g3 "$(_db4_gaten)" GITHUB_ACTIONS=false
+_db4_g "D1: a FELIX_TEST_JOBS the caller already had is replaced by the performance-core count, else the core count" ok _db4_gc g4 "$(_db4_gaten)" FELIX_TEST_JOBS=7
 _db4_g "R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse" ok _db4_gc g12 unset GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
 _db4_g "D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not" "ok ok ok ok ok ok" _db4_gm
+# R51: the performance-core count, apart from the core count. Each case gives the stub both keys (or fails one); a case that tests hw.ncpu's step makes the performance-core key fail.
+_db4_gp() {   # (a) the performance-core count answers first, over a different hw.ncpu (and over a failing one, and over getconf)
+  _db4_gc g13 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g14 8 DJ4_sysctl_perf=8 DJ4_sysctl_ncpu=4; printf ' '
+  _db4_gc g15 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12 DJ4_getconf=9; printf ' '; _db4_gc g16 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=djy-fail DJ4_getconf=9
+}
+_db4_gb() {   # (b) LABEL VALUE: a performance-core count of VALUE (djy-fail: the call fails) falls to hw.ncpu, 12 here; beside it, a count of 6 over the same hw.ncpu is used
+  _db4_gc "${1}a" 12 DJ4_sysctl_perf="$2" DJ4_sysctl_ncpu=12; printf ' '; _db4_gc "${1}b" 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12
+}
+_db4_gf() {   # (b) with the performance-core key failing, hw.ncpu then getconf then 1, held to 64, as before; and a count of 6 over the same keys is used
+  _db4_gc g25 3 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=3 DJ4_getconf=9; printf ' '; _db4_gc g26 12 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=djy-fail DJ4_getconf=12; printf ' '
+  _db4_gc g27 1 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=djy-fail DJ4_getconf=; printf ' '; _db4_gc g28 64 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=200; printf ' '
+  _db4_gc g29 5 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=abc DJ4_getconf=5; printf ' '; _db4_gc g30 64 DJ4_sysctl_perf=0 DJ4_sysctl_ncpu=djy-fail DJ4_getconf=100; printf ' '
+  _db4_gc g31 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=3 DJ4_getconf=9
+}
+_db4_gh() {   # (c) a performance-core count above 64 is held to 64 (200, 65), 64 stays 64, and a count of 6 over the same hw.ncpu is not held
+  _db4_gc g32 64 DJ4_sysctl_perf=200 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g33 64 DJ4_sysctl_perf=65 DJ4_sysctl_ncpu=3; printf ' '
+  _db4_gc g34 64 DJ4_sysctl_perf=64 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g35 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=12
+}
+_db4_g "R51: the performance-core count answers first: hw.perflevel0.physicalcpu 6 over a different hw.ncpu 12 gives 6, 8 over 4 gives 8, and a failing hw.ncpu or a getconf does not change it" "ok ok ok ok" _db4_gp
+_db4_g "R51: a performance-core count whose call fails falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g17 djy-fail
+_db4_g "R51: a performance-core count that is empty falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g18 ""
+_db4_g "R51: a performance-core count of 0 falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g19 0
+_db4_g "R51: a performance-core count of 00 falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g20 00
+_db4_g "R51: a performance-core count that is not a number (abc) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g21 abc
+_db4_g "R51: a performance-core count that is not digits only (6x) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g22 6x
+_db4_g "R51: with the performance-core key failing, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; a performance-core count of 6 over the same keys is used" "ok ok ok ok ok ok ok" _db4_gf
+_db4_g "R51: a performance-core count of 200 is held to 64, so are 65 and the largest N 64 itself, and a count of 6 over the same hw.ncpu is not held" "ok ok ok ok" _db4_gh
 _db4_g "D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it" "1 1 failed" _db4_gx
 
 # ---- the interface: the largest N, six names of --part, and part mode keyed on its argument alone (D1, D2)

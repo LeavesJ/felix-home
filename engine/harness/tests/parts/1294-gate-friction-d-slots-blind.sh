@@ -549,10 +549,10 @@ _db4_g() {   # NAME WANT CMD...: is NAME (the output of CMD... being WANT), or a
   local n="$1" w="$2"; shift 2
   if [ -n "$_db4_gskip" ]; then skip "$n" "$_db4_gskip"; else is "$n" "$("$@")" "$w"; fi
 }
-_db4_g "D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the performance-core count, else the core count, for its call to tests/run, and its argument list stays --reuse" ok _db4_gc g1 "$(_db4_gaten)"
+_db4_g "D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS, for its call to tests/run, to the N this machine gives, from whichever step answers (sysctl or getconf), and its argument list stays --reuse" ok _db4_gc g1 "$(_db4_gaten)"
 _db4_g "D1: with GITHUB_ACTIONS=true it sets nothing, and the argument list is --reuse (control)" ok _db4_gc g2 unset GITHUB_ACTIONS=true
-_db4_g "D1: only the value true stops it: GITHUB_ACTIONS=false still sets the performance-core count, else the core count" ok _db4_gc g3 "$(_db4_gaten)" GITHUB_ACTIONS=false
-_db4_g "D1: a FELIX_TEST_JOBS the caller already had is replaced by the performance-core count, else the core count" ok _db4_gc g4 "$(_db4_gaten)" FELIX_TEST_JOBS=7
+_db4_g "D1: only the value true stops it: GITHUB_ACTIONS=false still sets the N this machine gives, from whichever step answers (sysctl or getconf)" ok _db4_gc g3 "$(_db4_gaten)" GITHUB_ACTIONS=false
+_db4_g "D1: a FELIX_TEST_JOBS the caller already had is replaced by the N this machine gives, from whichever step answers (sysctl or getconf)" ok _db4_gc g4 "$(_db4_gaten)" FELIX_TEST_JOBS=7
 _db4_g "R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse" ok _db4_gc g12 unset GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
 _db4_g "D1: with one sysctl answer given to every key, step 1 (the performance-core key) takes it: 200 is held to 64 and 3 is used; where every sysctl key fails or answers a non-number, getconf answers, then 1" "ok ok ok ok ok ok" _db4_gm
 # R51: the performance-core count, apart from the core count. Each case gives the stub both keys (or fails one); a case that tests hw.ncpu's step makes the performance-core key fail.
@@ -567,7 +567,8 @@ _db4_gf() {   # (b) with the performance-core key failing, hw.ncpu then getconf 
   _db4_gc g25 3 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=3 DJ4_getconf=9; printf ' '; _db4_gc g26 12 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=djy-fail DJ4_getconf=12; printf ' '
   _db4_gc g27 1 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=djy-fail DJ4_getconf=; printf ' '; _db4_gc g28 64 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=200; printf ' '
   _db4_gc g29 5 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=abc DJ4_getconf=5; printf ' '; _db4_gc g30 64 DJ4_sysctl_perf=0 DJ4_sysctl_ncpu=djy-fail DJ4_getconf=100; printf ' '
-  _db4_gc g31 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=3 DJ4_getconf=9
+  _db4_gc g31 6 DJ4_sysctl_perf=6 DJ4_sysctl_ncpu=3 DJ4_getconf=9; printf ' '
+  _db4_gc g39 1 DJ4_sysctl_perf=djy-fail DJ4_sysctl_ncpu=0 DJ4_getconf=9   # R52: a step 2 zero is a number, so it does not fall to getconf, and is held to 1
 }
 _db4_gh() {   # (c) a performance-core count above 64 is held to 64 (200, 65), 64 stays 64, and a count of 6 over the same hw.ncpu is not held
   _db4_gc g32 64 DJ4_sysctl_perf=200 DJ4_sysctl_ncpu=12; printf ' '; _db4_gc g33 64 DJ4_sysctl_perf=65 DJ4_sysctl_ncpu=3; printf ' '
@@ -583,7 +584,7 @@ _db4_g "R51: a performance-core count of 0 falls to hw.ncpu (12), where a count 
 _db4_g "R51: a performance-core count of 00 falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g20 00
 _db4_g "R51: a performance-core count that is not a number (abc) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g21 abc
 _db4_g "R51: a performance-core count that is not digits only (6x) falls to hw.ncpu (12), where a count of 6 beside it is used" "ok ok" _db4_gb g22 6x
-_db4_g "R51: with the performance-core key (hw.perflevel0.logicalcpu) failing, or set to 0 in one case, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; a performance-core count of 6 over the same keys is used" "ok ok ok ok ok ok ok" _db4_gf
+_db4_g "R51: with the performance-core key (hw.perflevel0.logicalcpu) failing, or set to 0 in one case, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; an hw.ncpu of 0 is a number that does not fall to getconf and is held to 1 (R52); a performance-core count of 6 over the same keys is used" "ok ok ok ok ok ok ok ok" _db4_gf
 _db4_g "R51: a performance-core count of 200 is held to 64, so are 65 and the largest N 64 itself, and a count of 6 over the same hw.ncpu is not held" "ok ok ok ok" _db4_gh
 _db4_g "R52: a performance-core count of 08 over an hw.ncpu of 12 gives 8 and 09 gives 9 (the leading zero is stripped), and a count of 1 over 12 gives 1" "ok ok ok" _db4_gz
 _db4_g "D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it" "1 1 failed" _db4_gx

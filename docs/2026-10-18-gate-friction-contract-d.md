@@ -1500,7 +1500,9 @@ R51 records R50's runs and what its rule gives. It replaces D1's gate bullet as 
     - the performance-core count answers first, over a different `hw.ncpu`;
     - a performance-core count that fails, is empty, is `0`, or is not a number falls to `hw.ncpu`, and from there as before;
     - a performance-core count of 200 is held to 64.
-  - **The old holds.** `_db4_gm`'s six holds keep their meaning with the performance-core key left unanswered.
+  - **The old holds.** `_db4_gm`'s six holds stay as they are. Their `DJ4_sysctl` answers every key alike, the performance-core key included, so each still holds on the build.
+    - Where a case sets no value for a key, the stub runs the real sysctl for it, as now. On this machine that answers the performance-core key with 8.
+    - So a case that means to test `hw.ncpu`'s step sets the performance-core key to fail.
 - **D8 gains.**
   - Through the stub, on any machine, the new holds are red against 0.49.303's gate.sh and green on the build.
   - On a machine whose sysctl reports a performance-core count that differs from its core count (this one: 8 and 10), 1293's and 1294's D1 names are red against 0.49.303's gate.sh too.

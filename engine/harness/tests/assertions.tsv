@@ -1269,7 +1269,7 @@
 1	D1: a ? four paragraphs back, in a text that makes no offer, is no question
 1	D1: a ?? inside a code span is no question
 1	D1: a FELIX_TEST_JOBS that is not a valid N (0 65 abc 03 -1 and empty) is refused the same way
-1	D1: a FELIX_TEST_JOBS the caller already had is replaced by the core count
+1	D1: a FELIX_TEST_JOBS the caller already had is replaced by the N this machine gives, from whichever step answers (sysctl or getconf)
 1	D1: a last paragraph of single lines, one of them ending on ?, is a question
 1	D1: a line of spaces and a tab is a blank line, so the ? before it is four paragraphs back
 1	D1: a plain summary, even one saying nothing needs your decision, is no question
@@ -1285,21 +1285,21 @@
 1	D1: and its argument list stays --reuse, in all three (control)
 1	D1: blank lines after the question leave it in the last paragraphs, a question
 1	D1: no file of the suite other than 0001 names the jobs variable except in a $ or ${ expansion
-1	D1: only the value true stops it: GITHUB_ACTIONS=false still sets the core count
+1	D1: only the value true stops it: GITHUB_ACTIONS=false still sets the N this machine gives, from whichever step answers (sysctl or getconf)
 1	D1: that check reads an assignment after the temporary directory as after, whatever the comments say (control)
 1	D1: the FELIX_TEST_PART_ variables alone do not make part mode: a run without --part reaches its end on stdout and writes none of the files (control)
-1	D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not
 1	D1: the largest N, 64, is accepted both as -j 64 and as FELIX_TEST_JOBS=64: exit 0 and a summary counted from lines
 1	D1: the note of a long question is the text's last 160 characters
 1	D1: the note of a short question is the whole text, a line break read as a space
 1	D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it
 1	D1: when tests/run exits 2, the log's last line is shown under tests FAIL
-1	D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run, and its argument list stays --reuse
-1	D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)
+1	D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS, for its call to tests/run, to the N this machine gives, from whichever step answers (sysctl or getconf), and its argument list stays --reuse
+1	D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the N this machine gives, from whichever step answers (sysctl or getconf: hw.perflevel0.logicalcpu when it answers digits only and at least 1; else hw.ncpu, then getconf, then 1; held to 1 to 64), for its call to tests/run; the order of the steps is pinned by 1294
 1	D1: with GITHUB_ACTIONS=true it does not set it (control)
 1	D1: with GITHUB_ACTIONS=true it sets nothing, and the argument list is --reuse (control)
 1	D1: with N above 1 a groups.tsv that is missing, or a directory, is refused as D1 says
 1	D1: with N above 1 an unreadable groups.tsv is refused as D1 says
+1	D1: with one sysctl answer given to every key, step 1 (the performance-core key) takes it: 200 is held to 64 and 3 is used; where every sysctl key fails or answers a non-number, getconf answers, then 1
 1	D2: --part by hand prints @@prelude-done, a @@member-done line for each member in order, and the mark naming the members, each on a line of its own
 1	D2: --part takes six names and prints the prelude mark, a member mark for each in order, and the part mark naming all six, with exit 0
 1	D2: a file under subagents/workflows/ written 2 minutes ago counts as well
@@ -2054,6 +2054,16 @@
 1	R5 control: and its gh source row says nothing of a slug
 1	R5 control: the home's page exits 0
 1	R5 control: the home's slug is read: every row's repo cell is fixture/home
+1	R51: a performance-core count of 0 falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: a performance-core count of 00 falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: a performance-core count of 200 is held to 64, so are 65 and the largest N 64 itself, and a count of 6 over the same hw.ncpu is not held
+1	R51: a performance-core count that is empty falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: a performance-core count that is not a number (abc) falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: a performance-core count that is not digits only (6x) falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: a performance-core count whose call fails falls to hw.ncpu (12), where a count of 6 beside it is used
+1	R51: the performance-core count answers first: hw.perflevel0.logicalcpu 6 over a different hw.ncpu 12 gives 6, 8 over 4 gives 8, and a failing hw.ncpu or a getconf does not change it
+1	R51: with the performance-core key (hw.perflevel0.logicalcpu) failing, or set to 0 in one case, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; an hw.ncpu of 0 is a number that does not fall to getconf and is held to 1 (R52); a performance-core count of 6 over the same keys is used
+1	R52: a performance-core count of 08 over an hw.ncpu of 12 gives 8 and 09 gives 9 (the leading zero is stripped), and a count of 1 over 12 gives 1
 1	R5: --prs in a repository whose slug holds a tab exits 0
 1	R5: --queue with a remote_match holding a tab exits 0
 1	R5: a directory named .x in the slots directory, a name no slot has, is refused with exit 2 and the entry named

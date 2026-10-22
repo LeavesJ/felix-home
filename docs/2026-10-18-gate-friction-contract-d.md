@@ -1431,7 +1431,11 @@ D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merg
   | p8e | 1,250 s | 2,190 s | 3,499 s | 5,689 s |
 
   The bound is 4,124 × 1.05 + 2 s × 170 units = 4,670 s. p8e is 1,019 s over it. It used 1.38 times the serial CPU for 3.83 times less wall. Of the 1,565 s more, 1,120 s is sys and 445 s user.
-- **Where it went.** It is not the runner: the `-j` parent's own CPU was 1.9 s, and D8 allows 5 s. The units' walls at `-j 8` sum to 9,411 s, about twice the serial run's whole wall. So a unit beside seven others ran about twice as long as it did alone, and the suite's CPU grew by 38%, most of it in the kernel. The suite forks and execs a great deal, and that costs more sys when eight units do it at once. This is read from the totals, not from a profile. R50's runs show how it grows with N.
+- **Where it went.** It is not the runner: the `-j` parent's own CPU was 1.9 s, and D8 allows 5 s. The units' walls at `-j 8` sum to 9,411 s, about twice the serial run's whole wall. So a unit beside seven others ran about twice as long as it did alone, and the suite's CPU grew by 38%, most of it in the kernel. There are two candidate causes, and the runs cannot tell them apart:
+  - **Fork and exec.** The suite forks and execs a great deal, and that costs more sys when eight units do it at once.
+  - **Paging.** The machine is an M1 Pro with 16 GB. The runs recorded load but not memory. At 08:35Z on 10-22 it had 21.5 of 22.5 GB of swap in use, 250 MB of RAM free, and kernel_task at about two cores. Eight units at once hold more memory than one, so part of the sys may be paging.
+
+  This is read from the totals, not from a profile. R50's runs record memory and show how both grow with N.
 - **What it changes.** D claims no CPU saving and no CPU parity. `-j` buys wall with more CPU, measured at 1.38 times at 8. The clause stays as written. Re-fitting it to the number would weaken a check by re-defining it. A later change that claims to meet the clause is measured against it as written.
 - **The landing.** #456 landed with the clause not met, by Felix's decision. The clause bounds a claim (D8: "Savings are claimed only from CPU measured quiet"), and D makes no such claim. Every other D8 clause was met, and #456's body reported the miss.
 
@@ -1440,13 +1444,15 @@ D landed as #456 (10381d82, 0.49.303) at 06:56Z on 2026-10-22. The land job merg
 - **What is wrong.** D1 has the gate run at the core count. That is hw.ncpu: 10 on the machine D was built on, which has 8 performance cores and 2 efficiency cores. The count was chosen, not measured. The cost runs measured `-j 8`, not the 10 the gate uses. Nothing measured whether fewer units at once give nearly the same wall for less CPU.
 - **The runs.** Four quiet runs: `-j 10`, `-j 4`, `-j 8` again and `-j 6`, in that order.
   - Each runs in its own clone of f5a87d6c over e3636d40, made by ev-clone-at.sh.
-  - Each goes through ev-chain2.sh and ev-run.sh, as R49's did.
-  - They run one at a time under the carrier's slot. The chain starts only when the one-minute load is below 15, and each run's load at its start and end is recorded.
+  - Each goes through ev-run.sh, as R49's did, and ev-chain3.sh runs them in turn.
+  - They run one at a time under the carrier's slot. The chain starts only when the one-minute load is below 15. It waits up to 3 h for that, and does not start without it.
+  - Through ev-chain3.sh, each run's start and end record the load, the swap in use, and vm_stat's pageins, pageouts, swapins, swapouts and compressor pages. A run's CPU can then be read beside how much the machine paged during it.
   - p1e is the serial run for all four.
   - The second `-j 8` run repeats p8e. Its difference from p8e is the noise the rule is read against.
 - **The rule, fixed before the runs.** The gate's default is the smallest measured N whose wall is within 10% of the shortest measured wall. Two walls that differ by less than the two `-j 8` walls do are read as equal. Each run's CPU is reported beside its wall, against R49's bound.
 - **What follows.**
   - **The core count.** If the rule picks it, D1 stands, and this section records the runs.
   - **Another N.** That N becomes a rule over what any machine reports: the core count, or sysctl's performance-core count `hw.perflevel0.physicalcpu` where it has one. A stranger's machine is then not given this machine's number.
+  - **The machine.** The runs are on the 16 GB Mac. The founder has decided to move to a 48 GB laptop (2026-10-14), where gate time is re-measured on its own machine. An N chosen here is re-measured there by the same rule, before it is called that machine's.
   - **Its round.** Changing gate.sh is its own round: blind authors red first, then the builder, then review. The round covers D1's gate bullet and the parts that pin the gate's N to the core count (1293's `_db3_cores`, 1294's `_db4_cores`, 0007).
   - **The slots.** The slot count K stays the core count unless these runs show a reason to change it.

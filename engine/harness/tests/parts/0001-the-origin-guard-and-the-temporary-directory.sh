@@ -1,3 +1,149 @@
+# The command line, read before anything is made (contract D1, D2, D5). This is
+# the one place that reads it: the driver's argument loop only passes -j N and
+# --part over, after the refusals here, and the refusals exit 2 with one line on
+# stderr before $TMP exists, so a refused run leaves nothing behind. The words
+# are the driver's own: --record-assertions, --reuse, and what this reads, -j N
+# and --part NAME... A word the driver does not know ends the reading, as it
+# ends the driver's loop. What it leaves for the lines after it:
+# - _suite_jobs, N: 1 to 64 in plain decimal, from -j N, else from
+#   FELIX_TEST_JOBS, else 1. The variable is read once and unset at once, and
+#   a bad one is refused whether or not -j was given. Nothing else sets
+#   _suite_jobs; every other file reads it as an expansion.
+# - _pm1 to _pm6, part mode's names (--part NAME...), empty when it is off, and
+#   the FELIX_TEST_PART_ variables, read here and unset: _pm_log, _pm_ranf,
+#   _pm_endf and _pm_rec. Part mode is keyed on the argument alone.
+# - with N above 1, _sj_ord (the parts the driver sources, in its order, as
+#   " NAME NAME "), and _sj_units: the units of D2, one a line in the driver's
+#   order, UNIT, a tab, then its part file names with a blank between. A unit
+#   is a group of tests/groups.tsv (D5) or a part in none, 0010 and later,
+#   9990 left to the parent. groups.tsv is read only here and only for N above
+#   1; a missing, unreadable or broken one is a refusal naming the rule.
+# - FELIX_TEST_RED_JOBS, N, exported for a record run under -j N until part 0004
+#   unsets it: the one variable red reads (tests/red).
+_sj_die() { printf 'tests/run: %s\n' "$1" >&2; exit 2; }
+_sj_n() { case "$1" in [123456789]|[12345][0123456789]|6[01234]) return 0 ;; esac; return 1; }
+# -> _sj_ord is the driver's part lines, in order, each name between blanks.
+_sj_order() {
+  local l pre='. "$HERE/parts/' q='"'
+  _sj_ord=" "
+  [ -r "$HERE/run" ] || _sj_die "cannot read the driver [$HERE/run] for the order of its parts"
+  while IFS= read -r l || [ -n "$l" ]; do
+    case "$l" in "$pre"*"$q") l="${l#"$pre"}"; _sj_ord="$_sj_ord${l%"$q"} " ;; esac
+  done < "$HERE/run"
+}
+# NAME -> 0 when it is a part the driver sources that a unit may run: not 0001
+# to 0009, not 9990; a refusal naming WHAT otherwise.
+_sj_member() {
+  case "$1" in *[!abcdefghijklmnopqrstuvwxyz0123456789.-]*|"") _sj_die "$2: [$1] is not a part file name" ;; esac
+  case "$_sj_ord" in *" $1 "*) ;; *) _sj_die "$2: the driver does not source [$1]" ;; esac
+  case "$1" in 000[0123456789]-*|9990-*) _sj_die "$2: [$1] is a prelude part or 9990, which a unit does not run" ;; esac
+}
+# -> _sj_gof is " FILE=GROUP " for each member of tests/groups.tsv, read against
+# the driver's order, or a refusal. One rule a refusal: a line is a group's
+# name, a tab and a part's file name; the part is one the driver sources, not
+# 0001 to 0009 and not 9990; it is in no other group; a group's lines are
+# adjacent; its members follow one another in the driver's order with no part
+# between; a group has two to six members. Lines starting # are comments, empty
+# lines are ignored (R9), and an empty file is no groups.
+_sj_groups() {
+  local f="$HERE/groups.tsv" l g m ln=0 pg="" pm="" n=0 gs=" " cb="" h="groups.tsv line "
+  _sj_gof=" "
+  [ -f "$f" ] && [ -r "$f" ] || _sj_die "tests/groups.tsv is missing, not a regular file or unreadable, and -j above 1 reads it"
+  while IFS= read -r l || [ -n "$l" ]; do
+    ln=$((ln + 1))
+    case "$l" in ""|"#"*) continue ;; esac
+    case "$l" in *$'\t'*) ;; *) _sj_die "$h$ln has no tab: a line is a group's name, a tab and a part's file name" ;; esac
+    g="${l%%$'\t'*}"; m="${l#*$'\t'}"
+    case "$m" in *$'\t'*) _sj_die "$h$ln has more than two fields" ;; esac
+    case "$g" in ""|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-]*|*.sh) _sj_die "$h$ln: [$g] is not a group name (letters, digits, . _ -, not ending .sh)" ;; esac
+    _sj_member "$m" "$h$ln"
+    case "$_sj_gof" in *" $m="*) _sj_die "$h$ln: [$m] is in more than one group, or listed twice" ;; esac
+    if [ "$g" != "$pg" ]; then
+      case "$gs" in *" $g "*) _sj_die "$h$ln: the lines of group [$g] are not adjacent" ;; esac
+      if [ -n "$pg" ] && { [ "$n" -lt 2 ] || [ "$n" -gt 6 ]; }; then cb="${cb:-groups.tsv: group [$pg] has $n member(s): a group has two to six}"; fi
+      gs="$gs$g "; pg="$g"; pm=""; n=0
+    fi
+    [ -z "$pm" ] || case "$_sj_ord" in *" $pm $m "*) ;; *) _sj_die "$h$ln: [$m] does not follow [$pm] in the driver's order, so the group is not contiguous" ;; esac
+    _sj_gof="$_sj_gof$m=$g "; pm="$m"; n=$((n + 1))
+  done < "$f"
+  if [ -n "$pg" ] && { [ "$n" -lt 2 ] || [ "$n" -gt 6 ]; }; then cb="${cb:-groups.tsv: group [$pg] has $n member(s): a group has two to six}"; fi
+  [ -z "$cb" ] || _sj_die "$cb"
+}
+# -> _sj_units, from _sj_ord and _sj_gof.
+_sj_mkunits() {
+  local p g cg="" cm="" u=""
+  for p in $_sj_ord; do
+    case "$p" in 000[0123456789]-*|9990-*) continue ;; esac
+    g=""; case "$_sj_gof" in *" $p="*) g="${_sj_gof#*" $p="}"; g="${g%% *}" ;; esac
+    if [ -n "$cg" ] && [ "$g" = "$cg" ]; then cm="$cm $p"; continue; fi
+    [ -z "$cg" ] || u="$u$cg"$'\t'"$cm"$'\n'
+    if [ -n "$g" ]; then cg="$g"; cm="$p"; else cg=""; cm=""; u="$u$p"$'\t'"$p"$'\n'; fi
+  done
+  [ -z "$cg" ] || u="$u$cg"$'\t'"$cm"$'\n'
+  _sj_units="$u"
+}
+_suite_jobs=""; _sj_given=""; _sj_st=""; _sj_part=""; _sj_flags=""; _sj_ord=" "; _sj_units=""; _sj_gof=" "
+_pm1=""; _pm2=""; _pm3=""; _pm4=""; _pm5=""; _pm6=""; _pm_n=0
+_pm_log=""; _pm_ranf=""; _pm_endf=""; _pm_rec=""; _pm_f0=0; _pm_out=-; _pm_chg=""; _pm_path0=""
+for _sj_a in "$@"; do
+  if [ "$_sj_st" = j ]; then
+    _sj_n "$_sj_a" || _sj_die "-j takes a number from 1 to 64 in plain decimal as its next word, not [$_sj_a]"
+    _suite_jobs="$_sj_a"; _sj_st=""; continue
+  fi
+  case "$_sj_a" in
+    -j)  [ -z "$_sj_given" ] || _sj_die "-j is given twice"
+         _sj_given=1; _sj_st=j ;;
+    -j*) _sj_die "-j takes its number as the next word, not in one word with it [$_sj_a]" ;;
+    --record-assertions|--reuse) _sj_flags="$_sj_flags $_sj_a "; _sj_st="" ;;
+    --part) [ -z "$_sj_part" ] || _sj_die "--part is given twice"
+            _sj_part=1; _sj_st=p ;;
+    -*)  break ;;
+    *)   [ "$_sj_st" = p ] || break
+         case "$_sj_a" in ""|*[!abcdefghijklmnopqrstuvwxyz0123456789.-]*) _sj_die "--part: [$_sj_a] is not a part file name" ;; esac
+         _pm_n=$((_pm_n + 1))
+         case "$_pm_n" in 1) _pm1="$_sj_a" ;; 2) _pm2="$_sj_a" ;; 3) _pm3="$_sj_a" ;; 4) _pm4="$_sj_a" ;; 5) _pm5="$_sj_a" ;; 6) _pm6="$_sj_a" ;;
+           *) _sj_die "--part takes one to six names" ;; esac ;;
+  esac
+done
+[ "$_sj_st" != j ] || _sj_die "-j takes a number from 1 to 64 in plain decimal as its next word"
+[ -z "$_sj_part" ] || [ -n "$_pm1" ] || _sj_die "--part takes one to six names"
+if [ -n "${FELIX_TEST_JOBS+x}" ]; then
+  _sj_env="$FELIX_TEST_JOBS"; unset FELIX_TEST_JOBS
+  _sj_n "$_sj_env" || _sj_die "FELIX_TEST_JOBS is [$_sj_env]: it must be a number from 1 to 64 in plain decimal"
+  [ -n "$_suite_jobs" ] || _suite_jobs="$_sj_env"
+fi
+[ -n "$_suite_jobs" ] || _suite_jobs=1
+if [ -n "$_sj_part" ]; then
+  [ -z "$_sj_given" ] || _sj_die "--part does not go with -j"
+  case "$_sj_flags" in *" --record-assertions "*) _sj_die "--part does not go with --record-assertions" ;; esac
+  case "$_sj_flags" in *" --reuse "*) _sj_die "--part does not go with --reuse" ;; esac
+  _sj_order
+  _pm_p=""
+  for _sj_a in "$_pm1" "$_pm2" "$_pm3" "$_pm4" "$_pm5" "$_pm6"; do
+    [ -n "$_sj_a" ] || break
+    _sj_member "$_sj_a" "--part"
+    [ -z "$_pm_p" ] || case "$_sj_ord" in *" $_pm_p $_sj_a "*) ;; *) _sj_die "--part: [$_sj_a] does not follow [$_pm_p] in the driver's order: the names are contiguous" ;; esac
+    _pm_p="$_sj_a"
+  done
+  _suite_jobs=1
+  _pm_log="${FELIX_TEST_PART_LOG-}"; _pm_ranf="${FELIX_TEST_PART_RAN-}"; _pm_endf="${FELIX_TEST_PART_END-}"; _pm_rec="${FELIX_TEST_PART_RECORD-}"
+  unset FELIX_TEST_PART_LOG FELIX_TEST_PART_RAN FELIX_TEST_PART_END FELIX_TEST_PART_RECORD
+  [ -z "$_pm_ranf" ] || : >> "$_pm_ranf" 2>/dev/null || _sj_die "the ran file [$_pm_ranf] cannot be written"
+  if [ -n "$_pm_log" ]; then
+    : >> "$_pm_log" 2>/dev/null || _sj_die "the log file [$_pm_log] cannot be written"
+    exec >> "$_pm_log" 2>&1
+  fi
+elif [ "$_suite_jobs" -gt 1 ]; then
+  _sj_order; _sj_groups; _sj_mkunits
+fi
+# A record run under -j N hands N to red as FELIX_TEST_RED_JOBS (D4). It is
+# exported here, between the argument check and red's start (the driver, after
+# part 0003), and unset by the head of part 0004, so no part sees it. One the
+# caller left in the environment is dropped first.
+unset FELIX_TEST_RED_JOBS
+if [ "$_suite_jobs" -gt 1 ]; then case "$_sj_flags" in *" --record-assertions "*) export FELIX_TEST_RED_JOBS="$_suite_jobs" ;; esac; fi
+# Part mode's functions (_pm_where, _pm_start, _pm_done, _pm_fin and the shell comparison) are in part 0007.
+
 # The remotes of the checkout this run started in, as they stood when it began.
 # On 2026-10-08 at 12:47:41 a section runner took this preamble and one cut
 # block, the block's fixture roots came out empty, and `( cd "" && git remote
@@ -175,6 +321,11 @@ case "$_tmp_by" in ''|*[!0123456789]*)
   printf 'tests/run: could not read this shell'\''s pid ([%s]); not starting\n' "$_tmp_by" >&2
   exit 1 ;;
 esac
+# R29: GNU mktemp honours TMPDIR and names a relative one relatively. Made absolute
+# against the start directory, once, before $TMP is, so that mktemp, the slots
+# directory and every child, units and parts included, see one path. (An empty
+# TMPDIR stays as it is: mktemp reads it as unset.)
+case "${TMPDIR-}" in ''|/*) ;; *) TMPDIR="$_og_start/$TMPDIR"; export TMPDIR ;; esac
 TMP="$(mktemp -d)"
 # No directory, no suite. The substitution forks twice, and when the inner fork
 # fails under load it hands back nothing with status 128 while this shell
@@ -291,4 +442,21 @@ _fixture_enclosed; case $? in
   *) printf 'tests/run: could not read where %s sits; not starting\n' "$PWD" >&2
      exit 1 ;;
 esac
+# Every assertion that RAN is recorded by name, whatever its verdict (the driver
+# defines _ran and compares the record at its end).
+#
+# #67: two assertions execute on macOS and never run on the Linux runner — no
+# pass, no fail, no skip line. Measured as a constant gap of 2 across three
+# unrelated commits, including a pre-session main, and not caused by the
+# `claude` CLI: hiding claude locally converts four passes into four skips and
+# leaves the attempted total unchanged, while CI attempts two fewer.
+#
+# A total alone cannot say which two. This records names so the suite can
+# compare what it ran against what it is supposed to run, and name the
+# difference. A count that silently drops is indistinguishable from a passing
+# run, which is the property this repository most needs not to have.
+#
+# Appended to a file rather than accumulated in a variable, because a shell
+# variable does not survive the subshells some of these assertions run inside —
+# the same reason PASS and FAIL are incremented in the main shell only.
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"

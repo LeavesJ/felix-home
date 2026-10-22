@@ -234,7 +234,8 @@ _fx_git "$HX" checkout -q -f --detach HEAD; _fx_git "$HX" clean -qfd
 
 # The fold's own refusals: nothing written when one step would fail.
 _hxfx="$TMP/handoff-fold"; mkdir -p "$_hxfx"
-_fx_git "$HX" archive refs/remotes/origin/main | tar -x -C "$_hxfx"
+_fx_git "$HX" archive -o "$TMP/handoff-fold.tar" refs/remotes/origin/main && tar -x -f "$TMP/handoff-fold.tar" -C "$_hxfx"
+rm -f "$TMP/handoff-fold.tar"
 printf '### 0bf. something else\n' > "$_hxfx/docs/handoff/0bf.md"
 cp "$_hxfx/HANDOFF.md" "$TMP/ho-keep.md"
 ( cd "$_hxfx" && . "$REAL_HARNESS/lib/handoff.sh" && felix_handoff_pending_order "$_hxfx" > "$TMP/ho-o2" \

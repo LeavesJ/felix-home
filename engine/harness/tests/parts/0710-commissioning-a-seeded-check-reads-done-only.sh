@@ -10,6 +10,8 @@
 # shipped code running against a plugin tree on disk, because stubbing the
 # tiering would assert only that the test agrees with itself.
 _commissioning_build after-0700
+# The manifests the serial run hands the check below (R9), built here for a run of this part alone; _grounded_projects names them.
+_stranger_build; _setupproj_build; _cmwebapp_build; _hookproj_build
 _admroot="$TMP/nominated"; rm -rf "$_admroot"
 mkdir -p "$_admroot/clean/skills/llm-eval"
 mkdir -p "$_admroot/withmcp/skills/llm-eval"
@@ -252,7 +254,6 @@ case "$_cmh4" in *"still owes"*) bad "every request answered stops the reminder"
 _cmh5="$(_cmhook "$CMSTUB:/usr/bin:/bin")"
 case "$_cmh5" in *"Commissioning: receipt"*) bad "and the all-clear is not repeated every session" ;; *) ok "and the all-clear is not repeated every session" ;; esac
 mv "$CMP/routes.keep" "$CMP/routes.tsv"
-
 # felix new says where the requests are.
 has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMSTUB:$PATH" "$FELIX" commission 2>&1)" "commission/requests/automation_surveyed.md"
 # A project felix new seeds carries the grounding column from birth, and
@@ -265,8 +266,12 @@ has "felix new prints the request path for a session" "$(cd "$CMS" && PATH="$CMS
 # The invariant that actually holds everywhere is the shape: six fields, and a
 # grounding this policy recognises.
 _gfiles="$(grep -l $'\tgrounding$' "$FROOT"/projects/*/stack.tsv 2>/dev/null)"
-[ -n "$_gfiles" ] && ok "the engine writes manifests carrying the grounding column" \
-                  || bad "the engine writes manifests carrying the grounding column" "$(ls "$FROOT"/projects)"
+# The projects of _gfiles and of _grounded_projects are one set, both ways (R9, R17): a manifest no builder makes is read by the serial run and by no run of this part alone, and a builder not called, or one that stops writing the grounding header, leaves -j N a manifest short of -j 1.
+_gnl=" $(_grounded_projects | cut -f1 | tr '\n' ' ')"; _gnb=""; _gng=" "; _gnm=""
+for _gnf in $_gfiles; do _gnp="${_gnf%/stack.tsv}"; _gnp="${_gnp##*/}"; _gng="$_gng$_gnp "; case "$_gnl" in *" $_gnp "*) ;; *) _gnb="$_gnb $_gnp" ;; esac; done
+while IFS=$'\t' read -r _gnp _gnc; do case "$_gng" in *" $_gnp "*) ;; *) _gnm="$_gnm [$_gnp has no grounded stack.tsv: $_gnc should have made it]" ;; esac; done <<< "$(_grounded_projects)"
+[ -n "$_gfiles" ] && [ -z "$_gnb$_gnm" ] && ok "the engine writes manifests carrying the grounding column" \
+                  || bad "the engine writes manifests carrying the grounding column" "$(ls "$FROOT"/projects)${_gnb:+ [no tests/lib builder makes the manifest of:$_gnb; add one to tests/lib/cm-stub.sh and to _grounded_projects]}$_gnm"
 # Five fields is legal and means DECLARED — that is the whole compatibility
 # promise, and every manifest written before the column existed relies on it.
 # What must never appear is a sixth field the policy cannot read: that would

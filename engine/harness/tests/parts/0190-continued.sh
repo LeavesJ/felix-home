@@ -149,36 +149,7 @@ esac
 # check read `--repo  2>/dev/null`, failed forever, and held human_steps; and
 # adding a remote later changed nothing, because adopt skips ids that exist.
 # The placeholder is kept on disk and filled in when the row is read.
-_fs_gh="$TMP/fs-gh"; _fs_ghlog="$TMP/fs-gh.log"; mkdir -p "$_fs_gh"; : > "$_fs_ghlog"
-cat > "$_fs_gh/gh" <<STUB
-#!/usr/bin/env bash
-printf '%s\n' "\$*" >> "$_fs_ghlog"
-case "\$*" in
-  *"--repo acme/widget"*) printf 'needs-founder\nANTHROPIC_API_KEY\n'; exit 0 ;;
-esac
-printf 'no git remotes found\n' >&2
-exit 1
-STUB
-chmod +x "$_fs_gh/gh"
-# ssh, for the one question the engine asks it: `ssh -G <host>`, what an ssh
-# alias stands for. The real one reads the person's own ~/.ssh/config, found
-# through the password database rather than $HOME, so no suite HOME can hide
-# it; this one knows a single alias, `work`, standing for github.com, and reads
-# any other host back as itself, which is what ssh -G does for a host nothing
-# configures. It logs its arguments, and refuses anything but -G.
-_fs_sshlog="$TMP/fs-ssh.log"; : > "$_fs_sshlog"
-cat > "$_fs_gh/ssh" <<STUB
-#!/usr/bin/env bash
-printf '%s\n' "\$*" >> "$_fs_sshlog"
-[ "\${1:-}" = "-G" ] || { printf 'stub: only -G\n' >&2; exit 255; }
-for _h in "\$@"; do :; done
-case "\$_h" in
-  work) printf 'user git\nhostname github.com\nport 22\n' ;;
-  *)    printf 'user git\nhostname %s\nport 22\n' "\$_h" ;;
-esac
-STUB
-chmod +x "$_fs_gh/ssh"
-_fs_path="$_fs_gh:$CMSTUB:$PATH"
+_fsgh_build   # the gh and ssh stubs, $TMP/fs-gh, and _fs_path (tests/lib/cm-stub.sh)
 ( PATH="$_fs_path"; gh label list --repo acme/widget 2>/dev/null | grep -q needs-founder ) \
   && ! ( PATH="$_fs_path"; gh label list --repo other/thing >/dev/null 2>&1 ) \
   && ok  "the gh stub answers for acme/widget and refuses anything else" \
@@ -200,12 +171,8 @@ _fs_nogh="No GitHub remote yet, so {{REPO}} below is left as written; it fills i
 is "the setup template holds the two rows that need a GitHub slug" \
    "$(printf '%s\n' "$_fs_reporows" | cut -f1 | tr '\n' ' ')" "risk-labels ci-anthropic-key "
 
-# felix new, in a checkout with CI and no remote.
-_fs_n="$TMP/fs-new"; mkdir -p "$_fs_n/.github/workflows"
-( _fx_cd "$_fs_n" && git init -q -b main ) >/dev/null 2>&1
-printf 'on: push\n' > "$_fs_n/.github/workflows/ci.yml"
-_fs_n="$(cd "$_fs_n" && pwd -P)"; _fs_p="$FROOT/projects/setupproj"
-( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
+# felix new, in a checkout with CI and no remote (_setupproj_build, tests/lib/cm-stub.sh).
+_setupproj_build
 _fs_saved="$(awk -F'\t' '$1 == "risk-labels" || $1 == "ci-anthropic-key"' "$_fs_p/setup.tsv" 2>/dev/null)"
 if [ "$_fs_nrc" -ne 0 ] || [ "$(printf '%s\n' "$_fs_saved" | grep -c .)" != "2" ]; then
   bad "felix new with no remote saves both slug rows with --repo {{REPO}}, never an empty slug" "felix new exited $_fs_nrc, saved [$_fs_saved]"

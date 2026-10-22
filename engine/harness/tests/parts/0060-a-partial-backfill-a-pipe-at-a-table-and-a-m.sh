@@ -395,24 +395,16 @@ has "a different repository is still checked" "$(_riv "$OTHER")" "projects/p2/ga
 printf '\nthe hook adopts rather than nags\n'
 # A surface detected and left undeclared stays unhandled for as long as nobody
 # reads the message. The hook closes that itself.
-HOOKREPO="$TMP/hookrepo"; mkdir -p "$HOOKREPO"
-( _fx_cd "$HOOKREPO" && git init -q -b main && git config remote.origin.url https://github.com/example.com/hookproj )  # own checkout, see _anl4_hook
-printf 'hookproj\n' > "$HOOKREPO/.felix"
-mkdir -p "$FROOT/projects/hookproj" "$MEM/hookproj"
-printf '{"name":"hookproj","remote_match":"example.com/hookproj","gate":"true"}\n' > "$FROOT/projects/hookproj/project.json"
-printf '# h\n' > "$FROOT/projects/hookproj/CLAUDE.md"
+_hookproj_build   # tests/lib/cm-stub.sh: the project, its checkout, and the hook run in a bare repo and again after a requirements.txt (HOOKREPO, _hook_out1, _hook_out2)
 
-out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
-case "$out" in
-  *Adopted*) bad "a bare repo has nothing to adopt" "$out" ;;
+case "$_hook_out1" in
+  *Adopted*) bad "a bare repo has nothing to adopt" "$_hook_out1" ;;
   *) ok "a bare repo has nothing to adopt" ;;
 esac
 
-printf 'sentry-sdk\n' > "$HOOKREPO/requirements.txt"
-out="$(cd "$HOOKREPO" && CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>&1)"
-has "the hook announces what it adopted" "$out" "Adopted automatically"
-has "and names the capability"           "$out" "observability"
-has "and says nothing was installed"     "$out" "Nothing was installed"
+has "the hook announces what it adopted" "$_hook_out2" "Adopted automatically"
+has "and names the capability"           "$_hook_out2" "observability"
+has "and says nothing was installed"     "$_hook_out2" "Nothing was installed"
 
 # Talking is not the same as doing. The manifests must actually have changed.
 grep -qxF observability "$FROOT/projects/hookproj/capabilities" 2>/dev/null \

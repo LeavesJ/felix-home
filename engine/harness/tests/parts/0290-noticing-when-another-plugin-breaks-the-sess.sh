@@ -54,8 +54,8 @@ has "through the Stop hook, a felix lesson run outside every session does not se
 
 rm -rf "$_BWHP" "$_BWHM"
 _bwreset
-unset -f _bwago _bwstamp _bwday _bwmt _bwreset _bwcatch _bwwrote _bwprose _bwverdict _bwsays _bwsays0 \
-         _bwg _bwrepo _bwhead _bwrows _bwlast _bwnf _bwwhen _bwbytes _bwpick _bwlesson _bwlog _bwsess \
+unset -f _bwcatch _bwwrote _bwprose _bwverdict _bwsays _bwsays0 \
+         _bwhead _bwrows _bwlast _bwnf _bwwhen _bwbytes _bwpick _bwlesson _bwlog _bwsess \
          _bwuntimed _bwbadrow _bwstop _bwhcatch _bwcli
 unset _BWD _BWK _BWW _BWL _BWV _BWFIRST _BWN _BWTODAY _BWDAY2 _BWR_THIS _BWR_V _BWR_W _BWR_DET _BWR_UB _BWR_NG \
       _BWSHA _BWDSHA _BWT _BWM _BWHP _BWHM _BWHR _bwt0 _bwt1 _bwd0 _bwd1 _bwgot _bwhdr _bwhv _bwout _bwb

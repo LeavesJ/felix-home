@@ -101,8 +101,8 @@ _rx_build() {   # base|status|gate-green [<part tag>]: the fixture, up to that s
       [ -n "$RXBASE" ] && break
     done
     [ -n "$RXBASE" ] || RXBASE="$TMP"
-    # A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused.
-    _fx_root_add "$RXBASE"
+    # A base outside $TMP is a root of the fixture guard (part 0002), or its git lines are refused. RX_ROOTS0 is what the roots were before it: the part that removes the base puts them back (contract D, R17).
+    RX_ROOTS0="$_fx_roots"; _fx_root_add "$RXBASE"
     RX="$(mktemp -d "$RXBASE/rx.XXXXXX")"; RX="$(cd "$RX" && pwd -P)"
     RXH="$RX/home"; RXHOME="$RX/user"; RXB="$RX/bin"; RXU="$RX/ubin"; RXPC="$RX/cache"
     RXMEM="$RX/memory"; RXLOG="$RX/claude.log"; RXLA="$RX/list-a"; RXPLAIN="$RX/plain"

@@ -1507,3 +1507,31 @@ R51 records R50's runs and what its rule gives. It replaces D1's gate bullet as 
   - Through the stub, on any machine, the new holds are red against 0.49.303's gate.sh and green on the build.
   - On a machine whose sysctl reports a performance-core count that differs from its core count (this one: 8 and 10), 1293's and 1294's D1 names are red against 0.49.303's gate.sh too.
 - **The round.** Blind authors write the parts red first, from this section and D1 alone. The builder changes gate.sh. An Opus review follows, and its test findings go back to a blind author.
+
+### R52. R51 after its review
+
+R51's round was wf_23261517-5df: a blind author on 1293 and 1294 (90ecbaf7), the builder on gate.sh (fa33232b), and an Opus review. The review found gate.sh correct against R51, and made seven minor findings. R52 answers them. It replaces R51's step 1 key and adds to R51's parts. Every other line of R51 stands.
+
+- **The key (replaces the key in R51's step 1).** Step 1 reads `sysctl -n hw.perflevel0.logicalcpu`, not `hw.perflevel0.physicalcpu`.
+  - **One performance level.** There, level 0 is every core, so its logical count is the count `hw.ncpu` gives, and the gate's N does not change.
+  - **Two threads per core.** There, `physicalcpu` would have halved N, which nothing measured. The review's case was an Intel Mac that reports level 0.
+  - **Apple Silicon.** It has one thread per core, so the two counts are equal (8 and 8 here), and R50's runs apply unchanged.
+  - **The phrase.** "The performance-core count", in R51 and in names, means this key.
+- **Zero at the two steps.** A step 1 count of `0` or `00` falls to step 2. Step 2 is unchanged: an `hw.ncpu` of `0` is a number, does not fall to getconf, and is held to 1, as before R51. The difference is kept because step 2 does not change.
+- **Leading zeros.** A step 1 count of `08` is digits only and is 8, so N is 8. gate.sh strips the zero, since tests/run refuses an N with a leading zero (D1).
+- **New holds in 1294.** Two cases join R51's: a performance-core count of `08` over an `hw.ncpu` of 12 gives 8, and a count of `1` over 12 gives 1. They come from findings 1 and 2. Against fa33232b both are red, because it reads the other key.
+- **Names say what they check.**
+  - **1294's `_db4_gm` name.** It still says "the core count ... sysctl answers first". Its `DJ4_sysctl` answers every key, so its 200 and 3 cases now go through step 1. Its name says so, without claiming to check hw.ncpu's step.
+  - **The name after it.** It says "with the performance-core key failing", where one of its cases sets that key to `0`. It names both.
+  - **1293's D1 name.** It runs gate.sh once on the real machine, so it checks the one step that machine takes. Its name says that it checks this machine's sysctl. The order of the steps is pinned by 1294's stubbed holds.
+- **The record.** The round's renamed and new names reach assertions.tsv and red.tsv through the record run at the carrier's slot, with red's suite beside it, and then the gate, as every engine round's names do.
+
+### Every finding of R51's review, and where it went
+
+- Minor (test), no hold for a leading-zero count: the `08` hold (blind author, 1294).
+- Minor (test), no hold for a count of exactly 1: the `1` hold (blind author, 1294).
+- Minor (test), `_db4_gm`'s name and the next name claim the wrong step: R52's names (blind author, 1294).
+- Minor (test), 1293's D1 name claims the whole rule: R52's names (blind author, 1293).
+- Minor (contract), the record step unsaid: R52's record bullet. Done at the carrier's slot.
+- Minor (contract), one performance level and two threads per core: R52's key (blind author, 1293 and 1294; builder, gate.sh).
+- Minor (contract), zero at step 1 against zero at step 2: R52's zero bullet. No code change.

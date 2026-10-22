@@ -1258,45 +1258,246 @@
 1	C9.5: and prints the blocker on its own line, as the others are printed
 1	C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled
 1	CLAUDE_CONFIG_DIR names the settings file read (D12)
+1	D1: --part refuses a name the driver does not source, a prelude part (0001, 0006 and 0007), 9990, names out of order or not contiguous, seven names and none
+1	D1: --part with -j, --record-assertions or --reuse is refused
+1	D1: --record-assertions -j 3, in the other order, exits 0 and records the same manifest
+1	D1: --reuse with --record-assertions is refused with -j given, with the text it had
+1	D1: -j 1 does not read groups.tsv: a broken one and a missing one change nothing
+1	D1: -j 2 --reuse accepts it as well
+1	D1: -j with no N, -jN as one word and a second -j are each refused: exit 2, one stderr line, no $TMP made
+1	D1: FELIX_TEST_JOBS=3 with no -j makes a -j 3 run (C fails), and no part sees the variable
 1	D1: a ? four paragraphs back, in a text that makes no offer, is no question
 1	D1: a ?? inside a code span is no question
+1	D1: a FELIX_TEST_JOBS that is not a valid N (0 65 abc 03 -1 and empty) is refused the same way
+1	D1: a FELIX_TEST_JOBS the caller already had is replaced by the core count
 1	D1: a last paragraph of single lines, one of them ending on ?, is a question
 1	D1: a line of spaces and a tab is a blank line, so the ? before it is four paragraphs back
 1	D1: a plain summary, even one saying nothing needs your decision, is no question
 1	D1: a question followed by one more paragraph is a question
 1	D1: a question in bold followed by a statement is a question
 1	D1: a question inside double quotes is no question
+1	D1: an N that is not 1 to 64 in plain decimal (0 65 007 +2 -2 x 2x and empty) is refused the same way
 1	D1: an offer that asks and then goes on on the same line is a question
 1	D1: an offer with no ? is a question
+1	D1: and --reuse -j 2, in the other order
+1	D1: and -j 1 beats it: C passes, and no part sees the variable here either
+1	D1: and 0001 assigns it, at its head and in code and not in a comment, before it makes $TMP
+1	D1: and its argument list stays --reuse, in all three (control)
 1	D1: blank lines after the question leave it in the last paragraphs, a question
+1	D1: no file of the suite other than 0001 names the jobs variable except in a $ or ${ expansion
+1	D1: only the value true stops it: GITHUB_ACTIONS=false still sets the core count
+1	D1: that check reads an assignment after the temporary directory as after, whatever the comments say (control)
+1	D1: the FELIX_TEST_PART_ variables alone do not make part mode: a run without --part reaches its end on stdout and writes none of the files (control)
+1	D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not
+1	D1: the largest N, 64, is accepted both as -j 64 and as FELIX_TEST_JOBS=64: exit 0 and a summary counted from lines
 1	D1: the note of a long question is the text's last 160 characters
 1	D1: the note of a short question is the whole text, a line break read as a space
+1	D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it
+1	D1: when tests/run exits 2, the log's last line is shown under tests FAIL
+1	D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run, and its argument list stays --reuse
+1	D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)
+1	D1: with GITHUB_ACTIONS=true it does not set it (control)
+1	D1: with GITHUB_ACTIONS=true it sets nothing, and the argument list is --reuse (control)
+1	D1: with N above 1 a groups.tsv that is missing, or a directory, is refused as D1 says
+1	D1: with N above 1 an unreadable groups.tsv is refused as D1 says
+1	D2: --part by hand prints @@prelude-done, a @@member-done line for each member in order, and the mark naming the members, each on a line of its own
+1	D2: --part takes six names and prints the prelude mark, a member mark for each in order, and the part mark naming all six, with exit 0
 1	D2: a file under subagents/workflows/ written 2 minutes ago counts as well
+1	D2: a group runs as one process: with A, B and C in a group, -j 3 passes C, and the three parts had one process id; the FELIX_TEST_JOBS beside -j reaches no part
+1	D2: a partial last line of a member is ended before the runner line, the part's own lines are printed, and both members see FELIX_TEST_RECORD as 0, the driver's own
 1	D2: a session quiet two hours on a subagent call is live when a file under its subagents/ was written 2 minutes ago
+1	D2: a top-level x=$((1/0)) between two assertions gives the same (verdict, name) lines under -j 3 as under -j 1, the -j 3 run counted from lines
 1	D2: an older session's subagent writing now makes the worktree live, and the newest session's question stands
 1	D2: and it is not blocked, since its subagents wrote within --blocked
 1	D2: and its age is its newest file's, 0 hours
+1	D2: and the member after it ran, as the next part line does in a serial run
 1	D2: and under --blocked 40 they keep it from being blocked
+1	D2: and with one name the member sits between the two marks, and only that part's assertion after the prelude
+1	D2: every unit of a -j 3 record run sees FELIX_TEST_RECORD as 1, as the parts of a serial record run do
+1	D2: every unit of a plain -j 3 run sees FELIX_TEST_RECORD as 0, as a part of a plain -j 1 run does
+1	D2: it exits 0 whatever it counts as failed, and the mark is the last line
+1	D2: it prints no reached and no summary, takes no receipt, starts no red run, leaves the manifest and writes no red.tsv, and leaves no process
+1	D2: it writes an end file, and with FELIX_TEST_PART_RECORD=1 it sets FELIX_TEST_RECORD=1 first (both members see it), and unsets the FELIX_TEST_PART_ variables once read
 1	D2: subagents that last wrote 30 minutes ago make it live, and under the default --blocked 20 still blocked
 1	D2: subagents that last wrote 90 minutes ago make it neither live nor unblocked
+1	D2: the prelude's lines come before @@prelude-done and the first member's after it
+1	D2: the ran file holds the names reached after @@prelude-done, and only those
+1	D2: with no groups line the same three parts are three units: -j 3 fails C, in three processes
+1	D2: with the FELIX_TEST_PART_ files it writes the log, in order, with the runner lines in it and none on stdout, and exits 0
+1	D3: -j 3 --reuse with no receipt to reuse runs the suite: exit 0, a summary that ends (counted from lines) and not (reused), and a receipt left
+1	D3: a -j 3 run gives the (verdict, name) lines a -j 1 run gives
+1	D3: a FAIL in the units' prelude only fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a FAIL printed onto a partial line in the units' prelude only fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a failing assertion gives its own FAIL, no runner failure, exit 1, no receipt and no process
+1	D3: a failure, a refusal record and a moved origin made in the parent's prelude alone give three FAILs under -j 3, each once, with no runner failure, exit 1, three in the summary and no receipt
+1	D3: a group member that dies fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a member whose sourcing a top-level a[1/0]=1 cuts short, while later members run fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a part that dies on an unbound variable under set -u fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a part that prints reached fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a part that replaces the EXIT trap with one that removes $TMP and exits 5 fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a part that runs exit 0 fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a part whose bad line lands on a partial line fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a refusal record planted in a unit gives its own FAIL, no runner failure, exit 1, no receipt and no process
+1	D3: a remote moved and put back inside a part makes a -j 1 run's origin assertion FAIL (control for the case below)
+1	D3: a unit killed after its last member and before its mark fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a unit killed with kill -9 has no end file, so 9990's floor, refusal and origin assertions each FAIL once, beside the unit's own failures
+1	D3: a unit killed with kill -9 while it runs a member fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a unit that dies in its prelude, before @@prelude-done fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: a unit that ends outside its $TMP/cwd gives its own FAIL, no runner failure, exit 1, no receipt and no process
 1	D3: across every run, no row is of kind repo and no row has ref -
+1	D3: and a note is not an assertion: the summary counts as many passes as the log has ok lines, the tail's own line about the manifest apart
+1	D3: and a unit that dies in its prelude, with no @@prelude-done at all, prints the lines it wrote behind a bar
+1	D3: and inside a unit it does the same under -j 3: the unit's verdict is bad, so the origin assertion FAILs once and the run exits 1
+1	D3: and prints the part sections in the same order
+1	D3: and under -j 1, where one shell runs everything, the same three (control)
+1	D3: no name in the manifest starts with one of the runner's seven failure prefixes
+1	D3: once it has, the sections come in the driver's order, and the run passes, counted from lines, with no wait note and no prelude-prefixed line
+1	D3: parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) fails with its runner line, exits 1 and leaves no receipt and no process
+1	D3: the check for runner-failure prefixes in a manifest reads seven planted names as seven hits (control)
+1	D3: the lines of a failed prelude follow its runner line, each behind two spaces, a bar and a space, so none reads as an assertion
+1	D3: the part that replaces the EXIT trap with one that exits 5 makes a -j 1 run exit 5 (control)
+1	D3: the summary of a -j 3 run is the -j 1 summary and ends (counted from lines), which -j 1's does not
+1	D3: the three 9990 names the cases below read are 9990's (control)
+1	D3: the three names the cases below read are 9990's (control)
+1	D3: the two units after a slow first one end before it, and the log shows neither of them until the first has ended
 1	D3: under --no-gh the open PRs not listed are stated on the cover row prs
 1	D3: under --no-host the chips not read are stated on the cover row chips
 1	D3: when gh lists its limit of 1000, the cover row prs says partial,unknown:unproposed
 1	D3: with no gh on PATH, likewise
+1	D4: --reuse accepts the receipt a -j 3 run left, and runs no part
+1	D4: a -j 1 run and a --reuse after it neither remove nor rewrite the durations file (control)
+1	D4: a -j 3 record run exits 0, writes the manifest a serial one writes on the same tree, byte for byte, and leaves red.tsv with counts and no process
+1	D4: a -j 3 record run prints no record judge in this suite, as it did, and its summary ends (counted from lines)
+1	D4: a -j 3 run does write it, whole: the sentinel row gone, one row for each of the four parts
+1	D4: a -j 3 run under FELIX_TEST_NO_MANIFEST=1, as red runs, counts from lines, writes no durations and leaves no receipt
+1	D4: a -j 3 run with a runner failure writes no durations: the file is as it was, and the failure is the unit's
+1	D4: a -j 3 run writes durations, one line a unit: whole seconds, a tab, the unit's name
+1	D4: a FAIL in the units' prelude only in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a FAIL printed onto a partial line in the units' prelude only in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a failing assertion in a -j 3 record run exits 1 and writes the manifest -j 1 writes (not the old one)
+1	D4: a group member that dies in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a member whose sourcing a top-level a[1/0]=1 cuts short, while later members run in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a part that dies on an unbound variable under set -u in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a part that prints reached in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a part that replaces the EXIT trap with one that removes $TMP and exits 5 in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a part that runs exit 0 in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a part whose bad line lands on a partial line in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a record run with a unit killed exits 1 in the runner: none of 9990's three lines, no recorded line, no reached, and the unit's failure printed
+1	D4: a refusal record planted in a unit in a -j 3 record run exits 1 and writes the manifest -j 1 writes (not the old one)
+1	D4: a unit killed after its last member and before its mark in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a unit killed with kill -9 while it runs a member in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a unit that dies in its prelude, before @@prelude-done in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: a unit that dies in red's suite only: the record run exits 0, no process is left, and red.tsv counts the run with name rows that add up to its failed count
+1	D4: a unit that ends outside its $TMP/cwd in a -j 3 record run exits 1 and writes the manifest -j 1 writes (not the old one)
+1	D4: a unit that prints reached in red's suite only makes red refuse the log, the record run having passed: red.tsv holds the rows base - - - and run - - -
+1	D4: and -j 3 --reuse accepts the receipt a -j 1 run left
+1	D4: and a run that writes it reads it: the unit with the longest recorded duration starts among the first three, after fewer than three others
+1	D4: and it reads none: the unit with the longest recorded duration, which a run that reads the file starts among the first three, started after at least three others had
+1	D4: and no FELIX_TEST_RED_JOBS reaches a part (control)
+1	D4: and no name row starts with one of the runner's seven failure prefixes, and djx b2, which the dead unit never reached, is named by its shortfall of one
 1	D4: and one from a session 20 days old is not
+1	D4: and over a base that has one and a tree that has none, red removes the base's: its -j suite refuses, and red.tsv holds the rows base - - - and run - - -
+1	D4: and the durations name the group once, and not its members
+1	D4: and the durations of the two units differ by under 5 s, so the one that waited is not charged for the wait (it would be 6 s or more apart)
 1	D4: and under --days 3 it says 3 days
 1	D4: by default a chip from a session 10 days old is listed
+1	D4: parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	D4: red by hand over a base that has a groups.tsv and a tree that has too runs its suite -j 3 with the group, so C passes and red.tsv counts no failure (control)
+1	D4: red's suite ran its three units as three separate processes, which a serial suite does not (FELIX_TEST_RED_JOBS)
+1	D4: red's suite takes this tree's groups.tsv, not the base's: with the group only in the working tree red.tsv counts no failure, and no process is left
+1	D4: rows with a bad seconds field (a leading zero), a space for the tab, a subscript, a non-unit name or no name are ignored: those units had no row, nothing in the file ran, and no arithmetic error was printed
 1	D4: the human view states the window: chips from the last 14 days
+1	D4: the receipt a -j 3 run leaves is one v1 line of nine fields, mode normal, with the summary's counts
+1	D4: the run writes the file whole at its end: one valid row for each of its seven units, and the old rows gone
 1	D5: FELIX_INVENTORY_TEMP_ROOTS, colon-separated, replaces the list: of five paths only the two under its roots are temp
+1	D5: a groups.tsv whose lines for a group are not adjacent, whose members are not contiguous or number one or seven, that puts a part in two groups, or that names 0001, 0002 or 9990, is refused as D1 says, and so is a line with no tab
+1	D5: a groups.tsv with comment lines and one valid group is accepted
 1	D5: a worktree under a temporary directory carries the word temp in its detail
 1	D5: an orphan under one carries temp too
 1	D5: and its states are computed as for any other: it still leads with uncommitted
+1	D5: and that group is ib
 1	D5: and the human view lists a worktree whose session asked in its needs-action group, question
 1	D5: no row that is not a directory carries temp: branches, remote branches, PRs, chips, handoff sections, cover rows
 1	D5: of eight paths, the four under TMPDIR, /tmp, /private/tmp or /private/var/folders are temp, and no other
 1	D5: the human view lists them under "in temporary directories", after the groups that need action and before the live and landed counts
+1	D5: the refusals name the rule: five different rules give five different lines
+1	D5: the tree's own groups.tsv is accepted by the driver, with stand-ins for the parts it names
+1	D5: the tree's own groups.tsv puts 0900, 0910, 0920, 0930 and 0940 in one group
 1	D5: with it naming a directory outside the fixture, no fixture row carries temp, and each keeps its states
+1	D6: -j 1 parts read HUP ignored, and the other three signals at their defaults, from a parent started that way, on all three parts (control)
+1	D6: -j 1 parts read INT DEFAULT and QUIT DEFAULT from a parent started that way, TERM and HUP at their defaults, on all three parts (control)
+1	D6: -j 1 parts read INT DEFAULT and QUIT IGNORE from a parent started that way, TERM and HUP at their defaults, on all three parts (control)
+1	D6: -j 1 parts read INT IGNORE and QUIT DEFAULT from a parent started that way, TERM and HUP at their defaults, on all three parts (control)
+1	D6: -j 1 parts read INT IGNORE and QUIT IGNORE from a parent started that way, TERM and HUP at their defaults, on all three parts (control)
+1	D6: -j 1 parts read TERM ignored, and the other three signals at their defaults, from a parent started that way, on all three parts (control)
+1	D6: HUP sent to the parent, which the bounded runner starts with HUP at its default whatever its caller ignores: exit 129, with the same afterwards
+1	D6: HUP to the parent: exit 129, with the same afterwards
+1	D6: INT sent to a parent started with INT at its default: exit 130, with the same afterwards
+1	D6: INT to a parent started with INT at its default: exit 130, with the same afterwards
+1	D6: TERM at a spread of short delays during a -j 4 run's start-up (twelve short units, eight delays from 0 to 0.6 s after the parent's prelude) ends everything: each time exit 143, and no wrapper, holder or unit runs once the parent has exited
+1	D6: TERM sent to the parent while units run: exit 143, no reached, no unit, holder, wrapper or child left running, no slot held, the slot files kept, no receipt
+1	D6: TERM to a parent started with INT and QUIT both ignored: exit 143, with the same afterwards
+1	D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group
+1	D6: TERM to the parent while two units run and a third waits: exit 143, no reached, nothing of the run left, no slot held, the slot files kept (names and inodes), no receipt, the queued unit never started
+1	D6: a -j 1 run's part sees INT DEFAULT and QUIT DEFAULT as its parent had them (control)
+1	D6: a -j 1 run's part sees INT DEFAULT and QUIT IGNORE as its parent had them (control)
+1	D6: a -j 1 run's part sees INT IGNORE and QUIT DEFAULT as its parent had them (control)
+1	D6: a -j 1 run's part sees INT IGNORE and QUIT IGNORE as its parent had them (control)
+1	D6: a -j 2 run with FELIX_TEST_SLOTS=3 in a fresh TMPDIR leaves exactly the regular files 0, 1 and 2 in felix-suite-slots, none of them held
+1	D6: a -j 3 run's unit reports the same four dispositions as a -j 1 run's part, from a parent with INT DEFAULT and QUIT DEFAULT
+1	D6: a -j 3 run's unit reports the same four dispositions as a -j 1 run's part, from a parent with INT DEFAULT and QUIT IGNORE
+1	D6: a -j 3 run's unit reports the same four dispositions as a -j 1 run's part, from a parent with INT IGNORE and QUIT DEFAULT
+1	D6: a -j 3 run's unit reports the same four dispositions as a -j 1 run's part, from a parent with INT IGNORE and QUIT IGNORE
+1	D6: a FIFO at slot 0 refuses the same way and does not block the parent on opening it
+1	D6: a background child a unit leaves running holds no slot lock: the run passes, the child is still there, and every slot file grants its lock
+1	D6: a child a unit started with & that ignores TERM, and is moved to pid 1 when the unit dies, is gone once the parent has ended
+1	D6: a child a unit started with & that ignores TERM, once the unit dies on TERM and the child is at pid 1, is gone when the parent has ended
+1	D6: a directory at slot 0 makes a -j run refuse: exit 2, one stderr line, no unit
+1	D6: a directory at slot 1 of 2, beside a regular file at 0, refuses the same way
+1	D6: a name under the slots directory that is not a regular file (a directory) makes a -j run refuse: exit 2, one stderr line, no unit
+1	D6: a run is held to its own N: -j 2 over four parts and plenty of slots has two units at once and never more, and passes
+1	D6: a second TERM sent to the parent during its ending changes nothing: exit 143, nothing of the run left, stopped or running, no slot held, no receipt, and no line of its stderr printed twice
+2	D6: a slot file the parent cannot open makes a -j run refuse: exit 2, one stderr line, no unit
+1	D6: a slot whose holder was killed with kill -9 is free at once: no run --part process while it was held, one within two seconds of the kill, timed in milliseconds, on the same slot file, and nothing left behind
+1	D6: a slot whose holder was killed with kill -9 is free at once: no unit while it was held, one within 2 s, the run then passes, and slot 0 is still the same file
+1	D6: a unit has no pipe or FIFO descriptor above 2 that the same part has not under -j 1, and the probe sees a FIFO a part opens itself
+1	D6: and -j 4 over the same parts has more than two at once, so the count above can fail
+1	D6: and a -j 1 run is not held up by the only slot being held elsewhere: it passes and runs all four parts (control)
+1	D6: and a grandchild that child forks after the parent's TERM is gone once the parent has ended
+1	D6: and so are the sleepers a child forks every 20 ms from its first TERM on, which only STOP can hold still
+1	D6: and so is the sleeper that child forked in its TERM handler, which is a descendant of a pid the parent had listed
+1	D6: and they do get to three at once, which is the slots and not the parts' own order holding them there
+1	D6: and with FELIX_TEST_SLOTS=8 the same two runs do have more than three at once, so the count above can fail
+1	D6: and with FELIX_TEST_SLOTS=8 the same two runs do overlap more than three units (control for the count above)
+1	D6: four quick parts pass under -j 2: exit 0, a receipt, and the last part ran (positive control)
+1	D6: from a parent with INT DEFAULT and QUIT DEFAULT the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
+1	D6: from a parent with INT DEFAULT and QUIT IGNORE the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
+1	D6: from a parent with INT IGNORE and QUIT DEFAULT the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
+1	D6: from a parent with INT IGNORE and QUIT IGNORE the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
+1	D6: the flock stand-in used below fails with an errno that is not EWOULDBLOCK in mode all, and only after the first call in mode later (control)
+1	D6: the process checks below see what they should: two unit processes and not the perl that carries their words, four processes of the case in all, and none once killed (control)
+1	D6: the sleeper parts, released at once, pass under -j 2: exit 0, a receipt, and the third part ran (positive control)
+1	D6: the unit counter below sees two unit processes and not the perl that carries their words (control)
+1	D6: two quick parts pass under -j 2: exit 0 and a receipt (positive control)
+1	D6: units start longest first by the durations file: those with no usable row first in driver order (the first two a pair started at once), then 99, then 9 and 9 in driver order, then 2
+1	D6: where flock fails with ENOLCK, and not EWOULDBLOCK, the parent's one lock fails and the run is refused: exit 2, one stderr line, no unit
+1	D6: where flock fails with ENOLCK, and not with EWOULDBLOCK, the parent's one lock fails and the run is refused: exit 2, one stderr line, no unit
+1	D6: where the parent's lock is granted and a holder's flock fails with ENOLCK, the holder exits 2 before its unit starts: each unit has no mark, exit 1, no receipt
+1	D6: with FELIX_TEST_SLOTS unset the slots are as many as the cores (sysctl, then getconf, then 1, held to 1 to 64), all regular files
+1	D6: with FELIX_TEST_SLOTS=1 and the slot's lock held elsewhere, TERM to the parent starts no unit, neither before it nor after the parent has exited, which is 143, and the slot file is the one that was locked
+1	D6: with FELIX_TEST_SLOTS=3, two -j 4 runs of eight 3 s units never have more than three at once by their spans, and reach three at once by their processes
+1	D6: with FELIX_TEST_SLOTS=3, two -j 4 runs of four parts never have more than three units running at once, and both pass
+1	D6: with no durations file the order is the driver's: the first two at once, then the rest one after another
+1	D6: with one slot, its lock held elsewhere and two parts waiting, TERM to the parent starts no unit, before the exit or after it, the exit is 143, and slot 0 is still the file the other process locked
+1	D6: with slot 0 of 2 held elsewhere the four parts still run, through slot 1, one unit at a time (never none, never two), and pass
+1	D8: _suite_copy_tree makes a checkout on main with one commit and refs/remotes/origin/main at it (control)
+1	D8: _suite_copy_tree returns 1 for a missing stub, a stub numbered 0005 or 9990, one not named NNNN-name.sh, and a repeated stub
+1	D8: a -j 3 record run of planted passing parts rewrites the manifest and leaves red.tsv with counts (runner-failure copy, positive control)
+1	D8: a -j 3 run of planted passing parts exits 0, leaves a receipt and no process in its group, stopped or running (positive control)
+1	D8: a -j 3 run of planted passing parts in a copy with a manifest exits 0 and leaves a receipt (runner-failure copy, positive control)
+1	D8: a record run in a --red copy of planted passing parts exits 0, rewrites the manifest, leaves red.tsv with counts and no process (positive control)
+1	D8: and its driver sources every part it holds once, in name order: 0001 to 0007, the stubs, then 9990 (control)
+1	D8: and leaves no run in the copy when it fails
 1	DEVLOG.md gets exactly the old entry: blank line, header with day branch sha, blank line, text
 1	FELIX_ALLOW_RED lets a founder stop anyway
 1	FELIX_GRAPH_TAIL widens the window when someone needs it to
@@ -1507,6 +1708,8 @@
 1	R10 control: and its detail lists the row once
 1	R10 control: one path under one confined row: #332 is not founder, it is ready
 1	R10: and names only the first path
+1	R10: and with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 it inherited, the stub sees it unset
+1	R10: and with a valid FELIX_TEST_RED_JOBS=2 its suite runs -j 2: the three parts ran in three processes, whatever FELIX_TEST_JOBS says
 1	R10: as content confine, the pattern, the count 4 and the first path
 1	R10: each pattern is named once
 1	R10: four paths under one confined row and no other rule: #330 is ready
@@ -1514,10 +1717,13 @@
 1	R10: its detail lists the confined row exactly once
 1	R10: on the text page too, #330's line lists the row once
 1	R10: one path under one confined row: the detail names the row's pattern
+1	R10: red by hand with FELIX_TEST_JOBS=3 runs its suite serially: one process ran the three parts, and red.tsv counts
 1	R10: the detail never repeats the phrase per path
 1	R10: the first row once, with its count 2 and first path
 1	R10: the second row once, with its count 3 and first path
 1	R10: two different confined rows: #331 is ready
+1	R10: with FELIX_TEST_JOBS=abc and an invalid FELIX_TEST_RED_JOBS red's suite does not refuse and runs serially
+1	R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse
 1	R11 --repo control: and --repo two reads two's, not home's
 1	R11 --repo control: the home's page reads fixture/home's pull requests
 1	R11 --repo: --repo naming two names two's newest row: and the text page holds it
@@ -1670,13 +1876,81 @@
 1	R11: the page left the ledger as it was
 1	R11: the page's clause and --status's last row agree when the newest row is a pull request's
 1	R11: the page's clause and --status's last row are one row: time, event and detail agree
+1	R12: and it leaves no process in its group, stopped or running (control)
+2	R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given
+1	R12: no run of this part left a process in its process group, stopped or running, after the 30 s it was given (the interrupt cases judge theirs in their own assertions)
+2	R12: the group check names a process left in the run's group after the leader exited, and ends it (control)
+1	R12: the timing perl reports a killed process gone, a living one left, a process with the case's id in its command line left, and none once both are killed (control)
+1	R13: USR1, which the parent does not trap, sent while two units that ignore TERM run (W is 2): the EXIT trap's ending completes: a status that is not 0, no reached, nothing of the run left, stopped or running, no slot held, the slot files kept, no receipt
+1	R13: from a parent started with HUP ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group
+1	R13: from a parent started with TERM ignored the three parts ran as units under -j 3 and read what a -j 1 run reads, the run passed with exit 0 (not the runner's 124) and left nothing in its group
+1	R13: the same with INT, sent to a parent started with INT at its default, and two units that end at once when signalled (W is 2): exit 130, with the same afterwards
+1	R13: with FELIX_TEST_SLOT_NOTE=2 (W is 2, so the ending outlasts what a 2 s read -t left it) and a unit that ignores TERM, TERM to the parent once the unit is up: exit 143, no reached, nothing of the run left, stopped or running, no slot held, the slot files kept, no receipt
+1	R14: a ps that shows planted process P's start one second later from the ending's second listing on: once the parent has exited with 143, P still runs, is not stopped, got exactly one TERM, and nothing else of the run is left, stopped or running (a stopper that signals by pid alone STOPs and KILLs it)
+1	R15: a holder killed with kill -9 while its unit runs a member (its pid is line 2 of the slot file): within 3 s the unit is gone, the run fails naming it (part ended without its mark), the other unit passes, exit 1, no receipt, no slot held, and nothing of the run is left
+1	R15: the parent killed with kill -9 while two units run a long member: within 3 s nothing of the run runs, stopped or not, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R16: a change to _fx_roots, an underscore-prefixed prelude variable gives the seventh failure with exactly its change line
+1	R16: a hard limit lowered with ulimit -H to its soft value gives the seventh failure with exactly its change line
+1	R16: a line a unit's own EXIT trap prints after the mark is printed as written, once, after the unit's other lines, with no @@ line; after it come the unit's runner failure 'part left the shell changed for the parts after it' and, next, '  | trap on EXIT changed', before the next unit's section; the run exits 1 and leaves no receipt
+1	R16: a new value for an export the case made before the run gives the seventh failure with exactly its change line
+1	R16: a part that exports a new name outside the old steering list, which R8 passed gives the seventh failure with exactly its change line
+1	R16: and under -j 3 the status-5 failure is followed by the seventh failure of that unit, and its one bar line is trap on EXIT changed
+1	R16: enable -n printf gives the seventh failure with exactly its change line
+1	R16: exec 0<&- gives the seventh failure with exactly its change line
+1	R16: exec 2>&- gives the seventh failure with exactly its change line
+1	R16: export CLAUDE_CONFIG_DIR=/x, with it absent from the run's environment gives the seventh failure with exactly its change line
+1	R16: export LC_ALL=C, with LC_ALL absent from the run's environment gives the seventh failure with exactly its change line
+1	R16: pushd of the working directory, which leaves the stack changed and the directory as found gives the seventh failure with exactly its change line
+1	R16: readonly djx_ro=1 gives the seventh failure with exactly its change line
+1	R16: set -- a b c gives the seventh failure with exactly its change line
+1	R16: sleep 30 & left running gives the seventh failure with exactly its change line
+1	R16: the set -o pipefail option flipped from what the unit's shell has gives the seventh failure with exactly its change line
+1	R16: trap 'printf "djx-exit\n"' EXIT gives the seventh failure with exactly its change line
+1	R16: unset REPO, a plain variable the prelude sets gives the seventh failure with exactly its change line
+1	R17: the tree's own groups.tsv puts 1100, 1110 and 1120 in one group, and that group is rx, a second one beside ib
 1	R1: --queue exits 0, with --tsv and without
+1	R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -
 1	R1: and #702 into main, founder by label, is stacked, so not in --queue
+1	R1: and it writes no manifest, and red.tsv holds exactly the rows base - - - and run - - -
+1	R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it
+1	R1: and once that record run has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a FAIL in the units' prelude only has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a FAIL printed onto a partial line in the units' prelude only has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a group member that dies has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a member whose sourcing a top-level a[1/0]=1 cuts short, while later members run has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a part that dies on an unbound variable under set -u has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a part that prints reached has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a part that replaces the EXIT trap with one that removes $TMP and exits 5 has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a part that runs exit 0 has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a part whose bad line lands on a partial line has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a unit killed after its last member and before its mark has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a unit killed with kill -9 while it runs a member has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running
+1	R1: and once the record run after parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) has exited no process of red's tree is left, stopped or running
 1	R1: and the home's project, whose checkout is the home, asks gh for no default branch
 1	R1: and zeta, read under felix, asks for none either
 1	R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/two
 1	R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once
 1	R1: under fixture/two (control)
+1	R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 20 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left
+1	R20: the parent killed with kill -9 while its holders wait for the only slot, held by another process: within 3 s nothing of the run is left, stopped or running; once the slot is let go no unit starts, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R21: with R, P's child, left out of the ending's first listing and shown from the second, so that step 4 makes a second round, and P's start shifted from the third listing on, after P was sent STOP, P that ignores TERM and R are both gone once the parent has exited with 143, nothing of the run left stopped or running (what a stopper has stopped it signals by its pid)
+1	R22: where every ps -o lstart= for the forked unit prints nothing (five tries), the holder gives up before the unit runs: the member never ran, the unit has no mark (part ended without its mark, once), exit 1, no receipt, and nothing of the run is left
+1	R22: with the holder's ps -o lstart= for the forked unit held and the holder then killed with kill -9, the unit, held back until unit.I is written, finds its holder gone and exits without running the member: it never ran, has no mark (once), exit 1, no receipt, and nothing of the run is left
+1	R24: a readonly function gives the seventh failure with exactly its change line
+1	R24: alias djx_al=true gives the seventh failure with exactly its change line
+1	R24: enable -n enable, which hides the list of disabled builtins from the comparison gives the seventh failure with exactly its change line
+1	R28: CDPATH=/djx, a plain variable the main shell itself reads gives the seventh failure with exactly its change line
+1	R28: LC_COLLATE=C plain, with LC_COLLATE absent from the run's environment gives the seventh failure with exactly its change line
+1	R28: OPTIND=5 gives the seventh failure with exactly its change line
+1	R28: a two-member group whose first member leaves nullglob set gives one seventh failure naming the group's unit, exit 1, no receipt, no process, and both members printed their ok line once
+1	R28: and its one bar line is shopt -u nullglob is now shopt -s nullglob
+1	R28: compgen() { :; } beside umask 077 gives the seventh failure with exactly its change line
+1	R28: declare() { :; } beside umask 077 gives the seventh failure with exactly its change line
+1	R28: perl() { :; } beside umask 077 gives the seventh failure with exactly its change line
+1	R28: trap - EXIT, the prelude's EXIT trap removed, numbered last so that the -j 1 run reaches every part gives the seventh failure with exactly its change line
+1	R29: and under -j 1 the same: exit 0, the part's mktemp -d status 0, and the directory it made is below that directory
+1	R29: under a TMPDIR relative to the directory the run started in and a GNU-style mktemp first on PATH, a part's bare mktemp -d from its working directory lands below that directory, run under -j 2: the run passes and the part's status is 0
 1	R2: a network error: one billing GET and no orgs/ GET
 1	R2: after a 404 the gh log holds one users/ GET
 1	R2: after a 502 the gh log holds exactly one billing GET
@@ -1698,6 +1972,34 @@
 1	R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/
 1	R2: users/ answers 404: the page exits 0
 1	R2: users/ answers 502: the page exits 0
+1	R2: with the ending's listing number 1 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
+1	R2: with the ending's listing number 2 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
+1	R2: with the ending's listing number 3 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
+1	R30: a -j 2 run whose parent cannot read its job table at the end of its loop (the unit made $TMP/pj/jobs a directory) exits 0 within 15 s of the unit's end, the ticker's wait not hanging, and the unit's directory was made
+1	R30: and it leaves nothing of its group, stopped or running, the ticker included
+1	R31: EXECIGNORE='*/djx' plain, with EXECIGNORE absent from the run's environment gives the seventh failure with exactly its change line
+1	R31: a readonly function that is also exported, which a readonly function with only the r flag does not cover gives the seventh failure with exactly its change line
+1	R31: and on a copy with exec {djx_fd}>/dev/null planted at the top level of a lib file, naming that line and no other
+1	R31: no line at the top level of a part or of tests/lib opens a descriptor of 10 or above (exec {NAME}> or <, or exec N> or < with N from 10 up): today's lines are inside functions
+1	R31: the lint fails on a copy of the tree with exec 11>/dev/null planted at the top level of a part, naming that line and no other
+1	R31: the lint names the tops of files, of loops, of brace groups and of case arms, and not what is in a function (one line or many), a subshell, a substitution, a comment, a here-document, a string, a close or a descriptor below 10
+1	R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped
+1	R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running
+1	R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped
+1	R37: _copy_content, with a tar first on PATH that writes past the end-of-archive marker and an extractor that stops there, and pipefail set, copies a checkout's tracked file, untracked file and file in a subdirectory: it returns 0, each has the same bytes, and nothing else is in the destination
+1	R37: the lint carries no || that ends a line onto the next line
+1	R37: the lint does not see a tar named through a variable (the control's own pipe), by its path, behind a VAR= prefix, or behind a wrapper's options
+1	R37: the lint flags a pipe into tar with x among its options: -x, none after the pipe, the old style xf, -x after another option, -xO, --extract and --get
+1	R37: the lint flags a tar -x on the line after a pipe that ends a line, and a line that starts with the pipe
+1	R37: the lint flags it behind command, env, nice and time
+1	R37: the lint flags it inside a subshell and a brace group
+1	R37: the lint flags it on the line after a pipe that a comment follows, and across comment and blank lines
+1	R37: the lint leaves an ||, a tar -x with no pipe before it, a pipe into tar that writes or lists, a long option holding x, a pipe after tar -x, and a comment line
+1	R37: the lint names 1286's own pipe of git archive into tar -x, so it reads the parts directory (control)
+1	R37: the lint reads a quoted string and a code line's trailing comment as code
+1	R37: the stand-in tar writes an archive to a file with 1 MiB of padding after it, and extracts it whole: exit 0, the same bytes, one call of each mode (fixture control)
+1	R37: this part holds no line the lint names, the stand-in case's and the samples' lines included
+1	R37: with the stand-in tar first on PATH, one tar writing an archive to a pipe that a second tar extracts from fails under pipefail on each of three runs, and the log shows both modes called (fixture control)
 1	R3: a repository with neither origin/HEAD nor origin/main: the page exits 0 (control)
 1	R3: and #501 into main is stacked
 1	R3: and #501 into main was decided against it: ready (control)
@@ -1714,6 +2016,22 @@
 1	R3: origin/main alone: the origin row says default branch main (origin/main)
 1	R3: the page with origin/HEAD naming main exits 0
 1	R3: the page with origin/main alone exits 0
+1	R40: and it puts 0810, 0820, 0830, 0840 and 0850 in one group, and that group is au, a third one beside ib and rx
+1	R40: the tree's own groups.tsv puts 0200 and 0201 in one group, and that group is gp
+1	R41: every path the mktemp stand-in logged for the push step's run is under $TMP, and it logged some
+1	R41: every path the mktemp stand-in logged for the verify step's runs is under $TMP, and it logged some
+3	R41: every path the mktemp stand-in logged for this part's nested runs (a run's $TMP among them) is under this part's own case directories, and it logged some
+2	R41: every path the mktemp stand-in logged for this part's nested runs is below one of the part's own case directories, and it logged some
+1	R42: _copy_content, with the last path git lists a tracked file deleted from the working tree and pipefail set, returns 0 and copies every other file with the same bytes, and nothing else is in the destination
+1	R42: no text file under engine/harness other than 1286 (the three tables aside: tests/lib, tests/run, tests/red, tests/receipt.sh, hooks, lib, bin, templates, felix and the parts) pipes into a tar that extracts
+1	R42: the lint flags a ( group that opens on the pipe's line and holds the cd and the extracting tar on lines of their own, and a { group the same
+1	R42: the lint flags a pipe into a group when a later command of the group extracts: after && in a ( group, after || and ; in a ( group, and after ; in a { group
+1	R42: the lint flags tar's option x on the line after a trailing backslash, and on a line two on after another option line
+1	R42: the lint leaves a group that only writes or lists, an extracting tar after the group's own close, and a backslash continuation with no x
+1	R42: the lint reads every text file under the root but the three tables (tests/assertions.tsv, tests/red.tsv, tests/groups.tsv): tests/run, tests/red, tests/receipt.sh, hooks, templates, lib, bin, felix, tests/lib and tests/parts are named, a binary file is not
+1	R4: QUIT to a parent started with QUIT at its default: exit 131, no reached, no unit, holder or wrapper left, no slot held, the slot files kept, no receipt
+1	R4: a holder STOPped and its wrapper then killed with kill -9, W = 2: the parent ends the lost unit's holder (its pid and start time are line 2 of the slot file, found in the run's own pj directory): once the parent has exited the holder and its unit are gone, the unit failed without its mark, exit 1, no receipt
+1	R4: a run read through a pipe, as out=$(tests/run -j 2 ...) reads it, ends with the run though a unit left a background child: the pipe is closed within 10 s and the output reached its end
 1	R4: an age of FETCH_HEAD, if given, is labelled the last fetch of any ref
 1	R4: and that is nine days ago, not the fresh fetch of another branch
 1	R4: and that is under an hour ago (control)
@@ -1721,6 +2039,10 @@
 1	R4: the origin row says when origin/main last moved, from its reflog
 1	R4: the page after a fetch of another branch exits 0
 1	R4: the row still names the default branch (control)
+1	R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent silent (W = 30) the holder is gone within 3 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt
+1	R4: the wrapper of a unit killed with kill -9 while the unit runs a member longer than the parent's silence: that unit alone fails without its mark, exit 1, no receipt, and once the parent has exited neither the unit nor its holder runs and the pipe it read is closed
+1	R4: while a unit runs, its holder's stdout and stderr are the unit's log: both name one regular file, which is the file the unit's own stdout names, and the run then passes
+1	R4: with the parent's FIFO silent for 30 s (W = 30), the holder's own check ends a unit whose wrapper was killed with kill -9: within 3 s of the kill the unit and its holder are gone, and the parent is still running
 1	R5 clarified: --prs --tsv --repo on a directory whose name holds a tab exits 0, and so does the text page
 1	R5 clarified: and no line of the text page holds the directory's name with its tab
 1	R5 clarified: and says it could not be read
@@ -1734,6 +2056,10 @@
 1	R5 control: the home's slug is read: every row's repo cell is fixture/home
 1	R5: --prs in a repository whose slug holds a tab exits 0
 1	R5: --queue with a remote_match holding a tab exits 0
+1	R5: a directory named .x in the slots directory, a name no slot has, is refused with exit 2 and the entry named
+1	R5: a directory named 9 in the slots directory beside FELIX_TEST_SLOTS=2, a name beyond slot K-1, is refused with exit 2 and the entry named
+1	R5: a regular file where the slots directory should be is refused: exit 2 and one line
+1	R5: a slots directory that was missing is made with mode 0700
 1	R5: and its gh source row says why
 1	R5: and the other projects still list theirs: #601 once (control)
 1	R5: every line of --queue --tsv has eight columns (control)
@@ -1745,6 +2071,10 @@
 1	R5: maple not read: no pr row of its repository
 1	R5: maple's gh source row is unread, as R5 clarified says
 1	R5: of exactly eight columns
+1	R5: the slots directory a symbolic link, whatever it points to, is refused with exit 2 and the line tests/run: the slots directory [D] is a symbolic link
+1	R5: the slots directory at mode 0757, writable by others, is refused: exit 2 and one line
+1	R5: the slots directory at mode 0775, writable by its group, is refused: exit 2 and one line
+1	R5: under a TMPDIR relative to the directory the run started in, the slot files are made below that directory, and the run passes: its holders found the files the parent made
 1	R6: and #602 on one line
 1	R6: and felix's block does not send the reader to zeta
 1	R6: and founder #602 exactly once
@@ -1752,8 +2082,16 @@
 1	R6: and zeta's block names felix, whose block lists its pull requests
 1	R6: felix and zeta name one repository: founder #601 is listed exactly once
 1	R6: gh listed fixture/home once, not once per project: one pr list besides two's and three's
+1	R6: the line comes within T + 3 s, 5 s, of the end of the parent's prelude, T being 2, timed in a perl that waits for the mark planted at the end of 0006: a read that waited 30 s for it would print it at 30 s
 1	R6: the text lists #601 on one line
+1	R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 3 s later), nothing has started, and the run passes once the slot is let go
+1	R6: with the slot free there is no such line, and the run passes (control)
 1	R6: zeta, second in name order, has a block of its own (control)
+1	R7: a part's own reached line is printed in its place as a bar line, once, and reads as no completion marker
+1	R7: and the prelude lines it prints are behind a bar, the FAIL that landed on a partial line among them
+1	R7: and the tail's note, UNIT-less, is told from it by that shape: it says how many assertions ran that the manifest does not list
+1	R7: with one slot and two units and a manifest that lists only the stubs, so that the tail prints its own note too, the unit that waited gets exactly one line of the wait note's shape, at the head of its section
+1	R7: with one slot the unit that waited gets exactly one line of the note's shape, whose seconds are at least the 6 s the other held the slot, and the tail's own note, which the manifest of the stubs alone makes it print, is a separate line
 1	R8 control: --queue lists the founder pull request #300 once
 1	R8 control: NBSP (C2 A0) and an accented letter are not controls and reach the page as they are
 1	R8 control: a plain title reaches the page unchanged
@@ -1776,9 +2114,16 @@
 1	R8 the detail of the newest row: ESC and BEL show as ?: the page has one lander source row
 1	R8: --prs exits 0 over titles, a check name, a path, a ledger and a paused reason holding controls, TSV and text
 1	R8: --queue exits 0, TSV and text
+1	R8: FELIX given another value gives the seventh failure with exactly its change line
+1	R8: GIT_DIR exported gives the seventh failure with exactly its change line
+1	R8: PATH changed gives the seventh failure with exactly its change line
 1	R8: a changed path holding ESC shows it as ? in the detail
 1	R8: a check name holding ESC shows it as ? in the detail
+1	R8: a function of tests/lib redefined gives the seventh failure with exactly its change line
+1	R8: a function of tests/lib unset, as part 0290 did gives the seventh failure with exactly its change line
+1	R8: a new plain variable, a new function that hides nothing and a change to a variable of tests/lib each pass under -j 3: the run exits 0, leaves a receipt and no process, every part printed its ok line once, and none gave the seventh failure
 1	R8: a newline inside a title becomes a space
+1	R8: a soft limit lowered with ulimit -S gives the seventh failure with exactly its change line
 1	R8: a tab inside a title becomes a space
 1	R8: a title holding BEL shows it as ?
 1	R8: a title holding C2 80, the first C1 control, shows it as ?
@@ -1786,12 +2131,18 @@
 1	R8: a title holding C2 9F, the last C1 control, shows it as ?
 1	R8: a title holding DEL shows it as ?
 1	R8: a title holding ESC shows it as ?
+1	R8: a trap on USR1 left set gives the seventh failure with exactly its change line
+1	R8: a unit that leaves the shell changed in red's suite only is left out of red's counts and names, and red does not refuse the log: red.tsv counts the run with no failure and no name row
+1	R8: an exported variable the case set, unset gives the seventh failure with exactly its change line
 1	R8: and no line of the text page begins with what followed the newline
 3	R8: and on the text page
 1	R8: and the line holds no tab
+1	R8: descriptor 7 left open gives the seventh failure with exactly its change line
+1	R8: every part that leaves the shell changed gives the seventh failure, once, and the ones that do not give none: the run exits 1, counts them in its summary, leaves no receipt and no process, and every part printed its ok line once
 1	R8: every row of the --prs --tsv page has exactly eight columns
 1	R8: every row of the --queue --tsv page has exactly eight columns
 1	R8: gh's error line holding ESC shows it as ?
+1	R8: git() { :; } left defined gives the seventh failure with exactly its change line
 1	R8: in --queue, a newline inside a title becomes a space
 1	R8: in --queue, a tab inside a title becomes a space
 1	R8: in --queue, a title holding BEL shows it as ?
@@ -1800,6 +2151,7 @@
 1	R8: in --queue, a title holding C2 9F shows it as ?
 1	R8: in --queue, a title holding DEL shows it as ?
 1	R8: in --queue, a title holding ESC shows it as ?
+1	R8: in a record run the seventh failure writes no manifest, and red.tsv holds the rows base - - - and run - - -, with no process left
 1	R8: no C1 control leaves a lone C2 lead byte on the text page
 1	R8: no byte below space but tab and newline, no DEL and no C1 control reaches the --prs --tsv page
 1	R8: no byte below space but tab and newline, no DEL and no C1 control reaches the --queue --tsv page
@@ -1807,11 +2159,18 @@
 1	R8: nor the --prs text page
 1	R8: nor the --queue text page
 1	R8: nor the text page
+1	R8: shopt -s nullglob left set gives the seventh failure with exactly its change line
 1	R8: the ledger's detail holding ESC shows it as ?, in a refusal
 1	R8: the ledger's detail holding ESC shows it as ?, in a skip
 1	R8: the paused reason holding ESC shows it as ?
 1	R8: the pull requests whose titles hold a tab and a newline are one --queue row each
 1	R8: the pull requests whose titles hold a tab and a newline are one row each
+1	R8: umask 077 left set gives the seventh failure with exactly its change line
+1	R8: under -j 1 none of them gives the seventh failure (R24, R28 included), a change carrying to the parts after it as it always did, and every part of the -j 1 set printed its ok line once, so the run reached them all
+1	R9: a groups.tsv with empty lines among its members gives the same group: C passes, the three parts had one process id, the durations name the group once
+1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/(red|receipt\.sh)$
+1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/groups\.tsv$
+1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/parts/0007-the-parallel-runner\.sh$
 1	REPLACE=1 overwrites a hand-written handoff
 1	SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger
 1	SessionStart launched in a directory nothing governs binds the governed worktree the payload names

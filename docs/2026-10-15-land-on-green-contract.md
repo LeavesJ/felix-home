@@ -120,6 +120,14 @@ write a row every five minutes.
       holds the gated head".
     - The tick never checks out, fetches into, resets, cleans or writes to any
       worktree.
+    - **A33 (a gate passed only in a scratch clone, 2026-10-22).** A receipt
+      is per checkout (#449), so a gate that passed only in a clone outside
+      the home's worktrees leaves the matched worktree with no receipt for the
+      head. `felix merge` there refuses it, and A13 keeps that refusal until
+      the head or main moves. Such a pull request stays a draft until its home
+      worktree's gate has passed on the head. If it was marked ready first, a
+      session lands it with `felix merge` from that worktree once the gate has
+      passed there.
 
 **G6. Merge.** The merge runs only through the installed engine's `felix`:
 

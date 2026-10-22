@@ -126,8 +126,14 @@ _db3_clean() {
   for p in $(printf '%s\n' "$l" | awk '{ print $1 }'); do kill -KILL "$p" 2>/dev/null; done
   printf 'left behind: %s' "$(printf '%s' "$l" | tr '\n' ';')"
 }
-_db3_cores() { local n; n="$(sysctl -n hw.ncpu 2>/dev/null)"; case "$n" in ''|*[!0123456789]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
-  case "$n" in ''|*[!0123456789]*) n=1 ;; esac; [ "$n" -ge 1 ] || n=1; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
+# The gate's N (R51): sysctl's performance-core count when it answers with digits only and at least 1; else the core count (hw.ncpu, then getconf, then 1); held to 1 to 64
+_db3_gaten() { local n; n="$(sysctl -n hw.perflevel0.logicalcpu 2>/dev/null)"
+  case "$n" in ''|*[!0123456789]*) n="" ;; *) n=$((10#$n)); [ "$n" -ge 1 ] || n="" ;; esac
+  if [ -z "$n" ]; then
+    n="$(sysctl -n hw.ncpu 2>/dev/null)"; case "$n" in ''|*[!0123456789]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
+    case "$n" in ''|*[!0123456789]*) n=1 ;; esac; n=$((10#$n)); [ "$n" -ge 1 ] || n=1
+  fi
+  [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
 # CASE [--red] GROUPS MANIFEST STUB...: the copy at $DB3/n/CASE (_db3_F, _db3_T, _db3_c, _db3_tmp); 1 when it could not be made
 _db3_new() {
   local n="$1" r=""; shift
@@ -710,7 +716,7 @@ _db3_gate() {   # LABEL ENV...: gate.sh in the fixture, the stub recording as LA
       FELIX_KERNEL_CACHE="$_db3_G/no-cache" TMPDIR="$DB3/gtmp" PATH="$DB3/mk:$PATH" DB3_MKREAL="$_db3_mkreal" DB3_MKLOG="$DB3/mktemp.log" DJX_OUT="$DB3/gout" DJX_L="$l" ${1+"$@"} bash projects/felix/gate.sh ) > "$DB3/gout/$l.out" 2>&1
 }
 _db3_gate g1; _db3_gate g2 GITHUB_ACTIONS=true; _db3_gate g3 DJX_EXIT2=1; _db3_gate g4 GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
-is "D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)" "$(cat "$DB3/gout/g1.jobs" 2>/dev/null)" "$(_db3_cores)"
+is "D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the N this machine gives, from whichever step answers (sysctl or getconf: hw.perflevel0.logicalcpu when it answers digits only and at least 1; else hw.ncpu, then getconf, then 1; held to 1 to 64), for its call to tests/run; the order of the steps is pinned by 1294" "$(cat "$DB3/gout/g1.jobs" 2>/dev/null)" "$(_db3_gaten)"
 is "D1: with GITHUB_ACTIONS=true it does not set it (control)" "$(cat "$DB3/gout/g2.jobs" 2>/dev/null)" unset
 is "R10: and with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 it inherited, the stub sees it unset" "$(cat "$DB3/gout/g4.jobs" 2>/dev/null)" unset
 is "D1: and its argument list stays --reuse, in all three (control)" "$(cat "$DB3/gout/g1.args" 2>/dev/null) $(cat "$DB3/gout/g2.args" 2>/dev/null) $(cat "$DB3/gout/g4.args" 2>/dev/null)" "1:--reuse 1:--reuse 1:--reuse"

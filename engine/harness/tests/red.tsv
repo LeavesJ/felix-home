@@ -8,45 +8,19 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	e3636d4035d230ba4536413371a68ad47120f051	0.49.302
-run	40	13446	44
-D1: a FELIX_TEST_JOBS the caller already had is replaced by the core count	1
-D1: only the value true stops it: GITHUB_ACTIONS=false still sets the core count	1
-D1: the core count is held to 64 (sysctl 200, getconf 100), falls from sysctl to getconf to 1, and sysctl answers first and a non-number does not	1
-D1: when tests/run exits 2 with one line on stderr the gate reports tests FAIL and shows the log's last line under it	1
-D1: when tests/run exits 2, the log's last line is shown under tests FAIL	1
-D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run, and its argument list stays --reuse	1
-D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the core count for its call to tests/run (sysctl, then getconf, then 1; held to 1 to 64)	1
-D4: a unit that dies in red's suite only: the record run exits 0, no process is left, and red.tsv counts the run with name rows that add up to its failed count	1
-D4: a unit that prints reached in red's suite only makes red refuse the log, the record run having passed: red.tsv holds the rows base - - - and run - - -	1
-D4: and no name row starts with one of the runner's seven failure prefixes, and djx b2, which the dead unit never reached, is named by its shortfall of one	1
-D4: and over a base that has one and a tree that has none, red removes the base's: its -j suite refuses, and red.tsv holds the rows base - - - and run - - -	1
-D4: red's suite ran its three units as three separate processes, which a serial suite does not (FELIX_TEST_RED_JOBS)	1
-R10: and with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 it inherited, the stub sees it unset	1
-R10: and with a valid FELIX_TEST_RED_JOBS=2 its suite runs -j 2: the three parts ran in three processes, whatever FELIX_TEST_JOBS says	1
-R10: red by hand with FELIX_TEST_JOBS=3 runs its suite serially: one process ran the three parts, and red.tsv counts	1
-R10: with FELIX_TEST_JOBS=abc and an invalid FELIX_TEST_RED_JOBS red's suite does not refuse and runs serially	1
-R10: with GITHUB_ACTIONS=true and a FELIX_TEST_JOBS=7 the caller already had, the stub sees it unset, and the argument list is --reuse	1
-R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
-R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it	1
-R1: and once that record run has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a FAIL in the units' prelude only has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a FAIL printed onto a partial line in the units' prelude only has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a group member that dies has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a member whose sourcing a top-level a[1/0]=1 cuts short, while later members run has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a part that dies on an unbound variable under set -u has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a part that prints reached has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a part that replaces the EXIT trap with one that removes $TMP and exits 5 has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a part that runs exit 0 has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a part whose bad line lands on a partial line has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a unit killed after its last member and before its mark has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a unit killed with kill -9 while it runs a member has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
-R1: and once the record run after parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) has exited no process of red's tree is left, stopped or running	1
-R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped	1
-R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running	1
-R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped	1
-R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/(red|receipt\.sh)$	1
-R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/groups\.tsv$	1
-R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/parts/0007-the-parallel-runner\.sh$	1
-this repository's every table is declared and accepted	1
+base	origin/main	10381d827eb78ea3c179534f3093fe7f1c2d67f8	0.49.303
+run	14	13482	44
+D1: a FELIX_TEST_JOBS the caller already had is replaced by the N this machine gives, from whichever step answers (sysctl or getconf)	1
+D1: only the value true stops it: GITHUB_ACTIONS=false still sets the N this machine gives, from whichever step answers (sysctl or getconf)	1
+D1: with GITHUB_ACTIONS unset gate.sh sets FELIX_TEST_JOBS, for its call to tests/run, to the N this machine gives, from whichever step answers (sysctl or getconf), and its argument list stays --reuse	1
+D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the N this machine gives, from whichever step answers (sysctl or getconf: hw.perflevel0.logicalcpu when it answers digits only and at least 1; else hw.ncpu, then getconf, then 1; held to 1 to 64), for its call to tests/run; the order of the steps is pinned by 1294	1
+R51: a performance-core count of 0 falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: a performance-core count of 00 falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: a performance-core count of 200 is held to 64, so are 65 and the largest N 64 itself, and a count of 6 over the same hw.ncpu is not held	1
+R51: a performance-core count that is empty falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: a performance-core count that is not a number (abc) falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: a performance-core count that is not digits only (6x) falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: a performance-core count whose call fails falls to hw.ncpu (12), where a count of 6 beside it is used	1
+R51: the performance-core count answers first: hw.perflevel0.logicalcpu 6 over a different hw.ncpu 12 gives 6, 8 over 4 gives 8, and a failing hw.ncpu or a getconf does not change it	1
+R51: with the performance-core key (hw.perflevel0.logicalcpu) failing, or set to 0 in one case, hw.ncpu answers, then getconf, then 1, a count above 64 is held to 64, and a non-number falls on, as before; an hw.ncpu of 0 is a number that does not fall to getconf and is held to 1 (R52); a performance-core count of 6 over the same keys is used	1
+R52: a performance-core count of 08 over an hw.ncpu of 12 gives 8 and 09 gives 9 (the leading zero is stripped), and a count of 1 over 12 gives 1	1

@@ -295,14 +295,20 @@ fi
 # tell. Deleted on a pass, where nothing points at it; kept on a failure, where
 # the path is printed.
 GTLOG_DIR="${TMPDIR:-/tmp}"; GTLOG_DIR="${GTLOG_DIR%/}"; GTLOG=""
-# The suite runs as many parts at once as the machine has cores (contract D1):
-# sysctl, then getconf, then 1, to 64; never on GitHub's runner, which drops an inherited one (R10).
+# The suite runs as many parts at once as the machine has performance cores (contract D1, as R51 replaces it):
+# sysctl's hw.perflevel0.physicalcpu when it answers digits only and at least 1; else, as before, hw.ncpu, then
+# getconf, then 1; held to 1..64; never on GitHub's runner, which drops an inherited one (R10).
 GTJOBS=""
 if [ "${GITHUB_ACTIONS:-}" != true ]; then
-  GTJOBS="$(sysctl -n hw.ncpu 2>/dev/null)"
-  case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
-  case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS=1 ;; esac
+  GTJOBS="$(sysctl -n hw.perflevel0.physicalcpu 2>/dev/null)"
+  case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS="" ;; esac
   GTJOBS="${GTJOBS#"${GTJOBS%%[!0]*}"}"
+  if [ -z "$GTJOBS" ]; then
+    GTJOBS="$(sysctl -n hw.ncpu 2>/dev/null)"
+    case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
+    case "$GTJOBS" in ''|*[!0123456789]*) GTJOBS=1 ;; esac
+    GTJOBS="${GTJOBS#"${GTJOBS%%[!0]*}"}"
+  fi
   case "$GTJOBS" in '') GTJOBS=1 ;; ?|??) ;; *) GTJOBS=64 ;; esac
   [ "$GTJOBS" -le 64 ] || GTJOBS=64
 fi

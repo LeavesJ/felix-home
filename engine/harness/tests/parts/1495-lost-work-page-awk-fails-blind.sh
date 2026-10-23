@@ -86,11 +86,11 @@ _lw95_with "$LW95/late" AW95A2S "$LW95/h" "$LW/cwd" monitor --tsv --repo "$LW95A
 PATH="$LW95P"; rm -rf "$LW95M"
 
 # ---- controls: the real awk --------------------------------------------------------
-is "B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 16 summaries" \
+is "B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 17 summaries" \
    "$(_lw_rc AW95A0)$(_lw_rc AW95A0S) $([ "$(LC_ALL=C awk 'NR == 1 { print; exit }' "$(_lw_o AW95A0)" 2>/dev/null)" = "$LW95_HEAD" ] && echo first-line || echo 'no first line') $(_lw_n16 "$(_lw_o AW95A0S)")" \
-   "00 first-line 16"
-is "B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 32 summaries" \
-   "$(_lw_rc AW95X0)$(_lw_rc AW95X0S)$(_lw_rc AW95B0)$(_lw_rc AW95B0S) $(_lw_n16 "$(_lw_o AW95X0S)")" "0000 32"
+   "00 first-line 17"
+is "B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 34 summaries" \
+   "$(_lw_rc AW95X0)$(_lw_rc AW95X0S)$(_lw_rc AW95B0)$(_lw_rc AW95B0S) $(_lw_n16 "$(_lw_o AW95X0S)")" "0000 34"
 is "B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call" \
    "$(_lw_rc AW95I1) $(_lw_rc AW95L1) $(_lw95_same AW95I1 AW95I0) $(_lw95_same AW95L1 AW95L0)" "$(_lw_rc AW95I0) $(_lw_rc AW95L0) same same"
 

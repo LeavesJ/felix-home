@@ -34,6 +34,13 @@
 # before it, in any record directory under the root (a chip's session is usually
 # a new worktree's), is unknown, not unstarted. A record directory it cannot enter
 # answers unknown throughout. All are counted (felix_inv_host_unread) for the cover row.
+#
+# Helpers. A worktree named as a subagent's or a workflow's is a helper's
+# (felix_inv_host_helper_form, by name alone). The last field of
+# felix_inv_host_dir's line says whether the records name it: the core never
+# reads the name or the detail text to learn that, so a second host decides it
+# its own way.
+#
 # No JSON parser (lib/audit.sh says why) and no here-document (bash 3.2 backs
 # one with a file outside the scratch).
 
@@ -268,17 +275,25 @@ _fi_host_scan() {
     }'
 }
 
-# For a worktree a subagent or workflow made (named agent-<hex> or wf_<id>-<n>):
-# the session whose helper's *.meta.json names it, searched in the record
-# directories of SCOPE, into _FI_SP_NOTE ("spawned by session <sid>: <description>")
-# and _FI_SP_MT (the mtime of the helper's transcript). A failed search is not an unknown.
+#   felix_inv_host_helper_form DIR
+# says by its name alone, reading no record, whether DIR is a helper's worktree:
+# agent-<hex>, or wf_<id>-<n> with <n> all digits (§6.4). The one place the rule
+# is kept: the core asks here when it did not read the records (--no-host).
+felix_inv_host_helper_form() {
+  local b="${1##*/}"
+  case "$b" in
+    agent-?*) case "${b#agent-}" in *[!0123456789abcdefABCDEF]*) return 1 ;; esac ;;
+    wf_*-*) case "${b##*-}" in ''|*[!0123456789]*) return 1 ;; esac ;;
+    *) return 1 ;;
+  esac
+}
+# For a worktree a subagent or workflow made (named as above): the session
+# whose helper's *.meta.json names it, searched in the record directories of
+# SCOPE, into _FI_SP_NOTE ("spawned by session <sid>: <description>") and
+# _FI_SP_MT (the mtime of the helper's transcript). A failed search is not an unknown.
 _fi_host_spawn() {
   local d="$1" idx="$2.meta" p m f desc sid; _FI_SP_NOTE=""; _FI_SP_MT=""
-  case "${d##*/}" in
-    agent-?*) case "${d##*/agent-}" in *[!0-9a-fA-F]*) return 0 ;; esac ;;
-    wf_*-*) case "${d##*-}" in ''|*[!0123456789]*) return 0 ;; esac ;;
-    *) return 0 ;;
-  esac
+  felix_inv_host_helper_form "$d" || return 0
   if [ ! -e "$idx" ]; then : > "$idx"
     while IFS= read -r p; do find "$p" -mindepth 3 -type f -path '*/subagents/*' -name '*.meta.json' 2>/dev/null; done < "$2" \
       | tr '\n' '\000' | xargs -0 -r awk 'FNR == 1 { print FILENAME "\t" $0 }' > "$idx" 2>/dev/null
@@ -292,25 +307,30 @@ _fi_host_spawn() {
 }
 
 #   felix_inv_host_dir DIR NOW LIVE_MIN BLOCKED_MIN SCOPEFILE
-# prints one line: owner mtime live question blocked note. Owner is the newest
-# session's id (- when none ever ran there), mtime when the directory was last
-# active, each state yes, no or unknown; unknown throughout when the records
-# cannot be read or told from another directory's.
+# prints one line: owner mtime live question blocked note helper. Owner is the
+# newest session's id (- when none ever ran there), mtime when the directory was
+# last active, each state yes, no or unknown; unknown throughout when the records
+# cannot be read or told from another directory's. Helper is yes when §6.4's
+# search found the meta file that names DIR, no when DIR's name is of another
+# form or the search found nothing, and unknown for a helper's name when the
+# records were not searched: this unknown answer, or a records root the run
+# cannot enter (no record directory can be found under it).
 felix_inv_host_dir() {
-  local d="$1" now="$2" live=no root dd amb=0 f mt best="" bestf="" bout="" out rt act q b pts pname note ts x sm blk=$(($4 * 60)) t=$'\t' nl=$'\n' ract=0 unrd=0
+  local d="$1" now="$2" live=no root dd amb=0 f mt best="" bestf="" bout="" out rt act q b pts pname note ts x sm blk=$(($4 * 60)) t=$'\t' nl=$'\n' ract=0 unrd=0 hf=no
   local -a dirs=() sd=()
-  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\t-\n'; return 0; }
+  ! felix_inv_host_helper_form "$d" || hf=unknown
+  root="$(_fi_host_root)" || { printf 'unknown\t-\tunknown\tunknown\tunknown\t-\t%s\n' "$hf"; return 0; }
   while IFS= read -r dd; do [ "$dd" != '?' ] && dirs[${#dirs[@]}]="$dd" || amb=1; done < <(_fi_host_dirs "$root" "$d")
-  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\n'; return 0; }
+  [ "$amb" = 0 ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tits session records cannot be told from another directory'"'"'s: its name is over 200 characters\t%s\n' "$hf"; return 0; }
   for dd in ${dirs[@]+"${dirs[@]}"}; do   # a directory the run cannot enter says nothing: not that no session ran there
-    [ -r "$dd" ] && [ -x "$dd" ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the record directory %s\n' "${dd//$t/ }"; return 0; }
+    [ -r "$dd" ] && [ -x "$dd" ] || { printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the record directory %s\t%s\n' "${dd//$t/ }" "$hf"; return 0; }
   done
   # Newest by mtime first: a record time is never later than its mtime, so reading stops at the first file no later than the newest record time read.
   while IFS= read -r f; do
     mt="$(_fi_mtime "$f")"
     if [ -z "$mt" ]; then
       [ -z "$bestf" ] || continue
-      printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\n' "${f//$t/ }"; return 0
+      printf 'unknown\t-\tunknown\tunknown\tunknown\tcould not read the time of %s\t%s\n' "${f//$t/ }" "$hf"; return 0
     fi
     [ "$mt" -gt "$ract" ] || break
     if [ -r "$f" ]; then
@@ -334,11 +354,12 @@ felix_inv_host_dir() {
     [ -z "$x" ] || { sm="$(_fi_mtime "$x")"; [ -z "$sm" ] || [ "$sm" -le "$act" ] || act="$sm"; }
   fi
   _fi_host_spawn "$d" "$5"
+  if [ -n "$_FI_SP_NOTE" ]; then hf=yes; elif [ -r "$root" ] && [ -x "$root" ]; then hf=no; fi   # a root it cannot enter was no search: a helper's name stays unknown
   [ -z "$_FI_SP_MT" ] || [ "$_FI_SP_MT" -le "$act" ] || act="$_FI_SP_MT"
   [ "$act" -gt 0 ] && [ $((now - act)) -le $(($3 * 60)) ] && live=yes
   [ "$live" = yes ] || [ "$unrd" = 0 ] || [ $((now - unrd)) -gt $(($3 * 60)) ] || live=unknown
   [ "$act" -gt 0 ] || act=-
-  if [ -z "$bestf" ]; then printf -- '-\t%s\t%s\tno\tno\t%s\n' "$act" "$live" "${_FI_SP_NOTE:--}"; return 0; fi
+  if [ -z "$bestf" ]; then printf -- '-\t%s\t%s\tno\tno\t%s\t%s\n' "$act" "$live" "${_FI_SP_NOTE:--}" "$hf"; return 0; fi
   x="$bout"; q="${x%%"$t"*}"; x="${x#*"$t"}"; b="${x%%"$t"*}"; x="${x#*"$t"}"; pts="${x%%"$t"*}"; x="${x#*"$t"}"
   pname="${x%%"$t"*}"; x="${x#*"$t"}"; note="${x%%"$t"*}"; x="${x#*"$t"}"; ts="${x%%"$t"*}"; mt="${x#*"$t"}"
   [ "$note" != - ] || note=""
@@ -352,7 +373,7 @@ felix_inv_host_dir() {
   [ "$ts" != file ] || note="${note:+$note; }activity from file time"; [ -z "$_FI_SP_NOTE" ] || note="${note:+$note; }$_FI_SP_NOTE"
   f="${bestf##*/}"; f="${f%.jsonl}"; f="${f//$t/ }"; f="${f//$nl/ }"; note="${note//$t/ }"; note="${note//$nl/ }"
   [ "$ts" != unread ] || f=unknown
-  printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$act" "$live" "$q" "$b" "${note:--}"
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$act" "$live" "$q" "$b" "${note:--}" "$hf"
 }
 
 # "n m" for the record directories on stdin: n is how many session files

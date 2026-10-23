@@ -14,7 +14,9 @@ needs nothing else, apart from the existing suite's fixtures and stubs, which
 may be reused. §9 is for the implementer only.
 
 Part A changes `felix inventory`. Part B adds the page. They land as one engine
-PR because the page would otherwise open with dozens of false rows.
+PR because the page would otherwise open with dozens of false rows. Part C,
+added 2026-10-23, places helper worktrees apart in both; where it changes a
+clause of Part B, that clause says so.
 
 ---
 
@@ -321,6 +323,7 @@ condition holds:
 | # | group | the row |
 |---|---|---|
 | 1 | `hazard` | holds `hazard:shared-branch` or `hazard:staged-revert` |
+| 1a | `helper` | holds `helper` (Part C) |
 | 2 | `blocked` | holds `blocked` |
 | 3 | `question` | holds `question` |
 | 4 | `running` | holds `live` |
@@ -345,8 +348,8 @@ listed, not collapsed.
 **Listed and collapsed.** These groups are listed, each row on its own line, in
 this order: `hazard`, `blocked`, `question`, `never-proposed`, `pr-founder`,
 `pr-session`, `pr-lander`, `pr-unknown`, `undecided`. These are collapsed to a
-count: `running`, `pr-nobody`, `proposed`, `carried`, `handoff`, `landed`,
-`quiet`.
+count: `running`, `helper` (Part C), `pr-nobody`, `proposed`, `carried`,
+`handoff`, `landed`, `quiet`.
 
 ## B4. Unknown is said, never 0
 
@@ -359,6 +362,7 @@ Each group except `cover` has a count and a completeness, `complete` or
 | `blocked` | the inventory's `sessions` cover row is not `read`, or some row carries `unknown:blocked` |
 | `question` | the `sessions` cover row is not `read`, or some row carries `unknown:question` |
 | `running` | the `sessions` cover row is not `read`, or some row carries `unknown:live` |
+| `helper` (Part C) | the `sessions` cover row is not `read`, or some row carries `unknown:helper` |
 | `never-proposed` | the `default`, `prs` or `chips` cover row is not `read`, or some row carries `unknown:` of `uncommitted`, `unpushed`, `unproposed`, `pr-closed-unlanded`, `orphan` or `chip-unstarted` |
 | `pr-founder`, `pr-session`, `pr-lander` | land's `gh` source row is not `read` or `none`, or land printed no `gh` source row, or some `pr` row is in group `pr-unknown` |
 | `pr-unknown`, `pr-nobody` | land's `gh` source row is not `read` or `none`, or land printed no `gh` source row |
@@ -413,10 +417,10 @@ nothing dropped, nothing added, nothing printed twice.
 | content | the number of rows in the group, or `unknown` when it is incomplete with none |
 | detail | `-` when complete, else the reasons (B4) |
 
-**Order.** Repositories in the order given. For each: its 16 summary rows
-in the group order `hazard blocked question never-proposed pr-founder
-pr-session pr-lander pr-unknown undecided running pr-nobody proposed carried
-handoff landed quiet`; then the `cover` rows, the inventory's then land's, each
+**Order.** Repositories in the order given. For each: its 17 summary rows
+(16 before Part C) in the group order `hazard blocked question never-proposed
+pr-founder pr-session pr-lander pr-unknown undecided running helper pr-nobody
+proposed carried handoff landed quiet`; then the `cover` rows, the inventory's then land's, each
 in its source's order; then the other rows by group in the same group order,
 the inventory's rows in its order and land's `pr` rows by ascending number.
 
@@ -442,8 +446,10 @@ felix monitor: read-only. It wrote nothing, fetched nothing and acted on nothing
     pull requests ready for the lander: ...
     pull requests not decided: ...
     rows not decided: ...
-  collapsed: running <count>, pull requests waiting on nobody <count>, proposed <count>, carried <count>, handoff sections <count>, landed <count>, quiet <count>
+  collapsed: running <count>, helper worktrees <count>, pull requests waiting on nobody <count>, proposed <count>, carried <count>, handoff sections <count>, landed <count>, quiet <count>
 ```
+
+(`helper worktrees <count>` was added by Part C.)
 
 - The first line is printed once. Then one block per repository, headed by its
   path, then one `read` line per cover row, the inventory's then land's.
@@ -578,7 +584,8 @@ case names what it pins.
     `felix inventory --tsv` plus `felix land --prs --tsv`. Every page row has
     nine columns.
 28. **Counts.** Each summary row's content equals the number of rows in its
-    group, and there are 16 summary rows per repository, in B5's order.
+    group, and there are 17 summary rows per repository, in B5's order (16
+    before Part C).
 29. **`--no-host`.** The `blocked`, `question` and `running` summaries are
     `incomplete`; with no rows, their content is `unknown`; the text says
     `blocked sessions: unknown` and never `blocked sessions: 0`, and its
@@ -836,3 +843,237 @@ and `_felix_qualify_read`'s `$2` to its three callers' actions. Run on
 for `RT`. Over `lib/*.sh` with `felix`, `hooks/*` and `bin/*` added (21 more
 files) it reads 366 and prints no other row; the part reads `lib/*.sh` only, as
 this section asks.
+
+---
+
+# Part C: helper worktrees (added 2026-10-23)
+
+*Written 2026-10-23 in session "Inventory next steps" on felix-home
+`origin/main` `ed32bcaa` (0.49.306). It closes the step 6 note's open item
+"Noise the page shows" (`docs/handoff/pending/20261018T125033Z-claude-lost-work-page.md`).
+Section numbers here (§4.1, §6.4, §8) are the inventory spec's, as in Part A.*
+
+## C0. The defect
+
+A subagent or a workflow agent started with an isolated worktree leaves a
+worktree named `agent-<hex>` or `wf_<id>-<n>` (§6.4). Its blind-assertion
+branch is usually never pushed, and a workflow agent that died with its session
+leaves its last tool call open for good. The inventory reads each such worktree
+as any other, so the page listed them as lost work and as blocked sessions:
+
+- see C6 for the count on felix-home today;
+- §10 of the inventory spec already says why that is wrong for questions and
+  pending calls: "a subagent's question or pending call is not the session's".
+  The same holds for its unpushed commits. A helper works for the session that
+  spawned it, returns its result to that session, and asks the founder nothing.
+  What needs a person is said by the spawning session's own row.
+
+So a helper worktree is placed apart: a state on the inventory's row, its own
+section in the inventory's human view, and a collapsed group on the page. No
+row is dropped, and `--tsv` still prints every row.
+
+## C1. The state `helper`
+
+`helper` is a state of `worktree` and `orphan` rows. It is a placement mark,
+not a headline: it says whose work a row is, not what is wrong with it.
+
+| entry | when |
+|---|---|
+| `helper` | the row's directory name has a helper's form (§6.4: `agent-<hex>`, or `wf_<id>-<n>` with `<n>` all digits) and §6.4's search found the `*.meta.json` that names it, that is, exactly when the detail gains `spawned by session <sid>: <description>` |
+| `unknown:helper` | the directory name has a helper's form and the host records were not searched for it: under `--no-host`, or when the host adapter answers `unknown` for the directory (its records root or record directory cannot be read, or its name is too long to tell its records apart, §6.1) |
+| neither | every other row: a name of another form, or a search that ran and found nothing (§6.4 item 4: a failed search is not an unknown) |
+
+**Order** (§4.1, amended). After the held states, in this order:
+
+1. `landed`, under §4.1's rule, in which `helper` is not a held state: a row
+   holding only `helper` (and perhaps `live`) is still `landed` when its other
+   conditions hold;
+2. `helper`;
+3. `possible-duplicate` (§4.7);
+4. the `unknown:` entries in §4.1's order, then `unknown:helper` last.
+
+So a helper with unpushed commits reads `unpushed,helper`, a landed one
+`landed,helper`, a dead workflow agent with an unpushed commit
+`blocked,unpushed,helper`, and a helper under `--no-host` ends
+`...,unknown:helper`. `helper` is never first unless the row holds no other
+state: a helper whose content is `not`, holding nothing else, reads `helper`,
+and the human view reads that row as it reads `-` (C3).
+
+`unknown:helper` follows §5.2: a row carrying it is never `landed`. It only
+arises with `unknown:question` and `unknown:blocked` beside it, which already
+keep the row from `landed`.
+
+**Kinds** (§4.2): `worktree` and `orphan` gain `helper`. No other kind carries
+it.
+
+**Detail** is unchanged: `spawned by session <sid>: <description>` stays.
+
+**Class** (§5.2): `helper` is OBSERVED (a file names the path), and
+`unknown:helper` is UNKNOWN.
+
+## C2. The host adapter
+
+The rule for a helper's name and the search stay in the host adapter
+(`lib/inventory-host.sh`, the one file a second host replaces). The core
+learns the answer from the adapter, never from the detail text:
+
+- `felix_inv_host_dir`'s line gains a seventh field after the note:
+  `yes` when §6.4 matched, `no` when the name has another form or the search
+  found nothing, and `unknown` when the line is one of its `unknown` answers
+  for a directory whose name has a helper's form (`no` for any other name).
+- A new adapter function says whether a directory's name has a helper's form,
+  reading no record. Under `--no-host` the core does not run the adapter's
+  scan; it asks this function, and a helper's form gives `unknown:helper`.
+- A seventh field that is missing or holds anything but `yes`, `no` or
+  `unknown` reads as `unknown` for a name of a helper's form, and as `no`
+  otherwise.
+
+## C3. The inventory's human view (§8, amended)
+
+- **Grouping.** The view sets `helper` aside before it takes a row's headline
+  (§8 item 3): the headline is the first of the row's other states, and a row
+  whose only state is `helper` is grouped as a row whose states are `-`.
+- **The section.** After `in temporary directories` (§8 item 5), a section
+  `in helper worktrees  <n>` holds every `helper` row that would otherwise be
+  listed (in a headline group, under `question` or `blocked` as a live row, or
+  in `undecided, content not landed`), in the same headline order, each showing
+  its headline with its other states, as the temporary section does. The
+  section is printed only when it holds a row.
+- **Not listed twice.** A row listed in the helper section is listed in no
+  other group. A `temp` row that is also a `helper` row stays in the temporary
+  section.
+- **Counts.** A `helper` row that is `live`, `landed`, an orphan holding
+  nothing unique, or undecided only for an unknown stays in the last line's
+  counts, as a `temp` row does.
+- `helper` is not printed among the states shown beside a row in the helper
+  section: the heading says it.
+- §8's "What it reads" gains `helper` in the states; the view still parses
+  the detail only to find `temp`.
+
+## C4. The page
+
+B3 gains group `helper` after `hazard`, B3's listed and collapsed lists, B4,
+B5 and B6 are amended where marked, and this is why:
+
+- **Placement.** A row holding `helper` is in group `helper` unless it holds a
+  hazard. A hazard can lose work today whoever made the worktree. A helper's
+  `blocked`, `question`, `uncommitted`, `unpushed` and `live` belong to its
+  spawning session (C0), whose own row is placed by B3 as before.
+- **Collapsed.** `helper` is collapsed to a count, on the `collapsed:` line
+  right after `running`: `helper worktrees <count>`. Its rows are in `--tsv`
+  with group `helper`, like any collapsed group's.
+- **Unknown, never 0.** `helper` is `incomplete` when the `sessions` cover row
+  is not `read` (reason as B4: `sessions <first word>: <detail>`) or when some
+  row carries `unknown:helper` (`<k> rows not decided`). A row carrying
+  `unknown:helper` stays in the group B3 gives it otherwise: it is not known to
+  be a helper, so it is shown.
+- **Summary rows.** 17 per repository, `helper` between `running` and
+  `pr-nobody` in B5's order.
+- `felix monitor`'s usage line for `--tsv` says 17 summary rows.
+
+## C5. What the assertions must cover
+
+Host records are fixture files, as in B9. A helper fixture is a worktree of
+the fixture repository named `agent-<hex>` (and one named `wf_<id>-<n>`),
+with a spawning session's `<sid>/subagents/agent-<x>.meta.json` holding
+`"worktreePath":"<its path>"` and a `"description"`, in the record directory
+of another worktree of the same repository, as §6.4 and B9 already build it
+(part 0920 holds one, `agent-a1b2c3` with `spawned by session s-boss`).
+
+**Inventory.**
+
+1. A helper worktree with one unpushed commit: states exactly
+   `unpushed,helper`; detail still holds `spawned by session <sid>:`.
+2. A helper worktree whose content is landed and that holds nothing else:
+   states `landed,helper`. The same directory with no matching meta file:
+   `landed`, and no `helper`.
+3. A `wf_<id>-<n>` worktree with a matching meta file: `helper`. Names of
+   another form with a meta file naming them (`agent-xyz`, with a non-hex
+   letter; `wf_abc`, with no `-<n>`; `wf_abc-1x`; `my-agent-a1b2`): no
+   `helper` and no `unknown:helper`.
+4. A helper worktree whose last record is an unanswered tool call older than
+   `--blocked`: `blocked` comes before `helper`, and `helper` before any
+   `unknown:` entry.
+5. `--no-host`: the helper-form worktree carries `unknown:helper`, last of its
+   states; a worktree of another name carries no `unknown:helper`.
+6. A records root the run cannot read (the host answers `unknown`): the
+   helper-form worktree carries `unknown:helper` and no `helper`.
+7. An orphan directory named `agent-<hex>` beside the worktrees, with a
+   matching meta file: `orphan,helper` (or `landed,helper` when its content is
+   landed).
+8. `possible-duplicate` on a helper row comes after `helper`.
+
+**Human view.**
+
+9. A helper worktree holding `unpushed`, and another holding `blocked`, are
+   listed under `in helper worktrees  2`, after `in temporary directories`
+   when that section is printed, and under neither `unpushed` nor `blocked`.
+10. A landed helper is counted in `landed` and listed nowhere; a live helper
+    is counted in `live`.
+11. A helper whose states are exactly `helper` with content `not` is listed in
+    the helper section, as `undecided, content not landed` would list it.
+12. A worktree that is both `temp` and `helper` is in the temporary section
+    only.
+13. With no helper row, no `in helper worktrees` line is printed.
+
+**Page.**
+
+14. In a fixture repository holding a helper worktree with an unpushed commit,
+    a helper worktree whose last call is unanswered past `--blocked`, a plain
+    worktree with an unpushed commit and a plain blocked worktree (a fixture
+    of its own: adding rows to B9.26's shared one would move the counts its
+    assertions pin): both helper rows are in group `helper` in `--tsv`; the
+    `never-proposed` and `blocked` summaries do not count them; the `helper`
+    summary is `complete`, content `2`.
+15. A helper worktree that also holds `hazard:shared-branch` is in `hazard`.
+16. The text page: neither helper's ref appears on any line; the `collapsed:`
+    line says `helper worktrees 2`, right after `running <count>`.
+17. `--no-host`: the `helper` summary is `incomplete`; with no row in it, its
+    content is `unknown` and the text says `helper worktrees unknown`; its
+    reason names `sessions unknown: --no-host` and, for a helper-form
+    worktree, `1 rows not decided`; that worktree is in the group B3 gives it
+    without `helper`.
+18. 17 summary rows per repository, in B5's order, `helper` right after
+    `running`; B9.27 (nothing dropped or added) holds with helpers present.
+
+**Existing assertions restated.** These pin the count of summary rows or the
+`collapsed:` line, and change only for Part C's added group: in part 1470,
+B8's and B9.28's "16 summary rows" and the B9.33 line that rebuilds the
+`collapsed:` line from the summaries; in part 1480, B9.29, B9.30, B9.31, B9.37
+and B9.38's counts; in part 1495, the two-repository count. Each keeps its
+case and its fixture; a name that says 16 says 17, and an expected `16` or
+`32` becomes `17` or `34`. No assertion is deleted.
+
+## C6. Measured on felix-home, 2026-10-23
+
+`felix monitor --tsv --repo ~/Documents/Felix` at origin/main `ed32bcaa`, with
+gh, exit 0. 14 rows carry `spawned by session` in their detail, every one a
+worktree or orphan named `agent-<hex>` or `wf_<id>-<n>`:
+
+| group today | rows | of which helpers | after Part C |
+|---|---|---|---|
+| `blocked` | 4 | 3, each a workflow agent waiting on `StructuredOutput` for 5 to 11 days | 1 |
+| `never-proposed` | 75 | 10: 9 unpushed blind-assertion or workflow branches, 1 uncommitted | 65 |
+| `quiet` | 5 | 1 orphan | 4 |
+| `helper` | - | - | 14 |
+
+So three of the four "blocked sessions" the page showed the founder were dead
+helpers nobody can answer, and one row in seven of "work that never reached a
+PR" was a helper's. Each helper's detail names its spawning session; none of
+those sessions' own rows changes group.
+
+## C7. For the implementer
+
+- **Where.** The adapter's seventh field and its name test in
+  `lib/inventory-host.sh` (421 lines: keep it under 500); the state in
+  `_fi_states` (`lib/inventory.sh`), fed from `_fi_host` and from the
+  worktree and orphan rows (`lib/inventory-items.sh`,
+  `lib/inventory-orphans.sh`); the view in `lib/inventory-view.sh`; the page
+  in `lib/lost-work.sh`, which must still name nothing of the inventory's
+  files (B11). `possible-duplicate` is inserted before the first `unknown:`
+  entry by the pass in `lib/inventory.sh`, which already puts it after
+  `helper` under C1's order.
+- **Bash 3.2 and the C locale**, as B11 says; no gawk builtin name (B12).
+- **Tests** in new parts 1550 (inventory and view) and 1560 (page), written
+  blind from this file, each running alone (contract C of gate friction).
+- **Lands as one engine PR**, risk-red. Version 0.49.307 as a placeholder.

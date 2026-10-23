@@ -58,9 +58,10 @@ _fi_worktree() {
   if [ "$br" != - ]; then _fi_add "branch $br @ ${sha:0:8}"; else _fi_add "detached @ ${sha:0:8}"; fi
   x="${fl//detached,/}"; x="${x//linebreak,/}"; x="${x%,}"; [ "$x" = - ] || [ -z "$x" ] || _fi_add "git marks it ${x//,/ and }"
   [ "$sh" = - ] || { shd=yes; _fi_add "$br is also checked out in $sh"; }
-  _FI_H=(unknown - unknown unknown unknown -); _fi_helper "$ref"   # a path never read is no search: a helper's name stays unknown
+  _FI_H=(unknown - unknown unknown unknown -)
   case "$fl" in
-    *linebreak*) unc=unknown; ucv=unknown; _fi_add "its path holds a line break or a tab, so it is not read" ;;
+    *linebreak*) unc=unknown; ucv=unknown; _fi_add "its path holds a line break or a tab, so it is not read"
+                 _fi_helper "$ref" ;;   # a path never read is no search: a helper's name stays unknown
     *) if [ ! -d "$ref" ]; then _fi_add "the directory is gone"
        else _fi_own "$ref"; x=$?
          if [ "$x" = 2 ]; then unc=unknown; ucv=unknown; _fi_add "it is now a checkout of another repository, so it is not read"

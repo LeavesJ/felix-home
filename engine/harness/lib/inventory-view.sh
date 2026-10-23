@@ -52,6 +52,7 @@ _fi_view() {
         if (st[j] ~ /^unknown:/) u = u (u == "" ? "" : ",") substr(st[j], 9)
         else if (st[j] != "landed" && st[j] != "-") a = a (a == "" ? "" : ",") st[j]
       }
+      if (tp && hp) a = a (a == "" ? "" : ",") "helper"   # the temporary heading does not say it
       if (u != "") a = a (a == "" ? "" : "; ") "unknown: " u
       if (tp) { TN[r]++; h = "~" h } else if (hp) { HN[r]++; h = "^" h }
       G[r, h] = G[r, h] sprintf("    %-8s %s%s\n             %s (%sh%s)\n", $1, ref, (a == "" ? "" : "  [" a "]"), $8, $6, \

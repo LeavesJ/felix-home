@@ -37,9 +37,10 @@
 #
 # Helpers. A worktree named as a subagent's or a workflow's is a helper's
 # (felix_inv_host_helper_form, by name alone). The last field of
-# felix_inv_host_dir's line says whether the records name it: the core never
-# reads the name or the detail text to learn that, so a second host decides it
-# its own way.
+# felix_inv_host_dir's line says whether the records name it. The core learns
+# it from that field, and with no field asks felix_inv_host_helper_form; it
+# never reads the detail text, and the name rule stays here, so a second host
+# decides it its own way.
 #
 # No JSON parser (lib/audit.sh says why) and no here-document (bash 3.2 backs
 # one with a file outside the scratch).
@@ -278,7 +279,8 @@ _fi_host_scan() {
 #   felix_inv_host_helper_form DIR
 # says by its name alone, reading no record, whether DIR is a helper's worktree:
 # agent-<hex>, or wf_<id>-<n> with <n> all digits (§6.4). The one place the rule
-# is kept: the core asks here when it did not read the records (--no-host).
+# is kept: the adapter asks it for its own answers, and the core asks it when
+# the adapter gave no seventh field (--no-host, a path never read, a short line).
 felix_inv_host_helper_form() {
   local b="${1##*/}"
   case "$b" in
@@ -372,7 +374,7 @@ felix_inv_host_dir() {
   fi
   [ "$ts" != file ] || note="${note:+$note; }activity from file time"; [ -z "$_FI_SP_NOTE" ] || note="${note:+$note; }$_FI_SP_NOTE"
   f="${bestf##*/}"; f="${f%.jsonl}"; f="${f//$t/ }"; f="${f//$nl/ }"; note="${note//$t/ }"; note="${note//$nl/ }"
-  [ "$ts" != unread ] || f=unknown
+  [ "$ts" != unread ] && [ -n "$f" ] || f=unknown   # a file named .jsonl alone has no id: never an empty owner
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$f" "$act" "$live" "$q" "$b" "${note:--}" "$hf"
 }
 

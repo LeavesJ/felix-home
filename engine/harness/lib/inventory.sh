@@ -363,12 +363,19 @@ _fi_land() {
 }
 
 # The host's answer for a directory, as _FI_H: owner mtime live question
-# blocked note helper; the note, if any, joins the detail.
+# blocked note helper; the note, if any, joins the detail. The line is read by
+# position, an empty field kept in its place: a tab is IFS whitespace, so a
+# tab-IFS split drops one and moves every later field left (contract C8.1).
 _fi_host() {
-  local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-"
+  local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-" i=0
   [ "$_FI_HOSTOK" = 1 ] && x="$(felix_inv_host_dir "$1" "$_FI_NOW" "$_FI_LIVE" "$_FI_BLOCKED" "$T/hscope")"
-  local IFS="$_FI_TAB"; set -f; _FI_H=($x); set +f
+  _FI_H=()
+  while :; do
+    _FI_H[i]="${x%%"$_FI_TAB"*}"
+    case "$x" in *"$_FI_TAB"*) x="${x#*"$_FI_TAB"}"; i=$((i + 1)) ;; *) break ;; esac
+  done
   [ "${#_FI_H[@]}" -ge 6 ] || _FI_H=(unknown - unknown unknown unknown "the host adapter answered nothing")
+  [ -n "${_FI_H[0]}" ] || _FI_H[0]=unknown   # an empty owner is not "no session ran here"
   [ "${_FI_H[5]}" = - ] || _fi_add "${_FI_H[5]}"
   _fi_helper "$1"
 }

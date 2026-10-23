@@ -927,6 +927,12 @@ learns the answer from the adapter, never from the detail text:
 - A seventh field that is missing or holds anything but `yes`, `no` or
   `unknown` reads as `unknown` for a name of a helper's form, and as `no`
   otherwise.
+- **A records root the run cannot enter** is no search, so a helper's name
+  reads `unknown` there. Today the adapter's other fields do not say so: with
+  the root at mode 000 the `sessions` cover row still reads `read` and the
+  owner `-`. That gap in §5.2 predates Part C and is left open by it; only the
+  helper field answers `unknown` in that case (found by the blind author,
+  C5.6).
 
 ## C3. The inventory's human view (§8, amended)
 
@@ -999,8 +1005,10 @@ of another worktree of the same repository, as §6.4 and B9 already build it
 6. A records root the run cannot read (the host answers `unknown`): the
    helper-form worktree carries `unknown:helper` and no `helper`.
 7. An orphan directory named `agent-<hex>` beside the worktrees, with a
-   matching meta file: `orphan,helper` (or `landed,helper` when its content is
-   landed).
+   matching meta file: `orphan,helper`, whatever its content: `orphan` is a
+   held state (§4.1), so an orphan is never `landed`, and B3 row 5 reads its
+   content. *(Corrected after the build: the first text said `landed,helper`
+   for a landed orphan, which would have changed what an orphan is.)*
 8. `possible-duplicate` on a helper row comes after `helper`.
 
 **Human view.**
@@ -1040,9 +1048,12 @@ of another worktree of the same repository, as §6.4 and B9 already build it
 `collapsed:` line, and change only for Part C's added group: in part 1470,
 B8's and B9.28's "16 summary rows" and the B9.33 line that rebuilds the
 `collapsed:` line from the summaries; in part 1480, B9.29, B9.30, B9.31, B9.37
-and B9.38's counts; in part 1495, the two-repository count. Each keeps its
-case and its fixture; a name that says 16 says 17, and an expected `16` or
-`32` becomes `17` or `34`. No assertion is deleted.
+and B9.38's counts; in part 1495, the two-repository count; in part 1490,
+findings 1 and 5, which also count summaries (found at the build). Part 1470's
+own copies of the group order (`LW_GROUPS`) and of B4's table (`_lw_b4`, the
+oracle its completeness checks read) gain `helper` as B5 and B4 now say. Each
+keeps its case and its fixture; a name that says 16 says 17, and an expected
+`16` or `32` becomes `17` or `34`. No assertion is deleted.
 
 ## C6. Measured on felix-home, 2026-10-23
 

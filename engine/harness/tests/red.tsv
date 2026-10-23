@@ -8,162 +8,57 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	d1905d3e1f31d3334d4bfe27853b1a3ebb20ad77	0.49.305
-run	157	13627	44
-pattern kill refused: ! pkill -f x	1
-pattern kill refused: (pkill -f x)	1
-pattern kill refused: ./tools/pkill -f x	1
-pattern kill refused: /opt/homebrew/bin/pkill -f x	1
-pattern kill refused: /usr/bin/killall node	1
-pattern kill refused: /usr/bin/pkill -f x	1
-pattern kill refused: /usr/local/bin/killall -9 Dock	1
-pattern kill refused: 2>&1 killall node	1
-pattern kill refused: 2>/dev/null pkill -f x	1
-pattern kill refused: >/dev/null 2>&1 pkill -f x	1
-pattern kill refused: PID=$(pgrep -f x) && kill -9 $PID	1
-pattern kill refused: PID=$(pgrep -f x); kill -9 $PID	1
-pattern kill refused: arch -arm64 pkill -f x	1
-pattern kill refused: bash -c 'kill $(pgrep -f x)'	1
-pattern kill refused: builtin pkill -f x	1
-pattern kill refused: caffeinate -i pkill -f x	1
-pattern kill refused: case "$1" in start) ./run;; stop) killall server;; esac	1
-pattern kill refused: case "$1" in stop) pkill -f server;; esac	1
-pattern kill refused: case $x in a|b) pkill -f x ;; *) : ;; esac	1
-pattern kill refused: command pkill -f x	1
-pattern kill refused: echo "$(pkill -f x)"	1
-pattern kill refused: echo $(pkill -f x)	1
-pattern kill refused: echo `pkill -f x`	1
-pattern kill refused: echo hi<NL>pkill -f x	1
-pattern kill refused: echo node | xargs pkill	1
-pattern kill refused: echo x | pkill -f y	1
-pattern kill refused: env -C /tmp pkill -f x	1
-pattern kill refused: env -i pkill -f x	1
-pattern kill refused: env A=1 B=2 killall node	1
-pattern kill refused: env A=1 pkill -f x	1
-pattern kill refused: exec pkill -f x	1
-pattern kill refused: false || pkill -f x	1
-pattern kill refused: find . -name y -exec killall -9 node \;	1
-pattern kill refused: find /tmp -name x -exec pkill -f {} \;	1
-pattern kill refused: for i in 1 2; do pkill -f x; done	1
-pattern kill refused: for p in $(pgrep -f 'a b'); do kill -9 "$p"; done	1
-pattern kill refused: for p in $(pgrep -f x); do kill $p; done	1
-pattern kill refused: for p in `pgrep -f x`; do kill $p; done	1
-pattern kill refused: for p in `pgrep x`; do echo $p; kill -TERM $p; done	1
-pattern kill refused: if false; then :; else pkill -f x; fi	1
-pattern kill refused: if true; then pkill -f x; fi	1
-pattern kill refused: ionice -c3 pkill -f x	1
-pattern kill refused: kill $( pgrep -f x )	1
-pattern kill refused: kill $(<NL>pgrep -f x<NL>)	1
-pattern kill refused: kill $(env A=1 pgrep -f x)	1
-pattern kill refused: kill $(pgrep -P 1 -f x)	1
-pattern kill refused: kill $(pgrep -P 1234) $(pgrep -f x)	1
-pattern kill refused: kill $(pgrep -f 'a -P 1234')	1
-pattern kill refused: kill $(pgrep -f 'x || y')	1
-pattern kill refused: kill $(pgrep -f x)	1
-pattern kill refused: kill $(sudo pgrep -f x)	1
-pattern kill refused: kill -- -$(pgrep -f 'a b')	1
-pattern kill refused: kill -0 $(pgrep -f x); kill -9 $(pgrep -f x)	1
-pattern kill refused: kill -9 "$(pgrep -f x)"	1
-pattern kill refused: kill -9 $( sudo pgrep -f x )	1
-pattern kill refused: kill -9 $(pgrep -f "tests/(run|red)")	1
-pattern kill refused: kill -9 $(pgrep -f 'a b')	1
-pattern kill refused: kill -9 $(pgrep -f x -P 1)	1
-pattern kill refused: kill -9 -$(pgrep -f x)	1
-pattern kill refused: kill -TERM $(pgrep -d' ' x)	1
-pattern kill refused: kill ` pgrep -f x `	1
-pattern kill refused: kill `pgrep x`	1
-pattern kill refused: killall 'a|b'	1
-pattern kill refused: killall -9 Safari	1
-pattern kill refused: killall -P 1234 node	1
-pattern kill refused: killall -q -s TERM sleep	1
-pattern kill refused: killall node	1
-pattern kill refused: ls; pkill -f x	1
-pattern kill refused: ls;pkill -f x	1
-pattern kill refused: nice -n 5 pkill -f x	1
-pattern kill refused: nice pkill -f x	1
-pattern kill refused: nohup pkill -f x	1
-pattern kill refused: nohup setsid pkill -f x	1
-pattern kill refused: pgrep -P 1 -f x | xargs kill	1
-pattern kill refused: pgrep -P1 -f x | xargs -r kill -9	1
-pattern kill refused: pgrep -f "a||b" | xargs -r kill -9	1
-pattern kill refused: pgrep -f 'a b' | xargs -r -n1 kill -TERM	1
-pattern kill refused: pgrep -f 'a|b' | xargs kill	1
-pattern kill refused: pgrep -f 'one;two' | xargs kill	1
-pattern kill refused: pgrep -f x | head -5 | xargs kill	1
-pattern kill refused: pgrep -f x | while read -r p; do echo "$p"; ps -p $p; kill -9 $p; done	1
-pattern kill refused: pgrep -f x | while read -r p; do kill $p; done	1
-pattern kill refused: pgrep -f x | while read p; do echo "$p"; kill $p; done	1
-pattern kill refused: pgrep -f x | while read p; do kill $p; done	1
-pattern kill refused: pgrep -f x | xargs -I{} kill -9 {}	1
-pattern kill refused: pgrep -f x | xargs -n 1 kill	1
-pattern kill refused: pgrep -f x | xargs kill	1
-pattern kill refused: pgrep x | xargs -r kill -9	1
-pattern kill refused: pids=$(pgrep -f x)<NL>kill $pids	1
-pattern kill refused: pkill -9 -P 1	1
-pattern kill refused: pkill -9 -f "uvicorn|gunicorn"	1
-pattern kill refused: pkill -9 -x python	1
-pattern kill refused: pkill -9 x	1
-pattern kill refused: pkill -P "$(pgrep -f x)"	1
-pattern kill refused: pkill -P "$pid,1" -f x	1
-pattern kill refused: pkill -P "1,$pid" -f x	1
-pattern kill refused: pkill -P $(pgrep -f tests/run)	1
-pattern kill refused: pkill -P 1 -f x	1
-pattern kill refused: pkill -P 1,1234 -f x	1
-pattern kill refused: pkill -P 1,2	1
-pattern kill refused: pkill -P 1234,1 -f x	1
-pattern kill refused: pkill -P `pgrep -f x`	1
-pattern kill refused: pkill -P1 -f x	1
-pattern kill refused: pkill -P1,2 -f x	1
-pattern kill refused: pkill -TERM -P $(pgrep -f x)	1
-pattern kill refused: pkill -TERM -P 1 node	1
-pattern kill refused: pkill -TERM -f "next dev"	1
-pattern kill refused: pkill -f "x;y"	1
-pattern kill refused: pkill -f 'a & b'	1
-pattern kill refused: pkill -f 'a && b'	1
-pattern kill refused: pkill -f 'a b|c d'	1
-pattern kill refused: pkill -f 'engine/harness/tests/run'	1
-pattern kill refused: pkill -f 'foo(bar|baz)'	1
-pattern kill refused: pkill -f 'sleep 3'	1
-pattern kill refused: pkill -f 'vite|esbuild'	1
-pattern kill refused: pkill -f 'worker -P 1234'	1
-pattern kill refused: pkill -f 'x|-P 1234'	1
-pattern kill refused: pkill -f run.pid	1
-pattern kill refused: pkill -f x -P 1	1
-pattern kill refused: pkill -f x -u me	1
-pattern kill refused: pkill -u 501 node	1
-pattern kill refused: pkill -x 'node|npm'	1
-pattern kill refused: pkill node	1
-pattern kill refused: printf 'a\nb\n' | xargs -n 1 killall	1
-pattern kill refused: setsid pkill -f x	1
-pattern kill refused: sh -c 'pgrep -f x | xargs kill'	1
-pattern kill refused: sleep 1 & pkill -f x	1
-pattern kill refused: stdbuf -oL pkill -f x	1
-pattern kill refused: sudo -iu me pkill -f x	1
-pattern kill refused: sudo bash -c 'pkill -f x'	1
-pattern kill refused: sudo caffeinate -i killall node	1
-pattern kill refused: sudo kill -9 $(pgrep -f x)	1
-pattern kill refused: sudo killall node	1
-pattern kill refused: sudo nohup pkill -f x	1
-pattern kill refused: sudo pkill -f x	1
-pattern kill refused: time pkill -f x	1
-pattern kill refused: timeout 10 bash -c 'kill $(pgrep -f x)'	1
-pattern kill refused: timeout 5 pkill -f x	1
-pattern kill refused: true && kill $(pgrep -f x)	1
-pattern kill refused: true && pkill -f x	1
-pattern kill refused: until ! kill -0 $(pgrep -f x); do kill -9 $(pgrep -f x); done	1
-pattern kill refused: watch pkill -f x	1
-pattern kill refused: while read -r p; do echo $p; kill -9 $p; done < <(pgrep -f x)	1
-pattern kill refused: while read p; do kill $p; done < <(pgrep -f x)	1
-pattern kill refused: xargs -r kill -9 < <(pgrep -f x)	1
-pattern kill refused: xargs kill < <(pgrep -f x)	1
-pattern kill refused: { pkill -f x; }	1
-pattern kill row: exactly one row in projects/felix/deny.tsv has a reason beginning a pattern kill	1
-pattern kill row: it has three columns, so no checkout scope	1
-pattern kill row: it holds two tabs, so the reason holds none	1
-pattern kill row: it is a Bash row	1
-pattern kill row: the reason is printable ASCII	1
-pattern kill row: the reason is under 200 bytes	1
-pattern kill row: the reason names the harm, other sessions	1
-pattern kill row: the reason names the way, a pid	1
-pattern kill row: the reason says the pid comes from $! or a pidfile	1
-stays fast with many untracked files	1
+base	origin/main	ed32bcaac5827e5647bdc73823a397dcf1193ad7	0.49.306
+run	52	13806	44
+B1: with no --repo the page reads the repository holding the current directory	1
+B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 17 summaries	1
+B9.28: and holds no other summary row	1
+B9.28: each summary's content is the number of rows in its group, and its state is the completeness B4 gives	1
+B9.28: the page opens with 17 summary rows, in B5's group order, each with ref the group and owner and age -	1
+B9.29: under --no-host the page exits 0 and the TSV holds its 17 summaries	1
+B9.30: --no-gh exits 0, with the TSV's 17 summaries	1
+B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 17 summaries	1
+B9.33: the collapsed line comes last, after every heading, with the collapsed groups' counts	1
+B9.37: the TSV holds 17 summaries for each, the first repository's first	1
+B9.37: two --repo options exit 0, and the TSV holds 17 summaries for each	1
+B9.38: a repository no project governs: the page exits 0 and prints its 17 summaries	1
+B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 34 summaries	1
+B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 17 summaries	1
+C5.10: the landed helper (landed,helper) and the live helper (live,landed,helper) are listed nowhere in the view	1
+C5.11: a helper holding no other state, content not, reads exactly helper	1
+C5.11: it is listed in the helper section, where undecided, content not landed would list it	1
+C5.12: a worktree that is both temp and helper (unpushed,helper) is listed in the temporary section only	1
+C5.14: the helper summary is complete, content 2	1
+C5.14: the helper with an unpushed commit and the helper whose last call is unanswered are both in group helper in --tsv	1
+C5.14: the never-proposed and blocked summaries do not count them: each is complete, content 1	1
+C5.15: a helper worktree that also holds hazard:shared-branch holds both, and is in group hazard	1
+C5.16: neither helper's ref appears on any line of the text page	1
+C5.16: the collapsed line says helper worktrees 2, right after running <count>	1
+C5.17: its reason names sessions unknown: --no-host and, for the one helper-form worktree, 1 rows not decided	1
+C5.17: the helper-form worktree carries unknown:helper and is in never-proposed, the group B3 gives it without helper	1
+C5.17: the text page says helper worktrees unknown on its collapsed line	1
+C5.17: under --no-host the helper summary is incomplete and, with no row in it, its content is unknown	1
+C5.18 (C4): felix monitor's usage says 17 summary rows per repository on its --tsv line	1
+C5.18: and holds no other summary row	1
+C5.18: the page opens with 17 summary rows in B5's order, helper right after running, each with ref the group	1
+C5.1: a helper worktree with one unpushed commit reads exactly unpushed,helper	1
+C5.2: a helper worktree whose content is landed and that holds nothing else reads landed,helper	1
+C5.3: a wf_<id>-<n> worktree with a matching meta file holds helper	1
+C5.4: a dead workflow agent's worktree, pushed under its own name with no PR, reads blocked,unproposed,helper	1
+C5.4: a helper whose last call is unanswered past --blocked, with an unpushed commit, reads exactly blocked,unpushed,helper	1
+C5.4: under --no-gh its states are blocked, then helper, then only unknown: entries	1
+C5.5: under --no-host each helper-form worktree and orphan carries unknown:helper, last of its states, and no helper	1
+C5.6: with a records root the run cannot read, each helper-form row carries unknown:helper and no helper	1
+C5.7: an orphan directory named agent-<hex> beside the worktrees, with a matching meta file, reads orphan,helper	1
+C5.7: an orphan of that form whose content is landed holds helper, last of its states	1
+C5.8: possible-duplicate on a helper row comes after helper: unpushed,helper,possible-duplicate	1
+C5.9 (C3): in the helper section each row shows its headline, unpushed and blocked, and helper is not printed beside it	1
+C5.9: the helper section comes after the in temporary directories section	1
+C5.9: the unpushed helper and the blocked helper are listed once each, in the helper section, under neither unpushed nor blocked	1
+C5.9: the view has one helper section, headed in helper worktrees with the count 2	1
+C8.1 fixture: the run reads dot-j8's .jsonl: with it the row holds blocked or question, without it neither (control)	1
+C8.1: dot-j8, whose call has waited past --blocked, holds blocked	1
+C8.2 fixture: agent-8e8e8e01 reads unpushed,helper and names its spawning session; plain-t8 reads unpushed (control)	1
+C8.2: in the temporary section the temp and helper row shows helper among its states	1
+finding 1: the five runs over xb exit 0 and the TSV runs hold 17 summaries (control)	1
+finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 17 summaries	1

@@ -37,7 +37,7 @@ _lw_run IV "$LW_HP" "$LW/cwd" inventory --tsv --repo "$PG"
 _lw_run LD "$LW_HP" "$LW/cwd" land --prs --tsv --repo "$PG"
 _lw_run PC "$LW_HP" "$PGR" monitor --tsv
 P="$(_lw_o PT)"; X="$(_lw_o PX)"
-is "B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 16 summaries" "$(_lw_rc PT)$(_lw_rc PX) $(_lw_n16 "$(_lw_o PT)")" "00 16"
+is "B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 17 summaries" "$(_lw_rc PT)$(_lw_rc PX) $(_lw_n16 "$(_lw_o PT)")" "00 17"
 is "B9.27 control: the two sources alone exit 0 and print rows" "$(_lw_rc IV)$(_lw_rc LD) $([ -s "$(_lw_o IV)" ] && [ -s "$(_lw_o LD)" ] && echo rows)" "00 rows"
 
 # ---- B9.34: read-only ------------------------------------------------------------
@@ -73,7 +73,7 @@ is "B5: a source row's repo cell is its source's own: the main worktree path for
    "cover:$PGR source:fixture/pg "
 is "B1: with no --repo the page reads the repository holding the current directory" \
    "$(_lw_rc PC) $(_lw_n16 "$(_lw_o PC)") $(LC_ALL=C awk -F'\t' '$2 == "summary" { printf "%s=%s ", $1, $8 }' "$(_lw_o PC)")" \
-   "0 16 $(LC_ALL=C awk -F'\t' '$2 == "summary" { printf "%s=%s ", $1, $8 }' "$P")"
+   "0 17 $(LC_ALL=C awk -F'\t' '$2 == "summary" { printf "%s=%s ", $1, $8 }' "$P")"
 
 # ---- B9.26: groups -----------------------------------------------------------------
 # B3 as the contract states it, applied to the page's own cells: land's source
@@ -117,10 +117,10 @@ is "B9.26: and land's own rows say those owners (control)" \
 LW_REPO=""
 
 # ---- B9.28 and B4: summaries ------------------------------------------------------------
-LW_GROUPS='hazard blocked question never-proposed pr-founder pr-session pr-lander pr-unknown undecided running pr-nobody proposed carried handoff landed quiet'
-is "B9.28: the page opens with 16 summary rows, in B5's group order, each with ref the group and owner and age -" \
-   "$(LC_ALL=C awk -F'\t' 'NR <= 16 { printf "%s%s", s, ($2 == "summary" && $4 == $1 && $6 == "-" && $7 == "-" && $3 == r) ? $1 : "[" $0 "]"; s = " " }' r="$PGR" "$P")" "$LW_GROUPS"
-is "B9.28: and holds no other summary row" "$(LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { print n + 0 }' "$P")" 16
+LW_GROUPS='hazard blocked question never-proposed pr-founder pr-session pr-lander pr-unknown undecided running helper pr-nobody proposed carried handoff landed quiet'
+is "B9.28: the page opens with 17 summary rows, in B5's group order, each with ref the group and owner and age -" \
+   "$(LC_ALL=C awk -F'\t' 'NR <= 17 { printf "%s%s", s, ($2 == "summary" && $4 == $1 && $6 == "-" && $7 == "-" && $3 == r) ? $1 : "[" $0 "]"; s = " " }' r="$PGR" "$P")" "$LW_GROUPS"
+is "B9.28: and holds no other summary row" "$(LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { print n + 0 }' "$P")" 17
 # B4's completeness, from the cover rows, land's gh row and the rows' unknown:
 # entries; the count said is the rows in the group, or unknown when it is
 # incomplete with none; the detail is - when complete.
@@ -132,11 +132,11 @@ _lw_b4() { LC_ALL=C awk -F'\t' -v groups="$LW_GROUPS" '
   $2 == "source" && $4 == "gh" { gh = first($5); ghseen = 1 }
   $2 != "cover" && $2 != "source" { n[$1]++
     if (has($5, "unknown:hazard:shared-branch") || has($5, "unknown:hazard:staged-revert")) ux["hazard"] = 1
-    if (has($5, "unknown:blocked")) ux["blocked"] = 1; if (has($5, "unknown:question")) ux["question"] = 1; if (has($5, "unknown:live")) ux["running"] = 1
+    if (has($5, "unknown:blocked")) ux["blocked"] = 1; if (has($5, "unknown:question")) ux["question"] = 1; if (has($5, "unknown:live")) ux["running"] = 1; if (has($5, "unknown:helper")) ux["helper"] = 1
     if (has($5, "unknown:uncommitted") || has($5, "unknown:unpushed") || has($5, "unknown:unproposed") || has($5, "unknown:pr-closed-unlanded") || has($5, "unknown:orphan") || has($5, "unknown:chip-unstarted")) ux["never-proposed"] = 1 }
   END { ghbad = (!ghseen || (gh != "read" && gh != "none"))
     sess = (cov["sessions"] != "read")
-    inc["hazard"] = ux["hazard"]; inc["blocked"] = sess || ux["blocked"]; inc["question"] = sess || ux["question"]; inc["running"] = sess || ux["running"]
+    inc["hazard"] = ux["hazard"]; inc["blocked"] = sess || ux["blocked"]; inc["question"] = sess || ux["question"]; inc["running"] = sess || ux["running"]; inc["helper"] = sess || ux["helper"]
     inc["never-proposed"] = (cov["default"] != "read" || cov["prs"] != "read" || cov["chips"] != "read" || ux["never-proposed"])
     inc["pr-founder"] = inc["pr-session"] = inc["pr-lander"] = (ghbad || n["pr-unknown"] > 0); inc["pr-unknown"] = inc["pr-nobody"] = ghbad
     k = split(groups, g, " ")
@@ -167,7 +167,7 @@ _lw_heads() { LC_ALL=C awk -F'\t' -v l="$LW_LABELS" '
   $2 == "summary" && ($1 in lab) { c = ($5 == "complete") ? $8 : ($8 == "unknown" ? "unknown" : "at least " $8); if ($5 != "complete") c = c " (" $9 ")"; printf "    %s: %s\n", lab[$1], c }' "$1"; }
 is "B6: each heading says its count as B4 says it, with the reasons after an incomplete group" \
    "$(_lw_heads "$P" | LC_ALL=C awk 'END { print NR }')|$(LC_ALL=C awk -v l="$LW_LABELS" 'BEGIN { n = split(l, t, "|") } { for (i = 1; i <= n; i++) if (index($0, "    " t[i] ": ") == 1) print }' "$X")" "9|$(_lw_heads "$P")"
-_lwc="$(LC_ALL=C awk -F'\t' '$2 == "summary" { c[$1] = $8 } END { printf "  collapsed: running %s, pull requests waiting on nobody %s, proposed %s, carried %s, handoff sections %s, landed %s, quiet %s", c["running"], c["pr-nobody"], c["proposed"], c["carried"], c["handoff"], c["landed"], c["quiet"] }' "$P")"
+_lwc="$(LC_ALL=C awk -F'\t' '$2 == "summary" { c[$1] = $8 } END { printf "  collapsed: running %s, helper worktrees %s, pull requests waiting on nobody %s, proposed %s, carried %s, handoff sections %s, landed %s, quiet %s", c["running"], c["helper"], c["pr-nobody"], c["proposed"], c["carried"], c["handoff"], c["landed"], c["quiet"] }' "$P")"
 is "B9.33: the collapsed line comes last, after every heading, with the collapsed groups' counts" \
    "$(LC_ALL=C awk 'END { print }' "$X")|$(LC_ALL=C awk '/^    [a-z ]+: / { h = NR } /^  collapsed: / { c = NR } END { print (c > h && h > 0) ? "after" : "before" }' "$X")" "$_lwc|after"
 # A listed row is a line that starts, after its indent, with the ref and a space.

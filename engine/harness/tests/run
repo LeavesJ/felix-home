@@ -404,6 +404,9 @@ fi
 . "$HERE/parts/1520-git-readers-fail-closed.sh"
 . "$HERE/parts/1530-patch-reads-the-repository-not-a-diff-setting.sh"
 . "$HERE/parts/1540-patch-reads-the-review-s-cases-and-findings.sh"
+. "$HERE/parts/1570-helper-worktrees-inventory-blind.sh"
+. "$HERE/parts/1580-helper-worktrees-page-blind.sh"
+. "$HERE/parts/1585-helper-worktrees-review-fixes-blind.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"

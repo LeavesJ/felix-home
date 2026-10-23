@@ -42,6 +42,10 @@
 # was read of the repository is five rows of kind cover first: default, prs,
 # sessions, chips, objects. States print in _FI_ORDER, the first the headline;
 # landed means none holds but live and the content column says landed. A
+# worktree or orphan that is a helper's (a subagent's or a workflow's, which the
+# host adapter says) also holds helper, after landed and before any unknown
+# entry, and unknown:helper, last, when the host's records were not searched for
+# it: a placement mark, never a headline, and no bar to landed. A
 # worktree or orphan in a temporary directory ($TMPDIR, /tmp, /private/tmp,
 # /private/var/folders, or instead the colon-separated FELIX_INVENTORY_TEMP_ROOTS
 # when set, which tests use) says temp in its detail and is read as any other.
@@ -104,16 +108,22 @@ _fi_add() { _FI_DET="${_FI_DET:+$_FI_DET; }$1"; }
 # The content (landed, partly, not, unknown or -), then name=yes|no|unknown
 # pairs in _FI_ORDER, as the states field: the held ones, landed when none but
 # live is held, nothing is unknown but live and the content is landed or -,
-# then each unknown. No state at all prints -.
+# helper (the last pair, when given: a placement mark, not a held state, so it
+# never keeps a row from landed), then each unknown, unknown:helper last. No
+# state at all prints -.
 _fi_states() {
-  local c="$1" a held="" unk="" open=0
+  local c="$1" a held="" unk="" hp="" open=0
   shift
   for a in "$@"; do
-    case "${a#*=}" in yes) held="$held,${a%%=*}" ;; unknown) unk="$unk,unknown:${a%%=*}" ;; *) continue ;; esac
+    case "${a#*=}" in
+      yes) if [ "${a%%=*}" = helper ]; then hp=",helper"; continue; fi; held="$held,${a%%=*}" ;;
+      unknown) unk="$unk,unknown:${a%%=*}" ;;
+      *) continue ;;
+    esac
     [ "${a%%=*}" = live ] || open=1
   done
   case "$c" in landed|-) [ "$open" = 1 ] || held="$held,landed" ;; esac
-  held="$held$unk"; _FI_S="${held#,}"
+  held="$held$hp$unk"; _FI_S="${held#,}"
 }
 # The worse of two content values, as _FI_W: not, then partly, unknown, landed.
 _fi_worse() {
@@ -353,13 +363,31 @@ _fi_land() {
 }
 
 # The host's answer for a directory, as _FI_H: owner mtime live question
-# blocked note; the note, if any, joins the detail.
+# blocked note helper; the note, if any, joins the detail. The line is read by
+# position, an empty field kept in its place: a tab is IFS whitespace, so a
+# tab-IFS split drops one and moves every later field left (contract C8.1).
 _fi_host() {
-  local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-"
+  local x="unknown${_FI_TAB}-${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}unknown${_FI_TAB}-" i=0
   [ "$_FI_HOSTOK" = 1 ] && x="$(felix_inv_host_dir "$1" "$_FI_NOW" "$_FI_LIVE" "$_FI_BLOCKED" "$T/hscope")"
-  local IFS="$_FI_TAB"; set -f; _FI_H=($x); set +f
+  _FI_H=()
+  while :; do
+    _FI_H[i]="${x%%"$_FI_TAB"*}"
+    case "$x" in *"$_FI_TAB"*) x="${x#*"$_FI_TAB"}"; i=$((i + 1)) ;; *) break ;; esac
+  done
   [ "${#_FI_H[@]}" -ge 6 ] || _FI_H=(unknown - unknown unknown unknown "the host adapter answered nothing")
+  [ -n "${_FI_H[0]}" ] || _FI_H[0]=unknown   # an empty owner is not "no session ran here"
   [ "${_FI_H[5]}" = - ] || _fi_add "${_FI_H[5]}"
+  _fi_helper "$1"
+}
+# Whether a directory is a helper's, as _FI_HLP (yes, no or unknown): the
+# adapter's seventh field in _FI_H. With none (--no-host, no records, a short
+# line) or a word that is not one of the three, the adapter's name test decides:
+# a helper's name is unknown, any other no. The rule for the name stays there.
+_fi_helper() {
+  case "${_FI_H[6]:-}" in
+    yes|no|unknown) _FI_HLP="${_FI_H[6]}" ;;
+    *) if felix_inv_host_helper_form "$1"; then _FI_HLP=unknown; else _FI_HLP=no; fi ;;
+  esac
 }
 
 # The branch-borne states of a tip, into _FI_UNP _FI_UNPROP _FI_PRO _FI_PRC, and

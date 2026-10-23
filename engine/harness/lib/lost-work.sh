@@ -1,8 +1,10 @@
 # The lost-work page: felix monitor, and its log page under --log.
 #
 # What needs the founder comes first: hazards, blocked sessions, open questions,
-# work that never reached a PR, and pull requests by who has to act. Running and
-# landed work is collapsed to a count. Nothing on it acts: it prints no command
+# work that never reached a PR, and pull requests by who has to act. Running work,
+# helpers' worktrees (a subagent's or a workflow's, whose unpushed commits and
+# open calls are its spawning session's to answer for) and landed work are
+# collapsed to a count. Nothing on it acts: it prints no command
 # to run, posts nothing, merges nothing and starts no session, and it writes
 # nothing outside one scratch directory of its own, removed on exit. It derives
 # no fact: every row it shows is a row one of two sources printed, the
@@ -14,7 +16,7 @@
 #
 # Bash 3.2. LC_ALL=C on every text tool; digit brackets spelled out.
 
-_LW_GROUPS="hazard blocked question never-proposed pr-founder pr-session pr-lander pr-unknown undecided running pr-nobody proposed carried handoff landed quiet"
+_LW_GROUPS="hazard blocked question never-proposed pr-founder pr-session pr-lander pr-unknown undecided running helper pr-nobody proposed carried handoff landed quiet"
 
 felix_monitor_usage() {
   printf 'usage: felix monitor [--tsv] [--repo DIR]... [--no-gh] [--no-host] [--days N] [--live MIN] [--blocked MIN]\n'
@@ -22,7 +24,7 @@ felix_monitor_usage() {
   printf '       felix monitor -h | --help\n'
   printf '  the page: read-only; what needs you first (hazards, blocked sessions, open questions, work that never\n'
   printf '                 reached a PR, pull requests by who has to act), the rest collapsed to counts\n'
-  printf '  --tsv          group kind repo ref states owner age_h content detail, 16 summary rows per repository first\n'
+  printf '  --tsv          group kind repo ref states owner age_h content detail, 17 summary rows per repository first\n'
   printf '  --repo DIR     a repository to read, repeatable (default: the one holding this directory)\n'
   printf '  --no-gh, --no-host, --days N, --live MIN, --blocked MIN   as felix inventory takes them\n'
   printf '  --log          the HTML page of what Felix did that nobody could see (state/monitor.html);\n'
@@ -123,6 +125,7 @@ function addr(a, b) { return a == "" ? b : a "; " b }
 # B3: the first group in the contract table whose condition holds.
 function grp(st, ct) {
   if (has(st, "hazard:shared-branch") || has(st, "hazard:staged-revert")) return "hazard"
+  if (has(st, "helper")) return "helper"
   if (has(st, "blocked")) return "blocked"
   if (has(st, "question")) return "question"
   if (has(st, "live")) return "running"
@@ -140,7 +143,7 @@ function ghreason() { return ghseen ? "gh " ghst ": " ghdet : "felix land --prs 
 function calc(g,    r, inc, i, cr) {
   r = ""; inc = 0
   if (g == "hazard") { if (kc[g]) { inc = 1; r = kc[g] " rows not decided" } }
-  else if (g == "blocked" || g == "question" || g == "running") {
+  else if (g == "blocked" || g == "question" || g == "running" || g == "helper") {
     if (cv("sessions") != "read") { inc = 1; r = covreason("sessions") }
     if (kc[g]) { inc = 1; r = addr(r, kc[g] " rows not decided") }
   } else if (g == "never-proposed") {
@@ -181,7 +184,7 @@ function rline(g, i,    f, s) {
     if (tag == "I") { st = V[5]
       if (has(st, "unknown:hazard:shared-branch") || has(st, "unknown:hazard:staged-revert")) kc["hazard"]++
       if (has(st, "unknown:pr-open")) kc["proposed"]++
-      if (has(st, "unknown:blocked")) kc["blocked"]++; if (has(st, "unknown:question")) kc["question"]++; if (has(st, "unknown:live")) kc["running"]++
+      if (has(st, "unknown:blocked")) kc["blocked"]++; if (has(st, "unknown:question")) kc["question"]++; if (has(st, "unknown:live")) kc["running"]++; if (has(st, "unknown:helper")) kc["helper"]++
       if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan") || has(st, "unknown:chip-unstarted")) kc["never-proposed"]++ } }
   # RTAG, not RT: gawk, the awk of the Linux CI runner, keeps RT as a scalar and stops on it as an array.
   n = ++NG[g]; R[g, n] = row; RTAG[g, n] = tag; RN[g, n] = num + 0
@@ -212,5 +215,5 @@ END {
   for (li = 1; li <= 9; li++) { g = L[li]
     print "    " LAB[g] ": " CS[g] (INC[g] ? " (" REA[g] ")" : "")
     for (i = 1; i <= NG[g]; i++) print rline(g, i) }
-  print "  collapsed: running " CS["running"] ", pull requests waiting on nobody " CS["pr-nobody"] ", proposed " CS["proposed"] ", carried " CS["carried"] ", handoff sections " CS["handoff"] ", landed " CS["landed"] ", quiet " CS["quiet"]
+  print "  collapsed: running " CS["running"] ", helper worktrees " CS["helper"] ", pull requests waiting on nobody " CS["pr-nobody"] ", proposed " CS["proposed"] ", carried " CS["carried"] ", handoff sections " CS["handoff"] ", landed " CS["landed"] ", quiet " CS["quiet"]
 }'

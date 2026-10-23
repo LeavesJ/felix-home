@@ -48,9 +48,9 @@ _lw_run X1HX "$LW44H" "$LW/cwd" monitor --repo "$XB" --no-host
 _lw_run X1I "$LW44H" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
 PATH="$_lw44_path"
 _lw_run X1R "$LW44H" "$LW/cwd" inventory --tsv --repo "$XB" --no-host
-is "finding 1: the five runs over xb exit 0 and the TSV runs hold 16 summaries (control)" \
+is "finding 1: the five runs over xb exit 0 and the TSV runs hold 17 summaries (control)" \
    "$(_lw_rc X1G)$(_lw_rc X1N)$(_lw_rc X1NX)$(_lw_rc X1F)$(_lw_rc X1FX)$(_lw_rc X1H)$(_lw_rc X1HX) $(for _lwk in X1G X1N X1F X1H; do LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { printf "%d ", n + 0 }' "$(_lw_o $_lwk)"; done)" \
-   "0000000 16 16 16 16 "
+   "0000000 17 17 17 17 "
 # finding 1 (control): with gh read the proposed group is complete and says its rows; the pending section is one handoff row.
 is "finding 1: with gh read, proposed is complete and the pending section is one complete handoff row (control)" \
    "$(_lw44_sum "$(_lw_o X1G)" proposed 5) $(_lw44_sum "$(_lw_o X1G)" handoff 5):$(_lw44_sum "$(_lw_o X1G)" handoff 8)" "complete complete:1"
@@ -120,7 +120,7 @@ _lw44_gd() {  # NAME GITDIR ARGS...: part 1450's _lw_run with GIT_DIR set after 
   printf '%s\n' "$?" > "$LWX/$n.rc"
 }
 _lw44_gd X5 "$XB/.git" monitor --tsv --repo "$XB" --no-host
-is "finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 16 summaries" \
-   "$(_lw_rc X5) $(LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { print n + 0 }' "$(_lw_o X5)")" "0 16"
+is "finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 17 summaries" \
+   "$(_lw_rc X5) $(LC_ALL=C awk -F'\t' '$2 == "summary" { n++ } END { print n + 0 }' "$(_lw_o X5)")" "0 17"
 is "finding 5: and says nothing on stderr" "$(cat "$LWX/X5.err")" ""
 # <<< lost-work-review-fixes

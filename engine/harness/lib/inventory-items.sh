@@ -60,7 +60,8 @@ _fi_worktree() {
   [ "$sh" = - ] || { shd=yes; _fi_add "$br is also checked out in $sh"; }
   _FI_H=(unknown - unknown unknown unknown -)
   case "$fl" in
-    *linebreak*) unc=unknown; ucv=unknown; _fi_add "its path holds a line break or a tab, so it is not read" ;;
+    *linebreak*) unc=unknown; ucv=unknown; _fi_add "its path holds a line break or a tab, so it is not read"
+                 _fi_helper "$ref" ;;   # a path never read is no search: a helper's name stays unknown
     *) if [ ! -d "$ref" ]; then _fi_add "the directory is gone"
        else _fi_own "$ref"; x=$?
          if [ "$x" = 2 ]; then unc=unknown; ucv=unknown; _fi_add "it is now a checkout of another repository, so it is not read"
@@ -76,7 +77,7 @@ _fi_worktree() {
   # A directory that holds no working tree of this repository is read as an orphan is.
   if [ "$orph" = yes ]; then content="$_FI_OC"; else _fi_worse "$_FI_LV" "$ucv"; content="$_FI_W"; fi
   _fi_states "$content" hazard:shared-branch=$shd hazard:staged-revert=$rev live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" \
-    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC carried=$_FI_CAR orphan=$orph
+    uncommitted=$unc unpushed=$_FI_UNP unproposed=$_FI_UNPROP pr-open=$_FI_PRO pr-closed-unlanded=$_FI_PRC carried=$_FI_CAR orphan=$orph helper=$_FI_HLP
   _fi_age "$when"; _fi_row worktree "$ref" "$_FI_S" "${_FI_H[0]}" "$_FI_A" "$content" "$_FI_DET" "$_FI_SIG" "$br"
 }
 # _FI_DD as the worktree's uncommitted state (unc), its content (ucv: none of

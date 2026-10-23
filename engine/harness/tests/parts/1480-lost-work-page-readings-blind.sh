@@ -13,7 +13,7 @@ _lw_line() { LC_ALL=C awk -v p="    $2: " 'index($0, p) == 1 { print; exit }' "$
 _lw_run NH "$LW_HP" "$LW/cwd" monitor --tsv --repo "$PG" --no-host
 _lw_run NHX "$LW_HP" "$LW/cwd" monitor --repo "$PG" --no-host
 N="$(_lw_o NH)"; NX="$(_lw_o NHX)"
-is "B9.29: under --no-host the page exits 0 and the TSV holds its 16 summaries" "$(_lw_rc NH)$(_lw_rc NHX) $(_lw_n16 "$N")" "00 16"
+is "B9.29: under --no-host the page exits 0 and the TSV holds its 17 summaries" "$(_lw_rc NH)$(_lw_rc NHX) $(_lw_n16 "$N")" "00 17"
 is "B9.29: the blocked, question and running summaries are incomplete, with content unknown" \
    "$(_lw_sum "$N" blocked 5):$(_lw_sum "$N" blocked 8) $(_lw_sum "$N" question 5):$(_lw_sum "$N" question 8) $(_lw_sum "$N" running 5):$(_lw_sum "$N" running 8)" \
    "incomplete:unknown incomplete:unknown incomplete:unknown"
@@ -61,9 +61,9 @@ for _lwk in NG GF; do
     *) bad "$_lwc the text says work that never reached a PR: at least its row count, naming prs" "[$_lwo], wanted at least $_lwn" ;;
   esac
 done
-is "B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 16 summaries" "$(_lw_rc GF)$(_lw_rc GFX) $(_lw_n16 "$(_lw_o GF)")" "00 16"
+is "B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 17 summaries" "$(_lw_rc GF)$(_lw_rc GFX) $(_lw_n16 "$(_lw_o GF)")" "00 17"
 is "B9.31: the page's sources asked the stub for the pull requests, and it failed them" "$([ "$_lwgf" -gt 0 ] 2>/dev/null && echo asked)" asked
-is "B9.30: --no-gh exits 0, with the TSV's 16 summaries" "$(_lw_rc NG)$(_lw_rc NGX) $(_lw_n16 "$(_lw_o NG)")" "00 16"
+is "B9.30: --no-gh exits 0, with the TSV's 17 summaries" "$(_lw_rc NG)$(_lw_rc NGX) $(_lw_n16 "$(_lw_o NG)")" "00 17"
 
 # ---- B9.35, B1: the log page and usage ---------------------------------------------
 LW_FH="$LW/loghome"; mkdir -p "$LW_FH/projects/pg"; cp "$PG/projects/pg/project.json" "$PG/projects/pg/CLAUDE.md" "$LW_FH/projects/pg/"
@@ -118,20 +118,20 @@ _lw_run IV2 "$LW_HP" "$LW/cwd" inventory --tsv --repo "$PG"
 _lw_run LD2 "$LW_HP" "$LW/cwd" land --prs --tsv --repo "$PG"
 _lw_run NP "$LW_HP" "$LW/cwd" monitor --tsv --repo "$NOP"
 W2="$(_lw_o TW)"
-is "B9.37: two --repo options exit 0, and the TSV holds 16 summaries for each" "$(_lw_rc TW)$(_lw_rc TWX) $(_lw_n16 "$W2")" "00 32"
+is "B9.37: two --repo options exit 0, and the TSV holds 17 summaries for each" "$(_lw_rc TW)$(_lw_rc TWX) $(_lw_n16 "$W2")" "00 34"
 is "B9.37: the text has two blocks, the first repository's first, under one first line" \
    "$(LC_ALL=C awk -v a="$PGR" -v b="$NOPR" -v h="$LW_HEAD" '$0 == h { hh++ } $0 == a { pa = NR } $0 == b { pb = NR } $0 == "  needs you" { y++ } END { print hh + 0 "|" ((pa > 0 && pb > pa) ? "ordered" : "unordered") "|" y + 0 }' "$(_lw_o TWX)")" \
    "1|ordered|2"
-is "B9.37: the TSV holds 16 summaries for each, the first repository's first" \
+is "B9.37: the TSV holds 17 summaries for each, the first repository's first" \
    "$(LC_ALL=C awk -F'\t' -v a="$PGR" -v b="$NOPR" '$2 == "summary" { s = s ($3 == a ? "a" : ($3 == b ? "b" : "?")) } END { print s }' "$W2")" \
-   "aaaaaaaaaaaaaaaabbbbbbbbbbbbbbbb"
+   "aaaaaaaaaaaaaaaaabbbbbbbbbbbbbbbbb"
 is "B9.37: every row of the first repository comes before every row of the second" \
    "$(LC_ALL=C awk -F'\t' -v b="$NOPR" -v l="$(LC_ALL=C awk -F'\t' '$1 == "source" { print $2; exit }' "$(_lw_o NL)")" '{ x = ($3 == b || $3 == l) ? 2 : 1; if (x < m) bad++; if (x > m) m = x } END { print (m == 2) ? bad + 0 : "no second block" }' "$W2")" 0
 _lwa="$(LC_ALL=C awk -F'\t' '$2 != "summary"' "$W2" | LC_ALL=C cut -f2- | _lw_norm)"
 _lwb="$(cat "$(_lw_o IV2)" "$(_lw_o LD2)" "$(_lw_o NV)" "$(_lw_o NL)" | _lw_norm)"
 is "B9.37: each source row is its source's own, repo cell and all: the rows equal the four source runs' as a multiset" \
    "$([ -n "$_lwb" ] && echo sources)|$_lwa" "sources|$_lwb"
-is "B9.38: a repository no project governs: the page exits 0 and prints its 16 summaries" "$(_lw_rc NP) $(_lw_n16 "$(_lw_o NP)")" "0 16"
+is "B9.38: a repository no project governs: the page exits 0 and prints its 17 summaries" "$(_lw_rc NP) $(_lw_n16 "$(_lw_o NP)")" "0 17"
 is "B9.38: and land's land, ledger and lander rows are unread" \
    "$(for _lwr in land ledger lander; do printf '%s ' "$(_lw_st "$(_lw_o NP)" source "$_lwr" 1)"; done)" "unread unread unread "
 is "B9.38: with step 5's detail, as land alone prints it" \

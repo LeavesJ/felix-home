@@ -899,9 +899,12 @@ So a helper with unpushed commits reads `unpushed,helper`, a landed one
 state: a helper whose content is `not`, holding nothing else, reads `helper`,
 and the human view reads that row as it reads `-` (C3).
 
-`unknown:helper` follows §5.2: a row carrying it is never `landed`. It only
-arises with `unknown:question` and `unknown:blocked` beside it, which already
-keep the row from `landed`.
+`unknown:helper` follows §5.2: a row carrying it is never `landed`. Under
+`--no-host` it comes with `unknown:question` and `unknown:blocked`, which
+already keep the row from `landed`. Under a records root the run cannot enter
+it can be the row's only unknown (C2), so a clean helper-form worktree there is
+undecided, not `landed`: whether it is a helper's was not read. *(Corrected in
+the review round, C8.3.)*
 
 **Kinds** (§4.2): `worktree` and `orphan` gain `helper`. No other kind carries
 it.
@@ -1088,3 +1091,54 @@ those sessions' own rows changes group.
 - **Tests** in new parts 1550 (inventory and view) and 1560 (page), written
   blind from this file, each running alone (contract C of gate friction).
 - **Lands as one engine PR**, risk-red. Version 0.49.307 as a placeholder.
+
+## C8. The review round
+
+Two Opus reviews read the build (lenses: a smaller design, and an input that
+defeats it). Their confirmed findings, and what the contract now says:
+
+1. **The adapter's line is read by position (major).** The core split
+   `felix_inv_host_dir`'s line with a tab as IFS. A tab is IFS whitespace, so
+   an empty field vanished and every later field moved one place left. Before
+   Part C a line with one empty field split into five fields, failed the "six
+   or more" check and read `unknown` throughout ("the host adapter answered
+   nothing"). With the seventh field it splits into six, passes, and is
+   misread: owner becomes the activity time, `live` the question answer,
+   `question` the blocked answer, and the helper word joins the detail. The
+   adapter does print an empty owner: a session file named exactly `.jsonl`
+   has an empty id. Measured on a fixture: a worktree whose only session
+   file is `.jsonl`, last record an unanswered tool call 300 minutes old,
+   read `question` with owner `1792736325`; on origin/main it read
+   `unknown:live,unknown:question,unknown:blocked`.
+
+   Now:
+    - The core reads the line field by field, by position, an empty field
+      kept in its place, never by a tab-IFS split.
+    - The adapter never prints an empty owner: a newest session file whose
+      name is `.jsonl` alone gives owner `unknown`.
+    - A line with fewer than six fields still reads `unknown` throughout,
+      as before; the seventh may be missing (C2).
+
+   So that worktree is `blocked` (its call has waited past `--blocked`), never
+   `question`; its owner is `unknown`; and no element of its detail is a bare
+   `yes`, `no` or `unknown`.
+2. **The temporary section shows `helper` (minor).** C3 sets `helper` aside
+   beside a row only in the helper section, whose heading says it. A row that
+   is both `temp` and `helper` is in the temporary section, whose heading does
+   not, so `helper` is among the states shown beside it there.
+3. **C1's sentence on `unknown:helper` and `landed`** was wrong for an
+   unreadable records root, and is corrected in place.
+4. **Code only, no assertion:** the name-only call in the worktree reader runs
+   only on the path that never asks the adapter (a path holding a line break),
+   and the adapter's comments say when the core asks the name test itself.
+
+**Assertions** for items 1 and 2, in a new part 1565, written blind from this
+section and shown failing before the fix:
+
+- item 1: the `.jsonl` worktree above holds `blocked` and not `question`, owner
+  `unknown`, and no detail element equal to `yes`, `no` or `unknown`; a control
+  worktree, the same but for a session file named `s-ctl.jsonl`, holds
+  `blocked` with owner `s-ctl`;
+- item 2: in the human view, the row of a worktree that is both `temp` and
+  `helper` (C5.12's case) shows `helper` among its states in the temporary
+  section.

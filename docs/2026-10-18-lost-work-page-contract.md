@@ -1088,7 +1088,7 @@ those sessions' own rows changes group.
   entry by the pass in `lib/inventory.sh`, which already puts it after
   `helper` under C1's order.
 - **Bash 3.2 and the C locale**, as B11 says; no gawk builtin name (B12).
-- **Tests** in new parts 1550 (inventory and view) and 1560 (page), written
+- **Tests** in new parts 1570 (inventory and view) and 1580 (page), written
   blind from this file, each running alone (contract C of gate friction).
 - **Lands as one engine PR**, risk-red. Version 0.49.307 as a placeholder.
 
@@ -1132,7 +1132,7 @@ defeats it). Their confirmed findings, and what the contract now says:
    only on the path that never asks the adapter (a path holding a line break),
    and the adapter's comments say when the core asks the name test itself.
 
-**Assertions** for items 1 and 2, in a new part 1565, written blind from this
+**Assertions** for items 1 and 2, in a new part 1585, written blind from this
 section and shown failing before the fix:
 
 - item 1: the `.jsonl` worktree above holds `blocked` and not `question`, owner
@@ -1142,3 +1142,7 @@ section and shown failing before the fix:
 - item 2: in the human view, the row of a worktree that is both `temp` and
   `helper` (C5.12's case) shows `helper` among its states in the temporary
   section.
+
+*Part numbers.* The parts were first numbered 1550, 1560 and 1565, the numbers
+`claude/direction-read-first` (#452, a draft) already holds; they are 1570,
+1580 and 1585, with the same content and assertion names.

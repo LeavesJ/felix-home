@@ -1026,7 +1026,7 @@
 1	B8: in both two-repository runs the line for A is B8's, said once
 1	B8: that stderr line is felix monitor: <the directory as given>: the page could not be made from its rows (awk exited 2), said once
 1	B8: the fixture is the hostile shape: the submodule's origin reads as the project's and the slug accepts it
-1	B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 16 summaries
+1	B8: the page over one readable repository exits 0, as --tsv and as text, and the TSV holds its 17 summaries
 1	B8: when the page's awk prints its rows and then exits 2, the text page is the first line alone and exits 1
 1	B9 (control): a content difference in lib/x.sh exits 1 and names it
 1	B9 (control): an untracked, ignored stray in SRC stays residue: exit 0
@@ -1072,25 +1072,25 @@
 1	B9.27: the page's non-summary rows, first column cut, equal the rows of felix inventory --tsv and felix land --prs --tsv as a multiset
 1	B9.28: and holds no other summary row
 1	B9.28: each summary's content is the number of rows in its group, and its state is the completeness B4 gives
-1	B9.28: the page opens with 16 summary rows, in B5's group order, each with ref the group and owner and age -
+1	B9.28: the page opens with 17 summary rows, in B5's group order, each with ref the group and owner and age -
 1	B9.29: and blocked's reason names sessions unknown: --no-host
 1	B9.29: the blocked, question and running summaries are incomplete, with content unknown
 1	B9.29: the collapsed line says running unknown
 1	B9.29: the text has one blocked sessions heading, and never blocked sessions: 0
 1	B9.29: the text says blocked sessions: unknown, with the reason
-1	B9.29: under --no-host the page exits 0 and the TSV holds its 16 summaries
+1	B9.29: under --no-host the page exits 0 and the TSV holds its 17 summaries
 1	B9.2: and its detail names the carrier as #7
 1	B9.2: and under --no-gh the carrier is written origin/carry2
 1	B9.2: under --no-gh it is still carried and keeps unknown:pr-open
 1	B9.2: with an open same-repository PR #7 headed carry2, the branch it holds is carried, not unproposed
-1	B9.30: --no-gh exits 0, with the TSV's 16 summaries
+1	B9.30: --no-gh exits 0, with the TSV's 17 summaries
 1	B9.30: under --no-gh every pr- summary is incomplete, with content unknown
 1	B9.30: under --no-gh never-proposed is incomplete and its content is its row count
 1	B9.30: under --no-gh never-proposed's reasons name the prs cover row
 1	B9.30: under --no-gh the text says pull requests waiting on the founder: unknown
 1	B9.30: under --no-gh the text says work that never reached a PR: at least its row count, naming prs
 1	B9.30: under --no-gh the uncommitted worktree is still in never-proposed
-1	B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 16 summaries
+1	B9.31: gh failing still exits 0, as --tsv and as text, with the TSV's 17 summaries
 1	B9.31: the page's sources asked the stub for the pull requests, and it failed them
 1	B9.31: with gh failing every pr- summary is incomplete, with content unknown
 1	B9.31: with gh failing never-proposed is incomplete and its content is its row count
@@ -1127,10 +1127,10 @@
 1	B9.36: and the fixture's block is printed
 1	B9.37: each source row is its source's own, repo cell and all: the rows equal the four source runs' as a multiset
 1	B9.37: every row of the first repository comes before every row of the second
-1	B9.37: the TSV holds 16 summaries for each, the first repository's first
+1	B9.37: the TSV holds 17 summaries for each, the first repository's first
 1	B9.37: the text has two blocks, the first repository's first, under one first line
-1	B9.37: two --repo options exit 0, and the TSV holds 16 summaries for each
-1	B9.38: a repository no project governs: the page exits 0 and prints its 16 summaries
+1	B9.37: two --repo options exit 0, and the TSV holds 17 summaries for each
+1	B9.38: a repository no project governs: the page exits 0 and prints its 17 summaries
 1	B9.38: and land alone says the same three are unread (control)
 1	B9.38: and land's land, ledger and lander rows are unread
 1	B9.38: with step 5's detail, as land alone prints it
@@ -1141,8 +1141,8 @@
 1	B9.3: a local branch whose tip equals origin/other3's (another name, no upstream) is carried by it
 1	B9.3: two remote rows at one commit carry neither each other: both unproposed, neither carried (control)
 1	B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call
-1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 32 summaries
-1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 16 summaries
+1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 34 summaries
+1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 17 summaries
 1	B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the real awk otherwise, the first-call stub fails only its first such call, and the late stub prints what the real awk prints and exits 2 (fixture control)
 1	B9.41: a stderr line names A and holds awk exited 2
 1	B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2
@@ -1222,6 +1222,66 @@
 1	C5 (control): with the decoy in place, an entry equal to M: the entry exits 0 and prints itself
 1	C5 (fixture control): git's own short name origin/main names the decoy, which declares 6.6.6, and the cache holds an entry for it
 1	C5 (fixture control): git's own short name origin/main now names the decoy, whose engine/.gitignore is *
+1	C5.1 control: its detail still holds spawned by session s5-boss: write the parser, so its meta file was found
+1	C5.1 fixture: the six inventory runs over hw5 exit 0 and print something (control)
+1	C5.10: the landed helper (landed,helper) and the live helper (live,landed,helper) are listed nowhere in the view
+1	C5.10: the last line counts the live helper in live and the landed helper in landed, as the TSV's rows say
+1	C5.11 control: that worktree's content is not and its detail names its spawning session
+1	C5.11: a helper holding no other state, content not, reads exactly helper
+1	C5.11: it is listed in the helper section, where undecided, content not landed would list it
+1	C5.12: a worktree that is both temp and helper (unpushed,helper) is listed in the temporary section only
+1	C5.13 control: without meta files the unpushed and the blocked helper-form worktrees are listed under unpushed and blocked
+1	C5.13: with no helper row (every meta file removed) no in helper worktrees line is printed
+1	C5.14 control: the helper rows name their spawning session and the plain rows name none, so the meta files are found
+1	C5.14 control: the plain unpushed worktree is in never-proposed and the plain blocked worktree in blocked
+1	C5.14 fixture: the pages over hp6 and hn6 and hp6's two sources exit 0 and print something (control)
+1	C5.14: the helper summary is complete, content 2
+1	C5.14: the helper with an unpushed commit and the helper whose last call is unanswered are both in group helper in --tsv
+1	C5.14: the never-proposed and blocked summaries do not count them: each is complete, content 1
+1	C5.15: a helper worktree that also holds hazard:shared-branch holds both, and is in group hazard
+1	C5.16 control: the plain unpushed and the plain blocked worktrees are each listed once on the text page
+1	C5.16: neither helper's ref appears on any line of the text page
+1	C5.16: the collapsed line says helper worktrees 2, right after running <count>
+1	C5.17 control: under --no-host hn6's sessions cover row is unknown, --no-host; read with the host, its helper-form worktree names its spawning session
+1	C5.17: its reason names sessions unknown: --no-host and, for the one helper-form worktree, 1 rows not decided
+1	C5.17: the helper-form worktree carries unknown:helper and is in never-proposed, the group B3 gives it without helper
+1	C5.17: the text page says helper worktrees unknown on its collapsed line
+1	C5.17: under --no-host the helper summary is incomplete and, with no row in it, its content is unknown
+1	C5.18 (C4): felix monitor's usage says 17 summary rows per repository on its --tsv line
+1	C5.18: B9.27 holds with helpers present: the page's non-summary rows, first column cut, equal its two sources' rows as a multiset
+1	C5.18: and holds no other summary row
+1	C5.18: the page opens with 17 summary rows in B5's order, helper right after running, each with ref the group
+1	C5.1: a helper worktree with one unpushed commit reads exactly unpushed,helper
+1	C5.2 control: its detail holds spawned by session s5-boss: read the notes
+1	C5.2 control: with the meta files removed no row's detail names a spawning session
+1	C5.2: a helper worktree whose content is landed and that holds nothing else reads landed,helper
+1	C5.2: the same directory with no matching meta file reads landed, and no helper
+1	C5.3 control: its detail holds spawned by session s5-boss: derive the cases
+1	C5.3 fixture: each name of another form has a meta file naming its path in the records (control)
+1	C5.3: a wf_<id>-<n> worktree with a matching meta file holds helper
+1	C5.3: agent-xyz, wf_abc, wf_abc-1x and my-agent-a1b2, each named by a meta file, hold neither helper nor unknown:helper
+1	C5.4 control: under --no-gh that worktree holds blocked and carries an unknown: entry
+1	C5.4: a dead workflow agent's worktree, pushed under its own name with no PR, reads blocked,unproposed,helper
+1	C5.4: a helper whose last call is unanswered past --blocked, with an unpushed commit, reads exactly blocked,unpushed,helper
+1	C5.4: under --no-gh its states are blocked, then helper, then only unknown: entries
+1	C5.5 control: under --no-host the sessions cover row is unknown, --no-host
+1	C5.5: under --no-host a worktree of another name carries no unknown:helper
+1	C5.5: under --no-host each helper-form worktree and orphan carries unknown:helper, last of its states, and no helper
+1	C5.6 control: with the records root unreadable the main worktree's owner is -, where it is s5-boss when the root is read
+1	C5.6: and a worktree of another name carries no unknown:helper there
+1	C5.6: with a records root the run cannot read, each helper-form row carries unknown:helper and no helper
+1	C5.7 control: agent-e5f6a7b8 is an orphan row holding orphan, content not, whose detail names its spawning session
+1	C5.7: an orphan directory named agent-<hex> beside the worktrees, with a matching meta file, reads orphan,helper
+1	C5.7: an orphan of that form whose content is landed holds helper, last of its states
+1	C5.8 control: the helper agent-a8a8a8a8 and the plain dup-twin are each other's possible duplicates
+1	C5.8: possible-duplicate on a helper row comes after helper: unpushed,helper,possible-duplicate
+1	C5.9 (C3): in the helper section each row shows its headline, unpushed and blocked, and helper is not printed beside it
+1	C5.9 control: the plain unpushed worktree is listed under unpushed
+1	C5.9 control: the unpushed, blocked, landed, live and temporary helper rows each name their spawning session in hv5's TSV
+1	C5.9 fixture: the four inventory runs over hv5 exit 0 and print something (control)
+1	C5.9: the helper section comes after the in temporary directories section
+1	C5.9: the unpushed helper and the blocked helper are listed once each, in the helper section, under neither unpushed nor blocked
+1	C5.9: the view has one helper section, headed in helper worktrees with the count 2
 1	C5: with the decoy in place, an entry that is M plus harness/extra: exits 1 and names harness/extra
 1	C5: with the decoy in place, an entry that is M plus hooks/extra: exits 1 and names hooks/extra
 1	C5: with the decoy in place, the entry for main's 4.0.0 that is M plus harness/extra: exits 1 and names harness/extra
@@ -1235,6 +1295,20 @@
 1	C8 (control): and neither is --base refs/heads/main
 1	C8 (fixture control): git reads the expression refs/heads/jrc-nope~0 through the decoy tag, and refs/heads/jrc-nope itself does not exist
 1	C8 (fixture control): jc-sym holds engine/harness/tests/.gitignore as a symlink (mode 120000) to a file that says scratch/
+1	C8.1 control: ctl-j8's owner is s-ctl
+1	C8.1 control: ctl-j8, its only session file s-ctl.jsonl, holds blocked and not question
+1	C8.1 control: no element of ctl-j8's detail is a bare yes, no or unknown
+1	C8.1 fixture: dot-j8's record directory holds one session file, named .jsonl (control)
+1	C8.1 fixture: the run reads dot-j8's .jsonl: with it the row holds blocked or question, without it neither (control)
+1	C8.1 fixture: the three inventory runs over hw8 exit 0 and print something (control)
+1	C8.1: dot-j8 does not hold question
+1	C8.1: dot-j8's owner is unknown, never empty and never another field's value
+1	C8.1: dot-j8, whose call has waited past --blocked, holds blocked
+1	C8.1: no element of dot-j8's detail is a bare yes, no or unknown
+1	C8.2 control: both temporary worktrees are listed under in temporary directories
+1	C8.2 control: in the temporary section each row shows its headline unpushed, and plain-t8's shows no helper
+1	C8.2 fixture: agent-8e8e8e01 reads unpushed,helper and names its spawning session; plain-t8 reads unpushed (control)
+1	C8.2: in the temporary section the temp and helper row shows helper among its states
 1	C8: against jc-sym, an entry-only harness/tests/scratch/y is not residue: a symlinked .gitignore adds no rules
 1	C8: and so is refs/tags/refs/heads/jrc-nope^{commit}
 1	C8: felix merge --dry-run --base refs/heads/jrc-nope~0, an expression and not a ref name, is refused, saying it takes only a ref name
@@ -9413,7 +9487,7 @@
 1	finding 1: and the failed listing does not make never-proposed incomplete for the default facet, which was read (control)
 1	finding 1: and the text page says proposed unknown
 1	finding 1: so handoff is incomplete with no rows and says unknown, naming the default cover row
-1	finding 1: the five runs over xb exit 0 and the TSV runs hold 16 summaries (control)
+1	finding 1: the five runs over xb exit 0 and the TSV runs hold 17 summaries (control)
 1	finding 1: the text page says handoff sections unknown, never handoff sections 0
 1	finding 1: the text page says proposed unknown under --no-gh, never proposed 0
 1	finding 1: under --no-gh proposed is incomplete and its content unknown, not 0
@@ -9428,7 +9502,7 @@
 1	finding 2: the runs over xc exit 0 (control)
 1	finding 3: under --no-gh a never-pushed branch is still carried and gains no unknown:pr-open (inventory spec 5.1)
 1	finding 5: and says nothing on stderr
-1	finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 16 summaries
+1	finding 5: with GIT_DIR and GIT_WORK_TREE set the page still exits 0 and prints its 17 summaries
 1	finding 6: u, whose upstream origin/w holds its tip while origin/u is older, is not carried by its own upstream
 1	finds a plan the prompt points at
 1	finds plugins

@@ -10430,6 +10430,294 @@
 1	passed is exactly 4: the last check after the last edit did not fail
 1	passing gate exits 0
 1	path and all
+1	pattern kill allowed: ! kill -0 $(pgrep -f x)
+1	pattern kill allowed: # pkill -f x
+1	pattern kill allowed: ./pkill-notes/run.sh
+1	pattern kill allowed: /usr/bin/mypkill -f x
+1	pattern kill allowed: 2>/dev/null echo killall
+1	pattern kill allowed: KILLALL=/usr/bin/killall
+1	pattern kill allowed: PID=$(pgrep -P 1234) && kill -9 $PID
+1	pattern kill allowed: PKILL=/usr/bin/pkill
+1	pattern kill allowed: caffeinate -i sleep 5
+1	pattern kill allowed: case "$1" in stop) echo pkill -f server;; esac
+1	pattern kill allowed: cat <<'EOF'<NL>killall node<NL>EOF
+1	pattern kill allowed: cat > notes.md <<'EOF'<NL>pkill -f x<NL>EOF
+1	pattern kill allowed: cat > notes.md <<'EOF'<NL>use:<NL>pkill -f x<NL>killall node<NL>EOF<NL>ls
+1	pattern kill allowed: cat docs/killall.md
+1	pattern kill allowed: cat killall_report.txt
+1	pattern kill allowed: echo ! pkill -f x
+1	pattern kill allowed: echo "first<NL>pkill -f x"
+1	pattern kill allowed: echo "pkill|killall"
+1	pattern kill allowed: echo 'no killall'
+1	pattern kill allowed: echo do pkill -f x
+1	pattern kill allowed: echo else pkill it
+1	pattern kill allowed: echo hi; echo pkill -f x
+1	pattern kill allowed: echo pkill
+1	pattern kill allowed: echo then killall the rest
+1	pattern kill allowed: echo time killall node
+1	pattern kill allowed: env -C /tmp ls pkill-notes
+1	pattern kill allowed: export PKILL=/usr/bin/pkill
+1	pattern kill allowed: find . -name 'killall*' -exec ls {} \;
+1	pattern kill allowed: find /tmp -name pkill -print
+1	pattern kill allowed: for c in 'pkill -f x' 'ls'; do echo "$c"; done
+1	pattern kill allowed: for p in $(pgrep -P 1234); do kill $p; done
+1	pattern kill allowed: for p in $(pgrep -f x); do echo $p; done
+1	pattern kill allowed: for p in $(pgrep -f x); do kill -0 $p && echo up; done
+1	pattern kill allowed: git commit -F - <<'EOF'<NL>never pkill -f<NL>EOF
+1	pattern kill allowed: git commit -m "$(cat <<'EOF'<NL>docs: kill by pid, not killall<NL><NL>pkill -f reaches other sessions<NL>EOF<NL>)"
+1	pattern kill allowed: git commit -m "$(cat <<'EOF'<NL>fix: never pkill -f here<NL>EOF<NL>)"
+1	pattern kill allowed: git commit -m "never pkill -f"
+1	pattern kill allowed: git commit -m "title<NL><NL>pkill -f is refused now<NL>killall too"
+1	pattern kill allowed: git log --grep='pkill\|killall'
+1	pattern kill allowed: git log --grep=killall
+1	pattern kill allowed: grep -E 'pkill|killall' lib/x.sh
+1	pattern kill allowed: grep -n pkill lib/x.sh
+1	pattern kill allowed: grep -nE "vite|pkill" notes.md
+1	pattern kill allowed: if kill -0 $(pgrep -f x); then echo up; fi
+1	pattern kill allowed: kill $!
+1	pattern kill allowed: kill $( pgrep -P 1234 )
+1	pattern kill allowed: kill $(cat pidfile)
+1	pattern kill allowed: kill $(jobs -p)
+1	pattern kill allowed: kill $(pgrep -F run.pid)
+1	pattern kill allowed: kill $(pgrep -P 1234 -f 'a|b')
+1	pattern kill allowed: kill $(pgrep -P 1234)
+1	pattern kill allowed: kill $(sudo pgrep -P 1234)
+1	pattern kill allowed: kill $pid && echo "$(pgrep -f x | wc -l) left"
+1	pattern kill allowed: kill %1
+1	pattern kill allowed: kill -- -1234
+1	pattern kill allowed: kill -0 "$(pgrep -f x)"
+1	pattern kill allowed: kill -0 "$pid"
+1	pattern kill allowed: kill -0 $(pgrep -f x)
+1	pattern kill allowed: kill -0 $(pgrep -f x) && echo alive
+1	pattern kill allowed: kill -0 $(pgrep x)
+1	pattern kill allowed: kill -0 `pgrep -f x`
+1	pattern kill allowed: kill -9 $(pgrep -P $p)
+1	pattern kill allowed: kill -STOP $root; kill -KILL $root; echo "left: $(pgrep -f tests/run | wc -l)"
+1	pattern kill allowed: kill -STOP 1234; kill -KILL 1234
+1	pattern kill allowed: kill -TERM "$(cat run.pid)"
+1	pattern kill allowed: kill -TERM $(pgrep -f x -P 1234)
+1	pattern kill allowed: kill -TERM 1234; echo "left: $(pgrep -f x | wc -l)"
+1	pattern kill allowed: kill -l
+1	pattern kill allowed: kill -s 0 "$(pgrep -f 'a b')"
+1	pattern kill allowed: kill -s 0 $(pgrep -f x)
+1	pattern kill allowed: kill 1234
+1	pattern kill allowed: kill 1234; pgrep -fl x | wc -l
+1	pattern kill allowed: kill `pgrep -P 1234`
+1	pattern kill allowed: ls # pkill -f x
+1	pattern kill allowed: ls pkill-notes/
+1	pattern kill allowed: man pkill
+1	pattern kill allowed: mypkill --run
+1	pattern kill allowed: n=$(pgrep -f x | wc -l); kill -9 "$root"; echo $n
+1	pattern kill allowed: p=$(pgrep -P $pid); kill $p
+1	pattern kill allowed: p=$(pgrep -f x); echo "$p"
+1	pattern kill allowed: pgrep -F run.pid | xargs kill
+1	pattern kill allowed: pgrep -P "$P" | xargs kill
+1	pattern kill allowed: pgrep -P 1234
+1	pattern kill allowed: pgrep -P 1234 | head -5 | xargs kill
+1	pattern kill allowed: pgrep -P 1234 | while read p; do kill $p; done
+1	pattern kill allowed: pgrep -P1234 | xargs -r kill -9
+1	pattern kill allowed: pgrep -f x -P 1234 | xargs kill
+1	pattern kill allowed: pgrep -f x | wc -l
+1	pattern kill allowed: pgrep -f x | while read -r p; do ps -p $p; done
+1	pattern kill allowed: pgrep -f x | xargs -n 1 kill -0
+1	pattern kill allowed: pgrep -f x | xargs -r kill -s 0
+1	pattern kill allowed: pgrep -f x | xargs kill -0
+1	pattern kill allowed: pgrep -f x | xargs ps -o pid,command -p
+1	pattern kill allowed: pgrep -fl tests/run
+1	pattern kill allowed: pkill -9 -F /tmp/run.pid
+1	pattern kill allowed: pkill -9 -P $p
+1	pattern kill allowed: pkill -F "$pidfile"
+1	pattern kill allowed: pkill -F run.pid
+1	pattern kill allowed: pkill -F/tmp/run.pid
+1	pattern kill allowed: pkill -P "$a,$b"
+1	pattern kill allowed: pkill -P "$pid"
+1	pattern kill allowed: pkill -P $p
+1	pattern kill allowed: pkill -P 10
+1	pattern kill allowed: pkill -P 10,11
+1	pattern kill allowed: pkill -P 11 -f x
+1	pattern kill allowed: pkill -P 1234
+1	pattern kill allowed: pkill -P 1234 -f 'vite|esbuild'
+1	pattern kill allowed: pkill -P 1234 -f x
+1	pattern kill allowed: pkill -P 1234,5678
+1	pattern kill allowed: pkill -P$p
+1	pattern kill allowed: pkill -P1234
+1	pattern kill allowed: pkill -TERM -F "$TMP/run.pid"
+1	pattern kill allowed: pkill -TERM -P "$pid"
+1	pattern kill allowed: pkill -TERM -P 80490; kill -TERM 80490
+1	pattern kill allowed: pkill -f x -P 1234
+1	pattern kill allowed: pkiller x
+1	pattern kill allowed: printf '%s\n' "pkill"
+1	pattern kill allowed: ps -axo pid,command | grep pkill
+1	pattern kill allowed: ps -axo pid,command | grep tests/run
+1	pattern kill allowed: sed -n '/killall/p' notes.md
+1	pattern kill allowed: sleep 30 & kill $!
+1	pattern kill allowed: sudo -iu me ls
+1	pattern kill allowed: sudo pkill -P 1234
+1	pattern kill allowed: timeout 5 pkill -TERM -P "$pid"
+1	pattern kill allowed: true && pkill -P 1234
+1	pattern kill allowed: until ! kill -0 $(pgrep -f x); do sleep 5; done
+1	pattern kill allowed: watch -n 5 pgrep -fl x
+1	pattern kill allowed: which killall
+1	pattern kill allowed: while kill -0 $(pgrep -f 'a b') 2>/dev/null; do sleep 1; done
+1	pattern kill allowed: while read p; do kill $p; done < <(pgrep -P 1234)
+1	pattern kill allowed: while read p; do ps -p $p; done < <(pgrep -f x)
+1	pattern kill allowed: xargs kill < <(pgrep -P 1234)
+1	pattern kill refused: ! pkill -f x
+1	pattern kill refused: (pkill -f x)
+1	pattern kill refused: ./tools/pkill -f x
+1	pattern kill refused: /opt/homebrew/bin/pkill -f x
+1	pattern kill refused: /usr/bin/killall node
+1	pattern kill refused: /usr/bin/pkill -f x
+1	pattern kill refused: /usr/local/bin/killall -9 Dock
+1	pattern kill refused: 2>&1 killall node
+1	pattern kill refused: 2>/dev/null pkill -f x
+1	pattern kill refused: >/dev/null 2>&1 pkill -f x
+1	pattern kill refused: PID=$(pgrep -f x) && kill -9 $PID
+1	pattern kill refused: PID=$(pgrep -f x); kill -9 $PID
+1	pattern kill refused: arch -arm64 pkill -f x
+1	pattern kill refused: bash -c 'kill $(pgrep -f x)'
+1	pattern kill refused: builtin pkill -f x
+1	pattern kill refused: caffeinate -i pkill -f x
+1	pattern kill refused: case "$1" in start) ./run;; stop) killall server;; esac
+1	pattern kill refused: case "$1" in stop) pkill -f server;; esac
+1	pattern kill refused: case $x in a|b) pkill -f x ;; *) : ;; esac
+1	pattern kill refused: command pkill -f x
+1	pattern kill refused: echo "$(pkill -f x)"
+1	pattern kill refused: echo $(pkill -f x)
+1	pattern kill refused: echo `pkill -f x`
+1	pattern kill refused: echo hi<NL>pkill -f x
+1	pattern kill refused: echo node | xargs pkill
+1	pattern kill refused: echo x | pkill -f y
+1	pattern kill refused: env -C /tmp pkill -f x
+1	pattern kill refused: env -i pkill -f x
+1	pattern kill refused: env A=1 B=2 killall node
+1	pattern kill refused: env A=1 pkill -f x
+1	pattern kill refused: exec pkill -f x
+1	pattern kill refused: false || pkill -f x
+1	pattern kill refused: find . -name y -exec killall -9 node \;
+1	pattern kill refused: find /tmp -name x -exec pkill -f {} \;
+1	pattern kill refused: for i in 1 2; do pkill -f x; done
+1	pattern kill refused: for p in $(pgrep -f 'a b'); do kill -9 "$p"; done
+1	pattern kill refused: for p in $(pgrep -f x); do kill $p; done
+1	pattern kill refused: for p in `pgrep -f x`; do kill $p; done
+1	pattern kill refused: for p in `pgrep x`; do echo $p; kill -TERM $p; done
+1	pattern kill refused: if false; then :; else pkill -f x; fi
+1	pattern kill refused: if true; then pkill -f x; fi
+1	pattern kill refused: ionice -c3 pkill -f x
+1	pattern kill refused: kill $( pgrep -f x )
+1	pattern kill refused: kill $(<NL>pgrep -f x<NL>)
+1	pattern kill refused: kill $(env A=1 pgrep -f x)
+1	pattern kill refused: kill $(pgrep -P 1 -f x)
+1	pattern kill refused: kill $(pgrep -P 1234) $(pgrep -f x)
+1	pattern kill refused: kill $(pgrep -f 'a -P 1234')
+1	pattern kill refused: kill $(pgrep -f 'x || y')
+1	pattern kill refused: kill $(pgrep -f x)
+1	pattern kill refused: kill $(sudo pgrep -f x)
+1	pattern kill refused: kill -- -$(pgrep -f 'a b')
+1	pattern kill refused: kill -0 $(pgrep -f x); kill -9 $(pgrep -f x)
+1	pattern kill refused: kill -9 "$(pgrep -f x)"
+1	pattern kill refused: kill -9 $( sudo pgrep -f x )
+1	pattern kill refused: kill -9 $(pgrep -f "tests/(run|red)")
+1	pattern kill refused: kill -9 $(pgrep -f 'a b')
+1	pattern kill refused: kill -9 $(pgrep -f x -P 1)
+1	pattern kill refused: kill -9 -$(pgrep -f x)
+1	pattern kill refused: kill -TERM $(pgrep -d' ' x)
+1	pattern kill refused: kill ` pgrep -f x `
+1	pattern kill refused: kill `pgrep x`
+1	pattern kill refused: killall 'a|b'
+1	pattern kill refused: killall -9 Safari
+1	pattern kill refused: killall -P 1234 node
+1	pattern kill refused: killall -q -s TERM sleep
+1	pattern kill refused: killall node
+1	pattern kill refused: ls; pkill -f x
+1	pattern kill refused: ls;pkill -f x
+1	pattern kill refused: nice -n 5 pkill -f x
+1	pattern kill refused: nice pkill -f x
+1	pattern kill refused: nohup pkill -f x
+1	pattern kill refused: nohup setsid pkill -f x
+1	pattern kill refused: pgrep -P 1 -f x | xargs kill
+1	pattern kill refused: pgrep -P1 -f x | xargs -r kill -9
+1	pattern kill refused: pgrep -f "a||b" | xargs -r kill -9
+1	pattern kill refused: pgrep -f 'a b' | xargs -r -n1 kill -TERM
+1	pattern kill refused: pgrep -f 'a|b' | xargs kill
+1	pattern kill refused: pgrep -f 'one;two' | xargs kill
+1	pattern kill refused: pgrep -f x | head -5 | xargs kill
+1	pattern kill refused: pgrep -f x | while read -r p; do echo "$p"; ps -p $p; kill -9 $p; done
+1	pattern kill refused: pgrep -f x | while read -r p; do kill $p; done
+1	pattern kill refused: pgrep -f x | while read p; do echo "$p"; kill $p; done
+1	pattern kill refused: pgrep -f x | while read p; do kill $p; done
+1	pattern kill refused: pgrep -f x | xargs -I{} kill -9 {}
+1	pattern kill refused: pgrep -f x | xargs -n 1 kill
+1	pattern kill refused: pgrep -f x | xargs kill
+1	pattern kill refused: pgrep x | xargs -r kill -9
+1	pattern kill refused: pids=$(pgrep -f x)<NL>kill $pids
+1	pattern kill refused: pkill -9 -P 1
+1	pattern kill refused: pkill -9 -f "uvicorn|gunicorn"
+1	pattern kill refused: pkill -9 -x python
+1	pattern kill refused: pkill -9 x
+1	pattern kill refused: pkill -P "$(pgrep -f x)"
+1	pattern kill refused: pkill -P "$pid,1" -f x
+1	pattern kill refused: pkill -P "1,$pid" -f x
+1	pattern kill refused: pkill -P $(pgrep -f tests/run)
+1	pattern kill refused: pkill -P 1 -f x
+1	pattern kill refused: pkill -P 1,1234 -f x
+1	pattern kill refused: pkill -P 1,2
+1	pattern kill refused: pkill -P 1234,1 -f x
+1	pattern kill refused: pkill -P `pgrep -f x`
+1	pattern kill refused: pkill -P1 -f x
+1	pattern kill refused: pkill -P1,2 -f x
+1	pattern kill refused: pkill -TERM -P $(pgrep -f x)
+1	pattern kill refused: pkill -TERM -P 1 node
+1	pattern kill refused: pkill -TERM -f "next dev"
+1	pattern kill refused: pkill -f "x;y"
+1	pattern kill refused: pkill -f 'a & b'
+1	pattern kill refused: pkill -f 'a && b'
+1	pattern kill refused: pkill -f 'a b|c d'
+1	pattern kill refused: pkill -f 'engine/harness/tests/run'
+1	pattern kill refused: pkill -f 'foo(bar|baz)'
+1	pattern kill refused: pkill -f 'sleep 3'
+1	pattern kill refused: pkill -f 'vite|esbuild'
+1	pattern kill refused: pkill -f 'worker -P 1234'
+1	pattern kill refused: pkill -f 'x|-P 1234'
+1	pattern kill refused: pkill -f run.pid
+1	pattern kill refused: pkill -f x -P 1
+1	pattern kill refused: pkill -f x -u me
+1	pattern kill refused: pkill -u 501 node
+1	pattern kill refused: pkill -x 'node|npm'
+1	pattern kill refused: pkill node
+1	pattern kill refused: printf 'a\nb\n' | xargs -n 1 killall
+1	pattern kill refused: setsid pkill -f x
+1	pattern kill refused: sh -c 'pgrep -f x | xargs kill'
+1	pattern kill refused: sleep 1 & pkill -f x
+1	pattern kill refused: stdbuf -oL pkill -f x
+1	pattern kill refused: sudo -iu me pkill -f x
+1	pattern kill refused: sudo bash -c 'pkill -f x'
+1	pattern kill refused: sudo caffeinate -i killall node
+1	pattern kill refused: sudo kill -9 $(pgrep -f x)
+1	pattern kill refused: sudo killall node
+1	pattern kill refused: sudo nohup pkill -f x
+1	pattern kill refused: sudo pkill -f x
+1	pattern kill refused: time pkill -f x
+1	pattern kill refused: timeout 10 bash -c 'kill $(pgrep -f x)'
+1	pattern kill refused: timeout 5 pkill -f x
+1	pattern kill refused: true && kill $(pgrep -f x)
+1	pattern kill refused: true && pkill -f x
+1	pattern kill refused: until ! kill -0 $(pgrep -f x); do kill -9 $(pgrep -f x); done
+1	pattern kill refused: watch pkill -f x
+1	pattern kill refused: while read -r p; do echo $p; kill -9 $p; done < <(pgrep -f x)
+1	pattern kill refused: while read p; do kill $p; done < <(pgrep -f x)
+1	pattern kill refused: xargs -r kill -9 < <(pgrep -f x)
+1	pattern kill refused: xargs kill < <(pgrep -f x)
+1	pattern kill refused: { pkill -f x; }
+1	pattern kill row: exactly one row in projects/felix/deny.tsv has a reason beginning a pattern kill
+1	pattern kill row: it has three columns, so no checkout scope
+1	pattern kill row: it holds two tabs, so the reason holds none
+1	pattern kill row: it is a Bash row
+1	pattern kill row: the reason is printable ASCII
+1	pattern kill row: the reason is under 200 bytes
+1	pattern kill row: the reason names the harm, other sessions
+1	pattern kill row: the reason names the way, a pid
+1	pattern kill row: the reason says the pid comes from $! or a pidfile
 1	pipes under state/, a memory log and the maintenance log of a home at the root leave the id known (T3)
 1	plain felix qualify reads it once for its controls and at most once more for the roster gap
 1	plugin cf@m reads present in the plan, though its server cf-api needs authentication

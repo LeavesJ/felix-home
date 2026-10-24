@@ -793,7 +793,7 @@ _par_run() {
   _pj_W=30; [ "$_pj_T" -ge 30 ] || _pj_W="$_pj_T"
   _pj_9fl=""; _pj_9rf=""; _pj_9om=""; _pj_9ob=0; _pj_9os=0; _pj_9ok=0
   mkdir -p "$_pj_dir" || _sj_die "cannot make [$_pj_dir]"
-  _par_order; if [ -f "$HERE/select.sh" ]; then . "$HERE/select.sh" && _tm_begin; else [ -z "${FELIX_TEST_TRACE_DIR-}" ] || [ -n "${FELIX_TEST_UNIT-}" ] || [ "$FELIX_TEST_RECORD" = 1 ] || [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ] || _sj_die "FELIX_TEST_TRACE_DIR is set and this suite has no tests/select.sh"; fi
+  _par_order; if [ -f "$HERE/select.sh" ]; then . "$HERE/select.sh" && _tm_begin || echo "tests/run: the unit facts were not kept: tests/select.sh cannot be read" >&2; else [ -z "${FELIX_TEST_TRACE_DIR-}" ] || [ -n "${FELIX_TEST_UNIT-}" ] || [ "$FELIX_TEST_RECORD" = 1 ] || [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ] || _sj_die "FELIX_TEST_TRACE_DIR is set and this suite has no tests/select.sh"; fi
   i=0; while [ "$i" -lt "$_pj_n" ]; do _pj_s[i]=0; _pj_pid[i]=""; _pj_rc[i]=""; i=$((i + 1)); done
   _pj_sg="$(perl -e "$_pj_sgpl" 2>/dev/null)"
   case "$_pj_sg" in "IGNORE IGNORE "|"IGNORE DEFAULT "|"DEFAULT IGNORE "|"DEFAULT DEFAULT ") ;; *) _sj_die "cannot read how INT and QUIT stand here (perl is needed)" ;; esac

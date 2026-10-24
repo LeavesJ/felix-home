@@ -62,6 +62,7 @@ _tm_begin() {
   elif [ "${_rcp_on:-0}" = 1 ] && [ -n "${_pj_df:-}" ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" != 1 ]; then
     _tm_on=1
   fi
+  return 0
 }
 # XmY.ZZZs -> _tm_ms, in milliseconds; fails on anything else.
 _tm_run_ms() {

@@ -66,8 +66,11 @@ _tm_trace_new() {
   return 0
 }
 # A command that mentions what compile reads for B13 and B14. BASH_FT_n is the length of PIPESTATUS.
+# Only its first 400 characters are kept and read: bash 3.2 takes minutes over ${c//$'\n'/ } on a
+# command of tens of kilobytes (an assignment of an awk program), and what leaves the tracer behind
+# is in a command's first words.
 _tm_trace_cmd() {
-  local c="$BASH_COMMAND" s="${BASH_SOURCE[2]-}" a
+  local c="${BASH_COMMAND:0:400}" s="${BASH_SOURCE[2]-}" a
   case $c in
     .\ *|source\ *)
       a=${c#* }; a=${a#"${a%%[! ]*}"}
@@ -75,12 +78,12 @@ _tm_trace_cmd() {
       case $a in /*|*\$*|*\`*|"") ;; */*) [[ ! -f $PWD/$a ]] || BASH_FT_rel="$BASH_FT_rel$a=$PWD/$a|" ;; esac
       return 0 ;;
   esac
-  if [[ $c == *PIPESTATUS* ]]; then
+  if [[ $BASH_COMMAND == *PIPESTATUS* ]]; then
     [[ $BASH_FT_n -lt 2 ]] || _tm_trace_rec ps "$s"
     return 0
   fi
   c=${c//$'\t'/ }; c=${c//$'\n'/ }; c=${c//$'\r'/ }
-  _tm_trace_rec cmd "$s" "${c:0:400}"
+  _tm_trace_rec cmd "$s" "$c"
   return 0
 }
 _tm_trace_dbg() {

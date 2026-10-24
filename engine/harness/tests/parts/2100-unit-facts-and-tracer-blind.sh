@@ -14,7 +14,8 @@ printf '\naudit b30: unit facts, the tracer and maps (blind)\n'
 #   spelling of $TMP replaced by the second. A top line is compared with links resolved on both sides.
 # - A12's "no new file" is read as: the runs of P were there before the --part run and are byte for byte the same after it.
 # - A35 asks only that 0040 and 0110 are fail: the contract pins no verdict for 0120 under tracing. A64 also asks for B17's felix testmap: prefix.
-# - A19 and A32 hold on main too (an untraced run, and a trace dir main ignores); the contract marks neither a control.
+# - A19, A27, A32, A33, A34, A40 and A41 hold on main too, by construction: an untraced run, or a run whose FELIX_TEST_TRACE_DIR main ignores
+#   (which prints and exits as an untraced one). The contract marks none of them a control.
 # - B3x and B5x assertions skip on the other bash. An assertion whose name ends in (control) holds before and after the fix.
 UF="$TMP/tm"
 mkdir -p "$UF/pp/P" "$UF/pp/T" "$UF/lib" "$UF/c" "$UF/o" "$UF/x" "$UF/mk" "$UF/tmp" "$UF/d/D1" "$UF/d/D2" "$UF/d/D3" "$UF/d/D4" "$UF/d/D5"
@@ -263,7 +264,7 @@ is "A44: the map's first line is map, v1, T's HEAD, the platform, an epoch of th
    "$(awk -F'\t' -v now="$(date +%s)" 'NR == 1 { e = ($5 ~ /^[0123456789]+$/ && $5 + 0 <= now + 5 && $5 + 0 >= now - 3600) ? "recent" : "epoch [" $5 "]"; print $1 "|" $2 "|" $3 "|" $4 "|" e "|" $6 "|" NF } $1 == "unit" { u = u $2 " " } END { print u }' "$_uf_MT" 2>/dev/null)" \
    "$(printf 'map|v1|%s|%s|recent|untraced|6\n%s ' "$_uf_TH" "$_uf_P" "$_uf_U")"
 is "A45: the counts compile prints are the counts of each status among the map's unit lines" "$(sed -n 2p "$UF/o/cm.out")" \
-   "$(awk -F'\t' '$1 == "unit" { n++; c[$3]++ } END { if (n) printf "testmap: %d units: %d complete, %d incomplete, %d unfaithful", n, c["complete"], c["incomplete"], c["unfaithful"]; else printf "no unit line in the map" }' "$_uf_MT" 2>/dev/null)"
+   "$(if [ -s "$_uf_MT" ]; then awk -F'\t' '$1 == "unit" { n++; c[$3]++ } END { if (n) printf "testmap: %d units: %d complete, %d incomplete, %d unfaithful", n, c["complete"], c["incomplete"], c["unfaithful"]; else printf "no unit line in the map" }' "$_uf_MT"; else printf 'no map at %s' "$_uf_MT"; fi)"
 is "A46: the units that do nothing the tracer cannot follow are complete, with reason -" \
    "$(for _uf_x in 0010-tm-a.sh 0020-tm-b.sh 0030-tm-c.sh tg; do printf '%s=%s ' "$_uf_x" "$(_uf_mu "$_uf_x")"; done)" "0010-tm-a.sh=complete|- 0020-tm-b.sh=complete|- 0030-tm-c.sh=complete|- tg=complete|- "
 is "A47: a unit that only quotes env -i, in an assignment's value, is complete (control for B13's last sentence)" "$(_uf_mu 0070-tm-g.sh)" "complete|-"

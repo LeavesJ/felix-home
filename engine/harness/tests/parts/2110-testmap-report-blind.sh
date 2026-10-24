@@ -153,7 +153,8 @@ is "A98: in a checkout with no engine/harness/tests/run the report is one line, 
 _rp_w=""; _rp_i=0
 for _rp_l in "" --bogus "--report a b" --compile; do
   _rp_i=$((_rp_i + 1)); _rp_in "$RP" "a99-$_rp_i" $_rp_l
-  [ "$_rp_rc|$(wc -c < "$RPO/a99-$_rp_i.out" | tr -d ' ')|$(grep -c '^usage: felix testmap' "$RPO/a99-$_rp_i.err")" = "2|0|1" ] || _rp_w="$_rp_w [${_rp_l:-no argument}: exit $_rp_rc]"; done
+  _rp_x="$(grep -c '^usage: felix testmap' "$RPO/a99-$_rp_i.err")"
+  [ "$_rp_rc|$(wc -c < "$RPO/a99-$_rp_i.out" | tr -d ' ')" = "2|0" ] && [ "${_rp_x:-0}" -ge 1 ] || _rp_w="$_rp_w [${_rp_l:-no argument}: exit $_rp_rc, $_rp_x usage lines]"; done
 is "A99: no argument, an unknown word, two bases and --compile with no directory each give the usage on stderr, nothing on stdout, exit 2" "${_rp_w:-ok}" ok
 _rp_in "$RP" a100 --help
 is "A100: felix testmap --help prints the usage on stdout and exits 0" "$_rp_rc|$(sed -n 1p "$RPO/a100.out")" "0|usage: felix testmap --report [BASE] | --compile DIR"

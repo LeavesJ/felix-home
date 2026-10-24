@@ -464,7 +464,7 @@ specific project, language, or toolchain.
     felix incident         turn an error into a scoped brief
     felix maintenance      upkeep that is due, and when each last ran
     felix automerge        whether green changes may merge themselves yet
-    felix land             the scheduled job that runs felix merge on a green pull request: --tick, --pause, --resume, --install, --status
+    felix land             macOS only: the scheduled job that lands the home's green pull requests: --tick, --pause, --resume, --install, --status
     felix unattended       whether the unattended loop is ready to be switched on
     felix budget           how much unattended work has been spent today
 

@@ -1,4 +1,4 @@
-# felix status: five rows a surface can poll, and the settings check the pulse
+# felix status: six rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,7 +8,7 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate. state is value, none or unknown. value is a bare word (no spaces) when
+# gate, alerts. state is value, none or unknown. value is a bare word (no spaces) when
 # state is value, and `-` otherwise; detail is never empty. A consumer ignores
 # rows it does not know. Weekly spend is not a row: felix cost has its own --tsv
 # and takes about twenty seconds, so a surface runs it on its own timer.
@@ -248,7 +248,36 @@ _felix_status_gate() {
   esac
 }
 
-# The five rows for the directory <cwd> under the Felix home <home>.
+# The newest alert the lander tried to send off this Mac (lib/notify.sh, audit b05 B13), read from
+# the home's project's alerts.tsv alone: no gh, no git, nothing written. A post that failed shows
+# its note. One that was posted as the account it mentions shows posted-self, because GitHub
+# documents no notification for your own actions, so whether a phone was alerted is not known.
+_felix_status_alerts() {
+  local home="$1" p land f
+  if [ -z "$home" ] || [ ! -d "$home" ]; then
+    _felix_status_row alerts unknown - "no Felix home resolved"; return 0
+  fi
+  p="$(felix_resolve_project "$home" "$home" 2>/dev/null)" || p=""
+  if [ -z "$p" ]; then
+    _felix_status_row alerts unknown - "the home $home resolves no project, so no alert record was looked for"; return 0
+  fi
+  p="${p##*/}"; land="$(felix_mem_dir "$p")/land"; f="$land/alerts.tsv"
+  if [ ! -e "$f" ]; then _felix_status_row alerts none - "no alert has been tried for $p"; return 0; fi
+  if [ ! -f "$f" ] || [ ! -r "$f" ]; then _felix_status_row alerts unknown - "$f cannot be read"; return 0; fi
+  _felix_status_from3 alerts "$(LC_ALL=C awk -F'\t' -v p="$p" '
+    { n = NF; for (i = 1; i <= 8; i++) f[i] = $i }
+    END {
+      if (NR == 0) { print "none\t-\tno alert has been tried for " p; exit }
+      if (n != 8 || (f[2] != "posted" && f[2] != "failed")) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
+      w = f[1] " " f[3]; if (f[4] != "-") w = w " #" f[4]
+      if (f[2] == "failed") { print "value\tfailed\t" w " " f[7]; exit }
+      if (f[7] !~ /^as @[^ ]+ mentioning @[^ ]+$/) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
+      split(f[7], x, " ")
+      if (tolower(x[2]) == tolower(x[4])) print "value\tposted-self\t" w " " f[6] ": posted as the account it mentions: GitHub documents no notification for your own actions, so whether a phone was alerted is not known"
+      else print "value\tposted\t" w " " f[6] }' "$f" 2>/dev/null)"
+}
+
+# The six rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj
   _felix_status_need felix_repo_root resolve
@@ -259,6 +288,7 @@ felix_status_rows() {
   _felix_status_pulse "$home"
   _felix_status_reach "$proj" "$home"
   _felix_status_gate "$root" "$home" "$proj"
+  _felix_status_alerts "$home"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

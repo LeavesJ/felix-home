@@ -54,6 +54,7 @@ _gt_say() {   # EVENT PR DETAIL
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
   osascript -e "display notification \"$det\" with title \"$title\"" >/dev/null 2>&1 || true
+  _fn_event "$1" "$2" "${3%% \[main *}"   # C018, B1: the alert off this Mac (lib/notify.sh, green-install.sh)
 }
 
 _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
@@ -453,6 +454,7 @@ _gt_usage() {
 
 # The stuck-PR page (lib/pr-status.sh): read-only, and sourced only when asked.
 case "${BASH_SOURCE[0]}" in */*) _GT_LIBDIR="${BASH_SOURCE[0]%/*}" ;; *) _GT_LIBDIR=. ;; esac
+. "$_GT_LIBDIR/notify.sh"   # the alert off this Mac, shared with the trampoline (C018)
 
 felix_land() {
   case "${1:-}" in
@@ -466,7 +468,8 @@ felix_land() {
   [ "$1" != --tick ] || ( resolve_or_die ) >/dev/null 2>&1 </dev/null || _gt_noproj
   resolve_or_die
   local cmd="$1"; shift
-  _GT_LAND="$(felix_mem_dir "$PROJ")/land"; _GT_LEDGER="$_GT_LAND/ledger.tsv"
+  _gt_home_only "$cmd"   # C013, B14
+  _GT_LAND="$(felix_mem_dir "$PROJ")/land"; _GT_LEDGER="$_GT_LAND/ledger.tsv"; _GT_RESOLVED=1
   _GT_REPO="$(felix_repo_slug "$FELIX_HOME_DIR" 2>/dev/null)"
   case "$cmd" in
     --tick)      _gt_tick; _gt_unlock; return 0 ;;

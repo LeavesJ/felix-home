@@ -57,17 +57,18 @@ _tm_ps_units() {
   }
   ' "$1" "$2" 2>/dev/null
 }
-# OLD NEW: both versions of one file read the same way (B28). Prints `ok 1` when both are
-# parsed into functions and `ok 0` when either has a definition with no end; then `fn NAME` for each
-# function whose body differs between them (a function in only one differs), and `top changed`
-# when the lines outside every definition differ.
+# OLD NEW: both versions of one file read the same way (B28); a file that is not there reads as
+# empty. Prints `ok 1` when both are parsed into functions and `ok 0` when either has a definition
+# with no end; then, on `ok 1`, `def NAME` for each function either version defines, `fn NAME` for
+# each whose body differs between them (a function in only one differs), and `top changed` when the
+# lines outside every definition differ.
 _tm_ps_fn() {
   LC_ALL=C awk -v OFS='\t' '
   function indentof(l) { match(l, /^[ \t]*/); return substr(l, 1, RLENGTH) }
   function isdef(l,   t, nm) {
     if (l !~ /^[ \t]*function[ \t]+[A-Za-z0-9_.:-]+([ \t]*\(\))?[ \t]*[{(]/ && l !~ /^[ \t]*[A-Za-z0-9_.:-]+[ \t]*\(\)[ \t]*[{(]/) return 0
     t = l; sub(/^[ \t]+/, "", t)
-    if (t ~ /^function[ \t]/) { sub(/^function[ \t]+/, "", t) }
+    if (t ~ /^function[ \t]/) sub(/^function[ \t]+/, "", t)
     nm = t; sub(/[ \t(){].*$/, "", nm)
     DN = nm; DI = indentof(l)
     sub(/^[A-Za-z0-9_.:-]+[ \t]*(\(\))?[ \t]*/, "", t)
@@ -82,44 +83,46 @@ _tm_ps_fn() {
     return rest ~ /^[ \t]*$/ || rest ~ /^[ \t]*[;#<>&]/ || rest ~ /^[ \t]*[0-9]+[<>]/
   }
   function addfn(v, nm, text) { NM[nm] = 1; FB[v, nm] = (((v, nm) in FB) ? FB[v, nm] "\n" : "") text }
-  FNR == 1 { v++; sp = 0; OK[v] = 1 }
-  {
-    l = $0
-    if (!OK[v]) next
-    if (sp > 0) {
-      if (isdef(l) && length(DI) <= length(SI[sp])) { OK[v] = 0; next }
-      if (closes(l, sp)) {
+  function open(l) { sp++; SI[sp] = DI; SC[sp] = DC; SN[sp] = DN; SB[sp] = l }
+  function scan(v, f,   l, j) {
+    sp = 0; OK[v] = 1; TOP[v] = ""
+    while ((getline l < f) > 0) {
+      if (sp > 0) {
+        if (isdef(l) && length(DI) <= length(SI[sp])) { OK[v] = 0; break }
+        if (closes(l, sp)) {
+          for (j = 1; j <= sp; j++) SB[j] = SB[j] "\n" l
+          addfn(v, SN[sp], SB[sp]); sp--; continue
+        }
         for (j = 1; j <= sp; j++) SB[j] = SB[j] "\n" l
-        addfn(v, SN[sp], SB[sp]); sp--; next
+        if (isdef(l)) { if (DONE) addfn(v, DN, l); else open(l) }
+        continue
       }
-      for (j = 1; j <= sp; j++) SB[j] = SB[j] "\n" l
-      if (isdef(l)) {
-        if (DONE) addfn(v, DN, l)
-        else { sp++; SI[sp] = DI; SC[sp] = DC; SN[sp] = DN; SB[sp] = l }
-      }
-      next
+      if (isdef(l)) { if (DONE) addfn(v, DN, l); else open(l) }
+      else TOP[v] = TOP[v] l "\n"
     }
-    if (isdef(l)) {
-      if (DONE) addfn(v, DN, l)
-      else { sp++; SI[sp] = DI; SC[sp] = DC; SN[sp] = DN; SB[sp] = l }
-    } else TOP[v] = TOP[v] l "\n"
-  }
-  END {
     if (sp > 0) OK[v] = 0
+    close(f)
+  }
+  BEGIN {
+    scan(1, ARGV[1]); scan(2, ARGV[2])
     print "ok", (OK[1] && OK[2]) ? 1 : 0
     if (!(OK[1] && OK[2])) exit
-    for (nm in NM) if (((1, nm) in FB) != ((2, nm) in FB) || FB[1, nm] != FB[2, nm]) print "fn", nm
+    for (nm in NM) {
+      print "def", nm
+      if (((1, nm) in FB) != ((2, nm) in FB) || FB[1, nm] != FB[2, nm]) print "fn", nm
+    }
     if (TOP[1] != TOP[2]) print "top", "changed"
+    exit
   }
   ' "$1" "$2" 2>/dev/null
 }
-# stdin: a unified diff with no context of one file (git diff -U0), or a whole new file with
-# -v whole=1. PATH in the environment as TM_PATH. Prints PATH, a tab and the line number in the
-# tree, for each added line that makes a computed call (B26): after leading blanks and any of
-# if, then, else, do, !, {, (, &&, || and ;, it starts with eval, a computed source, a variable as
-# the command word, bash -c or sh -c, a quoted trap, declare -f, export -f or compgen -A function.
+# MODE (stdin): the added lines that make a computed call (B26): after leading blanks and any of
+# if, then, else, do, !, {, (, &&, || and ;, a line that starts with eval, a computed source, a
+# variable as the command word, bash -c or sh -c, a quoted trap, declare -f, export -f or
+# compgen -A function. Prints PATH, a tab and the line's number in the tree. MODE diff reads
+# `git diff -U0` of any number of files; MODE whole reads one new file, named in TM_PATH.
 _tm_ps_calls() {
-  LC_ALL=C awk -v whole="${1:-0}" -v OFS='\t' '
+  LC_ALL=C awk -v mode="${1:-diff}" -v OFS='\t' '
   function cc(s,   t, q) {
     t = s; q = "[\047\"]"
     while (1) {
@@ -133,15 +136,17 @@ _tm_ps_calls() {
     if (t ~ /^eval[ \t]/) return 1
     if (t ~ /^(source|\.)[ \t]+"?\$/) return 1
     if (t ~ /^"\$/ || t ~ /^\$[A-Za-z_{]/) return 1
-    if (t ~ /^(bash|sh)[ \t]+-c/) return 1
+    if (t ~ /^("\$BASH"|bash|sh)[ \t]+-c/) return 1
     if (t ~ ("^trap[ \t]+" q)) return 1
     if (t ~ /^(declare|export)[ \t]+-f/ || t ~ /^compgen[ \t]+-A[ \t]+function/) return 1
     return 0
   }
-  BEGIN { p = ENVIRON["TM_PATH"]; ln = 0 }
-  whole == 1 { ln++; if (cc($0)) print p, ln; next }
-  /^@@ / { s = $0; sub(/^@@ -[0-9,]+ \+/, "", s); sub(/[ ,].*$/, "", s); ln = s - 1; next }
-  /^\+\+\+ / { next }
-  /^\+/ { ln++; if (cc(substr($0, 2))) print p, ln; next }
-  ' 
+  BEGIN { pth = ENVIRON["TM_PATH"]; ln = 0 }
+  mode == "whole" { ln++; if (cc($0)) print pth, ln; next }
+  /^diff --git / { hdr = 1; pth = ""; next }
+  hdr && /^\+\+\+ / { s = substr($0, 5); sub(/\t.*$/, "", s); pth = (s == "/dev/null") ? "" : (substr(s, 1, 2) == "b/" ? substr(s, 3) : s); next }
+  /^@@ / { hdr = 0; s = $0; sub(/^@@ -[0-9,]+ \+/, "", s); sub(/[ ,].*$/, "", s); ln = s - 1; next }
+  hdr { next }
+  /^\+/ { ln++; if (pth != "" && cc(substr($0, 2))) print pth, ln; next }
+  '
 }

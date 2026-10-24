@@ -20,7 +20,9 @@
 #   - Fails open on everything. A missing table, an unparseable payload, a bad
 #     regex, an unresolvable project: all allow. The cost of a false deny is a
 #     person fighting their own tools and switching the harness off; the cost of
-#     a missed deny is the status quo.
+#     a missed deny is the status quo. Allowing is not the same as saying
+#     nothing: a call the hook could not judge leaves a row in hook-faults.log
+#     (hooks/pre-tool), which the next session start reads back (audit C029).
 #
 # It used to be narrow in a fourth way, and that one was a mistake. The matcher
 # in hooks.json bound Bash alone, so no rule could see Read, Edit or Write —
@@ -367,7 +369,7 @@ EOF
 # lib/where.sh is loaded here, from beside this file, and not by the hook: the
 # hook runs on every tool call and this runs only after a scoped row matched.
 # If it cannot be loaded nothing is known, and the row stands.
-_FELIX_DENY_LIB="${BASH_SOURCE[0]%/*}"
+case "${BASH_SOURCE[0]}" in */*) _FELIX_DENY_LIB="${BASH_SOURCE[0]%/*}" ;; *) _FELIX_DENY_LIB=. ;; esac
 _felix_deny_scoped_lifts() {
   local want="$1" pattern="$2" subj="$3" start="$4"
   _FELIX_WHERE_WHY=""

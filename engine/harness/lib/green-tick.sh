@@ -27,6 +27,7 @@
 # A8. Every read of main names the full ref: git resolves a tag or a local
 # branch called origin/main before the remote one, and every worktree shares them.
 _GT_MAIN=refs/remotes/origin/main
+_GT_SIG=""   # what the two receipts held just before the felix merge run in progress (B4)
 
 # The ledger's time is UTC ISO 8601, the one format that sorts as text and that
 # an awk can turn back into seconds without a date(1) that differs per OS.
@@ -49,7 +50,7 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
   local title="Felix: $1" det
-  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
+  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|resumed|installed|uninstalled|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
   [ "${_GT_QUIET:-0}" = 1 ] && return 0
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -66,10 +67,13 @@ _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
 }
 
 # A pull request that waits writes one row, not one every five minutes: the row
-# is written only when it differs from that pull request's previous row.
+# is written only when it differs from that pull request's previous row. A job
+# row (no pull request) is the same wait while its event and the part of its
+# detail before the first "; " are, and is said again each hour (_gt_job_once).
 _gt_last() { LC_ALL=C awk -F'\t' -v p="$1" '$3 == p { l = $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null; }
 _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
   local det; det="$(_gt_clean "${6:-}")"
+  [ "$2" != - ] || { _gt_job_once "$1" "${det:--}"; return 0; }
   [ "$(_gt_last "$2")" != "$(printf '%s\t%s\t%s' "$1" "$3" "${det:--}")" ] || return 0
   _gt_row "$@"
 }
@@ -223,14 +227,15 @@ _gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1
 # out has written its row, and a deploy that is not known good pauses the job:
 # nothing is rolled back, because that is roadmap step 12.
 _gt_deploy() {
-  local home="$FELIX_HOME_DIR" why ver out entry rc
+  local home="$FELIX_HOME_DIR" why ver out entry rc pids had=0
   _GT_T0=$SECONDS
   # A gate or suite measures the engine it runs under; replacing the engine
   # beneath it would invalidate that, and nothing is ever signalled. A14: tests/red
   # starts the suite by a relative path, and a pgrep that fails reads as a suite running.
-  pgrep -f 'engine/harness/tests/run|gate\.sh' >/dev/null 2>&1; rc=$?
+  # B12: the row names the processes it waits on, and B13 says it again each hour.
+  pids="$(pgrep -f 'engine/harness/tests/run|gate\.sh' 2>/dev/null)"; rc=$?
   if [ "$rc" -ne 1 ]; then
-    [ "$rc" -eq 0 ] && why="a gate or suite is running" || why="a gate or suite may be running: pgrep exited $rc"
+    [ "$rc" -eq 0 ] && why="a gate or suite is running; matched $(_gt_procs "$pids")" || why="a gate or suite may be running: pgrep exited $rc"
     _gt_row_once deploy-owed - - - 0 "$why"; return 1
   fi
   why=""
@@ -255,13 +260,14 @@ _gt_deploy() {
   # A24: nothing of the home's runs until its engine/ and project are main's, byte for byte.
   why="$(_gt_home_exact)" || {
     why="the home checkout is not main byte for byte: $why"; _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1; }
+  [ ! -d "$(_gt_cache)/$_GT_VER" ] || had=1   # B20: felix install does not replace an entry that exists
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"
   entry="$(_gt_cache)/$ver"
   # A21: against main's own commit, not the home's files: an untracked file in the home's engine/ cannot pass.
   out="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$home" "$_GT_MAIN" 2>&1 )" \
-    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
+    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(_gt_didnt "$had" "$entry")$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
     | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) >/dev/null 2>&1
   rc=$?
@@ -338,12 +344,16 @@ _gt_detail() {   # felix merge's output -> the first blocker line, else the last
   printf '%s' "$d"
 }
 
-# A13. A refusal is final until the head or main moves; the row records both.
-# The ledger row is written on every run; it is notified only if the blocker or
-# the head differs from the pull request's previous refused row.
-_gt_refuse() {   # PR SHA WORKTREE WALL OUTPUT
-  local b; b="$(_gt_clean "$(_gt_detail "$5")")"
+# A13, B1-B9. A refusal is held until its blocker can lift: the detail says which
+# of three clauses applies and the row records the head and main (_gt_class and
+# _gt_held, lib/green-install.sh). The ledger row is written on every run; it is
+# notified only if the blocker, the class or the head differs from the pull
+# request's previous refused row.
+_gt_refuse() {   # PR SHA WORKTREE WALL OUTPUT STATUS
+  local c b; c="$(_gt_class "$6" "$5")"
+  b="$(_gt_clean "$(_gt_detail "$5")") $(_gt_clause "$c")"
   case "$(_gt_last "$1")" in "refused"$'\t'"$2"$'\t'"$b [main "*) _GT_QUIET=1 ;; esac
+  _gt_record "$1" "$2" "$c"
   _gt_row refused "$1" "$2" "$3" "$4" "$b [main $_GT_MS]"; _GT_QUIET=0
 }
 
@@ -372,15 +382,15 @@ _gt_candidate() {   # PR BRANCH SHA DRAFT HOLD MERGEABLE CROSS BASE -> 0 when it
   [ -n "$wt" ] || { _gt_row_once session "$n" "$sha" - 0 "no checkout holds the gated head"; return 1; }
   [ "$wt" != "!" ] || { _gt_row_once session "$n" "$sha" - 0 "the checkout holding the gated head has a tab or newline in its path: it is never used"; return 1; }
   [ "$wt" != "?" ] || { _gt_row_once session "$n" "$sha" - 0 "the directory the worktree list names does not report the gated branch, the gated head and the home's own .git: it is never used"; return 1; }
-  case "$(_gt_last "$n")" in "refused"$'\t'"$sha"$'\t'*"[main $_GT_MS]") return 1 ;; esac
+  _gt_held "$n" "$sha" "$wt" && return 1
   t0=$SECONDS
   out="$(_gt_merge "$wt" "$_GT_VER")"; rc=$?
   if [ "$rc" -eq 0 ]; then
-    _gt_row landed "$n" "$sha" "$wt" "$((SECONDS - t0))" "merged"
+    _gt_row landed "$n" "$sha" "$wt" "$((SECONDS - t0))" "merged"; rm -f "$_GT_LAND/retry.$n"
     printf '%s\n' "$files" | LC_ALL=C awk '/^engine\// { f = 1 } END { exit !f }' && _GT_ENGINE=1
     return 0
   fi
-  _gt_refuse "$n" "$sha" "$wt" "$((SECONDS - t0))" "$out"
+  _gt_refuse "$n" "$sha" "$wt" "$((SECONDS - t0))" "$out" "$rc"
   return 1
 }
 
@@ -415,8 +425,9 @@ _gt_tick() {
   fi
   _gt_lock || return 0
   _gt_watchdog
-  if ! gh auth status >/dev/null 2>&1; then
-    _gt_row_once gh - - - 0 "gh auth status failed: the job cannot see pull requests or CI"; return 0
+  # B10: github.com's active account is the one every gh call below uses; a dead token for another host or account is no stop.
+  if ! gh auth status --hostname github.com --active >/dev/null 2>&1; then
+    _gt_row_once gh - - - 0 "gh auth status --hostname github.com --active failed: the job cannot see pull requests or CI"; return 0
   fi
   # G3: what main holds is deployed before anything merges, because felix merge
   # refuses every candidate for want of an installed judge.
@@ -470,8 +481,8 @@ felix_land() {
   _GT_REPO="$(felix_repo_slug "$FELIX_HOME_DIR" 2>/dev/null)"
   case "$cmd" in
     --tick)      _gt_tick; _gt_unlock; return 0 ;;
-    --pause)     _gt_pause "${*:-paused by hand}" ;;
-    --resume)    rm -f "$_GT_LAND/paused" ;;
+    --pause)     _gt_hand_pause "${*:-paused by hand}" ;;
+    --resume)    _gt_hand_resume ;;
     --install)   _gt_install ;;
     --uninstall) _gt_uninstall ;;
     --status)    _gt_status "$@" ;;

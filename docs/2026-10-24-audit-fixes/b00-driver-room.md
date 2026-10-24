@@ -179,8 +179,20 @@ on its own" reads them too. The sets, each contiguous in the driver's order:
 - 1500 1510
 - 1600 1610 (after the change only)
 
-0440, 0640 and 0840 write stub drivers of their own and never read the real
-one. They are in the list the brief named, and are controls.
+0440 and 0640 write stub drivers of their own, and 0840 only names tests/run
+inside audit fixtures: none of the three reads the real driver. They are in the
+list the brief named, and are controls.
+
+Part 1010 is the one set whose result moves for a reason outside this batch.
+Its two record checks, "red.tsv was recorded against the engine origin/main
+held where this tree branched from it" and "this engine's version is above
+origin/main's when this tree holds commits origin/main lacks", skip on the base
+and on this contract's commit ("this tree changes no engine file"). Once the
+branch changes a file under engine/, tests included, both are owed (part 1010
+lines 171-186), and they fail until the carrier records red.tsv and raises the
+version in plugin.json, which this batch may not touch. Those two FAILs are
+expected on the builder's branch and are the carrier's to clear; any other
+FAIL in 1010 is not.
 
 **B7. The change touches only these files**: engine/harness/tests/run,
 parts/0001-the-origin-guard-and-the-temporary-directory.sh,
@@ -281,21 +293,21 @@ and there the driver keeps a pointer only. "Moved" means the text goes there.
 | 45-47 | REAL_HARNESS must name a harness | part 0203 lines 872-882. Already |
 | 52-54 | the driver's shape; why not a loop; `_suite_*` | part 1040 lines 3-15; part 0003 lines 796-806 and 913-918. Already |
 | 57-58 | FELIX_TEST_RAN | part 0001 lines 445-461. Already |
-| 60-62 | `_og_tick`; the lifted block stays silent under set -u | part 0003 line 662; part 0770 lines 400-412. The set -u reason stays in the pointer |
+| 60-62 | `_og_tick`; the lifted block stays silent under set -u | part 0003 line 662; part 0770 lines 395-412. The set -u reason stays in the pointer |
 | 64-71 | `_ran_rows` keeps a name byte for byte; the fold before 2026-10-01 | part 0770 lines 104-108. Already (the mechanism, assigning to awk's `$1`, may ride in the pointer) |
 | 76-83 | `_manifest_short`: one pass, 88 s, bytes, odd rows | part 0770 lines 113-131, the cases pinned by its assertions. Already |
 | 99-104 | some skips describe the machine; a skip counts as reached | part 0001, in its comment at lines 445-461. Moved, about 4 lines |
-| 113-116 | the manifest; `--record-assertions`; red beside it; FELIX_TEST_NO_MANIFEST | receipt.sh from line 379; tests/red lines 17-24. Already |
+| 113-116 | the manifest; `--record-assertions`; red beside it; FELIX_TEST_NO_MANIFEST | receipt.sh from line 379; tests/red lines 15-24. Already |
 | 128-131 | the receipt and `--reuse`; a red run and part mode load none | receipt.sh lines 1-8 and 279-283; the if chain itself. Already |
 | 139-140 | `_rcp_root`'s dots | kept in the driver (two lines or one) |
 | 145-148 | red starts here, disowned, before part 0004's exports | receipt.sh lines 379-385 and 429-435. Already; the ordering against part 0004's exports stays in the pointer |
 | 414-418 | the completion marker | tests/red lines 49-66 and 476; part 0770 lines 750-758. Already |
 | 420-423 | #67; one way only; counted per name | part 0001 lines 445-461 has #67. The one-way rule and counting per name: moved, about 3 lines |
-| 434-437 | red.tsv in the same diff; red's status its own | receipt.sh lines 485-486 (`_rcp_red_end`); tests/red lines 34-42. Already |
+| 434-437 | red.tsv in the same diff; red's status its own | receipt.sh lines 484-485 (`_rcp_red_end`); tests/red lines 34-42. Already |
 | 442-444 | the record judged again, record mode off | part 1010 lines 336-348. Already |
 | 456-460 | a red run compares nothing | tests/red lines 20-24. Already |
 | 463-467 | FAIL lines are the one channel to a CI log; .github/workflows is an escape | no other home (gate.sh is past 500); kept, at most two lines |
-| 469-471 | names go through files, never `awk -v` | tests/red line 514; part 0770 line 120 (the backslash case). Already |
+| 469-471 | names go through files, never `awk -v` | tests/red line 514; part 0770 lines 122-125 (the backslash case). Already |
 | 488-491 | the receipt before the summary line | receipt.sh lines 304-306. Already |
 
 With these, 67 lines go (to 190 by B1's count), and 60 without the move into
@@ -465,9 +477,40 @@ x=1
 
 ### The base's results for B6
 
-Being measured when this was first committed; a second commit of this file
-records them. Until it does, no base result is known, and none is to be read
-as clean.
+Measured 2026-10-24, 10:41 to 11:44, with alone.sh from a fresh mktemp
+directory, on 69b51a61 and then on this contract's first commit (3a84bdd6,
+docs only, which no part reads as an engine change). The load average was 30
+to 370 throughout, with the other batches running. Every set exited 0 with no
+FAIL, and BWK awk and gawk gave the same counts. The ok counts include the
+prelude's own assertions.
+
+| Set | ok | FAIL | skip | bwk s | gawk s |
+|---|---|---|---|---|---|
+| 0200 | 141 | 0 | 0 | 278 | 256 |
+| 0202 0203 | 181 | 0 | 0 | 161 | 124 |
+| 0440 | 100 | 0 | 0 | 158 | 180 |
+| 0590 | 127 | 0 | 0 | 26 | 19 |
+| 0640 | 105 | 0 | 0 | 14 | 12 |
+| 0720 | 127 | 0 | 0 | 67 | 65 |
+| 0770 | 168 | 0 | 0 | 35 | 37 |
+| 0840 | 84 | 0 | 0 | 59 | 42 |
+| 1010 | 136 | 0 | 2 | 12 | 13 |
+| 1040 | 67 | 0 | 0 | 7 | 5 |
+| 1200-1240 | 268 | 0 | 0 | 93 | 80 |
+| 1250-1282 | 420 | 0 | 3 | 255 | 237 |
+| 1283-1288 | 462 | 0 | 2 | 187 | 177 |
+| 1289-1294 | 470 | 0 | 0 | 1706 | 1661 |
+| 1295 1296 | 152 | 0 | 0 | 321 | 291 |
+| 1500 1510 | 157 | 0 | 0 | 39 | 47 |
+| 1600 | 350 | 0 | 0 | 41 | 28 |
+
+The skips, all by design: 1010's two record checks (above, B6); 1250-1282's
+B4 (no scutil-less host here) and two A4 watchdog rows (no seam shortens 30
+minutes); 1283-1288's A10 (no ledger for a tick with no project) and A15 (the
+same 30 minutes). After the change the same counts are expected. The
+exceptions are 1600 1610, which adds A1-A12, and 1010 once engine files
+change (B6). Every other set should reach its ok count with the same skips
+and no FAIL.
 
 ## 5. Parts
 

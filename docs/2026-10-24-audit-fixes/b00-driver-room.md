@@ -436,63 +436,65 @@ receipt.sh is unchanged. **A18 (B6)** every set, both awks, against section 4.
 
 ### The base's results for B6
 
-Measured 2026-10-24, 10:41 to 11:44, with alone.sh from a fresh mktemp
-directory, on 69b51a61 and on this contract's first commit (3a84bdd6, docs
-only, which no part reads as an engine change), under a load average of 30 to
-370 with the other batches running. Every set exited 0 with no FAIL, and BWK
-awk and gawk gave the same counts. As set: ok, skip (seconds bwk/gawk); the ok
-counts include the prelude's own. 0200: 141, 0 (278/256). 0202 0203: 181, 0
-(161/124). 0440: 100, 0 (158/180). 0590: 127, 0 (26/19). 0640: 105, 0 (14/12).
-0720: 127, 0 (67/65). 0770: 168, 0 (35/37). 0840: 84, 0 (59/42). 1010: 136, 2
-(12/13). 1040: 67, 0 (7/5). 1200-1240: 268, 0 (93/80). 1250-1282: 420, 3
-(255/237). 1283-1288: 462, 2 (187/177). 1289-1294: 470, 0 (1706/1661). 1295
-1296: 152, 0 (321/291). 1500 1510: 157, 0 (39/47). 1600: 350, 0 (41/28).
+Measured 2026-10-24, 10:41 to 11:44, with alone.sh from a fresh mktemp directory, on 69b51a61 and on
+this contract's first commit (3a84bdd6, docs only, which no part reads as an engine change), under a
+load average of 30 to 370 with the other batches running. Every set exited 0 with no FAIL, and BWK
+awk and gawk gave the same counts. As set: ok, skip (seconds bwk/gawk); the ok counts include the
+prelude's own. 0200: 141, 0 (278/256). 0202 0203: 181, 0 (161/124). 0440: 100, 0 (158/180). 0590:
+127, 0 (26/19). 0640: 105, 0 (14/12). 0720: 127, 0 (67/65). 0770: 168, 0 (35/37). 0840: 84, 0
+(59/42). 1010: 136, 2 (12/13). 1040: 67, 0 (7/5). 1200-1240: 268, 0 (93/80). 1250-1282: 420, 3
+(255/237). 1283-1288: 462, 2 (187/177). 1289-1294: 470, 0 (1706/1661). 1295 1296: 152, 0 (321/291).
+1500 1510: 157, 0 (39/47). 1600: 350, 0 (41/28).
 
-The skips are all by design: 1010's two record checks (B6); in 1250-1282, B4
-(no host without scutil here) and two A4 watchdog rows (no seam shortens 30
-minutes); in 1283-1288, A10 (no ledger for a tick with no project) and A15 (the
-same 30 minutes). After the change every set gives the same counts, but 1600
-1610, which adds A1-A12, and 1010 once engine files change (B6).
+The skips are all by design: 1010's two record checks (B6); in 1250-1282, B4 (no host without scutil
+here) and two A4 watchdog rows (no seam shortens 30 minutes); in 1283-1288, A10 (no ledger for a
+tick with no project) and A15 (the same 30 minutes). After the change every set gives the same
+counts, but 1600 1610, which adds A1-A12, and 1010 once engine files change (B6).
 
 ## 5. Parts
 
-One new part, `engine/harness/tests/parts/1610-driver-room-blind.sh`, holding
-A1-A12, sourced by `. "$HERE/parts/1610-driver-room-blind.sh"` right after the
-1600 line. No groups.tsv entry: it runs as a unit of its own. Its assertion
-names are new, so the manifest lists them only after the carrier's record;
-until then a full run notes them as ran and unlisted, which is not a failure.
-1611-1629 stay unused.
+One new part, `engine/harness/tests/parts/1610-driver-room-blind.sh`, holding A1-A12, sourced by `.
+"$HERE/parts/1610-driver-room-blind.sh"` right after the 1600 line. No groups.tsv entry: it runs as
+a unit of its own. Its assertion names are new, so the manifest lists them only after the carrier's
+record; until then a full run notes them as ran and unlisted, which is not a failure. 1611-1629 stay
+unused.
 
 ## 6. Out of scope
 
-**Not fixed: not a defect.** The brief speaks of "the helper block tests/red
-lifts out of the driver". tests/red never reads the driver's text: it copies
-the file whole into the base's tree (red line 371). The lift is part 0770's
-`_red_helpers` (line 412), which builds the red fixtures, and B4c is written
-against that. A wording correction, not a defect.
+**Not fixed: not a defect.** The brief speaks of "the helper block tests/red lifts out of the
+driver". tests/red never reads the driver's text: it copies the file whole into the base's tree (red
+line 371). The lift is part 0770's `_red_helpers` (line 412), which builds the red fixtures, and B4c
+is written against that. A wording correction, not a defect.
 
-- **tests/red line 71, "(tests/run says what that cost)".** A pointer into the
-  driver that already resolves to nothing on the base: the cost (1429 s of the
-  gate's 1565) is in receipt.sh lines 10-13. tests/red is 559 lines, and every
-  change to it is a verifier read (risk.tsv line 45). The fix is the same line
-  reworded, "(tests/receipt.sh says what that cost)". Left to a batch that
+- **tests/red line 71, "(tests/run says what that cost)".** A pointer into the driver that already
+  resolves to nothing on the base: the cost (1429 s of the gate's 1565) is in receipt.sh lines
+  10-13. tests/red is 559 lines, and every change to it is a verifier read (risk.tsv line 45). The
+  fix is the same line reworded, "(tests/receipt.sh says what that cost)". Left to a batch that
   edits tests/red.
-- **Moving code out of the driver**, such as the manifest comparison (lines
-  420-486) into receipt.sh or a part. It would free more, but it changes where
-  code runs and what each copy of the driver carries (`_suite_copy_driver`,
-  `_suite_copy_tree`, tests/red). The brief asks for comments only, and they
-  give the 60.
-- **A loop over the parts** (part 1040 forbids it), and **the trailing
-  comments on lines 72 and 84** (code lines, B4a, kept).
-- **The record (assertions.tsv, red.tsv) and the version in plugin.json.** The
-  carrier's, by the batch rules; red.tsv will not show A1 or A5 red (Red first).
-- **What B3 does not read** is stated there as a gap and left open: each would
-  widen a rule whose job is the pointers this batch writes, on one line.
+- **Moving code out of the driver**, such as the manifest comparison (lines 420-486) into receipt.sh
+  or a part. It would free more, but it changes where code runs and what each copy of the driver
+  carries (`_suite_copy_driver`, `_suite_copy_tree`, tests/red). The brief asks for comments only,
+  and they give the 60.
+- **A loop over the parts** (part 1040 forbids it), and **the trailing comments on lines 72 and 84**
+  (code lines, B4a, kept).
+- **The record (assertions.tsv, red.tsv) and the version in plugin.json.** The carrier's, by the
+  batch rules; red.tsv will not show A1 or A5 red (Red first).
+- **What B3 does not read** is stated there as a gap and left open: each would widen a rule whose
+  job is the pointers this batch writes, on one line.
 
 ## 7. Founder PR
 
-None. The batch changes no .github/workflows file, no deny or escape row, no
-commission grant, and publishes nothing. tests/run and the parts are yellow in
-projects/felix/risk.tsv (line 42: the verifier reads them). land.tsv's
-tests/run row (insertions-union) is unchanged; B4b is there so that it keeps
-landing the batches after this one.
+None. The batch changes no .github/workflows file, no deny or escape row, no commission grant, and
+publishes nothing. tests/run and the parts are yellow in projects/felix/risk.tsv (line 42: the
+verifier reads them). land.tsv's tests/run row (insertions-union) is unchanged; B4b is there so that
+it keeps landing the batches after this one.
+
+## 8. Red
+
+Part 1610 alone under bwk (alone.sh, 2026-10-24) on 1818019b, which has the part and its driver line
+and the driver otherwise as the base has it: 12 assertions, 2 failed, 10 passed. Failed: A1 (257
+lines that are neither, of 498; 197 allowed) and A5 (19 long runs, the base's 19, the last eight one
+line down for the 1610 line). Passed: A3, A4, A7, A8, A10, A11 and A12 are controls run on plants,
+expecting their exact readings; A2 and A6 are controls on the real driver (194 part and 47 lib
+lines; the `set -uo pipefail` line and comments after it) and fail if they read nothing; A9 was
+already true (5 part, 2 receipt.sh and 11 path pointers read, all resolving). None is vacuous.

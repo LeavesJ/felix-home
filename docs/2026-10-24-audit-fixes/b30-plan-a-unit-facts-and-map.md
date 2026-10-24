@@ -921,3 +921,36 @@ PR that adds it, and this PR is the first to add the two files.
 
 The CI testmap job is not part of this batch. It is a later founder PR, as the
 batch says.
+
+## 8. Red
+
+Run on 2026-10-24 at 2b437783, before any code changed, with
+`alone.sh <worktree> bwk 2100-unit-facts-and-tracer-blind.sh 2110-testmap-report-blind.sh`
+(macOS awk, bash 3.2.57). It ran 3 min 26 s and exited 0.
+
+**Counts.** The two parts hold 108 assertions, A1 to A108. 92 failed, 14 passed
+and 2 skipped (A39 and A51, which check the bash 4.1 or later tracer and skip on
+3.2). The summary line, `ok=77 fail=92 skip=2`, also counts the 62 `ok` lines of
+the prelude parts the driver runs first (fixture floor and `_fixture_floor`),
+and part 2100's closing fixture assertion.
+
+**The 14 that passed, and why.**
+
+| A | Why it passes on main |
+|---|---|
+| A1, A4, A5, A10, A11, A26, A101 | Controls the contract marks. They pin what makes the failing ones mean something: a `-j 1` run sees no `FELIX_TEST_UNIT`, an untraced run sets no `BASH_ENV`, the durations file and receipt exist, a run prints no word about facts, a copy with no `select.sh` is silent, an empty `FELIX_TEST_TRACE_DIR` is no trace, and `felix help` names no testmap. |
+| A19 | Already true. It asks of the untraced run of T that it exits 1 and the PIPESTATUS reader prints 1. Nothing in it touches facts or the tracer. |
+| A27, A34 | Already true. Main ignores `FELIX_TEST_TRACE_DIR`, so the "traced" run is an untraced one: exit 0 (P) or 1 (T) with nothing on stderr. They hold again once the tracer is real, but they cannot tell a working tracer from none. |
+| A32, A41 | Vacuous on main. They compare a traced run with an untraced one, and on main the two are the same run. They mean something only once a tracer is loaded. |
+| A33 | Already true. A record run never reads `FELIX_TEST_TRACE_DIR`, and on main nothing reads it. D3 is empty and no unit sees `BASH_ENV`. |
+| A40 | Vacuous on main. Part 0070's `$?`, `$_`, extdebug, `set -eu` and child-bash checks hold because no tracer runs. They guard B10 once one does. |
+
+The part 2100 header names A19, A27, A32, A33, A34, A40 and A41 as true on main
+by construction. The other 92 are the assertions that gate the fix.
+
+**Why the 92 fail.** Each fails for the reason B1 to B30 says it should:
+`FELIX_TEST_UNIT` is never exported (A2, A3), no facts file is written (A6 to
+A9, A12 to A18), the trace directory is not read or checked (A20 to A25, A28 to
+A31, A35 to A38, A42 onwards), `felix testmap` is an unknown command (A42 to A100,
+A66), and `trace.sh`, `select.sh` and `lib/testmap.sh` do not exist (A105 to
+A108).

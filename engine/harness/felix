@@ -269,7 +269,7 @@ cmd_cost() {
   . "${SCRIPT_DIR}/lib/cost.sh" || exit 1
   felix_cost "$@"
 }
-if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
+case "${1:-}" in cost) shift; cmd_cost "$@"; exit $? ;; testmap) shift; . "${SCRIPT_DIR}/lib/testmap.sh" || exit 1; felix_testmap "$@"; exit $? ;; esac
 
 # shellcheck source=lib/resolve.sh
 . "${SCRIPT_DIR}/lib/resolve.sh"

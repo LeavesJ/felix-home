@@ -4,7 +4,7 @@
 # place of the part lines, which it then reads as no-ops. This part defines
 # functions and variables, runs nothing when sourced, makes no assertion, and is
 # self-contained: of receipt.sh it uses only _rcp_mark and the bounded
-# _rcp_red_end, where a record run's unit failed (R1). It is not in _suite_preamble.
+# _rcp_red_end, where a record run's unit failed (R1). It is not in _suite_preamble. Its unit facts and its tracer are tests/select.sh's.
 #
 # A unit is `bash tests/run --part NAME...` (part mode, 0001) in the directory
 # the parent was started in, with its log, ran file and end file in $TMP/pj.
@@ -582,7 +582,7 @@ _par_fin() {
   [ "${#ep}" -le 12 ] && [ "${#st}" -le 12 ] || return 0
   now="$(date +%s)"
   case "$now" in ""|*[!0123456789]*) return 0 ;; esac
-  [ "$now" -lt "$ep" ] || _pj_t[i]=$((now - ep))
+  [ "$now" -lt "$ep" ] || { _pj_t[i]=$((now - ep)); _tm_wk[i]=1; }
   [ "$ep" -lt "$st" ] || _pj_w[i]=$((ep - st))
 }
 # Prints unit I (D3) and adds what its log holds to PASS, FAIL and SKIP.
@@ -602,7 +602,7 @@ _par_show() {
     printf '  FAIL  part left the shell changed for the parts after it: %s\n' "$nm"; d=$((d + 1))
     while IFS= read -r l; do printf '  | %s\n' "$l"; done <<< "${_pe_shm%$'\n'}"
   fi
-  PASS=$((PASS + a)); FAIL=$((FAIL + b + d)); SKIP=$((SKIP + c)); _pj_rfn=$((_pj_rfn + d))
+  PASS=$((PASS + a)); FAIL=$((FAIL + b + d)); SKIP=$((SKIP + c)); _pj_rfn=$((_pj_rfn + d)); _tm_v[i]=$((b + d))
 }
 # Prints, in the driver's order, every unit that has ended once all before it have.
 _par_flush() {
@@ -746,10 +746,10 @@ _par_start() {
     trap 'exit 143' TERM
     cd "${_og_start:-.}" || exit 125
     exec >/dev/null 2>&1
-    export FELIX_TEST_PART_LOG="$_pj_dir/log.$i" FELIX_TEST_PART_RAN="$_pj_dir/ran.$i" FELIX_TEST_PART_END="$_pj_dir/end.$i"
-    [ "$FELIX_TEST_RECORD" != 1 ] || export FELIX_TEST_PART_RECORD=1
+    export FELIX_TEST_PART_LOG="$_pj_dir/log.$i" FELIX_TEST_PART_RAN="$_pj_dir/ran.$i" FELIX_TEST_PART_END="$_pj_dir/end.$i" FELIX_TEST_UNIT="$nm"
+    [ "$FELIX_TEST_RECORD" != 1 ] || export FELIX_TEST_PART_RECORD=1; [ -z "${_tm_be-}" ] || export BASH_ENV="$_tm_be"
     perl -e "$_pj_pl" "$_pj_sd" "$_pj_k" "$_pj_dir/slot.$i" $_pj_sg "$_pj_pp" "$_pj_dir/unit.$i" "$BASH" "$HERE/run" --part $mb >> "$_pj_dir/log.$i" 2>&1 63>&-
-    printf '%s %s\n' "$nm" "$?" >&63
+    _tm_s=$?; [ -z "${_tm_on-}" ] || _tm_cpu "$i"; printf '%s %s\n' "$nm" "$_tm_s" >&63
   ) &
   _pj_pid[i]=$!
 }
@@ -793,7 +793,7 @@ _par_run() {
   _pj_W=30; [ "$_pj_T" -ge 30 ] || _pj_W="$_pj_T"
   _pj_9fl=""; _pj_9rf=""; _pj_9om=""; _pj_9ob=0; _pj_9os=0; _pj_9ok=0
   mkdir -p "$_pj_dir" || _sj_die "cannot make [$_pj_dir]"
-  _par_order
+  _par_order; if [ -f "$HERE/select.sh" ]; then . "$HERE/select.sh" && _tm_begin; else [ -z "${FELIX_TEST_TRACE_DIR-}" ] || [ -n "${FELIX_TEST_UNIT-}" ] || [ "$FELIX_TEST_RECORD" = 1 ] || [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ] || _sj_die "FELIX_TEST_TRACE_DIR is set and this suite has no tests/select.sh"; fi
   i=0; while [ "$i" -lt "$_pj_n" ]; do _pj_s[i]=0; _pj_pid[i]=""; _pj_rc[i]=""; i=$((i + 1)); done
   _pj_sg="$(perl -e "$_pj_sgpl" 2>/dev/null)"
   case "$_pj_sg" in "IGNORE IGNORE "|"IGNORE DEFAULT "|"DEFAULT IGNORE "|"DEFAULT DEFAULT ") ;; *) _sj_die "cannot read how INT and QUIT stand here (perl is needed)" ;; esac
@@ -816,7 +816,7 @@ _par_run() {
     case "$l" in "@@tick") _par_gone ;; *) _par_ev "$l" ;; esac
     _par_nt
   done
-  exec 63>&-   # R30: before the wait; the ticker's next write then fails and it ends, so the wait returns
+  [ -z "${_tm_on-}" ] || _tm_end; exec 63>&-   # R30: before the wait; the ticker's next write then fails and it ends, so the wait returns
   if _par_jl; then case "$_pj_jl" in *" $_pj_tk "*) kill -KILL "$_pj_tk" 2>/dev/null ;; esac; fi   # R23, R30: only a ticker still running, and no KILL by pid when the table cannot be read
   { wait "$_pj_tk"; } 2>/dev/null; _pj_tk=""; _pj_bg0="$!"
   if [ "$_pj_rfn" -gt 0 ] && [ "$FELIX_TEST_RECORD" = 1 ]; then

@@ -24,13 +24,14 @@ _b19T="$(printf '\t')"; _b19N=$'\n'
 _b19_tpl="$FROOT/harness/templates"
 _b19_pl="detect probes facts obligations verify"
 _b19_mem=""
-# DIR LIBS SCRIPT ARGS...: SCRIPT in a fresh /bin/bash standing in DIR, after lib/resolve.sh and each lib
-# in LIBS from $FROOT/harness; ARGS are its $1...; FELIX_MEMORY is $_b19_mem when that is set. Stdout only.
+# DIR LIBS SCRIPT ARGS...: SCRIPT in a fresh /bin/bash standing in DIR, HOME the fixture's, after
+# lib/resolve.sh and each lib in LIBS from $FROOT/harness; ARGS are its $1...; FELIX_MEMORY is $_b19_mem
+# when that is set. Stdout only.
 _b19_sh() {
   local _b19d="$1" _b19l="$2" _b19s="$3"; shift 3
   ( cd "$_b19d" || exit 125
     [ -z "$_b19_mem" ] || FELIX_MEMORY="$_b19_mem"
-    /bin/bash -c '_h="$1"; _l="$2"; _s="$3"; shift 3; . "$_h/lib/resolve.sh"
+    HOME="$B19/home" /bin/bash -c '_h="$1"; _l="$2"; _s="$3"; shift 3; . "$_h/lib/resolve.sh"
       for _x in $_l; do . "$_h/lib/$_x.sh"; done; eval "$_s"' _b19 "$FROOT/harness" "$_b19l" "$_b19s" "$@" ) 2>/dev/null
 }
 _b19_git() { _fx_git "$@" >/dev/null 2>&1; }   # DIR ARGS...: a fixture git command, quiet

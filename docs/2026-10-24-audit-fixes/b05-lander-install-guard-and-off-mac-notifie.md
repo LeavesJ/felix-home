@@ -482,3 +482,33 @@ Two things are his, and neither is a PR of this batch.
              case "$ISSUE" in ''|*[!0123456789]*) echo "issue is not a number" >&2; exit 2 ;; esac
              printf '%s\n' "$BODY" | gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file -
    ```
+
+## 8. Red
+
+Run before any code changed, at 5d0fff99 (the blind parts committed, nothing else), with
+`alone.sh <worktree> bwk 1710-lander-serves-the-home-only-blind.sh 1720-lander-alerts-reach-github-blind.sh`
+(macOS awk, bash 3.2): 83 ok, 26 FAIL, 0 skip. Of the 83, 62 are the suite preamble's own
+fixture-floor checks, which run before any part; 21 belong to the two parts.
+
+**The 26 failures**, all expected: 1710 A3, A4, A5, A6, A7, A10, A11, A13 (8: `--install`,
+`--pause`, `--resume`, `--status`, `--tick` serve whatever project `$PWD` names; install writes
+before it checks for launchd; help carries no platform note); 1720 A15, A16, A17, A18, A19, A20,
+A22, A23, A24, A25, A26, A28, A29, A30, A31, A32, A33, A34 (18: there is no notifier, no
+`alerts.tsv`, no `alerts` row in `felix status`).
+
+**The 21 part assertions that passed, and why**
+
+- Controls (marked in section 4), true before and after: A1, A2, A8, A9, A12 (1710), A14, A35 (1720).
+- Fixture controls (they check the fixture, not the engine): 1710 "the home is on main ... wt is a
+  worktree", "the home's lgh project.json is restored", "under the no-launchd PATH no launchctl is
+  found"; 1720 "the home is on main at origin's main", "a copy of the CLI sets _FN_SECS=2", "the gh
+  wrapper answers user and repos", "in the GitHub state the origin reads as github.com", "--resume,
+  --pause r2 ... write one more paused row", "the tick over 41 and 42 refused 41 and landed 42",
+  "after the paused tick the trampoline wrote its deploy-owed row again", "the tripwire notify.sh is
+  untracked in the home and sits in main's cache entry", "the part put the home back".
+- Already true: A21 (B1). A draft pull request gets a `skip` row and no gh call; with no notifier
+  nothing makes a call, so it holds today. It stays as the guard that a later change does not start
+  an attempt on a `skip` row.
+- Vacuous before the fix: A27 (B10). Its three scenarios (local origin, `user` exiting 1, `comment`
+  hanging) cannot differ while no notifier runs, so the assertion passes with nothing under test. It
+  has force only once the notifier exists and the gh answers can change its path.

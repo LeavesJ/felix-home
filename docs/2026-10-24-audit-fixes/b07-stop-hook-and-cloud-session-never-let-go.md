@@ -302,3 +302,21 @@ None. The batch changes:
 - nothing published.
 
 `.claude/cloud/` is classed red by risk.tsv:36, but with no channel, so it stops nothing. `.claude/settings.json` does not change.
+
+---
+
+## 8. Red
+
+*Run 2026-10-24 on `236280d0` (the parts, before any code changed), with `alone.sh … bwk 1750-… 1760-…` and `CLAUDE_CODE_REMOTE=true` exported for the call, as A46 asks for the red run. 82 assertion lines ran (A15 to A22 are eight lines under one label, A38 to A40 three, and A23 reaches none, as §4 says it does on the base). **41 failed and 41 passed.** No assertion was skipped: jq and node are both on this machine.*
+
+**Failed (41), as the contract expects:** A1 to A8, A12, A13, A24, A25, A28, A33 to A36, A43, A44, A46, A47 to A52, A56, A62, A63, A68 to A79.
+
+**Passed on the base (41), and why:**
+
+- **Controls the contract names (39).** They hold before and after the fix: A9, A10, A11, A14, A15 to A22 (eight lines), A26, A27, A29, A30, A31, A32, A38 to A40 (three lines), A41, A45, A53, A54, A55, A57 to A61, A64, A65, A66, A67, A80 to A83.
+  - A57, A58, A59 and A60 pass on the base for a plain reason: `felix_route_step_used` matches only a qualified attribution, so it answers 1 for every bare one. They are controls on how wide the fix may be (an exact bare name, not a prefix, not another skill, not the plugin alone). They can catch an over-broad change and cannot catch a missing one, and A56 is the assertion that goes red for that.
+  - A15 to A22 pass because the stop sources each of those eight libraries unguarded: a missing file prints a `source` error to stderr and the stop carries on and holds. They pin that the fix keeps holding there.
+- **Already true on the base (2).** The contract lists them as red but each holds today.
+  - A37: the hold's reason already ends with `Do not describe this work as complete until it has passed.` and `FELIX_ALLOW_RED=1`. A36, the same reason's cloud text, is what fails.
+  - A42: the remote session's third stop already appends the `debt` row with `never verified` and `held once on this tree already` (B10 says "as it does today"). A43 and A44, the saying, fail.
+- **Vacuous (0).** None passes for want of anything to test: A23's loop has no name beyond the ten on the base and writes no line, so there is nothing for it to pass vacuously.

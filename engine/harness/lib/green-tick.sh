@@ -260,7 +260,7 @@ _gt_deploy() {
   # A24: nothing of the home's runs until its engine/ and project are main's, byte for byte.
   why="$(_gt_home_exact)" || {
     why="the home checkout is not main byte for byte: $why"; _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1; }
-  [ ! -d "$(_gt_cache)/$_GT_VER" ] || had=1   # B20: felix install does not replace an entry that exists
+  [ ! -d "$(_gt_cache)/$(_felix_plugin_version "$home")" ] || had=1   # B20: felix install does not replace an entry that exists
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
     || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"

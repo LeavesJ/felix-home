@@ -365,3 +365,22 @@ Each stays under 1,000 lines (part 1040). No assertion name may already be in as
 ## 7. Founder PR
 
 None. This batch changes no `.github/workflows` file, no deny or escape row, no commission grant and nothing published. `templates/maintenance.tsv` and `projects/felix/maintenance.*` are not escape or commission tables (lib/escape.sh:78, lib/commission.sh:52), and `templates/schemas.tsv` does not change.
+
+## 8. Red
+
+Run on 2026-10-24 at 0ea944c2, before any engine change, with `alone.sh <worktree> bwk 1890-dated-lessons-mount-their-claim-blind.sh 1891-handoff-tree-and-seeded-graph-row-blind.sh`. The two parts emit 42 assertions (A1 to A42). **25 failed and 17 passed.** The same run under gawk gave the same 25 failures. (The driver's log also counts 62 further `ok` lines from the fixture floor and the prelude; they are not assertions of these parts.)
+
+| Part | Emitted | Failed | Passed |
+|---|---|---|---|
+| 1890 (A1 to A15) | 15 | 8 | 7 |
+| 1891 (A16 to A42) | 27 | 17 | 10 |
+
+**The 25 that failed**, each for the reason its B item gives:
+- Part 1890: A1, A4, A5, A6, A7, A8, A10, A12. Every dated entry mounts as its bare date (`  - **D**`).
+- Part 1891, handoff: A18, A19, A20 (`status.branch=true` calls a clean tree dirty and writes `## main`), A21, A22, A23 (a corrupt index reads `[x] tree is clean`), A25 (a status that fails silently reads clean), A26 (a bound directory outside git reads clean).
+- Part 1891, graph row: A28, A29, A30, A31 (the row is due where there is no graph), A36 (a worktree of a checkout with no graph reads `due`), A37 and A38 (BSD find reads a fresh graph with no commit to compare as `ok`; they are control on GNU find), A39 (a repository whose only commit is `notes.md` reads `due`), A40 (the description does not name `graphify-out/graph.json`).
+
+**The 17 that passed.** Every one of them is a control the contract names. None is vacuous in the sense of an empty read: each helper asserts that something was mounted or printed before it accepts an absence.
+- *Already true, and meant to stay true* (the behaviour exists today and the fix must not move it): A9 (an L-numbered entry mounts as its bold span), A11 (an unmatched context says `nothing matched this context`), A15 (`felix lesson` still writes `- **D** text`), A16 (an untracked file leaves the tree clean), A17 (a tracked edit and a staged file are dirty and listed), A24 (a corrupt index still writes the file and exits 0), A27 (exit 0 in every case), A33 (a stale graph is `due`, `check failed`), A34 (a fresh graph is `ok`), A35 (a worktree of a checkout with a stale graph is `due`), A41 (one five-column row, cadence 0, capability `always`), A42 (no `Checks refused` section).
+- *Held today only because the claim is not mounted at all* (control now, and it starts to bite once A1 passes): A2 (no `Evidence:` in the output, true of a bare date), A3 (an unmatched entry is not mounted), A13 (the hook's context holds no `Evidence:`), A14 (every mounted line is at most 240 characters, true of a date line).
+- *Held today because both sides read the same count*: A32 (the badge's N equals the count of `DUE` lines; 6 and 6 today, 5 and 5 after the fix).

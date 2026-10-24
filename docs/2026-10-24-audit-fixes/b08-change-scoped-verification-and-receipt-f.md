@@ -495,3 +495,31 @@ the founder by hand.
 **Everything else lands on green**: C003, C110, B23 to B25, part 1770, the restated 0100
 assertion, and the tests/run line for 1770. Gate.sh's pass, fail and check count stays
 at 26 or more. No .github/workflows, deny row, escape row or commission grant is needed.
+
+## 8. Red
+
+Run on the blind-parts commit d3395df2 (the origin/main 69b51a61 tree plus the two new
+parts and their tests/run lines, no code changed), under macOS awk and bash 3.2, with
+`tools/alone.sh <worktree> bwk 1770-... 1780-...` from a fresh temporary directory.
+The run exited 0 with 88 `ok`, 34 `FAIL` and 0 `skip`. Of the 88, 62 are the driver's
+fixture-floor lines (part 0002, which `--part` always runs), so the 60 assertions A1 to
+A60 are **34 failed and 26 passed**.
+
+Failed (34): A1, A2, A5, A6, A8, A9, A14, A15, A16, A17, A20, A25, A26, A28, A30, A31,
+A34, A35, A43, A44, A45, A46, A48, A49, A50, A51, A52, A53, A54, A55, A56, A57, A59, A60.
+Each failed for the reason its contract line gives: no skipped line from the judge, `cloud
+ok` for a matcher that differs, no `not reused:` line under the gate's `tests ok`, field 7
+without `;reads=`, `run origin/main moved` for a docs-only move, `run another environment`
+where `run malformed receipt` is due, and no `receipt not written:` line.
+
+Passed (26), and why:
+- **Controls, true before and after (25):** A3, A7, A10, A11, A12, A13, A18, A19, A21,
+  A22, A23, A24, A27, A29, A32, A33, A36, A37, A38, A39, A40, A41, A42, A47, A58. Each is
+  marked (control) in section 4, and each passed on the unfixed tree, as that mark says.
+- **Already true, not marked as a control (1):** A4 (field 5 `○,1` gives no output). It
+  passes only because the judge on this tree prints no skipped line for any field 5, so it
+  holds for the wrong reason. A5 and A6 are the assertions that make an off-shape item
+  mean something, and both failed.
+- **Vacuous:** none found. A13 (the gh stub's file stays empty over A1 to A12) is the
+  nearest. It is a control that cannot fail until the judge may call gh, and A14, which
+  records a `tests:reused` receipt, fails for the right reason.

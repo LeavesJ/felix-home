@@ -75,7 +75,7 @@ _b7g_ln() { if [ -f "$1" ] && LC_ALL=C awk -v w="$2" '$0 == w { f = 1 } END { ex
 _b7g_nl() { if [ -f "$1" ]; then LC_ALL=C awk 'END { print NR }' "$1"; else echo 0; fi; }
 _b7g_ck() { if [ -f "$1" ]; then cksum < "$1"; else echo absent; fi; }
 _b7g_cl() { if [ -s "$B7B/claude.log" ]; then echo "$(_b7g_nl "$B7B/claude.log") line(s)"; else echo none; fi; }
-_b7g_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3] got [$2]${4:+ ($4)}"; fi; }
+_b7g_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$(printf 'expected [%s] got [%s]%s' "$3" "$2" "${4:+ ($4)}" | tr '\n\r' '  ')"; fi; }
 _b7g_shape() {   # FILE: how many lines it holds, and whether the last is ended
   local n e
   [ -f "$1" ] || { echo absent; return 0; }

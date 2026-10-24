@@ -69,7 +69,7 @@ _b7c_run() {   # TAG MODE DIR IN [NAME=value...] -- EXE ARGS...: a no-terminal (
 _b7c_lacks() { local t="$1" w; shift; for w in "$@"; do case "$t" in *"$w"*) ;; *) printf ' lacks [%s]' "$w" ;; esac; done; }
 _b7c_holds() { local t="$1" w; shift; for w in "$@"; do case "$t" in *"$w"*) printf ' holds [%s]' "$w" ;; esac; done; }
 _b7c_there() { local f; for f in "$@"; do if [ -e "$f" ] || [ -L "$f" ]; then printf ' [%s] is there' "${f##*/}"; fi; done; }
-_b7c_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3] got [$2]${4:+ ($4)}"; fi; }
+_b7c_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$(printf 'expected [%s] got [%s]%s' "$3" "$2" "${4:+ ($4)}" | tr '\n\r' '  ')"; fi; }
 _b7c_cl() { if [ -s "$B7B/claude.log" ]; then echo "$(LC_ALL=C awk 'END { print NR }' "$B7B/claude.log") line(s)"; else echo none; fi; }
 _b7c_inst() {   # -> low:yes|no high:none|N, from B/claude.log: the low row's user-scope install, and any install of the high row
   [ -f "$B7B/claude.log" ] || { echo "no claude.log"; return 0; }

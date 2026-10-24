@@ -99,22 +99,26 @@ _felix_deny_field() {
 # to 13 s, a 9K `python3 -c` payload 19 s, and a 45K one did not finish in
 # 110 s. Claude Code's hook timeout is 60 s.
 _FELIX_DENY_INLINE=1024
+#
+# The status says why there is nothing to print, which the hook records (audit
+# C029): 0 the subject was read (an empty one is a subject), 1 the payload has
+# no such field, 2 it holds a raw \001, 3 the awk failed.
 felix_deny_subject() {
   local raw="$1" field rest val
   field="$(_felix_deny_field "${2:-}")"
-  case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
+  case "$raw" in *"\"$field\""*) ;; *) return 1 ;; esac
   # A raw \001 is a control character no JSON string may hold, so this is not
   # a payload Claude Code sent, and like any payload that does not parse it
   # has no subject. The expansion below uses \001 as its placeholder, and one
   # already in the payload would read as a quote there and not in the awk.
-  case "$raw" in *$'\001'*) return 0 ;; esac
+  case "$raw" in *$'\001'*) return 2 ;; esac
 
   if [ "${#raw}" -gt "$_FELIX_DENY_INLINE" ]; then
     # Printed only when awk finished. Part of a subject can be refused by a
     # row anchored at its end that the whole would not match, so an awk that
     # dies, or no awk on PATH, reads as no subject, which allows.
     val="$(printf '%s' "$raw" | LC_ALL=C awk -v f="$field" "$_FELIX_DENY_SUBJECT_AWK" 2>/dev/null \
-           && printf x)" || return 0
+           && printf x)" || return 3
     printf '%s' "${val%x}"
     return 0
   fi
@@ -292,11 +296,21 @@ EOF
 # payload carries it; the governed checkout is the one this process stands
 # in.
 felix_deny_match() {
-  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text
+  local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text s
   [ -n "$cmd" ] || return 1
   _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""
   if [ "$want" = "Bash" ]; then
-    text="$(felix_deny_code "$cmd")"
+    # A reading that failed is not an empty reading. Exit 2 and the why on
+    # stdout say that no row was applied to this command, where 1 says the
+    # rows were applied and none matched, which the hook records and allows.
+    [ -n "${_FELIX_DENY_READ:-}" ] || . "$_FELIX_DENY_LIB/deny-read.sh" 2>/dev/null
+    if [ -z "${_FELIX_DENY_READ:-}" ]; then
+      printf '%s' "the deny reader could not read the command: lib/deny-read.sh did not load"; return 2
+    fi
+    text="$(felix_deny_code "$cmd")"; s=$?
+    if [ "$s" -ne 0 ]; then
+      printf '%s' "the deny reader could not read the command: awk exited $s"; return 2
+    fi
   else
     text="$cmd"
   fi
@@ -424,7 +438,13 @@ _felix_deny_scoped_lifts() {
 # Locale, 2026-10-08: this awk ran in the caller's locale and aborted under
 # UTF-8 on any non-ASCII character, so the reading came back empty and every
 # Bash row allowed. The rules are above felix_json_str in resolve.sh.
+# Its status is the awk's, so a reading that failed is not mistaken for an empty
+# one (audit C029); 1 when the program was never loaded. It stays quiet, and
+# felix_deny_match turns the status into a why.
 felix_deny_code() {
+  local s
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
-  printf '%s' "$1" | LC_ALL=C awk "${_FELIX_DENY_READ:-}" 2>/dev/null
+  [ -n "${_FELIX_DENY_READ:-}" ] || return 1
+  printf '%s' "$1" | LC_ALL=C awk "$_FELIX_DENY_READ" 2>/dev/null; s="${PIPESTATUS[1]}"
+  return "$s"
 }

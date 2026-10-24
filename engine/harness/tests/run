@@ -408,6 +408,8 @@ fi
 . "$HERE/parts/1580-helper-worktrees-page-blind.sh"
 . "$HERE/parts/1585-helper-worktrees-review-fixes-blind.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
+. "$HERE/parts/1710-lander-serves-the-home-only-blind.sh"
+. "$HERE/parts/1720-lander-alerts-reach-github-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

@@ -1,4 +1,4 @@
-# felix status: five rows a surface can poll, and the settings check the pulse
+# felix status: seven rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,14 +8,17 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate. state is value, none or unknown. value is a bare word (no spaces) when
-# state is value, and `-` otherwise; detail is never empty. A consumer ignores
-# rows it does not know. Weekly spend is not a row: felix cost has its own --tsv
-# and takes about twenty seconds, so a surface runs it on its own timer.
+# gate, land, hooks. state is value, none or unknown. value is a bare word (no
+# spaces) when state is value, and `-` otherwise; detail is never empty. A
+# consumer ignores rows it does not know. Weekly spend is not a row: felix cost
+# has its own --tsv and takes about twenty seconds, so a surface runs it on its
+# own timer.
 #
 # Read-only. It writes nothing, takes no network, and never runs claude, the
 # suite, felix gate, claude mcp list or felix cost: every row reads a file, a
-# table, a git object or launchd's own list. Its one slow row is the gate,
+# table, a git object or launchd's own list (the land row asks launchctl print
+# and lib/status-land.sh says how; the hooks row reads the checkout's two
+# settings files and lib/status-hooks.sh says how). Its one slow row is the gate,
 # because a receipt that matches the tree makes felix_verify_current recompute
 # the decision epoch, which runs the project's probes. The CLI exports
 # GIT_OPTIONAL_LOCKS=0 before any of this so git refreshes no index.
@@ -37,17 +40,21 @@ _felix_status_need() {
 #   ok        parses, and enabledPlugins["felix@felix"] is true
 #   felix-off parses, and that key is not true (a hook registered by hand is
 #             named, since that is the other way Felix can be live)
+#   hooks-off parses, and disableAllHooks is true: Claude Code runs no hook at
+#             all, Felix's included. It wins over ok and felix-off. A
+#             disableAllHooks that is neither true nor false is unknown.
 #   invalid   does not parse, is empty, or its top level is not an object
 #   missing   there is no file
 #   unknown   no parser on this machine, or the file cannot be read
-# ok is printed only on output exactly `ok` from a parser that exited 0, so a
-# parser that is absent, empty, stubbed or wrong can never read as fine. Only
-# the user settings file is read (CLAUDE_CONFIG_DIR when set): project and local
-# settings can also enable a plugin, and this does not claim to know about them.
+# ok is printed only on an answer ending in exactly `ok` from a parser that
+# exited 0, so a parser that is absent, empty, stubbed or wrong can never read as
+# fine. Only
+# the user settings file is read (CLAUDE_CONFIG_DIR when set): a checkout's own
+# settings files are the hooks row's (lib/status-hooks.sh).
 # FELIX_JQ names the parser, because on macOS 15 and later jq is always on PATH
 # and without a knob "no parser" could never be exercised.
 felix_settings_state() {
-  local f="${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/settings.json" jq="${FELIX_JQ:-jq}" out rc first v t
+  local f="${CLAUDE_CONFIG_DIR:-${HOME:-}/.claude}/settings.json" jq="${FELIX_JQ:-jq}" out rc first v t d=""
   local nl=$'\n' tab=$'\t' cr=$'\r'
   if [ -z "${CLAUDE_CONFIG_DIR:-}" ] && [ -z "${HOME:-}" ]; then
     printf 'unknown\tno home directory to look for settings.json in\n'; return 0
@@ -57,15 +64,24 @@ felix_settings_state() {
   if ! command -v "$jq" >/dev/null 2>&1; then
     printf 'unknown\tno JSON parser on this machine (jq); %s was not read\n' "$f"; return 0
   fi
-  out="$("$jq" -r 'if type == "object" then (if (try (.enabledPlugins["felix@felix"] == true) catch false) then "ok" else "felix-off \(try (.enabledPlugins["felix@felix"] | tojson) catch "null")" end) else "not-object" end' "$f" 2>&1)"; rc=$?
+  out="$("$jq" -r 'if type == "object" then "object\t" + (if has("disableAllHooks") then (.disableAllHooks | tojson) else "absent" end) + "\t" + (if (try (.enabledPlugins["felix@felix"] == true) catch false) then "ok" else "felix-off \(try (.enabledPlugins["felix@felix"] | tojson) catch "null")" end) else "not-object" end' "$f" 2>&1)"; rc=$?
   if [ "$rc" -ne 0 ]; then
     first="${out%%$nl*}"; first="${first//$tab/ }"; first="${first//$cr/ }"
     printf 'invalid\t%s does not parse as JSON: %s\n' "$f" "$first"; return 0
   fi
+  # An object comes back as `object<TAB><disableAllHooks's JSON or absent><TAB><the answer below>`.
+  case "$out" in "object$tab"*"$tab"*)
+    d="${out#object$tab}"; out="${d#*$tab}"; d="${d%%$tab*}"
+    case "$d" in
+      true) printf 'hooks-off\t%s sets disableAllHooks to true: Claude Code runs no hook, Felix'\''s included, unless a project'\''s own settings set it back to false\n' "$f"; return 0 ;;
+      absent|false) ;;
+      *) printf 'unknown\t%s sets disableAllHooks to %s, which this check does not read\n' "$f" "$d"; return 0 ;;
+    esac ;;
+  esac
   case "$out" in
     '')         printf 'invalid\t%s is empty\n' "$f" ;;
     not-object) printf 'invalid\t%s parses, and its top level is not an object\n' "$f" ;;
-    ok)         printf 'ok\t%s enables felix@felix\n' "$f" ;;
+    ok)         case "$d" in absent|false) printf 'ok\t%s enables felix@felix\n' "$f" ;; *) printf 'unknown\tthe parser answered something this check does not know\n' ;; esac ;;
     "felix-off "*)
       v="${out#felix-off }"; v="${v//$tab/ }"
       t="$(cat "$f" 2>/dev/null)"
@@ -156,7 +172,7 @@ _felix_status_settings() {
   if [ -z "$r" ]; then _felix_status_row settings unknown - "the settings check could not run"; return 0; fi
   value="${r%%$tab*}"; detail="${r#*$tab}"
   case "$value" in
-    ok|felix-off|invalid|missing) _felix_status_row settings value "$value" "$detail" ;;
+    ok|felix-off|hooks-off|invalid|missing) _felix_status_row settings value "$value" "$detail" ;;
     *) _felix_status_row settings unknown - "$detail" ;;
   esac
 }
@@ -229,11 +245,21 @@ _felix_status_verify() {
 }
 
 # felix_verify_current's answer for the checkout: current, stale with its reason,
-# red, or none-run when no gate has recorded a receipt here.
+# red, or none-run when no gate has recorded a receipt here; no-gate when the
+# project declares none, which is not a gate that has not run.
 _felix_status_gate() {
-  local root="$1" home="$2" proj="$3" v kind reason tab=$'\t'
+  local root="$1" home="$2" proj="$3" v kind reason pj="$3/project.json" tab=$'\t'
   if [ -z "$proj" ]; then
     _felix_status_row gate none - "this directory is not a governed checkout"; return 0
+  fi
+  # No gate declared is read before any receipt, with the Stop hook's own reading
+  # (felix_json_str), because the Stop hook checks no stop for such a project.
+  if [ ! -e "$pj" ] && [ ! -L "$pj" ]; then
+    _felix_status_row gate value no-gate "$pj does not exist, so no gate is declared: the Stop hook checks no stop here"; return 0
+  elif [ ! -f "$pj" ] || [ ! -r "$pj" ]; then
+    _felix_status_row gate unknown - "$pj cannot be read, so whether a gate is declared is not known; the Stop hook reads no gate from it and checks no stop here"; return 0
+  elif [ -z "$(felix_json_str "$pj" gate 2>/dev/null)" ]; then
+    _felix_status_row gate value no-gate "${proj##*/} declares no gate in $pj: the Stop hook checks no stop here; set \"gate\" there"; return 0
   fi
   _felix_status_need felix_verify_current verify
   v="$(_felix_status_verify "$root" "$home" "$proj")"
@@ -248,7 +274,40 @@ _felix_status_gate() {
   esac
 }
 
-# The five rows for the directory <cwd> under the Felix home <home>.
+# The land row (lib/status-land.sh) and the hooks row (lib/status-hooks.sh).
+_felix_status_land() {
+  if [ -z "$1" ]; then _felix_status_row land none - "this directory is not a governed checkout"; return 0; fi
+  _felix_status_need felix_lander_state status-land
+  _felix_status_from3 land "$(felix_lander_state "$1")"
+}
+_felix_status_hooks() {
+  if [ -z "$1" ]; then _felix_status_row hooks none - "this directory is not a governed checkout"; return 0; fi
+  _felix_status_need felix_hooks_state status-hooks
+  _felix_status_from3 hooks "$(felix_hooks_state "$2")"
+}
+
+# session start's landing badge (lib/status-land.sh): `<value><TAB><detail>` when
+# the land row reads paused, not-loaded or not-ticking, else nothing.
+felix_land_notice() { _felix_status_need felix_lander_notice status-land; felix_lander_notice "$@"; }
+
+# felix doctor's three lines after `project:`: the declared gate, the user's
+# settings and this checkout's hooks, each label padded to 14 columns. No tr:
+# the doctor's output must not depend on it.
+felix_doctor_lines() {   # PROJ ROOT GATE
+  local r st v d tab=$'\t'
+  if [ -n "$3" ]; then printf '%-14s%s\n' 'gate:' "$3"
+  else printf '%-14s%s\n' 'gate:' "none declared: no stop is checked; set \"gate\" in $1/project.json"; fi
+  r="$(felix_settings_state)"
+  if [ -n "$r" ]; then printf '%-14s%s: %s\n' 'settings:' "${r%%$tab*}" "${r#*$tab}"
+  else printf '%-14s%s\n' 'settings:' "unknown: the settings check could not run"; fi
+  _felix_status_need felix_hooks_state status-hooks
+  r="$(_felix_status_from3 hooks "$(felix_hooks_state "$2")")"   # hooks TAB state TAB value TAB detail
+  r="${r#*$tab}"; st="${r%%$tab*}"; r="${r#*$tab}"; v="${r%%$tab*}"; d="${r#*$tab}"
+  [ "$st" = value ] || v="$st"
+  printf '%-14s%s: %s\n' 'hooks:' "$v" "$d"
+}
+
+# The seven rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj
   _felix_status_need felix_repo_root resolve
@@ -259,6 +318,8 @@ felix_status_rows() {
   _felix_status_pulse "$home"
   _felix_status_reach "$proj" "$home"
   _felix_status_gate "$root" "$home" "$proj"
+  _felix_status_land "$proj"
+  _felix_status_hooks "$proj" "$root"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

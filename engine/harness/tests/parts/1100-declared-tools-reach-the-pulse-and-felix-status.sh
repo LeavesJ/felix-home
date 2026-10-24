@@ -406,8 +406,9 @@ _rx_build status
 _rx_put reachy "$(( $(_rx_now) - 3630 ))" "$RXC" "$RXR4"
 _rxst="$(_rx_st "$RXC" --tsv)"; _rxstrc=$?
 is  "felix status --tsv exits 0" "$_rxstrc" "0"
-is  "and prints exactly five rows: settings, schedule, pulse, reach, gate" \
-    "$(printf '%s\n' "$_rxst" | cut -f1 | tr '\n' ' ')" "settings schedule pulse reach gate "
+# Changed by the b04 contract (docs/2026-10-24-audit-fixes/): two rows were added at the end, land and hooks, as the status header allows.
+is  "and prints exactly seven rows: settings, schedule, pulse, reach, gate, land, hooks" \
+    "$(printf '%s\n' "$_rxst" | cut -f1 | tr '\n' ' ')" "settings schedule pulse reach gate land hooks "
 is  "every row is four tab fields, a known state, - unless the state is value, a detail, and a bare value (D16)" \
     "$(printf '%s\n' "$_rxst" | awk -F'\t' 'NF != 4 || $2 !~ /^(value|none|unknown)$/ || ($2 != "value" && $3 != "-") || $4 == "" || $3 ~ / / { print NR }')" ""
 _rxhu="$(_rx_st "$RXC")"
@@ -425,13 +426,14 @@ is  "felix status --help exits 0" "$_rxsrc" "0"
 _rx_has "and prints the general usage, which names felix status" "$_rxso" "felix status [--tsv]"
 ( cd "$RXC" && touch f.txt ); mkdir -p "$RXH/state"; sleep 1; touch "$RX/marker"; : > "$RXLOG"
 _rxst="$(_rx_st "$RXC" --tsv)"
-if [ "$(printf '%s\n' "$_rxst" | grep -c .)" = 5 ]; then
+# Changed by the b04 contract (docs/2026-10-24-audit-fixes/): two rows were added at the end, land and hooks, as the status header allows.
+if [ "$(printf '%s\n' "$_rxst" | grep -c .)" = 7 ]; then
   is "felix status writes nothing under the home's state, the memory root or the checkout, .git included (S4)" \
      "$(find "$RXH/state" "$RXMEM" "$RXC" -newer "$RX/marker" 2>/dev/null)" ""
   is "and runs no claude command" "$(cat "$RXLOG")" ""
 else
-  bad "felix status writes nothing under the home's state, the memory root or the checkout, .git included (S4)" "status did not answer five rows"
-  bad "and runs no claude command" "status did not answer five rows"
+  bad "felix status writes nothing under the home's state, the memory root or the checkout, .git included (S4)" "status did not answer seven rows"
+  bad "and runs no claude command" "status did not answer seven rows"
 fi
 # S5: the settings row.
 _rxsp="$RXHOME/.claude/settings.json"

@@ -15,7 +15,8 @@
 # A pull request `felix merge` refuses stays with its session, as before.
 #
 # State is in $(felix_mem_dir <project>)/land/: ledger.tsv (append-only), paused
-# (its content is the reason) and lock/ (pid and started). Every outside command
+# (its content is the reason), heartbeat (the last tick's start) and lock/ (pid
+# and started). Every outside command
 # is called by name through PATH, so a test puts a stub first and nothing here
 # reaches a real GitHub, launchd or notification.
 #
@@ -77,6 +78,17 @@ _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
 # Pausing writes the file; the ledger row and the notification are the next
 # tick's, which finds the file first (G2). A hand pause does the same.
 _gt_pause() { mkdir -p "$_GT_LAND" 2>/dev/null; printf '%s\n' "$1" > "$_GT_LAND/paused"; }
+
+# Audit b04, B12. Every tick writes its start, in whole seconds since the epoch and
+# one line, before it does anything else, so felix status can tell a job that has
+# stopped ticking from one with nothing to say (lib/status-land.sh). Replaced by a
+# rename, so a reader never meets half a file. One that cannot be written changes
+# nothing else the tick does.
+_gt_heartbeat() {
+  local f="$_GT_LAND/heartbeat" t="$_GT_LAND/heartbeat.$$"
+  { mkdir -p "$_GT_LAND" && [ ! -d "$f" ] && date -u +%s > "$t" && mv -f "$t" "$f"; } 2>/dev/null || rm -f "$t" 2>/dev/null
+  return 0
+}
 
 # --- the lock and the clock --------------------------------------------------
 # A lock is held by a live tick when its pid is alive and its started line is
@@ -469,7 +481,7 @@ felix_land() {
   _GT_LAND="$(felix_mem_dir "$PROJ")/land"; _GT_LEDGER="$_GT_LAND/ledger.tsv"
   _GT_REPO="$(felix_repo_slug "$FELIX_HOME_DIR" 2>/dev/null)"
   case "$cmd" in
-    --tick)      _gt_tick; _gt_unlock; return 0 ;;
+    --tick)      _gt_heartbeat; _gt_tick; _gt_unlock; return 0 ;;
     --pause)     _gt_pause "${*:-paused by hand}" ;;
     --resume)    rm -f "$_GT_LAND/paused" ;;
     --install)   _gt_install ;;

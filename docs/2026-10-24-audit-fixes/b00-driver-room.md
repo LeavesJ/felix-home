@@ -1,14 +1,12 @@
 # Audit batch b00: room in the test driver
 
 Batch b00 of the audit fixes of 2026-10-24, branch `claude/audit-b00-driver-room`,
-cut from origin/main at 69b51a61 (0.49.307, #460). Engine tier, tests only.
-New parts are numbered in 1610-1629. Nothing here changes what the suite runs:
-the driver loses comment lines, the explanations they held go next to the code
-they explain, and one new part holds the driver to its new shape.
-
-The brief (`batches/b00.json`) lists no auditor defect. It carries one
-requirement, in its notes, written R1 below. This batch lands first: about 22
-batches after it each add one or two lines to the driver.
+cut from origin/main at 69b51a61 (0.49.307, #460). Engine tier, tests only;
+new parts in 1610-1629. Nothing here changes what the suite runs: the driver
+loses comment lines, their explanations go next to the code they explain, and
+one new part holds the driver to its new shape. The brief (`batches/b00.json`)
+lists no auditor defect; it carries one requirement, in its notes, written R1
+below. This batch lands first: about 22 batches after it add driver lines.
 
 ## 1. Defects
 
@@ -25,11 +23,10 @@ would discard the rest of the suite. Or code gets moved, which is what freed
 the last room on 2026-10-17 (part 0004, lines 4-6).
 
 Measured on 69b51a61: 193 part lines, 47 lib lines, 133 other code lines, 111
-comment lines (the shebang among them) and 13 blank lines, so 257 lines that
-are neither part nor lib lines. After the opening block, 19 comment runs are
-longer than two lines. The longest, lines 64-71 (`_ran_rows`'s history) and
-76-83 (`_manifest_short`'s), are eight lines each, and part 0770 already says
-both.
+comment lines (the shebang among them) and 13 blank, so 257 lines are neither
+part nor lib lines. After the opening block 19 comment runs exceed two lines;
+the longest, 64-71 (`_ran_rows`'s history) and 76-83 (`_manifest_short`'s),
+are eight lines each, and part 0770 already says both.
 
 ## 2. Required behaviour
 
@@ -159,39 +156,22 @@ from an assertion that bounds a time is re-run once alone; if it then passes,
 it is named in the pull request as load, never dropped unsaid. Parts 0001-0009
 and 9990 cannot run alone. They run as every set's prelude, so every set
 exercises 0001 and 0004 with the moved text, and part 1040's "every part parses
-on its own" reads them too. The sets, each contiguous in the driver's order:
+on its own" reads them too. The sets, each contiguous in the driver's order,
+are: 0200; 0202 0203; 0440; 0590; 0640; 0720; 0770; 0840; 1010; 1040; 1200
+1210 1220 1230-gate-friction-a-addendum 1230-gate-friction-a 1240; 1250 1260
+1270 1280 1281 1282; 1283-1288; 1289 1290 1291 1292 1293 1294; 1295 1296; 1500
+1510; and, after the change, 1600 1610. 0440 and 0640 write stub drivers of
+their own and 0840 only names tests/run in audit fixtures: none of the three
+reads the real driver; they are the brief's, and are controls.
 
-- 0200
-- 0202 0203
-- 0440
-- 0590
-- 0640
-- 0720
-- 0770
-- 0840
-- 1010
-- 1040
-- 1200 1210 1220 1230-gate-friction-a-addendum 1230-gate-friction-a 1240
-- 1250 1260 1270 1280 1281 1282
-- 1283 1284 1285 1286 1287 1288
-- 1289 1290 1291 1292 1293 1294
-- 1295 1296
-- 1500 1510
-- 1600 1610 (after the change only)
-
-0440 and 0640 write stub drivers of their own, and 0840 only names tests/run
-inside audit fixtures: none of the three reads the real driver. They are in the
-list the brief named, and are controls.
-
-Part 1010 is the one set whose result moves for a reason outside this batch.
-Its two record checks, "red.tsv was recorded against the engine origin/main
-held where this tree branched from it" and "this engine's version is above
-origin/main's when this tree holds commits origin/main lacks", skip on the base
-and on this contract's commit ("this tree changes no engine file"). Once the
-branch changes a file under engine/, tests included, both are owed (part 1010
-lines 171-186), and they fail until the carrier records red.tsv and raises the
-version in plugin.json, which this batch may not touch. Those two FAILs are
-expected on the builder's branch and are the carrier's to clear; any other
+Part 1010's result moves for a reason outside this batch. Its two record
+checks ("red.tsv was recorded against the engine origin/main held where this
+tree branched from it", "this engine's version is above origin/main's when this
+tree holds commits origin/main lacks") skip on the base and on this contract's
+commits ("this tree changes no engine file"). Once the branch changes a file
+under engine/, tests included, both are owed (part 1010 lines 171-186) and fail
+until the carrier records red.tsv and raises the version in plugin.json. Those
+two FAILs are expected on the builder's branch and are the carrier's; any other
 FAIL in 1010 is not.
 
 **B7. The change touches only these files**: engine/harness/tests/run,
@@ -224,59 +204,47 @@ the engine, not the driver.
 Each item is an existing behaviour the edit could break, and the parts that pin
 it. All of them are among B6's sets or run as every set's prelude.
 
-1. **Part lines, one per file, in name order.** Part 1040 (every file in parts
-   sourced once in `LC_ALL=C` name order, none that is not there; NNNN-name.sh;
-   the driver at most 500 lines; every part parses alone). Part 0001's
-   `_sj_order` reads the part lines for `-j N` and `--part`, and `_sj_member`
-   refuses a name the driver does not source (parts 1291-1296 test both). Part
-   0007's runner relies on `alias .=:` turning the part lines after the
-   hand-over into no-ops (driver lines 223-225, the unalias at 411).
-2. **Lib lines and lib-before.names.** Part 1290: one line per tests/lib/*.sh,
-   in name order, after the 0005 line and before the 0010 line; exactly one
-   line outside a comment naming lib-before.names, after the 0005 line and
-   before the first lib line. Part 0006 (`_lib_clashes`) reads
-   `$TMP/lib-before.names`, and defines the `_vars` functions the driver calls
-   at lines 208-211.
-3. **The helper block** (B4c). Part 0770's `_red_helpers` and the red fixtures
-   built on it (`_red_count`), and its two pins on driver code: exactly one line
-   `_ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"` at column 1 (0770 line 112)
-   and exactly one `  done < <(_manifest_short "$FELIX_TEST_MANIFEST" "$_ran_counts")`
-   (line 131).
+1. **Part lines, one per file, in name order**: part 1040 (none missing or
+   extra, NNNN-name.sh, driver at most 500, every part parses alone); part
+   0001's `_sj_order` and `_sj_member` for `-j N` and `--part` (tested by
+   1291-1296); part 0007's runner, which relies on `alias .=:` making the part
+   lines after the hand-over no-ops (driver lines 223-225, unalias at 411).
+2. **Lib lines and lib-before.names**: part 1290 (one line per tests/lib/*.sh,
+   name order, between the 0005 and 0010 lines; one line outside a comment
+   naming lib-before.names, after the 0005 line and before the first lib line);
+   part 0006 (`_lib_clashes`, and the `_vars` functions called at 208-211).
+3. **The helper block** (B4c): part 0770's `_red_helpers` and the fixtures
+   built on it, and its two pins, exactly one line
+   `_ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"` at column 1 (line 112) and
+   one `  done < <(_manifest_short "$FELIX_TEST_MANIFEST" "$_ran_counts")` (131).
 4. **The completion marker** `printf '\nreached\n'`: the last
    section-header-shaped line of `_suite_src` (0770 lines 750-758), the line
-   tests/red's awk wants after the last assertion line (red line 476), and the
-   end of the cut parts 0202, 0203 and tests/lib/gitproof.sh take (`_g3_mark`,
-   `_gp_mark`).
+   tests/red wants after the last assertion (red line 476), and the end of the
+   cut parts 0202, 0203 and tests/lib/gitproof.sh take.
 5. **The record-mode branch**: `if [ "$FELIX_TEST_RECORD" -eq 1 ]; then`
    through its first `fi` at column 1, holding the one indented
    `_rt_judge "$REAL_HARNESS/../.."` (part 1010, lines 340-363).
-6. **The lines before part 0001's `TMP="$(mktemp -d)"`** and before its
-   `FELIX_TEST_RAN="$TMP/ran"`: the `REAL_HARNESS=` line, the check after it,
-   `exec </dev/null`. Part 0203 ("the suite copies only a harness", lines
-   872-917) runs the lines before `TMP=` as a child, with REAL_HARNESS
-   rewritten after the line beginning `REAL_HARNESS=`; part 0005 (its checks 7
-   and 8) runs the lines before `FELIX_TEST_RAN="$TMP/ran"`; parts 0202, 0203
-   and tests/lib/gitproof.sh run the lines before the first `printf '\n` line.
-7. **The caller-environment block** (driver lines 21-26) **and the git colour
-   pin** (31-35). Part 1510 (the first command after `set` is the unset; the
-   block after `set -u` equals engine/harness/felix's) and part 1500 (the pin's
-   region parses and forks nothing). Both skip comment lines, so the pointer
-   comments above them may shrink.
-8. **The argument loop, the receipt calls, the manifest comparison and the
-   summary** (lines 117-150 and 414-497). Parts 1200-1296 run copies of the
-   driver made by part 0003's `_suite_copy_driver` and `_suite_copy_tree`
-   (lines 836-912), with stub parts.
-9. **The shebang and the executable bit.** Part 0720 (executable-check), part
-   1500 (the executable files read include tests/run), part 1510 (`find -perm
-   -u+x` reaches ./tests/run), and the gate's `executable` row
-   (projects/felix/qualification.tsv line 184).
-10. **The suite-text lints, which read the destinations too.** Part 0200
-    (`_fx_lint` over `_suite_flat`; `_pfsites` over `_suite_src`, comment lines
-    skipped), part 0590 (the self-reference scanner over `_suite_files`,
-    comment lines read), part 1291 (`_db1_jobs`, comment lines read; `_db1_jc`
-    on 0001, comments stripped), parts 0005 and 0200 (`_ff_case` by cksum).
-11. **The section title a pointer quotes**: `red, beside a record run`, the
-    header at receipt.sh line 379 (B3b reads it).
+6. **The lines before part 0001's `TMP="$(mktemp -d)"` and its
+   `FELIX_TEST_RAN="$TMP/ran"`** (the `REAL_HARNESS=` line and its check,
+   `exec </dev/null`), run as children: by part 0203 (lines 872-917, up to
+   `TMP=`, REAL_HARNESS rewritten after the line beginning `REAL_HARNESS=`), by
+   part 0005 (checks 7 and 8, up to `FELIX_TEST_RAN=`), and by parts 0202, 0203
+   and tests/lib/gitproof.sh (up to the first `printf '\n` line).
+7. **The caller-environment block** (lines 21-26) **and the git colour pin**
+   (31-35): part 1510 (the first command after `set` is the unset; the block
+   equals engine/harness/felix's) and part 1500 (the pin parses, forks
+   nothing). Both skip comments, so the pointers above them may shrink.
+8. **The argument loop, receipt calls, manifest comparison and summary** (lines
+   117-150, 414-497): parts 1200-1296 run copies of the driver made by part
+   0003's `_suite_copy_driver` and `_suite_copy_tree` (lines 836-912).
+9. **The shebang and the executable bit**: parts 0720, 1500 and 1510, and the
+   gate's `executable` row (projects/felix/qualification.tsv line 184).
+10. **The suite-text lints, which read the destinations too**: part 0200
+    (`_fx_lint` over `_suite_flat`; `_pfsites` over `_suite_src`), part 0590
+    (the self-reference scanner, comments read), part 1291 (`_db1_jobs`,
+    comments read), parts 0005 and 0200 (`_ff_case` by cksum).
+11. **The section title a pointer quotes**, `red, beside a record run`
+    (receipt.sh line 379; B3b reads it).
 
 ### 3a. Where each explanation lives
 
@@ -448,69 +416,43 @@ set -uo pipefail
 x=1
 ```
 
-And the plant below, read against a tests directory under `$TMP` that holds an
-empty `parts/` and no receipt.sh, fails: one of its findings says receipt.sh
-cannot be read, and its (b) pointer is not passed.
-
-```
-#!/usr/bin/env bash
-set -uo pipefail
-# (receipt.sh, "red, beside a record run")
-x=1
-```
+And the same plant with line 3 closed and line 4 gone (a whole pointer,
+`# (receipt.sh, "red, beside a record run")`), read against a tests directory
+under `$TMP` holding an empty `parts/` and no receipt.sh, fails: one of its
+findings says receipt.sh cannot be read, and its (b) pointer is not passed.
 
 ### Checked by command at review, not in a part: A13-A19
 
-- **A13 (B4a).** The `diff` of B4a prints one hunk whose only changed line is
-  `> . "$HERE/parts/1610-driver-room-blind.sh"`.
-- **A14 (B4b).** The frozen region's `diff` prints that one added line and
-  nothing else.
-- **A15 (B4c).** `awk '/^PASS=0; FAIL=0/ { on = 1 } on { print } on && /^skip\(\)/ { exit }' engine/harness/tests/run | awk '!/^[[:space:]]*(#|$)/'`
-  prints the same lines on the base and after.
-- **A16 (B4d).** `head -1` prints `#!/usr/bin/env bash`; `git ls-files -s`
-  shows 100755.
-- **A17 (B5).** Read with 3a beside the diff: each removed run's substance is at
-  its home; moved text sits at the top level; `wc -l` on parts 0001 and 0004 is
-  at most 500; receipt.sh is unchanged.
-- **A18 (B6).** Every set of B6, under both awks, against section 4.
-- **A19 (B7).** `git diff --stat <base>` names only B7's files.
+**A13 (B4a)** the `diff` of B4a prints one hunk whose only changed line is
+`> . "$HERE/parts/1610-driver-room-blind.sh"`. **A14 (B4b)** the frozen
+region's `diff` prints that one added line and nothing else. **A15 (B4c)**
+`awk '/^PASS=0; FAIL=0/ { on = 1 } on { print } on && /^skip\(\)/ { exit }' engine/harness/tests/run | awk '!/^[[:space:]]*(#|$)/'`
+prints the same lines on the base and after. **A16 (B4d)** `head -1` prints
+`#!/usr/bin/env bash` and `git ls-files -s` shows 100755. **A17 (B5)** read
+with 3a beside the diff, each removed run's substance is at its home, moved
+text sits at the top level, parts 0001 and 0004 are at most 500 lines, and
+receipt.sh is unchanged. **A18 (B6)** every set, both awks, against section 4.
+**A19 (B7)** `git diff --stat <base>` names only B7's files.
 
 ### The base's results for B6
 
 Measured 2026-10-24, 10:41 to 11:44, with alone.sh from a fresh mktemp
-directory, on 69b51a61 and then on this contract's first commit (3a84bdd6,
-docs only, which no part reads as an engine change). The load average was 30
-to 370 throughout, with the other batches running. Every set exited 0 with no
-FAIL, and BWK awk and gawk gave the same counts. The ok counts include the
-prelude's own assertions.
+directory, on 69b51a61 and on this contract's first commit (3a84bdd6, docs
+only, which no part reads as an engine change), under a load average of 30 to
+370 with the other batches running. Every set exited 0 with no FAIL, and BWK
+awk and gawk gave the same counts. As set: ok, skip (seconds bwk/gawk); the ok
+counts include the prelude's own. 0200: 141, 0 (278/256). 0202 0203: 181, 0
+(161/124). 0440: 100, 0 (158/180). 0590: 127, 0 (26/19). 0640: 105, 0 (14/12).
+0720: 127, 0 (67/65). 0770: 168, 0 (35/37). 0840: 84, 0 (59/42). 1010: 136, 2
+(12/13). 1040: 67, 0 (7/5). 1200-1240: 268, 0 (93/80). 1250-1282: 420, 3
+(255/237). 1283-1288: 462, 2 (187/177). 1289-1294: 470, 0 (1706/1661). 1295
+1296: 152, 0 (321/291). 1500 1510: 157, 0 (39/47). 1600: 350, 0 (41/28).
 
-| Set | ok | FAIL | skip | bwk s | gawk s |
-|---|---|---|---|---|---|
-| 0200 | 141 | 0 | 0 | 278 | 256 |
-| 0202 0203 | 181 | 0 | 0 | 161 | 124 |
-| 0440 | 100 | 0 | 0 | 158 | 180 |
-| 0590 | 127 | 0 | 0 | 26 | 19 |
-| 0640 | 105 | 0 | 0 | 14 | 12 |
-| 0720 | 127 | 0 | 0 | 67 | 65 |
-| 0770 | 168 | 0 | 0 | 35 | 37 |
-| 0840 | 84 | 0 | 0 | 59 | 42 |
-| 1010 | 136 | 0 | 2 | 12 | 13 |
-| 1040 | 67 | 0 | 0 | 7 | 5 |
-| 1200-1240 | 268 | 0 | 0 | 93 | 80 |
-| 1250-1282 | 420 | 0 | 3 | 255 | 237 |
-| 1283-1288 | 462 | 0 | 2 | 187 | 177 |
-| 1289-1294 | 470 | 0 | 0 | 1706 | 1661 |
-| 1295 1296 | 152 | 0 | 0 | 321 | 291 |
-| 1500 1510 | 157 | 0 | 0 | 39 | 47 |
-| 1600 | 350 | 0 | 0 | 41 | 28 |
-
-The skips, all by design: 1010's two record checks (above, B6); 1250-1282's
-B4 (no scutil-less host here) and two A4 watchdog rows (no seam shortens 30
-minutes); 1283-1288's A10 (no ledger for a tick with no project) and A15 (the
-same 30 minutes). After the change the same counts are expected. The
-exceptions are 1600 1610, which adds A1-A12, and 1010 once engine files
-change (B6). Every other set should reach its ok count with the same skips
-and no FAIL.
+The skips are all by design: 1010's two record checks (B6); in 1250-1282, B4
+(no host without scutil here) and two A4 watchdog rows (no seam shortens 30
+minutes); in 1283-1288, A10 (no ledger for a tick with no project) and A15 (the
+same 30 minutes). After the change every set gives the same counts, but 1600
+1610, which adds A1-A12, and 1010 once engine files change (B6).
 
 ## 5. Parts
 
@@ -540,15 +482,12 @@ against that. A wording correction, not a defect.
   code runs and what each copy of the driver carries (`_suite_copy_driver`,
   `_suite_copy_tree`, tests/red). The brief asks for comments only, and they
   give the 60.
-- **A loop over the parts.** Part 1040 forbids it.
-- **The trailing comments on lines 72 and 84.** They are code lines (B4a), and
-  are kept.
+- **A loop over the parts** (part 1040 forbids it), and **the trailing
+  comments on lines 72 and 84** (code lines, B4a, kept).
 - **The record (assertions.tsv, red.tsv) and the version in plugin.json.** The
-  carrier's, by the batch rules. red.tsv will not show A1 or A5 red (section 2,
-  Red first).
-- **What B3 does not read** (trailing comments, wrapped pointers, a second
-  number after "and", function names). Stated in B3 as gaps, not closed: each
-  would widen a rule whose job is the pointers this batch writes, on one line.
+  carrier's, by the batch rules; red.tsv will not show A1 or A5 red (Red first).
+- **What B3 does not read** is stated there as a gap and left open: each would
+  widen a rule whose job is the pointers this batch writes, on one line.
 
 ## 7. Founder PR
 

@@ -16,9 +16,9 @@
 #
 # State is in $(felix_mem_dir <project>)/land/: ledger.tsv (append-only), paused
 # (its content is the reason), heartbeat (the last tick's start) and lock/ (pid
-# and started). Every outside command
-# is called by name through PATH, so a test puts a stub first and nothing here
-# reaches a real GitHub, launchd or notification.
+# and started). Every outside command is called by name through PATH, so a test
+# puts a stub first and nothing here reaches a real GitHub, launchd or
+# notification.
 #
 # Sourced by felix, which defines die, resolve_or_die and $FELIX_HOME_DIR; every
 # function here is _gt_ or felix_land so that it names nothing another library

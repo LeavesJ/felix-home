@@ -158,11 +158,16 @@ EOF
   # capabilities could not be read.
   local mstat=""
   if command -v felix_maint_status >/dev/null 2>&1; then
-    local st nm age cad desc
+    local st nm age cad desc fnames="" own nl=$'\n'
     mstat="$(felix_maint_status "$proj" "$(felix_repo_root "$PWD" 2>/dev/null)" 2>/dev/null)"
+    # A row the founder owns is his and not a session's: the public snapshot
+    # needs his yes, and a session told to do it on a branch cannot finish it.
+    command -v felix_maint_founder >/dev/null 2>&1 && fnames="$(felix_maint_founder "$proj" 2>/dev/null)"
     while IFS=$'\t' read -r st nm age cad desc; do
       [ "${st:-}" = "due" ] || continue
-      _felix_next_row 4 felix "upkeep due: $nm — $desc" "felix maintenance"
+      own=felix
+      case "$nl$fnames$nl" in *"$nl$nm$nl"*) own=founder ;; esac
+      _felix_next_row 4 "$own" "upkeep due: $nm — $desc" "felix maintenance"
     done <<EOF
 $mstat
 EOF

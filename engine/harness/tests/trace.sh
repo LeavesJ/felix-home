@@ -84,7 +84,7 @@ _tm_trace_cmd() {
   return 0
 }
 _tm_trace_dbg() {
-  BASH_FT_n=${#PIPESTATUS[@]}; BASH_FT_u=$_
+  BASH_FT_n=${#PIPESTATUS[@]}; BASH_FT_u=${1-}
   case $BASH_COMMAND in
     *PIPESTATUS*|*BASH_ENV*|env\ *|*\ env\ *|*/env\ *|exec\ *|*\ exec\ *|trap\ *DEBUG*|*\ trap\ *DEBUG*|set\ *+*|*\ set\ *+*|.\ *|source\ *) _tm_trace_cmd ;;
   esac
@@ -102,7 +102,7 @@ if [ -n "${FELIX_TEST_TRACE_DIR-}" ] && [ -z "${BASH_FT_f-}" ] && [ -n "${BASH_V
     BASH_FT_f="$FELIX_TEST_TRACE_AT/$$.trace"; BASH_FT_rel="|"; BASH_FT_last=""; BASH_FT_n=1; BASH_FT_u=""; BASH_FT_k=""; BASH_FT_s=""
     if [ "${BASH_VERSINFO[0]}" -lt 4 ] || { [ "${BASH_VERSINFO[0]}" -eq 4 ] && [ "${BASH_VERSINFO[1]}" -eq 0 ]; }; then
       set -T
-      trap '_tm_trace_dbg' DEBUG
+      trap '_tm_trace_dbg "$_"' DEBUG
     elif : >> "$BASH_FT_f" 2>/dev/null; then
       eval 'exec {BASH_FT_x}>>"$BASH_FT_f"' 2>/dev/null && BASH_XTRACEFD=$BASH_FT_x && PS4=$'x\t${BASH_SOURCE[0]-}\t${FUNCNAME[0]-}\t' && set -x
     fi

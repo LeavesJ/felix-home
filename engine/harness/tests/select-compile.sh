@@ -27,7 +27,7 @@ _tm_compile() {
 # U NAME VERDICT WALL CPU. A line that is not one of those makes it BAD.
 _tm_cmp_units() {
   LC_ALL=C awk -F'\t' -v OFS='\t' '
-    $1 == "run" && NF == 6 && $2 == "v1" { r++; print "V", "run", $3; next }
+    $1 == "run" && NF == 5 && $2 == "v1" { r++; print "V", "run", $3; next }
     $1 == "top" && NF == 2 { p++; print "V", "top", $2; next }
     ($1 == "head" || $1 == "end") && NF == 3 { if ($1 == "head") h++; else e++; print "V", $1, $2, $3; next }
     $1 == "unit" && NF == 5 && ($3 == "pass" || $3 == "fail") && $2 ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ { u++; print "U", $2, $3, $4, $5; next }

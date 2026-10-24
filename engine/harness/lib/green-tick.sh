@@ -49,7 +49,7 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
   local title="Felix: $1" det
-  case "$1" in landed|refused|founder|deployed|deployed-unverified|paused|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
+  case "$1" in landed|refused|founder|waiting|deployed|deployed-unverified|paused|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
   [ "${_GT_QUIET:-0}" = 1 ] && return 0
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -66,8 +66,10 @@ _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
 }
 
 # A pull request that waits writes one row, not one every five minutes: the row
-# is written only when it differs from that pull request's previous row.
-_gt_last() { LC_ALL=C awk -F'\t' -v p="$1" '$3 == p { l = $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null; }
+# is written only when it differs from that pull request's previous row. A
+# `waiting` row (lib/green-wait.sh) is a statement about the wait and not a
+# row of it, so it is not the previous row.
+_gt_last() { LC_ALL=C awk -F'\t' -v p="$1" '$3 == p && $2 != "waiting" { l = $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null; }
 _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
   local det; det="$(_gt_clean "${6:-}")"
   [ "$(_gt_last "$2")" != "$(printf '%s\t%s\t%s' "$1" "$3" "${det:--}")" ] || return 0
@@ -430,17 +432,21 @@ _gt_tick() {
   # tick merges with the engine just deployed, and that engine runs it.
   if why="$(_gt_deploy_owed)"; then _gt_deploy; return 0; fi
   prs="$(_gt_prs)" || { _gt_row_once gh - - - 0 "gh pr list failed"; return 0; }
-  _GT_ENGINE=0; _GT_DUPS="$(printf '%s\n' "$prs" | LC_ALL=C cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
+  _GT_ENGINE=0; _GT_DEPLOYED=0; _GT_DUPS="$(printf '%s\n' "$prs" | LC_ALL=C cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
   while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr bs; do
     [ -n "${n:-}" ] || continue
     if _gt_candidate "$n" "$br" "$sha" "$dr" "$ho" "$mg" "$cr" "$bs"; then
       # One landing per tick; a landing that changed engine/ is deployed now.
-      [ "$_GT_ENGINE" -ne 1 ] || _gt_deploy
+      [ "$_GT_ENGINE" -ne 1 ] || { _gt_deploy; _GT_DEPLOYED=1; }
       break
     fi
   done 3<<EOF
 $prs
 EOF
+  # What has waited four hours is said once a day (C002); a tick that deployed says nothing.
+  [ "$_GT_DEPLOYED" = 1 ] && return 0
+  if . "$_GT_LIBDIR/green-wait.sh" 2>/dev/null; then _gt_wait_pass "$prs"
+  else _gt_row_once stuck - - - 0 "lib/green-wait.sh did not load: what waits is not aged"; fi
   return 0
 }
 

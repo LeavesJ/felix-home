@@ -2,18 +2,16 @@
 
 ## Why
 
-CI went green on #433, #435, #438 and #439, and nothing merged until the founder
-asked. #438 passed at 23:05Z on 10-14 and merged at 00:59Z. #439 passed at 04:35Z
-on 10-15 and merged at 21:02Z, 16.5 hours later. Both author sessions were alive.
-The desktop app wakes a session on a CI failure, a conflict or a comment, and
-never on a pass. A session may not poll CI. So a green pull request waits for
-whoever looks next, and that has been the founder.
+CI went green on #433, #435, #438 and #439, and nothing merged until the founder asked. #438 passed
+at 23:05Z on 10-14 and merged at 00:59Z. #439 passed at 04:35Z on 10-15 and merged at 21:02Z, 16.5
+hours later. Both author sessions were alive. The desktop app wakes a session on a CI failure, a
+conflict or a comment, and never on a pass. A session may not poll CI. So a green pull request waits
+for whoever looks next, and that has been the founder.
 
-The founder decided on 2026-10-15 at about 01:00Z: "Felix lands them, built
-next". A scheduled job of Felix's own watches the project's open pull requests.
-When CI is green it runs `felix merge`, with every check `felix merge` makes. He
-added that it goes on whichever Mac Felix runs on, and that it may later be an
-on/off setting in the interface.
+The founder decided on 2026-10-15 at about 01:00Z: "Felix lands them, built next". A scheduled job
+of Felix's own watches the project's open pull requests. When CI is green it runs `felix merge`,
+with every check `felix merge` makes. He added that it goes on whichever Mac Felix runs on, and that
+it may later be an on/off setting in the interface.
 
 ## What it is, and what it is not
 
@@ -38,7 +36,8 @@ re-gates in its own clone, where the candidate's code would judge itself. Here
 nothing is re-gated. A judge-changing pull request lands on exactly the evidence
 a session's merge on green uses today, so holding it would add no check and
 would only bring the wait back. What a present session adds is noticing a broken
-deploy, and G6's verify and pause cover that.
+deploy. G7's verify covers one that does not install or does not match main, not
+a hook that fails open (roadmap step 12; b02-land-tick, C100).
 
 ## The clauses
 
@@ -73,8 +72,9 @@ these hold:
       but names a different process, by start time, is a dead lock.
     - The lock is taken with `mkdir`, and released on every exit path through a
       trap.
-- **`gh auth status` exits 0.** If it does not, the tick writes one `gh` row and
-  exits 0. A `gh` that fails never reads as a green run, anywhere in the tick.
+- **`gh auth status --hostname github.com --active` exits 0** (b02-land-tick B10).
+  If it does not, the tick writes one `gh` row and exits 0. A `gh` that fails
+  never reads as a green run, anywhere in the tick.
 
 **G3. Deploy what main already holds.** Before any merge, the tick compares the
 version `origin/main` declares (`engine/.claude-plugin/plugin.json`, read with
@@ -124,10 +124,10 @@ write a row every five minutes.
       is per checkout (#449), so a gate that passed only in a clone outside
       the home's worktrees leaves the matched worktree with no receipt for the
       head. `felix merge` there refuses it, and A13 keeps that refusal until
-      the head or main moves. Such a pull request stays a draft until its home
-      worktree's gate has passed on the head. If it was marked ready first, a
-      session lands it with `felix merge` from that worktree once the gate has
-      passed there.
+      a receipt is written there or the head or main moves (b02-land-tick B4).
+      Such a pull request stays a draft until its home worktree's gate has
+      passed on the head. If it was marked ready first, the next tick runs
+      `felix merge` again once that gate has written its receipt.
 
 **G6. Merge.** The merge runs only through the installed engine's `felix`:
 
@@ -190,10 +190,12 @@ write a row every five minutes.
 
 - `--tick`;
 - `--pause [reason]`, which writes `paused`, with "paused by hand" when no
-  reason is given;
-- `--resume`, which removes `paused`;
+  reason is given, and a `paused` row, `<reason>; by session <id>`, where `<id>`
+  is `CLAUDE_CODE_SESSION_ID` or `-` (b02-land-tick B22);
+- `--resume`, which writes a `resumed` row, `the pause read: <first line>; by
+  session <id>`, and removes `paused`; with nothing paused it writes nothing;
 - `--install`, which writes a static trampoline, the plist, and bootstraps the
-  plist. Details:
+  plist, then writes an `installed` row. Details:
     - The trampoline is `~/Library/Application Support/felix/land/<p>/tick`. It
       runs the installed engine's `felix land --tick` for the project, resolving
       main's version at run time, so it never runs a working tree.
@@ -204,8 +206,9 @@ write a row every five minutes.
       `EnvironmentVariables` naming `FELIX_HOME_DIR`. Its stdout and stderr go
       to `land/launchd.log`.
     - The tick bootstraps it with `launchctl bootstrap gui/<uid> <plist>`.
-- `--uninstall`, which runs `launchctl bootout gui/<uid>/felix.land.<p>` and
-  removes the plist and the trampoline. A missing one is not an error;
+- `--uninstall`, which runs `launchctl bootout gui/<uid>/felix.land.<p>`,
+  removes the plist and the trampoline (a missing one is not an error) and
+  writes an `uninstalled` row;
 - `--status [--tsv]`, which is read-only. It prints three lines, `installed`,
   `loaded` and `paused`, each `yes` or `no`, then the last ledger row of each
   pull request seen. With `--tsv` the lines are `key<TAB>value` and the rows are
@@ -234,14 +237,16 @@ from a clause above, the amendment wins.
       ledger's last row, sends one notification, and exits 1.
     - It never runs the newest cache entry, another version, or any working
       tree. A cache entry at main's version number that a branch installed is
-      not main's engine, and this check is what tells the two apart.
-- **A2 (G3, a home behind main owes a deploy).** A deploy is owed also when
-  `$FELIX_HOME_DIR`'s HEAD is not `origin/main` after the fetch. That covers a
-  landing whose cache entry the author's gate had already installed: the home
-  is still behind and nothing verified the deploy. G7 then requires HEAD to
-  equal `origin/main` after the pull, before anything is installed. A home
-  ahead of or diverged from `origin/main` is a `deploy-owed` row plus `paused`,
-  and nothing is installed.
+      not main's engine, and this check is what tells the two apart. One case
+      is added (b02-land-tick B16): main's entry missing, the home on main
+      strictly behind origin/main, and the entry for the version the home's own
+      main declares installed and accepted by main's check. That entry's tick
+      deploys main's, and writes its own rows.
+- **A2 (G3, a home behind main owes a deploy).** A deploy is owed also when `$FELIX_HOME_DIR`'s HEAD
+  is not `origin/main` after the fetch. That covers a landing whose cache entry the author's gate
+  had already installed: the home is still behind and nothing verified the deploy. G7 then requires
+  HEAD to equal `origin/main` after the pull, before anything is installed. A home ahead of or
+  diverged from `origin/main` is a `deploy-owed` row plus `paused`, and nothing is installed.
 - **A3 (G5, direction documents, matched without case and across renames).**
   Paths are compared after folding A-Z to a-z under `LC_ALL=C`, because this
   Mac's file system folds case: `projects/felix/claude.md` is the founder's
@@ -295,7 +300,8 @@ from a clause above, the amendment wins.
 
   The ledger path is written into the trampoline, so it does not depend on the
   home. Each of these rows, like A6's, is written and notified only when it
-  differs from the previous row of the same event.
+  differs from the previous row of the same event, and again with `still so
+  since <time>` each hour the same wait lasts (b02-land-tick B13, B15).
 - **A11 (a tick that deploys does not merge).** A tick that runs G7's deploy,
   whether it succeeds or not, merges nothing in that tick. The next tick merges
   with the engine just deployed, and that engine runs it.
@@ -303,9 +309,11 @@ from a clause above, the amendment wins.
   `main`. A pull request into any other branch gets a `skip` row.
 - **A13 (`felix merge` is not re-run on a known refusal).** A pull request
   whose newest row is `refused` is passed to `felix merge` again only when its
-  head or `refs/remotes/origin/main` has moved since that row. The row records
-  both. Every real `felix merge` run writes says.log rows, and re-running a
-  refused one every five minutes would inflate the founder-interruption count.
+  head or `refs/remotes/origin/main` has moved since that row, which records
+  both; or, by the clause the row ends with (b02-land-tick B1-B9), when a
+  receipt that alone could lift it holds other bytes, or an hour has passed
+  after a status other than 0 and 3. Each real `felix merge` run writes
+  says.log rows, so this still bounds the founder-interruption count.
 - **A14 (seeing a running suite, and failing closed).**
     - G7.1's process check matches `engine/harness/tests/run` with or without a
       leading slash, since `tests/red` starts it relatively, and `gate.sh`.
@@ -397,14 +405,12 @@ cases are recorded and are not chased further.
 
 ## Amended after the fifth review, 2026-10-15
 
-- **A26 (the owed marker comes first).** The deploy writes `land/verifying`
-  before its `git pull` and before A24's checks, not just before the install.
-  A deploy that A24 stops is still owed after `--resume`, so the next tick
-  re-runs the whole deploy before anything merges. The marker is removed only
-  when `deployed` is written.
-- **A27 (byte-exact hashing).** A24's hash is `git hash-object --no-filters
-  --stdin-paths`, so `core.autocrlf` and attributes cannot make different bytes
-  hash to main's blob.
+- **A26 (the owed marker comes first).** The deploy writes `land/verifying` before its `git pull`
+  and before A24's checks, not just before the install. A deploy that A24 stops is still owed after
+  `--resume`, so the next tick re-runs the whole deploy before anything merges. The marker is
+  removed only when `deployed` is written.
+- **A27 (byte-exact hashing).** A24's hash is `git hash-object --no-filters --stdin-paths`, so
+  `core.autocrlf` and attributes cannot make different bytes hash to main's blob.
 - **A28 (scope and seams).**
     - A24's third check (no untracked or ignored file) covers `engine/` only.
       Its first two cover `engine/` and `projects/<p>/`.
@@ -414,14 +420,13 @@ cases are recorded and are not chased further.
 
 ## Amended after the record of 2026-10-16
 
-- **A29 (main's engine is read whole, on every run).** Every tick, and every
-  verify, asks `felix_accepted_deploy_diff`. It used to read main's engine
-  through `git archive | tar -x` under felix's `pipefail`. bsdtar stops reading
-  at the end-of-archive marker. If `git archive` is still writing its trailing
-  padding at that moment, it dies of SIGPIPE, and the check answered "cannot
-  examine" for an entry that is main's. Measured on a fixture-sized engine, ten
-  loops at once: 192 of 1,500 runs. A tick then deploys instead of merging, and
-  a verify writes `deployed-unverified` and pauses the lane.
+- **A29 (main's engine is read whole, on every run).** Every tick, and every verify, asks
+  `felix_accepted_deploy_diff`. It used to read main's engine through `git archive | tar -x` under
+  felix's `pipefail`. bsdtar stops reading at the end-of-archive marker. If `git archive` is still
+  writing its trailing padding at that moment, it dies of SIGPIPE, and the check answered "cannot
+  examine" for an entry that is main's. Measured on a fixture-sized engine, ten loops at once: 192
+  of 1,500 runs. A tick then deploys instead of merging, and a verify writes `deployed-unverified`
+  and pauses the lane.
     - For an entry that is main's, `felix_accepted_deploy_diff` exits 0 however
       late `git archive` writes bytes after the end-of-archive marker, and
       however early the reader of the archive stops.
@@ -430,16 +435,14 @@ cases are recorded and are not chased further.
 
 ## Amended before install, 2026-10-16
 
-- **A30 (the founder's labels hold, as felix:hold does).** A founder-only pull
-  request is marked as a draft and labelled `needs-founder`. `felix inventory`
-  already reads both `needs-founder` and `felix:founder` as the founder's. The
-  tick held only `felix:hold`, so the label half of that hold did nothing.
-  GitHub will not merge a draft, so the founder runs `gh pr ready` and then
-  `gh pr merge`, and a live tick between the two would hand the pull request
-  to `felix merge`. That merge does not reliably refuse it: an escape table
-  that only gains rows passes, and new escape rows are not applied to their
-  own pull request. Found asking whether the job could merge the 7-11b escape
-  batch, before it was installed.
+- **A30 (the founder's labels hold, as felix:hold does).** A founder-only pull request is marked as
+  a draft and labelled `needs-founder`. `felix inventory` already reads both `needs-founder` and
+  `felix:founder` as the founder's. The tick held only `felix:hold`, so the label half of that hold
+  did nothing. GitHub will not merge a draft, so the founder runs `gh pr ready` and then
+  `gh pr merge`, and a live tick between the two would hand the pull request to `felix merge`. That
+  merge does not reliably refuse it: an escape table that only gains rows passes, and new escape
+  rows are not applied to their own pull request. Found asking whether the job could merge the 7-11b
+  escape batch, before it was installed.
     - A pull request carrying a label named `felix:hold`, `felix:founder` or
       `needs-founder` gets one `skip` row and is never handed to `felix
       merge`, whatever its gate run says. Names match without regard to case,
@@ -450,21 +453,17 @@ cases are recorded and are not chased further.
 
 ## Amended after install, 2026-10-18
 
-- **A31 (the job runs where macOS lets it read the home).** The job was
-  installed on felix-home at 0.49.295, and its first tick looked at nothing.
-  macOS's privacy control refuses a launchd job every read under `~/Documents`
-  unless the program launchd started has been given Full Disk Access. The
-  trampoline began `#!/bin/sh`, and `/bin/sh` has no such grant. Its `cd` into
-  the home succeeded, because entering a directory is not a read, so A10's row
-  for an unenterable home never fired. The tick then could not read `.felix`
-  ("Operation not permitted") and wrote an `unresolved` row. The founder gave
-  `/bin/bash` Full Disk Access on 2026-10-02, for the pulse job. Two transient
-  launchd jobs measured the difference on 2026-10-18: under `/bin/sh` the
-  shell could not read `.felix`, and under `/bin/bash` it could. In the
-  installed job's own runs under `/bin/sh`, the trampoline's `git` reads of the
-  home succeeded, and only the shell's own read was refused. A `git` success
-  therefore does not show that the shell can read, and the probe below is the
-  shell's own.
+- **A31 (the job runs where macOS lets it read the home).** The job was installed on felix-home at
+  0.49.295, and its first tick looked at nothing. macOS's privacy control refuses a launchd job
+  every read under `~/Documents` unless the program launchd started has been given Full Disk Access.
+  The trampoline began `#!/bin/sh`, and `/bin/sh` has no such grant. Its `cd` into the home
+  succeeded, because entering a directory is not a read, so A10's row for an unenterable home never
+  fired. The tick then could not read `.felix` ("Operation not permitted") and wrote an `unresolved`
+  row. The founder gave `/bin/bash` Full Disk Access on 2026-10-02, for the pulse job. Two transient
+  launchd jobs measured the difference on 2026-10-18: under `/bin/sh` the shell could not read
+  `.felix`, and under `/bin/bash` it could. In the installed job's own runs under `/bin/sh`, the
+  trampoline's `git` reads of the home succeeded, and only the shell's own read was refused. A `git`
+  success therefore does not show that the shell can read, and the probe below is the shell's own.
     - **The program.** The plist's `ProgramArguments` are `/bin/bash`, then the
       trampoline's path. The trampoline's first line is `#!/bin/bash`.
     - **A read, not an entry.** After it enters `$FELIX_HOME_DIR`, and before

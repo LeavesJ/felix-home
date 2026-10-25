@@ -13,8 +13,8 @@ _ac() { ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
           felix_autonomy_commission_current "$AUC" && echo current || echo stale ); }
 is "a grant with no stamp does not cover the table" "$(_ac)" "stale"
 ( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
-  . "$FROOT/harness/lib/commission.sh"
-  felix_commission_policy_version "$AUC" ) > "$AUC/autonomy.commission"
+  . "$FROOT/harness/lib/commission.sh"; . "$FROOT/harness/lib/autonomy.sh"
+  felix_consent_stamp "$AUC" no-terminal ) >/dev/null 2>&1
 is "and one stamped over this table does"           "$(_ac)" "current"
 printf 'envelope	-	-	-	person	test -f "$FELIX_PROJECT/CLAUDE.md"	none
 later	-	-	-	person	true	none

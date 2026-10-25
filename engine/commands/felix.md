@@ -73,8 +73,13 @@ anything yet — find out what is here first, then propose.
    cannot run. `felix commission` writes a request for each under the project's
    memory root at `commission/requests/<need>.md`; read each request, run the
    skill it names, and write the answer file it names in exactly the shape it
-   gives. Then run `felix commission` again: the rows move from awaiting to
-   answered and the rows a provider named are recorded, not installed.
+   gives. A session does not run `felix commission` itself: it is run from a
+   terminal (or by the commission grant at session start), and `felix commission
+   --status` reads where the rows stand. Once it is run, the rows move from
+   awaiting to answered and the rows a provider named are recorded, not
+   installed. A `felix new` run from a session binds the project and skips the
+   commission for the same reason; say so, and ask them to run `felix commission`
+   from a terminal.
 
 4. After it exists, walk through what now applies:
    - the gate runs before anything is called finished

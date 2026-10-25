@@ -1351,6 +1351,12 @@ EOF
     printf '\nA starting constitution was written at %s/CLAUDE.md.\n' "$dir"
     return 0
   fi
+  # A session binds the project and does not commission it (lib/consent.sh).
+  if [ "$(felix_caller_class)" = session ]; then
+    printf '\ncommissioning skipped (a session ran felix new): nothing was installed, registered or fetched. The commission is run from a terminal: felix commission in %s.\n' "$root"
+    printf '\nA starting constitution was written at %s/CLAUDE.md.\n' "$dir"
+    return 0
+  fi
   printf '\ncommissioning — every engine stage that answers a need runs now, and an\n'
   printf 'independent check says whether it did.\n\n'
   ( cd "$root" && cmd_commission ) || true
@@ -2267,7 +2273,7 @@ cmd_review() {
 }
 
 cmd_autonomy() {
-  resolve_or_die; local proj="$PROJ" allow="" revoke="" a rc
+  resolve_or_die; local proj="$PROJ" allow="" revoke="" a rc cls did=0
   # One of each, and both named before anything is written. 2026-10-02: a
   # second --revoke used to replace the first without a word, and --revoke
   # took any string, so "Commission" printed "revoked:" and, on a
@@ -2290,6 +2296,9 @@ cmd_autonomy() {
       *) die "unknown capability: $a. They are 'tidy' and 'commission'." ;;
     esac
   done
+  # Who is asking (lib/consent.sh). A grant is a person's word: a session's
+  # --allow is refused below, before the lock, and its revoke and its read are not.
+  cls="$(felix_caller_class)"
 
   # One writer at a time (felix_autonomy_lock says why). It is taken before the
   # first read and only by a run that writes. The status page below reads, and
@@ -2319,6 +2328,7 @@ cmd_autonomy() {
     lock="$(felix_autonomy_lock_path "$proj")"; printf -v qlock '%q' "$lock"
     [ -z "$allow" ]  || not="$allow is not allowed"
     [ -z "$revoke" ] || not="${not:+$not and }$revoke is not revoked"
+    [ -z "$allow" ] || [ "$cls" != session ] || { felix_consent_refuse_allow "$proj" "$allow" "$not"; exit 1; }
     felix_autonomy_guard "$proj"; rc=$?
     case "$rc" in
       0) ;;
@@ -2349,9 +2359,16 @@ cmd_autonomy() {
     # like it had already been read against a table nobody re-read.
     rm -f "$(felix_autonomy_stamp_path "$proj" "$revoke")" 2>/dev/null
     felix_autonomy_say 'revoked: %s\n' "$revoke"
+    felix_consent_note "$proj" "felix autonomy" "revoked $revoke ($cls)"
   fi
 
   if [ -n "$allow" ]; then
+    # A stamp that cannot be written is found out before the grant is, so a
+    # refusal leaves nothing behind (and a pipe at its path never hangs this).
+    if [ "$allow" = commission ]; then
+      a="$(felix_consent_stamp_check "$proj")" \
+        || die "$allow is not allowed, because its stamp cannot be written: $a. The stamp was not written. Nothing was written"
+    fi
     if felix_autonomy_allows "$proj" "$allow"; then
       felix_autonomy_say 'already allowed: %s\n' "$allow"
     else
@@ -2367,60 +2384,21 @@ cmd_autonomy() {
         3) die "$allow is not allowed, because $proj/autonomy was rewritten with it and a read of it does not find the grant (another writer?)$a" ;;
         *) die "$allow is not allowed, because $proj/autonomy is not a regular file, is read-only, or could not be read whole or rewritten with it. Nothing was written$a" ;;
       esac
-      felix_autonomy_say 'allowed: %s\n' "$allow"
+      felix_autonomy_say 'allowed: %s\n' "$allow"; did=1
     fi
-    # Stamped with the table it was granted over, so a later edit to that table
-    # does not inherit the grant. Written on every --allow, not only the first,
-    # because re-granting is how a person re-arms it after reading a change.
+    # Stamped with the table it was granted over and the consent it was read
+    # under, so a later edit to either does not inherit the grant. Written on
+    # every --allow, not only the first, because re-granting is how a person
+    # re-arms it after reading a change. Read back before it is called written.
     if [ "$allow" = commission ]; then
-      printf '%s\n' "$(felix_commission_policy_version "$proj")" \
-        > "$(felix_autonomy_stamp_path "$proj" commission)"
-      felix_autonomy_say 'stamped against commissioning.tsv as it stands now.\n'
+      felix_consent_stamp "$proj" "$cls" \
+        || die "commission is in $proj/autonomy, but its stamp was not written, so the grant covers nothing yet. Run this again once $proj can be written"
+      felix_autonomy_say 'stamped against commissioning.tsv as it stands now, and the consent printed below.\n'; did=1
     fi
+    [ "$did" -eq 0 ] || felix_consent_note "$proj" "felix autonomy" "allowed $allow ($cls)"
   fi
 
-  printf '\nautonomy for %s\n\n' "$(basename "$proj")"
-  if felix_autonomy_allows "$proj" tidy; then
-    printf '  [x] tidy    remove a lookalike script when Felix already holds that file\n'
-  else
-    printf '  [ ] tidy    remove a lookalike script when Felix already holds that file\n'
-  fi
-  printf '\nNothing is granted by default, and Felix never writes this file for a\n'
-  printf 'project: a permission a system grants itself is not a permission.\n'
-  printf '\nTidy removes a file only when every one of these holds: this project\n'
-  printf 'opted in, Felix holds a file of that exact name, git does not track it,\n'
-  printf 'it is not the declared gate, and a backup was written and confirmed\n'
-  printf 'readable first. A tracked file is part of what the repository says it\n'
-  printf 'contains, and removing one is a change to the project rather than the\n'
-  printf 'removal of a stray.\n'
-  if felix_autonomy_allows "$proj" commission; then
-    if felix_autonomy_commission_current "$proj"; then
-      printf '\n  [x] commission  run the commissioning pipeline with nobody present\n'
-    else
-      printf '\n  [!] commission  granted, but not over this commissioning.tsv\n'
-    fi
-  else
-    printf '\n  [ ] commission  run the commissioning pipeline with nobody present\n'
-  fi
-  printf '\nCommission is not a scheduling change, and the wording matters because\n'
-  printf 'it is what is being consented to. The pipeline evaluates two columns of\n'
-  printf '%s/commissioning.tsv as shell — `when` and `check` — in\n' "$proj"
-  printf 'this checkout. Nothing on a hook path does that today; the session hook\n'
-  printf 'says so, and the only callers are commands a person types. Granting\n'
-  printf 'this puts them on a hook path.\n'
-  printf '\nWhat it does NOT do is install anything. A run declares: it appends\n'
-  printf 'rows to stack.tsv carrying OBSERVED, and installing them is still\n'
-  printf 'felix stack apply, which a person still runs. A declaration is a line\n'
-  printf 'in a table and is undone by deleting it.\n'
-  printf '\nThe grant is stamped against that table. Edit commissioning.tsv and\n'
-  printf 'the grant stops covering it — the row above reads [!] and the\n'
-  printf 'unattended run refuses — because an ordinary edit to a project table\n'
-  printf 'must not become code that runs unattended. Re-granting is how a person\n'
-  printf 'says they have read the change.\n'
-  printf '\n  felix autonomy --allow tidy      grant it\n'
-  printf '  felix autonomy --revoke tidy     take it back\n'
-  printf '  felix autonomy --allow commission    grant it, over the table as it stands\n'
-  printf '  felix autonomy --revoke commission   take it back\n'
+  felix_consent_page "$proj"
 }
 
 # A night's standing direction, so a founder types it once instead of every time.
@@ -5714,6 +5692,9 @@ cmd_commission() {
     esac
   done
   local root tid name; root="$(felix_repo_root "$PWD")"; name="$(basename "$proj")"
+  # A run is a person's, from a terminal, or the grant's own (lib/consent.sh):
+  # refused here, before the lock or any table is read for running. --status only reads.
+  [ "$status" -eq 1 ] || felix_consent_run_gate "$proj" "$root" || return 1
   tid="$(felix_tree_id "$root" "$FELIX_HOME_DIR" 2>/dev/null)" || tid=""
 
   if [ ! -f "$proj/commissioning.tsv" ]; then

@@ -20,8 +20,10 @@ mkdir -p "$MEM"
 # its shell was given, and the Stop hook asks a session only about its own, so
 # a suite run from inside a session would file every fixture's catch under
 # that session and judge the hooks differently from CI. Cases that need one
-# set it where they need it.
-unset CLAUDE_CODE_SESSION_ID
+# set it where they need it. CLAUDECODE goes with it (audit b17): felix autonomy
+# and felix commission refuse a caller that sits in a session, so a suite run from
+# inside one would be judged by refusals CI never sees.
+unset CLAUDE_CODE_SESSION_ID CLAUDECODE
 
 # Every lib that writes memory calls felix_mem_dir, which resolve.sh defines and
 # which the CLI and both hooks always source first. The subshells below source

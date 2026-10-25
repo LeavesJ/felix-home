@@ -19,8 +19,8 @@ is "an ungranted project starts no background run" \
 # The claim is that the grant governs when a declaration happens, never what
 # gets installed. That is not a promise about intent — it is a property of the
 # path: felix_commission_apply_declares appends a stack.tsv row and a log line,
-# and no installer is downstream of it. Installing those rows is still
-# felix stack apply, which a person still runs.
+# and no installer is downstream of it. (The run as a whole does install: the
+# grant's consent says so, and audit b17 bound the grant to that wording.)
 #
 # Asserted against the stub CLI's log, because "installs nothing" is a
 # statement about what reached `claude`, not about what the source intends.

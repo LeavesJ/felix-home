@@ -33,6 +33,13 @@ Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a g
 Write	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
 Edit	(^|/)\.felix(-home)?$	this file decides whether Felix is enforcing anything here; felix new and felix install write it and record that they did
 #
+# A grant is a person's word. felix autonomy writes these files, refuses a
+# session, and records who granted (audit b17). A grant written by hand records
+# nothing, so Write and Edit are refused on them. The floor: a shell redirect
+# is not matched, and a fixture outside this checkout is passed over.
+Write	(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$	a grant is a person's word: felix autonomy writes this file from a terminal and records who gave it; a hand-written grant records nothing	checkout
+Edit	(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$	a grant is a person's word: felix autonomy writes this file from a terminal and records who gave it; a hand-written grant records nothing	checkout
+#
 # The path may be quoted, and the command may go on after it with `;`, `&&`,
 # `|` or a closing paren. The first spelling required a space or the end of
 # the line after the name, so a quoted marker and a marker followed by `;`

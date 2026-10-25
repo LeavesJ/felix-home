@@ -259,8 +259,11 @@ felix_own_withheld_line() {
 # keeps and the kind recorded for the session's one line. That is the only
 # refusal that is not silent, because it is the only one a person would want to
 # find out about: a grant was current and a checkout asked for the run.
-# `felix commission` typed by a person is not refused anywhere: a person present
-# is the consent.
+# `felix commission` from a terminal is not refused anywhere: a person present is
+# the consent. A session's is (lib/consent.sh), unless this grant makes the run:
+# the detached run below carries FELIX_COMMISSION_UNATTENDED=1, which
+# felix commission honours only under a current grant in the project's own
+# checkout, so the refusals above are checked again there.
 #
 # The outcome is written down. A detached run whose output goes to /dev/null
 # fails where nobody can see it, which is the shape this repository keeps
@@ -281,7 +284,7 @@ felix_commission_resume_bg() {
   (
     felix_close_inherited_fds
     cd "$root" 2>/dev/null || exit 0
-    if "$bin" commission >/dev/null 2>&1; then
+    if FELIX_COMMISSION_UNATTENDED=1 "$bin" commission >/dev/null 2>&1; then
       printf '%s\tran\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"
     else
       printf '%s\tdeclined-or-failed\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$root" >> "$log"

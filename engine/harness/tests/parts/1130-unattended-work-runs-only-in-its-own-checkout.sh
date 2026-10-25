@@ -69,8 +69,8 @@ _ow_proj() {   # <name> <remote_match, or - for none>
   else printf '{"name": "%s", "remote_match": "%s", "gate": "true"}\n' "$1" "$2"; fi > "$OWP/$1/project.json"
   printf '# %s\n' "$1" > "$OWP/$1/CLAUDE.md"
 }
-_ow_stamp() { ( . "$OWHH/lib/resolve.sh"; . "$OWHH/lib/detect.sh"; . "$OWHH/lib/commission.sh"
-                felix_commission_policy_version "$OWP/$1" ) > "$OWP/$1/autonomy.commission" 2>/dev/null; }
+_ow_stamp() { ( . "$OWHH/lib/resolve.sh"; . "$OWHH/lib/detect.sh"; . "$OWHH/lib/commission.sh"; . "$OWHH/lib/autonomy.sh"
+                felix_consent_stamp "$OWP/$1" no-terminal ) >/dev/null 2>&1; }
 _ow_rival() { mkdir -p "$1/scripts"; printf '#!/bin/sh\necho repo copy\n' > "$1/scripts/prepush.sh"; chmod +x "$1/scripts/prepush.sh"; }
 _ow_co() {   # <name> <project or -> <origin or -> [cargo] [nograph] [norival]: two commits, a held rival, a graph one behind
   local d="$OWCO/$1"; mkdir -p "$d"

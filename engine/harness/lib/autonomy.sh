@@ -18,46 +18,38 @@
 # Reporting is not listed and never needs opting into. Saying "this exists and
 # nothing can reach it" changes nothing on disk.
 
-# The commission grant, and the table it was granted over.
+# The commission grant, and what it was granted over.
 #
 # Every other grant here names an action the engine defines. This one names a
 # pipeline whose steps come from a project's own commissioning.tsv, and two of
 # that table's columns — `when` and `check` — are eval'd in the checkout
-# (commission.sh). Today nothing on a hook path evaluates them; the session
-# hook says so in as many words, and felix_commission_run has exactly two
-# callers, both in the CLI. Granting this puts them on a hook path.
+# (commission.sh). Without the grant nothing on a hook path evaluates them;
+# with it, session start runs `felix commission` detached, and that run
+# installs: every stack.tsv row the install policy admits, at user scope, and
+# it enables disabled plugins. The consent text says so (lib/consent.sh).
 #
-# That is the whole of the risk, and it is not about today's table: every check
-# in it is a read-only predicate, and the run declares stack.tsv rows without
-# installing anything — felix_commission_apply_declares writes a row and a log
-# line, and no installer is downstream of it. The risk is that
-# projects/<p>/commissioning.tsv is ORDINARY-tier by this project's own
-# constitution, so a routine edit to it would otherwise become code that runs
-# unattended, forever, with nothing on any surface to show it.
+# The risk is not about today's table. projects/<p>/commissioning.tsv is
+# ORDINARY-tier by this project's own constitution, so a routine edit to it
+# would otherwise become code that runs unattended, forever, with nothing on
+# any surface to show it. And an engine that does more than the one consented
+# to must not inherit the consent.
 #
-# So the grant is bound to the table it was granted over. The policy version —
-# already a hash across the table set — is stamped when a person types the
-# command, and a background run refuses when the current hash differs. A table
-# edited after the grant does not inherit it, and re-arming is a person's act
-# of reading what changed. The same shape as the discovery cache's stamp: a
-# stale verdict is not a verdict.
+# So the grant is bound to two things, stamped when a person types the command
+# from a terminal (felix autonomy refuses a session): the policy version, a
+# hash across the table set, and a hash of the consent text. A background run
+# refuses when either differs. A table edited, or a wording changed, after the
+# grant does not inherit it, and re-arming is a person's act of reading what
+# changed. The same shape as the discovery cache's stamp: a stale verdict is
+# not a verdict.
 felix_autonomy_stamp_path() { printf '%s/autonomy.%s' "$1" "$2"; }
 
-# Does the grant still cover what is on disk?
+# Does the grant still cover what is on disk, and what this engine says it does?
+# felix_autonomy_commission_state (lib/consent.sh) reads the stamp.
 felix_autonomy_commission_current() {   # proj -> 0 when the stamp matches
-  local proj="$1" stamped now stamp
-  felix_autonomy_allows "$proj" commission || return 1
-  # The stamp only as a regular file. A pipe at the path held head open for a
-  # writer that never came, and the grant check with it (2026-10-01); anything
-  # else is no stamp, so the grant is not current.
-  stamp="$(felix_autonomy_stamp_path "$proj" commission)"
-  [ -f "$stamp" ] || return 1
-  stamped="$(head -1 "$stamp" 2>/dev/null)"
-  [ -n "$stamped" ] || return 1
-  command -v felix_commission_policy_version >/dev/null 2>&1 || return 1
-  now="$(felix_commission_policy_version "$proj" 2>/dev/null)"
-  [ -n "$now" ] && [ "$stamped" = "$now" ]
+  [ "$(felix_autonomy_commission_state "$1")" = current ]
 }
+command -v felix_caller_class >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/consent.sh"
 
 # What a grant is, read the same way by every caller.
 #

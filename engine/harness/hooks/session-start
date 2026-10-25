@@ -731,7 +731,7 @@ EOF
     context="$context
 
 Commissioning: receipt ${_cm_valid:-unknown}. A session still owes these — run the
-skill each request names, write the answer file it names, then felix commission:${_cm_await}"
+skill each request names and write the answer file it names. The commission run is made from a terminal (or by the grant's unattended run); felix commission --status reads where the rows stand:${_cm_await}"
   elif [ -n "$_cm_topo" ] && [ -n "$_cm_valid" ] && [ -z "$_cm_unread" ] && ! grep -qxF "$_cm_topo" "$_cm_seen" 2>/dev/null; then
     context="$context
 

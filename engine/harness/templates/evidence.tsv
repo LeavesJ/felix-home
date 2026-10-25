@@ -5,9 +5,18 @@
 # about whether the test is good. It catches the case the table exists for,
 # changing behaviour and shipping no test at all.
 #
+# Every cell is a grep -E pattern over each changed path, and every one reads
+# at any depth, so packages/x/src and crates/y/src are code as src/ is. Code
+# is named by its extension, so a page under book/src is not code. A test is a
+# code file under a tests, test, specs, spec or __tests__ directory anywhere,
+# or a file named as a test beside its code: x_test.go, x.test.ts, x.spec.ts,
+# test_x.py, x_spec.rb, FooTest.java. A README under tests/ is neither, and
+# proves nothing. A test written inside the file it tests, as Rust's
+# #[cfg(test)] is, cannot be seen from a path, and that change reads as a gap.
+#
 # name	when	requires	reason
-unit	^(src|lib|app|internal)/	^(tests?|spec|__tests__)/	code changes need a test
-database	(^|/)(migrations|alembic)/|\.sql$|prisma/schema	^(tests?|spec)/.*(db|database|migration|rls|schema)	schema changes need a database test
-e2e	^(src|app)/.*(web|ui|pages|components|views)/	(e2e|browser|playwright|cypress)	user-facing changes need browser coverage
-api	(^|/)(routes?|api|handlers?|controllers?)/	^(tests?|spec)/.*(api|route|handler|contract)	served surfaces need a contract test
-config	^(Dockerfile|docker-compose|.*\.tf|Procfile)	(^(tests?|spec)/|smoke)	build and deploy config needs verification
+unit	(^|/)(src|lib|app|apps|internal|pkg|cmd|packages|services|crates|libs)/([^/]+/)*[^/]+\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$	(^|/)(tests?|specs?|__tests__)/([^/]+/)*[^/]+\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(_test|_spec|\.test|\.spec|Test|Tests|Spec)\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(^|/)test_[^/]+\.py$	code changes need a test
+database	(^|/)(migrations|alembic)/|\.sql$|prisma/schema	(^|/)(tests?|specs?|__tests__)/.*(db|database|migration|rls|schema).*\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(db|database|migration|rls|schema).*/(tests?|specs?|__tests__)/.*\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(db|database|migration|rls|schema).*(_test|_spec|\.test|\.spec|Test|Tests|Spec)\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(db|database|migration|rls|schema).*/test_[^/]*\.py$|(^|/)test_[^/]*(db|database|migration|rls|schema)[^/]*\.py$	schema changes need a database test
+e2e	(^|/)(src|app)/([^/]+/)*(web|ui|pages|components|views)/	(e2e|browser|playwright|cypress)	user-facing changes need browser coverage
+api	(^|/)(routes?|api|handlers?|controllers?)/([^/]+/)*[^/]+\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$	(^|/)(tests?|specs?|__tests__)/.*(api|route|handler|controller|contract).*\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(api|route|handler|controller|contract).*/(tests?|specs?|__tests__)/.*\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(api|route|handler|controller|contract).*(_test|_spec|\.test|\.spec|Test|Tests|Spec)\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(api|route|handler|controller|contract).*/test_[^/]*\.py$|(^|/)test_[^/]*(api|route|handler|controller|contract)[^/]*\.py$	served surfaces need a contract test
+config	(^|/)(Dockerfile|docker-compose|Procfile)[^/]*$|\.tf$	(^|/)(tests?|specs?|__tests__)/([^/]+/)*[^/]+\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(_test|_spec|\.test|\.spec|Test|Tests|Spec)\.(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)$|(^|/)test_[^/]+\.py$|smoke	build and deploy config needs verification

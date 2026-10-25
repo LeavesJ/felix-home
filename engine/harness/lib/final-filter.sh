@@ -35,6 +35,18 @@
 # the refusal says, and it is true of every text refused. `x | tail || exit 1`
 # is refused, since the `||` never runs.
 #
+# THE SECOND RULE (audit b11, C074). A text is also refused when no path can end
+# in failure, no path ends in h, and it runs at least one command that can fail:
+# its status is thrown away rather than hidden behind a filter. `pytest || true`,
+# `make test; exit 0`, `make test || :`, `npm test | tail -5; true` and `if make
+# test; then echo ok; fi` read done or SATISFIED whatever the tests do. The
+# refusal says so, and names no filter: "it runs something that can fail, and
+# no path through it ends in failure". A text that runs nothing that can fail
+# (`true`, `:`, `echo ok`, `exit 0`) is still admitted: it hides no failure, and
+# the suite's fixtures use `true` as the check that holds. felix_final_filter
+# keeps answering only which final filter a text ends in, so it says nothing of
+# this rule; ff_row does. Every admission below stands for both rules.
+#
 # A text that can fail anywhere is admitted, even when the part that does the
 # work cannot. `cd dir && make test | tail -20` is admitted, because the cd can
 # fail. That is the price of precision, and it was chosen, not missed: the
@@ -336,7 +348,9 @@ function ff_case(    o, y, b) {
 # builtin ends the shell. A redirection that can fail stops
 # the command with status 1, and a bare exit after an assignment that ran a
 # command returns the status of that command.
-function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
+# A simple command that can fail, run or not: ff_stage reads it with the paths.
+function ff_simple(    r) { r = ff_simple0(); if (r ~ / t?n /) FFCF = 1; return r }
+function ff_simple0(    nw, st, p, i, nm, r, ex, cs) {
   nw = 0; st = 0; cs = 0
   while (!ff_end() && (ff_ty(0) == "w" || ff_ty(0) == "r")) {
     p = FFP[FFD]; FFP[FFD]++
@@ -364,12 +378,18 @@ function ff_simple(    nw, st, p, i, nm, r, ex, cs) {
   if (FFPOS[FFD] && nm ~ /^(:|[.]|break|continue|eval|exec|exit|export|readonly|return|set|shift|times|trap|unset)$/) r = r " tn "
   return ex ? ff_mkterm(r) : r
 }
-# The final filter whose status the text can end on, when it cannot fail.
-function ff_stage(s,    out, nm) {
-  FFERR = 0; FFD = 0; FFNEST = 0; FFFILT = ""; FFVAR = 0
+# The final filter whose status the text can end on, when it cannot fail. When
+# it cannot fail and no final filter is why, but it ran something that can fail
+# (FFCF), FFDISC says so and the return is "": a status thrown away, as in
+# `make test || true` or `make test; exit 0`.
+function ff_stage(s,    out, nm, h) {
+  FFERR = 0; FFD = 0; FFNEST = 0; FFFILT = ""; FFVAR = 0; FFCF = 0; FFDISC = 0
   out = ff_sub(ff_text(s, 0, 0))
-  if (FFERR || out ~ / (n|g:[^ ]*) / || !match(out, / h:[^ ]+ /)) return ""
+  if (FFERR || out ~ / (n|g:[^ ]*) /) return ""
+  h = match(out, / h:[^ ]+ /)
+  if (!h && !FFCF) return ""
   if (FFVAR && (FFNU || (s ~ /(^|[^A-Za-z0-9_])(set|(ba|da|k|mk|z|a|po|ya)?sh)[ \t]/ && s ~ /[ \t][-][A-Za-z]*u|nounset/))) return ""
+  if (!h) { FFDISC = 1; return "" }
   nm = substr(out, RSTART + 3, RLENGTH - 4)
   return nm == "?" ? "the last stage" : nm
 }
@@ -396,7 +416,8 @@ function ff_row(tb, line,    F, n, c, who, s) {
   else if (tb == "maintenance.tsv") { if (n >= 5 && ff_event(F[2])) c = F[5] }
   if (c == "" || c == "-") return ""
   s = ff_stage(c)
-  return s == "" ? "" : who ff_why(s)
+  if (s != "") return who ff_why(s)
+  return FFDISC ? who "cannot fail: it runs something that can fail, and no path through it ends in failure" : ""
 }
 '
 

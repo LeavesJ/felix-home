@@ -838,9 +838,8 @@ Part 1830, 18 passes (all controls named in section 4):
   auto-merge`. Already true.
 - A26: `felix next` prints `the change owes evidence: code`. Already true.
 - A31: a valid row is printed by felix_brief_evidence when a path fires its
-  `when`, and nothing otherwise. Already true when lib/evidence.sh is
-  sourced too, which this part does not do for B12; the old function needs
-  only resolve.sh and intake.sh for the ASCII row.
+  `when`, and nothing otherwise. Already true: the old function read the table
+  itself and needed only resolve.sh and intake.sh for an ASCII row.
 - A35: `felix incident` lists the valid row. Already true.
 - A41: texts that run nothing that can fail, have a failing path, or set
   pipefail are admitted by the table filter. Already true: the filter today

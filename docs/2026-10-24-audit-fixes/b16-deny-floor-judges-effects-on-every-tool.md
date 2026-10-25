@@ -493,3 +493,30 @@ After he merges:
 Nothing else in this batch needs him: no `.github/workflows` change; no risk or escape row, because the pattern refusals
 live in files that `projects/felix/risk.tsv:47-48` already count; `engine/.claude-plugin/plugin.json` is not touched;
 nothing is published.
+
+## 8. Red
+
+Run 2026-10-25 on base 69b51a61 plus the two blind parts, before any code changed: `alone.sh <worktree> bwk
+1930-deny-every-tool-blind.sh 1940-deny-patterns-and-spellings-blind.sh` (macOS awk, bash 3.2). The two parts hold 105
+assertions: **59 failed, 46 passed, 0 skipped.** The 59 are exactly the contract's red list in section 5: A1, A3, A4,
+A5, A7, A8, A9, A11, A13, A14, A20, A21, A22, A26, A27, A29, A31, A32, A33, A34 (all thirteen rows), A36, A41, A42, A43,
+A46, A47, and the 12 new force-push spellings of A49 and the 9 new commit spellings of A50. Each failed for the reason the
+contract gives, not for a fixture fault: the six-name matcher never delivers Monitor or an `mcp__` tool (A4 to A14, A26 to
+A29); the hook runs `git remote get-url origin` before it looks for a subject (A20 to A22); README row 184 still lists
+six tools (A31); no pattern check exists in schema-check or doctor (A32 to A47); rows 19 and 20 are spellings (A49, A50).
+
+The 46 that passed, and why each is not a defect in the part:
+- **Controls, true before and after (16):** A2, A6, A15, A19, A23, A24, A28, T3 (the fixture's own check), A38 and A45
+  (schema-check and doctor already say and exit as the contract wants on a clean table), A48 (a row bash cannot compile
+  is skipped, fail-open), A52 (rows 19 and 20 are already one Bash row of three fields each), and the contract's
+  `[control]` cases of A49 (`git push --force`, `git push -f`) and A50 (the two spellings with the long verify flag).
+- **Already true on base, not marked a control (1):** A49 `git push origin feat/x --force`. Today's row 19 reads `--force`
+  anywhere after `push`, so it was refused before; B20 keeps it.
+- **Allowed today, because nothing could refuse them (17, all of A51):** the neighbours B22 keeps allowed. They pass on
+  base since today's rows are narrower than the new ones; they become a test only once rows 19 and 20 widen, and they are
+  what stops the widening from over-reaching.
+- **Vacuous on base, meaningful after (12):** A10, A12, A16, A17, A18, A25 and the Monitor halves of A30 pass because the
+  hook is never run for Monitor, StructuredOutput, Fixturetool or an `mcp__` tool, so "allowed" is true by absence and not
+  by judgement; after B1 they check B5, B7 and B9. A35, A37, A39, A40 and A44 pass because schema-check and doctor print
+  no `pattern-` line and no new header at all today; after B13 to B19 they check that the new checks do not over-refuse
+  (A40 on the shipped tree).

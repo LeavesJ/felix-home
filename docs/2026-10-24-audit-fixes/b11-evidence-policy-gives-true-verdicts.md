@@ -809,3 +809,59 @@ Each copy moves that project's commission policy hash, because evidence.tsv
 is in FELIX_COMMISSION_TABLES (commission.sh:52). So each project's
 commission receipt goes stale and wants `felix commission`. The change
 escapes on the verifier channel, as change A does.
+
+## Red
+
+Run on 2026-10-24, before any code changed, with
+`alone.sh <worktree> bwk 1830-evidence-policy-true-verdicts-blind.sh 1831-evidence-template-layouts-blind.sh`
+(macOS awk, bash 3.2, tree at 15fc0da6). Eighty assertions ran, none skipped
+(A9 ran because the user is not root).
+
+- **Failed: 54 of 80.** 38 of part 1830's 56 and 16 of part 1831's 24. Every
+  assertion the contract does not mark (control) failed, as section 4 says.
+- **Passed: 26 of 80, every one a control.** None passed vacuously. Each reads
+  a value the old tree already printed, so its pass says the behaviour it pins
+  holds before the fix and has to hold after it.
+
+Part 1830, 18 passes (all controls named in section 4):
+
+- A10, A11: a valid row beside a broken one is still judged `gap` and `met`
+  with its own reason, first in file order. True today because the broken row
+  in T2 is read as n/a and prints a line of its own after the valid one.
+- A12, A20: a base that names nothing is one `unknown` line, and
+  felix_merge_blockers prints no `evidence` line for it. Already true: the
+  whole-scan unknown exists today.
+- A17: a gap alone exits 0 without `--strict` and 1 with it. Already true.
+- A19: the gap line `evidence<TAB>code<TAB>behaviour needs a test` is
+  unchanged. Already true.
+- A23: a green tree with no gap and no unknown prints `Eligible for
+  auto-merge`. Already true.
+- A26: `felix next` prints `the change owes evidence: code`. Already true.
+- A31: a valid row is printed by felix_brief_evidence when a path fires its
+  `when`, and nothing otherwise. Already true when lib/evidence.sh is
+  sourced too, which this part does not do for B12; the old function needs
+  only resolve.sh and intake.sh for the ASCII row.
+- A35: `felix incident` lists the valid row. Already true.
+- A41: texts that run nothing that can fail, have a failing path, or set
+  pipefail are admitted by the table filter. Already true: the filter today
+  refuses only a final filter.
+- A42: `make test | tail -20` keeps the final-filter reason. Already true.
+- A43: the commissioning check on an unset name with `|| true` is admitted.
+  Already true.
+- A44: `felix_final_filter` exits 1 and prints nothing for `make test || true`
+  and `true`. Already true.
+- A51: a pass whose `--in` is the reviewed checkout, or a symlink to it, is
+  refused and records nothing. Already true: this is the one isolation check
+  that exists.
+- A54, A55, A56: a pass from a separate work tree at the reviewed HEAD is
+  recorded with that tree in the sixth field, and a block records with no
+  `--in`. Already true.
+
+Part 1831, 8 passes (controls A58 and A74 to A80): A58 and A74 to A77 are
+layouts the old template judges correctly (a Go handler with no test gaps
+unit and api, a tests/ file beside code meets unit, a Rails spec, an api test,
+a migration with no test); A78 and A79 are a README alone and a page under
+book/src, both n/a on the old template; A80 holds because the old template
+already passes felix_table_check, has the five rows in order and compiles
+every cell. The 16 failures are the layouts the old template misjudges
+(A57, A59 to A73).

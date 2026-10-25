@@ -368,6 +368,7 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/candidates.sh"
 # shellcheck source=lib/handoff.sh
 . "${SCRIPT_DIR}/lib/handoff.sh"
+. "${SCRIPT_DIR}/lib/merge-judge.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -586,6 +587,7 @@ cmd_install() {
   Comparing $FELIX_ROOT with itself is what this command used to do (#55)."
 
   printf 'engine:  %s\n\n' "$src"
+  felix_install_untracked "$src"   # before any claude command or bump: what git does not track (audit b13, C064)
 
   command -v claude >/dev/null 2>&1 || {
     printf 'The claude CLI is not on PATH, so the session hook cannot be registered.\n'
@@ -1169,11 +1171,13 @@ cmd_new() {
   local tpl="$SCRIPT_DIR/templates"
   [ -d "$tpl" ] || die "missing $tpl"
 
-  local root caps gate slug
+  local root caps gate slug why repl
   root="$(felix_repo_root "$target")"
+  # A git root one project governs is not bound to another (audit b13, C116): refused before anything is made.
+  why="$(felix_new_governed "$root" "$FELIX_HOME_DIR")" && die "$why"
   caps="$(felix_detect "$root" | LC_ALL=C sort -u)"
   gate="$(felix_guess_gate "$root")"
-  slug="$(felix_repo_slug "$root")"
+  slug="$(felix_new_remote_match "$root")"
   # The marker binds the checkout, so a checkout it cannot be written into is
   # refused here, before projects/<name> exists. Refused only after it, the
   # project was left behind, and the same command, once the checkout was
@@ -1326,6 +1330,7 @@ EOF
   done
 
   # The marker binds the checkout without needing a remote.
+  repl="$(felix_new_replaced_line "$root")"
   printf '%s\n' "$name" > "$root/.felix" \
     || die "created $dir, but could not write the marker $root/.felix; write '$name' into it to bind the checkout"
 
@@ -1335,6 +1340,7 @@ EOF
   printf '  repo         %s\n' "${slug:-no github remote}"
   printf '  bound via    %s/.felix\n' "$root"
   [ -n "$kept" ] && printf '  memory       kept%s, already in %s\n' "$kept" "$memdir"
+  felix_new_notes "$root" "$target" "$dir" "$name" "$repl"
   printf '\n'
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
     "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
@@ -1775,6 +1781,7 @@ _felix_merge_unskip() {    # text on stdin -> the same text, defused
 
 cmd_merge() {
   resolve_or_die
+  local orig=("$@")   # what a hand-off to main's engine repeats (lib/merge-judge.sh)
   local proj="$PROJ" root base="main" dry=0 a
   root="$(felix_repo_root "$PWD")"
   # Known before any argument is read, because a refusal of the arguments
@@ -1836,7 +1843,7 @@ cmd_merge() {
   # that circularity exists. A governed product's rules live in the Felix home
   # and are not in its diff, so it is judged as it always was and needs no
   # installed engine at all.
-  local blockers krc
+  local blockers krc hrc
   # A dry run writes nothing: the report-only blockers read this, in the
   # judge's child shell too, which inherits the environment and no flag. They
   # write only on 0, so this line must survive every edit to this prologue.
@@ -1898,6 +1905,13 @@ cmd_merge() {
       *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
     esac
     [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
+    # A felix that is not the entry forms no verdict: the whole command goes to a copy of main's engine, which
+    # does (audit b13, lib/merge-judge.sh). The copy, told apart by where it runs, judges here with its own libraries.
+    if [ ! "$SCRIPT_DIR" -ef "$kernel" ]; then
+      felix_merge_handoff "$root" "$base" "$jentry" "$dry" "$proj" "$branch" ${orig[@]+"${orig[@]}"}; hrc=$?
+      [ "$hrc" -ne 0 ] || return "$_MJ_RC"
+      kernel="$SCRIPT_DIR"
+    fi
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
     case "$krc" in

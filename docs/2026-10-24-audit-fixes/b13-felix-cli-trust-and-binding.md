@@ -1,62 +1,55 @@
 # Audit b13: felix CLI trust and binding, the contract
 
-Batch 13 of the 2026-10-24 audit register: C067, C063, C116, C117 and C064. The skeptics'
-corrections are followed. Everything below was read on `origin/main` at 69b51a61. This file is the
-whole specification the blind assertions are written from. It says what must be true, not how,
-except where a constraint names a how.
+Batch 13 of the 2026-10-24 audit register: C067, C063, C116, C117 and C064. The skeptics' corrections are followed.
+Everything below was read on `origin/main` at 69b51a61. This file is the whole specification the blind assertions are
+written from. It says what must be true, not how, except where a constraint names a how.
 
 Terms used throughout:
 
-- **Self-governed checkout**: a git checkout whose index tracks `engine/.claude-plugin/plugin.json`.
-  Anything else is a **governed product**.
-- **M**: the commit `felix merge` resolves its base to (`--base B`, default `main`, as a full ref
-  name, as today). **V**: the version M's `engine/.claude-plugin/plugin.json` declares.
+- **Self-governed checkout**: a git checkout whose index tracks `engine/.claude-plugin/plugin.json`. Anything else is
+  a **governed product**.
+- **M**: the commit `felix merge` resolves its base to (`--base B`, default `main`, as a full ref name, as today).
+  **V**: the version M's `engine/.claude-plugin/plugin.json` declares.
 - **The entry**: `<cache>/<V>`. `<cache>` is `$FELIX_KERNEL_CACHE` when set, else
   `${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix`.
-- **The run felix**: the `felix` file the command was started as, symlinks followed. It **runs as
-  the entry** when its directory is `<entry>/harness` (the same directory by `-ef`). That is how
-  the land tick starts it.
+- **The run felix**: the `felix` file the command was started as, symlinks followed. It **runs as the entry** when its
+  directory is `<entry>/harness` (the same directory by `-ef`). That is how the land tick starts it.
 - **A copy**: a directory `$TMPDIR/felix-merge-main.XXXXXX` (TMPDIR defaults to `/tmp`).
-- **Pre-hand-off refusals**: every refusal `felix merge` makes today before it computes blockers:
-  arguments and base, the unnamed branch, `FELIX_KERNEL is set`, no installed copy at V, `judging
-  itself`, M with no `lib/resolve.sh` or no `felix_accepted_deploy_diff`, `cannot tell whether the
-  judge is main's engine`, `the judge is not the engine main accepted`, and the entry not being the
-  directory main's comparison accepted.
+- **Pre-hand-off refusals**: every refusal `felix merge` makes today before it computes blockers: arguments and base,
+  the unnamed branch, `FELIX_KERNEL is set`, no installed copy at V, `judging itself`, M with no `lib/resolve.sh` or
+  no `felix_accepted_deploy_diff`, `cannot tell whether the judge is main's engine`, `the judge is not the engine main
+  accepted`, and the entry not being the directory main's comparison accepted.
 
 ## 1. Defects
 
-- **C067 (high).** A self-governed `felix merge` forms its verdict with the code of whichever
-  `felix` was run, so a branch's own CLI judges and merges itself. README.md:181 says that cannot
-  happen. *Scenario:* a session in a Felix worktree runs `engine/harness/felix merge` from a branch
-  whose cmd_merge has a bug, such as an inverted `[ -n "$blockers" ]`. The candidate's prologue
-  decides the verdict and calls `gh pr merge`, and main has no branch protection to stop it. Only
-  `felix_merge_blockers`, and `felix_accepted_deploy_diff` read from M, come from main. The land
-  tick is pinned (green-tick.sh:328-331); a session is not.
-- **C063 (low; the skeptic lowered it from medium).** `felix merge` compares the entry with M byte
-  for byte. It then sources the judge's libraries from that same writable directory, and they load
-  more files from their own directory when they are called. *Scenario:* a session races the
-  comparison. It keeps main's bytes in `<entry>/harness/lib/escape.sh` while the `felix-deploy.*`
-  scratch directory exists, then swaps in a permissive copy before the source. Only a deliberately
-  hostile session can do this, and it has easier bypasses. The gap is already recorded as a
-  follow-up in docs/2026-10-18-judge-refs-residue-contract.md:258-262.
-- **C116 (medium).** `felix new` refuses only an existing `projects/<name>`. It then rewrites a
-  `.felix` that binds the git root to another live project, and says nothing. *Scenario:* in a
-  monorepo, `felix new web apps/web` and then `felix new api apps/api` leave `.felix` reading
-  `api`. `projects/web` binds nothing, and its sessions are judged as api's.
-- **C117 (medium).** `felix new` writes `remote_match` once, from the origin as it is then, and it
-  never says to commit `.felix`. Its own comment says a remote usually does not exist yet.
-  *Scenario:* a stranger runs `felix new` on a fresh `git init` and adds a GitHub remote the next
-  day. `remote_match` stays `""`, so no checkout is the project's own and nothing runs unattended.
-  The untracked marker reaches no worktree, so Desktop judges those sessions at the main checkout.
-  A non-GitHub origin goes whole into the tracked `project.json`, userinfo included (for example
-  `https://user:token@gitlab.example/...`).
-- **C064 (low; the skeptic narrowed it).** A hand `felix install` copies any untracked or ignored
-  file under the home's `engine/` into the cache entry, such as a Finder `.DS_Store`. It then
-  prints `verified` while the gate's `installed` check fails, and the remedy both print ("felix
-  install on main") does not clear it. *Scenario:* `engine/.DS_Store` exists in the home, and a
-  hand install at a new version turns `installed` red. The unattended deploy already refuses this
-  case (A24, green-install.sh:32-50). Removing the file from the entry restores identity, so no
-  version bump is needed; the brief's "red until a bump lands" is not what happens.
+- **C067 (high).** A self-governed `felix merge` forms its verdict with the code of whichever `felix` was run, so a
+  branch's own CLI judges and merges itself. README.md:181 says that cannot happen. *Scenario:* a session in a Felix
+  worktree runs `engine/harness/felix merge` from a branch whose cmd_merge has a bug, such as an inverted `[ -n
+  "$blockers" ]`. The candidate's prologue decides the verdict and calls `gh pr merge`, and main has no branch
+  protection to stop it. Only `felix_merge_blockers`, and `felix_accepted_deploy_diff` read from M, come from main.
+  The land tick is pinned (green-tick.sh:328-331); a session is not.
+- **C063 (low; the skeptic lowered it from medium).** `felix merge` compares the entry with M byte for byte. It then
+  sources the judge's libraries from that same writable directory, and they load more files from their own directory
+  when they are called. *Scenario:* a session races the comparison. It keeps main's bytes in
+  `<entry>/harness/lib/escape.sh` while the `felix-deploy.*` scratch directory exists, then swaps in a permissive copy
+  before the source. Only a deliberately hostile session can do this, and it has easier bypasses. The gap is already
+  recorded as a follow-up in docs/2026-10-18-judge-refs-residue-contract.md:258-262.
+- **C116 (medium).** `felix new` refuses only an existing `projects/<name>`. It then rewrites a `.felix` that binds
+  the git root to another live project, and says nothing. *Scenario:* in a monorepo, `felix new web apps/web` and then
+  `felix new api apps/api` leave `.felix` reading `api`. `projects/web` binds nothing, and its sessions are judged as
+  api's.
+- **C117 (medium).** `felix new` writes `remote_match` once, from the origin as it is then, and it never says to
+  commit `.felix`. Its own comment says a remote usually does not exist yet. *Scenario:* a stranger runs `felix new`
+  on a fresh `git init` and adds a GitHub remote the next day. `remote_match` stays `""`, so no checkout is the
+  project's own and nothing runs unattended. The untracked marker reaches no worktree, so Desktop judges those
+  sessions at the main checkout. A non-GitHub origin goes whole into the tracked `project.json`, userinfo included
+  (for example `https://user:token@gitlab.example/...`).
+- **C064 (low; the skeptic narrowed it).** A hand `felix install` copies any untracked or ignored file under the
+  home's `engine/` into the cache entry, such as a Finder `.DS_Store`. It then prints `verified` while the gate's
+  `installed` check fails, and the remedy both print ("felix install on main") does not clear it. *Scenario:*
+  `engine/.DS_Store` exists in the home, and a hand install at a new version turns `installed` red. The unattended
+  deploy already refuses this case (A24, green-install.sh:32-50). Removing the file from the entry restores identity,
+  so no version bump is needed; the brief's "red until a bump lands" is not what happens.
 
 ## 2. Required behaviour
 
@@ -496,3 +489,10 @@ Not fixed: not a defect. None. All five defects hold on this tree; two carry cor
 
 None. No workflow, deny or escape row, commission grant or publish is needed. The public snapshot's
 README changes at its next publish, the founder's act, and nothing here waits on it.
+
+## 8. Red
+
+Run on 2026-10-25 at ab66ae14 before any code changed: parts 1870 and 1880 alone under bwk, 48 assertions, 28 failed and 20 passed (the log's `ok` count also holds the suite's 62 fixture-floor lines).
+
+- **Failed (28):** A1, A2, A3, A4, A6, A9, A10, A12, A13, A18 and A22 of 1870, with A5 (the B9 refusal and its fixture control, which needs the stub reached) and A7 and A8 (each with its stub-started control); A23, A24, A25, A26, A28, A29, A30, A32, A34 (the `--no-bump` case and the three-strays case) and A36 of 1880. Today `felix merge` judges in place and refuses on the stub's entry, `felix new` rebinds silently and `felix install` never asks git.
+- **Passed (20), none a test of the change.** Fixture controls (7): both A1-A11 controls, A5's restore, the A12-A21 control, A23's, and A34-A37's and A34's. Controls that pin today's behaviour for the fix to keep (10): A14, A15, A17, A19 and A20; A27, A31, A33, A35 and A37. Already true or vacuous (3): A11 and A21 (B10) pass because no copy is made yet, so none can be left behind, and bite once it is; A16 (B4) passes because the in-place path already calls gh once with the trailer and names the entry, since the candidate's engine differs from main's only in the dry-run sentence, which A12 and A18 test.

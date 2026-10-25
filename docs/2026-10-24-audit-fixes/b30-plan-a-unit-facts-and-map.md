@@ -1010,3 +1010,35 @@ only been read, not run. The compile reader was exercised on hand-made input of
 the same shape. A traced run under bash 4.1 or later writes a line for every
 command a unit runs, not one for each context, so its trace directories are much
 larger than the 3.2 tracer's; B7 to B15 do not bound them.
+
+## 10. Review round
+
+Written on 2026-10-25, after the build was finished from its stopped state: the
+blind parts 2100 and 2110 were run under bwk and under gawk, and the affected
+parts the card names were run alone under both.
+
+**Suite slots (the follow-up of 2026-10-25).** `tests/run --part` takes no
+Mac-wide suite slot. Only the units of a `tests/run -j N` run hold one, as a
+flock on a file of `$TMPDIR/felix-suite-slots` (part 0007's holder), and the
+runner says once on stderr when a unit has waited for one
+(`tests/run: NAME has waited T s for a slot and goes on waiting`, 0007's
+`_par_nt`). The rule for this batch is that any run it adds that executes suite
+units or parts takes a slot as a `-j` unit does and says when it waits.
+
+This batch adds no such run of its own:
+- **The traced run** is `tests/run -j N` with `FELIX_TEST_TRACE_DIR` set (B8). It
+  starts its units through the same `_par_start` and holder as an untraced run.
+  Each unit therefore holds a slot for as long as it runs and the runner says
+  when one waits. The tracer (`tests/trace.sh`) runs inside those units and starts
+  nothing.
+- **`felix testmap --compile D`** reads a directory of text and writes a map. It
+  runs no unit and no part.
+- **`felix testmap --report [BASE]`** runs no suite and no part (B22).
+- **The facts file** is written by the runner of a `-j` run (B2). It runs nothing.
+
+The step that will need it is design step 7, shadow selection, which refreshes
+maps in idle slots and runs the selection beside the full run, and after it step
+8, the mutation sweep, and step 9, the release run. Each of them starts traced
+runs and `--part` runs of its own. Each has to take a suite slot as a `-j` unit
+does, and say on stderr when it is waiting for one, or the oversubscription this
+follow-up measured (load 351 on 10 cores) comes back through them.

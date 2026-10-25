@@ -366,3 +366,27 @@ Each is sourced by one driver line, after 1600's, and each stays under 500 lines
 ```
 
 When the reuse job times out it names no run, and the gate job's `if` still runs it. A gate job that times out concludes red on the stuck-PR page and to the land tick (pr-status-gh.sh:102). No deny row, escape row, commission grant or publishing is needed.
+
+## 8. Red
+
+Run on 2026-10-24 and 25, before any change to the engine, each part alone under macOS awk (bwk) with `scratchpad/tools/alone.sh`. 1640 ran in this worktree at the base commit (`50a106f0`); 1630 ran in a copy of the base commit's engine tree with the two new parts added, because a first run in the worktree was disturbed by edits made while it ran. The machine was far over capacity for both (load average 350 to 550 from other sessions), so a timing bound is hit sooner than on a quiet machine, and some cases fail for the load as much as for the missing behaviour. Each such case is named below, so that the counts are not read as more than they show.
+
+**1640 (A21 to A40): 16 failed, 4 passed.** The four that passed are controls, and each is true of the base engine on purpose:
+
+- **A28** (B14, control): `FELIX_PROBE_LIMIT` set and empty is the default, so a probe that answers reads found, 1. The base ignores the variable, so the same row reads the same.
+- **A35** (B18, control): with a limit set and a witness that holds, a probe that ends at once reads as before.
+- **A36** (B18, control): a probe of `cat`, with a caller's stdin that is a pipe nobody closes, still reads `/dev/null` and returns within 5 s as blind. The base already redirects stdin.
+- **A37** (B18, control): `felix_probes_run`'s fields 1 to 6 for a found, an empty and a not-applicable row. This is the pin on the epoch.
+
+Of the 16 that failed, 15 show the missing limit itself (the call hit its 20 s bound with nothing printed, A27's `sleep 40` ran its full 40 s, and A29, A32 and A34 show the base running a command it must refuse). **A38** (B19, control) failed at the base as well, with the ten-row table taking 11253 ms against its bound of 5000: that is the load, not the limit, and it stays a load-bound case (see section 9).
+
+**1630 (A1 to A20, 21 lines, because A6 has a control): 15 failed, 6 passed.** The six that passed:
+
+- **A10** (B9, control): a serial run of passing parts exits 0, prints `reached` and leaves a receipt. True of the base.
+- **A16** (B6, control): no name in assertions.tsv begins `no new assertion in `. True of the base, and A15 is the assertion that red leaves such a line out.
+- **A18** (B13, control): a record run whose red prints a line and ends at once shows that line, indented, and no `red stopped` line. True of the base.
+- **A20** (B21, control): the size caps hold (run 500, red 559, receipt.sh 500, part 0007 835, probes.sh, obligations.sh and part 0001 under 500). True of the base, and the build must keep it true.
+- **A6, the control half** (B5): the durations file is byte for byte as it was, no slot file is locked, and the group is empty. It passed for a poor reason: the base's `-j 2` run never reached its units inside the case's bound, so it wrote nothing. It is vacuous at the base, and says something only once the run reaches the units.
+- **A1** (B3): passed vacuously. The base has no limit, so the hung part runs to the case's bound of 60 s and is ended by it with exit 124, which is neither 0 nor 2. A1 reads "within 25 s of the assertion" from the moment the part wrote its `$TMP`, and under this load the prelude took more than 35 s of the 60, so the bound landed inside that window. A5 shows the same (its only failure was the missing quiet line, the 25 s clause passed). On a quiet machine the prelude takes a few seconds and A1 fails at the base at 55 s or more. This is inferred from A5's detail and the case bound, not re-measured on a quiet machine.
+
+The 15 that failed split in two. Nine show the missing behaviour: A2, A3, A4 (the run is ended by the case's bound, not by itself, and prints no quiet line), A5 (no quiet line from `--part`), A13 (the base accepts `''`, `0`, `07`, `5s` and the rest, runs on, calls `mktemp` and changes the receipt), A14 (no `this run has no quiet limit` line), A15 (red's hung unit is never ended, so red ends at its bound of 180 s), A17 (the record run waits for a red that never ends, 120 s bound reached) and A19 (the runner-failure path ends red after 60 s but prints no `red stopped` line, 146895 ms). The other six failed for the load: A7, A8, A9 and A11 are controls that must pass at the base, and they failed because even the run with the variable unset hit the 60 s bound (`unset-run-exit-124`); A12 and the failing half of A6 never reached the planted part or its unit inside their 90 s bound. They are not red evidence for the fix, and the green runs have to show them passing.

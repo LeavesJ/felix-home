@@ -511,7 +511,7 @@ start prints `Felix: <p>` and no badge. No failure comes from the fixture.
 The 16 that passed are the contract's controls. No assertion that carries a
 new behaviour passed.
 
-**Already true, and a guard after the fix (10):**
+**Already true, and a guard after the fix (11):**
 - A24, A26: a paused tick writes one `paused` row and one notification; a tick
   that finds a live lock writes no row and asks gh nothing.
 - A30, A35, A37: session start with no job reads `Felix: lp` with no landing

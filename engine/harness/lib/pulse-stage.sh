@@ -203,7 +203,7 @@ _felix_pulse_stage_run() {   # REPO INDEX
     fi
     _felix_pulse_commit "$repo"; return $?
   fi
-  git -C "$repo" diff --cached --quiet >/dev/null 2>&1 || hrc=$?
+  git -C "$repo" diff --no-ext-diff --no-textconv --cached --quiet >/dev/null 2>&1 || hrc=$?
   case "$hrc" in 0) ;; 1) hand=1 ;; *)
     printf 'backup\tgit could not read what is staged here, so nothing was committed, and this memory is NOT backed up\n'
     return 1 ;;
@@ -226,7 +226,7 @@ _felix_pulse_stage_run() {   # REPO INDEX
     printf 'backup\tgit could not stage the rest of this tree, so nothing was committed, and this memory is NOT backed up\n'
     return 1
   fi
-  if git -C "$repo" diff --cached --quiet >/dev/null 2>&1; then
+  if git -C "$repo" diff --no-ext-diff --no-textconv --cached --quiet >/dev/null 2>&1; then
     printf 'backup\tnothing else new to commit\n'; return 0
   fi
   _felix_pulse_commit "$repo"

@@ -356,3 +356,15 @@ These rows were probed with `felix_deny_match` on a scratch project (2026-10-24)
 - They do not see `GIT_CONFIG_COUNT`/`GIT_CONFIG_KEY_n` environment settings, `sed -i` or interpreter writes.
 
 `deny.tsv` is in `FELIX_COMMISSION_TABLES`, so the same PR re-stamps the felix commission grant over the new table set, as #459 did. Nothing else in this batch needs the founder: the code fix in §2 does not wait on these rows.
+
+## 8. Red
+
+Run on 69b51a61 plus the two blind parts, before any engine change: `alone.sh <worktree> bwk 1850-grant-base-and-config-dir-blind.sh 1860-binding-match-and-record-blind.sh` (bash 3.2.57, macOS awk). The two parts print 93 assertion lines for the 83 numbered assertions (ten control halves are lines of their own: A11 fixture, A32, A36, A37, A38, A39, A40, A41, A42 and A73 control). **54 failed and 39 passed.** The 62 other `ok` lines of that run are the driver's preamble, not this batch.
+
+Every one of the 39 that passed is a [control] the contract names. They split three ways.
+
+- **Already true on 69b51a61 (the behaviour the fix must keep):** A1, A3, A23, A24 (B4, B5 and the release-mode column), A31, A32 control, A36 control, A37 control, A38 control, A39 control, A40 control, A41 control, A42 control and A34 (the unset and overridden config directory reads HOME's copy, or the named override); A46, A50, A51, A53, A54, A57 and A59 (rows of fixture B that the substring rule already binds as B21 says); A77 (not-own URLs bind nothing); A78 (the marker sentence); A83 (the roots); A72, A73 control and A63 (no output yet); A44 (the lint scanner, which is the test's own code).
+- **Vacuous on 69b51a61 in the half that matters, true in the other half:** A2, and the `doubt=[]` or `[…]` half of A10, A12, A14 and A17, pass because `felix_exceptions_doubt` does not exist: stdout is empty and its exit status is not read. The clear half of each is already true. A21 and A22 call the three readers, and the third is missing, so only `felix_exception_for` and `felix_exceptions_judge` are shown to run no network call and to change nothing. A11 fixture checks the fixture, not the engine.
+- **Vacuous because nothing records yet:** A66 (no file holds the URL) and the "record untouched" half of A78 and A74 pass because 69b51a61 writes no `bindings.tsv`. A74's silence cases are also what 69b51a61 does for every unbound state; they pin the new code, not the old.
+
+The 54 that failed: A4 to A9, A11, A13, A15, A16, A18 to A20, A25 to A30, A32 to A33, A35 to A43 (the red halves), A45, A47 to A49, A52, A55, A56, A58, A60 to A62, A64, A65, A68 to A71, A73, A75, A76, A79 to A82. A79 and A80 hang in the walk (the child is killed at 5 s, `child=142`), A81 hangs the same way, and A82 prints `/x` for the root; bash here is 3.2, so the B32 pair is red as the contract says.

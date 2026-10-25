@@ -454,3 +454,40 @@ reviews, which today's PUT after a failed read would replace.
 
 None. The batch changes no `.github/workflows` file, no deny or escape row, no commissioning table
 or the commission grant, and publishes nothing.
+
+## 8. Red
+
+Run 2026-10-25 on the base plus the two blind parts, before any engine change: `alone.sh
+<worktree> bwk 1910-bootstrap-passable-gate-blind.sh 1920-bootstrap-default-branch-and-reads-blind.sh`
+(macOS awk, bash 3.2). The log counts 69 ok and 27 FAIL; 62 of the ok lines are the fixture-floor
+lines every `--part` run prints before the parts. The parts' own 34 assertions (A1-A34) gave
+**27 failed and 7 passed**. No failure names a fixture step (`fixture steps failed` appears
+nowhere), and each failure detail is a behaviour this contract asks for, not a harness fault:
+
+- A1-A9, A12, A14-A16 (1910): no `ci project:` line, no `held back`, protection PUT while CI
+  cannot resolve the project or the workflow is not filled or not on origin/main, exit 0.
+- A17-A19: the branch is the checked-out one (`claude/adopt-x`), or `main` at a detached HEAD, and
+  no `repos/S` read is made, so D (`trunk`) is never learned.
+- A20-A22, A25-A27: a failed protection read is taken as unprotected and PUT over, an empty or `{}`
+  answer reads `[x]`, no POST to the required contexts, `FAILED     branch protection (admin
+  rights needed ...)` hides gh's message, exit 0 after a failure.
+- A28-A32: `gh label list` without `--limit`, `created    5 labels` whatever the creates did,
+  no `[?]` row.
+
+The 7 that passed, each a control or a guard the contract marks, true before the fix and after it:
+
+- **A10, A13 (control, already true).** Ready and unprotected, `--yes` makes the one PUT of
+  today's body and prints `protected  main requires the gate`. Today does exactly that; they pin
+  the body and the line against the fix.
+- **A11 (control, already true).** Ready with P1, plan prints `Baseline already in place.` and
+  writes nothing.
+- **A23, A24 (control, already true).** P1 and P2 are exit-0 protection answers, which today's
+  reader takes as protected; they pin `[x] protection`, the Baseline line and no write.
+- **A33 (control, not vacuous).** Plan mode asks gh to write nothing and leaves G and W clean.
+  The part counts its plan runs (19) and fails if none was checked.
+- **A34 (control, guard).** Every gh call in the part is one of the contract's forms. Today's
+  calls are a subset of that set, so it passes now; it fails the fix if the fix adds a call
+  outside the set or a `--jq`, `--json`, `--template`, `--paginate`, `--search`, `-q` or `-t`.
+  Its `all.log` is non-empty (asserted inside it), so it is not empty-set vacuous.
+
+Nothing passed vacuously: no assertion held for want of a run, a log or a file.

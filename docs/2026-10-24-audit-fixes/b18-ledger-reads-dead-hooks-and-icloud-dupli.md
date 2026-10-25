@@ -495,3 +495,14 @@ line that precedes 9990. Neither needs a `groups.tsv` entry.
 
 None. The batch needs no `.github/workflows` change, no deny or escape row, no commission grant and
 no publishing. The alive line lives in `state/ledger`, as the call lines do today.
+
+## 8. Red
+
+Run on 69b51a61 plus the two blind parts, before any engine change: `alone.sh <worktree> bwk 1970-ledger-unknown-not-zero-blind.sh 1980-icloud-copies-status-row-blind.sh` (bash 3.2.57, macOS awk). The two parts print 44 assertion lines, one for each of A1 to A44. **34 failed and 10 passed.** The 62 other `ok` lines of that run are the driver's preamble (the fixture-floor checks), not this batch.
+
+Every one of the 10 that passed is a (control) the contract names. They split two ways.
+
+- **Already true on 69b51a61 (the behaviour the fix must keep):** A4 (B3: no session or no home, nothing written), A6 (B5: the hook is silent and exits 0), A7 (B5: `felix_ledger_record` and `felix_ledger_note_named` write only their own lines), A12 and A14 (B9: a record with a call line folds with zeros, and a re-roll is byte-identical; A14 is the B7 state, which today folds to the zero shape), A19 (the sessions count of 22) and A21 (`delta` is not unrouted, because the unknown `named delta - 1` row already counts as a naming).
+- **Vacuous on 69b51a61:** A25 passes because no `unknown, not zero:` line exists to print, and A40 and A44 pass because `felix_icloud_state` is missing (the A28 to A39 calls exit 127 and write nothing) and `felix status --tsv` does not yet read the home for copies, so neither shows that the new code writes nothing. They pin the new code only after the fix.
+
+The 34 that failed: A1 to A3, A5, A8 to A11, A13, A15 to A18, A20, A22 to A24, A26 to A39, A41 to A43. A23 prints nothing because `felix_ledger_unknown` is missing; A28 to A39 return 127 for the same reason; A41 to A43 miss the `icloud` row.

@@ -44,7 +44,6 @@ means a lookup whose status was non-zero or whose output did not reach the calle
 ## 2. Required behaviour
 
 ### N. What nothing answers yet (C089)
-
 **B1. `felix_next_unanswered PROJ ROOT TPL`** (new; sourcing `lib/resolve.sh` then `lib/next.sh` defines
 it and everything it calls). It prints zero to three rows `owner<TAB>what<TAB>do`, in this order: the
 probes row (B2), the procedures row (B3), the candidates row (B4); nothing else on stdout. It exits 0 in
@@ -96,7 +95,6 @@ recorder reads what it reads today; the gate's exit status and its FAIL path (` 
 lines) are unchanged. (e) No drift row and no gap: the block is exactly today's two lines.
 
 ### F. The fact log's baseline (C056)
-
 **B7. Provenance.** `felix_probes_record PROJ ROOT TID ROWS` appends three fields to every row it writes;
 fields 1-9, the status rules and the write's confirmation are unchanged. Field 10: ROOT's HEAD as 40
 lowercase hex, or `-` when ROOT has no commit or is not a git checkout. Field 11: a checkout identity, not
@@ -124,7 +122,6 @@ not read). (e) No qualifying run: exactly one row
 B9, in today's format; heading and closing paragraph unchanged.
 
 ### D. Detection (C090)
-
 **B11. What is read.** At the root, existence is tested on the filesystem as today (an untracked or
 ignored root file still counts). Below the root: in a ROOT holding `.git` (directory or file), what git
 lists as tracked, or untracked and not ignored, that exists as a regular file; in a ROOT without `.git`,
@@ -178,7 +175,6 @@ row, and session start adopts nothing and says `Capability drift was not checked
 `felix_commission_caps_hash` is unchanged (detection that is not whole reads the receipt stale, as today).
 
 ### S. The GitHub slug (C096)
-
 **B19. `felix_repo_slug [DIR]`** reads origin once, with `git … remote get-url origin` in DIR (part 0350
 injects at it), exits 0 in every case, and prints `O/N` and a newline only when: the URL is
 `scheme://[user@]host[:port]/O/N` (scheme `https`, `http`, `git` or `ssh`) or the scp form
@@ -218,7 +214,6 @@ check) is unchanged.
 with origin `git@work:acme/app.git` gh is called with `--repo acme/app`.
 
 ### L. Lookups that cannot end in done (C060)
-
 **B23.** `felix_ready_wanted PROJ` returns 0 with the list when `routes.tsv` is absent (empty) or read
 whole; 2 when `PROJ/routes.tsv` exists and is not a readable regular file, or its pipeline did not
 complete.
@@ -245,7 +240,6 @@ paragraph (`Commissioning: whether these answers are whole could not be read…`
 shell, not through a here-document. Otherwise as today.
 
 ### X. Budgets
-
 **B29.** Checked with `wc -l` at review. Not longer than today: `felix` (6734), `hooks/session-start`
 (780), `lib/escape.sh` (799), `lib/resolve.sh`, `lib/discover.sh`, `lib/where-read.sh`,
 `lib/commission.sh`. At most 500: `lib/detect.sh`, `lib/facts.sh`, `lib/next.sh`, `lib/procedures.sh`,
@@ -294,7 +288,6 @@ repository with `pdir/` holding `p1 p2 p3`, committed as `m`, and the probes tab
 true before and after the fix; every other one is red before it.
 
 ### Part 1990 (omission surfaces and drift)
-
 - **A1 (B1, B2a).** ROOT with `Dockerfile`, `.env.example`, `tests/t.sh` and `requirements.txt` of
   `sentry-sdk`; PROJ's probes.tsv grounds only `deploy`
   (`dk<TAB>deploy<TAB>-<TAB>ls -1 Dockerfile<TAB>test -f Dockerfile`), no capabilities file: the first row is
@@ -357,7 +350,6 @@ true before and after the fix; every other one is red before it.
   for `pfiles`.
 
 ### Part 1991 (detection, slug and lookups)
-
 - **A23 (B12-B14, B16, B17).** Each fixture a repository with every file committed; `felix_detect`
   compared sorted and space-joined:
 
@@ -468,7 +460,6 @@ sentence it proves, and is new.
   (B28) and not asserted separately: it cannot be injected portably.
 
 ### Not fixed: not a defect
-
 - **C089, "session start is silent"**: it repeats the owed `obligations_surveyed` request while unanswered
   (`hooks/session-start`:676-748) and says `N provider row(s) recorded` once when answered; what it never
   says is the count of unadmitted candidates, which B4 puts in `felix next`.
@@ -495,3 +486,14 @@ differently gets the new capabilities adopted at its next session start, an unco
 `projects/NAME/capabilities` in the home to commit; and its commission receipt then reads stale (the
 detected surfaces and the table set moved) until `felix commission` is run there, which is his. Felix's
 own detection stays `ci`, so its receipt and landing are unaffected.
+
+## 8. Red
+
+Run 2026-10-25 under bwk with the run helper, parts 1990 and 1991 alone, before any engine code changed. Of the 51
+assertions, 35 failed (1990: 18 of 23; 1991: 17 of 28) and 16 passed. All 16 are the marked controls. Already true,
+nothing else reads it: A11, A12 (field 8), A20, A21, A24 (react and css), A31, A34, A38, A42, A44, A48. A17 holds
+because the three-argument baseline, the last row written, is that checkout's own dirty run. Vacuous today, holding
+only because nothing below the root and none of the new names is read yet, and guarding the fix against over-reading:
+A25, A27 (its sub-ci and sub-tests clauses), A29. The failures: A7 on status 127 (no such function), A1-A6 and A8-A10
+on an absent row or heading, A12-A19 and A22 on 9-field rows and the old baseline, A23-A24, A26, A28, A30 on detection
+reading the root only, A32-A33 and A35-A37 on the unchanged slug, A39-A41, A43, A45-A47 on lookups that end in done.

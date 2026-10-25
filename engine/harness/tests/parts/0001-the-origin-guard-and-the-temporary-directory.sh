@@ -20,8 +20,13 @@
 #   1; a missing, unreadable or broken one is a refusal naming the rule.
 # - FELIX_TEST_RED_JOBS, N, exported for a record run under -j N until part 0004
 #   unsets it: the one variable red reads (tests/red).
+# - FELIX_TEST_QUIET_LIMIT and FELIX_TEST_RED_WAIT (audit b01, B7), seconds: unset takes the
+#   default (tests/lib/quiet-limit.sh and the record tail say which), set to anything but
+#   1 to 86400 in plain decimal, the empty string included, is refused here. Never unset:
+#   units, red and the fixture suites a part starts inherit them.
 _sj_die() { printf 'tests/run: %s\n' "$1" >&2; exit 2; }
 _sj_n() { case "$1" in [123456789]|[12345][0123456789]|6[01234]) return 0 ;; esac; return 1; }
+_sj_t() { case "$2" in ""|0*|*[!0123456789]*) ;; *) [ "${#2}" -gt 5 ] || [ "$2" -gt 86400 ] || return 0 ;; esac; _sj_die "$1 is [$2]: it must be a number of seconds from 1 to 86400 in plain decimal"; }
 # -> _sj_ord is the driver's part lines, in order, each name between blanks.
 _sj_order() {
   local l pre='. "$HERE/parts/' q='"'
@@ -112,6 +117,8 @@ if [ -n "${FELIX_TEST_JOBS+x}" ]; then
   _sj_n "$_sj_env" || _sj_die "FELIX_TEST_JOBS is [$_sj_env]: it must be a number from 1 to 64 in plain decimal"
   [ -n "$_suite_jobs" ] || _suite_jobs="$_sj_env"
 fi
+[ -z "${FELIX_TEST_QUIET_LIMIT+x}" ] || _sj_t FELIX_TEST_QUIET_LIMIT "$FELIX_TEST_QUIET_LIMIT"
+[ -z "${FELIX_TEST_RED_WAIT+x}" ] || _sj_t FELIX_TEST_RED_WAIT "$FELIX_TEST_RED_WAIT"
 [ -n "$_suite_jobs" ] || _suite_jobs=1
 if [ -n "$_sj_part" ]; then
   [ -z "$_sj_given" ] || _sj_die "--part does not go with -j"

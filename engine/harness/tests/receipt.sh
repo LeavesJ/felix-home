@@ -489,7 +489,7 @@ _rcp_red_end() {   # <mark> <red's output file> [<seconds red may take: then its
     printf '  red not run: the record run could not write its mark (%s)\n' "$1"
   else
     while _rcp_red_alive; do
-      [ -z "${3:-}" ] || [ "$((SECONDS - t0))" -lt "$3" ] || { _rcp_stop "$_rcp_red"; break; }
+      [ -z "${3:-}" ] || [ "$((SECONDS - t0))" -lt "$3" ] || { _rcp_stop "$_rcp_red"; printf '  red stopped: still running after its limit of %s s, so it was ended\n' "$3"; break; }
       n=$((n + 1)); if [ "$n" -le 20 ]; then sleep 0.1; else sleep 1; fi
     done
     sed 's/^/  /' < "$2"

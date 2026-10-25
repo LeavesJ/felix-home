@@ -468,8 +468,8 @@ fi
 _reap
 cp "$RAW" "$LOG" 2>/dev/null || _none "could not keep the log of the suite against $BASE"
 
-# The runner's own failure lines (D3, R8, by their seven prefixes) are left out of the counts and the names (LOGF).
-LOGF="$LOG.f"; grep -aEv "^  FAIL  part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: | left the shell changed for the parts after it: )" "$LOG" > "$LOGF"
+# The runner's own failure lines (D3, R8, by their seven prefixes, and the quiet limit's, B6) are left out of the counts and the names (LOGF).
+LOGF="$LOG.f"; grep -aEv "^  FAIL  (no new assertion in |part(.s prelude failed: | did not finish: | ended without its mark: | process ended with status | failed more than it printed: | printed a line the runner owns: | left the shell changed for the parts after it: ))" "$LOG" > "$LOGF"
 PASSED="$(grep -c '^  ok    ' "$LOG")"
 FAILED="$(grep -c '^  FAIL  ' "$LOGF")"
 SKIPPED="$(grep -c '^  skip  ' "$LOG")"

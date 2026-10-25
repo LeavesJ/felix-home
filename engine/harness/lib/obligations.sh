@@ -131,10 +131,18 @@ felix_obligation_names() {
 # could not be entered and 127 a command that does not exist here, and neither
 # says anything about the obligation. Both are UNKNOWN, and UNKNOWN blocks.
 felix_obligation_state() {
-  local root="$1" applies="$2" evidence="$3" rc out last
+  local root="$1" applies="$2" evidence="$3" rc out last _felix_pr_out _felix_pr_rc _felix_pr_to _felix_pr_lim
+  local lim="${FELIX_PROBE_LIMIT:-30}" elim="${FELIX_EVIDENCE_LIMIT:-300}"
 
   if [ -n "$applies" ] && [ "$applies" != "-" ]; then
-    _felix_probe_ask "$root" "$applies"; rc=$?
+    # Limits (audit b01, C041, B14 to B17): an applies command and the evidence each run under a time limit; a
+    # bad limit runs nothing and is not echoed.
+    if ! _felix_limit_ok "$lim"; then
+      printf 'UNKNOWN\tUNKNOWN\tFELIX_PROBE_LIMIT is set to something that is not a whole number of seconds from 1 to 3600, so nothing was run\n'
+      return 0
+    fi
+    _felix_probe_ask "$root" "$applies" "$lim"; rc=$?
+    [ "$_felix_pr_to" = 0 ] || { _felix_pr_say UNKNOWN UNKNOWN 'applies command' 'whether this applies is not known'; return 0; }
     case "$rc" in
       0) ;;
       1)   printf 'DORMANT\t-\tthe grounded state says this does not apply here\n'; return 0 ;;
@@ -147,9 +155,13 @@ felix_obligation_state() {
     esac
   fi
 
-  out="$( cd "$root" 2>/dev/null || exit 126
-          bash -c "$evidence" felix-obligation </dev/null 2>&1 )"
-  rc=$?
+  if ! _felix_limit_ok "$elim"; then
+    printf 'ACTIVE\tUNKNOWN\tFELIX_EVIDENCE_LIMIT is set to something that is not a whole number of seconds from 1 to 3600, so the evidence was not run\n'
+    return 0
+  fi
+  _felix_probe_run "$elim" "$root" both felix-obligation "$evidence"
+  [ "$_felix_pr_to" = 0 ] || { _felix_pr_say ACTIVE UNKNOWN evidence 'nothing was examined'; return 0; }
+  out="$_felix_pr_out"; rc="$_felix_pr_rc"
   # One line, and never a field separator in it: the detail travels in a
   # tab-separated row that a filter reads by column, and an evidence command
   # whose last line carried two tabs could put anything it liked into the

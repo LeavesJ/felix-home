@@ -196,6 +196,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/qualify-controls.sh"
 . "$HERE/lib/qualify-needs.sh"
 . "$HERE/lib/qualify-sweep.sh"
+. "$HERE/lib/quiet-limit.sh"
 . "$HERE/lib/reach.sh"
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/router.sh"
@@ -211,14 +212,14 @@ if [ -d "$HERE/lib" ]; then
 fi
 # The hand-over (contract D2, D7): part mode runs its members here and exits; a
 # -j N run hands the parts to the runner and reads the part lines below as no-ops.
-[ -z "${_pm1:-}" ] || _pm_start "$@"
+[ -z "${_pm1:-}" ] || _pm_start "$@"; [ "$_suite_jobs" -gt 1 ] || ! command -v _ql_go >/dev/null 2>&1 || _ql_go   # the quiet limit (b01)
 [ -z "${_pm1:-}" ] || . "$HERE/parts/$_pm1"; [ -z "${_pm1:-}" ] || _pm_done "$_pm1"
 [ -z "${_pm2:-}" ] || . "$HERE/parts/$_pm2"; [ -z "${_pm2:-}" ] || _pm_done "$_pm2"
 [ -z "${_pm3:-}" ] || . "$HERE/parts/$_pm3"; [ -z "${_pm3:-}" ] || _pm_done "$_pm3"
 [ -z "${_pm4:-}" ] || . "$HERE/parts/$_pm4"; [ -z "${_pm4:-}" ] || _pm_done "$_pm4"
 [ -z "${_pm5:-}" ] || . "$HERE/parts/$_pm5"; [ -z "${_pm5:-}" ] || _pm_done "$_pm5"
 [ -z "${_pm6:-}" ] || . "$HERE/parts/$_pm6"; [ -z "${_pm6:-}" ] || _pm_done "$_pm6"
-[ -z "${_pm1:-}" ] || _pm_fin "$@"
+[ -z "${_pm1:-}" ] || { ! command -v _ql_end >/dev/null 2>&1 || _ql_end; _pm_fin "$@"; }
 [ -z "${_pm1:-}" ] || exit 3
 [ "$_suite_jobs" -le 1 ] || _par_run
 [ "$_suite_jobs" -le 1 ] || [ "${_par_done:-}" = 1 ] || exit 1
@@ -410,7 +411,7 @@ fi
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1630-suite-time-limits-blind.sh"
 . "$HERE/parts/1640-probe-time-limits-blind.sh"
-! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
+! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }; ! command -v _ql_end >/dev/null 2>&1 || _ql_end
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 
 # The suite's completion marker: tests/red counts a red run only when a line
@@ -437,7 +438,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   # written by one command and travel in one diff. Its exit status is its own:
   # a red run that could not be made is said in red.tsv and does not turn a
   # green suite red.
-  if [ -n "$_rcp_red" ]; then _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out"
+  if [ -n "$_rcp_red" ]; then _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out" "${FELIX_TEST_RED_WAIT:-$((SECONDS + ${FELIX_TEST_QUIET_LIMIT:-1800}))}"
   elif [ "$_rcp_on" -eq 1 ]; then printf '  no tests/red beside this suite: red.tsv not written\n'
   else printf '  no tests/receipt.sh beside this suite: red.tsv not written\n'
   fi

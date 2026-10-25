@@ -369,7 +369,7 @@ When the reuse job times out it names no run, and the gate job's `if` still runs
 
 ## 8. Red
 
-Run on 2026-10-24 and 25, before any change to the engine, each part alone under macOS awk (bwk) with `scratchpad/tools/alone.sh`. 1640 ran in this worktree at the base commit (`50a106f0`); 1630 ran in a copy of the base commit's engine tree with the two new parts added, because a first run in the worktree was disturbed by edits made while it ran. The machine was far over capacity for both (load average 350 to 550 from other sessions), so a timing bound is hit sooner than on a quiet machine, and some cases fail for the load as much as for the missing behaviour. Each such case is named below, so that the counts are not read as more than they show.
+Run on 2026-10-24 and 25, before any change to the engine, each part alone under macOS awk (bwk) with `scratchpad/tools/alone.sh`. 1640 ran in this worktree before any change to `lib/`; 1630 ran in a copy of the base engine (`50a106f0`'s, which `d99fead1` leaves as it was) with the two new parts added, because a first run in the worktree was disturbed by edits made while it ran. The machine was far over capacity for both (load average 350 to 550 from other sessions), so a timing bound is hit sooner than on a quiet machine, and some cases fail for the load as much as for the missing behaviour. Each such case is named below, so that the counts are not read as more than they show.
 
 **1640 (A21 to A40): 16 failed, 4 passed.** The four that passed are controls, and each is true of the base engine on purpose:
 

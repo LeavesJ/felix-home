@@ -140,12 +140,11 @@ felix_probe_malformed() {
 # project forever, with no output and nothing to read. Closing stdin turns that
 # into an immediate empty result, which the witness then correctly calls blind.
 #
-# It is not a timeout, and there is no timeout. `timeout(1)` is GNU coreutils
-# and is absent from a stock macOS, so a wall-clock limit here would mean either
-# a dependency the enforcing path must not have or a background-kill dance
-# inside the one code path that has to be boring. A probe that genuinely loops
-# still hangs the gate. That is a known limit rather than a solved problem, and
-# closing stdin removes the overwhelmingly common cause of it.
+# A limit, since 2026-10-24 (audit b01, C041): FELIX_PROBE_LIMIT seconds (30 when unset or empty) for each
+# `when`, probe, witness and `applies` command, FELIX_EVIDENCE_LIMIT (300) for evidence; 1 to 3600 in plain
+# decimal, or the row runs nothing and says so. No timeout(1) and no perl: _felix_probe_run is bash, sleep,
+# kill and mktemp. A command past its limit is ended with its process group and its row reads unknown; one
+# that left the group or the session (setsid, a double fork) is found by neither bound.
 #
 # Three answers, not two. A `when` or witness command that does not exist on
 # this machine exits 127, and that was being read as a plain "no" — so a
@@ -170,13 +169,51 @@ felix_probe_malformed() {
 # -q x` reports grep's status, so a failure before the last pipe stage is not
 # seen. pipefail is not the answer, because `grep -q` closing early hands the
 # producer SIGPIPE (141) on a real match, which would read as unknown.
-_felix_probe_ask() {
-  local root="$1" cmd="$2" rc
-  [ -n "$cmd" ] && [ "$cmd" != "-" ] || return 2
-  ( cd "$root" 2>/dev/null || exit 126
-    bash -c "$cmd" felix-probe </dev/null >/dev/null 2>&1 )
-  rc=$?
-  return "$rc"
+_felix_probe_ask() {   # root cmd [limit]: the exit status; _felix_pr_to (set in the caller's scope) is not 0 when it was not answered
+  _felix_pr_to=0
+  [ -n "$2" ] && [ "$2" != "-" ] || return 2
+  _felix_probe_run "${3:-30}" "$1" ask felix-probe "$2"
+  [ "$_felix_pr_to" = 0 ] || return 0
+  return "$_felix_pr_rc"
+}
+# LIMIT: 1 to 3600, plain decimal (a first digit that is not 0, and nothing but digits).
+_felix_limit_ok() { case "$1" in ""|0*|*[!0123456789]*) return 1 ;; esac; [ "${#1}" -le 4 ] && [ "$1" -le 3600 ]; }
+# STATE DISCHARGE WHAT CONSEQUENCE: the row of a command that was ended at its limit (_felix_pr_to 1) or never run (2).
+_felix_pr_say() {
+  if [ "$_felix_pr_to" = 1 ]; then printf '%s\t%s\tthe %s ran past its limit of %s s and was ended, so %s\n' "$1" "$2" "$3" "$_felix_pr_lim" "$4"
+  else printf '%s\t%s\tthe %s could not be run under its limit, so %s\n' "$1" "$2" "$3" "$4"; fi
+}
+# LIMIT ROOT MODE NAME COMMAND: COMMAND under bash -c in ROOT, stdin /dev/null; MODE out keeps its stdout, both
+# its stdout and stderr, ask neither. Sets _felix_pr_out, _felix_pr_rc and _felix_pr_to: 0 it ended in time, 1 it
+# was ended at LIMIT s, 2 it was not run (no scratch file, or no verdict came back). The command is a job of a
+# subshell with job control, so it has a process group of its own; a watcher job there sleeps LIMIT s, then sends
+# the group TERM and, a second later, KILL. The substitution capturing the output ends when the last holder of
+# its stdout has gone, so a child the command left holding it past LIMIT is ended too. The verdict goes through
+# a file (the pipe carries the output and nothing else). The caller's options, traps and jobs are not touched.
+_felix_probe_run() {
+  local lim="$1" root="$2" mode="$3" name="$4" cmd="$5" flag a b c d w="" u="" t=0 r=0 IFS=$' \t\n'
+  _felix_pr_out=""; _felix_pr_rc=0; _felix_pr_to=2; _felix_pr_lim="$lim"
+  flag="$(mktemp "${TMPDIR:-/tmp}/felix-limit.XXXXXX" 2>/dev/null)" && [ -n "$flag" ] || return 0
+  _felix_pr_out="$(
+    exec 2>/dev/null; set -m
+    ( cd "$root" 2>/dev/null || exit 126
+      if [ "$mode" = out ]; then exec bash -c "$cmd" "$name" </dev/null 2>/dev/null
+      elif [ "$mode" = both ]; then exec bash -c "$cmd" "$name" </dev/null 2>&1
+      else exec bash -c "$cmd" "$name" </dev/null >/dev/null 2>&1; fi ) &
+    u=$!
+    ( set +m; sleep "$lim"; echo T >> "$flag"; kill -TERM -- "-$u" "$u"; sleep 1; kill -KILL -- "-$u" "$u" ) </dev/null >/dev/null 2>&1 &
+    w=$!
+    wait "$u"
+    echo "r $? $w $u" >> "$flag"
+  )"
+  while read -r a b c d; do
+    if [ "$a" = T ]; then t=1; elif [ "$a" = r ]; then r=1; _felix_pr_rc="$b"; w="$c"; u="$d"; fi
+  done < "$flag"
+  rm -f "$flag"
+  [ -z "$w" ] || kill -TERM -- "-$w" "$w" 2>/dev/null
+  if [ "$t" = 1 ]; then _felix_pr_to=1; [ -z "$u" ] || kill -KILL -- "-$u" "$u" 2>/dev/null
+  elif [ "$r" = 1 ]; then _felix_pr_to=0; fi
+  return 0
 }
 
 # Which instrument answered, and a token that changes when it is replaced.
@@ -254,11 +291,14 @@ felix_probe_source() {
 # between "there is nothing here" and "I cannot see".
 felix_probe_state() {
   local root="$1" when="$2" probe="$3" witness="$4"
-  local out rc n
-
-  local ask
+  local out rc n ask lim="${FELIX_PROBE_LIMIT:-30}" _felix_pr_out _felix_pr_rc _felix_pr_to _felix_pr_lim
+  if ! _felix_limit_ok "$lim"; then   # nothing is run, and the value is not echoed (audit b01, B16)
+    printf 'unknown\t0\tFELIX_PROBE_LIMIT is set to something that is not a whole number of seconds from 1 to 3600, so nothing was run\n'
+    return 0
+  fi
   if [ -n "$when" ] && [ "$when" != "-" ]; then
-    _felix_probe_ask "$root" "$when"; ask=$?
+    _felix_probe_ask "$root" "$when" "$lim"; ask=$?
+    [ "$_felix_pr_to" = 0 ] || { _felix_pr_say unknown 0 '`when` command' 'whether this row applies is not known'; return 0; }
     case "$ask" in
       0) ;;
       1) printf 'not-applicable\t0\tthe `when` command says this does not apply here\n'; return 0 ;;
@@ -268,9 +308,9 @@ felix_probe_state() {
     esac
   fi
 
-  out="$( cd "$root" 2>/dev/null || exit 126
-          bash -c "$probe" felix-probe </dev/null 2>/dev/null )"
-  rc=$?
+  _felix_probe_run "$lim" "$root" out felix-probe "$probe"
+  [ "$_felix_pr_to" = 0 ] || { _felix_pr_say unknown 0 probe 'its enumeration is not known'; return 0; }
+  out="$_felix_pr_out"; rc="$_felix_pr_rc"
   if [ "$rc" -eq 126 ]; then
     printf 'unknown\t0\tthe checkout could not be entered, so nothing was asked\n'
     return 0
@@ -327,7 +367,8 @@ felix_probe_state() {
     return 0
   fi
 
-  _felix_probe_ask "$root" "$witness"; ask=$?
+  _felix_probe_ask "$root" "$witness" "$lim"; ask=$?
+  [ "$_felix_pr_to" = 0 ] || { _felix_pr_say unknown 0 witness 'absent and blind cannot be told apart'; return 0; }
   case "$ask" in
     0)
       if [ "$rc" -ne 0 ]; then

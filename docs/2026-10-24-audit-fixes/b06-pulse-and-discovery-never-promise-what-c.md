@@ -497,3 +497,33 @@ files only). Each assertion name is the sentence it proves, and is new.
 
 None. No `.github/workflows` change, no deny or escape row, no commission grant or table (the grant
 hashes project tables, untouched), nothing published.
+
+## 8. Red
+
+Run before any code changed, at d17ea00b, `tests/run --part 1730-discovery-never-promises-blind.sh
+1740-pulse-backup-and-records-blind.sh` alone under macOS BWK awk and bash 3.2 (7 min, nearly all of it
+the 20 s Waits on records the engine never writes). 66 assertions of this batch: **43 failed, 23 passed**,
+none skipped (a private base was found).
+
+Failed (43): A1, A3, A4, A7, A8, A9, A11, A12, A14-A19, A20 and its precondition, A21, A22, A25-A30,
+A32-A34, A36-A38, A40-A42, A44-A46, A48, A51, A52, A53, A55, A57, A58.
+
+Passed (23), and why each did:
+
+| Assertion | Why it passed before the fix |
+|:---|:---|
+| A2, A6 | Controls (B1's no `.new.` file, silent call and 0; B3's cache is stdout): true before and after. |
+| A5 | Control: B16's six TMPDIR cases already start no felix or claude and leave no cache or lock. |
+| A10 | Already true, and half vacuous: today any lock blocks whatever its age, so a fresh one starts no felix; the record is never written, so "absent" holds trivially. A11 is the half that fails. |
+| A13 | Already true: a current, fresh cache prints nothing; the record is not read today, so "whatever it holds" is vacuous. |
+| A19 (control), A24 (control), A25 (control), A26 (control) | Controls: a project without `routes.tsv` has no discovery line; the hook starts the refresh and does not wait; pulse.sh and the end of felix leave the stamp alone; a rules-table change moves it. |
+| A23 | Vacuous before: the session-start sentence does not exist, so "never said with a ran record or a current cache" holds trivially. It guards only after the fix. |
+| A31 (control), A35 (control), A39 (control) | Controls: a gitlink already in HEAD is not new; `secret-scan -` flags K1-K6 and passes the documented token field; no scanner and no change reads `nothing new to commit`. |
+| A43 (control) | Control: a push nothing reads back writes no `pulse.last-push`. |
+| A43 (`.where`) | Vacuous before: no code writes `pulse.last-push.where`, so it is absent after any push; it guards only after B19. |
+| A47 (control), A50 (control) | Controls: the pulse row with no where file or NOT-backed-up line is part 1100's; the age banners are unchanged. |
+| A49 (control) | Vacuous before: the B21 paragraph does not exist, so "no such paragraph" holds for any record; it guards only after B21. |
+| A52 (control) | Vacuous before: the cloud sentence does not exist, so it is absent with the variable unset. |
+| A54 (control), A56 (control) | Controls: a clean text is written unchanged and a newline becomes `\n`; a clean prompt is logged with no `[redacted]` and the monitor renders it. |
+| A59 (control) | Control: exactly one file under the harness defines `FELIX_SCAN_PATTERNS=` today. |
+| A60 | Already true: it scans the two part files, which hold no shape by construction (A0). |

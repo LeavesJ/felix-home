@@ -94,7 +94,7 @@ FELIX_LAND_AUTHORITY='(^|/)projects/[^/]+/autonomy[^/]*$'
 # Each entry is a whole repository-relative path. A `*` matches a run of
 # characters other than `/`; every other character is literal; the match is
 # anchored at both ends. `land*.sh` covers this file.
-FELIX_TRUST_BASE='engine/harness/lib/escape.sh engine/harness/lib/commission.sh engine/harness/lib/autonomy.sh engine/harness/lib/land*.sh engine/harness/lib/resolve.sh engine/harness/lib/verify.sh engine/harness/lib/deny.sh engine/harness/lib/deny-read.sh engine/harness/lib/where.sh engine/harness/lib/where-read.sh engine/harness/hooks/pre-tool engine/hooks/hooks.json engine/harness/felix projects/*/gate.sh'
+FELIX_TRUST_BASE='engine/harness/lib/escape.sh engine/harness/lib/escape-channels.sh engine/harness/lib/commission.sh engine/harness/lib/autonomy.sh engine/harness/lib/land*.sh engine/harness/lib/resolve.sh engine/harness/lib/verify.sh engine/harness/lib/deny.sh engine/harness/lib/deny-read.sh engine/harness/lib/where.sh engine/harness/lib/where-read.sh engine/harness/hooks/pre-tool engine/hooks/hooks.json engine/harness/felix projects/*/gate.sh'
 
 # Whether a path is in the trust base. Exit 0 when some entry matches, 1
 # otherwise, printing nothing. Each entry is turned into an anchored regex one

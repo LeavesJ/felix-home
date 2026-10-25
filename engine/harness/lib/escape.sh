@@ -54,6 +54,13 @@ if ! command -v felix_obligations_run >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/obligations.sh" 2>/dev/null
 fi
 
+# Names, destructive SQL, what a credentialed workflow runs and docs/direction.md
+# are read in escape-channels.sh, which is why this file does not grow. A lib
+# directory without it is refused in felix_escapes and never trusted.
+if ! command -v _felix_escape_wfruns >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/escape-channels.sh" 2>/dev/null
+fi
+
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
 # Enforcing tables: the files that decide what stops. Shrinking one is the edit
@@ -69,13 +76,16 @@ FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null 
 # takes on a commitment and does not withdraw one.
 #
 # An entry is a basename, matched in every governed repository, or a path,
-# which has a slash and is matched as the end of the changed path. The schema
-# table is a path because it is the engine's own: it judges every other
+# which has a slash and is matched as the end of the changed path. A `*` in a
+# path stands for one directory name. project.json is the path
+# projects/*/project.json, where Felix keeps one for each project; by basename
+# it also stopped the merge of every Nx app and lib, which each have their own.
+# The schema table is a path because it is the engine's own: it judges every other
 # table's shape, so a row removed from it is a table the schema check stops
 # reading, and a row loosened in place removes the old line, so both fire, and
 # adding a row for a new table is free. By basename it would also stop the
 # merge of any product that keeps a data file called schemas.tsv.
-FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv land.tsv'
+FELIX_ESCAPE_TABLES='risk.tsv evidence.tsv deny.tsv projects/*/project.json probes.tsv ecosystem.tsv commissioning.tsv obligations.tsv qualification.tsv engine/harness/templates/schemas.tsv land.tsv'
 
 # The subset whose rows are EXEMPTIONS, and for which "adding is free" is
 # backwards. A row in the ecosystem table says "this word is not a stack name"
@@ -113,7 +123,9 @@ FELIX_ESCAPE_EXEMPTION_TABLES='ecosystem.tsv land.tsv'
 
 # Merging this causes a job to run holding whatever secrets the repository has.
 # The revert restores the YAML. It does not un-run the job or un-read the key.
-FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/'
+# A root action.yml or action.yaml is the same: a workflow that says `uses: ./`
+# runs it. The files a credentialed workflow runs are read in escape-channels.sh.
+FELIX_ESCAPE_EXECUTE='^\.github/(workflows|actions)/|^action\.ya?ml$'
 
 # Merging this grants Felix a power it then holds in every session after it,
 # and the stamp beside it says which table the grant was read against.
@@ -150,8 +162,11 @@ FELIX_ESCAPE_AUTHORITY='(^|/)projects/[^/]+/autonomy(\.[a-z]+)?$'
 FELIX_ESCAPE_EXCEPTION='(^|/)projects/[^/]+/exceptions\.tsv$'
 
 # Rows already written are not restored by reverting the code that wrote them.
-FELIX_ESCAPE_DURABLE_PATH='(^|/)(migrations|alembic)(/|$)|^prisma/migrations/'
-FELIX_ESCAPE_DURABLE_ADDED='(DROP TABLE|TRUNCATE |DELETE FROM [^W]*$)'
+# The directories migration tools keep their files in: migrations or migration
+# (Django, Alembic, Prisma, Flyway under db/, TypeORM, .NET), db/migrate (Rails),
+# db/changelog and liquibase, and drizzle. A file named migrations.rb is not one.
+# The destructive statements in the added lines are _felix_escape_sql's.
+FELIX_ESCAPE_DURABLE_PATH='(^|/)([Mm]igrations?|alembic|drizzle|liquibase)(/|$)|(^|/)db/(migrate|changelog)/'
 
 # Whether a changed path is one of a list's tables: an entry without a slash is
 # a basename and matches in any directory; one with a slash is a path and
@@ -161,7 +176,10 @@ _felix_escape_listed() {
   printf '%s\n' "$2" | P="$1" LC_ALL=C awk '
     { for (i = 1; i <= NF; i++) {
         t = $i; p = ENVIRON["P"]
-        if (index(t, "/")) { if (p == t || substr(p, length(p) - length(t)) == "/" t) found = 1 }
+        if (index(t, "*")) { n = split(t, ta, "/"); m = split(p, pa, "/"); ok = (m >= n)
+          for (j = 1; ok && j <= n; j++) if (pa[m - n + j] == "" || (ta[j] != "*" && ta[j] != pa[m - n + j])) ok = 0
+          if (ok) found = 1 }
+        else if (index(t, "/")) { if (p == t || substr(p, length(p) - length(t)) == "/" t) found = 1 }
         else { sub(/.*\//, "", p); if (p == t) found = 1 } } }
     END { exit !found }'
 }
@@ -243,65 +261,6 @@ _felix_escape_fewer() {
   [ "${after:-0}" -lt "${before:-0}" ]
 }
 
-# Non-comment, non-blank lines present at base and gone at HEAD.
-#
-# Static blobs on both sides, never two live runs. Running the gate twice to
-# compare is nondeterministic against the plugin cache and the two runs clobber
-# each other's log; a comparison whose inputs move is not a comparison.
-#
-# Trailing commas are stripped before comparing, and that is not cosmetic. JSON
-# has no trailing comma, so adding a key rewrites the line above it — meaning a
-# literal comparison reads every addition to project.json as a removal and fires
-# on the most ordinary edit there is. Caught on the commit that declared
-# `consumers`, which added two keys and removed nothing. A genuine removal takes
-# its whole line with it and is still caught.
-# Locale, 2026-10-08: sed stopped at a byte that was not UTF-8 and hid every
-# removal below it. The rules are above felix_json_str in resolve.sh.
-_felix_escape_lines() {
-  felix_file_at "$1" "$2" "$3" \
-    | LC_ALL=C grep -vE '^[[:space:]]*(#|$)' \
-    | LC_ALL=C sed -E 's/[[:space:]]*,[[:space:]]*$//' \
-    | LC_ALL=C sort -u
-}
-
-_felix_escape_shrank() {
-  local root="$1" base="$2" f="$3" before after
-  before="$(_felix_escape_lines "$root" "$base" "$f")"
-  [ -n "$before" ] || return 1
-  after="$(_felix_escape_lines "$root" HEAD "$f")"
-  # 2026-10-08: comm compares in its locale's collation, and both sides are
-  # sorted in C. Under LANG=en_US.UTF-8, an added row that sorts before an
-  # existing one in bytes and after it in the locale (Zulu and _under) made
-  # comm print a row nobody removed, so a pure addition read as a removal.
-  # Every sort, comm, join and uniq in the engine runs as LC_ALL=C <tool>,
-  # which tests/run lints.
-  [ -n "$(LC_ALL=C comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
-}
-
-# Any change to the rows of an exemption table: the non-comment, non-blank
-# lines of the two sides, in file order and byte for byte, differ. Same static
-# blobs and the same comment stripping, so a reworded comment is still free.
-#
-# Deliberately not _felix_escape_lines. Its comma stripping is for project.json,
-# which is no exemption table, and its sort -u makes order and repetition
-# invisible, while the readers of these tables see both. A land table's reader
-# refuses a row whose last cell gained a comma, so the row it bound is gone;
-# and it keeps the first of two rows on one path, so swapping them changes the
-# row that stands. Compared as sets, both edits read as no change, and a
-# founder or session row could be dropped or overridden with nobody asked.
-# grep -a and the C locale, so a byte that is not text is compared as a byte
-# and never turns one side into grep's "Binary file matches".
-_felix_escape_rows_exact() {
-  felix_file_at "$1" "$2" "$3" | LC_ALL=C grep -avE '^[[:space:]]*(#|$)'
-}
-
-_felix_escape_changed() {
-  local root="$1" base="$2" f="$3" before after
-  before="$(_felix_escape_rows_exact "$root" "$base" "$f"; printf .)"
-  after="$(_felix_escape_rows_exact "$root" HEAD "$f"; printf .)"
-  [ "$before" != "$after" ]
-}
-
 felix_escapes() {
   local proj="$1" base="$2" root="$3" home="${4:-}"
   local paths added f tier kind pattern reason channel confine reviewed=""
@@ -336,8 +295,17 @@ felix_escapes() {
   # is said once, before them, and blocks the merge however they come out.
   # The reason is git's own (felix_change_why), since a path, an index and a
   # missing merge base each need a different fix.
+  #
+  # The paths are read as the names they are, with core.quotePath off, by
+  # _felix_escape_names in escape-channels.sh, and a name git still quotes is an
+  # unknown row of its own there and not a path (audit b10, C015). Without that
+  # file none of the channels it holds can run, and that is said the same way.
   local unread=""
-  if ! paths="$(felix_changed_paths "$root" "$base")"; then
+  if ! command -v _felix_escape_names >/dev/null 2>&1 || ! command -v _felix_escape_changed >/dev/null 2>&1; then
+    printf 'unknown\tCHANGED-PATHS\tlib/escape-channels.sh did not load, so names, SQL, workflow files and tables were not read; restore it and run this again\n'
+    return 0
+  fi
+  if ! _felix_escape_names paths "$root" "$base"; then
     unread=1
     printf 'unknown\tCHANGED-PATHS\tgit could not list every path this change touches (%s), so the change was not scanned in full\n' \
       "$(felix_change_why "$root" "$base")"
@@ -364,6 +332,8 @@ felix_escapes() {
       *) [ -n "$unread" ] \
            || printf 'unknown\tADDED-LINES\tthe secret scan could not read the added lines, so nothing says they hold no credential\n' ;;
     esac
+  else
+    [ -n "$unread" ] || printf 'unknown\tADDED-LINES\tthe secret scan did not run, because bin/secret-scan is missing or not executable here, so nothing says the added lines hold no credential\n'
   fi
 
   while IFS= read -r f; do
@@ -381,6 +351,8 @@ felix_escapes() {
     LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"
 
+    _felix_escape_direction "$f"
+
     # verifier, for the tables that decide what stops. Adding is free — except
     # to a table of exemptions, where adding is the removal.
     if _felix_escape_listed "$f" "$FELIX_ESCAPE_TABLES"; then
@@ -396,9 +368,10 @@ felix_escapes() {
 $paths
 EOF
 
+  _felix_escape_wfruns "$root" "$base" "$paths"
   # A here-string for the reason _felix_escape_confined gives: SQL on an early
   # line of a long diff would otherwise read as no SQL at all.
-  [ -n "$added" ] && LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
+  [ -n "$added" ] && _felix_escape_sql "$added" \
     && printf 'durable\tADDED-LINES\tdestructive SQL in the added lines\n'
 
   # One lookup for the whole diff. `reviewed` is the only channel a verdict can

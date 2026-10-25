@@ -31,6 +31,13 @@ if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
+# The paths are read as the names they are by escape-channels.sh, the one
+# reader escape.sh uses too, so a name past ASCII is classified under its own
+# name and a name git still quotes is an unknown finding, not a yellow default.
+if ! command -v _felix_escape_names >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/escape-channels.sh" 2>/dev/null
+fi
+
 # A rule change may only ever tighten the diff that carries it.
 #
 # When Felix governs itself the risk table is a tracked file in the repository
@@ -184,7 +191,11 @@ felix_classify_diff() {
   # escape.sh names it, and carries git's reason. Named by the base, it read as
   # a base that resolves to nothing, whose remedy is another base.
   local unread=""
-  paths="$(felix_changed_paths "$root" "$base")" || unread=CHANGED-PATHS
+  if ! command -v _felix_escape_names >/dev/null 2>&1; then
+    printf 'unknown\tCHANGED-PATHS\tlib/escape-channels.sh did not load, so the changed paths were not read; restore it and run this again\n'
+    return 0
+  fi
+  _felix_escape_names paths "$root" "$base" || unread=CHANGED-PATHS
   # Added lines only. A removed secret is not a new exposure, and counting it as
   # one trains people to ignore the finding.
   #

@@ -606,21 +606,19 @@ felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local tid receipt line
   # owed and behind (lib/land-table.sh), report-only: they write says.log
-  # would-refuse rows and print nothing here. A subshell, so nothing either
-  # does, an unset variable under the judge's set -u included, can reach this
-  # function's output, its status, or the shell that called it; and no input,
-  # so nothing it runs can wait on a terminal.
+  # would-refuse rows and print nothing here. A subshell with no input, so
+  # nothing either does (an unset variable under the judge's set -u included)
+  # reaches this function's output, status or caller, or waits on a terminal.
   ( felix_land_would_refuse "$proj" "$base" "$root" ) </dev/null >/dev/null 2>&1
 
   felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
     # `unknown` blocks like everything else here, and is deliberately not an
-    # escape. cmd_merge counts escapes as founder escalations — interruptions
-    # per session is the declared objective — and tells the reader that merging
-    # writes outside the tree and only they can decide that. An unresolvable
-    # base is neither: nobody has to decide a typo, and Felix owes the fix.
-    # Reporting it as an escape would inflate the one number this project steers
-    # by, with the one kind of event that should never reach a person.
+    # escape. cmd_merge counts escapes as founder escalations (interruptions per
+    # session is the declared objective) and tells the reader that merging writes
+    # outside the tree and only they can decide that. An unresolvable base is
+    # neither: nobody has to decide a typo, and Felix owes the fix. Reporting it
+    # as an escape would inflate the number this project steers by.
     case "$ch" in
       unknown) printf 'unknown\t%s\t%s\n' "$path" "$reason" ;;
       *)       printf 'escape\t%s\t%s: %s\n' "$ch" "$path" "$reason" ;;
@@ -630,13 +628,11 @@ felix_merge_blockers() {
   # One reader for what a current receipt is (verify.sh), so the boundary and
   # the Stop hook cannot disagree. Stale for a fact that moved outside the tree
   # is named as such, because "run felix gate" on a tree that did not change
-  # reads as the hook being broken until the reason is beside it.
-  #
-  # The receipt is read once, here, and that text is what is judged and what
-  # rule C9 reads its reported checks from. felix_verify_current runs the
-  # project's probes, about a third of a second, and the gate rewrites the
-  # receipt with a truncating `>`: a second read after the judgement need not be
-  # the receipt that was judged, and an empty one would have dropped C9 and
+  # reads as the hook being broken until the reason is beside it. The receipt is
+  # read once, and that text is what is judged and what rules C3 and C9 read
+  # their fields from: felix_verify_current takes a third of a second and the
+  # gate rewrites the receipt with a truncating `>`, so a second read need not
+  # be the receipt that was judged, and an empty one would have dropped C9 and
   # merged (review finding C9-R3).
   local cur rcpt
   rcpt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
@@ -647,6 +643,11 @@ felix_merge_blockers() {
     *)       printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
   esac
 
+  # C3 (audit b08, spec skipped-receipt §2.2, §2.6): a current green whose field 5
+  # names a check the gate reported skipped does not land, and CI does not clear
+  # it. Only a lowercase name is a check (`-`, `--` and `○` never refuse), an empty
+  # field is unknown and says so, and field 6 is not read. C9 follows.
+  #
   # C9 (contract A2, the push security review of 2026-10-12): a gate that
   # reused a suite run (the receipt reports tests:reused) merges only when the
   # project's gate workflow has passed on the exact commit being merged. This
@@ -657,7 +658,11 @@ felix_merge_blockers() {
   # counts: a receipt that ran its suite, tests:ok included, is judged as it
   # always was and makes no call to gh.
   if [ "$cur" = "current" ]; then
-    local rfield hsha held
+    local rfield hsha held skp
+    skp="$(printf '%s' "$rcpt" | LC_ALL=C cut -f5)"
+    [ -n "$skp" ] || printf 'unverified\tskipped\tthe receipt is not one green line stating what the gate skipped, so it cannot show that no check was reported skipped, and the remedy is the full gate\n'
+    skp="$(printf '%s\n' "$skp" | LC_ALL=C awk -F, '{ for (i = 1; i <= NF; i++) if ($i ~ /^[abcdefghijklmnopqrstuvwxyz][abcdefghijklmnopqrstuvwxyz-]*$/) o = o (o == "" ? "" : ",") $i } END { print o }')"
+    [ -z "$skp" ] || printf 'unverified\tskipped\tthe gate reported %s as skipped on this tree, and a green with a check reported skipped does not land, so run the full gate, and if a check still reports skipped, its own line in the gate output says why\n' "$skp"
     rfield="$(printf '%s' "$rcpt" | cut -f6)"
     case ",${rfield}," in
       *,tests:reused,*)
@@ -681,10 +686,9 @@ felix_merge_blockers() {
   # see a surface a witness proves is there.
   #
   # Fails closed on a missing library rather than skipping. The `reviewed`
-  # lookup above guards itself with command -v because what it does is WIDEN —
-  # skipping it withholds a clearance, which is safe. Skipping this would drop
-  # a blocker, and an engine that cannot evaluate probes has not established
-  # that there is nothing to block on; it has established nothing.
+  # lookup above only WIDENS, so skipping it withholds a clearance. Skipping
+  # this would drop a blocker, and an engine that cannot evaluate probes has
+  # established nothing, not that there is nothing to block on.
   if ! command -v felix_probes_run >/dev/null 2>&1; then
     printf 'probes\tengine\tthe probe library is not loaded, so nothing was asked of reality\n'
   elif [ ! -f "$proj/probes.tsv" ]; then
@@ -692,11 +696,10 @@ felix_merge_blockers() {
   elif [ -z "$(felix_probe_rows "$proj")" ]; then
     printf 'probes\ttable\t%s/probes.tsv declares no probe, which is a shelf with nothing on it\n' "$proj"
   else
-    # A malformed row is not skipped on the way to the rows that parse. It is
-    # a predicate somebody meant to read and nothing reads, and cmd_probes
-    # --gate already refuses it; a merge boundary that let it through would
-    # be the weaker of the two checks on the same table, which is the order
-    # they must never be in.
+    # A malformed row is not skipped on the way to the rows that parse: it is a
+    # predicate somebody meant to read and nothing reads, and cmd_probes --gate
+    # already refuses it. A boundary that let it through would be the weaker of
+    # the two checks on one table, the order they must never be in.
     felix_probe_malformed "$proj" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'probes\ttable\t%s/probes.tsv: the row for %s names a predicate and no command, or a command and no predicate\n' \
@@ -717,18 +720,17 @@ felix_merge_blockers() {
   # the grounded state, so a requirement stops blocking when the tree stops
   # making it applicable and never because somebody wrote it out. A blocking
   # row that applies, or cannot say whether it applies, and is not discharged
-  # stops the merge. Absent and empty tables are refused for the reason the
-  # probes block gives, and the library failing to load fails closed for the
-  # same reason: an engine that could not ask what is owed has not shown that
-  # nothing is.
+  # stops the merge. Absent and empty tables, and a library that fails to load,
+  # are refused as the probes block does: an engine that could not ask what is
+  # owed has not shown that nothing is.
   if ! command -v felix_obligations_run >/dev/null 2>&1; then
     printf 'obligations\tengine\tthe obligation library is not loaded, so what this project owes was not asked\n'
   elif [ ! -f "$proj/obligations.tsv" ]; then
     printf 'obligations\ttable\tthis project admits no obligation; write %s/obligations.tsv\n' "$proj"
   else
-    # Refused rows first, before the table is called empty: a row somebody
-    # wrote and nothing reads is the more specific fact, and a ledger whose
-    # only row is refused should say which row, not just that nothing is owed.
+    # Refused rows first, before the table is called empty: a row somebody wrote
+    # and nothing reads is the more specific fact, and a ledger whose only row
+    # is refused should say which, not just that nothing is owed.
     felix_obligation_malformed "$proj" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'obligations\ttable\t%s/obligations.tsv: %s\n' "$proj" "$line"
@@ -755,16 +757,14 @@ felix_merge_blockers() {
   # second place its empty case is refused. A branch may not land while the
   # project has never been commissioned on this machine, while its table set
   # or detected surfaces have moved since it was, or while a row could not be
-  # asked here (indeterminate). Never on held rows: a toolbox that is not yet
-  # installed is a fact about a machine, not about the code being merged. A
-  # row whose check said it could not be asked (exit 2, since 2026-10-08) is
-  # unknown, not held, and blocks like any unknown: a discover row whose run
-  # could not fill the discovery cache (offline, a marketplace that cannot be
-  # read) is one, where until then it read held and did not block. And
-  # never on a provider row's answer, which holds nothing by class; a provider
-  # row whose answer could not be read is unknown like any row, and blocks
-  # through the indeterminate receipt. Fails closed on a missing library for
-  # the same reason the probes block does.
+  # asked here (indeterminate). Never on held rows: a toolbox not yet installed
+  # is a fact about a machine, not about the code being merged. A row whose
+  # check said it could not be asked (exit 2, since 2026-10-08) is unknown, not
+  # held, and blocks like any unknown: a discover row that could not fill the
+  # discovery cache (offline, an unreadable marketplace) read held until then.
+  # And never on a provider row's answer, which holds nothing by class; one that
+  # could not be read is unknown, and blocks through the indeterminate receipt.
+  # Fails closed on a missing library, as the probes block does.
   if ! command -v felix_commission_rows >/dev/null 2>&1; then
     printf 'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project\n'
   elif [ ! -f "$proj/commissioning.tsv" ]; then

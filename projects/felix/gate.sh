@@ -46,23 +46,14 @@ fi
 # A hook or a tool that lost its executable bit fails at the worst moment, in
 # somebody else's session, with no output.
 #
-# Enumerated, never listed. This named three hooks by hand and there were seven:
-# the four newest were never checked, and would have failed silently in somebody
-# else's session while this printed ok. A list of things to check is a list that
-# stops matching what exists, which is the same defect the coverage table exists
-# to catch — found in the check that was supposed to be catching it.
-# Every script under bin/, not a list of the ones somebody remembered: a probe
-# or an evidence contract that names a bin script which lost its bit reads
-# `unknown` and blocks, which is loud, but the gate should say why before the
-# ledger has to.
-# The check is a command now, engine/harness/bin/executable-check, for the same
-# reason memory and independence became commands: a check that cannot be run on
-# its own cannot be qualified, and this one had never been asked whether it
-# fails when the thing it protects is broken. Asking it, blind, found that it
-# demanded the mode bit of everything in those directories rather than of the
-# scripts — a README beside the scanners turned the gate red. The scanner asks
-# each file whether it opens with a shebang instead. Announced when absent,
-# never silent (#77).
+# Enumerated, never listed: a hand-kept list named three hooks when there were
+# seven, and stops matching what exists. Every script under bin/ counts, since a
+# probe or evidence contract naming one that lost its bit reads `unknown` and
+# blocks. The check is a command, engine/harness/bin/executable-check, so felix
+# qualify can ask whether it fails when the thing it protects is broken; asked
+# blind, it found it demanded the mode bit of everything in those directories (a
+# README turned the gate red), so it asks each file for a shebang. Announced when
+# absent, never silent (#77).
 if [ -x engine/harness/bin/executable-check ]; then
   if OUT="$(engine/harness/bin/executable-check 2>&1)"; then
     pass executable
@@ -285,15 +276,13 @@ fi
 
 # ------------------------------------------------------------- tests ---------
 # A log of this run's own, never a path another gate can open. It was one fixed
-# path under /tmp for every gate on the machine, and each gate opened it with
-# O_TRUNC and wrote at its own offset, so concurrent gates interleaved in it.
-# Measured 2026-09-21: a gate on one worktree printed "tests ok, 2645 passed"
-# while its own suite had passed 2586 — the log held both summaries, and tail
-# read the other session's. The verdict was sound, being this suite's exit
-# status; the count under it, and the FAIL excerpt a red run prints, were
-# whichever gate wrote last. A reviewer reading the count in a PR body cannot
-# tell. Deleted on a pass, where nothing points at it; kept on a failure, where
-# the path is printed.
+# path under /tmp for every gate on the machine, opened with O_TRUNC and written
+# at each gate's own offset, so concurrent gates interleaved in it. Measured
+# 2026-09-21: a gate on one worktree printed "tests ok, 2645 passed" while its own
+# suite had passed 2586, because tail read the other session's summary. The
+# verdict was sound, being this suite's exit status; the count under it, and the
+# FAIL excerpt of a red run, were whichever gate wrote last. Deleted on a pass,
+# where nothing points at it; kept on a failure, where the path is printed.
 GTLOG_DIR="${TMPDIR:-/tmp}"; GTLOG_DIR="${GTLOG_DIR%/}"; GTLOG=""
 # The suite runs as many parts at once as the machine has performance cores (contract D1, as R51 and R52 replace it):
 # sysctl's hw.perflevel0.logicalcpu when it answers digits only and at least 1; else, as before, hw.ncpu, then
@@ -326,7 +315,8 @@ elif env -u FELIX_TEST_JOBS ${GTJOBS:+FELIX_TEST_JOBS=$GTJOBS} ./engine/harness/
   # begins "reused " and is reported as `reused`, with the line that says when it
   # ended and what it counted, and the receipt this gate writes carries
   # `tests:reused` for it, so felix merge, the monitor and qualify can tell the
-  # two apart. A run that began "not reused: <reason>" ran the suite, and is `ok`.
+  # two apart. A run that began "not reused: <reason>" ran the suite, and is `ok`,
+  # with that reason under the summary, so a receipt that did not hold says why.
   # The log is searched for that line and not read from its first line: the log
   # holds stderr as well, and one line from anything ahead of the answer (a
   # misconfigured knob, a git warning, BASH_ENV) would have made a reused suite
@@ -347,6 +337,8 @@ elif env -u FELIX_TEST_JOBS ${GTJOBS:+FELIX_TEST_JOBS=$GTJOBS} ./engine/harness/
   else
     pass tests
     printf '                     %s\n' "$GTLAST"
+    GTWHY="$(grep -m1 -o 'not reused: .*' "$GTLOG")"
+    [ -z "$GTWHY" ] || [ "$GTWHY" = "$GTLAST" ] || printf '                     %s\n' "$GTWHY"
   fi
   rm -f "$GTLOG"
 else
@@ -372,22 +364,19 @@ if [ -x engine/harness/bin/secret-scan ]; then
   fi
 else
   # Announced, not silent. This branch did not exist: a missing or non-executable
-  # scanner printed NOTHING — no pass, no FAIL, no skip — so the gate's only
-  # credential check could vanish and the report looked complete. The other two
-  # skippable checks both say so, and this now matches them (#77, found while
-  # fixing the confine that failed to cover this check).
+  # scanner printed NOTHING, so the gate's only credential check could vanish
+  # and the report looked complete. The other skippable checks say so (#77).
   printf '  %-18s skipped (no secret-scan here)\n' secret
 fi
 
 # ------------------------------------------------------------- independence --
 # The engine must name no specific project: constitution invariant 1, the
 # property that makes Felix portable and the one most easily lost to a
-# well-meant comment. The check itself lives in engine/harness/bin so that
-# felix qualify can ask it whether it fails when the property is broken — the
-# question every checker has to answer — without running this whole gate to
-# find out. Its comments carry the history this section used to; what stays
-# here is the same shape the secret check has: run it, and announce rather
-# than go silent when it is missing.
+# well-meant comment. The check lives in engine/harness/bin so that felix
+# qualify can ask whether it fails when the property is broken, without running
+# this whole gate; its comments carry the history. What stays here has the
+# secret check's shape: run it, and announce rather than go silent when it is
+# missing.
 # The ecosystem check below shares two things with this one: the four paths it
 # greps, and the blindness verdict — a path nobody could search fails both, on
 # the same evidence. Both are read off the scanner rather than kept as a second
@@ -422,21 +411,20 @@ fi
 # The words are enumerated off reality the way the names are, and reality here
 # is the engine's own capability probe: every alternation token inside a
 # _felix_dep_grep call in lib/detect.sh. Teaching the probe a new framework arms
-# this check for it in the same commit, which is the property #85 bought - a
-# hand-kept list is a list that stops matching what exists.
+# this check for it in the same commit (#85); a hand-kept list stops matching
+# what exists.
 #
-# A naive ban breaks the build and would deserve to: lib/detect.sh legitimately
-# greps manifests for fastapi, stripe, sentry and supabase, because a capability
-# probe naming many ecosystems symmetrically is how it stays neutral. So the
-# boundary is declared per file, with a written reason, in engine/harness/ecosystem.tsv,
-# in the same style as deny.tsv and the escape tables. A probe may name
-# ecosystems; a detector that has already decided which project it is for may
-# not, and a row has to say which it is.
+# A naive ban would break the build and deserve to: lib/detect.sh legitimately
+# greps manifests for fastapi, stripe, sentry and supabase, since a probe naming
+# many ecosystems symmetrically is how it stays neutral. So the boundary is
+# declared per file, with a written reason, in engine/harness/ecosystem.tsv, in
+# the style of deny.tsv and the escape tables. A probe may name ecosystems; a
+# detector that has already decided which project it is for may not.
 #
-# Word-boundaried, and that is measured. A substring search flags `cohere`
-# inside "coherent", `vite` inside "invite" and `express` inside "expressed" in
-# the engine's own prose right now, so the naive version fails open by being
-# switched off after the third false positive.
+# Word-boundaried, and that is measured: a substring search flags `cohere` inside
+# "coherent", `vite` inside "invite" and `express` inside "expressed" in the
+# engine's own prose, so the naive version fails open by being switched off after
+# the third false positive.
 ECO_TABLE=engine/harness/ecosystem.tsv
 ECO_PROBE=engine/harness/lib/detect.sh
 
@@ -450,11 +438,11 @@ _eco_probe_words() {
     | sed 's/\\"?//g; s/\\"//g' | tr '|' '\n' \
     | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u
 }
-# A row with no reason grants nothing. That is deliberate and it fails in the
-# safe direction for two of the three kinds: an `allow` with no reason stops
-# permitting, so the file leaks and this goes red, and a `mute` with no reason
-# stops muting, so the word comes back into the vocabulary. Only a reasonless
-# `word` row narrows, and the suite fails on any row missing a reason.
+# A row with no reason grants nothing, which fails in the safe direction for two
+# of the three kinds: an `allow` with no reason stops permitting, so the file
+# leaks and this goes red, and a `mute` with no reason stops muting, so the word
+# comes back. Only a reasonless `word` row narrows, and the suite fails on any
+# row missing a reason.
 _eco_rows() {
   local want="$1" kind file token reason
   [ -f "$ECO_TABLE" ] || return 0
@@ -471,12 +459,11 @@ ECO_WORDS="$( { _eco_probe_words; _eco_rows word | cut -f2 | tr '|' '\n'; } \
               | sed 's/^ *//; s/ *$//' | grep -v '^$' | LC_ALL=C sort -u \
               | grep -vxF -f <(_eco_rows mute | cut -f2 | tr '|' '\n' | grep -v '^$') )"
 
-# Refusing to answer beats answering from nothing, which is the lesson the
-# independence block above paid for twice. Three ways this reads the world and
-# each can come back empty without erroring: the probe can be refactored past
-# the extractor, the table can go missing, and a table with no allow rows would
-# make the whole engine leak at once rather than narrow - but the first two
-# narrow silently, and a vocabulary of nothing passes everything.
+# Refusing to answer beats answering from nothing, which the independence block
+# above paid for twice. Three reads of the world can come back empty without
+# erroring: the probe refactored past the extractor, the table gone missing, and
+# a table with no allow rows (which would make the whole engine leak at once).
+# The first two narrow silently, and a vocabulary of nothing passes everything.
 ECO_BLIND=""
 [ -f "$ECO_PROBE" ]         || ECO_BLIND="$ECO_BLIND no-probe($ECO_PROBE)"
 [ -f "$ECO_TABLE" ]         || ECO_BLIND="$ECO_BLIND no-table($ECO_TABLE)"
@@ -514,10 +501,9 @@ EOF
 fi
 
 # A row that no longer matches is a claim about a surface that is gone. Reported
-# beside the verdict rather than failing: pruning it is somebody's judgement,
-# and a check that fails on stale prose gets deleted. Reported at all because a
-# surface built to report gaps that cannot report its own is an instance
-# wearing a system's clothes (#125).
+# beside the verdict, not failing: pruning it is somebody's judgement, and a
+# check that fails on stale prose gets deleted. Reported at all because a surface
+# that reports gaps but not its own is an instance wearing a system's clothes (#125).
 ECO_STALE=""
 if [ -z "$ECO_BLIND" ]; then
   while IFS=$'\t' read -r rf rt; do
@@ -559,8 +545,8 @@ fi
 #
 # Doctrine must survive the machine, which is what this check was built for. A
 # gitignore rule that swallows maintenance.log is invisible: every command works,
-# every test passes, and nothing is kept. When it was first written `git
-# ls-files` reported zero tracked .log files, so it had never survived once.
+# every test passes, and nothing is kept. It is checked against the path, not
+# against files that happen to exist, which are absent in a worktree.
 #
 # Memory must not survive *into this repository*. It holds verbatim founder
 # prompts and whatever a governed project's work happens to be about, which
@@ -571,20 +557,11 @@ fi
 # notices the old layout creeping back one project at a time, which is exactly
 # how it would come back, since `felix adopt` is what creates the directory.
 #
-# Doctrine is checked against the path rather than against files that happen to
-# exist. The first version of that loop skipped anything absent, which made it
-# vacuous in a worktree — where these files are untracked and therefore not
-# present — so it passed by finding nothing. git check-ignore evaluates a path
-# whether or not anything is there, which is what makes it a real check.
-#
-# The check is a command now, engine/harness/bin/memory-scan, so felix qualify
-# can ask whether it fails when the thing it protects is broken. The first time
-# it was asked, blind, two things the inline form here could not see: `git
-# check-ignore` never reports a TRACKED file, so the doctrine half only ever
-# fired for a project whose log did not exist yet — the two that existed were
-# invisible to it by construction; and memory is not a path, so lessons.md
-# tracked one level up passed. Both are in the scanner's own comment. Announced
-# when absent, never silent (#77).
+# The check is a command, engine/harness/bin/memory-scan, so felix qualify can
+# ask whether it fails when the thing it protects is broken. Asked blind, it
+# found two things the inline form could not see (a tracked file `git
+# check-ignore` never reports, and memory that is not a path); both are in the
+# scanner's own comment. Announced when absent, never silent (#77).
 if [ -x engine/harness/bin/memory-scan ]; then
   if OUT="$(engine/harness/bin/memory-scan 2>&1)"; then
     pass memory
@@ -607,25 +584,48 @@ fi
 #     hook, and Felix fires twice in every local session;
 #   - a stack.tsv plugin or skill with no entry in .claude/cloud/toolbox.json never
 #     reaches the cloud, and nobody decided that it should not.
-# Pairs are read per event off the four-space layout both files share, so a
-# reformatted file reads as unreadable and fails, rather than as agreement.
-_cloud_pairs() {
-  awk 'match($0, /^    "[A-Za-z]+": \[/) { ev = substr($0, 6, RLENGTH - 9) }
-       ev && match($0, /harness\/hooks\/[a-z-]+/) { print ev "\t" substr($0, RSTART + 14, RLENGTH - 14) }' "$1" \
-    | LC_ALL=C sort -u
+# A binding is one hook object naming harness/hooks/<name>: its event, its
+# group's matcher, the hook, async and timeout, each compared as written with
+# absence a value of its own, because the matcher decides which tools the hook
+# sees. Read off the layout both files share (event at four spaces, matcher at
+# eight, async and timeout at twelve); a line holding those keys off it makes
+# the file unreadable, so a reformatted file fails and never reads as agreement.
+# A settings binding the plugin lacks (provision) is allowed.
+_cloud_check() {
+  cat engine/hooks/hooks.json .claude/settings.json 2>/dev/null | LC_ALL=C awk '
+    $0 == "{" { f++; ev = ""; g0 = n + 1 }
+    index($0, "\"matcher\"") && $0 !~ /^        "matcher": "[^"\\]*",?$/ { bad[f] = 1 }
+    index($0, "\"async\"") && $0 !~ /^            "async": (true|false),?$/ { bad[f] = 1 }
+    index($0, "\"timeout\"") && $0 !~ /^            "timeout": [0123456789]+,?$/ { bad[f] = 1 }
+    match($0, /^    "[A-Za-z]+": \[/) { ev = substr($0, 6, RLENGTH - 9) }
+    /^      \{/ { m = "-" }
+    /^        "matcher": "/ { m = $0; sub(/^[^:]*: "/, "", m); sub(/",?$/, "", m) }
+    /^          \{/ { h = ""; a = "-"; t = "-" }
+    /^            "(async|timeout)": / { v = $2; sub(/,$/, "", v); if ($1 == "\"async\":") a = v; else t = v }
+    index($0, "\"command\"") && match($0, /harness\/hooks\/[a-z-]+/) { h = substr($0, RSTART + 14, RLENGTH - 14) }
+    /^          \},?$/ && h != "" { n++; E[n] = ev; H[n] = h; A[n] = a; T[n] = t; F[n] = f }
+    /^      \},?$/ { for (i = g0; i <= n; i++) M[i] = m; g0 = n + 1 }
+    END {
+      for (i = 1; i <= n; i++) { R[i] = E[i] "\t" M[i] "\t" H[i] "\t" A[i] "\t" T[i]; c[F[i]]++ }
+      if (f != 2 || !c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
+      for (i = 1; i <= 2; i++) if (bad[i]) o = o " unreadable: " (i == 1 ? "engine/hooks/hooks.json" : ".claude/settings.json") ";"
+      if (o != "") { print o; exit }
+      for (i = 1; i <= n; i++) if (F[i] == 2) { full[R[i]] = 1; k = E[i] "/" H[i]; if (!(k in first)) first[k] = i }
+      for (i = 1; i <= n; i++) if (F[i] == 1 && !(R[i] in full)) {
+        k = E[i] "/" H[i]
+        if (!(k in first)) { miss = miss k " "; continue }
+        j = first[k]; d = ""
+        if (M[i] != M[j]) d = "matcher"
+        if (A[i] != A[j]) d = d (d == "" ? "" : ", ") "async"
+        if (T[i] != T[j]) d = d (d == "" ? "" : ", ") "timeout"
+        o = o " bound differently for the cloud: " k " (" d ");"
+      }
+      if (miss != "") o = " not bound for the cloud: " miss ";" o
+      print o
+    }'
 }
 if [ -f .claude/settings.json ]; then
-  CLOUD_BAD=""
-  P_PAIRS="$(_cloud_pairs engine/hooks/hooks.json)"
-  S_PAIRS="$(_cloud_pairs .claude/settings.json)"
-  if [ -z "$P_PAIRS" ] || [ -z "$S_PAIRS" ]; then
-    CLOUD_BAD="unreadable: no event-to-hook pairs read from one of the two files"
-  else
-    MISSING="$(printf '%s\n' "$P_PAIRS" | while IFS= read -r p; do
-      printf '%s\n' "$S_PAIRS" | grep -qxF "$p" || printf '%s ' "$(printf '%s' "$p" | tr '\t' '/')"
-    done)"
-    [ -z "$MISSING" ] || CLOUD_BAD="$CLOUD_BAD not bound for the cloud: $MISSING;"
-  fi
+  CLOUD_BAD="$(_cloud_check)"
   N_CMD="$(grep -c '"command":' .claude/settings.json)"
   N_GUARD="$(grep -cF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' .claude/settings.json)"
   [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"

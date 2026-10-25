@@ -90,7 +90,10 @@ is "and a receipt written without a roster says so rather than leaving it blank"
 ( cd "$REPO" && . "$FROOT/harness/lib/verify.sh"
   felix_verify_record "$REPO" "$FROOT" 0 "gate.sh" "$(felix_tree_id "$REPO" "$FROOT")" "tests" >/dev/null 2>&1 )
 _cm_stamp
-is "a receipt carrying a skip list still clears every blocker" "$(_blk)" ""
+# Restated 2026-10-24 (audit b08, C003): a skip list no longer clears. The one
+# line says which check the gate reported skipped, and field 6 is not consulted.
+has "a receipt carrying a skip list is refused: the one line says the gate reported tests as skipped" \
+    "$(_blk)" "the gate reported tests as skipped on this tree"
 
 # And cmd_gate reads the skips off the gate's own report rather than off its
 # own flags: a project gate that skips for its own reasons is recorded too.

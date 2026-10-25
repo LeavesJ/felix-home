@@ -66,11 +66,15 @@ esac
 # which costs a git, and before the rest of the library is loaded. The one key a
 # row can read for this tool (_felix_deny_field) is not in the payload: a Glob,
 # a TodoWrite, an mcp__ tool that opens a page. The key is looked for as a key,
-# its name between quotes, so a `command` inside a string, which carries its own
-# quotes escaped, is not one. The payload is not parsed; a miss here can only
+# its name between quotes and a colon after, so a `command` inside a string,
+# which carries its own quotes escaped, is not one, and nor is a value that
+# happens to read "command". The payload is not parsed; a miss here can only
 # let a call through, the direction every failure of this hook takes.
 _felix_deny_field "$tool" >/dev/null
-case "$raw" in *"\"$_FELIX_DENY_FIELD\""*) ;; *) exit 0 ;; esac
+case "$raw" in
+  *"\"$_FELIX_DENY_FIELD\":"*|*"\"$_FELIX_DENY_FIELD\" :"*) ;;
+  *) exit 0 ;;
+esac
 
 . "${SCRIPT_DIR}/../lib/resolve.sh" 2>/dev/null || exit 0
 . "${SCRIPT_DIR}/../lib/say.sh"     2>/dev/null || true

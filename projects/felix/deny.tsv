@@ -16,8 +16,17 @@
 # fixture repository bound with `printf ... > .felix`, a fresh `git init`
 # given a remote, a scratch clone's remote-tracking refs moved. Each protects
 # this checkout's binding, remote or refs, and no fixture's.
-Bash	git push ([^;&|]* )?(--force|-f)( |$)	force push drops commits, and Felix's history is the audit trail
-Bash	git commit ([^;&|]* )?--no-verify	--no-verify is how a gate stops being a gate. Fix the tree instead
+#
+# The next two rows refuse what a command changes, not one spelling of it. git's
+# global options are tolerated before the verb, as rows 131-135 tolerate them. A
+# cluster of push's flags that take no value (-4 -6 -d -n -q -u -v) may hold -f,
+# and a + refspec is a force. A cluster of commit's flags that take no value (-a
+# -e -i -o -p -q -s -v -z) may hold -n, which is --no-verify. A flag that takes a
+# value ends a cluster, so `git push -o ci.skip` and `git commit -mnote` are an
+# option and a message, and not -f and -n. --force-with-lease stays allowed (a
+# tested choice, part 0610 case 19); it is not --force.
+Bash	git( +-[^ ]+( +[^ ]+)?)* +push( +[^ ;&|]+)* +(--force|-[46dnquv]*f[^ ]*|\+[^ ]+)( |$)	force push drops commits, and Felix's history is the audit trail
+Bash	git( +-[^ ]+( +[^ ]+)?)* +commit( +[^ ;&|]+)* +(--no-verify|-[aeiopqsvz]*n[^ ]*)( |$)	--no-verify is how a gate stops being a gate. Fix the tree instead
 #
 # The binding, which is the one surface a refusal has to protect from the
 # inside. `.felix` names which project governs a checkout and

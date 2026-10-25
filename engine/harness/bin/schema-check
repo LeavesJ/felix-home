@@ -10,8 +10,11 @@
 #   exit 1  a *.tsv no row declares, a refused row or file, an empty table
 #           whose row says emptiness is refused, a row whose check a final
 #           filter leaves unable to fail, a memory store sitting in the tree,
-#           a table that cannot be examined, or a malformed row in
-#           schemas.tsv itself
+#           a table that cannot be examined, a malformed row in
+#           schemas.tsv itself, or a pattern in a deny.tsv or risk.tsv that
+#           its engine cannot compile (pattern-uncompilable) or that reads
+#           differently on macOS and Linux (pattern-unportable): what runs
+#           such a row skips it, so it fires nowhere or on one machine only
 #   exit 2  cannot examine: not a git worktree, no readable schemas.tsv, or no
 #           table at all. Never read as clean.
 #
@@ -161,6 +164,21 @@ while IFS= read -r entry; do
     1) add "$res" ;;
     *) add "$(printf '%s:-\tunexaminable\t%s' "$f" "$(printf '%s' "$res" | cut -f3 | head -1)")" ;;
   esac
+  # A pattern its engine cannot compile, or reads differently by machine, is a
+  # row that never fires and says nothing (lib/table.sh felix_table_pattern_check).
+  # Judged on any table whose cells could be read, and not on a link.
+  pe=""
+  case "${f##*/}" in deny.tsv) pe=bash ;; risk.tsv) pe=grep ;; esac
+  if [ -n "$pe" ] && [ "$rc" -le 1 ] && [ -f "$f" ] && [ ! -L "$f" ]; then
+    while IFS=$'\t' read -r pln pkind pcell pesc pwhy ppat; do
+      case "$pkind" in
+        uncompilable) add "$(printf '%s:%s\tpattern-uncompilable\t%s' "$f" "$pln" "$pwhy")" ;;
+        unportable)   add "$(printf '%s:%s\tpattern-unportable\t%s' "$f" "$pln" "$pwhy")" ;;
+      esac
+    done <<EOF3
+$(felix_table_pattern_check "$f" "$pe")
+EOF3
+  fi
   case "${f##*/}" in
     commissioning.tsv|obligations.tsv|setup.tsv|maintenance.tsv)
       if res="$(felix_final_filter_table "$f")"; then

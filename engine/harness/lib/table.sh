@@ -241,3 +241,132 @@ felix_table_schema_malformed() {
     }
   ' < "$schemas"
 }
+
+# PATTERNS (audit b16, C076). A deny.tsv pattern is run by `[[ =~ ]]` in the
+# pre-tool hook, a risk.tsv pattern by `LC_ALL=C grep -qE` in escape.sh and
+# classify.sh. Each skips a row whose pattern it cannot compile and says
+# nothing, so a row can sit in a table and never fire. Two refusals, made by one
+# function that schema-check and felix doctor share and the hook never calls:
+#
+#   uncompilable  the engine that runs the pattern gives status 2 for it, as
+#                 `(?i)rm -rf` and `git push (` do; for grep, also a pattern
+#                 that opens with `-`, which grep reads as an option.
+#   unportable    the pattern holds an unescaped \s \S \d \D \w \W \b \B \y \<
+#                 or \>, or [[:<:]] or [[:>:]]: unescaped means an even number
+#                 of backslashes before it, none included, so `a\\d` is clean.
+#                 BSD and GNU engines read these differently, so the row fires
+#                 on one machine and not the other. This is the list audit.sh
+#                 refuses for --verify. What every engine rejects is not on it:
+#                 that is uncompilable.
+#
+# A row is a line that is not a comment or blank, with a first cell and a
+# pattern. Pattern is column 2 of a deny.tsv, column 3 of a risk.tsv.
+#
+#   felix_table_pattern_check <file> bash|grep
+#
+# prints one line per problem, in file order, tab-separated: line number, kind,
+# first cell, the escapes found (`-` for none), why, pattern. The pattern is
+# last since it may end in a blank. Returns 2, printing nothing, for a file it
+# cannot read or an engine it does not know. Locale C throughout, as the hook
+# compiles: a pattern holding a byte that is not UTF-8 must not read two ways.
+felix_table_pattern_check() {
+  local file="$1" engine="$2" col ln esc cell pat why rc rows all=0 LC_ALL=C
+  local -a gargs=()
+  [ -f "$file" ] && [ -r "$file" ] || return 2
+  case "$engine" in bash) col=2 ;; grep) col=3 ;; *) return 2 ;; esac
+  rows="$(LC_ALL=C awk -F'\t' -v col="$col" -v skip="$FELIX_TABLE_SKIP" '
+    function escapes(p,   i, n, d, o) {
+      n = length(p); o = ""
+      for (i = 1; i <= n; i++) {
+        if (substr(p, i, 1) != "\\") continue
+        i++; d = substr(p, i, 1)
+        if (d != "" && index("sSdDwWbBy<>", d) && index(" " o " ", " \\" d " ") == 0) o = o (o == "" ? "" : " ") "\\" d
+      }
+      if (index(p, "[[:<:]]")) o = o (o == "" ? "" : " ") "[[:<:]]"
+      if (index(p, "[[:>:]]")) o = o (o == "" ? "" : " ") "[[:>:]]"
+      return (o == "" ? "-" : o)
+    }
+    $0 ~ skip { next }
+    $1 != "" && $col != "" { printf "%d\t%s\t%s\t%s\n", NR, escapes($col), $1, $col }
+  ' < "$file")" || return 2
+  [ -n "$rows" ] || return 0
+  # One grep over every pattern says whether any needs a closer look: a grep
+  # compiles all of its patterns before it reads, so status 2 is any of them.
+  if [ "$engine" = grep ]; then
+    while IFS=$'\t' read -r ln esc cell pat; do
+      gargs+=(-e "$pat")
+    done <<EOF
+$rows
+EOF
+    LC_ALL=C grep -qE "${gargs[@]}" <<<"" 2>/dev/null; [ "$?" -eq 2 ] || all=1
+  fi
+  while IFS=$'\t' read -r ln esc cell pat; do
+    rc=0
+    if [ "$engine" = bash ]; then
+      [[ "" =~ $pat ]] || rc=$?
+    else
+      case "$pat" in
+        -*) rc=2 ;;
+        *)  [ "$all" -eq 1 ] || { LC_ALL=C grep -qE "$pat" <<<"" 2>/dev/null; rc=$?; } ;;
+      esac
+    fi
+    if [ "$rc" -eq 2 ]; then
+      case "$engine$pat" in
+        bash*)  why="bash's =~ cannot compile this pattern, so the hook skips the row and it refuses nothing" ;;
+        grep-*) why="grep reads a pattern that opens with - as an option, so the runners skip the row and it matches nothing" ;;
+        *)      why="grep -E cannot compile this pattern, so the runners skip the row and it matches nothing" ;;
+      esac
+      printf '%s\tuncompilable\t%s\t-\t%s\t%s\n' "$ln" "$cell" "$why" "$pat"
+    fi
+    if [ "$esc" != - ]; then
+      why="holds $esc, which is not POSIX ERE and reads differently on macOS and Linux; spell it "'[[:space:]], [[:digit:]], [[:alnum:]_] or ([^[:alnum:]_]|$)'
+      printf '%s\tunportable\t%s\t%s\t%s\t%s\n' "$ln" "$cell" "$esc" "$why" "$pat"
+    fi
+  done <<EOF
+$rows
+EOF
+  return 0
+}
+
+# What felix doctor says of a project's deny table beyond the rows too broad to
+# enforce (lib/deny.sh): the patterns the hook skips or reads differently by
+# machine, and the rows for a tool Felix reads no field of. Each under a header
+# of its own, and none printed when there is nothing to say. A row for a tool
+# outside the list is matched against file_path (_felix_deny_field), so it
+# refuses nothing when that tool has none, and the name is case-sensitive.
+felix_table_deny_report() {
+  local proj="$1" f="$1/deny.tsv" recs unk ln kind cell esc why pat nl=$'\n' bad="" port=""
+  recs="$(felix_table_pattern_check "$f" bash)" \
+    || { printf '\nthe deny patterns could not be checked: %s could not be examined\n' "$f"; recs=""; }
+  while IFS=$'\t' read -r ln kind cell esc why pat; do
+    [ -n "$kind" ] || continue
+    if [ "$kind" = uncompilable ]; then bad="$bad$(printf '  %-14s %s' "$cell" "$pat")$nl"
+    else port="$port$(printf '  %-14s %s   (%s)' "$cell" "$pat" "$esc")$nl"; fi
+  done <<EOF
+$recs
+EOF
+  if [ -n "$bad" ]; then
+    printf '\ndeny rules whose pattern does not compile\n\n%s' "$bad"
+    printf '\nBash cannot compile each of these, and the hook skips a row it cannot\n'
+    printf 'compile without saying so, so the row refuses nothing.\n'
+    printf '\nFix the pattern in %s, or drop the row.\n' "$f"
+  fi
+  if [ -n "$port" ]; then
+    printf '\ndeny rules that read differently on macOS and Linux\n\n%s' "$port"
+    printf '\nEach of these holds an escape that is not POSIX ERE. The regex engine on a\n'
+    printf 'Mac and the one on Linux read it differently, so the row can refuse on one\n'
+    printf 'machine and nothing on the other. Spell it [[:space:]], [[:digit:]],\n'
+    printf '[[:alnum:]_] or ([^[:alnum:]_]|$) in %s.\n' "$f"
+  fi
+  unk="$(felix_table_rows "$f" | LC_ALL=C awk -F'\t' '
+    $1 != "" && $2 != "" && $1 !~ /^mcp__/ && $1 !~ /^(Bash|Monitor|Edit|MultiEdit|Write|Read|NotebookEdit|WebFetch)$/ { printf "%s\t%s\n", $1, $2 }')"
+  if [ -n "$unk" ]; then
+    printf '\ndeny rules naming a tool Felix reads no field of\n\n'
+    printf '%s\n' "$unk" | while IFS=$'\t' read -r cell pat; do printf '  %-14s %s\n' "$cell" "$pat"; done
+    printf '\nFelix reads a field for Bash, Monitor, Edit, MultiEdit, Write, Read,\n'
+    printf 'NotebookEdit, WebFetch and every mcp__ tool. A row for any other tool is\n'
+    printf 'matched against its file_path, so it refuses nothing when that tool has\n'
+    printf 'none. Tool names are case-sensitive: bash is not Bash.\n'
+  fi
+  return 0
+}

@@ -5079,23 +5079,8 @@ EOF
     printf '\nfelix gate   is the only verdict that gets recorded\n'
   fi
 
-  # A rule too broad to enforce is skipped at the moment it would have fired,
-  # and the hook says nothing because it runs on every tool call. Silence there
-  # has to be paid for here, or the project owns a rule that quietly does
-  # nothing — which is the exact complaint Felix makes about other plugins.
-  local wide; wide="$(felix_deny_overbroad_rows "$proj" 2>/dev/null)"
-  if [ -n "$wide" ]; then
-    printf '\ndeny rules too broad to enforce\n\n'
-    printf '%s\n' "$wide" | while IFS=$'\t' read -r t p r; do
-      [ -n "${p:-}" ] || continue
-      printf '  %-14s %s\n' "$t" "$p"
-    done
-    printf '\nEach of these refuses everything it was asked about, so Felix skips it\n'
-    printf 'rather than honouring it. A rule that also matches ordinary work cannot\n'
-    printf 'be told apart from a broken editor by the person hitting it, and the\n'
-    printf 'harness gets switched off rather than the row corrected.\n'
-    printf '\nNarrow the pattern in %s/deny.tsv, or drop the row.\n' "$proj"
-  fi
+  # Rules the hook skips without saying so: lib/deny.sh felix_deny_doctor.
+  felix_deny_doctor "$proj"
 
   # A declared capability with no curated row scores on its own name alone,
   # which is thin, and for the short names it scores on nothing at all. That

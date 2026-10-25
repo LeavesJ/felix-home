@@ -34,6 +34,12 @@
 # and skipped. Skipping can only ever allow more than the author intended,
 # which is the same direction every other failure here already takes.
 #
+# The matcher is gone altogether (audit b16, C020): the hook is bound to every
+# tool and decides for itself which have a subject. Monitor and every mcp__ tool
+# run a shell command as Bash does, and carried the same `command` field past a
+# floor that never saw them. A Bash row now judges the command of every shell
+# tool; a row naming any other tool judges that tool's calls and no others.
+#
 # deny.tsv rows: tool <TAB> extended-regex <TAB> reason [<TAB> scope]
 #
 # scope is empty, or `checkout`. Empty is every row written before the column
@@ -67,14 +73,19 @@ _felix_deny_rows() {
 # would hand that string to the matcher, and a rule would fire on content the
 # person was only writing down. A tool nobody has taught this function is read
 # as acting on a file, and a tool acting on nothing has no subject and is
-# always allowed.
+# always allowed. A shell tool is Bash, Monitor, or any tool whose name begins
+# mcp__; every other first-party tool is read on a file, never on `command`.
+#
+# The answer is left in _FELIX_DENY_FIELD as well as printed, so the hook, which
+# runs on every tool call, can read it without a subshell.
 _felix_deny_field() {
   case "$1" in
-    Bash)         printf 'command' ;;
-    NotebookEdit) printf 'notebook_path' ;;
-    WebFetch)     printf 'url' ;;
-    *)            printf 'file_path' ;;
+    Bash|Monitor|mcp__*) _FELIX_DENY_FIELD=command ;;
+    NotebookEdit)        _FELIX_DENY_FIELD=notebook_path ;;
+    WebFetch)            _FELIX_DENY_FIELD=url ;;
+    *)                   _FELIX_DENY_FIELD=file_path ;;
   esac
+  printf '%s' "$_FELIX_DENY_FIELD"
 }
 
 # That field's value, out of a PreToolUse payload, without parsing JSON.
@@ -101,7 +112,7 @@ _felix_deny_field() {
 _FELIX_DENY_INLINE=1024
 felix_deny_subject() {
   local raw="$1" field rest val
-  field="$(_felix_deny_field "${2:-}")"
+  _felix_deny_field "${2:-}" >/dev/null; field="$_FELIX_DENY_FIELD"
   case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
   # A raw \001 is a control character no JSON string may hold, so this is not
   # a payload Claude Code sent, and like any payload that does not parse it
@@ -203,6 +214,40 @@ $(_felix_deny_rows "$proj")
 EOF
 }
 
+# What felix doctor says of this project's deny table: the rows the hook skips
+# without a word, each kind under a header of its own. A rule too broad to
+# enforce is skipped at the moment it would have fired, and the hook says
+# nothing because it runs on every tool call. Silence there has to be paid for
+# here, or the project owns a rule that quietly does nothing, which is the exact
+# complaint Felix makes about other plugins. The pattern and tool sections are
+# lib/table.sh's, which the hook never loads; if it will not load, they are said
+# not to have been made. An unreadable table is said, and judged no further.
+felix_deny_doctor() {
+  local proj="$1" wide t p r
+  [ -f "$proj/deny.tsv" ] || return 0
+  if [ ! -r "$proj/deny.tsv" ]; then
+    printf '\n%s/deny.tsv could not be read, so what it refuses is not known\n' "$proj"
+    return 0
+  fi
+  wide="$(felix_deny_overbroad_rows "$proj" 2>/dev/null)"
+  if [ -n "$wide" ]; then
+    printf '\ndeny rules too broad to enforce\n\n'
+    printf '%s\n' "$wide" | while IFS=$'\t' read -r t p r; do
+      [ -n "${p:-}" ] || continue
+      printf '  %-14s %s\n' "$t" "$p"
+    done
+    printf '\nEach of these refuses everything it was asked about, so Felix skips it\n'
+    printf 'rather than honouring it. A rule that also matches ordinary work cannot\n'
+    printf 'be told apart from a broken editor by the person hitting it, and the\n'
+    printf 'harness gets switched off rather than the row corrected.\n'
+    printf '\nNarrow the pattern in %s/deny.tsv, or drop the row.\n' "$proj"
+  fi
+  command -v felix_table_deny_report >/dev/null 2>&1 || . "${_FELIX_DENY_LIB:-.}/table.sh" 2>/dev/null
+  if command -v felix_table_deny_report >/dev/null 2>&1; then felix_table_deny_report "$proj"
+  else printf '\nthe deny patterns could not be checked: lib/table.sh did not load, so rules that never fire cannot be listed\n'; fi
+  return 0
+}
+
 # The first row for this tool whose pattern matches the text: its reason goes
 # in _FELIX_DENY_REASON, and the status says whether there was one. A variable
 # and not output, so the call that nearly always finds nothing costs no
@@ -291,16 +336,20 @@ EOF
 # any other, and is then judged, by lib/where.sh, on the command as the
 # payload carries it; the governed checkout is the one this process stands
 # in.
+#
+# WANT is the tool the call is for. Monitor and every mcp__ tool run a shell
+# command, so the Bash rows judge theirs, on the same reading, before the tool's
+# own rows judge it as it stands, which is how every row but a Bash row reads.
 felix_deny_match() {
   local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text
   [ -n "$cmd" ] || return 1
-  _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""
-  if [ "$want" = "Bash" ]; then
-    text="$(felix_deny_code "$cmd")"
-  else
-    text="$cmd"
-  fi
-  if _felix_deny_first "$proj" "$want" "$text"; then
+  _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""; _FELIX_DENY_TOOL="$want"
+  case "$want" in
+    Bash|Monitor|mcp__*)
+      text="$(felix_deny_code "$cmd")"
+      if _felix_deny_first "$proj" Bash "$text"; then printf '%s' "$_FELIX_DENY_REASON"; return 0; fi ;;
+  esac
+  if [ "$want" != Bash ] && _felix_deny_first "$proj" "$want" "$cmd"; then
     printf '%s' "$_FELIX_DENY_REASON"
     return 0
   fi
@@ -346,22 +395,25 @@ $_FELIX_DENY_SCOPED
 EOF
 }
 
-# Whether a row scoped to the checkout passes this call over. Bash is read for
-# where it acts; a tool naming one path acts on that path; a URL acts on no
-# place the checkout owns, so nothing is known and the row stands.
+# Whether a row scoped to the checkout passes this call over. Bash and Monitor
+# are read for where they act; a tool naming one path acts on that path; a URL
+# acts on no place the checkout owns, and neither can be told for an mcp__ shell
+# tool, which may carry a directory of its own or a server session's, so
+# nothing is known and the row stands. The tool is the call's, not the row's:
+# a Bash row can judge a Monitor or an mcp__ command.
 #
 # lib/where.sh is loaded here, from beside this file, and not by the hook: the
 # hook runs on every tool call and this runs only after a scoped row matched.
 # If it cannot be loaded nothing is known, and the row stands.
 _FELIX_DENY_LIB="${BASH_SOURCE[0]%/*}"
 _felix_deny_scoped_lifts() {
-  local want="$1" pattern="$2" subj="$3" start="$4"
+  local want="${_FELIX_DENY_TOOL:-$1}" pattern="$2" subj="$3" start="$4"
   _FELIX_WHERE_WHY=""
+  case "$want" in WebFetch|mcp__*) return 1 ;; esac
   command -v felix_where_lifts >/dev/null 2>&1 \
     || . "$_FELIX_DENY_LIB/where.sh" 2>/dev/null || return 1
   case "$want" in
-    Bash) felix_where_lifts "$pattern" "$subj" "$start" "$PWD" ;;
-    WebFetch) return 1 ;;
+    Bash|Monitor) felix_where_lifts "$pattern" "$subj" "$start" "$PWD" ;;
     *) felix_where_path_lifts "$subj" "$start" "$PWD" ;;
   esac
 }

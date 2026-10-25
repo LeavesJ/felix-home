@@ -141,9 +141,15 @@ rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"
 # Correct code behind a matcher that never fires is this project's oldest and
 # most expensive failure mode.
 HOOKS_JSON="$(cd "$REAL_HARNESS/.." && pwd)/hooks/hooks.json"
-mj="$(sed -n '/"PreToolUse"/,/]/p' "$HOOKS_JSON" | sed -n 's/.*"matcher"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+spj="$(sed -n '/"PreToolUse"/,/]/p' "$HOOKS_JSON")"
+mj="$(printf '%s\n' "$spj" | sed -n 's/.*"matcher"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+# An entry with no matcher key is bound for every tool, as PostToolUse is (audit b16).
 for t in Bash Edit Write Read NotebookEdit; do
-  case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac
+  case "$spj" in
+    '')          bad "PreToolUse is bound for $t" "hooks.json has no PreToolUse entry" ;;
+    *'"matcher"'*) case "$mj" in *"$t"*) ok "PreToolUse is bound for $t" ;; *) bad "PreToolUse is bound for $t" "matcher is [$mj]" ;; esac ;;
+    *)           ok "PreToolUse is bound for $t" ;;
+  esac
 done
 
 printf '\ndenial scoped to the checkout\n'

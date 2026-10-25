@@ -263,3 +263,26 @@ Once Elenchus moves its Felix pin past this change, every pull-request run would
           path: repo
           fetch-depth: 0
 ```
+
+---
+
+## 8. Red
+
+*Run 2026-10-24 on `d7e56ee1` (the part and the driver line added, no code changed), with `alone.sh … bwk 2070-cloud-kit-truthfulness-blind.sh`: macOS awk under bash 3.2, about 100 s, driver exit 0.*
+
+**Part 2070 holds 39 assertions (A1 to A39). 19 failed and 20 passed.** The driver's own summary line reads `ok=82 fail=19`, because it also counts the 62 fixture-floor lines that print before the part's own.
+
+**The 19 that failed**, all of them the non-control assertions of §4, as the contract said they would be:
+- A1, A4, A5, A6, A7, A9, A10, A12: every *no base* scan (N-key, N-clean, C, D) exits 0 and says only `no base ref found; scanning uncommitted changes only`.
+- A13, A14, A15: `SS no-such-ref` exits 0 on M-key and M-clean, and prints the same note (it does not name `no-such-ref`).
+- A28, A29: with `main` deleted the gate's secret line reads `ok`, and no reason is printed under it.
+- A30, A31, A32, A33, A35: toolbox.json still says the cloud runs what a local session runs, and none of `moved by hand`, `may lag` or `nothing compares` is in it.
+- A39: provision's header still says `founder's machine runs`.
+
+**The 20 that passed, and why.** Every one is a control the contract marked as holding before the fix. None is vacuous in the sense of passing for want of anything to check: each ran its fixture and its *no base* check.
+- *Already true.* A2 (stdout is empty: the note goes to stderr only), A3 (stderr already says `no base ref found`), A34 (toolbox.json already names `installed_plugins.json`).
+- *Guards a future hint.* A8 (stderr has no `refs/remotes/`). It passes today because the note has no hint at all, so it is true by absence, and it matters only once the hint exists.
+- *A control on the repair or on a hit in what was read.* A11 (after `git fetch -q origin main:main` the scan has a base, exits 1 and names the key), A16 and A17 (a key in an untracked file is a hit, exit 1).
+- *Unchanged behaviour wherever there is no gap.* A18, A19 (an unborn HEAD), A20, A21, A22, A23 (a base is found), A24 (`--tree`), A25 (stdin).
+- *The gate, before the no-base case.* A26 (secret `ok` over a clean side branch) and A27 (secret `FAIL` over a committed key).
+- *The toolbox's shape.* A36, A37, A38 (it parses, the gate's reader finds every name line, every stack row has an entry).

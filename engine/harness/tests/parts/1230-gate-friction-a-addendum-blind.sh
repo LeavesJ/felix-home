@@ -116,7 +116,13 @@ GFBSTUB
 ( _fx_cd "${_gfb_F:?}" && git init -q -b main && git add -A && _gfb_git commit -qm seed ) >/dev/null 2>&1
 _gfb_F="$(cd "${_gfb_F:?}" && pwd -P)"
 _gfb_c1="$(_gfb_git -C "${_gfb_F:?}" commit-tree -p HEAD -m 'origin one' 'HEAD^{tree}' 2>/dev/null)"
-_gfb_c2="$(_gfb_git -C "${_gfb_F:?}" commit-tree -p HEAD -m 'origin two' 'HEAD^{tree}' 2>/dev/null)"
+# restated, not blind (b08, C045): c2 is a move the suite can see. The receipt keys on
+# what part 1010 reads of origin/main, so a commit with HEAD's tree, ancestry and
+# merge base, as c1 is, would no longer be refused; c2 differs in its engine/ tree.
+_gfb_b="$(printf 'moved\n' | _gfb_git -C "${_gfb_F:?}" hash-object -w --stdin 2>/dev/null)"
+_gfb_ix() { GIT_INDEX_FILE="$_gfb/c2.index" _gfb_git -C "${_gfb_F:?}" "$@" 2>/dev/null; }
+_gfb_t2="$(_gfb_ix read-tree HEAD && _gfb_ix update-index --add --cacheinfo "100644,$_gfb_b,engine/gfb-moved" && _gfb_ix write-tree)"
+_gfb_c2="$(_gfb_git -C "${_gfb_F:?}" commit-tree -p HEAD -m 'origin two' "$_gfb_t2" 2>/dev/null)"
 _gfb_rp="$(git -C "${_gfb_F:?}" rev-parse --git-path felix-suite-receipt 2>/dev/null)"
 case "$_gfb_rp" in /*) ;; *) _gfb_rp="$_gfb_F/$_gfb_rp" ;; esac
 _gfb_origin() {   # <commit, or - for none>
@@ -191,7 +197,7 @@ is  "(A1) the receipt a passing run leaves names, as a field of its own or as th
 _v="$(_gfb_chk)"; case "$_v" in "reuse "*) _v=reuse ;; esac
 is  "(A1) that receipt is reused while origin/main still names that commit" "$_v" "reuse"
 _gfb_origin "$_gfb_c2"
-is  "(A1) a receipt whose origin/main now names another commit is refused: run origin/main moved" "$(_gfb_chk)" "run origin/main moved"
+is  "(A1, restated, not blind (b08)) a receipt whose origin/main now names a commit with another engine/ tree is refused: run origin/main moved" "$(_gfb_chk)" "run origin/main moved"
 _gfb_origin -
 is  "(A1) and so is one whose origin/main cannot be read now, when the receipt recorded one" "$(_gfb_chk)" "run origin/main moved"
 _gfb_origin "$_gfb_c1"
@@ -204,7 +210,7 @@ if [ -f "$_gfb_rp" ]; then
 fi
 is  "(A1) the same receipt aged past 12 hours, origin/main unmoved, is older than 12 hours" "$(_gfb_chk)" "run older than 12 hours"
 _gfb_origin "$_gfb_c2"
-is  "(A1) aged past 12 hours with origin/main moved, the origin/main check answers first" "$(_gfb_chk)" "run origin/main moved"
+is  "(A1, restated, not blind (b08)) aged past 12 hours with origin/main moved to another engine/ tree, the origin/main check answers first" "$(_gfb_chk)" "run origin/main moved"
 
 # ---- run 2: a record run with no origin/main at its start, during which origin/main appears
 rm -rf "${_gfb_rp:?}"; printf 'gfb planted\n' > "$_gfb_rp"

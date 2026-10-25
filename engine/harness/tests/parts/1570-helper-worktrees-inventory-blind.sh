@@ -167,8 +167,8 @@ is "C5.5: under --no-host each helper-form worktree and orphan carries unknown:h
 _hw5o=""; for _hw5i in "$HW5" "$HW5W/agent-xyz" "$HW5W/wf_abc" "$HW5W/wf_abc-1x" "$HW5W/my-agent-a1b2" "$HW5W/dup-twin"; do _hw5o="$_hw5o $(_lw_holds "$HN" worktree "$_hw5i" unknown:helper)"; done
 is "C5.5: under --no-host a worktree of another name carries no unknown:helper" "$_hw5o" " no no no no no no"
 # C5.6
-is "C5.6 control: with the records root unreadable the main worktree's owner is -, where it is s5-boss when the root is read" \
-   "$(_lw_col "$HU" worktree "$HW5" 5) $(_lw_col "$HA" worktree "$HW5" 5)" "- s5-boss"
+is "C5.6 control: with the records root unreadable the main worktree's owner is unknown, where it is s5-boss when the root is read" \
+   "$(_lw_col "$HU" worktree "$HW5" 5) $(_lw_col "$HA" worktree "$HW5" 5)" "unknown s5-boss"
 _hw5o=""; for _hw5i in "worktree $H1" "worktree $H2" "worktree $H3" "worktree $H4" "worktree $H4B" "worktree $H8" "worktree $H11" "orphan $HO7" "orphan $HO8"; do
   [ "$(_lw_many "$HU" ${_hw5i%% *} "${_hw5i#* }" 0 unknown:helper helper)" = "unknown:helper=yes helper=no" ] || _hw5o="$_hw5o [${_hw5i##*/}: $(_lw_st "$HU" ${_hw5i%% *} "${_hw5i#* }")]"; done
 is "C5.6: with a records root the run cannot read, each helper-form row carries unknown:helper and no helper" "$_hw5o" ""

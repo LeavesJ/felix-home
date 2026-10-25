@@ -449,9 +449,10 @@ _fi_item() {
         if [ "$_FI_HOSTOK" != 1 ]; then own=unknown; lv=unknown
         elif [ "$fl" != cross ]; then
           x="$(awk -F'\t' -v h="$br" '$1 == h { print $2 "\t" $3; exit }' "$T/owners")"
-          [ -z "$x" ] || { own="${x%%"$_FI_TAB"*}"; lv="${x#*"$_FI_TAB"}"; }
-          # No owner found, though a session file in the window could not be read: unknown, not none.
-          [ "$own" != - ] || [ "${_FI_HUNREAD:-0}" = 0 ] || { own=unknown; lv=unknown; }
+          # No line for the head, though a session file in the window could not be read: unknown, not none.
+          # A line with owner - was settled by the adapter: only a plugin's session names the head (audit b09, C028).
+          if [ -n "$x" ]; then own="${x%%"$_FI_TAB"*}"; lv="${x#*"$_FI_TAB"}"
+          elif [ "${_FI_HUNREAD:-0}" != 0 ]; then own=unknown; lv=unknown; fi
         fi
         _fi_states "$_FI_LV" live=$lv pr-open=yes ;;
     *) _FI_DET="@ ${sha:0:8}"; _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"

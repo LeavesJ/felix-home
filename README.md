@@ -270,7 +270,9 @@ it.
 
 ## Why not just run the tests in CI?
 
-You should, and Felix can set that up for you. CI checks what gets pushed.
+You should, and Felix can set that up for you once CI can fetch your project's
+rules from a Felix repository on GitHub; [the wall](#why-you-might-not-want-felix)
+says what that takes. CI checks what gets pushed.
 Code review checks what someone reads. Neither sees the moment an agent
 decides it's finished and says so. A twenty-line Stop hook that runs `npm test`
 gets you part of the way. Felix adds three things that hook doesn't have:
@@ -358,10 +360,17 @@ checker that can't fail, but so far only Felix's own checkers declare it.
 
 The wall is a required CI check that reruns `felix gate` on the pushed tree, on
 a branch admins can't bypass, with Felix fetched from a repository the agent
-can't push to. `felix bootstrap --yes` writes the workflow and a branch rule
-that requires it, but leaves admins able to bypass the rule. Of the
-repositories Felix governs today, one has the whole wall, and Felix's own isn't
-it.
+can't push to. `felix bootstrap --yes` writes the workflow and a rule on the
+repository's default branch that requires it, but leaves admins able to bypass
+the rule. It sets the rule only once CI can resolve the project: `projects/<name>`
+is committed on the default branch of the Felix repository the workflow checks
+out, and the workflow is on the governed repository's default branch. From a
+plain clone of this repository that means forking Felix, pointing the clone's
+origin at the fork and pushing `projects/<name>` to the fork's default branch,
+with a `FELIX_DEPLOY_KEY` secret in the governed repository when the fork is
+private. Until then bootstrap says what is missing on its `ci project:` line and
+leaves the branch alone. Of the repositories Felix governs today, one has the
+whole wall, and Felix's own isn't it.
 
 Setting a project up with plain `felix new` also installs, for every Claude
 Code session on the machine, seven plugins every project gets, the catalogue's

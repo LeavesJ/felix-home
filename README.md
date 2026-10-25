@@ -442,10 +442,14 @@ Installing changes your setup, so read this part first:
 - In a governed project it adds text to sessions: a note at start naming the
   project's constitution and handoff to read, recorded lessons that match a
   prompt, and a note to each subagent. It logs the first 160 bytes of each prompt, and up to 200
-  beside anything Felix says, to the project's memory directory. It suggests a
+  beside anything Felix says, to the project's memory directory; a refused
+  command is recorded as it was typed, with any credential shape written as
+  `[redacted]`. It suggests a
   tool the first time a session's prompt matches one of its routes. It clones
-  candidate plugins once a week to read them, and adds catalogue rows for
-  tools it detects.
+  candidate plugins to read them, about weekly and again after an update that
+  changes how discovery scores; where `TMPDIR` names no private directory
+  nothing is cloned, and the pulse and the session start say why. It adds
+  catalogue rows for tools it detects.
 - The clone you install from becomes Felix's home, the directory that holds
   each project's rules, and `~/.felix-home` names it. The clone is registered
   as a local plugin marketplace and is itself governed as the project `felix`.
@@ -459,7 +463,10 @@ Installing changes your setup, so read this part first:
   git and the `claude` and `gh` CLIs: to fetch and install plugins, to work
   with pull requests, issues and CI runs, and, for `felix bootstrap`, to set a
   branch rule. `felix pulse` commits your memory directory and pushes it to
-  that repository's remote, if you've made it a git repository with one. The
+  that repository's remote, if you've made it a git repository with one; it
+  leaves out a nested git repository and any file that gained a credential
+  shape, and says in the pulse log, `felix status` and the next session start
+  that they are not backed up. The
   plugins commissioning installs are separate programs with their own network
   use: security-guidance, for one, sends code to Anthropic's API from its own
   Stop hook.
@@ -549,9 +556,9 @@ never deletes your rules or memory. The rest is by hand:
 
 | Event | What Felix does |
 |:---|:---|
-| Session start | Names the project's constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery weekly in the background |
-| Prompt | Mounts recorded lessons that match the prompt, and names a tool on the first routed turn. Logs the first 160 bytes of each prompt, and up to 200 beside anything Felix says, to the project's memory directory |
-| Before a tool call | Refuses what the project's `deny.tsv` names, with the reason. A new project has no rows |
+| Session start | Names the project's constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery in the background, about weekly and after an update that changes how it scores; where `TMPDIR` names no private directory it fetches nothing and says why |
+| Prompt | Mounts recorded lessons that match the prompt, and names a tool on the first routed turn. Logs the first 160 bytes of each prompt, and up to 200 beside anything Felix says, to the project's memory directory, with any credential shape written as `[redacted]` |
+| Before a tool call | Refuses what the project's `deny.tsv` names, with the reason, and records the refused command with any credential shape written as `[redacted]`. A new project has no rows |
 | After a tool call | Appends one ledger line. Async, never blocks |
 | Subagent start | Tells the subagent the project, its constitution and its gate |
 | Subagent stop | Once per session, if the checkout holds changes no gate has passed, tells the parent that a subagent's report must call its own changes unverified |

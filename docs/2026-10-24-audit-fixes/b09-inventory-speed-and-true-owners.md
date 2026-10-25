@@ -217,3 +217,19 @@ Both are sourced by the driver in numeric order, after every part below 1790 and
 ## 7. Founder PR
 
 None. The batch changes `lib/inventory-host.sh`, `lib/inventory-chips.sh`, `lib/inventory-items.sh`, `lib/inventory.sh` where the core needs it, `lib/lost-work.sh` and the lost-work contract, and adds parts 1790 and 1800. It touches no `.github/workflows` file, no deny, escape or land row, not the commission grant, and publishes nothing. It is risk-red for its lib edits and merges on green.
+
+---
+
+## 8. Red
+
+*Run on 2026-10-24 on `c4ae0e2d` (the contract and the two blind parts, no engine change), before any code was touched: `alone.sh <worktree> bwk 1790-inventory-true-owners-blind.sh 1800-inventory-chip-windows-blind.sh`, macOS awk under bash 3.2, one run of both parts, about 2.5 minutes. The run counted 83 `ok` and 20 `FAIL`; 62 of the `ok` lines are the suite's own preamble (the fixture-floor checks the driver prints before any part), so the two parts hold 41 assertions: **20 failed, 21 passed.**
+
+**The 20 that failed (all non-controls, as §4 says):** A1, A2, A4, A6, A9, A10, A12 (C028); A13, A14, A15, A17, A19, A20, A21, A22, A23 (C047); A29, A32, A36 (C050); A38 (C025). Each failed on the reading the contract says is wrong, not on a fixture fault. A1 and A2 read the reviewer as owner (`t9-ask-r`, `t9-asr-r`) with `question` no; A4 gives the reviewer's id as owner; A6 finds `sdk9` live; A9 and A10 read the SDK sessions' ids as the pull requests' owners (A10 live); A12 puts `ask9` and `asr9` in no `question` group and counts two blocked; A13, A14, A19, A20, A21 read the sessions and chips cover rows as `read`; A15 and A17 give owner `-` and `unknown:*` `no`; A22 and A23 give the summaries `complete`, content 0. A29 and A32 find no row for the chip (the whole file is read, so the mid-file title or call starts it). A36 measured A1 0.694 s, A2 0.681 s, B1 2.800 s, B2 2.839 s, all four runs exiting 0: 2.119 s more, near the 2.2 s the contract measured on the base. A38 found the `collapsed:` line the page's last line.
+
+**The 21 that passed, and why:**
+
+- *Controls that hold before and after (already true on the base; they guard what the fix must keep)*, 16: A3, A7, A8 (B1, B3, B4: a person's session, an SDK entrypoint only quoted, no entrypoint at all); A11 (B6: not skipped, a mode-000 file was unreadable here); A16 (B8: the base already says `unknown:helper` for a helper whose spawning transcript it cannot read); A24, A25, A26 (B11: readable root, missing root, one record directory at 000); A27, A28, A30, A31, A33, A34 (B12 to B14: a title or call in the head or the tail, an in-scope file read whole, a first human text, which a reader of whole files finds too); A37 (B15: the same one chip row with the bulk present); A40 (B17: `--tsv` unchanged).
+- *Vacuous on the base (they assert the absence of something the base never prints, so they only become a test once the fix prints it elsewhere)*, 4: A5 (no `passed over` element: the base prints none), A18 (its second half, no chip row at a mode-000 root: the base reads nothing there, so lists none; its first half, the chip under the readable root, is a live control), A39 (no helper path on the page: the base prints a count only), A41 (no count line and `collapsed:` last: the base prints no count line for any fixture; this one starts to bite when B16 prints a line elsewhere).
+- *Fixture control (no engine involved)*, 1: A35 (offsets by `grep -b`).
+
+No assertion passed for the wrong reason that the fix would make false; none was already true while labelled as red. `tests/run` exits 0 under `--part` whatever the count of FAIL lines, so the `FAIL` count is read from the log, not from the status.

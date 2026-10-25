@@ -455,7 +455,7 @@ _felix_lc() {
 # Does remote_match M name the origin URL U? S is _felix_remote_slug of U. Sets _FELIX_RM_LEN to
 # M's length without one trailing .git: a longer declaration outweighs a shorter one.
 #   owner/repo, with a GitHub slug S: they match when M lowercased is S, and in no other way
-#     ("acme/web" is not "acme/webapp").
+#     ("acme/web" is not "acme/web-extras").
 #   else: U and M each lose one trailing .git (U a trailing / first) and match when equal or
 #     when U ends in M after a /, : or @, case-sensitively.
 _felix_remote_match() {   # M U S

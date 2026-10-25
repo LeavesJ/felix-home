@@ -245,3 +245,23 @@ What follows the merge and deploy, all his, from a terminal in the home's main c
 - `felix autonomy` (read the new consent), then `felix autonomy --allow commission`, then `felix commission`, in a checkout bound to felix.
 - Commit the re-stamped `projects/felix/autonomy.commission` through a PR he merges (the authority escape fires, as for #459), promptly, since the tick pauses on the uncommitted change.
 - `felix commission` in each other project with a receipt (bazaar, behaviorchangebench, elenchus, sv2-apps, veldra, webapp) before its next merge. elenchus-capital-research and team1 have none.
+
+---
+
+## 8. Red
+
+Run 2026-10-25 on the base engine (branch head `24e22632`, no engine file changed): `alone.sh <worktree> bwk 1950 1960` (macOS awk, bash 3.2, started from inside a Claude session, so `CLAUDECODE` was set). The run named 95 assertions in the two parts (A56-A59 are one line per table): **63 failed, 32 passed**. The 62 `ok` lines of the preamble parts (0001-0004) are not counted. No terminal case was skipped (`script` makes a terminal here).
+
+**The 63 failures**: A1-A8, A11-A24, A26-A29, A31, A33-A35, A37, A40-A42, A44-A47, A49, A51, A52, A54, A55, all nine A56 lines, nine of the ten A57 lines (every project table; the template passes), and the `elenchus-capital-research` lines of A58 and A59. A1 fails here only because the run was started from inside a session (`CLAUDECODE` set); the contract expected that, and CI does not set it.
+
+**The 32 passes, and why each is not a defect found:**
+
+| Assertion | Why it passes on the base |
+|---|---|
+| A9, A10, A30, A32, A36, A38, A39, A43, A48, A50 | Controls, marked in §4: they pin what already works and must keep working. A39 is the one a reader might not expect: on the base nothing refuses a session, so an unattended session run passes too. |
+| A25 | Control for the deny rows' scope, and vacuous on the base: the fixture `deny.tsv` holds no rows (A22 and A23 fail), so nothing is refused and every allowed case passes. A24 is the assertion with teeth. |
+| A53 | Control, and already true: the base binds the grant to nothing in the consent text, so an edited tidy paragraph cannot unseat it. It stops an H that hashes the whole page. A52 is the assertion with teeth. |
+| A57 (template), A58 (template and 8 projects), A59 (template and 8 projects) | Already true. Only the project tables' L1, and elenchus-capital-research's L2 and L3, are broken (§2 B26 says so); the template and the other tables pass L2 and L3 today. |
+| A60 | Control: a planted two-row table that the lints must fail. It tests the lints, not the engine. |
+
+Nothing passed that should have failed: no vacuous pass hides a defect. The two vacuous or already-true groups (A25, A53, A57-A59 on the template) each sit beside a failing assertion that has the teeth.

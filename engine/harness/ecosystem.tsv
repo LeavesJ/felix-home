@@ -62,7 +62,7 @@ allow	lib/audit.sh	cargo|dotnet|npm|pnpm|pytest|python|yarn|playwright	felix aud
 allow	lib/audit-read.sh	npm|python	The first half of felix audit's awk program, split from lib/audit.sh on 2026-09-22 to keep each file under 500 lines. Its comments and patterns name the runners of lib/audit.sh's default roster, which it reads commands against, so the same probe shape and the same reason as that row apply.
 
 # ---- probes of a different shape: paths and capability names ----------------
-allow	lib/escape.sh	alembic|prisma	the durable-path regex. Which directories hold migrations that a revert cannot undo is a fact about ecosystems, and it names several rather than one.
+allow	lib/escape.sh	alembic|prisma|drizzle	the durable-path regex. Which directories hold migrations that a revert cannot undo is a fact about ecosystems, and it names several rather than one.
 allow	lib/escape.sh	rust	prose. The comment explaining why the `disclose` channel is named for a state of the world rather than for a language reaches for a Rust project as its example.
 allow	lib/maintenance.sh	rust	the capability list, which mirrors what lib/detect.sh emits. `rust` is the one ecosystem the probe reports as a capability of its own, so it travels one file further than the rest.
 allow	felix	npm|cargo|dotnet|rust	two places. The gate-guess comment lists commands Felix has heard of, deliberately across ecosystems, and the capability blurb answers for `rust` the same way it answers for every other capability name.

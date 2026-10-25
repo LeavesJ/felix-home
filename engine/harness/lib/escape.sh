@@ -163,7 +163,7 @@ FELIX_ESCAPE_EXCEPTION='(^|/)projects/[^/]+/exceptions\.tsv$'
 
 # Rows already written are not restored by reverting the code that wrote them.
 # The directories migration tools keep their files in: migrations or migration
-# (Alembic, Prisma, Flyway under db/, TypeORM, .NET), db/migrate (Rails),
+# (Alembic, Prisma, Flyway under db/, .NET), db/migrate (Rails),
 # db/changelog and liquibase, and drizzle. A file named migrations.rb is not one.
 # The destructive statements in the added lines are _felix_escape_sql's.
 FELIX_ESCAPE_DURABLE_PATH='(^|/)([Mm]igrations?|alembic|drizzle|liquibase)(/|$)|(^|/)db/(migrate|changelog)/'

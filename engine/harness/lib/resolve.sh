@@ -433,10 +433,9 @@ felix_mem_mistake_rows() {
   return 0
 }
 
-# The owner/repo a GitHub origin names, lowercased: _FELIX_RS, empty for any
-# other URL. The one reader is felix_remote_github_slug (own.sh), sourced from
-# beside this file when it is not loaded; with no own.sh the owner/repo rule
-# below falls to its anchored suffix, stricter than the substring it replaced.
+# The owner/repo a GitHub origin names, lowercased, in _FELIX_RS; empty for any other URL.
+# felix_remote_github_slug (own.sh) reads it, sourced from beside this file if not loaded;
+# without own.sh the owner/repo rule falls to its anchored suffix.
 _felix_remote_slug() {   # URL
   _FELIX_RS=""
   case "$1" in *[Gg][Ii][Tt][Hh][Uu][Bb].[Cc][Oo][Mm]*) ;; *) return 0 ;; esac
@@ -446,24 +445,27 @@ _felix_remote_slug() {   # URL
   return 0
 }
 
-# Does remote_match M name the origin URL U? S is _felix_remote_slug of U.
-# Sets _FELIX_RM_LEN to M's length without one trailing .git, the weight a longer
-# declaration has over a shorter one.
-#   owner/repo, with a GitHub slug S to compare: they match when M lowercased
-#     is S, and in no other way ("acme/web" is not "acme/webapp").
-#   else: U and M each lose one trailing .git (U a trailing / first) and match
-#     when equal or when U ends in M after a /, : or @, case-sensitively.
+# ASCII lowercase of $1 into _FELIX_LC, in this shell: no process.
+_felix_lc() {
+  local c t="$1"
+  for c in Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz; do t="${t//${c:0:1}/${c:1:1}}"; done
+  _FELIX_LC="$t"
+}
+
+# Does remote_match M name the origin URL U? S is _felix_remote_slug of U. Sets _FELIX_RM_LEN to
+# M's length without one trailing .git: a longer declaration outweighs a shorter one.
+#   owner/repo, with a GitHub slug S: they match when M lowercased is S, and in no other way
+#     ("acme/web" is not "acme/webapp").
+#   else: U and M each lose one trailing .git (U a trailing / first) and match when equal or
+#     when U ends in M after a /, : or @, case-sensitively.
 _felix_remote_match() {   # M U S
-  local m="$1" u="$2" s="${3:-}" m2 u2 pre c t LC_ALL=C
+  local m="$1" u="$2" s="${3:-}" m2 u2 pre LC_ALL=C
   local lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-
   m2="${m%.git}"; _FELIX_RM_LEN="${#m2}"
   [ -n "$m" ] && [ -n "$m2" ] || return 1
   case "$m" in
     */*/*|/*|*/|*[!/$lc]*) ;;
-    */*) if [ -n "$s" ]; then
-           t="$m"; for c in Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz; do t="${t//${c:0:1}/${c:1:1}}"; done
-           [ "$t" = "$s" ]; return
-         fi ;;
+    */*) if [ -n "$s" ]; then _felix_lc "$m"; [ "$_FELIX_LC" = "$s" ]; return; fi ;;
   esac
   u2="${u%/}"; u2="${u2%.git}"
   [ "$u2" = "$m2" ] && return 0
@@ -476,15 +478,18 @@ _felix_remote_match() {   # M U S
 # match equally and _FELIX_RB_TIE holds their names. _FELIX_RB_U is the origin
 # URL; it is never printed or written, as an https remote can carry a token.
 _felix_resolve_remote() {   # ROOT HOME
-  local root="$1" felix_root="$2" meta m n best=0 LC_ALL=C
+  local root="$1" felix_root="$2" meta m n ul best=0 sdone=0 LC_ALL=C
   _FELIX_RB_P=""; _FELIX_RB_TIE=""
   _FELIX_RB_U="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null)" || _FELIX_RB_U=""
   [ -n "$_FELIX_RB_U" ] || return 1
-  _felix_remote_slug "$_FELIX_RB_U"
+  _felix_lc "$_FELIX_RB_U"; ul="$_FELIX_LC"
   for meta in "$felix_root"/projects/*/project.json; do
     [ -e "$meta" ] || continue
     m="$(felix_json_str "$meta" remote_match)"
     [ -n "$m" ] || continue
+    # Any match has M, lowercased and without a trailing .git, inside U: look before the slug costs.
+    _felix_lc "${m%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
+    [ "$sdone" = 1 ] || { sdone=1; _felix_remote_slug "$_FELIX_RB_U"; }
     _felix_remote_match "$m" "$_FELIX_RB_U" "$_FELIX_RS" || continue
     n="${meta%/project.json}"; n="${n##*/}"
     if [ "$_FELIX_RM_LEN" -gt "$best" ]; then best="$_FELIX_RM_LEN"; _FELIX_RB_P="$n"; _FELIX_RB_TIE=""
@@ -649,7 +654,7 @@ _felix_name_ok() {
 _felix_binding_remote() {   # ROOT HOME
   local root="$1" home="$2" key mem f last="" stamp="" k p t dir alt="" j rc LC_ALL=C
   [ -n "$home" ] || return 0
-  _felix_resolve_remote "$root" "$home"; rc=$?
+  rc=0; _felix_resolve_remote "$root" "$home" || rc=$?
   [ -n "$_FELIX_RB_U" ] || return 0
   key="$(printf '%s\n%s\n' "$home" "$_FELIX_RB_U" | git -C "$root" hash-object --stdin 2>/dev/null)"
   [ -n "$key" ] || return 0

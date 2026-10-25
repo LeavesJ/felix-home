@@ -113,29 +113,25 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 # A resume is bound, and says nothing.
 #
 # Claude Code starts a new process on a resume and rebinds every hook, and
-# until the matcher named it Felix was not called there at all, so a resumed
-# session never learned which engine it now runs. The matcher makes the moment
-# reachable; this exit keeps what a resume shows exactly what it showed before,
-# which is nothing. What records the moment, lib/lifecycle.sh, is called before
-# that exit, further down, and before the broken-binding report for the same
+# until the matcher named it Felix was not called there at all. The matcher
+# makes the moment reachable; this exit keeps what a resume shows exactly what
+# it showed before, which is nothing. What records the moment, lib/lifecycle.sh,
+# is called before that exit, and before the broken-binding report for the same
 # reason: a resume never heard that report either.
 #
-# Claude Code only, because only there was a resume unbound. Copilot CLI fires
-# its sessionStart on a resume with no matcher in front of it, so a resume there
-# always got the banner, and unchanged means it still does; the other harness
-# _felix_emit knows is left as it was for the same reason.
+# Claude Code only. Copilot CLI fires its sessionStart on a resume with no
+# matcher in front of it, so a resume there always got the banner, and the
+# other harness _felix_emit knows is left as it was for the same reason.
 #
 # The payload is read once, whole, and the three fields the record and this
 # exit need are taken from it with the sed idiom hooks/post-tool uses, in one
-# pass: each expression starts again from the held line, and the first line
-# that carries a field is the one that answers for it. awk keeps that first
-# line of each field and drops every later one before the loop sees them, so
-# the loop turns three times at most. Unbounded, it cut one line off the front
-# of what was left on each turn, which is quadratic in bash 3.2: a payload with
-# thousands of lines carrying these keys held the hook for minutes, and past
-# the platform's deadline a startup lost its banner. The read it replaced
-# bounded itself with head -1. A terminal on stdin is a person running the
-# hook by hand, and waiting on them would hang the hook.
+# pass: the first line that carries a field answers for it. awk keeps that
+# first line of each field and drops every later one before the loop sees them,
+# so the loop turns three times at most. Unbounded, it cut one line off the
+# front of what was left on each turn, which is quadratic in bash 3.2: a payload
+# with thousands of lines carrying these keys held the hook for minutes, and
+# past the platform's deadline a startup lost its banner. A terminal on stdin is
+# a person running the hook by hand, and waiting on them would hang the hook.
 _felix_payload=""
 [ -t 0 ] || _felix_payload="$(cat 2>/dev/null)"
 _felix_source=""; _felix_session=""; _felix_transcript=""; _felix_fields=""
@@ -204,12 +200,9 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 #
 # Ordered before the bail below, and that ordering is the whole fix: a broken
 # binding presents here as an empty $PROJ, which is exactly what the next line
-# reads as "not governed, say nothing".
-#
-# An ABSENT binding still means ungoverned and still exits silently. That is
-# the half that must not regress — Felix has to stay usable in a repository it
-# does not govern — and it is what "nothing due" and "nothing is being checked"
-# must not render identically means here.
+# reads as "not governed, say nothing". An ABSENT binding still means
+# ungoverned and still exits silently: Felix has to stay usable in a repository
+# it does not govern.
 broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
 if [ -n "$broken" ]; then
   felix_unresolved_log "$broken" "$PWD"
@@ -221,9 +214,14 @@ fi
 [ -n "$PROJ" ] || exit 0
 
 project="$(basename "$PROJ")"
-gate="$(felix_json_str "${PROJ}/project.json" gate)"
+# A project.json that cannot be read declares nothing because it says nothing,
+# which is not "none declared": the stop cannot judge either (lib/hook-faults.sh).
+gate=""; _gate_unread=""
+if [ -f "${PROJ}/project.json" ] && [ -r "${PROJ}/project.json" ]; then gate="$(felix_json_str "${PROJ}/project.json" gate)"; else _gate_unread=1; fi
 
-if [ -n "$gate" ]; then
+if [ -n "$_gate_unread" ]; then
+  gate_line="Gate: unknown (${PROJ}/project.json cannot be read, so no gate can be named and nothing is being checked)"
+elif [ -n "$gate" ]; then
   gate_line="Gate: ${ENGINE_DIR}/felix gate"
 else
   gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
@@ -771,6 +769,7 @@ case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
+[ -z "$_gate_unread" ] || _felix_line="$_felix_line · gate unknown"
 
 # The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).
 _ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"

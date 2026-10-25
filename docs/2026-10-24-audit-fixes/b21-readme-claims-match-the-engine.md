@@ -430,3 +430,47 @@ lands, a snapshot built with `--public-readme` ships part 2030 beside the old pu
 whose line 415 still says "narrow to the obligations people name". The public suite would
 then go red, correctly. Publishing the home README, which means running the snapshot
 without `--public-readme`, keeps it green.
+
+## 8. Red
+
+Run on 2026-10-25 at 6aa8d594 (the blind parts, before any fix), under bwk (macOS awk, bash 3.2),
+with `alone.sh <worktree> bwk 2030-readme-claims-match-the-engine-blind.sh
+2031-felix-on-path-without-sudo-blind.sh`: exit 0, ok=76, FAIL=28, skip=0. Of the 76 ok lines, 62
+are the driver's fixture-floor preamble and 14 are this batch's assertions, so the two parts
+emitted 42 named assertions (A1-A42) and 28 of them failed. That is exactly the red list of
+section 4: A2-A5, A12-A26 (19, part 2030) and A29, A31-A38 (9, part 2031).
+
+The 14 that passed on base are all controls; none is already-true behaviour the batch was meant
+to change, and none is vacuous:
+
+- A1 (control): the README, its four sections and the Verify and uninstall line exist on base.
+- A6, A7, A8 (controls, B6): two `mytool` programs of different sizes printing the same answer
+  give two `mytool@<digits>` tokens in field 7 and the same non-empty epoch, and a program
+  printing one more line gives a different epoch. They pass because the engine does what the
+  corrected README text will say (#304). They would fail the day the instrument token moves
+  the epoch again.
+- A9, A10, A11 (controls, B7): after 20,000 unreachable blobs the object count is past 16,384
+  and `git status --porcelain` is unchanged, the dirty tree's id moved, and the clean tree's id
+  did not. They pass because the engine has the dependence on object count that the new Partial
+  row will state (F2).
+- A27 (control, B26): `felix install --no-bump` exits 0 in all four homes on base.
+- A28 (control, B21a): each of the four runs prints exactly one `ln -s` line on base (the
+  `/usr/local/bin` one). This holds before and after.
+- A30 (control, B21c): the base line has no `-f`, `-sf` or `--force` word, so nothing is
+  replaced silently. It guards the new line against gaining one.
+- A39, A40 (controls, B25): R3 and R4 have `.local/bin` on PATH and base prints no `export
+  PATH=` line, so they pass now. They are not vacuous: each also needs its run to have exited
+  0 and printed exactly one `ln -s` line, which base does, and they fail if the fix prints the
+  advice where it is not needed.
+- A41 (control, B26): `felix install` creates nothing under `$HOME/.local` on base (R1, R2
+  have no `.local`; R3's listing and link, and R4's regular-file `.local`, are unchanged).
+- A42 (control, B26): each run's last non-empty line names `felix new <name>` on base.
+
+The 28 that failed, failed for the reasons the contract gives: A2 and A3 on the base sentence
+about "a file of a different size" and the absent `felix probes`; A4 and A5 on "which git is on
+PATH"; A12-A16 on "narrow to the obligations people name", "Three things come first" and the
+retire list coming before the dry run; A17-A21 on the missing `felix land` and the "Nothing
+merges on its own" sentence; A22 on "about 3,000 assertions"; A23-A25 on `/usr/local/bin` and
+no PATH advice; A26 on the guard refusing `/usr/local/bin/felix`; and A29, A31-A38 on the same
+`/usr/local/bin/felix` line printed by `felix install` (the guard stops A32-A36 before they run
+anything, as B22-B23 say) and no `export PATH=` line in R1's or R2's output.

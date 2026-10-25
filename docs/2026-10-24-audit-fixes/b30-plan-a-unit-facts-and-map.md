@@ -954,3 +954,59 @@ A9, A12 to A18), the trace directory is not read or checked (A20 to A25, A28 to
 A31, A35 to A38, A42 onwards), `felix testmap` is an unknown command (A42 to A100,
 A66), and `trace.sh`, `select.sh` and `lib/testmap.sh` do not exist (A105 to
 A108).
+
+## 9. As built
+
+The build is `tests/trace.sh`, `tests/select.sh`, `tests/select-compile.sh`,
+`tests/select-parse.sh`, `tests/select-report.sh` and `lib/testmap.sh`, with eight
+changed lines in part 0007, one changed line in `felix` and two part lines in
+`tests/run` (already there from the blind commits). B30's three files became
+six: the selector is split in four so that each stays under 500 lines.
+
+**Two things the build found that the contract did not say.**
+
+- bash 3.2 takes minutes over `${c//$'\n'/ }` on a command of tens of
+  kilobytes. `lib/where-read.sh` assigns a 57 KB awk program in one command, and
+  a tracer that cleaned BASH_COMMAND whole spent 110 s on that one line and 230 s
+  of CPU over part 0220. The tracer now keeps and reads a command's first 400
+  characters, which is where `env -i`, `exec -c`, `BASH_ENV=` and `trap ... DEBUG`
+  are. It still looks for `PIPESTATUS` in the whole command.
+- `$_` is the command word of the handler by the time the handler runs. The trap
+  string is `_tm_trace_dbg "$_"`, so bash expands `$_` before it makes the call,
+  and the handler ends with `: "$BASH_FT_u"` to put it back. A handler that reads `$_`
+  itself restores the wrong value, and part 0070 of fixture T (A40) fails.
+
+**Overhead, measured at the build.** bash 3.2.57 (arm64 macOS), each part run
+alone with `tests/run --part`, untraced and then traced with the tracer loaded as
+BASH_ENV of the run, user plus system CPU of the run's processes. The machine
+was at a load average of 400 to 600, which stretches wall time by 5 to 10 times
+and makes it useless here; CPU time is what is reported.
+
+| part | untraced CPU s | traced CPU s | verdicts traced |
+|---|---|---|---|
+| 0250 | 15.42 | 18.32 (+19%) | the same, 100 ok |
+| 0610 | 10.28 | 12.27 (+19%) | the same, 158 ok; 96 trace files |
+| 1070 | 8.91 | 10.97 (+23%) | the same, 214 ok; 68 trace files |
+| 1600 | 31.13 | 36.43 (+17%) | the same, 350 ok; 282 trace files |
+| 0960 | 10.80 | 11.24 (+4%) | 1 FAIL: the assertion that reads PIPESTATUS after a pipeline |
+| 1497 | 8.12 | 8.62 (+6%) | the same, 106 ok |
+| 0220 | 13.92 | 16.32 (+17%) | the same, 127 ok and 1 FAIL, as untraced |
+| 0720 | 39.99 | 84.58 (+112%) | the same, 127 ok; 32 trace files |
+
+The overhead is 4% to 23% for seven parts and 112% for 0720, which spends most of
+its time in shell loops. A micro-benchmark of 100,000 shell commands (a counter
+loop of builtins) took 0.14 s untraced and 2.7 s traced, about 26 us a command.
+Taking the handler apart, by cost per command: the bare DEBUG trap about 3 us,
+saving `PIPESTATUS` and `$_` about 7 us, the prefilter on `BASH_COMMAND` about
+12 us, and the context key (`BASH_SOURCE`, `FUNCNAME`) about 10 us. A part that
+runs shell code in loops pays that on each command; one that mostly starts other
+programs pays little. Part 0960
+fails once traced, and the failing assertion is the one that reads PIPESTATUS
+after a pipeline (`grep status:`): its unit would be `unfaithful`, as B14 says.
+
+**What was not run here.** There is no bash 4.1 or later on this machine, so the
+xtrace tracer (B5x), A39, A51 and the xtrace branch of the compile reader have
+only been read, not run. The compile reader was exercised on hand-made input of
+the same shape. A traced run under bash 4.1 or later writes a line for every
+command a unit runs, not one for each context, so its trace directories are much
+larger than the 3.2 tracer's; B7 to B15 do not bound them.

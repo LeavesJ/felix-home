@@ -279,9 +279,9 @@ Once Elenchus moves its Felix pin past this change, every pull-request run would
 - A30, A31, A32, A33, A35: toolbox.json still says the cloud runs what a local session runs, and none of `moved by hand`, `may lag` or `nothing compares` is in it.
 - A39: provision's header still says `founder's machine runs`.
 
-**The 20 that passed, and why.** Every one is a control the contract marked as holding before the fix. None is vacuous in the sense of passing for want of anything to check: each ran its fixture and its *no base* check.
+**The 20 that passed, and why.** Every one is a control the contract marked as holding before the fix. Each ran its fixture and its *no base* check; the one that is vacuous today is named below (A8).
 - *Already true.* A2 (stdout is empty: the note goes to stderr only), A3 (stderr already says `no base ref found`), A34 (toolbox.json already names `installed_plugins.json`).
-- *Guards a future hint.* A8 (stderr has no `refs/remotes/`). It passes today because the note has no hint at all, so it is true by absence, and it matters only once the hint exists.
+- *Guards a future hint.* A8 (stderr has no `refs/remotes/`). It passes today only because the note has no hint at all, so it is vacuous now, and it bites only once the hint exists.
 - *A control on the repair or on a hit in what was read.* A11 (after `git fetch -q origin main:main` the scan has a base, exits 1 and names the key), A16 and A17 (a key in an untracked file is a hit, exit 1).
 - *Unchanged behaviour wherever there is no gap.* A18, A19 (an unborn HEAD), A20, A21, A22, A23 (a base is found), A24 (`--tree`), A25 (stdin).
 - *The gate, before the no-base case.* A26 (secret `ok` over a clean side branch) and A27 (secret `FAIL` over a committed key).

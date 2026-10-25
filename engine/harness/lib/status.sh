@@ -1,4 +1,4 @@
-# felix status: five rows a surface can poll, and the settings check the pulse
+# felix status: six rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,7 +8,7 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate. state is value, none or unknown. value is a bare word (no spaces) when
+# gate, icloud. state is value, none or unknown. value is a bare word (no spaces) when
 # state is value, and `-` otherwise; detail is never empty. A consumer ignores
 # rows it does not know. Weekly spend is not a row: felix cost has its own --tsv
 # and takes about twenty seconds, so a surface runs it on its own timer.
@@ -125,6 +125,102 @@ felix_schedule_state() {
   return 0
 }
 
+# Does the Felix home sit where iCloud renames files, and has it? Prints
+# `<state><TAB><value><TAB><detail>` and returns 0; reads and writes nothing else.
+# iCloud's Desktop & Documents sync keeps a conflicting copy of a file it saw
+# change in the middle of a write as `NAME 2` (`NAME 2.ext`), and Felix writes
+# refs, records and tables there: on 2026-10-14 `main 2` refs broke every clone
+# and 121 `* 2` copies turned a suite part red, and nothing said why.
+#   copies-N  N names under state/ and .git (objects not read) are shaped like
+#             one: the last component ends in a space, digits, and either
+#             nothing or a dot and more than a dot
+#   synced    none, and the home's physical path is inside iCloud Drive, or
+#             inside Desktop or Documents that iCloud Drive links to
+#   clear     none, and it is not
+#   unknown   no home; or the walk could not read every directory; or none, and
+#             there is no HOME to say whether the home is synced
+# Physical means every link resolved (pwd -P), so a home reached through a link
+# to ~/Documents/x is inside Documents. Desktop and Documents count only when
+# the iCloud Drive folder holds a LINK of that name to the same directory as the
+# user's own: with sync off it holds a plain directory. The scan walks state/ and
+# .git from inside the home, so a path glob in the home's own name cannot reach
+# it, and it prunes .git/objects. N is every path found, files and directories,
+# once each; the first three in C order are named.
+felix_icloud_state() {
+  local h="${1:-}" nl=$'\n' tab=$'\t' hp="" scan="" rc=x names="" n=0 list="" l f="" d a b mdp
+  local c s md cdr
+  if [ -z "$h" ] || [ ! -d "$h" ]; then
+    printf 'unknown\t-\tno Felix home resolved\n'; return 0
+  fi
+  case "$h" in /*) ;; *) h="./$h" ;; esac
+  hp="$(cd "$h" 2>/dev/null && pwd -P)"
+  [ -n "$hp" ] || hp="$h"
+  scan="$(cd "$h" 2>/dev/null || { printf '\n.rc=1'; exit 0; }
+          set --
+          [ -d state ] && set -- state
+          [ -d .git ] && set -- "$@" .git
+          if [ "$#" -gt 0 ]; then
+            LC_ALL=C find "$@" -path .git/objects -prune -o -name '* [0123456789]*' -print 2>/dev/null
+            printf '\n.rc=%s' "$?"
+          else
+            printf '\n.rc=0'
+          fi)"
+  case "$scan" in
+    *"$nl.rc="[0123456789]*) rc="${scan##*"$nl.rc="}"; names="${scan%"$nl.rc="*}" ;;
+  esac
+  if [ "$rc" = 0 ]; then
+    names="$(printf '%s\n' "$names" \
+             | LC_ALL=C awk '{ b = $0; sub(/^.*\//, "", b) } b ~ / [0123456789]+(\.[^ ]+)?$/' | LC_ALL=C sort
+             [ "${PIPESTATUS[0]}${PIPESTATUS[1]}${PIPESTATUS[2]}" = 000 ] && printf '\n.')"
+    case "$names" in *"$nl.") names="${names%"$nl."}" ;; *) rc=x ;; esac
+  fi
+  if [ "$rc" = 0 ]; then
+    while IFS= read -r l; do
+      [ -n "$l" ] || continue
+      n=$((n + 1))
+      [ "$n" -gt 3 ] || list="${list:+$list, }${l//$tab/ }"
+    done <<EOF
+$names
+EOF
+  fi
+  # Where the home is. F is the folder, or empty when it is in none.
+  if [ -z "${HOME:-}" ]; then
+    s="whether the home is inside an iCloud-synced folder is not known: no home directory to look in"
+  else
+    md="$HOME/Library/Mobile Documents"; cdr="$md/com~apple~CloudDocs"
+    mdp="$(cd "$md" 2>/dev/null && pwd -P)"
+    if [ -n "$mdp" ]; then case "$hp" in "$mdp"/*) f="iCloud Drive" ;; esac; fi
+    if [ -z "$f" ]; then
+      for d in Documents Desktop; do
+        [ -L "$cdr/$d" ] || continue
+        a="$(cd "$cdr/$d" 2>/dev/null && pwd -P)"; b="$(cd "$HOME/$d" 2>/dev/null && pwd -P)"
+        [ -n "$a" ] && [ "$a" = "$b" ] || continue
+        case "$hp" in "$b"|"$b"/*) f="$d"; break ;; esac
+      done
+    fi
+    if [ -n "$f" ]; then
+      s="the home is inside iCloud-synced $f, which renames files Felix writes; a home outside Desktop, Documents and iCloud Drive avoids it"
+    else
+      s="the home is not inside iCloud Drive or an iCloud-synced Desktop or Documents"
+    fi
+  fi
+  c="no name shaped like an iCloud copy under state/ and .git (objects not read)"
+  if [ "$rc" != 0 ]; then
+    printf 'unknown\t-\tthe scan of state/ and .git could not read every directory, so how many names are shaped like an iCloud copy is not known; %s\n' "$s"
+  elif [ "$n" -gt 0 ]; then
+    c="$n name(s) shaped like an iCloud copy under state/ and .git (objects not read): $list"
+    [ "$n" -le 3 ] || c="$c and $((n - 3)) more"
+    printf 'value\tcopies-%s\t%s; %s\n' "$n" "$c" "$s"
+  elif [ -n "$f" ]; then
+    printf 'value\tsynced\t%s; %s\n' "$c" "$s"
+  elif [ -n "${HOME:-}" ]; then
+    printf 'value\tclear\t%s; %s\n' "$c" "$s"
+  else
+    printf 'unknown\t-\t%s; %s\n' "$c" "$s"
+  fi
+  return 0
+}
+
 _felix_status_utc() {
   date -u -r "$1" +%Y-%m-%dT%H:%MZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%MZ 2>/dev/null
 }
@@ -201,6 +297,11 @@ _felix_status_reach() {
   _felix_status_from3 reach "$(felix_reach_summary "$proj" "$home")"
 }
 
+# The iCloud row: felix_icloud_state for the home, whatever it printed.
+_felix_status_icloud() {
+  _felix_status_from3 icloud "$(felix_icloud_state "$1")"
+}
+
 # felix_verify_current's answer, without git touching the checkout's index.
 # GIT_OPTIONAL_LOCKS=0 stops git status from refreshing the index and does not
 # stop git diff, which felix_tree_id runs: measured on git 2.54, a tracked file
@@ -248,7 +349,7 @@ _felix_status_gate() {
   esac
 }
 
-# The five rows for the directory <cwd> under the Felix home <home>.
+# The six rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj
   _felix_status_need felix_repo_root resolve
@@ -259,6 +360,7 @@ felix_status_rows() {
   _felix_status_pulse "$home"
   _felix_status_reach "$proj" "$home"
   _felix_status_gate "$root" "$home" "$proj"
+  _felix_status_icloud "$home"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

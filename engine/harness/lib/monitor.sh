@@ -280,6 +280,11 @@ EOF
 # A ledger written before that column cannot answer this question, and counting
 # nothing would render as perfect compliance — the most flattering possible
 # reading of an absence, which is the one to refuse.
+#
+# Rows whose CALLS is `-` are skipped for the same reason: a session whose
+# PostToolUse record was incomplete cannot say whether the play was followed, so
+# it is neither followed nor ignored, and a session whose only named rows are
+# such rows prints no line.
 felix_monitor_compliance() {
   local proj="$1"
   # Split, because `local a=$1 b=$a` expands every word before it assigns any of
@@ -287,7 +292,7 @@ felix_monitor_compliance() {
   local mem="$(felix_mem_dir "$proj")"
   command -v _felix_ledger_rows >/dev/null 2>&1 || return 0
   _felix_ledger_rows "$mem" | awk -F'\t' '
-    NF >= 6 && $6 != "" && $6 + 0 > 0 {
+    NF >= 6 && $6 != "" && $5 != "-" && $6 + 0 > 0 {
       key = $1 SUBSEP $2
       if (!(key in seen)) { seen[key] = 1; order[++n] = key; sess[key] = $1; day[key] = $2 }
       named[key]++

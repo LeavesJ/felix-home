@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# PostToolUse: one append per tool call, and nothing else.
+# PostToolUse: one alive line, then one append per tool call, and nothing else.
 #
 # This runs after every tool call in every governed session, so its cost is the
 # design constraint rather than an afterthought. It deliberately does not
@@ -9,6 +9,15 @@
 #
 # It records and never blocks. PostToolUse cannot deny anything anyway, and a
 # measurement that interrupts the thing it measures is not worth having.
+#
+# The alive line is written as soon as the session is known, before the payload
+# is read for a signal. It is what lets the rollup tell a run that recorded
+# nothing from a session that reached for nothing: a run that dies, or finds no
+# signal, after it leaves a line with no call beside it, where it used to leave
+# no trace and the fold read the session as a measured zero. Neither the
+# session nor the alive line costs a fork. A run that dies before the session
+# is known leaves nothing, and only a session that recorded nothing at all
+# reads as unknown then.
 
 set -uo pipefail
 
@@ -41,9 +50,12 @@ raw="$(cat 2>/dev/null || true)"
 home="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
 [ -d "$home" ] || exit 0
 
-session="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
-[ -n "$session" ] || exit 0
+# The payload's own session: the first "session_id" key, not the last (see
+# felix_ledger_session_id).
+felix_ledger_session_id "$raw" || exit 0
+session="$FELIX_LEDGER_SID"
+
+felix_ledger_alive "$home" "$session"
 
 signal="$(felix_ledger_signal "$raw")"
 [ -n "$signal" ] || exit 0

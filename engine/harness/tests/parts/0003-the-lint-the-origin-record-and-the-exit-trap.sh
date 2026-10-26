@@ -780,7 +780,7 @@ _og_on=1
 # inside the trap that would end it before the removal ran. _fx_exit takes the
 # status the run exited with and returns the one it should end with.
 _fx_exit() {   # RC -> RC, or 1 where RC is 0 and a check here failed
-  local rc="$1" fail=""
+  local rc="$1" fail=""; ! command -v _ql_end >/dev/null 2>&1 || _ql_end   # the quiet limit's watchdog goes with the shell, however it ends (audit b01, B9)
   if [ -z "${_fx_final:-}" ]; then
     if [ -s "$FELIX_TEST_FXREFUSED" ]; then
       fail=1

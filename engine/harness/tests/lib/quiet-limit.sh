@@ -90,16 +90,19 @@ sub sweep {   # TERM to what was below the shell, a second to go, then STOP whil
   for (my ($i, $e) = (0, time + 5); $i < 20; $i++) { my $a = grow(); kill STOP => @P, @S; push @S, @P; last if !$a or time >= $e }
   kill KILL => @P, @S; grow(); kill KILL => @P, @S;
 }
-my ($last, $n, $k) = ((-s $f) || 0, 0, 0);
+my ($last, $n, $k, $t) = ((-s $f) || 0, 0, 0, 0);
 while (1) {
-  nap(1); $k++;
+  nap(0.05);   # the shell is looked for twenty times a second, so that this is gone a moment after it is; a poll is twenty naps
   exit 0 unless kill(0, $sh);
+  next if ++$t < 20;
+  $t = 0; $k++;
   exit 0 if $k % 2 == 0 and lst($sh) ne $s0;
   my $s = (-s $f) || 0;
   if ($s != $last) { ($last, $n) = ($s, 0); next }
   next if ++$n < $q;
   my $name = last_name();
   grow();
+  if (open(my $m, ">", "$tmp/ql.fired")) { close $m }   # tells the shell that the end is the watchdog itself, so that its exit trap leaves the sweep to it
   print "\n  FAIL  no new assertion in $q s, so the run was ended; the last it reached: $name\n";
   kill TERM => $sh;
   if (!gone(10) and alive()) {
@@ -125,6 +128,7 @@ while (1) {
 _ql_end() {
   local i=0 s
   [ -n "${_ql_pid:-}" ] || return 0
+  [ ! -e "$TMP/ql.fired" ] || return 0   # the watchdog ended this run: it is still sweeping, and the shell must not take it away
   s="$(ps -o lstart= -p "$_ql_pid" 2>/dev/null)"; s="${s#"${s%%[! ]*}"}"; s="${s%"${s##*[! ]}"}"
   if [ "$s" = "$_ql_st" ]; then
     builtin kill -TERM "$_ql_pid" 2>/dev/null

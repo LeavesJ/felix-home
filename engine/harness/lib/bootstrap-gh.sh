@@ -153,6 +153,7 @@ _felix_bs_labels_read() {
     { lines++; s = $1; sub(/\r$/, "", s); for (i = 1; i <= n; i++) if (s == w[i]) have[i] = 1 }
     END { m = ""; for (i = 1; i <= n; i++) if (!have[i]) m = m (m == "" ? "" : " ") w[i]
           printf "%d %s\n", lines, m }')"
+  case "${r%% *}" in ''|*[!0123456789]*) _bs_why="gh's list could not be counted"; return 1 ;; esac
   _bs_lmiss="${r#* }"
   if [ -z "$_bs_lmiss" ]; then _bs_lst="yes"; return 0; fi
   if [ "${r%% *}" -ge 1000 ]; then _bs_why="a list of ${r%% *} labels may be cut short"; return 1; fi

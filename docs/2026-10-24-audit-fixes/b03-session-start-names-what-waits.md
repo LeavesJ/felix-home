@@ -522,3 +522,74 @@ there yet, and tests the fix once it is.
   missing and uncreated.
 - A53: session start reads no fault log, so a log of one old `-` row adds no
   paragraph.
+
+---
+
+## 9. Review round (2026-10-26)
+
+The review of the built branch found three paths on which session start still
+names nothing. Each is restated here as required behaviour; B36-B38 add to §2
+and win where they and an earlier B differ. A64-A70 are in part 1670 and A71 in
+part 1680, after each part's earlier assertions.
+
+**B36** (C038; amends B14). Session start names every due row, however many
+rows are `founder` and whichever awk is first on PATH: macOS BWK awk, which
+stops with `newline in string` on a newline inside a `-v` value, or gawk. The
+founder line lists every due `founder` row in `maintenance.tsv`'s order, joined
+by `, `; ` (yours: ...)` names them in that order; the `Maintenance due:` line
+names every other due row; the hook's stderr carries no `newline in string`.
+
+**B37** (C029; amends B16). A fault row of B17 carries its UTC ISO time on
+every bash the hook runs under, macOS's `/bin/bash` 3.2 (no `EPOCHSECONDS`)
+included: a path that writes a fault row may start a process to read the clock.
+`-` is left to B18's rows, whose trap starts no process, and to a time that
+could not be read at all. So B13's "in the last 7 days" holds for the rows the
+hook really writes: a row written 20 days ago is not counted because a newer row
+was appended since, and "the newest" has its time.
+
+**B38** (C002; amends B7). A PR is listed when its last `waiting` row is less
+than 26 hours old and every row of that PR after it is a wait row (§2.1) at
+that `waiting` row's head. A hold row, a `landed` row or a row at another head
+after it ends the listing. The line is `  #N <the last waiting row's detail>`,
+and `M` counts every PR listed. The tick is unchanged: B1 writes a `waiting` row
+again 24 hours after the last one while the wait run lasts, and the 26-hour
+window overlaps it, so a wait that flips between `session` and `skip
+conflicting with main` (#425) is named at every session start while the lander
+runs, not only until its next flip.
+
+- **A64** (B36) `maintenance.tsv`: `snapshot<TAB>14<TAB>founder<TAB>...`, `release<TAB>14<TAB>founder<TAB>...`, `weekly<TAB>7<TAB>always<TAB>...`; no log. The `Maintenance due:` line is exactly `Maintenance due: weekly`; the context contains `Due, and waiting on the founder's yes rather than a session: snapshot (never run, every 14), release (never run, every 14)`; the screen contains ` · 3 due (yours: snapshot, release)`; 0120's sed gives `3`, equal to `felix maintenance`'s `DUE` lines; stderr has no `newline in string`.
+- **A65** (B36) Three `founder` rows and no other: `snapshot` (ran 28 days ago, every 14), `release` (never, every 14), `audit` (never, every 30). No `Maintenance due:` line; the founder line names `snapshot (28 days since it last ran, every 14), release (never run, every 14), audit (never run, every 30)`; ` · 3 due (yours: snapshot, release, audit)`.
+- **A66** (B37) FX-D, `deny-read.sh` renamed, the hook run by `/bin/bash`: one row, its first field an ISO time within 300 s of now. On a `/bin/bash` that has `EPOCHSECONDS`, as CI's does, this is a control.
+- **A67** (B37, B13) That copy run three times; each row's ISO time (a `-` left as it is) set 20 days back, and the log's modification time too; one more run; then a session start of `demo` on that memory root: `PreToolUse could not judge 1 tool call(s) in the last 7 days`, `The newest, <the fourth row's time>: `, no `at a time not recorded`, ` · calls not judged: 1`. A control where A66 is.
+- **A68** (B38) #425 at one head: `session` 30 h old, `waiting` 20 h old (`waits on a session since <the 30 h row's time>: session: no checkout holds the gated head`), `skip conflicting with main` 19 h, `session` 1 h. The header, one `  #` line, starting `  #425 waits on a session since <the 30 h row's time>`, and ` · PRs waiting: 1`.
+- **A69** (B38) [control] A `waiting` row 2 h old followed, 1 h old, by `skip a draft` (#31), by a `session` row at another head (#32) or by `skip labelled felix:hold` (#33); and #34's `waiting` row 27 h old followed by a `session` row: no header, no `  #` line, no token.
+- **A70** (B38) #41: `session` 10 h, `waiting` 5 h, `refused` 2 h; #42: `skip labelled needs-founder` 10 h, `waiting` 5 h, `founder` 1 h; each PR at one head. The `  #` lines are #41 then #42; ` · PRs waiting: 2`.
+- **A71** (B1, B2, B38) [control] FX-T, PR 31 at `H`: `session` 30 h, `waiting` 25 h, `skip conflicting with main` 19 h, `session` 1 h. A tick adds one `waiting` row, `waits on a session since <the 30 h row's time>: session: no checkout holds the gated head`, notified once, and no `session` or `skip` row. With the `waiting` row 20 h old instead: none, and no notification.
+
+**Left as it is.** On bash 3.2 a B18 row is still `-` (its trap starts no
+process, and bash 3.2 reads no clock without one), so a log holding only such
+rows is still dated by B13's rule: the next timed row below it, else the log's
+modification time. The newest of them is said to be `at a time not recorded`.
+
+**Test disputes.**
+- Parts 1310:116 (case 9, #111) and 1330:182 (#167) expect `ready lander` where
+  they expected `needs-attended session`. §3's "Pinned values this batch
+  changes on purpose" names both lines and that value, and the edit changes only
+  the expected value, leaving each assertion's text. They are pinned changes,
+  not blind-assertion edits: nothing changes.
+- `tests/lib/stuck-pr.sh`'s gh stub answers `api user` and `/user` with the
+  whole body whatever `--jq` asks: `ctl/user.json` when it exists, else
+  `{"login":"fixture","id":1,"type":"User"}`, or fails with `ctl/user.rc`'s
+  status and `ctl/user.err`. That is §3's third pinned change, word for word, in
+  a fixture helper: nothing changes.
+
+**Red.** Run on 2026-10-26 over the built branch (f7494b53 and these
+assertions), parts 1670 and 1680 alone by alone.sh from a fresh temporary
+directory. Under bwk (macOS awk, bash 3.2): 6 of the 8 new assertions fail,
+A64-A68 and A70; A69 and A71 are controls and pass, and every earlier assertion
+of both parts still passes. A64 and A65 read `Felix: p · 3 due` with no
+`Maintenance due:` line, no founder line and `newline in string` on stderr; A66
+reads a `-` time; A67 counts `calls not judged: 4`, the newest `at a time not
+recorded`; A68 and A70 list nothing. With gawk first on PATH, A64 and A65 pass,
+so the table order of B36 is the one the branch already gives; A66 and A67 still
+fail, since this Mac's `/bin/bash` is 3.2 in both modes.

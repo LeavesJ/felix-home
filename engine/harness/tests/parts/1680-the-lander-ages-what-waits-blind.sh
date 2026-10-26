@@ -133,6 +133,22 @@ _lg_land --tick; AGd="$(_ag_has "$(_lg_f waiting 40 7)" ": refused: ")"; AGa="$(
 is "b03 A12: a PR refused at this head and main five hours ago gets a waiting row naming the refusal, and neither that tick nor the next runs felix merge" \
    "$(_ag_wn 40)|$AGd|$AGa|$(_lg_merges)" "1|yes||"
 
+# A71 (review round, written on 2026-10-26 from the contract's section 9 alone)
+# [control]: a run of session and conflicting rows 30 hours long with a waiting row
+# inside it, then the same run with that waiting row 20 hours old.
+_ag_new; _lg_prs "$(_lg_pr 31)"; _lg_green 31
+AGT30="$(_ag_t 108000)"; AGd="waits on a session since $AGT30: session: $AGNC"
+_ag_row "$AGT30" session 31 "$H31" - 1 "$AGNC"; _ag_row "$(_ag_t 90000)" waiting 31 "$H31" - 0 "$AGd"
+_ag_row "$(_ag_t 68400)" skip 31 "$H31" - 0 "conflicting with main"; _ag_row "$(_ag_t 3600)" session 31 "$H31" - 1 "$AGNC"
+_lg_land --tick
+AGa="$(_ag_wn 31)|$(_lg_f waiting 31 7)|$(_ag_osa 'with title "Felix: waiting #31"')|$(_lg_n session 31)|$(_lg_n skip 31)"
+_ag_new; _lg_prs "$(_lg_pr 31)"; _lg_green 31
+_ag_row "$AGT30" session 31 "$H31" - 1 "$AGNC"; _ag_row "$(_ag_t 72000)" waiting 31 "$H31" - 0 "$AGd"
+_ag_row "$(_ag_t 68400)" skip 31 "$H31" - 0 "conflicting with main"; _ag_row "$(_ag_t 3600)" session 31 "$H31" - 1 "$AGNC"
+_lg_land --tick
+is "b03 A71: over a session and conflicting run 30 hours long, a waiting row 25 hours old is followed by one new waiting row since the run's first row, notified once, and no new session or skip row; one 20 hours old by none (control)" \
+   "$AGa|$(_ag_wn 31)|$(_ag_osa 'Felix: waiting')" "2|$AGd|1|2|1|1|0"
+
 # ---- the page (FX-P): the stuck-PR fixture -----------------------------------------
 _sp_build
 AGP="$SP/b03"; mkdir -p "$AGP"; rm -f "$SPK/api.rc" "$SPK/loaded"

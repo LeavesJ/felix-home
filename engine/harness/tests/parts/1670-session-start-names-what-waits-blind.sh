@@ -155,7 +155,7 @@ _nw_start() {   # [SESSION [HOME [REPO [MEMR]]]] -> NWSRC, NWJ (the JSON parsed:
   local id="${1:-b03-start}" h="${2:-$NWSH}" r="${3:-$NWSR}" m="${4:-$NWSM}" o
   o="$( cd "$r" && printf '{"hook_event_name":"SessionStart","source":"startup","session_id":"%s"}' "$id" \
         | env -u CLAUDE_CODE_SESSION_ID -u FELIX_HOME_DIR HOME="$NWSU" FELIX_HOME="$h" FELIX_MEMORY="$m" \
-            PATH="$NWSB:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>/dev/null )"; NWSRC=$?
+            PATH="$NWSB:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" 2>"$NWS/start.err" )"; NWSRC=$?
   printf '%s' "$o" > "$NWS/start.json"
   NWJ="$(python3 -c 'import json, sys
 try: d = json.load(open(sys.argv[1]))
@@ -342,6 +342,89 @@ is "b03 A62: this tree's felix maintenance table gives snapshot the trigger foun
 NWa="$(LC_ALL=C awk 'END { print NR }' "$REAL_HARNESS/hooks/session-start" 2>/dev/null)"; NWb="$(LC_ALL=C awk 'END { print NR }' "$REAL_HARNESS/lib/green-tick.sh" 2>/dev/null)"
 is "b03 A63: hooks/session-start is at most 780 lines and lib/green-tick.sh at most 500 (control)" \
    "$([ "${NWa:-9999}" -le 780 ] && echo ok || echo "$NWa")|$([ "${NWb:-9999}" -le 500 ] && echo ok || echo "$NWb")" "ok|ok"
+
+# ---- review round (A64-A70) ---------------------------------------------------------
+# Written on 2026-10-26 from the contract's section 9 alone (B36-B38), without
+# reading the code under test. A64, A65: two and three founder rows, under
+# whichever awk is first on PATH (BWK refuses a newline inside a -v value). A66,
+# A67: the time of a fault row the hook really writes under this machine's
+# /bin/bash (3.2 on macOS, which has no EPOCHSECONDS; on a bash that has it, as
+# CI's does, both are controls). A68-A70: a wait whose rows change after its
+# waiting row.
+_nw_err() { case "$(cat "$NWS/start.err" 2>/dev/null)" in *"$1"*) printf 'has' ;; *) printf 'none' ;; esac; }
+_nw_iso() {   # TIME -> iso for a UTC ISO time, else what it was
+  case "$1" in
+    $_nw_d$_nw_d$_nw_d$_nw_d-$_nw_d$_nw_d-$_nw_d$_nw_d"T"$_nw_d$_nw_d:$_nw_d$_nw_d:$_nw_d$_nw_d"Z") printf 'iso' ;;
+    *) printf 'other[%s]' "$1" ;;
+  esac
+}
+_nw_near() {   # ISO -> now when it lies within 300 s of now (ISO UTC times order as strings)
+  LC_ALL=C awk -v lo="$(_nw_t 300)" -v t="$1" -v hi="$(_nw_t -300)" 'BEGIN { print (t "" >= lo "" && t "" <= hi "") ? "now" : "not now[" t "]" }'
+}
+rm -f "$NWSP/routes.tsv" "$NWSP/stack.tsv" "$NWSP/maintenance.log"; _nw_clear
+printf 'snapshot\t14\tfounder\tbring the snapshot up\nrelease\t14\tfounder\tcut a release\nweekly\t7\talways\ta cleanup\n' > "$NWSP/maintenance.tsv"
+_nw_start
+NWa="$(printf '%s\n' "$NWC" | LC_ALL=C awk 'index($0, "Maintenance due:") == 1 { print; exit }')"
+NWb="$(printf '%s' "$NWSS" | LC_ALL=C sed -n 's/.*· \([0123456789][0123456789]*\) due.*/\1/p')"
+is "b03 A64: two founder rows and one always row due: Maintenance due names weekly, the founder line names both in table order, the screen says 3 due (yours: snapshot, release), and no awk newline error is printed" \
+   "$NWa|$(_nw_in "${NWFL}snapshot (never run, every 14), release (never run, every 14)")|$(_nw_tok ' · 3 due (yours: snapshot, release)')|$NWb|$(_nw_maint | grep -c '^  DUE ')|$(_nw_err 'newline in string')" \
+   "Maintenance due: weekly|yes|yes|3|3|none"
+
+printf 'snapshot\t14\tfounder\tbring the snapshot up\nrelease\t14\tfounder\tcut a release\naudit\t30\tfounder\tread the audit\n' > "$NWSP/maintenance.tsv"
+NWa="$(( $(date +%s) - 2419260 ))"
+printf 'snapshot\t%s\t%s\n' "$NWa" "$(date -u -r "$NWa" +%Y-%m-%d 2>/dev/null || date -u -d "@$NWa" +%Y-%m-%d)" > "$NWSP/maintenance.log"
+_nw_start
+is "b03 A65: three founder rows due and no other: no Maintenance due line, the founder line names all three in table order with their ages, and the screen says 3 due (yours: snapshot, release, audit)" \
+   "$(_nw_c 'Maintenance due:')|$(_nw_in "${NWFL}snapshot (28 days since it last ran, every 14), release (never run, every 14), audit (never run, every 30)")|$(_nw_tok ' · 3 due (yours: snapshot, release, audit)')|$(_nw_err 'newline in string')" \
+   "0|yes|yes|none"
+rm -f "$NWSP/maintenance.tsv" "$NWSP/maintenance.log"
+
+_nw_fresh; _nw_pre "$NWD/c30"; NWa="$(_nw_fld 1)"
+is "b03 A66: a fault the hook meets under this machine's /bin/bash is written with its UTC ISO time, within five minutes of now, never -" \
+   "$(_nw_one)|$(_nw_iso "$NWa")|$(_nw_near "$NWa")" "0|1|iso|now"
+
+_nw_fresh; _nw_pre "$NWD/c30"; _nw_pre "$NWD/c30"; _nw_pre "$NWD/c30"
+LC_ALL=C awk -F'\t' -v OFS='\t' -v t="$(_nw_t 1728000)" '$1 != "-" { $1 = t } { print }' "$NWF" > "$NWD/faults.old" 2>/dev/null \
+  && cat "$NWD/faults.old" > "$NWF"
+NWa="$(( $(date +%s) - 1728000 ))"
+touch -t "$(date -r "$NWa" +%Y%m%d%H%M.%S 2>/dev/null || date -d "@$NWa" +%Y%m%d%H%M.%S)" "$NWF"
+_nw_pre "$NWD/c30"; NWb="$(LC_ALL=C awk -F'\t' 'NR == 4 { printf "%s", $1 }' "$NWF" 2>/dev/null)"
+_nw_start b03-a67 "$NWH" "$NWR" "$NWM"
+is "b03 A67: three faults the hook wrote twenty days ago and one written now: session start counts one in the last 7 days, gives the newest its recorded time, and the screen says calls not judged: 1" \
+   "$(_nw_rows)|$(_nw_in 'PreToolUse could not judge 1 tool call(s) in the last 7 days')|$(_nw_in "The newest, $NWb: ")|$(_nw_in 'at a time not recorded')|$(_nw_tok ' · calls not judged: 1')" \
+   "4|yes|yes|no|yes"
+
+_nw_clear; NWT30="$(_nw_t 108000)"
+_nw_lrow "$NWT30" session 425 "$NWNC"
+_nw_lrow "$(_nw_t 72000)" waiting 425 "waits on a session since $NWT30: session: $NWNC"
+_nw_lrow "$(_nw_t 68400)" skip 425 "conflicting with main"
+_nw_lrow "$(_nw_t 3600)" session 425 "$NWNC"
+_nw_start
+is "b03 A68: #425, waiting 30 hours, its waiting row 20 hours old and followed at the same head by a conflicting skip and a session row, is listed under the header and the screen says PRs waiting: 1" \
+   "$(_nw_c "$NWHDR")|$(_nw_c '  #')|$(_nw_c "  #425 waits on a session since $NWT30")|$(_nw_tok ' · PRs waiting: 1')" "1|1|1|yes"
+
+_nw_clear; NWa="waits on a session since $NWT30: session: $NWNC"
+_nw_lrow "$(_nw_t 7200)" waiting 31 "$NWa"; _nw_lrow "$(_nw_t 3600)" skip 31 "a draft"
+_nw_lrow "$(_nw_t 7200)" waiting 32 "$NWa"
+printf '%s\tsession\t32\t%s\t-\t1\t%s\n' "$(_nw_t 3600)" "$(_nw_sha 9932)" "$NWNC" >> "$NWSL/ledger.tsv"
+_nw_lrow "$(_nw_t 7200)" waiting 33 "$NWa"; _nw_lrow "$(_nw_t 3600)" skip 33 "labelled felix:hold"
+_nw_lrow "$(_nw_t 97200)" waiting 34 "$NWa"; _nw_lrow "$(_nw_t 3600)" session 34 "$NWNC"
+_nw_start
+is "b03 A69: a waiting row followed by a draft skip, by a row at another head or by a felix:hold skip, and a waiting row 27 hours old followed by a session row, list nothing (control)" \
+   "$(_nw_c "$NWHDR")|$(_nw_c '  #')|$(_nw_lacks 'PRs waiting')" "0|0|none"
+
+_nw_clear; NWT10="$(_nw_t 36000)"
+_nw_lrow "$NWT10" session 41 "$NWNC"
+_nw_lrow "$(_nw_t 18000)" waiting 41 "waits on a session since $NWT10: session: $NWNC"
+_nw_lrow "$(_nw_t 7200)" refused 41 "blocker: the receipt is stale [main 0123abcd]"
+_nw_lrow "$NWT10" skip 42 "labelled needs-founder"
+_nw_lrow "$(_nw_t 18000)" waiting 42 "waits on the founder since $NWT10: skip: labelled needs-founder"
+_nw_lrow "$(_nw_t 3600)" founder 42 "changes projects/felix/risk.tsv"
+_nw_start
+NWa="$(printf '%s\n' "$NWC" | LC_ALL=C awk 'index($0, "  #") == 1 { s = substr($0, 4); sub(/ .*/, "", s); printf "%s%s", c, s; c = " " }')"
+is "b03 A70: a waiting row followed at its head by a refusal (#41) or by a founder row (#42) is still listed, in PR order, and the screen says PRs waiting: 2" \
+   "$NWa|$(_nw_tok ' · PRs waiting: 2')" "41 42|yes"
+_nw_clear
 
 # Discovery that a session start launched is left to finish before the part ends.
 NWk=0; while [ "$NWk" -lt 100 ] && { [ -d "$NWSH/state/discover/.lock" ] || [ -d "$NWH/state/discover/.lock" ]; }; do sleep 0.2; NWk=$((NWk+1)); done

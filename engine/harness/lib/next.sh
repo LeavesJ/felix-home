@@ -286,3 +286,96 @@ $(felix_ledger_unrouted "$proj" 2>/dev/null)
 EOF
   fi
 }
+
+# What nothing answers yet (audit b19, C089).
+#
+# Everything above ranks work somebody can be told to do. The plane also works
+# out what nothing answers: a surface this checkout shows and no probe grounds,
+# an item no stance answers, a candidate obligation proposed and not admitted.
+# Those reached only the commands that compute them (felix probes, procedures,
+# obligations), so a session that never typed one heard "nothing due" over all
+# three. They are not ranked, because none blocks anything and each is a
+# question for a table and not a task; they are listed after the ranked rows.
+#
+# PROJ ROOT TPL: zero to three rows, owner <TAB> what <TAB> do, in that order:
+# probes, procedures, candidates. 0 in every case. Unknown is a row, never a
+# status: a lookup that did not return 0 says it is not known, as the commands it
+# stands for do, and a candidates file that is there and cannot be read says so.
+# It writes nothing and ingests no answer file (felix obligations does, and that
+# writes candidates.tsv): it reads the recorded file.
+#
+# The libraries it asks are sourced when it is, and not when this file is, so
+# that felix_next, which asks for what is loaded, is not changed by loading them.
+_felix_next_named() {
+  local rest="$1" n=0 shown="" nl=$'\n' c
+  while [ -n "$rest" ]; do
+    c="${rest%%$nl*}"
+    if [ "$c" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+    [ -n "$c" ] || continue
+    n=$((n + 1))
+    [ "$n" -gt 5 ] || shown="${shown:+$shown, }$c"
+  done
+  [ "$n" -le 5 ] || shown="$shown, and $((n - 5)) more"
+  printf '%s\t%s' "$n" "$shown"
+}
+
+felix_next_unanswered() {
+  local proj="$1" root="$2" tpl="$3" tab=$'\t' nl=$'\n' list="" adm="" r f c rest out="" here
+  here="$(dirname "${BASH_SOURCE[0]:-$0}")"
+  command -v felix_probes_gaps >/dev/null 2>&1 || . "$here/probes.sh"
+  command -v felix_procedures_gaps >/dev/null 2>&1 || . "$here/procedures.sh"
+  command -v felix_obligation_names >/dev/null 2>&1 || . "$here/obligations.sh"
+  local why='the capabilities this checkout shows or this project declares could not be read'
+  if ! felix_capture list felix_probes_gaps "$proj" "$root"; then
+    printf 'felix\twhich surfaces nothing probes is not known: %s\tfelix probes says the same, and reads them again\n' "$why"
+  elif [ -n "$list" ]; then
+    r="$(_felix_next_named "$list")"
+    printf 'felix\t%s surface(s) nothing probes: %s\tground each in %s/probes.tsv with a probe; felix probes says how\n' "${r%%$tab*}" "${r#*$tab}" "$proj"
+  fi
+  list=""
+  if ! felix_capture list felix_procedures_gaps "$proj" "$root" "$tpl"; then
+    printf 'felix\twhich items nothing answers is not known: %s\tfelix procedures says the same, and reads them again\n' "$why"
+  elif [ -n "$list" ]; then
+    r="$(_felix_next_named "$list")"
+    printf 'felix\t%s item(s) nothing answers: %s\ttake a stance on each in %s/procedures.tsv; felix procedures lists them\n' "${r%%$tab*}" "${r#*$tab}" "$proj"
+  fi
+  if command -v felix_candidates_path >/dev/null 2>&1; then f="$(felix_candidates_path "$proj")"
+  else f="$(felix_mem_dir "$proj")/candidates.tsv"; fi
+  if [ -e "$f" ] || [ -L "$f" ]; then
+    list=""
+    if [ -f "$f" ] && [ -r "$f" ] && felix_capture list env LC_ALL=C awk -F'\t' \
+         '/^[[:space:]]*(#|$)/ { next } $6 != "" && !($6 in seen) { seen[$6] = 1; print $6 }' "$f"; then
+      felix_capture adm felix_obligation_names "$proj" \
+        || { printf 'felix\twhether candidate obligations wait on a person is not known: %s/obligations.tsv could not be read whole\tfelix obligations reads it again\n' "$proj"; return 0; }
+      rest="$list"
+      while [ -n "$rest" ]; do
+        c="${rest%%$nl*}"
+        if [ "$c" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+        [ -n "$c" ] || continue
+        case "$nl$adm$nl" in *"$nl$c$nl"*) continue ;; esac
+        out="$out$c$nl"
+      done
+      if [ -n "$out" ]; then
+        r="$(_felix_next_named "$out")"
+        printf 'founder\t%s candidate obligation(s) proposed and not admitted: %s\tfelix obligations lists them; a person admits one by copying its row into %s/obligations.tsv\n' "${r%%$tab*}" "${r#*$tab}" "$proj"
+      fi
+    else
+      printf 'felix\twhether candidate obligations wait on a person is not known: %s could not be read\tfelix obligations reads it again\n' "$f"
+    fi
+  fi
+  return 0
+}
+
+# The section felix next prints under its ranked rows: a blank line, the heading,
+# and each row as the ranked ones are printed. Nothing when there is nothing.
+felix_next_unanswered_render() {
+  local rows owner what do_
+  rows="$(felix_next_unanswered "$@")"
+  [ -n "$rows" ] || return 0
+  printf '\n  what nothing answers yet\n'
+  printf '%s\n' "$rows" | while IFS=$'\t' read -r owner what do_; do
+    [ -n "${owner:-}" ] || continue
+    printf '    %-8s %s\n' "$owner" "$what"
+    printf '    %-8s   %s\n' "" "$do_"
+  done
+}

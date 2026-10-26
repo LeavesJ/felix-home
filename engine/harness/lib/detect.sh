@@ -14,42 +14,233 @@
 # that a gate's meaning has to be deliberate. `felix doctor` shows the drift;
 # adopting it is a decision someone makes.
 
-# Search the dependency manifests of any ecosystem for a token.
-_felix_dep_grep() {
-  local root="$1" pat="$2" f
-  # The globs are quoted here so they reach the inner loop whole and expand
-  # against the root there. Bare, they expanded against the current directory
-  # first: run from a folder holding requirements/dev.txt, f became that name,
-  # the root's requirements/prod.txt was never read, and every probe below
-  # missed what it named.
+# The dependency names that say a capability, by the kind of manifest they are
+# read in: kind, capability, then the names (audit b19, C090). A name in a JSON
+# manifest is a key, in a Gemfile a gem line, in a Cargo manifest the first token
+# of a line, in a Python manifest a package name bounded on both sides, and in the
+# others (go.mod, pom.xml and build.gradle, *.csproj) a substring. They add to the
+# tokens felix_detect greps for in every manifest; they take nothing away.
+FELIX_DEP_NAMES='npm api koa hono @nestjs/core @hapi/hapi
+npm database pg postgres mysql2 mongodb mongoose sequelize knex better-sqlite3 kysely
+npm auth passport next-auth @auth/core lucia jsonwebtoken
+npm ratelimit express-rate-limit rate-limiter-flexible @upstash/ratelimit
+npm frontend react vue svelte @angular/core next nuxt solid-js preact astro @sveltejs/kit
+composer api laravel/framework symfony/framework-bundle slim/slim
+composer database doctrine/orm illuminate/database
+composer auth laravel/sanctum laravel/passport
+gem api rails sinatra grape hanami
+gem database pg mysql2 sqlite3 activerecord sequel mongoid
+gem auth devise omniauth rodauth
+gem ratelimit rack-attack
+cargo api axum actix-web rocket warp
+cargo database sqlx diesel sea-orm tokio-postgres
+cargo auth jsonwebtoken
+cargo ratelimit governor tower_governor
+gomod api github.com/gin-gonic/gin github.com/labstack/echo github.com/go-chi/chi github.com/gofiber/fiber github.com/gorilla/mux
+gomod database github.com/jackc/pgx github.com/lib/pq gorm.io/gorm github.com/jmoiron/sqlx go.mongodb.org/mongo-driver github.com/go-sql-driver/mysql
+gomod auth github.com/golang-jwt/jwt
+gomod ratelimit github.com/ulule/limiter github.com/didip/tollbooth
+jvm api spring-boot-starter-web
+jvm database spring-boot-starter-data-jpa spring-boot-starter-jdbc hibernate-core
+jvm auth spring-boot-starter-security
+jvm ratelimit bucket4j resilience4j-ratelimiter
+cs api Microsoft.NET.Sdk.Web
+cs database EntityFrameworkCore Npgsql Dapper
+cs auth Microsoft.AspNetCore.Authentication Microsoft.AspNetCore.Identity
+cs ratelimit AspNetCoreRateLimit
+py database psycopg psycopg2 psycopg2-binary asyncpg pymongo peewee sqlmodel
+py auth authlib django-allauth flask-login pyjwt
+py ratelimit slowapi flask-limiter django-ratelimit'
+
+# Every path the checkout shows, one to a line and relative to ROOT, without
+# the vendored trees (see _felix_select). In a checkout holding .git, what git
+# lists as tracked, or untracked and not ignored; in a directory that is none,
+# every regular file. 2 when it could not be listed. Git that fails is not
+# answered with find: a checkout that cannot be listed has not been read.
+_felix_files() {
+  if [ -e "$1/.git" ] || [ -L "$1/.git" ]; then
+    git -C "$1" -c core.quotepath=off ls-files --cached --others --exclude-standard
+  else
+    ( cd "$1" 2>/dev/null || exit 2
+      find . \( -name node_modules -o -name vendor -o -name third_party -o -name .venv \
+             -o -name venv -o -name bower_components -o -name .git \) -prune -o -type f -print \
+        | LC_ALL=C sed 's#^\./##'
+      set -- "${PIPESTATUS[@]}"
+      [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ] )
+  fi
+}
+
+# What the listing says, in one pass over it (one awk, whatever the size of the
+# checkout): M and a path for each manifest below the root; P, a capability and a
+# path for a file that is evidence by its name (at most three paths for each
+# capability, since the shell asks whether each exists); and A and the number of
+# web assets. A path with a component node_modules, vendor, third_party, .venv,
+# venv, bower_components or .git below the root is skipped: it is somebody
+# else's tree, and a vendored dependency tree must not manufacture a frontend, an
+# api or a deploy target. Root files are the filesystem's (_felix_manifests, _felix_any).
+# Non-zero when the listing or the awk did not complete.
+_felix_select() {
+  _felix_files "$1" | LC_ALL=C awk '
+    function emit(cap, p) { if (cnt[cap]++ < 3) print "P\t" cap "\t" p }
+    BEGIN {
+      n = split("node_modules vendor third_party .venv venv bower_components .git", w, " ")
+      for (i = 1; i <= n; i++) skip[w[i]] = 1
+      n = split("pyproject.toml requirements.txt setup.cfg Pipfile package.json Cargo.toml go.mod Gemfile composer.json build.gradle build.gradle.kts pom.xml", w, " ")
+      for (i = 1; i <= n; i++) man[w[i]] = 1
+      n = split("docker-compose.yml docker-compose.yaml Procfile fly.toml vercel.json render.yaml railway.json", w, " ")
+      for (i = 1; i <= n; i++) dep[w[i]] = 1
+    }
+    { nc = split($0, c, "/"); b = c[nc]
+      if (nc > 1) for (i = 1; i <= nc; i++) if (c[i] in skip) next
+      if (tolower(b) ~ /\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$/) assets++
+      if (nc == 1) next
+      if (((b in man) || b ~ /\.csproj$/ || (b ~ /\.txt$/ && c[nc - 1] == "requirements")) && !(nc == 2 && c[1] == "requirements")) print "M\t" $0
+      if (b == "Dockerfile" || b ~ /^Dockerfile\./ || (b in dep)) emit("deploy", $0)
+      if (b == ".env.example" || b == ".env.sample") emit("secrets", $0)
+      if (b == "Cargo.toml") emit("rust", $0)
+      if (b == "alembic.ini" || (b == "schema.prisma" && c[nc - 1] == "prisma")) emit("database", $0)
+      for (i = 1; i < nc; i++) if (c[i] == "migrations" || (c[i] == "db" && c[i + 1] == "migrate" && i + 1 < nc)) { emit("database", $0); break }
+    }
+    END { print "A\t" assets + 0 }'
+  set -- "${PIPESTATUS[@]}"
+  [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ]
+}
+
+# The lines of STRING in _fm_lines. Split with IFS and noglob confined to this
+# function, and no here-document: a temporary file that cannot be written is
+# nothing read.
+_felix_lines() {
+  local IFS=$'\n' f=1
+  case $- in *f*) f=0 ;; esac
+  set -f
+  _fm_lines=( $1 )
+  [ "$f" -eq 0 ] || set +f
+}
+
+# What the checkout holds that detection reads, into the caller's variables:
+# _fm_all, the manifests, and the same by kind (_fm_npm _fm_composer _fm_gem
+# _fm_cargo _fm_gomod _fm_jvm _fm_cs _fm_py); _fm_found, the capabilities some
+# file's name says, one to a line with a newline after each; _fm_assets, the
+# number of web assets. 2 when the checkout could not be listed.
+#
+# The root is read on the filesystem, as it always was (an untracked or an
+# ignored manifest there counts); below it, from the listing. The globs are
+# quoted here so they reach the inner loop whole and expand against the root
+# there. Bare, they expanded against the current directory first: run from a
+# folder holding requirements/dev.txt, the root's requirements/prod.txt was never
+# read. The root is quoted and the pattern is not, since an unquoted root splits
+# on IFS and a checkout whose path holds a space matched nothing at all.
+_felix_manifests() {
+  local root="$1" f m line kind rest cap p sel="" rc=0 nl=$'\n' tab=$'\t'
+  _fm_all=(); _fm_npm=(); _fm_composer=(); _fm_gem=(); _fm_cargo=(); _fm_gomod=(); _fm_jvm=(); _fm_cs=(); _fm_py=()
+  _fm_found=""; _fm_assets=0
   for f in pyproject.toml requirements.txt 'requirements/*.txt' setup.cfg Pipfile \
            package.json Cargo.toml go.mod Gemfile composer.json build.gradle \
-           pom.xml '*.csproj'; do
-    # The root is quoted and the pattern is not. An unquoted root splits on
-    # IFS, so a checkout whose path holds a space matched nothing at all.
+           build.gradle.kts pom.xml '*.csproj'; do
     # shellcheck disable=SC2086
     for m in "$root"/$f; do
-      [ -f "$m" ] || continue
-      LC_ALL=C grep -qiE "$pat" "$m" && return 0
+      [ -f "$m" ] && _fm_all[${#_fm_all[@]}]="$m"
     done
   done
-  return 1
+  felix_capture sel _felix_select "$root" || rc=2
+  _felix_lines "$sel"
+  for line in ${_fm_lines[@]+"${_fm_lines[@]}"}; do
+    kind="${line%%$tab*}"; rest="${line#*$tab}"
+    case "$kind" in
+      M) [ -f "$root/$rest" ] && _fm_all[${#_fm_all[@]}]="$root/$rest" ;;
+      P) cap="${rest%%$tab*}"; p="${rest#*$tab}"
+         case "$nl$_fm_found" in *"$nl$cap$nl"*) continue ;; esac
+         [ -f "$root/$p" ] && _fm_found="$_fm_found$cap$nl" ;;
+      A) _fm_assets="$rest" ;;
+    esac
+  done
+  for p in ${_fm_all[@]+"${_fm_all[@]}"}; do
+    case "${p##*/}" in
+      package.json)  _fm_npm[${#_fm_npm[@]}]="$p" ;;
+      composer.json) _fm_composer[${#_fm_composer[@]}]="$p" ;;
+      Gemfile)       _fm_gem[${#_fm_gem[@]}]="$p" ;;
+      Cargo.toml)    _fm_cargo[${#_fm_cargo[@]}]="$p" ;;
+      go.mod)        _fm_gomod[${#_fm_gomod[@]}]="$p" ;;
+      pom.xml|build.gradle|build.gradle.kts) _fm_jvm[${#_fm_jvm[@]}]="$p" ;;
+      *.csproj)      _fm_cs[${#_fm_cs[@]}]="$p" ;;
+      *)             _fm_py[${#_fm_py[@]}]="$p" ;;
+    esac
+  done
+  return "$rc"
 }
 
-# A web surface exists whether or not npm was ever run there. Counted from
-# tracked files so a vendored dependency tree cannot manufacture a frontend.
-_felix_frontend_assets() {
-  local root="$1" n
-  n="$( { git -C "$root" ls-files 2>/dev/null || find "$root" -type f 2>/dev/null; } \
-        | grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
-  [ "${n:-0}" -ge "${FELIX_FRONTEND_MIN:-3}" ]
+# Search the dependency manifests of any ecosystem, at any depth, for a token.
+# Until audit b19 (C090) only the root's were read, so a monorepo whose service sat
+# in apps/api showed no api, database or billing surface. Inside felix_detect it
+# reads the list that call made; alone it makes its own. 0 when a manifest
+# matches, 1 when none does, and 2 when the checkout could not be listed or a
+# manifest could not be read.
+_felix_dep_grep() {
+  local root="$1" pat="$2"
+  if [ "${_fm_live:-}" != "$root" ]; then
+    local _fm_all=() _fm_npm=() _fm_composer=() _fm_gem=() _fm_cargo=() _fm_gomod=() _fm_jvm=() _fm_cs=() _fm_py=() _fm_lines=() _fm_found="" _fm_assets=0
+    _felix_manifests "$root" || return 2
+  fi
+  [ "${#_fm_all[@]}" -gt 0 ] || return 1
+  LC_ALL=C grep -qiE -- "$pat" "${_fm_all[@]}"
 }
 
+# felix_detect's two small helpers, which write to its variables: a capability
+# found (once, whatever found it), and the status of a lookup that says whether it
+# was found (0), was not (1), or could not be asked (anything else).
+_felix_add() {
+  case "$_fd_nl$_fd_found" in *"$_fd_nl$1$_fd_nl"*) ;; *) _fd_found="$_fd_found$1$_fd_nl" ;; esac
+}
+_felix_hit() {
+  case "$2" in 0) _felix_add "$1" ;; 1) ;; *) _fd_rc=2 ;; esac
+}
+
+# The names of FELIX_DEP_NAMES, in the manifests of each kind that were found.
+# Each (kind, capability) is one grep over all of that kind's files, so the
+# processes started do not grow with the number of manifests.
+_felix_dep_names() {
+  local IFS=' ' nl=$'\n' rest="$FELIX_DEP_NAMES" line cls cap names n re i fx st
+  while [ -n "$rest" ]; do
+    line="${rest%%$nl*}"
+    if [ "$line" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+    cls="${line%% *}"; line="${line#* }"; cap="${line%% *}"; names="${line#* }"
+    case "$cls" in
+      npm|composer) set -- ${_fm_npm[@]+"${_fm_npm[@]}"}
+                    [ "$cls" = npm ] || set -- ${_fm_composer[@]+"${_fm_composer[@]}"} ;;
+      gem)   set -- ${_fm_gem[@]+"${_fm_gem[@]}"} ;;
+      cargo) set -- ${_fm_cargo[@]+"${_fm_cargo[@]}"} ;;
+      gomod) set -- ${_fm_gomod[@]+"${_fm_gomod[@]}"} ;;
+      jvm)   set -- ${_fm_jvm[@]+"${_fm_jvm[@]}"} ;;
+      cs)    set -- ${_fm_cs[@]+"${_fm_cs[@]}"} ;;
+      py)    set -- ${_fm_py[@]+"${_fm_py[@]}"} ;;
+    esac
+    [ "$#" -gt 0 ] || continue
+    case "$cls" in
+      gomod|jvm|cs)
+        fx=(); for n in $names; do fx[${#fx[@]}]=-e; fx[${#fx[@]}]="$n"; done
+        LC_ALL=C grep -qiF "${fx[@]}" -- "$@" ;;
+      *)
+        re="${names// /|}"
+        case "$cls" in
+          npm|composer) re="\"($re)\"[[:space:]]*:" ;;
+          gem)   re="^[[:space:]]*gem[[:space:]]+['\"]($re)['\"]" ;;
+          cargo) re="^[[:space:]]*($re)[[:space:]]*[=.]" ;;
+          py)    re="(^|[^[:alnum:]._-])(${re//-/[-_]})([^[:alnum:]._-]|\$)" ;;
+        esac
+        if [ "$cls" = py ]; then LC_ALL=C grep -qiE -- "$re" "$@"; else LC_ALL=C grep -qE -- "$re" "$@"; fi ;;
+    esac
+    st=$?
+    _felix_hit "$cap" "$st"
+  done
+}
+
+# True when ROOT shows evidence of any of the patterns, by existence on the
+# filesystem. The root only: what sits below it is the listing's.
 _felix_any() {
   local root="$1"; shift
-  local p
+  local p m
   for p in "$@"; do
-    # Quoted root, bare pattern, as in _felix_dep_grep.
+    # Quoted root, bare pattern, as in _felix_manifests.
     # shellcheck disable=SC2086
     for m in "$root"/$p; do
       [ -e "$m" ] && return 0
@@ -59,47 +250,64 @@ _felix_any() {
 }
 
 # Print one capability name per line for everything the checkout shows evidence of.
+#
+# Each is printed once, in a fixed order. 0 when the checkout was listed and every
+# manifest read, and 2 when it was not, in which case what is printed is not
+# the whole and a caller that believes it has made a claim from a part (audit b19,
+# C060): felix_undeclared, _felix_capability_union and felix_procedures_items
+# all read the status. The status is explicit because the last test's is not.
 felix_detect() {
-  local root="${1:-$PWD}"
+  local root="${1:-$PWD}" _fd_found="" _fd_rc=0 _fd_nl=$'\n' c line
+  local _fm_all=() _fm_npm=() _fm_composer=() _fm_gem=() _fm_cargo=() _fm_gomod=() _fm_jvm=() _fm_cs=() _fm_py=() _fm_lines=() _fm_found="" _fm_assets=0 _fm_live=""
+  _felix_manifests "$root" || _fd_rc=2
+  _fm_live="$root"
+  _felix_lines "$_fm_found"
+  for line in ${_fm_lines[@]+"${_fm_lines[@]}"}; do _felix_add "$line"; done
 
   _felix_any "$root" ".github/workflows/*.yml" ".github/workflows/*.yaml" \
-                     ".gitlab-ci.yml" "azure-pipelines.yml" && echo ci
+                     ".gitlab-ci.yml" "azure-pipelines.yml" && _felix_add ci
 
-  _felix_any "$root" "Dockerfile" "Dockerfile.*" "docker-compose.yml" "Procfile" \
+  _felix_any "$root" "Dockerfile" "Dockerfile.*" "docker-compose.yml" "docker-compose.yaml" "Procfile" \
                      "fly.toml" "vercel.json" "render.yaml" "railway.json" \
-                     "app.yaml" "k8s" "kubernetes" "helm" && echo deploy
+                     "app.yaml" "k8s" "kubernetes" "helm" && _felix_add deploy
 
-  _felix_any "$root" "*.tf" "terraform" "infra/*.tf" "pulumi.yaml" && echo iac
+  _felix_any "$root" "*.tf" "terraform" "infra/*.tf" "pulumi.yaml" && _felix_add iac
 
-  _felix_dep_grep "$root" "sentry|opentelemetry|datadog" && echo observability
-  _felix_dep_grep "$root" "\"?stripe\"?" && echo billing
-  _felix_dep_grep "$root" "playwright|cypress|selenium|puppeteer" && echo e2e
-  _felix_dep_grep "$root" "supabase|prisma|alembic|sqlalchemy|drizzle|typeorm" && echo database
-  _felix_dep_grep "$root" "fastapi|flask|django|express|next|fastify|starlette" && echo api
+  _felix_dep_grep "$root" "sentry|opentelemetry|datadog"; _felix_hit observability $?
+  _felix_dep_grep "$root" "\"?stripe\"?"; _felix_hit billing $?
+  _felix_dep_grep "$root" "playwright|cypress|selenium|puppeteer"; _felix_hit e2e $?
+  _felix_dep_grep "$root" "supabase|prisma|alembic|sqlalchemy|drizzle|typeorm"; _felix_hit database $?
+  _felix_dep_grep "$root" "fastapi|flask|django|express|next|fastify|starlette"; _felix_hit api $?
 
   _felix_any "$root" "migrations" "supabase/migrations" "alembic.ini" \
-                     "prisma/schema.prisma" && echo database
+                     "prisma/schema.prisma" && _felix_add database
 
   # An application built on a model SDK is a different kind of thing from an
   # application that happens to call an API, and none of the probes above can
   # tell. Prompts get pinned, outputs get graded, cost and refusal are failure
   # modes — none of which the ordinary api/tests capabilities imply.
   _felix_dep_grep "$root" \
-    "anthropic|openai|langchain|llama-?index|mistralai|cohere|ollama|google-generativeai|litellm|instructor|dspy|transformers" \
-    && echo llm
+    "anthropic|openai|langchain|llama-?index|mistralai|cohere|ollama|google-generativeai|litellm|instructor|dspy|transformers"; _felix_hit llm $?
 
-  _felix_any "$root" "Cargo.toml" && echo rust
+  _felix_any "$root" "Cargo.toml" && _felix_add rust
 
-  # `package.json` alone was the entire frontend test, which misses every web
-  # surface served by a backend: a Python app with templates and a static
-  # directory has a frontend by any definition a designer would recognise, and
-  # Felix called it a backend because npm had never been run there.
-  _felix_any "$root" "package.json" && echo frontend
-  _felix_frontend_assets "$root" && echo frontend
+  _felix_dep_names
 
-  _felix_any "$root" "tests" "test" "spec" "__tests__" && echo tests
+  # A web surface exists whether or not npm was ever run there, and a package.json
+  # alone is not one: it must name a frontend library (_felix_dep_names), or the
+  # checkout lists FELIX_FRONTEND_MIN web assets (a vendored dependency tree
+  # cannot manufacture a frontend). A Python app with templates and a static
+  # directory has a frontend by any definition a designer would recognise.
+  [ "${_fm_assets:-0}" -ge "${FELIX_FRONTEND_MIN:-3}" ] && _felix_add frontend
 
-  _felix_any "$root" ".env.example" ".env.sample" && echo secrets
+  _felix_any "$root" "tests" "test" "spec" "__tests__" && _felix_add tests
+
+  _felix_any "$root" ".env.example" ".env.sample" && _felix_add secrets
+
+  for c in ci deploy iac observability billing e2e database api auth ratelimit llm rust frontend tests secrets; do
+    case "$_fd_nl$_fd_found" in *"$_fd_nl$c$_fd_nl"*) printf '%s\n' "$c" ;; esac
+  done
+  return "$_fd_rc"
 }
 
 # Capabilities a project has declared it knows about, one per line.
@@ -219,24 +427,23 @@ felix_declared_into() {
 # The capabilities this checkout shows and the project declares, one to a line,
 # sorted and without repeats: ROOT and LIST, which is the declared list as
 # felix_declared_into read it. 0 when the pipeline that made it ran whole, and
-# nonzero when either half of it did not, a sort that could not run being as much
-# a union that was not made as a list that could not be read. Captured by
-# felix_capture, which is what makes the status mean something. Until 2026-10-01
-# each caller made this union itself, in a group piped to sort whose status
-# nobody asked, so a sort that could not run was a list with nothing in it.
+# nonzero when either half of it did not: a sort that could not run is as much a
+# union that was not made as a list that could not be read, and so is detection
+# that did not return 0, since what it printed is then part of the checkout
+# (audit b19, C060; felix_detect says so with 2). Captured by felix_capture,
+# which is what makes the status mean something. Until 2026-10-01 each caller
+# made this union itself, in a group piped to sort whose status nobody asked, so
+# a sort that could not run was a list with nothing in it.
 #
 # The declared half is printed first, so a felix_detect that exits inside the
-# group cannot take it along. The group ends in `:` because felix_detect's own
-# status is its last test's, 1 for a checkout with no .env.example, and says
-# nothing about whether it ran. A fork that fails inside the group (felix_detect's
+# group cannot take it along. A fork that fails inside the group (felix_detect's
 # EAGAIN) is another thing: on bash 3.2 it kills the group's subshell with 128, so
 # the pipeline's status is nonzero, the union is not made, and its readers say the
-# declared list could not be read, the one sentence they have for it. (Until
-# 2026-10-08 this said that failure reads as nothing detected, as it did; here it
-# does not.) The statuses are taken whole into the positional parameters, which
-# pipefail does not change and the first test would reset.
+# declared list could not be read, the one sentence they have for it. The
+# statuses are taken whole into the positional parameters, which pipefail does
+# not change and the first test would reset.
 _felix_capability_union() {
-  { [ -z "$2" ] || printf '%s\n' "$2"; felix_detect "$1" 2>/dev/null; :; } | LC_ALL=C sort -u
+  { [ -z "$2" ] || printf '%s\n' "$2"; felix_detect "$1" 2>/dev/null || exit 2; } | LC_ALL=C sort -u
   set -- "${PIPESTATUS[@]}"
   [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ]
 }
@@ -244,20 +451,23 @@ _felix_capability_union() {
 # Present in the checkout but never declared. This is the drift worth surfacing.
 #
 # 0 with the surfaces on stdout, and 2 with nothing printed when the declared
-# list could not be read. Until 2026-10-01 an unread list subtracted nothing, so
+# list could not be read, or when detection could not be made whole (audit b19,
+# C060: a checkout git could not list has not been read, and what it showed is
+# not the drift). Until 2026-10-01 an unread list subtracted nothing, so
 # every detected surface was undeclared drift and session start adopted each one,
 # capabilities that may already have been declared. The list is read once, in
 # this shell, before the pipeline, and what it holds is skipped by a case, the
 # way _felix_cap_active asks, where felix_has_line's here-document is a
 # temporary file on bash 3.2. A process substitution would hand a loop an empty
-# file when its fork failed, so there is none. The detected half, `felix_detect |
-# sort -u`, is the felix_detect lookup, left as it was: a sort that fails there
-# reads as less drift, unlike in _felix_capability_union, where a sort that could
-# not run is a union that was not made.
+# file when its fork failed, so there is none. The detected half is captured
+# too, and sorted by the loop's own producer: a sort that fails there reads as
+# less drift, unlike in _felix_capability_union, where a sort that could not run
+# is a union that was not made.
 felix_undeclared() {
-  local root="$1" proj="$2" declared nl=$'\n' cap
+  local root="$1" proj="$2" declared det="" nl=$'\n' cap
   felix_declared_into declared "$proj" || return 2
-  felix_detect "$root" | LC_ALL=C sort -u | while IFS= read -r cap; do
+  felix_capture det felix_detect "$root" || return 2
+  printf '%s\n' "$det" | LC_ALL=C sort -u | while IFS= read -r cap; do
     [ -n "$cap" ] || continue
     case "$nl$declared$nl" in *"$nl$cap$nl"*) ;; *) printf '%s\n' "$cap" ;; esac
   done
@@ -282,87 +492,6 @@ felix_guess_gate() {
   echo ""
 }
 
-# Scripts in the checkout that look like a gate and are not the gate this
-# project declares.
-#
-# From a real failure. An untracked, day-stale, strictly weaker copy of a gate
-# sat inside a governed repo, and it was the file physically in front of any
-# session that looked around. A session ran it all day and reported green from a
-# gate missing a check. It found out only because the completion gate nagged it
-# into running the real one.
-#
-# A gate with a lookalike is not a gate. It is a coin flip on which file
-# somebody reaches for, and the wrong side of the flip reports success — the
-# same silent shape as a check that passes by finding nothing.
-#
-# Deliberately narrow. Executable only, because a broad match flags every note
-# with the word in its name. Reports and never deletes: a rival can be
-# legitimate, a fast subset a person runs by hand, and Felix does not get to
-# decide that.
-_felix_rival_gates() {
-  local root="$1" proj="$2" gate="$3" state f base note
-  { git -C "$root" ls-files            2>/dev/null | sed 's/^/tracked\t/'
-    git -C "$root" ls-files --others --exclude-standard 2>/dev/null \
-      | sed 's/^/untracked\t/'
-  } | while IFS=$'\t' read -r state f; do
-      [ -n "${f:-}" ] || continue
-      base="${f##*/}"
-      # Two ways a file here is a lookalike. Its name says it gates something,
-      # or Felix already holds the authoritative copy under that exact name.
-      #
-      # The second is the real rule and was learned the day the first one was
-      # not enough: deleting the stale scripts/gate.sh left scripts/prepush.sh
-      # sitting beside it, an untracked copy of a file Felix holds, identical
-      # that morning and free to drift by the afternoon. Matching on the word
-      # "gate" could never have seen it. The name was never the point.
-      held=0; [ -f "$proj/$base" ] && held=1
-      if [ "$held" -eq 0 ]; then
-        case "$base" in *gate*|*verify*|*check*) ;; *) continue ;; esac
-      fi
-      [ -x "$root/$f" ] || continue
-
-      # The declared gate itself, when the project stores it in Felix's home and
-      # the home happens to be this checkout. Same file, not a rival.
-      [ "$root/$f" -ef "$proj/$gate" ] 2>/dev/null && continue
-
-      # Felix's own per-project storage holds every governed project's gate. In
-      # any checkout that IS Felix, those are its records, not rivals.
-      #
-      # Tested on the repository, not on the path. This was a prefix match
-      # against $FELIX_HOME_DIR, which is true only when standing in the home
-      # itself: from a worktree of Felix the root is elsewhere, the prefix never
-      # matched, and doctor reported every governed project's stored gate as a
-      # rival — then called one of them "differs from the copy Felix holds",
-      # having compared it against another project's file on a shared basename.
-      case "$f" in
-        projects/*) felix_same_repo "$root" "${FELIX_HOME_DIR:-/nonexistent}" && continue ;;
-      esac
-
-      # A project may declare a repo-relative command as its gate. That path is
-      # the gate, so naming it here would report the gate as its own rival.
-      case " $gate " in *"$f"*) continue ;; esac
-
-      # Compared against whichever copy Felix actually holds: the file of the
-      # same name when there is one, otherwise the declared gate.
-      local mine=""
-      [ "$held" -eq 1 ] && mine="$proj/$base"
-      [ -z "$mine" ] && [ -x "$proj/$gate" ] && mine="$proj/$gate"
-
-      if [ -n "$mine" ]; then
-        if cmp -s "$root/$f" "$mine"; then
-          note="identical today, and nothing keeps it that way"
-        else
-          note="differs from the copy Felix holds"
-        fi
-      else
-        note="this project gates with a command, not a file"
-      fi
-      printf '%s\t%s\t%s\n' "$state" "$f" "$note"
-    done
-}
-
-# owner/name for a GitHub checkout, empty otherwise.
-felix_repo_slug() {
-  (cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null) \
-    | sed -E 's#.*github\.com[:/]##; s#\.git$##'
-}
+# Moved out for size, and sourced here so that whoever has detect.sh has them.
+command -v _felix_rival_gates >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/rivals.sh"
+command -v felix_repo_slug >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/slug.sh"

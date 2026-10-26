@@ -49,19 +49,23 @@ felix_procedures_moments() {
 # of them matter.
 #
 # 0 with the items on stdout, and 2 with nothing printed when the declared list
-# could not be read, or when the pipeline that sorts the items did not run whole.
+# could not be read, when detection did not return 0 (audit b19, C060: a checkout
+# that could not be listed or read has not been seen, and its items are a part),
+# or when the pipeline that sorts the items did not run whole.
 # Until 2026-10-01 an unread list dropped the declared capabilities from the
 # items, so the gap list shrank, a stance on one was an orphan, and the report
 # could say every item had a stance. The list is read once with
 # felix_declared_into and walked in this shell, where a here-document is a
 # temporary file on bash 3.2 and one that cannot be written reads as nothing
-# declared. The group ends in `:` because the detect loop's and the mistakes
-# log's own statuses are other lookups and are left as they were; what is asked
-# of the pipeline is that the group and the sort both ran, and their statuses are
-# taken whole before the first test resets them.
+# declared; detection is captured the same way and walked the same way. The
+# group ends in `:` because the mistakes log's own status is another lookup and
+# is left as it was; what is asked of the pipeline is that the group and the
+# sort both ran, and their statuses are taken whole before the first test
+# resets them.
 felix_procedures_items() {
-  local proj="$1" root="${2:-}" mem cap declared="" rest nl=$'\n'
+  local proj="$1" root="${2:-}" mem cap declared="" det="" rest nl=$'\n'
   felix_declared_into declared "$proj" || return 2
+  [ -z "$root" ] || felix_capture det felix_detect "$root" 2>/dev/null || return 2
   {
     # Both what the tree shows and what the project declared. The first
     # version read the declared file alone, which is a curated snapshot — so
@@ -70,16 +74,13 @@ felix_procedures_items() {
     # for half of them. The union is deliberate in the other direction too: a
     # capability somebody declared that the tree no longer shows is still
     # something to answer for, not something to forget.
-    [ -n "$root" ] && felix_detect "$root" 2>/dev/null | while IFS= read -r cap; do
-      [ -n "$cap" ] || continue
-      printf 'capability:%s\n' "$cap"
-    done
-    rest="$declared"
-    while [ -n "$rest" ]; do
-      cap="${rest%%$nl*}"
-      if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
-      [ -n "$cap" ] || continue
-      printf 'capability:%s\n' "$cap"
+    for rest in "$det" "$declared"; do
+      while [ -n "$rest" ]; do
+        cap="${rest%%$nl*}"
+        if [ "$cap" = "$rest" ]; then rest=""; else rest="${rest#*$nl}"; fi
+        [ -n "$cap" ] || continue
+        printf 'capability:%s\n' "$cap"
+      done
     done
     mem="$(felix_mem_dir "$proj")"
     if [ -f "$mem/mistakes.log" ]; then

@@ -841,9 +841,9 @@ cmd_gate() {
   # this gate already holds for a missing scanner — announced, never silent.
   # felix probes and the merge boundary still refuse the absent table; the
   # gate declines to be the third place that turns a new project red on day one.
-  local pout prc
+  local pout prc pnote="$(mktemp "${tmpd%/}/felix-probes.XXXXXX" 2>/dev/null)"
   if [ -f "$proj/probes.tsv" ]; then
-    pout="$(cmd_probes --gate 2>&1)"; prc=$?
+    pout="$(FELIX_PROBES_NOTES="$pnote" cmd_probes --gate 2>&1)"; prc=$?
     if [ "$prc" -eq 0 ]; then
       printf '  %-18s ok\n' probes | tee -a "$log"
       printf '                     %s found, %s empty, %s not applicable\n' \
@@ -866,6 +866,8 @@ cmd_gate() {
     printf '  %-18s skipped (no probes.tsv for %s; felix probes says how to write one)\n' \
       probes "$(basename "$proj")"
   fi
+  # Under the counts, never in the log the recorder reads; removes the file (lib/facts.sh).
+  felix_probes_notes_print "$pnote" "${prc:-1}"
 
   # qualified: does each check that claims to catch something still catch it?
   #
@@ -2182,8 +2184,9 @@ cmd_next() {
   # command prints names the ref it actually used.
   base="$(felix_base_ref "$root" "$base" 2>/dev/null || printf '%s' "$base")"
 
-  local rows; rows="$(felix_next "$proj" "$FELIX_HOME_DIR" "$root" "$base")"
-  if [ -z "$rows" ]; then
+  local rows un; rows="$(felix_next "$proj" "$FELIX_HOME_DIR" "$root" "$base")"
+  un="$(felix_next_unanswered_render "$proj" "$root" "$SCRIPT_DIR/templates")"
+  if [ -z "$rows" ] && [ -z "$un" ]; then
     printf 'nothing due for %s\n\n' "$(basename "$proj")"
     printf 'The gate is green on this tree, nothing escapes it, every tool a\n'
     printf 'route names is reachable, and no upkeep is past its cadence.\n'
@@ -2213,6 +2216,8 @@ cmd_next() {
   done <<EOF
 $rows
 EOF
+  [ -z "$un" ] || printf '%s\n' "$un"
+  [ "$n" -gt 0 ] || { printf '\nNothing is ranked. None of the above blocks anything; each is a question no table answers yet.\n'; return 0; }
 
   printf '\n%s item(s). Ranked by what interrupts you, then by what is blocking.\n' "$n"
   printf 'Anything marked felix is Felix'"'"'s own work and not a decision for you;\n'
@@ -4847,7 +4852,7 @@ cmd_repair() {
   resolve_or_die 4; local proj="$PROJ"
   _felix_repair_require_gh || return 1
   local repo branch latest run_id status conclusion attempts gwf
-  repo="$(git remote get-url origin 2>/dev/null | sed -E 's#.*github\.com[:/]##; s#\.git$##')"
+  repo="$(felix_repo_slug)"
   [ -n "$repo" ] || die "no github remote; felix repair supports GitHub Actions only"
   gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
   branch="$(felix_repair_branch)"
@@ -6160,8 +6165,9 @@ cmd_obligations() {
     printf 'An empty ledger is not a clean bill; it is a ledger with nothing owed.\n'
     return 1
   fi
-  local orphans; orphans="$(felix_obligations_orphans "$proj")"
-  if [ -n "$orphans" ]; then
+  local orphans orc=0; orphans="$(felix_obligations_orphans "$proj")" || orc=$?
+  if [ "$orc" -ne 0 ]; then printf 'whether a row grounds on a probe %s/probes.tsv does not declare is not known: the rows could not be read whole\n\n' "$proj"
+  elif [ -n "$orphans" ]; then
     printf 'grounded on a probe %s/probes.tsv does not declare\n\n' "$proj"
     printf '%s\n' "$orphans" | sed 's/^/  /'; printf '\n'
   fi
@@ -6299,7 +6305,7 @@ cmd_obligations() {
     fi
   fi
   if [ "$gate" -eq 1 ]; then
-    [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] || return 1
+    [ "$n_block" -eq 0 ] && [ -z "$bad" ] && [ -z "$orphans" ] && [ "$orc" -eq 0 ] || return 1
   fi
   return 0
 }
@@ -6455,23 +6461,8 @@ cmd_probes() {
   # gaps because it is about what this branch did, and after the states because
   # a surface nobody can see any more is already a refusal above.
   local drift
-  drift="$(felix_probes_drift "$proj" "$tid" "$out")"
-  if [ -n "$drift" ]; then
-    printf '\nchanged since the last tree\n\n'
-    printf '%s\n' "$drift" | while IFS= read -r line; do
-      [ -n "$line" ] || continue
-      printf '  %-22s %-14s -> %-14s %s\n' \
-        "$(printf '%s\n' "$line" | cut -f1)" \
-        "$(printf '%s\n' "$line" | cut -f2)" \
-        "$(printf '%s\n' "$line" | cut -f3)" \
-        "$(printf '%s\n' "$line" | cut -f4)"
-    done
-    printf '\nRead rather than enforced, and that is the specification rather than\n'
-    printf 'timidity: relations produce facts, not obligations. A member that went\n'
-    printf 'away can be somebody deleting a file on purpose. What nothing else can\n'
-    printf 'say is that there used to be more of them — nothing greps for a hook\n'
-    printf 'that was deleted, because absence has no line number.\n'
-  fi
+  drift="$(felix_probes_drift "$proj" "$tid" "$out" "$root")"
+  [ -z "$drift" ] || felix_probes_drift_print "$drift"
 
   # The gap report, in the idiom procedures already uses: what nothing covers,
   # enumerated by something other than this table.
@@ -6509,6 +6500,9 @@ cmd_probes() {
     printf 'that never existed. A table is wrong when it lacks a row reality has\n'
     printf 'and equally wrong when it keeps one reality dropped.\n'
   fi
+
+  # What the gate shows under its counts goes in the file it names.
+  [ -z "${FELIX_PROBES_NOTES:-}" ] || felix_probes_notes_write "$FELIX_PROBES_NOTES" "$drift" "$gunread" "$gaps"
 
   if [ "$recorded" -eq 0 ]; then
     printf '\nThe fact log was NOT written to %s/facts.log.\n' "$(felix_mem_dir "$proj")"

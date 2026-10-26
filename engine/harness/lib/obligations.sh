@@ -52,6 +52,8 @@
 
 command -v felix_final_filter_lead >/dev/null 2>&1 \
   || . "$(dirname "${BASH_SOURCE[0]:-$0}")/final-filter.sh"
+command -v felix_capture >/dev/null 2>&1 \
+  || . "$(dirname "${BASH_SOURCE[0]:-$0}")/detect.sh"
 
 FELIX_OBLIGATION_CLASSES='INFO ADVISORY TASK_BLOCKING RELEASE_BLOCKING AUTHORITY_BLOCKING'
 FELIX_OBLIGATION_PATHWAYS='deterministic witness corroborated probabilistic unknown'
@@ -255,10 +257,15 @@ felix_obligations_blocking() {
 # Rows grounded on a probe the project does not declare. A grounding ref is
 # the row's claim about which fact its applicability rests on; one that names
 # nothing in probes.tsv rests on nothing, and the table is refused for it.
+#
+# 0 with the orphans, and 2 with nothing printed when the rows were not read
+# whole (audit b19, C060). Over rows nobody saw, "no orphan" was a claim about
+# nothing, and the merge boundary and the gate passed on it.
 felix_obligations_orphans() {
-  local proj="$1" preds g
+  local proj="$1" preds g rows=""
+  felix_capture rows felix_obligation_rows "$proj" || return 2
   preds="$(felix_probe_rows "$proj" 2>/dev/null | LC_ALL=C cut -f1 | LC_ALL=C sort -u)"
-  felix_obligation_rows "$proj" | LC_ALL=C cut -f6 | LC_ALL=C tr ',' '\n' | LC_ALL=C grep -v '^-\?$' \
+  printf '%s\n' "$rows" | LC_ALL=C cut -f6 | LC_ALL=C tr ',' '\n' | LC_ALL=C grep -v '^-\?$' \
     | LC_ALL=C sort -u | while IFS= read -r g; do
         [ -n "$g" ] || continue
         felix_has_line "$preds" "$g" && continue

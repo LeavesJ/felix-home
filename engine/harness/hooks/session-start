@@ -666,18 +666,24 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   # Captured with felix_capture, since a topology that could not be computed is
   # not an empty one: the all-clear below and its seen marker are keyed to it.
   # Each row's state computes its own topology to read its answer file against,
-  # so this one decides nothing about a row. Until 2026-10-01 it was an empty
-  # string here, which only the all-clear's test told from a topology. One that
-  # could not be computed leaves it empty, and the all-clear is refused on
-  # that. Why a row's answer could not be read is the row's own detail below,
-  # and not a sentence of this hook's keyed to this computation: until
-  # 2026-10-08 there was one, and under a transient failure the two
-  # computations of the topology could disagree.
+  # so this one decides nothing about a row. One that could not be computed
+  # leaves it empty, and the all-clear is refused on that. Why a row's answer
+  # could not be read is the row's own detail below, not a sentence of this
+  # hook's keyed to this computation: under a transient failure the two
+  # computations of the topology could disagree (2026-10-08).
   _cm_topo=""
   felix_capture _cm_topo felix_commission_topology "$PROJ" "$_repo_root" 2>/dev/null || _cm_topo=""
   _cm_seen="$FELIX_HOME_DIR/state/commission/$(basename "$PROJ").seen"
-  _cm_await=""; _cm_ans=0; _cm_unread=""
-  while IFS=$'\t' read -r _cn _cg _ci _cw _ca _cc _cs; do
+  # The rows are captured too and walked in this shell: rows that were not read
+  # whole are no rows, and the all-clear spent over them is never said again
+  # (audit b19, C060). A here-document is a temporary file on bash 3.2.
+  _cm_await=""; _cm_ans=0; _cm_unread=""; _cm_rows=""; _tab=$'\t'
+  felix_capture _cm_rows felix_commission_rows "$PROJ" 2>/dev/null \
+    || _cm_unread="${_nl}  commissioning.tsv (unknown: its rows could not be read whole)"
+  while [ -n "$_cm_rows" ]; do
+    _cl="${_cm_rows%%$_nl*}"
+    if [ "$_cl" = "$_cm_rows" ]; then _cm_rows=""; else _cm_rows="${_cm_rows#*$_nl}"; fi
+    _cn="${_cl%%$_tab*}"; _ca="${_cl#*$_tab}"; _ca="${_ca#*$_tab}"; _ca="${_ca#*$_tab}"; _ca="${_ca#*$_tab}"; _ca="${_ca%%$_tab*}"
     [ -n "$_cn" ] || continue
     case "$_ca" in provider:*) ;; *) continue ;; esac
     # The whole state line, since its detail is what says why a row is unknown;
@@ -707,26 +713,20 @@ if [ -f "$PROJ/commissioning.tsv" ] && command -v felix_commission_rows >/dev/nu
   $_cn (${_cst:-no state})"
         fi ;;
     esac
-  done <<EOF
-$(felix_commission_rows "$PROJ" 2>/dev/null)
-EOF
+  done
   _cm_valid="$(felix_commission_receipt_valid "$FELIX_HOME_DIR" "$PROJ" "$_repo_root" 2>/dev/null)" || true
   # An outstanding request REPEATS; an all-clear is said once per topology.
   #
-  # Both were deduplicated at first, and the first turn of a fresh session
-  # then heard nothing about six unanswered requests: one session had been
-  # told, that session ended without acting, the topology had not moved, and
-  # the reminder was spent. The addressee of this paragraph is a session, and
-  # sessions are ephemeral — a hold keyed to the topology outlives every
-  # session that could discharge it. So the asymmetry is deliberate: the
-  # obligation is repeated until an answer file exists, which is the one thing
-  # that stops it and is entirely in a session's hands; the informational
-  # line, which nobody has to act on, is still said once. Measured on this
-  # machine, not reasoned: state/commission/felix.seen already held the
-  # current topology while all six requests sat unanswered. A row whose answer
-  # could not be read holds it back too, as it did when it was counted among
-  # the owed: an all-clear spent over a row nobody could read would be said
-  # once and never again, on the strength of an answer that may not be whole.
+  # Both were deduplicated at first, and a fresh session then heard nothing about
+  # six unanswered requests: the reminder had been spent on a session that ended
+  # without acting. The addressee of this paragraph is a session, and sessions
+  # are ephemeral, so a hold keyed to the topology outlives every session that
+  # could discharge it. The obligation is therefore repeated until an answer file
+  # exists, which is entirely in a session's hands; the informational line, which
+  # nobody has to act on, is still said once (measured: state/commission/felix.seen
+  # held the current topology while all six requests sat unanswered). A row whose
+  # answer could not be read holds the all-clear back as well: spent over a row
+  # nobody could read, it would be said once and never again.
   if [ -n "$_cm_await" ]; then
     context="$context
 

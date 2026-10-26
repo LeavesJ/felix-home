@@ -14,6 +14,9 @@
 # This is the pre-flight. It reads every play in routes.tsv and every row in
 # stack.tsv, and reports each named tool as usable, disabled, or absent.
 
+# felix_capture says whether a lookup came back whole (detect.sh).
+command -v felix_capture >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/detect.sh"
+
 # Everything usable on this machine, from every source, because no single source
 # knows them all.
 #
@@ -99,17 +102,27 @@ felix_ready_unused() {
 }
 
 # Every distinct tool this project could reach for, from any route.
+#
+# 0 with the list, empty when there is no routes.tsv; 2 when there is something
+# at that path that is not a readable regular file, or the pipeline that read it
+# did not complete (audit b19, C060). Until then a routes.tsv that could not be
+# read was a list with nothing in it, and the report built on it was empty, which
+# the commissioning pre-flight row read as every tool checked.
 felix_ready_wanted() {
   local proj="$1" n k pr pl p
-  [ -f "$proj/routes.tsv" ] || return 0
+  [ -e "$proj/routes.tsv" ] || [ -L "$proj/routes.tsv" ] || return 0
+  [ -f "$proj/routes.tsv" ] && [ -r "$proj/routes.tsv" ] || return 2
   # A last route with no newline is kept; `read` returns 1 on it with the
   # fields filled, and its play was missing from every readiness report
   # (2026-10-01).
-  while IFS=$'\t' read -r n k pr pl || [ -n "${n:-}" ]; do
-    case "$n" in ''|'#'*) continue ;; esac
-    [ -n "${pl:-}" ] && [ "$pl" != "-" ] || continue
-    for p in $pl; do printf '%s\n' "$p"; done
-  done < "$proj/routes.tsv" | LC_ALL=C sort -u
+  { while IFS=$'\t' read -r n k pr pl || [ -n "${n:-}" ]; do
+      case "$n" in ''|'#'*) continue ;; esac
+      [ -n "${pl:-}" ] && [ "$pl" != "-" ] || continue
+      for p in $pl; do printf '%s\n' "$p"; done
+    done < "$proj/routes.tsv" || exit 2
+  } | LC_ALL=C sort -u
+  set -- "${PIPESTATUS[@]}"
+  [ "${1:-1}" -eq 0 ] && [ "${2:-1}" -eq 0 ] || return 2
 }
 
 # A play entry names a skill; the manifest declares the plugin that owns it.
@@ -122,7 +135,13 @@ _felix_ready_owner() {
 # `usable` means installed and switched on. `disabled` is the dangerous one: it
 # is installed, so every eyeball check passes, and it contributes nothing.
 felix_ready_report() {
-  local proj="$1" want owner line id enabled found
+  local proj="$1" want owner line id enabled found wanted=""
+  # The plays first. A list that is not whole is no list: one row says so, and
+  # no tool is reported on the strength of the part that was read (C060).
+  felix_capture wanted felix_ready_wanted "$proj" || {
+    printf 'unknown\troutes.tsv\tthe plays this project'"'"'s routes name could not be read whole, so no tool was checked\n'
+    return 2
+  }
   # id and enabled are not adjacent in the object — version and scope sit
   # between them — so a naive "pull both values and pair them" produces nothing
   # at all. Tag each line with which field it is, then pair in awk, which holds
@@ -215,6 +234,6 @@ EOF
       printf 'disabled\t%s\t%s\n' "$want" "installed but switched off"
     fi
   done <<EOF
-$(felix_ready_wanted "$proj")
+$wanted
 EOF
 }

@@ -21,6 +21,7 @@ _felix_bs_gh() {
   local body="" has=0 ef
   if [ "${1:-}" = "-i" ]; then body="$2"; has=1; shift 2; fi
   _bs_out=""; _bs_err=""; _bs_msg=""; _bs_rc=1
+  if ! command -v gh >/dev/null 2>&1; then _bs_msg="gh is not installed"; _bs_rc=127; return 127; fi
   ef="$(mktemp "${TMPDIR:-/tmp}/felix-bsgh.XXXXXX" 2>/dev/null)" || ef=""
   if [ -z "$ef" ]; then _bs_msg="no scratch file for gh's messages"; return 1; fi
   if [ "$has" -eq 1 ]; then

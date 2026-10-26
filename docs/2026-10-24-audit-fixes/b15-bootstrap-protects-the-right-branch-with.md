@@ -491,3 +491,9 @@ The 7 that passed, each a control or a guard the contract marks, true before the
   Its `all.log` is non-empty (asserted inside it), so it is not empty-set vacuous.
 
 Nothing passed vacuously: no assertion held for want of a run, a log or a file.
+
+## 9. Build notes
+
+- **B4's "filled"** is built as: no line that is not a comment holds `{{FELIX_REF}}`. The renderer
+  explains the placeholder in a comment, so the literal reading made A13 impossible.
+- **B12** also covers a default branch name outside `A-Za-z0-9._/-`: it goes into a request path.

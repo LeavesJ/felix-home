@@ -1042,3 +1042,28 @@ maps in idle slots and runs the selection beside the full run, and after it step
 runs and `--part` runs of its own. Each has to take a suite slot as a `-j` unit
 does, and say on stderr when it is waiting for one, or the oversubscription this
 follow-up measured (load 351 on 10 cores) comes back through them.
+
+**Runs of 2026-10-25** (alone.sh, bash 3.2.57 on macOS; bwk is macOS awk, gawk is
+gawk 5.4.1 first on PATH, CI's awk). No code changed in this round.
+- Parts 2100 and 2110 together: `ok=169 fail=0 skip=2` under bwk and under gawk.
+  The 169 are the 106 assertions that ran (A1 to A108 less A39 and A51), the 62
+  prelude `ok` lines, and part 2100's closing fixture assertion. A39 and A51 skip
+  on bash 3.2: they check the bash 4.1 or later tracer, which has still only been
+  read, not run.
+- The affected parts, each alone under both: 0220, 0370, 0440, 0510, 0590, 0640,
+  0720, 0770, 0960, 1030 to 1070 (five parts in one run), 1290, 1291, 1292, 1293,
+  1294, 1295, 1296, 1310, 1400, 1497 and 1510 all end with no FAIL. Parts 0006 and
+  0007 are prelude parts that every run executes (`--part` refuses them), and none
+  of the runs above shows a FAIL from either. Six parts, 1290 to 1295, in one run
+  ran past alone.sh's 20 minutes under load 57 on 10 cores, at 1292, with 249
+  assertions ok and no FAIL; run one at a time each ends well inside the limit.
+- Parts 1000 and 1010 together: 1000 has no FAIL. 1010 has two, under both awks:
+  `red.tsv was recorded against the engine origin/main held where this tree
+  branched from it` and `this engine's version is above origin/main's when this
+  tree holds commits origin/main lacks`. They are the record step's, not the
+  code's. red.tsv's base (ed32bcaa) holds a different engine than the merge-base
+  with origin/main (69b51a61), and `engine/.claude-plugin/plugin.json` still
+  declares 0.49.307 as origin/main does. Re-recording (`tests/run
+  --record-assertions`, then red) and the version bump are the steps after this
+  one, and the contract forbids this round to touch red.tsv, assertions.tsv or
+  plugin.json.

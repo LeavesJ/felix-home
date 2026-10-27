@@ -1,7 +1,8 @@
 # >>> b07-prompt-and-toolbox
 printf '\na prompt hook that did not finish, a skill used by its bare name, and the cloud toolbox (audit b07, blind)\n'
 # Blind, written 2026-10-24 from docs/2026-10-24-audit-fixes/b07-stop-hook-and-cloud-session-never-let-go.md
-# alone (sections 2 and 4, A47 to A83), without reading hooks/, lib/, felix or .claude/cloud/provision
+# alone (sections 2 and 4, A47 to A83, and section 9's review round, A84 to A87), without reading
+# hooks/, lib/, felix or .claude/cloud/provision
 # (only toolbox.json, for its layout, which the contract points to). Fixture P2 for the prompt hook and
 # the route lib; the provision fixture under $TMP/b07p for the cloud toolbox.
 #
@@ -129,6 +130,51 @@ _b7b_is "b07 A54: after a normal prompt run the session mark state/session/u5 ho
 _b7b_run "$B7BH/harness/hooks/session-start" '{"source":"startup","session_id":"u6"}'
 _b7b_x=absent; { [ -e "$B7BH/state/session/u6" ] || [ -L "$B7BH/state/session/u6" ]; } && _b7b_x=present
 _b7b_is "b07 A55: SessionStart writes no session mark for its session (control)" "$_b7b_x" "absent"
+
+# ---- review round M1: a held stop with a note due, where TMPDIR cannot be written (B30, B31) ----
+# The stop runs with TMPDIR naming a directory that does not exist, so no temporary file can be made.
+# "Delivered" is what the platform can read: stdout is one JSON object (jq -s reads one value) whose
+# decision is block. A stop that delivered no hold is followed by an unflagged stop, as the platform
+# would send; one that did is followed by the flagged stop of its chain.
+B7BV="$B7BM/p2/verification.log"; B7BT="$B7B/no-such-dir/x"
+printf '#!/bin/sh\nTMPDIR=%s; export TMPDIR\nexec %s\n' "'$B7BT'" "'$B7BH/harness/hooks/stop'" > "$B7B/stop-notmp"
+chmod +x "$B7B/stop-notmp"
+_b7m_stop() {   # SID FLAG: one stop of R2 under that TMPDIR. B7M_NV: the verification rows it added
+  local v0
+  v0="$(_b7b_rows "$B7BV")"
+  _b7b_run "$B7B/stop-notmp" "$(printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "$2" "$1")"
+  B7M_NV="$(tail -n "+$((v0 + 1))" "$B7BV" 2>/dev/null)"
+}
+_b7m_n() { LC_ALL=C awk -F'\t' -v k="$1" '$2 == k { n++ } END { print n + 0 }' <<< "$B7M_NV"; }
+_b7m_one() {   # [NOTE] -> yes when stdout is one JSON object that holds, and whose systemMessage says NOTE
+  if jq -se --arg n "${1:-}" 'length == 1 and (.[0] | type) == "object" and .[0].decision == "block"
+        and ($n == "" or ((.[0].systemMessage // "") | tostring | contains($n)))' < "$B7B/o" >/dev/null 2>&1
+  then printf yes; else printf no; fi
+}
+_b7m_tmp="$([ -e "$B7B/no-such-dir" ] && echo exists || echo absent)"
+printf 'an edit for the review round\n' >> "$B7BR/WORK.txt"; _b7m_stop r5 false; printf 'base\n' > "$B7BR/WORK.txt"
+_b7b_jis "b07 A84: with TMPDIR naming no directory and no note due, a dirty stop prints one JSON object that holds and logs one blocked row (control)" \
+  "tmp=$_b7m_tmp exit=$B7B_RC one=$(_b7m_one) blocked=$(_b7m_n blocked)" "tmp=absent exit=0 one=yes blocked=1"
+_b7b_s0="$(_b7b_rows "$B7BS")"
+_b7b_cut KILL r4; _b7b_w="$B7B_REACHED"
+printf 'an edit for the review round\n' >> "$B7BR/WORK.txt"; _b7m_stop r4 false
+_b7m_d="$(_b7m_one)"; _b7m_dn="$(_b7m_one "$B7BF")"; _b7m_nb="$(_b7m_n blocked)"
+_b7m_nr="$(tail -n "+$((_b7b_s0 + 1))" "$B7BS" 2>/dev/null | LC_ALL=C awk -F'\t' '$2 == "prompt-unfinished" && $3 == "r4" { n++ } END { print n + 0 }')"
+_b7b_jis "b07 A85: after a prompt run cut off, a dirty stop under that TMPDIR prints one JSON object that holds, with Do not describe this work as complete in its reason, and says Felix's prompt hook did not finish" \
+  "tmp=$_b7m_tmp reached=$_b7b_w exit=$B7B_RC one=$_b7m_d reason=$(_b7b_in "$(_b7b_j "$B7B/o" .reason)" 'Do not describe this work as complete') says=$_b7m_dn" \
+  "tmp=absent reached=yes exit=0 one=yes reason=yes says=yes"
+_b7m_x=consistent; [ "$_b7m_nr" -gt 0 ] && [ "$_b7m_dn" != yes ] && _b7m_x="$_b7m_nr prompt-unfinished row(s) for a note it did not deliver"
+_b7b_jis "b07 A86: and its records say only what it delivered: one blocked row with the hold delivered, and no prompt-unfinished row for r4 unless the note was in that object" \
+  "blocked=$_b7m_nb hold=$_b7m_d note=$_b7m_x" "blocked=1 hold=yes note=consistent"
+_b7m_e=0; _b7m_f=false; [ "$_b7m_d" = yes ] && _b7m_f=true
+for _b7m_i in 1 2; do
+  _b7m_stop r4 "$_b7m_f"
+  [ "$_b7m_d" = yes ] || _b7m_e="$(( _b7m_e + $(_b7m_n debt) ))"
+  if [ "$(_b7m_one)" = yes ]; then _b7m_d=yes; _b7m_f=true; else _b7m_f=false; fi
+done
+printf 'base\n' > "$B7BR/WORK.txt"
+_b7b_jis "b07 A87: r4 is let go as debt only after a hold it was given: its next two stops, flagged after a delivered hold and unflagged otherwise, write no debt row before one" \
+  "early-debt=$_b7m_e held=$_b7m_d" "early-debt=0 held=yes"
 
 # ---- C106: a skill used under its bare name counts as used (B19 to B21) ----
 _b7b_tx() { printf '{"type":"assistant","attributionSkill":"%s"}\n' "$@" > "$B7B/tx.jsonl"; }
@@ -365,7 +411,7 @@ _b7p_is jq "b07 A83: a skill the repository tracks is never overwritten: its SKI
 # ---- the restore: any stub still running is ended by its pid ----
 for _b7p_k in $(cat "$B7P"/c/*/pids 2>/dev/null); do kill -0 "$_b7p_k" 2>/dev/null && kill -9 "$_b7p_k" 2>/dev/null; done
 rm -f "$B7B/sentinel"; chmod -R u+rwX "$B7B" "$B7P" 2>/dev/null
-for _b7b_v in $(compgen -v | LC_ALL=C grep -E '^(B7[A-Z0123456789_]*|_b7[bp]_[A-Za-z0123456789_]*)$'); do unset "$_b7b_v"; done
-for _b7b_f in $(compgen -A function | LC_ALL=C grep -E '^_b7[bp]_'); do unset -f "$_b7b_f"; done
+for _b7b_v in $(compgen -v | LC_ALL=C grep -E '^(B7[A-Z0123456789_]*|_b7[bmp]_[A-Za-z0123456789_]*)$'); do unset "$_b7b_v"; done
+for _b7b_f in $(compgen -A function | LC_ALL=C grep -E '^_b7[bmp]_'); do unset -f "$_b7b_f"; done
 unset _b7b_v _b7b_f
 # <<< b07-prompt-and-toolbox

@@ -260,7 +260,7 @@ Part 1750 builds fixture S. Part 1760 builds P2 and the provision fixture. A con
 ## 5. Parts
 
 - `engine/harness/tests/parts/1750-stop-says-what-it-could-not-judge-blind.sh`: A1 to A46.
-- `engine/harness/tests/parts/1760-prompt-hook-and-cloud-toolbox-blind.sh`: A47 to A83.
+- `engine/harness/tests/parts/1760-prompt-hook-and-cloud-toolbox-blind.sh`: A47 to A83, and A84 to A87 of the review round (§9).
 
 Both are sourced by the driver, in that order, after `1600-felix-refuses-a-pattern-kill-blind.sh` and before 9990. Each part builds its own fixtures under `$TMP` and keeps its helpers inside the part: no new `tests/lib` file. Each stays under 500 lines and passes on both `alone.sh … bwk` and `alone.sh … gawk`. B12's unset belongs to the implementation, in a prelude part (part 0005's floor already unsets the `GIT_DIR` family), and not to a new part.
 
@@ -320,3 +320,31 @@ None. The batch changes:
   - A37: the hold's reason already ends with `Do not describe this work as complete until it has passed.` and `FELIX_ALLOW_RED=1`. A36, the same reason's cloud text, is what fails.
   - A42: the remote session's third stop already appends the `debt` row with `never verified` and `held once on this tree already` (B10 says "as it does today"). A43 and A44, the saying, fail.
 - **Vacuous (0).** None passes for want of anything to test: A23's loop has no name beyond the ten on the base and writes no line, so there is nothing for it to pass vacuously.
+
+---
+
+## 9. Review round
+
+*Review of `b38afa57`, 2026-10-26. Each item is restated here as required behaviour. Its assertions are in part 1760, after A55, and use P2 and that part's helpers.*
+
+### M1: a held stop with a note due is one object, whatever TMPDIR is
+
+*Found.* With `TMPDIR` unwritable while a note was due (a prompt hook had been cut off), the stop printed the note as one JSON object and then the hold as a second: `jq -s length` on stdout gave 2. The platform reads one object, so the hold was not delivered in a form it documents. Yet `verification.log` got a `blocked` row and the tree was recorded as held, so the session's next stop was let go as debt, `held once on this tree already`. The same stop with no note due gave one valid hold. The trigger is narrow (TMPDIR unwritable or full while a note is due), but it is a fail-open path that leaves a wrong record.
+
+- **B30.** Take P2. For the stop only, `TMPDIR` names a directory that does not exist (`$TMP/b07u/no-such-dir/x`; the review used `/nonexistent/x`), so no temporary file can be made. A prompt run of SID r4 is cut as in B13, R2 then gets one uncommitted line (dirty, never verified), and r4's unflagged stop:
+  - exits 0 and prints **one JSON object** (`jq -s` reads exactly one value, an object) that holds, with `"decision":"block"` at its top level. Its reason contains `Do not describe this work as complete`, and it says `Felix's prompt hook did not finish`. B14 holds whatever TMPDIR is;
+  - appends one `verification.log` row whose verdict is `blocked`, and appends a `says.log` row of kind `prompt-unfinished` for r4 only when that one object says the note. A record never says that a hold or a note was given when stdout did not deliver it.
+- **B31.** *A session is let go as debt only after a hold it was given.* A stop whose stdout is not one object that holds is, to the platform, a stop that was not held, so the session's next stop arrives unflagged. Of r4's next two stops, each flagged when the stop before it delivered a hold (as the platform sends it) and unflagged otherwise, none may write a `debt` row before one of r4's stops has delivered a hold. The chain after a delivered hold does not change: the flagged stop prints nothing, and the unflagged stop after it writes the debt row (A45).
+- **B32.** (control) The same stop, under the same TMPDIR, for SID r5 with no prompt run cut, prints one JSON object that holds and appends one `blocked` row. It does so on `b38afa57`.
+
+Not required: how the stop builds its output, or whether it uses a temporary file at all.
+
+**Assertions (part 1760), each skipped where jq is not on PATH:**
+- A84 (B32, control): r5's stop. Exit 0; one object that holds; one `blocked` row; and the TMPDIR directory is absent.
+- A85 (B30): r4's stop after the cut. The cut run reached git; exit 0; one object that holds; its reason contains `Do not describe this work as complete`; and that object's `systemMessage` says `Felix's prompt hook did not finish`.
+- A86 (B30): that stop's records. One `blocked` row, with the hold delivered, and no `prompt-unfinished` row for r4 unless the one object says the note.
+- A87 (B31): r4's next two stops write no `debt` row before a delivered hold, and by the end one of r4's stops has delivered a hold.
+
+**Red.** *Run 2026-10-26 on `b38afa57` with these assertions added, by `alone.sh … bwk 1760-…`.* 41 b07 assertion lines ran (A47 to A87): **3 failed and 38 passed**; none was skipped, since jq is on this machine.
+- Failed: A85 (`one=no says=no`: the note's `{"systemMessage":…}` object came first and the hold second); A86 (`hold=no`, with one `prompt-unfinished` row for a note it did not deliver); A87 (`early-debt=2`: no hold was delivered, so both later stops came unflagged and each wrote a debt row).
+- Passed: A84, the control, as the review found; and A47 to A83, which the fix commit already passes.

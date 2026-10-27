@@ -225,9 +225,11 @@ is "b18 A20 (B12): felix_ledger_unrouted lists epsilon on its one known row, and
 is "b18 A21 (B12) (control): felix_ledger_unrouted never lists delta, which an unknown row names" \
    "$(printf '%s\n' "$_lu_unr" | LC_ALL=C awk 'index($0, "delta") == 1 { n++ } END { print n + 0 }')" "0"
 
-# B13: project Q2 is b18c, read from this part's memory root.
+# B13: project Q2 is b18c, read from this part's memory root. Review round (R2): c1 no longer holds
+# `named unk - 2`. A session with an unknown row now prints no line at all, and the rollup never puts a
+# `-` row beside a known `0` one, so part 1985 (R2a) pins that mix instead.
 _lu_Q2="$B18L/q2/b18c"; mkdir -p "$_lu_Q2" "$B18LM/b18c/ledger.d"
-printf 'c1\t2026-08-01\tplugin\tfollowed@x\t4\t2\nc1\t2026-08-01\tplugin\tign@x\t0\t3\nc1\t2026-08-01\tnamed\tunk\t-\t2\n' \
+printf 'c1\t2026-08-01\tplugin\tfollowed@x\t4\t2\nc1\t2026-08-01\tplugin\tign@x\t0\t3\n' \
   > "$B18LM/b18c/ledger.d/c1.tsv"
 printf 'c2\t2026-08-02\tnamed\tonlyunk\t-\t1\n' > "$B18LM/b18c/ledger.d/c2.tsv"
 is "b18 A22 (B13): compliance counts known rows only, and a session whose named rows are all unknown prints no line" \

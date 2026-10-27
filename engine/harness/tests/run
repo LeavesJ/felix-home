@@ -410,6 +410,7 @@ fi
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1970-ledger-unknown-not-zero-blind.sh"
 . "$HERE/parts/1980-icloud-copies-status-row-blind.sh"
+. "$HERE/parts/1985-ledger-icloud-review-round-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

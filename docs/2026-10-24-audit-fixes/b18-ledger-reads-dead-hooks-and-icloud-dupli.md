@@ -212,7 +212,7 @@ alone. The output is exactly `epsilon	1`, and delta is not listed.
 
 The output is exactly the one line `c1	2026-08-01	2	1	1`. An unknown row is neither named,
 followed nor ignored, and a session whose only named rows are unknown prints no line.
-`felix monitor`'s JSON keeps its shape.
+`felix monitor`'s JSON keeps its shape. (Amended by R2 in section 9: c1 loses `named unk - 2`.)
 
 **B14. felix ledger says what is unknown.** `felix_ledger_unknown Q` prints the number of distinct
 sessions that hold at least one unknown row. For the B11 fixture that is `9`: u1 to u5, g5, d3, e2
@@ -266,7 +266,7 @@ SYNCED is one of:
 - SN: `the home is not inside iCloud Drive or an iCloud-synced Desktop or Documents`. This holds
   otherwise: CD is absent, `CD/Documents` is a plain directory, or the link leads somewhere else.
 - SU: `whether the home is inside an iCloud-synced folder is not known: no home directory to look in`.
-  This holds when HOME is unset or empty.
+  This holds when HOME is unset or empty. (R3 in section 9 adds SX, a lookup that failed.)
 
 "Physical" means with every symbolic link resolved, as `pwd -P` gives it. A home reached through a
 link to `U/Documents/fh` is therefore inside Documents.
@@ -454,7 +454,7 @@ line that precedes 9990. Neither needs a `groups.tsv` entry.
   the sources, the `cat`, `felix_home` and the session extraction under fork exhaustion. They leave
   no alive line. Such a loss reads as unknown only when the whole session recorded nothing. A
   fork-free prologue would narrow the gap. That is b03's C029 shape for pre-tool, and post-tool
-  would follow it.
+  would follow it. (R1 in section 9 takes this back for post-tool.)
 - **Correcting folds already on disk.** There is no migration. `ledger.sh`'s rule is that rows are
   data and are never rewritten to change their shape.
 - **Last-occurrence extraction of `tool_name`, `skill` and `subagent_type`, and pre-tool's session
@@ -506,3 +506,86 @@ Every one of the 10 that passed is a (control) the contract names. They split tw
 - **Vacuous on 69b51a61:** A25 passes because no `unknown, not zero:` line exists to print, and A40 and A44 pass because `felix_icloud_state` is missing (the A28 to A39 calls exit 127 and write nothing) and `felix status --tsv` does not yet read the home for copies, so neither shows that the new code writes nothing. They pin the new code only after the fix.
 
 The 34 that failed: A1 to A3, A5, A8 to A11, A13, A15 to A18, A20, A22 to A24, A26 to A39, A41 to A43. A23 prints nothing because `felix_ledger_unknown` is missing; A28 to A39 return 127 for the same reason; A41 to A43 miss the `icloud` row.
+
+## 9. Review round
+
+The review of 942ca2db found three gaps. Each is restated here as required behaviour, and this section
+wins where sections 2 to 6 differ. Its assertions are in
+`engine/harness/tests/parts/1985-ledger-icloud-review-round-blind.sh`, the line after 1980 in `tests/run`.
+
+**R1 (M1). A run that fails early never leaves a measured zero.** B1 fixes C101 only in part. The
+alive line comes after both library sources, `$(cat)` and `$(felix_home)`, so a run that cannot load a
+library or cannot fork leaves no trace. The record then reads complete, and the play folds as
+`named superpowers:test-driven-development 0 1`, the register's own scenario. 942ca2db's title ("a dead
+PostToolUse reads as unknown not zero") holds only once R1 does.
+- When the payload names a session and FELIX_HOME names a directory whose `state/ledger` exists,
+  post-tool appends its alive line before it sources any library and before its first fork (a command
+  substitution, pipe, subshell or external command). Section 6's second bullet still covers a run
+  Claude Code never starts and one killed before that append, but no longer the rest for post-tool.
+- Each case: `P/stack.tsv` is B6's line. `felix_ledger_note_named H SID superpowers:test-driven-development`
+  runs, then one real post-tool Bash run, then the failing run with
+  `{"session_id":"SID","hook_event_name":"PostToolUse","tool_name":"Skill","tool_input":{"skill":"superpowers:test-driven-development"}}`,
+  then the rollup. The fold holds a row whose NAME is the play, none of those rows has CALLS `0`, and
+  `tool Bash 1 0` stays. A hook that records the call anyway, so that the play folds as reached, also
+  meets R1.
+- **R1 (control):** the Skill run from a whole copy of the harness (every entry but `tests/`).
+- **R1a:** the same copy without `lib/ledger.sh`. **R1b:** the same copy without `lib/resolve.sh`.
+- **R1c:** the real post-tool, exec'd under `ulimit -u 1` so it cannot fork, and waited for 60 s at
+  most. It is skipped as root, or where a process held to one cannot exec a command. Its exit status
+  and stderr are not asserted.
+- Not asserted: a kill in the first half of a run, which no fixture can place.
+
+**R2 (M2). An incomplete session is not a compliance session.** In an incomplete fold every unreached
+row is `-`. B13 drops `-` rows one at a time, so only the followed rows are left, and the session reads
+named = followed, ignored 0: `S2 2026-10-26 1 1 0` (100%), where the same session complete reads `2 1 1`.
+- `felix_monitor_compliance` prints no line for a session that has any unknown row, whatever its known
+  rows say. A complete session prints as today. The monitor's figure then covers complete sessions only.
+  It never rises because a session's unreached rows were unknown. `felix ledger`'s unknown line (B14)
+  still counts those sessions. The page gains no count (section 6 stands), and the JSON keeps its shape.
+- B13 is amended. c1 holds only `plugin followed@x 4 2` and `plugin ign@x 0 3`, and A22 expects the same
+  line. Part 1970's fixture is changed to match, and the mixed shape moves to R2a.
+- **R2a:** rows by hand, all dated 2026-10-01. x1 has `skill superpowers:brainstorming 1 1` and
+  `named code-review 0 1`. x2 is the same with `named code-review - 1`. x3 has `plugin followed@x 4 2`,
+  `plugin ign@x 0 3` and `named unk - 2`. x4 has `named onlyunk - 1`. The output is exactly
+  `x1	2026-10-01	2	1	1`.
+- **R2b:** through the rollup, with an empty `stack.tsv`. S3's state is `named superpowers:brainstorming`,
+  `named code-review`, alive, `skill superpowers:brainstorming`, alive, `tool Read`. S2's is S3's plus one
+  alive line. S2's fold, `tool` rows aside, is `named code-review - 1` and
+  `skill superpowers:brainstorming 1 1`. The compliance output is exactly `S3	2026-10-01	2	1	1`.
+
+**R3 (M3). A lookup that failed is not a clear answer.** Take a home under `U/Documents`, with
+`CD/Documents` linked there and `U/Library/Mobile Documents` at mode 000. It reads `value clear` and SN.
+- SYNCED gains SX: `whether the home is inside an iCloud-synced folder is not known: the iCloud Drive folder could not be read`.
+  SX holds when three things are true:
+  - the home's physical path lies under that of `U/Documents` or `U/Desktop`;
+  - `U/Library/Mobile Documents` exists;
+  - rules 1 to 3 need an entry that cannot be read, because `U/Library/Mobile Documents` or CD cannot
+    be searched.
+
+  For such a home, a failed lookup is never SN. For a home under neither folder, SN and SX both meet
+  this round.
+- In B15's table SX takes SU's rows. N = 0 gives `unknown - C0; SX`, and N ≥ 1 gives
+  `value copies-N CN; SX`. The status row follows (B16).
+- **R3a:** the A29 layout with `U/Library/Mobile Documents` at mode 000 gives exactly
+  `unknown<TAB>-<TAB>` C0 `; ` SX.
+- **R3b:** the same with CD at mode 000 instead gives the R3a line.
+- **R3c:** the A30 Desktop layout with `U/Library/Mobile Documents` at mode 000 gives the R3a line.
+- **R3d:** R3a plus `state/x 2` gives
+  `value<TAB>copies-1<TAB>1 name(s) shaped like an iCloud copy under state/ and .git (objects not read): state/x 2; ` SX.
+- R3a to R3d are each skipped as root, and every mode is restored after its call.
+- **R3e (control):** a home under `U/Documents`, and a readable `U/Library/Mobile Documents` holding
+  no `com~apple~CloudDocs`, gives the A28 line.
+- Not verified, and not asserted:
+  - whether macOS privacy controls fail this lookup the same way for a process that may read
+    Documents but not iCloud Drive;
+  - whether the lookup raises a privacy prompt where `felix status` is polled.
+
+**Red.** Run on 942ca2db plus part 1985 and the c1 change:
+`alone.sh <worktree> bwk 1985-ledger-icloud-review-round-blind.sh` (bash 3.2.57, macOS awk). The run
+prints 11 assertion lines (the other 62 `ok` lines are the driver's preamble). **9 failed and 2
+passed**, and the 2 that passed are the controls, R1 and R3e.
+- R1a to R1c each fold the play at 0 calls.
+- R2a prints x2 (`1 1 0`) and x3 (`2 1 1`) beside x1, and R2b prints `S2	2026-10-01	1	1	0`.
+- R3a to R3d read SN.
+
+Part 1970 alone then passes all 27 of its assertions, A22 among them.

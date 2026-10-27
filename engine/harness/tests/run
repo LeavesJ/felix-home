@@ -410,6 +410,7 @@ fi
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1910-bootstrap-passable-gate-blind.sh"
 . "$HERE/parts/1920-bootstrap-default-branch-and-reads-blind.sh"
+. "$HERE/parts/1925-bootstrap-judges-the-workflow-ci-runs-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

@@ -399,56 +399,42 @@ the gh stub as above.
 
 - `1910-bootstrap-passable-gate-blind.sh`: A1-A16, fixture F1.
 - `1920-bootstrap-default-branch-and-reads-blind.sh`: A17-A34, fixture F2.
+- `1925-bootstrap-judges-the-workflow-ci-runs-blind.sh`: A35-A45, fixture F3 (section 10).
 
-Both are written blind from this file, each builds its own fixture, and each gets one line in
-tests/run in number order before 9990's. Neither joins a group in tests/groups.tsv.
+Each is written blind from this file, builds its own fixture, and has one line in tests/run in
+number order before 9990's. None joins a group in tests/groups.tsv.
 
 ## 6. Out of scope
 
-- **The pin inside a workflow already committed.** Bootstrap judges its own pin P; beyond B4's
-  placeholder it does not read back the `ref:` of the workflow on the default branch (an older pin,
-  one a person edited). A project's own gate_workflow cannot be parsed for one, and neither finding
-  names it. Follow-up.
+- **The pin inside a workflow already committed**: withdrawn by the review round (B21, B22).
 - **A private Felix fork with no `FELIX_DEPLOY_KEY`** in the governed repository: CI fails at the
-  Felix checkout, loudly, naming the key; bootstrap reads no secrets (`gh secret` is an ask row in
-  the permissions it writes). B9's README text names the key.
-- **Admins can bypass.** `enforce_admins` stays false (decided, felix:4016-4017). The scenario's
-  "the admin merges by bypassing" is that decision's cost, not this batch's.
+  Felix checkout, loudly, naming the key; bootstrap reads no secrets. B9's README text names it.
+- **Admins can bypass.** `enforce_admins` stays false (decided, felix:4016-4017); the scenario's
+  bypassing admin is that decision's cost.
 - **The commissioning `baseline` row reads held, not unknown, when bootstrap could not read
-  GitHub.** It greps one literal; telling them apart needs a change to templates/commissioning.tsv
-  and every projects/*/commissioning.tsv (felix's is bound to the commission grant, the founder's
-  re-stamp), and neither finding names it.
+  GitHub.** It greps one literal; telling them apart changes templates/commissioning.tsv and every
+  projects/*/commissioning.tsv (felix's is bound to the commission grant). Neither finding names it.
 - **templates/setup.tsv's `risk-labels` check** reads `gh label list` at gh's default 30 through
-  `| grep -q`: the same limit in a template table and its per-project copies. C095 names
-  bootstrap's reader (bootstrap.sh:61-63). Follow-up.
-- **`felix_repo_slug` passes a non-GitHub origin URL through** (lib/detect.sh:365-368), so bootstrap
-  asks gh about it; after this batch those reads are `[?]` and nothing is written. The reader has
-  many callers, and lib/setup.sh already holds the right three-way classifier. Follow-up.
-- **A gh call that hangs.** Bootstrap waits on it as every gh reader in the engine does; neither
-  finding names it; a person runs bootstrap and can interrupt it. Time limits are b01's class.
-- **`GH_HOST` or `GH_REPO` in the caller's environment**: as today.
+  `| grep -q`, in a template table and its copies; C095 names bootstrap's reader. Follow-up.
+- **`felix_repo_slug` passes a non-GitHub origin URL through** (lib/detect.sh:365-368); after this
+  batch those reads are `[?]` and nothing is written. The reader has many callers. Follow-up.
+- **A gh call that hangs.** Bootstrap waits as every gh reader in the engine does; a person can
+  interrupt it. Time limits are b01's class. **`GH_HOST` or `GH_REPO`** in the environment: as today.
 - **No GitHub remote prints `Baseline already in place.`** with no protection: there is no branch to
   protect (B19 keeps it).
-- **A project that names its own gate_workflow.** The precondition is about the workflow bootstrap
-  renders; a project's own may fetch Felix otherwise. No project declares one
-  (`grep -l gate_workflow projects/*/project.json` finds none on the base).
+- **A workflow that names no checkout.** A project's own gate_workflow may fetch Felix otherwise (no
+  project declares one on the base), and a Felix home's gate.yml runs the Felix in its own tree, so
+  a committed workflow with no `repository:` line is judged from P (B21), as before.
 - **Publishing.** The public snapshot (0.49.232) carries today's bootstrap; strangers get this at
   the founder's next publish (b22). Landing this batch does not need it.
 
-**Not fixed: not a defect.** None. Both hold on this tree. Reproduced on 2026-10-24 in a scratch
-fixture shaped as F1, against the base's CLI and a logging gh stub: in the stranger state, plan
-printed `felix ref:   none: ... {{FELIX_REF}} to fill` and `[ ] protection   require the gate on
-main`, and `--yes` from a fresh repository wrote gate.yml with `ref: '{{FELIX_REF}}'`, then
-`protected  main requires the gate`, exit 0. From a worktree on `claude/adopt-x` it PUT
-`repos/fixture/app/branches/claude/adopt-x/protection`. With the home outside E it pinned E's HEAD,
-which holds no projects/app. With no origin on E it printed `skipped    ci-workflow` and then
-`protected  main requires the gate`. With the protection read answering 403 it PUT anyway and
-printed `FAILED     branch protection (admin rights needed on fixture/app)`, exit 0. With the five
-labels at positions 31-35 it created all five and printed `created    5 labels`. With P1 and the
-stranger state it printed `Baseline already in place.`. Read the same day, read-only:
-`LeavesJ/felix-home` answers the protection read with 403 `Upgrade to GitHub Pro ...` (today read
-as unprotected); `LeavesJ/Elenchus` answers P1's shape with `enforce_admins` true and required
-reviews, which today's PUT after a failed read would replace.
+**Not fixed: not a defect.** None. Both reproduced on 2026-10-24 in a fixture shaped as F1 with the
+base's CLI and a logging gh stub: the stranger's `--yes` wrote `ref: '{{FELIX_REF}}'` and protected
+main, exit 0; with no origin on E it skipped the workflow and still protected main; a worktree on
+`claude/adopt-x` PUT that branch; a 403 read was PUT over with `admin rights needed`, exit 0; labels
+at 31-35 were created again as `created    5 labels`. Read-only the same day, `LeavesJ/felix-home`
+answers the protection read with 403 `Upgrade to GitHub Pro ...` and `LeavesJ/Elenchus` with P1's
+shape, which a PUT after a failed read would replace.
 
 ## 7. Founder PR
 
@@ -457,43 +443,91 @@ or the commission grant, and publishes nothing.
 
 ## 8. Red
 
-Run 2026-10-25 on the base plus the two blind parts, before any engine change: `alone.sh
-<worktree> bwk 1910-bootstrap-passable-gate-blind.sh 1920-bootstrap-default-branch-and-reads-blind.sh`
-(macOS awk, bash 3.2). The log counts 69 ok and 27 FAIL; 62 of the ok lines are the fixture-floor
-lines every `--part` run prints before the parts. The parts' own 34 assertions (A1-A34) gave
-**27 failed and 7 passed**. No failure names a fixture step (`fixture steps failed` appears
-nowhere), and each failure detail is a behaviour this contract asks for, not a harness fault:
-
-- A1-A9, A12, A14-A16 (1910): no `ci project:` line, no `held back`, protection PUT while CI
-  cannot resolve the project or the workflow is not filled or not on origin/main, exit 0.
-- A17-A19: the branch is the checked-out one (`claude/adopt-x`), or `main` at a detached HEAD, and
-  no `repos/S` read is made, so D (`trunk`) is never learned.
-- A20-A22, A25-A27: a failed protection read is taken as unprotected and PUT over, an empty or `{}`
-  answer reads `[x]`, no POST to the required contexts, `FAILED     branch protection (admin
-  rights needed ...)` hides gh's message, exit 0 after a failure.
-- A28-A32: `gh label list` without `--limit`, `created    5 labels` whatever the creates did,
-  no `[?]` row.
-
-The 7 that passed, each a control or a guard the contract marks, true before the fix and after it:
-
-- **A10, A13 (control, already true).** Ready and unprotected, `--yes` makes the one PUT of
-  today's body and prints `protected  main requires the gate`. Today does exactly that; they pin
-  the body and the line against the fix.
-- **A11 (control, already true).** Ready with P1, plan prints `Baseline already in place.` and
-  writes nothing.
-- **A23, A24 (control, already true).** P1 and P2 are exit-0 protection answers, which today's
-  reader takes as protected; they pin `[x] protection`, the Baseline line and no write.
-- **A33 (control, not vacuous).** Plan mode asks gh to write nothing and leaves G and W clean.
-  The part counts its plan runs (19) and fails if none was checked.
-- **A34 (control, guard).** Every gh call in the part is one of the contract's forms. Today's
-  calls are a subset of that set, so it passes now; it fails the fix if the fix adds a call
-  outside the set or a `--jq`, `--json`, `--template`, `--paginate`, `--search`, `-q` or `-t`.
-  Its `all.log` is non-empty (asserted inside it), so it is not empty-set vacuous.
-
-Nothing passed vacuously: no assertion held for want of a run, a log or a file.
+Run 2026-10-25 on the base plus 1910 and 1920, before any engine change (`alone.sh <worktree> bwk`,
+macOS awk, bash 3.2): of A1-A34, **27 failed and 7 passed**; no failure named a fixture step, and
+each detail was a behaviour asked for here (no `ci project:` line or hold, a PUT while CI cannot
+resolve the project; the checked-out branch protected and D never read; a failed or empty read PUT
+over, gh's message hidden behind `admin rights needed`, exit 0 after a failure; no `--limit`,
+`created    5 labels`, no `[?]`). The 7 that passed are the controls, true before and after the
+fix: A10, A13 (the one PUT of today's body), A11, A23, A24 (`[x]` and Baseline on P1 and P2), A33
+(plan asks no write; 19 plan runs counted) and A34 (every gh call of the contract's forms; its log
+non-empty). None held for want of a run, a log or a file. The full record is commit fb109d5c.
 
 ## 9. Build notes
 
 - **B4's "filled"** is built as: no line that is not a comment holds `{{FELIX_REF}}`. The renderer
   explains the placeholder in a comment, so the literal reading made A13 impossible.
 - **B12** also covers a default branch name outside `A-Za-z0-9._/-`: it goes into a request path.
+
+## 10. Review round (2026-10-26)
+
+Three findings against the built branch (7e916ce8), restated as required behaviour. They amend
+section 2 where named and withdraw section 6's first exclusion: M1 shows that leaving the committed
+workflow unread reopens C040. **The committed workflow** is `git -C R show
+refs/remotes/origin/D:.github/workflows/gwf`. It **names a checkout** when a line that is not a
+comment has `repository:` as its first word: **Rw** is the first such value, **Yw** the value of
+the first `ref:` line after it, quotes removed (the renderer writes them so). **origin/D is in the
+clone** when `git -C R rev-parse -q --verify 'refs/remotes/origin/D^{commit}'` exits 0.
+
+- **B21. CI is judged by the workflow it runs (M1, M2).** When the committed workflow is filled and
+  names a checkout, whether CI resolves the project (section 2, B1) is judged from that checkout,
+  not from P; otherwise from P as before. In order: F empty (B2's first reason); Rw is not F, case
+  aside: `the workflow on origin/D checks out Rw, not F`; Yw unknown (B22); Yw a commit E has
+  without `projects/N/project.json`: `the workflow on origin/D pins Yw, which does not hold
+  projects/N`; else CI resolves it. Each reason holds like B2: the `ci project:` value starts
+  `none: ` and holds it (the remedy names `.github/workflows/gwf`), a `[ ]` protection row holds
+  `held back` and it, `--yes` writes no protection, prints `  skipped    protection (` holding it,
+  exits 1, and under `[x]` it is B6's reason. When the checkout resolves, the value starts
+  `projects/N` and the run is ready whatever P is: an empty pin (E's HEAD off origin's default
+  branch, such as an unpushed commit or a worktree on a feature branch) neither holds protection
+  back nor removes `Baseline already in place.`. The pin and `felix ref:` do not change.
+- **B22. A committed pin E cannot vouch for is unknown.** Yw is unknown when it is not 40 hex
+  characters, not a commit E has, or not an ancestor of E's `refs/remotes/origin/HEAD` (else
+  `origin/main`); an Rw holding `${{` is unknown too. Then the `ci project:` value starts `unknown: `
+  and holds `could not be read` and Yw; no `cannot pass` and no `Baseline already in place.`; a
+  `[ ]` row holds `held back` and that reason; `--yes` writes no protection, prints
+  `  skipped    protection (` holding `could not be read`, exits 1. Plan exits 0.
+- **B23. origin/D missing from the clone is unknown (M3).** When D and the protection were read (B13
+  a-c) and origin/D is not in the clone, the workflow's place on D, its fill and its checkout are
+  unknown, never absent: no line holds `is not on origin/D` or `cannot pass`; a line holds
+  `origin/D could not be read in this clone` (remedy: `git fetch origin`); a `[ ]` row holds
+  `held back` and it; no `Baseline already in place.`; `--yes` writes no protection, prints
+  `  skipped    protection (` holding it, exits 1. Plan exits 0. It comes after F empty and before
+  every other reason; the `ci project:` line is then judged from P.
+- **B17, B18 amended.** `--yes` exits 1 on B21's reasons, B22 and B23; B3's wait (origin/D in the
+  clone, no workflow on it) still exits 0. Plan with every row `[x]` ends with B22's or B23's line
+  when one applies. B9's README sentence is true once B21 holds; the README does not change.
+
+**Fixture F3 (part 1925).** E as F1's stranger (its own copy, h0 its commit), HOME_DIR E; G1 a fresh
+G0; section 4's gh stub. `--yes` from G1 renders gate.yml at `repository: fixture/felix` and the
+placeholder (control). Then E's origin is set to `https://github.com/stranger/felix.git`, projects/
+committed (m1) and origin/main moved there; G1's gate.yml is set at (Rw, Yw), only its first
+`repository:` line and the `ref:` after it, and landed. **R3**: on master, origin fixture/app,
+gate.yml (`name: gate`) and settings.json committed, origin/master and origin/HEAD naming it, no
+origin/main; gh answers D main. "The value" is the `ci project:` value; "no write" as section 4.
+
+- **A35 (B21, M1).** (fixture/felix, m1), plan: `felix repo:` is `stranger/felix` and `felix ref:`
+  m1 (control); the value starts `none: ` and holds `checks out fixture/felix, not stranger/felix`.
+- **A36 (B21).** Its row starts `  [ ] protection` and holds `held back` and that text; `--yes`: no
+  write, a `  skipped    protection (` line holding `checks out fixture/felix`, exit 1.
+- **A37 (B21, B6).** P1: plan exits 0, no Baseline, a line holding `cannot pass` and `checks out
+  fixture/felix`; `--yes`: no write, exit 1.
+- **A38 (B21).** (stranger/felix, h0): the value starts `none: ` holding `which does not hold
+  projects/app`; `--yes`: no write, a skipped line holding it, a line holding h0 and it, exit 1.
+- **A39 (B21, control).** (stranger/felix, m1): the value starts `projects/app`; `--yes` makes one
+  PUT to `repos/fixture/app/branches/main/protection`, prints `  protected  main requires the gate`,
+  exits 0.
+- **A40 (B21, M2).** E on a new branch with one unpushed commit u, P1: `felix ref:` holds
+  `{{FELIX_REF}}` (control); the value starts `projects/app`; plan prints Baseline, no `cannot
+  pass`, exit 0; `--yes`: no write, exit 0. **A41.** The same unprotected: that one PUT, exit 0.
+- **A42 (B22).** E back on main. (stranger/felix, `0123456789abcdef0123456789abcdef01234567`), then
+  (stranger/felix, u): plan with P1 exits 0, no Baseline, no `cannot pass`, the value starts
+  `unknown: `, a line holds `could not be read` and Yw; `--yes` unprotected: no write, a skipped
+  line holding `could not be read`, exit 1.
+- **A43 (B23, M3).** R3, P1: plan exits 0, holds `origin/main could not be read`, and holds none of
+  `cannot pass`, `is not on origin/main`, Baseline; `--yes`: no write, exit 1.
+- **A44 (B23, M3).** R3 unprotected: the row starts `  [ ] protection`, holds `held back` and
+  `origin/main could not be read`; no `is not on origin/main` in either run; `--yes`: no write, a
+  skipped line holding `origin/main could not be read`, exit 1.
+- **A45 (B23, control).** R3 once `refs/remotes/origin/main` is set at its HEAD, P1: plan prints
+  `Baseline already in place.`, exits 0.

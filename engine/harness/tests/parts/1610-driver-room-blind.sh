@@ -23,7 +23,8 @@ printf '\nroom in the driver: its count, its comment runs and its pointers (audi
 # assertion on it then fails with that reason.
 #
 # It reads only $HERE/run, $HERE/parts, $HERE/lib, $HERE/receipt.sh, paths
-# under $REAL_HARNESS/../.. and its own plants, and writes only under $DR10.
+# under $REAL_HARNESS/../.. and its own plants, and writes only under $DR10 and
+# where part 0003's _suite_flat keeps the flat suite, $TMP/suite-flat.run (A22).
 DR10="$TMP/driver-room-1610"; mkdir -p "$DR10/t12/parts"
 _dr10_nl=$'\n'
 
@@ -150,20 +151,21 @@ _dr10_nf() { printf '%s\n' "$1" | LC_ALL=C awk 'NR > 1 && $0 != "" { n++ } END {
 _dr10_join() { printf '%s\n' "$1" | LC_ALL=C awk '{ printf "%s%s", (NR > 1 ? "; " : ""), $0 }'; }
 
 # ---- the plants, exactly the contract's text
-cat > "$DR10/a3.run" <<'DR10_A3'
-#!/usr/bin/env bash
-set -uo pipefail
-. "$HERE/parts/0010-a.sh"
-. "$HERE/lib/a.sh"
-# a comment
-. "$HERE/parts/0020-b.sh"
-
-  . "$HERE/parts/0030-c.sh"
-. "$HERE/parts/0040-d.sh" # a trailing comment
-. "$HERE/lib/b.sh"
-. "$HERE/parts/0050-e.sh"
-. "$HERE/parts/sub/f.sh"
-DR10_A3
+# A3's lines are quoted arguments, one a line, so none begins a line of this
+# file: _suite_flat would read such a line as the driver's (review round, M1).
+printf '%s\n' \
+  '#!/usr/bin/env bash' \
+  'set -uo pipefail' \
+  '. "$HERE/parts/0010-a.sh"' \
+  '. "$HERE/lib/a.sh"' \
+  '# a comment' \
+  '. "$HERE/parts/0020-b.sh"' \
+  '' \
+  '  . "$HERE/parts/0030-c.sh"' \
+  '. "$HERE/parts/0040-d.sh" # a trailing comment' \
+  '. "$HERE/lib/b.sh"' \
+  '. "$HERE/parts/0050-e.sh"' \
+  '. "$HERE/parts/sub/f.sh"' > "$DR10/a3.run"
 printf '%s' "$(cat "$DR10/a3.run")" > "$DR10/a3-unended.run"
 cat > "$DR10/a7.run" <<'DR10_A7'
 #!/usr/bin/env bash

@@ -493,4 +493,6 @@ either prefix and stay heredocs. Not `<<-` with tab-led lines: the same bytes, b
 invisible. Parts 0003 and 0203 stay: a flattener that stops on a name it lacks is right.
 
 **Red.** 1610 alone under bwk, A20-A22 added and A3 still a heredoc: 15 assertions, 2 failed (A20:
-1610's seven lines; A22: status 1, flat line 84869 the first); A21 and A1-A12 passed.
+1610's seven lines; A22: status 1, flat line 84869 the first); A21 and A1-A12 passed (28df74e1).
+With A3 rewritten, the next commit: 1610 0 failed; 0202 0203 181 ok, 0 FAIL, under both awks; 1600
+1610 365 ok under gawk; 0200 141, 0590 127, 0770 168, 1040 67 (base) and 1290, 1291 0 FAIL, bwk.

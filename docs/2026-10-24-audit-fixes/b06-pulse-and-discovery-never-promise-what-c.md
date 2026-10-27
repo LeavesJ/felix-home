@@ -527,3 +527,50 @@ Passed (23), and why each did:
 | A54 (control), A56 (control) | Controls: a clean text is written unchanged and a newline becomes `\n`; a clean prompt is logged with no `[redacted]` and the monitor renders it. |
 | A59 (control) | Control: exactly one file under the harness defines `FELIX_SCAN_PATTERNS=` today. |
 | A60 | Already true: it scans the two part files, which hold no shape by construction (A0). |
+
+## 9. Review round (2026-10-26)
+
+Three majors (M1-M3) and the card's security follow-up (F1), found in review of the fix, restated as
+required behaviour. Section P's words hold; "the scanner" is the harness's `bin/secret-scan`. R1-R13
+are in `engine/harness/tests/parts/1741-pulse-commits-what-it-scanned-blind.sh`, written from this
+section alone and registered after part 1740.
+
+**B28. The commit is the tree that was scanned (M1, F1).** `felix_pulse_backup` commits exactly the
+tree it scanned for credentials and never stages from the working tree after the scan. (a) After the
+scanner has read the change it scans, and before the commit, the tracked `lessons.md` gains a line with
+K1 and a new clean `late.md` appears: the run still prints `backup<TAB>committed` and the verified push;
+HEAD holds the scanned change, HEAD's `lessons.md` equals HEAD~1's, HEAD has no `late.md`, R's main
+equals HEAD, no printed line holds K1 or its last 12 characters, both files stay in the working tree as
+written, and M's index matches HEAD afterwards. (b) The next pulse scans them: `lessons.md` is named in
+B15's credential line and left out, `late.md` is committed, and no commit holds K1. (c) The scan reads
+what the commit would hold, a person's staging included: `x.secret`, which `.gitignore` ignores, staged
+with `git add -f` and holding K1, gets B16's line naming `x.secret` with `staged by hand` and `NOT backed
+up`; no `committed` line; HEAD and the staged selection unchanged; neither HEAD's nor R's tree holds
+`x.secret`.
+
+**B29. The pulse leaves no staging of its own (M2).** A run that commits nothing leaves M's index as it
+found it, and a run that commits leaves it matching HEAD, so a selection staged by hand is only ever a
+person's. A commit that fails (a pre-commit hook that exits 1, as in part 0470) prints a `backup` line
+holding `commit FAILED` and `NOT backed up`, prints no `pushed and verified` line, and leaves
+`pulse.last-push` byte-identical, whatever else the run left out. While the cause stays, each run says
+`commit FAILED` again; once it is gone, the next run commits the rest and pushes it. No line of any of
+these runs holds `staged by hand`. This holds beside a nested repository (B12), beside a file left out
+for a credential (B15), and for a failed commit with nothing left out followed by a nested repository.
+
+**B30. A nested repository with no commit is a nested repository (M3).** A directory in memory made by
+`git init`, holding a file and no commit (git 2.54 refuses to stage it: `does not have a commit checked
+out`), is named in B12's one nested line beside any other, left out, and the rest committed and pushed;
+alone, it gives B13's `backup<TAB>nothing else new to commit`. No line holds `could not ask whether a
+nested repository sits inside memory`. The repository keeps its file and stays without a commit, and
+`git status` lists it untracked. B12-B14 hold for it on any git.
+
+- **R1-R3 (B28a, b).** A harness copy whose `bin/secret-scan` runs the real one, then makes the two late
+  writes once, after a call whose input held the scanned `l.md` line. R1: K1 neither committed nor
+  pushed. R2: `late.md` not committed; the index matches HEAD. R3: the real harness's next run.
+- **R4 (B28c).** The force-staged ignored `x.secret`.
+- **R5-R8 (B29, nested).** R5: run 1 says `commit FAILED`, leaves nothing staged. R6: and pushes
+  nothing; a stamp 9 days old stays byte-identical. R7: run 2, hook kept, the same, never `staged by
+  hand`. R8: run 3, hook removed: committed, pushed, `scraps` still left out, the stamp rewritten.
+- **R9 (B29, credential); R10 (B29, clean failure, then a nested repository).**
+- **R11 (B30).** Unborn `audits/x/fixture`, `scraps/` with a commit, new `audits/x/notes.md`, `l.md`
+  changed. **R12 (B30).** The unborn repository alone. **R13 [control].** The scanner passes the part.

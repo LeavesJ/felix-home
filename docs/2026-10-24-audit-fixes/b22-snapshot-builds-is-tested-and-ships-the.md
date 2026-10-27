@@ -492,3 +492,8 @@ Shipping the Stop fix is his, in this order, after the batch lands:
    **Partial** cell of the Status table:
    `In Claude Desktop, which runs a session in a git worktree, this engine (0.49.232) judges the main checkout at a stop instead of the worktree; the fix (0.49.245) is not yet published here.`
    Remove it when item 3 lands.
+
+## 8. Red
+
+Run 2026-10-26 at 5bd55fb0, bwk, parts 2050 and 2051 alone: 32 assertions, 4 failed, 28 passed. The four that failed are exactly section 4's red rows. A18: the scrub prints nothing on stdout. A26: no `scrub: halves marigold` line in the self-test run. A30: no `[brackenhall, name]` or `[quillcorp, name]` row. A31: the names lines hold no `zq` and no `not searched`.
+The 28 that passed are the controls (A1 to A17, A19 to A25, A27 to A29, A32): true before the fix, none already-true red. None is vacuous: with one rule broken each in a scratch copy, every one failed (A32 on a stray ref in P; A15 and A16 only after a second, stronger break). B19's grep prints 0 today because the phrase wraps over two header lines, so B19 is judged by eye.

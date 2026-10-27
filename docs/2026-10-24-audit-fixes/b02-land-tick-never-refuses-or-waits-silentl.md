@@ -77,11 +77,11 @@ Terms, used throughout:
 
 - **B1. Class.** When the tick's felix merge run exits non-zero, the refusal gets one class:
   - *receipt*: exit 3, the block holds at least one line, and every line's kind is `unverified`, or
-    `commission` with subject `receipt`;
+    `commission` with subject `receipt`, but none is `unverified` with subject `tests` (B28);
   - *final*: exit 3 with any other block: any other kind, a `commission` subject other than `receipt`,
     or an empty block;
   - *hourly*: any status other than 0 and 3: cmd_merge's `die` refusals (judge, gh, usage, exit 1), its
-    "moved" refusals (exit 4), and crashes.
+    "moved" refusals (exit 4), and crashes; and exit 3 with an `unverified` `tests` line among receipt lines (B28).
 - **B2. The refused row says what lifts it.** The detail is `<blocker> <clause> [main <sha>]`.
   `<blocker>` is chosen as today (contract G6: the first line that begins with two spaces, else the last
   line, cleaned). `<clause>` is exactly one of `(final until the head or main moves)`,

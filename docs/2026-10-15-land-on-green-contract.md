@@ -30,14 +30,13 @@ judgement stays where it is today:
 
 A pull request `felix merge` refuses stays with its session, as today.
 
-**One departure from the design, decided.** Design §5 says a change to the code
-that judges never lands with nobody present. That rule protects an actor that
-re-gates in its own clone, where the candidate's code would judge itself. Here
-nothing is re-gated. A judge-changing pull request lands on exactly the evidence
-a session's merge on green uses today, so holding it would add no check and
-would only bring the wait back. What a present session adds is noticing a broken
-deploy. G7's verify covers one that does not install or does not match main, not
-a hook that fails open (roadmap step 12; b02-land-tick, C100).
+**One departure from the design, decided.** Design §5 says a change to the code that judges never
+lands with nobody present. That rule protects an actor that re-gates in its own clone, where the
+candidate's code would judge itself. Here nothing is re-gated. A judge-changing pull request lands
+on exactly the evidence a session's merge on green uses today, so holding it would add no check and
+would only bring the wait back. What a present session adds is noticing a broken deploy. G7's verify
+covers one that does not install or match main, or whose session-start prints nothing or pre-tool
+lets a pattern kill through. It runs no stop hook (roadmap step 12; b02-land-tick, B31, C100).
 
 ## The clauses
 
@@ -163,12 +162,14 @@ write a row every five minutes.
 3. **Install.** The tick runs `git -C "$FELIX_HOME_DIR" pull --ff-only`, then
    the home's `engine/harness/felix install --no-bump`, from the home. The
    home's engine is main's, because main has just been verified.
-4. **Verify.** All three of these must hold:
+4. **Verify.** All four of these must hold:
     - `diff -rq` of the cache entry for the new version against
       `$FELIX_HOME_DIR/engine/harness` is empty;
     - the home's `engine/harness/hooks/session-start`, given a stub payload
       `{"session_id":"felix-land-verify","source":"startup","cwd":"$FELIX_HOME_DIR"}`
-      on stdin, exits 0;
+      on stdin, exits 0 and prints at least one line (b02-land-tick B31);
+    - the home's `engine/harness/hooks/pre-tool`, given a PreToolUse payload for the Bash command
+      `killall felix-verify-probe` with the home as cwd, exits 2 (b02-land-tick B31);
     - `felix gate --quick`, run in the home, exits 0.
 
    If they hold, the tick writes a `deployed` row. If any fails, it writes a
@@ -311,8 +312,8 @@ from a clause above, the amendment wins.
   whose newest row is `refused` is passed to `felix merge` again only when its
   head or `refs/remotes/origin/main` has moved since that row, which records
   both; or, by the clause the row ends with (b02-land-tick B1-B9), when a
-  receipt that alone could lift it holds other bytes, or an hour has passed
-  after a status other than 0 and 3. Each real `felix merge` run writes
+  receipt that alone could lift it holds other bytes, or an hour has passed after a status other
+  than 0 and 3 or a refusal only GitHub's answer could lift (B28). Each real `felix merge` run writes
   says.log rows, so this still bounds the founder-interruption count.
 - **A14 (seeing a running suite, and failing closed).**
     - G7.1's process check matches `engine/harness/tests/run` with or without a
@@ -384,9 +385,8 @@ cases are recorded and are not chased further.
         - `git rev-parse HEAD` equal to `headRefOid`;
         - a `git rev-parse --git-common-dir` that names the home's own `.git`.
 - **A24 (the home is main, byte for byte, before any of its code runs).**
-  Before the deploy runs anything from the home (`felix install`,
-  `session-start`, `felix gate --quick`), all three of these must hold for
-  `engine/` and `projects/<p>/`:
+  Before the deploy runs anything from the home (`felix install`, `session-start`, `pre-tool`,
+  `felix gate --quick`), all three of these must hold for `engine/` and `projects/<p>/`:
     - every tracked path hashes, with `git hash-object` over the working-tree
       file and not through `git status`, to the blob
       `refs/remotes/origin/main` holds;

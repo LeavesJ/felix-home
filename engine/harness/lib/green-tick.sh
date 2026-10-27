@@ -268,14 +268,12 @@ _gt_deploy() {
   # A21: against main's own commit, not the home's files: an untracked file in the home's engine/ cannot pass.
   out="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$home" "$_GT_MAIN" 2>&1 )" \
     || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(_gt_didnt "$had" "$entry")$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
-  printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
-    | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) >/dev/null 2>&1
-  rc=$?
-  [ "$rc" -eq 0 ] || { _gt_unverified "session-start: the home's hooks/session-start exited $rc on a stub payload"; return 1; }
+  # B31: session-start must print its context and pre-tool must refuse a pattern kill (_gt_hooks, lib/green-install.sh).
+  why="$(_gt_hooks "$home")" || { _gt_unverified "$why"; return 1; }
   ( cd "$home" && "$home/engine/harness/felix" gate --quick ) >/dev/null 2>&1 </dev/null
   rc=$?
   [ "$rc" -eq 0 ] || { _gt_unverified "gate: felix gate --quick exited $rc in the home"; return 1; }
-  _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches origin/main, and passed session-start and felix gate --quick"
+  _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches origin/main, and passed session-start, pre-tool and felix gate --quick"
   rm -f "$_GT_LAND/verifying"
   return 0
 }

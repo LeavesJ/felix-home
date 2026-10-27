@@ -90,18 +90,19 @@ _GT_CF='(final until the head or main moves)'
 _GT_CH='(tried again an hour after this row)'
 _gt_clause() { case "$1" in receipt) printf '%s' "$_GT_CR" ;; final) printf '%s' "$_GT_CF" ;; *) printf '%s' "$_GT_CH" ;; esac; }
 
-# B1. receipt: exit 3 and a blocker block of unverified and commission receipt lines only, so a new
-# receipt can lift it; final: exit 3 with any other block or none; hourly: any other status. The
-# block follows the first line that is exactly "not merging", past its one empty line, to the next
-# empty line.
+# B1, B28. receipt: exit 3 and a blocker block of unverified and commission receipt lines only, so a new
+# receipt can lift it; final: exit 3 with any other block or none; hourly: any other status, and a block
+# of those lines with an unverified tests line among them, because that line is GitHub's answer (rule C9
+# asking it) and no receipt write lifts what GitHub says. The block follows the first line that is
+# exactly "not merging", past its one empty line, to the next empty line.
 _gt_class() {   # STATUS OUTPUT -> receipt, final or hourly
   [ "$1" = 3 ] || { printf hourly; return 0; }
-  printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0 }
+  printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0; h = 0 }
     s == 0 { if ($0 == "not merging") s = 1; next }
     s == 1 { s = 2; if ($0 == "") next }
     $0 == "" { exit }
-    { n++; if (!($1 == "unverified" || ($1 == "commission" && $2 == "receipt"))) b = 1 }
-    END { print (n > 0 && !b) ? "receipt" : "final" }'
+    { n++; if ($1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
+    END { print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'
 }
 
 # B4. What one receipt file holds, by its sum: - when absent, ? when unknown. Other bytes, other sum.
@@ -172,23 +173,51 @@ _gt_procs() {   # PIDS, one per line
   printf '%s' "${out:-no pid}"
 }
 
-# B20. felix install does not replace an entry that exists: say so when the one that differs was there.
+# B20, B30. felix install does not replace an entry that exists: say so when the one that differs was
+# there, and the way out, which is to move it aside and install again.
 _gt_didnt() {   # HAD ENTRY
   [ "$1" = 1 ] || return 0
-  printf 'it existed before the install, and felix install does not replace an entry that exists, so %s stays as it is: ' "$2"
+  printf 'it existed before the install, and felix install does not replace an entry that exists, so %s stays as it is. The way out: move %s aside, then run felix install --no-bump in the home. The first difference: ' "$2" "$2"
 }
 
-# B22-B25. The brakes leave a row, with the session that used them.
+# B31. The verify's hook checks. A hook that fails open looks like a hook that works, so each is
+# asked for something it can only give when it loaded: the home's session-start must print its
+# context (a governed home always has some, and one that could not load its libraries exits 0 and
+# prints nothing, audit b02 C100), and its pre-tool must refuse a pattern kill with 2, which project
+# felix's deny row does for every killall. The payload names a command nothing ever runs, and the
+# probe's own record goes to a memory directory of its own, so it is no "denied" row of the project's.
+# stop is not run: its block needs a governed, dirty checkout with no receipt (roadmap step 12).
+_gt_hooks() {   # HOME -> 0 when both hooks answered as a working home's do; else the reason on stdout, 1
+  local home="$1" out rc mem=""
+  out="$(printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
+    | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) 2>/dev/null)"
+  rc=$?
+  [ "$rc" -eq 0 ] || { printf "session-start: the home's hooks/session-start exited %s on a stub payload" "$rc"; return 1; }
+  [ -n "$out" ] || { printf "session-start: the home's hooks/session-start exited 0 and printed nothing on a stub payload, and a governed home always prints its context, so it did not load"; return 1; }
+  [ -x "$home/engine/harness/hooks/pre-tool" ] || { printf "pre-tool: the home has no executable hooks/pre-tool, which must refuse a pattern kill"; return 1; }
+  mem="$(mktemp -d "${TMPDIR:-/tmp}/felix-land-verify.XXXXXX" 2>/dev/null)" || mem=""
+  printf '{"session_id":"felix-land-verify","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"killall felix-verify-probe"},"cwd":"%s"}\n' "$home" \
+    | ( cd "$home" && FELIX_MEMORY="${mem:-${FELIX_MEMORY:-$HOME/.felix/memory}}" "$home/engine/harness/hooks/pre-tool" ) >/dev/null 2>&1
+  rc=$?
+  [ -z "$mem" ] || rm -rf "$mem"
+  [ "$rc" -eq 2 ] || { printf "pre-tool: the home's hooks/pre-tool exited %s on a Bash payload of killall felix-verify-probe, and project felix's deny row makes it exit 2, so it fails open" "$rc"; return 1; }
+  return 0
+}
+
+# B22-B25, B29. The brakes leave a row, with the session that used them, once the file says so: a
+# command that could not write or remove land/paused says why, writes no row and exits 1.
 _gt_by() { printf 'by session %s' "${CLAUDE_CODE_SESSION_ID:--}"; }
 _gt_hand_pause() {   # REASON
-  _gt_pause "$1"; _gt_row paused - - - 0 "$1; $(_gt_by)"; return 0
+  _gt_pause "$1" && [ -e "$_GT_LAND/paused" ] || { printf 'felix land: could not write %s: the job is not paused\n' "$_GT_LAND/paused" >&2; return 1; }
+  _gt_row paused - - - 0 "$1; $(_gt_by)"; return 0
 }
 _gt_hand_resume() {
   local why
   [ -e "$_GT_LAND/paused" ] || return 0
   why="$(LC_ALL=C sed -n 1p "$_GT_LAND/paused" 2>/dev/null)"
-  _gt_row resumed - - - 0 "the pause read: $why; $(_gt_by)"
-  rm -f "$_GT_LAND/paused"; return 0
+  rm -f "$_GT_LAND/paused"
+  [ ! -e "$_GT_LAND/paused" ] || { printf 'felix land: could not remove %s: the job is still paused\n' "$_GT_LAND/paused" >&2; return 1; }
+  _gt_row resumed - - - 0 "the pause read: $why; $(_gt_by)"; return 0
 }
 
 _gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
@@ -288,7 +317,7 @@ rc=$?
 rm -rf "$tmp"
 case "$rc" in
   0) ;;
-  1) owed "the cache entry for main's $ver differs from origin/main's engine, so it is not main's engine, and felix install does not replace an entry that exists, so $entry stays as it is: nothing runs" ;;
+  1) owed "the cache entry for main's $ver differs from origin/main's engine, so it is not main's engine, and felix install does not replace an entry that exists, so $entry stays as it is: nothing runs until then, so move $entry aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR)" ;;
   3) owed "main's accepted-engine check cannot be loaded: origin/main's lib/resolve.sh defines no felix_accepted_deploy_diff" ;;
   *) owed "main's accepted-engine check could not examine the entry for $ver (status $rc): nothing runs" ;;
 esac

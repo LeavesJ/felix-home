@@ -433,6 +433,8 @@ is written against that. A wording correction, not a defect.
   10-13. tests/red is 559 lines, and every change to it is a verifier read (risk.tsv line 45). The
   fix is the same line reworded, "(tests/receipt.sh says what that cost)". Left to a batch that
   edits tests/red.
+- **Part 1295 line 268, "(tests/run:17)".** `set -uo pipefail` is now line 9 of the driver. 1295 is
+  outside B7, so it stays; a later batch words it by name, "(tests/run, its set -uo pipefail line)".
 - **Moving code out of the driver**, such as the manifest comparison (lines 420-486) into receipt.sh
   or a part. It would free more, but it changes where code runs and what each copy of the driver
   carries (`_suite_copy_driver`, `_suite_copy_tree`, tests/red). The brief asks for comments only,

@@ -8,6 +8,80 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	97cdd50af4701ca3f9899d28aa1dc2eb115fb3ac	0.49.279
-run	1	7515	9
-every uses: in the workflows beside this harness names a full commit sha, not a ref its owner can move	1
+base	2fc0c6715b3067c6e07cbfca10bbebbc3c70f451	2fc0c6715b3067c6e07cbfca10bbebbc3c70f451	0.49.280
+run	75	7433	24
+a surface appearing in the checkout makes it stale the other way	1
+and a project's commission policy version is the same with and without a land.tsv beside its tables, or writing one would stale its receipt	1
+and ignores the path so it cannot come back	1
+and the invented night project, its memory, its receipt and the hook state its sessions wrote are gone after the fifth block	1
+editing a table in the set makes it stale, with nothing under state/ changing	1
+every template the engine ships passes its own secret scan	1
+felix-home's land.tsv holds the design's seven rows, by the hash of its data rows, or the table the founder arms is not the one designed	1
+quiet on a quoted reference sample 1	1
+quiet on a quoted reference sample 2	1
+quiet on a quoted reference sample 3	1
+the Stop hook allows a stop on a tree the gate has passed, in silence, with an allowed row	1
+the Stop hook counts debt when the matching line is one of several in the record, with others on both sides of it	1
+the Stop hook counts debt, and holds nothing, for a record line with this tree, this reason and this checkout	1
+the Stop hook does not hold a flagged stop inside another hook's chain on a tree already held on for the session: it is debt	1
+the Stop hook does not hold the second stop on the same tree when the gate failed on this tree, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the gate never ran, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the gate passed on this tree and the epoch moved, and the debt row names that tree	1
+the Stop hook does not hold the second stop on the same tree when the receipt is for a different tree, and the debt row names that tree	1
+the Stop hook holds a second session on a tree the first session was already held on	1
+the Stop hook holds a session again on the same tree once SessionEnd has removed its record, and records it afresh	1
+the Stop hook holds a session whose record is a link to a file holding this very line, where the same line in a plain file is debt	1
+the Stop hook holds a stop whose record line differs from it only in a different checkout, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line differs from it only in a different reason, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line holds only the tree id, and records the hold in full	1
+the Stop hook holds a stop whose record line holds the tree id and the reason but no checkout, and records the hold in full	1
+the Stop hook holds a third tree once, and names it in the blocked row	1
+the Stop hook holds the first stop in a home that is the checkout it governs, and names the tree as it stood	1
+the Stop hook holds the first stop on a tree as "failed" (control)	1
+the Stop hook holds the first stop on a tree as "never verified" (control)	1
+the Stop hook holds the first stop on a tree as "stale receipt" (control)	1
+the Stop hook holds the first stop once when the gate failed on this tree, and the blocked row says failed	1
+the Stop hook holds the first stop once when the gate never ran, and the blocked row says never verified	1
+the Stop hook holds the first stop once when the gate passed on this tree and the epoch moved, and the blocked row says epoch moved	1
+the Stop hook holds the first stop once when the receipt is for a different tree, and the blocked row says stale receipt	1
+the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "epoch moved" after "failed", and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never verified", and records that hold	1
+the Stop hook holds the same session on the same tree again when the reason has become "failed" after "stale receipt", and records that hold	1
+the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold	1
+the Stop hook holds the session once the green receipt is gone, for the first time, because the green gate recorded nothing	1
+the Stop hook judges the same tree at the stop after a hold in a home that is the checkout it governs: debt	1
+the Stop hook keeps a record of its own for the second session	1
+the Stop hook leaves another session's record as it was when a person types into a session	1
+the Stop hook records both checkouts, each on a line of its own	1
+the Stop hook records both holds, "failed" and then "epoch moved", on lines of their own	1
+the Stop hook records both holds, "never verified" and then "failed", on lines of their own	1
+the Stop hook records both holds, "stale receipt" and then "failed", on lines of their own	1
+the Stop hook records nothing for a stop the green gate allowed	1
+the Stop hook records the tree for that first hold when the gate failed on this tree	1
+the Stop hook records the tree for that first hold when the gate never ran	1
+the Stop hook records the tree for that first hold when the gate passed on this tree and the epoch moved	1
+the Stop hook records the tree for that first hold when the receipt is for a different tree	1
+the Stop hook records the tree id of a first hold in state/held-tree under the session id	1
+the Stop hook records the tree id, a tab, "epoch moved", a tab and the checkout for a hold when the gate passed on this tree and the epoch moved	1
+the Stop hook records the tree id, a tab, "failed", a tab and the checkout for a hold when the gate failed on this tree	1
+the Stop hook records the tree id, a tab, "never verified", a tab and the checkout for a hold when the gate never ran	1
+the Stop hook records the tree id, a tab, "stale receipt", a tab and the checkout for a hold when the receipt is for a different tree	1
+the Stop hook still judges a flagged stop inside another hook's chain on a tree not recorded for the session, and holds it	1
+the Stop hook still writes an allowed row, and not debt, for a session already held on this tree once the gate has passed it	1
+the Stop hook treats a flagged stop with no hold of Felix's on record as debt when the session's record names the tree	1
+the Stop hook treats a record line holding the tree id, the reason and the checkout as a hold already made, and adds a debt row	1
+the Stop hook's SessionEnd leaves another session's record as it was	1
+the Stop hook's allowed row for a current green gate says green and names the tree	1
+the Stop hook's blocked row, debt row, record and independently taken tree id are one tree id	1
+the Stop hook's debt row for the returning tree names the returning tree	1
+the Stop hook's debt row has the verdict debt in its second field and the tree the session was held on in its third	1
+the Stop hook's debt row, its record and the tree id taken independently all name one tree	1
+the Stop hook's first hold writes a blocked row naming the tree and never verified as the reason	1
+the Stop hook's override row names the tree	1
+the Stop hook's record in the governed home holds the tree id the blocked row names	1
+the Stop hook's record inside the tree leaves the tree's identity as it was	1
+the Stop hook's record, once a hold was printed, holds the tree it was held on	1
+the Stop hook's second hold of that session names the changed tree	1
+the Stop hook's two sessions each have a record before the first one ends (control)	1
+the scanner's own code names no project	1

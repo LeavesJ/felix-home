@@ -1,8 +1,8 @@
-printf '\nbootstrap judges the gate by the workflow CI runs, and says what it could not read (audit b15 review round, A35-A45, blind)\n'
+printf '\nbootstrap judges the gate by the workflow CI runs, and says what it could not read (audit b15 review round, A35-A48, blind)\n'
 # Blind, written on 2026-10-26 from the review round of docs/2026-10-24-audit-fixes/b15-bootstrap-
 # protects-the-right-branch-with.md (section 10, with sections 2 and 4) alone. No engine code was
 # read: felix bootstrap is run as a black box from the directory of a fixture repository, with
-# section 4's gh stub first on PATH. One assertion per item, A35 to A45, each named for the
+# section 4's gh stub first on PATH. One assertion per item, A35 to A48, each named for the
 # behaviour; a control is folded into its item and said in the detail when it fails.
 #
 # Fixture F3, all under $TMP/bc1925 (physical paths), every git write through _fx_git:
@@ -10,7 +10,8 @@ printf '\nbootstrap judges the gate by the workflow CI runs, and says what it co
 #       at it and origin/HEAD naming it; engine/harness a copy of $FROOT/harness and
 #       projects/app/project.json, both untracked (the stranger). Then, as M1's stranger does next:
 #       origin set to https://github.com/stranger/felix.git, projects/ committed (m1), origin/main
-#       moved to m1 (the push to the fork). For M2, a branch `local` with one unpushed commit u.
+#       moved to m1 (the push to the fork). For M2, a branch `local` with one unpushed commit u,
+#       and last (A47-A48) one unpushed empty commit on main itself, as the review reproduced it.
 #   G1  a fresh repository (origin https://github.com/fixture/app.git, one empty commit, origin/main
 #       and origin/HEAD at it). bootstrap --yes renders its gate.yml in the stranger state; the part
 #       then sets that file's first repository: line and the ref: line after it, nothing else, and
@@ -111,6 +112,8 @@ _bc_line() {  # ID PREFIX SUB -> yes when a line starts PREFIX and holds SUB
   LC_ALL=C awk -v p="$2" -v s="$3" 'index($0, p) == 1 && index($0, s) { y = 1 } END { print (y ? "yes" : "no") }' "$_bc_T/run/$1.out" 2>/dev/null; }
 _bc_both() {  # ID A B -> yes when one line holds both
   LC_ALL=C awk -v a="$2" -v b="$3" 'index($0, a) && index($0, b) { y = 1 } END { print (y ? "yes" : "no") }' "$_bc_T/run/$1.out" 2>/dev/null; }
+_bc_after() {  # ID PREFIX -> the line after the first line starting PREFIX
+  LC_ALL=C awk -v p="$2" 'f { print; exit } index($0, p) == 1 { f = 1 }' "$_bc_T/run/$1.out" 2>/dev/null; }
 _bc_wfref() {  # DIR REPO -> the line after the first line holding `repository: REPO` in DIR's gate.yml, blanks removed
   LC_ALL=C awk -v r="repository: $2" 'f { gsub(/[ \t]/, ""); print; exit } index($0, r) { f = 1 }' "$1/.github/workflows/gate.yml" 2>/dev/null; }
 # The committed workflow's checkout, set by hand: the first line whose first word is repository: and
@@ -158,6 +161,9 @@ _bc_end() { [ -z "$_bc_fx" ] || _bc_f="$_bc_f; fixture steps failed:$_bc_fx"
 _bc_has()   { case "$1" in *"$2"*) return 0 ;; esac; return 1; }
 _bc_lacks() { ! _bc_has "$1" "$2"; }
 _bc_pre()   { case "$1" in "$2"*) return 0 ;; esac; return 1; }
+_bc_held()  {  # ROW REASON: a [?] row, or a [ ] row holding held back; either holding REASON
+  { _bc_pre "$1" '  [?] protection' || { _bc_pre "$1" '  [ ] protection' && _bc_has "$1" 'held back'; }; } \
+    && _bc_has "$1" "$2"; }
 _bc_eq()    { [ "$1" = "$2" ]; }
 _bc_exit()  { _bc_ck "run $1 did not run or printed nothing" _bc_ran "$1"; _bc_ck "run $1 exited $(_bc_rc "$1"), not $2" _bc_eq "$(_bc_rc "$1")" "$2"; }
 _bc_nowrite() { _bc_ck "run $1 wrote [$(_bc_wl "$1")]" _bc_eq "$(_bc_wl "$1")" ""; }
@@ -297,9 +303,8 @@ _bc_fix _bc_ctl
 _bc_run a44p "$_bc_R"; _bc_run a44y "$_bc_R" --yes
 _bc_x="$(_bc_row a44p protection)"
 _bc_ck "run a44p did not run" _bc_ran a44p
-_bc_ck "the plan's protection row [$_bc_x] does not start [  [ ] protection]" _bc_pre "$_bc_x" '  [ ] protection'
-_bc_ck "it lacks [held back]" _bc_has "$_bc_x" 'held back'
-_bc_ck "it lacks [origin/main could not be read]" _bc_has "$_bc_x" 'origin/main could not be read'
+_bc_ck "the plan's protection row [$_bc_x] is neither [  [?] protection] nor [  [ ] protection] holding [held back], holding [origin/main could not be read]" \
+  _bc_held "$_bc_x" 'origin/main could not be read'
 _bc_ck "plan says is not on origin/main" _bc_lacks "$(_bc_out a44p)" 'is not on origin/main'
 _bc_nowrite a44y
 _bc_ck "--yes says is not on origin/main" _bc_lacks "$(_bc_out a44y)" 'is not on origin/main'
@@ -314,3 +319,32 @@ _bc_run a45p "$_bc_R"
 _bc_ck "plan lacks [$_bc_BL]" _bc_has "$(_bc_out a45p)" "$_bc_BL"
 _bc_exit a45p 0
 _bc_end "b15 A45 (B23, control): once origin/main is in the clone (as a fetch would leave it), the same repository reads $_bc_BL"
+
+# ---- M1's remedy: the stranger's first --yes (r0) tells a forking stranger about repository:
+_bc_x="$(_bc_val r0 'ci project:')"; _bc_y="$(_bc_after r0 '  wrote      .github/workflows/gate.yml')"
+_bc_ck "run r0 did not run or printed nothing" _bc_ran r0
+_bc_ck "r0's ci project: value [$_bc_x] lacks [repository:]" _bc_has "$_bc_x" 'repository:'
+_bc_ck "the line after r0's wrote line [$_bc_y] lacks [repository:]" _bc_has "$_bc_y" 'repository:'
+_bc_end "b15 A46 (B21, M1): the stranger's remedy says a fork means setting the workflow's repository: too: the ci project: line and the line after wrote      .github/workflows/gate.yml each name repository:"
+
+# ---- M2 as the review reproduced it: R3's committed workflow names no checkout, and E's main has
+# one unpushed commit, so the pin is empty while origin/main holds projects/app
+_bc_fix _bc_ci "$_bc_E" 'not pushed, on main'
+_bc_fix _bc_p1
+_bc_run a47p "$_bc_R"; _bc_run a47y "$_bc_R" --yes
+_bc_x="$(_bc_val a47p 'ci project:')"
+_bc_ck "control: felix ref: [$(_bc_val a47p 'felix ref:')] lacks {{FELIX_REF}}, so the pin is not empty" _bc_has "$(_bc_val a47p 'felix ref:')" '{{FELIX_REF}}'
+_bc_ck "the ci project: value [$_bc_x] lacks [not on its default branch]" _bc_has "$_bc_x" 'not on its default branch'
+_bc_ck "the ci project: value [$_bc_x] tells the person to fork" _bc_lacks "$_bc_x" 'fork'
+_bc_ck "plan lacks [$_bc_BL]" _bc_has "$(_bc_out a47p)" "$_bc_BL"
+_bc_ck "plan says cannot pass" _bc_lacks "$(_bc_out a47p)" 'cannot pass'
+_bc_exit a47p 0
+_bc_nowrite a47y; _bc_exit a47y 0
+_bc_end "b15 A47 (B24, M2): with E's main one commit ahead of origin/main, which holds projects/app, a main requiring the gate under a workflow that names no checkout is $_bc_BL, the ci project: line says not on its default branch and names no fork, and --yes exits 0"
+
+_bc_fix _bc_ctl
+_bc_run a48y "$_bc_R" --yes
+_bc_ck "--yes wrote [$(_bc_wl a48y)], not the one PUT to main's protection" _bc_eq "$(_bc_wl a48y)" "$_bc_PUT"
+_bc_ck "the output lacks [  protected  main requires the gate]" _bc_has "$(_bc_out a48y)" '  protected  main requires the gate'
+_bc_exit a48y 0
+_bc_end "b15 A48 (B24, M2): and with main unprotected, --yes protects it with one PUT and exits 0"

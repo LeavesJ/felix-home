@@ -772,3 +772,66 @@ did not. They are of two kinds.
   them. A46.1-A46.9: the new SQL rule is what could over-match them.
   A54.1-A54.6: no workflow-reference rule exists, so no path can be
   over-matched. A60: ESC runs none of the new code under `set -u` today.
+
+## 9. Review round (2026-10-26)
+
+A review of the build at f4c9f9c5 found one defect. It is restated here as
+required behaviour. Where this section and §2 differ, this section wins.
+
+- **M1. The added-line rule keeps every line main's rule catches.** Main's
+  added-line rule (§1, C021) is the upper-case ERE
+  `DROP TABLE|TRUNCATE |DELETE FROM [^W]*$`, matched anywhere in an added line.
+  An added line that this ERE matches, on any path, and that holds no `where`
+  in any case, gives exactly one `durable<TAB>ADDED-LINES<TAB>…` row, and ESC
+  exits 0. This amends §2's added-line rule in two places:
+  - An upper-case `DROP TABLE` fires whatever follows it: a letter (as in
+    `TABLESPACE`), a quote, a backtick, a bracket, a blank, `;` or the end of
+    the line.
+  - An upper-case `DELETE FROM` followed by a blank takes any text as its
+    name, quoted or bracketed names included.
+
+  Lower-case and mixed-case statements keep §2's narrower rule. §2's `WHERE`
+  exemption for DELETE and UPDATE is the only place the build may narrow
+  main's catches.
+  *Scenario:* a branch adds `db/cleanup.sql`, which is on no migration path,
+  holding `DROP TABLESPACE app_data INCLUDING CONTENTS AND DATAFILES;`,
+  ``DROP TABLE`users`;`` or `DROP TABLE"users";`. Main's engine prints
+  `durable ADDED-LINES destructive SQL in the added lines`. The build at
+  f4c9f9c5 prints nothing and exits 0, so `felix merge` says nothing escaped.
+  That breaks §3: every existing channel fires where it fires today. The
+  cause is §2's own wording, which asked for a blank, `;` or the end of the
+  line after `TABLE`. The result is the same under BWK and gawk.
+
+**Assertions.** These are added to part 1820 after A60, so `tests/run` does
+not change. Each corpus line is committed as the only line of
+`db/cleanup.sql` on its own branch. Before it is used, the part checks the
+line against main's ERE and checks that it holds no `where`. A line that fails
+that check is a `bad` assertion that names the test as wrong, and never passes
+silently.
+
+| M | Added line | Expect |
+|---|---|---|
+| M1.1 | `DROP TABLESPACE app_data INCLUDING CONTENTS AND DATAFILES;` | exactly one `durable<TAB>ADDED-LINES` row, exit 0 |
+| M1.2 | ``DROP TABLE`users`;`` | the same |
+| M1.3 | `DROP TABLE"users";` | the same |
+| M1.4 | `DROP TABLE[users];` | the same |
+| M1.5 | `db.Exec("DROP TABLE"+name)` | the same |
+| M1.6 | `DROP TABLE<TAB>users;` | the same |
+| M1.7 | `DELETE FROM "users";` | the same |
+| M1.8 | ``DELETE FROM `users`;`` | the same |
+| M1.9 | `DELETE FROM [users];` | the same |
+| M1.10 | `TRUNCATE "sessions";` | the same |
+| M1.11 | `SELECT 1;` | ESC prints nothing (control: `db/cleanup.sql` is not durable by path) |
+
+On origin/main's lib files, M1.1-M1.10 hold, because they restate what
+main's rule catches. Here, red means the build at f4c9f9c5.
+
+**Red.** Part 1820 ran alone under macOS awk (BWK) and bash 3.2, in one
+`--part` run from a fresh temporary directory, against the build at f4c9f9c5.
+All eleven M1 names were emitted. **5 failed: M1.1-M1.5**, the `DROP TABLE`
+lines where something other than a blank, `;` or the end of the line follows
+`TABLE`. Each got 0 rows and exit 0. M1.6-M1.10 passed, so the build already
+keeps those catches, and they now pin them. M1.11, the control, passed.
+A41-A60 all passed in the same run. A scratch run on the same eleven lines
+through origin/main's lib, extracted with `git archive`, printed one
+`durable ADDED-LINES` row for each of M1.1-M1.10 and nothing for M1.11.

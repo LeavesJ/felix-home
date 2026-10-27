@@ -293,3 +293,35 @@ if _b10d_fx "$_b10d_nm"; then
   if [ -f "$_b10d_err" ] && ! LC_ALL=C grep -q 'unbound variable' "$_b10d_err"; then ok "$_b10d_nm"
   else bad "$_b10d_nm" "stderr: [$(cat "$_b10d_err" 2>/dev/null)]"; fi
 fi
+
+# ---- Review round (2026-10-26), M1: the added-line rule keeps every catch main's rule makes ----
+# Written blind from the contract's Review round section. Main's rule, as §1 C021
+# states it, is the upper-case ERE below; a line it catches, holding no "where" in
+# any case, must still give exactly one durable ADDED-LINES row. Each line is
+# checked against that ERE first, so a corpus line outside the class is a bad
+# assertion, never a silent pass. The file is db/cleanup.sql, on no migration
+# path; <TAB> in a corpus line stands for the byte 0x09.
+_b10d_main='DROP TABLE|TRUNCATE |DELETE FROM [^W]*$'; _b10d_T="$(printf '\t')"
+_b10d_k=0
+while IFS= read -r _b10d_r; do
+  _b10d_k="$((_b10d_k + 1))"; _b10d_l="${_b10d_r//<TAB>/$_b10d_T}"
+  _b10d_nm="b10 M1.$_b10d_k: main's rule catches the added line [$_b10d_r] in db/cleanup.sql, and ESC still gives exactly one durable ADDED-LINES row"
+  if ! LC_ALL=C grep -Eq "$_b10d_main" <<<"$_b10d_l" || LC_ALL=C grep -iq where <<<"$_b10d_l"; then
+    bad "$_b10d_nm" "the corpus line is not one main's rule catches without a where: the test is wrong"; continue
+  fi
+  _b10d_one "m1-$_b10d_k" db/cleanup.sql "$_b10d_l"; _b10d_esc
+  _b10d_fx "$_b10d_nm" && is "$_b10d_nm" "$(_b10d_n durable ADDED-LINES) rows; exit $_b10d_rc" "1 rows; exit 0"
+done <<'B10D_MAIN_CATCHES'
+DROP TABLESPACE app_data INCLUDING CONTENTS AND DATAFILES;
+DROP TABLE`users`;
+DROP TABLE"users";
+DROP TABLE[users];
+db.Exec("DROP TABLE"+name)
+DROP TABLE<TAB>users;
+DELETE FROM "users";
+DELETE FROM `users`;
+DELETE FROM [users];
+TRUNCATE "sessions";
+B10D_MAIN_CATCHES
+_b10d_one m1-c db/cleanup.sql 'SELECT 1;'; _b10d_esc
+_b10d_none "b10 M1.11: db/cleanup.sql holding only SELECT 1; gives ESC nothing, so the path itself is not durable (control)"

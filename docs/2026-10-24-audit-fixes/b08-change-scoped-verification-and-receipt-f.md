@@ -435,7 +435,7 @@ Part 1780:
 ## 5. Parts
 
 - `engine/harness/tests/parts/1770-merge-and-gate-say-what-ran-blind.sh`: A1 to A33
-  (C003, C110, and the gate's not-reused line).
+  (C003, C110, and the gate's not-reused line), and A61 to A68 (section 9).
 - `engine/harness/tests/parts/1780-the-receipt-keys-on-what-the-suite-reads-blind.sh`:
   A34 to A60 (C045's receipt).
 
@@ -523,3 +523,58 @@ Passed (26), and why:
 - **Vacuous:** none found. A13 (the gh stub's file stays empty over A1 to A12) is the
   nearest. It is a control that cannot fail until the judge may call gh, and A14, which
   records a `tests:reused` receipt, fails for the right reason.
+
+## 9. Review round
+
+Two review findings against fix commit 318e32e3. Both are C110, and they land with the
+first pull request (section 7). Their assertions are A61 to A68, in part 1770, over FC.
+
+**M1.** A binding was recorded only when its hook object opened at exactly
+`^          {` and closed at `^          },?$`, and B29 looks only at matcher, async and
+timeout lines. A plugin hook written on one line, or indented 12 spaces, was dropped, so
+a plugin hook missing from settings read `cloud ok` where origin/main 69b51a61 says
+`not bound for the cloud: PreCompact/pre-compact`: B28 broke. A PreToolUse group closed by
+a line with trailing spaces, in both files, took the next group's matcher in both, so a
+widened plugin matcher read `cloud ok`.
+
+**B30.** Every hook command naming `harness/hooks/<name>` is a binding of the event and
+group it sits in, whatever the layout of the lines B29 does not name (braces, brackets,
+`type`, `command`, `shell`, `statusMessage`). A hook object on one line, or at another
+indentation, is read. Its matcher is its own group's, however that group's lines end;
+its `async` and `timeout` are `-` when it has none. A plugin binding that settings lack
+gives `not bound for the cloud: <Event>/<hook>` (B28), and one bound under another
+matcher gives B27's clause. Neither reads `cloud ok`.
+
+**M2.** A hooks.json identical to the tree's except for its final newline, which is
+exactly what Python's `json.dump(indent=2)` writes, failed the check with `unreadable: no
+event-to-hook pairs read from one of the two files`. The two files were read as one
+stream, which joined the plugin's last `}` to the settings' opening `{`. Origin/main
+reads each file separately and finds them agreeing.
+
+**B31.** Each file is read on its own, and a missing final newline changes nothing read
+from it. The tree's two files give `cloud ok` with either or both lacking it, a
+difference in such a file is still found, and nothing is called unreadable for it.
+
+Assertions (FC, run as A23 is):
+- A61 (B30) The plugin gains `PreCompact` before `SubagentStart`: one group, no matcher,
+  its hook the single line `          { "type": "command", "command":
+  "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/pre-compact\"" }`. Settings are unchanged.
+  `cloud FAIL`, and the detail holds `not bound for the cloud:` and `PreCompact/pre-compact`.
+- A62 (B30) The same hook as four lines, braces at 12 spaces, no async: the same.
+- A63 (B30) Both files' PreToolUse group close `      }` gains two trailing spaces, and
+  the plugin matcher gains `|Glob|Grep`: `cloud FAIL`, with A25's clause.
+- A64 (B30) Both files gain a PreCompact group with a one-line hook (settings' carries its
+  guard), under `"matcher": "manual"` in the plugin and `"auto"` in settings: `cloud
+  FAIL`, with `bound differently for the cloud: PreCompact/pre-compact (matcher);`.
+- A65 (B31) hooks.json with no final newline: `cloud ok`.
+- A66 (B31) settings.json with no final newline: `cloud ok`. (control)
+- A67 (B31) Both files with no final newline: `cloud ok`.
+- A68 (B31) hooks.json widened as in A25 and with no final newline: `cloud FAIL`, with
+  A25's clause and no `unreadable:`.
+
+Red, 2026-10-26: 18658554 plus this block, `tools/alone.sh <worktree> bwk 1770-...`.
+The run exited 0 with 96 `ok`, 7 `FAIL` and 0 `skip`. That is 62 floor lines and A1 to
+A33 all passing. Of A61 to A68, **7 failed and 1 passed**. The pass is A66, the control:
+settings.json comes second in the joined read, so its missing newline joins nothing. A61 to
+A64 failed with `cloud ok`; A65, A67 and A68 failed with the `unreadable:` line above.
+gawk 5.4.1 gave the same counts.

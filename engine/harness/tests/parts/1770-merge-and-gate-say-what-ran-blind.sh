@@ -26,6 +26,9 @@ printf '\nfelix merge refuses a green that reports a check skipped, and the gate
 #   green receipt on 69b51a61, so it holds there too.
 # - FC commits each case's two files, so the check sees them whether it reads the
 #   working tree or the commit.
+# The review round (A61 to A68, B30 and B31 of the contract's section 9) was added
+# blind on 2026-10-26 the same way, over FC: a binding written off the layout, and
+# a file with no final newline, as Python's json.dump(indent=2) writes one.
 
 # ---- shared helpers
 _b8m="$TMP/b08m"; mkdir -p "$_b8m/gh/bin"
@@ -412,6 +415,53 @@ else
     *)                   _b8cO="not indented" ;;
   esac
   _b8m_is "$_b8cN33" "$_b8cO" "not indented" "$(cat "$_b8c/a33.out" 2>/dev/null)"
+fi
+
+# ---- Review round, C110 (A61 to A68): bindings off the layout, files with no final newline
+_b8vN61="b08 A61 (B30): FC, the plugin gains a PreCompact event whose one hook is written on one line, no async, unbound in settings: cloud FAIL, not bound for the cloud: PreCompact/pre-compact"
+_b8vN62="b08 A62 (B30): FC, the same hook object written over four lines at 12 spaces: cloud FAIL, not bound for the cloud: PreCompact/pre-compact"
+_b8vN63="b08 A63 (B30): FC, both files' PreToolUse group closed by a line with trailing spaces, the plugin matcher widened by |Glob|Grep: cloud FAIL, PreToolUse/pre-tool bound differently (matcher)"
+_b8vN64="b08 A64 (B30): FC, a one-line PreCompact hook in both files under matcher manual in the plugin and auto in settings: cloud FAIL, PreCompact/pre-compact bound differently (matcher)"
+_b8vN65="b08 A65 (B31): FC, the plugin's hooks.json byte for byte as in the tree but with no final newline: cloud ok"
+_b8vN66="b08 A66 (B31): FC, settings.json with no final newline: cloud ok (control)"
+_b8vN67="b08 A67 (B31): FC, both files with no final newline: cloud ok"
+_b8vN68="b08 A68 (B31): FC, hooks.json with no final newline and its PreToolUse matcher widened: cloud FAIL, PreToolUse/pre-tool bound differently (matcher), and nothing unreadable"
+if [ -n "$_b8cWhyC" ]; then
+  for _b8cn in "$_b8vN61" "$_b8vN62" "$_b8vN63" "$_b8vN64" "$_b8vN65" "$_b8vN66" "$_b8vN67" "$_b8vN68"; do skip "$_b8cn" "$_b8cWhyC"; done
+else
+  _b8vPL='          { "type": "command", "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/pre-compact\"" }'
+  _b8vSL='          { "type": "command", "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; exec bash \"$CLAUDE_PROJECT_DIR/engine/harness/hooks/pre-compact\"" }'
+  _b8v_pc() {   # name matcher|- line...: an awk program putting a PreCompact event, one group of those hook lines, before SubagentStart
+    local f="$_b8c/pc-$1.json" m="$2"
+    shift 2
+    { printf '    "PreCompact": [\n      {\n'
+      [ "$m" = - ] || printf '        "matcher": "%s",\n' "$m"
+      printf '        "hooks": [\n'; printf '%s\n' "$@"; printf '        ]\n      }\n    ],\n'; } > "$f"
+    printf '$0 == "    \\"SubagentStart\\": [" { while ((getline l < "%s") > 0) print l; close("%s") } { print }' "$f" "$f"
+  }
+  _b8vPC1="$(_b8v_pc one - "$_b8vPL")"
+  _b8vPC2="$(_b8v_pc deep - '            {' '              "type": "command",' \
+    '              "command": "\"${CLAUDE_PLUGIN_ROOT}/harness/hooks/pre-compact\""' '            }')"
+  _b8vPCM="$(_b8v_pc manual manual "$_b8vPL")"
+  _b8vPCA="$(_b8v_pc auto auto "$_b8vSL")"
+  _b8vTRAIL='index($0, "\"PreToolUse\"") { p = 1 } p && $0 == "      }" { $0 = $0 "  "; p = 0 } { print }'
+  _b8vNOEOL='NR > 1 { printf "\n" } { printf "%s", $0 }'
+  _b8c_case a61 '"$_b8vPC1"' ""
+  _b8c_fail "$_b8vN61" "not bound for the cloud:" "PreCompact/pre-compact"
+  _b8c_case a62 '"$_b8vPC2"' ""
+  _b8c_fail "$_b8vN62" "not bound for the cloud:" "PreCompact/pre-compact"
+  _b8c_case a63 '"$_b8vTRAIL" "$_b8cWIDEN"' '"$_b8vTRAIL"'
+  _b8c_fail "$_b8vN63" "bound differently for the cloud: PreToolUse/pre-tool (matcher);"
+  _b8c_case a64 '"$_b8vPCM"' '"$_b8vPCA"'
+  _b8c_fail "$_b8vN64" "bound differently for the cloud: PreCompact/pre-compact (matcher);"
+  _b8c_case a65 '"$_b8vNOEOL"' ""
+  _b8m_is "$_b8vN65" "cloud $_b8cV" "cloud ok" "$_b8cD"
+  _b8c_case a66 "" '"$_b8vNOEOL"'
+  _b8m_is "$_b8vN66" "cloud $_b8cV" "cloud ok" "$_b8cD"
+  _b8c_case a67 '"$_b8vNOEOL"' '"$_b8vNOEOL"'
+  _b8m_is "$_b8vN67" "cloud $_b8cV" "cloud ok" "$_b8cD"
+  _b8c_case a68 '"$_b8cWIDEN" "$_b8vNOEOL"' ""
+  _b8m_every "$_b8vN68" "cloud $_b8cV; $_b8cD" "cloud FAIL;" "bound differently for the cloud: PreToolUse/pre-tool (matcher);" -- "unreadable:"
 fi
 
 rm -rf "${_b8mP:?}" "${_b8gP:?}" "${MEM:?}/b08m" "${MEM:?}/b08g"

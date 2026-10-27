@@ -723,8 +723,8 @@ cmd_install() {
     printf '           Remove the SessionStart entry naming harness/hooks/session-start.\n'
   fi
 
-  printf '\nput felix on PATH:\n'
-  printf '  ln -s %s/felix /usr/local/bin/felix\n' "$SCRIPT_DIR"
+  printf '\nput felix on PATH:\n  mkdir -p ~/.local/bin && ln -s %s ~/.local/bin/felix\n' "'$(printf '%s' "$SCRIPT_DIR/felix" | LC_ALL=C sed "s/'/'\\\\''/g")'"   # ~/.local/bin: /usr/local/bin is root-owned on a stock Mac; no -f, so a felix linked there is kept
+  case ":$PATH:" in *":${HOME%/}/.local/bin:"*|*":${HOME%/}/.local/bin/:"*) ;; *) printf '  ~/.local/bin is not on your PATH yet; put this in your shell startup file:\n  export PATH="$HOME/.local/bin:$PATH"\n' ;; esac
   printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 

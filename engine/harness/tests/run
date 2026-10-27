@@ -410,6 +410,8 @@ fi
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1690-status-lander-row-blind.sh"
 . "$HERE/parts/1700-hooks-and-gate-rows-blind.sh"
+. "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"
+. "$HERE/parts/2031-felix-on-path-without-sudo-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

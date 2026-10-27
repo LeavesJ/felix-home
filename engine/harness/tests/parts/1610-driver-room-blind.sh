@@ -315,3 +315,76 @@ _dr10_o="$(_dr10_ptrs "$DR10/a12-closed.run" "$DR10/t12")"; _dr10_s=$?
 _dr10_v="$_dr10_v | status $_dr10_s; $(_dr10_has "$_dr10_o" 'receipt.sh: ' 'cannot be read'); $(_dr10_has "$_dr10_o" 'line 3: ' 'red, beside a record run')"
 is "driver room A12: a receipt.sh pointer with no closing quote is reported as unread, and with no receipt.sh to read a whole one is not passed (control)" \
    "$_dr10_v" "status 1, 1 finding(s); found | status 1; found; found"
+
+# ---- Review round, M1: a part never holds a line that begins like the driver's
+# Written blind from the contract's section 9. Part 0003's _suite_flat puts each
+# part and lib file where the driver's line naming it stood, and part 0203's B2
+# child flattens that flat file once more; _suite_copy_driver and
+# _suite_copy_tree take a line beginning with either prefix as the driver's.
+# _dr10_shape TESTS -> "read P part and L lib files", then one row FILE:LINE
+# (FILE relative to TESTS) for each line of TESTS/parts/*.sh or TESTS/lib/*.sh
+# whose first bytes are a part line's or a lib line's prefix: status 1 with a
+# row, 0 with none, 2 with a reason naming TESTS when it holds no part file or
+# awk fails. The prefixes are only ever written here inside a quoted string.
+_dr10_shape() {
+  local f o rc np=0 nl=0
+  local -a fs
+  fs=()
+  for f in "$1"/parts/*.sh; do [ ! -f "$f" ] || { fs[${#fs[@]}]="$f"; np="$((np + 1))"; }; done
+  [ "$np" -gt 0 ] || { printf 'no part file under %s/parts, so no line was read\n' "$1"; return 2; }
+  for f in "$1"/lib/*.sh; do [ ! -f "$f" ] || { fs[${#fs[@]}]="$f"; nl="$((nl + 1))"; }; done
+  o="$(DR10_D="$1/" LC_ALL=C awk '
+    BEGIN { d = ENVIRON["DR10_D"] }
+    index($0, ". \"$HERE/parts/") == 1 || index($0, ". \"$HERE/lib/") == 1 {
+      f = FILENAME; if (index(f, d) == 1) f = substr(f, length(d) + 1); print f ":" FNR }' "${fs[@]}")"; rc=$?
+  if [ "$rc" -ne 0 ]; then printf 'awk could not read the part and lib files under %s (status %s)\n' "$1" "$rc"; return 2; fi
+  printf 'read %s part and %s lib files\n' "$np" "$nl"
+  [ -n "$o" ] || return 0
+  printf '%s\n' "$o"; return 1
+}
+
+_dr10_o="$(_dr10_shape "$HERE")"; _dr10_s=$?
+_dr10_n="driver room A20: no line of a part file or a tests/lib file begins with a part line's or a lib line's prefix, so a flat suite flattens again (review M1)"
+if [ "$_dr10_s" -eq 0 ]; then ok "$_dr10_n"
+elif [ "$_dr10_s" -eq 1 ]; then bad "$_dr10_n" "$(_dr10_nf "$_dr10_o") line(s) begin with one: $(_dr10_join "$_dr10_o")"
+else bad "$_dr10_n" "status $_dr10_s: $_dr10_o"
+fi
+
+# A21's plant: each line is a quoted argument, so none begins a line of this file.
+mkdir -p "$DR10/m1/parts" "$DR10/m1/lib" "$DR10/m1-empty/parts"
+printf '%s\n' \
+  '. "$HERE/parts/0010-a.sh"' \
+  '  . "$HERE/parts/0030-c.sh"' \
+  '. "$HERE/lib/b.sh" # a trailing comment' \
+  'echo . "$HERE/parts/0040-d.sh"' > "$DR10/m1/parts/0010-x.sh"
+printf '\t%s\n' '. "$HERE/lib/a.sh"' >> "$DR10/m1/parts/0010-x.sh"
+printf '%s\n' 'x=1' '. "$HERE/parts/sub/f.sh"' > "$DR10/m1/lib/a.sh"
+_dr10_o="$(_dr10_shape "$DR10/m1")"; _dr10_s=$?
+_dr10_v="status $_dr10_s: $(_dr10_join "$_dr10_o")"
+_dr10_o="$(_dr10_shape "$DR10/m1-empty")"; _dr10_s=$?
+if [ "$_dr10_s" -eq 2 ]; then _dr10_v="$_dr10_v | refused"; else _dr10_v="$_dr10_v | status $_dr10_s"; fi
+case "$_dr10_o" in
+  *"$DR10/m1-empty"*) _dr10_v="$_dr10_v, naming the directory" ;;
+  *) _dr10_v="$_dr10_v, [$_dr10_o] does not name the directory" ;;
+esac
+is "driver room A21: a planted tests directory reports exactly its three lines that begin with either prefix, and one with no part file is refused (control)" \
+   "$_dr10_v" "status 1: read 1 part and 1 lib files; parts/0010-x.sh:1; parts/0010-x.sh:3; lib/a.sh:2 | refused, naming the directory"
+
+_dr10_n="driver room A22: the suite flattened once, then flattened again from a harness whose tests/run is that flat file, exits 0 and gives the same bytes (review M1)"
+_dr10_f1="$(_suite_flat)"; _dr10_s=$?
+if [ "$_dr10_s" -ne 0 ] || [ ! -s "$_dr10_f1" ]; then
+  bad "$_dr10_n" "the first flatten, part 0003's _suite_flat, exited $_dr10_s and gave [$_dr10_f1], so nothing was flattened again"
+else
+  mkdir -p "$DR10/m1h/tests" "$DR10/m1t"; cp "$_dr10_f1" "$DR10/m1h/tests/run"
+  _dr10_f2="$(REAL_HARNESS="$DR10/m1h"; TMP="$DR10/m1t"; _suite_flat)"; _dr10_s=$?
+  _dr10_l0="$(LC_ALL=C awk 'END { print NR }' "$REAL_HARNESS/tests/run")"; _dr10_l1="$(LC_ALL=C awk 'END { print NR }' "$_dr10_f1")"
+  _dr10_x="$(LC_ALL=C awk 'index($0, ". \"$HERE/parts/") == 1 || index($0, ". \"$HERE/lib/") == 1 { print "line " NR ": " $0; exit }' "$_dr10_f1")"
+  if [ "$_dr10_s" -ne 0 ] || [ ! -f "$_dr10_f2" ]; then
+    bad "$_dr10_n" "the second flatten exited $_dr10_s and gave [$_dr10_f2]; the flat suite's first line beginning like a part or lib line: [${_dr10_x:-none}]"
+  elif ! LC_ALL=C cmp -s "$_dr10_f1" "$_dr10_f2"; then
+    bad "$_dr10_n" "the two flattens differ: $(LC_ALL=C cmp "$_dr10_f1" "$_dr10_f2" 2>&1 | head -1)"
+  elif [ "$_dr10_l1" -le "$_dr10_l0" ]; then
+    bad "$_dr10_n" "the flat suite has $_dr10_l1 lines and the driver $_dr10_l0, so the first flatten put no file in"
+  else ok "$_dr10_n"
+  fi
+fi

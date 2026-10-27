@@ -304,7 +304,7 @@ Where T is not given below, it is 20.
 
 ## 5. Parts
 
-- **`engine/harness/tests/parts/1630-suite-time-limits-blind.sh`:** A1 to A20.
+- **`engine/harness/tests/parts/1630-suite-time-limits-blind.sh`:** A1 to A20, and A41 to A45 (§9).
 - **`engine/harness/tests/parts/1640-probe-time-limits-blind.sh`:** A21 to A40.
 
 Each is sourced by one driver line, after 1600's, and each stays under 500 lines. Both follow the known traps: no `case` inside `$( )`, digits spelled out in brackets, `LC_ALL=C` for sort and comparisons, no associative arrays, no gawk-only builtins, and `$(( ))` quoted.
@@ -390,3 +390,51 @@ Of the 16 that failed, 15 show the missing limit itself (the call hit its 20 s b
 - **A1** (B3): passed vacuously. The base has no limit, so the hung part runs to the case's bound of 60 s and is ended by it with exit 124, which is neither 0 nor 2. A1 reads "within 25 s of the assertion" from the moment the part wrote its `$TMP`, and under this load the prelude took more than 35 s of the 60, so the bound landed inside that window. A5 shows the same (its only failure was the missing quiet line, the 25 s clause passed). On a quiet machine the prelude takes a few seconds and A1 fails at the base at 55 s or more. This is inferred from A5's detail and the case bound, not re-measured on a quiet machine.
 
 The 15 that failed split in two. Nine show the missing behaviour: A2, A3, A4 (the run is ended by the case's bound, not by itself, and prints no quiet line), A5 (no quiet line from `--part`), A13 (the base accepts `''`, `0`, `07`, `5s` and the rest, runs on, calls `mktemp` and changes the receipt), A14 (no `this run has no quiet limit` line), A15 (red's hung unit is never ended, so red ends at its bound of 180 s), A17 (the record run waits for a red that never ends, 120 s bound reached) and A19 (the runner-failure path ends red after 60 s but prints no `red stopped` line, 146895 ms). The other six failed for the load: A7, A8, A9 and A11 are controls that must pass at the base, and they failed because even the run with the variable unset hit the 60 s bound (`unset-run-exit-124`); A12 and the failing half of A6 never reached the planted part or its unit inside their 90 s bound. They are not red evidence for the fix, and the green runs have to show them passing.
+
+## 9. Review round (2026-10-26)
+
+The review of the built branch found two ways the watchdog leaves a run with a limit it says it lacks, or with none and nothing said. Each is restated here as required behaviour. B22 and B23 add to §2 and win where they and an earlier B differ. A41 to A45 are in part 1630, after A20. They are not a part of their own, because tests/run is at its 500 lines (B21) and a new part needs a driver line.
+
+**B22 (M1; amends B1, B8 and B9). What a run says of its quiet limit is true, however late the watchdog comes up.**
+- A run that prints B8's line is ended by no quiet limit afterwards. It prints no B3 line and no B4 note, and goes on as a run without this change would.
+- A run that its quiet limit ends has printed no B8 line.
+- So a run whose part hangs does exactly one of two things:
+  - *limited*: B3 ends it, and it prints no B8 line;
+  - *unlimited*: it prints B8's line once, within Q + 15 s of its last assertion, and runs on until something outside it ends it.
+- B1's window holds whether the watchdog comes up in time, late or never: no quiet limit covers part 9990 or the tail. A record run whose red ends within W, but more than Q + 15 s after the suite's last assertion, exits with its suite's status. It shows red's lines as B13 says and prints no B3 line.
+- B9 holds for a watchdog that came up late as well. No perl process the run started is alive 2 s after the run exits, whether it ended by itself or was killed from outside.
+- A slow start is to be expected, not an edge case. §8 records load averages of 350 to 550 on this Mac, and the run today waits 3 s for its watchdog to report.
+
+*Scenario (the review's).* A perl first on PATH waits 4 s before it starts the watchdog.
+- A hanging serial part printed `tests/run: this run has no quiet limit: the watchdog did not report within 3 s` on stderr, and was then ended by the B3 line.
+- A healthy serial record run (Q=5, FELIX_TEST_RED_WAIT=60, a red of 15 s) printed `reached` and its `recorded N assertions` line. Then, 5 s into the wait for red, the B3 line ended it, naming part 9990's last assertion. It exited 143, red's output was never shown, and assertions.tsv was already rewritten.
+- With the host's perl, the same record run exited 0.
+
+**B23 (M2; amends B2 and B8). The watchdog never stops silently.**
+- Suppose a ps fails once (no output, exit 1) while the run is quiet, and every later call answers. The limit stays in force: B3 ends the run as it would have, and no B8 line is printed. A fork that fails with EAGAIN under process pressure looks like this, and a 40-minute CI run makes many such calls, so one failure must not disarm the limit.
+- Suppose every ps fails from some moment on. The run then either keeps its limit (B3 ends it), or says so within Q + 15 s of its last assertion, in one stderr line that begins `tests/run: this run has no quiet limit: ` and gives the reason. In the second case it then goes on as B22's unlimited run.
+- Either way, a run whose part hangs has printed the B3 line or the B8 line within Q + 15 s of its last assertion.
+
+*Scenario (the review's).* A ps first on PATH fails from its third check of the run's start time on. A serial fixture with Q=5 whose part does `ok "djx q1"; sleep 300` printed nothing on stdout or stderr until the outer 40 s bound ended it (exit 124). The watchdog had exited about 2 s in.
+
+**Assertions.** As in §4, each run is under the case's bounded runner, and "within N s" is counted from the planted part's writing its `$TMP`. Two stand-ins go first on the run's PATH:
+- **The slow perl** writes its pid to a case file, sleeps D s, then execs the host's perl, so every perl start of the run takes D s.
+- **The failing ps** fails (no output, exit 1) once the case's file `ps.arm` exists: either its first call after that or every call after that. Before then, and for every call it lets through, it is the host's ps.
+
+The checks:
+- **A41 (B22).** Serial, Q=5, q-hang, D=6, T=100. The run is one of B22's two runs:
+  - limited: the B3 line once, as its last assertion line; no B8 line; exit neither 0, 2 nor 124, within 25 s; its group empty within 3 s;
+  - unlimited: the B8 line once, seen within 25 s; no B3 line and no B4 note; the run still going at T (exit 124).
+
+  Either way, no pid the slow perl wrote down is alive 2 s after the run's exit.
+- **A42 (B22).** A serial record run of `fast`, with Q=5, FELIX_TEST_RED_WAIT=120, D=6 and T=180.
+  - Its stand-in red waits for the run to rewrite assertions.tsv, then 25 s more. Then it prints `red: stand-in, 25 s after the manifest` and exits 0.
+  - The run exits 0, and prints `reached` once and `  red: stand-in, 25 s after the manifest` once. It prints no B3 line and no `red stopped` line.
+  - Its group holds no live process at the first listing after its exit, or 0.1 s later. No pid the slow perl wrote down is alive 2 s after the exit.
+- **A43 (B1, B22; control).** A42 with D=0.
+- **A44 (B23).** Serial, Q=5, T=60. The part is `ok "djx q1"; : > "$DJX_DIR/ps.arm"; sleep 300`, and the failing ps fails only its first call after the arm. The run is A41's limited run.
+- **A45 (B23).** A44 with a ps that fails every call after the arm. The run is A41's limited or unlimited run, never neither.
+
+**Not asserted.**
+- No finite delay stands for every late start. A41's 6 s is twice the 3 s the run waits today, so a fix that only waits longer passes A41 and must still meet B22 at a longer delay.
+- Which of the two runs A41 and A45 show, limited or unlimited, is the build's choice.

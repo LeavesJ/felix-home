@@ -13,6 +13,7 @@ printf '\ntime limits on the suite: the quiet limit, and the record run waiting 
 # the planted part wrote its $TMP, which is just before its first assertion (B3(e) and B4 count from the last assertion reached), in whole
 # seconds read from that file's mtime; A17 and A19 count from the run's start, as the contract says for A17. A6's controls and the three
 # readings of A7 and A8 are one assertion each. The planted parts print a section line, `djx-sec NAME`, so that a unit's section can be found.
+# The contract's review round of 2026-10-26 (section 9, B22 and B23) adds A41 to A45, written blind from it, after A20.
 QTL="$TMP/qtl"
 rm -rf "$QTL"; mkdir -p "$QTL/pp" "$QTL/n" "$QTL/mk" "$QTL/noperl"; : > "$QTL/g-empty.tsv"
 _qt_perl="$(command -v perl)"; _qt_mkreal="$(command -v mktemp)"
@@ -290,6 +291,140 @@ for _qt_a in "$REAL_HARNESS/lib/probes.sh" "$REAL_HARNESS/lib/obligations.sh" "$
   _qt_x="$(_qt_wc "$_qt_a")"; [ "$_qt_x" != missing ] && [ "$_qt_x" -lt 500 ] || _qt_r="$_qt_r ${_qt_a##*/} $_qt_x;"
 done
 is "time limits A20 (B21; control): tests/run is at most 500 lines, tests/red at most 559, receipt.sh at most 500, part 0007 at most 835, and lib/probes.sh, lib/obligations.sh and part 0001 each under 500" "${_qt_r:-ok}" ok
+
+# ---- review round, 2026-10-26 (A41 to A45, B22, B23): a watchdog that comes up late, and a ps that fails. Written blind from the contract's
+# section 9. sp/perl stands in for a loaded Mac: every perl start writes its pid down and waits DJX_PDELAY s before it is the host's perl.
+# fps/ps fails (no output, exit 1) once the case's ps.arm exists, which the planted part makes after its assertion: its first call then
+# (DJX_PSFAIL=once) or every call (all). The red of A42 and A43 waits for the record run to rewrite its manifest, then 25 s more.
+mkdir -p "$QTL/sp" "$QTL/fps"; _qt_psreal="$(command -v ps)"; _qt_b8='tests/run: this run has no quiet limit: '; _qt_rr=()
+{ printf '#!%s\n' "$_qt_perl"; cat <<'QTLSP'
+# perl that is slow to start (DJX_PDELAY s): each start writes its pid to $DJX_DIR/perl.pids, then it is the host's perl ($QT_PERLREAL)
+if (open(my $h, ">>", "$ENV{DJX_DIR}/perl.pids")) { print $h "$$\n"; close $h }
+sleep $ENV{DJX_PDELAY} if $ENV{DJX_PDELAY};
+exec { $ENV{QT_PERLREAL} } "perl", @ARGV;
+exit 127;
+QTLSP
+} > "$QTL/sp/perl"
+cat > "$QTL/fps/ps" <<'QTLPS'
+#!/bin/sh
+# ps that, once $DJX_DIR/ps.arm exists, fails its first call (DJX_PSFAIL=once) or every call (all), each written down; else the host's
+if [ -f "$DJX_DIR/ps.arm" ]; then
+  printf 'c\n' >> "$DJX_DIR/ps.calls"
+  case "${DJX_PSFAIL:-}" in
+    all) printf 'f\n' >> "$DJX_DIR/ps.fails"; exit 1 ;;
+    once) if mkdir "$DJX_DIR/ps.once" 2>/dev/null; then printf 'f\n' >> "$DJX_DIR/ps.fails"; exit 1; fi ;;
+  esac
+fi
+exec "$QT_PSREAL" "$@"
+QTLPS
+cat > "$QTL/redw" <<'QTLRED'
+#!/bin/sh
+# stand-in red: waits (90 s at most) for the record run to rewrite its manifest, then 25 s more, says which, and exits 0
+printf '%s\n' "$$" > "$DJX_DIR/red.pid"; m="$(cat "$DJX_DIR/manifest.path")"; i=0
+while cmp -s "$m" "$DJX_DIR/manifest.ref" && [ "$i" -lt 450 ]; do sleep 0.2; i=$((i + 1)); done
+[ "$i" -lt 450 ] || { printf 'red: stand-in, the manifest never moved\n'; exit 0; }
+i=0; while [ "$i" -lt 25 ]; do sleep 1; i=$((i + 1)); done
+printf 'red: stand-in, 25 s after the manifest\n'
+QTLRED
+chmod +x "$QTL/sp/perl" "$QTL/fps/ps" "$QTL/redw"
+_qt_part ps 0010-q-psfail.sh 'ok "djx q1"' ': > "$DJX_DIR/ps.arm"' 'sleep 300'
+# LABEL: polls run LABEL until it ends; _qt_sb8: the ms at which a B8 line was first seen on its stderr, or empty
+_qt_seen() {
+  _qt_sb8=""
+  while _qt_alive "$_qt_bg"; do
+    [ -n "$_qt_sb8" ] || [ "$(_qt_pre "$_qt_c/$1.err" "$_qt_b8")" = 0 ] || _qt_sb8="$(_qt_ms)"
+    sleep 0.2
+  done
+  [ -n "$_qt_sb8" ] || [ "$(_qt_pre "$_qt_c/$1.err" "$_qt_b8")" = 0 ] || _qt_sb8="$(_qt_ms)"
+}
+# LABEL PART: a run whose PART hangs, read as B22's limited or unlimited run (_qt_way); _qt_r: what does not fit the one it is, or empty
+_qt_tell() {
+  local m n3 n8
+  _qt_r=""; _qt_way=""
+  m="$(perl -e 'my @s = stat $ARGV[0]; print @s ? $s[9] : ""' "$_qt_c/tmp.$2" 2>/dev/null)"
+  [ -n "$m" ] || { _qt_r=" the part wrote no \$TMP (exit $_qt_rc);"; return 0; }
+  n3="$(_qt_cnt "$_qt_c/$1.out" "$_qt_b")"; n8="$(_qt_pre "$_qt_c/$1.err" "$_qt_b8")"
+  if [ "$n8" = 0 ] && [ "$n3" != 0 ]; then
+    _qt_way=limited
+    [ "$n3" = 1 ] || _qt_r="$_qt_r the quiet line $n3 times;"
+    [ "$(_qt_last "$_qt_c/$1.out")" = "$_qt_b" ] || _qt_r="$_qt_r its last assertion line is [$(_qt_last "$_qt_c/$1.out")];"
+    case "$_qt_rc" in 0|2|124) _qt_r="$_qt_r exit $_qt_rc;" ;; esac
+    _qt_r="$_qt_r$(_qt_within "$2" 25)"
+  elif [ "$n8" = 1 ] && [ "$n3" = 0 ]; then
+    _qt_way=unlimited
+    [ "$_qt_rc" = 124 ] || _qt_r="$_qt_r it said it had no quiet limit, yet it ended with exit $_qt_rc before the case's bound;"
+    [ "$(_qt_pre "$_qt_c/$1.out" "  note  the run's shell did not end on TERM")" = 0 ] || _qt_r="$_qt_r it printed the B4 note;"
+    [ -n "$_qt_sb8" ] && [ "$(( _qt_sb8 / 1000 - m ))" -le 25 ] || _qt_r="$_qt_r its no-limit line came $(( ${_qt_sb8:-$_qt_t1} / 1000 - m )) s after the part wrote its \$TMP, not within 25;"
+  else
+    _qt_r=" it printed the quiet line $n3 time(s) and a line beginning '$_qt_b8' $n8 time(s) (exit $_qt_rc), so it is neither a run ended by its limit that said nothing of having none, nor one that said once it had none and was left running;"
+  fi
+}
+# "ok" when no pid in perl.pids is alive within 2 s of now; else which are (then sent CONT and KILL), or that no perl start was written down
+_qt_perls() {
+  local p l i=0
+  [ -s "$_qt_c/perl.pids" ] || { printf 'no perl start was written down, so nothing was slowed'; return 0; }
+  while l=""; for p in $(cat "$_qt_c/perl.pids"); do _qt_alive "$p" && l="$l $p"; done; [ -n "$l" ]; do
+    [ "$i" -lt 10 ] || break; sleep 0.2; i=$((i + 1))
+  done
+  [ -n "$l" ] || { printf ok; return 0; }
+  printf 'perl left alive 2 s after the exit:'
+  for p in $l; do printf ' [%s]' "$(ps -o pid= -o pgid= -o stat= -o command= -p "$p" 2>/dev/null | cut -c1-80)"; kill -CONT "$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; done
+}
+_qt_nr() { if [ -f "$1" ]; then awk 'END { print NR }' "$1"; else printf 0; fi; }
+_qt_pscount() { printf ' (the ps stand-in failed %s of the %s calls made after the arm)' "$(_qt_nr "$_qt_c/ps.fails")" "$(_qt_nr "$_qt_c/ps.calls")"; }
+_qt_b="$(_qt_b3 5 'djx q1')"
+
+# A41: every perl start of the run takes 6 s, so the watchdog comes up late
+_qt_new m41 "$QTL/m-h.tsv" h
+_qt_E=(FELIX_TEST_QUIET_LIMIT=5 DJX_PDELAY=6 QT_PERLREAL="$_qt_perl" PATH="$QTL/sp:$QTL/mk:$PATH"); _qt_lim=100; _qt_start m41; _qt_seen m41; _qt_wait
+_qt_x="$(_qt_perls)"; _qt_g="$(_qt_gone m41 3)"; _qt_tell m41 0010-q-hang.sh
+[ "$_qt_way" != limited ] || [ "$_qt_g" = ok ] || _qt_r="$_qt_r $_qt_g;"
+[ "$_qt_x" = ok ] || _qt_r="$_qt_r $_qt_x;"
+[ -z "$_qt_r" ] || _qt_r="$_qt_r read as ${_qt_way:-neither};"
+_qt_sweep; [ "$_qt_cl" = ok ] || _qt_r="$_qt_r $_qt_cl;"
+is "time limits A41 (B22): a serial run with FELIX_TEST_QUIET_LIMIT=5 whose every perl start takes 6 s and whose part hangs is either ended by its limit (the quiet line once and last, no line saying it has no quiet limit, exit neither 0, 2 nor 124 within 25 s, its group empty within 3 s) or says once, within 25 s, that it has no quiet limit and is then left running, with no quiet line, until the case's bound; and no perl it started is alive 2 s after its exit" \
+   "${_qt_r:-ok}" ok
+rm -rf "$QTL/n/m41"
+
+# A42, A43: a record run whose red ends 25 s after the manifest, more than Q + 15 s after the suite's last assertion; slow perl, then its own speed
+for _qt_a in 42:6 43:0; do
+  _qt_n="${_qt_a%%:*}"; _qt_new "m$_qt_n" "$QTL/m-f.tsv" f; cp "$QTL/redw" "$_qt_T/red"; chmod +x "$_qt_T/red"
+  cp "$_qt_T/assertions.tsv" "$_qt_c/manifest.ref"; printf '%s\n' "$_qt_T/assertions.tsv" > "$_qt_c/manifest.path"
+  _qt_E=(FELIX_TEST_QUIET_LIMIT=5 FELIX_TEST_RED_WAIT=120 DJX_PDELAY="${_qt_a#*:}" QT_PERLREAL="$_qt_perl" PATH="$QTL/sp:$QTL/mk:$PATH"); _qt_lim=180
+  _qt_run "r$_qt_n" --record-assertions; _qt_x="$(_qt_now "r$_qt_n")"; _qt_y="$(_qt_perls)"
+  _qt_r=""; [ "$_qt_rc" = 0 ] || _qt_r=" exit $_qt_rc;"
+  [ "$(_qt_cnt "$_qt_c/r$_qt_n.out" reached)" = 1 ] || _qt_r="$_qt_r reached printed $(_qt_cnt "$_qt_c/r$_qt_n.out" reached) times;"
+  [ "$(_qt_cnt "$_qt_c/r$_qt_n.out" '  red: stand-in, 25 s after the manifest')" = 1 ] || _qt_r="$_qt_r red's line printed $(_qt_cnt "$_qt_c/r$_qt_n.out" '  red: stand-in, 25 s after the manifest') times$(grep -q 'the manifest never moved' "$_qt_c/r$_qt_n.out" && printf ', and red says the manifest never moved');"
+  [ "$(_qt_pre "$_qt_c/r$_qt_n.out" '  FAIL  no new assertion in ')" = 0 ] || _qt_r="$_qt_r it was ended: [$(grep -m 1 -F '  FAIL  no new assertion in ' "$_qt_c/r$_qt_n.out")];"
+  [ "$(LC_ALL=C awk 'index($0, "red stopped") { n++ } END { print n + 0 }' "$_qt_c/r$_qt_n.out")" = 0 ] || _qt_r="$_qt_r a red stopped line was printed;"
+  [ "$_qt_x" = ok ] || _qt_r="$_qt_r its group, $_qt_x;"; [ "$_qt_y" = ok ] || _qt_r="$_qt_r $_qt_y;"
+  _qt_p="$(cat "$_qt_c/red.pid" 2>/dev/null)"; [ -z "$_qt_p" ] || ! _qt_alive "$_qt_p" || { kill -KILL "$_qt_p" 2>/dev/null; _qt_r="$_qt_r red $_qt_p was left running;"; }
+  _qt_sweep; [ "$_qt_cl" = ok ] || _qt_r="$_qt_r $_qt_cl;"
+  _qt_rr[$_qt_n]="${_qt_r:-ok}"
+  rm -rf "$QTL/n/m$_qt_n"
+done
+is "time limits A42 (B22): a serial record run with FELIX_TEST_QUIET_LIMIT=5 and FELIX_TEST_RED_WAIT=120 whose every perl start takes 6 s, and whose red ends 25 s after the run rewrote its manifest, exits 0, prints reached and red's line once each, and no quiet line or red stopped line; its group holds no live process at its exit and 0.1 s later, and no perl it started is alive 2 s after" \
+   "${_qt_rr[42]:-not run}" ok
+is "time limits A43 (B1, B22; control): the same record run with every perl start at its own speed: no quiet limit covers part 9990 or the tail, so it exits 0 with red's line and no quiet line" \
+   "${_qt_rr[43]:-not run}" ok
+
+# A44, A45: ps fails once the part has passed its assertion, its first call only, then every call
+for _qt_a in 44:once 45:all; do
+  _qt_n="${_qt_a%%:*}"; _qt_new "m$_qt_n" "$QTL/m-h.tsv" ps
+  _qt_E=(FELIX_TEST_QUIET_LIMIT=5 DJX_PSFAIL="${_qt_a#*:}" QT_PSREAL="$_qt_psreal" PATH="$QTL/fps:$QTL/mk:$PATH")
+  _qt_start "p$_qt_n"; _qt_seen "p$_qt_n"; _qt_wait
+  _qt_g="$(_qt_gone "p$_qt_n" 3)"; _qt_tell "p$_qt_n" 0010-q-psfail.sh
+  [ "$_qt_way" != limited ] || [ "$_qt_g" = ok ] || _qt_r="$_qt_r $_qt_g;"
+  [ "$_qt_n" != 44 ] || [ "$_qt_way" = limited ] || _qt_r="$_qt_r it is not a run its limit ended;"
+  [ -z "$_qt_r" ] || _qt_r="$_qt_r read as ${_qt_way:-neither}$(_qt_pscount);"
+  _qt_sweep; [ "$_qt_cl" = ok ] || _qt_r="$_qt_r $_qt_cl;"
+  _qt_rr[$_qt_n]="${_qt_r:-ok}"
+  rm -rf "$QTL/n/m$_qt_n"
+done
+is "time limits A44 (B23): a serial run with FELIX_TEST_QUIET_LIMIT=5 whose part hangs, where one ps fails (no output, exit 1) after the part's assertion and every later one answers, is still ended by its limit: the quiet line once and last, no line saying it has no quiet limit, exit neither 0, 2 nor 124 within 25 s, and its group empty within 3 s" \
+   "${_qt_rr[44]:-not run}" ok
+is "time limits A45 (B23): the same run where every ps fails after the part's assertion is never silent: it is either ended by its limit, as in A44, or says once, within 25 s, that it has no quiet limit and is then left running, with no quiet line, until the case's bound" \
+   "${_qt_rr[45]:-not run}" ok
 
 rm -rf "$QTL"
 unset -f $(compgen -A function _qt_) 2>/dev/null

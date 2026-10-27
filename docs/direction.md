@@ -17,8 +17,11 @@ document; it is being built on `claude/direction-read-first`). Until then,
 open it as a draft labelled `needs-founder`, or the tick will land it on
 green.
 
-As of: 2026-10-19. Last decisions recorded: derived rows may bind without his
-per-row admission, within five bounds, with nothing armed yet (§4, row 27);
+As of: 2026-10-27. Last decisions recorded: a narrow commercial track runs
+beside build first (§4, row 10); and the second host comes forward, the
+Factory Droid adapter first and then Codex, beside the judge pin rather than
+after arming (row 19). Before them, on 10-19: derived rows may bind without
+his per-row admission, within five bounds, with nothing armed yet (row 27);
 and the endgame serves founders at about level 3 of input and engineers at
 about level 2, from one core (row 28).
 
@@ -59,7 +62,9 @@ about level 2, from one core (row 28).
     - No receipt or merge blocker reads which model did the work.
     - The engine stays bash, rows first.
 - **Build first.** Commercialisation is an outcome of quality, not the
-  purpose. There is no pricing, outreach or demand track.
+  purpose. Beside it runs only the narrow commercial track in row 10:
+  fundraising applications, one paid pilot contract and up to four design
+  partners, with no broad outreach and no price page.
 - **Do not narrow Felix.** Take outside guides' facts and experiments, never
   their account of Felix's scope (founder, 2026-10-10).
 
@@ -152,7 +157,7 @@ changed, the row states its current form.
 | 7 | 09-19 | Control plane v0 is "the lease and its record", not a schedule. | direction-decisions §3 |
 | 8 | 09-22 | Felix is a product for other people's projects; Claude Code first; host-independent; engineering only. | constitution |
 | 9 | 09-22 | Record every declined suggestion with `felix route --ack`. | memory record-every-decline |
-| 10 | 09-23 | Build first; the roadmap v1 market track is withdrawn. | `docs/2026-09-23-roadmap.md` |
+| 10 | 09-23, changed 10-27 | Build first stays the engineering rule, and the roadmap v1 market track stays withdrawn. From 10-27 a narrow commercial track runs beside it: fundraising applications, one paid pilot contract, and up to four design partners. No broad outreach and no price page. | `docs/2026-09-23-roadmap.md`; founder, 10-27 |
 | 11 | 09-23 | Among documents, only direction waits for his yes. Engineering merges on green, except the hard stops in row 4. | constitution |
 | 12 | 09-23 | Stealth in the middle: a session hears from Felix at its start and end only, with one narrow exception. | constitution |
 | 13 | 09-24 | F1: landing machinery (Phase 0b) comes before the qualified judge, and the judge pin comes before unattended arming. | roadmap Phase 0b, §7 |
@@ -161,7 +166,7 @@ changed, the row states its current form.
 | 16 | 10-01 | F2: once landing is armed it may run overnight with the Mac kept awake. A sleeping Mac lands nothing. | roadmap §7 |
 | 17 | 10-01 | The 0cw rulings (`docs/handoff/0cw.md`). <br>• **D1, both planes:** the host picks its model above Felix's floor, and Felix never builds a model minimizer. <br>• **D2:** engineering only. <br>• **D3:** one attended dispatch tick before March, on his own API key under a dollar cap. <br>• **Models:** every Workflow stage names its model and effort. <br>• **Fix intake:** red-on-main, false-block or step-blocker fixes get a slot; the rest are batched weekly; no new engine branch while more than 10 engine PRs are open. <br>• **Claims:** no "independent acceptance" in outside text before #350 and the pin. <br>• **Plugin cache:** belongs to the carrier. <br>• **The console:** read-only. <br>• **The floor:** advisory and raise-only. | 0cw |
 | 18 | 10-01 | Corpus terms: lease A with no shell, the sealed commitment kept private, and a weak result investigated rather than narrowed on. | 0cw, roadmap §5 as amended |
-| 19 | 10-02 | Codex read-only starts now on his OpenAI credit. The Codex adapter is a lane item for about December, after arming and the pin. | roadmap §3 |
+| 19 | 10-02, changed 10-27 | Codex read-only starts now on his OpenAI credit. The second host comes forward: the Factory Droid adapter first, then the Codex adapter, as lane item 11, beside the trust track and the judge pin rather than after arming. His words: "Move row 19 too". | roadmap §3; founder, 10-27 |
 | 20 | 10-09 | The interface is built slowly as OS-style surfaces, read-only first, with chat later. | pending 20261009T234930Z |
 | 21 | 10-10 | The seeded corpus gains a different-family arm. In Phase 2, a moved input stales only the receipts that depend on it. | memory commercial-radar-2026-10-10 |
 | 22 | 10-12 | Gate friction is row 0 of the build queue. | carrier state |
@@ -265,20 +270,21 @@ sealed, measured number. The order is Felix's call:
 8. The D3 attended tick.
 9. The replay, as approved.
 10. The advisory floor.
-11. The Codex adapter, about December, after arming and the judge pin
-    (row 19; roadmap §3 item 5).
+11. The second host: the Factory Droid adapter first, then the Codex
+    adapter, beside the trust track and the judge pin rather than after
+    arming (row 19 as changed 10-27; roadmap §3 item 5).
 
 - **Need side.** Items 1 to 4, plus obligation intake and admission, wait on
-  no trust milestone. Item 3 waits on the founder's corpus ceiling, and
-  admission is his act. Item 4 needs nothing more from him: its scripted
-  runs use the Codex login he made with his API key on 10-02
-  (`CODEX_HOME=~/.felix-codex`). Item 1 and obligation intake need nothing
-  from him.
+  no trust milestone, and since 10-27 so does item 11. Item 3 waits on the
+  founder's corpus ceiling, and admission is his act. Item 4 needs nothing
+  more from him: its scripted runs use the Codex login he made with his API
+  key on 10-02 (`CODEX_HOME=~/.felix-codex`). Item 1 and obligation intake
+  need nothing from him.
 - **A lane session's first item.** Item 1 is a practice and item 2 has run,
   so a lane session takes the first of these that nobody owns: obligation
   intake (thesis I1 and I2: standing, grounded needs with their
   denominator, and admission drafts for the founder), then item 4, then
-  item 3 once its ceiling is set.
+  item 11, then item 3 once its ceiling is set.
 - **Authority side.** Items 5 to 10 keep the trust gates set out in row 25.
 - **Before row 27 arms anything.** These were found on 10-19, after his
   yes, and each is a build, not a new decision:
@@ -325,8 +331,7 @@ real authority. Also deferred:
 - DSSE receipts;
 - retiring the router;
 - team concurrency;
-- a Factory Droid adapter;
-- outreach and pricing.
+- broad outreach and a price page (row 10).
 
 **Owed measurements.** None of these has a slot of its own. Each runs when
 its precondition holds.
@@ -424,6 +429,8 @@ Older text still says some of these. Where it does, this file and §4 govern.
 
 | Was | Replaced by |
 |---|---|
+| Row 10's "no pricing, outreach or demand track" (09-23) | Row 10 as changed 10-27: a narrow commercial track beside build first |
+| Row 19's "the Codex adapter is a lane item for about December, after arming and the pin", and the Factory Droid adapter deferred past March | Row 19 as changed 10-27: Droid first, then Codex, beside the judge pin |
 | "Felix is Phase 1 of the guidebook and nothing past it" (08-10) | Row 8, a product for other people's projects (09-22) |
 | Roadmap v1's outside-user and outreach track | Row 10, build first (09-23) |
 | F2 (a): nothing lands while the Mac sleeps, to be revisited in Phase 4 (09-24) | Row 16 (10-01) |

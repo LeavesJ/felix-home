@@ -32,10 +32,12 @@ Draft, 2026-10-27, for the form at speedrun.a16z.com/apply (closes 2026-11-01, 1
 
 **GitHub:** github.com/LeavesJ. **Portfolio:** github.com/LeavesJ/Felix. **LinkedIn, X:** [TK]
 
-### Relevant experience (936 of 1000)
+### Relevant experience (997 of 1000)
 
 <!-- answer:experience -->
-I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab research project that benchmarks how frontier models coach people through health-behavior change across several sessions. I calibrated its LLM judges to 83% agreement with blinded, double-coded human labels, against an 87% ceiling between two humans, and our adversarial branches pushed top model scores from 0.90 down to 0.65. We're drafting the paper in NeurIPS evaluation-track format, aiming to submit next semester. I also co-founded Elenchus Labs and shipped an LLM product to 200+ Berkeley users, then exposed a systematic scoring bias in its own grader (p = 0.000244) and retired the grader. Before either, I built ReserveGrid, a Rust verifier that detects tampered Bitcoin block templates. Felix grew out of 87,100+ model turns over 73 days of running coding agents. The same failures kept coming back, so I turned them into checks that run without anyone asking.
+I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab benchmark of how frontier models coach people through health-behavior change across sessions. I calibrated its LLM judges to 83% agreement with blinded human labels, against an 87% human-to-human ceiling, and our adversarial branches pushed top model scores from 0.90 to 0.65. We're drafting the paper in NeurIPS evaluation-track format, to submit next semester.
+
+Earlier I built Elenchus and shipped it to 200+ Berkeley students. It cross-examines a student's real decision for up to eight rounds, until they can name the mechanism behind it. It ran behind deterministic output gates and a 1,282-test offline suite, and then I tested whether it worked. Its own grader showed a systematic scoring bias (p = 0.000244), so I retired the grader. When a blind rater liked the core technique's output no better than baseline, I cut that too. Felix is the same habit, turned on the coding agents I ran for 87,100+ model turns over 73 days.
 <!-- /answer -->
 
 ### Tell us more about the team (549 of 1000)
@@ -104,7 +106,7 @@ Pre-revenue, with no customers yet. Across 43 of my own sessions between August 
 
 | Box | Built from | Left out, and why |
 |---|---|---|
-| Relevant experience | Resume of 10-17 (BehaviorChangeBench numbers, Elenchus, 87,100+ turns); resume of 09-30 (ReserveGrid); deck v3 slide 6, "Why this builder"; Peter's emails for the paper line | Sam's name (item 2 above); Wake Forest and Marketech, which don't bear on Felix |
+| Relevant experience | Resume of 10-17 (BehaviorChangeBench numbers, 200+ Elenchus users, the 1,282-test suite, p = 0.000244, 87,100+ turns); resume of 09-30 (the eight rounds of cross-examination, and the core technique cut after a blind rater); deck v3 slides 4 and 6 for why Elenchus matters to Felix; Peter's emails for the paper line | Sam's name (item 2 above); Elenchus Labs as a company you co-founded, by your decision of 10-27, since this application is for a different company; ReserveGrid, retired the same day; Wake Forest and Marketech, which don't bear on Felix |
 | Team | Your answers on 10-27 (part time now, a leave for spring 2027); the README line that most of Felix was written by the agents it governs | Duet as CSO: an AI session listed as an officer reads as a gimmick on a team box |
 | One-liner | The README's two halves, cut to the one that runs | "Decides what counts as done", the brief's category line, which claims more than a hold that sends an agent back once |
 | Description | The README's opening example, its hold and `felix merge` wording, and the rate-limit story | Receipts as the lead (the brief: others already have signed, tree-bound receipts) |
@@ -150,7 +152,7 @@ A proposed nine-slide deck, cut from v4 and the brief:
 | 5 | The harder half: the rate-limit story, what a project owes, and the seeded-omission test that is designed but hasn't run. | README, brief |
 | 6 | Why now: METR's maintainers rejected about half the PRs that passed the grader; every vendor reviews its own agent's work. | brief, METR note of 2026-03-10 |
 | 7 | Who pays, marked as a hypothesis: platform leads at 50 to 500 engineer teams running two or more agent vendors, self-hosted, paying for the verdict rather than for tokens. | brief |
-| 8 | Why me: BehaviorChangeBench, Elenchus, ReserveGrid, 87,100+ model turns. | v4 slide 6, resume |
+| 8 | Why me: BehaviorChangeBench, Elenchus as a product (200+ students, the grader it retired), 87,100+ model turns. | v4 slides 4 and 6, resume |
 | 9 | The next twelve weeks: the M1 attended loop, the M2 MVP with the seeded-omission result, the February pilot, and full time from February. | brief roadmap |
 
 Out from v4: the kernel and browser analogy (slide 11), invariant infrastructure for finance and healthcare (slide 16), and the two thesis slides at the front (2 and 3). They widen the claim past what has been measured, and a reviewer reads the numbers first.

@@ -155,7 +155,7 @@ _r6_is "b06 R5: a commit that fails beside a nested repository says commit FAILE
 R6O="$_r5o"; _r6_nopush
 cmp -s "$R6H/state/pulse.last-push" "$RP/stamp5" || _rvn "pulse.last-push was rewritten"
 [ "$(git --git-dir="$R" rev-parse refs/heads/main 2>/dev/null)" = "$_r0" ] || _rvn "R moved"
-_r6_is "b06 R6: a failed commit beside a nested repository pushes nothing and leaves the push stamp as it was"
+_r6_is "b06 R6 (control): a failed commit beside a nested repository pushes nothing and leaves the push stamp as it was"
 _r6_bk "$M"
 _r6_in "$(_r6_l "$_rN")" scraps || _rvn "no nested line naming scraps"
 _r6_failed; _r6_nohand; _r6_none; _r6_same "$M" "$_h0"; _r6_ix "$M"; _r6_nopush

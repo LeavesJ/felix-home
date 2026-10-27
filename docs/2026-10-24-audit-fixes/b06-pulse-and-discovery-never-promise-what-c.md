@@ -568,9 +568,10 @@ nested repository sits inside memory`. The repository keeps its file and stays w
   writes once, after a call whose input held the scanned `l.md` line. R1: K1 neither committed nor
   pushed. R2: `late.md` not committed; the index matches HEAD. R3: the real harness's next run.
 - **R4 (B28c).** The force-staged ignored `x.secret`.
-- **R5-R8 (B29, nested).** R5: run 1 says `commit FAILED`, leaves nothing staged. R6: and pushes
-  nothing; a stamp 9 days old stays byte-identical. R7: run 2, hook kept, the same, never `staged by
-  hand`. R8: run 3, hook removed: committed, pushed, `scraps` still left out, the stamp rewritten.
+- **R5-R8 (B29, nested).** R5: run 1 says `commit FAILED`, leaves nothing staged. R6 [control]: and
+  pushes nothing; a stamp 9 days old stays byte-identical (true before the fix: the push after a
+  latched run is R7's). R7: run 2, hook kept, the same, never `staged by hand`. R8: run 3, hook
+  removed: committed, pushed, `scraps` still left out, the stamp rewritten.
 - **R9 (B29, credential); R10 (B29, clean failure, then a nested repository).**
 - **R11 (B30).** Unborn `audits/x/fixture`, `scraps/` with a commit, new `audits/x/notes.md`, `l.md`
   changed. **R12 (B30).** The unborn repository alone. **R13 [control].** The scanner passes the part.

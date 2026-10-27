@@ -67,7 +67,8 @@ _b14l_E6='Quantum widgets need a teleport check before merging. Nobody needs thi
 _b14l_S1='Background jobs ignore INT and QUIT signals.'
 # TEXT -> yes when a line of lessons.md holds `** ` and TEXT (trailing blanks aside).
 _b14l_inf() {
-  local t="$1"; while [ "${t% }" != "$t" ]; do t="${t% }"; done
+  local t
+  t="$1"; while [ "${t% }" != "$t" ]; do t="${t% }"; done
   LC_ALL=C awk -v t="** $t" 'index($0, t) { f = 1 } END { print (f ? "yes" : "no") }' "$_b14l_F" 2>/dev/null || printf 'no'
 }
 if [ -z "$_b14l_fx" ]; then
@@ -226,3 +227,47 @@ if [ -n "$_b14l_fx0" ]; then
 elif [ -n "$_b14l_v" ]; then
   _b14l_v="${_b14l_v# }"; bad "dated lesson: felix lesson still writes the entry as a bold date and the text" "${_b14l_v%;}"
 else ok "dated lesson: felix lesson still writes the entry as a bold date and the text"; fi
+
+# ---- review round, M1 (A43): this batch's parts pass part 0590's local scan
+# Part 0590's check `no local assignment reads one declared beside it` runs a
+# python scanner, written from 0590's own text, over every suite file. A helper
+# of this part once declared a local and assigned it again on the same line,
+# which that scanner reports (it does not tell a declaration from a later plain
+# assignment), so 0590 failed on the branch. This lifts the scanner from 0590's
+# text as it stands (the lines after the one that begins `cat > "$SR"`, up to
+# the line `PY`), so it follows the scanner when the scanner changes, and runs
+# it over every part numbered 1890 to 1909 that exists: it must report none of
+# them. The same scanner, run over one planted line of the shape it exists for,
+# must report that line, so a lift that went wrong, or a scanner that reports
+# nothing at all, never reads as a pass. A missing 0590, or a file set without
+# this part in it, is a FAIL that says so.
+_b14l_n="b14 parts: part 0590's local-assignment scanner, lifted from its text, reports no line of this batch's parts"
+_b14l_v=""; _b14l_sp=""; _b14l_bp=(); _b14l_me=""
+for _b14l_t in "$HERE"/parts/0590-*.sh; do if [ -f "$_b14l_t" ]; then _b14l_sp="$_b14l_t"; break; fi; done
+for _b14l_t in "$HERE"/parts/189[0123456789]-*.sh "$HERE"/parts/190[0123456789]-*.sh; do
+  if [ -f "$_b14l_t" ]; then
+    _b14l_bp[${#_b14l_bp[@]}]="$_b14l_t"
+    case "${_b14l_t##*/}" in 1890-*) _b14l_me=yes ;; esac
+  fi
+done
+_b14l_sr="$_b14l_L/selfref.py"; _b14l_pl="$_b14l_L/b14-planted.sh"
+if [ -n "$_b14l_fx0" ]; then _b14l_v="no scratch directory to lift the scanner into: $_b14l_fx0"
+elif [ -z "$_b14l_sp" ]; then _b14l_v="no part 0590 under $HERE/parts to lift the scanner from"
+elif [ -z "$_b14l_me" ]; then _b14l_v="the parts numbered 1890 to 1909 under $HERE/parts do not include this part (1890): [${_b14l_bp[*]:-none}]"
+elif ! LC_ALL=C awk 'f && $0 == "PY" { e = 1; exit } f { print } !f && index($0, "cat > \"$SR\"") == 1 { f = 1 } END { exit (e ? 0 : 1) }' \
+       "$_b14l_sp" > "$_b14l_sr" 2>/dev/null; then
+  _b14l_v="no scanner could be lifted from $_b14l_sp: no line beginning [cat > \"\$SR\"] is followed by a line [PY]"
+elif ! printf '  %s q="$1"; q="${q}x"\n' local > "$_b14l_pl" 2>/dev/null; then
+  _b14l_v="the planted line could not be written to $_b14l_pl"
+else
+  _b14l_t="$(perl -e 'alarm shift; exec @ARGV or exit 127' 120 python3 "$_b14l_sr" / "$_b14l_pl" 2>&1)"
+  case "$_b14l_t" in
+    *b14-planted.sh:1*)
+      _b14l_t="$(perl -e 'alarm shift; exec @ARGV or exit 127' 120 python3 "$_b14l_sr" / "${_b14l_bp[@]}" 2>&1)"; _b14l_rc=$?
+      if [ "$_b14l_rc" -ne 0 ]; then _b14l_v="the lifted scanner exited $_b14l_rc over this batch's parts: [$(_b14l_flat "$_b14l_t")]"
+      elif [ -n "$_b14l_t" ]; then _b14l_v="it reports [$(_b14l_flat "$_b14l_t")]: a line that begins local and then assigns, reading it, a name declared on that line"
+      fi ;;
+    *) _b14l_v="the lifted scanner does not report the planted line [  local q=\"\$1\"; q=\"\${q}x\"], so its silence says nothing: it printed [$(_b14l_flat "$_b14l_t")]" ;;
+  esac
+fi
+if [ -z "$_b14l_v" ]; then ok "$_b14l_n"; else bad "$_b14l_n" "$_b14l_v"; fi

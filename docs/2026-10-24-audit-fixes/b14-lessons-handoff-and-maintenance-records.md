@@ -384,3 +384,26 @@ Run on 2026-10-24 at 0ea944c2, before any engine change, with `alone.sh <worktre
 - *Already true, and meant to stay true* (the behaviour exists today and the fix must not move it): A9 (an L-numbered entry mounts as its bold span), A11 (an unmatched context says `nothing matched this context`), A15 (`felix lesson` still writes `- **D** text`), A16 (an untracked file leaves the tree clean), A17 (a tracked edit and a staged file are dirty and listed), A24 (a corrupt index still writes the file and exits 0), A27 (exit 0 in every case), A33 (a stale graph is `due`, `check failed`), A34 (a fresh graph is `ok`), A35 (a worktree of a checkout with a stale graph is `due`), A41 (one five-column row, cadence 0, capability `always`), A42 (no `Checks refused` section).
 - *Held today only because the claim is not mounted at all* (control now, and it starts to bite once A1 passes): A2 (no `Evidence:` in the output, true of a bare date), A3 (an unmatched entry is not mounted), A13 (the hook's context holds no `Evidence:`), A14 (every mounted line is at most 240 characters, true of a date line).
 - *Held today because both sides read the same count*: A32 (the badge's N equals the count of `DUE` lines; 6 and 6 today, 5 and 5 after the fix).
+
+## 9. Review round
+
+One item came back from review, and the builder's two test disputes are settled here. This section binds as the sections above do.
+
+**R1 (M1). The batch's parts pass part 0590.** Part 0590's check `no local assignment reads one declared beside it` reports none of this batch's parts, so 0590 passes on this branch as it does on origin/main.
+- 0590's scanner reads each line whose text, leading blanks stripped, begins `local `. It reports the line when a `NAME=VALUE` on it reads `$X` or `${X`, where X is a name that an earlier `NAME=` on the same line assigned. NAME stands at the start or after a blank, and VALUE is the run of non-blank characters after the `=`.
+- It does not tell a declaration from a later plain assignment on the same line. So a line of a batch part that begins `local ` never goes on, after a `;`, to assign a name it declared there, whatever that assignment reads. The declaration takes a line of its own.
+- Measured before this round: `alone.sh audit-b14 bwk 0590-the-pre-flight.sh` gave ok=126 fail=1, expected `[]`, got `[1890-dated-lessons-mount-their-claim-blind.sh:70]`, and gawk gave the same. The line was `local t="$1"; while [ "${t% }" != "$t" ]; do t="${t% }"; done`, in part 1890's helper `_b14l_inf`.
+
+| | R | Assertion (name, then what is checked) |
+|---|---|---|
+| A43 | R1 | `b14 parts: part 0590's local-assignment scanner, lifted from its text, reports no line of this batch's parts`. In part 1890. The scanner is lifted from part 0590's text as it stands: the lines after the one that begins `cat > "$SR"`, up to the line `PY`. Run over every `tests/parts/` file numbered 1890 to 1909, it prints nothing. Run over a planted one-line file `  local q="$1"; q="${q}x"`, it reports that file's line 1, so a lift that went wrong never reads as a pass. A missing 0590, a file set without part 1890 in it, or a scanner that cannot be lifted is a FAIL that says which. |
+
+A43 runs the scanner 0590 runs, not a retyped copy, so it moves when the scanner moves. No name recorded for 0590 changes. tests/run gains no line, because A43 lives in part 1890, as section 3 asks of every new assertion.
+
+**Test disputes, settled.**
+- *1890 line 70 makes 0590 fail.* The test was wrong, in a helper and not in an assertion. `_b14l_inf` checks that `felix lesson` wrote E1 to E6, so it feeds the fixture verdict of every 1890 assertion. No assertion's verdict rests on the line's shape. The line is now two: `local t`, then `t="$1"; while ... done`. Nothing else in 1890 changed, and A1 to A15 read as before.
+- *A37 and A38 are red on macOS only.* No change needed. B26, A37 and A38 already say so: red on macOS (BSD find), control on GNU find. The GNU find side is not measured on this Mac, because alone.sh's gawk mode swaps awk, not find. CI's run is its first measurement. Until then it is unknown, not passed.
+
+**Red, review round.** Run on 2026-10-26.
+- With A43 added and line 70 as the builder left it, `alone.sh <worktree> bwk 1890-dated-lessons-mount-their-claim-blind.sh` failed A43 alone, reporting `1890-dated-lessons-mount-their-claim-blind.sh:70` (ok=77 fail=1). That is the one new assertion, red.
+- With line 70 split, 1890 gave ok=78 fail=0 under bwk. Under gawk, 1890 and 1891 together gave ok=105 fail=0. Part 0590 gave ok=127 fail=0 under bwk and under gawk, and part 1040 gave ok=67 fail=0 under bwk. These counts include the prelude's lines.

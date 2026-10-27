@@ -622,7 +622,8 @@ reads `n/a`.
   after `1600-felix-refuses-a-pattern-kill-blind.sh`.
 - `engine/harness/tests/parts/1831-evidence-template-layouts-blind.sh` holds
   A57 to A80. It ships in the founder PR (change A) and is registered after
-  1830. It is red on today's template and green on the new one.
+  1830. It is red on today's template and green on the new one. It also
+  holds the review round's A81 to A108 (last section).
 
 ## 6. Out of scope, with why
 
@@ -864,3 +865,83 @@ book/src, both n/a on the old template; A80 holds because the old template
 already passes felix_table_check, has the five rows in order and compiles
 every cell. The 16 failures are the layouts the old template misjudges
 (A57, A59 to A73).
+
+## Review round
+
+The review of the built branch (64ceef8a) found two defects in change A's
+template, M1 and M2. Both are verdicts of the seeded table, so their
+assertions, A81 to A108, are in part 1831 and ship with it. Each runs as F6.
+Here **(control)** means true on the branch as built and after the review
+fix. Every other assertion in this section fails on the template change A
+ships.
+
+- **B22 (M1). Code is code in every language.**
+  - The defect: the old unit row read any file under src/ as code. Change A
+    names code by a list of extensions, so src/foo.h, src/foo.hpp,
+    src/Foo.m, src/foo.lua, src/foo.hs, src/foo.ml, src/foo.zig and
+    src/foo.kts read n/a on every row. infra/main.tfvars falls from config
+    gap to n/a.
+  - The harm: an untested header-only C++ change gets "No evidence gaps" and
+    is auto-merge eligible at green. That is the false all-clear C024 set
+    out to remove, and the old template did not give it. Section 6 accepts
+    n/a for a directory the template does not name, never for a language it
+    does not list.
+
+  Required:
+  - A change that adds one code file under a code directory, and no test,
+    reads `unit gap` and n/a on every other row, whatever the language. That
+    covers each of the eight above, languages neither the template nor the
+    review names (Erlang, Clojure, Julia, C++ spelled `.cxx`), and a header
+    at depth under packages/\*/src.
+  - The same file with a test in its own language, in a layout the template
+    accepts for the languages it lists, reads `unit met`. So no false gap
+    comes back for these languages.
+  - infra/main.tfvars reads `config gap`.
+  - A page under a code directory is still not code: src/README.md reads n/a
+    on every row, as book/src/chapter.md does (A79).
+- **B23 (M2). Vendored code is not the project's code.**
+  - The defect: change A's rules read at any depth. So
+    vendor/github.com/x/y/pkg/z.go, third_party/lib/a.c and
+    node_modules/a/lib/index.js, all n/a on the old template, now read
+    `unit gap`.
+  - The harm: a `go mod vendor` bump that touches
+    vendor/github.com/pkg/errors/errors.go (pkg is a GitHub org) or any
+    module's internal/ or cmd/ directory gaps unit, because vendoring drops
+    `_test.go` files. felix merge refuses it. It clears only by touching an
+    unrelated test file, which games the rule, or by the founder's edit to
+    an escape table. That is the harm C024 reported for co-located tests.
+  - An ERE cell cannot exclude a directory prefix, so the table alone may
+    not express the fix. These assertions say what comes out, not where the
+    exclusion lives.
+
+  Required:
+  - A change whose every path lies under a `vendor`, `third_party` or
+    `node_modules` directory, at the root or at any depth, reads n/a on every
+    row: unit, api and e2e alike.
+  - A vendored path does not hide the project's own code beside it.
+    vendor/github.com/pkg/errors/errors.go plus internal/handlers/auth.go,
+    with no test, reads `unit gap` and `api gap` (control).
+
+B21 (A80) still binds the fix: five rows, in order, every cell compiling.
+B20's table, and section 7's generator, hash and line count, move with it.
+
+| A | B | Change | Expected |
+|---|---|---|---|
+| A81 to A88 | B22 | one each: +src/foo.h, +src/foo.hpp, +src/Foo.m, +src/foo.lua, +src/foo.hs, +src/foo.ml, +src/foo.zig, +src/foo.kts | unit gap, others n/a |
+| A89 to A92 | B22 | one each: +src/a.erl, +src/a.clj, +src/a.jl, +src/a.cxx | unit gap, others n/a |
+| A93 | B22 | +packages/core/src/foo.h | unit gap, others n/a |
+| A94 | B22 | +src/foo.hpp +tests/foo_test.cpp | unit met, others n/a |
+| A95 | B22 | +src/Foo.m +src/FooTests.m | unit met, others n/a |
+| A96 | B22 | +src/foo.lua +spec/foo_spec.lua | unit met, others n/a |
+| A97 | B22 | +src/Foo.hs +test/FooSpec.hs | unit met, others n/a |
+| A98 | B22 | +src/foo.ml +test/test_foo.ml | unit met, others n/a |
+| A99 | B22 | +infra/main.tfvars | config gap, others n/a |
+| A100 | B22 (control) | +src/README.md | every row n/a |
+| A101 | B23 | +vendor/github.com/x/y/pkg/z.go | every row n/a |
+| A102 | B23 | +third_party/lib/a.c | every row n/a |
+| A103 | B23 | +node_modules/a/lib/index.js | every row n/a |
+| A104 | B23 | -vendor/github.com/pkg/errors/go113.go +vendor/github.com/pkg/errors/errors.go +vendor/modules.txt | every row n/a |
+| A105 | B23 | +vendor/golang.org/x/text/internal/tag/tag.go +vendor/example.com/tool/cmd/tool/main.go | every row n/a |
+| A106 | B23 | +vendor/github.com/gorilla/handlers/cors.go +third_party/ui/src/components/Button.tsx | every row n/a |
+| A107 | B23 | +services/auth/vendor/github.com/pkg/errors/errors.go | every row n/a |
+| A108 | B23 (control) | +vendor/github.com/pkg/errors/errors.go +internal/handlers/auth.go | unit gap, api gap, others n/a |

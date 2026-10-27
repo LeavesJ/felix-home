@@ -3,7 +3,8 @@ printf '\nthe seeded evidence template gives true verdicts for the layouts it na
 # alone: section 4's A57 to A80 over fixture F6, with B20 and B21 for what each means. No engine code was
 # read; felix_evidence_check and felix_table_check are driven as black boxes. This part ships with change A
 # of the contract's section 7, the new engine/harness/templates/evidence.tsv, and is red on the template
-# that change replaces; its controls (A58 and A74 to A80) hold on both.
+# that change replaces; its controls (A58 and A74 to A80) hold on both. A81 to A108, at the end, are the
+# review round's (B22 and B23), red on the template change A ships until the review fix.
 #
 # Each case is a fresh repository built as F1 builds one: main holds README and every file the change
 # deletes, and work, one commit on top, adds each +PATH and deletes each -PATH. The policy directory holds
@@ -92,4 +93,45 @@ done < <(LC_ALL=C awk -F'\t' '/^#/ || $0 == "" { next } { print $2; print $3 }' 
 is "b11 A80: the template passes felix_table_check silently, holds unit database e2e api config in that order, and every when and requires cell compiles (control)" \
    "table check [$_b11t_tc], rows [$_b11t_names], cells [${_b11t_bad:-every one compiles}]" \
    "table check [|rc=0], rows [unit database e2e api config], cells [every one compiles]"
+
+# ---- Review round: B22 and B23, A81 to A108 -------------------------------------------------------
+# Blind, written on 2026-10-26 from the contract's "Review round" section alone, over F6 as above. The
+# controls (A100, A108) hold on the branch as built; every other assertion here fails on the template
+# change A ships.
+printf '\n  review round: code in any language is code, and vendored code fires no row\n'
+# B22: a code file under a code directory gaps unit without a test, whatever its language.
+_b11t_case "b11 A81: a C header under src/ with no test gaps unit, not n/a on every row" "unit=gap" +src/foo.h
+_b11t_case "b11 A82: a C++ header under src/ with no test gaps unit" "unit=gap" +src/foo.hpp
+_b11t_case "b11 A83: Objective-C under src/ with no test gaps unit" "unit=gap" +src/Foo.m
+_b11t_case "b11 A84: Lua under src/ with no test gaps unit" "unit=gap" +src/foo.lua
+_b11t_case "b11 A85: Haskell under src/ with no test gaps unit" "unit=gap" +src/foo.hs
+_b11t_case "b11 A86: OCaml under src/ with no test gaps unit" "unit=gap" +src/foo.ml
+_b11t_case "b11 A87: Zig under src/ with no test gaps unit" "unit=gap" +src/foo.zig
+_b11t_case "b11 A88: a Kotlin script under src/ with no test gaps unit" "unit=gap" +src/foo.kts
+_b11t_case "b11 A89: Erlang, a language neither the template nor the review names, gaps unit" "unit=gap" +src/a.erl
+_b11t_case "b11 A90: Clojure under src/ gaps unit" "unit=gap" +src/a.clj
+_b11t_case "b11 A91: Julia under src/ gaps unit" "unit=gap" +src/a.jl
+_b11t_case "b11 A92: C++ spelled .cxx under src/ gaps unit" "unit=gap" +src/a.cxx
+_b11t_case "b11 A93: a C header at depth, under packages/*/src, gaps unit" "unit=gap" +packages/core/src/foo.h
+# B22: and the same file with a test in its own language meets unit, so no false gap comes back.
+_b11t_case "b11 A94: a C++ header with its test under tests/ meets unit" "unit=met" +src/foo.hpp +tests/foo_test.cpp
+_b11t_case "b11 A95: Objective-C with its FooTests.m beside it meets unit" "unit=met" +src/Foo.m +src/FooTests.m
+_b11t_case "b11 A96: Lua with its spec under spec/ meets unit" "unit=met" +src/foo.lua +spec/foo_spec.lua
+_b11t_case "b11 A97: Haskell with its spec under test/ meets unit" "unit=met" +src/Foo.hs +test/FooSpec.hs
+_b11t_case "b11 A98: OCaml with its test under test/ meets unit" "unit=met" +src/foo.ml +test/test_foo.ml
+_b11t_case "b11 A99: a Terraform variables file gaps config, not n/a" "config=gap" +infra/main.tfvars
+_b11t_case "b11 A100: a README under src/ is still no code, so every row reads n/a (control)" "" +src/README.md
+# B23: a change that touches only vendored code reads n/a on every row, at any depth.
+_b11t_case "b11 A101: vendored Go whose path runs through a pkg/ directory fires no row" "" +vendor/github.com/x/y/pkg/z.go
+_b11t_case "b11 A102: vendored C under third_party/lib fires no row" "" +third_party/lib/a.c
+_b11t_case "b11 A103: a package under node_modules fires no row" "" +node_modules/a/lib/index.js
+_b11t_case "b11 A104: a go mod vendor bump of github.com/pkg/errors fires no row" "" \
+           -vendor/github.com/pkg/errors/go113.go +vendor/github.com/pkg/errors/errors.go +vendor/modules.txt
+_b11t_case "b11 A105: a vendored module's internal/ and cmd/ directories fire no row" "" \
+           +vendor/golang.org/x/text/internal/tag/tag.go +vendor/example.com/tool/cmd/tool/main.go
+_b11t_case "b11 A106: vendored code fires neither the api row nor the e2e row" "" \
+           +vendor/github.com/gorilla/handlers/cors.go +third_party/ui/src/components/Button.tsx
+_b11t_case "b11 A107: a nested module's vendor directory fires no row" "" +services/auth/vendor/github.com/pkg/errors/errors.go
+_b11t_case "b11 A108: vendored code beside the project's own untested handler hides nothing: unit and api gap (control)" \
+           "unit=gap api=gap" +vendor/github.com/pkg/errors/errors.go +internal/handlers/auth.go
 unset -f _b11t_g _b11t_chk _b11t_case

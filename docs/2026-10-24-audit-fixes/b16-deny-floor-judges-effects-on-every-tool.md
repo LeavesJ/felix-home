@@ -520,3 +520,62 @@ The 46 that passed, and why each is not a defect in the part:
   by judgement; after B1 they check B5, B7 and B9. A35, A37, A39, A40 and A44 pass because schema-check and doctor print
   no `pattern-` line and no new header at all today; after B13 to B19 they check that the new checks do not over-refuse
   (A40 on the shipped tree).
+
+## 9. Review round
+
+Two findings of the review of the built branch (0634dbe7 and 9bfaf5c9), restated as required behaviour. Where this
+section and sections 2 and 4 disagree, this section wins. `[control]` here means true on the branch as reviewed and
+after the fix.
+
+**M1. An MCP tool is a shell tool only when Felix names it a terminal.** This replaces the Words definition of a shell
+tool, B4's last clause ("any other `mcp__*` tool whose input carries a `command` key") and A9. A shell tool is Bash,
+Monitor, or one of the MCP terminal tools Felix names, `mcp__terminal__run_in_terminal` and
+`mcp__claude-flow__terminal_execute`, kept as one list in one place. A Bash row never judges any other `mcp__*` tool,
+whatever its input holds: the floor cannot read an MCP tool's schema, and a `command` key does not say that the command
+runs on this machine. claude-flow's `hooks_pre-command` only assesses a command, `hooks_post-command` records one that
+already ran, and Vercel's `run_session_command` runs its `requestBody.command` (with `args` the floor never reads) in a
+remote sandbox. Such a call writes no `denied` line to says.log. The tool column keeps its meaning (B6): a row that names
+an `mcp__*` tool judges that tool's `command`, read as Bash's is, so a project can name a shell tool Felix does not
+list, and B19 keeps exempting `mcp__*` rows. B12's sentence becomes "(from Bash, Monitor or an MCP terminal tool Felix
+names)", so README never says every MCP tool's command is read. A new MCP terminal is added to the list by name, as
+Monitor is (section 6).
+
+**M2. A global option that takes no value never takes the subcommand.** Rows 19 and 20 read git's subcommand as the
+first word after `git` and its global options. Only `-C`, `-c`, `--git-dir`, `--work-tree` and `--namespace` take the
+next word as their value; written `--opt=value`, an option is one word; every other option (`-p`, `-P`, `--paginate`,
+`--no-pager`, `--bare`, `--no-optional-locks`, `--literal-pathspecs` and the rest) takes none. So `git --no-pager log
+--grep commit -n 3`, `git --no-pager grep commit -n -- '*.md'`, `git -P grep -n push -f pats.txt` and `git --no-pager
+stash push -f` are allowed, and push or commit after any mix of global options is refused as in B20 and B21. Section
+7's two rows are replaced by rows that read this way, probed again against B20 to B22 and A60 to A62, and the founder
+PR text changes with them. Rows 131-135 (140-144 on the branch) carry the same global-option group and are older than
+this batch. Whether they over-refuse the same way was not measured. They are not this batch's rows (section 3), so
+that is a follow-up.
+
+Assertions (A9 and A53 to A59 in 1930, on T1; A60 to A62 in 1940, on F1):
+- **A9 (M1, restated).** `mcp__fixture__shell` `{"command":"pkill -f x"}` is allowed.
+- **A53-A55 (M1).** Each is allowed while Bash's same text is refused: `mcp__claude-flow__hooks_pre-command`
+  `{"command":"git push --force origin feat/x"}`; `mcp__claude-flow__hooks_post-command` `{"command":"pkill -f
+  vitest","exitCode":0}`; `mcp__plugin_vercel_vercel__run_session_command`
+  `{"sessionId":"sbx_1","requestBody":{"command":"pkill -f vitest","args":[]}}`.
+- **A56 (M1, B10).** Those three calls add 0 `denied` lines to `$MEM/widget/says.log`.
+- **A57 (M1, B6) [control].** With `mcp__fixture__assess<TAB>pkill -f<TAB>this tool is named by the row` the table's only
+  row, `mcp__fixture__assess` `{"command":"pkill -f x"}` is refused with that reason.
+- **A58 (M1).** With `projects/felix/deny.tsv` as shipped: Bash `git push --force origin feat/x` and `pkill -f vitest`
+  are refused; the A53 and A54 calls, and `run_session_command` with `{"command":"pkill","args":["-f","vitest"]}`, are
+  allowed.
+- **A59 (M1, B12).** README's deny-table row holds `terminal` and not `Monitor or an MCP tool)`.
+- **A60 (M2).** Allowed, one assertion each: the four commands above, `git -p log --grep commit -n 3`, `git --paginate
+  grep -n push -f pats.txt`, `git --no-optional-locks log --grep commit -n 3`, `git -C . --no-pager log --grep commit -n
+  3`, `git --no-pager -C . grep -n push -f pats.txt`.
+- **A61 (M2) [control].** Refused with the force-push reason: `git -P push --force`, `git --no-optional-locks push -f`,
+  `git --git-dir .git push --force`, `git --git-dir=.git push -f`, `git --namespace ns push -f`, `git -C . --no-pager
+  push -f`, each `origin feat/x`, and `git --no-pager -c push.default=current push -fu origin feat/x`.
+- **A62 (M2) [control].** Refused with the verify reason: `git --no-pager commit -n -m x`, `git -P commit --no-verify -m
+  x`, `git -p commit -n -m x`, `git --work-tree . commit -n -m x`, `git --no-pager -c user.name=t commit -nm x`.
+
+Red, run 2026-10-26 on the branch at 9bfaf5c9 plus these assertions (`alone.sh <worktree> bwk 1930-... 1940-...`): of
+the 29 new or restated assertions, 15 fail and 14 pass. The 15 are A9, A53 to A56, A58, A59 and eight of A60's nine
+cases, each for the reason above: the MCP calls are refused with the Bash rows' reasons and write 3 `denied` lines;
+README says "Monitor or an MCP tool)"; rows 19 and 20 refuse the read-only commands. The 14 are the controls A57, A61
+(7) and A62 (5), and A60's `git --no-pager -C . grep -n push -f pats.txt`, which the branch already allows (no option
+can take `grep` as its value after `-C .`), kept as a guard. The other 166 assertions of the two parts all pass.

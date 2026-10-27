@@ -2,7 +2,8 @@ printf '\nthe deny floor: patterns every engine compiles alike, and the spelling
 # Written blind on 2026-10-24 from docs/2026-10-24-audit-fixes/b16-deny-floor-judges-effects-on-every-tool.md
 # alone (sections 2 and 4, A32 to A52). No engine code was read: bin/schema-check, felix doctor and the
 # pre-tool hook are run as black boxes, and projects/felix/deny.tsv is read only as A52 says and copied
-# whole for A49 to A51, so each verdict there is the shipped table's. Every part runs alone: each
+# whole for A49 to A51, so each verdict there is the shipped table's. A60 to A62 were added 2026-10-26,
+# blind, from the contract's section 9 (review round, M2). Every part runs alone: each
 # fixture below is this part's own, under $TMP, and it relies on the prelude only (FROOT, TMP, FELIX,
 # REAL_HARNESS, _pre, _fx_cd, ok, bad, is, skip).
 #
@@ -335,6 +336,35 @@ git commit -v -m x
 git commit --amend --no-edit
 git commit -m "fix: git push --force here"
 git log -n 3
+J
+# Review round M2: a global option that takes no value never takes the subcommand as its value. Only
+# -C, -c, --git-dir, --work-tree and --namespace take the next word; --opt=value is one word.
+_dp_spell allowed "" "rows 19 and 20 A60 (review M2): after a global option that takes no value, the shipped table allows" <<'J'
+git --no-pager log --grep commit -n 3
+git --no-pager grep commit -n -- '*.md'
+git -P grep -n push -f pats.txt
+git --no-pager stash push -f
+git -p log --grep commit -n 3
+git --paginate grep -n push -f pats.txt
+git --no-optional-locks log --grep commit -n 3
+git -C . --no-pager log --grep commit -n 3
+git --no-pager -C . grep -n push -f pats.txt
+J
+_dp_spell refused "force push drops commits, and Felix's history is the audit trail" "rows 19 and 20 A61 (review M2) [control]: after global options, the force-push row still refuses" <<'J'
+git -P push --force origin feat/x
+git --no-optional-locks push -f origin feat/x
+git --git-dir .git push --force origin feat/x
+git --git-dir=.git push -f origin feat/x
+git --namespace ns push -f origin feat/x
+git -C . --no-pager push -f origin feat/x
+git --no-pager -c push.default=current push -fu origin feat/x
+J
+_dp_spell refused "--no-verify is how a gate stops being a gate. Fix the tree instead" "rows 19 and 20 A62 (review M2) [control]: after global options, the verify row still refuses" <<'J'
+git --no-pager commit -n -m x
+git -P commit --no-verify -m x
+git -p commit -n -m x
+git --work-tree . commit -n -m x
+git --no-pager -c user.name=t commit -nm x
 J
 _dp_n="rows 19 and 20 A52 (B22): one Bash row of three fields each holds the force-push reason and the verify reason"
 if [ -f "$_dp_ft" ]; then

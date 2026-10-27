@@ -2,7 +2,8 @@ printf '\nthe deny floor judges effects on every tool (audit b16, C020, blind)\n
 # Written blind on 2026-10-24 from docs/2026-10-24-audit-fixes/b16-deny-floor-judges-effects-on-every-tool.md
 # alone (sections 2 and 4, A1 to A31). No engine code was read: hooks.json and settings.json are read
 # here only as the contract says to read them, and the hook is driven as a black box by _pre
-# (tests/lib/deny-hook.sh). Every part runs alone: each fixture below is this part's own, under $TMP,
+# (tests/lib/deny-hook.sh). A9 as restated and A53 to A59 were added 2026-10-26, blind, from the
+# contract's section 9 (review round, M1). Every part runs alone: each fixture below is this part's own, under $TMP,
 # and it relies on the prelude only (FROOT, TMP, MEM, REAL_HARNESS, _pre, _fx_cd, ok, bad, is, skip).
 #
 # "Refused" is exit 2 with the row's whole reason on stderr; "allowed" is exit 0 with nothing on
@@ -138,7 +139,8 @@ _dt_case "deny floor A7 (B4): mcp__terminal__run_in_terminal running a pattern k
   '{"tool_name":"mcp__terminal__run_in_terminal","tool_input":{"command":"pkill -f x","title":"t"}}'
 _dt_case "deny floor A8 (B4): mcp__claude-flow__terminal_execute running a force push is refused" "$_dt_t1" refused "$_dt_fp" \
   '{"tool_name":"mcp__claude-flow__terminal_execute","tool_input":{"command":"git push --force origin feat/x","sessionId":"s1"}}'
-_dt_case "deny floor A9 (B4): any mcp__ tool whose input carries a command is read as a shell command" "$_dt_t1" refused "$_dt_pk" \
+# A9 as the review round restates it (M1): carrying a command does not make an mcp__ tool a terminal.
+_dt_case "deny floor A9 (B4, review M1): an mcp__ tool Felix does not name a terminal is not read as a shell command, though its input carries one" "$_dt_t1" allowed "" \
   '{"tool_name":"mcp__fixture__shell","tool_input":{"command":"pkill -f x"}}'
 _dt_case "deny floor A10 (B5): a Monitor command that only echoes a quoted pattern kill is allowed" "$_dt_t1" allowed "" "$(_dt_mon "echo 'pkill -f x'")"
 _dt_case "deny floor A11 (B5): a Monitor command that hands a pattern kill to bash -c is refused" "$_dt_t1" refused "$_dt_pk" "$(_dt_mon "bash -c 'pkill -f x'")"
@@ -163,6 +165,59 @@ else
   _dt_v "$_dt_t1" '{"tool_name":"Write","tool_input":{"file_path":"/w/pkill -f x","content":"y"}}' ""; _dt_w="$_dt_got"
   _dt_v "$_dt_t1" '{"tool_name":"Read","tool_input":{"file_path":"/w/.env"}}' "reading a secret"; _dt_r="$_dt_got"
   is "$_dt_n" "Write $_dt_w, Read $_dt_r" "Write allowed, Read refused"
+fi
+
+# ---- review round M1: an mcp__ tool that only carries a command is not a terminal (A53 to A58, on T1)
+# Each MCP call is paired with the same text through Bash, so "allowed" is never true by a row that
+# would not have matched. The MCP calls run first and together, so says.log is counted over them alone.
+printf '\ndeny floor: an MCP tool that assesses, records or runs elsewhere a command is not read as a local shell (review M1)\n'
+_dt_denied() {   # -> how many lines of widget's says.log are denied
+  if [ -f "$MEM/widget/says.log" ]; then LC_ALL=C awk -F'\t' '$2 == "denied" { n++ } END { print n + 0 }' "$MEM/widget/says.log"
+  else echo 0; fi
+}
+_dt_pre='{"tool_name":"mcp__claude-flow__hooks_pre-command","tool_input":{"command":"git push --force origin feat/x"}}'
+_dt_post='{"tool_name":"mcp__claude-flow__hooks_post-command","tool_input":{"command":"pkill -f vitest","exitCode":0}}'
+_dt_sbx='{"tool_name":"mcp__plugin_vercel_vercel__run_session_command","tool_input":{"sessionId":"sbx_1","requestBody":{"command":"pkill -f vitest","args":[]}}}'
+if [ -z "$_dt_nofx" ]; then
+  _dt_t1tab; _dt_ma="$(_dt_denied)"
+  _dt_v "$_dt_t1" "$_dt_pre" ""; _dt_g53="$_dt_got"
+  _dt_v "$_dt_t1" "$_dt_post" ""; _dt_g54="$_dt_got"
+  _dt_v "$_dt_t1" "$_dt_sbx" ""; _dt_g55="$_dt_got"
+  _dt_mb="$(_dt_denied)"
+  _dt_v "$_dt_t1" "$(_dt_bash 'git push --force origin feat/x')" "$_dt_fp"; _dt_bp="$_dt_got"
+  _dt_v "$_dt_t1" "$(_dt_bash 'pkill -f vitest')" "$_dt_pk"; _dt_bk="$_dt_got"
+fi
+_dt_m1() {   # NAME BASH-VERDICT MCP-VERDICT
+  if [ -n "$_dt_nofx" ]; then skip "$1" "$_dt_nofx"; return 0; fi
+  is "$1" "Bash $2, MCP $3" "Bash refused, MCP allowed"
+}
+_dt_m1 "deny floor A53 (review M1): claude-flow's hooks_pre-command, which only assesses a command, is allowed though Bash refuses its text" "$_dt_bp" "$_dt_g53"
+_dt_m1 "deny floor A54 (review M1): claude-flow's hooks_post-command, which records a command that already ran, is allowed" "$_dt_bk" "$_dt_g54"
+_dt_m1 "deny floor A55 (review M1): Vercel's run_session_command, whose command runs in a remote sandbox, is not read as a local shell" "$_dt_bk" "$_dt_g55"
+_dt_n="deny floor A56 (B10, review M1): those three MCP calls add no denied line to the project's says.log"
+if [ -n "$_dt_nofx" ]; then skip "$_dt_n" "$_dt_nofx"
+else is "$_dt_n" "$((_dt_mb - _dt_ma)) new denied line(s)" "0 new denied line(s)"; fi
+_dt_n="deny floor A57 (B6, review M1) [control]: a row that names an mcp__ tool still judges that tool's command"
+if [ -n "$_dt_nofx" ]; then skip "$_dt_n" "$_dt_nofx"
+else
+  printf 'mcp__fixture__assess\tpkill -f\tthis tool is named by the row\n' > "$FROOT/projects/widget/deny.tsv"
+  _dt_v "$_dt_t1" '{"tool_name":"mcp__fixture__assess","tool_input":{"command":"pkill -f x"}}' "this tool is named by the row"
+  _dt_is "$_dt_n" refused; _dt_t1tab
+fi
+_dt_ship="$_dt_root/projects/felix/deny.tsv"
+_dt_n="deny floor A58 (review M1): under projects/felix/deny.tsv as shipped, the two command hooks and a sandbox command are allowed, and Bash's same text refused"
+if [ -n "$_dt_nofx" ]; then skip "$_dt_n" "$_dt_nofx"
+elif [ ! -f "$_dt_ship" ]; then skip "$_dt_n" "no projects/felix/deny.tsv beside this harness"
+else
+  cp "$_dt_ship" "$FROOT/projects/widget/deny.tsv"
+  _dt_v "$_dt_t1" "$(_dt_bash 'git push --force origin feat/x')" "force push drops commits"; _dt_x="Bash push $_dt_got"
+  _dt_v "$_dt_t1" "$(_dt_bash 'pkill -f vitest')" "reaches other sessions"; _dt_x="$_dt_x, Bash pkill $_dt_got"
+  _dt_v "$_dt_t1" "$_dt_pre" ""; _dt_x="$_dt_x; pre-command $_dt_got"
+  _dt_v "$_dt_t1" "$_dt_post" ""; _dt_x="$_dt_x, post-command $_dt_got"
+  _dt_v "$_dt_t1" '{"tool_name":"mcp__plugin_vercel_vercel__run_session_command","tool_input":{"sessionId":"sbx_1","requestBody":{"command":"pkill","args":["-f","vitest"]}}}' ""
+  _dt_x="$_dt_x, run_session_command $_dt_got"
+  is "$_dt_n" "$_dt_x" "Bash push refused, Bash pkill refused; pre-command allowed, post-command allowed, run_session_command allowed"
+  _dt_t1tab
 fi
 
 # ---- fixture T2 (B8): a project resolved by remote_match, and a git shim that logs every call
@@ -299,6 +354,16 @@ if [ -f "$_dt_rm" ]; then
     esac
   fi
   is "$_dt_n" "$_dt_x" "names Monitor"
+else skip "$_dt_n" "no README.md beside this harness"; fi
+_dt_n="deny floor A59 (B12, review M1): README's deny-table row says the MCP tools read are terminal tools, not every MCP tool"
+if [ -f "$_dt_rm" ]; then
+  case "$_dt_rl" in
+    "") _dt_x="no line of README.md begins | **The deny table** |" ;;
+    *"Monitor or an MCP tool)"*) _dt_x="it still says every MCP tool's command is read" ;;
+    *[Tt]erminal*) _dt_x="names terminal tools" ;;
+    *) _dt_x="does not say which MCP tools are read" ;;
+  esac
+  is "$_dt_n" "$_dt_x" "names terminal tools"
 else skip "$_dt_n" "no README.md beside this harness"; fi
 
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"

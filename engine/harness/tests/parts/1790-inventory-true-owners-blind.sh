@@ -1,5 +1,5 @@
 # >>> inventory-true-owners
-printf '\naudit b09: true owners past SDK sessions, and a records root the run cannot read is unknown (C028, C047: A1-A26, blind)\n'
+printf '\naudit b09: true owners past SDK sessions, and a records root the run cannot read is unknown (C028, C047: A1-A26, A42-A49, blind)\n'
 # Blind, written on 2026-10-24 from docs/2026-10-24-audit-fixes/b09-inventory-speed-and-true-owners.md
 # alone (sections 2 and 4); felix was run as a black box and no engine code was read. The stubs, the
 # runner and the TSV readers are tests/lib/lost-work.sh's (_lw_build); every fixture here is this
@@ -95,6 +95,7 @@ _lw_sess "$T9W/prw9" t9-prs2; _t9_as sdk-py pr9b _lw_h 11 "$T9Q"; _t9_as sdk-py 
 chmod 000 "$T9UF"; T9UR=shut; [ -r "$T9UF" ] && T9UR=open
 _lw_run T9T "$T9H" "$LW/cwd" inventory --tsv --repo "$TW9"
 chmod 600 "$T9UF"
+_lw_run T9R "$T9H" "$LW/cwd" inventory --tsv --repo "$TW9"
 _lw_run T9M "$T9H" "$LW/cwd" monitor --tsv --repo "$TW9"
 
 # ---- uw9 ------------------------------------------------------------------------------------
@@ -149,8 +150,8 @@ is "A8 (B4, control): sessions with no entrypoint are a person's: old9's owner a
    "t9-old yes yes 1"
 is "A9 (B5): a pull request whose head SDK records name more recently is owned by the person's session that named it, and is live" \
    "$(_lw_col "$T9O" pr '#91' 5) $(_lw_holds "$T9O" pr '#91' live)" "t9-prp yes"
-is "A10 (B5): a pull request whose head only SDK records name has owner - and is not live" \
-   "$(_lw_col "$T9O" pr '#92' 5) $(_lw_holds "$T9O" pr '#92' live)" "- no"
+is "A10 (B5, R1): with every session file read (run T2), a pull request whose head only SDK records name has owner - and is not live" \
+   "$(_lw_col "$(_lw_o T9R)" pr '#92' 5) $(_lw_holds "$(_lw_o T9R)" pr '#92' live)" "- no"
 if [ "$T9UR" = open ]; then skip "A11 (B6, control): a newest session file the run cannot read gives owner unknown and unknown:question" "a mode-000 file is readable here"
 else is "A11 (B6, control): a newest session file the run cannot read gives owner unknown and unknown:question" \
    "$(_lw_col "$T9O" worktree "$T9W/unr9" 5) $(_lw_holds "$T9O" worktree "$T9W/unr9" unknown:question)" "unknown yes"; fi
@@ -202,4 +203,54 @@ _t9n="A26 (B11, control): one record directory at mode 000 under a readable root
 _t9_sk "$U9OD" "$_t9n" && is "$_t9n" \
    "$(_lw_st "$UDO" cover sessions | LC_ALL=C cut -d, -f1) $(_lw_col "$UDO" worktree "$UW9" 5) $(_lw_elem "$UDO" worktree "$UW9" "could not read the record directory $U9DD")" \
    "read unknown yes"
+
+# ---- review round, M1: an SDK record never stands in for an owner the run could not read (A42 to A49) ----
+# Written 2026-10-26 from the contract's section 9 alone. mw9: sole9's record directory holds a person
+# session naming mw9a (made unreadable for run MU) and an SDK reviewer naming it later; pers9's holds a
+# person session naming mw9c 90 minutes ago, an SDK one naming it 5 minutes ago, and a person session
+# naming mw9d 20 minutes ago. MR reads every file; MU reads all but m9-pa, which is set back after it.
+_t9_su() { [ "$1" = shut ] || { skip "$2" "a mode-000 file is readable here"; return 1; }; }   # STATE NAME
+_lw_repo mw9; MW9="$LW/mw9"; M9W="$LW/mw9-wt"; mkdir -p "$M9W"
+for _t9i in sole9 pers9; do _lwg "$MW9" worktree add -q -b "m9-$_t9i" "$M9W/$_t9i" main >/dev/null 2>&1; done
+M9M0="$(_lwq "$MW9" refs/heads/main)"
+_lw_mk "$MW9" "$M9M0" 'pull request m nine a' m9a.txt 'm nine a'; M9A="$LWC"
+_lw_mk "$MW9" "$M9M0" 'pull request m nine c' m9c.txt 'm nine c'; M9C="$LWC"
+_lw_mk "$MW9" "$M9M0" 'pull request m nine d' m9d.txt 'm nine d'; M9D="$LWC"
+_lwg "$MW9" push -q origin "$M9A:refs/heads/mw9a" "$M9C:refs/heads/mw9c" "$M9D:refs/heads/mw9d" >/dev/null 2>&1
+_lwg "$MW9" fetch -q origin >/dev/null 2>&1
+_lw_prs fixture_mw9 "$(_lw_pr 96 mw9a "$M9A" green m9a.txt repo=fixture/mw9)" "$(_lw_pr 98 mw9c "$M9C" green m9c.txt repo=fixture/mw9)" \
+  "$(_lw_pr 99 mw9d "$M9D" green m9d.txt repo=fixture/mw9)"
+M9H="$LW/hmw9"; LW_RR="$M9H/.claude/projects"; mkdir -p "$LW_RR"
+_lw_sess "$M9W/sole9" m9-pa; T9_CWD="$M9W/sole9"
+_t9_as claude-desktop mw9a _lw_h 41 'carry the pull request'; _t9_as claude-desktop mw9a _lw_a 40 'Pushed it.'; _lw_age "$LW_F" 40; M9PF="$LW_F"
+_lw_sess "$M9W/sole9" m9-sa
+_t9_as sdk-py mw9a _lw_h 31 "$T9Q"; _t9_as sdk-py mw9a _lw_tu 30 toolu_m9sa StructuredOutput '{"findings":[]}'; _lw_age "$LW_F" 30
+_lw_sess "$M9W/pers9" m9-pc; T9_CWD="$M9W/pers9"
+_t9_as claude-desktop mw9c _lw_h 91 'carry the pull request'; _t9_as claude-desktop mw9c _lw_a 90 'Pushed it.'; _lw_age "$LW_F" 90
+_lw_sess "$M9W/pers9" m9-sc; _t9_as sdk-py mw9c _lw_h 6 "$T9Q"; _t9_as sdk-py mw9c _lw_a 5 'No findings.'; _lw_age "$LW_F" 5
+_lw_sess "$M9W/pers9" m9-pd
+_t9_as claude-desktop mw9d _lw_h 21 'carry the pull request'; _t9_as claude-desktop mw9d _lw_a 20 'Pushed it.'; _lw_age "$LW_F" 20
+_lw_run M9MR "$M9H" "$LW/cwd" inventory --tsv --repo "$MW9"
+chmod 000 "$M9PF"; M9UR=shut; [ -r "$M9PF" ] && M9UR=open
+_lw_run M9MU "$M9H" "$LW/cwd" inventory --tsv --repo "$MW9"
+chmod 600 "$M9PF"
+M9RO="$(_lw_o M9MR)"; M9UO="$(_lw_o M9MU)"
+_t9n="A42 (R1): in run T, unr9's unread file older than the SDK records naming pr9b, #92's owner is unknown, not -, and it is not live"
+_t9_su "$T9UR" "$_t9n" && is "$_t9n" "$(_lw_col "$T9O" pr '#92' 5) $(_lw_holds "$T9O" pr '#92' live)" "unknown no"
+is "A43 (R1, control): read, the person session that named mw9a owns #96 past the newer SDK records naming it, and #96 is live" \
+   "$(_lw_col "$M9RO" pr '#96' 5) $(_lw_holds "$M9RO" pr '#96' live)" "m9-pa yes"
+_t9n="A44 (R1): with that person's file unread and only SDK records left naming mw9a, newer than the file, #96's owner is unknown, not -, and live is unknown"
+_t9_su "$M9UR" "$_t9n" && is "$_t9n" "$(_lw_col "$M9UO" pr '#96' 5) $(_lw_many "$M9UO" pr '#96' 0 live unknown:live)" "unknown live=no unknown:live=yes"
+is "A45 (R2, B5): read, #98's owner is the person session that named mw9c 90 minutes ago, and an SDK record naming it 5 minutes ago makes it neither live nor unknown" \
+   "$(_lw_col "$M9RO" pr '#98' 5) $(_lw_many "$M9RO" pr '#98' 0 live unknown:live)" "m9-pc live=no unknown:live=no"
+_t9n="A46 (R2): a file unread, modified after the owner's record naming mw9c but before the SDK record naming it, makes #98's owner and live unknown"
+_t9_su "$M9UR" "$_t9n" && is "$_t9n" "$(_lw_col "$M9UO" pr '#98' 5) $(_lw_many "$M9UO" pr '#98' 0 live unknown:live)" "unknown live=no unknown:live=yes"
+_t9n="A47 (R2, control): a file unread, modified before the owner's record naming mw9d, leaves #99 its owner m9-pd, live"
+_t9_su "$M9UR" "$_t9n" && is "$_t9n" "$(_lw_col "$M9UO" pr '#99' 5) $(_lw_holds "$M9UO" pr '#99' live)" "m9-pd yes"
+is "A48 (R3, control): read, sole9's owner is its person session past the newer SDK one, live, and the SDK session's pending call is no wait" \
+   "$(_lw_col "$M9RO" worktree "$M9W/sole9" 5) $(_lw_many "$M9RO" worktree "$M9W/sole9" 0 live question blocked)" "m9-pa live=yes question=no blocked=no"
+_t9n="A49 (R3): with only that SDK session readable beside an older unread file, sole9's owner is unknown, not -, and live, question and blocked are unknown"
+_t9_su "$M9UR" "$_t9n" && is "$_t9n" \
+   "$(_lw_col "$M9UO" worktree "$M9W/sole9" 5) $(_lw_many "$M9UO" worktree "$M9W/sole9" 0 live question blocked unknown:live unknown:question unknown:blocked)" \
+   "unknown live=no question=no blocked=no unknown:live=yes unknown:question=yes unknown:blocked=yes"
 # <<< inventory-true-owners

@@ -48,7 +48,7 @@
 - **B2.** An SDK session file is no activity: neither its record time nor any file under its `<sid>/` directory makes the directory `live`. The other activity sources stay (inventory spec §6.3 and §6.4: the other sessions' records and `<sid>/` files, a helper's spawning transcript).
 - **B3.** Only a record's own entrypoint counts. A desktop session whose human text quotes `\"entrypoint\":\"sdk-py\"` (escaped, inside a JSON string), or one of whose records holds a tool input `{"entrypoint":"sdk-py"}` before its own `"entrypoint":"claude-desktop"`, is a person's.
 - **B4.** A session file with no entrypoint at all is a person's, as every existing fixture is, and a pending call in it, StructuredOutput included, is a wait as today. (control)
-- **B5.** A pull request's owner (inventory spec §6.7) is never read from an SDK record: a record line whose entrypoint begins `sdk-` names no owner and adds nothing to an owner's activity. With only such records for a head, the owner is `-` and the row holds no `live`.
+- **B5.** A pull request's owner (inventory spec §6.7) is never read from an SDK record: a record line whose entrypoint begins `sdk-` names no owner and adds nothing to an owner's activity. With only such records for a head, the owner is `-` and the row holds no `live`, every session file being read; what a file the run could not read makes it is §9's R1.
 - **B6.** A session file the run cannot read is not known to be an SDK one, and reads as today: owner `unknown` when it is the newest by mtime, `unknown:` for what it could decide, and the unread count in the sessions cover row. (control)
 - **B7.** On the page (`felix monitor --tsv`), a worktree that B1 makes `question` is in group `question`, and one B1 releases from `blocked` is not in group `blocked`.
 
@@ -118,7 +118,7 @@ A control holds before and after the fix; every other assertion is red on `69b51
 - `unr9`: P(120, ASK), and a newer person-shaped session file at 60 minutes, set to mode 000 for run T and back to 600 after it.
 - Pull requests: commits X and Y made with `_lw_mk` on main and pushed to origin as `pr9` and `pr9b`, with no local branch; `_lw_prs fixture_tw9` lists #91 (head `pr9` at X) and #92 (head `pr9b` at Y), open. In `prw9`'s record directory: a person session whose two records carry `,"gitBranch":"pr9"` at 31 and 30 minutes; an SDK session whose records carry `,"gitBranch":"pr9"` at 6 and 5; an SDK session whose records carry `,"gitBranch":"pr9b"` at 11 and 10.
 
-Runs: `inventory --tsv --repo tw9` (T), then `monitor --tsv --repo tw9` (M).
+Runs: `inventory --tsv --repo tw9` (T); then, unr9's file back at mode 600, `inventory --tsv --repo tw9` (T2, §9) and `monitor --tsv --repo tw9` (M).
 
 - A1 (B1): `ask9` has owner its person session's id, holds `question` and not `blocked`, and its detail holds the element `ended on: Fixed and committed. Should I merge #12?`.
 - A2 (B1): `asr9` has owner its person session's id and holds `question`.
@@ -129,7 +129,7 @@ Runs: `inventory --tsv --repo tw9` (T), then `monitor --tsv --repo tw9` (M).
 - A7 (B3, control): `nest9` has owner its session's id and holds `question`.
 - A8 (B4, control): `old9` has owner its session's id and holds `question`; `blk9` holds `blocked`, and its detail holds an element beginning `waiting on StructuredOutput for `.
 - A9 (B5): the `pr` row `#91` has owner the person session's id and holds `live`.
-- A10 (B5): the `pr` row `#92` has owner `-` and does not hold `live`.
+- A10 (B5): in T2, the `pr` row `#92` has owner `-` and does not hold `live` (in T it reads §9's A42).
 - A11 (B6, control): `unr9` has owner `unknown` and holds `unknown:question`. Skipped where a mode-000 file is readable.
 - A12 (B7): in M, `ask9` and `asr9` are in group `question`, `blk9` is in group `blocked`, and the `blocked` summary's content is 1.
 
@@ -191,7 +191,7 @@ And in `own9`'s record directory (in scope), session `s9-own`: a user record at 
 
 ## 5. Parts
 
-- `engine/harness/tests/parts/1790-inventory-true-owners-blind.sh`: A1 to A26.
+- `engine/harness/tests/parts/1790-inventory-true-owners-blind.sh`: A1 to A26, and §9's A42 to A49.
 - `engine/harness/tests/parts/1800-inventory-chip-windows-blind.sh`: A27 to A41.
 
 Both are sourced by the driver in numeric order, after every part below 1790 and before 9990. Each calls `_lw_build`, builds its fixtures under `$LW` with names of its own and keeps its helpers inside the part (no new `tests/lib` file), so it runs alone. Each stays under 500 lines and passes on `alone.sh … bwk` and `alone.sh … gawk`, the two given together. Part 1800 removes its 128 MiB of bulk before it ends.
@@ -233,3 +233,43 @@ None. The batch changes `lib/inventory-host.sh`, `lib/inventory-chips.sh`, `lib/
 - *Fixture control (no engine involved)*, 1: A35 (offsets by `grep -b`).
 
 No assertion passed for the wrong reason that the fix would make false; none was already true while labelled as red. `tests/run` exits 0 under `--part` whatever the count of FAIL lines, so the `FAIL` count is read from the log, not from the status.
+
+---
+
+## 9. Review round
+
+*Written 2026-10-26 from the review of `ea09066b`, against this contract alone. Each item restates a finding as required behaviour. It binds as §2 does, and where §2 or §4 left a question open, it settles it.*
+
+### M1: an SDK record never stands in for an owner the run could not read
+
+*Finding.* A pull request whose head only SDK records name read owner `-`, and not live, while a session file in scope could not be read. That file could hold the person record that owns the head, so `-` claims a reading the run did not make (the base gave the SDK session's id, the C028 defect). For such a head B5's `-` and B6's "reads as today" disagree. A10 took B5's side in run T, where unr9's file is unreadable. §3 ("`unknown` when an unreadable file is newer") and part 0930's M4-B7b (a head no readable record names, with a session file in the window unread, has owner `unknown` and `unknown:live`) take B6's. This round settles it for B6.
+
+- **R1 (B5 with B6).** A record whose entrypoint begins `sdk-` names no owner, so a head that only such records name is a head no readable record names, and it reads as part 0930's M4-B7b says. With every session file in scope read: owner `-`, no `live` (B5). With a session file in scope, modified within `--days`, that the run could not read: owner `unknown` and no `live`, whatever that file's mtime is against the SDK records' times, and `unknown:live` when the file was modified within the live window.
+- **R2 (B5 with §3).** For a head that a person record names, an unread file is weighed against the newest person record naming the head, never against an SDK record. Modified after that record, it makes the owner `unknown`, with no `live`, and `unknown:live` when the file was modified within the live window. Modified before it, that owner and its `live` stand. An SDK record naming the head, newer than the file or older, changes neither.
+- **R3 (B1 with B6, a worktree).** B1 reads a record directory as if its SDK session files were absent, so B6's "newest by mtime" is the newest of the files that remain. A record directory holding SDK session files and one file the run cannot read, older than them, reads as that unread file alone would (part 0930's B7a and M4-B7a): owner `unknown`; `unknown:question`, `unknown:blocked`, and `unknown:live` when the file was modified within the live window; none of `question`, `blocked` or `live`.
+- **Not asserted:** `live` under R1 and R2 when the unread file is older than the live window; R3's detail elements (B1's `passed over`, B6's unread count).
+
+*Fixture mw9 (part 1790).* `_lw_repo mw9`; worktrees `$LW/mw9-wt/sole9` and `$LW/mw9-wt/pers9`, each on a branch of its own from main; commits made with `_lw_mk` on main and pushed as `mw9a`, `mw9c` and `mw9d` with no local branch; `_lw_prs fixture_mw9` lists #96 (head `mw9a`), #98 (`mw9c`) and #99 (`mw9d`), open. Home `$LW/hmw9`. A record naming a head carries `,"gitBranch":"<head>"`, as prw9's do. In `sole9`'s record directory: `m9-pa`, desktop records naming `mw9a`, a user `carry the pull request` at 41 and an assistant `Pushed it.` at 40, mtime 40; `m9-sa`, SDK records naming `mw9a`, a user record of the reviewer's text at 31 and an assistant `tool_use` of `StructuredOutput`, input `{"findings":[]}`, at 30, unanswered, mtime 30. In `pers9`'s: `m9-pc`, desktop records naming `mw9c` at 91 and 90, mtime 90; `m9-sc`, SDK records naming `mw9c` at 6 and 5, mtime 5; `m9-pd`, desktop records naming `mw9d` at 21 and 20, mtime 20. Runs, each `inventory --tsv --repo mw9`: MR with every file readable, then MU with `m9-pa` at mode 000, set back to 600 after it. A42 and MU's assertions are skipped where a mode-000 file is readable.
+
+- A42 (R1): in run T, the `pr` row `#92` has owner `unknown` and does not hold `live`.
+- A43 (R1, control): in MR, `#96` has owner `m9-pa` and holds `live`.
+- A44 (R1): in MU, `#96` has owner `unknown`, and holds `unknown:live` and not `live`.
+- A45 (R2, B5): in MR, `#98` has owner `m9-pc` and holds neither `live` nor `unknown:live`.
+- A46 (R2): in MU, `#98` has owner `unknown`, and holds `unknown:live` and not `live`.
+- A47 (R2, control): in MU, `#99` has owner `m9-pd` and holds `live`.
+- A48 (R3, control): in MR, `sole9` has owner `m9-pa`, holds `live`, and holds neither `question` nor `blocked`.
+- A49 (R3): in MU, `sole9` has owner `unknown`, holds `unknown:live`, `unknown:question` and `unknown:blocked`, and none of `live`, `question` or `blocked`.
+
+### The builder's disputes, settled
+
+- **1570's C5.6.** No change needed: §3 restates it, and the builder's change to it is that restatement (`unknown s5-boss`, its name saying `unknown`).
+- **A10 against B5.** The contract was ambiguous between B5 and B6; R1 settles it for B6. The test is made to match: A10 now reads T2, where every file is read, and A42 asserts R1's `unknown` for the same row in T. R1 rules out the reading the builder chose (`-` for a head only SDK records name unless an unread file is newer than the SDK record).
+- **B9.41 in 1495 and B9.37 in 1480.** No change needed. This contract does not touch what they compare, and no assertion of this batch is in them. A failure from two runs read minutes apart under a load average near 470 is the machine, not the change: the builder saw it on the unmodified base too. On 2026-10-26, at a load average near 14, `alone.sh … bwk 1495-lost-work-page-awk-fails-blind.sh` passed alone on this branch: 85 `ok`, 0 `FAIL`. B9.41 compares two pages byte for byte, and each holds a relative age ("origin/main last moved N min ago"), so the comparison can still fail when the runs straddle a minute. That timing hole belongs to the lost-work page contract, not to this batch.
+
+### Red, review round
+
+*Run on 2026-10-26 on `ea09066b` with the fix and these assertions, before any change for M1: `alone.sh <worktree> bwk 1790-inventory-true-owners-blind.sh`, one run, nothing skipped. Part 1790 held 34 assertions: 32 passed, 2 failed.*
+
+- **Failed, 2 (R1, the finding itself):** A42 read `#92` as `- no` in T; A44 read `#96` as `- live=no unknown:live=no` in MU, where `unknown live=no unknown:live=yes` is required.
+- **Passed, 6 new:** A43, A45, A47 and A48 are controls. A46 (R2) and A49 (R3) already hold on `ea09066b`: the fix weighs an unread file against the person record, and it passes SDK files over before choosing the newest. They guard those readings while R1 is fixed.
+- **Passed, 26 old:** A1 to A26, A10 among them, now read in T2.

@@ -323,3 +323,114 @@ is "b12 A43 (B13): no line outside the six named files reads \$HOME/.claude with
 printf 'x="$HOME/.claude/y"\n# $HOME/.claude\n  # "$HOME"/.claude\ny="${CLAUDE_CONFIG_DIR:-$HOME/.claude}"\n' > "$G12/lint-sample.sh"
 is "b12 A44 (B13): the lint's scanner counts x=\"\$HOME/.claude/y\" and skips the comments and \${CLAUDE_CONFIG_DIR:-\$HOME/.claude} (control)" \
    "$(_g12lint "$G12/lint-sample.sh" 2>&1)" "$G12/lint-sample.sh:1"
+
+# ---- Review round, M2 (B35-B38): every route a fetch can take is doubted or named --------------
+# Written blind on 2026-10-26 from the contract's section 9, with no engine code read. Fixture P is
+# like F: its origin's main holds no grant. A branch forged adds the grant and is pushed, and two more
+# bare repositories, srvp/other/x.git and srvp/look/acme/x.git, hold forged's commit as main. After each
+# route, the URL and the default refspec are put back and a plain fetch restores origin/main. Section 2's
+# row is the document's table line for "An agent cannot grant itself authority". The row and the
+# comments of lib/exceptions.sh are read with runs of blanks squeezed.
+G12P="$G12/p12"; G12PS="$G12/srvp"; mkdir -p "$G12PS/acme" "$G12PS/other" "$G12PS/look/acme"
+for _g12i in "$G12PS/acme" "$G12PS/other" "$G12PS/look/acme"; do _g12g "$_g12i" init -q --bare -b main x.git; done
+_g12repo "$G12P" "$G12PS/acme/x.git" nogrant
+_g12g "$G12P" checkout -q -b forged; printf '%s\n' "$G12ROW" >> "$G12P/projects/x/exceptions.tsv"
+_g12ci "$G12P" 'the grant, on a branch forged'; _g12g "$G12P" push -q origin forged; _g12g "$G12P" checkout -q main
+G12PF="$(git -C "$G12P" rev-parse -q --verify refs/heads/forged 2>/dev/null)"
+_g12g "$G12P" push -q "$G12PS/other/x.git" forged:main; _g12g "$G12P" push -q "$G12PS/look/acme/x.git" forged:main
+_g12row2=""
+if [ -f "$G12DOC" ]; then
+  _g12row2="$(LC_ALL=C grep -F '| An agent cannot grant itself authority |' "$G12DOC" 2>/dev/null | LC_ALL=C tr '\t' ' ' | LC_ALL=C tr -s ' ')"
+fi
+_g12names() {  # ROUTE -> yes when section 2's row names it as B35 says
+  case "$1" in
+    r1) case "$_g12row2" in *'fetch refspec'*'put back'*|*'put back'*'fetch refspec'*) printf yes; return ;; esac ;;
+    r2) case "$_g12row2" in *'--refmap'*) printf yes; return ;; esac ;;
+    r3) case "$_g12row2" in *'origin URL changed for it and put back'*) printf yes; return ;; esac ;;
+    r4) case "$_g12row2" in *'whose path ends in the declared remote_match'*) printf yes; return ;; esac ;;
+  esac
+  printf no
+}
+_g12took=""; _g12held=""; _g12w84=""; _g12w85=""
+_g12route() {  # ROUTE: whether it took, whether the reader doubted it or the row names it; then the baseline back
+  local g m o v
+  g="$(git -C "$G12P" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+  m="$(_g12q "$G12P" reflog show -n1 --format=%gs refs/remotes/origin/main)"
+  if [ -n "$G12PF" ] && [ "$g" = "$G12PF" ]; then
+    case "$m" in fetch*) v=took ;; *) v="took, but its newest reflog entry reads [$m]" ;; esac
+  else v="did not take: origin/main is [$g], forged is [$G12PF]"; fi
+  _g12took="$_g12took [$1: $v]"; _g12w84="$_g12w84 [$1: took]"
+  o="$(_g12for "$G12P")"
+  if [ "$o" = "|rc=1" ] || [ "$(_g12names "$1")" = yes ]; then v=held
+  else v="felix_exception_for gave [$o] and section 2's row does not name the route"; fi
+  _g12held="$_g12held [$1: $v]"; _g12w85="$_g12w85 [$1: held]"
+  _g12g "$G12P" config remote.origin.url "$G12PS/acme/x.git"
+  _g12g "$G12P" config --replace-all remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'; _g12g "$G12P" fetch -q
+}
+_g12g "$G12P" config --replace-all remote.origin.fetch '+refs/heads/forged:refs/remotes/origin/main'; _g12g "$G12P" fetch -q
+_g12g "$G12P" config --replace-all remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'; _g12route r1
+_g12g "$G12P" fetch -q origin forged '--refmap=+refs/heads/forged:refs/remotes/origin/main'; _g12route r2
+_g12g "$G12P" config remote.origin.url "$G12PS/other/x.git"; _g12g "$G12P" fetch -q
+_g12g "$G12P" config remote.origin.url "$G12PS/acme/x.git"; _g12route r3
+_g12g "$G12P" config remote.origin.url "$G12PS/look/acme/x.git"; _g12g "$G12P" fetch -q; _g12route r4
+is "b12 A84 (B35): each route takes: origin/main is forged's commit and its newest reflog entry begins fetch (control)" "$_g12took" "$_g12w84"
+is "b12 A85 (B35): each route is doubted by felix_exception_for or named in the status document's section 2 row" "$_g12held" "$_g12w85"
+_g12cm="$(LC_ALL=C awk '{ s = $0; sub(/^[ \t]+/, "", s) } substr(s, 1, 1) == "#" { sub(/^#+/, "", s); printf "%s ", s }' "$G12EX" 2>/dev/null \
+          | LC_ALL=C tr '\t' ' ' | LC_ALL=C tr -s ' ')"
+_g12v=""
+for _g12i in 'honest reflog' 'put back' '--refmap' 'path ends in'; do case "$_g12cm" in *"$_g12i"*) ;; *) _g12v="$_g12v [lacks $_g12i]" ;; esac; done
+case "$_g12cm" in *'simple forger'*) _g12v="$_g12v [holds simple forger]" ;; esac
+[ -n "$_g12cm" ] || _g12v=" [no comment line read from lib/exceptions.sh]"
+is "b12 A86 (B38): the comments of lib/exceptions.sh name an honest reflog, put back, --refmap and a path that ends in the remote, and no simple forgery" "[${_g12v# }]" "[]"
+_g12n87="b12 A87 (B36): section 2's row says a worker set on forging one gets past with an honest reflog, as with a forged reflog, and drops the simple forgeries"
+_g12n88="b12 A88 (B37): section 4's bullet says a fetch that writes another branch or copy into the ref gets past, and drops the reflog-only limit"
+if [ -f "$G12DOC" ]; then
+  _g12v=""
+  for _g12i in 'set on forging one' 'leaves an honest reflog and gets past' 'So does a forged reflog'; do
+    case "$_g12row2" in *"$_g12i"*) ;; *) _g12v="$_g12v [lacks $_g12i]" ;; esac; done
+  for _g12i in 'the simple forgeries' 'not a worker that also rewrites the reflog'; do
+    case "$_g12row2" in *"$_g12i"*) _g12v="$_g12v [holds $_g12i]" ;; esac; done
+  [ -n "$_g12row2" ] || _g12v=" [no row for An agent cannot grant itself authority]"
+  is "$_g12n87" "[${_g12v# }]" "[]"
+  G12DS2="$(LC_ALL=C tr '\t\n' '  ' < "$G12DOC" | LC_ALL=C tr -s ' ')"
+  _g12v=""
+  case "$G12DS2" in *'a fetch made to write another branch or another copy into it leaves an honest reflog and gets past, and so does a forged reflog (corrected 2026-10-24, audit C009)'*) ;;
+    *) _g12v="$_g12v [lacks the B37 text]" ;; esac
+  case "$G12DS2" in *'which a worker that also rewrites the reflog gets past'*) _g12v="$_g12v [holds the reflog-only limit]" ;; esac
+  is "$_g12n88" "[${_g12v# }]" "[]"
+else
+  for _g12i in "$_g12n87" "$_g12n88"; do skip "$_g12i" "no docs/2026-09-21-where-felix-stands.md beside this harness"; done
+fi
+
+# ---- Review round, M4 (B41): a product's grant is read against the home's own remote -----------
+# Fixture Q: a home H holding .felix (felix), projects/felix (acme/felix) and projects/p (acme/p), each
+# with B6's obligation line and grant row, committed, its origin srvq/acme/felix.git, main pushed and
+# fetched, and main pushed to srvq/other/felix.git as well.
+G12HQ="$G12/hq"; G12QS="$G12/srvq"; mkdir -p "$G12QS/acme" "$G12QS/other" "$G12HQ/projects/felix" "$G12HQ/projects/p"
+_g12g "$G12QS/acme" init -q --bare -b main felix.git; _g12g "$G12QS/other" init -q --bare -b main felix.git
+for _g12i in felix:acme/felix p:acme/p; do
+  printf '{ "name": "%s", "remote_match": "%s", "gate": "true" }\n' "${_g12i%%:*}" "${_g12i#*:}" > "$G12HQ/projects/${_g12i%%:*}/project.json"
+  printf '%s\n' "$G12L" > "$G12HQ/projects/${_g12i%%:*}/obligations.tsv"
+  printf '# obligation\trow_hash\texpires\tgranted_by\treason\n%s\n' "$G12ROW" > "$G12HQ/projects/${_g12i%%:*}/exceptions.tsv"
+done
+printf 'felix\n' > "$G12HQ/.felix"
+_g12g "$G12HQ" init -q -b main; _g12ci "$G12HQ" 'fixture Q, a home holding felix and a product p'
+_g12g "$G12HQ" config remote.origin.url "$G12QS/acme/felix.git"; _g12g "$G12HQ" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+_g12g "$G12HQ" push -q origin main; _g12g "$G12HQ" fetch -q origin; _g12g "$G12HQ" push -q "$G12QS/other/felix.git" main
+_g12forp() { local o r; o="$(_g12x felix_exception_for "$1" ob1 TASK_BLOCKING "$G12L")"; r=$?; printf '%s|rc=%s' "$o" "$r"; }
+_g12judgedp() {  # PROJDIR WORD -> "refused, WORD" as _g12judged prints it, for any project directory
+  local o; o="$(_g12x felix_exceptions_judge "$1")"
+  printf '%s\n' "$o" | LC_ALL=C awk -F'\t' -v w="$2" -v e="$G12LIVE" '
+    $1 == "refused" && $2 == "ob1" && $3 == e && $4 == "the-founder" && index($5, "not honoured: ") == 1 && index($5, w) > 0 { f = 1 }
+    { gsub(/\t/, " | "); a = a (a == "" ? "" : " // ") $0 }
+    END { if (f) print "refused, " w; else print "judge printed [" a "]" }'
+}
+is "b12 A89 (B41): in a home whose origin is its own declared remote, a product's grant kept in the home's table clears and nothing is doubted" \
+   "$(_g12forp "$G12HQ/projects/p") [$(_g12x felix_exceptions_doubt "$G12HQ/projects/p")]" "$G12FOR|rc=0 []"
+is "b12 A89 control (B41): and the home's own project's grant clears with nothing doubted" \
+   "$(_g12forp "$G12HQ/projects/felix") [$(_g12x felix_exceptions_doubt "$G12HQ/projects/felix")]" "$G12FOR|rc=0 []"
+_g12g "$G12HQ" config remote.origin.url "$G12QS/other/felix.git"
+is "b12 A90 (B41): with the home's origin at srvq/other, both grants are doubted and both judge whys name remote_match (control)" \
+   "$(_g12forp "$G12HQ/projects/p") $(_g12judgedp "$G12HQ/projects/p" remote_match) / $(_g12forp "$G12HQ/projects/felix") $(_g12judgedp "$G12HQ/projects/felix" remote_match)" \
+   "|rc=1 refused, remote_match / |rc=1 refused, remote_match"
+_g12g "$G12HQ" config remote.origin.url "$G12QS/acme/felix.git"

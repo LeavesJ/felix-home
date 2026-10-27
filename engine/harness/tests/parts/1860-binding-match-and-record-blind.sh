@@ -208,9 +208,11 @@ _n12walk() {  # stub|plain DIR -> the root a child bash printed, then |rc=N; kil
   if [ "$1" = stub ]; then _n12timed '. "$1"; pwd() { printf "stale/Users\n"; }; r="$(felix_repo_root "$2")"; printf "%s|rc=%s" "$r" "$?"' "$2"
   else _n12timed '. "$1"; r="$(felix_repo_root "$2")"; printf "%s|rc=%s" "$r" "$?"' "$2"; fi
 }
+# B33 (review round): the child writes the root with an external printf, which execs and drops the
+# child's own stale buffer; a builtin write there would flush that buffer ahead of the value.
 _n12closed() {  # TEXT DIR -> the root a child bash with stdout closed got after a failed printf of TEXT; killed after 5 s
   local f="$N12/r/closed.out" rc; rm -f "$f"
-  ( _n12env; perl -e 'alarm 5; exec @ARGV' "$BASH" -c '. "$1"; exec 1>&-; printf "$3"; root="$(felix_repo_root "$2")"; printf "%s" "$root" > "$4"' \
+  ( _n12env; perl -e 'alarm 5; exec @ARGV' "$BASH" -c '. "$1"; exec 1>&-; printf "$3"; root="$(felix_repo_root "$2")"; env printf "%s" "$root" > "$4"' \
       b12 "$FROOT/harness/lib/resolve.sh" "$2" "$1" "$f" ) </dev/null >/dev/null 2>&1; rc=$?
   printf '%s|child=%s' "$(cat "$f" 2>/dev/null)" "$rc"
 }
@@ -224,3 +226,81 @@ is "b12 A82 (B32): and after a failed printf of /x, the root is exactly the top 
 is "b12 A83 (B31): without the stub, a subdirectory, a worktree with a .git file and a directory outside git keep their roots (control)" \
    "$(_n12walk plain "$N12R/sub") $(_n12walk plain "$N12/r/wt") $(_n12walk plain "$N12OUT") $([ -f "$N12/r/wt/.git" ] && printf gitfile)" \
    "$N12TOP|rc=0 $N12WTT|rc=0 $N12OUT|rc=0 gitfile"
+
+# ---- Review round, M1 (B34): the probe can see a stale buffer ----------------------------------
+# Written blind on 2026-10-26 from the contract's section 9, with no engine code read. The same child as
+# A81 runs, but with a naive resolver that reads pwd -P inside $( ) after the failed write. It writes
+# what $(printf '%s' '') caught and the naive value, each by an external printf. Where nothing was
+# caught, the bash in use dropped the buffer, and the assertion says so as a skip.
+_n12probe() {  # TEXT DIR: writes probe.out.s (the stale text) and probe.out (the naive root); sets _n12prc
+  local f="$N12/r/probe.out"; rm -f "$f" "$f.s"
+  ( _n12env; perl -e 'alarm 5; exec @ARGV' "$BASH" -c '_naive() { cd "$1" && pwd -P; }; exec 1>&-; printf "$2"; s="$(printf "%s" "")"
+      root="$(_naive "$1")"; env printf "%s" "$s" > "$3.s"; env printf "%s" "$root" > "$3"' b12 "$2" "$1" "$f" ) </dev/null >/dev/null 2>&1
+  _n12prc=$?
+}
+_n12probe 'felix: something\n' "$N12R/sub"
+_n12ps="$(cat "$N12/r/probe.out.s" 2>/dev/null)"; _n12pr="$(cat "$N12/r/probe.out" 2>/dev/null)"
+_n12n91="b12 A91 (B34): after the failed printf, a naive resolver reading pwd -P inside \$( ) gives a root that is not the top level, as the probe reads it"
+if [ "$_n12prc" = 0 ] && [ -z "$_n12ps" ]; then
+  skip "$_n12n91" "this bash ($BASH_VERSION) dropped the failed write's text, so no probe can show a stale buffer here"
+else
+  if [ "$_n12prc" = 0 ] && [ -n "$_n12pr" ] && [ "$_n12pr" != "$N12TOP" ]; then _n12v="not the top level"
+  else _n12v="child=$_n12prc stale=[$_n12ps] root=[$_n12pr]"; fi
+  is "$_n12n91" "$_n12v" "not the top level"
+fi
+
+# ---- Review round, M3 (B39, B40): remote_match read as own.sh reads it -------------------------
+# Fixture W: four homes and one checkout co, its origin set URL by URL with no marker. h1 holds webgit
+# (acme/web.git) and webapp, h2 webslash (acme/web/), h3 s3 (https://gitlab.example/team/svc/), and
+# h4 w1 (acme/web) and w2 (acme/web.git). felix_checkout_is_own is called as part 1130 calls it.
+N12W="$N12/w"; mkdir -p "$N12W/mem1" "$N12W/mem4"
+_n12proj "$N12W/h1" webgit acme/web.git; _n12proj "$N12W/h1" webapp acme/webapp; _n12proj "$N12W/h2" webslash acme/web/
+_n12proj "$N12W/h3" s3 https://gitlab.example/team/svc/; _n12proj "$N12W/h4" w1 acme/web; _n12proj "$N12W/h4" w2 acme/web.git
+_n12co "$N12W/co"
+_n12at() {  # HOME URL... -> [URL: the project it binds|status] for each URL, set as co's origin
+  local h="$1" u; shift
+  for u in "$@"; do _n12g "$N12W/co" config remote.origin.url "$u"; printf '[%s: %s]' "$u" "$(_n12res "$N12W/co" "$N12W/$h")"; done
+}
+is "b12 A92 (B39): in h1, acme/web.git, git@github.com:acme/web.git and https://github.com/acme/web bind webgit, declared as acme/web.git" \
+   "$(_n12at h1 https://github.com/acme/web.git git@github.com:acme/web.git https://github.com/acme/web)" \
+   "[https://github.com/acme/web.git: webgit|0][git@github.com:acme/web.git: webgit|0][https://github.com/acme/web: webgit|0]"
+is "b12 A93 (B39): in h1, acme/webapp.git binds webapp and acme/web-docs.git binds nothing (control)" \
+   "$(_n12at h1 https://github.com/acme/webapp.git https://github.com/acme/web-docs.git)" \
+   "[https://github.com/acme/webapp.git: webapp|0][https://github.com/acme/web-docs.git: |1]"
+is "b12 A94 (B39): h2's acme/web/ binds acme/web/ and acme/web.git, and h3's gitlab remote_match ending in / binds svc.git and svc/" \
+   "$(_n12at h2 https://github.com/acme/web/ https://github.com/acme/web.git)$(_n12at h3 https://gitlab.example/team/svc.git https://gitlab.example/team/svc/)" \
+   "[https://github.com/acme/web/: webslash|0][https://github.com/acme/web.git: webslash|0][https://gitlab.example/team/svc.git: s3|0][https://gitlab.example/team/svc/: s3|0]"
+_n12g "$N12W/co" config remote.origin.url https://github.com/acme/web.git
+_n12o="$(_n12bb "$N12W/co" "$N12W/h4" "$N12W/mem4")"
+is "b12 A95 (B39): in h4, acme/web and acme/web.git tie: nothing is bound, and the sentence names w1, w2 and remote_match" \
+   "$(_n12res "$N12W/co" "$N12W/h4") $(_n12word "${_n12o%|rc=*}" w1) $(_n12word "${_n12o%|rc=*}" w2) $(_n12all "${_n12o%|rc=*}" remote_match)" "|1 yes yes holds all"
+_n12o="$(_n12bb "$N12W/co" "$N12W/h1" "$N12W/mem1")"
+N12WU="$( ( _n12env; git -C "$N12W/co" remote get-url origin ) 2>/dev/null)"
+N12WK="$(printf '%s\n%s\n' "$N12W/h1" "$N12WU" | git hash-object --stdin)"
+is "b12 A96 (B39): in h1, felix_binding_broken on the acme/web.git checkout prints nothing, exits 0 and records webgit" \
+   "[$_n12o] last=$(_n12last "$N12W/mem1/bindings.tsv" "$N12WK")" "[|rc=0] last=webgit"
+_n12own() {  # HOME PROJDIR -> felix_checkout_is_own's exit status for co (97 when own.sh cannot be sourced)
+  ( _n12env; export FELIX_HOME="$1" FELIX_MEMORY="$N12/mem/res"
+    . "$FROOT/harness/lib/resolve.sh" && . "$FROOT/harness/lib/own.sh" || exit 97
+    felix_checkout_is_own "$2" "$N12W/co" >/dev/null 2>&1 ) </dev/null >/dev/null 2>&1
+  printf '%s' "$?"
+}
+_n12dis=""; _n12own1=0; _n12own2=0
+for _n12i in https://github.com/acme/web.git git@github.com:acme/web.git https://github.com/acme/web/ https://github.com/acme/web \
+             https://github.com/acme/webapp.git https://github.com/acme/web-docs.git; do
+  _n12g "$N12W/co" config remote.origin.url "$_n12i"
+  for _n12p in h1:webgit h2:webslash; do
+    _n12h="${_n12p%%:*}"; _n12pn="${_n12p#*:}"
+    _n12a="$(_n12own "$N12W/$_n12h" "$N12W/$_n12h/projects/$_n12pn")"; _n12b="$(_n12res "$N12W/co" "$N12W/$_n12h")"
+    if [ "$_n12a" = 0 ]; then
+      if [ "$_n12h" = h1 ]; then _n12own1="$((_n12own1 + 1))"; else _n12own2="$((_n12own2 + 1))"; fi
+    fi
+    if [ "$_n12a" = 0 ] && [ "$_n12b" = "$_n12pn|0" ]; then :
+    elif [ "$_n12a" = 1 ] && [ "$_n12b" != "$_n12pn|0" ]; then :
+    else _n12dis="$_n12dis [$_n12h $_n12i: own=$_n12a bound=$_n12b]"; fi
+  done
+done
+if [ "$_n12own1" -gt 0 ]; then _n12v="h1 own=some"; else _n12v="h1 own=none"; fi
+if [ "$_n12own2" -gt 0 ]; then _n12v="$_n12v h2 own=some"; else _n12v="$_n12v h2 own=none"; fi
+is "b12 A97 (B40): felix_resolve_project binds webgit and webslash exactly where felix_checkout_is_own says own, and each home has an own URL" \
+   "disagree=[${_n12dis# }] $_n12v" "disagree=[] h1 own=some h2 own=some"

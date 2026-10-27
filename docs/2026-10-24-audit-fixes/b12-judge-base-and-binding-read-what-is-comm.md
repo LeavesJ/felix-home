@@ -368,3 +368,66 @@ Every one of the 39 that passed is a [control] the contract names. They split th
 - **Vacuous because nothing records yet:** A66 (no file holds the URL) and the "record untouched" half of A78 and A74 pass because 69b51a61 writes no `bindings.tsv`. A74's silence cases are also what 69b51a61 does for every unbound state; they pin the new code, not the old.
 
 The 54 that failed: A4 to A9, A11, A13, A15, A16, A18 to A20, A25 to A30, A32 to A33, A35 to A43 (the red halves), A45, A47 to A49, A52, A55, A56, A58, A60 to A62, A64, A65, A68 to A71, A73, A75, A76, A79 to A82. A79 and A80 hang in the walk (the child is killed at 5 s, `child=142`), A81 hangs the same way, and A82 prints `/x` for the root; bash here is 3.2, so the B32 pair is red as the contract says.
+
+## 9. Review round (2026-10-26)
+
+The review of the fix raised M1-M3. M4 was found while writing their assertions. Each is restated below as required behaviour, and where it changes an earlier item, the text here supersedes that item. The new assertions are A84-A97: A84-A90 go in part 1850 and A91-A97 in part 1860, with no new part. A81 and A82 are corrected.
+
+### M1: B32's probe reads the value, not its own buffer
+
+- **B33.** B32 holds as written: the value is `$root`. A probe that writes `$root` with a builtin from the child that holds the stale buffer flushes that buffer ahead of the value, and no function the child calls can reach it. So the probe writes the value with an external command, `env printf '%s' "$root" > FILE`, which execs and drops the child's buffer. After the failed printf of `felix: something\n`, and separately of `/x\n`, FILE holds exactly the top level, within 5 s. On 69b51a61 the first hangs and the second gives `/x`, the root and `/x` again: red on bash 3.2. bash 5 drops the buffer, so there both are controls; no probe can make them red where the defect cannot occur.
+- **B34.** The probe can see the defect. In the same child, after the same failed printf, `s="$(printf '%s' '')"` captures the stale text on bash 3.2. When it does, a naive resolver `_naive() { cd "$1" && pwd -P; }`, read as `root="$(_naive DIR)"` and written the same way, gives a value that is not the top level. When `s` is empty, the bash in use dropped the buffer: the assertion skips and says so.
+- **Disputes A81 and A82: the test was wrong.** B32 says the value equals the top level, and the builder's evidence shows `$root` does. The part's `printf "%s" "$root" > "$4"` adds the child's own stale text, which contradicts B32's reading of "value". Both now write with `env printf` (B33).
+
+### M2: the stated limit names every route a fetch can take
+
+The reader judges the configuration, the URL and the reflog as they stand when it reads (B1). Suppose a fetch is made to write another branch, or another copy's `main`, into `refs/remotes/origin/main`. It leaves an honest reflog (`fetch -q: fast-forward`, naming that commit) and passes every check. No local check can tell this, and K4 rules out the network. So this round requires the claims to say it. B8's third clause and B9's C009 texts are superseded.
+
+- **B35.** Fixture P is like F: origin's `main` holds no grant. It adds a branch `forged`, whose commit adds the grant, pushed to origin. Two more bare repositories, `srvp/other/x.git` and `srvp/look/acme/x.git`, have that commit as `main`. Each of four routes starts from the baseline; afterwards origin's URL and default refspec are put back and a plain `git fetch` restores the baseline.
+  - (r1) `--replace-all remote.origin.fetch +refs/heads/forged:refs/remotes/origin/main`, a plain fetch, then the default refspec put back;
+  - (r2) `git fetch -q origin forged --refmap=+refs/heads/forged:refs/remotes/origin/main`;
+  - (r3) `remote.origin.url` pointed at `srvp/other/x.git`, a plain fetch, then put back;
+  - (r4) `remote.origin.url` left at `srvp/look/acme/x.git` after a plain fetch.
+
+  After each route, `refs/remotes/origin/main` is `forged`'s commit and its newest reflog entry begins `fetch`. For each route, either `felix_exception_for` exits 1, or §2's row names the route: r1 by `fetch refspec` and `put back`; r2 by `--refmap`; r3 by `origin URL changed for it and put back`; r4 by `whose path ends in the declared remote_match`.
+- **B36.** §2's verdict cell for "An agent cannot grant itself authority" becomes: `False on felix-home today. The grant is read from a local ref, refs/remotes/origin/main, which server protection does not reach. Since 2026-10-24 the reader refuses that ref when its symbolic state, its fetch configuration, its reflog or its origin URL, as they stand when it reads, show a hand-made value. That stops an accident and a ref written by hand, not a worker set on forging one. A fetch made to write another branch or another copy into the ref leaves an honest reflog and gets past: a --refmap given to that one fetch, a fetch refspec or an origin URL changed for it and put back, or an origin URL left at a copy whose path ends in the declared remote_match. So does a forged reflog`.
+- **B37.** §4's first bullet of the second list becomes: "exception grants, which are read from `refs/remotes/origin/main`, a local ref: the reader refuses it when the repository's fetch configuration, its reflog or its origin URL shows a hand-made value as it stands; a fetch made to write another branch or another copy into it leaves an honest reflog and gets past, and so does a forged reflog (corrected 2026-10-24, audit C009);". B9's C010 bullet is unchanged.
+- **B38.** Read `lib/exceptions.sh`'s comment lines with each line's leading blanks and `#` dropped and runs of blanks squeezed. They contain `honest reflog`, `put back`, `--refmap` and `path ends in`, and do not contain `simple forger`.
+- *Founder PR.* §7's `git config` and `git -c` rows refuse r1's, r3's and r4's configuration writes. This round did not check r2 against any row; a row for `--refmap` naming `refs/remotes/`, if one is missing, is the founder's to add. Until §7 lands, no row refuses r1, r3 or r4 (the review's probe).
+
+### M3: remote_match is read as own.sh reads it (amends B21)
+
+- **B39.** Before either rule of B21, M loses one trailing `/` and then one trailing `.git`; call the result M″. The owner/repo test, the GitHub comparison (M″ lowercased against the slug), the anchored rule (M″ as M′) and the tie length all read M″. B1(d), which reads B21, follows. Fixture W, all checkouts by `git config remote.origin.url` with no marker:
+  - home h1, holding `webgit` (`acme/web.git`) and `webapp` (`acme/webapp`): `https://github.com/acme/web.git`, `git@github.com:acme/web.git` and `https://github.com/acme/web` bind `webgit`; `https://github.com/acme/webapp.git` binds `webapp`; `https://github.com/acme/web-docs.git` binds nothing;
+  - home h2, holding `webslash` (`acme/web/`): `https://github.com/acme/web/` and `https://github.com/acme/web.git` bind `webslash`;
+  - home h3, holding `s3` (`https://gitlab.example/team/svc/`): `https://gitlab.example/team/svc.git` and `https://gitlab.example/team/svc/` bind `s3`;
+  - home h4, holding `w1` (`acme/web`) and `w2` (`acme/web.git`): `https://github.com/acme/web.git` ties, so nothing is bound, and `felix_binding_broken` names `w1`, `w2` and `remote_match`;
+  - in h1, `felix_binding_broken` on the `https://github.com/acme/web.git` checkout prints nothing, exits 0, and records `webgit` (B25).
+- **B40.** Take h1's `webgit` and h2's `webslash`, and each of `https://github.com/acme/web.git`, `git@github.com:acme/web.git`, `https://github.com/acme/web/`, `https://github.com/acme/web`, `https://github.com/acme/webapp.git` and `https://github.com/acme/web-docs.git`. For each pair, `felix_resolve_project` binds the project exactly when `felix_checkout_is_own PROJDIR CHECKOUT` (lib/own.sh) exits 0. Each home has at least one URL that is own, so the agreement is not vacuous.
+
+### M4: the URL check reads the remote of the repository that holds the table (amends B1(d))
+
+B1(d) compares REPO's origin with PROJ's `remote_match`. For a product P, PROJ is `HOME/projects/P` and REPO is the home, so the home's origin never names P's remote. Every product grant is then refused, where 69b51a61 honoured it. Probed on this branch: a home whose origin is `srv/acme/felix.git` holds `felix` (`acme/felix`) and `p` (`acme/p`), and each grants ob1. `felix` clears. `p` prints `remote_match: origin's URL does not name the remote_match this project declares` and exits 1. No grant row is in any real table today (all five tables read 0 rows), so nothing live is refused yet.
+
+- **B41.** (d) reads the `remote_match` of the project REPO itself is: the one `felix_resolve_project REPO REPO` binds, marker first. When REPO binds no project, it reads PROJ's, as before. Fixture Q is a home H holding `.felix` (`felix`), `projects/felix` (`acme/felix`) and `projects/p` (`acme/p`). Each project holds B6's obligation line and grant row. H is committed, its origin is `srvq/acme/felix.git` with the default refspec, `main` is pushed and fetched, and `main` is also pushed to `srvq/other/felix.git`. Then:
+  - both grants clear and `felix_exceptions_doubt` prints nothing for either;
+  - with H's origin URL at `srvq/other/felix.git`, both are doubted, and each judge why names `remote_match`.
+
+### Assertions A84-A97
+
+[red] fails on this branch at 2a741ca8. Each runs under bwk and gawk.
+
+84. B35 [control]: each of r1-r4 takes: origin/main is `forged`'s commit and its newest reflog entry begins `fetch`.
+85. B35 [red]: each route is doubted by `felix_exception_for` or named in §2's row.
+86. B38 [red]: the comments of `lib/exceptions.sh` hold the four phrases and lack `simple forger`.
+87. B36 [red]: §2's row holds `set on forging one`, `leaves an honest reflog and gets past` and `So does a forged reflog`, and lacks `the simple forgeries` and `not a worker that also rewrites the reflog`.
+88. B37 [red]: the squeezed document holds B37's text from `a fetch made to write` to `audit C009)`, and lacks `which a worker that also rewrites the reflog gets past`.
+89. B41 [red]: in fixture Q, `p`'s grant clears and nothing is doubted; [control half] so does `felix`'s.
+90. B41 [control]: with H's origin at `srvq/other`, both exit 1 and both judge whys name `remote_match`.
+91. B34 [control on bash 3.2; a skip where the buffer is dropped]: the naive resolver's value is not the top level.
+92. B39 [red]: h1's three `acme/web` URLs bind `webgit`.
+93. B39 [control]: in h1, `acme/webapp.git` binds `webapp` and `acme/web-docs.git` binds nothing.
+94. B39 [red]: h2's two URLs bind `webslash`, and h3's two bind `s3`.
+95. B39 [red]: h4 ties: nothing is bound, and the broken-binding sentence names `w1`, `w2` and `remote_match`.
+96. B39 [red]: h1's checkout is recorded with `webgit`, with nothing printed.
+97. B40 [red]: binding and `felix_checkout_is_own` agree for every pair, and each home has an own URL.

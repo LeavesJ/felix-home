@@ -25,7 +25,7 @@
 felix_brief_evidence() {
   local proj="$1" paths="$2" name when requires reason p
   [ -f "$proj/evidence.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$proj/evidence.tsv" | while IFS=$'\t' read -r name when requires reason; do
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/evidence.tsv" | while IFS=$'\t' read -r name when requires reason; do
     [ -n "${when:-}" ] || continue
     while IFS= read -r p; do
       [ -n "$p" ] || continue

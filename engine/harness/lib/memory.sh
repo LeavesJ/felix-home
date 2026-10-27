@@ -54,7 +54,7 @@ _felix_mem_stamp() {
 # inherits from its parent. A dash when there is none, or when the id holds
 # anything that could break a row.
 _felix_mem_sid() {
-  local sid="${CLAUDE_CODE_SESSION_ID:-}"
+  local sid="${CLAUDE_CODE_SESSION_ID:-}" LC_ALL=C
   case "$sid" in ''|*[!A-Za-z0-9._-]*) sid=- ;; esac
   printf '%s' "$sid"
 }
@@ -133,14 +133,14 @@ felix_mem_handoff() {
   f="$(felix_mem_dir "$proj")/SESSION_HANDOFF.md"
   if [ "$replace" != 1 ] && felix_mem_handoff_foreign "$f"; then
     printf 'felix handoff: not replacing %s, %s bytes that felix handoff did not write:\n' \
-      "$f" "$(wc -c < "$f" | tr -d ' ')" >&2
+      "$f" "$(wc -c < "$f" | LC_ALL=C tr -d ' ')" >&2
     printf 'it does not open with the header this command writes, "# Handoff" and then\n' >&2
     printf '"Regenerated <date>." on the third line. Move it aside, or pass --replace to\n' >&2
     printf 'overwrite it with the regenerated handoff.\n' >&2
     return 1
   fi
   if [ -z "$note" ] && [ -f "$f" ]; then
-    note="$(sed -n 's/^- what was in progress: //p' "$f" | head -1)"
+    note="$(LC_ALL=C sed -n 's/^- what was in progress: //p' "$f" | head -1)"
     case "$note" in _fill*) note="" ;; esac
   fi
   body="$(_felix_mem_handoff_text "$root" "$gate" "$note")"
@@ -312,7 +312,7 @@ _felix_mem_lock() {   # lock-dir -> 0 taken, 1 held by a live owner
   owner=""
   [ -f "$lock/pid" ] && owner="$(head -n 1 "$lock/pid" 2>/dev/null)"
   case "$owner" in
-    ''|*[!0-9]*) ;;
+    ''|*[!0123456789]*) ;;
     *) kill -0 "$owner" 2>/dev/null || stale=1 ;;
   esac
   if [ "$stale" -eq 0 ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +1 2>/dev/null)" ]; then
@@ -517,7 +517,7 @@ felix_mem_recurring_mistakes() {
         printf "%d\t%s\t%s\t%d\n", count[t], t, last[t], runs[t]
       }
     }
-  ' 2>/dev/null | sort -rn
+  ' 2>/dev/null | LC_ALL=C sort -rn
 }
 
 # Whether the lessons file holds a lesson about a check of this name.
@@ -583,7 +583,7 @@ felix_mem_promotable() {
     END { for (t in entries) if (entries[t] >= MIN) printf "%d\t%s\n", entries[t], t }
   ' MIN="$min" "$(felix_mem_dir "$proj")/DEVLOG.md" \
     | grep -vE $'\t(about|after|again|against|because|before|being|between|could|during|every|first|found|from|going|instead|into|might|other|rather|really|should|since|still|than|that|their|them|then|there|these|they|thing|think|this|those|through|under|until|were|what|when|where|which|while|with|would|your|commit|change|changes|added|update|updated|files|file|version|branch|already|actually|something|because|makes|making|which|there|where|point|second)$' \
-    | sort -rn \
+    | LC_ALL=C sort -rn \
     | while IFS=$'\t' read -r n term; do
         [ -n "${term:-}" ] || continue
         case "$lessons" in *"$term"*) continue ;; esac

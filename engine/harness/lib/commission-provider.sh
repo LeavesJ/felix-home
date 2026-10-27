@@ -73,10 +73,10 @@ FELIX_COMMISSION_PROVIDER_LOG_MAX=$(( FELIX_COMMISSION_PROVIDER_SRC_MAX \
 # and the refusal report so the two can never disagree about which row is too
 # long — the failure that reads as "refused for no stated reason".
 _felix_commission_provider_toolong() {   # line -> "<field> <limit>" or empty
-  local line="$1" src cap why
-  src="$(printf '%s\n' "$line" | cut -f3)"
-  cap="$(printf '%s\n' "$line" | cut -f4)"
-  why="$(printf '%s\n' "$line" | cut -f5)"
+  local line="$1" src cap why LC_ALL=C
+  src="$(printf '%s\n' "$line" | LC_ALL=C cut -f3)"
+  cap="$(printf '%s\n' "$line" | LC_ALL=C cut -f4)"
+  why="$(printf '%s\n' "$line" | LC_ALL=C cut -f5)"
   [ "${#src}" -gt "$FELIX_COMMISSION_PROVIDER_SRC_MAX" ] \
     && { printf 'source %s' "$FELIX_COMMISSION_PROVIDER_SRC_MAX"; return 0; }
   [ "${#cap}" -gt "$FELIX_COMMISSION_PROVIDER_CAP_MAX" ] \
@@ -112,11 +112,11 @@ felix_commission_request() {
   [ -f "$src" ] || return 1
   out="$(felix_commission_request_path "$proj" "$need")"
   mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
-  caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u | tr '\n' ' ')"
+  caps="$( { felix_detect "$root" 2>/dev/null; felix_declared "$proj" 2>/dev/null; } | LC_ALL=C sort -u | LC_ALL=C tr '\n' ' ')"
   # stack.tsv only as a regular file, as felix_commission_apply_declares reads
   # it; a pipe at the path held this grep open (2026-10-01).
   declared=""
-  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | tr '\n' ' ')"
+  [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | LC_ALL=C cut -f2 | LC_ALL=C tr '\n' ' ')"
   topo="$(felix_commission_topology "$proj" "$root")"
   # Three placeholders the obligations request needs, computed only when the
   # template names them: the decision epoch, the probe rows as a session can
@@ -125,17 +125,17 @@ felix_commission_request() {
   # they travel through the environment and are spliced by index rather than
   # by pattern.
   local epoch="" probes="" admitted=""
-  if grep -q '{{EPOCH}}\|{{PROBES}}\|{{ADMITTED}}' "$src" 2>/dev/null; then
+  if LC_ALL=C grep -q '{{EPOCH}}\|{{PROBES}}\|{{ADMITTED}}' "$src" 2>/dev/null; then
     command -v felix_epoch >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/epoch.sh"
     command -v felix_obligation_rows >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/obligations.sh"
     epoch="$(felix_epoch "$proj" "$root" 2>/dev/null)" || epoch=""
     probes="$(felix_probes_run "$proj" "$root" 2>/dev/null \
-      | awk -F'\t' '{ printf "    %-20s %-15s %5s  %s\n", $1, $3, $4, $6 }')"
-    admitted="$(felix_obligation_rows "$proj" 2>/dev/null | awk -F'\t' '{ printf "    %s (%s): %s\n", $1, $2, $7 }')"
+      | LC_ALL=C awk -F'\t' '{ printf "    %-20s %-15s %5s  %s\n", $1, $3, $4, $6 }')"
+    admitted="$(felix_obligation_rows "$proj" 2>/dev/null | LC_ALL=C awk -F'\t' '{ printf "    %s (%s): %s\n", $1, $2, $7 }')"
   fi
   FELIX_TPL_EPOCH="${epoch:-unknown}" FELIX_TPL_PROBES="${probes:-    (no probes declared)}" \
   FELIX_TPL_ADMITTED="${admitted:-    (nothing admitted yet)}" \
-  awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="${caps% }" \
+  LC_ALL=C awk -v project="$(basename "$proj")" -v pdir="$proj" -v root="$root" -v caps="${caps% }" \
       -v declared="${declared% }" -v topo="$topo" -v ans="$(felix_commission_answer_path "$proj" "$need")" '
     function splice(line, ph, val,   i, out) {
       out = ""
@@ -163,6 +163,8 @@ felix_commission_request() {
 # grep's own status is asked too, and the counting grep's, from PIPESTATUS,
 # which pipefail does not change. Taken whole into the positional parameters
 # first, because the first test resets it.
+# Locale, 2026-10-08: [0-9] let U+2185 through under UTF-8, and an answer read
+# whole on a count nobody gave. The rules are above felix_json_str in resolve.sh.
 felix_commission_provider_state() {
   local proj="$1" root="$2" need="$3" f first last n rows
   f="$(felix_commission_answer_path "$proj" "$need")"
@@ -173,12 +175,12 @@ felix_commission_provider_state() {
   if [ "$first" != "# topology $(felix_commission_topology "$proj" "$root")" ]; then
     printf 'stale\tthe answer at %s is for another topology; run the skill again from the request\n' "$f"; return 0
   fi
-  last="$(grep -vE '^[[:space:]]*$' "$f" | tail -1)"
-  rows="$(grep -vE '^[[:space:]]*(#|$)' "$f" | grep -vc $'^done\t'
+  last="$(LC_ALL=C grep -vE '^[[:space:]]*$' "$f" | tail -1)"
+  rows="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -vc $'^done\t'
     set -- "${PIPESTATUS[@]}"; [ "${1:-2}" -le 1 ] && [ "${2:-2}" -le 1 ] || printf '?')"
-  n="$(printf '%s' "$last" | awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
-  case "$n" in ''|*[!0-9]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
-  case "$rows" in ''|*[!0-9]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
+  n="$(printf '%s' "$last" | LC_ALL=C awk -F'\t' '$1 == "done" && NF == 2 { print $2 }')"
+  case "$n" in ''|*[!0123456789]*) printf 'partial\tthe answer at %s has no terminal done row, so the skill did not finish\n' "$f"; return 0 ;; esac
+  case "$rows" in ''|*[!0123456789]*) printf 'unknown\tthe rows of the answer at %s could not be counted, so whether it is whole is not known\n' "$f"; return 0 ;; esac
   if [ "$n" -ne "$rows" ]; then
     printf 'partial\tthe answer at %s says done %s and holds %s rows\n' "$f" "$n" "$rows"; return 0
   fi
@@ -207,7 +209,7 @@ felix_commission_provider_classifier() {   # need -> 1-based field index
 }
 _felix_commission_provider_lines() {
   local f; f="$(felix_commission_answer_path "$1" "$2")"; [ -f "$f" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$f" | grep -v $'^done\t'
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$f" | LC_ALL=C grep -v $'^done\t'
   return 0
 }
 felix_commission_provider_rows() {
@@ -215,12 +217,12 @@ felix_commission_provider_rows() {
   want="$(_felix_commission_provider_shape "$need")"
   _felix_commission_provider_lines "$proj" "$need" | while IFS= read -r line; do
     i=$((i + 1)); [ "$i" -le "$FELIX_COMMISSION_PROVIDER_MAX" ] || break
-    n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
+    n="$(printf '%s\n' "$line" | LC_ALL=C awk -F'\t' '{ print NF }')"
     [ "$n" -eq "$want" ] || continue
-    kind="$(printf '%s\n' "$line" | cut -f1)"; name="$(printf '%s\n' "$line" | cut -f2)"
+    kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"; name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     if [ "$want" -eq 5 ]; then
       _felix_commission_kind_ok "$kind" || continue
-      grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || continue
+      LC_ALL=C grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || continue
       [ -n "$(_felix_commission_provider_toolong "$line")" ] && continue
     fi
     # A candidate obligation carries two shell commands by design, so the
@@ -239,14 +241,14 @@ felix_commission_provider_rejects() {
   want="$(_felix_commission_provider_shape "$need")"
   _felix_commission_provider_lines "$proj" "$need" | while IFS= read -r line; do
     i=$((i + 1))
-    name="$(printf '%s\n' "$line" | cut -f2)"
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     if [ "$i" -gt "$FELIX_COMMISSION_PROVIDER_MAX" ]; then printf '%s\tbeyond the %s-row ceiling\n' "${name:-(unnamed)}" "$FELIX_COMMISSION_PROVIDER_MAX"; continue; fi
-    n="$(printf '%s\n' "$line" | awk -F'\t' '{ print NF }')"
-    kind="$(printf '%s\n' "$line" | cut -f1)"
+    n="$(printf '%s\n' "$line" | LC_ALL=C awk -F'\t' '{ print NF }')"
+    kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
     if [ "$n" -ne "$want" ]; then printf '%s\t%s fields where the shape has %s; a risk column is not the model'"'"'s to write\n' "${name:-(unnamed)}" "$n" "$want"; continue; fi
     if [ "$want" -eq 5 ]; then
       _felix_commission_kind_ok "$kind" || { printf '%s\tkind "%s" is not one of %s\n' "$name" "$kind" "$FELIX_COMMISSION_PROVIDER_KINDS"; continue; }
-      grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || { printf '%s\tnot a name\n' "$name"; continue; }
+      LC_ALL=C grep -qE '^[A-Za-z0-9@._:-]+$' <<<"$name" || { printf '%s\tnot a name\n' "$name"; continue; }
       long="$(_felix_commission_provider_toolong "$line")"
       if [ -n "$long" ]; then
         printf '%s\ta %s longer than %s characters, which the log could not hold whole\n' \
@@ -292,8 +294,8 @@ felix_commission_record_provider() {
   local proj="$1" root="$2" need="$3" answer="$4" tid="${5:-unknown-tree}" policy="${6:-}"
   local f hash plugin log stamp prov n=0 line kind name rows
   f="$(felix_commission_answer_path "$proj" "$need")"
-  [ "$(felix_commission_provider_state "$proj" "$root" "$need" | cut -f1)" = "answered" ] || { printf 0; return 0; }
-  hash="$(_felix_hash < "$f")"; plugin="$(printf '%s' "${answer#provider:}" | cut -d: -f1)"
+  [ "$(felix_commission_provider_state "$proj" "$root" "$need" | LC_ALL=C cut -f1)" = "answered" ] || { printf 0; return 0; }
+  hash="$(_felix_hash < "$f")"; plugin="$(printf '%s' "${answer#provider:}" | LC_ALL=C cut -d: -f1)"
   prov="$(basename "$f")@$hash;$(felix_commission_provider_provenance "$plugin")"
   log="$(felix_mem_dir "$proj")/commissioning.log"
   if [ -f "$log" ] && grep -qF "	$prov	" "$log" 2>/dev/null; then printf 0; return 0; fi
@@ -302,9 +304,9 @@ felix_commission_record_provider() {
   rows="$(felix_commission_provider_rows "$proj" "$need")"
   while IFS= read -r line; do
     [ -n "$line" ] || continue
-    kind="$(printf '%s\n' "$line" | cut -f1)"; name="$(printf '%s\n' "$line" | cut -f2)"
+    kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"; name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$stamp" "$tid" "${policy:--}" "$need" "answered" "INFERRED" \
-      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | cut -f3- | tr '\t' ' ' | cut -c1-"$FELIX_COMMISSION_PROVIDER_LOG_MAX")" >> "$log" || { printf '%s' "$n"; return 1; }
+      "$answer" "$prov" "$kind $name: $(printf '%s\n' "$line" | LC_ALL=C cut -f3- | LC_ALL=C tr '\t' ' ' | LC_ALL=C cut -c1-"$FELIX_COMMISSION_PROVIDER_LOG_MAX")" >> "$log" || { printf '%s' "$n"; return 1; }
     n=$((n + 1))
   done <<ROWS
 $rows
@@ -395,15 +397,15 @@ felix_commission_admit() {
   # compares, so `hookify@claude-plugins-official` matches a `hookify` row.
   # Only as a regular file, for the reason felix_commission_request gives.
   declared=""
-  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | LC_ALL=C cut -f2 | LC_ALL=C sed 's/@.*//')"
   scratch="${TMPDIR:-/tmp}/felix-admit.$$.$(basename "$proj")"
   rm -rf "$scratch" 2>/dev/null; mkdir -p "$scratch" 2>/dev/null || return 1
 
   felix_commission_provider_rows "$proj" "$need" | while IFS= read -r line; do
     [ -n "$line" ] || continue
     local kind name bare src sha sub facts tier skills hit score gcap
-    kind="$(printf '%s\n' "$line" | cut -f1)"
-    name="$(printf '%s\n' "$line" | cut -f2)"
+    kind="$(printf '%s\n' "$line" | LC_ALL=C cut -f1)"
+    name="$(printf '%s\n' "$line" | LC_ALL=C cut -f2)"
     bare="${name%%@*}"
 
     case "$kind" in
@@ -440,15 +442,15 @@ felix_commission_admit() {
       printf 'unknown\t%s\t%s\t-\t-\t-\tnothing to fetch it by: no pinned url and sha in any configured marketplace\n' "$kind" "$name"
       continue
     fi
-    sha="$(printf '%s' "$src" | cut -f2)"; sub="$(printf '%s' "$src" | cut -f3)"
+    sha="$(printf '%s' "$src" | LC_ALL=C cut -f2)"; sub="$(printf '%s' "$src" | LC_ALL=C cut -f3)"
     [ "$sub" = "-" ] && sub=""
-    if ! felix_discover_fetch "$(printf '%s' "$src" | cut -f1)" "$sha" "$scratch/$bare" 2>/dev/null; then
+    if ! felix_discover_fetch "$(printf '%s' "$src" | LC_ALL=C cut -f1)" "$sha" "$scratch/$bare" 2>/dev/null; then
       printf 'unknown\t%s\t%s\t-\t-\t%s\tcould not be fetched at its pinned commit, so nothing was read\n' "$kind" "$name" "$sha"
       continue
     fi
 
     facts="$(felix_discover_inspect "$scratch/$bare" "$sub" \
-      "$(felix_discover_marketplace_file "$(printf '%s' "$src" | cut -f4)")" "$bare")"
+      "$(felix_discover_marketplace_file "$(printf '%s' "$src" | LC_ALL=C cut -f4)")" "$bare")"
     tier="$(felix_discover_risk "$facts")"
 
     # Risk before grounding, and the order was the other way round until a
@@ -466,9 +468,9 @@ felix_commission_admit() {
 
     # The capability, matched against what the copy on disk ships rather than
     # against what the answer file said it would.
-    skills="$(printf '%s\n' "$facts" | awk -F'\t' '$1 == "skill" { print $2 }' | tr '\n' ' ')"
+    skills="$(printf '%s\n' "$facts" | LC_ALL=C awk -F'\t' '$1 == "skill" { print $2 }' | LC_ALL=C tr '\n' ' ')"
     hit="$(felix_capability_match "$bare" "" "$rules" "$skills")"
-    score="$(printf '%s' "$hit" | cut -f1)"; gcap="$(printf '%s' "$hit" | cut -f2)"
+    score="$(printf '%s' "$hit" | LC_ALL=C cut -f1)"; gcap="$(printf '%s' "$hit" | LC_ALL=C cut -f2)"
     if [ "${score:-0}" -lt "${FELIX_DISCOVER_MIN:-3}" ]; then
       printf 'unknown\t%s\t%s\t%s\t-\t%s\tnothing it ships matches a capability this project declares\n' "$kind" "$name" "$tier" "$sha"
       continue
@@ -511,7 +513,7 @@ felix_commission_apply_declares() {   # proj, root, admit-output, tid, policy, n
   # the refusal below was never reached (2026-10-01). Anything else declares
   # nothing here and every row is refused as an append that failed.
   declared=""
-  [ -f "$proj/stack.tsv" ] && declared="$(grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | cut -f2 | sed 's/@.*//')"
+  [ -f "$proj/stack.tsv" ] && declared="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/stack.tsv" 2>/dev/null | LC_ALL=C cut -f2 | LC_ALL=C sed 's/@.*//')"
   stamp="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
   while IFS=$'\t' read -r v k n tier gcap sha why; do
     [ "${v:-}" = "declare" ] && [ -n "${n:-}" ] || continue

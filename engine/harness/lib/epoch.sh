@@ -117,7 +117,7 @@ felix_epoch_subject() {
 # argued into the epoch, where the token had to be argued out of it.
 felix_epoch_topology() {
   local proj="$1" root="$2" rows
-  rows="$(felix_probes_run "$proj" "$root" 2>/dev/null | cut -f1-6 | LC_ALL=C sort)"
+  rows="$(felix_probes_run "$proj" "$root" 2>/dev/null | LC_ALL=C cut -f1-6 | LC_ALL=C sort)"
   [ -n "$rows" ] || return 1
   printf '%s\n' "$rows" | _felix_epoch_hash
 }
@@ -190,6 +190,6 @@ felix_epoch() {
   comps="$(felix_epoch_components "$proj" "$root")"
   # awk reads every value before it answers; grep -q would quit at a `-`, and
   # pipefail would read the writer it cut off as no unknown.
-  printf '%s\n' "$comps" | cut -f2 | awk '$0 == "-" { u = 1 } END { exit !u }' && return 1
+  printf '%s\n' "$comps" | LC_ALL=C cut -f2 | LC_ALL=C awk '$0 == "-" { u = 1 } END { exit !u }' && return 1
   printf '%s\n' "$comps" | _felix_epoch_hash
 }

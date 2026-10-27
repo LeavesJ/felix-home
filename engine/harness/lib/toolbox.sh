@@ -25,12 +25,14 @@ FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"
 # directory anywhere, so "no path" is a normal answer and never an error.
 # Version directories sort with -V so 0.10.0 beats 0.9.0, which plain sort does
 # not: the gate's own installed check was once wrong for exactly this reason.
+# Locale, 2026-10-08: glob order decided which marketplace's copy answered.
+# The rules are above felix_json_str in resolve.sh.
 felix_toolbox_path() {
-  local name="$1" d
+  local name="$1" d LC_ALL=C
   for d in "$FELIX_PLUGIN_CACHE"/*/"$name"; do
     [ -d "$d" ] || continue
     local newest
-    newest="$(ls -d "$d"/*/ 2>/dev/null | sort -V | tail -1)"
+    newest="$(ls -d "$d"/*/ 2>/dev/null | LC_ALL=C sort -V | tail -1)"
     [ -n "$newest" ] && { printf '%s' "${newest%/}"; return 0; }
     printf '%s' "$d"; return 0
   done
@@ -97,11 +99,11 @@ felix_toolbox_routed() {
   local proj="$1" name="$2" plays heads nl='
 '
   [ -f "$proj/routes.tsv" ] || return 1
-  plays="$(grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | cut -f4 | tr ' ' '\n')"
+  plays="$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/routes.tsv" | LC_ALL=C cut -f4 | LC_ALL=C tr ' ' '\n')"
   # Read whole, then matched by case, not piped into grep: GNU grep writing to
   # /dev/null stops at its first match as -q does, and pipefail reads the sed it
   # cut off as no route. The `.` keeps an empty last line that $(...) strips.
-  heads="$(printf '%s\n' "$plays" | sed 's/:.*//' && printf .)" || return 1
+  heads="$(printf '%s\n' "$plays" | LC_ALL=C sed 's/:.*//' && printf .)" || return 1
   case "$nl${heads%.}" in *"$nl$name$nl"*) return 0 ;; esac
   return 1
 }

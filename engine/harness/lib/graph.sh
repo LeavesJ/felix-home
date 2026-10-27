@@ -69,7 +69,7 @@ felix_graph_behind() {
   home="$(felix_graph_home "$root")" || return 1
   git -C "$home" cat-file -e "${stamp}^{commit}" 2>/dev/null || return 1
   n="$(git -C "$home" rev-list --count "${stamp}..HEAD" 2>/dev/null)" || return 1
-  case "$n" in ''|*[!0-9]*) return 1 ;; esac
+  case "$n" in ''|*[!0123456789]*) return 1 ;; esac
   printf '%s\n' "$n"
 }
 

@@ -31,7 +31,7 @@ _fi_dirty() {
     else printf '%s\t0\n' "$p" >> "$T/dx"; fi
   done 3< "$T/st"
   _fi_git -C "$wt" hash-object --no-filters --stdin-paths < "$T/hp" > "$T/hh" 2>/dev/null || : > "$T/hh"
-  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | sort > "$T/dsig"
+  { paste "$T/hp" "$T/hh"; cat "$T/dx"; } | LC_ALL=C sort > "$T/dsig"
   [ -s "$T/dfl" ] && cut -f1 "$T/dsig" | tr '\n' '\000' | _fi_git -C "$wt" check-attr -z --stdin filter 2>/dev/null | tr '\000' '\n' \
     | awk -v fl="$T/dfl" 'BEGIN { while ((getline l < fl) > 0) F[l] = 1 } NR % 3 == 1 { p = $0 } NR % 3 == 0 && ($0 in F) { print p }' > "$T/fp"
   _FI_DD="$(awk -F'\t' -v df="$T/deftree" -v fp="$T/fp" -v db="$T/db" 'BEGIN { printf "" > db
@@ -71,8 +71,8 @@ _fi_worktree() {
   esac
   _fi_branch "$sha" "$br" "$rr" "$cl" "$op" "$num" "$st" "$gn"
   _fi_sig; ! _fi_temp "$ref" || _fi_add temp
-  case "$when" in *[!0-9]*|'') when=0 ;; esac
-  case "${_FI_H[1]}" in *[!0-9]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
+  case "$when" in *[!0123456789]*|'') when=0 ;; esac
+  case "${_FI_H[1]}" in *[!0123456789]*|'') ;; *) [ "${_FI_H[1]}" -gt "$when" ] && when="${_FI_H[1]}" ;; esac
   # A directory that holds no working tree of this repository is read as an orphan is.
   if [ "$orph" = yes ]; then content="$_FI_OC"; else _fi_worse "$_FI_LV" "$ucv"; content="$_FI_W"; fi
   _fi_states "$content" hazard:shared-branch=$shd hazard:staged-revert=$rev live="${_FI_H[2]}" question="${_FI_H[3]}" blocked="${_FI_H[4]}" \
@@ -160,7 +160,7 @@ _fi_chipsread() {
   [ "$_FI_HOSTOK" = 1 ] || return 0
   felix_inv_host_chips "$_FI_NOW" "$_FI_DAYS" "$T/hscope" "$T/chipu" > "$T/chips" || : > "$T/chips"
   awk -F'\t' '$4 == "unknown" { f = 1 } END { exit !f }' "$T/chips" && _FI_CHU="$(cat "$T/chipu" 2>/dev/null)"
-  case "$_FI_CHU" in ''|*[!0-9]*) _FI_CHU=0 ;; esac
+  case "$_FI_CHU" in ''|*[!0123456789]*) _FI_CHU=0 ;; esac
   return 0
 }
 _fi_chips() {
@@ -189,14 +189,14 @@ _fi_hscope() {
 # none), into $T/owners: head, session, live.
 _fi_owners() {
   : > "$T/owners"; [ "$_FI_HOSTOK" = 1 ] || return 0
-  awk -F'\t' '$1 == "pr" && $11 != "cross" { print $4 }' "$T/items" | sort -u > "$T/prheads"
+  awk -F'\t' '$1 == "pr" && $11 != "cross" { print $4 }' "$T/items" | LC_ALL=C sort -u > "$T/prheads"
   [ -s "$T/prheads" ] || return 0
   felix_inv_host_owners "$_FI_NOW" "$_FI_DAYS" "$_FI_LIVE" "$T/hscope" "$T/prheads" > "$T/owners" 2>/dev/null
   return 0
 }
 # File times, for the host adapter (lib/inventory-host.sh) and whatever replaces it.
 # A file's mtime as an epoch, or nothing.
-_fi_mtime() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0-9]*) ;; *) printf '%s' "$e" ;; esac; }
+_fi_mtime() { local e; e="$(date -r "$1" +%s 2>/dev/null)"; case "$e" in ''|*[!0123456789]*) ;; *) printf '%s' "$e" ;; esac; }
 # _fi_newest MINDEPTH MIN DIR...: the newest file at depth MINDEPTH or more
 # under the directories modified within MIN minutes, or nothing: found by -mmin,
 # sorted by ls -t, and asked again until none is newer (ls takes long lists in batches).

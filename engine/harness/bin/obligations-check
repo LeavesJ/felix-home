@@ -74,15 +74,15 @@ printf '%s\n' "$out" | while IFS= read -r line; do
   fi
 done
 
-blocking="$(printf '%s\n' "$out" | felix_obligations_blocking "$MODE" | grep -c .)"
-excepted="$(printf '%s\n' "$out" | awk -F'\t' 'index($8, "excepted|") == 1' | grep -c .)"
+blocking="$(printf '%s\n' "$out" | felix_obligations_blocking "$MODE" | LC_ALL=C grep -c .)"
+excepted="$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' 'index($8, "excepted|") == 1' | LC_ALL=C grep -c .)"
 printf '\n%s obligation(s): %s active, %s dormant, %s unknown; %s blocking, %s excepted' \
-  "$(printf '%s\n' "$out" | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "ACTIVE"'  | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "DORMANT"' | grep -c .)" \
-  "$(printf '%s\n' "$out" | awk -F'\t' '$4 == "UNKNOWN"' | grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "ACTIVE"'  | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "DORMANT"' | LC_ALL=C grep -c .)" \
+  "$(printf '%s\n' "$out" | LC_ALL=C awk -F'\t' '$4 == "UNKNOWN"' | LC_ALL=C grep -c .)" \
   "$blocking" "$excepted"
-ung="$(felix_obligations_ungrounded "$PROJ" | grep -c .)"
+ung="$(felix_obligations_ungrounded "$PROJ" | LC_ALL=C grep -c .)"
 [ "$ung" -gt 0 ] && printf '; %s ground on no probe' "$ung"
 printf '\n'
 [ "$blocking" -eq 0 ] || rc=1

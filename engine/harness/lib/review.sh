@@ -92,6 +92,6 @@ felix_review_passed() {
   [ -n "$tid" ] || return 1
   rec="$(felix_review_verdict "$home" "$proj" "$tid")"
   [ -n "$rec" ] || return 1
-  [ "$(printf '%s' "$rec" | cut -f1)" = "$tid" ] || return 1
-  [ "$(printf '%s' "$rec" | cut -f2)" = "pass" ]
+  [ "$(printf '%s' "$rec" | LC_ALL=C cut -f1)" = "$tid" ] || return 1
+  [ "$(printf '%s' "$rec" | LC_ALL=C cut -f2)" = "pass" ]
 }

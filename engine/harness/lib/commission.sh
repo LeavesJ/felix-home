@@ -58,6 +58,7 @@ felix_commission_instruments() {
 }
 
 _felix_commission_answer_ok() {
+  local LC_ALL=C
   case "${1:-}" in
     -) return 0 ;;
     'felix:discover --adopt'|'felix:stack apply --yes'|'felix:ready --fix'|'felix:toolbox --route') return 0 ;;
@@ -89,13 +90,13 @@ _felix_commission_judged() {
 }
 
 _felix_commission_step_ok() {
-  case "${1:-}" in -|[1-9]|10) return 0 ;; esac
+  case "${1:-}" in -|[123456789]|10) return 0 ;; esac
   return 1
 }
 
 _felix_commission_lines() {
   [ -f "$1/commissioning.tsv" ] || return 0
-  grep -vE '^[[:space:]]*(#|$)' "$1/commissioning.tsv" 2>/dev/null
+  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$1/commissioning.tsv" 2>/dev/null
   return 0
 }
 
@@ -170,7 +171,7 @@ EOF
 # the caller's read then truncates. Measured.
 _felix_commission_functions_present() {
   local names w IFS=$' \t\n'
-  names="$(printf '%s' "$1" | grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ] && printf .)"
+  names="$(printf '%s' "$1" | LC_ALL=C grep -oE '(felix_[a-z_]+|cmd_[a-z_]+)'; [ "$?" -le 1 ] && printf .)"
   case "$names" in *.) names="${names%.}" ;; *) return 2 ;; esac
   for w in $names; do
     command -v "$w" >/dev/null 2>&1 || { printf '%s' "$w"; return 1; }
@@ -209,7 +210,7 @@ felix_commission_lock() {   # proj, home -> 0 taken, 1 held by a live run
   owner="$(head -1 "$dir/pid" 2>/dev/null)"
   # No pid, or a pid nothing answers to: the run that made this is gone.
   case "$owner" in
-    ''|*[!0-9]*) ;;
+    ''|*[!0123456789]*) ;;
     *) if kill -0 "$owner" 2>/dev/null; then printf '%s' "$owner"; return 1; fi ;;
   esac
   rm -rf "$dir" 2>/dev/null
@@ -285,7 +286,7 @@ felix_commission_ask() {
         eval "$2" >/dev/null
         printf 'returned %s\n' "$?" )
       printf 'ended %s\n' "$?"; } 2>/dev/null | { read -r _l; printf '%s' "$_l"; } )"
-  case "${4##* }" in ''|*[!0-9]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
+  case "${4##* }" in ''|*[!0123456789]*) set -- "$1" "$2" "$3" "unasked 2" ;; esac
   case "${4% *}" in returned|ended|unentered) ;; *) set -- "$1" "$2" "$3" "unasked 2" ;; esac
   printf -v "$3" '%s' "${4% *}"
   return "${4##* }"
@@ -555,13 +556,13 @@ felix_commission_run_complete() {   # proj, out[, quiet] -> 0 whole; 1 and "K of
 felix_commission_counts() {
   local rows="$1" malformed="$2" c='' out='' rc=0
   for c in \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "done"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "held"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "unknown"' | grep -c .)" \
-    "$(printf '%s\n' "$malformed" | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | grep -c .)" \
-    "$(printf '%s\n' "$rows" | awk -F'\t' '$2 == "not-applicable"' | grep -c .)"; do
-    case "$c" in ''|*[!0-9]*) c='?'; rc=1 ;; esac
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "done"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "held"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "unknown"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$malformed" | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "awaiting" || $2 == "stale" || $2 == "partial"' | LC_ALL=C grep -c .)" \
+    "$(printf '%s\n' "$rows" | LC_ALL=C awk -F'\t' '$2 == "not-applicable"' | LC_ALL=C grep -c .)"; do
+    case "$c" in ''|*[!0123456789]*) c='?'; rc=1 ;; esac
     out="$out${out:+ }$c"
   done
   printf '%s' "$out"
@@ -594,12 +595,12 @@ EOF
   # Fewer than six words is a gap the split closed up, and more is a line
   # nobody wrote, so no count in it is where it says it is.
   case "$n_na" in ''|*' '*) n_done='' n_held='' n_unk='' n_mal='' n_await='' n_na='' ;; esac
-  case "$n_done"  in ''|*[!0-9]*) n_done='?';  unread=1 ;; esac
-  case "$n_held"  in ''|*[!0-9]*) n_held='?';  unread=1 ;; esac
-  case "$n_unk"   in ''|*[!0-9]*) n_unk='?';   unread=1 ;; esac
-  case "$n_mal"   in ''|*[!0-9]*) n_mal='?';   unread=1 ;; esac
-  case "$n_await" in ''|*[!0-9]*) n_await='?'; unread=1 ;; esac
-  case "$n_na"    in ''|*[!0-9]*) n_na='?';    unread=1 ;; esac
+  case "$n_done"  in ''|*[!0123456789]*) n_done='?';  unread=1 ;; esac
+  case "$n_held"  in ''|*[!0123456789]*) n_held='?';  unread=1 ;; esac
+  case "$n_unk"   in ''|*[!0123456789]*) n_unk='?';   unread=1 ;; esac
+  case "$n_mal"   in ''|*[!0123456789]*) n_mal='?';   unread=1 ;; esac
+  case "$n_await" in ''|*[!0123456789]*) n_await='?'; unread=1 ;; esac
+  case "$n_na"    in ''|*[!0123456789]*) n_na='?';    unread=1 ;; esac
   if [ "$unread" -ne 0 ]; then result=indeterminate
   elif ! felix_commission_run_complete "$proj" "$rows" quiet; then result=indeterminate
   elif [ "$n_unk" -gt 0 ] || [ "$n_mal" -gt 0 ]; then result=indeterminate

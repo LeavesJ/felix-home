@@ -180,18 +180,18 @@ _felix_escape_confined() {
   hunk="$( { git -C "$root" diff -U0 "$base...HEAD" -- "$f" 2>/dev/null
              git -C "$root" diff -U0 --cached -- "$f" 2>/dev/null
              git -C "$root" diff -U0 -- "$f" 2>/dev/null
-           } | grep -E '^[-+]' | grep -vE '^(\+\+\+|---)')"
+           } | LC_ALL=C grep -E '^[-+]' | LC_ALL=C grep -vE '^(\+\+\+|---)')"
   [ -n "$hunk" ] || return 1
 
   # Any line outside the confine means the row fires. A here-string, not a
   # pipe: grep -q stops at the first such line, and a printf still writing a
   # long hunk dies of SIGPIPE, which pipefail reads as every line confined.
-  grep -qvE "$confine" <<<"$hunk" && return 1
+  LC_ALL=C grep -qvE "$confine" <<<"$hunk" && return 1
 
-  plus="$(printf '%s\n' "$hunk"  | grep '^+' \
-          | sed -E 's/^\+[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
-  minus="$(printf '%s\n' "$hunk" | grep '^-' \
-          | sed -E 's/^-[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
+  plus="$(printf '%s\n' "$hunk"  | LC_ALL=C grep '^+' \
+          | LC_ALL=C sed -E 's/^\+[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
+  minus="$(printf '%s\n' "$hunk" | LC_ALL=C grep '^-' \
+          | LC_ALL=C sed -E 's/^-[^A-Za-z0-9]*([A-Za-z0-9._-]+).*/\1/' | LC_ALL=C sort)"
   [ "$plus" = "$minus" ] || return 1
   return 0
 }
@@ -214,8 +214,8 @@ _felix_escape_confined() {
 # since it also teaches them to route around the ones that matter.
 _felix_escape_fewer() {
   local root="$1" base="$2" f="$3" pattern="$4" before after
-  before="$(git -C "$root" show "$base:$f" 2>/dev/null | grep -cE "$pattern")"
-  after="$( felix_file_at "$root" HEAD "$f" | grep -cE "$pattern")"
+  before="$(git -C "$root" show "$base:$f" 2>/dev/null | LC_ALL=C grep -cE "$pattern")"
+  after="$( felix_file_at "$root" HEAD "$f" | LC_ALL=C grep -cE "$pattern")"
   [ "${after:-0}" -lt "${before:-0}" ]
 }
 
@@ -231,10 +231,12 @@ _felix_escape_fewer() {
 # on the most ordinary edit there is. Caught on the commit that declared
 # `consumers`, which added two keys and removed nothing. A genuine removal takes
 # its whole line with it and is still caught.
+# Locale, 2026-10-08: sed stopped at a byte that was not UTF-8 and hid every
+# removal below it. The rules are above felix_json_str in resolve.sh.
 _felix_escape_lines() {
   felix_file_at "$1" "$2" "$3" \
-    | grep -vE '^[[:space:]]*(#|$)' \
-    | sed -E 's/[[:space:]]*,[[:space:]]*$//' \
+    | LC_ALL=C grep -vE '^[[:space:]]*(#|$)' \
+    | LC_ALL=C sed -E 's/[[:space:]]*,[[:space:]]*$//' \
     | LC_ALL=C sort -u
 }
 
@@ -243,7 +245,13 @@ _felix_escape_shrank() {
   before="$(_felix_escape_lines "$root" "$base" "$f")"
   [ -n "$before" ] || return 1
   after="$(_felix_escape_lines "$root" HEAD "$f")"
-  [ -n "$(comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
+  # 2026-10-08: comm compares in its locale's collation, and both sides are
+  # sorted in C. Under LANG=en_US.UTF-8, an added row that sorts before an
+  # existing one in bytes and after it in the locale (Zulu and _under) made
+  # comm print a row nobody removed, so a pure addition read as a removal.
+  # Every sort, comm, join and uniq in the engine runs as LC_ALL=C <tool>,
+  # which tests/run lints.
+  [ -n "$(LC_ALL=C comm -23 <(printf '%s\n' "$before") <(printf '%s\n' "$after"))" ]
 }
 
 # Any change to the rows of an exemption table: the non-comment, non-blank
@@ -311,16 +319,16 @@ felix_escapes() {
   while IFS= read -r f; do
     [ -n "$f" ] || continue
 
-    grep -qE "$FELIX_ESCAPE_EXECUTE" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_EXECUTE" <<<"$f" \
       && printf 'execute\t%s\tmerging runs this job holding the repository secrets\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_AUTHORITY" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_AUTHORITY" <<<"$f" \
       && printf 'authority\t%s\tmerging grants Felix a power it then holds in every session; a revert does not un-run them\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_EXCEPTION" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_EXCEPTION" <<<"$f" \
       && printf 'exception\t%s\tmerging turns a written row into a grant that clears an obligation, and only a person may give one\n' "$f"
 
-    grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
+    LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_PATH" <<<"$f" \
       && printf 'durable\t%s\trows already written are not restored by a revert\n' "$f"
 
     # verifier, for the tables that decide what stops. Adding is free — except
@@ -340,7 +348,7 @@ EOF
 
   # A here-string for the reason _felix_escape_confined gives: SQL on an early
   # line of a long diff would otherwise read as no SQL at all.
-  [ -n "$added" ] && grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
+  [ -n "$added" ] && LC_ALL=C grep -qE "$FELIX_ESCAPE_DURABLE_ADDED" <<<"$added" \
     && printf 'durable\tADDED-LINES\tdestructive SQL in the added lines\n'
 
   # One lookup for the whole diff. `reviewed` is the only channel a verdict can
@@ -375,7 +383,7 @@ EOF
     [ "$channel" = "unknown" ] && channel="declared-unknown"
     while IFS= read -r f; do
       [ -n "$f" ] || continue
-      grep -qE "$pattern" <<<"$f" || continue
+      LC_ALL=C grep -qE "$pattern" <<<"$f" || continue
       [ "$channel" = "reviewed" ] && [ "$reviewed" = "pass" ] && continue
       case "${confine:-}" in
         count:*) _felix_escape_fewer "$root" "$base" "$f" "${confine#count:}" || continue ;;
@@ -386,7 +394,7 @@ EOF
 $paths
 EOF2
   done <<EOF
-$(grep -vE '^[[:space:]]*(#|$)' "$proj/risk.tsv")
+$(LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/risk.tsv")
 EOF
 }
 

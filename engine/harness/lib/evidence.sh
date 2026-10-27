@@ -30,14 +30,14 @@ fi
 _felix_evidence_rows() {
   local proj="$1"
   [ -f "$proj/evidence.tsv" ] || return 0
-  grep -vE '^\s*(#|$)' "$proj/evidence.tsv"
+  LC_ALL=C grep -vE '^\s*(#|$)' "$proj/evidence.tsv"
 }
 
 _felix_any_match() {
   local paths="$1" pattern="$2" f
   while IFS= read -r f; do
     [ -n "$f" ] || continue
-    grep -qE "$pattern" <<<"$f" && return 0
+    LC_ALL=C grep -qE "$pattern" <<<"$f" && return 0
   done <<EOF
 $paths
 EOF

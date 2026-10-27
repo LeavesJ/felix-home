@@ -214,7 +214,7 @@ EOF
 # The command with the given raw byte spans blanked to spaces.
 _felix_where_blank() {
   local s="$1" spans="$2" out="" pos=0 a b pad sorted
-  sorted="$(printf '%s\n' $spans | sort -t, -k1,1n -u)"
+  sorted="$(printf '%s\n' $spans | LC_ALL=C sort -t, -k1,1n -u)"
   while IFS=, read -r a b; do
     [ -n "$a" ] && [ -n "$b" ] || continue
     [ "$a" -ge "$pos" ] || continue

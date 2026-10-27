@@ -175,7 +175,7 @@ FELIX_DENY_PROBES='git status --short
 /felix/probe/ordinary'
 
 felix_deny_overbroad() {
-  local pattern="$1" probe
+  local pattern="$1" probe LC_ALL=C
   [ -n "$pattern" ] || return 0
   while IFS= read -r probe; do
     [ -n "$probe" ] || continue
@@ -207,8 +207,11 @@ EOF
 # in _FELIX_DENY_REASON, and the status says whether there was one. A variable
 # and not output, so the call that nearly always finds nothing costs no
 # subshell to find it.
+# Locale, 2026-10-08: a pattern holding a byte that was not UTF-8 compiled to
+# nothing under UTF-8, so its row refused nothing. The rules are above
+# felix_json_str in resolve.sh.
 _felix_deny_first() {
-  local proj="$1" want="$2" text="$3" tool pattern reason scope
+  local proj="$1" want="$2" text="$3" tool pattern reason scope LC_ALL=C
   _FELIX_DENY_REASON=""
   while IFS=$'\t' read -r tool pattern reason scope; do
     [ "${tool:-}" = "$want" ] || continue
@@ -409,15 +412,19 @@ _felix_deny_scoped_lifts() {
 # or run by another name: a script printf wrote to $S/bin/claude and PATH
 # later finds. That is the limit any reading of one command has.
 #
-# One awk process. The program is the same in BWK awk, mawk and gawk:
-# split(s, A, "") is one character per element in all three. Nothing here
+# One awk process, run with LC_ALL=C, so split(s, A, "") is one byte per
+# element in BWK awk, mawk and gawk alike (in a UTF-8 locale macOS's BWK awk
+# still splits bytes but matches by characters, and aborted). Nothing here
 # fails closed: no awk, or a program error, prints nothing, and a row matches
 # nothing in nothing, which allows.
 #
 # The program is lib/deny-read.sh, sourced the first time a command needs it.
 # Every Bash call in a project with Bash rows needs it; a call for another
 # tool, or in a project without them, never reads the file.
+# Locale, 2026-10-08: this awk ran in the caller's locale and aborted under
+# UTF-8 on any non-ASCII character, so the reading came back empty and every
+# Bash row allowed. The rules are above felix_json_str in resolve.sh.
 felix_deny_code() {
   [ -n "${_FELIX_DENY_READ:-}" ] || . "$(dirname "${BASH_SOURCE[0]:-$0}")/deny-read.sh" 2>/dev/null
-  printf '%s' "$1" | awk "${_FELIX_DENY_READ:-}" 2>/dev/null
+  printf '%s' "$1" | LC_ALL=C awk "${_FELIX_DENY_READ:-}" 2>/dev/null
 }

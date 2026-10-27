@@ -157,7 +157,7 @@ _felix_reach_epoch() {
   { IFS= read -r first || [ -n "$first" ]; } < "$f" 2>/dev/null || return 0
   case "$first" in "# read "*) ;; *) return 0 ;; esac
   e="${first#"# read "}"; e="${e%% *}"
-  case "$e" in ''|*[!0-9]*) return 0 ;; esac
+  case "$e" in ''|*[!0123456789]*) return 0 ;; esac
   [ "${#e}" -le 12 ] || return 0
   printf '%s' "$e"
 }
@@ -168,7 +168,7 @@ _felix_reach_epoch() {
 _felix_reach_now() {
   local n
   n="$(date +%s 2>/dev/null)"
-  case "$n" in ''|*[!0-9]*) return 1 ;; esac
+  case "$n" in ''|*[!0123456789]*) return 1 ;; esac
   printf '%s' "$n"
 }
 

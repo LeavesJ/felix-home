@@ -106,20 +106,20 @@ felix_schedule_state() {
   case "$st" in
     0)
       value=loaded; detail="last exit 0" ;;
-    -[1-9]*)
+    -[123456789]*)
       case "${st#-}" in
-        *[!0-9]*) value=""; detail="launchctl reported a status this check does not read: $st" ;;
+        *[!0123456789]*) value=""; detail="launchctl reported a status this check does not read: $st" ;;
         *)        value="signal-${st#-}"; detail="loaded; the last run was stopped by signal ${st#-}" ;;
       esac ;;
-    [1-9]*)
+    [123456789]*)
       case "$st" in
-        *[!0-9]*) value=""; detail="launchctl reported a status this check does not read: $st" ;;
+        *[!0123456789]*) value=""; detail="launchctl reported a status this check does not read: $st" ;;
         *)        value="exit-$st"; detail="loaded; the last run exited $st" ;;
       esac ;;
     *)
       value=""; detail="launchctl reported a status this check does not read: $st" ;;
   esac
-  case "$pid" in ''|*[!0-9]*) ;; *) detail="$detail; running now, pid $pid" ;; esac
+  case "$pid" in ''|*[!0123456789]*) ;; *) detail="$detail; running now, pid $pid" ;; esac
   if [ -n "$value" ]; then printf 'value\t%s\t%s\n' "$value" "$detail"
   else printf 'unknown\t-\t%s\n' "$detail"; fi
   return 0
@@ -180,7 +180,7 @@ _felix_status_pulse() {
   if [ -f "$rec" ] && [ -r "$rec" ]; then
     { IFS= read -r first || [ -n "$first" ]; } < "$rec" 2>/dev/null
     case "$first" in "# ran "*) ep="${first#"# ran "}" ;; esac
-    case "$ep" in ''|*[!0-9]*) ep="" ;; esac
+    case "$ep" in ''|*[!0123456789]*) ep="" ;; esac
     [ "${#ep}" -le 12 ] || ep=""
   fi
   last=""

@@ -22,15 +22,11 @@
 # unbroken stretch of waits at the head gh lists now, at the end of the
 # pull request's rows; it began at the time of its first row.
 
-_GT_WAIT_AWK='
-function ep(t,   a, y, m, d, era, yoe, doy, doe) {
-  split(t, a, /[-T:Z]/); y = a[1] + 0; m = a[2] + 0; d = a[3] + 0
-  if (m <= 2) y--
-  era = int(y / 400); yoe = y - era * 400
-  doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
-  doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
-  return (era * 146097 + doe - 719468) * 86400 + a[4] * 3600 + a[5] * 60 + a[6]
-}
+# Which rows are waits is said once, here, and read by two awks: the tick below,
+# which ages a run of them, and session start (lib/waiting.sh, which sources this
+# file), which names a pull request while its rows since the last `waiting` one
+# are all of them.
+_GT_WAIT_FN='
 function founders(det,   l) { l = tolower(det); return l == "labelled needs-founder" || l == "labelled felix:founder" }
 function iswait(ev, det) {
   if (ev == "session" || ev == "refused" || ev == "founder") return 1
@@ -38,6 +34,16 @@ function iswait(ev, det) {
   return founders(det) || index(det, "conflicting with main") == 1 \
     || index(det, "another open pull request has the head branch") == 1 \
     || index(det, "gate run not green: ") == 1 || index(det, "could not read the files") == 1
+}
+'
+_GT_WAIT_AWK="$_GT_WAIT_FN"'
+function ep(t,   a, y, m, d, era, yoe, doy, doe) {
+  split(t, a, /[-T:Z]/); y = a[1] + 0; m = a[2] + 0; d = a[3] + 0
+  if (m <= 2) y--
+  era = int(y / 400); yoe = y - era * 400
+  doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + d - 1
+  doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
+  return (era * 146097 + doe - 719468) * 86400 + a[4] * 3600 + a[5] * 60 + a[6]
 }
 BEGIN {
   n = split(want, W, " ")

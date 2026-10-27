@@ -33,22 +33,35 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
-# The fault row. It starts no process, because the faults worth a row include
-# the one where none can start: the time is read from EPOCHSECONDS (bash 5) and
-# is `-` where the shell has none, and the memory root is named from the
-# environment, not asked of resolve.sh, which may be the thing that is broken.
-# A memory root that is not there gets no row and is not made (the directory is
-# the install's to create), and a row that cannot be written says nothing: this
-# is the last thing the hook does on its way to allowing the call.
+# The fault row. The time is read from EPOCHSECONDS (bash 5), which starts no
+# process. Where the shell has none, as macOS's /bin/bash 3.2 has not, the row
+# asks `date` for it: a row with no time would be counted as recent for as long
+# as the log's last write is (lib/waiting.sh), and session start would say "in
+# the last 7 days" of every fault ever written. The one row that asks nothing
+# is the EXIT trap's (REASON then gets a second argument): it runs where no
+# process may be startable, and its time is `-`, as it is when `date` fails.
+# The memory root is named from the environment, not asked of resolve.sh, which
+# may be the thing that is broken. A memory root that is not there gets no row
+# and is not made (the directory is the install's to create), and a row that
+# cannot be written says nothing: this is the last thing the hook does on its
+# way to allowing the call.
 _felix_pt_done=0; _felix_pt_proj=""; _felix_pt_tool=""
-_felix_pt_row() {   # REASON
+_felix_pt_row() {   # REASON [notime]
   set +u
   local m="${FELIX_MEMORY:-}" t="-" why="$1" p="${_felix_pt_proj:--}" tl="${_felix_pt_tool:--}"
-  local z era doe yoe doy mp mo s
+  local z era doe yoe doy mp mo s d="[0123456789]"
   [ -n "$m" ] || { [ -n "${HOME:-}" ] && m="$HOME/.felix/memory"; }
   [ -n "$m" ] && [ -d "$m" ] || return 0
   case "${EPOCHSECONDS:-}" in
-    ''|*[!0123456789]*) ;;
+    ''|*[!0123456789]*)
+      if [ -z "${2:-}" ]; then
+        # The group's own stderr is the shell's: a fork that fails prints its
+        # complaint there and not from the child, so the redirect is on the group.
+        { s="$(date -u +%Y-%m-%dT%H:%M:%SZ)"; } 2>/dev/null || s=""
+        case "$s" in
+          $d$d$d$d-$d$d-$d$d"T"$d$d:$d$d:$d$d"Z") t="$s" ;;
+        esac
+      fi ;;
     *) z=$(( EPOCHSECONDS / 86400 + 719468 )); s=$(( EPOCHSECONDS % 86400 ))
        era=$(( z / 146097 )); doe=$(( z - era * 146097 ))
        yoe=$(( (doe - doe / 1460 + doe / 36524 - doe / 146096) / 365 ))
@@ -70,7 +83,7 @@ _felix_pt_trap() {
   local s=$?
   [ "$_felix_pt_done" = 1 ] && return 0
   trap - EXIT
-  _felix_pt_row "the hook ended with status $s before a verdict"
+  _felix_pt_row "the hook ended with status $s before a verdict" notime
   if [ "$s" = 2 ]; then exit 1; fi
   exit "$s"
 }

@@ -21,6 +21,14 @@
 #
 # Bash 3.2. LC_ALL=C on every text tool; digit brackets spelled out.
 
+# What counts as a wait row is defined beside the tick that ages it. If that file
+# does not load, the awk below fails and the paragraph says the list could not be
+# read; it is never left out without a word.
+if [ -z "${_GT_WAIT_FN-}" ]; then
+  _fw_dir="${BASH_SOURCE[0]}"; case "$_fw_dir" in */*) _fw_dir="${_fw_dir%/*}" ;; *) _fw_dir=. ;; esac
+  . "$_fw_dir/green-wait.sh" 2>/dev/null || true
+fi
+
 _fw_clean() { LC_ALL=C tr '\000-\010\013-\037\177' '?'; }
 
 # An epoch as a UTC ISO time, the one format that sorts as text, so that a time
@@ -53,15 +61,19 @@ felix_start_maint() {   # PROJ ROOT
   _due_n="$(printf '%s' "$list" | grep -c . 2>/dev/null)"
   case "$_due_n" in ''|*[!0123456789]*) _due_n=0 ;; esac
   fnames=""; command -v felix_maint_founder >/dev/null 2>&1 && fnames="$(felix_maint_founder "$proj" 2>/dev/null)"
-  # The founder's due rows, each as name<TAB>how; the rest, a session's.
-  mine="$(printf '%s\n' "$st" | LC_ALL=C awk -F'\t' -v f="$fnames" 'BEGIN { n = split(f, F, "\n"); for (i = 1; i <= n; i++) if (F[i] != "") fo[F[i]] = 1 }
+  # The founder's due rows, each as name<TAB>how; the rest, a session's. The
+  # names are newline-separated and reach awk through its environment: macOS awk
+  # stops with "newline in string" on a newline inside a -v value, which with two
+  # founder rows dropped every name from the line and left only the count (review
+  # round, B36).
+  mine="$(printf '%s\n' "$st" | FW_FOUNDERS="$fnames" LC_ALL=C awk -F'\t' 'BEGIN { n = split(ENVIRON["FW_FOUNDERS"], F, "\n"); for (i = 1; i <= n; i++) if (F[i] != "") fo[F[i]] = 1 }
     $1 == "due" && ($2 in fo) {
       if ($3 == "never") w = "never run, every " $4
       else if ($3 == "check") w = "its check says it is due"
       else if ($3 == "refused") w = "its check is refused"
       else w = $3 " days since it last ran, every " $4
       printf "%s\t%s\n", $2, w }')"
-  list="$(printf '%s\n' "$st" | LC_ALL=C awk -F'\t' -v f="$fnames" 'BEGIN { n = split(f, F, "\n"); for (i = 1; i <= n; i++) if (F[i] != "") fo[F[i]] = 1 }
+  list="$(printf '%s\n' "$st" | FW_FOUNDERS="$fnames" LC_ALL=C awk -F'\t' 'BEGIN { n = split(ENVIRON["FW_FOUNDERS"], F, "\n"); for (i = 1; i <= n; i++) if (F[i] != "") fo[F[i]] = 1 }
     $1 == "due" && !($2 in fo) { print $2 }')"
   list="$(printf '%s' "$list" | tr '\n' ' ')"; list="${list% }"
   [ -z "$list" ] || maint_line="
@@ -87,15 +99,26 @@ Due, and waiting on the founder's yes rather than a session: ${how}"
   return 0
 }
 
-# The pull requests whose newest row, of any kind, is a waiting row less than 26
-# hours old: the count, then number<TAB>detail for each, ascending.
-_FW_PRS_AWK='
+# The pull requests the lander has aged and that still wait: the count, then
+# number<TAB>detail for each, ascending. A pull request is listed when its last
+# `waiting` row is less than 26 hours old and every row of its own after that row
+# is a wait row (iswait, from lib/green-wait.sh) at that row's head. A hold, a
+# landing or a row at another head ends the listing; a row that only changes
+# which wait it is (#425 went from `session` to `conflicting with main` and back
+# about every five hours for five days) does not. Listing only while the
+# `waiting` row was the newest row of any kind dropped such a pull request at its
+# first change of wait, and named it again only at the next `waiting` row. The
+# tick writes one again 24 hours after the last while the wait lasts, so the
+# 26-hour window overlaps its successor.
+_FW_PRS_AWK="$_GT_WAIT_FN"'
 NF >= 7 && $3 ~ /^[0123456789]+$/ {
-  if (!($3 in ev)) order[++n] = $3
-  ev[$3] = $2; tm[$3] = $1; de[$3] = $7 }
+  p = $3
+  if (!(p in seen)) { seen[p] = 1; order[++n] = p }
+  if ($2 == "waiting") { wt[p] = $1; wh[p] = $4; de[p] = $7; ok[p] = 1; next }
+  if ((p in wt) && !($4 == wh[p] && iswait($2, $7))) ok[p] = 0 }
 END {
   for (i = 1; i <= n; i++) { p = order[i]
-    if (ev[p] == "waiting" && length(tm[p]) == 20 && (tm[p] "") > (cut "")) w[++m] = p }
+    if ((p in wt) && ok[p] && length(wt[p]) == 20 && (wt[p] "") > (cut "")) w[++m] = p }
   for (i = 2; i <= m; i++) { v = w[i]; j = i - 1
     while (j >= 1 && (w[j] + 0) > (v + 0)) { w[j + 1] = w[j]; j-- }
     w[j + 1] = v }

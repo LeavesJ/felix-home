@@ -4,7 +4,7 @@ Draft, 2026-10-27, for the form at speedrun.a16z.com/apply (closes 2026-11-01, 1
 
 ## Before you submit
 
-1. **Approve or refuse #464.** On main, `docs/direction.md` row 10 still withdraws any market track, and §5 defers the Factory Droid adapter and "outreach and pricing" past March. #464 records your 10-27 decisions: a narrow commercial track that includes fundraising applications, and the second host brought forward. Until it lands, this application runs ahead of the binding file. The answers say only "a second host is planned", which holds either way.
+1. **#464 lands first.** You approved it on 10-27, and it lands once its gate passes. It changes `docs/direction.md` row 10 to allow a narrow commercial track that includes fundraising applications, and row 19 to bring the second host forward, Factory's Droid and then Codex. The anything-else box now says Droid and then Codex are next, which matches the binding file only once #464 is on main. If it hasn't landed when you submit, change that clause back to "and a second host is planned".
 2. **Sam Schmidgall's name.** Your BehaviorChangeBench notes (`private/01_mentors.md`) say his involvement is meant to stay separate unless Anthropic and Google both agree, and not to publish his name or affiliation without asking Peter first. The answers use the resume's wording, a Google DeepMind and UCSF TECH Lab project, and name nobody. Ask Peter before adding names.
 3. **The NeurIPS line.** Peter's 10-16 email asks for the Intro, Related Work and Methods "in the format of a NeurIPS eval track paper". His 09-12 email sets the goal of submitting "ideally by early next semester". The venue and its deadline were still open on your 10-16 list. The answer says the paper is being drafted in that format and aimed at next semester. If Peter has since confirmed NeurIPS as the venue, it can say so outright.
 4. **Entity and IP.** Nothing is incorporated under Daimonion yet. The brief records that whether Elenchus Labs' invention-assignment agreement reaches Felix "is genuinely unclear". Settle that before any term sheet.
@@ -32,22 +32,22 @@ Draft, 2026-10-27, for the form at speedrun.a16z.com/apply (closes 2026-11-01, 1
 
 **GitHub:** github.com/LeavesJ. **Portfolio:** github.com/LeavesJ/Felix. **LinkedIn, X:** [TK]
 
-### Relevant experience (997 of 1000)
+### Relevant experience (983 of 1000)
 
 <!-- answer:experience -->
-I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab benchmark of how frontier models coach people through health-behavior change across sessions. I calibrated its LLM judges to 83% agreement with blinded human labels, against an 87% human-to-human ceiling, and our adversarial branches pushed top model scores from 0.90 to 0.65. We're drafting the paper in NeurIPS evaluation-track format, to submit next semester.
+I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab project that tests how well frontier models coach someone through changing a health behavior over several sessions. I calibrated our LLM judges against blinded human labels until they agreed 83% of the time, where two humans agree with each other 87% of the time. Our adversarial branches took top model scores from 0.90 down to 0.65, and we're writing the paper in NeurIPS evaluation-track format to submit next semester.
 
-Earlier I built Elenchus and shipped it to 200+ Berkeley students. It cross-examines a student's real decision for up to eight rounds, until they can name the mechanism behind it. It ran behind deterministic output gates and a 1,282-test offline suite, and then I tested whether it worked. Its own grader showed a systematic scoring bias (p = 0.000244), so I retired the grader. When a blind rater liked the core technique's output no better than baseline, I cut that too. Felix is the same habit, turned on the coding agents I ran for 87,100+ model turns over 73 days.
+Earlier I built Elenchus, an LLM product that more than 200 Berkeley students used to cross-examine a decision they had actually made, for up to eight rounds, until they could name the mechanism behind it. It shipped behind deterministic output gates and a 1,282-test offline suite, and when I then tested whether it really worked, its grader turned out to be biased (p = 0.000244). I retired the grader, and when a blind rater liked the core technique no better than a baseline, I cut that too.
 <!-- /answer -->
 
-### Tell us more about the team (549 of 1000)
+### Tell us more about the team (884 of 1000, before the [TK]s)
 
 <!-- answer:team -->
-It's just me for now. I'm part time today because I'm an EECS student at Berkeley. If I'm accepted, I'll take a leave of absence for spring 2027 and work on this full time in San Francisco.
+It's just me, and I'll be full time if I'm accepted. I'm an EECS student at Berkeley, and I'd take a leave of absence for spring 2027 to do the residency in San Francisco.
 
-Agents do most of the engineering. Most of Felix was written by the coding agents it governs, under its own gate, and every hold it has made so far was in my own sessions.
+I'm building this as my own first customer. I want agents doing more of my work, not less, so I've had to stop taking their word for it. Over 73 days mine ran more than 87,100 model turns, and at that volume the same failures kept coming back: an old passing result offered as proof for new code, work called done before any check had run, an agent stopping on a check that had just failed. I'd run into the same problem with Elenchus's grader and with BehaviorChangeBench's judges, and both times the answer was to check the model against something it doesn't control. Using agents this hard is how I keep finding the next way they fail.
 
-I don't have a cofounder, and I'd rather say so than list someone who isn't committed. [TK: a possible cofounder, named as in progress]
+There's no cofounder yet, and I won't list someone who isn't committed. [TK: a possible cofounder, named as in progress]
 
 Advisors: [TK: Felix advisors, or cut this line]
 <!-- /answer -->
@@ -62,10 +62,10 @@ Advisors: [TK: Felix advisors, or cut this line]
 Checks AI coding agents' work on the exact code before it counts as done, for teams using agents
 <!-- /answer -->
 
-### Startup description (782 of 800)
+### Startup description (798 of 800)
 
 <!-- answer:description -->
-An AI coding agent runs your tests halfway through a task, keeps editing, then tells you everything passes. It did, on an earlier version of the code. The agent that wrote the code is usually the only one saying it's done. With Felix, a project names the checks it trusts, and Felix records exactly which code they passed on. If an agent tries to stop on code they haven't passed on, Felix sends it back once, and felix merge won't take a branch without a current pass. That half runs today as an open-source Claude Code plugin. The other half comes before any check runs: working out what a project owes. An agent once shipped a deployment of mine with green tests and no rate limiting, because nobody had asked for one. I'm building that half now: finding the checks nobody wrote.
+You ask a coding agent to add a feature. It runs the tests halfway through, keeps editing, then tells you everything passes, which was true of an earlier version of the code. The agent that wrote the code is usually the only one saying it's done. With Felix, a project names the checks it trusts and Felix records exactly which code they passed on. If the agent tries to stop on code they haven't passed on, Felix sends it back once, and felix merge won't take a branch without a current pass. That half runs today as an open-source Claude Code plugin. The other half is harder: working out what a project owes before any check runs. An agent once shipped a deployment of mine with green tests and no rate limiting, because nobody had asked for one. Finding gaps like that is what I'm building now.
 <!-- /answer -->
 
 **Primary category:** [TK: the list wasn't in the paste. Developer tools if it's there.] **Secondary:** AI infrastructure, or security if there's no infrastructure option.
@@ -76,10 +76,12 @@ An AI coding agent runs your tests halfway through a task, keeps editing, then t
 
 **Website:** github.com/LeavesJ/Felix, until there's a site.
 
-### Anything else we should know? (971 of 1000)
+### Anything else we should know? (989 of 1000)
 
 <!-- answer:anything -->
-A vendor's report on its own agent's work isn't a check, and teams now run agents from more than one vendor. Felix's verdict never depends on which model did the work. It runs only on Claude Code today, and a second host is planned. The buyer I'm designing for is a platform lead at a 50 to 500 engineer company running more than one coding agent. What isn't true yet: Felix has one real user, me, and the half that finds missing obligations has a settled test that hasn't run. The likely first outside test is a February pilot with a semiconductor supply-chain software team at a company my family is connected to. It's agreed in principle, nothing is signed, and it waits on Felix keeping their code inside their network, which it can't do yet.
+This can't come from the agent vendors, because a vendor's report on its own agent's work isn't a check. Teams also run agents from more than one vendor, and Felix's verdict never depends on which model did the work. It runs only on Claude Code today, with Factory's Droid and then Codex next. The buyer I'm designing for is a platform lead at a 50 to 500 engineer company running more than one coding agent.
+
+What I haven't proven: Felix has one real user, me, and the half that finds missing obligations has a test that hasn't run yet. The likely first outside test is a February pilot with a semiconductor supply-chain software team at a family-connected company. It's agreed in principle, not signed, and waits on Felix keeping their code inside their network.
 
 If you use Claude Code, clone github.com/LeavesJ/Felix and run felix audit. It reads the transcripts Claude Code already keeps, writes and installs nothing, and counts the turns that ended on an edit no check had run after.
 <!-- /answer -->
@@ -90,10 +92,10 @@ If you use Claude Code, clone github.com/LeavesJ/Felix and run felix audit. It r
 
 **Pitch deck:** optional. See "The deck" below before uploading anything: deck v4's slide 8 still says "363 unverified stops blocked", and these answers use 206.
 
-### Traction (767 characters, no limit shown)
+### Traction (816 characters, no limit shown)
 
 <!-- answer:traction -->
-Pre-revenue, with no customers yet. Across 43 of my own sessions between August 10 and September 21, 2026, Felix held an agent's attempt to stop 206 times. All but three had one of three causes. In 135 the checks had last run on different code, in 39 they had never run in that checkout, and in 29 they had failed on the exact code the agent was stopping on. Sent back, the agents reran the checks about 130 times, and at least 15 of those runs failed. Without the hold, they would have stopped before running any of them. The number I'm driving down is how often a person has to step in. In a September pilot, readers labelled 81 of 265 of my turns (31%) as me doing work the agent should have done. The engine is public under Apache-2.0 at github.com/LeavesJ/Felix.
+There's no revenue and no customers yet, and every number here comes from my own sessions. Across 43 of them between August 10 and September 21, 2026, Felix held an agent's attempt to stop 206 times. All but three came down to one of three causes: in 135 the checks had last run on different code, in 39 they had never run in that checkout, and in 29 they had failed on the exact code the agent was stopping on. Sent back, the agents reran the checks about 130 times, and at least 15 of those runs failed, all of them runs the agents would have stopped before. The number I'm trying to drive down is how often a person has to step in, and in a September pilot readers labelled 81 of 265 of my turns (31%) as me doing work the agent should have done. The engine is public under Apache-2.0 at github.com/LeavesJ/Felix.
 <!-- /answer -->
 
 **Funding history:** [TK: none, if no outside money has gone into Felix.]
@@ -106,11 +108,11 @@ Pre-revenue, with no customers yet. Across 43 of my own sessions between August 
 
 | Box | Built from | Left out, and why |
 |---|---|---|
-| Relevant experience | Resume of 10-17 (BehaviorChangeBench numbers, 200+ Elenchus users, the 1,282-test suite, p = 0.000244, 87,100+ turns); resume of 09-30 (the eight rounds of cross-examination, and the core technique cut after a blind rater); deck v3 slides 4 and 6 for why Elenchus matters to Felix; Peter's emails for the paper line | Sam's name (item 2 above); Elenchus Labs as a company you co-founded, by your decision of 10-27, since this application is for a different company; ReserveGrid, retired the same day; Wake Forest and Marketech, which don't bear on Felix |
-| Team | Your answers on 10-27 (part time now, a leave for spring 2027); the README line that most of Felix was written by the agents it governs | Duet as CSO: an AI session listed as an officer reads as a gimmick on a team box |
+| Relevant experience | Resume of 10-17 (BehaviorChangeBench numbers, 200+ Elenchus users, the 1,282-test suite, p = 0.000244); resume of 09-30 (the eight rounds of cross-examination, and the core technique cut after a blind rater); Peter's emails for the paper line. The box is the track record only, and the argument for why it matters to Felix moved to the team box | Sam's name (item 2 above); Elenchus Labs as a company you co-founded, by your decision of 10-27, since this application is for a different company; ReserveGrid, retired the same day; Wake Forest and Marketech, which don't bear on Felix |
+| Team | Your answers on 10-27 (part time now, a leave for spring 2027); deck v3's why-this-founder case: slide 5 (the usage numbers, here the resume's 87,100+ turns over 73 days), slide 6 (measure where AI fails, then build the failure into structure; push autonomy, distrust self-certification), the README's three causes of the 206 holds (stale result, no check run, failed check), not slide 8's test weakening, which the deck frames as a risk rather than something measured; the resume of 09-30 for Elenchus's grader | "Felix was written by the agents it governs": true, but it argues for the tool, not the founder; Duet as CSO, since an AI session listed as an officer reads as a gimmick on a team box; any claim of using agents harder than other people, which nothing measures |
 | One-liner | The README's two halves, cut to the one that runs | "Decides what counts as done", the brief's category line, which claims more than a hold that sends an agent back once |
 | Description | The README's opening example, its hold and `felix merge` wording, and the rate-limit story | Receipts as the lead (the brief: others already have signed, tree-bound receipts) |
-| Anything else | The brief's answer to "why won't the vendors build it", its first buyer, its "not yet true" list; direction §6 for the pilot boundary | Price ($1,000 a month plus $40 a committer is a hypothesis, and row 10 as changed keeps no price page); METR, which goes in the deck |
+| Anything else | The brief's answer to "why won't the vendors build it", its first buyer, its "not yet true" list; #464's row 19 for Droid and then Codex; direction §6 for the pilot boundary | Price ($1,000 a month plus $40 a committer is a hypothesis, and row 10 as changed keeps no price page); METR, which goes in the deck |
 | Traction | The README's 206 holds; the episode pilot's 31% (`docs/2026-09-23-episode-pilot.md`), the baseline of the binding objective. A second batch measured 36 to 50%, depending on the counting rule; add it if you want the range | The 363 and 35.7%, which the brief retired; the test count, where the README (about 3,000 assertions) and the brief (13,818) disagree |
 
 ## The name

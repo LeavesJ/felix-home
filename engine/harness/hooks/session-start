@@ -223,11 +223,8 @@ fi
 project="$(basename "$PROJ")"
 gate="$(felix_json_str "${PROJ}/project.json" gate)"
 
-if [ -n "$gate" ]; then
-  gate_line="Gate: ${ENGINE_DIR}/felix gate"
-else
-  gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
-fi
+gate_line="Gate: ${ENGINE_DIR}/felix gate"
+[ -n "$gate" ] || gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
 
 # Surface capability drift at session start rather than waiting to be asked. The
 # day a project grows a deploy target or error reporting, the gates the guidebook
@@ -769,7 +766,10 @@ fi
 _felix_due="${_due_n:-0}"
 case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
+[ -n "$gate" ] || _felix_line="$_felix_line · no gate, stops unchecked"   # the Stop hook checks no stop without one
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
+_fl="$(felix_land_notice "$PROJ" 2>/dev/null)"   # paused, not-loaded or not-ticking, as felix status's land row reads it
+if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"; fi
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
 
 # The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).

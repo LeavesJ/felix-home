@@ -5041,7 +5041,7 @@ EOF
   # a loop in a pipe that could not be made printed the header and no surface.
   local dshow="" nrest nl=$'\n' c
   [ -z "$declared" ] || dshow="${declared//$'\n'/ } "
-  printf 'project:      %s\n' "$(basename "$proj")"
+  printf 'project:      %s\n' "$(basename "$proj")"; felix_doctor_lines "$proj" "$root" "$gate"
   if [ "$dunread" -eq 1 ]; then
     printf 'declared:     not known: the capabilities this project declares could not be read\n'
   else

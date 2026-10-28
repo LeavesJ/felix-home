@@ -364,12 +364,17 @@ can't push to. `felix bootstrap --yes` writes the workflow and a rule on the
 repository's default branch that requires it, but leaves admins able to bypass
 the rule. It sets the rule only once CI can resolve the project: `projects/<name>`
 is committed on the default branch of the Felix repository the workflow checks
-out, and the workflow is on the governed repository's default branch. From a
-plain clone of this repository that means forking Felix, pointing the clone's
-origin at the fork and pushing `projects/<name>` to the fork's default branch,
-with a `FELIX_DEPLOY_KEY` secret in the governed repository when the fork is
-private. Until then bootstrap says what is missing on its `ci project:` line and
-leaves the branch alone. Of the repositories Felix governs today, one has the
+out, the workflow's `repository:` names that repository and its `ref:` a commit
+of it that holds the project, and the workflow is on the governed repository's
+default branch. From a plain clone of this repository that means forking Felix,
+pointing the clone's origin at the fork, pushing `projects/<name>` to the fork's
+default branch and setting the workflow's `repository:` and `ref:` to the fork
+and that commit, with a `FELIX_DEPLOY_KEY` secret in the governed repository
+when the fork is private. Until then bootstrap says what is missing on its
+`ci project:` line and its protection row, and leaves the branch alone. When it
+cannot tell (this clone has not fetched the default branch, or the workflow pins
+a commit the engine checkout doesn't hold) it says that instead, leaves the
+branch alone and exits 1. Of the repositories Felix governs today, one has the
 whole wall, and Felix's own isn't it.
 
 Setting a project up with plain `felix new` also installs, for every Claude

@@ -13,7 +13,7 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 # (gctl, R37's), and the holds and waits tied to it follow (units' release waits, P's and the slot holder's lives, the block shim's GO wait, the waits for a unit or the prelude, now _db6_runw:
 # until the run's bound, or the run gone). (2) R56: R15's three margins (pk, hh, pw) are 60 s (were 3 s; a build without the clause waits out the units' 600 s release, L; a stopper's pass
 # forks, floor 20 s); so that a holder with R20's 10 s ppid check but no kill 0 is still told apart, a ps (mode pphide) answers a holder's ps -o ppid= -p WRAPPER with the -j parent's
-# pid in pk and pw. The djk control's 3 s is 20 s (the floor); the drains of 5 and 8 s are 30 s (R12); lh's look 0.6 s after the stop is a poll, bounded by the run's bound.
+# pid in pk and pw. The djk control's 3 s is 20 s (the floor); the drains of 5 and 8 s are 30 s (R12); lh's look 0.6 s after the stop is a poll, bounded by the run's bound. (3) Review of revision 17: pphide answers only a call whose chain reaches a holder, a perl with " --part " and the key whose parent is WRAPPER, and logs each answer; a control (pc) stops the -j parent, sets the gate once its unit is up, and shows an answer within 60 s and the unit running on.
 #
 # Every case follows R12, as in 1292: TMPDIR is a fixture directory under $TMP, the copy runs under a bounded runner
 # (run.pl) that leads its own process group and starts it with INT and QUIT as the case asks and HUP and TERM at their
@@ -39,7 +39,7 @@ printf '\ngate friction D: the ending under a short read, a lost holder, a paren
 #   unit ends while the parent is inside that ending (R13's read-back, R28): its line waits in the FIFO behind a @@tick;
 # - R15's "within 3 s", 60 s after R56 (a margin: L is the units' 600 s release, the floor 20 s), is timed inside the perl (djk.pl) that takes the ps listing, from the kill to the start of the
 #   first listing that shows what was asked for (the listing's own cost is not charged to the run). In pk and pw the holder's R20 ppid check is answered with the -j parent's pid
-#   (pphide), so a 60 s window cannot pass a holder that finds the parent gone only by that 10 s check: the kill 0 is what those two names judge;
+#   (pphide), so a 60 s window cannot pass a holder that finds the parent gone only by that 10 s check: the kill 0 is what those two names judge. The pc control shows the ps reached and its answer taken: with the -j parent stopped (kill 0 still finds it) a holder's check is answered within 60 s of the gate (pk's and pw's window: 20 s, R20's two periods, would leave D's own 10 s period above a fifth of T, R56);
 # - R14 and R21 are told apart from a pid-only stopper by a ps first on PATH (ps/ in this block's directory): it runs the
 #   real ps and passes its output on, and once a gate file exists it counts the listings that hold -A, ppid= and lstart=
 #   and whose caller is the -j parent's ending (R47: the shim walks its ancestors with the real ps up to the pid in the run's pid file, the -j parent, and counts the call only when the walk reaches it, no process on the walk is a holder (its command line holds
@@ -135,9 +135,9 @@ cat > "$DB6/psshim/ps" <<'DB6SH'
 #   blank: a call that holds lstart= and -p, for a pid that is not in the file $DJ6_SKIPF (the holder's own and the parent's), prints nothing and fails: the start time of the unit a holder forked (R22).
 #   block: the first such call whose parent, or its parent's parent, is the holder (the first word of $DJ6_SKIPF; R47) (once: mkdir $DJ6_ONCE) writes its pid to $DJ6_BLK, its caller's pid, its caller's parent's pid and its caller's command line to $DJ6_BWHO,
 #          waits for the file $DJ6_GO (at most 600 s, B), and then runs the real ps (R22). A call from anywhere else (the -j parent's _par_endp, for one) goes to the real ps.
-#   pphide: a call that holds ppid= and -p WRAPPER and no -A, made by a holder (its caller, or its caller's parent, holds " --part " and $DJ6_KEY) whose own parent is WRAPPER, prints the pid in the file
-#          $DJ6_JP, the -j parent's (R15 (a), R20 after R56): a holder that lacks the kill 0 then never finds the parent gone, as R20's ppid check would within 10 s, inside a 60 s window.
-use strict; use Time::Local;
+#   pphide: a call that holds ppid= and -p WRAPPER and no -A, whose chain (its caller, or its caller's parent) reaches a holder, a perl whose command line holds " --part " and $DJ6_KEY, whose own parent is WRAPPER,
+#          prints the pid in the file $DJ6_JP, the -j parent's (R15 (a), R20 after R56), and logs the answer to $DJ6_PLOG (the ms, WRAPPER, the pid answered, the chain from the caller up to the holder, each pid:program and its --part argument, not the whole command line, tab-separated). A holder that lacks the kill 0 then never finds the parent gone, as R20's ppid check would within 10 s, inside a 60 s window. Any other call, the first " --part " process on the chain not a perl or not WRAPPER's child, goes to the real ps.
+use strict; use Time::Local; use Time::HiRes ();
 my @a = @ARGV; my $args = " @a "; my $real = $ENV{DJ6_PSREAL}; my $mode = $ENV{DJ6_MODE} || ""; my $gate = $ENV{DJ6_GATE} || "";
 sub real { exec { $real } $real, @a; exit 127 }
 sub rd { my ($f) = @_; open(my $h, "<", $f) or return ""; my $l = <$h>; close $h; defined $l or return ""; $l =~ s/\s+$//; $l }
@@ -145,8 +145,9 @@ sub pinfo { my ($q) = @_; open(my $u, "-|", $real, "-ww", "-o", "ppid=", "-o", "
 real() unless $gate ne "" && -e $gate;
 if ($mode eq "pphide") {   # R15 (a) after R56: a holder's ps -o ppid= -p WRAPPER (R20) is answered with the -j parent's pid, so only its kill 0 can find the parent gone
   real() unless $args =~ /ppid=/ && $args !~ / -A / && $args =~ / -p (\d+)/;
-  my $w = $1; my $jp = rd($ENV{DJ6_JP} || ""); my $key = $ENV{DJ6_KEY} || ""; my $q = getppid();
-  for (1 .. 2) { last if $jp =~ /^\d+$/ && $q == $jp; my ($pq, $cmd) = pinfo($q); $pq or last; if ($cmd =~ / --part / && ($key eq "" || index($cmd, $key) >= 0)) { if ($pq == $w && $jp =~ /^\d+$/ && $w != $jp) { print "$jp\n"; exit 0 } last } $q = $pq }
+  my $w = $1; my $jp = rd($ENV{DJ6_JP} || ""); my $key = $ENV{DJ6_KEY} || ""; my $q = getppid(); my @ch = (); real() unless $jp =~ /^\d+$/ && $key ne "" && $w != $jp;
+  for (1 .. 2) { last if $q <= 1 || $q == $jp; my ($pq, $cmd) = pinfo($q); $pq or last; my ($p0) = $cmd =~ /^(\S+)/; my ($pa) = $cmd =~ / --part (\S+)/; push @ch, "$q:" . ($p0 // "") . (defined $pa ? " --part $pa" : ""); if ($cmd =~ / --part / && index($cmd, $key) >= 0) { last unless $cmd =~ /^(?:\S*\/)?perl[0-9.]*(?:\s|$)/ && $pq == $w;
+      if (open(my $lg, ">>", $ENV{DJ6_PLOG} || "/dev/null")) { print $lg join("\t", int(Time::HiRes::time() * 1000), $w, $jp, @ch), "\n"; close $lg } print "$jp\n"; exit 0 } $q = $pq }   # the first " --part " process on the chain: a holder (a perl) whose parent is WRAPPER, or no answer
   real();
 }
 if ($mode eq "blank" || $mode eq "block") {
@@ -456,9 +457,23 @@ _db6_kf "$_db6_c/pids.0010-lh.sh"; _db6_fin
 _db6_is "R4: a holder STOPped and its wrapper then killed with kill -9, W = 2: the parent ends the lost unit's holder (its pid and start time are line 2 of the slot file, found in the run's own pj directory): once the parent has exited the holder and its unit are gone, the unit failed without its mark, exit 1, no receipt" "$_db6_x" "1 1 0 1 absent slot-line"
 rm -rf "$DB6/n/lh"
 
+# ---- the control of pk's and pw's ps (mode pphide): the -j parent STOPped, not killed, so a holder's kill 0 still finds it, and the gate set once the unit is up. The holder's ps -o ppid= -p WRAPPER (R20: every 10 s) is answered with the
+# -j parent's pid, the ps's log naming that holder as the caller, within 60 s of the gate (R56, a margin, pk's and pw's own: floor 20 s, a ps forks; L: a holder with no such check while its unit runs, or a ps never reached, never answers), and the unit runs on: the holder's next check is answered too (a bound, B), and the unit then runs. Then the parent is continued and the unit released.
+_db6_long pc 0010-pc.sh; _db6_new pc "$DB6/g-empty.tsv" + "$DB6/pp/pc"/*.sh
+_db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE=pphide DJ6_GATE="$_db6_c/gate" DJ6_JP="$_db6_c/q.pid" DJ6_KEY="$(_db6_key)" DJ6_PLOG="$_db6_c/pplog")
+_db6_go q -j 2; _db6_r=""; _db6_runw _db6_up 0010-pc.sh || _db6_r=" the unit did not come up;"
+read -r _db6_u _db6_h < "$_db6_c/pids.0010-pc.sh" 2>/dev/null; _db6_g="$(_db6_pid q)"; _db6_wr="$(ps -o ppid= -p "${_db6_h:-0}" 2>/dev/null | tr -d ' ')"
+[ -z "$_db6_g" ] || kill -STOP "$_db6_g" 2>/dev/null; _db6_t0="$(perl -MTime::HiRes=time -e 'open(my $h, ">", $ARGV[0]) && close $h; printf "%d", time * 1000' "$_db6_c/gate")"
+_db6_runw eval '[ "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk "END { print NR }")" -ge 2 ]'; _db6_st="$(_db6_pst "${_db6_u:-0}")"
+_db6_x="$(LC_ALL=C awk -F'\t' -v w="${_db6_wr:-x}" -v j="${_db6_g:-x}" -v h="${_db6_h:-x}" -v t="${_db6_t0:-0}" '$2 == w && $3 == j && index($NF, h ":") == 1 { n++; if (n == 1) d = $1 - t } END { if (n && d <= 60000) print "answered"; else printf "not-answered-within-60-s[%d answers, the first %d ms after the gate]", n, d }' "$_db6_c/pplog" 2>/dev/null)"
+_db6_x="${_db6_x:-not-answered[no log]} $_db6_st$([ "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk 'END { print NR }')" -ge 2 ] || echo " the holder's next check was not answered;")$_db6_r"
+[ -z "$_db6_g" ] || kill -CONT "$_db6_g" 2>/dev/null; : > "$_db6_c/release"; _db6_wait0; _db6_kf "$_db6_c/pids.0010-pc.sh"; _db6_fin; [ -z "${DJX_MLOG:-}" ] || sed "s/^/pc pplog gate=${_db6_t0:-none} /" "$_db6_c/pplog" >> "$DJX_MLOG" 2>/dev/null   # evidence only
+_db6_is "R20: with the -j parent stopped, not killed, so a holder's kill 0 still finds it, pk's and pw's ps answers the holder's ps -o ppid= -p WRAPPER with the -j parent's pid within 60 s of its gate, its log naming the holder as the caller, and the unit runs on: the holder's next check is answered too and the unit is then running (the control of pk's and pw's ps)" "$_db6_x" "answered runs"
+rm -rf "$DB6/n/pc"
+
 # ---- R15 (a): the parent killed with kill -9 runs no trap, so each holder finds its parent gone by its kill 0 (R56: a ps answers R20's ppid check with the -j parent's pid, which alone would find it within 10 s): within 60 s no holder or unit of the run is left, stopped or running, and every slot's file grants a lock
 _db6_long pk 0010-pa.sh 0020-pb.sh; _db6_new pk "$DB6/g-empty.tsv" + "$DB6/pp/pk"/*.sh
-_db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE=pphide DJ6_GATE="$_db6_c/gate" DJ6_JP="$_db6_c/p.pid" DJ6_KEY="$(_db6_key)")
+_db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE=pphide DJ6_GATE="$_db6_c/gate" DJ6_JP="$_db6_c/p.pid" DJ6_KEY="$(_db6_key)" DJ6_PLOG="$_db6_c/pplog")
 _db6_go p -j 2
 _db6_r=""; _db6_runw _db6_up 0010-pa.sh || _db6_r=" no unit came up;"; _db6_runw _db6_up 0020-pb.sh || _db6_r="$_db6_r the second unit did not come up;"
 : > "$_db6_c/gate"   # once both units are up (each has read its own parent with ps): from now on a holder's ps -o ppid= -p WRAPPER is answered with the -j parent's pid
@@ -468,7 +483,7 @@ case "$_db6_y" in gone*) ;; *) _db6_r="$_db6_r the run was not gone within 60 s 
 _db6_hl="$(_db6_held "$_db6_tmp")"; [ -z "$_db6_hl" ] || _db6_r="$_db6_r a slot was still held: $_db6_hl;"
 [ "$_db6_ino0" = "$(_db6_inos "$_db6_tmp")" ] || _db6_r="$_db6_r the slot files changed;"
 _db6_wait0; _db6_x="$_db6_rc $(_db6_rcpt) $(_db6_cnt "$_db6_c/p.out" reached)${_db6_r}"
-_db6_kf "$_db6_c/pids.0010-pa.sh" "$_db6_c/pids.0020-pb.sh"; _db6_fin; _db6_ino0=""
+_db6_kf "$_db6_c/pids.0010-pa.sh" "$_db6_c/pids.0020-pb.sh"; _db6_fin; _db6_ino0=""; [ -z "${DJX_MLOG:-}" ] || { printf 'pk pphide-answers %s\n' "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk 'END { print NR }')"; sed 's/^/pk pplog /' "$_db6_c/pplog" 2>/dev/null; } >> "$DJX_MLOG" 2>/dev/null   # evidence only
 _db6_is "R15: the parent killed with kill -9 while two units run a long member, a holder's ps -o ppid= -p WRAPPER answered with the -j parent's pid: within 60 s nothing of the run runs, stopped or not, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)" "$_db6_x" "137 absent 0"
 rm -rf "$DB6/n/pk"
 
@@ -556,7 +571,7 @@ _db6_quick pw 0010-wa.sh; _db6_quick pw 0020-wb.sh
 _db6_td="$DB6/td-pw"; rm -rf "$_db6_td"; mkdir -p "$_db6_td"
 _db6_new pw "$DB6/g-empty.tsv" + "$DB6/pp/pw"/*.sh
 _db6_pre; _db6_hold "$_db6_tmp/felix-suite-slots/0"; _db6_ino0="$(_db6_inos "$_db6_tmp")"
-_db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE=pphide DJ6_GATE="$_db6_c/gate" DJ6_JP="$_db6_c/w.pid" DJ6_KEY="$(_db6_key)")
+_db6_E=(PATH="$DB6/psshim:$PATH" DJ6_PSREAL="$(command -v ps)" DJ6_MODE=pphide DJ6_GATE="$_db6_c/gate" DJ6_JP="$_db6_c/w.pid" DJ6_KEY="$(_db6_key)" DJ6_PLOG="$_db6_c/pplog")
 _db6_S=1; : > "$_db6_c/gate"; _db6_go w -j 2   # no unit runs here, so the ps answers a holder's ps -o ppid= -p WRAPPER with the -j parent's pid from the start
 _db6_r=""; _db6_runw _db6_pre_up || _db6_r=" the parent's prelude never ended;"
 _db6_runw _db6_hpid_up || _db6_r="$_db6_r no holder wrote its slot line before the kill;"
@@ -570,6 +585,7 @@ _db6_unhold; sleep 3
 [ -z "$(_db6_held "$_db6_tmp")" ] || _db6_r="$_db6_r a slot is held;"
 [ "$_db6_ino0" = "$(_db6_inos "$_db6_tmp")" ] || _db6_r="$_db6_r the slot files changed;"
 _db6_wait0; _db6_x="$_db6_rc $(_db6_rcpt) $(_db6_cnt "$_db6_c/w.out" reached)${_db6_r}"
+[ -z "${DJX_MLOG:-}" ] || { printf 'pw pphide-answers %s\n' "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk 'END { print NR }')"; sed 's/^/pw pplog /' "$_db6_c/pplog" 2>/dev/null; } >> "$DJX_MLOG" 2>/dev/null   # evidence only
 _db6_fin; _db6_ino0=""; _db6_td=""
 _db6_is "R20: the parent killed with kill -9 while its holders wait for the only slot, held by another process, a holder's ps -o ppid= -p WRAPPER answered with the -j parent's pid: within 60 s nothing of the run is left, stopped or running; once the slot is let go no unit starts, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)" "$_db6_x" "137 absent 0"
 rm -rf "$DB6/n/pw" "$DB6/td-pw"

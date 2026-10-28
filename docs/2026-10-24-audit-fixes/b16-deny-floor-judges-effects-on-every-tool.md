@@ -579,3 +579,5 @@ cases, each for the reason above: the MCP calls are refused with the Bash rows' 
 README says "Monitor or an MCP tool)"; rows 19 and 20 refuse the read-only commands. The 14 are the controls A57, A61
 (7) and A62 (5), and A60's `git --no-pager -C . grep -n push -f pats.txt`, which the branch already allows (no option
 can take `grep` as its value after `-C .`), kept as a guard. The other 166 assertions of the two parts all pass.
+
+Round 3, which answers the automated security review (every command-carrying tool is judged with the Bash rows), is specified in b16-round-3.md.

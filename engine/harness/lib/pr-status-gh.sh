@@ -220,7 +220,7 @@ _ps_gh_me() {   # DIR
 # whose author is not the owner (without regard to case), and never when the
 # repository's owner is not known.
 _ps_gh_me_if() {   # W OWNER DIR
-  [ -n "$2" ] || return 0
+  [ -n "$2" ] && [ -f "$1/prs" ] || return 0
   LC_ALL=C awk -F'\t' -v o="$2" '$7 != "true" && tolower($8) != tolower(o) { f = 1 } END { exit !f }' "$1/prs" 2>/dev/null || return 0
   _ps_gh_me "$3"
   return 0

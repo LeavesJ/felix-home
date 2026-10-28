@@ -59,9 +59,9 @@ printf '\nthe cloud check judges what a checkout writes (audit b08 round 3, sect
 #   cloud FAIL line and the detail, not the last line or exit status.
 # - A166's .git/info/attributes is removed after its run. A167's two runs (provision, and
 #   settings.local.json, each with U+017F for an s) are one assertion; entries as A148 makes them.
-# - A169's cloud block is gate.sh's _cloud_ functions: from the first line defining one to the
-#   first line "}" after the line defining _cloud_check, found by name at run time. Read as text,
-#   a comment inside it counts.
+# - A169, widened by section 13 (B08R3Z3-4), reads gate.sh's cloud section: from its cloud banner,
+#   a line "# -...- cloud -...-", to the line before the next such banner, or to the end of the
+#   file. Read as text, a comment inside it counts. Section 13's A170 to A187 are in part 1773.
 
 _b84Why=""
 if [ "$(type -t _b83_ystart)" != function ]; then
@@ -251,7 +251,7 @@ _b85N165="B08R3Z2 A165 (R3Z-1, coverage): a committed .gitattributes gives .clau
 _b85N166="B08R3Z2 A166 (R3Z-1, coverage): .git/info/attributes, a machine-local source, gives .claude/cloud/provision filter=x: cloud FAIL, with the attribute clause naming .claude/cloud/provision and filter"
 _b85N167="B08R3Z2 A167 (R3Z-3, coverage): the index holds .claude/cloud/provision spelled with U+017F for its s in place of provision, and in a second run .claude/settings.local.json spelled so: cloud FAIL with the non-ASCII clause naming that entry, each run"
 _b85N168="B08R3Z2 A168 (R3Z-3): the tree's own .claude plus a committed .claude/cloud/notes-<U+017F>.md: cloud ok and the line under it empty, as A140 (control)"
-_b85N169="B08R3Z2 A169 (R3Z2-5): gate.sh's cloud block, its _cloud_ functions read as text, holds no mktemp"
+_b85N169="B08R3Z2 A169 (R3Z2-5, R3Z3-4): gate.sh's whole cloud section, from its cloud banner to the next banner or the end of the file, read as text, holds no mktemp"
 
 if [ -n "$_b84Why" ]; then
   for _b84n in "$_b84N141" "$_b84N142" "$_b84N143" "$_b84N144" "$_b84N145" "$_b84N146" "$_b84N147" \
@@ -466,18 +466,16 @@ else
   _b83_asok a168 "$_b85N168"
 fi
 
-# ---- B08R3Z2-5: no mktemp in the cloud block (A169), read from this tree's gate.sh without FC.
+# ---- B08R3Z2-5, widened by B08R3Z3-4: no mktemp in the cloud section (A169), read from this tree's gate.sh without FC.
 _b85G="$REAL_HARNESS/../../projects/felix/gate.sh"
 if [ ! -f "$_b85G" ]; then skip "$_b85N169" "no projects/felix/gate.sh beside this engine"
 else
-  _b85r="$(LC_ALL=C awk '!s && index($0, "_cloud_") == 1 && index($0, "() {") { s = NR }
-    s && !c && index($0, "_cloud_check() {") == 1 { c = NR }
-    c && NR > c && $0 == "}" { e = NR; exit }
-    s && index($0, "mktemp") { t = t " " NR }
-    END { printf "%d %d %d%s", s, c, e, t }' "$_b85G" 2>/dev/null)"
-  read -r _b85s _b85k _b85e _b85m <<B85R
+  _b85r="$(LC_ALL=C awk '/^# -+ [a-z0-9-]+ -+$/ { if (s && !e) e = NR; if (!s && $3 == "cloud") s = NR }
+    s && !e && index($0, "mktemp") { t = t " " NR }
+    END { if (s && !e) e = NR + 1; printf "%d %d%s", s, (s ? e - 1 : 0), t }' "$_b85G" 2>/dev/null)"
+  read -r _b85s _b85e _b85m <<B85R
 $_b85r
 B85R
-  if [ "${_b85s:-0}" = 0 ] || [ "${_b85k:-0}" = 0 ] || [ "${_b85e:-0}" = 0 ]; then bad "$_b85N169" "fixture: no cloud block found in gate.sh (first, _cloud_check, end: ${_b85r:-none})"
-  else is "$_b85N169" "lines $_b85s to $_b85e hold mktemp on lines [$_b85m]" "lines $_b85s to $_b85e hold mktemp on lines []"; fi
+  if [ "${_b85s:-0}" = 0 ]; then bad "$_b85N169" "fixture: no cloud banner found in gate.sh (${_b85r:-no output})"
+  else is "$_b85N169" "lines $_b85s to $_b85e hold mktemp on lines [${_b85m:-}]" "lines $_b85s to $_b85e hold mktemp on lines []"; fi
 fi

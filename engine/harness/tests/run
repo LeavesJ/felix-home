@@ -149,7 +149,6 @@ _rcp_red=""
 if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ]; then _rcp_red_start "$TMP/manifest.mark"; fi
 
 . "$HERE/parts/0004-the-widget-fixture.sh"
-
 . "$HERE/parts/0005-fixture-floor.sh"
 . "$HERE/parts/0006-the-lib-judges.sh"
 . "$HERE/parts/0007-the-parallel-runner.sh"
@@ -410,6 +409,7 @@ fi
 . "$HERE/parts/1770-merge-and-gate-say-what-ran-blind.sh"
 . "$HERE/parts/1771-b08-round-3-blind.sh"
 . "$HERE/parts/1772-b08-round-3-checkout-blind.sh"
+. "$HERE/parts/1773-b08-round-3-provision-blind.sh"
 . "$HERE/parts/1780-the-receipt-keys-on-what-the-suite-reads-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"

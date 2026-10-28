@@ -33,7 +33,7 @@
 # cannot be reached for on demand, so listing them would invite routes to name
 # something the router can never make happen.
 felix_ready_inventory() {
-  local d cfg="$HOME/.claude.json"
+  local d cfg="${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json"
   {
     # 1. the CLI, which alone knows what is switched on
     if command -v claude >/dev/null 2>&1; then
@@ -45,7 +45,7 @@ felix_ready_inventory() {
 
     # 2. the on-disk registry, for when the CLI is absent
     sed -n 's/.*"\([A-Za-z0-9._-]*\)@[A-Za-z0-9._-]*"[[:space:]]*:[[:space:]]*\[.*/plugin\t\1/p' \
-      "$HOME/.claude/plugins/installed_plugins.json" 2>/dev/null
+      "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json" 2>/dev/null
 
     # 3. plugins bundled into the binary, recorded nowhere else. Read with a
     #    record separator rather than a line pattern so it survives the config
@@ -58,7 +58,7 @@ felix_ready_inventory() {
     fi
 
     # 4. standalone skills, which are directories and belong to no package
-    for d in "$HOME"/.claude/skills/*/; do
+    for d in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/skills/*/; do
       [ -d "$d" ] || continue
       d="${d%/}"
       printf 'skill\t%s\n' "${d##*/}"
@@ -156,7 +156,7 @@ felix_ready_report() {
     # reported a perfectly working skill as missing, which is exactly the kind
     # of false alarm that gets a pre-flight check ignored.
     if [ "$kind" = "skill" ] && [ "$want" = "$owner" ]; then
-      if [ -d "$HOME/.claude/skills/$want" ]; then
+      if [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/$want" ]; then
         printf 'usable\t%s\t%s\n' "$want" "skill, always available"
       else
         printf 'absent\t%s\t%s\n' "$want" "skill directory not present"

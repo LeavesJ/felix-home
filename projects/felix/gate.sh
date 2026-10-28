@@ -608,18 +608,21 @@ fi
 # before awk (B08R3W-1). A file's clause names its first fault in that order
 # (size, NUL, escape, not JSON, repeat, top-level key, schema), and over any of
 # them nothing is compared (B08R3-4, B08R3V-6). Claude Code also reads
-# .claude/settings.local.json; one in the index fails first, unread (B08R3W-2).
+# .claude/settings.local.json; one in the index fails first, unread (B08R3W-2),
+# whether or not settings.json is there (B08R3X-2). git resolves no path through
+# a symlink or a gitlink at .claude, so .claude must be a real directory on disk
+# and in the index, or nothing in it is read (B08R3X-1). The guard counts are
+# not taken from a settings file the size or NUL test refused (B08R3X-3).
+_cloud_fault() {   # file: 1 when over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1)
+  if [ "$(($(wc -c < "$1")))" -gt 65536 ]; then echo 1; elif ! LC_ALL=C tr -d '\000' < "$1" | cmp -s - "$1"; then echo 2; fi
+}
 _cloud_check() {
   local x out z="" y
   set --
-  if ! y="$(LC_ALL=C git --no-pager ls-files -- .claude/settings.local.json 2>/dev/null)"; then y="git could not say whether it is in the repository"
-  elif [ -n "$y" ]; then y="a local settings file in the repository, which Claude Code reads beside settings.json"; fi
-  [ -z "$y" ] || printf ' unreadable: .claude/settings.local.json (%s);' "$y"   # B08R3W-2
   for x in engine/hooks/hooks.json .claude/settings.json; do
     [ -f "$x" ] && [ -r "$x" ] || { echo " unreadable: no event-to-hook pairs read from one of the two files"; return 0; }
-    if [ "$(($(wc -c < "$x")))" -gt 65536 ]; then z="$z 1$x "; set -- "$@" /dev/null   # B08R3V-2
-    elif ! LC_ALL=C tr -d '\000' < "$x" | cmp -s - "$x"; then z="$z 2$x "; set -- "$@" /dev/null   # B08R3W-1
-    else set -- "$@" "$x"; fi
+    y="$(_cloud_fault "$x")"
+    if [ -n "$y" ]; then z="$z $y$x "; set -- "$@" /dev/null; else set -- "$@" "$x"; fi
   done
   out="$(LC_ALL=C awk -v Z="$z" '
     BEGIN {
@@ -733,24 +736,35 @@ _cloud_check() {
     || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
   printf '%s' "$out"
 }
-if [ -f .claude/settings.json ]; then
-  CLOUD_BAD="$(_cloud_check)"
-  N_CMD="$(grep -c '"command":' .claude/settings.json)"
-  N_GUARD="$(grep -cF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' .claude/settings.json)"
-  [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
-  # Names read with sed, not jq: the gate runs on bash and git alone
-  # (constitution invariant 2), and a reformatted file reads as no names, so
-  # every stack row fails rather than passing.
-  TOOLBOX="$(sed -n 's/^      "name": "\([^"]*\)",$/\1/p' .claude/cloud/toolbox.json 2>/dev/null)"
-  for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
-             | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
-    printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
-  done
-  if [ -z "$CLOUD_BAD" ]; then
-    pass cloud
-  else
-    fail cloud; printf '    %s\n' "$CLOUD_BAD"
+CLOUD_BAD=""
+if [ -L .claude ] || { [ -e .claude ] && [ ! -d .claude ]; } \
+   || [ -n "$(LC_ALL=C git --no-pager ls-files -s -- .claude 2>/dev/null | LC_ALL=C awk -F '\t' '$2 == ".claude"')" ]; then   # B08R3X-1
+  CLOUD_BAD=" unreadable: .claude (not a directory in the repository, so its settings files cannot be judged);"
+else
+  if ! CLOUD_LX="$(LC_ALL=C git --no-pager ls-files -- .claude/settings.local.json 2>/dev/null)"; then CLOUD_LX="git could not say whether it is in the repository"
+  elif [ -n "$CLOUD_LX" ]; then CLOUD_LX="a local settings file in the repository, which Claude Code reads beside settings.json"; fi
+  [ -z "$CLOUD_LX" ] || CLOUD_BAD=" unreadable: .claude/settings.local.json ($CLOUD_LX);"   # B08R3W-2, B08R3X-2
+  if [ -f .claude/settings.json ]; then
+    CLOUD_BAD="$CLOUD_BAD$(_cloud_check)"
+    if [ -z "$(_cloud_fault .claude/settings.json 2>/dev/null)" ]; then   # B08R3X-3
+      N_CMD="$(grep -c '"command":' .claude/settings.json)"
+      N_GUARD="$(grep -cF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' .claude/settings.json)"
+      [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
+    fi
+    # Names read with sed, not jq: the gate runs on bash and git alone
+    # (constitution invariant 2), and a reformatted file reads as no names, so
+    # every stack row fails rather than passing.
+    TOOLBOX="$(sed -n 's/^      "name": "\([^"]*\)",$/\1/p' .claude/cloud/toolbox.json 2>/dev/null)"
+    for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
+               | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
+      printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
+    done
   fi
+fi
+if [ -n "$CLOUD_BAD" ]; then
+  fail cloud; printf '    %s\n' "$CLOUD_BAD"
+elif [ -f .claude/settings.json ]; then
+  pass cloud
 else
   printf '  %-18s skipped (no .claude/settings.json in this tree)\n' cloud
 fi

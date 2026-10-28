@@ -572,8 +572,11 @@ ordinary session again. felix overnight --report, then --end to close it out.
 fi
 
 # What waits with nobody told: a paused lander, pull requests it has aged, decisions
-# deferred overnight, calls PreToolUse could not judge (lib/waiting.sh).
-felix_start_waits "$PROJ" "$project"
+# deferred overnight, calls PreToolUse could not judge (lib/waiting.sh). The land row's
+# notice is read first: when it reads paused, its badge below names the pause, so the
+# waits leave it out and a paused lander is said once.
+_fl="$(felix_land_notice "$PROJ" 2>/dev/null)"   # paused, not-loaded or not-ticking, as felix status's land row reads it
+felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}"
 
 context="Felix governs this session.
 
@@ -751,8 +754,8 @@ case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
 [ -n "$gate" ] || _felix_line="$_felix_line · no gate, stops unchecked"   # the Stop hook checks no stop without one
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due${_yours:+ (yours: $_yours)}"
-_fl="$(felix_land_notice "$PROJ" 2>/dev/null)"   # paused, not-loaded or not-ticking, as felix status's land row reads it
-if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"; fi
+if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"
+  [ "${_fl%%$'\t'*}" != paused ] || context="$context"$'\n'"felix land --resume ends the pause."; fi
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
 _felix_line="${_felix_line}${_felix_wait_toks:-}"
 

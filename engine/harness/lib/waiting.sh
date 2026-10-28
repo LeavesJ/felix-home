@@ -151,14 +151,16 @@ END {
 # The paragraphs and the screen tokens (C002, C029, C069). Sets waits_line, each
 # paragraph starting on a line of its own, and _felix_wait_toks, the tokens for
 # the screen line in the order the contract gives them.
-felix_start_waits() {   # PROJ NAME
+felix_start_waits() {   # PROJ NAME [LAND]: LAND is the land row's value as session start read it
   local proj="$1" name="$2" mem land f p why out m body k oldest d n when mt
   waits_line=""; _felix_wait_toks=""
   mem="$(felix_mem_dir "$proj")"; land="$mem/land"
 
-  # The lander, paused: it merges nothing while it is.
+  # The lander, paused: it merges nothing while it is. When the land row reads paused
+  # (lib/status-land.sh: the job is loaded and ticking), session start's landing badge
+  # names the pause with its reason, so it is not said here as well.
   p="$land/paused"
-  if [ -e "$p" ] || [ -L "$p" ]; then
+  if [ "${3:-}" != paused ] && { [ -e "$p" ] || [ -L "$p" ]; }; then
     why=""
     if [ -f "$p" ] && [ -r "$p" ]; then
       IFS= read -r why < "$p" 2>/dev/null || true

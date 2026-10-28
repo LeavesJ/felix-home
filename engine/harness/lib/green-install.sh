@@ -175,7 +175,8 @@ _gt_rsig() {   # WORKTREE -> what its gate receipt and the project's commission 
 _gt_held() {   # PR SHA WORKTREE
   local n="$1" T row t ev hd det age
   T="$(printf '\t')"; _GT_SIG="$(_gt_rsig "$3")"
-  row="$(LC_ALL=C awk -F'\t' -v p="$n" '$3 == p { l = $1 "\t" $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null)"
+  # A waiting row (lib/green-wait.sh) is a statement about the wait and holds nothing: read past it, as _gt_last does.
+  row="$(LC_ALL=C awk -F'\t' -v p="$n" '$3 == p && $2 != "waiting" { l = $1 "\t" $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null)"
   t="${row%%"$T"*}"; row="${row#*"$T"}"; ev="${row%%"$T"*}"; row="${row#*"$T"}"; hd="${row%%"$T"*}"; det="${row#*"$T"}"
   [ "$ev" = refused ] && [ "$hd" = "$2" ] || return 1
   case "$det" in *" [main $_GT_MS]") ;; *) return 1 ;; esac

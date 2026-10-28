@@ -5,11 +5,9 @@
 # UserPromptSubmit names a play, Stop asks a question at the end. PreToolUse
 # decides, and it is the only one that does.
 #
-# Felix skipped it for a long time because the charter said "governance layer",
-# and a governance layer that only reports is a coherent thing to build. It is
-# not what was wanted. A project running a stale copy of its own gate all day
-# and reporting green is the case this exists for: Felix could see the rival
-# gate and could not stop anybody running it.
+# Felix skipped it while the charter said "governance layer", which only
+# reports. The case it exists for is a project running a stale copy of its own
+# gate all day and reporting green: Felix could see it and stop nobody.
 #
 # Narrow on purpose, in three ways:
 #
@@ -22,24 +20,18 @@
 #     person fighting their own tools and switching the harness off; the cost of
 #     a missed deny is the status quo.
 #
-# It used to be narrow in a fourth way, and that one was a mistake. The matcher
-# in hooks.json bound Bash alone, so no rule could see Read, Edit or Write —
-# and the ledger then showed real sessions spending most of their calls on
-# exactly those three. The matcher was doing duty as the blast-radius control,
-# because a bad regex reaching Edit is indistinguishable from a broken editor.
-#
-# That is now handled where it belongs, by felix_deny_overbroad, so the matcher
-# no longer has to be the answer. A pattern broad enough to refuse ordinary
-# work is treated as a rule that is wrong rather than a rule that is strict,
-# and skipped. Skipping can only ever allow more than the author intended,
-# which is the same direction every other failure here already takes.
+# It used to be narrow in a fourth way, a mistake: the matcher in hooks.json
+# bound Bash alone, so no rule saw Read, Edit or Write, where the ledger showed
+# real sessions spending most of their calls. It stood in for blast-radius
+# control, since a bad regex reaching Edit looks like a broken editor. That is
+# felix_deny_overbroad's job now: a pattern broad enough to refuse ordinary work
+# is a wrong rule, not a strict one, and is skipped, which can only allow more.
 #
 # The matcher is gone altogether (audit b16, C020): the hook is bound to every
 # tool and decides for itself which have a subject. Monitor and the MCP terminals
 # run a shell command as Bash does, and carried the same `command` field past a
-# floor that never saw them. A Bash row now judges the command of every shell
-# tool, which is a short list of names (FELIX_DENY_SHELL_TOOLS); a row naming
-# any tool judges that tool's calls and no others.
+# floor that never saw them. A Bash row now judges the command of every tool that
+# may run one (felix_deny_class); a row naming a tool judges that tool's calls.
 #
 # deny.tsv rows: tool <TAB> extended-regex <TAB> reason [<TAB> scope]
 #
@@ -66,29 +58,48 @@ _felix_deny_rows() {
   done < "$proj/deny.tsv"
 }
 
-# The tools whose `command` runs in a shell on this machine: Bash, Monitor and the
-# two MCP terminals Felix names, in one list, read by the hook and by
-# felix_deny_match. A `command` key does not say its tool runs anything here:
-# claude-flow's hooks_pre-command only assesses a command, hooks_post-command
-# records one that already ran, and Vercel's run_session_command runs its command
-# in a remote sandbox. The floor cannot read an MCP tool's schema, so a new
-# terminal is added by name, as Monitor was; a project can still write a row
-# naming any mcp__ tool, which judges that tool's own `command`.
-FELIX_DENY_SHELL_TOOLS=' Bash Monitor mcp__terminal__run_in_terminal mcp__claude-flow__terminal_execute '
-_felix_deny_shell_tool() { case "$FELIX_DENY_SHELL_TOOLS" in *" $1 "*) return 0 ;; esac; return 1; }
+# A call's class, in _FELIX_DENY_CLASS: the one answer the hook's early exit,
+# its row scan, felix_deny_match and the unknown-shell report all take (audit
+# b16, round 3, R3-10). Names are exact, so a plugin prefix is another tool.
+#   terminal  Bash, Monitor and the MCP terminals Felix names: Bash rows judge it.
+#   exempt    an mcp__ tool known not to run its `command` here: claude-flow's
+#             hooks_pre-command assesses one, hooks_post-command records one
+#             that ran, Vercel's run_session_command runs a program in a remote
+#             sandbox. Only rows naming it judge it.
+#   unknown   any other mcp__ tool: Bash rows judge it too, and the hook reports
+#             it (R3-1, R3-3). A list of terminals was an instance, and every
+#             miss of it passed in silence.
+#   tool      any other tool: only rows naming it (B7).
+# Given a PAYLOAD, `none` when it holds no key for the tool's field (R3-7). The
+# two spellings Claude Code writes are found by case alone; any other costs the
+# subject's own reading, which is one awk only on a large payload.
+_FELIX_DENY_BL=$' \t\r\n'
+felix_deny_class() {
+  local tool="$1" f LC_ALL=C
+  case "$tool" in
+    Bash|Monitor|mcp__terminal__run_in_terminal|mcp__claude-flow__terminal_execute) _FELIX_DENY_CLASS=terminal ;;
+    mcp__claude-flow__hooks_pre-command|mcp__claude-flow__hooks_post-command|mcp__plugin_vercel_vercel__run_session_command)
+      _FELIX_DENY_CLASS=exempt ;;
+    mcp__*) _FELIX_DENY_CLASS=unknown ;;
+    *) _FELIX_DENY_CLASS=tool ;;
+  esac
+  [ "$#" -ge 2 ] || return 0
+  _felix_deny_field "$tool" >/dev/null; f="$_FELIX_DENY_FIELD"
+  case "$2" in
+    *"\"$f\":"*|*"\"$f\" :"*) ;;
+    *"\"$f\""[$_FELIX_DENY_BL]*) felix_deny_subject "$2" "$tool" >/dev/null; [ "$?" -ne 1 ] || _FELIX_DENY_CLASS=none ;;
+    *) _FELIX_DENY_CLASS=none ;;
+  esac
+  return 0
+}
 
-# Which field of a payload a rule for this tool is about.
-#
-# One field per tool, chosen rather than searched. Scanning the payload for the
-# first field that happens to be present looks more future-proof and is the
-# wrong trade: an Edit whose new_string contains the text `"command": "rm -rf"`
-# would hand that string to the matcher, and a rule would fire on content the
-# person was only writing down. A tool nobody has taught this function is read
-# as acting on a file, and a tool acting on nothing has no subject and is
-# always allowed. A row naming Bash, Monitor or an mcp__ tool is read on that
-# tool's `command`; every other first-party tool is read on a file, never on
-# `command`. Whether a Bash row judges a command as well is
-# _felix_deny_shell_tool's question, not this one's.
+# Which field of a payload a rule for this tool is about: one per tool, chosen
+# rather than searched. Scanning for the first field present is the wrong
+# trade: an Edit whose new_string holds `"command": "rm -rf"` would hand that
+# text to a rule, which would fire on content the person was only writing
+# down. Bash, Monitor and every mcp__ tool are read on `command`; any other
+# tool on a file, never on `command`, and a tool acting on nothing has no
+# subject. Whether a Bash row judges it is felix_deny_class's question.
 #
 # The answer is left in _FELIX_DENY_FIELD as well as printed, so the hook, which
 # runs on every tool call, can read it without a subshell.
@@ -102,61 +113,62 @@ _felix_deny_field() {
   printf '%s' "$_FELIX_DENY_FIELD"
 }
 
-# That field's value, out of a PreToolUse payload, without parsing JSON.
+# That field's value, out of a PreToolUse payload, without parsing JSON. It is
+# the value of the first key, the name quoted, any blanks, a colon (round 3,
+# R3-7), so a value spelling the name is passed over. Status 1 is no key, and
+# 2 a value that is not a string, which no row reads (R3-4), where the next
+# string after it was read before. Escaped quotes are protected first, so a
+# value holding one cannot run the match past its own end into text the
+# person never typed. The first key wins, not the last: file content naming
+# the field puts a second copy after the real one.
 #
-# Escaped quotes are protected first, so a value containing one cannot run the
-# match past the end of its own string and swallow the rest of the envelope.
-# That over-capture is the dangerous direction here: it is how a rule matches
-# text the person never typed and denies something legitimate.
-#
-# The first occurrence wins, not the last. A greedy leading `.*` in sed takes
-# the last one, which is reachable: file content mentioning the field name puts
-# a second copy after the real one, and the rule would then be tested against
-# whatever that content said.
-#
-# Read two ways, split by size, and both return the same string. A small
-# payload is read with parameter expansion, which runs no program. A large
-# one is read by one awk, because ${s//pat/rep} in bash 3.2, which macOS ships
-# and the hook runs under there, is not linear: for each match it tries every
-# end position back from the end of the string and measures each with a
-# strlen, so it costs about the length squared times the number of escaped
-# quotes. Measured 2026-09-23 on 3.2.57: a 31K commit-template payload took 12
-# to 13 s, a 9K `python3 -c` payload 19 s, and a 45K one did not finish in
-# 110 s. Claude Code's hook timeout is 60 s.
+# Small and large payloads are read two ways that return the same string:
+# parameter expansion, which runs no program, and one awk, because
+# ${s//pat/rep} in bash 3.2 (macOS's, the hook's there) costs about the length
+# squared times the escaped quotes. Measured 2026-09-23 on 3.2.57: a 31K
+# commit-template payload took 12 to 13 s, a 9K `python3 -c` payload 19 s, and
+# a 45K one did not finish in 110 s. Claude Code's hook timeout is 60 s.
 _FELIX_DENY_INLINE=1024
 felix_deny_subject() {
-  local raw="$1" field rest val
+  local raw="$1" field rest val LC_ALL=C
   _felix_deny_field "${2:-}" >/dev/null; field="$_FELIX_DENY_FIELD"
-  case "$raw" in *"\"$field\""*) ;; *) return 0 ;; esac
+  case "$raw" in *"\"$field\""*) ;; *) return 1 ;; esac
   # A raw \001 is a control character no JSON string may hold, so this is not
   # a payload Claude Code sent, and like any payload that does not parse it
   # has no subject. The expansion below uses \001 as its placeholder, and one
   # already in the payload would read as a quote there and not in the awk.
-  case "$raw" in *$'\001'*) return 0 ;; esac
+  case "$raw" in *$'\001'*) return 1 ;; esac
 
   if [ "${#raw}" -gt "$_FELIX_DENY_INLINE" ]; then
-    # Printed only when awk finished. Part of a subject can be refused by a
-    # row anchored at its end that the whole would not match, so an awk that
-    # dies, or no awk on PATH, reads as no subject, which allows.
+    # Printed only when awk finished, after a letter for what it found. Part
+    # of a subject can be refused by a row anchored at its end that the whole
+    # would not match, so an awk that dies, or none on PATH, reads as no key.
     val="$(printf '%s' "$raw" | LC_ALL=C awk -v f="$field" "$_FELIX_DENY_SUBJECT_AWK" 2>/dev/null \
-           && printf x)" || return 0
-    printf '%s' "${val%x}"
-    return 0
+           && printf x)" || return 1
+    case "$val" in s*) val="${val#s}"; printf '%s' "${val%x}"; return 0 ;; u*) return 2 ;; esac
+    return 1
   fi
 
-  # All parameter expansion, no pipeline. This runs inside a synchronous hook on
-  # every tool call, and the old tr/sed/awk/sed chain cost four process spawns
-  # for a substring bash can find itself.
-  rest="${raw#*\"$field\"}"          # after the key
-  rest="${rest#*\"}"                 # past the colon, to the value's quote
+  # All parameter expansion, no pipeline: this runs on every tool call. To the
+  # first key, keeping a closing quote that may open the next appearance.
+  rest="$raw"
+  while :; do
+    case "$rest" in *"\"$field\""*) ;; *) return 1 ;; esac
+    rest="${rest#*\"$field\"}"; val="${rest#"${rest%%[!$_FELIX_DENY_BL]*}"}"
+    case "$val" in :*) break ;; esac
+    rest="\"$rest"
+  done
+  rest="${val#:}"; rest="${rest#"${rest%%[!$_FELIX_DENY_BL]*}"}"
+  case "$rest" in \"*) rest="${rest#\"}" ;; *) return 2 ;; esac
   rest="${rest//\\\"/$'\001'}"        # neutralise escaped quotes first
   val="${rest%%\"*}"                 # to the first real closing quote
   printf '%s' "${val//$'\001'/\"}"
 }
 
-# The same reading as the expansion above, for a large payload: after the
-# first "field", past the next quote, up to the first quote with no backslash
-# before it, and each backslash-quote in what it took read as a quote.
+# The same reading as the expansion above, for a large payload: the first
+# "field" with blanks and a colon after it, then `u` and nothing more when the
+# value is not a string, or `s` and the value up to the first quote with no
+# backslash before it, each backslash-quote in what it took read as a quote.
 #
 # Linear in BWK awk, mawk and gawk. It uses no gsub and no split on a regex,
 # since in BWK awk, which macOS ships, both cost the length times the number
@@ -171,10 +183,11 @@ _FELIX_DENY_SUBJECT_AWK='
   BEGIN { RS = "\001" }
   { s = (NR > 1) ? s RS $0 : $0 }
   END {
-    k = index(s, "\"" f "\"")
-    if (!k) exit
-    s = substr(s, k + length(f) + 2)
-    if ((q = index(s, "\"")) > 0) s = substr(s, q + 1)
+    if (!match(s, "\"" f "\"[ \t\r\n]*:")) exit
+    s = substr(s, RSTART + RLENGTH)
+    if (match(s, /^[ \t\r\n]+/)) s = substr(s, RLENGTH + 1)
+    if (substr(s, 1, 1) != "\"") { printf "u"; exit }
+    printf "s"; s = substr(s, 2)
     if (substr(s, 1, 1) == "\"") exit
     if (match(s, /[^\\]"/)) s = substr(s, 1, RSTART)
     nl = split(s, L, "\n")
@@ -186,16 +199,12 @@ _FELIX_DENY_SUBJECT_AWK='
     }
   }'
 
-# Whether a pattern is too broad to be a rule.
-#
-# A rule says which work this project refuses. A pattern that also matches
-# ordinary work is not a strict rule, it is a broken one, and honouring it
-# produces a session where nothing can be edited and no error explains why.
-# These two probes are what ordinary looks like: a routine command, and a path
-# in no way special. Anything matching either is skipped.
-#
-# This can only ever allow more than the author asked for, never less, which is
-# why it is safe to run ahead of every rule rather than only new ones.
+# Whether a pattern is too broad to be a rule. A pattern that also matches
+# ordinary work is a broken rule, not a strict one, and honouring it makes a
+# session where nothing can be edited and no error says why. These two probes
+# are ordinary: a routine command, and a path in no way special. A pattern
+# matching either is skipped, which can only allow more than its author asked,
+# never less, so it is safe to run ahead of every rule rather than new ones.
 FELIX_DENY_PROBES='git status --short
 /felix/probe/ordinary'
 
@@ -229,13 +238,11 @@ EOF
 }
 
 # What felix doctor says of this project's deny table: the rows the hook skips
-# without a word, each kind under a header of its own. A rule too broad to
-# enforce is skipped at the moment it would have fired, and the hook says
-# nothing because it runs on every tool call. Silence there has to be paid for
-# here, or the project owns a rule that quietly does nothing, which is the exact
-# complaint Felix makes about other plugins. The pattern and tool sections are
-# lib/table.sh's, which the hook never loads; if it will not load, they are said
-# not to have been made. An unreadable table is said, and judged no further.
+# without a word, each kind under a header of its own. The hook is silent as it
+# runs on every tool call; that is paid for here, or a rule quietly does
+# nothing, the complaint Felix makes of other plugins. The pattern and tool
+# sections are lib/table.sh's, which the hook never loads; if it will not load,
+# they are said not to have been made. An unreadable table is said, no more.
 felix_deny_doctor() {
   local proj="$1" wide t p r
   [ -f "$proj/deny.tsv" ] || return 0
@@ -299,68 +306,64 @@ EOF
 # Prints the reason when a command matches a row for this tool, and returns 0.
 # Silent and returns 1 otherwise.
 #
-# A Bash row is about the command the shell runs, and not about text the
-# command only carries. Until 2026-09-23 a row was matched against the payload's
-# string alone, where everything the command carries reads as if it ran: a
-# here-document body handed to `git commit -F -`, a message in `-m "..."`, a
-# JSON payload in single quotes, a comment. The marker row refused a commit
-# message saying "felix new <name> ... a .felix marker", because `<name>` holds
-# a `>`. And the string is JSON, so a line break arrives as a backslash and an
-# `n`, and a pattern's `[^;&|]*` ran across it: `git push -q` on one line and
-# `gh api -f` on the next read as a force push. Of the 175 refusals the hooks
-# had logged by then, about thirty were text of those kinds.
+# A Bash row is about the command the shell runs, not text it only carries.
+# Until 2026-09-23 a row was matched against the payload's string, where all
+# the command carries reads as if it ran: a here-document body for `git commit
+# -F -`, a `-m "..."` message, JSON in single quotes, a comment. The marker row
+# refused a commit message saying "felix new <name> ... a .felix marker", for
+# the `>` in `<name>`; and a JSON line break is a backslash and an `n`, so
+# `[^;&|]*` ran from `git push -q` on one line to `gh api -f` on the next and
+# read a force push. Of the 175 refusals logged by then, about thirty were text.
 #
 # So a Bash command is judged on felix_deny_code's reading of it, as the shell
-# reads it, and on nothing else. The first form of this, on 2026-09-23,
-# consulted that reading only after the raw string had matched a row, which
-# could only turn a refusal into an allow and left the other direction as it
-# was: the string is one line of JSON, so wherever the shell ends a word and
-# the string puts something other than a blank there — a `;` glued to the
-# word, a line break, the quote closing a `-c` script, a `)` — a row written
-# to end at a blank or the end of the line saw neither, and the command ran.
-# The founder listed twelve such commands that day, each performing what its
-# row names and none of them refused. Reading every command refuses all
-# twelve, and the reader now prints each separator as a token of its own so
-# that the row sees the end of the word. Forty-one commands written blind
-# that only carry a row's words as data are still allowed; the four others
-# of that set of forty-five are refused by the rows as written under any
-# reader. A reading done in bash itself was tried first and measured: bash
+# reads it, and on nothing else. The first form, on 2026-09-23, consulted it
+# only after the raw string matched, which could only turn a refusal into an
+# allow: where the shell ends a word and the JSON line puts no blank — a `;`
+# glued on, a line break, the quote closing a `-c` script, a `)` — a row ending
+# at a blank or the line's end saw neither, and the command ran. The founder
+# listed twelve such commands that day; reading every command refuses all
+# twelve, and the reader prints each separator as a token of its own. Forty-one
+# commands written blind that only carry a row's words as data are still
+# allowed; the four others of that set of forty-five are refused by the rows as
+# written under any reader. A reading in bash itself was measured first: bash
 # 3.2's ${s//...} took fourteen seconds over a 31K command.
 #
-# What it costs, since the reading now runs on every Bash call in a project
-# with Bash rows: one awk process, the subshell that captures it, and one
-# source of lib/deny-read.sh per call. Measured 2026-09-23 by child CPU,
-# since wall time on this machine measures its load, which sits at 100 to
-# 300: 150 runs of each engine interleaved on the same payload, `git status
-# --short` costing 31 ms of CPU a call before and 39 after (medians; the
-# minima 28 and 35), and a commit with Claude Code's template 32 before and
-# 41 after. So about 8 ms a call, on a floor of about 30. A prefilter that
-# would skip the awk was priced and not built: a test for the characters
-# that make the reading differ from the string skips 7% of real commands,
-# since most carry a JSON backslash, and a per-row keyword test needs a
-# proof that it never skips a command its row would refuse. Over the real
-# commands in this machine's transcripts the reading newly refuses about one
-# in two hundred, all but two of them performing the row's action; the two
-# hand a gate's path to a shell function as an argument, which a row that
-# matches the path after any blank refuses on any reading. The counts are in
-# the pull request that made the change.
+# What it costs, now on every Bash call in a project with Bash rows: one awk,
+# the subshell capturing it, one source of lib/deny-read.sh. Measured
+# 2026-09-23 by child CPU, since wall time here measures a load of 100 to 300:
+# 150 interleaved runs of each engine on one payload, `git status --short` at
+# 31 ms of CPU a call before and 39 after (medians; the minima 28 and 35), and
+# a commit with Claude Code's template 32 before and 41 after: about 8 ms on a
+# floor of about 30. A prefilter skipping the awk was priced and not built: a
+# test for the characters where reading and string differ skips 7% of real
+# commands, since most carry a JSON backslash, and a per-row keyword test needs
+# a proof it never skips a command its row would refuse. Over the real commands
+# in this machine's transcripts the reading newly refuses about one in two
+# hundred, all but two performing the row's action; the two hand a gate's path
+# to a shell function, which a row matching the path after any blank refuses
+# on any reading. The counts are in the pull request that made the change.
 #
 # START is the directory the command starts in, the payload's cwd. It matters
-# only to a row scoped to the checkout. Such a row matches the reading like
-# any other, and is then judged, by lib/where.sh, on the command as the
-# payload carries it; the governed checkout is the one this process stands
-# in.
+# only to a row scoped to the checkout, which matches the reading like any
+# other and is then judged by lib/where.sh on the command as the payload
+# carries it; the governed checkout is the one this process stands in.
 #
-# WANT is the tool the call is for. Monitor and the MCP terminals run a shell
-# command, so the Bash rows judge theirs, on the same reading, before the tool's
-# own rows judge it as it stands, which is how every row but a Bash row reads.
+# WANT is the tool the call is for. Where felix_deny_class says Bash rows judge
+# it, they do, on the same reading, before its own rows judge it as it stands,
+# which is how every row but a Bash row reads.
 felix_deny_match() {
   local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text
   [ -n "$cmd" ] || return 1
   _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""; _FELIX_DENY_TOOL="$want"
-  if _felix_deny_shell_tool "$want"; then
+  felix_deny_class "$want"
+  if [ "$_FELIX_DENY_CLASS" = terminal ] || [ "$_FELIX_DENY_CLASS" = unknown ]; then
     text="$(felix_deny_code "$cmd")"
-    if _felix_deny_first "$proj" Bash "$text"; then printf '%s' "$_FELIX_DENY_REASON"; return 0; fi
+    if _felix_deny_first "$proj" Bash "$text"; then
+      # A Bash row refusing a tool Felix does not know says why (round 3, R3-2).
+      [ "$_FELIX_DENY_CLASS" = terminal ] || _FELIX_DENY_REASON="$_FELIX_DENY_REASON
+Felix does not know whether $want runs its command on this machine; until it does, the Bash rows judge that command as well."
+      printf '%s' "$_FELIX_DENY_REASON"; return 0
+    fi
   fi
   if [ "$want" != Bash ] && _felix_deny_first "$proj" "$want" "$cmd"; then
     printf '%s' "$_FELIX_DENY_REASON"
@@ -483,10 +486,8 @@ _felix_deny_scoped_lifts() {
 # fails closed: no awk, or a program error, prints nothing, and a row matches
 # nothing in nothing, which allows.
 #
-# The program is lib/deny-read.sh, sourced the first time a command needs it.
-# Every call of a shell tool (Bash, Monitor, an MCP terminal) in a project with
-# Bash rows needs it; a call for another tool, or in a project without them,
-# never reads the file.
+# The program is lib/deny-read.sh, sourced the first time a command needs it:
+# by a call Bash rows judge (felix_deny_class), in a project that has them.
 # Locale, 2026-10-08: this awk ran in the caller's locale and aborted under
 # UTF-8 on any non-ASCII character, so the reading came back empty and every
 # Bash row allowed. The rules are above felix_json_str in resolve.sh.

@@ -66,15 +66,13 @@ esac
 # which costs a git, and before the rest of the library is loaded. The one key a
 # row can read for this tool (_felix_deny_field) is not in the payload: a Glob,
 # a TodoWrite, an mcp__ tool that opens a page. The key is looked for as a key,
-# its name between quotes and a colon after, so a `command` inside a string,
-# which carries its own quotes escaped, is not one, and nor is a value that
-# happens to read "command". The payload is not parsed; a miss here can only
-# let a call through, the direction every failure of this hook takes.
-_felix_deny_field "$tool" >/dev/null
-case "$raw" in
-  *"\"$_FELIX_DENY_FIELD\":"*|*"\"$_FELIX_DENY_FIELD\" :"*) ;;
-  *) exit 0 ;;
-esac
+# its name between quotes, any blanks and a colon after (round 3, R3-7), so a
+# `command` inside a string, which carries its own quotes escaped, is not one,
+# and nor is a value that happens to read "command". felix_deny_class decides,
+# and the reader below agrees with it. The payload is not parsed; a miss here
+# can only let a call through, the direction every failure of this hook takes.
+felix_deny_class "$tool" "$raw"
+[ "$_FELIX_DENY_CLASS" != none ] || exit 0
 
 . "${SCRIPT_DIR}/../lib/resolve.sh" 2>/dev/null || exit 0
 . "${SCRIPT_DIR}/../lib/say.sh"     2>/dev/null || true
@@ -118,19 +116,42 @@ fi
 # filled, and the loop dropped it, so a hand-edited deny.tsv whose only Bash
 # row was its unended last line let every Bash call through (2026-10-01).
 #
-# A shell tool, Bash, Monitor or an MCP terminal Felix names (lib/deny.sh), is
-# judged by the Bash rows too, so a row naming Bash counts for it. Any other
-# mcp__ tool is judged by the rows that name it, and by no others.
-_shell=0
-_felix_deny_shell_tool "$tool" && _shell=1
-_names_tool=0
+# A call felix_deny_class says the Bash rows judge, a terminal or an unknown
+# MCP tool, counts a row naming Bash (round 3, R3-1); any other tool counts the
+# rows that name it alone. For an unknown call the scan reads on until it knows
+# whether a Bash row exists, since that decides the report below.
+_judged=0; _bash=0; _names_tool=0
+case "$_FELIX_DENY_CLASS" in terminal|unknown) _judged=1 ;; esac
 while IFS=$'\t' read -r _t _rest || [ -n "${_t:-}" ]; do
-  if [ "$_t" = "$tool" ] || { [ "$_shell" -eq 1 ] && [ "$_t" = Bash ]; }; then _names_tool=1; break; fi
+  [ "$_t" != Bash ] || _bash=1
+  if [ "$_t" = "$tool" ] || [ "$_judged$_bash" = 11 ]; then _names_tool=1; fi
+  [ "$_names_tool" -eq 0 ] || [ "$_FELIX_DENY_CLASS$_bash" = unknown0 ] || break
 done < "$PROJ/deny.tsv"
 [ "$_names_tool" -eq 1 ] || exit 0
 
-cmd="$(felix_deny_subject "$raw" "$tool")"
-[ -n "$cmd" ] || exit 0
+cmd="$(felix_deny_subject "$raw" "$tool")"; _read=$?
+
+# The session, read once and only for a line in says.log.
+sid=""; _sid_read=0
+_felix_sid() {
+  [ "$_sid_read" -eq 0 ] || return 0; _sid_read=1
+  sid="$(printf '%s' "$raw" \
+    | LC_ALL=C sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C head -1)"
+}
+
+# Every call of an unknown MCP tool in a project with Bash rows leaves one
+# unknown-shell line, whatever its verdict: the command, or, when it is not a
+# string, a note that no row could read it, and the call is allowed (round 3,
+# R3-3, R3-4). An empty command runs nothing, and is not reported.
+if [ "$_FELIX_DENY_CLASS$_bash" = unknown1 ] && [ "$_read" -ne 1 ]; then
+  _said="$cmd"
+  [ "$_read" -ne 2 ] || _said="its command is not a string, so no row could read it"
+  if [ -n "$_said" ]; then
+    _felix_sid
+    felix_say "$PROJ" unknown-shell "$_said" "$tool" "${sid:-}" 2>/dev/null || true
+  fi
+fi
+[ "$_read" -eq 0 ] && [ -n "$cmd" ] || exit 0
 
 # Where the command starts, for a row scoped to the checkout: the session's
 # directory as the payload reports it, which can be a fixture the session
@@ -147,8 +168,7 @@ reason="$(felix_deny_match "$PROJ" "$tool" "$cmd" "$start")" || exit 0
 # Said out loud as well as refused. A refusal with no record is indistinguishable
 # from a tool that is broken, which is the whole complaint guard.sh exists to
 # make about other people's plugins.
-sid="$(printf '%s' "$raw" \
-  | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
+_felix_sid
 felix_say "$PROJ" "denied" "$cmd
 $reason" "" "${sid:-}" 2>/dev/null || true
 

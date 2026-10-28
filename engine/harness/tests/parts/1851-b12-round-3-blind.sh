@@ -28,6 +28,10 @@ printf '\nthe remote a grant is checked against comes from fixed state (audit b1
 # a symbolic link to S2. All of it is under one mktemp -d in $TMP. Every call sets HOME, an empty
 # FELIX_MEMORY M and GIT_CONFIG_NOSYSTEM there. Each route starts from the baseline; afterwards the
 # URL is put back and one plain fetch restores origin/main.
+# Review round (2026-10-28): B12R3-8 to B12R3-11, assertions 111 to 116, named B12R3V A<n>, written
+# blind from the same file's section 8 with no engine code read. s4 and s5 run after A108's state is
+# put back: s4 takes S2's marker away while p stands beside felix; s5 nests a repository at S2/projects
+# and removes it afterwards. A116 reads the doubt's comment block as A110 does.
 RR3="$(mktemp -d "$TMP/b12r3.XXXXXX" 2>/dev/null)" && RR3="$(cd "$RR3" && pwd -P)" || RR3=""
 if [ -z "$RR3" ] || [ ! -d "$RR3" ]; then
   bad "B12R3 fixture: mktemp -d made a directory under \$TMP" "got [$RR3]"; RR3="$TMP/b12r3-fallback"; mkdir -p "$RR3"
@@ -188,6 +192,46 @@ is "B12R3 A108 (B12R3-2): under s3 with no .felix at all, Q is p, so p's grant c
    "$(_rr3for "$RR3S2/projects/p") [$(_rr3doubt "$RR3S2/projects/p")]" "$RR3FOR|rc=0 []"
 _rr3marker felix; _rr3url "$RR3S2" "$RR3V2/home/felix.git"
 
+# ---- review round (B12R3-8 to B12R3-10): no marker beside other projects, and a nested repository --
+RR3D3="remote_match cannot be read: felix declares none, and this repository has no .felix marker and holds other projects"
+RR3DH="remote_match cannot be read: the repository git finds for this project is not the one whose projects directory holds it"
+# s4: no .felix, the URL at srv2/evil/z.git, whose main grants felix; felix declares none and p stands beside it.
+_rr3marker none; _rr3url "$RR3S2" "$RR3V2/evil/z.git"
+is "B12R3V A111 (B12R3-8, B12R3-10): under s4, with no marker and p beside it, felix's forged grant is refused with exactly D3(felix), in the judge and column 8" \
+   "$(_rr3for "$RR3S2/projects/felix") [$(_rr3doubt "$RR3S2/projects/felix")] $(_rr3judged "$RR3S2/projects/felix" "$RR3D3") col8=[$(_rr3col8 "$RR3S2/projects/felix" "$RR3S2")]" \
+   "|rc=1 [$RR3D3] refused, not honoured: the line col8=[-]"
+_rr3n="B12R3V A112 (B12R3-8): under s4 with p moved out of the working tree, felix is the only project, so its grant clears with nothing doubted: the stated limit (control)"
+if mv "$RR3S2/projects/p" "$RR3/p.away" 2>/dev/null; then
+  is "$_rr3n" "$(_rr3for "$RR3S2/projects/felix") [$(_rr3doubt "$RR3S2/projects/felix")]" "$RR3FOR|rc=0 []"
+  mv "$RR3/p.away" "$RR3S2/projects/p"
+else bad "$_rr3n" "p could not be moved out of S2/projects"; fi
+_rr3marker felix; _rr3url "$RR3S2" "$RR3V2/home/felix.git"
+# s5: a repository nested at S2/projects; its origin is a copy whose path ends in acme/p and whose main adds p's grant.
+RR3N="$RR3S2/projects"
+mkdir -p "$RR3V2/nest/acme"; _rr3g "$RR3V2/nest/acme" init -q --bare -b main p.git
+_rr3g "$RR3N" init -q -b main; _rr3ci "$RR3N" 'a repository nested at projects/, its tree as the home has it'
+_rr3g "$RR3N" checkout -q -b forged; printf '%s\n' "$RR3ROW" >> "$RR3N/p/exceptions.tsv"
+_rr3ci "$RR3N" "p's grant, in the nested repository"
+_rr3g "$RR3N" push -q "$RR3V2/nest/acme/p.git" forged:main; _rr3g "$RR3N" checkout -q main
+_rr3g "$RR3N" config remote.origin.url "$RR3V2/nest/acme/p.git"; _rr3g "$RR3N" config remote.origin.fetch '+refs/heads/*:refs/remotes/origin/*'
+_rr3g "$RR3N" fetch -q
+RR3NF="$(git -C "$RR3N" rev-parse -q --verify refs/heads/forged 2>/dev/null)"
+_rr3g1="$(git -C "$RR3N" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)"
+_rr3m1="$(_rr3q "$RR3N" reflog show -n1 --format=%gs refs/remotes/origin/main)"
+_rr3v="origin/main is [$_rr3g1], forged is [$RR3NF]"
+if [ -n "$RR3NF" ] && [ "$_rr3g1" = "$RR3NF" ]; then _rr3v="forged's commit"; fi
+_rr3c="its newest reflog entry [$_rr3m1]"
+case "$_rr3m1" in fetch*) _rr3c="fetched" ;; esac
+_rr3i="$(_rr3q "$RR3N" show refs/remotes/origin/main:p/exceptions.tsv | LC_ALL=C awk -v r="$RR3ROW" '$0 == r { n++ } END { print n + 0 }')"
+is "B12R3V A113 (B12R3-9): under s5, git finds S2/projects for p, and the nested origin/main is forged's commit, fetched, holding p's grant once (control, the fixture)" \
+   "top=[$(git -C "$RR3N/p" rev-parse --show-toplevel 2>/dev/null)] $_rr3v, $_rr3c, rows=$_rr3i" "top=[$RR3N] forged's commit, fetched, rows=1"
+is "B12R3V A114 (B12R3-9, B12R3-10): under s5, p's grant from the nested repository is refused under both spellings with exactly DH, in the judge and column 8" \
+   "$(_rr3for "$RR3N/p") $(_rr3for "$RR3SL/projects/p") [$(_rr3doubt "$RR3N/p")] [$(_rr3doubt "$RR3SL/projects/p")] $(_rr3judged "$RR3N/p" "$RR3DH") col8=[$(_rr3col8 "$RR3N/p" "$RR3N")]" \
+   "|rc=1 |rc=1 [$RR3DH] [$RR3DH] refused, not honoured: the line col8=[-]"
+rm -rf "$RR3N/.git"
+is "B12R3V A115 (B12R3-9): with the nested repository removed, p's doubt is exactly D2(felix) again and felix_exception_for exits 1 (control)" \
+   "$(_rr3for "$RR3S2/projects/p") [$(_rr3doubt "$RR3S2/projects/p")]" "|rc=1 [$RR3D2]"
+
 # ---- B12R3-7: what lib/exceptions.sh's comments say ---------------------------------------------
 RR3EX="$FROOT/harness/lib/exceptions.sh"
 _rr3cmt() {  # head|doubt|mf -> the head's comment text, the doubt's comment block, or the comment lines holding marker first
@@ -217,6 +261,14 @@ if [ -f "$RR3EX" ]; then
 else _rr3v=" [no lib/exceptions.sh at $RR3EX]"; fi
 is "B12R3 A110 (B12R3-7): the head and the doubt's comment block name the .felix marker, never the origin's project, the circle and the no-marker case; no comment says marker first" \
    "[${_rr3v# }]" "[]"
+_rr3v=""
+if [ -f "$RR3EX" ]; then
+  _rr3c="$(_rr3cmt doubt)"
+  for _rr3i in 'nested repository' 'the only project'; do
+    case "$_rr3c" in *"$_rr3i"*) ;; *) _rr3v="$_rr3v [the doubt's block lacks $_rr3i]" ;; esac
+  done
+else _rr3v=" [no lib/exceptions.sh at $RR3EX]"; fi
+is "B12R3V A116 (B12R3-11): the doubt's comment block names the nested repository and the only project" "[${_rr3v# }]" "[]"
 
 # ---- B12R3-5: read only, last, so the memory root has seen every call of this part --------------
 is "B12R3 A109 (B12R3-5): under s2 and under the gone marker the readers run no fetch and no gh and change no ref, reflog, config, status or .felix, and the memory root holds no file (control)" \

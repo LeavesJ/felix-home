@@ -173,3 +173,73 @@ The fix touches `engine/harness/lib/exceptions.sh` alone.
 ## 7. Founder stops
 
 There are none. The fix touches `lib/exceptions.sh` and the new part, which the batch already changes, and one `tests/run` line, which the batch's parts already use. It adds no table column and no deny, escape, risk or `exceptions.tsv` row. It touches no `.github/workflows` file and no commission grant. The `.felix` deny rows it relies on (deny.tsv lines 33-34 and 79-82) are already on main.
+
+## 8. Review round (2026-10-28)
+
+The review of 9ad32600 raised two findings, V1 and V2. Both are accepted. Each is restated below as required behaviour, and where it changes an earlier item of this file, the text here supersedes that item. The new assertions are A111-A116, named `B12R3V A<n>`, in the same part, `engine/harness/tests/parts/1851-b12-round-3-blind.sh`. Two lines are new and exact:
+- **DH** = `remote_match cannot be read: the repository git finds for this project is not the one whose projects directory holds it`
+- **D3(n)** = `remote_match cannot be read: n declares none, and this repository has no .felix marker and holds other projects`
+
+### V1: with no marker, a project that declares none is not checked in a repository that holds other projects (amends B12R3-2)
+
+*The finding.* With no marker, Q is PROJ. When PROJ declares no `remote_match`, B12R3-2 runs no check. So in a home with no marker that holds `x` (`acme/x`) and a product `p` declaring none, p's grant clears from any origin: point origin at a copy whose `main` holds the grant, and fetch. That is R3-b without a marker, a product's grant honoured from any origin, which is what round 3 closes. §6 says a no-marker home's product grants fail closed (A99); that holds only for a product that declares a `remote_match`. And the stated limits (B12R3-2, B12R3-7) name only the copy whose path ends in PROJ's own `remote_match`, and "not checked in its own repository", where a repository with no marker is not shown to be p's own at all.
+
+*Accepted*, because the contract's own reason for "Q is PROJ and declares none, so no check" is A17 and 0780, and each of those is a repository whose `projects/` holds PROJ alone. The finding's other remedy, a doubt whenever PROJ declares none, breaks A17 and B7, which round 3 keeps; it is not taken.
+
+- **B12R3-8. No marker, PROJ declares none, other projects present.** Suppose REPO's root has no `.felix` entry (so Q is PROJ, B12R3-1) and Q's M is empty (B12R3-2). If `REPO/projects/` holds an entry that is a directory, or a link to one, whose name does not begin with `.` and is not PROJ's directory name, the line is D3(n), with n PROJ's directory name, whatever origin's URL is. Otherwise there is no check, as B12R3-2 says (B7, A17, and 0780's XB and XK).
+  - With a `.felix` entry, B12R3-8 does not apply. A marker naming PROJ is the repository saying it is PROJ's own, so A106 holds whatever else `projects/` holds. A marker naming another project is B12R3-2's D2.
+  - The listing is read from the working tree, as the marker and `remote_match` are. A session that removes the other projects from the working tree gets past, as one that empties `remote_match` does. That is a stated limit (A112).
+
+### V2: the repository a grant is read from is the home whose projects directory holds PROJ (amends B1's REPO, for check (d))
+
+*The finding.* REPO is `felix_exceptions_repo PROJ`, which git finds by discovery over the working tree. A git repository nested between the home's root and PROJ moves REPO: `git init` in `projects/`, or a `.git` file there. The reader then never sees the home's `.felix`. It takes the no-marker branch, so Q is PROJ, and the table, the ref, the fetch configuration, the URL and the reflog all come from the nested repository. An origin there at a copy whose path ends in PROJ's `remote_match` passes, and one anywhere passes when PROJ declares none. The marker was never touched, so the deny rows that make it fixed state (§1) do not help: they guard the file, not the boundary that decides which file is read.
+
+*Accepted*, because the marker is fixed state only while the repository it is read from is. The guarantee round 3 gives, that in a home whose marker names `felix` a product's grant is D2 or DM, otherwise fails without a single write to `.felix`.
+
+- **B12R3-9. REPO must be the home.** Let P be PROJ with every trailing `/` removed. PROJ's parent is `dirname P`, and H is `dirname` of the parent. If the parent's last path component is not exactly `projects`, or `[ REPO -ef H ]` fails, the line is DH, whatever `.felix`, M and origin's URL are.
+  - H comes from PROJ's spelling alone and never from git's discovery. A symlinked spelling or a trailing slash still names the same directory under `-ef`, so A106 holds for `slink/projects/felix` and `S2/projects/felix/`. Under s5 the symlinked spelling of p is DH too (A114), because git finds the nested repository for it as well.
+  - When REPO is H, the check goes on as B12R3-1 to B12R3-3 say, and the marker read is H's.
+  - A project directory that is not directly under a directory named `projects` at the top of its repository is DH. That covers 0780's XR, a project that is the repository root, which already grants nothing there.
+  - B1 is otherwise unchanged. In particular, the doubt still prints nothing when REPO's `refs/remotes/origin/main` does not exist.
+- **B12R3-10. Place, effect and read only.** DH is found first within check (d). Then come D1 or D2 (B12R3-1, B12R3-2), D3 (B12R3-8) or DM (B12R3-3). As B12R3-4 says, (a)-(c) are found before (d) and (e) after it. B2-B4 and B12R3-4's three effects apply to DH and D3 unchanged. B5's four readers do not change. B12R3-5 holds as written: the new checks read PROJ's spelling and the names under `REPO/projects/`, and nothing else.
+- **B12R3-11. The comments.** The run of comment lines ending on the line just above `felix_exceptions_doubt() {`, read as A110 reads it, also contains `nested repository` and `the only project`. The limits the comments state (B12R3-7) become these:
+  - with no marker, an origin left at a copy whose path ends in PROJ's own `remote_match` gets past;
+  - a project that declares none is not checked when the marker names it, or, with no marker, when it is the only project in the working tree's `projects/`;
+  - the marker, the `projects/` listing and `remote_match` are read from the working tree.
+
+  The comments also say why a nested repository is doubted: the marker is fixed state only while the repository it is read from is, and git's discovery over the working tree is not.
+
+**Fixture S, continued.** These routes start from S2's baseline, after A108's state is put back:
+- **s4**: S2's `.felix` removed, and S2's URL set to `srv2/evil/z.git`, then a plain fetch. Within s4, `projects/p` is moved out of S2 to `$RR3/p.away` and moved back. Afterwards `.felix` is put back as `felix\n`, the URL is put back, and a plain fetch restores origin/main.
+- **s5**: A repository is made at `S2/projects` with `git init -b main`, and its tree (`felix/` and `p/`, both header only) is committed on `main`. A branch `forged` appends ROW to `p/exceptions.tsv` and is committed. It is pushed as `main` to a new bare repository `srv2/nest/acme/p.git`, and the nested repository goes back to `main`. Its origin is that bare repository, with `+refs/heads/*:refs/remotes/origin/*`, and it fetches once. Afterwards `S2/projects/.git` is removed.
+
+| state | PROJ | for | doubt |
+|---|---|---|---|
+| s4 | `S2/projects/felix` | nothing, exit 1 | D3(felix) |
+| s4, p moved out | `S2/projects/felix` | `excepted\|LIVE\|the-founder`, exit 0 | nothing (stated limit) |
+| s5 | `S2/projects/p` and `slink/projects/p` | nothing, exit 1 | DH |
+| s5, then the nested `.git` removed | `S2/projects/p` | nothing, exit 1 | D2(felix) |
+
+**What must not change**, beyond §3:
+- 1850's fixtures each hold `projects/x` alone with no marker, so B12R3-8 does not apply, and REPO is H in each, so B12R3-9 does not either. A1-A24, A17 and A84-A90 hold.
+- 0780's XH and XC have a marker naming their one project, so they clear as before. XR is DH now, and it already grants nothing. XB, XN and XK keep their outcomes.
+- A98-A110 hold. In S1, x and y both declare a `remote_match`. S2 has a marker in every state but s3's last, and there p declares `acme/p`.
+
+**Assertions A111-A116.** [red] fails at 9ad32600. [control] holds before and after. Each runs under bwk and gawk.
+
+111. B12R3-8, B12R3-10 [red]: under s4, felix's `felix_exception_for` prints nothing and exits 1, and its doubt is exactly D3(felix). The judge prints `refused<TAB>ob1<TAB>LIVE<TAB>the-founder<TAB>not honoured: ` followed by D3(felix), and `felix_obligations_run S2/projects/felix S2` prints column 8 as `-`.
+112. B12R3-8 [control, the stated limit]: under s4 with `p` moved out of the working tree, felix is the only project, so its grant clears (`excepted|LIVE|the-founder`, exit 0) and its doubt prints nothing.
+113. B12R3-9 [control, the fixture]: under s5, `git -C S2/projects/p rev-parse --show-toplevel` prints `S2/projects`. The nested repository's origin/main is its `forged` commit, its newest reflog entry begins `fetch`, and `origin/main:p/exceptions.tsv` holds ROW once.
+114. B12R3-9, B12R3-10 [red]: under s5, p's `felix_exception_for` prints nothing and exits 1 for `S2/projects/p` and for `slink/projects/p`, and its doubt is exactly DH for both. The judge's why for `S2/projects/p` is `not honoured: ` followed by DH, and `felix_obligations_run S2/projects/p S2/projects` prints column 8 as `-`.
+115. B12R3-9 [control]: with `S2/projects/.git` removed, p's doubt is exactly D2(felix) again and `felix_exception_for` exits 1.
+116. B12R3-11 [red]: the comment block above `felix_exceptions_doubt() {` holds `nested repository` and `the only project`.
+
+*Expected red, not yet run when this was written:* A111, A114 and A116. A112, A113 and A115 hold.
+
+**Decisions.**
+- **D3 is narrow on purpose.** A repository with no marker whose `projects/` holds PROJ alone is the shape B7 and A17 treat as PROJ's own. A second project makes the repository a home, and the reader cannot tell from fixed state whose remote origin should name, so it doubts.
+- **H comes from PROJ's path, not from an environment variable.** The reader takes only PROJ. A variable such as the home's root is not state the deny rows guard, and the parts call the reader without one. `projects/<name>` is also where the grant table lives: the exception channel fires only on `projects/<p>/exceptions.tsv` (0780).
+- **A nested repository anywhere between H and PROJ is DH.** That includes `projects/<name>` itself. The assertion builds the case at `projects/`, the one where the table path differs from the home's and the bypass is plainest.
+- **The exact texts.** DH and D3 contain `remote_match` and `cannot be read`, as D1 and D2 do. DH names no path and D3 names only PROJ's directory name, so neither prints a URL or a location.
+
+**Founder stops.** There are none. The fix stays in `lib/exceptions.sh`, and the assertions stay in part 1851.

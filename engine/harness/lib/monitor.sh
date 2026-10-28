@@ -281,10 +281,11 @@ EOF
 # nothing would render as perfect compliance — the most flattering possible
 # reading of an absence, which is the one to refuse.
 #
-# Rows whose CALLS is `-` are skipped for the same reason: a session whose
-# PostToolUse record was incomplete cannot say whether the play was followed, so
-# it is neither followed nor ignored, and a session whose only named rows are
-# such rows prints no line.
+# A session with any row whose CALLS is `-` prints no line, whatever its other
+# rows say, for the same reason. An incomplete PostToolUse record folds every
+# row nothing reached as `-` and keeps the counts of the rows it did see, so
+# dropping the `-` rows one at a time leaves only the followed ones, and the
+# session would read as followed in full. The figure covers complete sessions.
 felix_monitor_compliance() {
   local proj="$1"
   # Split, because `local a=$1 b=$a` expands every word before it assigns any of
@@ -292,6 +293,7 @@ felix_monitor_compliance() {
   local mem="$(felix_mem_dir "$proj")"
   command -v _felix_ledger_rows >/dev/null 2>&1 || return 0
   _felix_ledger_rows "$mem" | awk -F'\t' '
+    $5 == "-" { unk[$1 SUBSEP $2] = 1 }
     NF >= 6 && $6 != "" && $5 != "-" && $6 + 0 > 0 {
       key = $1 SUBSEP $2
       if (!(key in seen)) { seen[key] = 1; order[++n] = key; sess[key] = $1; day[key] = $2 }
@@ -301,6 +303,7 @@ felix_monitor_compliance() {
     END {
       for (i = 1; i <= n; i++) {
         k = order[i]
+        if (k in unk) continue
         printf "%s\t%s\t%s\t%s\t%s\n", sess[k], day[k], named[k],
                followed[k] + 0, named[k] - (followed[k] + 0)
       }

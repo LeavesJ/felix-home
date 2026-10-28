@@ -138,7 +138,7 @@ felix_schedule_state() {
 #             inside Desktop or Documents that iCloud Drive links to
 #   clear     none, and it is not
 #   unknown   no home; or the walk could not read every directory; or none, and
-#             there is no HOME to say whether the home is synced
+#             nothing says whether the home is synced: no HOME, or iCloud Drive cannot be entered
 # Physical means every link resolved (pwd -P), so a home reached through a link
 # to ~/Documents/x is inside Documents. Desktop and Documents count only when
 # the iCloud Drive folder holds a LINK of that name to the same directory as the
@@ -148,7 +148,7 @@ felix_schedule_state() {
 # once each; the first three in C order are named.
 felix_icloud_state() {
   local h="${1:-}" nl=$'\n' tab=$'\t' hp="" scan="" rc=x names="" n=0 list="" l f="" d a b mdp
-  local c s md cdr
+  local c s md cdr x=""
   if [ -z "$h" ] || [ ! -d "$h" ]; then
     printf 'unknown\t-\tno Felix home resolved\n'; return 0
   fi
@@ -190,16 +190,20 @@ EOF
     md="$HOME/Library/Mobile Documents"; cdr="$md/com~apple~CloudDocs"
     mdp="$(cd "$md" 2>/dev/null && pwd -P)"
     if [ -n "$mdp" ]; then case "$hp" in "$mdp"/*) f="iCloud Drive" ;; esac; fi
-    if [ -z "$f" ]; then
-      for d in Documents Desktop; do
-        [ -L "$cdr/$d" ] || continue
-        a="$(cd "$cdr/$d" 2>/dev/null && pwd -P)"; b="$(cd "$HOME/$d" 2>/dev/null && pwd -P)"
-        [ -n "$a" ] && [ "$a" = "$b" ] || continue
-        case "$hp" in "$b"|"$b"/*) f="$d"; break ;; esac
-      done
-    fi
+    # Only the folder the home is in needs looking up. If iCloud Drive exists and cannot be
+    # entered (Mobile Documents, or the folder in it), the link that would say is out of reach.
+    for d in Documents Desktop; do
+      [ -z "$f" ] || break
+      b="$(cd "$HOME/$d" 2>/dev/null && pwd -P)"; [ -n "$b" ] || continue
+      case "$hp" in "$b"|"$b"/*) ;; *) continue ;; esac
+      if [ -d "$md" ] && { [ -z "$mdp" ] || { [ -d "$cdr" ] && [ -z "$(cd "$cdr" 2>/dev/null && pwd)" ]; }; }; then x=1; break; fi
+      [ -L "$cdr/$d" ] || continue
+      a="$(cd "$cdr/$d" 2>/dev/null && pwd -P)"; [ -n "$a" ] && [ "$a" = "$b" ] && f="$d"
+    done
     if [ -n "$f" ]; then
       s="the home is inside iCloud-synced $f, which renames files Felix writes; a home outside Desktop, Documents and iCloud Drive avoids it"
+    elif [ -n "$x" ]; then
+      s="whether the home is inside an iCloud-synced folder is not known: the iCloud Drive folder could not be read"
     else
       s="the home is not inside iCloud Drive or an iCloud-synced Desktop or Documents"
     fi
@@ -213,7 +217,7 @@ EOF
     printf 'value\tcopies-%s\t%s; %s\n' "$n" "$c" "$s"
   elif [ -n "$f" ]; then
     printf 'value\tsynced\t%s; %s\n' "$c" "$s"
-  elif [ -n "${HOME:-}" ]; then
+  elif [ -n "${HOME:-}" ] && [ -z "$x" ]; then
     printf 'value\tclear\t%s; %s\n' "$c" "$s"
   else
     printf 'unknown\t-\t%s; %s\n' "$c" "$s"

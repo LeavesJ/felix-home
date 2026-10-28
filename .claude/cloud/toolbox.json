@@ -3,7 +3,7 @@
     "What a Claude Code cloud session gets of the toolbox projects/felix/stack.tsv declares, and why.",
     "Read by .claude/cloud/provision. Every plugin and skill row in stack.tsv needs an entry here, and the gate's cloud check fails when one is missing, so a new stack row forces a decision about the cloud instead of silently not arriving there.",
     "Plugins never load in a cloud session, whether a user or a repository enables them (code.claude.com/docs/en/cloud-environments, 'What carries over'). What does load is this repository's .claude/skills, .claude/agents and .claude/commands, so fetch entries are carried as those: provision downloads the plugin at the sha pinned here and copies its skills, agents and commands into the clone.",
-    "The shas are the ones installed on the founder's machine (~/.claude/plugins/installed_plugins.json): 2026-09-25 for the official ones, 2026-10-12 for the five from the plugin directory, each at the commit the directory reviewed. So the cloud runs what a local session runs. Move a pin when the local install moves.",
+    "The shas are the ones installed on the founder's machine (~/.claude/plugins/installed_plugins.json): 2026-09-25 for the official ones (frontend-design 2026-10-27), 2026-10-12 for the five from the plugin directory, each at the commit the directory reviewed. So the cloud runs what a local session runs. Move a pin when the local install moves.",
     "carry: fetch = downloaded at sha and copied into .claude/; builtin = Claude Code itself ships an equivalent under the same name; claude.ai = arrives through the skills enabled on claude.ai; no = not carried, and the note says why.",
     "JSON rather than a .tsv because the engine never reads it: engine/harness/templates/schemas.tsv registers the tables the engine reads."
   ],
@@ -110,6 +110,14 @@
       "name": "service-boundary-tests-containers-contracts-and-mocks",
       "carry": "no",
       "note": "plans integration and contract tests for a service's databases, queues and outside APIs; felix-home is a bash engine with none, so a cloud session of it has no use for the skill, and the local install is unaffected"
+    },
+    {
+      "name": "frontend-design",
+      "carry": "fetch",
+      "source": "anthropics/claude-plugins-official",
+      "sha": "f8c5e7a1dcb71b10cb74586224b5401f3de5db28",
+      "subdir": "plugins/frontend-design",
+      "note": "one skill, markdown only; the stack row is declared for the frontend capability, which a cloud session building Felix's interface uses as a local one does"
     }
   ]
 }

@@ -272,6 +272,9 @@ esac
 # Through the command, with the stub cli: a mismatched cache is refilled
 # before anything is adopted, and an empty result is a stamp and no prose.
 mkdir -p "$FROOT/state/discover"
+# Not while a refresh an earlier block's hook forked can still write this cache (part 0290).
+_discover_quiesce "$FROOT" && ok "no refresh an earlier block started is still running when a block writes its cache" \
+  || bad "no refresh an earlier block started is still running when a block writes its cache" "$FROOT/state/discover/.lock is held"
 printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"
 out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" discover --adopt 2>&1)"
 has "discover --adopt refills a cache the current rules did not write" "$out" "filling the discovery cache"

@@ -1,4 +1,4 @@
-# felix status: seven rows a surface can poll, and the settings check the pulse
+# felix status: eight rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,11 +8,11 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate, land, hooks. state is value, none or unknown. value is a bare word (no
-# spaces) when state is value, and `-` otherwise; detail is never empty. A
-# consumer ignores rows it does not know. Weekly spend is not a row: felix cost
-# has its own --tsv and takes about twenty seconds, so a surface runs it on its
-# own timer.
+# gate, land, hooks, alerts. state is value, none or unknown. value is a bare
+# word (no spaces) when state is value, and `-` otherwise; detail is never
+# empty. A consumer ignores rows it does not know. Weekly spend is not a row:
+# felix cost has its own --tsv and takes about twenty seconds, so a surface
+# runs it on its own timer.
 #
 # Read-only. It writes nothing, takes no network, and never runs claude, the
 # suite, felix gate, claude mcp list or felix cost: every row reads a file, a
@@ -307,7 +307,36 @@ felix_doctor_lines() {   # PROJ ROOT GATE
   printf '%-14s%s: %s\n' 'hooks:' "$v" "$d"
 }
 
-# The seven rows for the directory <cwd> under the Felix home <home>.
+
+# The newest alert the lander tried to send off this Mac (lib/notify.sh, audit b05 B13), read from
+# the home's project's alerts.tsv alone: no gh, no git, nothing written. A started run of the
+# felix-alert workflow shows dispatched (not delivered: GitHub reports no push delivery); one the
+# repository has no workflow for yet shows no-alert-workflow, the alert not sent; a failure shows its
+# note. Any other state, an older "posted" too, is a record that cannot be read.
+_felix_status_alerts() {
+  local home="$1" p land f
+  if [ -z "$home" ] || [ ! -d "$home" ]; then
+    _felix_status_row alerts unknown - "no Felix home resolved"; return 0
+  fi
+  p="$(felix_resolve_project "$home" "$home" 2>/dev/null)" || p=""
+  if [ -z "$p" ]; then
+    _felix_status_row alerts unknown - "the home $home resolves no project, so no alert record was looked for"; return 0
+  fi
+  p="${p##*/}"; land="$(felix_mem_dir "$p")/land"; f="$land/alerts.tsv"
+  if [ ! -e "$f" ]; then _felix_status_row alerts none - "no alert has been tried for $p"; return 0; fi
+  if [ ! -f "$f" ] || [ ! -r "$f" ]; then _felix_status_row alerts unknown - "$f cannot be read"; return 0; fi
+  _felix_status_from3 alerts "$(LC_ALL=C awk -F'\t' -v p="$p" '
+    { n = NF; for (i = 1; i <= 8; i++) f[i] = $i }
+    END {
+      if (NR == 0) { print "none\t-\tno alert has been tried for " p; exit }
+      if (n != 8 || (f[2] != "dispatched" && f[2] != "no-alert-workflow" && f[2] != "failed")) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
+      w = f[1] " " f[3]; if (f[4] != "-") w = w " #" f[4]
+      if (f[2] == "failed") { print "value\tfailed\t" w " " f[7]; exit }
+      if (f[2] == "no-alert-workflow") { print "value\tno-alert-workflow\t" w ": the alert was not sent: .github/workflows/felix-alert.yml is not on the repository yet, so it waits until the founder merges it"; exit }
+      print "value\tdispatched\t" w " " f[6] }' "$f" 2>/dev/null)"
+}
+
+# The eight rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj
   _felix_status_need felix_repo_root resolve
@@ -320,6 +349,7 @@ felix_status_rows() {
   _felix_status_gate "$root" "$home" "$proj"
   _felix_status_land "$proj"
   _felix_status_hooks "$proj" "$root"
+  _felix_status_alerts "$home"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

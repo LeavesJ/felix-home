@@ -415,6 +415,8 @@ fi
 . "$HERE/parts/1680-the-lander-ages-what-waits-blind.sh"
 . "$HERE/parts/1690-status-lander-row-blind.sh"
 . "$HERE/parts/1700-hooks-and-gate-rows-blind.sh"
+. "$HERE/parts/1710-lander-serves-the-home-only-blind.sh"
+. "$HERE/parts/1720-lander-alerts-reach-github-blind.sh"
 . "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"
 . "$HERE/parts/2031-felix-on-path-without-sudo-blind.sh"
 . "$HERE/parts/2070-cloud-kit-truthfulness-blind.sh"

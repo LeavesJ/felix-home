@@ -8,6 +8,56 @@
 # lib/land*.sh trust-base glob like it, and for the same reason: it holds no
 # rule, only the order in which the existing ones are asked.
 
+# B14, B15 (audit b05, C013). The trampoline always enters the home and its tick resolves the
+# home's project, so a lander installed, paused, resumed, ticked or read for any other governed
+# checkout would be a second job that serves nothing it names, and say it did. The commands that
+# bind a lander to a project are refused from another project's checkout, before they write
+# anything. --uninstall is not one: it removes the job a checkout names, so a job installed before
+# this check can still be removed. Neither is --prs or --queue, which return before this.
+_gt_home_only() {   # COMMAND
+  local cmd="$1" hp mine; mine="$(basename "$PROJ")"
+  case "$cmd" in --tick|--pause|--resume|--install|--status) ;; *) return 0 ;; esac
+  hp="$(felix_resolve_project "$FELIX_HOME_DIR" "$FELIX_HOME_DIR" 2>/dev/null)" || hp=""
+  [ -n "$hp" ] || die "felix land $cmd: the home ($FELIX_HOME_DIR) resolves no project, and land on green lands the home's own pull requests only: this checkout's project is $mine" 1
+  [ "$hp" != "$PROJ" ] || return 0
+  die "felix land $cmd: this checkout's project is $mine and the home's project is $(basename "$hp"): land on green lands the home's own pull requests only. Run it from the home ($FELIX_HOME_DIR) or a worktree of it" 1
+}
+
+# The tick's side of lib/notify.sh (audit b05, C018). The home's origin and the project's
+# alert_login are read here, where git is allowed, and written to the land directory's alerts.repo,
+# which is all the installed trampoline reads (B11). alert_login is found by its key in the
+# project's project.json: P and its value (empty when the value is not a string) when the key is
+# there, and nothing when it is not.
+_fn_pj_login() {   # PROJECT.JSON
+  LC_ALL=C awk 'index($0, "\"alert_login\"") && !f { f = 1; v = ""; t = substr($0, index($0, "\"alert_login\"") + 13)
+      if (match(t, /^[[:space:]]*:[[:space:]]*"[^"]*"/)) { v = substr(t, RSTART, RLENGTH); sub(/^[[:space:]]*:[[:space:]]*"/, "", v); sub(/"$/, "", v) } }
+    END { if (f) print "P" v }' "$1" 2>/dev/null
+}
+_fn_write_repo() {   # alerts.repo of _FN_DIR, from _FN_REPO, _FN_LSET and _FN_LOGIN; never the origin URL's text
+  local f="$_FN_DIR/alerts.repo" t
+  mkdir -p "$_FN_DIR" 2>/dev/null; t="$f.$$"
+  { printf 'repo=%s\n' "${_FN_REPO:-none}"; [ "$_FN_LSET" != 1 ] || printf 'login=%s\n' "$_FN_LOGIN"; } 2>/dev/null > "$t" \
+    && mv -f "$t" "$f" 2>/dev/null || rm -f "$t" 2>/dev/null
+  return 0
+}
+_fn_from_home() {   # the repository to tell and the login to mention, from the home; alerts.repo rewritten
+  local u v
+  _FN_DIR="$_GT_LAND"; _FN_REPO=""; _FN_LSET=0; _FN_LOGIN=""; _FN_NOTE=""
+  u="$(git -C "$FELIX_HOME_DIR" config --get remote.origin.url 2>/dev/null)"
+  _FN_REPO="$(_fn_slug "$u")" || { _FN_REPO=""; _FN_NOTE="origin: the home's origin is not a github.com repository URL"; }
+  v="$(_fn_pj_login "$PROJ/project.json")"
+  if [ -n "$v" ]; then _FN_LSET=1; _FN_LOGIN="$(_fn_clean "${v#P}")"; fi
+  _fn_write_repo
+}
+# B1, B12. After a banner: a tick that resolved its project reads the home; one that has only the
+# trampoline's ledger directory (A22) reads that directory's alerts.repo; one with neither does nothing.
+_fn_event() {   # KIND PR DETAIL
+  [ -n "${_GT_LAND:-}" ] || return 0
+  if [ "${_GT_RESOLVED:-0}" = 1 ]; then _fn_from_home; else _fn_from_file "$_GT_LAND"; fi
+  _fn_attempt "$@"
+  return 0
+}
+
 # A22. A tick that cannot resolve its project has no ledger of its own. The
 # trampoline carries the ledger's path and exports it as FELIX_LAND_LEDGER; this is
 # the only case that reads it. The row is deduplicated as A10's are, so five
@@ -260,6 +310,7 @@ owed() {   # DETAIL [KIND]: say why nothing runs, once an hour, and stop; KIND i
     mkdir -p "$(dirname "$ledger")"
     printf '%s\t%s\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$k" "$d" >> "$ledger"
     osascript -e "display notification \"Felix land: $d\" with title \"Felix: $k\"" >/dev/null 2>&1
+    _fn_from_file "$(dirname "$ledger")"; _fn_attempt "$k" - "$d"   # B1, B11: the alert, from alerts.repo alone
   }
   echo "felix land: $d" >&2; exit 1
 }
@@ -327,16 +378,23 @@ TRAMPOLINE
 
 _gt_install() {
   local p tr plist uid="$(id -u)"
+  # C042, B18. Where felix pulse --install asks first. A cron line would bypass the trampoline's checks (A1, A31).
+  command -v launchctl >/dev/null 2>&1 \
+    || die "felix land --install: launchctl is not on PATH, so launchd cannot run the job, and land on green is decided for macOS only: nothing was written" 1
+  [ -r "$_GT_LIBDIR/notify.sh" ] || die "felix land --install: $_GT_LIBDIR/notify.sh cannot be read, so the trampoline could not carry its alert: nothing was written" 1
   p="$(basename "$PROJ")"
   tr="$HOME/Library/Application Support/felix/land/$p/tick"
   plist="$HOME/Library/LaunchAgents/felix.land.$p.plist"
   mkdir -p "$(dirname "$tr")" "$HOME/Library/LaunchAgents" "$_GT_LAND" || die "could not make the job's directories"
+  _fn_from_home   # B11: the trampoline reads the repository to tell from alerts.repo, never from git
   # FELIX_HOME is what the installed engine reads to find its home; the plist
   # names FELIX_HOME_DIR, which is the contract's word.
   {
     printf '#!/bin/bash\n# Written by felix land --install; felix land --uninstall removes it.\n'
     printf ': "${FELIX_HOME_DIR:=%s}"\nexport FELIX_HOME_DIR\nFELIX_HOME="$FELIX_HOME_DIR"; export FELIX_HOME\n' "$(_gt_sq "$FELIX_HOME_DIR")"
     printf 'ledger=%s\nFELIX_LAND_LEDGER="$ledger"; export FELIX_LAND_LEDGER\n' "$(_gt_sq "$_GT_LEDGER")"
+    printf '_FN_SECS=%s\n' "$(_fn_secs)"   # B9: the limit its install ran with
+    cat "$_GT_LIBDIR/notify.sh"            # B11: its own copy of the alert, sourcing nothing from the home or the cache
     _gt_trampoline_body
   } > "$tr" && chmod +x "$tr" || die "could not write $tr"
   {

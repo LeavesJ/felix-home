@@ -167,7 +167,7 @@ Each slide answers one question a partner asks, in the order speedrun reads them
 | # | The question | The slide's claim |
 |---|---|---|
 | 1 | What do you do? | Deterministic senior engineer for autonomous coding agents |
-| 2 | Why should anyone care? | "Your agent says it's done. Nothing has checked." Two agent reports redlined: tests that last ran on older code (135 holds) and the real deploy with no rate limiting |
+| 2 | Why should anyone care? | "Your agent says it's done. Nothing has checked." Two agent reports redlined: tests that last ran on older code (135 holds) and the real deploy with no rate limit, sold as hygiene a senior engineer adds unasked (input validation, timeouts, a way to roll back) and a coding agent doesn't add by default |
 | 3 | Why you? | "I needed it first": 87,100+ turns, BehaviorChangeBench, Elenchus, full time for spring 2027 |
 | 4 | What do you know that others don't? | Engineering is what the work is held to. The loop: need, a test by another agent, a planted bug, code decides, a miss becomes a need |
 | 5 | What's your progress? | 206 holds, 135 / 39 / 29 / 3, about 130 reruns, 31%, the hooks load in Codex in a test run |

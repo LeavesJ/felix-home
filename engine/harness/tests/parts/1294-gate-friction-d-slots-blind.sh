@@ -1,5 +1,5 @@
 # >>> gate-friction-d-slots-blind
-printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 17)\n'
+printf '\ngate friction D: slots, the slots directory, the gate and the log (blind, author 2; revision 18)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -17,6 +17,15 @@ printf '\ngate friction D: slots, the slots directory, the gate and the log (bli
 # parent's 30 s at most that much falls before the window, so T = 15 s stays at most 20 s less its largest under burners. The R6 control's T = 20 s is said to
 # guard D's build (a holder slow to take a free slot), not to be red-first. The kill -9 slot window is shown red against a slot a dead holder's mark keeps 30 s
 # only; a holder that retries every 30 s is not claimed to fail it.
+# Revision 18 (R58, R61, R62), from the contract alone. R58, the watches: "no unit while held" (hw) lasts 20 s from the first listing that shows a waiting holder
+# (was 2.5 s); R6's "still once" lasts 10 s from the line (was 3 s; its name says 10 s now); D3's "the log shows neither" lasts 20 s from the quick units' exit (was
+# 3 s). Each is a poll that ends early once it finds what it watches for, which fails the name, or once the run has ended. hw-term's 3 s after the slot is let go
+# stays: the same name's group drain and _db4_gone's look catch the holder it watches for. R61: lag.pl's waits end once the run has exited (after one more look) or
+# the case's directory is gone; djk.pl's listings end at the run's exit or with the directory; the ps control's stand-ins and the slow unit's release wait end once
+# their case directory is gone. R62: with DJX_MLOG naming a file, "1294 run CASE/LABEL bound B ms MS" for every run (gate.sh's too) and "1294 margin CASE/LABEL T
+# T-MS ms MS|none" for every margin and watch; R6's mark-to-holder is logged in that form as nt/mark-to-holder with T 5000, the most of it T = 15 s allows, and
+# the R6 control logs its free slot's mark-to-holder against its T of 20 s. R59 and R60 change nothing here: no case ends a record run with a signal or takes R1's
+# at-exit listings.
 #
 # Every case follows R12, as in 1292: TMPDIR is a fixture directory under $TMP, the copy runs under a bounded
 # runner (run.pl) that leads its own process group and starts it with INT and QUIT as the case asks and HUP and
@@ -74,45 +83,54 @@ printf '%s\n' "$p"
 DB4MS
 chmod +x "$DB4/mkstand/mktemp"
 cat > "$DB4/lag.pl" <<'DB4LAG'
-# lag.pl KEY FILE LINE MAXSEC MARKDIR: waits (at most MAXSEC s, the run's bound) for a ps listing that shows a holder of the case's run, a live perl whose command
-# line holds " --part " and KEY (what only a holder carries, R45), then for FILE to hold a line that is exactly LINE. Prints two fields: the ms from the start of that
-# listing to the line ("none" when the line did not come, "no-holder" when no holder came), then the ms from the earliest pre.done.* mark in MARKDIR (its mtime, to the
-# ms) to the start of that listing ("none" without a mark or a holder): mark-to-holder, how much of a W = 30 parent's 30 s can fall before the window (R56, evidence).
+# lag.pl KEY FILE LINE MAXSEC MARKDIR RUNPIDFILE: waits (at most MAXSEC s, the run's bound) for a ps listing that shows a holder of the case's run, a live perl whose
+# command line holds " --part " and KEY (what only a holder carries, R45), then for FILE to hold a line that is exactly LINE. Prints two fields: the ms from the start of
+# that listing to the line ("none" when the line did not come, "no-holder" when no holder came; "-" when FILE is -, which waits for no line), then the ms from the
+# earliest pre.done.* mark in MARKDIR (its mtime, to the ms) to the start of that listing ("none" without a mark or a holder): mark-to-holder, how much of a W = 30
+# parent's 30 s can fall before the window (R56, evidence). R61: both waits are for events only the running run makes, so each ends once the run (the pid in
+# RUNPIDFILE, once it is there) has exited, after one more look, and once MARKDIR, the case's directory, is gone
 use Time::HiRes qw(time sleep stat);
-my ($k, $f, $l, $m, $d) = @ARGV;
-my $end = time + $m; my $t0;
+my ($k, $f, $l, $m, $d, $pf) = @ARGV;
+my $end = time + $m; my $t0; my $rp = 0;
 sub m2h { my $e; if (opendir(my $h, $d)) { for (readdir $h) { next unless /^pre\.done\./; my @s = stat("$d/$_"); $e = $s[9] if @s && (!defined $e || $s[9] < $e) } closedir $h }
   (defined $e && defined $t0) ? sprintf("%d", ($t0 - $e) * 1000) : "none" }
-while (time < $end) {
-  my $t = time;
+sub gone { if (!$rp && open(my $h, "<", $pf)) { ($rp) = (<$h> // "") =~ /(\d+)/; $rp ||= 0; close $h } $rp && !kill(0, $rp) }
+sub over { my $g = shift; $g || time >= $end || !-d $d }
+while (1) {
+  my $g = gone(); my $t = time;   # the run seen gone before this look: the look is the last one
   for (split /\n/, `ps -A -ww -o stat= -o command= 2>/dev/null`) {
     next unless /^\s*(\S+)\s+(\S+)(.*)$/; my ($s, $c, $r) = ($1, $2, $3); next if $s =~ /^Z/;   # copied: a match that succeeds resets $1 to $3
     if ($c =~ /perl/ && index("$c$r", " --part ") >= 0 && index("$c$r", $k) >= 0) { $t0 = $t; last }
   }
-  last if defined $t0; sleep 0.1;
+  last if defined $t0 || over($g); sleep 0.1;
 }
 defined $t0 or do { print "no-holder none\n"; exit 0 };
-while (time < $end) {
+$f eq "-" and do { printf "- %s\n", m2h(); exit 0 };
+while (1) {
+  my $g = gone();
   if (open(my $h, "<", $f)) { while (<$h>) { chomp; if ($_ eq $l) { printf "%d %s\n", (time - $t0) * 1000, m2h(); exit 0 } } close $h }
-  sleep 0.02;
+  last if over($g); sleep 0.02;
 }
 printf "none %s\n", m2h();
 DB4LAG
 cat > "$DB4/djk.pl" <<'DB4DJK'
-# djk.pl KILLPID MAXMS KEY: kills KILLPID with KILL, takes the time T0, then takes ps listings until one shows a live unit process (a --part process whose command
-# line holds KEY, not perl, not a zombie) or MAXMS ms have passed. Prints "seen MS" (MS: from T0 to the start of that listing) or "none MS".
+# djk.pl KILLPID MAXMS KEY RUNPID: kills KILLPID with KILL, takes the time T0, then takes ps listings until one shows a live unit process (a --part process whose
+# command line holds KEY, not perl, not a zombie) or MAXMS ms have passed. Prints "seen MS" (MS: from T0 to the start of that listing) or "none MS". R61: the unit
+# is an event only the running run makes, so the listings also end once RUNPID has exited, after one more listing
 use Time::HiRes qw(time sleep);
-my ($kp, $max, $key) = @ARGV;
+my ($kp, $max, $key, $rp) = @ARGV;
+$kp > 1 or exit 2;   # never a signal to a process group
 kill "KILL", $kp;
-my $t0 = time;
+my $t0 = time; my $last = 0;
 while (1) {
+  $last = 1 if $rp && !kill(0, $rp);
   my $t = time;
   for my $l (split /\n/, `ps -A -ww -o pid= -o stat= -o command= 2>/dev/null`) {
     next unless $l =~ /^\s*(\d+)\s+(\S+)\s+(\S+)(.*)$/;
     next if $2 =~ /^Z/ || $1 == $$ || $3 =~ /perl/;
     printf "seen %d\n", ($t - $t0) * 1000 and exit 0 if index($l, $key) >= 0 && index($l, " --part ") >= 0;
   }
-  if (($t - $t0) * 1000 > $max) { printf "none %d\n", (time - $t0) * 1000; exit 0 }
+  if (($t - $t0) * 1000 > $max || $last) { printf "none %d\n", (time - $t0) * 1000; exit 0 }
   sleep 0.05;
 }
 DB4DJK
@@ -122,6 +140,24 @@ _db4_pfx() { LC_ALL=C awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0
 _db4_wn()  { LC_ALL=C awk '/^  note  [^ ]+ waited [0123456789]+ s for a slot$/ { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # FILE: R7's wait notes
 _db4_tn()  { LC_ALL=C awk '/^  note  [0123456789]+ assertion\(s\) ran that the manifest does not list\.$/ { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # the tail's note
 _db4_ms()  { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
+# R62: with DJX_MLOG naming a file, a line of evidence (never a verdict); _db4_now is the ms only when there is a log to write
+_db4_ml()  { [ -z "${DJX_MLOG:-}" ] || printf '1294 %s\n' "$*" >> "$DJX_MLOG"; }
+_db4_now() { [ -z "${DJX_MLOG:-}" ] || _db4_ms; }
+_db4_since() { [ -n "$1" ] && echo $(( $(_db4_ms) - $1 )) || echo none; }   # T0: the ms since T0, or none without a log
+# V: a time lag.pl gave, for the log: V when it is a whole number of ms, 0 when it is below 0 (the listing that showed the holder began before the mark), else none
+_db4_msv() { if [ "$1" -ge 0 ] 2>/dev/null; then echo "$1"; elif [ "$1" -lt 0 ] 2>/dev/null; then echo 0; else echo none; fi; }
+# R58, a watch: SECS LABEL PRED...: looks every 0.2 s, for SECS s at least (by $SECONDS), for what PRED finds (only a build without the clause makes it), and ends
+# early once PRED holds, which fails the name, or once the run has ended (R61), after one more look. 1 when PRED held; logs "margin CASE/LABEL T SECS ms none" (R62),
+# or the ms from the watch's start to the find
+_db4_watch() {
+  local n="$1" l="$2" s="$SECONDS" t r=0; shift 2; t="$(_db4_now)"
+  while [ $((SECONDS - s)) -le "$n" ]; do "$@" && { r=1; break; }; kill -0 "$_db4_bg" 2>/dev/null || break; sleep 0.2; done
+  [ "$r" = 1 ] || ! "$@" || r=1
+  _db4_ml margin "${_db4_c##*/}/$l" T "${n}000" ms "$([ "$r" = 1 ] && _db4_since "$t" || echo none)"
+  [ "$r" = 0 ]
+}
+# sl.pl DIR SECONDS TAG...: R61's sleeper: it sleeps SECONDS, or until DIR, its case's directory, is gone, looked for once a second
+printf '%s\n' 'my ($d, $s) = @ARGV; my $e = time + $s; sleep 1 while time < $e && -d $d;' > "$DB4/sl.pl"
 _db4_cores() { local n; n="$(sysctl -n hw.ncpu 2>/dev/null)"; case "$n" in ''|*[!0123456789]*) n="$(getconf _NPROCESSORS_ONLN 2>/dev/null)" ;; esac
   case "$n" in ''|*[!0123456789]*) n=1 ;; esac; [ "$n" -ge 1 ] || n=1; [ "$n" -le 64 ] || n=64; printf '%s' "$n"; }
 # The gate's N (R51): sysctl's performance-core count when it answers with digits only and at least 1; else the core count (_db4_cores: hw.ncpu, then getconf, then 1); held to 1 to 64.
@@ -148,7 +184,7 @@ _db4_new() {
 # empty), _db4_E added to its environment; its pid file is $_db4_c/LABEL.pid (the run's group), its output LABEL.out and LABEL.err
 _db4_go() {
   _db4_lab="$1"; shift
-  local e p="$DB4/mkstand:"; local -a k pe; k=(); pe=()
+  local e p="$DB4/mkstand:" t; local -a k pe; k=(); pe=(); t="$(_db4_now)"
   [ "$_db4_nomk" != 1 ] || p=""
   [ -z "$p" ] || pe[0]="PATH=$p$PATH"
   for e in ${_db4_E[@]+"${_db4_E[@]}"}; do case "$e" in PATH=*) e="PATH=$p${e#PATH=}" ;; esac; k[${#k[@]}]="$e"; done   # a case's own PATH keeps the stand-in first
@@ -159,6 +195,12 @@ _db4_go() {
       "$BASH" "$_db4_T/run" "$@" ) > "$_db4_c/$_db4_lab.out" 2> "$_db4_c/$_db4_lab.err" &
   _db4_bg=$!
   _db4_dl=$((SECONDS + _db4_lim + 5))   # R56: the run's own bound (run.pl's KILL at _db4_lim) and 5 s more; a wait for an event of the run lasts until then
+  [ -z "$t" ] || printf '%s %s %s\n' "${_db4_c##*/}/$_db4_lab" "$_db4_lim" "$t" > "$DB4/t0.$_db4_bg"   # R62: CASE/LABEL, B and the start, for the run line
+}
+_db4_mr() {   # BGPID: R62's line for the run that job was, once the case has reaped it: "1294 run CASE/LABEL bound B ms START-TO-EXIT"
+  local f="$DB4/t0.$1" c b t
+  [ -n "${DJX_MLOG:-}" ] && [ -f "$f" ] || return 0
+  read -r c b t < "$f"; rm -f "$f"; _db4_ml run "$c" bound "$b" ms "$(_db4_since "$t")"
 }
 # R56: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's bound has passed (_db4_dl); a bound, never a margin: 0 when it held, else 1
 _db4_evt() {
@@ -176,7 +218,7 @@ _db4_grp() {
   [ -z "$l" ] || _db4_leak="$_db4_leak left in the run's group: $(printf '%s' "$l" | tr '\n' ' ')"
   for p in $(printf '%s\n' "$l" | sed 's/:.*//'); do kill -CONT "$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; done
 }
-_db4_wait0() { { wait "$_db4_bg"; } 2>/dev/null; _db4_rc=$?; }
+_db4_wait0() { { wait "$_db4_bg"; } 2>/dev/null; _db4_rc=$?; _db4_mr "$_db4_bg"; }
 _db4_fin() { _db4_grp "$(_db4_pid "$_db4_lab")"; _db4_E=(); _db4_I=DEFAULT; _db4_Q=DEFAULT; _db4_lim=600; _db4_S=8; _db4_nomk=0; }
 _db4_wait() { _db4_wait0; _db4_fin; }
 # LABEL SIGNAL: SIGNAL to the driver, then a wait for it to end that lasts until the run's bound has passed, at least 45 s (R56: a bound; was 45 s, a fixed wait shorter
@@ -245,12 +287,13 @@ _db4_pre()   { local f; for f in "$_db4_T"/parts/0006-*.sh; do printf '\n: > "%s
 _db4_pre_up() { ls "$_db4_c"/pre.done.* >/dev/null 2>&1; }
 # "ok", or what an interrupted run left behind: LABEL STATUS (the slot files keep their names and inodes when _db4_ino0 was taken)
 _db4_gone() {
-  local l="$1" r="" g; g="$(_db4_pid "$l")"
+  local l="$1" r="" g t; g="$(_db4_pid "$l")"
   [ "$_db4_rc" = "$2" ] || r="$r exit $_db4_rc, not $2;"
   [ "$(_db4_cnt "$_db4_c/$l.out" reached)" = 0 ] || r="$r reached was printed;"
   # R56, a margin: once the parent has exited, what it ended has only to act on the KILL it was sent (no fork), floor 10 s (was 5 s); L is a leftover's own
-  # end, B + 30 s for the holds and units these cases plant
-  _db4_until 50 _db4_clear "$g" || r="$r still running: $(_db4_ps "$g");"
+  # end, B + 30 s for the holds and units these cases plant. R62: logged as "margin CASE/gone T 10000", 10 s being its least length
+  t="$(_db4_now)"; if _db4_until 50 _db4_clear "$g"; then _db4_ml margin "${_db4_c##*/}/gone" T 10000 ms "$(_db4_since "$t")"
+  else r="$r still running: $(_db4_ps "$g");"; _db4_ml margin "${_db4_c##*/}/gone" T 10000 ms none; fi
   [ -z "$(_db4_held "$_db4_tmp")" ] || r="$r a slot is still held;"
   [ -z "$_db4_ino0" ] || [ "$(_db4_inos "$_db4_tmp")" = "$_db4_ino0" ] || r="$r the slot files changed: [$_db4_ino0] became [$(_db4_inos "$_db4_tmp")];"
   [ "$(_db4_rcpt)" = absent ] || r="$r a receipt was left;"
@@ -284,11 +327,12 @@ _db4_go c -j 2; _db4_wait
 _db4_is "D6: four quick parts pass under -j 2: exit 0, a receipt, and the last part ran (positive control)" "$_db4_rc $_db4_ctl" "0 1"
 rm -rf "$DB4/n/ctl"
 _db4_sel snapctl; mkdir -p "$_db4_c"; mkfifo "$_db4_c/ff" 2>/dev/null
-# R56: the three stand-ins live B + 30 s (a hold's own end) and are killed by pid below; the wait for them is a bound, the run bound
-printf 'exec 3<> "$1"; read -t %s -u 3 _x\n' "$((_db4_lim + 30))" > "$_db4_c/unit.sh"
-bash "$_db4_c/unit.sh" "$_db4_c/ff" --part 0010-x.sh & _db4_p1=$!
-bash "$_db4_c/unit.sh" "$_db4_c/ff" --part 0020-y.sh & _db4_p2=$!
-perl -e 'sleep $ARGV[0]' "$((_db4_lim + 30))" "$_db4_c/unit.sh" --part 0030-z.sh & _db4_p3=$!
+# R56: the three stand-ins live B + 30 s (a hold's own end) and are killed by pid below; the wait for them is a bound, the run bound. R61: each also ends once the
+# case's directory is gone (the bash ones read their FIFO a second at a time)
+printf 'exec 3<> "$1"; _i=0; while [ -d "$2" ] && [ "$_i" -lt %s ]; do read -t 1 -u 3 _x; _i=$((_i + 1)); done\n' "$((_db4_lim + 30))" > "$_db4_c/unit.sh"
+bash "$_db4_c/unit.sh" "$_db4_c/ff" "$_db4_c" --part 0010-x.sh & _db4_p1=$!
+bash "$_db4_c/unit.sh" "$_db4_c/ff" "$_db4_c" --part 0020-y.sh & _db4_p2=$!
+perl "$DB4/sl.pl" "$_db4_c" "$((_db4_lim + 30))" "$_db4_c/unit.sh" --part 0030-z.sh & _db4_p3=$!
 _db4_four() { [ "$(_db4_snap "$(_db4_key)")" = 2 ]; }
 _db4_until $((_db4_lim * 5)) _db4_four
 _db4_x="$(_db4_snap "$(_db4_key)") $(set -- $(_db4_units); echo $#)"
@@ -305,13 +349,17 @@ _db4_hw() {   # CASE MODE: MODE term sends TERM to the parent, MODE free kills m
   _db4_pre; _db4_hold "$_db4_tmp/felix-suite-slots/0"; _db4_ino0="$(_db4_inos "$_db4_tmp")"; n0="$_db4_ino0"
   _db4_S=1; _db4_go h -j 2
   _db4_evt _db4_pre_up || r=" the parent's prelude never ended;"
-  # R56: the watch for a unit while the slot is held starts once a holder waits (it was 2.5 s from the prelude's mark, before any holder might be up); a watch can
-  # fail no build that has the clause, and is read as R56's floor, a time the pass must reach
+  # R58, a watch: 20 s (was 2.5 s) from the first listing that shows a waiting holder, the event after which a holder that starts its unit without the slot's lock
+  # (D6's flock) would act. That build forks and execs the unit inside it, so its floor is 20 s. It looks every 0.2 s for a unit process or a unit's started file
+  # and ends at the first, which fails the name; on D's build it waits its whole 20 s. No other check of either name catches that build: TERM can end its unit
+  # before it writes its file, and in the free case a unit that came early still lets the run pass
   _db4_evt _db4_hup || r="$r no holder waited for the slot;"
-  sleep 2.5
-  [ -z "$(_db4_started)$(_db4_units)" ] || r="$r a unit ran while the slot was held elsewhere ($(_db4_started)$(_db4_units));"
+  _db4_ran() { [ -n "$(_db4_started)$(_db4_units)" ]; }
+  _db4_watch 20 held _db4_ran || r="$r a unit ran while the slot was held elsewhere ($(_db4_started)$(_db4_units));"
   if [ "$m" = term ]; then
-    _db4_stop h TERM; r="$r$_db4_late"; _db4_unhold; sleep 3   # a watch (R56's floor): a holder left behind is named at once by _db4_gone's look, whatever this gives it
+    # 3 s: a watch for a holder left behind that takes the freed slot. R58 lets it stay short: that holder is still there after the parent's exit, so the same name's
+    # group drain (_db4_fin, 30 s with the slot still held, whose finding _db4_is adds to the name) and _db4_gone's look for any process of the copy catch it
+    _db4_stop h TERM; r="$r$_db4_late"; _db4_unhold; sleep 3; _db4_ml margin "$c/freed" T 3000 ms none
     g="$(_db4_gone h 143)"; [ "$g" = ok ] || r="$r$g"
     [ -z "$(_db4_started)" ] || r="$r a unit started after the parent had exited ($(_db4_started));"
     [ -z "$(_db4_units)" ] || r="$r a unit process ran after the parent had exited;"
@@ -321,7 +369,8 @@ _db4_hw() {   # CASE MODE: MODE term sends TERM to the parent, MODE free kills m
     # 30 s, where D6 has a lock the kernel frees at the death), whose unit comes 30 s or more after the kill: T = L - 10 s. The name is shown red against that build
     # alone. A holder that retries its slot only every 30 s is not claimed to fail it: its next try comes 30 s after its last, and load sets how far into that wait
     # the kill comes, so the try can fall inside T. Was 2 s, D8's figure, below the floor
-    t0="$(perl "$DB4/djk.pl" "$_db4_hp" 20000 "$(_db4_key)")"; { wait "$_db4_hp"; } 2>/dev/null; _db4_hp=0
+    t0="$(perl "$DB4/djk.pl" "$_db4_hp" 20000 "$(_db4_key)" "$(_db4_pid h)")"; { wait "$_db4_hp"; } 2>/dev/null; _db4_hp=0
+    _db4_ml margin "$c/kill9" T 20000 ms "$([ "${t0%% *}" = seen ] && echo "${t0#seen }" || echo none)"
     case "$t0" in
       seen*) [ "${t0#seen }" -lt 20000 ] || r="$r the unit appeared ${t0#seen } ms after the kill -9, timed in the perl that took the listing;" ;;
       *) r="$r no unit process within 20 s of the kill -9 ($t0);" ;;
@@ -523,20 +572,27 @@ _db4_ln() { [ "$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")" -ge 1 ]; }
 # ms from that mark to the start of the holder's first listing, lag.pl's second field) falls before the window, so L = 30 s less mark-to-holder, and T stays at most
 # 20 s less it: T = 15 s holds while mark-to-holder is 5 s or less. With DJX_MLOG naming a file the case logs both fields; the evidence under burners (R57) gives the
 # largest mark-to-holder, and T stays at most 20 s less that. Revision 17 first counted it from the mark itself (5 s before), which left the parent's sourcing of
-# 0007 and its set-up (forks) inside the window. lag.pl's own wait is the run bound
-_db4_lagv="$(perl "$DB4/lag.pl" "$(_db4_key)" "$_db4_c/n.err" "$_db4_nl" "$_db4_lim" "$_db4_c")"
-[ -z "${DJX_MLOG:-}" ] || printf '%s holder-to-line %s mark-to-holder %s\n' "${_db4_c##*/}" "${_db4_lagv%% *}" "${_db4_lagv#* }" >> "$DJX_MLOG"   # evidence only
-_db4_evt _db4_ln; _db4_x="$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")"; sleep 3   # a watch (R56's floor): a parent that printed the line on every tick would print it again 2 s later
+# 0007 and its set-up (forks) inside the window. lag.pl's own wait is the run bound, and ends at the run's exit (R61). R62: the window is logged as nt/line, T 15000,
+# and mark-to-holder as nt/mark-to-holder with T 5000, the most of it that T = 15 s allows (L - 10 s at least 15 s): its evidence decides this T
+_db4_lagv="$(perl "$DB4/lag.pl" "$(_db4_key)" "$_db4_c/n.err" "$_db4_nl" "$_db4_lim" "$_db4_c" "$_db4_c/n.pid")"
+_db4_ml margin nt/line T 15000 ms "$(_db4_msv "${_db4_lagv%% *}")"; _db4_ml margin nt/mark-to-holder T 5000 ms "$(_db4_msv "${_db4_lagv#* }")"
+# R58, a watch: 10 s (was 3 s) from the line, the event after which a parent that printed it on every tick (R6's "once" missing) would print it again, at its next
+# tick 2 s later. That parent only acts on its read's timeout and prints, with no fork, so the floor is 10 s. It ends early once a second line is there
+_db4_twice() { [ "$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")" -ge 2 ]; }
+_db4_evt _db4_ln; _db4_x="$(_db4_cnt "$_db4_c/n.err" "$_db4_nl")"; _db4_watch 10 again _db4_twice
 _db4_x="$_db4_x $(_db4_cnt "$_db4_c/n.err" "$_db4_nl") [$(_db4_started)] $(_db4_alive "$_db4_hp" && echo held || echo gone)"
 _db4_unhold; _db4_wait; _db4_x="$_db4_x $_db4_rc $(_db4_cnt "$_db4_c/n.err" "$_db4_nl") $(_db4_rcpt)"
-_db4_is "R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 3 s later), nothing has started, and the run passes once the slot is let go" "$_db4_x" "1 1 [] held 0 1 present"
+_db4_is "R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 10 s later), nothing has started, and the run passes once the slot is let go" "$_db4_x" "1 1 [] held 0 1 present"
 _db4_is "R6: the line comes within 15 s of the first ps listing that shows the waiting unit's holder, T being 2, timed in a perl that waits for that holder: a read that waited 30 s would print it 30 s after the unit's wrapper started" "$([ "${_db4_lagv%% *}" -lt 15000 ] 2>/dev/null && echo in-time || echo "after [${_db4_lagv%% *}] ms, mark to holder [${_db4_lagv#* }] ms")" in-time
 _db4_td=""; rm -rf "$DB4/n/nt" "$DB4/td-nt"
 # R56, a margin of a control. The name is a control: it passes before D is built, and no red-first list holds it. Its T guards D's build, not a build without a
 # clause: with the slot free D's holder must take it (a fork and an exec of perl, then its first try) before the parent's T, or D's parent prints the line too.
-# A window with a fork in it has R56's floor, so T is 20 s (was 10 s)
-_db4_q nu; _db4_new nu "$DB4/g-empty.tsv" + "$DB4/pp/nu"/0010-qa.sh
-_db4_E=(FELIX_TEST_SLOT_NOTE=20); _db4_go n -j 2; _db4_wait
+# A window with a fork in it has R56's floor, so T is 20 s (was 10 s). R62: it is logged as nu/free-slot, T 20000, with what was measured the ms from the mark at
+# the end of 0006 (planted for this) to the first listing that shows the holder, which bounds from above the time from its wrapper's start to its slot
+_db4_q nu; _db4_new nu "$DB4/g-empty.tsv" + "$DB4/pp/nu"/0010-qa.sh; _db4_pre
+_db4_E=(FELIX_TEST_SLOT_NOTE=20); _db4_go n -j 2
+_db4_x=none; [ -z "${DJX_MLOG:-}" ] || _db4_x="$(perl "$DB4/lag.pl" "$(_db4_key)" - - "$_db4_lim" "$_db4_c" "$_db4_c/n.pid")"
+_db4_ml margin nu/free-slot T 20000 ms "$(_db4_msv "${_db4_x#* }")"; _db4_wait
 _db4_is "R6: with the slot free there is no such line, and the run passes (control)" "$_db4_rc $(grep -c 'has waited' "$_db4_c/n.err")" "0 0"
 rm -rf "$DB4/n/nu"
 
@@ -586,12 +642,13 @@ DB4SH
   ( _fx_cd "${DGC:?}" && git init -q -b main && git add -A && git -c user.name=djy -c user.email=djy@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm fixture ) >/dev/null 2>&1
 fi
 _db4_gate() {   # LABEL NAME=value...: gate.sh in the fixture; its output is $DG/out/LABEL.out, its status _db4_grc; what its group left is in LABEL.leak
-  local l="$1"; shift
-  rm -f "$DG/out/$l.args" "$DG/out/$l.jobs"
+  local l="$1" t; shift
+  rm -f "$DG/out/$l.args" "$DG/out/$l.jobs"; t="$(_db4_now)"
   ( cd "${DGC:?}" && exec env -u GITHUB_ACTIONS -u FELIX_TEST_JOBS -u FELIX_TEST_NO_MANIFEST -u DJ4_EXIT2 -u DJ4_sysctl -u DJ4_getconf -u DJ4_sysctl_perf -u DJ4_sysctl_ncpu HOME="$DG/home" \
       FELIX_KERNEL_CACHE="$DG/nocache" TMPDIR="$DG/tmp" PATH="$DG/shim:$PATH" DJ4_OUT="$DG/out" DJ4_L="$l" ${1+"$@"} \
       perl "$DB4/run.pl" "$_db4_lim" DEFAULT DEFAULT "$DG/out/$l.pid" bash projects/felix/gate.sh ) > "$DG/out/$l.out" 2>&1
-  _db4_grc=$?; _db4_leak=""; _db4_grp "$(cat "$DG/out/$l.pid" 2>/dev/null)"; printf '%s' "$_db4_leak" > "$DG/out/$l.leak"; _db4_leak=""
+  _db4_grc=$?; [ -z "$t" ] || _db4_ml run "gate/$l" bound "$_db4_lim" ms "$(_db4_since "$t")"   # R62
+  _db4_leak=""; _db4_grp "$(cat "$DG/out/$l.pid" 2>/dev/null)"; printf '%s' "$_db4_leak" > "$DG/out/$l.leak"; _db4_leak=""
 }
 _db4_gj() { sed -n 1p "$DG/out/$1.jobs" 2>/dev/null; }
 _db4_ga() { sed -n 1p "$DG/out/$1.args" 2>/dev/null; }
@@ -751,10 +808,10 @@ rm -rf "$DB4/n/rk"
 # ---- the log is printed in the driver's order, once a unit and every unit before it have ended (D3)
 # R56: the slow unit's hold on release.a lives B + 30 s (3150 polls of at least 0.2 s; was 400, 80 s), the case's waits for the units' files are bounds that last
 # until the run's bound, and the watch (R56's floor: a parent that printed each unit's log as it ended would print these two once they have gone) starts once the
-# two quick units have no process left, not when they write their files, before their ends
+# two quick units have no process left, not when they write their files, before their ends. R61: the hold also ends once the case's directory is gone
 _db4_w ord 0010-ea.sh <<'X'
 : > "$DJ4D/up.$DJ4N"
-_i=0; until [ -e "$DJ4D/release.a" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ4D/release.a" ] || [ ! -d "$DJ4D" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ4N"
 X
 for _db4_a in 0020-eb.sh 0030-ec.sh; do _db4_w ord "$_db4_a" <<'X'
@@ -765,7 +822,11 @@ done
 _db4_new ord "$DB4/g-empty.tsv" + "$DB4/pp/ord"/*.sh
 _db4_go o -j 3
 _db4_noq() { [ -z "$(_db4_unitn 0020-eb.sh)$(_db4_unitn 0030-ec.sh)" ]; }
-_db4_evt test -e "$_db4_c/up.0010-ea.sh"; _db4_evt test -e "$_db4_c/done.0030-ec.sh"; _db4_evt test -e "$_db4_c/done.0020-eb.sh"; _db4_evt _db4_noq; sleep 3
+# R58, a watch: 20 s (was 3 s) from the quick units' exit, the event after which a parent that printed each unit's log as it ended (D3's order missing) would act:
+# the holder's exit, the wrapper's line, the parent's read, and the printing of the log, which forks, so the floor is 20 s. This name rests on it alone. It ends
+# early once either section is in the log, which fails the name
+_db4_sect() { [ "$(_db4_cnt "$_db4_c/o.out" 'djy-sec 0020-eb.sh')$(_db4_cnt "$_db4_c/o.out" 'djy-sec 0030-ec.sh')" != 00 ]; }
+_db4_evt test -e "$_db4_c/up.0010-ea.sh"; _db4_evt test -e "$_db4_c/done.0030-ec.sh"; _db4_evt test -e "$_db4_c/done.0020-eb.sh"; _db4_evt _db4_noq; _db4_watch 20 log _db4_sect
 _db4_x="$(_db4_cnt "$_db4_c/o.out" 'djy-sec 0020-eb.sh') $(_db4_cnt "$_db4_c/o.out" 'djy-sec 0030-ec.sh')"; _db4_y="$([ -e "$_db4_c/done.0030-ec.sh" ] && echo ended-first || echo not-ended)"
 : > "$_db4_c/release.a"; _db4_wait
 _db4_is "D3: the two units after a slow first one end before it, and the log shows neither of them until the first has ended" "$_db4_y $_db4_x" "ended-first 0 0"

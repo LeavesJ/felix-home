@@ -1,0 +1,95 @@
+# Audit wave 2: what combining the batches changed, contract, 2026-10-28
+
+Wave 2 of the 2026-10-24 audit fixes is one branch, `claude/audit-wave-2`. It takes wave 1's gated
+tip (`claude/audit-wave-1`, 0.49.308) and the batches whose finals went green after it. This file is
+the contract for what their combination needs. Where it differs from `wave-1-combine.md` or a batch's
+contract in this folder, it wins. Clauses there are cited as "wave-1 C1" and "b05 B8".
+
+The words are wave-1-combine.md's: **H**, **hp**, **p**, **Ld** (p's land directory, holding
+`ledger.tsv` and `alerts.tsv`), **an attempt**, **a record** and **the R2 sentences**.
+
+## 1. Defects found by review of wave 1 (all low)
+
+None is live until the founder merges `.github/workflows/felix-alert.yml`: until then every attempt
+records `no-alert-workflow`, and b05 B8 skips nothing.
+
+**L1. With two or more events that alternate, each is sent again.** b05 B8 compares an event with the
+newest `dispatched` record of any kind. A tick that writes `waiting` rows for #1 and #2 dispatches
+both. The next day's rows for the same two pull requests and details are each compared with the
+other's record, so both are sent again, every day. The same happens to the hourly `paused` row
+whenever any other event was dispatched since the pause was said.
+
+**L2. A pause after a resume, for the same reason, is not said.** `felix land --pause R`, then
+`--resume`, then `--pause R` again: the second pause's attempt finds the first one's `dispatched`
+record with detail `R` and is skipped. The phone was told of a pause, never of the resume (wave-1 C2),
+and is not told the lander stopped again.
+
+**L3. Part 1720 no longer has a tick meet a hanging or failing gh.** Wave-1 C1 moved the paused event
+to the `--pause`, and part 1720's restated A26 and A27 now meet the hang and the failure in the
+`--pause` alone. B9's bound and B10's "landing is unchanged" are no longer checked inside a tick.
+
+**L4. Part 1720's A31 says a tick rewrote `alerts.repo`.** Since wave-1 C1 it is the `--pause`'s
+attempt that does. Its comment, its name and the fixture control before it still say the tick.
+
+## 2. Required behaviour
+
+- **D1. B8 compares an event with its own last record.** This amends b05 B8 and R4.
+  - An event is a repeat when the newest record in `alerts.tsv` whose kind (field 3) and pull request
+    (field 4) equal the event's is `dispatched` and its detail (field 8) equals the event's detail.
+  - A repeat runs no gh call and appends no record. Anything else is attempted.
+  - Records of other kinds or other pull requests do not count, whatever their state or age.
+  - A newest same-kind, same-pull-request record that is `failed` or `no-alert-workflow` means the
+    event is attempted again when it is raised again (R4), as before.
+  - R4's line 4 is unchanged. N still counts every `no-alert-workflow` and `failed` record after the
+    newest `dispatched` record of any kind (all of them when there is none).
+- **D2. A resume ends the pause it resumed.**
+  - For kind `paused` only, a record that would make the event a repeat under D1 does not when the
+    ledger holds a `resumed` row whose time (field 1) is at or after that record's time (field 1).
+  - So `--pause R`, `--resume`, `--pause R` dispatches twice. A tick's hourly `paused` row for the
+    same reason after the second pause's dispatch is a repeat again.
+  - A pause the tick sets itself (`_gt_pause`) and a person's resume of it follow the same rule.
+  - Times have one-second resolution. When a resume and a dispatch share a second, the event counts
+    as ended, so the error is one extra alert, never a silent pause.
+  - Nothing is written to `alerts.tsv` for a resume (wave-1 C2 stands).
+- **D3.** The trampoline carries `lib/notify.sh` whole (b05 B11), so D1 and D2 reach its attempts
+  (`deploy-owed`, `unreadable`) with no copy to keep in step.
+
+## 3. What must not change
+
+- Every b05 B1-B11 and R1-R8 clause except B8's comparison and R4's sentence about it: the calls and
+  their order, the standing issue, the enumerated body, `GH_*` handling, the bound, the folding.
+- Wave-1 C1-C8 and their pins in parts 2120 and 1720, b02's 1650, 1660 and 1665, b04's 1690, b03's
+  1670 and 1680, b05's 1710, and part 1100.
+- The ledger, the banners and `felix status`'s alerts row, for any sequence of events (b05 B10, R5).
+
+## 4. The assertions
+
+New assertions go in a new part, `2140-wave-2-combine-blind.sh`, written from this contract alone. It
+may use the suite's helpers, the fixtures in `tests/lib/land-on-green.sh`, and fixture patterns from
+parts 1710, 1720 and 2120. Each name starts `W2C`. Red first. At least these cases:
+- **For D1:**
+  - A tick that writes `waiting` rows for two pull requests dispatches each once. With those rows
+    moved 25 hours back, the next tick writes them again with the same details and dispatches neither.
+  - `--pause R` dispatched, then another kind's event dispatched (a `waiting` row will do), then the
+    ledger aged past the hour and a tick: the hourly `paused` row is a repeat, so no gh call.
+  - A control: an event whose newest same-kind record is `no-alert-workflow` is attempted again.
+- **For D2:**
+  - `--pause R`, `--resume`, `--pause R`: two `workflow run` calls and two `dispatched` records with
+    field 8 `R`. A tick with the ledger then aged past the hour sends nothing more.
+  - Aging the ledger moves a `resumed` row's time too. A case that needs the resume to count must not
+    age the ledger between the resume and the pause it ends.
+
+Part 1720 is restated, keeping each A-number and saying in its name that it was restated for this
+file:
+- **A26 (L3).** After the slow `--pause` meets the hang, the ledger is aged past the hour and a slow
+  `--tick` runs. The tick's hourly `paused` row is attempted again (its newest record is `failed`,
+  D1), meets the hang, and is ended within B9's bound. The hung gh is gone, and two `failed` records
+  both say timed out.
+- **A27 (L3).** Each of its three scenarios ages the ledger past the hour before its `--tick`, so the
+  tick's attempt meets a local origin, a failing `gh api user` or a hanging dispatch. The ledger fields
+  2-7 are the same in all three: the `--pause`'s row ending `; by session -` and the tick's hourly
+  row. Exit 0 throughout.
+- **A31 (L4).** The comment, the name and the fixture control say that the `--pause`'s attempt, with
+  a local origin, rewrote `alerts.repo`. What it checks is unchanged.
+- Any other assertion in parts 1710, 1720 or 2120 that pins B8's old comparison (an event compared
+  with another kind's or pull request's newest record) is restated for D1 the same way.

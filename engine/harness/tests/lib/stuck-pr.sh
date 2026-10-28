@@ -216,11 +216,11 @@ _sp_build() {   # the fixture into $TMP/stuck-pr and its first ledger; already t
 SP='@SP@'; K="$SP/ctl"
 printf '%s\n' "$*" >> "$SP/log/gh.log"
 printf '%s\t%s\t%s\n' "${XDG_STATE_HOME-unset}" "${XDG_CACHE_HOME-unset}" "${GH_CONFIG_DIR-unset}" >> "$SP/log/gh.env"
-jqx=""; repo=""; prev=""; bill=0; user=0; dflt=""
+jqx=""; repo=""; prev=""; bill=0; user=0; me=0; dflt=""
 for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
-  case "$a" in *settings/billing/actions*) bill=1 ;; users/*|/users/*) user=1 ;; esac
+  case "$a" in *settings/billing/actions*) bill=1 ;; users/*|/users/*) user=1 ;; user|/user) me=1 ;; esac
   case "$a" in repos/fixture/home|/repos/fixture/home|repos/fixture/two|/repos/fixture/two) dflt="${a#/}" ;; esac
   prev="$a"
 done
@@ -241,6 +241,11 @@ if [ "${1:-}" = api ]; then
   if [ "$bill" = 1 ]; then
     if [ -f "$K/api.rc" ]; then cat "$K/api.err" >&2; exit "$(cat "$K/api.rc")"; fi
     printf '{"total_minutes_used":123,"total_paid_minutes_used":0,"included_minutes":2000,"minutes_used_breakdown":{"UBUNTU":123}}\n' | out; exit 0
+  fi
+  if [ "$me" = 1 ]; then   # the signed-in account (api user): the whole body, whatever --jq is given
+    if [ -f "$K/user.rc" ]; then cat "$K/user.err" >&2; exit "$(cat "$K/user.rc")"; fi
+    if [ -f "$K/user.json" ]; then cat "$K/user.json"; else printf '{"login":"fixture","id":1,"type":"User"}\n'; fi
+    exit 0
   fi
   if [ "$user" = 1 ]; then printf '{"login":"fixture","id":1,"type":"User"}\n' | out; exit 0; fi
   if [ -n "$dflt" ]; then printf '{"full_name":"%s","default_branch":"main"}\n' "${dflt#repos/}" | out; exit 0; fi

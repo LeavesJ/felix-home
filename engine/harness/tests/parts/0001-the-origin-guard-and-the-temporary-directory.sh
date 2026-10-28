@@ -456,7 +456,18 @@ esac
 # difference. A count that silently drops is indistinguishable from a passing
 # run, which is the property this repository most needs not to have.
 #
+# The comparison at the end of the driver goes one way only: a manifest
+# assertion that did not run is the silent defect, and fails; one that ran and
+# is not listed is a forgotten record, and is noted. It counts per name, not as
+# a set: some names appear more than once (nineteen on 2026-10-01).
+#
 # Appended to a file rather than accumulated in a variable, because a shell
 # variable does not survive the subshells some of these assertions run inside —
 # the same reason PASS and FAIL are incremented in the main shell only.
+#
+# Some assertions describe the machine, not Felix: whether a real plugin is
+# installed depends on the claude CLI existing. Skipping is honest; passing them
+# by accident on a runner that has no CLI would be worse than not running them.
+# A skip counts as REACHED here: the distinction that matters is between an
+# assertion the suite decided about and one it never got to.
 FELIX_TEST_RAN="$TMP/ran"; : > "$FELIX_TEST_RAN"

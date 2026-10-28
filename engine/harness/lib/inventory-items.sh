@@ -235,6 +235,8 @@ _fi_hscope() {
   _FI_HOSTOK=0; _FI_HD="--no-host"; _FI_HUNREAD=0
   [ "$_FI_HOST" = 1 ] || return 0
   _FI_HD="$(felix_inv_host_where)" || { _FI_HD="no session records"; return 0; }
+  # A root that is there but cannot be listed and entered is not an empty one: nothing is read (audit b09, C047).
+  felix_inv_host_open || { _FI_HD="$_FI_HD could not be read"; return 0; }
   _FI_HOSTOK=1
   while IFS= read -r d <&3; do a[${#a[@]}]="$d"; done 3< <(awk -F'\t' '$4 !~ /bare|linebreak/ { print $1 }' "$T/wt"; cut -f1 "$T/orph"; cat "$T/scope")
   felix_inv_host_scope "$T/hscope" "${a[@]}"

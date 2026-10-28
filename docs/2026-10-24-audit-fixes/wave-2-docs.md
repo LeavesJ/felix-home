@@ -89,3 +89,35 @@ starts `W2D`. Red first. At least these cases, each in a fresh git fixture with 
   and what a decline looks like.
 - **b19 rewrites detection** (`_fm_assets`). It is a founder hand merge. F1 must be carried
   into its counting before it lands, or it brings the false positive back.
+
+## 6. Review round (2026-10-28)
+
+An adversarial review of the fix (ebf88098) found no defect in F1 to F3. It found two places where the
+behaviour is right but nothing pins it. This section makes both deliberate.
+
+- **F2e. The fallback judges paths relative to the root.** Outside git, a root that itself lies under a
+  `docs`, `doc`, `documentation`, `deck`, `decks` or `slides` directory still counts its assets. This is
+  the twin of the git listing's `root/docs` control. Only a component of a path below the root can
+  exclude a file.
+- **F2f. A symlinked root is read through its link.** Outside git, a root path that is a symbolic link
+  to a directory counts the assets of the directory it points to, exactly as that directory would count
+  them itself. Before ebf88098 such a root counted none. The fallback listed the link itself and never
+  entered it, so the same tree reached two ways gave two answers. That was a defect. This contract fixes
+  it on purpose, and a receipt for a non-git project reached through a symlink may read stale once.
+- **F3, corrected.** The parenthetical "(`ci`, `tests`)" describes the part 2160 fixture, which holds a
+  `tests/` directory. The real home has no root `tests/` and detects only `ci`. With F1, its detected
+  set is again the one in its commission receipt.
+
+New assertions go in part 2160, each named `W2D R`. At least these cases:
+- **F2e:** outside git, a root at `docs/nogitroot` (with `docs/` a real directory above it) holding three
+  `.css` under `static/` detects `frontend`.
+- **F2e near-miss:** outside git, three `.css` at the root named `docs.css`, `deck.css` and `slides.css`
+  detect `frontend`.
+- **F2f:** outside git, a symbolic link whose target directory holds three `.css` under `static/`
+  detects `frontend` when the link is the root. The target alone detects the same.
+- **F2f with F1:** outside git, a symbolic link whose target holds three `.css` under `docs/` detects no
+  `frontend`.
+
+Found, not this contract's: `git ls-files` quotes non-ASCII paths by default. Such assets never count in
+the git listing but do count in the fallback. That predates this fix, and a quoted line never ends in an
+asset extension, so F1 is unaffected.

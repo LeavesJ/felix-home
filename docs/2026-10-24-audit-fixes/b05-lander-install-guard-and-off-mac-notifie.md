@@ -412,7 +412,10 @@ None: no deny or escape row, commission grant or publishing, and no workflow. Th
        runs-on: ubuntu-latest
        timeout-minutes: 2
        steps:
-         - env: { GH_TOKEN: "${{ github.token }}", ISSUE: "${{ inputs.issue }}", BODY: "${{ inputs.body }}" }
+         - env:
+             GH_TOKEN: ${{ github.token }}
+             ISSUE: ${{ inputs.issue }}
+             BODY: ${{ inputs.body }}
            run: |
              case "$ISSUE" in ''|*[!0123456789]*) echo "issue is not a number" >&2; exit 2 ;; esac
              printf '%s\n' "$BODY" | gh issue comment "$ISSUE" --repo "$GITHUB_REPOSITORY" --body-file -

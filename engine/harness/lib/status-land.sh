@@ -36,14 +36,37 @@ _felix_lander_first() {   # FILE -> its first line
   printf '%s' "$l"
 }
 
+# wave-1-combine C6, C7. The name of the project the Felix home H resolves, when it resolves one and
+# it is not P: land on green lands that project's pull requests only, and felix land refuses to
+# install, pause, resume, tick or report a lander for any other (audit b05, C013). Nothing otherwise.
+_felix_lander_home() {   # P H -> the home's project's name
+  local hp
+  [ -n "${2:-}" ] || return 0
+  hp="$(felix_resolve_project "$2" "$2" 2>/dev/null)" || return 0
+  hp="${hp%/}"; hp="${hp##*/}"
+  [ -z "$hp" ] || [ "$hp" = "$1" ] || printf '%s' "$hp"
+}
+
 # Prints `<state><TAB><value><TAB><detail>` for the project at $1, whose land
-# directory is its memory root's land/. Returns 0, always.
-felix_lander_state() {   # PROJ
-  local proj="${1%/}" p ld pl led n un uid rc hbf hb="" hbst=absent first now age=0 t r tab=$'\t' cr=$'\r'
+# directory is its memory root's land/, under the Felix home $2 (felix status's
+# and session start's own). Returns 0, always.
+felix_lander_state() {   # PROJ [HOME]
+  local proj="${1%/}" p ld pl led n un uid rc hbf hb="" hbst=absent first now age=0 t r hp tab=$'\t' cr=$'\r'
   _felix_status_need felix_mem_dir resolve
   p="${proj##*/}"; ld="$(felix_mem_dir "$proj")/land"; led="$ld/ledger.tsv"; hbf="$ld/heartbeat"
   if [ -z "${HOME:-}" ]; then printf 'unknown\t-\tno home directory to look for the job in\n'; return 0; fi
   pl="$HOME/Library/LaunchAgents/felix.land.$p.plist"
+  # wave-1-combine C6. Outside the home this project has no lander, and a job installed for it before
+  # b05 serves nothing: said before launchd is asked, so such a job never reads as a hung tick.
+  hp="$(_felix_lander_home "$p" "${2:-}")"
+  if [ -n "$hp" ]; then
+    if [ -e "$pl" ]; then
+      printf 'value\tnot-home\t%s is installed, but land on green lands the pull requests of the home'\''s project %s only, so the job serves nothing for %s: felix land --uninstall from this checkout removes it\n' "$pl" "$hp" "$p"
+    else
+      printf 'none\t-\tland on green lands the pull requests of the home'\''s project %s only, so %s has no lander\n' "$hp" "$p"
+    fi
+    return 0
+  fi
   n="$(_felix_lander_newest "$led")"
   if [ ! -e "$pl" ] && [ "$n" = "the ledger has no row" ]; then
     printf 'none\t-\tno land-on-green job for %s; felix land --install schedules one\n' "$p"; return 0
@@ -101,14 +124,15 @@ felix_lander_state() {   # PROJ
 }
 
 # The session-start badge (B13): `<value><TAB><detail>` when the land row, as
-# felix status prints it in this directory, reads paused, not-loaded or
-# not-ticking; nothing for every other answer. It goes through the row's own
-# normalising, so the detail is the one felix status shows.
-felix_lander_notice() {   # PROJ
+# felix status prints it in this directory, reads paused, not-loaded,
+# not-ticking or not-home (wave-1-combine C6); nothing for every other answer.
+# It goes through the row's own normalising, so the detail is the one felix
+# status shows.
+felix_lander_notice() {   # PROJ [HOME]
   local row state value detail tab=$'\t'
-  row="$(_felix_status_from3 land "$(felix_lander_state "$1")" 2>/dev/null)" || return 0
+  row="$(_felix_status_from3 land "$(felix_lander_state "$1" "${2:-}")" 2>/dev/null)" || return 0
   row="${row#*$tab}"; state="${row%%$tab*}"; row="${row#*$tab}"; value="${row%%$tab*}"; detail="${row#*$tab}"
   [ "$state" = value ] || return 0
-  case "$value" in paused|not-loaded|not-ticking) printf '%s\t%s\n' "$value" "$detail" ;; esac
+  case "$value" in paused|not-loaded|not-ticking|not-home) printf '%s\t%s\n' "$value" "$detail" ;; esac
   return 0
 }

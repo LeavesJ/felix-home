@@ -227,7 +227,8 @@ _fn_step_issue() {
 }
 
 # R2. The one sentence for an event kind: fixed text, so no ledger detail ever reaches a body.
-# Status 1 for a kind that has none.
+# Status 1 for a kind that has none, and a row of such a kind starts no attempt (wave-1-combine C5).
+# waiting and unaged are wave-1-combine C3 and C4: nothing that waits stalls silent.
 _fn_sentence() {   # KIND
   case "${1:-}" in
     landed)              printf '%s' 'A green pull request was merged into main.' ;;
@@ -243,6 +244,8 @@ _fn_sentence() {   # KIND
     fetch)               printf '%s' 'The home could not fetch its origin, so nothing lands.' ;;
     deploy-owed)         printf '%s' 'A deploy of main is owed and has not run, so nothing lands.' ;;
     unreadable)          printf '%s' 'The lander could not read the home, so nothing lands.' ;;
+    waiting)             printf '%s' 'A green pull request has waited more than four hours to land.' ;;
+    unaged)              printf '%s' 'A tick could not age what waits, so no waiting pull request is named.' ;;
     *) return 1 ;;
   esac
 }
@@ -296,6 +299,7 @@ _fn_attempt() {   # KIND PR DETAIL
   if [ "${_FN_LSET:-0}" = 1 ]; then
     _fn_login_ok "${_FN_LOGIN:-}" || { _fn_fail "alert_login: the project's alert_login is not a GitHub login (1-39 letters, digits or hyphens, not starting with a hyphen), so nothing is posted"; return 0; }
   fi
+  # A defence only (wave-1-combine C5): _gt_say and the trampoline's owed() attempt no kind without a sentence.
   _fn_sentence "$_FN_K" >/dev/null \
     || { _fn_fail "kind: $_FN_K is not an event kind this notifier has a sentence for, so nothing is sent"; return 0; }
   _FN_T="$(mktemp -d "${TMPDIR:-/tmp}/felix-alert.XXXXXX" 2>/dev/null)" && [ -d "$_FN_T" ] \

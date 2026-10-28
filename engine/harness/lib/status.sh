@@ -396,11 +396,12 @@ _felix_status_gate() {
   esac
 }
 
-# The land row (lib/status-land.sh) and the hooks row (lib/status-hooks.sh).
-_felix_status_land() {
+# The land row (lib/status-land.sh), under the status home (wave-1-combine C6), and the hooks row
+# (lib/status-hooks.sh).
+_felix_status_land() {   # PROJ HOME
   if [ -z "$1" ]; then _felix_status_row land none - "this directory is not a governed checkout"; return 0; fi
   _felix_status_need felix_lander_state status-land
-  _felix_status_from3 land "$(felix_lander_state "$1")"
+  _felix_status_from3 land "$(felix_lander_state "$1" "${2:-}")"
 }
 _felix_status_hooks() {
   if [ -z "$1" ]; then _felix_status_row hooks none - "this directory is not a governed checkout"; return 0; fi
@@ -409,7 +410,7 @@ _felix_status_hooks() {
 }
 
 # session start's landing badge (lib/status-land.sh): `<value><TAB><detail>` when
-# the land row reads paused, not-loaded or not-ticking, else nothing.
+# the land row reads paused, not-loaded, not-ticking or not-home, else nothing.
 felix_land_notice() { _felix_status_need felix_lander_notice status-land; felix_lander_notice "$@"; }
 
 # felix doctor's three lines after `project:`: the declared gate, the user's
@@ -469,7 +470,7 @@ felix_status_rows() {
   _felix_status_pulse "$home"
   _felix_status_reach "$proj" "$home"
   _felix_status_gate "$root" "$home" "$proj"
-  _felix_status_land "$proj"
+  _felix_status_land "$proj" "$home"
   _felix_status_hooks "$proj" "$root"
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"

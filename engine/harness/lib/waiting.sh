@@ -151,16 +151,21 @@ END {
 # The paragraphs and the screen tokens (C002, C029, C069). Sets waits_line, each
 # paragraph starting on a line of its own, and _felix_wait_toks, the tokens for
 # the screen line in the order the contract gives them.
-felix_start_waits() {   # PROJ NAME [LAND]: LAND is the land row's value as session start read it
-  local proj="$1" name="$2" mem land f p why out m body k oldest d n when mt
+felix_start_waits() {   # PROJ NAME [LAND [HOME]]: LAND is the land row's value as session start read it, HOME its Felix home
+  local proj="$1" name="$2" mem land f p why out m body k oldest d n when mt hp=""
   waits_line=""; _felix_wait_toks=""
   mem="$(felix_mem_dir "$proj")"; land="$mem/land"
 
   # The lander, paused: it merges nothing while it is. When the land row reads paused
   # (lib/status-land.sh: the job is loaded and ticking), session start's landing badge
-  # names the pause with its reason, so it is not said here as well.
+  # names the pause with its reason, so it is not said here as well. wave-1-combine C7:
+  # nor where HOME resolves a project other than this one, which has no lander, and
+  # where felix land --resume is refused (audit b05, C013).
+  [ -z "${4:-}" ] || hp="$(felix_resolve_project "$4" "$4" 2>/dev/null)" || hp=""
+  hp="${hp%/}"; p="${proj%/}"
+  [ "${hp##*/}" != "${p##*/}" ] || hp=""
   p="$land/paused"
-  if [ "${3:-}" != paused ] && { [ -e "$p" ] || [ -L "$p" ]; }; then
+  if [ "${3:-}" != paused ] && [ -z "$hp" ] && { [ -e "$p" ] || [ -L "$p" ]; }; then
     why=""
     if [ -f "$p" ] && [ -r "$p" ]; then
       IFS= read -r why < "$p" 2>/dev/null || true

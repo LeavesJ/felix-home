@@ -76,7 +76,7 @@ _gt_wait_pass() {
   want="$(printf '%s\n' "$prs" | LC_ALL=C awk -F'\t' 'NF { printf "%s%s:%s", s, $1, $3; s = " " }')"
   [ -n "$want" ] || return 0
   rows="$(LC_ALL=C awk -F'\t' -v want="$want" -v now="$(date -u +%s)" "$_GT_WAIT_AWK" "$_GT_LEDGER")" \
-    || { _gt_row_once stuck - - - 0 "the ledger could not be read to age what waits"; return 0; }
+    || { _gt_row_once unaged - - - 0 "the ledger could not be read to age what waits"; return 0; }   # wave-1-combine C4
   while IFS=$'\t' read -r n sha text; do
     [ -n "${n:-}" ] || continue
     _gt_row waiting "$n" "$sha" - 0 "$text"

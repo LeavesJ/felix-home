@@ -50,13 +50,18 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # One notification per row of the kinds a person should see. The ledger row is
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
-  local title="Felix: $1" det
-  case "$1" in landed|refused|founder|waiting|deployed|deployed-unverified|paused|resumed|installed|uninstalled|timeout|stuck|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
+  local title="Felix: $1" det ev
+  case "$1" in landed|refused|founder|waiting|deployed|deployed-unverified|paused|resumed|installed|uninstalled|timeout|stuck|unaged|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
   [ "${_GT_QUIET:-0}" = 1 ] && return 0
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
   osascript -e "display notification \"$det\" with title \"$title\"" >/dev/null 2>&1 || true
-  _fn_event "$1" "$2" "${3%% \[main *}"   # C018, B1: the alert off this Mac (lib/notify.sh, green-install.sh)
+  # C018, B1: the alert off this Mac (lib/notify.sh, green-install.sh). wave-1-combine C2, C5: a person's
+  # resume, install and uninstall, and any kind with no R2 sentence, start no attempt. C1: a hand pause
+  # gives its event's detail in _GT_EVD (_gt_hand_pause), the reason without its "; by session" suffix.
+  case "$1" in resumed|installed|uninstalled) return 0 ;; esac
+  _fn_sentence "$1" >/dev/null || return 0
+  ev="${_GT_EVD:-$3}"; _fn_event "$1" "$2" "${ev%% \[main *}"
 }
 
 _gt_row() {   # EVENT PR SHA WORKTREE WALL DETAIL
@@ -356,7 +361,7 @@ EOF
   # What has waited four hours is said once a day (C002); a tick that deployed says nothing.
   [ "$_GT_DEPLOYED" = 1 ] && return 0
   if . "$_GT_LIBDIR/green-wait.sh" 2>/dev/null; then _gt_wait_pass "$prs"
-  else _gt_row_once stuck - - - 0 "lib/green-wait.sh did not load: what waits is not aged"; fi
+  else _gt_row_once unaged - - - 0 "lib/green-wait.sh did not load: what waits is not aged"; fi   # wave-1-combine C4: stuck is the lock's alone
   return 0
 }
 

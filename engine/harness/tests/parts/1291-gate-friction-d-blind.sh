@@ -13,7 +13,8 @@ printf '\ngate friction D: the parallel runner, part mode, groups and slots (bli
 # has passed (_db1_evt); the slot holds, the sleeping children and the grandchildren live B + 30 s (630 s; were 60 s and 30 s, which a leftover check could outlast);
 # the watches for a unit while a slot is held start once a holder waits, not 2 s after the prelude's mark; the kill -9 slot window is 20 s (was 2 s, below R56's floor);
 # the cap control's units hold their spans until four have begun, so its overlap no longer rests on 3 s spans meeting under load; the ordering case's sleeper holds
-# its slot until the run's bound (was 60 s). Each window, its kind and its L are in a comment beside it.
+# its slot until the run's bound (was 60 s). Each window, its kind and its L are in a comment beside it. Review fix: the kill -9 slot window is shown red against
+# a slot a dead holder's mark keeps 30 s only; a holder that retries every 30 s is no longer claimed to fail it.
 # Readings (revision 17): a holder is a live perl whose command line holds " --part " and this case's copy (R45); a watch, a sleep and then a look for what only a
 # build without the clause makes, cannot fail D's build and is read as R56's floor, so it stands, counted from the event after which that build could first show itself.
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others mean something.
@@ -483,9 +484,10 @@ _db1_E=(FELIX_TEST_SLOTS=1); _db1_start hk -j 2
 _db1_evt _db1_pe; _db1_nh=""; _db1_evt _db1_hup || _db1_nh=" no holder waited for the slot"; sleep 2   # as in hw: bounds, then a 2 s watch from the holder
 _db1_x="$(_db1_unitps)$_db1_nh"
 # R56, a margin: T = 20 s from the kill -9 to the start of the first listing that shows a unit. Inside it D's holder takes the slot at its next try (each second)
-# and forks the unit, and the case takes ps listings, so the floor is 20 s. L: a slot a dead holder's mark keeps for 30 s (a lock that the kernel does not free
-# at the holder's death), whose unit comes 30 s or more after the kill: T = L - 10 s. A holder that retries only every 30 s tries again some 27 s after the kill,
-# since the kill comes 2 s and more into its wait, so it fails T too. The poll ends at the unit, so T costs nothing on D's build. Was 2 s, below the floor
+# and forks the unit, and the case takes ps listings, so the floor is 20 s. L: a build whose slot stays taken for 30 s after its holder dies (a mark the dead
+# holder left, kept 30 s, where D6 has a lock the kernel frees at the death), whose unit comes 30 s or more after the kill: T = L - 10 s. The name is shown red
+# against that build alone. A holder that retries only every 30 s is not claimed to fail it: its next try comes 30 s after its last, and load sets how far into
+# that wait the kill comes, so the try can fall inside T. The poll ends at the unit, so T costs nothing on D's build. Was 2 s, below the floor
 _db1_unhold; _db1_t0="$(_db1_ms)"; _db1_y=""
 while :; do _db1_t1="$(_db1_ms)"; _db1_y="$(_db1_unitps)"; [ -z "$_db1_y" ] || break; [ $((_db1_t1 - _db1_t0)) -lt 20000 ] || break; sleep 0.05; done
 kill -TERM "$(cat "$_db1_c/hk.pid" 2>/dev/null)" 2>/dev/null; _db1_wait; _db1_g="$(_db1_gone hk 143)"

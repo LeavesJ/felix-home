@@ -409,6 +409,7 @@ fi
 . "$HERE/parts/1585-helper-worktrees-review-fixes-blind.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1930-deny-every-tool-blind.sh"
+. "$HERE/parts/1931-b16-round-3-blind.sh"
 . "$HERE/parts/1940-deny-patterns-and-spellings-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"

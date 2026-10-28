@@ -129,7 +129,7 @@ _lnd_like() {
       starts)  case "$d" in "$t"*) ;; *) why="the detail does not start [$t]" ;; esac ;;
       ends)    case "$d" in *"$t") ;; *) why="the detail does not end [$t]" ;; esac ;;
       holds)   case "$d" in *"$t"*) ;; *) why="the detail does not hold [$t]" ;; esac ;;
-      matches) [[ $d =~ $t ]] || why="the detail does not match [$t]" ;;
+      matches) ( [[ $d =~ $t ]] ) || why="the detail does not match [$t]" ;;   # a subshell: bash 3.2 leaves BASH_REMATCH readonly, and the runner refuses a part that changes the shell (R8)
     esac
   done
   if [ -z "$why" ]; then ok "$n"; else bad "$n" "$why; the $r row is [$row]"; fi

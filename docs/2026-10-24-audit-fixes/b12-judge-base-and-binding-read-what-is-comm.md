@@ -431,3 +431,5 @@ B1(d) compares REPO's origin with PROJ's `remote_match`. For a product P, PROJ i
 95. B39 [red]: h4 ties: nothing is bound, and the broken-binding sentence names `w1`, `w2` and `remote_match`.
 96. B39 [red]: h1's checkout is recorded with `webgit`, with nothing printed.
 97. B40 [red]: binding and `felix_checkout_is_own` agree for every pair, and each home has an own URL.
+
+Round 3 (2026-10-28): the remote a grant is checked against comes from fixed state, never from the origin it checks. See `b12-round-3.md` beside this file, which amends B1(d) and B41 and adds A98-A110.

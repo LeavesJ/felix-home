@@ -408,6 +408,8 @@ fi
 . "$HERE/parts/1580-helper-worktrees-page-blind.sh"
 . "$HERE/parts/1585-helper-worktrees-review-fixes-blind.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
+. "$HERE/parts/1670-session-start-names-what-waits-blind.sh"
+. "$HERE/parts/1680-the-lander-ages-what-waits-blind.sh"
 . "$HERE/parts/1690-status-lander-row-blind.sh"
 . "$HERE/parts/1700-hooks-and-gate-rows-blind.sh"
 . "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"

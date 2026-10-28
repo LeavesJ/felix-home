@@ -113,7 +113,7 @@ _sp_is "case 7: a head in a fork, with an escape path" "$T" 108 outside nobody
 _sp_is "case 7: another author, with an escape path" "$T" 109 outside nobody
 _sp_is "case 8: base claude/other" "$T" 110 stacked nobody
 has "case 8: the base is named in the detail" "$(_sp_f "$T" 110 8)" "claude/other"
-_sp_is "case 9: engine/harness/felix changed, green" "$T" 111 needs-attended session
+_sp_is "case 9: engine/harness/felix changed, green" "$T" 111 ready lander
 _sp_is "case 10: exactly 100 files, green, no label" "$T" 112 unknown unknown
 has "spec §5: its detail says the files were not read" "$(_sp_f "$T" 112 8)" "files not read: GitHub lists at most 100"
 _sp_is "case 10: exactly 100 files with a failed check: state 5 comes before 7" "$T" 113 red session

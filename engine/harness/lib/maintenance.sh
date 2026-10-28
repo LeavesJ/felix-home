@@ -20,6 +20,11 @@
 #
 # maintenance.tsv rows: name <TAB> cadence-days <TAB> capability <TAB> description
 #   cadence 0 means event-driven, never on a clock.
+#   The third column is `always`, a capability, or `founder`: a row that comes
+#   due exactly as an `always` row does, and that a session cannot clear alone,
+#   because it ends in something only the founder decides (the public snapshot
+#   needs his yes). Everything that names what is due also names whose it is
+#   (audit C038): felix_maint_founder lists those rows.
 
 # felix_end_line lives in resolve.sh, which the CLI and the hooks source first.
 # Sourced here too rather than assumed: missing, the record below would fail
@@ -43,6 +48,13 @@ _felix_maint_last() {   # epoch of the most recent run, or empty
     [ "${n:-}" = "$name" ] && last="$epoch"
   done < "$proj/maintenance.log"
   printf '%s' "$last"
+}
+
+# The names of the rows whose third column is `founder`, one a line.
+felix_maint_founder() {
+  local proj="$1"
+  [ -f "$proj/maintenance.tsv" ] || return 0
+  LC_ALL=C awk -F'\t' '/^[ \t]*(#|$)/ { next } $3 == "founder" { print $1 }' "$proj/maintenance.tsv"
 }
 
 felix_maint_record() {
@@ -92,6 +104,7 @@ felix_maint_unreachable() {
     case "$name" in ''|'#'*) continue ;; esac
     [ -n "${cap:-}" ] || continue
     [ "$cap" = "always" ] && continue
+    [ "$cap" = "founder" ] && continue
     case " $FELIX_MAINT_CAPABILITIES " in *" $cap "*) continue ;; esac
     _felix_cap_active "$cap" "$proj" 2>/dev/null; rc=$?
     case "$rc" in
@@ -212,7 +225,7 @@ felix_maint_status() {
     # rank 4 and pulse act on, and a false due sends someone to work that may
     # not apply. The `unchecked` precedent, a row that could not be asked being
     # its own word. Its check is not run and its last run is not read.
-    _felix_cap_active "${cap:-always}" "$proj"; rc=$?
+    if [ "${cap:-always}" = founder ]; then rc=0; else _felix_cap_active "${cap:-always}" "$proj"; rc=$?; fi
     case "$rc" in
       0) ;;
       1) printf 'dormant\t%s\t-\t%s\t%s\n' "$name" "${cadence:-0}" "$desc"; continue ;;

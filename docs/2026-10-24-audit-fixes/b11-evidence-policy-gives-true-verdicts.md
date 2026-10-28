@@ -990,3 +990,5 @@ moved with the fix.
 | A106 | B23 | +vendor/github.com/gorilla/handlers/cors.go +third_party/ui/src/components/Button.tsx | every row n/a |
 | A107 | B23 | +services/auth/vendor/github.com/pkg/errors/errors.go | every row n/a |
 | A108 | B23 (control) | +vendor/github.com/pkg/errors/errors.go +internal/handlers/auth.go | unit gap, api gap, others n/a |
+
+Round 3, which answers the automated security review (only what the project declares vendored is set aside, and the verdict says how much), is specified in b11-round-3.md.

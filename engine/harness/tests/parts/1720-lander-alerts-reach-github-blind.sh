@@ -355,9 +355,10 @@ printf 'a\tb\tc\n' >> "$LAND/alerts.tsv"; _l20_st; L20A33="$L20A33|three=$L20ST"
 printf '%s\tposted\tpaused\t-\tfixture/lgh#1\thttps://github.com/fixture/lgh/issues/1#issuecomment-1\tas @fixture-bot mentioning @fixture\told\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$LAND/alerts.tsv"; _l20_st; L20A33="$L20A33|posted=$L20ST"
 _l20_st "$L20/nohome"; L20A33="$L20A33|nohome=$L20ST"
-# Combined with b04 (docs/2026-10-24-audit-fixes/): its land and hooks rows precede alerts, so the rows are eight.
-is "A33 (B13, R5): felix status --tsv prints eight rows ending alerts, which reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it" \
-   "$L20A33" "rows=settings schedule pulse reach gate land hooks alerts |none=none -|dispatched=value dispatched ok|plain=ok|failed=value failed ok|three=unknown -|posted=unknown -|nohome=unknown -"
+# Combined with b04 and b18 (docs/2026-10-24-audit-fixes/): b04's land and hooks rows precede alerts and b18's icloud
+# row follows it, so the rows are nine.
+is "A33 (B13, R5): felix status --tsv prints nine rows, alerts before icloud, and alerts reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it" \
+   "$L20A33" "rows=settings schedule pulse reach gate land hooks alerts icloud |none=none -|dispatched=value dispatched ok|plain=ok|failed=value failed ok|three=unknown -|posted=unknown -|nohome=unknown -"
 
 # ------------------------------------------------ review round, R1-R6 ---
 _l20_reset gh; printf 'fixture\n' > "$L20/ctl/login"; _l20_ev a36

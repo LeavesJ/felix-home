@@ -15,7 +15,7 @@ printf '\nfelix status shows the lander: the land row, the heartbeat and the lan
 # felix.land.lp.plist, any file. Every state is set from nothing by _lnd_set. "hb K" is a heartbeat of
 # now - K; "row1" is the ledger line of 2026-10-23T06:16:28Z, a pause for a tracked change in the home.
 #
-# Readings, where the contract leaves room. A2 holds every status run to the eight rows in order as well as
+# Readings, where the contract leaves room. A2 holds every status run to the nine rows in order as well as
 # to D16's shape, since B1 asks both on every path and the shape alone holds of five rows too. A22's marker
 # is touched before each of A4-A21's runs, after its state is set, and what each run leaves newer is
 # gathered: the states themselves are written under M and U/Library, and are not the status's writes.
@@ -181,12 +181,13 @@ _lnd_hb() {
 _lnd_rows() { if [ -f "$LNDLD/ledger.tsv" ]; then LC_ALL=C awk -F'\t' -v e="${1:-}" 'e == "" || $2 == e { n++ } END { print n + 0 }' "$LNDLD/ledger.tsv"; else echo 0; fi; }
 _lnd_calls() { LC_ALL=C awk 'END { print NR }' "$LNDK/$1.log" 2>/dev/null || echo 0; }
 
-# ---- B1: eight rows ------------------------------------------------------------------------------------
-# Combined with b05 (docs/2026-10-24-audit-fixes/): its alerts row follows hooks, so B1's rows are eight.
+# ---- B1: nine rows -------------------------------------------------------------------------------------
+# Combined with b05 and b18 (docs/2026-10-24-audit-fixes/): b05's alerts row follows hooks and b18's icloud
+# row follows alerts, so B1's rows are nine.
 _lnd_set
 _lnd_st "$LNDC"
-is "A1: felix status --tsv exits 0 and prints eight rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts" \
-   "$LNDRC $(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNDF")" "0 settings schedule pulse reach gate land hooks alerts "
+is "A1: felix status --tsv exits 0 and prints nine rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud" \
+   "$LNDRC $(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNDF")" "0 settings schedule pulse reach gate land hooks alerts icloud "
 
 # ---- B2 to B5: governed, a job, launchd's answer -------------------------------------------------------------
 _lnd_st "$LNDP"
@@ -348,10 +349,10 @@ _lndo=""
 for _lndw in "$LNDO"/st/*; do
   [ -f "$_lndw" ] || continue
   _lndl="$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$_lndw")"
-  [ "$_lndl" = "settings schedule pulse reach gate land hooks alerts " ] || _lndo="$_lndo [run ${_lndw##*/}: rows $_lndl]"
+  [ "$_lndl" = "settings schedule pulse reach gate land hooks alerts icloud " ] || _lndo="$_lndo [run ${_lndw##*/}: rows $_lndl]"
   _lndl="$(LC_ALL=C awk -F'\t' 'NF != 4 || $2 !~ /^(value|none|unknown)$/ || ($2 != "value" && $3 != "-") || $4 == "" || $3 ~ / / { print NR ": " $0 }' "$_lndw")"
   [ -z "$_lndl" ] || _lndo="$_lndo [run ${_lndw##*/}: line $_lndl]"
 done
-is "A2: every felix status this part ran prints the eight rows in order, and no row breaks D16's shape (1100's awk)" "$_lndo" ""
+is "A2: every felix status this part ran prints the nine rows in order, and no row breaks D16's shape (1100's awk)" "$_lndo" ""
 _lnd_calm
 # <<< status-lander-row

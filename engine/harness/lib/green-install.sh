@@ -260,7 +260,10 @@ _gt_hooks() {   # HOME -> 0 when both hooks answered as a working home's do; els
 _gt_by() { printf 'by session %s' "${CLAUDE_CODE_SESSION_ID:--}"; }
 _gt_hand_pause() {   # REASON
   _gt_pause "$1" && [ -e "$_GT_LAND/paused" ] || { printf 'felix land: could not write %s: the job is not paused\n' "$_GT_LAND/paused" >&2; return 1; }
-  _gt_row paused - - - 0 "$1; $(_gt_by)"; return 0
+  # wave-1-combine C1: this row is the pause event, said once. Its attempt's detail is the reason as the
+  # tick's hourly paused row reads it from the file, without this row's suffix, so b05 B8 finds the two one event.
+  _GT_EVD="$(_gt_clean "$(cat "$_GT_LAND/paused" 2>/dev/null)")"; _GT_EVD="${_GT_EVD:--}"
+  _gt_row paused - - - 0 "$1; $(_gt_by)"; _GT_EVD=""; return 0
 }
 _gt_hand_resume() {
   local why
@@ -311,7 +314,8 @@ owed() {   # DETAIL [KIND]: say why nothing runs, once an hour, and stop; KIND i
     mkdir -p "$(dirname "$ledger")"
     printf '%s\t%s\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$k" "$d" >> "$ledger"
     osascript -e "display notification \"Felix land: $d\" with title \"Felix: $k\"" >/dev/null 2>&1
-    _fn_from_file "$(dirname "$ledger")"; _fn_attempt "$k" - "$d"   # B1, B11: the alert, from alerts.repo alone
+    # B1, B11: the alert, from alerts.repo alone; wave-1-combine C5: only for a kind with a sentence.
+    ! _fn_sentence "$k" >/dev/null || { _fn_from_file "$(dirname "$ledger")"; _fn_attempt "$k" - "$d"; }
   }
   echo "felix land: $d" >&2; exit 1
 }

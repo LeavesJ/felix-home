@@ -574,9 +574,10 @@ fi
 # What waits with nobody told: a paused lander, pull requests it has aged, decisions
 # deferred overnight, calls PreToolUse could not judge (lib/waiting.sh). The land row's
 # notice is read first: when it reads paused, its badge below names the pause, so the
-# waits leave it out and a paused lander is said once.
-_fl="$(felix_land_notice "$PROJ" 2>/dev/null)"   # paused, not-loaded or not-ticking, as felix status's land row reads it
-felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}"
+# waits leave it out and a paused lander is said once. Both are given the home: outside it
+# no paused lander is named, and a job installed there reads not-home (wave-1-combine C6, C7).
+_fl="$(felix_land_notice "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null)"   # paused, not-loaded, not-ticking or not-home, as felix status's land row reads it
+felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}" "$FELIX_HOME_DIR"
 
 context="Felix governs this session.
 

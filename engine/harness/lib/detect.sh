@@ -38,10 +38,20 @@ _felix_dep_grep() {
 
 # A web surface exists whether or not npm was ever run there. Counted from
 # tracked files so a vendored dependency tree cannot manufacture a frontend.
+#
+# Documentation and presentations are not a frontend (wave-2-docs.md F1): a
+# file is not counted when a whole directory name in its path, in any case, is
+# docs, doc, documentation, deck, decks or slides. On 2026-10-28 a pitch deck's
+# CSS made three with two files under docs/, and session start adopted frontend
+# into the home's own tables, which staled the commission. Both listings are
+# relative to the root (the fallback runs find from inside it), so only the
+# components below the root are judged, and a file's own name never is.
 _felix_frontend_assets() {
   local root="$1" n
-  n="$( { git -C "$root" ls-files 2>/dev/null || find "$root" -type f 2>/dev/null; } \
-        | grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
+  n="$( { git -C "$root" ls-files 2>/dev/null \
+          || ( CDPATH='' cd -- "$root" 2>/dev/null && find . -type f 2>/dev/null ); } \
+        | LC_ALL=C grep -ivE '(^|/)(docs?|documentation|decks?|slides)/' \
+        | LC_ALL=C grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
   [ "${n:-0}" -ge "${FELIX_FRONTEND_MIN:-3}" ]
 }
 

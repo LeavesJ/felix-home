@@ -419,21 +419,10 @@ fi
 # and left unacted is an answer — a host-provided server nobody should declare
 # would otherwise be proposed at every session start forever, and a signal that
 # repeats becomes wallpaper. The full set stays in 'felix stack reconcile'.
-# A backup that has silently stopped looks exactly like one that ran: every
-# pulse refusal is honest and prints into a log nobody opens. This is the one
-# number that makes the stop observable, on the surface a person reads.
-backup_line=""
-_bage="$(felix_pulse_backup_age "$FELIX_HOME_DIR" 2>/dev/null)"
-if [ "${_bage:-}" = "never" ]; then
-  backup_line="
-The pulse has run and never once got memory off this disk. Whatever it is
-refusing, it is in 'felix pulse' — and until it resolves, every lesson this
-project has paid for exists in one place."
-elif [ -n "${_bage:-}" ] && [ "$_bage" -ge "${FELIX_BACKUP_STALE_DAYS:-3}" ] 2>/dev/null; then
-  backup_line="
-Memory last reached the remote ${_bage} days ago. Every lesson since then lives
-on this disk only. See 'felix pulse' — it says what it refused and why."
-fi
+# The pulse's banners (a backup that has silently stopped looks exactly like one
+# that ran), what its last run left out of memory, and what a cloud session
+# loses: lib/pulse-stage.sh.
+backup_line="$(felix_pulse_session_lines "$FELIX_HOME_DIR" 2>/dev/null)"
 
 reconcile_line=""
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
@@ -601,9 +590,11 @@ start, and run that tier's gate."
 # appended block after that never runs. This one did not, for a whole version.
 _felix_found=""
 if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
-  if felix_discover_stale "$PROJ" "$FELIX_HOME_DIR"; then
-    felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
-  fi
+  # What the last background refresh did is read before another starts, and said
+  # once per outcome and detail (lib/discover-refresh.sh).
+  _dst=fresh; felix_discover_stale "$PROJ" "$FELIX_HOME_DIR" && _dst=stale
+  _dn="$(felix_discover_notice "$PROJ" "$FELIX_HOME_DIR" "$_dst")"; [ -z "$_dn" ] || context="$context"$'\n\n'"$_dn"
+  [ "$_dst" = stale ] && felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
   _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4 | tr '\n' ' ')"
   if [ -n "$_new" ]; then
     _felix_found="$_new"

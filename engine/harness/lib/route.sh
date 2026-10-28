@@ -628,12 +628,12 @@ EOF
   mv -f "$tmp" "$f"
 }
 
-# Hits and misses both. The misses are the raw material for --promote, and they
-# are the only record of what the table failed to understand.
+# Hits and misses both: the misses are the raw material for --promote, and the only
+# record of what the table failed to understand. A key is [redacted] before the cut.
 felix_route_log() {
-  local proj="$1" name="$2" score="$3" prompt="$4"
-  local mem; mem="$(felix_mem_dir "$proj")"
+  local proj="$1" name="$2" score="$3" prompt="$4" mem; mem="$(felix_mem_dir "$proj")"
   [ -d "$mem" ] || mkdir -p "$mem" 2>/dev/null || return 0
+  command -v felix_redact_into >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/say.sh"; felix_redact_into prompt "$prompt"
   printf '%s\t%s\t%s\t%s\n' \
     "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "${name:--}" "${score:-0}" \
     "$(printf '%s' "$prompt" | _felix_envelope_strip | tr '\t\n' '  ' | LC_ALL=C cut -c1-160)" \

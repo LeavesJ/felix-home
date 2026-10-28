@@ -178,9 +178,12 @@ _felix_status_settings() {
 }
 
 # Days since the memory last reached its remote (felix_pulse_backup_age: whole
-# days, or never), and when the pulse last ran, from the record it writes.
+# days, or never), where that copy is (state/pulse.last-push.where, written beside
+# the stamp: a path on this machine is only as far from this disk as whatever
+# syncs it), whether the last run left part of memory out, and when the pulse last
+# ran, from the record it writes.
 _felix_status_pulse() {
-  local home="$1" age rec first="" ep="" last tab=$'\t'
+  local home="$1" age rec first="" ep="" last tab=$'\t' wf w="" place="" nb=""
   _felix_status_need felix_pulse_backup_age pulse
   if [ -z "$home" ] || [ ! -d "$home" ]; then
     _felix_status_row pulse unknown - "no Felix home resolved"; return 0
@@ -201,10 +204,24 @@ _felix_status_pulse() {
   fi
   last=""
   [ -z "$ep" ] || last="$(_felix_status_utc "$ep")"
+  wf="$home/state/pulse.last-push.where"
+  case "$age" in ''|*[!0123456789]*) ;; *)
+    if [ -e "$wf" ]; then
+      if [ -f "$wf" ] && [ -r "$wf" ]; then { IFS= read -r w || :; } 2>/dev/null < "$wf"; else w="?"; fi
+      case "$w" in
+        disk)    place=", a path on this machine" ;;
+        network) ;;
+        *)       place=", a remote whose place could not be read" ;;
+      esac
+    fi ;;
+  esac
+  if [ -f "$rec" ] && [ -r "$rec" ] && LC_ALL=C awk -F'\t' '$1 == "backup" && index($0, "NOT backed up") { f = 1 } END { exit f ? 0 : 1 }' "$rec" 2>/dev/null; then
+    nb="; the last run did not back up all of memory (felix pulse says why)"
+  fi
   if [ -n "$last" ]; then
-    _felix_status_row pulse value "$age" "days since memory reached its remote; last run $last"
+    _felix_status_row pulse value "$age" "days since memory reached its remote$place$nb; last run $last"
   else
-    _felix_status_row pulse value "$age" "days since memory reached its remote; last run not recorded"
+    _felix_status_row pulse value "$age" "days since memory reached its remote$place$nb; last run not recorded"
   fi
 }
 

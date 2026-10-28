@@ -17,8 +17,11 @@ document; it is being built on `claude/direction-read-first`). Until then,
 open it as a draft labelled `needs-founder`, or the tick will land it on
 green.
 
-As of: 2026-10-27. Last decisions recorded: the audit and plan A (§4, rows 29
-and 30), issue alerts posted by a bot (31, 33), and nothing stalls silent (32).
+As of: 2026-10-27. Last decisions recorded: a narrow commercial track runs
+beside build first (§4, row 10); the second host comes forward, Factory Droid
+first and then Codex, beside the judge pin rather than after arming (row 19).
+Before them, from 10-23 to 10-26: the audit and plan A (rows 29 and 30), issue
+alerts posted by a bot (31, 33), and nothing stalls silent (32).
 
 **How a session uses it.**
 1. Read this file first, then the constitution
@@ -57,7 +60,9 @@ and 30), issue alerts posted by a bot (31, 33), and nothing stalls silent (32).
     - No receipt or merge blocker reads which model did the work.
     - The engine stays bash, rows first.
 - **Build first.** Commercialisation is an outcome of quality, not the
-  purpose. There is no pricing, outreach or demand track.
+  purpose. Beside it runs only the narrow commercial track in row 10:
+  fundraising applications, one paid pilot contract and up to four design
+  partners, with no broad outreach and no price page.
 - **Do not narrow Felix.** Take outside guides' facts and experiments, never
   their account of Felix's scope (founder, 2026-10-10).
 
@@ -84,7 +89,7 @@ none of them rly work without my involvement." The measurements agree.
 
 | Loop | Measured | What it means |
 |---|---|---|
-| Landing | Land on green has been live since 10-18. On 10-19 its ledger had 24 rows and 0 merges. By 10-27 it had 95 rows and **5 merges** (#451, #454, #456, #457, #460), half of the 10 PRs main took from 10-19 to 10-23. Nothing has landed since 10-23. | The tick lands with nobody present once a session has gated the branch in a home worktree. A session still has to do that step. |
+| Landing | Land on green has been live since 10-18. On 10-19 its ledger had 24 rows and 0 merges. By 10-27 it had 95 rows and **5 merges** (#451, #454, #456, #457, #460), half of the 10 PRs main took from 10-19 to 10-23. No engineering PR has landed since 10-23. | The tick lands with nobody present once a session has gated the branch in a home worktree. A session still has to do that step. |
 | Audit (10-23/24) | 96 defects confirmed in 23 batches: 21 high, 44 medium, 31 low (`docs/2026-10-24-audit-register.md`). | Many were silent stalls or verdicts that claimed more than they checked. They are being fixed batch by batch (§5). |
 | Admission | 22 obligation candidates proposed (Elenchus 7, Veldra 15), **0 admitted**. Waiting on the founder since 09-26. | The trust plane judges only what someone listed by hand: felix-home has two obligations, and each other governed project has the one templated `lifecycle_wired` row. |
 | Founder leakage | 31% of founder turns in the episode pilot, and 36-50% in batch 2, depending on the counting rule. | These are turns where the founder did Felix's job. |
@@ -96,9 +101,9 @@ none of them rly work without my involvement." The measurements agree.
   boundary, #358 `land.tsv`, #397 `felix inventory`, #449 the stuck-PR page,
   and #450 the lost-work page. Land on green (#442, with A30 and A31), gate
   friction A to D, and the pattern-kill deny row (#455) are also in.
-- **Main** is at 0.49.307 (69b51a61, 10-23). The work since is the audit's
-  batches, on `claude/audit-bNN-*` branches, combining on
-  `claude/audit-combined`.
+- **Main** is at 0.49.307 (69b51a61, 10-23), with only #464's direction edit
+  since. The audit's batches are built on `claude/audit-bNN-*` branches and
+  combine on `claude/audit-combined`.
 
 ## 3. How progress is judged
 
@@ -148,7 +153,7 @@ changed, the row states its current form.
 | 7 | 09-19 | Control plane v0 is "the lease and its record", not a schedule. | direction-decisions §3 |
 | 8 | 09-22 | Felix is a product for other people's projects; Claude Code first; host-independent; engineering only. | constitution |
 | 9 | 09-22 | Record every declined suggestion with `felix route --ack`. | memory record-every-decline |
-| 10 | 09-23 | Build first; the roadmap v1 market track is withdrawn. | `docs/2026-09-23-roadmap.md` |
+| 10 | 09-23, changed 10-27 | Build first stays the engineering rule, and the roadmap v1 market track stays withdrawn. From 10-27 a narrow commercial track runs beside it: fundraising applications, one paid pilot contract, and up to four design partners. No broad outreach and no price page. | `docs/2026-09-23-roadmap.md`; founder, 10-27 |
 | 11 | 09-23 | Among documents, only direction waits for his yes. Engineering merges on green, except the hard stops in row 4. | constitution |
 | 12 | 09-23 | Stealth in the middle: a session hears from Felix at its start and end only, with one narrow exception. | constitution |
 | 13 | 09-24 | F1: landing machinery (Phase 0b) comes before the qualified judge, and the judge pin comes before unattended arming. | roadmap Phase 0b, §7 |
@@ -157,14 +162,14 @@ changed, the row states its current form.
 | 16 | 10-01 | F2: once landing is armed it may run overnight with the Mac kept awake. A sleeping Mac lands nothing. | roadmap §7 |
 | 17 | 10-01 | The 0cw rulings (`docs/handoff/0cw.md`). <br>• **D1, both planes:** the host picks its model above Felix's floor, and Felix never builds a model minimizer. <br>• **D2:** engineering only. <br>• **D3:** one attended dispatch tick before March, on his own API key under a dollar cap. <br>• **Models:** every Workflow stage names its model and effort. <br>• **Fix intake:** red-on-main, false-block or step-blocker fixes get a slot; the rest are batched weekly; no new engine branch while more than 10 engine PRs are open. <br>• **Claims:** no "independent acceptance" in outside text before #350 and the pin. <br>• **Plugin cache:** belongs to the carrier. <br>• **The console:** read-only. <br>• **The floor:** advisory and raise-only. | 0cw |
 | 18 | 10-01 | Corpus terms: lease A with no shell, the sealed commitment kept private, and a weak result investigated rather than narrowed on. | 0cw, roadmap §5 as amended |
-| 19 | 10-02 | Codex read-only starts now on his OpenAI credit. The Codex adapter is a lane item for about December, after arming and the pin. | roadmap §3 |
+| 19 | 10-02, changed 10-27 | Codex read-only starts now on his OpenAI credit. The second host comes forward: the Factory Droid adapter first, then the Codex adapter, as lane item 11, beside the trust track and the judge pin rather than after arming. His words: "Move row 19 too". | roadmap §3; founder, 10-27 |
 | 20 | 10-09 | The interface is built slowly as OS-style surfaces, read-only first, with chat later. | pending 20261009T234930Z |
 | 21 | 10-10 | The seeded corpus gains a different-family arm. In Phase 2, a moved input stales only the receipts that depend on it. | memory commercial-radar-2026-10-10 |
 | 22 | 10-12 | Gate friction is row 0 of the build queue. | carrier state |
 | 23 | 10-12 | No native `permissions.deny` rules for secrets. Do not re-propose. | memory no-native-deny-rules |
 | 24 | 10-15 | Land on green. Live since 10-18. A launchd tick runs `felix merge` with nobody present on an open PR only if it meets all of these: it is not a draft; it carries no label named `felix:hold`, `felix:founder` or `needs-founder` (other labels hold nothing); it is not cross-repository and does not conflict; it touches no `projects/*/CLAUDE.md` or `docs/*roadmap*` path; CI's gate run passed on the exact head (C9); and a home worktree holds that branch at that head. Judge-changing PRs are included. These are the main conditions, not all of them. `felix merge` must then pass in that worktree, which needs a green `felix gate` receipt there for this exact tree (a scratch clone's receipt is invisible to it). The contract also holds a PR whose base is not main (A12), whose head branch heads another open PR (A19), or whose paths are not plain ASCII (A9). The tick merges nothing while paused or while a deploy is owed or has just run (G2, G3, A11), lands one PR per tick, and lands nothing while the Mac sleeps. | `docs/2026-10-15-land-on-green-contract.md` |
 | 25 | 10-19 | "Keep the 09-25 lane: build intake now, and gate capability authority (dispatch, leases, floor) on the trust milestones." | pending 20261019T071844Z |
-| 26 | 10-19 | Felix refuses pattern kills with a deny row (his answer: "Refuse them"). He merges it himself. Nothing holds it mechanically: adding a row to `deny.tsv` fires no escape channel (`lib/escape.sh` treats adding as free). Landing it also changes a commission table (`deny.tsv` is in `FELIX_COMMISSION_TABLES`), so later merges wait until he re-stamps the commission. Open it as a draft labelled `needs-founder`. | carrier state |
+| 26 | 10-19 | Felix refuses pattern kills with a deny row (his answer: "Refuse them"). It landed as #455 (0.49.306), and the commission was re-stamped over it in #459. Nothing held it mechanically: adding a row to `deny.tsv` fires no escape channel (`lib/escape.sh` treats adding as free), and `deny.tsv` is a commission table (`FELIX_COMMISSION_TABLES`), so a merge that changes it leaves later merges waiting on his re-stamp. | carrier state |
 | 27 | 10-19 | Derived rows may bind without his per-row admission (thesis Decision 2(b), intent design §11c, and §11d's task-blocking half). His words: "Yes to derived rows binding without my admission, with your five bounds." The bounds: (1) task scope only, never a release and never an escape channel; (2) witness-backed rows only, never a single model finding (`lib/candidates.sh` keeps refusing that); (3) the row's checker has qualified on seeded mutations; (4) nothing is armed before control 7 and the judge pin (row 25); (5) visibly Felix's: a Felix-authored commit he can tell from his, a person clears a false block with a dated exception, only people loosen, and a row retires after false blocks. Felix uses the grant first for instances of class rules he has admitted; a model-proposed candidate stays advisory until that path has run. | pending 20261019T071844Z |
 | 28 | 10-19 | Two users share one Felix core. **Founders** turn a novel idea into something real; their input should be around level 3 of the 10-19 ladder (the idea plus its stakes: who uses it, how mature, what must never happen, money and time). Below level 3, Felix re-derives the level 3 to 6 elements (stakes, a product brief, an engineering plan, a design contract) as best it can and, before building, asks the founder questions and offers options that may inspire them. Maturity (prototype, private beta, public, production) is the element the rest keys on, as the research also found, so it is established first; re-deriving the others is harder than it sounds. **Engineers** want reliability: one shot, so they do not have to come back; their input should be around level 2 (the issue text), and level 1, a one-line wish, must still be handled. The engineers are the corporate users. Concurrency and parallelism matter more to them than to founders, and the first outside deployment is likely the subcontractor test in §6, so keep that weight in view. His words: "for founder <L3 we're able to at least to the best of our ability rederive the L3-L6 elements therefore before building ask them some questions (even inspire them)"; "for engineers it's more about reliability and whether not we really one shot what they request for they don't have to come back"; "the 'corporate' = 'engineers' here"; "my idea of 'rederivation' sounds a lot simpler than it acutally is but...again one ward we're emphasizing, from the resaerch as well, 'maturity'". | pending 20261019T071844Z |
 | 29 | 10-23 | Every incomplete or naive design and build in Felix is found and fixed. The audit confirmed 96 defects in 23 file-disjoint batches. Each batch is built with a contract, blind tests, red first, the fix, an adversarial review, and a second round when the review finds a major. Batches 10, 16 and 17, and batch 1's CI time limits, touch his stops, so they open as drafts labelled `needs-founder`. Publishing batch 22's snapshot stays his act. | `docs/2026-10-24-audit-register.md` |
@@ -196,14 +201,12 @@ so items can land out of this order.
    PR from `claude/audit-combined`, each founder batch as its own draft.
 2. **Plan A** (row 30), in the design's step order, report-only first.
    Batch 20 and C044 wait on it.
-3. **Leftovers:**
-    - slot 12 (`claude/project-writes-refuse-nonregular`);
-    - PR #425, now conflicting with main;
-    - drafts #365 and #360;
-    - a one-line amendment to the land-on-green contract for PRs gated
-      only in a scratch clone;
-    - #452 (`claude/direction-read-first`, §3), a draft that conflicts with
-      main; its record and gate are owed at the carrier's slot.
+3. **Leftovers:** slot 12 (`claude/project-writes-refuse-nonregular`); PR
+   #425, now conflicting with main; the secret-scan quoted-reference fix (on
+   origin only as `salvage/2026-10-27/secret-scan-ref`); drafts #365 and
+   #360; a one-line land-on-green amendment for PRs gated only in a scratch
+   clone; and draft #452 (§3), which conflicts with main and owes its record
+   and gate at the carrier's slot.
 4. **The trust track, in roadmap order.**
     - First, 0cw trust item 2: merge refuses a receipt that skipped checks.
       It must land before step 8. Receipts record skipped checks in field
@@ -263,20 +266,21 @@ sealed, measured number. The order is Felix's call:
 8. The D3 attended tick.
 9. The replay, as approved.
 10. The advisory floor.
-11. The Codex adapter, about December, after arming and the judge pin
-    (row 19; roadmap §3 item 5).
+11. The second host: the Factory Droid adapter first, then the Codex
+    adapter, beside the trust track and the judge pin rather than after
+    arming (row 19 as changed 10-27; roadmap §3 item 5).
 
 - **Need side.** Items 1 to 4, plus obligation intake and admission, wait on
-  no trust milestone. Item 3 waits on the founder's corpus ceiling, and
-  admission is his act. Item 4 needs nothing more from him: its scripted
-  runs use the Codex login he made with his API key on 10-02
-  (`CODEX_HOME=~/.felix-codex`). Item 1 and obligation intake need nothing
-  from him.
+  no trust milestone, and since 10-27 so does item 11. Item 3 waits on the
+  founder's corpus ceiling, and admission is his act. Item 4 needs nothing
+  more from him: its scripted runs use the Codex login he made with his API
+  key on 10-02 (`CODEX_HOME=~/.felix-codex`). Item 1 and obligation intake
+  need nothing from him.
 - **A lane session's first item.** Item 1 is a practice and item 2 has run,
   so a lane session takes the first of these that nobody owns: obligation
   intake (thesis I1 and I2: standing, grounded needs with their
   denominator, and admission drafts for the founder), then item 4, then
-  item 3 once its ceiling is set.
+  item 11, then item 3 once its ceiling is set.
 - **Authority side.** Items 5 to 10 keep the trust gates set out in row 25.
 - **Before row 27 arms anything.** These were found on 10-19, after his
   yes, and each is a build, not a new decision:
@@ -317,14 +321,9 @@ sealed, measured number. The order is Felix's call:
       `audits/2026-10-19-intent-and-vibe-coding/row27-and-ladder-review.json`.
 
 **Not before March:** `felix dispatch` beyond the one tick, and leases with
-real authority. Also deferred:
-- discovery schedules and budgets;
-- the Docker sandbox;
-- DSSE receipts;
-- retiring the router;
-- team concurrency;
-- a Factory Droid adapter;
-- outreach and pricing.
+real authority. Also deferred: discovery schedules and budgets, the Docker
+sandbox, DSSE receipts, retiring the router, team concurrency, and broad
+outreach and a price page (row 10).
 
 **Owed measurements.** None of these has a slot of its own. Each runs when
 its precondition holds.
@@ -426,8 +425,9 @@ Older text still says some of these. Where it does, this file and §4 govern.
 
 | Was | Replaced by |
 |---|---|
+| Roadmap v1's outside-user and outreach track, and row 10's "no pricing, outreach or demand track" (09-23) | Row 10 as changed 10-27: build first, with a narrow commercial track beside it |
+| Row 19's "the Codex adapter is a lane item for about December, after arming and the pin", and the Factory Droid adapter deferred past March | Row 19 as changed 10-27: Droid first, then Codex, beside the judge pin |
 | "Felix is Phase 1 of the guidebook and nothing past it" (08-10) | Row 8, a product for other people's projects (09-22) |
-| Roadmap v1's outside-user and outreach track | Row 10, build first (09-23) |
 | F2 (a): nothing lands while the Mac sleeps, to be revisited in Phase 4 (09-24) | Row 16 (10-01) |
 | "Before arming, nothing lands unattended at any hour" (roadmap Phase 0b), and "Nothing lands unattended before the pin" (0cw line 126) | Row 24, land on green (10-15). Unattended *capability* authority still waits on the pin and arming (row 25). |
 | Roadmap step 13: "a change to the code that judges never lands with nobody present" | Land on green lands judge-changing PRs. The departure is recorded in its contract. |

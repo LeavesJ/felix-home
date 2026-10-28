@@ -187,6 +187,9 @@ _b7a_is "b07 A24: SessionStart with project.json absent says Gate: unknown, name
   "unknown=$(_b7a_in "$B7A_O" 'Gate: unknown') path=$(_b7a_in "$B7A_O" "$B7J") person=$(_b7a_says 'gate unknown')" "unknown=yes path=yes person=yes"
 _b7a_is "b07 A25: and it does not say Gate: none declared" "out=$([ "$B7A_OB" -gt 0 ] && echo some || echo none) none-declared=$(_b7a_in "$B7A_O" 'Gate: none declared')" \
   "out=some none-declared=no"
+# Combined with b04 (docs/2026-10-24-audit-fixes/): b04 says "no gate, stops unchecked" when no gate is declared; an unreadable
+# project.json is not known to declare none, so the line says gate unknown alone.
+_b7a_is "b07 A25b: and its line does not also say no gate, stops unchecked" "$(_b7a_says 'no gate, stops unchecked')" "no"
 _b7a_pj '{"name": "p"}'; _b7a_ss s26
 _b7a_is "b07 A26: SessionStart with a project.json that declares no gate still says Gate: none declared (control)" "$(_b7a_in "$B7A_O" 'Gate: none declared')" "yes"
 _b7a_pj "$B7G"; _b7a_ss s27

@@ -410,6 +410,7 @@ fi
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
 . "$HERE/parts/1870-merge-judge-handoff-blind.sh"
 . "$HERE/parts/1880-new-binding-and-install-blind.sh"
+. "$HERE/parts/1881-new-binding-review-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

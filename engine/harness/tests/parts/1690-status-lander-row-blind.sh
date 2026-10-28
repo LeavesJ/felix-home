@@ -33,6 +33,10 @@ mkdir -p "$LNDH/projects/lp" "$LNDU/.claude" "$LNDU/Library/LaunchAgents" "$LNDM
          "$LNDB" "$LNDB2" "$LNDK" "$LNDO/st"
 printf '{"name":"lp","remote_match":"example.invalid/lp","gate":"true"}\n' > "$LNDH/projects/lp/project.json"
 printf '# lp\n' > "$LNDH/projects/lp/CLAUDE.md"
+# Combined with b05 (docs/2026-10-24-audit-fixes/): felix land runs only where the home resolves the
+# checkout's own project (C013, B14), so the home is a checkout whose .felix names lp, as LNDC's does.
+( _fx_cd "$LNDH" && git init -q -b main && printf 'lp\n' > .felix \
+  && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
 printf '{"enabledPlugins":{"felix@felix":true}}\n' > "$LNDU/.claude/settings.json"
 ( _fx_cd "$LNDC" && git init -q -b main && printf 'lp\n' > .felix && printf 'lp notes\n' > notes.txt \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1

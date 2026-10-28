@@ -3002,7 +3002,7 @@ cmd_ledger() {
   done <<EOF
 $(felix_ledger_summary "$proj")
 EOF
-  [ "$n" -eq 0 ] && printf '  nothing yet\n'
+  felix_ledger_unknown_note "$proj" "$n"
 
   local retire; retire="$(felix_ledger_retire "$proj")"
   if [ -n "$retire" ]; then

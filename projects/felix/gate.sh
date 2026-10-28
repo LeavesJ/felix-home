@@ -597,34 +597,70 @@ fi
 # the bindings read from it. A settings binding the plugin lacks (provision) is
 # allowed. The reader decodes no escape, so a backslash that does not begin \"
 # makes a file unreadable (B08R3-1), and so does a key repeated in one object,
-# whose value is a parser's choice (B08R3-3); the clause names which, and
-# nothing is compared over such a file (B08R3-4, audit b08 round 3).
+# whose value is a parser's choice (B08R3-3). Claude Code reads no hook from
+# a settings file it cannot parse or that a key beside hooks turns off, and
+# drops a hook whose values it rejects. So (B08R3V, audit b08 round 3) a file
+# over 65536 bytes is not read, each file must be one JSON text (RFC 8259),
+# and settings.json may hold no top-level key but hooks, each group no key but
+# a string matcher and its hooks, and each hook no key but type "command", a
+# string command, shell "bash", async true or false, a timeout in digits and a
+# string statusMessage. A file's clause names its first fault in that order
+# (size, escape, not JSON, repeat, top-level key, schema), and over any of
+# them nothing is compared (B08R3-4, B08R3V-6).
 _cloud_check() {
-  local x out
+  local x out z=""
+  set --
   for x in engine/hooks/hooks.json .claude/settings.json; do
     [ -f "$x" ] && [ -r "$x" ] || { echo " unreadable: no event-to-hook pairs read from one of the two files"; return 0; }
+    if [ "$(($(wc -c < "$x")))" -gt 65536 ]; then z="$z $x "; set -- "$@" /dev/null; else set -- "$@" "$x"; fi   # B08R3V-2
   done
-  out="$(LC_ALL=C awk '
-    function fin() { if (f && (d != 0 || !done || cc[f] != nb[f])) bad[f] = 1 }
+  out="$(LC_ALL=C awk -v Z="$z" '
+    BEGIN {
+      FN[1] = "engine/hooks/hooks.json"; FN[2] = ".claude/settings.json"; ESC = 2; NJ = 3; REP = 4; TL = 5; SCH = 6
+      split("larger than 65536 bytes|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema", WHY, "|")
+      for (i = 1; i <= 2; i++) if (index(Z, " " FN[i] " ")) W[i] = 1
+      for (i = 1; i < 32; i++) CT = CT sprintf("%c", i)
+      split("type command shell async timeout statusMessage", HK0, " "); for (i in HK0) HK[HK0[i]] = 1
+      NUM = "^-?(0|[123456789][0123456789]*)([.][0123456789]+)?([eE][-+]?[0123456789]+)?$"
+    }
+    function ft(v) { if (!W[f] || v < W[f]) W[f] = v }   # a fault of rank v; the lowest rank names the file
+    function fin() { if (f && (d != 0 || !done || cc[f] != nb[f])) bad[f] = 1; if (f && ex != "E") ft(NJ) }
     function op(k,   q) {
       if (d == 0 && (k != "{" || done)) bad[f] = 1
       q = (d > 0 && K[d] == "{") ? KY[d] : ""
-      d++; K[d] = k; N[d] = q; KY[d] = ""; EK[d] = (k == "{"); O[d] = ++no
+      d++; K[d] = k; N[d] = q; KY[d] = ""; O[d] = ++no; ex = (k == "{") ? "K" : "V"
       if (d == 4 && k == "{") { m = "-"; g0 = n + 1 }
       if (d == 6 && k == "{") { h = ""; a = "-"; t = "-" }
     }
     function cl(k,   i) {
       if (d == 0) { bad[f] = 1; return }
       if (K[d] != (k == "}" ? "{" : "[")) bad[f] = 1
+      if (f == 2 && K[d] == "{" && ((d == 1 || d == 4) && !((O[d], "hooks") in KS) || d == 6 && !(((O[d], "type") in KS) && ((O[d], "command") in KS)))) ft(SCH)
       if (d == 6 && K[d] == "{" && h != "") { n++; E[n] = N[3]; H[n] = h; A[n] = a; T[n] = t; F[n] = f; nb[f]++; h = "" }
       if (d == 4 && K[d] == "{") for (i = g0; i <= n; i++) M[i] = m
-      d--
+      d--; ex = d ? "e" : "E"
       if (d == 0) done = 1
     }
+    function key(s) {   # B08R3-3 a repeat; B08R3V-4 a top-level key but hooks; B08R3V-5 (c), (d) a group or hook key outside the schema
+      if ((O[d], s) in KS) ft(REP)
+      KS[O[d], s] = 1; KY[d] = s; ex = ":"
+      if (f == 2 && d == 1 && s != "hooks") ft(TL)
+      else if (f == 2 && (d == 4 && s != "matcher" && s != "hooks" || d == 6 && !(s in HK))) ft(SCH)
+    }
+    function sv(k, s,   y) {   # B08R3V-5: in settings, a value of type k ({, [, s a string, l a literal) where the schema allows it
+      if (f != 2) return
+      y = KY[d]
+      if (d == 0 || d == 3 || d == 5) { if (k != "{") ft(SCH) }
+      else if (d == 1) { if (y == "hooks" && k != "{") ft(SCH) }
+      else if (d == 2) { if (k != "[") ft(SCH) }
+      else if (d == 4) { if (k != (y == "matcher" ? "s" : "[")) ft(SCH) }
+      else if (d != 6 || !(k == "s" && (y == "command" || y == "statusMessage" || y == "type" && s == "command" || y == "shell" && s == "bash") ||
+        k == "l" && (y == "async" && (s == "true" || s == "false") || y == "timeout" && s ~ /^[0123456789]+$/))) ft(SCH)
+    }
     function val(s, lit,   p, r) {
+      ex = d ? "e" : "E"
       if (d == 0) { bad[f] = 1; return }
       if (K[d] == "[") return
-      if (EK[d]) { if (!lit) { if ((O[d], s) in KS) rep[f] = 1; KS[O[d], s] = 1 }; KY[d] = s; return }   # B08R3-3
       if (!lit && d == 4 && KY[d] == "matcher") m = s
       else if (lit && d == 6 && KY[d] == "async") a = s
       else if (lit && d == 6 && KY[d] == "timeout") t = s
@@ -634,7 +670,7 @@ _cloud_check() {
         else if (d == 6 && N[2] == "hooks" && N[5] == "hooks" && K[1] K[2] K[3] K[4] K[5] K[6] == "{{[{[{") h = substr(r, 1, RLENGTH)
       }
     }
-    FILENAME != cur { fin(); cur = FILENAME; f++; FN[f] = FILENAME; d = 0; done = 0 }
+    FILENAME != cur { fin(); cur = FILENAME; f = (FILENAME == FN[1]) ? 1 : 2; seen[f] = 1; d = 0; done = 0; ex = "v" }
     index($0, "\"matcher\"") && $0 !~ /^        "matcher": "[^"\\]*",?$/ { bad[f] = 1 }
     index($0, "\"async\"") && $0 !~ /^            "async": (true|false),?$/ { bad[f] = 1 }
     index($0, "\"timeout\"") && $0 !~ /^            "timeout": [0123456789]+,?$/ { bad[f] = 1 }
@@ -643,28 +679,36 @@ _cloud_check() {
       for (i = 1; i <= L; i++) {
         ch = substr($0, i, 1)
         if (ch == " " || ch == "\t" || ch == "\r") continue
-        if (ch == "\"") {
-          for (j = i + 1; j <= L; j++) { x = substr($0, j, 1); if (x == "\\" && substr($0, ++j, 1) != "\"") esc[f] = 1; else if (x == "\"") break }   # B08R3-1
-          if (j > L) { bad[f] = 1; break }
-          val(substr($0, i + 1, j - i - 1), 0); i = j
-        } else if (ch == "{" || ch == "[") op(ch)
-        else if (ch == "}" || ch == "]") cl(ch)
-        else if (ch == ":") { if (d) EK[d] = 0 }
-        else if (ch == ",") { if (d && K[d] == "{") EK[d] = 1 }
+        # B08R3V-3, RFC 8259: ex is what may come next (v a value, V a value or ], k a key, K a key or },
+        # : a colon, e a comma or the close, E nothing); a token anywhere else is not JSON.
+        if (ch == "\"") {   # B08R3-1 an escape but \"; B08R3V-3 a raw control byte
+          for (j = i + 1; j <= L; j++) { x = substr($0, j, 1); if (x == "\\" && substr($0, ++j, 1) != "\"") ft(ESC); else if (x == "\"") break; else if (index(CT, x)) ft(NJ) }
+          if (j > L) { bad[f] = 1; ft(NJ); break }
+          s = substr($0, i + 1, j - i - 1); i = j
+          if (ex == "k" || ex == "K") key(s)
+          else if (ex == "v" || ex == "V") { sv("s", s); val(s, 0) }
+          else ft(NJ)
+        } else if (ch == "{" || ch == "[") { if (ex != "v" && ex != "V") ft(NJ); sv(ch, ""); op(ch) }
+        else if (ch == "}" || ch == "]") { if (K[d] != (ch == "}" ? "{" : "[") || ex != "e" && ex != (ch == "}" ? "K" : "V")) ft(NJ); cl(ch) }
+        else if (ch == ":") { if (ex == ":") ex = "v"; else ft(NJ) }
+        else if (ch == ",") { if (ex == "e") ex = (K[d] == "{") ? "k" : "v"; else ft(NJ) }
         else {
           for (j = i; j <= L; j++) if (index(" \t\r,:{}[]\"", substr($0, j, 1))) break
-          if (index(substr($0, i, j - i), "\\")) esc[f] = 1   # B08R3-1: a backslash outside any string
-          val(substr($0, i, j - i), 1); i = j - 1
+          w = substr($0, i, j - i); i = j - 1
+          if (index(w, "\\")) ft(ESC)   # B08R3-1: a backslash outside any string
+          if ((ex == "v" || ex == "V") && (w == "true" || w == "false" || w == "null" || w ~ NUM)) { sv("l", w); val(w, 1) }
+          else ft(NJ)
         }
       }
     }
     END {
       fin()
+      for (f = 1; f <= 2; f++) if (!seen[f]) ft(NJ)   # an empty file holds no JSON text
       for (i = 1; i <= n; i++) { R[i] = E[i] "\t" M[i] "\t" H[i] "\t" A[i] "\t" T[i]; c[F[i]]++ }
-      # B08R3-4: one clause per file, the escape before the repeat; a round-3 fault prints these alone.
-      for (i = 1; i <= f; i++) { q = esc[i] ? " (an escape other than \\\")" : (rep[i] ? " (a key repeated in one object)" : ""); if (q != "") r3 = 1; if (q != "" || bad[i]) u = u " unreadable: " FN[i] q ";" }
+      # B08R3-4, B08R3V-6: one clause per file, its first fault by rank; any of them prints these alone.
+      for (i = 1; i <= 2; i++) { q = W[i] ? " (" WHY[W[i]] ")" : ""; if (q != "") r3 = 1; if (q != "" || bad[i]) u = u " unreadable: " FN[i] q ";" }
       if (r3) { print u; exit }
-      if (f != 2 || !c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
+      if (!c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
       if (u != "") { print u; exit }
       for (i = 1; i <= n; i++) if (F[i] == 2) { full[R[i]] = 1; k = E[i] "/" H[i]; if (!(k in first)) first[k] = i }
       for (i = 1; i <= n; i++) if (F[i] == 1 && !(R[i] in full)) {
@@ -678,7 +722,7 @@ _cloud_check() {
       }
       if (miss != "") o = " not bound for the cloud: " miss ";" o
       print o
-    }' engine/hooks/hooks.json .claude/settings.json 2>/dev/null)" \
+    }' "$@" 2>/dev/null)" \
     || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
   printf '%s' "$out"
 }

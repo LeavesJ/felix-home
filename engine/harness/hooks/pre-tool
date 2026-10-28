@@ -13,7 +13,7 @@
 #
 # Bound to every tool, with no matcher: the ledger showed where sessions actually
 # spend their calls, and 6.7% of them were tools a six-name matcher never
-# delivered, Monitor and the mcp__ shell tools among them (audit b16, C020). What
+# delivered, Monitor and the mcp__ terminals among them (audit b16, C020). What
 # stops a bad rule reaching Edit is felix_deny_overbroad, not the matcher; see
 # lib/deny.sh for why that swap was the point. What keeps the rest of the
 # calls cheap is the early exit below: a call with nothing to read leaves
@@ -118,10 +118,11 @@ fi
 # filled, and the loop dropped it, so a hand-edited deny.tsv whose only Bash
 # row was its unended last line let every Bash call through (2026-10-01).
 #
-# A shell tool, Bash, Monitor or an mcp__ tool, is judged by the Bash rows too,
-# so a row naming Bash counts for it.
+# A shell tool, Bash, Monitor or an MCP terminal Felix names (lib/deny.sh), is
+# judged by the Bash rows too, so a row naming Bash counts for it. Any other
+# mcp__ tool is judged by the rows that name it, and by no others.
 _shell=0
-case "$tool" in Bash|Monitor|mcp__*) _shell=1 ;; esac
+_felix_deny_shell_tool "$tool" && _shell=1
 _names_tool=0
 while IFS=$'\t' read -r _t _rest || [ -n "${_t:-}" ]; do
   if [ "$_t" = "$tool" ] || { [ "$_shell" -eq 1 ] && [ "$_t" = Bash ]; }; then _names_tool=1; break; fi

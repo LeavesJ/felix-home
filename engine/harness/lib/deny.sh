@@ -35,10 +35,11 @@
 # which is the same direction every other failure here already takes.
 #
 # The matcher is gone altogether (audit b16, C020): the hook is bound to every
-# tool and decides for itself which have a subject. Monitor and every mcp__ tool
+# tool and decides for itself which have a subject. Monitor and the MCP terminals
 # run a shell command as Bash does, and carried the same `command` field past a
 # floor that never saw them. A Bash row now judges the command of every shell
-# tool; a row naming any other tool judges that tool's calls and no others.
+# tool, which is a short list of names (FELIX_DENY_SHELL_TOOLS); a row naming
+# any tool judges that tool's calls and no others.
 #
 # deny.tsv rows: tool <TAB> extended-regex <TAB> reason [<TAB> scope]
 #
@@ -65,6 +66,17 @@ _felix_deny_rows() {
   done < "$proj/deny.tsv"
 }
 
+# The tools whose `command` runs in a shell on this machine: Bash, Monitor and the
+# two MCP terminals Felix names, in one list, read by the hook and by
+# felix_deny_match. A `command` key does not say its tool runs anything here:
+# claude-flow's hooks_pre-command only assesses a command, hooks_post-command
+# records one that already ran, and Vercel's run_session_command runs its command
+# in a remote sandbox. The floor cannot read an MCP tool's schema, so a new
+# terminal is added by name, as Monitor was; a project can still write a row
+# naming any mcp__ tool, which judges that tool's own `command`.
+FELIX_DENY_SHELL_TOOLS=' Bash Monitor mcp__terminal__run_in_terminal mcp__claude-flow__terminal_execute '
+_felix_deny_shell_tool() { case "$FELIX_DENY_SHELL_TOOLS" in *" $1 "*) return 0 ;; esac; return 1; }
+
 # Which field of a payload a rule for this tool is about.
 #
 # One field per tool, chosen rather than searched. Scanning the payload for the
@@ -73,8 +85,10 @@ _felix_deny_rows() {
 # would hand that string to the matcher, and a rule would fire on content the
 # person was only writing down. A tool nobody has taught this function is read
 # as acting on a file, and a tool acting on nothing has no subject and is
-# always allowed. A shell tool is Bash, Monitor, or any tool whose name begins
-# mcp__; every other first-party tool is read on a file, never on `command`.
+# always allowed. A row naming Bash, Monitor or an mcp__ tool is read on that
+# tool's `command`; every other first-party tool is read on a file, never on
+# `command`. Whether a Bash row judges a command as well is
+# _felix_deny_shell_tool's question, not this one's.
 #
 # The answer is left in _FELIX_DENY_FIELD as well as printed, so the hook, which
 # runs on every tool call, can read it without a subshell.
@@ -337,18 +351,17 @@ EOF
 # payload carries it; the governed checkout is the one this process stands
 # in.
 #
-# WANT is the tool the call is for. Monitor and every mcp__ tool run a shell
+# WANT is the tool the call is for. Monitor and the MCP terminals run a shell
 # command, so the Bash rows judge theirs, on the same reading, before the tool's
 # own rows judge it as it stands, which is how every row but a Bash row reads.
 felix_deny_match() {
   local proj="$1" want="$2" cmd="$3" start="${4:-$PWD}" text
   [ -n "$cmd" ] || return 1
   _FELIX_DENY_RAW="$cmd"; _FELIX_DENY_START="$start"; _FELIX_DENY_SCOPED=""; _FELIX_DENY_TOOL="$want"
-  case "$want" in
-    Bash|Monitor|mcp__*)
-      text="$(felix_deny_code "$cmd")"
-      if _felix_deny_first "$proj" Bash "$text"; then printf '%s' "$_FELIX_DENY_REASON"; return 0; fi ;;
-  esac
+  if _felix_deny_shell_tool "$want"; then
+    text="$(felix_deny_code "$cmd")"
+    if _felix_deny_first "$proj" Bash "$text"; then printf '%s' "$_FELIX_DENY_REASON"; return 0; fi
+  fi
   if [ "$want" != Bash ] && _felix_deny_first "$proj" "$want" "$cmd"; then
     printf '%s' "$_FELIX_DENY_REASON"
     return 0
@@ -471,8 +484,9 @@ _felix_deny_scoped_lifts() {
 # nothing in nothing, which allows.
 #
 # The program is lib/deny-read.sh, sourced the first time a command needs it.
-# Every Bash call in a project with Bash rows needs it; a call for another
-# tool, or in a project without them, never reads the file.
+# Every call of a shell tool (Bash, Monitor, an MCP terminal) in a project with
+# Bash rows needs it; a call for another tool, or in a project without them,
+# never reads the file.
 # Locale, 2026-10-08: this awk ran in the caller's locale and aborted under
 # UTF-8 on any non-ASCII character, so the reading came back empty and every
 # Bash row allowed. The rules are above felix_json_str in resolve.sh.

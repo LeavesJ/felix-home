@@ -473,15 +473,15 @@ The exact changes:
 The reasons are unchanged:
 
 ```
-Bash	git( +-[^ ]+( +[^ ]+)?)* +push( +[^ ;&|]+)* +(--force|-[46dnquv]*f[^ ]*|\+[^ ]+)( |$)	force push drops commits, and Felix's history is the audit trail
-Bash	git( +-[^ ]+( +[^ ]+)?)* +commit( +[^ ;&|]+)* +(--no-verify|-[aeiopqsvz]*n[^ ]*)( |$)	--no-verify is how a gate stops being a gate. Fix the tree instead
+Bash	git( +(-[Cc]|--(git-dir|work-tree|namespace|config-env)) +[^ ]+| +-[^ ]+)* +push( +[^ ;&|]+)* +(--force|-[46dnquv]*f[^ ]*|\+[^ ]+)( |$)	force push drops commits, and Felix's history is the audit trail
+Bash	git( +(-[Cc]|--(git-dir|work-tree|namespace|config-env)) +[^ ]+| +-[^ ]+)* +commit( +[^ ;&|]+)* +(--no-verify|-[aeiopqsvz]*n[^ ]*)( |$)	--no-verify is how a gate stops being a gate. Fix the tree instead
 ```
 
-Add a comment above them saying: git's global options are tolerated, as in rows 131-135; a cluster of push's flags that
+Add a comment above them saying: git's global options are tolerated, but only those that take the next word as a value
+(`-C`, `-c`, `--git-dir`, `--work-tree`, `--namespace`, `--config-env`) may swallow it; a cluster of push's flags that
 take no value (`-4 -6 -d -n -q -u -v`) may hold `-f`, and a `+` refspec is a force; a cluster of commit's flags that
 take no value (`-a -e -i -o -p -q -s -v -z`) may hold `-n`, which is `--no-verify`; and `-o`, `-m` and the other flags
-that take a value end a cluster, so `git commit -mnote` is a message and not `-n`. Both rows were probed on 2026-10-24
-against the cases in B20-B22 and against the transcript corpus counted under B22.
+that take a value end a cluster, so `git commit -mnote` is a message and not `-n`. Probed against B20-B22 and A60-A62.
 
 After he merges:
 1. Deploy by hand with `felix install` from the main checkout. The land tick does not deploy a merge it did not make.

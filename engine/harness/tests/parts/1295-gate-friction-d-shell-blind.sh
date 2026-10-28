@@ -20,6 +20,13 @@ printf '\ngate friction D: the shell a unit leaves for the parts after it (blind
 # (the ms it first saw it) and only then waits C = 40 s; DJX_MLOG gains go-to-mark and mark-to-step-end (none when a file is missing); R46's verdict is unchanged. (2) R55: every run
 # bound is _db5_lim = 600 s, the -j 3 runs (g3: the run of every part reached its old 150 s), the -j 1 run (was 100 s) and the record run, B (was 240 s), alike. (3) R56: the
 # job part's sleeper, a hold whose life the unit's comparison must fall inside, lives B, 600 s (was 30 s), so its name says sleep 600; every other window stands (the report's table).
+# Revision 18 (R58 to R62), by blind author B from the contract alone: (1) R60: _db5_atexit (atexit.pl, the same text as part 1293's) takes its two listings as before, 0.1 s apart, the first at
+# once, but a process whose command line is the record run's own (_db5_cmd: its watcher, or a subshell of it) and its descendants are not judged by them: they are waited for, a bound of 20 s polled
+# every 0.1 s (the floor: the watcher forks once on its way out), each listing's descendants noted, and once none with that command line is left two listings 0.1 s apart, the first at once, judge
+# what was a descendant as any other process; one still there at 20 s is left. A plain run has no _db5_cmd and is judged as before. (2) R61: the job part's sleeper, which a sleep 600 could not make
+# look for its directory, is a perl started with & (command perl, so no part's perl function stands in) that sleeps 1 s at a time for 600 s at most while the case directory exists; its name says so,
+# and _db5_reap knows it by its tag djx-job and the case directory in its command line. (3) R62: DJX_MLOG gets "1295 run CASE/LABEL bound B ms START-TO-EXIT" for every inner run, and
+# "1295 margin sr/r/watcher T 20000 ms MS" (none when the watcher was still there at 20 s), R60's wait, each after its case's checks. (4) R58: no watch here. R59: no record run here is ended by a signal.
 # R42 (e), after R38, with R44: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so the record run's exit with a runner failure is, there, only
 # after red's suite has ended by itself, and what is left of red's tree then is a matter of timing. The record run therefore gives red's suite (DJX_HOLD names hold.pl, for that run
 # alone, and DJX_LIM the case's run bound B, 600 s, _db5_lim) a red-only holder H, planted in the last part that fails (the line sits before its change): where FELIX_TEST_NO_MANIFEST=1 the part makes the case's hold.dir (only the first
@@ -79,8 +86,31 @@ if ($side eq "1") {
   if (-e "$d/hold.start") { put("$d/hold.go", ms()) }
 }
 DB5HOLD
+cat > "$DB5/atexit.pl" <<'DB5AX'
+# atexit.pl WFILE CMD GROUP... (R1, R60; the same text in parts 1293 and 1295): "ok", or "left at its exit: PID STAT COMMAND;..." for what the process groups GROUP... (zombies aside) hold
+# at a run's exit. Two listings 0.1 s apart, the first at once: a process in both is left. Not judged by them: a process whose command line is CMD (the record run's own: its watcher, or a subshell
+# of it; CMD empty, none) and its descendants. Those are waited for, a bound of 20 s from the first listing polled every 0.1 s, each listing's descendants noted; then two listings 0.1 s apart, the
+# first at once, judge the noted descendants as any other, and one with CMD still there at 20 s is left. WFILE gets the ms from the first listing to the first with none with CMD, or none.
+use strict; use Time::HiRes qw(time sleep);
+open(STDERR, ">", "/dev/null"); my ($wf, $cmd, @g) = @ARGV; my %g = map { $_ => 1 } grep { /^\d+$/ } @g;
+sub ls { my %p; open(my $h, "-|", "ps", "-A", "-ww", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "stat=", "-o", "command=") or return \%p;
+  while (my $l = <$h>) { next unless $l =~ /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*?)\s*$/; $p{$1} = [$2, $4, $5] if $g{$3} && $4 !~ /^Z/ } close $h; \%p }
+sub wt { my ($p) = @_; $cmd eq "" ? () : grep { $p->{$_}[2] eq $cmd } keys %$p }   # the processes with CMD
+sub dn { my ($p, @w) = @_; my %d = map { $_ => 1 } @w; my $n = 1; while ($n) { $n = 0; for (keys %$p) { next if $d{$_} || !$d{$p->{$_}[0]}; $d{$_} = 1; $n = 1 } } delete @d{@w}; keys %d }   # their descendants
+sub both { my ($x, $y, @k) = @_; join "", map { "$_ $y->{$_}[1] " . substr($y->{$_}[2], 0, 70) . ";" } sort { $a <=> $b } grep { exists $y->{$_} } @k }
+my $t0 = time; my $l1 = ls(); my @w1 = wt($l1); my %nd = map { $_ => 1 } dn($l1, @w1);
+sleep 0.1; my $t2 = time; my $l2 = ls(); my @w2 = wt($l2); $nd{$_} = 1 for dn($l2, @w2);
+my %out = map { $_ => 1 } (@w1, @w2, keys %nd); my $left = both($l1, $l2, grep { !$out{$_} } keys %$l1);
+my $wms; my @wl = map { "$_ $l2->{$_}[1] " . substr($l2->{$_}[2], 0, 70) } @w2;
+if (!@w1 && !@w2) { $wms = 0 } elsif (!@w2) { $wms = int(($t2 - $t0) * 1000) }
+else { while (time < $t0 + 20) { sleep 0.1; my $tl = time; my $p = ls(); my @x = wt($p); $nd{$_} = 1 for dn($p, @x); if (!@x) { $wms = int(($tl - $t0) * 1000); last } @wl = map { "$_ $p->{$_}[1] " . substr($p->{$_}[2], 0, 70) } @x } }
+$left .= join "", map { "$_ (the record run's own command line, still there 20 s after its exit);" } sort @wl unless defined $wms;
+if (%nd) { my $a1 = ls(); sleep 0.1; my $a2 = ls(); $left .= both($a1, $a2, grep { $nd{$_} } keys %$a1) }
+if ($wf ne "-" && open(my $h, ">", $wf)) { print $h (defined $wms ? $wms : "none"), "\n"; close $h }
+print $left eq "" ? "ok" : "left at its exit: $left";
+DB5AX
 _db5_HL='[ -z "${DJX_HOLD:-}" ] || command perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'   # command: a serial red suite runs the earlier parts first, one of which defines a perl that does nothing
-_db5_E=(); _db5_pf=(); _db5_cl=ok; _db5_ex=ok; _db5_leak=""; _db5_ctl=0; _db5_lim=600   # R55: B, every run bound of this part (the record run's too)
+_db5_lab=""; _db5_cmd=""; _db5_t1=""; _db5_E=(); _db5_pf=(); _db5_cl=ok; _db5_ex=ok; _db5_leak=""; _db5_ctl=0; _db5_lim=600   # R55: B, every run bound of this part (the record run's too)
 cat > "$DB5/run.pl" <<'DB5PL'
 my ($t, $f) = splice(@ARGV, 0, 2);
 my $p = fork; defined $p or exit 125;
@@ -101,15 +131,9 @@ _db5_line() { grep -cxF -e "$2" "$1" 2>/dev/null; }   # FILE LINE: lines that ar
 # The members of the process groups $* that are not zombies, one a line: PID STAT COMMAND.
 _db5_gm() { ps -A -o pid= -o pgid= -o stat= -o command= 2>/dev/null | G=" $* " LC_ALL=C awk 'index(ENVIRON["G"], " " $2 " ") && $3 !~ /^Z/ { c = $0; sub(/^ *[0123456789]+ +[0123456789]+ +[^ ]+ +/, "", c); print $1 " " $3 " " substr(c, 1, 70) }'; }
 _db5_gs() { local f; for f in ${_db5_pf[@]+"${_db5_pf[@]}"}; do printf ' %s' "$(cat "$f" 2>/dev/null)"; done; }   # the ids of the process groups of this case's runs
-# R1: "ok" when no process of those groups is alive at two listings 0.1 s apart, the first taken at once after a run has exited, else the ones in both.
-_db5_atexit() {
-  local g l1 l2 l="" p; g="$(_db5_gs)"
-  [ -n "${g// /}" ] || { printf ok; return 0; }
-  l1="$(_db5_gm $g)"; [ -n "$l1" ] || { printf ok; return 0; }
-  sleep 0.1; l2="$(_db5_gm $g)"
-  for p in $(printf '%s\n' "$l1" | awk '{ print $1 }'); do case "$l2" in "$p "*|*$'\n'"$p "*) l="$l$(printf '%s\n' "$l2" | grep -F -e "$p " | sed -n 1p);" ;; esac; done
-  [ -n "$l" ] && printf 'left at its exit: %s' "$l" || printf ok
-}
+# R1: "ok" when no process of those groups is alive at two listings 0.1 s apart, the first taken at once after a run has exited, else the ones in both. R60: for a record run (_db5_cmd, its own
+# command line) its watcher, a subshell of it and their descendants are waited for, 20 s at most, and what was a descendant is judged by two listings once they are gone (atexit.pl); the wait's ms go to CASE/LABEL.axw (R62)
+_db5_atexit() { local g; g="$(_db5_gs)"; [ -n "${g// /}" ] || { printf ok; return 0; }; perl "$DB5/atexit.pl" "$_db5_c/$_db5_lab.axw" "$_db5_cmd" $g; }
 # R12: "ok" once the groups of this case's runs hold no live process (30 s), else what was left, sent CONT and then KILL by pid.
 _db5_clean() {
   local g l="" i=0 p; g="$(_db5_gs)"
@@ -123,7 +147,7 @@ _db5_clean() {
 _db5_reap() {
   local p c
   for p in $(cat "$_db5_c/job.pids" 2>/dev/null); do
-    c="$(ps -o command= -p "$p" 2>/dev/null)"; case "$c" in "sleep 600"*) kill -KILL "$p" 2>/dev/null ;; esac
+    c="$(ps -ww -o command= -p "$p" 2>/dev/null)"; case "$c" in *perl*" djx-job $_db5_c"*) kill -KILL "$p" 2>/dev/null ;; esac   # R61: the job part's sleeper, by its tag and its case directory
   done
   return 0
 }
@@ -138,7 +162,9 @@ _db5_new() {
 # LABEL ARG...: the copy's driver in the background under a bounded runner (stdin /dev/null, stdout LABEL.out, stderr LABEL.err, the group's id
 # LABEL.pid). LC_ALL, LC_COLLATE, CLAUDE_CONFIG_DIR and EXECIGNORE are taken out of its environment, so that a part that exports them adds them.
 _db5_start() {
-  local l="$1"; shift
+  local l="$1" e; shift
+  _db5_lab="$l"; _db5_cmd=""   # R62: the run's label; R60: a record run's own command line, as ps prints it (run.pl execs it from this argv)
+  case " $* " in *" --record-assertions "*) _db5_cmd="$BASH $_db5_T/run"; for e in "$@"; do _db5_cmd="$_db5_cmd $e"; done ;; esac
   _db5_ms > "$_db5_c/run.start"   # R46: the run's start, ms (evidence fields of DJX_MLOG)
   ( cd "$_db5_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT -u LC_ALL -u LC_COLLATE -u CLAUDE_CONFIG_DIR -u EXECIGNORE \
@@ -171,6 +197,14 @@ _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findi
     "$([ -e "$_db5_c/hold.ended" ] && _db5_df "$(cat "$_db5_c/hold.ended" 2>/dev/null)" "$(cat "$_db5_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/hold.go" 2>/dev/null)")" \
     "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/run.start" 2>/dev/null)")" \
     "$(_db5_df "$(cat "$_db5_c/hold.mark" 2>/dev/null)" "$(cat "$_db5_c/hold.go" 2>/dev/null)")" "$(_db5_df "$(cat "$_db5_c/hold.ended" 2>/dev/null)" "$(cat "$_db5_c/hold.mark" 2>/dev/null)")" "$_db5_ex" >> "$DJX_MLOG"
+  _db5_mr
+}
+# R62, evidence only (a line never decides a verdict, and none is written without DJX_MLOG): _db5_ml WORD...: the line "1295 WORD..."; _db5_mr, once a run's checks are done: its run line,
+# "1295 run CASE/LABEL bound B ms START-TO-EXIT", and for a record run R60's wait as a margin, "1295 margin CASE/LABEL/watcher T 20000 ms MS-OR-none"
+_db5_ml() { [ -z "${DJX_MLOG:-}" ] || printf '1295 %s\n' "$*" >> "$DJX_MLOG"; }
+_db5_mr() {
+  _db5_ml run "${_db5_c##*/}/$_db5_lab" bound "$_db5_lim" ms "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/run.start" 2>/dev/null)")"
+  [ -z "$_db5_cmd" ] || [ ! -s "$_db5_c/$_db5_lab.axw" ] || _db5_ml margin "${_db5_c##*/}/$_db5_lab/watcher" T 20000 ms "$(sed -n 1p "$_db5_c/$_db5_lab.axw")"
 }
 _db5_rcpt() { if [ -f "$_db5_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db5_last() { tail -n 1 "$_db5_c/$1.out" 2>/dev/null; }
@@ -261,7 +295,7 @@ _db5_sp R28 optind "OPTIND=5" x 'OPTIND=5' 'variable OPTIND changed'
 _db5_sp R16 posn "set -- a b c" x 'set -- a b c' 'positional parameters changed'
 _db5_sp R16 pushd "pushd of the working directory, which leaves the stack changed and the directory as found" x 'pushd "$PWD" >/dev/null' 'directory stack changed'
 _db5_sp R16 ro "readonly djx_ro=1" x 'readonly djx_ro=1' 'readonly djx_ro added'
-_db5_sp R16 job "sleep 600 & left running" x 'sleep 600 &
+_db5_sp R16 job "a 600 s sleeper started with & and left running (it ends once its case directory is gone)" x 'command perl -e '"'"'sleep 1 while $n++ < 600 && -d $ARGV[1]'"'"' djx-job "$DJX_DIR" &
 printf "%s\n" "$!" >> "$DJX_DIR/job.pids"; printf "job %s left running\n" "$!" > "$DJX_DIR/exp.job"'
 if [ -n "$_db5_ulf" ] && [ "$_db5_ulf" != "$_db5_uh" ]; then
   _db5_sp R16 ulh "a hard limit lowered with ulimit -H to its soft value" x 'djx_w="$(ulimit -Ha)"; ulimit -H -'"$_db5_ulf $_db5_uls"'; djx_n="$(ulimit -Ha)"

@@ -36,6 +36,23 @@ if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
+# PATHS without the vendored ones: a path under a vendor, third_party or
+# node_modules directory, at any depth. That code is a dependency's, not the
+# project's, and its tests are not shipped with it (`go mod vendor` drops
+# _test.go), so a rule that reads it fires on a bump nobody can write a test
+# for, and felix merge refuses the bump. A cell is a grep pattern and cannot
+# say "not under a directory", so the paths are cleaned here, before any row
+# reads them, the requires cell included: a vendored test proves nothing of the
+# project's code either. The list comes back whole or the call fails, and the
+# caller then says it does not know. (Audit b11, the review round: M2.)
+_felix_evidence_own() {   # PATHS
+  local out rc=0
+  [ -n "$1" ] || return 0
+  out="$(LC_ALL=C grep -v -E -e '(^|/)(vendor|third_party|node_modules)/' <<<"$1")" || rc=$?
+  [ "$rc" -le 1 ] || return "$rc"
+  printf '%s' "$out"
+}
+
 # Every row of PROJ's evidence.tsv as five lines, so no cell is split by a read
 # that collapses empty ones: `ok`, name, when, requires, reason for four
 # non-empty cells set apart by tabs; `bad`, name, why, -, - for any other row.
@@ -92,6 +109,10 @@ _felix_evidence_judge() {   # PROJ PATHS check|brief
   [ -e "$proj/evidence.tsv" ] || [ -L "$proj/evidence.tsv" ] || return 0
   if [ ! -f "$proj/evidence.tsv" ] || [ ! -r "$proj/evidence.tsv" ] || ! rows="$(_felix_evidence_rows "$proj" 2>/dev/null)"; then
     _felix_evidence_say "$mode" unknown evidence.tsv "evidence.tsv exists but cannot be read, so its rules were not judged"
+    return 0
+  fi
+  if ! paths="$(_felix_evidence_own "$paths")"; then
+    _felix_evidence_say "$mode" unknown CHANGED-PATHS "grep could not set the vendored paths aside, so no rule was consulted"
     return 0
   fi
   while IFS= read -r kind && IFS= read -r name && IFS= read -r when && IFS= read -r requires && IFS= read -r reason; do

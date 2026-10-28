@@ -7,10 +7,12 @@ assertions are written from. It says what must be true, not how.
 
 The batch ships as two pull requests:
 
-- **The engine PR** (this branch): B1 to B19, part 1830. Felix lands it.
-- **The founder PR**: B20 and B21, part 1831, and the new rows of the seeded
-  template. It edits an escape table, so only the founder merges it
-  (section 7). The two are independent and can land in either order.
+- **The engine PR** (this branch): B1 to B19, part 1830, and the engine half
+  of B23 (lib/evidence.sh leaves vendored paths out). Felix lands it.
+- **The founder PR**: B20 to B22 and the rest of B23, part 1831, and the new
+  rows of the seeded template. It edits an escape table, so only the founder
+  merges it (section 7). It lands after the engine PR: part 1831 reads the
+  vendored-path rule through the template.
 
 Terms used below:
 
@@ -636,6 +638,17 @@ reads `n/a`.
   name, is cleared by a test file or by a new row, and both are visible.
   Turning a blocker into a report weakens the merge boundary, and no defect
   here needs it.
+- **A language whose extension the template does not list.** A cell cannot
+  say "any extension but a document's", so code is named by a list, and a
+  language outside it still reads n/a (an unlisted Verilog or COBOL source
+  under src/). The header of the template says so and says where to add the
+  extension. The other way, treating every extension as code, would gap every
+  data file and image under src/, and a gap blocks the merge.
+- **Vendored code the engine cannot name.** The engine leaves out three
+  directory names at any depth: vendor, third_party and node_modules (B23). A
+  project that vendors under another name, or marks vendored files with
+  `linguist-vendored` in .gitattributes, is not covered, and its bump still
+  gaps unit. The three names are what the review round reproduced.
 - **Per-path coverage.** `requires` is still met by a test anywhere in the
   change, so in a monorepo a test in packages/a counts for a change in
   packages/b. The rule is a set-level heuristic by design (evidence.sh:9-13).
@@ -714,7 +727,7 @@ escape row, no commission grant, and nothing published.
 
 Replace engine/harness/templates/evidence.tsv with the exact bytes this
 generator prints. Their sha256 is
-`7d9372df2da9a44acc0a809f7f3cb49c669993a9fe422666342db4fe891b9006`: 22 lines,
+`5bde52e3025d6a40b00b79c34bf223f8da3851465dcbb8be2a7ee3baaee312a3`: 28 lines,
 ASCII only. Ship part 1831 and its tests/run line with it.
 
 Why only the founder can merge it: evidence.tsv is in FELIX_ESCAPE_TABLES
@@ -725,7 +738,7 @@ channel.
 ```bash
 #!/bin/bash
 # Writes the seeded evidence table to standard output, byte for byte.
-CODE='(py|js|jsx|mjs|cjs|ts|tsx|go|rs|rb|java|kt|scala|swift|c|cc|cpp|cs|php|ex|exs|dart|sh|vue|svelte)'
+CODE='(py|pyi|pyx|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|rs|rb|java|kt|kts|scala|sc|groovy|clj|cljs|cljc|swift|m|mm|c|h|cc|hh|cpp|hpp|cxx|hxx|cs|fs|fsx|vb|php|ex|exs|erl|hrl|hs|lhs|ml|mli|lua|pl|pm|jl|r|R|nim|zig|dart|elm|cr|lisp|scm|rkt|sol|f90|f95|sh|bash|zsh|ps1|vue|svelte)'
 TD='(tests?|specs?|__tests__)'
 TS='(_test|_spec|\.test|\.spec|Test|Tests|Spec)'
 TFILE="(^|/)${TD}/([^/]+/)*[^/]+\\.${CODE}\$|${TS}\\.${CODE}\$|(^|/)test_[^/]+\\.py\$"
@@ -742,12 +755,18 @@ cat <<'HDR'
 #
 # Every cell is a grep -E pattern over each changed path, and every one reads
 # at any depth, so packages/x/src and crates/y/src are code as src/ is. Code
-# is named by its extension, so a page under book/src is not code. A test is a
-# code file under a tests, test, specs, spec or __tests__ directory anywhere,
+# is named by its extension, so a page under book/src is not code. The list is
+# long and it is a list: a language whose extension is not in it reads as no
+# code at all, so add the extension wherever the list is spelled out. A test is
+# a code file under a tests, test, specs, spec or __tests__ directory anywhere,
 # or a file named as a test beside its code: x_test.go, x.test.ts, x.spec.ts,
 # test_x.py, x_spec.rb, FooTest.java. A README under tests/ is neither, and
 # proves nothing. A test written inside the file it tests, as Rust's
 # #[cfg(test)] is, cannot be seen from a path, and that change reads as a gap.
+#
+# Vendored code is not read by any row. A path under a vendor, third_party or
+# node_modules directory, at any depth, is left out of the change before a cell
+# sees it (lib/evidence.sh), because a cell cannot say "not under a directory".
 #
 HDR
 printf '# name\twhen\trequires\treason\n'
@@ -760,15 +779,18 @@ printf 'e2e\t%s\t%s\tuser-facing changes need browser coverage\n' \
 printf 'api\t%s\t%s\tserved surfaces need a contract test\n' \
   "(^|/)(routes?|api|handlers?|controllers?)/([^/]+/)*[^/]+\\.${CODE}\$" "$(kw '(api|route|handler|controller|contract)')"
 printf 'config\t%s\t%s\tbuild and deploy config needs verification\n' \
-  '(^|/)(Dockerfile|docker-compose|Procfile)[^/]*$|\.tf$' "${TFILE}|smoke"
+  '(^|/)(Dockerfile|docker-compose|Procfile)[^/]*$|\.(tf|tfvars)$' "${TFILE}|smoke"
 ```
 
 What the rows change, row by row. Reasons and names are unchanged.
 
 - **unit**
-  - `when` reads at any depth and names code by its extension. Two
-    directories are added for Go (pkg, cmd) and five for monorepos (apps,
-    packages, services, crates, libs).
+  - `when` reads at any depth and names code by its extension: a list of
+    about seventy, which the review round (B22) widened from the first
+    draft's languages to C and C++ headers, Objective-C, Lua, Haskell, OCaml,
+    Zig, Erlang, Clojure, Julia and the like. Two directories are added for
+    Go (pkg, cmd) and five for monorepos (apps, packages, services, crates,
+    libs).
   - `requires` is a test file: either a code file under a test directory at
     any depth, or a test-named file beside its code. A README under tests/ no
     longer counts.
@@ -778,11 +800,17 @@ What the rows change, row by row. Reasons and names are unchanged.
 - **api** names code files in its `when`, so a Dockerfile under services/api/
   is no longer an api change. `requires` is a test file whose path names api,
   route, handler, controller or contract.
-- **config** reads its `when` at any depth. `requires` is a test file as in
-  unit, or a path naming smoke.
+- **config** reads its `when` at any depth, and a Terraform variables file
+  (`.tfvars`) is config as `.tf` is. `requires` is a test file as in unit, or
+  a path naming smoke.
 
 The verdicts were checked in a scratch run against this tree's
 felix_evidence_check (B20). felix_table_check accepts the file.
+
+Change A needs the engine PR first. B23 (vendored code fires no row) cannot be
+said in a grep cell, so its half lives in lib/evidence.sh, in the engine PR,
+and part 1831's A101 to A108 read it through the template. Landed alone, change
+A would leave those eight red.
 
 ### Change B: re-seed the seven product projects (separable; the founder decides per project)
 
@@ -923,7 +951,24 @@ ships.
     with no test, reads `unit gap` and `api gap` (control).
 
 B21 (A80) still binds the fix: five rows, in order, every cell compiling.
-B20's table, and section 7's generator, hash and line count, move with it.
+B20's table is unchanged, and section 7's generator, hash and line count have
+moved with the fix.
+
+**The fix.**
+- B22 is in the template: the extension list is about seventy long, the
+  header says that a language outside it reads as no code, and `.tfvars` is
+  config. A language the list misses is out of scope (section 6).
+- B23 is in the engine, lib/evidence.sh. `_felix_evidence_own` takes every
+  path under a vendor, third_party or node_modules directory out of the change
+  before any row is read, the requires cell included, so a vendored test
+  proves nothing and a vendored path hides nothing: A108 keeps the project's
+  own untested handler as unit gap and api gap. It applies to every project's
+  table, the check and the brief alike. No row of the nine projects'
+  evidence.tsv or of the template names those directories, so no existing row
+  loses a path.
+  If grep cannot clean the list, the check prints one `unknown` named
+  CHANGED-PATHS, "no rule was consulted", and never an all-clear.
+- The engine PR lands before change A (section 7).
 
 | A | B | Change | Expected |
 |---|---|---|---|

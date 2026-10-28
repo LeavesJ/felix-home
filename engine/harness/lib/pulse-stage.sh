@@ -12,24 +12,68 @@ if ! command -v _felix_git_read >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
-# A scratch index holding what a full staging would stage: HEAD's tree, then
-# `git add -A`. Its path on stdout and 0; 2 and nothing when it could not be made
-# or the add did not finish (a tracked named pipe, a corrupt index). The real
-# index is never touched, so a person's staged selection survives being asked
-# about. On an unborn branch it starts empty by read-tree --empty: a file mktemp
-# made is an index git refuses as smaller than expected.
-_felix_pulse_scratch() {   # REPO
-  local repo="$1" tmp
+# `git add -A`, leaving the directories named out, into the index in INDEX (an
+# empty INDEX is the repository's own, and only a MODE of --dry-run may be asked
+# of that one). The exclusions are `:(exclude,literal)` pathspecs: a nested
+# repository that has no commit is refused by git outright ("does not have a
+# commit checked out", and nothing is staged), and a name with a glob character in
+# it must stay a name.
+_felix_pulse_addall() {   # REPO INDEX MODE [DIR...]
+  local repo="$1" idx="$2" mode="$3" args d
+  shift 3
+  args=(add -A)
+  [ -z "$mode" ] || args[${#args[@]}]="$mode"
+  if [ "$#" -gt 0 ]; then
+    args[${#args[@]}]="--"; args[${#args[@]}]="."
+    for d in "$@"; do args[${#args[@]}]=":(exclude,literal)$d"; done
+  fi
+  if [ -n "$idx" ]; then GIT_INDEX_FILE="$idx" git -C "$repo" "${args[@]}"
+  else git -C "$repo" "${args[@]}"; fi
+}
+
+# The nested git repositories a staging of the work tree would meet: untracked
+# directories that hold a repository, in whatever state it is in, as git lists
+# them (a trailing slash, and not what is inside). One that has a commit would
+# stage as a bare gitlink, and one that has none cannot be staged at all, so
+# both are left out of the staging by name (audit b06, M3). The names are left,
+# without the slash, in the array _FELIX_PULSE_NESTED. What .gitignore ignores is
+# not listed, and a gitlink HEAD already holds is tracked, so neither is new.
+# 2 when git could not list them: not asked is not none.
+_felix_pulse_nested() {   # REPO
+  local repo="$1" p mark=""
+  _FELIX_PULSE_NESTED=()
+  while IFS= read -r -d '' p; do
+    case "$p" in
+      $'\037ok') mark=1 ;;
+      ?*/)       _FELIX_PULSE_NESTED[${#_FELIX_PULSE_NESTED[@]}]="${p%/}" ;;
+    esac
+  done < <(git -C "$repo" ls-files -o --exclude-standard -z 2>/dev/null && printf '\037ok\0')
+  [ -n "$mark" ] || return 2
+  return 0
+}
+
+# A scratch index holding what a full staging would stage: the tree given (HEAD's
+# when none is), then `git add -A` leaving the directories named out. Its path on
+# stdout and 0; 2 and nothing when it could not be made or the add did not finish
+# (a tracked named pipe, a corrupt index). The real index is never touched, so a
+# person's staged selection survives being asked about. On an unborn branch it
+# starts empty by read-tree --empty: a file mktemp made is an index git refuses as
+# smaller than expected.
+_felix_pulse_scratch() {   # REPO [TREE [DIR...]]
+  local repo="$1" tree="${2:-}" tmp
+  if [ "$#" -ge 2 ]; then shift 2; else shift; fi
   # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
   # suite points TMPDIR at a fixture to count what is left there.
   local tmpd="${TMPDIR:-/tmp}"
   tmp="$(mktemp "${tmpd%/}/felix-pulse.XXXXXX" 2>/dev/null)" || return 2
-  if git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+  if [ -n "$tree" ]; then
+    GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree "$tree" >/dev/null 2>&1 || { rm -f "$tmp"; return 2; }
+  elif git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
     GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree HEAD >/dev/null 2>&1
   else
     GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree --empty >/dev/null 2>&1
   fi
-  if ! GIT_INDEX_FILE="$tmp" git -C "$repo" add -A >/dev/null 2>&1; then
+  if ! _felix_pulse_addall "$repo" "$tmp" "" "$@" >/dev/null 2>&1; then
     rm -f "$tmp"; return 2
   fi
   printf '%s' "$tmp"
@@ -127,19 +171,29 @@ _felix_pulse_flag() {   # REPO INDEX
   return 1
 }
 
-_felix_pulse_commit() {   # REPO
-  # Returns rather than falling through. It used to push anyway: the push
-  # succeeded because there was nothing new to send, the verification
-  # passed because both heads were the stale one, and the run's LAST
-  # line — the one a person skims — read "pushed and verified". A backup
-  # that has silently stopped must not end on a success sentence.
-  if git -C "$1" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
+# Commits the tree in INDEX, the scratch index the scan read, and never the
+# repository's own index (audit b06, M1, M2). A file written after the scan is not
+# in that tree, so it is not in the commit; and a commit that fails (a hook, a
+# signing key, a lock) leaves the repository's index as it was found, so the next
+# run does not read the pulse's own staging as a person's. The repository's index
+# follows HEAD only once the commit has been made.
+#
+# Returns rather than falling through. It used to push anyway: the push
+# succeeded because there was nothing new to send, the verification
+# passed because both heads were the stale one, and the run's LAST
+# line — the one a person skims — read "pushed and verified". A backup
+# that has silently stopped must not end on a success sentence.
+_felix_pulse_commit() {   # REPO INDEX
+  if GIT_INDEX_FILE="$2" git -C "$1" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
        commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
     printf 'backup\tcommitted\n'
-  else
-    printf 'backup\tcommit FAILED; nothing was pushed, and this memory is NOT backed up\n'
-    return 1
+    if ! git -C "$1" read-tree HEAD >/dev/null 2>&1; then
+      printf 'backup\tcommitted, but git could not bring the index of this memory to the new commit, so the next pulse may read the commit'"'"'s own files as staged by hand; git reset there puts it right\n'
+    fi
+    return 0
   fi
+  printf 'backup\tcommit FAILED; nothing was pushed, and this memory is NOT backed up\n'
+  return 1
 }
 
 # Commit what the memory repository's working tree holds, leaving out a nested git
@@ -150,66 +204,82 @@ _felix_pulse_commit() {   # REPO
 # is NOT backed up, and the rest is committed. 0 to go on to the push, 1 to stop
 # with a refusal already printed. Called with the status non-empty.
 #
-# Asked on a scratch index BEFORE anything real stages, so a refusal leaves the
-# person's own index exactly as it was found; the previous shape staged first and
-# `git reset` on refusal, which is not an undo — it emptied whatever they had
-# deliberately staged. A person's staged selection is theirs: with one, and
-# something to leave out, nothing is committed (the pulse does not start acting in
-# a state where it used to stand down) and the line says so; the push still runs.
+# Everything is asked and done on a scratch index, and the commit is that index's
+# tree: the one scanned. It starts as the tree of the repository's own index, so
+# what a person staged by hand (an ignored file forced in) is read too, and the
+# repository's own index is not written until a commit has succeeded, so a refusal
+# or a failed commit leaves it exactly as it was found. A person's staged
+# selection is theirs: with one, and something to leave out, nothing is committed
+# (the pulse does not start acting in a state where it used to stand down) and the
+# line says so; the push still runs.
 felix_pulse_stage() {   # REPO
-  local repo="$1" idx rc lwhy
-  if ! idx="$(_felix_pulse_scratch "$repo")" || [ -z "$idx" ]; then
+  local repo="$1" pre base idx rc lwhy hand=0
+  # The tree of the repository's own index, taken first, and whether it is a
+  # person's: it is not HEAD's tree (on an unborn branch, not the empty one).
+  pre="$(git -C "$repo" write-tree 2>/dev/null)" || pre=""
+  if git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
+    base="$(git -C "$repo" rev-parse --verify -q 'HEAD^{tree}' 2>/dev/null)" || base=""
+  else
+    base="$(git -C "$repo" hash-object -t tree /dev/null 2>/dev/null)" || base=""
+  fi
+  if [ -z "$pre" ] || [ -z "$base" ]; then
+    printf 'backup\tgit could not read what is staged here, so nothing was committed, and this memory is NOT backed up\n'
+    return 1
+  fi
+  [ "$pre" = "$base" ] || hand=1
+  if ! _felix_pulse_nested "$repo"; then
+    printf 'backup\tcould not ask whether a nested repository sits inside memory (git could not list what is untracked), so nothing was committed, and this memory is NOT backed up\n'
+    return 1
+  fi
+  if ! idx="$(_felix_pulse_scratch "$repo" "$pre" ${_FELIX_PULSE_NESTED[@]+"${_FELIX_PULSE_NESTED[@]}"})" || [ -z "$idx" ]; then
     # Which of the two, said: git's own first error line when the stage was
     # what failed, and the scratch index otherwise.
-    lwhy="$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
+    lwhy="$(_felix_pulse_addall "$repo" "" --dry-run ${_FELIX_PULSE_NESTED[@]+"${_FELIX_PULSE_NESTED[@]}"} 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
     printf 'backup\tcould not ask whether a nested repository sits inside memory (%s), so nothing was committed, and this memory is NOT backed up\n' \
       "${lwhy:-no scratch index could be made}"
     return 1
   fi
-  _felix_pulse_stage_run "$repo" "$idx"; rc=$?
+  _felix_pulse_stage_run "$repo" "$idx" "$hand"; rc=$?
   rm -f "$idx" 2>/dev/null
   return "$rc"
 }
 
-_felix_pulse_stage_run() {   # REPO INDEX
-  local repo="$1" idx="$2" links lrc=0 frc hand=0 hrc=0 tree names tail
+_felix_pulse_stage_run() {   # REPO INDEX HAND
+  local repo="$1" idx="$2" hand="$3" links lrc=0 frc names tail i n d p
+  # Nested repositories left out of the staging by name (_felix_pulse_nested), and
+  # any gitlink that got into the scratch index all the same, taken out of it by
+  # index-info (which reads git's own quoting back).
   links="$(_felix_pulse_new_gitlinks "$repo" "$idx")" || lrc=$?
   if [ "$lrc" -ne 0 ]; then
     printf 'backup\tcould not ask whether a nested repository sits inside memory (git could not list the staged paths), so nothing was committed, and this memory is NOT backed up\n'
     return 1
   fi
-  # The nested repositories out of the scratch index, by index-info (which reads
-  # git's own quoting back), then the files that gained a credential.
   if [ -n "$links" ]; then
     printf '%s\n' "$links" | while IFS= read -r p; do
       printf '0 0000000000000000000000000000000000000000\t%s\n' "$p"
     done | GIT_INDEX_FILE="$idx" git -C "$repo" update-index --index-info >/dev/null 2>&1 \
       || { printf 'backup\tgit could not leave the nested repository out of what it stages, so nothing was committed, and this memory is NOT backed up\n'; return 1; }
   fi
+  # Then the files that gained a credential.
   _felix_pulse_flag "$repo" "$idx"; frc=$?
   if [ "$frc" -eq 2 ]; then
     printf 'backup\tcould not scan what would be committed for credentials (%s), so nothing was committed, and this memory is NOT backed up\n' "$_FELIX_PULSE_WHY"
     return 1
   fi
-  if [ -z "$links" ] && [ "$frc" -eq 0 ]; then
-    # A stage that did not finish is not a commit to make (2026-10-08). `git
-    # add -A` over a tracked named pipe exits 128 having staged nothing. The
-    # commit that followed then recorded whatever a person had staged by hand,
-    # or failed as "nothing to commit", and neither says why.
-    if ! git -C "$repo" add -A >/dev/null 2>&1; then
-      printf 'backup\tgit could not stage this tree (%s), so nothing was committed, and this memory is NOT backed up\n' \
-        "$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
-      return 1
-    fi
-    _felix_pulse_commit "$repo"; return $?
+  names=""; i=0; n="${#_FELIX_PULSE_NESTED[@]}"
+  while [ "$i" -lt "$n" ]; do
+    d="$(printf '%s' "${_FELIX_PULSE_NESTED[$i]}" | tr '\t\n' '  ')"; i=$((i + 1))
+    names="${names:+$names }$d"
+  done
+  if [ -n "$links" ]; then names="${names:+$names }$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"; fi
+  if [ -z "$names" ] && [ "$frc" -eq 0 ]; then
+    # Nothing left out: the scanned tree is the commit. The staging was done once,
+    # on the scratch index, before the scan. A second `git add -A` here, on the
+    # repository's own index, committed whatever the work tree held by then
+    # (a key written after the scan) and whatever a person had forced in.
+    _felix_pulse_commit "$repo" "$idx"; return $?
   fi
-  git -C "$repo" diff --no-ext-diff --no-textconv --cached --quiet >/dev/null 2>&1 || hrc=$?
-  case "$hrc" in 0) ;; 1) hand=1 ;; *)
-    printf 'backup\tgit could not read what is staged here, so nothing was committed, and this memory is NOT backed up\n'
-    return 1 ;;
-  esac
-  if [ -n "$links" ]; then
-    names="$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"
+  if [ -n "$names" ]; then
     if [ "$hand" = 1 ]; then tail="and a selection is staged by hand, so nothing was committed and this memory is NOT backed up"
     else tail="so it was left out of this commit and is NOT backed up"; fi
     printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, %s — move it out, or commit it yourself\n' "$names" "$tail"
@@ -221,15 +291,10 @@ _felix_pulse_stage_run() {   # REPO INDEX
     printf 'backup\ta possible credential was added to %s; %s — take it out, or commit the file yourself\n' "$names" "$tail"
   fi
   [ "$hand" = 0 ] || return 0
-  tree="$(GIT_INDEX_FILE="$idx" git -C "$repo" write-tree 2>/dev/null)" || tree=""
-  if [ -z "$tree" ] || ! git -C "$repo" read-tree "$tree" >/dev/null 2>&1; then
-    printf 'backup\tgit could not stage the rest of this tree, so nothing was committed, and this memory is NOT backed up\n'
-    return 1
-  fi
-  if git -C "$repo" diff --no-ext-diff --no-textconv --cached --quiet >/dev/null 2>&1; then
+  if GIT_INDEX_FILE="$idx" git -C "$repo" diff --no-ext-diff --no-textconv --cached --quiet >/dev/null 2>&1; then
     printf 'backup\tnothing else new to commit\n'; return 0
   fi
-  _felix_pulse_commit "$repo"
+  _felix_pulse_commit "$repo" "$idx"
 }
 
 # Where the copy a verified push made is, in one word, from what `git remote

@@ -126,7 +126,9 @@ _fn_fail() { _fn_rec failed "$_FN_K" "$_FN_P" "${_FN_I:--}" - "$1" "$_FN_D"; }
 # event (pull request -, kind not paused) is compared with the newest record of its kind whose detail has
 # its same-wait key, the detail up to its first "; " (_gt_job_once's and the trampoline's owed()), so the
 # hourly "X; still so since" row is X; it repeats while that record is dispatched and under a day old.
-# paused is exempt from D4 (section 6): D2 and D2b, below.
+# paused is exempt from D4 (section 6): D2 and D2b, below. D6 (section 7): a paused record whose time is after the
+# attempt's clock, or cannot be read, holds no pause, read as _fn_young reads D4's; its bound, 10^12 seconds, is past
+# any four-digit year, so a paused record of any readable past time still repeats.
 _fn_same() {   # KIND PR DETAIL
   local f="$_FN_DIR/alerts.tsv" tab=$'\t' got t s job=0
   [ -f "$f" ] || return 1
@@ -139,7 +141,7 @@ _fn_same() {   # KIND PR DETAIL
   t="${got%%$tab*}"; s="${got#*$tab}"
   if [ "$job" = 1 ]; then [ "${s%%$tab*}" = dispatched ] && _fn_young "$t" 86400; return; fi
   [ "$s" = "dispatched$tab$3" ] || return 1
-  [ "$1" != paused ] || ! _fn_resumed "$t"
+  [ "$1" != paused ] || { _fn_young "$t" 999999999999 && ! _fn_resumed "$t"; }
 }
 
 # D4: status 0 when TIME, a record's field 1, is less than SECONDS (a day, unless given) before the attempt's own

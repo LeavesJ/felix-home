@@ -133,6 +133,19 @@ felix_exceptions_at_base() {   # proj -> file text
 }
 
 _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; }   # the line, printable only
+# Does REPO/projects/ hold a directory, or a link to one, that is not NAME and whose
+# name does not begin with a dot? Called in a subshell: it fixes globbing on, nullglob,
+# and no dotglob, case folding or GLOBIGNORE, and those settings stay there.
+_felix_exceptions_others() {   # repo name -> exit 0 when it does
+  local e
+  set +f; unset GLOBIGNORE; shopt -u failglob nocaseglob nocasematch dotglob 2>/dev/null; shopt -s nullglob 2>/dev/null
+  for e in "$1/projects"/*; do
+    e="${e##*/}"
+    case "$e" in .*|"$2") continue ;; esac
+    [ -d "$1/projects/$e" ] && return 0
+  done
+  return 1
+}
 # Is refs/remotes/origin/main what a fetch from the declared remote wrote? One
 # printable line naming the first cause found, or nothing: also when the ref does
 # not exist, and always exit 0. In this order:
@@ -148,13 +161,21 @@ _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; } 
 #              table, and the home's origin is the home's), or of this project
 #              with no marker; never the project the origin URL binds, which
 #              would be checked against the URL that chose it, a circular check.
-#              The marker is guarded by deny rows, the URL is not. A marker that
-#              names no project here, or names another one that declares none,
-#              is a doubt. Limits: with no marker, an origin left at a copy whose
-#              path ends in this project's own remote_match gets past; a project
-#              that declares none is not checked in its own repository; and the
-#              marker and remote_match are read from the working tree. The URL
-#              is never printed;
+#              The marker is guarded by deny rows, the URL is not. But the marker
+#              is fixed state only while the repository it is read from is, and
+#              git's discovery over the working tree is not: a nested repository
+#              between the home and this project would be read instead, its own
+#              marker, table, URL and reflog. So the repository git finds must be
+#              the home this project's path names, the parent of its projects
+#              directory, or it is a doubt. A marker that names no project here,
+#              or names another one that declares none, is a doubt, and so, with
+#              no marker, is a project that declares none beside other projects.
+#              Limits: with no marker, an origin left at a copy whose path ends in
+#              this project's own remote_match gets past; a project that declares
+#              none is not checked when the marker names it, or, with no marker,
+#              when it is the only project in the working tree's projects/; and
+#              the marker, the projects/ listing and remote_match are read from
+#              the working tree. The URL is never printed;
 #   reflog     the newest reflog entry does not name the ref's value, or did not
 #              begin with fetch, pull, clone or update by push. A ref with no
 #              reflog, which is what a clone leaves, is not doubted by this.
@@ -165,7 +186,7 @@ _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; } 
 # honest reflog and gets past it (see the head of this file), and so does a
 # forged reflog: it stops an accident and a ref written by hand, and is not a wall.
 felix_exceptions_doubt() {   # proj -> a line, or nothing
-  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m rp f n
+  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m rp f n mk p par h b
   repo="$(felix_exceptions_repo "$proj")" && [ -n "$repo" ] || return 0
   git -C "$repo" rev-parse --verify --quiet "$ref" >/dev/null 2>&1 || return 0
   git -C "$repo" symbolic-ref -q "$ref" >/dev/null 2>&1; rc=$?
@@ -206,11 +227,17 @@ felix_exceptions_doubt() {   # proj -> a line, or nothing
     "W "*) _felix_doubt "fetch: ${m#W } writes $ref from something other than origin's refs/heads/main"; return 0 ;;
     N)     _felix_doubt "fetch: remote.origin.fetch has no refspec that writes $ref"; return 0 ;;
   esac
+  # The home first (B12R3-9), from PROJ's spelling alone and never from git's discovery: PROJ's parent
+  # must be named projects, and the repository git finds must be that parent's parent.
+  p="${proj%"${proj##*[!/]}"}"; par="$(dirname "$p")"; b="${p##*/}"
+  if [ "${par##*/}" != projects ] || ! h="$(dirname "$par")" || ! [ "$repo" -ef "$h" ]; then
+    _felix_doubt "remote_match cannot be read: the repository git finds for this project is not the one whose projects directory holds it"; return 0
+  fi
   # Which project's remote_match, from fixed state alone (round 3, B12R3-1): no .felix entry of any
   # kind, PROJ; a readable regular .felix naming a directory under REPO/projects/, that one; any
   # other .felix, a doubt. Not felix_resolve_project, whose rule 2 lets the URL pick the project.
-  f="$repo/.felix"; n=""
-  if [ ! -e "$f" ] && [ ! -L "$f" ]; then rp="$proj"
+  f="$repo/.felix"; n=""; mk=1
+  if [ ! -e "$f" ] && [ ! -L "$f" ]; then rp="$proj"; mk=0
   else
     if [ -f "$f" ] && [ -r "$f" ]; then n="$(LC_ALL=C tr -d '[:blank:]\n' < "$f" 2>/dev/null)" || n=""; fi
     _felix_name_ok "$n" && [ -d "$repo/projects/$n" ] \
@@ -218,10 +245,14 @@ felix_exceptions_doubt() {   # proj -> a line, or nothing
     rp="$repo/projects/$n"
   fi
   m="$(felix_json_str "$rp/project.json" remote_match 2>/dev/null)"
-  # B12R3-2: one that declares none goes unchecked only when it is PROJ, under any spelling of it.
+  # B12R3-2: one that declares none goes unchecked only when it is PROJ, under any spelling of it, and
+  # (B12R3-8) with no marker only while no other project stands in the working tree's projects/.
   if [ -z "$m" ]; then
     [ "$rp" -ef "$proj" ] \
       || { _felix_doubt "remote_match cannot be read: $n, the project this repository's .felix marker names, declares none"; return 0; }
+    if [ "$mk" = 0 ] && ( _felix_exceptions_others "$repo" "$b" ); then
+      _felix_doubt "remote_match cannot be read: $b declares none, and this repository has no .felix marker and holds other projects"; return 0
+    fi
   else
     url="$(git -C "$repo" remote get-url origin 2>/dev/null)"; rc=$?
     if [ "$rc" -ne 0 ] || [ -z "$url" ]; then _felix_doubt "remote_match cannot be read: git exited $rc"; return 0; fi

@@ -198,7 +198,8 @@ _felix_evidence_declared() {   # PROJ BASE ROOT
     ents="${ents#=}"
   done
   if [ -n "${opted// /}" ]; then
-    names="$(LC_ALL=C awk -F'\t' '/^[ \t\r]*#/ || /^[ \t\r]*$/ { next } { print $1 }' "$1/evidence.tsv" 2>/dev/null)" \
+    [ -f "$1/evidence.tsv" ] \
+      && names="$(LC_ALL=C awk -F'\t' '/^[ \t\r]*#/ || /^[ \t\r]*$/ { next } { print $1 }' "$1/evidence.tsv" 2>/dev/null)" \
       || { printf 'evidence.tsv could not be read for its row names, so the rules were not judged'; return 1; }
     v="$opted"; opted=""
     while IFS= read -r tok; do

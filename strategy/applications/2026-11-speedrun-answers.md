@@ -65,10 +65,10 @@ Advisors: [TK: Felix advisors, or cut this line]
 Turns your team's AI coding agents into autonomous engineers you don't have to babysit
 <!-- /answer -->
 
-### Startup description (794 of 800)
+### Startup description (781 of 800)
 
 <!-- answer:description -->
-AI coding agents answer two questions for themselves that they shouldn't: what does this work need, and is it done? Felix answers both. One half works out what a project needs, including what nobody thought to ask for, like the rate limit one of my agents shipped without, and brings in the tools to supply it. The other half, whether it's done, is deterministic. Most verification sold now is one AI grading another's work. In Felix, no model makes that call: a need counts as met only when a real check passes on the code being shipped, and anything it couldn't check counts as not done. Because the halves are joined, a need nobody wrote down still has to pass that check before the work counts. The deterministic half is live as an open-source Claude Code plugin. I'm building the join now.
+AI coding agents answer two questions for themselves that they shouldn't: what does this work need, and is it done? Felix answers both. One half works out what a project needs, including what nobody thought to ask for, like the rate limit one of my agents shipped without, and brings in the tools to supply it. The other half, whether it's done, is deterministic. Most verification sold now is one AI grading another's work. In Felix, no model makes that call: a need counts as met only when a real check passes on the code being shipped, and anything it couldn't check counts as not done. Because the halves are joined, a need nobody wrote down still has to pass that check before the work counts. The deterministic half is already live and open source. I'm building the join now.
 <!-- /answer -->
 
 **Primary category:** [TK: the list wasn't in the paste. Developer tools if it's there.] **Secondary:** AI infrastructure, or security if there's no infrastructure option.

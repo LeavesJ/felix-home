@@ -13,6 +13,8 @@ printf '\nwave 2 combined: an event is compared with its own last record, and a 
 # ca8ec1ac, its section 7 (the third review round: D6, R9 at the function, pins named) renamed R5's tie, R8, R9 and
 # R12 as pins, their checks unchanged, and added R13 and R14 after R12, written blind from that section alone. For
 # R14, which sources lib/notify.sh, the file's header comment (its first 30 lines, naming _FN_DIR) was read; no more.
+# After the fix 4cf0dd28, its section 8 (the fourth review round) named R14 a pin, its checks unchanged, and added
+# R15 after R14, written blind from that section alone; of notify.sh again only its header comment was read.
 #
 # Fixture G is 2120's: the shared land fixture (_lg_build amend), its home on main at origin's main with main's
 # entry cached, in the GitHub state (the home's origin reads https://github.com/fixture/lgh.git and insteadOf sends
@@ -437,14 +439,37 @@ _w2c_same() {   # -> _fn_same paused - <R9's reason> in W2CFD: repeat when it re
     _fn_same paused - "$W2CD14" >/dev/null 2>&1; r=$?; if [ "$r" -eq 0 ]; then printf repeat; else printf attempt; fi ) 2>/dev/null
 }
 _w2c_fd() { [ -f "$W2CFD/alerts.tsv" ] && LC_ALL=C awk -F'\t' '{ printf "%s%s %s %s %s|%s", s, $2, $3, $4, $8, $1; s = ";" }' "$W2CFD/alerts.tsv"; }   # -> each record's state, kind, PR, detail|time
-is "W2C R14 (R9 at the function): lib/notify.sh sourced with _FN_DIR a land directory whose alerts.tsv holds one dispatched paused record for - with detail R, 61 minutes old, and which has no ledger.tsv: _fn_same paused - R returns 0, a repeat, since a missing ledger is not an unreadable one and with no ledger D1 alone decides" \
+is "W2C R14 (R9 at the function; a pin, unchanged by section 8, holding before section 7's fix too): lib/notify.sh sourced with _FN_DIR a land directory whose alerts.tsv holds one dispatched paused record for - with detail R, 61 minutes old, and which has no ledger.tsv: _fn_same paused - R returns 0, a repeat, since a missing ledger is not an unreadable one and with no ledger D1 alone decides" \
    "$(_w2c_fd)|$([ -e "$W2CFD/ledger.tsv" ] && echo ledger || echo no-ledger)|$(_w2c_same)" \
    "dispatched paused - W2C no ledger|$W2CT14|no-ledger|repeat"
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$W2CT14" paused - - - 0 "W2C no ledger; by session s-w2c" > "$W2CFD/ledger.tsv"; chmod 200 "$W2CFD/ledger.tsv"
-is "W2C R14, the control (D2b, over the hour): the same with ledger.tsv present and mode 200, holding that pause's paused row: _fn_same paused - R returns non-zero, an attempt, since a ledger that cannot be read holds a pause only while the record is under an hour old" \
+is "W2C R14, the control (D2b, over the hour; a pin, unchanged by section 8, holding before section 7's fix too): the same with ledger.tsv present and mode 200, holding that pause's paused row: _fn_same paused - R returns non-zero, an attempt, since a ledger that cannot be read holds a pause only while the record is under an hour old" \
    "$(_w2c_fd)|$([ -f "$W2CFD/ledger.tsv" ] && echo ledger || echo no-ledger) $([ -r "$W2CFD/ledger.tsv" ] && echo readable || echo unreadable)|$(_w2c_same)" \
    "dispatched paused - W2C no ledger|$W2CT14|ledger unreadable|attempt"
 chmod u+r "$W2CFD/ledger.tsv" 2>/dev/null; rm -rf "$W2CFD"
+
+# ------------------------------------------ fourth review round, section 8 ---
+# Added on 2026-10-28, blind, from wave-2-combine.md section 8 (R15) alone, with the cases above as they were.
+# R15. D6's second half at the function, as R14 is: each case a fresh land directory under $TMP with no ledger.tsv,
+# its alerts.tsv R9's first record as --pause wrote it (W2CP14) with field 1 replaced, and _w2c_same as R14 runs it
+# (repeat, attempt, or nothing when _fn_same is not reached). The control's time is a minute before the clock.
+_w2c_r15() {   # FIELD-1 -> that record alone in a fresh land directory: its _w2c_fd|no-ledger or ledger|_w2c_same; the directory removed
+  local W2CFD; W2CFD="$(mktemp -d "$TMP/w2c-fn15.XXXXXX" 2>/dev/null)"; [ -n "$W2CFD" ] && [ -d "$W2CFD" ] || return 0
+  printf '%s\n' "$W2CP14" | LC_ALL=C awk -F'\t' -v OFS='\t' -v t="$1" 'NF == 8 { $1 = t; print }' > "$W2CFD/alerts.tsv"
+  printf '%s|%s|%s' "$(_w2c_fd)" "$([ -e "$W2CFD/ledger.tsv" ] && echo ledger || echo no-ledger)" "$(_w2c_same)"
+  rm -rf "$W2CFD"
+}
+W2CT15="$(_w2c_t 60)"
+is "W2C R15, empty (D6, a time that cannot be read): an alerts.tsv holding one dispatched paused record for - with detail R and field 1 empty, and no ledger.tsv: _fn_same paused - R returns non-zero, an attempt" \
+   "$(_w2c_r15 '')" "dispatched paused - W2C no ledger||no-ledger|attempt"
+is "W2C R15, garbage (D6, a time that cannot be read): the same with field 1 garbage: _fn_same paused - R returns non-zero, an attempt" \
+   "$(_w2c_r15 garbage)" "dispatched paused - W2C no ledger|garbage|no-ledger|attempt"
+is "W2C R15, month 00 (D6, a time that cannot be read): the same with field 1 2026-00-15T00:00:00Z, which sorts before the clock: _fn_same paused - R returns non-zero, an attempt" \
+   "$(_w2c_r15 2026-00-15T00:00:00Z)" "dispatched paused - W2C no ledger|2026-00-15T00:00:00Z|no-ledger|attempt"
+is "W2C R15, hour 25 (D6, a time that cannot be read): the same with field 1 2026-10-28T25:00:00Z: _fn_same paused - R returns non-zero, an attempt" \
+   "$(_w2c_r15 2026-10-28T25:00:00Z)" "dispatched paused - W2C no ledger|2026-10-28T25:00:00Z|no-ledger|attempt"
+is "W2C R15, the control (D1, no ledger): the same with field 1 a minute before the clock, a time that can be read and is not in the future: _fn_same paused - R returns 0, a repeat" \
+   "$(_w2c_r15 "$W2CT15")" "dispatched paused - W2C no ledger|$W2CT15|no-ledger|repeat"
 
 # --------------------------------------------------------------- G undone ---
 _w2c_off; /bin/mv "$W2CF/gh.prev" "$LGB/gh"; _lg_reset; _lg_land --uninstall; _lg_reset; rm -rf "$W2CF"

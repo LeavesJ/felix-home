@@ -53,7 +53,8 @@ _r6_l()  { _r6_aw 'index($0, p) == 1 { print; exit }' "$1"; }
 _r6_any() { _r6_aw 'index($0, p) { n++ } END { print n + 0 }' "$1"; }
 _rv=""; _rr=""; _rvn() { _rv="$_rv; ${_rr:+$_rr: }$*"; }
 _r6_is() {   # <name>: ok when nothing was noted; the detail never carries the key
-  local o; o="$R6O"; o="${o//"$_rK1"/<K1>}"
+  local o
+  o="$R6O"; o="${o//"$_rK1"/<K1>}"
   if [ -z "$_rv" ]; then ok "$1"; else bad "$1" "${_rv#; } | last printed: $(printf '%s' "$o" | tr '\t\n' '>|' | cut -c1-700)"; fi
   _rv=""; _rr=""
 }

@@ -128,39 +128,11 @@ printf 'sonarqube\tsecrets\thigh\n' >> "$DH/state/discover/widget.tsv"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
 has "but a new one does get through" "$new" "sonarqube"
 
-printf '\na refresh a hook forked cannot land on a cache written after it\n'
-# The refresh a session start forks (felix_discover_refresh_bg) is a child nothing waits for, and
-# it writes the cache whenever it finishes. A block that writes a cache under $FROOT/state/discover
-# and reads it back is open to every refresh an earlier block's hook started. The next block lost
-# to one on 2026-10-02 (0.49.262, main 32769ee6): the child was the real claude reading this
-# machine's real catalogue, and a row of it landed on the fixture under load. Forced here instead of
-# waited for: the claude the refresh asks holds still until the test lets go, so the write lands after
-# the fixture on any load. Without the shim it lands; behind the one part 0004 puts on PATH it does not.
-DRC="$TMP/discover-race"; DRP="$FROOT/projects/drc"; DRH="$FROOT/state/discover"; DRCO="$DRC/checkout"
-mkdir -p "$DRC/real" "$DRC/qhome/state/discover" "$DRC/elsewhere" "$DRC/felix-discover.abc123" "$DRC/felix-reach.abc123"
-cat > "$DRC/real/claude" <<STUB
-#!/bin/sh
-printf '%s|%s\n' "\$PWD" "\$*" >> "$DRC/asked.log"
-i=0; while [ ! -e "$DRC/go" ] && [ "\$i" -lt 900 ]; do sleep 0.1; i=\$((i+1)); done
-echo '[]'
-STUB
-chmod +x "$DRC/real/claude"
-_claude_shim_build "$DRC/shim" "$DRC/real/claude"
-_drc_cl() { local d="$1"; shift; ( cd "$d" && PATH="$DRC/shim:$PATH"; export PATH; claude "$@" ) 2>/dev/null; }
-: > "$DRC/asked.log"; : > "$DRC/go"
-_drc_cl "$DRC/felix-discover.abc123" plugin list --json --available >/dev/null; _drc_rcd=$?
-_drc_cl "$DRC/felix-reach.abc123" mcp list >/dev/null; _drc_rcr=$?
-is  "the shim refuses a read from the directory a discovery refresh runs in" "$_drc_rcd" "1"
-is  "and one from the directory a reach read runs in" "$_drc_rcr" "1"
-is  "and asks the claude behind it neither time" "$(cat "$DRC/asked.log")" ""
-is  "from anywhere else it is the claude behind it" "$(_drc_cl "$DRC/elsewhere" plugin list --json)" "[]"
-has "and that claude was asked" "$(cat "$DRC/asked.log")" "|plugin list --json"
-if has_claude; then
-  is "the suite's PATH puts the shim ahead of this machine's claude" "$(command -v claude)" "$TMP/claude-shim/claude"
-else
-  skip "the suite's PATH puts the shim ahead of this machine's claude" "no claude CLI"
-fi
-# _discover_quiesce waits on the lock the refresh holds, however long that is, and gives up on one that never ends.
+printf '\n_discover_quiesce waits for the refresh a hook forked\n'
+# The refresh a session start forks (felix_discover_refresh_bg) is a child nothing waits for. It holds
+# <home>/state/discover/.lock from before the fork until after it has written the cache, which is how
+# the block below, which forks one on purpose, knows it is done however long the machine takes.
+DRC="$TMP/discover-race"; mkdir -p "$DRC/real" "$DRC/qhome/state/discover"
 _discover_quiesce "$DRC/qhome" 1; _drc_q=$?
 is  "_discover_quiesce returns at once where no refresh holds the lock" "$_drc_q" "0"
 mkdir "$DRC/qhome/state/discover/.lock"
@@ -171,49 +143,7 @@ _drc_bg=$!
 _discover_quiesce "$DRC/qhome" 60; _drc_q=$?
 wait "$_drc_bg"
 is  "and waits for one that does" "$_drc_q" "0"
-# The refresh itself, through the hook. Skipped where the engine runs no detached read at all: it
-# makes the directory it runs in only under a TMPDIR that no one else can write into.
-_drc_on=1; _drc_why=""
-if command -v _rx_base_ok >/dev/null 2>&1 && _rx_base_ok "$TMP"; then :
-else _drc_on=0; _drc_why="TMPDIR is not a private directory here, so the engine runs no detached read"; fi
-_drc_is()  { if [ "$_drc_on" = 1 ]; then is "$@"; else skip "$1" "$_drc_why"; fi; }
-_drc_has() { if [ "$_drc_on" = 1 ]; then has "$@"; else skip "$1" "$_drc_why"; fi; }
-_drc_fixture() { _dstamp; printf 'langfuse\tllm\tlow\n'; }
-_drc_ctl=""; _drc_ctl_asked=""; _drc_trt=""; _drc_trt_asked=""
-if [ "$_drc_on" = 1 ]; then
-  _drc_had=0; [ -d "$DRH" ] && _drc_had=1
-  mkdir -p "$DRP" "$MEM/drc" "$DRCO" "$DRH"
-  printf '{"name": "drc", "remote_match": "example.com/drc", "gate": "true"}\n' > "$DRP/project.json"
-  printf '# drc\n' > "$DRP/CLAUDE.md"
-  cp "$REAL_HARNESS/templates/routes.tsv" "$DRP/routes.tsv"
-  printf 'llm\n' > "$DRP/capabilities"
-  ( _fx_cd "$DRCO" && git init -q -b main && printf 'drc\n' > .felix && printf 'x\n' > f.txt \
-    && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
-  # <dir> first on PATH, a session starts in the checkout, and its refresh is forked and held.
-  _drc_session() {
-    _discover_quiesce "$FROOT" 300
-    rm -f "$DRC/go" "$DRC/asked.log" "$DRH/drc.tsv" "$DRH"/drc.tsv.new.*
-    ( cd "$DRCO" && TMPDIR="$TMP" PATH="$1:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" ) >/dev/null 2>&1
-  }
-  # A cache written after the session started, then the claude let go: what the cache holds when the refresh is done.
-  _drc_race() {
-    _drc_session "$1"
-    _drc_fixture > "$DRH/drc.tsv"
-    : > "$DRC/go"
-    _discover_quiesce "$FROOT" 300
-    cat "$DRH/drc.tsv"
-  }
-  _drc_ctl="$(_drc_race "$DRC/real")"; _drc_ctl_asked="$(cat "$DRC/asked.log" 2>/dev/null)"
-  _drc_trt="$(_drc_race "$DRC/shim")"; _drc_trt_asked="$(cat "$DRC/asked.log" 2>/dev/null)"
-  rm -rf "$DRP" "$MEM/drc" "$DRH/drc.tsv" "$DRH"/drc.tsv.new.*
-  [ "$_drc_had" -eq 1 ] || rmdir "$DRH" 2>/dev/null
-fi
-_drc_has "without the shim the hook's refresh asks the claude for the catalogue" "$_drc_ctl_asked" "plugin list --json --available"
-_drc_is  "and lands on a cache written after the hook forked it" "$_drc_ctl" "$(_dstamp)"
-_drc_is  "behind the shim the same refresh leaves that cache as it was" "$_drc_trt" "$(_drc_fixture)"
-_drc_is  "and never reaches the claude behind the shim" "$_drc_trt_asked" ""
-unset -f _drc_cl _drc_is _drc_has _drc_fixture _drc_session _drc_race
-unset DRC DRP DRH DRCO _drc_rcd _drc_rcr _drc_q _drc_bg _drc_on _drc_why _drc_had _drc_ctl _drc_ctl_asked _drc_trt _drc_trt_asked
+unset _drc_q _drc_bg
 
 # An unreadable catalogue is not an empty one. felix_discover_candidates used to
 # come back with no rows whether the marketplaces had nothing for this project
@@ -296,22 +226,53 @@ is  "and no CLI on PATH at all is exit 3, not an empty marketplace" \
 # the candidates function returns before it ever asks the CLI.
 cp "$FROOT/projects/widget/capabilities" "$TMP/caps.discover.keep" 2>/dev/null || : > "$TMP/caps.discover.keep"
 printf 'llm\n' >> "$FROOT/projects/widget/capabilities"
-DCH="$FROOT/state/discover"; mkdir -p "$DCH"
-# A refresh an earlier block's hook forked writes this cache when it finishes (the block above says
-# how it was caught), so none is left running before the fixture is written.
-_discover_quiesce "$FROOT" && ok "no refresh an earlier block started is still running when a block writes its cache" \
-  || bad "no refresh an earlier block started is still running when a block writes its cache" "$DCH/.lock is held"
+# This block reads back a cache it wrote, so the cache is in a home of its own: projects/ is the fixture's,
+# state/ is not. The refresh a session start forks writes $FROOT/state/discover/widget.tsv whenever it
+# finishes and nothing waits for it, and on 2026-10-02 (0.49.262, main 32769ee6), with the real claude on
+# PATH and the machine under load, one from an earlier block landed a row of this machine's catalogue
+# (figma) on the fixture below. Forced here instead of hoped away: a session starts in the widget
+# checkout with a claude that holds still, so its refresh is in flight for the whole block, and it is let
+# go where the block compares. It lands on the shared home, which nothing here reads.
+DCHOME="$TMP/discover-home"; DCH="$DCHOME/state/discover"; mkdir -p "$DCH"
+[ -e "$DCHOME/projects" ] || ln -s "$FROOT/projects" "$DCHOME/projects"
+cat > "$DRC/real/claude" <<STUB
+#!/bin/sh
+printf '%s|%s\n' "\$PWD" "\$*" >> "$DRC/asked.log"
+i=0; while [ ! -e "$DRC/go" ] && [ "\$i" -lt 900 ]; do sleep 0.1; i=\$((i+1)); done
+echo '[]'
+STUB
+chmod +x "$DRC/real/claude"
+# Skipped where the engine runs no detached read at all: it makes the directory the read runs in only
+# under a TMPDIR that no one else can write into.
+_drc_on=1; _drc_why=""
+if command -v _rx_base_ok >/dev/null 2>&1 && _rx_base_ok "$TMP"; then :
+else _drc_on=0; _drc_why="TMPDIR is not a private directory here, so the engine runs no detached read"; fi
+_drc_is()  { if [ "$_drc_on" = 1 ]; then is "$@"; else skip "$1" "$_drc_why"; fi; }
+_drc_has() { if [ "$_drc_on" = 1 ]; then has "$@"; else skip "$1" "$_drc_why"; fi; }
+_drc_routes=0; _drc_had=0
+if [ "$_drc_on" = 1 ]; then
+  [ -f "$FROOT/projects/widget/routes.tsv" ] || { cp "$REAL_HARNESS/templates/routes.tsv" "$FROOT/projects/widget/routes.tsv"; _drc_routes=1; }
+  [ -d "$FROOT/state/discover" ] && _drc_had=1
+  mkdir -p "$FROOT/state/discover"
+  _discover_quiesce "$FROOT" 300
+  rm -f "$DRC/go" "$DRC/asked.log" "$FROOT/state/discover/widget.tsv" "$FROOT/state/discover"/widget.tsv.new.*
+  ( cd "$REPO" && TMPDIR="$TMP" PATH="$DRC/real:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" ) >/dev/null 2>&1
+fi
 { _dstamp; printf 'langfuse\tllm\tlow\n'; } > "$DCH/widget.tsv"
 DCW="$(cat "$DCH/widget.tsv")"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
 # Exits with the status it refused with since 2026-10-01: 3 here, and 2 for rules
 # that could not be read, so that --adopt, which fills the cache with it, can say
 # which of the two it was. Still non-zero, which is what the `&&` above asks.
 is  "felix discover --inspect --quiet exits 3 when the catalogue cannot be read" "$rc" "3"
 is  "and prints nothing, not even the stamp" "$out" ""
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover 2>&1)"
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover 2>&1)"
 has "and the loud form says the catalogue was never seen" "$out" "could not be read"
+# Let go where the block compares, and wait until the refresh is done: it lands now, on the shared home.
+: > "$DRC/go"; [ "$_drc_on" = 0 ] || _discover_quiesce "$FROOT" 300
 is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
+_drc_has "and the refresh the hook forked asked the claude for the catalogue" "$(cat "$DRC/asked.log" 2>/dev/null)" "plugin list --json --available"
+_drc_is  "and landed on the shared home's cache, which this block does not read" "$(cat "$FROOT/state/discover/widget.tsv" 2>/dev/null)" "$(_dstamp)"
 # And a writer that actually writes. The assertion above runs the loud form,
 # which has no cache writer in any version, so it could not have failed for
 # the defect it is named after. --adopt fills a cache it finds STALE, and
@@ -320,20 +281,27 @@ is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
 DCS="# stamp not-the-current-one
 langfuse	llm	low"
 printf '%s\n' "$DCS" > "$DCH/widget.tsv"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --adopt 2>&1)"; rc=$?
 is  "a stale cache and an unreadable catalogue adopts nothing" "$rc" "2"
 is  "and the stale answer is still there, not replaced by an empty one" "$(cat "$DCH/widget.tsv")" "$DCS"
 [ -e "$DCH/widget.tsv.new" ] && bad "and no half-written cache is left beside it" "left behind" || ok "and no half-written cache is left beside it"
 rm -f "$DCH/widget.tsv"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --adopt 2>&1)"; rc=$?
 is  "discover --adopt with no cache and no catalogue adopts nothing and says why" "$rc" "2"
 has "in words" "$out" "nothing was adopted"
 [ -e "$DCH/widget.tsv" ] && bad "and writes no cache" "$(cat "$DCH/widget.tsv")" || ok "and writes no cache"
 [ -e "$DCH/widget.tsv.new" ] && bad "nor a half-written one" "left behind" || ok "nor a half-written one"
-out="$(cd "$REPO" && PATH="$DCP/bin-empty:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-empty:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
 is  "and a catalogue that was read and matched nothing is exit 0" "$rc" "0"
 is  "with the stamp and no rows, which is an empty cache and a real answer" "$out" "$(_dstamp)"
 cp "$TMP/caps.discover.keep" "$FROOT/projects/widget/capabilities"
+if [ "$_drc_on" = 1 ]; then
+  rm -f "$FROOT/state/discover/widget.tsv" "$FROOT/state/discover"/widget.tsv.new.*
+  [ "$_drc_had" -eq 1 ] || rmdir "$FROOT/state/discover" 2>/dev/null
+  [ "$_drc_routes" -eq 0 ] || rm -f "$FROOT/projects/widget/routes.tsv"
+fi
+unset -f _drc_is _drc_has
+unset DRC DCHOME _drc_on _drc_why _drc_routes _drc_had
 
 printf '\ndiscovery reads before it recommends\n'
 # The plugin format has no permission declaration and `claude plugin validate`

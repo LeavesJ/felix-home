@@ -271,16 +271,16 @@ case "$( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp "$DRS" )" in
 esac
 # Through the command, with the stub cli: a mismatched cache is refilled
 # before anything is adopted, and an empty result is a stamp and no prose.
-mkdir -p "$FROOT/state/discover"
-# Not while a refresh an earlier block's hook forked can still write this cache (part 0290).
-_discover_quiesce "$FROOT" && ok "no refresh an earlier block started is still running when a block writes its cache" \
-  || bad "no refresh an earlier block started is still running when a block writes its cache" "$FROOT/state/discover/.lock is held"
-printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"
-out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" discover --adopt 2>&1)"
+# In a home of its own, state/ and all: a refresh an earlier block's hook forked writes
+# $FROOT/state/discover/widget.tsv whenever it finishes (part 0290 holds one open to show it).
+RFH="$TMP/refill-home"; mkdir -p "$RFH/state/discover"
+[ -e "$RFH/projects" ] || ln -s "$FROOT/projects" "$RFH/projects"
+printf 'stalerow\tllm\tlow\n' > "$RFH/state/discover/widget.tsv"
+out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" FELIX_HOME="$RFH" "$FELIX" discover --adopt 2>&1)"
 has "discover --adopt refills a cache the current rules did not write" "$out" "filling the discovery cache"
 is  "and the refilled cache begins with the stamp" \
-    "$(head -1 "$FROOT/state/discover/widget.tsv")" "$(_dstamp | tr -d '\n')"
-is  "and holds no prose when nothing matched" "$(grep -vc '^#' "$FROOT/state/discover/widget.tsv")" "0"
+    "$(head -1 "$RFH/state/discover/widget.tsv")" "$(_dstamp | tr -d '\n')"
+is  "and holds no prose when nothing matched" "$(grep -vc '^#' "$RFH/state/discover/widget.tsv")" "0"
 case "$out" in *stalerow*) bad "and the stale row was not adopted" "$out" ;; *) ok "and the stale row was not adopted" ;; esac
 n="$(printf '%s\n' "$out" | grep -c '^declare' || true)"
 is "exactly one declaration from that cache" "$n" "1"

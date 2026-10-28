@@ -7,7 +7,7 @@
 # Definitions only. _discover_fixtures_build sets DF first and does nothing more
 # once the last plugin it makes is there, so in the serial run only 0290's call
 # builds. It makes only the five plugins 0290 reads; 0320 makes its own beside them.
-# _discover_quiesce, added 2026-10-28, is used by 0290 and 0580.
+# _discover_quiesce, added 2026-10-28, is used by 0290.
 
 # Every fixture cache carries the stamp a real one does, or the readers treat
 # it as absent.
@@ -31,10 +31,9 @@ _discover_fixtures_build() {
 # fixture home by default), 1 if one still is after <seconds> (300). A refresh a hook forked holds
 # <home>/state/discover/.lock from before the fork until after it has written the cache
 # (felix_discover_refresh_bg), so with the lock gone every refresh an earlier block started has
-# finished, and none can write again until a hook starts another. A block that writes a cache there
-# and expects to read it back calls this before it writes, not after: nothing waits for a hook's
-# child, so nothing else says it is done. The lock and not a sleep, because a refresh takes as long
-# as the machine does.
+# finished, and none can write again until a hook starts another. Nothing waits for a hook's child,
+# so nothing else says it is done: a block that forks one on purpose calls this to wait for it, and
+# the lock and not a sleep because a refresh takes as long as the machine does.
 _discover_quiesce() {
   local lock="${1:-$FROOT}/state/discover/.lock" i=0 n=$(( ${2:-300} * 10 ))
   while [ -d "$lock" ] && [ "$i" -lt "$n" ]; do sleep 0.1; i=$((i+1)); done

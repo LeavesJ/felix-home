@@ -149,31 +149,6 @@ FELIX="$FROOT/harness/felix"
 # and reports failures about the wrong tree. Observed exactly that.
 export FELIX_HOME="$FROOT"
 
-# A hook's detached reads do not reach this machine's claude. hooks/session-start forks
-# `felix discover --inspect --quiet` and `claude mcp list` (lib/discover.sh, lib/reach.sh) and
-# does not wait for either; each runs from a neutral directory made under TMPDIR
-# (felix-discover.XXXXXX, felix-reach.XXXXXX, lib/reach-read.sh) and writes under the fixture
-# home whenever it finishes. With the real CLI on PATH that was this machine's whole plugin
-# catalogue, read at whatever speed the machine had, and on 2026-10-02 (0.49.262, main
-# 32769ee6) a row of it, figma, landed over the fixture cache of "an unreadable catalogue is
-# not an empty one" under load. <dir>/claude is the claude behind it, except from one of those
-# two directories, where it exits 1: an unreadable catalogue, which writes nothing. Everything
-# else is the real CLI, so the assertions that compare against it (0070, 0120, 0580, 0590) still do.
-_claude_shim_build() {   # <dir> <claude>
-  mkdir -p "$1" || return 1
-  cat > "$1/claude" <<SHIM
-#!/bin/sh
-case "\$PWD" in */felix-discover.??????|*/felix-reach.??????) exit 1 ;; esac
-exec "$2" "\$@"
-SHIM
-  chmod +x "$1/claude"
-}
-_claude_real="$(command -v claude 2>/dev/null)"
-case "$_claude_real" in
-  /*) _claude_shim_build "$TMP/claude-shim" "$_claude_real" && export PATH="$TMP/claude-shim:$PATH" ;;
-esac
-unset _claude_real
-
 # A checkout with NO git remote, bound by marker file alone.
 REPO="$TMP/some-customer-repo"
 mkdir -p "$REPO/deep/nested"

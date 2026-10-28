@@ -206,15 +206,15 @@ record, read the same way. This applies wherever human text is used: the
   start is instead read from just after the first `Task:` line that follows a
   blank line; with no such line, the text is read from its beginning.
 - **S2, its title.** Some session file under the records root, modified after
-  the proposal and not the file that proposed it, holds a record of type
-  `custom-title` whose decoded `customTitle` equals the chip's decoded title
-  exactly, byte for byte, uncut. Any such record in the file counts, not only
-  the last.
+  the proposal and not the file that proposed it, holds, in its windows only
+  (its first 1,048,576 bytes and its last 262,144, whole lines; audit b09, B12),
+  a `custom-title` record whose decoded `customTitle` equals the chip's decoded
+  title exactly, byte for byte, uncut. Any such record there counts.
 - **S3, its start call.** Some session file under the records root, modified
-  after the proposal, holds an assistant `tool_use` of
-  `mcp__ccd_session__start_session` whose input holds
-  `"proposal_id":"<the chip's task id>"`, and a `tool_result` for that
-  `tool_use` id is present.
+  after the proposal, holds, in its windows or, for a file read whole for its
+  proposals, anywhere (audit b09, B13), an assistant `tool_use` of
+  `mcp__ccd_session__start_session` whose input holds `"proposal_id":"<the chip's
+  task id>"`, and a `tool_result` for that `tool_use` id is present there too.
 
 "Decoded" is as §6.6 reads the prompt today: JSON escapes read, line breaks and
 tabs as spaces. The unread-file rule (§5.2, §6.6 Unread files) is unchanged and
@@ -461,7 +461,7 @@ felix monitor: read-only. It wrote nothing, fetched nothing and acted on nothing
     - a land `pr` row: `<ref> <states>[, <age_h>h]: <detail>`.
 - **Collapsed** groups are not listed: no row line of theirs is printed, and
   their counts, said as B4 says, are on the `collapsed:` line, last in the
-  block.
+  block but for the helper line that may follow it (audit b09, B16).
 - With no repository read at all, the page prints the first line only.
 
 ## B7. The terminal filter
@@ -866,7 +866,7 @@ as any other, so the page listed them as lost work and as blocked sessions:
   pending calls: "a subagent's question or pending call is not the session's".
   The same holds for its unpushed commits. A helper works for the session that
   spawned it, returns its result to that session, and asks the founder nothing.
-  What needs a person is said by the spawning session's own row.
+  What needs a person is said by the spawning session's own row, and, for work no PR holds, by the count of audit b09's B16 (C025).
 
 So a helper worktree is placed apart: a state on the inventory's row, its own
 section in the inventory's human view, and a collapsed group on the page. No
@@ -931,11 +931,11 @@ learns the answer from the adapter, never from the detail text:
   `unknown` reads as `unknown` for a name of a helper's form, and as `no`
   otherwise.
 - **A records root the run cannot enter** is no search, so a helper's name
-  reads `unknown` there. Today the adapter's other fields do not say so: with
-  the root at mode 000 the `sessions` cover row still reads `read` and the
-  owner `-`. That gap in §5.2 predates Part C and is left open by it; only the
-  helper field answers `unknown` in that case (found by the blind author,
-  C5.6).
+  reads `unknown` there, and, since audit b09 (B8, C047), so does all of it:
+  the `sessions` and `chips` cover rows read `unknown` (`... could not be
+  read`), every owner `unknown`. Owner `-` is §5.2's, a record directory with no
+  session of the person's: SDK sessions are not counted (b09, B1). The gap
+  the blind author found (C5.6) is closed.
 
 ## C3. The inventory's human view (§8, amended)
 

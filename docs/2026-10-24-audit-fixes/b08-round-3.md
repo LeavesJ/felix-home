@@ -766,3 +766,83 @@ Named `B08R3Z A<n> (R3Z-<m>...)`.
 Expected red on 25f4fd53: A141, A142, A143, A145, A146, A148, A150 and A152 (8). A151 may be red
 if 25f4fd53 leaves its temp file in TMPDIR. A153 should pass on 25f4fd53, because it reads the
 index. The controls pass. Report each one.
+
+## 12. Fifth follow-up: every file the cloud runs is judged as its reader reads it
+
+The review of 9801aa12 (section 11's fix) found no fail-open in the code it added. Fourteen earlier
+fixture types read the same as on 25f4fd53. It found two mediums and five lows. The first medium is
+this contract's own error. Section 11 exempted `text` and `eol` because JSON reads a line end as
+whitespace, but `.claude/cloud/provision` is bash. The second medium is older: the toolbox was
+never parsed, only matched line by line with sed.
+
+- **B08R3Z2-1 (medium). A line-ending conversion is a fault outside the two JSON files.**
+  - For every regular-file index entry under `.claude/` other than `.claude/settings.json` and
+    `.claude/cloud/toolbox.json`, a checkout that writes CRLF is a fault. That is `eol` set to
+    `crlf`, or the legacy `crlf` attribute set.
+  - It adds ` unreadable: <path> (git attribute eol changes it at checkout);`, or `crlf` in place
+    of `eol`, in the B08R3Z-1 order.
+  - The two JSON files keep section 11's exemption.
+  - Attributes are read with `git -c core.ignorecase=false check-attr --cached`, so a pattern that
+    matches only by case folding counts on the Mac as it does on Linux. This closes the
+    review's low, where a `.CLAUDE/...` pattern failed on the Mac and passed in CI.
+- **B08R3Z2-2 (medium, older). The toolbox is parsed, and provision must be there.**
+  - `.claude/cloud/toolbox.json`'s index blob goes through the JSON reader settings.json already
+    uses: size, NUL, escape, one JSON text, no repeated key.
+  - Its top level must be one object holding `tools`, an array of objects, each with a string
+    `name`. The names are read from that parse. sed is gone.
+  - A toolbox that fails any of this adds ` unreadable: .claude/cloud/toolbox.json (<the first
+    fault, in the reader's words>);`. No `has no entry` clause is said over it.
+  - When any command in settings.json names `.claude/cloud/provision`, the index must hold that
+    path as a regular file with mode 100755. Otherwise the line adds ` unreadable:
+    .claude/cloud/provision (settings.json runs it, and git's index holds no executable file
+    there);`.
+- **B08R3Z2-3 (low, regression). stack.tsv by section 10's rules.** `projects/felix/stack.tsv` is
+  read only as a stage-0 regular-file entry (100644 or 100755). Anything else adds ` unreadable:
+  projects/felix/stack.tsv (not a regular file at stage 0 in git's index);`, and no toolbox row
+  is compared.
+- **B08R3Z2-4 (low, the #376 class). No `printf | grep -q` under pipefail.** The toolbox membership
+  test must not race SIGPIPE, which it did once in about 110 runs of a good tree. Use awk or a
+  `case` over the parsed names.
+- **B08R3Z2-5 (low, tests).**
+  - A151 tests a normal exit only, and passes on 25f4fd53. It is renamed a pin.
+  - "On any exit" is pinned by reading: the cloud check contains no `mktemp` and writes no file.
+  - Assertions are added for `ident`, for a machine-local attribute source (`.git/info/attributes`),
+    and for the fold test on `.claude/cloud/proviſion` and `.claude/ſettings.local.json`, with
+    `.claude/cloud/notes-ſ.md` as the control.
+
+### Limits
+
+- gate.sh may grow to 160 lines over 8e634e4b; the builder reports the count.
+- Moving the cloud check into its own file is still the founder's batch (a new risk row).
+
+### Assertions (part 1772 after A154)
+
+Named `B08R3Z2 A<n> (R3Z2-<m>...)`.
+
+- **A155** (R3Z2-1) a committed `.claude/cloud/provision text eol=crlf`: the eol clause naming
+  provision.
+- **A156** (R3Z2-1, control) `.claude/settings.json text eol=crlf`: cloud ok, as A140.
+- **A157** (R3Z2-1) a committed `.CLAUDE/settings.json filter=felixtest`, with the repository's
+  core.ignorecase true: no filter clause, as Linux reads it.
+- **A158** (R3Z2-2) toolbox.json with `,"tools": []` added before its closing brace: the toolbox
+  clause, a repeated key.
+- **A159** (R3Z2-2) toolbox.json with a trailing comma: the toolbox clause, not JSON.
+- **A160** (R3Z2-2) toolbox.json whose `tools` is an object: the toolbox clause.
+- **A161** (R3Z2-2) settings.json runs provision, and provision is removed from the index: the
+  provision clause.
+- **A162** (R3Z2-2) provision committed at mode 100644: the provision clause.
+- **A163** (R3Z2-3) stack.tsv committed as a symlink to a file holding an extra plugin row: the
+  stack.tsv clause.
+- **A164** (R3Z2-3) stack.tsv in a merge conflict: the stack.tsv clause.
+- **A165** (R3Z-1, coverage) `.claude/settings.json ident`: the ident clause.
+- **A166** (R3Z-1, coverage) `.git/info/attributes` holding `.claude/cloud/provision filter=x`:
+  the filter clause.
+- **A167** (R3Z-3, coverage) the index holding `.claude/cloud/proviſion` in place of provision:
+  the non-ASCII clause. A variant with `.claude/ſettings.local.json` gives the same.
+- **A168** (R3Z-3, control) `.claude/cloud/notes-ſ.md` committed beside the good tree: as A140.
+- **A169** (R3Z2-5) gate.sh's cloud block, read as text, holds no `mktemp`.
+- **A151** renamed: "a pin, normal exit".
+
+Expected red on 9801aa12: A155, A157, A158, A159, A160, A161, A162, A163 and A164 (9), and A169
+if 9801aa12 still holds a mktemp in the block. The coverage cases, the controls and A151 pass.
+Report each one.

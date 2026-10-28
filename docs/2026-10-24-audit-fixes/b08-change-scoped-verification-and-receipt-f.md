@@ -578,3 +578,5 @@ A33 all passing. Of A61 to A68, **7 failed and 1 passed**. The pass is A66, the 
 settings.json comes second in the joined read, so its missing newline joins nothing. A61 to
 A64 failed with `cloud ok`; A65, A67 and A68 failed with the `unreadable:` line above.
 gawk 5.4.1 gave the same counts.
+
+Round 3 (2026-10-28), the cloud check's hook reader failing closed on escapes and repeated keys after the security review of c86c55c6: [b08-round-3.md](b08-round-3.md).

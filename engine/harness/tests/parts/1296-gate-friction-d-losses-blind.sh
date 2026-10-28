@@ -1,42 +1,28 @@
 # >>> gate-friction-d-losses-blind
 printf '\ngate friction D: the ending under a short read, a lost holder, a parent and a holder killed (blind, author 2; revision 12)\n'
-# Blind, written on 2026-10-19 from contract D, revision 9 (D1 to D8, "Amended after review 1", "Amended after review 2"
-# and "Amended after review 3"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh are run,
-# never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted parts of this block's
-# own. Part 1292 holds the signals, dispositions and holders, part 1294 the slots, the gate and the log; this part holds
-# what the revisions added about losing something: R13 (the parent never waits in an alarm-timed read, so an ending is not
-# cut, and its @@gone read-back), R2 (a second TERM while it stops), R4 (the parent's own ending of a lost unit's holder),
-# R14 and R21 (a stopper signals a member only while a listing shows its start time, and what it has stopped by its pid),
-# R15 and R20 (a parent killed with -9, also while a holder waits for a slot; a holder killed with -9) and R22 (no unit runs
-# before unit.I is written). Names say the clause.
+# Blind, written on 2026-10-19 from contract D, revision 9 (D1 to D8, "Amended after review 1", "Amended after review 2" and "Amended after review 3"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted parts of this block's own. Part 1292 holds the signals, dispositions and holders, part 1294 the slots, the gate and the log; this part holds
+# what the revisions added about losing something: R13 (the parent never waits in an alarm-timed read, so an ending is not cut, and its @@gone read-back), R2 (a second TERM while it stops), R4 (the parent's own ending of a lost unit's holder), R14 and R21 (a stopper signals a member only while a listing shows its start time, and what it has stopped by its pid), R15 and R20 (a parent killed with -9, also while a holder waits for a slot; a holder killed with -9) and R22 (no unit runs before unit.I is written). Names say the clause.
 # Revision 17 (R55, R56, R57), by blind author B from the contract alone: (1) R55: every run bound is _db6_lim = 600 s (was 100, and 120 to 150 per case), run.pl's literal ones too
 # (gctl, R37's), and the holds and waits tied to it follow (units' release waits, P's and the slot holder's lives, the block shim's GO wait, the waits for a unit or the prelude, now _db6_runw:
 # until the run's bound, or the run gone). (2) R56: R15's three margins (pk, hh, pw) are 60 s (were 3 s; a build without the clause waits out the units' 600 s release, L; a stopper's pass
 # forks, floor 20 s); so that a holder with R20's 10 s ppid check but no kill 0 is still told apart, a ps (mode pphide) answers a holder's ps -o ppid= -p WRAPPER with the -j parent's
 # pid in pk and pw. The djk control's 3 s is 20 s (the floor); the drains of 5 and 8 s are 30 s (R12); lh's look 0.6 s after the stop is a poll, bounded by the run's bound. (3) Review of revision 17: pphide answers only a call whose chain reaches a holder, a perl with " --part " and the key whose parent is WRAPPER, and logs each answer; a control (pc) stops the -j parent, sets the gate once its unit is up, and shows an answer within 60 s and the unit running on.
-#
-# Every case follows R12, as in 1292: TMPDIR is a fixture directory under $TMP, the copy runs under a bounded runner
-# (run.pl) that leads its own process group and starts it with INT and QUIT as the case asks and HUP and TERM at their
-# defaults, every wait is bounded (loops too), and when the run has ended the case waits up to 30 s for that group to
-# hold no live process (stopped or running, zombies aside), fails with what it names, and then sends CONT and KILL to
-# those pids. A process outside the group is ended by the pid recorded. No signal goes to a pid found by a pattern.
-#
+# Revision 18 (R58, R61, R62), by blind author B from the contract alone: (1) R58, the watches (a pause, then a look for what only a build without the clause makes): u22's block mode looked 4 s after
+# its go file, and after the run's end, for started.*, which a holder that runs its unit before unit.I is written (revision 6's) makes through a unit left below pid 1 that the run does not wait for; the look now
+# comes once nothing of the run is left by group, directory or id (_db6_clear, R12's 30 s, a bound), so such a unit has written started.* or is named, and the 4 s pause is gone. pw's two looks (1.5 s after
+# the holder's slot line, 3 s after the slot is let go) stay short: djk's 60 s check in the same name names every holder or unit that could start a unit after them. Reading: lh's 4 s before release2 places
+# an event inside the parent's ending and is followed by no look of its own, so it is no watch (open: under load it can fall before that ending, and the case then tells nothing apart). R59: no record run
+# here. (2) R61: every process a case plants that may outlive R12's drain ends within 5 s of its case directory going, looking at least once a second: P and R (p.pl), the units' release waits, the units
+# that ignore TERM and their gc sleepers, P's unit's wait for P, the block shim's wait for go, the djk and gctl sleepers, and djk.pl (DJK_DIR, _db6_djk). (3) R62: run.pl writes PIDFILE.ms, so DJX_MLOG gets
+# "1296 run CASE/LABEL bound B ms START-TO-EXIT" for every inner run (_db6_fin, _db7_run, gctl) and "1296 margin CASE T MS ms MEASURED" (none when its event never came) for djk/kill and djk/both (20 s), pc,
+# pk, hh and pw (60 s), and the watches pw/held-look (1.5 s), pw/released-look (3 s) and u22-block/unit-look (30 s), each with none.
+# Every case follows R12, as in 1292: TMPDIR is a fixture directory under $TMP, the copy runs under a bounded runner (run.pl) that leads its own process group and starts it with INT and QUIT as the case asks and HUP and TERM at their defaults, every wait is bounded (loops too), and when the run has ended the case waits up to 30 s for that group to hold no live process (stopped or running, zombies aside), fails with what it names, and then sends CONT and KILL to those pids. A process outside the group is ended by the pid recorded. No signal goes to a pid found by a pattern.
 # Readings taken where the contract leaves room, for the reviewers to confirm:
-# - R13 makes the ending outlast a 2 s read with units that ignore TERM (the ending waits 10 s for its roots before
-#   STOP and KILL), and FELIX_TEST_SLOT_NOTE=2 (W = 2); the INT case uses units that end at once when signalled;
-# - a run ended by USR1 (which the parent does not trap, so the EXIT trap runs the ending) exits with a status that is
-#   neither 0 nor the runner's 124: the contract fixes no number for it, and it differs between systems;
-# - "no stderr line printed twice" is: no non-empty line of the parent's stderr occurs twice after a second TERM. That
-#   case pins only that a second TERM during the ending changes nothing (R27): the parent's own ignore of TERM rests on
-#   review, because on bash 3.2 the second TERM is held back until the first trap's exit, and a parent without the
-#   ignore then finds every unit ended and exits 143 again;
-# - a run's own slot file is found from the run (R28): a planted member writes ${FELIX_TEST_RAN%/*}, the parent's
-#   $TMP/pj, to a file of the case's directory, and the case reads slot.* there and nowhere else. It does not guess where
-#   mktemp -d put a run's $TMP (GNU mktemp honours TMPDIR, macOS's ignores it), and FELIX_TEST_PART_LOG is empty in a
-#   member (part mode has unset it). "The holder's slot line" is line 2 of a slot.I whose first field is the holder's pid;
-# - R4's lost-holder case reads: with W = 2 a STOPped holder (a stopped process cannot check its parent) whose wrapper
-#   is then killed is ended by the parent alone, and once the parent has exited neither holder nor unit runs. Its second
-#   unit ends while the parent is inside that ending (R13's read-back, R28): its line waits in the FIFO behind a @@tick;
+# - R13 makes the ending outlast a 2 s read with units that ignore TERM (the ending waits 10 s for its roots before STOP and KILL), and FELIX_TEST_SLOT_NOTE=2 (W = 2); the INT case uses units that end at once when signalled;
+# - a run ended by USR1 (which the parent does not trap, so the EXIT trap runs the ending) exits with a status that is neither 0 nor the runner's 124: the contract fixes no number for it, and it differs between systems;
+# - "no stderr line printed twice" is: no non-empty line of the parent's stderr occurs twice after a second TERM. That case pins only that a second TERM during the ending changes nothing (R27): the parent's own ignore of TERM rests on review, because on bash 3.2 the second TERM is held back until the first trap's exit, and a parent without the ignore then finds every unit ended and exits 143 again;
+# - a run's own slot file is found from the run (R28): a planted member writes ${FELIX_TEST_RAN%/*}, the parent's $TMP/pj, to a file of the case's directory, and the case reads slot.* there and nowhere else. It does not guess where mktemp -d put a run's $TMP (GNU mktemp honours TMPDIR, macOS's ignores it), and FELIX_TEST_PART_LOG is empty in a member (part mode has unset it). "The holder's slot line" is line 2 of a slot.I whose first field is the holder's pid;
+# - R4's lost-holder case reads: with W = 2 a STOPped holder (a stopped process cannot check its parent) whose wrapper is then killed is ended by the parent alone, and once the parent has exited neither holder nor unit runs. Its second unit ends while the parent is inside that ending (R13's read-back, R28): its line waits in the FIFO behind a @@tick;
 # - R15's "within 3 s", 60 s after R56 (a margin: L is the units' 600 s release, the floor 20 s), is timed inside the perl (djk.pl) that takes the ps listing, from the kill to the start of the
 #   first listing that shows what was asked for (the listing's own cost is not charged to the run). In pk and pw the holder's R20 ppid check is answered with the -j parent's pid
 #   (pphide), so a 60 s window cannot pass a holder that finds the parent gone only by that 10 s check: the kill 0 is what those two names judge. The pc control shows the ps reached and its answer taken: with the -j parent stopped (kill 0 still finds it) a holder's check is answered within 60 s of the gate (pk's and pw's window: 20 s, R20's two periods, would leave D's own 10 s period above a fifth of T, R56);
@@ -79,26 +65,26 @@ _db6_leak=""; _db6_ino0=""; _db6_late=""; _db6_x=""; _db6_gn=150; _db6_W=""; _db
 : > "$DB6/g-empty.tsv"
 cat > "$DB6/run.pl" <<'DB6PL'
 # run.pl LIMIT INT QUIT PIDFILE CMD...: CMD leads a process group of its own, started with INT and QUIT as given, HUP and TERM at their
-# defaults and no descriptor above 2; at LIMIT seconds the group is killed (exit 124). Exits as bash reports CMD's status.
-use POSIX ();
-my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
+# defaults and no descriptor above 2; at LIMIT seconds the group is killed (exit 124). Exits as bash reports CMD's status. R62: PIDFILE.ms gets the run's start-to-exit, in ms.
+use POSIX (); use Time::HiRes ();
+my ($t, $i, $q, $f) = splice(@ARGV, 0, 4); my $t0 = Time::HiRes::time(); sub ms { if (open(my $h, ">", "$f.ms")) { printf $h "%d\n", (Time::HiRes::time() - $t0) * 1000; close $h } }
 my $p = fork;
 defined $p or exit 125;
 if (!$p) { setpgrp(0, 0); $SIG{INT} = $i; $SIG{QUIT} = $q; $SIG{HUP} = "DEFAULT"; $SIG{TERM} = "DEFAULT"; POSIX::close($_) for 3 .. 255; exec @ARGV; exit 127 }
 if (open(my $h, ">", "$f.t")) { print $h "$p\n"; close $h; rename "$f.t", $f }
-$SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
-alarm $t; waitpid $p, 0;
+$SIG{ALRM} = sub { kill "KILL", -$p; ms(); exit 124 };
+alarm $t; waitpid $p, 0; ms();
 exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
 DB6PL
 cat > "$DB6/djk.pl" <<'DB6DJK'
 # djk.pl SIG KILLPID WAITFILE MAXMS MODE ARG...: sends SIG to KILLPID (0: none), waits for the file WAITFILE (- : none; at most 600 s, B), takes the time T0, then
 # takes ps listings until what MODE asks about has gone or MAXMS ms have passed. MODE pids PID...: those pids; MODE group PGID KEY ID: every live process
 # (zombies aside, not this perl) in group PGID or with KEY or ID in its command line. Prints "gone MS" (MS: from T0 to the start of the first listing that
-# showed none of them) or "left MS PID,PID...".
+# showed none of them) or "left MS PID,PID...". R61: with DJK_DIR naming a directory (the case's: _db6_djk), each wait also ends once it is gone.
 use Time::HiRes qw(time sleep);
-my ($sig, $kp, $wf, $max, $mode, @a) = @ARGV;
+my ($sig, $kp, $wf, $max, $mode, @a) = @ARGV; my $dir = $ENV{DJK_DIR} || ""; sub here { $dir eq "" || -d $dir }
 kill $sig, $kp if $kp;
-if ($wf ne "-") { my $e = time + 600; while (!-e $wf && time < $e) { sleep 0.02 } }
+if ($wf ne "-") { my $e = time + 600; while (!-e $wf && time < $e && here()) { sleep 0.02 } }
 my $t0 = time; my $t; my @left;
 while (1) {
   $t = time; @left = ();
@@ -109,22 +95,22 @@ while (1) {
     if ($mode eq "pids") { push @left, $p if grep { $_ == $p } @a }
     else { push @left, $p if ($a[0] && $g == $a[0]) || index($c, $a[1]) >= 0 || index($c, $a[2]) >= 0 }
   }
-  last if !@left || ($t - $t0) * 1000 > $max;
+  last if !@left || ($t - $t0) * 1000 > $max || !here();
   sleep 0.05;
 }
 if (@left) { printf "left %d %s\n", (time - $t0) * 1000, join(",", @left) } else { printf "gone %d\n", ($t - $t0) * 1000 }
 DB6DJK
 cat > "$DB6/p.pl" <<'DB6P'
 # p.pl PIDFILE TERMFILE RFILE ID: writes its pid to PIDFILE, appends a line to TERMFILE for each TERM it gets and goes on running. When RFILE is not -, it first forks a child R that writes
-# its pid to RFILE and sleeps (its command line carries ID). It leads a process group of its own: when the run's driver exits, the kernel sends SIGHUP and SIGCONT to a group that has just become orphaned
+# its pid to RFILE and sleeps (its command line carries ID). R61: P runs, and R sleeps (900 s at most), only while PIDFILE's directory (the case's) exists, each looking for it every 0.1 s or 1 s. It leads a process group of its own: when the run's driver exits, the kernel sends SIGHUP and SIGCONT to a group that has just become orphaned
 # and holds a stopped process, so a process stopped in the run's group would be ended by the kernel and a stopper that leaves it stopped could not be seen. P's group is orphaned when the unit dies, before any STOP.
 use POSIX ();
 POSIX::setpgid(0, 0);
-my ($pf, $tf, $rf, $id) = @ARGV;
+my ($pf, $tf, $rf, $id) = @ARGV; (my $d = $pf) =~ s{/[^/]*$}{};
 $SIG{TERM} = sub { if (open(my $h, ">>", $tf)) { print $h "term\n"; close $h } };
-if ($rf ne "-") { my $k = fork; defined $k or exit 3; if (!$k) { if (open(my $h, ">", $rf)) { print $h "$$\n"; close $h } exec "perl", "-e", "sleep 900", $id, "R"; exit 1 } }
+if ($rf ne "-") { my $k = fork; defined $k or exit 3; if (!$k) { if (open(my $h, ">", $rf)) { print $h "$$\n"; close $h } exec "perl", "-e", 'sleep 1 while $n++ < 900 && -d $ARGV[0]', $d, $id, "R"; exit 1 } }
 if (open(my $h, ">", "$pf.t")) { print $h "$$\n"; close $h; rename "$pf.t", $pf }
-select(undef, undef, undef, 0.1) while 1;
+select(undef, undef, undef, 0.1) while -d $d;
 DB6P
 cat > "$DB6/psshim/ps" <<'DB6SH'
 #!/usr/bin/env perl
@@ -134,7 +120,7 @@ cat > "$DB6/psshim/ps" <<'DB6SH'
 #   twin:  the same count. The first listing leaves out the row of the pid in the file $DJ6_R, the second is as it is, and from the third on the row of $DJ6_P is shifted (R21).
 #   blank: a call that holds lstart= and -p, for a pid that is not in the file $DJ6_SKIPF (the holder's own and the parent's), prints nothing and fails: the start time of the unit a holder forked (R22).
 #   block: the first such call whose parent, or its parent's parent, is the holder (the first word of $DJ6_SKIPF; R47) (once: mkdir $DJ6_ONCE) writes its pid to $DJ6_BLK, its caller's pid, its caller's parent's pid and its caller's command line to $DJ6_BWHO,
-#          waits for the file $DJ6_GO (at most 600 s, B), and then runs the real ps (R22). A call from anywhere else (the -j parent's _par_endp, for one) goes to the real ps.
+#          waits for the file $DJ6_GO (at most 600 s, B, or until the case directory, $DJ6_GO's, is gone: R61), and then runs the real ps (R22). A call from anywhere else (the -j parent's _par_endp, for one) goes to the real ps.
 #   pphide: a call that holds ppid= and -p WRAPPER and no -A, whose chain (its caller, or its caller's parent) reaches a holder, a perl whose command line holds " --part " and $DJ6_KEY, whose own parent is WRAPPER,
 #          prints the pid in the file $DJ6_JP, the -j parent's (R15 (a), R20 after R56), and logs the answer to $DJ6_PLOG (the ms, WRAPPER, the pid answered, the chain from the caller up to the holder, each pid:program and its --part argument, not the whole command line, tab-separated). A holder that lacks the kill 0 then never finds the parent gone, as R20's ppid check would within 10 s, inside a 60 s window. Any other call, the first " --part " process on the chain not a perl or not WRAPPER's child, goes to the real ps.
 use strict; use Time::Local; use Time::HiRes ();
@@ -160,7 +146,7 @@ if ($mode eq "blank" || $mode eq "block") {
   real() unless mkdir $ENV{DJ6_ONCE};
   if (open(my $w, ">", "$ENV{DJ6_BWHO}.t")) { print $w "$pp $ppp $pcmd\n"; close $w; rename "$ENV{DJ6_BWHO}.t", $ENV{DJ6_BWHO} }
   if (open(my $h, ">", "$ENV{DJ6_BLK}.t")) { print $h "$$\n"; close $h; rename "$ENV{DJ6_BLK}.t", $ENV{DJ6_BLK} }
-  my $n = 0; while (!-e $ENV{DJ6_GO} && $n++ < 6000) { select(undef, undef, undef, 0.1) }
+  (my $gd = $ENV{DJ6_GO}) =~ s{/[^/]*$}{}; my $n = 0; while (!-e $ENV{DJ6_GO} && -d $gd && $n++ < 6000) { select(undef, undef, undef, 0.1) }   # R61: and ends once the case directory is gone
   real();
 }
 real() unless $args =~ / -A / && $args =~ /ppid=/ && $args =~ /lstart=/;
@@ -206,6 +192,8 @@ chmod +x "$DB6/psshim/ps"
 _db6_until() { local n="$1" i=0; shift; while [ "$i" -lt "$n" ]; do "$@" && return 0; sleep 0.2; i=$((i + 1)); done; "$@"; }
 # TEST...: R56, a bound: a wait for what the run makes lasts until the run's bound (_db6_lim s) has passed, and ends with the run (its job _db6_bg gone); then TEST's status
 _db6_runw() { local i=0; while [ "$i" -lt $((_db6_lim * 5)) ]; do "$@" && return 0; kill -0 "$_db6_bg" 2>/dev/null || break; sleep 0.2; i=$((i + 1)); done; "$@"; }
+# R61: _db6_djk ARG... is djk.pl with the case directory (DJK_DIR). R62, evidence only (nothing without DJX_MLOG, and never a verdict): _db6_ml WORD... appends "1296 WORD..."; _db6_mg CASE T OUT the margin line "1296 margin CASE T T ms MS" from djk.pl's "gone MS" (else none); _db6_mr CASE MSFILE B the run line "1296 run CASE bound B ms MS" from run.pl's PIDFILE.ms
+_db6_djk() { DJK_DIR="$_db6_c" perl "$DB6/djk.pl" "$@"; }; _db6_ml() { [ -z "${DJX_MLOG:-}" ] || printf '1296 %s\n' "$*" >> "$DJX_MLOG"; }; _db6_mg() { case "$3" in "gone "*) _db6_ml margin "$1" T "$2" ms "${3#gone }" ;; *) _db6_ml margin "$1" T "$2" ms none ;; esac; }; _db6_mr() { _db6_ml run "$1" bound "$3" ms "$(cat "$2" 2>/dev/null || echo none)"; }
 _db6_cnt() { LC_ALL=C awk -v l="$2" '$0 == l { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # FILE LINE: lines that are exactly LINE
 _db6_pfx() { LC_ALL=C awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0 }' "$1" 2>/dev/null || echo 0; }   # FILE PREFIX: lines that start with it
 _db6_sel() { _db6_c="$DB6/n/$1"; _db6_F="$_db6_c/f"; _db6_T="$_db6_F/engine/harness/tests"; _db6_tmp="${_db6_td:-$_db6_c/tmp}"; }
@@ -246,7 +234,7 @@ _db6_grp() {
   for p in $(printf '%s\n' "$l" | sed 's/:.*//'); do kill -CONT "$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; done
 }
 _db6_wait0() { { wait "$_db6_bg"; } 2>/dev/null; _db6_rc=$?; }
-_db6_fin() { _db6_grp "$(_db6_pid "$_db6_lab")"; _db6_E=(); _db6_I=DEFAULT; _db6_Q=DEFAULT; _db6_lim=600; _db6_S=8; _db6_W=""; _db6_twice=""; }
+_db6_fin() { _db6_grp "$(_db6_pid "$_db6_lab")"; _db6_mr "${_db6_c##*/}/$_db6_lab" "$_db6_c/$_db6_lab.pid.ms" "$_db6_lim"; _db6_E=(); _db6_I=DEFAULT; _db6_Q=DEFAULT; _db6_lim=600; _db6_S=8; _db6_W=""; _db6_twice=""; }
 _db6_wait() { _db6_wait0; _db6_fin; }
 # LABEL SIGNAL: SIGNAL to the driver (twice, 0.5 s apart, when _db6_twice is set), then at most the run's bound (R56: a bound, 600 s, was 45 s) for it to end (a run still there is killed by group, and _db6_late says so).
 # _db6_stop0 does that and collects the status only; _db6_stop also checks and ends the run's group
@@ -338,13 +326,13 @@ _db6_w() {
   { printf 'DJ6D=%q; DJ6I=%q; DJ6N=%q; DJ6L=%q\n' "$DB6/n/$1" "${TMP##*/}-$1" "$2" "$DB6"
     printf '%s\n' "printf '\\ndjy-sec %s\\n' \"\$DJ6N\""; cat; } > "$DB6/pp/$1/$2"
 }
-_db6_long() {   # CASE FILE...: parts that write the pids of the unit and of its parent and the run's own pj directory (R28), note they are up, and wait for a release file (at most B, 600 s) before they pass
+_db6_long() {   # CASE FILE...: parts that write the pids of the unit and of its parent and the run's own pj directory (R28), note they are up, and wait for a release file (at most B, 600 s, or until the case directory is gone: R61) before they pass
   local c="$1" f; shift
   for f in "$@"; do _db6_w "$c" "$f" <<'X'
 printf '%s %s\n' "$$" "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" > "$DJ6D/pids.$DJ6N"
 printf '%s\n' "${FELIX_TEST_RAN%/*}" > "$DJ6D/pj.$DJ6N"
 : > "$DJ6D/up.$DJ6N"
-_i=0; until [ -e "$DJ6D/release" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ6D/release" ] || [ ! -d "$DJ6D" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ6N"
 X
   done
@@ -354,10 +342,10 @@ _db6_quick() { _db6_w "$1" "$2" <<'X'
 ok "djy $DJ6N"
 X
 }
-# CASE FILE: a part that notes it started, waits for the file $DJ6D/release2 (at most B, 600 s) and passes
+# CASE FILE: a part that notes it started, waits for the file $DJ6D/release2 (at most B, 600 s, or until the case directory is gone: R61) and passes
 _db6_lateq() { _db6_w "$1" "$2" <<'X'
 : > "$DJ6D/started.$DJ6N"
-_i=0; until [ -e "$DJ6D/release2" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ6D/release2" ] || [ ! -d "$DJ6D" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ6N"
 X
 }
@@ -371,19 +359,18 @@ _db6_is "D6: two quick parts pass under -j 2: exit 0 and a receipt (positive con
 rm -rf "$DB6/n/ctl"
 # the timing perl: it reports a killed process gone and a living one left, and finds a member of a group by the group and by the id in its command line
 _db6_sel djk; mkdir -p "$_db6_c"
-perl -e 'sleep 600' "$(_db6_id)" djk & _db6_p1=$!
-perl -e 'sleep 600' "$(_db6_id)" djk & _db6_p2=$!
-_db6_x="$(perl "$DB6/djk.pl" KILL "$_db6_p1" - 20000 pids "$_db6_p1" | sed 's/ .*//') $(perl "$DB6/djk.pl" 0 0 - 300 pids "$_db6_p2" | sed 's/ .*//') $(perl "$DB6/djk.pl" 0 0 - 300 group 0 "$(_db6_id)" "$(_db6_id)" | sed 's/ .*//')"
-kill -KILL "$_db6_p1" "$_db6_p2" 2>/dev/null; for _db6_p in "$_db6_p1" "$_db6_p2"; do { wait "$_db6_p"; } 2>/dev/null; done
-_db6_x="$_db6_x $(perl "$DB6/djk.pl" 0 0 - 20000 group 0 "$(_db6_id)" "$(_db6_id)" | sed 's/ .*//')"
+perl -e 'sleep 1 while $n++ < 600 && -d $ARGV[0]' "$_db6_c" "$(_db6_id)" djk & _db6_p1=$!   # R61: 600 s at most, and only while the case directory exists
+perl -e 'sleep 1 while $n++ < 600 && -d $ARGV[0]' "$_db6_c" "$(_db6_id)" djk & _db6_p2=$!
+_db6_y="$(_db6_djk KILL "$_db6_p1" - 20000 pids "$_db6_p1")"; _db6_mg djk/kill 20000 "$_db6_y"; _db6_x="${_db6_y%% *} $(_db6_djk 0 0 - 300 pids "$_db6_p2" | sed 's/ .*//') $(_db6_djk 0 0 - 300 group 0 "$(_db6_id)" "$(_db6_id)" | sed 's/ .*//')"
+kill -KILL "$_db6_p1" "$_db6_p2" 2>/dev/null; for _db6_p in "$_db6_p1" "$_db6_p2"; do { wait "$_db6_p"; } 2>/dev/null; done; _db6_y="$(_db6_djk 0 0 - 20000 group 0 "$(_db6_id)" "$(_db6_id)")"; _db6_mg djk/both 20000 "$_db6_y"; _db6_x="$_db6_x ${_db6_y%% *}"
 _db6_is "R12: the timing perl reports a killed process gone, a living one left, a process with the case's id in its command line left, and none once both are killed (control)" "$_db6_x" "gone left left gone"
 rm -rf "$DB6/n/djk"
 # the group check finds a process left in a run's group after its leader has gone, names it, and ends it
 _db6_sel gctl; mkdir -p "$_db6_c"; _db6_lab=g
-perl "$DB6/run.pl" 600 DEFAULT DEFAULT "$_db6_c/g.pid" bash -c 'perl -e "sleep 600" "$0" gc & exit 0' "$(_db6_id)" & _db6_p1=$!
-{ wait "$_db6_p1"; } 2>/dev/null
+perl "$DB6/run.pl" 600 DEFAULT DEFAULT "$_db6_c/g.pid" bash -c 'perl -e "sleep 1 while \$n++ < 600 && -d \$ARGV[1]" "$0" "$1" gc & exit 0' "$(_db6_id)" "$_db6_c" & _db6_p1=$!   # R61: the sleeper ends with the case directory
+{ wait "$_db6_p1"; } 2>/dev/null; _db6_mr gctl/g "$_db6_c/g.pid.ms" 600
 _db6_gn=5; _db6_grp "$(_db6_pid g)"; _db6_gn=150
-case "$_db6_leak" in *"perl -e sleep 600"*) _db6_x=named ;; *) _db6_x="not named [$_db6_leak]" ;; esac   # not inside $( ): bash 3.2 ends the substitution at the pattern's )
+case "$_db6_leak" in *"perl -e sleep 1 while"*) _db6_x=named ;; *) _db6_x="not named [$_db6_leak]" ;; esac   # not inside $( ): bash 3.2 ends the substitution at the pattern's )
 _db6_x="$_db6_x $(_db6_until 150 _db6_clear '' && echo gone || echo still)"; _db6_leak=""
 is "R12: the group check names a process left in the run's group after the leader exited, and ends it (control)" "$_db6_x" "named gone"
 rm -rf "$DB6/n/gctl"
@@ -396,13 +383,13 @@ _db6_sig() {
   for f in 0010-ka.sh 0020-kb.sh; do
     [ "$f" = 0010-ka.sh ] || [ "$nu" = 2 ] || continue
     if [ "$kind" = ign ]; then _db6_w "$c" "$f" <<'X'
-trap 'perl -e "sleep 900" "$DJ6I" gc & echo $! >> "$DJ6D/gc.pids"' TERM
+trap 'perl -e "sleep 1 while \$n++ < 900 && -d \$ARGV[0]" "$DJ6D" "$DJ6I" gc & echo $! >> "$DJ6D/gc.pids"' TERM
 : > "$DJ6D/up.$DJ6N"
-while :; do sleep 0.1; done
+while [ -d "$DJ6D" ]; do sleep 0.1; done
 X
     else _db6_w "$c" "$f" <<'X'
 : > "$DJ6D/up.$DJ6N"
-_i=0; until [ -e "$DJ6D/release" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ6D/release" ] || [ ! -d "$DJ6D" ] || [ "$_i" -ge 3000 ]; do sleep 0.2; _i=$((_i + 1)); done
 X
     fi
   done
@@ -468,6 +455,7 @@ _db6_runw eval '[ "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk "END { print
 _db6_x="$(LC_ALL=C awk -F'\t' -v w="${_db6_wr:-x}" -v j="${_db6_g:-x}" -v h="${_db6_h:-x}" -v t="${_db6_t0:-0}" '$2 == w && $3 == j && index($NF, h ":") == 1 { n++; if (n == 1) d = $1 - t } END { if (n && d <= 60000) print "answered"; else printf "not-answered-within-60-s[%d answers, the first %d ms after the gate]", n, d }' "$_db6_c/pplog" 2>/dev/null)"
 _db6_x="${_db6_x:-not-answered[no log]} $_db6_st$([ "$(cat "$_db6_c/pplog" 2>/dev/null | LC_ALL=C awk 'END { print NR }')" -ge 2 ] || echo " the holder's next check was not answered;")$_db6_r"
 [ -z "$_db6_g" ] || kill -CONT "$_db6_g" 2>/dev/null; : > "$_db6_c/release"; _db6_wait0; _db6_kf "$_db6_c/pids.0010-pc.sh"; _db6_fin; [ -z "${DJX_MLOG:-}" ] || sed "s/^/pc pplog gate=${_db6_t0:-none} /" "$_db6_c/pplog" >> "$DJX_MLOG" 2>/dev/null   # evidence only
+_db6_ml margin pc T 60000 ms "$(LC_ALL=C awk -F'\t' -v w="${_db6_wr:-x}" -v j="${_db6_g:-x}" -v h="${_db6_h:-x}" -v t="${_db6_t0:-0}" '$2 == w && $3 == j && index($NF, h ":") == 1 { print $1 - t; f = 1; exit } END { if (!f) print "none" }' "$_db6_c/pplog" 2>/dev/null || echo none)"   # R62: the first answer, ms after the gate
 _db6_is "R20: with the -j parent stopped, not killed, so a holder's kill 0 still finds it, pk's and pw's ps answers the holder's ps -o ppid= -p WRAPPER with the -j parent's pid within 60 s of its gate, its log naming the holder as the caller, and the unit runs on: the holder's next check is answered too and the unit is then running (the control of pk's and pw's ps)" "$_db6_x" "answered runs"
 rm -rf "$DB6/n/pc"
 
@@ -478,7 +466,7 @@ _db6_go p -j 2
 _db6_r=""; _db6_runw _db6_up 0010-pa.sh || _db6_r=" no unit came up;"; _db6_runw _db6_up 0020-pb.sh || _db6_r="$_db6_r the second unit did not come up;"
 : > "$_db6_c/gate"   # once both units are up (each has read its own parent with ps): from now on a holder's ps -o ppid= -p WRAPPER is answered with the -j parent's pid
 _db6_ino0="$(_db6_inos "$_db6_tmp")"; _db6_g="$(_db6_pid p)"; sleep 0.5
-_db6_y="$(perl "$DB6/djk.pl" KILL "$_db6_g" - 60000 group "$_db6_g" "$(_db6_key)" "$(_db6_id)")"
+_db6_y="$(_db6_djk KILL "$_db6_g" - 60000 group "$_db6_g" "$(_db6_key)" "$(_db6_id)")"; _db6_mg pk 60000 "$_db6_y"
 case "$_db6_y" in gone*) ;; *) _db6_r="$_db6_r the run was not gone within 60 s of its parent's kill -9 ($_db6_y);" ;; esac
 _db6_hl="$(_db6_held "$_db6_tmp")"; [ -z "$_db6_hl" ] || _db6_r="$_db6_r a slot was still held: $_db6_hl;"
 [ "$_db6_ino0" = "$(_db6_inos "$_db6_tmp")" ] || _db6_r="$_db6_r the slot files changed;"
@@ -492,13 +480,13 @@ _db6_long hh 0010-hh.sh; _db6_quick hh 0020-hq.sh; _db6_new hh "$DB6/g-empty.tsv
 _db6_go h -j 2
 _db6_r=""; _db6_runw _db6_up 0010-hh.sh || _db6_r=" the unit did not come up;"
 read -r _db6_u _db6_h < "$_db6_c/pids.0010-hh.sh" 2>/dev/null
-_db6_sl="$(_db6_slotline "${_db6_h:-0}" 0010-hh.sh >/dev/null && echo slot-line || echo "no-slot-line[holder ${_db6_h:-none}: pj [$(cat "$_db6_c/pj.0010-hh.sh" 2>/dev/null)], $(_db6_nslots 0010-hh.sh) slot files in it]")"
+_db6_sl="$(_db6_slotline "${_db6_h:-0}" 0010-hh.sh >/dev/null && echo slot-line || echo "no-slot-line[holder ${_db6_h:-none}: pj [$(cat "$_db6_c/pj.0010-hh.sh" 2>/dev/null)], $(_db6_nslots 0010-hh.sh) slot files in it]")"; _db6_y=""
 if [ -n "${_db6_u:-}" ] && [ -n "${_db6_h:-}" ] && [ "$_db6_h" -gt 1 ]; then
-  _db6_y="$(perl "$DB6/djk.pl" KILL "$_db6_h" - 60000 pids "$_db6_u")"
+  _db6_y="$(_db6_djk KILL "$_db6_h" - 60000 pids "$_db6_u")"
   case "$_db6_y" in gone*) ;; *) _db6_r="$_db6_r the unit was not gone within 60 s of its holder's kill -9 ($_db6_y);" ;; esac
 else _db6_r="$_db6_r no unit and holder pids were found [$_db6_u $_db6_h];"
 fi
-_db6_wait0
+_db6_mg hh 60000 "$_db6_y"; _db6_wait0
 _db6_until 150 _db6_clear "$(_db6_pid h)" || _db6_r="$_db6_r still running after the parent had exited: $(_db6_ps "$(_db6_pid h)");"
 _db6_x="$_db6_rc $(_db6_cnt "$_db6_c/h.out" '  FAIL  part ended without its mark: 0010-hh.sh') $(_db6_pfx "$_db6_c/h.out" '  FAIL  part ended without its mark: 0020-hq.sh') $(_db6_rcpt) $_db6_sl [$(_db6_held "$_db6_tmp")]${_db6_r}"
 _db6_kf "$_db6_c/pids.0010-hh.sh"; _db6_fin
@@ -535,7 +523,7 @@ _db6_pr() {
 _ra="$(cat "$DJ6D/rarg")"
 perl "$DJ6L/p.pl" "$DJ6D/p.pid" "$DJ6D/p.terms" "$_ra" "$DJ6I" &
 _i=0
-until [ -s "$DJ6D/p.pid" ] && { [ "$_ra" = - ] || [ -s "$_ra" ]; }; do [ "$_i" -lt 6000 ] || break; sleep 0.1; _i=$((_i + 1)); done
+until [ -s "$DJ6D/p.pid" ] && { [ "$_ra" = - ] || [ -s "$_ra" ]; }; do [ "$_i" -lt 6000 ] && [ -d "$DJ6D" ] || break; sleep 0.1; _i=$((_i + 1)); done
 : > "$DJ6D/up.$DJ6N"
 wait
 X
@@ -566,7 +554,9 @@ _db6_is "R21: with R, P's child, left out of the ending's first listing and show
 # ---- R15 (a), R20: the parent killed with kill -9 while a holder WAITS for a slot (R28, R36). One slot, its lock held by a perl of mine, two parts: once the parent's prelude has ended, a holder has written its slot line
 # (_db6_hpid_up) and 1.5 s have passed (the holder tries each slot, then waits 1 s and tries again, so at least one poll has run) the parent is killed with kill -9. After the prelude's mark the parent still sources 0007 and
 # the lib files before it forks a wrapper, so a kill 2 s after the mark could land before any holder existed and pass for every build. Within 60 s nothing of the run is left, stopped or running; and once I let the slot go no unit
-# starts. A holder that checks the parent only while its unit runs outlives the run, waiting
+# starts. A holder that checks the parent only while its unit runs outlives the run, waiting. R58: the two looks for started.* are watches kept short, 1.5 s after the holder's slot line (a unit run
+# while the slot is held elsewhere) and 3 s after the slot is let go (a unit that a holder outliving the parent starts): each build they watch for keeps a holder or unit of the run alive past the kill,
+# which djk's 60 s check in the same name names (by group, directory or id), and a unit that ran at any time has left started.*, which the second look reads
 _db6_quick pw 0010-wa.sh; _db6_quick pw 0020-wb.sh
 _db6_td="$DB6/td-pw"; rm -rf "$_db6_td"; mkdir -p "$_db6_td"
 _db6_new pw "$DB6/g-empty.tsv" + "$DB6/pp/pw"/*.sh
@@ -578,7 +568,7 @@ _db6_runw _db6_hpid_up || _db6_r="$_db6_r no holder wrote its slot line before t
 sleep 1.5
 [ -z "$(_db6_started)" ] || _db6_r="$_db6_r a unit ran while the slot was held elsewhere ($(_db6_started));"
 _db6_g="$(_db6_pid w)"
-_db6_y="$(perl "$DB6/djk.pl" KILL "$_db6_g" - 60000 group "$_db6_g" "$(_db6_key)" "$(_db6_id)")"
+_db6_y="$(_db6_djk KILL "$_db6_g" - 60000 group "$_db6_g" "$(_db6_key)" "$(_db6_id)")"; _db6_mg pw 60000 "$_db6_y"; _db6_ml margin pw/held-look T 1500 ms none; _db6_ml margin pw/released-look T 3000 ms none   # R62: the two watches (R58), with none
 case "$_db6_y" in gone*) ;; *) _db6_r="$_db6_r the run was not gone within 60 s of its parent's kill -9 ($_db6_y);" ;; esac
 _db6_unhold; sleep 3
 [ -z "$(_db6_started)" ] || _db6_r="$_db6_r a unit started once the slot was let go ($(_db6_started));"
@@ -593,7 +583,10 @@ rm -rf "$DB6/n/pw" "$DB6/td-pw"
 # ---- R22: no unit runs before unit.I is written. With the only slot held by a perl of mine, the holder has made its own ps call (its slot line is there); then a gate file starts a ps first on PATH that treats
 # the next ps -o lstart= -p for any pid but the holder's and the parent's, which is the unit the holder forked, as the case asks, and I let the slot go.
 # blank: every such call prints nothing (the holder takes it five times, 0.2 s apart, and gives up): the unit never runs, has no mark and the run fails. block: the first is held while the holder is killed with
-# kill -9, and then let through: the forked unit, held back until unit.I is written, must find its holder gone and exit without running the member
+# kill -9, and then let through: the forked unit, held back until unit.I is written, must find its holder gone and exit without running the member. R58: in block mode the look for started.*
+# is a watch for a unit a holder ran before unit.I (revision 6's holder), left below pid 1 when the holder is killed, which the run does not wait for: it was 4 s after go and the run's end, which load
+# could outrun. It now comes once nothing of the run is left by group, directory or id (_db6_clear; 30 s at most, R12's drain), so that unit has written started.* before it ended, or is still there and
+# named (the name's "nothing of the run is left"); on D's build nothing is left and it costs nothing. The 4 s pause is gone
 # CASE MODE: _db6_x is "ok" or what was wrong
 _db6_u22() {
   local c="$1" m="$2" r="" h par
@@ -611,10 +604,9 @@ _db6_u22() {
   if [ "$m" = block ]; then
     _db6_runw test -s "$_db6_c/blk" || r="$r no ps -o lstart= call was held;"
     [ -z "$h" ] || kill -KILL "$h" 2>/dev/null
-    sleep 0.3; : > "$_db6_c/go"
-    sleep 4
+    sleep 0.3; : > "$_db6_c/go"; _db6_ml margin "$c/unit-look" T 30000 ms none   # R62: the watch below (R58), with none
   fi
-  _db6_wait0
+  _db6_wait0; _db6_until 150 _db6_clear "$(_db6_pid u)" || r="$r still running after the parent had exited: $(_db6_ps "$(_db6_pid u)");"   # R58: the look for started.* waits until nothing of the run is left (R12's 30 s, a bound)
   if [ "$m" = block ] && [ -s "$_db6_c/bwho" ]; then   # R47: the call that was held must be the holder's own (its parent, or its parent's parent, is the holder)
     read -r _db6_bw1 _db6_bw2 _db6_bw3 < "$_db6_c/bwho"
     [ -z "$h" ] || [ "$_db6_bw1" = "$h" ] || [ "$_db6_bw2" = "$h" ] || r="$r the held ps -o lstart= was called by ${_db6_bw1:-none} (${_db6_bw3:0:60}; its parent ${_db6_bw2:-none}), not the holder ($h);"
@@ -732,7 +724,7 @@ _db7_run() {
   perl "$DB6/run.pl" 600 DEFAULT DEFAULT "$DB7/$l.pid" env PATH="$DB7/bin:$DB6/mk:$PATH" TMPDIR="$DB7/tmp" DB6_MKREAL="$_db6_mkreal" DB6_MKLOG="$DB6/mktemp.log" DB7_TAR="$_db7_host" DB7_LOG="$DB7/tar.log" DB7_TMPD="$DB7/tmp" \
     "$BASH" -c "$sc" _ "$@" > "$DB7/$l.out" 2> "$DB7/$l.err"
   _db7_rc=$?
-  _db6_grp "$(cat "$DB7/$l.pid" 2>/dev/null)"
+  _db6_grp "$(cat "$DB7/$l.pid" 2>/dev/null)"; _db6_mr "r37/$l" "$DB7/$l.pid.ms" 600   # R62, evidence only
 }
 _db7_pay() { printf 'R37 payload of %s\n' "$1"; seq 1 300; }
 _db7_pay plain > "$DB7/plain/f.txt"

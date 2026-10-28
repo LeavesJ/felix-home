@@ -456,7 +456,7 @@ felix_inv_host_unread() { local x; x="$(_fi_host_unr $(($1 * 1440)) < "$2")"; pr
 felix_inv_host_owners() {
   local now="$1" days="$2" lv="$3" root e f list h o ots act rt x um t=$'\t'; local -a pat=()
   root="$(_fi_host_root)" || return 1
-  # An unreadable file newer than an owner's record may name the head: that owner is unknown.
+  # An unreadable file newer than a person's record may name the head: that owner is unknown. A plugin's record never stands in for one (M1).
   x="$(_fi_host_unr $((days * 1440)) < "$4")"; um="${x#* }"
   while IFS= read -r h; do [ -z "$h" ] || pat[${#pat[@]}]="-e\"gitBranch\":\"$h\""; done < "$5"
   [ "${#pat[@]}" -gt 0 ] || return 0
@@ -479,8 +479,9 @@ felix_inv_host_owners() {
             for (b in XT) if (!(b in BT)) printf "%s\t-\t%s\n", b, XT[b] }' \
     | while IFS= read -r x; do
         h="${x%%"$t"*}"; x="${x#*"$t"}"; o="${x%%"$t"*}"; ots="${x#*"$t"}"; act="$ots"
+        # Only a plugin session names the head: no owner, not live, unless a file in the window could not be read (it may hold the owner: audit b09, M1).
+        [ "$o" != - ] || { if [ "$um" -gt 0 ]; then printf '%s\tunknown\tunknown\n' "$h"; else printf '%s\t-\tno\n' "$h"; fi; continue; }
         case "$ots" in ''|*[!0123456789]*) ;; *) [ "$um" -le "$ots" ] || { printf '%s\tunknown\tunknown\n' "$h"; continue; } ;; esac
-        [ "$o" != - ] || { printf '%s\t-\tno\n' "$h"; continue; }   # only a plugin session names the head: no owner, not live
         while IFS= read -r e; do
           [ -f "$e/$o.jsonl" ] || continue
           x="$(_fi_host_scan "$e/$o.jsonl")"; x="${x#*"$t"}"; rt="${x%%"$t"*}"

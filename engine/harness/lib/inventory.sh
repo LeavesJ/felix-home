@@ -450,7 +450,7 @@ _fi_item() {
         elif [ "$fl" != cross ]; then
           x="$(awk -F'\t' -v h="$br" '$1 == h { print $2 "\t" $3; exit }' "$T/owners")"
           # No line for the head, though a session file in the window could not be read: unknown, not none.
-          # A line with owner - was settled by the adapter: only a plugin's session names the head (audit b09, C028).
+          # A line with owner - was settled by the adapter: only a plugin's session names the head, and every file was read (audit b09, C028, M1).
           if [ -n "$x" ]; then own="${x%%"$_FI_TAB"*}"; lv="${x#*"$_FI_TAB"}"
           elif [ "${_FI_HUNREAD:-0}" != 0 ]; then own=unknown; lv=unknown; fi
         fi

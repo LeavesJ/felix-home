@@ -4,7 +4,9 @@
 # work that never reached a PR, and pull requests by who has to act. Running work,
 # helpers' worktrees (a subagent's or a workflow's, whose unpushed commits and
 # open calls are its spawning session's to answer for) and landed work are
-# collapsed to a count. Nothing on it acts: it prints no command
+# collapsed to a count; a line after the collapsed one says how many helpers'
+# worktrees hold work that never reached a PR (audit b09, C025: the count says
+# the work is there, and names no row). Nothing on it acts: it prints no command
 # to run, posts nothing, merges nothing and starts no session, and it writes
 # nothing outside one scratch directory of its own, removed on exit. It derives
 # no fact: every row it shows is a row one of two sources printed, the
@@ -185,7 +187,11 @@ function rline(g, i,    f, s) {
       if (has(st, "unknown:hazard:shared-branch") || has(st, "unknown:hazard:staged-revert")) kc["hazard"]++
       if (has(st, "unknown:pr-open")) kc["proposed"]++
       if (has(st, "unknown:blocked")) kc["blocked"]++; if (has(st, "unknown:question")) kc["question"]++; if (has(st, "unknown:live")) kc["running"]++; if (has(st, "unknown:helper")) kc["helper"]++
-      if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan") || has(st, "unknown:chip-unstarted")) kc["never-proposed"]++ } }
+      if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan") || has(st, "unknown:chip-unstarted")) kc["never-proposed"]++
+      # B16: a helper row that would be in never-proposed but for helper is counted, or, with the unknown form of one of those states, makes the count a lower bound.
+      if (g == "helper") {
+        if (has(st, "uncommitted") || has(st, "unpushed") || has(st, "unproposed") || has(st, "pr-closed-unlanded") || (has(st, "orphan") && V[8] != "landed")) hw++
+        else if (has(st, "unknown:uncommitted") || has(st, "unknown:unpushed") || has(st, "unknown:unproposed") || has(st, "unknown:pr-closed-unlanded") || has(st, "unknown:orphan")) hu++ } } }
   # RTAG, not RT: gawk, the awk of the Linux CI runner, keeps RT as a scalar and stops on it as an array.
   n = ++NG[g]; R[g, n] = row; RTAG[g, n] = tag; RN[g, n] = num + 0
 }
@@ -216,4 +222,5 @@ END {
     print "    " LAB[g] ": " CS[g] (INC[g] ? " (" REA[g] ")" : "")
     for (i = 1; i <= NG[g]; i++) print rline(g, i) }
   print "  collapsed: running " CS["running"] ", helper worktrees " CS["helper"] ", pull requests waiting on nobody " CS["pr-nobody"] ", proposed " CS["proposed"] ", carried " CS["carried"] ", handoff sections " CS["handoff"] ", landed " CS["landed"] ", quiet " CS["quiet"]
+  if (hw + hu > 0) print "  helper worktrees holding work that never reached a PR: " (hu ? (hw ? "at least " hw : "unknown") : hw)
 }'

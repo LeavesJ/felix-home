@@ -401,6 +401,7 @@ fi
 . "$HERE/parts/2051-snapshot-run-blind.sh"
 . "$HERE/parts/2070-cloud-kit-truthfulness-blind.sh"
 . "$HERE/parts/2120-wave-1-combine-blind.sh"
+. "$HERE/parts/2160-docs-are-not-a-frontend-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

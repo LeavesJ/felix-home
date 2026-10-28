@@ -3,8 +3,9 @@ printf '\nevery command-carrying tool is judged with the Bash rows (audit b16, r
 # A63 to A86), with docs/2026-10-24-audit-fixes/b16-deny-floor-judges-effects-on-every-tool.md for the
 # fixtures it names. No engine code was read: the hook is driven as a black box by _pre
 # (tests/lib/deny-hook.sh), and A84, A85 and A59 read engine files only as those assertions say to. The
-# round's contract puts these assertions in part 1930; here they are a part of their own, and 1930's own
-# A9 and A59, which the round restates the other way, are left as they are. The part runs alone: each
+# round's contract put these assertions in part 1930; its review round (section 9, R3V-2) puts them here,
+# and took 1930's own A9 and A59, which the round restates the other way, out of 1930 (R3V-1). B16R3V1 to
+# B16R3V12 were added 2026-10-28, blind, from that section. The part runs alone: each
 # fixture is its own, under $TMP, and it relies on the prelude only (FROOT, TMP, MEM, REAL_HARNESS, _pre,
 # _fx_cd, ok, bad, is, skip).
 #
@@ -153,8 +154,11 @@ _d3_case "B16R3 A68 (R3-1, B5) [control]: an unknown MCP shell that only echoes 
   allowed "" "$(_d3_cpay "$_d3_xt" "echo 'pkill -f x'")"
 _d3_case "B16R3 A69 (R3-8): an unknown MCP shell's command over 1,024 characters is read whole, and its pattern kill refused" \
   refused "$_d3_pk" "$(_d3_cpay "$_d3_xt" "echo $_d3_pad ; pkill -f x")"
+# A payload whose text holds a literal comma inside braces is built in a variable first: bash 3.2
+# brace-expands a double-quoted "{a,b}" argument written inside "$(...)" (R3V-4).
+_d3_j="{\"note\":\"$_d3_pad\",\"command\":\"pkill -f x\"}"
 _d3_case "B16R3 A70 (R3-8): an unknown MCP shell's command after a field of 1,100 characters is refused" \
-  refused "$_d3_pk" "$(_d3_pay "$_d3_xt" "{\"note\":\"$_d3_pad\",\"command\":\"pkill -f x\"}")"
+  refused "$_d3_pk" "$(_d3_pay "$_d3_xt" "$_d3_j")"
 
 printf '\nround 3: every unknown or unread call is reported, and an unread one has no subject (R3-3, R3-4)\n'
 _d3_rep "B16R3 A72 (R3-3): an unknown MCP shell's allowed command exits 0 silently and adds one unknown-shell line holding the command" \
@@ -248,6 +252,36 @@ _d3_case "B16R3 A79 (R3-7): an unknown MCP shell with an earlier value spelling 
 _d3_case "B16R3 A79 (R3-7): a Read with an earlier value spelling file_path reads the key, and is refused" \
   refused "reading a secret" "$(_d3_pay Read '{"mode":"file_path","file_path":"/w/.env"}')"
 
+# ---- review round R3V-3: a key is opened by a real quote, the first non-blank after { or a comma
+printf '\nround 3 review: another key ending in an escaped quote and the field name is not the field (R3V-3)\n'
+_d3_fk='"a\"command":"ls",'; _d3_ff='"a\"file_path":"/w/ok",'   # the keys a"command and a"file_path, put first
+_d3_case "B16R3V4 (R3V-3): Bash whose input has the key a\"command before its command key is judged on the real command, and refused" \
+  refused "$_d3_pk" "$(_d3_pay Bash "{$_d3_fk\"command\":\"pkill -f x\"}")"
+_d3_case "B16R3V5 (R3V-3): run_in_terminal with the key a\"command first is judged on the real command, and refused" \
+  refused "$_d3_pk" "$(_d3_pay mcp__terminal__run_in_terminal "{$_d3_fk\"command\":\"pkill -f x\"}")"
+_d3_n="B16R3V6 (R3V-3, R3-2, R3-3): an unknown MCP shell with the key a\"command first is refused, says why, and reports the real command"
+if [ -n "$_d3_nofx" ]; then skip "$_d3_n" "$_d3_nofx"
+else
+  _d3_call "$_d3_t1" "$(_d3_pay "$_d3_xt" "{$_d3_fk\"command\":\"pkill -f x\"}")" "$_d3_pk"
+  _d3_with "$(_d3_line "$_d3_xt")"
+  _d3_is "$_d3_n" "$_d3_got; $_d3_nn line(s): $(_d3_want denied - - 'pkill -f x') denied, $(_d3_want unknown-shell s1930r3 "$_d3_xt" 'pkill -f x') unknown-shell" \
+    "refused; 2 line(s): 1 denied, 1 unknown-shell"
+fi
+_d3_case "B16R3V7 (R3V-3): a Read with the key a\"file_path first is judged on the real file_path, and refused" \
+  refused "reading a secret" "$(_d3_pay Read "{$_d3_ff\"file_path\":\"/w/.env\"}")"
+_d3_j="{\"pad\":\"$_d3_pad\",$_d3_fk\"command\":\"pkill -f x\"}"   # each in a variable first (R3V-4)
+_d3_case "B16R3V8 (R3V-3, R3-8): B16R3V6's call with a 1,100-character field first is refused too" \
+  refused "$_d3_pk" "$(_d3_pay "$_d3_xt" "$_d3_j")"
+_d3_j="{\"pad\":\"$_d3_pad\",$_d3_ff\"file_path\":\"/w/.env\"}"
+_d3_case "B16R3V9 (R3V-3, R3-8): B16R3V7's Read with a 1,100-character field first is refused too" \
+  refused "reading a secret" "$(_d3_pay Read "$_d3_j")"
+_d3_j="{ \"note\":\"C:\\\\\",$_d3_lf \"command\" : \"pkill -f x\"}"
+_d3_case "B16R3V10 (R3V-3) [control]: a real key after blanks, following a value that ends in an escaped backslash, still counts" \
+  refused "$_d3_pk" "$(_d3_pay "$_d3_xt" "$_d3_j")"
+_d3_n="B16R3V11 (R3V-3, R3-10): an unknown MCP tool whose only command is the tail of the key a\"command has no command key: allowed, nothing reported"
+if [ -n "$_d3_nofx" ]; then skip "$_d3_n" "$_d3_nofx"
+else _d3_call "$_d3_t1" "$(_d3_pay "$_d3_xt" '{"a\"command":"pkill -f x"}')" ""; _d3_is "$_d3_n" "$_d3_got; $_d3_nn line(s)" "allowed; 0 line(s)"; fi
+
 # ---- fixture T2 (B8): a project resolved by remote_match, and a git shim that logs every call
 _d3_gp="$FROOT/projects/gizmo1931"; mkdir -p "$_d3_gp"
 printf '{"name":"gizmo1931","remote_match":"example.com/gizmo1931"}\n' > "$_d3_gp/project.json"
@@ -273,18 +307,24 @@ _d3_gcall() {   # PAYLOAD REASON -> _d3_got, _d3_err, and _d3_gn: the git calls 
   _d3_gn="$(LC_ALL=C awk 'END { print NR }' "$_d3_glog" 2>/dev/null)"
 }
 _d3_n="B16R3 A80 (R3-7) [control]: an mcp__ call whose only command is a value exits 0 before the project is resolved, running no git"
-if [ -n "$_d3_nofx2" ]; then skip "$_d3_n" "$_d3_nofx2"
+_d3_n12="B16R3V12 (R3V-3, B8): an mcp__ call whose only command is the tail of the key a\"command exits 0 before the project is resolved, running no git"
+_d3_nogit() {   # PAYLOAD -> what the hook did, from the shim's log
+  _d3_gcall "$1" ""
+  if [ "$_d3_got" != allowed ]; then echo "$_d3_got"
+  elif [ "${_d3_gn:-x}" != 0 ]; then echo "the hook ran git ${_d3_gn:-?} time(s): $(LC_ALL=C head -3 "$_d3_glog" 2>/dev/null | LC_ALL=C tr '\n' ';')"
+  else echo "exit 0, nothing on stderr, no git"; fi
+}
+if [ -n "$_d3_nofx2" ]; then skip "$_d3_n" "$_d3_nofx2"; skip "$_d3_n12" "$_d3_nofx2"
 else
   _d3_gcall '{"tool_name":"Read","tool_input":{"file_path":"x"}}' ""
-  if [ "$_d3_got" != allowed ]; then _d3_x="the Read probe was not allowed: $_d3_got"
-  elif [ "${_d3_gn:-0}" -lt 1 ] 2>/dev/null; then _d3_x="unknown: the Read probe left the git log empty, so the shim is not shown to be on the hook's path"
+  if [ "$_d3_got" != allowed ]; then _d3_x="the Read probe was not allowed: $_d3_got"; _d3_y="$_d3_x"
+  elif [ "${_d3_gn:-0}" -lt 1 ] 2>/dev/null; then _d3_x="unknown: the Read probe left the git log empty, so the shim is not shown to be on the hook's path"; _d3_y="$_d3_x"
   else
-    _d3_gcall '{"tool_name":"mcp__fixture__memory","tool_input":{"kind":"command","note":"x"}}' ""
-    if [ "$_d3_got" != allowed ]; then _d3_x="$_d3_got"
-    elif [ "${_d3_gn:-x}" != 0 ]; then _d3_x="the hook ran git ${_d3_gn:-?} time(s): $(LC_ALL=C head -3 "$_d3_glog" 2>/dev/null | LC_ALL=C tr '\n' ';')"
-    else _d3_x="exit 0, nothing on stderr, no git"; fi
+    _d3_x="$(_d3_nogit '{"tool_name":"mcp__fixture__memory","tool_input":{"kind":"command","note":"x"}}')"
+    _d3_y="$(_d3_nogit '{"tool_name":"mcp__fixture__memory","tool_input":{"a\"command":"pkill -f x"}}')"
   fi
   is "$_d3_n" "$_d3_x" "exit 0, nothing on stderr, no git"
+  is "$_d3_n12" "$_d3_y" "exit 0, nothing on stderr, no git"
 fi
 [ -z "$FROOT" ] || rm -rf "$FROOT/projects/gizmo1931"
 
@@ -293,7 +333,8 @@ _d3_same() {   # NAME TOOL INPUT-KEYS REASON WANT: WANT is "<verdict>; <kinds>",
   local p q
   if [ -n "$_d3_nofx" ]; then skip "$1" "$_d3_nofx"; return 0; fi
   _d3_call "$_d3_t1" "$(_d3_pay "$2" "{$3}")" "$4"; q="$_d3_got; $(_d3_kinds)"
-  _d3_call "$_d3_t1" "$(_d3_pay "$2" "{\"pad\":\"$_d3_pad\",$3}")" "$4"; p="$_d3_got; $(_d3_kinds)"
+  p="{\"pad\":\"$_d3_pad\",$3}"   # in a variable first (R3V-4)
+  _d3_call "$_d3_t1" "$(_d3_pay "$2" "$p")" "$4"; p="$_d3_got; $(_d3_kinds)"
   _d3_is "$1" "padded: $p / without: $q" "padded: $5 / without: $5"
 }
 _d3_same "B16R3 A81 (R3-8): A63's call with a 1,100-character pad first gets the same verdict and lines" \
@@ -393,6 +434,30 @@ for _d3_f in lib/deny.sh hooks/pre-tool tests/parts/1930-deny-every-tool-blind.s
   else _d3_x="$_d3_x there is no $_d3_f;"; fi
 done
 is "$_d3_n" "$_d3_x" ""
+
+# ---- review round R3V-1, R3V-2: where round 3's assertions live (the needles are split so this text is no hit)
+_d3_hold() { _N="$2" LC_ALL=C awk 'index($0, ENVIRON["_N"]) { n++ } END { print n + 0 }' "$1" 2>/dev/null; }   # FILE NEEDLE
+_d3_p30="$REAL_HARNESS/tests/parts/1930-deny-every-tool-blind.sh"; _d3_p31="$REAL_HARNESS/tests/parts/1931-b16-round-3-blind.sh"
+_d3_n="B16R3V1 (R3V-1): part 1930 holds no A9 or A59, which round 3 reverses, and this part holds their round-3 forms once each"
+if [ -f "$_d3_p30" ] && [ -f "$_d3_p31" ]; then
+  _d3_x="1930: A9 $(_d3_hold "$_d3_p30" 'deny floor A''9 ('), A59 $(_d3_hold "$_d3_p30" 'deny floor A''59 (')"
+  _d3_x="$_d3_x; 1931: A9 $(_d3_hold "$_d3_p31" '"B16R3 A''9 ('), A59 $(_d3_hold "$_d3_p31" '"B16R3 A''59 (')"
+  is "$_d3_n" "$_d3_x" "1930: A9 0, A59 0; 1931: A9 1, A59 1"
+else skip "$_d3_n" "part 1930 or part 1931 is not beside this harness"; fi
+_d3_n="B16R3V2 (R3V-2) [control]: tests/run sources parts 1930 and 1931 once each, 1931 on the next line, and groups.tsv puts neither in a group"
+if [ -f "$REAL_HARNESS/tests/run" ]; then
+  _d3_x="$(LC_ALL=C awk '
+    index($0, "parts/1930-deny-every-tool-blind.sh") { i++; a = NR }
+    index($0, "parts/1931-b16-round-3-blind.sh") { j++; b = NR }
+    END { if (i != 1 || j != 1) print "1930 sourced " (i + 0) " time(s), 1931 " (j + 0); else if (b != a + 1) print "1931 on line " b ", 1930 on " a; else print "next line" }' "$REAL_HARNESS/tests/run")"
+  [ ! -f "$REAL_HARNESS/tests/groups.tsv" ] || _d3_x="$_d3_x, $(LC_ALL=C awk -F'\t' '!/^#/ && $2 ~ /^193[01]-/ { n++ } END { print n + 0 }' "$REAL_HARNESS/tests/groups.tsv") in a group"
+  is "$_d3_n" "$_d3_x" "next line, 0 in a group"
+else skip "$_d3_n" "no tests/run beside this harness"; fi
+_d3_n="B16R3V3 (R3V-2) [control]: part 1931 has 500 lines or fewer"
+if [ -f "$_d3_p31" ]; then
+  _d3_k="$(LC_ALL=C awk 'END { print NR }' "$_d3_p31")"
+  if [ "$_d3_k" -le 500 ] 2>/dev/null; then ok "$_d3_n"; else bad "$_d3_n" "part 1931 has $_d3_k lines"; fi
+else skip "$_d3_n" "part 1931 is not beside this harness"; fi
 
 _d3_rm="$(cd "$REAL_HARNESS/../.." && pwd)/README.md"
 _d3_n="B16R3 A59 (R3-11, restated): README's deny-table row says any MCP tool whose input carries a command is read"

@@ -2,8 +2,10 @@ printf '\nthe deny floor judges effects on every tool (audit b16, C020, blind)\n
 # Written blind on 2026-10-24 from docs/2026-10-24-audit-fixes/b16-deny-floor-judges-effects-on-every-tool.md
 # alone (sections 2 and 4, A1 to A31). No engine code was read: hooks.json and settings.json are read
 # here only as the contract says to read them, and the hook is driven as a black box by _pre
-# (tests/lib/deny-hook.sh). A9 as restated and A53 to A59 were added 2026-10-26, blind, from the
-# contract's section 9 (review round, M1). Every part runs alone: each fixture below is this part's own, under $TMP,
+# (tests/lib/deny-hook.sh). A53 to A58 were added 2026-10-26, blind, from the contract's section 9
+# (review round, M1). Round 3 (b16-round-3.md) reverses M1's A9 and A59; on 2026-10-28, in its review round
+# (R3V-1), both were taken out of this part, and their round-3 forms are part 1931's B16R3 A9 and B16R3 A59.
+# Every part runs alone: each fixture below is this part's own, under $TMP,
 # and it relies on the prelude only (FROOT, TMP, MEM, REAL_HARNESS, _pre, _fx_cd, ok, bad, is, skip).
 #
 # "Refused" is exit 2 with the row's whole reason on stderr; "allowed" is exit 0 with nothing on
@@ -139,9 +141,7 @@ _dt_case "deny floor A7 (B4): mcp__terminal__run_in_terminal running a pattern k
   '{"tool_name":"mcp__terminal__run_in_terminal","tool_input":{"command":"pkill -f x","title":"t"}}'
 _dt_case "deny floor A8 (B4): mcp__claude-flow__terminal_execute running a force push is refused" "$_dt_t1" refused "$_dt_fp" \
   '{"tool_name":"mcp__claude-flow__terminal_execute","tool_input":{"command":"git push --force origin feat/x","sessionId":"s1"}}'
-# A9 as the review round restates it (M1): carrying a command does not make an mcp__ tool a terminal.
-_dt_case "deny floor A9 (B4, review M1): an mcp__ tool Felix does not name a terminal is not read as a shell command, though its input carries one" "$_dt_t1" allowed "" \
-  '{"tool_name":"mcp__fixture__shell","tool_input":{"command":"pkill -f x"}}'
+# A9 is part 1931's B16R3 A9 (round 3 restates it: refused, with the line saying why).
 _dt_case "deny floor A10 (B5): a Monitor command that only echoes a quoted pattern kill is allowed" "$_dt_t1" allowed "" "$(_dt_mon "echo 'pkill -f x'")"
 _dt_case "deny floor A11 (B5): a Monitor command that hands a pattern kill to bash -c is refused" "$_dt_t1" refused "$_dt_pk" "$(_dt_mon "bash -c 'pkill -f x'")"
 _dt_case "deny floor A12 (B5): a Monitor tail piped to a grep for the quoted words is allowed" "$_dt_t1" allowed "" \
@@ -355,15 +355,6 @@ if [ -f "$_dt_rm" ]; then
   fi
   is "$_dt_n" "$_dt_x" "names Monitor"
 else skip "$_dt_n" "no README.md beside this harness"; fi
-_dt_n="deny floor A59 (B12, review M1): README's deny-table row says the MCP tools read are terminal tools, not every MCP tool"
-if [ -f "$_dt_rm" ]; then
-  case "$_dt_rl" in
-    "") _dt_x="no line of README.md begins | **The deny table** |" ;;
-    *"Monitor or an MCP tool)"*) _dt_x="it still says every MCP tool's command is read" ;;
-    *[Tt]erminal*) _dt_x="names terminal tools" ;;
-    *) _dt_x="does not say which MCP tools are read" ;;
-  esac
-  is "$_dt_n" "$_dt_x" "names terminal tools"
-else skip "$_dt_n" "no README.md beside this harness"; fi
+# A59 is part 1931's B16R3 A59 (round 3 restates README's sentence).
 
 rm -f "$FROOT/projects/widget/deny.tsv" "$FROOT/.deny-err"

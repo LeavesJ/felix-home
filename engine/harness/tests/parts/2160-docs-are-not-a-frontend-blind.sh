@@ -177,5 +177,63 @@ _w2d_keep "$W2DF/f3"; _w2d_ss "$W2DF/f3"
 is "W2D F3 session: in a governed home whose own checkout holds the F3 layout, session start exits 0 and adopts nothing: w2dp's capabilities, stack.tsv and setup.tsv byte for byte as before, and no Adopted automatically" \
    "$W2DRC|$(_w2d_diff "$W2DF/f3")|$(_w2d_said)" "0|capabilities=same stack.tsv=same setup.tsv=same|not-adopted"
 
+# ------------------------------------------------- section 6, review round ---
+# Blind, written on 2026-10-28 from section 6 of the same contract (F2e, F2f) alone, sections 1 to 5 as context; lib/,
+# the felix CLI, hooks/ and bin/ were still not read. Every case is outside git, so the fallback answers: plain
+# directories under $W2D/r6, read by _w2d_caps from $W2D with $W2D as git's ceiling, as F2d's are. F2e: a root at
+# docs/nogitroot under a real docs/, a root whose own directory is named slides, and a root holding docs.css, deck.css
+# and slides.css. F2f: lnk, a link by absolute path to tgt (three .css under static/); dlnk, a relative link to dtgt
+# (three .css under docs/); elnk, a relative link to docs/ltgt (three .css under static/, its directory under the real
+# docs/), which F2f says counts as docs/ltgt counts itself and F2e says that is all three. The fixture control proves
+# each link is a link to its target, each target a directory holding exactly its files, the same read through its
+# link, docs/ a real directory, and that git finds no repository at any root while the same probe finds the git
+# fixture static.
+W2DR="$W2D/r6"; rm -rf "$W2DR"
+_w2d_dir r6/tgt static/a.css static/b.css static/c.css
+_w2d_dir r6/dtgt docs/a.css docs/b.css docs/c.css
+_w2d_dir r6/docs/nogitroot static/a.css static/b.css static/c.css
+_w2d_dir r6/docs/ltgt static/a.css static/b.css static/c.css
+_w2d_dir r6/slides static/a.css static/b.css static/c.css
+_w2d_dir r6/near docs.css deck.css slides.css
+ln -s "$W2DR/tgt" "$W2DR/lnk"; ln -s dtgt "$W2DR/dlnk"; ln -s docs/ltgt "$W2DR/elnk"
+_w2d_what() {   # PATH -> link>TARGET, dir or none, then :[every file under it, read through it, sorted, each followed by a space]
+  local k=none
+  if [ -L "$1" ]; then k="link>$(readlink "$1")"; elif [ -d "$1" ]; then k=dir; fi
+  printf '%s:[%s]' "$k" "$( ( cd "$1" 2>/dev/null && find . -type f ) | LC_ALL=C sort | tr '\n' ' ')"
+}
+_w2d_git() {    # DIR... -> git(DIR below $W2D) for each DIR where git finds a repository, under _w2d_caps's ceiling; nothing for none
+  ( cd "$W2D" || exit 1
+    GIT_CEILING_DIRECTORIES="$W2D"; export GIT_CEILING_DIRECTORIES
+    for d in "$@"; do git -C "$d" rev-parse --git-dir >/dev/null 2>&1 && printf 'git(%s) ' "${d#"$W2D"/}"; done
+    exit 0 )
+}
+W2DS='./static/a.css ./static/b.css ./static/c.css '; W2DSD='./docs/a.css ./docs/b.css ./docs/c.css '
+W2DRG=""
+for _w2dn in lnk tgt dlnk dtgt elnk docs/ltgt docs/nogitroot slides near; do W2DRG="$W2DRG $_w2dn=$(_w2d_what "$W2DR/$_w2dn")"; done
+W2DRG="$W2DRG|docs=$([ -d "$W2DR/docs" ] && [ ! -L "$W2DR/docs" ] && echo real-dir || echo other)"
+W2DRG="$W2DRG|.git=[$(find "$W2DR" -name .git 2>&1)]|git=[$(_w2d_git "$W2DR/lnk" "$W2DR/tgt" "$W2DR/dlnk" "$W2DR/dtgt" \
+  "$W2DR/elnk" "$W2DR/docs/ltgt" "$W2DR/docs/nogitroot" "$W2DR/slides" "$W2DR/near")]|probe=[$(_w2d_git "$W2D/static")]"
+is "W2D R fixture: outside git, lnk links to tgt by absolute path, dlnk to dtgt and elnk to docs/ltgt by relative path, each target a directory holding exactly its three .css, the same read through its link; docs/ is a real directory; no .git lies under r6 and git finds no repository at any root, while the same probe finds the git fixture static (fixture control)" \
+   "$W2DRG" \
+   " lnk=link>$W2DR/tgt:[$W2DS] tgt=dir:[$W2DS] dlnk=link>dtgt:[$W2DSD] dtgt=dir:[$W2DSD] elnk=link>docs/ltgt:[$W2DS] docs/ltgt=dir:[$W2DS] docs/nogitroot=dir:[$W2DS] slides=dir:[$W2DS] near=dir:[./deck.css ./docs.css ./slides.css ]|docs=real-dir|.git=[]|git=[]|probe=[git(static) ]"
+
+is "W2D R F2e: outside git, a root at docs/nogitroot, docs/ a real directory above it, holding three .css under static/ detects frontend: only a component of a path below the root can exclude a file" \
+   "$(_w2d_fe "$W2DR/docs/nogitroot")" "frontend"
+is "W2D R F2e own name: outside git, a root whose own directory is named slides, holding three .css under static/, detects frontend: the twin of the git listing's root/docs control" \
+   "$(_w2d_fe "$W2DR/slides")" "frontend"
+is "W2D R F2e near-miss: outside git, three .css at the root named docs.css, deck.css and slides.css detect frontend: a file's own name is no directory component" \
+   "$(_w2d_fe "$W2DR/near")" "frontend"
+is "W2D R F2f: outside git, a symbolic link whose target holds three .css under static/ detects frontend when the link is the root" \
+   "$(_w2d_fe "$W2DR/lnk")" "frontend"
+is "W2D R F2f target: outside git, the link's target alone detects frontend too, and the link as the root detects exactly the capabilities its target does" \
+   "$(_w2d_fe "$W2DR/tgt")|$(_w2d_caps "$W2DR/lnk")" "frontend|$(_w2d_caps "$W2DR/tgt")"
+is "W2D R F2f count: outside git, with FELIX_FRONTEND_MIN=4 neither the link nor its target detects frontend and with 3 both do: through the link the three assets count three, as the target counts them" \
+   "$(_w2d_fe "$W2DR/lnk" 4)|$(_w2d_fe "$W2DR/tgt" 4)|$(_w2d_fe "$W2DR/lnk" 3)|$(_w2d_fe "$W2DR/tgt" 3)" \
+   "no-frontend|no-frontend|frontend|frontend"
+is "W2D R F2f with F1: outside git, a symbolic link whose target holds three .css under docs/ detects no frontend, and its target alone detects none" \
+   "$(_w2d_fe "$W2DR/dlnk")|$(_w2d_fe "$W2DR/dtgt")" "no-frontend|no-frontend"
+is "W2D R F2f with F2e: outside git, a link to docs/ltgt, a directory under a real docs/ holding three .css under static/, detects frontend as docs/ltgt alone does: the link counts as its target counts itself" \
+   "$(_w2d_fe "$W2DR/elnk")|$(_w2d_fe "$W2DR/docs/ltgt")" "frontend|frontend"
+
 _w2d_calm "$W2DF/ctl"; _w2d_calm "$W2DF/f3"; rm -rf "$W2D"
 # <<< docs-are-not-a-frontend

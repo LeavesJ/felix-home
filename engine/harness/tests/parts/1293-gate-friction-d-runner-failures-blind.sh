@@ -19,6 +19,16 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # _db3_B = 600 s (the plain runs, the holder runs' B, the r27 runs, the gate's), and every hold life and wait tied to B follows it. (3) R56: the sleeper case's margin is 49 s (was 30),
 # R32's 49 s (was 45), R30's 60 s (was 15), each L and floor in a comment beside it; R33's wait for its group is a bound, B (was 90 s); the r27 shim's 1.5 s pause before
 # the stopper's 2nd listing became a poll until that listing shows a sleep listing 1 did not; the shim's unused second arguments (375, 500, 75) and the unused _db3_until are gone.
+# Revision 18 (R58 to R62), by blind author B from the contract alone: (1) R60: _db3_atexit (atexit.pl) takes its two listings as before, 0.1 s apart, the first at once, but a process whose command
+# line is the record run's own (_db3_cmd: its watcher, or a subshell of it) and its descendants are not judged by them: they are waited for, a bound of 20 s polled every 0.1 s (the floor: the watcher
+# forks once on its way out), each listing's descendants noted, and once none with that command line is left two listings 0.1 s apart, the first at once, judge what was a descendant as any other
+# process; one still there at 20 s is left. Reading: R60 names the 13 R1 cases; it is applied to every record run's at-exit check here (the 13, the sleeper case's and R32's), since each record run ends
+# on a runner failure and sends its watcher the same TERM; a plain run's (R30's) has no _db3_cmd and is judged as before. (2) R61: the r27 unit's TERM-ignoring perl loops only while the case directory
+# exists (it looks once a second, at each sleep 1); the controller's waits for r.pid and slept.* also end once the run (run.pl, _db3_bg) has gone, and look once more. Reading: R61's waits are those of
+# the case's shell and its controller, which run beside the run; a wait inside the run's own units (0030's, hold.pl's) ends with the run, by its ending or run.pl's KILL at B. (3) R62: DJX_MLOG gets
+# "1293 run CASE/LABEL bound B ms START-TO-EXIT" for every inner run (the gate's too) and "1293 margin CASE T MS ms MEASURED" (none when its event never came) for rsl and r27m (49 s), jtab (60 s) and
+# R60's wait (CASE/LABEL/watcher, 20 s), each after its case's checks. (4) R58: no watch here (no pause followed by a look for what only a build without the clause makes). R59: the one record run
+# ended by a signal, R33's (r27w), already waits for its group as a bound (_db3_emptyby, B from its exit, then R12's 30 s), and only what is there at its end fails the name.
 # R38, with R44: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so a record run that ends on a runner failure
 # exits there only once red's suite has ended by itself, and what is left of red's tree then is a matter of timing. Each _db3_rf case therefore plants, in
 # its record half only (DJX_HOLD names hold.pl, which the case gives that run alone, and DJX_LIM the case's run bound B, 600 s, _db3_B), a red-only holder H: red's suite, at the planted step, makes the case's
@@ -103,9 +113,32 @@ elsif (!$h) {
 }
 sleep 0.1 while time < $t0 + 90 && -d $d;
 DB3SLP
+cat > "$DB3/atexit.pl" <<'DB3AX'
+# atexit.pl WFILE CMD GROUP... (R1, R60; the same text in parts 1293 and 1295): "ok", or "left at its exit: PID STAT COMMAND;..." for what the process groups GROUP... (zombies aside) hold
+# at a run's exit. Two listings 0.1 s apart, the first at once: a process in both is left. Not judged by them: a process whose command line is CMD (the record run's own: its watcher, or a subshell
+# of it; CMD empty, none) and its descendants. Those are waited for, a bound of 20 s from the first listing polled every 0.1 s, each listing's descendants noted; then two listings 0.1 s apart, the
+# first at once, judge the noted descendants as any other, and one with CMD still there at 20 s is left. WFILE gets the ms from the first listing to the first with none with CMD, or none.
+use strict; use Time::HiRes qw(time sleep);
+open(STDERR, ">", "/dev/null"); my ($wf, $cmd, @g) = @ARGV; my %g = map { $_ => 1 } grep { /^\d+$/ } @g;
+sub ls { my %p; open(my $h, "-|", "ps", "-A", "-ww", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "stat=", "-o", "command=") or return \%p;
+  while (my $l = <$h>) { next unless $l =~ /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*?)\s*$/; $p{$1} = [$2, $4, $5] if $g{$3} && $4 !~ /^Z/ } close $h; \%p }
+sub wt { my ($p) = @_; $cmd eq "" ? () : grep { $p->{$_}[2] eq $cmd } keys %$p }   # the processes with CMD
+sub dn { my ($p, @w) = @_; my %d = map { $_ => 1 } @w; my $n = 1; while ($n) { $n = 0; for (keys %$p) { next if $d{$_} || !$d{$p->{$_}[0]}; $d{$_} = 1; $n = 1 } } delete @d{@w}; keys %d }   # their descendants
+sub both { my ($x, $y, @k) = @_; join "", map { "$_ $y->{$_}[1] " . substr($y->{$_}[2], 0, 70) . ";" } sort { $a <=> $b } grep { exists $y->{$_} } @k }
+my $t0 = time; my $l1 = ls(); my @w1 = wt($l1); my %nd = map { $_ => 1 } dn($l1, @w1);
+sleep 0.1; my $t2 = time; my $l2 = ls(); my @w2 = wt($l2); $nd{$_} = 1 for dn($l2, @w2);
+my %out = map { $_ => 1 } (@w1, @w2, keys %nd); my $left = both($l1, $l2, grep { !$out{$_} } keys %$l1);
+my $wms; my @wl = map { "$_ $l2->{$_}[1] " . substr($l2->{$_}[2], 0, 70) } @w2;
+if (!@w1 && !@w2) { $wms = 0 } elsif (!@w2) { $wms = int(($t2 - $t0) * 1000) }
+else { while (time < $t0 + 20) { sleep 0.1; my $tl = time; my $p = ls(); my @x = wt($p); $nd{$_} = 1 for dn($p, @x); if (!@x) { $wms = int(($tl - $t0) * 1000); last } @wl = map { "$_ $p->{$_}[1] " . substr($p->{$_}[2], 0, 70) } @x } }
+$left .= join "", map { "$_ (the record run's own command line, still there 20 s after its exit);" } sort @wl unless defined $wms;
+if (%nd) { my $a1 = ls(); sleep 0.1; my $a2 = ls(); $left .= both($a1, $a2, grep { $nd{$_} } keys %$a1) }
+if ($wf ne "-" && open(my $h, ">", $wf)) { print $h (defined $wms ? $wms : "none"), "\n"; close $h }
+print $left eq "" ? "ok" : "left at its exit: $left";
+DB3AX
 _db3_HL='[ -z "${DJX_HOLD:-}" ] || perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'
 _db3_B=600   # R55: B, every run bound of this part, the holder runs' included
-_db3_hlim=$_db3_B; _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; _db3_ctl=0; _db3_ctlr=0; _db3_pf=(); _db3_cl=ok; _db3_ex=ok; _db3_leak=""; _db3_skip=""; _db3_hook=""; _db3_post=""; _db3_postn=""
+_db3_lab=""; _db3_bd=$_db3_B; _db3_cmd=""; _db3_t1=""; _db3_hlim=$_db3_B; _db3_E=(); _db3_INT=DEFAULT; _db3_QUIT=DEFAULT; _db3_ctl=0; _db3_ctlr=0; _db3_pf=(); _db3_cl=ok; _db3_ex=ok; _db3_leak=""; _db3_skip=""; _db3_hook=""; _db3_post=""; _db3_postn=""
 cat > "$DB3/run.pl" <<'DB3PL'
 my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
 my $p = fork; defined $p or exit 125;
@@ -122,15 +155,9 @@ _db3_line() { grep -cxF -e "$2" "$1" 2>/dev/null; }   # FILE LINE: lines that ar
 _db3_gm() { ps -A -o pid= -o pgid= -o stat= -o command= 2>/dev/null | G=" $* " LC_ALL=C awk 'index(ENVIRON["G"], " " $2 " ") && $3 !~ /^Z/ { c = $0; sub(/^ *[0123456789]+ +[0123456789]+ +[^ ]+ +/, "", c); print $1 " " $3 " " substr(c, 1, 70) }'; }
 _db3_gs() { local f; for f in ${_db3_pf[@]+"${_db3_pf[@]}"}; do printf ' %s' "$(cat "$f" 2>/dev/null)"; done; }   # the ids of the process groups of this case's runs
 # R1: "ok" when no process of those groups is alive at two listings 0.1 s apart, the first taken at once after a run has exited (a process killed
-# a moment ago is in the first listing only), else the processes that were in both.
-_db3_atexit() {
-  local g l1 l2 l="" p; g="$(_db3_gs)"
-  [ -n "${g// /}" ] || { printf ok; return 0; }
-  l1="$(_db3_gm $g)"; [ -n "$l1" ] || { printf ok; return 0; }
-  sleep 0.1; l2="$(_db3_gm $g)"
-  for p in $(printf '%s\n' "$l1" | awk '{ print $1 }'); do case "$l2" in "$p "*|*$'\n'"$p "*) l="$l$(printf '%s\n' "$l2" | grep -F -e "$p " | sed -n 1p);" ;; esac; done
-  [ -n "$l" ] && printf 'left at its exit: %s' "$l" || printf ok
-}
+# a moment ago is in the first listing only), else the processes that were in both. R60: for a record run (_db3_cmd, its own command line) its watcher, a subshell of it and their
+# descendants are waited for, 20 s at most, and what was a descendant is judged by two listings once they are gone (atexit.pl); the wait's ms go to CASE/LABEL.axw (R62)
+_db3_atexit() { local g; g="$(_db3_gs)"; [ -n "${g// /}" ] || { printf ok; return 0; }; perl "$DB3/atexit.pl" "$_db3_c/$_db3_lab.axw" "$_db3_cmd" $g; }
 # R12: "ok" once the groups of this case's runs hold no live process (30 s), else what was left, sent CONT and then KILL by pid.
 _db3_clean() {
   local g l="" i=0 p; g="$(_db3_gs)"
@@ -161,6 +188,8 @@ _db3_start() {
   local l="$1" e p=0; shift
   _db3_ea=(); for e in ${_db3_E[@]+"${_db3_E[@]}"}; do case "$e" in PATH=*) e="PATH=$DB3/mk:${e#PATH=}"; p=1 ;; esac; _db3_ea[${#_db3_ea[@]}]="$e"; done
   [ "$p" = 1 ] || _db3_ea[${#_db3_ea[@]}]="PATH=$DB3/mk:$PATH"
+  _db3_lab="$l"; _db3_bd="${_db3_lim:-$_db3_B}"; _db3_cmd=""   # R62: the run's label and bound; R60: a record run's own command line, as ps prints it (run.pl execs it from this argv)
+  case " $* " in *" --record-assertions "*) _db3_cmd="$BASH $_db3_T/run"; for e in "$@"; do _db3_cmd="$_db3_cmd $e"; done ;; esac
   _db3_ms > "$_db3_c/run.start"   # R46: the run's start, ms (evidence fields of DJX_MLOG)
   ( cd "$_db3_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT \
@@ -192,6 +221,14 @@ _db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findi
     "$([ -e "$_db3_c/hold.ended" ] && _db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/hold.go" 2>/dev/null)")" \
     "$(_db3_rel hold.start)" "$(_db3_rel hold.go)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")" \
     "$(_db3_df "$(cat "$_db3_c/hold.mark" 2>/dev/null)" "$(cat "$_db3_c/hold.go" 2>/dev/null)")" "$(_db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.mark" 2>/dev/null)")" "$_db3_ex" >> "$DJX_MLOG"
+  _db3_mr
+}
+# R62, evidence only (a line never decides a verdict, and none is written without DJX_MLOG): _db3_ml WORD...: the line "1293 WORD..."; _db3_mr, once a run's checks are done: its run line,
+# "1293 run CASE/LABEL bound B ms START-TO-EXIT", and for a record run whose exit was judged R60's wait as a margin, "1293 margin CASE/LABEL/watcher T 20000 ms MS-OR-none"
+_db3_ml() { [ -z "${DJX_MLOG:-}" ] || printf '1293 %s\n' "$*" >> "$DJX_MLOG"; }
+_db3_mr() {
+  _db3_ml run "${_db3_c##*/}/$_db3_lab" bound "$_db3_bd" ms "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")"
+  [ -z "$_db3_cmd" ] || [ ! -s "$_db3_c/$_db3_lab.axw" ] || _db3_ml margin "${_db3_c##*/}/$_db3_lab/watcher" T 20000 ms "$(sed -n 1p "$_db3_c/$_db3_lab.axw")"
 }
 _db3_rcpt() { if [ -f "$_db3_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db3_last() { tail -n 1 "$_db3_c/$1.out" 2>/dev/null; }
@@ -466,6 +503,7 @@ _db3_t0="$(cat "$_db3_c"/slept.* 2>/dev/null | sed -n 1p)"
 case "$_db3_t0" in ""|*[!0123456789]*) ;; *) [ -z "${DJX_MLOG:-}" ] || printf '%s start-to-slept %s start-to-exit %s\n' "${_db3_c##*/}" "$(_db3_df "$_db3_t0" "$(cat "$_db3_c/run.start" 2>/dev/null)")" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")" >> "$DJX_MLOG" ;; esac   # R46 evidence only
 case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper"; _db3_ex="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 49000 ] && echo within-49s || echo "took $((_db3_t1 - _db3_t0)) ms")"; [ "$_db3_rc" != 124 ] || _db3_ex="the run reached its bound" ;; esac
 [ ! -e "$_db3_c/slp.nofork" ] || _db3_ex="red's suite could not fork the sleeper's holder"   # R44: no holder, so the second name cannot tell the base from D's build
+_db3_mr; _db3_ml margin rsl T 49000 ms "$(_db3_df "$_db3_t1" "$_db3_t0")"   # R62, evidence only: the run, R60's wait, and the 49 s margin (none without slept.*)
 is "R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 49 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -" \
    "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_x" "ok within-49s"
 is "R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it" "$_db3_ex $_db3_cl" "ok ok"
@@ -475,7 +513,7 @@ rm -rf "$DB3/n/rsl"
 # Red ends its suite, and a stopper that ends a tree with a TERM-ignoring unit in it is not to be ended itself half way: red's monitor (after a record run's
 # runner failure) and the record run's watcher (after the record run is killed with kill -9). Each case plants, in red's suite only
 # (FELIX_TEST_NO_MANIFEST=1), a unit that makes the file trig and the file slept.PID (the millisecond it starts), and turns into a perl that ignores TERM and forks
-# a "sleep 1" each second. A ps put first on PATH (psh/ps) is the real ps until trig exists. Once it does, the shim finds the stopper as its own grandparent
+# a "sleep 1" each second, while the case directory exists (R61). A ps put first on PATH (psh/ps) is the real ps until trig exists. Once it does, the shim finds the stopper as its own grandparent
 # (its parent is the $( ) that runs the listing, and that one's parent runs the steps) and counts the stopper's "ps -A ... ppid=" listings: the 2nd is given
 # to the stopper only once it shows a child of the TERM-ignoring perl that the 1st did not (R56: a poll every 0.1 s, B at most, where a fixed 1.5 s pause could
 # miss the next sleep under load), so that step 4's first round adds a member, which makes a 2nd round, and the 3rd, that 2nd round's listing, falls between the
@@ -562,7 +600,7 @@ ok "djx b1"
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ]; then
   : > "$DJX_DIR/trig"
   perl -MTime::HiRes=time -e 'printf "%d\n", time * 1000' > "$DJX_DIR/slept.$$"
-  exec perl -e '$SIG{TERM} = "IGNORE"; while (1) { system("sleep", "1") }'
+  exec perl -e '$SIG{TERM} = "IGNORE"; while (-d $ARGV[0]) { system("sleep", "1") }' "$DJX_DIR"
 fi
 ok "djx b2"
 X
@@ -579,15 +617,15 @@ X
 # R12's bound is 30 s; the watcher's stopper waits 30 s for red on its own, so the watcher case first waits for its group to be empty, and then R12's check. R56: that
 # wait is a bound (the group empties on D's build; a stopper ended between its STOP and its KILL leaves it stopped for ever), so it lasts until B, 600 s (was 90 s)
 _db3_emptyby() { local g i=0; g="$(_db3_gs)"; [ -n "${g// /}" ] || return 0; while [ "$i" -lt "$(($1 * 5))" ]; do [ -z "$(_db3_gm $g)" ] && return 0; sleep 0.2; i=$((i + 1)); done; return 1; }
-# the controller: waits (the run bound at most, and while the group lives) for the stopper's pid in held, counts the group's stopped processes, sends that pid TERM (once
+# the controller (R61: its waits for r.pid and slept.* end once the run has gone, its wait for held once the group is empty, each with one more look): waits (the run bound at most, and while the group lives) for the stopper's pid in held, counts the group's stopped processes, sends that pid TERM (once
 # its command line is red's or a record run's), and writes termsent and release; with the argument wat it first waits for the sleeper and kills the record run, by the
 # pid the runner wrote
 _db3_ctl27() {
   local i=0 p c g n b="${_db3_lim:-$_db3_B}"   # R44: every wait lasts until the case's run bound has passed
-  while [ ! -s "$_db3_c/r.pid" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 10))" ]; do sleep 0.1; i=$((i + 1)); done
+  while [ ! -s "$_db3_c/r.pid" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 10))" ] && kill -0 "$_db3_bg" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done   # R61: and ends once the run (run.pl) has gone
   g="$(_db3_gs)"
   if [ "$1" = wat ]; then
-    i=0; while [ -z "$(ls "$_db3_c"/slept.* 2>/dev/null)" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 5))" ]; do sleep 0.2; i=$((i + 1)); done
+    i=0; while [ -z "$(ls "$_db3_c"/slept.* 2>/dev/null)" ] && [ -d "$_db3_c" ] && [ "$i" -lt "$((b * 5))" ] && kill -0 "$_db3_bg" 2>/dev/null; do sleep 0.2; i=$((i + 1)); done   # R61: as above
     p="$(cat "$_db3_c/r.pid" 2>/dev/null)"; c="$(ps -o command= -p "$p" 2>/dev/null)"
     case "$c" in *--record-assertions*) kill -KILL "$p" 2>/dev/null ;; esac
   fi
@@ -615,6 +653,7 @@ _db3_r27() {
   if [ "$2" = mon ]; then _db3_ex="$(_db3_atexit)"; else _db3_emptyby "$_db3_B"; _db3_ex=ok; fi
   _db3_cl="$(_db3_clean)"
   [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
+  _db3_mr   # R62, evidence only: the run (and in mode mon R60's wait; mode wat's exit is not judged at once, so it has none)
   _db3_res="$(cat "$_db3_c/ctl.res" 2>/dev/null)"
   case "$_db3_res" in
     stopped=0|"") _db3_w="no stopped process when the TERM was sent [$_db3_res]" ;;
@@ -629,6 +668,7 @@ _db3_r27() {
 _db3_c27m() {
   _db3_r27 r27m mon
   case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="red's suite never reached the sleeper" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 49000 ] && echo within-49s || echo "took $((_db3_t1 - _db3_t0)) ms")" ;; esac
+  _db3_ml margin r27m T 49000 ms "$(_db3_df "$_db3_t1" "$_db3_t0")"   # R62, evidence only
   is "R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 49 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped" \
      "$_db3_x $_db3_w" "within-49s between-stop-and-kill"
   is "R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running" "$(_db3_chkr r "part did not finish: 0030-pc.sh" "part ended without its mark: 0030-pc.sh") $_db3_ex $_db3_cl" "ok ok ok"
@@ -672,6 +712,7 @@ _db3_start t -j 2; _db3_wait; _db3_t1="$(_db3_ms)"; _db3_ex="$(_db3_atexit)"; _d
 [ "$_db3_cl" = ok ] || _db3_leak="$_db3_leak [$_db3_c: $_db3_cl]"
 _db3_t0="$(sed -n 1p "$_db3_c/jt.end" 2>/dev/null)"
 case "$_db3_t0" in ""|*[!0123456789]*) _db3_x="the part never reached its end" ;; *) _db3_x="$([ $((_db3_t1 - _db3_t0)) -lt 60000 ] && echo within-60s || echo "took $((_db3_t1 - _db3_t0)) ms")" ;; esac
+_db3_mr; _db3_ml margin jtab T 60000 ms "$(_db3_df "$_db3_t1" "$_db3_t0")"   # R62, evidence only
 is "R30: a -j 2 run whose parent cannot read its job table at the end of its loop (the unit made \$TMP/pj/jobs a directory) exits 0 within 60 s of the unit's end, the ticker's wait not hanging, and the unit's directory was made" \
    "$_db3_rc $_db3_x $([ -e "$_db3_c/jobsdir.ok" ] && echo planted || echo not-planted)" "0 within-60s planted"
 is "R30: and it leaves nothing of its group, stopped or running, the ticker included" "$_db3_ex $_db3_cl" "ok ok"
@@ -748,10 +789,11 @@ printf '\n7 passed, 0 failed (reused)\n'
 DB3STUB
 chmod +x "$_db3_G/engine/harness/tests/run"
 ( _fx_cd "${_db3_G:?}" && git init -q -b main && git add -A && git -c user.name=djx -c user.email=djx@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm seed ) >/dev/null 2>&1
-_db3_gate() {   # LABEL ENV...: gate.sh in the fixture, the stub recording as LABEL
-  local l="$1"; shift
+_db3_gate() {   # LABEL ENV...: gate.sh in the fixture, the stub recording as LABEL; R62: its run line, "1293 run gate/LABEL bound B ms START-TO-EXIT"
+  local l="$1" t0; shift; t0="$(_db3_ms)"
   ( cd "${_db3_G:?}" && perl "$DB3/run.pl" "$_db3_B" DEFAULT DEFAULT "$DB3/gout/$l.pid" env -u FELIX_TEST_NO_MANIFEST -u GITHUB_ACTIONS -u FELIX_TEST_JOBS \
       FELIX_KERNEL_CACHE="$_db3_G/no-cache" TMPDIR="$DB3/gtmp" PATH="$DB3/mk:$PATH" DB3_MKREAL="$_db3_mkreal" DB3_MKLOG="$DB3/mktemp.log" DJX_OUT="$DB3/gout" DJX_L="$l" ${1+"$@"} bash projects/felix/gate.sh ) > "$DB3/gout/$l.out" 2>&1
+  _db3_ml run "gate/$l" bound "$_db3_B" ms "$(_db3_df "$(_db3_ms)" "$t0")"
 }
 _db3_gate g1; _db3_gate g2 GITHUB_ACTIONS=true; _db3_gate g3 DJX_EXIT2=1; _db3_gate g4 GITHUB_ACTIONS=true FELIX_TEST_JOBS=7
 is "D1: with GITHUB_ACTIONS unset, gate.sh sets FELIX_TEST_JOBS to the N this machine gives, from whichever step answers (sysctl or getconf: hw.perflevel0.logicalcpu when it answers digits only and at least 1; else hw.ncpu, then getconf, then 1; held to 1 to 64), for its call to tests/run; the order of the steps is pinned by 1294" "$(cat "$DB3/gout/g1.jobs" 2>/dev/null)" "$(_db3_gaten)"

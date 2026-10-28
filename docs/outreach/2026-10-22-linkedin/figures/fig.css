@@ -1,0 +1,25 @@
+:root {
+  --bg: #ffffff;
+  --ink: #2b2a27;
+  --muted: #8a8983;
+  --arrow: #a8a7a0;
+  --line: #4a4945;
+  --human-s: #e7a58c; --human-f: #fcefe9; --human-t: #c4552c;
+  --model-s: #a9d19a; --model-f: #eff7eb; --model-t: #4d8a39;
+  --felix-s: #b3aee6; --felix-f: #f3f2fc; --felix-t: #5a52b8;
+  --node-s: #c9c8c2; --node-f: #f7f7f5;
+}
+* { margin: 0; padding: 0; }
+html, body { width: 1600px; height: 1000px; background: var(--bg); }
+svg { display: block; }
+svg text { font-family: -apple-system, "SF Pro Text", "Helvetica Neue", Arial, sans-serif; fill: var(--ink); }
+.lbl { font-size: 26px; font-weight: 600; text-anchor: middle; dominant-baseline: central; }
+.sm { font-size: 22px; fill: var(--muted); text-anchor: middle; }
+.cap { font-size: 22px; fill: var(--muted); }
+.cap tspan.b { font-weight: 600; fill: var(--ink); }
+.human rect { fill: var(--human-f); stroke: var(--human-s); stroke-width: 2; } .human text { fill: var(--human-t); }
+.model rect { fill: var(--model-f); stroke: var(--model-s); stroke-width: 2; } .model text { fill: var(--model-t); }
+.felix rect { fill: var(--felix-f); stroke: var(--felix-s); stroke-width: 2; } .felix text { fill: var(--felix-t); }
+.node rect { fill: var(--node-f); stroke: var(--node-s); stroke-width: 2; }
+.arr { stroke: var(--arrow); stroke-width: 2.5; fill: none; }
+.dash { stroke-dasharray: 7 7; }

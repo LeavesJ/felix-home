@@ -130,13 +130,13 @@
 </section>
 
 <!-- 7. Why hasn't anyone done this? Who else is here? -->
-<section class="sheet" data-title="Why nobody has">
+<section class="sheet" data-title="Competition">
   <div class="body">
     <h1>The judge can't be the one being judged.</h1>
     <div class="cols" style="grid-template-columns:420px 1fr;column-gap:56px;margin-top:30px">
       <div>
         <p>Agent vendors now review their own agents' work. That's the same problem one level up, and teams already run agents from more than one vendor.</p>
-        <p style="margin-top:22px">CI runs the tests you already have. Felix decides which tests the work needs and who writes them.</p>
+        <p style="margin-top:22px">Newer verification tools hold the work to what you asked for, and CI runs the tests you already have. Felix decides what the work needs, including what nobody asked for, and who writes each test.</p>
         <p style="margin-top:22px;font-style:italic">Felix uses every agent as labor and none as its judge.</p>
       </div>
       <svg width="940" height="560" viewBox="0 0 940 560" role="img" aria-label="Who decides done, and what the work is held to">
@@ -153,13 +153,18 @@
           <text x="18" y="260" transform="rotate(-90 18 260)" text-anchor="middle">What the work is held to</text>
         </g>
         <g font-size="18" fill="#4a5f62">
-          <text x="54" y="58">everything the project needs, written down or not</text><text x="54" y="472">only what someone wrote down</text>
+          <text x="54" y="58">what the project needs, including what nobody wrote down</text><text x="54" y="472">only what someone wrote down</text>
+        </g>
+        <g fill="#e9f3f2" stroke="#4a5f62" stroke-width="2">
+          <circle cx="64" cy="180" r="6"/><circle cx="540" cy="300" r="6"/><circle cx="620" cy="300" r="6"/>
+          <circle cx="620" cy="400" r="6"/><circle cx="64" cy="378" r="6"/>
         </g>
         <g font-size="20" fill="#0e1c20">
-          <text x="70" y="186">AI review of the diff</text><text x="70" y="212" fill="#4a5f62">CodeRabbit, Cursor Bugbot,</text><text x="70" y="236" fill="#4a5f62">Devin Review, Claude Code Review</text>
-          <text x="540" y="304" text-anchor="middle">Factory Missions</text><text x="540" y="328" text-anchor="middle" fill="#4a5f62">a contract derived inside one mission</text>
-          <text x="600" y="384">CI</text><text x="600" y="410" fill="#4a5f62">runs the tests someone</text><text x="600" y="434" fill="#4a5f62">already wrote</text>
-          <text x="70" y="384">Rules files</text><text x="70" y="410" fill="#4a5f62">AGENTS.md, CLAUDE.md, judged</text><text x="70" y="434" fill="#4a5f62">by the model reading them</text>
+          <text x="80" y="186">AI reviewers and verifiers</text><text x="80" y="212" fill="#4a5f62">CodeRabbit, Cursor Bugbot, Devin</text><text x="80" y="236" fill="#4a5f62">Review, Claude Code Review, IronBee</text>
+          <text x="528" y="306" text-anchor="end">Factory Missions</text><text x="528" y="330" text-anchor="end" fill="#4a5f62">a contract derived inside one mission</text>
+          <text x="636" y="306">Verification layers</text><text x="636" y="330" fill="#4a5f62">Tiden, TestMaze, GUILDLESS,</text><text x="636" y="354" fill="#4a5f62">held to what you asked for</text>
+          <text x="636" y="406">CI</text><text x="636" y="430" fill="#4a5f62">runs the tests someone</text><text x="636" y="454" fill="#4a5f62">already wrote</text>
+          <text x="80" y="384">Rules files</text><text x="80" y="410" fill="#4a5f62">AGENTS.md, CLAUDE.md, judged</text><text x="80" y="434" fill="#4a5f62">by the model reading them</text>
         </g>
         <circle cx="680" cy="140" r="16" fill="#2bb8ad" stroke="#0e1c20" stroke-width="2"/>
         <text x="708" y="134" class="d" font-size="34" fill="#0e1c20">Felix</text>
@@ -175,19 +180,20 @@
     <h1>Better models make Felix more valuable.</h1>
     <div class="cols" style="grid-template-columns:520px 1fr;column-gap:64px;margin-top:40px">
       <div>
-        <p>Each generation makes the work easier to do. None makes a shipped mistake cheaper. Better models mean more work nobody watches, and better ideas for what the work needs.</p>
+        <p>Each generation lets agents take on more work without a person reading it. Human review doesn't get faster with each release, so the share nobody checks keeps growing, even as each change gets more reliable.</p>
         <p style="margin-top:22px">Felix takes the ideas from whichever model is best and keeps the verdict with code. A smarter model still shouldn't grade its own work.</p>
       </div>
-      <svg width="830" height="440" viewBox="0 0 830 440" role="img" aria-label="Difficulty falls each model generation; the cost of a mistake does not">
+      <svg width="830" height="440" viewBox="0 0 830 440" role="img" aria-label="Work agents ship unread rises each model generation; what people can review stays flat">
         <defs><marker id="ay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e1c20"/></marker>
-          <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="#2bb8ad" stroke-width="3"/></pattern></defs>
-        <path d="M60,90 L800,90 L800,350 C600,346 420,320 300,250 C200,190 120,120 60,92 Z" fill="url(#hatch)" opacity=".55"/>
+          <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="#2bb8ad" stroke-width="3"/></pattern>
+          <clipPath id="above-review"><rect x="0" y="0" width="830" height="300"/></clipPath></defs>
+        <path d="M60,370 C200,330 330,270 460,200 C580,135 700,80 800,50 L800,300 L60,300 Z" fill="url(#hatch)" opacity=".55" clip-path="url(#above-review)"/>
         <g stroke="#0e1c20" stroke-width="2"><line x1="40" y1="400" x2="814" y2="400" marker-end="url(#ay)"/><line x1="40" y1="400" x2="40" y2="20" marker-end="url(#ay)"/></g>
-        <line x1="60" y1="90" x2="800" y2="90" stroke="#c42840" stroke-width="4"/>
-        <path d="M60,92 C120,120 200,190 300,250 C420,320 600,346 800,350" fill="none" stroke="#0e1c20" stroke-width="4"/>
-        <g font-size="20"><text x="70" y="74" fill="#c42840">What a shipped mistake costs</text><text x="590" y="388" fill="#0e1c20">How hard the work is</text></g>
-        <text x="440" y="190" class="d" font-size="30" fill="#137a72">Where Felix sits</text>
-        <text x="440" y="218" font-size="19" fill="#137a72">the gap grows every release</text>
+        <line x1="60" y1="300" x2="800" y2="300" stroke="#4a5f62" stroke-width="4" stroke-dasharray="14 8"/>
+        <path d="M60,370 C200,330 330,270 460,200 C580,135 700,80 800,50" fill="none" stroke="#0e1c20" stroke-width="4"/>
+        <g font-size="20"><text x="300" y="60" fill="#0e1c20">What agents ship with no one reading it</text><text x="580" y="330" fill="#4a5f62">What people can review</text></g>
+        <text x="520" y="250" class="d" font-size="30" fill="#137a72">Where Felix sits</text>
+        <text x="520" y="278" font-size="19" fill="#137a72">the gap grows every release</text>
         <text x="40" y="430" class="d" font-size="20" fill="#0e1c20">Model generations</text>
       </svg>
     </div>
@@ -225,7 +231,7 @@
       <div><b class="teal">Live today</b><p>The hold that sends an agent back, receipts tied to the exact code, a merge that refuses without a current pass, and a list of obligations that blocks while any of them is unchecked.</p></div>
       <div><b>December to January</b><p>One objective end to end: from what you asked for, to a merged change Felix has checked.</p></div>
       <div><b>February</b><p>Full time in San Francisco. The first outside pilot, with a semiconductor supply-chain software team.</p></div>
-      <div><b>Demo Day</b><p>The MVP, measured against plain Claude Code on the work it leaves out. Factory's Droid as a second host.</p></div>
+      <div><b>Demo Day</b><p>The MVP against plain Claude Code: what Felix catches that the agent left out, how often Felix is wrong, and what the checking costs. Factory's Droid as a second host.</p></div>
     </div>
   </div>
 </section>

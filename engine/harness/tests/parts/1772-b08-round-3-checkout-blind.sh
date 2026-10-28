@@ -40,6 +40,28 @@ printf '\nthe cloud check judges what a checkout writes (audit b08 round 3, sect
 #   path. It pins no last line or exit status, as the contract names the clause alone and
 #   other checks may read a conflicted index too. The merge is aborted after the run.
 # - A153, A154: "the guard clause" is A136's; HEAD's copy is read with cat-file HEAD:<path>.
+#
+# Section 12 (B08R3Z2-1 to B08R3Z2-5, A155 to A169) was written blind on 2026-10-28 from the same
+# file, after A154, without reading gate.sh's cloud check. Its names start "B08R3Z2 A<n>", and
+# A151's name now says it is a pin of a normal exit (B08R3Z2-5); what A151 checks is unchanged.
+# - FC's settings.json runs .claude/cloud/provision (its SessionStart hook), so A161 and A162 add
+#   no hook. _b84_cloud gives provision mode 100755 in the index, as this tree's.
+# - "The toolbox clause" is section 12's clause for toolbox.json, its reason the reader's words
+#   section 7 gives (a key repeated in one object, not JSON). A160's reason is not worded there,
+#   so it is matched up to its parenthesis, and not as the not-JSON one, since the file is JSON.
+#   A158 to A160 put this tree's stack.tsv in FC, so "no has no entry" is a test: a reader of the
+#   last tools, or of none, would say it for every row.
+# - A157: FC's own .git/config holds core.ignorecase true for the case, and as it was after. The
+#   fixture checks check-attr says felixtest under ignorecase true and unspecified under false.
+#   "As Linux reads it": cloud ok and the line under it empty, as A140, and no filter clause.
+# - A163's link points at an untracked cfg/stack.tsv, this tree's rows and one plugin row more,
+#   b08r3z2-extra. A164's branches append different lines to stack.tsv; like A152 it pins the
+#   cloud FAIL line and the detail, not the last line or exit status.
+# - A166's .git/info/attributes is removed after its run. A167's two runs (provision, and
+#   settings.local.json, each with U+017F for an s) are one assertion; entries as A148 makes them.
+# - A169's cloud block is gate.sh's _cloud_ functions: from the first line defining one to the
+#   first line "}" after the line defining _cloud_check, found by name at run time. Read as text,
+#   a comment inside it counts.
 
 _b84Why=""
 if [ "$(type -t _b83_ystart)" != function ]; then
@@ -179,14 +201,63 @@ _b84N147="B08R3Z A147 (R3Z-2): a guarded harness command whose command key has a
 _b84N148="B08R3Z A148 (R3Z-3): the index holds .claude/settings.json spelled with U+017F (bytes C5 BF) for its s, the tree's blob, and no exact .claude/settings.json: cloud FAIL, the non-ASCII clause naming that entry, and no skipped"
 _b84N149="B08R3Z A149 (R3Z-3): the tree's own .claude plus a committed .claude/cloud/notes-<e-acute>.md, U+00E9: cloud ok and the line under it empty, as A140 (control)"
 _b84N150="B08R3Z A150 (R3Z-4): the toolbox entry anthropic-skills removed and staged, its stack.tsv row removed on disk only: cloud FAIL with anthropic-skills has no entry in .claude/cloud/toolbox.json"
-_b84N151="B08R3Z A151 (R3Z-5): the gate run with TMPDIR and GTLOG_DIR naming one empty directory, settings, the toolbox and stack.tsv each carrying a marker: cloud ok, and no file left there holds a marker or harness/hooks/"
+_b84N151="B08R3Z A151 (R3Z-5), a pin of a normal exit: the gate run to its end with TMPDIR and GTLOG_DIR naming one empty directory, settings, the toolbox and stack.tsv each carrying a marker: cloud ok, and no file left there holds a marker or harness/hooks/"
 _b84N152="B08R3Z A152 (R3Z-6): .claude/settings.json in a merge conflict, stages 1 to 3 in the index and no stage 0: the cloud FAIL line, the stage-0 clause exactly, settings named once, and no slash inside its parentheses"
 _b84N153="B08R3Z A153 (R3Z-7): HEAD and the disk hold the tree's settings.json, the index a staged, uncommitted copy with an unguarded harness command on its own line: cloud FAIL with 1 command(s) without the CLAUDE_CODE_REMOTE guard"
 _b84N154="B08R3Z A154 (R3Z-7): HEAD holds that unguarded copy, the index and the disk the tree's settings.json: cloud ok and the line under it empty, as A140 (control)"
 
+# Section 12's clauses, its names for the entries, and its helpers.
+_b85TB='.claude/cloud/toolbox.json'; _b85NE='has no entry in .claude/cloud/toolbox.json'
+_b85_tc() { printf 'unreadable: .claude/cloud/toolbox.json (%s);' "$1"; }
+_b85PV="unreadable: .claude/cloud/provision (settings.json runs it, and git's index holds no executable file there);"
+_b85ST="unreadable: projects/felix/stack.tsv (not a regular file at stage 0 in git's index);"
+_b85S="$(printf '\305\277')"; _b85PN=".claude/cloud/provi${_b85S}ion"; _b85LN=".claude/${_b85S}ettings.local.json"; _b85NN=".claude/cloud/notes-${_b85S}.md"
+_b85IX='100755 .claude/cloud/provision; 100644 .claude/cloud/toolbox.json; 100644 .claude/settings.json'
+_b85Xr="$(B85_R="$_b84Row" LC_ALL=C awk 'BEGIN { n = split(ENVIRON["B85_R"], f, "\t"); s = f[1] "\tb08r3z2-extra"; for (i = 3; i <= n; i++) s = s "\t" f[i]; print s }')"
+# line n: FC's toolbox holds the line n times (grep -cxF), else a fixture fault.
+_b85_tn() { local n; n="$(LC_ALL=C grep -cxF -e "$1" "$_b83C/$_b85TB" 2>/dev/null)"; [ "${n:-0}" = "$2" ] || _b83Fx="$_b83Fx the toolbox holds ${n:-0} lines [$1], not $2;"; }
+# path: the index's blob of path is FC's file on disk, else a fixture fault.
+_b85_same() { _b83_git "$_b83C" cat-file blob ":$1" > "$_b83/sm.tmp" 2>/dev/null; cmp -s "$_b83/sm.tmp" "$_b83C/$1" || _b83Fx="$_b83Fx the index's $1 is not the disk's;"; }
+# full|line want... [-- unwanted...]: the misses of the run just made: the cloud FAIL line once (with full, the
+# last line gate: FAIL (cloud) and exit 1 too), every want in the detail, and no unwanted; empty when none.
+_b85_miss() {
+  local k="$1" w no=0 m=""
+  shift
+  [ "${_b83N:-0}" = 1 ] || m="$m no line [$_b83FAIL] (cloud [${_b83V:-none}]);"
+  [ "$k" = line ] || [ "$_b83L" = "gate: FAIL (cloud)" ] || m="$m last line [$_b83L];"
+  [ "$k" = line ] || [ "$_b83Rc" = 1 ] || m="$m exit $_b83Rc;"
+  for w in "$@"; do
+    if [ "$w" = -- ]; then no=1; continue; fi
+    if _b83_in "$w" "$_b83D"; then [ "$no" = 0 ] || m="$m detail holds [$w];"; else [ "$no" = 1 ] || m="$m detail lacks [$w];"; fi
+  done
+  printf '%s' "$m"
+}
+# name misses: the verdict, a fixture fault first.
+_b85_v() { if [ -n "$_b83Fx" ]; then bad "$1" "fixture:$_b83Fx"; elif [ -z "$2" ]; then ok "$1"; else bad "$1" "$(_b83_why "$2")"; fi; }
+# path: the stages git's index holds for path, blank between.
+_b85_stg() { _b83_git "$_b83C" ls-files -s -- "$1" 2>/dev/null | LC_ALL=C awk -F '\t' '{ split($1, m, " "); printf "%s%s", (NR > 1 ? " " : ""), m[3] }'; }
+
+_b85N155="B08R3Z2 A155 (R3Z2-1): a committed .gitattributes gives .claude/cloud/provision text eol=crlf: cloud FAIL, with the eol clause naming .claude/cloud/provision"
+_b85N156="B08R3Z2 A156 (R3Z2-1): a committed .gitattributes gives .claude/settings.json text eol=crlf, a JSON file section 11 exempts: cloud ok and the line under it empty, as A140 (control)"
+_b85N157="B08R3Z2 A157 (R3Z2-1): a committed .gitattributes gives .CLAUDE/settings.json filter=felixtest, FC's own config core.ignorecase true: no filter clause, as Linux reads it, so cloud ok and the line under it empty, as A140"
+_b85N158="B08R3Z2 A158 (R3Z2-2): toolbox.json gains a second, empty tools key before its closing brace, stack.tsv in FC: cloud FAIL, the toolbox clause for a repeated key, and no has-no-entry clause"
+_b85N159="B08R3Z2 A159 (R3Z2-2): toolbox.json's last tools entry gains a trailing comma, stack.tsv in FC: cloud FAIL, the toolbox clause for not JSON, and no has-no-entry clause"
+_b85N160="B08R3Z2 A160 (R3Z2-2): toolbox.json's tools is an object holding the array, stack.tsv in FC: cloud FAIL, a toolbox clause and not the not-JSON one, and no has-no-entry clause"
+_b85N161="B08R3Z2 A161 (R3Z2-2): settings.json runs .claude/cloud/provision, and provision is removed from the index, kept on disk: cloud FAIL, with the provision clause"
+_b85N162="B08R3Z2 A162 (R3Z2-2): .claude/cloud/provision committed at mode 100644, executable on disk: cloud FAIL, with the provision clause"
+_b85N163="B08R3Z2 A163 (R3Z2-3): projects/felix/stack.tsv committed as a symlink, mode 120000, to an untracked file holding the tree's rows and one plugin row more: cloud FAIL, the stack.tsv clause, and no has-no-entry clause"
+_b85N164="B08R3Z2 A164 (R3Z2-3): projects/felix/stack.tsv in a merge conflict, stages 1 to 3 in the index and no stage 0: the cloud FAIL line, the stack.tsv clause, and no has-no-entry clause"
+_b85N165="B08R3Z2 A165 (R3Z-1, coverage): a committed .gitattributes gives .claude/settings.json ident: cloud FAIL, with the attribute clause naming .claude/settings.json and ident"
+_b85N166="B08R3Z2 A166 (R3Z-1, coverage): .git/info/attributes, a machine-local source, gives .claude/cloud/provision filter=x: cloud FAIL, with the attribute clause naming .claude/cloud/provision and filter"
+_b85N167="B08R3Z2 A167 (R3Z-3, coverage): the index holds .claude/cloud/provision spelled with U+017F for its s in place of provision, and in a second run .claude/settings.local.json spelled so: cloud FAIL with the non-ASCII clause naming that entry, each run"
+_b85N168="B08R3Z2 A168 (R3Z-3): the tree's own .claude plus a committed .claude/cloud/notes-<U+017F>.md: cloud ok and the line under it empty, as A140 (control)"
+_b85N169="B08R3Z2 A169 (R3Z2-5): gate.sh's cloud block, its _cloud_ functions read as text, holds no mktemp"
+
 if [ -n "$_b84Why" ]; then
   for _b84n in "$_b84N141" "$_b84N142" "$_b84N143" "$_b84N144" "$_b84N145" "$_b84N146" "$_b84N147" \
-               "$_b84N148" "$_b84N149" "$_b84N150" "$_b84N151" "$_b84N152" "$_b84N153" "$_b84N154"; do
+               "$_b84N148" "$_b84N149" "$_b84N150" "$_b84N151" "$_b84N152" "$_b84N153" "$_b84N154" \
+               "$_b85N155" "$_b85N156" "$_b85N157" "$_b85N158" "$_b85N159" "$_b85N160" "$_b85N161" \
+               "$_b85N162" "$_b85N163" "$_b85N164" "$_b85N165" "$_b85N166" "$_b85N167" "$_b85N168"; do
     skip "$_b84n" "$_b84Why"
   done
 else
@@ -301,4 +372,112 @@ else
   { [ "$(LC_ALL=C grep -cxF -e "$_b83UL" "$_b83/hd.tmp" 2>/dev/null)" = 1 ] && cmp -s "$_b83S" "$_b83/ix.tmp" && cmp -s "$_b83S" "$_b83CS"; } \
     || _b83Fx="$_b83Fx HEAD's settings.json lacks the unguarded line, or the index's or the disk's is not the tree's;"
   _b83_asok a154 "$_b84N154"
+
+  # ======== The fifth follow-up (contract section 12), A155 to A169
+  _b83_l ztr '  ,"tools": []'; _b83_l ztc '    },'; _b83_l zto '  "tools": {"list": ['; _b83_l ztx '  ]}'
+  # ---- B08R3Z2-1: a line-ending conversion outside the two JSON files (A155 to A157)
+  _b84_start; _b84_cloud; _b84_ixw "$_b85IX"; _b84_ga '.claude/cloud/provision text eol=crlf'; _b83_yo a155
+  _b84_ca .claude/cloud/provision eol crlf; _b84_head .gitattributes; _b85_same .claude/cloud/provision
+  _b83_seq "$_b85N155" any "$(_b84_at .claude/cloud/provision eol)"
+  _b84_start; _b84_cloud; _b84_ga '.claude/settings.json text eol=crlf'; _b84_add; _b83_yo a156
+  _b84_ca .claude/settings.json eol crlf; _b84_head .gitattributes; _b84_ixs; _b84_ixw "$_b85IX"
+  _b83_asok a156 "$_b85N156"
+  _b84_start; _b84_cloud; _b85Ic="$(_b83_git "$_b83C" config --local --get core.ignorecase 2>/dev/null)"
+  _b83_git "$_b83C" config --local core.ignorecase true >/dev/null 2>&1 || _b83Fx="$_b83Fx core.ignorecase could not be set;"
+  _b84_ga '.CLAUDE/settings.json filter=felixtest'; _b83_yo a157; _b84_head .gitattributes; _b84_ixw "$_b85IX"
+  [ "$(_b83_git "$_b83C" config --local --get core.ignorecase 2>/dev/null)" = true ] || _b83Fx="$_b83Fx FC's config lacks core.ignorecase true;"
+  _b85a="$(_b83_git "$_b83C" -c core.ignorecase=true check-attr --cached filter -- .claude/settings.json 2>/dev/null)|$(_b83_git "$_b83C" -c core.ignorecase=false check-attr --cached filter -- .claude/settings.json 2>/dev/null)"
+  [ "$_b85a" = ".claude/settings.json: filter: felixtest|.claude/settings.json: filter: unspecified" ] \
+    || _b83Fx="$_b83Fx git check-attr --cached says [$_b85a] under core.ignorecase true|false;"
+  if [ -n "$_b85Ic" ]; then _b83_git "$_b83C" config --local core.ignorecase "$_b85Ic"; else _b83_git "$_b83C" config --local --unset core.ignorecase; fi >/dev/null 2>&1
+  _b85c="$(LC_ALL=C grep -cxF -e "$(printf '  %-18s %s' cloud ok)" "$_b83/a157.out" 2>/dev/null)"; _b85g=none
+  ! _b83_in '(git attribute filter' "$_b83All" || _b85g=held
+  if [ -n "$_b83Fx" ]; then bad "$_b85N157" "fixture:$_b83Fx"
+  else _b83_is "$_b85N157" "${_b85c:-0} cloud ok lines; the line under it [$_b83D]; filter clause $_b85g" "1 cloud ok lines; the line under it []; filter clause none"; fi
+
+  # ---- B08R3Z2-2: the toolbox parsed, and provision required (A158 to A162)
+  _b84_start; _b84_cloud; _b84_stack; _b84_edp "$_b85TB" before '=}' "$_b83/l/ztr"; _b85_tn '  ,"tools": []' 1
+  _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a158
+  _b83_seq "$_b85N158" any "$(_b85_tc 'a key repeated in one object')" -- "$_b85NE"
+  _b84_start; _b84_cloud; _b84_stack; _b85_tn '    }' 1; _b84_edp "$_b85TB" instead '=    }' "$_b83/l/ztc"; _b85_tn '    }' 0
+  _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a159
+  _b83_seq "$_b85N159" any "$(_b85_tc 'not JSON')" -- "$_b85NE"
+  _b84_start; _b84_cloud; _b84_stack; _b84_edp "$_b85TB" instead '=  "tools": [' "$_b83/l/zto"; _b84_edp "$_b85TB" instead '=  ]' "$_b83/l/ztx"
+  _b85_tn '  "tools": {"list": [' 1; _b85_tn '  ]}' 1; _b85_tn '  ]' 0; _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a160
+  _b83_seq "$_b85N160" any 'unreadable: .claude/cloud/toolbox.json (' -- "$_b85NE" "$(_b85_tc 'not JSON')"
+  _b84_start; _b84_cloud; _b84_ixw "$_b85IX"
+  _b83_git "$_b83C" rm -q --cached -- .claude/cloud/provision >/dev/null 2>&1 || _b83Fx="$_b83Fx provision could not be removed from the index;"
+  _b83_yo a161; _b84_ixw "100644 .claude/cloud/toolbox.json; 100644 .claude/settings.json"; _b83_blob
+  { [ -x "$_b83C/.claude/cloud/provision" ] && [ "$(LC_ALL=C grep -cF -e '.claude/cloud/provision' "$_b83/ix.tmp" 2>/dev/null)" = 1 ]; } \
+    || _b83Fx="$_b83Fx provision is not on disk, or the index's settings.json does not name it in one line;"
+  _b83_seq "$_b85N161" any "$_b85PV"
+  _b84_start; _b84_cloud
+  _b83_git "$_b83C" update-index --chmod=-x -- .claude/cloud/provision >/dev/null 2>&1 || _b83Fx="$_b83Fx provision's mode could not be changed;"
+  _b83_yo a162; _b84_ixw "100644 .claude/cloud/provision; 100644 .claude/cloud/toolbox.json; 100644 .claude/settings.json"
+  _b85_same .claude/cloud/provision; [ -x "$_b83C/.claude/cloud/provision" ] || _b83Fx="$_b83Fx provision is not executable on disk;"
+  _b83_seq "$_b85N162" any "$_b85PV"
+
+  # ---- B08R3Z2-3: stack.tsv as a stage-0 regular file (A163, A164)
+  _b84_start; _b84_cloud; [ -n "$_b84Row" ] || _b83Fx="$_b83Fx no anthropic-skills plugin row in this tree's stack.tsv;"
+  { mkdir -p "$_b83C/cfg" && cp "$_b84ST" "$_b83C/cfg/stack.tsv" && printf '%s\n' "$_b85Xr" >> "$_b83C/cfg/stack.tsv" \
+      && ln -s ../../cfg/stack.tsv "$_b83C/projects/felix/stack.tsv"; } || _b83Fx="$_b83Fx the stack.tsv symlink could not be made;"
+  _b84_add projects/felix/stack.tsv; _b83_yo a163
+  { [ "$(_b83_ix projects/felix/stack.tsv)" = "120000 projects/felix/stack.tsv" ] && [ -L "$_b83C/projects/felix/stack.tsv" ] && [ -z "$(_b83_ix cfg)" ] \
+      && [ "$(LC_ALL=C grep -cxF -e "$_b85Xr" "$_b83C/projects/felix/stack.tsv" 2>/dev/null)" = 1 ]; } \
+    || _b83Fx="$_b83Fx stack.tsv is not a symlink (120000) to an untracked file holding the extra row;"
+  _b83_seq "$_b85N163" any "$_b85ST" -- "$_b85NE"
+  _b84_start; _b84_cloud; _b84_stack; _b83_git "$_b83C" commit -qm a164-base >/dev/null 2>&1
+  _b83_git "$_b83C" checkout -q -b b84side >/dev/null 2>&1 || _b83Fx="$_b83Fx the side branch could not be made;"
+  printf '# b08r3z2 a164 side\n' >> "$_b83C/projects/felix/stack.tsv"; _b83_git "$_b83C" commit -qam a164-side >/dev/null 2>&1
+  _b83_git "$_b83C" checkout -q main >/dev/null 2>&1 || _b83Fx="$_b83Fx main could not be checked out again;"
+  printf '# b08r3z2 a164 main\n' >> "$_b83C/projects/felix/stack.tsv"; _b83_git "$_b83C" commit -qam a164-main >/dev/null 2>&1
+  ! _b83_git "$_b83C" merge -q --no-edit b84side >/dev/null 2>&1 || _b83Fx="$_b83Fx the merge did not conflict;"
+  _b85t="$(_b85_stg projects/felix/stack.tsv)"
+  { [ "$_b85t" = "1 2 3" ] && [ -f "$_b83C/.git/MERGE_HEAD" ]; } || _b83Fx="$_b83Fx git ls-files -s shows stages [$_b85t] for stack.tsv, not [1 2 3], or no merge is in progress;"
+  _b83_run a164
+  _b85_v "$_b85N164" "$(_b85_miss line "$_b85ST" -- "$_b85NE")"
+  _b83_git "$_b83C" merge --abort >/dev/null 2>&1; _b83_git "$_b83C" branch -q -D b84side >/dev/null 2>&1
+
+  # ---- B08R3Z-1 and B08R3Z-3, the coverage section 11 left (A165 to A168)
+  _b84_start; _b84_cloud; _b84_ga '.claude/settings.json ident'; _b84_add; _b83_yo a165
+  _b84_ca .claude/settings.json ident set; _b84_head .gitattributes; _b84_ixs
+  _b83_seq "$_b85N165" any "$(_b84_at .claude/settings.json ident)"
+  _b84_start; _b84_cloud
+  { mkdir -p "$_b83C/.git/info" && printf '.claude/cloud/provision filter=x\n' > "$_b83C/.git/info/attributes"; } || _b83Fx="$_b83Fx .git/info/attributes could not be written;"
+  _b83_yo a166; _b84_ca .claude/cloud/provision filter x
+  { [ ! -e "$_b83C/.gitattributes" ] && [ -z "$(_b83_ix .gitattributes)" ]; } || _b83Fx="$_b83Fx FC holds a .gitattributes;"
+  rm -f "$_b83C/.git/info/attributes"
+  _b83_seq "$_b85N166" any "$(_b84_at .claude/cloud/provision filter)"
+  _b84_start; _b84_cloud; _b85h="$(_b83_git "$_b83C" hash-object -w -- .claude/cloud/provision 2>/dev/null)"
+  { [ -n "$_b85h" ] && _b83_git "$_b83C" rm -q --cached -- .claude/cloud/provision >/dev/null 2>&1 \
+      && _b83_git "$_b83C" update-index --add --cacheinfo "100755,$_b85h,$_b85PN" >/dev/null 2>&1; } || _b83Fx="$_b83Fx the provision entry with U+017F could not be made;"
+  _b83_yo a167a; _b84_ixw "100755 $_b85PN; 100644 .claude/cloud/toolbox.json; 100644 .claude/settings.json"
+  _b85m="$(_b85_miss full "$(_b84_na "$_b85PN")")"; _b85f="$_b83Fx"; _b85d="$_b83D"
+  _b84_start; _b84_cloud; _b85h="$(printf '{}\n' | _b83_git "$_b83C" hash-object -w --stdin 2>/dev/null)"
+  { [ -n "$_b85h" ] && _b83_git "$_b83C" update-index --add --cacheinfo "100644,$_b85h,$_b85LN" >/dev/null 2>&1; } || _b83Fx="$_b83Fx the settings.local.json entry with U+017F could not be made;"
+  _b83_yo a167b; _b84_ixw "$_b85IX; 100644 $_b85LN"
+  _b85m2="$(_b85_miss full "$(_b84_na "$_b85LN")")"
+  if [ -n "$_b85f$_b83Fx" ]; then bad "$_b85N167" "fixture: the provision run:${_b85f:- held}; the settings.local.json run:${_b83Fx:- held}"
+  elif [ -z "$_b85m$_b85m2" ]; then ok "$_b85N167"
+  else bad "$_b85N167" "$(_b83_why " the provision run:${_b85m:- held} (its detail [$_b85d]); the settings.local.json run:${_b85m2:- held};")"; fi
+  _b84_start; _b84_cloud; { printf 'notes\n' > "$_b83C/$_b85NN"; } || _b83Fx="$_b83Fx the U+017F notes file could not be written;"
+  _b84_add "$_b85NN"; _b83_yo a168
+  _b84_ixw "100644 $_b85NN; 100755 .claude/cloud/provision; 100644 .claude/cloud/toolbox.json; 100644 .claude/settings.json"
+  _b83_asok a168 "$_b85N168"
+fi
+
+# ---- B08R3Z2-5: no mktemp in the cloud block (A169), read from this tree's gate.sh without FC.
+_b85G="$REAL_HARNESS/../../projects/felix/gate.sh"
+if [ ! -f "$_b85G" ]; then skip "$_b85N169" "no projects/felix/gate.sh beside this engine"
+else
+  _b85r="$(LC_ALL=C awk '!s && index($0, "_cloud_") == 1 && index($0, "() {") { s = NR }
+    s && !c && index($0, "_cloud_check() {") == 1 { c = NR }
+    c && NR > c && $0 == "}" { e = NR; exit }
+    s && index($0, "mktemp") { t = t " " NR }
+    END { printf "%d %d %d%s", s, c, e, t }' "$_b85G" 2>/dev/null)"
+  read -r _b85s _b85k _b85e _b85m <<B85R
+$_b85r
+B85R
+  if [ "${_b85s:-0}" = 0 ] || [ "${_b85k:-0}" = 0 ] || [ "${_b85e:-0}" = 0 ]; then bad "$_b85N169" "fixture: no cloud block found in gate.sh (first, _cloud_check, end: ${_b85r:-none})"
+  else is "$_b85N169" "lines $_b85s to $_b85e hold mktemp on lines [$_b85m]" "lines $_b85s to $_b85e hold mktemp on lines []"; fi
 fi

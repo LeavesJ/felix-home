@@ -604,21 +604,29 @@ fi
 # and settings.json may hold no top-level key but hooks, each group no key but
 # a string matcher and its hooks, and each hook no key but type "command", a
 # string command, shell "bash", async true or false, a timeout in digits and a
-# string statusMessage. A file's clause names its first fault in that order
-# (size, escape, not JSON, repeat, top-level key, schema), and over any of
-# them nothing is compared (B08R3-4, B08R3V-6).
+# string statusMessage. A file holding a NUL byte is not read either, found
+# outside awk because BWK awk and gawk read one apart (B08R3W-1). A file's
+# clause names its first fault in that order (size, NUL, escape, not JSON,
+# repeat, top-level key, schema), and over any of them nothing is compared
+# (B08R3-4, B08R3V-6). Claude Code also reads .claude/settings.local.json, so
+# one in git's index fails the check, unread, ahead of the two files (B08R3W-2).
 _cloud_check() {
-  local x out z=""
+  local x out z="" y
   set --
+  if ! y="$(LC_ALL=C git --no-pager ls-files -- .claude/settings.local.json 2>/dev/null)"; then y="git could not say whether it is in the repository"
+  elif [ -n "$y" ]; then y="a local settings file in the repository, which Claude Code reads beside settings.json"; fi
+  [ -z "$y" ] || printf ' unreadable: .claude/settings.local.json (%s);' "$y"   # B08R3W-2
   for x in engine/hooks/hooks.json .claude/settings.json; do
     [ -f "$x" ] && [ -r "$x" ] || { echo " unreadable: no event-to-hook pairs read from one of the two files"; return 0; }
-    if [ "$(($(wc -c < "$x")))" -gt 65536 ]; then z="$z $x "; set -- "$@" /dev/null; else set -- "$@" "$x"; fi   # B08R3V-2
+    if [ "$(($(wc -c < "$x")))" -gt 65536 ]; then z="$z 1$x "; set -- "$@" /dev/null   # B08R3V-2
+    elif ! LC_ALL=C tr -d '\000' < "$x" | cmp -s - "$x"; then z="$z 2$x "; set -- "$@" /dev/null   # B08R3W-1
+    else set -- "$@" "$x"; fi
   done
   out="$(LC_ALL=C awk -v Z="$z" '
     BEGIN {
-      FN[1] = "engine/hooks/hooks.json"; FN[2] = ".claude/settings.json"; ESC = 2; NJ = 3; REP = 4; TL = 5; SCH = 6
-      split("larger than 65536 bytes|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema", WHY, "|")
-      for (i = 1; i <= 2; i++) if (index(Z, " " FN[i] " ")) W[i] = 1
+      FN[1] = "engine/hooks/hooks.json"; FN[2] = ".claude/settings.json"; ESC = 3; NJ = 4; REP = 5; TL = 6; SCH = 7
+      split("larger than 65536 bytes|a NUL byte|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema", WHY, "|")
+      for (i = 1; i <= 2; i++) if (j = index(Z, FN[i] " ")) W[i] = substr(Z, j - 1, 1) + 0
       for (i = 1; i < 32; i++) CT = CT sprintf("%c", i)
       split("type command shell async timeout statusMessage", HK0, " "); for (i in HK0) HK[HK0[i]] = 1
       NUM = "^-?(0|[123456789][0123456789]*)([.][0123456789]+)?([eE][-+]?[0123456789]+)?$"

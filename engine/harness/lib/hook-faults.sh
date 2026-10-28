@@ -14,6 +14,13 @@
 # the first note puts the stop's stdout in a file for the rest of the run and
 # an EXIT trap prints it again with the notes added as a systemMessage. A stop
 # with no note runs as it always did, and this costs it nothing.
+#
+# A note is only ever given a place to ride, never printed ahead of what the
+# stop prints: that made a hold two JSON objects, which the platform does not
+# read as a hold, while the record said it was held. So when no file can be
+# made anywhere, felix_stop_say says so by its status and changes nothing, and
+# its caller either keeps its record for a later stop (a cut prompt hook) or,
+# when the note is the stop's last word, prints it alone (felix_stop_last).
 _FELIX_STOP_CAP=""; _FELIX_STOP_SAYS=""
 
 _felix_stop_esc() {
@@ -38,18 +45,34 @@ _felix_stop_flush() {
   esac
 }
 
-felix_stop_say() {   # text: shown to the person with whatever else this stop prints; starts no model turn
-  _FELIX_STOP_SAYS="${_FELIX_STOP_SAYS:+$_FELIX_STOP_SAYS$'\n\n'}$1"
-  [ -z "$_FELIX_STOP_CAP" ] || return 0
-  _FELIX_STOP_CAP="$(mktemp "${TMPDIR:-/tmp}/felix-stop.XXXXXX" 2>/dev/null)" || _FELIX_STOP_CAP=""
-  if [ -n "$_FELIX_STOP_CAP" ] && [ -w "$_FELIX_STOP_CAP" ]; then
-    exec 3>&1 >"$_FELIX_STOP_CAP"
+# The first place that takes a file: TMPDIR, then Felix's own state (where the
+# stop's other records go), then /tmp. Prints its path; 1 when none does.
+_felix_stop_place() {
+  local d f
+  for d in "${TMPDIR:-}" "${FELIX_HOME_DIR:+$FELIX_HOME_DIR/state}" /tmp; do
+    [ -n "$d" ] || continue
+    f="$(mktemp "$d/felix-stop.XXXXXX" 2>/dev/null)" || continue
+    if [ -n "$f" ] && [ -w "$f" ]; then printf '%s' "$f"; return 0; fi
+    [ -z "$f" ] || rm -f "$f" 2>/dev/null
+  done
+  return 1
+}
+
+felix_stop_say() {   # text: shown to the person with whatever else this stop prints; starts no model turn. 1, and nothing changed, when the stop's output has nowhere to be held
+  local f
+  if [ -z "$_FELIX_STOP_CAP" ]; then
+    f="$(_felix_stop_place)" || return 1
+    _FELIX_STOP_CAP="$f"
+    exec 3>&1 >"$f"
     trap _felix_stop_flush EXIT
-    return 0
   fi
-  # No place to hold the output: say it now, rather than not at all.
-  _FELIX_STOP_CAP=""
-  printf '{\n  "systemMessage": "%s"\n}\n' "$(_felix_stop_esc "$_FELIX_STOP_SAYS")"
+  _FELIX_STOP_SAYS="${_FELIX_STOP_SAYS:+$_FELIX_STOP_SAYS$'\n\n'}$1"
+  return 0
+}
+
+felix_stop_last() {   # text: the stop's last word, the caller exits next. Rides on what is held, or stands alone when nothing else is printed.
+  felix_stop_say "$1" && return 0
+  printf '{\n  "systemMessage": "%s"\n}\n' "$(_felix_stop_esc "$1")"
 }
 
 # ------------------------------------------------ a project.json it cannot read ----
@@ -62,7 +85,7 @@ felix_stop_unjudged() {   # proj, project.json, sid, chain
   [ "${4:-0}" = "1" ] && exit 0
   felix_verify_log "$1" "unjudged" "" "project.json cannot be read: $2"
   felix_say "$1" "unjudged" "$m" "" "$3"
-  felix_stop_say "$m"
+  felix_stop_last "$m"
   exit 0
 }
 
@@ -81,7 +104,7 @@ felix_stop_debt() {   # proj, reason, sid: the let-go of a cloud session; a loca
   [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || return 0
   m="This cloud session was let go with the gate not passed on this tree ($2). Felix held it once and the gate did not run. The record of that sits in this session's memory, which ends with the VM, so nothing outside it says this work went unverified. Run the gate before the VM goes, or open a pull request so CI judges the branch."
   felix_say "$1" "debt" "$m" "" "$3"
-  felix_stop_say "$m"
+  felix_stop_last "$m"
 }
 
 # ------------------------------------------------- a prompt hook cut short ----
@@ -112,10 +135,11 @@ felix_prompt_end() {
   return 0
 }
 
-# 0 when a run of this session did not finish; the records are taken away. A
-# run whose pid still lives and whose file is young is still running, and is
-# left. A pid that lives on an old file was reused by something else.
-felix_prompt_unfinished() {   # home, sid
+# 0 when a run of this session did not finish; the records are taken away,
+# unless the third argument is keep. A run whose pid still lives and whose file
+# is young is still running, and is left. A pid that lives on an old file was
+# reused by something else.
+felix_prompt_unfinished() {   # home, sid [keep]
   local dir f pid n=0
   _felix_hold_path "${1:-}" "${2:-}" >/dev/null 2>&1 || return 1
   dir="$(_felix_ps_dir "$1")"
@@ -126,7 +150,7 @@ felix_prompt_unfinished() {   # home, sid
       ''|*[!0123456789]*) ;;
       *) if kill -0 "$pid" 2>/dev/null && [ -z "$(find "$f" -mmin +3 2>/dev/null)" ]; then continue; fi ;;
     esac
-    rm -f "$f" 2>/dev/null
+    [ "${3:-}" = "keep" ] || rm -f "$f" 2>/dev/null
     n=$((n + 1))
   done
   [ "$n" -gt 0 ]
@@ -134,7 +158,11 @@ felix_prompt_unfinished() {   # home, sid
 
 felix_stop_unfinished() {   # proj, home, sid
   local m="Felix's prompt hook did not finish on this session's last prompt: it was cut off, most likely at the platform's 30 second limit, so that prompt may have got no route, lessons or brief. This stop was judged as usual."
-  felix_prompt_unfinished "$2" "$3" || return 0
+  felix_prompt_unfinished "$2" "$3" keep || return 0
+  # The record goes only once the note has a place to ride on the stop's one
+  # object. With none, it stays, and a later stop says it; the row in says.log
+  # likewise waits for a note that will be printed.
+  felix_stop_say "$m" || return 0
+  felix_prompt_unfinished "$2" "$3"
   felix_say "$1" "prompt-unfinished" "$m" "" "$3"
-  felix_stop_say "$m"
 }

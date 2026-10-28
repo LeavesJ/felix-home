@@ -847,3 +847,107 @@ Named `B08R3Z2 A<n> (R3Z2-<m>...)`.
 Expected red on 9801aa12: A155, A157, A158, A159, A160, A161, A162, A163 and A164 (9), and A169
 if 9801aa12 still holds a mktemp in the block. The coverage cases, the controls and A151 pass.
 Report each one.
+
+## 13. Sixth follow-up: the chain the cloud runs, judged as one
+
+The review of 20e12eef (section 12's fix) found no regression. The clean tree's line and thirteen
+earlier fixture types read byte for byte as on 9801aa12, and the block writes no file. Its three
+mediums are one class: the gate judges the toolbox's pieces by its own reading, not along the
+chain the cloud runs. That chain is settings.json, then the provision hook, then provision's
+bytes, then provision's jq reader, then the toolbox. Each medium is a committed tree that reads
+`cloud ok` while the cloud gets no toolbox:
+- a toolbox field, or a nesting depth, that provision's
+  `jq -r '.tools[] | [...] | @tsv'` cannot read;
+- a provision spelling without the literal path;
+- no provision hook at all (older than section 12).
+This section closes the class. It does not add spellings.
+
+- **B08R3Z3-1. One canonical provision hook.**
+  - The rules in this item and in B08R3Z3-2 apply when the index holds a stage-0 entry at
+    `.claude/cloud/toolbox.json`.
+    - With no toolbox, every stack row's has-no-entry clause already fails the check.
+    - A tree with neither a toolbox nor a plugin or skill row carries nothing to the cloud.
+  - settings.json (not settings.local.json) must hold exactly one hook object equal to the
+    tree's, compared key by key in any order:
+    - `type` is `command`;
+    - `command` is, decoded, `[ "$CLAUDE_CODE_REMOTE" = true ] || exit 0; exec bash "$CLAUDE_PROJECT_DIR/.claude/cloud/provision" --session-start`;
+    - `shell` is `bash`;
+    - `async` is `false`;
+    - `timeout` is `120`;
+    - the object has no other key.
+  - The object must sit in a `hooks.SessionStart` entry whose `matcher` is exactly
+    `startup|resume|clear|compact`.
+  - Otherwise the line adds ` unreadable: .claude/settings.json (<n> SessionStart hooks run
+    provision as gate.sh binds it, not 1);`.
+  - This replaces section 12's substring test and the builder's `c` condition. A change to
+    the binding is then a change to gate.sh as well, which is the point: a new way to run
+    provision is a decision.
+- **B08R3Z3-2. Provision's bytes.**
+  - Under B08R3Z3-1's condition, `.claude/cloud/provision` must be a stage-0 100755 entry whose
+    index blob is not empty and holds no CR and no NUL byte.
+  - Read each byte count as B08R3X reads NUL, from `git cat-file blob`, with no file written.
+  - Otherwise ` unreadable: .claude/cloud/provision (<reason>);`, with the first of these:
+    - `git's index holds no executable file there`, as section 12 words it;
+    - `empty in git's index` (this also covers an intent-to-add entry, whose blob is the empty
+      blob);
+    - `a CR byte in git's index blob`;
+    - `a NUL byte in git's index blob`.
+- **B08R3Z3-3. The toolbox shape is a closed set that provision's reader accepts.**
+  - The top level is one object, with keys only from `about` and `tools`, and `tools` present.
+    `about`, when present, is an array of strings.
+  - `tools` is an array of objects. Each object's keys come only from `name`, `carry`,
+    `source`, `sha`, `subdir` and `note`, and every value is a string.
+  - `name` and `carry` are present. `carry` is one of `fetch`, `builtin`, `claude.ai` or `no`.
+    A `fetch` entry also has `source`, `sha` and `subdir`.
+  - Nothing is nested below an entry, so the depth is bounded.
+  - Any departure replaces section 12's shape clause with ` unreadable:
+    .claude/cloud/toolbox.json (not the toolbox shape provision reads);`. The reader's own
+    faults (escape, not JSON, repeated key) keep their words and come first.
+- **B08R3Z3-4 (tests). A169 bounds the whole cloud section.** That section runs from the
+  `cloud` banner (`# ---...--- cloud ---`) to the next banner, or to the end of the file. A
+  `mktemp` anywhere in it fails A169.
+- **Recorded, not taken.**
+  - A provision whose logic is wrong cannot be judged statically.
+  - A settings.json that runs a missing provision, in a tree with no toolbox and no plugin or
+    skill row, fails one hook and carries nothing.
+  - The `sha` and `source` values are provision's to check when it fetches.
+
+### Limits
+
+- gate.sh may grow to 210 lines over 8e634e4b. The builder reports the count.
+- Moving the cloud check into its own file is still the founder's batch.
+
+### Assertions (part 1772 after A169, or a new part 1773 if 1772 would pass 500 lines)
+
+Named `B08R3Z3 A<n> (R3Z3-<m>...)`. Each fixture is FC with the tree's toolbox and provision
+unless the case says otherwise.
+
+- **A170** (R3Z3-1) the provision hook object deleted from settings.json: the binding clause, `0`.
+- **A171** (R3Z3-1) its command spelled
+  `cd "$CLAUDE_PROJECT_DIR/.claude/cloud" && exec ./provision --session-start`: the binding
+  clause, `0`.
+- **A172** (R3Z3-1) the hook moved into a new SessionStart entry with `"matcher": "startup"`:
+  the binding clause.
+- **A173** (R3Z3-1) `async` set to `true`: the binding clause.
+- **A174** (R3Z3-1) `timeout` removed: the binding clause.
+- **A175** (R3Z3-1) the hook object duplicated in its entry: the binding clause, `2`.
+- **A176** (R3Z3-1, control) the hook object's keys reordered: as A140.
+- **A177** (R3Z3-1, control) `.claude/cloud` and `projects/felix/stack.tsv` both removed from the
+  index, and the provision hook deleted: cloud ok.
+- **A178** (R3Z3-2) provision committed with CRLF line ends and no attribute: the provision
+  clause, CR.
+- **A179** (R3Z3-2) provision removed and committed, then `git add -N` for it: the provision
+  clause, empty.
+- **A180** (R3Z3-2) an empty provision committed at 100755: the provision clause, empty.
+- **A181** (R3Z3-3) one tools entry's `note` made an array of strings: the shape clause.
+- **A182** (R3Z3-3) a top-level key `depth` holding `[[1]]`: the shape clause.
+- **A183** (R3Z3-3) one tools entry gains `"url": "x"`: the shape clause.
+- **A184** (R3Z3-3) one entry's `carry` set to `maybe`: the shape clause.
+- **A185** (R3Z3-3) one `fetch` entry without `sha`: the shape clause.
+- **A186** (R3Z3-3) one entry without `carry`: the shape clause.
+- **A187** (R3Z3-3, control) the `about` key removed: as A140.
+- **A169** widened as B08R3Z3-4 says, and still green.
+- A161 and A162 keep their clause.
+
+Expected red on 20e12eef: A170 to A175 and A178 to A186 (15), and A179 if 20e12eef's
+intent-to-add entry reads 100755. The controls pass. Report each.

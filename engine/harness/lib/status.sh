@@ -249,9 +249,10 @@ _felix_status_gate() {
 }
 
 # The newest alert the lander tried to send off this Mac (lib/notify.sh, audit b05 B13), read from
-# the home's project's alerts.tsv alone: no gh, no git, nothing written. A post that failed shows
-# its note. One that was posted as the account it mentions shows posted-self, because GitHub
-# documents no notification for your own actions, so whether a phone was alerted is not known.
+# the home's project's alerts.tsv alone: no gh, no git, nothing written. A started run of the
+# felix-alert workflow shows dispatched (not delivered: GitHub reports no push delivery); one the
+# repository has no workflow for yet shows no-alert-workflow, the alert not sent; a failure shows its
+# note. Any other state, an older "posted" too, is a record that cannot be read.
 _felix_status_alerts() {
   local home="$1" p land f
   if [ -z "$home" ] || [ ! -d "$home" ]; then
@@ -268,13 +269,11 @@ _felix_status_alerts() {
     { n = NF; for (i = 1; i <= 8; i++) f[i] = $i }
     END {
       if (NR == 0) { print "none\t-\tno alert has been tried for " p; exit }
-      if (n != 8 || (f[2] != "posted" && f[2] != "failed")) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
+      if (n != 8 || (f[2] != "dispatched" && f[2] != "no-alert-workflow" && f[2] != "failed")) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
       w = f[1] " " f[3]; if (f[4] != "-") w = w " #" f[4]
       if (f[2] == "failed") { print "value\tfailed\t" w " " f[7]; exit }
-      if (f[7] !~ /^as @[^ ]+ mentioning @[^ ]+$/) { print "unknown\t-\tthe newest alert record of " p " cannot be read"; exit }
-      split(f[7], x, " ")
-      if (tolower(x[2]) == tolower(x[4])) print "value\tposted-self\t" w " " f[6] ": posted as the account it mentions: GitHub documents no notification for your own actions, so whether a phone was alerted is not known"
-      else print "value\tposted\t" w " " f[6] }' "$f" 2>/dev/null)"
+      if (f[2] == "no-alert-workflow") { print "value\tno-alert-workflow\t" w ": the alert was not sent: .github/workflows/felix-alert.yml is not on the repository yet, so it waits until the founder merges it"; exit }
+      print "value\tdispatched\t" w " " f[6] }' "$f" 2>/dev/null)"
 }
 
 # The six rows for the directory <cwd> under the Felix home <home>.

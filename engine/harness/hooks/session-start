@@ -772,8 +772,8 @@ _felix_line="Felix: $(basename "$PROJ")"
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
 
-# The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).
-_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
+# The one line, last paragraph, when unattended work was due and withheld, then (b05, R6) the lander's alert that waits for the founder (lib/own.sh).
+_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null; felix_land_alert_line "$_mem" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
 
 _felix_emit "$_felix_line" "$context"
 

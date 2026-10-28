@@ -2,11 +2,16 @@
 # (docs/2026-10-24-audit-fixes/b05-lander-install-guard-and-off-mac-notifie.md, C018, B1-B11).
 #
 # A banner reaches Notification Center and nothing else. After a ledger row of an event kind is
-# written and its banner sent, one attempt mentions the repository owner (or alert_login) in one
-# standing issue on the governed repository, so that the GitHub app on a phone hears it. The
-# issue is created once, with a fixed title, and reused. One comment per new event, never a
-# repeat of an unchanged one. Every attempt writes one row to alerts.tsv in the land directory,
-# posted or failed, and `felix status` reads that row and nothing else.
+# written and its banner sent, one attempt starts the repository's felix-alert workflow, which
+# comments in one standing issue on the governed repository as github-actions[bot] and mentions the
+# repository owner (or alert_login), so that the GitHub app on a phone hears it: GitHub sends no
+# notification for your own actions, so a comment made as the owner's own login would not (section 9
+# of the contract, R1: the founder's decision of 2026-10-26). The issue is created once, with a
+# fixed title, and reused. One dispatch per new event, never a repeat of an unchanged one. Every
+# attempt writes one row to alerts.tsv in the land directory, dispatched, no-alert-workflow or
+# failed, and `felix status` reads that row and nothing else. The text sent is enumerated: the event
+# kind, the pull request number, one fixed sentence per kind (R2). The ledger's free-text detail
+# stays in alerts.tsv and never reaches a gh argument or a body.
 #
 # This file is shared code and a copy of it is the trampoline's. green-tick.sh sources it for the
 # tick, and `felix land --install` writes its text into the installed trampoline, which sources
@@ -17,7 +22,7 @@
 #
 # Nothing here writes a ledger row, sends a banner, exits or returns non-zero: a post that fails is
 # a record, never a fault in landing (B10). gh is called by name through PATH, with GH_HOST and
-# GH_REPO taken out of its environment, and no call writes anything but the issue and its comments.
+# GH_REPO taken out of its environment, and no call writes anything but the issue and the dispatch.
 
 _fn_now() { date -u +%Y-%m-%dT%H:%M:%SZ; }
 
@@ -100,9 +105,10 @@ _fn_from_file() {   # DIR
 }
 
 # --- the record (B7) ---------------------------------------------------------
-# Time, posted or failed, kind, pull request, issue, comment URL, note, detail: eight fields, any
-# tab, CR or newline in one becoming a space. A record that cannot be appended changes nothing else.
-_fn_rec() {   # STATUS KIND PR ISSUE URL NOTE DETAIL
+# Time, dispatched, no-alert-workflow or failed, kind, pull request, issue, run URL, note, detail:
+# eight fields, any tab, CR or newline in one becoming a space. A record that cannot be appended
+# changes nothing else. No record is ever removed or rewritten (R4).
+_fn_rec() {   # STATE KIND PR ISSUE URL NOTE DETAIL
   local tab=$'\t' line
   line="$(_fn_now)$tab$(_fn_clean "$1")$tab$(_fn_clean "$2")$tab$(_fn_clean "$3")$tab$(_fn_clean "$4")$tab$(_fn_clean "$5")"
   line="$line$tab$(_fn_clean "$(_fn_tilde "$6")")$tab$(_fn_clean "$(_fn_tilde "$7")")"
@@ -113,19 +119,22 @@ _fn_rec() {   # STATUS KIND PR ISSUE URL NOTE DETAIL
 }
 _fn_fail() { _fn_rec failed "$_FN_K" "$_FN_P" "${_FN_I:--}" - "$1" "$_FN_D"; }
 
-# B8. The event is the newest posted record's: same kind, pull request and detail.
+# B8. The event is the newest dispatched record's: same kind, pull request and detail. A failed or
+# no-alert-workflow record never counts, so an event that was not sent is attempted again (R4).
 _fn_same() {   # KIND PR DETAIL
   local f="$_FN_DIR/alerts.tsv" tab=$'\t' got
   [ -f "$f" ] || return 1
-  got="$(LC_ALL=C awk -F'\t' 'NF == 8 && $2 == "posted" { r = $3 "\t" $4 "\t" $8 } END { print r }' "$f" 2>/dev/null)"
+  got="$(LC_ALL=C awk -F'\t' 'NF == 8 && $2 == "dispatched" { r = $3 "\t" $4 "\t" $8 } END { print r }' "$f" 2>/dev/null)"
   [ -n "$got" ] && [ "$got" = "$1$tab$2$tab$3" ]
 }
 
-# B6. The failed records after the newest posted one: their count, and the newest's kind and time.
+# R4. The failed and no-alert-workflow records after the newest dispatched one (all of them when
+# there is none): their count, and the newest's kind and time.
 _fn_missed() {
   [ -f "$_FN_DIR/alerts.tsv" ] || return 0
-  LC_ALL=C awk -F'\t' 'NF != 8 { next } $2 == "posted" { n = 0; next }
-    $2 == "failed" { n++; k = $3; t = $1 } END { if (n) printf "%d\t%s\t%s\n", n, k, t }' "$_FN_DIR/alerts.tsv" 2>/dev/null
+  LC_ALL=C awk -F'\t' 'NF != 8 { next } $2 == "dispatched" { n = 0; next }
+    $2 == "failed" || $2 == "no-alert-workflow" { n++; k = $3; t = $1 }
+    END { if (n) printf "%d\t%s\t%s\n", n, k, t }' "$_FN_DIR/alerts.tsv" 2>/dev/null
 }
 
 # --- one gh call (B3, B9) ----------------------------------------------------
@@ -205,9 +214,9 @@ _fn_step_issue() {
     END { if (NR == 0 || bad) print "bad"; else if (f) print s }' "$_FN_T/list.out" 2>/dev/null)"
   [ "$sel" != bad ] || { _fn_fail "gh issue list: its answer cannot be read"; return 1; }
   if [ -z "$sel" ]; then
-    printf '%s\n' "This is Felix's standing issue on this repository. The lander (felix land) comments here when it needs the" \
-      "repository owner: a pull request it refused or landed, a deploy it could not verify, a job that is paused or stopped." \
-      "Each comment is one event. Felix does not edit, close, reopen, label or assign this issue." > "$_FN_T/create.in"
+    printf '%s\n' "This is Felix's standing issue on this repository. The lander (felix land) starts the felix-alert workflow when" \
+      "it needs the repository owner: a pull request it refused or landed, a deploy it could not verify, a job that is paused or" \
+      "stopped. The workflow comments here, one comment per event. Felix does not edit, close, reopen, label or assign this issue." > "$_FN_T/create.in"
     _fn_gh create "$_FN_T/create.in" issue create --repo "github.com/$_FN_REPO" --title "Felix needs you" --body-file -
     [ "$_FN_RC" = 0 ] || { _fn_fail "$(_fn_why 'gh issue create' create)"; return 1; }
     url="$(LC_ALL=C awk 'NF { print $1; exit }' "$_FN_T/create.out" 2>/dev/null)"
@@ -217,33 +226,68 @@ _fn_step_issue() {
   _FN_N="$sel"; _FN_I="$_FN_REPO#$sel"
 }
 
-# Call 5. Line 1 is the mention; line 3 the detail, indented four spaces, which GitHub shows as a
-# code block and links no mention in. No later line holds an @ (B6).
-_fn_step_comment() {
-  local l1 p proj tab=$'\t' miss mn mk mt url n
-  l1="@$_FN_MENTION Felix land: $_FN_K"; [ "$_FN_P" = - ] || l1="$l1 #$_FN_P"
-  p="${_FN_DIR%/land}"; proj="$(printf '%s' "${p##*/}" | LC_ALL=C tr -d '@')"
+# R2. The one sentence for an event kind: fixed text, so no ledger detail ever reaches a body.
+# Status 1 for a kind that has none.
+_fn_sentence() {   # KIND
+  case "${1:-}" in
+    landed)              printf '%s' 'A green pull request was merged into main.' ;;
+    paused)              printf '%s' 'Landing is paused until felix land --resume.' ;;
+    refused)             printf '%s' 'felix merge refused a green pull request.' ;;
+    gh)                  printf '%s' 'gh auth status failed, so nothing lands.' ;;
+    founder)             printf '%s' 'A green pull request changes a direction document and waits for your yes.' ;;
+    deployed)            printf '%s' 'The engine on main was installed and verified.' ;;
+    stuck)               printf '%s' 'A tick has held the lock for more than 45 minutes.' ;;
+    deployed-unverified) printf '%s' 'The engine on main was installed but not verified, and landing is paused.' ;;
+    timeout)             printf '%s' 'A tick ran past its time limit and was stopped.' ;;
+    unresolved)          printf '%s' 'The tick resolved no project, so nothing lands.' ;;
+    fetch)               printf '%s' 'The home could not fetch its origin, so nothing lands.' ;;
+    deploy-owed)         printf '%s' 'A deploy of main is owed and has not run, so nothing lands.' ;;
+    unreadable)          printf '%s' 'The lander could not read the home, so nothing lands.' ;;
+    *) return 1 ;;
+  esac
+}
+
+# The first https://github.com/REPO/actions/runs/N in the files given (REPO compared without regard to
+# case), as the answer wrote it; nothing when there is none (R3).
+_fn_run_url() {   # REPO FILE...
+  local r="$1"; shift
+  LC_ALL=C awk -v p="$(_fn_lc "https://github.com/$r/actions/runs/")" 'u == "" { for (i = 1; i <= NF; i++) {
+      s = tolower($i)
+      if (index(s, p) == 1 && substr(s, length(p) + 1) ~ /^[0123456789]+$/) { u = $i; break } } }
+    END { if (u != "") print u }' "$@" 2>/dev/null
+}
+
+# Call 5 (R1-R4): start the felix-alert workflow, which comments in the standing issue as
+# github-actions[bot]. BODY is line 1, the mention (the only @); an empty line; the kind's sentence;
+# R4's count of what was not delivered, when there is one; and the details line (R2). The event's
+# detail is in none of it. A started run is dispatched; a repository with no such workflow yet is
+# no-alert-workflow, kept for the founder to see; anything else is failed. Never recorded as sent.
+_fn_step_dispatch() {
+  local l1 body sent miss mn mk mt url tab=$'\t' nl=$'\n'
+  l1="@$_FN_MENTION Felix land: $_FN_K"
+  case "$_FN_P" in ""|-|*[!0123456789]*) ;; *) l1="$l1 #$_FN_P" ;; esac
+  sent="$(_fn_sentence "$_FN_K")"
+  body="$l1$nl$nl$sent"
   miss="$(_fn_missed)"
-  {
-    printf '%s\n\n    %s\n\n' "$l1" "$_FN_D"
-    printf 'Project %s, %s UTC.\n' "$proj" "$(_fn_now)"
-    if [ -n "$miss" ]; then
-      mn="${miss%%$tab*}"; mk="${miss#*$tab}"; mt="${mk#*$tab}"; mk="${mk%%$tab*}"
-      printf '\nNot delivered before this one: %s (the newest: %s at %s).\n' "$mn" "$(printf '%s' "$mk" | LC_ALL=C tr -d '@')" "$(printf '%s' "$mt" | LC_ALL=C tr -d '@')"
-    fi
-  } > "$_FN_T/comment.in" 2>/dev/null
-  _fn_gh comment "$_FN_T/comment.in" issue comment "$_FN_N" --repo "github.com/$_FN_REPO" --body-file -
-  [ "$_FN_RC" = 0 ] || { _fn_fail "$(_fn_why 'gh issue comment' comment)"; return 1; }
-  url="$(LC_ALL=C awk 'NF { print $1; exit }' "$_FN_T/comment.out" 2>/dev/null)"
-  if [ -n "$url" ]; then
-    n="$(_fn_issue_n "$url" "$_FN_REPO")" && [ "$n" = "$_FN_N" ] \
-      || { _fn_fail "gh issue comment: printed a URL not on https://github.com/$_FN_REPO/issues/$_FN_N"; return 1; }
-  else url=-; fi
-  _fn_rec posted "$_FN_K" "$_FN_P" "$_FN_I" "$url" "as @$_FN_POSTER mentioning @$_FN_MENTION" "$_FN_D"
+  if [ -n "$miss" ]; then
+    mn="${miss%%$tab*}"; mk="${miss#*$tab}"; mt="${mk#*$tab}"; mk="${mk%%$tab*}"
+    body="$body${nl}Not delivered before this one: $mn (the newest: $(printf '%s' "$mk" | LC_ALL=C tr -d '@') at $(printf '%s' "$mt" | LC_ALL=C tr -d '@'))."
+  fi
+  body="$body${nl}details: felix land --status on the machine that runs the lander"
+  _fn_gh dispatch /dev/null workflow run felix-alert.yml --repo "github.com/$_FN_REPO" -f "issue=$_FN_N" -f "body=$body"
+  if [ "$_FN_RC" = 0 ]; then
+    url="$(_fn_run_url "$_FN_REPO" "$_FN_T/dispatch.out" "$_FN_T/dispatch.err")"
+    _fn_rec dispatched "$_FN_K" "$_FN_P" "$_FN_I" "${url:--}" "through felix-alert.yml mentioning @$_FN_MENTION" "$_FN_D"
+  elif [ "$_FN_RC" != T ] && LC_ALL=C grep -qF 'could not find any workflows named felix-alert.yml' "$_FN_T/dispatch.err" 2>/dev/null; then
+    _fn_rec no-alert-workflow "$_FN_K" "$_FN_P" "$_FN_I" - "gh workflow run: gh could not find any workflows named felix-alert.yml, so the alert was not sent: .github/workflows/felix-alert.yml is not on $_FN_REPO's default branch" "$_FN_D"
+    return 1
+  else
+    _fn_fail "$(_fn_why 'gh workflow run' dispatch)"; return 1
+  fi
 }
 
 # One attempt for one event: the kind, the pull request (or -) and the detail the banner shows (B1).
-# A record at the end of alerts.tsv, unless the event is the newest posted one's (B8).
+# A record at the end of alerts.tsv, unless the event is the newest dispatched one's (B8).
 _fn_attempt() {   # KIND PR DETAIL
   [ -n "${_FN_DIR:-}" ] || return 0
   _FN_K="$(_fn_clean "${1:-}")"; _FN_P="$(_fn_clean "${2:--}")"; _FN_D="$(_fn_clean "$(_fn_tilde "${3:--}")")"; _FN_I=""
@@ -252,9 +296,11 @@ _fn_attempt() {   # KIND PR DETAIL
   if [ "${_FN_LSET:-0}" = 1 ]; then
     _fn_login_ok "${_FN_LOGIN:-}" || { _fn_fail "alert_login: the project's alert_login is not a GitHub login (1-39 letters, digits or hyphens, not starting with a hyphen), so nothing is posted"; return 0; }
   fi
+  _fn_sentence "$_FN_K" >/dev/null \
+    || { _fn_fail "kind: $_FN_K is not an event kind this notifier has a sentence for, so nothing is sent"; return 0; }
   _FN_T="$(mktemp -d "${TMPDIR:-/tmp}/felix-alert.XXXXXX" 2>/dev/null)" && [ -d "$_FN_T" ] \
     || { _FN_T=""; _fn_fail "gh: no temporary directory to keep the answers in, so nothing is posted"; return 0; }
-  _fn_step_user && _fn_step_repo && _fn_step_issue && _fn_step_comment
+  _fn_step_user && _fn_step_repo && _fn_step_issue && _fn_step_dispatch
   rm -rf "$_FN_T" 2>/dev/null; _FN_T=""
   return 0
 }

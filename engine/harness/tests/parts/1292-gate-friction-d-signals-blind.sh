@@ -1,5 +1,5 @@
 # >>> gate-friction-d-signals-blind
-printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 11)\n'
+printf '\ngate friction D: signals, endings and holders (blind, author 2; revision 17)\n'
 # Blind, written on 2026-10-18 from contract D, then rewritten on 2026-10-19 against revision 7 (D1 to D8 and
 # "Amended after review 1"), by an author who read no implementation. tests/run, tests/red and tests/receipt.sh
 # are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP with planted
@@ -30,6 +30,12 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # Revision 15 fix here: R47 (the ps shim of the R2 cases counts only calls whose caller is the -j parent's ending, the -j parent or a $( ) or perl of it, and passes a call from below
 # a holder, from a holder's wrapper or from a process the -j parent no longer holds to the real ps; each counted call is logged with its caller's chain and command line, and each r2-N
 # case checks from that log that the call it failed was the one it meant, else its name fails with a got that says whose call it was).
+# Revision 17 fixes here (R55 to R57): every run bound is 600 s (_db2_lim, the group control's run.pl included); every wait for an event of a run lasts until the
+# run's bound has passed (_db2_evt), and so does the wait for a signalled parent (_db2_stop, which was 45 s); holds, planted holds and the sleepers a leftover check
+# needs to outlive live B + 30 s (630 s; were 60 to 300 s, and the start-up case's units 0.6 s, which a leftover outlived no window by); the looks for what is left
+# are 10 s (were 5 s, below R56's floor of 10 s). The lu and hk cases stop the -j parent (SIGSTOP to its recorded pid) while their window runs and continue it
+# after: with W = 30 the parent's own tick could end the holder at any moment after the kill, so a build without the holder's check met any window by luck; their
+# windows are 60 s and 20 s (were 3 s), the R20 case's 60 s (was 20 s). Each window, its kind and its L are in a comment beside it.
 # Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 R40 R41 R42 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
@@ -43,7 +49,7 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 #
 # Readings taken where the contract leaves room, for the reviewers to confirm:
 # - "no unit, holder or wrapper left" is read from ps after the parent has ended: nothing in the run's group,
-#   with the copy's directory or the case's id in its command line, that is not a zombie, within 5 s;
+#   with the copy's directory or the case's id in its command line, that is not a zombie, within 10 s (revision 17);
 # - "no slot held" is a LOCK_EX|LOCK_NB that every slot file grants, and "the slot files keep their names and
 #   inode numbers" is read from a stat of felix-suite-slots before the signal and after the exit (D6: no step
 #   removes a slot);
@@ -51,15 +57,19 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 #   1 and 2 name one regular file, and it is the file the unit's own descriptor 1 names;
 # - a run read through a pipe, as out=$(tests/run ...) reads it, ends with the run: the pipe is closed within 10 s
 #   of the driver's exit;
-# - the lu and hk cases leave FELIX_TEST_SLOT_NOTE unset (W = 30), so that within 3 s of a wrapper's kill -9 only the
-#   holder's own check of its parent can end the holder and its unit; the parent still waits on its FIFO then;
-# - "within 3 s" is timed inside the perl (djk.pl) that takes the ps listing, from the moment of the kill (or of the
-#   marker a unit writes right after killing) to the start of the first listing that shows what was asked for.
+# - the lu and hk cases leave FELIX_TEST_SLOT_NOTE unset (W = 30) and stop the -j parent (SIGSTOP to the pid run.pl
+#   recorded) from before the wrapper's kill -9 until their window has been judged, so that only the holder's own check
+#   of its parent can end the holder and its unit; a parent that ran on would end them at its next tick, which can come
+#   at any moment after the kill (revision 17);
+# - "within 60 s" (lu), "within 20 s" (hk) and "within 60 s" (R20) are timed inside the perl (djk.pl) that takes the ps
+#   listing, from the moment of the kill (or of the marker a unit writes right after killing, or of the gate file) to the
+#   start of the first listing that shows what was asked for.
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others
 # mean something. Against a tree where -j is not understood every run below is a serial one, so each case that
 # would pass serially also asks for something only -j gives.
 DB2="$TMP/db2"; mkdir -p "$DB2/n" "$DB2/pp" "$DB2/psshim" "$DB2/oshim"
-_db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=100; _db2_S=8; _db2_td=""; _db2_hp=0; _db2_ctl=0; _db2_bg=0; _db2_rc=0; _db2_lab=""
+# _db2_lim is every run's bound B (R55: 600 s); _db2_gn is R12's drain, 150 polls of 0.2 s (30 s), which R56 keeps
+_db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=600; _db2_S=8; _db2_td=""; _db2_hp=0; _db2_ctl=0; _db2_bg=0; _db2_rc=0; _db2_lab=""
 _db2_leak=""; _db2_ino0=""; _db2_pipe=0; _db2_late=""; _db2_x=""; _db2_gn=150; _db2_dl=0; _db2_miss=""
 : > "$DB2/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB2/man.tsv"
 cat > "$DB2/run.pl" <<'DB2PL'
@@ -78,7 +88,8 @@ exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
 DB2PL
 cat > "$DB2/ign.pl" <<'DB2IGN'
 # ign.pl DIR ID MODE: ignores TERM and sleeps. MODE h: each TERM it gets forks one sleeper; MODE s: from its first TERM on it forks one every
-# 20 ms, 100 at most. Pids go to DIR/ign.pid and DIR/gc.pids; the sleepers carry ID in their command line.
+# 20 ms, 100 at most. Pids go to DIR/ign.pid and DIR/gc.pids; the sleepers carry ID in their command line. A sleeper lives 630 s, B + 30 (R56:
+# a leftover must outlive every look for it, so that a build that leaves it is seen; was 300 s)
 my ($d, $id, $mode) = @ARGV;
 my ($t, $n) = (0, 0);
 sub spawn {
@@ -86,7 +97,7 @@ sub spawn {
   $n++;
   my $k = fork;
   return unless defined $k;
-  if (!$k) { exec "perl", "-e", "sleep 300", $id, "gc"; exit 1 }
+  if (!$k) { exec "perl", "-e", "sleep 630", $id, "gc"; exit 1 }
   if (open(my $g, ">>", "$d/gc.pids")) { print $g "$k\n"; close $g }
 }
 $SIG{TERM} = sub { $t = 1; spawn() if $mode eq "h" };
@@ -148,15 +159,15 @@ printf '%s\n' "$p"
 DB2MK
 chmod +x "$DB2/mkshim/mktemp"
 cat > "$DB2/djk.pl" <<'DB2DJK'
-# djk.pl SIG KILLPID WAITFILE MAXMS MODE ARG...: sends SIG to KILLPID (0: none), waits for the file WAITFILE (- : none; at most 120 s), takes the time T0, then
-# takes ps listings until what MODE asks about has gone or MAXMS ms have passed. MODE pids PID...: those pids; MODE pidfile FILE: the pids in that
-# file (read after the wait); MODE group PGID KEY ID: every live process
+# djk.pl SIG KILLPID WAITFILE MAXMS MODE ARG...: sends SIG to KILLPID (0: none), waits for the file WAITFILE (- : none; at most 600 s, the run bound: R56,
+# was 120 s), takes the time T0, then takes ps listings until what MODE asks about has gone or MAXMS ms have passed. MODE pids PID...: those pids; MODE
+# pidfile FILE: the pids in that file (read after the wait); MODE group PGID KEY ID: every live process
 # (zombies aside, not this perl) in group PGID or with KEY or ID in its command line. Prints "gone MS" (MS: from T0 to the start of the first listing that
 # showed none of them), "left MS PID,PID..." or "nopids".
 use Time::HiRes qw(time sleep);
 my ($sig, $kp, $wf, $max, $mode, @a) = @ARGV;
 kill $sig, $kp if $kp;
-if ($wf ne "-") { my $e = time + 120; while (!-e $wf && time < $e) { sleep 0.02 } }
+if ($wf ne "-") { my $e = time + 600; while (!-e $wf && time < $e) { sleep 0.02 } }
 my $t0 = time; my $t; my @left;
 if ($mode eq "pidfile") { if (open(my $h, "<", $a[0])) { @a = map { split " " } <$h>; close $h } else { @a = () } $mode = "pids" }
 if ($mode eq "pids" && !@a) { print "nopids\n"; exit }
@@ -242,15 +253,15 @@ _db2_wait0() {
 }
 _db2_fin() {
   _db2_grp "$(_db2_pid "$_db2_lab")"
-  if [ "$_db2_pipe" = 1 ]; then _db2_until 50 _db2_dead "$_db2_bg" || kill -KILL "$_db2_bg" 2>/dev/null; { wait "$_db2_bg"; } 2>/dev/null; fi
-  _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=100; _db2_S=8; _db2_pipe=0
+  if [ "$_db2_pipe" = 1 ]; then _db2_until 50 _db2_dead "$_db2_bg" || kill -KILL "$_db2_bg" 2>/dev/null; { wait "$_db2_bg"; } 2>/dev/null; fi   # a drain after the run has ended (R56 keeps it)
+  _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db2_lim=600; _db2_S=8; _db2_pipe=0
 }
 _db2_wait() { _db2_wait0; _db2_fin; }
-# LABEL SIGNAL [bound]: SIGNAL to the driver, then at most 45 s for it to end (a run still there is killed by group, and _db2_late says so). With bound (R44) the wait
-# lasts until the run's own bound has passed (at least 45 s), where run.pl's KILL has ended it; a run still there then is killed by group and _db2_late says so
+# LABEL SIGNAL: SIGNAL to the driver, then a wait for it to end that lasts until the run's own bound has passed, at least 45 s (R44, R56: a bound; it was 45 s for
+# every case but the record run's), where run.pl's KILL has ended it with 124; a run still there then is killed by group and _db2_late says so
 _db2_stop() {
-  local p i=0 n=225 w="45 s after the signal"; p="$(_db2_pid "$1")"; _db2_late=""
-  if [ "${3:-}" = bound ]; then n=$(( (_db2_dl - SECONDS) * 5 )); [ "$n" -ge 225 ] || n=225; w="there when the run's bound had passed"; fi
+  local p i=0 n w="there when the run's bound had passed"; p="$(_db2_pid "$1")"; _db2_late=""
+  n=$(( (_db2_dl - SECONDS) * 5 )); [ "$n" -ge 225 ] || n=225
   [ -z "$p" ] || kill -"$2" "$p" 2>/dev/null
   while [ "$i" -lt "$n" ]; do kill -0 "$p" 2>/dev/null || break; sleep 0.2; i=$((i + 1)); done
   if kill -0 "$p" 2>/dev/null; then _db2_late=" the parent was still running $w;"; kill -KILL -- "-$p" 2>/dev/null; fi
@@ -298,11 +309,15 @@ _db2_inos() {   # TMPDIR: name:kind:inode of each entry of felix-suite-slots, in
 _db2_held() {   # TMPDIR: the slot files under it that some process holds
   perl -e 'use Fcntl ":flock"; for my $f (sort glob("$ARGV[0]/felix-suite-slots/*")) { next unless -f $f; open(my $h, "<", $f) or next; flock($h, LOCK_EX | LOCK_NB) or print "$f "; close $h }' "$1"
 }
-_db2_hold() {   # SLOTFILE: a perl of mine holds its lock until _db2_unhold; _db2_hp is its pid
+# SLOTFILE: a perl of mine holds its lock until _db2_unhold; _db2_hp is its pid. R56: its own end is a bound, B + 30 s (R44's H; was 300 s), or sooner once its slots
+# directory is gone; the wait for its "held" is the run bound, ended early if the perl has gone
+_db2_hok() { [ -s "$_db2_c/hold.out" ] || ! kill -0 "$_db2_hp" 2>/dev/null; }
+_db2_hold() {
   [ -d "${1%/*}" ] || mkdir -m 0700 "${1%/*}"
-  perl -e 'use Fcntl ":flock"; open(my $h, ">>", $ARGV[0]) or exit 4; flock($h, LOCK_EX | LOCK_NB) or exit 3; $| = 1; print "held\n"; sleep 300' "$1" > "$_db2_c/hold.out" 2>&1 &
+  perl -e 'use Fcntl ":flock"; open(my $h, ">>", $ARGV[0]) or exit 4; flock($h, LOCK_EX | LOCK_NB) or exit 3; $| = 1; print "held\n"; my $e = time + $ARGV[1]; sleep 1 while time < $e && -d $ARGV[2]' \
+    "$1" "$((_db2_lim + 30))" "${1%/*}" > "$_db2_c/hold.out" 2>&1 &
   _db2_hp=$!
-  _db2_until 100 test -s "$_db2_c/hold.out"
+  _db2_until $((_db2_lim * 5)) _db2_hok
 }
 _db2_unhold() { [ "$_db2_hp" = 0 ] || { kill -KILL "$_db2_hp" 2>/dev/null; { wait "$_db2_hp"; } 2>/dev/null; }; _db2_hp=0; return 0; }
 _db2_started() { local f r=""; for f in "$_db2_c"/started.*; do [ -e "$f" ] && r="$r${f##*/} "; done; printf '%s' "$r"; }
@@ -315,7 +330,9 @@ _db2_gone() {
   local l="$1" r="" g; g="$(_db2_pid "$l")"
   [ "$_db2_rc" = "$2" ] || r="$r exit $_db2_rc, not $2;"
   [ "$(_db2_cnt "$_db2_c/$l.out" reached)" = 0 ] || r="$r reached was printed;"
-  _db2_until 25 _db2_clear "$g" || r="$r still running: $(_db2_ps "$g");"
+  # R56, a margin: once the parent has exited, what it ended has only to act on the KILL it was sent (no fork), floor 10 s (was 5 s); L is a leftover's own end,
+  # 630 s after it started for every sleeper and unit these cases plant
+  _db2_until 50 _db2_clear "$g" || r="$r still running: $(_db2_ps "$g");"
   [ -z "$(_db2_held "$_db2_tmp")" ] || r="$r a slot is still held;"
   [ -z "$_db2_ino0" ] || [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] || r="$r the slot files changed: [$_db2_ino0] became [$(_db2_inos "$_db2_tmp")];"
   [ "$(_db2_rcpt)" = absent ] || r="$r a receipt was left;"
@@ -342,7 +359,7 @@ _db2_sl() {   # CASE: two parts that start a sleeping child and wait for a relea
   local f
   for f in 0010-sa.sh 0020-sb.sh; do _db2_w "$1" "$f" <<'X'
 : > "$DJ2D/started.$DJ2N"
-perl -e 'open(my $h, ">", $ARGV[0]); close $h; sleep 300' "$DJ2D/ch.$DJ2N" "$DJ2I" sl &
+perl -e 'open(my $h, ">", $ARGV[0]); close $h; sleep 630' "$DJ2D/ch.$DJ2N" "$DJ2I" sl &
 _k=$!
 until [ -e "$DJ2D/ch.$DJ2N" ]; do sleep 0.1; done
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = 1 ]; then : > "$DJ2D/rup.$DJ2N"; else : > "$DJ2D/up.$DJ2N"; fi
@@ -367,26 +384,30 @@ rm -rf "$DB2/n/ctl"
 
 # ---- the controls for the checks that look at ps: units are counted and a perl carrying their words is not; a sleeper with the case's id is seen, and not once killed
 _db2_sel snapctl; mkdir -p "$_db2_c"; mkfifo "$_db2_c/ff" 2>/dev/null
-printf 'exec 3<> "$1"; read -t 60 -u 3 _x\n' > "$_db2_c/unit.sh"
+# R56: the four stand-ins live B + 30 s (a hold's own end; were 60 s) and are killed by pid below; the wait for them is a bound, the run bound; the look once they
+# are killed is 10 s, R56's floor for a window in which a process has only to act on a signal it was sent (was 5 s)
+printf 'exec 3<> "$1"; read -t %s -u 3 _x\n' "$((_db2_lim + 30))" > "$_db2_c/unit.sh"
 bash "$_db2_c/unit.sh" "$_db2_c/ff" --part 0010-x.sh & _db2_p1=$!
 bash "$_db2_c/unit.sh" "$_db2_c/ff" --part 0020-y.sh & _db2_p2=$!
-perl -e 'sleep 60' "$_db2_c/unit.sh" --part 0030-z.sh & _db2_p3=$!
-perl -e 'sleep 60' "$(_db2_id)" probe & _db2_p4=$!
+perl -e 'sleep $ARGV[0]' "$((_db2_lim + 30))" "$_db2_c/unit.sh" --part 0030-z.sh & _db2_p3=$!
+perl -e 'sleep $ARGV[0]' "$((_db2_lim + 30))" "$(_db2_id)" probe & _db2_p4=$!
 _db2_four() { [ "$(set -- $(_db2_ps ''); echo $#)" = 4 ]; }
-_db2_until 50 _db2_four
+_db2_until $((_db2_lim * 5)) _db2_four
 _db2_x="$(set -- $(_db2_units); echo $#) $(set -- $(_db2_ps ''); echo $#)"
 kill -KILL "$_db2_p1" "$_db2_p2" "$_db2_p3" "$_db2_p4" 2>/dev/null
 for _db2_p in "$_db2_p1" "$_db2_p2" "$_db2_p3" "$_db2_p4"; do { wait "$_db2_p"; } 2>/dev/null; done
-_db2_y="$(_db2_until 25 _db2_clear '' && echo gone || echo "still [$(_db2_ps '')]")"
+_db2_y="$(_db2_until 50 _db2_clear '' && echo gone || echo "still [$(_db2_ps '')]")"
 _db2_is "D6: the process checks below see what they should: two unit processes and not the perl that carries their words, four processes of the case in all, and none once killed (control)" "$_db2_x $_db2_y" "2 4 gone"
 rm -rf "$DB2/n/snapctl"
 # the group check finds a process left in a run's group after its leader has gone, names it, and ends it
 _db2_sel gctl; mkdir -p "$_db2_c"; _db2_lab=g
-perl "$DB2/run.pl" 60 DEFAULT DEFAULT DEFAULT DEFAULT "$_db2_c/g.pid" bash -c 'perl -e "sleep 100" "$0" gc & exit 0' "$(_db2_id)" & _db2_p1=$!
+# R55: the bound is 600 s (was 60 s; the leader exits at once). The control's 1 s drain (_db2_gn=5) is a margin of the control: its L is the sleeper's 100 s, so it stands;
+# the look once the drain has killed it is 10 s (was 5 s), as above
+perl "$DB2/run.pl" "$_db2_lim" DEFAULT DEFAULT DEFAULT DEFAULT "$_db2_c/g.pid" bash -c 'perl -e "sleep 100" "$0" gc & exit 0' "$(_db2_id)" & _db2_p1=$!
 { wait "$_db2_p1"; } 2>/dev/null
 _db2_gn=5; _db2_grp "$(_db2_pid g)"; _db2_gn=150
 case "$_db2_leak" in *"perl -e sleep 100"*) _db2_x=named ;; *) _db2_x="not named [$_db2_leak]" ;; esac   # not inside $( ): bash 3.2 ends the substitution at the pattern's )
-_db2_x="$_db2_x $(_db2_until 25 _db2_clear '' && echo gone || echo still)"; _db2_leak=""
+_db2_x="$_db2_x $(_db2_until 50 _db2_clear '' && echo gone || echo still)"; _db2_leak=""
 is "R12: the group check names a process left in the run's group after the leader exited, and ends it (control)" "$_db2_x" "named gone"
 rm -rf "$DB2/n/gctl"
 
@@ -429,10 +450,10 @@ _db2_intr() {
   local c="$1" s="$2" w="$3" r="" g
   _db2_sl "$c"
   _db2_new "$c" "$DB2/g-empty.tsv" + "$DB2/pp/$c"/*.sh || { _db2_x="the copy could not be made"; return 0; }
-  _db2_I="${4:-DEFAULT}"; _db2_Q="${5:-DEFAULT}"; _db2_lim=150
+  _db2_I="${4:-DEFAULT}"; _db2_Q="${5:-DEFAULT}"
   _db2_go i -j 2
-  _db2_until 450 _db2_up 0010-sa.sh || r=" no unit came up;"
-  _db2_until 75 _db2_up 0020-sb.sh || r="$r the second unit did not come up;"
+  _db2_why=""; _db2_evt _db2_up 0010-sa.sh || r=" no unit came up;"   # R56: bounds that last until the run's bound (were 90 s and 15 s)
+  _db2_evt _db2_up 0020-sb.sh || r="$r the second unit did not come up;"
   _db2_ino0="$(_db2_inos "$_db2_tmp")"; [ -n "$_db2_ino0" ] || r="$r no slot file before the signal;"
   sleep 0.5
   _db2_stop i "$s"; r="$r$_db2_late"
@@ -474,7 +495,7 @@ _db2_psown() {
 _db2_igr() {   # CASE MODE [N]: MODE n h s: a unit starts that child with & and waits, MODE u: the unit itself ignores TERM and forks a sleeper on it; TERM to the parent; afterwards nothing of the run runs, stopped or not
   local c="$1" m="$2" n="${3:-}" r="" g y
   if [ "$m" = u ]; then _db2_w "$c" 0010-ka.sh <<'X'
-trap 'perl -e "sleep 300" "$DJ2I" gc & echo $! >> "$DJ2D/gc.pids"' TERM
+trap 'perl -e "sleep 630" "$DJ2I" gc & echo $! >> "$DJ2D/gc.pids"' TERM
 : > "$DJ2D/up.$DJ2N"
 while :; do sleep 0.1; done
 X
@@ -488,8 +509,8 @@ X
   _db2_new "$c" "$DB2/g-empty.tsv" + "$DB2/pp/$c"/0010-ka.sh || { _db2_x="the copy could not be made"; return 0; }
   printf '%s' "$m" > "$_db2_c/mode"
   [ -z "$n" ] || _db2_E=(PATH="$DB2/psshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_PSFAIL="$n" DJ2_PSTRIG="$_db2_c/trig" DJ2_PSCNT="$_db2_c/pscnt" DJ2_PSJP="$_db2_c/i.pid" DJ2_PSKEY="$(_db2_key)")
-  _db2_lim=150; _db2_go i -j 2
-  _db2_until 450 _db2_up 0010-ka.sh || r=" no unit came up;"
+  _db2_go i -j 2
+  _db2_why=""; _db2_evt _db2_up 0010-ka.sh || r=" no unit came up;"   # R56: a bound that lasts until the run's bound (was 90 s)
   _db2_ino0="$(_db2_inos "$_db2_tmp")"; [ -n "$_db2_ino0" ] || r="$r no slot file before the signal;"
   _db2_jcmd=""; [ -z "$n" ] || _db2_jcmd="$(ps -ww -o command= -p "$(_db2_pid i)" 2>/dev/null | sed 's/^ *//; s/ *$//')"   # R47: the -j parent's command line, read here and not from the shim
   sleep 0.5; : > "$_db2_c/trig"
@@ -514,24 +535,29 @@ for _db2_n in 1 2 3; do
   _db2_is "R2: with the ending's listing number $_db2_n failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143" "$_db2_x" ok
 done
 
-# ---- start-up (R18): TERM at a spread of short delays after the parent's prelude, over many short units under -j 4, leaves no wrapper, holder or unit once the parent has exited. The fork window of R3 itself (microseconds) rests on review and on its 12-of-12 measurement, not on this case
+# ---- start-up (R18): TERM at a spread of short delays after the parent's prelude, over many units under -j 4, leaves no wrapper, holder or unit once the parent has exited. The fork window of R3 itself (microseconds) rests on review and on its 12-of-12 measurement, not on this case
+# R56: each unit runs until it is ended, 630 s (B + 30). It ran 0.6 s, so a unit a build left behind ended by itself within R12's drain and this case's look, and a build
+# that left one passed; L, the leftover's own end, is now far past both. The delays place the TERM (the case's subject) and are not windows
 for _db2_n in 1 2 3 4 5 6 7 8 9 10 11 12; do _db2_w r3 "$(printf '%04d' $((_db2_n * 10)))-r$_db2_n.sh" <<'X'
 : > "$DJ2D/started.$DJ2N"
-perl -e 'select(undef, undef, undef, 0.6)'
+perl -e 'sleep 630' "$DJ2I" r3   # the case's id, so that a unit's sleeper left outside the run's group is seen too
 ok "djy $DJ2N"
 X
 done
 _db2_new r3 "$DB2/g-empty.tsv" + "$DB2/pp/r3"/*.sh; _db2_pre; _db2_x=""
 for _db2_d in 0 0.02 0.05 0.08 0.12 0.2 0.35 0.6; do
-  rm -f "$_db2_c"/pre.done.* "$_db2_c"/started.*; _db2_lim=100; _db2_go t -j 4
-  _db2_until 450 _db2_pre_up; sleep "$_db2_d"; _db2_stop t TERM
+  rm -f "$_db2_c"/pre.done.* "$_db2_c"/started.*; _db2_go t -j 4
+  _db2_why=""; _db2_evt _db2_pre_up || _db2_x="$_db2_x [delay $_db2_d: the parent's prelude never ended]"; sleep "$_db2_d"; _db2_stop t TERM
   _db2_y="$(_db2_gone t 143)"; [ "$_db2_y" = ok ] || _db2_x="$_db2_x [delay $_db2_d:$_db2_y$_db2_late]"
 done
-_db2_is "D6: TERM at a spread of short delays during a -j 4 run's start-up (twelve short units, eight delays from 0 to 0.6 s after the parent's prelude) ends everything: each time exit 143, and no wrapper, holder or unit runs once the parent has exited" "${_db2_x:-ok}" ok
+_db2_is "D6: TERM at a spread of short delays during a -j 4 run's start-up (twelve units that each run until they are ended, eight delays from 0 to 0.6 s after the parent's prelude) ends everything: each time exit 143, and no wrapper, holder or unit runs once the parent has exited" "${_db2_x:-ok}" ok
 rm -rf "$DB2/n/r3"
 
-# ---- units that outlive their wrapper (R4). With FELIX_TEST_SLOT_NOTE unset the parent looks for a wrapper that is gone only every 30 s (R13's tick), so within 3 s the holder's own check is the only thing that can end the holder and its unit
-# a wrapper killed with kill -9 while its unit runs a member longer than that silence: the holder and the unit are gone within 3 s, the unit has no mark, and neither it nor its holder runs once the parent has exited. The run is read through a pipe
+# ---- units that outlive their wrapper (R4). With FELIX_TEST_SLOT_NOTE unset the parent looks for a wrapper that is gone only on its ticks, every 30 s (R13); revision 17 also stops the parent while the window runs, since its next tick can come at any moment after the kill, so that the holder's own check is the only thing that can end the holder and its unit
+# a wrapper killed with kill -9 while its unit runs a member longer than that silence: the holder and the unit are gone within 60 s, the unit has no mark, and neither it nor its holder runs once the parent has exited. The run is read through a pipe
+# R56, a margin: T = 60 s from the kill to the first listing that shows neither. Inside it D's holder sees its parent change (each second) and ends the unit's tree as R2 says,
+# with ps listings (forks), so the floor is 20 s. L: a holder without R4's check, with the parent stopped, leaves both running until the unit's own end, B + 30 s (3150 polls)
+# after the kill, so T is far below L - 10 s. It was 3 s, below the floor, and with the parent running a tick could end them within it whatever the holder did
 _db2_w lu 0010-wa.sh <<'X'
 _d="$(cat "$DJ2D/w.pid")"; _p=$$; _w=""
 while [ -n "$_p" ] && [ "$_p" -gt 1 ]; do
@@ -542,53 +568,70 @@ while [ -n "$_p" ] && [ "$_p" -gt 1 ]; do
 done
 printf '%s %s\n' "$$" "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" > "$DJ2D/lu.pids"
 : > "$DJ2D/wrapper.${_w:-none}"
+: > "$DJ2D/ready"
+_i=0; until [ -e "$DJ2D/go" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
 [ -z "$_w" ] || kill -KILL "$_w" 2>/dev/null
 : > "$DJ2D/killed"
-_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 450 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ2N"
 X
 _db2_w lu 0020-wb.sh <<'X'
 ok "djy $DJ2N"
 X
 _db2_new lu "$DB2/g-empty.tsv" + "$DB2/pp/lu"/*.sh
-_db2_pipe=1; _db2_lim=120; _db2_go w -j 2
-_db2_x="$(perl "$DB2/djk.pl" 0 0 "$_db2_c/killed" 3000 pidfile "$_db2_c/lu.pids")"; _db2_y="$(_db2_alive "$(_db2_pid w)" && echo parent-running || echo parent-gone)"
-_db2_is "R4: with the parent's FIFO silent for 30 s (W = 30), the holder's own check ends a unit whose wrapper was killed with kill -9: within 3 s of the kill the unit and its holder are gone, and the parent is still running" "${_db2_x%% *} $_db2_y" "gone parent-running"
+_db2_pipe=1; _db2_go w -j 2
+_db2_r=""; _db2_why=""; _db2_evt test -e "$_db2_c/ready" || _db2_r=" the unit never got ready (${_db2_why:-});"
+_db2_jp="$(_db2_pid w)"; _db2_js=""
+# the -j parent is stopped by the pid run.pl recorded, and only where the unit found a wrapper below it: a serial build may run the unit in that process itself
+[ -n "$_db2_r" ] || for _db2_p in "$_db2_c"/wrapper.[0-9]*; do [ -e "$_db2_p" ] && _db2_js="$_db2_jp"; done
+[ -z "$_db2_js" ] || kill -STOP "$_db2_js" 2>/dev/null
+: > "$_db2_c/go"
+_db2_x="$(perl "$DB2/djk.pl" 0 0 "$_db2_c/killed" 60000 pidfile "$_db2_c/lu.pids")"; _db2_y="$(_db2_alive "$_db2_jp" && echo parent-there || echo parent-gone)"
+[ -z "$_db2_js" ] || kill -CONT "$_db2_js" 2>/dev/null
+_db2_is "R4: with the parent stopped by the case, so that only the holder's own check of its wrapper can act, a unit whose wrapper was killed with kill -9 is ended with its holder: within 60 s of the kill both are gone, and the parent is still there" "${_db2_x%% *} $_db2_y$_db2_r" "gone parent-there"
 _db2_wait0
-_db2_until 50 test -e "$_db2_c/w.eof"; _db2_x="$([ -e "$_db2_c/w.eof" ] && echo closed || echo open)"
-_db2_y=""; for _db2_p in $(cat "$_db2_c/lu.pids" 2>/dev/null); do _db2_until 25 _db2_dead "$_db2_p" && continue; _db2_y="$_db2_y $_db2_p"; done
+_db2_until 50 test -e "$_db2_c/w.eof"; _db2_x="$([ -e "$_db2_c/w.eof" ] && echo closed || echo open)"   # R56, a margin (floor 10 s: the reader acts on EOF, no fork); stands
+_db2_y=""; for _db2_p in $(cat "$_db2_c/lu.pids" 2>/dev/null); do _db2_until 50 _db2_dead "$_db2_p" && continue; _db2_y="$_db2_y $_db2_p"; done   # R56: 10 s, the floor (was 5 s)
 _db2_x="$_db2_rc $(ls "$_db2_c" | grep -c '^wrapper\.[0-9]') $(_db2_cnt "$_db2_c/w.out" '  FAIL  part ended without its mark: 0010-wa.sh') $(_db2_pfx "$_db2_c/w.out" '  FAIL  part ended without its mark: 0020-wb.sh') $(_db2_rcpt) $_db2_x${_db2_y:+ still-running:$_db2_y}"
 _db2_kf "$_db2_c/lu.pids"; _db2_fin
 _db2_is "R4: the wrapper of a unit killed with kill -9 while the unit runs a member longer than the parent's silence: that unit alone fails without its mark, exit 1, no receipt, and once the parent has exited neither the unit nor its holder runs and the pipe it read is closed" "$_db2_x" "1 1 1 0 absent closed"
 rm -rf "$DB2/n/lu"
 
-# a wrapper killed with kill -9 while its holder waits for a slot another process holds: once the slot is let go no unit of that holder starts, and the holder is gone within 3 s
+# a wrapper killed with kill -9 while its holder waits for a slot another process holds: once the slot is let go no unit of that holder starts, and the holder is gone within 20 s
+# R56, a margin: T = 20 s from the kill to the first listing without the holder. Inside it D's holder only sees its parent change (each second) and exits, with no fork:
+# floor 10 s. L: a holder without R4's check while it waits, with the -j parent stopped (its tick could otherwise end the lost holder at any moment) and the slot held,
+# waits on until the case lets the parent go, past T. It was 3 s, below the floor. The search for the wrapper is a bound that lasts until the run's bound (was 60 s)
 _db2_q hk; _db2_td="$DB2/td-hk"; rm -rf "$_db2_td"; mkdir -p "$_db2_td"
 _db2_new hk "$DB2/g-empty.tsv" + "$DB2/pp/hk"/0010-qa.sh
 _db2_hold "$_db2_tmp/felix-suite-slots/0"; _db2_ino0="$(_db2_inos "$_db2_tmp")"
-_db2_S=1; _db2_lim=100; _db2_go h -j 2
-_db2_r=""; _db2_wr=""; _db2_k=0
-while [ "$_db2_k" -lt 300 ]; do _db2_d="$(_db2_pid h)"; [ -z "$_db2_d" ] || _db2_wr="$(_db2_wh "$_db2_d")"; [ -z "$_db2_wr" ] || break; sleep 0.2; _db2_k=$((_db2_k + 1)); done
+_db2_S=1; _db2_go h -j 2
+_db2_r=""; _db2_wr=""
+while :; do _db2_d="$(_db2_pid h)"; [ -z "$_db2_d" ] || _db2_wr="$(_db2_wh "$_db2_d")"; [ -z "$_db2_wr" ] || break; kill -0 "$_db2_bg" 2>/dev/null || break; [ "$SECONDS" -lt "$_db2_dl" ] || break; sleep 0.2; done
 _db2_y=""
 if [ -z "$_db2_wr" ]; then _db2_r=" no wrapper with a holder was found;"
 else
-  sleep 1.5; _db2_hd="${_db2_wr#* }"
-  # the slot is still held when the holder is looked for: only its own check of its parent (W = 30, so the parent is silent) can end it
-  _db2_y="$(perl "$DB2/djk.pl" KILL "${_db2_wr% *}" - 3000 pids "$_db2_hd")"
-  _db2_alive "$(_db2_pid h)" || _db2_r="$_db2_r the parent was gone when the holder was looked for;"
-  case "$_db2_y" in gone*) ;; *) _db2_r="$_db2_r the holder was still there within 3 s of its wrapper being killed, the slot held ($_db2_y);" ;; esac
+  sleep 1.5; _db2_hd="${_db2_wr#* }"; _db2_jp="$(_db2_pid h)"
+  # the slot is still held when the holder is looked for, and the -j parent is stopped (by the pid run.pl recorded): only the holder's own check of its parent can end it
+  [ -z "$_db2_jp" ] || kill -STOP "$_db2_jp" 2>/dev/null
+  _db2_y="$(perl "$DB2/djk.pl" KILL "${_db2_wr% *}" - 20000 pids "$_db2_hd")"
+  _db2_alive "$_db2_jp" || _db2_r="$_db2_r the parent was gone when the holder was looked for;"
+  case "$_db2_y" in gone*) ;; *) _db2_r="$_db2_r the holder was still there within 20 s of its wrapper being killed, the slot held ($_db2_y);" ;; esac
   _db2_unhold
-  sleep 2.5
+  sleep 2.5   # a watch (R56's floor); the parent is let go only after it
   [ -z "$(_db2_started)$(_db2_units)" ] || _db2_r="$_db2_r a unit of that holder ran ($(_db2_started)$(_db2_units));"
+  [ -z "$_db2_jp" ] || kill -CONT "$_db2_jp" 2>/dev/null
 fi
 _db2_wait; _db2_x="$_db2_rc $(_db2_cnt "$_db2_c/h.out" '  FAIL  part ended without its mark: 0010-qa.sh') $(_db2_rcpt)${_db2_r}"
 _db2_unhold; _db2_ino0=""
-_db2_is "R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent silent (W = 30) the holder is gone within 3 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt" "$_db2_x" "1 1 absent"
+_db2_is "R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent stopped by the case the holder is gone within 20 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt" "$_db2_x" "1 1 absent"
 rm -rf "$DB2/n/hk" "$DB2/td-hk"; _db2_td=""
 
 # ---- R20, R35: a holder also asks, at least every 10 s and just before it forks, who its wrapper's parent is (ps -o ppid= -p WRAPPER), and takes a pid other than the -j parent's for the parent gone.
 # The kill 0 of the parent's pid does not see that while the pid is alive, and R15's start-time comparison is the Linux clock-step hazard R20 removes. A ps first on PATH answers that one call (its arguments
-# hold ppid= and -p and no -A) with 1 once a gate file exists, and logs each answer it gave in $DJ2_PSCNT. The gate is written once the unit is up: within 20 s the unit is gone, the parent fails it without its mark
+# hold ppid= and -p and no -A) with 1 once a gate file exists, and logs each answer it gave in $DJ2_PSCNT. The gate is written once the unit is up: within 60 s the unit is gone, the parent fails it without its mark
+# R56, a margin: T = 60 s from the gate to the first listing without the unit. Inside it D's holder asks at its next check (within 10 s) and ends the unit's tree with ps
+# listings (forks): floor 20 s, and its own wait of up to 10 s is half of that, so T is 60 s (was 20 s). L: a holder without R20's check (kill 0 of a parent that lives,
+# or R15's start-time comparison) never ends the unit, which runs until the case releases it after the window, B + 30 s at most (3150 polls; was 90 s)
 cat > "$DB2/oshim/ps" <<'DB2OS'
 #!/bin/sh
 # The real ps ($DJ2_PSREAL), except that once the file $DJ2_GATE exists a call that holds ppid= and -p and no -A prints 1 (and is logged in $DJ2_PSCNT).
@@ -602,40 +645,41 @@ chmod +x "$DB2/oshim/ps"
 _db2_w or 0010-oa.sh <<'X'
 printf '%s %s\n' "$$" "$(ps -o ppid= -p $$ 2>/dev/null | tr -d ' ')" > "$DJ2D/or.pids"
 : > "$DJ2D/up.$DJ2N"
-_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 450 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ2N"
 X
 _db2_new or "$DB2/g-empty.tsv" + "$DB2/pp/or"/0010-oa.sh
 _db2_E=(PATH="$DB2/oshim:$PATH" DJ2_PSREAL="$(command -v ps)" DJ2_GATE="$_db2_c/gate" DJ2_PSCNT="$_db2_c/oans")
-_db2_lim=100; _db2_go o -j 2
-_db2_r=""; _db2_until 450 _db2_up 0010-oa.sh || _db2_r=" no unit came up;"
+_db2_go o -j 2
+_db2_r=""; _db2_why=""; _db2_evt _db2_up 0010-oa.sh || _db2_r=" no unit came up (${_db2_why:-});"
 _db2_ino0="$(_db2_inos "$_db2_tmp")"
 : > "$_db2_c/gate"
-_db2_y="$(perl "$DB2/djk.pl" 0 0 - 20000 pidfile "$_db2_c/or.pids")"
+_db2_y="$(perl "$DB2/djk.pl" 0 0 - 60000 pidfile "$_db2_c/or.pids")"
 : > "$_db2_c/release"
 _db2_wait
 # the run is not interrupted: it ends by itself with the unit's failure, so it reaches its end (reached is printed) and _db2_gone's reached test does not apply
 [ "$_db2_rc" = 1 ] || _db2_r="$_db2_r exit $_db2_rc, not 1;"
-_db2_until 25 _db2_clear "$(_db2_pid o)" || _db2_r="$_db2_r still running: $(_db2_ps "$(_db2_pid o)");"
+_db2_until 50 _db2_clear "$(_db2_pid o)" || _db2_r="$_db2_r still running: $(_db2_ps "$(_db2_pid o)");"
 [ -z "$(_db2_held "$_db2_tmp")" ] || _db2_r="$_db2_r a slot is still held;"
 [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] || _db2_r="$_db2_r the slot files changed;"
 [ "$(_db2_rcpt)" = absent ] || _db2_r="$_db2_r a receipt was left;"
 _db2_ino0=""
 _db2_x="${_db2_y%% *} $([ "$(wc -l < "$_db2_c/oans" 2>/dev/null | tr -d ' ')" -ge 1 ] 2>/dev/null && echo asked || echo not-asked) $(_db2_cnt "$_db2_c/o.out" '  FAIL  part ended without its mark: 0010-oa.sh')${_db2_r:- ok}"
-_db2_is "R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 20 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left" "$_db2_x" "gone asked 1 ok"
+_db2_is "R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 60 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left" "$_db2_x" "gone asked 1 ok"
 rm -rf "$DB2/n/or"
 
 # while a unit runs, its holder's stdout and stderr are the unit's log: one regular file, the one the unit's own stdout is
 _db2_w hs 0010-ha.sh <<'X'
 : > "$DJ2D/up.$DJ2N"
-_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 450 ]; do sleep 0.2; _i=$((_i + 1)); done
+_i=0; until [ -e "$DJ2D/release" ] || [ "$_i" -ge 3150 ]; do sleep 0.2; _i=$((_i + 1)); done
 ok "djy $DJ2N"
 X
 _db2_n="R4: while a unit runs, its holder's stdout and stderr are the unit's log: both name one regular file, which is the file the unit's own stdout names, and the run then passes"
 if [ ! -d /proc/self/fd ] && ! command -v lsof >/dev/null 2>&1; then skip "$_db2_n" "neither /proc nor lsof here to read a process's descriptors"
 else
-  _db2_new hs "$DB2/g-empty.tsv" + "$DB2/pp/hs"/0010-ha.sh; _db2_lim=100; _db2_go s -j 2
-  _db2_until 450 _db2_up 0010-ha.sh; _db2_uhv=""; _db2_k=0
+  _db2_new hs "$DB2/g-empty.tsv" + "$DB2/pp/hs"/0010-ha.sh; _db2_go s -j 2
+  _db2_evt _db2_up 0010-ha.sh; _db2_uhv=""; _db2_k=0   # R56: a bound until the run's bound (was 90 s): the unit stays until it is released
+  # a look after that event, 10 s: on D's build the holder is the unit's parent before the unit writes up, so the first listing finds both; a serial build never has them
   while [ "$_db2_k" -lt 50 ] && [ -z "$_db2_uhv" ]; do _db2_uhv="$(_db2_uh)"; [ -n "$_db2_uhv" ] || sleep 0.2; _db2_k=$((_db2_k + 1)); done
   _db2_f1="$(_db2_fdn "${_db2_uhv#* }" 1)"; _db2_f2="$(_db2_fdn "${_db2_uhv#* }" 2)"; _db2_fu="$(_db2_fdn "${_db2_uhv% *}" 1)"
   _db2_ff="$([ -n "$_db2_f1" ] && [ -f "$_db2_f1" ] && echo file || echo not-a-file)"   # while the unit runs: its parent's EXIT trap removes $TMP, and the log with it, once the run has ended
@@ -646,7 +690,7 @@ fi
 
 # a background child a unit leaves running holds no slot lock, and does not keep a pipe that reads the run open (out=$(tests/run -j 2 ...) returns when the run ends)
 _db2_w lc 0010-la.sh <<'X'
-( perl -e 'open(my $h, ">", $ARGV[0]); print $h "$$\n"; close $h; sleep 60' "$DJ2D/lc.pid" "$DJ2I" lc & )   # no job of this shell (R16): it is left behind as D6's Reach says
+( perl -e 'open(my $h, ">", $ARGV[0]); print $h "$$\n"; close $h; sleep 630' "$DJ2D/lc.pid" "$DJ2I" lc & )   # no job of this shell (R16): it is left behind as D6's Reach says
 until [ -s "$DJ2D/lc.pid" ]; do sleep 0.1; done
 ok "djy $DJ2N"
 X
@@ -654,7 +698,9 @@ _db2_w lc 0020-lb.sh <<'X'
 ok "djy $DJ2N"
 X
 _db2_new lc "$DB2/g-empty.tsv" + "$DB2/pp/lc"/*.sh
-_db2_pipe=1; _db2_lim=100; _db2_go l -j 2; _db2_wait0
+_db2_pipe=1; _db2_go l -j 2; _db2_wait0
+# R56, a margin: T = 10 s from the driver's exit to the pipe's EOF. D's build only has the pipe closed by the exit (no fork): floor 10 s. L: a build whose child
+# keeps the pipe holds it open until the child ends, 630 s (B + 30; was 60 s, which a loaded run could outlast, and "child-alive" with it)
 _db2_until 50 test -e "$_db2_c/l.eof"
 _db2_x="$_db2_rc $([ -e "$_db2_c/l.eof" ] && echo closed || echo open) $(_db2_alive "$(cat "$_db2_c/lc.pid" 2>/dev/null)" && echo child-alive || echo child-gone) [$(_db2_held "$_db2_tmp")] $(_db2_cnt "$_db2_c/l.out" reached)"
 _db2_kf "$_db2_c/lc.pid"; _db2_fin
@@ -664,12 +710,13 @@ rm -rf "$DB2/n/lc"
 
 # ---- a record run that is interrupted writes no manifest (D6, what it leaves), and red's tree goes with it
 _db2_sl rrt; _db2_new rrt --red "$DB2/g-empty.tsv" "$DB2/man.tsv" "$DB2/pp/rrt"/*.sh
-_db2_lim=240; _db2_go r -j 2 --record-assertions   # R44: the waits below last until this bound (240 s, plus 5), not 90 + 15 + 60 s
+_db2_go r -j 2 --record-assertions   # R44, R55: the waits below last until the run's bound (600 s, plus 5; was 240 s)
 _db2_miss=""   # R44: each wait lasts until the run's own bound, and an event that never came fails the name (the got text says which) instead of the TERM going on as though it had
 _db2_why=""; _db2_evt _db2_up 0010-sa.sh || _db2_miss="$_db2_miss up.0010-sa.sh"
 _db2_evt _db2_up 0020-sb.sh || _db2_miss="$_db2_miss up.0020-sb.sh"
 _db2_evt _db2_rup 0010-sa.sh || _db2_miss="$_db2_miss rup.0010-sa.sh"
 _db2_until 25 _db2_rup 0020-sb.sh   # optional by R42 (d): only a -j 2 red's suite writes it, a serial one (the base's) never does, so it is not waited for to the bound
+# R56: that 5 s is a pause, not a margin: whether it ran out or not, no name reads it (both-up is the record run's own up.0020-sb.sh, waited for above); it stands
 sleep 0.5; _db2_ino0="$(_db2_inos "$_db2_tmp")"
 if [ -z "$_db2_miss" ]; then _db2_stop r TERM bound; else _db2_stop r KILL bound; _db2_miss=" [no TERM was sent: these never came before ${_db2_why:-the bound of the run passed}:$_db2_miss]"; fi
 _db2_x="$([ -e "$_db2_c/up.0020-sb.sh" ] && echo both-up || echo one-up) $(cmp -s "$DB2/man.tsv" "$_db2_T/assertions.tsv" && echo same || echo changed) $(_db2_cnt "$_db2_c/r.out" reached) $(_db2_pfx "$_db2_c/r.out" '  recorded ') $(_db2_rcpt) $([ -n "$_db2_ino0" ] && [ "$(_db2_inos "$_db2_tmp")" = "$_db2_ino0" ] && echo slots-kept || echo slots-changed)${_db2_miss}${_db2_late}"; _db2_ino0=""; _db2_miss=""

@@ -2225,7 +2225,7 @@ EOF
 
 cmd_review() {
   resolve_or_die
-  local proj="$PROJ" root verdict="" by="" note="" where="" tid
+  local proj="$PROJ" root verdict="" by="" note="" where="" tid why
   root="$(felix_repo_root "$PWD")"
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -2242,6 +2242,7 @@ cmd_review() {
 
   if [ -n "$verdict" ]; then
     [ -n "$by" ] || die "felix review --pass|--block needs --by <who reviewed it>"
+    if [ "$verdict" = "pass" ]; then why="$(felix_review_where "$root" "$where")" || die "$why"; fi
     if ! felix_review_record "$FELIX_HOME_DIR" "$proj" "$tid" "$verdict" "$by" "$note" "$where" "$root"; then
       [ "$verdict" = "pass" ] && [ -n "$where" ] \
         && die "that pass says it ran in the tree under review. A reviewer running against the live tree while it is being edited reports results about neither, so this is refused rather than recorded. Run it in a separate worktree at this commit."
@@ -2259,7 +2260,7 @@ cmd_review() {
     printf 'A reviewed surface is one no test can judge, so nothing here can tell\n'
     printf 'you whether it is fine. Dispatch a reviewer that runs the claim in a\n'
     printf 'separate worktree at this commit, then record what it found:\n\n'
-    printf '  felix review --pass  --by <reviewer> --note <what it ran>\n'
+    printf '  felix review --pass  --by <reviewer> --in <its worktree> --note <what it ran>\n'
     printf '  felix review --block --by <reviewer> --note <what it found>\n'
     return 0
   fi
@@ -4026,7 +4027,7 @@ cmd_evidence() {
     esac
   done
   [ -f "$proj/evidence.tsv" ] || die "project $(basename "$proj") declares no evidence.tsv"
-  local root results gaps
+  local root results gaps unk
   root="$(felix_repo_root "$PWD")"
   # origin/<base> when it exists, and the name as given otherwise. `main` is a
   # local ref a worktree can never advance, so it goes stale silently and the
@@ -4046,7 +4047,7 @@ cmd_evidence() {
   # unanswerable question is not a passing report. A here-string, not a pipe:
   # grep -q quits at the first `unknown`, and pipefail would read the printf it
   # cut off as none, which is that false all-clear again.
-  if LC_ALL=C grep -q '^unknown	' <<<"$results"; then
+  if LC_ALL=C grep -q '^unknown	' <<<"$results" && ! LC_ALL=C grep -q '^unknown	.*not judged' <<<"$results"; then
     printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
       [ "${st:-}" = "unknown" ] || continue
       printf '  [?] %-14s %s\n' "$name" "$reason"
@@ -4069,17 +4070,19 @@ cmd_evidence() {
       met) printf '  [x] %-14s %s\n' "$name" "$reason" ;;
       gap) printf '  [!] %-14s %s\n' "$name" "$reason" ;;
       n/a) printf '  [-] %-14s %s\n' "$name" "$reason" ;;
+      unknown) printf '  [?] %-14s %s\n' "$name" "$reason" ;;
     esac
   done
 
   gaps="$(printf '%s\n' "$results" | grep -c '^gap' || true)"
+  unk="$(printf '%s\n' "$results" | grep -c '^unknown' || true)"
   printf '\n'
-  if [ "$gaps" -eq 0 ]; then
+  if [ "$gaps" -eq 0 ] && [ "$unk" -eq 0 ]; then
     printf 'No evidence gaps.\n'
     return 0
   fi
-  printf '%s gap(s). Each one is a change to behaviour with nothing proving it.\n' "$gaps"
-  printf 'Add the test, or say in the pull request why it is not practical here.\n'
+  [ "$gaps" -eq 0 ] || printf '%s gap(s). Each one is a change to behaviour with nothing proving it.\nfelix merge refuses while a gap stands: add the test the row asks for.\n' "$gaps"
+  [ "$unk" -eq 0 ] || { printf '%s row(s) not judged: nothing above says whether the change meets them.\nfelix merge refuses until each is corrected in evidence.tsv.\n' "$unk"; return 1; }
   [ "$strict" -eq 1 ] || return 0
   printf '\n--strict: failing.\n'
   return 1
@@ -4491,14 +4494,15 @@ cmd_classify() {
       # Green means no risky path was touched. It does not mean the change was
       # proven. Auto-merging on tier alone would ship untested behaviour whenever
       # that behaviour happened to live somewhere unremarkable.
-      local ev_gaps=0
-      if [ -f "$proj/evidence.tsv" ]; then
-        ev_gaps="$(felix_evidence_check "$proj" "$base" "$root" | grep -c '^gap' || true)"
-      fi
-      if [ "$ev_gaps" -eq 0 ]; then
+      local ev_gaps=0 ev_unk=0 ev_res="" ev_why=""
+      [ ! -f "$proj/evidence.tsv" ] || ev_res="$(felix_evidence_check "$proj" "$base" "$root")"
+      ev_gaps="$(printf '%s\n' "$ev_res" | grep -c '^gap' || true)"; ev_unk="$(printf '%s\n' "$ev_res" | grep -c '^unknown' || true)"
+      [ "$ev_gaps" -eq 0 ] || ev_why="$ev_gaps evidence gap(s)"
+      [ "$ev_unk" -eq 0 ] || ev_why="${ev_why:+$ev_why and }$ev_unk evidence row(s) not judged"
+      if [ -z "$ev_why" ]; then
         printf 'Reversible, and nothing is unproven. Eligible for auto-merge once\nevery required check passes.\n'
       else
-        printf 'Reversible, but %s evidence gap(s). Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_gaps"
+        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_why"
       fi
       ;;
     # Tier is advice about how hard to look, and these two lines are what a
@@ -4695,12 +4699,7 @@ cmd_incident() {
 
   if [ -f "$proj/evidence.tsv" ]; then
     printf '\nthe fix will have to prove\n'
-    while IFS=$'\t' read -r name when requires reason; do
-      [ -n "${name:-}" ] || continue
-      _felix_any_match "$paths" "$when" && printf '  %-14s %s\n' "$name" "$reason"
-    done <<EOF
-$(_felix_evidence_rows "$proj")
-EOF
+    felix_brief_evidence "$proj" "$paths" | while IFS=$'\t' read -r name reason; do printf '  %-14s %s\n' "$name" "$reason"; done
   fi
 
   # Policy, stated every time because urgency is exactly when it gets skipped.

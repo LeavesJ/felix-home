@@ -16,27 +16,24 @@
 # once somebody finishes wiring an issue tracker. It is also the only way the
 # half worth testing is testable: the suite stubs no `gh` and never has.
 
-# Which evidence rows a fix touching these paths will have to satisfy.
+# The judge that reads evidence.tsv lives in evidence.sh, and a caller that
+# sources this file alone (the suite's brief, a script) must still have it.
+if ! command -v _felix_evidence_judge >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/evidence.sh"
+fi
+
+# Which evidence rows a fix touching these paths will have to satisfy:
+# `name<TAB>reason` for each row whose `when` reaches PATHS, once. A row the
+# table cannot be read for is `name<TAB>why it was not judged`, whatever PATHS
+# holds, since a rule nobody can read is a rule nobody can say a fix escapes.
 #
 # Deliberately not felix_evidence_check: that compares a diff against the policy
 # and there is no diff yet, because the work has not happened. This answers the
 # forward question instead — what will this have to prove — which is the one
-# worth asking before starting rather than after.
+# worth asking before starting rather than after. It shares that check's reader
+# (_felix_evidence_judge), so the two never disagree on what a row says.
 felix_brief_evidence() {
-  local proj="$1" paths="$2" name when requires reason p
-  [ -f "$proj/evidence.tsv" ] || return 0
-  LC_ALL=C grep -vE '^[[:space:]]*(#|$)' "$proj/evidence.tsv" | while IFS=$'\t' read -r name when requires reason; do
-    [ -n "${when:-}" ] || continue
-    while IFS= read -r p; do
-      [ -n "$p" ] || continue
-      if grep -qE "$when" <<<"$p"; then
-        printf '%s\t%s\n' "$name" "${reason:-$requires}"
-        break
-      fi
-    done <<EOF
-$paths
-EOF
-  done
+  _felix_evidence_judge "$1" "$2" brief
 }
 
 # The play this project already decided this kind of work goes through.

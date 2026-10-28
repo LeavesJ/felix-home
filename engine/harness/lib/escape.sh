@@ -671,8 +671,7 @@ felix_merge_blockers() {
 
   felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
     | while IFS=$'\t' read -r status name reason; do
-        [ "${status:-}" = "gap" ] || continue
-        printf 'evidence\t%s\t%s\n' "$name" "$reason"
+        case "${status:-}:${reason:-}" in gap:*|unknown:*"not judged"*) printf 'evidence\t%s\t%s\n' "$name" "$reason" ;; esac
       done
 
   # probes: the merge boundary is the third place the empty case is refused,

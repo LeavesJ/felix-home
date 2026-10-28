@@ -299,6 +299,10 @@ if command -v python3 >/dev/null 2>&1; then
   while IFS= read -r _lndl || [ -n "$_lndl" ]; do [ "$_lndl" != "$_lndw" ] || _lndo="the line"; done < "$LNDO/context.txt"
   is "A32: and its context holds the line Landing on green is paused: followed by the land detail felix status --tsv prints in that state" \
      "$_lndo [$_lndw]" "the line [$_lndw]"
+  # Combined with b03 (docs/2026-10-24-audit-fixes/combine-followups.md): b03's waits also name a paused lander. Said once.
+  _lndl="$(_lnd_js "$LNDF" systemMessage)"; case "$_lndl" in *"lander paused"*) _lndl=twice ;; *) _lndl=once ;; esac
+  is "A32b: and the pause is said once, with how to end it: no lander paused token, no The lander is paused paragraph, and the line felix land --resume ends the pause." \
+     "$_lndl $(LC_ALL=C grep -c 'The lander is paused' "$LNDO/context.txt") $(LC_ALL=C grep -cx 'felix land --resume ends the pause.' "$LNDO/context.txt")" "once 0 1"
   _lnd_set pl print=113; _lnd_ss startup
   _lndo="$(_lnd_js "$LNDF" systemMessage)"
   case "$_lndo" in *" · landing not-loaded") _lndo="ends with it" ;; esac
@@ -325,6 +329,7 @@ else
   for _lndw in "A30 (control): session start with no job and no ledger exits 0, its line is Felix: lp, and its context says nothing of landing" \
                "A31: session start while the lander is paused adds the landing paused badge to that one line" \
                "A32: and its context holds the line Landing on green is paused: followed by the land detail felix status --tsv prints in that state" \
+               "A32b: and the pause is said once, with how to end it: no lander paused token, no The lander is paused paragraph, and the line felix land --resume ends the pause." \
                "A33: session start with the job not loaded ends its line with the landing not-loaded badge" \
                "A34: session start with the job not ticking ends its line with the landing not-ticking badge" \
                "A35 (control): running, not-installed, a liveness not known and no launchd add no badge to Felix: lp and no landing line to the context" \

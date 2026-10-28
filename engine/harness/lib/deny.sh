@@ -70,9 +70,9 @@ _felix_deny_rows() {
 #             it (R3-1, R3-3). A list of terminals was an instance, and every
 #             miss of it passed in silence.
 #   tool      any other tool: only rows naming it (B7).
-# Given a PAYLOAD, `none` when it holds no key for the tool's field (R3-7). The
-# two spellings Claude Code writes are found by case alone; any other costs the
-# subject's own reading, which is one awk only on a large payload.
+# Given a PAYLOAD, `none` when it holds no key for the tool's field (R3-7, R3V-3).
+# The two spellings Claude Code writes, after a `{` or a comma, are found by case
+# alone; any other costs the subject's reading, one awk only on a large payload.
 _FELIX_DENY_BL=$' \t\r\n'
 felix_deny_class() {
   local tool="$1" f LC_ALL=C
@@ -86,8 +86,9 @@ felix_deny_class() {
   [ "$#" -ge 2 ] || return 0
   _felix_deny_field "$tool" >/dev/null; f="$_FELIX_DENY_FIELD"
   case "$2" in
-    *"\"$f\":"*|*"\"$f\" :"*) ;;
-    *"\"$f\""[$_FELIX_DENY_BL]*) felix_deny_subject "$2" "$tool" >/dev/null; [ "$?" -ne 1 ] || _FELIX_DENY_CLASS=none ;;
+    *[{,]"\"$f\":"*|*[{,]"\"$f\" :"*) ;;
+    *"\"$f\":"*|*"\"$f\""[$_FELIX_DENY_BL]*)
+      felix_deny_subject "$2" "$tool" >/dev/null; [ "$?" -ne 1 ] || _FELIX_DENY_CLASS=none ;;
     *) _FELIX_DENY_CLASS=none ;;
   esac
   return 0
@@ -99,9 +100,8 @@ felix_deny_class() {
 # text to a rule, which would fire on content the person was only writing
 # down. Bash, Monitor and every mcp__ tool are read on `command`; any other
 # tool on a file, never on `command`, and a tool acting on nothing has no
-# subject. Whether a Bash row judges it is felix_deny_class's question.
-#
-# The answer is left in _FELIX_DENY_FIELD as well as printed, so the hook, which
+# subject. Whether a Bash row judges it is felix_deny_class's question. The
+# answer is left in _FELIX_DENY_FIELD as well as printed, so the hook, which
 # runs on every tool call, can read it without a subshell.
 _felix_deny_field() {
   case "$1" in
@@ -113,14 +113,15 @@ _felix_deny_field() {
   printf '%s' "$_FELIX_DENY_FIELD"
 }
 
-# That field's value, out of a PreToolUse payload, without parsing JSON. It is
-# the value of the first key, the name quoted, any blanks, a colon (round 3,
-# R3-7), so a value spelling the name is passed over. Status 1 is no key, and
-# 2 a value that is not a string, which no row reads (R3-4), where the next
-# string after it was read before. Escaped quotes are protected first, so a
-# value holding one cannot run the match past its own end into text the
-# person never typed. The first key wins, not the last: file content naming
-# the field puts a second copy after the real one.
+# That field's value, out of a PreToolUse payload, without parsing JSON: the
+# value of the first key, the name quoted, any blanks, a colon (round 3, R3-7),
+# with a `{` or a comma and any blanks before it (R3V-3), as every key of an
+# object has. So a value spelling the name, or the tail of a key `a\"command`,
+# is passed over. Status 1 is no key, and 2 a value that is not a string, which
+# no row reads (R3-4), where the next string after it was read before. Escaped
+# quotes are protected first, so a value holding one cannot run the match past
+# its own end into text the person never typed. The first key wins, not the
+# last: file content naming the field puts a second copy after the real one.
 #
 # Small and large payloads are read two ways that return the same string:
 # parameter expansion, which runs no program, and one awk, because
@@ -154,7 +155,8 @@ felix_deny_subject() {
   rest="$raw"
   while :; do
     case "$rest" in *"\"$field\""*) ;; *) return 1 ;; esac
-    rest="${rest#*\"$field\"}"; val="${rest#"${rest%%[!$_FELIX_DENY_BL]*}"}"
+    val="${rest%%\"$field\"*}"; val="${val%"${val##*[!$_FELIX_DENY_BL]}"}"; rest="${rest#*\"$field\"}"
+    case "$val" in *[{,]) val="${rest#"${rest%%[!$_FELIX_DENY_BL]*}"}" ;; *) val="" ;; esac
     case "$val" in :*) break ;; esac
     rest="\"$rest"
   done
@@ -165,10 +167,10 @@ felix_deny_subject() {
   printf '%s' "${val//$'\001'/\"}"
 }
 
-# The same reading as the expansion above, for a large payload: the first
-# "field" with blanks and a colon after it, then `u` and nothing more when the
-# value is not a string, or `s` and the value up to the first quote with no
-# backslash before it, each backslash-quote in what it took read as a quote.
+# The same reading as the expansion above, for a large payload: the first key,
+# read as above, then `u` and nothing more when the value is not a string, or
+# `s` and the value up to the first quote with no backslash before it, each
+# backslash-quote in what it took read as a quote.
 #
 # Linear in BWK awk, mawk and gawk. It uses no gsub and no split on a regex,
 # since in BWK awk, which macOS ships, both cost the length times the number
@@ -183,7 +185,7 @@ _FELIX_DENY_SUBJECT_AWK='
   BEGIN { RS = "\001" }
   { s = (NR > 1) ? s RS $0 : $0 }
   END {
-    if (!match(s, "\"" f "\"[ \t\r\n]*:")) exit
+    if (!match(s, "[{,][ \t\r\n]*\"" f "\"[ \t\r\n]*:")) exit
     s = substr(s, RSTART + RLENGTH)
     if (match(s, /^[ \t\r\n]+/)) s = substr(s, RLENGTH + 1)
     if (substr(s, 1, 1) != "\"") { printf "u"; exit }

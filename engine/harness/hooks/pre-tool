@@ -66,9 +66,10 @@ esac
 # which costs a git, and before the rest of the library is loaded. The one key a
 # row can read for this tool (_felix_deny_field) is not in the payload: a Glob,
 # a TodoWrite, an mcp__ tool that opens a page. The key is looked for as a key,
-# its name between quotes, any blanks and a colon after (round 3, R3-7), so a
-# `command` inside a string, which carries its own quotes escaped, is not one,
-# and nor is a value that happens to read "command". felix_deny_class decides,
+# its name between quotes, any blanks and a colon after (round 3, R3-7), and a
+# `{` or a comma before (R3V-3), so a `command` inside a string, which carries
+# its own quotes escaped, is not one, nor the tail of a key `a\"command`, nor a
+# value that happens to read "command". felix_deny_class decides,
 # and the reader below agrees with it. The payload is not parsed; a miss here
 # can only let a call through, the direction every failure of this hook takes.
 felix_deny_class "$tool" "$raw"

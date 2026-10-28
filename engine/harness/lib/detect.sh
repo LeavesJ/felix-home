@@ -376,33 +376,48 @@ felix_repo_slug() {
 # or its scheme when it has no @, then one trailing / and one trailing .git, so the value is still
 # a substring of the URL and the checkout still resolves by it. Not for the other readers of
 # felix_repo_slug (felix pr, bootstrap, setup), which can still pass such a URL whole.
-felix_new_remote_match() {   # ROOT -> the value, or nothing without an origin
-  local u s lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+.-
-  u="$(cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null)"
-  [ -n "$u" ] || return 0
+felix_new_rm_of() {   # URL -> the value felix new writes for it; a value it wrote comes back unchanged
+  local u="$1" s lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+.-
   case "$u" in
-    *github.com/*|*github.com:*) felix_repo_slug "${1:-$PWD}"; return 0 ;;
+    *github.com/*|*github.com:*) printf '%s\n' "$u" | sed -E 's#.*github\.com[:/]##; s#\.git$##'; return 0 ;;
     *@*) u="${u##*@}" ;;
     *://*) s="${u%%://*}"; case "$s" in ''|*[!$lc]*) ;; *) u="${u#*://}" ;; esac ;;
   esac
   u="${u%/}"; printf '%s' "${u%.git}"
 }
+felix_new_remote_match() {   # ROOT -> the value, or nothing without an origin
+  local u
+  u="$(cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null)"
+  [ -n "$u" ] || return 0
+  felix_new_rm_of "$u"
+}
 
 # Does a project already govern the git root felix new would bind? A .felix there naming a project
-# that exists, or with no .felix an origin holding some project's remote_match. felix new does not
-# rebind: `felix new web apps/web` then `felix new api apps/api` used to leave .felix reading api, and
-# web's sessions were judged as api's. Prints the refusal and returns 0 when one does.
+# that exists, or with no .felix an origin naming the same repository as some project's remote_match:
+# the two values compared as felix new writes them (felix_new_rm_of), not by containment, so Widget-api
+# is not Widget (audit b13 review, R1). felix new does not rebind: `felix new web apps/web` then
+# `felix new api apps/api` used to leave .felix reading api, and web's sessions were judged as api's.
+# Prints the refusal and returns 0 when one does.
 felix_new_governed() {   # ROOT HOME
-  local root="$1" home="$2" x
+  local root="$1" home="$2" x ro m meta LC_ALL=C
   if [ -f "$root/.felix" ]; then
     x="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
     _felix_name_ok "$x" && [ -d "$home/projects/$x" ] || return 1
     printf '%s is already governed by %s through %s, and felix new does not rebind a git root a project governs: one git root has one project, whatever directory below it you name. Nothing was made. If the marker is wrong, remove it and run this again.' "$root" "$x" "$root/.felix"
     return 0
   fi
-  x="$(felix_resolve_project "$root" "$home")" || return 1
-  x="${x##*/}"
-  printf '%s is already governed by %s: its origin contains the remote_match in %s/projects/%s/project.json, and felix new does not rebind a checkout a project governs. Nothing was made.' "$root" "$x" "$home" "$x"
+  ro="$(felix_new_remote_match "$root")"
+  [ -n "$ro" ] || return 1
+  for meta in "$home"/projects/*/project.json; do
+    [ -f "$meta" ] || continue
+    m="$(felix_json_str "$meta" remote_match)"
+    [ -n "$m" ] || continue
+    [ "$m" = "$ro" ] || [ "$(felix_new_rm_of "$m")" = "$ro" ] || continue
+    x="${meta%/project.json}"; x="${x##*/}"
+    printf '%s is already governed by %s: its origin names the same repository as the remote_match in %s, and felix new does not rebind a checkout a project governs. Nothing was made. To bind it to %s by hand, write %s into %s/.felix; for a project of its own, change that remote_match first.' "$root" "$x" "$meta" "$x" "$x" "$root"
+    return 0
+  done
+  return 1
 }
 
 # What the marker held that felix new is about to replace, as the one line it prints, or nothing.
@@ -448,9 +463,17 @@ felix_new_notes() {   # ROOT TARGET PROJECT-DIR NAME REPLACED-LINE
 # holding the source first, as the unattended deploy does (green-install.sh, A24), and refuses.
 # When git cannot answer it says so and goes on as before.
 felix_install_untracked() {   # SRC (the engine directory)
-  local repo="${1%/*}" out n first rest="" p k=0
+  local repo="${1%/*}" top why="" out n first rest="" p k=0
+  # git answers for this source only when the source is its work tree's top level, or that tree tracks the
+  # source's engine: a source unpacked inside some other repository is one that repository never saw (audit b13 review, R2).
+  top="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null </dev/null)" || why="is not in a git work tree, or git failed"
+  if [ -z "$why" ] && ! [ "$top" -ef "$repo" ] \
+     && [ -z "$(git -C "$repo" ls-files -- engine/.claude-plugin/plugin.json 2>/dev/null </dev/null)" ]; then
+    why="sits inside the git work tree ${top:-(unnamed)}, which tracks none of its engine/"
+  fi
+  [ -z "$why" ] || { printf '  could not ask git what engine/ holds that it does not track (%s %s), so strays there are not checked\n' "$repo" "$why"; return 0; }
   out="$(git -C "$repo" ls-files --others --directory -- engine/ 2>/dev/null </dev/null)" \
-    || { printf '  could not ask git what engine/ holds that it does not track (%s is not in a git work tree, or git failed), so strays there are not checked\n' "$repo"; return 0; }
+    || { printf '  could not ask git what engine/ holds that it does not track (git failed in %s), so strays there are not checked\n' "$repo"; return 0; }
   [ -n "$out" ] || return 0
   n="$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR }')"
   first="$(printf '%s\n' "$out" | LC_ALL=C sed -n '1p')"

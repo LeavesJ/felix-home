@@ -93,3 +93,54 @@ file:
   a local origin, rewrote `alerts.repo`. What it checks is unchanged.
 - Any other assertion in parts 1710, 1720 or 2120 that pins B8's old comparison (an event compared
   with another kind's or pull request's newest record) is restated for D1 the same way.
+
+## 5. Review round (review of 6c63de0e)
+
+The review found that D1 as written silences a recurring event. It also found three gaps in D2
+and two weakened assertions. The clauses below amend section 2. Their assertions go in part 2140
+after its last, named `W2C R<n>`, plus the restated 1720 cases listed at the end.
+
+- **D4. A job event standing for a day is said again (amends D1).** For an event with no pull
+  request (field 4 is `-`) whose kind is not `paused`, D1's repeat holds only while the matching
+  dispatched record is less than 24 hours old.
+  - Age is the record's time (field 1) against the attempt's own clock.
+  - So a watchdog `timeout` with a fixed detail that recurs a week later is sent.
+  - A `deploy-owed` that stands for days is sent at most once a day.
+  - `paused` keeps D2.
+  - An event with a pull request keeps D1 unchanged. A `waiting` row 25 hours on is still a
+    repeat, as wave-1 C3 and part 2120's C3c pin it.
+  - A record whose time cannot be read counts as old, so the event is sent.
+- **D2a. A resume ends the pause that raised the record (amends D2).**
+  - The pause that raised a `paused` record is the newest `paused` ledger row whose time is at
+    or before the record's time.
+  - A `resumed` ledger row whose time is at or after that row's time ends the pause.
+  - So a resume made while the record's attempt was still running counts.
+  - With no such `paused` row, D2 applies as written.
+- **D2b. A ledger that cannot be read ends the pause.** When `ledger.tsv` exists but cannot be
+  read, a `paused` event is not a repeat. The error is one extra alert, as D2 intends.
+- **D5. Kinds and pull requests are compared as strings.** `031`, `31.0` and `31` are three pull
+  requests, as the comparison before D1 had them.
+
+### Assertions
+
+- **R1 (D4)** A `timeout` job event dispatched, a second `timeout` with the same detail raised at
+  once: no dispatch. Then the first record's time moved 25 hours back in alerts.tsv: the next
+  `timeout` with that detail dispatches.
+- **R2 (D4)** A `deploy-owed` dispatched 23 hours ago (its time set by hand in alerts.tsv) and
+  raised again: no dispatch. The same at 25 hours: one dispatch.
+- **R3 (D4, control)** A `waiting #31` record moved 25 hours back, and the same waiting row
+  again: no dispatch.
+- **R4 (D4)** A job record whose field 1 is not a time: the event dispatches.
+- **R5 (D2a)** `--pause R` whose attempt is held by a slow gh stub, with `--resume` run while it
+  is held (resumed row before the record's time, after the paused row's), then `--pause R`
+  again: two dispatches.
+- **R6 (D2b)** `--pause R` dispatched, `--resume`, ledger.tsv made unreadable (mode 200),
+  `--pause R`: two dispatches.
+- **R7 (D5)** Records for pull request `31`, then an event for `031` with the same kind and
+  detail: one dispatch.
+- **1720 A31, restated again.** Its trampoline runs with a home path no earlier case used, so
+  its deploy-owed detail is new. A31 asserts the trampoline appended exactly one record, failed,
+  kind `deploy-owed`, with a note starting `origin:`, after the `--pause`'s own record.
+- **1720 A27, restated again.** Each scenario's paused rows are pinned field by field. Pull
+  request, sha and worktree are `-`, only the wall field is open, and the details are the
+  `--pause`'s `; by session -` row and the tick's row.

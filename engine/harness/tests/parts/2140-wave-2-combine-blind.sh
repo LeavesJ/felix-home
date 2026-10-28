@@ -7,7 +7,9 @@ printf '\nwave 2 combined: an event is compared with its own last record, and a 
 # fixtures are built. Fixture controls are their own assertions, named so; a case that holds before the fix too
 # says in its name that D1 or D2 leaves it unchanged, or that it is a control. The same day, after the fix
 # 6c63de0e, the file's section 5 (the review round: D4, D2a, D2b, D5) added R1-R7, written blind from that section
-# alone and named W2C R<n>, after the last case above.
+# alone and named W2C R<n>, after the last case above. After the fix 995a8526, its section 6 (the second review round:
+# D2a withdrawn, D2b bounded to an hour, D4 keyed, a future record old, paused exempt from D4) restated R5 and R6 in
+# place, each saying so in its name, and added R8-R12 after R7, written blind from that section alone.
 #
 # Fixture G is 2120's: the shared land fixture (_lg_build amend), its home on main at origin's main with main's
 # entry cached, in the GitHub state (the home's origin reads https://github.com/fixture/lgh.git and insteadOf sends
@@ -295,8 +297,10 @@ is "W2C R4 (D4): a job record whose field 1 is not a time counts as old, so the 
    "1|1|dispatched deploy-owed -; // not-a-time|1|same|1|dispatched deploy-owed -;dispatched deploy-owed -;|same-detail"
 _lg_land --uninstall
 
-# R5. The --pause's dispatch held; a second apart, its paused row, the --resume's resumed row and its record; a
-# second later the --pause again, so neither pause's row shares the record's second.
+# R5, restated for section 6 (D2a withdrawn, D2 as section 2 writes it). The --pause's dispatch held; a second apart,
+# its paused row, the --resume's resumed row and its record, so the resume is in a second strictly before the
+# record's; a second later the --pause again. Its variant, the tie, adds a resumed row written by hand in the
+# record's own second (read from its field 1) before the --pause again.
 /bin/mv "$LGB/gh" "$W2CF/gh.w2c"
 sed "s#@W2C@#$W2CF#g" > "$LGB/gh" <<'W2CHOLD'
 #!/bin/bash
@@ -307,20 +311,36 @@ fi
 exec "$L/gh.w2c" "$@"
 W2CHOLD
 chmod +x "$LGB/gh"
-_w2c_reset; rm -f "$W2CF/held"; : > "$W2CF/hold"; _w2c_bg --pause "W2C held resume"; _w2c_till test -f "$W2CF/held"
-sleep 1; _lg_land --resume; W2CR5="$W2CHD|$LGRC"; sleep 1; _w2c_end
-W2CTP="$(_lg_f paused - 1)"; W2CTR="$(_lg_f resumed "" 1)"; W2CTA="$(_w2c_f 1 1)"
-W2CR5="$W2CR5|$(if [ -n "$W2CTP" ] && [ "$W2CTP" \< "$W2CTR" ] && [ "$W2CTR" \< "$W2CTA" ]; then echo ordered; else printf '[%s|%s|%s]' "$W2CTP" "$W2CTR" "$W2CTA"; fi)"
-sleep 1; _lg_land --pause "W2C held resume"
-is "W2C R5 (D2a): --pause R whose dispatch a slow gh holds, --resume run while it is held (its resumed row after the paused row's time and before the record's), then --pause R again: the resume ended the pause that raised the record, so two workflow runs and two records, both dispatched, paused, field 8 R" \
-   "$W2CR5|$(_w2c_nk '^workflow run')|$(_w2c_srt)" "held|0|ordered|2|dispatched paused - W2C held resume;dispatched paused - W2C held resume;"
+_w2c_hr() {   # REASON -> --pause REASON, its dispatch held, --resume a second in, the hold released a second later; W2CHR
+  local p r a
+  _w2c_reset; rm -f "$W2CF/held"; : > "$W2CF/hold"; _w2c_bg --pause "$1"; _w2c_till test -f "$W2CF/held"
+  sleep 1; _lg_land --resume; W2CHR="$W2CHD|$LGRC"; sleep 1; _w2c_end
+  p="$(_lg_f paused - 1)"; r="$(_lg_f resumed "" 1)"; a="$(_w2c_f 1 1)"
+  W2CHR="$W2CHR|$(if [ -n "$p" ] && [ "$p" \< "$r" ] && [ "$r" \< "$a" ]; then echo ordered; else printf '[%s|%s|%s]' "$p" "$r" "$a"; fi)|$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+}
+_w2c_hr "W2C held resume"; sleep 1; _w2c_clear; _lg_land --pause "W2C held resume"
+is "W2C R5 (D2; restated for section 6): --pause R whose dispatch a slow gh holds, --resume run while it is held (its resumed row after the paused row's time and in a second strictly before the record's), then --pause R again: the record said paused R after the resume, so the phone's last word is true and the second pause is a repeat: one workflow run, the first's, and for the second, which writes its paused row, no api, issue or workflow call, still one record, dispatched, paused, field 8 R" \
+   "$W2CHR // $LGRC|$(_lg_n paused)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_srt)" \
+   "held|0|ordered|1|dispatched paused -; // 0|2|0|dispatched paused - W2C held resume;"
+_w2c_hr "W2C held tie"; W2CTA="$(_w2c_f 1 1)"
+[ -z "$W2CTA" ] || _w2c_row "$W2CTA" resumed - - - 0 "the pause read: W2C held tie; by session s-w2c"
+sleep 1; _w2c_clear; _lg_land --pause "W2C held tie"
+is "W2C R5, the tie (D2; restated for section 6): the same, and a resumed row written by hand in the very second of the record's time: a resume in the record's second ends the pause (the error is one extra alert, never a silent pause), so the second --pause R is sent: one workflow run, a second record, both dispatched, paused, field 8 R" \
+   "$W2CHR|$([ -n "$W2CTA" ] && echo timed || echo untimed) // $LGRC|$(_w2c_nk '^workflow run')|$(_w2c_srt)" \
+   "held|0|ordered|1|dispatched paused -;|timed // 0|1|dispatched paused - W2C held tie;dispatched paused - W2C held tie;"
 /bin/mv "$W2CF/gh.w2c" "$LGB/gh"
 
-# R6. A pause dispatched and resumed, then the ledger made write-only before the same pause again.
+# R6, restated for section 6 (D2b bounded to an hour). A pause dispatched and resumed, then the ledger made
+# write-only before the same pause again; then, the ledger still write-only, the record moved 61 minutes back and
+# the same pause once more. The pause stands throughout, so each --pause writes its row (b02 B22).
 _w2c_reset; _lg_land --pause "W2C unreadable"; _lg_land --resume; [ ! -f "$LAND/ledger.tsv" ] || chmod 200 "$LAND/ledger.tsv"
-W2CR6="$([ -r "$LAND/ledger.tsv" ] && echo readable || echo unreadable)"; _lg_land --pause "W2C unreadable"; [ ! -f "$LAND/ledger.tsv" ] || chmod u+r "$LAND/ledger.tsv"
-is "W2C R6 (D2b): --pause R dispatched, --resume, ledger.tsv made unreadable (mode 200), --pause R: a ledger that cannot be read ends the pause, so the second is said too: two workflow runs and two records, both dispatched, paused, field 8 R" \
-   "$W2CR6|$(_w2c_nk '^workflow run')|$(_w2c_srt)" "unreadable|2|dispatched paused - W2C unreadable;dispatched paused - W2C unreadable;"
+W2CR6="$([ -r "$LAND/ledger.tsv" ] && echo readable || echo unreadable)"; _w2c_clear; _lg_land --pause "W2C unreadable"
+W2CR6="$W2CR6|$LGRC|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_recs)"
+_w2c_set 1 1 "$(_w2c_t 3660)"; W2CR6="$W2CR6 // $([ -r "$LAND/ledger.tsv" ] && echo readable || echo unreadable)"; _w2c_clear; _lg_land --pause "W2C unreadable"
+[ ! -f "$LAND/ledger.tsv" ] || chmod u+r "$LAND/ledger.tsv"
+is "W2C R6 (D2b; restated for section 6): --pause R dispatched, --resume, ledger.tsv made unreadable (mode 200), --pause R: a ledger that cannot be read leaves a paused event a repeat while its dispatched record is under an hour old, so no api, issue or workflow call and still one record; with the record then moved 61 minutes back, --pause R is sent once: one workflow run, a second record, both dispatched, paused, field 8 R" \
+   "$W2CR6|$LGRC|$(_w2c_nk '^workflow run')|$(_w2c_srt)" \
+   "unreadable|0|0|dispatched paused -; // unreadable|0|1|dispatched paused - W2C unreadable;dispatched paused - W2C unreadable;"
 
 # R7. gh lists a pull request's number as JSON, which has no 031, so no event for 031 can be raised here; the
 # records carry the other spellings instead (031, then a copy 31.0, of 31's dispatched record), and the event is
@@ -330,6 +350,59 @@ _w2c_set 1 4 031; _w2c_set 1 4 31.0 add; _w2c_back waiting 90000; _w2c_clear; _l
 is "W2C R7 (D5): with 31's dispatched waiting record written for pull request 031, and a copy for 31.0, the same waiting row for 31 has no record of its own pull request, compared as strings, so it is sent: a second waiting row with the same detail, one workflow run, a third record, dispatched, waiting, 31, field 8 the first's" \
    "$(_lg_n waiting 31)|$(_w2c_eq "$(_lg_f waiting 31 7)" "$W2CD7" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 3 8)" "$(_w2c_f 1 8)" same-detail)" \
    "2|same|1|dispatched waiting 031;dispatched waiting 31.0;dispatched waiting 31;|same-detail"
+
+# ------------------------------------------ second review round, section 6 ---
+# Added on 2026-10-28, blind, from wave-2-combine.md section 6 (R8-R12) alone, with the cases above as they were.
+# Job events are the trampoline's deploy-owed, as in R2 and R4. A same-wait key is a detail up to its first '; '.
+# The trampoline's hourly row for one wait is that key followed by '; still so since <T0>' (b02 B13, B15).
+
+# R8. A pause dispatched, its record moved 25 hours back, no resume; the ledger aged past the hour, then a tick.
+_w2c_reset; _lg_land --pause "W2C a day paused"; W2CR8="$(_w2c_nk '^workflow run')"; W2CT8="$(_w2c_t 90000)"
+_w2c_set 1 1 "$W2CT8"; _w2c_age; _w2c_clear; _lg_land --tick
+is "W2C R8 (paused exempt from D4): a dispatched paused record moved 25 hours back, no resumed row, the ledger aged past the hour, a tick: the tick's hourly paused row R is still a repeat, a paused record of any age with no resume after it: no api, issue or workflow call, still one record" \
+   "$W2CR8|$(_w2c_eq "$(_w2c_f 1 1)" "$W2CT8" moved)|$(_lg_n resumed)|$(_lg_n paused)|$(_lg_f paused - 7)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_recs)" \
+   "1|moved|0|2|W2C a day paused|0|dispatched paused -;"
+
+# R9. A pause dispatched, ledger.tsv removed, the same pause; then the record moved 61 minutes back, ledger.tsv
+# removed again, and the same pause once more (a missing ledger is not unreadable, so D2b's hour does not apply).
+_w2c_reset; _lg_land --pause "W2C no ledger"; W2CR9="$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+rm -f "$LAND/ledger.tsv"; _w2c_clear; _lg_land --pause "W2C no ledger"
+W2CR9="$W2CR9 // $([ -e "$LAND/ledger.tsv" ] && echo ledger || echo no-ledger)|$LGRC|$(_lg_n paused)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)"
+_w2c_set 1 1 "$(_w2c_t 3660)"; rm -f "$LAND/ledger.tsv"; _w2c_clear; _lg_land --pause "W2C no ledger"
+is "W2C R9 (no ledger): --pause R dispatched, ledger.tsv removed, --pause R: no resume ends the pause and D1 alone decides, so it is a repeat: its paused row written, no api, issue or workflow call, still one record; with the record moved 61 minutes back and ledger.tsv removed again, --pause R is a repeat still" \
+   "$W2CR9 // $LGRC|$(_lg_n paused)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_recs)" \
+   "1|dispatched paused -; // ledger|0|1|0|1 // 0|1|0|dispatched paused -;"
+
+# R10. The trampoline's deploy-owed X dispatched; its row moved past the hour, so the next run writes the hourly row
+# 'X; still so since <T0>'; then the record set 25 hours back and the rows moved past the hour again.
+_w2c_reset; _lg_land --install; _w2c_tramp; W2CE10="$(_lg_f deploy-owed "" 7)"; W2CK10="${W2CE10%%; *}"
+W2CR10="$LARC|$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+_w2c_back deploy-owed 3700; _w2c_clear; _w2c_tramp
+W2CR10="$W2CR10 // $LARC|$(_lg_n deploy-owed)|$(_w2c_starts "$(_lg_f deploy-owed "" 7)" "$W2CK10; still so since " still-so)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)"
+_w2c_set 1 1 "$(_w2c_t 90000)"; _w2c_back deploy-owed 3700; _w2c_clear; _w2c_tramp
+is "W2C R10 (D4 keyed): the trampoline's deploy-owed X dispatched, then the same kind with detail X; still so since T0 (its hourly row): the same key, so a repeat: exit 1, no api, issue or workflow call, still one record; with the record set 25 hours back, the next hourly row is sent once: one workflow run, a second record, dispatched, deploy-owed, -, field 8 that row's detail" \
+   "$W2CR10 // $LARC|$(_lg_n deploy-owed)|$(_w2c_starts "$(_lg_f deploy-owed "" 7)" "$W2CK10; still so since " still-so)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_lg_f deploy-owed "" 7)" newest-row)" \
+   "1|1|dispatched deploy-owed -; // 1|2|still-so|0|1 // 1|3|still-so|1|dispatched deploy-owed -;dispatched deploy-owed -;|newest-row"
+
+# R11. The trampoline's deploy-owed A dispatched; a second later a dispatched deploy-owed record of another key, B,
+# written by hand as b05 B7 shapes it (A's issue, run and note); then the ledger put back and A raised again.
+_w2c_reset; _lg_land --install; _w2c_lkeep; _w2c_tramp; W2CEA="$(_lg_f deploy-owed "" 7)"
+sleep 1; _w2c_rec dispatched deploy-owed - "$(_w2c_f 1 5)" "$(_w2c_f 1 6)" "$(_w2c_f 1 7)" "W2C another wait"
+W2CR11="$LARC|$(_w2c_recs)|$(if [ -n "$W2CEA" ] && [ "${W2CEA%%; *}" != "W2C another wait" ] && [ "$(_w2c_f 1 1)" \< "$(_w2c_f 2 1)" ]; then echo keyed-apart; else printf '[%s|%s|%s]' "$W2CEA" "$(_w2c_f 1 1)" "$(_w2c_f 2 1)"; fi)"
+_w2c_lback; _w2c_clear; _w2c_tramp
+is "W2C R11 (D4 keyed): deploy-owed A dispatched, then the same kind with another key B dispatched after it, then A again: B's record does not count, and A's own is dispatched and under a day old, so a repeat: exit 1, its row, no api, issue or workflow call, still two records" \
+   "$W2CR11 // $LARC|$(_lg_n deploy-owed)|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CEA" same)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)" \
+   "1|dispatched deploy-owed -;dispatched deploy-owed -;|keyed-apart // 1|1|same|0|2"
+
+# R12. The trampoline's deploy-owed dispatched, its record's time then set an hour after the clock, the ledger put back.
+_w2c_reset; _lg_land --install; _w2c_lkeep; _w2c_tramp; W2CDO12="$(_lg_f deploy-owed "" 7)"
+_w2c_set 1 1 "$(_w2c_t -3600)"
+W2CR12="$LARC|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(if [ "$(_w2c_f 1 1)" \> "$(_w2c_t 0)" ]; then echo future; else printf '[%s]' "$(_w2c_f 1 1)"; fi)"
+_w2c_lback; _w2c_clear; _w2c_tramp
+is "W2C R12 (D4, a record from the future): a job record whose field 1 is an hour after the clock counts as old, so the trampoline's deploy-owed raised again with its detail is sent: exit 1, one workflow run, a second record, dispatched, deploy-owed, -, field 8 the first's" \
+   "$W2CR12 // $LARC|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CDO12" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_w2c_f 1 8)" same-detail)" \
+   "1|1|dispatched deploy-owed -;|future // 1|same|1|dispatched deploy-owed -;dispatched deploy-owed -;|same-detail"
+_lg_land --uninstall
 
 # --------------------------------------------------------------- G undone ---
 _w2c_off; /bin/mv "$W2CF/gh.prev" "$LGB/gh"; _lg_reset; _lg_land --uninstall; _lg_reset; rm -rf "$W2CF"

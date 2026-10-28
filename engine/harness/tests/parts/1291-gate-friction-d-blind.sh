@@ -1,5 +1,5 @@
 # >>> gate-friction-d-blind
-printf '\ngate friction D: the parallel runner, part mode, groups and slots (blind, revision 8)\n'
+printf '\ngate friction D: the parallel runner, part mode, groups and slots (blind, revision 17)\n'
 # Blind, written from contract D (docs/2026-10-18-gate-friction-contract-d.md, revision 8) alone. Nothing here was read off an implementation;
 # tests/run, tests/red and tests/receipt.sh are run, never read, in copies of this suite that _suite_copy_tree (part 0003) makes under $TMP, each
 # with planted parts of this block's own. Every case points TMPDIR at a fixture directory, so none touches the machine's slots; every inner run is
@@ -9,10 +9,18 @@ printf '\ngate friction D: the parallel runner, part mode, groups and slots (bli
 # the runner (signals, slots, holders), D8 the fixtures, R9, R10 and R17 the amendments. The runner's own failures are part 1293's.
 # Readings taken where the contract leaves room: a refusal is told by its exit status (2), one stderr line and no $TMP made (a mktemp on PATH that
 # writes down its calls); a FELIX_TEST_JOBS that is set and empty is not a valid N; a member the driver does not source, in groups.tsv, is not asked.
+# Revision 17 (R55 to R57), from the contract alone: every run bound is 600 s (_db1_lim, 150 s before); a wait for an event of a run lasts until the run's bound
+# has passed (_db1_evt); the slot holds, the sleeping children and the grandchildren live B + 30 s (630 s; were 60 s and 30 s, which a leftover check could outlast);
+# the watches for a unit while a slot is held start once a holder waits, not 2 s after the prelude's mark; the kill -9 slot window is 20 s (was 2 s, below R56's floor);
+# the cap control's units hold their spans until four have begun, so its overlap no longer rests on 3 s spans meeting under load; the ordering case's sleeper holds
+# its slot until the run's bound (was 60 s). Each window, its kind and its L are in a comment beside it.
+# Readings (revision 17): a holder is a live perl whose command line holds " --part " and this case's copy (R45); a watch, a sleep and then a look for what only a
+# build without the clause makes, cannot fail D's build and is read as R56's floor, so it stands, counted from the event after which that build could first show itself.
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others mean something.
 DB1="$TMP/db1"
 mkdir -p "$DB1/pp/std" "$DB1/pp/ref" "$DB1/n" "$DB1/shim"
-_db1_E=(); _db1_INT=DEFAULT; _db1_QUIT=DEFAULT; _db1_td=""; _db1_ctl=0; _db1_pf=(); _db1_cl=ok; _db1_leak=""; _db1_prog=run; _db1_lim=150
+_db1_E=(); _db1_INT=DEFAULT; _db1_QUIT=DEFAULT; _db1_td=""; _db1_ctl=0; _db1_pf=(); _db1_cl=ok; _db1_leak=""; _db1_prog=run; _db1_lim=600; _db1_dl=0
+# _db1_lim is every run's bound B (R55: 600 s, a run bound is not a margin); _db1_clean's 150 polls of 0.2 s are R12's 30 s drain, which R56 keeps
 cat > "$DB1/run.pl" <<'DB1PL'
 my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
 my $p = fork; defined $p or exit 125;
@@ -41,10 +49,15 @@ _db1_clean() {
 }
 _db1_slots() { perl -e 'use Fcntl ":flock"; for my $f (glob "$ARGV[0]/felix-suite-slots/*") { open(my $h, "<", $f) or next; print "$f " unless flock($h, LOCK_EX | LOCK_NB); close $h }' "$1"; }
 _db1_si() { ls -i "${_db1_td:-$_db1_tmp}/felix-suite-slots" 2>/dev/null | LC_ALL=C sort | tr '\n' ' '; }   # the slot files' inode numbers and names
-_db1_hold() {   # SLOTFILE SECONDS: this process holds the lock on the file for that long; _db1_hp is its pid
+# SLOTFILE SECONDS: this process holds the lock on the file for that long, or until the slot's directory is gone; _db1_hp is its pid. R56: its life is a bound,
+# B + 30 s from the callers (R44's H; was 60 s, which a loaded run could outlast and then start a unit "while held"); the wait for its "held" lasts until the
+# run bound, ended early if the perl has gone (was 20 s)
+_db1_hok() { [ -s "$_db1_c/hold.out" ] || ! kill -0 "$_db1_hp" 2>/dev/null; }
+_db1_hold() {
   mkdir -p "${1%/*}"
-  perl -e 'use Fcntl ":flock"; open(my $h, ">>", $ARGV[0]) or exit 4; flock($h, LOCK_EX | LOCK_NB) or exit 3; $| = 1; print "held\n"; sleep $ARGV[1]' "$1" "$2" > "$_db1_c/hold.out" 2>&1 &
-  _db1_hp=$!; _db1_until 100 test -s "$_db1_c/hold.out"
+  perl -e 'use Fcntl ":flock"; open(my $h, ">>", $ARGV[0]) or exit 4; flock($h, LOCK_EX | LOCK_NB) or exit 3; $| = 1; print "held\n"; my $e = time + $ARGV[1]; sleep 1 while time < $e && -d $ARGV[2]' \
+    "$1" "$2" "${1%/*}" > "$_db1_c/hold.out" 2>&1 &
+  _db1_hp=$!; _db1_until $((_db1_lim * 5)) _db1_hok
 }
 _db1_unhold() { kill -KILL "$_db1_hp" 2>/dev/null; { wait "$_db1_hp"; } 2>/dev/null; return 0; }
 # CASE [--red] GROUPS MANIFEST STUB...: the copy at $DB1/n/CASE (_db1_F, _db1_T, _db1_c, _db1_tmp); 1 when it could not be made
@@ -61,11 +74,14 @@ _db1_start() {
   local l="$1"; shift
   ( cd "$_db1_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT \
-      TMPDIR="${_db1_td:-$_db1_tmp}" FELIX_TEST_SLOTS=8 DJX_DIR="$_db1_c" DJX_PL="$DB1" DJX_ID="${TMP##*/}-${_db1_c##*/}" ${_db1_E[@]+"${_db1_E[@]}"} \
+      TMPDIR="${_db1_td:-$_db1_tmp}" FELIX_TEST_SLOTS=8 DJX_LIFE=$((_db1_lim + 30)) DJX_DIR="$_db1_c" DJX_PL="$DB1" DJX_ID="${TMP##*/}-${_db1_c##*/}" ${_db1_E[@]+"${_db1_E[@]}"} \
       perl "$DB1/run.pl" "$_db1_lim" "$_db1_INT" "$_db1_QUIT" "$_db1_c/$l.pid" "$BASH" "$_db1_T/$_db1_prog" "$@" \
   ) > "$_db1_c/$l.out" 2> "$_db1_c/$l.err" &
   _db1_bg=$!; _db1_pf[${#_db1_pf[@]}]="$_db1_c/$l.pid"
+  _db1_dl=$((SECONDS + _db1_lim + 5))   # R44: the run's own bound (run.pl's KILL at _db1_lim) and 5 s more; a wait for an event of the run lasts until then
 }
+# R44, R56: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's own bound has passed; 0 when it held
+_db1_evt() { while ! "$@"; do kill -0 "$_db1_bg" 2>/dev/null || break; [ "$SECONDS" -lt "$_db1_dl" ] || break; sleep 0.2; done; "$@"; }
 _db1_wait() { { wait "$_db1_bg"; } 2>/dev/null; _db1_rc=$?; _db1_E=(); _db1_INT=DEFAULT; _db1_QUIT=DEFAULT; }
 _db1_sweep() { _db1_cl="$(_db1_clean)"; [ "$_db1_cl" = ok ] || _db1_leak="$_db1_leak [$_db1_c: $_db1_cl]"; }   # R12: ends what this case's runs left; _db1_leak keeps the names
 _db1_run()  { _db1_start "$@"; _db1_wait; _db1_sweep; }   # _db1_cl: R12's verdict on this run
@@ -355,8 +371,10 @@ cat > "$DB1/sig.pl" <<'DB1SIG'
 print "djx-sig:", join(",", map { $_ . "=" . ((defined $SIG{$_} && length $SIG{$_}) ? $SIG{$_} : "DEFAULT") } qw(INT QUIT TERM HUP)), "\n";
 DB1SIG
 cat > "$DB1/gc.pl" <<'DB1GC'
-# gc.pl PIDFILE GCFILE ID MODE: ignores TERM; with MODE 1, forks a sleeping grandchild every 50 ms once its parent is gone
+# gc.pl PIDFILE GCFILE ID MODE: ignores TERM; with MODE 1, forks a sleeping grandchild every 50 ms once its parent is gone. A grandchild sleeps
+# $DJX_LIFE (B + 30 s; R56: a leftover must outlive every look for it, and 30 s did not outlive R12's 30 s look after a loaded run's exit)
 my ($pf, $gf, $id, $mode) = @ARGV;
+my $life = $ENV{DJX_LIFE} || 630;
 $SIG{TERM} = 'IGNORE';
 open(my $h, ">", $pf) or exit 3; print $h "$$\n"; close $h;
 my $pp = getppid; my $n = 0;
@@ -364,7 +382,7 @@ while (1) {
   select(undef, undef, undef, 0.05);
   next unless $mode && getppid != $pp && $n < 60;
   $n++; my $k = fork;
-  if (defined $k && !$k) { open(my $g, ">>", $gf); print $g "$$\n"; close $g; exec "perl", "-e", "sleep 30", $id, "gc"; exit 1 }
+  if (defined $k && !$k) { open(my $g, ">>", $gf); print $g "$$\n"; close $g; exec "perl", "-e", "sleep $life", $id, "gc"; exit 1 }
 }
 DB1GC
 _db1_mk sig <<'X'
@@ -387,6 +405,8 @@ rm -rf "$DB1/n/sig"
 _db1_key()    { printf '%s' "${_db1_c#/private}/f/engine/harness/tests/run"; }
 _db1_up()     { ls "$_db1_c"/up.* >/dev/null 2>&1; }
 _db1_pe()     { ls "$_db1_c"/prelude-end.* >/dev/null 2>&1; }
+# R45: a holder of the current case is up: a live perl whose command line holds " --part " and this case's copy
+_db1_hup()    { [ -n "$(ps -A -ww -o stat= -o command= 2>/dev/null | K="${_db1_c#/private}/f/" LC_ALL=C awk '$1 !~ /^Z/ && $2 ~ /perl/ && index($0, ENVIRON["K"]) && index($0, " --part ") { print "up"; exit }')" ]; }
 _db1_plantpe() { local f; for f in "$_db1_T"/parts/0006-*.sh; do printf '\n: > "%s/prelude-end.$$"\n' "$_db1_c" >> "$f"; done; }
 _db1_noproc() { [ -z "$(_db1_ps "$(_db1_key)")" ]; }
 _db1_unitps() { ps -A -o pid= -o command= 2>/dev/null | K="$(_db1_key)" LC_ALL=C awk 'index($0, ENVIRON["K"]) && index($0, " --part ") && $2 !~ /perl/ { printf "%s ", $1 }'; }
@@ -404,7 +424,7 @@ _db1_intr() {   # CASE SIGNAL STATUS: a -j 3 run of pp/CASE, SIGNAL to the drive
   local c="$1" s="$2" w="$3" r="" p g si
   _db1_new "$c-$s" "$DB1/g-empty.tsv" "$DB1/pman.tsv" "$DB1/pp/$c"/*.sh || { printf 'the copy could not be made'; return 0; }
   _db1_start i -j 3
-  _db1_until 150 _db1_up || r=" no unit came up;"
+  _db1_evt _db1_up || r=" no unit came up;"   # R56: a bound that lasts until the run's bound (was 30 s)
   sleep 0.5; si="$(_db1_si)"
   p="$(cat "$_db1_c/i.pid" 2>/dev/null)"; [ -z "$p" ] || kill -"$s" "$p" 2>/dev/null
   _db1_wait
@@ -414,7 +434,7 @@ _db1_intr() {   # CASE SIGNAL STATUS: a -j 3 run of pp/CASE, SIGNAL to the drive
 }
 _db1_mk slp <<'X'
 printf '\ndjx-sec 0020-pb.sh\n'
-perl -e 'open(my $h, ">", $ARGV[0]); print $h "$$\n"; close $h; sleep 30' "$DJX_DIR/sl.pid" "$DJX_ID" &
+perl -e 'open(my $h, ">", $ARGV[0]); print $h "$$\n"; close $h; sleep $ARGV[2]' "$DJX_DIR/sl.pid" "$DJX_ID" "${DJX_LIFE:-630}" &
 while [ ! -s "$DJX_DIR/sl.pid" ]; do sleep 0.1; done
 : > "$DJX_DIR/up.$$"
 wait
@@ -446,25 +466,31 @@ rm -rf "$DB1/n/slp-TERM" "$DB1/n/slp-INT" "$DB1/n/slp-HUP" "$DB1/n/ign-TERM" "$D
 # ---- an interrupt while a holder waits, and the slots (D6): an outside process holds the lock of slot 0
 rm -rf "$DB1/td-w"; mkdir -p "$DB1/td-w"; _db1_td="$DB1/td-w"
 _db1_new hw "$DB1/g-empty.tsv" "$DB1/pman.tsv" "$DB1/pp/slp"/*.sh; _db1_plantpe
-_db1_hold "$_db1_td/felix-suite-slots/0" 60; _db1_si0="$(_db1_si)"
+_db1_hold "$_db1_td/felix-suite-slots/0" "$((_db1_lim + 30))"; _db1_si0="$(_db1_si)"
 _db1_E=(FELIX_TEST_SLOTS=1); _db1_start hw -j 2
-_db1_until 150 _db1_pe; sleep 2
-_db1_x="$(_db1_unitps)"; _db1_up && _db1_x="$_db1_x marker"
-kill -TERM "$(cat "$_db1_c/hw.pid" 2>/dev/null)" 2>/dev/null; _db1_wait; _db1_unhold; sleep 3; _db1_sweep
+# R56: the watch for a unit while the slot is held (2 s, a floor) starts once a holder waits; it started 2 s after the prelude's mark, when under load no holder
+# might be up yet, so a build whose holder starts its unit without the slot's lock could pass. The waits before it are bounds that last until the run's bound (was 30 s)
+_db1_evt _db1_pe; _db1_nh=""; _db1_evt _db1_hup || _db1_nh=" no holder waited for the slot"; sleep 2
+_db1_x="$(_db1_unitps)$_db1_nh"; _db1_up && _db1_x="$_db1_x marker"
+kill -TERM "$(cat "$_db1_c/hw.pid" 2>/dev/null)" 2>/dev/null; _db1_wait; _db1_unhold; sleep 3; _db1_sweep   # 3 s: a watch for a holder left behind that takes the freed slot (a floor)
 is "D6: with FELIX_TEST_SLOTS=1 and the slot's lock held elsewhere, TERM to the parent starts no unit, neither before it nor after the parent has exited, which is 143, and the slot file is the one that was locked" \
    "$_db1_rc|${_db1_x}|$(_db1_up && echo started)|$(_db1_unitps)|$(_db1_noproc && echo none || echo left)|$([ -n "$_db1_si0" ] && [ "$(_db1_si)" = "$_db1_si0" ] && echo same-inode || echo "[$_db1_si0] now [$(_db1_si)]") $_db1_cl" "143||||none|same-inode ok"
 rm -rf "$DB1/n/hw" "$DB1/td-w"
 rm -rf "$DB1/td-k"; mkdir -p "$DB1/td-k"; _db1_td="$DB1/td-k"
 _db1_new hk "$DB1/g-empty.tsv" "$DB1/pman.tsv" "$DB1/pp/slp"/*.sh; _db1_plantpe
-_db1_hold "$_db1_td/felix-suite-slots/0" 60; _db1_si0="$(_db1_si)"
+_db1_hold "$_db1_td/felix-suite-slots/0" "$((_db1_lim + 30))"; _db1_si0="$(_db1_si)"
 _db1_E=(FELIX_TEST_SLOTS=1); _db1_start hk -j 2
-_db1_until 150 _db1_pe; sleep 2
-_db1_x="$(_db1_unitps)"
+_db1_evt _db1_pe; _db1_nh=""; _db1_evt _db1_hup || _db1_nh=" no holder waited for the slot"; sleep 2   # as in hw: bounds, then a 2 s watch from the holder
+_db1_x="$(_db1_unitps)$_db1_nh"
+# R56, a margin: T = 20 s from the kill -9 to the start of the first listing that shows a unit. Inside it D's holder takes the slot at its next try (each second)
+# and forks the unit, and the case takes ps listings, so the floor is 20 s. L: a slot a dead holder's mark keeps for 30 s (a lock that the kernel does not free
+# at the holder's death), whose unit comes 30 s or more after the kill: T = L - 10 s. A holder that retries only every 30 s tries again some 27 s after the kill,
+# since the kill comes 2 s and more into its wait, so it fails T too. The poll ends at the unit, so T costs nothing on D's build. Was 2 s, below the floor
 _db1_unhold; _db1_t0="$(_db1_ms)"; _db1_y=""
-while :; do _db1_t1="$(_db1_ms)"; _db1_y="$(_db1_unitps)"; [ -z "$_db1_y" ] || break; [ $((_db1_t1 - _db1_t0)) -lt 10000 ] || break; sleep 0.05; done
+while :; do _db1_t1="$(_db1_ms)"; _db1_y="$(_db1_unitps)"; [ -z "$_db1_y" ] || break; [ $((_db1_t1 - _db1_t0)) -lt 20000 ] || break; sleep 0.05; done
 kill -TERM "$(cat "$_db1_c/hk.pid" 2>/dev/null)" 2>/dev/null; _db1_wait; _db1_g="$(_db1_gone hk 143)"
-is "D6: a slot whose holder was killed with kill -9 is free at once: no run --part process while it was held, one within two seconds of the kill, timed in milliseconds, on the same slot file, and nothing left behind" \
-   "${_db1_x:+running while held}|$([ -n "$_db1_y" ] && [ $((_db1_t1 - _db1_t0)) -lt 2000 ] && echo within-2s || echo "after $((_db1_t1 - _db1_t0)) ms") $([ -n "$_db1_si0" ] && [ "$(_db1_si)" = "$_db1_si0" ] && echo same-inode || echo "[$_db1_si0] now [$(_db1_si)]") $_db1_g" "|within-2s same-inode ok"
+is "D6: a slot whose holder was killed with kill -9 is free at once: no run --part process while it was held, one within 20 s of the kill, timed in milliseconds, on the same slot file, and nothing left behind" \
+   "${_db1_x:+running while held [$_db1_x]}|$([ -n "$_db1_y" ] && [ $((_db1_t1 - _db1_t0)) -lt 20000 ] && echo within-20s || echo "after $((_db1_t1 - _db1_t0)) ms") $([ -n "$_db1_si0" ] && [ "$(_db1_si)" = "$_db1_si0" ] && echo same-inode || echo "[$_db1_si0] now [$(_db1_si)]") $_db1_g" "|within-20s same-inode ok"
 rm -rf "$DB1/n/hk" "$DB1/td-k"
 mkdir -p "$DB1/pp/note"
 for _db1_a in a:0010 b:0020; do _db1_n="${_db1_a#*:}-n${_db1_a%:*}.sh"
@@ -482,9 +508,18 @@ is "D3: and a note is not an assertion: the summary counts as many passes as the
 rm -rf "$DB1/n/nt" "$DB1/td-n"; _db1_td=""
 
 # ---- the slots cap the machine (D6): two -j 4 runs at once, units of 3 s each write their start and end
+# span.pl SPANFILE: a unit's span, 3 s. With DJX_SPANW=W (the control) it writes a line to SPANFILE.begun first and holds its span until four lines are
+# there, or W s, and 1 s more. R56: the control asked 3 s spans of two loaded runs to meet four at a time, which the preludes' spread under load can
+# deny on D's build; its spans now meet by construction wherever four units run at once, and the wait is a bound, the run's bound
 cat > "$DB1/span.pl" <<'DB1SP'
 use Time::HiRes qw(time sleep);
-my $s = time; sleep 3; my $e = time;
+my $s = time; my $w = $ENV{DJX_SPANW} || 0;
+if ($w) {
+  if (open(my $b, ">>", "$ARGV[0].begun")) { print $b "$$\n"; close $b }
+  while (time < $s + $w) { my $n = 0; if (open(my $b, "<", "$ARGV[0].begun")) { $n++ while <$b>; close $b } last if $n >= 4; sleep 0.1 }
+  sleep 1;
+} else { sleep 3 }
+my $e = time;
 open(my $h, ">>", $ARGV[0]) or exit 1; printf $h "%.3f %.3f\n", $s, $e; close $h;
 DB1SP
 mkdir -p "$DB1/pp/span"
@@ -497,12 +532,12 @@ _db1_uc() {   # how many units (bash run --part, not the subshells a unit forks,
     (index($0, ENVIRON["A"]) || index($0, ENVIRON["B"])) && index($0, " --part ") && $3 !~ /perl/ { u[$1] = 1; pp[$1] = $2 }
     END { for (p in u) if (!(pp[p] in u)) n++; print n + 0 }'
 }
-_db1_cap() {   # TMPDIR SLOTS SPANFILE: both runs share TMPDIR; _db1_ovr is "most units at once by their spans, units, most unit processes seen at once"
-  local td="$1" k="$2" f="$3" ba bb pk=0 n
-  rm -rf "$td"; rm -f "$f"; mkdir -p "$td"; _db1_td="$td"
+_db1_cap() {   # TMPDIR SLOTS SPANFILE [W]: both runs share TMPDIR; _db1_ovr is "most units at once by their spans, units, most unit processes seen at once"; W is DJX_SPANW
+  local td="$1" k="$2" f="$3" w="${4:-}" ba bb pk=0 n
+  rm -rf "$td"; rm -f "$f" "$f.begun"; mkdir -p "$td"; _db1_td="$td"
   _db1_new capA "$DB1/g-empty.tsv" - "$DB1/pp/span"/*.sh; _db1_new capB "$DB1/g-empty.tsv" - "$DB1/pp/span"/*.sh
-  _db1_sel capA; _db1_pf=(); _db1_E=(FELIX_TEST_SLOTS="$k" DJX_SPAN="$f"); _db1_start a -j 4; ba="$_db1_bg"
-  _db1_sel capB; _db1_E=(FELIX_TEST_SLOTS="$k" DJX_SPAN="$f"); _db1_start b -j 4; bb="$_db1_bg"
+  _db1_sel capA; _db1_pf=(); _db1_E=(FELIX_TEST_SLOTS="$k" DJX_SPAN="$f" ${w:+DJX_SPANW=$w}); _db1_start a -j 4; ba="$_db1_bg"
+  _db1_sel capB; _db1_E=(FELIX_TEST_SLOTS="$k" DJX_SPAN="$f" ${w:+DJX_SPANW=$w}); _db1_start b -j 4; bb="$_db1_bg"
   while kill -0 "$ba" 2>/dev/null || kill -0 "$bb" 2>/dev/null; do n="$(_db1_uc)"; [ "$n" -le "$pk" ] || pk="$n"; sleep 0.2; done
   _db1_bg="$ba"; _db1_wait; _db1_bg="$bb"; _db1_wait; _db1_sweep
   _db1_ovr="$(_db1_ov "$f") $pk"; _db1_td=""; rm -rf "$DB1/n/capA" "$DB1/n/capB" "$td"
@@ -510,8 +545,9 @@ _db1_cap() {   # TMPDIR SLOTS SPANFILE: both runs share TMPDIR; _db1_ovr is "mos
 _db1_cap "$DB1/td-c3" 3 "$DB1/span3"
 is "D6: with FELIX_TEST_SLOTS=3, two -j 4 runs of eight 3 s units never have more than three at once by their spans, and reach three at once by their processes" \
    "$([ "${_db1_ovr%% *}" -le 3 ] 2>/dev/null && echo le3 || echo "$_db1_ovr") ${_db1_ovr#* } $_db1_cl" "le3 8 3 ok"
-_db1_cap "$DB1/td-c8" 8 "$DB1/span8"
-is "D6: and with FELIX_TEST_SLOTS=8 the same two runs do overlap more than three units (control for the count above)" "$([ "${_db1_ovr%% *}" -gt 3 ] 2>/dev/null && echo more || echo "$_db1_ovr")" more
+_db1_cap "$DB1/td-c8" 8 "$DB1/span8" "$_db1_lim"
+is "D6: and with FELIX_TEST_SLOTS=8 two runs of the same eight units, each holding its span until four have begun, do overlap more than three units by their spans (control for the count above)" \
+   "$([ "${_db1_ovr%% *}" -gt 3 ] 2>/dev/null && echo more || echo "$_db1_ovr")" more
 
 # ---- slots that cannot be taken (D6): the parent refuses with exit 2 and one line, and starts no unit
 _db1_srv() {   # sets _db1_v: ok when the -j 2 run in the current copy was refused, exit 2, one stderr line, and no unit came up
@@ -541,7 +577,9 @@ chmod 644 "$DB1/td-m/felix-suite-slots/0"; rm -rf "$DB1/n/nm" "$DB1/td-m"; _db1_
 mkdir -p "$DB1/pp/ord"
 for _db1_a in 0010-oa.sh 0020-ob.sh 0030-oc.sh 0040-od.sh 0050-oe.sh 0060-of.sh 0070-og.sh; do
   printf 'printf "\\ndjx-sec %s\\n"\nprintf "%%s\\n" %s >> "$DJX_DIR/starts"\n' "$_db1_a" "$_db1_a" > "$DB1/pp/ord/$_db1_a"
-  printf '%s\n' 'if [ "${DJX_SLEEPER:-}" = '"$_db1_a"' ]; then _djx_i=0; while [ "$(wc -l < "$DJX_DIR/starts")" -lt 7 ] && [ "$_djx_i" -lt 300 ]; do sleep 0.2; _djx_i=$((_djx_i + 1)); done; unset _djx_i; fi' \
+  # R56: the sleeper's hold is a bound, the run's bound (3000 polls of 0.2 s; was 300, 60 s): six units one after another can take longer than 60 s on a loaded
+  # machine, and once the sleeper let its slot go two units could start at once, in either order
+  printf '%s\n' 'if [ "${DJX_SLEEPER:-}" = '"$_db1_a"' ]; then _djx_i=0; while [ "$(wc -l < "$DJX_DIR/starts")" -lt 7 ] && [ "$_djx_i" -lt 3000 ]; do sleep 0.2; _djx_i=$((_djx_i + 1)); done; unset _djx_i; fi' \
     "ok \"djx ord $_db1_a\"" >> "$DB1/pp/ord/$_db1_a"; done
 _db1_new ord "$DB1/g-empty.tsv" - "$DB1/pp/ord"/*.sh
 _db1_w="$DB1/hostile.witness"; rm -f "$_db1_w"

@@ -419,6 +419,16 @@ true before and after the fix. The full record is commit fb109d5c; the review ro
 - **B4's "filled"** is built as: no line that is not a comment holds `{{FELIX_REF}}`. The renderer
   explains the placeholder in a comment, so the literal reading made A13 impossible.
 - **B12** also covers a default branch name outside `A-Za-z0-9._/-`: it goes into a request path.
+- **Review round (B21-B24), as built.** All reads of GitHub now happen before the header prints,
+  because the default branch and the workflow on it decide the `ci project:` line. Rw and Yw are
+  read by one awk pass over the lines that are not comments, with quotes and a trailing ` #`
+  comment dropped; an empty Rw, or no `ref:` after it, is B22's unknown. Rw is compared with F
+  lower-cased. B22's and B23's holds show on a `[ ]` row with `held back` (never `[?]`); under a `[x]`
+  row they print `D requires the gate, but whether CI can pass it is not known: ...`, which has no
+  `cannot pass`. A committed, filled workflow that names no checkout is ready when the pin resolves
+  the project or Dt holds it (B24); a pin that exists but lacks the project while Dt holds it reads
+  `behind` in the `ci project:` line, as an empty pin reads `not on its default branch` or `behind`.
+  B4's remedy now also says to set `repository:` when it is not F.
 
 ## 10. Review round (2026-10-26)
 

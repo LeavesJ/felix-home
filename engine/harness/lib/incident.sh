@@ -65,7 +65,7 @@ felix_incident_paths() {
         # in CI, /Users/... on a laptop. Strip leading components until the
         # remainder names a file that exists here.
         #
-        # Longest match wins, so src/web/app.py is preferred over a bare app.py
+        # Longest match wins, so src/server/main.py is preferred over a bare main.py
         # that happens to exist somewhere unrelated.
         local probe="${cand#/}"
         while [ -n "$probe" ]; do

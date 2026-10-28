@@ -121,7 +121,7 @@ _setupproj_build() {
   ( cd "$_fs_n" && PATH="$_fs_path" "$FELIX" new setupproj --no-commission ) >/dev/null 2>&1; _fs_nrc=$?
 }
 
-# _cmwebapp_build: cmwebapp, a web app with a file named hooks.json, which 0700
+# _cmwebapp_build: cmwebapp, a web application with a file named hooks.json, which 0700
 # creates with felix new and asks about its obligations. Sets CMW and _cmw (felix
 # new's output; set only when this call builds).
 _cmwebapp_build() {

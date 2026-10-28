@@ -619,31 +619,40 @@ fi
 # at exactly its path, fails an entry there that is not a regular file or whose
 # name differs only by case from one the cloud reads, and settings.json and the
 # toolbox are read from their blobs. With no pairs, a size or NUL fault is still
-# said (B08R3Y-4); the guard counts count commands, not lines (B08R3Y-5).
-_cloud_fault() {   # file: 1 when over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1)
-  if [ "$(($(wc -c < "$1")))" -gt 65536 ]; then echo 1; elif ! LC_ALL=C tr -d '\000' < "$1" | cmp -s - "$1"; then echo 2; fi
+# said (B08R3Y-4). What git holds is what a checkout writes only when no
+# attribute rewrites it, so working-tree-encoding, filter or ident on a file
+# under .claude, read from the index or this machine's own attributes, is a
+# fault (B08R3Z-1). The guard counts are the parser's: one per hook object's
+# command value, however it is laid out (B08R3Y-5, B08R3Z-2). The Mac also
+# folds some letters above ASCII (U+017F onto s), so a name whose bytes above
+# 0x7f, each run read as any one letter, match one the cloud reads fails; tr
+# maps those bytes first, so BWK awk and gawk read one name (B08R3Z-3).
+# stack.tsv comes from the index as the toolbox does (B08R3Z-4), no blob is
+# written to a file (B08R3Z-5), and a settings.json git holds only at stages 1
+# to 3, a conflict, is said as that (B08R3Z-6).
+_cloud_fault() {   # command...: 1 when its output is over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1); read twice, kept nowhere
+  if [ "$(($("$@" 2>/dev/null | wc -c)))" -gt 65536 ]; then echo 1; elif [ "$(($("$@" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)))" -gt 0 ]; then echo 2; fi
 }
-_cloud_check() {   # file: .claude/settings.json as git's index holds it (B08R3Y-1); hooks.json is read from disk
-  local s="$1" x out z="" y
-  set --
-  for x in engine/hooks/hooks.json "$s"; do
-    [ -f "$x" ] && [ -r "$x" ] || { case "$(_cloud_fault "$s")" in 1) y=" (larger than 65536 bytes)" ;; 2) y=" (a NUL byte)" ;; esac
-      echo " unreadable: no event-to-hook pairs read from one of the two files${y:+; unreadable: .claude/settings.json$y;}"; return 0; }   # B08R3Y-4
-    y="$(_cloud_fault "$x")"; z="$z${y:-0}"
-    if [ -n "$y" ]; then set -- "$@" /dev/null; else set -- "$@" "$x"; fi
-  done
-  out="$(LC_ALL=C awk -v Z="$z" '
+_cloud_check() {   # .claude/settings.json as git's index holds it (B08R3Y-1), piped into awk, never a file (B08R3Z-5); hooks.json from disk
+  local h=engine/hooks/hooks.json y z=9 a=/dev/null b=/dev/null out
+  y="$(_cloud_fault git cat-file blob :.claude/settings.json)"; [ -n "$y" ] || b=-
+  [ ! -f "$h" ] || [ ! -r "$h" ] || z="$(_cloud_fault cat "$h")"; [ -n "$z" ] || a="$h"   # z 9: no hooks.json, so no pairs
+  out="$( { [ "$b" != - ] || git cat-file blob :.claude/settings.json 2>/dev/null; } | LC_ALL=C awk -v Z="${z:-0}${y:-0}" '
     BEGIN {
       FN[1] = "engine/hooks/hooks.json"; FN[2] = ".claude/settings.json"; ESC = 3; NJ = 4; REP = 5; TL = 6; SCH = 7
       split("larger than 65536 bytes|a NUL byte|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema", WHY, "|")
-      for (i = 1; i <= 2; i++) W[i] = substr(Z, i, 1) + 0   # Z: _cloud_fault of each file, 0 for none
+      for (i = 1; i <= 2; i++) W[i] = substr(Z, i, 1) + 0   # Z: _cloud_fault of each file, 0 for none, 9 for no hooks.json
+      MS = (W[1] == 9); NP = " unreadable: no event-to-hook pairs read from one of the two files"
+      GD = "[ \\\"$CLAUDE_CODE_REMOTE\\\" = true ] || exit 0; "   # B08R3Z-2: how a guarded command value begins, as written
       for (i = 1; i < 32; i++) CT = CT sprintf("%c", i)
       split("type command shell async timeout statusMessage", HK0, " "); for (i in HK0) HK[HK0[i]] = 1
       NUM = "^-?(0|[123456789][0123456789]*)([.][0123456789]+)?([eE][-+]?[0123456789]+)?$"
     }
     function ft(v) { if (!W[f] || v < W[f]) W[f] = v }   # a fault of rank v; the lowest rank names the file
     function fin() { if (f && (d != 0 || !done || cc[f] != nb[f])) bad[f] = 1; if (f && ex != "E") ft(NJ) }
+    function ho() { return d == 6 && N[2] == "hooks" && N[5] == "hooks" && K[1] K[2] K[3] K[4] K[5] K[6] == "{{[{[{" }   # in a hook object
     function op(k,   q) {
+      if (f == 2 && KY[d] == "command" && ho()) nc++   # B08R3Z-2: a command value that is no string is unguarded
       if (d == 0 && (k != "{" || done)) bad[f] = 1
       q = (d > 0 && K[d] == "{") ? KY[d] : ""
       d++; K[d] = k; N[d] = q; KY[d] = ""; O[d] = ++no; ex = (k == "{") ? "K" : "V"
@@ -679,13 +688,14 @@ _cloud_check() {   # file: .claude/settings.json as git's index holds it (B08R3Y
       ex = d ? "e" : "E"
       if (d == 0) { bad[f] = 1; return }
       if (K[d] == "[") return
+      if (f == 2 && KY[d] == "command" && ho()) { nc++; if (!lit && index(s, GD) == 1) ng++ }   # B08R3Z-2
       if (!lit && d == 4 && KY[d] == "matcher") m = s
       else if (lit && d == 6 && KY[d] == "async") a = s
       else if (lit && d == 6 && KY[d] == "timeout") t = s
       else if (!lit && KY[d] == "command" && (p = index(s, "harness/hooks/"))) {
         cc[f]++; r = substr(s, p + 14)
         if (!match(r, /^[a-z-]+/) || index(r, "harness/hooks/")) bad[f] = 1
-        else if (d == 6 && N[2] == "hooks" && N[5] == "hooks" && K[1] K[2] K[3] K[4] K[5] K[6] == "{{[{[{") h = substr(r, 1, RLENGTH)
+        else if (ho()) h = substr(r, 1, RLENGTH)
       }
     }
     FILENAME != cur { fin(); cur = FILENAME; f = (FILENAME == FN[1]) ? 1 : 2; seen[f] = 1; d = 0; done = 0; ex = "v" }
@@ -725,9 +735,6 @@ _cloud_check() {   # file: .claude/settings.json as git's index holds it (B08R3Y
       for (i = 1; i <= n; i++) { R[i] = E[i] "\t" M[i] "\t" H[i] "\t" A[i] "\t" T[i]; c[F[i]]++ }
       # B08R3-4, B08R3V-6: one clause per file, its first fault by rank; any of them prints these alone.
       for (i = 1; i <= 2; i++) { q = W[i] ? " (" WHY[W[i]] ")" : ""; if (q != "") r3 = 1; if (q != "" || bad[i]) u = u " unreadable: " FN[i] q ";" }
-      if (r3) { print u; exit }
-      if (!c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
-      if (u != "") { print u; exit }
       for (i = 1; i <= n; i++) if (F[i] == 2) { full[R[i]] = 1; k = E[i] "/" H[i]; if (!(k in first)) first[k] = i }
       for (i = 1; i <= n; i++) if (F[i] == 1 && !(R[i] in full)) {
         k = E[i] "/" H[i]
@@ -739,39 +746,59 @@ _cloud_check() {   # file: .claude/settings.json as git's index holds it (B08R3Y
         o = o " bound differently for the cloud: " k " (" df ");"
       }
       if (miss != "") o = " not bound for the cloud: " miss ";" o
+      # The comparison stands only when no file has a fault; then the guard count, where the greps put it (B08R3Z-2).
+      if (MS) o = NP (W[2] == 1 || W[2] == 2 ? "; unreadable: " FN[2] " (" WHY[W[2]] ");" : "")   # B08R3Y-4
+      else if (r3) o = u
+      else if (!c[1] || !c[2]) o = NP
+      else if (u != "") o = u
+      if (nc != ng) o = o " " (nc - ng) " command(s) without the CLAUDE_CODE_REMOTE guard;"
       print o
-    }' "$@" 2>/dev/null)" \
+    }' "$a" "$b" 2>/dev/null)" \
     || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
   printf '%s' "$out"
 }
-CLOUD_BAD=" unreadable: .claude (not a directory in the repository, so its settings files cannot be judged);"; CLOUD_IX=D
+CLOUD_BAD=" unreadable: .claude (not a directory in the repository, so its settings files cannot be judged);"; CLOUD_IX=D; CLOUD_AT=""
 if [ ! -L .claude ] && { [ ! -e .claude ] || [ -d .claude ]; }; then   # B08R3X-1 on disk first; then the index, in one pass
-  CLOUD_IX="$(LC_ALL=C git --no-pager ls-files -s -z 2>/dev/null | LC_ALL=C tr '\n\000' '\001\n' | LC_ALL=C awk '
+  # The pass reads the index twice: its bytes above 0x7f mapped to \002 a run, for the fold test, then as git wrote it.
+  { CLOUD_LS="$(LC_ALL=C git --no-pager ls-files -s -z 2>/dev/null | LC_ALL=C tr '\n\000' '\001\n')" && CLOUD_IX="$( {
+      printf '%s\n' "$CLOUD_LS" | LC_ALL=C tr -s '\200-\377' '\002'; printf '\003\n%s\n' "$CLOUD_LS"; } | LC_ALL=C awk '
+    function fm(c, t,   i, x, h) {   # 0 when c is not t; 1 when it is, ASCII case folded; 2 when it is through a \002, any one letter
+      if (length(c) != length(t)) return 0
+      for (i = 1; i <= length(t); i++) { x = substr(c, i, 1); if (x == "\002") h = 1; else if (tolower(x) != substr(t, i, 1)) return 0 }
+      return 1 + h
+    }
+    $0 == "\003" { r0 = NR; next }
+    !r0 { n = split(substr($0, index($0, "\t") + 1), C, "/"); k = fm(C[1], ".claude"); y = z = 0   # B08R3Z-3, component by component
+      if (k && n > 1) y = fm(C[2], "settings.json") + fm(C[2], "settings.local.json") + (z = fm(C[2], "cloud"))
+      if (z && n > 2) z = fm(C[3], "toolbox.json") + fm(C[3], "provision")
+      FR[NR] = (k == 2 || y == 2 || z == 2); next }
     { i = index($0, "\t"); split(substr($0, 1, i - 1), m, " "); p = substr($0, i + 1); l = tolower(p); r = (m[1] == "100644" || m[1] == "100755") }
     { if (p == ".claude") d = 1; else if (r && p == ".claude/settings.json") s = 1 }
     p == ".claude/settings.local.json" { x = " unreadable: " p " (a local settings file in the repository, which Claude Code reads beside settings.json);" }
     !r && substr(p, 1, 8) == ".claude/" { b = b " unreadable: " p " (not a regular file in the repository, so the cloud would not get its content);" }
     index(l "/", ".claude/") == 1 && (substr(p, 1, 8) != substr(l, 1, 8) || p != l && l ~ "^[.]claude/(settings([.]local)?|cloud/toolbox)[.]json$") {
       b = b " unreadable: " p " (its name differs only by case from one the cloud reads, and the cloud\047s file system does not fold case);" }
-    END { print (d ? "D" : (s ? "S" : "-") x b) }')" \
+    FR[NR - r0] { b = b " unreadable: " p " (a non-ASCII name the Mac\047s file system may fold onto one the cloud reads);" }
+    END { print (d ? "D" : (s ? "S" : "-") x b) }')"; } \
     || CLOUD_IX="- unreadable: .claude/settings.local.json (git could not say whether it is in the repository);"
-  [ "$CLOUD_IX" = D ] || CLOUD_BAD="${CLOUD_IX#?}"
+  if [ "$CLOUD_IX" != D ]; then   # B08R3Z-1: each regular file under .claude once, its attributes as the index gives them
+    CLOUD_AT="$(printf '%s\n' "$CLOUD_LS" | LC_ALL=C awk '{ i = index($0, "\t"); p = substr($0, i + 1); m = substr($0, 1, 7) }
+        (m == "100644 " || m == "100755 ") && substr(p, 1, 8) == ".claude/" && p != q { print (q = p) }' | LC_ALL=C tr '\n\001' '\000\n' \
+      | LC_ALL=C git --no-pager check-attr --cached -z --stdin working-tree-encoding filter ident 2>/dev/null | LC_ALL=C tr '\n\000' '\001\n' \
+      | LC_ALL=C awk 'NR % 3 == 1 { p = $0 } NR % 3 == 2 { a = $0 }   # path, attribute, value; unspecified or unset is no fault
+        NR % 3 == 0 && $0 != "unspecified" && $0 != "unset" { printf " unreadable: %s (git attribute %s changes it at checkout);", p, a }')" \
+      || CLOUD_AT=" unreadable: .claude (git could not say which attributes change its files at checkout);"
+    CLOUD_BAD="${CLOUD_IX#?}$CLOUD_AT"
+  fi
 fi
 if [ "$CLOUD_IX" != "${CLOUD_IX#S}" ]; then
-  if CLOUD_F="$(mktemp "$GTLOG_DIR/felix-gate-cloud.XXXXXX" 2>/dev/null)" && git cat-file blob :.claude/settings.json > "$CLOUD_F" 2>/dev/null; then
-    CLOUD_BAD="$CLOUD_BAD$(_cloud_check "$CLOUD_F")"
-    if [ -z "$(_cloud_fault "$CLOUD_F" 2>/dev/null)" ]; then   # B08R3X-3; each command counts once, wherever it sits (B08R3Y-5)
-      N_CMD="$(($(LC_ALL=C grep -aoF '"command":' "$CLOUD_F" | wc -l)))"
-      N_GUARD="$(($(LC_ALL=C grep -aoF '"command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' "$CLOUD_F" | wc -l)))"
-      [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
-    fi
-  else CLOUD_BAD="$CLOUD_BAD unreadable: .claude/settings.json (not read from git's index into a file under $GTLOG_DIR);"; fi
-  [ -z "$CLOUD_F" ] || rm -f "$CLOUD_F"
+  if git cat-file -e :.claude/settings.json 2>/dev/null; then CLOUD_BAD="$CLOUD_BAD$(_cloud_check)"
+  else CLOUD_BAD="$CLOUD_BAD unreadable: .claude/settings.json (git's index holds no stage-0 copy of it);"; fi   # B08R3Z-6
   # Names read with sed, not jq: the gate runs on bash and git alone
   # (constitution invariant 2), and a reformatted file reads as no names, so
-  # every stack row fails rather than passing.
+  # every stack row fails rather than passing. Both sides from the index (B08R3Z-4).
   TOOLBOX="$(git cat-file blob :.claude/cloud/toolbox.json 2>/dev/null | sed -n 's/^      "name": "\([^"]*\)",$/\1/p')"
-  for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
+  for n in $(git cat-file blob :projects/felix/stack.tsv 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' \
              | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
     printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
   done

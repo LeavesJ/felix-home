@@ -43,6 +43,34 @@ printf '\nthe cloud check fails closed on escapes and repeated keys (audit b08 r
 #   under BWK awk and gawk alike (gawk 5.3 reads a backslash-u in a constant).
 #   The u-escapes the cases name are built from _b83U, a backslash then a u, so
 #   this file holds none as text.
+#
+# The follow-up round (section 8 of the contract, B08R3W-1 to B08R3W-3, A112 to
+# A123) was written blind on 2026-10-28 from the same file, after A111. Its names
+# start "B08R3W A<n>"; A123 carries R3W-3 beside R3-5, as R3W-3 says the check
+# still calls no jq, python3 or node. Readings:
+# - A NUL is written by printf '\000' between the bytes before and after its
+#   point, which awk splits from a copy that holds no NUL; od then counts the
+#   file's NUL bytes and reads the byte at the NUL's offset. No line check
+#   (grep -cxF) reads a file after its NUL is in.
+# - A112: the tree's PostToolUse hook has no statusMessage, so the case gives it
+#   `"statusMessage": "Recording the tool",` after its command line (another
+#   string, which B26 reads ok) and puts the NUL inside that value.
+# - "No other clause for it" (A112) and "the size clause only" (A116): the
+#   detail names `unreadable: .claude/settings.json` once.
+# - A115's escape is a backslash-slash in the pre-tool command (engine, then
+#   harness), and its NUL is after `exit 0;` in the same command, so before it.
+# - A116 pads settings to 65,536 bytes, and the NUL makes it 65,537.
+# - A117 puts hooks.json's NUL inside its PreToolUse matcher, where a reader that
+#   kept it would see the two matchers differ, and settings' in the Stop
+#   statusMessage.
+# - "The detail begins with" (A118 to A120): the detail, its leading blanks
+#   dropped, begins with the clause.
+# - The local settings file goes into the index with git add -f, as a global git
+#   ignore may name it; A119 commits the case's other changes first and runs the
+#   gate with the file staged. git ls-files and git ls-tree HEAD show where it is.
+# - A122's "detail byte for byte as on 4d68d57f": 4d68d57f's gate over the tree's
+#   two files, run in a scratch FC on 2026-10-28, prints `  cloud              ok`
+#   and an empty line under it.
 
 _b83="$TMP/b08r3"; mkdir -p "$_b83/stub/bin" "$_b83/l" "$_b83/home" "$_b83/tmp"
 _b83_bounded() {   # <seconds> <cmd>...: cmd in a process group of its own, the group killed at the limit (status 124)
@@ -137,8 +165,8 @@ _b83_has() {   # hooks|settings line: FC's copy holds the line exactly once (gre
   if [ -z "$2" ] || [ "${n:-0}" != 1 ]; then _b83Fx="$_b83Fx $1 holds ${n:-0} lines [$2], not 1;"; fi
 }
 _b83_start() { cp "$_b83H" "$_b83CH"; cp "$_b83S" "$_b83CS"; _b83Fx="$_b83MkFx"; }
-_b83_go() {   # name: FC committed, its gate run; the cloud verdict, the detail, the last line, the FAIL-line count
-  _b83_git "$_b83C" commit -qam "$1" >/dev/null 2>&1
+_b83_go() { _b83_git "$_b83C" commit -qam "$1" >/dev/null 2>&1; _b83_run "$1"; }   # name: FC committed, then _b83_run
+_b83_run() {   # name: FC's gate run as FC stands; the cloud verdict, the detail, the last line, the FAIL-line count
   ( cd "${_b83C:?}" && _b83_bounded 60 env PATH="$_b83PATH" HOME="$_b83/home" FELIX_KERNEL_CACHE="$_b83/nocache" \
       TMPDIR="$_b83/tmp" bash projects/felix/gate.sh --quick ) > "$_b83/$1.out" 2>&1
   _b83Rc=$?
@@ -241,6 +269,95 @@ _b83_cnt() {
   [ "${n:-0}" = "$3" ] || _b83Fx="$_b83Fx $1 holds ${n:-0} lines [$2], not $3;"
 }
 
+# The follow-up round's clauses (section 8's terms), its lines, and its helpers.
+_b83NS="unreadable: $_b83PS (a NUL byte);"; _b83NH="unreadable: $_b83PH (a NUL byte);"; _b83NT='(a NUL byte)'
+_b83PX='.claude/settings.local.json'
+_b83LC="unreadable: $_b83PX (a local settings file in the repository, which Claude Code reads beside settings.json);"
+_b83ESC="$(printf '%s/' '\')"   # a backslash, then a slash
+_b83_l pts '            "statusMessage": "Recording the tool",'
+_b83_l esl '            "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; exec bash \"$CLAUDE_PROJECT_DIR/engine\/harness/hooks/pre-tool\"",'
+_b83_l lo0 '{}'
+_b83_l lo1 '{"disableAllHooks": true}'
+_b83Xm=""
+# hooks|settings after: one NUL byte put into FC's copy just after the first text <after> in it, or
+# at its end when <after> is empty; its offset (0 first) in _b83NulAt. awk splits the bytes before
+# and after the point from a copy that holds no NUL, and printf writes the NUL between them.
+_b83_nul() {
+  local f
+  f="$(_b83_file "$1")"; _b83NulAt=""
+  if [ -z "$2" ]; then cp "$f" "$_b83/nul.a"; : > "$_b83/nul.b"
+  elif ! B83_W="$2" B83_A="$_b83/nul.a" B83_B="$_b83/nul.b" LC_ALL=C awk '
+      BEGIN { w = ENVIRON["B83_W"]; a = ENVIRON["B83_A"]; b = ENVIRON["B83_B"]; printf "" > a; printf "" > b }
+      done { print > b; next }
+      (i = index($0, w)) > 0 { printf "%s", substr($0, 1, i + length(w) - 1) > a; print substr($0, i + length(w)) > b; done = 1; next }
+      { print > a }
+      END { if (!done) exit 3 }' "$f"; then
+    _b83Fx="$_b83Fx no [$2] in $1 to put the NUL after;"; return 0
+  fi
+  _b83NulAt="$(LC_ALL=C wc -c < "$_b83/nul.a" | LC_ALL=C tr -d ' ')"
+  { cat "$_b83/nul.a"; printf '\000'; cat "$_b83/nul.b"; } > "$f"
+}
+# hooks|settings n: od shows n NUL bytes in FC's copy and a NUL at byte _b83NulAt, else a fixture fault.
+_b83_od() {
+  local f c a
+  f="$(_b83_file "$1")"
+  c="$(LC_ALL=C od -An -v -tx1 "$f" 2>/dev/null | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) if ($i == "00") n++ } END { print n + 0 }')"
+  a="$(LC_ALL=C od -An -v -tx1 -j "${_b83NulAt:-0}" -N 1 "$f" 2>/dev/null | LC_ALL=C tr -d ' \n')"
+  [ "$c" = "$2" ] && [ "$a" = 00 ] || _b83Fx="$_b83Fx od shows ${c:-?} NUL bytes in $1, not $2, and [${a:-nothing}] at byte ${_b83NulAt:-?};"
+}
+# needle haystack: how many times the haystack holds the needle, byte for byte, none overlapping.
+_b83_count() { B83_S="$2" B83_W="$1" LC_ALL=C awk 'BEGIN { s = ENVIRON["B83_S"]; w = ENVIRON["B83_W"]; n = 0
+  while (w != "" && (i = index(s, w)) > 0) { n++; s = substr(s, i + length(w)) } print n }'; }
+# path: the detail names "unreadable: <path>" once, else a miss for _b83_seq.
+_b83_once() {
+  local c
+  c="$(_b83_count "unreadable: $1" "$_b83D")"
+  [ "${c:-0}" = 1 ] || _b83Xm="$_b83Xm the detail names [unreadable: $1] ${c:-0} times, not once;"
+}
+# FC with no local settings file, in the index or on disk; the next commit takes the removal.
+_b83_unlocal() {
+  _b83_git "$_b83C" rm -q --cached --ignore-unmatch -- "$_b83PX" >/dev/null 2>&1
+  rm -f "$_b83C/$_b83PX"
+}
+# file index|disk: FC's local settings file written as the file; with index, git add -f puts it in the index.
+_b83_local() {
+  cp "$1" "$_b83C/$_b83PX" || _b83Fx="$_b83Fx no local settings file written;"
+  [ "$2" = disk ] || _b83_git "$_b83C" add -f -- "$_b83PX" >/dev/null 2>&1 \
+    || _b83Fx="$_b83Fx git add -f of the local settings file failed;"
+}
+# want: git ls-files and git ls-tree HEAD show the local settings file as want ("[index] [HEAD]"), else a fixture fault.
+_b83_ls() {
+  local i h
+  i="$(_b83_git "$_b83C" ls-files -- "$_b83PX" 2>/dev/null)"
+  h="$(_b83_git "$_b83C" ls-tree --name-only HEAD -- "$_b83PX" 2>/dev/null)"
+  [ "[$i] [$h]" = "$1" ] || _b83Fx="$_b83Fx git shows the local settings file as [$i] [$h] (index, HEAD), not $1;"
+}
+# name lead|any want... [-- unwanted...]: the fixture held, cloud FAIL, no miss in _b83Xm, every want in
+# the detail in the order named (with lead, the first where the detail begins, its leading blanks
+# dropped), and no unwanted.
+_b83_seq() {
+  local n="$1" m="$2" w p q=0 k=0 no=0 d miss="$_b83Xm"
+  shift 2; _b83Xm=""
+  if [ -n "$_b83Fx" ]; then bad "$n" "fixture:$_b83Fx"; return 0; fi
+  [ "${_b83N:-0}" = 1 ] || miss="$miss no line [$_b83FAIL] (cloud [${_b83V:-none}]);"
+  [ "$_b83L" = "gate: FAIL (cloud)" ] || miss="$miss last line [$_b83L];"
+  [ "$_b83Rc" = 1 ] || miss="$miss exit $_b83Rc;"
+  d="$(printf '%s' "$_b83D" | LC_ALL=C sed 's/^ *//')"
+  for w in "$@"; do
+    if [ "$w" = "--" ]; then no=1; continue; fi
+    p="$(_b83_at "$w" "$d")"; p="${p:-0}"
+    if [ "$no" -eq 1 ]; then [ "$p" -eq 0 ] || miss="$miss detail holds [$w];"; continue; fi
+    k=$((k + 1))
+    if [ "$p" -eq 0 ]; then miss="$miss detail lacks [$w];"; continue; fi
+    [ "$k" -gt 1 ] || [ "$m" != lead ] || [ "$p" -eq 1 ] || miss="$miss detail does not begin with [$w] (at byte $p);"
+    [ "$p" -gt "$q" ] || miss="$miss [$w] at byte $p, not after the clause named before it (at $q);"
+    q="$p"
+  done
+  if [ -z "$miss" ]; then ok "$n"; else bad "$n" "$(_b83_why "$miss")"; fi
+}
+# name got want: is, with the gate's output flattened into the detail when it fails.
+_b83_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$(_b83_why " expected [$3] got [$2];")"; fi; }
+
 _b83N69="B08R3 A69 (R3-1; S1): settings' PostToolUse group gains a matcher key spelled with a u-escape, value Read, as its first line: cloud FAIL, with the escape clause for settings"
 _b83N70="B08R3 A70 (R3-1; S2): settings' pre-tool hook gains a timeout key spelled with a u-escape, value 1, after its command: cloud FAIL, with the escape clause for settings"
 _b83N71="B08R3 A71 (R3-1, R3-4; S6): hooks.json gains a one-line PreCompact group whose command writes its slashes escaped, unbound in settings: cloud FAIL, with the escape clause for hooks.json and no not bound"
@@ -285,6 +402,19 @@ _b83N108="B08R3V A108 (R3V-6): A90's settings with A100's zsh: cloud FAIL, the t
 _b83N109="B08R3V A109 (R3V-6): settings' Stop statusMessage with a u-escaped space and a trailing comma: cloud FAIL, the escape clause, and no not-JSON clause"
 _b83N110="B08R3V A110 (R3V-6): the plugin's PreToolUse matcher widened as in A25, with A90's settings: cloud FAIL, the top-level clause, and no bound differently"
 _b83N111="B08R3V A111 (R3-5, R3V-7): over A86 to A110, stubs for jq, python3 and node first on PATH record no call (control)"
+# The follow-up round (contract section 8).
+_b83N112="B08R3W A112 (R3W-1): settings' PostToolUse hook given a statusMessage with one NUL byte inside its value: cloud FAIL, the NUL clause for settings.json and no other clause for it"
+_b83N113="B08R3W A113 (R3W-1): hooks.json with one NUL byte between two keys of a hook object: cloud FAIL, with the NUL clause for hooks.json"
+_b83N114="B08R3W A114 (R3W-1): settings.json whose last byte is a NUL, after its closing brace: cloud FAIL, with the NUL clause for settings.json"
+_b83N115="B08R3W A115 (R3W-1): settings.json with a NUL byte in the pre-tool command and a backslash-slash escape after it: cloud FAIL, the NUL clause and not the escape clause"
+_b83N116="B08R3W A116 (R3W-1, R3V-2): settings.json padded to 65,536 bytes, then a NUL put inside its Stop statusMessage: cloud FAIL, the size clause only"
+_b83N117="B08R3W A117 (R3W-1, R3-4): both files with a NUL byte, hooks.json's inside its PreToolUse matcher: two NUL clauses, hooks.json's first, and no comparison or no-pairs text"
+_b83N118="B08R3W A118 (R3W-2): a local settings file holding {}, added and committed: cloud FAIL, the detail beginning with the local-settings clause"
+_b83N119="B08R3W A119 (R3W-2): the same local settings file staged with git add and not committed: cloud FAIL, the detail beginning with the local-settings clause"
+_b83N120="B08R3W A120 (R3W-2, R3-4): the local settings file committed and settings.json given a backslash-slash escape: the local-settings clause first, then settings.json's escape clause"
+_b83N121="B08R3W A121 (R3W-2): a local settings file holding disableAllHooks true on disk and not in the index: cloud ok (control)"
+_b83N122="B08R3W A122 (R3W-3): the tree's two files and no local settings file: cloud ok, and the line under it as 4d68d57f prints it, empty (control)"
+_b83N123="B08R3W A123 (R3W-3, R3-5): over A112 to A122, stubs for jq, python3 and node first on PATH record no call (control)"
 
 if [ -n "$_b83Why" ]; then
   for _b83n in "$_b83N69" "$_b83N70" "$_b83N71" "$_b83N72" "$_b83N73" "$_b83N74" "$_b83N75" "$_b83N76" \
@@ -292,7 +422,9 @@ if [ -n "$_b83Why" ]; then
                "$_b83N85" "$_b83N86" "$_b83N87" "$_b83N88" "$_b83N89" "$_b83N90" "$_b83N91" "$_b83N92" \
                "$_b83N93" "$_b83N94" "$_b83N95" "$_b83N96" "$_b83N97" "$_b83N98" "$_b83N99" "$_b83N100" \
                "$_b83N101" "$_b83N102" "$_b83N103" "$_b83N104" "$_b83N105" "$_b83N106" "$_b83N107" \
-               "$_b83N108" "$_b83N109" "$_b83N110" "$_b83N111"; do
+               "$_b83N108" "$_b83N109" "$_b83N110" "$_b83N111" "$_b83N112" "$_b83N113" "$_b83N114" \
+               "$_b83N115" "$_b83N116" "$_b83N117" "$_b83N118" "$_b83N119" "$_b83N120" "$_b83N121" \
+               "$_b83N122" "$_b83N123"; do
     skip "$_b83n" "$_b83Why"
   done
 else
@@ -467,4 +599,57 @@ else
   if [ "$_b83Probe" = "jq b08r3-probe python3 b08r3-probe node b08r3-probe " ]; then _b83O="$(cat "$_b83/stub/calls" 2>/dev/null)"
   else _b83O="[the stubs do not record a call: their probe left (${_b83Probe:-nothing})]"; fi
   is "$_b83N111" "$_b83O" ""
+
+  # ======== The follow-up round (contract section 8), A112 to A123
+  # A123 reads the stubs' calls over A112 to A122 alone.
+  : > "$_b83/stub/calls"
+
+  # ---- B08R3W-1: a NUL byte (A112 to A117)
+  _b83_start; _b83_ed settings after "" '~harness/hooks/post-tool' "$_b83/l/pts"
+  _b83_has settings "$(cat "$_b83/l/pts")"; _b83_nul settings '"statusMessage": "Recording'; _b83_od settings 1; _b83_go a112
+  _b83_once "$_b83PS"
+  _b83_seq "$_b83N112" any "$_b83NS"
+  _b83_start; _b83_nul hooks '"type": "command",'; _b83_od hooks 1; _b83_go a113
+  _b83_seq "$_b83N113" any "$_b83NH"
+  _b83_start; _b83_nul settings ""; _b83_od settings 1; _b83_bytes settings -eq "$(( ${_b83NulAt:-0} + 1 ))"; _b83_go a114
+  _b83_seq "$_b83N114" any "$_b83NS"
+  _b83_start; _b83_ed settings instead "" "$_b83Pre" "$_b83/l/esl"
+  _b83_has settings "$(cat "$_b83/l/esl")"; _b83_nul settings 'exit 0;'; _b83_od settings 1
+  [ "$(LC_ALL=C grep -cF -e "$_b83ESC" "$_b83/nul.a" 2>/dev/null)" = 0 ] && [ "$(LC_ALL=C grep -cF -e "$_b83ESC" "$_b83/nul.b" 2>/dev/null)" = 1 ] \
+    || _b83Fx="$_b83Fx the backslash-slash escape is not after the NUL alone;"
+  _b83_go a115
+  _b83_seq "$_b83N115" any "$_b83NS" -- "$_b83ES"
+  _b83_start; _b83_padto settings 65536; _b83_bytes settings -eq 65536
+  _b83_nul settings '"statusMessage": "Checking'; _b83_od settings 1; _b83_bytes settings -eq 65537; _b83_go a116
+  _b83_once "$_b83PS"
+  _b83_seq "$_b83N116" any "$_b83ZS" -- "$_b83NT"
+  _b83_start; _b83_nul hooks '"matcher": "Bash|Edit'; _b83_od hooks 1
+  _b83_nul settings '"statusMessage": "Checking'; _b83_od settings 1; _b83_go a117
+  _b83_seq "$_b83N117" any "$_b83NH" "$_b83NS" -- "bound differently" "not bound" "no event-to-hook pairs"
+
+  # ---- B08R3W-2: a local settings file in the index (A118 to A121)
+  _b83_start; _b83_unlocal; _b83_local "$_b83/l/lo0" index; _b83_go a118; _b83_ls "[$_b83PX] [$_b83PX]"
+  _b83_seq "$_b83N118" lead "$_b83LC"
+  _b83_start; _b83_unlocal; _b83_git "$_b83C" commit -qam a119 >/dev/null 2>&1
+  _b83_local "$_b83/l/lo0" index; _b83_ls "[$_b83PX] []"; _b83_run a119
+  _b83_seq "$_b83N119" lead "$_b83LC"
+  _b83_start; _b83_unlocal; _b83_ed settings instead "" "$_b83Pre" "$_b83/l/esl"; _b83_has settings "$(cat "$_b83/l/esl")"
+  _b83_local "$_b83/l/lo0" index; _b83_go a120; _b83_ls "[$_b83PX] [$_b83PX]"
+  _b83_seq "$_b83N120" lead "$_b83LC" "$_b83ES"
+  _b83_start; _b83_unlocal; _b83_local "$_b83/l/lo1" disk; _b83_go a121; _b83_ls "[] []"
+  cmp -s "$_b83/l/lo1" "$_b83C/$_b83PX" || _b83Fx="$_b83Fx no local settings file on disk holding disableAllHooks;"
+  _b83_ok "$_b83N121"
+
+  # ---- B08R3W-3: nothing else changes (A122, A123, controls)
+  _b83_start; _b83_unlocal; _b83_go a122; _b83_ls "[] []"
+  { [ ! -e "$_b83C/$_b83PX" ] && cmp -s "$_b83H" "$_b83CH" && cmp -s "$_b83S" "$_b83CS"; } \
+    || _b83Fx="$_b83Fx FC holds more than the tree's two files;"
+  _b83OKN="$(LC_ALL=C grep -cxF -e "$(printf '  %-18s %s' cloud ok)" "$_b83/a122.out" 2>/dev/null)"
+  if [ -n "$_b83Fx" ]; then bad "$_b83N122" "fixture:$_b83Fx"
+  else _b83_is "$_b83N122" "${_b83OKN:-0} cloud ok lines; the line under it [$_b83D]" "1 cloud ok lines; the line under it []"; fi
+
+  # ---- B08R3-5 over the follow-up round (A123, control)
+  if [ "$_b83Probe" = "jq b08r3-probe python3 b08r3-probe node b08r3-probe " ]; then _b83O="$(cat "$_b83/stub/calls" 2>/dev/null)"
+  else _b83O="[the stubs do not record a call: their probe left (${_b83Probe:-nothing})]"; fi
+  is "$_b83N123" "$_b83O" ""
 fi

@@ -604,12 +604,11 @@ fi
 # and settings.json may hold no top-level key but hooks, each group no key but
 # a string matcher and its hooks, and each hook no key but type "command", a
 # string command, shell "bash", async true or false, a timeout in digits and a
-# string statusMessage. A file holding a NUL byte is not read either, found
-# outside awk because BWK awk and gawk read one apart (B08R3W-1). A file's
-# clause names its first fault in that order (size, NUL, escape, not JSON,
-# repeat, top-level key, schema), and over any of them nothing is compared
-# (B08R3-4, B08R3V-6). Claude Code also reads .claude/settings.local.json, so
-# one in git's index fails the check, unread, ahead of the two files (B08R3W-2).
+# string statusMessage. A NUL byte, which BWK awk and gawk read apart, is found
+# before awk (B08R3W-1). A file's clause names its first fault in that order
+# (size, NUL, escape, not JSON, repeat, top-level key, schema), and over any of
+# them nothing is compared (B08R3-4, B08R3V-6). Claude Code also reads
+# .claude/settings.local.json; one in the index fails first, unread (B08R3W-2).
 _cloud_check() {
   local x out z="" y
   set --

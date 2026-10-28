@@ -204,3 +204,41 @@ the same reason, leaves the phone's last word true. Sending it again adds nothin
   same event: one dispatch.
 - **Unchanged and deterministic:** 1720 A18, 2140 W2C D2a2, D2b and D2c must pass in every run.
   The builder runs 2140 and 1720 three times under each awk, and reports each count.
+
+## 7. Third review round (review of ca8ec1ac)
+
+The build of section 6 is deterministic. 2140 and 1720 each passed three runs under each awk, and
+the reviewer forced ties at every timing-sensitive shape and found the result fixed. Its four
+findings are low. Two change behaviour or the tests and are taken here. Two are recorded.
+
+- **D6. A paused record from the future does not hold a pause.** After the clock steps back, a
+  dispatched paused record can carry a time after the attempt's clock. Every resume written since
+  is then "before" the record, so D2 never ends the pause, and the re-pause and its hourly rows are
+  silent. So a paused event whose matching dispatched record has a time after the attempt's
+  clock, or a time that cannot be read, is not a repeat. This is D4's rule for job events,
+  applied to paused. It costs at most one extra alert, because the next record carries the
+  current clock.
+- **R9 pinned where it can fail.** R9's `--pause` writes its own row and so recreates the ledger,
+  which means the "missing ledger" branch was never reached. The pin moves to the function.
+  - Source `engine/harness/lib/notify.sh`, with `_FN_DIR` set to a scratch land directory (the
+    file's header names it as the interface).
+  - Write an alerts.tsv holding one dispatched paused record for `-` with detail `R`, 61 minutes
+    old, and no ledger.tsv.
+  - `_fn_same paused - R` returns 0, a repeat: a missing ledger is not an unreadable one.
+  - A control: the same with ledger.tsv present and mode 200 returns non-zero, an attempt (D2b,
+    over the hour).
+  - R9's end-to-end case stays, renamed to say the pause's own row recreates the ledger.
+- **Names.** R5's tie variant, R8, R9 and R12 pass on 995a8526 too. Each is a pin against a
+  plausible mutant, not a red-first case. Their names say "a pin, unchanged by section 6".
+- **Recorded, not taken.**
+  - An alerts.tsv that exists but cannot be read defeats both bounds (D2b's hour and D4's day).
+    It takes a permission change on both land files outside iCloud and TCC, and is outside this
+    contract.
+  - The red-first wording of e4173c82 is history and stays.
+
+### Assertions (part 2140)
+
+- **R13 (D6).** A dispatched paused record dated an hour after the clock, a `resumed` row dated
+  now, then `--pause R`: one dispatch.
+- **R14 (R9 at the function).** As described above, with its control.
+- R5 tie, R8, R9 and R12 renamed as above. Their checks are unchanged.

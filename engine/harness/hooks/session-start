@@ -68,6 +68,9 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # memory.sh for the mistakes.log heal below; sourcing it only defines functions.
 # shellcheck source=../lib/memory.sh
 . "${SCRIPT_DIR}/../lib/memory.sh"
+# waiting.sh reads back what waits (audit b03); it only defines functions.
+# shellcheck source=../lib/waiting.sh
+. "${SCRIPT_DIR}/../lib/waiting.sh"
 
 # JSON-escape via parameter substitution, one C-level pass each.
 #
@@ -223,11 +226,8 @@ fi
 project="$(basename "$PROJ")"
 gate="$(felix_json_str "${PROJ}/project.json" gate)"
 
-if [ -n "$gate" ]; then
-  gate_line="Gate: ${ENGINE_DIR}/felix gate"
-else
-  gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
-fi
+gate_line="Gate: ${ENGINE_DIR}/felix gate"
+[ -n "$gate" ] || gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
 
 # Surface capability drift at session start rather than waiting to be asked. The
 # day a project grows a deploy target or error reporting, the gates the guidebook
@@ -302,32 +302,8 @@ $PROJ/capabilities, and 'felix adopt <capability>' writes the rest."
 fi
 
 # Upkeep has no deadline, so it never happens, and then happens as a crisis.
-# One line, only when something is actually due.
-maint_line=""
-if [ -f "$PROJ/maintenance.tsv" ]; then
-  # Counted before the newlines are flattened. The badge below wants HOW MANY
-  # are due, and by the time this is one space-separated line `grep -c .` can
-  # only ever answer 1 — which is the same defect as the one being fixed,
-  # wearing a number instead of a zero.
-  #
-  # Read once: a checked row runs its check, and a check may read every
-  # remote branch to say whether its work is already in flight.
-  _maint_st="$(felix_maint_status "$PROJ" "$_repo_root" 2>/dev/null)"
-  _due_list="$(printf '%s\n' "$_maint_st" | LC_ALL=C awk -F'\t' '$1 == "due" { print $2 }')"
-  _due_n="$(printf '%s' "$_due_list" | grep -c . 2>/dev/null)"
-  case "$_due_n" in ''|*[!0123456789]*) _due_n=0 ;; esac
-  _due="$(printf '%s' "$_due_list" | tr '\n' ' ')"
-  _due="${_due% }"
-  [ -n "$_due" ] && maint_line="
-Maintenance due: ${_due}
-Do them on one branch. See 'felix maintenance'."
-  # A routine a pushed branch is already doing is not due, and saying whose it
-  # is keeps a second session from starting it: three sessions folded
-  # overlapping handoff sections on 2026-09-24/25 when the row said only
-  # "due". Not "elsewhere": the session that pushed the fold reads it too.
-  maint_line="${maint_line}$(printf '%s\n' "$_maint_st" | LC_ALL=C awk -F'\t' '$1 == "inflight" {
-      printf "\nAlready in flight, so not due: %s on %s", $2, $3 }')"
-fi
+# One line, only when something is actually due, and whose it is (lib/waiting.sh).
+felix_start_maint "$PROJ" "$_repo_root"
 
 # The graph, every session, whether or not the prompt happened to say
 # "architecture".
@@ -595,13 +571,21 @@ ordinary session again. felix overnight --report, then --end to close it out.
   fi
 fi
 
+# What waits with nobody told: a paused lander, pull requests it has aged, decisions
+# deferred overnight, calls PreToolUse could not judge (lib/waiting.sh). The land row's
+# notice is read first: when it reads paused, its badge below names the pause, so the
+# waits leave it out and a paused lander is said once. Both are given the home: outside it
+# no paused lander is named, and a job installed there reads not-home (wave-1-combine C6, C7).
+_fl="$(felix_land_notice "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null)"   # paused, not-loaded, not-ticking or not-home, as felix status's land row reads it
+felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}" "$FELIX_HOME_DIR"
+
 context="Felix governs this session.
 
 Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${overnight_line}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
+${overnight_line}${waits_line}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
 
 ${read_lines}
 
@@ -769,11 +753,15 @@ fi
 _felix_due="${_due_n:-0}"
 case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
-[ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due"
+[ -n "$gate" ] || _felix_line="$_felix_line · no gate, stops unchecked"   # the Stop hook checks no stop without one
+[ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due${_yours:+ (yours: $_yours)}"
+if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"
+  [ "${_fl%%$'\t'*}" != paused ] || context="$context"$'\n'"felix land --resume ends the pause."; fi
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
+_felix_line="${_felix_line}${_felix_wait_toks:-}"
 
-# The one line, last paragraph, when unattended work was due and withheld (lib/own.sh).
-_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
+# The one line, last paragraph, when unattended work was due and withheld, then (b05, R6) the lander's alert that waits for the founder (lib/own.sh).
+_ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null; felix_land_alert_line "$_mem" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"
 
 _felix_emit "$_felix_line" "$context"
 

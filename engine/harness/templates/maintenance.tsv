@@ -7,6 +7,11 @@
 # requests nobody reviews. Security-critical fixes stay separate, because
 # isolation is what makes them reviewable and shippable on their own.
 #
+# The third column is `always`, a capability, or `founder`. A founder row comes
+# due on its cadence, or its check, exactly as an always row does, and is named
+# to the founder rather than handed to a session: it ends in something only he
+# decides, such as bringing the public snapshot up to main.
+#
 # A fifth column, optional: a CHECK. For a cadence-0 row it is a command run in
 # the checkout, exit 0 meaning not due and anything else meaning due — so an
 # event-driven row can come due from reality instead of never. Rows with four

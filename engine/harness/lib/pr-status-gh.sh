@@ -187,3 +187,41 @@ _ps_gh_default() {   # SLUG DIR
   _ps_ghc "$2" api "repos/$1" 2>/dev/null \
     | LC_ALL=C sed -n 's/.*"default_branch"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p
 }
+
+# The signed-in GitHub account, for a repository an organisation owns: a member's
+# pull request is the member's to land, and the owner's name is the organisation's
+# (audit C027). One gh api GET, `api user`, whose whole answer is read for its
+# first "login" whatever the caller's --jq would have done, asked at most once
+# per run (the queue reads many repositories) and only when a pull request needs
+# it: _ps_gh_me_if. A login is 1 to 39 characters of letters, digits and
+# hyphens; anything else is not a login. States _PS_MEST read or unread, with
+# _PS_ME the login and _PS_MEWHY the reason when unread.
+_ps_gh_me() {   # DIR
+  local d="$1" rc login w="$_PS_T/me"
+  [ -z "${_PS_MEST:-}" ] || return 0
+  _PS_ME=""; _PS_MEST=unread
+  _ps_ghc "$d" api user > "$w.json" 2> "$w.err"; rc=$?
+  if [ "$rc" -ne 0 ]; then
+    _PS_MEWHY="$(_ps_err1 "$w.err")"; [ -n "$_PS_MEWHY" ] || _PS_MEWHY="gh api user exited $rc with no output"
+    return 1
+  fi
+  login="$(LC_ALL=C awk '{ if (match($0, /"login"[ \t]*:[ \t]*"[^"]*"/)) { s = substr($0, RSTART, RLENGTH)
+      sub(/^"login"[ \t]*:[ \t]*"/, "", s); sub(/"$/, "", s); print s; exit } }' "$w.json" 2>/dev/null)"
+  case "$login" in
+    "") _PS_MEWHY="the answer of gh api user holds no login"; return 1 ;;
+    *[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789-]*) _PS_MEWHY="the answer of gh api user holds a login that is not one"; return 1 ;;
+  esac
+  if [ "${#login}" -gt 39 ]; then _PS_MEWHY="the answer of gh api user holds a login that is not one"; return 1; fi
+  _PS_ME="$login"; _PS_MEST=read; _PS_MEWHY=""
+  return 0
+}
+
+# Asked only when the list holds a pull request that is not cross-repository and
+# whose author is not the owner (without regard to case), and never when the
+# repository's owner is not known.
+_ps_gh_me_if() {   # W OWNER DIR
+  [ -n "$2" ] && [ -f "$1/prs" ] || return 0
+  LC_ALL=C awk -F'\t' -v o="$2" '$7 != "true" && tolower($8) != tolower(o) { f = 1 } END { exit !f }' "$1/prs" 2>/dev/null || return 0
+  _ps_gh_me "$3"
+  return 0
+}

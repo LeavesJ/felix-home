@@ -286,16 +286,16 @@ gets you part of the way. Felix adds three things that hook doesn't have:
    [obligations.sh](engine/harness/lib/obligations.sh).
 2. **Staleness from outside the tree.** A project can declare probes: commands
    that each ask one question, like how many test files git tracks or whether a
-   route is deployed. If a probe's answer changes state or count, or the
-   program its first word names is now a file of a different size, the old pass
+   route is deployed. If a probe's answer changes state or count, the old pass
    stops counting, even though no file in the tree changed. So does an edit to
-   one of the project's twelve policy tables, such as `project.json`,
-   `deny.tsv` and `obligations.tsv`, or a change of target branch. Not every
-   file beside them counts: the project's `CLAUDE.md`, its exception table,
-   its qualification table and a gate script kept in Felix's home are outside
-   the set. A project that
-   declares no probes never has a pass that counts, and `felix new` seeds
-   three.
+   one of the project's twelve policy tables, such as `project.json`, `deny.tsv`
+   and `obligations.tsv`, or a change of target branch. Not every file beside
+   them counts: the project's `CLAUDE.md`, its exception table, its
+   qualification table and a gate script kept in Felix's home are outside the
+   set. A probe's program changing size, with the same answers, does not make
+   the pass stop counting; `felix probes` reports that the instrument changed. A
+   project that declares no probes never has a pass that counts, and `felix new`
+   seeds three.
 3. **A receipt for the exact tree.** Every gate run is recorded against HEAD,
    the full diff, and each untracked file's name, size and modification time.
    An edit to any of those makes the old pass stop counting. (Git-ignored files
@@ -383,8 +383,8 @@ private. If you want a mature, general agent framework, this isn't one.
 | State | What |
 |:---|:---|
 | **In daily use** on my projects | The Stop hold, receipts and their staleness, the merge escapes, obligations with UNKNOWN blocking (on Felix's own project; the others hold only the one row `felix new` seeds), project setup (commissioning), the deny table, checker qualification on Felix's own checks, plugin discovery, and the ledger of which tools sessions used |
-| **Built, little or no real use** | Exceptions: none granted yet, and read only for Felix's own project. The unattended repair workflow (never run on real input). Obligations proposed by a model, only advisory ones: run on two real projects as of September 23, with 22 proposed and none admitted yet. Admitting one means copying it into the project's obligations table, which is left to a person but not enforced. An obligation naming the checker it needs, reported by `felix obligations` and read by no verdict: two rows, both on Felix's own project, and neither checker declared yet |
-| **Partial** | Pinning the judge to main covers `felix merge` but not `felix gate`. `felix automerge` only counts a streak of clean merges and, with `--enable`, turns on GitHub's auto-merge, whose merges skip `felix merge`. The staleness hash depends on which `git` is on PATH, so the same tree can read stale in another environment |
+| **Built, little or no real use** | Exceptions: none granted yet, and read only for Felix's own project. The unattended repair workflow (never run on real input). Obligations proposed by a model, only advisory ones: run on two real projects as of September 23, with 22 proposed and none admitted yet. Admitting one means copying it into the project's obligations table, which is left to a person but not enforced. An obligation naming the checker it needs, reported by `felix obligations` and read by no verdict: two rows, both on Felix's own project, and neither checker declared yet. `felix land` (see Install): macOS only, on Felix's own repository only, where by October 23 it had landed five pull requests and deployed three times |
+| **Partial** | Pinning the judge to main covers `felix merge` but not `felix gate`. `felix automerge` only counts a streak of clean merges and, with `--enable`, turns on GitHub's auto-merge, whose merges skip `felix merge`. A receipt for a tree with uncommitted edits to tracked files hashes `git diff`, where git abbreviates object names, so it can read stale when the repository's object count crosses a bound such as 16,384, though no file changed. A clean tree's receipt does not |
 | **Designed, not built** | `felix dispatch`, which runs each worker as a restricted headless session with only the tools its task needs, and records what it did |
 | **Absent** | Sandboxing, time-limited tool grants and revocation, and support for any host but Claude Code |
 
@@ -404,21 +404,19 @@ but nothing that decides whether the obligation is met reads that yet. Next,
 the obligation will stay unmet until a checker that has passed Felix's
 qualification, including showing it can fail, is attached.
 
-The rest of the capability plane is being built alongside, and none of it
-will be called built until it has been shown working. Three things come
-first:
+The rest of the capability plane is being built alongside, and none of it will
+be called built until it has been shown working. Next, in this order:
 
 1. **A test of what a model finds.** Omissions of the kind the [missing rate
-   limit](#the-failure-it-exists-for) was will be planted in test projects,
-   and a model asked what each project owes will be measured against a plain
-   Claude Code session. If it finds nothing the plain session misses, Felix
-   will narrow to the obligations people name.
-2. **A retire list keyed to what Felix installed.** Today the ledger records a
-   zero for every declared tool no session used, but proposes retiring one
-   only if a route pointed sessions at it, so a tool no route names is never
-   proposed.
-3. **A dry run of dispatch.** It will print how a task would be launched, with
+   limit](#the-failure-it-exists-for) was will be planted in test projects, and
+   a model asked what each project owes will be measured against a plain Claude
+   Code session. If it finds nothing the plain session misses, Felix
+   investigates why instead of shrinking.
+2. **A dry run of dispatch.** It will print how a task would be launched, with
    only the tools that task needs, and start nothing.
+3. **A retire list keyed to what Felix installed.** Today the ledger records a
+   zero for every declared tool no session used, but proposes retiring one only
+   if a route named it, so a tool no route names is never proposed.
 
 `felix dispatch` itself comes after those. It would launch each worker as a
 headless session with only the tools its task needs, keep its record as the
@@ -453,8 +451,9 @@ Installing changes your setup, so read this part first:
   `engine/.claude-plugin/plugin.json` (`--no-bump` turns that off).
 - Governing a project installs plugins at user scope, listed below.
 - Nothing merges on its own unless you run `felix automerge --enable`, which
-  turns on GitHub's auto-merge for the repository. A pull request marked for
-  it then merges when its checks pass, without `felix merge`.
+  turns on GitHub's auto-merge, or `felix land --install` (macOS only), which
+  runs `felix merge` on a green pull request of the home's own repository every
+  five minutes with nobody present, and deploys it if `engine/` changed.
 - Felix has no server and sends no telemetry. It reaches the network through
   git and the `claude` and `gh` CLIs: to fetch and install plugins, to work
   with pull requests, issues and CI runs, and, for `felix bootstrap`, to set a
@@ -470,14 +469,15 @@ govern a scratch repository. `FELIX_HOME` and `FELIX_MEMORY` move Felix's own
 files but not the plugins.
 
 Requires bash 3.2 or later, git and the `claude` CLI. `gh` is needed for
-`brief`, `pr`, `merge`, `automerge`, `repair`, `bootstrap`, `unattended`,
-`classify --apply` and `incident --create`. Commissioning and discovery use the
-network, and `felix pulse --install` is macOS only.
+`brief`, `pr`, `merge`, `automerge`, `land`, `repair`, `bootstrap`,
+`unattended`, `classify --apply` and `incident --create`. Commissioning and
+discovery use the network, and `felix pulse --install` is macOS only.
 
 ```bash
 git clone https://github.com/LeavesJ/Felix.git felix
 felix/engine/harness/felix install
-ln -s "$PWD/felix/engine/harness/felix" /usr/local/bin/felix
+mkdir -p ~/.local/bin && ln -s "$PWD/felix/engine/harness/felix" ~/.local/bin/felix
+export PATH="$HOME/.local/bin:$PATH"   # skip if ~/.local/bin is on PATH; to keep it, add this line to ~/.zshrc
 ```
 
 Install from a main checkout, never a git worktree, which would point the
@@ -521,7 +521,7 @@ install bumps the patch version and redeploys.
 
 ```bash
 felix gate                  # this project's gate, recorded as a receipt
-engine/harness/tests/run    # the engine's own suite, about 3,000 assertions
+engine/harness/tests/run    # the engine's own suite
 ```
 
 The suite drives the real CLI and hooks against an invented project in a
@@ -530,7 +530,7 @@ throwaway root, and fails if any assertion in its manifest was never reached.
 `felix install --uninstall` removes the plugin and nothing else, because Felix
 never deletes your rules or memory. The rest is by hand:
 
-- `felix pulse --uninstall`, if you installed the schedule
+- `felix pulse --uninstall` and `felix land --uninstall`, if you installed either
 - `claude plugin uninstall` for each plugin commissioning added that you didn't
   already have
 - `claude plugin marketplace remove felix`, and `claude-plugins-official` if

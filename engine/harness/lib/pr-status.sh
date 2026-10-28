@@ -155,6 +155,7 @@ _ps_collect() {   # DIR PROJDIR SLUG NAME W
   : > "$w/rows"
   if _ps_gh_list "${d:-$FELIX_HOME_DIR}" "$slug" "$w"; then
     _ps_pathattr "$w"
+    _ps_gh_me_if "$w" "$owner" "${d:-$FELIX_HOME_DIR}"
     _ps_decide "$w" "$owner" "$_PS_DEF" "$_PS_MAIN"
   fi
   # No owner/name slug (a remote holding a tab or newline, or no GitHub remote):
@@ -188,8 +189,8 @@ _ps_groups() {   # ROWS
       split("founder session lander nobody unknown", g, " ")
       split("needs the founder|needs a session|waits for the lander|waits for nobody|is unknown", h, "|")
       for (i = 1; i <= 5; i++) if (G[g[i]] > 0) { print h[i] " (" G[g[i]] "):"; for (j = 1; j <= G[g[i]]; j++) print L[g[i], j] }
-      split("founder held needs-session red needs-attended refused unready ready pending stacked outside unknown", s, " ")
-      for (i = 1; i <= 12; i++) if (C[s[i]] > 0) t = t (t == "" ? "" : ", ") s[i] " " C[s[i]]
+      split("founder held needs-session red refused unready ready pending stacked outside unknown", s, " ")
+      for (i = 1; i <= 11; i++) if (C[s[i]] > 0) t = t (t == "" ? "" : ", ") s[i] " " C[s[i]]
       print N " open pull requests: " t }' "$1"
 }
 
@@ -230,6 +231,7 @@ _ps_prs_cmd() {
   repo="$(printf '%s' "$repo" | LC_ALL=C tr '\t\r\n' '   ')"
   owner=""; _ps_slug_ok "$slug" && owner="${slug%%/*}"
   _ps_scratch || return 1
+  _PS_MEST=""; _PS_ME=""; _PS_MEWHY=""
   w="$_PS_T/p"
   _ps_collect "$dir" "$proj" "$slug" "$name" "$w"
   if [ -n "$proj" ]; then _ps_lander "$name" "$landd" "$w"
@@ -260,6 +262,7 @@ _ps_scratch_gone() { rm -rf "$_PS_T"; trap - EXIT; }
 _ps_queue_cmd() {
   local meta pd name rm slug dir hs n=0 w nf nu ref st det tot=0 key seen="" first trunc anytrunc=0 nl tb LC_ALL=C
   _ps_scratch || return 1
+  _PS_MEST=""; _PS_ME=""; _PS_MEWHY=""
   nl=$'\n'; tb=$'\t'
   : > "$_PS_T/q.src"; : > "$_PS_T/q.pr"; : > "$_PS_T/q.txt"
   hs="$(felix_repo_slug "$FELIX_HOME_DIR" 2>/dev/null | LC_ALL=C tr 'A-Z' 'a-z')"

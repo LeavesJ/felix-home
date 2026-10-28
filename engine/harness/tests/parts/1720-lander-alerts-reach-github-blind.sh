@@ -11,6 +11,11 @@ printf '\nthe lander tells the founder through one standing issue on the governe
 # blind from that file: felix land --pause raises the paused event itself (b02 B22), its record's field 8 drops
 # the ; by session suffix, and the brakes --resume, --install and --uninstall alert nothing. A14-A18, the
 # control after A17, A24, A26 and A27 keep their A-numbers and what each checks; their names say restated.
+# Restated again on 2026-10-28 for docs/2026-10-24-audit-fixes/wave-2-combine.md (L3, L4, D1), written blind from
+# that file: A26 and A27 age the ledger so a tick's hourly paused row, whose newest record is failed, meets the
+# hang and the failures too, and A31 and the control before it say it is the --pause's attempt that rewrote
+# alerts.repo. No other assertion here, in 1710 or in 2120 pins B8's old comparison (an event compared with
+# another kind's or pull request's newest record), so none other is restated.
 #
 # F2 is the shared land fixture (_lg_build amend), whose origin is a local path. The GitHub state points the
 # home's origin at https://github.com/fixture/lgh.git and rewrites that URL back to the local origin with
@@ -300,33 +305,50 @@ is "A25 (R2, B7): a detail holding a token, \$HOME/ and an @ reaches no gh argum
 
 # ---------------------------------------------------------------- B9 ---
 # Restated for wave-1-combine.md C1: the --pause raises the event, so the patched CLI's --pause meets the hang.
+# Restated again for wave-2-combine.md L3 and D1: the ledger is then aged past the hour and the patched CLI's
+# --tick writes its hourly paused row r9, whose newest record is failed, so it is attempted again and meets the
+# hang inside a tick, under B9's bound there. hung.pid is emptied between, so each run's own hang is the one judged.
 _l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _l20_slow land --pause r9
-is "A26 (B9; restated for wave-1-combine.md C1): with _FN_SECS=2 and the dispatch hanging, --pause r9 exits 0 within 20 seconds, the hung gh is no longer running, and one failed record says timed out" \
-   "$L20RC|$([ "$L20EL" -le 20 ] && echo within || echo "took-$L20EL")|$(_l20_hung)|$(_l20_n failed)/$(_l20_n)|$(_l20_in "$(_l20_f last 7)" "timed out" timed-out)" \
-   "0|within|gone|1/1|timed-out"
+L20K26="$L20RC|$([ "$L20EL" -le 20 ] && echo within || echo "took-$L20EL")|$(_l20_hung)|$(_l20_n failed)/$(_l20_n)"
+rm -f "$L20/hung.pid"; _l20_age; _l20_slow land --tick
+L20K26="$L20K26 // $L20RC|$([ "$L20EL" -le 20 ] && echo within || echo "took-$L20EL")|$(_l20_hung)|$(_l20_n failed)/$(_l20_n)|$(_lg_n paused)|$(_l20_f 2 3) $(_l20_f 2 8)|$(_l20_in "$(_l20_f 1 7)" "timed out" timed-out)+$(_l20_in "$(_l20_f 2 7)" "timed out" timed-out)"
+is "A26 (B9; restated for wave-2-combine.md L3, D1): with _FN_SECS=2 and the dispatch hanging, --pause r9 exits 0 within 20 seconds, its hung gh gone, one failed record; then, the ledger aged past the hour, the tick's hourly paused row r9 (its newest record failed) is attempted again and meets the hang, and --tick exits 0 within 20 seconds, that hung gh gone too; two failed records, the second paused r9, both saying timed out" \
+   "$L20K26" "0|within|gone|1/1 // 0|within|gone|2/2|2|paused r9|timed-out+timed-out"
 
 # --------------------------------------------------------------- B10 ---
 # Restated for wave-1-combine.md C1: the row is the --pause's, its detail ending ; by session - (0004 unsets the
 # session id), and the exit statuses are the --pause's and the tick's; the hang is met by the patched --pause.
+# Restated again for wave-2-combine.md L3: each scenario ages the ledger past the hour before its --tick, so the
+# tick writes its hourly paused row (detail the reason alone, wave-1-combine.md C1) and its attempt meets the local
+# origin, the failing gh api user or the hanging dispatch too (D1: the newest record is failed). Fields 2-7 of the
+# two rows, the two banners and the exits are the same in all three; each scenario's records say what was met.
 _l20_b10() { printf 'n=%s;%s;osa=%s;rc=%s' "$(_lg_rows)" "$(cut -f2-7 "$LAND/ledger.tsv" 2>/dev/null | tr '\n' '|')" "$(_lg_cnt osa)" "$1"; }
-_l20_reset; _l20_ev "r27 the same pause"; L20K1="$(_l20_b10 "$L20PRC/$LGRC")"
-_l20_reset gh; printf '1\n' > "$L20/ctl/user"; _l20_ev "r27 the same pause"; L20K2="$(_l20_b10 "$L20PRC/$LGRC")"
-_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _l20_slow land --pause "r27 the same pause"; L20PRC="$L20RC"
-_l20_slow land --tick; L20K3="$(_l20_b10 "$L20PRC/$L20RC")"; _l20_hung >/dev/null
-is "A27 (B10; restated for wave-1-combine.md C1): the paused scenario writes the same ledger fields 2-7, the --pause's one row ending ; by session -, one banner and exit 0 for --pause and --tick, with a local origin, with gh api user failing, and with the dispatch hanging" \
-   "$(_l20_like "$L20K1" "n=1;paused$L20T-$L20T-$L20T-$L20T*${L20T}r27 the same pause; by session -|;osa=1;rc=0/0" one-paused-row) // $L20K2 // $L20K3" \
-   "one-paused-row // $L20K1 // $L20K1"
+_l20_reset; _lg_land --pause "r27 the same pause"; L20PRC="$LGRC"; _l20_age; _lg_land --tick
+L20K1="$(_l20_b10 "$L20PRC/$LGRC")"; L20M1="$(_l20_n failed)/$(_l20_n) $(_l20_starts "$(_l20_f 2 7)" origin:)"
+_l20_reset gh; printf '1\n' > "$L20/ctl/user"; _lg_land --pause "r27 the same pause"; L20PRC="$LGRC"; _l20_age; _lg_land --tick
+L20K2="$(_l20_b10 "$L20PRC/$LGRC")"; L20M2="$(_l20_n failed)/$(_l20_n) $(_l20_starts "$(_l20_f 2 7)" 'gh api user:')"
+_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _l20_slow land --pause "r27 the same pause"; L20PRC="$L20RC"; _l20_hung >/dev/null
+rm -f "$L20/hung.pid"; _l20_age; _l20_slow land --tick
+L20K3="$(_l20_b10 "$L20PRC/$L20RC")"; L20M3="$(_l20_n failed)/$(_l20_n) $(_l20_in "$(_l20_f 2 7)" "timed out" timed-out) $(_l20_hung)"
+is "A27 (B10; restated for wave-2-combine.md L3): the paused scenario, its ledger aged past the hour before the --tick, writes the same ledger fields 2-7 (the --pause's row ending ; by session -, then the tick's hourly row with the reason alone), two banners and exit 0 for --pause and --tick, with a local origin, with gh api user failing, and with the dispatch hanging; in each the tick's attempt met it too, a second failed record" \
+   "$(_l20_like "$L20K1" "n=2;paused$L20T-$L20T*${L20T}r27 the same pause; by session -|paused$L20T-$L20T*${L20T}r27 the same pause|;osa=2;rc=0/0" two-paused-rows) // $L20K2 // $L20K3 // $L20M1 // $L20M2 // $L20M3" \
+   "two-paused-rows // $L20K1 // $L20K1 // 2/2 ok // 2/2 ok // 2/2 timed-out gone"
 
 # ----------------------------------------------------------- B11, R7 ---
 _l20_reset gh; _lg_land --install; L20I="$LGRC|$(_l20_nk .)"; _l20_clear; _l20_tramp "$L20/no-home"
 is "A28 (B11, R7): --install calls no gh; the trampoline with a home that does not exist exits 1, writes one deploy-owed row, dispatches @fixture Felix land: deploy-owed once with the deploy-owed sentence, and records it dispatched" \
    "$L20I|$LARC|$(_lg_n deploy-owed)|$(_l20_l1s)|$(sed -n 3p "$(_l20_body "@fixture Felix land: deploy-owed")" 2>&1)|$(_l20_f last 2) $(_l20_f last 3)" \
    "0|0|1|1|@fixture Felix land: deploy-owed||A deploy of main is owed and has not run, so nothing lands.|dispatched deploy-owed"
-# A31 follows A28 with no reset between: the tick's attempt rewrites alerts.repo from a local origin.
-_l20_off; _l20_ev r31; _l20_clear; _l20_tramp "$L20/no-home"
-is "the land fixture: after the paused tick the trampoline wrote its deploy-owed row again, the ledger's newest (fixture control)" \
-   "$(tail -n 1 "$LAND/ledger.tsv" 2>/dev/null | cut -f2)" "deploy-owed"
-is "A31 (B11): once a tick with a local origin rewrote alerts.repo, the trampoline calls no gh and its newest record is failed" \
+# A31 follows A28 with no reset between. Restated for wave-2-combine.md L4: since wave-1-combine.md C1 the
+# --pause raises the paused event, so it is the --pause's attempt, with a local origin, that rewrites alerts.repo
+# (b05 B11: a non-GitHub origin recorded as none); the tick within the hour after it makes no attempt.
+L20AR0="$([ -f "$LAND/alerts.repo" ] && cksum < "$LAND/alerts.repo")"
+_l20_off; _lg_land --pause r31
+L20AR1="$([ -f "$LAND/alerts.repo" ] && cksum < "$LAND/alerts.repo")"; L20ARN="$([ -f "$LAND/alerts.repo" ] && LC_ALL=C grep -c 'fixture/lgh' "$LAND/alerts.repo")"
+_lg_land --tick; _l20_clear; _l20_tramp "$L20/no-home"
+is "the land fixture: the --pause's attempt with a local origin rewrote alerts.repo, which names fixture/lgh no more, and after it the trampoline wrote its deploy-owed row again, the ledger's newest (fixture control; restated for wave-2-combine.md L4)" \
+   "$([ -n "$L20AR1" ] && [ "$L20AR0" != "$L20AR1" ] && echo rewritten || echo not-rewritten)|$L20ARN|$(tail -n 1 "$LAND/ledger.tsv" 2>/dev/null | cut -f2)" "rewritten|0|deploy-owed"
+is "A31 (B11; restated for wave-2-combine.md L4): once the --pause's attempt with a local origin rewrote alerts.repo, the trampoline calls no gh and its newest record is failed" \
    "$(_l20_nk .)|$(_l20_f last 2)" "0|failed"
 _l20_reset gh; _lg_land --install; /bin/mv "$L20PL" "$L20/plugin.json.moved"; mkdir "$L20PL"
 _l20_clear; _l20_tramp "$LGH" "$L20/gitbin:"; rm -rf "$L20PL"; cp -p "$L20/plugin.json.keep" "$L20PL"

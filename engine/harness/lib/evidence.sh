@@ -25,7 +25,9 @@
 # change under src/, and the merge threw grep's complaint away.) The reason of
 # every such line says `not judged`, which is how a caller tells it from the two
 # whole-scan unknowns below, whose reason says `no rule was consulted` and whose
-# line, for a base name that holds a newline, is not even one line.
+# line, for a base name that holds a newline, is not even one line. So does the
+# one line for a project.json the check cannot read, or for paths it could not
+# set aside (round 3, B11R3-8 and B11R3-9), since either stands for every row.
 
 # felix_changed_paths lives in resolve.sh, which every hook and the CLI source
 # first. Sourced here too rather than assumed: a lib whose helper is missing
@@ -36,21 +38,179 @@ if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
-# PATHS without the vendored ones: a path under a vendor, third_party or
-# node_modules directory, at any depth. That code is a dependency's, not the
-# project's, and its tests are not shipped with it (`go mod vendor` drops
-# _test.go), so a rule that reads it fires on a bump nobody can write a test
-# for, and felix merge refuses the bump. A cell is a grep pattern and cannot
-# say "not under a directory", so the paths are cleaned here, before any row
-# reads them, the requires cell included: a vendored test proves nothing of the
-# project's code either. The list comes back whole or the call fails, and the
-# caller then says it does not know. (Audit b11, the review round: M2.)
-_felix_evidence_own() {   # PATHS
-  local out rc=0
-  [ -n "$1" ] || return 0
-  out="$(LC_ALL=C grep -v -E -e '(^|/)(vendor|third_party|node_modules)/' <<<"$1")" || rc=$?
-  [ "$rc" -le 1 ] || return "$rc"
-  printf '%s' "$out"
+# Vendored code. A dependency's code ships without its tests (`go mod vendor`
+# drops _test.go), so a rule that reads a bump fires on code nobody here can
+# write a test for, and felix merge refuses the bump (audit b11, M2). A cell is
+# a grep pattern and cannot say "not under a directory", so the engine sets
+# such paths aside before any row reads them. Round 2 did that by name, every
+# vendor, third_party or node_modules directory at any depth, which also set
+# aside the project's own code under src/vendor/ and said nothing. Round 3
+# (b11-round-3.md) sets aside only what project.json declares, or vendor/ under
+# a go.mod the base holds at the root, and the verdict counts what it set
+# aside. A vendor-named path still never meets a `requires` cell, since a
+# dependency's test proves nothing of the project's code (B11R3-4): that half
+# only makes a verdict stricter.
+
+# project.json's text as the check reads it: at the base when the project
+# directory is the repository's top or below it, so a change neither grants nor
+# revokes its own set-aside, and from the disk otherwise (B11R3-5). ROOT is the
+# top, as every caller passes it. Nothing printed is nothing declared. A file
+# that is there and cannot be read exits 1 with the reason (B11R3-8 a and f).
+_felix_evidence_pj() {   # PROJ BASE ROOT
+  local pj="$1/project.json" pp rp rel sha ent text
+  local why="so its evidence_vendored and evidence_reads_vendored are unknown and the rules were not judged"
+  pp="$(cd -P "$1" 2>/dev/null && pwd -P)" || pp=""
+  rp="$(cd -P "$3" 2>/dev/null && pwd -P)" || rp=""
+  if [ -n "$pp" ] && [ -n "$rp" ] && { [ "$pp" = "$rp" ] || [ "${pp#"$rp"/}" != "$pp" ]; }; then
+    rel="${pp#"$rp"}"; rel="${rel#/}"; rel="${rel:+$rel/}project.json"
+    # An empty base is HEAD, and an unborn HEAD has committed nothing to declare.
+    if ! sha="$(git -C "$3" rev-parse -q --verify "${2:-HEAD}^{commit}" 2>/dev/null)"; then
+      [ -n "$2" ] || return 0
+      printf 'git could not read project.json at the base, %s' "$why"; return 1
+    fi
+    ent="$(git --literal-pathspecs -C "$3" ls-tree --full-tree "$sha" -- "$rel" 2>/dev/null)" \
+      || { printf 'git could not read project.json at the base, %s' "$why"; return 1; }
+    [ -n "$ent" ] || return 0
+    case "$ent" in
+      "100644 blob "*|"100755 blob "*) ;;
+      *) printf 'project.json is not a regular file at the base, %s' "$why"; return 1 ;;
+    esac
+    ent="${ent#* blob }"; ent="${ent%%$'\t'*}"
+    text="$(git -C "$3" cat-file blob "$ent" 2>/dev/null)" \
+      || { printf 'git could not read project.json at the base, %s' "$why"; return 1; }
+  else
+    [ -e "$pj" ] || [ -L "$pj" ] || return 0
+    [ -f "$pj" ] || { printf 'project.json is not a regular file, %s' "$why"; return 1; }
+    { [ -r "$pj" ] && text="$(cat "$pj" 2>/dev/null)"; } || { printf 'project.json cannot be read, %s' "$why"; return 1; }
+  fi
+  printf '%s' "$text"
+}
+
+# The two keys of project.json's TEXT, read by line as felix_json_str reads it,
+# one line each, evidence_vendored first: `=VALUE` for one JSON string or for
+# no key, `!twice` for a key given more than once, `!string` for a value that is
+# not one string on the key's line (B11R3-8 b and c). A key alone at the end of
+# its line has its value on another, which no reader here takes.
+_felix_evidence_keys() {   # TEXT
+  LC_ALL=C awk '
+    BEGIN { k[1] = "\"evidence_vendored\""; k[2] = "\"evidence_reads_vendored\"" }
+    { for (q = 1; q <= 2; q++) {
+        s = $0
+        while ((i = index(s, k[q])) > 0) {
+          s = substr(s, i + length(k[q]))
+          if (s ~ /^[ \t\r]*$/) { n[q]++; bad[q] = 1; continue }
+          if (!match(s, /^[ \t\r]*:/)) continue
+          n[q]++; v = substr(s, RLENGTH + 1); sub(/^[ \t\r]*/, "", v)
+          j = 0
+          if (substr(v, 1, 1) == "\"") j = index(substr(v, 2), "\"")
+          if (j == 0) { bad[q] = 1; continue }
+          val[q] = substr(v, 2, j - 1)
+          if (val[q] ~ /[\t\r]/ || substr(v, j + 2) !~ /^[ \t\r]*([,}]|$)/) bad[q] = 1
+        }
+      }
+    }
+    END { for (q = 1; q <= 2; q++) { r = "=" val[q]; if (bad[q]) r = "!string"; if (n[q] > 1) r = "!twice"; print r } }
+  ' <<<"$1"
+}
+
+# evidence_vendored's VALUE as its entries, each ending in one /, separated by
+# single spaces, in its order: `=ENTRIES`; or `!ENTRY WHY` for the first entry
+# that is not a plain directory under the root (B11R3-2, B11R3-8 d). An entry
+# is compared byte for byte, never as a pattern, so nothing here may read as one.
+_felix_evidence_dirs() {   # VALUE
+  LC_ALL=C awk '
+    { n = split($0, tok, " ")
+      for (i = 1; i <= n && why == ""; i++) {
+        e = tok[i]; d = e; sub(/\/$/, "", d)
+        if (substr(e, 1, 1) == "/") why = "begins with /"
+        else if (d ~ "[^A-Za-z0-9._@+/-]") why = "holds a character other than a letter, a digit or . _ - @ +"
+        else {
+          m = split(d, c, "/")
+          for (j = 1; j <= m && why == ""; j++)
+            if (c[j] == "") why = "has an empty component"
+            else if (c[j] == "." || c[j] == "..") why = "has a . or .. component"
+        }
+        if (why != "") print "!" e " " why
+        else out = out (out == "" ? "" : " ") d "/"
+      }
+    }
+    END { if (why == "") print "=" out }
+  ' <<<"$1"
+}
+
+# What PROJ declares, as two lines: the entries _felix_evidence_dirs gives, and
+# the rows that read every path (B11R3-7), separated by single spaces as
+# listed. Exits 1 with the reason when the declaration cannot be read, and the
+# caller then prints one unknown for project.json and no row (B11R3-8).
+_felix_evidence_declared() {   # PROJ BASE ROOT
+  local text keys v tok ents="" opted="" names
+  text="$(_felix_evidence_pj "$1" "$2" "$3")" || { printf '%s' "$text"; return 1; }
+  case "$text" in *'"evidence_vendored"'*|*'"evidence_reads_vendored"'*) ;; *) return 0 ;; esac
+  keys="$(_felix_evidence_keys "$text")" \
+    || { printf 'project.json could not be read for its keys, so the rules were not judged'; return 1; }
+  for tok in evidence_vendored evidence_reads_vendored; do
+    v="${keys%%$'\n'*}"; keys="${keys#*$'\n'}"
+    case "$v" in
+      '!twice') printf 'project.json gives %s more than once, so the rules were not judged' "$tok"; return 1 ;;
+      '!string') printf "project.json's %s is not one JSON string, so the rules were not judged" "$tok"; return 1 ;;
+    esac
+    [ "$tok" = evidence_vendored ] || { opted="${v#=}"; continue; }
+    ents="$(_felix_evidence_dirs "${v#=}")" \
+      || { printf 'project.json could not be read for its evidence_vendored entries, so the rules were not judged'; return 1; }
+    case "$ents" in '!'*) printf "project.json's evidence_vendored entry %s, so the rules were not judged" "${ents#!}"; return 1 ;; esac
+    ents="${ents#=}"
+  done
+  if [ -n "${opted// /}" ]; then
+    names="$(LC_ALL=C awk -F'\t' '/^[ \t\r]*#/ || /^[ \t\r]*$/ { next } { print $1 }' "$1/evidence.tsv" 2>/dev/null)" \
+      || { printf 'evidence.tsv could not be read for its row names, so the rules were not judged'; return 1; }
+    v="$opted"; opted=""
+    while IFS= read -r tok; do
+      [ -n "$tok" ] || continue
+      case $'\n'"$names"$'\n' in
+        *$'\n'"$tok"$'\n'*) opted="${opted:+$opted }$tok" ;;
+        *) printf "project.json's evidence_reads_vendored names %s, which is no row of evidence.tsv, so the rules were not judged" "$tok"
+           return 1 ;;
+      esac
+    done <<<"${v// /$'\n'}"
+  else
+    opted=""
+  fi
+  printf '%s\n%s' "$ents" "$opted"
+}
+
+# 0 when BASE (HEAD with none) holds a go.mod at the root of its tree; 1 when
+# it does not, or git cannot tell (B11R3-3). A go.mod the change adds, or a
+# nested one, is not read.
+_felix_evidence_gomod() {   # ROOT BASE
+  local sha ent
+  sha="$(git -C "$1" rev-parse -q --verify "${2:-HEAD}^{commit}" 2>/dev/null)" || return 1
+  ent="$(git -C "$1" ls-tree --full-tree "$sha" -- go.mod 2>/dev/null)" || return 1
+  case "$ent" in *" blob "*) return 0 ;; esac
+  return 1
+}
+
+# PATHS as a cell of a row that has not opted in reads them: WHICH `when` is
+# without what is set aside, `requires` without that and every vendor-named
+# path too (B11R3-4). `count` prints `N<TAB>DIRS` instead: how many paths were
+# set aside, and the directories that set one aside, in ENTRIES' order and then
+# vendor/ for GO (B11R3-6); a path two entries cover counts under the first.
+# ENTRIES each end in one /; GO is 1 for vendor/ under a go.mod at the root.
+_felix_evidence_aside() {   # PATHS ENTRIES GO when|requires|count
+  LC_ALL=C awk -v ents="$2" -v go="$3" -v want="$4" '
+    BEGIN { ne = split(ents, ent, " ") }
+    $0 == "" { next }
+    { hit = 0
+      for (i = 1; i <= ne && !hit; i++) if (substr($0, 1, length(ent[i])) == ent[i]) hit = i
+      if (!hit && go == 1 && substr($0, 1, 7) == "vendor/") hit = ne + 1
+      if (hit) { n++; used[hit] = 1; next }
+      if (want == "when" || (want == "requires" && $0 !~ /(^|\/)(vendor|third_party|node_modules)\//)) print
+    }
+    END {
+      if (want != "count") exit 0
+      for (i = 1; i <= ne + 1; i++) if (used[i]) dirs = dirs (dirs == "" ? "" : " ") (i > ne ? "vendor/" : ent[i])
+      printf "%d\t%s\n", n, dirs
+    }
+  ' <<<"$1"
 }
 
 # Every row of PROJ's evidence.tsv as five lines, so no cell is split by a read
@@ -104,31 +264,61 @@ _felix_evidence_say() {   # MODE STATUS NAME REASON
 # row it cannot judge is unknown in both, whatever PATHS holds. No table is
 # nothing to say (schemas.tsv allows it); a table that is there and cannot be
 # read is one unknown line, since silence would read as "no rules declared".
-_felix_evidence_judge() {   # PROJ PATHS check|brief
+#
+# The check, given BASE and ROOT, sets aside what project.json declares
+# vendored and says how many paths it set aside in one n/a line, VENDORED,
+# after the last row's; the brief reads every path it is given and never reads
+# project.json (round 3, B11R3-6 and B11R3-11).
+_felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
   local proj="$1" paths="$2" mode="$3" rows kind name when requires reason why rc status
+  local wpaths="$2" rpaths="$2" wp rp decl ents="" opted="" go=0 vend=0 aside=0 n
   [ -e "$proj/evidence.tsv" ] || [ -L "$proj/evidence.tsv" ] || return 0
   if [ ! -f "$proj/evidence.tsv" ] || [ ! -r "$proj/evidence.tsv" ] || ! rows="$(_felix_evidence_rows "$proj" 2>/dev/null)"; then
     _felix_evidence_say "$mode" unknown evidence.tsv "evidence.tsv exists but cannot be read, so its rules were not judged"
     return 0
   fi
-  if ! paths="$(_felix_evidence_own "$paths")"; then
-    _felix_evidence_say "$mode" unknown CHANGED-PATHS "grep could not set the vendored paths aside, so no rule was consulted"
-    return 0
+  if [ "$mode" = check ]; then
+    # A declaration the check cannot read is not an empty one (B11R3-8).
+    if ! decl="$(_felix_evidence_declared "$proj" "${4:-}" "${5:-}")"; then
+      _felix_evidence_say check unknown project.json "${decl:-project.json could not be read, so the rules were not judged}"
+      return 0
+    fi
+    ents="${decl%%$'\n'*}"
+    case "$decl" in *$'\n'*) opted="${decl#*$'\n'}" ;; esac
+    case $'\n'"$paths" in *$'\n'vendor/*) ! _felix_evidence_gomod "${5:-}" "${4:-}" || go=1 ;; esac
+    case "$paths" in *vendor/*|*third_party/*|*node_modules/*) vend=1 ;; esac
+    if [ -n "$ents" ] || [ "$go" -eq 1 ]; then
+      vend=1
+      wpaths="$(_felix_evidence_aside "$paths" "$ents" "$go" when)" || aside=""
+      [ -z "$aside" ] || aside="$(_felix_evidence_aside "$paths" "$ents" "$go" count)" || aside=""
+    fi
+    if [ -n "$aside" ] && [ "$vend" -eq 1 ]; then
+      rpaths="$(_felix_evidence_aside "$paths" "$ents" "$go" requires)" || aside=""
+    fi
+    # B11R3-9: a list a tool broke off would read a set-aside path as the
+    # project's, or the project's as set aside. Round 2 named this CHANGED-PATHS.
+    if [ -z "$aside" ]; then
+      _felix_evidence_say check unknown VENDORED "a tool failed while the vendored paths were set aside, so the rules were not judged"
+      return 0
+    fi
   fi
   while IFS= read -r kind && IFS= read -r name && IFS= read -r when && IFS= read -r requires && IFS= read -r reason; do
     if [ "$kind" != ok ]; then _felix_evidence_say "$mode" unknown "$name" "$when"; continue; fi
     status=unknown
+    # A row named in evidence_reads_vendored reads every path in both cells (B11R3-7).
+    wp="$wpaths"; rp="$rpaths"
+    case $'\n'"${opted// /$'\n'}"$'\n' in *$'\n'"$name"$'\n'*) wp="$paths"; rp="$paths" ;; esac
     if ! why="$(_felix_evidence_cell "$when")"; then
       reason="the when cell does not compile ($why), so this row was not judged"
     elif ! why="$(_felix_evidence_cell "$requires")"; then
       reason="the requires cell does not compile ($why), so this row was not judged"
     else
-      _felix_any_match "$paths" "$when"; rc=$?
+      _felix_any_match "$wp" "$when"; rc=$?
       if [ "$rc" -eq 1 ]; then status="n/a"; reason="this change does not touch that surface"
       elif [ "$rc" -ne 0 ]; then reason="grep could not match the when cell (exit $rc), so this row was not judged"
       elif [ "$mode" != check ]; then status=met
       else
-        _felix_any_match "$paths" "$requires"; rc=$?
+        _felix_any_match "$rp" "$requires"; rc=$?
         case "$rc" in
           0) status=met ;;
           1) status=gap ;;
@@ -140,6 +330,11 @@ _felix_evidence_judge() {   # PROJ PATHS check|brief
   done <<EOF
 $rows
 EOF
+  # B11R3-6: how much was set aside, after the last row's line, and never at 0.
+  n="${aside%%$'\t'*}"
+  [ "$mode" = check ] && [ "${n:-0}" != 0 ] || return 0
+  if [ -n "$opted" ]; then why="so only $opted read them"; else why="so no rule read them"; fi
+  printf 'n/a\tVENDORED\t%s changed path(s) set aside as vendored, under %s, %s\n' "$n" "${aside#*$'\t'}" "$why"
 }
 
 # Emits: status <TAB> name <TAB> reason.  status is met | gap | n/a | unknown
@@ -173,6 +368,6 @@ felix_evidence_check() {
     return 0
   fi
 
-  _felix_evidence_judge "$proj" "$paths" check
+  _felix_evidence_judge "$proj" "$paths" check "$base" "$root"
   return 0
 }

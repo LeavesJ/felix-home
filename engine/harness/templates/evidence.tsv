@@ -16,9 +16,13 @@
 # proves nothing. A test written inside the file it tests, as Rust's
 # #[cfg(test)] is, cannot be seen from a path, and that change reads as a gap.
 #
-# Vendored code is not read by any row. A path under a vendor, third_party or
-# node_modules directory, at any depth, is left out of the change before a cell
-# sees it (lib/evidence.sh), because a cell cannot say "not under a directory".
+# Vendored code is set aside by the engine, not by a cell, because a cell
+# cannot say "not under a directory" (lib/evidence.sh). A path under a
+# directory named in project.json's evidence_vendored, or under vendor/ when
+# the base holds a go.mod at the root, is read by no row, and the verdict says
+# how many were. A row named in evidence_reads_vendored still reads them. A
+# path under any vendor, third_party or node_modules directory never counts as
+# a test, since a dependency's test proves nothing of the project's code.
 #
 # name	when	requires	reason
 unit	(^|/)(src|lib|app|apps|internal|pkg|cmd|packages|services|crates|libs)/([^/]+/)*[^/]+\.(py|pyi|pyx|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|rs|rb|java|kt|kts|scala|sc|groovy|clj|cljs|cljc|swift|m|mm|c|h|cc|hh|cpp|hpp|cxx|hxx|cs|fs|fsx|vb|php|ex|exs|erl|hrl|hs|lhs|ml|mli|lua|pl|pm|jl|r|R|nim|zig|dart|elm|cr|lisp|scm|rkt|sol|f90|f95|sh|bash|zsh|ps1|vue|svelte)$	(^|/)(tests?|specs?|__tests__)/([^/]+/)*[^/]+\.(py|pyi|pyx|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|rs|rb|java|kt|kts|scala|sc|groovy|clj|cljs|cljc|swift|m|mm|c|h|cc|hh|cpp|hpp|cxx|hxx|cs|fs|fsx|vb|php|ex|exs|erl|hrl|hs|lhs|ml|mli|lua|pl|pm|jl|r|R|nim|zig|dart|elm|cr|lisp|scm|rkt|sol|f90|f95|sh|bash|zsh|ps1|vue|svelte)$|(_test|_spec|\.test|\.spec|Test|Tests|Spec)\.(py|pyi|pyx|js|jsx|mjs|cjs|ts|tsx|mts|cts|go|rs|rb|java|kt|kts|scala|sc|groovy|clj|cljs|cljc|swift|m|mm|c|h|cc|hh|cpp|hpp|cxx|hxx|cs|fs|fsx|vb|php|ex|exs|erl|hrl|hs|lhs|ml|mli|lua|pl|pm|jl|r|R|nim|zig|dart|elm|cr|lisp|scm|rkt|sol|f90|f95|sh|bash|zsh|ps1|vue|svelte)$|(^|/)test_[^/]+\.py$	code changes need a test

@@ -572,3 +572,100 @@ over FC as for A69.
   guard-count clause.
 
 Expected red on 24ae0a93: A124, A125, A127, A129 and A130 fail (5). A126 and A128 pass (2).
+
+## 10. Third follow-up: the cloud check judges what git holds
+
+The review of 2eeedbed (section 9's fix) found three mediums and two lows. Two of the mediums are
+one class, which sections 8 and 9 each closed one instance of: the cloud check reads the working
+tree, and on the Mac the working tree can answer for a path git does not hold. APFS folds case,
+and `[ -f ]` follows a symlink at any depth. The cloud gets only what git holds, byte for byte, on
+a file system that folds nothing. So a committed `.Claude/settings.json`, a committed
+`.claude/Settings.json`, a committed symlink at `.claude/settings.json` or at `.claude/cloud`, each
+read `cloud ok` on the Mac and `skipped` in CI, while the cloud ran no project hook or carried no
+toolbox. This round closes the class, not the instances.
+
+- **B08R3Y-1 (medium, class). Judge the index, never the disk.**
+  - **Exact entries.** A file under `.claude/` exists for the cloud check only when the index
+    holds an entry whose path is byte for byte that path (`git ls-files -s`, compared exactly,
+    case included). `.claude/settings.json` is "in this tree" only when the index holds it so.
+  - **Content from the index.** Every file the cloud check reads under `.claude/`
+    (`settings.json` and `cloud/toolbox.json`) is read from its index blob
+    (`git cat-file blob :<path>`), never from the working tree. The size, NUL, escape, JSON,
+    repeat, key and schema rules, the binding comparison, the guard counts and the toolbox names
+    all apply to that content. An edit not yet staged is not judged until it is staged. That is
+    what the commit, and so the cloud, will hold.
+  - **Regular files only.** Every index entry under `.claude/`, at any depth, must have mode
+    100644 or 100755. Each entry with any other mode (120000, a symlink; 160000, a gitlink) adds
+    the clause ` unreadable: <path> (not a regular file in the repository, so the cloud would not
+    get its content);`, one per entry, in index order.
+  - **No case variants.** Each index entry whose path differs only by case from `.claude`, from a
+    path beginning `.claude/`, or from `.claude/settings.json`, `.claude/settings.local.json` or
+    `.claude/cloud/toolbox.json` adds the clause ` unreadable: <path> (its name differs only by
+    case from one the cloud reads, and the cloud's file system does not fold case);`. One clause
+    per entry, in index order. Compare with ASCII case folding only.
+  - When any clause in this bullet is present, the cloud line is FAIL. It is never `skipped`.
+  - B08R3X-1 stands: a `.claude` that is a symlink or a non-directory on disk, or an entry at the
+    path `.claude` itself, gives its clause, and nothing else is read.
+  - `engine/hooks/hooks.json` is the engine's own reference, not something the cloud loads. It is
+    out of this bullet and is read as today.
+- **B08R3Y-2 (medium, tests).** A129 and A130 could not be red. Their only unguarded command
+  shared a line with a guarded one, so the line-based count never moved. Each fixture now also
+  holds an unguarded harness command on a line of its own. A129's NUL may sit anywhere in the
+  file. Expected red on 24ae0a93 for both, under BSD and GNU grep alike.
+- **B08R3Y-3 (low, tests).** "Nothing else is read from `.claude`" (B08R3X-1) is asserted. A124's
+  target directory `cfg` holds a settings.json with an unguarded command on its own line and an
+  escape other than `\"`. A124 asserts the detail equals the `.claude` clause exactly.
+- **B08R3Y-4 (low).** When the binding comparison cannot run because no event-to-hook pairs were
+  read (hooks.json missing or unreadable), a settings.json with a size or NUL fault still adds
+  its clause (`larger than 65536 bytes` or `a NUL byte`, as section 8 words it). It appears beside
+  the no-pairs message. B08R3X-3 stands: no guard count is taken over that file.
+- **B08R3Y-5 (low, the found-not-ours of section 9).** The guard counts are per command, not per
+  line. Every occurrence of `"command":` counts once, and every occurrence of the guarded prefix
+  counts once, so a line that holds a guarded and an unguarded command adds one to the
+  difference.
+
+### What must not change (beyond section 3)
+
+- The clean tree's cloud line, and every fixture A69-A128 builds, read as on 2eeedbed. A129 and
+  A130 are restated (B08R3Y-2), and A124 is strengthened (B08R3Y-3).
+- The check-line count stays at 26. gate.sh stays within 80 lines over 8e634e4b, unless the
+  builder shows the class cannot fit, and then it says so.
+- No jq, no python: bash, git and the awks only (constitution invariant 2).
+
+### Assertions (part 1771, after A130)
+
+Named `B08R3Y A<n> (R3Y-<m>...)`, over FC as for A69. On macOS, case-variant entries are made in
+the index without touching the disk: `git update-index --add --cacheinfo 100644,<sha>,<path>`
+after `git rm --cached` of the exact path. The fixture checks `git ls-files -s` shows exactly
+what the case names.
+
+- **A131** (R3Y-1, mode) `.claude/settings.json` committed as a symlink (120000) to an untracked
+  `../cfg/settings.json` that holds the tree's good settings: cloud FAIL, the not-a-regular-file
+  clause naming `.claude/settings.json`, and no `skipped`.
+- **A132** (R3Y-1, mode) `.claude/cloud` committed as a symlink to an untracked copy of the tree's
+  cloud directory, with settings.json real: cloud FAIL, the clause naming `.claude/cloud`.
+- **A133** (R3Y-1, case) the index holds `.Claude/settings.json` and no exact `.claude/...` entry:
+  cloud FAIL, the case clause naming `.Claude/settings.json`, and no `skipped`.
+- **A134** (R3Y-1, case) the index holds `.claude/Settings.json` and no exact
+  `.claude/settings.json`: cloud FAIL, the case clause naming `.claude/Settings.json`.
+- **A135** (R3Y-1, index over disk) the index holds the tree's good settings.json. The working
+  tree's copy has an unguarded command on its own line, unstaged. The cloud line is exactly
+  A126's.
+- **A136** (R3Y-1, index over disk) the reverse. The index holds a settings.json with an
+  unguarded command on its own line, and the working tree's copy is the good one: cloud FAIL with
+  `1 command(s) without the CLAUDE_CODE_REMOTE guard;`.
+- **A137** (R3Y-1, untracked) `.claude` is a real directory on disk holding the good files, and
+  none of them is in the index: the cloud line is the `skipped` line A128 pins.
+- **A129, A130** restated for B08R3Y-2: as section 9, plus an unguarded command on its own line.
+- **A124** restated for B08R3Y-3: as section 9, with the faults behind the link. The detail is
+  exactly the `.claude` clause.
+- **A138** (R3Y-4) hooks.json removed, and settings.json holding a NUL byte and an unguarded
+  command on its own line: cloud FAIL, the detail holding the no-pairs message and `a NUL byte`
+  naming `.claude/settings.json`, and no guard-count clause.
+- **A139** (R3Y-5) one line holding a guarded then an unguarded harness command, no NUL, nothing
+  else wrong: cloud FAIL with `1 command(s) without the CLAUDE_CODE_REMOTE guard;`.
+- **A140** (control) the tree's own `.claude`, staged and clean: as A126.
+
+Expected red on 2eeedbed: A131, A132, A133, A134, A136, A138 and A139 (7), plus A129 and A130 as
+restated (red on 24ae0a93, green on 2eeedbed; they test B08R3X-3). A135 is red unless the disk and
+index copies agree. A124 restated, A137 and A140 may pass. Report each one.

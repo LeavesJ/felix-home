@@ -452,20 +452,20 @@ _felix_lc() {
   _FELIX_LC="$t"
 }
 
-# Does remote_match M name the origin URL U? S is _felix_remote_slug of U. Sets _FELIX_RM_LEN to
-# M's length without one trailing .git: a longer declaration outweighs a shorter one.
-#   owner/repo, with a GitHub slug S: they match when M lowercased is S, and in no other way
+# Does remote_match M name the origin URL U? S is _felix_remote_slug of U. M is read as own.sh reads
+# it, a trailing / and then a trailing .git dropped (M2); _FELIX_RM_LEN is M2's length: longer wins.
+#   owner/repo, with a GitHub slug S: they match when M2 lowercased is S, and in no other way
 #     ("acme/web" is not "acme/web-extras").
-#   else: U and M each lose one trailing .git (U a trailing / first) and match when equal or
-#     when U ends in M after a /, : or @, case-sensitively.
+#   else: U loses a trailing / and .git too and matches M2 when equal or when U ends in M2 after a
+#     /, : or @, case-sensitively.
 _felix_remote_match() {   # M U S
   local m="$1" u="$2" s="${3:-}" m2 u2 pre LC_ALL=C
   local lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-
-  m2="${m%.git}"; _FELIX_RM_LEN="${#m2}"
-  [ -n "$m" ] && [ -n "$m2" ] || return 1
-  case "$m" in
+  m2="${m%/}"; m2="${m2%.git}"; _FELIX_RM_LEN="${#m2}"
+  [ -n "$m2" ] || return 1
+  case "$m2" in
     */*/*|/*|*/|*[!/$lc]*) ;;
-    */*) if [ -n "$s" ]; then _felix_lc "$m"; [ "$_FELIX_LC" = "$s" ]; return; fi ;;
+    */*) if [ -n "$s" ]; then _felix_lc "$m2"; [ "$_FELIX_LC" = "$s" ]; return; fi ;;
   esac
   u2="${u%/}"; u2="${u2%.git}"
   [ "$u2" = "$m2" ] && return 0
@@ -478,7 +478,7 @@ _felix_remote_match() {   # M U S
 # match equally and _FELIX_RB_TIE holds their names. _FELIX_RB_U is the origin
 # URL; it is never printed or written, as an https remote can carry a token.
 _felix_resolve_remote() {   # ROOT HOME
-  local root="$1" felix_root="$2" meta m n ul best=0 sdone=0 LC_ALL=C
+  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 LC_ALL=C
   _FELIX_RB_P=""; _FELIX_RB_TIE=""
   _FELIX_RB_U="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null)" || _FELIX_RB_U=""
   [ -n "$_FELIX_RB_U" ] || return 1
@@ -487,8 +487,8 @@ _felix_resolve_remote() {   # ROOT HOME
     [ -e "$meta" ] || continue
     m="$(felix_json_str "$meta" remote_match)"
     [ -n "$m" ] || continue
-    # Any match has M, lowercased and without a trailing .git, inside U: look before the slug costs.
-    _felix_lc "${m%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
+    # Any match has M without a trailing / and .git, lowercased, inside U: look before the slug costs.
+    m2="${m%/}"; _felix_lc "${m2%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
     [ "$sdone" = 1 ] || { sdone=1; _felix_remote_slug "$_FELIX_RB_U"; }
     _felix_remote_match "$m" "$_FELIX_RB_U" "$_FELIX_RS" || continue
     n="${meta%/project.json}"; n="${n##*/}"

@@ -25,9 +25,13 @@
 # remote's: `git config` of a fetch refspec or of the origin URL, or a plain
 # write into the ref file, moves it, and server protection never sees either.
 # felix_exceptions_doubt reads the ref's symbolic state, the fetch
-# configuration, the origin URL and the reflog, and every reader below
-# honours nothing while it names a doubt. That stops an accident and the
-# simple forgeries. A session that also rewrites the reflog gets past it.
+# configuration, the origin URL and the reflog, as they stand when it reads,
+# and every reader below honours nothing while it names a doubt. That stops an
+# accident and a ref written by hand, not a worker set on forging one. A fetch
+# made to write another branch or another copy into the ref leaves an honest
+# reflog and gets past it: a --refmap given to that one fetch, a fetch refspec
+# or the origin URL changed for it and put back, or an origin URL left at a
+# copy whose path ends in the declared remote_match. So does a forged reflog.
 #
 # DIRECTION OF FAILURE. A clearance widens: every reader here has one success
 # path — a well-formed row naming this obligation, a hash that prefixes this
@@ -134,19 +138,23 @@ _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; } 
 #              origin's writes it (a negative refspec, or one with no colon,
 #              writes nothing);
 #   remote_match  the URL git resolves for origin (insteadOf applied) does not
-#              name the remote_match the project declares, read from the
-#              working tree, as the binding rule reads it. Not checked when the
-#              project declares none. The URL is never printed;
+#              name the remote_match of the project the repository itself binds
+#              (felix_resolve_project, marker first: a product's grant sits in
+#              the home's table, and the home's origin is the home's), or of this
+#              project when the repository binds none, read from the working
+#              tree, as the binding rule reads it. Not checked when that project
+#              declares none. The URL is never printed;
 #   reflog     the newest reflog entry does not name the ref's value, or did not
 #              begin with fetch, pull, clone or update by push. A ref with no
 #              reflog, which is what a clone leaves, is not doubted by this.
 # An answer git gives with a status the question does not define is said as
 # "<word> cannot be read", never read as fine. It runs no fetch, pull, ls-remote
-# or gh, and changes no ref, reflog or setting. A session that also rewrites the
-# reflog gets past it, so this stops an accident and the simple forgeries and is
-# not a wall.
+# or gh, and changes no ref, reflog or setting. It judges the state as it stands,
+# so a fetch made to write another branch or another copy into the ref leaves an
+# honest reflog and gets past it (see the head of this file), and so does a
+# forged reflog: it stops an accident and a ref written by hand, and is not a wall.
 felix_exceptions_doubt() {   # proj -> a line, or nothing
-  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m
+  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m rp
   repo="$(felix_exceptions_repo "$proj")" && [ -n "$repo" ] || return 0
   git -C "$repo" rev-parse --verify --quiet "$ref" >/dev/null 2>&1 || return 0
   git -C "$repo" symbolic-ref -q "$ref" >/dev/null 2>&1; rc=$?
@@ -187,7 +195,11 @@ felix_exceptions_doubt() {   # proj -> a line, or nothing
     "W "*) _felix_doubt "fetch: ${m#W } writes $ref from something other than origin's refs/heads/main"; return 0 ;;
     N)     _felix_doubt "fetch: remote.origin.fetch has no refspec that writes $ref"; return 0 ;;
   esac
-  m="$(felix_json_str "$proj/project.json" remote_match 2>/dev/null)"
+  # The table sits in REPO, so the remote_match that names REPO's origin is the one of the project REPO
+  # itself binds; a product's own names its own remote, not the home's.
+  rp="$(felix_resolve_project "$repo" "$repo" 2>/dev/null)" || rp=""
+  [ -n "$rp" ] || rp="$proj"
+  m="$(felix_json_str "$rp/project.json" remote_match 2>/dev/null)"
   if [ -n "$m" ]; then
     url="$(git -C "$repo" remote get-url origin 2>/dev/null)"; rc=$?
     if [ "$rc" -ne 0 ] || [ -z "$url" ]; then _felix_doubt "remote_match cannot be read: git exited $rc"; return 0; fi

@@ -15,14 +15,21 @@ printf '\ngate friction D: the shell a unit leaves for the parts after it (blind
 # R41: every nested run has a stand-in mktemp first on PATH (mk/mktemp): given no template argument it passes the same options and the template "$TMPDIR/tmp.XXXXXXXXXX" to the
 # host's mktemp, so a nested run's $TMP is made below the case's fixture directory even on macOS, whose mktemp -d ignores TMPDIR, and it logs each path it made to mktemp.log.
 # The closing assertions say that the log is not empty (the stand-in was reached) and that every path in it is under this part's own case directories.
+# Revision 17 (R53, R55, R56, R57), by blind author B from the contract alone: (1) R53: hold.pl (the same text as part 1293's) waits, once hold.go exists, for the record run's
+# failed mark (a regular file manifest.mark one directory below DIR/tmp, the TMPDIR the case gives its runs, whose first line is failed, polled every 0.1 s, B at most), writes hold.mark
+# (the ms it first saw it) and only then waits C = 40 s; DJX_MLOG gains go-to-mark and mark-to-step-end (none when a file is missing); R46's verdict is unchanged. (2) R55: every run
+# bound is _db5_lim = 600 s, the -j 3 runs (g3: the run of every part reached its old 150 s), the -j 1 run (was 100 s) and the record run, B (was 240 s), alike. (3) R56: the
+# job part's sleeper, a hold whose life the unit's comparison must fall inside, lives B, 600 s (was 30 s), so its name says sleep 600; every other window stands (the report's table).
 # R42 (e), after R38, with R44: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so the record run's exit with a runner failure is, there, only
 # after red's suite has ended by itself, and what is left of red's tree then is a matter of timing. The record run therefore gives red's suite (DJX_HOLD names hold.pl, for that run
-# alone, and DJX_LIM the case's run bound B, 240 s, the same as _db5_lim) a red-only holder H, planted in the last part that fails (the line sits before its change): where FELIX_TEST_NO_MANIFEST=1 the part makes the case's hold.dir (only the first
+# alone, and DJX_LIM the case's run bound B, 600 s, _db5_lim) a red-only holder H, planted in the last part that fails (the line sits before its change): where FELIX_TEST_NO_MANIFEST=1 the part makes the case's hold.dir (only the first
 # to do so goes on), starts H (a process that ends within 0.2 s of hold.release appearing, and on its own only once B + 30 s have passed since it started),
-# writes hold.pid and hold.start and waits until hold.go exists, for B at most (without it, it goes on all the same, R46), and C = 10 s more; in the record run the same part waits for hold.start (B at most; if it never came it writes no hold.go, R46)
-# and writes hold.go. That part is the last to start in the record run, so its failure comes a second or two after hold.go (DJX_MLOG, when it names a file, logs the measure): against D's build red's monitor ends red's suite on the failed mark while the step holds,
-# H with it, and nothing of red's tree is left when the record run exits; against a build without R1 red's suite goes on after C and ends by itself, leaving H running, and the
-# name fails on every run. _db5_run writes hold.release as soon as _db5_atexit has listed, before _db5_clean. The step is one perl process (no short-lived child to be left behind).
+# writes hold.pid and hold.start and waits until hold.go exists, for B at most (without it, it goes on all the same, R46), then for the record run's failed mark (R53, B at most since the step started), and C = 40 s more after the mark;
+# in the record run the same part waits for hold.start (B at most; if it never came it writes no hold.go, R46) and writes hold.go. The record run's failure, and its mark, come after hold.go
+# (DJX_MLOG, when it names a file, logs go-to-mark and mark-to-step-end): against D's build red's monitor ends red's suite on the failed mark while the step holds (C is counted from the mark, R53),
+# H with it, and nothing of red's tree is left when the record run exits; against a build without R1 red's suite goes on 40 s after the mark and ends by itself, leaving H running, and the
+# name fails on every run; so it does against a build whose red leaves its suite running and whose record run ends red's tree at its own 60 s bound, 59 s or more after the mark, once the
+# step has ended at 40 s and H has left red's tree (R53). _db5_run writes hold.release as soon as _db5_atexit has listed, before _db5_clean. The step is one perl process (no short-lived child to be left behind).
 # R44: no bound of a hold is shorter than the case's own run bound, and a hold that did not happen fails R1's name on either build: R46: _db5_hv gives R1's verdict on a record half that holds, ok only when hold.start exists (else "red's suite never reached its hold"), hold.go exists (else "the record run never reached its hold"), the run did not end at its bound (exit 124: "the run reached its bound") and the listings at the exit find nothing, the first that fails giving the got. hold.miss and hold.nogo are not written: run.pl's KILL at B comes before either could be. DJX_MLOG's line for a case that held also gives, in ms from the run's start (_db5_start writes it to run.start), the times to hold.start, to hold.go and to the exit.
 # An assertion whose name ends in (control) passes before D is built on purpose.
 DB5="$TMP/db5"
@@ -42,11 +49,15 @@ printf '%s\n' "$out"
 DB5MK
 chmod +x "$DB5/mk/mktemp"; : > "$DB5/mktemp.log"
 cat > "$DB5/hold.pl" <<'DB5HOLD'
-# hold.pl SIDE DIR (R42 e, R44, as part 1293's): SIDE 1 is red's suite (FELIX_TEST_NO_MANIFEST=1), anything else the record run. DIR is the case's directory. B, the case's run bound, is $ENV{DJX_LIM}.
+# hold.pl SIDE DIR (R38, R44, R53; the same text in parts 1293 and 1295): SIDE 1 is red's suite (FELIX_TEST_NO_MANIFEST=1), anything else the record run. DIR is the case's directory,
+# and DIR/tmp the TMPDIR the case gives its runs. B, the case's run bound, is $ENV{DJX_LIM}. C, the step's hold after the record run's failed mark, is 40 s (R53).
 use strict; use Time::HiRes qw(time sleep);
-my ($side, $d) = @ARGV; my $B = $ENV{DJX_LIM} || 240;
+my ($side, $d) = @ARGV; my $B = $ENV{DJX_LIM} || 600;
 sub ms { sprintf "%d\n", time * 1000 }
 sub put { my ($f, $t) = @_; open(my $h, ">", "$f.t") or return; print $h $t; close $h; rename "$f.t", $f }
+# R53: the record run's failed mark: a regular file manifest.mark one directory below DIR/tmp (R41's stand-in mktemp puts the record run's $TMP there) whose first line is failed
+sub failed { opendir(my $D, "$d/tmp") or return 0; for my $n (readdir $D) { next if $n eq "." || $n eq ".."; my $m = "$d/tmp/$n/manifest.mark"; next unless -f $m && open(my $h, "<", $m);
+  my $l = <$h>; close $h; next unless defined $l; chomp $l; return 1 if $l eq "failed" } return 0 }
 if ($side eq "1") {
   mkdir "$d/hold.dir" or exit 0;
   $SIG{TERM} = sub { put("$d/hold.ended", ms()); exit 143 };
@@ -59,14 +70,17 @@ if ($side eq "1") {
   }
   put("$d/hold.pid", "$h\n"); put("$d/hold.start", ms());
   my $e = $t0 + $B; sleep 0.1 until -e "$d/hold.go" || ! -d $d || time > $e;
-  if (-e "$d/hold.go") { $e = time + 10; sleep 0.1 while time < $e && -d $d }
+  if (-e "$d/hold.go") {
+    my $f = 0; until (($f = failed()) || ! -d $d || time > $e) { sleep 0.1 }   # R53: once hold.go exists, the mark, every 0.1 s, until B has passed since the step started
+    if ($f) { put("$d/hold.mark", ms()); my $c = time + 40; sleep 0.1 while time < $c && -d $d }   # then C = 40 s more, and only then on, without waiting for H
+  }
 } else {
   my $e = time + $B; sleep 0.1 until -e "$d/hold.start" || ! -d $d || time > $e;
   if (-e "$d/hold.start") { put("$d/hold.go", ms()) }
 }
 DB5HOLD
 _db5_HL='[ -z "${DJX_HOLD:-}" ] || command perl "$DJX_HOLD" "${FELIX_TEST_NO_MANIFEST:-0}" "$DJX_DIR"'   # command: a serial red suite runs the earlier parts first, one of which defines a perl that does nothing
-_db5_E=(); _db5_pf=(); _db5_cl=ok; _db5_ex=ok; _db5_leak=""; _db5_ctl=0; _db5_lim=150
+_db5_E=(); _db5_pf=(); _db5_cl=ok; _db5_ex=ok; _db5_leak=""; _db5_ctl=0; _db5_lim=600   # R55: B, every run bound of this part (the record run's too)
 cat > "$DB5/run.pl" <<'DB5PL'
 my ($t, $f) = splice(@ARGV, 0, 2);
 my $p = fork; defined $p or exit 125;
@@ -82,7 +96,6 @@ for my $i (0 .. $#a) { next if $a[$i] eq ($b[$i] // ""); print "$ARGV[2]: $a[$i]
 DB5LD
 : > "$DB5/g-empty.tsv"; printf '1\tdjx a1\n' > "$DB5/man.tsv"
 printf 'printf "\\ndjx-sec 0010-pa.sh\\n"\nok "djx a1"\n' > "$DB5/pp/std/0010-pa.sh"
-_db5_until() { local n="$1" i=0; shift; while [ "$i" -lt "$n" ]; do "$@" && return 0; sleep 0.2; i=$((i + 1)); done; "$@"; }
 _db5_cnt()  { LC_ALL=C awk -v p="$2" 'index($0, p) == 1 { n++ } END { print n + 0 }' "$1" 2>/dev/null; }   # FILE PREFIX: lines starting with it
 _db5_line() { grep -cxF -e "$2" "$1" 2>/dev/null; }   # FILE LINE: lines that are exactly it
 # The members of the process groups $* that are not zombies, one a line: PID STAT COMMAND.
@@ -110,7 +123,7 @@ _db5_clean() {
 _db5_reap() {
   local p c
   for p in $(cat "$_db5_c/job.pids" 2>/dev/null); do
-    c="$(ps -o command= -p "$p" 2>/dev/null)"; case "$c" in "sleep 30"*) kill -KILL "$p" 2>/dev/null ;; esac
+    c="$(ps -o command= -p "$p" 2>/dev/null)"; case "$c" in "sleep 600"*) kill -KILL "$p" 2>/dev/null ;; esac
   done
   return 0
 }
@@ -152,10 +165,12 @@ _db5_run()  {   # _db5_ex: R1's verdict on this run, _db5_cl: R12's, whose findi
   : > "$_db5_c/hold.release"   # R42 (e): the red-only holder ends (within 0.2 s) as soon as the listings are taken, so _db5_clean has about a second to wait for
   _db5_cl="$(_db5_clean)"
   [ "$_db5_cl" = ok ] || _db5_leak="$_db5_leak [$_db5_c: $_db5_cl]"
-  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, and (R46) the times to hold.start, hold.go and the exit from the run's start, in ms
-  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s ex %s\n' "${_db5_c##*/}" \
+  # evidence only: with DJX_MLOG naming a file, a run that had a holding step logs the case, hold.go to the end of the step (hold.ended) and to the record run's exit, (R46) the times to hold.start, hold.go and the exit from the run's start,
+  # and (R53) go-to-mark (hold.mark - hold.go) and mark-to-step-end (hold.ended - hold.mark), none when a file is missing; in ms; ex last, since it may hold blanks
+  [ -z "${DJX_MLOG:-}" ] || [ ! -e "$_db5_c/hold.go" ] || printf '%s go-to-step-end %s go-to-exit %s start-to-hold.start %s start-to-hold.go %s start-to-exit %s go-to-mark %s mark-to-step-end %s ex %s\n' "${_db5_c##*/}" \
     "$([ -e "$_db5_c/hold.ended" ] && _db5_df "$(cat "$_db5_c/hold.ended" 2>/dev/null)" "$(cat "$_db5_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/hold.go" 2>/dev/null)")" \
-    "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/run.start" 2>/dev/null)")" "$_db5_ex" >> "$DJX_MLOG"
+    "$(_db5_rel hold.start)" "$(_db5_rel hold.go)" "$(_db5_df "$_db5_t1" "$(cat "$_db5_c/run.start" 2>/dev/null)")" \
+    "$(_db5_df "$(cat "$_db5_c/hold.mark" 2>/dev/null)" "$(cat "$_db5_c/hold.go" 2>/dev/null)")" "$(_db5_df "$(cat "$_db5_c/hold.ended" 2>/dev/null)" "$(cat "$_db5_c/hold.mark" 2>/dev/null)")" "$_db5_ex" >> "$DJX_MLOG"
 }
 _db5_rcpt() { if [ -f "$_db5_F/.git/felix-suite-receipt" ]; then echo present; else echo absent; fi; }
 _db5_last() { tail -n 1 "$_db5_c/$1.out" 2>/dev/null; }
@@ -246,7 +261,7 @@ _db5_sp R28 optind "OPTIND=5" x 'OPTIND=5' 'variable OPTIND changed'
 _db5_sp R16 posn "set -- a b c" x 'set -- a b c' 'positional parameters changed'
 _db5_sp R16 pushd "pushd of the working directory, which leaves the stack changed and the directory as found" x 'pushd "$PWD" >/dev/null' 'directory stack changed'
 _db5_sp R16 ro "readonly djx_ro=1" x 'readonly djx_ro=1' 'readonly djx_ro added'
-_db5_sp R16 job "sleep 30 & left running" x 'sleep 30 &
+_db5_sp R16 job "sleep 600 & left running" x 'sleep 600 &
 printf "%s\n" "$!" >> "$DJX_DIR/job.pids"; printf "job %s left running\n" "$!" > "$DJX_DIR/exp.job"'
 if [ -n "$_db5_ulf" ] && [ "$_db5_ulf" != "$_db5_uh" ]; then
   _db5_sp R16 ulh "a hard limit lowered with ulimit -H to its soft value" x 'djx_w="$(ulimit -Ha)"; ulimit -H -'"$_db5_ulf $_db5_uls"'; djx_n="$(ulimit -Ha)"
@@ -344,13 +359,13 @@ is "R28: and its one bar line is shopt -u nullglob is now shopt -s nullglob" "$(
 rm -rf "$DB5/n/sg"
 
 # ---- under -j 1 nothing is compared: none of them gives the seventh failure, and the run is known to have reached every part
-_db5_new sj "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_a1[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_lim=100; _db5_run s1 -j 1; _db5_lim=150
+_db5_new sj "$DB5/g-empty.tsv" "$DB5/pman.tsv" "${_db5_a1[@]}"; _db5_E=(DJX_ULIM="$_db5_ul"); _db5_run s1 -j 1
 is "R8: under -j 1 none of them gives the seventh failure (R24, R28 included), a change carrying to the parts after it as it always did, and every part of the -j 1 set printed its ok line once, so the run reached them all" \
    "$(_db5_cnt "$_db5_c/s1.out" "  FAIL  $_db5_w") $(_db5_oks s1.out xpsc) $_db5_cl" "0 ok ok"
 
 # ---- a record run: the seventh failure writes no manifest, and red.tsv holds the two retraction rows
-_db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_lim=240; _db5_E=(DJX_ULIM="$_db5_ul" DJX_HOLD="$DB5/hold.pl" DJX_LIM="$_db5_lim")   # R42 (e), R44: the red-only holder, for this run alone, given the run bound
-_db5_run r -j 3 --record-assertions; _db5_lim=150
+_db5_new sr --red "$DB5/g-empty.tsv" "$DB5/man.tsv" "${_db5_px[@]}"; _db5_E=(DJX_ULIM="$_db5_ul" DJX_HOLD="$DB5/hold.pl" DJX_LIM="$_db5_lim")   # R42 (e), R44, R55: the red-only holder, for this run alone, given the run bound B
+_db5_run r -j 3 --record-assertions
 is "R8: in a record run the seventh failure writes no manifest, and red.tsv holds the rows base - - - and run - - -, with no process left" "$(_db5_chkr r "${_db5_xx[@]}") $_db5_cl" "ok ok"
 is "R1: and once that record run has exited no process of red's tree is left, stopped or running" "$_db5_ex" ok
 rm -rf "$DB5/n/sh" "$DB5/n/sj" "$DB5/n/sr"

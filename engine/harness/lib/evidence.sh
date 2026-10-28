@@ -26,8 +26,9 @@
 # every such line says `not judged`, which is how a caller tells it from the two
 # whole-scan unknowns below, whose reason says `no rule was consulted` and whose
 # line, for a base name that holds a newline, is not even one line. So does the
-# one line for a project.json the check cannot read, or for paths it could not
-# set aside (round 3, B11R3-8 and B11R3-9), since either stands for every row.
+# one line for a project.json the check cannot read, for paths it could not set
+# aside, or for a changed name holding a newline (round 3, B11R3-8, B11R3-9 and
+# B11R3-14), since each stands for every row.
 
 # felix_changed_paths lives in resolve.sh, which every hook and the CLI source
 # first. Sourced here too rather than assumed: a lib whose helper is missing
@@ -51,18 +52,54 @@ fi
 # dependency's test proves nothing of the project's code (B11R3-4): that half
 # only makes a verdict stricter.
 
+# Where PROJ sits in ROOT's tree, by identity and never by spelling (B11R3-13).
+# 0 with the path the repository records for it ("" for ROOT itself) when PROJ,
+# or a directory above it, is the same directory as ROOT as [ -ef ] decides; 1
+# when none is; 2 when that cannot be told. A string from `pwd -P` keeps the
+# case it was typed in, a leading //, a firmlink's /System/Volumes/Data, so two
+# spellings of one directory failed a prefix test, and project.json was read
+# from the working tree the change wrote. Each name below ROOT is the entry of
+# its parent that is the same directory, so the case typed is never the one read.
+_felix_evidence_where() {   # PROJ ROOT
+  local r
+  r="$(CDPATH='' cd -P -- "${2:-.}" 2>/dev/null && pwd -P)" && [ -n "$r" ] || return 2
+  ( CDPATH=''; cd -P -- "$1" 2>/dev/null || exit 2
+    s="$(pwd -P)" && [ -n "$s" ] || exit 2
+    k=0
+    while ! [ . -ef "$r" ]; do
+      ! [ . -ef .. ] || exit 1
+      cd -P .. 2>/dev/null || exit 2
+      k=$((k + 1))
+    done
+    cd -P -- "$s" 2>/dev/null || exit 2
+    shopt -u failglob nullglob 2>/dev/null; unset GLOBIGNORE
+    rel=""
+    while [ "$k" -gt 0 ]; do
+      n=""
+      for e in ../* ../.[!.]* ../..?*; do
+        if [ ! -L "$e" ] && [ "$e" -ef . ]; then n="${e#../}"; break; fi
+      done
+      [ -n "$n" ] && cd -P .. 2>/dev/null || exit 2
+      rel="$n${rel:+/$rel}"; k=$((k - 1))
+    done
+    printf '%s' "$rel" )
+}
+
 # project.json's text as the check reads it: at the base when the project
 # directory is the repository's top or below it, so a change neither grants nor
 # revokes its own set-aside, and from the disk otherwise (B11R3-5). ROOT is the
 # top, as every caller passes it. Nothing printed is nothing declared. A file
-# that is there and cannot be read exits 1 with the reason (B11R3-8 a and f).
+# that is there and cannot be read exits 1 with the reason (B11R3-8 a and f),
+# and so does a project directory no one can place (B11R3-13).
 _felix_evidence_pj() {   # PROJ BASE ROOT
-  local pj="$1/project.json" pp rp rel sha ent text
+  local pj="$1/project.json" rel rc=0 sha ent text
   local why="so its evidence_vendored and evidence_reads_vendored are unknown and the rules were not judged"
-  pp="$(cd -P "$1" 2>/dev/null && pwd -P)" || pp=""
-  rp="$(cd -P "$3" 2>/dev/null && pwd -P)" || rp=""
-  if [ -n "$pp" ] && [ -n "$rp" ] && { [ "$pp" = "$rp" ] || [ "${pp#"$rp"/}" != "$pp" ]; }; then
-    rel="${pp#"$rp"}"; rel="${rel#/}"; rel="${rel:+$rel/}project.json"
+  rel="$(_felix_evidence_where "$1" "$3")" || rc=$?
+  if [ "$rc" -gt 1 ]; then
+    printf 'it could not be told whether the project directory is inside the repository, %s' "$why"; return 1
+  fi
+  if [ "$rc" -eq 0 ]; then
+    rel="${rel:+$rel/}project.json"
     # An empty base is HEAD, and an unborn HEAD has committed nothing to declare.
     if ! sha="$(git -C "$3" rev-parse -q --verify "${2:-HEAD}^{commit}" 2>/dev/null)"; then
       [ -n "$2" ] || return 0
@@ -213,6 +250,38 @@ _felix_evidence_aside() {   # PATHS ENTRIES GO when|requires|count
   ' <<<"$1"
 }
 
+# PATHS as felix_changed_paths gives them, each read back as the bytes of its
+# name (B11R3-14). git quotes a name holding a double quote, a backslash, a
+# control character or (unless core.quotePath is false) a byte above 127, as
+# "src/caf\303\251.go", and a cell that reads that has not read src/café.go:
+# own code read n/a on every row. Exits 3 when a name holds a newline, which
+# would read as two paths (`z<NL>tests/z_test.go` would meet a test row), and 2
+# on a spelling git does not write.
+_felix_evidence_bytes() {   # PATHS
+  case $'\n'"$1" in *$'\n"'*) ;; *) printf '%s\n' "$1"; return 0 ;; esac
+  LC_ALL=C awk '
+    BEGIN { e["a"] = 7; e["b"] = 8; e["t"] = 9; e["n"] = 10; e["v"] = 11; e["f"] = 12; e["r"] = 13; e["\""] = 34; e["\\"] = 92 }
+    substr($0, 1, 1) != "\"" { print; next }
+    { s = substr($0, 2); o = ""
+      for (;;) {
+        i = index(s, "\\"); j = index(s, "\"")
+        if (j > 0 && (i == 0 || j < i)) break
+        if (i == 0) { st = 2; exit }
+        o = o substr(s, 1, i - 1); c = substr(s, i + 1, 1)
+        if (c ~ /^[0-3]$/ && substr(s, i + 2, 2) ~ /^[0-7][0-7]$/) {
+          o = o sprintf("%c", c * 64 + substr(s, i + 2, 1) * 8 + substr(s, i + 3, 1)); s = substr(s, i + 4)
+        } else if (c in e) { o = o sprintf("%c", e[c]); s = substr(s, i + 2) }
+        else { st = 2; exit }
+      }
+      if (substr(s, j + 1) != "") { st = 2; exit }
+      o = o substr(s, 1, j - 1)
+      if (index(o, "\n") > 0) { st = 3; exit }
+      print o
+    }
+    END { exit st }
+  ' <<<"$1"
+}
+
 # Every row of PROJ's evidence.tsv as five lines, so no cell is split by a read
 # that collapses empty ones: `ok`, name, when, requires, reason for four
 # non-empty cells set apart by tabs; `bad`, name, why, -, - for any other row.
@@ -285,6 +354,15 @@ _felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
     fi
     ents="${decl%%$'\n'*}"
     case "$decl" in *$'\n'*) opted="${decl#*$'\n'}" ;; esac
+    # Each changed path as its own bytes, never as git quotes it (B11R3-14).
+    rc=0; paths="$(_felix_evidence_bytes "$paths")" || rc=$?
+    if [ "$rc" -ne 0 ]; then
+      why="git's spelling of a changed path could not be read back as its name"
+      [ "$rc" -ne 3 ] || why="a changed path's name holds a newline, which would read as two paths"
+      _felix_evidence_say check unknown CHANGED-PATHS "$why, so the rules were not judged"
+      return 0
+    fi
+    wpaths="$paths"; rpaths="$paths"
     case $'\n'"$paths" in *$'\n'vendor/*) ! _felix_evidence_gomod "${5:-}" "${4:-}" || go=1 ;; esac
     case "$paths" in *vendor/*|*third_party/*|*node_modules/*) vend=1 ;; esac
     if [ -n "$ents" ] || [ "$go" -eq 1 ]; then

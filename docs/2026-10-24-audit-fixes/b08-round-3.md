@@ -670,3 +670,99 @@ Expected red on 2eeedbed: A131 to A139 (9), since 2eeedbed reads the disk. A137 
 because 2eeedbed judges the untracked files and says `ok`. A129 and A130 as restated are red on
 24ae0a93 and green on 2eeedbed, because they test B08R3X-3. A124 restated and A140 pass on
 2eeedbed. Report each one.
+
+## 11. Fourth follow-up: what git holds is what a checkout writes
+
+The review of 25f4fd53 (section 10's fix) found the clauses it targets correct across symlinks,
+gitlinks, case variants, conflicted stages, intent-to-add entries and sparse checkouts. It found
+one medium regression beside them, one older medium, and five lows.
+
+- **B08R3Z-1 (medium, regression). A checkout conversion is a fault.** Git can change a file's
+  bytes between the index and the working tree, through attributes in a committed
+  `.gitattributes`. Section 10's index blob is then not what the cloud's checkout writes. A
+  `working-tree-encoding=UTF-16` on settings.json gives the cloud a UTF-16 file that Claude Code
+  cannot parse. 2eeedbed failed that tree for its NUL bytes; 25f4fd53 reads it ok.
+  - For every regular-file index entry under `.claude/`, the attributes `working-tree-encoding`,
+    `filter` and `ident` are read from the index (`git check-attr --cached`). Each one set on an
+    entry adds ` unreadable: <path> (git attribute <attr> changes it at checkout);`, one per
+    entry and attribute, in index order.
+  - `text` and `eol` are not faults. They change only line endings, which JSON reads as
+    whitespace. The content judged stays the index blob.
+  - An attribute from a machine-local source (`.git/info/attributes`, `core.attributesFile`)
+    also counts. That fails closed, and only on that machine.
+- **B08R3Z-2 (medium, older). The guard count reads the JSON, not the text.** Every hook object's
+  `command` value in settings.json counts once, however the key is spaced or broken across
+  lines. It is guarded when the value begins with the guard prefix the check already names. The
+  count is taken in the awk that parses settings.json, and the two greps go. The clause and its
+  wording are unchanged. B08R3X-3 stands: over a size or NUL fault, no count is taken.
+- **B08R3Z-3 (low). A non-ASCII name the Mac may fold.** APFS folds some non-ASCII letters onto
+  ASCII ones, for example U+017F (`ſ`) onto `s`. So the index can hold `.claude/ſettings.json`
+  while the Mac's disk answers for `.claude/settings.json`.
+  - Each index entry is compared component by component with the components the cloud reads:
+    - first: `.claude`;
+    - second: `settings.json`, `settings.local.json` or `cloud`;
+    - third, under `cloud`: `toolbox.json` or `provision`.
+  - A component holding a byte above 0x7f is a fold risk when, with each run of such bytes
+    standing for any one character and ASCII case folded, it matches the component read at that
+    position, and the components before it match too.
+  - Such an entry adds ` unreadable: <path> (a non-ASCII name the Mac's file system may fold onto
+    one the cloud reads);`. The line is FAIL, never `skipped`.
+  - A non-ASCII name elsewhere under `.claude/` is not a fault, for example
+    `.claude/cloud/notes-é.md` or `.claude/agents/é.md`.
+- **B08R3Z-4 (low). Both sides of the toolbox comparison come from the index.** The stack rows
+  are read from the index blob of `projects/felix/stack.tsv`, like toolbox.json.
+  `engine/hooks/hooks.json` is still read from disk (section 10). On a tree with unstaged edits,
+  that one comparison mixes sources, and this contract accepts that.
+- **B08R3Z-5 (low). The check leaves no file behind on any exit.** Feed the blobs to awk, grep
+  and sed through pipes or variables, not a temp file. If a file is unavoidable, a trap removes
+  it on EXIT, INT and TERM, without disturbing any trap gate.sh already sets.
+- **B08R3Z-6 (low). A missing stage-0 copy is said as such.** When git's index holds no stage-0
+  `.claude/settings.json` (a merge conflict), the clause is ` unreadable: .claude/settings.json
+  (git's index holds no stage-0 copy of it);`. No clause holds a path on the machine running the
+  gate.
+- **B08R3Z-7 (low, tests). The index, not HEAD.** Section 10's cases committed their index, so a
+  check reading `HEAD:<path>` passed them all. Two cases separate the two (below).
+
+### What must not change (beyond sections 3 and 10)
+
+- Every A69-A140 case reads as on 25f4fd53. The clean tree's line is byte for byte as before.
+- gate.sh may grow to 120 lines over 8e634e4b; the builder reports the count. gate.sh is past
+  500 lines on main already. Moving the cloud check into its own file is a batch of its own,
+  because a new file needs its own risk row.
+
+### Assertions (part 1771 after A140, or a new part 1772 if 1771 would pass 950 lines)
+
+Named `B08R3Z A<n> (R3Z-<m>...)`.
+
+- **A141** (R3Z-1) A committed `.gitattributes` holds `.claude/settings.json
+  working-tree-encoding=UTF-16`, and the tree's settings.json is added through it, so the index
+  blob is UTF-8. Expected: cloud FAIL with the attribute clause naming `.claude/settings.json` and
+  `working-tree-encoding`. The fixture checks the blob is UTF-8 and `git check-attr --cached`
+  reports the attribute.
+- **A142** (R3Z-1) the same for `.claude/cloud/toolbox.json`.
+- **A143** (R3Z-1) `.claude/settings.json filter=felixtest`, with no driver configured: the
+  `filter` clause.
+- **A144** (R3Z-1, control) `.claude/settings.json text eol=lf`: the cloud line as A140.
+- **A145** (R3Z-2) one hook's command written `"command" : "<unguarded harness command>"`: cloud
+  FAIL with `1 command(s) without the CLAUDE_CODE_REMOTE guard;`.
+- **A146** (R3Z-2) the same with a newline between `"command"` and `:`.
+- **A147** (R3Z-2, control) a guarded command written `"command" : "<the guard prefix>..."`: no
+  guard clause.
+- **A148** (R3Z-3) the index holds `.claude/ſettings.json` (U+017F, bytes C5 BF), the tree's
+  good blob, and no exact `.claude/settings.json`: the non-ASCII clause, and no `skipped`.
+- **A149** (R3Z-3, control) the tree's own `.claude` plus a committed `.claude/cloud/notes-é.md`:
+  the cloud line as A140.
+- **A150** (R3Z-4) a toolbox entry removed and staged, and its stack row removed on disk only:
+  cloud FAIL with `<name> has no entry in .claude/cloud/toolbox.json;`.
+- **A151** (R3Z-5) the gate run with TMPDIR (and GTLOG_DIR if the gate reads it) set to an empty
+  directory: after the run, that directory holds no file the cloud check made.
+- **A152** (R3Z-6) settings.json in a merge conflict (stages 1-3 only): the stage-0 clause
+  exactly, and no `/` inside its parentheses.
+- **A153** (R3Z-7) HEAD and the disk hold the good settings.json, and the index holds a staged,
+  uncommitted copy with an unguarded command on its own line: the guard clause.
+- **A154** (R3Z-7, control) HEAD holds the unguarded copy, while the index and the disk hold the
+  good one: the cloud line as A140.
+
+Expected red on 25f4fd53: A141, A142, A143, A145, A146, A148, A150 and A152 (8). A151 may be red
+if 25f4fd53 leaves its temp file in TMPDIR. A153 should pass on 25f4fd53, because it reads the
+index. The controls pass. Report each one.

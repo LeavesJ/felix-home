@@ -8,7 +8,7 @@ Draft, 2026-10-27, for the form at speedrun.a16z.com/apply (closes 2026-11-01, 1
 2. **Sam Schmidgall's name.** Your BehaviorChangeBench notes (`private/01_mentors.md`) say his involvement is meant to stay separate unless Anthropic and Google both agree, and not to publish his name or affiliation without asking Peter first. The answers use the resume's wording, a Google DeepMind and UCSF TECH Lab project, and name nobody. Ask Peter before adding names.
 3. **The NeurIPS line.** Peter's 10-16 email asks for the Intro, Related Work and Methods "in the format of a NeurIPS eval track paper". His 09-12 email sets the goal of submitting "ideally by early next semester". The venue and its deadline were still open on your 10-16 list. The answer says the paper is being drafted in that format and aimed at next semester. If Peter has since confirmed NeurIPS as the venue, it can say so outright.
 4. **Entity and IP.** Nothing is incorporated under Daimonion yet. The brief records that whether Elenchus Labs' invention-assignment agreement reaches Felix "is genuinely unclear". Settle that before any term sheet.
-5. **Your resume and deck.** Both still say 363 stops blocked and 35.7%. The answers use 206.
+5. **Your resume and the old deck.** Your resume and deck v4 still say 363 stops blocked and 35.7%. The answers and the new deck use 206, so upload the new deck (`pdf/2026-11-speedrun-deck.pdf`), not v4.
 6. **The pilot line.** The anything-else box says the first outside pilot is planned for February. Be ready to say, when asked, that the team is at a company your family is connected to, that it's agreed in principle and unsigned, and that it needs Felix to run inside their network. Those details are in the interview list, not the box.
 
 ## Team
@@ -95,10 +95,10 @@ If you use Claude Code, clone github.com/LeavesJ/Felix and run felix audit. It i
 
 **Pitch deck:** optional. See "The deck" below before uploading anything: deck v4's slide 8 still says "363 unverified stops blocked", and these answers use 206.
 
-### Traction (712 characters, no limit shown)
+### Traction (714 characters, no limit shown)
 
 <!-- answer:traction -->
-Pre-revenue, and Felix is in daily use on my own projects. In six weeks across 43 of my sessions, it stopped an agent from calling something done 206 times. Almost every time, the agent's evidence was stale (the tests had passed on older code), missing (they'd never run), or bad (they'd failed on the very code it was handing over). Sent back, the agents reran their checks about 130 times, and at least 15 of those runs failed, problems that would otherwise have slipped through. The number I'm driving down is how often a person has to step in: in a September pilot, readers marked 31% of my turns as me doing work the agent should have done. Felix is open source under Apache-2.0 at github.com/LeavesJ/Felix.
+Pre-revenue, and Felix is in daily use on my own projects. In six weeks across 43 of my sessions, it stopped an agent from calling something done 206 times. Almost every time, the agent's evidence was stale (the tests had last run on older code), missing (they'd never run), or bad (they'd failed on the very code it was handing over). Sent back, the agents reran their checks about 130 times, and at least 15 of those runs failed, problems that would otherwise have slipped through. The number I'm driving down is how often a person has to step in: in a September pilot, readers marked 31% of my turns as me doing work the agent should have done. Felix is open source under Apache-2.0 at github.com/LeavesJ/Felix.
 <!-- /answer -->
 
 **Funding history:** [TK: none, if no outside money has gone into Felix.]
@@ -130,7 +130,7 @@ These are true, and they're the follow-up questions a partner asks once the boxe
 - How the hold works: a project names the checks it trusts, Felix records which code they passed on, an agent stopping on code they haven't passed on is sent back once, and `felix merge` refuses a branch without a current pass.
 - Of the 206 holds, 135 were checks that last ran on different code, 39 checks that never ran in that checkout, and 29 checks that failed on the exact code.
 - Where each half stands. Live and in daily use on your projects: the Stop hold, receipts and their staleness, `felix merge`, obligations that block while unchecked, project setup with a starter set of plugins, and plugin discovery that reads a plugin before installing it. Built with little real use: obligations a model proposes, advisory only (22 proposed on two projects, none admitted yet). Next: the join, where an obligation stays unmet until a qualified checker is attached. Designed, not built: `felix dispatch`. Felix has one real user so far, you.
-- What the description pitches ahead of the code. A test written by an agent other than the producer is a working convention (blind authorship), and Felix doesn't yet assign it. The planted-bug rule qualifies Felix's own checks today. A model's additions are advisory until admitted. Turning a slipped bug into a standing test is the newest piece. "Deterministic" in the one-liner is about the verdict: models propose what the work needs, and only a passing check decides it's done.
+- What the description pitches ahead of the code. A test written by an agent other than the producer is a working convention (blind authorship), and Felix doesn't yet assign it. The planted-bug rule qualifies Felix's own checks today. A model's additions are advisory until admitted. Turning a slipped bug into a standing test is designed but not built yet; direction lists its first step, classifying misses, as a candidate lane item. Slide 4 of the deck pitches the same loop. "Deterministic" in the one-liner is about the verdict: models propose what the work needs, and only a passing check decides it's done.
 - The pilot: a semiconductor supply-chain software team at a company your family is connected to, agreed in principle, nothing signed, and waiting on Felix running inside their network.
 - Price, as a hypothesis only: about $1,000 a month plus $40 a committer.
 
@@ -160,24 +160,34 @@ Also considered:
 
 ## The deck
 
-The upload is optional, and the speedrun team's own FAQ says a deck "can sometimes get in the way". Send one only if it is short and agrees with every number above. Deck v4 (`~/Downloads/Felix_Autonomous_Engineering_Control_Plane_Investor_Deck_v4.pptx`, 18 slides) is a thesis deck. It argues the idea well, but it says 363 and 35.7% where these answers say 206, and its two invariant slides centre on receipts, which the brief says not to lead with because signed, tree-bound receipts already exist elsewhere.
+**Upload `pdf/2026-11-speedrun-deck.pdf`.** It has ten slides, built 10-27 from `deck/2026-11-speedrun-deck.html` and `deck/deck.css`. Speedrun's partners disagree about decks. Andrew Lee said in a May 2025 Q&A that a deck "can sometimes get in the way". Josh Lu said he couldn't think of an interview he had scheduled without clicking the deck link, and the January 2026 roundtable settled on seven to ten slides. The FAQ itself only covers uploads. The team section gets most of the review time, so the deck backs it up rather than repeating it.
 
-A proposed nine-slide deck, cut from v4 and the brief:
+Each slide answers one question a partner asks, in the order speedrun reads them:
 
-| # | Slide | From |
+| # | The question | The slide's claim |
 |---|---|---|
-| 1 | Daimonion, Felix, and the one-liner. | new |
-| 2 | The failure: the agent says "done" on code that changed after the tests ran. | v4 slide 8, without its 363 and 35.7% line |
-| 3 | What Felix does with one change, start to finish: the hold, the receipt for that exact code, and the merge that refuses without it. | v4 slide 9, the README's walkthrough |
-| 4 | The evidence: 206 holds in 43 sessions, the three causes, about 130 reruns, at least 15 of them failed. | README |
-| 5 | The harder half: the rate-limit story, what a project owes, and the seeded-omission test that is designed but hasn't run. | README, brief |
-| 6 | Why now: METR's maintainers rejected about half the PRs that passed the grader; every vendor reviews its own agent's work. | brief, METR note of 2026-03-10 |
-| 7 | Who pays, marked as a hypothesis: platform leads at 50 to 500 engineer teams running two or more agent vendors, self-hosted, paying for the verdict rather than for tokens. | brief |
-| 8 | Why me: BehaviorChangeBench, Elenchus as a product (200+ students, the grader it retired), 87,100+ model turns. | v4 slides 4 and 6, resume |
-| 9 | The next twelve weeks: the M1 attended loop, the M2 MVP with the seeded-omission result, the February pilot, and full time from February. | brief roadmap |
+| 1 | What do you do? | Deterministic senior engineer for autonomous coding agents |
+| 2 | Why should anyone care? | "Your agent says it's done. Nothing has checked." Two agent reports redlined: tests that last ran on older code (135 holds) and the real deploy with no rate limiting |
+| 3 | Why you? | "I needed it first": 87,100+ turns, BehaviorChangeBench, Elenchus, full time for spring 2027 |
+| 4 | What do you know that others don't? | Engineering is what the work is held to. The loop: need, a test by another agent, a planted bug, code decides, a miss becomes a need |
+| 5 | What's your progress? | 206 holds, 135 / 39 / 29 / 3, about 130 reruns, 31%, the hooks load in Codex in a test run |
+| 6 | Why now? | Agent labor got cheap and knowing it's right didn't: valuations, vendors reviewing their own agents, METR, Anthropic's docs, Rauch |
+| 7 | Why hasn't anyone done this, and who else is here? | "The judge can't be the one being judged." A 2x2: who decides done (a model or code) against what the work is held to (only what someone wrote down, or what the project needs including the unasked) |
+| 8 | What happens as models get better? | Difficulty falls each generation and a shipped mistake costs as much as ever. Felix takes the ideas and keeps the verdict |
+| 9 | How big, and how does it make money? | The first buyer, self-hosted pricing, and 36.5M developers x $480 a year = $17.5B at the committer price, with Protect AI and DX as comparables |
+| 10 | Where does it go? | The layer between you and your agents. Live today, then December to January, February and Demo Day |
 
-Out from v4: the kernel and browser analogy (slide 11), invariant infrastructure for finance and healthcare (slide 16), and the two thesis slides at the front (2 and 3). They widen the claim past what has been measured, and a reviewer reads the numbers first.
+**The theme.** Each slide is drawn as an engineering drafting sheet, with zone marks on the frame and a title block in the corner. On a drawing, the person who draws never checks, so every title block reads "Drawn by Jarron Deng" and "Checked by: a reader who didn't write it". A blind reader did check the deck. The colours are Felix's own, from `assets/felix-mark-light.svg`. Red is the checker's pencil and appears only where a check found something. The type is DIN Condensed, from the German standards body, with Charter for body text. Monospace is used only where a slide quotes an agent.
 
-If v4 goes out with only its numbers fixed, slide 17 also needs changing: it still says "Current build focus: Trust Plane MVP", while direction row 25 (10-19) builds need intake alongside the trust plane. `direction.md` §6 points to wording for it in §9 of the 2026-10-18 brief.
+**Outside numbers, verified 10-27 against primary sources.** Several in our own notes were wrong:
+- Cognition is at $48B with a $1B run-rate (Sep 2026); $26B was its earlier Series D.
+- METR's "38%, 0 of 15" is an older 2025 study. The March 2026 note says about half of test-passing agent PRs would not be merged.
+- The Rauch quote has "I think," restored.
+- Claude Code's $2.5B run-rate dates from February and is left out. If Anthropic's S-1 is public before Nov 1, check it for a newer figure.
+- Acquisition prices come from filings only: Protect AI $634.5M (Palo Alto 10-K). DX's "about $1B" comes from Atlassian's announcement.
 
-Still open: whether to send a deck at all, and if so, whether it is the nine slides above or v4 with only its numbers fixed.
+Each sourced slide prints its sources at the bottom.
+
+**What the deck pitches ahead of the code:** the same items as the interview list, plus slide 10's December to January and Demo Day milestones, which are plans.
+
+**To rebuild the PDF after an edit,** print the HTML with headless Chrome at 1600 x 900. The renderer is the same one used for the answers PDF, with the page size set by the stylesheet's `@page`.

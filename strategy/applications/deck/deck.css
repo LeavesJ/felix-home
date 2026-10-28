@@ -1,0 +1,114 @@
+/* Felix speedrun deck. Each slide is a drafting sheet: a frame with zone
+   marks, and a title block whose "drawn by" and "checked by" boxes are never
+   the same name. Colours come from the Felix mark (assets/felix-mark-light.svg).
+   Red is the checker's pencil and appears only where a check found something. */
+
+:root {
+  --film: #e9f3f2;      /* the mark's light ground, read as drafting film */
+  --ink: #0e1c20;       /* the mark's ink */
+  --lead: #4a5f62;      /* secondary text */
+  --rule: #9db3b1;      /* hairlines, ticks, zone marks */
+  --wash: #d6e7e5;      /* faint fills */
+  --teal: #2bb8ad;      /* verified: the mark's accent */
+  --teal-ink: #137a72;  /* teal that is legible as text */
+  --red: #c42840;       /* the checker's redline */
+  --display: "DIN Condensed", "DIN Alternate", "Arial Narrow", sans-serif;
+  --text: "Charter", "Iowan Old Style", Georgia, serif;
+  --mono: "PT Mono", Menlo, monospace;
+}
+
+@page { size: 1600px 900px; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body { background: var(--film); color: var(--ink); }
+body { font-family: var(--text); -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+
+.sheet {
+  position: relative; width: 1600px; height: 900px; overflow: hidden;
+  background: var(--film); page-break-after: always; break-after: page;
+}
+.sheet:last-child { page-break-after: auto; break-after: auto; }
+
+/* The frame: a hairline at the paper edge, a heavier border inside, and
+   zone marks in the band between them, as on a drawing. */
+.frame-outer { position: absolute; inset: 14px; border: 1px solid var(--rule); }
+.frame-inner { position: absolute; inset: 34px; border: 2px solid var(--ink); }
+.zone {
+  position: absolute; font: 700 13px/1 var(--display); color: var(--lead);
+  width: 20px; text-align: center;
+}
+.tick { position: absolute; background: var(--rule); }
+
+/* The title block, bottom right, inside the frame. */
+.tb {
+  position: absolute; right: 36px; bottom: 36px; width: 598px; height: 92px;
+  display: grid; grid-template-columns: 92px 150px 1fr 118px; grid-template-rows: 46px 46px;
+  border-top: 2px solid var(--ink); border-left: 2px solid var(--ink); background: var(--film);
+}
+.tb > div { border-right: 1px solid var(--ink); border-bottom: 1px solid var(--ink); padding: 6px 10px; }
+.tb > div:nth-child(3), .tb > div:nth-child(6) { border-right: 0; }
+.tb .mark { grid-row: 1 / 3; display: flex; align-items: center; justify-content: center; padding: 10px; }
+.tb .mark img { height: 64px; }
+.tb .name { grid-column: 2 / 4; }
+.tb small { display: block; font: 13px/1 var(--text); color: var(--lead); margin-bottom: 5px; }
+.tb b { display: block; font: 700 22px/1 var(--display); letter-spacing: .02em; }
+.tb .name b { font-size: 24px; }
+
+/* Content area: everything sits above the title block and inside the frame. */
+.body { position: absolute; left: 92px; right: 92px; top: 84px; bottom: 150px; }
+h1 {
+  font: 700 76px/.92 var(--display); letter-spacing: -.005em; max-width: 1180px;
+}
+.sub { font: 28px/1.4 var(--text); color: var(--lead); max-width: 60ch; margin-top: 22px; }
+p, li { font: 25px/1.45 var(--text); }
+.note { font: 20px/1.45 var(--text); color: var(--lead); }
+.src { position: absolute; left: 92px; bottom: 50px; width: 820px; font: 13px/1.35 var(--text); color: var(--lead); }
+.teal { color: var(--teal-ink); }
+.red { color: var(--red); }
+
+/* Cover */
+.cover h1 { font-size: 132px; line-height: .9; max-width: 1240px; margin-top: 40px; }
+.cover .sub { font-size: 34px; max-width: 44ch; margin-top: 34px; color: var(--ink); }
+.cover .who { position: absolute; left: 0; bottom: 0; font: 22px/1.45 var(--text); color: var(--lead); }
+.cover .who b { font: 700 30px/1 var(--display); color: var(--ink); display: block; margin-bottom: 6px; letter-spacing: .02em; }
+.cover .lockup { height: 70px; }
+
+/* Slide 2: the agent's report, redlined by the checker. */
+.report { margin-top: 70px; display: grid; grid-template-columns: 760px 1fr; row-gap: 64px; column-gap: 56px; align-items: center; }
+.said { font: 31px/1.35 var(--mono); padding-left: 22px; border-left: 4px solid var(--ink); }
+.said i { display: block; font: 700 15px/1 var(--display); font-style: normal; color: var(--lead); letter-spacing: .04em; margin-bottom: 10px; }
+.struck { position: relative; white-space: nowrap; }
+.struck::after {
+  content: ""; position: absolute; left: -6px; right: -8px; top: 52%; height: 4px;
+  background: var(--red); border-radius: 3px; transform: rotate(-2.2deg);
+}
+.caret { position: relative; top: 14px; margin: 0 1px; }
+.margin { position: relative; font: italic 26px/1.35 var(--text); color: var(--red); padding-left: 26px; }
+.margin::before { content: ""; position: absolute; left: -48px; top: 18px; width: 62px; height: 2px; background: var(--red); }
+.after { margin-top: 78px; max-width: 64ch; font-size: 26px; }
+
+/* Shared two-column layout */
+.cols { display: grid; grid-template-columns: 1fr 1fr; column-gap: 72px; margin-top: 44px; }
+.facts { display: grid; row-gap: 26px; }
+.facts p b { font: 700 30px/1 var(--display); display: block; margin-bottom: 6px; letter-spacing: .01em; }
+.rule-l { border-left: 1px solid var(--rule); padding-left: 28px; }
+
+/* Drawings */
+svg text { font-family: var(--text); }
+svg .d, svg .d text { font-family: var(--display); font-weight: 700; }
+svg .m, svg .m text { font-family: var(--mono); }
+
+/* Slide 5: gate output, set as the gate prints it */
+.gate { font: 21px/1.5 var(--mono); background: var(--ink); color: var(--film); padding: 18px 24px; white-space: pre; }
+.gate .k { color: var(--teal); }
+.gate .r { color: #f08a99; }
+
+/* Slide 10: the timeline */
+.when { display: grid; grid-template-columns: repeat(4, 1fr); column-gap: 30px; margin-top: 12px; }
+.when b { font: 700 28px/1 var(--display); display: block; margin-bottom: 8px; }
+.when p { font-size: 21px; }
+
+/* Slides 6 and 9: claims with their sources, and the market sum */
+.quote { font: italic 30px/1.35 var(--text); }
+.quote + .by { font: 18px/1.4 var(--text); color: var(--lead); margin: 10px 0 34px; }
+.sum { font: 700 64px/1 var(--display); letter-spacing: -.005em; margin: 6px 0 10px; }
+.sum span { color: var(--teal-ink); }

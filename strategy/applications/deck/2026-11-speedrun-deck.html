@@ -1,0 +1,267 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Felix: deterministic senior engineer for autonomous coding agents</title>
+<link rel="stylesheet" href="deck.css">
+</head>
+<body>
+
+<!-- 1. What do you do? -->
+<section class="sheet cover" data-title="What Felix is">
+  <div class="body">
+    <img class="lockup" src="../../../assets/felix-lockup-light.svg" alt="Felix">
+    <h1>Deterministic senior engineer for autonomous coding agents</h1>
+    <p class="sub">The same AI model can vibe-code a demo or engineer a product. Felix makes it do the second.</p>
+    <div class="who"><b>Daimonion</b>Jarron Deng, founder<br>github.com/LeavesJ/Felix, open source under Apache-2.0</div>
+  </div>
+</section>
+
+<!-- 2. Why should anyone care? -->
+<section class="sheet" data-title="Why it matters">
+  <div class="body">
+    <h1>Your agent says it's done. Nothing has checked.</h1>
+    <div class="report">
+      <div class="said"><i>Agent</i>Done. The change is in, <span class="struck">and every test passes.</span></div>
+      <div class="margin">The tests had last run on older code. Felix caught that 135 times in six weeks of my sessions.</div>
+      <div class="said"><i>Agent</i>Deployed<svg class="caret" width="26" height="34" viewBox="0 0 26 34" aria-hidden="true"><path d="M2,32 L13,8 L24,32" fill="none" stroke="#c42840" stroke-width="3.5" stroke-linecap="round" stroke-linejoin="round"/></svg>, with all tests green.</div>
+      <div class="margin">No rate limiting. Nobody, me included, had thought to ask for it.</div>
+    </div>
+    <p class="after">One typed instruction now becomes about 200 model turns and nearly 300 tool calls. No person reads that, so whatever decides the work is done has to be something other than the agent that did it.</p>
+  </div>
+</section>
+
+<!-- 3. Why you? -->
+<section class="sheet" data-title="Why me">
+  <div class="body">
+    <h1>I needed it first.</h1>
+    <div class="cols">
+      <div>
+        <p>I hand coding agents as much of my work as they'll take: more than 87,100 model turns over 73 active days. The more I gave them, the more often one told me a job was done when nothing had shown it was.</p>
+        <p style="margin-top:22px">I could have given them less. I built the thing that checks them instead, and the agents wrote most of Felix under its own rules.</p>
+        <p style="margin-top:22px">If I get in, I take a leave from Berkeley for spring 2027 and build this full time in San Francisco.</p>
+      </div>
+      <div class="facts rule-l">
+        <p><b>The question I keep working on</b>Is the AI actually doing what it says it's doing?</p>
+        <p><b>BehaviorChangeBench</b>I lead this Google DeepMind and UCSF TECH Lab project: can a frontier model really help someone change a habit over many conversations?</p>
+        <p><b>Elenchus</b>Used by more than 200 Berkeley students. When a blind test showed my own core technique did no better than a plain baseline, I cut it.</p>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- 4. What do you know that others don't? -->
+<section class="sheet" data-title="The insight">
+  <div class="body">
+    <h1>Engineering is what the work is held to.</h1>
+    <p class="sub">Agent vendors check agents with more AI, a model grading a model. Felix keeps the AI free and makes the boundaries deterministic.</p>
+    <svg width="1416" height="372" viewBox="0 0 1416 372" style="margin-top:34px" role="img" aria-label="The Felix loop">
+      <defs><marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e1c20"/></marker></defs>
+      <g stroke="#0e1c20" stroke-width="2" fill="#e9f3f2">
+        <rect x="0" y="20" width="250" height="150"/><rect x="291" y="20" width="250" height="150"/>
+        <rect x="582" y="20" width="250" height="150"/><rect x="873" y="20" width="250" height="150" fill="#d2efec" stroke="#2bb8ad" stroke-width="4"/>
+        <rect x="1164" y="20" width="250" height="150"/>
+      </g>
+      <g stroke="#0e1c20" stroke-width="2" fill="none" marker-end="url(#ah)">
+        <line x1="250" y1="95" x2="289" y2="95"/><line x1="541" y1="95" x2="580" y2="95"/>
+        <line x1="832" y1="95" x2="871" y2="95"/><line x1="1123" y1="95" x2="1162" y2="95"/>
+        <polyline points="1289,170 1289,250 125,250 125,172"/>
+      </g>
+      <g class="d" font-size="28" fill="#0e1c20">
+        <text x="18" y="58">What the work needs</text><text x="309" y="58">A test for each need</text>
+        <text x="600" y="58">Proven on a planted bug</text><text x="891" y="58">Code decides done</text>
+        <text x="1182" y="58">A miss becomes a need</text>
+      </g>
+      <g font-size="19" fill="#4a5f62">
+        <text x="18" y="92">including what nobody</text><text x="18" y="116">asked for, like a rate</text><text x="18" y="140">limit</text>
+        <text x="309" y="92">written by an agent other</text><text x="309" y="116">than the one that did</text><text x="309" y="140">the work</text>
+        <text x="600" y="92">a test that can't fail</text><text x="600" y="116">doesn't count</text>
+        <text x="891" y="92">no model makes the call,</text><text x="891" y="116">and Felix's merge waits</text><text x="891" y="140">for a current pass</text>
+        <text x="1182" y="92">the list outlives the</text><text x="1182" y="116">session and the model</text>
+      </g>
+      <line x1="708" y1="250" x2="708" y2="294" stroke="#4a5f62" stroke-width="1"/>
+      <text x="708" y="324" font-size="26" fill="#0e1c20" font-style="italic" text-anchor="middle">A model can add to the list. Only a passing test can cross something off.</text>
+    </svg>
+  </div>
+</section>
+
+<!-- 5. What's your progress? -->
+<section class="sheet" data-title="Proof">
+  <div class="body">
+    <h1>Felix sent an agent back 206 times.</h1>
+    <p class="sub">In 43 of my sessions, August 10 to September 21, 2026, an agent tried to stop and call its work done without a current pass on the code it was handing over.</p>
+    <svg width="1416" height="170" viewBox="0 0 1416 170" style="margin-top:36px" role="img" aria-label="Why the 206 holds happened">
+      <g stroke="#4a5f62" stroke-width="1">
+        <line x1="0" y1="10" x2="0" y2="40"/><line x1="928" y1="10" x2="928" y2="40"/><line x1="1196" y1="10" x2="1196" y2="40"/><line x1="1395" y1="10" x2="1395" y2="40"/><line x1="1416" y1="10" x2="1416" y2="40"/>
+        <line x1="4" y1="24" x2="924" y2="24"/><line x1="932" y1="24" x2="1192" y2="24"/><line x1="1200" y1="24" x2="1391" y2="24"/>
+      </g>
+      <g class="d" font-size="24" fill="#0e1c20" text-anchor="middle">
+        <text x="464" y="18" style="paint-order:stroke" stroke="#e9f3f2" stroke-width="10">135</text><text x="1062" y="18" style="paint-order:stroke" stroke="#e9f3f2" stroke-width="10">39</text><text x="1296" y="18" style="paint-order:stroke" stroke="#e9f3f2" stroke-width="10">29</text>
+      </g>
+      <rect x="0" y="48" width="928" height="44" fill="#0e1c20"/><rect x="928" y="48" width="268" height="44" fill="#4a5f62"/>
+      <rect x="1196" y="48" width="199" height="44" fill="#c42840"/><rect x="1395" y="48" width="21" height="44" fill="#9db3b1"/>
+      <g font-size="21" fill="#0e1c20">
+        <text x="0" y="126">The tests had last run on other code</text>
+        <text x="928" y="126">They had never run</text><text x="928" y="150">in that checkout</text>
+        <text x="1196" y="126" fill="#c42840">They failed on the</text><text x="1196" y="150" fill="#c42840">exact code</text><text x="1416" y="168" font-size="16" fill="#4a5f62" text-anchor="end">3 other</text>
+      </g>
+    </svg>
+    <div class="cols" style="grid-template-columns:1fr 1fr 1fr;column-gap:48px;margin-top:20px">
+      <p class="note"><b style="font:700 30px/1 var(--display);display:block;margin-bottom:6px;color:var(--ink)">About 130 reruns</b>once sent back, and at least 15 of those runs failed. That's work that would otherwise have been called done.</p>
+      <p class="note rule-l"><b style="font:700 30px/1 var(--display);display:block;margin-bottom:6px;color:var(--ink)">31% of my turns</b>were marked by readers, in a September pilot, as me doing the agent's work. That's the number Felix exists to drive down.</p>
+      <p class="note rule-l"><b style="font:700 30px/1 var(--display);display:block;margin-bottom:6px;color:var(--ink)">Built for more than one vendor</b>Its hooks already load in OpenAI's Codex in a test run. It runs on Claude Code today, with Factory's Droid and then Codex next.</p>
+    </div>
+  </div>
+</section>
+
+<!-- 6. Why now? -->
+<section class="sheet" data-title="Why now">
+  <div class="body">
+    <h1>Agent labor got cheap. Knowing it's right didn't.</h1>
+    <div class="cols" style="grid-template-columns:1fr 1fr">
+      <div class="facts"><p><b>Agents are paid labor now</b>Cognition passed a $1B revenue run-rate at a $48B valuation. Factory went from $1.5B to $5B in five months. SpaceX bought Cursor for about $60B in stock.</p>
+        <p><b>Every vendor checks its own agent</b>Cursor, Cognition and Anthropic each now sell a reviewer next to their own coding agent: Bugbot, Devin Review and Code Review. Meanwhile GitHub's Agent HQ runs several vendors' agents side by side.</p>
+        <p><b>Passing the tests isn't the bar</b>METR found that about half of the agent pull requests that passed the tests would not be merged by the project's own maintainers.</p></div>
+      <div class="rule-l" style="align-self:start"><p class="quote">"Claude stops when the work looks done."</p><p class="by">Anthropic's own Claude Code documentation</p>
+        <p class="quote">"Creating the checks and balances for the agents, I think, is where a lot of the alpha is today."</p><p class="by">Guillermo Rauch, speaking to a16z speedrun founders, August 2026</p></div>
+    </div>
+  </div>
+  <p class="src">Sources: cognition.com/blog/1b-run-rate (Sep 2026); Reuters, Sep 15 2026 (Factory); cursor.com/blog/joining-spacex and Bloomberg (Aug 2026); cursor.com/changelog/1-0, cognition.com/blog/devin-review, claude.com/blog/code-review; github.blog, Agent HQ; METR note of 2026-03-10; code.claude.com/docs/en/best-practices; speedrun.substack.com, Aug 18 2026.</p>
+</section>
+
+<!-- 7. Why hasn't anyone done this? Who else is here? -->
+<section class="sheet" data-title="Why nobody has">
+  <div class="body">
+    <h1>The judge can't be the one being judged.</h1>
+    <div class="cols" style="grid-template-columns:420px 1fr;column-gap:56px;margin-top:30px">
+      <div>
+        <p>Agent vendors now review their own agents' work. That's the same problem one level up, and teams already run agents from more than one vendor.</p>
+        <p style="margin-top:22px">CI runs the tests you already have. Felix decides which tests the work needs and who writes them.</p>
+        <p style="margin-top:22px;font-style:italic">Felix uses every agent as labor and none as its judge.</p>
+      </div>
+      <svg width="940" height="560" viewBox="0 0 940 560" role="img" aria-label="Who decides done, and what the work is held to">
+        <defs><marker id="ax" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e1c20"/></marker></defs>
+        <g stroke="#d6e7e5" stroke-width="1">
+          <line x1="140" y1="40" x2="140" y2="480"/><line x1="240" y1="40" x2="240" y2="480"/><line x1="340" y1="40" x2="340" y2="480"/><line x1="440" y1="40" x2="440" y2="480"/>
+          <line x1="640" y1="40" x2="640" y2="480"/><line x1="740" y1="40" x2="740" y2="480"/><line x1="840" y1="40" x2="840" y2="480"/>
+          <line x1="40" y1="80" x2="920" y2="80"/><line x1="40" y1="160" x2="920" y2="160"/><line x1="40" y1="340" x2="920" y2="340"/><line x1="40" y1="420" x2="920" y2="420"/>
+        </g>
+        <g stroke="#0e1c20" stroke-width="2"><line x1="40" y1="480" x2="924" y2="480" marker-end="url(#ax)"/><line x1="40" y1="480" x2="40" y2="30" marker-end="url(#ax)"/></g>
+        <g stroke="#4a5f62" stroke-width="1" stroke-dasharray="6 6"><line x1="540" y1="40" x2="540" y2="480"/><line x1="40" y1="260" x2="920" y2="260"/></g>
+        <g class="d" font-size="21" fill="#0e1c20">
+          <text x="60" y="524">A model decides it's done</text><text x="920" y="524" text-anchor="end">Code decides it's done</text>
+          <text x="18" y="260" transform="rotate(-90 18 260)" text-anchor="middle">What the work is held to</text>
+        </g>
+        <g font-size="18" fill="#4a5f62">
+          <text x="54" y="58">what the project needs, including what nobody asked for</text><text x="54" y="472">only what someone wrote down</text>
+        </g>
+        <g font-size="20" fill="#0e1c20">
+          <text x="70" y="186">AI review of the diff</text><text x="70" y="212" fill="#4a5f62">CodeRabbit, Cursor Bugbot,</text><text x="70" y="236" fill="#4a5f62">Devin Review, Claude Code Review</text>
+          <text x="540" y="304" text-anchor="middle">Factory Missions</text><text x="540" y="328" text-anchor="middle" fill="#4a5f62">a contract derived inside one mission</text>
+          <text x="600" y="384">CI</text><text x="600" y="410" fill="#4a5f62">runs the tests someone</text><text x="600" y="434" fill="#4a5f62">already wrote</text>
+          <text x="70" y="384">Rules files</text><text x="70" y="410" fill="#4a5f62">AGENTS.md, CLAUDE.md, judged</text><text x="70" y="434" fill="#4a5f62">by the model reading them</text>
+        </g>
+        <circle cx="680" cy="140" r="16" fill="#2bb8ad" stroke="#0e1c20" stroke-width="2"/>
+        <text x="708" y="134" class="d" font-size="34" fill="#0e1c20">Felix</text>
+        <text x="708" y="162" font-size="19" fill="#4a5f62">whichever agent</text><text x="708" y="186" font-size="19" fill="#4a5f62">did the work</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 8. What happens as models get better? -->
+<section class="sheet" data-title="AI upside">
+  <div class="body">
+    <h1>Better models make Felix more valuable.</h1>
+    <div class="cols" style="grid-template-columns:520px 1fr;column-gap:64px;margin-top:40px">
+      <div>
+        <p>Each generation makes the work easier to do. None makes a shipped mistake cheaper. Better models mean more work nobody watches, and better ideas for what the work needs.</p>
+        <p style="margin-top:22px">Felix takes the ideas from whichever model is best and keeps the verdict with code. A smarter model still shouldn't grade its own work.</p>
+      </div>
+      <svg width="830" height="440" viewBox="0 0 830 440" role="img" aria-label="Difficulty falls each model generation; the cost of a mistake does not">
+        <defs><marker id="ay" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="#0e1c20"/></marker>
+          <pattern id="hatch" width="10" height="10" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="10" stroke="#2bb8ad" stroke-width="3"/></pattern></defs>
+        <path d="M60,90 L800,90 L800,350 C600,346 420,320 300,250 C200,190 120,120 60,92 Z" fill="url(#hatch)" opacity=".55"/>
+        <g stroke="#0e1c20" stroke-width="2"><line x1="40" y1="400" x2="814" y2="400" marker-end="url(#ay)"/><line x1="40" y1="400" x2="40" y2="20" marker-end="url(#ay)"/></g>
+        <line x1="60" y1="90" x2="800" y2="90" stroke="#c42840" stroke-width="4"/>
+        <path d="M60,92 C120,120 200,190 300,250 C420,320 600,346 800,350" fill="none" stroke="#0e1c20" stroke-width="4"/>
+        <g font-size="20"><text x="70" y="74" fill="#c42840">What a shipped mistake costs</text><text x="590" y="388" fill="#0e1c20">How hard the work is</text></g>
+        <text x="440" y="190" class="d" font-size="30" fill="#137a72">Where Felix sits</text>
+        <text x="440" y="218" font-size="19" fill="#137a72">the gap grows every release</text>
+        <text x="40" y="430" class="d" font-size="20" fill="#0e1c20">Model generations</text>
+      </svg>
+    </div>
+  </div>
+</section>
+
+<!-- 9. How big can this get, and how does it make money? -->
+<section class="sheet" data-title="Market">
+  <div class="body">
+    <h1>Every team that lets agents ship code.</h1>
+    <div class="cols" style="grid-template-columns:1fr 1fr;column-gap:64px;margin-top:38px">
+      <div class="facts"><p><b>The first buyer</b>The platform lead at a 50 to 500 engineer company running agents from two or more vendors, with the security team signing off too.</p>
+        <p><b>How it's paid for</b>Felix runs on the customer's own model keys, so they pay for the verdict, not for tokens. Our working price is about $1,000 a month plus $40 per active committer.</p>
+        <p><b>How it grows</b>From one engineering team, to deploys and migrations, across every agent a team runs.</p></div>
+      <div class="rule-l"><p class="note">Professional developers worldwide, at the committer price alone</p>
+        <p class="sum">36.5M &times; $480 a year <span>= $17.5B</span></p>
+        <p class="note" style="margin-bottom:30px">Every million committers on Felix is about $480M a year, before the team fee.</p>
+        <p><b style="font:700 30px/1 var(--display);display:block;margin-bottom:6px">The layer around agents already sells</b>Palo Alto Networks bought Protect AI for $635M. Atlassian paid about $1B for DX, which measures how engineering teams ship. Enterprises spent $4.0B on AI coding tools in 2025, and every dollar of agent work needs someone to know it's right.</p></div>
+    </div>
+  </div>
+  <p class="src">Sources: SlashData, developer population 2025 (36.5M professional); Palo Alto Networks FY2025 10-K (Protect AI, $634.5M); TechCrunch, Sep 18 2025 (Atlassian and DX); Menlo Ventures, State of Generative AI in the Enterprise, Dec 2025.</p>
+</section>
+
+<!-- 10. Where does this go, and what's next? -->
+<section class="sheet" data-title="Where it goes">
+  <div class="body">
+    <h1>The layer between you and your agents.</h1>
+    <p class="sub">You say what you want and make the calls that are yours. Felix works out the engineering, hands it to agents in short sessions with only the tools each one needs, and won't call it done until it's checked.</p>
+    <svg width="1416" height="56" viewBox="0 0 1416 56" style="margin-top:44px" aria-hidden="true">
+      <line x1="0" y1="28" x2="1416" y2="28" stroke="#0e1c20" stroke-width="2"/>
+      <g fill="#0e1c20"><rect x="10" y="16" width="4" height="24"/><rect x="363" y="16" width="4" height="24"/><rect x="726" y="16" width="4" height="24"/><rect x="1089" y="16" width="4" height="24"/></g>
+      <circle cx="12" cy="28" r="9" fill="#2bb8ad" stroke="#0e1c20" stroke-width="2"/>
+    </svg>
+    <div class="when">
+      <div><b class="teal">Live today</b><p>The hold that sends an agent back, receipts tied to the exact code, a merge that refuses without a current pass, and a list of obligations that blocks while any of them is unchecked.</p></div>
+      <div><b>December to January</b><p>One objective end to end: from what you asked for, to a merged change Felix has checked.</p></div>
+      <div><b>February</b><p>Full time in San Francisco. The first outside pilot, with a semiconductor supply-chain software team.</p></div>
+      <div><b>Demo Day</b><p>The MVP, measured against plain Claude Code on the work it leaves out. Factory's Droid as a second host.</p></div>
+    </div>
+  </div>
+</section>
+
+<script>
+// Draws each sheet's frame, zone marks and title block, so the ten sheets
+// stay identical. Runs once on load, before Chrome prints.
+const W = 1600, H = 900, IN = 34, OUT = 14, COLS = 8, ROWS = 5;
+const sheets = [...document.querySelectorAll(".sheet")];
+sheets.forEach((s, i) => {
+  const add = (cls, css, text) => { const e = document.createElement("div"); e.className = cls; Object.assign(e.style, css); if (text) e.textContent = text; s.appendChild(e); };
+  add("frame-outer", {}); add("frame-inner", {});
+  const cw = (W - 2 * IN) / COLS, rh = (H - 2 * IN) / ROWS, mid = (OUT + IN) / 2 - 7;
+  for (let c = 0; c < COLS; c++) {
+    const x = IN + c * cw;
+    if (c) { add("tick", { left: x + "px", top: OUT + "px", width: "1px", height: IN - OUT + "px" }); add("tick", { left: x + "px", bottom: OUT + "px", width: "1px", height: IN - OUT + "px" }); }
+    add("zone", { left: x + cw / 2 - 10 + "px", top: mid + "px" }, String(c + 1));
+    add("zone", { left: x + cw / 2 - 10 + "px", bottom: mid + "px" }, String(c + 1));
+  }
+  for (let r = 0; r < ROWS; r++) {
+    const y = IN + r * rh;
+    if (r) { add("tick", { top: y + "px", left: OUT + "px", height: "1px", width: IN - OUT + "px" }); add("tick", { top: y + "px", right: OUT + "px", height: "1px", width: IN - OUT + "px" }); }
+    const L = "ABCDE"[r];
+    add("zone", { top: y + rh / 2 - 7 + "px", left: mid - 3 + "px" }, L);
+    add("zone", { top: y + rh / 2 - 7 + "px", right: mid - 3 + "px" }, L);
+  }
+  const tb = document.createElement("div"); tb.className = "tb";
+  tb.innerHTML =
+    `<div class="mark"><img src="../../../assets/felix-mark-light.svg" alt=""></div>` +
+    `<div class="name"><small>Daimonion, Felix</small><b>${s.dataset.title}</b></div>` +
+    `<div><small>Sheet</small><b>${i + 1} of ${sheets.length}</b></div>` +
+    `<div><small>Drawn by</small><b>Jarron Deng</b></div>` +
+    `<div><small>Checked by</small><b>A reader who didn't write it</b></div>` +
+    `<div><small>Date</small><b>2026-10-27</b></div>`;
+  s.appendChild(tb);
+});
+</script>
+</body>
+</html>

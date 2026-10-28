@@ -7,6 +7,8 @@ printf '\nonly what the project declares vendored is set aside (audit b11 round 
 # emitted on every run. The controls (A113, A118, A119, A126, A139 to A141, A143, A149) hold on d1f2cdc1;
 # every other assertion here fails there. B11R3-9 has no assertion (no outside input reaches it), and this
 # part reads no template: the template's round-3 cases (A101 to A107 rewritten, A150, A151) are part 1831's.
+# The review round's A152 to A167 (B11R3-13, B11R3-14), named B11R3V, were added blind the same day
+# from that file's Review round, with the same blindness; A157 and A168 are its controls.
 #
 # Readings, where the contract leaves room:
 # - F7's repository is built as F1 builds one, except that every file holds its own path (a go.mod holds a
@@ -346,9 +348,97 @@ _b11r3_p U "$_b11r3_JX"
 is "B11R3 A149: and it never reads project.json, so a declaration the check cannot read changes nothing (control)" \
    "$(_b11r3_bev src/a.go)" "$(printf 'unit\tcode changes need a test')"
 
+# ---- the review round: B11R3-13 and B11R3-14 ----------------------------------------------------------------
+printf '\n  inside the repository is a matter of identity, and a changed path is read as its own bytes (review round)\n'
+# PROJ ROOT: the check with PROJ and ROOT spelled as given and the cwd ROOT as spelled, base main.
+_b11r3_chkv() { ( cd "$2" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/evidence.sh"
+                  felix_evidence_check "$1" main "$2" ) </dev/null 2>/dev/null; }
+# NAME WANT ALT CANON PROJ ROOT: when ALT is another spelling of CANON's directory on this machine, one
+# assertion that the check with PROJ and ROOT prints exactly WANT; otherwise a skip.
+_b11r3_alt() {
+  if [ "$3" != "$4" ] && [ -d "$3" ] && [ "$3" -ef "$4" ]; then is "$1" "$(_b11r3_chkv "$5" "$6")" "$2"
+  else skip "$1" "[$3] is not another spelling of [$4] on this machine"; fi
+}
+_b11r3_gin '{"name":"p"}' '{"name":"p","evidence_vendored":"third_party/"}' +third_party/lib/a.c
+_b11r3_x="${_b11r3_G%/*}/$(printf '%s' "${_b11r3_G##*/}" | LC_ALL=C tr '[:lower:]' '[:upper:]')"
+_b11r3_alt "B11R3V A152 (root case): a root spelled in another case is the same directory, so a declaration the change adds sets nothing aside: unit gap" \
+           "$_b11r3_Ug" "$_b11r3_x" "$_b11r3_G" "$_b11r3_P" "$_b11r3_x"
+_b11r3_alt "B11R3V A153 (project case): a project directory whose repository component is spelled in another case is inside the repository: unit gap" \
+           "$_b11r3_Ug" "$_b11r3_x" "$_b11r3_G" "$_b11r3_x/projects/p" "$_b11r3_G"
+_b11r3_alt "B11R3V A168 (project case below the root): a project directory spelled in another case below the root is inside the repository: unit gap (control)" \
+           "$_b11r3_Ug" "$_b11r3_G/projects/P" "$_b11r3_P" "$_b11r3_G/projects/P" "$_b11r3_G"
+_b11r3_alt "B11R3V A154 (root //): a root spelled with a leading // is the same directory: unit gap" \
+           "$_b11r3_Ug" "/$_b11r3_G" "$_b11r3_G" "$_b11r3_P" "/$_b11r3_G"
+_b11r3_alt "B11R3V A155 (project //): a project directory spelled with a leading // is inside the repository: unit gap" \
+           "$_b11r3_Ug" "/$_b11r3_P" "$_b11r3_P" "/$_b11r3_P" "$_b11r3_G"
+_b11r3_alt "B11R3V A156 (root firmlink): a root spelled under /System/Volumes/Data is the same directory: unit gap" \
+           "$_b11r3_Ug" "/System/Volumes/Data$_b11r3_G" "$_b11r3_G" "$_b11r3_P" "/System/Volumes/Data$_b11r3_G"
+rm -f "$B11R3/link"; ln -s "$_b11r3_G" "$B11R3/link"
+_b11r3_alt "B11R3V A157 (root symlink): a root reached through a symlink is the same directory: unit gap (control)" \
+           "$_b11r3_Ug" "$B11R3/link" "$_b11r3_G" "$_b11r3_P" "$B11R3/link"
+_b11r3_gin '{"name":"p","evidence_vendored":"third_party/"}' '{"name":"p","evidence_vendored":"third_party/"}' +third_party/lib/a.c
+_b11r3_alt "B11R3V A158 (project case, declared): read at the base under the path the repository records, so the committed declaration holds: unit n/a, VENDORED 1" \
+           "$(_b11r3_ls "$_b11r3_Un" "$(_b11r3_V 1 third_party/)")" "$_b11r3_G/projects/P" "$_b11r3_P" "$_b11r3_G/projects/P" "$_b11r3_G"
+
+# FILE SPEC...: a fresh repository as _b11r3_g builds it, core.quotePath true in its config, and the check's
+# output in _b11r3_v; status 1 when neither main nor work holds FILE (the file system refused the name).
+_b11r3_q() {
+  local f="$1"
+  shift
+  _b11r3_g "$@"; _b11r3_v=""
+  _fx_git "$_b11r3_G" config core.quotePath true >/dev/null 2>&1
+  _fx_git "$_b11r3_G" cat-file -e "work:$f" >/dev/null 2>&1 || _fx_git "$_b11r3_G" cat-file -e "main:$f" >/dev/null 2>&1 || return 1
+  _b11r3_v="$(_b11r3_chk)"
+}
+# NAME WANT FILE SPEC...: one assertion that the check over SPEC prints exactly WANT, or a skip.
+_b11r3_qcase() {
+  local n="$1" w="$2"
+  shift 2
+  if _b11r3_q "$@"; then is "$n" "$_b11r3_v" "$w"; else skip "$n" "this file system refused the name [$1]"; fi
+}
+_b11r3_e="$(printf 'caf\303\251')"
+_b11r3_p U -
+_b11r3_qcase "B11R3V A159 (a byte above 127): own code whose name holds a UTF-8 e-acute is read as its own name, not as git quotes it: unit gap" \
+             "$_b11r3_Ug" "src/$_b11r3_e.go" "+src/$_b11r3_e.go"
+_b11r3_qcase "B11R3V A160 (a double quote): own code whose name holds a double quote is read as its own name: unit gap" \
+             "$_b11r3_Ug" 'src/a"b.go' '+src/a"b.go'
+_b11r3_qcase "B11R3V A161 (a backslash): own code whose name holds a backslash is read as its own name: unit gap" \
+             "$_b11r3_Ug" 'src/a\b.go' '+src/a\b.go'
+_b11r3_qcase "B11R3V A162 (a tab): own code whose name holds a tab is read as its own name: unit gap" \
+             "$_b11r3_Ug" "src/a"$'\t'"b.go" "+src/a"$'\t'"b.go"
+_b11r3_qcase "B11R3V A163 (deleted): deleting own code whose name holds a UTF-8 e-acute gaps unit" \
+             "$_b11r3_Ug" "src/$_b11r3_e.go" "-src/$_b11r3_e.go"
+_b11r3_qcase "B11R3V A164 (requires): a test whose name holds a UTF-8 e-acute is read by the requires cell: unit met" \
+             "$_b11r3_Um" "src/$_b11r3_e.go" "+src/$_b11r3_e.go" "+tests/${_b11r3_e}_test.go"
+_b11r3_p U "$_b11r3_J2"
+_b11r3_qcase "B11R3V A165 (set aside): a path under a declared directory whose name holds a UTF-8 e-acute is set aside and counted: unit n/a, VENDORED 1" \
+             "$(_b11r3_ls "$_b11r3_Un" "$(_b11r3_V 1 third_party/)")" "third_party/$_b11r3_e.c" "+third_party/$_b11r3_e.c"
+_b11r3_p U -
+_b11r3_x="z"$'\n'"tests/z_test.go"
+if _b11r3_q "$_b11r3_x" +src/a.go "+$_b11r3_x"; then
+  is "B11R3V A166 (a newline): a name holding a newline is never split into two paths: one unknown line for CHANGED-PATHS, not judged" \
+     "$(_b11r3_says "$_b11r3_v" 1 1=unknown 2=CHANGED-PATHS "$_b11r3_nj" "$_b11r3_nr")" ok
+else
+  skip "B11R3V A166 (a newline): a name holding a newline is never split into two paths: one unknown line for CHANGED-PATHS, not judged" \
+       "this file system refused a name holding a newline"
+fi
+_b11r3_x="z"$'\n'"tests/z_test.js"
+_b11r3_ch src/a.js "$_b11r3_x"
+if _fx_git "$REPO" cat-file -e "HEAD:$_b11r3_x" >/dev/null 2>&1; then
+  _b11r3_v="$(_b11r3_blk HEAD~1)"
+  is "B11R3V A167 (merge): felix_merge_blockers refuses a change holding a name with a newline: its one evidence line is CHANGED-PATHS, not judged" \
+     "$(_b11r3_c "$_b11r3_v" '$1 == "evidence"') $(_b11r3_c "$_b11r3_v" '$1 == "evidence" && $2 == "CHANGED-PATHS" && index($3, "not judged") > 0') [$_b11r3_v]" \
+     "1 1 [$_b11r3_v]"
+else
+  skip "B11R3V A167 (merge): felix_merge_blockers refuses a change holding a name with a newline: its one evidence line is CHANGED-PATHS, not judged" \
+       "this file system refused a name holding a newline"
+fi
+_reset
+
 # The widget's tables, as this part found them.
 for _b11r3_f in evidence.tsv project.json; do
   if [ -f "$B11R3/$_b11r3_f.keep" ]; then cp "$B11R3/$_b11r3_f.keep" "$_b11r3_wp/$_b11r3_f"; else rm -f "$_b11r3_wp/$_b11r3_f"; fi
 done
 unset -f _b11r3_V _b11r3_ls _b11r3_says _b11r3_hl _b11r3_c _b11r3_p _b11r3_w _b11r3_mk _b11r3_g _b11r3_gin _b11r3_chk \
-         _b11r3_case _b11r3_pj _b11r3_ch _b11r3_run _b11r3_blk _b11r3_rcj _b11r3_bev
+         _b11r3_case _b11r3_pj _b11r3_ch _b11r3_run _b11r3_blk _b11r3_rcj _b11r3_bev _b11r3_chkv _b11r3_alt _b11r3_q \
+         _b11r3_qcase

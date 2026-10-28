@@ -777,10 +777,11 @@ never parsed, only matched line by line with sed.
 
 - **B08R3Z2-1 (medium). A line-ending conversion is a fault outside the two JSON files.**
   - For every regular-file index entry under `.claude/` other than `.claude/settings.json` and
-    `.claude/cloud/toolbox.json`, a checkout that writes CRLF is a fault. That is `eol` set to
-    `crlf`, or the legacy `crlf` attribute set.
-  - It adds ` unreadable: <path> (git attribute eol changes it at checkout);`, or `crlf` in place
-    of `eol`, in the B08R3Z-1 order.
+    `.claude/cloud/toolbox.json`, a checkout that writes CRLF is a fault. On the cloud's Linux
+    checkout, with no local config, that is `eol` set to `crlf`. The legacy `crlf` attribute
+    alone means `text` and writes LF there, so it is not a fault.
+  - It adds ` unreadable: <path> (git attribute eol changes it at checkout);`, in the B08R3Z-1
+    order.
   - The two JSON files keep section 11's exemption.
   - Attributes are read with `git -c core.ignorecase=false check-attr --cached`, so a pattern that
     matches only by case folding counts on the Mac as it does on Linux. This closes the

@@ -518,9 +518,9 @@ case "$_cmn" in
 esac
 # And the seeded row is dormant for a project that is not a plugin. The
 # template's applies once asked only for a tracked path ending in hooks.json,
-# so a web app with src/config/hooks.json was handed an ACTIVE obligation
+# so a web application with src/config/hooks.json was handed an ACTIVE obligation
 # whose evidence is a hold — UNKNOWN, blocking — on the day it was created.
-_cmwebapp_build   # tests/lib/cm-stub.sh: the web app, felix new over it (CMW, _cmw)
+_cmwebapp_build   # tests/lib/cm-stub.sh: the web application, felix new over it (CMW, _cmw)
 is  "a stranger that is not a plugin is created without a blocking obligation" \
     "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>/dev/null | grep -c 'DORMANT')" "1"
 case "$(cd "$CMW" && PATH="$CMSTUB:$PATH" "$FELIX" obligations 2>&1)" in

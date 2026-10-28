@@ -240,6 +240,20 @@ felix_own_withheld_line() {
   return 0
 }
 
+# The lander's alert that waits for the founder (audit b05, R6): `felix_land_alert_line <mem-dir>`,
+# the project's memory directory. When the newest record of <mem-dir>/land/alerts.tsv (eight fields)
+# is no-alert-workflow, the lander tried to tell the founder and the repository has no
+# .github/workflows/felix-alert.yml yet, so the alert is not sent: a blank line and one sentence
+# saying so. Any other newest record, or none, prints nothing. Read-only; the record is left as it was.
+felix_land_alert_line() {
+  local f="${1:-}/land/alerts.tsv" v
+  [ -n "${1:-}" ] && [ -f "$f" ] && [ -r "$f" ] || return 0
+  v="$(LC_ALL=C awk -F'\t' '{ n = NF; s = $2; k = $3; t = $1 } END { if (n == 8 && s == "no-alert-workflow") printf "%s at %s", k, t }' "$f" 2>/dev/null)"
+  [ -n "$v" ] || return 0
+  printf '\nThe lander could not tell the founder off this Mac: its newest alert (%s) is no-alert-workflow. .github/workflows/felix-alert.yml is not on the repository yet, so alerts wait in land/alerts.tsv; felix status shows it.\n' "$v"
+  return 0
+}
+
 # Run the commissioning pipeline with nobody present, when a person has said it
 # may and the checkout is the project's own.
 #

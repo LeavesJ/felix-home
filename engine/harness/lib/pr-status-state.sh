@@ -53,8 +53,10 @@ _ps_land() {   # PROJDIR GOVERNED-DIR-OR-EMPTY W
 }
 
 # The tick's ledger: the last row of each pull request, as number, event, head
-# and detail. absent is none; a regular readable file is read; anything else
-# (a directory, no permission) is unread.
+# and detail. A `waiting` row (lib/green-wait.sh) is a statement about a wait
+# and not a row of it, so it is passed over: a pull request's state and detail
+# are what they would be without it. absent is none; a regular readable file is
+# read; anything else (a directory, no permission) is unread.
 _ps_ledger() {   # LEDGER W
   local l="$1" w="$2" anc nx
   : > "$w/ledger"
@@ -72,7 +74,7 @@ _ps_ledger() {   # LEDGER W
   done
   if [ ! -e "$l" ] && [ ! -L "$l" ]; then _PS_LEDGER=none; _PS_LEDGERWHY="the tick has not written one"; return 0; fi
   if [ ! -f "$l" ] || [ ! -r "$l" ]; then _PS_LEDGER=unread; _PS_LEDGERWHY="not a readable regular file"; return 0; fi
-  if ! LC_ALL=C awk -F'\t' 'NF >= 7 && $3 != "-" { gsub(/\r/, " ", $7); last[$3] = $2 "\t" $4 "\t" $7 }
+  if ! LC_ALL=C awk -F'\t' 'NF >= 7 && $3 != "-" && $2 != "waiting" { gsub(/\r/, " ", $7); last[$3] = $2 "\t" $4 "\t" $7 }
          END { for (k in last) print k "\t" last[k] }' "$l" > "$w/ledger" 2>/dev/null; then
     _PS_LEDGER=unread; _PS_LEDGERWHY="the ledger could not be read"; return 0
   fi
@@ -136,7 +138,11 @@ _ps_pathattr() {   # W
 # state is the first of spec 4 that holds, and the detail lists every condition
 # that holds. The environment carries the account (PS_OWNER), the default branch
 # (PS_DEF, empty when unread), origin/main (PS_MAIN, empty when absent), the
-# reading of the land table and of the ledger, and the clock.
+# reading of the land table and of the ledger, and the clock. PS_ME is the
+# signed-in GitHub account, empty when it was not read, with PS_MEWHY saying why
+# (PS_MEST is read or unread, and empty when the run did not need it): a member's
+# own pull request on an organisation's repository is the member's to land, so
+# the owner and the signed-in account are both the governed account.
 # shellcheck disable=SC2016
 _PS_DECIDE='function add(s) { D[++nd] = s }
   function tag(p, t) { return index(" " TG[p], " " t " ") > 0 }
@@ -145,6 +151,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
     FS = "\t"; W = ENVIRON["PS_W"]; owner = ENVIRON["PS_OWNER"]; lo = tolower(owner)
     def = ENVIRON["PS_DEF"]; main = ENVIRON["PS_MAIN"]; land = ENVIRON["PS_LAND"]; landwhy = ENVIRON["PS_LANDWHY"]
     ledg = ENVIRON["PS_LEDGER"]; now = ENVIRON["PS_NOW"] + 0
+    me = ENVIRON["PS_ME"]; mest = ENVIRON["PS_MEST"]; mewhy = ENVIRON["PS_MEWHY"]; lme = tolower(me)
     while ((getline ln < (W "/pathattr")) > 0) { split(ln, a, "\t"); TG[a[1]] = TG[a[1]] a[2] " " }
     while ((getline ln < (W "/confrows")) > 0) { split(ln, a, "\t"); CRP[a[1]] = a[2]; CRS[a[1], a[3]] = 1; if (a[1] + 0 > ncr) ncr = a[1] + 0 }
     while ((getline ln < (W "/files")) > 0) { split(ln, a, "\t"); k = ++FN[a[1]]; FPATH[a[1], k] = a[2]; FDEL[a[1], k] = a[3] + 0 }
@@ -156,15 +163,18 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       mg = f[10]; ms = f[11]; upd = f[12]; nf = f[13] + 0; nc = f[14] + 0; nfail = f[15] + 0; npend = f[16] + 0; failn = f[17]; pendn = f[18]
       nd = 0
       fl = ""; if (draft) fl = fl ",draft"; if (ms == "BEHIND") fl = fl ",behind"; if (mg == "UNKNOWN" || mg == "-") fl = fl ",mergeable-unknown"
-      ownunk = (lo == "")
-      outside = (cross || (!ownunk && tolower(au) != lo))
+      ownunk = (lo == ""); isown = (!ownunk && tolower(au) == lo); isme = (me != "" && tolower(au) == lme)
+      meunk = (!cross && !ownunk && !isown && !isme && mest != "read")
+      outside = (cross || (!ownunk && !isown && !isme && !meunk))
       defunk = (def == ""); stacked = (!defunk && base != def)
       held = (index(lab, SEP "felix:hold" SEP) > 0); conf = (mg == "CONFLICTING")
       green = (nc > 0 && nfail == 0 && npend == 0)
       dups = ""; m = split(BR[br], o, " "); for (j = 1; j <= m; j++) if (o[j] != n) dups = dups (dups == "" ? "" : " ") o[j]
       if (cross) add("the head is in a fork")
       if (ownunk && !cross) add("governed account not read: origin names no owner/name slug")
-      else if (!ownunk && tolower(au) != lo) add("author " au " is not the governed account " owner)
+      else if (cross && !ownunk && !isown) add("author " au " is not the governed account " owner)
+      else if (outside) add("author " au " is neither the repository owner " owner " nor the signed-in account " me)
+      else if (meunk) add("author " au " is not the repository owner " owner ", and the signed-in GitHub account was not read: " (mewhy == "" ? "gh was not asked" : mewhy))
       if (stacked) add("base is " base ", not the default branch " def ": it waits on its base")
       if (defunk && !outside) add("default branch not read")
       if (held) add("labelled felix:hold")
@@ -216,16 +226,16 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
             if (ev == "refused") {
               ms2 = ""; body = ld
               if (match(ld, / \[main [0123456789abcdef]+\]$/)) { ms2 = substr(ld, RSTART + 7, RLENGTH - 8); body = substr(ld, 1, RSTART - 1) }
-              if (main != "" && ms2 == main) { if (!founder && !tb) refusedhere = 1; add("the lander was refused: " body) }
+              if (main != "" && ms2 == main) { if (!founder) refusedhere = 1; add("the lander was refused: " body) }
               else add("the lander last saw " substr(lh, 1, 7) ": refused")
-            } else if (ev == "session") { if (!founder && !tb) refusedhere = 1; add("the lander cannot use it: " ld) }
+            } else if (ev == "session") { if (!founder) refusedhere = 1; add("the lander cannot use it: " ld) }
             else add("the lander: " ev ": " ld)
           } else add("the lander last saw " substr(lh, 1, 7) ": " ev)
         }
-        if (ledg == "unread") { add("the lander\047s ledger not read"); if (!founder && !tb && !unk) unk = 2 }
+        if (ledg == "unread") { add("the lander\047s ledger not read"); if (!founder && !unk) unk = 2 }
       }
       if (outside) { st = "outside"; nd2 = "nobody" }
-      else if (defunk || ownunk) { st = "unknown"; nd2 = "unknown" }
+      else if (defunk || ownunk || meunk) { st = "unknown"; nd2 = "unknown" }
       else if (stacked) { st = "stacked"; nd2 = "nobody" }
       else if (held) { st = "held"; nd2 = "session" }
       else if (conf) { st = "needs-session"; nd2 = "session" }
@@ -234,7 +244,6 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
       else if (!green) { st = "unready"; nd2 = "session" }
       else if (founder) { st = "founder"; nd2 = "founder" }
       else if (unk == 1) { st = "unknown"; nd2 = "unknown" }
-      else if (tb) { st = "needs-attended"; nd2 = "session" }
       else if (unk == 2) { st = "unknown"; nd2 = "unknown" }
       else if (refusedhere) { st = "refused"; nd2 = "session" }
       else if (!draft && dups == "") { st = "ready"; nd2 = "lander"; add("the checks are green and nothing holds it back") }
@@ -246,6 +255,7 @@ _PS_DECIDE='function add(s) { D[++nd] = s }
     } }'
 
 _ps_decide() {   # W OWNER DEFAULT-BRANCH MAIN
-  PS_W="$1" PS_OWNER="$2" PS_DEF="$3" PS_MAIN="$4" PS_LAND="$_PS_LAND" PS_LANDWHY="$_PS_LANDWHY" PS_LEDGER="$_PS_LEDGER" PS_NOW="$(date +%s)" \
+  PS_ME="${_PS_ME:-}" PS_MEST="${_PS_MEST:-}" PS_MEWHY="${_PS_MEWHY:-}" \
+    PS_W="$1" PS_OWNER="$2" PS_DEF="$3" PS_MAIN="$4" PS_LAND="$_PS_LAND" PS_LANDWHY="$_PS_LANDWHY" PS_LEDGER="$_PS_LEDGER" PS_NOW="$(date +%s)" \
     LC_ALL=C awk "$_PS_DECIDE" > "$1/rows" 2>/dev/null
 }

@@ -97,6 +97,9 @@
 1	.lsp.json at the root is medium
 1	/ itself: claude was not run
 1	/ itself: the list is unread, with the sentence that says why
+1	A1 (B1): a reviewer's SDK session filed after the person's question leaves ask9 its person's session as owner, question, not blocked, and the question it ended on
+1	A1 (B1, B2): an unverified refusal (exit 3, one blocker line of kind unverified) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written
+1	A1 (B16, control): --install from the home exits 0, says land on green is installed for lgh, writes felix.land.lgh's plist and its trampoline, and logs one launchctl bootstrap
 1	A1 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A1 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
 1	A1 (decoys: all): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
@@ -125,6 +128,9 @@
 1	A1 fixture: origin holds every pushed name at its commit, and origin/HEAD is main (fixture control)
 1	A1-A7 (fixture control): the base-ref fixture: in the repository with no remote, main, feat and its decoy are three commits
 1	A1-A7 (fixture control): the base-ref fixture: main, refs/remotes/origin/main and the decoy are three commits, origin/HEAD names origin/main, and HEAD~1 is not origin/HEAD~1
+1	A10 (B15): with the home resolving no project, --install from a governed checkout exits 1, says on stderr that the home resolves no project, and writes nothing
+1	A10 (B4, B7): a retry, after the gate receipt is written, that exits 0 writes one landed row for 50 and one notification titled Felix: landed #50
+1	A10 (B5, R1): with every session file read (run T2), a pull request whose head only SDK records name has owner - and is not live
 1	A10 (fixture control): with the cache entry main's engine and no decoy, installed is ok
 1	A10 (no decoy) (fixture control): with the cache entry one comment off main's engine, installed fails
 1	A10 (refs/heads/origin/main at a decoy whose resolve.sh always accepts): with the cache entry one comment off, installed still fails, and nothing the decoy prints reaches it
@@ -139,11 +145,16 @@
 1	A10: and writes a row
 1	A10: and writes one row into the ledger written into it, over two identical runs
 1	A10: gh auth status failing is written once and notified once over two identical ticks
+1	A10: with no launchctl on PATH the land row is unknown: launchctl could not answer
+1	A11 (B18): --install from the home with no launchctl on PATH exits 1, says launchctl, macOS and nothing was written, and leaves no ~/Library, no land directory and no gh call
+1	A11 (B6, control): a newest session file the run cannot read gives owner unknown and unknown:question
+1	A11 (B7): a retry refused the same way writes a second refused row for 50 and no second notification, its blocker, class and head being the previous row's
 1	A11 (decoys: none): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
 1	A11 (decoys: refs/heads/origin/main) (fixture control): git's own short name origin/main now names the decoy
 1	A11 (decoys: refs/heads/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
 1	A11 (decoys: refs/tags/origin/main) (fixture control): git's own short name origin/main now names the decoy
 1	A11 (decoys: refs/tags/origin/main): felix classify --base main lists the branch's own c.txt and not a.txt, which refs/remotes/origin/main holds
+1	A11: a loaded job whose heartbeat is an hour old reads not-ticking, for 60 minutes, ending with the ledger's newest row
 1	A11: a tick that deploys, and verifies, merges nothing though a green candidate waits
 1	A11: a tick whose deploy ends deployed-unverified merges nothing
 1	A11: the next tick merges it
@@ -175,23 +186,47 @@
 1	A12 (4, control): with --base refs/remotes/origin/main, the dry run passes the judge as before
 1	A12 (4, control): with the default base and the cache entry main's engine, the dry run passes the judge as before
 1	A12 (4, control): with the default base and the cache entry one comment off, the dry run refuses for the judge as before
+1	A12 (B1, B3): a refusal with an evidence blocker beside the unverified one is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
+1	A12 (B18, control): the same install with the stub launchctl first on PATH succeeds as A1 does
+1	A12 (B7): on the page ask9 and asr9 are in group question, blk9 in blocked, and the blocked summary counts 1
 1	A12 (fixture control): m0, m1 (main and refs/remotes/origin/main), the prose branch checked out, and the decoy d1 off m1 with its child d2
 1	A12 (fixture control): the decoy's resolve.sh, sourced on its own, prints the entry, exits 0 and leaves its line
 1	A12: a green pull request into release, not main, gets one skip row and is not merged
+1	A12: a job both paused and not ticking reads not-ticking
 1	A12: and the skip row names the base
 1	A12: the tick asks gh pr list for baseRefName
+1	A13 (B1, B3): a refusal with an escape blocker is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
+1	A13 (B19): felix help's felix land line says macOS only
+1	A13 (B8): a records root at mode 000 makes the sessions cover row unknown in all four, saying the records could not be read
+1	A13: a loaded job with a fresh heartbeat and a paused file reads paused, quoting its reason: nothing lands while it is paused
 1	A13: a refused pull request is not passed to felix merge again on a tick with the same head and main
 1	A13: once its head moves, felix merge runs once more, and not again on the tick after
 1	A13: once refs/remotes/origin/main moves, felix merge runs once more, and not again on the tick after
+1	A14 (B1, B3): a refusal with a commission blocker whose subject is table, not receipt is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
+1	A14 (B2, control; restated for wave-1-combine.md C1): with the origin a local path, --pause then --tick writes one paused row, the pause's, sends one banner titled Felix: paused, and asks gh nothing
+1	A14 (B8): and the chips cover row unknown,unknown:chip-unstarted with the same detail
 1	A14: a pgrep that exits 2 counts as a suite running: the deploy waits
 1	A14: a suite started as bash engine/harness/tests/run, with no leading slash, makes the deploy wait
 1	A14: and the row says a gate or suite is running
+1	A14: and with no heartbeat at all it reads the same paused row
+1	A15 (B1, B3): a refusal with an empty blocker block (not merging, and nothing under it) is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
+1	A15 (B2, B7; restated for wave-1-combine.md C1): and that run appends one eight-field alerts.tsv record, failed, of kind paused, whose note starts origin:, holding no text of the origin URL, its field 8 the reason r1 alone
+1	A15 (B8): and the main worktree's owner unknown, holding unknown:live, unknown:question and unknown:blocked and none of live, question or blocked
 1	A15: a takeover that finds another pid in the lock it moved aside does not take it: only the live tick asked gh
+1	A15: an empty paused file reads paused: no reason could be read
 1	A15: and the live tick is not signalled
 1	A15: the watchdog compares its tick's start time before it signals
+1	A16 (B3, B5, R1-R3; restated for wave-1-combine.md C1): a paused event raised by --pause in the GitHub state, then a tick, calls user, repos, issue list, issue create and workflow run, in that order and no more, with the title, --state all, --repo github.com/fixture/lgh, GH_HOST and GH_REPO unset and the dispatch's GH_PROMPT_DISABLED=1; creates the issue with no @ and no detail; dispatches exactly felix-alert.yml with issue=1 and BODY @fixture Felix land: paused, empty, the paused sentence, the details line; and records it dispatched on fixture/lgh#1 with the run URL, through felix-alert.yml mentioning @fixture, the detail in field 8
+1	A16 (B5): a refusal that exits 1 (gh pr merge failed) is not tried again within the hour: two ticks, M50 is 1
+1	A16 (B8, control): and the helper-form agent-9f9f9f01 carries unknown:helper and no helper
+1	A16: a loaded job, not paused, with no heartbeat is unknown, naming the Ld/heartbeat no tick has recorded
 1	A16: the plist's PATH is the fixture HOME's .local/bin, then the listed directories
 1	A16: with HOME expanded when it is written
+1	A17 (B5, B7): once its row is an hour old or older, the next tick runs felix merge once more, and the tick after, inside the new row's hour, does not
+1	A17 (B8): and the pull request #95 has owner unknown and holds unknown:live
+1	A17 (B8; restated for wave-1-combine.md C1): the tick's hourly paused row past its hour, for the reason the --pause gave, is the same event: one more paused row and banner, but no gh call and no second record
 1	A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deployed-unverified
+1	A17: a heartbeat that reads soon is unknown: it holds no time this check can read
 1	A17: and main's own engine is accepted
 1	A17: and nothing is paused
 1	A17: and writes no deploy-owed row
@@ -211,19 +246,28 @@
 1	A17: with the decoy names and main's entry in place, the tick owes no deploy and merges a green pull request through main's entry
 1	A17: with the decoy names and main's entry in place, the trampoline runs main's entry's felix land --tick
 1	A17: with the decoy names, felix_accepted_deploy_diff given refs/remotes/origin/main judges main: the decoy's engine is rejected
+1	A18 (B5): a refusal that exits 4 (the tree was edited under it) is tried again once its row is an hour old: M50 is 2
+1	A18 (B5, B1; restated for wave-1-combine.md C1, C2): the --pause with a new reason dispatches once for the standing issue, issue 1, without creating another; the resume and the aged tick's same event add nothing, so two records, both dispatched
+1	A18 (B8, control): the readable root lists the chip task_9c9c9c01, and the root at mode 000 lists no chip row (its run exiting 0)
 1	A18: (control) a green pull request whose worktree path is plain lands
 1	A18: a green pull request whose worktree path holds a tab gets one session row
+1	A18: a heartbeat an hour ahead of the clock is unknown: it is dated seconds after this clock
 1	A18: every ledger line has exactly seven tab-separated fields
 1	A18: neither is merged, and felix merge runs in neither worktree
 1	A18: one whose worktree path holds a newline gets one session row
+1	A19 (B1, R2): a tick whose gh auth status fails writes one gh row and dispatches @fixture Felix land: gh with the gh sentence
+1	A19 (B6): a refused row written before this change, with none of the clauses, a year old, on 50's head and main, is final: with both receipts written a tick does not run felix merge (M50 is 0)
+1	A19 (B8): a records root at mode 100 reads as A13 says
 1	A19: (control) a green pull request alone on its head branch lands
 1	A19: a candidate whose head branch is also the head of an open pull request into another base gets one skip row and is not merged
+1	A19: a loaded job, not paused, whose heartbeat is two minutes old reads running, ending with the ledger's newest row
 1	A19: and each gets one skip row
 1	A19: two green open pull requests with one headRefName: neither is merged
 1	A1: an entry main's check accepts runs: its felix land --tick is the one tick invoked
 1	A1: and the trampoline writes no deploy-owed row
 1	A1: both inventory runs over ca exit 0 and print rows (control)
 1	A1: each case is named apart from the others in its row
+1	A1: felix status --tsv exits 0 and prints eight rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): and send one notification
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): it exits 1, both runs
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): the row names the case
@@ -254,6 +298,9 @@
 1	A1: with origin/main's version unreadable: the row names the case
 1	A1: with origin/main's version unreadable: the trampoline runs no felix land --tick, from any cache entry or tree
 1	A1: with origin/main's version unreadable: two runs write one deploy-owed row
+1	A2 (B1): a reviewer whose result was written, filed after the person's question, leaves asr9 its person's session as owner and question
+1	A2 (B16, control): --install from a worktree of the home exits 0 and installs felix.land.lgh, as from the home
+1	A2 (B2): that detail still begins with the blocker, unverified (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]
 1	A2 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A2 (decoys: all): and what it prints names the commit refs/remotes/origin/main names
 1	A2 (decoys: all): felix_base_ref given origin/main prints exactly refs/remotes/origin/main and exits 0
@@ -284,6 +331,9 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
+1	A20 (B1, R2): a refused and a landed pull request each get a dispatch: @fixture Felix land: refused #41 with the refused sentence and none of the refusal's text, and @fixture Felix land: landed #42 with the landed sentence
+1	A20 (B8): a records root at mode 400 reads as A13 says
+1	A20 (B9): a receipt-clause refusal whose receipts the tick holds no record of is unknown, not unchanged: a tick runs felix merge once, and the tick after, with nothing changed, does not
 1	A20: (control) with no land/verifying and main's entry in place, a green pull request merges and nothing is installed
 1	A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install
 1	A20: a leftover land/verifying makes the next tick redo the deploy: one install, one deployed row
@@ -292,19 +342,31 @@
 1	A20: and its deployed verify removes land/verifying
 1	A20: and land/verifying stays
 1	A20: and that tick merges nothing
+1	A20: and with no ledger its detail ends: the ledger has no row
 1	A20: land/verifying stays after a verify that did not write deployed
 1	A20: once resumed, a tick that finds land/verifying deploys again, though main's entry is in place, and merges nothing
 1	A20: the deploy wrote land/verifying before its verify ran felix gate --quick
 1	A20: the tick after it merges, with nothing installed again
+1	A21 (B1): a skip row is no event: a draft pull request gets its skip row and no api, issue or workflow call
+1	A21 (B8): a refused pull request now labelled felix:hold gets its skip row and no retry, though its gate receipt was written: M50 stays 1
+1	A21 (B9): CLAUDE_CONFIG_DIR's projects at mode 000 reads as A13 says, the detail naming $CLAUDE_CONFIG_DIR/projects literally
 1	A21, A24: an untracked file under the home's engine/harness at deploy time never ends deployed
 1	A21: (control) an owed deploy with nothing untracked in the home's engine ends deployed
+1	A21: a heartbeat 2000 seconds old, inside the 2700-second bound, still reads running, not not-ticking
 1	A21: and merges nothing
 1	A21: and writes paused
+1	A22 (B10): on the page the blocked, question, running and helper summaries are incomplete, content unknown, each reason saying sessions unknown and why
+1	A22 (B4, R8): the alert is refused and recorded failed, with no dispatch or comment, when GitHub names another repository, the account cannot push, the owner is an organization with no alert_login, alert_login is not a login (no gh call at all), create answers another repository's issue (after its one issue create), or gh api user exits 1 (exited 1, no later call)
+1	A22 (B4, contract A13): a receipt refusal whose pull request's head moves is run again on the next tick: M50 is 2
+1	A22 (control): felix status changed nothing under the home, the memory root, the checkout or U/Library in A4-A21's runs, and asked launchctl only list and print
 1	A22: a tick that cannot resolve its project writes one row into FELIX_LAND_LEDGER over two identical runs, and sends one notification
 1	A22: a tick that resolves its project writes to its own ledger, not to FELIX_LAND_LEDGER
 1	A22: and that row is one of seven tab-separated fields
 1	A22: the trampoline exports the ledger it carries as FELIX_LAND_LEDGER, the same on both runs
 1	A22: the trampoline's unresolved tick leaves one row in that ledger, and one notification, across two runs
+1	A23 (B10): and the never-proposed summary is incomplete, its reason saying chips unknown and why
+1	A23 (B3, contract A13): a final refusal is run again on the next tick once main moves: M50 is 2
+1	A23 (R2): with alert_login someone-else in project.json the dispatch mentions @someone-else
 1	A23 (\001): a forged record in a lock reason: 81, which no worktree holds, gets one session row
 1	A23 (\001): and felix merge never runs in the checkout the forged record names
 1	A23 (\001): the locked worktree's own green pull request still lands, in its worktree
@@ -315,9 +377,14 @@
 1	A23 (newline): with b81's own worktree back, 81 lands there, and never in the checkout the forged record names
 1	A23: (control) a green pull request whose worktree is what its admin entry says lands, in that worktree
 1	A23: (control) with its own directory back, 84 lands there
+1	A23: a paused felix land --tick exits 0 and writes Ld/heartbeat, one line of digits, its start between the times read around it
 1	A23: a worktree directory that belongs to another repository gives one session row
 1	A23: a worktree directory that now has another branch checked out than its admin entry says gives one session row
 2	A23: and felix merge runs nowhere
+1	A24 (B11, control): a readable records root reads read under the literal $HOME/.claude/projects, and the main worktree's owner is s9-main with question
+1	A24 (G8): every row this part's ticks wrote, and every row it seeded, is one row of seven tab-separated fields
+1	A24 (R2-R4; restated for wave-1-combine.md C1, C2): three attempts whose dispatch fails leave three failed records noting gh workflow run:, and the next event, dispatched, says on line 4 Not delivered before this one: 3 with the newest's kind and time, then the details line; four records in all
+1	A24 (control): and that tick still writes one paused row and sends one notification
 1	A24: (control) a clean home deploys: one install, session-start run, one deployed row, no deploy-owed row
 1	A24: (control) once the home is clean again, the owed deploy runs and writes deployed
 1	A24: (control) with nothing untracked under the home's engine/, the trampoline runs main's entry's felix land --tick
@@ -359,12 +426,20 @@
 1	A24: an untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
 1	A24: with an untracked .gitignore under the home's engine/ that makes main's check accept a stray, the trampoline runs no felix land --tick
 1	A24: with an untracked file under the home's engine/, the trampoline runs no felix land --tick
+1	A25 (B10): a stale token for another host (ghe.example.invalid) beside a working github.com one does not stop the tick: 42 lands, no gh row
+1	A25 (B11, control): a missing records root reads unknown in all four with the detail no session records
+1	A25 (R2, B7): a detail holding a token, $HOME/ and an @ reaches no gh argument and no body; BODY's one @ is line 1's; field 8 keeps the detail with ~/
 1	A25, A28: and the lock is released
 1	A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12
+1	A25: a tick that finds the lock held by a live process still writes the heartbeat first
 1	A25: the tick's descendant holding it, gh, gets TERM
 1	A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout
 1	A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM
 1	A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM
+1	A26 (B10): a stale token for an inactive github.com account does not stop the tick: 42 lands, no gh row
+1	A26 (B11, control): one record directory at mode 000 under a readable root leaves the cover row read, and that worktree owner unknown, saying which directory
+1	A26 (B9; restated for wave-1-combine.md C1): with _FN_SECS=2 and the dispatch hanging, --pause r9 exits 0 within 20 seconds, the hung gh is no longer running, and one failed record says timed out
+1	A26 (control): and that tick still writes no ledger row and asks gh nothing
 1	A26: an untracked file under engine/: (control) the tick after it lands the waiting pull request and installs nothing more
 1	A26: an untracked file under engine/: after --resume, the next tick re-runs the deploy: one install, session-start, gate --quick in the home, one deployed row
 1	A26: an untracked file under engine/: and merges nothing in that tick
@@ -385,11 +460,19 @@
 1	A26: skip-worktree on projects/lgh/gate.sh: the deployed row removes land/verifying
 1	A26: skip-worktree on projects/lgh/gate.sh: the stopped deploy leaves land/verifying, written before A24's checks
 1	A26: skip-worktree on projects/lgh/gate.sh: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A27 (B10): a stale active github.com account stops the tick: one gh row, no gh pr list, nothing merged
+1	A27 (B10; restated for wave-1-combine.md C1): the paused scenario writes the same ledger fields 2-7, the --pause's one row ending ; by session -, one banner and exit 0 for --pause and --tick, with a local origin, with gh api user failing, and with the dispatch hanging
+1	A27 (B12, control): a custom-title equal to the chip's title in a file's head starts it: no row, the run exiting 0
+1	A27 (control): a paused tick whose heartbeat cannot be written, a directory standing there, still exits 0 and writes its paused row
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: and writes paused
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: no home code runs: the home's felix is never called, nothing runs install or gate, session-start never runs
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: nothing is installed into the cache, and nothing merges
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the deploy-owed row names the path
 1	A27: a CRLF copy of an engine file, re-added under core.autocrlf: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A28 (B10): no account at all stops the tick: one gh row, nothing merged
+1	A28 (B11, R7): --install calls no gh; the trampoline with a home that does not exist exits 1, writes one deploy-owed row, dispatches @fixture Felix land: deploy-owed once with the deploy-owed sentence, and records it dispatched
+1	A28 (B12, control): the same title in a file's tail starts it: no row
+1	A28 (control): felix land --status --tsv, --pause x and --resume, in turn, write no heartbeat
 1	A28: an untracked file under projects/lgh/ does not stop a deploy: one install, one deployed row, no deploy-owed row
 1	A28: and nothing is paused
 1	A28: the same untracked file under engine/: and writes paused
@@ -397,6 +480,10 @@
 1	A28: the same untracked file under engine/: nothing is installed into the cache, and nothing merges
 1	A28: the same untracked file under engine/: the deploy-owed row names the path
 1	A28: the same untracked file under engine/: the tick writes one deploy-owed row, and no deployed or deployed-unverified row
+1	A29 (B11): the gh row's detail begins gh auth status and names github.com
+1	A29 (B11, R7): with plugin.json unopenable the trampoline dispatches @fixture Felix land: unreadable with the unreadable sentence and runs no git
+1	A29 (B12): the same title only between a file's head and tail starts nothing: the chip stays chip-unstarted
+1	A29: after a paused tick, with the pause then removed, the land row reads running
 1	A29: and pauses nothing
 1	A29: and the deploy pauses nothing
 1	A29: and writes no deploy-owed, deployed or deployed-unverified row
@@ -414,7 +501,11 @@
 1	A2: a home diverged from origin/main installs nothing, deploys nothing and merges nothing
 1	A2: a home diverged from origin/main writes one deploy-owed row
 1	A2: both inventory runs over ch exit 0, and each lists a chip (control)
+1	A2: every felix status this part ran prints the eight rows in order, and no row breaks D16's shape (1100's awk)
 1	A2: the home is at origin/main after it
+1	A3 (B1, B2): a refusal holding a blocker of another kind (evidence) beside unverified says (final until the head or main moves)
+1	A3 (B1, control): ctl9, the person's desktop session alone, has that session as owner and holds question
+1	A3 (B14): --install from another governed checkout exits 1, prints nothing on stdout, refuses on stderr naming other and lgh and saying land on green lands the home's own pull requests only, and writes no plist, no trampoline, no land directory and calls no launchctl
 1	A3 (decoys: all) (fixture control): each decoy names the decoy commit
 1	A3 (decoys: all): and what it prints names the commit refs/heads/feat names
 1	A3 (decoys: all): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
@@ -433,6 +524,10 @@
 1	A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names
 1	A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
 1	A3 fixture: the s20 starter's first user record is two text items, the first ending in a reminder and a blank line (fixture control)
+1	A30 (B11): the trampoline sources no notify.sh from the home or the cache: its deploy-owed row names the untracked file, it dispatches, and the tripwire is never written
+1	A30 (B12): with main's entry gone and two of three processes matching, the deploy-owed row begins a gate or suite is running and names pid 40001 and pid 40002, not pid 40003
+1	A30 (B13, control): a start_session call naming the chip as proposal_id, with its result, in a file's head starts it: no row
+1	A30 (control): session start with no job and no ledger exits 0, its line is Felix: lp, and its context says nothing of landing
 1	A30, A6: and neither tick hands it to felix merge
 1	A30, A6: two ticks over the same held 42 write one skip row for it, not two
 1	A30, G4: a held 40 does not stop the tick: green unlabelled 42 after it lands on the same tick, the only felix merge run
@@ -462,6 +557,9 @@
 1	A30: case: Needs-Founder holds as needs-founder does: and writes exactly one skip row for 42
 1	A30: case: Needs-Founder holds as needs-founder does: the tick exits 0, hands 42 to felix merge nowhere and lands nothing
 1	A30: whose detail names needs-founder
+1	A31 (B11): once a tick with a local origin rewrote alerts.repo, the trampoline calls no gh and its newest record is failed
+1	A31 (B12): pgrep is handed -f as an argument of its own
+1	A31 (B13, control): the same call and result in a file's tail start it: no row
 1	A31 (fixture control): --install exits 0 and leaves the plist and an executable trampoline
 1	A31 (fixture control): a run with a plugin.json holding bytes exits 0 and runs main's entry's tick once: that is the status of a run that goes on
 1	A31 (fixture control): a wrapper runs the real tool and logs its standard input: cat prints plugin.json and logs plugin.json's inode
@@ -577,6 +675,7 @@
 1	A31: recovery: with the newest row of kind refused and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
 1	A31: recovery: with the newest row of kind session and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
 1	A31: recovery: with the newest row of kind skip and an older unreadable row below it, a run whose read succeeds writes no readable row, and goes on as a normal run does
+1	A31: session start while the lander is paused adds the landing paused badge to that one line
 1	A31: the launchctl log shows a bootout of the job before the bootstrap of the plist
 1	A31: the open comes before A1's check: with main's cache entry gone, the unopenable file writes the unreadable row alone and no deploy-owed row
 1	A31: the plist's ProgramArguments are /bin/bash, then the trampoline's path, and nothing else
@@ -635,6 +734,39 @@
 1	A31: with plugin.json readable and main's cache entry gone, the trampoline exits 1 on each of two runs and runs no felix
 1	A31: with plugin.json readable and main's cache entry gone, two runs send one notification, and its title is exactly Felix: deploy-owed
 1	A31: with plugin.json readable and main's cache entry gone, two runs write exactly one row, of kind deploy-owed, and no unreadable row and no other row
+1	A32 (B12): a hand-run tick that resolves no project, with no FELIX_LAND_LEDGER, makes no gh call and writes no alerts record anywhere
+1	A32 (B13): a third matching process inside the hour is the same wait: still one deploy-owed row and one notification
+1	A32 (B13): the same call and result only between a file's head and tail start nothing: the chip stays chip-unstarted
+1	A32: and its context holds the line Landing on green is paused: followed by the land detail felix status --tsv prints in that state
+1	A32b: and the pause is said once, with how to end it: no lander paused token, no The lander is paused paragraph, and the line felix land --resume ends the pause.
+1	A33 (B13): once the wait's row is an hour old, the next tick writes a second row and notification, its detail beginning a gate or suite is running; still so since <T0> and naming pid 40001
+1	A33 (B13, R5): felix status --tsv prints eight rows ending alerts, which reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it
+1	A33 (B13, control): in an in-scope file read whole for its own proposal, a call and result between the windows still start the chip, and that file's own chip stays
+1	A33: session start with the job not loaded ends its line with the landing not-loaded badge
+1	A34 (B13): the tick after, inside the second row's hour, writes none: still 2 deploy-owed rows
+1	A34 (B14, control): a starter whose first human text is the chip's prompt starts it however long the file is: no row
+1	A34 (B3, R1): across the part, gh saw no issue call but list and create (no comment), no pr call but the tick's list and view, no label call, no workflow call but workflow run felix-alert.yml, and no api call that writes (and some dispatch was made)
+1	A34: session start with the job not ticking ends its line with the landing not-ticking badge
+1	A35 (B10, control): in the GitHub state a paused tick still writes one seven-field paused row and one banner titled Felix: paused
+1	A35 (B14): a gh row in between ends the wait's run: the gh tick writes one gh row, and the next tick one more deploy-owed row (3 after A33's), a first row again with no still so since
+1	A35 (control): running, not-installed, a liveness not known and no launchd add no badge to Felix: lp and no landing line to the context
+1	A35 (fixture control): by grep -b, md9's title and s3md9's call lie past 1.5 MiB and over 1 MiB before the end; hd9's and s3hd9's in the first 64 KiB; tl9's and s3tl9's in the last 64 KiB
+1	A36 (B12, B13): a pgrep that exits 2 gives the row a gate or suite may be running: pgrep exited 2, and once it is an hour old a second row saying still so since
+1	A36 (B15): eight 16 MiB session files outside every window add at most 0.75 s to the CPU of the run (lower of two with them, less lower of two without)
+1	A36 (R1, R5, M3): when the gh login is the owner it mentions (the founder's case), the alert is still dispatched to felix-alert.yml, nothing is commented as that login, and felix status says dispatched, never posted-self
+1	A36 (control): session start with launchctl print exiting 5 still exits 0 and prints JSON
+1	A37 (B13): a gh stop is written and notified once, and once its row is an hour old once more, saying still so since
+1	A37 (B15, control): with the eight files the chip rows, ref and states, are those without them: one row, task_9e00000b chip-unstarted
+1	A37 (R3, R5, B10): with no felix-alert.yml workflow on the repository the dispatch is tried once and recorded no-alert-workflow naming it, landing is as before, and felix status says no-alert-workflow naming the file
+1	A37 (control): a resume payload still prints nothing, exit 0, while the lander is paused
+1	A38 (B13): a fetch stop is written once, and once its row is an hour old once more, saying still so since
+1	A38 (B16): the collapsed line says helper worktrees 5, and the line after it counts the 3 helper rows holding work that never reached a PR
+1	A38 (R6): with the newest record no-alert-workflow the session start says no-alert-workflow and names felix-alert.yml, leaving alerts.tsv as it was; with the newest dispatched it says no-alert-workflow nowhere
+1	A38: a user settings file that enables felix@felix and sets disableAllHooks to true reads settings value hooks-off, naming it and that no hook runs
+1	A39 (B13): a stuck lock is said again each hour like every other wait
+1	A39 (B16, control): no line of the text page names any of the five helpers' paths, and the plain unpushed worktree is listed once
+1	A39 (R4): once the workflow exists, the same event raised again is dispatched; the no-alert-workflow record stays as it was, and BODY's line 4 counts it with its kind and time
+1	A39: felix pulse prints the same answer on its settings line: settings, hooks-off and that detail
 1	A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged
 1	A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged
 1	A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged
@@ -642,6 +774,10 @@
 1	A3: a pull request touching projects/lgh/claude.md is held with one founder row and not merged
 1	A3: a pull request whose file list cannot be read gets one skip row and is not merged
 1	A3: and the skip row says the files could not be read
+1	A3: outside a governed checkout the land row is none: this directory is not a governed checkout
+1	A4 (B1): a record directory holding only an SDK session gives owner -, neither question nor blocked, and the element passed over 1 SDK session(s)
+1	A4 (B1, B2): exit 1 (OUT-G) and exit 4 (OUT-M) are hourly: each refused row's detail says (tried again an hour after this row)
+1	A4 (B14): --pause from another governed checkout exits 1 and writes a paused file in neither project's land directory
 1	A4 (a branch with a revision suffix, with refs/remotes/origin/main present): and what it prints names the commit main~1 names
 1	A4 (a branch with a revision suffix, with refs/remotes/origin/main present): felix_base_ref given main~1 prints exactly main~1 and exits 0
 1	A4 (a commit by its sha): and what it prints names the commit its sha names
@@ -652,6 +788,36 @@
 1	A4 (a tag by its name): and what it prints names the commit v1 names
 1	A4 (a tag by its name): felix_base_ref given v1 prints exactly v1 and exits 0
 1	A4 (a tree by its sha): felix_base_ref given its sha prints nothing and exits non-zero
+1	A40 (B15): with an untracked file under the home's engine/harness, two trampoline runs write one deploy-owed row and one notification, exit 1 both times; aged, a third writes a second, notified, saying still so since <T0>, and runs no land --tick
+1	A40 (B17, control): --tsv keeps 17 summary rows, helper complete with 5, and the plain unpushed worktree alone in never-proposed, complete with 1
+1	A40: disableAllHooks true reads hooks-off even beside felix@felix false
+1	A41 (B16): a home on main strictly behind an origin/main whose entry is missing, its own version's entry accepted: the trampoline runs exactly one land --tick, from the Vm entry, exits 0, and writes and sends nothing
+1	A41 (B16, control): with no helper row holding such work no count line is printed, and the collapsed line, saying helper worktrees 2, stays last
+1	A41 (control): disableAllHooks false beside felix@felix true still reads settings value ok
+1	A42 (B16): and what it prints names 9.65.0 and Vm
+1	A42 (R1): in run T, unr9's unread file older than the SDK records naming pr9b, #92's owner is unknown, not -, and it is not live
+1	A42: disableAllHooks set to the string yes leaves the settings row unknown, quoting its JSON
+1	A43 (B16): and that tick ran with FELIX_ALLOW_RED, FELIX_KERNEL and FELIX_KERNEL_CACHE unset
+1	A43 (R1, control): read, the person session that named mw9a owns #96 past the newer SDK records naming it, and #96 is live
+1	A43 (control): with no parser the settings row is still unknown, and the file is not read
+1	A44 (B17): A41's state with the home on another branch: no land --tick, one deploy-owed row saying not installed, exit 1
+1	A44 (R1): with that person's file unread and only SDK records left naming mw9a, newer than the file, #96's owner is unknown, not -, and live is unknown
+1	A44: outside a governed checkout the hooks row is none
+1	A45 (B17): A41's state with one local commit on the home's main, so no ancestor of origin/main: no land --tick, one deploy-owed row saying not installed, exit 1
+1	A45 (R2, B5): read, #98's owner is the person session that named mw9c 90 minutes ago, and an SDK record naming it 5 minutes ago makes it neither live nor unknown
+1	A45: a checkout with no .claude reads hooks clear, saying no settings file turns hooks off and what is not read
+1	A46 (B17): A41's state with one extra file in the Vm entry, which main's check rejects: no land --tick, one deploy-owed row saying not installed, exit 1
+1	A46 (R2): a file unread, modified after the owner's record naming mw9c but before the SDK record naming it, makes #98's owner and live unknown
+1	A46: a local settings file setting disableAllHooks to true reads hooks off, naming that file
+1	A47 (B17): the home reset to origin/main, whose entry is missing: no land --tick, one deploy-owed row saying not installed, exit 1
+1	A47 (R2, control): a file unread, modified before the owner's record naming mw9d, leaves #99 its owner m9-pd, live
+1	A47: a project settings file setting disableAllHooks to true reads off too, naming the project file
+1	A48 (B18): A41's state with a 9.65.0 entry whose felix is not executable: no land --tick from any entry, and the row says so (execut)
+1	A48 (R3, control): read, sole9's owner is its person session past the newer SDK one, live, and the SDK session's pending call is no wait
+1	A48: a local disableAllHooks false wins over a project true: clear
+1	A49 (B19): from A41's state the tick installs once, writes one deployed row and merges nothing; the next tick lands 42 through the 9.65.0 entry
+1	A49 (R3): with only that SDK session readable beside an older unread file, sole9's owner is unknown, not -, and live, question and blocked are unknown
+1	A49: a project settings file setting felix@felix to false reads hooks felix-off: Felix's hooks do not load
 1	A4: a live lock older than 45 minutes gives one stuck row and one notification over two ticks, and its holder is not signalled
 1	A4: a tick finding a live lock younger than 45 minutes writes no stuck row
 1	A4: a tick whose process group gets TERM, as the watchdog sends it, writes one timeout row
@@ -660,6 +826,10 @@
 1	A4: and sends one notification for it
 1	A4: every git fetch and git pull runs with GIT_TERMINAL_PROMPT=0, GIT_HTTP_LOW_SPEED_LIMIT=1000 and GIT_HTTP_LOW_SPEED_TIME=60
 1	A4: the watchdog sends TERM after 30 minutes
+1	A4: with no plist and no ledger the land row is none, says felix land --install schedules one, and asks launchctl print nothing
+1	A5 (B1, control): where a person's session remains beside the SDK one, no element of the detail begins passed over
+1	A5 (B14): --resume from another governed checkout exits 1 and leaves the home's paused file where it is
+1	A5 (B4): with neither receipt touched, a second tick neither runs felix merge again nor writes a row: M50 is 1, one refused row
 1	A5 (a refs/ name that names a tree): felix_base_ref given refs/tags/jr-tree prints nothing and exits non-zero
 1	A5 (a refs/ name that names nothing, origin/refs/heads/jr-absent there) (fixture control): each decoy names the decoy commit
 1	A5 (a refs/ name that names nothing, origin/refs/heads/jr-absent there): felix_base_ref given refs/heads/jr-absent prints nothing and exits non-zero
@@ -668,16 +838,61 @@
 1	A5 (every decoy for origin/main in place): felix_base_ref given refs/remotes/origin/main prints exactly refs/remotes/origin/main and exits 0
 1	A5 (refs/heads/main): and what it prints names the commit refs/heads/main names
 1	A5 (refs/heads/main): felix_base_ref given refs/heads/main prints exactly refs/heads/main and exits 0
+1	A50 (B20): an entry at main's version that existed before the install and still differs after it: one deployed-unverified row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason
+1	A50: a local felix@felix true wins over the project's false: clear
+1	A51 (B20): with no entry before the install, the diff: row does not say does not replace
+1	A51: a local disableAllHooks true beside the project's felix@felix false reads off
+1	A52 (B21): the trampoline's differs row says differs and that felix install does not replace an entry that exists, names the entry, and no longer says deployed from the home
+1	A52: a local file that does not parse, a project file holding [] and an empty project file each leave the hooks row unknown
+1	A53 (B22): --pause with a reason writes paused as that reason and at once one paused row, by session s-1660, notified as Felix: paused
+1	A53: disableAllHooks set to the string true leaves the hooks row unknown, quoting its JSON
+1	A54 (B22): a tick right after, inside the hour, writes no further paused row
+1	A54: with no parser a present settings file leaves the hooks row unknown: no JSON parser on this machine
+1	A55 (B22): with CLAUDE_CODE_SESSION_ID empty, the paused row's detail ends ; by session -
+1	A55: with no parser and no settings file in .claude the hooks row is still clear
+1	A56 (B23): --resume over that pause writes one resumed row quoting it, by session s-1660, notified as Felix: resumed, and removes paused
+1	A56: a settings.json that is a directory leaves the hooks row unknown: it cannot be read
+1	A57 (B23): --resume with nothing paused exits 0 and writes no row
+1	A57 (control): felix status changed nothing under the checkout, the home or the memory root in A45-A56's runs
+1	A58 (B24): --install exits 0 and writes one installed row naming the plist, by session s-1660, notified as Felix: installed
+1	A58: felix doctor prints gate, settings and hooks lines straight after its project line, each label padded to 14 columns
+1	A59 (B25): --uninstall exits 0 and writes one uninstalled row, by session s-1660, notified as Felix: uninstalled
+1	A59: felix doctor in a project that declares no gate says none declared: no stop is checked, and where to set one
 1	A5: a lock whose pid is live and whose started is absent is not taken: the tick asks gh nothing
 1	A5: a lock whose pid is live and whose started is empty is not taken: the tick asks gh nothing
 2	A5: and its holder is not signalled
 2	A5: and that lock is left as it was
 1	A5: and the lock is released after the race
 1	A5: two ticks racing one dead lock leave exactly one taker, in each of five rounds
+1	A5: with a plist on a machine whose uname says Linux the land row is unknown, no launchd on Linux, and asks launchctl print nothing
+1	A6 (B14): --status and --status --tsv from another governed checkout each exit 1 with nothing on stdout
+1	A6 (B2): an SDK session's records and its <sid>/ files, minutes old, do not make the worktree live
+1	A6 (B4): once b50's gate receipt is written where none was, the next tick runs felix merge once more: M50 is 2
 1	A6 (with a local main only): and what it prints names the commit refs/heads/main names
 1	A6 (with a local main only): felix_base_ref given an empty name prints exactly refs/heads/main and exits 0
 1	A6 (with refs/remotes/origin/main): and what it prints names the commit refs/remotes/origin/main names
 1	A6 (with refs/remotes/origin/main): felix_base_ref given an empty name prints exactly refs/remotes/origin/main and exits 0
+1	A60 (B22-B25, G8): the brakes' rows (paused, resumed, installed and uninstalled are there) are each seven fields with - for the pull request
+1	A60: a project.json with no gate key reads gate value no-gate: the Stop hook checks no stop here
+1	A61 (B28): a refusal whose one blocker is unverified tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written
+1	A61: an empty gate reads no-gate too
+1	A62 (B28) [control]: with b65's current gate receipt untouched, two more ticks inside the hour do not run felix merge again: M65 is 1, one refused row
+1	A62: a project with no project.json reads no-gate, saying the file does not exist
+1	A63 (B28, B5, B7): once that row is an hour old, with no receipt rewritten and GitHub answering again, the next tick runs felix merge once more and lands 65: M65 is 2, one landed row, one Felix: landed #65
+1	A63: a project.json that is a directory leaves the gate row unknown: whether a gate is declared is not known
+1	A64 (B28): unverified tree followed by unverified tests is hourly too: the row says tried again an hour after this row, not when a receipt is written
+1	A64 (control): a gated project with no receipt still reads gate value none-run
+1	A65 (B28) [control]: unverified tests beside an evidence blocker is final: the row says final until the head or main moves
+1	A65: session start in a project with no gate says no gate, stops unchecked on its one line, after Felix: ng
+1	A66 (B28) [control]: unverified tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written
+1	A66 (control): and its context keeps Gate: none declared, naming where to set one
+1	A67 (B29): when land/paused cannot be removed, --resume exits non-zero, says why, leaves the job paused, and writes no resumed row and no Felix: resumed notification
+1	A67 (control): session start in a gated project says nothing of no gate on its line
+1	A68 (B29): when land/paused cannot be written, --pause exits non-zero, says why, leaves no pause, and writes no paused row and no Felix: paused notification
+1	A68: with no gate and the lander paused the line says no gate, stops unchecked first and landing paused after it
+1	A69 (B29) [control]: with land/ writable, --resume over a pause exits 0, removes it and writes one resumed row
+1	A69 (control): the Stop hook in a project with no gate, over an edited tracked file, still prints nothing and exits 0
+1	A6: a plist launchctl print answers 113 for reads not-loaded: the plist exists, launchd has not loaded felix.land.lp, nothing lands, the ledger has no row
 1	A6: a refusal whose detail changed writes one new refused row and one new notification
 1	A6: an empty ROOT, called from inside a repository that has refs/remotes/origin/main, exits non-zero and prints nothing
 1	A6: and one notification each for the founder and the refused row
@@ -685,8 +900,21 @@
 1	A6: one refused row for a refused one
 1	A6: one session row for one no checkout holds
 1	A6: two identical ticks write one founder row for a held pull request
+1	A7 (B14): --tick from another governed checkout exits 1, writes no ledger under either project, and asks gh nothing
+1	A7 (B3, control): a desktop session quoting an SDK entrypoint in its text and in a tool input is a person's: owner and question
+1	A7 (B4): the tick after, with nothing touched, runs it no more: M50 stays 2
 1	A7 (fixture control): at least one felix_base_ref definition was found under engine/harness, and each one cut out parses on its own
 1	A7 (fixture control): loading the libraries felix sources at its top level, in its order, includes lib/resolve.sh and defines felix_base_ref
+1	A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deployed-unverified row begins diff:, names the entry, and paused holds it
+1	A71 (B30): that row names the way out: move the entry aside, then felix install --no-bump
+1	A72 (B30, B21) [control]: the trampoline, main's entry holding one extra file: one deploy-owed row saying differs and does not replace, naming the entry
+1	A73 (B30): that row names the way out, aside and felix install --no-bump, and holds no semicolon-space
+1	A74 (B30) [control]: felix merge --dry-run, the entry for main's 1.0.0 holding commands/extra.md, refuses: the judge is not the engine main accepted
+1	A75 (B30): and it names that entry and the way out, aside and felix install --no-bump, and no longer says felix install on main, in any case
+1	A76 (B30) [control]: gate.sh --quick, the entry for main's 0.0.1 holding commands/extra.md: installed fails
+1	A77 (B30): and the gate names that entry and the way out, aside and felix install --no-bump, and no longer says felix install on main, in any case
+1	A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deployed-unverified row, no pause
+1	A79 (B31): that verify ran pre-tool on a Bash payload of killall felix-verify-probe, the home its working directory or the payload's
 1	A7: and writes no paused file
 1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A1
 1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A2
@@ -695,6 +923,10 @@
 1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A5
 1	A7: every felix_base_ref definition under engine/harness, each on its own, and the library as felix loads it, satisfy A6
 1	A7: felix land --pause with two reasons prints usage and exits 2
+1	A7: the land row asks launchctl print gui/<uid>/felix.land.lp
+1	A8 (B17, control): --uninstall from another governed checkout still exits 0, says land on green is uninstalled for other, and boots out gui/<uid>/felix.land.other
+1	A8 (B4): a gate receipt present then and absent now has changed: the next tick runs felix merge once more, M50 is 3
+1	A8 (B4, control): sessions with no entrypoint are a person's: old9's owner and question, and blk9's unanswered StructuredOutput call is a wait
 1	A8 (decoys: none): and so does felix_kernel_dir given no name
 1	A8 (decoys: none): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
 1	A8 (decoys: refs/heads/origin/main): and so does felix_kernel_dir given no name
@@ -704,6 +936,12 @@
 1	A8 (decoys: refs/tags/origin/main): and so does felix_kernel_dir given no name
 1	A8 (decoys: refs/tags/origin/main): felix_kernel_dir given main prints the entry for the version refs/remotes/origin/main declares
 1	A8 (fixture control): refs/remotes/origin/main declares 1.0.0, the decoy 6.6.6, and the cache holds an entry for each
+1	A80 (B31): the deployed row names pre-tool beside session-start
+1	A81 (B31): a session-start that exits 0 and prints nothing is deployed-unverified naming session-start: one such row, no deployed row, and paused holds the same reason
+1	A82 (B31): a pre-tool that exits 0 on a pattern kill is deployed-unverified naming pre-tool: one such row, no deployed row, and paused holds the same reason
+1	A83 (B31): a main whose engine holds no pre-tool is deployed-unverified naming pre-tool: one such row, no deployed row, and paused holds the same reason
+1	A84 (G8) [control]: every row this part's commands wrote is one row of seven tab-separated fields
+1	A8: no plist, print 113 and a ledger whose newest row is a pause read not-installed, quoting that row: nothing lands here until felix land --install
 1	A8: with a local branch named origin/main, felix merge is main's entry's, and nothing at 9.8.0 runs
 1	A8: with a local branch named origin/main, nothing is paused
 1	A8: with a local branch named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
@@ -714,6 +952,9 @@
 1	A8: with a tag named origin/main, the tick compares main's version: no deploy is owed, and a green pull request merges
 1	A8: with a tag named origin/main, the trampoline runs main's accepted entry, not the one the short name declares
 1	A8: with a tag named origin/main, the trampoline writes no deploy-owed row
+1	A9 (B1, B4): a refusal whose one blocker is commission receipt is lifted by the commission receipt: once it is written the next tick runs felix merge once more, the two-space felix lines after the block being no blocker
+1	A9 (B17, control): --prs --no-gh from another governed checkout is not refused as another project's lander
+1	A9 (B5): a pull request whose head SDK records name more recently is owned by the person's session that named it, and is live
 1	A9 (fixture control): the decoy commit's resolve.sh defines a felix_accepted_deploy_diff that prints the entry and exits 0
 1	A9 (fixture control): with the cache entry main's engine and no decoy, the dry run passes the judge: it says the judge is byte-identical to main
 1	A9 (no decoy) (fixture control): with the cache entry one comment off main's engine, felix merge --dry-run refuses: the judge is not the engine main accepted
@@ -721,6 +962,7 @@
 1	A9 (refs/heads/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted
 1	A9 (refs/tags/origin/main at the decoy) (fixture control): git's own short name origin/main names the decoy
 1	A9 (refs/tags/origin/main at the decoy): with the cache entry one comment off, felix merge --dry-run still refuses because the judge is not the engine main accepted
+1	A9: a launchctl print that exits 5 leaves the land row unknown, naming the exit
 1	A9: a plain ASCII docs/notes.md still merges
 1	A9: a pull request whose changed path holds U+017F (projectſ/lgh/CLAUDE.md) gets one founder row and is not merged
 1	A9: a pull request whose changed path holds a byte >= 0x80 (notes/café.md) gets one founder row and is not merged
@@ -1267,7 +1509,7 @@
 1	C5.5 control: under --no-host the sessions cover row is unknown, --no-host
 1	C5.5: under --no-host a worktree of another name carries no unknown:helper
 1	C5.5: under --no-host each helper-form worktree and orphan carries unknown:helper, last of its states, and no helper
-1	C5.6 control: with the records root unreadable the main worktree's owner is -, where it is s5-boss when the root is read
+1	C5.6 control: with the records root unreadable the main worktree's owner is unknown, where it is s5-boss when the root is read
 1	C5.6: and a worktree of another name carries no unknown:helper there
 1	C5.6: with a records root the run cannot read, each helper-form row carries unknown:helper and no helper
 1	C5.7 control: agent-e5f6a7b8 is an orphan row holding orphan, content not, whose detail names its spawning session
@@ -2255,6 +2497,32 @@
 1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/(red|receipt\.sh)$
 1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/groups\.tsv$
 1	R9: projects/felix/risk.tsv holds one yellow verifier row, with no confine, for ^engine/harness/tests/parts/0007-the-parallel-runner\.sh$
+1	README claims, A10: and the id of a tree with uncommitted edits to tracked files changes with them
+1	README claims, A11: while a clean tree's id does not
+1	README claims, A12: nowhere does the README say Felix will narrow to the obligations people name
+1	README claims, A13: Where it's going narrows Felix on no result
+1	README claims, A14: Where it's going says a weak corpus result is investigated
+1	README claims, A15: Where it's going says nothing comes first
+1	README claims, A16: Where it's going keeps the corpus, the dry run and the retire list in direction's order
+1	README claims, A17: the Install list names felix land --install as an unattended felix merge that deploys, on macOS, for the home's repository
+1	README claims, A18: every sentence saying something merges on its own names felix land
+1	README claims, A19: Verify and uninstall names felix land --uninstall
+1	README claims, A1: the README, its four sections and the Verify and uninstall line are found
+1	README claims, A20: the Status table names felix land, scoped to Felix's own repository
+1	README claims, A21: land is among the commands that need gh
+1	README claims, A22: the README states no assertion count
+1	README claims, A23: the Install section names no /usr/local/bin
+1	README claims, A24: its install block links felix into ~/.local/bin after mkdir -p
+1	README claims, A25: and it says how to put ~/.local/bin on PATH
+1	README claims, A26: the install block's link line, run in a scratch home, links felix there
+1	README claims, A2: no sentence in Why not just run the tests in CI? says a probe's program changing size makes the pass stop counting
+1	README claims, A3: that section says felix probes reports an instrument change that does not, by itself, stale the pass
+1	README claims, A4: the Partial row no longer blames which git is on PATH
+1	README claims, A5: the Partial row names abbreviated object names as what stales a receipt for uncommitted edits
+1	README claims, A6: two programs of different sizes printing the same answer are two instruments to felix_probes_run
+1	README claims, A7: and felix_epoch computes the same epoch under both, so the pass does not stop counting
+1	README claims, A8: while a probe whose answer changed computes a different epoch
+1	README claims, A9: 20,000 unreachable blobs grow the object store past 16,384 and change no git status
 1	REPLACE=1 overwrites a hand-written handoff
 1	SessionEnd launched in a directory nothing governs folds the session into the governed worktree's ledger
 1	SessionStart launched in a directory nothing governs binds the governed worktree the payload names
@@ -2297,6 +2565,31 @@
 1	TMPDIR unset: the list is unread, with the sentence that says why
 1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
+1	W1C C1a: in the GitHub state felix land --pause R makes one dispatch, recorded dispatched for paused, whose field 8 is R without the ; by session suffix the ledger row keeps
+1	W1C C1b: the tick's hourly paused row for the same reason, the ledger aged past the hour, is the same event: one more paused row (detail R) and banner, but no gh call and still one record
+1	W1C C1c: --pause with another reason after that is a new event: one more dispatch on the standing issue, no issue create, and a second dispatched record whose field 8 is that reason
+1	W1C C2a: --resume, --install and --uninstall, in turn, each exit 0, make no gh call and append nothing to alerts.tsv
+1	W1C C2b (control): and each keeps its ledger row and its banner, Felix: resumed, Felix: installed and Felix: uninstalled
+1	W1C C3 (fixture control): a tick over green PR 31, whose session wait is five hours old, writes one waiting row as b03 B1 says
+1	W1C C3a: in the GitHub state that waiting row is dispatched: @fixture Felix land: waiting #31, an empty line, A green pull request has waited more than four hours to land., the details line; one record, dispatched, waiting, #31
+1	W1C C3b: a second tick with nothing changed writes no second waiting row and makes no second dispatch; the one record stays dispatched
+1	W1C C3c: with that waiting row moved 25 hours back, the tick writes a second one with the same detail, the same event under B8: no dispatch and no new record
+1	W1C C4 (fixture control): the suite's lib/green-wait.sh was moved aside for two ticks and is back as it was
+1	W1C C4a: a tick whose lib/green-wait.sh is missing writes one row of kind unaged, saying green-wait.sh did not load, and none of kind stuck (or waiting)
+1	W1C C4b: and dispatches @fixture Felix land: unaged with A tick could not age what waits, so no waiting pull request is named., never the lock sentence; one record, dispatched, unaged
+1	W1C C4c: a second tick with the file still missing writes no second unaged row and makes no second dispatch (once per kind and detail)
+1	W1C C5: across C1-C4 some records were written, no record's note starts kind:, and every record's kind is one of the fifteen that have an R2 sentence
+1	W1C C6a: felix status --tsv in a governed checkout of sideproj under a home whose project is homeproj, with no plist for sideproj: the land row is none, names sideproj and homeproj, and holds no felix land --install
+1	W1C C6b: with sideproj's plist present and launchd answering 113, the land row is value not-home, naming the plist, homeproj and felix land --uninstall
+1	W1C C6c: and with that job loaded and no tick for an hour (a job installed for sideproj before b05) it is still value not-home, not not-ticking
+1	W1C C6d (control): where p is hp, or hp does not resolve, the land row is b04's: none with felix land --install in C0, none for sideproj and not-loaded with its plist under a home that resolves no project
+1	W1C C6e: session start in that checkout, with sideproj's plist present, exits 0 and shows landing not-home
+1	W1C C6f: and its context holds Landing on green is not-home: and the land detail felix status prints in that state, as b04 B13 says for paused, not-loaded and not-ticking
+1	W1C C7a: with sideproj's land/paused present, session start in its checkout (p not hp) exits 0, says Felix: sideproj, and names no paused lander: no lander paused token and no The lander is paused paragraph
+1	W1C C7b (control): in a checkout of the home's own project, homeproj's land/paused with no job installed is still named, as S3 leaves it: the lander paused token and The lander is paused
+1	W1C fixture G: the land fixture's home is on main at origin's main, clean, and main's check accepts its cached entry (fixture control)
+1	W1C fixture G: the part put the land fixture back: origin the local path, no insteadOf, the home clean, the fixture's gh in place, and the working directory where it was (fixture control)
+1	W1C fixture W: H resolves homeproj by its .felix, C names sideproj, C0 names homeproj, and the stubs answer (fixture control)
 1	X1 _fx_cd refusing an outside directory it entered restores OLDPWD as well
 1	X11 _fx_lint does not read a failed awk as a clean file
 1	X12 a remote that moved in the checkout around the harness fails the origin check, though the run started in no checkout
@@ -4882,6 +5175,7 @@
 1	after an installed failure the suite is still skipped, not run (control)
 1	after commissioning the gate line reads ok
 1	after exactly those changes are committed as Y, the receipt stands, the seventh field naming Y's full sha
+1	after git fetch origin main:main in that clone, secret-scan has a base and finds the committed key, exit 1 (b23 A11)
 1	after one pulse with no memory repository the row is never, with the run's UTC minute
 1	after red, a record run prints an empty line and then the record this run wrote
 1	after the fold, a tampered cache entry still fails
@@ -6493,7 +6787,7 @@
 1	and prints byte for byte what it prints when they can, the stance section included
 2	and prints byte for byte what it prints when tr works
 1	and prints byte for byte what the dry run printed, its unverified blocker included, or reporting would change what blocks
-1	and prints exactly five rows: settings, schedule, pulse, reach, gate
+1	and prints exactly eight rows: settings, schedule, pulse, reach, gate, land, hooks, alerts
 1	and prints exactly the copy's driver, parts and lib files, line for line, in whatever order
 1	and prints neither undeclared none, the detected surfaces, the paragraph beneath them nor the adopt line
 1	and prints no backup committed line (P1)
@@ -7611,6 +7905,79 @@
 1	at release a task-blocking row is dropped and a release-blocking one blocks, grant or no grant
 1	at the task moment an excepted row does not block
 1	attended felix commission typed in an unowned checkout still runs its rows there
+1	b03 (fixture control): a tick over green PR 31, which no checkout holds, writes one session row reading no checkout holds the gated head and notifies nothing
+1	b03 (fixture control): the tick's own skip row for a PR labelled needs-founder reads labelled needs-founder
+1	b03 A10: a paused tick writes no waiting row for a listed PR whose session row is ten hours old (control)
+1	b03 A11: a third tick over the same state still holds exactly one session row for #31 and no skip row
+1	b03 A12: a PR refused at this head and main five hours ago gets a waiting row naming the refusal, and neither that tick nor the next runs felix merge
+1	b03 A13: a later waiting row changes nothing the page says of #133: refused, needs a session, the same detail, which says the lander cannot use it
+1	b03 A14: with the waiting row the ledger's newest, the lander source row still names it as the last ledger row (control)
+1	b03 A15: on acme/app, a same-repository PR by the signed-in account alice reads as an owner's: #7 conflicting needs-session session, #8 red session, #10 by ALICE red session
+1	b03 A16: a PR by bob, neither the owner acme nor the signed-in alice, is outside and needs nobody, its detail naming bob, acme and alice
+1	b03 A17: a cross-repository PR by alice is outside and needs nobody (control)
+1	b03 A18: with gh api user failing, alice's PR is unknown and needs unknown, saying the signed-in account was not read, and acme's own red PR is red session
+1	b03 A19: an api user answer with no login field, and one whose login is al ice, are not read: #8 unknown unknown each time
+1	b03 A1: a session wait five hours old gets exactly one waiting row, worktree - and wall 0, saying it waits on a session since that row, notified once as Felix: waiting #31
+1	b03 A20: the signed-in account is asked once in that run, never when every PR is by acme or cross-repository, and under --no-gh gh is asked nothing
+1	b03 A21: every gh call of that run is pr list or api, and no api call carries a method, field or input option (control)
+1	b03 A22: a --queue run over two projects, each listing a PR by a non-owner, asks for the signed-in account at most once
+1	b03 A23: a green PR changing only engine/harness/felix, with no ledger row, is ready for the lander and its detail says it touches the trust base
+1	b03 A24: a green PR changing engine/harness/felix and lib/verify.sh is ready for the lander and its detail names both paths
+1	b03 A25: the same trust-base PR with a same-head session row, or a same-head refusal on the current origin/main, is refused and needs a session
+1	b03 A26: the trust-base PR with the ledger path a directory is unknown and needs unknown
+1	b03 A27: a green PR changing projects/felix/risk.tsv and engine/harness/felix is the founder's, its detail saying trust base (control)
+1	b03 A28: over part 1310's whole fixture, no pr row of --prs --tsv is in state needs-attended, and every listed PR has a row
+1	b03 A29: with the harness intact a forced push is refused with a says.log row, git status is allowed, and neither leaves hook-faults.log (control)
+1	b03 A2: a second tick straight after the waiting row adds no row and makes no osascript call
+1	b03 A30: with lib/deny-read.sh renamed the hook allows and writes one fault row of five fields: a time, pre-tool, demo, Bash, a reason naming deny-read.sh
+1	b03 A31: with lib/deny.sh renamed the hook allows and writes one row, project -, reason lib/deny.sh did not load
+1	b03 A32: with lib/resolve.sh renamed the hook allows and writes one row, reason lib/resolve.sh did not load
+1	b03 A33: with the deny reader's awk exiting 3 the hook allows and writes one row whose reason says awk exited 3
+1	b03 A34: an unbound variable in the matcher ends the hook with a status that is not 2 and one row saying the hook ended with a status before a verdict
+1	b03 A35: an unbound variable while lib/deny.sh loads ends the hook with a status that is not 2 and one row
+1	b03 A36: with no process to spare (ulimit -u 1) the hook ends with a status that is not 2 and one row saying it ended before a verdict
+1	b03 A37: deny.tsv a directory: the hook allows and writes one row, reason deny.tsv is not a readable file
+1	b03 A38: a payload with no tool_name is allowed with one row, reason the payload names no tool
+1	b03 A39: a directory no project governs writes no fault row, even with deny-read.sh renamed (control)
+1	b03 A3: a waiting row for the same PR and head 25 hours old is followed by one new waiting row; one 23 hours old by none, and no notification
+1	b03 A40: a project with no deny.tsv writes no fault row (control)
+1	b03 A41: with FELIX_MEMORY naming a directory that is not there, a fault writes nothing and creates nothing, and the hook exits 0
+1	b03 A42: sourced with no deny-read.sh beside it, felix_deny_match exits 2 naming deny-read.sh; intact, it exits 0 with the reason for a forced push and 1 for git status
+1	b03 A43: session start lists only the PR whose newest row is a waiting row under 26 hours old, under its header, and the screen says PRs waiting: 1
+1	b03 A44: seven waiting PRs show the first five in ascending order, then and 2 more: felix land --prs, and the screen counts seven
+1	b03 A45: with no land directory there is no waiting-PR header and no PRs waiting token (control)
+1	b03 A46: a ledger that is a directory is said to be unreadable, naming its path, the screen says PRs waiting: unknown, and the hook exits 0 with one JSON object
+1	b03 A47: a paused lander is named with the first line of its reason and how to resume, not its second line, the screen says lander paused, and an empty reason reads no reason given
+1	b03 A48: with no night, a session start names the two deferred decisions, the oldest date, how to read and clear them, and the screen says deferred for you: 2
+1	b03 A49: with a night granted to s1, s1 gets the direction, its grant and the deferred paragraph, and a bystander the deferred paragraph and no line of the direction
+1	b03 A4: a run of session, conflicting and session rows at one head waits since its first row: one waiting row, since the six-hour row, ending with the newest row's event and detail
+1	b03 A50: a deferred queue that is a directory is said to be unreadable and counted unknown; a row with no all-digit time reads the oldest from an unknown date
+1	b03 A51: two faults count, this project's in 7 days and a - row timed by the file: the newest at a time not recorded, the log named, the screen says calls not judged: 2
+1	b03 A52: a - row takes the time of the row below it, nine days old, so one fault counts and the newest is the one-hour row
+1	b03 A53: a lone - row in a log last written eight days ago counts nothing: no paragraph, no token
+1	b03 A54: a fault log that is a directory is said to be unreadable, and the screen says calls not judged: unknown
+1	b03 A55: the fault A30's broken reader wrote is counted by the next session start of demo: calls not judged: 1
+1	b03 A56: the founder's due row leaves the Maintenance due line, is named as waiting on his yes with its age and cadence, and the screen counts both as due, yours: snapshot
+1	b03 A57: with only the founder's row due there is no Maintenance due or one-branch line, the founder line and 1 due (yours: snapshot); never run, it reads never run, every 14
+1	b03 A58: with none of this batch's state, no founder line and the screen line is Felix: p, at most N due and new tooling found (control)
+1	b03 A59: with all four at once the screen tokens come in the contract's order, on one line, and each paragraph sits after Memory: and before Read before planning:
+1	b03 A5: a skip for a draft between two session rows ends the run, so a run two hours old gets no waiting row (control)
+1	b03 A60: felix_maint_status reads the founder row as due like an always row, felix_maint_unreachable lists nothing, felix maintenance prints it DUE
+1	b03 A61: felix next gives the founder row's upkeep its owner founder, and the weekly row's felix
+1	b03 A62: this tree's felix maintenance table gives snapshot the trigger founder and keeps always on deployed, discover, promote, lessons, graphify and handoff
+1	b03 A63: hooks/session-start is at most 780 lines and lib/green-tick.sh at most 500 (control)
+1	b03 A64: two founder rows and one always row due: Maintenance due names weekly, the founder line names both in table order, the screen says 3 due (yours: snapshot, release), and no awk newline error is printed
+1	b03 A65: three founder rows due and no other: no Maintenance due line, the founder line names all three in table order with their ages, and the screen says 3 due (yours: snapshot, release, audit)
+1	b03 A66: a fault the hook meets under this machine's /bin/bash is written with its UTC ISO time, within five minutes of now, never -
+1	b03 A67: three faults the hook wrote twenty days ago and one written now: session start counts one in the last 7 days, gives the newest its recorded time, and the screen says calls not judged: 1
+1	b03 A68: #425, waiting 30 hours, its waiting row 20 hours old and followed at the same head by a conflicting skip and a session row, is listed under the header and the screen says PRs waiting: 1
+1	b03 A69: a waiting row followed by a draft skip, by a row at another head or by a felix:hold skip, and a waiting row 27 hours old followed by a session row, list nothing (control)
+1	b03 A6: a session row at an older head six hours old and one at the listed head an hour old give no waiting row (control)
+1	b03 A70: a waiting row followed at its head by a refusal (#41) or by a founder row (#42) is still listed, in PR order, and the screen says PRs waiting: 2
+1	b03 A71: over a session and conflicting run 30 hours long, a waiting row 25 hours old is followed by one new waiting row since the run's first row, notified once, and no new session or skip row; one 20 hours old by none (control)
+1	b03 A7: a draft, felix:hold, cross-repository or other-base skip ten days old, with gh agreeing, gives no waiting row and no notification (control)
+1	b03 A8: a PR labelled needs-founder whose skip row is five hours old gets one waiting row that says it waits on the founder
+1	b03 A9: a PR gh does not list gets no row, whatever its ledger holds, and no notification (control)
 1	backfilled the human steps it implies
 1	backfilled the tooling the capability implies
 1	backs the removed copy up first
@@ -7930,8 +8297,8 @@
 1	case 8: base claude/other: #110 is in state stacked
 1	case 8: base claude/other: #110 needs nobody
 1	case 8: the base is named in the detail
-1	case 9: engine/harness/felix changed, green: #111 is in state needs-attended
-1	case 9: engine/harness/felix changed, green: #111 needs session
+1	case 9: engine/harness/felix changed, green: #111 is in state ready
+1	case 9: engine/harness/felix changed, green: #111 needs lander
 1	catch-up folds every session nothing folded
 1	catch-up folds only the sessions this repository's history contains
 1	catches a GitHub installation, OAuth or refresh token, or checkout's basic-auth header, sample 1
@@ -8200,6 +8567,21 @@
 1	does not demand the later steps yet
 1	dormant steps never nag
 1	drift seen from a checkout the marketplace does not serve is marked structural
+1	driver room A10: a planted driver's three broken pointers are reported, each with its line, and nothing else (control)
+1	driver room A11: a planted driver's good pointers, and those in its opening block or holding a star or a dollar, report nothing (control)
+1	driver room A12: a receipt.sh pointer with no closing quote is reported as unread, and with no receipt.sh to read a whole one is not passed (control)
+1	driver room A1: the driver holds at most 197 lines that are neither a part line nor a lib line
+1	driver room A20: no line of a part file or a tests/lib file begins with a part line's or a lib line's prefix, so a flat suite flattens again (review M1)
+1	driver room A21: a planted tests directory reports exactly its three lines that begin with either prefix, and one with no part file is refused (control)
+1	driver room A22: the suite flattened once, then flattened again from a harness whose tests/run is that flat file, exits 0 and gives the same bytes (review M1)
+1	driver room A2: the driver's part lines are as many as the files in parts, its lib lines as the .sh files in lib, and it was read (control)
+1	driver room A3: a planted driver counts 7 other lines, 3 part lines, 2 lib lines and 12 lines, with or without a newline after its last line (control)
+1	driver room A4: the count over a driver that is not there is refused with a message naming its path, never a count of 0 (control)
+1	driver room A5: after the opening block no comment run in the driver is longer than two lines
+1	driver room A6: the driver has a line exactly set -uo pipefail and comment lines after it, so its runs were read (control)
+1	driver room A7: a planted driver reports exactly the runs at lines 11 and 18, three lines each, not its opening block or its runs of two (control)
+1	driver room A8: a driver with no line exactly set -uo pipefail is refused, and never reported as having no long run (control)
+1	driver room A9: every part, receipt.sh and path pointer in the driver's comments resolves, and part pointers were read (control)
 1	each --repo is read: the second repository's unpushed branch has its row, and it is unpushed
 1	each NUL table holds one NUL, its twin is the same bytes without it, and git calls it binary unless the NUL is past byte 8000
 1	each NUL table's twin, the NUL taken out, is run by the library as before, every row of it, and exits 0
@@ -8294,6 +8676,7 @@
 1	every obligations run row carries eight columns
 1	every one of them terminates the line it printed
 1	every part parses on its own, with nothing said on stderr, so no cut sits inside a construct
+1	every plugin and skill row of projects/felix/stack.tsv names a toolbox.json entry (b23 A38)
 1	every recorded row is current under the epoch it was proposed under
 1	every request answered stops the reminder
 1	every route matches its own name
@@ -8322,6 +8705,7 @@
 1	exactly one chip is chip-unstarted: of five, one was started, one dismissed, one is older than the default 14 days of --days (D4) and one is another repository's
 1	exactly one declaration from that cache
 1	exactly one name is exempt, and it is the engine's own
+1	exactly one string of toolbox.json's about array says all four: moved by hand, may lag, nothing compares, installed_plugins.json (b23 A35)
 1	exactly the rows whose ask crashed block
 1	exactly the states that could not be established block
 1	exhausted exits 3
@@ -9018,6 +9402,22 @@
 1	felix obligations over a table it cannot read exits as it does over one it can
 1	felix obligations prints a row column carrying the ledger line's twelve-character hash
 1	felix obligations prints the refused evidence under rows refused
+1	felix on PATH without sudo, A27: felix install exits 0 in each of the four homes
+1	felix on PATH without sudo, A28: each run prints exactly one ln -s line
+1	felix on PATH without sudo, A29: the line names no /usr/local, and links .local/bin/felix after mkdir -p
+1	felix on PATH without sudo, A30: the line forces over nothing
+1	felix on PATH without sudo, A31: every absolute path in the line lies inside the fixture
+1	felix on PATH without sudo, A32: run, the line links felix into the home
+1	felix on PATH without sudo, A33: from a source path and into a home that each hold a space, the line still works
+1	felix on PATH without sudo, A34: run twice, it fails the second time and keeps the first link
+1	felix on PATH without sudo, A35: a felix link to another file is kept, and the line fails
+1	felix on PATH without sudo, A36: where ~/.local is a file, the line fails aloud and creates nothing
+1	felix on PATH without sudo, A37: with ~/.local/bin off PATH, it prints an export PATH= line that adds it
+1	felix on PATH without sudo, A38: with ~/.local/bin off PATH and a home holding a space, it prints an export PATH= line that adds it
+1	felix on PATH without sudo, A39: with ~/.local/bin on PATH, it prints no export PATH= line
+1	felix on PATH without sudo, A40: with ~/.local/bin/ on PATH, the trailing slash too, it prints no export PATH= line
+1	felix on PATH without sudo, A41: felix install itself creates nothing under ~/.local
+1	felix on PATH without sudo, A42: each run's last non-empty line names felix new <name>
 1	felix overnight with no arguments says where the night stands
 1	felix pr there refuses, exit non-zero, saying git could not read the change (h14)
 1	felix probes over a read list prints the gap section with the declared-only capability and the orphan section with only the gone probe, and exits 0
@@ -9786,6 +10186,7 @@
 1	in a UTF-8 locale, those four exit 1 over the same blocking rows named in ASCII
 1	in a checkout with no commit felix_mem_lesson writes one six-column row under the branch name
 1	in a repository with no main and no origin, --applies does not hold even with a cache
+1	in a single-branch clone with no origin/main, secret-scan exits 2 and says no base ref was found (b23 A10)
 1	in maintenance too
 1	in the judge's shell a dry run and an unset variable write no row, and a real attempt writes two, each exiting 0, or a self-governed dry run would write the report
 1	in words
@@ -10181,6 +10582,7 @@
 1	name and skills accumulate as evidence
 1	named as the script it is
 1	named in the order the architecture states them
+1	named main as its base over clean commits, secret-scan exits 0 (b23 A21)
 1	names the first step
 1	names the maintenance that is due
 1	names the manifest does not list are not compared, and the one that fails is still a failed row
@@ -10434,10 +10836,13 @@
 1	of six tab-separated fields
 1	on a branch with commits the receipt names the branch
 1	on a copy of the real engine, the lint reports a line planted at the end of lib/resolve.sh (L)
+1	on a detached HEAD with no branch and no base ref, secret-scan exits 2 and says the commits were not scanned (b23 A12)
 1	on a repository with no commit, nothing tracked reads as empty, not blind
 1	on a tree whose two record files match HEAD, the stable id is the full id
 1	on a well-formed log the recurrence report is what it always was
 1	on an orphan branch with no commit yet, a staged key is found against a base that resolves, exit 1 (h11)
+1	on an unborn HEAD with a clean staged file, secret-scan exits 0 and calls nothing unscanned (b23 A18)
+1	on an unborn HEAD, a key in an untracked file is a hit: exit 1 (b23 A19)
 1	on an unborn HEAD, two different staged contents have two ids, neither the id with nothing staged (T5, amended)
 1	on main after an engine change nobody deployed, installed fails
 1	on the line directly under the in-flt row
@@ -10846,6 +11251,7 @@
 1	prose in the cache is not adopted
 1	prose still counts single beside skills
 1	provenance is not part of the announce key
+1	provision no longer says it fetches at the commit the founder's machine runs (b23 A39)
 1	pulse --install and --uninstall write no record
 1	pulse.sh's header no longer says two duties (P6)
 1	quarantine refuses a plugin that is not here
@@ -11241,12 +11647,26 @@
 1	scoped: xargs anywhere refuses the whole line
 1	scoped: ~/.felix-home from a scratch cwd
 1	scoping a bare path still answers
+1	secret-scan - reads no base: exit 0 over a clean line on stdin, 1 over the key line (b23 A25)
 1	secret-scan --tree over a tracked path that is a device exits 2 (X4)
 1	secret-scan --tree over a tracked path that is a socket exits 2 (X4)
 1	secret-scan --tree over a tracked pipe exits 2 (X4)
+1	secret-scan --tree reads no base: exit 1 over the committed key, 0 over clean commits (b23 A24)
+1	secret-scan finding no base ref on a branch with commits exits 2, not 0, though a commit holds a key (b23 A1)
 1	secret-scan finds a key in a -diff file named -c1, exit 1 (after review)
 1	secret-scan finds a key in a -diff file named a*.txt beside a binary ab.txt, exit 1 (mutation survivor)
+1	secret-scan named a base that does not resolve exits 2 over clean commits too (b23 A15)
+1	secret-scan named a base that does not resolve exits 2, and does not fall back to main (b23 A13)
+1	secret-scan names the base that does not resolve, and says the commits were not scanned and nothing is clean (b23 A14)
 1	secret-scan whose every read past the stacked base's own fails partway exits 2 when it made one, and 0 over this clean change when it made none (U2)
+1	secret-scan with no base ref exits 2 over clean commits too: commits it could not read are not clean (b23 A9)
+1	secret-scan with no base ref names the refs it tried, in the order it tried them (b23 A4)
+1	secret-scan with no base ref names the repair that makes a local main, git fetch origin main:main (b23 A7)
+1	secret-scan with no base ref prints nothing on stdout (b23 A2)
+1	secret-scan with no base ref says nothing here can be called clean (b23 A6)
+1	secret-scan with no base ref says on stderr that no base ref was found (b23 A3)
+1	secret-scan with no base ref says what this branch committed was not scanned (b23 A5)
+1	secret-scan's no-base hint names no refs/remotes/ refspec, which the deny floor refuses (b23 A8)
 1	sed -i, perl -i, a > or >> to a named path, tee, patch and git apply are edits: after a passing check the stop is stale, alone it is a stop, to scratch it is left out; the report and the README say other writes through Bash are not seen
 1	seeded CLAUDE.md
 1	seeded capabilities
@@ -11298,6 +11718,38 @@
 1	skills matching nothing add nothing
 1	skills only is low
 1	skips runbooks for absent capabilities
+1	snapshot audit A10: a path it cannot read exits 2 and is named on stderr, and the rows of the path it did read are printed as before (control)
+1	snapshot audit A11: another address stops, once a line in a Markdown link, and so does the git user at github; the author, reserved domains, GitHub's bot addresses and the author's own link pass (control)
+1	snapshot audit A12: the home's owner/repo is found in any case, with / or : between and any separators in the repository, not after a letter, and never without a SLUG (control)
+1	snapshot audit A1: two arguments, a NAMES that is no file, or a ROOT that is no directory each exit 2 with the usage on stderr and nothing on stdout (control)
+1	snapshot audit A2: the audit of FA exits 0, each row is five tab-separated fields, and a.md 1's one row is the path, the line, quillfen, name and the line's blob hash (control)
+1	snapshot audit A3: a name is found inside a longer word as well as in another case (control)
+1	snapshot audit A4: halves two lines apart give each of the two lines a halves row, and halves three lines apart give none (control)
+1	snapshot audit A5: adjacent words that join into a name are found as pieces (control)
+1	snapshot audit A6: a decoded copy is searched too, an x escape and a one-letter bracket class read and NUL bytes dropped, each found as a name row (control)
+1	snapshot audit A7: one character may stand in for a letter (a mark inside, a mark first, a group, a two-letter class), a first letter may not, and a three-letter name has no stand-in (control)
+1	snapshot audit A8: a line holding two names gets exactly one name row (control)
+1	snapshot audit A9: a path is read as line 0, and a symbolic link reads as its target (control)
+1	snapshot run A20: with no lantern directory in the memory root it stops at exit 1, says so on stderr, and builds nothing (control)
+1	snapshot run A21: a pointer naming a directory without projects/ stops it at exit 1, naming that directory on stderr (control)
+1	snapshot run A22: a memory name under three characters with no @name row on origin/main stops it loudly at exit 1, listing qz and not zq, before any build (control)
+1	snapshot run A23: the same row committed on the home but not pushed changes nothing, since only origin/main's acknowledgements count (control)
+1	snapshot run A24: with the row pushed, a run of C2 expecting tree 0 passes the names stage by the reviewed row, reads 2 rewritten and none open, prints the tree it built and DIFFER, and exits 1 (control)
+1	snapshot run A25: that build holds the scrubbed phrase and halves, only the lantern project with the public remote, no autonomy file anywhere, and the three scripts byte for byte (control)
+1	snapshot run A26: that run's stdout passes on the scrub's report of the halves rewrite, a line from scrub: halves marigold to engine/harness/README.md:2
+1	snapshot run A27: run again expecting the tree it printed, it prints MATCH and exits 0 (control)
+1	snapshot run A28: a scrub that changes a line the audit reads no name on fails the cross-check closed at exit 1, naming README.md:1 (control)
+1	snapshot run A29: the audit stops on a memory name, a name only the trimmed pointer reaches, a --name word and the home's basename, each with its ack row, and makes no clone (control)
+1	snapshot run A30: each owner a manifest on main declares is an audit name searched whole, a governed project's (brackenhall, plants.md:1) and the home's own (quillcorp, plants.md:2)
+1	snapshot run A31: an owner under three characters, zq, is said on the names line as not searched, in the self-test run and in the stopping run
+1	snapshot run A32: no run made or moved a ref in the public clone, which keeps main at its first commit, and none printed Nothing was pushed (control)
+1	snapshot scrub A13: one argument, a PLAN that is no file, or a LIST that is no file each exit 2 with the usage, and an empty LIST exits 0 and changes nothing (control)
+1	snapshot scrub A14: notes.md lines 1 to 8 read as the owner/repo, repository and whole-name rules write them, the file keeps its 15 lines, and an unlisted file is untouched (control)
+1	snapshot scrub A15: a shell variable named for the project becomes the token's, and the script still parses (control)
+1	snapshot scrub A16: a project variable beside one already named for the token, or one in a file that is not shell, stops the scrub with its reason and leaves the file byte for byte (control)
+1	snapshot scrub A17: the halves and stand-in rewrites keep their bytes on notes.md lines 9 to 15 (control)
+1	snapshot scrub A18: each line the halves or stand-in rule changes is reported on stdout as scrub: RULE quillfen notes.md:LINE, exactly six lines: halves for 9, 10, 11, 12 and 15, stand-in for 13
+1	snapshot scrub A19: a run whose rewrites are none of halves or stand-in exits 0 and prints nothing on stdout (control)
 1	so a green receipt stays current across a prune
 1	so a green receipt stays current across an install main does not declare
 1	so a path-valued key the list never heard of does not decide the route
@@ -11430,8 +11882,8 @@
 1	spec §4: a StatusContext in state PENDING has not finished: #149 is in state pending
 1	spec §4: a StatusContext in state PENDING has not finished: #149 needs nobody
 1	spec §4: a draft is a flag on every state: a red draft
-1	spec §4: a pull request changing two paths of the trust base: #167 is in state needs-attended
-1	spec §4: a pull request changing two paths of the trust base: #167 needs session
+1	spec §4: a pull request changing two paths of the trust base: #167 is in state ready
+1	spec §4: a pull request changing two paths of the trust base: #167 needs lander
 1	spec §4: and the second
 1	spec §4: every condition that holds is listed: the first trust-base path
 1	spec §5: a land table felix_land_malformed refuses is unread
@@ -12135,6 +12587,7 @@
 1	the gate carries the ecosystem check too
 1	the gate is dispatched on the pushed branch
 1	the gate runs the suite with --reuse
+1	the gate says why under its secret line: no base ref found, and the commits were not scanned (b23 A29)
 1	the gate still reports the suite with a pass tests line and a fail tests line the verifier confine counts (control)
 1	the gate workflow bootstrap writes can be dispatched
 1	the gate's executable check passes when every script under bin/ has its bit
@@ -12142,6 +12595,10 @@
 1	the gate's obligations check stays ok with every need absent
 1	the gate's obligations line reads excepted and the gate passes
 1	the gate's row names the session that ran it
+1	the gate's secret line says FAIL over a committed key, with the scanner's finding in its output (b23 A27)
+1	the gate's secret line says FAIL, not ok, once main is deleted and no base ref is left (b23 A28)
+1	the gate's secret line says ok over a clean side branch (b23 A26)
+1	the gate's six-space name reader finds every name line of toolbox.json, and at least one (b23 A37)
 1	the gate_shown_failing check is read verbatim from the template, and it reads column four
 1	the gatesplit fixture's probes fail from the engine
 1	the generated workflow checks Felix out at the commit it was given
@@ -12195,13 +12652,25 @@
 1	the kinds are engine constants, the design's six, with session and founder the narrowing two, or a kind could be added without an engine change
 1	the label is matched exactly, not as a prefix
 1	the label needs-founder says founder too
+1	the land fixture (review round): green 65 lands on one tick when felix merge exits 0, run once in b65, which M65 counts (fixture control)
+1	the land fixture (review round): land/ at mode 555 refuses a new file and still takes a line on ledger.tsv (fixture control)
+1	the land fixture (review round): the home is on main at origin's main, main's check accepts its entry, b65 is on its branch at 65's head, RC65 is under the home's state/gate (fixture control)
+1	the land fixture (review round): the home's main carries the round's session-start and pre-tool, both executable, and the home is at origin's main with no tracked change (fixture control)
+1	the land fixture (review round): the part leaves the home on main at origin's main, no tracked change, its hooks as they were, and main's check accepting its entry (fixture control)
+1	the land fixture F1: the home is on main at its origin's main, other has one commit, and wt is a worktree of the home on w (fixture control)
+1	the land fixture F1: the home's lgh project.json is restored and the home is clean (fixture control)
+1	the land fixture F1: under the no-launchd PATH no launchctl is found and a git is (fixture control)
+1	the land fixture: --resume, --pause r2, the ledger aged past the hour and --tick write two more paused rows, the pause's and the aged tick's (fixture control; restated for wave-1-combine.md C1)
+1	the land fixture: A41's state: the home on main at the commit of its own version Vm, strictly behind origin/main, which declares 9.65.0, with no 9.65.0 entry, and origin/main's check accepts the Vm entry for refs/heads/main (fixture control)
 1	the land fixture: C9's own function passes the gate of 21-24 and 40-42 and of none of 25-30 (fixture control)
 1	the land fixture: a branch's install at main's version number sits in the cache, and main's check rejects it (fixture control)
+1	the land fixture: a copy of the CLI sets _FN_SECS=2 on the line after it sources lib/green-tick.sh, and differs in nothing else (fixture control)
 1	the land fixture: a copy of the CLI sets _GT_WDSECS=2 on the line after it sources lib/green-tick.sh, and differs in nothing else (fixture control)
 1	the land fixture: a live tick held the lock while the second ran (fixture control)
 1	the land fixture: a tag and a branch named origin/refs/remotes/origin/main name the decoy, and refs/remotes/origin/main names main (fixture control)
 1	the land fixture: a trampoline is installed and a candidate 9.1.0 sits in the cache (fixture control)
 1	the land fixture: a trampoline is installed, and origin/main holds no lib/resolve.sh yet (fixture control)
+1	the land fixture: after the paused tick the trampoline wrote its deploy-owed row again, the ledger's newest (fixture control)
 1	the land fixture: an untracked .gitignore in the home that ignores the stray no longer makes main's check accept that entry (fixture control)
 1	the land fixture: an untracked file under engine/, cleared: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored, the home is at origin's main, and main's check accepts its entry (fixture control)
 1	the land fixture: b82's lock reason holds \001 and, read with NUL or \001 as a separator, a record for other on b81 (fixture control, \001)
@@ -12216,9 +12685,12 @@
 1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under assume-unchanged (fixture control)
 1	the land fixture: git status --porcelain shows nothing in the home, an edited engine file under skip-worktree (fixture control)
 1	the land fixture: git status --porcelain shows nothing in the home, an edited projects/lgh/ file under assume-unchanged (fixture control)
+1	the land fixture: green 50 lands on one tick when felix merge exits 0, felix merge run once in b50, which M50 counts (fixture control)
 1	the land fixture: green, unlabelled and held by its worktree, 40 lands on one tick, felix merge run once there (fixture control)
 1	the land fixture: green, unlabelled and held by its worktree, 42 lands on one tick, felix merge run once there (fixture control)
 1	the land fixture: in br, origin/refs/remotes/origin/main names the decoy, refs/remotes/origin/main names main, l4tree a tree (fixture control)
+1	the land fixture: in the GitHub state the origin reads as github.com, fetch stays on the local origin, and felix land --status --tsv from the home still exits 0 (fixture control)
+1	the land fixture: land/ holds the ledger alone, its one row refused for 50 on its head and main with the receipt clause (fixture control)
 1	the land fixture: main holds projects/lgh/gate.sh; the home's, edited, carries skip-worktree, and git status shows nothing (fixture control)
 1	the land fixture: main's check accepts origin/main's 9.0.3 entry, and the home's HEAD is behind origin/main (fixture control)
 1	the land fixture: main's felix stub carries the round 4 lines, the home is at origin's main, and main's check accepts its entry (fixture control)
@@ -12238,20 +12710,35 @@
 1	the land fixture: the file is untracked under projects/lgh/ (fixture control)
 1	the land fixture: the gh stub lists a pull request's labels by name, case as carried (fixture control)
 1	the land fixture: the gh stub lists the pull requests and honours --jq (fixture control)
+1	the land fixture: the gh wrapper answers auth status by the table: bare 1 (a stale account anywhere), github.com active 0 either way, ghe.example.invalid 1 (fixture control)
+1	the land fixture: the gh wrapper answers user and repos as F2 says, applies --jq, and hands auth status to the fixture's gh (fixture control)
+1	the land fixture: the gh wrapper answers workflow run felix-alert.yml with a run URL, keeps its argv and BODY by line, and with ctl/workflow says gh's not-found line and exits 1 (fixture control)
+1	the land fixture: the home is at origin's main, which declares 9.65.0, and main's check rejects that entry with its extra file (fixture control)
 1	the land fixture: the home is back at origin/main, and main's check accepts its entry (fixture control)
 1	the land fixture: the home is clean again: git status shows nothing, no index entry is flagged, nothing under engine/ is untracked or ignored (fixture control)
+1	the land fixture: the home is on main at origin's main, and main's check accepts its entry (fixture control)
+1	the land fixture: the home is on main at origin's main, clean, and main's check accepts its cached entry (fixture control)
 1	the land fixture: the home is on main at origin's main, main declares a version, and main's check accepts that entry with the real git (fixture control)
+1	the land fixture: the home is on main at origin's main, main's check accepts its entry, b50 is on its branch at 50's head, and RC50 is a path under the home's state/gate (fixture control)
 1	the land fixture: the home is on main at origin's main, nothing under its engine/ is untracked or ignored, no index entry is flagged, and main's check accepts its entry (fixture control)
 1	the land fixture: the home is on main at origin's main, which declares a version whose entry main's check accepts (fixture control)
 1	the land fixture: the home's felix stub installs its engine into the cache under the home's version (fixture control)
 1	the land fixture: the home's felix, edited, logs to edited.log, and its index entry carries skip-worktree (fixture control)
 1	the land fixture: the list says b83's directory is on b83 at 83's head; the directory says x83, at the same commit (fixture control)
 1	the land fixture: the list says b84's directory is on b84 at 84's head, and so does the directory, whose git common dir is its own (fixture control)
+1	the land fixture: the part leaves the home on main at origin's main with main's entry accepted, gh as the stub was, and no git wrapper (fixture control)
+1	the land fixture: the part leaves the home on main at origin's main, no tracked change, with main's check accepting its entry (fixture control)
+1	the land fixture: the part put the home back: origin is the local path, no insteadOf, the home clean, the fixture's gh in place, and the working directory where it was (fixture control)
+1	the land fixture: the pgrep in the bin exits with ctl/pgrep.rc's status while it exists, and else numbers the matching lines of ctl/procs from 40001 (fixture control)
+1	the land fixture: the session-start hook ended by itself within 30 s, both times (fixture control)
 1	the land fixture: the stub is gone, and main's check accepts main's entry again (fixture control)
 1	the land fixture: the tick asked pgrep (fixture control)
+1	the land fixture: the tick over 41 and 42 refused 41 and landed 42 (fixture control)
 1	the land fixture: the tick ran git archive through the stub (fixture control)
 1	the land fixture: the tick was held in gh auth status, gh descends from the pid in lock/, and the sentinel is in the tick's process group (fixture control)
 1	the land fixture: the tick's fetch failed (fixture control)
+1	the land fixture: the ticks' fetches failed through the wrapper (fixture control)
+1	the land fixture: the tripwire notify.sh is untracked in the home and sits in main's cache entry (fixture control)
 1	the land fixture: the worktree of 70 holds a tab in its path, that of 71 a newline, each on its branch at its pull request's head (fixture control)
 1	the land fixture: under core.autocrlf=true the home's core.sh holds CRs, git status shows nothing, and a filtered hash is main's blob while a byte-exact one is not (fixture control)
 1	the land fixture: with a stray file in main's entry, main's check rejects it with the real git (fixture control)
@@ -12776,6 +13263,12 @@
 1	tidy followed by a vertical tab is a grant under C and under UTF-8
 1	tidy followed by an em space is not a grant under C or under UTF-8
 1	tidy stays allowed after commission is revoked
+1	toolbox.json names installed_plugins.json, where a pin is checked by hand (b23 A34)
+1	toolbox.json no longer says the cloud runs what a local session runs (b23 A30)
+1	toolbox.json parses, about is an array of strings, and tools has one entry per line holding "name": (b23 A36)
+1	toolbox.json says a pin may lag the local install (b23 A32)
+1	toolbox.json says its pins are moved by hand (b23 A31)
+1	toolbox.json says nothing compares a pin with the local install (b23 A33)
 1	touching a tracked file without editing it still reads current
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
@@ -13582,6 +14075,7 @@
 1	with GREP_OPTIONS=-n exported, felix doctor lists the declared capabilities by name, or each one it reads out of the capabilities table carries a line number
 1	with GREP_OPTIONS=-n exported, felix evidence names its rules and finds the gap it finds without it, or a rule reads as 1:code and the gap goes unreported
 1	with GREP_OPTIONS=-n exported, pre-tool still refuses a command its deny rows refuse, with exit 2
+1	with HEAD at its base, the empty change is clean: exit 0 (b23 A23)
 1	with LIST-A the mcp rows match by key or :name:, and an unnamed one reads unknown (R6)
 1	with LIST-A the reachy rows are R4's eight, in stack order and then list order
 1	with POSIXLY_CORRECT exported by its caller, a command using a process substitution still passes its pass control and is met, as a plain command beside it does
@@ -13600,6 +14094,7 @@
 1	with TMPDIR a symlink to a directory, given with a trailing slash, a registration of that directory's physical path, felix-qualify.XXXXXX/w, whose base is gone is removed
 1	with TMPDIR inside a clean worktree, that worktree is not called uncommitted, and nothing is left there
 1	with a GitHub remote, a {{REPO}} row's status is byte for byte a baked row's
+1	with a base that does not resolve, a key in an untracked file is still a hit: exit 1 (b23 A17)
 1	with a fact and a table both moved, the fact is named first
 1	with a list that takes 5 s the hook still returns in under 3 s
 1	with a lock dated 2000 held, a revoke of commission exits non-zero, says neither revoked: nor allowed:, and writes nothing
@@ -13626,6 +14121,8 @@
 1	with felix_has_line failing as an unwritable here-document makes it fail, a declared api is still active and its row done
 1	with its evidence whole
 1	with its note carried forward
+1	with main found as its base over clean commits, secret-scan exits 0 and says nothing on stderr (b23 A20)
+1	with main found as its base, a committed key is found: exit 1, naming the key (b23 A22)
 1	with main's entry gone and the registry still naming it, the row is blind
 1	with neither HOME nor CLAUDE_CONFIG_DIR set it reports no transcripts and exits 0
 1	with neither a run nor a manifest beside it, the missing run is the reason it gives
@@ -13636,6 +14133,7 @@
 1	with no Claude Code registry in HOME, the installed engine is - and the bound one is still read
 1	with no assertions.tsv beside it the red run is refused before the suite runs, exit 2, the claim retracted and nothing left
 1	with no base ref anywhere, the uncommitted-only scan of the same unreadable tree exits 2 (X2)
+1	with no base ref, a key in an untracked file is still a hit: exit 1, naming the key and the missing base (b23 A16)
 1	with no bound it is named
 1	with no capabilities file felix doctor and felix recommend read an empty list as before: nothing declared, both surfaces undeclared, declared none and the billing row waiting
 1	with no capabilities file the gaps and orphans are read as an empty list, as before

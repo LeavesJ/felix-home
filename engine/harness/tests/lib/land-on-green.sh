@@ -236,11 +236,22 @@ case "${1:-}" in
 esac
 exit 0
 LGSTUB
+    # Audit b02, B31: the verify asks session-start for a line of context and pre-tool for a refusal of a pattern
+    # kill, so these stubs give both, as the home's real hooks do; log/hook.log and log/pretool.log hold what each was given.
     _lg_put "$LGH/engine/harness/hooks/session-start" <<'LGSTUB'
 #!/bin/bash
 LG='@LG@'
 { printf '%s\t%s\t' "$(cd -P "$(dirname "$0")" && pwd -P)" "$(pwd -P)"; tr '\n' ' '; printf '\n'; } >> "$LG/log/hook.log"
+printf '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"Felix governs lgh."}}\n'
 rc=0; [ -f "$LG/ctl/hook.rc" ] && rc="$(cat "$LG/ctl/hook.rc")"; exit "$rc"
+LGSTUB
+    _lg_put "$LGH/engine/harness/hooks/pre-tool" <<'LGSTUB'
+#!/bin/bash
+LG='@LG@'
+p="$(cat)"
+printf '%s\t%s\t%s\n' "$(cd -P "$(dirname "$0")" && pwd -P)" "$(pwd -P)" "$(printf '%s' "$p" | tr '\n' ' ')" >> "$LG/log/pretool.log"
+case "$p" in *killall*|*pkill*) echo "a pattern kill: stop only a pid you started" >&2; exit 2 ;; esac
+exit 0
 LGSTUB
     # Main's own acceptance check (A1) is real, so the trampoline has an engine it
     # accepts: the base commit holds the real lib/resolve.sh, as 1282's A1 does.

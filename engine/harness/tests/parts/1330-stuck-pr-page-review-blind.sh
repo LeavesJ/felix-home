@@ -179,7 +179,7 @@ _sqd="$(_sq_f "$T" 163 8)"
 for _sqr in commission exemption verifier execute authority exception durable risk land direction path-bytes; do
   is "spec §4.5: each match is listed with its rule name, more than five of them: $_sqr" "$(_sq_word "$_sqd" "$_sqr")" named
 done
-_sq_is "spec §4: a pull request changing two paths of the trust base" "$T" 167 needs-attended session
+_sq_is "spec §4: a pull request changing two paths of the trust base" "$T" 167 ready lander
 has "spec §4: every condition that holds is listed: the first trust-base path" "$(_sq_f "$T" 167 8)" "engine/harness/felix"
 has "spec §4: and the second" "$(_sq_f "$T" 167 8)" "engine/harness/lib/verify.sh"
 

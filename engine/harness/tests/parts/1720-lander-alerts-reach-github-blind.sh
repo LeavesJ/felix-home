@@ -7,6 +7,10 @@ printf '\nthe lander tells the founder through one standing issue on the governe
 # the hooks and the felix CLI were not read; the CLI's line that sources lib/green-tick.sh is found by 1285's
 # pattern only. One assertion per contract item, each a composite of what the item names; fixture controls
 # are their own.
+# Restated on 2026-10-28 for docs/2026-10-24-audit-fixes/wave-1-combine.md (C1, C2 and its section 5), written
+# blind from that file: felix land --pause raises the paused event itself (b02 B22), its record's field 8 drops
+# the ; by session suffix, and the brakes --resume, --install and --uninstall alert nothing. A14-A18, the
+# control after A17, A24, A26 and A27 keep their A-numbers and what each checks; their names say restated.
 #
 # F2 is the shared land fixture (_lg_build amend), whose origin is a local path. The GitHub state points the
 # home's origin at https://github.com/fixture/lgh.git and rewrites that URL back to the local origin with
@@ -118,9 +122,10 @@ _l20_pj() {   # [ALERT-LOGIN] -> projects/lgh/project.json as kept, with alert_l
   if [ -z "${1:-}" ]; then cp -p "$L20/project.json.keep" "$L20PJ"; return 0; fi
   printf '{\n  "name": "lgh",\n  "remote_match": "github.com/fixture/lgh",\n  "gate": "true",\n  "alert_login": "%s"\n}\n' "$1" > "$L20PJ"
 }
-_l20_ev() { _lg_land --pause "$1"; _lg_land --tick; }   # REASON -> one paused event: --pause REASON, then --tick
-# REASON -> a new paused event after one: --resume, --pause, the ledger aged past the hour, --tick. The age is
-# needed because the engine writes one paused row an hour, whatever the reason (the control after A17 shows it).
+_l20_ev() { _lg_land --pause "$1"; L20PRC="$LGRC"; _lg_land --tick; }   # REASON -> one paused event: --pause REASON (its status L20PRC), then --tick
+# REASON -> a new paused event after one: --resume, --pause, the ledger aged past the hour, --tick. Since b02 the
+# --pause raises the event (wave-1-combine.md C1); the aged tick then writes its hourly paused row for the same
+# reason, the same event raised again (the control after A17 counts its row).
 _l20_next() { _lg_land --resume; _lg_land --pause "$1"; _l20_age; _lg_land --tick; }
 _l20_age() {   # the ledger's rows a year older, so the newest paused row is past its hour (1280's G2 reading)
   [ -f "$LAND/ledger.tsv" ] || return 0
@@ -168,12 +173,12 @@ _l20_felix() {   # HOME-DIR ARGS... -> felix ARGS from the home's checkout with 
 }
 L20F="$FROOT/harness/felix-l20fn"
 LC_ALL=C awk '{ print } index($0, ". \"${SCRIPT_DIR}/lib/green-tick.sh\"") == 1 && !d { print "_FN_SECS=2"; d = 1 }' "$FELIX" > "$L20F" && chmod +x "$L20F"
-_l20_slow() {   # -> the patched CLI's --tick in a process group of its own, ended at 20 seconds (124); L20RC, L20EL seconds
+_l20_slow() {   # ARGS... -> the patched CLI's felix ARGS in a process group of its own, ended at 20 seconds (124); L20RC, L20EL seconds
   local p n=0 t0="$SECONDS"
   ( cd "$LGH" || exit 97
     exec perl -e 'setpgrp(0, 0); exec @ARGV or exit 127' env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE \
       ${LGX[@]+"${LGX[@]}"} HOME="$LGU" FELIX_HOME="$LGH" FELIX_HOME_DIR="$LGH" FELIX_MEMORY="$LGM" FELIX_PLUGIN_CACHE="$LGC" \
-      PATH="$LGB:$PATH" "$L20F" land --tick ) > "$LG/out.slow" 2>&1 &
+      PATH="$LGB:$PATH" "$L20F" "$@" ) > "$LG/out.slow" 2>&1 &
   p=$!
   while kill -0 "$p" 2>/dev/null && [ "$n" -lt 200 ]; do sleep 0.1; n=$((n+1)); done
   if kill -0 "$p" 2>/dev/null; then kill -KILL -- "-$p" 2>/dev/null; kill -KILL "$p" 2>/dev/null; wait "$p" 2>/dev/null; L20RC=124
@@ -207,31 +212,37 @@ is "the land fixture: in the GitHub state the origin reads as github.com, fetch 
    "https://github.com/fixture/lgh.git|$(git -C "$LGO" rev-parse main 2>&1)|0"
 
 # ------------------------------------------------------------ B2, B7 ---
+# Restated for wave-1-combine.md C1: the --pause writes the one paused row and makes the one attempt; the tick
+# within the hour adds neither, and field 8 is the reason without ; by session -.
 _l20_reset; _l20_ev r1
-is "A14 (B2, control): with the origin a local path, --pause then --tick writes one paused row, sends one banner titled Felix: paused, and asks gh nothing" \
+is "A14 (B2, control; restated for wave-1-combine.md C1): with the origin a local path, --pause then --tick writes one paused row, the pause's, sends one banner titled Felix: paused, and asks gh nothing" \
    "$(_lg_n paused)|$(_l20_osa paused)|fixture-gh=$(_lg_cnt gh)|wrapper=$(_l20_nk .)" "1|1|fixture-gh=0|wrapper=0"
-is "A15 (B2, B7): and that run appends one eight-field alerts.tsv record, failed, of kind paused, whose note starts origin:, and holding no text of the origin URL" \
-   "$(_l20_n)|$(_l20_nf)|$(_l20_f 1 2)|$(_l20_f 1 3)|$(_l20_starts "$(_l20_f 1 7)" origin:)|$(LC_ALL=C grep -cF "$LGO" "$LAND/alerts.tsv" 2>/dev/null)" "1|8|failed|paused|ok|0"
+is "A15 (B2, B7; restated for wave-1-combine.md C1): and that run appends one eight-field alerts.tsv record, failed, of kind paused, whose note starts origin:, holding no text of the origin URL, its field 8 the reason r1 alone" \
+   "$(_l20_n)|$(_l20_nf)|$(_l20_f 1 2)|$(_l20_f 1 3)|$(_l20_starts "$(_l20_f 1 7)" origin:)|$(LC_ALL=C grep -cF "$LGO" "$LAND/alerts.tsv" 2>/dev/null)|$(_l20_f 1 8)" "1|8|failed|paused|ok|0|r1"
 
 # ------------------------------------------------- B3, B5, R1, R2, R3 ---
 _l20_reset gh; _l20_ev "held for the alerts test"
 L20B="$(_l20_body "@")"; L20CB="$(_l20_crb)"
-is "A16 (B3, B5, R1-R3): a paused event in the GitHub state calls user, repos, issue list, issue create and workflow run, in that order, with the title, --state all, --repo github.com/fixture/lgh, GH_HOST and GH_REPO unset and the dispatch's GH_PROMPT_DISABLED=1; creates the issue with no @ and no detail; dispatches exactly felix-alert.yml with issue=1 and BODY @fixture Felix land: paused, empty, the paused sentence, the details line; and records it dispatched on fixture/lgh#1 with the run URL, through felix-alert.yml mentioning @fixture, the detail in field 8" \
+# Restated for wave-1-combine.md C1: the calls are the --pause's, and the tick within the hour makes none.
+is "A16 (B3, B5, R1-R3; restated for wave-1-combine.md C1): a paused event raised by --pause in the GitHub state, then a tick, calls user, repos, issue list, issue create and workflow run, in that order and no more, with the title, --state all, --repo github.com/fixture/lgh, GH_HOST and GH_REPO unset and the dispatch's GH_PROMPT_DISABLED=1; creates the issue with no @ and no detail; dispatches exactly felix-alert.yml with issue=1 and BODY @fixture Felix land: paused, empty, the paused sentence, the details line; and records it dispatched on fixture/lgh#1 with the run URL, through felix-alert.yml mentioning @fixture, the detail in field 8" \
    "$(_l20_kinds)|title-lacking=$(_l20_lack '^issue create' 'Felix needs you' --title -t)|state-lacking=$(_l20_lack '^issue list' all --state -s)|repo-lacking=$(_l20_lack '^issue ' github.com/fixture/lgh --repo -R)|env-set=$(LC_ALL=C awk -F'\t' '$1 ~ /^(api|issue|workflow) / && ($2 != "H=unset" || $3 != "R=unset") { n++ } END { print n + 0 }' "$L20/s/calls.log" 2>/dev/null)|prompt-unset=$(LC_ALL=C awk -F'\t' '$1 ~ /^workflow / && $4 != "P=1" { n++ } END { print n + 0 }' "$L20/s/calls.log" 2>/dev/null)|create-body=$(LC_ALL=C grep -c '@' "$L20CB" 2>/dev/null),$(_l20_yn "$(cat "$L20CB" 2>/dev/null)" "alerts test" detail)|$(_l20_av)|$(_l20_lines "$L20B")|$(_l20_n)|$(_l20_nf)|$(_l20_f 1 2) $(_l20_f 1 3) $(_l20_f 1 4) $(_l20_f 1 5)|$(if [ -n "$(_l20_f 1 6)" ] && [ "$(_l20_f 1 6)" = "$(cat "$L20/s/runurl" 2>/dev/null)" ]; then echo run-url; else printf '[%s]' "$(_l20_f 1 6)"; fi)|$(_l20_f 1 7)|$(_l20_f 1 8)" \
    "api user,api repos/fixture/lgh,issue list,issue create,workflow run|title-lacking=0|state-lacking=0|repo-lacking=0|env-set=0|prompt-unset=0|create-body=0,no-detail|workflow run felix-alert.yml --repo github.com/fixture/lgh -f issue=1 -f body=BODY|@fixture Felix land: paused||Landing is paused until felix land --resume.|$L20DL|1|8|dispatched paused - fixture/lgh#1|run-url|through felix-alert.yml mentioning @fixture|held for the alerts test"
 _l20_felix "$LGH" status --tsv; L20S2="$(LC_ALL=C awk -F'\t' '$1 == "alerts"' "$LG/out")"; L20S2F6="$(_l20_f last 6)"
 _l20_felix "$LGH" status; L20S2P="$(cat "$LG/out")"
 
 # ---------------------------------------------------------------- B8 ---
+# Restated for wave-1-combine.md C1: the tick's hourly row carries the reason alone, the detail the --pause's attempt recorded.
 _l20_age; _l20_clear; _lg_land --tick
-is "A17 (B8): the same paused event raised again past its hour writes one more paused row and banner, but no gh call and no second record" \
+is "A17 (B8; restated for wave-1-combine.md C1): the tick's hourly paused row past its hour, for the reason the --pause gave, is the same event: one more paused row and banner, but no gh call and no second record" \
    "$(_lg_n paused)|$(_l20_osa paused)|$(_l20_nk .)|$(_l20_n)" "2|2|0|1"
 
 # ------------------------------------------------------------ B5, B1 ---
+# Restated for wave-1-combine.md C1 and C2: --pause r2 is the new event; the --resume before it and the aged tick's
+# r2 row after it add no attempt that sends.
 _l20_clear; _l20_next r2
-is "the land fixture: --resume, --pause r2, the ledger aged past the hour and --tick write one more paused row (fixture control)" "$(_lg_n paused)" "3"
-is "A18 (B5, B1): a new event dispatches again for the standing issue, issue 1, without creating another, and records a second dispatched row" \
-   "create=$(_l20_nk '^issue create')|dispatch=$(_l20_nk '^workflow run')|$(_l20_yn "$(_l20_av)" ' -f issue=1 ' issue-1)|dispatched=$(_l20_n dispatched)" "create=0|dispatch=1|issue-1|dispatched=2"
+is "the land fixture: --resume, --pause r2, the ledger aged past the hour and --tick write two more paused rows, the pause's and the aged tick's (fixture control; restated for wave-1-combine.md C1)" "$(_lg_n paused)" "4"
+is "A18 (B5, B1; restated for wave-1-combine.md C1, C2): the --pause with a new reason dispatches once for the standing issue, issue 1, without creating another; the resume and the aged tick's same event add nothing, so two records, both dispatched" \
+   "create=$(_l20_nk '^issue create')|dispatch=$(_l20_nk '^workflow run')|$(_l20_yn "$(_l20_av)" ' -f issue=1 ' issue-1)|dispatched=$(_l20_n dispatched)|records=$(_l20_n)" "create=0|dispatch=1|issue-1|dispatched=2|records=2"
 
 # ------------------------------------------------------------ B1, R2 ---
 _l20_reset gh; printf '1\n' > "$LGK/gh-auth.rc"; _lg_land --tick
@@ -272,11 +283,14 @@ is "A22 (B4, R8): the alert is refused and recorded failed, with no dispatch or 
 _l20_reset gh; _l20_pj someone-else; _l20_ev a23; _l20_pj
 is "A23 (R2): with alert_login someone-else in project.json the dispatch mentions @someone-else" \
    "$(_l20_starts "$(_l20_l1s)" '@someone-else Felix land:')" "ok"
+# Restated for wave-1-combine.md C1, C2 and R4: with the dispatch failing, --pause r24a, --pause r24b and the aged
+# tick's r24b row (the same event, attempted again since no record of it was dispatched) leave three failed records,
+# and the resumes none; --pause r24c is then dispatched, counting the three, and the aged tick's r24c row adds nothing.
 _l20_reset gh; printf '1\n' > "$L20/ctl/dispatch"; _l20_ev r24a; _l20_next r24b; rm -f "$L20/ctl/dispatch"; _l20_next r24c
-L20NL="Not delivered before this one: 2 (the newest: $(_l20_f 2 3) at $(_l20_f 2 1))."; L20B="$(_l20_cb | tail -n 1)"
-is "A24 (R2-R4): two events whose dispatch fails leave two failed records noting gh workflow run:, and the third, dispatched, says on line 4 Not delivered before this one: 2 with the newest's kind and time, then the details line" \
-   "$(_l20_f 1 2) $(_l20_f 2 2) $(_l20_f 3 2)|$(_l20_starts "$(_l20_f 1 7)" 'gh workflow run:')$(_l20_starts "$(_l20_f 2 7)" 'gh workflow run:')|$(sed -n 4p "$L20B" 2>&1)|$(sed -n 5p "$L20B" 2>&1)" \
-   "failed failed dispatched|okok|$L20NL|$L20DL"
+L20NL="Not delivered before this one: 3 (the newest: $(_l20_f 3 3) at $(_l20_f 3 1))."; L20B="$(_l20_cb | tail -n 1)"
+is "A24 (R2-R4; restated for wave-1-combine.md C1, C2): three attempts whose dispatch fails leave three failed records noting gh workflow run:, and the next event, dispatched, says on line 4 Not delivered before this one: 3 with the newest's kind and time, then the details line; four records in all" \
+   "$(_l20_f 1 2) $(_l20_f 2 2) $(_l20_f 3 2) $(_l20_f 4 2)|$(_l20_n)|$(_l20_starts "$(_l20_f 1 7)" 'gh workflow run:')$(_l20_starts "$(_l20_f 2 7)" 'gh workflow run:')$(_l20_starts "$(_l20_f 3 7)" 'gh workflow run:')|$(sed -n 4p "$L20B" 2>&1)|$(sed -n 5p "$L20B" 2>&1)" \
+   "failed failed failed dispatched|4|okokok|$L20NL|$L20DL"
 # The token is put together at run time, so no token-shaped text is written in this file.
 L20TOK="ghp_$(printf '%s%s%s%s' a1B2c3D4e5 f6G7h8I9j0 k1L2m3N4o5 p6Q7r8)"
 _l20_reset gh; _l20_ev "$L20TOK $LGU/x and a@b"; L20B="$(_l20_cb | head -n 1)"
@@ -285,18 +299,22 @@ is "A25 (R2, B7): a detail holding a token, \$HOME/ and an @ reaches no gh argum
    "argv=no-token|bodies=0|at=1/1|field8=home-folded"
 
 # ---------------------------------------------------------------- B9 ---
-_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _lg_land --pause r9; _l20_slow
-is "A26 (B9): with _FN_SECS=2 and the dispatch hanging, the tick exits 0 within 20 seconds, the hung gh is no longer running, and one failed record says timed out" \
+# Restated for wave-1-combine.md C1: the --pause raises the event, so the patched CLI's --pause meets the hang.
+_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _l20_slow land --pause r9
+is "A26 (B9; restated for wave-1-combine.md C1): with _FN_SECS=2 and the dispatch hanging, --pause r9 exits 0 within 20 seconds, the hung gh is no longer running, and one failed record says timed out" \
    "$L20RC|$([ "$L20EL" -le 20 ] && echo within || echo "took-$L20EL")|$(_l20_hung)|$(_l20_n failed)/$(_l20_n)|$(_l20_in "$(_l20_f last 7)" "timed out" timed-out)" \
    "0|within|gone|1/1|timed-out"
 
 # --------------------------------------------------------------- B10 ---
-_l20_b10() { printf '%s;osa=%s;rc=%s' "$(cut -f2-7 "$LAND/ledger.tsv" 2>/dev/null | tr '\n' '|')" "$(_lg_cnt osa)" "$1"; }
-_l20_reset; _l20_ev "r27 the same pause"; L20K1="$(_l20_b10 "$LGRC")"
-_l20_reset gh; printf '1\n' > "$L20/ctl/user"; _l20_ev "r27 the same pause"; L20K2="$(_l20_b10 "$LGRC")"
-_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _lg_land --pause "r27 the same pause"; _l20_slow; L20K3="$(_l20_b10 "$L20RC")"; _l20_hung >/dev/null
-is "A27 (B10): the paused scenario writes the same ledger fields 2-7, one banner and exit 0 with a local origin, with gh api user failing, and with the dispatch hanging" \
-   "$(_l20_like "$L20K1" "paused$L20T-$L20T-$L20T-$L20T*${L20T}r27 the same pause|;osa=1;rc=0" one-paused-row) // $L20K2 // $L20K3" \
+# Restated for wave-1-combine.md C1: the row is the --pause's, its detail ending ; by session - (0004 unsets the
+# session id), and the exit statuses are the --pause's and the tick's; the hang is met by the patched --pause.
+_l20_b10() { printf 'n=%s;%s;osa=%s;rc=%s' "$(_lg_rows)" "$(cut -f2-7 "$LAND/ledger.tsv" 2>/dev/null | tr '\n' '|')" "$(_lg_cnt osa)" "$1"; }
+_l20_reset; _l20_ev "r27 the same pause"; L20K1="$(_l20_b10 "$L20PRC/$LGRC")"
+_l20_reset gh; printf '1\n' > "$L20/ctl/user"; _l20_ev "r27 the same pause"; L20K2="$(_l20_b10 "$L20PRC/$LGRC")"
+_l20_reset gh; printf 'hang\n' > "$L20/ctl/dispatch"; _l20_slow land --pause "r27 the same pause"; L20PRC="$L20RC"
+_l20_slow land --tick; L20K3="$(_l20_b10 "$L20PRC/$L20RC")"; _l20_hung >/dev/null
+is "A27 (B10; restated for wave-1-combine.md C1): the paused scenario writes the same ledger fields 2-7, the --pause's one row ending ; by session -, one banner and exit 0 for --pause and --tick, with a local origin, with gh api user failing, and with the dispatch hanging" \
+   "$(_l20_like "$L20K1" "n=1;paused$L20T-$L20T-$L20T-$L20T*${L20T}r27 the same pause; by session -|;osa=1;rc=0/0" one-paused-row) // $L20K2 // $L20K3" \
    "one-paused-row // $L20K1 // $L20K1"
 
 # ----------------------------------------------------------- B11, R7 ---
@@ -355,7 +373,7 @@ printf 'a\tb\tc\n' >> "$LAND/alerts.tsv"; _l20_st; L20A33="$L20A33|three=$L20ST"
 printf '%s\tposted\tpaused\t-\tfixture/lgh#1\thttps://github.com/fixture/lgh/issues/1#issuecomment-1\tas @fixture-bot mentioning @fixture\told\n' \
   "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$LAND/alerts.tsv"; _l20_st; L20A33="$L20A33|posted=$L20ST"
 _l20_st "$L20/nohome"; L20A33="$L20A33|nohome=$L20ST"
-# Combined with b04 (docs/2026-10-24-audit-fixes/): its land and hooks rows precede alerts, so the rows are eight.
+# Combined with b04 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S1): its land and hooks rows precede alerts, so the rows are eight.
 is "A33 (B13, R5): felix status --tsv prints eight rows ending alerts, which reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it" \
    "$L20A33" "rows=settings schedule pulse reach gate land hooks alerts |none=none -|dispatched=value dispatched ok|plain=ok|failed=value failed ok|three=unknown -|posted=unknown -|nohome=unknown -"
 

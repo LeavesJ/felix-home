@@ -33,7 +33,7 @@ mkdir -p "$LNDH/projects/lp" "$LNDU/.claude" "$LNDU/Library/LaunchAgents" "$LNDM
          "$LNDB" "$LNDB2" "$LNDK" "$LNDO/st"
 printf '{"name":"lp","remote_match":"example.invalid/lp","gate":"true"}\n' > "$LNDH/projects/lp/project.json"
 printf '# lp\n' > "$LNDH/projects/lp/CLAUDE.md"
-# Combined with b05 (docs/2026-10-24-audit-fixes/): felix land runs only where the home resolves the
+# Combined with b05 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S4): felix land runs only where the home resolves the
 # checkout's own project (C013, B14), so the home is a checkout whose .felix names lp, as LNDC's does.
 ( _fx_cd "$LNDH" && git init -q -b main && printf 'lp\n' > .felix \
   && git add -A && git -c user.name=t -c user.email=t@t commit -qm base ) >/dev/null 2>&1
@@ -182,7 +182,7 @@ _lnd_rows() { if [ -f "$LNDLD/ledger.tsv" ]; then LC_ALL=C awk -F'\t' -v e="${1:
 _lnd_calls() { LC_ALL=C awk 'END { print NR }' "$LNDK/$1.log" 2>/dev/null || echo 0; }
 
 # ---- B1: eight rows ------------------------------------------------------------------------------------
-# Combined with b05 (docs/2026-10-24-audit-fixes/): its alerts row follows hooks, so B1's rows are eight.
+# Combined with b05 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S1): its alerts row follows hooks, so B1's rows are eight.
 _lnd_set
 _lnd_st "$LNDC"
 is "A1: felix status --tsv exits 0 and prints eight rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts" \
@@ -303,7 +303,7 @@ if command -v python3 >/dev/null 2>&1; then
   while IFS= read -r _lndl || [ -n "$_lndl" ]; do [ "$_lndl" != "$_lndw" ] || _lndo="the line"; done < "$LNDO/context.txt"
   is "A32: and its context holds the line Landing on green is paused: followed by the land detail felix status --tsv prints in that state" \
      "$_lndo [$_lndw]" "the line [$_lndw]"
-  # Combined with b03 (docs/2026-10-24-audit-fixes/combine-followups.md): b03's waits also name a paused lander. Said once.
+  # Combined with b03 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S3): b03's waits also name a paused lander. Said once.
   _lndl="$(_lnd_js "$LNDF" systemMessage)"; case "$_lndl" in *"lander paused"*) _lndl=twice ;; *) _lndl=once ;; esac
   is "A32b: and the pause is said once, with how to end it: no lander paused token, no The lander is paused paragraph, and the line felix land --resume ends the pause." \
      "$_lndl $(LC_ALL=C grep -c 'The lander is paused' "$LNDO/context.txt") $(LC_ALL=C grep -cx 'felix land --resume ends the pause.' "$LNDO/context.txt")" "once 0 1"

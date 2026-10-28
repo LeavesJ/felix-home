@@ -9,7 +9,10 @@ printf '\nwave 2 combined: an event is compared with its own last record, and a 
 # 6c63de0e, the file's section 5 (the review round: D4, D2a, D2b, D5) added R1-R7, written blind from that section
 # alone and named W2C R<n>, after the last case above. After the fix 995a8526, its section 6 (the second review round:
 # D2a withdrawn, D2b bounded to an hour, D4 keyed, a future record old, paused exempt from D4) restated R5 and R6 in
-# place, each saying so in its name, and added R8-R12 after R7, written blind from that section alone.
+# place, each saying so in its name, and added R8-R12 after R7, written blind from that section alone. After the fix
+# ca8ec1ac, its section 7 (the third review round: D6, R9 at the function, pins named) renamed R5's tie, R8, R9 and
+# R12 as pins, their checks unchanged, and added R13 and R14 after R12, written blind from that section alone. For
+# R14, which sources lib/notify.sh, the file's header comment (its first 30 lines, naming _FN_DIR) was read; no more.
 #
 # Fixture G is 2120's: the shared land fixture (_lg_build amend), its home on main at origin's main with main's
 # entry cached, in the GitHub state (the home's origin reads https://github.com/fixture/lgh.git and insteadOf sends
@@ -325,7 +328,7 @@ is "W2C R5 (D2; restated for section 6): --pause R whose dispatch a slow gh hold
 _w2c_hr "W2C held tie"; W2CTA="$(_w2c_f 1 1)"
 [ -z "$W2CTA" ] || _w2c_row "$W2CTA" resumed - - - 0 "the pause read: W2C held tie; by session s-w2c"
 sleep 1; _w2c_clear; _lg_land --pause "W2C held tie"
-is "W2C R5, the tie (D2; restated for section 6): the same, and a resumed row written by hand in the very second of the record's time: a resume in the record's second ends the pause (the error is one extra alert, never a silent pause), so the second --pause R is sent: one workflow run, a second record, both dispatched, paused, field 8 R" \
+is "W2C R5, the tie (D2; written with R5's restatement for section 6; a pin, unchanged by section 6): the same, and a resumed row written by hand in the very second of the record's time: a resume in the record's second ends the pause (the error is one extra alert, never a silent pause), so the second --pause R is sent: one workflow run, a second record, both dispatched, paused, field 8 R" \
    "$W2CHR|$([ -n "$W2CTA" ] && echo timed || echo untimed) // $LGRC|$(_w2c_nk '^workflow run')|$(_w2c_srt)" \
    "held|0|ordered|1|dispatched paused -;|timed // 0|1|dispatched paused - W2C held tie;dispatched paused - W2C held tie;"
 /bin/mv "$W2CF/gh.w2c" "$LGB/gh"
@@ -359,17 +362,20 @@ is "W2C R7 (D5): with 31's dispatched waiting record written for pull request 03
 # R8. A pause dispatched, its record moved 25 hours back, no resume; the ledger aged past the hour, then a tick.
 _w2c_reset; _lg_land --pause "W2C a day paused"; W2CR8="$(_w2c_nk '^workflow run')"; W2CT8="$(_w2c_t 90000)"
 _w2c_set 1 1 "$W2CT8"; _w2c_age; _w2c_clear; _lg_land --tick
-is "W2C R8 (paused exempt from D4): a dispatched paused record moved 25 hours back, no resumed row, the ledger aged past the hour, a tick: the tick's hourly paused row R is still a repeat, a paused record of any age with no resume after it: no api, issue or workflow call, still one record" \
+is "W2C R8 (paused exempt from D4; a pin, unchanged by section 6): a dispatched paused record moved 25 hours back, no resumed row, the ledger aged past the hour, a tick: the tick's hourly paused row R is still a repeat, a paused record of any age with no resume after it: no api, issue or workflow call, still one record" \
    "$W2CR8|$(_w2c_eq "$(_w2c_f 1 1)" "$W2CT8" moved)|$(_lg_n resumed)|$(_lg_n paused)|$(_lg_f paused - 7)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_recs)" \
    "1|moved|0|2|W2C a day paused|0|dispatched paused -;"
 
 # R9. A pause dispatched, ledger.tsv removed, the same pause; then the record moved 61 minutes back, ledger.tsv
-# removed again, and the same pause once more (a missing ledger is not unreadable, so D2b's hour does not apply).
+# removed again, and the same pause once more. Each --pause writes its own paused row first, which recreates the
+# ledger, so the attempt never meets a missing one here: R14 pins that branch at the function, with R9's first
+# record as --pause wrote it (W2CP14).
 _w2c_reset; _lg_land --pause "W2C no ledger"; W2CR9="$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+W2CP14="$([ -f "$LAND/alerts.tsv" ] && sed -n 1p "$LAND/alerts.tsv")"
 rm -f "$LAND/ledger.tsv"; _w2c_clear; _lg_land --pause "W2C no ledger"
 W2CR9="$W2CR9 // $([ -e "$LAND/ledger.tsv" ] && echo ledger || echo no-ledger)|$LGRC|$(_lg_n paused)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)"
 _w2c_set 1 1 "$(_w2c_t 3660)"; rm -f "$LAND/ledger.tsv"; _w2c_clear; _lg_land --pause "W2C no ledger"
-is "W2C R9 (no ledger): --pause R dispatched, ledger.tsv removed, --pause R: no resume ends the pause and D1 alone decides, so it is a repeat: its paused row written, no api, issue or workflow call, still one record; with the record moved 61 minutes back and ledger.tsv removed again, --pause R is a repeat still" \
+is "W2C R9 (no ledger, end to end; a pin, unchanged by section 6): --pause R dispatched, ledger.tsv removed, --pause R, whose own paused row recreates the ledger before its attempt (so the missing-ledger branch is pinned at the function, by R14): no resume ends the pause and D1 alone decides, so it is a repeat: its paused row written, no api, issue or workflow call, still one record; with the record moved 61 minutes back and ledger.tsv removed again, --pause R is a repeat still" \
    "$W2CR9 // $LGRC|$(_lg_n paused)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_recs)" \
    "1|dispatched paused -; // ledger|0|1|0|1 // 0|1|0|dispatched paused -;"
 
@@ -399,10 +405,46 @@ _w2c_reset; _lg_land --install; _w2c_lkeep; _w2c_tramp; W2CDO12="$(_lg_f deploy-
 _w2c_set 1 1 "$(_w2c_t -3600)"
 W2CR12="$LARC|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(if [ "$(_w2c_f 1 1)" \> "$(_w2c_t 0)" ]; then echo future; else printf '[%s]' "$(_w2c_f 1 1)"; fi)"
 _w2c_lback; _w2c_clear; _w2c_tramp
-is "W2C R12 (D4, a record from the future): a job record whose field 1 is an hour after the clock counts as old, so the trampoline's deploy-owed raised again with its detail is sent: exit 1, one workflow run, a second record, dispatched, deploy-owed, -, field 8 the first's" \
+is "W2C R12 (D4, a record from the future; a pin, unchanged by section 6): a job record whose field 1 is an hour after the clock counts as old, so the trampoline's deploy-owed raised again with its detail is sent: exit 1, one workflow run, a second record, dispatched, deploy-owed, -, field 8 the first's" \
    "$W2CR12 // $LARC|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CDO12" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_w2c_f 1 8)" same-detail)" \
    "1|1|dispatched deploy-owed -;|future // 1|same|1|dispatched deploy-owed -;dispatched deploy-owed -;|same-detail"
 _lg_land --uninstall
+
+# ------------------------------------------- third review round, section 7 ---
+# Added on 2026-10-28, blind, from wave-2-combine.md section 7 (D6, R13 and R14) alone, with the cases above as they
+# were. The interface R14 uses, _FN_DIR, is the one notify.sh's header comment names.
+
+# R13. A pause dispatched, its record's time then set an hour after the clock; --resume, whose resumed row is dated
+# now, so before the record's time and never counted by D2; then the same pause again.
+_w2c_reset; _lg_land --pause "W2C future pause"; W2CR13="$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+W2CT13="$(_w2c_t -3600)"; _w2c_set 1 1 "$W2CT13"; _lg_land --resume; W2CRS13="$(_lg_f resumed "" 1)"
+W2CR13="$W2CR13|$(_w2c_eq "$(_w2c_f 1 1)" "$W2CT13" moved)|$LGRC|$(_lg_n resumed)|$(if [ -n "$W2CRS13" ] && [ "$W2CRS13" \< "$W2CT13" ]; then echo before; else printf '[%s|%s]' "$W2CRS13" "$W2CT13"; fi)"
+_w2c_clear; _lg_land --pause "W2C future pause"
+is "W2C R13 (D6): a dispatched paused record dated an hour after the clock, a resumed row dated now (before the record's time, so D2 alone never ends the pause), then --pause R: a paused record from the future holds no pause, so the second pause is sent: one workflow run, a second record, both dispatched, paused, field 8 R" \
+   "$W2CR13 // $LGRC|$(_lg_n paused)|$(_w2c_nk '^workflow run')|$(_w2c_srt)" \
+   "1|dispatched paused -;|moved|0|1|before // 0|2|1|dispatched paused - W2C future pause;dispatched paused - W2C future pause;"
+
+# R14. R9 at the function. lib/notify.sh sourced in a subshell with _FN_DIR a fresh land directory under $TMP and
+# the fixture's gh first on PATH; its alerts.tsv holds R9's first record as --pause wrote it (W2CP14), field 1 set
+# 61 minutes back. First with no ledger.tsv; then, the control, with a ledger.tsv of mode 200 holding that pause's
+# paused row (so only that it cannot be read differs from a ledger that would leave the event a repeat).
+W2CFD="$(mktemp -d "$TMP/w2c-fn.XXXXXX")"; W2CT14="$(_w2c_t 3660)"
+W2CD14="$(printf '%s\n' "$W2CP14" | LC_ALL=C awk -F'\t' 'NR == 1 { printf "%s", $8 }')"
+printf '%s\n' "$W2CP14" | LC_ALL=C awk -F'\t' -v OFS='\t' -v t="$W2CT14" 'NF == 8 { $1 = t; print }' > "$W2CFD/alerts.tsv"
+_w2c_same() {   # -> _fn_same paused - <R9's reason> in W2CFD: repeat when it returns 0, attempt when not, nothing when it is not reached
+  ( _FN_DIR="$W2CFD"; . "$FROOT/harness/lib/notify.sh" >/dev/null 2>&1; _FN_DIR="$W2CFD"; PATH="$LGB:$PATH"
+    declare -F _fn_same >/dev/null || exit 0
+    _fn_same paused - "$W2CD14" >/dev/null 2>&1; r=$?; if [ "$r" -eq 0 ]; then printf repeat; else printf attempt; fi ) 2>/dev/null
+}
+_w2c_fd() { [ -f "$W2CFD/alerts.tsv" ] && LC_ALL=C awk -F'\t' '{ printf "%s%s %s %s %s|%s", s, $2, $3, $4, $8, $1; s = ";" }' "$W2CFD/alerts.tsv"; }   # -> each record's state, kind, PR, detail|time
+is "W2C R14 (R9 at the function): lib/notify.sh sourced with _FN_DIR a land directory whose alerts.tsv holds one dispatched paused record for - with detail R, 61 minutes old, and which has no ledger.tsv: _fn_same paused - R returns 0, a repeat, since a missing ledger is not an unreadable one and with no ledger D1 alone decides" \
+   "$(_w2c_fd)|$([ -e "$W2CFD/ledger.tsv" ] && echo ledger || echo no-ledger)|$(_w2c_same)" \
+   "dispatched paused - W2C no ledger|$W2CT14|no-ledger|repeat"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$W2CT14" paused - - - 0 "W2C no ledger; by session s-w2c" > "$W2CFD/ledger.tsv"; chmod 200 "$W2CFD/ledger.tsv"
+is "W2C R14, the control (D2b, over the hour): the same with ledger.tsv present and mode 200, holding that pause's paused row: _fn_same paused - R returns non-zero, an attempt, since a ledger that cannot be read holds a pause only while the record is under an hour old" \
+   "$(_w2c_fd)|$([ -f "$W2CFD/ledger.tsv" ] && echo ledger || echo no-ledger) $([ -r "$W2CFD/ledger.tsv" ] && echo readable || echo unreadable)|$(_w2c_same)" \
+   "dispatched paused - W2C no ledger|$W2CT14|ledger unreadable|attempt"
+chmod u+r "$W2CFD/ledger.tsv" 2>/dev/null; rm -rf "$W2CFD"
 
 # --------------------------------------------------------------- G undone ---
 _w2c_off; /bin/mv "$W2CF/gh.prev" "$LGB/gh"; _lg_reset; _lg_land --uninstall; _lg_reset; rm -rf "$W2CF"

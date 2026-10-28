@@ -122,25 +122,34 @@ _fn_fail() { _fn_rec failed "$_FN_K" "$_FN_P" "${_FN_I:--}" - "$1" "$_FN_D"; }
 # B8, as wave-2-combine D1 amends it: the event is a repeat when the newest record of its own kind and
 # pull request is dispatched with its detail. Records of other kinds and pull requests never count, and
 # a newest one that is failed or no-alert-workflow means it is attempted again (R4). D5: kinds and pull
-# requests compare as strings, so 031, 31.0 and 31 are three pull requests. D4: a job event (no pull
-# request) other than paused repeats only while that record is under a day old. paused: D2, below.
+# requests compare as strings, so 031, 31.0 and 31 are three pull requests. D4, keyed (section 6): a job
+# event (pull request -, kind not paused) is compared with the newest record of its kind whose detail has
+# its same-wait key, the detail up to its first "; " (_gt_job_once's and the trampoline's owed()), so the
+# hourly "X; still so since" row is X; it repeats while that record is dispatched and under a day old.
+# paused is exempt from D4 (section 6): D2 and D2b, below.
 _fn_same() {   # KIND PR DETAIL
-  local f="$_FN_DIR/alerts.tsv" tab=$'\t' got t
+  local f="$_FN_DIR/alerts.tsv" tab=$'\t' got t s job=0
   [ -f "$f" ] || return 1
-  got="$(FN_K="$1" FN_P="$2" LC_ALL=C awk -F'\t' 'NF == 8 && ($3 "") == (ENVIRON["FN_K"] "") && ($4 "") == (ENVIRON["FN_P"] "") { r = $1 "\t" $2 "\t" $8 }
+  [ "$2" != - ] || [ "$1" = paused ] || job=1
+  got="$(FN_K="$1" FN_P="$2" FN_D="$3" FN_J="$job" LC_ALL=C awk -F'\t' 'function key(s,   i) { i = index(s, "; "); return i ? substr(s, 1, i - 1) : s }
+    BEGIN { j = ((ENVIRON["FN_J"] "") == "1"); k = key(ENVIRON["FN_D"] "") }
+    NF == 8 && ($3 "") == (ENVIRON["FN_K"] "") && ($4 "") == (ENVIRON["FN_P"] "") && (!j || key($8 "") == k) { r = $1 "\t" $2 "\t" $8 }
     END { print r }' "$f" 2>/dev/null)"
-  t="${got%%$tab*}"
-  [ -n "$got" ] && [ "${got#*$tab}" = "dispatched$tab$3" ] || return 1
-  if [ "$1" = paused ]; then ! _fn_resumed "$t"; return; fi
-  [ "$2" != - ] || _fn_young "$t"
+  [ -n "$got" ] || return 1
+  t="${got%%$tab*}"; s="${got#*$tab}"
+  if [ "$job" = 1 ]; then [ "${s%%$tab*}" = dispatched ] && _fn_young "$t" 86400; return; fi
+  [ "$s" = "dispatched$tab$3" ] || return 1
+  [ "$1" != paused ] || ! _fn_resumed "$t"
 }
 
-# D4: status 0 when TIME, a record's field 1, is less than 24 hours before the attempt's own clock, aged as
-# green-wait.sh ages a ledger row (days from the civil date, UTC). A time that cannot be read, or a clock that
-# cannot, counts as old, and so does a time after the clock: the error is one extra alert, never a silent job.
-_fn_young() {   # TIME
-  FN_T="${1:-}" FN_NOW="$(date -u +%s 2>/dev/null)" LC_ALL=C awk 'BEGIN {
-    t = ENVIRON["FN_T"] ""; now = ENVIRON["FN_NOW"] ""; d = "[0123456789]"
+# D4: status 0 when TIME, a record's field 1, is less than SECONDS (a day, unless given) before the attempt's own
+# clock, aged as green-wait.sh ages a ledger row (days from the civil date, UTC). A time that cannot be read, or a
+# clock that cannot, counts as old, and so does a time after the clock (section 6: a clock stepped back never
+# silences a job event): the error is one extra alert, never a silent one.
+_fn_young() {   # TIME [SECONDS]
+  FN_T="${1:-}" FN_L="${2:-86400}" FN_NOW="$(date -u +%s 2>/dev/null)" LC_ALL=C awk 'BEGIN {
+    t = ENVIRON["FN_T"] ""; now = ENVIRON["FN_NOW"] ""; lim = ENVIRON["FN_L"] ""; d = "[0123456789]"
+    if (lim !~ /^[0123456789]+$/) exit 1
     if (now !~ /^[0123456789]+$/ || t !~ ("^" d d d d "-" d d "-" d d "T" d d ":" d d ":" d d "Z$")) exit 1
     split(t, a, /[-T:Z]/); y = a[1] + 0; m = a[2] + 0; dd = a[3] + 0
     if (m < 1 || m > 12 || dd < 1 || dd > 31 || a[4] + 0 > 23 || a[5] + 0 > 59 || a[6] + 0 > 60) exit 1
@@ -149,24 +158,30 @@ _fn_young() {   # TIME
     doy = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + dd - 1
     doe = yoe * 365 + int(yoe / 4) - int(yoe / 100) + doy
     age = now - ((era * 146097 + doe - 719468) * 86400 + a[4] * 3600 + a[5] * 60 + a[6])
-    if (age >= 0 && age < 86400) exit 0
+    if (age >= 0 && age < lim + 0) exit 0
     exit 1 }' 2>/dev/null
 }
 
-# D2, D2a, D2b: status 0 when a resume ended the pause that raised the paused record of time TIME, so the
-# event is said again. That pause is the newest paused row of the ledger (ledger.tsv, beside alerts.tsv) at
-# or before TIME (D2a), or TIME itself when there is none (D2); a resumed row at or after it ends it, so a
-# resume made while the record's attempt ran counts. Times compare as strings, to the second, and a shared
-# second counts as ended. No ledger ends nothing; one that exists but cannot be read ends it (D2b).
+# D2 (section 2; section 6 withdrew D2a): status 0 when a resume ended the pause the paused record of time TIME
+# said, so the event is said again: the ledger (ledger.tsv, beside alerts.tsv) holds a resumed row at or after
+# TIME. Times compare as strings, to the second, and a shared second counts as ended (one extra alert, never a
+# silent pause). A pause said after a resume leaves the phone's last word true, so it stands. No ledger: no
+# resume ends it, and D1 alone decides. D2b, bounded (section 6): a ledger that exists but cannot be read (not a
+# regular readable file, or its read fails) ends it only once the record is an hour old, aged as D4 ages it, so
+# an unreadable ledger says a pause at most once an hour.
 _fn_resumed() {   # TIME
-  local l="$_FN_DIR/ledger.tsv" r
+  local l="$_FN_DIR/ledger.tsv" r=""
   [ -e "$l" ] || return 1
-  [ -f "$l" ] && [ -r "$l" ] || return 0
-  r="$(FN_T="${1:-}" LC_ALL=C awk -F'\t' 'BEGIN { t = ENVIRON["FN_T"] ""; p = ""; q = "" }
-    ($2 "") == "paused" && ($1 "") <= t && ($1 "") > p { p = $1 "" }
-    ($2 "") == "resumed" && ($1 "") > q { q = $1 "" }
-    END { if (p == "") p = t; if (q != "" && q >= p) print "ended"; else print "standing" }' "$l" 2>/dev/null)" || return 0
-  [ "$r" != standing ]
+  if [ -f "$l" ] && [ -r "$l" ]; then
+    r="$(FN_T="${1:-}" LC_ALL=C awk -F'\t' 'BEGIN { t = ENVIRON["FN_T"] "" }
+      ($2 "") == "resumed" && ($1 "") >= t { e = 1 }
+      END { print (e ? "ended" : "standing") }' "$l" 2>/dev/null)" || r=""
+  fi
+  case "$r" in
+    ended) return 0 ;;
+    standing) return 1 ;;
+  esac
+  ! _fn_young "${1:-}" 3600
 }
 
 # R4. The failed and no-alert-workflow records after the newest dispatched one (all of them when
@@ -331,7 +346,7 @@ _fn_step_dispatch() {
 }
 
 # One attempt for one event: the kind, the pull request (or -) and the detail the banner shows (B1).
-# A record at the end of alerts.tsv, unless the event repeats its own newest record (B8; wave-2-combine D1, D2, D4, D5).
+# A record at the end of alerts.tsv, unless the event repeats its own newest record (B8; wave-2-combine D1, D2, D2b, D4, D5).
 _fn_attempt() {   # KIND PR DETAIL
   [ -n "${_FN_DIR:-}" ] || return 0
   _FN_K="$(_fn_clean "${1:-}")"; _FN_P="$(_fn_clean "${2:--}")"; _FN_D="$(_fn_clean "$(_fn_tilde "${3:--}")")"; _FN_I=""

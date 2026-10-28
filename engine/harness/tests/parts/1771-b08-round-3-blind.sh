@@ -71,6 +71,22 @@ printf '\nthe cloud check fails closed on escapes and repeated keys (audit b08 r
 # - A122's "detail byte for byte as on 4d68d57f": 4d68d57f's gate over the tree's
 #   two files, run in a scratch FC on 2026-10-28, prints `  cloud              ok`
 #   and an empty line under it.
+#
+# The second follow-up (section 9 of the contract, B08R3X-1 to B08R3X-3, A124 to
+# A130) was written blind on 2026-10-28 from the same file, after A123. Its names
+# start "B08R3X A<n>". Readings:
+# - Each case starts from FC with a real .claude holding settings.json alone, in the
+#   index, and no cfg (_b83_xstart). Every symlink is planted with ln -s and checked
+#   on disk with [ -L ] and in the index with git ls-files -s.
+# - A124's "the cloud files" are this tree's .claude/cloud, copied into cfg.
+# - "The detail beginning with" reads as for A118. A127's "no skipped": neither a
+#   cloud line nor the detail holds `skipped`.
+# - A128's line: 4d68d57f's gate over FC with settings.json removed from disk and
+#   index, run in a scratch FC on 2026-10-28, prints
+#   `  cloud              skipped (no .claude/settings.json in this tree)`.
+# - A129's and A130's line: two one-line hook objects, the guarded one first, in a
+#   PreCompact group before SubagentStart. A129's NUL sits on that line between the
+#   two. The guard-count clause is the one holding the text A129 names.
 
 _b83="$TMP/b08r3"; mkdir -p "$_b83/stub/bin" "$_b83/l" "$_b83/home" "$_b83/tmp"
 _b83_bounded() {   # <seconds> <cmd>...: cmd in a process group of its own, the group killed at the limit (status 124)
@@ -358,6 +374,50 @@ _b83_seq() {
 # name got want: is, with the gate's output flattened into the detail when it fails.
 _b83_is() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "$(_b83_why " expected [$3] got [$2];")"; fi; }
 
+# The second follow-up's clauses (section 9's terms), its line, and its helpers.
+_b83T="$REAL_HARNESS/../../.claude"
+_b83DC='unreadable: .claude (not a directory in the repository, so its settings files cannot be judged);'
+_b83GT='without the CLAUDE_CODE_REMOTE guard'
+_b83SK="$(printf '  %-18s %s' cloud 'skipped (no .claude/settings.json in this tree)')"
+_b83GU='          { "type": "command", "command": "[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; exec bash \"$CLAUDE_PROJECT_DIR/engine/harness/hooks/pre-compact\"" }, { "type": "command", "command": "exec bash \"$CLAUDE_PROJECT_DIR/engine/harness/hooks/pre-compact\"" }'
+_b83GUat='pre-compact\"" },'
+_b83_grp gGU "$_b83GU"
+# _b83_start over FC whose .claude is a real directory again, holding settings.json alone in the
+# index, with no cfg and no local settings file.
+_b83_xstart() {
+  local f=""
+  _b83_git "$_b83C" rm -r -q --cached --ignore-unmatch -- .claude cfg >/dev/null 2>&1
+  [ ! -L "$_b83C/.claude" ] || rm -f "$_b83C/.claude"
+  rm -rf "${_b83C:?}/cfg"
+  mkdir -p "$_b83C/.claude" || f=" FC's .claude could not be made again;"
+  _b83_start; _b83_unlocal; _b83Fx="$_b83Fx$f"
+  _b83_git "$_b83C" add -- .claude/settings.json >/dev/null 2>&1 || _b83Fx="$_b83Fx settings.json is not back in the index;"
+}
+# path: the index's entries at path in FC (git ls-files -s), "<mode> <path>" each, joined by "; ".
+_b83_ix() { _b83_git "$_b83C" ls-files -s -- "$1" 2>/dev/null | LC_ALL=C awk -F '\t' '{ split($1, m, " "); printf "%s%s %s", (NR > 1 ? "; " : ""), m[1], $2 }'; }
+# want: .claude is a symlink on disk and the index's entries at .claude are want, else a fixture fault.
+_b83_lk() {
+  local s
+  s="$(_b83_ix .claude)"
+  [ -L "$_b83C/.claude" ] || _b83Fx="$_b83Fx .claude is not a symlink on disk;"
+  [ "$s" = "$1" ] || _b83Fx="$_b83Fx git ls-files -s shows [$s] at .claude, not [$1];"
+}
+# .claude moved to cfg, out of the index, and .claude made a symlink to it; status 1 when a step failed.
+_b83_tocfg() {
+  _b83_git "$_b83C" rm -r -q --cached -- .claude >/dev/null 2>&1 && mv "$_b83C/.claude" "$_b83C/cfg" && ln -s cfg "$_b83C/.claude"
+}
+# name: FC committed as it stands, then settings.json removed from disk and index by git rm.
+_b83_rmset() {
+  _b83_git "$_b83C" commit -qam "$1-base" >/dev/null 2>&1
+  _b83_git "$_b83C" rm -q -- .claude/settings.json >/dev/null 2>&1 || _b83Fx="$_b83Fx settings.json could not be removed;"
+}
+# settings.json neither on disk, in the index nor in HEAD, else a fixture fault.
+_b83_nos() {
+  { [ ! -e "$_b83CS" ] && [ -z "$(_b83_ix .claude/settings.json)" ] \
+      && [ -z "$(_b83_git "$_b83C" ls-tree --name-only HEAD -- .claude/settings.json 2>/dev/null)" ]; } \
+    || _b83Fx="$_b83Fx settings.json is still on disk, in the index or in HEAD;"
+}
+
 _b83N69="B08R3 A69 (R3-1; S1): settings' PostToolUse group gains a matcher key spelled with a u-escape, value Read, as its first line: cloud FAIL, with the escape clause for settings"
 _b83N70="B08R3 A70 (R3-1; S2): settings' pre-tool hook gains a timeout key spelled with a u-escape, value 1, after its command: cloud FAIL, with the escape clause for settings"
 _b83N71="B08R3 A71 (R3-1, R3-4; S6): hooks.json gains a one-line PreCompact group whose command writes its slashes escaped, unbound in settings: cloud FAIL, with the escape clause for hooks.json and no not bound"
@@ -415,6 +475,14 @@ _b83N120="B08R3W A120 (R3W-2, R3-4): the local settings file committed and setti
 _b83N121="B08R3W A121 (R3W-2): a local settings file holding disableAllHooks true on disk and not in the index: cloud ok (control)"
 _b83N122="B08R3W A122 (R3W-3): the tree's two files and no local settings file: cloud ok, and the line under it as 4d68d57f prints it, empty (control)"
 _b83N123="B08R3W A123 (R3W-3, R3-5): over A112 to A122, stubs for jq, python3 and node first on PATH record no call (control)"
+# The second follow-up (contract section 9).
+_b83N124="B08R3X A124 (R3X-1): .claude committed as a symlink, mode 120000, to cfg, which holds settings.json, the cloud files and a local settings file added with git add -f: cloud FAIL, the detail beginning with the .claude clause"
+_b83N125="B08R3X A125 (R3X-1): .claude a symlink on disk only, its target cfg untracked and the real .claude removed from the index: cloud FAIL, the detail beginning with the .claude clause"
+_b83N126="B08R3X A126 (R3X-1): the tree's own .claude, a real directory: cloud ok, and the line under it empty as A122 pins it (control)"
+_b83N127="B08R3X A127 (R3X-2): a local settings file committed and settings.json removed from disk and index: cloud FAIL, the detail beginning with the local-settings clause, and no skipped"
+_b83N128="B08R3X A128 (R3X-2): settings.json removed from disk and index, and no local settings file: the cloud line as 4d68d57f prints it for that tree (control)"
+_b83N129="B08R3X A129 (R3X-3): settings.json with a NUL byte, on one line holding a guarded and an unguarded harness command: cloud FAIL, the NUL clause, and no without-the-guard clause"
+_b83N130="B08R3X A130 (R3X-3): settings.json over 65536 bytes with that same line: cloud FAIL, the size clause, and no guard-count clause"
 
 if [ -n "$_b83Why" ]; then
   for _b83n in "$_b83N69" "$_b83N70" "$_b83N71" "$_b83N72" "$_b83N73" "$_b83N74" "$_b83N75" "$_b83N76" \
@@ -424,7 +492,8 @@ if [ -n "$_b83Why" ]; then
                "$_b83N101" "$_b83N102" "$_b83N103" "$_b83N104" "$_b83N105" "$_b83N106" "$_b83N107" \
                "$_b83N108" "$_b83N109" "$_b83N110" "$_b83N111" "$_b83N112" "$_b83N113" "$_b83N114" \
                "$_b83N115" "$_b83N116" "$_b83N117" "$_b83N118" "$_b83N119" "$_b83N120" "$_b83N121" \
-               "$_b83N122" "$_b83N123"; do
+               "$_b83N122" "$_b83N123" "$_b83N124" "$_b83N125" "$_b83N126" "$_b83N127" "$_b83N128" \
+               "$_b83N129" "$_b83N130"; do
     skip "$_b83n" "$_b83Why"
   done
 else
@@ -652,4 +721,53 @@ else
   if [ "$_b83Probe" = "jq b08r3-probe python3 b08r3-probe node b08r3-probe " ]; then _b83O="$(cat "$_b83/stub/calls" 2>/dev/null)"
   else _b83O="[the stubs do not record a call: their probe left (${_b83Probe:-nothing})]"; fi
   is "$_b83N123" "$_b83O" ""
+
+  # ======== The second follow-up (contract section 9), A124 to A130
+  # ---- B08R3X-1: .claude must be a real directory (A124 to A126)
+  _b83_xstart
+  { _b83_tocfg && cp -R "$_b83T/cloud" "$_b83C/cfg/cloud" && cp "$_b83/l/lo0" "$_b83C/cfg/settings.local.json" \
+      && _b83_git "$_b83C" add -f -- cfg/settings.local.json >/dev/null 2>&1 && _b83_git "$_b83C" add -- .claude cfg >/dev/null 2>&1; } \
+    || _b83Fx="$_b83Fx cfg, its files and the .claude symlink could not be made and added;"
+  _b83_go a124; _b83_lk "120000 .claude"
+  _b83t="$(_b83_ix cfg)"
+  for _b83w in "100644 cfg/settings.json" "100644 cfg/settings.local.json" " cfg/cloud/"; do
+    _b83_in "$_b83w" "$_b83t" || _b83Fx="$_b83Fx cfg's index [$_b83t] lacks [$_b83w];"
+  done
+  [ -f "$_b83C/.claude/settings.json" ] || _b83Fx="$_b83Fx .claude/settings.json does not resolve through the symlink;"
+  _b83_seq "$_b83N124" lead "$_b83DC"
+  _b83_xstart; _b83_tocfg || _b83Fx="$_b83Fx cfg and the .claude symlink could not be made;"
+  _b83_go a125; _b83_lk ""
+  [ -z "$(_b83_ix cfg)" ] || _b83Fx="$_b83Fx cfg is in the index;"
+  [ -f "$_b83C/.claude/settings.json" ] || _b83Fx="$_b83Fx .claude/settings.json does not resolve through the symlink;"
+  _b83_seq "$_b83N125" lead "$_b83DC"
+  _b83_xstart; _b83_go a126
+  { [ -d "$_b83C/.claude" ] && [ ! -L "$_b83C/.claude" ] && [ ! -e "$_b83C/cfg" ]; } || _b83Fx="$_b83Fx .claude is not a real directory, or cfg is there;"
+  _b83t="$(_b83_ix .claude)"
+  [ "$_b83t" = "100644 .claude/settings.json" ] || _b83Fx="$_b83Fx git ls-files -s shows [$_b83t] at .claude;"
+  { cmp -s "$_b83H" "$_b83CH" && cmp -s "$_b83S" "$_b83CS"; } || _b83Fx="$_b83Fx FC's two files are not the tree's;"
+  _b83OKN="$(LC_ALL=C grep -cxF -e "$(printf '  %-18s %s' cloud ok)" "$_b83/a126.out" 2>/dev/null)"
+  if [ -n "$_b83Fx" ]; then bad "$_b83N126" "fixture:$_b83Fx"
+  else _b83_is "$_b83N126" "${_b83OKN:-0} cloud ok lines; the line under it [$_b83D]" "1 cloud ok lines; the line under it []"; fi
+
+  # ---- B08R3X-2: the local-file test runs whatever settings.json's state (A127, A128)
+  _b83_xstart; _b83_local "$_b83/l/lo0" index; _b83_rmset a127
+  _b83_go a127; _b83_ls "[$_b83PX] [$_b83PX]"; _b83_nos
+  if _b83_in skipped "$(LC_ALL=C awk 'index($0, "  cloud ") == 1' "$_b83/a127.out" 2>/dev/null)"; then _b83Xm="$_b83Xm a cloud line holds [skipped];"; fi
+  _b83_seq "$_b83N127" lead "$_b83LC" -- skipped
+  _b83_xstart; _b83_rmset a128
+  _b83_go a128; _b83_ls "[] []"; _b83_nos
+  _b83t="$(LC_ALL=C awk 'index($0, "  cloud ") == 1' "$_b83/a128.out" 2>/dev/null)"
+  if [ -n "$_b83Fx" ]; then bad "$_b83N128" "fixture:$_b83Fx"
+  else _b83_is "$_b83N128" "[$_b83t]" "[$_b83SK]"; fi
+
+  # ---- B08R3X-3: nothing is counted in a file that cannot be read (A129, A130)
+  _b83_xstart; _b83_ed settings before "" "$_b83Sub" "$_b83/l/gGU"
+  _b83_has settings "$_b83GU"; _b83_nul settings "$_b83GUat"; _b83_od settings 1
+  _b83_in "$_b83GU" "$(cat "$_b83/nul.a" "$_b83/nul.b" 2>/dev/null)" && ! _b83_in 'CLAUDE_CODE_REMOTE' "$(LC_ALL=C awk 'NR == 1' "$_b83/nul.b" 2>/dev/null)" \
+    || _b83Fx="$_b83Fx the NUL is not on the line, between its guarded and its unguarded command;"
+  _b83_go a129
+  _b83_seq "$_b83N129" any "$_b83NS" -- "$_b83GT"
+  _b83_xstart; _b83_ed settings before "" "$_b83Sub" "$_b83/l/gGU"
+  _b83_has settings "$_b83GU"; _b83_padto settings 65537; _b83_bytes settings -gt 65536; _b83_go a130
+  _b83_seq "$_b83N130" any "$_b83ZS" -- "$_b83GT"
 fi

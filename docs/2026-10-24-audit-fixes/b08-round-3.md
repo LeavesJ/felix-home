@@ -447,3 +447,78 @@ results.
   `disableAllHooks` message names both files). The repository does not ignore it; only
   this machine's global git ignore does. A committed one could set `disableAllHooks` in
   the cloud and the check would not read it. That is for the session holding the batch.
+
+## 8. Follow-up round: a NUL byte, and a committed local settings file
+
+Two faults found after the review round, by the commit security review of 8e634e4b and by
+section 7's last list. Each lets the gate say `cloud ok` while the cloud runs fewer hooks
+or none. The clauses add to sections 2, 4 and 7. Their assertions, A112 onwards, are in
+part 1771 after A111, named `B08R3W A<n> (R3W-<m>...)`, over FC as for A69.
+
+**Finding W1 (medium): a NUL byte.** The reader's control-character set is built from
+bytes 1 to 31, so a NUL byte (0x00) is not refused. BWK awk (the Mac) and gawk (CI) read
+a NUL differently: one ends the line or the string at it, the other keeps it as a byte.
+So one tree can get two verdicts, and an escape or a repeated key after a NUL can be
+hidden from one of them. Claude Code's JSON parser rejects a file that holds a NUL.
+
+- **B08R3W-1. NUL.** Either file holding a NUL byte anywhere is unreadable, and nothing
+  else is read from it: cloud FAIL, with the clause `unreadable: <path> (a NUL byte);`.
+  - It is decided before awk reads the file, by a byte test outside awk, so BWK awk and
+    gawk give the same verdict on every file.
+  - In B08R3V-6's order it comes after size and before escape: size, NUL, escape, not
+    JSON, repeat, top-level key, schema. A file over 65536 bytes gets the size clause
+    only, NUL or not.
+  - B08R3-4's rules hold for it as for any round-3 clause: one clause per file,
+    hooks.json's first, and over it nothing is compared.
+
+**Finding W2 (medium): a committed `.claude/settings.local.json`.** Claude Code reads it
+beside settings.json, so a committed one can set `disableAllHooks` or add hooks in the
+cloud, and the check never reads it. Only this machine's global git ignore keeps it out
+of the repository today.
+
+- **B08R3W-2. A local settings file in the index.** When `.claude/settings.local.json`
+  is in the checkout's git index (tracked or staged), the cloud line is FAIL.
+  - The detail begins with `unreadable: .claude/settings.local.json (a local settings
+    file in the repository, which Claude Code reads beside settings.json);`.
+  - What the two files give follows it as without it: their clauses, or their
+    comparisons and the guard-count and toolbox clauses.
+  - The file's contents are not read, so an empty or valid one fails the same.
+  - A `.claude/settings.local.json` that is on disk but not in the index is ignored, as
+    today. The cloud never sees it.
+  - When git cannot say whether the file is in the index, the line is FAIL with the
+    same clause, ending `(git could not say whether it is in the repository);`
+    instead. No outside input reaches that case, so it has no assertion.
+- **B08R3W-3. Nothing else changes.** A tree with no NUL byte in either file and no
+  local settings file in the index gives what 4d68d57f gives, byte for byte. The check
+  still calls no jq, python3 or node, and writes no file.
+
+### Assertions (part 1771, after A111; FC as for A69)
+
+- **A112** (R3W-1) settings.json with one NUL byte inside the PostToolUse group's
+  `statusMessage` value: cloud FAIL, the NUL clause for settings.json, no other clause
+  for it, last line `gate: FAIL (cloud)`, exit 1.
+- **A113** (R3W-1) hooks.json with one NUL byte between two keys of a hook object: the
+  NUL clause for hooks.json.
+- **A114** (R3W-1) settings.json whose last byte is a NUL, after its closing brace:
+  the NUL clause.
+- **A115** (R3W-1) settings.json with a NUL byte and then, after it, a `\/` escape in a
+  command: the NUL clause, not the escape clause.
+- **A116** (R3W-1, R3V-2) settings.json padded past 65536 bytes with a NUL inside: the
+  size clause only.
+- **A117** (R3W-1, R3-4) both files with a NUL byte: two NUL clauses, hooks.json's
+  first, and no `bound differently`, `not bound` or `no event-to-hook pairs`.
+- **A118** (R3W-2) `.claude/settings.local.json` holding `{}`, added and committed: cloud
+  FAIL, the detail beginning with the local-settings clause, exit 1.
+- **A119** (R3W-2) the same file staged with `git add` but not committed: the same.
+- **A120** (R3W-2, R3-4) the local file committed and settings.json given a `\/`
+  escape: the local clause first, then settings.json's escape clause.
+- **A121** (control, R3W-2) `.claude/settings.local.json` on disk with
+  `{"disableAllHooks": true}`, not in the index: cloud ok.
+- **A122** (control, R3W-3) the tree's two files, no local file: cloud ok, the detail
+  byte for byte as on 4d68d57f.
+- **A123** (control, R3-5) over A112 to A122, the `jq`, `python3` and `node` stubs record
+  no call.
+
+Every case also greps its fixture for the byte or file it plants: `od` shows the NUL, or
+`git ls-files` shows the local file. A broken fixture cannot then pass for the rule.
+Expected red on 4d68d57f: A112 to A120 fail (9). A121 to A123 pass (3).

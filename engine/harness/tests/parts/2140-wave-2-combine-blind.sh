@@ -5,7 +5,9 @@ printf '\nwave 2 combined: an event is compared with its own last record, and a 
 # B15 and B22-B23, b03 B1-B4) for the words it uses. lib/, the felix CLI, hooks/ and bin/ were not read: felix land
 # and the trampoline are run as black boxes. Parts 1280, 1680, 1720 and 2120 and tests/lib were read for how their
 # fixtures are built. Fixture controls are their own assertions, named so; a case that holds before the fix too
-# says in its name that D1 or D2 leaves it unchanged, or that it is a control.
+# says in its name that D1 or D2 leaves it unchanged, or that it is a control. The same day, after the fix
+# 6c63de0e, the file's section 5 (the review round: D4, D2a, D2b, D5) added R1-R7, written blind from that section
+# alone and named W2C R<n>, after the last case above.
 #
 # Fixture G is 2120's: the shared land fixture (_lg_build amend), its home on main at origin's main with main's
 # entry cached, in the GitHub state (the home's origin reads https://github.com/fixture/lgh.git and insteadOf sends
@@ -217,6 +219,117 @@ _w2c_age; _w2c_row "$W2CTB" resumed - - - 0 "the pause read: W2C second before; 
 is "W2C D2c (control): a resumed row one second before the pause's dispatched record does not end it: the tick's hourly paused row R is a repeat, no gh call, still one record" \
    "$(if [ -n "$W2CTB" ] && [ "$W2CTB" \< "$W2CTS" ]; then echo earlier; else printf '[%s|%s]' "$W2CTB" "$W2CTS"; fi)|$(_lg_n paused)|$(_w2c_nk .)|$(_w2c_n)" \
    "earlier|2|0|1"
+
+# ------------------------------------------------- review round, section 5 ---
+# Added on 2026-10-28, blind, from wave-2-combine.md section 5 (D4, D2a, D2b, D5 and its R1-R7) alone, with the
+# cases above as they were. A timeout event: a tick held in gh auth status by the fixture's gh-block, in a process
+# group of its own, gets TERM in that group, as the watchdog sends it (1282's A4), and writes its timeout row. A
+# deploy-owed event: D1b's trampoline, the ledger put back before each run as it was before the first, so each run
+# writes a first row with the same detail (b02 B15 compares with the ledger's last row). A record's time is set by
+# hand in alerts.tsv to so many seconds before now (_w2c_t, the suite's way). For R5 alone a wrapper in front of this
+# part's gh holds workflow run while $W2CF/hold exists, 20 s at most (inside B9's 30), and says so in $W2CF/held.
+_w2c_bg() {   # ARGS -> felix land ARGS from the home as _lg_land runs it, in the background in a process group of its own; pid W2CBG
+  ( cd "$LGH" || exit 97
+    exec perl -e 'setpgrp(0, 0); exec @ARGV or exit 127' env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE ${LGX[@]+"${LGX[@]}"} \
+      HOME="$LGU" FELIX_HOME="$LGH" FELIX_HOME_DIR="$LGH" FELIX_MEMORY="$LGM" FELIX_PLUGIN_CACHE="$LGC" PATH="$LGB:$PATH" "$FELIX" land "$@" ) > "$LG/out.w2c" 2>&1 &
+  W2CBG=$!
+}
+_w2c_till() {   # COMMAND... -> W2CHD held once COMMAND succeeds, within 30 s and while W2CBG runs, else not-held
+  local n=0; W2CHD=not-held
+  while [ "$n" -lt 300 ]; do "$@" && { W2CHD=held; return 0; }; kill -0 "$W2CBG" 2>/dev/null || return 0; sleep 0.1; n=$((n+1)); done
+}
+_w2c_end() {   # [TERM] -> W2CBG given TERM in its own process group when asked, the holds released, then ended by itself within 30 s or by KILL
+  local g me n=0
+  g="$(ps -o pgid= -p "$W2CBG" 2>/dev/null | tr -d ' ')"; me="$(ps -o pgid= -p "$$" 2>/dev/null | tr -d ' ')"
+  case "$g" in ""|*[!0123456789]*|0|1) g="" ;; esac; [ "$g" != "$me" ] || g=""
+  if [ "${1:-}" = TERM ]; then if [ -n "$g" ]; then kill -TERM -- "-$g" 2>/dev/null; else kill -TERM "$W2CBG" 2>/dev/null; fi; fi
+  rm -f "$LGK/gh-block" "$W2CF/hold"
+  while kill -0 "$W2CBG" 2>/dev/null && [ "$n" -lt 300 ]; do sleep 0.1; n=$((n+1)); done
+  if kill -0 "$W2CBG" 2>/dev/null; then [ -z "$g" ] || kill -KILL -- "-$g" 2>/dev/null; kill -KILL "$W2CBG" 2>/dev/null; fi
+  wait "$W2CBG" 2>/dev/null; return 0
+}
+_w2c_held() { [ -s "$LAND/lock/pid" ] && [ -d "$LGK/gh-block-taken" ]; }   # -> a tick holds the lock and the fixture's gh-block
+_w2c_to() { rm -rf "$LGK/gh-block-taken"; : > "$LGK/gh-block"; _w2c_bg --tick; _w2c_till _w2c_held; _w2c_end TERM; }   # -> one timeout event; W2CHD
+_w2c_set() {   # ROW FIELD VALUE [add] -> alerts.tsv's record ROW with FIELD set to VALUE by hand; with add, that copy appended and ROW kept
+  [ -f "$LAND/alerts.tsv" ] || return 0
+  LC_ALL=C awk -F'\t' -v OFS='\t' -v r="$1" -v k="$2" -v v="$3" -v a="${4:-}" \
+    'NR == r + 0 { o = $0; $(k + 0) = "" v; c = $0; if (a != "") $0 = o } { print } END { if (a != "" && c != "") print c }' \
+    "$LAND/alerts.tsv" > "$LAND/alerts.w2c" && /bin/mv "$LAND/alerts.w2c" "$LAND/alerts.tsv"
+}
+_w2c_lkeep() { rm -f "$W2CF/ledger.kept"; [ ! -f "$LAND/ledger.tsv" ] || cp -p "$LAND/ledger.tsv" "$W2CF/ledger.kept"; }   # the ledger as it is, kept
+_w2c_lback() { rm -f "$LAND/ledger.tsv"; [ ! -f "$W2CF/ledger.kept" ] || cp -p "$W2CF/ledger.kept" "$LAND/ledger.tsv"; }   # the ledger put back as kept
+_w2c_eq() { if [ -n "$1" ] && [ "$1" = "$2" ]; then printf '%s' "$3"; else printf '[%s|%s]' "$1" "$2"; fi; }   # A B TAG -> TAG when A is B and not empty, or both
+
+# R1. Three timeout events with one detail; before the third, the first record's time is moved 25 hours back.
+_w2c_reset; _w2c_to; W2CTD="$(_lg_f timeout "" 7)"
+is "W2C R1 (fixture control): a tick held in gh auth status and given TERM in its process group, as the watchdog sends it, writes one timeout row with a detail and dispatches it: one workflow run, one record, dispatched, timeout, -" \
+   "$W2CHD|$(_lg_n timeout)|$([ -n "$W2CTD" ] && echo detail || echo no-detail)|$(_w2c_nk '^workflow run')|$(_w2c_recs)" "held|1|detail|1|dispatched timeout -;"
+_w2c_clear; _w2c_to
+W2CR1="$W2CHD|$(_lg_n timeout)|$(_w2c_eq "$(_lg_f timeout "" 7)" "$W2CTD" same)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)"
+_w2c_set 1 1 "$(_w2c_t 90000)"; _w2c_clear; _w2c_to
+is "W2C R1 (D4): a second timeout with the same detail raised at once is a repeat: a second timeout row, no api, issue or workflow call, still one record; with the first record's time then moved 25 hours back in alerts.tsv, the next timeout with that detail, a job event whose record is a day old, is sent: a third row, one workflow run, a second record, dispatched, timeout, -, field 8 the first's" \
+   "$W2CR1 // $W2CHD|$(_lg_n timeout)|$(_w2c_eq "$(_lg_f timeout "" 7)" "$W2CTD" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_w2c_f 1 8)" same-detail)" \
+   "held|2|same|0|1 // held|3|same|1|dispatched timeout -;dispatched timeout -;|same-detail"
+
+# R2. The trampoline's deploy-owed dispatched; its record's time set 23 hours back, then 25, the ledger put back before each run.
+_w2c_reset; _lg_land --install; _w2c_lkeep; _w2c_tramp; W2CDO2="$(_lg_f deploy-owed "" 7)"; W2CR2="$LARC|$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+_w2c_set 1 1 "$(_w2c_t 82800)"; _w2c_lback; _w2c_clear; _w2c_tramp
+W2CR2="$W2CR2 // $LARC|$(_lg_n deploy-owed)|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CDO2" same)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)"
+_w2c_set 1 1 "$(_w2c_t 90000)"; _w2c_lback; _w2c_clear; _w2c_tramp
+is "W2C R2 (D4): the trampoline's deploy-owed, dispatched and its record's time set 23 hours back by hand, raised again with the same detail is a repeat: exit 1, its row, no api, issue or workflow call, one record; with the record set 25 hours back, raised again it is sent once: one workflow run, a second record, dispatched, deploy-owed, -, field 8 the first's" \
+   "$W2CR2 // $LARC|$(_lg_n deploy-owed)|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CDO2" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_w2c_f 1 8)" same-detail)" \
+   "1|1|dispatched deploy-owed -; // 1|1|same|0|1 // 1|1|same|1|dispatched deploy-owed -;dispatched deploy-owed -;|same-detail"
+
+# R3. 31's waiting record, its time moved 25 hours back, and its waiting row moved back too, so the tick writes it again.
+_w2c_reset; _w2c_wait 31; _lg_land --tick; W2CD3="$(_lg_f waiting 31 7)"; W2CR3="$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+W2CT3="$(_w2c_t 90000)"; _w2c_set 1 1 "$W2CT3"; _w2c_back waiting 90000; _w2c_clear; _lg_land --tick
+is "W2C R3 (D4, control): a dispatched waiting #31 record moved 25 hours back, and the same waiting row again: an event with a pull request keeps D1 at any age, so a second waiting row with the same detail, no api, issue or workflow call, still one record" \
+   "$W2CR3 // $(_w2c_eq "$(_w2c_f 1 1)" "$W2CT3" moved)|$(_lg_n waiting 31)|$(_w2c_eq "$(_lg_f waiting 31 7)" "$W2CD3" same)|$(_w2c_nk '^(api|issue|workflow) ')|$(_w2c_n)" \
+   "1|dispatched waiting 31; // moved|2|same|0|1"
+
+# R4. The trampoline's deploy-owed dispatched, its record's field 1 then written not-a-time.
+_w2c_reset; _lg_land --install; _w2c_lkeep; _w2c_tramp; W2CDO4="$(_lg_f deploy-owed "" 7)"; W2CR4="$LARC|$(_w2c_nk '^workflow run')|$(_w2c_recs)"
+_w2c_set 1 1 not-a-time; _w2c_lback; _w2c_clear; _w2c_tramp
+is "W2C R4 (D4): a job record whose field 1 is not a time counts as old, so the trampoline's deploy-owed raised again with its detail is sent: exit 1, one workflow run, a second record, dispatched, deploy-owed, -, field 8 the first's" \
+   "$W2CR4 // $(_w2c_f 1 1)|$LARC|$(_w2c_eq "$(_lg_f deploy-owed "" 7)" "$W2CDO4" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 2 8)" "$(_w2c_f 1 8)" same-detail)" \
+   "1|1|dispatched deploy-owed -; // not-a-time|1|same|1|dispatched deploy-owed -;dispatched deploy-owed -;|same-detail"
+_lg_land --uninstall
+
+# R5. The --pause's dispatch held; a second apart, its paused row, the --resume's resumed row and its record; a
+# second later the --pause again, so neither pause's row shares the record's second.
+/bin/mv "$LGB/gh" "$W2CF/gh.w2c"
+sed "s#@W2C@#$W2CF#g" > "$LGB/gh" <<'W2CHOLD'
+#!/bin/bash
+L='@W2C@'
+if [ "${1:-} ${2:-}" = "workflow run" ] && [ -f "$L/hold" ]; then
+  : > "$L/held"; while [ -f "$L/hold" ] && [ "$SECONDS" -lt 20 ]; do sleep 0.1; done
+fi
+exec "$L/gh.w2c" "$@"
+W2CHOLD
+chmod +x "$LGB/gh"
+_w2c_reset; rm -f "$W2CF/held"; : > "$W2CF/hold"; _w2c_bg --pause "W2C held resume"; _w2c_till test -f "$W2CF/held"
+sleep 1; _lg_land --resume; W2CR5="$W2CHD|$LGRC"; sleep 1; _w2c_end
+W2CTP="$(_lg_f paused - 1)"; W2CTR="$(_lg_f resumed "" 1)"; W2CTA="$(_w2c_f 1 1)"
+W2CR5="$W2CR5|$(if [ -n "$W2CTP" ] && [ "$W2CTP" \< "$W2CTR" ] && [ "$W2CTR" \< "$W2CTA" ]; then echo ordered; else printf '[%s|%s|%s]' "$W2CTP" "$W2CTR" "$W2CTA"; fi)"
+sleep 1; _lg_land --pause "W2C held resume"
+is "W2C R5 (D2a): --pause R whose dispatch a slow gh holds, --resume run while it is held (its resumed row after the paused row's time and before the record's), then --pause R again: the resume ended the pause that raised the record, so two workflow runs and two records, both dispatched, paused, field 8 R" \
+   "$W2CR5|$(_w2c_nk '^workflow run')|$(_w2c_srt)" "held|0|ordered|2|dispatched paused - W2C held resume;dispatched paused - W2C held resume;"
+/bin/mv "$W2CF/gh.w2c" "$LGB/gh"
+
+# R6. A pause dispatched and resumed, then the ledger made write-only before the same pause again.
+_w2c_reset; _lg_land --pause "W2C unreadable"; _lg_land --resume; [ ! -f "$LAND/ledger.tsv" ] || chmod 200 "$LAND/ledger.tsv"
+W2CR6="$([ -r "$LAND/ledger.tsv" ] && echo readable || echo unreadable)"; _lg_land --pause "W2C unreadable"; [ ! -f "$LAND/ledger.tsv" ] || chmod u+r "$LAND/ledger.tsv"
+is "W2C R6 (D2b): --pause R dispatched, --resume, ledger.tsv made unreadable (mode 200), --pause R: a ledger that cannot be read ends the pause, so the second is said too: two workflow runs and two records, both dispatched, paused, field 8 R" \
+   "$W2CR6|$(_w2c_nk '^workflow run')|$(_w2c_srt)" "unreadable|2|dispatched paused - W2C unreadable;dispatched paused - W2C unreadable;"
+
+# R7. gh lists a pull request's number as JSON, which has no 031, so no event for 031 can be raised here; the
+# records carry the other spellings instead (031, then a copy 31.0, of 31's dispatched record), and the event is
+# 31's waiting row again. A comparison as numbers finds 31 in either direction, one as strings in neither.
+_w2c_reset; _w2c_wait 31; _lg_land --tick; W2CD7="$(_lg_f waiting 31 7)"
+_w2c_set 1 4 031; _w2c_set 1 4 31.0 add; _w2c_back waiting 90000; _w2c_clear; _lg_land --tick
+is "W2C R7 (D5): with 31's dispatched waiting record written for pull request 031, and a copy for 31.0, the same waiting row for 31 has no record of its own pull request, compared as strings, so it is sent: a second waiting row with the same detail, one workflow run, a third record, dispatched, waiting, 31, field 8 the first's" \
+   "$(_lg_n waiting 31)|$(_w2c_eq "$(_lg_f waiting 31 7)" "$W2CD7" same)|$(_w2c_nk '^workflow run')|$(_w2c_recs)|$(_w2c_eq "$(_w2c_f 3 8)" "$(_w2c_f 1 8)" same-detail)" \
+   "2|same|1|dispatched waiting 031;dispatched waiting 31.0;dispatched waiting 31;|same-detail"
 
 # --------------------------------------------------------------- G undone ---
 _w2c_off; /bin/mv "$W2CF/gh.prev" "$LGB/gh"; _lg_reset; _lg_land --uninstall; _lg_reset; rm -rf "$W2CF"

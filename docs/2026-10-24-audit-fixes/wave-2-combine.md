@@ -242,3 +242,33 @@ findings are low. Two change behaviour or the tests and are taken here. Two are 
   now, then `--pause R`: one dispatch.
 - **R14 (R9 at the function).** As described above, with its control.
 - R5 tie, R8, R9 and R12 renamed as above. Their checks are unchanged.
+
+## 8. Fourth review round (review of 4cf0dd28)
+
+The reviewer ran `_fn_same` from ca8ec1ac and from 4cf0dd28 over 45 shapes, under both awks and
+under `set -uo pipefail`. The two differ only in D6's cells, as section 7 says. There are no
+findings at medium or high. Of its three lows, two are about the tests and are taken here. The
+third is recorded.
+
+- **D6's second half is pinned.** No assertion covers "a time that cannot be read". A mutant that
+  compares the record's time with the clock as a string differs from D6 only on an empty time or
+  a malformed time that sorts before the clock.
+- **R14 is a pin.** It passes on ca8ec1ac, which section 7 allowed. Its name says "a pin".
+- **Recorded, not taken.** After the clock steps back, a `resumed` row dated in the future ends
+  every later paused record until the clock catches up, so each hourly paused row is sent again
+  until then. The error is noise, never silence, it is bounded by the step, and it was the same
+  before D6.
+
+### Assertions (part 2140)
+
+- **R15 (D6, a time that cannot be read).** This is at the function, as R14 is: source notify.sh
+  with `_FN_DIR` set to a scratch land directory that holds no ledger.tsv. Each case writes an
+  alerts.tsv with one dispatched paused record for `-` with detail `R`, all its other fields as a
+  real record has them, and field 1 replaced. `_fn_same paused - R` returns non-zero, an attempt,
+  for each of these field 1 values:
+  - empty;
+  - `garbage`;
+  - `2026-00-15T00:00:00Z` (month 00, which sorts before the clock);
+  - `2026-10-28T25:00:00Z` (hour 25).
+  - A control: the same record with field 1 one minute before the clock is a repeat (returns 0).
+- R14's name says it is a pin. Its checks are unchanged.

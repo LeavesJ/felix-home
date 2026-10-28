@@ -43,16 +43,14 @@ Right now I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab projec
 Earlier I built Elenchus, which more than 200 Berkeley students used. You bring it a real decision you've made, and it keeps asking you why until you can name what actually drove it. Building it taught me to distrust my own results: when I tested it properly, the technique I'd built it around did no better than a plain baseline, and I cut it. Felix comes from the same habit: don't believe the AI, or yourself, until something outside both has checked.
 <!-- /answer -->
 
-### Tell us more about the team (834 of 1000, before the [TK]s)
+### Tell us more about the team (985 of 1000)
 
 <!-- answer:team -->
-I'm building this because I needed it first. I hand coding agents as much of my work as they'll take, and the more I gave them, the more often one would tell me a job was done when nothing had shown it was. I could have pulled back and given them less. I wanted to give them more, and that meant building something that checks their work for me. Felix now checks the agents on my own projects.
+I'm building Felix because I needed it first. I hand coding agents as much of my work as they'll take, and the more I gave them, the more often one would tell me a job was done when nothing had shown it was. I could have pulled back and given them less. I wanted to give them more, and that meant building something that checks their work for me. Felix now runs on my own projects.
 
 I think that's the right way in. The teams that get the most out of agents won't be the ones that trust them least, but the ones that can check them. And checking AI is work I've already been doing: at Elenchus and at BehaviorChangeBench, a lot of my best work was catching AI being wrong, my own included.
 
-Right now it's just me [TK: or name a cofounder in progress], and if I get in, I'll take a leave from Berkeley for spring 2027 and build this full time in San Francisco.
-
-Advisors: [TK: Felix advisors, or cut this line]
+I'm a solo founder because agents already give me the engineering leverage. That leaves my time for users, distribution, and what the company should become, without slowing the product down. If I get in, I'll take a leave from Berkeley for spring 2027 and build this full time in San Francisco.
 <!-- /answer -->
 
 ## Startup details
@@ -114,7 +112,7 @@ Each box leads with what Felix is and why it matters, in the voice of someone ta
 | Box | What it's for | Built from |
 |---|---|---|
 | Relevant experience | One question runs through BehaviorChangeBench, Elenchus and Felix: is the AI doing what it says? Elenchus is there for its 200+ Berkeley users and for cutting its own core technique when a blind test said to | Resume of 10-17 (BehaviorChangeBench, 200+ users); resume of 09-30 (the cross-examination, the technique cut after a blind rater); Peter's emails for the paper line. Not here: Sam's name (item 2 above), Elenchus Labs as a company you co-founded, ReserveGrid |
-| Team | Why you: you needed it first, you want agents doing more rather than less, and catching AI being wrong is work you've already done. Solo and full time come last, as the close | Your answers of 10-27; deck v3 slides 5 and 6 (extreme usage found the failures; push autonomy, distrust self-certification) |
+| Team | Why you: you needed it first, you want agents doing more rather than less, and catching AI being wrong is work you've already done. Solo comes last and is sold as a choice: agents carry the engineering, so your time goes to users and distribution. Full time in San Francisco is the close. The advisors line is cut | Your answers of 10-27, including your rewrite of this box; deck v3 slides 5 and 6 (extreme usage found the failures; push autonomy, distrust self-certification) |
 | One-liner | The form's own shape, "AI-powered therapist for Gen Z": a twist, a familiar role, an audience, and no verb. "Deterministic" is the trust half, where code decides and no model does. "Senior engineer" is the role that knows what the work needs, the rate limit nobody asked for included, and signs it off. "For autonomous coding agents" keeps the autonomy and puts Felix above the agents rather than beside Devin | Your internal phrase, the autonomous engineering control plane, made concrete; cold reads of 10-27, where role nouns alone read as coordination (manager, org) or a linter (standards), and taglines and "that does X" clauses weren't punchlines |
 | Description | One loop, not two halves: vibe coding against engineering, where the difference is what the work is held to. Felix keeps the list of what each project needs, has each need tested by an agent other than the producer, qualifies the test on a planted bug, and lets code alone decide done. The CI line answers the question every cold reader asked. The model-may-add, only-a-test-may-close line is the join | `docs/2026-10-19-ai-engineering-vs-vibe-coding.md` (§1's thesis, §13's row lifecycle and the comparison with Factory's per-mission contract); v3.2's rule that a model may propose but never make its conclusion authoritative; the README's 206 holds, of which 174 were checks that never ran or ran on other code, hence "mostly". No host or plugin is named, since Claude Code is only where Felix runs today |
 | Anything else | The full picture: the layer between a person and their agents, why the vendors can't be it, the second host, the first buyer and pilot, and something they can run | The README's "Where it's going"; the brief's vendor answer and first buyer; #464's row 19; direction §6 for the pilot |

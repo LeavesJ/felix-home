@@ -666,6 +666,6 @@ what the case names.
   else wrong: cloud FAIL with `1 command(s) without the CLAUDE_CODE_REMOTE guard;`.
 - **A140** (control) the tree's own `.claude`, staged and clean: as A126.
 
-Expected red on 2eeedbed: A131, A132, A133, A134, A136, A138 and A139 (7), plus A129 and A130 as
-restated (red on 24ae0a93, green on 2eeedbed; they test B08R3X-3). A135 is red unless the disk and
-index copies agree. A124 restated, A137 and A140 may pass. Report each one.
+Expected red on 2eeedbed: A131 to A139 except A137 (8), since 2eeedbed reads the disk. A129 and
+A130 as restated are red on 24ae0a93 and green on 2eeedbed, because they test B08R3X-3. A124
+restated, A137 and A140 may pass on 2eeedbed. Report each one.

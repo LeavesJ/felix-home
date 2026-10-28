@@ -144,3 +144,63 @@ after its last, named `W2C R<n>`, plus the restated 1720 cases listed at the end
 - **1720 A27, restated again.** Each scenario's paused rows are pinned field by field. Pull
   request, sha and worktree are `-`, only the wall field is open, and the details are the
   `--pause`'s `; by session -` row and the tick's row.
+
+## 6. Second review round (review of 995a8526)
+
+The build of section 5 was green except for timing. The review found one high, one medium and
+four lows. The high and the flake have one cause, and the cause is this contract's D2a.
+
+**The invariant D2 serves.** The last paused alert the phone received must say what is true now.
+A resume is never alerted (wave-1 C2). So a pause whose alert was dispatched after a resume, for
+the same reason, leaves the phone's last word true. Sending it again adds nothing.
+
+- **D2a is withdrawn. D2 stands as section 2 writes it.** D2a compared a resume with the paused
+  row that raised the record, not with the record. Ledger times have one-second resolution, so
+  "the newest paused row at or before the record" picks a different row depending on which second
+  the tick's own row lands in. Under D2a, 1720 A18 and 2140's D2a2 pass or fail by timing, and
+  2140 W2C D2c fails whenever the tick's row lands a second after the record. D2a was also
+  unneeded. In its case (a resume while the attempt runs, then `--pause R` again), the alert said
+  "paused R" after the resume, so by the invariant above the second pause is a repeat. D2's own
+  tie rule stands: a resume in the record's second ends the pause, and the error is one extra
+  alert.
+- **D2b, bounded (replaces section 5's D2b).** When `ledger.tsv` exists but cannot be read (not
+  a regular readable file, or the read fails), a `paused` event is a repeat only while the
+  matching dispatched record is under an hour old. Age is read as D4 reads it. Without this bound,
+  an unreadable ledger made every 5-minute tick dispatch: the tick cannot read its hourly age, so
+  it writes a paused row each time. With it, a paused alert is said at most once an hour while
+  the ledger cannot be read. A missing ledger is not unreadable. With no ledger, no resume ends
+  the pause, and D1 alone decides.
+- **D4, keyed (amends section 5's D4).** For a job event (pull request `-`, kind not `paused`),
+  the key is the detail up to its first `; `, or the whole detail when it has none. That is the
+  "same wait" key the hourly writers use (`_gt_job_once`, the trampoline's `owed`). The event is
+  a repeat when the newest record of the same kind and the same key is `dispatched` and under 24
+  hours old.
+  - Records of the same kind with another key do not count.
+  - So the hourly `X; still so since HH:MM` row is the same event as `X`.
+  - Two keys of one kind that alternate are each said at most once a day.
+  - A newest same-key record that is `failed` or `no-alert-workflow` means the event is
+    attempted, as R4 has it.
+- **D4, a record from the future.** A record whose time is after the attempt's clock counts as
+  old, so the event is sent. A clock stepped back can never silence a job event.
+- **`paused` is exempt from D4, and that is pinned.** A paused record over a day old with no
+  resume after it is still a repeat.
+
+### Assertions (part 2140; restated cases keep their names and say "restated for section 6")
+
+- **R5, restated (D2).** As section 5 describes, with the resumed row in a second strictly
+  before the record's: the second `--pause R` is a repeat, with no `workflow run`. A variant has
+  the resumed row written by hand in the record's own second, and gets one dispatch (D2's tie).
+- **R6, restated (D2b).** `--pause R` dispatched, `--resume`, ledger.tsv made unreadable (mode
+  200), `--pause R`: no dispatch. Then the record moved 61 minutes back and `--pause R`: one
+  dispatch. The fixture checks the ledger cannot be read.
+- **R8 (paused exempt from D4).** A dispatched paused record moved 25 hours back in alerts.tsv,
+  no resumed row, the ledger aged past the hour, a tick: no dispatch.
+- **R9 (no ledger).** `--pause R` dispatched, ledger.tsv removed, `--pause R`: no dispatch.
+- **R10 (D4 keyed).** A job event with detail `X` dispatched, then the same kind with detail
+  `X; still so since 10:00`: no dispatch. With the record 25 hours back: one dispatch.
+- **R11 (D4 keyed).** Same kind, detail `A` dispatched, then detail `B` dispatched, then `A`
+  again: no dispatch.
+- **R12 (D4, future time).** A job record whose field 1 is an hour after the clock, then the
+  same event: one dispatch.
+- **Unchanged and deterministic:** 1720 A18, 2140 W2C D2a2, D2b and D2c must pass in every run.
+  The builder runs 2140 and 1720 three times under each awk, and reports each count.

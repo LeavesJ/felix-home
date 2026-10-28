@@ -587,42 +587,94 @@ fi
 # A binding is one hook object naming harness/hooks/<name>: its event, its
 # group's matcher, the hook, async and timeout, each compared as written with
 # absence a value of its own, because the matcher decides which tools the hook
-# sees. Read off the layout both files share (event at four spaces, matcher at
-# eight, async and timeout at twelve); a line holding those keys off it makes
-# the file unreadable, so a reformatted file fails and never reads as agreement.
-# A settings binding the plugin lacks (provision) is allowed.
+# sees. Each file is read on its own and by structure, not by layout: its
+# braces and brackets say which event and group a hook sits in, so a hook
+# object on one line, or indented otherwise, is read all the same. A file is
+# unreadable, so a failure and never an agreement, when a matcher, async or
+# timeout line is off the layout both files share (matcher at eight spaces,
+# async and timeout at twelve), when it is not one balanced object in the
+# plugin's shape, or when the commands naming harness/hooks/ it holds are not
+# the bindings read from it. A settings binding the plugin lacks (provision) is
+# allowed.
 _cloud_check() {
-  cat engine/hooks/hooks.json .claude/settings.json 2>/dev/null | LC_ALL=C awk '
-    $0 == "{" { f++; ev = ""; g0 = n + 1 }
+  local x out
+  for x in engine/hooks/hooks.json .claude/settings.json; do
+    [ -f "$x" ] && [ -r "$x" ] || { echo " unreadable: no event-to-hook pairs read from one of the two files"; return 0; }
+  done
+  out="$(LC_ALL=C awk '
+    function fin() { if (f && (d != 0 || !done || cc[f] != nb[f])) bad[f] = 1 }
+    function op(k,   q) {
+      if (d == 0 && (k != "{" || done)) bad[f] = 1
+      q = (d > 0 && K[d] == "{") ? KY[d] : ""
+      d++; K[d] = k; N[d] = q; KY[d] = ""; EK[d] = (k == "{")
+      if (d == 4 && k == "{") { m = "-"; g0 = n + 1 }
+      if (d == 6 && k == "{") { h = ""; a = "-"; t = "-" }
+    }
+    function cl(k,   i) {
+      if (d == 0) { bad[f] = 1; return }
+      if (K[d] != (k == "}" ? "{" : "[")) bad[f] = 1
+      if (d == 6 && K[d] == "{" && h != "") { n++; E[n] = N[3]; H[n] = h; A[n] = a; T[n] = t; F[n] = f; nb[f]++; h = "" }
+      if (d == 4 && K[d] == "{") for (i = g0; i <= n; i++) M[i] = m
+      d--
+      if (d == 0) done = 1
+    }
+    function val(s, lit,   p, r) {
+      if (d == 0) { bad[f] = 1; return }
+      if (K[d] == "[") return
+      if (EK[d]) { KY[d] = s; return }
+      if (!lit && d == 4 && KY[d] == "matcher") m = s
+      else if (lit && d == 6 && KY[d] == "async") a = s
+      else if (lit && d == 6 && KY[d] == "timeout") t = s
+      else if (!lit && KY[d] == "command" && (p = index(s, "harness/hooks/"))) {
+        cc[f]++; r = substr(s, p + 14)
+        if (!match(r, /^[a-z-]+/) || index(r, "harness/hooks/")) bad[f] = 1
+        else if (d == 6 && N[2] == "hooks" && N[5] == "hooks" && K[1] K[2] K[3] K[4] K[5] K[6] == "{{[{[{") h = substr(r, 1, RLENGTH)
+      }
+    }
+    FILENAME != cur { fin(); cur = FILENAME; f++; FN[f] = FILENAME; d = 0; done = 0 }
     index($0, "\"matcher\"") && $0 !~ /^        "matcher": "[^"\\]*",?$/ { bad[f] = 1 }
     index($0, "\"async\"") && $0 !~ /^            "async": (true|false),?$/ { bad[f] = 1 }
     index($0, "\"timeout\"") && $0 !~ /^            "timeout": [0123456789]+,?$/ { bad[f] = 1 }
-    match($0, /^    "[A-Za-z]+": \[/) { ev = substr($0, 6, RLENGTH - 9) }
-    /^      \{/ { m = "-" }
-    /^        "matcher": "/ { m = $0; sub(/^[^:]*: "/, "", m); sub(/",?$/, "", m) }
-    /^          \{/ { h = ""; a = "-"; t = "-" }
-    /^            "(async|timeout)": / { v = $2; sub(/,$/, "", v); if ($1 == "\"async\":") a = v; else t = v }
-    index($0, "\"command\"") && match($0, /harness\/hooks\/[a-z-]+/) { h = substr($0, RSTART + 14, RLENGTH - 14) }
-    /^          \},?$/ && h != "" { n++; E[n] = ev; H[n] = h; A[n] = a; T[n] = t; F[n] = f }
-    /^      \},?$/ { for (i = g0; i <= n; i++) M[i] = m; g0 = n + 1 }
+    {
+      L = length($0)
+      for (i = 1; i <= L; i++) {
+        ch = substr($0, i, 1)
+        if (ch == " " || ch == "\t" || ch == "\r") continue
+        if (ch == "\"") {
+          for (j = i + 1; j <= L; j++) { x = substr($0, j, 1); if (x == "\\") j++; else if (x == "\"") break }
+          if (j > L) { bad[f] = 1; break }
+          val(substr($0, i + 1, j - i - 1), 0); i = j
+        } else if (ch == "{" || ch == "[") op(ch)
+        else if (ch == "}" || ch == "]") cl(ch)
+        else if (ch == ":") { if (d) EK[d] = 0 }
+        else if (ch == ",") { if (d && K[d] == "{") EK[d] = 1 }
+        else {
+          for (j = i; j <= L; j++) if (index(" \t\r,:{}[]\"", substr($0, j, 1))) break
+          val(substr($0, i, j - i), 1); i = j - 1
+        }
+      }
+    }
     END {
+      fin()
       for (i = 1; i <= n; i++) { R[i] = E[i] "\t" M[i] "\t" H[i] "\t" A[i] "\t" T[i]; c[F[i]]++ }
       if (f != 2 || !c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
-      for (i = 1; i <= 2; i++) if (bad[i]) o = o " unreadable: " (i == 1 ? "engine/hooks/hooks.json" : ".claude/settings.json") ";"
+      for (i = 1; i <= 2; i++) if (bad[i]) o = o " unreadable: " FN[i] ";"
       if (o != "") { print o; exit }
       for (i = 1; i <= n; i++) if (F[i] == 2) { full[R[i]] = 1; k = E[i] "/" H[i]; if (!(k in first)) first[k] = i }
       for (i = 1; i <= n; i++) if (F[i] == 1 && !(R[i] in full)) {
         k = E[i] "/" H[i]
         if (!(k in first)) { miss = miss k " "; continue }
-        j = first[k]; d = ""
-        if (M[i] != M[j]) d = "matcher"
-        if (A[i] != A[j]) d = d (d == "" ? "" : ", ") "async"
-        if (T[i] != T[j]) d = d (d == "" ? "" : ", ") "timeout"
-        o = o " bound differently for the cloud: " k " (" d ");"
+        j = first[k]; df = ""
+        if (M[i] != M[j]) df = "matcher"
+        if (A[i] != A[j]) df = df (df == "" ? "" : ", ") "async"
+        if (T[i] != T[j]) df = df (df == "" ? "" : ", ") "timeout"
+        o = o " bound differently for the cloud: " k " (" df ");"
       }
       if (miss != "") o = " not bound for the cloud: " miss ";" o
       print o
-    }'
+    }' engine/hooks/hooks.json .claude/settings.json 2>/dev/null)" \
+    || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
+  printf '%s' "$out"
 }
 if [ -f .claude/settings.json ]; then
   CLOUD_BAD="$(_cloud_check)"

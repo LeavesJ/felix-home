@@ -632,12 +632,23 @@ fi
 # to 3, a conflict, is said as that (B08R3Z-6). provision is bash, so eol=crlf
 # on a file under .claude but the two JSON files is a fault as well, and the
 # attributes match case as Linux does (B08R3Z2-1). The toolbox goes through the
-# same reader and must be one object whose tools are objects each with a
-# string name; over its fault no stack row is compared. When settings runs
-# .claude/cloud/provision and the index holds anything under .claude/cloud,
-# provision must be there at 100755 (B08R3Z2-2). stack.tsv is read only from a
-# stage-0 regular entry (B08R3Z2-3), and membership is awk, never a grep -q
-# that SIGPIPE can race (B08R3Z2-4).
+# same reader (B08R3Z2-2), and over its fault no stack row is compared.
+# stack.tsv is read only from a stage-0 regular entry (B08R3Z2-3), and
+# membership is awk, never a grep -q that SIGPIPE can race (B08R3Z2-4).
+# The cloud runs one chain: settings.json, its provision hook, provision's
+# bytes, provision's jq reader, the toolbox. So when the index holds a stage-0
+# toolbox, settings.json must hold exactly one hook object equal to the one
+# gate.sh binds (type, command, shell, async and timeout, in any order, and no
+# other key) in a SessionStart group whose matcher is startup|resume|clear|
+# compact (B08R3Z3-1), and provision must be a stage-0 100755 blob, not empty,
+# with no CR and no NUL byte (B08R3Z3-2). A new way to run provision is then a
+# change to gate.sh as well. The reader keeps a string as written, and \", its
+# one escape, decodes one way only, so comparing the written command compares
+# the decoded one. The toolbox must be the closed shape provision's reader
+# takes: about, an array of strings, and tools, objects of string values keyed
+# name, carry, source, sha, subdir and note, each with a name and a carry of
+# fetch, builtin, claude.ai or no, a fetch with its source, sha and subdir
+# (B08R3Z3-3).
 _cloud_fault() {   # command...: 1 when its output is over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1); read twice, kept nowhere
   if [ "$(($("$@" 2>/dev/null | wc -c)))" -gt 65536 ]; then echo 1; elif [ "$(($("$@" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)))" -gt 0 ]; then echo 2; fi
 }
@@ -646,15 +657,20 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
   [ -z "${1:-}" ] || { h=""; p=.claude/cloud/toolbox.json; }   # t: the toolbox alone, N and its names or its clause (B08R3Z2-2)
   y="$(_cloud_fault git cat-file blob ":$p")"; [ -n "$y" ] || b=-
   [ -z "$h" ] || [ ! -f "$h" ] || [ ! -r "$h" ] || z="$(_cloud_fault cat "$h")"; [ -n "$z" ] || a="$h"   # z 9: no hooks.json, so no pairs
-  out="$( { [ "$b" != - ] || git cat-file blob ":$p" 2>/dev/null; } | LC_ALL=C awk -v Z="${z:-0}${y:-0}" -v TM="${1:-}" -v PX="${CLOUD_PV:-0}" '
+  out="$( { [ "$b" != - ] || git cat-file blob ":$p" 2>/dev/null; } | LC_ALL=C awk -v Z="${z:-0}${y:-0}" -v TM="${1:-}" -v PB="${CLOUD_PB:-0}" '
     BEGIN {
       FN[1] = "engine/hooks/hooks.json"; FN[2] = ".claude/settings.json"; FN[3] = ".claude/cloud/toolbox.json"; ESC = 3; NJ = 4; REP = 5; TL = 6; SCH = 7; TBS = 8
-      split("larger than 65536 bytes|a NUL byte|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema|not one object holding tools, an array of objects each with a string name", WHY, "|")
+      split("larger than 65536 bytes|a NUL byte|an escape other than \\\"|not JSON|a key repeated in one object|a top-level key other than hooks|a key or value outside the hook schema|not the toolbox shape provision reads", WHY, "|")
       for (i = 1; i <= 2; i++) W[TM && i == 2 ? 3 : i] = substr(Z, i, 1) + 0   # Z: _cloud_fault of each file, 0 for none, 9 for no hooks.json; TM: the toolbox is file 3
       MS = (W[1] == 9); NP = " unreadable: no event-to-hook pairs read from one of the two files"
       GD = "[ \\\"$CLAUDE_CODE_REMOTE\\\" = true ] || exit 0; "   # B08R3Z-2: how a guarded command value begins, as written
       for (i = 1; i < 32; i++) CT = CT sprintf("%c", i)
       split("type command shell async timeout statusMessage", HK0, " "); for (i in HK0) HK[HK0[i]] = 1
+      # B08R3Z3-1: the provision hook gate.sh binds, each value as written, s a string and l a literal; PM the matcher of its group
+      CV["type"] = "scommand"; CV["command"] = "s" GD "exec bash \\\"$CLAUDE_PROJECT_DIR/.claude/cloud/provision\\\" --session-start"
+      CV["shell"] = "sbash"; CV["async"] = "lfalse"; CV["timeout"] = "l120"; PM = "startup|resume|clear|compact"
+      split("name carry source sha subdir note", TK0, " "); for (i in TK0) TK[TK0[i]] = 1   # B08R3Z3-3: a tools entry key
+      split("fetch builtin claude.ai no", CY0, " "); for (i in CY0) CY[CY0[i]] = 1   # and a carry
       NUM = "^-?(0|[123456789][0123456789]*)([.][0123456789]+)?([eE][-+]?[0123456789]+)?$"
     }
     function ft(v) { if (!W[f] || v < W[f]) W[f] = v }   # a fault of rank v; the lowest rank names the file
@@ -665,16 +681,18 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       if (d == 0 && (k != "{" || done)) bad[f] = 1
       q = (d > 0 && K[d] == "{") ? KY[d] : ""
       d++; K[d] = k; N[d] = q; KY[d] = ""; O[d] = ++no; ex = (k == "{") ? "K" : "V"
-      if (d == 4 && k == "{") { m = "-"; g0 = n + 1 }
-      if (d == 6 && k == "{") { h = ""; a = "-"; t = "-" }
+      if (d == 3) cy = ""; else if (d == 4 && k == "{") { m = "-"; g0 = n + 1; pg = 0 }   # cy the carry of a tools entry, pg the provision hooks of a group
+      if (d == 6 && k == "{") { h = ""; a = "-"; t = "-"; nk = gk = 0 }
     }
     function cl(k,   i) {
       if (d == 0) { bad[f] = 1; return }
       if (K[d] != (k == "}" ? "{" : "[")) bad[f] = 1
       if (f == 2 && K[d] == "{" && ((d == 1 || d == 4) && !((O[d], "hooks") in KS) || d == 6 && !(((O[d], "type") in KS) && ((O[d], "command") in KS)))) ft(SCH)
-      if (f == 3 && K[d] == "{" && (d == 1 && !((O[1], "tools") in KS) || d == 3 && N[2] == "tools" && !((O[3], "name") in KS))) ft(TBS)   # B08R3Z2-2
+      if (f == 3 && K[d] == "{" && (d == 1 && !((O[1], "tools") in KS) || d == 3 && N[2] == "tools" && !(((O[3], "name") in KS) && CY[cy] &&
+        (cy != "fetch" || ((O[3], "source") in KS) && ((O[3], "sha") in KS) && ((O[3], "subdir") in KS))))) ft(TBS)   # B08R3Z3-3: tools, a name, a carry, and for fetch its three
+      if (f == 2 && K[d] == "{" && ho() && N[3] == "SessionStart" && nk == 5 && gk == 5) pg++   # B08R3Z3-1: five keys, each as bound
       if (d == 6 && K[d] == "{" && h != "") { n++; E[n] = N[3]; H[n] = h; A[n] = a; T[n] = t; F[n] = f; nb[f]++; h = "" }
-      if (d == 4 && K[d] == "{") for (i = g0; i <= n; i++) M[i] = m
+      if (d == 4 && K[d] == "{") { for (i = g0; i <= n; i++) M[i] = m; if (m == PM) pc += pg }
       d--; ex = d ? "e" : "E"
       if (d == 0) done = 1
     }
@@ -683,9 +701,11 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       KS[O[d], s] = 1; KY[d] = s; ex = ":"
       if (f == 2 && d == 1 && s != "hooks") ft(TL)
       else if (f == 2 && (d == 4 && s != "matcher" && s != "hooks" || d == 6 && !(s in HK))) ft(SCH)
+      else if (f == 3 && (d == 1 && s != "about" && s != "tools" || d == 3 && !(s in TK))) ft(TBS)   # B08R3Z3-3: the toolbox keys, a closed set
+      if (f == 2 && d == 6) nk++
     }
     function sv(k, s,   y) {   # B08R3V-5: in settings, a value of type k ({, [, s a string, l a literal) where the schema allows it
-      if (f == 3 && (d == 0 && k != "{" || d == 1 && KY[1] == "tools" && k != "[" || d == 2 && N[2] == "tools" && k != "{" || d == 3 && N[2] == "tools" && KY[3] == "name" && k != "s")) ft(TBS)   # B08R3Z2-2: the toolbox shape
+      if (f == 3 && (d == 0 && k != "{" || d == 1 && k != "[" || d == 2 && k != (N[2] == "tools" ? "{" : "s") || d > 2 && k != "s")) ft(TBS)   # B08R3Z3-3: strings, nothing below an entry
       if (f != 2) return
       y = KY[d]
       if (d == 0 || d == 3 || d == 5) { if (k != "{") ft(SCH) }
@@ -699,8 +719,8 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       ex = d ? "e" : "E"
       if (d == 0) { bad[f] = 1; return }
       if (K[d] == "[") return
-      if (!lit && f == 2 && KY[d] == "command" && index(s, ".claude/cloud/provision")) pv = 1   # B08R3Z2-2: settings runs provision
-      else if (!lit && f == 3 && d == 3 && N[2] == "tools" && KY[3] == "name") NM = NM "\n" s
+      if (f == 2 && d == 6 && CV[KY[d]] == ((lit ? "l" : "s") s)) gk++   # B08R3Z3-1: a value as gate.sh binds it
+      else if (!lit && f == 3 && d == 3 && N[2] == "tools") { if (KY[3] == "name") NM = NM "\n" s; else if (KY[3] == "carry") cy = s }
       if (f == 2 && KY[d] == "command" && ho()) { nc++; if (!lit && index(s, GD) == 1) ng++ }   # B08R3Z-2
       if (!lit && d == 4 && KY[d] == "matcher") m = s
       else if (lit && d == 6 && KY[d] == "async") a = s
@@ -766,7 +786,7 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       else if (!c[1] || !c[2]) o = NP
       else if (u != "") o = u
       if (nc != ng) o = o " " (nc - ng) " command(s) without the CLAUDE_CODE_REMOTE guard;"
-      if (pv && PX) o = o " unreadable: .claude/cloud/provision (settings.json runs it, and git\047s index holds no executable file there);"
+      if (PB && !W[2] && !bad[2] && pc != 1) o = o " unreadable: " FN[2] " (" (pc + 0) " SessionStart hooks run provision as gate.sh binds it, not 1);"   # B08R3Z3-1
       print o
     }' "$a" "$b" 2>/dev/null)" \
     || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
@@ -809,20 +829,28 @@ if [ ! -L .claude ] && { [ ! -e .claude ] || [ -d .claude ]; }; then   # B08R3X-
   fi
 fi
 if [ "$CLOUD_IX" != "${CLOUD_IX#S}" ]; then
-  # The index once more: 1 first when provision is wanted and not there at 100755 (B08R3Z2-2), then
-  # stack.tsv's stage-0 regular blob, - for any other entry at that path, nothing for none (B08R3Z2-3).
+  # The index once more: 1 for a stage-0 toolbox, else 0 (B08R3Z3-1); provision's stage-0 100755 blob, or -;
+  # then stack.tsv's stage-0 regular blob, - for any other entry at that path, nothing for none (B08R3Z2-3).
   CLOUD_PS="$(printf '%s\n' "$CLOUD_LS" | LC_ALL=C awk '{ i = index($0, "\t"); p = substr($0, i + 1); split(substr($0, 1, i - 1), m, " ") }
-      substr(p, 1, 14) == ".claude/cloud/" { c = 1 } p == ".claude/cloud/provision" && m[1] == "100755" && m[3] == "0" { x = 1 }
+      p == ".claude/cloud/toolbox.json" && m[3] == "0" { t = 1 } p == ".claude/cloud/provision" && m[1] == "100755" && m[3] == "0" { x = m[2] }
       p == "projects/felix/stack.tsv" && s == "" { s = (m[3] == "0" && (m[1] == "100644" || m[1] == "100755")) ? m[2] : "-" }
-      END { print (c && !x) s }')"
-  CLOUD_PV="${CLOUD_PS:0:1}"; CLOUD_ST="${CLOUD_PS:1}"
+      END { print t + 0, (x == "" ? "-" : x), s }')"
+  CLOUD_PB="${CLOUD_PS%% *}"; CLOUD_ST="${CLOUD_PS#* }"; CLOUD_PX="${CLOUD_ST%% *}"; CLOUD_ST="${CLOUD_ST#* }"
   if git cat-file -e :.claude/settings.json 2>/dev/null; then CLOUD_BAD="$CLOUD_BAD$(_cloud_check)"
   else CLOUD_BAD="$CLOUD_BAD unreadable: .claude/settings.json (git's index holds no stage-0 copy of it);"; fi   # B08R3Z-6
+  if [ "$CLOUD_PB" = 1 ]; then   # B08R3Z3-2: provision's index blob, its first fault of four, counted as B08R3X counts NUL
+    CLOUD_PR=""   # a blob git cannot size reads as empty, so it fails closed
+    if [ "$CLOUD_PX" = - ]; then CLOUD_PR="settings.json runs it, and git's index holds no executable file there"
+    elif [ "$(git cat-file -s "$CLOUD_PX" 2>/dev/null || echo 0)" = 0 ]; then CLOUD_PR="empty in git's index"
+    elif [ "$(($(git cat-file blob "$CLOUD_PX" 2>/dev/null | LC_ALL=C tr -cd '\r' | wc -c)))" -gt 0 ]; then CLOUD_PR="a CR byte in git's index blob"
+    elif [ "$(($(git cat-file blob "$CLOUD_PX" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)))" -gt 0 ]; then CLOUD_PR="a NUL byte in git's index blob"; fi
+    [ -z "$CLOUD_PR" ] || CLOUD_BAD="$CLOUD_BAD unreadable: .claude/cloud/provision ($CLOUD_PR);"
+  fi
   [ "$CLOUD_ST" != - ] || CLOUD_BAD="$CLOUD_BAD unreadable: projects/felix/stack.tsv (not a regular file at stage 0 in git's index);"
   # Names read by the reader above, not jq: the gate runs on bash and git alone (constitution
   # invariant 2). A toolbox not in the index has no names, so every stack row fails; over a
   # toolbox fault, or a stack.tsv not read, no row is compared. Both sides from the index (B08R3Z-4).
-  CLOUD_TB=N; ! git cat-file -e :.claude/cloud/toolbox.json 2>/dev/null || CLOUD_TB="$(_cloud_check t)"
+  CLOUD_TB=N; [ "$CLOUD_PB" != 1 ] || CLOUD_TB="$(_cloud_check t)"
   if [ "$CLOUD_TB" = "${CLOUD_TB#N}" ]; then CLOUD_BAD="$CLOUD_BAD$CLOUD_TB"
   elif [ "${#CLOUD_ST}" -gt 1 ]; then   # B08R3Z2-4: membership in awk over the parsed names
     CLOUD_BAD="$CLOUD_BAD$(git cat-file blob "$CLOUD_ST" 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' | CLOUD_TB="$CLOUD_TB" LC_ALL=C awk -F'\t' '

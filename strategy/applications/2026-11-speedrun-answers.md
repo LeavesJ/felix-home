@@ -4,11 +4,12 @@ Draft, 2026-10-27, for the form at speedrun.a16z.com/apply (closes 2026-11-01, 1
 
 ## Before you submit
 
-1. **#464 lands first.** You approved it on 10-27, and it lands once its gate passes. It changes `docs/direction.md` row 10 to allow a narrow commercial track that includes fundraising applications, and row 19 to bring the second host forward, Factory's Droid and then Codex. The anything-else box now says Droid and then Codex are next, which matches the binding file only once #464 is on main. If it hasn't landed when you submit, change that clause back to "and a second host is planned".
+1. **#464 is on main** (7b0521a1, 10-27). `docs/direction.md` now allows a narrow commercial track that includes fundraising applications, and brings the second host forward: Factory's Droid, then Codex. The anything-else box says exactly that.
 2. **Sam Schmidgall's name.** Your BehaviorChangeBench notes (`private/01_mentors.md`) say his involvement is meant to stay separate unless Anthropic and Google both agree, and not to publish his name or affiliation without asking Peter first. The answers use the resume's wording, a Google DeepMind and UCSF TECH Lab project, and name nobody. Ask Peter before adding names.
 3. **The NeurIPS line.** Peter's 10-16 email asks for the Intro, Related Work and Methods "in the format of a NeurIPS eval track paper". His 09-12 email sets the goal of submitting "ideally by early next semester". The venue and its deadline were still open on your 10-16 list. The answer says the paper is being drafted in that format and aimed at next semester. If Peter has since confirmed NeurIPS as the venue, it can say so outright.
 4. **Entity and IP.** Nothing is incorporated under Daimonion yet. The brief records that whether Elenchus Labs' invention-assignment agreement reaches Felix "is genuinely unclear". Settle that before any term sheet.
 5. **Your resume and deck.** Both still say 363 stops blocked and 35.7%. The answers use 206.
+6. **The pilot line.** The anything-else box says the first outside pilot is planned for February. Be ready to say, when asked, that the team is at a company your family is connected to, that it's agreed in principle and unsigned, and that it needs Felix to run inside their network. Those details are in the interview list, not the box.
 
 ## Team
 
@@ -42,14 +43,14 @@ Right now I lead BehaviorChangeBench, a Google DeepMind and UCSF TECH Lab projec
 Earlier I built Elenchus, which more than 200 Berkeley students used. You bring it a real decision you've made, and it keeps asking you why until you can name what actually drove it. Building it taught me to distrust my own results: when I tested it properly, the technique I'd built it around did no better than a plain baseline, and I cut it. Felix comes from the same habit: don't believe the AI, or yourself, until something outside both has checked.
 <!-- /answer -->
 
-### Tell us more about the team (927 of 1000, before the [TK]s)
+### Tell us more about the team (834 of 1000, before the [TK]s)
 
 <!-- answer:team -->
-I'm building this because I needed it first. I hand coding agents as much of my work as they'll take, and the more I gave them, the more often one would tell me a job was done when nothing had shown it was. I could have pulled back and given them less. I wanted to give them more, and that meant building something that checks their work for me. Felix now runs on my own projects.
+I'm building this because I needed it first. I hand coding agents as much of my work as they'll take, and the more I gave them, the more often one would tell me a job was done when nothing had shown it was. I could have pulled back and given them less. I wanted to give them more, and that meant building something that checks their work for me. Felix now checks the agents on my own projects.
 
 I think that's the right way in. The teams that get the most out of agents won't be the ones that trust them least, but the ones that can check them. And checking AI is work I've already been doing: at Elenchus and at BehaviorChangeBench, a lot of my best work was catching AI being wrong, my own included.
 
-It's a team of one today. I don't have a cofounder yet [TK: or name one, as in progress], and I'd rather tell you that than list someone who isn't all in. If I get in, I'll take a leave from Berkeley for spring 2027 and build this full time in San Francisco.
+Right now it's just me [TK: or name a cofounder in progress], and if I get in, I'll take a leave from Berkeley for spring 2027 and build this full time in San Francisco.
 
 Advisors: [TK: Felix advisors, or cut this line]
 <!-- /answer -->
@@ -58,16 +59,16 @@ Advisors: [TK: Felix advisors, or cut this line]
 
 **Startup name:** Daimonion. Felix is the product the description and the other answers describe, so no other box changes.
 
-### One-liner (92 of 100)
+### One-liner (93 of 100)
 
 <!-- answer:oneliner -->
-Catches AI coding agents calling work done before it's been checked, for teams that use them
+Works out what AI coding agents' work needs, then checks it's really done, for software teams
 <!-- /answer -->
 
-### Startup description (738 of 800)
+### Startup description (790 of 800)
 
 <!-- answer:description -->
-Coding agents are good enough now to hand real work to, but it's still hard to know when they're actually done. The agent that wrote the code is also the one telling you it works, and it's often wrong in ways that look right. The tests passed on an older version of the code, or the feature passes every test and still misses what mattered. Felix sits between an agent saying "done" and that work counting as done. Today it sends an agent back when the project's own checks haven't passed on the exact code it's handing over, and it runs as an open-source plugin for Claude Code. Next, it works out what a project needed checked that nobody wrote down, like the rate limit one of my agents shipped without because no one had asked for it.
+AI coding agents answer two questions for themselves that they shouldn't: what does this work need, and is it done? Felix answers both. One half works out what a project needs, including what nobody thought to ask for, like the rate limit one of my agents shipped without. The other half sends an agent back when it calls work done before the project's checks have passed on the exact code it's handing over. Most tools do only one of these: they give agents more skills, or they gate on checks someone already wrote. Felix joins them, so a need nobody wrote down still has to be checked before the work counts, and the AI in Felix can add to what the work needs but never gets to say it's done. The checking half is live as an open-source Claude Code plugin, and I'm building the join now.
 <!-- /answer -->
 
 **Primary category:** [TK: the list wasn't in the paste. Developer tools if it's there.] **Secondary:** AI infrastructure, or security if there's no infrastructure option.
@@ -78,14 +79,14 @@ Coding agents are good enough now to hand real work to, but it's still hard to k
 
 **Website:** github.com/LeavesJ/Felix, until there's a site.
 
-### Anything else we should know? (989 of 1000)
+### Anything else we should know? (985 of 1000)
 
 <!-- answer:anything -->
-Why won't the agent vendors build this? A vendor grading its own agent is the same problem one level up, and teams already run agents from more than one vendor. Felix doesn't care which model wrote the code. It runs on Claude Code today, with Factory's Droid and then Codex next. The first buyer I'm going after is the platform lead at a 50 to 500 engineer company running several coding agents.
+Here's where this goes. Today you prompt an agent and hope. Felix becomes the layer between you and your agents. You say what you want and make the calls that are yours. Felix works out what engineering that takes, hands it to agents in short sessions with only the tools each one needs, and won't call it done until it's checked.
 
-Where it stands: Felix has one real user, me, and the half that catches missing requirements is still being built. The first outside test is likely a February pilot with a semiconductor supply-chain software team at a family-connected company. It's agreed in principle, nothing's signed, and it depends on Felix running inside their network, which it can't yet.
+The agent vendors can't be that layer. A vendor grading its own agent is the same problem one level up, and teams already run agents from more than one vendor. Felix doesn't care which model wrote the code. It runs on Claude Code today, with Factory's Droid and then Codex next. My first buyer is the platform lead at a 50 to 500 engineer company running several coding agents, and the first outside pilot, with a semiconductor supply-chain software team, is planned for February.
 
-If you use Claude Code, try it: clone github.com/LeavesJ/Felix and run felix audit. It installs nothing, just reads the transcripts Claude Code already keeps and shows how often your agent finished on an edit nothing had checked.
+If you use Claude Code, clone github.com/LeavesJ/Felix and run felix audit. It installs nothing and shows you how often your agent finished on an edit nothing had checked.
 <!-- /answer -->
 
 ## Show us more (all optional)
@@ -94,10 +95,10 @@ If you use Claude Code, try it: clone github.com/LeavesJ/Felix and run felix aud
 
 **Pitch deck:** optional. See "The deck" below before uploading anything: deck v4's slide 8 still says "363 unverified stops blocked", and these answers use 206.
 
-### Traction (758 characters, no limit shown)
+### Traction (712 characters, no limit shown)
 
 <!-- answer:traction -->
-No revenue or customers yet. Felix has one user, me, and it already catches things I'd have missed. In six weeks across 43 of my sessions, it stopped an agent from calling something done 206 times. Almost every time, the agent's evidence was stale (the tests had passed on older code), missing (they'd never run), or bad (they'd failed on the very code it was handing over). Sent back, the agents reran their checks about 130 times, and at least 15 of those runs failed, problems that would otherwise have slipped through. What I'm trying to shrink is how often I still have to step in myself: in a September pilot, readers marked 31% of my turns as me doing work the agent should have done. Felix is open source under Apache-2.0 at github.com/LeavesJ/Felix.
+Pre-revenue, and Felix is in daily use on my own projects. In six weeks across 43 of my sessions, it stopped an agent from calling something done 206 times. Almost every time, the agent's evidence was stale (the tests had passed on older code), missing (they'd never run), or bad (they'd failed on the very code it was handing over). Sent back, the agents reran their checks about 130 times, and at least 15 of those runs failed, problems that would otherwise have slipped through. The number I'm driving down is how often a person has to step in: in a September pilot, readers marked 31% of my turns as me doing work the agent should have done. Felix is open source under Apache-2.0 at github.com/LeavesJ/Felix.
 <!-- /answer -->
 
 **Funding history:** [TK: none, if no outside money has gone into Felix.]
@@ -114,9 +115,9 @@ Each box leads with what Felix is and why it matters, in the voice of someone ta
 |---|---|---|
 | Relevant experience | One question runs through BehaviorChangeBench, Elenchus and Felix: is the AI doing what it says? Elenchus is there for its 200+ Berkeley users and for cutting its own core technique when a blind test said to | Resume of 10-17 (BehaviorChangeBench, 200+ users); resume of 09-30 (the cross-examination, the technique cut after a blind rater); Peter's emails for the paper line. Not here: Sam's name (item 2 above), Elenchus Labs as a company you co-founded, ReserveGrid |
 | Team | Why you: you needed it first, you want agents doing more rather than less, and catching AI being wrong is work you've already done. Solo and full time come last, as the close | Your answers of 10-27; deck v3 slides 5 and 6 (extreme usage found the failures; push autonomy, distrust self-certification) |
-| One-liner | What it does and for whom, with no mechanism words | The README's first half |
-| Description | Agents grade their own homework; Felix sits between "done" and counting as done; next, the checks nobody wrote | The README's opening example and the rate-limit story |
-| Anything else | Why the vendors won't build it, the first buyer, an honest account of what isn't proven, and something they can run | The brief's vendor answer and first buyer; #464's row 19 for Droid and then Codex; direction §6 for the pilot boundary |
+| One-liner | Both halves, what the work needs and whether it's done, and who it's for | The README's headline, "Two questions an agent shouldn't answer alone" |
+| Description | The two questions agents answer for themselves; Felix answers both; most tools do one half, and joining them is the point, with the AI allowed to add work but never to sign it off | The README's two planes and "Where it's going" (the next step joins them); v3.2's rule that a model may propose but never make its conclusion authoritative; the rate-limit story |
+| Anything else | The full picture: the layer between a person and their agents, why the vendors can't be it, the second host, the first buyer and pilot, and something they can run | The README's "Where it's going"; the brief's vendor answer and first buyer; #464's row 19; direction §6 for the pilot |
 | Traction | The numbers, said plainly | The README's 206 holds in 43 sessions; the episode pilot's 31% (`docs/2026-09-23-episode-pilot.md`) |
 
 ## Saved for the interview
@@ -128,6 +129,8 @@ These are true, and they're the follow-up questions a partner asks once the boxe
 - 87,100+ model turns over 73 days (resume of 10-17); deck v3 adds about 109,000 tool calls.
 - How the hold works: a project names the checks it trusts, Felix records which code they passed on, an agent stopping on code they haven't passed on is sent back once, and `felix merge` refuses a branch without a current pass.
 - Of the 206 holds, 135 were checks that last ran on different code, 39 checks that never ran in that checkout, and 29 checks that failed on the exact code.
+- Where each half stands. Live and in daily use on your projects: the Stop hold, receipts and their staleness, `felix merge`, obligations that block while unchecked, project setup with a starter set of plugins, and plugin discovery that reads a plugin before installing it. Built with little real use: obligations a model proposes, advisory only (22 proposed on two projects, none admitted yet). Next: the join, where an obligation stays unmet until a qualified checker is attached. Designed, not built: `felix dispatch`. Felix has one real user so far, you.
+- The pilot: a semiconductor supply-chain software team at a company your family is connected to, agreed in principle, nothing signed, and waiting on Felix running inside their network.
 - Price, as a hypothesis only: about $1,000 a month plus $40 a committer.
 
 ## The name

@@ -949,5 +949,5 @@ unless the case says otherwise.
 - **A169** widened as B08R3Z3-4 says, and still green.
 - A161 and A162 keep their clause.
 
-Expected red on 20e12eef: A170 to A175 and A178 to A186 (15), and A179 if 20e12eef's
-intent-to-add entry reads 100755. The controls pass. Report each.
+Expected red on 20e12eef: A170 to A175 and A178 to A186 (15). A179 is red because its
+intent-to-add entry reads 100755 at stage 0 there. The controls pass. Report each.

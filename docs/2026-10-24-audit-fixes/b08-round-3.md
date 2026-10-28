@@ -522,3 +522,53 @@ of the repository today.
 Every case also greps its fixture for the byte or file it plants: `od` shows the NUL, or
 `git ls-files` shows the local file. A broken fixture cannot then pass for the rule.
 Expected red on 4d68d57f: A112 to A120 fail (9). A121 to A123 pass (3).
+
+## 9. Second follow-up: what section 8's review found
+
+The review of 24ae0a93 (section 8's fix) found one medium and two lows. Each is a way the cloud
+line says `ok`, or says different things on two machines, for a tree section 8 meant to fail.
+Their assertions, A124 onwards, are in part 1771 after A123, named `B08R3X A<n> (R3X-<m>...)`,
+over FC as for A69.
+
+- **B08R3X-1 (medium). `.claude` must be a real directory.** When `.claude` is a symlink on
+  disk, or the index holds an entry at the path `.claude` itself (a symlink, mode 120000, or a
+  gitlink, 160000), git does not resolve `.claude/settings.local.json` through it, so section
+  8's test cannot see a local settings file there.
+  - The cloud line is then FAIL. Its detail begins with
+    `unreadable: .claude (not a directory in the repository, so its settings files cannot be
+    judged);`.
+  - Nothing else is read from `.claude`.
+- **B08R3X-2 (low). The local-file test runs whatever settings.json's state.** B08R3W-2's test
+  runs before the check decides whether `.claude/settings.json` exists. A local settings file in
+  the index with no settings.json is cloud FAIL with the local clause, never `skipped`. With
+  neither file the cloud line is as today.
+- **B08R3X-3 (low). Nothing is counted in a file that cannot be read.**
+  - The guard counts (the commands naming harness hooks, and those carrying the
+    CLAUDE_CODE_REMOTE guard) are not taken from a settings file with a size or NUL fault.
+  - Over such a file the detail holds that file's clause and no guard-count clause.
+  - The counts are otherwise as today.
+- **Found, not this round's:** an unguarded command on the same line as a guarded one passes the
+  line-based guard count. The defect predates round 3. Counting per command string inside the
+  awk reader would fix it, and that is the batch owner's to schedule.
+
+### Assertions (part 1771, after A123)
+
+- **A124** (R3X-1) `.claude` committed as a symlink to a directory `cfg` that holds
+  settings.json, the cloud files and a settings.local.json added with `git add -f`: cloud FAIL,
+  the detail beginning with the `.claude` clause. The fixture checks `git ls-files -s -- .claude`
+  shows mode 120000.
+- **A125** (R3X-1) `.claude` a symlink on disk only, its target untracked and the real
+  `.claude` removed from the index: the same clause.
+- **A126** (control, R3X-1) the tree's own `.claude`, a real directory: cloud ok, the detail as
+  A122 pins it.
+- **A127** (R3X-2) the local file committed and settings.json removed from disk and index:
+  cloud FAIL, the local clause, no `skipped`.
+- **A128** (control, R3X-2) settings.json removed and no local file: the cloud line exactly as
+  4d68d57f prints it for that tree.
+- **A129** (R3X-3) settings.json with a NUL byte, and one line holding a guarded and an
+  unguarded harness command: the NUL clause, and no `without the CLAUDE_CODE_REMOTE guard`
+  clause.
+- **A130** (R3X-3) settings.json over 65536 bytes with that same line: the size clause, and no
+  guard-count clause.
+
+Expected red on 24ae0a93: A124, A125, A127, A129 and A130 fail (5). A126 and A128 pass (2).

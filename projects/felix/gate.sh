@@ -595,7 +595,10 @@ fi
 # async and timeout at twelve), when it is not one balanced object in the
 # plugin's shape, or when the commands naming harness/hooks/ it holds are not
 # the bindings read from it. A settings binding the plugin lacks (provision) is
-# allowed.
+# allowed. The reader decodes no escape, so a backslash that does not begin \"
+# makes a file unreadable (B08R3-1), and so does a key repeated in one object,
+# whose value is a parser's choice (B08R3-3); the clause names which, and
+# nothing is compared over such a file (B08R3-4, audit b08 round 3).
 _cloud_check() {
   local x out
   for x in engine/hooks/hooks.json .claude/settings.json; do
@@ -606,7 +609,7 @@ _cloud_check() {
     function op(k,   q) {
       if (d == 0 && (k != "{" || done)) bad[f] = 1
       q = (d > 0 && K[d] == "{") ? KY[d] : ""
-      d++; K[d] = k; N[d] = q; KY[d] = ""; EK[d] = (k == "{")
+      d++; K[d] = k; N[d] = q; KY[d] = ""; EK[d] = (k == "{"); O[d] = ++no
       if (d == 4 && k == "{") { m = "-"; g0 = n + 1 }
       if (d == 6 && k == "{") { h = ""; a = "-"; t = "-" }
     }
@@ -621,7 +624,7 @@ _cloud_check() {
     function val(s, lit,   p, r) {
       if (d == 0) { bad[f] = 1; return }
       if (K[d] == "[") return
-      if (EK[d]) { KY[d] = s; return }
+      if (EK[d]) { if (!lit) { if ((O[d], s) in KS) rep[f] = 1; KS[O[d], s] = 1 }; KY[d] = s; return }   # B08R3-3
       if (!lit && d == 4 && KY[d] == "matcher") m = s
       else if (lit && d == 6 && KY[d] == "async") a = s
       else if (lit && d == 6 && KY[d] == "timeout") t = s
@@ -641,7 +644,7 @@ _cloud_check() {
         ch = substr($0, i, 1)
         if (ch == " " || ch == "\t" || ch == "\r") continue
         if (ch == "\"") {
-          for (j = i + 1; j <= L; j++) { x = substr($0, j, 1); if (x == "\\") j++; else if (x == "\"") break }
+          for (j = i + 1; j <= L; j++) { x = substr($0, j, 1); if (x == "\\" && substr($0, ++j, 1) != "\"") esc[f] = 1; else if (x == "\"") break }   # B08R3-1
           if (j > L) { bad[f] = 1; break }
           val(substr($0, i + 1, j - i - 1), 0); i = j
         } else if (ch == "{" || ch == "[") op(ch)
@@ -650,6 +653,7 @@ _cloud_check() {
         else if (ch == ",") { if (d && K[d] == "{") EK[d] = 1 }
         else {
           for (j = i; j <= L; j++) if (index(" \t\r,:{}[]\"", substr($0, j, 1))) break
+          if (index(substr($0, i, j - i), "\\")) esc[f] = 1   # B08R3-1: a backslash outside any string
           val(substr($0, i, j - i), 1); i = j - 1
         }
       }
@@ -657,9 +661,11 @@ _cloud_check() {
     END {
       fin()
       for (i = 1; i <= n; i++) { R[i] = E[i] "\t" M[i] "\t" H[i] "\t" A[i] "\t" T[i]; c[F[i]]++ }
+      # B08R3-4: one clause per file, the escape before the repeat; a round-3 fault prints these alone.
+      for (i = 1; i <= f; i++) { q = esc[i] ? " (an escape other than \\\")" : (rep[i] ? " (a key repeated in one object)" : ""); if (q != "") r3 = 1; if (q != "" || bad[i]) u = u " unreadable: " FN[i] q ";" }
+      if (r3) { print u; exit }
       if (f != 2 || !c[1] || !c[2]) { print " unreadable: no event-to-hook pairs read from one of the two files"; exit }
-      for (i = 1; i <= 2; i++) if (bad[i]) o = o " unreadable: " FN[i] ";"
-      if (o != "") { print o; exit }
+      if (u != "") { print u; exit }
       for (i = 1; i <= n; i++) if (F[i] == 2) { full[R[i]] = 1; k = E[i] "/" H[i]; if (!(k in first)) first[k] = i }
       for (i = 1; i <= n; i++) if (F[i] == 1 && !(R[i] in full)) {
         k = E[i] "/" H[i]

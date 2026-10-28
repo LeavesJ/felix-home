@@ -6,7 +6,7 @@ C made every part run alone. D runs the parts in parallel, so that a suite turns
 
 The design's rule binds every item: weaken no check. That includes weakening by scheduling, where an assertion that a serial run makes over many parts' work is made over less, or is skipped where a serial run makes it.
 
-**Revision 16** (2026-10-22 UTC) records D8's cost clause as measured, after D landed as #456, sets how the gate's N is chosen, and by that rule makes it the performance-core count, in the last section. Revision 15 (2026-10-21 UTC) amended revision 14 after its review, in the section before it. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the one before that, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
+**Revision 17** (2026-10-28 UTC) sets the blind parts' time windows so that a full gate on a loaded machine does not fail them on D's build, after three gate runs did, in the last section. Revision 16 (2026-10-22 UTC) records D8's cost clause as measured, after D landed as #456, sets how the gate's N is chosen, and by that rule makes it the performance-core count, in the section before it. Revision 15 (2026-10-21 UTC) amended revision 14 after its review, in the one before that. Revision 14 (2026-10-21 UTC) amended revision 13 after the third pass of D8's evidence, in the one before that, revision 13 (2026-10-21 UTC) amended revision 12 after the second pass, in the section before it, revision 12 (2026-10-20 UTC) amended revision 11 after D5's class sweep and the fifth review of its build, in the section before it, revision 11 (2026-10-20 UTC) amended revision 10 after the first pass of D8's evidence on its build, in the one before that, revision 10 (2026-10-20 UTC) amended revision 9 after the fourth review of its build and CI's first Linux run of it, in the one before that, revision 9 (2026-10-19 UTC) amended revision 8 after the third review, in the one before that, revision 8 (2026-10-19 UTC) amended revision 7 after the second review, in the one before that, and revision 7 (2026-10-19 UTC) amended revision 6 after the first review, in the one before that. Each amendment names what it replaces. Revision 6 (2026-10-18 UTC) answered five reviews, kept in audits/2026-10-18-gate-friction-d/:
 - wf_00c91ec7-6df: 61 findings, 12 blockers;
 - wf_d8757a8b-3d0: 44 findings, 4 blockers;
 - wf_ccaff3a8-78b: 18 findings, 5 blockers;
@@ -1542,3 +1542,98 @@ R51's round was wf_23261517-5df: a blind author on 1293 and 1294 (90ecbaf7), the
 - Minor (contract), zero at step 1 against zero at step 2: R52's zero bullet. No code change.
 
 R52's check (wf_c24b9760-869: blind author d6c85156, builder dff87fad, Opus check) found all seven answered and gate.sh correct, with four more minor or low findings. The `08` claim and the stub bullet's key are answered in R52's text above. The step 2 zero hold and the real-machine names go to a blind author.
+
+## Amended for a full gate under load (revision 17, 2026-10-28)
+
+On 2026-10-28 three runs of `felix gate` on this Mac failed on names of 1293, 1294 and 1295 whose verdicts depend on time. Two ran on 5c5d2208 (main, 0.49.307) and one on PR #468's branch. The one-minute load was 100 to 230, from parallel audit worktrees running parts. Each of the three names passed when its part ran alone through `tests/run --part` at a load of about 200. The findings are audits/2026-10-18-gate-friction-d/evidence/gate-red-2026-10-28.md, cited as **g** with its item:
+- **g1**, 1293's forged case: the R1 name got `left at its exit: 31022 SN perl $TMP/d...`, the red-only holder H.
+- **g2**, 1294's D4 wait case: "the durations of the two units differ by under 5 s" got `2 apart [2 11]`, 11 s apart.
+- **g3**, 1295's R8 case: the `-j 3` run of every shell part reached its run bound of 150 s (exit 124). Its R8 name failed, and so did the R16, R28 and R31 names that read that run's log.
+
+This revision's own runs are **m17**, in evidence/runs/m17/: the parts trimmed to the case, run through the one-part runner while the machine ran other suites, with the load each run saw. Revision 7's conventions hold. File and line references are to 5c5d2208. The figures were measured on this Mac (10 cores, 8 of them performance cores; 16 GB) on 2026-10-28 (UTC), on /bin/bash 3.2.57.
+
+Revision 17 changes no rule of the runner, red or receipt.sh. It changes the time windows of the blind parts. A slow machine is then not a reason for any of them to fail on D's build, and each still fails on a build without the clause it names. R53 to R55 answer g1 to g3. R56 sets the rule for every window, and R57 is the sweep of 1291 to 1296 by that rule. Revision 9's rule holds for every name this revision changes: it is red against a build without the rule it names, and where the build has that rule, against a copy with the rule taken out, the report naming what was taken out and the FAIL it gave.
+
+### R53. R38, R44: the hold's C is counted from the record run's `failed` mark, and is 40 s
+
+Answers g1. R53 replaces R44's "*C* stays 10 s" bullet, and, in R38's and R44's step bullets, the words "then C = 10 s more after hold.go". Every other line of R38, R44 and R46 stands.
+- **What failed.** g1. The step's 10 s ran out before red's monitor ended red's suite. The step then ended by itself, H's parent went to pid 1, red's stopper (which walks the tree by parent) did not reach H, and H was in the record run's group at its exit.
+- **Why.** C is counted from hold.go. Between hold.go and the end of the step on D's build lie two spans:
+  - **go to mark.** The record run's own work after hold.go, up to `_par_run`'s `_rcp_mark failed` (D4, R1): the rest of its units, its log and the runner's failures. It grows with load and with the case. The forged case has the most of it.
+  - **mark to step end.** Red's monitor's next pass, once a second (R1), and the first TERM of `_stop_tree` (R2).
+
+  m17 measured both, on 1293's forged case three times with C counted as below, at one-minute loads of 280 to 335: go-to-mark 13,875, 16,121 and 25,664 ms, and mark-to-step-end 526, 1,003 and 1,183 ms. In revision 14's evidence the largest go-to-step-end was 7,061 ms at a load of 290 to 570 (runs/r44-summary.txt), while the sleeper case, whose failure comes at once, went from its sleep's start to the record run's exit in 1.3 to 2.1 s at the same load. Before that, at a load of 300 to 340, m17 ran the case as it stands. Its step ended by itself, with no mark seen within its 10 s. hold.go came 153 s after the run's start, the exit 77 s after hold.go, and the R1 name failed as g1's did. The first span is the one that grows.
+- **The rule.**
+  - **The step.** Once hold.go exists, the step waits for the record run's `failed` mark. It then waits C = 40 s more, and only then goes on, to the case's failure or to its end, without waiting for H. Without hold.go by B, or without the mark by B since the step started, it goes on, as R44 and R46 have it for hold.go.
+  - **The mark.** It is `$TMP/manifest.mark` of the record run (D4, R1), a regular file whose first line is `failed`. R41's stand-in mktemp makes the record run's `$TMP` one directory below the TMPDIR the case gives its runs, so the step looks there, every 0.1 s, for a file named `manifest.mark` one directory below that TMPDIR whose first line is `failed`. Only a record run with `_rcp_red` set writes that file (D4), so nothing of red's suite or its units is taken for it.
+  - **The verdict.** R46's verdict stands. The mark is not one of its files: on D's build red's monitor may end the step before it has seen the mark.
+  - **The evidence fields.** DJX_MLOG's line for a case that held gains `go-to-mark` (hold.mark minus hold.go, in ms) and `mark-to-step-end` (hold.ended minus hold.mark), where the step writes hold.mark, the millisecond it first saw the mark. A field whose file is missing reads `none`, as R46's do.
+- **What 40 s keeps apart.**
+  - **D's build.** Red's monitor reads the mark within a second and stops red's suite, the step and H with it. Only mark-to-step-end must stay under C: m17's largest was 1,183 ms, at a load of about 330.
+  - **A build without R1** (e3636d40's tests/red and tests/receipt.sh: red's monitor does not read the mark, and the record run's wait for red has no bound). Red's suite goes on 40 s after the mark and ends by itself, leaving H, and the record run exits with H in its group. The name fails, as R38 has it.
+  - **A build whose red does not end its suite on the mark, but whose record run ends red's tree when its own 60 s runs out** (R1's `_rcp_red_end ... 60`). That bound counts whole seconds of `$SECONDS` from just after the mark, so its stop comes 59 s or more after the mark. The step ends at 40 s and some tenths, so H has left red's tree by then, and the name fails. C sits 19 s below that stop, so that a step slowed by load still ends first.
+- **What it costs.** On D's build, nothing. Against a build without R1, 40 s and about a second a case, not 10. Since D landed, origin/main has R1, so red's suite passes these names against the base and only the evidence pays the cost.
+- **The cases.** 1293's 13 R1 cases (`_db3_rf`) and 1295's (R42 (e)). hold.pl's text is the same in both parts.
+- **D8 gains, as evidence.** For 1295's case and 1293's 13, three runs each way:
+  - against a copy whose tests/red and tests/receipt.sh are e3636d40's, each R1 name fails;
+  - against a copy of the branch with red's monitor not ending its suite on a `failed` mark, each R1 name fails, and the report names the line taken out;
+  - on the branch, each passes.
+
+  Then the branch three times again under 30 CPU burners, each started, recorded and ended by its pid. The report gives the largest go-to-mark and mark-to-step-end, with the load.
+
+### R54. R7, D4: the duration of the unit that waited is compared with its own wait
+
+Answers g2. R54 replaces 1294's D4 wait case (1294:708-720) and its two names.
+- **What failed.** g2. The case has two units with one slot, each sleeping 6 s, and asks that their durations differ by under 5 s. In a full gate at a load of about 200 they differed by 11 s.
+- **Why.** The case compares one unit's duration with another's. A duration (D6's "Time") runs from the epoch the unit's holder took its slot to the moment the parent reads its last line. So it holds the unit's own prelude and end, which load slows by different amounts in two units. m17 ran the case at a load of about 330. The two durations were 24 s and 21 s, and the unit that waited had waited 24 s, so of each unit's run about 15 to 18 s was its prelude and end, around a 6 s body. The wait itself is 6 s. A difference in the preludes of 5 s or more then decides the name, whether or not the wait was counted.
+- **The rule.**
+  - **The bodies.** Two parts, `-j 2`, `FELIX_TEST_SLOTS=1`. Whichever unit's body runs first holds the slot for 30 s: its body sleeps 30 s. The other's body sleeps 2 s. A body knows it is first when it makes a directory of the case's before the other does. So the unit that waited is the one whose body ran second, whichever wrapper took the slot.
+  - **R7's name.** The unit that waited gets exactly one wait note of R7's shape, and its seconds S are at least the 30 s the other held the slot. Load only lengthens the wait, so this floor holds at any load. The tail's own note is a separate line, as before.
+  - **D4's name.** The duration written for the unit the note names is less than S. A duration that counted the wait would run from the unit's first try for a slot. It would then be S plus the unit's own run, with whole seconds on both sides, so at least S + 1: never less than S.
+  - **Why it holds under load.** On D's build the waiting unit's duration is its own prelude, its 2 s and its end. S is at least the other unit's whole run: its prelude, its 30 s and its end. The name fails on D's build only if the waiting unit's prelude and end took 28 s more than the holder's. The two units' durations differed by 3 s in m17 at a load of about 330, and by 11 s in g2 at about 200.
+- **What it costs.** About 32 s and two preludes, against 12 s and two preludes.
+- **D8 gains, as evidence.** The new D4 name red against a copy of 0007 whose duration runs from the holder's first try for a slot, the report naming the line changed. On the branch it passes three times alone and three times under 30 CPU burners.
+
+### R55. A run bound is not a margin
+
+Answers g3. R55 adds to R12 ("every inner run under a bounded runner") and to R44's rule, which ties every hold's bound to the case's run bound B.
+- **What failed.** g3. 1295's `-j 3` run of every shell part, about 50 parts (`_db5_lim`, 150 s; 1295:318), reached its bound in a full gate at a load of 150 to 230. Four names read that run's log, and all four failed. In m17, at loads of 280 to 340, 1293's forged case's plain `-j 3` run reached its 150 s on two of four runs, and 1294's wait case reached its 100 s once. One forged record run, with B = 240 s, exited at 229 s. In revision 14's evidence the largest run-start-to-exit was 177 s (1295's record case, at a load of 227 to 570). In #455's record run (evidence/open-load-flakes-2026-10-22.md), 1294's D6 case reached its 240 s.
+- **Why.** A run bound (run.pl's alarm and its KILL of the run's group) is there so that a run that never ends fails in bounded time. On D's build every run a blind case makes ends by itself. No name tells a build without its clause apart by a run bound alone: where a case must see a run end within some time, that time is a margin (R56), not the run bound. Yet the bounds were set at 60 to 240 s, near a loaded machine's run times. The bound then fails D's build and decides nothing.
+- **The rule.**
+  - Every run bound in 1291 to 1296 is at least 600 s: the alarm of each part's run.pl (`_db1_lim` to `_db6_lim`, and the literal bounds given to run.pl), for every inner run that is not itself the subject of the case.
+  - A run whose bound the case means to reach, as the case's subject, is a margin by R56 and keeps its value: a case that checks run.pl itself, or a run killed at its bound on purpose.
+  - R44's ties follow B: H's own end at B + 30 s, the step's and the record half's waits for B, and the r27 cases' waits.
+  - A bound only costs time when a run does not end. On D's build nothing waits longer.
+- **D8 gains, as evidence.** The changed parts pass under 30 CPU burners, and the report gives each part's largest run time against its bound (from DJX_MLOG, or a log of each run's start and end).
+
+### R56. The rule for every time window of a blind part
+
+R56 adds to R12 and R44. It binds 1291 to 1296, and any part that later tests D's processes by the clock.
+
+A **time window** is a number of seconds or milliseconds that a case compares with a time it measured, or that bounds a wait. Each one is one of these kinds, and each kind has its rule.
+- **A bound** waits for something that comes on D's build, and its end says only that it never came: a run's bound, a wait for a file, a group's drain, a hold's own end. It is never what passes or fails a name on D's build when the machine is slow. A run's bound is R55's 600 s. A wait inside a case lasts until the case's run bound has passed, as R44 has it for holds. A drain after a run has ended (R12's 30 s) stands, since the processes it waits for are already killed.
+- **A margin** is a time T that a pass on D's build must stay under, where a build without the clause takes longer. Its value is set from the build it tells apart, not from D's measured time.
+  - **The ceiling.** L is the earliest moment at which a build without the clause could meet the window: a bound it has to wait out, a sleep or hold it has to outlast, a tick it has to wait for. Where the contract fixes it, L is read from the contract. Where it does not, the case names the build it means in a comment beside the window (for example, a holder that retries its slot only every 30 s), and that build gives L. T is at most L less 10 s.
+  - **The floor.** T is at least 20 s where D's build, inside the window, forks or runs anything: a unit, a run's log, a `ps` listing, a stopper's pass. It is at least 10 s where D's build only has to act on a signal it was sent, or on a file it polls for, with no fork. A window the evidence under burners (R57) finds above a fifth of its T is raised by the next revision.
+  - **When both cannot hold,** the case changes so that they can. It lengthens what the build without the clause has to wait out (a hold, a sleep). Or it counts the window from a later event the case can see (R53's mark), or compares with a time of the same run (R54's wait). It never lowers the floor.
+  - **Its cost.** A margin whose wait ends as soon as its event comes (a poll until the event or T) costs nothing on D's build when T grows. A window that always waits its whole T (a sleep, then a look) is turned into such a poll where its name allows it.
+  - **Its name** says T when it says a number.
+- **A floor** is a time that a pass must reach, such as a wait at least as long as a hold. Load only lengthens what it measures, so it stands.
+- **A gap** between two listings, such as `_db3_atexit`'s 0.1 s, decides whether a process is taken as one being torn down or one that is left. It stands where every process the case could find has been killed before the first listing. Where one could still be ending on its own, the case waits as a bound does.
+
+**The names.** A name changed by this rule reaches assertions.tsv and red.tsv through the record run, as R52's record bullet has it.
+
+### R57. The sweep of 1291 to 1296 by R56
+
+- **Who.** The blind authors, as R44's and R45's sweeps were: author A on 1291, 1292 and 1294; author B on 1293, 1295 and 1296. Each changes the windows in its own parts and nowhere else.
+- **What they report.** One row for each window: its line, the names its verdict decides, its kind, its value, what D's build does inside it by the contract (a run of units, a listing, a poll, a single kill), L for a margin, the floor R56 gives it and the time the evidence gives for it where any does, and its verdict: stands, raised (from and to), or the case changed (how).
+- **What it does not change.** No rule of the runner, red or receipt.sh. No name loses a check. A name whose check moves (R53, R54) is shown red against a build without its clause, as revision 9's rule says.
+- **D8 gains, as evidence.** 1291 to 1296, each through the one-part runner, three times under 30 CPU burners, with 0 FAIL. Then a full `felix gate` on the branch under 30 CPU burners, after the record run, with no FAIL in 1291 to 1296. The PR gives each run's load, wall time and FAIL lines.
+
+### Every finding of the 2026-10-28 gate runs, and where it went
+
+- g1, 1293's forged case: R53. C is counted from the `failed` mark and is 40 s. The step's go-to-mark span is now outside C.
+- g2, 1294's D4 wait case: R54. The duration of the unit that waited is compared with its own wait. The holder holds 30 s, and the waiter runs 2 s.
+- g3, 1295's R8 run: R55. Every run bound is at least 600 s.
+- The class, every time window of 1291 to 1296: R56's rule and R57's sweep.
+- #455's two load FAILs of 2026-10-22 (evidence/open-load-flakes-2026-10-22.md): 1293's R38 hold is R53's case, and 1294's D6 case at exit 124 is R55's. That note's two options were load-scaled bounds or no verdict above some load. Neither is taken. R55's bounds do not depend on load. R56's margins are set by the build they tell apart, and every run gives a verdict.

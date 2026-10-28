@@ -59,16 +59,16 @@ Advisors: [TK: Felix advisors, or cut this line]
 
 **Startup name:** Daimonion. Felix is the product the description and the other answers describe, so no other box changes.
 
-### One-liner (93 of 100)
+### One-liner (86 of 100)
 
 <!-- answer:oneliner -->
-Works out what AI coding agents' work needs, then checks it's really done, for software teams
+Turns your team's AI coding agents into autonomous engineers you don't have to babysit
 <!-- /answer -->
 
-### Startup description (790 of 800)
+### Startup description (794 of 800)
 
 <!-- answer:description -->
-AI coding agents answer two questions for themselves that they shouldn't: what does this work need, and is it done? Felix answers both. One half works out what a project needs, including what nobody thought to ask for, like the rate limit one of my agents shipped without. The other half sends an agent back when it calls work done before the project's checks have passed on the exact code it's handing over. Most tools do only one of these: they give agents more skills, or they gate on checks someone already wrote. Felix joins them, so a need nobody wrote down still has to be checked before the work counts, and the AI in Felix can add to what the work needs but never gets to say it's done. The checking half is live as an open-source Claude Code plugin, and I'm building the join now.
+AI coding agents answer two questions for themselves that they shouldn't: what does this work need, and is it done? Felix answers both. One half works out what a project needs, including what nobody thought to ask for, like the rate limit one of my agents shipped without, and brings in the tools to supply it. The other half, whether it's done, is deterministic. Most verification sold now is one AI grading another's work. In Felix, no model makes that call: a need counts as met only when a real check passes on the code being shipped, and anything it couldn't check counts as not done. Because the halves are joined, a need nobody wrote down still has to pass that check before the work counts. The deterministic half is live as an open-source Claude Code plugin. I'm building the join now.
 <!-- /answer -->
 
 **Primary category:** [TK: the list wasn't in the paste. Developer tools if it's there.] **Secondary:** AI infrastructure, or security if there's no infrastructure option.
@@ -115,8 +115,8 @@ Each box leads with what Felix is and why it matters, in the voice of someone ta
 |---|---|---|
 | Relevant experience | One question runs through BehaviorChangeBench, Elenchus and Felix: is the AI doing what it says? Elenchus is there for its 200+ Berkeley users and for cutting its own core technique when a blind test said to | Resume of 10-17 (BehaviorChangeBench, 200+ users); resume of 09-30 (the cross-examination, the technique cut after a blind rater); Peter's emails for the paper line. Not here: Sam's name (item 2 above), Elenchus Labs as a company you co-founded, ReserveGrid |
 | Team | Why you: you needed it first, you want agents doing more rather than less, and catching AI being wrong is work you've already done. Solo and full time come last, as the close | Your answers of 10-27; deck v3 slides 5 and 6 (extreme usage found the failures; push autonomy, distrust self-certification) |
-| One-liner | Both halves, what the work needs and whether it's done, and who it's for | The README's headline, "Two questions an agent shouldn't answer alone" |
-| Description | The two questions agents answer for themselves; Felix answers both; most tools do one half, and joining them is the point, with the AI allowed to add work but never to sign it off | The README's two planes and "Where it's going" (the next step joins them); v3.2's rule that a model may propose but never make its conclusion authoritative; the rate-limit story |
+| One-liner | The outcome in two seconds, in the "X for Y" shape the form's example uses: agents that do the whole engineering job, and a team that stops babysitting them. "Autonomous" is what sets it apart from the many agent control planes that govern by restricting | Your internal phrase, the autonomous engineering control plane, made concrete; the traction box's binding number, how often a person has to step in |
+| Description | The two questions agents answer for themselves. The capability half in one sentence, since readers will place it next to Factory. The trust half is deterministic: most verification sold now is one AI grading another's work, and in Felix no model decides whether work is done. The join: a need nobody wrote down still has to pass a real check | The README's two planes and "Where it's going"; v3.2's rule that a model may propose but never make its conclusion authoritative; the README's rule that "couldn't check" counts as failed; the rate-limit story. The tree binding is left as "the code being shipped", since it's one method, not the whole trust plane |
 | Anything else | The full picture: the layer between a person and their agents, why the vendors can't be it, the second host, the first buyer and pilot, and something they can run | The README's "Where it's going"; the brief's vendor answer and first buyer; #464's row 19; direction §6 for the pilot |
 | Traction | The numbers, said plainly | The README's 206 holds in 43 sessions; the episode pilot's 31% (`docs/2026-09-23-episode-pilot.md`) |
 

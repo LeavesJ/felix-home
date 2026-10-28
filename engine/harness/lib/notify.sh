@@ -119,13 +119,20 @@ _fn_rec() {   # STATE KIND PR ISSUE URL NOTE DETAIL
 }
 _fn_fail() { _fn_rec failed "$_FN_K" "$_FN_P" "${_FN_I:--}" - "$1" "$_FN_D"; }
 
-# B8. The event is the newest dispatched record's: same kind, pull request and detail. A failed or
-# no-alert-workflow record never counts, so an event that was not sent is attempted again (R4).
+# B8, as wave-2-combine D1 amends it: the event is a repeat when the newest record of its own kind and
+# pull request is dispatched with its detail. Records of other kinds and pull requests never count, and
+# a newest one that is failed or no-alert-workflow means it is attempted again (R4). D2: for paused, a
+# resumed row in the ledger (ledger.tsv, beside alerts.tsv) at or after that record's second ends the
+# pause it said, so the next pause is said too; a shared second counts as ended (one extra alert).
 _fn_same() {   # KIND PR DETAIL
-  local f="$_FN_DIR/alerts.tsv" tab=$'\t' got
+  local f="$_FN_DIR/alerts.tsv" l="$_FN_DIR/ledger.tsv" tab=$'\t' got t
   [ -f "$f" ] || return 1
-  got="$(LC_ALL=C awk -F'\t' 'NF == 8 && $2 == "dispatched" { r = $3 "\t" $4 "\t" $8 } END { print r }' "$f" 2>/dev/null)"
-  [ -n "$got" ] && [ "$got" = "$1$tab$2$tab$3" ]
+  got="$(FN_K="$1" FN_P="$2" LC_ALL=C awk -F'\t' 'NF == 8 && $3 == ENVIRON["FN_K"] && $4 == ENVIRON["FN_P"] { r = $1 "\t" $2 "\t" $8 }
+    END { print r }' "$f" 2>/dev/null)"
+  t="${got%%$tab*}"
+  [ -n "$got" ] && [ "${got#*$tab}" = "dispatched$tab$3" ] || return 1
+  [ "$1" = paused ] && [ -f "$l" ] || return 0
+  [ -z "$(LC_ALL=C awk -F'\t' -v t="$t" '$2 == "resumed" && $1 >= t { print "r"; exit }' "$l" 2>/dev/null)" ]
 }
 
 # R4. The failed and no-alert-workflow records after the newest dispatched one (all of them when
@@ -290,7 +297,7 @@ _fn_step_dispatch() {
 }
 
 # One attempt for one event: the kind, the pull request (or -) and the detail the banner shows (B1).
-# A record at the end of alerts.tsv, unless the event is the newest dispatched one's (B8).
+# A record at the end of alerts.tsv, unless the event repeats its own newest record (B8; wave-2-combine D1, D2).
 _fn_attempt() {   # KIND PR DETAIL
   [ -n "${_FN_DIR:-}" ] || return 0
   _FN_K="$(_fn_clean "${1:-}")"; _FN_P="$(_fn_clean "${2:--}")"; _FN_D="$(_fn_clean "$(_fn_tilde "${3:--}")")"; _FN_I=""

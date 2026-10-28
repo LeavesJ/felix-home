@@ -149,9 +149,15 @@ _felix_mon_mistake_row() {
 _felix_mon_project() {
   local proj="$1" home="$2" name gate rec
   name="$(basename "$proj")"
-  gate="$(felix_json_str "$proj/project.json" gate)"
-
-  printf '{"name":"%s","gate":"%s"' "$(_felix_json_esc "$name")" "$(_felix_json_esc "$gate")"
+  # A project.json that cannot be read is {"unknown":WHY}, not the empty string
+  # of a project that declares no gate (the same rule as capabilities below).
+  printf '{"name":"%s",' "$(_felix_json_esc "$name")"
+  if [ -f "$proj/project.json" ] && [ -r "$proj/project.json" ]; then
+    gate="$(felix_json_str "$proj/project.json" gate)"
+    printf '"gate":"%s"' "$(_felix_json_esc "$gate")"
+  else
+    printf '"gate":{"unknown":"%s"}' "$(_felix_json_esc "$proj/project.json cannot be read, so no gate is known")"
+  fi
 
   # 2026-10-01: an array is a list that was read, and a list that was not is
   # {"unknown":WHY}, which the page says as not known. Until then this read the
@@ -311,7 +317,10 @@ felix_monitor_json() {
   printf ',"projects":['
   for p in "$home"/projects/*/; do
     [ -d "$p" ] || continue
-    [ -f "${p}project.json" ] || continue
+    # A project whose project.json is gone or is not a file is still a project,
+    # and drops off the page only if nothing else says it is one; its gate is
+    # then said unknown (_felix_mon_project), not left out.
+    [ -e "${p}project.json" ] || [ -L "${p}project.json" ] || [ -f "${p}CLAUDE.md" ] || continue
     [ "$first" -eq 1 ] || printf ','
     first=0
     _felix_mon_project "${p%/}" "$home"

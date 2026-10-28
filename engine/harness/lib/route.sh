@@ -509,10 +509,10 @@ felix_route_step_used() {
   [ -n "$transcript" ] && [ -f "$transcript" ] || return 1
   case "$step" in *:*) owner="${step%%:*}" ;; *) owner="$step" ;; esac
   grep -q "\"attributionSkill\":\"$step\""    "$transcript" 2>/dev/null && return 0
-  # Owner-level answers apply ONLY to a step that is a bare plugin name. A
-  # qualified step is answered by the exact match above and has nothing left to
-  # ask; letting the owner lines speak for it is how one skill came to satisfy
-  # every step its plugin ships.
+  # Owner-level answers apply ONLY to a step that is a bare plugin name: letting
+  # the owner lines speak for a qualified one is how one skill came to satisfy
+  # every step its plugin ships. A qualified step has the exact match above and
+  # its bare skill name exactly, which a cloud session's project skill gets.
   #
   # Both lines were wrong, in different ways, and repairing either alone changes
   # nothing. The skill line was missing its closing quote, so it prefix-matched
@@ -525,7 +525,7 @@ felix_route_step_used() {
   # anyway. Every follow-through number this project has quoted was computed
   # against suggestions nobody was shown.
   case "$step" in
-    *:*) : ;;
+    *:*) grep -qF "\"attributionSkill\":\"${step#*:}\"" "$transcript" 2>/dev/null && return 0 ;;
     *)   grep -q "\"attributionSkill\":\"$owner:"  "$transcript" 2>/dev/null && return 0
          grep -q "\"attributionPlugin\":\"$owner\"" "$transcript" 2>/dev/null && return 0
          # A plugin that ships an MCP server shows up only as a tool name, so

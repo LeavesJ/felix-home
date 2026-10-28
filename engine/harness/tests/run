@@ -374,6 +374,8 @@ fi
 . "$HERE/parts/1700-hooks-and-gate-rows-blind.sh"
 . "$HERE/parts/1710-lander-serves-the-home-only-blind.sh"
 . "$HERE/parts/1720-lander-alerts-reach-github-blind.sh"
+. "$HERE/parts/1750-stop-says-what-it-could-not-judge-blind.sh"
+. "$HERE/parts/1760-prompt-hook-and-cloud-toolbox-blind.sh"
 . "$HERE/parts/1790-inventory-true-owners-blind.sh"
 . "$HERE/parts/1800-inventory-chip-windows-blind.sh"
 . "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"

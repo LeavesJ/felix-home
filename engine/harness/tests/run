@@ -381,6 +381,8 @@ fi
 . "$HERE/parts/1760-prompt-hook-and-cloud-toolbox-blind.sh"
 . "$HERE/parts/1790-inventory-true-owners-blind.sh"
 . "$HERE/parts/1800-inventory-chip-windows-blind.sh"
+. "$HERE/parts/1890-dated-lessons-mount-their-claim-blind.sh"
+. "$HERE/parts/1891-handoff-tree-and-seeded-graph-row-blind.sh"
 . "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"
 . "$HERE/parts/2031-felix-on-path-without-sudo-blind.sh"
 . "$HERE/parts/2070-cloud-kit-truthfulness-blind.sh"

@@ -5256,9 +5256,9 @@ cmd_handoff() {
   # The session-end list from the guidebook, as a check rather than a memory
   # exercise. Each line is something a person is about to not do.
   printf 'before you stop:\n'
-  local dirty; dirty="$(git -C "$root" status --short 2>/dev/null | grep -v '^??' || true)"
-  [ -n "$dirty" ] && printf '  [ ] the tree is dirty; commit it or say in the devlog why not\n' \
-                  || printf '  [x] tree is clean\n'
+  local dirty; if ! _felix_mem_tree dirty "$root"; then printf '  [?] whether the tree is clean is not known: %s\n' "$dirty"
+  elif [ -n "$dirty" ]; then printf '  [ ] the tree is dirty; commit it or say in the devlog why not\n'
+  else printf '  [x] tree is clean\n'; fi
   if git -C "$root" log -1 --format=%H >/dev/null 2>&1; then
     printf '  [ ] devlog entry for this work?   felix log "..."\n'
     printf '  [ ] anything durable to keep?     felix lesson "..."\n'

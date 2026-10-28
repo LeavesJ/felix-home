@@ -16,9 +16,15 @@ printf '\nthe cloud check fails closed on escapes and repeated keys (audit b08 r
 # and exit 1.
 #
 # Readings taken where the text leaves room:
-# - The contract's Decision 9 puts this block in part 1770. It is a part of its
-#   own here, as the workflow that wrote it asked, so it builds FC itself and runs
-#   alone; part 1040 allows the driver its 500th line.
+# - This block is a part of its own, as the workflow that wrote it asked, so it
+#   builds FC itself and runs alone; part 1040 allows the driver its 500th line.
+#   The contract records that since its review round (B08R3V-1), and holds the
+#   builder to part 1770's: every FC commit passes -c core.hooksPath=/dev/null.
+#
+# The review round (section 7 of the contract, B08R3V-1 to B08R3V-7, A85 to
+# A111) was written blind on 2026-10-28 from the same file, after A84. Its names
+# start "B08R3V A<n>". It adds the size, not-JSON, top-level and schema clauses;
+# "padded to N" puts blank lines after a file's first line until it is N bytes.
 # - cloud FAIL is the three things the contract names together: the line
 #   `  cloud              FAIL` once, the output's last line `gate: FAIL (cloud)`,
 #   and exit status 1. The detail is the line under the cloud line.
@@ -79,7 +85,7 @@ _b83Why=""
 if [ -z "$_b83Why" ] && { [ ! -f "$_b83H" ] || [ ! -f "$_b83S" ]; }; then
   _b83Why="no engine/hooks/hooks.json and .claude/settings.json in this tree"
 fi
-_b83_git() { local d="$1"; shift; _fx_git "$d" -c user.name=b08 -c user.email=b08@example.invalid -c commit.gpgsign=false "$@"; }
+_b83_git() { local d="$1"; shift; _fx_git "$d" -c user.name=b08 -c user.email=b08@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null "$@"; }
 _b83_mk() {   # dir: FC, this tree's gate and the two hook files beside the stubs, committed once
   local d="$1"
   mkdir -p "$d/engine/harness/bin" "$d/engine/harness/lib" "$d/engine/harness/tests" "$d/projects/felix" \
@@ -93,7 +99,7 @@ _b83_mk() {   # dir: FC, this tree's gate and the two hook files beside the stub
   chmod +x "$d/engine/harness/bin/schema-check" "$d/engine/harness/bin/independence-scan" "$d/engine/harness/tests/run"
   cp "$_b83H" "$d/engine/hooks/hooks.json" && cp "$_b83S" "$d/.claude/settings.json" || return 1
   ( _fx_cd "${d:?}" && git init -q -b main && git add -A \
-      && git -c user.name=b08 -c user.email=b08@example.invalid -c commit.gpgsign=false commit -qm fixture ) >/dev/null 2>&1
+      && git -c user.name=b08 -c user.email=b08@example.invalid -c commit.gpgsign=false -c core.hooksPath=/dev/null commit -qm fixture ) >/dev/null 2>&1
 }
 
 # The edit, one awk program for every case but A80's: the lines of the file B83_I
@@ -188,6 +194,53 @@ _b83_grp gS "$_b83SL"
 _b83Sub='=    "SubagentStart": ['
 _b83Pre='~harness/hooks/pre-tool'
 
+# The review round's clauses (section 7's terms), their reasons alone, and its lines.
+_b83ZS="unreadable: $_b83PS (larger than 65536 bytes);"; _b83ZH="unreadable: $_b83PH (larger than 65536 bytes);"
+_b83JS="unreadable: $_b83PS (not JSON);"; _b83JH="unreadable: $_b83PH (not JSON);"
+_b83TS="unreadable: $_b83PS (a top-level key other than hooks);"
+_b83KS="unreadable: $_b83PS (a key or value outside the hook schema);"
+_b83JT='(not JSON)'; _b83TT='(a top-level key other than hooks)'; _b83KT='(a key or value outside the hook schema)'
+_b83_l dah  '  "disableAllHooks": true,'
+_b83_l amo  '  "allowManagedHooksOnly": true,'
+_b83_l mod  '  "model": 5,'
+_b83_l env  '  "env": {},'
+_b83_l sTC  '            "statusMessage": "Checking the gate",'
+_b83_l cmt  "  // the cloud's hooks"
+_b83_l shN  '            "shell": "bash"'
+_b83_l t0   '            "timeout": 0120'
+_b83_l sTab "$(printf '            "statusMessage": "Checking\tthe gate"')"
+_b83_l hcm  '    // the subagent hooks'
+_b83_l zsh  '            "shell": "zsh",'
+_b83_l sm5  '            "statusMessage": 5,'
+_b83_l typ  '            "type": "prompt", "prompt": "ok",'
+_b83_l once '            "once": true,'
+_b83_l dsc  '        "description": "the deny path",'
+_b83_l ntf  '    "Notification": {},'
+_b83_l sUC  '            "statusMessage": "Checking'"$_b83U"'0020the gate",'
+: > "$_b83/l/none"
+_b83Top='={'; _b83Sh='=            "shell": "bash",'; _b83PreC='harness/hooks/pre-tool'
+_b83ShN="$(LC_ALL=C grep -cxF -e '            "shell": "bash",' "$_b83S" 2>/dev/null)"
+# hooks|settings n: n blank lines put after the first line of FC's copy.
+_b83_pad() { _b83_apply "$1" 'NR == 1 { print; n = ENVIRON["B83_P"] + 0; for (i = 0; i < n; i++) print ""; next } { print }' B83_P="$2"; }
+# hooks|settings bytes: FC's copy padded until it is that many bytes long.
+_b83_padto() {
+  local s
+  s="$(LC_ALL=C awk '{ print }' "$(_b83_file "$1")" 2>/dev/null | LC_ALL=C wc -c | LC_ALL=C tr -d ' ')"
+  _b83_pad "$1" "$(( $2 - ${s:-0} ))"
+}
+# hooks|settings test bytes: FC's copy's size passes [ size test bytes ], else a fixture fault.
+_b83_bytes() {
+  local s
+  s="$(LC_ALL=C wc -c 2>/dev/null < "$(_b83_file "$1")" | LC_ALL=C tr -d ' ')"
+  if [ -z "$s" ] || ! [ "$s" "$2" "$3" ]; then _b83Fx="$_b83Fx $1 is ${s:-?} bytes, not $2 $3;"; fi
+}
+# hooks|settings line n: FC's copy holds the line exactly n times, else a fixture fault.
+_b83_cnt() {
+  local n
+  n="$(LC_ALL=C grep -cxF -e "$2" "$(_b83_file "$1")" 2>/dev/null)"
+  [ "${n:-0}" = "$3" ] || _b83Fx="$_b83Fx $1 holds ${n:-0} lines [$2], not $3;"
+}
+
 _b83N69="B08R3 A69 (R3-1; S1): settings' PostToolUse group gains a matcher key spelled with a u-escape, value Read, as its first line: cloud FAIL, with the escape clause for settings"
 _b83N70="B08R3 A70 (R3-1; S2): settings' pre-tool hook gains a timeout key spelled with a u-escape, value 1, after its command: cloud FAIL, with the escape clause for settings"
 _b83N71="B08R3 A71 (R3-1, R3-4; S6): hooks.json gains a one-line PreCompact group whose command writes its slashes escaped, unbound in settings: cloud FAIL, with the escape clause for hooks.json and no not bound"
@@ -204,10 +257,42 @@ _b83N81="B08R3 A81 (R3-4): settings' line 2 written with its hooks key u-escaped
 _b83N82="B08R3 A82 (R3-2): settings' Stop statusMessage written with two quote escapes inside it: cloud ok (control)"
 _b83N83="B08R3 A83 (R3-2, R3-3): both files gain a PreCompact group under matcher auto with A64's one-line hook: cloud ok, quote escapes read and keys repeated across objects no repeat (control)"
 _b83N84="B08R3 A84 (R3-5): over A69 to A83, stubs for jq, python3 and node first on PATH record no call (control)"
+# The review round (contract section 7).
+_b83N85="B08R3V A85 (R3V-1; finding 1): FC's commits, its builder's first and a case's, run no git hook though a global core.hooksPath names hooks a plain commit runs (control)"
+_b83N86="B08R3V A86 (R3V-2; finding 5): settings padded with blank lines after its first line to 65,537 bytes: cloud FAIL, with the size clause for settings"
+_b83N87="B08R3V A87 (R3V-2; finding 5): settings with 2,100,000 newlines after its first line, over the 2 MiB Claude Code reads: cloud FAIL, with the size clause for settings"
+_b83N88="B08R3V A88 (R3V-2): settings padded the same way to exactly 65,536 bytes: cloud ok (control)"
+_b83N89="B08R3V A89 (R3V-2): hooks.json padded the same way to 65,537 bytes: cloud FAIL, with the size clause for hooks.json"
+_b83N90="B08R3V A90 (R3V-4; finding 2): settings gains disableAllHooks true after its first line: cloud FAIL, with the top-level clause"
+_b83N91="B08R3V A91 (R3V-4; finding 2): settings gains allowManagedHooksOnly true after its first line: cloud FAIL, with the top-level clause"
+_b83N92="B08R3V A92 (R3V-4; finding 3): settings gains model 5 after its first line: cloud FAIL, with the top-level clause"
+_b83N93="B08R3V A93 (R3V-4): settings gains env {}, a key Claude Code accepts, after its first line: cloud FAIL, with the top-level clause"
+_b83N94="B08R3V A94 (R3V-3; finding 3): settings' Stop statusMessage line gains a trailing comma: cloud FAIL, with the not-JSON clause for settings"
+_b83N95="B08R3V A95 (R3V-3; finding 3): settings gains a // comment line after its first line: cloud FAIL, with the not-JSON clause for settings"
+_b83N96="B08R3V A96 (R3V-3): the Stop hook's shell line loses its comma: cloud FAIL, with the not-JSON clause for settings"
+_b83N97="B08R3V A97 (R3V-3): the provision hook's timeout written 0120, digits with a leading zero: cloud FAIL, with the not-JSON clause for settings"
+_b83N98="B08R3V A98 (R3V-3): settings' Stop statusMessage holds a raw tab: cloud FAIL, with the not-JSON clause for settings"
+_b83N99="B08R3V A99 (R3V-3): hooks.json gains a // comment line before SubagentStart: cloud FAIL, with the not-JSON clause for hooks.json"
+_b83N100="B08R3V A100 (R3V-5; finding 4): settings' pre-tool shell bash becomes zsh: cloud FAIL, with the schema clause"
+_b83N101="B08R3V A101 (R3V-5; finding 4): settings' pre-tool hook gains statusMessage 5 after its command: cloud FAIL, with the schema clause"
+_b83N102="B08R3V A102 (R3V-5; finding 4): settings' pre-tool type command becomes type prompt with a prompt: cloud FAIL, with the schema clause"
+_b83N103="B08R3V A103 (R3V-5): settings' pre-tool hook gains once true, a key outside the six: cloud FAIL, with the schema clause"
+_b83N104="B08R3V A104 (R3V-5): settings' PreToolUse group gains a description key before its matcher: cloud FAIL, with the schema clause"
+_b83N105="B08R3V A105 (R3V-5): settings' pre-tool hook loses its shell line, an allowance of B26 that stands: cloud ok (control)"
+_b83N106="B08R3V A106 (R3V-5): settings gains a Notification event whose value is an object: cloud FAIL, with the schema clause"
+_b83N107="B08R3V A107 (R3V-6): A90's settings with A94's trailing comma: cloud FAIL, the not-JSON clause, and no top-level clause"
+_b83N108="B08R3V A108 (R3V-6): A90's settings with A100's zsh: cloud FAIL, the top-level clause, and no schema clause"
+_b83N109="B08R3V A109 (R3V-6): settings' Stop statusMessage with a u-escaped space and a trailing comma: cloud FAIL, the escape clause, and no not-JSON clause"
+_b83N110="B08R3V A110 (R3V-6): the plugin's PreToolUse matcher widened as in A25, with A90's settings: cloud FAIL, the top-level clause, and no bound differently"
+_b83N111="B08R3V A111 (R3-5, R3V-7): over A86 to A110, stubs for jq, python3 and node first on PATH record no call (control)"
 
 if [ -n "$_b83Why" ]; then
   for _b83n in "$_b83N69" "$_b83N70" "$_b83N71" "$_b83N72" "$_b83N73" "$_b83N74" "$_b83N75" "$_b83N76" \
-               "$_b83N77" "$_b83N78" "$_b83N79" "$_b83N80" "$_b83N81" "$_b83N82" "$_b83N83" "$_b83N84"; do
+               "$_b83N77" "$_b83N78" "$_b83N79" "$_b83N80" "$_b83N81" "$_b83N82" "$_b83N83" "$_b83N84" \
+               "$_b83N85" "$_b83N86" "$_b83N87" "$_b83N88" "$_b83N89" "$_b83N90" "$_b83N91" "$_b83N92" \
+               "$_b83N93" "$_b83N94" "$_b83N95" "$_b83N96" "$_b83N97" "$_b83N98" "$_b83N99" "$_b83N100" \
+               "$_b83N101" "$_b83N102" "$_b83N103" "$_b83N104" "$_b83N105" "$_b83N106" "$_b83N107" \
+               "$_b83N108" "$_b83N109" "$_b83N110" "$_b83N111"; do
     skip "$_b83n" "$_b83Why"
   done
 else
@@ -278,4 +363,108 @@ else
   if [ "$_b83Probe" = "jq b08r3-probe python3 b08r3-probe node b08r3-probe " ]; then _b83O="$(cat "$_b83/stub/calls" 2>/dev/null)"
   else _b83O="[the stubs do not record a call: their probe left (${_b83Probe:-nothing})]"; fi
   is "$_b83N84" "$_b83O" ""
+
+  # ======== The review round (contract section 7), A85 to A111
+  # ---- B08R3V-1: FC's commits run no hook (A85, control). The hooks record each
+  # run; a plain commit in a scratch repository must run them, or the probe proves
+  # nothing and A85 skips.
+  _b83K="$_b83/hk"; mkdir -p "$_b83K/hooks" "$_b83K/probe"
+  for _b83t in pre-commit prepare-commit-msg commit-msg post-commit; do
+    printf '#!/bin/sh\nprintf "%%s\\n" "%s" >> "%s/ran"\nexit 0\n' "$_b83t" "$_b83K" > "$_b83K/hooks/$_b83t"
+    chmod +x "$_b83K/hooks/$_b83t"
+  done
+  printf '[core]\n\thooksPath = "%s/hooks"\n' "$_b83K" > "$_b83K/gitconfig"
+  ( GIT_CONFIG_GLOBAL="$_b83K/gitconfig"; export GIT_CONFIG_GLOBAL
+    _fx_cd "$_b83K/probe" && git init -q -b main \
+      && git -c user.name=b08 -c user.email=b08@example.invalid -c commit.gpgsign=false commit -q --allow-empty -m probe ) >/dev/null 2>&1
+  _b83KP="$(LC_ALL=C tr '\n' ' ' 2>/dev/null < "$_b83K/ran")"; rm -f "$_b83K/ran"
+  ( GIT_CONFIG_GLOBAL="$_b83K/gitconfig"; export GIT_CONFIG_GLOBAL
+    _b83_mk "$_b83/fck" && _b83_git "$_b83/fck" commit -q --allow-empty -m case ) >/dev/null 2>&1
+  _b83KR="$(LC_ALL=C tr '\n' ' ' 2>/dev/null < "$_b83K/ran")"
+  _b83KN="$(_b83_git "$_b83/fck" rev-list --count HEAD 2>/dev/null)"
+  if [ -z "$_b83KP" ]; then skip "$_b83N85" "a plain commit here ran no hook named by GIT_CONFIG_GLOBAL's core.hooksPath, so the probe proves nothing"
+  else is "$_b83N85" "commits ${_b83KN:-none}; hooks run [$_b83KR]" "commits 2; hooks run []"; fi
+
+  # A111 reads the stubs' calls over A86 to A110 alone.
+  : > "$_b83/stub/calls"
+
+  # ---- B08R3V-2: size (A86 to A89)
+  _b83_start; _b83_padto settings 65537; _b83_bytes settings -eq 65537; _b83_go a86
+  _b83_fail "$_b83N86" "$_b83ZS"
+  _b83_start; _b83_pad settings 2100000; _b83_bytes settings -gt 2097152; _b83_go a87
+  _b83_fail "$_b83N87" "$_b83ZS"
+  _b83_start; _b83_padto settings 65536; _b83_bytes settings -eq 65536; _b83_go a88
+  _b83_ok "$_b83N88"
+  _b83_start; _b83_padto hooks 65537; _b83_bytes hooks -eq 65537; _b83_go a89
+  _b83_fail "$_b83N89" "$_b83ZH"
+
+  # ---- B08R3V-4: settings' top level (A90 to A93)
+  for _b83t in 90:dah 91:amo 92:mod 93:env; do
+    _b83_start; _b83_ed settings after "" "$_b83Top" "$_b83/l/${_b83t#*:}"
+    _b83_has settings "$(cat "$_b83/l/${_b83t#*:}")"; _b83_go "a${_b83t%%:*}"
+    eval "_b83n=\"\$_b83N${_b83t%%:*}\""
+    _b83_fail "$_b83n" "$_b83TS"
+  done
+
+  # ---- B08R3V-3: not JSON (A94 to A99)
+  _b83_start; _b83_ed settings instead "" '~"statusMessage"' "$_b83/l/sTC"
+  _b83_has settings "$(cat "$_b83/l/sTC")"; _b83_go a94
+  _b83_fail "$_b83N94" "$_b83JS"
+  _b83_start; _b83_ed settings after "" "$_b83Top" "$_b83/l/cmt"
+  _b83_has settings "$(cat "$_b83/l/cmt")"; _b83_go a95
+  _b83_fail "$_b83N95" "$_b83JS"
+  _b83_start; _b83_ed settings instead 'harness/hooks/stop' "$_b83Sh" "$_b83/l/shN"
+  _b83_has settings "$(cat "$_b83/l/shN")"; _b83_go a96
+  _b83_fail "$_b83N96" "$_b83JS"
+  _b83_start; _b83_ed settings instead "" '=            "timeout": 120' "$_b83/l/t0"
+  _b83_has settings "$(cat "$_b83/l/t0")"; _b83_go a97
+  _b83_fail "$_b83N97" "$_b83JS"
+  _b83_start; _b83_ed settings instead "" '~"statusMessage"' "$_b83/l/sTab"
+  _b83_has settings "$(cat "$_b83/l/sTab")"; _b83_go a98
+  _b83_fail "$_b83N98" "$_b83JS"
+  _b83_start; _b83_ed hooks before "" "$_b83Sub" "$_b83/l/hcm"
+  _b83_has hooks "$(cat "$_b83/l/hcm")"; _b83_go a99
+  _b83_fail "$_b83N99" "$_b83JH"
+
+  # ---- B08R3V-5: settings' hook schema (A100 to A106)
+  _b83_start; _b83_ed settings instead "$_b83PreC" "$_b83Sh" "$_b83/l/zsh"
+  _b83_has settings "$(cat "$_b83/l/zsh")"; _b83_go a100
+  _b83_fail "$_b83N100" "$_b83KS"
+  _b83_start; _b83_ed settings after "" "$_b83Pre" "$_b83/l/sm5"
+  _b83_has settings "$(cat "$_b83/l/sm5")"; _b83_go a101
+  _b83_fail "$_b83N101" "$_b83KS"
+  _b83_start; _b83_ed settings instead "" '=            "type": "command",' "$_b83/l/typ"
+  _b83_has settings "$(cat "$_b83/l/typ")"; _b83_go a102
+  _b83_fail "$_b83N102" "$_b83KS"
+  _b83_start; _b83_ed settings after "" "$_b83Pre" "$_b83/l/once"
+  _b83_has settings "$(cat "$_b83/l/once")"; _b83_go a103
+  _b83_fail "$_b83N103" "$_b83KS"
+  _b83_start; _b83_ed settings before '"PreToolUse"' '~"matcher"' "$_b83/l/dsc"
+  _b83_has settings "$(cat "$_b83/l/dsc")"; _b83_go a104
+  _b83_fail "$_b83N104" "$_b83KS"
+  _b83_start; _b83_ed settings instead "$_b83PreC" "$_b83Sh" "$_b83/l/none"
+  _b83_cnt settings '            "shell": "bash",' "$(( ${_b83ShN:-0} - 1 ))"; _b83_go a105
+  _b83_ok "$_b83N105"
+  _b83_start; _b83_ed settings before "" "$_b83Sub" "$_b83/l/ntf"
+  _b83_has settings "$(cat "$_b83/l/ntf")"; _b83_go a106
+  _b83_fail "$_b83N106" "$_b83KS"
+
+  # ---- B08R3V-6: one clause per file, in order, and no comparison (A107 to A110)
+  _b83_start; _b83_ed settings after "" "$_b83Top" "$_b83/l/dah"; _b83_ed settings instead "" '~"statusMessage"' "$_b83/l/sTC"
+  _b83_has settings "$(cat "$_b83/l/dah")"; _b83_has settings "$(cat "$_b83/l/sTC")"; _b83_go a107
+  _b83_fail "$_b83N107" "$_b83JS" -- "$_b83TT"
+  _b83_start; _b83_ed settings after "" "$_b83Top" "$_b83/l/dah"; _b83_ed settings instead "$_b83PreC" "$_b83Sh" "$_b83/l/zsh"
+  _b83_has settings "$(cat "$_b83/l/dah")"; _b83_has settings "$(cat "$_b83/l/zsh")"; _b83_go a108
+  _b83_fail "$_b83N108" "$_b83TS" -- "$_b83KT"
+  _b83_start; _b83_ed settings instead "" '~"statusMessage"' "$_b83/l/sUC"
+  _b83_has settings "$(cat "$_b83/l/sUC")"; _b83_go a109
+  _b83_fail "$_b83N109" "$_b83ES" -- "$_b83JT"
+  _b83_start; _b83_apply hooks "$_b83WIDEN"; _b83_ed settings after "" "$_b83Top" "$_b83/l/dah"
+  _b83_has hooks "$_b83WL"; _b83_has settings "$(cat "$_b83/l/dah")"; _b83_go a110
+  _b83_fail "$_b83N110" "$_b83TS" -- "bound differently"
+
+  # ---- B08R3-5 over the review round (A111, control)
+  if [ "$_b83Probe" = "jq b08r3-probe python3 b08r3-probe node b08r3-probe " ]; then _b83O="$(cat "$_b83/stub/calls" 2>/dev/null)"
+  else _b83O="[the stubs do not record a call: their probe left (${_b83Probe:-nothing})]"; fi
+  is "$_b83N111" "$_b83O" ""
 fi

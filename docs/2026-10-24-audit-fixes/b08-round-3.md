@@ -3,7 +3,7 @@
 Contract, 2026-10-28, for branch `claude/audit-b08-change-scoped-verification-and-receipt-f`
 at c86c55c6 (the review round, section 9 of the batch contract); line numbers are for that
 tree. It adds to `b08-change-scoped-verification-and-receipt-f.md` and changes none of its
-clauses.
+clauses but one: section 7's review round narrows B26 (B08R3V-5).
 
 ## 1. The finding
 
@@ -117,7 +117,8 @@ file.
   part 1780, and section 7's split. Round 3 is C110, so it lands with the first pull
   request, on green.
 - **Files.** The fix changes `projects/felix/gate.sh` only, inside `_cloud_check` and the
-  comment above it, and the assertions go in part 1770. Round 3 does not touch
+  comment above it, and the assertions go in part 1771, a part of their own (B08R3V-1;
+  this line first said part 1770). Round 3 does not touch
   `engine/harness/tests/receipt.sh` (risk row 45, the founder's pull request), `risk.tsv`
   or any other table, either hook file (red rows 33 and 36), or `.github/workflows`. It adds
   no column and no deny, escape or risk row.
@@ -132,8 +133,9 @@ file.
 
 ## 4. Assertions
 
-Part 1770 gets a round-3 block after A68. It is written blind from this file, red first,
-over FC as A23 is (`_b8c_case`). Each case starts from the tree's two files, edits one or
+Part 1771 holds the round-3 block (planned as a block of part 1770 after A68; B08R3V-1
+says why it is a part of its own). It is written blind from this file, red first, over
+FC built as part 1770 builds it. Each case starts from the tree's two files, edits one or
 both with an awk program, commits, runs the gate with `--quick`, and reads the cloud line
 and the detail. Each case also checks with `grep -cxF` that the edited file holds the
 exact line the case names, so an edit that wrote something else fails as a fixture and
@@ -219,10 +221,10 @@ of the three today.
 8. **Round-3 clauses suppress the comparisons and the no-pairs message.** A comparison over
    a file the check could not read is a guess, and the no-pairs text would hide the reason
    (A81).
-9. **The assertions go in part 1770, not a new part.** FC and its helpers live in 1770. A
-   new part needs a tests/run line, taking the driver from 499 lines to 500, its ceiling
-   (part 1040), and would rebuild FC or borrow 1770's functions, which a lone `--part` run
-   lacks. 1770 may pass 500 lines; part 1040's limit for a part is 1,000.
+9. **The assertions are in part 1771, a part of their own** (replaced; this decision first
+   put them in part 1770). The workflow that wrote them made the part, so it runs alone
+   under `--part`. The costs are recorded in B08R3V-1: the driver ends at 500 lines, part
+   1040's ceiling, and the part rebuilds FC, so its builder must match part 1770's.
 10. **gate.sh grows by at most 12 lines.** The rule is a few awk statements and one block
     in END. Anything larger is a rewrite of the reader, which round 3 does not ask for.
 11. **Text that is not JSON is left out** (section 6): round 3's scope is the finding.
@@ -246,3 +248,202 @@ the finding names: the gate reports bindings that Claude Code does not run.
   decide.
 - **gate.sh's length.** The batch's section 3 says `projects/felix/gate.sh` (652 lines) may
   not end longer than it began. c86c55c6 left it at 704, and round 3 does not restore it.
+
+## 7. Review round
+
+Five review findings against the round-3 fix (b6e9de57 and 8e634e4b), judged on
+2026-10-28 by the blind assertion author against sections 1 to 6. All five are real: the
+first because the contract and the tree disagreed, the other four because each shows
+the harm round 3 is for (the gate says `cloud ok` while the cloud runs fewer hooks or
+none) by a route these sections did not close. Claude Code's behaviour below is what the
+reviewers measured on 2.1.296; it was not re-run here. The clauses add to sections 2 to
+5; where one replaces a sentence there, it says so. Their assertions, A85 to A111, are
+in part 1771 after A84, named `B08R3V A<n> (R3V-<m>...)`.
+
+Terms as in section 2. In addition: *the size clause* is `unreadable: <path> (larger
+than 65536 bytes);`, *the not-JSON clause* is `unreadable: <path> (not JSON);`, *the
+top-level clause* is `unreadable: .claude/settings.json (a top-level key other than
+hooks);` and *the schema clause* is `unreadable: .claude/settings.json (a key or value
+outside the hook schema);`. *A review-round fault* is a fault under B08R3V-2 to B08R3V-5.
+
+**Finding 1 (medium): the assertions sat in a new part 1771 with a driver line, where
+§3, §4 and Decision 9 put them in part 1770, and 1771's copy of the FC builder had
+drifted.** Real: three sentences said part 1770 and the tree said 1771. Its
+`_b83_mk` and `_b83_git` committed without `-c core.hooksPath=/dev/null`, which part
+1770's `_b8c_mk` and `_b8c_git` pass, so a global `core.hooksPath` ran its hooks on
+every FC commit, unbounded. Resolved by amending the contract to the tree (the
+finding's second option), not by moving the block: the workflow made the part and runs
+it alone, and a move would rebuild 280 lines inside a 467-line part.
+
+**B08R3V-1. The part and its fixture.** Round 3's assertions and the review round's are
+in `engine/harness/tests/parts/1771-b08-round-3-blind.sh`, sourced by its own
+`tests/run` line after 1770's. That replaces §3's "the assertions go in part 1770", §4's
+first sentence and Decision 9, each now amended in place. The driver ends at 500 lines,
+part 1040's ceiling, so after this branch lands any part line on another branch needs
+room made first (b00-driver-room); every in-flight audit branch adds two or three driver
+lines, so that is owed with or without this one. Part 1771 builds FC as part 1770 does,
+and every git commit it makes in an FC checkout, the first one in its builder and each
+case's, passes `-c core.hooksPath=/dev/null` as 1770's do. A hook named by a global
+`core.hooksPath` never runs there. Fixed in the part in the same commit as this section.
+
+**Finding 5 (medium): a settings.json over 2 MiB is not read by Claude Code, and the
+gate read it and said `cloud ok`.** Real; the contract set no size. Claude Code read no
+hooks from a settings file of 2,098,408 bytes and read them from one of 2,096,360.
+
+**B08R3V-2. Size.** Either file longer than 65536 bytes is unreadable, whatever it
+holds, and nothing else is read from it: cloud FAIL with the size clause. A file of
+exactly 65536 bytes is read as any other. 65536 is far under Claude Code's 2 MiB and
+over twenty times the tree's settings.json (3,050 bytes).
+
+**Finding 2 (high): `"disableAllHooks": true` in settings.json turns off every hook, and
+the gate said `cloud ok`.** Real; the contract was silent on keys outside `hooks`.
+
+**Finding 3 (high): a value of the wrong type anywhere in settings.json, or text that is
+not JSON, makes Claude Code skip the whole file, and the gate said `cloud ok`.** Real.
+It also answers section 6's open question: Claude Code ran no hooks from a settings file
+with a `//` comment or a trailing comma, so the file Decision 11 left out runs nothing
+in the cloud under `cloud ok`. Decision 11 is withdrawn. The finding's other option,
+narrowing what the cloud line claims, is not taken: the cloud would still run no hooks,
+and nothing would say so.
+
+**B08R3V-3. Not JSON.** Either file is unreadable when it is not one JSON text (RFC
+8259): one value, with nothing but JSON whitespace (space, tab, line feed, carriage
+return) around it and between its tokens. Among the forms that are not JSON: a comment
+(`//` or `/* */`) outside a string; a comma before `}` or `]`, a missing comma, or two
+in a row; a bare word other than `true`, `false` and `null`; a number not in JSON's form
+(a leading zero as in `0120`, a leading `+`, `.5`, `1.`); a string in single quotes; a
+raw control character (a byte from 0x00 to 0x1F, a tab included) inside a string; an
+unterminated string; a bracket left open or closed twice; anything after the value; an
+empty file. The result is cloud FAIL with the not-JSON clause. Escapes are B08R3-1's,
+checked first, so this rule sees no backslash but the quote escape.
+
+**B08R3V-4. Settings' top level.** `.claude/settings.json`'s top-level object holds no
+key but `hooks`. Any other top-level key, whatever its name or value
+(`disableAllHooks`, `allowManagedHooksOnly`, `model`, `permissions`, `env`, `$schema`,
+any other, and a value Claude Code accepts as much as one it rejects), makes the file
+unreadable: cloud FAIL with the top-level clause. An allowlist, not a list of keys known
+to be harmful: the gate cannot know every key a later Claude Code reads, and a key it
+needs can be allowed later with a test.
+
+**Finding 4 (medium): a value Claude Code rejects in a field the check does not compare
+(`"shell": "zsh"`, `"statusMessage": 5`, `"type": "prompt"`) drops that hook, pre-tool
+and every deny row with it, and the gate said `cloud ok`.** Real, though B26 says `ok`
+"when only a statusMessage, shell or type differs". That allowance rests on the batch
+contract's section 6 ("neither is the deny path"), and the reviewers' probe shows it is
+false for a value Claude Code rejects: the hook is dropped and its sibling still runs.
+The finding's "shell must match the plugin's" is taken as "absent or `bash`", because
+B26 leaves `shell` uncompared and the plugin's file need not carry one.
+
+**B08R3V-5. Settings' hook schema.** `.claude/settings.json` is unreadable unless all of
+these hold. (a) Its top-level value is an object, and the value of `hooks` is an object.
+(b) Every value in that object is an array, and every element of such an array is an
+object (a group). (c) A group's keys are among `matcher` and `hooks`; it has `hooks`;
+`matcher`'s value is a string; `hooks`' value is an array whose every element is an
+object (a hook object). (d) A hook object's keys are among `type`, `command`, `shell`,
+`async`, `timeout` and `statusMessage`; it has `type` and `command`; `type`'s value is
+the string `command`; `command`'s is a string; `shell`'s, when present, is the string
+`bash`; `async`'s, when present, is `true` or `false`; `timeout`'s, when present, is a
+number written in digits alone; `statusMessage`'s, when present, is a string. A file
+that fails any of them gives cloud FAIL with the schema clause. This narrows B26, the
+one batch clause the review round changes: a `statusMessage` that is another string,
+and a `shell` absent from one file and `bash` in the other, still read `cloud ok`; a
+value Claude Code rejects does not; and settings' `type` is always `command`. Event
+names are not checked, and the plugin's hooks.json is not held to this schema (see
+below).
+
+**B08R3V-6. One clause per file, in order.** This replaces B08R3-4's second sentence. A
+file's one `unreadable:` clause is the first that applies of: the size clause
+(B08R3V-2), the escape clause (B08R3-1), the not-JSON clause (B08R3V-3), the repeat
+clause (B08R3-3), the top-level clause (B08R3V-4), the schema clause (B08R3V-5), then
+today's `unreadable: <path>;`. A review-round fault counts as a round-3 fault for the
+rest of B08R3-4: when either file has one, the binding reader prints the clauses,
+hooks.json's first, and nothing else (no `bound differently for the cloud:`, no `not
+bound for the cloud:`, no `no event-to-hook pairs`). The guard-count and toolbox clauses
+follow as today. Every fixture of A69 to A84 is JSON, under 65536 bytes and inside the
+schema, so each keeps its result.
+
+**B08R3V-7. Everything else.** B08R3-5 holds for these rules too: size, grammar and
+schema are read without `jq`, `python3` or `node`. B08R3-6 now reads: when neither file
+has a fault under B08R3-1, B08R3-3 or B08R3V-2 to B08R3V-5, the cloud line and its
+detail are what c86c55c6 prints. The tree's two files, and every fixture of A23 to A28
+and A61 to A68, are JSON, small and inside the schema, so part 1770 keeps its results.
+Decision 10 is replaced: gate.sh ends at most 80 lines longer than at 8e634e4b. Every
+other line of section 3 stands.
+
+### Assertions (part 1771, after A84; FC as for A69)
+
+Each case starts from the tree's two files, edits one or both, checks the edit as round
+3's cases do (`grep -cxF` for a named line, `wc -c` for a size), commits and runs the
+gate with `--quick`. *Padded to N* means blank lines put after the file's first line
+until it is N bytes long.
+
+- **A85** (R3V-1; finding 1) A global `core.hooksPath` (through `GIT_CONFIG_GLOBAL`)
+  names hooks that record each run, and a plain commit in a scratch repository runs
+  them. FC built by the part's builder, then one commit through the part's case helper:
+  both commits are made and no hook ran. (control: fixed in the part with this section)
+- **A86** (R3V-2; finding 5) Settings padded to 65,537 bytes: cloud FAIL, with the size
+  clause for settings.
+- **A87** (R3V-2; finding 5) Settings with 2,100,000 newlines after its first line (the
+  reviewers' file, over 2 MiB): cloud FAIL, with the size clause for settings.
+- **A88** (R3V-2) Settings padded to exactly 65,536 bytes: `cloud ok`. (control)
+- **A89** (R3V-2) hooks.json padded to 65,537 bytes: cloud FAIL, with the size clause
+  for hooks.json.
+- **A90** (R3V-4; finding 2) Settings gains `  "disableAllHooks": true,` after its first
+  line: cloud FAIL, with the top-level clause.
+- **A91** (R3V-4; finding 2) The same with `  "allowManagedHooksOnly": true,`.
+- **A92** (R3V-4; finding 3) The same with `  "model": 5,`.
+- **A93** (R3V-4) The same with `  "env": {},`, a key Claude Code accepts.
+- **A94** (R3V-3; finding 3, section 6) Settings' Stop `statusMessage` line gains a
+  trailing comma: cloud FAIL, with the not-JSON clause for settings.
+- **A95** (R3V-3; finding 3) Settings gains `  // the cloud's hooks` after its first
+  line: the same.
+- **A96** (R3V-3) The Stop hook's `"shell": "bash",` loses its comma: the same.
+- **A97** (R3V-3) The provision hook's `"timeout": 120` is written `"timeout": 0120`
+  (digits, so B29's layout holds): the same.
+- **A98** (R3V-3) Settings' Stop `statusMessage` holds a raw tab between `Checking` and
+  `the`: the same.
+- **A99** (R3V-3) hooks.json gains `    // the subagent hooks` before
+  `    "SubagentStart": [`: cloud FAIL, with the not-JSON clause for hooks.json.
+- **A100** (R3V-5; finding 4a) Settings' pre-tool `"shell": "bash",` becomes
+  `"shell": "zsh",`: cloud FAIL, with the schema clause.
+- **A101** (R3V-5; finding 4b) Settings' pre-tool hook gains
+  `            "statusMessage": 5,` after its command line: the same.
+- **A102** (R3V-5; finding 4c) Settings' first `"type": "command",` (pre-tool's) becomes
+  `"type": "prompt", "prompt": "ok",`: the same.
+- **A103** (R3V-5) Settings' pre-tool hook gains `            "once": true,` after its
+  command line: the same.
+- **A104** (R3V-5) Settings' PreToolUse group gains `        "description": "the deny
+  path",` before its matcher line: the same.
+- **A105** (R3V-5) Settings' pre-tool hook loses its `"shell": "bash",` line: `cloud ok`.
+  (control: B26's allowance that stands)
+- **A106** (R3V-5) Settings gains `    "Notification": {},` before
+  `    "SubagentStart": [`: cloud FAIL, with the schema clause.
+- **A107** (R3V-6) A90's settings with A94's trailing comma: cloud FAIL, the not-JSON
+  clause, and no top-level clause.
+- **A108** (R3V-6) A90's settings with A100's `zsh`: cloud FAIL, the top-level clause,
+  and no schema clause.
+- **A109** (R3V-6) Settings' Stop `statusMessage` written `"Checking the gate",`
+  (an escape and a trailing comma): cloud FAIL, the escape clause, and no not-JSON
+  clause. (true on 8e634e4b, which knows no not-JSON rule; it pins the order)
+- **A110** (R3V-6) The plugin's PreToolUse matcher widened as in A25, with A90's
+  settings: cloud FAIL, the top-level clause, and no `bound differently`.
+- **A111** (R3-5, R3V-7) Over A86 to A110, the stubs for `jq`, `python3` and `node`,
+  first on PATH, record no call. (control)
+
+Expected red on this commit (8e634e4b's gate): A86, A87, A89 to A104, A106 to A108 and
+A110 fail (22); A85, A88, A105, A109 and A111 pass (5). A69 to A84 keep round 3's
+results.
+
+### Found, not the review round's
+
+- **Event names.** An unknown event key in settings (`"Foo": []`) is not refused. No
+  probe showed Claude Code skipping a file for one, and a misspelled event the plugin
+  binds still reads `not bound for the cloud:`.
+- **The plugin's hooks.json against B08R3V-4 and B08R3V-5.** Not held to them. The
+  plugin loader reads it under its own schema, and a plugin hook Claude Code drops is
+  dropped in local sessions as well, so the cloud does not run less than a local session
+  does. Size and grammar (B08R3V-2, B08R3V-3) apply to both files.
+- **`.claude/settings.local.json`.** Claude Code reads it beside settings.json (its own
+  `disableAllHooks` message names both files). The repository does not ignore it; only
+  this machine's global git ignore does. A committed one could set `disableAllHooks` in
+  the cloud and the check would not read it. That is for the session holding the batch.

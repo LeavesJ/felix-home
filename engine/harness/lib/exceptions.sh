@@ -33,6 +33,11 @@
 # or the origin URL changed for it and put back, or an origin URL left at a
 # copy whose path ends in the declared remote_match. So does a forged reflog.
 #
+# The declared remote_match is the one of the project this repository's
+# .felix marker names, or this project's own with no marker: fixed state,
+# never a project the origin URL itself binds, which would let the URL being
+# checked choose what it is checked against (audit b12, round 3).
+#
 # DIRECTION OF FAILURE. A clearance widens: every reader here has one success
 # path — a well-formed row naming this obligation, a hash that prefixes this
 # row's hash by twelve or more characters, an expiry of the right shape that
@@ -138,12 +143,18 @@ _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; } 
 #              origin's writes it (a negative refspec, or one with no colon,
 #              writes nothing);
 #   remote_match  the URL git resolves for origin (insteadOf applied) does not
-#              name the remote_match of the project the repository itself binds
-#              (felix_resolve_project, marker first: a product's grant sits in
-#              the home's table, and the home's origin is the home's), or of this
-#              project when the repository binds none, read from the working
-#              tree, as the binding rule reads it. Not checked when that project
-#              declares none. The URL is never printed;
+#              name the remote_match of the project this repository's
+#              .felix marker names (a product's grant sits in the home's
+#              table, and the home's origin is the home's), or of this project
+#              with no marker; never the project the origin URL binds, which
+#              would be checked against the URL that chose it, a circular check.
+#              The marker is guarded by deny rows, the URL is not. A marker that
+#              names no project here, or names another one that declares none,
+#              is a doubt. Limits: with no marker, an origin left at a copy whose
+#              path ends in this project's own remote_match gets past; a project
+#              that declares none is not checked in its own repository; and the
+#              marker and remote_match are read from the working tree. The URL
+#              is never printed;
 #   reflog     the newest reflog entry does not name the ref's value, or did not
 #              begin with fetch, pull, clone or update by push. A ref with no
 #              reflog, which is what a clone leaves, is not doubted by this.
@@ -154,7 +165,7 @@ _felix_doubt() { printf '%s\n' "$(printf '%s' "$1" | LC_ALL=C tr -cd ' -~')"; } 
 # honest reflog and gets past it (see the head of this file), and so does a
 # forged reflog: it stops an accident and a ref written by hand, and is not a wall.
 felix_exceptions_doubt() {   # proj -> a line, or nothing
-  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m rp
+  local proj="$1" repo ref=refs/remotes/origin/main rc cur ent msg out url m rp f n
   repo="$(felix_exceptions_repo "$proj")" && [ -n "$repo" ] || return 0
   git -C "$repo" rev-parse --verify --quiet "$ref" >/dev/null 2>&1 || return 0
   git -C "$repo" symbolic-ref -q "$ref" >/dev/null 2>&1; rc=$?
@@ -195,12 +206,23 @@ felix_exceptions_doubt() {   # proj -> a line, or nothing
     "W "*) _felix_doubt "fetch: ${m#W } writes $ref from something other than origin's refs/heads/main"; return 0 ;;
     N)     _felix_doubt "fetch: remote.origin.fetch has no refspec that writes $ref"; return 0 ;;
   esac
-  # The table sits in REPO, so the remote_match that names REPO's origin is the one of the project REPO
-  # itself binds; a product's own names its own remote, not the home's.
-  rp="$(felix_resolve_project "$repo" "$repo" 2>/dev/null)" || rp=""
-  [ -n "$rp" ] || rp="$proj"
+  # Which project's remote_match, from fixed state alone (round 3, B12R3-1): no .felix entry of any
+  # kind, PROJ; a readable regular .felix naming a directory under REPO/projects/, that one; any
+  # other .felix, a doubt. Not felix_resolve_project, whose rule 2 lets the URL pick the project.
+  f="$repo/.felix"; n=""
+  if [ ! -e "$f" ] && [ ! -L "$f" ]; then rp="$proj"
+  else
+    if [ -f "$f" ] && [ -r "$f" ]; then n="$(LC_ALL=C tr -d '[:blank:]\n' < "$f" 2>/dev/null)" || n=""; fi
+    _felix_name_ok "$n" && [ -d "$repo/projects/$n" ] \
+      || { _felix_doubt "remote_match cannot be read: this repository's .felix marker names no project in it"; return 0; }
+    rp="$repo/projects/$n"
+  fi
   m="$(felix_json_str "$rp/project.json" remote_match 2>/dev/null)"
-  if [ -n "$m" ]; then
+  # B12R3-2: one that declares none goes unchecked only when it is PROJ, under any spelling of it.
+  if [ -z "$m" ]; then
+    [ "$rp" -ef "$proj" ] \
+      || { _felix_doubt "remote_match cannot be read: $n, the project this repository's .felix marker names, declares none"; return 0; }
+  else
     url="$(git -C "$repo" remote get-url origin 2>/dev/null)"; rc=$?
     if [ "$rc" -ne 0 ] || [ -z "$url" ]; then _felix_doubt "remote_match cannot be read: git exited $rc"; return 0; fi
     _felix_remote_slug "$url"

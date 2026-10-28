@@ -244,9 +244,7 @@ if [ -d "$GCACHE" ]; then
       printf '                     the live engine is %s, not the one main declares\n' "${GLIVE##*/}"
     fi
   else
-    # An entry at main's version that is not main's engine: felix install does not replace it, so the remedy is to move it (b02, C083).
-    GOLD=0; [ "${GRC:-}" = 1 ] && [ -n "$GVER" ] && [ -d "$GCACHE/$GVER/harness" ] && GOLD=1
-    MROOT=""
+    MROOT=""; GOLD=0; [ "${GRC:-}" = 1 ] && [ -n "$GVER" ] && [ -d "$GCACHE/$GVER/harness" ] && GOLD=1   # b02, C083: felix install does not replace an entry that exists, so its remedy is to move it
     if [ -r "$HOME/.claude/plugins/known_marketplaces.json" ]; then
       MROOT="$(sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' \
                  "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null \

@@ -1881,7 +1881,7 @@ cmd_merge() {
     # this command runs from the branch — so the code that answers is the code
     # main accepted, and nothing a candidate writes reaches it. After the
     # self-judgement guard, so a cache cut from the candidate is named as
-    # judging itself, which is the truer of the two refusals.
+    # judging itself, which is the truer of the two refusals. B30 (audit b02): a differing entry is named, with the way out, since felix install does not replace one.
     local tmpd="${TMPDIR:-/tmp}"
     jlib="$(mktemp -d "${tmpd%/}/felix-judge.XXXXXX" 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
     if ! git -C "$root" show "$base:engine/harness/lib/resolve.sh" > "$jlib/resolve.sh" 2>/dev/null; then
@@ -1895,8 +1895,7 @@ cmd_merge() {
       0) jentry="$jout" ;;
       3) _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
       2) _felix_merge_die "$dry" "$proj" "$branch" judge "cannot tell whether the judge is main's engine: $jout" ;;
-      *) # B30 (audit b02, C083): felix install does not replace an entry that exists, so naming it as the remedy sends the person in a circle. The entry is the directory above the kernel found, and the way out is to move it.
-         _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
     esac
     [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"

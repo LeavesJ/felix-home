@@ -1,7 +1,10 @@
 # Land on green: the commands that install, remove and report the scheduled job
 # (docs/2026-10-15-land-on-green-contract.md G9, A1). The tick is lib/green-tick.sh;
 # this file holds the trampoline launchd runs, the plist that names it, and the
-# read-only status. Sourced by felix beside green-tick.sh, outside the
+# read-only status, and the helpers the tick calls that did not fit under its 500
+# lines (the checkout helpers, A23; the retry and wait helpers, audit b02, in
+# docs/2026-10-24-audit-fixes/b02-land-tick-never-refuses-or-waits-silentl.md).
+# Sourced by felix beside green-tick.sh, outside the
 # lib/land*.sh trust-base glob like it, and for the same reason: it holds no
 # rule, only the order in which the existing ones are asked.
 
@@ -81,6 +84,142 @@ _gt_wt_asks() {   # DIR BRANCH SHA
   dc="$(_gt_common "$1")" && hc="$(_gt_common "$FELIX_HOME_DIR")" && [ -n "$dc" ] && [ "$dc" = "$hc" ]
 }
 
+# B1-B9 (audit b02). What lifts a refusal, said in its detail as one of three clauses.
+_GT_CR='(tried again when a new gate or commission receipt is written)'
+_GT_CF='(final until the head or main moves)'
+_GT_CH='(tried again an hour after this row)'
+_gt_clause() { case "$1" in receipt) printf '%s' "$_GT_CR" ;; final) printf '%s' "$_GT_CF" ;; *) printf '%s' "$_GT_CH" ;; esac; }
+
+# B1, B28. receipt: exit 3 and a blocker block of unverified and commission receipt lines only, so a new
+# receipt can lift it; final: exit 3 with any other block or none; hourly: any other status, and a block
+# of those lines with an unverified tests line among them, because that line is GitHub's answer (rule C9
+# asking it) and no receipt write lifts what GitHub says. The block follows the first line that is
+# exactly "not merging", past its one empty line, to the next empty line.
+_gt_class() {   # STATUS OUTPUT -> receipt, final or hourly
+  [ "$1" = 3 ] || { printf hourly; return 0; }
+  printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0; h = 0 }
+    s == 0 { if ($0 == "not merging") s = 1; next }
+    s == 1 { s = 2; if ($0 == "") next }
+    $0 == "" { exit }
+    { n++; if ($1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
+    END { print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'
+}
+
+# B4. What one receipt file holds, by its sum: - when absent, ? when unknown. Other bytes, other sum.
+_gt_sum() {   # FILE
+  local s
+  [ -n "$1" ] || { printf '%s' '?'; return 0; }
+  [ -e "$1" ] || { printf '%s' -; return 0; }
+  s="$(LC_ALL=C cksum < "$1" 2>/dev/null)"; printf '%s' "${s:-?}"
+}
+_gt_rsig() {   # WORKTREE -> what its gate receipt and the project's commission receipt hold now
+  local w; w="$(cd "$1" 2>/dev/null && pwd -P)" || w="$1"
+  printf 'gate %s commission %s' "$(_gt_sum "$(_felix_receipt_path "$w" "$FELIX_HOME_DIR")")" \
+    "$(_gt_sum "$(felix_commission_receipt_path "$FELIX_HOME_DIR" "$PROJ")")"
+}
+
+# B3-B6, B9. 0 when the pull request's newest row is a refusal that still stands: on this head and
+# this main, and either final (or from before the clauses), or hourly and under an hour old, or
+# receipt and the receipts hold what the tick recorded before that run. A receipt refusal with no
+# record is unknown, not unchanged, and is run once more. Sets _GT_SIG for the run about to follow.
+_gt_held() {   # PR SHA WORKTREE
+  local n="$1" T row t ev hd det age
+  T="$(printf '\t')"; _GT_SIG="$(_gt_rsig "$3")"
+  row="$(LC_ALL=C awk -F'\t' -v p="$n" '$3 == p { l = $1 "\t" $2 "\t" $4 "\t" $7 } END { print l }' "$_GT_LEDGER" 2>/dev/null)"
+  t="${row%%"$T"*}"; row="${row#*"$T"}"; ev="${row%%"$T"*}"; row="${row#*"$T"}"; hd="${row%%"$T"*}"; det="${row#*"$T"}"
+  [ "$ev" = refused ] && [ "$hd" = "$2" ] || return 1
+  case "$det" in *" [main $_GT_MS]") ;; *) return 1 ;; esac
+  case "$det" in
+    *" $_GT_CH [main "*)
+      age=$(( $(date -u +%s) - $(_gt_epoch "$t") ))
+      [ "$age" -ge 0 ] && [ "$age" -lt 3600 ] && return 0; return 1 ;;
+    *" $_GT_CR [main "*)
+      [ "$(cat "$_GT_LAND/retry.$n" 2>/dev/null)" = "$hd $_GT_MS $_GT_SIG" ] && return 0; return 1 ;;
+  esac
+  return 0
+}
+_gt_record() {   # PR SHA CLASS: after a refusal, what the receipts held before the run, kept for a receipt refusal only
+  if [ "$3" = receipt ]; then printf '%s %s %s\n' "$2" "$_GT_MS" "$_GT_SIG" > "$_GT_LAND/retry.$1" 2>/dev/null
+  else rm -f "$_GT_LAND/retry.$1"; fi
+  return 0
+}
+
+# B13. A job row (no pull request) is said when it is not the same wait as the newest job row, and
+# again, with when it began, each hour it lasts. The same wait: the same event and the same detail
+# up to the first "; ". The run it began is the unbroken run of such rows ending at the newest job
+# row; a row for a pull request does not break it.
+_gt_job_once() {   # EVENT DETAIL
+  local ev="$1" det="$2" hd tl run age
+  hd="${det%%; *}"; tl=""; case "$det" in *"; "*) tl="; ${det#*; }" ;; esac
+  run="$(GT_E="$ev" GT_H="$hd" LC_ALL=C awk -F'\t' '$3 == "-" { i = index($7, "; "); k = (i ? substr($7, 1, i - 1) : $7)
+      if ($2 == ENVIRON["GT_E"] && k == ENVIRON["GT_H"]) { if (!r) t = $1; r = 1; l = $1 } else r = 0 }
+    END { if (r) print l, t }' "$_GT_LEDGER" 2>/dev/null)"
+  if [ -n "$run" ]; then
+    age=$(( $(date -u +%s) - $(_gt_epoch "${run%% *}") ))
+    [ "$age" -ge 0 ] && [ "$age" -lt 3600 ] && return 0
+    det="$hd; still so since ${run#* }$tl"
+  fi
+  _gt_row "$ev" - - - 0 "$det"
+}
+
+# B12. The processes a gate-or-suite wait names: pid <p> (<its command, cut to 80 bytes>) for each.
+_gt_procs() {   # PIDS, one per line
+  local p c out="" s=""
+  for p in $1; do
+    case "$p" in ""|*[!0123456789]*) continue ;; esac
+    c="$(LC_ALL=C ps -o command= -p "$p" 2>/dev/null | LC_ALL=C cut -c1-80)"
+    out="$out${s}pid $p${c:+ ($c)}"; s=", "
+  done
+  printf '%s' "${out:-no pid}"
+}
+
+# B20, B30. felix install does not replace an entry that exists: say so when the one that differs was
+# there, and the way out, which is to move it aside and install again.
+_gt_didnt() {   # HAD ENTRY
+  [ "$1" = 1 ] || return 0
+  printf 'it existed before the install, and felix install does not replace an entry that exists, so %s stays as it is. The way out: move %s aside, then run felix install --no-bump in the home. The first difference: ' "$2" "$2"
+}
+
+# B31. The verify's hook checks. A hook that fails open looks like a hook that works, so each is
+# asked for something it can only give when it loaded: the home's session-start must print its
+# context (a governed home always has some, and one that could not load its libraries exits 0 and
+# prints nothing, audit b02 C100), and its pre-tool must refuse a pattern kill with 2, which project
+# felix's deny row does for every killall. The payload names a command nothing ever runs, and the
+# probe's own record goes to a memory directory of its own, so it is no "denied" row of the project's.
+# stop is not run: its block needs a governed, dirty checkout with no receipt (roadmap step 12).
+_gt_hooks() {   # HOME -> 0 when both hooks answered as a working home's do; else the reason on stdout, 1
+  local home="$1" out rc mem=""
+  out="$(printf '{"session_id":"felix-land-verify","source":"startup","cwd":"%s"}\n' "$home" \
+    | ( cd "$home" && "$home/engine/harness/hooks/session-start" ) 2>/dev/null)"
+  rc=$?
+  [ "$rc" -eq 0 ] || { printf "session-start: the home's hooks/session-start exited %s on a stub payload" "$rc"; return 1; }
+  [ -n "$out" ] || { printf "session-start: the home's hooks/session-start exited 0 and printed nothing on a stub payload, and a governed home always prints its context, so it did not load"; return 1; }
+  [ -x "$home/engine/harness/hooks/pre-tool" ] || { printf "pre-tool: the home has no executable hooks/pre-tool, which must refuse a pattern kill"; return 1; }
+  mem="$(mktemp -d "${TMPDIR:-/tmp}/felix-land-verify.XXXXXX" 2>/dev/null)" || mem=""
+  printf '{"session_id":"felix-land-verify","hook_event_name":"PreToolUse","tool_name":"Bash","tool_input":{"command":"killall felix-verify-probe"},"cwd":"%s"}\n' "$home" \
+    | ( cd "$home" && FELIX_MEMORY="${mem:-${FELIX_MEMORY:-$HOME/.felix/memory}}" "$home/engine/harness/hooks/pre-tool" ) >/dev/null 2>&1
+  rc=$?
+  [ -z "$mem" ] || rm -rf "$mem"
+  [ "$rc" -eq 2 ] || { printf "pre-tool: the home's hooks/pre-tool exited %s on a Bash payload of killall felix-verify-probe, and project felix's deny row makes it exit 2, so it fails open" "$rc"; return 1; }
+  return 0
+}
+
+# B22-B25, B29. The brakes leave a row, with the session that used them, once the file says so: a
+# command that could not write or remove land/paused says why, writes no row and exits 1.
+_gt_by() { printf 'by session %s' "${CLAUDE_CODE_SESSION_ID:--}"; }
+_gt_hand_pause() {   # REASON
+  _gt_pause "$1" && [ -e "$_GT_LAND/paused" ] || { printf 'felix land: could not write %s: the job is not paused\n' "$_GT_LAND/paused" >&2; return 1; }
+  _gt_row paused - - - 0 "$1; $(_gt_by)"; return 0
+}
+_gt_hand_resume() {
+  local why
+  [ -e "$_GT_LAND/paused" ] || return 0
+  why="$(LC_ALL=C sed -n 1p "$_GT_LAND/paused" 2>/dev/null)"
+  rm -f "$_GT_LAND/paused"
+  [ ! -e "$_GT_LAND/paused" ] || { printf 'felix land: could not remove %s: the job is still paused\n' "$_GT_LAND/paused" >&2; return 1; }
+  _gt_row resumed - - - 0 "the pause read: $why; $(_gt_by)"; return 0
+}
+
 _gt_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
 _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 
@@ -96,20 +235,54 @@ _gt_sq() { printf "'%s'" "$(printf '%s' "$1" | LC_ALL=C sed "s/'/'\\\\''/g")"; }
 # entry is main's engine (A1). A cache entry at main's version number that a
 # branch installed is not main's engine, and this check is what tells the two
 # apart. In every other case it runs nothing: it writes one deploy-owed row
-# naming the case (not again while the ledger's last row says the same), sends
-# one notification and exits 1. It never runs the newest entry, another version
-# or any working tree.
+# naming the case (not again while the ledger's last row says the same, and
+# again with when it began each hour it lasts, B15), sends one notification and
+# exits 1. It never runs the newest entry, another version or any working tree.
+# The one exception (B16) is a home whose own main, strictly behind origin/main,
+# has an installed engine that main's check accepts: that engine's tick deploys
+# main's, so it is run, and writes its own rows.
 _gt_trampoline_body() {
   cat <<'TRAMPOLINE'
 cache="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix"
-owed() {   # DETAIL [KIND]: say why nothing runs, once, and stop; KIND is deploy-owed unless A31's unreadable
-  k="${2:-deploy-owed}"; t="$(printf '%s\t%s' "$k" "$1")"
-  [ "$(tail -n 1 "$ledger" 2>/dev/null | LC_ALL=C cut -f2,7)" = "$t" ] || {
+owed() {   # DETAIL [KIND]: say why nothing runs, once an hour, and stop; KIND is deploy-owed unless A31's unreadable
+  k="${2:-deploy-owed}"; d="$1"
+  # B15: the same wait as the ledger's last row (its kind, and its detail up to the first "; ") is not
+  # written again inside the hour, and after it is written with when the run of such rows began.
+  w="$(GT_K="$k" GT_D="$d" LC_ALL=C awk -F'\t' -v now="$(date -u +%Y-%m-%dT%H:%M:%SZ)" '
+    function ep(t,   a, y, m, e, o, n, c) { split(t, a, /[-T:Z]/); y = a[1] + 0; m = a[2] + 0; if (m <= 2) y--
+      e = int(y / 400); o = y - e * 400; n = int((153 * (m + (m > 2 ? -3 : 9)) + 2) / 5) + a[3] - 1
+      c = o * 365 + int(o / 4) - int(o / 100) + n; return (e * 146097 + c - 719468) * 86400 + a[4] * 3600 + a[5] * 60 + a[6] }
+    function hd(s,   i) { i = index(s, "; "); return i ? substr(s, 1, i - 1) : s }
+    { if ($2 == ENVIRON["GT_K"] && hd($7) == hd(ENVIRON["GT_D"])) { if (!r) t0 = $1; r = 1; l = $1 } else r = 0 }
+    END { if (!r) print "new"; else if (ep(now) - ep(l) >= 0 && ep(now) - ep(l) < 3600) print "skip"; else print "still " t0 }' "$ledger" 2>/dev/null)"
+  case "$w" in still*) tl=""; case "$d" in *"; "*) tl="; ${d#*; }" ;; esac; d="${d%%; *}; still so since ${w#still }$tl" ;; esac
+  [ "$w" = skip ] || {
     mkdir -p "$(dirname "$ledger")"
-    printf '%s\t%s\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$k" "$1" >> "$ledger"
-    osascript -e "display notification \"Felix land: $1\" with title \"Felix: $k\"" >/dev/null 2>&1
+    printf '%s\t%s\t-\t-\t-\t0\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$k" "$d" >> "$ledger"
+    osascript -e "display notification \"Felix land: $d\" with title \"Felix: $k\"" >/dev/null 2>&1
   }
-  echo "felix land: $1" >&2; exit 1
+  echo "felix land: $d" >&2; exit 1
+}
+accepts() {   # REF: main's own felix_accepted_deploy_diff on the home and REF, read from origin/main as below; its status, 4 when it cannot be loaded
+  local t r
+  t="$(mktemp -d "${TMPDIR:-/tmp}/felix-land.XXXXXX" 2>/dev/null)" || return 4
+  git show refs/remotes/origin/main:engine/harness/lib/resolve.sh > "$t/resolve.sh" 2>/dev/null || { rm -rf "$t"; return 4; }
+  env -u FELIX_KERNEL_CACHE /bin/bash -c '. "$1" >/dev/null 2>&1
+    command -v felix_accepted_deploy_diff >/dev/null 2>&1 || exit 3
+    felix_accepted_deploy_diff "$2" "$3" >/dev/null 2>&1' felix-land "$t/resolve.sh" "$FELIX_HOME_DIR" "$1"
+  r=$?; rm -rf "$t"; return "$r"
+}
+plugver() { LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p; }
+handmerge() {   # B16: main's entry is missing; the home's own main, strictly behind origin/main, may deploy it
+  local h
+  [ "$(git symbolic-ref HEAD 2>/dev/null)" = refs/heads/main ] || return 1
+  git merge-base --is-ancestor refs/heads/main refs/remotes/origin/main 2>/dev/null || return 1
+  [ "$(git rev-parse refs/heads/main 2>/dev/null)" != "$(git rev-parse refs/remotes/origin/main 2>/dev/null)" ] || return 1
+  h="$(git show refs/heads/main:engine/.claude-plugin/plugin.json 2>/dev/null | plugver)"
+  [ -n "$h" ] && [ -x "$cache/$h/harness/felix" ] || return 1
+  accepts refs/heads/main || return 1
+  echo "felix land: main's engine $ver is not installed under $cache, and the home's main is behind origin/main with its own engine $h installed and accepted: $h's felix land --tick deploys $ver" >&2
+  exec env -u FELIX_ALLOW_RED -u FELIX_KERNEL -u FELIX_KERNEL_CACHE "$cache/$h/harness/felix" land --tick
 }
 cd "$FELIX_HOME_DIR" 2>/dev/null || owed "the trampoline cannot enter FELIX_HOME_DIR ($FELIX_HOME_DIR), so no engine is run"
 # A31: entering a directory is not a read. Before anything else, and with no fork, open a file
@@ -128,10 +301,10 @@ un="$(git ls-files --others -- engine 2>/dev/null)" || owed "git could not list 
 [ -z "$un" ] || owed "the home holds an untracked or ignored file under engine/ ($(printf '%s\n' "$un" | LC_ALL=C sed -n 1p)): nothing runs until it is removed"
 pj="$(git show refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>/dev/null)" \
   || owed "git could not read origin/main's engine version, so no engine is run"
-ver="$(printf '%s\n' "$pj" | LC_ALL=C sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | LC_ALL=C sed -n 1p)"
+ver="$(printf '%s\n' "$pj" | plugver)"
 [ -n "$ver" ] || owed "origin/main declares no readable engine version, so no engine is run"
 entry="$cache/$ver"
-[ -e "$entry/harness/felix" ] || owed "main's engine $ver is not installed under $cache: nothing runs until it is deployed from the home"
+[ -e "$entry/harness/felix" ] || { handmerge; owed "main's engine $ver is not installed under $cache: nothing runs until it is deployed from the home"; }
 [ -x "$entry/harness/felix" ] || owed "main's engine $ver is not executable under $cache: nothing runs until it is deployed from the home"
 tmp="$(mktemp -d "${TMPDIR:-/tmp}/felix-land.XXXXXX" 2>/dev/null)" \
   || owed "main's accepted-engine check cannot be loaded: no temporary directory to read it into"
@@ -144,7 +317,7 @@ rc=$?
 rm -rf "$tmp"
 case "$rc" in
   0) ;;
-  1) owed "the cache entry for main's $ver differs from origin/main's engine, so it is not main's engine: nothing runs until main is deployed from the home" ;;
+  1) owed "the cache entry for main's $ver differs from origin/main's engine, so it is not main's engine, and felix install does not replace an entry that exists, so $entry stays as it is: nothing runs until then, so move $entry aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR)" ;;
   3) owed "main's accepted-engine check cannot be loaded: origin/main's lib/resolve.sh defines no felix_accepted_deploy_diff" ;;
   *) owed "main's accepted-engine check could not examine the entry for $ver (status $rc): nothing runs" ;;
 esac
@@ -184,6 +357,7 @@ _gt_install() {
   # A job already loaded is booted out first, or bootstrap refuses it.
   launchctl print "gui/$uid/felix.land.$p" >/dev/null 2>&1 && launchctl bootout "gui/$uid/felix.land.$p" >/dev/null 2>&1
   launchctl bootstrap "gui/$uid" "$plist" || die "launchctl bootstrap gui/$uid $plist failed; the files are written, the job is not loaded"
+  _gt_row installed - - - 0 "the job is armed: $plist; $(_gt_by)"   # B24
   printf 'land on green is installed for %s: %s\n' "$p" "$plist"
 }
 
@@ -192,6 +366,7 @@ _gt_uninstall() {
   launchctl bootout "gui/$(id -u)/felix.land.$p" >/dev/null 2>&1 || true
   rm -f "$HOME/Library/LaunchAgents/felix.land.$p.plist" "$HOME/Library/Application Support/felix/land/$p/tick"
   rmdir "$HOME/Library/Application Support/felix/land/$p" 2>/dev/null || true
+  _gt_row uninstalled - - - 0 "the job is disarmed: nothing lands unattended until felix land --install; $(_gt_by)"   # B25
   printf 'land on green is uninstalled for %s\n' "$p"
 }
 

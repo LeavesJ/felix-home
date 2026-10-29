@@ -81,12 +81,15 @@ graph node, and exits 0; or prints nothing and exits 1. In order:
    (default 5): exit 1, graphify not run.
 5. Runs exactly
    `graphify query "<prompt>" --budget <FELIX_GRAPH_BUDGET> --graph <graph file>`
-   (default budget 600), for at most `FELIX_GRAPH_TIMEOUT` seconds (default 4).
-   The command runs in a process group of its own. At the deadline the whole
-   group is killed, children included, so nothing it started can hold the
-   caller's output open; and any process still in the group when the command
-   exits by itself is killed then. Its stderr is discarded. A non-zero exit, a
-   kill at the deadline, or no output: exit 1.
+   (default budget 600), for at most `FELIX_GRAPH_TIMEOUT` seconds (default 4;
+   a value that is not a whole number of one or more is taken as the default,
+   so no setting removes the bound). The command runs in a process group of
+   its own. At the deadline the whole group is killed, children included, so
+   nothing it started can hold the caller's output open; and any process still
+   in the group when the command exits by itself is killed then. The group is
+   signalled until none of it is left, so a process that was being started at
+   that instant is caught too. Its stderr is discarded. A non-zero exit, a kill
+   at the deadline, or no output: exit 1.
 6. Reads graphify's lines of the form
    `NODE <label> [src=<src> loc=<loc> community=<anything>]`. Every other line
    is ignored. Tab and control bytes are removed from `<src>`, `<loc>` and
@@ -161,7 +164,8 @@ session's answer record is `<home>/state/answer/<session>.tsv`.
    ```
 
 9. When any listed file is a shell script (its name ends in `.sh`, or the first
-   128 bytes of its first line start `#!` and name `sh`, `bash` or `zsh`), the
+   128 bytes of its first line, counted as bytes whatever the locale, start
+   `#!` and name `sh`, `bash` or `zsh`), the
    block ends with one more paragraph, after a blank line:
 
    ```
@@ -179,7 +183,11 @@ Exits 0 when the graph exists, its stamp names a commit the holding checkout
 has, HEAD is one or more commits past it, and
 `graphify-out/.felix-refreshed-at` does not hold the holding checkout's HEAD;
 1 otherwise (no graph, no stamp, an unknown commit, current, or already
-refreshed at this HEAD). Prints nothing.
+refreshed at this HEAD). Prints nothing. The marker is a file of the checkout,
+read before session start's ownership gate, so it is read only when it is a
+regular file and not a symbolic link, and only its first 64 bytes; any other
+marker reads as absent. A checkout that commits it as a link to `/dev/zero`
+must not hold session start.
 
 ### A4. `felix_graph_refresh_bg <root>`, the marker
 
@@ -213,8 +221,9 @@ The prompt is read out of the payload only once all four hold.
 The prompt is the payload's `"prompt"` string, read up to its first unescaped
 double quote, with `\"` read as a quote and `\\` as a backslash. The rest of
 the payload is never part of the question. At most the first 16,384 bytes
-after the opening quote are read, so a pasted prompt of any size costs the
-same.
+after the opening quote are read, counted as bytes whatever the hook's locale,
+so a pasted prompt is parsed for the same cost whatever its size; finding the
+key is a scan of the payload, which grows with it, as the route's already does.
 
 ### U3. Where it goes
 
@@ -348,12 +357,15 @@ has a `given` or an `asked` row,
 - **The window.** A `touch` row can credit only the `answer` rows after the
   record's last `prompt` row before it: an answer is acted on in the turn it was
   given, as the baseline measures it.
-- **The match**, for a file `f` named by an `answer` row and a `touch` row's
-  third field `v`, with `R` any directory in the record's `root` rows wherever
-  they sit in it. It is the rule T1 applies when it writes the row; applied
-  again here it matches a row T1 wrote, which holds the file itself, to that
-  file's own `answer` row, and it reads a row holding a raw path or command the
-  same way:
+- **A row T1 wrote.** A `touch` row whose third field equals a file named by
+  an `answer` row in its window credits that file's rows and no other: T1
+  already decided which file the call reached, and a second reading of the
+  bare name could credit another (the basename rule would credit
+  `projects/x/CLAUDE.md` for a row naming `CLAUDE.md`).
+- **The match**, for any other `touch` row, a file `f` named by an `answer`
+  row and the row's third field `v`, with `R` any directory in the record's
+  `root` rows wherever they sit in it. It is the rule T1 applies when it writes
+  a row:
   - `Read`, `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, `Grep`, `Glob`: `v`
     equals `f` or `R/f`; when the record has no `root` row, `v` equal to `f` or
     ending in `/f`.
@@ -371,6 +383,12 @@ has a `given` or an `asked` row,
   `files_opened` counts the acted-on `answer` rows credited by a touch of any
   tool but `Bash`. `asked` counts `asked` rows, and `timeouts` those whose
   outcome is `timeout`. `sessions` counts sessions with at least one `given` row.
+- **What it cannot see.** A call that fails never reaches the post-tool hook
+  (PostToolUse runs after a successful call only), so it is never a touch. And
+  the post-tool hook runs asynchronously: a call made just before a prompt can
+  be recorded just after that prompt's row, and so fall outside its turn. Both
+  are left as they are; the baseline applies the first and cannot apply the
+  second.
 
 ### L5. `felix ledger` prints it
 
@@ -428,6 +446,13 @@ dedupe, and whether the session (its subagents included) then opened, edited or
 ran one of those files before the next person prompt, matched by L4's rule.
 That is the share a delivered answer has to beat.
 
+The replay counts what the live measure can count and nothing else: only
+sessions the hooks ran in (a session mark, the test L4 applies through
+`_felix_ledger_owns`), so automated SDK sessions that load no plugin are out;
+every prompt the user-prompt hook sees as a person's, a prompt queued while the
+model worked among them; a touch only from a call that succeeded; and a Bash
+value cut at 16,384 bytes of its escaped form, as T1 cuts it.
+
 ## 9. What changed after the review of 2026-10-29
 
 A1.5 (the bound kills the process group, at the deadline and after an exit),
@@ -443,3 +468,10 @@ the due test); R4 (new: session start uses the due test); L4 (the window, the
 token rule, root anchoring from any root row of the record, the match applied
 to a touch row's third field, `files_opened`, `asked`, `timeouts`); L5 (the line,
 the timeout clause, rounding). Sections 0, 1, 7 and 8 were corrected to match.
+
+And after the review of the amendment, the same day: A1.5 (a timeout that is
+not a whole number of one or more is the default; the group signalled until
+empty), A2.9 and U2 (bytes in any locale), A3 (the marker read only as a
+regular file, and only 64 bytes of it), L4 (a row T1 wrote credits its own file
+only; what the measure cannot see), section 8 (the replay's population and
+rules).

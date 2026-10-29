@@ -33,28 +33,50 @@ the call's path or command: the home sits in synced Documents, and a command
 can hold a credential.
 
 **The baseline, before any answer was delivered.** Replayed with the engine's
-own rules (graphify's CLI query: depth 2, budget 600; each node once a session;
-the turn up to the next person prompt as the window; subagents' tool calls
-included; the spec's L4 token rule) over the person prompts of 2026-10-15 to
-2026-10-28 in Felix's own checkouts: 485 asks in 358 sessions, 473 answered
-and 12 repeats. On 128 of the 473 (27%) the session went on to open, edit or
-run a file the answer would have named before its next prompt; 149 of 3,456
-named files (4%), 121 of them opened or edited and not only run. 470 of the 473
-answers were cut to graphify's budget. That is what a delivered answer has to
-beat. An earlier figure, 22.1% of prompts and 3.8% of files, is withdrawn: it
-came from graphify's in-process query, which walks depth 3 where the CLI the
-hook runs walks depth 2, and from looser rules than the engine's. The replay
-answers two weeks of prompts from today's graph, a little newer than the one
-those sessions had. Separately, the ledger's "queried 3 times" undercounted: it
-sees Skill calls only, and graphify run through Bash was about 60 real
-queries, almost all in the four sessions (09-03, 09-04, 09-10, 09-17) whose
-subject was graphify itself.
+own rules over 2026-10-15 to 2026-10-28, counting only what the live measure
+can count:
+- graphify's CLI query (depth 2, budget 600), each node once a session;
+- the turn up to the next person prompt as the window, a prompt queued while
+  the model worked included;
+- subagents' tool calls included, failed calls excluded (they never reach the
+  post-tool hook);
+- the spec's L4 rule, and Bash values cut as the hook cuts them;
+- only the 15 sessions the hooks ran in. 344 automated SDK review sessions in
+  the same folders load no plugin, so the live line can never see them.
+
+Result: 236 answers from 259 asks (22 repeats). On 25 of them (11%) the
+session went on to open, edit or run a file the answer would have named before
+its next prompt: 33 of 1,132 named files (3%), and only 6 of those opened or
+edited rather than run. The first answer of a session, the map the founder
+asked for, was acted on in 1 of 15 sessions. 234 of the 236 answers were cut to
+graphify's budget. Fifteen sessions is a small, clustered sample, so read 11%
+as roughly one answer in ten, not as a precise rate. That is what a delivered
+answer has to beat.
+
+Two earlier figures are withdrawn:
+- 22.1% of prompts and 3.8% of files, from graphify's in-process query, which
+  walks depth 3 where the CLI the hook runs walks depth 2;
+- 27% and 4%, which the review found counted the 344 SDK sessions and missed
+  queued prompts.
+
+The replay answers two weeks of prompts from today's graph, a little newer than
+the one those sessions had. The script and its output are in the side-session
+notes folder (`answers-baseline-replay.py`). Separately, the ledger's "queried
+3 times" undercounted: it sees Skill calls only, and graphify run through Bash
+was about 60 real queries, almost all in the four sessions (09-03, 09-04,
+09-10, 09-17) whose subject was graphify itself.
 
 **Read next.**
 - After a week of sessions on 0.49.311, `felix ledger`'s answers line against
-  27% of answers and 4% of files. If follow-through stays at baseline, the
-  answer is not changing behaviour and the next lever is its precision (fewer,
-  better files; almost every answer is cut to the budget), not its delivery.
+  11% of answers, 3% of files and 6 files opened or edited. Opened or edited
+  is the column to watch: "run" is mostly the felix CLI, which sessions run
+  anyway. If follow-through stays at baseline, the answer is not changing
+  behaviour, and the next lever is its precision (fewer, better files; almost
+  every answer is cut to the budget), not its delivery.
+- A prompt arriving while the model works ends the turn too, and the post-tool
+  hook runs asynchronously. So a call made just before such a prompt can land
+  just after its row and be credited to no answer. The spec's L4 names this;
+  it biases the live share down, not up.
 - Asks that time out. The bound is 4 s, and graphify took 3.3-4.8 s wall at a
   load average of 130-180. `felix ledger` says how many asks timed out; a large
   share means the bound or the budget is the lever.

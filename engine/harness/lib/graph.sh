@@ -155,9 +155,17 @@ felix_graph_refresh_bg() {
     # start and end ran another full update that could not clear it. A commit
     # landing during the run leaves the marker behind HEAD, so the next call
     # refreshes again, which is right.
+    #
+    # Written to a file made new for it and renamed into place, never through
+    # `>`: a checkout can carry the marker as a link, and `>` would follow it
+    # and overwrite whatever it names. A rename replaces the link itself. Not
+    # at all when graphify-out is itself a link, since then the rename lands
+    # wherever that points.
     _at="$(git -C "$home" rev-parse HEAD 2>/dev/null)"
-    if graphify update "$home" >/dev/null 2>&1 && [ -n "$_at" ]; then
-      { printf '%s\n' "$_at" > "$home/graphify-out/.felix-refreshed-at"; } 2>/dev/null
+    if graphify update "$home" >/dev/null 2>&1 && [ -n "$_at" ] && [ ! -L "$home/graphify-out" ]; then
+      _m="$home/graphify-out/.felix-refreshed-at"
+      _t="$(mktemp "$_m.XXXXXX" 2>/dev/null)" \
+        && { { printf '%s\n' "$_at" > "$_t" && mv -f "$_t" "$_m"; } 2>/dev/null || rm -f "$_t" 2>/dev/null; }
     fi
   ) </dev/null >/dev/null 2>&1 &
   return 0
@@ -167,15 +175,24 @@ felix_graph_refresh_bg() {
 # has moved past it, and no refresh has already run at this HEAD. Everything
 # else, including a stamp nobody can read, is not due, because a refresh cannot
 # make an unknown graph known. Spec A3 and A4.
+#
+# The marker is a file of the checkout, and session start asks this before its
+# ownership gate. So only a regular file that is not a link is read, and only
+# 64 bytes of it: a review planted the marker as a link to /dev/zero, and an
+# unbounded read of it never returned and held session start until the
+# platform killed the hook.
 felix_graph_refresh_due() {
-  local root="${1:-$PWD}" f stamp behind home head mark=""
+  local root="${1:-$PWD}" f stamp behind home head m mark=""
   f="$(felix_graph_file "$root")" || return 1
   stamp="$(felix_graph_stamp "$f")" || return 1
   behind="$(felix_graph_behind "$root" "$stamp")" || return 1
   [ "$behind" -gt 0 ] || return 1
   home="${f%/graphify-out/graph.json}"
   head="$(git -C "$home" rev-parse HEAD 2>/dev/null)" || return 1
-  { IFS= read -r mark < "$home/graphify-out/.felix-refreshed-at"; } 2>/dev/null
+  m="$home/graphify-out/.felix-refreshed-at"
+  if [ -f "$m" ] && [ ! -L "$m" ]; then
+    { IFS= read -r -n 64 mark < "$m"; } 2>/dev/null
+  fi
   [ "$mark" != "$head" ]
 }
 
@@ -221,9 +238,12 @@ felix_graph_ready() {
 # Linear in the payload. The first 16384 bytes after the opening quote, and the
 # first line by sed: a review measured ${x%%"$nl"*} at 7.9 s on a 200 KB paste
 # under bash 3.2 in a UTF-8 locale, because a JSON payload has no newline to
-# stop it and bash 3.2 rescans the rest of the string at every offset.
+# stop it and bash 3.2 rescans the rest of the string at every offset. In the C
+# locale, so the cut counts bytes whatever the hook's locale (a UTF-8 one kept
+# 16384 characters, up to four times the bytes) and the scans do not convert
+# the payload to wide characters first.
 felix_graph_prompt() {
-  local raw="$1" rest
+  local raw="$1" rest LC_ALL=C
   case "$raw" in *'"prompt"'*) ;; *) return 1 ;; esac
   rest="${raw#*\"prompt\"}"
   rest="${rest#*:}"
@@ -346,31 +366,39 @@ felix_graph_answer() {
 # waits on. The command runs in a process group of its own, set by both sides
 # of the fork so the alarm cannot land before the group exists, and the group
 # is killed at the deadline and again after the command exits, for anything it
-# left behind. A command ended by a signal exits 128 + the signal, never 0, so
-# a killed query is not read as an answer. macOS ships no timeout(1).
+# left behind: signalled until none of it is left, because on macOS a member
+# being forked or exec'd at the instant of one kill can miss it. A command
+# ended by a signal exits 128 + the signal, never 0, so a killed query is not
+# read as an answer. A deadline that is not a whole number of one or more is
+# the default: alarm(0) cancels the alarm, and no setting may remove the bound.
+# macOS ships no timeout(1).
 _felix_graph_bounded() {
   perl -e '
     my $t = shift;
+    $t = 4 unless defined $t && $t =~ /\A[0-9]+\z/ && $t > 0;
     my $pid = fork;
     exit 127 unless defined $pid;
     if ($pid == 0) { setpgrp(0, 0); exec @ARGV or exit 127 }
     setpgrp($pid, $pid);
-    $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid($pid, 0); exit 142 };
+    my $sweep = sub { for (1 .. 20) { kill("KILL", -$pid) or last; select(undef, undef, undef, 0.01) } };
+    $SIG{ALRM} = sub { kill "KILL", -$pid; waitpid($pid, 0); $sweep->(); exit 142 };
     alarm $t;
     waitpid($pid, 0);
     my $st = $?;
     alarm 0;
-    kill "KILL", -$pid;
+    $sweep->();
     exit(($st & 127) ? 128 + ($st & 127) : $st >> 8);
   ' "$@"
 }
 
 # Is <file> a shell script: named .sh, or a #! line naming sh, bash or zsh.
 # The first 128 bytes only, since an answer can name a minified file whose
-# first line is the whole file.
+# first line is the whole file; bytes in the C locale, because GNU bash's read
+# -n counts characters in a UTF-8 one and CI would classify differently.
 _felix_graph_is_shell() {
-  local first=""
+  local first="" LC_ALL=C
   case "$1" in *.sh) return 0 ;; esac
+  [ -f "$1" ] || return 1
   { IFS= read -r -n 128 first < "$1"; } 2>/dev/null || [ -n "$first" ] || return 1
   case "$first" in
     '#!'*/sh|'#!'*/sh' '*|'#!'*' sh'|'#!'*' sh '*|'#!'*bash*|'#!'*zsh*) return 0 ;;

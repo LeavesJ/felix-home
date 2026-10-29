@@ -168,11 +168,13 @@ felix_ledger_answers() {
 #   files_opened asked timeouts
 #
 # A touch credits only the answer rows of its own turn, after the record's last
-# prompt row before it, and only those it matches by the rule the post-tool
-# hook wrote it by (_felix_answer_hit_awk), with every root row of the record
-# as an anchor. A touch row the hook wrote names the file itself, which that
-# rule matches to its own answer row and to no other. A delivery is a given row
-# and the answer rows after it up to the next given or prompt row.
+# prompt row before it. A touch row the post-tool hook wrote names the file it
+# reached, and credits that file and no other: read again by the rule, a bare
+# CLAUDE.md would also credit projects/x/CLAUDE.md through the basename, which
+# the hook had already decided the call did not reach. Any other value is
+# matched by that rule (_felix_answer_hit_awk), with every root row of the
+# record as an anchor. A delivery is a given row and the answer rows after it
+# up to the next given or prompt row.
 # files_opened is the acted-on files a Read, Edit, Write, Grep or Glob reached,
 # not only a command. Only sessions this repository owns, by the same test the
 # catch-up uses, since state/ carries no project namespace.
@@ -193,7 +195,7 @@ felix_answer_use() {
   # One record at a time, read whole before it is counted: its root rows
   # anchor every touch in it, wherever they sit.
   LC_ALL=C awk -F'\t' "$_felix_answer_hit_awk"'
-    function run(   i, j, k, t, x, n, w, cur, dn, sg, sa) {
+    function run(   i, j, k, t, x, n, w, cur, dn, sg, sa, named) {
       nr = 0; split("", roots)
       for (i = 1; i <= rn; i++) { k = split(r[i], x, "\t"); if (x[1] == "root" && k >= 2 && x[2] != "") roots[++nr] = x[2] }
       n = 0; w = 1; cur = 0; dn = 0
@@ -210,8 +212,10 @@ felix_answer_use() {
           nm[++n] = x[3]; nt[n] = x[2]; nd[n] = (cur && dt[cur] == x[2]) ? cur : 0; act[n] = 0; opn[n] = 0
         }
         else if (x[1] == "touch" && x[3] != "") {
+          named = 0
+          for (j = w; j <= n; j++) if (nm[j] == x[3]) { named = 1; break }
           for (j = w; j <= n; j++) {
-            if (!hit(nm[j], x[2], x[3])) continue
+            if (named ? nm[j] != x[3] : !hit(nm[j], x[2], x[3])) continue
             if (!act[j]) {
               act[j] = 1; files_acted[nt[j]]++
               if (nd[j] && !dacted[nd[j]]) { dacted[nd[j]] = 1; deliveries_acted[nt[j]]++; sa[nt[j]] = 1 }

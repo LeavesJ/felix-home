@@ -13,7 +13,11 @@ printf '\nanswers delivered without being asked for\n'
 # hang, hangkid, exitkid and empty built in); any other first word is a refresh that waits for $AX/release and fails
 # when $AX/ufail exists. The orders U1 and R1 set are read through a harness copy whose lib/own.sh and lib/graph.sh
 # source the real ones and wrap felix_checkout_is_own and felix_graph_refresh_due to log each call: measured before
-# the change, no user-prompt, post-tool or session-end run called the first, and the second did not exist.
+# the change, no user-prompt, post-tool or session-end run called the first, and the second did not exist. Extended
+# blind to the spec's second amendment (section 9's last paragraph): a timeout that is not a whole number is the
+# default, bytes are bytes under a UTF-8 locale, the marker is read only as a regular file's first 64 bytes (calls
+# that could hang on it run under $AX/bound.pl, which kills their process group at its bound), a touch row T1 wrote
+# credits its own file only, and A4's marker is renamed into place, never written through what stands at its path.
 AX="$TMP/answers"; mkdir -p "$AX/bin" "$AX/ssbin" "$AX/co" "$AX/user" "$AX/spy" "$AX/tmp" "$AX/cache" "$AX/home/projects/ansp" "$AX/mem/ansp"
 AX="$(cd "$AX" && pwd -P)"; AXH="$AX/home"; AXM="$AX/mem"; AXP="$AXH/projects/ansp"; AXT="$(printf '\t')"; : > "$AX/glog"; : > "$AX/kids"
 AXO="$AX/co/own"; AXW="$AX/co/own-wt"; AXK="$AX/co/marker"; AXF="$AX/co/foreign"; AXN="$AX/co/nograph"; AXR="$AX/co/refresh"
@@ -33,6 +37,9 @@ _ax_files() {   # the files every checkout holds, written where the shell stands
     && printf '#!/usr/bin/env python3\nprint(1)\n' > bin/py && printf '#!/usr/bin/env%130s bash\necho long\n' '' > bin/longsh \
     && printf 'dots\n' > 'lib/a..b.txt' || return 1
   local i; for i in 1 2 3 4 5 6 7 8 9 10; do printf 'n%s\n' "$i" > "notes/n$i.md"; done
+  for i in 60 50; do   # bin/envs60 names bash at bytes 140-143 (characters 80-83), bin/envs50 at bytes 120-123
+    printf '#!/usr/bin/env -S %s bash\necho s\n' "$(awk -v n="$i" 'BEGIN { for (j = 0; j < n; j++) printf "\303\251" }')" > "bin/envs$i"
+  done
 }
 mkdir -p "$AXO" "$AXK" "$AXF" "$AXN" "$AXR"
 ( _fx_cd "$AXO" && git init -q -b main && _ax_files && printf 'ansp\n' > .felix && git add -A && _ax_git commit -qm c1 \
@@ -73,6 +80,7 @@ case "\$v" in
   hang) printf 'NODE one [src=lib/one.sh loc=L1 community=0]\n'; exec sleep 6 ;;
   hangkid) sleep 12 & echo \$! >> "$AX/kids"; printf 'NODE one [src=lib/one.sh loc=L1 community=0]\n'; exec sleep 12 ;;
   exitkid) sleep 12 & echo \$! >> "$AX/kids"; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
+  slow) sleep 2; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
 esac
 [ ! -f "$AX/out.\$v" ] || cat "$AX/out.\$v"
 AXG
@@ -100,6 +108,9 @@ AXSH3='NODE felix_one() [src=lib/one.sh loc=L83 community=3]\nNODE Guide heading
 { printf '%s 2 nodes found\n' "$AXTRAV"; printf 'NODE Guide heading [src=docs/guide.md loc=L1 community=1]\nNODE main [src=bin/py loc=L2 community=1]\n'; } > "$AX/out.noshell"
 printf 'NODE tool [src=bin/tool loc=L2 community=0]\n' > "$AX/out.envbash"; printf 'NODE ztool [src=bin/ztool loc=L2 community=0]\n' > "$AX/out.zsh"
 printf 'NODE long [src=bin/longsh loc=L1 community=0]\n' > "$AX/out.longsh"
+printf 'NODE envs [src=bin/envs60 loc=L1 community=0]\n' > "$AX/out.envs60"; printf 'NODE envs [src=bin/envs50 loc=L1 community=0]\n' > "$AX/out.envs50"
+AXU8="$(locale -a 2>/dev/null | awk '{ l = tolower($0) } l == "c.utf-8" || l == "c.utf8" { c = $0 } l == "en_us.utf-8" || l == "en_us.utf8" { e = $0 }
+  END { print (c != "" ? c : e) }')"   # a UTF-8 locale this machine has, C first; empty when it has neither
 printf 'NODE held [src=holdonly.md loc=L1 community=0]\nNODE worktree only [src=wtonly.md loc=L2 community=0]\n' > "$AX/out.wt"
 printf 'no nodes here\n{"json": true}\nNODE without brackets\n' > "$AX/out.garbage"
 AXMIX="$(printf 'lib/one.sh\tL83\tfelix_one()\ndocs/guide.md\t§0ae\tGuide heading\nnotes/n1.md\t\tnotes heading\nlib/one.sh\tL90\tsecond in one')"
@@ -111,10 +122,26 @@ AXREC2="$(printf 'asked\tgraphify\tanswered\ngiven\tgraphify\t2\t-\nnode\tgraphi
 
 _ax_argv() { local a; for a in "$@"; do printf '<%s> ' "$a"; done; }   # the stand-in's log line for these words
 _ax_q() { _ax_argv query "$1" --budget "${2:-600}" --graph "$AXO/graphify-out/graph.json"; }; _ax_log() { cat "$AX/glog" 2>/dev/null; }
-_ax_lib() {   # FUNCTION ARGS... with resolve.sh, ledger.sh, graph.sh and any answer.sh sourced, and the stand-in first on PATH
+_ax_lib() {   # FUNCTION ARGS... with the libs sourced, the stand-in first on PATH, and the locale AX_LC when it is set
   ( PATH="${AX_PATH:-$AX/bin:$PATH}"; FELIX_HOME="$AXH"; FELIX_MEMORY="$AXM"; export PATH FELIX_HOME FELIX_MEMORY
+    [ -z "${AX_LC:-}" ] || { LANG="$AX_LC"; LC_ALL="$AX_LC"; export LANG LC_ALL; }
     . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/own.sh"; . "$FROOT/harness/lib/ledger.sh"; . "$FROOT/harness/lib/graph.sh"
     [ ! -f "$FROOT/harness/lib/answer.sh" ] || . "$FROOT/harness/lib/answer.sh"; "$@" )
+}
+cat > "$AX/bound.pl" <<'AXB'
+my $s = shift @ARGV; my $p = fork; defined $p or exit 125;
+if (!$p) { setpgrp(0, 0); exec { $ARGV[0] } @ARGV; exit 127 }
+setpgrp($p, $p); my $held = 0; $SIG{ALRM} = sub { $held = 1; kill 'KILL', -$p };
+alarm $s; 1 while waitpid($p, 0) == -1 && $!{EINTR}; my $st = $?; alarm 0;
+if ($held) { kill 'KILL', -$p; exit 124 }
+exit(($st & 127) ? 128 + ($st & 127) : $st >> 8);
+AXB
+{ printf '#!/bin/bash\nPATH="%s/bin:$PATH"; FELIX_HOME="%s"; FELIX_MEMORY="%s"; export PATH FELIX_HOME FELIX_MEMORY\n' "$AX" "$AXH" "$AXM"
+  printf '. "%s/harness/lib/%s.sh"\n' "$FROOT" resolve "$FROOT" own "$FROOT" ledger "$FROOT" graph
+  printf '[ ! -f "%s/harness/lib/answer.sh" ] || . "%s/harness/lib/answer.sh"\n"$@"\n' "$FROOT" "$FROOT"; } > "$AX/libcall"
+_ax_bdue() {   # ROOT -> "<status>|<output>" of felix_graph_refresh_due there, or "held|..." when it ran past 8 seconds and was killed
+  local o r; o="$(perl "$AX/bound.pl" 8 "$BASH" "$AX/libcall" felix_graph_refresh_due "$1" 2>&1)"; r=$?
+  if [ "$r" = 124 ]; then printf 'held|%s' "$o"; else printf '%s|%s' "$r" "$o"; fi
 }
 _ax_ans() {   # VARIANT ROOT PROMPT -> AXOUT, what felix_graph_answer printed, and AXRC; $AX/glog holds this call alone
   printf '%s' "$1" > "$AX/gv"; : > "$AX/glog"
@@ -227,7 +254,12 @@ is "A1.5: at the deadline its whole process group is killed, so a child holding 
 _ax_kids; _ax_t0=$SECONDS; _ax_ans exitkid "$AXO" "$AXQ"; _ax_dt=$((SECONDS - _ax_t0)); _ax_wait 3 '[ "$(_ax_alive)" = 0 ]'
 is "A1.5: a graphify that exits by itself leaving a child holding the output open is read at once, and the child is killed then" \
    "$AXRC|$AXOUT|$(_ax_secs 4)|$(_ax_alive) left" "0|lib/one.sh${AXT}L83${AXT}felix_one()|prompt|0 left"
-_ax_kids; _ax_ans garbage "$AXO" "$AXQ"
+_ax_kids; _ax_r=""; for _ax_v in 0 0.5 abc; do FELIX_GRAPH_TIMEOUT="$_ax_v" _ax_ans hang "$AXO" "$AXQ"; _ax_r="$_ax_r$_ax_v:$AXRC:${#AXOUT} "; done
+is "A1.5: a FELIX_GRAPH_TIMEOUT of 0, 0.5 or abc is the default 4 seconds, so a graphify running 6 is still killed: no answer, exit 1" "$_ax_r" "0:1:0 0.5:1:0 abc:1:0 "
+FELIX_GRAPH_TIMEOUT=0.5 _ax_ans slow "$AXO" "$AXQ"
+is "A1.5: and under FELIX_GRAPH_TIMEOUT=0.5 a graphify answering after 2 seconds is answered, the bound not cut below the default" \
+   "$AXRC|$AXOUT" "0|lib/one.sh${AXT}L83${AXT}felix_one()"
+_ax_ans garbage "$AXO" "$AXQ"
 is "A1.9: output with no NODE line of the form keeps no node: nothing printed, exit 1" "$AXRC|$AXOUT" "1|"
 _ax_ans dots "$AXO" "$AXQ"
 is "A1.6: a name holding .. that is not a .. segment is kept, and a loc of None prints as empty" "$AXRC|$AXOUT" "0|lib/a..b.txt${AXT}${AXT}dotted name"
@@ -306,6 +338,12 @@ _ax_dl zsh "$AXH" f3 "$AXO"
 is "A2.9: and so is one whose first line is #!/bin/zsh" "$(_ax_par "$AXOUT" 3 c)" "$AXSHP"
 _ax_dl longsh "$AXH" f6 "$AXO"
 is "A2.9: a first line that names bash only past its first 128 bytes does not make a shell script" "$AXRC|$(_ax_npar "$AXOUT")" "0|2"
+AXN8A="A2.9: under a UTF-8 locale the 128 are still bytes: a first line naming bash at bytes 140-143, characters 80-83, is no shell script"
+AXN8B="A2.9: and under it a first line of the same form naming bash at bytes 120-123 is one"
+if [ -z "$AXU8" ]; then skip "$AXN8A" "this machine has neither C.UTF-8 nor en_US.UTF-8"; skip "$AXN8B" "this machine has neither C.UTF-8 nor en_US.UTF-8"
+else AX_LC="$AXU8" _ax_dl envs60 "$AXH" f8 "$AXO"; is "$AXN8A" "$AXRC|$(_ax_npar "$AXOUT")" "0|2"
+  AX_LC="$AXU8" _ax_dl envs50 "$AXH" f9 "$AXO"; is "$AXN8B" "$AXRC|$(_ax_npar "$AXOUT")|$(_ax_par "$AXOUT" 3 c)" "0|3|$AXSHP"
+fi
 _ax_dl noshell "$AXH" f7 "$AXO/lib"
 is "A2.5: asked from a subdirectory the root recorded is the checkout's top level" "$(awk -F'\t' '$1 == "root"' "$AXH/state/answer/f7.tsv" 2>/dev/null)" "root${AXT}$AXO"
 _ax_stamp "$AXO" -; _ax_dl noshell "$AXH" f4 "$AXO"
@@ -332,6 +370,14 @@ is "A3: a graph behind whose refreshed-at marker holds the holding checkout's HE
 is "A3: nor asked from its worktree, the marker and the HEAD being the holding checkout's" "$(_ax_due "$AXW")" "1|"
 _ax_mark "$AXO" "$AXO1"
 is "A3: a marker holding another commit leaves the graph due" "$(_ax_due "$AXO")" "0|"
+rm -f "$AXMK"; ln -s /dev/zero "$AXMK"
+is "A3: a marker that is a link to /dev/zero reads as absent, the due test answering within its 8-second bound: due" "$(_ax_bdue "$AXO")" "0|"
+rm -f "$AXMK"; printf '%s\n' "$AXO3" > "$AX/head-file"; ln -s "$AX/head-file" "$AXMK"
+is "A3: a marker that is a link to a regular file holding HEAD reads as absent too: due, within the bound" "$(_ax_bdue "$AXO")" "0|"
+rm -f "$AXMK"; mkfifo "$AXMK"
+is "A3: and so does a marker that is a named pipe, the due test not waiting for a writer" "$(_ax_bdue "$AXO")" "0|"
+rm -f "$AXMK"; { awk 'BEGIN { for (i = 0; i < 100; i++) printf "x" }'; printf '\n%s\n' "$AXO3"; } > "$AXMK"
+is "A3: a regular marker whose HEAD sits past its first 64 bytes does not hold it: due" "$(_ax_bdue "$AXO")" "0|"
 _ax_mark "$AXO" -; _ax_stamp "$AXO" -
 is "A3: a graph with no stamp is not due" "$(_ax_due "$AXO")" "1|"
 _ax_stamp "$AXO" 0000000000000000000000000000000000000000
@@ -340,10 +386,36 @@ is "A3: nor a checkout with no graph at all" "$(_ax_due "$AXN")" "1|"
 _ax_stamp "$AXO" "$AXO3"; rm -f "$AX/release"; : > "$AX/glog"; _ax_bg "$AXR" >/dev/null; _ax_wait 5 '[ "$(_ax_nqp "$AXR")" -gt 0 ]'
 ( _fx_cd "$AXR" && printf '3\n' > r3.txt && git add -A && _ax_git commit -qm r3 ) >/dev/null 2>&1
 _ax_release; _ax_wait 3 '[ -s "$AXR/graphify-out/.felix-refreshed-at" ]'
-is "A4: a refresh whose update exits 0 leaves the holding checkout's HEAD as it was when the refresh started, a commit made meanwhile aside" \
-   "$(cat "$AXR/graphify-out/.felix-refreshed-at" 2>/dev/null)|$([ "$(git -C "$AXR" rev-parse HEAD 2>/dev/null)" != "$AXR2" ] && echo moved)" "$AXR2|moved"
+_ax_nb() { if [ -f "$1" ]; then wc -c < "$1" | tr -d ' '; else printf 'none'; fi; }   # FILE -> its size in bytes, or none
+is "A4: a refresh whose update exits 0 leaves the holding checkout's full HEAD and a newline, as it was when the refresh started, a commit made meanwhile aside" \
+   "$(cat "$AXR/graphify-out/.felix-refreshed-at" 2>/dev/null)|$(_ax_nb "$AXR/graphify-out/.felix-refreshed-at") bytes|$([ "$(git -C "$AXR" rev-parse HEAD 2>/dev/null)" != "$AXR2" ] && echo moved)" \
+   "$AXR2|41 bytes|moved"
 _ax_mark "$AXR" -; : > "$AX/ufail"; : > "$AX/glog"; _ax_bg "$AXR" >/dev/null; _ax_wait 5 '[ "$(_ax_nqp "$AXR")" -gt 0 ]'; _ax_release; rm -f "$AX/ufail"
 is "A4: a refresh whose update fails leaves no marker" "$(_ax_nqp "$AXR")|$([ -e "$AXR/graphify-out/.felix-refreshed-at" ] && echo written || echo none)" "1|none"
+AXRM="$AXR/graphify-out/.felix-refreshed-at"; AXRH="$(git -C "$AXR" rev-parse HEAD 2>/dev/null)"   # each case below makes the marker's path read as absent
+_ax_rf() {   # -> one refresh of the refresh checkout, its update let through at once, run to the end of its lock
+  : > "$AX/release"; : > "$AX/glog"; _ax_bg "$AXR" >/dev/null; _ax_wait 5 '[ "$(_ax_nqp "$AXR")" -gt 0 ]'
+  _ax_wait 5 '[ ! -d "$AXR/graphify-out/.felix-refresh.lock" ]'; rm -f "$AX/release"
+}
+_ax_at() { if [ -L "$1" ]; then printf 'a link'; elif [ -d "$1" ]; then printf 'a directory'
+           elif [ -f "$1" ]; then printf 'a file of %s bytes holding %s' "$(_ax_nb "$1")" "$(head -1 "$1")"; else printf 'nothing'; fi; }   # PATH -> what stands there
+printf 'victim\n' > "$AX/victim-file"; rm -rf "$AXRM"; ln -s "$AX/victim-file" "$AXRM"; _ax_rf; _ax_wait 3 '[ -f "$AXRM" ] && [ ! -L "$AXRM" ]'
+is "A4: a link at the marker's path is replaced by the marker, and the file it named is left as it was" \
+   "$(_ax_at "$AXRM")|$(cat "$AX/victim-file")" "a file of 41 bytes holding $AXRH|victim"
+mkdir -p "$AX/victim-dir"; printf 'keep\n' > "$AX/victim-dir/keep"; rm -rf "$AXRM"; ln -s "$AX/victim-dir" "$AXRM"; _ax_rf; _ax_wait 3 '[ -f "$AXRM" ] && [ ! -L "$AXRM" ]'
+is "A4: a link to a directory there is replaced by the marker too, and nothing is written inside the directory it named" \
+   "$(_ax_at "$AXRM")|$(ls -A "$AX/victim-dir" | tr '\n' ',')$(cat "$AX/victim-dir/keep")" "a file of 41 bytes holding $AXRH|keep,keep"
+printf 'victim\n' > "$AX/victim-hard"; rm -rf "$AXRM"; ln "$AX/victim-hard" "$AXRM"; _ax_rf; _ax_wait 3 '[ "$(head -1 "$AXRM" 2>/dev/null)" = "$AXRH" ]'
+is "A4: a hard link there is replaced, not written through: the marker holds HEAD and the file it shared contents with is left as it was" \
+   "$(_ax_at "$AXRM")|$(cat "$AX/victim-hard")" "a file of 41 bytes holding $AXRH|victim"
+rm -rf "$AXRM"; mkdir -p "$AXRM"; printf 'x\n' > "$AXRM/x"; _ax_rf; _ax_wait 2 '[ "$(ls -A "$AXRM" | wc -l | tr -d " ")" != 1 ]'
+is "A4: a directory at the marker's path gets no marker and nothing inside it" "$(_ax_at "$AXRM")|$(ls -A "$AXRM" | tr '\n' ',')" "a directory|x,"
+rm -rf "$AXRM"; mkdir -p "$AX/elsewhere-out"; mv "$AXR/graphify-out/graph.json" "$AX/elsewhere-out/graph.json"; rm -rf "$AXR/graphify-out"
+ln -s "$AX/elsewhere-out" "$AXR/graphify-out"; _ax_rf; _ax_wait 2 '[ -e "$AX/elsewhere-out/.felix-refreshed-at" ] || [ -L "$AX/elsewhere-out/.felix-refreshed-at" ]'
+is "A4: no marker is written when graphify-out is itself a link, neither through it nor in place of it" \
+   "$({ [ -e "$AX/elsewhere-out/.felix-refreshed-at" ] || [ -L "$AX/elsewhere-out/.felix-refreshed-at" ]; } && echo written || echo none)|$([ -L "$AXR/graphify-out" ] && echo 'still a link')" \
+   "none|still a link"
+rm -f "$AXR/graphify-out"
 
 printf '\nU1-U5: hooks/user-prompt hands the answer over\n'
 _ax_up() {   # DIR PAYLOAD [NAME=VALUE...] -> what the user-prompt hook (of $AX_HARN, or the suite's) printed there; status in $AX/up.rc
@@ -406,6 +478,15 @@ printf -v AXPAY '{"session_id":"u2c","hook_event_name":"UserPromptSubmit","promp
 is "U2: the prompt ends at its first unescaped quote, so a value that ends in an escaped backslash ends there" "$(_ax_log)" "$(_ax_q 'where does the trailing backslash go \')"
 _ax_pay u2d "$(awk 'BEGIN { for (i = 0; i < 3000; i++) printf "abcdef " }')"; : > "$AX/glog"; _ax_up "$AXO" "$AXPAY" >/dev/null
 is "U2: a prompt of more than 16,384 bytes is still asked, as its first 400 characters" "$(_ax_log)" "$(_ax_q "$(awk 'BEGIN { for (i = 0; i < 57; i++) printf "abcdef " }')a")"
+AXN2A="U2: under a UTF-8 locale the 16,384 are bytes: four words, then a fifth past byte 16,384 though within 16,384 characters, are not asked"
+AXN2B="U2: and under it a fifth word starting at byte 16,384 is cut there, asked as its first letter"
+AXE4="$(printf '\303\251 \303\251 \303\251 \303\251')"; _ax_sp() { awk -v n="$1" 'BEGIN { for (i = 0; i < n; i++) printf " " }'; }   # 11 bytes, 7 characters
+if [ -z "$AXU8" ]; then skip "$AXN2A" "this machine has neither C.UTF-8 nor en_US.UTF-8"; skip "$AXN2B" "this machine has neither C.UTF-8 nor en_US.UTF-8"
+else _ax_pay u2u "$AXE4$(_ax_sp 16374)where is it built"; : > "$AX/glog"; AXU="$(_ax_up "$AXO" "$AXPAY" LANG="$AXU8" LC_ALL="$AXU8")"
+  is "$AXN2A" "$(_ax_block "$AXU")|$(_ax_log)|$(cat "$AX/up.rc")" "no block||0"
+  _ax_pay u2v "$AXE4$(_ax_sp 16372)where is it built"; : > "$AX/glog"; _ax_up "$AXO" "$AXPAY" LANG="$AXU8" LC_ALL="$AXU8" >/dev/null
+  is "$AXN2B" "$(_ax_log)" "$(_ax_q "$AXE4 w")"
+fi
 AXRP="the quokka ledger build is broken and failing with a crash"; printf shell > "$AX/gv"
 _ax_pay u3b "$AXRP"; AXBASE="$(_ax_ctx "$(_ax_up "$AXO" "$AXPAY" FELIX_GRAPH_ANSWER=0)")"
 _ax_pay u3w "$AXRP"; AXWITH="$(_ax_ctx "$(_ax_up "$AXO" "$AXPAY")")"
@@ -438,11 +519,11 @@ _ax_n="$(_ax_nl "$AXU5")"; _ax_pay u1 "$AXTN"; _ax_up "$AXO" "$AXPAY" >/dev/null
 is "U5: a machine message is no person's prompt and appends nothing" "$(_ax_since "$AXU5" "$_ax_n")" ""
 
 printf '\nT1-T2: hooks/post-tool records the answered files the session reached, as matches only\n'
-_ax_pt() {   # SESSION TOOL INPUT [RESPONSE] -> post-tool in the own checkout; its status and output in $AX/pt.rc and $AX/pt.out
+_ax_pt() {   # SESSION TOOL INPUT [RESPONSE] -> post-tool in the own checkout (home AX_PTH, or ansp's); status and output in $AX/pt.rc, pt.out
   local p r="${4:-}"; [ -n "$r" ] || r='{}'
   printf -v p '{"session_id":"%s","transcript_path":"/decoy/%s.jsonl","cwd":"%s","permission_mode":"default","hook_event_name":"PostToolUse","tool_name":"%s","tool_input":%s,"tool_response":%s}' \
     "$1" "$1" "$AXO" "$2" "$3" "$r"
-  ( _fx_cd "$AXO" && env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR FELIX_HOME="$AXH" FELIX_MEMORY="$AXM" HOME="$AX/user" PATH="$AX/spy:$AX/bin:$PATH" \
+  ( _fx_cd "$AXO" && env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR FELIX_HOME="${AX_PTH:-$AXH}" FELIX_MEMORY="$AXM" HOME="$AX/user" PATH="$AX/spy:$AX/bin:$PATH" \
       "$FROOT/harness/hooks/post-tool" <<<"$p" > "$AX/pt.out" 2>&1
     printf '%s' "$?" > "$AX/pt.rc" )
 }
@@ -503,6 +584,11 @@ is "T1: with no state file nothing is appended and no state file is made, the le
    "$(_ax_rec t0)|$(cat "$AXH/state/ledger/t0.tsv" 2>/dev/null)" "none|tool${AXT}Read"
 _ax_t1; cp "$AXS" "$AXH/state/answer/t.9.tsv"; _ax_ckb="$(_ax_ck "$AXH/state/answer/t.9.tsv")"; _ax_pt t.9 Read "{\"file_path\":\"$AXO/lib/one.sh\"}"
 is "T1: a session id that A2.1 refuses appends nothing to the record its name points at" "$(_ax_ck "$AXH/state/answer/t.9.tsv")" "$_ax_ckb"
+AXE2="$AX/e2e"; mkdir -p "$AXE2/projects/ansp" "$AXE2/state/answer" "$AXE2/state/session"; cp "$AXP/project.json" "$AXP/CLAUDE.md" "$AXP/stack.tsv" "$AXE2/projects/ansp/"
+printf 'asked\tgraphify\tanswered\nroot\t%s\ngiven\tgraphify\t2\t-\nanswer\tgraphify\tCLAUDE.md\nanswer\tgraphify\tprojects/x/CLAUDE.md\n' "$AXO" > "$AXE2/state/answer/e1.tsv"
+AX_PTH="$AXE2" _ax_pt e1 Bash "{\"command\":\"grep -n rule $AXO/CLAUDE.md\"}"
+is "T1: a command naming <root>/CLAUDE.md touches CLAUDE.md, and not projects/x/CLAUDE.md, whose basename it only shares behind a slash" \
+   "$(_ax_since "$AXE2/state/answer/e1.tsv" 5)" "touch${AXT}Bash${AXT}CLAUDE.md"
 is "T2: no post-tool run, with a state file or without, ran git" "$(cat "$AX/spy.log" 2>/dev/null)" ""
 _ax_t1; _ax_ckp="$(_ax_ck "$AXS")"; chmod 444 "$AXS"
 if [ -w "$AXS" ]; then skip "T2: an append that fails is silent, the exit 0 and the file unchanged" "the state file is still writable"
@@ -570,19 +656,30 @@ rm -rf "$AXL"
 printf '#!/bin/sh\ncase "$*" in "plugin list --json --available") printf "[]\\n" ;; esac\nexit 0\n' > "$AX/ssbin/claude"; printf '#!/bin/sh\nexit 0\n' > "$AX/ssbin/gh"
 _ax_hcopy "$AX/hss"; printf '#!/bin/sh\ncase "$*" in "discover --inspect --quiet") printf "# stamp stub\\n" ;; esac\nexit 0\n' > "$AX/hss/harness/felix"
 chmod +x "$AX/ssbin/claude" "$AX/ssbin/gh" "$AX/hss/harness/felix"
-_ax_ss() {   # DIR SESSION -> session-start there, from a harness copy whose felix is a stub; the banner's graph lines in AXSSG
+_ax_ss() {   # DIR SESSION -> session-start there, from a harness copy whose felix is a stub, bound at AX_SSB seconds (60):
+             # its status in $AX/ss.rc (124 when the bound killed it), its context in AXSSC, the banner's graph lines in AXSSG
   local p o; printf -v p '{"session_id":"%s","cwd":"%s","hook_event_name":"SessionStart","source":"startup"}' "$2" "$1"
-  o="$( _fx_cd "$1" && env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR -u FELIX_HOME_DIR -u TMPDIR -u GIT_DIR -u GIT_WORK_TREE HOME="$AX/user" \
-        FELIX_HOME="$AXH" FELIX_MEMORY="$AXM" FELIX_PLUGIN_CACHE="$AX/cache" TMPDIR="$AX/tmp" CLAUDE_PLUGIN_ROOT="$AX/hss" \
-        PATH="$AX/ssbin:$AX/bin:$PATH" "$AX/hss/harness/hooks/session-start" <<<"$p" 2>/dev/null )"
-  AXSSG="$(_ax_ctx "$o" | awk '/Knowledge graph/ { k = 1 } k && $0 == "" { exit } k')"
+  o="$( _fx_cd "$1" && perl "$AX/bound.pl" "${AX_SSB:-60}" env -u CLAUDE_CODE_SESSION_ID -u CLAUDE_CONFIG_DIR -u FELIX_HOME_DIR -u TMPDIR -u GIT_DIR \
+        -u GIT_WORK_TREE HOME="$AX/user" FELIX_HOME="$AXH" FELIX_MEMORY="$AXM" FELIX_PLUGIN_CACHE="$AX/cache" TMPDIR="$AX/tmp" CLAUDE_PLUGIN_ROOT="$AX/hss" \
+        PATH="$AX/ssbin:$AX/bin:$PATH" "$AX/hss/harness/hooks/session-start" <<<"$p" 2>/dev/null; printf '|%s' "$?" )"
+  printf '%s' "${o##*|}" > "$AX/ss.rc"; AXSSC="$(_ax_ctx "${o%|*}")"
+  AXSSG="$(printf '%s\n' "$AXSSC" | awk '/Knowledge graph/ && !d { k = 1 } k && $0 == "" { k = 0; d = 1 } k')"
 }
+_ax_banner() { case "$1" in ''|'(no json)') printf 'no banner' ;; *) printf 'banner' ;; esac; }
 _ax_mark "$AXO" -; _ax_stamp "$AXO" "$AXO1"; : > "$AX/glog"; _ax_ss "$AXO" s4a; AXSS1="$AXSSG"; _ax_wait 5 '[ "$(_ax_nqp "$AXO")" -gt 0 ]'
 is "R4: session start in the own checkout, its graph behind and no marker, starts the refresh (control)" "$(_ax_nqp "$AXO")" "1"
 _ax_release; _ax_mark "$AXO" "$AXO3"; : > "$AX/glog"; _ax_ss "$AXO" s4b; AXSS2="$AXSSG"; _ax_wait "$AXNEG" '[ "$(_ax_nqp "$AXO")" -gt 0 ]'
 is "R4: with the marker holding the holding checkout's HEAD, session start starts no refresh" "$(_ax_nqp "$AXO")" "0"
 is "R4: and its banner's graph line is the one it prints without the marker" "$([ -n "$AXSS1" ] && echo printed)|$AXSS2" "printed|$AXSS1"
 _ax_release; _ax_mark "$AXO" -; _ax_stamp "$AXO" "$AXO3"
+( _fx_cd "$AXK" && mkdir -p graphify-out && ln -s /dev/zero graphify-out/.felix-refreshed-at && git add graphify-out/.felix-refreshed-at \
+  && _ax_git commit -qm k3 ) >/dev/null 2>&1
+_ax_stamp "$AXK" "$AXK1"; : > "$AX/glog"; AX_SSB=20 _ax_ss "$AXK" s5; _ax_wait "$AXNEG" '[ "$(_ax_nqp "$AXK")" -gt 0 ]'
+is "A3: session start in a checkout bound by .felix alone, its marker committed as a link to /dev/zero, exits 0 within 20 seconds and prints its banner" \
+   "$(git -C "$AXK" ls-files graphify-out) $(readlink "$AXK/graphify-out/.felix-refreshed-at")|$(cat "$AX/ss.rc")|$(_ax_banner "$AXSSC")" \
+   "graphify-out/.felix-refreshed-at /dev/zero|0|banner"
+is "R4: and starts no refresh there, its graph behind, the checkout not being own" "$(_ax_nqp "$AXK")" "0"
+rm -f "$AXK/graphify-out/.felix-refreshed-at"   # no later reader of the temporary tree meets the link to /dev/zero
 
 printf '\nL1-L5: lib/ledger.sh, lib/answer.sh and felix ledger, the answer as its own surface\n'
 AXLH="$AX/lh"; AXLM="$AX/lm"; AXLP="$AXLH/projects/ansl"; AXLQ="$AXLH/projects/ansm"; AXLZ="$AXLH/projects/ansz"
@@ -658,6 +755,12 @@ is "L4: nor is a session with no mark" "$(_ax_use uw none "${AXG1}touch\tRead\t/
 is "L4: each tool is its own line, its deliveries alone deciding whether the session acted on it" \
    "$(_ax_l4 ux "${AXG1}asked\tothertool\tanswered\ngiven\tothertool\t1\t-\nanswer\tothertool\tdocs/o.md\ntouch\tRead\t/r/docs/o.md\n" | LC_ALL=C sort)" \
    "$(printf 'graphify\t1\t0\t1\t0\t1\t0\t0\t1\t0\nothertool\t1\t1\t1\t1\t1\t1\t1\t1\t0')"
+is "L4: a touch row naming a file of its window credits that file alone, not projects/x/CLAUDE.md for a row naming CLAUDE.md: 1 of 2 files" \
+   "$(_ax_l4 uy 'asked\tgraphify\tanswered\nroot\t/r\ngiven\tgraphify\t2\t-\nanswer\tgraphify\tCLAUDE.md\nanswer\tgraphify\tprojects/x/CLAUDE.md\ntouch\tBash\tCLAUDE.md\n')" \
+   "$(_ax_u10 1 1 1 1 2 1 0 1 0)"
+printf '%s\n' "$AXO3" > "$AXE2/state/session/e1"
+is "L4: end to end, grep -n rule <root>/CLAUDE.md through post-tool, then felix_answer_use, acts on 1 of the delivery's 2 files" \
+   "$(_ax_ll felix_answer_use "$AXP" "$AXE2" "$AXO")" "$(_ax_u10 1 1 1 1 2 1 0 1 0)"
 AXFH="$AX/l5h"; AXFM="$AX/l5m"; mkdir -p "$AXFH/projects/ansp" "$AXFH/state/answer" "$AXFH/state/session" "$AXFM/ansp/ledger.d"
 cp "$AXP/project.json" "$AXP/CLAUDE.md" "$AXP/stack.tsv" "$AXFH/projects/ansp/"
 printf 'v1\t2026-10-20\ttool\tBash\t2\t0\nv1\t2026-10-20\tskill\tgraphify\t0\t0\nv1\t2026-10-20\tplugin\tsuperpowers@x\t0\t0\n' > "$AXFM/ansp/ledger.d/v1.tsv"

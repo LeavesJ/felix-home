@@ -1,4 +1,4 @@
-printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, sections 13 and 14, blind)\n'
+printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, sections 13 to 15, blind)\n'
 # Written blind on 2026-10-28 from section 13 of docs/2026-10-24-audit-fixes/b08-round-3.md
 # (B08R3Z3-1 to B08R3Z3-4, A170 to A187), with its sections 2 to 12 as context, without
 # reading projects/felix/gate.sh's cloud check, engine/ code or anything the gate sources. One
@@ -61,6 +61,19 @@ printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, se
 #   is required.
 # - A196's NUL goes in by printf after provision's last byte; od reads the index blob: one NUL, as
 #   its last byte, and no CR.
+#
+# Section 15 (B08R3Z5-1, B08R3Z5-2, A200 to A206) was written blind on 2026-10-28 from the same
+# file, after A199, without reading gate.sh's cloud check. Its names start "B08R3Z5 A<n>". Readings:
+# - Each case starts from _b84_start, _b84_cloud and _b84_stack, as section 14's do. Its clauses
+#   are matched without their leading blank.
+# - A200 to A202 rate stack.tsv's superpowers plugin row (its fourth field) High, hgh or medium in
+#   the index; the toolbox stays the tree's, superpowers' carry fetch.
+# - A203, A205 and A206 each add one one-line hook object to UserPromptSubmit's one group, after
+#   the user-prompt hook: type command, the command with the tree's guard prefix first, shell bash,
+#   async false. So the guard clause is refused there. A204's is the tree's seven-line provision
+#   hook object with timeout 30, after the canonical one in its group; "the binding count stays 1"
+#   reads as no binding clause, whatever its count.
+# - A202 and A206, "as A140", read as _b83_asok.
 
 _b86Why=""
 if [ "$(type -t _b84_start)" != function ] || [ "$(type -t _b85_tn)" != function ]; then
@@ -88,9 +101,12 @@ _b86HK='{ l[NR] = $0 } !p && index($0, "\"command\"") && index($0, "/.claude/clo
     if (!p || l[p - 3] != "          }," || l[p - 2] != "          {" || l[p - 1] != "            \"type\": \"command\"," \
         || l[p + 1] != "            \"shell\": \"bash\"," || l[p + 2] != "            \"async\": false," \
         || l[p + 3] != "            \"timeout\": 120" || l[p + 4] != "          }") exit 3
-    if (m == "upc") { for (j = q + 1; q && !u && j <= NR; j++) if (l[j] == "          }") u = j; if (!u) exit 3 }
+    if (m == "upc" || m == "upo") { for (j = q + 1; q && !u && j <= NR; j++) if (l[j] == "          }") u = j; if (!u) exit 3 }
     for (i = 1; i <= NR; i++) {
       if (m == "upc" && i == u) { print "          },"; for (j = p - 2; j <= p + 4; j++) print l[j]; continue }
+      if (m == "upo" && i == u) { print "          },"; print ENVIRON["B86_X"]; continue }
+      if (m == "t30" && i == p + 4) { print "          },"; for (j = p - 2; j <= p + 2; j++) print l[j]
+        print "            \"timeout\": 30"; print l[p + 4]; continue }
       if (m == "sm" && i == p + 3) { print "            \"timeout\": 120,"; print "            \"statusMessage\": \"x\""; continue }
       if (m == "nosh" && i == p + 1) continue
       if (m == "t60" && i == p + 3) { print "            \"timeout\": 60"; continue }
@@ -185,11 +201,53 @@ _b87N197="B08R3Z4 A197 (R3Z3-1, R3Z4-5, coverage): the provision hook gains a si
 _b87N198="B08R3Z4 A198 (R3Z3-1, R3Z4-5, coverage): the provision hook's shell removed: cloud FAIL, with the binding clause counting 0"
 _b87N199="B08R3Z4 A199 (R3Z3-1, R3Z4-5, coverage): the provision hook's timeout set to 60: cloud FAIL, with the binding clause counting 0"
 
+# Section 15's clauses, its lines, and its helpers.
+_b88_nr() { printf '%s' "$1 is fetched into the cloud and stack.tsv's risk for it is not low, medium or high;"; }
+_b88_oh() { printf 'unreadable: .claude/settings.json (%s other hooks name provision);' "$1"; }
+_b88BT='SessionStart hooks run provision as gate.sh binds it, not 1);'
+# command: a one-line hook object running the tree's guard prefix, then command.
+_b88_one() { printf '          { "type": "command", "command": "%s%s", "shell": "bash", "async": false }' '[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' "$1"; }
+_b88P3="$(_b88_one 'bash \"$CLAUDE_PROJECT_DIR/.claude/cloud/provision\"')"
+_b88P5="$(_b88_one 'echo provisional')"; _b88P6="$(_b88_one 'echo hello')"
+# risk: FC's stack.tsv's superpowers plugin row given that risk (field 4) and staged, else a fixture fault.
+_b88_rate() {
+  { B88_R="$1" LC_ALL=C awk -F '\t' 'BEGIN { OFS = "\t" } $1 == "plugin" && index($2, "superpowers@") == 1 { $4 = ENVIRON["B88_R"]; n++ } { print } END { if (n != 1) exit 3 }' \
+      "$_b83C/projects/felix/stack.tsv" > "$_b83/ed.tmp" && cat "$_b83/ed.tmp" > "$_b83C/projects/felix/stack.tsv"; } \
+    || _b83Fx="$_b83Fx stack.tsv's superpowers row could not be rated $1;"
+  _b84_add projects/felix/stack.tsv
+}
+# The risk column of the superpowers plugin rows in the index's stack.tsv, blank between.
+_b88_rk() { _b83_git "$_b83C" cat-file blob :projects/felix/stack.tsv 2>/dev/null | LC_ALL=C awk -F '\t' '$1 == "plugin" && index($2, "superpowers@") == 1 { printf "%s%s", (n++ ? " " : ""), $4 }'; }
+# The line after the superpowers name line in the index's toolbox.
+_b88_sc() { _b83_git "$_b83C" cat-file blob ":$_b85TB" 2>/dev/null | LC_ALL=C awk 'p && !d { print; d = 1 } $0 == "      \"name\": \"superpowers\"," { p = 1 }'; }
+# risk: the index rates superpowers risk and keeps its toolbox entry carry fetch, else a fixture fault.
+_b88_sp() {
+  [ "$(_b88_rk)" = "$1" ] || _b83Fx="$_b83Fx the index's stack.tsv rates superpowers [$(_b88_rk)], not [$1];"
+  [ "$(_b88_sc)" = '      "carry": "fetch",' ] || _b83Fx="$_b83Fx the index's toolbox gives superpowers [$(_b88_sc)], not carry fetch;"
+}
+# line event n: FC's settings holds the line n times inside that event's array and nowhere else, else a fixture fault.
+_b88_ev() {
+  B88_L="$1" B88_E="    \"$2\": [" B88_N="$3" LC_ALL=C awk '/^    "[A-Za-z]+": \[$/ { e = ($0 == ENVIRON["B88_E"]) }
+    $0 == ENVIRON["B88_L"] { if (e) a++; else b++ } END { exit !(a + 0 == ENVIRON["B88_N"] + 0 && b + 0 == 0) }' "$_b83CS" 2>/dev/null \
+    || _b83Fx="$_b83Fx settings does not hold [$1] $3 times in $2 and nowhere else;"
+}
+# n: FC's settings holds n lines naming provision, else a fixture fault.
+_b88_pn() { local n; n="$(LC_ALL=C awk 'index($0, "provision") { n++ } END { print n + 0 }' "$_b83CS" 2>/dev/null)"; [ "$n" = "$1" ] || _b83Fx="$_b83Fx settings holds ${n:-?} lines naming provision, not $1;"; }
+
+_b88N200="B08R3Z5 A200 (R3Z5-1): stack.tsv's superpowers row rated High in its risk column, superpowers still carry fetch in the toolbox: cloud FAIL, with the not-a-rating clause naming superpowers"
+_b88N201="B08R3Z5 A201 (R3Z5-1): stack.tsv's superpowers row rated hgh, superpowers still carry fetch: cloud FAIL, with the not-a-rating clause naming superpowers"
+_b88N202="B08R3Z5 A202 (R3Z5-1): stack.tsv's superpowers row rated medium, superpowers still carry fetch: cloud ok and the line under it empty, as A140 (control)"
+_b88N203="B08R3Z5 A203 (R3Z5-2): a guarded UserPromptSubmit hook running bash on .claude/cloud/provision: cloud FAIL, with the other-hooks clause counting 1, and no guard clause"
+_b88N204="B08R3Z5 A204 (R3Z5-2): a second hook in the startup|resume|clear|compact SessionStart group, the canonical provision object with timeout 30: cloud FAIL, no binding clause, and the other-hooks clause counting 1"
+_b88N205="B08R3Z5 A205 (R3Z5-2): a guarded UserPromptSubmit hook running echo provisional, a plain substring: cloud FAIL, with the other-hooks clause counting 1, and no guard clause"
+_b88N206="B08R3Z5 A206 (R3Z5-2): a guarded UserPromptSubmit hook running echo hello: cloud ok and the line under it empty, as A140 (control)"
+
 if [ -n "$_b86Why" ]; then
   for _b86n in "$_b86N170" "$_b86N171" "$_b86N172" "$_b86N173" "$_b86N174" "$_b86N175" "$_b86N176" "$_b86N177" "$_b86N178" \
                "$_b86N179" "$_b86N180" "$_b86N181" "$_b86N182" "$_b86N183" "$_b86N184" "$_b86N185" "$_b86N186" "$_b86N187" \
                "$_b87N188" "$_b87N189" "$_b87N190" "$_b87N191" "$_b87N192" "$_b87N193" "$_b87N194" "$_b87N195" "$_b87N196" \
-               "$_b87N197" "$_b87N198" "$_b87N199"; do
+               "$_b87N197" "$_b87N198" "$_b87N199" "$_b88N200" "$_b88N201" "$_b88N202" "$_b88N203" "$_b88N204" "$_b88N205" \
+               "$_b88N206"; do
     skip "$_b86n" "$_b86Why"
   done
 else
@@ -351,4 +409,28 @@ else
   _b84_start; _b84_cloud; _b84_stack; _b86_set t60; _b83_has settings '            "timeout": 60'; _b83_cnt settings '            "timeout": 120' 0
   _b83_cnt settings "$_b86PL" 1; _b84_add; _b83_yo a199; _b84_ixw "$_b85IX"; _b87_st
   _b83_seq "$_b87N199" any "$(_b86_bc 0)"
+
+  # ======== The eighth follow-up (contract section 15), A200 to A206
+  # ---- B08R3Z5-1: a risk value outside low, medium and high (A200 to A202)
+  _b84_start; _b84_cloud; _b84_stack; _b88_rate High; _b83_yo a200; _b84_ixw "$_b85IX"; _b87_st; _b88_sp High; _b85_same "$_b85TB"
+  _b83_seq "$_b88N200" any "$(_b88_nr superpowers)"
+  _b84_start; _b84_cloud; _b84_stack; _b88_rate hgh; _b83_yo a201; _b84_ixw "$_b85IX"; _b87_st; _b88_sp hgh; _b85_same "$_b85TB"
+  _b83_seq "$_b88N201" any "$(_b88_nr superpowers)"
+  _b84_start; _b84_cloud; _b84_stack; _b88_rate medium; _b83_yo a202; _b84_ixw "$_b85IX"; _b87_st; _b88_sp medium; _b85_same "$_b85TB"
+  _b83_asok a202 "$_b88N202"
+
+  # ---- B08R3Z5-2: every other hook that names provision (A203 to A206)
+  _b84_start; _b84_cloud; _b84_stack; _b86_set upo "$_b88P3"; _b88_ev "$_b88P3" UserPromptSubmit 1; _b88_ev "$_b86PL" SessionStart 1
+  _b88_pn 2; _b84_add; _b83_yo a203; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b88N203" any "$(_b88_oh 1)" -- "$_b83GT"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set t30; _b88_ev "$_b86PL" SessionStart 2; _b88_ev '            "timeout": 30' SessionStart 1
+  _b83_cnt settings '            "timeout": 120' 1; _b83_cnt settings '        "matcher": "startup|resume|clear|compact",' 1; _b88_pn 2
+  _b84_add; _b83_yo a204; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b88N204" any "$(_b88_oh 1)" -- "$_b88BT" "$_b83GT"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set upo "$_b88P5"; _b88_ev "$_b88P5" UserPromptSubmit 1; _b88_ev "$_b86PL" SessionStart 1
+  _b88_pn 2; _b84_add; _b83_yo a205; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b88N205" any "$(_b88_oh 1)" -- "$_b83GT"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set upo "$_b88P6"; _b88_ev "$_b88P6" UserPromptSubmit 1; _b88_ev "$_b86PL" SessionStart 1
+  _b88_pn 1; _b84_add; _b83_yo a206; _b84_ixw "$_b85IX"; _b87_st
+  _b83_asok a206 "$_b88N206"
 fi

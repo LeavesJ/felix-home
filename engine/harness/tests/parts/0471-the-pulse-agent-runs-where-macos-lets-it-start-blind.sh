@@ -13,8 +13,15 @@ printf '\nthe pulse agent runs where macOS lets it start (contract P1-P5, blind)
 #
 # The plist is plain XML the engine writes. It is read by flattening it to one
 # line and walking it with index(), which BWK awk and gawk both have.
+#
+# Round 2 (same day, blind again) adds P1a, P2a, P3a, P3b, the widened P4 and
+# P5a, and closes the gaps a mutation review of round 1 found: a Program key,
+# a duplicate capture key, a check on the wrong directory, a plist written and
+# then removed, a suffix match on the capture path, an install that only
+# unloads. The launchctl stub answers PA71_LOAD_RC to a load, 0 by default, so
+# the load-failure message is driven too.
 PA71B="$TMP/pa71-bin"; PA71D="$TMP/pa71-logs"; mkdir -p "$PA71B" "$PA71D"
-printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "${LAUNCHCTL_LOG:-/dev/null}"\nexit 0\n' > "$PA71B/launchctl"
+printf '#!/usr/bin/env bash\nprintf "%%s\\n" "$*" >> "${LAUNCHCTL_LOG:-/dev/null}"\n[ "${1:-}" = load ] && exit "${PA71_LOAD_RC:-0}"\nexit 0\n' > "$PA71B/launchctl"
 printf '#!/usr/bin/env bash\nprintf "%%s\\n" "${UNAME_STUB:-Darwin}"\n' > "$PA71B/uname"
 chmod +x "$PA71B/launchctl" "$PA71B/uname"
 PA71S="$TMP/pa71-served"; mkdir -p "$PA71S/engine/harness"
@@ -27,8 +34,19 @@ _pa71_home() {   # DIR -> a fake HOME whose marketplace registry serves $PA71S
 _pa71_felix() {  # HOME UNAME LAUNCHCTL_LOG ARGS... -> output in PA71OUT, status in PA71RC
   local h="$1" u="$2" l="$3"; shift 3
   PA71OUT="$(cd "$REPO" && HOME="$h" PATH="$PA71B:$PATH" UNAME_STUB="$u" LAUNCHCTL_LOG="$l" \
-             "$FELIX" pulse "$@" 2>&1)"; PA71RC=$?
+             PA71_LOAD_RC="${_pa71lrc:-0}" "$FELIX" pulse "$@" 2>&1)"; PA71RC=$?
 }
+_pa71_each() {   # PLIST TAG -> the text of every <TAG>...</TAG>, one per line, in order
+  _pa71_flat "$1" | LC_ALL=C awk -v o="<$2>" -v c="</$2>" '{
+    s = $0
+    while ((p = index(s, o)) > 0) {
+      s = substr(s, p + length(o)); q = index(s, c); if (!q) exit
+      print substr(s, 1, q - 1); s = substr(s, q + length(c))
+    }
+  }'
+}
+_pa71_unxml() { printf '%s' "$1" | sed -e 's/&lt;/</g' -e 's/&gt;/>/g' -e 's/&amp;/\&/g'; }
+_pa71_loaded() { grep -q '^load .*felix\.pulse\.plist' "$1" 2>/dev/null; }   # a load, not an unload
 _pa71_flat() { tr '\n\r\t' '   ' < "$1" 2>/dev/null; }
 _pa71_args() {   # PLIST -> each ProgramArguments string, one per line
   _pa71_flat "$1" | LC_ALL=C awk '{
@@ -63,6 +81,9 @@ is "pulse agent P5: install on Darwin answers 0" "$PA71RC" "0"
 [ -f "$PA71P" ] && ok "pulse agent P5: install writes ~/Library/LaunchAgents/felix.pulse.plist" \
   || bad "pulse agent P5: install writes ~/Library/LaunchAgents/felix.pulse.plist" "no $PA71P"
 has "pulse agent P5: and launchd is handed that plist" "$(cat "$PA71D/launchctl.ok.log" 2>/dev/null)" "$PA71P"
+_pa71_loaded "$PA71D/launchctl.ok.log" && ok "pulse agent P5a: launchd is handed the plist by a load, not by an unload alone" \
+  || bad "pulse agent P5a: launchd is handed the plist by a load, not by an unload alone" \
+         "launchctl got: $(tr '\n' '|' < "$PA71D/launchctl.ok.log" 2>/dev/null)"
 
 # P1: /bin/bash, the served engine's felix, pulse, and nothing else.
 _pa71a="$(_pa71_args "$PA71P")"
@@ -74,8 +95,21 @@ is "pulse agent P1: the second is the served engine's felix, not the running cop
 is "pulse agent P1: the third is pulse" "$(printf '%s\n' "$_pa71a" | sed -n 3p)" "pulse"
 is "pulse agent P1: the three in order are /bin/bash, the served felix, pulse" \
    "$(printf '%s\n' "$_pa71a" | tr '\n' '|')" "/bin/bash|$PA71S/engine/harness/felix|pulse|"
-case "$_pa71a" in */usr/bin/env*) bad "pulse agent P1: the program does not go through /usr/bin/env" "$_pa71a" ;;
+# Read off the whole plist, not ProgramArguments alone, so a Program key of
+# /usr/bin/env beside a right ProgramArguments fails it (round-1 review, P1f).
+case "$(_pa71_flat "$PA71P")" in */usr/bin/env*) bad "pulse agent P1: the program does not go through /usr/bin/env" "$(_pa71_flat "$PA71P")" ;;
   *) ok "pulse agent P1: the program does not go through /usr/bin/env" ;; esac
+
+# P1a: no Program key, and the key set is exactly the seven, each once. A
+# duplicate StandardOutPath (P2f) or any added key fails the exact set.
+case "$(_pa71_flat "$PA71P")" in *"<key>Program</key>"*) bad "pulse agent P1a: the plist has no Program key" "$(_pa71_flat "$PA71P")" ;;
+  *) ok "pulse agent P1a: the plist has no Program key" ;; esac
+is "pulse agent P1a: its keys are exactly Label, ProgramArguments, StartCalendarInterval, Hour, Minute, StandardOutPath, StandardErrorPath, each once" \
+   "$(_pa71_each "$PA71P" key | LC_ALL=C sort | tr '\n' ' ')" \
+   "Hour Label Minute ProgramArguments StandardErrorPath StandardOutPath StartCalendarInterval "
+for _pa71k in StandardOutPath StandardErrorPath ProgramArguments; do
+  is "pulse agent P1a: $_pa71k appears once" "$(_pa71_each "$PA71P" key | LC_ALL=C awk -v k="$_pa71k" '$0 == k { n++ } END { print n + 0 }')" "1"
+done
 
 # P2: one capture file, under ~/Library/Logs/felix, outside the home and Documents.
 _pa71o="$(_pa71_str "$PA71P" StandardOutPath)"; _pa71e="$(_pa71_str "$PA71P" StandardErrorPath)"
@@ -106,6 +140,10 @@ else bad "pulse agent P2: neither capture path is under \$HOME/Documents" "out [
 has "pulse agent P4: the install message names the capture file" "$PA71OUT" "Library/Logs/felix/pulse.launchd.log"
 has "pulse agent P4: and still names the pulse's own log, state/pulse.log" \
     "$(printf '%s\n' "$PA71OUT" | sed 's/pulse\.log\.launchd\.log//g')" "state/pulse.log"
+# By its full path, not a suffix a wrong path could end in (round-1 review, P4c).
+has "pulse agent P4: the install message names the capture file by its full path" "$PA71OUT" "$PA71C"
+if [ -n "$_pa71o" ]; then has "pulse agent P4: and that path is the one the plist's StandardOutPath holds" "$PA71OUT" "$_pa71o"
+else bad "pulse agent P4: and that path is the one the plist's StandardOutPath holds" "the plist holds no StandardOutPath string"; fi
 
 # P5: label and schedule hold.
 is "pulse agent P5: the label is still felix.pulse" "$(_pa71_str "$PA71P" Label)" "felix.pulse"
@@ -146,3 +184,112 @@ has "pulse agent P3: and says which directory it could not create" "$PA71OUT" "L
 if [ -s "$PA71D/launchctl.blocked.log" ]; then
   bad "pulse agent P3: and hands launchctl nothing" "launchctl got: $(tr '\n' '|' < "$PA71D/launchctl.blocked.log")"
 else ok "pulse agent P3: and hands launchctl nothing"; fi
+
+# ------------------------------------------------- P2a: paths are XML-escaped -
+# A home whose path holds &, < and > still yields a plist that parses: every
+# string is escaped, and unescaping the capture gives back the path exactly.
+PA71A="$TMP/pa71-amp/h a&b<c>d"; mkdir -p "$PA71A"; PA71A="$(cd "$PA71A" && pwd -P)"; _pa71_home "$PA71A"
+PA71AP="$PA71A/Library/LaunchAgents/felix.pulse.plist"; PA71AC="$PA71A/Library/Logs/felix/pulse.launchd.log"
+_pa71_felix "$PA71A" Darwin "$PA71D/launchctl.amp.log" --install
+is "pulse agent P2a: install answers 0 for a home whose path holds &, < and >" "$PA71RC" "0"
+_pa71ao="$(_pa71_str "$PA71AP" StandardOutPath)"; _pa71ae="$(_pa71_str "$PA71AP" StandardErrorPath)"
+has "pulse agent P2a: StandardOutPath carries & as &amp;" "$_pa71ao" "&amp;"
+has "pulse agent P2a: StandardOutPath carries < as &lt;" "$_pa71ao" "&lt;"
+has "pulse agent P2a: StandardOutPath carries > as &gt;" "$_pa71ao" "&gt;"
+_pa71s="$(_pa71_each "$PA71AP" string)"
+_pa71raw="$(printf '%s\n' "$_pa71s" | LC_ALL=C awk '{
+  t = $0; gsub(/&(amp|lt|gt|quot|apos|#[0-9]+|#x[0-9A-Fa-f]+);/, "", t)
+  if (index(t, "&") || index(t, "<")) print "[" $0 "]"
+}')"
+if [ -n "$_pa71s" ] && [ -z "$_pa71raw" ]; then ok "pulse agent P2a: no <string> in the plist holds a raw & or <"
+else bad "pulse agent P2a: no <string> in the plist holds a raw & or <" "strings [$(printf '%s' "$_pa71s" | tr '\n' '|')] raw $_pa71raw"; fi
+is "pulse agent P2a: unescaped, StandardOutPath is exactly \$HOME/Library/Logs/felix/pulse.launchd.log" \
+   "$(_pa71_unxml "$_pa71ao")" "$PA71AC"
+is "pulse agent P2a: unescaped, StandardErrorPath is exactly \$HOME/Library/Logs/felix/pulse.launchd.log" \
+   "$(_pa71_unxml "$_pa71ae")" "$PA71AC"
+[ -d "$PA71A/Library/Logs/felix" ] && ok "pulse agent P2a: and ~/Library/Logs/felix is made under that home" \
+  || bad "pulse agent P2a: and ~/Library/Logs/felix is made under that home" "no directory $PA71A/Library/Logs/felix"
+has "pulse agent P4: under that home the message names the capture file by its full, unescaped path" "$PA71OUT" "$PA71AC"
+
+# ------------------------------------- P3a: a directory that exists is not enough -
+_pa71_refused() {   # SHAPE HOME LAUNCHCTL_LOG -> P3's four terms for one refused install
+  local w="$1" h="$2" l="$3"
+  is "pulse agent P3a: $w: install exits 1" "$PA71RC" "1"
+  has "pulse agent P3a: $w: and says which directory it could not use" "$PA71OUT" "Library/Logs/felix"
+  if [ -e "$h/Library/LaunchAgents/felix.pulse.plist" ]; then
+    bad "pulse agent P3a: $w: and writes no plist" "plist written: $h/Library/LaunchAgents/felix.pulse.plist"
+  else ok "pulse agent P3a: $w: and writes no plist"; fi
+  if [ -s "$l" ]; then bad "pulse agent P3a: $w: and hands launchctl nothing" "launchctl got: $(tr '\n' '|' < "$l")"
+  else ok "pulse agent P3a: $w: and hands launchctl nothing"; fi
+}
+# (i) ~/Library/Logs is a directory and ~/Library/Logs/felix a regular file, so a
+# check on the parent, or -e for -d, cannot pass (round-1 review, P3i and P3j).
+PA71F1="$TMP/pa71-home-felixfile"; mkdir -p "$PA71F1/Library/Logs"; PA71F1="$(cd "$PA71F1" && pwd -P)"; _pa71_home "$PA71F1"
+printf 'not a directory\n' > "$PA71F1/Library/Logs/felix"
+_pa71_felix "$PA71F1" Darwin "$PA71D/launchctl.felixfile.log" --install
+_pa71_refused "~/Library/Logs/felix is a regular file" "$PA71F1" "$PA71D/launchctl.felixfile.log"
+# (ii) the capture path itself is a directory, which launchd cannot open as a file.
+PA71F2="$TMP/pa71-home-capdir"; mkdir -p "$PA71F2/Library/Logs/felix/pulse.launchd.log"; PA71F2="$(cd "$PA71F2" && pwd -P)"
+_pa71_home "$PA71F2"
+_pa71_felix "$PA71F2" Darwin "$PA71D/launchctl.capdir.log" --install
+_pa71_refused "the capture path is a directory" "$PA71F2" "$PA71D/launchctl.capdir.log"
+# (iii) ~/Library/Logs/felix exists and cannot be written. Root writes through
+# mode 555, so there the fixture proves nothing and is skipped.
+_pa71w="~/Library/Logs/felix is not writable"
+if [ "$(id -u)" = "0" ]; then
+  for _pa71n in "install exits 1" "and says which directory it could not use" "and writes no plist" "and hands launchctl nothing"; do
+    skip "pulse agent P3a: $_pa71w: $_pa71n" "running as root, which writes through mode 555"
+  done
+else
+  PA71F3="$TMP/pa71-home-readonly"; mkdir -p "$PA71F3/Library/Logs/felix"; PA71F3="$(cd "$PA71F3" && pwd -P)"; _pa71_home "$PA71F3"
+  chmod 555 "$PA71F3/Library/Logs/felix"
+  _pa71_felix "$PA71F3" Darwin "$PA71D/launchctl.readonly.log" --install
+  chmod 755 "$PA71F3/Library/Logs/felix"
+  _pa71_refused "$_pa71w" "$PA71F3" "$PA71D/launchctl.readonly.log"
+fi
+
+# ------------------------------------------- P3b: an agent already there stays -
+# A refused re-install leaves the plist from before byte for byte, so writing it
+# and then removing it fails (round-1 review, P3d). It says that agent was left
+# as it was and may still be loaded, and never that nothing is scheduled.
+_pa71i=0
+for _pa71w in "~/Library/Logs is a regular file" "~/Library/Logs/felix is a regular file"; do
+  _pa71i=$((_pa71i + 1)); _pa71h="$TMP/pa71-home-prior-$_pa71i"
+  mkdir -p "$_pa71h/Library/LaunchAgents"; _pa71h="$(cd "$_pa71h" && pwd -P)"; _pa71_home "$_pa71h"
+  case "$_pa71i" in
+    1) printf 'not a directory\n' > "$_pa71h/Library/Logs" ;;
+    *) mkdir -p "$_pa71h/Library/Logs"; printf 'not a directory\n' > "$_pa71h/Library/Logs/felix" ;;
+  esac
+  printf 'the prior agent\n' > "$_pa71h/Library/LaunchAgents/felix.pulse.plist"
+  cp "$_pa71h/Library/LaunchAgents/felix.pulse.plist" "$TMP/pa71-prior-$_pa71i.copy"
+  _pa71_felix "$_pa71h" Darwin "$PA71D/launchctl.prior-$_pa71i.log" --install
+  is "pulse agent P3b: $_pa71w, with an agent already installed: install exits 1" "$PA71RC" "1"
+  if cmp -s "$TMP/pa71-prior-$_pa71i.copy" "$_pa71h/Library/LaunchAgents/felix.pulse.plist"; then
+    ok "pulse agent P3b: $_pa71w: the plist from before is left byte for byte"
+  else bad "pulse agent P3b: $_pa71w: the plist from before is left byte for byte" \
+           "now: [$(cat "$_pa71h/Library/LaunchAgents/felix.pulse.plist" 2>/dev/null || printf 'gone')]"; fi
+  if [ -s "$PA71D/launchctl.prior-$_pa71i.log" ]; then
+    bad "pulse agent P3b: $_pa71w: and launchctl is handed nothing" "launchctl got: $(tr '\n' '|' < "$PA71D/launchctl.prior-$_pa71i.log")"
+  else ok "pulse agent P3b: $_pa71w: and launchctl is handed nothing"; fi
+  has "pulse agent P3b: $_pa71w: the message says that agent was left as it was" "$PA71OUT" "left as it was"
+  has "pulse agent P3b: $_pa71w: and that it may still be loaded" "$PA71OUT" "may still be loaded"
+  # "nothing scheduled itself" is the grant line, a different claim, so the bare
+  # phrase counts only where a clause ends.
+  case "$PA71OUT" in
+    *"nothing was scheduled"*|*"nothing is scheduled"*|*"nothing scheduled;"*|*"nothing scheduled,"*|*"nothing scheduled."*|*"nothing scheduled")
+      bad "pulse agent P3b: $_pa71w: and it never says that nothing is scheduled" "$PA71OUT" ;;
+    *) ok "pulse agent P3b: $_pa71w: and it never says that nothing is scheduled" ;;
+  esac
+done
+
+# ---------------------------------------- P4: a load that fails still says where -
+PA71G="$TMP/pa71-home-loadfail"; mkdir -p "$PA71G"; PA71G="$(cd "$PA71G" && pwd -P)"; _pa71_home "$PA71G"
+_pa71lrc=1; _pa71_felix "$PA71G" Darwin "$PA71D/launchctl.loadfail.log" --install; _pa71lrc=0
+[ -f "$PA71G/Library/LaunchAgents/felix.pulse.plist" ] && ok "pulse agent P4: with a launchctl load that fails, the plist is still written" \
+  || bad "pulse agent P4: with a launchctl load that fails, the plist is still written" "no plist under $PA71G"
+_pa71_loaded "$PA71D/launchctl.loadfail.log" && ok "pulse agent P4: and launchctl was asked to load it" \
+  || bad "pulse agent P4: and launchctl was asked to load it" "launchctl got: $(tr '\n' '|' < "$PA71D/launchctl.loadfail.log" 2>/dev/null)"
+has "pulse agent P4: the load-failure message names the capture file by its full path" \
+    "$PA71OUT" "$PA71G/Library/Logs/felix/pulse.launchd.log"
+has "pulse agent P4: the load-failure message names the pulse's own log, state/pulse.log" \
+    "$(printf '%s\n' "$PA71OUT" | sed 's/pulse\.log\.launchd\.log//g')" "state/pulse.log"

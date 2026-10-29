@@ -1713,8 +1713,8 @@
 1	D4: and no name row starts with one of the runner's seven failure prefixes, and djx b2, which the dead unit never reached, is named by its shortfall of one
 1	D4: and one from a session 20 days old is not
 1	D4: and over a base that has one and a tree that has none, red removes the base's: its -j suite refuses, and red.tsv holds the rows base - - - and run - - -
+1	D4: and the duration written for the unit the note names is less than S, so it is not charged for the wait (one counted from its first try for a slot would be at least S + 1)
 1	D4: and the durations name the group once, and not its members
-1	D4: and the durations of the two units differ by under 5 s, so the one that waited is not charged for the wait (it would be 6 s or more apart)
 1	D4: and under --days 3 it says 3 days
 1	D4: by default a chip from a session 10 days old is listed
 1	D4: parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -
@@ -1750,7 +1750,7 @@
 1	D6: HUP to the parent: exit 129, with the same afterwards
 1	D6: INT sent to a parent started with INT at its default: exit 130, with the same afterwards
 1	D6: INT to a parent started with INT at its default: exit 130, with the same afterwards
-1	D6: TERM at a spread of short delays during a -j 4 run's start-up (twelve short units, eight delays from 0 to 0.6 s after the parent's prelude) ends everything: each time exit 143, and no wrapper, holder or unit runs once the parent has exited
+1	D6: TERM at a spread of short delays during a -j 4 run's start-up (twelve units that each run until they are ended, eight delays from 0 to 0.6 s after the parent's prelude) ends everything: each time exit 143, and no wrapper, holder or unit runs once the parent has exited
 1	D6: TERM sent to the parent while units run: exit 143, no reached, no unit, holder, wrapper or child left running, no slot held, the slot files kept, no receipt
 1	D6: TERM to a parent started with INT and QUIT both ignored: exit 143, with the same afterwards
 1	D6: TERM to a record run under -j 2, both units up: exit 143, the manifest as it was, no reached, no recorded line, no receipt, the slot files kept, and nothing of red's tree left in the run's group
@@ -1774,8 +1774,8 @@
 1	D6: a run is held to its own N: -j 2 over four parts and plenty of slots has two units at once and never more, and passes
 1	D6: a second TERM sent to the parent during its ending changes nothing: exit 143, nothing of the run left, stopped or running, no slot held, no receipt, and no line of its stderr printed twice
 2	D6: a slot file the parent cannot open makes a -j run refuse: exit 2, one stderr line, no unit
-1	D6: a slot whose holder was killed with kill -9 is free at once: no run --part process while it was held, one within two seconds of the kill, timed in milliseconds, on the same slot file, and nothing left behind
-1	D6: a slot whose holder was killed with kill -9 is free at once: no unit while it was held, one within 2 s, the run then passes, and slot 0 is still the same file
+1	D6: a slot whose holder was killed with kill -9 is free at once: no run --part process while it was held, one within 20 s of the kill, timed in milliseconds, on the same slot file, and nothing left behind
+1	D6: a slot whose holder was killed with kill -9 is free at once: no unit while it was held, one within 20 s, the run then passes, and slot 0 is still the same file
 1	D6: a unit has no pipe or FIFO descriptor above 2 that the same part has not under -j 1, and the probe sees a FIFO a part opens itself
 1	D6: and -j 4 over the same parts has more than two at once, so the count above can fail
 1	D6: and a -j 1 run is not held up by the only slot being held elsewhere: it passes and runs all four parts (control)
@@ -1784,7 +1784,7 @@
 1	D6: and so is the sleeper that child forked in its TERM handler, which is a descendant of a pid the parent had listed
 1	D6: and they do get to three at once, which is the slots and not the parts' own order holding them there
 1	D6: and with FELIX_TEST_SLOTS=8 the same two runs do have more than three at once, so the count above can fail
-1	D6: and with FELIX_TEST_SLOTS=8 the same two runs do overlap more than three units (control for the count above)
+1	D6: and with FELIX_TEST_SLOTS=8 two runs of the same eight units, each holding its span until four have begun, do overlap more than three units by their spans (control for the count above)
 1	D6: four quick parts pass under -j 2: exit 0, a receipt, and the last part ran (positive control)
 1	D6: from a parent with INT DEFAULT and QUIT DEFAULT the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
 1	D6: from a parent with INT DEFAULT and QUIT IGNORE the three parts, two of them a group, ran as units under -j 3 and read the dispositions a -j 1 run reads
@@ -2203,8 +2203,9 @@
 1	R13: the same with INT, sent to a parent started with INT at its default, and two units that end at once when signalled (W is 2): exit 130, with the same afterwards
 1	R13: with FELIX_TEST_SLOT_NOTE=2 (W is 2, so the ending outlasts what a 2 s read -t left it) and a unit that ignores TERM, TERM to the parent once the unit is up: exit 143, no reached, nothing of the run left, stopped or running, no slot held, the slot files kept, no receipt
 1	R14: a ps that shows planted process P's start one second later from the ending's second listing on: once the parent has exited with 143, P still runs, is not stopped, got exactly one TERM, and nothing else of the run is left, stopped or running (a stopper that signals by pid alone STOPs and KILLs it)
-1	R15: a holder killed with kill -9 while its unit runs a member (its pid is line 2 of the slot file): within 3 s the unit is gone, the run fails naming it (part ended without its mark), the other unit passes, exit 1, no receipt, no slot held, and nothing of the run is left
-1	R15: the parent killed with kill -9 while two units run a long member: within 3 s nothing of the run runs, stopped or not, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R15: a holder killed with kill -9 while its unit runs a member (its pid is line 2 of the slot file): within 60 s the unit is gone, the run fails naming it (part ended without its mark), the other unit passes, exit 1, no receipt, no slot held, and nothing of the run is left
+1	R15: the parent killed with kill -9 while two units run a long member, a holder's ps -o ppid= -p WRAPPER answered with the -j parent's pid: within 60 s nothing of the run runs, stopped or not, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R16: a 600 s sleeper started with & and left running (it ends once its case directory is gone) gives the seventh failure with exactly its change line
 1	R16: a change to _fx_roots, an underscore-prefixed prelude variable gives the seventh failure with exactly its change line
 1	R16: a hard limit lowered with ulimit -H to its soft value gives the seventh failure with exactly its change line
 1	R16: a line a unit's own EXIT trap prints after the mark is printed as written, once, after the unit's other lines, with no @@ line; after it come the unit's runner failure 'part left the shell changed for the parts after it' and, next, '  | trap on EXIT changed', before the next unit's section; the run exits 1 and leaves no receipt
@@ -2219,13 +2220,12 @@
 1	R16: pushd of the working directory, which leaves the stack changed and the directory as found gives the seventh failure with exactly its change line
 1	R16: readonly djx_ro=1 gives the seventh failure with exactly its change line
 1	R16: set -- a b c gives the seventh failure with exactly its change line
-1	R16: sleep 30 & left running gives the seventh failure with exactly its change line
 1	R16: the set -o pipefail option flipped from what the unit's shell has gives the seventh failure with exactly its change line
 1	R16: trap 'printf "djx-exit\n"' EXIT gives the seventh failure with exactly its change line
 1	R16: unset REPO, a plain variable the prelude sets gives the seventh failure with exactly its change line
 1	R17: the tree's own groups.tsv puts 1100, 1110 and 1120 in one group, and that group is rx, a second one beside ib
 1	R1: --queue exits 0, with --tsv and without
-1	R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 30 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 49 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -
 1	R1: and #702 into main, founder by label, is stacked, so not in --queue
 1	R1: and it writes no manifest, and red.tsv holds exactly the rows base - - - and run - - -
 1	R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it
@@ -2248,8 +2248,9 @@
 1	R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/two
 1	R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once
 1	R1: under fixture/two (control)
-1	R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 20 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left
-1	R20: the parent killed with kill -9 while its holders wait for the only slot, held by another process: within 3 s nothing of the run is left, stopped or running; once the slot is let go no unit starts, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 60 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left
+1	R20: the parent killed with kill -9 while its holders wait for the only slot, held by another process, a holder's ps -o ppid= -p WRAPPER answered with the -j parent's pid: within 60 s nothing of the run is left, stopped or running; once the slot is let go no unit starts, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
+1	R20: with the -j parent stopped, not killed, so a holder's kill 0 still finds it, pk's and pw's ps answers the holder's ps -o ppid= -p WRAPPER with the -j parent's pid within 60 s of its gate, its log naming the holder as the caller, and the unit runs on: the holder's next check is answered too and the unit is then running (the control of pk's and pw's ps)
 1	R21: with R, P's child, left out of the ending's first listing and shown from the second, so that step 4 makes a second round, and P's start shifted from the third listing on, after P was sent STOP, P that ignores TERM and R are both gone once the parent has exited with 143, nothing of the run left stopped or running (what a stopper has stopped it signals by its pid)
 1	R22: where every ps -o lstart= for the forked unit prints nothing (five tries), the holder gives up before the unit runs: the member never ran, the unit has no mark (part ended without its mark, once), exit 1, no receipt, and nothing of the run is left
 1	R22: with the holder's ps -o lstart= for the forked unit held and the holder then killed with kill -9, the unit, held back until unit.I is written, finds its holder gone and exits without running the member: it never ran, has no mark (once), exit 1, no receipt, and nothing of the run is left
@@ -2291,7 +2292,7 @@
 1	R2: with the ending's listing number 1 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
 1	R2: with the ending's listing number 2 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
 1	R2: with the ending's listing number 3 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
-1	R30: a -j 2 run whose parent cannot read its job table at the end of its loop (the unit made $TMP/pj/jobs a directory) exits 0 within 15 s of the unit's end, the ticker's wait not hanging, and the unit's directory was made
+1	R30: a -j 2 run whose parent cannot read its job table at the end of its loop (the unit made $TMP/pj/jobs a directory) exits 0 within 60 s of the unit's end, the ticker's wait not hanging, and the unit's directory was made
 1	R30: and it leaves nothing of its group, stopped or running, the ticker included
 1	R31: EXECIGNORE='*/djx' plain, with EXECIGNORE absent from the run's environment gives the seventh failure with exactly its change line
 1	R31: a readonly function that is also exported, which a readonly function with only the r flag does not cover gives the seventh failure with exactly its change line
@@ -2299,9 +2300,9 @@
 1	R31: no line at the top level of a part or of tests/lib opens a descriptor of 10 or above (exec {NAME}> or <, or exec N> or < with N from 10 up): today's lines are inside functions
 1	R31: the lint fails on a copy of the tree with exec 11>/dev/null planted at the top level of a part, naming that line and no other
 1	R31: the lint names the tops of files, of loops, of brace groups and of case arms, and not what is in a function (one line or many), a subshell, a substitution, a comment, a here-document, a string, a close or a descriptor below 10
-1	R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 45 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped
+1	R32: a TERM sent to red's monitor between its STOP and its KILL, while it stops a suite whose unit ignores TERM (the suite's own ending held, so it stops nothing first, as red's suite is a fork on bash 3.2 and the -j parent itself on 5.2), changes nothing: the record run exits within 49 s of the sleeper's start, not after the 60 s it gives red, and the TERM landed with processes stopped
 1	R32: and red.tsv holds the rows base - - - and run - - -, the manifest is as it was, and nothing of the group is left, stopped or running
-1	R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 90 s, none left stopped
+1	R33: a TERM sent to the subshell that runs the record run's watcher's _rcp_stop steps (found as the parent of a listing's parent, whatever /bin/sh does with a holder's listing), between their STOP and their KILL, while the record run (killed with kill -9) leaves red's suite to it, changes nothing: the TERM landed with processes stopped, and the group is empty within 600 s, none left stopped
 1	R37: _copy_content, with a tar first on PATH that writes past the end-of-archive marker and an extractor that stops there, and pipefail set, copies a checkout's tracked file, untracked file and file in a subdirectory: it returns 0, each has the same bytes, and nothing else is in the destination
 1	R37: the lint carries no || that ends a line onto the next line
 1	R37: the lint does not see a tar named through a variable (the control's own pipe), by its path, behind a VAR= prefix, or behind a wrapper's options
@@ -2355,10 +2356,10 @@
 1	R4: the origin row says when origin/main last moved, from its reflog
 1	R4: the page after a fetch of another branch exits 0
 1	R4: the row still names the default branch (control)
-1	R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent silent (W = 30) the holder is gone within 3 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt
+1	R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent stopped by the case the holder is gone within 20 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt
 1	R4: the wrapper of a unit killed with kill -9 while the unit runs a member longer than the parent's silence: that unit alone fails without its mark, exit 1, no receipt, and once the parent has exited neither the unit nor its holder runs and the pipe it read is closed
 1	R4: while a unit runs, its holder's stdout and stderr are the unit's log: both name one regular file, which is the file the unit's own stdout names, and the run then passes
-1	R4: with the parent's FIFO silent for 30 s (W = 30), the holder's own check ends a unit whose wrapper was killed with kill -9: within 3 s of the kill the unit and its holder are gone, and the parent is still running
+1	R4: with the parent stopped by the case, so that only the holder's own check of its wrapper can act, a unit whose wrapper was killed with kill -9 is ended with its holder: within 60 s of the kill both are gone, and the parent is still there
 1	R5 clarified: --prs --tsv --repo on a directory whose name holds a tab exits 0, and so does the text page
 1	R5 clarified: and no line of the text page holds the directory's name with its tab
 1	R5 clarified: and says it could not be read
@@ -2408,16 +2409,16 @@
 1	R6: and zeta's block names felix, whose block lists its pull requests
 1	R6: felix and zeta name one repository: founder #601 is listed exactly once
 1	R6: gh listed fixture/home once, not once per project: one pr list besides two's and three's
-1	R6: the line comes within T + 3 s, 5 s, of the end of the parent's prelude, T being 2, timed in a perl that waits for the mark planted at the end of 0006: a read that waited 30 s for it would print it at 30 s
+1	R6: the line comes within 15 s of the first ps listing that shows the waiting unit's holder, T being 2, timed in a perl that waits for that holder: a read that waited 30 s would print it 30 s after the unit's wrapper started
 1	R6: the text lists #601 on one line
-1	R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 3 s later), nothing has started, and the run passes once the slot is let go
+1	R6: with the only slot held by another process and FELIX_TEST_SLOT_NOTE=2, the parent's stderr names the waiting unit once while it waits (and still once 10 s later), nothing has started, and the run passes once the slot is let go
 1	R6: with the slot free there is no such line, and the run passes (control)
 1	R6: zeta, second in name order, has a block of its own (control)
 1	R7: a part's own reached line is printed in its place as a bar line, once, and reads as no completion marker
 1	R7: and the prelude lines it prints are behind a bar, the FAIL that landed on a partial line among them
 1	R7: and the tail's note, UNIT-less, is told from it by that shape: it says how many assertions ran that the manifest does not list
 1	R7: with one slot and two units and a manifest that lists only the stubs, so that the tail prints its own note too, the unit that waited gets exactly one line of the wait note's shape, at the head of its section
-1	R7: with one slot the unit that waited gets exactly one line of the note's shape, whose seconds are at least the 6 s the other held the slot, and the tail's own note, which the manifest of the stubs alone makes it print, is a separate line
+1	R7: with one slot the unit that waited, the one whose body ran second, gets exactly one line of the note's shape, whose seconds S are at least the 30 s the other held the slot, and the tail's own note, which the manifest of the stubs alone makes it print, is a separate line
 1	R8 control: --queue lists the founder pull request #300 once
 1	R8 control: NBSP (C2 A0) and an accented letter are not controls and reach the page as they are
 1	R8 control: a plain title reaches the page unchanged

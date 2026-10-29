@@ -24,20 +24,23 @@ printf '\ngate friction D: the parallel runner, part mode, groups and slots (bli
 # ends once it is gone (sl.pl, gc.pl, the units' loops); the kill -9 window and the watches end once the run has exited, after one more look. R62: with DJX_MLOG
 # naming a file, "1291 run CASE/LABEL bound B ms MS" for every run and "1291 margin CASE/LABEL T T-MS ms MS|none" for the kill -9 window and the three watches.
 # R59 and R60 change nothing here: no case ends a record run with a signal, and none takes R1's at-exit listings.
-# Readings (revision 18): a run's start-to-exit runs from just before the case starts it to the case's reaping of it (so cap's first run reads up to the second's
-# end); a watch's ms is none on D's build and, where it found what it watches for, the ms from its start to the find. No name changes.
+# Readings (revision 18): a run's start-to-exit is the ms run.pl, its bounded runner, writes at its own exit, from just before its fork to its waitpid's return
+# (or to its KILL at B, which its alarm counts from the same fork), so it is read against B as run.pl counts B; review fix: it was the case's reaping, which put
+# cap's first run at the second's end. A watch's ms is none on D's build and, where it found what it watches for, the ms from its start to the find. No name changes.
 # An assertion whose name ends in (control) passes before D is built on purpose: it pins what makes the others mean something.
 DB1="$TMP/db1"
 mkdir -p "$DB1/pp/std" "$DB1/pp/ref" "$DB1/n" "$DB1/shim"
 _db1_E=(); _db1_INT=DEFAULT; _db1_QUIT=DEFAULT; _db1_td=""; _db1_ctl=0; _db1_pf=(); _db1_cl=ok; _db1_leak=""; _db1_prog=run; _db1_lim=600; _db1_dl=0
 # _db1_lim is every run's bound B (R55: 600 s, a run bound is not a margin); _db1_clean's 150 polls of 0.2 s are R12's 30 s drain, which R56 keeps
 cat > "$DB1/run.pl" <<'DB1PL'
-my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
+my ($t, $i, $q, $f, $m) = splice(@ARGV, 0, 5);
+my $s = 0; if ($m ne "") { require Time::HiRes; $s = Time::HiRes::time() }
+sub ms { if ($m ne "" && open(my $h, ">", $m)) { printf $h "%d\n", (Time::HiRes::time() - $s) * 1000; close $h } }
 my $p = fork; defined $p or exit 125;
 if (!$p) { setpgrp(0, 0); $SIG{INT} = $i; $SIG{QUIT} = $q; $SIG{HUP} = 'DEFAULT'; $SIG{TERM} = 'DEFAULT'; if (open(my $h, ">", $f)) { print $h "$$\n"; close $h } exec @ARGV; exit 127 }
-$SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
-alarm $t; waitpid $p, 0;
-exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
+$SIG{ALRM} = sub { kill "KILL", -$p; ms(); exit 124 };
+alarm $t; waitpid $p, 0; my $w = $?; ms();
+exit(($w & 127) ? 128 + ($w & 127) : $w >> 8);
 DB1PL
 printf '#!/bin/sh\nprintf "x\\n" >> "$DJX_DIR/mktemp.log"\nexec "%s" "$@"\n' "$(command -v mktemp)" > "$DB1/shim/mktemp"; chmod +x "$DB1/shim/mktemp"
 : > "$DB1/g-empty.tsv"; printf '1\tdjx a1\n' > "$DB1/man.tsv"
@@ -87,23 +90,26 @@ _db1_new() {
 # stdout $_db1_c/LABEL.out, stderr LABEL.err, the process group's id LABEL.pid; _db1_bg is the runner's pid
 _db1_start() {
   local l="$1" t; shift
-  t="$(_db1_now)"
+  t="$(_db1_now)"; [ -z "$t" ] || rm -f "$_db1_c/$l.ms"
   ( cd "$_db1_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_RED_JOBS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u PERL5OPT \
       TMPDIR="${_db1_td:-$_db1_tmp}" FELIX_TEST_SLOTS=8 DJX_LIFE=$((_db1_lim + 30)) DJX_DIR="$_db1_c" DJX_PL="$DB1" DJX_ID="${TMP##*/}-${_db1_c##*/}" ${_db1_E[@]+"${_db1_E[@]}"} \
-      perl "$DB1/run.pl" "$_db1_lim" "$_db1_INT" "$_db1_QUIT" "$_db1_c/$l.pid" "$BASH" "$_db1_T/$_db1_prog" "$@" \
+      perl "$DB1/run.pl" "$_db1_lim" "$_db1_INT" "$_db1_QUIT" "$_db1_c/$l.pid" "${t:+$_db1_c/$l.ms}" "$BASH" "$_db1_T/$_db1_prog" "$@" \
   ) > "$_db1_c/$l.out" 2> "$_db1_c/$l.err" &
   _db1_bg=$!; _db1_pf[${#_db1_pf[@]}]="$_db1_c/$l.pid"
   _db1_dl=$((SECONDS + _db1_lim + 5))   # R44: the run's own bound (run.pl's KILL at _db1_lim) and 5 s more; a wait for an event of the run lasts until then
-  [ -z "$t" ] || printf '%s %s %s\n' "${_db1_c##*/}/$l" "$_db1_lim" "$t" > "$DB1/t0.$_db1_bg"   # R62: CASE/LABEL, B and the start, for the run line
+  [ -z "$t" ] || printf '%s %s %s %s\n' "${_db1_c##*/}/$l" "$_db1_lim" "$t" "$_db1_c/$l.ms" > "$DB1/t0.$_db1_bg"   # R62: CASE/LABEL, B, the start and run.pl's ms file
 }
 # R44, R56: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's own bound has passed; 0 when it held
 _db1_evt() { while ! "$@"; do kill -0 "$_db1_bg" 2>/dev/null || break; [ "$SECONDS" -lt "$_db1_dl" ] || break; sleep 0.2; done; "$@"; }
 _db1_wait() { { wait "$_db1_bg"; } 2>/dev/null; _db1_rc=$?; _db1_mr "$_db1_bg"; _db1_E=(); _db1_INT=DEFAULT; _db1_QUIT=DEFAULT; }
-_db1_mr() {   # BGPID: R62's line for the run that job was, once the case has reaped it: "1291 run CASE/LABEL bound B ms START-TO-EXIT"
-  local f="$DB1/t0.$1" c b t
+# BGPID: R62's line for the run that job was, "1291 run CASE/LABEL bound B ms START-TO-EXIT": the ms run.pl, its bounded runner, wrote at its own exit, from
+# just before its fork to its waitpid's return (or to its KILL at B), not to the case's reaping; were run.pl ever killed before it wrote, the ms to the reaping
+_db1_mr() {
+  local f="$DB1/t0.$1" c b t m x
   [ -n "${DJX_MLOG:-}" ] && [ -f "$f" ] || return 0
-  read -r c b t < "$f"; rm -f "$f"; _db1_ml run "$c" bound "$b" ms "$(( $(_db1_ms) - t ))"
+  read -r c b t m < "$f"; rm -f "$f"; x="$(cat "$m" 2>/dev/null)"; case "$x" in ''|*[!0123456789]*) x=$(( $(_db1_ms) - t )) ;; esac
+  _db1_ml run "$c" bound "$b" ms "$x"
 }
 # R58, a watch: SECS LABEL PRED...: looks every 0.2 s, for SECS s at least (by $SECONDS), for what PRED finds (only a build without the clause makes it), and ends
 # early once PRED holds, which fails the name, or once the run has ended (R61), after one more look. 1 when PRED held; logs "margin CASE/LABEL T SECS ms none" (R62),

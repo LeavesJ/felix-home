@@ -158,14 +158,17 @@ felix_graph_refresh_bg() {
     #
     # Written to a file made new for it and renamed into place, never through
     # `>`: a checkout can carry the marker as a link, and `>` would follow it
-    # and overwrite whatever it names. A rename replaces the link itself. Not
-    # at all when graphify-out is itself a link, since then the rename lands
-    # wherever that points.
+    # and overwrite whatever it names. Renamed by perl, which is rename(2)
+    # itself: it replaces a link at the marker path and fails on a directory
+    # there. mv is not: given a directory, or a link to one, it moves the file
+    # inside. Not at all when graphify-out is itself a link, since then the
+    # rename lands wherever that points.
     _at="$(git -C "$home" rev-parse HEAD 2>/dev/null)"
     if graphify update "$home" >/dev/null 2>&1 && [ -n "$_at" ] && [ ! -L "$home/graphify-out" ]; then
       _m="$home/graphify-out/.felix-refreshed-at"
       _t="$(mktemp "$_m.XXXXXX" 2>/dev/null)" \
-        && { { printf '%s\n' "$_at" > "$_t" && mv -f "$_t" "$_m"; } 2>/dev/null || rm -f "$_t" 2>/dev/null; }
+        && { { printf '%s\n' "$_at" > "$_t" \
+          && perl -e 'rename($ARGV[0], $ARGV[1]) or exit 1' "$_t" "$_m"; } 2>/dev/null || rm -f "$_t" 2>/dev/null; }
     fi
   ) </dev/null >/dev/null 2>&1 &
   return 0

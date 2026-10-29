@@ -197,6 +197,13 @@ full forty-character name and a newline), so
 a refresh that wrote nothing (no topology change) is not started again at the
 same HEAD. A refresh that fails writes no marker.
 
+The marker is a file of the checkout too, so it is written to a file made new
+for it and renamed into place, and the rename replaces whatever entry stands at
+that path without writing through it. A symbolic link there is replaced by the
+marker, and what it named, a file or a directory, is left as it was. A
+directory there gets no marker and nothing inside it. No marker is written
+when `graphify-out` is itself a symbolic link.
+
 ---
 
 ## 3. `hooks/user-prompt`: where the answer is given
@@ -472,6 +479,7 @@ the timeout clause, rounding). Sections 0, 1, 7 and 8 were corrected to match.
 And after the review of the amendment, the same day: A1.5 (a timeout that is
 not a whole number of one or more is the default; the group signalled until
 empty), A2.9 and U2 (bytes in any locale), A3 (the marker read only as a
-regular file, and only 64 bytes of it), L4 (a row T1 wrote credits its own file
-only; what the measure cannot see), section 8 (the replay's population and
-rules).
+regular file, and only 64 bytes of it), A4 (the marker renamed into place,
+never written through a link or into a directory), L4 (a row T1 wrote credits
+its own file only; what the measure cannot see), section 8 (the replay's
+population and rules).

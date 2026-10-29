@@ -174,3 +174,47 @@ the carrier deploys after the merge. Then the open items above. Risk-red: new li
 (`lost-work.sh`, `inventory-chips.sh`) and lib edits. This branch's parts were
 checked alone against their serial run (the 166 pairs above); the record ran
 the whole suite in order, not each part alone.
+
+**Review finding 7, pinned (branch `LeavesJ/lost-work-page-assertions-79aa5e`,
+from main at 78f0268f, part 1491).** Written from the contract alone (A3 S1-S3,
+B2), not from the engine. The task named part 1450; 1450-1490 are taken, so the
+part is `1491-lost-work-review-gaps-blind.sh`, sourced after 1490 in
+`tests/run` (454 lines, no split needed). It pins four clauses. S1, S2 and S3
+each turn away a starter file last modified before the proposal, with the same
+starter modified after it as the control, so only the mtime differs. S1 turns
+away the file that proposed the chip even when its first prompt matches. And
+`felix monitor`'s scratch directory is gone after HUP, INT, QUIT and TERM (the
+page is held on a blocking `gh` stub, the signal goes to the page's pid, then
+the stub is released; skipped without perl). Part 0940's `IB_LIBS` now names
+`inventory-chips.sh`, so A109, A110 and A112 cover it. The two parts together
+pass 134, 0 failed, on this head.
+- **Each clause turns red against a mutant that drops it** (copies of `engine/`,
+  one part alone through a `partrun.sh` that waits only for a full `tests/run`):
+  the mtime test dropped for S1, for S2, for S3, each reds its own "last
+  modified before the proposal" assertion; the own-file exclusion dropped reds
+  "a session that began with the chip's prompt and later proposed the chip";
+  the EXIT trap dropped reds all four B2 post-signal assertions; the QUIT trap
+  dropped, or the whole signal-trap line dropped, reds QUIT's alone; a
+  here-document, a `felix-home` and 400 lines appended to `inventory-chips.sh`
+  red A110, A112 and A109 one each.
+- **Removing only the HUP, INT or TERM trap stays green, and it must.** Bash
+  runs the EXIT trap when it dies of those three even with no handler of their
+  own; QUIT is the one it does not. Those three traps are redundant, not
+  unpinned. Their proof is a mutant that kills the page without cleanup (the
+  signal's trap replaced by `kill -s KILL $$`); those three runs were held back
+  by a peer's CPU-burner window and record and are not in this note yet.
+- **An anchor chip is why the mtime mutants were first green.** The chip reader
+  lists only session files modified since the oldest chip's proposal, so a
+  starter older than every proposal never reaches the per-chip test. The
+  fixture has a chip proposed earlier than the old starters, so the per-chip
+  test is the one deciding.
+- **This PR is no longer test-only.** A112 now covers `inventory-chips.sh`, and
+  its comment on line 24 named `felix-home` (from #469), so the comment now
+  says "the founder's main repository". Comment only, but it touches `lib/`:
+  risk-red.
+- **A109's name changed** from "the six inventory libraries" to "the seven",
+  and 1491's assertions are new: the next assertions re-stamp must carry both.
+- **Not run:** the gate, the record and the full suite. Their slot is the
+  carrier's ("Inventory work prioritization"); only parts 0940 and 1491 ran.
+- **The earlier "Test gaps left (review finding 7)" bullet is answered** by this
+  part; step 6 itself landed (#450, #454, #460).

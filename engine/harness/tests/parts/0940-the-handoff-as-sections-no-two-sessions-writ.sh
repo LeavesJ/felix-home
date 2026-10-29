@@ -1,10 +1,10 @@
 # ---- §1, §9: the libraries -----------------------------------------------
 _ib_build n16
-IB_LIBS="inventory.sh inventory-items.sh inventory-gh.sh inventory-orphans.sh inventory-host.sh inventory-view.sh"
+IB_LIBS="inventory.sh inventory-items.sh inventory-gh.sh inventory-orphans.sh inventory-host.sh inventory-chips.sh inventory-view.sh"
 _ibcode() { LC_ALL=C awk '!/^[[:space:]]*#/ { f = FILENAME; sub(/.*\//, "", f); print f ":" FNR ":" $0 }' "$@"; }
 _ibmissing() { local f m=""; for f in $IB_LIBS; do [ -f "$IBL/$f" ] || m="$m $f"; done; printf '%s' "${m:+missing:$m}"; }
 _iblibs() { local f; for f in $IB_LIBS; do [ -f "$IBL/$f" ] && printf '%s\n' "$IBL/$f"; done; }
-is  "inventory A109: the six inventory libraries exist and each is under 500 lines" \
+is  "inventory A109: the seven inventory libraries exist and each is under 500 lines" \
     "$(_ibmissing)$(for _ibf in $(_iblibs); do [ "$(LC_ALL=C awk 'END { print NR }' "$_ibf")" -lt 500 ] || printf ' %s is long' "${_ibf##*/}"; done)" ""
 is  "inventory RV9: the view's header comment names no landing actor as a reader of the rows (spec section 11 row 19), and the file is there to be read" \
     "$([ -f "$IBL/inventory-view.sh" ] && LC_ALL=C awk 'index(tolower($0), "landing actor") { printf "line %d; ", FNR } END { if (!NR) printf "empty" }' "$IBL/inventory-view.sh" || printf 'missing')" ""

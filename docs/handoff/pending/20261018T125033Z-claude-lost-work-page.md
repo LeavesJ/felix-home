@@ -201,8 +201,9 @@ pass 134, 0 failed, on this head.
   runs the EXIT trap when it dies of those three even with no handler of their
   own; QUIT is the one it does not. Those three traps are redundant, not
   unpinned. Their proof is a mutant that kills the page without cleanup (the
-  signal's trap replaced by `kill -s KILL $$`); those three runs were held back
-  by a peer's CPU-burner window and record and are not in this note yet.
+  signal's trap replaced by `kill -s KILL $$`): each reds its own "after HUP",
+  "after INT" or "after TERM" assertion and no other, run at 23:39Z, after a
+  peer's CPU burners were off (22:19Z).
 - **An anchor chip is why the mtime mutants were first green.** The chip reader
   lists only session files modified since the oldest chip's proposal, so a
   starter older than every proposal never reaches the per-chip test. The

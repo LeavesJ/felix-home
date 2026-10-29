@@ -128,6 +128,23 @@ printf 'sonarqube\tsecrets\thigh\n' >> "$DH/state/discover/widget.tsv"
 new="$( . "$FROOT/harness/lib/discover.sh"; felix_discover_unseen "$DP" "$DH" | tr '\n' ' ' )"
 has "but a new one does get through" "$new" "sonarqube"
 
+printf '\n_discover_quiesce waits for the refresh a hook forked\n'
+# The refresh a session start forks (felix_discover_refresh_bg) is a child nothing waits for. It holds
+# <home>/state/discover/.lock from before the fork until after it has written the cache, which is how
+# the block below, which forks one on purpose, knows it is done however long the machine takes.
+DRC="$TMP/discover-race"; mkdir -p "$DRC/real" "$DRC/qhome/state/discover"
+_discover_quiesce "$DRC/qhome" 1; _drc_q=$?
+is  "_discover_quiesce returns at once where no refresh holds the lock" "$_drc_q" "0"
+mkdir "$DRC/qhome/state/discover/.lock"
+_discover_quiesce "$DRC/qhome" 1; _drc_q=$?
+is  "_discover_quiesce gives up on a refresh that does not end" "$_drc_q" "1"
+( sleep 1; rmdir "$DRC/qhome/state/discover/.lock" ) &
+_drc_bg=$!
+_discover_quiesce "$DRC/qhome" 60; _drc_q=$?
+wait "$_drc_bg"
+is  "and waits for one that does" "$_drc_q" "0"
+unset _drc_q _drc_bg
+
 # An unreadable catalogue is not an empty one. felix_discover_candidates used to
 # come back with no rows whether the marketplaces had nothing for this project
 # or the CLI had fallen over, and the quiet form wrote the second as the first
@@ -209,18 +226,53 @@ is  "and no CLI on PATH at all is exit 3, not an empty marketplace" \
 # the candidates function returns before it ever asks the CLI.
 cp "$FROOT/projects/widget/capabilities" "$TMP/caps.discover.keep" 2>/dev/null || : > "$TMP/caps.discover.keep"
 printf 'llm\n' >> "$FROOT/projects/widget/capabilities"
-DCH="$FROOT/state/discover"; mkdir -p "$DCH"
+# This block reads back a cache it wrote, so the cache is in a home of its own: projects/ is the fixture's,
+# state/ is not. The refresh a session start forks writes $FROOT/state/discover/widget.tsv whenever it
+# finishes and nothing waits for it, and on 2026-10-02 (0.49.262, main 32769ee6), with the real claude on
+# PATH and the machine under load, one from an earlier block landed a row of this machine's catalogue
+# (figma) on the fixture below. Forced here instead of hoped away: a session starts in the widget
+# checkout with a claude that holds still, so its refresh is in flight for the whole block, and it is let
+# go where the block compares. It lands on the shared home, which nothing here reads.
+DCHOME="$TMP/discover-home"; DCH="$DCHOME/state/discover"; mkdir -p "$DCH"
+[ -e "$DCHOME/projects" ] || ln -s "$FROOT/projects" "$DCHOME/projects"
+cat > "$DRC/real/claude" <<STUB
+#!/bin/sh
+printf '%s|%s\n' "\$PWD" "\$*" >> "$DRC/asked.log"
+i=0; while [ ! -e "$DRC/go" ] && [ "\$i" -lt 900 ]; do sleep 0.1; i=\$((i+1)); done
+echo '[]'
+STUB
+chmod +x "$DRC/real/claude"
+# Skipped where the engine runs no detached read at all: it makes the directory the read runs in only
+# under a TMPDIR that no one else can write into.
+_drc_on=1; _drc_why=""
+if command -v _rx_base_ok >/dev/null 2>&1 && _rx_base_ok "$TMP"; then :
+else _drc_on=0; _drc_why="TMPDIR is not a private directory here, so the engine runs no detached read"; fi
+_drc_is()  { if [ "$_drc_on" = 1 ]; then is "$@"; else skip "$1" "$_drc_why"; fi; }
+_drc_has() { if [ "$_drc_on" = 1 ]; then has "$@"; else skip "$1" "$_drc_why"; fi; }
+_drc_routes=0; _drc_had=0
+if [ "$_drc_on" = 1 ]; then
+  [ -f "$FROOT/projects/widget/routes.tsv" ] || { cp "$REAL_HARNESS/templates/routes.tsv" "$FROOT/projects/widget/routes.tsv"; _drc_routes=1; }
+  [ -d "$FROOT/state/discover" ] && _drc_had=1
+  mkdir -p "$FROOT/state/discover"
+  _discover_quiesce "$FROOT" 300
+  rm -f "$DRC/go" "$DRC/asked.log" "$FROOT/state/discover/widget.tsv" "$FROOT/state/discover"/widget.tsv.new.*
+  ( cd "$REPO" && TMPDIR="$TMP" PATH="$DRC/real:$PATH" CLAUDE_PLUGIN_ROOT="$FROOT" "$FROOT/harness/hooks/session-start" ) >/dev/null 2>&1
+fi
 { _dstamp; printf 'langfuse\tllm\tlow\n'; } > "$DCH/widget.tsv"
 DCW="$(cat "$DCH/widget.tsv")"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
 # Exits with the status it refused with since 2026-10-01: 3 here, and 2 for rules
 # that could not be read, so that --adopt, which fills the cache with it, can say
 # which of the two it was. Still non-zero, which is what the `&&` above asks.
 is  "felix discover --inspect --quiet exits 3 when the catalogue cannot be read" "$rc" "3"
 is  "and prints nothing, not even the stamp" "$out" ""
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover 2>&1)"
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover 2>&1)"
 has "and the loud form says the catalogue was never seen" "$out" "could not be read"
+# Let go where the block compares, and wait until the refresh is done: it lands now, on the shared home.
+: > "$DRC/go"; [ "$_drc_on" = 0 ] || _discover_quiesce "$FROOT" 300
 is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
+_drc_has "and the refresh the hook forked asked the claude for the catalogue" "$(cat "$DRC/asked.log" 2>/dev/null)" "plugin list --json --available"
+_drc_is  "and landed on the shared home's cache, which this block does not read" "$(cat "$FROOT/state/discover/widget.tsv" 2>/dev/null)" "$(_dstamp)"
 # And a writer that actually writes. The assertion above runs the loud form,
 # which has no cache writer in any version, so it could not have failed for
 # the defect it is named after. --adopt fills a cache it finds STALE, and
@@ -229,20 +281,27 @@ is  "the cache already there is untouched" "$(cat "$DCH/widget.tsv")" "$DCW"
 DCS="# stamp not-the-current-one
 langfuse	llm	low"
 printf '%s\n' "$DCS" > "$DCH/widget.tsv"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --adopt 2>&1)"; rc=$?
 is  "a stale cache and an unreadable catalogue adopts nothing" "$rc" "2"
 is  "and the stale answer is still there, not replaced by an empty one" "$(cat "$DCH/widget.tsv")" "$DCS"
 [ -e "$DCH/widget.tsv.new" ] && bad "and no half-written cache is left beside it" "left behind" || ok "and no half-written cache is left beside it"
 rm -f "$DCH/widget.tsv"
-out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" "$FELIX" discover --adopt 2>&1)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-fail:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --adopt 2>&1)"; rc=$?
 is  "discover --adopt with no cache and no catalogue adopts nothing and says why" "$rc" "2"
 has "in words" "$out" "nothing was adopted"
 [ -e "$DCH/widget.tsv" ] && bad "and writes no cache" "$(cat "$DCH/widget.tsv")" || ok "and writes no cache"
 [ -e "$DCH/widget.tsv.new" ] && bad "nor a half-written one" "left behind" || ok "nor a half-written one"
-out="$(cd "$REPO" && PATH="$DCP/bin-empty:$PATH" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
+out="$(cd "$REPO" && PATH="$DCP/bin-empty:$PATH" FELIX_HOME="$DCHOME" "$FELIX" discover --inspect --quiet 2>/dev/null)"; rc=$?
 is  "and a catalogue that was read and matched nothing is exit 0" "$rc" "0"
 is  "with the stamp and no rows, which is an empty cache and a real answer" "$out" "$(_dstamp)"
 cp "$TMP/caps.discover.keep" "$FROOT/projects/widget/capabilities"
+if [ "$_drc_on" = 1 ]; then
+  rm -f "$FROOT/state/discover/widget.tsv" "$FROOT/state/discover"/widget.tsv.new.*
+  [ "$_drc_had" -eq 1 ] || rmdir "$FROOT/state/discover" 2>/dev/null
+  [ "$_drc_routes" -eq 0 ] || rm -f "$FROOT/projects/widget/routes.tsv"
+fi
+unset -f _drc_is _drc_has
+unset DRC DCHOME _drc_on _drc_why _drc_routes _drc_had
 
 printf '\ndiscovery reads before it recommends\n'
 # The plugin format has no permission declaration and `claude plugin validate`

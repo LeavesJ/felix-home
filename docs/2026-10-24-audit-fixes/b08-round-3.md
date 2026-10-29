@@ -1033,3 +1033,63 @@ Named `B08R3Z4 A<n> (R3Z4-<m>...)`.
 Each case runs over FC with the tree's stack.tsv unless it says otherwise. A192 to A194 need
 stack.tsv. Expected red on 26316e9f: A188 and A190 to A195 (7). A196 to A199 pass there
 already: they are coverage cases for section 13's rules. The controls pass. Report each.
+
+## 15. Eighth follow-up: a risk value that fails closed, and every hook that names provision
+
+The builder of section 14 committed 5640d9dc and then lost its API connection before it reported.
+No review of 5640d9dc ran. The repository's automated security review (the security-guidance
+plugin) read the commit and raised three findings. Two are taken here. The third is the
+founder's.
+
+Section 14's last paragraph counted A194 among the red. It is a control and passes, so 6 were
+red, not 7.
+
+- **B08R3Z5-1 (medium). The risk value fails closed.**
+  - Under B08R3Z4-3, a `fetch` entry whose stack row's risk (field 4) is exactly `high` keeps
+    section 14's clause.
+  - One whose risk is anything other than exactly `low`, `medium` or `high` adds
+    ` <name> is fetched into the cloud and stack.tsv's risk for it is not low, medium or high;`.
+    Examples are `High`, ` high`, `hgh` and an empty field.
+  - Discover's vocabulary is `low|medium|high`. A value outside it is not a rating.
+- **B08R3Z5-2 (medium). Every other hook that names provision is a fault.**
+  - Count the hook objects in settings.json, in every event and group, whose `command` string
+    contains `provision` and which are not equal to the canonical object.
+  - Equal copies outside the group are B08R3Z4-4's.
+  - When that count k is above 0, the line adds ` unreadable: .claude/settings.json (<k> other
+    hooks name provision);` after the outside clause.
+  - The match is a plain substring, so `provisional` counts. That fails closed.
+  - It applies under B08R3Z3-1's condition (a stage-0 toolbox), as the binding does.
+- **Recorded, for the founder (the plugin's high finding).**
+  - A `fetch` entry under a declared, low-risk name can point its `source`, `sha` and `subdir` at
+    any repository, and the gate reads ok. Today stack.tsv's `source` column is `-` on every
+    row, so nothing in git is a second record of what a name fetches. The binding of name to
+    content rests on review of the red path `.claude/cloud`.
+  - Making it checkable needs that second record: each plugin's source and pinned sha in
+    stack.tsv, or a pin table that discover writes when it reads a candidate. Either is a table
+    column or a new table, which is a founder stop.
+- **Recorded, not taken.** Provision named by a split spelling (`prov""ision`, a variable) in
+  another hook.
+
+### Limits
+
+- gate.sh may grow to 280 lines over 8e634e4b. The builder reports the count.
+
+### Assertions (part 1773 after A199)
+
+Named `B08R3Z5 A<n> (R3Z5-<m>)`. Every hook command the cases add carries the guard prefix the
+tree's commands carry, so no guard clause is said.
+
+- **A200** (R3Z5-1) stack.tsv's superpowers row has risk `High`, and superpowers stays
+  `carry` `fetch`: the not-a-rating clause naming superpowers.
+- **A201** (R3Z5-1) the same row with risk `hgh`: the not-a-rating clause.
+- **A202** (R3Z5-1, control) the same row with risk `medium`: as A140.
+- **A203** (R3Z5-2) a UserPromptSubmit hook running `bash "$CLAUDE_PROJECT_DIR/.claude/cloud/provision"`: the
+  other-hooks clause, `1`.
+- **A204** (R3Z5-2) a second hook in the startup|resume|clear|compact SessionStart group, the
+  canonical object with `timeout` 30: the binding count stays `1`, and the other-hooks clause
+  is `1`.
+- **A205** (R3Z5-2) a UserPromptSubmit hook running `echo provisional`: the other-hooks
+  clause, `1`.
+- **A206** (R3Z5-2, control) a UserPromptSubmit hook running `echo hello`: as A140.
+
+Expected red on 5640d9dc: A200, A201 and A203 to A205 (5). The controls pass. Report each.

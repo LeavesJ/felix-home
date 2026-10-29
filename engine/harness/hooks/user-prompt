@@ -301,10 +301,15 @@ fi
 # A person's prompt only, and only in the project's own checkout: graph.json is
 # a file of the checkout, and in one bound by a marker alone its labels are
 # whatever the repository's authors wrote, arriving under Felix's name
-# (lib/own.sh). The graph file is tested first so a project with no graph pays
-# no git for the ownership test.
+# (lib/own.sh). The cheap tests first, so a project with no graph pays no git
+# for the ownership test, and the prompt is read out of the payload last.
+#
+# Before any of it, a person's prompt ends the turn in which the last answer
+# could be acted on (lib/answer.sh, felix_answer_prompt): what the session did
+# after it was asked something else is not credited to that answer.
+[ -z "$machine" ] && [ -n "$sid_raw" ] && { felix_answer_prompt "$FELIX_HOME_DIR" "$sid_raw" 2>/dev/null || true; }
 graph_block=""
-if [ -z "$machine" ] && [ -n "$sid_raw" ] && felix_graph_file "$root" >/dev/null 2>&1; then
+if [ -z "$machine" ] && [ -n "$sid_raw" ] && felix_graph_ready "$root" 2>/dev/null; then
   _gown=2; felix_checkout_is_own "$PROJ" "$root" 2>/dev/null; _gown=$?
   if [ "$_gown" = 0 ]; then
     graph_block="$(felix_graph_deliver "$FELIX_HOME_DIR" "$sid_raw" "$root" \

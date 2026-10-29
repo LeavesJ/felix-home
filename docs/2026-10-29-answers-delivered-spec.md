@@ -1,13 +1,14 @@
 # A tool's answer, delivered: the knowledge graph at every prompt, the specification
 
-Written 2026-10-29 against main at 78f0268f (engine 0.49.308). Every behaviour
-below is numbered, says what is observable, and is meant to become one or more
-assertions in `engine/harness/tests/parts/`. Decisions taken where the brief
-left a choice are in section 7, each with its evidence.
+Written 2026-10-29 against main at 78f0268f (engine 0.49.308), and amended the
+same day after a six-lens review (section 9 lists every item that changed).
+Every behaviour below is numbered, says what is observable, and is meant to
+become one or more assertions in `engine/harness/tests/parts/`. Decisions taken
+where the brief left a choice are in section 7, each with its evidence.
 
-Tier: adversarial. `lib/graph.sh`, `lib/ledger.sh`, the `felix` CLI and the
-user-prompt, post-tool and session-end hooks run in every session of every
-governed project.
+Tier: adversarial. `lib/graph.sh`, `lib/answer.sh`, `lib/ledger.sh`, the
+`felix` CLI and the user-prompt, post-tool, session-start and session-end hooks
+run in every session of every governed project.
 
 Notation: `\t` is one tab byte. A row written `a\tb\tc` is one line ending in a
 newline. Paths are relative to `engine/harness/` unless they start with
@@ -22,22 +23,26 @@ an `orient` route (2026-09-10), a line in every session-start banner, and a
 background refresh. `felix ledger` on 2026-10-29: the banner line was in 193
 sessions and the graph was queried 3 times; the route named it in 15 sessions
 and it was reached 0 times. A name is advice, and advice among forty lines of
-banner does not change what a model does. This change stops naming the graph
-and hands the session its answer: on each prompt a person types, the hook asks
-the graph the prompt and puts the files and symbols it returns into the model's
-context, then records whether the session went to them. The same plumbing is
-the class, not the instance: an *answer* is any capability's output delivered
-without being asked for, and the ledger and the use measure are written for
-answers in general, with graphify the first tool to give one.
+banner does not change what a model does. This change no longer leaves the
+graph at being named (the banner line stays): on each prompt a person types,
+the hook asks the graph the prompt and puts the files and symbols it returns
+into the model's context, then records whether the session went to them. The
+same plumbing is the class, not the instance: an *answer* is any capability's
+output delivered without being asked for, and the ledger and the use measure are
+written for answers in general, with graphify the first tool to give one.
 
 ## 1. What the graph can and cannot answer here (measured, not assumed)
 
 - `graphify query`, `explain` and `affected` load `graph.json` with networkx and
-  walk it. No model, no network (read in graphify's `cli.py` and `serve.py`,
-  installed 0.4.x). `query` writes one stamp file,
-  `graphify-out/cache/last_query_stamp`, and nothing else.
+  walk it. No model, no network (read in graphify 0.9.37's `cli.py` and
+  `serve.py`). `query` writes one stamp file, `graphify-out/cache/last_query_stamp`,
+  and nothing else.
 - Time on this Mac, 8 MB graph, 7,584 nodes: `affected` 0.28-0.38 s, `query`
-  with `--budget 600` 0.98-1.40 s wall, 0.57 s CPU.
+  with `--budget 600` 0.57 s CPU, 0.98-1.40 s wall at an ordinary load, and
+  3.3-4.8 s wall at a load average of 130-180, when other sessions run suites.
+- At `--budget 600` graphify truncates most answers and says so: six sampled
+  prompts showed 12 of 121, 19 of 97, 15 of 65, 12 of 71, 13 of 135 and 15 of
+  144 nodes. The answer handed over has to say it is partial.
 - Recall of *who depends on a file*, on the engine: for every file under
   `lib/` and `hooks/`, the files the graph links to it by any cross-file edge
   against the files that name one of its functions or source it: 74 of 455
@@ -49,6 +54,9 @@ answers in general, with graphify the first tool to give one.
   oracle") with a number on it.
 - What the graph does answer well: where a thing is (which file and line holds
   the symbols and documents a question is about) and how files group.
+- `graphify update` writes nothing when the code's topology did not change: it
+  compares the rebuilt graph with `built_at_commit` removed and returns before
+  writing, so the stamp stays behind HEAD after a commit that changes no node.
 
 So the answer delivered is `query` on the prompt, the "where is it" answer, and
 not `affected` on an edited file, whose list would be 84% short on the only
@@ -73,16 +81,20 @@ graph node, and exits 0; or prints nothing and exits 1. In order:
    (default 5): exit 1, graphify not run.
 5. Runs exactly
    `graphify query "<prompt>" --budget <FELIX_GRAPH_BUDGET> --graph <graph file>`
-   (default budget 600), bounded by `FELIX_GRAPH_TIMEOUT` seconds (default 4)
-   through `perl -e 'alarm shift; exec @ARGV'`. Its stderr is discarded. A
-   non-zero exit, a timeout, or no output: exit 1.
+   (default budget 600), for at most `FELIX_GRAPH_TIMEOUT` seconds (default 4).
+   The command runs in a process group of its own. At the deadline the whole
+   group is killed, children included, so nothing it started can hold the
+   caller's output open; and any process still in the group when the command
+   exits by itself is killed then. Its stderr is discarded. A non-zero exit, a
+   kill at the deadline, or no output: exit 1.
 6. Reads graphify's lines of the form
    `NODE <label> [src=<src> loc=<loc> community=<anything>]`. Every other line
-   is ignored. A node is kept only when `<src>` is a relative path (does not
-   start with `/`, is not `None`, contains no `..` segment) naming a regular
+   is ignored. Tab and control bytes are removed from `<src>`, `<loc>` and
+   `<label>`. A node is kept only when `<src>` is a relative path (does not
+   start with `/`, is not `None`, has no `..` path segment) naming a regular
    file under the graph's holding checkout.
-7. `<label>` is cleaned: tab and control bytes removed, cut to 120 characters.
-   `<loc>` is kept as printed (`L83`, `§0ae`, or empty for `None`).
+7. `<label>` is cut to 120 characters, never inside a UTF-8 sequence. `<loc>`
+   is kept as printed (`L83`, `§0ae`), and empty for `None`.
 8. Rows stop once `FELIX_GRAPH_FILES` distinct files (default 8) have appeared;
    further nodes of a file already listed are still printed, and no more than
    16 rows in all.
@@ -90,25 +102,45 @@ graph node, and exits 0; or prints nothing and exits 1. In order:
 
 ### A2. `felix_graph_deliver <home> <session> <root> <prompt>`
 
-The answer, made into the block the hook hands the model, once per file per
-session. Prints the block and exits 0, or prints nothing and exits 1.
+The answer, made into the block the hook hands the model, once per node per
+session. Prints the block and exits 0, or prints nothing and exits 1. The
+session's answer record is `<home>/state/answer/<session>.tsv`.
 
-1. Empty `<session>`: exit 1, nothing written.
-2. `felix_graph_answer` fails: exit 1, nothing written.
-3. The session's answer record is `<home>/state/answer/<session>.tsv`. A file
-   already recorded there as `answer\tgraphify\t<src>` is dropped from this
-   answer. Nothing left: exit 1, nothing written.
-4. Otherwise appends, in this order: one `given\tgraphify\t<n>` row, `<n>`
-   being the number of distinct files kept; then one `answer\tgraphify\t<src>`
-   row per distinct file, in the order graphify gave them.
-5. Records the delivery in the ledger: `felix_ledger_record <home> <session>`
+1. `<session>` empty, or containing anything but ASCII letters, digits, `-`
+   and `_`: exit 1, nothing written.
+2. One of A1 steps 1-4 refuses (graphify is not asked): exit 1, nothing
+   written.
+3. Otherwise graphify is asked, and exactly one `asked\tgraphify\t<outcome>`
+   row is appended to the record, creating `state/answer/` as needed. The
+   outcome is one of:
+   - `timeout`: the bound killed graphify at the deadline;
+   - `failed`: graphify exited non-zero, or printed nothing;
+   - `empty`: graphify answered, and no node survived A1 steps 6-8;
+   - `repeat`: every node that survived was delivered before in this session;
+   - `answered`: at least one node is delivered.
+   Anything but `answered`: exit 1, nothing else written, nothing printed.
+4. A node is identified by its `src`, `loc` and `label` together. A node the
+   record already holds as `node\tgraphify\t<src>\t<loc>\t<label>` is dropped.
+   A new node in a file named earlier in the session is delivered.
+5. For an answer, after the `asked` row, in this order:
+   - the session's roots, once a session: `root\t<root>` for the top level of
+     `<root>`'s working tree, and `root\t<holding checkout>` when that is a
+     different directory; only roots not already recorded;
+   - `given\tgraphify\t<n>\t<found>`, `<n>` being the distinct files among the
+     delivered nodes and `<found>` the count graphify printed on its first line
+     (`... | <found> nodes found`), or `-` when it printed none;
+   - one `node\tgraphify\t<src>\t<loc>\t<label>` row per delivered node, in
+     graphify's order;
+   - one `answer\tgraphify\t<src>` row per distinct file among the delivered
+     nodes, in graphify's order. A file named in an earlier answer of the same
+     session gets a row again when this answer delivers a node of it.
+6. Records the delivery in the ledger: `felix_ledger_record <home> <session>`
    with the signal `answer\tgraphify`, once per delivery.
-6. Prints:
+7. Prints:
 
    ```
    The knowledge graph's answer to this prompt (graphify query, graph built at
-   <sha7>, <freshness>). Where it places what was asked, so you can open these
-   instead of searching for them:
+   <sha7>, <freshness>). Where it places what was asked, to open first:
 
      <src>:<loc>  <label>
      ...
@@ -120,9 +152,17 @@ session. Prints the block and exits 0, or prints nothing and exits 1.
    in place of `graph built at <sha7>, <freshness>` when the stamp cannot be
    read or names no commit here. A row whose `<loc>` is empty prints
    `<src>  <label>`. Rows are indented two spaces.
-7. When any listed file is a shell script (its name ends in `.sh`, or its first
-   line starts `#!` and names `sh`, `bash` or `zsh`), the block ends with one
-   more paragraph:
+8. When `<found>` is a number larger than the rows printed, the rows are
+   followed by a blank line and:
+
+   ```
+   These are <rows> of the <found> nodes graphify found for it; graphify query
+   with a larger --budget shows more.
+   ```
+
+9. When any listed file is a shell script (its name ends in `.sh`, or the first
+   128 bytes of its first line start `#!` and name `sh`, `bash` or `zsh`), the
+   block ends with one more paragraph, after a blank line:
 
    ```
    It finds where things are, not who calls them: in shell scripts the graph
@@ -130,34 +170,51 @@ session. Prints the block and exits 0, or prints nothing and exits 1.
    ```
 
    No shell script listed: no such paragraph.
-8. Writing the record may fail (an unwritable `state/`); the block is still
-   printed and the exit is still 0.
+10. Writing the record may fail (an unwritable `state/`); the block is still
+    printed, the exit is still 0, and nothing is printed to stderr.
 
 ### A3. `felix_graph_refresh_due <root>`
 
-Exits 0 when the graph exists and its stamp names a commit the holding
-checkout has, behind HEAD by one or more; 1 otherwise (no graph, no stamp,
-an unknown commit, or current). Prints nothing.
+Exits 0 when the graph exists, its stamp names a commit the holding checkout
+has, HEAD is one or more commits past it, and
+`graphify-out/.felix-refreshed-at` does not hold the holding checkout's HEAD;
+1 otherwise (no graph, no stamp, an unknown commit, current, or already
+refreshed at this HEAD). Prints nothing.
+
+### A4. `felix_graph_refresh_bg <root>`, the marker
+
+A refresh whose `graphify update` exits 0 writes the holding checkout's HEAD,
+as it was when that refresh started, to `graphify-out/.felix-refreshed-at` (the
+full forty-character name and a newline), so
+a refresh that wrote nothing (no topology change) is not started again at the
+same HEAD. A refresh that fails writes no marker.
 
 ---
 
 ## 3. `hooks/user-prompt`: where the answer is given
 
-### U1. Who gets one
+### U1. Who gets one, checked in this order
 
-The hook calls `felix_graph_deliver` only when all hold:
-- the payload is a person's prompt (`felix_route_machine` printed nothing);
-- the payload carries a session id;
-- the checkout is the project's own: `felix_checkout_is_own <proj> <root>`
-  returned 0. A checkout bound by a `.felix` marker alone, or by an origin that
-  is not the project's, is told nothing: its `graph.json` is a file its authors
-  chose, and the labels would reach the model under Felix's name.
+`felix_graph_deliver` is called only when all hold, and each is checked before
+the next:
+1. the payload is a person's prompt (`felix_route_machine` printed nothing);
+2. the payload carries a session id;
+3. the graph can be asked: `FELIX_GRAPH_ANSWER` is not 0, the checkout has a
+   graph (`felix_graph_file`), and `graphify` and `perl` are on `PATH`;
+4. the checkout is the project's own: `felix_checkout_is_own <proj> <root>`
+   returned 0. A checkout bound by a `.felix` marker alone, or by an origin that
+   is not the project's, is told nothing: its `graph.json` is a file its authors
+   chose, and the labels would reach the model under Felix's name.
+
+The prompt is read out of the payload only once all four hold.
 
 ### U2. What it is asked
 
 The prompt is the payload's `"prompt"` string, read up to its first unescaped
 double quote, with `\"` read as a quote and `\\` as a backslash. The rest of
-the payload is never part of the question.
+the payload is never part of the question. At most the first 16,384 bytes
+after the opening quote are read, so a pasted prompt of any size costs the
+same.
 
 ### U3. Where it goes
 
@@ -172,47 +229,64 @@ still exits 0 with no output.
 A graphify that fails, hangs past the timeout, prints garbage, or is absent
 leaves the hook's exit 0 and its other parts unchanged.
 
+### U5. A prompt ends the previous answer's window
+
+On every person prompt with a session id, when the session's answer record
+`<home>/state/answer/<session>.tsv` already exists, the hook appends one
+`prompt` row (the word alone) to it, before anything else this prompt writes
+there. No record yet: nothing is written. U1's conditions 3 and 4 do not apply
+to this row: a session that was answered once has its prompts counted.
+
 ---
 
 ## 4. `hooks/post-tool`: what the session did next
 
-### T1. Recording follow-through
+### T1. Recording follow-through, only as matches
 
 After the existing ledger append, when `<home>/state/answer/<session>.tsv`
-exists, the hook appends one `touch\t<Tool>\t<value>` row for these tools:
+exists and the session id passes A2.1's test, the hook reads one value from the
+payload:
 
 | Tool | value |
 |---|---|
-| `Read`, `Edit`, `Write`, `MultiEdit` | the first `"file_path"` string in the payload |
-| `NotebookEdit` | the first `"notebook_path"` string |
-| `Grep`, `Glob` | the first `"path"` string (a key spelled exactly `"path"`) |
-| `Bash` | the first `"command"` string, cut to 400 characters |
+| `Read`, `Edit`, `Write`, `MultiEdit` | the string after the first `"file_path":` |
+| `NotebookEdit` | the string after the first `"notebook_path":` |
+| `Grep`, `Glob` | the string after the first `"path":` |
+| `Bash` | the string after the first `"command":` |
 
-"First" is the first occurrence in the payload, so a key of the same name
-inside the tool's response cannot replace the input. Taken up to the first
-double quote after the opening one. A tool not in the table, or a payload
-without the key, appends nothing. No state file: nothing is read beyond what
-the hook reads today and nothing is appended.
+"First" is the first occurrence in the payload of the key followed directly by
+a colon, so a key of the same name inside the tool's response, or a value that
+happens to equal the key's name, cannot replace the input. The string is read
+to its first unescaped double quote and decoded: `\"` is a quote, `\\` a
+backslash, `\/` a slash, and `\n`, `\t`, `\r` are each a space. At most the
+first 16,384 bytes are read.
+
+For each distinct file named by an `answer` row after the record's last
+`prompt` row, the hook appends `touch\t<Tool>\t<file>` when the value matches
+that file by L4's rule. Nothing else of the value is ever written: not the
+path, not the command. A tool not in the table, a payload without the key, or
+no match appends nothing.
 
 ### T2. Cost
 
-No git, and no process beyond one for the extraction, and that only when the
-state file exists. A failed append is silent and the exit is 0.
+No git, and one process beyond what the hook runs today, and that only when
+the state file exists. A failed append is silent and the exit is 0.
 
 ---
 
-## 5. `hooks/session-end`: the graph refreshed after every session
+## 5. `hooks/session-end` and `hooks/session-start`: the graph kept current
 
-### R1. When
+### R1. When the session ends
 
 At the end of every session that is not a machine session (the existing early
 exit stands) and resolves to a project, the hook runs
-`felix_graph_refresh_bg <root>` when, and only when:
-- `felix_graph_refresh_due <root>` exits 0 (the holding checkout has moved past
-  the graph), and
-- `felix_checkout_is_own <proj> <root>` returned 0.
+`felix_graph_refresh_bg <root>` when, and only when, checked in this order:
+- `graphify` is on `PATH`;
+- `felix_checkout_is_own <proj> <root>` returned 0;
+- `felix_graph_refresh_due <root>` exits 0.
 
-`<root>` is the top level of the session's working tree.
+`<root>` is the top level of the session's working tree. Ownership is checked
+before anything reads the checkout's `graph.json`.
 
 ### R2. What it does not do
 
@@ -231,9 +305,16 @@ more than `FELIX_GRAPH_LOCK_STALE` minutes old (default 30) is removed and the
 refresh proceeds; one younger than that still means a refresh is running, and
 the call does nothing, as before.
 
+### R4. Session start uses the same test
+
+`hooks/session-start` starts its refresh when `felix_graph_refresh_due` exits 0
+(and graphify is on `PATH` and the own-checkout gate allows it), in place of
+testing its banner line for "behind this checkout". The banner line itself is
+unchanged.
+
 ---
 
-## 6. `lib/ledger.sh` and `felix ledger`: the answer as its own surface
+## 6. `lib/ledger.sh`, `lib/answer.sh` and `felix ledger`: the answer as its own surface
 
 ### L1. The rollup
 
@@ -260,31 +341,52 @@ distinct sessions, and the summed delivery count. Nothing when there are none.
 ### L4. `felix_answer_use <proj> <home> <root>`
 
 Reads `<home>/state/answer/*.tsv` for the sessions this repository owns
-(`_felix_ledger_owns`, the same test the catch-up uses). Prints, per tool,
-`tool\tsessions\tsessions_acted\tdeliveries\tdeliveries_acted\tfiles\tfiles_acted`.
+(`_felix_ledger_owns`, the same test the catch-up uses). Prints, per tool that
+has a `given` or an `asked` row,
+`tool\tsessions\tsessions_acted\tdeliveries\tdeliveries_acted\tfiles\tfiles_acted\tfiles_opened\tasked\ttimeouts`.
 
-- A file named by an `answer` row is *acted on* when a `touch` row after it in
-  the same file matches it: for `Read`, `Edit`, `Write`, `MultiEdit`,
-  `NotebookEdit`, `Grep` and `Glob`, the value equals the file or ends in
-  `/<file>`; for `Bash`, the command contains the file's path, or contains its
-  basename when the basename has a `.` in it.
-- A delivery is acted on when any file it named was. A session is acted on when
-  any of its deliveries was.
-- `files` counts `answer` rows; `deliveries` counts `given` rows.
+- **The window.** A `touch` row can credit only the `answer` rows after the
+  record's last `prompt` row before it: an answer is acted on in the turn it was
+  given, as the baseline measures it.
+- **The match**, for a file `f` named by an `answer` row and a `touch` row's
+  third field `v`, with `R` any directory in the record's `root` rows wherever
+  they sit in it. It is the rule T1 applies when it writes the row; applied
+  again here it matches a row T1 wrote, which holds the file itself, to that
+  file's own `answer` row, and it reads a row holding a raw path or command the
+  same way:
+  - `Read`, `Edit`, `Write`, `MultiEdit`, `NotebookEdit`, `Grep`, `Glob`: `v`
+    equals `f` or `R/f`; when the record has no `root` row, `v` equal to `f` or
+    ending in `/f`.
+  - `Bash`: `v` holds `f` as a path token, or holds `R/f` anywhere, or, when
+    `f`'s basename has a `.`, holds that basename as a token. A token is bounded
+    on the left by the start of `v`, a space, a tab, a quote (`"` or `'`), `=`,
+    `(`, `:` or `./`, and on the right by the end of `v`, a space, a tab, a
+    quote, `;`, `|`, `&`, `)`, `:` or `,`. So `projects/a/CLAUDE.md` does not
+    credit `projects/b/CLAUDE.md`, and `1-24.md` does not credit `4.md`.
+- An `answer` row is acted on when a later `touch` row in its window matches
+  it. A delivery (a `given` row and the `answer` rows after it, up to the next
+  `given` or `prompt` row) is acted on when any of its files was. A session is
+  acted on when any of its deliveries was.
+- `deliveries` counts `given` rows and `files` counts `answer` rows.
+  `files_opened` counts the acted-on `answer` rows credited by a touch of any
+  tool but `Bash`. `asked` counts `asked` rows, and `timeouts` those whose
+  outcome is `timeout`. `sessions` counts sessions with at least one `given` row.
 
 ### L5. `felix ledger` prints it
 
-When `felix_ledger_answers` prints anything, `felix ledger` adds, after the
+When `felix_answer_use` prints anything, `felix ledger` adds, after the
 capability table, a section headed
 `answers handed to sessions without being asked for`, one line per tool:
 
 ```
-  graphify     given 37 times in 12 sessions; 21 answers (57%) named a file the session then opened, edited or ran; 61 of 190 files (32%)
+  graphify     answered 37 of 50 asks in 12 sessions; 21 answers (57%) named a file the session then opened, edited or ran before the next prompt; 61 of 190 files (32%), 40 of them opened or edited, not only run
 ```
 
-followed by the sentence: `A file the session would have opened anyway counts
+with, when `timeouts` is more than 0, `; 6 asks timed out` appended to the
+line. Then the sentence: `A file the session would have opened anyway counts
 here too, so this is the most the answers can have caused, not what they
-caused.` The capability table's rows are unchanged by `answer` rows.
+caused.` Shares are whole percentages, rounded half up, and 0% when the
+denominator is 0. The capability table's rows are unchanged by `answer` rows.
 
 ---
 
@@ -293,23 +395,51 @@ caused.` The capability table's rows are unchanged by `answer` rows.
 - **`query` on the prompt, not `affected` on the edit.** Section 1: 16% recall
   of dependents on bash; `affected` on a file finds none. An injected list that
   is 84% short is worse than none, because it reads as complete.
-- **Every substantive prompt, once per file per session.** The first prompt is
+- **Every substantive prompt, once per node per session.** The first prompt is
   "read the graph at the beginning", the founder's words of 2026-10-29. Later
-  prompts add only files not yet named, so the context cost is bounded by the
-  session's distinct files, not its prompts.
+  prompts add only nodes not yet given, so a new symbol in a file named earlier
+  still arrives with its line (a review found file-level dedupe withheld exactly
+  the location a later question asked for).
+- **Partial answers say so.** graphify's own notice exists so that "a truncated
+  answer can never be mistaken for a complete one"; dropping it would repeat
+  the defect that ruled out `affected`.
+- **Matches, never values, in `state/`.** The home checkout sits in synced
+  Documents. A raw command can hold a credential, and the measure needs only
+  whether a named file was reached.
+- **The turn as the window, and rows for misses.** The live measure and its
+  baseline must use one rule, or a rule difference reads as a lift. `asked` rows
+  give the deliveries a denominator under load.
 - **No holdout.** A held-out arm would measure cause, and it would withhold the
   graph from one session in five that the founder wants it in. The cause is
-  bounded instead by a baseline from the transcripts of the fourteen days before
-  this change (section 8), the same query, and no injection.
+  bounded instead by a baseline replayed from the transcripts of the fourteen
+  days before this change with this spec's own rules (section 8).
 - **Own checkout only.** `lib/own.sh`'s class: a tool whose behaviour depends on
   the checkout's files. Here the output is the model's context.
 - **The answer surface is general.** `state/answer/`, ledger kind `answer`, the
   tool as the name: the next tool whose answer should be delivered writes the
-  same three rows and is measured by the same function.
+  same rows and is measured by the same function.
 
 ## 8. The baseline, measured before the change
 
 Recorded in the pull request: over Felix transcripts from the 14 days before
-2026-10-29, for each person prompt of five words or more, what this query would
-have answered, and whether the session then opened, edited or ran one of those
-files with no answer given. That is the share a delivered answer has to beat.
+2026-10-29, a replay of these rules with no answer given: for each person prompt
+of five words or more, what this query would have answered after this spec's
+dedupe, and whether the session (its subagents included) then opened, edited or
+ran one of those files before the next person prompt, matched by L4's rule.
+That is the share a delivered answer has to beat.
+
+## 9. What changed after the review of 2026-10-29
+
+A1.5 (the bound kills the process group, at the deadline and after an exit),
+A1.6 (src and loc cleaned), A1.7 (label cut by characters); A2.1 (session id
+characters), A2.3 (`asked` rows and outcomes), A2.4-A2.5 (dedupe by node;
+`root`, `given` with `<found>`, `node` and repeated `answer` rows), A2.7 (the
+header ends "to open first:"), A2.8 (new: the partial-answer line), A2.9 (the
+first 128 bytes only), A2.10 (silent); A3 and A4 (the refreshed-at marker); U1
+(the order, and the cheap tests before the ownership test and the prompt);
+U2 (16,384 bytes); U5 (new: `prompt` rows); T1 (key with its colon, decoded
+string, matches only, `touch` rows hold the named file); R1 (ownership before
+the due test); R4 (new: session start uses the due test); L4 (the window, the
+token rule, root anchoring from any root row of the record, the match applied
+to a touch row's third field, `files_opened`, `asked`, `timeouts`); L5 (the line,
+the timeout clause, rounding). Sections 0, 1, 7 and 8 were corrected to match.

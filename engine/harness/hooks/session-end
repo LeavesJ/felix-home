@@ -71,13 +71,14 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 # holding checkout is then in the graph the next session is answered from,
 # instead of in the one after a session happened to start late enough to
 # notice. Code only, backgrounded and locked, never waited for
-# (felix_graph_refresh_bg); due only when the holding checkout has moved past
-# the graph, and only in the project's own checkout, the same gate as the
-# start's (lib/own.sh).
+# (felix_graph_refresh_bg); only in the project's own checkout, the same gate
+# as the start's (lib/own.sh), tested before anything reads the checkout's
+# graph.json; and due only when the holding checkout has moved past the graph
+# and no refresh has already run at its HEAD.
 _groot="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)"
 if [ -n "$_groot" ] && command -v graphify >/dev/null 2>&1 \
    && command -v felix_graph_refresh_due >/dev/null 2>&1 && command -v felix_checkout_is_own >/dev/null 2>&1 \
-   && felix_graph_refresh_due "$_groot" 2>/dev/null; then
-  felix_checkout_is_own "$PROJ" "$_groot" 2>/dev/null && felix_graph_refresh_bg "$_groot" 2>/dev/null
+   && felix_checkout_is_own "$PROJ" "$_groot" 2>/dev/null; then
+  felix_graph_refresh_due "$_groot" 2>/dev/null && felix_graph_refresh_bg "$_groot" 2>/dev/null
 fi
 exit 0

@@ -1,4 +1,4 @@
-printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, section 13, blind)\n'
+printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, sections 13 and 14, blind)\n'
 # Written blind on 2026-10-28 from section 13 of docs/2026-10-24-audit-fixes/b08-round-3.md
 # (B08R3Z3-1 to B08R3Z3-4, A170 to A187), with its sections 2 to 12 as context, without
 # reading projects/felix/gate.sh's cloud check, engine/ code or anything the gate sources. One
@@ -21,8 +21,8 @@ printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, se
 #   a variant that cannot be made is a fixture fault, never the rule. Each case then checks
 #   with grep -cxF the lines it names, and that the index holds .claude as A140's does.
 # - "The binding clause" is B08R3Z3-1's clause for settings.json, matched without its leading
-#   blank. With a count (A170 and A171 `0`, A175 `2`) it is matched exactly; without one (A172
-#   to A174) any count written in digits is taken.
+#   blank, with its count exactly: A170 to A174 `0` (A172 to A174 since section 14, R3Z4-5,
+#   which narrowed their checks in that alone), A175 `2`.
 # - A171's command is the text section 13 gives, unguarded as given; a guard-count clause
 #   beside the binding clause is neither required nor refused.
 # - A172's "new SessionStart entry" is a second group in the SessionStart array, its matcher
@@ -40,6 +40,27 @@ printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, se
 #   superpowers' (an array of two strings); A183's url goes into superpowers' entry and A185's
 #   sha comes out of it, a fetch entry; A184's and A186's entry is code-review, whose carry is
 #   builtin. "As A140": cloud ok and the line under it empty (_b83_asok).
+#
+# Section 14 (B08R3Z4-1 to B08R3Z4-5, A188 to A199) was written blind on 2026-10-28 from the same
+# file, after A187, without reading gate.sh's cloud check. Its names start "B08R3Z4 A<n>". Readings:
+# - Each case starts from _b84_start, _b84_cloud and _b84_stack: the tree's settings.json,
+#   toolbox.json, provision (100755) and stack.tsv staged, as "each case runs over FC with the
+#   tree's stack.tsv unless it says otherwise" reads.
+# - A188's settings.json is removed by git rm, from the index and the disk, so the case's commit
+#   leaves HEAD without it too; "no skipped" reads as A127's. A189 commits FC, then git rm takes
+#   settings.json, .claude/cloud and stack.tsv; `skipped` is the line A128 pins.
+# - A190's fetch entry is superpowers' (subdir "."); A191's entry is security-guidance's.
+# - A192's entry goes first in tools, on a line of its own, as section 14 writes it. Section 14's
+#   new clauses are matched without their leading blank.
+# - A193's semgrep entry has its carry no line replaced by carry fetch, a source, a 40-hex sha and
+#   subdir ".", before its note. A194 also rates stack.tsv's semgrep row low in the index. Its "no
+#   risk clause" reads as A147's "no guard clause": none in the output, and cloud ok with the line
+#   under it empty, as A140, since nothing else in its tree departs from the tree's.
+# - A195's copy is the tree's seven-line provision hook object, put after the user-prompt hook
+#   object in UserPromptSubmit's one group. SessionStart keeps its own, so only the outside clause
+#   is required.
+# - A196's NUL goes in by printf after provision's last byte; od reads the index blob: one NUL, as
+#   its last byte, and no CR.
 
 _b86Why=""
 if [ "$(type -t _b84_start)" != function ] || [ "$(type -t _b85_tn)" != function ]; then
@@ -62,11 +83,17 @@ _b86Nl="$(LC_ALL=C awk 'END { print NR }' "${_b83T:-/dev/null}/cloud/provision" 
 # The tree's settings with its provision hook object (lines p-2 to p+4 around its command line p,
 # after the sibling's "}," at p-3) changed as B86_M says; status 3 when the object is not as read.
 _b86HK='{ l[NR] = $0 } !p && index($0, "\"command\"") && index($0, "/.claude/cloud/provision") { p = NR }
+  !q && index($0, "harness/hooks/user-prompt") { q = NR }
   END { m = ENVIRON["B86_M"]
     if (!p || l[p - 3] != "          }," || l[p - 2] != "          {" || l[p - 1] != "            \"type\": \"command\"," \
         || l[p + 1] != "            \"shell\": \"bash\"," || l[p + 2] != "            \"async\": false," \
         || l[p + 3] != "            \"timeout\": 120" || l[p + 4] != "          }") exit 3
+    if (m == "upc") { for (j = q + 1; q && !u && j <= NR; j++) if (l[j] == "          }") u = j; if (!u) exit 3 }
     for (i = 1; i <= NR; i++) {
+      if (m == "upc" && i == u) { print "          },"; for (j = p - 2; j <= p + 4; j++) print l[j]; continue }
+      if (m == "sm" && i == p + 3) { print "            \"timeout\": 120,"; print "            \"statusMessage\": \"x\""; continue }
+      if (m == "nosh" && i == p + 1) continue
+      if (m == "t60" && i == p + 3) { print "            \"timeout\": 60"; continue }
       if (m == "del" && i == p - 3) { print "          }"; continue }
       if (m == "del" && i >= p - 2 && i <= p + 4) continue
       if (m == "cmd" && i == p) { print ENVIRON["B86_X"]; continue }
@@ -86,13 +113,6 @@ _b86_set() {
     cat "$_b83/ed.tmp" > "$_b83CS"
   else _b83Fx="$_b83Fx the settings variant $1 could not be made;"; fi
 }
-# A miss for _b83_seq unless the detail holds the binding clause with a count written in digits.
-_b86_bany() {
-  B83_S="$_b83D" B83_W='unreadable: .claude/settings.json (' B83_T=' SessionStart hooks run provision as gate.sh binds it, not 1);' \
-    LC_ALL=C awk 'BEGIN { s = ENVIRON["B83_S"]; w = ENVIRON["B83_W"]; t = ENVIRON["B83_T"]
-      while ((i = index(s, w)) > 0) { s = substr(s, i + length(w)); j = index(s, t); if (j > 1 && substr(s, 1, j - 1) ~ /^[0-9]+$/) exit 0 }
-      exit 1 }' || _b83Xm="$_b83Xm the detail lacks [$(_b86_bc '<digits>')];"
-}
 # want: git ls-files -s shows provision's entry as "<mode> <sha> <stage>" want, else a fixture fault.
 _b86_pe() {
   local s
@@ -110,9 +130,9 @@ _b86_sh() { local n; n="$(LC_ALL=C grep -cF -e '"sha": ' "$_b83C/$_b85TB" 2>/dev
 
 _b86N170="B08R3Z3 A170 (R3Z3-1): the provision hook object deleted from settings.json, the toolbox and provision in the index: cloud FAIL, with the binding clause counting 0"
 _b86N171="B08R3Z3 A171 (R3Z3-1): the provision hook's command spelled as a cd into .claude/cloud then exec ./provision --session-start, without the literal path: cloud FAIL, with the binding clause counting 0"
-_b86N172="B08R3Z3 A172 (R3Z3-1): the provision hook object moved into a new SessionStart entry whose matcher is startup: cloud FAIL, with the binding clause"
-_b86N173="B08R3Z3 A173 (R3Z3-1): the provision hook's async set to true: cloud FAIL, with the binding clause"
-_b86N174="B08R3Z3 A174 (R3Z3-1): the provision hook's timeout removed: cloud FAIL, with the binding clause"
+_b86N172="B08R3Z3 A172 (R3Z3-1, R3Z4-5): the provision hook object moved into a new SessionStart entry whose matcher is startup: cloud FAIL, with the binding clause counting 0"
+_b86N173="B08R3Z3 A173 (R3Z3-1, R3Z4-5): the provision hook's async set to true: cloud FAIL, with the binding clause counting 0"
+_b86N174="B08R3Z3 A174 (R3Z3-1, R3Z4-5): the provision hook's timeout removed: cloud FAIL, with the binding clause counting 0"
 _b86N175="B08R3Z3 A175 (R3Z3-1): the provision hook object duplicated in its entry: cloud FAIL, with the binding clause counting 2"
 _b86N176="B08R3Z3 A176 (R3Z3-1): the provision hook object's five keys reordered: cloud ok and the line under it empty, as A140 (control)"
 _b86N177="B08R3Z3 A177 (R3Z3-1): .claude/cloud and projects/felix/stack.tsv removed from the index after a commit, and the provision hook deleted: cloud ok (control)"
@@ -127,9 +147,49 @@ _b86N185="B08R3Z3 A185 (R3Z3-3): one fetch entry without its sha: cloud FAIL, wi
 _b86N186="B08R3Z3 A186 (R3Z3-3): one entry without its carry: cloud FAIL, with the shape clause"
 _b86N187="B08R3Z3 A187 (R3Z3-3): the toolbox's about key removed: cloud ok and the line under it empty, as A140 (control)"
 
+# Section 14's clauses, its lines, and its helpers.
+_b87OUT='unreadable: .claude/settings.json (1 copies of the provision hook outside SessionStart startup|resume|clear|compact);'
+_b87NS='undeclared-x is in .claude/cloud/toolbox.json and not in projects/felix/stack.tsv;'
+_b87RK='semgrep is fetched into the cloud and stack.tsv rates it risk=high;'
+_b87UX='    {"name":"undeclared-x","carry":"no","note":"x"},'; _b87SG='      "name": "semgrep",'
+_b87Sd="$(LC_ALL=C grep -cxF -e '      "subdir": ".",' "${_b83T:-/dev/null}/cloud/toolbox.json" 2>/dev/null)"
+_b87Pz="$(LC_ALL=C wc -c < "${_b83T:-/dev/null}/cloud/provision" 2>/dev/null | LC_ALL=C tr -d ' ')"
+# stack.tsv in FC's index as one 100644 entry, else a fixture fault.
+_b87_st() { local s; s="$(_b83_ix projects/felix/stack.tsv)"; [ "$s" = "100644 projects/felix/stack.tsv" ] || _b83Fx="$_b83Fx git ls-files -s shows [$s] for stack.tsv;"; }
+# The risk column of the semgrep plugin rows in the index's stack.tsv, blank between.
+_b87_rk() { _b83_git "$_b83C" cat-file blob :projects/felix/stack.tsv 2>/dev/null | LC_ALL=C awk -F '\t' '$1 == "plugin" && index($2, "semgrep@") == 1 { printf "%s%s", (n++ ? " " : ""), $4 }'; }
+# FC's toolbox's semgrep entry made a fetch, qsf's four lines in place of its carry no, else a fixture fault.
+_b87_sg() {
+  local f="$_b83C/$_b85TB"
+  if env B83_M=instead B83_C="$_b87SG" B83_A='=      "carry": "no",' B83_I="$_b83/l/qsf" LC_ALL=C awk "$_b83ED" "$f" > "$_b83/ed.tmp" \
+      && ! cmp -s "$f" "$_b83/ed.tmp"; then cat "$_b83/ed.tmp" > "$f"
+  else _b83Fx="$_b83Fx the semgrep entry could not be made a fetch;"; fi
+  B87_N="$_b87SG" LC_ALL=C awk 'p && n < 4 { print; n++ } $0 == ENVIRON["B87_N"] { p = 1 }' "$f" > "$_b83/sg.tmp" 2>/dev/null
+  cmp -s "$_b83/sg.tmp" "$_b83/l/qsf" || _b83Fx="$_b83Fx the four lines after the semgrep name are not the fetch lines;"
+}
+# file: "<NUL bytes> <CR bytes> <last byte>" as od reads it.
+_b87_ox() { LC_ALL=C od -An -v -tx1 "$1" 2>/dev/null | LC_ALL=C awk '{ for (i = 1; i <= NF; i++) { if ($i == "00") z++; if ($i == "0d") r++; b = $i } } END { printf "%d %d %s", z, r, b }'; }
+# The line after FC's settings' provision command line.
+_b87_nx() { B87_P="$_b86PL" LC_ALL=C awk 'p { print; exit } $0 == ENVIRON["B87_P"] { p = 1 }' "$_b83CS" 2>/dev/null; }
+
+_b87N188="B08R3Z4 A188 (R3Z4-1): settings.json removed from the index and the disk, the toolbox, provision and stack.tsv kept in the index: cloud FAIL, with the binding clause counting 0, and no skipped"
+_b87N189="B08R3Z4 A189 (R3Z4-1): settings.json, .claude/cloud and stack.tsv all removed from the index and the disk: the skipped line A128 pins (control)"
+_b87N190="B08R3Z4 A190 (R3Z4-2): one fetch entry's subdir, superpowers', set to the empty string, stack.tsv in FC: cloud FAIL, with the shape clause"
+_b87N191="B08R3Z4 A191 (R3Z4-2): one entry's note, security-guidance's, set to the empty string, stack.tsv in FC: cloud FAIL, with the shape clause"
+_b87N192="B08R3Z4 A192 (R3Z4-3): the toolbox gains a tools entry undeclared-x, carry no, that no stack.tsv row names: cloud FAIL, with the not-in-stack clause naming undeclared-x"
+_b87N193="B08R3Z4 A193 (R3Z4-3): the toolbox's semgrep entry made carry fetch with a source, a 40-hex sha and subdir dot, stack.tsv's semgrep row kept at risk high: cloud FAIL, with the risk clause naming semgrep"
+_b87N194="B08R3Z4 A194 (R3Z4-3): the same semgrep fetch entry with stack.tsv's semgrep row rated low: no risk clause, and cloud ok with the line under it empty, as A140 (control)"
+_b87N195="B08R3Z4 A195 (R3Z4-4): the canonical provision hook object also appended to UserPromptSubmit's hooks: cloud FAIL, with the outside clause counting 1"
+_b87N196="B08R3Z4 A196 (R3Z3-2, R3Z4-5, coverage): one NUL byte appended to provision, at 100755: cloud FAIL, with the provision clause for a NUL byte, provision named once"
+_b87N197="B08R3Z4 A197 (R3Z3-1, R3Z4-5, coverage): the provision hook gains a sixth key, statusMessage x: cloud FAIL, with the binding clause counting 0"
+_b87N198="B08R3Z4 A198 (R3Z3-1, R3Z4-5, coverage): the provision hook's shell removed: cloud FAIL, with the binding clause counting 0"
+_b87N199="B08R3Z4 A199 (R3Z3-1, R3Z4-5, coverage): the provision hook's timeout set to 60: cloud FAIL, with the binding clause counting 0"
+
 if [ -n "$_b86Why" ]; then
   for _b86n in "$_b86N170" "$_b86N171" "$_b86N172" "$_b86N173" "$_b86N174" "$_b86N175" "$_b86N176" "$_b86N177" "$_b86N178" \
-               "$_b86N179" "$_b86N180" "$_b86N181" "$_b86N182" "$_b86N183" "$_b86N184" "$_b86N185" "$_b86N186" "$_b86N187"; do
+               "$_b86N179" "$_b86N180" "$_b86N181" "$_b86N182" "$_b86N183" "$_b86N184" "$_b86N185" "$_b86N186" "$_b86N187" \
+               "$_b87N188" "$_b87N189" "$_b87N190" "$_b87N191" "$_b87N192" "$_b87N193" "$_b87N194" "$_b87N195" "$_b87N196" \
+               "$_b87N197" "$_b87N198" "$_b87N199"; do
     skip "$_b86n" "$_b86Why"
   done
 else
@@ -147,13 +207,13 @@ else
   _b83_seq "$_b86N171" any "$(_b86_bc 0)"
   _b84_start; _b84_cloud; _b86_set move; _b83_has settings '        "matcher": "startup",'; _b83_cnt settings "$_b86PL" 1
   _b83_has settings '        "matcher": "startup|resume|clear|compact",'; _b84_add; _b83_yo a172; _b84_ixw "$_b85IX"
-  _b86_bany; _b83_seq "$_b86N172" any
+  _b83_seq "$_b86N172" any "$(_b86_bc 0)"
   _b84_start; _b84_cloud; _b86_set async; _b83_has settings '            "async": true,'; _b83_cnt settings "$_b86PL" 1
   _b84_add; _b83_yo a173; _b84_ixw "$_b85IX"
-  _b86_bany; _b83_seq "$_b86N173" any
+  _b83_seq "$_b86N173" any "$(_b86_bc 0)"
   _b84_start; _b84_cloud; _b86_set notime; _b83_cnt settings '            "timeout": 120' 0; _b83_cnt settings "$_b86PL" 1
   _b84_add; _b83_yo a174; _b84_ixw "$_b85IX"
-  _b86_bany; _b83_seq "$_b86N174" any
+  _b83_seq "$_b86N174" any "$(_b86_bc 0)"
   _b84_start; _b84_cloud; _b86_set dup; _b83_cnt settings "$_b86PL" 2; _b83_cnt settings '            "timeout": 120' 2
   _b84_add; _b83_yo a175; _b84_ixw "$_b85IX"
   _b83_seq "$_b86N175" any "$(_b86_bc 2)"
@@ -214,4 +274,81 @@ else
   _b86_tbx '!d && $0 == "  \"about\": [" { d = 1; next } d == 1 { if ($0 == "  ],") d = 2; next } { print } END { if (d != 2) exit 3 }'
   _b85_tn '  "about": [' 0; _b85_tn '  "tools": [' 1; _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a187; _b84_ixw "$_b85IX"
   _b83_asok a187 "$_b86N187"
+
+  # ======== The seventh follow-up (contract section 14), A188 to A199
+  _b83_l qsd '      "subdir": "",'; _b83_l qnt '      "note": ""'; _b83_l qux "$_b87UX"
+  _b83_l qsf "$(printf '%s\n' '      "carry": "fetch",' '      "source": "b08r3z4/semgrep",' \
+    '      "sha": "0123456789abcdef0123456789abcdef01234567",' '      "subdir": ".",')"
+  # ---- B08R3Z4-1: no settings file does not skip a committed chain (A188, A189)
+  _b84_start; _b84_cloud; _b84_stack
+  _b83_git "$_b83C" rm -q -- .claude/settings.json >/dev/null 2>&1 || _b83Fx="$_b83Fx settings.json could not be removed;"
+  _b83_yo a188; _b83_nos; _b84_ixw '100755 .claude/cloud/provision; 100644 .claude/cloud/toolbox.json'; _b87_st
+  _b83_nsk a188; _b83_seq "$_b87N188" any "$(_b86_bc 0)" -- skipped
+  _b84_start; _b84_cloud; _b84_stack; _b83_git "$_b83C" commit -qm a189-base >/dev/null 2>&1
+  _b83_git "$_b83C" rm -r -q -- .claude/settings.json .claude/cloud projects/felix/stack.tsv >/dev/null 2>&1 \
+    || _b83Fx="$_b83Fx settings.json, .claude/cloud and stack.tsv could not be removed;"
+  _b83_yo a189; _b83_nos; _b84_ixw ''
+  { [ -z "$(_b83_ix projects/felix/stack.tsv)" ] && [ ! -e "$_b83C/.claude/cloud" ] && [ ! -e "$_b83C/projects/felix/stack.tsv" ] \
+      && [ -z "$(_b83_git "$_b83C" ls-tree -r --name-only HEAD -- .claude projects/felix/stack.tsv 2>/dev/null)" ]; } \
+    || _b83Fx="$_b83Fx .claude/cloud or stack.tsv is still in the index, on disk or in HEAD;"
+  _b87t="$(LC_ALL=C awk 'index($0, "  cloud ") == 1' "$_b83/a189.out" 2>/dev/null)"
+  if [ -n "$_b83Fx" ]; then bad "$_b87N189" "fixture:$_b83Fx"; else _b83_is "$_b87N189" "[$_b87t]" "[$_b83SK]"; fi
+
+  # ---- B08R3Z4-2: every toolbox value a non-empty string (A190, A191)
+  _b84_start; _b84_cloud; _b84_stack; _b84_edp "$_b85TB" instead '=      "subdir": ".",' "$_b83/l/qsd"
+  _b85_tn '      "subdir": "",' 1; _b85_tn '      "subdir": ".",' "$(( ${_b87Sd:-0} - 1 ))"; _b84_add "$_b85TB"; _b85_same "$_b85TB"
+  _b83_yo a190; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N190" any "$_b86SH"
+  _b84_start; _b84_cloud; _b84_stack; _b84_edp "$_b85TB" instead '=      "note": "its only content is a Python hook that calls a model"' "$_b83/l/qnt"
+  _b85_tn '      "note": ""' 1; _b85_tn '      "name": "security-guidance",' 1; _b84_add "$_b85TB"; _b85_same "$_b85TB"
+  _b83_yo a191; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N191" any "$_b86SH"
+
+  # ---- B08R3Z4-3: the toolbox read back against stack.tsv and invariant 4 (A192 to A194)
+  _b84_start; _b84_cloud; _b84_stack; _b84_edp "$_b85TB" after '=  "tools": [' "$_b83/l/qux"; _b85_tn "$_b87UX" 1
+  _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a192; _b84_ixw "$_b85IX"; _b87_st
+  _b83_git "$_b83C" cat-file blob :projects/felix/stack.tsv > "$_b83/st.tmp" 2>/dev/null
+  { [ -s "$_b83/st.tmp" ] && [ -z "$(LC_ALL=C awk -F '\t' '$2 == "undeclared-x" || index($2, "undeclared-x@") == 1' "$_b83/st.tmp")" ]; } \
+    || _b83Fx="$_b83Fx the index's stack.tsv is empty or names undeclared-x;"
+  _b83_seq "$_b87N192" any "$_b87NS"
+  _b84_start; _b84_cloud; _b84_stack; _b87_sg; _b84_add "$_b85TB"; _b85_same "$_b85TB"; _b83_yo a193; _b84_ixw "$_b85IX"; _b87_st
+  [ "$(_b87_rk)" = high ] || _b83Fx="$_b83Fx the index's stack.tsv rates semgrep [$(_b87_rk)], not high;"
+  _b83_seq "$_b87N193" any "$_b87RK"
+  _b84_start; _b84_cloud; _b84_stack; _b87_sg; _b84_add "$_b85TB"; _b85_same "$_b85TB"
+  { LC_ALL=C awk -F '\t' 'BEGIN { OFS = "\t" } $1 == "plugin" && index($2, "semgrep@") == 1 { $4 = "low"; n++ } { print } END { if (n != 1) exit 3 }' \
+      "$_b83C/projects/felix/stack.tsv" > "$_b83/ed.tmp" && cat "$_b83/ed.tmp" > "$_b83C/projects/felix/stack.tsv"; } \
+    || _b83Fx="$_b83Fx stack.tsv's semgrep row could not be rated low;"
+  _b84_add projects/felix/stack.tsv; _b83_yo a194; _b84_ixw "$_b85IX"; _b87_st
+  [ "$(_b87_rk)" = low ] || _b83Fx="$_b83Fx the index's stack.tsv rates semgrep [$(_b87_rk)], not low;"
+  _b87c="$(LC_ALL=C grep -cxF -e "$(printf '  %-18s %s' cloud ok)" "$_b83/a194.out" 2>/dev/null)"; _b87g=none
+  ! _b83_in 'rates it risk=high' "$_b83All" || _b87g=held
+  if [ -n "$_b83Fx" ]; then bad "$_b87N194" "fixture:$_b83Fx"
+  else _b83_is "$_b87N194" "${_b87c:-0} cloud ok lines; the line under it [$_b83D]; risk clause $_b87g" "1 cloud ok lines; the line under it []; risk clause none"; fi
+
+  # ---- B08R3Z4-4: the canonical hook counted everywhere (A195)
+  _b84_start; _b84_cloud; _b84_stack; _b86_set upc; _b83_cnt settings "$_b86PL" 2; _b83_cnt settings '            "timeout": 120' 2
+  B87_P="$_b86PL" LC_ALL=C awk '$0 == "    \"UserPromptSubmit\": [" { u = 1 } $0 == "    \"Stop\": [" { u = 0 }
+    $0 == ENVIRON["B87_P"] { if (u) a++; else b++ } END { exit !(a == 1 && b == 1) }' "$_b83CS" \
+    || _b83Fx="$_b83Fx the provision command line is not once in UserPromptSubmit and once outside it;"
+  _b84_add; _b83_yo a195; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N195" any "$_b87OUT"
+
+  # ---- B08R3Z3-2's NUL reason, and B08R3Z3-1's sixth key, shell and timeout (A196 to A199, coverage)
+  _b84_start; _b84_cloud; _b84_stack; printf '\000' >> "$_b83C/$_b86PV" || _b83Fx="$_b83Fx a NUL could not be appended to provision;"
+  _b84_add "$_b86PV"; _b83_yo a196; _b84_ixw "$_b85IX"; _b87_st; _b85_same "$_b86PV"
+  _b83_git "$_b83C" cat-file blob ":$_b86PV" > "$_b83/pv.tmp" 2>/dev/null
+  _b87o="$(_b87_ox "$_b83/pv.tmp")"; _b87z="$(LC_ALL=C wc -c < "$_b83/pv.tmp" | LC_ALL=C tr -d ' ')"
+  { [ "$_b87o" = "1 0 00" ] && [ -n "$_b87Pz" ] && [ "$_b87z" = "$(( _b87Pz + 1 ))" ]; } \
+    || _b83Fx="$_b83Fx the index blob of provision is ${_b87z:-?} bytes with [NUL CR last] [$_b87o], not one byte more than the tree's ${_b87Pz:-?} with [1 0 00];"
+  _b83_once "$_b86PV"; _b83_seq "$_b87N196" any "$(_b86_pv "a NUL byte in git's index blob")"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set sm; _b83_has settings '            "statusMessage": "x"'; _b83_has settings '            "timeout": 120,'
+  _b83_cnt settings "$_b86PL" 1; _b84_add; _b83_yo a197; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N197" any "$(_b86_bc 0)"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set nosh; _b83_cnt settings '            "shell": "bash",' "$(( ${_b83ShN:-0} - 1 ))"
+  [ "$(_b87_nx)" = '            "async": false,' ] || _b83Fx="$_b83Fx the provision command line is followed by [$(_b87_nx)], not its async;"
+  _b83_cnt settings "$_b86PL" 1; _b84_add; _b83_yo a198; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N198" any "$(_b86_bc 0)"
+  _b84_start; _b84_cloud; _b84_stack; _b86_set t60; _b83_has settings '            "timeout": 60'; _b83_cnt settings '            "timeout": 120' 0
+  _b83_cnt settings "$_b86PL" 1; _b84_add; _b83_yo a199; _b84_ixw "$_b85IX"; _b87_st
+  _b83_seq "$_b87N199" any "$(_b86_bc 0)"
 fi

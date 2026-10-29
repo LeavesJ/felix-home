@@ -345,8 +345,10 @@ is "and standard error is left alone" "$out" "stderr survives"
 # count goes green when somebody adds a fourth.
 # The commissioning resume moved to lib/own.sh (0.49.286), beside the rule that decides whether it
 # may run; the file that holds its detached subshell is the one that has to close the descriptors.
+# The discovery refresh moved the same way, to lib/discover-refresh.sh (audit b06, 0.49.309).
 for _bgfile in commission discover graph; do
   _bgsrc="$_bgfile"; [ "$_bgfile" = commission ] && _bgsrc=own
+  [ "$_bgfile" = discover ] && _bgsrc=discover-refresh
   if grep -q 'felix_close_inherited_fds' "$FROOT/harness/lib/$_bgsrc.sh" 2>/dev/null; then
     ok  "lib/$_bgfile.sh closes what it inherited before backgrounding"
   else

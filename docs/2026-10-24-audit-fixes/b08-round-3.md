@@ -1093,3 +1093,73 @@ tree's commands carry, so no guard clause is said.
 - **A206** (R3Z5-2, control) a UserPromptSubmit hook running `echo hello`: as A140.
 
 Expected red on 5640d9dc: A200, A201 and A203 to A205 (5). The controls pass. Report each.
+
+## 16. Ninth follow-up: what the toolbox fetches is judged by the one install policy
+
+The review of 54f83eab (sections 14 and 15) rebuilt A188 to A206 against 26316e9f, 5640d9dc and
+54f83eab. Each case is red where it should be and green at the head, and no case is vacuous.
+The clean tree's line and sixteen earlier fixture types read the same as before. It judged
+the syntactic chain converged: settings.json or its absence, the binding, provision's bytes,
+the jq reader, the IFS read, and the toolbox's shape and values.
+
+The stack.tsv side has not converged. Its two mediums are one class: the read-back judges a fetch
+by its risk tier alone, and says nothing when stack.tsv is missing. lib/admit.sh calls itself
+"the one install policy", and a cloud SessionStart fetch that runs fetched code is an install with
+nobody present.
+
+- **B08R3Z6-1 (medium). A toolbox with no stack.tsv is a fault.**
+  - Under a stage-0 toolbox, an index with no entry at `projects/felix/stack.tsv` adds
+    ` unreadable: projects/felix/stack.tsv (not in git's index, so nothing rates what the toolbox
+    fetches);`.
+  - Section 12's clause still covers an entry that is not a stage-0 regular file.
+- **B08R3Z6-2 (medium). Each fetch entry is judged by felix_admit's table.**
+  - The fetch entry's stack row gives the tier (field 4) and the grounding (field 6). A missing
+    or empty sixth field reads `DECLARED`, as stack.sh reads it.
+  - The verdict is lib/admit.sh's table, with its order: a tier outside low, medium and high
+    refuses; then a grounding outside DECLARED, OBSERVED and INFERRED refuses; then high
+    refuses; then INFERRED holds; then medium OBSERVED holds; every other cell installs.
+  - The cloud check carries the table in its awk and cites admit.sh. A pin (A214) holds the two
+    in step.
+  - `install` adds nothing. A tier of exactly `high` keeps section 14's clause, and a tier
+    outside the vocabulary keeps section 15's clause.
+  - Every other verdict that is not `install` adds ` <name> is fetched into the cloud and the
+    install policy says <verdict> (<tier> <grounding>);`, with the grounding as read
+    (`DECLARED` when absent). The clauses come in the toolbox's order.
+- **Recorded, for the founder (the review's low).**
+  - Committed files under `.claude/skills`, `.claude/agents` and `.claude/commands` reach the
+    cloud outside the chain.
+  - Provision keeps a tracked copy over a fetched plugin's copy.
+  - Their frontmatter can carry hooks, which Claude Code loads in the same shape as settings
+    hooks.
+  - None of these paths is on risk.tsv's red row (`^\.claude/(settings\.json$|cloud/)`).
+  - Two options: widen the red row, which is a risk.tsv edit and a founder stop; or have the
+    cloud check fail on any such committed entry, which turns the door into a decision.
+
+### Limits
+
+- gate.sh may grow to 320 lines over 8e634e4b. The builder reports the count.
+- The new cases go in part 1773 if it stays under 500 lines. Otherwise they go in a new part
+  1774, placed by the driver's own rules. The driver is at 500 lines. The only room made so
+  far came from removing blank lines, and main's driver is 453.
+
+### Assertions
+
+Named `B08R3Z6 A<n> (R3Z6-<m>)`. Every case keeps the tree's settings, provision and toolbox. In
+the tree's toolbox, superpowers is a `fetch` entry, and its stack row has five fields
+(low, DECLARED).
+
+- **A207** (R3Z6-1) stack.tsv removed from the index: the stack.tsv-absent clause.
+- **A208** (R3Z6-1, control) stack.tsv and `.claude/cloud` both removed from the index: as A140.
+- **A209** (R3Z6-2) superpowers' row `medium` with grounding `OBSERVED`: the policy clause,
+  `hold (medium OBSERVED)`.
+- **A210** (R3Z6-2) the row `low` with `INFERRED`: the policy clause, `hold (low INFERRED)`.
+- **A211** (R3Z6-2) the row `low` with `observed`: the policy clause, `refuse (low observed)`.
+- **A212** (R3Z6-2, control) the row `medium` with `DECLARED`: as A140.
+- **A213** (R3Z6-2, control) the row `medium` with no sixth field: as A140.
+- **A214** (R3Z6-2, pin) the gate is run over superpowers' row at every tier (low, medium, high)
+  crossed with every grounding (DECLARED, OBSERVED, INFERRED, absent). felix_admit is taken
+  from the tree under test's engine/harness/lib/admit.sh. Some clause naming superpowers
+  appears on the cloud line exactly when felix_admit's verdict for that cell, reading absent
+  as DECLARED, is not `install`.
+
+Expected red on 54f83eab: A207, A209, A210, A211 and A214 (5). The controls pass. Report each.

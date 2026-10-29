@@ -49,9 +49,28 @@ Why the same plist ran daily on the old Mac is not known.
   spawn the same way. So the installer creates `$HOME/Library/Logs/felix` before
   it writes the plist. If it cannot, it says so, writes no plist, hands launchd
   nothing, and exits 1.
-- **P4 What it says.** The install message still names the pulse's own log. It
-  also names the capture file, so a person reading a failed run knows where
-  launchd wrote.
+- **P4 What it says.** Every message the install prints after it has written the
+  plist names the pulse's own log and the capture file by its full path. That
+  includes the message for a launchctl load that failed. A person reading a
+  failed run then knows where launchd wrote.
+
+Added after review, round 1:
+
+- **P1a No other program.** The plist has no `Program` key. Its keys are exactly
+  `Label`, `ProgramArguments`, `StartCalendarInterval` (with `Hour` and
+  `Minute`), `StandardOutPath` and `StandardErrorPath`, and each appears once. A
+  `Program` key would make launchd run that program and treat
+  `ProgramArguments` only as its argv.
+- **P2a Escaped.** Every path written into a `<string>` is XML-escaped (`&`, `<`
+  and `>`), so a home whose path holds one of them still yields a plist that
+  parses.
+- **P3a A usable directory.** "Created" means usable. The install refuses, under
+  P3's terms, when `$HOME/Library/Logs/felix` exists and is not a directory,
+  when it is not writable, or when the capture path itself is a directory.
+- **P3b An agent already there.** When the install refuses and a plist from
+  before is already at `~/Library/LaunchAgents/felix.pulse.plist`, it leaves
+  that file byte for byte as it was. It says so: that agent was left as it was
+  and may still be loaded. It never says that nothing is scheduled.
 - **P5 Unchanged.** The label, the 09:07 daily schedule, the served-engine
   resolution, `--uninstall` and the non-Darwin refusal stay as they are. So does
   the pulse's own log, `<home>/state/pulse.log`, which the running program writes

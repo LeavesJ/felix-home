@@ -46,7 +46,9 @@ printf '\ngate friction D: signals, endings and holders (blind, author 2; revisi
 # more look); rrt's optional 5 s wait ends at the run's exit. R62: with DJX_MLOG naming a file, "1292 run CASE/LABEL bound B ms MS" for every run and "1292 margin
 # CASE/LABEL T T-MS ms MS|none" for every margin and for the watch. R60 changes nothing here: no case takes R1's at-exit listings. No name changes.
 # Readings (revision 18): a look counted in 50 polls of 0.2 s is logged with T 10000, its least length; the group control's 1 s drain is logged with T 90000, the
-# sleeper's 100 s less 10 s, and the drain's own length as what was measured; a run's start-to-exit runs from just before it starts to its reaping by the case.
+# sleeper's 100 s less 10 s, and the drain's own length as what was measured. Review fix (revision 18): a run's start-to-exit is the ms run.pl, its bounded
+# runner, writes at its own exit, from just before its fork to its waitpid's return (or its KILL at B, which its alarm counts from the same fork); it was the
+# time from just before the case started the run to the case's reaping of it.
 # Names say the clause: D6 the runner, R2 R4 R13 R18 R20 R38 R40 R41 R42 the amendments.
 #
 # What every case does (R12): it points TMPDIR at a fixture directory under $TMP, so none touches the machine's
@@ -84,18 +86,21 @@ _db2_E=(); _db2_I=DEFAULT; _db2_Q=DEFAULT; _db2_Tm=DEFAULT; _db2_Hu=DEFAULT; _db
 _db2_leak=""; _db2_ino0=""; _db2_pipe=0; _db2_late=""; _db2_x=""; _db2_gn=150; _db2_dl=0; _db2_miss=""; _db2_gdl=""; _db2_t0=""
 : > "$DB2/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB2/man.tsv"
 cat > "$DB2/run.pl" <<'DB2PL'
-# run.pl LIMIT INT QUIT TERM HUP PIDFILE CMD...: CMD leads a process group of its own, started with INT QUIT TERM and HUP as given (the cases
+# run.pl LIMIT INT QUIT TERM HUP PIDFILE MSFILE CMD...: CMD leads a process group of its own, started with INT QUIT TERM and HUP as given (the cases
 # give TERM and HUP their defaults unless they ask) and no descriptor above 2; at LIMIT seconds the group is killed (exit 124). Exits as bash
-# reports CMD's status.
+# reports CMD's status. MSFILE, when not empty, gets the ms from just before the fork to the waitpid's return or the KILL at LIMIT: the run's
+# start-to-exit as this runner saw it (R62).
 use POSIX ();
-my ($t, $i, $q, $tm, $hu, $f) = splice(@ARGV, 0, 6);
+my ($t, $i, $q, $tm, $hu, $f, $m) = splice(@ARGV, 0, 7);
+my $s = 0; if ($m ne "") { require Time::HiRes; $s = Time::HiRes::time() }
+sub ms { if ($m ne "" && open(my $h, ">", $m)) { printf $h "%d\n", (Time::HiRes::time() - $s) * 1000; close $h } }
 my $p = fork;
 defined $p or exit 125;
 if (!$p) { setpgrp(0, 0); $SIG{INT} = $i; $SIG{QUIT} = $q; $SIG{HUP} = $hu; $SIG{TERM} = $tm; POSIX::close($_) for 3 .. 255; exec @ARGV; exit 127 }
 if (open(my $h, ">", "$f.t")) { print $h "$p\n"; close $h; rename "$f.t", $f }
-$SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
-alarm $t; waitpid $p, 0;
-exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
+$SIG{ALRM} = sub { kill "KILL", -$p; ms(); exit 124 };
+alarm $t; waitpid $p, 0; my $w = $?; ms();
+exit(($w & 127) ? 128 + ($w & 127) : $w >> 8);
 DB2PL
 cat > "$DB2/ign.pl" <<'DB2IGN'
 # ign.pl DIR ID MODE: ignores TERM and sleeps. MODE h: each TERM it gets forks one sleeper; MODE s: from its first TERM on it forks one every
@@ -211,6 +216,9 @@ _db2_ms()  { perl -MTime::HiRes=time -e 'printf "%d", time * 1000'; }
 _db2_ml()  { [ -z "${DJX_MLOG:-}" ] || printf '1292 %s\n' "$*" >> "$DJX_MLOG"; }
 _db2_now() { [ -z "${DJX_MLOG:-}" ] || _db2_ms; }
 _db2_since() { [ -n "$1" ] && echo $(( $(_db2_ms) - $1 )) || echo none; }   # T0: the ms since T0, or none without a log
+# MSFILE T0: R62's start-to-exit, the ms run.pl (the bounded runner) wrote at its own exit, not the time to the case's reaping; were run.pl ever killed
+# before it wrote, the ms since T0, the case's start of the run
+_db2_rx() { local x; x="$(cat "$1" 2>/dev/null)"; case "$x" in ''|*[!0123456789]*) _db2_since "$2" ;; *) echo "$x" ;; esac; }
 # LABEL PRED...: a look of 50 polls (_db2_until 50, 10 s at least), logged as "margin CASE/LABEL T 10000 ms MS|none" (R62); its status is the look's
 _db2_lk() { local l="$1" t r; shift; t="$(_db2_now)"; _db2_until 50 "$@"; r=$?; _db2_ml margin "${_db2_c##*/}/$l" T 10000 ms "$([ "$r" = 0 ] && _db2_since "$t" || echo none)"; return "$r"; }
 # LABEL T-MS DJK-OUTPUT: R62's line for a margin djk.pl timed: its ms when it printed "gone MS", else none
@@ -237,12 +245,12 @@ _db2_run() {   # ARG...: the copy's driver under run.pl, TMPDIR $_db2_tmp, INT a
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u FELIX_TEST_RED_JOBS -u PERL5OPT TMPDIR="$_db2_tmp" \
       PATH="$DB2/mkshim:$PATH" DJ2_MKREAL="$_db2_mkreal" DJ2_MKLOG="$DB2/mktemp.log" \
       ${_db2_S:+FELIX_TEST_SLOTS=$_db2_S} ${k[@]+"${k[@]}"} perl "$DB2/run.pl" "$_db2_lim" "$_db2_I" "$_db2_Q" "$_db2_Tm" "$_db2_Hu" "$_db2_c/$_db2_lab.pid" \
-      "$BASH" "$_db2_T/run" "$@" )
+      "${_db2_t0:+$_db2_c/$_db2_lab.ms}" "$BASH" "$_db2_T/run" "$@" )
 }
 # LABEL ARG...: the run in the background; its pid file is $_db2_c/LABEL.pid (the run's group), its output LABEL.out and LABEL.err. With _db2_pipe=1 the
 # output goes through a pipe that a reader closes into LABEL.eof, as out=$(...) reads it, and the status goes to LABEL.rc
 _db2_go() {
-  _db2_lab="$1"; shift; _db2_t0="$(_db2_now)"   # R62: the run's start, for its line
+  _db2_lab="$1"; shift; _db2_t0="$(_db2_now)"; [ -z "$_db2_t0" ] || rm -f "$_db2_c/$_db2_lab.ms"   # R62: the run's start, and run.pl's ms file, for its line
   if [ "$_db2_pipe" = 1 ]; then
     { _db2_run "$@" 2> "$_db2_c/$_db2_lab.err"; echo $? > "$_db2_c/$_db2_lab.rc"; } | { cat > "$_db2_c/$_db2_lab.out"; : > "$_db2_c/$_db2_lab.eof"; } &
   else _db2_run "$@" > "$_db2_c/$_db2_lab.out" 2> "$_db2_c/$_db2_lab.err" &
@@ -278,7 +286,7 @@ _db2_grp() {
 _db2_wait0() {
   if [ "$_db2_pipe" = 1 ]; then _db2_until $((_db2_lim * 5 + 50)) test -s "$_db2_c/$_db2_lab.rc"; _db2_rc="$(cat "$_db2_c/$_db2_lab.rc" 2>/dev/null)"
   else { wait "$_db2_bg"; } 2>/dev/null; _db2_rc=$?; fi
-  [ -z "$_db2_t0" ] || _db2_ml run "${_db2_c##*/}/$_db2_lab" bound "$_db2_lim" ms "$(_db2_since "$_db2_t0")"; _db2_t0=""   # R62
+  [ -z "$_db2_t0" ] || _db2_ml run "${_db2_c##*/}/$_db2_lab" bound "$_db2_lim" ms "$(_db2_rx "$_db2_c/$_db2_lab.ms" "$_db2_t0")"; _db2_t0=""   # R62
 }
 _db2_fin() {
   _db2_grp "$(_db2_pid "$_db2_lab")" ${_db2_gdl:+"$_db2_gdl"}
@@ -440,10 +448,10 @@ _db2_sel gctl; mkdir -p "$_db2_c"; _db2_lab=g
 # The look once the drain has killed it is a margin of the control, 50 polls (10 s at least; was 5 s): nothing of D runs in it, the sleeper has only to act on the
 # drain's KILL (pid 1 reaps it), so the floor is 10 s. It tells apart a drain whose KILL did not take; L is the sleeper's own end, 100 s. R61: the sleeper also
 # ends once the case's directory is gone (sl.pl)
-_db2_t0="$(_db2_now)"
-perl "$DB2/run.pl" "$_db2_lim" DEFAULT DEFAULT DEFAULT DEFAULT "$_db2_c/g.pid" bash -c 'perl -e "\$e=time+100; sleep 1 while time<\$e && -d \$ARGV[0]" "$1" "$0" gc & exit 0' "$(_db2_id)" "$_db2_c" & _db2_p1=$!
+_db2_t0="$(_db2_now)"; rm -f "$_db2_c/g.ms"
+perl "$DB2/run.pl" "$_db2_lim" DEFAULT DEFAULT DEFAULT DEFAULT "$_db2_c/g.pid" "${_db2_t0:+$_db2_c/g.ms}" bash -c 'perl -e "\$e=time+100; sleep 1 while time<\$e && -d \$ARGV[0]" "$1" "$0" gc & exit 0' "$(_db2_id)" "$_db2_c" & _db2_p1=$!
 { wait "$_db2_p1"; } 2>/dev/null
-[ -z "$_db2_t0" ] || _db2_ml run gctl/g bound "$_db2_lim" ms "$(_db2_since "$_db2_t0")"; _db2_t0="$(_db2_now)"
+[ -z "$_db2_t0" ] || _db2_ml run gctl/g bound "$_db2_lim" ms "$(_db2_rx "$_db2_c/g.ms" "$_db2_t0")"; _db2_t0="$(_db2_now)"
 _db2_gn=5; _db2_grp "$(_db2_pid g)"; _db2_gn=150; _db2_ml margin gctl/drain T 90000 ms "$(_db2_since "$_db2_t0")"; _db2_t0=""
 case "$_db2_leak" in *'perl -e $e=time+100; sleep 1'*) _db2_x=named ;; *) _db2_x="not named [$_db2_leak]" ;; esac   # not inside $( ): bash 3.2 ends the substitution at the pattern's )
 _db2_x="$_db2_x $(_db2_lk gone _db2_clear '' && echo gone || echo still)"; _db2_leak=""

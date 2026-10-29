@@ -15,6 +15,11 @@ printf '\nthe lost-work page, step 6: the clauses the Opus review found unpinned
 # proposing records are 610 minutes old and their files 600 or 300), and
 # "new" at 300. The old and the new starter of a pair hold the same records,
 # stamped 302 and 301 minutes ago, and differ in the file's mtime alone.
+# An anchor chip, proposed 900 minutes ago, is the oldest proposal in the
+# fixture: the reader looks for starters only among files modified since the
+# oldest proposal, so without an older chip an old starter would never be a
+# candidate and the per-chip "modified after its proposal" test would never be
+# the one that turns it away.
 _lw_build
 _lw_repo gp; LWR_GP="$LW/gp"; LWR_GPR="$(_lw_mainwt "$LWR_GP")"
 LW_RR="$LW/hk/.claude/projects"; mkdir -p "$LW_RR"
@@ -27,9 +32,15 @@ LWR_P3="$(_lw_p 'Gap three: make the loader refuse a config file that names a ke
 LWR_P3C="$(_lw_p 'Gap three control: make the runner print the seed it used, and test that two runs differ.' 130)"
 LWR_P4="$(_lw_p 'Gap four: make the sorter keep equal keys in the order they came, and add a test.' 130)"
 LWR_P4C="$(_lw_p 'Gap four control: make the printer wrap its lines at the width it is given, and add a test.' 130)"
+LWR_P0="$(_lw_p 'Gap anchor: make the logger stamp each line with the run it came from, and test two runs.' 130)"
 _lwr_start() { _lw_tu "$1" "$2" mcp__ccd_session__start_session "$3"; _lw_tr "$1" "$2" "$4"; }
 _lwr_mt() { perl -e 'print((stat $ARGV[0])[9])' "$1" 2>/dev/null; }
 
+# The anchor's proposing session: the oldest proposal, and a file older than
+# every old starter.
+_lw_sess "$LWR_GPR" e1e1e1e1-0000-4000-8000-000000000000; _lw_h 912 'file the first follow-up'; LWR_FA="$LW_F"
+_lw_spawn 900 toolu_g0 task_9a000001 'Gap anchor' "$LWR_P0"
+_lw_a 890 'Filed.'; _lw_age "$LW_F" 890
 # The proposing sessions, filed under gp's main worktree. Their files are the
 # newer of every pair below.
 _lw_sess "$LWR_GPR" e1e1e1e1-0000-4000-8000-000000000001; _lw_h 612 'file the follow-ups'; LWR_FP="$LW_F"
@@ -84,6 +95,9 @@ is "review finding 7 fixture: the proposer of Gap four begins with its own promp
 _lw_run GAP "$LW/hk" "$LW/cwd" inventory --repo "$LWR_GP" --tsv --no-gh
 LWR_G="$(_lw_o GAP)"
 is "review finding 7: the inventory over gp exits 0 and lists a chip (control)" "$(_lw_rc GAP) $(_lw_kind "$LWR_G" task_9a010101)" "0 chip"
+is "review finding 7 fixture: the oldest proposal, the anchor's, is older than every old starter's file and is a chip nothing started, so each old starter is a candidate for the other chips (fixture control)" \
+   "$([ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS1O" ] && [ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS2O" ] && [ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS3O" ] && echo older) $(_lw_st "$LWR_G" chip task_9a000001)" \
+   "older chip-unstarted"
 
 # S1, S2, S3: "modified after the proposal"
 is "A3 S1: a starter whose first human text is the chip's prompt, modified after the proposal, starts it (control)" \

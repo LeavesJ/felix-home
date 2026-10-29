@@ -19,13 +19,18 @@ that commit. Outside sources were read on 2026-10-29 and are listed in §9.
 - Signed, commit-bound receipts are not Felix's own. What is Felix's own is a
   receipt that names what its verdict rests on, so a reader can tell when it
   has gone stale. The predicate is built around that.
-- Signing happens in CI, keyless, with a certificate Fulcio issues for 10
-  minutes from the workflow's OIDC token. No key exists anywhere an agent
-  runs, and none exists on the enforcing path.
+- Signing happens in CI, in its own workflow, after CI has judged the head:
+  keyless for a public repository, or a cloud KMS key reached only by CI.
+  The enforcing path is defined by what a decision needs, and no deciding
+  step (the hooks, the gate, CI's judgment, `felix merge`, the land tick)
+  ever needs a key. J ruled on 10-29 that a CI only KMS key is off that path
+  on three conditions; §3.2 gives each and how it is checked.
 - felix-home is private on GitHub Free. Keyless signing on the public Sigstore
   instance would publish its identity, so felix-home gets no signed receipts
-  on public infrastructure. Public repositories, starting with the Phase 4
-  replay repository, are the first that would.
+  on public infrastructure. KMS signing would need a protected environment,
+  which GitHub Free does not offer on a private repository, so felix-home
+  stays unsigned on its current plan. Public repositories, starting with the
+  Phase 4 replay repository, are the first that would get receipts.
 - A signed receipt proves who signed which statement about which commit. It
   does not prove the gate was the right gate. Until the judge pin (roadmap
   step 15) exists, the predicate says so in a field of its own.
@@ -275,49 +280,162 @@ reads.
 
 ## 3. Where the key lives
 
-**Nowhere Felix or an agent runs.** No private key is created, stored or
-read by Felix. Signing is keyless: a CI job asks GitHub for its OIDC token,
-Fulcio exchanges it for an X.509 certificate valid for 10 minutes (Sigstore,
-"Fulcio signs X.509 certificates valid for 10 minutes"), the job signs the
-DSSE envelope with an ephemeral key that never leaves that job, and the key
-is discarded.
+### 3.1 What "the enforcing path" means here
 
-**Never on a Mac where agents run.** Receipts written on the laptop stay
-unsigned, whatever they say. A Mac receipt can be over uncommitted edits, and
-anything on that machine is reachable by the sessions running there.
-Roadmap §4's "never a key on the enforcing path" is kept by having no key at
-all on any machine that enforces.
+Felix's own documents define the enforcing path by what a decision needs, not
+by who can reach what. The 2026-08-15 authority note: "the enforcing path has
+to work with no network, no key, and no model, because a permission check that
+needs a model to answer is not a permission check"
+(`docs/2026-08-15-authority-that-cannot-be-earned.md:15`). The 2026-08-11
+self-diagnosis design says the same twice: the blocking part "works with no
+network, no key, no model" (`docs/2026-08-11-self-diagnosis-design.md:98`),
+and "The enforcing path must work with no network, no key and no model"
+(line 340).
 
-**The exact step.** In March, one new job in `.github/workflows/gate.yml`:
-- named `sign`, with `needs: gate`;
-- runs only on `push` to `main`, never on `pull_request`, so no unlanded
-  code ever runs beside an OIDC token;
-- holds `permissions: { contents: read, id-token: write }` and nothing else;
-- runs only after the `gate` job passed on the exact commit, and refuses
-  (fails closed) when the `reuse` job stood on an earlier run's tree, because
-  then this run's gate produced no receipt;
-- reads the gate receipt the `gate` job uploaded as an artifact, builds the
-  Statement, and signs it with `cosign attest-blob --statement <file>
-  --bundle <file>` (cosign's `--statement` takes a prebuilt statement, which
-  `--predicate` does not allow, since our subject is a commit and not a
-  file);
-- publishes the bundle as an artifact of that run (and, for a public
-  repository, the transparency log entry with it).
+The deciding steps are the deny hooks, the gate, CI's judgment of the head,
+`felix merge` and the land tick. That path is not only on the Mac. CI is on it
+too: `engine/harness/lib/green-tick.sh:11` puts it as "The author's gate wrote
+the receipt, CI judged the head, and `felix merge` judges escapes, commission
+tables, the receipt, rule C9 and staleness with main's installed engine", and
+rule C9 (`engine/harness/lib/escape.sh:495`) reads the gate workflow's own run
+on the exact commit. So "a key on the enforcing path" means **a deciding step
+that needs a key in order to decide**. It does not mean "a key on the Mac".
 
-What an agent can and cannot reach:
+### 3.2 The founder's reading (2026-10-29)
+
+J ruled on 2026-10-29 that a cloud KMS key that only CI can reach is off the
+enforcing path on three conditions, and that if any one fails, the key is on
+the path. This reading goes into `docs/direction.md` when receipts come
+forward in March; it is recorded here only, and direction is untouched by
+this pull request.
+
+**Condition 1. Nothing that decides reads or waits on the signature.** Not
+the gate, CI's judgment, `felix merge` or the land tick. If KMS is down,
+landing goes ahead and the receipt is recorded as unsigned. The signing job
+is never a required check.
+
+How it is checked:
+- **Its own workflow file.** Signing lives in a new
+  `.github/workflows/sign.yml`, never as a job inside `gate.yml`. Rule C9
+  asks `gh run list --workflow gate.yml` for the newest run's conclusion
+  (`escape.sh:557`, the workflow named by `felix_gate_workflow`,
+  `engine/harness/lib/bootstrap.sh:37`), and `automerge.sh:67` filters its
+  run list by the gate workflow it is handed. A failed signing job inside
+  `gate.yml` would turn that run red and hold every merge, so it would be on
+  the path. A separate workflow's failure
+  is invisible to both.
+- **Not a required check.** felix-home has no branch protection
+  (`escape.sh:498`: "the plan does not allow it on a private repository"). On
+  any repository that has it, `gh api repos/OWNER/REPO/branches/main/protection`
+  and `gh api repos/OWNER/REPO/rulesets` must list no required status check
+  from `sign.yml`. The March build adds this read to the repository's setup
+  checks, and the check fails if it finds one.
+- **Nothing in the engine reads a signature.** A test in March greps the
+  deciding code (the hooks, `lib/verify.sh`, `lib/escape.sh`, the gate,
+  `felix merge`, `lib/green-tick.sh`) for any reference to a bundle,
+  `cosign` or the signing workflow, and fails on one.
+- **Unsigned is a state, not a failure.** When the signing run fails or
+  never runs (KMS down, the `reuse` job stood on an earlier tree so no
+  receipt exists), no bundle is published for that commit. A reader reports
+  the receipt as `unsigned`, and nothing maps `unsigned` to red. A test
+  stubs a failed signing run and asserts the land tick still lands.
+
+**Condition 2. Signing is a separate job that runs after CI's judging job and
+cannot change its result.**
+
+How it is checked:
+- **Ordering.** `sign.yml` runs `on: workflow_run` for the `gate` workflow,
+  `types: [completed]`, `branches: [main]`, and its job runs only when
+  `github.event.workflow_run.conclusion == 'success'` and
+  `github.event.workflow_run.event == 'push'`. It signs
+  `github.event.workflow_run.head_sha` and no other commit.
+- **No write path back.** Its `permissions` block is exactly `contents:
+  read`, `actions: read` (to download the gate run's receipt artifact) and
+  `id-token: write`. No `checks`, `statuses`, `actions: write`,
+  `pull-requests` or `contents: write`, so it cannot post a status, re-run or
+  cancel a run, or push. A March test reads `sign.yml` and fails on any
+  other permission, the way `tests/run` already holds every workflow's
+  `uses:` to a commit (`gate.yml` header).
+- **Not confirmed here:** that `workflow_run` always runs the `sign.yml`
+  on the default branch rather than a branch's copy. GitHub states this rule
+  for other events ("This event will only trigger a workflow run if the
+  workflow file exists on the default branch", `repository_dispatch`); the
+  `workflow_run` section was not read. Condition 3 does not depend on it.
+
+**Condition 3. The KMS trust policy accepts only the signing workflow on
+`refs/heads/main`, behind a protected environment.** A change to
+`.github/workflows/` is an escape channel (`escape.sh:116`,
+`FELIX_ESCAPE_EXECUTE`), so an agent's edit to the workflow cannot land on
+its own. But CI runs a branch's own copy of a workflow before anything lands,
+and that run can ask for an OIDC token. Without the main only pin, an agent
+could push a branch carrying its own `sign.yml` and get its own verdict
+signed. This condition is what makes "no agent ever reaches that key" true.
+
+How it is checked:
+- **The token's subject.** GitHub's `sub` claim is
+  `repo:ORG/REPO:ref:refs/heads/BRANCH` for a branch, `repo:ORG/REPO:pull_request`
+  for a pull request, and `repo:ORG/REPO:environment:NAME` when the job names
+  an environment (GitHub OIDC reference). Note the last: once a job names an
+  environment, the ref leaves the `sub`. So the environment must itself be
+  limited to `main`, or the pin is lost.
+- **The pin.** The repository's subject template is set with
+  `include_claim_keys: ["repo", "context", "job_workflow_ref"]` (GitHub OIDC
+  reference, "customizing the subject claims"), so the `sub` becomes
+  `repo:ORG/REPO:environment:felix-sign:job_workflow_ref:ORG/REPO/.github/workflows/<file>@refs/heads/main`.
+  The KMS trust policy matches that string exactly, with `aud` pinned too,
+  and no wildcard. GitHub documents `job_workflow_ref` for jobs that use a
+  reusable workflow, so the signing steps live in a reusable workflow that
+  `sign.yml` calls. The pin needs both parts: a branch's own workflow can
+  call that reusable workflow at `@main` and get the same `job_workflow_ref`,
+  and only the environment, which checks the calling run's `GITHUB_REF`,
+  refuses it.
+- **The environment.** `felix-sign`, with deployment branches set to
+  "Selected branches" and only `main`: "Only branches and tags that match
+  your specified name patterns can deploy to the environment", matched
+  against the run's `GITHUB_REF` (GitHub, deployments and environments).
+- **The refusal test.** Before the first signed receipt, the desktop session
+  pushes a throwaway branch with its own copy of the signing workflow and
+  shows KMS refusing it, and shows a `pull_request` run refused. A pass is
+  the signing call failing on both.
+- **On felix-home's plan this condition cannot be met today.** GitHub's
+  environments page says deployment branches and tags are "available for
+  all public repositories", and lists private repositories only for Pro and
+  Team; required reviewers are "only available for public repositories" on
+  Free, Pro and Team. felix-home is private on Free, so it has no protected
+  environment. Without one, condition 3 fails as written, the key is on the
+  path, and felix-home gets no KMS signing either (Q1).
+
+### 3.3 The keyless path and the Mac
+
+For a public repository, the same `sign.yml` signs keyless instead: a
+certificate Fulcio issues for 10 minutes from the workflow's OIDC token
+(Sigstore, "Fulcio signs X.509 certificates valid for 10 minutes"), an
+ephemeral key that never leaves the job, and no key stored anywhere. There
+the main only pin lives in the verifier: §5's `--certificate-identity`
+and `--certificate-github-workflow-ref` pin the signing workflow and the
+run's ref to `main`, so a receipt a branch copy got signed fails
+verification. Both are needed: a branch's own workflow can call the reusable
+signing workflow at `@main`, and only the run's ref tells that run apart.
+Conditions 1 and 2 hold the same way.
+
+Receipts written on the Mac are never signed, whatever they say. A Mac
+receipt can be over uncommitted edits, and the signing step only ever signs
+a commit CI judged on `main`.
+
+What an agent can and cannot reach, with all three conditions met:
 
 | | Can reach | Cannot reach |
 |---|---|---|
-| Session on the Mac | the gate receipt in `state/gate/`, every engine file, any branch it pushes | any signing key (none exists); the OIDC token (minted only inside the `sign` job on GitHub's runner) |
-| A pull request it opens | the `gate` job, which runs its code with `contents: read` only | the `sign` job, which never runs on `pull_request` |
-| Code it lands on main | what the next `sign` job signs, because that job runs main's engine to build the statement | the workflow file: `.github/workflows/` is an unconditional escape channel (`engine/harness/lib/escape.sh:116`, `FELIX_ESCAPE_EXECUTE`), so a change to the `sign` job waits for the founder |
+| Session on the Mac | the gate receipt in `state/gate/`, every engine file, any branch it pushes | the KMS key; an OIDC token with the pinned subject |
+| A branch or pull request it pushes | a run of its own workflow copy, which can ask for an OIDC token | a token KMS accepts: naming `felix-sign`, its run is refused by the environment's branch rule; not naming it, its `sub` names its branch or `pull_request` (condition 3). For keyless, a certificate that passes §5's identity and ref checks |
+| Code it lands on main | what the next signing run signs, because the gate run that produced the receipt ran main's engine | `sign.yml` and the reusable workflow, since `.github/workflows/` waits for the founder |
 
-The third row is the real exposure. Land on green lands engine PRs,
-judge-changing ones included (direction row 24). An agent that lands a change
-to the gate or to the statement builder changes what gets signed, and the
-signature will be perfectly valid. That is why `judge.pinned` exists, and
-why the statement builder in March should live inside the workflow file or
-under an escape path, not in ordinary engine code (Q3).
+The third row is the real exposure, and the conditions do not close it. Land
+on green lands engine PRs, judge-changing ones included (direction row 24).
+An agent that lands a change to the gate changes what gets signed, and the
+signature will be valid. That is why `judge.pinned` exists, and why the
+statement builder in March should live inside the signing workflow (an
+escape path), not in ordinary engine code (Q3).
 
 ## 4. Private repositories
 
@@ -348,7 +466,7 @@ receipts stay as they are: unsigned, local, and current only by
 | Repository | Receipts | How |
 |---|---|---|
 | A public repository Felix governs, first the Phase 4 public replay repository (roadmap Phase 4) | Signed | Keyless on the public Sigstore instance, logged in Rekor. Its identity is public already. |
-| felix-home | Unsigned | Never on public Sigstore. Signed only if a private path below is chosen, which is a cost and a direction call (Q1). |
+| felix-home | Unsigned | Never on public Sigstore. KMS signing only once all three conditions of §3.2 hold, and condition 3 needs a protected environment that its current plan lacks (Q1). |
 | LeavesJ/Felix (public) | None from this design | Publishing there is a founder stop (direction row 4); this doc proposes nothing for it. |
 | A customer's private repository | Signed only on their infrastructure | One of the three options below. |
 
@@ -364,8 +482,8 @@ receipts stay as they are: unsigned, local, and current only by
 - **A cloud KMS key, reached by OIDC.** cosign signs with `--key
   awskms://...`, `gcpkms://...` or `azurekms://...`; the CI job reaches the
   key through its OIDC identity and the key never leaves the KMS. No public
-  log. This is a key, but not one on any enforcing path or any agent's
-  machine; whether it still breaks roadmap §4's wording is Q1.
+  log. Off the enforcing path only under the three conditions of §3.2,
+  which the customer's own plan and trust policy have to meet.
 
 ## 5. Verification
 
@@ -375,10 +493,11 @@ For a public repository, the buyer runs:
 cosign verify-blob-attestation \
   --bundle felix-receipt.sigstore.json \
   --type '<FELIX_PREDICATE_BASE>/gate-receipt/v0' \
-  --certificate-identity 'https://github.com/OWNER/REPO/.github/workflows/gate.yml@refs/heads/main' \
+  --certificate-identity 'https://github.com/OWNER/REPO/.github/workflows/<signing workflow>.yml@refs/heads/main' \
   --certificate-oidc-issuer 'https://token.actions.githubusercontent.com' \
   --certificate-github-workflow-repository 'OWNER/REPO' \
-  --certificate-github-workflow-trigger push \
+  --certificate-github-workflow-ref refs/heads/main \
+  --certificate-github-workflow-trigger workflow_run \
   --digest "$(git rev-parse HEAD)" --digestAlg gitCommit
 ```
 
@@ -391,13 +510,31 @@ equals the commit. Testing that is the first March task (Q6). Then, for
 staleness, `felix receipt verify` (not built) would recompute what §2.6 says
 can be recomputed and print the `staleWhen` codes that fire.
 
+For a repository signed with a KMS key under §3.2, the buyer holds the
+public key the owner publishes and runs:
+
+```sh
+cosign verify-blob-attestation \
+  --bundle felix-receipt.sigstore.json \
+  --key felix-receipt.pub \
+  --type '<FELIX_PREDICATE_BASE>/gate-receipt/v0' \
+  --insecure-ignore-tlog \
+  --digest "$(git rev-parse HEAD)" --digestAlg gitCommit
+```
+
+`--insecure-ignore-tlog` is cosign's own flag for a signature never
+uploaded to a log, and cosign says plainly that such "Artifacts cannot be
+publicly verified when not included in a log". That is the trade of a
+private repository: the buyer trusts the published key, not a public log.
+
 For a private repository on Enterprise Cloud, `gh attestation verify` with
 `--predicate-type` and `-R OWNER/REPO`, if GitHub's tooling accepts a commit
 subject; else the same cosign command against GitHub's trusted root (Q6).
 
 **What a passing check proves:**
 - this exact statement was signed by a certificate Fulcio issued to the
-  `gate.yml` workflow on `main` of that repository, for a `push`;
+  signing workflow of that repository, in a run on `main` that a completed
+  gate run started;
 - the statement names that commit;
 - for a public repository, the signing was logged in Rekor at a time inside
   the certificate's 10 minutes.
@@ -490,16 +627,22 @@ Nothing before March. In March, in this order, each as its own change:
 2. The stale codes of §2.5 as a contract, with the mapping and drift tests.
 3. The predicate, written from the gate receipt by a builder that lives
    under an escape path (Q3).
-4. The `sign` job, as a draft labelled `needs-founder` (it touches
-   `.github/workflows/`).
+4. `sign.yml` and its reusable signing workflow, as a draft labelled
+   `needs-founder` (it touches `.github/workflows/`), with the checks §3.2
+   names for each condition, and the branch refusal test run before any
+   receipt is signed.
 5. The first signed receipt on the public replay repository, verified by the
    §5 command from a clean machine.
 
 ## 8. Open questions only J can answer
 
-- **Q1.** Does a cloud KMS key reached only by CI's OIDC identity count as "a
-  key on the enforcing path"? And is a private signing path for felix-home
-  wanted at all before a customer asks?
+- **Q1, resolved 2026-10-29.** A cloud KMS key that only CI can reach is
+  off the enforcing path on the three conditions of §3.2, and on the path
+  if any one fails. Into `docs/direction.md` when receipts come forward in
+  March. What follows from it is still his: condition 3 needs a protected
+  environment, which felix-home's plan does not offer on a private
+  repository, so felix-home signs nothing unless the plan changes or it
+  waits for the public replay repository.
 - **Q2.** Should the gate receipt record the obligation set's own digest
   (a ninth field), or is deriving it from the commit enough?
 - **Q3.** Where the statement builder lives: inside `gate.yml` (founder
@@ -523,7 +666,10 @@ and 15, Phase 2, Phase 4, §4); `docs/2026-09-19-direction-decisions.md` §4;
 `README.md:429`; `engine/harness/lib/verify.sh`, `epoch.sh`,
 `commission.sh`, `receipt.sh`, `escape.sh`; `engine/harness/felix`
 (`cmd_gate`, `cmd_receipt`); `.github/workflows/gate.yml`;
-`engine/.claude-plugin/plugin.json`.
+`engine/.claude-plugin/plugin.json`; `engine/harness/lib/green-tick.sh`,
+`bootstrap.sh`, `automerge.sh`; `docs/2026-08-15-authority-that-cannot-be-earned.md`;
+`docs/2026-08-11-self-diagnosis-design.md`. The founder's ruling on the KMS
+key is his message of 2026-10-29 in the felix-cso channel.
 
 Outside, read 2026-10-29:
 - in-toto Statement v1: https://github.com/in-toto/attestation/blob/main/spec/v1/statement.md
@@ -540,6 +686,9 @@ Outside, read 2026-10-29:
 - Sigstore signing overview: https://docs.sigstore.dev/cosign/signing/overview/
 - GitHub, using artifact attestations: https://docs.github.com/actions/security-guides/using-artifact-attestations-to-establish-provenance-for-builds
 - GitHub, artifact attestations concepts: https://docs.github.com/en/actions/concepts/security/artifact-attestations
+- GitHub OIDC reference (subject claims, customizing them): https://docs.github.com/de/actions/reference/security/oidc and https://docs.github.com/en/enterprise-server@3.8/actions/deployment/security-hardening-your-deployments/about-security-hardening-with-openid-connect
+- GitHub, deployments and environments: https://docs.github.com/en/actions/reference/workflows-and-actions/deployments-and-environments
+- GitHub, events that trigger workflows: https://docs.github.com/en/actions/reference/workflows-and-actions/events-that-trigger-workflows
 - IETF draft: https://datatracker.ietf.org/doc/draft-marques-asqav-compliance-receipts/
 - agentattest: https://github.com/AuroraAeon/agentattest and https://github.com/BlockTarioIQ/agentattest
 - agent-receipt: https://github.com/pramodreddyboddu/agent-receipt
@@ -550,6 +699,9 @@ Outside, read 2026-10-29:
 - Traceseal: https://github.com/traceseal/traceseal-verify, https://pypi.org/project/traceseal-verify/ and https://traceseal.io/blog/in-toto-slsa-provenance-ai-agents/
 
 Not confirmed: whether cosign's `--digestAlg` accepts `gitCommit` (Q6);
+that `workflow_run` always runs the default branch's copy of `sign.yml`
+(that section of GitHub's events page was not read); that `job_workflow_ref`
+appears in the claims of a job that does not call a reusable workflow;
 where AuroraAeon/agentattest keeps a producer's key; agentproof's predicate
 type; VeriForge's license; whether Praxso/attested names DSSE; the draft's
 full reference list. felix-home's plan (GitHub Free) is J's statement, not

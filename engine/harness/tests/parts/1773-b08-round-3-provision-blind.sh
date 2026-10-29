@@ -1,4 +1,4 @@
-printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, sections 13 to 15, blind)\n'
+printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, sections 13 to 16, blind)\n'
 # Written blind on 2026-10-28 from section 13 of docs/2026-10-24-audit-fixes/b08-round-3.md
 # (B08R3Z3-1 to B08R3Z3-4, A170 to A187), with its sections 2 to 12 as context, without
 # reading projects/felix/gate.sh's cloud check, engine/ code or anything the gate sources. One
@@ -76,6 +76,15 @@ printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, se
 #   hook object with timeout 30, after the canonical one in its group; "the binding count stays 1"
 #   reads as no binding clause, whatever its count.
 # - A202 and A206, "as A140", read as _b83_asok.
+#
+# Section 16 (B08R3Z6-1, B08R3Z6-2, A207 to A214) was written blind on 2026-10-29 from the same
+# file, after A206, without reading gate.sh's cloud check. Its names start "B08R3Z6 A<n>". Readings:
+# - Each case starts from _b84_start, _b84_cloud and _b84_stack, its clauses matched without their
+#   leading blank. A207 and A208 commit that, then git rm --cached takes stack.tsv (A208: and
+#   .claude/cloud) from the index, the disk keeping both; A207 refuses section 12's stack.tsv clause
+#   beside the new one. A209 to A214 set superpowers' five-field plugin row: field 4 the tier, field
+#   6 the grounding, five fields when absent. A214 sources this tree's lib/admit.sh in a subshell,
+#   and "a clause naming superpowers on the cloud line" is the word superpowers in the line under it.
 
 _b86Why=""
 if [ "$(type -t _b84_start)" != function ] || [ "$(type -t _b85_tn)" != function ]; then
@@ -243,13 +252,40 @@ _b88N203="B08R3Z5 A203 (R3Z5-2): a guarded UserPromptSubmit hook running bash on
 _b88N204="B08R3Z5 A204 (R3Z5-2): a second hook in the startup|resume|clear|compact SessionStart group, the canonical provision object with timeout 30: cloud FAIL, no binding clause, and the other-hooks clause counting 1"
 _b88N205="B08R3Z5 A205 (R3Z5-2): a guarded UserPromptSubmit hook running echo provisional, a plain substring: cloud FAIL, with the other-hooks clause counting 1, and no guard clause"
 _b88N206="B08R3Z5 A206 (R3Z5-2): a guarded UserPromptSubmit hook running echo hello: cloud ok and the line under it empty, as A140 (control)"
+# Section 16's clauses and its helpers.
+_b89SA="unreadable: projects/felix/stack.tsv (not in git's index, so nothing rates what the toolbox fetches);"
+_b89_pc() { printf '%s' "superpowers is fetched into the cloud and the install policy says $1 ($2 $3);"; }
+# tier [grounding]: FC's stack.tsv's five-field superpowers plugin row given the tier (field 4) and any grounding (field 6), staged.
+_b89_rate() {
+  { B89_T="$1" B89_G="${2:-}" LC_ALL=C awk -F '\t' 'BEGIN { OFS = "\t" } $1 == "plugin" && index($2, "superpowers@") == 1 { if (NF != 5) exit 3
+      $4 = ENVIRON["B89_T"]; if (ENVIRON["B89_G"] != "") $6 = ENVIRON["B89_G"]; n++ } { print } END { if (n != 1) exit 3 }' "$_b83C/projects/felix/stack.tsv" \
+      > "$_b83/ed.tmp" && cat "$_b83/ed.tmp" > "$_b83C/projects/felix/stack.tsv"; } || _b83Fx="$_b83Fx stack.tsv's superpowers row could not be set [$1 ${2:-}];"
+  _b84_add projects/felix/stack.tsv
+}
+# tier [grounding]: the index's stack.tsv gives superpowers "<tier> <grounding|-> <fields>" and its toolbox entry carry fetch, else a fixture fault.
+_b89_sp() {
+  local w="$1 - 5" s; [ -z "${2:-}" ] || w="$1 $2 6"
+  s="$(_b83_git "$_b83C" cat-file blob :projects/felix/stack.tsv 2>/dev/null | LC_ALL=C awk -F '\t' '$1 == "plugin" && index($2, "superpowers@") == 1 { printf "%s%s %s %d", (n++ ? "; " : ""), $4, (NF > 5 ? $6 : "-"), NF }')"
+  [ "$s" = "$w" ] || _b83Fx="$_b83Fx the index's stack.tsv gives superpowers [$s], not [$w];"; _b88_sp "$1"
+}
+# name tier [grounding]: FC with the tree's .claude and stack.tsv, superpowers' row set so, committed and run, then checked.
+_b89_cell() { _b84_start; _b84_cloud; _b84_stack; _b89_rate "$2" "${3:-}"; _b83_yo "$1"; _b84_ixw "$_b85IX"; _b87_st; _b89_sp "$2" "${3:-}"; _b85_same "$_b85TB"; }
+_b89_gone() { [ -z "$(_b83_ix projects/felix/stack.tsv)$(_b83_git "$_b83C" ls-tree --name-only HEAD -- projects/felix/stack.tsv 2>/dev/null)" ] && [ -f "$_b83C/projects/felix/stack.tsv" ] || _b83Fx="$_b83Fx stack.tsv is in the index or HEAD, or not on disk;"; }
+_b89N207="B08R3Z6 A207 (R3Z6-1): stack.tsv removed from the index after a commit, kept on disk, the toolbox in the index: cloud FAIL, with the stack.tsv-absent clause, and not section 12's stack.tsv clause"
+_b89N208="B08R3Z6 A208 (R3Z6-1): stack.tsv and .claude/cloud both removed from the index after a commit, kept on disk: cloud ok and the line under it empty, as A140 (control)"
+_b89N209="B08R3Z6 A209 (R3Z6-2): stack.tsv's superpowers row medium with grounding OBSERVED, superpowers carry fetch: cloud FAIL, with the install-policy clause hold (medium OBSERVED)"
+_b89N210="B08R3Z6 A210 (R3Z6-2): stack.tsv's superpowers row low with grounding INFERRED, superpowers carry fetch: cloud FAIL, with the install-policy clause hold (low INFERRED)"
+_b89N211="B08R3Z6 A211 (R3Z6-2): stack.tsv's superpowers row low with grounding observed, lower case: cloud FAIL, with the install-policy clause refuse (low observed)"
+_b89N212="B08R3Z6 A212 (R3Z6-2): stack.tsv's superpowers row medium with grounding DECLARED: cloud ok and the line under it empty, as A140 (control)"
+_b89N213="B08R3Z6 A213 (R3Z6-2): stack.tsv's superpowers row medium with no sixth field: cloud ok and the line under it empty, as A140 (control)"
+_b89N214="B08R3Z6 A214 (R3Z6-2, pin): superpowers' row at low, medium and high crossed with DECLARED, OBSERVED, INFERRED and absent: a clause naming superpowers on the cloud line exactly when this tree's felix_admit, absent read as DECLARED, says other than install"
 
 if [ -n "$_b86Why" ]; then
   for _b86n in "$_b86N170" "$_b86N171" "$_b86N172" "$_b86N173" "$_b86N174" "$_b86N175" "$_b86N176" "$_b86N177" "$_b86N178" \
                "$_b86N179" "$_b86N180" "$_b86N181" "$_b86N182" "$_b86N183" "$_b86N184" "$_b86N185" "$_b86N186" "$_b86N187" \
                "$_b87N188" "$_b87N189" "$_b87N190" "$_b87N191" "$_b87N192" "$_b87N193" "$_b87N194" "$_b87N195" "$_b87N196" \
                "$_b87N197" "$_b87N198" "$_b87N199" "$_b88N200" "$_b88N201" "$_b88N202" "$_b88N203" "$_b88N204" "$_b88N205" \
-               "$_b88N206"; do
+               "$_b88N206" "$_b89N207" "$_b89N208" "$_b89N209" "$_b89N210" "$_b89N211" "$_b89N212" "$_b89N213" "$_b89N214"; do
     skip "$_b86n" "$_b86Why"
   done
 else
@@ -435,4 +471,29 @@ else
   _b84_start; _b84_cloud; _b84_stack; _b86_set upo "$_b88P6"; _b88_ev "$_b88P6" UserPromptSubmit 1; _b88_ev "$_b86PL" SessionStart 1
   _b88_pn 1; _b84_add; _b83_yo a206; _b84_ixw "$_b85IX"; _b87_st
   _b83_asok a206 "$_b88N206"
+  # ======== The ninth follow-up (contract section 16), A207 to A214
+  # ---- B08R3Z6-1: a toolbox with no stack.tsv in git's index (A207, A208)
+  _b84_start; _b84_cloud; _b84_stack; _b83_git "$_b83C" commit -qm a207-base >/dev/null 2>&1
+  _b83_git "$_b83C" rm -q --cached -- projects/felix/stack.tsv >/dev/null 2>&1 || _b83Fx="$_b83Fx stack.tsv could not be removed from the index;"
+  _b83_yo a207; _b84_ixw "$_b85IX"; _b89_gone; _b83_seq "$_b89N207" any "$_b89SA" -- "$_b85ST"
+  _b84_start; _b84_cloud; _b84_stack; _b83_git "$_b83C" commit -qm a208-base >/dev/null 2>&1
+  _b83_git "$_b83C" rm -r -q --cached -- .claude/cloud projects/felix/stack.tsv >/dev/null 2>&1 || _b83Fx="$_b83Fx .claude/cloud and stack.tsv could not be removed from the index;"
+  _b83_yo a208; _b84_ixw '100644 .claude/settings.json'; _b89_gone; [ -f "$_b83C/$_b85TB" ] || _b83Fx="$_b83Fx the toolbox is not on disk;"
+  _b83_asok a208 "$_b89N208"
+  # ---- B08R3Z6-2: each fetch entry judged by felix_admit's table (A209 to A214)
+  _b89_cell a209 medium OBSERVED; _b83_seq "$_b89N209" any "$(_b89_pc hold medium OBSERVED)"
+  _b89_cell a210 low INFERRED; _b83_seq "$_b89N210" any "$(_b89_pc hold low INFERRED)"
+  _b89_cell a211 low observed; _b83_seq "$_b89N211" any "$(_b89_pc refuse low observed)"
+  _b89_cell a212 medium DECLARED; _b83_asok a212 "$_b89N212"
+  _b89_cell a213 medium; _b83_asok a213 "$_b89N213"
+  _b89m=""; _b89f=""
+  for _b89t in low medium high; do for _b89g in DECLARED OBSERVED INFERRED ''; do
+    _b89v="$(. "$REAL_HARNESS/lib/admit.sh" >/dev/null 2>&1 && felix_admit "$_b89t" "${_b89g:-DECLARED}")"
+    _b89_cell "a214-$_b89t-${_b89g:-absent}" "$_b89t" "$_b89g"
+    case "$_b89v" in install|hold|refuse) ;; *) _b83Fx="$_b83Fx felix_admit from lib/admit.sh gave [$_b89v];" ;; esac
+    [ -z "$_b83Fx" ] || _b89f="$_b89f [$_b89t ${_b89g:-absent}]$_b83Fx"
+    _b89n=no; ! _b83_in superpowers "$_b83D" || _b89n=yes; _b89w=yes; [ "$_b89v" != install ] || _b89w=no
+    [ "$_b89n" = "$_b89w" ] || _b89m="$_b89m $_b89t ${_b89g:-absent}: felix_admit says $_b89v, a clause naming superpowers $_b89n (cloud ${_b83V:-none}, detail [$_b83D]);"
+  done; done
+  if [ -n "$_b89f" ]; then bad "$_b89N214" "fixture:$_b89f"; elif [ -z "$_b89m" ]; then ok "$_b89N214"; else bad "$_b89N214" "mismatched cells:$_b89m"; fi
 fi

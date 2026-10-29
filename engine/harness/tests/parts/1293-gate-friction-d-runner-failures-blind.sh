@@ -29,6 +29,10 @@ printf '\ngate friction D: a unit that goes wrong, what that does to a run and t
 # "1293 run CASE/LABEL bound B ms START-TO-EXIT" for every inner run (the gate's too) and "1293 margin CASE T MS ms MEASURED" (none when its event never came) for rsl and r27m (49 s), jtab (60 s) and
 # R60's wait (CASE/LABEL/watcher, 20 s), each after its case's checks. (4) R58: no watch here (no pause followed by a look for what only a build without the clause makes). R59: the one record run
 # ended by a signal, R33's (r27w), already waits for its group as a bound (_db3_emptyby, B from its exit, then R12's 30 s), and only what is there at its end fails the name.
+# Revision 18's review, by blind author B from the contract alone: (1) R60: once a process with the record run's command line was seen and none is left (or 20 s have passed), the two listings
+# 0.1 s apart judge every live process of the run's groups that the first two did not already name, not only what a poll saw below the watcher, so a child the watcher left between two polls,
+# or a process that came into the groups after the first listing, is judged like any other (atexit.pl, the same text in 1295). (2) R62: every run that holds (DJX_HOLD) also logs C as a margin,
+# "1293 margin CASE/LABEL/C T 40000 ms MS", MS its mark-to-step-end (hold.ended - hold.mark; none when either file is missing).
 # R38, with R44: red's suite runs this part on the base's tests/red and tests/receipt.sh, which lack R1's stopper, so a record run that ends on a runner failure
 # exits there only once red's suite has ended by itself, and what is left of red's tree then is a matter of timing. Each _db3_rf case therefore plants, in
 # its record half only (DJX_HOLD names hold.pl, which the case gives that run alone, and DJX_LIM the case's run bound B, 600 s, _db3_B), a red-only holder H: red's suite, at the planted step, makes the case's
@@ -116,23 +120,25 @@ DB3SLP
 cat > "$DB3/atexit.pl" <<'DB3AX'
 # atexit.pl WFILE CMD GROUP... (R1, R60; the same text in parts 1293 and 1295): "ok", or "left at its exit: PID STAT COMMAND;..." for what the process groups GROUP... (zombies aside) hold
 # at a run's exit. Two listings 0.1 s apart, the first at once: a process in both is left. Not judged by them: a process whose command line is CMD (the record run's own: its watcher, or a subshell
-# of it; CMD empty, none) and its descendants. Those are waited for, a bound of 20 s from the first listing polled every 0.1 s, each listing's descendants noted; then two listings 0.1 s apart, the
-# first at once, judge the noted descendants as any other, and one with CMD still there at 20 s is left. WFILE gets the ms from the first listing to the first with none with CMD, or none.
+# of it; CMD empty, none) and what either listing shows below one. When either shows one with CMD, it is waited for, a bound of 20 s from the first listing polled every 0.1 s; then (once none with
+# CMD is left, or at 20 s) two listings 0.1 s apart, the first at once, judge every process of the groups that the first two did not already name, whether or not a listing saw it below one with
+# CMD (a child the watcher left between two polls is judged like any other), and one with CMD still there at 20 s is left. WFILE gets the ms from the first listing to the first with none with CMD, or none.
 use strict; use Time::HiRes qw(time sleep);
 open(STDERR, ">", "/dev/null"); my ($wf, $cmd, @g) = @ARGV; my %g = map { $_ => 1 } grep { /^\d+$/ } @g;
 sub ls { my %p; open(my $h, "-|", "ps", "-A", "-ww", "-o", "pid=", "-o", "ppid=", "-o", "pgid=", "-o", "stat=", "-o", "command=") or return \%p;
   while (my $l = <$h>) { next unless $l =~ /^\s*(\d+)\s+(\d+)\s+(\d+)\s+(\S+)\s*(.*?)\s*$/; $p{$1} = [$2, $4, $5] if $g{$3} && $4 !~ /^Z/ } close $h; \%p }
 sub wt { my ($p) = @_; $cmd eq "" ? () : grep { $p->{$_}[2] eq $cmd } keys %$p }   # the processes with CMD
 sub dn { my ($p, @w) = @_; my %d = map { $_ => 1 } @w; my $n = 1; while ($n) { $n = 0; for (keys %$p) { next if $d{$_} || !$d{$p->{$_}[0]}; $d{$_} = 1; $n = 1 } } delete @d{@w}; keys %d }   # their descendants
-sub both { my ($x, $y, @k) = @_; join "", map { "$_ $y->{$_}[1] " . substr($y->{$_}[2], 0, 70) . ";" } sort { $a <=> $b } grep { exists $y->{$_} } @k }
-my $t0 = time; my $l1 = ls(); my @w1 = wt($l1); my %nd = map { $_ => 1 } dn($l1, @w1);
-sleep 0.1; my $t2 = time; my $l2 = ls(); my @w2 = wt($l2); $nd{$_} = 1 for dn($l2, @w2);
-my %out = map { $_ => 1 } (@w1, @w2, keys %nd); my $left = both($l1, $l2, grep { !$out{$_} } keys %$l1);
-my $wms; my @wl = map { "$_ $l2->{$_}[1] " . substr($l2->{$_}[2], 0, 70) } @w2;
+sub row { my ($p, $k) = @_; "$k $p->{$k}[1] " . substr($p->{$k}[2], 0, 70) }
+sub both { my ($x, $y, @k) = @_; join "", map { row($y, $_) . ";" } sort { $a <=> $b } grep { exists $y->{$_} } @k }
+my $t0 = time; my $l1 = ls(); my @w1 = wt($l1); my %out = map { $_ => 1 } (@w1, dn($l1, @w1));
+sleep 0.1; my $t2 = time; my $l2 = ls(); my @w2 = wt($l2); $out{$_} = 1 for (@w2, dn($l2, @w2));
+my %nm = map { $_ => 1 } grep { !$out{$_} && exists $l2->{$_} } keys %$l1; my $left = both($l1, $l2, keys %nm);   # what the first two listings named
+my $wms; my %wl = map { $_ => row($l2, $_) } @w2;
 if (!@w1 && !@w2) { $wms = 0 } elsif (!@w2) { $wms = int(($t2 - $t0) * 1000) }
-else { while (time < $t0 + 20) { sleep 0.1; my $tl = time; my $p = ls(); my @x = wt($p); $nd{$_} = 1 for dn($p, @x); if (!@x) { $wms = int(($tl - $t0) * 1000); last } @wl = map { "$_ $p->{$_}[1] " . substr($p->{$_}[2], 0, 70) } @x } }
-$left .= join "", map { "$_ (the record run's own command line, still there 20 s after its exit);" } sort @wl unless defined $wms;
-if (%nd) { my $a1 = ls(); sleep 0.1; my $a2 = ls(); $left .= both($a1, $a2, grep { $nd{$_} } keys %$a1) }
+else { while (time < $t0 + 20) { sleep 0.1; my $tl = time; my $p = ls(); my @x = wt($p); if (!@x) { $wms = int(($tl - $t0) * 1000); last } %wl = map { $_ => row($p, $_) } @x } }
+unless (defined $wms) { $left .= join "", map { "$wl{$_} (the record run's own command line, still there 20 s after its exit);" } sort { $a <=> $b } keys %wl; $nm{$_} = 1 for keys %wl }
+if (@w1 || @w2) { my $a1 = ls(); sleep 0.1; my $a2 = ls(); $left .= both($a1, $a2, grep { !$nm{$_} } keys %$a1) }   # R60 after review: every process of the groups not named yet
 if ($wf ne "-" && open(my $h, ">", $wf)) { print $h (defined $wms ? $wms : "none"), "\n"; close $h }
 print $left eq "" ? "ok" : "left at its exit: $left";
 DB3AX
@@ -156,7 +162,7 @@ _db3_gm() { ps -A -o pid= -o pgid= -o stat= -o command= 2>/dev/null | G=" $* " L
 _db3_gs() { local f; for f in ${_db3_pf[@]+"${_db3_pf[@]}"}; do printf ' %s' "$(cat "$f" 2>/dev/null)"; done; }   # the ids of the process groups of this case's runs
 # R1: "ok" when no process of those groups is alive at two listings 0.1 s apart, the first taken at once after a run has exited (a process killed
 # a moment ago is in the first listing only), else the processes that were in both. R60: for a record run (_db3_cmd, its own command line) its watcher, a subshell of it and their
-# descendants are waited for, 20 s at most, and what was a descendant is judged by two listings once they are gone (atexit.pl); the wait's ms go to CASE/LABEL.axw (R62)
+# descendants are waited for, 20 s at most, and once they are gone two listings judge every process of the groups not named yet (atexit.pl); the wait's ms go to CASE/LABEL.axw (R62)
 _db3_atexit() { local g; g="$(_db3_gs)"; [ -n "${g// /}" ] || { printf ok; return 0; }; perl "$DB3/atexit.pl" "$_db3_c/$_db3_lab.axw" "$_db3_cmd" $g; }
 # R12: "ok" once the groups of this case's runs hold no live process (30 s), else what was left, sent CONT and then KILL by pid.
 _db3_clean() {
@@ -221,6 +227,7 @@ _db3_run()  {   # _db3_ex: R1's verdict on this run, _db3_cl: R12's, whose findi
     "$([ -e "$_db3_c/hold.ended" ] && _db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.go" 2>/dev/null)" || echo natural)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/hold.go" 2>/dev/null)")" \
     "$(_db3_rel hold.start)" "$(_db3_rel hold.go)" "$(_db3_df "$_db3_t1" "$(cat "$_db3_c/run.start" 2>/dev/null)")" \
     "$(_db3_df "$(cat "$_db3_c/hold.mark" 2>/dev/null)" "$(cat "$_db3_c/hold.go" 2>/dev/null)")" "$(_db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.mark" 2>/dev/null)")" "$_db3_ex" >> "$DJX_MLOG"
+  [ "$h" = 0 ] || _db3_ml margin "${_db3_c##*/}/$_db3_lab/C" T 40000 ms "$(_db3_df "$(cat "$_db3_c/hold.ended" 2>/dev/null)" "$(cat "$_db3_c/hold.mark" 2>/dev/null)")"   # R62 after review: every run that holds, C (40 s) as a margin, mark-to-step-end (none when either file is missing)
   _db3_mr
 }
 # R62, evidence only (a line never decides a verdict, and none is written without DJX_MLOG): _db3_ml WORD...: the line "1293 WORD..."; _db3_mr, once a run's checks are done: its run line,

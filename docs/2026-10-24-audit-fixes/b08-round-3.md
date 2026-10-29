@@ -951,3 +951,85 @@ unless the case says otherwise.
 
 Expected red on 20e12eef: A170 to A175 and A178 to A186 (15). A179 is red because its
 intent-to-add entry reads 100755 at stage 0 there. The controls pass. Report each.
+
+## 14. Seventh follow-up: the chain with no settings file, empty values, and the toolbox read back against stack.tsv
+
+The review of 26316e9f (section 13's fix) found that the fix does what section 13 asks. The
+eighteen cases are red on 20e12eef and green at its head. The canonical hook is compared exactly
+as Claude Code's reader would read it (`120.0`, `1.2e2`, `\/` and repeated keys each fail
+closed). Twenty earlier fixture types read byte for byte the same. No file is written. It left
+three mediums and two lows.
+
+- **B08R3Z4-1 (medium). No settings file does not skip a chain that is committed.**
+  - The cloud line is `skipped` only when the index holds none of these:
+    - `.claude/settings.json`;
+    - a stage-0 `.claude/cloud/toolbox.json`;
+    - a plugin or skill row in stack.tsv, read as section 12 reads it.
+  - With no settings.json and either of the other two, the check runs.
+    - It adds ` unreadable: .claude/settings.json (0 SessionStart hooks run provision as gate.sh
+      binds it, not 1);`.
+    - Provision's bytes (B08R3Z3-2), the toolbox shape (B08R3Z3-3) and the stack membership are
+      then judged as usual. B08R3Z3-2's condition stays a stage-0 toolbox.
+- **B08R3Z4-2 (medium). Every toolbox value is a non-empty string.** Provision reads each entry
+  with `IFS=$'\t' read`. Tab is IFS whitespace, so an empty field is merged away and the fields
+  after it shift. An empty `subdir` or `source` drops a declared tool while the gate reads ok.
+  Any empty string in a tools entry is a shape fault, worded as B08R3Z3-3 words it.
+- **B08R3Z4-3 (medium). The toolbox is read back against stack.tsv.** The toolbox is "what a
+  cloud session gets of the toolbox projects/felix/stack.tsv declares" (its own `about`), and
+  constitution invariant 4 refuses `risk=high` from every caller. So:
+  - Every tools entry's `name` is the name of a plugin or skill row in stack.tsv, with the part
+    from `@` removed, as the existing membership reads it. An entry that is not adds
+    ` <name> is in .claude/cloud/toolbox.json and not in projects/felix/stack.tsv;`, after
+    the has-no-entry clauses, in the toolbox's order.
+  - An entry with `carry` `fetch` whose stack row has `high` in its risk column (the fourth
+    field) adds ` <name> is fetched into the cloud and stack.tsv rates it risk=high;`.
+  - With stack.tsv absent from the index, or unreadable under section 12, neither clause is
+    said. The stack.tsv clause, or the has-no-entry silence, already speaks for that tree.
+- **B08R3Z4-4 (low). The canonical hook is counted everywhere.**
+  - Copies of the canonical hook object are counted in every event and group of settings.json.
+  - Exactly one copy is allowed, and it sits in the `startup|resume|clear|compact`
+    SessionStart group.
+  - A copy elsewhere adds ` unreadable: .claude/settings.json (<k> copies of the provision hook
+    outside SessionStart startup|resume|clear|compact);` after the binding clause.
+- **B08R3Z4-5 (low, tests).** Cases are added for:
+  - B08R3Z3-2's NUL reason;
+  - a sixth key on the hook (`"statusMessage": "x"`);
+  - `shell` removed;
+  - `timeout` 60.
+  A172 to A174 pin the count at `0`.
+- **Recorded, not taken.**
+  - Provision's own logic.
+  - Arbitrary code in the other guarded hooks that run beside provision.
+  - A different spelling of provision in another event's hook.
+
+### Limits
+
+- gate.sh may grow to 250 lines over 8e634e4b. The builder reports the count.
+- Moving the cloud check into its own file is still the founder's batch.
+
+### Assertions (part 1773 after A187)
+
+Named `B08R3Z4 A<n> (R3Z4-<m>...)`.
+
+- **A188** (R3Z4-1) settings.json removed from the index, with toolbox, provision and stack.tsv
+  kept: cloud FAIL, the binding clause with `0`.
+- **A189** (R3Z4-1, control) settings.json, `.claude/cloud` and stack.tsv all removed: `skipped`.
+- **A190** (R3Z4-2) one fetch entry's `subdir` set to `""`: the shape clause.
+- **A191** (R3Z4-2) one entry's `note` set to `""`: the shape clause.
+- **A192** (R3Z4-3) a tools entry `{"name":"undeclared-x","carry":"no","note":"x"}` added: the
+  not-in-stack clause naming undeclared-x.
+- **A193** (R3Z4-3) the toolbox's `semgrep` entry made `carry` `fetch`, with a source, a
+  40-hex sha and subdir `.`, and stack.tsv's semgrep row kept at risk high: the risk clause
+  naming semgrep.
+- **A194** (R3Z4-3, control) the same with stack.tsv's semgrep row rated `low`: no risk clause.
+- **A195** (R3Z4-4) the canonical hook object also appended to UserPromptSubmit's hooks: the
+  outside clause with `1`.
+- **A196** (R3Z3-2) one NUL byte appended to provision: the provision clause, NUL.
+- **A197** (R3Z3-1) the hook gains `"statusMessage": "x"`: the binding clause, `0`.
+- **A198** (R3Z3-1) the hook's `shell` removed: the binding clause, `0`.
+- **A199** (R3Z3-1) the hook's `timeout` set to `60`: the binding clause, `0`.
+- A172, A173 and A174 pin `0`.
+
+Each case runs over FC with the tree's stack.tsv unless it says otherwise. A192 to A194 need
+stack.tsv. Expected red on 26316e9f: A188 and A190 to A195 (7). A196 to A199 pass there
+already: they are coverage cases for section 13's rules. The controls pass. Report each.

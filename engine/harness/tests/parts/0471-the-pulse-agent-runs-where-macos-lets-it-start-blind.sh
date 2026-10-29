@@ -189,6 +189,12 @@ else ok "pulse agent P3: and hands launchctl nothing"; fi
 # A home whose path holds &, < and > still yields a plist that parses: every
 # string is escaped, and unescaping the capture gives back the path exactly.
 PA71A="$TMP/pa71-amp/h a&b<c>d"; mkdir -p "$PA71A"; PA71A="$(cd "$PA71A" && pwd -P)"; _pa71_home "$PA71A"
+# Served from an engine whose path holds them too, so the served felix in
+# ProgramArguments is escaped as well, not only the capture (round-2 mutation
+# check, R2-escape-capture-only). The served engine sits outside $HOME.
+PA71SA="$TMP/pa71-amp-served/e a&b<c>d"; mkdir -p "$PA71SA/engine/harness"; PA71SA="$(cd "$PA71SA" && pwd -P)"
+printf '#!/bin/sh\n' > "$PA71SA/engine/harness/felix"; chmod +x "$PA71SA/engine/harness/felix"
+printf '{\n  "felix": {\n    "installLocation": "%s"\n  }\n}\n' "$PA71SA" > "$PA71A/.claude/plugins/known_marketplaces.json"
 PA71AP="$PA71A/Library/LaunchAgents/felix.pulse.plist"; PA71AC="$PA71A/Library/Logs/felix/pulse.launchd.log"
 _pa71_felix "$PA71A" Darwin "$PA71D/launchctl.amp.log" --install
 is "pulse agent P2a: install answers 0 for a home whose path holds &, < and >" "$PA71RC" "0"
@@ -207,6 +213,8 @@ is "pulse agent P2a: unescaped, StandardOutPath is exactly \$HOME/Library/Logs/f
    "$(_pa71_unxml "$_pa71ao")" "$PA71AC"
 is "pulse agent P2a: unescaped, StandardErrorPath is exactly \$HOME/Library/Logs/felix/pulse.launchd.log" \
    "$(_pa71_unxml "$_pa71ae")" "$PA71AC"
+is "pulse agent P2a: unescaped, the second ProgramArguments string is exactly the served felix" \
+   "$(_pa71_unxml "$(_pa71_args "$PA71AP" | sed -n 2p)")" "$PA71SA/engine/harness/felix"
 [ -d "$PA71A/Library/Logs/felix" ] && ok "pulse agent P2a: and ~/Library/Logs/felix is made under that home" \
   || bad "pulse agent P2a: and ~/Library/Logs/felix is made under that home" "no directory $PA71A/Library/Logs/felix"
 has "pulse agent P4: under that home the message names the capture file by its full, unescaped path" "$PA71OUT" "$PA71AC"
@@ -228,6 +236,13 @@ PA71F1="$TMP/pa71-home-felixfile"; mkdir -p "$PA71F1/Library/Logs"; PA71F1="$(cd
 printf 'not a directory\n' > "$PA71F1/Library/Logs/felix"
 _pa71_felix "$PA71F1" Darwin "$PA71D/launchctl.felixfile.log" --install
 _pa71_refused "~/Library/Logs/felix is a regular file" "$PA71F1" "$PA71D/launchctl.felixfile.log"
+# (i, again) the same file made executable. A mode 644 file fails a -x test as
+# well, so (i) alone cannot tell a -d check from a writability check that
+# refuses for the wrong reason (round-2 mutation check, P3i and P3j).
+PA71F4="$TMP/pa71-home-felixexec"; mkdir -p "$PA71F4/Library/Logs"; PA71F4="$(cd "$PA71F4" && pwd -P)"; _pa71_home "$PA71F4"
+printf 'not a directory\n' > "$PA71F4/Library/Logs/felix"; chmod 755 "$PA71F4/Library/Logs/felix"
+_pa71_felix "$PA71F4" Darwin "$PA71D/launchctl.felixexec.log" --install
+_pa71_refused "~/Library/Logs/felix is an executable regular file" "$PA71F4" "$PA71D/launchctl.felixexec.log"
 # (ii) the capture path itself is a directory, which launchd cannot open as a file.
 PA71F2="$TMP/pa71-home-capdir"; mkdir -p "$PA71F2/Library/Logs/felix/pulse.launchd.log"; PA71F2="$(cd "$PA71F2" && pwd -P)"
 _pa71_home "$PA71F2"

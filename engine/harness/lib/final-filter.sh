@@ -37,9 +37,10 @@
 #
 # THE SECOND RULE (audit b11, C074). A text is also refused when no path can end
 # in failure, no path ends in h, and it runs at least one command that can fail:
-# its status is thrown away rather than hidden behind a filter. `pytest || true`,
-# `make test; exit 0`, `make test || :`, `npm test | tail -5; true` and `if make
-# test; then echo ok; fi` read done or SATISFIED whatever the tests do. The
+# its status is thrown away rather than hidden behind a filter. `make test ||
+# true`, `make test; exit 0`, `make test || :`, `make test | tail -5; true`
+# and `if make test; then echo ok; fi` read done or SATISFIED whatever the
+# tests do. The
 # refusal says so, and names no filter: "it runs something that can fail, and
 # no path through it ends in failure". A text that runs nothing that can fail
 # (`true`, `:`, `echo ok`, `exit 0`) is still admitted: it hides no failure, and

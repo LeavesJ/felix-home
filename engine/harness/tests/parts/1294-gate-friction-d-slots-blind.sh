@@ -25,7 +25,9 @@ printf '\ngate friction D: slots, the slots directory, the gate and the log (bli
 # their case directory is gone. R62: with DJX_MLOG naming a file, "1294 run CASE/LABEL bound B ms MS" for every run (gate.sh's too) and "1294 margin CASE/LABEL T
 # T-MS ms MS|none" for every margin and watch; R6's mark-to-holder is logged in that form as nt/mark-to-holder with T 5000, the most of it T = 15 s allows, and
 # the R6 control logs its free slot's mark-to-holder against its T of 20 s. R59 and R60 change nothing here: no case ends a record run with a signal or takes R1's
-# at-exit listings.
+# at-exit listings. Review fix (revision 18): a run line's ms is the run's start-to-exit as run.pl, its bounded runner, saw it, from just before its fork to its
+# waitpid's return (or its KILL at B, which its alarm counts from the same fork), written by run.pl at its exit; it was the time to the case's reaping, which put
+# the two-run cases' first run at the second's end.
 #
 # Every case follows R12, as in 1292: TMPDIR is a fixture directory under $TMP, the copy runs under a bounded
 # runner (run.pl) that leads its own process group and starts it with INT and QUIT as the case asks and HUP and
@@ -55,17 +57,20 @@ _db4_E=(); _db4_I=DEFAULT; _db4_Q=DEFAULT; _db4_lim=600; _db4_S=8; _db4_td=""; _
 _db4_leak=""; _db4_ino0=""; _db4_late=""; _db4_x=""; _db4_gn=150; _db4_gskip=""; _db4_nomk=0; _db4_dl=0
 : > "$DB4/g-empty.tsv"; printf '1\tdjy seed\n' > "$DB4/man.tsv"
 cat > "$DB4/run.pl" <<'DB4PL'
-# run.pl LIMIT INT QUIT PIDFILE CMD...: CMD leads a process group of its own, started with INT and QUIT as given, HUP and TERM at their
-# defaults and no descriptor above 2; at LIMIT seconds the group is killed (exit 124). Exits as bash reports CMD's status.
+# run.pl LIMIT INT QUIT PIDFILE MSFILE CMD...: CMD leads a process group of its own, started with INT and QUIT as given, HUP and TERM at their
+# defaults and no descriptor above 2; at LIMIT seconds the group is killed (exit 124). Exits as bash reports CMD's status. MSFILE, when not empty, gets
+# the ms from just before the fork to the waitpid's return or the KILL at LIMIT: the run's start-to-exit as this runner saw it (R62).
 use POSIX ();
-my ($t, $i, $q, $f) = splice(@ARGV, 0, 4);
+my ($t, $i, $q, $f, $m) = splice(@ARGV, 0, 5);
+my $s = 0; if ($m ne "") { require Time::HiRes; $s = Time::HiRes::time() }
+sub ms { if ($m ne "" && open(my $h, ">", $m)) { printf $h "%d\n", (Time::HiRes::time() - $s) * 1000; close $h } }
 my $p = fork;
 defined $p or exit 125;
 if (!$p) { setpgrp(0, 0); $SIG{INT} = $i; $SIG{QUIT} = $q; $SIG{HUP} = "DEFAULT"; $SIG{TERM} = "DEFAULT"; POSIX::close($_) for 3 .. 255; exec @ARGV; exit 127 }
 if (open(my $h, ">", "$f.t")) { print $h "$p\n"; close $h; rename "$f.t", $f }
-$SIG{ALRM} = sub { kill "KILL", -$p; exit 124 };
-alarm $t; waitpid $p, 0;
-exit(($? & 127) ? 128 + ($? & 127) : $? >> 8);
+$SIG{ALRM} = sub { kill "KILL", -$p; ms(); exit 124 };
+alarm $t; waitpid $p, 0; my $w = $?; ms();
+exit(($w & 127) ? 128 + ($w & 127) : $w >> 8);
 DB4PL
 # R41 (a): a stand-in mktemp first on PATH in every nested run but the placement cases of R5 and R29 (_db4_nomk=1: those keep the mktemp they have). Given no
 # template (options only) it adds "$TMPDIR/tmp.XXXXXXXXXX", so the run's $TMP is below the case's TMPDIR on macOS too, where a template-less mktemp -d ignores
@@ -185,22 +190,25 @@ _db4_new() {
 _db4_go() {
   _db4_lab="$1"; shift
   local e p="$DB4/mkstand:" t; local -a k pe; k=(); pe=(); t="$(_db4_now)"
-  [ "$_db4_nomk" != 1 ] || p=""
+  [ "$_db4_nomk" != 1 ] || p=""; [ -z "$t" ] || rm -f "$_db4_c/$_db4_lab.ms"
   [ -z "$p" ] || pe[0]="PATH=$p$PATH"
   for e in ${_db4_E[@]+"${_db4_E[@]}"}; do case "$e" in PATH=*) e="PATH=$p${e#PATH=}" ;; esac; k[${#k[@]}]="$e"; done   # a case's own PATH keeps the stand-in first
   ( cd "$_db4_F" && exec env -u FELIX_TEST_NO_MANIFEST -u FELIX_TEST_JOBS -u FELIX_TEST_SLOTS -u FELIX_TEST_SLOT_NOTE -u FELIX_TEST_PART_LOG \
       -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_RECORD -u FELIX_TEST_RED_JOBS -u PERL5OPT TMPDIR="$_db4_tmp" \
       ${pe[@]+"${pe[@]}"} DJ4_MKREAL="$_db4_mkreal" DJ4_MKLOG="$DB4/mktemp.log" \
       ${_db4_S:+FELIX_TEST_SLOTS=$_db4_S} ${k[@]+"${k[@]}"} perl "$DB4/run.pl" "$_db4_lim" "$_db4_I" "$_db4_Q" "$_db4_c/$_db4_lab.pid" \
-      "$BASH" "$_db4_T/run" "$@" ) > "$_db4_c/$_db4_lab.out" 2> "$_db4_c/$_db4_lab.err" &
+      "${t:+$_db4_c/$_db4_lab.ms}" "$BASH" "$_db4_T/run" "$@" ) > "$_db4_c/$_db4_lab.out" 2> "$_db4_c/$_db4_lab.err" &
   _db4_bg=$!
   _db4_dl=$((SECONDS + _db4_lim + 5))   # R56: the run's own bound (run.pl's KILL at _db4_lim) and 5 s more; a wait for an event of the run lasts until then
-  [ -z "$t" ] || printf '%s %s %s\n' "${_db4_c##*/}/$_db4_lab" "$_db4_lim" "$t" > "$DB4/t0.$_db4_bg"   # R62: CASE/LABEL, B and the start, for the run line
+  [ -z "$t" ] || printf '%s %s %s %s\n' "${_db4_c##*/}/$_db4_lab" "$_db4_lim" "$t" "$_db4_c/$_db4_lab.ms" > "$DB4/t0.$_db4_bg"   # R62: CASE/LABEL, B, the start, run.pl's ms file
 }
-_db4_mr() {   # BGPID: R62's line for the run that job was, once the case has reaped it: "1294 run CASE/LABEL bound B ms START-TO-EXIT"
-  local f="$DB4/t0.$1" c b t
+# MSFILE T0: R62's start-to-exit, the ms run.pl (the bounded runner) wrote at its own exit, not the time to the case's reaping; were run.pl ever killed
+# before it wrote, the ms since T0, the case's start of the run
+_db4_rx() { local x; x="$(cat "$1" 2>/dev/null)"; case "$x" in ''|*[!0123456789]*) _db4_since "$2" ;; *) echo "$x" ;; esac; }
+_db4_mr() {   # BGPID: R62's line for the run that job was, "1294 run CASE/LABEL bound B ms START-TO-EXIT"
+  local f="$DB4/t0.$1" c b t m
   [ -n "${DJX_MLOG:-}" ] && [ -f "$f" ] || return 0
-  read -r c b t < "$f"; rm -f "$f"; _db4_ml run "$c" bound "$b" ms "$(_db4_since "$t")"
+  read -r c b t m < "$f"; rm -f "$f"; _db4_ml run "$c" bound "$b" ms "$(_db4_rx "$m" "$t")"
 }
 # R56: PRED ARG...: waits until PRED ARG... holds, the run has ended, or the run's bound has passed (_db4_dl); a bound, never a margin: 0 when it held, else 1
 _db4_evt() {
@@ -643,11 +651,11 @@ DB4SH
 fi
 _db4_gate() {   # LABEL NAME=value...: gate.sh in the fixture; its output is $DG/out/LABEL.out, its status _db4_grc; what its group left is in LABEL.leak
   local l="$1" t; shift
-  rm -f "$DG/out/$l.args" "$DG/out/$l.jobs"; t="$(_db4_now)"
+  rm -f "$DG/out/$l.args" "$DG/out/$l.jobs" "$DG/out/$l.ms"; t="$(_db4_now)"
   ( cd "${DGC:?}" && exec env -u GITHUB_ACTIONS -u FELIX_TEST_JOBS -u FELIX_TEST_NO_MANIFEST -u DJ4_EXIT2 -u DJ4_sysctl -u DJ4_getconf -u DJ4_sysctl_perf -u DJ4_sysctl_ncpu HOME="$DG/home" \
       FELIX_KERNEL_CACHE="$DG/nocache" TMPDIR="$DG/tmp" PATH="$DG/shim:$PATH" DJ4_OUT="$DG/out" DJ4_L="$l" ${1+"$@"} \
-      perl "$DB4/run.pl" "$_db4_lim" DEFAULT DEFAULT "$DG/out/$l.pid" bash projects/felix/gate.sh ) > "$DG/out/$l.out" 2>&1
-  _db4_grc=$?; [ -z "$t" ] || _db4_ml run "gate/$l" bound "$_db4_lim" ms "$(_db4_since "$t")"   # R62
+      perl "$DB4/run.pl" "$_db4_lim" DEFAULT DEFAULT "$DG/out/$l.pid" "${t:+$DG/out/$l.ms}" bash projects/felix/gate.sh ) > "$DG/out/$l.out" 2>&1
+  _db4_grc=$?; [ -z "$t" ] || _db4_ml run "gate/$l" bound "$_db4_lim" ms "$(_db4_rx "$DG/out/$l.ms" "$t")"   # R62
   _db4_leak=""; _db4_grp "$(cat "$DG/out/$l.pid" 2>/dev/null)"; printf '%s' "$_db4_leak" > "$DG/out/$l.leak"; _db4_leak=""
 }
 _db4_gj() { sed -n 1p "$DG/out/$1.jobs" 2>/dev/null; }

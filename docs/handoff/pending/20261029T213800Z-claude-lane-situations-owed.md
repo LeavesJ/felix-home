@@ -70,7 +70,12 @@ really need to get it going."
    we're doing first for our potential users". In a team, Felix starts
    underneath, briefing agents and checking changes, and "later becomes this
    figure inside slack". He expects enterprise to be "a lot harder to build",
-   with commercial derived from it afterwards.
+   with commercial derived from it afterwards. He then drew the scope line:
+   "I don't want to make it so this becomes another Claude duet, ChatGPT
+   bots", and "we should really stick with the engineering ground first, and
+   later use the engineering leverage to introduce the departmental liaison".
+   More interaction between managers and engineers, and a better Slack
+   presence, come "once we ship the MCP later on".
 7. **Inside a company, the first champion is the engineering manager, and the
    target is the whole engineering department.** In his words: "entire
    engineering department, so ig engineering manager....but like that'll just

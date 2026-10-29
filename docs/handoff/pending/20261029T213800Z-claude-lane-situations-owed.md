@@ -69,7 +69,13 @@ really need to get it going."
    Enterprise comes first: "that'd be very enterprise oriented which is what
    we're doing first for our potential users". In a team, Felix starts
    underneath, briefing agents and checking changes, and "later becomes this
-   figure inside slack".
+   figure inside slack". He expects enterprise to be "a lot harder to build",
+   with commercial derived from it afterwards.
+7. **Inside a company, the first champion is the engineering manager, and the
+   target is the whole engineering department.** In his words: "entire
+   engineering department, so ig engineering manager....but like that'll just
+   be natural you know once the autonomous engineering control plane is built
+   it'll spread across entire engineering department".
 
 **This session's reading, not his decision.**
 - **Model adjustment and token optimization.** He pointed at report v5: "it's
@@ -90,11 +96,21 @@ really need to get it going."
     well (his 10-29 floor).
 
   Treat them as this session's reading until he confirms them.
+- **Felix as software, not only a plugin.** He asked: "do you not think we need
+  an actual software?". The session proposed three layers, which he has not
+  confirmed:
+  - the judge stays a small deterministic engine on bash and git;
+  - plugins become adapters, one for each host or tool;
+  - new software sits on top: a desktop app for the commercial edition, and an
+    org service for the enterprise edition that keeps the company's code inside
+    the company.
+
+  Felix cannot run on a server today.
 
 **Not done.**
 - The lane counter and the hand-off are not built.
 - The strategy pass is still pending: whether the invariants hold, what is
   missing, and whether intake-first is the right order. So is the written
   design.
-- Folding items 1 to 6 into `docs/direction.md` waits for his yes in its own
+- Folding items 1 to 7 into `docs/direction.md` waits for his yes in its own
   draft PR.

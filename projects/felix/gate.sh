@@ -658,7 +658,12 @@ fi
 # (B08R3Z4-3). Copies of the provision hook are counted in every event and
 # group, and one outside its SessionStart group is said (B08R3Z4-4). A risk
 # but low, medium or high is no rating, so its fetch fails closed (B08R3Z5-1),
-# and any other hook whose command names provision is said (B08R3Z5-2).
+# and any other hook whose command names provision is said (B08R3Z5-2). A stage-0
+# toolbox with no stack.tsv in the index is a fault, since nothing then rates what
+# it fetches (B08R3Z6-1), and a fetch is an install with nobody present, so each is
+# judged by lib/admit.sh's felix_admit, the one install policy, its table carried
+# in the membership awk in its order, the grounding stack.tsv's field 6, DECLARED
+# when missing or empty, as stack.sh reads it (B08R3Z6-2).
 _cloud_fault() {   # command...: 1 when its output is over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1); read twice, kept nowhere
   if [ "$(($("$@" 2>/dev/null | wc -c)))" -gt 65536 ]; then echo 1; elif [ "$(($("$@" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)))" -gt 0 ]; then echo 2; fi
 }
@@ -857,16 +862,22 @@ if [ "$CLOUD_IX" != "${CLOUD_IX#[S-]}" ]; then   # B08R3Z4-1: whenever the index
   # toolbox fault, or a stack.tsv not read, no row is compared. Both sides from the index (B08R3Z-4).
   CLOUD_TB=N; [ "$CLOUD_PB" != 1 ] || CLOUD_TB="$(_cloud_check t)"
   # B08R3Z2-4: membership in awk over the parsed names. R first when stack.tsv holds a plugin or skill row
-  # (B08R3Z4-1); then each row with no toolbox entry, each entry with no row, each fetch of a risk=high row (B08R3Z4-3).
+  # (B08R3Z4-1); then each row with no toolbox entry, each entry with no row, each fetch of a risk=high row (B08R3Z4-3),
+  # of a risk outside the vocabulary (B08R3Z5-1), or that the install policy holds or refuses (B08R3Z6-2), in toolbox order.
   CLOUD_MB=-; [ "${#CLOUD_ST}" -le 1 ] || CLOUD_MB="$(git cat-file blob "$CLOUD_ST" 2>/dev/null | grep -vE '^[[:space:]]*(#|$)' \
     | CLOUD_TB="$CLOUD_TB" LC_ALL=C awk -F'\t' '
       BEGIN { n = split(ENVIRON["CLOUD_TB"], A, "\n"); for (i = 2; i <= n; i++) { split(A[i], B, "\t"); TN[i] = B[1]; TC[i] = B[2]; H[B[1]] = 1 } }
-      $1 == "plugin" || $1 == "skill" { r = 1; k = $2; sub(/@.*/, "", k); S[k] = 1; if ($4 == "high") HI[k] = 1
+      function adm(t, g) {   # B08R3Z6-2: engine/harness/lib/admit.sh felix_admit, its table in its order; a change there is a change here
+        if (t != "low" && t != "medium" && t != "high") return "refuse"; if (g != "DECLARED" && g != "OBSERVED" && g != "INFERRED") return "refuse"
+        if (t == "high") return "refuse"; if (g == "INFERRED") return "hold"; return (t == "medium" && g == "OBSERVED") ? "hold" : "install" }
+      $1 == "plugin" || $1 == "skill" { r = 1; k = $2; sub(/@.*/, "", k); S[k] = 1; g = (NF > 5 && $6 != "") ? $6 : "DECLARED"; if ($4 == "high") HI[k] = 1
         else if ($4 != "low" && $4 != "medium") RV[k] = 1   # B08R3Z5-1: outside low|medium|high, the vocabulary discover writes, no rating: it fails closed
+        else if ((v = adm($4, g)) != "install" && !(k in PV)) PV[k] = v " (" $4 " " g ")"   # B08R3Z6-2: the tier and the grounding as read
         if (!(k in H)) o = o " " k " has no entry in .claude/cloud/toolbox.json;" }
       END { for (i = 2; i <= n; i++) if (!(TN[i] in S)) o = o " " TN[i] " is in .claude/cloud/toolbox.json and not in projects/felix/stack.tsv;"
         for (i = 2; i <= n; i++) if (TC[i] == "fetch") { if (TN[i] in HI) o = o " " TN[i] " is fetched into the cloud and stack.tsv rates it risk=high;"
-          if (TN[i] in RV) o = o " " TN[i] " is fetched into the cloud and stack.tsv\047s risk for it is not low, medium or high;" }
+          if (TN[i] in RV) o = o " " TN[i] " is fetched into the cloud and stack.tsv\047s risk for it is not low, medium or high;"
+          if (TN[i] in PV) o = o " " TN[i] " is fetched into the cloud and the install policy says " PV[TN[i]] ";" }
         print (r ? "R" : "-") o }')"
   # Skipped only with no settings.json, no stage-0 toolbox and no stack row; a stack.tsv git holds but
   # this cannot read may hold one, so it is judged (B08R3Z4-1).
@@ -883,6 +894,7 @@ if [ "$CLOUD_IX" != "${CLOUD_IX#[S-]}" ]; then   # B08R3Z4-1: whenever the index
       [ -z "$CLOUD_PR" ] || CLOUD_BAD="$CLOUD_BAD unreadable: .claude/cloud/provision ($CLOUD_PR);"
     fi
     [ "$CLOUD_ST" != - ] || CLOUD_BAD="$CLOUD_BAD unreadable: projects/felix/stack.tsv (not a regular file at stage 0 in git's index);"
+    [ -n "$CLOUD_ST" ] || [ "$CLOUD_PB" != 1 ] || CLOUD_BAD="$CLOUD_BAD unreadable: projects/felix/stack.tsv (not in git's index, so nothing rates what the toolbox fetches);"   # B08R3Z6-1
     if [ "$CLOUD_TB" = "${CLOUD_TB#N}" ]; then CLOUD_BAD="$CLOUD_BAD$CLOUD_TB"
     elif [ "${#CLOUD_ST}" -gt 1 ]; then CLOUD_BAD="$CLOUD_BAD${CLOUD_MB#?}"; fi
   fi

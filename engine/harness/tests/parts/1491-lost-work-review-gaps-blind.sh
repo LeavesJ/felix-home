@@ -94,7 +94,7 @@ is "review finding 7 fixture: the proposer of Gap four begins with its own promp
 
 _lw_run GAP "$LW/hk" "$LW/cwd" inventory --repo "$LWR_GP" --tsv --no-gh
 LWR_G="$(_lw_o GAP)"
-is "review finding 7: the inventory over gp exits 0 and lists a chip (control)" "$(_lw_rc GAP) $(_lw_kind "$LWR_G" task_9a010101)" "0 chip"
+is "review finding 7: the inventory over gp exits 0 and lists a chip (control)" "$(_lw_rc GAP) $(_lw_kind "$LWR_G" task_9a000001)" "0 chip"
 is "review finding 7 fixture: the oldest proposal, the anchor's, is older than every old starter's file and is a chip nothing started, so each old starter is a candidate for the other chips (fixture control)" \
    "$([ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS1O" ] && [ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS2O" ] && [ "$(_lwr_mt "$LWR_FA")" -lt "$LWR_MS3O" ] && echo older) $(_lw_st "$LWR_G" chip task_9a000001)" \
    "older chip-unstarted"

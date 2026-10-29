@@ -21,7 +21,7 @@
 #
 # What is read (audit b09, C050). The proposals are read once, from every file of
 # the scope modified within DAYS days, whole: the lines naming a ccd_session tool
-# call and the 12 after each, where a result is (188 of 188 on felix-home within
+# call and the 12 after each, where a result is (188 of 188 in the founder's main repository within
 # 34 lines, 186 within 12); a result not seen there is asked for in its file. A
 # file with no spawn_task or start_session call is not read for proposals or
 # dismissals. S1 stops at a file's first human text. S2 and S3 read the windows

@@ -2774,6 +2774,8 @@
 1	X5b after the snapshot OLDPWD is as the shell found it
 1	X7 a stand-in whose packed refs cannot be read fails the origin check
 1	_copy_content copies nothing and makes no directory from a source that is empty or not a directory, and copies from one that is
+1	_discover_quiesce gives up on a refresh that does not end
+1	_discover_quiesce returns at once where no refresh holds the lock
 1	_felix_cap_active returns 2 when felix_declared fails, whether it printed nothing or printed the capability
 1	_felix_cap_active storage returns 2 over a file holding a NUL, a CR, a byte from 200 up or UTF-16, and 0 over a marked storage, under LC_ALL=C
 1	_felix_cap_active storage returns 2 over a file that is no list and 0 over a marked storage, under a UTF-8 locale
@@ -6595,6 +6597,7 @@
 1	and keeps the row's description there
 1	and keeps the session it was said in
 1	and land.tsv is named once among the escape tables, as a basename, or a project's table under a name the engine does not know would be missed
+1	and landed on the shared home's cache, which this block does not read
 1	and lands in mistakes.log under its own name
 1	and launchd was handed the agent
 1	and leave a caller without pipefail every option it had
@@ -7713,6 +7716,7 @@
 1	and the record says why
 1	and the recurrence report still reads the failure through the link
 1	and the refilled cache begins with the stamp
+1	and the refresh the hook forked asked the claude for the catalogue
 1	and the refusal is the gate's own
 1	and the refusal marks where the middle was cut
 1	and the refusal names that project's deny table
@@ -7963,6 +7967,7 @@
 1	and ungoverned says on stderr which table could not be read
 1	and ungoverned says so without the caller's pipefail
 1	and unrunnable on a pass control, never fail and held
+1	and waits for one that does
 1	and what a fix will have to prove
 1	and what it links to is not read
 1	and what main's copy printed reaches the output

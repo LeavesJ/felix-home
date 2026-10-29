@@ -81,6 +81,11 @@ really need to get it going."
    engineering department, so ig engineering manager....but like that'll just
    be natural you know once the autonomous engineering control plane is built
    it'll spread across entire engineering department".
+8. **A change to the lane's share lands on green.** Asked whether a change to
+   the share should wait for his merge, he chose "No, it lands on green" over
+   "Yes, it waits for me", which the session had recommended. `felix lane`
+   names the commit that last changed the share, so a change shows, but
+   nothing holds it.
 
 **This session's reading, not his decision.**
 - **Model adjustment and token optimization.** He pointed at report v5: "it's
@@ -115,7 +120,10 @@ really need to get it going."
 **Not done.**
 - The lane counter and the hand-off are not built.
 - The strategy pass is still pending: whether the invariants hold, what is
-  missing, and whether intake-first is the right order. So is the written
-  design.
-- Folding items 1 to 7 into `docs/direction.md` waits for his yes in its own
+  missing, and whether intake-first is the right order.
+- The design for the lane's first three slices is written
+  (`docs/2026-10-29-capability-lane-first-slices-design.md`, with its PDF). A
+  fresh builder checked it, and it waits for his approval. Nothing in it is
+  built until he approves it.
+- Folding items 1 to 8 into `docs/direction.md` waits for his yes in its own
   draft PR.

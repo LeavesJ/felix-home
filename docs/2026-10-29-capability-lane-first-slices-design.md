@@ -178,6 +178,10 @@ It is outside this design.
     trail. (10-29)
 5. **§9 and §10 stand.** The intent design's §9 slice, its acceptance tests (a)
     to (e) and its §10 falsifiers stand, re-cut as below. (Design of 10-19)
+6. **The share lands on green.** A change to the lane's share does not wait for
+    his merge. He chose this over having it wait. `felix lane` names the commit
+    that last changed the share, so a change shows, but nothing holds it.
+    (10-29)
 
 ## 6. Slice 0: the lane counter
 
@@ -224,8 +228,10 @@ reasons:
 
 ### 6.3 The tables
 
-The target and the pointer to the next item live in two tables, so that one can
-be protected without stopping the other.
+The target and the pointer to the next item live in two tables. *(My call.)* The
+target changes only when the founder decides, and the pointer changes with
+every lane PR. Kept apart, a later guard on the target would need no change to
+either table.
 
 **`projects/<p>/lanes.tsv`**, the target:
 
@@ -258,8 +264,9 @@ felix-home's rows:
         on green.
     - The PR that lands intake (slice 1) also changes `share` from `1/2` to
         `1/4`, so "then one in four" happens in the change that makes it true.
-    - Whether a change to `lanes.tsv` waits for the founder's merge is his
-        decision. §12 records his answer.
+    - A change to `lanes.tsv` lands on green, like any other change. The
+        founder decided this on 10-29 (§5). `felix lane` names the commit that
+        last changed the table, so a lowered share shows.
 
 ### 6.4 States
 
@@ -281,7 +288,8 @@ a target share of n/d:
     - the state, L and T;
     - the window and the target;
     - the date of the last lane landing;
-    - the mark, and `next`.
+    - the mark, and `next`;
+    - the Felix home's last commit that changed `lanes.tsv`, with its date.
 
     `--tsv` prints the same fields, tab-separated. The carrier can read it when
     it picks work.
@@ -351,6 +359,8 @@ first.
 
 - **`felix status --tsv`.** It gains exactly one row, at the end. The eight rows
     before it are byte-identical.
+- **The last change.** After a commit that changes a lane's share, `felix lane`
+    names that commit and its date.
 - **Determinism.** Two runs print identical bytes.
 - **Real data.** On felix-home's main at `e54e31f3`, with the clock pinned to
     that commit's time (2026-10-29 21:26 UTC), the capability lane reads `zero`.
@@ -914,8 +924,9 @@ Two findings would change the order:
     landing, so a lane PR he merges by hand still counts.
 3. *Slice 0.* A lane landing that changes no engine path does not count,
     following §5. Sealed numbers that never land on main are not counted yet.
-4. *Slice 0.* The share and the next item live in two tables, so the share can
-    be protected without stopping the PRs that move the next item.
+4. *Slice 0.* The share and the next item live in two tables. The share changes
+    only when he decides, and the next item with every lane PR, so a later guard
+    on the share would need no change to either table.
 5. *Slice 0.* The window is 14 days. A short lane goes into the next session's
     context. An empty one also goes on his screen line. There is no push alert,
     because the alert channel has never delivered.
@@ -941,9 +952,6 @@ Two findings would change the order:
 
 ## 12. Not decided here, and whose
 
-- **His, now:** whether a change to the lane's share waits for his merge
-    (§6.3). Asked on 10-29; his answer goes here.
-
 - **His, before slice 3:**
     - the false-block bound;
     - a yes to a nightly job, if the pulse cannot carry the shadow run.
@@ -968,7 +976,8 @@ Two findings would change the order:
 - Code read on 10-29:
     - `lib/probes.sh`, `lib/facts.sh`, `lib/detect.sh` (`:17` keys api,
         `:27-28` key llm);
-    - `lib/escape.sh:78`, the tables whose changes wait for a person's merge;
+    - `lib/escape.sh:60-78`, the tables whose changes wait for a person's
+        merge, and why an added `obligations.tsv` row does not (§7.7);
     - `lib/verify.sh:354-372`, `lib/qualify-run.sh:440-462`;
     - `lib/status.sh`, `lib/pulse.sh`, `hooks/session-start`;
     - `felix:6640-6644`.

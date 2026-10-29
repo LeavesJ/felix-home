@@ -281,6 +281,33 @@ else
       "a false miss under pipefail is possible at: ${_spl_sites//$_spl_nl/ }"
 fi
 
+# The project scripts as well: every file git tracks under projects/ that
+# starts with #!, the set the project-gates section reads. Each sets pipefail
+# itself, and the gates among them are what felix gate runs. #381 converted
+# their sites by hand and nothing scanned them after it, so the cloud check
+# that #385 wrote into Felix's own gate a week later fed its hook pairs and its
+# toolbox to grep -qxF through a pipe. On 2026-10-29, at load near 190, that
+# gate printed `cloud FAIL` for code-review, which toolbox.json lists. Tracked
+# files only, as there: an untracked script in somebody's home checkout is not
+# this suite's verdict to give. A tree where git lists none fails, since a scan
+# of nothing would pass.
+_spl_psites="$( cd "$REAL_HARNESS/../.." 2>/dev/null && [ -d projects ] \
+                  || { printf 'no projects/ beside the engine at %s\n' "$REAL_HARNESS"; exit 0; }
+                git ls-files -z -- projects 2>/dev/null | {
+                  set --
+                  while IFS= read -r -d '' _spl_x; do
+                    [ -f "$_spl_x" ] && [ "$(head -c2 "$_spl_x")" = '#!' ] && set -- "$@" "$_spl_x"
+                  done
+                  [ "$#" -gt 0 ] || { printf 'git lists no script under projects/ at %s\n' "$PWD"; exit 0; }
+                  _spl_scan "$@" || printf 'the scan itself failed, exit %s\n' "$?"
+                } )"
+if [ -z "$_spl_psites" ]; then
+  ok  "no project script pipes into a grep that can stop reading early"
+else
+  bad "no project script pipes into a grep that can stop reading early" \
+      "a false miss under pipefail is possible at: ${_spl_psites//$_spl_nl/ }"
+fi
+
 printf '\nan escape or a tier over a diff larger than a pipe\n'
 # A test that pipes a value into `grep -q` answers "not found" for a value that
 # is there whenever grep matches and exits while the writer still has lines to

@@ -60,6 +60,17 @@ really need to get it going."
    him, and trust work gets the other half in the meantime. "Intake lands"
    means the intent design's §9 slice merges on main.
 
+6. **Two editions, enterprise first.** He set out "a clear enterprise versus
+   commercial separation". The commercial edition is for "founders and people
+   who want to build but lack the engineering hygiene and the entire
+   engineering team to do so, right? Like a solo company founder". The
+   enterprise edition is for software teams, where "a lot of things overlap,
+   but there are some small details that are like very critical to change".
+   Enterprise comes first: "that'd be very enterprise oriented which is what
+   we're doing first for our potential users". In a team, Felix starts
+   underneath, briefing agents and checking changes, and "later becomes this
+   figure inside slack".
+
 **This session's reading, not his decision.**
 - **Model adjustment and token optimization.** He pointed at report v5: "it's
   in the docs we had...i remember second report had many points in there a
@@ -85,5 +96,5 @@ really need to get it going."
 - The strategy pass is still pending: whether the invariants hold, what is
   missing, and whether intake-first is the right order. So is the written
   design.
-- Folding items 1 to 5 into `docs/direction.md` waits for his yes in its own
+- Folding items 1 to 6 into `docs/direction.md` waits for his yes in its own
   draft PR.

@@ -464,7 +464,7 @@ specific project, language, or toolchain.
     felix incident         turn an error into a scoped brief
     felix maintenance      upkeep that is due, and when each last ran
     felix automerge        whether green changes may merge themselves yet
-    felix land             the scheduled job that runs felix merge on a green pull request: --tick, --pause, --resume, --install, --status
+    felix land             macOS only: the scheduled job that lands the home's green pull requests: --tick, --pause, --resume, --install, --status
     felix unattended       whether the unattended loop is ready to be switched on
     felix budget           how much unattended work has been spent today
 
@@ -723,8 +723,8 @@ cmd_install() {
     printf '           Remove the SessionStart entry naming harness/hooks/session-start.\n'
   fi
 
-  printf '\nput felix on PATH:\n'
-  printf '  ln -s %s/felix /usr/local/bin/felix\n' "$SCRIPT_DIR"
+  printf '\nput felix on PATH:\n  mkdir -p ~/.local/bin && ln -s %s ~/.local/bin/felix\n' "'$(printf '%s' "$SCRIPT_DIR/felix" | LC_ALL=C sed "s/'/'\\\\''/g")'"   # ~/.local/bin: /usr/local/bin is root-owned on a stock Mac; no -f, so a felix linked there is kept
+  case ":$PATH:" in *":${HOME%/}/.local/bin:"*|*":${HOME%/}/.local/bin/:"*) ;; *) printf '  ~/.local/bin is not on your PATH yet; put this in your shell startup file:\n  export PATH="$HOME/.local/bin:$PATH"\n' ;; esac
   printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 
@@ -1881,7 +1881,7 @@ cmd_merge() {
     # this command runs from the branch — so the code that answers is the code
     # main accepted, and nothing a candidate writes reaches it. After the
     # self-judgement guard, so a cache cut from the candidate is named as
-    # judging itself, which is the truer of the two refusals.
+    # judging itself, which is the truer of the two refusals. B30 (audit b02): a differing entry is named, with the way out, since felix install does not replace one.
     local tmpd="${TMPDIR:-/tmp}"
     jlib="$(mktemp -d "${tmpd%/}/felix-judge.XXXXXX" 2>/dev/null)" || _felix_merge_die "$dry" "$proj" "$branch" judge "could not make a directory to read main's resolve.sh into"
     if ! git -C "$root" show "$base:engine/harness/lib/resolve.sh" > "$jlib/resolve.sh" 2>/dev/null; then
@@ -1895,7 +1895,7 @@ cmd_merge() {
       0) jentry="$jout" ;;
       3) _felix_merge_die "$dry" "$proj" "$branch" judge "main's engine at $base defines no felix_accepted_deploy_diff, so it cannot say whether the judge is main's engine" ;;
       2) _felix_merge_die "$dry" "$proj" "$branch" judge "cannot tell whether the judge is main's engine: $jout" ;;
-      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | tr '\n' ';') — a cache entry that differs from main's engine does not judge. Run felix install on main, or unset a cache override that points elsewhere." ;;
+      *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
     esac
     [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
@@ -5041,7 +5041,7 @@ EOF
   # a loop in a pipe that could not be made printed the header and no surface.
   local dshow="" nrest nl=$'\n' c
   [ -z "$declared" ] || dshow="${declared//$'\n'/ } "
-  printf 'project:      %s\n' "$(basename "$proj")"
+  printf 'project:      %s\n' "$(basename "$proj")"; felix_doctor_lines "$proj" "$root" "$gate"
   if [ "$dunread" -eq 1 ]; then
     printf 'declared:     not known: the capabilities this project declares could not be read\n'
   else

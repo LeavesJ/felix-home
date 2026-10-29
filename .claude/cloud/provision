@@ -5,8 +5,9 @@
 # .claude/agents and .claude/commands, and nothing from ~/.claude; plugins do
 # not load there at all (code.claude.com/docs/en/cloud-environments, "What
 # carries over from your setup"). Locally the same skills arrive as plugins. So
-# in the cloud this fetches each plugin toolbox.json pins, at the commit the
-# founder's machine runs, and copies its skills, agents and commands into the
+# in the cloud this fetches each plugin toolbox.json pins, at the commit
+# toolbox.json pins (moved by hand, so it may lag the local install; toolbox.json
+# says how to check), and copies its skills, agents and commands into the
 # clone's .claude/, each path listed in .git/info/exclude so none of it can be
 # committed by the session.
 #

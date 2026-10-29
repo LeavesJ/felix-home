@@ -99,6 +99,13 @@ _copy_content() {   # <source dir> <dest dir>: dest holds what source holds, les
   fi
 }
 
+# The claim under test is that Felix governs a project it knows nothing about.
+# So this suite never touches Elenchus. It builds a throwaway Felix root holding
+# a single invented project whose gate is a shell one-liner, in a checkout with
+# no git remote, and drives the real CLI and the real hook against it.
+#
+# If Felix ever grows a hidden assumption about Python, about a remote naming
+# scheme, or about Elenchus specifically, these tests are where it surfaces.
 # ---------------------------------------------------------------- fixture ----
 # A Felix root with the real harness and one invented project.
 FROOT="$TMP/felix"

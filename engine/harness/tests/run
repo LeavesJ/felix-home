@@ -1,13 +1,5 @@
 #!/usr/bin/env bash
-# Felix harness self-test.
-#
-# The claim under test is that Felix governs a project it knows nothing about.
-# So this suite never touches Elenchus. It builds a throwaway Felix root holding
-# a single invented project whose gate is a shell one-liner, in a checkout with
-# no git remote, and drives the real CLI and the real hook against it.
-#
-# If Felix ever grows a hidden assumption about Python, about a remote naming
-# scheme, or about Elenchus specifically, these tests are where it surfaces.
+# Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004.
 #
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
@@ -16,8 +8,7 @@
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
 
-# The caller's environment must not change what a tool prints. Why, and why
-# these lines: the comment above the same lines in engine/harness/felix.
+# The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
 _FELIX_CALLER_CDPATH="${CDPATH-}"
@@ -25,62 +16,42 @@ unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIO
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
 
-# Git's colour stays off for every git this runs, whatever colour settings the
-# caller made, except what is out of reach. Why, which keys, and what is out
-# of reach: the comment above the same lines in engine/harness/felix.
+# Git's colour stays off for every git this runs; why, and what is out of reach: engine/harness/felix, above the same lines.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
 esac
 
-# The suite reads nothing from its own stdin, and hooks/session-start reads a
-# payload from stdin whenever stdin is not a terminal. About thirty calls here
-# run that hook without piping one in, so an inherited pipe that stays open
-# would hang the first of them and every run after it. Nothing is inherited.
+# hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
+# one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
 
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
-# REAL_HARNESS must name a harness before anything reads or copies it: part 0203
-# has the two runs of 2026-10-08 that did not (`cp -R /.`, 123 GB). A section
-# runner sets its own REAL_HARNESS after the line above, wherever that line is.
+# REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not).
+# A section runner sets its own REAL_HARNESS after the line above, wherever that line is.
 if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
 fi
-# The driver: the helpers every assertion uses, one line per part in parts/ (part
-# 1040 says why not a loop), then the manifest comparison and the verdict.
-# _suite_files, _suite_src and _suite_flat are defined in part 0003.
+# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison
+# and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
 
 PASS=0; FAIL=0
-# Every assertion that RAN, by name, whatever its verdict: why, and why in a file,
-# at the end of part 0001, where the file is made.
+# Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
 FELIX_TEST_RAN=""
-# Each name is also offered to the origin guard (_og_tick, part 0003) once its state
-# exists, so the helper block tests/red lifts out of this file (this line to
-# skip(), below) stays silent under set -u.
+# Each name is also offered to the origin guard (_og_tick, part 0003) once its state exists, so the helper block part 0770
+# lifts out of this file (this line to skip(), below) stays silent under set -u.
 _ran() { [ -n "$FELIX_TEST_RAN" ] || return 0; [ -z "${_og_on:-}" ] || _og_tick "$1"; printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
-# The ran file, one name a line, as count<TAB>name rows sorted by name: the
-# manifest's shape. The name is kept exactly as the suite printed it. Until
-# 2026-10-01 the count was cut off by assigning to awk's $1, which rebuilds
-# the line from its fields and so folded a run of blanks inside a name to one
-# space and trimmed its ends; the suite's own check read its folded copy
-# against a folded manifest and agreed, but tests/red compares the manifest
-# with the lines the suite printed, and would read such a name as never
-# reached on every run (#371's follow-up review, 2026-10-01).
+# The ran file as count<TAB>name rows sorted by name, the manifest's shape, each name kept byte for byte: cutting the count off
+# by assigning to awk's $1 folded the blanks inside a name until 2026-10-01, and red read such a name as never reached (part 0770).
 _ran_rows() {   # stdin: names, one a line -> count<TAB>name, sorted by name
   LC_ALL=C sort | uniq -c | LC_ALL=C awk '{ c = $1; sub(/^ *[0-9]+ /, ""); printf "%s\t%s\n", c, $0 }' \
     | LC_ALL=C sort -t"$(printf '\t')" -k2
 }
-# The names the manifest lists that a run reached fewer times than it lists them:
-# want<TAB>got<TAB>name, one a line, in the manifest's order. Both files are rows
-# of count<TAB>name and both are read once. This was a loop over the manifest
-# that ran an awk over the whole counts file for each of its ~6,800 rows: 88 s of
-# the gate's 1,565 on 2026-10-09, most of it fork and exec, for a comparison that
-# is one pass. A name is what follows a row's first tab on both sides and is
-# compared as bytes, so a backslash, a bracket or a tab in it is itself. A row
-# that lists no name, or whose count is not a number, lists nothing to reach.
+# The names the manifest lists that a run reached fewer times than it lists them: want<TAB>got<TAB>name, in the manifest's order.
+# One pass over both files (a loop of one awk per row was 88 s of the gate), names compared as bytes; the cases are in part 0770.
 _manifest_short() {   # manifest counts
   LC_ALL=C awk -F'\t' '
     function name(line) { sub(/^\t+/, "", line); if (!sub(/^[^\t]*\t+/, "", line)) return ""; sub(/\t+$/, "", line); return line }
@@ -96,24 +67,16 @@ ok()   { PASS=$((PASS+1)); _ran "$1"; printf '  ok    %s\n' "$1"; }
 bad()  { FAIL=$((FAIL+1)); _ran "$1"; printf '  FAIL  %s\n' "$1"; [ -n "${2:-}" ] && printf '        %s\n' "$2"; }
 is()   { [ "$2" = "$3" ] && ok "$1" || bad "$1" "expected [$3] got [$2]"; }
 has()  { case "$2" in *"$3"*) ok "$1" ;; *) bad "$1" "[$2] lacks [$3]" ;; esac; }
-# Some assertions describe the machine, not Felix: whether a real plugin is
-# installed depends on the claude CLI existing. Skipping is honest; passing them
-# by accident on a runner that has no CLI would be worse than not running them.
-#
-# A skip counts as REACHED for the manifest above. The distinction that matters
-# there is between an assertion the suite decided about and one it never got to.
+# Some skips describe the machine (a real plugin needs the claude CLI), and a skip counts as REACHED for the manifest of what
+# ran: part 0001 says why, above the line that makes the ran file.
 SKIP=0
 skip() { SKIP=$((SKIP+1)); _ran "$1"; printf '  skip  %s (%s)\n' "$1" "$2"; }
 has_claude() { command -v claude >/dev/null 2>&1; }
-
 . "$HERE/parts/0001-the-origin-guard-and-the-temporary-directory.sh"
-
 . "$HERE/parts/0002-fixture-git-commands-stay-in-tmp.sh"
 . "$HERE/parts/0003-the-lint-the-origin-record-and-the-exit-trap.sh"
-# The manifest of assertions this suite is supposed to reach, tracked beside it.
-# `tests/run --record-assertions` is the one command that changes it, and it runs
-# tests/red side by side (receipt.sh, "red, beside a record run"), which writes
-# red.tsv; FELIX_TEST_NO_MANIFEST=1 is how that red run asks this run not to compare.
+# The manifest of assertions this suite is to reach, tracked beside it; `tests/run --record-assertions` writes it and runs red
+# beside it (receipt.sh, "red, beside a record run"); FELIX_TEST_NO_MANIFEST=1 is how that red run asks this run not to compare.
 FELIX_TEST_MANIFEST="$HERE/assertions.tsv"
 FELIX_TEST_RECORD=0; _rcp_reuse=0
 while :; do case "${1:-}" in
@@ -125,10 +88,8 @@ while :; do case "${1:-}" in
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
 
-# The receipt (receipt.sh) is what lets the gate ask for this run instead of
-# making it: --reuse answers from the last passed run on this tree, or runs. A
-# red run stands in the base's tree, reads and writes none, and so does not load
-# the file, which red does not copy into the base.
+# The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none:
+# FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
 if [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then _rcp_why="this is a red run"
 elif [ -n "${_pm1:-}" ]; then _rcp_why="this is part mode"
@@ -136,21 +97,16 @@ elif . "$HERE/receipt.sh" 2>/dev/null; then _rcp_on=1
 else _rcp_why="no tests/receipt.sh beside this suite"; fi
 [ "$_rcp_on" -eq 1 ] || [ "$_rcp_reuse" -eq 0 ] || printf 'not reused: %s\n' "$_rcp_why"
 if [ "$_rcp_on" -eq 1 ]; then
-  # $REAL_HARNESS/../.. with the dots resolved: felix_tree_id hashes untracked
-  # files by the path it was handed, so the same tree spelled two ways is two ids.
+  # The dots resolved: felix_tree_id hashes untracked files by the path it was handed, so one tree spelled two ways is two ids.
   _rcp_root="$(cd "$REAL_HARNESS/../.." && pwd)"
   [ "$_rcp_reuse" -eq 0 ] || _rcp_answer "$_rcp_root"
   _rcp_begin "$_rcp_root"
 fi
-# Red starts here and not at the end: told where to find the mark and which
-# process to watch (receipt.sh, "red, beside a record run": it is disowned, so a
-# part's bare `wait` does not wait for it). Before the exports below, so its
-# suite is made in an environment of its own, as a plain run's is.
+# Red starts here and not at the end, told where the mark is and which process to watch (receipt.sh, "red, beside a record run"),
+# before the exports of part 0004, so that its suite is made in an environment of its own, as a plain run's is.
 _rcp_red=""
 if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ]; then _rcp_red_start "$TMP/manifest.mark"; fi
-
 . "$HERE/parts/0004-the-widget-fixture.sh"
-
 . "$HERE/parts/0005-fixture-floor.sh"
 . "$HERE/parts/0006-the-lib-judges.sh"
 . "$HERE/parts/0007-the-parallel-runner.sh"
@@ -409,19 +365,31 @@ fi
 . "$HERE/parts/1580-helper-worktrees-page-blind.sh"
 . "$HERE/parts/1585-helper-worktrees-review-fixes-blind.sh"
 . "$HERE/parts/1600-felix-refuses-a-pattern-kill-blind.sh"
+. "$HERE/parts/1610-driver-room-blind.sh"
+. "$HERE/parts/1650-land-tick-retries-a-refusal-blind.sh"
+. "$HERE/parts/1660-land-tick-says-every-wait-blind.sh"
+. "$HERE/parts/1665-land-tick-review-round-blind.sh"
+. "$HERE/parts/1670-session-start-names-what-waits-blind.sh"
+. "$HERE/parts/1680-the-lander-ages-what-waits-blind.sh"
+. "$HERE/parts/1690-status-lander-row-blind.sh"
+. "$HERE/parts/1700-hooks-and-gate-rows-blind.sh"
+. "$HERE/parts/1710-lander-serves-the-home-only-blind.sh"
+. "$HERE/parts/1720-lander-alerts-reach-github-blind.sh"
+. "$HERE/parts/1790-inventory-true-owners-blind.sh"
+. "$HERE/parts/1800-inventory-chip-windows-blind.sh"
+. "$HERE/parts/2030-readme-claims-match-the-engine-blind.sh"
+. "$HERE/parts/2031-felix-on-path-without-sudo-blind.sh"
+. "$HERE/parts/2050-snapshot-audit-and-scrub-blind.sh"
+. "$HERE/parts/2051-snapshot-run-blind.sh"
+. "$HERE/parts/2070-cloud-kit-truthfulness-blind.sh"
+. "$HERE/parts/2120-wave-1-combine-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 
-# The suite's completion marker: tests/red counts a red run only when a line
-# that is exactly "reached" follows its last assertion line, since a finished
-# red run exits 1 as a dead one can (#371). The empty line before it is this
-# suite's own, and the red block's marker assertion pins this printf. Changing
-# it means changing tests/red.
+# The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion
+# line (#371). The empty line before it is this suite's own, and the red block's marker assertion pins this printf.
 printf '\nreached\n'
-# What ran, against what is supposed to run (#67). One way only: a manifest
-# assertion that did not run is the silent defect, and fails; one that ran and
-# is not listed is a forgotten record, and is noted. Counted per name, not as a
-# set: some names appear more than once (nineteen on 2026-10-01).
+# What ran, against what is supposed to run (#67): one way only, and counted per name; part 0001 says why.
 _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
 
@@ -432,17 +400,14 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   [ -z "$_rcp_red" ] || _rcp_mark "$_rcp_mk" "$TMP/manifest.mark"
   printf '  recorded %s assertions to %s\n' \
     "$(awk -F'\t' '{s+=$1} END {print s+0}' "$_ran_counts")" "$FELIX_TEST_MANIFEST"
-  # And what red wrote, so the manifest and the count it was shown red with are
-  # written by one command and travel in one diff. Its exit status is its own:
-  # a red run that could not be made is said in red.tsv and does not turn a
-  # green suite red.
+  # And what red wrote, so the manifest and the count it was shown red with travel in one diff (receipt.sh, `_rcp_red_end`;
+  # tests/red): red's status is its own, and a red run that could not be made does not turn a green suite red.
   if [ -n "$_rcp_red" ]; then _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out"
   elif [ "$_rcp_on" -eq 1 ]; then printf '  no tests/red beside this suite: red.tsv not written\n'
   else printf '  no tests/receipt.sh beside this suite: red.tsv not written\n'
   fi
-  # Then the record it wrote, judged as a normal run judges it (record mode off
-  # for the call): those four checks skip while the record is rewritten, and
-  # the receipt names the tree this run leaves, record files and all.
+  # Then the record it wrote, judged as a normal run judges it, record mode off for the call (part 1010); the receipt names
+  # the tree this run leaves, record files and all.
   if [ "$(type -t _rt_judge)" = function ]; then
     printf '\n%s\n' 'the record this run wrote'
     _rcp_rec="$FELIX_TEST_RECORD"; FELIX_TEST_RECORD=0
@@ -454,22 +419,15 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   fi
 fi
 if [ "$FELIX_TEST_RECORD" -ne 1 ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
-  # The red run: this suite is executing inside the base's tree, whose
-  # manifest describes the base's assertions. Comparing against it would
-  # report every assertion this tree added as one the base never reached,
-  # through bad(), and that would be counted as red. Nothing is compared, and
-  # the line says so rather than reading as a manifest that matched.
+  # The red run: this suite is executing inside the base's tree, whose manifest describes the base's assertions, so nothing is
+  # compared (tests/red); the line says so rather than reading as a manifest that matched.
   printf '  manifest comparison off (FELIX_TEST_NO_MANIFEST): this is a red run\n'
 elif [ -f "$FELIX_TEST_MANIFEST" ]; then
-  # Emitted through bad(), so these are `  FAIL` lines. That matters: the gate
-  # prints only the last line of a passing suite, and greps for `^  FAIL` when
-  # it fails — so this is the one channel that reaches a CI log without the
-  # workflow having to change, and .github/workflows is an escape channel no
-  # project can demote.
+  # Emitted through bad(), so these are `  FAIL` lines, the one channel to a CI log with no workflow change: projects/felix/gate.sh
+  # prints a passing suite's last line, greps ^  FAIL on failure; .github/workflows is an escape channel no project can demote.
   _missing=0
-  # Read from the files, not through awk -v, which processes backslash escapes
-  # so a name holding a backslash could never equal itself and would read as
-  # never reached. One pass: see _manifest_short.
+  # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself
+  # (tests/red; part 0770). One pass: see _manifest_short.
   while IFS=$'\t' read -r want got name; do
     bad "assertion did not run: $name" "expected it $want time(s), reached it $got"
     _missing=$((_missing+1))
@@ -486,10 +444,8 @@ else
   printf '  no manifest yet. Record one with: tests/run --record-assertions\n'
 fi
 
-# The receipt, ahead of the summary so that the summary stays the last line of
-# the log (the gate shows that line), and with no say in the exit status below.
-# This line is reached only by a run whose every part was sourced and which
-# printed `reached`.
+# The receipt, ahead of the summary so that the summary stays the last line of the log (the gate shows that line), with no say
+# in the exit status: reached only by a run whose every part was sourced and which printed `reached` (receipt.sh).
 [ "$_rcp_on" -ne 1 ] || _rcp_finish "$_rcp_root" "$FELIX_TEST_RECORD" "$_rcp_cmp" "$_rcp_judged" "$PASS" "$FAIL" "$SKIP"
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d skipped' "$SKIP"

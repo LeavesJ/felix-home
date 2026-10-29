@@ -244,7 +244,7 @@ if [ -d "$GCACHE" ]; then
       printf '                     the live engine is %s, not the one main declares\n' "${GLIVE##*/}"
     fi
   else
-    MROOT=""
+    MROOT=""; GOLD=0; [ "${GRC:-}" = 1 ] && [ -n "$GVER" ] && [ -d "$GCACHE/$GVER/harness" ] && GOLD=1   # b02, C083: felix install does not replace an entry that exists, so its remedy is to move it
     if [ -r "$HOME/.claude/plugins/known_marketplaces.json" ]; then
       MROOT="$(sed -n '/"felix"[[:space:]]*:[[:space:]]*{/,/^  }/p' \
                  "$HOME/.claude/plugins/known_marketplaces.json" 2>/dev/null \
@@ -262,14 +262,14 @@ if [ -d "$GCACHE" ]; then
       FAILED="$FAILED installed"
       [ -n "$GWHY" ] && printf '    %s\n' "$GWHY"
       [ -n "$GDRIFT" ] && printf '%s\n' "$GDRIFT" | head -5 | sed 's/^/    /'
-      printf '    run felix install on main in %s\n' "$MROOT"
+      if [ "$GOLD" = 1 ]; then printf '    felix install does not replace an entry that exists: move %s aside, then run felix install --no-bump in %s\n' "$GCACHE/$GVER" "$MROOT"; else printf '    run felix install on main in %s\n' "$MROOT"; fi
     else
       fail installed
       [ -n "$GWHY" ] && printf '    %s\n' "$GWHY"
       [ -n "$GDRIFT" ] && printf '%s\n' "$GDRIFT" | head -5 | sed 's/^/    /'
       [ -n "$GHERE" ] && [ "$GHERE" != "$GVER" ] \
         && printf '    this checkout declares %s and main declares %s: the bump reaches main by merging it\n' "$GHERE" "${GVER:-nothing}"
-      printf '    reinstall with: felix install (on main)\n'
+      if [ "$GOLD" = 1 ]; then printf '    felix install does not replace an entry that exists: move %s aside, then run felix install --no-bump here\n' "$GCACHE/$GVER"; else printf '    reinstall with: felix install (on main)\n'; fi
       # Deployable drift, and the remedy is here. Everything after this would be
       # spent verifying a tree whose accepted engine is not the one deployed,
       # and the suite alone is minutes. Not a loosening: the gate still fails,

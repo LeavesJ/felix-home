@@ -70,7 +70,9 @@ printf '\nthe cloud check judges the chain the cloud runs (audit b08 round 3, se
 #   the index; the toolbox stays the tree's, superpowers' carry fetch.
 # - A203, A205 and A206 each add one one-line hook object to UserPromptSubmit's one group, after
 #   the user-prompt hook: type command, the command with the tree's guard prefix first, shell bash,
-#   async false. So the guard clause is refused there. A204's is the tree's seven-line provision
+#   and no async or timeout, which B29 wants on a 12-space line of its own (an async on the one
+#   line read as today's unreadable: on 5640d9dc, a fixture fault). So the guard clause is refused
+#   there. A204's is the tree's seven-line provision
 #   hook object with timeout 30, after the canonical one in its group; "the binding count stays 1"
 #   reads as no binding clause, whatever its count.
 # - A202 and A206, "as A140", read as _b83_asok.
@@ -206,7 +208,7 @@ _b88_nr() { printf '%s' "$1 is fetched into the cloud and stack.tsv's risk for i
 _b88_oh() { printf 'unreadable: .claude/settings.json (%s other hooks name provision);' "$1"; }
 _b88BT='SessionStart hooks run provision as gate.sh binds it, not 1);'
 # command: a one-line hook object running the tree's guard prefix, then command.
-_b88_one() { printf '          { "type": "command", "command": "%s%s", "shell": "bash", "async": false }' '[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' "$1"; }
+_b88_one() { printf '          { "type": "command", "command": "%s%s", "shell": "bash" }' '[ \"$CLAUDE_CODE_REMOTE\" = true ] || exit 0; ' "$1"; }
 _b88P3="$(_b88_one 'bash \"$CLAUDE_PROJECT_DIR/.claude/cloud/provision\"')"
 _b88P5="$(_b88_one 'echo provisional')"; _b88P6="$(_b88_one 'echo hello')"
 # risk: FC's stack.tsv's superpowers plugin row given that risk (field 4) and staged, else a fixture fault.

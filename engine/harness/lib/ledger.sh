@@ -96,6 +96,9 @@ _felix_ledger_rows() {
 felix_ledger_summary() {
   local proj="$1"
   _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' '
+    # An answer was handed to the session, not reached for by it, and counted
+    # as a reach it would read as use nobody chose. felix_ledger_answers.
+    $3 == "answer" { next }
     $4 != "" {
       # A built-in skill is not the plugin that shares its name.
       #
@@ -437,6 +440,16 @@ felix_ledger_rollup() {
   while IFS=$'\t' read -r kind name; do
     [ -n "${name:-}" ] || continue
     [ "$kind" = "named" ] && continue
+    # An answer handed to the session: its own row, with the sixth field empty,
+    # because a route naming the same tool named the tool and not its answer.
+    # Kept out of seen and seen_owner, so that the session still gets a
+    # declared tool's zero row and a route's naming of it, both of which an
+    # answer would otherwise suppress as if the session had reached for it.
+    if [ "$kind" = "answer" ]; then
+      printf '%s\t%s\t%s\t%s\t%s\t\n' "$session" "$date" "$kind" "$name" \
+        "$(felix_count -xF "$kind	$name" "$state")" >> "$tmp"
+      continue
+    fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$session" "$date" "$kind" "$name" \
       "$(felix_count -xF "$kind	$name" "$state")" \
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
@@ -715,3 +728,11 @@ felix_ledger_catchup() {
   done
   printf '%s' "$n"
 }
+
+# Answers handed to a session, and what it did next, are the ledger's too:
+# their rows fold through felix_ledger_rollup above. Kept in their own file.
+# A failure to load it must not fail this file's own load: the hooks source
+# this with `|| exit 0`, and the ledger is worth more than the answers' half.
+if ! command -v felix_answer_use >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/answer.sh" 2>/dev/null || true
+fi

@@ -36,6 +36,10 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/resolve.sh" 2>/dev/null || exit 0
 . "${SCRIPT_DIR}/../lib/ledger.sh"  2>/dev/null || exit 0
 . "${SCRIPT_DIR}/../lib/verify.sh"  2>/dev/null || exit 0
+# The graph refresh's two, sourced so that failing to load them costs the
+# refresh and never the rollup below, which is this hook's reason to exist.
+. "${SCRIPT_DIR}/../lib/graph.sh"   2>/dev/null || true
+. "${SCRIPT_DIR}/../lib/own.sh"     2>/dev/null || true
 
 raw="$(cat 2>/dev/null || true)"
 
@@ -59,7 +63,21 @@ felix_hold_tree_clear "$FELIX_HOME_DIR" "$session"
 
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] || exit 0
-[ -n "$session" ] || exit 0
 
-felix_ledger_rollup "$PROJ" "$FELIX_HOME_DIR" "$session" "$(date -u +%Y-%m-%d)"
+[ -n "$session" ] && felix_ledger_rollup "$PROJ" "$FELIX_HOME_DIR" "$session" "$(date -u +%Y-%m-%d)"
+
+# The graph, refreshed at the end of every session rather than only at the
+# start of one that finds it behind. What a session merged and pulled into the
+# holding checkout is then in the graph the next session is answered from,
+# instead of in the one after a session happened to start late enough to
+# notice. Code only, backgrounded and locked, never waited for
+# (felix_graph_refresh_bg); due only when the holding checkout has moved past
+# the graph, and only in the project's own checkout, the same gate as the
+# start's (lib/own.sh).
+_groot="$(git -C "$PWD" rev-parse --show-toplevel 2>/dev/null)"
+if [ -n "$_groot" ] && command -v graphify >/dev/null 2>&1 \
+   && command -v felix_graph_refresh_due >/dev/null 2>&1 && command -v felix_checkout_is_own >/dev/null 2>&1 \
+   && felix_graph_refresh_due "$_groot" 2>/dev/null; then
+  felix_checkout_is_own "$PROJ" "$_groot" 2>/dev/null && felix_graph_refresh_bg "$_groot" 2>/dev/null
+fi
 exit 0

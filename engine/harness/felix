@@ -3004,6 +3004,27 @@ $(felix_ledger_summary "$proj")
 EOF
   [ "$n" -eq 0 ] && printf '  nothing yet\n'
 
+  # Answers are not in the table above: a delivery is not a reach. They get
+  # their own lines, and the line's point is the second half, whether the
+  # session then went where the answer pointed (lib/answer.sh).
+  local answers; answers="$(felix_ledger_answers "$proj")"
+  if [ -n "$answers" ]; then
+    local use; use="$(felix_answer_use "$proj" "$FELIX_HOME_DIR" "$lroot")"
+    printf '\nanswers handed to sessions without being asked for\n\n'
+    while IFS=$'\t' read -r name sessions calls; do
+      [ -n "${name:-}" ] || continue
+      printf '%s\n' "$use" | LC_ALL=C awk -F'\t' -v t="$name" -v s="$sessions" -v g="$calls" '
+        function pct(a, b) { return b > 0 ? sprintf("%.0f", 100 * a / b) : 0 }
+        $1 == t { d = $4; da = $5; f = $6; fa = $7; found = 1 }
+        END { if (!found) { d = 0; da = 0; f = 0; fa = 0 }
+              printf "  %-12s given %s times in %s sessions; %d answers (%s%%) named a file the session then opened, edited or ran; %d of %d files (%s%%)\n",
+                     t, g, s, da, pct(da, d), fa, f, pct(fa, f) }'
+    done <<EOF
+$answers
+EOF
+    printf '\nA file the session would have opened anyway counts here too, so this is the most the answers can have caused, not what they caused.\n'
+  fi
+
   local retire; retire="$(felix_ledger_retire "$proj")"
   if [ -n "$retire" ]; then
     printf '\npointed at and never reached for, across %s or more sessions\n\n' "$FELIX_LEDGER_MIN"

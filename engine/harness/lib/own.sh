@@ -47,6 +47,14 @@
 # attended caller and its refusal is written to the log it already keeps. The
 # libraries the gates sit in front of (tidy, graph refresh, adoption) are
 # unchanged, because attended callers and tests reach them too.
+#
+# Two more since 2026-10-29, both the graph's. SessionEnd starts the same graph
+# refresh, behind the same gate. And the user-prompt hook hands the model the
+# graph's answer to each prompt (lib/graph.sh, felix_graph_deliver): a person
+# is present, but what is handed over is read from graph.json, a file of the
+# checkout, so a checkout that is not own is handed nothing. That one is not
+# withheld work and records nothing in _FELIX_OWN_WITHHELD; it is simply not
+# said.
 
 # Sourced by path because the suite sources libraries alone, in subshells, and a
 # call that resolved to nothing would degrade to running nothing (house pattern).

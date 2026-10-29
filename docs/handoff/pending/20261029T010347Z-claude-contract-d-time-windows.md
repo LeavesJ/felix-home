@@ -1,6 +1,6 @@
 ### 2026-10-28: contract D's blind parts hold their time windows under a loaded full gate (0.49.312)
 
-**Engine 0.49.312 (branch `LeavesJ/angry-hopper-079c19`, on origin/main 78f0268f).**
+**Engine 0.49.312 (branch `LeavesJ/angry-hopper-079c19`, on origin/main e54e31f3).**
 On 2026-10-28 three `felix gate` runs failed on names of 1293, 1294 and 1295
 whose verdicts depend on time. The machine's load was 100 to 230, and each
 name passed when its part ran alone. The findings are

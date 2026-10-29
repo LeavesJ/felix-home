@@ -6610,9 +6610,24 @@ cmd_pulse() {
     [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
     mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
     # launchd does not create the capture file's directory, and fails the spawn
-    # the same way it does for a refused open, so no agent is written without it.
+    # the same way it does for a refused open, so no agent is written without a
+    # directory launchd can write the capture file in, and no capture path that
+    # is itself a directory. A refusal leaves a plist from before untouched.
+    local why=""
     if ! mkdir -p "$capdir" 2>/dev/null || [ ! -d "$capdir" ]; then
-      printf 'could not create %s, where launchd writes the pulse capture (%s); nothing was scheduled\n' "$capdir" "$capture"
+      why="could not create $capdir"
+    elif [ ! -w "$capdir" ] || [ ! -x "$capdir" ]; then
+      why="$capdir is not writable"
+    elif [ -d "$capture" ]; then
+      why="$capture is a directory"
+    fi
+    if [ -n "$why" ]; then
+      printf '%s, where launchd writes the pulse capture (%s)\n' "$why" "$capture"
+      if [ -e "$plist" ] || [ -L "$plist" ]; then
+        printf 'the agent already at %s was left as it was and may still be loaded\n' "$plist"
+      else
+        printf 'nothing was scheduled\n'
+      fi
       return 1
     fi
     # Checked, because the redirection's failure is silent without set -e and
@@ -6628,7 +6643,7 @@ cmd_pulse() {
     if launchctl load "$plist" >/dev/null 2>&1; then
       printf 'scheduled: %s pulse, daily at 09:07, logging to %s (launchd capture: %s)\n' "$esrc/harness/felix" "$log" "$capture"
     else
-      printf 'wrote %s but launchctl load failed; load it by hand\n' "$plist"
+      printf 'wrote %s but launchctl load failed; load it by hand (the pulse logs to %s, launchd capture: %s)\n' "$plist" "$log" "$capture"
     fi
     printf 'this was the grant: nothing scheduled itself. felix pulse --uninstall takes it back\n'
     return 0

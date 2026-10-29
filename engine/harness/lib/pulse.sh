@@ -446,6 +446,9 @@ felix_pulse_record() {
   return 0
 }
 
+# XML text for a <string>: & first, then < and >.
+felix_pulse_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+
 # The launchd agent, emitted rather than written so a test can read it and
 # the writer stays four lines. 09:07 local, daily: early enough that the
 # first session of a day inherits a fresh backup, odd enough to say a machine
@@ -454,15 +457,18 @@ felix_pulse_record() {
 # as two heartbeats. That file lives outside the Felix home, under
 # ~/Library/Logs, because launchd opens it before the program starts, as
 # itself rather than as the shell that will run the pulse, and macOS refused
-# that open under ~/Documents on 2026-10-29: the spawn failed with exit 78 and
-# nothing Felix reads said so. The program is /bin/bash, which holds Full Disk
-# Access, running the served engine's felix, so no `env` lookup decides which
-# bash runs it. The measurements are in docs/2026-10-29-pulse-agent-contract.md.
-# Paths land inside <string> verbatim; the standard layouts contain no XML
-# metacharacters, and one that did would break the schedule loudly at load, not
-# silently.
+# that open under ~/Documents on 2026-10-29: the spawn failed with exit 78, so
+# the program never ran and wrote nothing (felix status showed the exit, and
+# nothing else did). The program is /bin/bash, which holds the privacy grant
+# on a Mac where it was given (A31), running the served engine's felix, so no
+# `env` lookup decides which bash runs it. There is no Program key: launchd
+# would run that program and take ProgramArguments only as its argv. The
+# measurements are in docs/2026-10-29-pulse-agent-contract.md. Both paths are
+# XML-escaped before they land inside <string>, so a home holding &, < or >
+# still yields a plist that parses.
 felix_pulse_plist() {
-  local bin="$1" capture="$2"
+  local bin capture
+  bin="$(felix_pulse_xml "$1")"; capture="$(felix_pulse_xml "$2")"
   cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">

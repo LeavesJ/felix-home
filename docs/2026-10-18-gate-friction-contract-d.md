@@ -1736,3 +1736,20 @@ The authors apply R58 to R62 to their own parts, as R57 assigns them, and report
 - The kill -9 slot windows' L: author A, 4f2c6f01 and a564c478. They are shown red against a slot that a dead holder's mark keeps 30 s. A holder that retries only every 30 s is not claimed to fail them.
 - 1296's pphide, never shown to answer a holder: author B, 04b5b5fe. It answers only a holder perl whose parent is WRAPPER, logs each answer, and a control shows it is reached.
 - 1292's sweep rows without L or the floor: author A, 1b381006.
+
+### Revision 18's review, and where it went
+
+The blind authors applied R58 to R62 to 1291 to 1296. Two Opus reviews of that change ran in wf_8d9d5be6-d3c, and they found eleven things.
+- **The authors' five.** They fixed these in the same run:
+  - 1293's and 1295's at-exit check now judges every process of the run's groups once the watcher is gone, not only what a poll saw below it.
+  - Every holding case logs C as a margin.
+  - 1296's pw look is now a 20 s watch.
+  - A run line's ms is the run's own start-to-exit.
+- **The six about the contract.** They go as follows:
+  - **R59's build without the clause, corrected.** This replaces R59's "What it keeps apart" bullet. A build that lacks only the watcher, or whose watcher does not end red, does not fail rrt: red's own monitor ends red's suite once the record run is gone and has left no mark (R1). The record run's EXIT trap removes `$TMP`, so a record run ended by a signal leaves no mark. R59's drain is shown red against a build in which nothing ends red's tree after the signal. Neither the watcher's stop nor red's monitor's stop on a gone record run with no mark is there, and the report names both lines. The red-first tree is `noend` in evidence/ev18-trees.sh. Two reviewers found this, one major and one minor.
+  - **R60's command line, recorded with no change.** A process with the record run's command line is not only its watcher. In a `-j` record run, each unit's wrapper and each `$( )` of the parent are subshells of the record run's shell too. R60 excuses any of them still there at the exit for up to 20 s before judging it.
+    - On D's build, none of them is alive at the exit, and the review's runs measured every wait at 0 ms.
+    - A build that leaves one alive past 20 s still fails the R1 names.
+    - A build that leaves a wrapper for less than 20 s is not told apart by these names. It is told apart by D6's names on how a run ends (1292's start-up TERM spread and 1291's and 1294's run ends): no wrapper, holder or unit runs once the parent has exited.
+  - **R62's spans, recorded with no change.** Two lines in the margin format are not margins. They are 1294's `nt/mark-to-holder` (T 5000, a span that bounds the nt window's L) and 1292's `gctl/drain` (T 90000, a control's drain against its L). The evidence reads both as spans, and R56's fifth-of-T rule does not apply to them. A later revision may give spans their own format: `<part> span <case> ms <ms or none>`.
+  - **A placement, open.** R58 has no kind for a pause that puts an event inside a span of D's build and is followed by no look of its own. 1296's lh writes release2 4 s after the wrapper's kill, to land inside the parent's ending of the stopped holder. Under load the ending can start later, release2 then comes before it, and lh also passes a build without R13's read-back. This never fails D's build. It is older than revision 17, and revision 17 and 18 do not change it. The rule a later revision should take: a placement is counted from an event the case sees at the span's start, waited for as a bound, never from an earlier event plus a fixed time. For lh, that event is the `-j` parent's listing of the lost holder's tree, seen through a ps shim. Until then, lh's name is not claimed to tell that build apart on a loaded machine.

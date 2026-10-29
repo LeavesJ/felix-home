@@ -1,6 +1,6 @@
-### 2026-10-28: the audit's second wave, eight batches combined (0.49.309)
+### 2026-10-28: the audit's second wave, eight batches combined (0.49.313)
 
-**Engine 0.49.309 (branch `claude/audit-wave-2`, on origin/main 78f0268f).**
+**Engine 0.49.313 (branch `claude/audit-wave-2`, on origin/main e54e31f3, after #471 took 0.49.309).**
 The second landing of the 2026-10-23 audit (direction row 29; the register is
 `docs/2026-10-24-audit-register.md`), after wave 1 (#469, 78f0268f, 0.49.308).
 It carries eight batches whose finals were green, or red only on part 1010's

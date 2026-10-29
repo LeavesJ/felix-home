@@ -74,7 +74,9 @@ It is outside this design.
 - **No force.** Nothing here blocks a merge, holds a release, comments on a
     pull request or writes an enforcing table. Those come later: the shadow run
     (slice 3), admission (slice 4), the brief (slice 5) and supply (slice 6).
-- **No `--propose`.** §9's admission drafts move to slice 4, at class level.
+- **No admission.** `--propose` prints a draft row and the command that would
+    admit it, as §9 wrote it. Admitting stays the founder's commit, and admission
+    by class is slice 4.
 - **No new GitHub writes,** and no file in anyone's CI.
 - **Not a time-allocation tool for teams.** Slice 0 counts Felix's own lane.
 - **Not the outcome record by provider** (lane item 7). Come-back records carry
@@ -192,25 +194,26 @@ line.
 - **A landing** is a first-parent commit on the project's main ref. That is
     `origin/main` as last fetched; the counter never fetches, and it prints the
     ref's date. A landing's time is its committer date.
-- **A session landing** carries the line `felix merge squashed <branch> at
-    <sha>.`, which `felix merge` writes (`felix:2101`).
-    - Landings without that line are hand merges. They are left out of both
-        counts and reported as "left out".
-    - Of the 13 landings on felix-home since 10-19, 11 carry the line. The other
-        two, #455 and #459, were merged on GitHub.
-
 - **A landing counts only if it changed engine code.** At least one path it
     changed must match the lane row's `counts` pattern.
-    - Direction §5 counts a lane session only if it lands engine code or produces
-        a sealed, measured number. So a docs-only landing from a lane branch does
-        not count.
+    - Direction §5 counts a lane session only if it lands engine code or
+        produces a sealed, measured number. So a docs-only landing from the lane
+        does not count.
     - Sealed numbers that live only in the memory root are not counted in this
         slice. *(My call; a stated gap.)*
 
-- **A lane landing** is a counted session landing whose branch matches the
-    row's `branch` pattern. Lane branches are named `<prefix>/lane-<slug>`, like
-    this one.
-- **The total** is every counted session landing in the window, lane or not.
+- **A lane landing** is a counted landing whose message has the whole line
+    `Felix-Lane: <lane>`, for example `Felix-Lane: capability`. *(My call.)*
+    - A lane session ends at least one commit message on its branch with that
+        line.
+    - The line survives both ways a change lands. `felix merge` and a squash
+        merge on GitHub both copy the branch's commit messages into the landing.
+        PR #455, which the founder merged on GitHub, carries every one of its
+        branch's commit messages. So a lane PR he merges by hand still counts.
+    - For a real merge commit, the commits it merged are read as well.
+
+- **The total** is every counted landing in the window, lane or not, however it
+    landed.
 
 The share is counted in landings, not in sessions. *(My call.)* There are two
 reasons:
@@ -219,34 +222,44 @@ reasons:
 - Nothing durable records which sessions were lane sessions. The machine marker
     is cleared when a session ends (`hooks/session-end:52-56`).
 
-### 6.3 The table: `projects/<p>/lanes.tsv`
+### 6.3 The tables
+
+The target and the pointer to the next item live in two tables, so that one can
+be protected without stopping the other.
+
+**`projects/<p>/lanes.tsv`**, the target:
 
 | Column | Meaning |
 |---|---|
-| `lane` | a name |
-| `branch` | an ERE over the landed branch name |
+| `lane` | a name; the lane's mark is `Felix-Lane: <lane>` |
 | `counts` | an ERE over changed paths; a landing counts when one matches |
 | `share` | the target, as `n/d` |
 | `window` | days |
+
+**`projects/<p>/lane-next.tsv`**, the pointer:
+
+| Column | Meaning |
+|---|---|
+| `lane` | a lane named in `lanes.tsv` |
 | `next` | the first open lane item, on one line |
 
-felix-home's row, one value per column:
+felix-home's rows:
 
-- `lane`: `capability`
-- `branch`: `(^|/)lane-`
-- `counts`: `^engine/`
-- `share`: `1/2`
-- `window`: `14`
-- `next`: `obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)`
+- `lanes.tsv`: lane `capability`, counts `^engine/`, share `1/2`, window `14`.
+- `lane-next.tsv`: lane `capability`, next `obligation intake, slice 1: felix
+    situations --change (branch claude/lane-situations-owed)`.
 
-- **Schema.** One `schemas.tsv` row is added:
-    `lanes.tsv tree lane branch counts share window next allowed`. If a project
-    has no `lanes.tsv`, it has no lane, and nothing is printed.
-- **Keeping it current.** *(My call.)*
-    - The PR that lands a lane item edits `next` in the same change.
+- **Schema.** Two `schemas.tsv` rows are added:
+    `lanes.tsv tree lane counts share window allowed` and
+    `lane-next.tsv tree lane next allowed`. A project with no `lanes.tsv` has no
+    lane, and nothing is printed.
+- **Who changes what.**
+    - The PR that lands a lane item moves `next` in the same change. That lands
+        on green.
     - The PR that lands intake (slice 1) also changes `share` from `1/2` to
-        `1/4`. So "then one in four" happens in the change that makes it true, and
-        is reviewed with it.
+        `1/4`, so "then one in four" happens in the change that makes it true.
+    - Whether a change to `lanes.tsv` waits for the founder's merge is his
+        decision. §12 records his answer.
 
 ### 6.4 States
 
@@ -259,7 +272,7 @@ a target share of n/d:
 | `short` | L > 0 and L·d < n·T |
 | `zero` | L = 0 and T > 0: engine work landed through the whole window and none of it came from the lane |
 | `idle` | T = 0: nothing counted landed at all |
-| `unknown` | the main ref or the table could not be read; never printed as `ok` |
+| `unknown` | the main ref or a table could not be read; never printed as `ok` |
 
 ### 6.5 Where it shows
 
@@ -268,7 +281,7 @@ a target share of n/d:
     - the state, L and T;
     - the window and the target;
     - the date of the last lane landing;
-    - the left-out count and `next`.
+    - the mark, and `next`.
 
     `--tsv` prints the same fields, tab-separated. The carrier can read it when
     it picks work.
@@ -284,8 +297,9 @@ a target share of n/d:
 
 3. **Session start, in the session's context.** When the state is `short` or
     `zero`, one paragraph gives the counts and says: "If the founder has not
-    given this session a task, take the first open lane item: `<next>`. Trust work
-    takes the other half." *(My call.)*
+    given this session a task, take the first open lane item: `<next>`. End a
+    commit message on its branch with `Felix-Lane: capability`. Trust work takes
+    the other half." *(My call.)*
     - Only the session knows whether it was given a task, so the session that
         reads the paragraph is the one that carries out the rule.
     - A session that takes the item first checks that no live session is
@@ -309,16 +323,20 @@ a target share of n/d:
 These assertions are written blind from this document and shown red on main
 first.
 
-- **The counts.** A fixture repository holds six kinds of landing:
-    - a lane branch with an engine change;
-    - a lane branch with a docs-only change;
-    - another branch with an engine change;
-    - another branch with a docs-only change;
-    - a hand merge with no branch line;
+- **The counts.** A fixture repository holds these landings:
+    - a marked engine change landed through `felix merge`;
+    - a marked engine change squash-merged the way GitHub does, with the mark
+        inside a copied commit message;
+    - a marked docs-only change;
+    - an unmarked engine change;
+    - an unmarked docs-only change;
+    - a real merge commit whose merged commits carry the mark;
+    - a commit whose message mentions `Felix-Lane: capability` inside a sentence,
+        not as a whole line;
     - a landing just outside the window.
 
-    With the clock pinned, L, T and the left-out count must come out exactly as
-    §6.2 defines them, at each edge of the window.
+    With the clock pinned, L and T must come out exactly as §6.2 defines them,
+    at each edge of the window.
 
 - **The state edges.**
     - L·d = n·T reads `ok`, and one lane landing fewer reads `short`.
@@ -335,10 +353,11 @@ first.
     before it are byte-identical.
 - **Determinism.** Two runs print identical bytes.
 - **Real data.** On felix-home's main at `e54e31f3`, with the clock pinned to
-    2026-10-29, the capability lane reads `zero`. No lane branch has ever landed,
-    against 13 counted landings in 14 days by my hand count.
+    that commit's time (2026-10-29 21:26 UTC), the capability lane reads `zero`.
+    None of the 27 landings in the window carries the mark, and 18 of them
+    changed `engine/`.
 - **Falsified if** a hand check of what it prints for felix-home's last 60 days
-    finds a lane landing it missed, or a landing it should not have counted.
+    finds a landing it miscounted.
 
 ## 7. Slice 1: what a change owes
 
@@ -352,8 +371,8 @@ For a given change, it answers four questions:
 - What could Felix not look at?
 
 The answer comes from probes and the detector, with no model, no key and no
-network. This is the intent design's §9 slice with one addition, the change
-mode.
+network. This is the intent design's §9 slice, `--propose` included, with one
+addition: the change mode.
 
 ### 7.2 The situation table
 
@@ -423,6 +442,14 @@ Every reading is labelled with where it came from.
     - With no flag, it uses the newest recorded tree.
     - The gate took these readings in the live checkout, together with its
         untracked environment.
+    - `facts.log` holds probe readings only; the detector's answer is not
+        recorded. So in `--at` mode the detector runs on the live checkout only
+        when that checkout's tree id equals the tree asked for. At any other
+        tree, a capability that only the detector could decide reads undecided,
+        and the residual says the detector could not be run there. *(My call.)*
+    - Recording the detector's answer beside the facts, so that any recorded
+        tree can later be read in full, is a later choice: it changes what the
+        gate writes.
 
 - **Scratch readings.** `felix situations --change [<base>..<head>]` takes fresh
     readings of both sides.
@@ -442,8 +469,10 @@ Every reading is labelled with where it came from.
     - Nothing is written to `facts.log`.
 
 - **What scratch trees cannot see.** A scratch tree holds tracked content only.
-    - A probe that needs an untracked environment reads unknown there. For
-        example, Elenchus's route probe runs `.venv/bin/python`.
+    - A probe that needs an untracked environment reads blind or unknown there.
+        For example, Elenchus's route probe falls back from `.venv/bin/python` to
+        the system python3, which cannot import the app. Its witness file is
+        tracked, so it reads blind.
     - That probe's classes land in the residual as could-not-look. That is a
         result, not a failure.
     - Giving scratch trees an environment is a later choice.
@@ -455,13 +484,21 @@ At one reading, each term is true, false or undecided:
 - **`probe:p=s`** is true when p's state is s. It is undecided when p's state is
     blind or unknown, or p has no reading. Otherwise it is false, including when
     p is not-applicable.
-- **`cap:c`** is true when the detector names c, or a probe that grounds c reads
-    found.
-    - It is false only when a probe that grounds c reads empty, which means its
+- **`cap:c`** is decided by the probes that ground c, and by the detector only
+    when no probe does. *(My call.)* In order:
+    1. If any probe grounding c reads found, it is true.
+    2. Otherwise, if any reads blind or unknown, it is undecided.
+    3. Otherwise, if any reads empty, it is false: an empty reading means the
         witness agrees the surface is absent.
-    - Otherwise it is undecided. Detector silence is never false.
-    - This is §9's rule: "A capability with no grounded probe, or one the detector
-        does not name, reads could-not-look."
+    4. Otherwise, when no probe grounds c or every one reads not-applicable, the
+        detector decides: true if it names c, undecided if it does not. Detector
+        silence is never false.
+
+    The probe outranks the detector because it looks at the surface itself,
+    while the detector reads only the dependency list (`lib/detect.sh:17`): a
+    project whose dependencies name fastapi is detected as api whether or not it
+    serves a route. This keeps §9's rule: "A capability with no grounded probe,
+    or one the detector does not name, reads could-not-look."
 
 - **`env:a>=v`** is true or false from the declared value. It is undecided when
     no value is declared.
@@ -495,7 +532,8 @@ verdict:
 "A grounding reading differs" means one of two things:
 
 - for some probe term, the pair (state, count) differs between base and head;
-- for some cap term, the detector's answer differs.
+- for some cap term, what decided it differs: the (state, count) pairs of the
+    probes that ground it, or the detector's answer when no probe does.
 
 Facts record counts, not members. So "touches" means a reading changed.
 
@@ -539,6 +577,11 @@ Facts record counts, not members. So "touches" means a reading changed.
     - Slice 2 reads this form, and the id and verdict columns are its contract.
     - *(The shape is my call.)*
 
+- **`--propose`** (§9, unchanged). For each ACTIVE class with no admitted row
+    in the project's `obligations.tsv`, it prints an `obligations.tsv`-shaped
+    row with its grounds, and the command that would admit it. It writes
+    nothing. Admission stays the founder's commit: no session commits a proposed
+    row on its own, because an addition to `obligations.tsv` would land on green.
 - **Exit status.** It is 0 whenever a report was produced, whether or not
     anything is owed. It is non-zero only on a usage error, or when a side could
     not be read at all, such as a base that is not a commit.
@@ -567,8 +610,10 @@ first.
         route, and an `http_route` probe that grounds api.
     - Paid ingress reads ACTIVE, with grounds `http_route found (api), llm
         detected`.
-    - Deleting the route makes it DORMANT, with the witness named.
-    - §9's `--propose` part is dropped here.
+    - `--propose` prints its row with its grounds and the command that would
+        admit it, and writes nothing.
+    - Deleting the route makes it DORMANT, with the witness named, even though
+        `requirements.txt` still names fastapi: the probe decides (§7.4).
 
 - **(b) Rust fixture** (from §9).
     - A cargo workspace member depends on axum. No probe grounds api, and no
@@ -580,12 +625,20 @@ first.
 - **(c) Bash harness.** A non-empty residual, never an empty report with exit 0.
 - **(d) Determinism.** Two runs give identical bytes, with the network off and
     no key, in both `--at` and `--change`.
-- **(e) Real data.**
-    - Run `--at` on the newest recorded trees of Elenchus (09-24) and Veldra
-        (09-25). Elenchus's second-entrypoint spend gap must read ACTIVE.
-    - If it does not, the seed or the probes are wrong, and that is fixed before
-        slice 2's replay means anything.
-    - The run is recorded as a measurement. The builder settles how it sits
+- **(e) Real data.** *(My call, replacing §9's "on recorded facts" for
+    Elenchus.)*
+    - Veldra: run `--at` on its newest recorded tree (09-25).
+    - Elenchus: take a fresh reading. In an Elenchus checkout at a tree that has
+        the second entrypoint and its `.venv`, run `felix probes`, which records
+        facts for that tree. Then run `felix situations --propose` in the same
+        checkout, so the probes and the detector read the same tree. The spend
+        gap must read ACTIVE, and its proposed row must print.
+    - Why fresh: Elenchus's 09-24 facts hold no probe that grounds `llm`, and the
+        detector cannot be run on a tree no checkout is at. Read at 09-24, paid
+        ingress is honestly "could not look".
+    - If the gap does not read ACTIVE, the seed or the probes are wrong, and that
+        is fixed before slice 2's replay means anything.
+    - The runs are recorded as measurements. The builder settles how they sit
         beside the suite without a project name tripping the independence check.
 
 - **(f) A route added in the diff** is owed by that change.
@@ -593,7 +646,8 @@ first.
     print as standing.
 - **(h) A diff that breaks the probe's instrument** while the routes stay reads
     blinded at head, never DORMANT or retired. For example, it renames what the
-    probe imports.
+    probe imports. The detector still names api, and the blind probe still
+    decides (§7.4).
 - **(i) Stable ids.** The same class and project get the same id in `--at`, in
     `--change` and across runs.
 - **Falsified if** either of these happens:
@@ -605,7 +659,11 @@ first.
 
 - Classes that need a capability tag that does not exist, such as plugin hooks
     or peer listeners, read as cells with no row (§9).
-- Scratch readings see tracked content only.
+- Scratch readings see tracked content only. A probe that imports the
+    application reads blind or unknown in a scratch checkout, as Elenchus's
+    `http_route` does (§7.3). So on Elenchus, every class that needs api reads
+    "could not look" in `--change`, unless another of its terms is false. That
+    lasts until scratch trees get an environment.
 - A change is seen only through readings. A change on a surface no probe reads
     shows up only in the residual.
 - A probe that does not look where a change moved its surface reports the
@@ -633,8 +691,15 @@ the founder's three repositories.
     - The repository must belong to a bound project, because slice 1 needs that
         project's probes.
 
-- **The changes.** The command reads the newest N first-parent commits on the
-    main ref, 50 by default.
+- **The changes.** The command walks first-parent commits on the main ref,
+    newest first. *(The selection rule is my call, and it is sealed, §8.5.)*
+    - `--last N`, 50 by default, takes the newest N changes whose window has
+        closed. `--since <date>` takes every closed change from that date on.
+        Changes whose window is still open are listed apart, and never counted.
+    - Taking the newest N, open or not, would give felix-home no rate at all.
+        As of each clone's last fetch, all of felix-home's newest 50 changes are
+        open. Elenchus has 7 open and 43 closed, and Veldra 24 open and 26
+        closed.
     - Each change C has its base at `C^1`. That works for squash merges (felix-home
         and Elenchus) and for real merge commits (Veldra).
     - Its added lines come from `git diff -U0 --no-renames C^1 C`.
@@ -643,8 +708,8 @@ the founder's three repositories.
     is neither the last commit's date nor the current time.
     - A stale clone gives empty windows. Veldra's clone was last fetched on 10-01,
         and Elenchus's on 10-08.
-    - A change whose 30-day window ends after that time is **open**. It is listed,
-        and left out of the rate.
+    - A change whose 30-day window ends after that time is **open**. It is listed
+        apart, and left out of the rate.
 
 ### 8.3 What counts as a come-back
 
@@ -710,10 +775,11 @@ owed ids slice 1 printed, so later slices join on them.
 
 ### 8.5 Sealing
 
-Before the first real run, four things are committed:
+Before the first real run, five things are committed:
 
 - the rules in §8.3;
 - the window;
+- the selection rule in §8.2;
 - each project's `retro.tsv` rows;
 - the sampling rule in §8.6.
 
@@ -756,6 +822,8 @@ first. A fixture repository with scripted history must show the following:
     `retro.tsv`.
 - A change whose window runs past the as-of time is open, and left out of the
     rate.
+- `--last 3` on a history whose two newest changes are open selects the three
+    newest closed changes, and lists the two open ones apart.
 - A history of real merge commits with no PR numbers is read through `C^1`.
 - Two runs with the network off, and without `--issues`, give identical bytes.
 - `--issues` with `gh` stubbed as unreachable reads "could not look" for that
@@ -764,9 +832,10 @@ first. A fixture repository with scripted history must show the following:
 **Real data**, recorded as measurements. Each run gives its denominator and open
 count, and states the clone's fetch time:
 
-- felix-home's last 50 changes;
-- Elenchus's last 50 changes, or all of them;
-- Veldra's changes, which are merge commits with no PR numbers.
+- felix-home's newest 50 closed changes, 09-23 to 09-26 as of its 10-29 fetch;
+- Elenchus's newest 50 closed changes, 08-02 to 09-02 as of its 10-08 fetch;
+- Veldra's newest 50 closed changes, 05-01 to 08-29 as of its 10-01 fetch.
+    They are merge commits and direct commits, with no PR numbers.
 
 ### 8.8 Limits
 
@@ -774,6 +843,9 @@ count, and states the clone's fetch time:
     look".
 - The clones are stale. Fetching is the operator's step, and it changes the
     as-of time.
+- A closed change is at least 30 days old. felix-home's newest 50 closed
+    changes fall in four days of late September, so its rate describes that
+    week, not this one.
 - Line edits are not followed across renames. A renamed file counts as excluded
     churn.
 - The replay joins per change.
@@ -788,16 +860,18 @@ count, and states the clone's fetch time:
     - the status row;
     - the session-start paragraph and the screen token;
     - the pulse line;
-    - `lanes.tsv`, with its schemas row and felix-home's row;
+    - `lanes.tsv` and `lane-next.tsv`, with their schemas rows and felix-home's
+        rows;
     - blind parts.
 
 2. **Slice 1.** One engine PR, one to two sessions *[guess]*. It contains:
     - `templates/situations.tsv` with its schemas row;
-    - `lib/situations.sh` and `felix situations`;
+    - `lib/situations.sh` and `felix situations`, with `--at`, `--change` and
+        `--propose`;
     - fixtures (a) to (i).
 
-    This PR is "intake lands". It also sets felix-home's `lanes.tsv` share to
-    `1/4`, and moves `next` on to slice 2.
+    This PR is "intake lands". It also sets felix-home's share in `lanes.tsv`
+    to `1/4`, and moves its row in `lane-next.tsv` on to slice 2.
 
 3. **Slice 2.** One engine PR, then the sealed report, one to two sessions
     *[guess]*. The PR contains:
@@ -808,13 +882,13 @@ count, and states the clone's fetch time:
     Its come-back half needs nothing from slice 1. It can be built and measured
     while slice 1 waits to land. The replay column follows slice 1.
 
-Slices 0 and 1 share only felix-home's `lanes.tsv` row. So two sessions can
-build them at once, with slice 1 rebased on slice 0.
+Slices 0 and 1 share only felix-home's two lane rows. So two sessions can build
+them at once, with slice 1 rebased on slice 0.
 
 Two findings would change the order:
 
-- If slice 1 finds nothing ACTIVE on Elenchus's recorded facts, fix the seed or
-    the probes before slice 2's replay.
+- If slice 1's fresh Elenchus reading does not find the spend gap ACTIVE
+    (§7.9 e), fix the seed or the probes before slice 2's replay.
 - If slice 2 finds that most come-backs trace to misread intent rather than an
     engineering class, slice 5's questions move ahead of slice 3.
 
@@ -834,27 +908,41 @@ Two findings would change the order:
 
 ## 11. Calls I made, for the founder to check while reading
 
-1. The lane's share is counted in engine landings, not in sessions.
-2. A lane landing is marked by its branch name (`lane-`), read from the line
-    `felix merge` already writes. Hand merges are left out, and counted as left
-    out.
-3. A docs-only landing from a lane branch does not count, following §5. Sealed
-    numbers that never land on main are not counted yet.
-4. The window is 14 days. A short lane goes into the next session's context. An
-    empty one also goes on his screen line. There is no push alert, because the
-    alert channel has never delivered.
-5. The PR that lands intake also lowers the share to one in four.
-6. `--change` reads both sides in scratch checkouts, with the current probes,
-    and never writes `facts.log`.
-7. The seed's authorization rides slice 4's admission batch, unless he wants to
-    read the seed first.
-8. Only reverts, fixes and reopened issues count as come-backs. Other later
-    edits are "edited again".
-9. The replay joins per change, not per surface.
-10. A headline come-back rate needs precision of at least 0.7 on the blind
-    sample.
+1. *Slice 0.* The lane's share is counted in engine landings, not in sessions.
+2. *Slice 0.* A lane landing is marked by the line `Felix-Lane: <lane>` in its
+    commit message. Both `felix merge` and a GitHub squash copy it into the
+    landing, so a lane PR he merges by hand still counts.
+3. *Slice 0.* A lane landing that changes no engine path does not count,
+    following §5. Sealed numbers that never land on main are not counted yet.
+4. *Slice 0.* The share and the next item live in two tables, so the share can
+    be protected without stopping the PRs that move the next item.
+5. *Slice 0.* The window is 14 days. A short lane goes into the next session's
+    context. An empty one also goes on his screen line. There is no push alert,
+    because the alert channel has never delivered.
+6. *Slice 1.* The PR that lands intake also lowers the share to one in four.
+7. *Slice 1.* `--propose` stays in, so slice 1 is the intent design's whole §9
+    slice, and its landing is "intake lands".
+8. *Slice 1.* `--change` reads both sides in scratch checkouts, with the current
+    probes, and never writes `facts.log`.
+9. *Slice 1.* `--at` runs the detector only when a checkout stands at that tree.
+    Anywhere else, the detector's side is undecided.
+10. *Slice 1.* When a probe and the detector disagree, the probe decides.
+11. *Slice 1.* Elenchus's real-data check takes a fresh reading, because its
+    09-24 facts cannot ground `llm`.
+12. *Slice 1.* The seed's authorization rides slice 4's admission batch, unless
+    he wants to read the seed first.
+13. *Slice 2.* Only reverts, fixes and reopened issues count as come-backs.
+    Other later edits are "edited again".
+14. *Slice 2.* `--last N` takes the newest N changes whose window has closed,
+    and lists open ones apart. The rule is sealed with the others.
+15. *Slice 2.* The replay joins per change, not per surface.
+16. *Slice 2.* A headline come-back rate needs precision of at least 0.7 on the
+    blind sample.
 
 ## 12. Not decided here, and whose
+
+- **His, now:** whether a change to the lane's share waits for his merge
+    (§6.3). Asked on 10-29; his answer goes here.
 
 - **His, before slice 3:**
     - the false-block bound;
@@ -878,15 +966,21 @@ Two findings would change the order:
     founder's 10-29 decisions.
 - `Founder OS/felix_v32_conformance_amendments.md`, §1.1.
 - Code read on 10-29:
-    - `lib/probes.sh`, `lib/facts.sh`, `lib/detect.sh`;
+    - `lib/probes.sh`, `lib/facts.sh`, `lib/detect.sh` (`:17` keys api,
+        `:27-28` key llm);
+    - `lib/escape.sh:78`, the tables whose changes wait for a person's merge;
     - `lib/verify.sh:354-372`, `lib/qualify-run.sh:440-462`;
     - `lib/status.sh`, `lib/pulse.sh`, `hooks/session-start`;
-    - `felix:2101`, `felix:6640-6644`.
+    - `felix:6640-6644`.
 
-- Measured on 10-29, against felix-home's main at `e54e31f3`:
-    - 11 of the 13 landings since 10-19 carry the branch line;
-    - 13 engine landings were counted in 14 days, and no lane branch has ever
-        landed.
+- PR #455, which the founder merged on GitHub. Its landing carries every
+    commit message from its branch.
+- Measured on 10-29:
+    - against felix-home's main at `e54e31f3`: no commit on main carries a
+        `Felix-Lane:` line, and 18 of the 27 landings in the 14 days before it
+        changed `engine/`;
+    - at each clone's last fetch: the open and closed counts in §8.2 and the
+        spans in §8.7.
 
 - A reverse-blame trial on five changes per repository took 0.5 to 2.3 seconds
     per repository. Most of one large change's raw count was churn.

@@ -6566,6 +6566,9 @@ cmd_pulse() {
   done
   local plist="$HOME/Library/LaunchAgents/felix.pulse.plist"
   local log="$FELIX_HOME_DIR/state/pulse.log"
+  # launchd's capture, outside the Felix home (see felix_pulse_plist).
+  local capdir="$HOME/Library/Logs/felix"
+  local capture="$capdir/pulse.launchd.log"
 
   if [ "$uninstall" -eq 1 ]; then
     # The unload's status is the whole answer. `Unload failed: 5` is routine,
@@ -6606,18 +6609,24 @@ cmd_pulse() {
     fi
     [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
     mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
+    # launchd does not create the capture file's directory, and fails the spawn
+    # the same way it does for a refused open, so no agent is written without it.
+    if ! mkdir -p "$capdir" 2>/dev/null || [ ! -d "$capdir" ]; then
+      printf 'could not create %s, where launchd writes the pulse capture (%s); nothing was scheduled\n' "$capdir" "$capture"
+      return 1
+    fi
     # Checked, because the redirection's failure is silent without set -e and
     # both branches below assert the file exists: on a machine where
     # LaunchAgents is not writable, this returned 0 claiming to have written
     # a plist that was never there.
-    if ! felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist" 2>/dev/null \
+    if ! felix_pulse_plist "$esrc/harness/felix" "$capture" > "$plist" 2>/dev/null \
        || [ ! -s "$plist" ]; then
       printf 'could not write %s; nothing was scheduled\n' "$plist"
       return 1
     fi
     launchctl unload "$plist" >/dev/null 2>&1
     if launchctl load "$plist" >/dev/null 2>&1; then
-      printf 'scheduled: %s pulse, daily at 09:07, logging to %s\n' "$esrc/harness/felix" "$log"
+      printf 'scheduled: %s pulse, daily at 09:07, logging to %s (launchd capture: %s)\n' "$esrc/harness/felix" "$log" "$capture"
     else
       printf 'wrote %s but launchctl load failed; load it by hand\n' "$plist"
     fi

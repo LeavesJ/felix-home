@@ -451,17 +451,25 @@ felix_pulse_record() {
 # first session of a day inherits a fresh backup, odd enough to say a machine
 # chose it. launchd's own capture goes to a separate file — the pulse tees
 # its structured lines into the log itself, and one line written twice reads
-# as two heartbeats. Paths land inside <string> verbatim; the standard
-# layouts contain no XML metacharacters, and one that did would break the
-# schedule loudly at load, not silently.
+# as two heartbeats. That file lives outside the Felix home, under
+# ~/Library/Logs, because launchd opens it before the program starts, as
+# itself rather than as the shell that will run the pulse, and macOS refused
+# that open under ~/Documents on 2026-10-29: the spawn failed with exit 78 and
+# nothing Felix reads said so. The program is /bin/bash, which holds Full Disk
+# Access, running the served engine's felix, so no `env` lookup decides which
+# bash runs it. The measurements are in docs/2026-10-29-pulse-agent-contract.md.
+# Paths land inside <string> verbatim; the standard layouts contain no XML
+# metacharacters, and one that did would break the schedule loudly at load, not
+# silently.
 felix_pulse_plist() {
-  local bin="$1" log="$2"
+  local bin="$1" capture="$2"
   cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>felix.pulse</string>
   <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
     <string>$bin</string>
     <string>pulse</string>
   </array>
@@ -469,8 +477,8 @@ felix_pulse_plist() {
     <key>Hour</key><integer>9</integer>
     <key>Minute</key><integer>7</integer>
   </dict>
-  <key>StandardOutPath</key><string>$log.launchd.log</string>
-  <key>StandardErrorPath</key><string>$log.launchd.log</string>
+  <key>StandardOutPath</key><string>$capture</string>
+  <key>StandardErrorPath</key><string>$capture</string>
 </dict></plist>
 PLIST
 }

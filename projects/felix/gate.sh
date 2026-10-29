@@ -656,7 +656,9 @@ fi
 # is read back against stack.tsv: each entry names a plugin or skill row, and a
 # fetch of a row rated risk=high is refused, as invariant 4 refuses it
 # (B08R3Z4-3). Copies of the provision hook are counted in every event and
-# group, and one outside its SessionStart group is said (B08R3Z4-4).
+# group, and one outside its SessionStart group is said (B08R3Z4-4). A risk
+# but low, medium or high is no rating, so its fetch fails closed (B08R3Z5-1),
+# and any other hook whose command names provision is said (B08R3Z5-2).
 _cloud_fault() {   # command...: 1 when its output is over 65536 bytes (B08R3V-2), 2 when it holds a NUL byte (B08R3W-1); read twice, kept nowhere
   if [ "$(($("$@" 2>/dev/null | wc -c)))" -gt 65536 ]; then echo 1; elif [ "$(($("$@" 2>/dev/null | LC_ALL=C tr -cd '\000' | wc -c)))" -gt 0 ]; then echo 2; fi
 }
@@ -690,7 +692,7 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       q = (d > 0 && K[d] == "{") ? KY[d] : ""
       d++; K[d] = k; N[d] = q; KY[d] = ""; O[d] = ++no; ex = (k == "{") ? "K" : "V"
       if (d == 3) cy = en = ""; else if (d == 4 && k == "{") { m = "-"; g0 = n + 1; pg = 0 }   # cy, en the carry and name of a tools entry, pg the provision hooks of a group
-      if (d == 6 && k == "{") { h = ""; a = "-"; t = "-"; nk = gk = 0 }
+      if (d == 6 && k == "{") { h = ""; a = "-"; t = "-"; nk = gk = pv = 0 }   # pv: its command names provision
     }
     function cl(k,   i) {
       if (d == 0) { bad[f] = 1; return }
@@ -701,6 +703,7 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       if (f == 3 && d == 3 && K[d] == "{" && N[2] == "tools") NM = NM "\n" en "\t" cy   # B08R3Z4-3: the name and carry of each entry, in toolbox order
       # B08R3Z3-1: five keys, each as bound; B08R3Z4-4: ca counts the copies in every event and group, pg those in a SessionStart group
       if (f == 2 && K[d] == "{" && ho() && nk == 5 && gk == 5) { ca++; if (N[3] == "SessionStart") pg++ }
+      else if (f == 2 && K[d] == "{" && ho() && pv) po++   # B08R3Z5-2: any other hook naming provision, a plain substring
       if (d == 6 && K[d] == "{" && h != "") { n++; E[n] = N[3]; H[n] = h; A[n] = a; T[n] = t; F[n] = f; nb[f]++; h = "" }
       if (d == 4 && K[d] == "{") { for (i = g0; i <= n; i++) M[i] = m; if (m == PM) pc += pg }
       d--; ex = d ? "e" : "E"
@@ -732,7 +735,7 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       if (K[d] == "[") return
       if (f == 2 && d == 6 && CV[KY[d]] == ((lit ? "l" : "s") s)) gk++   # B08R3Z3-1: a value as gate.sh binds it
       else if (!lit && f == 3 && d == 3 && N[2] == "tools") { if (KY[3] == "name") en = s; else if (KY[3] == "carry") cy = s }
-      if (f == 2 && KY[d] == "command" && ho()) { nc++; if (!lit && index(s, GD) == 1) ng++ }   # B08R3Z-2
+      if (f == 2 && KY[d] == "command" && ho()) { nc++; if (!lit && index(s, GD) == 1) ng++; if (!lit && index(s, "provision")) pv = 1 }   # B08R3Z-2
       if (!lit && d == 4 && KY[d] == "matcher") m = s
       else if (lit && d == 6 && KY[d] == "async") a = s
       else if (lit && d == 6 && KY[d] == "timeout") t = s
@@ -799,6 +802,7 @@ _cloud_check() {   # [t]: .claude/settings.json as git's index holds it (B08R3Y-
       if (nc != ng) o = o " " (nc - ng) " command(s) without the CLAUDE_CODE_REMOTE guard;"
       if (PB && !W[2] && !bad[2] && pc != 1) o = o " unreadable: " FN[2] " (" (pc + 0) " SessionStart hooks run provision as gate.sh binds it, not 1);"   # B08R3Z3-1
       if (PB && !W[2] && !bad[2] && ca > pc) o = o " unreadable: " FN[2] " (" (ca - pc) " copies of the provision hook outside SessionStart " PM ");"   # B08R3Z4-4
+      if (PB && !W[2] && !bad[2] && po) o = o " unreadable: " FN[2] " (" po " other hooks name provision);"   # B08R3Z5-2
       print o
     }' "$a" "$b" 2>/dev/null)" \
     || { echo " unreadable: the cloud check could not run over the two files;"; return 0; }
@@ -858,9 +862,11 @@ if [ "$CLOUD_IX" != "${CLOUD_IX#[S-]}" ]; then   # B08R3Z4-1: whenever the index
     | CLOUD_TB="$CLOUD_TB" LC_ALL=C awk -F'\t' '
       BEGIN { n = split(ENVIRON["CLOUD_TB"], A, "\n"); for (i = 2; i <= n; i++) { split(A[i], B, "\t"); TN[i] = B[1]; TC[i] = B[2]; H[B[1]] = 1 } }
       $1 == "plugin" || $1 == "skill" { r = 1; k = $2; sub(/@.*/, "", k); S[k] = 1; if ($4 == "high") HI[k] = 1
+        else if ($4 != "low" && $4 != "medium") RV[k] = 1   # B08R3Z5-1: outside low|medium|high, the vocabulary discover writes, no rating: it fails closed
         if (!(k in H)) o = o " " k " has no entry in .claude/cloud/toolbox.json;" }
       END { for (i = 2; i <= n; i++) if (!(TN[i] in S)) o = o " " TN[i] " is in .claude/cloud/toolbox.json and not in projects/felix/stack.tsv;"
-        for (i = 2; i <= n; i++) if (TC[i] == "fetch" && (TN[i] in HI)) o = o " " TN[i] " is fetched into the cloud and stack.tsv rates it risk=high;"
+        for (i = 2; i <= n; i++) if (TC[i] == "fetch") { if (TN[i] in HI) o = o " " TN[i] " is fetched into the cloud and stack.tsv rates it risk=high;"
+          if (TN[i] in RV) o = o " " TN[i] " is fetched into the cloud and stack.tsv\047s risk for it is not low, medium or high;" }
         print (r ? "R" : "-") o }')"
   # Skipped only with no settings.json, no stage-0 toolbox and no stack row; a stack.tsv git holds but
   # this cannot read may hold one, so it is judged (B08R3Z4-1).

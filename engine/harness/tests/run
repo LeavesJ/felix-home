@@ -231,6 +231,7 @@ fi
 . "$HERE/parts/0450-memory-scan-memory-stays-out-doctrine-stays.sh"
 . "$HERE/parts/0460-maintenance-a-check-that-names-work-already.sh"
 . "$HERE/parts/0470-the-pulse-the-heartbeat-that-does-not-wait-f.sh"
+. "$HERE/parts/0471-the-pulse-agent-runs-where-macos-lets-it-start-blind.sh"
 . "$HERE/parts/0480-the-one-line-git-cannot-reconstruct.sh"
 . "$HERE/parts/0490-qualification-does-a-check-fail-when-what-it.sh"
 . "$HERE/parts/0500-continued.sh"

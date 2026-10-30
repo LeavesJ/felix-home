@@ -1,4 +1,4 @@
-# felix status: nine rows a surface can poll, and the settings check the pulse
+# felix status: ten rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,7 +8,7 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate, land, hooks, alerts, icloud. state is value, none or unknown. value is a bare
+# gate, land, hooks, alerts, icloud, lane. state is value, none or unknown. value is a bare
 # word (no spaces) when state is value, and `-` otherwise; detail is never
 # empty. A consumer ignores rows it does not know. Weekly spend is not a row:
 # felix cost has its own --tsv and takes about twenty seconds, so a surface
@@ -459,7 +459,7 @@ _felix_status_alerts() {
       print "value\tdispatched\t" w " " f[6] }' "$f" 2>/dev/null)"
 }
 
-# The nine rows for the directory <cwd> under the Felix home <home>.
+# The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj
   _felix_status_need felix_repo_root resolve
@@ -474,6 +474,7 @@ felix_status_rows() {
   _felix_status_hooks "$proj" "$root"
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"
+  _felix_status_need felix_lane_status_row lane; felix_lane_status_row "$proj" "$root"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

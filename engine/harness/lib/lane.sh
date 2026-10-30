@@ -299,6 +299,20 @@ felix_lane_rows() {   # PROJ ROOT [FULL]
   return 0
 }
 
+# felix status's last row, the first lane's (C6). One row through _felix_status_row; returns 0. An empty PROJ is the
+# not-governed row; no line at all (no committed row) the none row; an unknown line its reason, never a calm value.
+felix_lane_status_row() {   # PROJ ROOT
+  local rows c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13
+  if [ -z "${1:-}" ]; then _felix_status_row lane none - "this directory is not a governed checkout"; return 0; fi
+  rows="$(felix_lane_rows "$1" "${2:-}" 0)"
+  if [ -z "$rows" ]; then _felix_status_row lane none - "$1/lanes.tsv has no committed row, so no lane is counted"; return 0; fi
+  rows="${rows%%$'\n'*}"
+  IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 <<< "$rows"
+  if [ "$c2" = unknown ]; then _felix_status_row lane unknown - "$c13"
+  else _felix_status_row lane value "$c2" "$c3 of $c4 engine landings in $c5 days, target $c6"; fi
+  return 0
+}
+
 # felix lane: the lines of felix_lane_rows, as TSV or in words (C5).
 felix_lane_command() {   # PROJ ROOT TSV
   if [ "${3:-0}" = 1 ]; then felix_lane_rows "$1" "$2" 1; return 0; fi

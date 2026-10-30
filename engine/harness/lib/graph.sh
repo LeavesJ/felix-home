@@ -183,9 +183,10 @@ felix_graph_refresh_bg() {
 # ownership gate. So only a regular file that is not a link is read, and only
 # 64 bytes of it: a review planted the marker as a link to /dev/zero, and an
 # unbounded read of it never returned and held session start until the
-# platform killed the hook.
+# platform killed the hook. Bytes in any locale: bash 5 counts `read -n` in
+# characters under a UTF-8 one.
 felix_graph_refresh_due() {
-  local root="${1:-$PWD}" f stamp behind home head m mark=""
+  local root="${1:-$PWD}" f stamp behind home head m mark="" LC_ALL=C
   f="$(felix_graph_file "$root")" || return 1
   stamp="$(felix_graph_stamp "$f")" || return 1
   behind="$(felix_graph_behind "$root" "$stamp")" || return 1

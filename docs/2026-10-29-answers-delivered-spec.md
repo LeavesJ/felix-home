@@ -185,8 +185,8 @@ has, HEAD is one or more commits past it, and
 1 otherwise (no graph, no stamp, an unknown commit, current, or already
 refreshed at this HEAD). Prints nothing. The marker is a file of the checkout,
 read before session start's ownership gate, so it is read only when it is a
-regular file and not a symbolic link, and only its first 64 bytes; any other
-marker reads as absent. A checkout that commits it as a link to `/dev/zero`
+regular file and not a symbolic link, and only its first 64 bytes, counted as
+bytes in any locale; any other marker reads as absent. A checkout that commits it as a link to `/dev/zero`
 must not hold session start.
 
 ### A4. `felix_graph_refresh_bg <root>`, the marker
@@ -479,7 +479,7 @@ the timeout clause, rounding). Sections 0, 1, 7 and 8 were corrected to match.
 And after the review of the amendment, the same day: A1.5 (a timeout that is
 not a whole number of one or more is the default; the group signalled until
 empty), A2.9 and U2 (bytes in any locale), A3 (the marker read only as a
-regular file, and only 64 bytes of it), A4 (the marker renamed into place,
+regular file, and only 64 bytes of it, in any locale), A4 (the marker renamed into place,
 never written through a link or into a directory), L4 (a row T1 wrote credits
 its own file only; what the measure cannot see), section 8 (the replay's
 population and rules).

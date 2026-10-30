@@ -79,16 +79,27 @@ _lane_partial_old() {
   return 1
 }
 
-# FILE "lane ..." SHA -> sha<TAB>lane for each lane that some message line of FILE marks (a git log --format with
-# %x1e before each %H, then %B). The line, once its trailing spaces, tabs and CRs are gone, is byte for byte
-# "Felix-Lane: <lane>". With SHA, that commit is named instead of each record's own.
+# FILE "lane ..." SHA -> sha<TAB>lane for each lane that some message line of FILE marks. FILE is what git cat-file
+# --batch printed for commits: "<sha> commit <size>", then the commit's <size> bytes, then a newline. The message is what
+# follows the first empty line of those bytes (the headers have none). The bytes are counted, never delimited, so no byte
+# in a message can end a record or credit its lines to another commit (C3, "Marked"). The line, once its trailing spaces,
+# tabs and CRs are gone, is byte for byte "Felix-Lane: <lane>". With SHA, that commit is named instead of each record's
+# own. 1 when a record is missing or does not add up: a read that did not finish yields no mark.
 _lane_marks() {
   LC_ALL=C awk -v lanes="$2" -v force="$3" '
-    BEGIN { RS = "\036"; nl = split(lanes, ls, " ") }
-    { n = split($0, ln, "\n"); if (n < 2 || ln[1] == "") next
-      who = (force != "" ? force : ln[1])
-      for (j = 2; j <= n; j++) { s = ln[j]; sub(/[ \t\r]+$/, "", s)
-        for (q = 1; q <= nl; q++) if (s == "Felix-Lane: " ls[q] && !((who SUBSEP ls[q]) in seen)) { seen[who SUBSEP ls[q]] = 1; print who "\t" ls[q] } } }' "$1"
+    BEGIN { nl = split(lanes, ls, " "); st = 0 }
+    st == 0 {
+      if (NF != 3 || $2 != "commit" || $3 !~ /^[0123456789]+$/) { bad = 1; exit }
+      who = (force != "" ? force : $1); rem = $3 + 0; hd = 1; st = (rem > 0 ? 1 : 2); next }
+    st == 1 {
+      rem -= length($0) + 1
+      if (hd) { if ($0 == "") hd = 0 }
+      else { s = $0; sub(/[ \t\r]+$/, "", s)
+        for (q = 1; q <= nl; q++) if (s == "Felix-Lane: " ls[q] && !((who SUBSEP ls[q]) in seen)) { seen[who SUBSEP ls[q]] = 1; print who "\t" ls[q] } }
+      if (rem == 0) st = 2; else if (rem < 0) st = 0
+      next }
+    st == 2 { if ($0 != "") { bad = 1; exit }; st = 0; next }
+    END { exit (bad || st != 0) }' "$1"
 }
 
 # ROOT SHA PARENTS FIRST-PARENT -> $_LANE_W/dt/SHA holds the commit's changed paths against its first parent, NUL
@@ -153,19 +164,20 @@ _lane_changed() {
   done 3< "$W/hcand"
 }
 
-# Marks, for the landings of $_LANE_W/CAND (sha ct parents first-parent): singles through one git log --no-walk,
-# merges one by one over their first-parent range. -> sha<TAB>lane lines on stdout; 1 when git did not finish.
+# Marks, for the landings of $_LANE_W/CAND (sha ct parents first-parent): singles through one git cat-file --batch,
+# merges one by one over the commits their range p1..sha holds. -> sha<TAB>lane lines on stdout; 1 when git did not finish.
 _lane_markall() {   # ROOT CAND "lane ..." TAG
   local W="$_LANE_W" sha ct np p1
   LC_ALL=C awk '$3 <= 1 { print $1 }' "$W/$2" > "$W/$4-single"
   if [ -s "$W/$4-single" ]; then
-    _lane_git -C "$1" log --no-walk=unsorted --no-show-signature --format='%x1e%H%n%B' --stdin < "$W/$4-single" > "$W/$4-msg" 2>/dev/null || return 1
-    _lane_marks "$W/$4-msg" "$3" ""
+    _lane_git -C "$1" cat-file --batch < "$W/$4-single" > "$W/$4-msg" 2>/dev/null || return 1
+    _lane_marks "$W/$4-msg" "$3" "" || return 1
   fi
   while read -r sha ct np p1 <&3; do
     [ "$np" -ge 2 ] || continue
-    _lane_git -C "$1" log --no-show-signature --format='%x1e%H%n%B' "$p1..$sha" -- > "$W/$4-mm" 2>/dev/null < /dev/null || return 1
-    _lane_marks "$W/$4-mm" "$3" "$sha"
+    _lane_git -C "$1" rev-list "$p1..$sha" -- > "$W/$4-mm" 2>/dev/null < /dev/null || return 1
+    _lane_git -C "$1" cat-file --batch < "$W/$4-mm" > "$W/$4-mc" 2>/dev/null || return 1
+    _lane_marks "$W/$4-mc" "$3" "$sha" || return 1
   done 3< "$W/$2"
   return 0
 }

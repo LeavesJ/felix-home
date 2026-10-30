@@ -199,24 +199,24 @@ _lng_is "lane session start: a first row zero (window 10) and a second short: bo
 # ---- L-RF2: next is free text -------------------------------------------------------------------------------------------------------
 LNGQ='fix "a\b" — now'
 _lng_put "next with a quote, a backslash and an em dash" "$LNGLANES" "$(_lf_tsv capability "$LNGQ")"$'\n'
-_lng_ss "$LNGZ"; _lf_run "$LNGD/rf2a" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
-_lng_is "lane session start L-RF2: next holding a double quote, a backslash and an em dash, the lane zero: exit 0, valid JSON, the context holds the next text byte for byte in the paragraph, and felix lane --tsv prints it unchanged in column 9" \
-   "$LNGZE|$LNGT|$LF_RC|$LF_JSON|$(_lng_n "$(_lng_par zero 0 2 14 1/2 "$LNGQ" "$LNGCLH")")|$(_lf_cols "$LNGD/rf2a.out" 1 2 9)" \
-   "built|built|0|ok|1|zero|$LNGQ"
+_lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/rf2a" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
+_lng_is "lane session start L-RF2: next holding a double quote, a backslash and an em dash, the lane zero: session start exits 0 with valid JSON whose context holds the next text byte for byte in the paragraph, and felix lane --tsv exits 0 printing it unchanged in column 9" \
+   "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$(_lng_n "$(_lng_par zero 0 2 14 1/2 "$LNGQ" "$LNGCLH")")|$LF_RC|$(_lf_cols "$LNGD/rf2a.out" 1 2 9)" \
+   "built|built|0|ok|1|0|zero|$LNGQ"
 LNGQ=$'esc \033[1m bold\014page \001 one \177 del'
 _lng_put "next with ESC, FF, 0x01 and DEL" "$LNGLANES" "$(_lf_tsv capability "$LNGQ")"$'\n'
-_lng_ss "$LNGZ"; _lf_run "$LNGD/rf2b" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
-_lng_is "lane session start L-RF2: next holding ESC, FF, 0x01 and DEL: the output still parses, the context holds ? in their places, and felix lane --tsv column 9 prints the bytes unchanged" \
-   "$LNGZE|$LNGT|$LF_RC|$LF_JSON|$(_lng_n "$(_lng_par zero 0 2 14 1/2 'esc ?[1m bold?page ? one ? del' "$LNGCLH")")|$(_lf_cols "$LNGD/rf2b.out" 1 2 9)" \
-   "built|built|0|ok|1|zero|$LNGQ"
+_lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/rf2b" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
+_lng_is "lane session start L-RF2: next holding ESC, FF, 0x01 and DEL: session start exits 0, its output still parses, the context holds ? in their places, and felix lane --tsv exits 0 with the bytes unchanged in column 9" \
+   "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$(_lng_n "$(_lng_par zero 0 2 14 1/2 'esc ?[1m bold?page ? one ? del' "$LNGCLH")")|$LF_RC|$(_lf_cols "$LNGD/rf2b.out" 1 2 9)" \
+   "built|built|0|ok|1|0|zero|$LNGQ"
 
 # ---- L-RF4: a broken pointer never silences a stall ------------------------------------------------------------------------
 # LABEL NEXT-READ IN-PARAGRAPH -> session start and felix lane --tsv in the zero checkout, as committed now.
 _lng_rf4() {
-  _lng_ss "$LNGZ"; _lf_run "$LNGD/rf4" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
+  _lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/rf4" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
   _lng_is "lane session start L-RF4: $1: felix lane --tsv reads zero, L 0 of T 2, next $2, and session start shows the paragraph with $3 and the token" \
-     "$LNGZE|$LNGT|$LF_RC|$LF_JSON|$(_lf_cols "$LNGD/rf4.out" 1 2 3 4 9)|$(_lng_n "$(_lng_par zero 0 2 14 1/2 "$3" "$LNGCLH")")|$LF_SCR" \
-     "built|built|0|ok|zero|0|2|$2|1|$LNGTOK14"
+     "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$LF_RC|$(_lf_cols "$LNGD/rf4.out" 1 2 3 4 9)|$(_lng_n "$(_lng_par zero 0 2 14 1/2 "$3" "$LNGCLH")")|$LF_SCR" \
+     "built|built|0|ok|0|zero|0|2|$2|1|$LNGTOK14"
 }
 _lng_put "no lane-next.tsv" "$LNGLANES" -
 _lng_rf4 "no committed lane-next.tsv" none "(lane-next.tsv names none)"

@@ -70,7 +70,7 @@ corrections are recorded where they happened.
 | Felix cut main context from 462K to 436K and improved context per output | Wrong. The drop is an artifact of automated review sessions in the denominator; human sessions went 462 → 450 → 479K. The context-per-output gain is composition; coordinator context per output did not fall |
 | Commissioned Felix: +34% turns and +91% Bash per human prompt | Understated. The report's "prompts" include task notifications, Felix's own Stop-hook messages, and 158 automated sessions. On real prompts it is +177% and +304% |
 | Evidence bound to exact repository state is a differentiator | Not novel (AI-SDLC, Entire, GitHub stale approvals). The novel part is staleness on inputs outside the tree |
-| An agent cannot grant itself authority | True only where main is server-protected. False on felix-home today |
+| An agent cannot grant itself authority | False on felix-home today. The grant is read from a local ref, refs/remotes/origin/main, which server protection does not reach. Since 2026-10-24 the reader refuses that ref when its symbolic state, its fetch configuration, its reflog or its origin URL, as they stand when it reads, show a hand-made value. That stops an accident and a ref written by hand, not a worker set on forging one. A fetch made to write another branch or another copy into the ref leaves an honest reflog and gets past: a --refmap given to that one fetch, a fetch refspec or an origin URL changed for it and put back, or an origin URL left at a copy whose path ends in the declared remote_match. So does a forged reflog |
 | Better models make Felix more relevant | Plausible for the rules and the judge, but not measured. The durable parts have never been tested against a capable or adversarial worker |
 
 ## 3. The usage, measured
@@ -170,14 +170,20 @@ founder at Decision B's 20-session review.
 **Floor and wall.** The following hold against a worker that ignores Felix,
 and only where main is server-protected:
 
-- exception grants and obligation admission, which are read from
-  `refs/remotes/origin/main`;
 - model proposals never becoming authority;
 - a verdict recomputed by a required check.
 
 The following depend on the host calling the hooks and the worker not being
 hostile:
 
+- exception grants, which are read from `refs/remotes/origin/main`, a local
+  ref: the reader refuses it when the repository's fetch configuration, its
+  reflog or its origin URL shows a hand-made value as it stands; a fetch made
+  to write another branch or another copy into it leaves an honest reflog and
+  gets past, and so does a forged reflog (corrected 2026-10-24, audit C009);
+- obligation admission and every table the gate reads, which are read from
+  the home's working tree, uncommitted edits included (corrected 2026-10-24,
+  audit C010);
 - every `deny.tsv` refusal (fail-open by design);
 - the Stop hold ("a speed bump");
 - local receipts and review verdicts, which are unsigned files that any

@@ -1,0 +1,275 @@
+# >>> lane-states
+printf '\nlane states: ok, short, zero, idle and unknown, each reason, and a table broken by hand (slice 0, design 6.4 and 6.6, C4, C5, L-RF3, L-NEVER-OK; blind)\n'
+# Blind, written on 2026-10-29 from docs/2026-10-29-capability-lane-first-slices-design.md and the slice 0 plan's
+# Contracts (C1-C13) alone, before lib/lane.sh existed, without reading lib/, hooks/, bin/ or felix. Felix is run as a
+# black box; the builders are tests/lib/lane-fixture.sh's. C11's row for this part: section 6.4 and 6.6 "The state
+# edges": C4's four edges, idle, an unreadable ref unknown; R1 to R9 (R9: a home that is not a git repository and holds
+# lanes.tsv); L-RF3; L-NEVER-OK.
+#
+# The home apart (C9): H holds project st, lanes.tsv (capability, ^engine/, 1/2, 14) and lane-next.tsv committed, and
+# each checkout is bound to st by an untracked .felix. Every unknown case is asserted on the whole felix lane --tsv
+# output (C5's thirteen columns, the reason exact) and, where its first row is the unknown one, on the last row of
+# felix status --tsv, so L-NEVER-OK is asserted with the output it guards and is red on main (C10). Readings where the
+# Contracts leave room:
+# - The table cases run in one order in one home, so column 10 of a row is the commit of that case: each case's
+#   capability lines differ from the case before it.
+# - R1 is provoked four ways (no ref, a blob, a tree, a commit whose object is gone); a removed commit is the ref's own,
+#   on a branch deleted before its object is removed, so HEAD stays readable.
+# - Besides L-RF3's list: a lane cell that is no lane name (column 1 -), the order of the reasons (R5 before R7, R6
+#   before R7, R5 before R6 on two rows of one lane, R8 before R1), a committed symlink (R4), a bad second row under a
+#   comment and a blank line (row 2, the first row untouched), FELIX_LANE_NOW 12a and thirteen digits (R8), and 0, a
+#   valid clock (idle).
+# - The session-start halves of L-RF3 are controls (C10).
+LNSN=1793000000; LNSDAY=86400; LNSNEXT='take the lane item after this one'; LNSK=0
+_lf_dir "$TMP/lane-2210"; LNSD="$LF_DIR"
+_lf_stubs "$LNSD"; LNSB="$LF_BIN"
+_lf_home "$LNSD/home" st 1792800000; LNSH="$LF_HOME"; LNSP="$LF_PROJ"
+_lf_table "$LNSP" 1792800100 lanes.tsv $'capability\t^engine/\t1/2\t14\n'; LNSTAB="$LF_SHA"; LNSTABISO="$(_lf_iso 1792800100)"
+_lf_table "$LNSP" 1792800200 lane-next.tsv "$(_lf_tsv capability "$LNSNEXT")"$'\n'
+_lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+LNSMARK='Felix-Lane: capability'
+LNSR5="row 1 of lanes.tsv is not a lane name, an ERE, a share n/d and a window in days"
+LNSR6="lane capability is named on more than one row of lanes.tsv"
+LNSR7="the counts pattern of lane capability is not an ERE grep accepts"
+LNSR8="FELIX_LANE_NOW is not a whole number of seconds"
+LNSR4="$LNSP/lanes.tsv cannot be read as lanes.tsv"
+_lns_py() { command -v python3 >/dev/null 2>&1; }
+# COL1 W SHARE MARK NEXT CHANGED CHANGED-DATE REF-DATE REASON -> an unknown line of felix lane --tsv (C5): L, T and last -.
+_lns_u() { _lf_tsv "$1" unknown - - "$2" "$3" - "$4" "$5" "$6" "$7" "$8" "$9"; }
+
+# ---- the edges (C4, design 6.6) ------------------------------------------------------------------------------------------
+# NAME SPEC... -> a checkout $LNSD/NAME: the root a month back, then SPEC's landings (_lf_chain) from five days before
+# the clock, an hour apart, published. LNSR the checkout; LNSE "built" when its first-parent chain holds them all.
+_lns_chk() {
+  local n="$1"
+  shift
+  LNSE="not built: $n"; LNSR=""
+  _lf_checkout "$LNSD/$n" st $((LNSN - 30 * LNSDAY)) || return 1
+  LNSR="$LF_REPO"
+  _lf_chain "$LNSR" capability $((LNSN - 5 * LNSDAY)) 3600 "$@" || return 1
+  [ "$(_lf_spine "$LNSR" | LC_ALL=C awk '{ print NF }')" = "$(($# + 1))" ] && LNSE=built
+}
+# NAME -> LNSE|status|lines|columns 2, 3 and 4 of felix lane --tsv in LNSR at the clock.
+_lns_read() {
+  _lf_run "$LNSD/$1-run" "$LNSR" "$LNSN" "$FELIX" lane --tsv
+  printf '%s|%s|%s|%s' "$LNSE" "$LF_RC" "$(_lf_count "$LNSD/$1-run.out")" "$(_lf_cols "$LNSD/$1-run.out" 1 2 3 4)"
+}
+_lns_chk edge-2of4 m m u u
+is "lane states: share 1/2 with L 2 of T 4, so L*d = n*T with L at least 2, reads ok" "$(_lns_read edge-2of4)" "built|0|1|ok|2|4"
+_lns_chk edge-1of4 m u u u
+is "lane states: share 1/2 with one lane landing fewer, L 1 of T 4, reads short" "$(_lns_read edge-1of4)" "built|0|1|short|1|4"
+_lns_chk edge-1of2 m u; LNSC="$LNSR"; LNSCE="$LNSE"; LNSREFD="$(_lf_iso $((LNSN - 5 * LNSDAY + 3600)))"
+is "lane states: share 1/2 with L 1 of T 2, so L*d = n*T at L = 1, reads ok" "$(_lns_read edge-1of2)" "built|0|1|ok|1|2"
+_lns_chk edge-0of2 u u
+is "lane states: share 1/2 with one lane landing fewer at L = 1, L 0 of T 2, reads zero" "$(_lns_read edge-0of2)" "built|0|1|zero|0|2"
+_lns_chk edge-docs md ud
+is "lane states: T 0, two docs-only landings (one marked), reads idle" "$(_lns_read edge-docs)" "built|0|1|idle|0|0"
+_lns_chk edge-none
+is "lane states: T 0, no landing in the window at all (the root a month back), reads idle" "$(_lns_read edge-none)" "built|0|1|idle|0|0"
+
+# ---- R1, R2 and R3: the ref and the landings cannot be read -------------------------------------------------------------
+# NAME -> LNSR a checkout $LNSD/NAME with the root and one marked engine landing two days back, nothing published.
+_lns_bare() {
+  LNSR=""
+  _lf_checkout "$LNSD/$1" st $((LNSN - 30 * LNSDAY)) || return 1
+  LNSR="$LF_REPO"
+  _lf_commit "$LNSR" $((LNSN - 2 * LNSDAY)) $'engine: x\n\nFelix-Lane: capability\n' engine/x.sh
+}
+# LABEL DIR WANT-LINE WANT-ROW [BUILT] -> felix lane --tsv in DIR prints WANT-LINE, and felix status --tsv ends with WANT-ROW.
+_lns_two() {
+  local l="$1" d="$2" w="$3" s="$4" b="${5:-built}" f
+  LNSK=$((LNSK + 1)); f="$LNSD/two-$LNSK"
+  _lf_run "$f-tsv" "$d" "$LNSN" "$FELIX" lane --tsv
+  is "lane states L-NEVER-OK: $l: felix lane --tsv reads unknown with the C5 reason, never ok" "$b|$LF_RC|$(cat "$f-tsv.out")" "built|0|$w"
+  _lf_run "$f-st" "$d" "$LNSN" "$FELIX" status --tsv
+  is "lane states L-NEVER-OK: $l: the status row is lane unknown - with that reason, never the value ok" "$b|$LF_RC|$(_lf_last "$f-st.out")" "built|0|$s"
+}
+_lns_bare r1-none; LNSR1N="$LNSR"
+LNSa="$( _fx_cd "$LNSR" || exit 1; _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1 && echo has-ref || echo built )"
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lns_two "R1, a checkout with no refs/remotes/origin/main" "$LNSR" \
+  "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")" "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+
+_lns_bare r1-blob
+LNSa="$( _fx_cd "$LNSR" || exit 1; b="$(printf 'not a commit\n' | _lf_g 1700000000 hash-object -w --stdin)" && _lf_g 1700000000 update-ref refs/remotes/origin/main "$b" \
+         && [ "$(_lf_g 1700000000 cat-file -t refs/remotes/origin/main)" = blob ] && echo built )"
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lf_run "$LNSD/r1-blob-run" "$LNSR" "$LNSN" "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a blob: felix lane --tsv reads unknown with R1, column 12 -" \
+   "$LNSa|$LF_RC|$(cat "$LNSD/r1-blob-run.out")" "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")"
+
+_lns_bare r1-tree
+LNSa="$( _fx_cd "$LNSR" || exit 1; _lf_g 1700000000 update-ref refs/remotes/origin/main "HEAD^{tree}" \
+         && [ "$(_lf_g 1700000000 cat-file -t refs/remotes/origin/main)" = tree ] && echo built )"
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lf_run "$LNSD/r1-tree-run" "$LNSR" "$LNSN" "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a tree: felix lane --tsv reads unknown with R1, column 12 -" \
+   "$LNSa|$LF_RC|$(cat "$LNSD/r1-tree-run.out")" "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")"
+
+_lns_bare r1-gone; LNSa=""
+if _lf_branch "$LNSR" side && _lf_commit "$LNSR" $((LNSN - LNSDAY)) $'engine: y\n\nFelix-Lane: capability\n' engine/y.sh \
+   && _lf_publish "$LNSR" && _lf_switch "$LNSR" main \
+   && ( _fx_cd "$LNSR" && _lf_g 1700000000 branch -q -D side ) >/dev/null 2>&1 && _lf_unobject "$LNSR" refs/remotes/origin/main; then
+  LNSa="$( _fx_cd "$LNSR" || exit 1; _lf_g 1700000000 cat-file -e refs/remotes/origin/main 2>/dev/null && echo still-there || echo built )"
+fi
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lf_run "$LNSD/r1-gone-run" "$LNSR" "$LNSN" "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a commit whose object is gone: felix lane --tsv reads unknown with R1, column 12 -" \
+   "${LNSa:-not built}|$LF_RC|$(cat "$LNSD/r1-gone-run.out")" "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")"
+
+_lns_chk r2 m u u u; LNSa="not built: r2"
+[ "$LNSE" = built ] && _lf_unobject "$LNSR" refs/remotes/origin/main~2 \
+  && LNSa="$( _fx_cd "$LNSR" || exit 1; _lf_g 1700000000 cat-file -e refs/remotes/origin/main~2 2>/dev/null && echo still-there || echo built )"
+LNSa2="git could not read the landings on refs/remotes/origin/main in $LNSR"
+_lns_two "R2, the commit two first parents below the ref removed from the object store" "$LNSR" \
+  "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" "$(_lf_iso $((LNSN - 5 * LNSDAY + 3 * 3600)))" "$LNSa2")" \
+  "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+
+_lns_chk r3-source m u m; LNSa="not built: r3"
+if [ "$LNSE" = built ] && ( _fx_cd "$LNSD" && _lf_g 1700000000 clone -q --depth 2 "file://$LNSR" r3 ) >/dev/null 2>&1; then
+  { printf 'st\n' > "$LNSD/r3/.felix"; } 2>/dev/null
+  LNSa="$( _fx_cd "$LNSD/r3" || exit 1; [ "$(_lf_g 1700000000 rev-parse --is-shallow-repository)" = true ] \
+           && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main >/dev/null && echo built )"
+fi
+LNSa2="$LNSD/r3 is a shallow clone, so its landings cannot all be read"
+_lns_two "R3, a --depth 2 clone" "$LNSD/r3" \
+  "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" "$(_lf_iso $((LNSN - 5 * LNSDAY + 2 * 3600)))" "$LNSa2")" \
+  "$(_lf_tsv lane unknown - "$LNSa2")" "${LNSa:-not built: r3}"
+
+# ---- R9: a home git cannot read ------------------------------------------------------------------------------------------
+# DIR [init] -> a home at DIR holding projects/st/project.json and CLAUDE.md, outside any repository (with init: an
+# empty repository, HEAD naming no commit). LNSa "built" when it is as named.
+_lns_home9() {
+  LNSa="not built: $1"
+  rm -rf "$1"; mkdir -p "$1/projects/st" || return 1
+  [ "${2:-}" != init ] || _lf_init "$1" || return 1
+  printf '{"name":"st","gate":"true"}\n' > "$1/projects/st/project.json"; printf '# st\n' > "$1/projects/st/CLAUDE.md"
+  if [ "${2:-}" = init ]; then
+    ( _fx_cd "$1" && _lf_g 1700000000 rev-parse --verify -q HEAD ) >/dev/null 2>&1 || LNSa=built
+  else
+    ( _fx_cd "$1" && _lf_g 1700000000 rev-parse --git-dir ) >/dev/null 2>&1 || LNSa=built
+  fi
+}
+_lns_home9 "$LNSD/home9"; printf 'capability\t^engine/\t1/2\t14\n' > "$LNSD/home9/projects/st/lanes.tsv"
+_lf_use "$LNSD/home9" "$LNSD/memory" "$LNSD/user" "$LNSB"
+LNSa2="$LNSD/home9/projects/st/lanes.tsv cannot be read as committed in the Felix home"
+_lns_two "R9, a home that is not a git repository and holds lanes.tsv" "$LNSC" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSa2")" \
+  "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+_lns_home9 "$LNSD/home9u" init; printf 'capability\t^engine/\t1/2\t14\n' > "$LNSD/home9u/projects/st/lanes.tsv"
+_lf_use "$LNSD/home9u" "$LNSD/memory" "$LNSD/user" "$LNSB"
+LNSa2="$LNSD/home9u/projects/st/lanes.tsv cannot be read as committed in the Felix home"
+_lf_run "$LNSD/r9u-run" "$LNSC" "$LNSN" "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: R9, a home whose repository has no commit and which holds lanes.tsv: felix lane --tsv reads unknown with R9" \
+   "$LNSa|$LF_RC|$(cat "$LNSD/r9u-run.out")" "built|0|$(_lns_u - - - - - - - "$LNSREFD" "$LNSa2")"
+_lns_home9 "$LNSD/home9n"
+_lf_use "$LNSD/home9n" "$LNSD/memory" "$LNSD/user" "$LNSB"
+_lf_run "$LNSD/r9n-run" "$LNSC" "$LNSN" "$FELIX" lane --tsv
+is "lane states: a home that is not a git repository and holds no lanes.tsv counts no lane: felix lane --tsv prints nothing and exits 0" \
+   "$LNSa|$LF_RC|$(wc -c < "$LNSD/r9n-run.out" | tr -d ' ')" "built|0|0"
+_lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+
+# ---- L-RF3: a table broken by hand, committed, in the base checkout (L 1 of T 2) ---------------------------------------
+# LABEL BYTES -> lanes.tsv holds BYTES, committed in the home at the next time. LNSSHA the commit, LNSISO its date, and
+# LNSBUILT "built" when the home's HEAD holds exactly BYTES and the base checkout was built.
+_lns_put() {
+  local t f
+  LNSK=$((LNSK + 1)); t=$((1792801000 + 100 * LNSK)); f="$LNSD/put-$LNSK"
+  LNSSHA=""; LNSISO="$(_lf_iso "$t")"; LNSBUILT="not built: $1"
+  rm -f "$LNSP/lanes.tsv"
+  _lf_table "$LNSP" "$t" lanes.tsv "$2" "lanes.tsv: $1"$'\n' || return 1
+  LNSSHA="$LF_SHA"
+  printf '%s' "$2" > "$f.want"
+  ( _fx_cd "$LNSH" || exit 1; _lf_g 1700000000 cat-file blob "HEAD:projects/st/lanes.tsv" ) > "$f.got" 2>/dev/null
+  cmp -s "$f.want" "$f.got" && [ "$LNSCE" = built ] && LNSBUILT=built
+}
+# LABEL WANT-LINES WANT-ROW [NOW] -> in the base checkout: felix lane --tsv prints WANT-LINES, felix status --tsv ends with
+# WANT-ROW, and session start says nothing of the lane (the control).
+_lns_three() {
+  local l="$1" w="$2" s="$3" n="${4:-$LNSN}" f="$LNSD/case-$LNSK"
+  _lf_run "$f-tsv" "$LNSC" "$n" "$FELIX" lane --tsv
+  is "lane states L-RF3 L-NEVER-OK: $l: felix lane --tsv reads unknown with the C5 reason, never ok" "$LNSBUILT|$LF_RC|$(cat "$f-tsv.out")" "built|0|$w"
+  _lf_run "$f-st" "$LNSC" "$n" "$FELIX" status --tsv
+  is "lane states L-RF3 L-NEVER-OK: $l: the status row is lane unknown - with that reason, never the value ok" "$LNSBUILT|$LF_RC|$(_lf_last "$f-st.out")" "built|0|$s"
+  if _lns_py; then
+    _lf_start "$f-ss" "$LNSC" "$n" startup
+    is "lane states L-RF3: $l: session start exits 0 with valid JSON and neither a lane paragraph nor a lane token (control)" \
+       "$LNSBUILT|$LF_RC|$LF_JSON|$(_lf_silent capability)" "built|0|ok|none"
+  else
+    skip "lane states L-RF3: $l: session start exits 0 with valid JSON and neither a lane paragraph nor a lane token (control)" "python3 is absent, and the hook's JSON is read with it"
+  fi
+}
+# SHARE -> the case of one row whose share is SHARE (R5); _lns_window W -> the case of one row whose window is W (R5).
+_lns_share() {
+  _lns_put "share $1" "$(_lf_tsv capability '^engine/' "$1" 14)"$'\n'
+  _lns_three "share $1 committed" "$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR5")" "$(_lf_tsv lane unknown - "$LNSR5")"
+}
+_lns_window() {
+  _lns_put "window $1" "$(_lf_tsv capability '^engine/' 1/2 "$1")"$'\n'
+  _lns_three "window $1 committed" "$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR5")" "$(_lf_tsv lane unknown - "$LNSR5")"
+}
+_lns_share 1/0
+_lns_share 3/2
+_lns_share 0/2
+_lns_share 1/2/3
+_lns_window 0
+_lns_window 14d
+_lns_window 014
+_lns_put "counts (" $'capability\t(\t1/2\t14\n'
+_lns_three "counts ( committed" "$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR7")" "$(_lf_tsv lane unknown - "$LNSR7")"
+_lns_put "a lane named twice" $'capability\t^engine/\t1/2\t14\ncapability\t^engine/\t1/2\t14\n'
+LNSa="$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR6")"
+_lns_three "the lane named on two rows" "$LNSa"$'\n'"$LNSa" "$(_lf_tsv lane unknown - "$LNSR6")"
+_lns_put "a CR in a row" $'capability\t^engine/\t1/2\t14\r\n'
+_lns_three "a CR at the end of the row" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR4")" "$(_lf_tsv lane unknown - "$LNSR4")"
+_lns_put "no final newline" $'capability\t^engine/\t1/2\t14'
+_lns_three "no newline after the last row" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR4")" "$(_lf_tsv lane unknown - "$LNSR4")"
+_lns_put "an empty cell" $'capability\t\t1/2\t14\n'
+_lns_three "an empty counts cell" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR4")" "$(_lf_tsv lane unknown - "$LNSR4")"
+_lns_put "a row of three cells" $'capability\t^engine/\t1/2\n'
+_lns_three "a row of three cells" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR4")" "$(_lf_tsv lane unknown - "$LNSR4")"
+_lns_put "valid again" $'capability\t^engine/\t1/2\t14\n'; LNSVALID="$LNSSHA"; LNSVALIDISO="$LNSISO"
+_lns_three "FELIX_LANE_NOW=0123 over a valid table" \
+  "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR8")" "$(_lf_tsv lane unknown - "$LNSR8")" 0123
+
+# ---- R8 and a valid clock, over the valid table -----------------------------------------------------------------------
+_lf_run "$LNSD/r8-a" "$LNSC" 12a "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: FELIX_LANE_NOW=12a reads unknown with R8" "$LNSBUILT|$LF_RC|$(cat "$LNSD/r8-a.out")" \
+   "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSVALID" "$LNSVALIDISO" "$LNSREFD" "$LNSR8")"
+_lf_run "$LNSD/r8-13" "$LNSC" 1234567890123 "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: FELIX_LANE_NOW of thirteen digits reads unknown with R8" "$LNSBUILT|$LF_RC|$(cat "$LNSD/r8-13.out")" \
+   "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSVALID" "$LNSVALIDISO" "$LNSREFD" "$LNSR8")"
+_lf_run "$LNSD/r8-0" "$LNSC" 0 "$FELIX" lane --tsv
+is "lane states: FELIX_LANE_NOW=0 is a valid clock, before every landing: idle, L 0 of T 0, last lane landing none" \
+   "$LNSBUILT|$LF_RC|$(_lf_cols "$LNSD/r8-0.out" 1 1 2 3 4 7 13)" "built|0|capability|idle|0|0|none|-"
+_lf_run "$LNSD/r8-r1" "$LNSR1N" 0123 "$FELIX" lane --tsv
+is "lane states L-NEVER-OK: FELIX_LANE_NOW=0123 in a checkout with no ref reads R8, tried before R1, column 12 -" \
+   "$LNSBUILT|$LF_RC|$(cat "$LNSD/r8-r1.out")" "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSVALID" "$LNSVALIDISO" - "$LNSR8")"
+
+# ---- more tables: a lane cell that is no lane name, the reasons' order, a symlink, a bad second row ---------------------
+_lns_put "a lane cell that is no lane name" $'.x\t^engine/\t1/2\t14\n'
+_lns_two "a lane cell .x that is no lane name: R5, column 1 -" "$LNSC" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR5")" \
+  "$(_lf_tsv lane unknown - "$LNSR5")" "$LNSBUILT"
+_lns_put "R5 before R7" $'capability\t(\t3/2\t14\n'
+_lns_two "counts ( beside share 3/2: R5, tried before R7" "$LNSC" "$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR5")" \
+  "$(_lf_tsv lane unknown - "$LNSR5")" "$LNSBUILT"
+_lns_put "R6 before R7" $'capability\t(\t1/2\t14\ncapability\t(\t1/2\t14\n'
+LNSa="$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR6")"
+_lns_two "counts ( on two rows of one lane: R6 on both, tried before R7" "$LNSC" "$LNSa"$'\n'"$LNSa" "$(_lf_tsv lane unknown - "$LNSR6")" "$LNSBUILT"
+_lns_put "R5 then R6" $'capability\t^engine/\t3/2\t14\ncapability\t^engine/\t1/2\t14\n'
+_lns_two "two rows of one lane, the first with share 3/2: R5 on row 1, R6 on row 2" "$LNSC" \
+  "$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR5")"$'\n'"$(_lns_u capability - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "$LNSR6")" \
+  "$(_lf_tsv lane unknown - "$LNSR5")" "$LNSBUILT"
+LNSK=$((LNSK + 1)); LNSBUILT="not built: a symlink"; rm -f "$LNSP/lanes.tsv" "$LNSP/elsewhere.tsv"
+printf 'capability\t^engine/\t1/2\t14\n' > "$LNSP/elsewhere.tsv"
+if ln -s elsewhere.tsv "$LNSP/lanes.tsv" && _lf_commit "$LNSP" $((1792801000 + 100 * LNSK)) $'lanes.tsv: a symlink\n' =elsewhere.tsv =lanes.tsv; then
+  case "$( _fx_cd "$LNSH" && _lf_g 1700000000 ls-tree HEAD projects/st/lanes.tsv )" in (120000*) LNSBUILT=built ;; esac
+fi
+_lns_two "lanes.tsv committed as a symlink: R4" "$LNSC" "$(_lns_u - - - - - - - "$LNSREFD" "$LNSR4")" "$(_lf_tsv lane unknown - "$LNSR4")" "$LNSBUILT"
+_lns_put "valid again" $'capability\t^engine/\t1/2\t14\n'; LNSVALID="$LNSSHA"; LNSVALIDISO="$LNSISO"
+_lns_put "a bad second row" $'# the lanes, the second one broken\ncapability\t^engine/\t1/2\t14\n\ndocs\t^docs/\t1/2\t014\n'
+_lf_run "$LNSD/row2" "$LNSC" "$LNSN" "$FELIX" lane --tsv
+is "lane states: a second data row with window 014, under a comment and a blank line, reads R5 as row 2, and the first row keeps its state ok and its last change" \
+   "$LNSBUILT|$LF_RC|$(cat "$LNSD/row2.out")" \
+   "built|0|$(_lf_tsv capability ok 1 2 14 1/2 "$(_lf_iso $((LNSN - 5 * LNSDAY)))" "$LNSMARK" "$LNSNEXT" "$LNSVALID" "$LNSVALIDISO" "$LNSREFD" -)
+$(_lns_u docs - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "row 2 of lanes.tsv is not a lane name, an ERE, a share n/d and a window in days")"
+# <<< lane-states

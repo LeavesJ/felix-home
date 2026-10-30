@@ -21,7 +21,7 @@
 # felix_lane_take NAME PROJ ROOT [FULL]  The count in a process of its own, through felix_capture (lib/detect.sh): 0 and
 #                                   NAME holds the lines; 2 and NAME as it was when the count did not finish (C3).
 # felix_lane_command PROJ ROOT TSV: felix lane (C5). felix_lane_status_row PROJ ROOT [RESOLVED]: felix status's last row
-# (C6; RESOLVED is felix_resolve_project's status). felix_start_lane PROJ ROOT: session start's paragraphs and token, in two
+# (C6; RESOLVED is felix_lane_resolve's status). felix_start_lane PROJ ROOT: session start's paragraphs and token, in two
 # globals (C7). felix_lane_pulse HOME: felix pulse's last lines (C8). Bash 3.2; LC_ALL=C on every text tool; awk that BWK awk and gawk both run.
 
 _LANE_LIB="${BASH_SOURCE[0]:-$0}"
@@ -404,7 +404,7 @@ felix_lane_take() {   # NAME PROJ ROOT [FULL]
 }
 
 # felix status's last row, the first lane's (C6). One row through _felix_status_row; returns 0. An empty PROJ is the
-# not-governed row when felix_resolve_project found no project (RESOLVED 1, or not given), unknown when it did not finish
+# not-governed row when felix_lane_resolve found no project (RESOLVED 1, or not given), unknown when it did not finish
 # (2 or more); no line at all the none row; an unknown line its reason; a count that did not finish (C3) is unknown too.
 felix_lane_status_row() {   # PROJ ROOT [RESOLVED]
   local rows c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13
@@ -455,7 +455,7 @@ If the founder has not given this session a task, take the first open lane item:
 # felix pulse's last lines (C8): lane<TAB><lane><TAB><state><TAB><L><TAB><T> for each data row of the Felix home's own
 # project, columns 1 to 4 of felix_lane_rows (L and T read - when the state is unknown). Only the project the home checkout
 # is bound to is counted: no project records where its checkout is. The git-dir check comes first because felix_repo_root
-# prints a directory outside git as its own root and felix_resolve_project would then bind a .felix there, so a plain home
+# prints a directory outside git as its own root and felix_lane_resolve would then bind a .felix there, so a plain home
 # holding a lanes.tsv would get an unknown line against C2. A count that did not finish (C3) gives the one line
 # lane<TAB>-<TAB>unknown<TAB>-<TAB>-, as an R9, R10 or R4 table does, in place of its lane lines; so does a read that says
 # whether there is a lane to count and did not finish (rev-parse gives one status for a directory outside git and for a
@@ -466,7 +466,7 @@ felix_lane_pulse() {   # HOME
   _LG_O=/dev/null _lane_git -C "$home" rev-parse --git-dir; grc=$?
   root="$(felix_repo_root "$home" 2>/dev/null)" && [ -n "$root" ] || { printf '%s\n' "$u"; return 0; }
   if [ "$grc" -ne 0 ]; then [ -e "$root/.git" ] && printf '%s\n' "$u"; return 0; fi
-  proj="$(felix_resolve_project "$root" "$home" 2>/dev/null)"; prc=$?
+  proj="$(felix_lane_resolve "$root" "$home")"; prc=$?
   if [ -z "$proj" ]; then [ "$prc" -le 1 ] || printf '%s\n' "$u"; return 0; fi
   if ! felix_lane_take rows "$proj" "$root" 0; then printf '%s\n' "$u"; return 0; fi
   [ -n "$rows" ] || return 0

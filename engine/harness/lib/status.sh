@@ -462,9 +462,9 @@ _felix_status_alerts() {
 # The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
   local home="$1" cwd="$2" root proj prc
-  _felix_status_need felix_repo_root resolve
+  _felix_status_need felix_repo_root resolve; _felix_status_need felix_lane_resolve lane-resolve
   root="$(felix_repo_root "$cwd" 2>/dev/null)"
-  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)"; prc=$?   # 2: it did not finish (lane row)
+  proj="$(felix_lane_resolve "$cwd" "$home")"; prc=$?   # the lane's resolution (lane-resolve.sh); 2: it did not finish
   [ "$prc" -eq 0 ] || proj=""
   _felix_status_settings
   _felix_status_from3 schedule "$(felix_schedule_state)"

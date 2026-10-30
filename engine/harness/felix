@@ -358,6 +358,8 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/pulse.sh"
 # shellcheck source=lib/lane.sh
 . "${SCRIPT_DIR}/lib/lane.sh"
+# shellcheck source=lib/lane-resolve.sh
+. "${SCRIPT_DIR}/lib/lane-resolve.sh"
 # shellcheck source=lib/procedures.sh
 . "${SCRIPT_DIR}/lib/procedures.sh"
 # shellcheck source=lib/probes.sh
@@ -509,13 +511,9 @@ USAGE
 # repair ceiling, and the unattended template escalated an unresolvable checkout
 # to a person as a spent ceiling.
 resolve_or_die() {
-  local rc="${1:-2}" prc=0
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || { prc=$?; PROJ=""; }
+  local rc="${1:-2}"
+  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
   [ -n "$PROJ" ] && return 0
-  # A read the resolution stands on that did not finish (a fork that failed) is not a directory no project governs,
-  # and says nothing of whether a binding is broken. Only status 1 is a miss: 2 is the resolution's own word for it, and the
-  # shell of the substitution ended by a failed fork (128) or a signal (137) never got to say anything (R3-F2).
-  [ "$prc" -eq 1 ] || die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "$rc"
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of
@@ -6612,12 +6610,20 @@ cmd_status() {
 
 # felix lane: each lane's share of the engine landings on origin/main (lib/lane.sh). Read-only and offline, like
 # felix status: it writes nothing, and GIT_OPTIONAL_LOCKS=0 is exported before any git command. The arguments are
-# checked before the directory is resolved. Exit 0 for any report; 2 for a usage error or a directory no project governs;
-# 1 when the count did not finish (C3): nothing on stdout, "felix: the lane count did not finish in <repo>" on stderr.
+# checked before the directory is resolved, by the lane's own resolution (lib/lane-resolve.sh), which leaves resolve_or_die
+# as main has it: felix merge and felix land run that one. Exit 0 for any report; 2 for a usage error, a directory no project
+# governs, or a resolution that did not finish (C2, C5); 1 when the count did not finish (C3): nothing on stdout,
+# "felix: the lane count did not finish in <repo>" on stderr.
 cmd_lane() {
-  local tsv=0
+  local tsv=0 lrc=0
   case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac
-  resolve_or_die
+  PROJ="$(felix_lane_resolve "$PWD" "$FELIX_HOME_DIR")" || lrc=$?
+  [ "$lrc" -ne 0 ] || [ -n "$PROJ" ] || lrc=2
+  case "$lrc" in
+    0) ;;
+    1) felix_lane_miss ;;   # a miss that stands: resolve_or_die's sentence, no project governs or the broken binding
+    *) die "the project that governs $PWD could not be resolved: a read it stands on did not finish." 2 ;;
+  esac
   export GIT_OPTIONAL_LOCKS=0
   felix_lane_command "$PROJ" "$(felix_repo_root "$PWD")" "$tsv"
 }

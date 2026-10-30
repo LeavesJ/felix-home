@@ -3,8 +3,9 @@ printf '\nlane states: ok, short, zero, idle and unknown, each reason, and a tab
 # Blind, written on 2026-10-29 from docs/2026-10-29-capability-lane-first-slices-design.md and the slice 0 plan's
 # Contracts (C1-C13) alone, before lib/lane.sh existed, without reading lib/, hooks/, bin/ or felix. Felix is run as a
 # black box; the builders are tests/lib/lane-fixture.sh's. C11's row for this part: section 6.4 and 6.6 "The state
-# edges": C4's four edges, idle, an unreadable ref unknown; R1 to R9 (R9: a home that is not a git repository and holds
-# lanes.tsv); L-RF3; L-NEVER-OK.
+# edges": C4's four edges, idle, an unreadable ref unknown; R1 to R10 (R9: a home that is not a git repository and holds
+# lanes.tsv; R10: TMPDIR naming no directory); L-RF3; L-NEVER-OK; a fork that fails in the read of the landings (C9),
+# with no scratch directory left after it (F1, F7).
 #
 # The home apart (C9): H holds project st, lanes.tsv (capability, ^engine/, 1/2, 14) and lane-next.tsv committed, and
 # each checkout is bound to st by an untracked .felix. Every unknown case is asserted on the whole felix lane --tsv

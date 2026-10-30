@@ -28,6 +28,11 @@
 # git a bash function exported into the engine, that makes a fork fail (fork) or ends the count early (kill) in the
 # read of the landings, and with TMPDIR a directory of the fixture's own, so a scratch directory left is seen there and
 # removed with $TMP. _lf_json reads a session start's JSON again after it.
+#
+# The second review's round 1 (added on 2026-10-30, still blind, from its findings' inputs): _lf_r2 builds its home-apart
+# fixture (two lanes, cap and sec, and _lf_r2land's six landings), _lf_fork runs its fork probes at reads other than the
+# landings' (date, awk, tr, git or command, by the words and calling functions a finding names), and _lf_ended says
+# whether felix lane ended as C3's count that did not finish.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {

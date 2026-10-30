@@ -16,6 +16,7 @@
 #                                   searches are not run. Prints nothing on stderr; returns 0.
 # felix_lane_command PROJ ROOT TSV  felix lane: those lines (TSV 1) or C5's human lines (TSV 0).
 # felix_lane_status_row PROJ ROOT   felix status's last row, the first lane's (C6).
+# felix_start_lane PROJ ROOT        session start's lane paragraphs and screen token, in two globals (C7).
 # felix_lane_pulse HOME             felix pulse's last lines, one per lane of the home's own project (C8).
 #
 # A read that did not finish never yields a count: the lane reads unknown with the reason. Bash 3.2; LC_ALL=C on
@@ -312,6 +313,47 @@ felix_lane_status_row() {   # PROJ ROOT
   IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 <<< "$rows"
   if [ "$c2" = unknown ]; then _felix_status_row lane unknown - "$c13"
   else _felix_status_row lane value "$c2" "$c3 of $c4 engine landings in $c5 days, target $c6"; fi
+  return 0
+}
+
+# Session start's lane text (C7). hooks/session-start has no room to grow, so its four lane lines are explained here:
+# - it sources this file only when the file is there, and calls felix_start_lane only when it is defined, so an
+#   engine without lib/lane.sh starts as it always did, with no lane text and valid JSON;
+# - it sets lane_line and _felix_lane_tok empty first, then calls this with both streams sent to /dev/null, as the
+#   lifecycle record and the mistakes-log heal are: a stray byte would break its JSON, so the results travel in the
+#   two globals, as the waits' do (lib/waiting.sh);
+# - lane_line follows the "what waits" paragraphs in the context and comes before the capability-drift ones;
+# - _felix_lane_tok follows the waits' tokens, last on the screen line (systemMessage).
+# A Claude Code resume leaves the hook before any of this, and a directory no project governs never reaches it.
+#
+# Sets lane_line: for each row of felix_lane_rows whose state is short, zero or idle, in file order, a newline and
+#   Lane <lane> is <state>: <L> of <T> engine landings in <W> days, target <n>/<d>.
+#   If the founder has not given this session a task, take the first open lane item: <next>. End the body of a
+#   commit on its branch that is not a merge with the line `Felix-Lane: <lane>`. <closing>
+# as two lines (the second unbroken), where <closing> is "Trust work takes the other half." when 2n = d and "The rest
+# goes to trust work." otherwise, and <next> reads "(lane-next.tsv names none)" for none and "(lane-next.tsv cannot be
+# read)" for unknown. Sets _felix_lane_tok to " · lane: 0 in <W> days" when the first row is zero or idle, else empty.
+# ok and unknown say nothing, nor does a project with no committed row. The next text is a cell anyone may commit, and
+# the hook's JSON escape handles only backslash, quote, LF, CR and tab, so every control byte but tab and LF is
+# replaced by ?, as _fw_clean does; a cell holds neither of those two. Returns 0.
+felix_start_lane() {   # PROJ ROOT
+  local rows lane state l t w shr nx x n d cl k=0
+  lane_line=""; _felix_lane_tok=""
+  [ -n "${1:-}" ] || return 0
+  rows="$(felix_lane_rows "$1" "${2:-}" 0 | LC_ALL=C tr '\001-\010\013-\037\177' '?')" || rows=""
+  while IFS=$'\t' read -r lane state l t w shr x x nx x; do
+    k=$((k + 1))
+    case "$state" in short|zero|idle) ;; *) continue ;; esac
+    n="${shr%%/*}"; d="${shr#*/}"
+    case "$l:$t:$w:$n:$d" in *::*|:*|*:|*[!0123456789:]*) continue ;; esac
+    case "$nx" in none) nx="(lane-next.tsv names none)" ;; unknown) nx="(lane-next.tsv cannot be read)" ;; esac
+    cl="The rest goes to trust work."
+    [ "$((10#$n * 2))" -ne "$((10#$d))" ] || cl="Trust work takes the other half."
+    lane_line="${lane_line}
+Lane ${lane} is ${state}: ${l} of ${t} engine landings in ${w} days, target ${shr}.
+If the founder has not given this session a task, take the first open lane item: ${nx}. End the body of a commit on its branch that is not a merge with the line \`Felix-Lane: ${lane}\`. ${cl}"
+    [ "$k" -ne 1 ] || case "$state" in zero|idle) _felix_lane_tok=" · lane: 0 in ${w} days" ;; esac
+  done <<< "$rows"
   return 0
 }
 

@@ -426,7 +426,7 @@ _felix_commission_installed() {   # bare name -> 0 when installed
   # no neighbour to confuse. Routing it through the reader was tried and made
   # this depend on the entry carrying a particular field, which is a constraint
   # the question does not have.
-  local name="$1" reg="$HOME/.claude/plugins/installed_plugins.json"
+  local name="$1" reg="${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json"
   [ -n "$name" ] || return 1
   [ -f "$reg" ] || return 1
   grep -q "\"$name@" "$reg" 2>/dev/null

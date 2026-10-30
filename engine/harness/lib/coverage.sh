@@ -173,9 +173,9 @@ felix_coverage_unchecked() {
 # file that binds Stop, and the grep this used to be would have rostered it.
 felix_coverage_events() {
   local f
-  for f in "$HOME/.claude/settings.json" \
-           "$HOME/.claude/settings.local.json" \
-           "$HOME"/.claude/plugins/cache/*/*/*/hooks/hooks.json; do
+  for f in "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.json" \
+           "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/settings.local.json" \
+           "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"/plugins/cache/*/*/*/hooks/hooks.json; do
     # A file that is absent, or that does not parse, contributes nothing and
     # stops nothing: this is the roster of what something on this machine
     # binds, and one unparseable plugin manifest must not blank the rest. The

@@ -15,33 +15,24 @@
 # people to stop reading it. The value of a lessons file is entirely in its
 # signal-to-noise, so the failure mode of writing too much is the fatal one.
 
-# Where a memory row was written, spelled one way for every row that says so:
-# a devlog header, a gate's catch, the owner of a lesson. The branch is the one
-# HEAD names, which a checkout with no commit yet still has, HEAD when
-# detached and ? outside git; the commit is `unborn` when there is none yet
-# and ? outside git. `rev-parse --abbrev-ref` prints HEAD and then fails in a
-# checkout with no commit yet, and its fallback wrote a second line into
-# whatever it was part of.
+# Where a memory row was written, spelled one way for every row that says so: a
+# devlog header, a gate's catch, the owner of a lesson. The branch is the one
+# HEAD names, which a checkout with no commit yet still has, HEAD when detached
+# and ? outside git; the commit is `unborn` when there is none yet and ? outside
+# git. `rev-parse --abbrev-ref` prints HEAD and then fails in a checkout with no
+# commit yet, and its fallback wrote a second line into whatever it was part of.
 #
-# The branch and the commit come from felix_head_branch and felix_head_commit
-# in resolve.sh, which this file already needs for felix_mem_dir. They were
-# written here first, as private helpers, and moved rather than copied when
-# receipt.sh turned out to hold the same defect and could not reach them: the
-# reasoning went with them, and says why a fallback is assigned and never
-# appended.
-#
-# The same defect was fixed twice at once, and the second fix gave this file a
-# pair of its own again, _felix_mem_branch and _felix_mem_sha, for the owner
-# rows written.log gained. One pair is kept, resolve.sh's, so a catch and the
-# entry that settles it can never be spelled by two readers that drift apart;
-# the guard reads a checkout's branch back through the same one
-# (_felix_guard_branch, lib/guard.sh). The two pairs agreed everywhere but one
-# place: on a checkout with no commit yet the commit here was `?`, as a
-# directory that is no repository reads, and resolve.sh's says `unborn`,
-# felix_tree_id's word for that state, which the heal of the split rows writes
-# too. That one stays, so every row on such a tree is one occasion to
-# felix_mem_recurring_mistakes. The guard matches a row by its branch and its
-# session and never by its commit, so nothing it decides turns on which.
+# Both come from felix_head_branch and felix_head_commit in resolve.sh, which
+# this file already needs for felix_mem_dir. They were written here first and
+# moved, not copied, when receipt.sh held the same defect and could not reach
+# them: a fallback is assigned and never appended. The second pair this file
+# grew for written.log's owner rows is gone, so a catch and the entry that
+# settles it are never spelled by two readers that drift apart (the guard reads
+# a branch back through the same one, _felix_guard_branch, lib/guard.sh). They
+# differed in one place: with no commit yet the commit was `?` here and is
+# `unborn` in resolve.sh, felix_tree_id's word for that state. That one stays,
+# so every row on such a tree is one occasion to felix_mem_recurring_mistakes;
+# the guard matches a row by branch and session, never by commit.
 _felix_mem_stamp() {
   local root="$1"
   printf '%s %s %s' \
@@ -158,6 +149,17 @@ felix_mem_handoff() {
   mv -f "$tmp" "$dest" || { rm -f "$tmp"; return 1; }
 }
 
+# The tracked changes of ROOT, one per line, into VAR (empty when clean). Porcelain
+# with no untracked files prints no branch line whatever status.branch says.
+# Returns 1 when git did not finish (it exits non-zero, or ROOT is no repository),
+# VAR holding why: git's first error: or fatal: line, else "git status did not finish".
+_felix_mem_tree() {
+  local o w
+  _felix_git_read o git -C "$2" status --porcelain --untracked-files=no && { printf -v "$1" '%s' "$o"; return 0; }
+  w="$(LC_ALL=C git -C "$2" status --porcelain --untracked-files=no 2>&1 >/dev/null | LC_ALL=C awk '!p && /^(error|fatal): / { print; p = 1 }')" || :
+  printf -v "$1" '%s' "${w:-git status did not finish}"; return 1
+}
+
 # The text of a regenerated handoff, from what git knows of ROOT. A function of
 # its own so the caller can build it before any file exists: written inline in
 # a command substitution, bash 3.2 misreads the apostrophes in its comments.
@@ -165,17 +167,15 @@ _felix_mem_handoff_text() {
   local root="$1" gate="$2" note="$3"
   printf '# Handoff\n\nRegenerated %s. Anything below is the state of the tree,\nnot a summary of intent.\n\n' "$(date +%Y-%m-%d)"
   printf '## Where\n\n'
-  # The same reader as the row below. This line had no fallback, so it was
-  # never malformed; it was the one remaining place that printed git's answer
-  # to a reader as the branch, and on an unborn HEAD that answer is `HEAD`,
-  # git's word for having no commit to abbreviate, in a repository that is on
-  # main. A handoff is written exactly there when a project is commissioned.
+  # The same reader as the row below: this line printed git's answer as the
+  # branch, and on an unborn HEAD that answer is `HEAD`, git's word for having
+  # no commit to abbreviate. A handoff is written exactly there at commission.
   printf -- '- branch: `%s`\n' "$(felix_head_branch "$root")"
   printf -- '- head: `%s`\n' "$(git -C "$root" log -1 --format='%h %s' 2>/dev/null)"
   printf -- '- tree: `%s`\n' "$root"
   printf '\n## Uncommitted\n\n'
-  local dirty; dirty="$(git -C "$root" status --short 2>/dev/null | grep -v '^??' || true)"
-  if [ -n "$dirty" ]; then printf '```\n%s\n```\n' "$dirty"
+  local dirty; if ! _felix_mem_tree dirty "$root"; then printf 'Whether the tree is clean is not known: %s\n' "$dirty"
+  elif [ -n "$dirty" ]; then printf '```\n%s\n```\n' "$dirty"
   else printf 'Nothing. The tree is clean.\n'; fi
   printf '\n## Recent\n\n```\n%s\n```\n' \
     "$(git -C "$root" log -8 --format='%h %ad %s' --date=short 2>/dev/null)"

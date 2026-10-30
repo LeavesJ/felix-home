@@ -116,29 +116,25 @@ FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 # A resume is bound, and says nothing.
 #
 # Claude Code starts a new process on a resume and rebinds every hook, and
-# until the matcher named it Felix was not called there at all, so a resumed
-# session never learned which engine it now runs. The matcher makes the moment
-# reachable; this exit keeps what a resume shows exactly what it showed before,
-# which is nothing. What records the moment, lib/lifecycle.sh, is called before
-# that exit, further down, and before the broken-binding report for the same
+# until the matcher named it Felix was not called there at all. The matcher
+# makes the moment reachable; this exit keeps what a resume shows exactly what
+# it showed before, which is nothing. What records the moment, lib/lifecycle.sh,
+# is called before that exit, and before the broken-binding report for the same
 # reason: a resume never heard that report either.
 #
-# Claude Code only, because only there was a resume unbound. Copilot CLI fires
-# its sessionStart on a resume with no matcher in front of it, so a resume there
-# always got the banner, and unchanged means it still does; the other harness
-# _felix_emit knows is left as it was for the same reason.
+# Claude Code only. Copilot CLI fires its sessionStart on a resume with no
+# matcher in front of it, so a resume there always got the banner, and the
+# other harness _felix_emit knows is left as it was for the same reason.
 #
 # The payload is read once, whole, and the three fields the record and this
 # exit need are taken from it with the sed idiom hooks/post-tool uses, in one
-# pass: each expression starts again from the held line, and the first line
-# that carries a field is the one that answers for it. awk keeps that first
-# line of each field and drops every later one before the loop sees them, so
-# the loop turns three times at most. Unbounded, it cut one line off the front
-# of what was left on each turn, which is quadratic in bash 3.2: a payload with
-# thousands of lines carrying these keys held the hook for minutes, and past
-# the platform's deadline a startup lost its banner. The read it replaced
-# bounded itself with head -1. A terminal on stdin is a person running the
-# hook by hand, and waiting on them would hang the hook.
+# pass: the first line that carries a field answers for it. awk keeps that
+# first line of each field and drops every later one before the loop sees them,
+# so the loop turns three times at most. Unbounded, it cut one line off the
+# front of what was left on each turn, which is quadratic in bash 3.2: a payload
+# with thousands of lines carrying these keys held the hook for minutes, and
+# past the platform's deadline a startup lost its banner. A terminal on stdin is
+# a person running the hook by hand, and waiting on them would hang the hook.
 _felix_payload=""
 [ -t 0 ] || _felix_payload="$(cat 2>/dev/null)"
 _felix_source=""; _felix_session=""; _felix_transcript=""; _felix_fields=""
@@ -207,12 +203,9 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 #
 # Ordered before the bail below, and that ordering is the whole fix: a broken
 # binding presents here as an empty $PROJ, which is exactly what the next line
-# reads as "not governed, say nothing".
-#
-# An ABSENT binding still means ungoverned and still exits silently. That is
-# the half that must not regress — Felix has to stay usable in a repository it
-# does not govern — and it is what "nothing due" and "nothing is being checked"
-# must not render identically means here.
+# reads as "not governed, say nothing". An ABSENT binding still means
+# ungoverned and still exits silently: Felix has to stay usable in a repository
+# it does not govern.
 broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
 if [ -n "$broken" ]; then
   felix_unresolved_log "$broken" "$PWD"
@@ -224,10 +217,18 @@ fi
 [ -n "$PROJ" ] || exit 0
 
 project="$(basename "$PROJ")"
-gate="$(felix_json_str "${PROJ}/project.json" gate)"
+# A project.json that cannot be read declares nothing because it says nothing,
+# which is not "none declared": the stop cannot judge either (lib/hook-faults.sh).
+gate=""; _gate_unread=""
+if [ -f "${PROJ}/project.json" ] && [ -r "${PROJ}/project.json" ]; then gate="$(felix_json_str "${PROJ}/project.json" gate)"; else _gate_unread=1; fi
 
-gate_line="Gate: ${ENGINE_DIR}/felix gate"
-[ -n "$gate" ] || gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
+if [ -n "$_gate_unread" ]; then
+  gate_line="Gate: unknown (${PROJ}/project.json cannot be read, so no gate can be named and nothing is being checked)"
+elif [ -n "$gate" ]; then
+  gate_line="Gate: ${ENGINE_DIR}/felix gate"
+else
+  gate_line="Gate: none declared (set \"gate\" in ${PROJ}/project.json)"
+fi
 
 # Surface capability drift at session start rather than waiting to be asked. The
 # day a project grows a deploy target or error reporting, the gates the guidebook
@@ -418,21 +419,10 @@ fi
 # and left unacted is an answer — a host-provided server nobody should declare
 # would otherwise be proposed at every session start forever, and a signal that
 # repeats becomes wallpaper. The full set stays in 'felix stack reconcile'.
-# A backup that has silently stopped looks exactly like one that ran: every
-# pulse refusal is honest and prints into a log nobody opens. This is the one
-# number that makes the stop observable, on the surface a person reads.
-backup_line=""
-_bage="$(felix_pulse_backup_age "$FELIX_HOME_DIR" 2>/dev/null)"
-if [ "${_bage:-}" = "never" ]; then
-  backup_line="
-The pulse has run and never once got memory off this disk. Whatever it is
-refusing, it is in 'felix pulse' — and until it resolves, every lesson this
-project has paid for exists in one place."
-elif [ -n "${_bage:-}" ] && [ "$_bage" -ge "${FELIX_BACKUP_STALE_DAYS:-3}" ] 2>/dev/null; then
-  backup_line="
-Memory last reached the remote ${_bage} days ago. Every lesson since then lives
-on this disk only. See 'felix pulse' — it says what it refused and why."
-fi
+# The pulse's banners (a backup that has silently stopped looks exactly like one
+# that ran), what its last run left out of memory, and what a cloud session
+# loses: lib/pulse-stage.sh.
+backup_line="$(felix_pulse_session_lines "$FELIX_HOME_DIR" 2>/dev/null)"
 
 reconcile_line=""
 if [ -f "$_mem/ledger.tsv" ] || [ -d "$_mem/ledger.d" ]; then
@@ -601,9 +591,11 @@ start, and run that tier's gate."
 # appended block after that never runs. This one did not, for a whole version.
 _felix_found=""
 if [ -f "$PROJ/routes.tsv" ] && command -v claude >/dev/null 2>&1; then
-  if felix_discover_stale "$PROJ" "$FELIX_HOME_DIR"; then
-    felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
-  fi
+  # What the last background refresh did is read before another starts, and said
+  # once per outcome and detail (lib/discover-refresh.sh).
+  _dst=fresh; felix_discover_stale "$PROJ" "$FELIX_HOME_DIR" && _dst=stale
+  _dn="$(felix_discover_notice "$PROJ" "$FELIX_HOME_DIR" "$_dst")"; [ -z "$_dn" ] || context="$context"$'\n\n'"$_dn"
+  [ "$_dst" = stale ] && felix_discover_refresh_bg "$PROJ" "$FELIX_HOME_DIR" "${SCRIPT_DIR}/../felix"
   _new="$(felix_discover_unseen "$PROJ" "$FELIX_HOME_DIR" | head -4 | tr '\n' ' ')"
   if [ -n "$_new" ]; then
     _felix_found="$_new"
@@ -753,7 +745,9 @@ fi
 _felix_due="${_due_n:-0}"
 case "$_felix_due" in ''|*[!0123456789]*) _felix_due=0 ;; esac
 _felix_line="Felix: $(basename "$PROJ")"
-[ -n "$gate" ] || _felix_line="$_felix_line · no gate, stops unchecked"   # the Stop hook checks no stop without one
+# No gate, or (b07) a project.json that cannot be read: then whether a gate is declared is not known, and the line says that instead.
+if [ -n "$_gate_unread" ]; then _felix_line="$_felix_line · gate unknown"
+elif [ -z "$gate" ]; then _felix_line="$_felix_line · no gate, stops unchecked"; fi   # the Stop hook checks no stop without one
 [ "${_felix_due:-0}" -gt 0 ] && _felix_line="$_felix_line · ${_felix_due} due${_yours:+ (yours: $_yours)}"
 if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"
   [ "${_fl%%$'\t'*}" != paused ] || context="$context"$'\n'"felix land --resume ends the pause."; fi

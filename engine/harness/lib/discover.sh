@@ -47,6 +47,12 @@ if ! command -v felix_registry_field >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
 
+# The background refresh and what it records of itself (audit b06). Sourced by path,
+# for the same reason as the two above.
+if ! command -v felix_discover_refresh_bg >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/discover-refresh.sh"
+fi
+
 FELIX_DISCOVER_MAX="${FELIX_DISCOVER_MAX:-8}"
 
 # capability <TAB> keywords, for capabilities this project actually declared.
@@ -1330,25 +1336,32 @@ _felix_discover_cache() { printf '%s/state/discover/%s' "$2" "$(basename "$1")";
 # from five days earlier — written by a matcher that has since been fixed —
 # declared and installed a storage plugin under llm, twice: the fix to the
 # matcher changed nothing the adopt path read. So the first line is a stamp
-# over the rules table and the engine version, and every reader treats a
-# cache whose stamp is not the current one as ABSENT, which the foreground
-# fill in discover --adopt then recomputes. A stale verdict is not a verdict.
+# over what writes the rows (this file, lib/detect.sh, the cmd_discover function
+# of felix, and the rules table), and every reader treats a cache whose stamp is
+# not the current one as ABSENT, which the foreground fill in discover --adopt
+# then recomputes. A stale verdict is not a verdict. The engine version is not in
+# it: 71 commits since 2026-09-24 touched plugin.json and 9 touched what writes
+# the rows, so hashing the version made every release throw every cache away.
+# Prints 40 hex characters; prints nothing and returns 1 when any part cannot be
+# read, and then no cache is current, its own empty stamp's included.
 _felix_discover_stamp() {
-  local tpl="${1:-$(dirname "${BASH_SOURCE[0]:-$0}")/../templates}" ver
-  ver="$(sed -n 's/.*"version"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' \
-          "$(dirname "${BASH_SOURCE[0]:-$0}")/../../.claude-plugin/plugin.json" 2>/dev/null | head -1)"
-  { printf 'matcher=words\nengine=%s\n' "${ver:-?}"; cat "$tpl/discover-rules.tsv" 2>/dev/null; } \
+  local lib fn; lib="$(dirname "${BASH_SOURCE[0]:-$0}")"
+  fn="$(LC_ALL=C awk '/^cmd_discover\(\) \{/ { p = 1 } p { print } p && /^\}/ { exit }' "$lib/../felix" 2>/dev/null)"
+  [ -n "$fn" ] || return 1
+  { printf 'matcher=words\n%s\n' "$fn"; cat "$lib/discover.sh" "$lib/detect.sh" "${1:-$lib/../templates}/discover-rules.tsv"; } 2>/dev/null \
     | git hash-object --stdin 2>/dev/null
 }
 _felix_discover_stamp_line() { printf '# stamp %s\n' "$(_felix_discover_stamp "${1:-}")"; }
 
-# 0 when the cache exists and was written under the current rules and engine.
+# 0 when the cache exists and was written under the current rules and matcher.
 felix_discover_cache_current() {
-  local proj="$1" home="$2" tpl="${3:-}" cache first
+  local proj="$1" home="$2" tpl="${3:-}" cache first stamp
   cache="$(_felix_discover_cache "$proj" "$home").tsv"
   [ -f "$cache" ] || return 1
+  stamp="$(_felix_discover_stamp "$tpl")"
+  [ -n "$stamp" ] || return 1
   first="$(head -1 "$cache" 2>/dev/null)"
-  [ "$first" = "$(_felix_discover_stamp_line "$tpl" | tr -d '\n')" ]
+  [ "$first" = "# stamp $stamp" ]
 }
 
 # What a thing looks like, scored once.
@@ -1527,32 +1540,6 @@ felix_discover_stale() {
   local age
   age="$(find "$f" -mtime +"$FELIX_DISCOVER_STALE_DAYS" 2>/dev/null)"
   [ -n "$age" ]
-}
-
-# Refresh in the background, at most one at a time. The lock is a directory
-# because mkdir is atomic everywhere and a stale lock file is not.
-felix_discover_refresh_bg() {
-  local proj="$1" home="$2" felix_bin="$3"
-  local dir lock
-  command -v felix_neutral_run >/dev/null 2>&1 || . "$(dirname "${BASH_SOURCE[0]:-$0}")/reach-read.sh"
-  dir="$home/state/discover"
-  lock="$dir/.lock"
-  mkdir -p "$dir" 2>/dev/null || return 0
-  mkdir "$lock" 2>/dev/null || return 0   # already running; leave it alone
-  (
-    trap 'rmdir "$lock" 2>/dev/null' EXIT
-    felix_close_inherited_fds
-    # Never the checkout, which may be a stranger's: an empty directory holding a .felix naming the
-    # project (lib/reach-read.sh), or no run at all. A read that fails writes nothing and the previous
-    # answer stands: an unreadable catalogue is not an empty one, and must not become one for a week.
-    if felix_neutral_run "$proj" felix-discover "$felix_bin" discover --inspect --quiet > "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null; then
-      mv -f "$(_felix_discover_cache "$proj" "$home").new.$$" \
-            "$(_felix_discover_cache "$proj" "$home").tsv" 2>/dev/null
-    else
-      rm -f "$(_felix_discover_cache "$proj" "$home").new.$$" 2>/dev/null
-    fi
-  ) </dev/null >/dev/null 2>&1 &
-  return 0
 }
 
 # Findings not yet mentioned. Reporting the same three plugins every session is

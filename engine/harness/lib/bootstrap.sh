@@ -58,12 +58,8 @@ _felix_bs_have_workflow() {
   git -C "$root" cat-file -e "origin/HEAD:.github/workflows/$wf" 2>/dev/null && return 0
   git -C "$root" cat-file -e "origin/main:.github/workflows/$wf" 2>/dev/null
 }
-_felix_bs_have_labels()   {
-  felix_contains "$(gh label list --repo "$1" 2>/dev/null)" "needs-founder"
-}
-_felix_bs_have_protection() {
-  gh api "repos/$1/branches/$2/protection" >/dev/null 2>&1
-}
+# What GitHub holds (the labels, the default branch, the protection) is read and
+# written by lib/bootstrap-gh.sh, and the order of it all is lib/bootstrap-run.sh.
 # grep on a file is safe; only pipelines can SIGPIPE.
 _felix_bs_have_perms()    { [ -f "$1/.claude/settings.json" ] && \
                             LC_ALL=C grep -q '"deny"' "$1/.claude/settings.json" 2>/dev/null; }

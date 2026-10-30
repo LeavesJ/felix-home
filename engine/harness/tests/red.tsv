@@ -9,7 +9,8 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	97b804da112d5f4b78dadb6b00a9a9fdd69d47e3	0.49.316
-run	53	15032	46
+run	54	15040	46
+a large payload of escaped quotes reads in linear CPU: 2.1M costs under eight times what 528K does	1
 pulse agent P1: ProgramArguments holds exactly three strings	1
 pulse agent P1: the first is /bin/bash	1
 pulse agent P1: the second is the served engine's felix, not the running copy	1

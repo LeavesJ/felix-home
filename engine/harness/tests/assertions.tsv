@@ -3822,6 +3822,7 @@
 1	a kind that is two known kinds run together is refused
 1	a kind the engine does not define is refused as kind, or a table could invent its own way to land a path
 1	a land.tsv in any directory is one by its basename, and a row added to some/dir/land.tsv escapes as verifier
+1	a large payload of escaped quotes reads in linear CPU: 2.1M costs under eight times what 528K does
 1	a large payload whose awk fails part way has no subject, rather than the part it printed
 1	a large payload's subject is read by exactly one awk
 1	a last exit of 126 reads exit-126
@@ -8681,6 +8682,13 @@
 1	bootstrap names the checkout's repo, not the cache's absence
 1	bootstrap with no commit to pin says the workflow gets the placeholder
 1	both hand-written files newer than this session's catch, with no written row, do not settle it
+1	both readings agree on 600 escaped quotes in a 3K command, each read as one quote
+1	both readings agree on a value spanning 34 raw lines with escaped quotes on them
+1	both readings agree on a value that is one escaped quote, which reads as one quote
+1	both readings agree on a value that opens and closes on escaped quotes
+1	both readings agree on escaped quotes on both sides of each raw line break
+1	both readings agree on runs of escaped quotes, the longest 500 in a row
+1	both readings stop at the closing quote of a value whose last character is an escaped quote
 1	both refused setup rows are printed there
 1	both worktrees holding one branch lead with hazard:shared-branch
 1	brief reads an issue from stdin
@@ -13874,6 +13882,7 @@
 1	the stuck-PR fixture: the gh stub serves the home's pull requests from the home's directory (fixture control)
 1	the stuck-PR fixture: the land directory holds the ledger, a dead lock and paused (fixture control)
 1	the stuck-PR fixture: the landdir founder row is on origin/main and the wtonly row only in the working tree (fixture control)
+1	the subject of the 2.1M payload is exact: 1,728,004 characters, 384,000 quotes, no backslash, and the value's own end
 1	the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker
 1	the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else
 1	the suite's copy of a harness holding one leaves it behind

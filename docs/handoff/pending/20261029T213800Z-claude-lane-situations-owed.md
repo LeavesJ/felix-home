@@ -6,7 +6,8 @@ capability-plane design on file in one document
 (`docs/2026-10-29-capability-plane-designs-on-file.md`, with its PDF), and it
 worked through the thesis with the founder in conversation. The lane's first
 item is not built yet: intake, the intent design's §9 slice "situations owed".
-It waits on a written design he approves.
+He approved its design on 10-29, with the lane counter and come-backs, and a
+build plan per slice follows.
 
 **Why now.** The founder, 10-29: "supposedly, according to your direction map,
 we should have begun working on capability plane simultaneously long ago. You
@@ -14,8 +15,11 @@ can check the directions marked down to verify that statement. I think we
 really need to get it going."
 
 **What was found.**
-- Since row 25 (10-19: build intake now), main has taken 17 commits. One
-  touched capability-side code, the audit's fixes, and none was a lane item.
+- From row 25's note (10-19 07:18 UTC: build intake now) to `e54e31f3`
+  (10-29), 17 landings reached main. One was a lane item: the mods round's
+  report (#451, lane item 2), that same day. None was intake. The engine
+  landings went to the audit, gate and suite work, a discovery test, the
+  lost-work page and inventory, and the pattern-kill deny row.
 - The 22 proposed obligations are still at 0 admitted.
 - Nothing starts a lane session unless the founder or the carrier does.
   Nothing counts the one-in-four share of row 15, so the lane fell to zero
@@ -80,7 +84,11 @@ really need to get it going."
    target is the whole engineering department.** In his words: "entire
    engineering department, so ig engineering manager....but like that'll just
    be natural you know once the autonomous engineering control plane is built
-   it'll spread across entire engineering department".
+   it'll spread across entire engineering department". On how Felix's value
+   shows inside a team, he said (22:41 UTC): "And for Enterprise we really
+   need to make sure the additional value of Felix is still visibily present
+   bc before with solo founder felix's upside is clearly shown...how we
+   reflect inside an engineering team will need careful positioning."
 8. **A change to the lane's share lands on green.** Asked whether a change to
    the share should wait for his merge, he chose "No, it lands on green" over
    "Yes, it waits for me", which the session had recommended. `felix lane`
@@ -121,9 +129,9 @@ really need to get it going."
 - The lane counter and the hand-off are not built.
 - The strategy pass is still pending: whether the invariants hold, what is
   missing, and whether intake-first is the right order.
-- The design for the lane's first three slices is written
-  (`docs/2026-10-29-capability-lane-first-slices-design.md`, with its PDF). A
-  fresh builder checked it, and it waits for his approval. Nothing in it is
-  built until he approves it.
+- The design for the lane's first three slices
+  (`docs/2026-10-29-capability-lane-first-slices-design.md`) was approved by
+  the founder on 10-29, then corrected after a fact-check. A build plan per
+  slice is being written.
 - Folding items 1 to 8 into `docs/direction.md` waits for his yes in its own
   draft PR.

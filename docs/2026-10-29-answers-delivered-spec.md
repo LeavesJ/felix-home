@@ -79,11 +79,16 @@ graph node, and exits 0; or prints nothing and exits 1. In order:
    two-character JSON escapes `\n`, `\t`, `\r`) made one space and trimmed,
    cut to its first 400 characters. Fewer than `FELIX_GRAPH_MIN_WORDS` words
    (default 5): exit 1, graphify not run.
-5. Runs exactly
+5. When `FELIX_GRAPH_LEFT` is set and not empty, it is the whole seconds a
+   calling hook has left before the platform ends it (U4). A value that is not
+   a whole number of one or more (`0`, a negative number, anything else): exit
+   1, graphify not run, because there is no time left to ask. Otherwise runs
+   exactly
    `graphify query "<prompt>" --budget <FELIX_GRAPH_BUDGET> --graph <graph file>`
    (default budget 600), for at most `FELIX_GRAPH_TIMEOUT` seconds (default 4;
    a value that is not a whole number of one or more is taken as the default,
-   so no setting removes the bound). The command runs in a process group of
+   so no setting removes the bound), and never for more than `FELIX_GRAPH_LEFT`
+   seconds when that is set. The command runs in a process group of
    its own. At the deadline the whole group is killed, children included, so
    nothing it started can hold the caller's output open; and any process still
    in the group when the command exits by itself is killed then. The group is
@@ -113,9 +118,10 @@ session's answer record is `<home>/state/answer/<session>.tsv`.
    and `_`: exit 1, nothing written.
 2. One of A1 steps 1-4 refuses (graphify is not asked): exit 1, nothing
    written.
-3. Otherwise graphify is asked, and exactly one `asked\tgraphify\t<outcome>`
-   row is appended to the record, creating `state/answer/` as needed. The
-   outcome is one of:
+3. Otherwise exactly one `asked\tgraphify\t<outcome>` row is appended to the
+   record, creating `state/answer/` as needed. The outcome is one of:
+   - `late`: A1 step 5 found no time left (`FELIX_GRAPH_LEFT`), and graphify
+     was not run;
    - `timeout`: the bound killed graphify at the deadline;
    - `failed`: graphify exited non-zero, or printed nothing;
    - `empty`: graphify answered, and no node survived A1 steps 6-8;
@@ -245,13 +251,30 @@ still exits 0 with no output.
 A graphify that fails, hangs past the timeout, prints garbage, or is absent
 leaves the hook's exit 0 and its other parts unchanged.
 
+Nor may the ask take the hook past the platform's limit on it, 30 seconds. A
+run the platform ends prints nothing, so the route, shape and lessons parts
+would go with the answer. The hook calls `felix_graph_deliver` with
+`FELIX_GRAPH_LEFT` set to `D - S - 3`: `D` is `FELIX_PROMPT_DEADLINE`, 30
+unless that is a whole number of at most four digits, and `S` is the whole
+seconds the hook has run so far (bash's `SECONDS`). The 3 are kept for the
+rest of the run. So with under one second left the ask is recorded as `late`
+(A2.3) and graphify is not run, and otherwise its bound is the smaller of
+`FELIX_GRAPH_TIMEOUT` and what is left (A1.5).
+
+What this leaves: a run cut off after `felix_graph_deliver` has written its
+rows, inside the 3 seconds kept, leaves a record of nodes the model was never
+given, and A2.4 does not give them again in that session. The reserve makes
+that rare, and nothing records it when it happens.
+
 ### U5. A prompt ends the previous answer's window
 
 On every person prompt with a session id, when the session's answer record
 `<home>/state/answer/<session>.tsv` already exists, the hook appends one
 `prompt` row (the word alone) to it, before anything else this prompt writes
 there. No record yet: nothing is written. U1's conditions 3 and 4 do not apply
-to this row: a session that was answered once has its prompts counted.
+to this row: a session that was answered once has its prompts counted. It is
+written before the hook computes its route, so a run cut off at any later
+point, at the platform's limit or otherwise, has still ended the turn.
 
 ---
 
@@ -288,7 +311,9 @@ no match appends nothing.
 ### T2. Cost
 
 No git, and one process beyond what the hook runs today, and that only when
-the state file exists. A failed append is silent and the exit is 0.
+the state file exists. A failed append is silent and the exit is 0. Loading
+`lib/ledger.sh`, which loads `lib/answer.sh`, runs no command found on `PATH`;
+nor does loading `lib/graph.sh`.
 
 ---
 
@@ -322,6 +347,11 @@ catch leaves the directory behind. A lock directory whose modification time is
 more than `FELIX_GRAPH_LOCK_STALE` minutes old (default 30) is removed and the
 refresh proceeds; one younger than that still means a refresh is running, and
 the call does nothing, as before.
+
+What this leaves: two calls that find the same stale lock at once can both
+take it back, the second after the first has made it anew, and two refreshes
+then run together. The break existed before this spec (audit b06, C043), with
+the same two steps, and it is left so.
 
 ### R4. Session start uses the same test
 
@@ -367,8 +397,16 @@ distinct sessions, and the summed delivery count. Nothing when there are none.
 
 Reads `<home>/state/answer/*.tsv` for the sessions this repository owns
 (`_felix_ledger_owns`, the same test the catch-up uses). Prints, per tool that
-has a `given` or an `asked` row,
-`tool\tsessions\tsessions_acted\tdeliveries\tdeliveries_acted\tfiles\tfiles_acted\tfiles_opened\tasked\ttimeouts`.
+has a `given` or an `asked` row in one of those records,
+`tool\tsessions\tsessions_acted\tdeliveries\tdeliveries_acted\tfiles\tfiles_acted\tfiles_opened\tasked\ttimeouts\tlate\tunknown`.
+
+- **A record that is not whole.** A session whose ledger appends,
+  `<home>/state/ledger/<session>.tsv`, are not whole by L1's test (more `alive`
+  lines than calls, or neither; a file that is missing or cannot be read is not
+  whole) is left out of every column but `unknown`. `unknown` counts those
+  sessions, once per tool with an `asked` or a `given` row in the session's
+  answer record. A PostToolUse run that recorded nothing may have reached a
+  named file, and a touch it missed would read as an answer not used.
 
 - **The window.** A `touch` row can credit only the `answer` rows after the
   record's last `prompt` row before it: an answer is acted on in the turn it was
@@ -397,8 +435,10 @@ has a `given` or an `asked` row,
   acted on when any of its deliveries was.
 - `deliveries` counts `given` rows and `files` counts `answer` rows.
   `files_opened` counts the acted-on `answer` rows credited by a touch of any
-  tool but `Bash`. `asked` counts `asked` rows, and `timeouts` those whose
-  outcome is `timeout`. `sessions` counts sessions with at least one `given` row.
+  tool but `Bash`. `asked` counts `asked` rows whose outcome is not `late`, and
+  `timeouts` those whose outcome is `timeout`; `late` counts the `asked` rows
+  whose outcome is `late`. `sessions` counts sessions with at least one `given`
+  row.
 - **What it cannot see.** A call that fails never reaches the post-tool hook
   (PostToolUse runs after a successful call only), so it is never a touch. And
   the post-tool hook runs asynchronously: a call made just before a prompt can
@@ -417,7 +457,9 @@ capability table, a section headed
 ```
 
 with, when `timeouts` is more than 0, `; 6 asks timed out` appended to the
-line. Then the sentence: `A file the session would have opened anyway counts
+line; then, when `late` is more than 0, `; 2 prompts came too late in the hook
+to ask`; then, when `unknown` is more than 0, `; 3 sessions left out, their
+record of tool calls incomplete`. Then the sentence: `A file the session would have opened anyway counts
 here too, so this is the most the answers can have caused, not what they
 caused.` Shares are whole percentages, rounded half up, and 0% when the
 denominator is 0. The capability table's rows are unchanged by `answer` rows.
@@ -496,3 +538,12 @@ population and rules).
 And when main's audit wave 2 (0.49.313) was merged in: T1 (the ledger appends
 it follows now begin with an `alive` line), L1 (an `answer` row is not a call
 in the fold's test of a whole record).
+
+And after the review of that merge, the same day: A1.5 and A2.3 (no ask, and
+the outcome `late`, when the calling hook has no time left; the bound never
+longer than what is left), U4 (the hook passes what is left of its 30 seconds,
+less 3, and what a cut inside those 3 leaves), U5 (the `prompt` row written
+before the route), T2 (loading the libraries runs nothing on `PATH`), R3 (the
+two-step race, said and left), L4 (a session whose ledger record is not whole
+is left out, and counted in `unknown`; `late`), L5 (the late and left-out
+clauses).

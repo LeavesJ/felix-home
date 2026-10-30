@@ -513,8 +513,9 @@ resolve_or_die() {
   PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || { prc=$?; PROJ=""; }
   [ -n "$PROJ" ] && return 0
   # A read the resolution stands on that did not finish (a fork that failed) is not a directory no project governs,
-  # and says nothing of whether a binding is broken.
-  [ "$prc" -ne 2 ] || die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "$rc"
+  # and says nothing of whether a binding is broken. Only status 1 is a miss: 2 is the resolution's own word for it, and the
+  # shell of the substitution ended by a failed fork (128) or a signal (137) never got to say anything (R3-F2).
+  [ "$prc" -eq 1 ] || die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "$rc"
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of

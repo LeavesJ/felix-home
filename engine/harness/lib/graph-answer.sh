@@ -93,13 +93,17 @@ _felix_graph_ask() {
   # it has left before the platform ends it (spec U4). With under one left, or
   # a value that is not a whole number, the ask is not made: a hook the
   # platform ends prints nothing, and the route and lessons go with the answer.
+  # Both are read by value: leading zeros are dropped before the digits are
+  # counted, and ten digits or more is 999999999 seconds, past any bound.
   t="${FELIX_GRAPH_TIMEOUT:-4}"
-  case "$t" in *[!0123456789]*|??????????*) t=4 ;; esac
-  t=$((10#$t)); [ "$t" -gt 0 ] || t=4
+  case "$t" in *[!0123456789]*) t=0 ;; esac
+  t="${t#"${t%%[!0]*}"}"
+  case "$t" in '') t=4 ;; ??????????*) t=999999999 ;; esac
   left="${FELIX_GRAPH_LEFT:-}"
   if [ -n "$left" ]; then
-    case "$left" in *[!0123456789]*) return 4 ;; ??????????*) left=999999999 ;; esac
-    left=$((10#$left)); [ "$left" -ge 1 ] || return 4
+    case "$left" in *[!0123456789]*) return 4 ;; esac
+    left="${left#"${left%%[!0]*}"}"
+    case "$left" in '') return 4 ;; ??????????*) left=999999999 ;; esac
     [ "$left" -lt "$t" ] && t="$left"
   fi
   out="$(_felix_graph_bounded "$t" \

@@ -3039,7 +3039,7 @@ EOF
                $1, $4, $9, $2, $5, pct($5, $4), $7, $6, pct($7, $6), $8
         if ($10 > 0) printf "; %d asks timed out", $10
         if ($11 > 0) printf "; %d prompts came too late in the hook to ask", $11
-        if ($12 > 0) printf "; %d sessions left out, their record of tool calls incomplete", $12
+        if ($12 > 0) printf "; %d sessions left out, their record of tool calls empty or incomplete", $12
         printf "\n"
       }'
     printf '\nA file the session would have opened anyway counts here too, so this is the most the answers can have caused, not what they caused.\n'

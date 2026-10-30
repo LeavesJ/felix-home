@@ -220,9 +220,12 @@ felix_ledger_unknown_note() {
 # simply not have come up; the threshold is what separates that from evidence.
 # resolve.sh holds felix_mem_dir and felix_registry_field, both used below.
 # Sourced by path with the house guard because the suite sources this library
-# alone, in a subshell.
+# alone, in a subshell. The directory by expansion, not dirname: this loads
+# after every tool call, and the answers' load at the end uses it too.
+_FELIX_LEDGER_LIB="${BASH_SOURCE[0]:-$0}"
+case "$_FELIX_LEDGER_LIB" in */*) _FELIX_LEDGER_LIB="${_FELIX_LEDGER_LIB%/*}" ;; *) _FELIX_LEDGER_LIB=. ;; esac
 if ! command -v felix_mem_dir >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+  . "$_FELIX_LEDGER_LIB/resolve.sh"
 fi
 
 FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
@@ -824,9 +827,7 @@ felix_ledger_catchup() {
 # their rows fold through felix_ledger_rollup above. Kept in their own file.
 # A failure to load it must not fail this file's own load: the hooks source
 # this with `|| exit 0`, and the ledger is worth more than the answers' half.
-# The directory by expansion, not dirname: this loads after every tool call.
+# The directory is the one found by expansion at the top of this file.
 if ! command -v felix_answer_use >/dev/null 2>&1; then
-  _FELIX_LEDGER_LIB="${BASH_SOURCE[0]:-$0}"
-  case "$_FELIX_LEDGER_LIB" in */*) _FELIX_LEDGER_LIB="${_FELIX_LEDGER_LIB%/*}" ;; *) _FELIX_LEDGER_LIB=. ;; esac
   . "$_FELIX_LEDGER_LIB/answer.sh" 2>/dev/null || true
 fi

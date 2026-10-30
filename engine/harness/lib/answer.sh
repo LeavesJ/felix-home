@@ -175,6 +175,9 @@ felix_ledger_answers() {
 # PostToolUse record is not whole by the test the fold uses for its zero rows
 # (lib/ledger.sh, _felix_ledger_whole): a run that recorded nothing may have
 # reached a file an answer named, and a touch missed reads as an answer unused.
+# An empty record is left out too. It cannot tell a session that made no call
+# from one whose hook never ran, and it is the hook that never ran which a
+# count of zero would hide.
 #
 # A touch credits only the answer rows of its own turn, after the record's last
 # prompt row before it. A touch row the post-tool hook wrote names the file it

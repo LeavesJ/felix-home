@@ -321,7 +321,8 @@ _lf_json() {
 # other git runs as it is. FILE and TMPDIR hold no double quote, dollar sign, backquote, backslash or ampersand.
 # LF_RC is the subshell's status (CMD's LF_RC, or 137 when the kill reached it), LF_FIRE "fired" when the function
 # acted as MODE says (fork: git did not run to a clean exit after it; kill: both signals were sent), else what FILE
-# shows. A session start's JSON is read again after it with _lf_json, since the subshell's variables are gone.
+# shows. A session start's JSON is read again after it with _lf_json, since the subshell's variables are gone. What
+# bash says on its own stderr around CMD (a note of a job the kill ended) goes to FILE.shell.
 _lf_fault() {
   local m="$1" f="$2" t="$3" b
   shift 3
@@ -336,13 +337,14 @@ _lf_fault() {
     (*) return 1 ;;
   esac
   b="${b//@F@/$f}"; b="${b//@K@/$$}"
-  rm -f "$f"
-  ( TMPDIR="$t"; export TMPDIR
-    eval 'git() { local s p r; case " $* " in (*" --first-parent "*) case " $* " in (*" refs/remotes/origin/main"*) '"$b"' ;; esac ;; esac; command git "$@"; }' \
-      || exit 125
-    export -f git
-    "$@"
-    exit "$LF_RC" )
+  rm -f "$f" "$f.shell"
+  # What bash itself says, such as its note of a job a kill ended, goes to FILE.shell, not to the suite's stderr.
+  { ( TMPDIR="$t"; export TMPDIR
+      eval 'git() { local s p r; case " $* " in (*" --first-parent "*) case " $* " in (*" refs/remotes/origin/main"*) '"$b"' ;; esac ;; esac; command git "$@"; }' \
+        || exit 125
+      export -f git
+      "$@"
+      exit "$LF_RC" ); } 2> "$f.shell"
   LF_RC=$?
   if [ "$m" = fork ]; then
     LF_FIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }

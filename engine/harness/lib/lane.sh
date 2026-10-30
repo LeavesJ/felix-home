@@ -24,7 +24,6 @@
 
 _LANE_LIB="${BASH_SOURCE[0]:-$0}"
 case "$_LANE_LIB" in */*) _LANE_LIB="${_LANE_LIB%/*}" ;; *) _LANE_LIB=. ;; esac
-_LANE_TAB=$'\t'
 
 # Every lane git read runs in a subshell of its own, for two reasons. A fork that fails ends bash 3.2's shell that was
 # forking, with status 128 and nothing printed; here it ends that one read, which the caller sees as a status that is

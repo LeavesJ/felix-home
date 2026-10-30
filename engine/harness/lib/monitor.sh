@@ -149,9 +149,15 @@ _felix_mon_mistake_row() {
 _felix_mon_project() {
   local proj="$1" home="$2" name gate rec
   name="$(basename "$proj")"
-  gate="$(felix_json_str "$proj/project.json" gate)"
-
-  printf '{"name":"%s","gate":"%s"' "$(_felix_json_esc "$name")" "$(_felix_json_esc "$gate")"
+  # A project.json that cannot be read is {"unknown":WHY}, not the empty string
+  # of a project that declares no gate (the same rule as capabilities below).
+  printf '{"name":"%s",' "$(_felix_json_esc "$name")"
+  if [ -f "$proj/project.json" ] && [ -r "$proj/project.json" ]; then
+    gate="$(felix_json_str "$proj/project.json" gate)"
+    printf '"gate":"%s"' "$(_felix_json_esc "$gate")"
+  else
+    printf '"gate":{"unknown":"%s"}' "$(_felix_json_esc "$proj/project.json cannot be read, so no gate is known")"
+  fi
 
   # 2026-10-01: an array is a list that was read, and a list that was not is
   # {"unknown":WHY}, which the page says as not known. Until then this read the
@@ -280,6 +286,12 @@ EOF
 # A ledger written before that column cannot answer this question, and counting
 # nothing would render as perfect compliance — the most flattering possible
 # reading of an absence, which is the one to refuse.
+#
+# A session with any row whose CALLS is `-` prints no line, whatever its other
+# rows say, for the same reason. An incomplete PostToolUse record folds every
+# row nothing reached as `-` and keeps the counts of the rows it did see, so
+# dropping the `-` rows one at a time leaves only the followed ones, and the
+# session would read as followed in full. The figure covers complete sessions.
 felix_monitor_compliance() {
   local proj="$1"
   # Split, because `local a=$1 b=$a` expands every word before it assigns any of
@@ -287,7 +299,8 @@ felix_monitor_compliance() {
   local mem="$(felix_mem_dir "$proj")"
   command -v _felix_ledger_rows >/dev/null 2>&1 || return 0
   _felix_ledger_rows "$mem" | awk -F'\t' '
-    NF >= 6 && $6 != "" && $6 + 0 > 0 {
+    $5 == "-" { unk[$1 SUBSEP $2] = 1 }
+    NF >= 6 && $6 != "" && $5 != "-" && $6 + 0 > 0 {
       key = $1 SUBSEP $2
       if (!(key in seen)) { seen[key] = 1; order[++n] = key; sess[key] = $1; day[key] = $2 }
       named[key]++
@@ -296,6 +309,7 @@ felix_monitor_compliance() {
     END {
       for (i = 1; i <= n; i++) {
         k = order[i]
+        if (k in unk) continue
         printf "%s\t%s\t%s\t%s\t%s\n", sess[k], day[k], named[k],
                followed[k] + 0, named[k] - (followed[k] + 0)
       }
@@ -311,7 +325,10 @@ felix_monitor_json() {
   printf ',"projects":['
   for p in "$home"/projects/*/; do
     [ -d "$p" ] || continue
-    [ -f "${p}project.json" ] || continue
+    # A project whose project.json is gone or is not a file is still a project,
+    # and drops off the page only if nothing else says it is one; its gate is
+    # then said unknown (_felix_mon_project), not left out.
+    [ -e "${p}project.json" ] || [ -L "${p}project.json" ] || [ -f "${p}CLAUDE.md" ] || continue
     [ "$first" -eq 1 ] || printf ','
     first=0
     _felix_mon_project "${p%/}" "$home"

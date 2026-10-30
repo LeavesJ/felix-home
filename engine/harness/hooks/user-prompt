@@ -58,6 +58,7 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 . "${SCRIPT_DIR}/../lib/ledger.sh"
 . "${SCRIPT_DIR}/../lib/verify.sh"
 . "${SCRIPT_DIR}/../lib/lifecycle.sh"
+. "${SCRIPT_DIR}/../lib/hook-faults.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"
 
@@ -68,6 +69,11 @@ raw="$(cat 2>/dev/null || true)"
 felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
 [ -n "$PROJ" ] || exit 0
+
+# This run is on record until it ends. A run the platform cuts off at its limit
+# leaves the record, and the session's next stop says so (lib/hook-faults.sh).
+# Before anything slow, and without the exits below leaving it behind.
+felix_prompt_start "$FELIX_HOME_DIR" "$raw" 2>/dev/null || true
 
 # A session nobody in it typed into is recorded as nothing, and this is the
 # first thing done with the payload because everything after it writes: the
@@ -93,6 +99,7 @@ if [ "$machine" = session ]; then
   felix_lifecycle_summary "$PROJ" "$PWD" "$_felix_msid" \
     "$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)" \
     >/dev/null 2>&1 || true
+  felix_prompt_end
   exit 0
 fi
 
@@ -110,13 +117,13 @@ sid_raw="$(printf '%s' "$raw" | sed -n 's/.*"session_id"[[:space:]]*:[[:space:]]
 sid="$sid_raw"
 [ -n "$sid" ] || sid="repo-$(printf '%s' "$root" | tr -c 'a-zA-Z0-9' '-')"
 
-# The HEAD this session began at, recorded on the first prompt because
-# SessionStart reads only the source from its payload and so has no session id
-# to key on. The first mark wins, so later prompts do not move it and a compact
-# cannot reset it. Stop needs this to tell work that was committed from a tree
-# that merely happens to be clean — before it existed, committing your work
-# skipped the completion check entirely, and committing is what you do at the
-# end.
+# The HEAD this session began at, recorded on the first prompt. SessionStart
+# parses a session id now, but the mark stays here: it is written by a prompt a
+# person typed, and a summary request must not have one, since a mark ends the
+# exemption for it (the #264 rule, lib/verify.sh). The first mark wins, so later
+# prompts do not move it and a compact cannot reset it. Stop needs this to tell
+# work that was committed from a tree that merely happens to be clean — before
+# it existed, committing your work skipped the completion check entirely.
 #
 # Never checked. A session that cannot record this loses one completion check;
 # a session that cannot start loses everything.
@@ -287,7 +294,7 @@ the signature it consumes share no file at all. Read the interfaces first."
   fi
 fi
 
-[ -n "$route_block" ] || [ -n "$lesson_block" ] || [ -n "$shape_block" ] || exit 0
+[ -n "$route_block" ] || [ -n "$lesson_block" ] || [ -n "$shape_block" ] || { felix_prompt_end; exit 0; }
 
 body=""
 for _part in "$route_block" "$shape_block" "$lesson_block"; do
@@ -313,4 +320,5 @@ _felix_asked="$(printf '%s' "$raw" | sed -n 's/.*"prompt"[[:space:]]*:[[:space:]
 felix_say "$PROJ" "brief" "$body" "$_felix_asked" "${sid:-}"
 printf '{\n  "hookSpecificOutput": {\n    "hookEventName": "UserPromptSubmit",\n    "additionalContext": "%s"\n  }\n}\n' \
   "$(escape_for_json "$body")"
+felix_prompt_end
 exit 0

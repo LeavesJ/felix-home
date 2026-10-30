@@ -120,13 +120,19 @@ felix_graph_line() {
 # keeps saying so.
 #
 # The lock is a directory because mkdir is atomic everywhere and a stale lock
-# file is not. Same shape as the discovery refresh, for the same reason.
+# file is not. Same shape as the discovery refresh, for the same reason, and a
+# lock older than 30 minutes is broken as there: an update killed by SIGKILL or a
+# power loss never runs its trap, and the graph would otherwise never refresh
+# again (audit b06, C043). The update leaves no record.
 felix_graph_refresh_bg() {
   local root="${1:-$PWD}" home lock
   command -v graphify >/dev/null 2>&1 || return 0
   home="$(felix_graph_home "$root")" || return 0
   [ -d "$home/graphify-out" ] || return 0
   lock="$home/graphify-out/.felix-refresh.lock"
+  if [ -d "$lock" ] && [ -n "$(find "$lock" -maxdepth 0 -mmin +30 2>/dev/null)" ]; then
+    rmdir "$lock" 2>/dev/null
+  fi
   mkdir "$lock" 2>/dev/null || return 0   # already running; leave it alone
   (
     trap 'rmdir "$lock" 2>/dev/null' EXIT

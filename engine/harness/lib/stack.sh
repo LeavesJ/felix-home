@@ -46,7 +46,7 @@ _felix_load_state() {
   # any configured marketplace", and the first live commissioning run held
   # two projects on a plugin that was live in every session. ready.sh already
   # read the same keys; the stack inventory now reads them too.
-  _FELIX_INLINE="$(sed -n 's/.*"\([A-Za-z0-9._-]*\)@inline".*/\1/p' "$HOME/.claude.json" 2>/dev/null | LC_ALL=C sort -u)"
+  _FELIX_INLINE="$(sed -n 's/.*"\([A-Za-z0-9._-]*\)@inline".*/\1/p' "${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json" 2>/dev/null | LC_ALL=C sort -u)"
 }
 
 # What one line of `claude mcp list` says about its server: failed, needs-auth,
@@ -98,7 +98,7 @@ _felix_have() {
     # matters.
     mcp)         _felix_mcp_connected "$2" ;;
     marketplace) felix_contains "$_FELIX_MKTS" "$2" ;;
-    skill)       [ -d "$HOME/.claude/skills/$2" ] ;;
+    skill)       [ -d "${CLAUDE_CONFIG_DIR:-$HOME/.claude}/skills/$2" ] ;;
     *) return 1 ;;
   esac
 }

@@ -341,6 +341,13 @@ is not a naming of the answer. An `answer` row stands for no declared
 capability, so a session given graphify's answer still gets its zero row for a
 declared `graphify` it never reached for.
 
+Nor is an `answer` row a call when the fold decides whether the session's
+record is whole, by its `alive` lines against its calls (0.49.313). The
+user-prompt hook writes it, so it says nothing about whether a PostToolUse run
+recorded what it saw. A session with more `alive` lines than calls, or with
+neither, folds its zero and named rows as `-`, unknown, however many answers it
+was given.
+
 ### L2. Kept out of every capability reading
 
 `felix_ledger_summary`, `felix_ledger_mcp`, and so the retire, unobserved,
@@ -483,3 +490,6 @@ regular file, and only 64 bytes of it, in any locale), A4 (the marker renamed in
 never written through a link or into a directory), L4 (a row T1 wrote credits
 its own file only; what the measure cannot see), section 8 (the replay's
 population and rules).
+
+And when main's audit wave 2 (0.49.313) was merged in: L1 (an `answer` row is
+not a call in the fold's test of a whole record).

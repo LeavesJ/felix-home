@@ -266,4 +266,50 @@ is "lane pulse F1-count-ends-early L-NEVER-OK: where the pulse ends with lane ca
    "$LNPa|unfaulted $LNPb|$LF_FIRE|$LF_RC|$LNPc|$(_lnp_before "$LNPD/f1k.out")" \
    "built|unfaulted 0|$(_lf_tsv lane capability zero 0 1)"$'\n'"$(_lf_tsv lane docs zero 0 1)|fired|0|C3 or R2|backup settings"
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+
+# ---- the second review's round 1: forks that fail as the pulse finds the home's project (R2-F2) -----------------------
+# Added on 2026-10-30 from the second review's findings (their inputs and observed output only), still blind, last, in a
+# self-governed home of its own: R holds .felix (p), lanes.tsv (cap ^engine/ 1/2 14, sec ^docs/ 1/2 7) committed, and the
+# review's landings (_lf_r2land), so that the pulse ends with lane cap zero 0 2 and lane sec short 1 3. The faults are
+# the review's fork probes (_lf_fork), by the words and calling functions it names, inputs of the finding: (b) git
+# rev-parse --git-dir with felix_lane_pulse on the stack; (c) tr -d [:space:] in felix_resolve_project called from
+# felix_lane_pulse. C8 gives no lane line only for a home with no committed lanes.tsv or no row, or one that is not a git
+# checkout bound to a project, and this home is none of them; a read that did not finish never reads as one (C3). So
+# the pulse ends with its two lane lines, the single lane - unknown - - (C8), or one unknown line per lane, after its
+# backup and settings lines; or, as C3 says of a fork that fails in the surface's own shell, it ends with 128. Each
+# assertion also compares the pulse without the fault, so it is red on main.
+LNPRT="$LNPD/r2-tmp"; mkdir -p "$LNPRT"; LNPRA="not built: R2-F2's home"; LNPRH=""
+if _lf_self "$LNPD/r2" p $((LNPN - 30 * LNPDAY)); then
+  LNPRH="$LF_HOME"
+  _lnp_put "$LNPRH" "$LF_PROJ" lanes.tsv "R2-F2's two lanes" $'cap\t^engine/\t1/2\t14\nsec\t^docs/\t1/2\t7\n'
+  LNPa="$((LNPN - LNPDAY)):1 $((LNPN - 2 * LNPDAY)):1 $((LNPN - 3 * LNPDAY)):1 $((LNPN - 4 * LNPDAY)):1 $((LNPN - 5 * LNPDAY)):1"
+  _lf_r2land "$LNPRH" "$LNPN" && [ "$LNPT" = built ] \
+    && case "$(_lf_spine "$LNPRH")" in ("$LNPa $((LNPN - 20 * LNPDAY)):1 "*" $((LNPN - 30 * LNPDAY)):0") LNPRA=built ;; esac
+fi
+_lf_use "${LNPRH:-$LNPD/r2}" "$LNPD/r2-memory" "$LNPD/r2-user" "$LNPB"
+LNPRW="$(_lf_tsv lane cap zero 0 2)"$'\n'"$(_lf_tsv lane sec short 1 3)"
+_lnp_pulse "$LNPD/r2-0"; LNPb="$LF_RC|$(_lnp_tail "$LNPD/r2-0.out")|$(_lnp_before "$LNPD/r2-0.out")"
+# OUT -> "lane lines or 128" when the faulted pulse whose files are OUT.* ended as the readings above accept, else its
+# status, its lines from the first lane line on, and what came before them.
+_lnp_r2() {
+  local t
+  t="$(_lnp_tail "$1.out")"
+  if [ "$LF_RC" = 128 ] && [ -z "$(LC_ALL=C awk -F'\t' '$1 == "lane" && $3 != "unknown"' "$1.out" 2>/dev/null)" ]; then printf 'lane lines or 128'; return 0; fi
+  if [ "$LF_RC" = 0 ] && [ "$(_lnp_before "$1.out")" = "backup settings" ]; then
+    case "$t" in
+      ("$LNPRW"|"$(_lf_tsv lane - unknown - -)"|"$(_lf_tsv lane cap unknown - -)"$'\n'"$(_lf_tsv lane sec unknown - -)") printf 'lane lines or 128'; return 0 ;;
+    esac
+  fi
+  printf 'status %s, lane lines [%s], %s' "$LF_RC" "$t" "$(_lnp_before "$1.out")"
+}
+_lf_fork fork git "*' rev-parse --git-dir '*" "*' felix_lane_pulse '*" "$LNPD/r2f2b.fired" "$LNPRT" _lf_run "$LNPD/r2f2b" "$LNPRH" "$LNPN" "$FELIX" pulse
+_lf_calm "$LNPRH"
+is "lane pulse R2-F2-pulse-drops-lane-lines L-NEVER-OK: (b) a fork that fails in the pulse's git read of the home (rev-parse --git-dir, felix_lane_pulse on the stack), where without it the pulse ends with lane cap zero 0 2 and lane sec short 1 3: felix pulse ends with those lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line" \
+   "$LNPRA|unfaulted $LNPb|$LF_FIRE|$(_lnp_r2 "$LNPD/r2f2b")" "built|unfaulted 0|$LNPRW|backup settings|fired|lane lines or 128"
+_lf_fork fork tr "*' -d [:space:] '*" "*' felix_resolve_project felix_lane_pulse '*|*' felix_resolve_project '*' felix_lane_pulse '*" \
+  "$LNPD/r2f2c.fired" "$LNPRT" _lf_run "$LNPD/r2f2c" "$LNPRH" "$LNPN" "$FELIX" pulse
+_lf_calm "$LNPRH"
+is "lane pulse R2-F2-pulse-drops-lane-lines L-NEVER-OK: (c) a fork that fails as the pulse reads the home's .felix (tr -d [:space:] in felix_resolve_project, called from felix_lane_pulse): felix pulse ends with the two lane lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line" \
+   "$LNPRA|unfaulted $LNPb|$LF_FIRE|$(_lnp_r2 "$LNPD/r2f2c")" "built|unfaulted 0|$LNPRW|backup settings|fired|lane lines or 128"
+_lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

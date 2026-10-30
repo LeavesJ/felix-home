@@ -455,4 +455,36 @@ _lf_fault kill "$LNGF.fired" "$LNGkt" _lf_start "$LNGF" "$LNGZ" "$LNGN" startup
 LNGRC="$LF_RC"; _lf_calm "$LNGH"; _lf_json "$LNGF"
 _lng_is "lane session start F1-count-ends-early: the parent of the shell that runs the read of the landings, then that shell, killed (C9), in the own zero checkout where the same session start without it shows the paragraph and the token: exit 0, valid JSON, neither a lane paragraph nor a lane token" \
    "$LNGZE|$LNGT|unfaulted $LNGa|$LF_FIRE|$LNGRC|$LF_JSON|$(_lf_silent capability)" "built|built|unfaulted 0|ok|1|$LNGTOK14|fired|0|ok|none"
+
+# ---- the second review's round 1: the clock's read and the next text's read, faulted (R2-F1, R2-F5) -------------------
+# Added on 2026-10-30 from the second review's findings (their inputs and observed output only), still blind, in the
+# review's home-apart fixture (_lf_r2: project p, its checkout p's own, remote_match o/r), its landings dated from the
+# machine clock at build time. Without a fault, session start there shows cap's zero paragraph, sec's short one and the
+# token. The faults are the review's fork probes (_lf_fork), by the words and calling functions it names: R2-F1 at the
+# count's read of the clock (date -u +%s, _lane_rows on the stack), FELIX_LANE_NOW unset; R2-F5 at the read of cap's
+# next text (awk, lane=cap, _lane_next on the stack), the clock at build time. C7 and C3: a count that read no clock
+# says nothing of the lane, and a next that could not be read is (lane-next.tsv cannot be read), never - or empty; C3
+# makes every next unknown then, so sec's may read it too. Each assertion also compares the start without the fault.
+LNGRN="$(date +%s)"; LNGRT="$LNGD/r2-tmp"; mkdir -p "$LNGRT"; LNGRA="not built: the second review's fixture"
+_lf_r2 "$LNGD/r2" p "$LNGRN" && LNGRA=built
+LNGRR="$LF_REPO"; LNGRH="$LF_HOME"
+_lf_use "$LNGRH" "$LNGD/r2/memory" "$LNGD/r2/user" "$LNGB"
+LNGRCAP="$(_lng_par zero 0 2 14 1/2 'cap next item' "$LNGCLH" cap)"; LNGRSEC="$(_lng_par short 1 3 7 1/2 'sec next item' "$LNGCLH" sec)"
+LNGRTOK='Felix: p · lane: 0 in 14 days'
+_lng_ss "$LNGRR" -; LNGa="$LF_RC|$LF_JSON|$(_lng_n "$LNGRCAP")|$(_lng_n "$LNGRSEC")|$LF_SCR"
+LNGK=$((LNGK + 1)); LNGF="$LNGD/ss-$LNGK"
+_lf_fork fork date "' -u +%s '" "*' _lane_rows '*" "$LNGF.fired" "$LNGRT" _lf_start "$LNGF" "$LNGRR" - startup
+LNGb="$LF_RC"; _lf_calm "$LNGRH"; _lf_json "$LNGF"
+_lng_is "lane session start R2-F1-clock-fork-reads-idle: with FELIX_LANE_NOW unset, a fork that fails in the count's read of the machine clock (date -u +%s), in the own checkout where the same session start without it shows cap's zero paragraph, sec's short one and the token: exit 0, valid JSON, neither a lane paragraph nor a lane token, never an idle paragraph" \
+   "$LNGRA|unfaulted $LNGa|$LF_FIRE|$LNGb|$LF_JSON|$(_lf_silent cap)" "built|unfaulted 0|ok|1|1|$LNGRTOK|fired|0|ok|none"
+_lng_ss "$LNGRR" "$LNGRN"; LNGa="$LF_RC|$LF_JSON|$(_lng_n "$LNGRCAP")|$(_lng_n "$LNGRSEC")|$LF_SCR"
+LNGK=$((LNGK + 1)); LNGF="$LNGD/ss-$LNGK"
+_lf_fork fork awk '*lane=cap*' "*' _lane_next '*" "$LNGF.fired" "$LNGRT" _lf_start "$LNGF" "$LNGRR" "$LNGRN" startup
+LNGb="$LF_RC"; _lf_calm "$LNGRH"; _lf_json "$LNGF"
+LNGc="$(_lng_n "$LNGRCAP")+$(_lng_n "$(_lng_par zero 0 2 14 1/2 '(lane-next.tsv cannot be read)' "$LNGCLH" cap)")"
+LNGc="$LNGc|$(_lng_n "$LNGRSEC")+$(_lng_n "$(_lng_par short 1 3 7 1/2 '(lane-next.tsv cannot be read)' "$LNGCLH" sec)")"
+case "$LNGc" in ("1+0|1+0"|"1+0|0+1"|"0+1|1+0"|"0+1|0+1") LNGc="text or cannot be read" ;; (*) LNGc="$LNGc, context [$LF_CTX]" ;; esac
+_lng_is "lane session start R2-F5-next-cell-empties-and-shifts-columns: a fork that fails in the read of cap's next text, in the own checkout where without it session start shows both paragraphs and the token: exit 0, valid JSON, cap's zero paragraph once with cap next item or (lane-next.tsv cannot be read), never - or empty, sec's short one the same way, and the token" \
+   "$LNGRA|unfaulted $LNGa|$LF_FIRE|$LNGb|$LF_JSON|$LNGc|$LF_SCR" "built|unfaulted 0|ok|1|1|$LNGRTOK|fired|0|ok|text or cannot be read|$LNGRTOK"
+_lf_use "$LNGH" "$LNGD/memory" "$LNGD/user" "$LNGB"
 # <<< lane-session-start

@@ -253,4 +253,43 @@ case "$LNTa" in
 esac
 is "lane status row F1-count-ends-early L-NEVER-OK: the parent of the shell that runs the read of the landings, then that shell, killed (C9): felix status --tsv exits 0 with ten rows, the last lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2; never a value, the none row or no lane row" \
    "$LNTOKE|$LNTT|$LF_FIRE|$LF_RC|$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/f1k.out")|$LNTa" "built|built|fired|0|$LNTTEN|C3 or R2"
+
+# ---- the second review's round 1: a resolution that fails, and plain status losing rows (R2-F3, R2-F7) ----------------
+# Added on 2026-10-30 from the second review's findings (their inputs and observed output only), still blind, after the
+# shape check, whose count of runs stands. In the review's home-apart fixture (_lf_r2, the clock at LNTN), where the lane
+# row reads value zero 0 of 2. The faults are the review's probes (_lf_fork), by the words and calling functions it
+# names, inputs of the findings: R2-F3 a fork that fails at tr -d [:space:] in felix_resolve_project under
+# felix_status_rows; R2-F7 a function command that lowers the limit at command -v felix_capture, so the shell that asked
+# fails at its next fork (it reaches the land and hooks rows too, as the review says). Readings: C6's none row is for a
+# directory no project governs, so a resolution that did not finish gives the value row, lane unknown - with a reason,
+# or, as C3 says of a fork that fails in the surface's own shell, felix status ended with status 128; plain felix status
+# prints ten rows ending in the lane row, value or unknown, aligned, or ends with 128, never exit 0 without the lane row.
+# Each assertion also compares the run without the fault, so it is red on main.
+LNTRT="$LNTD/r2-tmp"; mkdir -p "$LNTRT"; LNTRA="not built: the second review's fixture"; LNTtb=$'\t'
+_lf_r2 "$LNTD/r2" p "$LNTN" && LNTRA=built
+LNTRC="$LF_REPO"
+_lf_use "$LF_HOME" "$LNTD/memory" "$LNTD/user" "$LNTB"
+LNTRV="$(_lf_tsv lane value zero '0 of 2 engine landings in 14 days, target 1/2')"
+LNTRP="$(printf '%-9s %-12s %s' lane zero '0 of 2 engine landings in 14 days, target 1/2')"
+_lf_run "$LNTD/r2f3-0" "$LNTRC" "$LNTN" "$FELIX" status --tsv
+LNTb="$LF_RC|$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/r2f3-0.out")|$(_lf_last "$LNTD/r2f3-0.out")"
+_lf_fork fork tr "*' -d [:space:] '*" "*' felix_resolve_project felix_status_rows '*|*' felix_resolve_project '*' felix_status_rows '*" \
+  "$LNTD/r2f3.fired" "$LNTRT" _lf_run "$LNTD/r2f3" "$LNTRC" "$LNTN" "$FELIX" status --tsv
+LNTa="$(_lf_last "$LNTD/r2f3.out")"; LNTc="$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/r2f3.out")"
+case "$LF_RC|$LNTc|$LNTa" in
+  ("128|"*|"0|$LNTTEN|$LNTRV") LNTa="value, unknown or 128" ;;
+  ("0|$LNTTEN|lane${LNTtb}unknown${LNTtb}-${LNTtb}"?*) case "${LNTa##*"$LNTtb"}" in (-) LNTa="status 0, last [$LNTa]" ;; (*) LNTa="value, unknown or 128" ;; esac ;;
+  (*) LNTa="status $LF_RC, rows [$LNTc], last [$LNTa]" ;;
+esac
+is "lane status row R2-F3-status-none-row-when-resolution-fails L-NEVER-OK: a fork that fails while felix status --tsv resolves the project (tr -d [:space:] in felix_resolve_project, under felix_status_rows), in a checkout the project governs: the lane row is the value zero 0 of 2 or lane unknown - with a reason, the last of ten, or felix status ends with 128; never the none row this directory is not a governed checkout" \
+   "$LNTRA|unfaulted $LNTb|$LF_FIRE|$LNTa" "built|unfaulted 0|$LNTTEN|$LNTRV|fired|value, unknown or 128"
+_lf_run "$LNTD/r2f7-0" "$LNTRC" "$LNTN" "$FELIX" status; LNTb="$LF_RC|$(_lf_count "$LNTD/r2f7-0.out")|$(_lf_last "$LNTD/r2f7-0.out")"
+_lf_fork lower command "' -v felix_capture '" '*' "$LNTD/r2f7.fired" "$LNTRT" _lf_run "$LNTD/r2f7" "$LNTRC" "$LNTN" "$FELIX" status
+LNTa="$(_lf_last "$LNTD/r2f7.out")"; LNTc="$(_lf_count "$LNTD/r2f7.out")"
+case "$LF_RC|$LNTc|$LNTa" in
+  ("128|"*|"0|10|$LNTRP"|"0|10|$(printf '%-9s %-12s ' lane unknown)"?*) LNTa="ten rows or 128" ;;
+  (*) LNTa="status $LF_RC, $LNTc rows, last [$LNTa]" ;;
+esac
+is "lane status row R2-F7-plain-status-loses-rows-with-exit-0 L-NEVER-OK: plain felix status with a function command that lowers the process limit at command -v felix_capture, so the shell that asked fails at its next fork: ten rows ending in the lane row, zero or unknown, aligned, or felix status ends with 128; never exit 0 without the lane row" \
+   "$LNTRA|unfaulted $LNTb|$LF_FIRE|$LNTa" "built|unfaulted 0|10|$LNTRP|fired|ten rows or 128"
 # <<< lane-status-row

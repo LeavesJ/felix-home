@@ -4,11 +4,11 @@
 
 **Goal:** Ship `felix situations`, which says, for a recorded tree or for a change, which situation rows the project owes, which rows the change brings in, blinds or retires, and what Felix could not look at, with no model, no key and no network.
 
-**Architecture:** A new engine table, `engine/harness/templates/situations.tsv`, holds the classes. Three new libraries do the work. `lib/situations-read.sh` reads one side: either the recorded facts in `facts.log`, or a fresh reading of a scratch clone. `lib/situations.sh` evaluates each class with three values and compares base against head. `lib/situations-report.sh` prints the human report, the `--tsv` form that slice 2 reads, or the `--propose` drafts. `felix` gains one command, `cmd_situations`, which parses the flags and wires these together. Nothing is written anywhere.
+**Architecture:** A new engine table, `engine/harness/templates/situations.tsv`, holds the classes. Three new libraries do the work. `lib/situations-read.sh` reads one side: either the recorded facts in `facts.log`, or a fresh reading of a scratch clone. `lib/situations.sh` evaluates each class with three values and compares base against head. `lib/situations-report.sh` prints the human report, the `--tsv` form that slice 2 reads, or the `--propose` drafts. `felix` gains one command, `cmd_situations`, which parses the flags and wires these together. Nothing is written outside its own scratch directory under `TMPDIR`, which it removes before it prints.
 
 **Tech stack:** Bash 3.2, git, and awk that both BWK awk and gawk run. The tests are the suite's parts, run with `tests/run --part`.
 
-**Spec:** `docs/2026-10-29-capability-lane-first-slices-design.md`: §7 (slice 1), with §1 to §5, §9 and §10. Through §7, also `docs/2026-10-19-intent-to-build-design.md` §9 and §10.
+**Spec:** `docs/2026-10-29-capability-lane-first-slices-design.md`, as corrected after the fact-check: §7 (slice 1), with §1 to §5, §6.3, §9, §10, §11 and §12. Through §7, also `docs/2026-10-19-intent-to-build-design.md` §9 and §10. The §11 calls this slice carries are cited where they change what is built: items 6 to 12, 21 to 32.
 
 ## Global Constraints
 
@@ -16,13 +16,13 @@
 - "Only awk that both BWK awk (local) and gawk (CI) run. Part 1497's `_awk_names` lints `lib/`." (§4)
 - "`LC_ALL=C` on every sort, comm, join and uniq (part 0992)." (§4)
 - "`[[ =~ ]]` only inside a function that declares `local LC_ALL=C` (part 0996)." (§4)
-- "Flags go through `need_value` (`felix:388-390`), never a bare `shift 2`." (§4; `need_value` is at `felix:389-391` today.)
+- "Flags go through `need_value` (`felix:389-391`), never a bare `shift 2`." (§4)
 - "The engine names no project (constitution invariant 1). The gate's independence and ecosystem sections fail on it. Everything project-specific lives in a `projects/<p>/` table or arrives as an argument." (§4)
 - The ecosystem section reads its words from every `_felix_dep_grep` token in `lib/detect.sh` (`:74-78`, `:87-89`) and from the `word` rows of `engine/harness/ecosystem.tsv`, less the `mute` row (`next`). So no new line in `felix` or in `lib/situations*.sh` may say python, pip, pytest, node, npm, rust, cargo, fastapi, anthropic or any other of those words. `rust` is also a capability name, so the libraries hard-code no capability name at all. (Engine rule, `projects/felix/gate.sh:412-555`. It scans the paths `bin/independence-scan --paths` prints, `felix`, `lib`, `hooks` and `bin`, so `templates/` is not scanned for these words.)
-- "Offline and deterministic (invariant 2). Two runs with the network off and no key print identical bytes." (§4)
+- "Offline (invariant 2) and deterministic (the intent design's §9 (d) and falsifier 2). Two runs with the network off and no key print identical bytes." (§4)
 - "A check that cannot fail is not a check (invariant 5). Every new check is shown failing first." (§4)
 - "Never delete a home or a memory root (invariant 6)." (§4)
-- "Records go under the memory root (`felix_mem_dir`, `lib/resolve.sh:270-273`) or under `state/`." (§4; `felix_mem_dir` is at `lib/resolve.sh:269-272` today.)
+- "Records go under the memory root (`felix_mem_dir`, `lib/resolve.sh:269-272`) or under `state/`." (§4)
 - "Nothing is written into a governed repository: its refs, index, config and worktree list stay as they were." (§4)
 - "`--change` never writes `facts.log`." (§4)
 - "The lane never touches `lib/qualify.sh`, `lib/obligations.sh`, `lib/receipt.sh` or the landing actor's files": "`lib/automerge.sh`, `lib/green-*.sh`, `lib/land-table.sh`, `lib/notify.sh`, `lib/own.sh` and `lib/status-land.sh`; the `felix merge` and `felix land` code paths." (§4) Calling `felix_obligation_rows` is reading, not touching.
@@ -30,11 +30,18 @@
 - "Nothing here blocks a merge, holds a release, comments on a pull request or writes an enforcing table." "No new GitHub writes, and no file in anyone's CI." (§3)
 - Anti-goals (§3): "A project score, level or readiness grade." "Anything a person chats with." "'Could not look' shown as anything else. It is never printed or counted as DORMANT, as absent, or as 'owes nothing'." "A model on any of these paths."
 - "No new engine branch while more than 10 engine PRs are open (direction row 17). The engine does not count this, so the builder checks `gh pr list` first." (§4)
-- "Each PR bumps the patch version in the PR and puts it in the title. The carrier gives out the next free slot; 0.49.310 to 0.49.313 are claimed." (§4)
-- "Every new `felix` command appears in `usage()`. Part 0480 asserts it." (§4; the assertion is at `tests/parts/0480-the-one-line-git-cannot-reconstruct.sh:406-417`.)
+- "Each PR bumps the patch version in the PR and puts it in the title. Each PR takes the next free patch slot at landing; on 10-29, 0.49.310 to 0.49.314 were claimed." (§4) This plan names no slot.
+- "Every new `felix` command appears in `usage()`. Part 0480 (lines 400-417) asserts it only for commands in the main dispatch block (`felix:6679`)." (§4, §11 item 21) `felix situations` is dispatched in that block, not before the libraries load (as `audit`, `inventory` and `cost` are, `felix:239-269`), so part 0480 covers its usage line. Part 2400 asserts it as well.
+- The suite also lints `felix` and every `lib/*.sh` for these, so the new code meets them:
+    - no `$(git ... rev-parse ... HEAD ... || echo|printf ...)` fallback (part 0370);
+    - no `local` line whose assignment reads a name declared earlier on that same line (part 0590);
+    - no pipe into `grep -q`, `-m`, `-l` or `-L`, or into a grep whose stdout is `/dev/null` (part 0960);
+    - every read of a `$proj/*.tsv` keeps an unended last row and is guarded by `[ -f ]` in its function (part 1030);
+    - every porcelain `git diff` line carries `--no-ext-diff` and `--no-textconv` (part 1530).
+
 - Suite manners (§4): "commit everything before the record; red and gate never share a worktree; at most four part runs at once, across the Mac; no whole-suite run while another session's record or gate holds the queue." Today the queue owner is the "Inventory next steps" session.
-- Engine rules met by the new files: every `mktemp` names a template under `TMPDIR` (part 1000). Each new library stays under 500 lines. `tests/run` stays at or under 500 lines (part 1040; it has 453 now). A part has at most 1,000 lines and is named `NNNN-[a-z0-9-].sh`.
-- Commit messages carry no `Co-Authored-By` trailer and no attribution line. The lane's mark is the whole line `Felix-Lane: capability` (§6.2), which ends every commit message this plan makes.
+- Engine rules met by the new files: every `mktemp` names a template under `TMPDIR` (part 1000). Each new library stays under 500 lines. `tests/run` stays at or under 500 lines (part 1040). It had 475 at `origin/main` `01e24cfc`; the lane's three slices add 22 (slice 0: 7, this slice: 8, slice 2: 7 with part 2360), and open PR #452 adds 2. Task 1 adds this slice's 8 to `origin/main`'s count and to the part and lib lines every open engine PR adds; if the total passes 500, stop before the blind stage and tell the queue owner: the driver needs room first. A part has at most 1,000 lines and is named `NNNN-[a-z0-9-].sh`.
+- Commit messages carry no `Co-Authored-By` trailer and no attribution line. The lane's mark is the whole line `Felix-Lane: capability` (§6.2), which ends the body of every commit this plan makes, after a blank line below the subject. Every one is a non-merge commit, because `felix merge` copies only non-merge messages into the landing (`felix:2088-2089`). The branch takes `origin/main` by rebase, never by a merge. A landing whose message is replaced by hand drops the mark and counts as non-lane (§6.2).
 
 ## Contracts
 
@@ -51,8 +58,8 @@ felix situations [--at <tree> | --change [<base>..<head>]] [--tsv | --propose]
 - With neither `--at` nor `--change`, it runs as `--at` on the newest recorded tree.
 - `--at` takes a value through `need_value`.
 - `--change` takes an optional range. The next argument is the range when it exists and does not begin with `-`.
-- A range is split at its first `..`. It is a usage error when either half is empty, when the value holds `...`, or when the head half holds `..`. `HEAD~1..HEAD`, `main..HEAD` and `v1.2..v1.3` are ranges.
-- `--tsv` and `--propose` may not both be given. Neither may `--at` and `--change`. No flag may be given twice. Any other argument is a usage error.
+- A range is split at its first `..`. It is a usage error when the value holds no `..`, when either half is empty, when the value holds `...`, or when the head half holds `..`. `HEAD~1..HEAD`, `main..HEAD` and `v1.2..v1.3` are ranges; `--change main` is a usage error.
+- `--tsv` and `--propose` may not both be given. Neither may `--at` and `--change`. No flag may be given twice. Any other argument is a usage error, except `-h` or `--help` given first, which `felix` answers for every command: it prints `usage()` and exits 0 (`felix:6675-6677`).
 - The usage entry goes in `usage()` under "the toolbox", after the `felix obligations` line, as these lines (decided in the plan):
 
 ```
@@ -68,26 +75,36 @@ felix situations [--at <tree> | --change [<base>..<head>]] [--tsv | --propose]
 | a report was printed, whatever it says | 0 | the report | empty |
 | `--at` with no value, or an empty one | 1 | empty | `felix: felix: --at needs a value` (`need_value`'s own sentence) |
 | any other usage error | 2 | empty | first line begins `felix: usage: felix situations` |
-| no project governs the directory | 2 | empty | `resolve_or_die`'s existing sentence, beginning `felix: no project governs` |
+| no project governs the directory | 2 | empty | `resolve_or_die`'s existing sentence; with no binding at all it begins `felix: no project governs` |
 | a side, or the situation table, could not be read at all | 3 | empty | one line: `felix situations: <what> could not be read: <why>` |
 | TERM, HUP or INT during a run | 143, 129, 130 | (not judged) | (not judged) |
 
+Design §7.7 names two non-zero cases, a usage error and a side that cannot be read. This plan adds two, decided here: a directory no project governs (2, as for every `felix` command that resolves one) and a situation table that cannot be read (3). In neither case is there anything to report.
+
+**Order.** Usage errors are found first, then the governing project, then the situation table. The first check that fails is the one line printed. After the table:
+
+- In `--change` with a range: the base half, then the head half, then the scratch checkouts, base first.
+- In `--change` with no range: HEAD (an unborn HEAD gives `felix situations: head could not be read: HEAD is not a commit here`), then the main ref, then the merge base, then the scratch checkouts, base first.
+- In `--at`: the recorded tree.
+
 The exit-3 lines, decided in the plan. `<rev>` is the text as given, `<memdir>` is `felix_mem_dir` of the project (`$FELIX_MEMORY/<project>`), and `<sha40>` is a full commit id.
 
-- `felix situations: base could not be read: <rev> is not a commit here`. The same with `head`. When no range is given and HEAD is unborn, `<rev>` is `HEAD`.
-- `felix situations: the change could not be read: no main ref here: neither refs/remotes/origin/main nor refs/heads/main`
+- `felix situations: base could not be read: <rev> is not a commit here`. The same with `head`.
+- `felix situations: the change could not be read: no main ref here: neither refs/remotes/origin/HEAD, refs/remotes/origin/main nor refs/heads/main names a commit`
 - `felix situations: the change could not be read: <ref> and HEAD share no merge base`, where `<ref>` is the full ref name.
 - `felix situations: base could not be read: the scratch checkout of <sha40> could not be made`. The same with `head`.
 - `felix situations: the recorded tree could not be read: no run is recorded for tree <tree> in <memdir>/facts.log`
 - `felix situations: the recorded tree could not be read: <memdir>/facts.log records no tree`. This covers an absent log, an empty one, and one whose only trees are `unknown-tree`.
-- `felix situations: the situation table could not be read: <path>: <why>`. The `<why>` is one of the following, where `<n>` is the physical line number:
+- `felix situations: the situation table could not be read: <path>: <why>`. The `<why>` is one of the following, where `<n>` is the physical line number. The first failing line is named, with the first reason in this list that fits it:
     - `it is absent or unreadable`
     - `it holds no row`
     - `line <n>: <k> fields where a row has 5`
+    - `line <n>: cell <k> is empty`
     - `line <n>: class '<c>' is not [a-z][a-z0-9_]*`
     - `line <n>: class '<c>' appears twice`
+    - `line <n>: applies holds no term`
     - `line <n>: class_by_maturity '<v>' does not name each of prototype internal public-beta production once with a class of INFO ADVISORY TASK_BLOCKING RELEASE_BLOCKING AUTHORITY_BLOCKING`
-    - `line <n>: source '<v>' is not miss:<12 hex> or cite:<12 hex>`
+    - `line <n>: source '<v>' is not miss:, candidate: or cite: and 12 lowercase hex digits`
 
 ### C3. Readings
 
@@ -97,28 +114,28 @@ The exit-3 lines, decided in the plan. `<rev>` is the text as given, `<memdir>` 
 - The newest recorded tree is the tree field of the last line, in file order, that has 8 or more fields and whose tree is not `unknown-tree`.
 - The run read for tree `T` is decided by the last line, in file order, whose tree is `T`: its stamp and `T` name the run. The run's rows are every line with that stamp and that tree, in file order. An older run of the same tree is never read.
 - A predicate that appears more than once in the run is read from its first line.
-- The reading's probe rows are (predicate, grounds, state, count) from the run. The probe's own sentence is not in the log, so a recorded reading has none. This is decided in the plan; see the mismatch noted in Task 1.
+- The reading's probe rows are (predicate, grounds, state, count) from the run. The probe's own sentence is not in the log: `felix_probes_record` writes no detail field (`lib/facts.sh:94-96`). So a recorded reading has none, and C10 gives a fixed reason in its place. This is decided in the plan.
 
 #### C3.2 The detector at a recorded tree
 
-- The detector (`felix_detect`) runs on the live checkout only when the live checkout's tree id equals `T`. The live tree id is the one `felix probes` records for this checkout as it stands.
+- The detector (`felix_detect`) runs on the live checkout only when the live checkout's tree id equals `T` (§11 item 9). The live tree id is the one `felix probes` records for this checkout as it stands.
 - When it runs, the header's commit is the live checkout's HEAD.
 - Otherwise the detector is not run, and the commit is `-`.
 
 #### C3.3 Scratch readings (`--change`)
 
-- **The range.** A given `<base>..<head>` has each half resolved in the live repository to a commit. With no range, head is HEAD, and base is the merge base of the main ref and HEAD. The main ref is `refs/remotes/origin/main` when it exists, and otherwise `refs/heads/main`.
+- **The range.** A given `<base>..<head>` has each half resolved in the live repository to a commit. With no range, head is HEAD, and base is the merge base of the main ref and HEAD. The main ref is the target of `refs/remotes/origin/HEAD` when it is a symbolic ref to a `refs/remotes/origin/<x>` that names a commit, as slice 2's plan reads it; otherwise `refs/remotes/origin/main` when it names a commit; otherwise `refs/heads/main`.
 - **The method, decided in the plan.**
-    1. One scratch directory is made, `mktemp -d "${TMPDIR:-/tmp}/felix-situations.XXXXXX"`.
+    1. In both modes, one scratch directory is made, `mktemp -d "${TMPDIR:-/tmp}/felix-situations.XXXXXX"`, with the traps under **Removal**. Every reading and evaluation file the run writes lives in it. Only `--change` clones into it.
     2. Each side gets its own clone under it, `<scratch>/base` and `<scratch>/head`.
     3. Each clone is made with `git clone --shared --no-checkout --template=` from the repository's common git directory. So a linked worktree and a main checkout clone alike.
     4. Then `git checkout --detach -q <sha>` runs in the clone.
     5. Both commands run with no global and no system git config, with `GIT_NO_LAZY_FETCH=1`, and with stdin from `/dev/null`. So no hook, template, filter driver or lazy fetch from the person's git config runs.
 
 - **The tree id.** A side's tree id is `felix_tree_id_on <clone> <sha> <home>`, taken right after the checkout and before anything runs in the clone. It equals the id that `felix probes` records for a clean checkout of the same commit with no untracked file.
-- **What is read.** The detector and every row of the project's current `probes.tsv` (from the Felix home) then run in the clone (`felix_probes_run <proj> <clone>`). Each probe row keeps its detail sentence (`lib/probes.sh:255-357`).
+- **What is read.** The detector and every row of the project's current `probes.tsv` (from the Felix home) then run in the clone (`felix_probes_run <proj> <clone>`), the same on both sides (§11 item 8). Each probe row keeps its detail sentence (`lib/probes.sh:255-357`). Each side's probes and detector run with `TMPDIR=<scratch>/tmp-<side>`, a directory made inside the scratch directory, so what a project's probe leaves in its temporary directory is removed with the scratch.
 - **Tracked content only.** The live checkout's uncommitted edits and untracked files are read by neither side.
-- **Removal.** The scratch directory is removed before the first byte of the report is written. It is also removed on exit 3 after it was made, and on TERM, HUP and INT, which then exit 143, 129 and 130.
+- **Removal.** The scratch directory is removed before the first byte of the report is written, in both modes. It is also removed on exit 3 after it was made, and on TERM, HUP and INT, which then exit 143, 129 and 130.
 
 #### C3.4 What never changes, in every mode
 
@@ -133,25 +150,27 @@ The exit-3 lines, decided in the plan. `<rev>` is the text as given, `<memdir>` 
 
 A class's `applies` is a space-separated list of terms, and all of them must hold. At one reading, each term is true, false or undecided.
 
-- **`probe:<p>=<s>`**, where `<s>` is `found`, `empty` or `not-applicable`. This is decided in the plan: under §7.4 a term on `blind` or `unknown` would be true and undecided at once. Its reading is p's first row in the reading.
-    - It is true when that row's state is `<s>`.
-    - It is undecided when the state is `blind` or `unknown`, or when there is no row for p.
-    - Otherwise it is false. That includes `not-applicable` when `<s>` is not `not-applicable`.
+- **Grounding probes.** For a capability `<c>` on one side, the grounding rows are the reading's probe rows whose grounds field is exactly `<c>`, one per predicate (its first row), in reading order. A predicate that the project's current `probes.tsv` grounds at `<c>`, and that has no row in the reading, is a grounding probe with no reading. A grounds cell of `-` or empty grounds nothing.
 
-- **`cap:<c>`**. Its grounding rows are the reading's probe rows whose grounds field is exactly `<c>`, in reading order. It is decided in this order:
+- **`probe:<c>=<s>`** (§7.2, §11 item 23). `<c>` is the text between `probe:` and the first `=`, and is not empty. `<s>` is one of `found`, `empty`, `blind`, `unknown` and `not-applicable`. It is decided in this order:
+    1. Any grounding row reads `<s>`: true.
+    2. Otherwise, any grounding row reads `blind` or `unknown`, or a grounding probe has no reading, or no probe grounds `<c>` at all: undecided.
+    3. Otherwise: false. That includes every grounding row reading `not-applicable` when `<s>` is not `not-applicable`.
+
+- **`cap:<c>`** (§11 items 10 and 24). It is decided in this order:
     1. Any grounding row reads `found`: true.
-    2. Otherwise, any reads `blind` or `unknown`: undecided.
+    2. Otherwise, any reads `blind` or `unknown`, or a grounding probe has no reading: undecided. The probe with no reading is decided in the plan, as §7.4 decides it for probe terms: a probe that grounds `<c>` and was not read is never left to the detector.
     3. Otherwise, any reads `empty`: false.
     4. Otherwise, when there is no grounding row or every one reads `not-applicable`, the detector decides. True when it ran and names `<c>`. Undecided when it ran and does not name it, and undecided when it did not run. Detector silence is never false.
 
 - **`env:maturity>=<v>`**, where `<v>` is a maturity.
     - The declared value is project.json's `"maturity"` string, read from the Felix home's `projects/<p>/project.json` with `felix_json_str`. It is the same value on both sides.
-    - The order is `prototype < internal < public-beta < production`. This is decided in the plan from `felix:1196` and `felix:1199`: the design listed three of these four values.
+    - The order is `prototype < internal < public-beta < production`, as v3.2's risk envelope lists them; no engine code orders them (§7.2, §11 item 25).
     - True or false by rank. Undecided when nothing is declared, or when the declared value is not one of the four. Such a term is then also listed as unbound, because §7.8 counts an axis with no value as an unbound predicate.
 
 - **Unbound terms.** These are undecided, and are listed in the residual as unbound:
-    - any term in another form: a `probe:` state outside the three, an `env:` axis other than `maturity`, an `env:maturity>=` value outside the four, an empty `cap:` name, or no known prefix;
-    - a well-formed `probe:<p>=<s>` whose p no row of the project's current `probes.tsv` defines. It is evaluated from the reading as above, and listed as unbound as well.
+    - any term in another form: a `probe:` term with no `=`, an empty `<c>` or a state outside the five, an `env:` axis other than `maturity`, an `env:maturity>=` value outside the four, an empty `cap:` name, or no known prefix;
+    - a well-formed `probe:<c>=<s>` whose `<c>` no row of the project's current `probes.tsv` grounds (§7.8). It is evaluated from the reading as above, and listed as unbound as well.
 
 - **The class.** It is ACTIVE when every term is true. It is DORMANT when any term is false. Otherwise it is UNKNOWN. A false term settles the class even when another term is undecided.
 
@@ -172,13 +191,13 @@ In `--change`, each class gets one verdict token from its two states. The tokens
 
 **When a grounding reading differs.** Compare base and head term by term, in applies order. Any term that differs makes the class differ.
 
-- A `probe:` term differs when p's first row has a different (state, count) on the two sides. A row on one side only also differs.
-- A `cap:` term differs when the sequence of its grounding rows' (predicate, state, count), not-applicable rows included, differs. It also differs when the detector's answer differs on a side where step 4 decided: names it, does not, or was not run.
+- A `probe:` or `cap:` term differs when the sequence of its grounding rows' (predicate, state, count), not-applicable rows included, differs between the sides (§7.5). A grounding row on one side only also differs.
+- A `cap:` term also differs when step 4 decided it on either side and the detector's answer (names it, does not, or was not run) differs between the sides.
 - An `env:` term never differs.
 
-**In `--at` mode**, the token follows the one state: ACTIVE is `standing`, UNKNOWN is `could-not-look`, and DORMANT is `none`.
+**In `--at` mode**, the token follows the one state (§7.7, §11 item 27): ACTIVE is `standing`, UNKNOWN is `could-not-look`, and DORMANT is `none`.
 
-The token order is the order in which each token first appears in §7.5's table: `owed`, `standing`, `blinded`, `could-not-look`, `retired`, `none`.
+The token order is the one §7.7 sorts by: `owed`, `blinded`, `retired`, `standing`, `could-not-look`, `none`.
 
 ### C6. Ids
 
@@ -190,17 +209,18 @@ The token order is the order in which each token first appears in §7.5's table:
 
 **The grounds string.** One item per term, in applies order, joined by `, ` (comma and space).
 
-- `probe:<p>=<s>` gives `<p> <state>` from p's first row, or `<p> no reading`.
-- `cap:<c>`, when some grounding row is not `not-applicable`, gives every such row in reading order as `<pred> <state> (<c>)`, joined by `, `. Otherwise it gives `<c> detected`, `<c> not detected` or `<c> detector not run`.
+- `probe:<c>=<s>` gives every grounding row in reading order as `<pred> <state> (<c>)`, not-applicable ones included, then `<pred> no reading (<c>)` for each grounding probe with no reading, in `probes.tsv` order, all joined by `, `. With neither, it gives `<c> no probe`.
+- `cap:<c>` gives the same items, less the not-applicable rows. When none is left, it gives `<c> detected`, `<c> not detected` or `<c> detector not run`.
 - `env:maturity>=<v>` gives `maturity <declared>`, or `maturity undeclared`.
 - An unbound term in another form gives `<term> unbound`.
 - For fixture (a), whose class applies `cap:api cap:llm`, the string is exactly `http_route found (api), llm detected`.
+- So the grounds string names every term, the undecided ones included (`<pred> blind (<c>)`, `<pred> unknown (<c>)`, `<pred> no reading (<c>)`, `<c> no probe`, `<c> not detected`, `<c> detector not run`, `maturity undeclared`). That is how the report names an undecided term beside a DORMANT class (§7.4), in the human report and in `--tsv`.
 
-**The readings string.** `<pred>=<state>/<count>` for each probe row the class's terms consult: probe terms' first rows, and every grounding row of a `cap:` term, not-applicable ones included. The items are in first-use order, without repeats, joined by one space. It is `-` when there are none.
+**The readings string.** `<pred>=<state>/<count>` for each grounding row of the class's `probe:` and `cap:` terms, not-applicable ones included. The items are in first-use order, without repeats, joined by one space. It is `-` when there are none.
 
 **The witness.** When a class is DORMANT on a side, look at its first false term in applies order.
 
-- A `probe:` term gives a witness of `<p> <state>`, p's first row's reading.
+- A `probe:` term gives `<pred> <state>` of the first grounding row in reading order that reads `empty`, or else of the first grounding row.
 - A `cap:` term made false at step 3 gives `<pred> empty`, from the first grounding row in reading order that reads `empty`.
 - An `env:` term gives no witness.
 
@@ -214,7 +234,7 @@ The token order is the order in which each token first appears in §7.5's table:
 
 - `<base>` and `<head>` are STATE words. In `--at` mode `<base>` and `<base_grounds>` are `-`, and `<head>` and `<head_grounds>` are the reading's. `<owes>` is the table's cell, byte for byte.
 - Then the residual lines (C10): `residual\t<kind>\t<name>\t<why>`.
-- **Order.** Class lines first, by token order (C5), then by class name compared as bytes. Then residual lines, by kind order (C10), then by name, then by why, compared as bytes. Residual lines are unique.
+- **Order** (§7.7, §11 item 27). Class lines first, by token order (C5), then by id, compared as bytes. Then the residual lines, unique, compared as whole lines in bytes, which orders them by kind, then name, then why.
 - No header line, no count line, no blank line.
 - Identical bytes under `LC_ALL=C` and under `LANG=en_US.UTF-8` with `LC_ALL` unset.
 
@@ -222,8 +242,8 @@ The token order is the order in which each token first appears in §7.5's table:
 
 ```
 situations for <project>
-  base  <sha40>  tree <tid>  scratch
-  head  <sha40>  tree <tid>  scratch
+  base  <sha40>  tree <tid>  scratch, tracked content only
+  head  <sha40>  tree <tid>  scratch, tracked content only
 
 owed
   <id>  <class>  <BASE> -> <HEAD>
@@ -247,67 +267,62 @@ residual
 examined <N>, active <A>, dormant <D>, could not look <U>
 ```
 
-- **Header.** In `--change` it is the two lines shown. In `--at` it is one line: `  at  <sha40 or ->  tree <tid>  recorded <stamp>`.
-- **Sections.** In `--change`: `owed`, `blinded`, `retired`, `standing`, `residual`, in that order. In `--at`: `active`, `dormant`, `residual`. The `--at` sections and every line's layout are decided in the plan; the design gives only the `--change` order.
+- **Header.** How each side was read is in the header only (§7.8, §11 item 28). In `--change` it is the two lines shown. In `--at` it is one line, `  at  <sha40>  tree <tid>  recorded <stamp>  detector run on this checkout` when the detector ran (`<sha40>` is the live HEAD), and otherwise `  at  -  tree <tid>  recorded <stamp>  detector not run: this checkout is not at this tree`.
+- **Sections.** In `--change`: `owed`, `blinded`, `retired`, `standing`, `residual`, in that order (§7.7). In `--at`: `standing`, then `residual`. ACTIVE prints as standing, UNKNOWN as could not look, and DORMANT is counted (§7.7, §11 item 27). Every line's layout is decided in the plan.
     - Each section header is preceded by one blank line.
-    - A section with no row prints `  none`.
-    - In `--change`, classes whose token is `could-not-look` or `none` are in no section. In `--at`, UNKNOWN classes are in no section. These appear only in the residual and the count.
+    - A section with no row prints `  none`. A residual with no line prints `  none: nothing undecided, unbound or without a row`, since the residual is never empty without saying why (§7.8).
+    - In `--change`, classes whose token is `could-not-look` or `none` are in no section. In `--at`, UNKNOWN and DORMANT classes are in no section. These appear only in `--tsv`, in the count, and, when UNKNOWN, in the residual.
     - Rows within a section are ordered by class name, compared as bytes.
 
 - **A row.**
     - In `--change` the row line is `  <id>  <class>  <BASE> -> <HEAD>`, then the lines `    grounds  `, `    readings  `, zero to two `    witness  <side>: <witness>` lines (base first; one for each side where the class is DORMANT and C7 gives a witness), and `    owes  <owes>`.
-    - In `--at` the row line is `  <id>  <class>  <STATE>`, with `    grounds  <grounds>`, `    readings  <readings>`, `    witness  <witness>` when C7 gives one, and `    owes  <owes>`.
+    - In `--at` the row line is `  <id>  <class>  ACTIVE`, with `    grounds  <grounds>`, `    readings  <readings>` and `    owes  <owes>`.
 
 - **Residual.** The residual section lists the same lines as `--tsv`, in the same order, as `  <kind>  <name>  <why>`.
 - **Count line.** `<N>` is the number of classes in the table, and `<A>`, `<D>` and `<U>` count them by state at head, or at the reading. It is preceded by one blank line. It is the last line unless `--propose` was given.
 
 ### C10. The residual
 
-The kinds, in this order:
+Three kinds, which sort in this order as bytes (C8). How each side was read is not a residual line; it is in the header (§7.8, §11 item 28).
 
 **1. `could-not-look`.**
 
 - Name: the class. Why: `<side>: <term>: <reason>`.
-- There is one line per side on which the class is UNKNOWN, per undecided term, in applies order. So `blinded` gives head lines, `owed` with base `UNKNOWN` gives base lines, and `could-not-look` gives both.
+- There is one line per side on which the class is UNKNOWN, per undecided term, in applies order. So `blinded` gives head lines, `owed` and `none` with base `UNKNOWN` give base lines, and `could-not-look` gives both.
 - The reasons:
-    - A `probe:` term, or a `cap:` term at step 2 (taking the first grounding row in reading order that reads `blind` or `unknown`):
+    - A `probe:` or `cap:` term with a grounding row that reads `blind` or `unknown` (the first in reading order):
         - from a scratch reading, `<pred> read <state>: <the probe's own sentence>`;
         - from a recorded reading, `<pred> read <state> when recorded; the fact log keeps no sentence`.
-    - A `probe:` term with no row: `no reading of <p> on this side`.
+
+    - Otherwise, a `probe:` or `cap:` term with a grounding probe that has no reading (the first in `probes.tsv` order): `no reading of <pred> on this side`.
+    - A `probe:` term that no probe grounds: `no probe grounds <c>`.
     - A `cap:` term at step 4:
         - no grounding row, detector silent: `no probe grounds <c> and the detector does not name it`;
         - every grounding row not-applicable, detector silent: `every probe grounding <c> is not-applicable and the detector does not name it`;
-        - the same two with `the detector could not be run at this tree` in place of `the detector does not name it`, when the detector did not run.
+        - the same two with `the detector was not run: this checkout is not at this tree` in place of `the detector does not name it`, when the detector did not run.
+
     - An `env:` term:
         - `project.json declares no maturity`;
         - `project.json declares maturity '<m>', which is not one of prototype internal public-beta production`.
+
     - An unbound term in another form: `not a term this slice can evaluate`.
 
-**2. `unbound`.**
+**2. `no-row`.**
+
+- Name: a capability that no class's applies uses, in a `cap:` or a `probe:` term, and that the detector named on a side read, or that the grounds cell of some probe row of a side read names exactly, whatever that row's state.
+- There is one line per capability. Why: `named by <sources>`. The sources are the union over every side read: `the detector` first, when it named the capability on any side, then `probe <pred>` for each grounding predicate, in byte order, joined by `, `.
+
+**3. `unbound`.**
 
 - Name: the term as written.
 - Why:
-    - for a well-formed `probe:<p>=<s>` whose p no row of `probes.tsv` defines, `no row of probes.tsv defines <p>`;
+    - for a well-formed `probe:<c>=<s>` whose `<c>` no row of `probes.tsv` grounds, `no row of probes.tsv grounds <c>`;
     - for an `env:` term on another axis, `only env:maturity can be evaluated in this slice`;
     - for a well-formed `env:maturity>=<v>` while nothing is declared, `project.json declares no maturity`;
     - for the same while the declared value is not one of the four, `project.json declares maturity '<m>', which is not one of prototype internal public-beta production`;
     - for any other form, `not a term this slice can evaluate`.
 
 - There is one line per distinct term across all classes.
-
-**3. `no-row`.**
-
-- Name: a capability that the detector named on a side read, or that some probe row of a side read grounds, and that no class's applies uses as `cap:<c>`.
-- Why: `named by <sources>`. The sources are `the detector` first, when it named the capability, then `probe <pred>` for each grounding predicate in byte order, joined by `, `.
-
-**4. `read`.**
-
-- Name: the side.
-- Why:
-    - in `--change`: `scratch checkout of <sha40>, tree <tid>, tracked content only`;
-    - in `--at`: `recorded <stamp>, tree <tid>, detector run on this checkout at <sha40>`, or `recorded <stamp>, tree <tid>, detector not run: no checkout stands at this tree`.
-
-- So the residual is never empty.
 
 ### C11. `--propose`
 
@@ -324,7 +339,8 @@ The kinds, in this order:
 
 - **`<CLASS>`.** The class that `class_by_maturity` pairs with the declared maturity. The `<note>` is then `maturity <m>`. When no maturity is declared, or the declared one is not one of the four, it is the strictest class the cell names, in the order `INFO < ADVISORY < TASK_BLOCKING < RELEASE_BLOCKING < AUTHORITY_BLOCKING`. The `<note>` is then `maturity undeclared: the strictest class this row names`, or `maturity '<m>' is not one of prototype internal public-beta production: the strictest class this row names`.
 - **The `row` line.** Its seven cells are separated by real tab bytes. The pathway `unknown`, the applies `-` and the evidence `exit 2` are decided in the plan: no checker exists in this slice, so the draft says so. Admitted at a blocking class, the row holds on authority until someone writes an evidence contract. The founder decides that at admission.
-- **`<preds>`.** The predicates the class's true terms rest on: each `probe:` term's predicate, and for a `cap:` term made true at step 1, its grounding rows that read `found`. They are in first-use order, without repeats, and only those the project's current `probes.tsv` defines. Joined by `,`, or `-` when there are none. For fixture (a) it is `http_route`.
+- **What admitting the draft as printed does**, stated here and in the PR body. The applies `-` makes the row apply at every tree (`lib/obligations.sh:27-29`), so it does not go dormant when the class's surface is removed (intent design §10, falsifier 10). Its evidence `exit 2` reads cannot-examine, which holds at a blocking class. The draft is a starting row the founder edits at admission (slice 4), not a row to admit unchanged.
+- **`<preds>`.** The predicates the class's true terms rest on: for a `probe:<c>=<s>` term, its grounding rows that read `<s>`; for a `cap:` term made true at step 1, its grounding rows that read `found`. They are in first-use order, without repeats, and only those the project's current `probes.tsv` defines. Joined by `,`, or `-` when there are none. For fixture (a) it is `http_route`.
 - **`<command>`.** One line, where `P` is the project directory's absolute path, `H` the Felix home's absolute path, and every quoted value has each `'` written as `'\''`:
 
 ```
@@ -354,21 +370,22 @@ situations.tsv\ttree\tclass applies owes class_by_maturity source\trefused
 **The cells.**
 
 - `class` matches `^[a-z][a-z0-9_]*$` and is unique, so it can serve as an obligation name.
-- `applies` holds one or more terms, every one in a form C4 evaluates.
-- `class_by_maturity` names each of `prototype`, `internal`, `public-beta` and `production` exactly once, as `maturity=CLASS` pairs joined by `,`. Each CLASS is one of `obligations.tsv`'s classes, and the classes do not decrease as maturity rises. Both rules are decided in the plan: the design's example names three maturities, and the engine has four (`felix:1196`, `felix:1199`).
-- `source` is `miss:<12 hex>` or `cite:<12 hex>`: the first 12 hex digits of `git hash-object --stdin` over the recorded miss or the cited passage. The passage itself is kept in the branch's handoff note, never in the table.
+- `applies` holds one or more terms, every one in a form C4 evaluates, and no `probe:` term on `blind` or `unknown`: a class must never be ACTIVE because Felix could not look (§3).
+- `class_by_maturity` names each of `prototype`, `internal`, `public-beta` and `production` exactly once, as `maturity=CLASS` pairs joined by `,`, as the design's example does (§7.2). Each CLASS is one of `obligations.tsv`'s classes, and the classes do not decrease as maturity rises. That each is named once, and that the classes do not decrease, are decided in the plan.
+- `source` is `miss:`, `candidate:` or `cite:`, then the first 12 hex digits of `git hash-object --stdin` over the recorded miss, the survey candidate's row or the cited passage. The prefix says which of the three it is (§7.2, §11 item 26). The passage itself is kept in the branch's handoff note, never in the table.
 - No name of a directory under the home's `projects/`, other than `felix`, appears anywhere in the file, comments included, compared without regard to case. (`felix` is the engine's own name, which `bin/independence-scan` exempts too.)
+- At run time the engine refuses exactly C2's list. The other rules here (no `probe:` term on `blind` or `unknown`, classes that do not decrease with maturity, printable ASCII, no project name) are checked by part 2400 on the shipped seed only. A substituted table that breaks one of them is read, not refused: a term in another form is unbound (C4), and a decreasing cell is printed as written.
 
-**The seed** holds six to eight rows. The rows are drafted in Task 1, within §7.2's rules, from the three projects' recorded misses and v3.2 §10. Task 1 commits them before the blind stage. They must contain:
+**The seed** holds six to eight rows. The rows are drafted in Task 1, within §7.2's rules, from the obligation candidates the survey proposed (Elenchus's and Veldra's `candidates.tsv`; proposals, not recorded misses), any recorded miss, and v3.2 §10. Task 1 commits them before the blind stage. Slice 2 seals this file by hash before its first count (§8.5), so a row changed after that is a new sealed version. The seed must contain:
 
-- **R1 (paid ingress).** A class named `paid_ingress` whose applies is exactly `cap:api cap:llm`, and whose owes names a request bound and a spend bound.
+- **R1 (paid ingress).** A class named `paid_ingress` whose applies is exactly `cap:api cap:llm`, so it has no `env:` term (§7.2, §11 item 25), and whose owes names a request bound and a spend bound.
 - **R2 (a second HTTP class).** At least one more class whose applies holds `cap:api`. A class is HTTP-keyed when its applies holds `cap:api`.
-- **R3 (loopback binding).** At least one class whose owes is a bind to loopback only. Its applies holds a `probe:<p>=found` term on a predicate that enumerates a listener meant for one machine's own use, and it holds no `cap:api` term. So a node that serves a cluster on every interface reads that predicate `empty` and leaves the class DORMANT.
-- **R4 (no web term).** At least one class whose applies holds no `cap:api` and no probe term on a route or listener predicate, and which a bash repository and a cargo workspace can both make ACTIVE and DORMANT.
+- **R3 (loopback binding).** At least one class whose owes is a bind to loopback only. Its applies holds a `probe:<c>=found` term on a capability whose grounding probe enumerates listeners meant for one machine's own use, and it holds no `cap:api` term. So in a node that serves a cluster on every interface, that probe reads `empty` and the class is DORMANT.
+- **R4 (no web term).** At least one class whose applies holds no `cap:api` and no probe term on a route or listener capability, and which a bash repository and a cargo workspace can both make ACTIVE and DORMANT.
 
-**Siblings (falsifier 6).** For every row the shipped table holds, part 1960 builds, in a fixture project with an invented name, one repository with two commits that differ only in the surface the row stands on.
+**Siblings (falsifier 6).** For every row the shipped table holds, part 2460 builds, in a fixture project with an invented name, one repository with two commits that differ only in the surface the row stands on.
 
-- The project's `probes.tsv` defines every predicate the row names. Each `cap:` term is grounded either by a probe row or by a root-level manifest the detector reads. `project.json` declares a maturity when the row has an `env:` term.
+- The project's `probes.tsv` grounds every capability the row's `probe:` terms name. Each `cap:` term is grounded either by a probe row or by a root-level manifest the detector reads. `project.json` declares a maturity when the row has an `env:` term.
 - `--change <with>..<without>` reads the class `retired`, with a `    witness  head:` line.
 - `--change <without>..<with>` reads it `owed`.
 - A ledger in the part asserts that every class in the shipped table, at least six, was read both ways.
@@ -382,10 +399,11 @@ situations.tsv\ttree\tclass applies owes class_by_maturity source\trefused
 - **A run.** `( cd C && env FELIX_HOME=H FELIX_MEMORY=M TMPDIR=T <engine> situations ... ) >out 2>err; rc=$?`, where `T` is a fresh empty directory per run. A run that compares the live tree runs `felix probes` first, in the same environment, with nothing changed between the two.
 - **The clock.** Slice 1 reads no clock. No current date or time appears in any output, and the only time printed is a recorded stamp. The suite pins no clock for this slice.
 - **The network.** Stubs for `gh`, `curl`, `wget`, `ssh`, `nc` and `claude` go first on `PATH`. Each appends its argv to a log and exits 1. `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `GH_TOKEN` and `GITHUB_TOKEN` are unset. The log must stay empty.
-- **Detector facts** (existing engine behaviour, `lib/detect.sh`), for fixture design:
-    - `api` is named when a root-level manifest holds, as a case-insensitive substring, one of `fastapi flask django express next fastify starlette`. `llm` is named for one of `anthropic openai langchain llama-index llamaindex mistralai cohere ollama google-generativeai litellm instructor dspy transformers`.
+- **Detector facts** (existing engine behaviour, `lib/detect.sh:17-103`), for fixture design. The detector reads manifests for some capabilities and only file or directory presence for the rest (§7.4). C10's `no-row` lines name what it names, so a fixture holds no file below unless the assertion means it to.
+    - Manifest tokens, matched as case-insensitive substrings. `api`: `fastapi flask django express next fastify starlette`. `llm`: `anthropic openai langchain llama-index llamaindex mistralai cohere ollama google-generativeai litellm instructor dspy transformers`. `database`: `supabase prisma alembic sqlalchemy drizzle typeorm`. `observability`: `sentry opentelemetry datadog`. `billing`: `stripe`. `e2e`: `playwright cypress selenium puppeteer`.
     - The manifests read are `pyproject.toml`, `requirements.txt`, `requirements/*.txt`, `setup.cfg`, `Pipfile`, `package.json`, `Cargo.toml`, `go.mod`, `Gemfile`, `composer.json`, `build.gradle`, `pom.xml` and `*.csproj`, at the root only. A workspace member's manifest is never read, and `axum` is no token.
-    - `ci`: `.github/workflows/*.yml` or `*.yaml`, `.gitlab-ci.yml`, `azure-pipelines.yml`. `tests`: a `tests`, `test`, `spec` or `__tests__` entry at the root. `rust`: a root `Cargo.toml`. `secrets`: `.env.example` or `.env.sample`. `frontend`: `package.json`, or three tracked web-asset files.
+    - Paths at the root. `ci`: `.github/workflows/*.yml` or `*.yaml`, `.gitlab-ci.yml`, `azure-pipelines.yml`. `deploy`: `Dockerfile`, `Dockerfile.*`, `docker-compose.yml`, `Procfile`, `fly.toml`, `vercel.json`, `render.yaml`, `railway.json`, `app.yaml`, `k8s`, `kubernetes` or `helm`. `iac`: `*.tf`, `terraform`, `infra/*.tf` or `pulumi.yaml`. `database`: `migrations`, `supabase/migrations`, `alembic.ini` or `prisma/schema.prisma`. `tests`: a `tests`, `test`, `spec` or `__tests__` entry. `rust`: a `Cargo.toml`. `secrets`: `.env.example` or `.env.sample`.
+    - `frontend`: `package.json`, or three or more tracked files (`FELIX_FRONTEND_MIN`) ending `.js`, `.jsx`, `.ts`, `.tsx`, `.vue`, `.svelte`, `.sass`, `.scss` or `.css`, case-insensitively, that are not under a `doc`, `docs`, `documentation`, `deck`, `decks` or `slides` directory (as `origin/main` has it since #475).
     - Avoid incidental tokens: `nextest` names api.
 
 - **Probe states** (`lib/probes.sh:255-357`), for fixture design:
@@ -411,7 +429,7 @@ situations.tsv\ttree\tclass applies owes class_by_maturity source\trefused
 
 ### C14. Pinned assertions for the review focus
 
-Each is pinned by assertions in part 1970 whose names begin `1970 rf1` to `1970 rf7`, one prefix per item.
+Each is pinned by assertions in part 2470 whose names begin `2470 rf1` to `2470 rf7`, one prefix per item.
 
 - **RF1, a linked worktree.**
     - Fixture: a repository with a linked worktree `W`, made with `git worktree add`.
@@ -421,14 +439,14 @@ Each is pinned by assertions in part 1970 whose names begin `1970 rf1` to `1970 
     - Nothing under the main checkout, under `W`, or under the common git directory is newer than a marker.
 
 - **RF2, an untracked environment.**
-    - Fixture: a probe that reads `found` only while an ignored, untracked file is present (for example `.ready`), with a witness on a tracked file.
+    - Fixture: a probe grounding the capability of the class's `probe:<c>=found` term, which reads `found` only while an ignored, untracked file is present (for example `.ready`), with a witness on a tracked file.
     - After `felix probes` in the live checkout, `--at` reads the class ACTIVE.
     - `--change HEAD~1..HEAD`, over a commit that does not touch the surface, reads it `could-not-look`: UNKNOWN on both sides, never DORMANT, `retired` or `none`. The residual has `could-not-look` lines for `base:` and `head:` naming the term.
 
 - **RF3, the caller's locale.**
     - Fixture: a substituted table whose classes include `ab` and `a_c`, and owes that differ in case.
     - `--tsv` and the human report are byte-identical under `LC_ALL=C` and under `LANG=$LCB_U8` with `LC_ALL` unset, in both modes.
-    - `a_c` comes before `ab`.
+    - The fixture puts both classes in one human section and in the residual. In each, `a_c` comes before `ab`.
     - Skipped by name with `$LCB_NONE` when no such locale is installed.
 
 - **RF4, an interrupted run and an early close.**
@@ -441,7 +459,7 @@ Each is pinned by assertions in part 1970 whose names begin `1970 rf1` to `1970 
 - **RF5, quoting in the admit command.**
     - Fixture: a substituted table whose ACTIVE, unadmitted class has owes `don't drop 100% of the \n bound`, with a literal backslash and n. The fixture home is a git repository with one commit.
     - `--propose` exits 0 and leaves `obligations.tsv` and the home's `git status --porcelain` unchanged.
-    - Running the printed `admit` command with `bash -c` appends exactly the `row` line's bytes to `P/obligations.tsv`, and makes one commit that touches only that file.
+    - Running the printed `admit` command (the text after `    admit  `) with `bash -c` appends to `P/obligations.tsv` exactly the `row` line's text after its `    row  ` prefix, then one newline. It makes one commit that touches only that file.
     - A second `--propose` no longer lists the class.
 
 - **RF6, the caller's git config.**
@@ -450,30 +468,30 @@ Each is pinned by assertions in part 1970 whose names begin `1970 rf1` to `1970 
 
 - **RF7, a facts log shared by worktrees.**
     - Fixture: two worktrees `W1` and `W2` of one project at different trees. `felix probes` runs in `W1`, then in `W2`.
-    - `felix situations` in `W1` reads `W2`'s tree, the newest. Its header names that tree. Its `read` line says `detector not run: no checkout stands at this tree`.
+    - `felix situations` in `W1` reads `W2`'s tree, the newest. Its header names that tree and ends `detector not run: this checkout is not at this tree`.
     - `--at` with `W1`'s tree id runs the detector.
 
 ### C15. The lane rows this PR sets
 
 The tables are slice 0's. Their formats come from design §6.3, and slice 0's plan fixes them: `projects/<p>/lanes.tsv` is `lane counts share window`, and `projects/<p>/lane-next.tsv` is `lane next`. No part checks felix-home's own rows. This PR sets:
 
-- `projects/felix/lanes.tsv`: `capability\t^engine/\t1/4\t14`
-- `projects/felix/lane-next.tsv`: `capability\tcome-backs, slice 2: felix retro (docs/2026-10-29-capability-lane-first-slices-design.md, section 8)`. The wording is decided in the plan, in the shape of the slice 1 row §6.3 gives.
+- `projects/felix/lanes.tsv`: `capability\t^engine/\t1/4\t14`. This PR is "intake lands", so the share goes to one in four (§6.3, §9, §11 item 6). Only the share cell changes; the comment lines stay.
+- `projects/felix/lane-next.tsv`: `capability\tcome-backs, slice 2: felix retro, pending the direction fold (docs/2026-10-29-capability-lane-first-slices-design.md, section 8)`. It replaces the data row. Putting slice 2 ahead of direction §5's next lane items is the founder's to settle at the direction fold, so the row says so (§9, §12, §11 item 22). The rest of the wording is decided in the plan, in the shape of the slice 1 row §6.3 gives.
 
 ### C16. The blind parts
 
-The driver lines go after `tests/run:378` (`1800-...`) and before `2030-...`, one line per part, in number order. Each part's first line is `printf '\n%s\n' 'situations: <topic> (blind)'`.
+The driver lines go in name order, as part 1040 requires, one line per part: after the last part line whose name sorts before `2400-` (`2250-lane-pulse-blind.sh` once slice 0 is in the branch, `2160-docs-are-not-a-frontend-blind.sh` before) and before the first that sorts after `2470-`. Each part's first line is `printf '\n%s\n' 'situations: <topic> (blind)'`.
 
 | Part | Covers | Fixtures |
 |---|---|---|
-| `1900-situations-table-blind.sh` | C12: format, schema row, cells, R1 to R4, six to eight rows, no project name. C1: `felix help` holds `felix situations`. Every `engine/harness/lib/situations*.sh` has under 500 lines, and at least one exists. | the shipped table, `templates/schemas.tsv`, the home's `projects/` names |
-| `1910-situations-recorded-blind.sh` | §7.3 recorded, §7.4, C3.1, C3.2, C4 (every term rule, the maturity order with `internal`, unbound terms), C3.4 for `--at`, C2's `--at` exits, C10 recorded reasons | a substituted table; hand-written `facts.log` with 8- and 9-field rows, two runs of one tree, a newer tree, `unknown-tree` rows, a short line; `felix probes` for the live tree |
-| `1920-situations-change-blind.sh` | §7.3 scratch, §7.5, C3.3, C3.4 for `--change`, C5 (every row of the table, both kinds of "differs"), the default range, C2's `--change` exits, the current `probes.tsv` on both sides, tracked content only, the scratch tree id equal to the recorded one for a clean checkout | a substituted table; one repository whose commits produce each verdict |
-| `1930-situations-output-blind.sh` | §7.6 to §7.8, C6 to C10, (c), (d), (i), falsifier 2, usage errors, `need_value`, stderr empty on success | a substituted table; a bash-harness fixture (scripts, `tests/`, a CI workflow, no manifests); network stubs |
-| `1940-situations-web-fixture-blind.sh` | (a), (f), (g), (h); C11 | the shipped seed; `requirements.txt` naming fastapi and anthropic; one POST route; an `http_route` probe grounding api (a shell command over tracked files, with a witness) |
-| `1950-situations-cargo-fixture-blind.sh` | (b), falsifier 5 | the shipped seed; a cargo workspace whose member depends on axum, with no probe grounding api; every other term of each HTTP-keyed class made true by a probe row (for `paid_ingress`, one grounding `llm` that reads found), so that adding a probe row that grounds api makes every HTTP-keyed class ACTIVE; a node that binds every interface |
-| `1960-situations-seed-siblings-blind.sh` | §7.2's siblings rule, falsifier 6 (C12) | the shipped seed; one invented project per row |
-| `1970-situations-review-focus-blind.sh` | C14, RF1 to RF7 | as each RF says |
+| `2400-situations-table-blind.sh` | C12: format, schema row, cells, the three source kinds, R1 to R4, six to eight rows, no project name. C1: `felix help` holds `felix situations`. Every `engine/harness/lib/situations*.sh` has under 500 lines, and at least one exists. | the shipped table, `templates/schemas.tsv`, the home's `projects/` names |
+| `2410-situations-recorded-blind.sh` | §7.3 recorded, §7.4, C3.1, C3.2, C4 (every term rule: a probe term over two probes grounding one capability, a grounding probe with no reading, no probe grounding it; the maturity order with `internal`; unbound terms), the undecided term named beside a DORMANT class (C7), C3.4 for `--at`, C2's `--at` exits, C10 recorded reasons, the `--at` header both ways | a substituted table; hand-written `facts.log` with 8- and 9-field rows, two runs of one tree, a newer tree, `unknown-tree` rows, a short line; `felix probes` for the live tree |
+| `2420-situations-change-blind.sh` | §7.3 scratch, §7.5, C3.3, C3.4 for `--change`, C5 (every row of the table, both kinds of "differs"), the default range, C2's `--change` exits, the current `probes.tsv` on both sides, tracked content only, the scratch tree id equal to the recorded one for a clean checkout | a substituted table; one repository whose commits produce each verdict |
+| `2430-situations-output-blind.sh` | §7.6 to §7.8, C6 to C10, (d), (i), usage errors, `need_value`, C2's table refusals and order, stderr empty on success. (c) on the shipped seed, in the bash-harness fixture: the residual names at least one could-not-look class, unbound term or `no-row` capability; `paid_ingress` reads UNKNOWN, with a `could-not-look` line whose why names `cap:api`; the count line's U is at least 1; the seed's R4 class reads ACTIVE where its surface is, and `--change` over a commit that removes the surface reads it `retired`, with a `    witness  head:` line. Falsifier 2 in §10's clean-machine form (§11 item 32): two fresh clones of one fixture repository, each with its own fresh memory root holding the same `facts.log` bytes and its own `TMPDIR`, print identical bytes in `--at` and in `--change`, every verdict included. | the shipped seed for (c), a substituted table for the rest; a bash-harness fixture (scripts, `tests/`, a CI workflow, no manifests); network stubs |
+| `2440-situations-web-fixture-blind.sh` | (a), (f), (g), (h); C11 | the shipped seed; `requirements.txt` naming fastapi and anthropic; one POST route; an `http_route` probe grounding api (a shell command over tracked files, with a witness) |
+| `2450-situations-cargo-fixture-blind.sh` | (b), falsifier 5 with its qualifier, no other term false (§11 item 31); the seed's R4 class reads ACTIVE in the cargo workspace, and `retired` with a witness over a commit that removes its surface | the shipped seed; a cargo workspace whose member depends on axum, with no probe grounding api; every other term of each HTTP-keyed class made true by a probe row (for `paid_ingress`, one grounding `llm` that reads found), so that adding a probe row that grounds api makes every HTTP-keyed class ACTIVE; a node that binds every interface |
+| `2460-situations-seed-siblings-blind.sh` | §7.2's siblings rule, falsifier 6 (C12) | the shipped seed; one invented project per row |
+| `2470-situations-review-focus-blind.sh` | C14, RF1 to RF7 | as each RF says |
 
 No fixture needs python, fastapi, an SDK or a cargo toolchain: probes are shell commands over tracked files, and the detector reads manifest text.
 
@@ -481,13 +499,13 @@ No fixture needs python, fastapi, an SDK or a cargo toolchain: probes are shell 
 
 The five input classes most likely to bite a person that no acceptance bullet exercises, most likely first. Each is pinned in C14.
 
-1. `felix situations --change` run from a linked worktree, which is how every felix-home session works. Pinned by `1970 rf1`.
-2. A probe that needs the live checkout's untracked environment reads blind in a scratch clone. It must land as `could-not-look`, never as DORMANT, `retired` or `none` (§7.10). Pinned by `1970 rf2`.
-3. A person's Terminal locale, `en_US.UTF-8`, reorders the `--tsv` lines that slice 2 reads. Pinned by `1970 rf3`.
-4. A run stopped part way, or a reader that closes the pipe early, leaves scratch clones under `TMPDIR`. Pinned by `1970 rf4`.
-5. Owes text holding `'` or `%` breaks the printed admit command when the founder pastes it. Pinned by `1970 rf5`.
+1. `felix situations --change` run from a linked worktree, which is how every felix-home session works. Pinned by `2470 rf1`.
+2. A probe that needs the live checkout's untracked environment reads blind in a scratch clone. It must land as `could-not-look`, never as DORMANT, `retired` or `none` (§7.10). Pinned by `2470 rf2`.
+3. A person's Terminal locale, `en_US.UTF-8`, reorders the `--tsv` lines that slice 2 reads, or the report's sections. Pinned by `2470 rf3`.
+4. A run stopped part way, or a reader that closes the pipe early, leaves scratch clones under `TMPDIR`. Pinned by `2470 rf4`.
+5. Owes text holding `'` or `%` breaks the printed admit command when the founder pastes it. Pinned by `2470 rf5`.
 
-Also pinned: the caller's git config running hooks or filters in a scratch checkout (`1970 rf6`), and the newest recorded tree belonging to another worktree (`1970 rf7`).
+Also pinned: the caller's git config running hooks or filters in a scratch checkout (`2470 rf6`), and the newest recorded tree belonging to another worktree (`2470 rf7`).
 
 ## Tasks
 
@@ -500,11 +518,11 @@ Also pinned: the caller's git config running hooks or filters in a scratch check
 - Create `engine/harness/templates/situations.tsv`.
 - Modify `engine/harness/templates/schemas.tsv`: insert after line 130 (`discover-rules.tsv`).
 - Modify `docs/handoff/pending/20261029T213800Z-claude-lane-situations-owed.md`: append a "Slice 1 build" section.
-- Test: part 1900 (Task 2).
+- Test: part 2400 (Task 2).
 
 **Interfaces:**
 
-- Consumes: the three projects' `probes.tsv` (`/Users/a14808/Documents/Felix/projects/{elenchus,veldra,felix}/probes.tsv`), the recorded misses in `/Users/a14808/.felix/memory/{elenchus,veldra}/candidates.tsv`, and v3.2 §10.
+- Consumes: the three projects' `probes.tsv` (`/Users/a14808/Documents/Felix/projects/{elenchus,veldra,felix}/probes.tsv`), the obligation candidates the survey proposed in `/Users/a14808/.felix/memory/{elenchus,veldra}/candidates.tsv` (22 failure modes, privacy exposure among them; proposals, not recorded misses), any recorded miss a row cites, and v3.2 §10.
 - Produces: the shipped seed, which every later blind part reads.
 
 **Steps:**
@@ -513,9 +531,12 @@ Also pinned: the caller's git config running hooks or filters in a scratch check
     - Count open engine PRs: `gh pr list --state open --limit 100 --json number,files --jq '[.[] | select(any(.files[]; .path | startswith("engine/")))] | length'`. It must be 10 or fewer, or stop and wait.
     - Run `ListAgents` and confirm that no live session is on branch `claude/lane-situations-owed`.
     - Note whether slice 0 has landed on `origin/main`. Task 9 needs it, and Task 12 rebases on it.
+    - Check the part numbers are free: for `origin/main` and the head of every open PR, `git ls-tree --name-only <ref> engine/harness/tests/parts/` shows none of 2400 to 2470. If one is used, take the next free block of ten and rename the parts everywhere in this plan.
+    - Check the driver has room (Global Constraints): `origin/main`'s `tests/run` line count, plus the part and lib lines every open engine PR adds to it, plus this slice's 8, is at most 500. If not, stop before the blind stage and tell the queue owner: the driver needs room first.
 
 - [ ] Draft six to eight rows meeting C12.
-    - Draft against all three ecosystems at once. Derive each `source` from the passage it cites.
+    - Draft against all three ecosystems at once. Derive each `source` from the passage it cites, with the prefix of its kind: `miss:`, `candidate:` or `cite:`.
+    - A `probe:` term names a capability a project's probes can ground, never a predicate: predicate names are each project's own (§7.2).
     - Each row goes under its own comment line saying what it is for.
     - The comments name no project.
 
@@ -528,12 +549,12 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 ### Task 2: Blind parts
 
-**Stage:** blind assertions. Opus 5.5, high. The author reads only the design, the Contracts section and the shipped seed, and never `lib/situations*.sh`, `felix` or any other code under test.
+**Stage:** blind assertions. Opus 5.5, high. The author reads the design, the Contracts section and the shipped seed, plus the suite's own harness: `tests/run`, `tests/parts/000*.sh` and `tests/lib/*.sh`. It never reads `lib/situations*.sh`, `felix`, or any other file under `engine/harness/lib`, `hooks` or `bin`.
 
 **Files:**
 
 - Create the eight parts in C16.
-- Modify `engine/harness/tests/run`: insert eight lines after line 378.
+- Modify `engine/harness/tests/run`: insert eight lines where C16 places them.
 - Test: the parts themselves.
 
 **Interfaces:**
@@ -573,7 +594,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
     - No `  FAIL` line comes before `@@prelude-done`.
     - At least one `  FAIL` line comes after it.
     - The part's last assertion name is printed.
-    - The usual failure is `felix: unknown command: situations`, and in 1900, the table being absent.
+    - The usual failure is `felix: unknown command: situations`, and in 2400, the table being absent.
     - An assertion that passes on main is either an invariance check that includes the exit status, so it fails there, or a defect to send back to the blind author.
 
 - [ ] Record each part's FAIL count and the base sha in the note.
@@ -594,7 +615,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 - Create `engine/harness/lib/situations.sh`.
 - Create `engine/harness/lib/situations-read.sh` and `engine/harness/lib/situations-report.sh`, each with its header comment.
-- Test: parts 1900 and 1930, for usage, exits and the table.
+- Test: parts 2400 and 2430, for usage, exits and the table.
 
 **Interfaces:**
 
@@ -605,7 +626,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 **Steps:**
 
 - [ ] Implement the interfaces above.
-- [ ] Run parts 1900 and 1930 alone, as in Task 3, against `$WT`. Expect 1900 to have no FAIL. In 1930, expect the usage, `need_value`, table-refusal and id-format assertions to pass.
+- [ ] Run parts 2400 and 2430 alone, as in Task 3, against `$WT`. Expect 2400 to have no FAIL. In 2430, expect the usage, `need_value`, table-refusal and id-format assertions to pass.
 - [ ] Commit `feat(situations): the command, its flags and the situation table`, ending with `Felix-Lane: capability`, and push.
 
 ### Task 5: Recorded readings, evaluation and the `--at` report
@@ -618,7 +639,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 - Modify `engine/harness/lib/situations.sh` (evaluation).
 - Modify `engine/harness/lib/situations-report.sh` (human and `--tsv`).
 - Modify `engine/harness/felix` (`cmd_situations`, the `--at` path).
-- Test: parts 1910, 1930 and 1940, the `--at` assertions.
+- Test: parts 2410, 2430 and 2440, the `--at` assertions.
 
 **Interfaces:**
 
@@ -631,10 +652,16 @@ A seed row found wrong later comes back to this task's author, and the blind aut
     - zero or more `cap\t<capability>` lines: the detector's names, sorted and unique, present only when it ran
     - then `probe\t<pred>\t<grounds>\t<state>\t<count>\t<detail>|-`, in reading order
 
+- `felix_situations_scratch_begin`: sets the global `_FELIX_SITUATIONS_SCRATCH` to an empty string, installs the traps, then makes the directory (C3.3). Status 0, or 3. The traps:
+    - EXIT removes the directory;
+    - TERM, HUP and INT remove it and exit 143, 129 and 130.
+
+- `felix_situations_scratch_end`: removes the directory and puts the traps back.
+- `cmd_situations` calls `felix_situations_scratch_begin` before the first reading, in both modes, and `felix_situations_scratch_end` before printing. Every `<out>` below is a path inside `$_FELIX_SITUATIONS_SCRATCH`.
 - `felix_situations_newest_tree <log>`: prints the tree (C3.1). Status 0, or 3.
 - `felix_situations_read_recorded <log> <tree> <out>`: writes the reading's `how`, `tree`, `stamp` and `probe` lines. Status 0, or 3 when no run is recorded.
 - `felix_situations_live_detect <root> <home> <tree> <out>`: appends `commit`, `detector` and `cap` lines (C3.2).
-- `felix_situations_eval <rows> <reading> <defined-preds> <maturity>`: prints these lines:
+- `felix_situations_eval <rows> <reading> <probe-grounds> <maturity>`: `<probe-grounds>` is the current `probes.tsv`'s `predicate\tgrounds` pairs, from `felix_probe_rows`, which C4 needs for a grounding probe with no reading and for unbound terms. It prints these lines:
     - `class\t<class>\t<STATE>\t<grounds>\t<readings>\t<witness>|-\t<key>`, one per class in table order. `<key>` is the comparison C5 defines, as one string.
     - `undecided\t<class>\t<term>\t<reason>`, for every undecided term. `<reason>` is C10's reason.
     - `unbound\t<term>\t<why>`.
@@ -645,11 +672,13 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 **Steps:**
 
 - [ ] Implement the interfaces, following C3.1, C3.2, C4, C7 and C8 to C10.
+    - The global holding the scratch path is set empty before the trap is installed, because a trap body is read when it fires and a `local` is gone by then (precedent: `felix:3413-3417`).
     - Every `sort` and `uniq` runs under `LC_ALL=C`.
     - The awk uses no gawk-only name.
     - Any `[[ =~ ]]` sits in a function with `local LC_ALL=C`.
 
-- [ ] Run parts 1910, 1930 and 1940 alone. Expect 1910 to have no FAIL. In 1930 and 1940, expect every `--at` assertion to pass.
+- [ ] In `cmd_situations`, build the whole report into a variable, call `felix_situations_scratch_end`, and only then print it (C3.3).
+- [ ] Run parts 2410, 2430 and 2440 alone. Expect 2410 to have no FAIL. In 2430 and 2440, expect every `--at` assertion to pass.
 - [ ] Commit `feat(situations): recorded readings, three values and the --at report`, ending with `Felix-Lane: capability`, and push.
 
 ### Task 6: Scratch readings, verdicts and the `--change` report
@@ -662,28 +691,21 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 - Modify `engine/harness/lib/situations.sh` (verdicts).
 - Modify `engine/harness/lib/situations-report.sh` (the `--change` sections).
 - Modify `engine/harness/felix` (the `--change` path).
-- Test: parts 1920, 1930, 1940 (f) to (h), 1950 and 1970 (RF1 to RF4, RF6, RF7).
+- Test: parts 2420, 2430, 2440 (f) to (h), 2450 and 2470 (RF1 to RF4, RF6, RF7).
 
 **Interfaces:**
 
 - `felix_situations_range <root> [<range>]`: prints `<base-sha40>\t<head-sha40>`. Status 0, or 3 with C2's sentence.
-- `felix_situations_scratch_begin`: sets the global `_FELIX_SITUATIONS_SCRATCH` to an empty string, installs the traps, then makes the directory. Status 0, or 3. The traps:
-    - EXIT removes the directory;
-    - TERM, HUP and INT remove it and exit 143, 129 and 130.
-
-- `felix_situations_read_scratch <proj> <home> <src-gitdir> <sha> <side> <out>`: clones, checks out, takes the tree id, runs the detector, runs the probes, and writes a reading with `how scratch`. Status 0, or 3.
-- `felix_situations_scratch_end`: removes the directory and puts the traps back.
+- `felix_situations_read_scratch <proj> <home> <src-gitdir> <sha> <side> <out>`: clones into `$_FELIX_SITUATIONS_SCRATCH/<side>`, checks out, takes the tree id, then runs the detector and the probes with `TMPDIR=$_FELIX_SITUATIONS_SCRATCH/tmp-<side>`, and writes a reading with `how scratch`. Status 0, or 3.
 - `felix_situations_verdict <base-state> <head-state> <differs 0|1>`: prints a C5 token.
 
 **Steps:**
 
 - [ ] Implement the scratch method exactly as C3.3 lists it.
-    - The global holding the path is set empty before the trap is installed, because a trap body is read when it fires and a `local` is gone by then (precedent: `felix:3413-3417`).
     - The clone source is the repository's common git directory, made absolute.
     - Use `_felix_git_rules` (`lib/resolve.sh:1538-1544`) for the clone and the checkout, with `GIT_NO_LAZY_FETCH=1` added. It already runs git with no global or system config and no repository-pointing environment.
 
-- [ ] In `cmd_situations`, build the whole report into a variable, call `felix_situations_scratch_end`, and only then print it (C3.3).
-- [ ] Run parts 1920, 1930, 1940, 1950 and 1970 alone, at most four at once. Expect no FAIL in 1920, 1930 or 1950. In 1940, expect only the `--propose` assertions to fail. In 1970, expect only RF5 to fail.
+- [ ] Run parts 2420, 2430, 2440, 2450 and 2470 alone, at most four at once. Expect no FAIL in 2420, 2430 or 2450. In 2440, expect only the `--propose` assertions to fail. In 2470, expect only RF5 to fail.
 - [ ] Commit `feat(situations): scratch readings, verdicts and the --change report`, ending with `Felix-Lane: capability`, and push.
 
 ### Task 7: `--propose`
@@ -694,7 +716,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 - Modify `engine/harness/lib/situations-report.sh`.
 - Modify `engine/harness/felix` (the `--propose` path).
-- Test: part 1940, and part 1970 (RF5).
+- Test: part 2440, and part 2470 (RF5).
 
 **Interfaces:**
 
@@ -704,7 +726,7 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 **Steps:**
 
 - [ ] Implement C11, including the `'\''` quoting.
-- [ ] Run parts 1940 and 1970 alone. Expect no FAIL.
+- [ ] Run parts 2440 and 2470 alone. Expect no FAIL.
 - [ ] Commit `feat(situations): --propose drafts a row and the command that would admit it`, ending with `Felix-Lane: capability`, and push.
 
 ### Task 8: The seed through its siblings, and every part together
@@ -717,17 +739,17 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 **Steps:**
 
-- [ ] Run part 1960 alone. Expect no FAIL, and the ledger names every shipped class read both ways.
+- [ ] Run part 2460 alone. Expect no FAIL, and the ledger names every shipped class read both ways.
 - [ ] Run all eight parts alone, at most four at once. Expect no FAIL in any.
-- [ ] Run the existing lint parts that judge new libraries and the driver, each alone: `0480-the-one-line-git-cannot-reconstruct.sh`, `0992-sort-comm-join-and-uniq-read-bytes-in-the-c-l.sh` with `0996-continued.sh` (adjacent, in one run), `1000-the-engine-makes-its-scratch-under-tmpdir.sh`, `1040-the-suite-is-cut-into-parts.sh` and `1497-lib-awk-gawk-names-blind.sh`. Expect no FAIL.
+- [ ] Run the existing lint parts that judge `felix`, the new libraries and the driver, each alone, at most four at once: `0370-a-receipt-that-cannot-claim-more-than-it-kno.sh`, `0480-the-one-line-git-cannot-reconstruct.sh`, `0590-the-pre-flight.sh`, `0960-no-engine-test-reads-a-pipe-through-a-grep-t.sh`, `1000-the-engine-makes-its-scratch-under-tmpdir.sh`, `1030-a-pipe-at-stack-tsv-read-by-the-stop-hook-in.sh`, `1040-the-suite-is-cut-into-parts.sh`, `1497-lib-awk-gawk-names-blind.sh`, `1530-patch-reads-the-repository-not-a-diff-setting.sh` and `1610-driver-room-blind.sh`. Run `0992-sort-comm-join-and-uniq-read-bytes-in-the-c-l.sh`, `0994-bash-s-own-collation-and-the-bsd-text-tools.sh`, `0996-continued.sh` and `0998-continued.sh` together in one `--part` run, since 0996 and 0998 continue 0994. Expect no FAIL.
 - [ ] Where a gawk is installed, run the eight parts once more with gawk first on `PATH`. CI runs gawk.
 - [ ] Run `engine/harness/bin/independence-scan` from the worktree root. Expect exit 0.
-- [ ] Check for ecosystem words: `command grep -nwiE 'python|pip|poetry|pipenv|pytest|node|npm|yarn|pnpm|rust|cargo|dotnet|gradle|maven|composer|bundler|rubygems|sentry|opentelemetry|datadog|stripe|playwright|cypress|selenium|puppeteer|supabase|prisma|alembic|sqlalchemy|drizzle|typeorm|fastapi|flask|django|express|fastify|starlette|anthropic|openai|langchain|llamaindex|mistralai|cohere|ollama|litellm|instructor|dspy|transformers' engine/harness/lib/situations*.sh`. Expect no line. Run the same over the lines this branch added to `felix` (`git -C "$WT" diff origin/main -- engine/harness/felix`).
+- [ ] Check for ecosystem words with the gate's whole vocabulary: `command grep -nwiE 'python|pip|poetry|pipenv|pytest|node|npm|yarn|pnpm|rust|cargo|dotnet|gradle|maven|composer|bundler|rubygems|sentry|opentelemetry|datadog|stripe|playwright|cypress|selenium|puppeteer|supabase|prisma|alembic|sqlalchemy|drizzle|typeorm|fastapi|flask|django|express|fastify|starlette|anthropic|openai|langchain|llama-?index|mistralai|cohere|ollama|google-generativeai|litellm|instructor|dspy|transformers' engine/harness/lib/situations*.sh`. Expect no line. Run the same over the lines this branch added to `felix` (`git -C "$WT" diff origin/main -- engine/harness/felix`).
 - [ ] Commit any fix, ending with `Felix-Lane: capability`, and push.
 
 ### Task 9: The lane rows
 
-**Stage:** implementation. Sonnet 5.5, high. It needs slice 0 on `origin/main`. Until then, rebase this branch onto it first.
+**Stage:** implementation. Sonnet 5.5, high. It needs slice 0's `lanes.tsv` and `lane-next.tsv`. When slice 0 is on `origin/main`, rebase on `origin/main`. When it is not, rebase on slice 0's pushed branch (design §9), open this PR as a draft whose base is that branch and record in the pending handoff note the slice-0 commit this branch now sits on (again after every later rebase on that branch), and retarget it to `main` once slice 0 lands.
 
 **Files:**
 
@@ -740,12 +762,12 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 - [ ] Edit the two rows to read exactly as C15 says.
 - [ ] Run `engine/harness/bin/schema-check` from the worktree root. Expect exit 0.
-- [ ] Commit `data(lane): intake lands: the capability lane's share goes to 1/4, and next is slice 2`, ending with `Felix-Lane: capability`.
-- [ ] Run `engine/harness/felix lane --tsv` in the worktree. Expect the target `1/4`, the new `next`, and, as the last change to `lanes.tsv`, this commit's sha and date. Push.
+- [ ] Commit `data(lane): intake lands: the capability lane's share goes to 1/4, and next is slice 2, pending the direction fold`, ending with `Felix-Lane: capability`.
+- [ ] Run `FELIX_HOME="$WT" "$WT/engine/harness/felix" lane --tsv` in the worktree. Without `FELIX_HOME`, the engine reads the home that `~/.felix-home` names, the main checkout, which still says `1/2`. Expect the target `1/4`, the new `next`, and, as the commit that last changed the lane's row in `lanes.tsv` (§6.3), this commit's sha and date. Push.
 
 ### Task 10: Real data (§7.9 e)
 
-**Stage:** measurement. Sonnet 5.5, high. The runs are never part of the suite, and no engine file names either project.
+**Stage:** measurement. Sonnet 5.5, high. The runs name real projects, so they are recorded measurements outside the suite, and no engine file names either project (§7.9 (e), §11 items 11 and 30).
 
 **Files:**
 
@@ -756,10 +778,11 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 **Steps:**
 
+- [ ] Run every `felix` command in this task with `FELIX_HOME="$WT"`, so the branch's `projects/<p>/probes.tsv`, `project.json` and `obligations.tsv` are the tables read. Without it the engine reads the main checkout's tables.
 - [ ] Run Veldra from its checkout.
     - `cd /Users/a14808/ReserveGrid-OS`
     - Run `"$WT/engine/harness/felix" situations --at 7901ad88fd5e3857e61d51c672105ad140637a60`, and again with `--tsv`.
-    - Save each to `situations-<UTC stamp>-at.txt` in Veldra's measurements directory. The first lines say, as `#` comments, the engine commit, the checkout path, its HEAD and the command.
+    - Save each to `situations-<UTC stamp>-at.txt` in Veldra's measurements directory. The first lines say, as `#` comments, the engine commit, `FELIX_HOME`, the checkout path, its HEAD and the command.
     - Expect exit 0. Expect no HTTP-keyed class DORMANT unless its grounds show a false term resting on a witness (falsifier 5, checked by hand).
 
 - [ ] Run Elenchus from its checkout.
@@ -767,14 +790,14 @@ A seed row found wrong later comes back to this task's author, and the blind aut
     - Note `git status --porcelain` before and after; Elenchus is read-only to this work.
     - Run `"$WT/engine/harness/felix" probes`, which records facts for this tree. Then run `felix situations --propose`, and `felix situations --tsv`, saved the same way.
     - Expect `paid_ingress` ACTIVE with grounds `http_route found (api), llm detected`, and its proposed row printed.
-    - If it does not read ACTIVE, fix the seed (back to Task 1) or `projects/elenchus/probes.tsv` in felix-home, adding a row, which is free. Do not change the Elenchus checkout or its environment. If the only cause is that environment, record it and say so in the PR.
+    - If it does not read ACTIVE, fix the seed (back to Task 1), or add a row to `$WT/projects/elenchus/probes.tsv` on this branch, which is free, and run again with `FELIX_HOME="$WT"`. Do not change the Elenchus checkout or its environment. If the only cause is that environment, record it and say so in the PR.
 
 - [ ] Put the summary lines in the pending note: commands, trees, each class's state, the residual's counts by kind, and the file paths.
 - [ ] Commit the note, ending with `Felix-Lane: capability`, and push.
 
 ### Task 11: Adversarial review and fixes
 
-**Stage:** review. Opus 5.5, high. Fixes: Sonnet 5.5. Part fixes: the blind author.
+**Stage:** review. Opus 5.5, high. Fixes: Sonnet 5.5, high or xhigh, never max; a fix that goes red twice moves to Opus 5.5, high. Part fixes: the blind author, Opus 5.5, high.
 
 **Files:** only those Tasks 1 to 9 name. A mutant lives in its scratch worktree and is never committed.
 
@@ -792,16 +815,17 @@ A seed row found wrong later comes back to this task's author, and the blind aut
     - that "could not look" never reaches a DORMANT, absent or "owes nothing" reading.
 
 - [ ] Run mutants, each in a scratch worktree (`git -C "$WT" worktree add --detach "$M/w" HEAD`) and never on the branch. Each must turn its part red; a mutant that stays green is a missing assertion, and goes back to the blind author.
-    - Detector silence read as false: 1950 and 1910.
-    - An UNKNOWN head with an ACTIVE base read as `none`: 1920.
-    - The scratch made with `git worktree add`: 1920 and RF1.
+    - Detector silence read as false: 2450 and 2410.
+    - A `probe:` term read from one predicate instead of every probe grounding its capability: 2410.
+    - An UNKNOWN head with an ACTIVE base read as `none`: 2420.
+    - The scratch made with `git worktree add`: 2420 and RF1.
     - The trap removed: RF4.
-    - `felix_probes_record` called in `--change`: 1920.
+    - `felix_probes_record` called in `--change`: 2420.
     - `sort` without `LC_ALL=C`: RF3, where the locale is installed.
-    - The commit hashed into the id: 1930.
+    - The commit hashed into the id: 2430.
     - No `'\''` quoting: RF5.
-    - The oldest run of a tree read: 1910.
-    - `not-applicable` read as undecided: 1910.
+    - The oldest run of a tree read: 2410.
+    - `not-applicable` read as undecided: 2410.
 
 - [ ] Apply fixes, re-run the affected parts alone, and commit each fix ending with `Felix-Lane: capability`. Push.
 
@@ -818,45 +842,48 @@ A seed row found wrong later comes back to this task's author, and the blind aut
 
 **Steps:**
 
-- [ ] Rebase on `origin/main`. Resolve conflicts in `felix` and `tests/run` by keeping both sides' lines.
-- [ ] Set the version to the next free patch slot. That is after 0.49.313 and after whatever slice 0 and other open PRs claim, so read the titles of open PRs and the version on `origin/main`. Commit `chore(version): 0.49.<n>` ending with `Felix-Lane: capability`.
+- [ ] Rebase on `origin/main`, or on slice 0's branch while slice 0 has not landed (Task 9). Resolve conflicts in `felix`, `templates/schemas.tsv` and `tests/run` by keeping both sides' lines. The version, `tests/assertions.tsv` and `tests/red.tsv` are rewritten below, not merged (design §9). When this branch sits on slice 0's branch and slice 0 has since landed, run `git -C "$WT" rebase --onto origin/main <S0>`, where `<S0>` is the slice-0 commit Task 9 recorded. That replays only this branch's own commits, and none of slice 0's, which landed as one squash.
+- [ ] Set the version to the next free patch slot at landing time (§4: on 10-29, 0.49.310 to 0.49.314 were claimed). Read the titles of open PRs and the version on `origin/main`, and take the next slot none of them holds. Commit `chore(version): 0.49.<n>` ending with `Felix-Lane: capability`.
 - [ ] Commit everything, so `git status --porcelain` is empty. Ask the queue owner (the "Inventory next steps" session, through `ListAgents` and `SendMessage`) whether the queue is free, and wait for a yes. Keep the Mac awake.
-- [ ] Run `nohup engine/harness/tests/run --record-assertions > <log> 2>&1 &` from the worktree root and poll the log. Background Bash dies at ten minutes.
-    - Expect the summary `<n> passed, 0 failed`.
+- [ ] Run the record detached, with INT and QUIT reset and `FELIX_TEST_JOBS` unset (so at `-j 1`, which leaves a receipt the gate can reuse), from the worktree root: `nohup perl -e 'use POSIX (); POSIX::setsid(); $SIG{INT}=$SIG{QUIT}="DEFAULT"; exec @ARGV' bash -c 'engine/harness/tests/run --record-assertions' > <log> 2>&1 &`. A bare `&` from a non-interactive shell runs the suite with INT and QUIT ignored, and part 1295 then fails. Poll the log, because background Bash dies at ten minutes.
+    - Expect the summary `<n> passed, 0 failed`. Compare the skip count with the last known-good record before trusting it.
     - Expect `assertions.tsv` and `red.tsv` rewritten, with `red.tsv`'s `run` row showing failed above 0, including every new part's assertions.
 
 - [ ] Commit `assertions.tsv` and `red.tsv` with `test(situations): the record`, ending with `Felix-Lane: capability`.
-- [ ] With the record finished, since red and gate never run at once in one worktree, run `nohup engine/harness/felix gate > <log> 2>&1 &` and poll. Expect the gate to pass, with its header naming this worktree.
-- [ ] Push, and open the PR titled `situations: what a change owes, report-only (0.49.<n>)`. The body holds:
+- [ ] With the record finished, since red and gate never run at once in one worktree, run the gate the same way, from the same shell: `nohup perl -e 'use POSIX (); POSIX::setsid(); $SIG{INT}=$SIG{QUIT}="DEFAULT"; exec @ARGV' bash -c 'engine/harness/felix gate' > <log> 2>&1 &`. Poll it. Expect it to reuse the record's receipt and pass, with its header naming this worktree.
+- [ ] Push with `git -C "$WT" push --force-with-lease origin claude/lane-situations-owed`, since the rebase rewrote commits already pushed. Then open the PR titled `situations: what a change owes, report-only (0.49.<n>)`. The body holds:
     - what it adds;
-    - that it lands intake, so the lane's share goes to `1/4`;
+    - that it lands intake, so the lane's share goes to `1/4`, and that `next` names slice 2 pending the direction fold (§12);
     - the red counts per part (Task 3);
     - the seed rows, with their sources and which meet R1 to R4;
+    - what admitting a `--propose` draft as printed does (C11);
+    - the four limits of design §7.10, word for word, including that on Elenchus every class needing api reads could-not-look in `--change` until scratch trees get an environment;
     - the real-data summary (Task 10).
 
-- [ ] Label the PR `needs-founder` only if he asked to read the seed first (§7.2). Otherwise it lands on green.
-- [ ] Turn on the CI monitor, and hand the PR to the landing queue.
+- [ ] Label the PR `needs-founder` only if he asked to read the seed first (§7.2, §11 item 12). Otherwise it lands on green.
+- [ ] Turn on the CI monitor, and hand the PR to the landing queue, whose `felix merge` copies every non-merge commit message, and so the mark, into the landing.
 
 ## Coverage
 
 | Spec item | Contract | Part | Task |
 |---|---|---|---|
-| §7.2 file, columns, schema row, cells | C12 | 1900 | 1 |
-| §7.2 seed R1 to R4 | C12 | 1900, 1940, 1950 | 1, 8 |
-| §7.2 siblings, falsifier 6 | C12 | 1960 | 8 |
+| §7.2 file, columns, schema row, cells | C12 | 2400 | 1 |
+| §7.2 seed R1 to R4 | C12 | 2400, 2430, 2440, 2450 | 1, 8 |
+| §7.2 siblings, falsifier 6 | C12 | 2460 | 8 |
 | §7.2 authorization | none | none | 12 |
-| §7.3 recorded readings | C3.1, C3.2 | 1910, RF7 | 5 |
-| §7.3 scratch readings, an untouched repository, no `facts.log` write | C3.3, C3.4 | 1920, RF1, RF4, RF6 | 6 |
-| §7.4 three values | C4 | 1910 | 5 |
-| §7.5 verdicts, "differs" | C5 | 1920 | 6 |
-| §7.6 ids, (i) | C6 | 1930 | 4 to 6 |
-| §7.7 human, `--tsv`, exit status | C2, C8, C9 | 1930, RF3 | 4 to 6 |
-| §7.7 `--propose` | C11 | 1940, RF5 | 7 |
-| §7.8 residual, (c) | C10 | 1930, 1910, 1920 | 5, 6 |
-| §7.9 (a), (f), (g), (h) | C7, C11 | 1940 | 5 to 8 |
-| §7.9 (b), falsifier 5 | C4, C12 | 1950 | 5 to 8 |
-| §7.9 (d), falsifier 2 | C3.4, C13 | 1930 | 5, 6 |
+| §7.3 recorded readings | C3.1, C3.2 | 2410, RF7 | 5 |
+| §7.3 scratch readings, an untouched repository, no `facts.log` write | C3.3, C3.4 | 2420, RF1, RF4, RF6 | 6 |
+| §7.4 three values, probe terms keyed by capability | C4 | 2410 | 5 |
+| §7.4 the undecided term named beside a DORMANT class | C7, C9 | 2410 | 5 |
+| §7.5 verdicts, "differs" | C5 | 2420 | 6 |
+| §7.6 ids, (i) | C6 | 2430 | 4 to 6 |
+| §7.7 human, `--tsv`, exit status | C2, C8, C9 | 2430, RF3 | 4 to 6 |
+| §7.7 `--propose` | C11 | 2440, RF5 | 7 |
+| §7.8 residual, how each side was read in the header, (c) on the shipped seed | C9, C10 | 2430, 2410, 2420 | 5, 6 |
+| §7.9 (a), (f), (g), (h) | C7, C11 | 2440 | 5 to 8 |
+| §7.9 (b), falsifier 5 | C4, C12 | 2450 | 5 to 8 |
+| §7.9 (d), falsifier 2 in its clean-machine form | C3.4, C13, C16 | 2430 | 5, 6 |
 | §7.9 (e) | none | none | 10 |
-| §7.10 limits | C3.3, C10 | RF2 | 6 |
+| §7.10 limits | C3.3, C10 | RF2 | 6; stated in the PR body, 12 |
 | §6.3, §9 lane rows | C15 | none | 9 |
 | §4 how it lands | Global Constraints | none | 1, 3, 12 |

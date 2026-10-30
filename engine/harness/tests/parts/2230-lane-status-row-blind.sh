@@ -292,4 +292,56 @@ case "$LF_RC|$LNTc|$LNTa" in
 esac
 is "lane status row R2-F7-plain-status-loses-rows-with-exit-0 L-NEVER-OK: plain felix status with a function command that lowers the process limit at command -v felix_capture, so the shell that asked fails at its next fork: ten rows ending in the lane row, zero or unknown, aligned, or felix status ends with 128; never exit 0 without the lane row" \
    "$LNTRA|unfaulted $LNTb|$LF_FIRE|$LNTa" "built|unfaulted 0|10|$LNTRP|fired|ten rows or 128"
+
+# ---- the second review's round 2: a resolution by remote_match that does not finish (R2B-F1) ---------------------------
+# Added on 2026-10-30 from the second review's round 2 findings (their inputs and observed output only), still blind. The
+# review's home-apart fixture again (_lf_r2), its checkout's untracked .felix removed, so that neither the checkout nor the
+# home has a .felix and the checkout is bound to p by remote_match alone (C2: the marker first, then a project.json
+# remote_match; p's names o/r, the checkout's origin is https://github.com/o/r.git). Without the fault the lane row reads
+# value zero 0 of 2 and felix lane --tsv prints cap's and sec's lines. The fault is the review's fork probe (_lf_fork) at
+# the one git call whose words hold get-url, made under felix_resolve_project. Readings: a resolution that did not finish
+# is not a directory no project governs, so C6's none row is never its row (C9: never none); the row is lane unknown -
+# the lane count did not finish in <repo> (C6), or the value the count gives if the project is found another way, or,
+# as C3 says of a fork that fails in the surface's own shell, felix status ends with 128; plain status the same,
+# aligned. felix lane --tsv prints nothing on stdout and either ends as C3's count that did not finish (exit 1), or
+# exits 2 with a first stderr line of felix's naming the checkout that is not C5's no project governs <dir>. (the
+# finding's: a resolution that did not finish is status 2), or ends with 128; or prints the two lines.
+LNTMA="not built: R2B-F1's checkout"; LNTMC="$LNTD/r2b/c"
+if _lf_r2 "$LNTD/r2b" p "$LNTN"; then
+  LNTMC="$LF_REPO"; rm -f "$LNTMC/.felix"
+  [ ! -e "$LNTMC/.felix" ] && [ ! -e "$LF_HOME/.felix" ] && [ -n "$(LC_ALL=C awk '/"remote_match":"o\/r"/' "$LF_PROJ/project.json")" ] \
+    && [ "$( _fx_cd "$LNTMC" && _lf_g 1700000000 config --get remote.origin.url )" = https://github.com/o/r.git ] && LNTMA=built
+fi
+LNTML="$LF_R2"; LNTMU="$(_lf_tsv lane unknown - "the lane count did not finish in $LNTMC")"
+_lf_use "$LF_HOME" "$LNTD/memory" "$LNTD/user" "$LNTB"
+_lf_run "$LNTD/r2bf1-0" "$LNTMC" "$LNTN" "$FELIX" status --tsv
+LNTb="$LF_RC|$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/r2bf1-0.out")|$(_lf_last "$LNTD/r2bf1-0.out")"
+_lf_fork fork git '*get-url*' "*' felix_resolve_project '*" "$LNTD/r2bf1.fired" "$LNTRT" _lf_run "$LNTD/r2bf1" "$LNTMC" "$LNTN" "$FELIX" status --tsv
+LNTa="$(_lf_last "$LNTD/r2bf1.out")"; LNTc="$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/r2bf1.out")"
+case "$LF_RC|$LNTc|$LNTa" in
+  ("0|$LNTTEN|$LNTRV"|"0|$LNTTEN|$LNTMU") LNTa="value, did not finish or 128" ;;
+  ("128|"*) [ -z "$(LC_ALL=C awk -F'\t' '$1 == "lane" && $2 != "unknown"' "$LNTD/r2bf1.out")" ] && LNTa="value, did not finish or 128" ;;
+esac
+is "lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: in a checkout bound by remote_match alone, a fork that fails in the git read of its origin's URL (get-url, felix_resolve_project on the stack): felix status --tsv's last of ten rows is lane unknown - the lane count did not finish in <repo>, or the value zero 0 of 2, or felix status ends with 128; never lane none - this directory is not a governed checkout" \
+   "$LNTMA|unfaulted $LNTb|$LF_FIRE|status $LF_RC, last [$LNTa]" "built|unfaulted 0|$LNTTEN|$LNTRV|fired|status $LF_RC, last [value, did not finish or 128]"
+_lf_run "$LNTD/r2bf1p-0" "$LNTMC" "$LNTN" "$FELIX" status; LNTb="$LF_RC|$(_lf_count "$LNTD/r2bf1p-0.out")|$(_lf_last "$LNTD/r2bf1p-0.out")"
+_lf_fork fork git '*get-url*' "*' felix_resolve_project '*" "$LNTD/r2bf1p.fired" "$LNTRT" _lf_run "$LNTD/r2bf1p" "$LNTMC" "$LNTN" "$FELIX" status
+LNTa="$(_lf_last "$LNTD/r2bf1p.out")"
+case "$LF_RC|$(_lf_count "$LNTD/r2bf1p.out")|$LNTa" in
+  ("0|10|$LNTRP"|"0|10|$(printf '%-9s %-12s %s' lane unknown "the lane count did not finish in $LNTMC")") LNTa="value, did not finish or 128" ;;
+  ("128|"*) case "$LNTa" in ("$(printf '%-9s %-12s ' lane none)"*) ;; (*) LNTa="value, did not finish or 128" ;; esac ;;
+esac
+is "lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: the same fault in plain felix status: ten rows, the last lane, unknown, the lane count did not finish in <repo>, aligned, or the value zero, or felix status ends with 128; never lane none this directory is not a governed checkout" \
+   "$LNTMA|unfaulted $LNTb|$LF_FIRE|status $LF_RC, last [$LNTa]" "built|unfaulted 0|10|$LNTRP|fired|status $LF_RC, last [value, did not finish or 128]"
+_lf_run "$LNTD/r2bf1t-0" "$LNTMC" "$LNTN" "$FELIX" lane --tsv; LNTb="$LF_RC|$(cat "$LNTD/r2bf1t-0.out")"
+_lf_fork fork git '*get-url*' "*' felix_resolve_project '*" "$LNTD/r2bf1t.fired" "$LNTRT" _lf_run "$LNTD/r2bf1t" "$LNTMC" "$LNTN" "$FELIX" lane --tsv
+LNTa="status $LF_RC, stdout [$(cat "$LNTD/r2bf1t.out")], stderr [$(LC_ALL=C awk 'NR == 1' "$LNTD/r2bf1t.err")]"
+LNTc="$(LC_ALL=C awk 'NR == 1' "$LNTD/r2bf1t.err")"
+if [ "$(_lf_ended "$LNTD/r2bf1t" "$LNTMC")" = ended ] || [ "$LF_RC|$(cat "$LNTD/r2bf1t.out")" = "0|$LNTML" ] \
+   || { [ "$LF_RC" = 128 ] && [ ! -s "$LNTD/r2bf1t.out" ]; }; then LNTa="unfinished, or the lines"
+elif [ "$LF_RC" = 2 ] && [ ! -s "$LNTD/r2bf1t.out" ] && [ "$LNTc" != "felix: no project governs $LNTMC." ]; then
+  case "$LNTc" in ("felix: "*"$LNTMC"*) LNTa="unfinished, or the lines" ;; esac
+fi
+is "lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: the same fault in felix lane --tsv in that checkout: nothing on stdout and C3's the lane count did not finish in <repo> with exit 1, or exit 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exit 128; or the two lines it prints without the fault" \
+   "$LNTMA|unfaulted $LNTb|$LF_FIRE|$LNTa" "built|unfaulted 0|$LNTML|fired|unfinished, or the lines"
 # <<< lane-status-row

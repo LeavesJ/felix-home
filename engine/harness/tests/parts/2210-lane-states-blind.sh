@@ -472,5 +472,83 @@ _lf_fork fork awk "*'ENVIRON[\"T\"]'*" "*' felix_table_schema '*" "$LNSD/r2f9-s.
 is "lane states R2-F9-fork-in-shape-check-reads-R4 L-NEVER-OK: the same fault in felix status --tsv makes the lane row the value zero 0 of 2, or lane unknown - with R9 or the lane count did not finish, the last of ten; never R4" \
    "$LNSRA|unfaulted $LNSb|$LF_FIRE|$(_lns_r2row "$LNSD/r2f9-s" "$LNSRV" "$(_lf_tsv lane unknown - "$LNSRR9")" "$(_lf_tsv lane unknown - "$LNSREND")")" \
    "built|unfaulted one of them|fired|one of them"
+
+# ---- the second review's round 2: the count's scratch directory taken mid-count (R2B-F2) ------------------------------
+# Added on 2026-10-30 from the second review's round 2 findings (their inputs and observed output only), still blind. A
+# self-governed home of its own (C9): project g, lanes.tsv cap (^engine/, 1/2, 14) committed 29 days before the clock,
+# no lane-next.tsv, then a marked and an unmarked engine landing five days back, an hour apart: cap reads ok, L 1 of T 2.
+# The fault is the review's (_lf_gone): an exported awk that, at the awk call the finding names by its words and calling
+# function, removes the count's scratch directory (C2: TMPDIR/felix-lane.*), as a cleaner of TMPDIR or a full disk
+# would, then runs the real awk. Case A: the read of lanes.tsv's rows (skip= in its words, felix_table_rows on the
+# stack); case B: the tally of the window (t[$2]++, _lane_window). Readings: a read the count depends on that did not
+# finish never yields a count, none, idle or a table with no row (C3, C9). Accepted: C3's count that did not finish
+# (felix lane: nothing on stdout, C3's line on stderr, exit 1 as C3 says; the finding's exit 2 is not the Contract's),
+# or the reason C3 gives the read: R9 for case A (a read of lanes.tsv, the - line), R2 for case B (a read of the
+# landings); beside them column 12 may read -, and in case B columns 10 and 11 unknown and -. Each assertion also
+# compares the command without the fault, so it is red on main.
+LNSGN=1793000000; LNSGT="$LNSD/r2b-tmp"; LNSGA="not built: R2B-F2's home"; LNSGH="$LNSD/r2b"; LNSGP=""; LNSGS=""
+if _lf_self "$LNSD/r2b" g $((LNSGN - 30 * LNSDAY)); then
+  LNSGH="$LF_HOME"; LNSGP="$LF_PROJ"
+  _lf_table "$LNSGP" $((LNSGN - 29 * LNSDAY)) lanes.tsv $'cap\t^engine/\t1/2\t14\n' && LNSGS="$LF_SHA" \
+    && _lf_chain "$LNSGH" cap $((LNSGN - 5 * LNSDAY)) 3600 m u \
+    && [ "$(_lf_spine "$LNSGH")" = "$((LNSGN - 5 * LNSDAY + 3600)):1 $((LNSGN - 5 * LNSDAY)):1 $((LNSGN - 29 * LNSDAY)):1 $((LNSGN - 30 * LNSDAY)):0" ] \
+    && ! ( _fx_cd "$LNSGH" && _lf_g 1700000000 cat-file -e HEAD:projects/g/lane-next.tsv ) >/dev/null 2>&1 && LNSGA=built
+fi
+_lf_use "$LNSGH" "$LNSD/r2b-memory" "$LNSD/r2b-user" "$LNSB"
+LNSGREF="$(_lf_iso $((LNSGN - 5 * LNSDAY + 3600)))"; LNSGTI="$(_lf_iso $((LNSGN - 29 * LNSDAY)))"
+LNSGL="$(_lf_tsv cap ok 1 2 14 1/2 "$(_lf_iso $((LNSGN - 5 * LNSDAY)))" 'Felix-Lane: cap' none "$LNSGS" "$LNSGTI" "$LNSGREF" -)"
+LNSGHU="cap: ok, 1 of 2 engine landings in 14 days, target 1/2; last lane landing $(_lf_iso $((LNSGN - 5 * LNSDAY))); mark Felix-Lane: cap; next: none; its lanes.tsv row last changed by $(printf '%.12s' "$LNSGS") at $LNSGTI; refs/remotes/origin/main at $LNSGREF"
+LNSGR9="$LNSGP/lanes.tsv cannot be read as committed in the Felix home"; LNSGR2="git could not read the landings on refs/remotes/origin/main in $LNSGH"
+_lf_run "$LNSD/r2bf2-t0" "$LNSGH" "$LNSGN" "$FELIX" lane --tsv; LNSb="$LF_RC|$(cat "$LNSD/r2bf2-t0.out")"
+_lf_run "$LNSD/r2bf2-h0" "$LNSGH" "$LNSGN" "$FELIX" lane; LNSb="$LNSb|$LF_RC|$(cat "$LNSD/r2bf2-h0.out")"
+_lf_run "$LNSD/r2bf2-s0" "$LNSGH" "$LNSGN" "$FELIX" status --tsv
+LNSc="$(_lns_r2row "$LNSD/r2bf2-s0" "$(_lf_tsv lane value ok '1 of 2 engine landings in 14 days, target 1/2')")"
+# OUT FORM CASE -> "unknown or ended" when the faulted felix lane run whose files are OUT.* ended as the readings above
+# accept for CASE (A or B) in FORM (tsv or human), else its status, stdout and stderr.
+_lns_gone() {
+  local o="$1" c12
+  if [ "$(_lf_ended "$o" "$LNSGH")" = ended ]; then printf 'unknown or ended'; return 0; fi
+  if [ "$LF_RC" = 0 ] && [ "$(_lf_count "$o.out")" = 1 ]; then
+    c12="$(_lf_cols "$o.out" 1 12)"
+    case "$2$3|$c12|$(_lf_cols "$o.out" 1 1 2 3 4 5 6 7 8 9 10 11 13)" in
+      ("tsvA|$LNSGREF|-|unknown|-|-|-|-|-|-|-|-|-|$LNSGR9"|"tsvA|-|-|unknown|-|-|-|-|-|-|-|-|-|$LNSGR9") printf 'unknown or ended'; return 0 ;;
+      ("tsvB|$LNSGREF|cap|unknown|-|-|14|1/2|-|Felix-Lane: cap|none|$LNSGS|$LNSGTI|$LNSGR2"|"tsvB|-|cap|unknown|-|-|14|1/2|-|Felix-Lane: cap|none|$LNSGS|$LNSGTI|$LNSGR2") printf 'unknown or ended'; return 0 ;;
+      ("tsvB|$LNSGREF|cap|unknown|-|-|14|1/2|-|Felix-Lane: cap|none|unknown|-|$LNSGR2"|"tsvB|-|cap|unknown|-|-|14|1/2|-|Felix-Lane: cap|none|unknown|-|$LNSGR2") printf 'unknown or ended'; return 0 ;;
+    esac
+    case "$2$3|$(cat "$o.out")" in
+      ("humanA|-: unknown, $LNSGR9; refs/remotes/origin/main at $LNSGREF"|"humanA|-: unknown, $LNSGR9; refs/remotes/origin/main at -"|"humanB|cap: unknown, $LNSGR2; "*) printf 'unknown or ended'; return 0 ;;
+    esac
+  fi
+  printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$o.out")" "$(cat "$o.err")"
+}
+# CASE WORDS STACK -> the felix lane --tsv, felix lane and felix status --tsv runs under the fault, each with a fresh
+# TMPDIR; LNSa their readings, LNSF the fault's firing in each.
+_lns_gonerun() {
+  local m
+  LNSa=""; LNSF=""
+  for m in tsv human status; do
+    rm -rf "$LNSGT"; mkdir -p "$LNSGT"
+    case "$m" in
+      (tsv) _lf_gone "$2" "$3" "$LNSD/r2bf2-$1t.fired" "$LNSGT" _lf_run "$LNSD/r2bf2-$1t" "$LNSGH" "$LNSGN" "$FELIX" lane --tsv
+            LNSa="$(_lns_gone "$LNSD/r2bf2-$1t" tsv "$1")" ;;
+      (human) _lf_gone "$2" "$3" "$LNSD/r2bf2-$1h.fired" "$LNSGT" _lf_run "$LNSD/r2bf2-$1h" "$LNSGH" "$LNSGN" "$FELIX" lane
+            LNSa="$LNSa|$(_lns_gone "$LNSD/r2bf2-$1h" human "$1")" ;;
+      (status) _lf_gone "$2" "$3" "$LNSD/r2bf2-$1s.fired" "$LNSGT" _lf_run "$LNSD/r2bf2-$1s" "$LNSGH" "$LNSGN" "$FELIX" status --tsv
+            if [ "$1" = A ]; then LNSa="$LNSa|$(_lns_r2row "$LNSD/r2bf2-$1s" "$(_lf_tsv lane unknown - "the lane count did not finish in $LNSGH")" "$(_lf_tsv lane unknown - "$LNSGR9")")"
+            else LNSa="$LNSa|$(_lns_r2row "$LNSD/r2bf2-$1s" "$(_lf_tsv lane unknown - "the lane count did not finish in $LNSGH")" "$(_lf_tsv lane unknown - "$LNSGR2")")"; fi ;;
+    esac
+    LNSF="$LNSF${LNSF:+ }$LF_FIRE"
+  done
+}
+_lns_gonerun A '*skip=*' "*' felix_table_rows '*"
+is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count's scratch directory removed at the read of lanes.tsv's rows (skip=, felix_table_rows), where without it cap reads ok 1 of 2: felix lane --tsv and felix lane end as C3's count that did not finish, or print the - line with R9; never nothing with exit 0" \
+   "$LNSGA|unfaulted $LNSb|$LNSF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired fired fired|unknown or ended|unknown or ended"
+is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R9, the last of ten; never the none row of a table with no row" \
+   "$LNSGA|unfaulted $LNSc|${LNSF##* }|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
+_lns_gonerun B "*'t[\$2]++'*" "*' _lane_window '*"
+is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[\$2]++, _lane_window): felix lane --tsv and felix lane end as C3's count that did not finish, or print cap unknown with R2; never idle 0 of 0" \
+   "$LNSGA|unfaulted $LNSb|$LNSF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired fired fired|unknown or ended|unknown or ended"
+is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2, the last of ten; never the value idle 0 of 0" \
+   "$LNSGA|unfaulted $LNSc|${LNSF##* }|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
 _lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
 # <<< lane-states

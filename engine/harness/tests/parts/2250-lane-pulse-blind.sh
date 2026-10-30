@@ -312,4 +312,62 @@ _lf_calm "$LNPRH"
 is "lane pulse R2-F2-pulse-drops-lane-lines L-NEVER-OK: (c) a fork that fails as the pulse reads the home's .felix (tr -d [:space:] in felix_resolve_project, called from felix_lane_pulse): felix pulse ends with the two lane lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line" \
    "$LNPRA|unfaulted $LNPb|$LF_FIRE|$(_lnp_r2 "$LNPD/r2f2c")" "built|unfaulted 0|$LNPRW|backup settings|fired|lane lines or 128"
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+
+# ---- the second review's round 2: a home bound by remote_match alone, and a scratch directory taken (R2B-F1, R2B-F2) ---
+# Added on 2026-10-30 from the second review's round 2 findings (their inputs and observed output only), still blind,
+# last, each in a home of its own. R2B-F1: a home with no .felix, bound to p by remote_match alone (C2: the marker first,
+# then a project.json remote_match): p's project.json names remote_match o/r (written in its working tree, as _lf_match
+# does) and its origin is https://github.com/o/r.git, never fetched; lanes.tsv and the landings are R2-F2's, so without
+# the fault the pulse ends with lane cap zero 0 2 and lane sec short 1 3. The fault is the review's fork probe (_lf_fork)
+# at the one git call whose words hold get-url, made under felix_resolve_project. A resolution that did not finish is
+# not a home bound to no project (C8, C9: never no line), so the pulse ends as _lnp_r2 accepts: the two lines, lane -
+# unknown - -, an unknown line per lane, or 128. R2B-F2: a self-governed home (project g, lanes.tsv cap ^engine/ 1/2 14,
+# no lane-next.tsv, a marked and an unmarked engine landing five days back), where the pulse ends with lane cap ok 1 2;
+# the fault (_lf_gone) removes the count's scratch directory at the read of lanes.tsv's rows (A: skip=,
+# felix_table_rows) or at the tally of the window (B: t[$2]++, _lane_window). A gives lane - unknown - - (C3's count
+# that did not finish, or R9's one line); B that line or lane cap unknown - - (R2). Never no line, and never idle 0 0.
+LNPMA="not built: R2B-F1's home"; LNPMH="$LNPD/r2bm"
+if _lf_home "$LNPD/r2bm" p $((LNPN - 30 * LNPDAY)); then
+  LNPMH="$LF_HOME"
+  _lnp_put "$LNPMH" "$LF_PROJ" lanes.tsv "R2B-F1's two lanes" $'cap\t^engine/\t1/2\t14\nsec\t^docs/\t1/2\t7\n'
+  LNPa="$((LNPN - LNPDAY)):1 $((LNPN - 2 * LNPDAY)):1 $((LNPN - 3 * LNPDAY)):1 $((LNPN - 4 * LNPDAY)):1 $((LNPN - 5 * LNPDAY)):1"
+  _lf_r2land "$LNPMH" "$LNPN" && [ "$LNPT" = built ] && _lf_match "$LF_PROJ" o/r && _lf_origin "$LNPMH" https://github.com/o/r.git \
+    && [ ! -e "$LNPMH/.felix" ] && case "$(_lf_spine "$LNPMH")" in ("$LNPa $((LNPN - 20 * LNPDAY)):1 "*" $((LNPN - 30 * LNPDAY)):0") LNPMA=built ;; esac
+fi
+_lf_use "$LNPMH" "$LNPD/r2bm-memory" "$LNPD/r2bm-user" "$LNPB"
+_lnp_pulse "$LNPD/r2bm-0"; LNPb="$LF_RC|$(_lnp_tail "$LNPD/r2bm-0.out")|$(_lnp_before "$LNPD/r2bm-0.out")"
+_lf_fork fork git '*get-url*' "*' felix_resolve_project '*" "$LNPD/r2bmf.fired" "$LNPRT" _lf_run "$LNPD/r2bmf" "$LNPMH" "$LNPN" "$FELIX" pulse
+_lf_calm "$LNPMH"
+is "lane pulse R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: in a home bound to p by remote_match alone, where without the fault the pulse ends with lane cap zero 0 2 and lane sec short 1 3, a fork that fails in the git read of the origin's URL (get-url, felix_resolve_project on the stack): felix pulse ends with those lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line" \
+   "$LNPMA|unfaulted $LNPb|$LF_FIRE|$(_lnp_r2 "$LNPD/r2bmf")" "built|unfaulted 0|$LNPRW|backup settings|fired|lane lines or 128"
+
+LNPGA="not built: R2B-F2's home"; LNPGH="$LNPD/r2bg"; LNPGT="$LNPD/r2bg-tmp"
+if _lf_self "$LNPD/r2bg" g $((LNPN - 30 * LNPDAY)); then
+  LNPGH="$LF_HOME"
+  _lnp_put "$LNPGH" "$LF_PROJ" lanes.tsv "R2B-F2's lane" $'cap\t^engine/\t1/2\t14\n'
+  _lf_chain "$LNPGH" cap $((LNPN - 5 * LNPDAY)) 3600 m u && [ "$LNPT" = built ] \
+    && ! ( _fx_cd "$LNPGH" && _lf_g 1700000000 cat-file -e HEAD:projects/g/lane-next.tsv ) >/dev/null 2>&1 \
+    && [ "$(_lf_spine "$LNPGH" | LC_ALL=C awk '{ print NF }')" = 4 ] && LNPGA=built
+fi
+_lf_use "$LNPGH" "$LNPD/r2bg-memory" "$LNPD/r2bg-user" "$LNPB"
+_lnp_pulse "$LNPD/r2bg-0"; LNPb="$LF_RC|$(_lnp_tail "$LNPD/r2bg-0.out")|$(_lnp_before "$LNPD/r2bg-0.out")"
+# CASE WORDS STACK -> felix pulse under _lf_gone, with a fresh TMPDIR; LNPc "unknown" when it exited 0 and its lines from
+# the first lane line on are lane - unknown - - (either case) or lane cap unknown - - (case B), after its backup and
+# settings lines, else what it printed.
+_lnp_gone() {
+  rm -rf "$LNPGT"; mkdir -p "$LNPGT"
+  _lf_gone "$2" "$3" "$LNPD/r2bg-$1.fired" "$LNPGT" _lf_run "$LNPD/r2bg-$1" "$LNPGH" "$LNPN" "$FELIX" pulse
+  _lf_calm "$LNPGH"
+  LNPc="$LF_RC|$(_lnp_tail "$LNPD/r2bg-$1.out")|$(_lnp_before "$LNPD/r2bg-$1.out")"
+  case "$1|$LNPc" in
+    ("A|0|$(_lf_tsv lane - unknown - -)|backup settings"|"B|0|$(_lf_tsv lane - unknown - -)|backup settings"|"B|0|$(_lf_tsv lane cap unknown - -)|backup settings") LNPc=unknown ;;
+  esac
+}
+_lnp_gone A '*skip=*' "*' felix_table_rows '*"
+is "lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count's scratch directory removed at the read of lanes.tsv's rows (skip=, felix_table_rows), where without it the pulse ends with lane cap ok 1 2: felix pulse exits 0 and ends with lane - unknown - - after its backup and settings lines; never no lane line" \
+   "$LNPGA|unfaulted $LNPb|$LF_FIRE|$LNPc" "built|unfaulted 0|$(_lf_tsv lane cap ok 1 2)|backup settings|fired|unknown"
+_lnp_gone B "*'t[\$2]++'*" "*' _lane_window '*"
+is "lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[\$2]++, _lane_window): felix pulse exits 0 and ends with lane - unknown - - or lane cap unknown - - after its backup and settings lines; never lane cap idle 0 0" \
+   "$LNPGA|unfaulted $LNPb|$LF_FIRE|$LNPc" "built|unfaulted 0|$(_lf_tsv lane cap ok 1 2)|backup settings|fired|unknown"
+_lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

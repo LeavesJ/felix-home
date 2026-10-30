@@ -632,4 +632,100 @@ is "lane command F1-count-ends-early L-NEVER-OK: the parent of the shell that ru
 _lf_fault kill "$LNKD/f1k-h.fired" "$LNKkt" _lf_run "$LNKD/f1k-h" "$LNKC" "$LNKN" "$FELIX" lane
 is "lane command F1-count-ends-early L-NEVER-OK: the same in felix lane, the human form: nothing on stdout, felix: the lane count did not finish in <repo> on stderr, and exit 1, or exit 0 with its one line capability: unknown, the R2 reason; never a count, no line, or exit 0 with nothing" \
    "$LNKBUILT|$LF_FIRE|$(_lnk_ended "$LNKD/f1k-h" human)" "built|fired|C3 or R2"
+
+# ---- the second review's round 2: a graft file, lanes named 1 and 01, a repository root that ends early ----------------
+# Added on 2026-10-30 from the second review's round 2 findings (their inputs and observed output only), still blind,
+# last, after F1, because a run ended early may leave state behind. Each assertion also compares the command without
+# the fault or the setting, so it is red on main, which prints no lane. Readings:
+# - R2B-F3: C2 names the repository and C3 its first-parent chain; nothing the caller exports changes which commits are
+#   read (F2's class). GIT_GRAFT_FILE, in the review's checkout (_lf_r2), naming B (engine/b.sh, four days back) alone,
+#   which makes B a root, or "Y B", which gives Y (docs/y.md, two days back) the single parent B: git's own walk changes
+#   under it (checked), and felix lane --tsv and the status row print the bytes they print without it.
+# - R2B-F4: C1's lane names 1 and 01 are two lanes, each its own mark, its own next and its own row (C5 columns 7, 9 and
+#   10). A home of its own: lanes.tsv 1 (^engine/, 1/2, 14) and 01 (^docs/, 1/2, 14) as commit A, lane-next.tsv 1 first
+#   item and 01 second item, then commit B changing only 01's share to 1/3; a checkout whose one landing, two days back,
+#   changes docs/n.md and carries Felix-Lane: 01. Lane 1 reads idle 0 0, last none, next first item, row last changed by
+#   A; lane 01 ok 1 1 at 1/3, last the landing, next second item, row last changed by B. In a second home lanes.tsv holds
+#   lane 1 alone and lane-next.tsv a row for 01 alone, which C1 ignores, so lane 1's next reads none.
+# - R2B-F5: the review's kill (_lf_kill, C9's kill) at pwd with felix_repo_root called from cmd_lane, or from
+#   felix_status_rows, on the stack: the substitution that finds the repository ends early, every other read finishes.
+#   A reason names <repo>, the checkout (C3, C5, C6), never an empty one, and git never ran, so R2 is not its reason.
+#   felix lane --tsv ends as C3's count that did not finish, naming the checkout, exit 1 (the finding's exit 2 is not the
+#   Contract's), or prints the lines it prints without the fault; the status row reads lane unknown - the lane count did
+#   not finish in <repo>, or the value.
+LNKGA="not built: R2B-F3's grafts"; LNKGY=""; LNKGB=""
+if [ "$LNKRA" = built ]; then
+  LNKGY="$( _fx_cd "$LNKRC" && _lf_g 1700000000 rev-parse --verify -q 'refs/remotes/origin/main~1' )"
+  LNKGB="$( _fx_cd "$LNKRC" && _lf_g 1700000000 rev-parse --verify -q 'refs/remotes/origin/main~3' )"
+fi
+printf '%s\n' "$LNKGB" > "$LNKD/r2b-graft-a"; printf '%s %s\n' "$LNKGY" "$LNKGB" > "$LNKD/r2b-graft-b"
+# [FILE] -> the committer times of the first-parent chain of refs/remotes/origin/main in the review's checkout, newest
+# first, with GIT_GRAFT_FILE FILE when given.
+_lnk_graft() {
+  ( _fx_cd "$LNKRC" || exit 1
+    if [ -n "${1-}" ]; then GIT_GRAFT_FILE="$1" _lf_g 1700000000 log --first-parent --format=%ct refs/remotes/origin/main
+    else _lf_g 1700000000 log --first-parent --format=%ct refs/remotes/origin/main; fi ) 2>/dev/null \
+    | LC_ALL=C awk '{ printf "%s%s", (NR > 1 ? " " : ""), $1 }'
+}
+LNKa="$((LNKN - LNKDAY)) $((LNKN - 2 * LNKDAY))"
+[ -n "$LNKGY" ] && [ -n "$LNKGB" ] \
+  && [ "$(_lnk_graft)" = "$LNKa $((LNKN - 3 * LNKDAY)) $((LNKN - 4 * LNKDAY)) $((LNKN - 5 * LNKDAY)) $((LNKN - 20 * LNKDAY)) $((LNKN - 30 * LNKDAY))" ] \
+  && [ "$(_lnk_graft "$LNKD/r2b-graft-a")" = "$LNKa $((LNKN - 3 * LNKDAY)) $((LNKN - 4 * LNKDAY))" ] \
+  && [ "$(_lnk_graft "$LNKD/r2b-graft-b")" = "$LNKa $((LNKN - 4 * LNKDAY)) $((LNKN - 5 * LNKDAY)) $((LNKN - 20 * LNKDAY)) $((LNKN - 30 * LNKDAY))" ] \
+  && LNKGA=built
+_lf_use "$LNKD/r2/home" "$LNKD/memory" "$LNKD/user" "$LNKB"
+LNKb=""; LNKc=""; LNKw=""; LNKv=""
+_lnk_r2env 'GIT_GRAFT_FILE: B a root' GIT_GRAFT_FILE="$LNKD/r2b-graft-a"
+_lnk_r2env 'GIT_GRAFT_FILE: Y B' GIT_GRAFT_FILE="$LNKD/r2b-graft-b"
+is "lane command R2B-F3-graft-file-changes-landings: GIT_GRAFT_FILE exported by the caller, making B (engine/b.sh, four days back) a root, or giving Y (docs/y.md, two days back) the single parent B, each of which changes the first-parent chain git walks, leaves felix lane --tsv's exit 0 and its two lines byte for byte as they are without it" \
+   "$LNKGA|unfaulted $LNKRU0|$LNKb" "built|unfaulted 0|$LNKRL|$LNKw"
+is "lane command R2B-F3-graft-file-changes-landings: the same GIT_GRAFT_FILE settings leave felix status --tsv's exit 0 and its lane row the value zero 0 of 2 engine landings in 14 days, target 1/2" \
+   "$LNKGA|unfaulted $LNKRS0|$LNKc" "built|unfaulted 0|$LNKRV|$LNKv"
+
+LNKNA="not built: R2B-F4's home and checkout"; LNKNH="$LNKD/home-num"; LNKNC="$LNKD/num"; LNKNSA=""; LNKNSB=""
+if _lf_home "$LNKD/home-num" ck 1792700000; then
+  LNKNH="$LF_HOME"
+  _lf_table "$LF_PROJ" 1792700100 lanes.tsv $'1\t^engine/\t1/2\t14\n01\t^docs/\t1/2\t14\n' && LNKNSA="$LF_SHA" \
+    && _lf_table "$LF_PROJ" 1792700200 lane-next.tsv $'1\tfirst item\n01\tsecond item\n' \
+    && _lf_table "$LF_PROJ" 1792700300 lanes.tsv $'1\t^engine/\t1/2\t14\n01\t^docs/\t1/3\t14\n' && LNKNSB="$LF_SHA" \
+    && _lf_checkout "$LNKD/num" ck $((LNKN - 30 * LNKDAY)) && LNKNC="$LF_REPO" \
+    && _lf_commit "$LNKNC" $((LNKN - 2 * LNKDAY)) $'docs: n\n\nFelix-Lane: 01\n' docs/n.md && _lf_publish "$LNKNC" \
+    && [ "$(_lf_spine "$LNKNC")" = "$((LNKN - 2 * LNKDAY)):1 $((LNKN - 30 * LNKDAY)):0" ] \
+    && [ "$(_lf_marks "$LNKNC" HEAD 01)|$(_lf_marks "$LNKNC" HEAD 1)" = "1|0" ] && LNKNA=built
+fi
+LNKa="$(_lf_iso $((LNKN - 2 * LNKDAY)))"
+LNKN1="$(_lf_tsv 1 idle 0 0 14 1/2 none 'Felix-Lane: 1' 'first item' "$LNKNSA" "$(_lf_iso 1792700100)" "$LNKa" -)"
+LNKN01="$(_lf_tsv 01 ok 1 1 14 1/3 "$LNKa" 'Felix-Lane: 01' 'second item' "$LNKNSB" "$(_lf_iso 1792700300)" "$LNKa" -)"
+_lf_use "$LNKNH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+_lf_run "$LNKD/r2bf4" "$LNKNC" "$LNKN" "$FELIX" lane --tsv
+is "lane command R2B-F4-numeric-lane-names-collide: lanes named 1 and 01 are two lanes: felix lane --tsv prints 1 idle 0 0, last none, next first item, its row last changed by A, and 01 ok 1 1 at 1/3, last the Felix-Lane: 01 landing, next second item, its row last changed by B; never 1 taking 01's landing, next or row change" \
+   "$LNKNA|$LF_RC|$(cat "$LNKD/r2bf4.out")" "built|0|$LNKN1"$'\n'"$LNKN01"
+LNKNV="not built: R2B-F4's second home"; LNKNH2="$LNKD/home-num2"; LNKNSV=""
+if _lf_home "$LNKD/home-num2" ck 1792700000; then
+  LNKNH2="$LF_HOME"
+  _lf_table "$LF_PROJ" 1792700100 lanes.tsv $'1\t^engine/\t1/2\t14\n' && LNKNSV="$LF_SHA" \
+    && _lf_table "$LF_PROJ" 1792700200 lane-next.tsv $'01\tsecond item\n' && [ "$LNKNA" = built ] && LNKNV=built
+fi
+_lf_use "$LNKNH2" "$LNKD/memory" "$LNKD/user" "$LNKB"
+_lf_run "$LNKD/r2bf4v" "$LNKNC" "$LNKN" "$FELIX" lane --tsv
+is "lane command R2B-F4-numeric-lane-names-collide: with lanes.tsv holding lane 1 alone and lane-next.tsv a row for 01 alone, a lane lanes.tsv does not hold (C1: ignored), lane 1's next reads none, never unknown" \
+   "$LNKNV|$LF_RC|$(cat "$LNKD/r2bf4v.out")" \
+   "built|0|$(_lf_tsv 1 idle 0 0 14 1/2 none 'Felix-Lane: 1' none "$LNKNSV" "$(_lf_iso 1792700100)" "$LNKa" -)"
+
+_lf_use "$LNKD/r2/home" "$LNKD/memory" "$LNKD/user" "$LNKB"
+LNKPT="$LNKD/r2b-kill-tmp"; rm -rf "$LNKPT"; mkdir -p "$LNKPT"
+_lf_kill pwd '*' "*' felix_repo_root cmd_lane '*" "$LNKD/r2bf5-t.fired" "$LNKPT" _lf_run "$LNKD/r2bf5-t" "$LNKRC" "$LNKN" "$FELIX" lane --tsv
+if [ "$(_lf_ended "$LNKD/r2bf5-t" "$LNKRC")" = ended ] || [ "$LF_RC|$(cat "$LNKD/r2bf5-t.out")" = "0|$LNKRL" ]; then LNKa="ended naming the checkout, or the lines"
+else LNKa="status $LF_RC, stdout [$(cat "$LNKD/r2bf5-t.out")], stderr [$(cat "$LNKD/r2bf5-t.err")]"; fi
+is "lane command R2B-F5-repo-root-ends-early-names-no-repo L-NEVER-OK: felix_repo_root's substitution under cmd_lane ended early (C9's kill at its pwd), every other read left to finish: felix lane --tsv prints nothing on stdout, felix: the lane count did not finish in <repo> naming the checkout on stderr, and exits 1, or prints the two lines it prints without the fault; never R2 naming an empty repository" \
+   "$LNKRA|unfaulted $LNKRU0|$LF_FIRE|$LNKa" "built|unfaulted 0|$LNKRL|fired|ended naming the checkout, or the lines"
+rm -rf "$LNKPT"; mkdir -p "$LNKPT"
+_lf_kill pwd '*' "*' felix_repo_root felix_status_rows '*" "$LNKD/r2bf5-s.fired" "$LNKPT" _lf_run "$LNKD/r2bf5-s" "$LNKRC" "$LNKN" "$FELIX" status --tsv
+LNKa="status $LF_RC, last [$(_lf_last "$LNKD/r2bf5-s.out")]"
+case "$LF_RC|$(_lf_last "$LNKD/r2bf5-s.out")" in
+  ("0|$LNKRV"|"0|$(_lf_tsv lane unknown - "the lane count did not finish in $LNKRC")") LNKa="did not finish naming the checkout, or the value" ;;
+esac
+is "lane command R2B-F5-repo-root-ends-early-names-no-repo L-NEVER-OK: felix_repo_root's substitution under felix_status_rows ended early the same way: felix status --tsv exits 0 and its last row is lane unknown - the lane count did not finish in <repo>, naming the checkout, or the value zero 0 of 2; never a reason naming an empty repository" \
+   "$LNKRA|unfaulted $LNKRS0|$LF_FIRE|$LNKa" "built|unfaulted 0|$LNKRV|fired|did not finish naming the checkout, or the value"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 # <<< lane-command

@@ -33,6 +33,10 @@
 # fixture (two lanes, cap and sec, and _lf_r2land's six landings), _lf_fork runs its fork probes at reads other than the
 # landings' (date, awk, tr, git or command, by the words and calling functions a finding names), and _lf_ended says
 # whether felix lane ended as C3's count that did not finish.
+#
+# The second review's round 2 (added on 2026-10-30, still blind): _lf_kill runs C9's kill at a read a finding names
+# (pwd among them, by its words and calling functions), and _lf_gone takes the count's scratch directory away at an awk
+# call a finding names, as a cleaner of TMPDIR would.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -387,6 +391,63 @@ _lf_fork() {
   LF_RC=$?
   LF_FIRE="$(LC_ALL=C awk -v m="$m" '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }
     END { s = "not fired"; if (f) s = "fired"; if (f && r && m == "fork") s = "fired, but it ran to a clean exit after it"; print s }' "$f" 2>/dev/null)"
+  [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
+}
+
+# The second review's round 2 (2026-10-30), still blind, from its findings' inputs: two more of its probes.
+# NAME WORDS STACK FILE TMPDIR CMD... -> CMD run as _lf_fork runs it, with NAME (pwd, date, awk, tr or git) the bash
+# function exported into felix and the hook, acting as C9's kill does: when " $* " matches the case pattern WORDS and
+# " ${FUNCNAME[*]} " the case pattern STACK, it writes "fired" to FILE, then "kill <parent> <shell>", and sends SIGKILL
+# to the parent of the shell that called it, then to that shell; never to pid 1 or this suite's shell (it writes
+# "kept" and runs NAME instead). NAME then runs (builtin pwd, or command NAME). LF_RC as _lf_fault's; LF_FIRE "fired"
+# when both signals were sent, else what FILE shows.
+_lf_kill() {
+  local n="$1" w="$2" k="$3" f="$4" t="$5" c b
+  shift 5
+  LF_FIRE="not run"; LF_RC=125
+  case "$f$t" in (*\"*|*\'*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
+  [ -n "$f" ] && [ -n "$t" ] && [ -n "$w" ] && [ -n "$k" ] || return 1
+  case "$n" in (pwd) c="builtin pwd" ;; (date|awk|tr|git) c="command $n" ;; (*) return 1 ;; esac
+  b="$n() { local s p; case \" \$* \" in ($w) case \" \${FUNCNAME[*]} \" in ($k) printf 'fired\\n' >> '$f'
+    s=\"\$(exec sh -c 'echo \$PPID')\"; p=\"\$(ps -o ppid= -p \"\$s\" 2>/dev/null)\"; p=\"\${p//[!0123456789]/}\"
+    case \"\$s:\$p\" in (:*|*:|1:*|*:1|$$:*|*:$$) printf 'kept %s %s\\n' \"\$p\" \"\$s\" >> '$f' ;;
+      (*) printf 'kill %s %s\\n' \"\$p\" \"\$s\" >> '$f'; kill -KILL \"\$p\"; kill -KILL \"\$s\" ;; esac ;; esac ;; esac; $c \"\$@\"; }"
+  rm -f "$f" "$f.shell"
+  { ( TMPDIR="$t"; export TMPDIR
+      eval "$b" || exit 125
+      export -f "$n"
+      "$@"
+      exit "$LF_RC" ); } 2> "$f.shell"
+  LF_RC=$?
+  LF_FIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } /^kill [0123456789]+ [0123456789]+$/ { k = 1 } /^kept / { p = $0 }
+    END { s = "not fired"; if (f) s = "fired, but no kill was sent [" p "]"; if (f && k) s = "fired"; print s }' "$f" 2>/dev/null)"
+  [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
+}
+
+# WORDS STACK FILE TMPDIR CMD... -> CMD run as _lf_fork runs it, with awk the bash function exported into felix and the
+# hook: the first time " $* " matches the case pattern WORDS and " ${FUNCNAME[*]} " the case pattern STACK while a
+# scratch directory of the count (C2: TMPDIR/felix-lane.*) stands, it removes every such directory, as a cleaner of
+# TMPDIR or a full disk would take it mid-count, writes "fired" to FILE when none is left, and then runs the real awk.
+# LF_RC as _lf_fault's; LF_FIRE "fired" when it removed them, else "not fired".
+_lf_gone() {
+  local w="$1" k="$2" f="$3" t="$4" b
+  shift 4
+  LF_FIRE="not run"; LF_RC=125
+  case "$f$t" in (*\"*|*\'*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
+  [ -n "$f" ] && [ -n "$t" ] && [ -n "$w" ] && [ -n "$k" ] || return 1
+  b="awk() { local d x=''; case \" \$* \" in ($w) case \" \${FUNCNAME[*]} \" in ($k)
+    for d in '$t'/felix-lane.*; do [ ! -d \"\$d\" ] || x=1; done
+    if [ -n \"\$x\" ] && mkdir '$f.once' 2>/dev/null; then rm -rf '$t'/felix-lane.*; x=''
+      for d in '$t'/felix-lane.*; do [ ! -e \"\$d\" ] || x=1; done; [ -n \"\$x\" ] || printf 'fired\\n' >> '$f'; fi ;; esac ;; esac
+    command awk \"\$@\"; }"
+  rm -rf "$f" "$f.shell" "$f.once"
+  { ( TMPDIR="$t"; export TMPDIR
+      eval "$b" || exit 125
+      export -f awk
+      "$@"
+      exit "$LF_RC" ); } 2> "$f.shell"
+  LF_RC=$?
+  LF_FIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } END { print (f ? "fired" : "not fired") }' "$f" 2>/dev/null)"
   [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
 }
 

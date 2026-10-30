@@ -487,4 +487,16 @@ case "$LNGc" in ("1+0|1+0"|"1+0|0+1"|"0+1|1+0"|"0+1|0+1") LNGc="text or cannot b
 _lng_is "lane session start R2-F5-next-cell-empties-and-shifts-columns: a fork that fails in the read of cap's next text, in the own checkout where without it session start shows both paragraphs and the token: exit 0, valid JSON, cap's zero paragraph once with cap next item or (lane-next.tsv cannot be read), never - or empty, sec's short one the same way, and the token" \
    "$LNGRA|unfaulted $LNGa|$LF_FIRE|$LNGb|$LF_JSON|$LNGc|$LF_SCR" "built|unfaulted 0|ok|1|1|$LNGRTOK|fired|0|ok|text or cannot be read|$LNGRTOK"
 _lf_use "$LNGH" "$LNGD/memory" "$LNGD/user" "$LNGB"
+
+# ---- the second review's round 2: a next row for a lane lanes.tsv does not hold (R2B-F4) ---------------------------------
+# Added on 2026-10-30 from the second review's round 2 findings (their inputs and observed output only), still blind,
+# back in H and its own zero checkout (H's project.json still names remote_match lane-fixture/sx in its working tree):
+# lanes.tsv holds lane 1 alone (^engine/, 1/2, 14), and lane-next.tsv a row for lane 01 alone, a lane lanes.tsv does not
+# hold, which C1 ignores. So lane 1 reads zero 0 of 2 and next none, and its paragraph says (lane-next.tsv names none)
+# (C7), never (lane-next.tsv cannot be read), with the token.
+_lng_put "lane 1, and a next row for 01 alone" $'1\t^engine/\t1/2\t14\n' "$(_lf_tsv 01 'second item')"$'\n'
+_lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/r2bf4" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
+_lng_is "lane session start R2B-F4-numeric-lane-names-collide: lanes.tsv holding lane 1 alone and lane-next.tsv a row for lane 01 alone, in the own zero checkout: felix lane --tsv reads 1 zero 0 2 with next none, and session start shows lane 1's zero paragraph once with (lane-next.tsv names none), never (lane-next.tsv cannot be read), and the token" \
+   "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$LF_RC|$(_lf_cols "$LNGD/r2bf4.out" 1 1 2 3 4 9)|$(_lng_n "$(_lng_par zero 0 2 14 1/2 '(lane-next.tsv names none)' "$LNGCLH" 1)")|$(_lng_n "$(_lng_par zero 0 2 14 1/2 '(lane-next.tsv cannot be read)' "$LNGCLH" 1)")|$LF_SCR" \
+   "built|built|0|ok|0|1|zero|0|2|none|1|0|$LNGTOK14"
 # <<< lane-session-start

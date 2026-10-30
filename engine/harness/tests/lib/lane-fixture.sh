@@ -15,6 +15,13 @@
 # default squash message, C3), _lf_merge (a real merge commit) and _lf_chain (a run of marked and unmarked landings),
 # and refs/remotes/origin/main is published with _lf_publish. The surfaces run through _lf_run and _lf_start in the
 # environment _lf_use names, with the stubs of _lf_stubs first on PATH.
+#
+# For the parts of status, session start and the pulse (2230 to 2250): felix status --tsv is _lf_run OUT DIR NOW
+# "$FELIX" status --tsv, and _lf_last OUT.out its last row; felix pulse is _lf_run in the home of an _lf_self layout,
+# with a memory root outside it (C2, C9). _lf_start runs the hook, waits for the discovery lock and reads the JSON with
+# python3 (check for python3 first, and skip with a reason); _lf_silent says whether a lane paragraph or token showed;
+# _lf_start with a fifth argument runs another engine root, such as the copy _lf_broken makes. NOW - leaves
+# FELIX_LANE_NOW unset; any other NOW, 0123 included, is passed as it is.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {

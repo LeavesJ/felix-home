@@ -987,7 +987,7 @@ result means a new sealed version and a re-run, and the report says so.
 ### 8.6 Measures
 
 These numbers are sealed. They are recorded per repository under the memory
-root, and published as a PDF report from the lane branch.
+root, and published as a PDF report from slice 2's branch.
 
 - **Come-backs per change.** The rate is the changes that came back over the
     changes whose window has closed. The open count and the weak-edit count sit
@@ -1060,6 +1060,10 @@ count, and states the clone's fetch time:
     number. For each of them, the issue lookup reads only the issues a closing
     keyword in the change's message names (§8.3), and a change whose message
     names none reads "could not look". *(My call.)*
+- For a plain merge, the issue lookup reads the merge commit's own message,
+    not the messages of the commits it merged. On 10-29, no commit under
+    Veldra's 16 or Elenchus's one such merge named an issue that way, so this
+    changes no count yet.
 - The clones are stale. Fetching is the operator's step, and it changes the
     as-of time.
 - A closed change is at least 30 days old. felix-home's newest 50 closed

@@ -132,6 +132,9 @@ really need to get it going."
 - The design for the lane's first three slices
   (`docs/2026-10-29-capability-lane-first-slices-design.md`) was approved by
   the founder on 10-29, then corrected after a fact-check. A build plan per
-  slice is being written.
+  slice is written and checked against main at `01e24cfc`
+  (`docs/2026-10-29-lane-slice-0-plan.md`, `-1-plan.md`, `-2-plan.md`). The
+  plans wait for his review; each slice is then built by its own engine-build
+  Workflow, slice 0 first.
 - Folding items 1 to 8 into `docs/direction.md` waits for his yes in its own
   draft PR.

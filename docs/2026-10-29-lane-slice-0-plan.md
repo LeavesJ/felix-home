@@ -202,11 +202,7 @@ R1 also covers a ref that names no object git can read as a commit (a missing ob
 
 **Human form** (no flag): one line per TSV line, built from it.
 
-- A known state:
-
-```
-<lane>: <state>, <L> of <T> engine landings in <W> days, target <n>/<d>; last lane landing <last>; mark Felix-Lane: <lane>; next: <next>; <changed>; refs/remotes/origin/main at <ref_date>
-```
+- A known state, on one line: `<lane>: <state>, <L> of <T> engine landings in <W> days, target <n>/<d>; last lane landing <last>; mark Felix-Lane: <lane>; next: <next>; <changed>; refs/remotes/origin/main at <ref_date>`
 
 - An unknown state:
 
@@ -217,11 +213,7 @@ R1 also covers a ref that names no object git can read as a commit (a missing ob
 - `<changed>` is `its lanes.tsv row last changed by <first 12 characters of column 10> at <changed_date>` when column 10 is a commit, and `its lanes.tsv row's last change cannot be read` when it is `unknown`. When column 10 is `-`, the `; <changed>` part is left out.
 - `<last>`, `<next>` and `<ref_date>` are columns 7, 9 and 12 as printed there.
 
-Example, felix-home at `e54e31f3` with the clock at that commit (design §6.6):
-
-```
-capability: zero, 0 of 18 engine landings in 14 days, target 1/2; last lane landing none; mark Felix-Lane: capability; next: obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed); its lanes.tsv row last changed by <sha12> at <date>; refs/remotes/origin/main at 2026-10-29T21:26:13Z
-```
+Example, felix-home at `e54e31f3` with the clock at that commit (design §6.6), on one line: `capability: zero, 0 of 18 engine landings in 14 days, target 1/2; last lane landing none; mark Felix-Lane: capability; next: obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed); its lanes.tsv row last changed by <sha12> at <date>; refs/remotes/origin/main at 2026-10-29T21:26:13Z`
 
 ### C6. `felix status`: the lane row
 
@@ -237,18 +229,15 @@ capability: zero, 0 of 18 engine landings in 14 days, target 1/2; last lane land
 | first lane `unknown` | `lane<TAB>unknown<TAB>-<TAB><the C5 reason>` |
 
 - So an unreadable ref gives `lane<TAB>unknown<TAB>-<TAB>refs/remotes/origin/main cannot be read in <repo>`: the form an unreadable status row already has (design §6.5 item 2, §11 item 18), never a calm value.
-- Design §6.3's "nothing is printed" for a project with no `lanes.tsv` covers `felix lane`, session start and the pulse. `felix status` still prints its lane row, with state `none`.
+- In a project with no `lanes.tsv`, `felix lane`, session start and the pulse print nothing, and `felix status` still prints its lane row, with state `none` (design §6.3, §6.5 item 2, §11 item 42).
 - Plain `felix status` aligns it as it aligns every row: `printf '%-9s %-12s %s\n'` of row, value (the state word when state is not `value`) and detail.
 - `felix status` stays read-only, offline, and exit 0 for any report.
 
 ### C7. Session start
 
 - **The paragraph.** For each data row of `lanes.tsv` whose state is `short`, `zero` or `idle`, in file order, the session's context (`hookSpecificOutput.additionalContext`) gains this paragraph, a newline before it:
-
-```
-Lane <lane> is <state>: <L> of <T> engine landings in <W> days, target <n>/<d>.
-If the founder has not given this session a task, take the first open lane item: <next>. End the body of a commit on its branch that is not a merge with the line `Felix-Lane: <lane>`. <closing>
-```
+    - its first line: ``Lane <lane> is <state>: <L> of <T> engine landings in <W> days, target <n>/<d>.``
+    - its second line: ``If the founder has not given this session a task, take the first open lane item: <next>. End the body of a commit on its branch that is not a merge with the line `Felix-Lane: <lane>`. <closing>``
 
 - `<closing>` is `Trust work takes the other half.` when 2·n = d, and `The rest goes to trust work.` otherwise (design §6.5 item 3, §11 item 20). The backticks around the mark are literal. The next text is not wrapped in backticks, although design §6.5 item 3 shows it as a code span.
 - `<next>` is the next text; `(lane-next.tsv names none)` when it reads `none`; `(lane-next.tsv cannot be read)` when it reads `unknown`. Before the next text enters the paragraph, every byte 0x01 to 0x08, 0x0B to 0x1F and 0x7F in it is replaced by `?`, as `lib/waiting.sh` cleans the waits text; every other byte is kept. `felix lane --tsv` column 9 prints the cell unchanged.
@@ -311,7 +300,7 @@ Beyond the design's §6.6 bullets, these are required. The names are the IDs the
 | `tests/parts/2220-lane-command-blind.sh` | §6.5 item 1 and §6.6 "The last change" and "Determinism": usage line and exits; the thirteen columns and the human line; last lane landing, and column 7 `unknown` with the state unchanged when a tree only that search reads is missing (the fixture below); next `none`/`unknown`; after a commit that changes a lane's row, `felix lane` names that commit and its date; a later commit that changes only a comment line or another lane's row does not move it; an uncommitted edit to `lanes.tsv` changes nothing it prints; L-DET; L-RO; no committed `lanes.tsv` prints nothing. |
 | `tests/parts/2230-lane-status-row-blind.sh` | §6.5 item 2 and §6.6 `felix status --tsv`: exactly one row more, at the end, every row before it byte-identical; every C6 case, an unreadable ref giving state `unknown` and value `-`; the status shape; L-DET and L-RO for status. |
 | `tests/parts/2240-lane-session-start-blind.sh` | §6.5 items 3 and 4 and §6.6 "What shows where": paragraph only for `short`, `zero` and `idle`, token only for `zero` and `idle`, neither without a committed `lanes.tsv`; exact paragraph text with share `1/2` and with `1/4`; a Claude Code resume; L-RF2; L-RF4; the session-start half of L-RO; the hook with `lib/lane.sh` removed from a harness copy still exits 0 with valid JSON. |
-| `tests/parts/2250-lane-pulse-blind.sh` | §6.5 item 5: the pulse lines, in the log and in the record, last; `unknown` with `-`; no line without a committed `lanes.tsv`; no line for a project other than the home's. |
+| `tests/parts/2250-lane-pulse-blind.sh` | §6.5 item 5 and §6.6 "The pulse": the pulse lines, in the log and in the record, last, each with the state, L and T that `felix lane --tsv` prints at the same `FELIX_LANE_NOW`; `unknown` with `-`; no line without a committed `lanes.tsv`; no line for a project other than the home's. |
 | edits to parts 1100, 1690, 1720 and 1980 | Their nine-row assertions (`... hooks alerts icloud`) become ten, `lane` last (C6). Exactly these sites change; no other part counts status rows or names the last one (checked by the planner at `01e24cfc`). 1100:410-411: the name says "exactly ten rows" and lists `lane` last, and the expected list gains `lane `. 1100:430: `= 9` becomes `= 10`. 1100:435-436: "nine rows" becomes "ten rows". 1690:189-190: A1's name says "ten rows" and lists `lane` last, and its expected list gains `lane `. 1690:352: the list gains `lane `. 1690:356: A2's name says "ten rows". 1720:378-379: A33's name says "prints ten rows, alerts before icloud and lane last", and its `rows=` list gains `lane `. 1980:144-147: A41 checks that `icloud` is the ninth row and `lane` the tenth and last (its directory is ungoverned, so the row is C6's first), and its name says so. Each name keeps its ID prefix. |
 
 The design's two real-data bullets (§6.6 "Real data" and "Falsified if") are measurements on felix-home, not suite parts: a suite part may not depend on one project's history. They run in Task 8.
@@ -336,7 +325,7 @@ A worked expectation for column 7 `unknown` (part 2220), with share `1/2` and wi
 
 ### C12. Decided in this plan
 
-§11's slice-0 calls are built as the design writes them: items 1 and 3 in C3 (landings, not sessions; engine paths only; no sealed number counts), 2 in C3 and C7, 4 in C1, 5 in C7 and the Global Constraints, 17 in C1 and C3, 18 in C6, 19 in C2 and C5, 20 in C7, 21 in item 11 below and Task 4. The choices below are this plan's, where the design left one to the builder.
+§11's slice-0 calls are built as the design writes them: items 1 and 3 in C3 (landings, not sessions; engine paths only; no sealed number counts), 2 in C3 and C7, 4 in C1, 5 in C7 and the Global Constraints, 17 in C1 and C3, 18 in C6, 19 in C2 and C5, 20 in C7, 21 in item 11 below and Task 4, 42 in C5, C6, C7 and C8. The choices below are this plan's, where the design left one to the builder.
 
 1. The counter reads the checkout's `refs/remotes/origin/main` by full name, with no fallback (C2). The pulse counts only the home's own project.
 2. The window walks the whole first-parent chain, so an out-of-order date cannot hide a landing (C3).
@@ -384,11 +373,11 @@ Model: Sonnet 5.5, high.
 
 **Interfaces:** Consumes the open PR list and the live sessions. Produces the worktree `<home>/.claude/worktrees/lane-counter` on branch `claude/lane-counter`, cut from `origin/main`.
 
-- [ ] Confirm the spec is the corrected design the founder's approval covers: its opening paragraph records his approval of 2026-10-29 and the fact-check, and its §11 lists items 17 to 21. A copy without them is older; stop.
+- [ ] Confirm the spec is the corrected design the founder's approval covers: its opening paragraph records his approval of 2026-10-29 and the fact-check, and its §11 lists items 17 to 21 and 42. A copy without them is older; stop.
 - [ ] Count open engine PRs: `gh pr list --state open --limit 200 --json number,files --jq '[.[] | select(any(.files[]; .path | startswith("engine/")))] | length'`. Expect a number of 10 or less. Above 10, stop and wait.
 - [ ] List live sessions (`ListAgents`). Expect none on `claude/lane-counter`. A session on `claude/lane-situations-owed` is slice 1, which rebases on this branch and rewrites its version, manifest and red record at landing (design §9). Both branches edit `felix` (dispatch and `usage()`), `templates/schemas.tsv`, `plugin.json`'s version, `tests/assertions.tsv` and `tests/red.tsv`, and add part lines to `tests/run` (each in name order among the part lines, which part 1040 checks). Beyond those they share felix-home's two lane tables and the two documents brought in below.
 - [ ] `git -C <home> fetch origin`, then `git -C <home> worktree add -b claude/lane-counter <home>/.claude/worktrees/lane-counter origin/main`. Check that `git -C <wt> rev-parse HEAD` equals `git -C <home> rev-parse origin/main`.
-- [ ] Check that no ref and no open PR holds parts 2200 to 2250 or `tests/lib/lane-fixture.sh`: for each ref of `git -C <home> for-each-ref --format='%(refname)' refs/heads refs/remotes`, `git -C <home> ls-tree --name-only <ref> -- engine/harness/tests/parts/ engine/harness/tests/lib/`, and the files of each open engine PR. If a number is taken, move this slice's six parts to the next free run of six before the blind stage, and change C11, C13 and the tasks to match.
+- [ ] Check that no ref and no open PR holds parts 2200 to 2250 or `tests/lib/lane-fixture.sh`: for each ref of `git -C <home> for-each-ref --format='%(refname)' refs/heads refs/remotes`, `git -C <home> ls-tree --name-only <ref> -- engine/harness/tests/parts/ engine/harness/tests/lib/`, and the files of each open engine PR. If a number is taken, move this slice's six parts to the next free run of six before the blind stage: change C11, C13 and the tasks to match in this plan on `claude/lane-situations-owed`, commit it there, and only then bring the spec in (the last step). Slice 1's rebase keeps that branch's text of this plan (slice 1's plan, Tasks 9 and 12), so this branch never edits its copies of the design or this plan.
 - [ ] Re-read in `<wt>` every line number this plan names. Where a line has moved, follow the anchor named beside it. Then check the driver's room: `wc -l < <wt>/engine/harness/tests/run`, plus the part and lib lines each open engine PR adds to that file (read from `gh pr diff <n>`), plus this slice's 7. Above 500, stop before the blind stage and tell the queue owner: the driver needs room first.
 - [ ] Bring the spec in, once this plan is committed on `claude/lane-situations-owed` beside the design: `git -C <wt> checkout claude/lane-situations-owed -- docs/2026-10-29-capability-lane-first-slices-design.md docs/2026-10-29-lane-slice-0-plan.md`. Commit `docs(capability): the lane counter's design and plan, slice 0's spec`. Push with `-u origin claude/lane-counter`.
 
@@ -646,9 +635,10 @@ Every requirement of §6, and §9's slice-0 list, maps to a task and a part.
 | §6.6 `felix status --tsv` one row, every row before it identical, `unknown` and `-` | part 2230 |
 | §6.6 the last change, and an uncommitted edit | part 2220 |
 | §6.6 determinism | L-DET in parts 2220, 2230 |
+| §6.6 the pulse | part 2250 |
 | §6.6 real data at `e54e31f3` | Task 8 |
 | §6.6 falsified if, 60 days | Task 8 |
 | §4 constraints | Global Constraints; Task 8's lints; Task 9 |
 | §9 slice 0's contents, and the files slice 1 shares | Tasks 0, 1 and 4 to 7 |
 | §10 left to the builder | C12 |
-| §11 items 1 to 5 and 17 to 21 | C12's opening line |
+| §11 items 1 to 5, 17 to 21 and 42 | C12's opening line |

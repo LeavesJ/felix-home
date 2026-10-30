@@ -8,7 +8,7 @@
 
 **Tech stack:** bash 3.2, git, BWK-and-gawk awk; `gh` only behind `--issues`.
 
-**Spec:** `docs/2026-10-29-capability-lane-first-slices-design.md` (the design as corrected after the fact-check: the version Task 0 Step 6 copies from `claude/lane-situations-owed`; this plan's engine line numbers were re-read at `01e24cfc`). The founder approved the design on 10-29, before the fact-check. The corrections that change a rule are listed in its §11, for him to check while reading. This plan implements §8 (slice 2), under §1 to §5, §7.6, §7.7 and §9 to §12. The §11 calls that bind this slice are items 2, 3, 13 to 16, 21, 22 and 33 to 41, each cited where it changes what is built. Item 37 changes nothing built: this slice measures come-backs.
+**Spec:** `docs/2026-10-29-capability-lane-first-slices-design.md` (the design as corrected after the fact-check: the version Task 0 Step 6 copies from `claude/lane-situations-owed`; this plan's engine line numbers were re-read at `01e24cfc`). The founder approved the design on 10-29, before the fact-check. The corrections that change a rule are listed in its §11, for him to check while reading. This plan implements §8 (slice 2), under §1 to §5, §7.6, §7.7 and §9 to §12. The §11 calls that bind this slice are items 2, 3, 13 to 16, 21, 22, 33 to 41 and 43, each cited where it changes what is built. Item 37 changes nothing built: this slice measures come-backs.
 
 ## Global Constraints
 
@@ -108,17 +108,24 @@ retro.tsv	tree	kind pattern reason	allowed
 - A line starting `#` and an empty line are skipped, as `felix_table_check` skips them, and they count in the physical line numbers.
 - Every subject is lowercased (A-Z to a-z, `LC_ALL=C`) before the fix EREs and the `revert` prefix test. C8's naming by subject is not lowercased.
 - When the table holds at least one `fix` row, those rows replace the default. Otherwise the default fix ERE is §8.3's, `^(fix|hotfix|revert)`, matched on the lowercased subject. It is a bare prefix, which admits an optional scope (`fix(parser): ...`) and also `fixtures: ...`, `fixed ...`, `fixes ...` and `revertible ...`. A project whose subjects start so without being fixes narrows it with its own `fix` rows. It is sealed with the rest (C7).
-- The project rows this PR adds (sealed with it):
+- The project rows this PR adds (sealed with it), as each file's exact bytes, one tab between cells and a newline after every line.
 
-| Project file | kind | pattern | reason |
-|---|---|---|---|
-| `projects/felix/retro.tsv` | exclude | `^engine/\.claude-plugin/plugin\.json$` | the version file |
-| | exclude | `^engine/harness/tests/(assertions|red)\.tsv$` | generated record tables |
-| | exclude | `^(HANDOFF\.md|docs/handoff/)` | handoff notes and their rotation |
-| `projects/veldra/retro.tsv` | exclude | `^VERSION$` | the version file |
-| | exclude | `^CHANGELOG\.md$` | release notes |
-| | exclude | `(^|/)Cargo\.lock$` | generated lock file |
-| | exclude | `(^|/)package-lock\.json$` | generated lock file |
+`projects/felix/retro.tsv`:
+
+```
+exclude	^engine/\.claude-plugin/plugin\.json$	the version file
+exclude	^engine/harness/tests/(assertions|red)\.tsv$	generated record tables
+exclude	^(HANDOFF\.md|docs/handoff/)	handoff notes and their rotation
+```
+
+`projects/veldra/retro.tsv`:
+
+```
+exclude	^VERSION$	the version file
+exclude	^CHANGELOG\.md$	release notes
+exclude	(^|/)Cargo\.lock$	generated lock file
+exclude	(^|/)package-lock\.json$	generated lock file
+```
 
 Elenchus gets no table: its tree holds no version file, changelog, lock file or handoff notes.
 
@@ -176,19 +183,17 @@ Then the sample rows (C9): `sample`, then `strong` or `weak`, then C's sha and X
 
 ### C6. The human report
 
-Pinned lines, in this order. Only the per-change detail lines are the builder's layout.
+Pinned lines, in this order, one per item. Only the per-change detail lines are the builder's layout.
 
-```
-felix retro: <project>, <repository root>
-main: <ref without refs/remotes/> at <sha12>, as of <YYYY-MM-DD HH:MM:SS> UTC, from the reflog of <reflog ref without refs/remotes/>
-sealed <seal12>; window <D> days[, unsealed: the sealed window is 30]; <the newest N closed changes | closed changes since YYYY-MM-DD>; issues <asked | not asked>; replay <on | off>
-
-came back: <K> of <N> closed changes (<O> open, not counted); precision: unmeasured here, a headline needs 0.7 on the blind sample
-by kind: revert <a>, strong fix <b>, reopened issue <c | not asked>[, issue could not look <d>]
-edited again, not counted: <E>; changes the blame could not read whole: <U>
-<replay of the K: owed <x>, no row <y>, could not look <z>, unread <u> | replay: not run>
-stopped: <took the newest N closed changes | reached a change before YYYY-MM-DD | reached the first commit | reached a shallow boundary at <sha12>>
-```
+1. `felix retro: <project>, <repository root>`
+2. `main: <ref without refs/remotes/> at <sha12>, as of <YYYY-MM-DD HH:MM:SS> UTC, from the reflog of <reflog ref without refs/remotes/>`
+3. `sealed <seal12>; window <D> days[, unsealed: the sealed window is 30]; <the newest N closed changes | closed changes since YYYY-MM-DD>; issues <asked | not asked>; replay <on | off>`
+4. an empty line
+5. `came back: <K> of <N> closed changes (<O> open, not counted); precision: unmeasured here, a headline needs 0.7 on the blind sample`
+6. `by kind: revert <a>, strong fix <b>, reopened issue <c | not asked>[, issue could not look <d>]`
+7. `edited again, not counted: <E>; changes the blame could not read whole: <U>`
+8. `<replay of the K: owed <x>, no row <y>, could not look <z>, unread <u> | replay: not run>`
+9. `stopped: <took the newest N closed changes | reached a change before YYYY-MM-DD | reached the first commit | reached a shallow boundary at <sha12>>`
 
 - The `came back:` line is how §8.6 and §11 item 40 print the rate: with its denominator, its open count and `precision: unmeasured`. The 0.7 is the sealed bound (C7).
 - `, issue could not look <d>` appears only when issues are asked.
@@ -247,11 +252,11 @@ The rules read subjects, and for issues closing keywords, through sealed pattern
 - **Weak.** Any other window commit that changed one of C's lines. Reported as edited again. Never a come-back.
 - Excluded lines count for no rule.
 - **Reopened issue** (`--issues` only, closed changes only):
-    - C's PR number is `n` from a subject ending `(#n)`, or a subject starting `Merge pull request #n `. A change with neither reads `could not look`, and gh is not called for it. That holds even when a closing keyword in its message names an issue, as §8.8 states for changes with no PR number: keywords add issues only to a PR's list.
+    - C's PR number is `n` from a subject ending `(#n)`, or a subject starting `Merge pull request #n `. A change with neither has no PR number. The issues that closing keywords in its message name (below) are still looked up through gh, and each reads reopened or not as for any other change (§8.3, §8.8, §11 item 43). A change with no PR number and no such keyword reads `could not look`, and gh is not called for it.
     - The repository's slug comes from the origin URL: `https://github.com/<o>/<r>[.git]`, `git@github.com:<o>/<r>[.git]` or `ssh://git@github.com/<o>/<r>[.git]`. Any other URL reads `could not look` for every change, and gh is never called.
-    - gh's calls, in this order, with `GH_PROMPT_DISABLED=1` and `GH_NO_UPDATE_NOTIFIER=1`: `gh pr view <n> --repo <o>/<r> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`, which prints one issue number a line; then for each issue i, ascending, `gh api repos/<o>/<r>/issues/<i>/events --paginate --jq '.[] | select(.event == "reopened") | .created_at'`, which prints one `YYYY-MM-DDTHH:MM:SSZ` a line.
-    - The issues C closed are the PR's list together with every `#i` that a closing keyword names in C's lowercased message. The keywords are close, closes, closed, fix, fixes, fixed, resolve, resolves and resolved, each followed by an optional `:`, then blanks, then `#<digits>`, with no letter just before the keyword.
-    - An issue reopened at t with `ct(C) < t ≤ ct(C) + D·86400` makes the cell `reopened #i` and C a came-back change. No such event: `not reopened`. No issue: `none closed`.
+    - gh's calls, in this order, with `GH_PROMPT_DISABLED=1` and `GH_NO_UPDATE_NOTIFIER=1`: when C has a PR number, `gh pr view <n> --repo <o>/<r> --json closingIssuesReferences --jq '.closingIssuesReferences[].number'`, which prints one issue number a line; then for each issue i that C closed, ascending, `gh api repos/<o>/<r>/issues/<i>/events --paginate --jq '.[] | select(.event == "reopened") | .created_at'`, which prints one `YYYY-MM-DDTHH:MM:SSZ` a line. A change with no PR number gets no `pr view` call.
+    - The issues C closed are the PR's list together with every `#i` that a closing keyword names in C's lowercased message. For a change with no PR number, they are only the issues its keywords name. The keywords are close, closes, closed, fix, fixes, fixed, resolve, resolves and resolved, each followed by an optional `:`, then blanks, then `#<digits>`, with no letter just before the keyword.
+    - An issue reopened at t with `ct(C) < t ≤ ct(C) + D·86400` makes the cell `reopened #i` and C a came-back change. No such event: `not reopened`. No issue: `none closed`, which only a change with a PR number can read.
     - gh missing from PATH, any gh exit other than 0, or a line of gh's output not of the shape above: `could not look`, never `not reopened`.
 
 - **Came back** means a revert, a strong fix or a reopened issue. Weak edits alone never are (§11 item 13).
@@ -297,7 +302,8 @@ The rules read subjects, and for issues closing keywords, through sealed pattern
 - The as-of time is when the main ref last moved, by a fetch or a push.
 - Only the `origin` remote is read.
 - Where committer times on the chain go backwards, the window and `--since` follow chain order as C3 says.
-- A change with no PR number reads `could not look` for issues. That is all of Veldra's changes and 38 of Elenchus's newest 50 closed ones, which are direct commits or plain merges.
+- Veldra's changes, and 38 of Elenchus's newest 50 closed ones, carry no PR number: they are direct commits or plain merges. For each of them, the issue lookup reads only the issues a closing keyword in its message names (C8), and a change whose message names none reads `could not look`.
+- For a plain merge, the issue lookup reads the merge commit's own message, not the messages of the commits it merged (design §8.8). On 10-29, no commit under Veldra's 16 or Elenchus's one such merge named an issue that way.
 
 ### C13. The blind parts
 
@@ -360,16 +366,18 @@ Manners, for every part:
 
 **Part 2330, `engine/harness/tests/parts/2330-retro-reopened-issues-blind.sh`** (rule 3). origin's URL is `https://github.com/example/widget.git`, set as config only. Every run passes `--no-replay`: only part 2350 runs the replay. Assertions:
 
-- §8.7: "`--issues` with `gh` stubbed as unreachable reads "could not look" for that kind, never "not reopened"". The stub exits 1 and logs. The cell reads `could not look`, the stub log shows `pr view <n>`, and `kinds` counts it in cell 5.
+- §8.7: "`--issues` with `gh` stubbed as unreachable reads "could not look" for that kind, never "not reopened"". The stub exits 1 and logs. The cell reads `could not look`, the stub log shows `pr view <n>`, and `kinds` counts it in cell 5. A direct commit with no PR number whose message says `fixes #8` reads `could not look` under that stub too, and the log shows `api repos/example/widget/issues/8/events` for it.
 - gh missing from PATH: `could not look`. The part builds that PATH as one directory of symlinks to every executable on the suite's PATH except `gh`, because gh and git share a directory (`/opt/homebrew/bin` here). It checks that `command -v gh` fails under that PATH before asserting.
 - A reachable stub, matched on argv as C8 pins it:
     - PR 12 closes issue 7, reopened 5 days after C: `reopened #7`, status `came-back`;
     - PR 13 closes none, message `fixes #9`, no reopen event: `not reopened`;
     - PR 14 closes none, no keyword: `none closed`;
-    - a reopen at `ct(C) + D·86400 + 1`: `not reopened`.
+    - a reopen at `ct(C) + D·86400 + 1`: `not reopened`;
+    - a direct commit with no PR number, message `fixes #8`, issue 8 reopened 5 days after C: `reopened #8`, status `came-back`;
+    - a direct commit with no PR number, message `closes #10`, no reopen event: `not reopened`.
 
-- A change with no PR number reads `could not look`, and the stub log has no call for it. So does a direct commit with no PR number whose message says `fixes #9`.
-- Each logged gh call carries `GH_PROMPT_DISABLED` and `GH_NO_UPDATE_NOTIFIER` as 1, and the calls for one change come in C8's order: `pr view <n>` first, then `api repos/<o>/<r>/issues/<i>/events` with i ascending.
+- A change with no PR number and no closing keyword reads `could not look`, and the stub log has no call for it. The two direct commits that name issues 8 and 10 are looked up with no `pr view` call: the log holds `api repos/example/widget/issues/8/events` and `api repos/example/widget/issues/10/events`, and every `pr view` call in it names a PR number that a fixture subject carries.
+- Each logged gh call carries `GH_PROMPT_DISABLED` and `GH_NO_UPDATE_NOTIFIER` as 1, and the calls for one change come in C8's order: `pr view <n>` first when C has a PR number, then `api repos/<o>/<r>/issues/<i>/events` with i ascending.
 - origin set to a non-GitHub URL: every closed change reads `could not look`, and the stub is never called.
 - Without `--issues`: cell 10 is `-`, `kinds` cells 4 and 5 are `-`, and the stub log is empty.
 - Open changes are never asked about.
@@ -421,11 +429,11 @@ The five items, and the assertions that pin each, are listed at the end of C13. 
 - Consumes: nothing.
 - Produces: a worktree on branch `claude/lane-retro`, cut from `origin/main`.
 
-- [ ] **Step 1: Check the gates on starting.** Run `gh pr list --repo LeavesJ/felix-home --state open --json number,title,files` and count the PRs that touch `engine/`. Expected: 10 or fewer. If there are more, stop and wait.
+- [ ] **Step 1: Check the gates on starting.** Run `gh pr list --repo LeavesJ/felix-home --state open --limit 200 --json number,title,files` and count the PRs that touch `engine/`. Expected: 10 or fewer. If there are more, stop and wait.
 - [ ] **Step 2: Check no live session holds this work.** Run `ListAgents`, and `git -C <home> for-each-ref refs/heads refs/remotes --format='%(refname)'`, looking for a retro branch. Expected: none.
 - [ ] **Step 3: Check the lane pointer.** On `origin/main`, `projects/felix/lane-next.tsv`'s `capability` row names slice 2, which slice 1's PR sets, marked "pending the direction fold" (design §9, §11 item 22). Or slice 1 has not landed, and this branch builds the come-back half while it waits (design §9). If the direction fold has put another item ahead of slice 2 (design §12), stop: that item comes first.
 - [ ] **Step 4: Check the part numbers are free.** For every ref, run `git ls-tree --name-only <ref> engine/harness/tests/parts/` and look for 2310 to 2360. Expected: none used. Slice 0's plan takes 2200 to 2250 and slice 1's takes 2400 to 2470. If any of 2310 to 2360 is used, take the next free block of ten, and rename the parts everywhere in this plan.
-- [ ] **Step 5: Check the driver has room.** Part 1040 caps `engine/harness/tests/run` at 500 lines. Add three numbers: `git -C <home> show origin/main:engine/harness/tests/run | wc -l`; the net lines the open PRs add to that file, `gh pr list --repo LeavesJ/felix-home --state open --json files --jq '[.[].files[] | select(.path == "engine/harness/tests/run") | .additions - .deletions] | add'` (`null` is 0); and this slice's 7. Expected: 500 or fewer. If the total passes 500, stop before the blind stage (Task 1) and tell the queue owner: the driver needs room first.
+- [ ] **Step 5: Check the driver has room.** Part 1040 caps `engine/harness/tests/run` at 500 lines. Add three numbers: `git -C <home> show origin/main:engine/harness/tests/run | wc -l`; the net lines the open PRs add to that file, `gh pr list --repo LeavesJ/felix-home --state open --limit 200 --json files --jq '[.[].files[] | select(.path == "engine/harness/tests/run") | .additions - .deletions] | add'` (`null` is 0); and this slice's 7. Expected: 500 or fewer. If the total passes 500, stop before the blind stage (Task 1) and tell the queue owner: the driver needs room first.
 - [ ] **Step 6: Make the worktree** from `origin/main` (`git worktree add -b claude/lane-retro <path> origin/main`). First check that the design and the slice plans are committed on `claude/lane-situations-owed` with no edit pending: `git -C <lane worktree> status --short -- docs/` lists none of them, and `git log -1 -- docs/2026-10-29-lane-slice-2-plan.md` prints a commit. If not, stop and ask the lane branch's owner to commit them. Then copy them (`git checkout <lane sha> -- docs/2026-10-29-capability-lane-first-slices-design.md docs/2026-10-29-lane-slice-1-plan.md docs/2026-10-29-lane-slice-2-plan.md`). Task 8 reads slice 1's plan. Commit, ending the message with `Felix-Lane: capability`, and push.
 
 ### Task 1: Blind parts for the come-back half (Opus 5.5, xhigh)
@@ -468,7 +476,10 @@ The blind author reads the design and this plan's Contracts, and nothing else of
 - [ ] **Step 1: Run the four parts alone, from an empty directory.**
 
 ```
-( cd "$(mktemp -d)" && bash <worktree>/engine/harness/tests/run --part 2310-retro-selection-and-as-of-blind.sh 2320-retro-come-back-rules-blind.sh 2330-retro-reopened-issues-blind.sh 2340-retro-seal-and-sample-blind.sh ) > <scratch>/red-1.log 2>&1
+( cd "$(mktemp -d)" && bash <worktree>/engine/harness/tests/run --part \
+    2310-retro-selection-and-as-of-blind.sh 2320-retro-come-back-rules-blind.sh \
+    2330-retro-reopened-issues-blind.sh 2340-retro-seal-and-sample-blind.sh ) \
+    > <scratch>/red-1.log 2>&1
 command grep -c '^  FAIL' <scratch>/red-1.log
 ```
 
@@ -610,7 +621,7 @@ Slices 0 and 1 edit `felix` first. Re-read the file and place the lines by their
 - Consumes: slice 1's landed `felix situations --change <base>..<head> --tsv` contract (design §7.7 and slice 1's plan's Contracts), and C10.
 - Produces: assertions prefixed `retro: replay`.
 
-- [ ] **Step 1: Bring `claude/lane-retro` up to `origin/main` with `git merge --no-edit origin/main`** once slice 1 has landed. Use a merge, not a rebase: the branch is pushed, and a merge brings main in without rewriting it, so this plan needs no force push of any kind (deny.tsv:19 refuses `--force` and `-f`; part 0610 allows `--force-with-lease`, which slice 1's plan uses after its rebase). Resolve conflicts this way. In `engine/harness/tests/run`, keep both sides' lines, with the part lines in name order (2310 to 2360 before 2400 to 2470). In `felix` and `templates/schemas.tsv`, keep both sides' lines. In `docs/2026-10-29-capability-lane-first-slices-design.md` and `docs/2026-10-29-lane-slice-1-plan.md`, take origin/main's version (`git checkout --theirs -- <file>`; in a merge, theirs is origin/main), because slice 1's landing carries the newest text. In this plan, keep this branch's version (`git checkout --ours -- <file>`). A document never keeps both sides' lines. Then `git add` each resolved file and finish with `git commit --no-edit`. Run parts 2310 to 2340. Expected: no `  FAIL`.
+- [ ] **Step 1: Bring `claude/lane-retro` up to `origin/main` with `git merge --no-edit origin/main`** once slice 1 has landed. Use a merge, not a rebase: the branch is pushed, and a merge brings main in without rewriting it, so this plan needs no force push of any kind (deny.tsv:19 refuses `--force` and `-f`; part 0610 allows `--force-with-lease`, which slice 1's plan uses after its rebase). Resolve conflicts this way. In `engine/harness/tests/run`, keep both sides' lines, with the part lines in name order (2310 to 2360 before 2400 to 2470). In `felix` and `templates/schemas.tsv`, keep both sides' lines. In `docs/2026-10-29-capability-lane-first-slices-design.md` and `docs/2026-10-29-lane-slice-1-plan.md`, take origin/main's version (`git checkout --theirs -- <file>`; in a merge, theirs is origin/main), because slice 1's landing carries the newest text. In this plan, keep this branch's version (`git checkout --ours -- <file>`), after reading `git diff <lane sha> origin/main -- docs/2026-10-29-lane-slice-2-plan.md`, where `<lane sha>` is the commit Task 0 Step 6 copied from. A change that diff shows was made on the lane branch after the copy; make it in this branch's version too, before `git add`. A document never keeps both sides' lines. Then `git add` each resolved file and finish with `git commit --no-edit`. Run parts 2310 to 2340. Expected: no `  FAIL`.
 - [ ] **Step 2: Compare slice 1's landed `--tsv` with C10.** Check the verdict tokens and the id cell against `felix situations --change HEAD~1..HEAD --tsv` run in the worktree. If they differ, tell the blind author before Step 3, and change C10 and C13's list for part 2350 in this plan in the same commit.
 - [ ] **Step 3: Have the blind author write part 2350** to C13's list for it.
 - [ ] **Step 4: Show 2350 red twice.** First on main: make a scratch worktree from `origin/main` (`git worktree add --detach <dir> origin/main`), copy in part 2350, `tests/lib/retro.sh` and their two driver lines, and run the part there (unknown command). Then remove that worktree. Second, on this branch after Step 1's merge, where slice 1 is present and replay still reads `off`. Record both counts in the handoff section file (Task 2 Step 3), and commit the counts as Task 2 Step 3 does.
@@ -694,14 +705,14 @@ No engine file changes. The three runs are the operator's and stay out of the su
 - Consumes: the landed engine (`felix install` from the home after landing, per the constitution).
 - Produces: the report PDF, sent to the founder.
 
-- [ ] **Step 1: Check slice 1's (e), then run the come-backs on the three clones.** First read slice 1's PR body and its handoff note. Its fresh Elenchus reading must have found `paid_ingress` ACTIVE and printed its proposed row (design §7.9 (e)). If it did not, stop and say so. The seed or the probes are fixed, and the fix lands, before this count (design §9), because a seed sealed after the come-backs were first counted is never used for the replay (§8.5). Then run without fetching, so each as-of time is the clone's own last fetch. This is the first count of come-backs on real data (§8.5): no real-data run of `felix retro`, with or without `--no-replay`, comes before it. Note each record's seed hash from its `sealed` row.
+- [ ] **Step 1: Check slice 1's (e), then run the come-backs on the three clones.** First read slice 1's PR body and its handoff note. Its fresh Elenchus reading must have found `paid_ingress` ACTIVE and printed its proposed row (design §7.9 (e)). If it did not, stop and say so. Before this count, either the seed or the probes are fixed and the fix lands (design §9), or, when slice 1's note records the Elenchus checkout's environment as the only cause (slice 1's plan, Task 10), a fresh reading taken as that task takes it, with the landed engine, finds `paid_ingress` ACTIVE, prints its proposed row, and is recorded beside slice 1's. Either way it comes first, because a seed sealed after the come-backs were first counted is never used for the replay (§8.5). Then run without fetching, so each as-of time is the clone's own last fetch. This is the first count of come-backs on real data (§8.5): no real-data run of `felix retro`, with or without `--no-replay`, comes before it. Note each record's seed hash from its `sealed` row.
     - `felix retro /Users/a14808/Documents/Felix --tsv`
     - `felix retro /Users/a14808/Documents/Elenchus --tsv`
     - `felix retro /Users/a14808/ReserveGrid-OS --tsv`
 
     Expected: Elenchus, if not fetched since 10-08, takes 50 closed changes from 08-03 to 09-02 (UTC) with 7 open. Veldra, if its origin/main has not moved since 10-01, takes 50 from 05-01 to 08-29 with 24 open. felix-home's as-of is later than 10-29, because pulling the home to deploy the engine moves its origin/main reflog, so its 10-29 figures (50 closed from 09-23 to 09-26, 81 open) do not repeat. Each record states its seal, its as-of time and the ref its reflog came from.
 
-- [ ] **Step 2: Run each once with `--issues`.** Report that kind apart, with its could-not-look counts.
+- [ ] **Step 2: Run each once with `--issues`.** Report that kind apart, with its could-not-look counts. Expected, at the fetches Step 1 names: no message among Elenchus's 38 and Veldra's 50 changes with no PR number names an issue by a closing keyword (measured 10-29), so all 88 read `could not look` (C8, C12).
 - [ ] **Step 3: Label the samples blind.** For each `sample` row, a labeller that never saw the rules gets only `git show C` and `git show X`. The labeller is a person, or a model whose output is marked as a sample label. The question: "Does X undo, repair or correct something C introduced? yes or no." Labels live only in the report.
 - [ ] **Step 4: Write the report.** Per repository:
     - the rate as K of N, with the open count and the fetch time;
@@ -714,7 +725,7 @@ No engine file changes. The three runs are the operator's and stay out of the su
     If the strong precision is under 0.7, the report says the rate is not yet usable as a headline. If a sealed rule changed after a result was seen, the report says so and gives the re-run.
 
 - [ ] **Step 5: Render the PDF** with the renderer `~/Documents/BehaviorChangeBench/scripts/pdfs.py` uses (Markdown to HTML to headless Chrome), into `docs/pdf/`.
-- [ ] **Step 6: Commit and PR.** Commit the report, its PDF and the `lane-next.tsv` move. Set `next` to the first open item of direction §5's order after intake (item 4, Codex read-only), unless the direction fold (design §12) has set another order; then to that order's first open item. Slice 3 waits on the founder's false-block bound (design §12), and a finding of misread intent no longer moves slice 5 ahead (design §9, §11 item 41). The commits end with `Felix-Lane: capability`. This docs PR changes no engine path, so it is not a lane landing (design §6.2, §11 item 3). Push, and open the docs PR, which merges on green. Send the PDF to the founder.
+- [ ] **Step 6: Commit and PR.** On `claude/lane-retro`, first brought up to `origin/main` with `git merge --no-edit origin/main` as Task 8 Step 1 says, commit the report, its PDF and the `lane-next.tsv` move. Set `next` to the first open item of direction §5's order after intake (item 4, Codex read-only), unless the direction fold (design §12) has set another order; then to that order's first open item. Slice 3 waits on the founder's false-block bound (design §12), and a finding of misread intent no longer moves slice 5 ahead (design §9, §11 item 41). The commits end with `Felix-Lane: capability`. This docs PR changes no engine path, so it is not a lane landing (design §6.2, §11 item 3). Push, and open the docs PR, which merges on green. Send the PDF to the founder.
 
 ## Coverage
 
@@ -729,7 +740,7 @@ No engine file changes. The three runs are the operator's and stay out of the su
 | §8.3 rule 2 (strong, weak, exclusions) | C4, C8 | 2320 (R2 to R4) | 3, 5 |
 | §8.3 a merge's merged subjects (§11 item 34) | C8 | 2320 | 5 |
 | §8.3 an empty window runs no blame (§11 item 35) | C3, C8 | 2320 | 5 |
-| §8.3 rule 3 (reopened issue) | C8 | 2330 | 6 |
+| §8.3 rule 3 (reopened issue; a change with no PR number keeps its keyword issues, §11 item 43) | C8 | 2330 | 6 |
 | §8.3 the table and its schema row | C4 | schema-check, 2310, 2320 | 3 |
 | §8.4 replay, filed per change, ids carried (§11 item 15) | C10 | 2350 | 8, 9 |
 | §8.5 sealing, with the filing rule, the bound, the seed and the probes (§11 item 39) | C7 | 2340 | 4, 9, 12 |

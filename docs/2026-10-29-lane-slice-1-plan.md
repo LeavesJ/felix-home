@@ -356,11 +356,7 @@ Three kinds, which sort in this order as bytes (C8). How each side was read is n
 - **The `row` line.** Its seven cells are separated by real tab bytes. The pathway `unknown`, the applies `-` and the evidence `exit 2` are decided in the plan: no checker exists in this slice, so the draft says so. Admitted at a blocking class, the row holds on authority: its pathway `unknown` blocks whatever its evidence reads, before any exception is consulted (`lib/obligations.sh:249`). So it keeps blocking until someone writes an evidence contract and also changes the pathway. The founder decides that at admission.
 - **What admitting the draft as printed does**, stated here and in the PR body. The applies `-` makes the row apply at every tree (`lib/obligations.sh:27-29`), so it does not go dormant when the class's surface is removed (intent design §10, falsifier 10). Its pathway `unknown` makes it block at any blocking class at every tree, and its evidence `exit 2` reads cannot-examine (`lib/obligations.sh:160`). A TASK_BLOCKING exception does not clear it. The draft is a starting row the founder edits at admission (slice 4), not a row to admit unchanged.
 - **`<preds>`.** The predicates the class's true terms rest on: for a `probe:<c>=<s>` term, its grounding rows that read `<s>`; for a `cap:` term made true at step 1, its grounding rows that read `found`. They are in first-use order, without repeats, and only those the project's current `probes.tsv` defines. Joined by `,`, or `-` when there are none. For fixture (a) it is `http_route`.
-- **`<command>`.** One line, where `H` is `FELIX_HOME` as given, `P` is `H` followed by `/projects/<p>`, and every quoted value has each `'` written as `'\''`. Parts give `FELIX_HOME` as an absolute path.
-
-```
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' '<class>' '<CLASS>' 'unknown' '-' 'exit 2' '<preds>' '<owes>' >> 'P/obligations.tsv' && git -C 'H' add -- 'P/obligations.tsv' && git -C 'H' commit -q -m 'obligations: admit <class>' -- 'P/obligations.tsv'
-```
+- **`<command>`.** One line, where `H` is `FELIX_HOME` as given, `P` is `H` followed by `/projects/<p>`, and every quoted value has each `'` written as `'\''`. Parts give `FELIX_HOME` as an absolute path. The line: `printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' '<class>' '<CLASS>' 'unknown' '-' 'exit 2' '<preds>' '<owes>' >> 'P/obligations.tsv' && git -C 'H' add -- 'P/obligations.tsv' && git -C 'H' commit -q -m 'obligations: admit <class>' -- 'P/obligations.tsv'`
 
 **Limits.**
 

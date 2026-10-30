@@ -71,12 +71,25 @@ _lane_table() {
 }
 
 # ROOT -> 0 when ROOT is a partial clone and git is older than 2.44, which ignores GIT_NO_LAZY_FETCH and would fetch.
+# Also 0 when git could not say whether ROOT is a partial clone: a read that did not finish is not "no".
 _lane_partial_old() {
-  if _lane_git -C "$1" config --get extensions.partialClone >/dev/null 2>&1 \
-     || _lane_git -C "$1" config --bool --get-regexp '^remote\..*\.promisor$' 2>/dev/null | LC_ALL=C awk '/ true$/ { f = 1 } END { exit !f }'; then
-    _lane_git --version 2>/dev/null | LC_ALL=C awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }' || return 0
+  local rc
+  _lane_git -C "$1" config --get extensions.partialClone >/dev/null 2>&1; rc=$?
+  [ "$rc" -le 1 ] || return 0
+  if [ "$rc" -eq 1 ]; then
+    _lane_git -C "$1" config --bool --get-regexp '^remote\..*\.promisor$' > "$_LANE_W/pc" 2>/dev/null; rc=$?
+    [ "$rc" -le 1 ] || return 0
+    LC_ALL=C awk '/ true$/ { f = 1 } END { exit !f }' "$_LANE_W/pc" || return 1
   fi
+  _lane_git --version 2>/dev/null | LC_ALL=C awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }' || return 0
   return 1
+}
+
+# ROOT -> 0 when ROOT is a shallow repository, 1 when it is not, 2 when git did not say.
+_lane_shallow() {
+  local s
+  s="$(_lane_git -C "$1" rev-parse --is-shallow-repository 2>/dev/null)" || return 2
+  case "$s" in true) return 0 ;; false) return 1 ;; *) return 2 ;; esac
 }
 
 # FILE "lane ..." SHA -> sha<TAB>lane for each lane that some message line of FILE marks. FILE is what git cat-file
@@ -143,7 +156,7 @@ _lane_hprep() {
   local W="$_LANE_W" r="$_LANE_HREPO"
   _LANE_HOK=0
   ! _lane_partial_old "$r" || return 0
-  [ "$(_lane_git -C "$r" rev-parse --is-shallow-repository 2>/dev/null)" != true ] || return 0
+  _lane_shallow "$r"; [ $? -eq 1 ] || return 0
   _lane_git -C "$r" rev-list --first-parent HEAD > "$W/hchain" 2>/dev/null || return 0
   LC_ALL=C awk 'NR > 1 { print prev " " $1 } { prev = $1 } END { if (NR > 0) print prev }' "$W/hchain" > "$W/hpairs"
   _lane_git -C "$r" -c core.quotePath=false diff-tree --stdin --root -r --no-renames --no-abbrev -- "$_LANE_HREL" < "$W/hpairs" > "$W/hraw" 2>/dev/null || return 0
@@ -262,7 +275,7 @@ _lane_search() {   # NOW ROOT
 }
 
 _lane_rows() {   # PROJ ROOT FULL
-  local proj="$1" root="$2" full="$3" W="$_LANE_W" rc ct refd=- now glob="" r2 k nrows=0 lv cv dup nm cnt shr win n d
+  local proj="$1" root="$2" full="$3" W="$_LANE_W" rc ct refd=- now glob="" r2 shl k nrows=0 lv cv dup nm cnt shr win n d
   local state lane chg chgd nx last
   local -a Nm Cn Sh Wi Rs Ls Ts Fl La Lv
   _lane_table "$proj" lanes.tsv "$W/lanes"; rc=$?
@@ -304,11 +317,14 @@ _lane_rows() {   # PROJ ROOT FULL
   r2="git could not read the landings on refs/remotes/origin/main in $root"
   if [ -n "$glob" ]; then :
   elif [ -z "$ct" ]; then glob="refs/remotes/origin/main cannot be read in $root"
-  elif [ "$(_lane_git -C "$root" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then glob="$root is a shallow clone, so its landings cannot all be read"
-  elif _lane_partial_old "$root"; then glob="$r2"
   else
-    _lane_window "$now" "$root"
-    [ "$full" != 1 ] || _lane_search "$now" "$root"
+    _lane_shallow "$root"; shl=$?
+    if [ "$shl" -eq 0 ]; then glob="$root is a shallow clone, so its landings cannot all be read"
+    elif [ "$shl" -ne 1 ] || _lane_partial_old "$root"; then glob="$r2"
+    else
+      _lane_window "$now" "$root"
+      [ "$full" != 1 ] || _lane_search "$now" "$root"
+    fi
   fi
   [ "$full" != 1 ] || _lane_hprep
   for ((k = 1; k <= nrows; k++)); do

@@ -7,20 +7,29 @@
 # share of the engine landings there, offline: no fetch, no network, no model, no key.
 #
 # WHAT IT WRITES. Nothing. No ref, index, config or worktree entry of any repository, no file of the home or the
-# memory root. Its scratch files sit in one directory made under ${TMPDIR:-/tmp} and removed on the way out. Every
-# git read runs with --no-optional-locks and without lazy fetches. git diff, git status and git add are never run:
-# they rewrite an index under a stat-dirty file even with GIT_OPTIONAL_LOCKS=0.
+# memory root. Its scratch files sit in one directory made under ${TMPDIR:-/tmp} and removed whenever the count ends
+# by itself, its reads finished or not (a count a signal ends leaves its directory, which nothing reads again; a
+# scratch directory that cannot be made is R10). Every git read runs with --no-optional-locks and without lazy
+# fetches. git diff, git status and git add are never run: they rewrite an index under a stat-dirty file even with
+# GIT_OPTIONAL_LOCKS=0.
 #
-# felix_lane_rows PROJ ROOT [FULL]  C5's thirteen-column lines, one per data row of lanes.tsv, on stdout, and nothing
-#                                   when it holds no row. Unless FULL is 1, columns 7, 10 and 11 read - and their
-#                                   searches are not run. Prints nothing on stderr; returns 0.
-# felix_lane_command PROJ ROOT TSV  felix lane: those lines (TSV 1) or C5's human lines (TSV 0).
+# felix_lane_rows PROJ ROOT [FULL]  The count: C5's thirteen-column lines, one per data row of lanes.tsv, on stdout, and
+#                                   nothing when it holds no row. Unless FULL is 1, columns 7, 10 and 11 read - and
+#                                   their searches are not run. Prints nothing on stderr; returns 0. No surface calls
+#                                   it in its own shell, because a fork that fails or a signal that ends it there
+#                                   would end the surface; each takes its lines through felix_lane_take.
+# felix_lane_take NAME PROJ ROOT [FULL]  The count in a process of its own, through felix_capture (lib/detect.sh): NAME
+#                                   holds its lines (none when no lane is counted) and the status is 0, or the status
+#                                   is 2 and NAME is as the caller had it, because the count did not finish (C3).
+# felix_lane_command PROJ ROOT TSV  felix lane: those lines (TSV 1) or C5's human lines (TSV 0), printed once the count
+#                                   has finished; 1, with C3's line on stderr and nothing on stdout, when it did not.
 # felix_lane_status_row PROJ ROOT   felix status's last row, the first lane's (C6).
 # felix_start_lane PROJ ROOT        session start's lane paragraphs and screen token, in two globals (C7).
 # felix_lane_pulse HOME             felix pulse's last lines, one per lane of the home's own project (C8).
 #
-# A read that did not finish never yields a count: the lane reads unknown with the reason. Bash 3.2; LC_ALL=C on
-# every text tool; awk that BWK awk and gawk both run.
+# A read that did not finish never yields a count: the lane reads unknown with the reason. A count that did not
+# finish is no table with no row either: each surface says so (C3, C6, C7, C8). Bash 3.2; LC_ALL=C on every text tool;
+# awk that BWK awk and gawk both run.
 
 _LANE_LIB="${BASH_SOURCE[0]:-$0}"
 case "$_LANE_LIB" in */*) _LANE_LIB="${_LANE_LIB%/*}" ;; *) _LANE_LIB=. ;; esac
@@ -359,12 +368,24 @@ felix_lane_rows() {   # PROJ ROOT [FULL]
   return 0
 }
 
+# NAME PROJ ROOT [FULL] -> the count run in a process of its own (C3). felix_capture runs felix_lane_rows in a command
+# substitution and sets NAME to its lines only when it came back whole, 0 then (NAME empty when no lane is counted); 2
+# when it did not, with NAME untouched. A fork that fails in the count's own shell outside a git read, or a signal that
+# ends it, ends that process, not the surface's, and leaves no sentinel behind; the status says so, where the output
+# alone could not tell a count that ended early from a table with no row. No locals, as felix_capture has none: NAME
+# is the caller's variable. The count's stderr goes to /dev/null, with bash's note of a job a signal ended.
+felix_lane_take() {   # NAME PROJ ROOT [FULL]
+  command -v felix_capture >/dev/null 2>&1 || . "$_LANE_LIB/detect.sh"
+  felix_capture "$1" felix_lane_rows "${2:-}" "${3:-}" "${4:-0}" 2>/dev/null
+}
+
 # felix status's last row, the first lane's (C6). One row through _felix_status_row; returns 0. An empty PROJ is the
-# not-governed row; no line at all (no committed row) the none row; an unknown line its reason, never a calm value.
+# not-governed row; no line at all (no committed row) the none row; an unknown line its reason, never a calm value; a
+# count that did not finish (C3) is unknown too, never the none row.
 felix_lane_status_row() {   # PROJ ROOT
   local rows c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13
   if [ -z "${1:-}" ]; then _felix_status_row lane none - "this directory is not a governed checkout"; return 0; fi
-  rows="$(felix_lane_rows "$1" "${2:-}" 0)"
+  if ! felix_lane_take rows "$1" "${2:-}" 0; then _felix_status_row lane unknown - "the lane count did not finish in ${2:-}"; return 0; fi
   if [ -z "$rows" ]; then _felix_status_row lane none - "$1/lanes.tsv has no committed row, so no lane is counted"; return 0; fi
   rows="${rows%%$'\n'*}"
   IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 <<< "$rows"
@@ -393,15 +414,18 @@ felix_lane_status_row() {   # PROJ ROOT
 #   commit on its branch that is not a merge with the line `Felix-Lane: <lane>`. <closing>
 # as two lines (the second unbroken), where <closing> is "Trust work takes the other half." when 2n = d and "The rest
 # goes to trust work." otherwise, and <next> reads "(lane-next.tsv names none)" for none and "(lane-next.tsv cannot be
-# read)" for unknown. Sets _felix_lane_tok to " · lane: 0 in <W> days" when the first row is zero or idle, else empty.
-# ok and unknown say nothing, nor does a project with no committed row. The next text is a cell anyone may commit, and
-# the hook's JSON escape handles only backslash, quote, LF, CR and tab, so every control byte but tab and LF is
-# replaced by ?, as _fw_clean does; a cell holds neither of those two. Returns 0.
+# read)" for unknown, and <W> days is "1 day" for a window of one day. Sets _felix_lane_tok to " · lane: 0 in <W> days"
+# when the first row is zero or idle, else empty. ok and unknown say nothing, nor does a project with no committed row,
+# nor a count that did not finish (C3): felix_lane_take says it in its status, and nothing is set. A next text that is
+# exactly none or unknown is read as those two values are (C1). The next text is a cell anyone may commit, and the
+# hook's JSON escape handles only backslash, quote, LF, CR and tab, so every control byte but tab and LF is replaced
+# by ?, as _fw_clean does; a cell holds neither of those two. Returns 0.
 felix_start_lane() {   # PROJ ROOT
   local rows lane state l t w shr nx x n d cl k=0
   lane_line=""; _felix_lane_tok=""
   [ -n "${1:-}" ] || return 0
-  rows="$(felix_lane_rows "$1" "${2:-}" 0 | LC_ALL=C tr '\001-\010\013-\037\177' '?')" || rows=""
+  felix_lane_take rows "$1" "${2:-}" 0 || return 0
+  rows="$(printf '%s\n' "$rows" | LC_ALL=C tr '\001-\010\013-\037\177' '?')" || rows=""
   while IFS=$'\t' read -r lane state l t w shr x x nx x; do
     k=$((k + 1))
     case "$state" in short|zero|idle) ;; *) continue ;; esac
@@ -423,29 +447,41 @@ If the founder has not given this session a task, take the first open lane item:
 # project, columns 1 to 4 of felix_lane_rows (L and T read - when the state is unknown). Only the project the home
 # checkout is bound to is counted: no project records where its checkout is. The git-dir check comes first because
 # felix_repo_root prints a directory outside git as its own root and felix_resolve_project would then bind a .felix
-# there, so a plain home holding a lanes.tsv would get an unknown line against C2. Prints nothing otherwise; returns 0.
+# there, so a plain home holding a lanes.tsv would get an unknown line against C2. A count that did not finish (C3) gives
+# the one line lane<TAB>-<TAB>unknown<TAB>-<TAB>-, as an R9, R10 or R4 table does, in place of its lane lines. Prints
+# nothing otherwise; returns 0.
 felix_lane_pulse() {   # HOME
-  local home="${1:-}" root proj
+  local home="${1:-}" root proj rows c1 c2 c3 c4 x
   [ -n "$home" ] || return 0
   _lane_git -C "$home" rev-parse --git-dir >/dev/null 2>&1 || return 0
   root="$(felix_repo_root "$home" 2>/dev/null)" || root=""
   [ -n "$root" ] || return 0
   proj="$(felix_resolve_project "$root" "$home" 2>/dev/null)" || proj=""
   [ -n "$proj" ] || return 0
-  felix_lane_rows "$proj" "$root" 0 | LC_ALL=C awk -F'\t' '{ print "lane\t" $1 "\t" $2 "\t" $3 "\t" $4 }'
+  if ! felix_lane_take rows "$proj" "$root" 0; then printf 'lane\t-\tunknown\t-\t-\n'; return 0; fi
+  [ -n "$rows" ] || return 0
+  while IFS=$'\t' read -r c1 c2 c3 c4 x; do printf 'lane\t%s\t%s\t%s\t%s\n' "$c1" "$c2" "$c3" "$c4"; done <<< "$rows"
   return 0
 }
 
-# felix lane: the lines of felix_lane_rows, as TSV or in words (C5).
+# felix lane: the lines of felix_lane_rows, as TSV or in words (C5). Nothing is printed until the count has finished,
+# and then with builtins alone, so no fork comes between the first byte on stdout and the last. A count that did not
+# finish (C3) prints nothing on stdout, C3's line on stderr, and returns 1, which cmd_lane exits with.
 felix_lane_command() {   # PROJ ROOT TSV
-  if [ "${3:-0}" = 1 ]; then felix_lane_rows "$1" "$2" 1; return 0; fi
-  felix_lane_rows "$1" "$2" 1 | LC_ALL=C awk -F'\t' '
-    { ch = ""
-      if ($10 == "unknown") ch = "its lanes.tsv row\047s last change cannot be read"
-      else if ($10 != "-") ch = "its lanes.tsv row last changed by " substr($10, 1, 12) " at " $11
-      if ($2 == "unknown") s = $1 ": unknown, " $13
-      else s = $1 ": " $2 ", " $3 " of " $4 " engine landings in " ($5 == 1 ? "1 day" : $5 " days") ", target " $6 "; last lane landing " $7 "; mark " $8 "; next: " $9
-      if (ch != "") s = s "; " ch
-      print s "; refs/remotes/origin/main at " $12 }'
+  local rows out="" s ch c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13
+  if ! felix_lane_take rows "$1" "$2" 1; then printf 'felix: the lane count did not finish in %s\n' "$2" >&2; return 1; fi
+  [ -n "$rows" ] || return 0
+  if [ "${3:-0}" = 1 ]; then printf '%s\n' "$rows"; return 0; fi
+  while IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13; do
+    case "$c10" in
+      unknown) ch="; its lanes.tsv row's last change cannot be read" ;;
+      -) ch="" ;;
+      *) ch="; its lanes.tsv row last changed by ${c10:0:12} at $c11" ;;
+    esac
+    if [ "$c2" = unknown ]; then s="$c1: unknown, $c13"
+    else _lane_days "$c5"; s="$c1: $c2, $c3 of $c4 engine landings in $_LANE_U, target $c6; last lane landing $c7; mark $c8; next: $c9"; fi
+    out="$out$s$ch; refs/remotes/origin/main at $c12"$'\n'
+  done <<< "$rows"
+  printf '%s' "$out"
   return 0
 }

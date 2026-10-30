@@ -6584,7 +6584,8 @@ cmd_status() {
 
 # felix lane: each lane's share of the engine landings on origin/main (lib/lane.sh). Read-only and offline, like
 # felix status: it writes nothing, and GIT_OPTIONAL_LOCKS=0 is exported before any git command. The arguments are
-# checked before the directory is resolved. Exit 0 for any report; 2 for a usage error or a directory no project governs.
+# checked before the directory is resolved. Exit 0 for any report; 2 for a usage error or a directory no project governs;
+# 1 when the count did not finish (C3): nothing on stdout, "felix: the lane count did not finish in <repo>" on stderr.
 cmd_lane() {
   local tsv=0
   case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac

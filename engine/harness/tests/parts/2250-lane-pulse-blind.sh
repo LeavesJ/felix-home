@@ -30,6 +30,8 @@ printf '\nlane pulse: a lane line per row of the home project'"'"'s lanes.tsv, l
 #   whose resolution does not finish) and R2B-F2 (the count's scratch directory taken mid-count), each in its own home.
 # - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F1: a soft open-file limit from 10 to 24
 #   set in the shell that execs felix pulse, in a home of its own.
+# - Design item 46 (2026-10-30, still blind) adds, at the end, I46-21 to I46-30: C8's single line for a resolution of the
+#   home's project that did not finish, under C9's probes inside felix_resolve_project, and no line for the misses (C2).
 LNPN=1793000000; LNPDAY=86400; LNPK=0
 _lf_dir "$TMP/lane-2250"; LNPD="$LF_DIR"
 _lf_stubs "$LNPD"; LNPB="$LF_BIN"
@@ -426,5 +428,94 @@ done
 if [ -z "$LNPl" ]; then LNPl="the limit set at every N"; else LNPl="the limit not set at$LNPl"; fi
 is "lane pulse R3-F1-open-file-limit-drops-marks L-NEVER-OK: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs felix pulse, where without it the pulse ends with lane cap zero 0 2 and lane sec short 1 3: at every N its lane lines are those or unknown ones, in order, all of them and last when it exits 0; never lane sec zero 0 3" \
    "$LNPN3A|unfaulted $LNPb|$LNPl|${LNPa3:- unfaulted or unknown at every N}" "built|unfaulted 0|$LNPRW|backup settings|the limit set at every N| unfaulted or unknown at every N"
+_lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+
+# ---- design item 46: the pulse's line for a resolution that did not finish, and the misses that stand -------------------
+# Added on 2026-10-30 from design 11 item 46 (C2's bullet The lane's resolution, C8's single line), still blind, last, in
+# a home of its own that is its own checkout: LNPI holds p (remote_match o/r, as _lf_match writes it), lanes.tsv (cap
+# ^engine/ 1/2 14, sec ^docs/ 1/2 7) committed and the review's landings (_lf_r2land); _lf_bind puts the home in a layout.
+# Bound by its .felix alone (felix) or by remote_match alone (remote), the pulse ends with lane cap zero 0 2 and lane sec
+# short 1 3. Readings:
+# - I46-21 to I46-24: C9's fork and kill probes (_lf_probe) every time a read the miss stands on is made inside
+#   felix_resolve_project (felix: tr -d [:space:], the read of the marker; remote: git remote get-url origin): felix pulse
+#   exits 0, and its lines from the first lane line to the end, after its backup and settings lines, are exactly lane -
+#   unknown - -, as are its record's. Only where a probe reached felix itself (LF_SELF) may it end with 137 (kill, C9) or
+#   128 (fork, C3) and no lane line.
+# - I46-25 to I46-30, no fault: in the layouts none, other, tie, nosuch, empty and closed the home binds no project (C2,
+#   C8): felix pulse exits 0, prints its backup and settings lines and no lane line, and its record holds none. Each first
+#   runs a layout that binds, so it is red on main, whose pulse prints no lane line.
+LNPIA="not built: item 46's home"; LNPIH="$LNPD/i46"; LNPIT="$LNPD/i46-tmp"
+LNPIW="$(_lf_tsv lane cap zero 0 2)"$'\n'"$(_lf_tsv lane sec short 1 3)"; LNPIU="$(_lf_tsv lane - unknown - -)"
+if _lf_home "$LNPD/i46" p $((LNPN - 30 * LNPDAY)); then
+  LNPIH="$LF_HOME"
+  LNPa="$((LNPN - LNPDAY)):1 $((LNPN - 2 * LNPDAY)):1 $((LNPN - 3 * LNPDAY)):1 $((LNPN - 4 * LNPDAY)):1 $((LNPN - 5 * LNPDAY)):1"
+  _lf_table "$LF_PROJ" $((LNPN - 29 * LNPDAY)) lanes.tsv $'cap\t^engine/\t1/2\t14\nsec\t^docs/\t1/2\t7\n' && _lf_r2land "$LNPIH" "$LNPN" \
+    && case "$(_lf_spine "$LNPIH")" in ("$LNPa $((LNPN - 20 * LNPDAY)):1 "*" $((LNPN - 30 * LNPDAY)):0") LNPIA=built ;; esac
+fi
+_lf_use "$LNPIH" "$LNPD/i46-memory" "$LNPD/i46-user" "$LNPB"
+# LAYOUT MODE NAME WORDS -> the home in LAYOUT; felix pulse there; then felix pulse under _lf_probe MODE NAME WORDS,
+# felix_resolve_project on the stack, with a fresh TMPDIR. LNPa what was built and the unfaulted lane lines, LNPb the
+# probe's LF_FIRE and "one unknown line" when the run ended as the readings above say, else its status and lines.
+_lnp_i46f() {
+  local t r
+  _lf_bind "$LNPIH" "$LNPIH" p "$1"; LNPa="$LNPIA|$LF_BOUND"
+  _lnp_pulse "$LNPD/i46-0"; LNPa="$LNPa|unfaulted $LF_RC|$(_lnp_tail "$LNPD/i46-0.out")"
+  rm -rf "$LNPIT"; mkdir -p "$LNPIT"
+  _lf_probe "$2" "$3" "$4" "*' felix_resolve_project '*" "$LNPD/i46f.fired" "$LNPIT" _lf_run "$LNPD/i46f" "$LNPIH" "$LNPN" "$FELIX" pulse
+  _lf_calm "$LNPIH"
+  t="$(_lnp_tail "$LNPD/i46f.out")"; r="$(_lnp_tail "$LNPIH/state/pulse.status.tsv")"
+  LNPb="$LF_FIRE|status $LF_RC, lane lines [$t], record [$r], $(_lnp_before "$LNPD/i46f.out")"
+  if [ "$LF_RC|$t|$r|$(_lnp_before "$LNPD/i46f.out")" = "0|$LNPIU|$LNPIU|backup settings" ]; then LNPb="$LF_FIRE|one unknown line"
+  elif [ "$LF_SELF" = self ] && [ -z "$(_lnp_lanes "$LNPD/i46f.out")" ]; then
+    case "$2:$LF_RC" in (kill:137|fork:128) LNPb="$LF_FIRE|one unknown line" ;; esac
+  fi
+}
+LNPa5='felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record'
+_lnp_i46f felix fork tr "*' -d [:space:] '*"
+is "I46-21 lane pulse, in a home its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): $LNPa5 (or 128 with no lane line, where the fork failed in felix's own shell); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3" \
+   "$LNPa|$LNPb" "built|built|unfaulted 0|$LNPIW|fired|one unknown line"
+_lnp_i46f felix kill tr "*' -d [:space:] '*"
+is "I46-22 lane pulse, in a home its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): $LNPa5 (or 137 with no lane line, where the kill reached felix itself); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3" \
+   "$LNPa|$LNPb" "built|built|unfaulted 0|$LNPIW|fired|one unknown line"
+_lnp_i46f remote fork git "*' remote get-url origin '*"
+is "I46-23 lane pulse, in a home remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: $LNPa5 (or 128 with no lane line, where the fork failed in felix's own shell); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3" \
+   "$LNPa|$LNPb" "built|built|unfaulted 0|$LNPIW|fired|one unknown line"
+_lnp_i46f remote kill git "*' remote get-url origin '*"
+is "I46-24 lane pulse, in a home remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: $LNPa5 (or 137 with no lane line, where the kill reached felix itself); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3" \
+   "$LNPa|$LNPb" "built|built|unfaulted 0|$LNPIW|fired|one unknown line"
+
+# MISS BIND -> the home in BIND and felix pulse there, then in MISS and felix pulse there. LNPa what was built and BIND's
+# lane lines, LNPb MISS's status, whether it printed its backup and settings lines, and its and its record's lane lines.
+_lnp_i46m() {
+  _lf_bind "$LNPIH" "$LNPIH" p "$2"; LNPa="$LNPIA|$2 $LF_BOUND"
+  _lnp_pulse "$LNPD/i46b"; LNPa="$LNPa|$LF_RC|$(_lnp_tail "$LNPD/i46b.out")"
+  _lf_bind "$LNPIH" "$LNPIH" p "$1"; LNPa="$LNPa|$1 $LF_BOUND"
+  _lnp_pulse "$LNPD/i46m"
+  LNPb="$LF_RC|$(LC_ALL=C awk -F'\t' '$1 == "backup" { b = 1 } $1 == "settings" { s = 1 } END { printf "%s %s", (b ? "backup" : "no-backup"), (s ? "settings" : "no-settings") }' "$LNPD/i46m.out")"
+  LNPb="$LNPb|lane lines [$(_lnp_lanes "$LNPD/i46m.out")]|record [$(_lnp_lanes "$LNPIH/state/pulse.status.tsv")]"
+}
+LNPa5='felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record'
+_lnp_i46m none felix
+is "I46-25 lane pulse, a miss that stands: in a home with no .felix and no origin remote, $LNPa5; with its .felix naming p the pulse ends with its two lane lines" \
+   "$LNPa|$LNPb" "built|felix built|0|$LNPIW|none built|0|backup settings|lane lines []|record []"
+_lnp_i46m other remote
+is "I46-26 lane pulse, a miss that stands: in a home whose origin no project's remote_match names, $LNPa5; with an origin p's remote_match names the pulse ends with its two lane lines" \
+   "$LNPa|$LNPb" "built|remote built|0|$LNPIW|other built|0|backup settings|lane lines []|record []"
+_lnp_i46m tie remote
+is "I46-27 lane pulse, a miss that stands: in a home whose origin two projects' remote_match name equally, a tie, $LNPa5; with p's alone naming it the pulse ends with its two lane lines" \
+   "$LNPa|$LNPb" "built|remote built|0|$LNPIW|tie built|0|backup settings|lane lines []|record []"
+_lnp_i46m nosuch felix
+is "I46-28 lane pulse, a miss that stands: in a home whose .felix names no project, $LNPa5; with its .felix naming p the pulse ends with its two lane lines" \
+   "$LNPa|$LNPb" "built|felix built|0|$LNPIW|nosuch built|0|backup settings|lane lines []|record []"
+_lnp_i46m empty felix
+is "I46-29 lane pulse, a miss that stands: in a home whose .felix is empty, $LNPa5; with its .felix naming p the pulse ends with its two lane lines" \
+   "$LNPa|$LNPb" "built|felix built|0|$LNPIW|empty built|0|backup settings|lane lines []|record []"
+LNPa6="I46-30 lane pulse, a miss that stands: in a home whose .felix exists and cannot be opened (mode 000), $LNPa5; with its .felix naming p the pulse ends with its two lane lines"
+if [ "$(id -u)" = 0 ]; then skip "$LNPa6" "the suite runs as root, which opens a .felix of mode 000"
+else
+  _lnp_i46m closed felix
+  is "$LNPa6" "$LNPa|$LNPb" "built|felix built|0|$LNPIW|closed built|0|backup settings|lane lines []|record []"
+fi
+_lf_bind "$LNPIH" "$LNPIH" p felix
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

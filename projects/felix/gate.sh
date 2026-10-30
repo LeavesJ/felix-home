@@ -621,8 +621,13 @@ if [ -f .claude/settings.json ]; then
   if [ -z "$P_PAIRS" ] || [ -z "$S_PAIRS" ]; then
     CLOUD_BAD="unreadable: no event-to-hook pairs read from one of the two files"
   else
+    # Each lookup reads a here-string, not a pipe. Under pipefail a grep -q
+    # that exits at its match while printf is still writing kills printf with
+    # SIGPIPE, and the pipeline reads the match as a miss: on 2026-10-29, at
+    # load near 190, this check named a toolbox entry that was there. The
+    # suite's pipe lint refuses the shape in every project script.
     MISSING="$(printf '%s\n' "$P_PAIRS" | while IFS= read -r p; do
-      printf '%s\n' "$S_PAIRS" | grep -qxF "$p" || printf '%s ' "$(printf '%s' "$p" | tr '\t' '/')"
+      grep -qxF "$p" <<<"$S_PAIRS" || printf '%s ' "$(printf '%s' "$p" | tr '\t' '/')"
     done)"
     [ -z "$MISSING" ] || CLOUD_BAD="$CLOUD_BAD not bound for the cloud: $MISSING;"
   fi
@@ -631,11 +636,12 @@ if [ -f .claude/settings.json ]; then
   [ "$N_CMD" = "$N_GUARD" ] || CLOUD_BAD="$CLOUD_BAD $((N_CMD - N_GUARD)) command(s) without the CLAUDE_CODE_REMOTE guard;"
   # Names read with sed, not jq: the gate runs on bash and git alone
   # (constitution invariant 2), and a reformatted file reads as no names, so
-  # every stack row fails rather than passing.
+  # every stack row fails rather than passing. A here-string, as the pairs
+  # above are looked up, and for the same reason.
   TOOLBOX="$(sed -n 's/^      "name": "\([^"]*\)",$/\1/p' .claude/cloud/toolbox.json 2>/dev/null)"
   for n in $(grep -vE '^[[:space:]]*(#|$)' projects/felix/stack.tsv \
              | awk -F'\t' '$1 == "plugin" || $1 == "skill" { sub(/@.*/, "", $2); print $2 }'); do
-    printf '%s\n' "$TOOLBOX" | grep -qxF "$n" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
+    grep -qxF "$n" <<<"$TOOLBOX" || CLOUD_BAD="$CLOUD_BAD $n has no entry in .claude/cloud/toolbox.json;"
   done
   if [ -z "$CLOUD_BAD" ]; then
     pass cloud

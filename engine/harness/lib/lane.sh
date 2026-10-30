@@ -244,7 +244,13 @@ _lane_rows() {   # PROJ ROOT FULL
   _lane_table "$proj" lanes.tsv "$W/lanes"; rc=$?
   [ "$rc" -ne 1 ] || return 0
   _LANE_HREPO="$_LANE_REPO"; _LANE_HREL="$_LANE_REL"
-  ct="$(_lane_git -C "$root" log -1 --no-show-signature --format=%ct 'refs/remotes/origin/main^{commit}' -- 2>/dev/null)" || ct=""
+  # The ref by its full name only: git reads the short name refs/remotes/origin/main as a tag or a branch spelled that
+  # way when the remote-tracking ref is missing, and show-ref --verify does not (C2). With the ref there, git reads
+  # that exact name first, so the walks below, which spell it the same way, read it.
+  ct=""
+  if _lane_git -C "$root" show-ref --verify -q refs/remotes/origin/main; then
+    ct="$(_lane_git -C "$root" log -1 --no-show-signature --format=%ct 'refs/remotes/origin/main^{commit}' -- 2>/dev/null)" || ct=""
+  fi
   case "$ct" in ''|*[!0123456789]*) ct="" ;; *) refd="$(_lane_iso "$ct")"; refd="${refd:--}" ;; esac
   if [ "$rc" -eq 3 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as committed in the Felix home"; return 0; fi
   if [ "$rc" -eq 2 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as lanes.tsv"; return 0; fi

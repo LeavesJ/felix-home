@@ -80,6 +80,21 @@ was about 60 real queries, almost all in the four sessions (09-03, 09-04,
 - Asks that time out. The bound is 4 s, and graphify took 3.3-4.8 s wall at a
   load average of 130-180. `felix ledger` says how many asks timed out; a large
   share means the bound or the budget is the lever.
+- Prompts too late to ask, and sessions left out. The platform ends the prompt
+  hook at 30 s and a run it ends prints nothing, so the ask gets what is left
+  less 3 s and is skipped, recorded `late`, with under one. And a session whose
+  PostToolUse record is not whole (the fold's own test) is left out of the
+  measure and counted apart. Many `late` rows mean the hook's other parts are
+  slow; many sessions left out mean post-tool runs are being lost, and the
+  share is then over the sessions whose record is whole.
+- Two limits the spec names and leaves: a run cut off inside the 3 s it keeps
+  has recorded nodes the model never got, and they are not given again that
+  session; two refreshes that find the same stale lock at once can both run.
+- Not this change's, found on the way: part 0290 failed once under load, and
+  passes alone. An earlier block's discovery refresh ran the real claude CLI
+  and network fetches and held its lock for about 15 minutes, so the part is
+  not isolated from the machine. And A2.9's locale case can only go red under
+  GNU bash 5, so on this Mac's bash 3.2 it is green either way.
 - The graph's bash recall is graphify's extractor, not Felix. A fix upstream
   (resolve `. "${SCRIPT_DIR}/../lib/x.sh"`, edges inside `$(...)`) would make an
   edit-time dependents answer worth delivering; until then it is not.

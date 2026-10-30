@@ -19,6 +19,8 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   empty the machine clock is read (C9); plain felix status aligns the row as C6 says.
 # - L-RO's marker is touched a second after the fixture's last write, and what the runs leave newer is printed in the
 #   assertion. The checkout's refs and worktree list are compared before and after.
+# - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's 1 day (F11) and a count that
+#   ends early (F1), after the shape check.
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "
@@ -229,4 +231,26 @@ for LNTw in "$LNTD"/st/*.out; do
 done
 is "lane status row: every felix status --tsv this part ran prints ten rows ending in lane, and no row breaks D16's shape: four tab fields, a known state, - unless the state is value, a detail, a value with no space" \
    "$LNTc runs:$LNTo" "18 runs:"
+
+# ---- the review's second amendment: 1 day (F11) and a count that ends early (F1) --------------------------------------
+# Added on 2026-10-30, still blind, after the shape check, whose count of runs stands; these runs are not kept in st/.
+_lnt_put "the capability row, window 1" $'capability\t^engine/\t1/2\t1\n'
+_lf_run "$LNTD/f11" "$LNTOK" "$LNTN" "$FELIX" status --tsv
+is "lane status row F11-one-day-reads-1-days: with window 1 and no landing in the last day, the row reads lane value idle 0 of 0 engine landings in 1 day, target 1/2, never 1 days, the last of ten" \
+   "$LNTOKE|$LNTT|$LF_RC|$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/f11.out")|$(_lf_last "$LNTD/f11.out")" \
+   "built|built|0|$LNTTEN|$(_lf_tsv lane value idle '0 of 0 engine landings in 1 day, target 1/2')"
+# C9's fault through _lf_fault kill, with TMPDIR a directory of the fixture's own, in the ok checkout: when the read of
+# the landings starts, the shell that runs it has its parent, then itself, killed. C6 and C9 allow two rows, and the
+# assertion accepts exactly these: the lane count did not finish in <repo>, or, where the process ended was one read's
+# own, R2. felix status still exits 0 with its ten rows (C6).
+_lnt_put "the capability row, for a count that ends early" "$LNTLANES"
+LNTkt="$LNTD/f1k-tmp"; rm -rf "$LNTkt"; mkdir -p "$LNTkt"
+_lf_fault kill "$LNTD/f1k.fired" "$LNTkt" _lf_run "$LNTD/f1k" "$LNTOK" "$LNTN" "$FELIX" status --tsv
+LNTa="$(_lf_last "$LNTD/f1k.out")"
+case "$LNTa" in
+  ("$(_lf_tsv lane unknown - "the lane count did not finish in $LNTOK")"|"$(_lf_tsv lane unknown - "git could not read the landings on refs/remotes/origin/main in $LNTOK")") LNTa="C3 or R2" ;;
+  (*) LNTa="last row [$LNTa]" ;;
+esac
+is "lane status row F1-count-ends-early L-NEVER-OK: the parent of the shell that runs the read of the landings, then that shell, killed (C9): felix status --tsv exits 0 with ten rows, the last lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2; never a value, the none row or no lane row" \
+   "$LNTOKE|$LNTT|$LF_FIRE|$LF_RC|$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNTD/f1k.out")|$LNTa" "built|built|fired|0|$LNTTEN|C3 or R2"
 # <<< lane-status-row

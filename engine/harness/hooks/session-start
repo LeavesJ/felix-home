@@ -572,6 +572,7 @@ _fl="$(felix_land_notice "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null)"   # paused, not
 felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}" "$FELIX_HOME_DIR"
 lane_line=""; _felix_lane_tok=""
 command -v felix_start_lane >/dev/null 2>&1 && felix_start_lane "$PROJ" "$_repo_root" >/dev/null 2>&1
+[ -z "${lane_line}${_felix_lane_tok}" ] || felix_own_gate "lane item" "$_own" 2>/dev/null || { lane_line=""; _felix_lane_tok=""; }
 
 context="Felix governs this session.
 

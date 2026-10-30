@@ -316,12 +316,16 @@ felix_lane_status_row() {   # PROJ ROOT
   return 0
 }
 
-# Session start's lane text (C7). hooks/session-start has no room to grow, so its four lane lines are explained here:
+# Session start's lane text (C7). hooks/session-start has no room to grow, so its lane lines are explained here:
 # - it sources this file only when the file is there, and calls felix_start_lane only when it is defined, so an
 #   engine without lib/lane.sh starts as it always did, with no lane text and valid JSON;
 # - it sets lane_line and _felix_lane_tok empty first, then calls this with both streams sent to /dev/null, as the
 #   lifecycle record and the mistakes-log heal are: a stray byte would break its JSON, so the results travel in the
 #   two globals, as the waits' do (lib/waiting.sh);
+# - when either is set, it holds them to the project's own checkout: it hands "lane item" and its _own to
+#   felix_own_gate, as adoption and tidying are handed, and empties both unless the checkout is own, so the withheld
+#   line names lane item instead (design §11 item 44). The paragraph tells an untasked session to work, and a .felix
+#   marker is a file any repository can commit, so a checkout that only names the project must not steer one;
 # - lane_line follows the "what waits" paragraphs in the context and comes before the capability-drift ones;
 # - _felix_lane_tok follows the waits' tokens, last on the screen line (systemMessage).
 # A Claude Code resume leaves the hook before any of this, and a directory no project governs never reaches it.

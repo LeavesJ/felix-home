@@ -8,5 +8,5 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	e54e31f35c567cd9b32c430525069e13cf1e8a6e	0.49.309
-run	0	14360	46
+base	origin/main	01e24cfc16419dfe49f605ce9a7f619890c34cd8	0.49.313
+run	0	15022	28

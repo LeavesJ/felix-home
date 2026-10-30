@@ -522,10 +522,10 @@ _lns_gone() {
   printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$o.out")" "$(cat "$o.err")"
 }
 # CASE WORDS STACK -> the felix lane --tsv, felix lane and felix status --tsv runs under the fault, each with a fresh
-# TMPDIR; LNSa their readings, LNSF the fault's firing in each.
+# TMPDIR; LNSa their readings, LNSGF the fault's firing in each, joined by +.
 _lns_gonerun() {
   local m
-  LNSa=""; LNSF=""
+  LNSa=""; LNSGF=""
   for m in tsv human status; do
     rm -rf "$LNSGT"; mkdir -p "$LNSGT"
     case "$m" in
@@ -537,18 +537,18 @@ _lns_gonerun() {
             if [ "$1" = A ]; then LNSa="$LNSa|$(_lns_r2row "$LNSD/r2bf2-$1s" "$(_lf_tsv lane unknown - "the lane count did not finish in $LNSGH")" "$(_lf_tsv lane unknown - "$LNSGR9")")"
             else LNSa="$LNSa|$(_lns_r2row "$LNSD/r2bf2-$1s" "$(_lf_tsv lane unknown - "the lane count did not finish in $LNSGH")" "$(_lf_tsv lane unknown - "$LNSGR2")")"; fi ;;
     esac
-    LNSF="$LNSF${LNSF:+ }$LF_FIRE"
+    LNSGF="$LNSGF${LNSGF:++}$LF_FIRE"
   done
 }
 _lns_gonerun A '*skip=*' "*' felix_table_rows '*"
 is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count's scratch directory removed at the read of lanes.tsv's rows (skip=, felix_table_rows), where without it cap reads ok 1 of 2: felix lane --tsv and felix lane end as C3's count that did not finish, or print the - line with R9; never nothing with exit 0" \
-   "$LNSGA|unfaulted $LNSb|$LNSF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired fired fired|unknown or ended|unknown or ended"
+   "$LNSGA|unfaulted $LNSb|$LNSGF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired+fired+fired|unknown or ended|unknown or ended"
 is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R9, the last of ten; never the none row of a table with no row" \
-   "$LNSGA|unfaulted $LNSc|${LNSF##* }|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
+   "$LNSGA|unfaulted $LNSc|${LNSGF##*+}|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
 _lns_gonerun B "*'t[\$2]++'*" "*' _lane_window '*"
 is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[\$2]++, _lane_window): felix lane --tsv and felix lane end as C3's count that did not finish, or print cap unknown with R2; never idle 0 of 0" \
-   "$LNSGA|unfaulted $LNSb|$LNSF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired fired fired|unknown or ended|unknown or ended"
+   "$LNSGA|unfaulted $LNSb|$LNSGF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired+fired+fired|unknown or ended|unknown or ended"
 is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2, the last of ten; never the value idle 0 of 0" \
-   "$LNSGA|unfaulted $LNSc|${LNSF##* }|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
+   "$LNSGA|unfaulted $LNSc|${LNSGF##*+}|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
 _lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
 # <<< lane-states

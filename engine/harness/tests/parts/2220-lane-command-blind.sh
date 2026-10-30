@@ -20,6 +20,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 # - L-RO's marker is touched a second after the fixture's last write, and what it finds newer is printed in the
 #   assertion, so a write is named, not only counted.
 # - The --help and -h exits are controls (C10); every other assertion here is red on main.
+# - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's next texts exactly none and
+#   unknown (F9), 1 day in the human line (F11), and a count that ends early (F1), at the end of the part.
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'
@@ -388,6 +390,47 @@ _lnk_is "lane command F3-old-git-lazy-fetch-through-the-home: (b) with a git tha
    "built|fetch[]|0|1|capability|zero|0|1|unknown|-|-"
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 
+# ---- the review's F9: a next text that is exactly none or unknown (C1) ------------------------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind. C1: such a cell cannot be told from those two
+# values, and column 9 prints it as given. In a home of its own, lanes.tsv as H's, then lane-next.tsv committed with
+# one row for capability whose next cell is exactly unknown, then exactly none: column 9 and the human line's next read
+# the word, and the state stays ok, L 1 of T 2.
+_lf_home "$LNKD/home-f9" ck 1792700000; LNKP9="$LF_PROJ"; LNKa="not built: F9's home"; LNKF9T=""
+_lf_table "$LNKP9" 1792700100 lanes.tsv "$LNKLANES" && LNKF9T="$LF_SHA" && LNKa="$LNKBUILT"
+_lf_use "$LF_HOME" "$LNKD/memory" "$LNKD/user" "$LNKB"
+# WORD T -> lane-next.tsv holding capability<TAB>WORD, committed at T in F9's home; then felix lane --tsv and felix lane in C.
+_lnk_f9() {
+  local b="$LNKa" w
+  w="$(_lf_tsv capability "$1")"$'\n'
+  _lf_table "$LNKP9" "$2" lane-next.tsv "$w" || b="not built: lane-next.tsv $1"
+  printf '%s' "$w" > "$LNKD/f9.want"
+  ( _fx_cd "$LNKP9" || exit 1; _lf_g 1700000000 cat-file blob HEAD:projects/ck/lane-next.tsv ) > "$LNKD/f9.got" 2>/dev/null
+  cmp -s "$LNKD/f9.want" "$LNKD/f9.got" || b="not built: lane-next.tsv $1 is not at HEAD"
+  _lf_run "$LNKD/f9-$1-t" "$LNKC" "$LNKN" "$FELIX" lane --tsv; LNKb="$LF_RC|$(_lf_count "$LNKD/f9-$1-t.out")|$(_lf_cols "$LNKD/f9-$1-t.out" 1 1 2 3 4 9)"
+  _lf_run "$LNKD/f9-$1-h" "$LNKC" "$LNKN" "$FELIX" lane
+  is "lane command F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly $1: column 9 prints $1 as the cell gives it, the human line says next: $1, and the state stays ok, L 1 of T 2" \
+     "$b|$LNKb|$LF_RC|$(cat "$LNKD/f9-$1-h.out")" \
+     "built|0|1|capability|ok|1|2|$1|0|capability: ok, 1 of 2 engine landings in 14 days, target 1/2; last lane landing $LNKLASTD; mark $LNKMARK; next: $1; its lanes.tsv row last changed by $(printf '%.12s' "$LNKF9T") at $(_lf_iso 1792700100); refs/remotes/origin/main at $LNKREFD"
+}
+_lnk_f9 unknown 1792700200
+_lnk_f9 none 1792700300
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- the review's F11: a window of one day reads 1 day (the Contracts' preamble) --------------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind. In a home of its own, lanes.tsv with window 1 and
+# lane-next.tsv as H's: C's landings are three, two and exactly one day back, so none is in (now - 86400, now] and the
+# lane reads idle, 0 of 0; the last lane landing is still the marked one three days back.
+_lf_home "$LNKD/home-f11" ck 1792700000; LNKP11="$LF_PROJ"; LNKa="not built: F11's home"; LNKF11T=""
+_lf_table "$LNKP11" 1792700100 lanes.tsv $'capability\t^engine/\t1/2\t1\n' && LNKF11T="$LF_SHA" \
+  && _lf_table "$LNKP11" 1792700200 lane-next.tsv "$LNKNEXTS" && LNKa="$LNKBUILT"
+_lf_use "$LF_HOME" "$LNKD/memory" "$LNKD/user" "$LNKB"
+_lf_run "$LNKD/f11-t" "$LNKC" "$LNKN" "$FELIX" lane --tsv; LNKb="$LF_RC|$(_lf_cols "$LNKD/f11-t.out" 1 1 2 3 4 5 6)"
+_lf_run "$LNKD/f11-h" "$LNKC" "$LNKN" "$FELIX" lane
+is "lane command F11-one-day-reads-1-days: with window 1 the human line says in 1 day, never 1 days: capability: idle, 0 of 0 engine landings in 1 day, target 1/2, and the rest of the line as C5 builds it" \
+   "$LNKa|$LNKb|$LF_RC|$(cat "$LNKD/f11-h.out")" \
+   "built|0|capability|idle|0|0|1|1/2|0|capability: idle, 0 of 0 engine landings in 1 day, target 1/2; last lane landing $LNKLASTD; mark $LNKMARK; next: $LNKNEXT; its lanes.tsv row last changed by $(printf '%.12s' "$LNKF11T") at $(_lf_iso 1792700100); refs/remotes/origin/main at $LNKREFD"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
 # ---- L-DET -------------------------------------------------------------------------------------------------------------------
 for LNKk in 1 2; do
   _lf_run "$LNKD/det-h$LNKk" "$LNKC" "$LNKN" "$FELIX" lane
@@ -427,4 +470,36 @@ _lf_run "$LNKD/gone" "$LNKC" "$LNKN" "$FELIX" lane --tsv
 is "lane command: with lanes.tsv deleted from the home's working tree and still committed, felix lane --tsv prints the committed row's line unchanged" \
    "$LNKBUILT|$LF_RC|$(cat "$LNKD/gone.out")" "built|0|$LNKLINE"
 printf '%s' "$LNKLANES" > "$LNKP/lanes.tsv"; printf '%s' "$LNKNEXTS" > "$LNKP/lane-next.tsv"
+
+# ---- the review's F1: a count that ends early (C3, C5, C9) --------------------------------------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind, last in this part because a run ended early may
+# leave state behind. C9's fault through _lf_fault kill, with TMPDIR a directory of the fixture's own: when the read of
+# the landings starts, the shell that runs it has its parent, then itself, killed. C3 and C9 allow two outcomes, and
+# each assertion accepts exactly these: nothing on stdout, the line felix: the lane count did not finish in <repo> on
+# stderr (other lines may sit beside it there), exit 1; or, where the process ended was one read's own, exit 0 and one
+# line, unknown with R2 (--tsv: columns 1 to 9 and 13, as F1's fork above in part 2210 compares them; the human form:
+# the line up to the reason and its ;). Never a count, no line, or exit 0 with nothing on stdout.
+LNKR2="git could not read the landings on refs/remotes/origin/main in $LNKC"; LNKEND="felix: the lane count did not finish in $LNKC"
+LNKkt="$LNKD/f1k-tmp"; rm -rf "$LNKkt"; mkdir -p "$LNKkt"
+# OUT FORM -> "C3 or R2" when the run whose files are OUT.out and OUT.err, with status LF_RC, ended as C3 allows (FORM
+# tsv or human), else its status, stdout and stderr.
+_lnk_ended() {
+  local o="$1" e
+  e="$(LC_ALL=C awk -v w="$LNKEND" '$0 == w { f = 1 } END { print (f ? "line" : "no line") }' "$o.err" 2>/dev/null)"
+  if [ "$LF_RC" = 1 ] && [ ! -s "$o.out" ] && [ "$e" = line ]; then printf 'C3 or R2'; return 0; fi
+  if [ "$LF_RC" = 0 ] && [ "$(_lf_count "$o.out")" = 1 ]; then
+    case "$2" in
+      (tsv) if [ "$(_lf_cols "$o.out" 1 1 2 3 4 5 6 7 8 9 13)" = "capability|unknown|-|-|14|1/2|-|$LNKMARK|$LNKNEXT|$LNKR2" ]; then
+              printf 'C3 or R2'; return 0; fi ;;
+      (human) case "$(cat "$o.out")" in ("capability: unknown, $LNKR2; "*) printf 'C3 or R2'; return 0 ;; esac ;;
+    esac
+  fi
+  printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$o.out")" "$(cat "$o.err")"
+}
+_lf_fault kill "$LNKD/f1k-t.fired" "$LNKkt" _lf_run "$LNKD/f1k-t" "$LNKC" "$LNKN" "$FELIX" lane --tsv
+is "lane command F1-count-ends-early L-NEVER-OK: the parent of the shell that runs the read of the landings, then that shell, killed (C9): felix lane --tsv prints nothing on stdout, felix: the lane count did not finish in <repo> on stderr, and exits 1, or exits 0 with its one R2 line; never a count, no line, or exit 0 with nothing" \
+   "$LNKBUILT|$LF_FIRE|$(_lnk_ended "$LNKD/f1k-t" tsv)" "built|fired|C3 or R2"
+_lf_fault kill "$LNKD/f1k-h.fired" "$LNKkt" _lf_run "$LNKD/f1k-h" "$LNKC" "$LNKN" "$FELIX" lane
+is "lane command F1-count-ends-early L-NEVER-OK: the same in felix lane, the human form: nothing on stdout, felix: the lane count did not finish in <repo> on stderr, and exit 1, or exit 0 with its one line capability: unknown, the R2 reason; never a count, no line, or exit 0 with nothing" \
+   "$LNKBUILT|$LF_FIRE|$(_lnk_ended "$LNKD/f1k-h" human)" "built|fired|C3 or R2"
 # <<< lane-command

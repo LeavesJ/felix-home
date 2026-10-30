@@ -23,7 +23,7 @@ _lf_dir "$TMP/lane-2200"; LNCD="$LF_DIR"
 _lf_stubs "$LNCD"; LNCB="$LF_BIN"
 _lf_home "$LNCD/home" lx 1792900000; LNCH="$LF_HOME"; LNCP="$LF_PROJ"
 _lf_table "$LNCP" 1792900100 lanes.tsv $'# The lanes this fixture counts.\ncapability\t^engine/\t1/2\t14\n'; LNCTAB="$LF_SHA"
-_lf_table "$LNCP" 1792900200 lane-next.tsv "capability	$LNCNEXT"$'\n'
+_lf_table "$LNCP" 1792900200 lane-next.tsv "$(_lf_tsv capability "$LNCNEXT")"$'\n'
 _lf_use "$LNCH" "$LNCD/memory" "$LNCD/user" "$LNCB"
 LNCF=""   # the first build step that failed, by its words
 _lnc_do() { "$@" || [ -n "$LNCF" ] || LNCF="$*"; }
@@ -197,7 +197,7 @@ LNCTIP="$LF_SHA"
 ( _fx_cd "$LNCD" && _lf_g 1700000000 clone -q --depth 2 "file://$LNCSRC" shallow ) >/dev/null 2>&1 || LNCF="${LNCF:-the clone}"
 { printf 'lx\n' > "$LNCD/shallow/.felix"; } 2>/dev/null
 LNCSH="$(cd -P "$LNCD/shallow" 2>/dev/null && pwd -P)"
-LNCa="$( _fx_cd "$LNCSH" || exit 1; printf '%s|%s' "$(_lf_g 1 rev-parse --is-shallow-repository)" "$(_lf_g 1 rev-parse --verify -q refs/remotes/origin/main)" )"
+LNCa="$( _fx_cd "$LNCSH" || exit 1; printf '%s|%s' "$(_lf_g 1700000000 rev-parse --is-shallow-repository)" "$(_lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main)" )"
 if [ -z "$LNCF" ] && [ -n "$LNCTIP" ] && [ "$LNCa" = "true|$LNCTIP" ]; then LNCBUILT=built; else LNCBUILT="not built: ${LNCF:-the clone reads [$LNCa]}"; fi
 LNCR3="$LNCSH is a shallow clone, so its landings cannot all be read"
 LNCWANT="$(_lf_tsv capability unknown - - 14 1/2 - 'Felix-Lane: capability' "$LNCNEXT" "$LNCTAB" "$(_lf_iso 1792900100)" \

@@ -23,7 +23,7 @@
 - A check that cannot fail is not a check (invariant 5): every new check is shown failing first.
 - Never delete a home or a memory root (invariant 6).
 - Records go under the memory root or under `state/`. Nothing is written into a governed repository: its refs, index, config and worktree list stay as they were.
-- The lane never touches `lib/qualify.sh`, `lib/obligations.sh`, `lib/receipt.sh`, `lib/automerge.sh`, `lib/green-*.sh`, `lib/land-table.sh`, `lib/notify.sh`, `lib/own.sh`, `lib/status-land.sh`, or the `felix merge` and `felix land` code paths. The lane meets `lib/own.sh` in one place, C7's own-checkout rule: the hook hands its existing `_own` to `felix_own_gate`, as its sibling paths do. No lane file calls into `lib/own.sh`, and nothing edits it.
+- The lane never touches `lib/qualify.sh`, `lib/obligations.sh`, `lib/receipt.sh`, `lib/automerge.sh`, `lib/green-*.sh`, `lib/land-table.sh`, `lib/notify.sh`, `lib/own.sh`, `lib/status-land.sh`, or the `felix merge` and `felix land` code paths. Those paths include the shared project resolution: `felix_resolve_project`, `_felix_resolve_remote`, `felix_binding_broken` and `resolve_or_die` stay byte for byte as `main` has them (C2). The lane meets `lib/own.sh` in one place, C7's own-checkout rule: the hook hands its existing `_own` to `felix_own_gate`, as its sibling paths do. No lane file calls into `lib/own.sh`, and nothing edits it.
 - Each new table is a new file with one new `schemas.tsv` row. No column is added to an existing table.
 - No force: nothing here blocks a merge, holds a release, comments on a pull request or writes an enforcing table. No push alert.
 - No model, key or network on any path.
@@ -106,6 +106,8 @@ Neither name joins `FELIX_ESCAPE_TABLES`: a change to either lands on green (des
     - Session start: the session's directory.
     - The pulse: only the project the Felix home's own checkout is bound to. A home that is not a git checkout, or binds no project, gets no lane line. No other project's lane is counted by the pulse, because no project records where its checkout is.
 
+- **The lane's resolution** (design §11 item 46). The project is the one `felix_resolve_project` prints for the directory. A miss stands, and the directory reads as one no project governs, only when the lane's own check of the miss finished and found no binding. The check makes every read the miss stands on again, each checked by a sentinel line: the repository root, the `.felix` marker, the origin remote's URL and each `project.json`'s `remote_match`. It then binds as `felix_resolve_project` binds: a valid marker naming a project directory, else the one longest `remote_match` that names the origin, none on a tie. A marker that exists and cannot be opened names nothing. The resolution did not finish when the check did not finish, when it found a binding, or when the resolution's own process ended with a status other than 0 and 1. C5, C6 and C8 say how each surface reads that. `felix_resolve_project`, `_felix_resolve_remote`, `felix_binding_broken` and `resolve_or_die` stay byte for byte as `main` has them, because `felix merge` and `felix land` run them (Global Constraints). A fault in the GitHub slug read that `_felix_remote_slug` makes for an `owner/repo` `remote_match` is not seen by the check, which is a stated limit: the check reads it through that function, as the resolver does, since no lane file calls into `lib/own.sh`.
+
 - **The tables** are `lanes.tsv` and `lane-next.tsv` as the Felix home has them committed: the files at `HEAD` of the git repository that holds `<PROJ>`, never the working tree (design §6.3, §11 item 19). In a home git can read, an uncommitted edit, a touched file or a deleted working file changes nothing any surface prints.
     - `HEAD` holds no such file: the table is absent. An entry there that is not a regular file (a symlink or a submodule) is refused (R4 for `lanes.tsv`), as the shape check refuses a symlink.
     - `<PROJ>` is in no git repository, or its `HEAD` names no commit, or a git read of it does not finish: when a file or link `<PROJ>/lanes.tsv` exists, every lane reads `unknown` with R9; when none exists, the table is absent. `lane-next.tsv` in the same case: every next reads `unknown` when the file exists, `none` when it does not.
@@ -160,6 +162,7 @@ felix lane [--tsv]
 - **Read-only and offline.** It writes nothing (C2) and takes no network.
 - **Arguments.** None, or exactly `--tsv`. A first argument of `--help` or `-h`, with or without anything after it, prints the general usage on stdout and exits 0, in any directory, because the dispatcher answers it before `cmd_lane` runs (`felix:6590-6592`). Anything else (`--json`, `--tsv --tsv`, `x`, `--tsv --help`) is a usage error, in any directory: nothing on stdout, `felix: usage: felix lane [--tsv]` on stderr, exit 2. Arguments are checked before the directory.
 - **Not governed.** In a directory no project governs, `felix lane` and `felix lane --tsv` exit 2 and print nothing on stdout. Their stderr's first line is exactly `felix: no project governs <dir>.`, where `<dir>` is the directory as `$PWD` names it; two more lines follow it.
+- **Resolution did not finish.** When the lane's resolution did not finish (C2), `felix lane` and `felix lane --tsv` exit 2 and print nothing on stdout. Their stderr's first line is exactly `felix: the project that governs <dir> could not be resolved: a read it stands on did not finish.`, with `<dir>` as above. It is never `felix: no project governs <dir>.`
 - **No lane.** When `lanes.tsv` is absent (C2), or present with no row, it prints nothing and exits 0.
 - **Otherwise** it prints one line per data row of `lanes.tsv`, in file order, and exits 0, whatever the states. When `lanes.tsv` gives R9, R10 or R4, it prints exactly one line, whose lane is `-`. A count that cannot finish (C3) prints nothing on stdout and exits 1.
 - **`usage()`** gains, in its "every day" block right after the `felix status` line: `    felix lane [--tsv]     read-only: each lane's share of engine landings on origin/main, against its target`. The quoted line is exact: four spaces, `felix lane [--tsv]`, five spaces, the text, which starts in column 28, as `felix which`'s does. Part 2220 asserts it byte for byte, and that it is the line right after the one holding `felix status [--tsv]`.
@@ -230,7 +233,7 @@ Example, felix-home at `e54e31f3` with the clock at that commit (design §6.6), 
 | `lanes.tsv` absent (C2), or present with no row | `lane<TAB>none<TAB>-<TAB><PROJ>/lanes.tsv has no committed row, so no lane is counted` |
 | first lane `ok`, `short`, `zero` or `idle` | `lane<TAB>value<TAB><state><TAB><L> of <T> engine landings in <W> days, target <n>/<d>` |
 | first lane `unknown` | `lane<TAB>unknown<TAB>-<TAB><the C5 reason>` |
-| the count cannot finish (C3) | `lane<TAB>unknown<TAB>-<TAB>the lane count did not finish in <repo>` |
+| the count cannot finish (C3), or the lane's resolution did not finish (C2) | `lane<TAB>unknown<TAB>-<TAB>the lane count did not finish in <repo>` |
 
 - So an unreadable ref gives `lane<TAB>unknown<TAB>-<TAB>refs/remotes/origin/main cannot be read in <repo>`: the form an unreadable status row already has (design §6.5 item 2, §11 item 18), never a calm value.
 - In a project with no `lanes.tsv`, `felix lane`, session start and the pulse print nothing, and `felix status` still prints its lane row, with state `none` (design §6.3, §6.5 item 2, §11 item 42).
@@ -259,7 +262,7 @@ Example, felix-home at `e54e31f3` with the clock at that commit (design §6.6), 
 lane<TAB><lane><TAB><state><TAB><L><TAB><T>
 ```
 
-- `<lane>` is `felix lane --tsv` column 1: the lane name, or `-` when the row's first cell is not a valid lane name. L and T are `-` when the state is `unknown`. A `lanes.tsv` that gives R9, R10 or R4, and a count that cannot finish (C3), give one line, `lane<TAB>-<TAB>unknown<TAB>-<TAB>-`.
+- `<lane>` is `felix lane --tsv` column 1: the lane name, or `-` when the row's first cell is not a valid lane name. L and T are `-` when the state is `unknown`. A `lanes.tsv` that gives R9, R10 or R4, a count that cannot finish (C3), and a resolution of the home's project that did not finish (C2), give one line, `lane<TAB>-<TAB>unknown<TAB>-<TAB>-`.
 - The lane lines are the last lines of the run: after the backup, settings, report and reach lines.
 - No lane line when the home project has no committed `lanes.tsv`, or it has no row, or the home is not a git checkout bound to a project (C2).
 - The pulse still exits 0, and writes nothing it did not write before.

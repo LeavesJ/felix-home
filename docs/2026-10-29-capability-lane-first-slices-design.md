@@ -1303,12 +1303,24 @@ is gone. *(My call.)*
     exactly `none` or `unknown` reads as that word, a limit the plan states.
     A window of one day reads `1 day`. The other findings were defects
     against rules already written, and the build fixes them.
+46. *Slice 0.* The second adversarial review found that a project
+    resolution that does not finish reads as a directory no project
+    governs. The first fixes for it changed the shared resolver, which
+    `felix merge` and `felix land` run, and the lane exclusions (§4) forbid
+    that. The resolver stays as `main` has it. The lane checks a miss
+    itself: it makes every read the miss stands on again, each checked, and
+    the miss stands only when they all finished and none binds the
+    directory. Otherwise the resolution did not finish: `felix lane` exits
+    2 and says so, the status row reads `unknown`, and the pulse prints its
+    one `unknown` line. Every other surface, `felix merge` and `felix land`
+    included, still reads such a resolution as no project. That is a limit
+    of the shared resolver, and the change for it lies outside the lane.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Items 44 and 45 came from reviews of
-slice 0's first build: a security review, then an adversarial one.
+corrected text could be read two ways. Items 44 to 46 came from reviews of
+slice 0's build: a security review, then two adversarial ones.
 
 ## 12. Not decided here, and whose
 

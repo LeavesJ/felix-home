@@ -461,10 +461,11 @@ _felix_status_alerts() {
 
 # The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
-  local home="$1" cwd="$2" root proj
+  local home="$1" cwd="$2" root proj prc
   _felix_status_need felix_repo_root resolve
   root="$(felix_repo_root "$cwd" 2>/dev/null)"
-  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)" || proj=""
+  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)"; prc=$?   # 2: it did not finish (lane row)
+  [ "$prc" -eq 0 ] || proj=""
   _felix_status_settings
   _felix_status_from3 schedule "$(felix_schedule_state)"
   _felix_status_pulse "$home"
@@ -474,18 +475,22 @@ felix_status_rows() {
   _felix_status_hooks "$proj" "$root"
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"
-  _felix_status_need felix_lane_status_row lane; felix_lane_status_row "$proj" "$root"
+  _felix_status_need felix_lane_status_row lane; felix_lane_status_row "$proj" "$root" "$prc"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the
 # value shown when there is one and the state word otherwise. No header.
 felix_status_command() {
-  local home="$1" cwd="$2" tsv="${3:-0}"
+  local home="$1" cwd="$2" tsv="${3:-0}" lrc
   if [ "$tsv" -eq 1 ]; then felix_status_rows "$home" "$cwd"; return 0; fi
   felix_status_rows "$home" "$cwd" | while IFS=$'\t' read -r row state value detail; do
     [ -n "$row" ] || continue
     [ "$state" = value ] || value="$state"
     printf '%-9s %-12s %s\n' "$row" "$value" "$detail"
   done
+  # The rows are made in the pipe's left shell, which a fork that fails ends (128) with the rows it had not
+  # printed lost: that is this command's status too, as in --tsv, where the same fork ends felix itself.
+  lrc="${PIPESTATUS[0]}"
+  [ "$lrc" -lt 128 ] || return "$lrc"
   return 0
 }

@@ -501,7 +501,8 @@ _felix_resolve_remote() {   # ROOT HOME
 }
 
 # Resolve which project governs a working directory.
-# Prints the project directory on success, prints nothing and returns 1 on miss.
+# Prints the project directory on success, prints nothing and returns 1 on miss, and 2 when a read
+# it stands on did not finish (a fork that failed): not the same fact as a miss.
 #
 # Order matters. The .felix marker wins because it is the only mechanism that works for a repo
 # with no remote, a fork, a rename, or a checkout of somebody else's code. Remote matching is
@@ -510,11 +511,15 @@ _felix_resolve_remote() {   # ROOT HOME
 felix_resolve_project() {
   local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
   local root name
-  root="$(felix_repo_root "$start")"
+  root="$(felix_repo_root "$start")" && [ -n "$root" ] || return 2
 
-  # 1. explicit marker file naming the project
+  # 1. explicit marker file naming the project. A read of it that did not finish
+  # (a fork that failed) is status 2, apart from 1, a marker that names nothing:
+  # every caller reads any non-zero as no project, and the few that need to tell
+  # a miss from a read that did not run (felix status's lane row, the pulse's lane
+  # lines) read the status.
   if [ -f "$root/.felix" ]; then
-    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")"
+    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")" || return 2
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0

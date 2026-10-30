@@ -957,8 +957,9 @@ is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkou
 _lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 LNKb="felix: The .felix marker in $LNKIC cannot be read, so it does not resolve to a project."
 # LAYOUT -> the checkout in LAYOUT, then felix lane --tsv and felix lane there; LNKa gains what was built and, per run, its
-# status, its bytes on stdout and the first line of its stderr, written "a broken binding" when it is a line of felix's
-# naming the checkout and the .felix marker that is neither LNKb, nor no project governs, nor C5's unresolved line.
+# status, its bytes on stdout and the first line of its stderr, written "a broken binding" when LAYOUT is nosuch and it
+# is a line of felix's naming the checkout and the .felix marker that is neither LNKb, nor no project governs, nor C5's
+# unresolved line.
 _lnk_v3m() {
   local o e
   _lf_bind "$LNKIC" "$LNKIH" p "$1"; LNKa="$LNKa|$1 $LF_BOUND"
@@ -967,7 +968,7 @@ _lnk_v3m() {
     e="$(LC_ALL=C awk 'NR == 1' "$LNKD/v3f5.err")"
     case "$e" in
       ("$LNKb"|"felix: no project governs $LNKIC."|"felix: the project that governs $LNKIC could not be resolved: a read it stands on did not finish.") ;;
-      ("felix: "*"$LNKIC"*) case "$e" in (*.felix*) e="a broken binding" ;; esac ;;
+      ("felix: "*"$LNKIC"*) case "$1:$e" in (nosuch:*.felix*) e="a broken binding" ;; esac ;;
     esac
     LNKa="$LNKa|$LF_RC $(wc -c < "$LNKD/v3f5.out" | tr -d ' ') $e"
   done

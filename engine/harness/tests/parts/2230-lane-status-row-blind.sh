@@ -23,6 +23,8 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   ends early (F1), after the shape check.
 # - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F1: a resolution by remote_match that
 #   does not finish, in felix status --tsv, plain felix status and felix lane --tsv.
+# - Design item 46 (2026-10-30, still blind) adds, at the end, I46-11 to I46-20: C6's last row for a resolution that did
+#   not finish, under C9's probes inside felix_resolve_project, and the none row of the misses that stand (C2).
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "
@@ -346,4 +348,86 @@ elif [ "$LF_RC" = 2 ] && [ ! -s "$LNTD/r2bf1t.out" ] && [ "$LNTc" != "felix: no 
 fi
 is "lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: the same fault in felix lane --tsv in that checkout: nothing on stdout and C3's the lane count did not finish in <repo> with exit 1, or exit 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exit 128; or the two lines it prints without the fault" \
    "$LNTMA|unfaulted $LNTb|$LF_FIRE|$LNTa" "built|unfaulted 0|$LNTML|fired|unfinished, or the lines"
+
+# ---- design item 46: the status row of a resolution that did not finish, and of the misses that stand ---------------------
+# Added on 2026-10-30 from design 11 item 46 (C2's bullet The lane's resolution, C6's last row), still blind, last, after
+# the shape check, whose count of runs stands. A home-apart fixture of its own (_lf_r2: LNTI/home holds p, remote_match
+# o/r; LNTI/c its checkout), whose checkout _lf_bind puts in a layout; bound by its .felix alone (felix) or by
+# remote_match alone (remote), the lane row is the value zero 0 of 2. Readings:
+# - I46-11 to I46-14: C9's fork and kill probes (_lf_probe) every time a read the miss stands on is made inside
+#   felix_resolve_project (felix: tr -d [:space:], the read of the marker; remote: git remote get-url origin): felix status
+#   --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo>. Only where a
+#   probe reached felix itself (LF_SELF) may it end with 137 (kill, C9) or 128 (fork, C3) and print no lane row.
+# - I46-15 to I46-20, no fault: in the layouts none, other, tie, nosuch, empty and closed the miss stands, and the last of
+#   ten rows is lane none - this directory is not a governed checkout; each first runs a layout that binds, so it is red
+#   on main, which prints no lane row.
+LNTIA="not built: item 46's fixture"; LNTIT="$LNTD/i46-tmp"
+_lf_r2 "$LNTD/i46" p "$LNTN" && LNTIA=built
+LNTIH="$LF_HOME"; LNTIC="$LF_REPO"
+LNTIV="$(_lf_tsv lane value zero '0 of 2 engine landings in 14 days, target 1/2')"
+LNTIU="$(_lf_tsv lane unknown - "the lane count did not finish in $LNTIC")"
+_lf_use "$LNTIH" "$LNTD/memory" "$LNTD/user" "$LNTB"
+# OUT -> the rows of felix status --tsv's OUT.out, a space after each.
+_lnt_rows() { LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$1.out" 2>/dev/null; }
+# LAYOUT MODE NAME WORDS -> the checkout in LAYOUT; felix status --tsv there; then felix status --tsv under _lf_probe MODE
+# NAME WORDS, felix_resolve_project on the stack, with a fresh TMPDIR. LNTa what was built and the unfaulted lane row,
+# LNTb the probe's LF_FIRE and "did not finish" when the run ended as the readings above say, else its status and rows.
+_lnt_i46f() {
+  local r l
+  _lf_bind "$LNTIC" "$LNTIH" p "$1"; LNTa="$LNTIA|$LF_BOUND"
+  _lf_run "$LNTD/i46-0" "$LNTIC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTa|unfaulted $LF_RC|$(_lf_last "$LNTD/i46-0.out")"
+  rm -rf "$LNTIT"; mkdir -p "$LNTIT"
+  _lf_probe "$2" "$3" "$4" "*' felix_resolve_project '*" "$LNTD/i46f.fired" "$LNTIT" _lf_run "$LNTD/i46f" "$LNTIC" "$LNTN" "$FELIX" status --tsv
+  r="$(_lnt_rows "$LNTD/i46f")"; l="$(_lf_last "$LNTD/i46f.out")"
+  LNTb="$LF_FIRE|status $LF_RC, rows [$r], last [$l]"
+  if [ "$LF_RC|$r|$l" = "0|$LNTTEN|$LNTIU" ]; then LNTb="$LF_FIRE|did not finish"
+  elif [ "$LF_SELF" = self ] && [ -z "$(LC_ALL=C awk -F'\t' '$1 == "lane"' "$LNTD/i46f.out")" ]; then
+    case "$2:$LF_RC" in (kill:137|fork:128) LNTb="$LF_FIRE|did not finish" ;; esac
+  fi
+}
+LNTa5='felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo>'
+_lnt_i46f felix fork tr "*' -d [:space:] '*"
+is "I46-11 lane status row, in a checkout its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): $LNTa5 (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the row is the value zero" \
+   "$LNTa|$LNTb" "built|built|unfaulted 0|$LNTIV|fired|did not finish"
+_lnt_i46f felix kill tr "*' -d [:space:] '*"
+is "I46-12 lane status row, in a checkout its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): $LNTa5 (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the row is the value zero" \
+   "$LNTa|$LNTb" "built|built|unfaulted 0|$LNTIV|fired|did not finish"
+_lnt_i46f remote fork git "*' remote get-url origin '*"
+is "I46-13 lane status row, in a checkout remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: $LNTa5 (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the row is the value zero" \
+   "$LNTa|$LNTb" "built|built|unfaulted 0|$LNTIV|fired|did not finish"
+_lnt_i46f remote kill git "*' remote get-url origin '*"
+is "I46-14 lane status row, in a checkout remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: $LNTa5 (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the row is the value zero" \
+   "$LNTa|$LNTb" "built|built|unfaulted 0|$LNTIV|fired|did not finish"
+
+# MISS BIND -> the checkout in BIND and felix status --tsv there, then in MISS and felix status --tsv there. LNTa what
+# was built and BIND's lane row, LNTb MISS's status, rows and last row.
+_lnt_i46m() {
+  _lf_bind "$LNTIC" "$LNTIH" p "$2"; LNTa="$LNTIA|$2 $LF_BOUND"
+  _lf_run "$LNTD/i46b" "$LNTIC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTa|$LF_RC|$(_lf_last "$LNTD/i46b.out")"
+  _lf_bind "$LNTIC" "$LNTIH" p "$1"; LNTa="$LNTa|$1 $LF_BOUND"
+  _lf_run "$LNTD/i46m" "$LNTIC" "$LNTN" "$FELIX" status --tsv; LNTb="$LF_RC|$(_lnt_rows "$LNTD/i46m")|$(_lf_last "$LNTD/i46m.out")"
+}
+LNTa5='the last of felix status --tsv'"'"'s ten rows is lane none - this directory is not a governed checkout, never unknown'
+_lnt_i46m none felix
+is "I46-15 lane status row, a miss that stands: in a checkout with no .felix and no origin remote, $LNTa5; with its .felix naming p the row is the value zero" \
+   "$LNTa|$LNTb" "built|felix built|0|$LNTIV|none built|0|$LNTTEN|$LNTUNG"
+_lnt_i46m other remote
+is "I46-16 lane status row, a miss that stands: in a checkout whose origin no project's remote_match names, $LNTa5; with an origin p's remote_match names the row is the value zero" \
+   "$LNTa|$LNTb" "built|remote built|0|$LNTIV|other built|0|$LNTTEN|$LNTUNG"
+_lnt_i46m tie remote
+is "I46-17 lane status row, a miss that stands: in a checkout whose origin two projects' remote_match name equally, a tie, $LNTa5; with p's alone naming it the row is the value zero" \
+   "$LNTa|$LNTb" "built|remote built|0|$LNTIV|tie built|0|$LNTTEN|$LNTUNG"
+_lnt_i46m nosuch felix
+is "I46-18 lane status row, a miss that stands: in a checkout whose .felix names no project, $LNTa5; with its .felix naming p the row is the value zero" \
+   "$LNTa|$LNTb" "built|felix built|0|$LNTIV|nosuch built|0|$LNTTEN|$LNTUNG"
+_lnt_i46m empty felix
+is "I46-19 lane status row, a miss that stands: in a checkout whose .felix is empty, $LNTa5; with its .felix naming p the row is the value zero" \
+   "$LNTa|$LNTb" "built|felix built|0|$LNTIV|empty built|0|$LNTTEN|$LNTUNG"
+LNTa6="I46-20 lane status row, a miss that stands: in a checkout whose .felix exists and cannot be opened (mode 000), $LNTa5; with its .felix naming p the row is the value zero"
+if [ "$(id -u)" = 0 ]; then skip "$LNTa6" "the suite runs as root, which opens a .felix of mode 000"
+else
+  _lnt_i46m closed felix
+  is "$LNTa6" "$LNTa|$LNTb" "built|felix built|0|$LNTIV|closed built|0|$LNTTEN|$LNTUNG"
+fi
+_lf_bind "$LNTIC" "$LNTIH" p felix
 # <<< lane-status-row

@@ -475,17 +475,23 @@ _felix_remote_match() {   # M U S
 
 # The project the origin remote of ROOT binds, among those of HOME. Returns 0
 # and sets _FELIX_RB_P (a project name), 1 when none matches, 2 when several
-# match equally and _FELIX_RB_TIE holds their names. _FELIX_RB_U is the origin
+# match equally and _FELIX_RB_TIE holds their names, and 3 when a read it stands on did
+# not finish (a fork that failed): not a miss, which is 1. _FELIX_RB_U is the origin
 # URL; it is never printed or written, as an https remote can carry a token.
+# A fork that fails in a substitution ends that shell (128) before the sentinel line
+# it ends with is printed, which its status cannot tell from git's own 128 (a
+# directory outside git); the same sentinel as felix_capture's, with git's status free.
 _felix_resolve_remote() {   # ROOT HOME
-  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 LC_ALL=C
+  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 nl=$'\n' LC_ALL=C
   _FELIX_RB_P=""; _FELIX_RB_TIE=""
-  _FELIX_RB_U="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null)" || _FELIX_RB_U=""
+  _FELIX_RB_U="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null; printf '\n.')"
+  case "$_FELIX_RB_U" in *"$nl.") _FELIX_RB_U="${_FELIX_RB_U%"$nl."}"; _FELIX_RB_U="${_FELIX_RB_U%"$nl"}" ;; *) _FELIX_RB_U=""; return 3 ;; esac
   [ -n "$_FELIX_RB_U" ] || return 1
   _felix_lc "$_FELIX_RB_U"; ul="$_FELIX_LC"
   for meta in "$felix_root"/projects/*/project.json; do
     [ -e "$meta" ] || continue
-    m="$(felix_json_str "$meta" remote_match)"
+    m="$(felix_json_str "$meta" remote_match; printf '\n.')"
+    case "$m" in *"$nl.") m="${m%"$nl."}"; m="${m%"$nl"}" ;; *) return 3 ;; esac
     [ -n "$m" ] || continue
     # Any match has M without a trailing / and .git, lowercased, inside U: look before the slug costs.
     m2="${m%/}"; _felix_lc "${m2%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
@@ -502,7 +508,8 @@ _felix_resolve_remote() {   # ROOT HOME
 
 # Resolve which project governs a working directory.
 # Prints the project directory on success, prints nothing and returns 1 on miss, and 2 when a read
-# it stands on did not finish (a fork that failed): not the same fact as a miss.
+# it stands on did not finish (a fork that failed): not the same fact as a miss. A marker that exists
+# and cannot be opened names nothing, which is a miss, not a read that did not finish.
 #
 # Order matters. The .felix marker wins because it is the only mechanism that works for a repo
 # with no remote, a fork, a rename, or a checkout of somebody else's code. Remote matching is
@@ -517,8 +524,9 @@ felix_resolve_project() {
   # (a fork that failed) is status 2, apart from 1, a marker that names nothing:
   # every caller reads any non-zero as no project, and the few that need to tell
   # a miss from a read that did not run (felix status's lane row, the pulse's lane
-  # lines) read the status.
+  # lines, resolve_or_die) read the status.
   if [ -f "$root/.felix" ]; then
+    [ -r "$root/.felix" ] || return 1
     name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")" || return 2
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
@@ -528,7 +536,7 @@ felix_resolve_project() {
   fi
 
   # 2. the origin remote, against the remote_match each project declares
-  _felix_resolve_remote "$root" "$felix_root" || return 1
+  _felix_resolve_remote "$root" "$felix_root" || { [ $? -ne 3 ] || return 2; return 1; }
   printf '%s' "$felix_root/projects/$_FELIX_RB_P"
   return 0
 }
@@ -748,7 +756,9 @@ felix_binding_broken() {
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
   known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"
-  if [ -z "$name" ]; then
+  if [ -z "$name" ] && [ ! -r "$root/.felix" ]; then
+    printf 'The .felix marker in %s cannot be read, so it does not resolve to a project. ' "$root"
+  elif [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
   elif ! _felix_name_ok "$name"; then
     printf 'The .felix marker in %s names "%s", which is not a project name: a name is one directory name under %s, and this is a path or a dot. ' \

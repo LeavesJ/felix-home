@@ -509,9 +509,12 @@ USAGE
 # repair ceiling, and the unattended template escalated an unresolvable checkout
 # to a person as a spent ceiling.
 resolve_or_die() {
-  local rc="${1:-2}"
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+  local rc="${1:-2}" prc=0
+  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || { prc=$?; PROJ=""; }
   [ -n "$PROJ" ] && return 0
+  # A read the resolution stands on that did not finish (a fork that failed) is not a directory no project governs,
+  # and says nothing of whether a binding is broken.
+  [ "$prc" -ne 2 ] || die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "$rc"
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of

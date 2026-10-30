@@ -150,10 +150,15 @@ felix_deny_subject() {
 # the fields of $0, and each piece is printed with print and an empty OFS.
 # match, index, substr and field splitting on one character are linear, and
 # field splitting, unlike split(), keeps a line break inside its field while
-# RS is set. The records are split on \001, which felix_deny_subject has
-# turned away before this runs, so the payload is always one record: joining
-# many would be quadratic too. The program holds no single quote, since it is
-# a bash single-quoted string.
+# RS is set. The value goes into $0 32K at a time, since mawk before
+# 1.3.4-20140914 (Debian 10's) dies past 32,767 fields, and an awk that dies
+# allows. Every quote in the value has its backslash before it, so a chunk
+# never starts on a quote: one that would is taken into the chunk before. BWK
+# substr takes the length of the whole value, so each chunk costs that too,
+# 2% of the reading at 2.1M and 8% at 8.4M. The records are split on \001,
+# which felix_deny_subject has turned away before this runs, so the payload
+# is always one record: joining many would be quadratic too. The program
+# holds no single quote, since it is a bash single-quoted string.
 _FELIX_DENY_SUBJECT_AWK='
   BEGIN { RS = "\001"; FS = "\""; OFS = ORS = "" }
   { s = (NR > 1) ? s RS $0 : $0 }
@@ -164,9 +169,14 @@ _FELIX_DENY_SUBJECT_AWK='
     if ((q = index(s, "\"")) > 0) s = substr(s, q + 1)
     if (substr(s, 1, 1) == "\"") exit
     if (match(s, /[^\\]"/)) s = substr(s, 1, RSTART)
-    $0 = s
-    for (j = 1; j < NF; j++) print substr($j, 1, length($j) - 1), "\""
-    if (NF) print $NF
+    n = length(s)
+    for (p = 1; p <= n; p += c) {
+      c = 32768
+      if (substr(s, p + c, 1) == "\"") c++
+      $0 = substr(s, p, c)
+      for (j = 1; j < NF; j++) print substr($j, 1, length($j) - 1), "\""
+      if (NF) print $NF
+    }
   }'
 
 # Whether a pattern is too broad to be a rule.

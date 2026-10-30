@@ -534,10 +534,11 @@ _lf_r3() {
 # -> the bash program of R3-F1's fault, for /bin/bash -c PROGRAM N CMD...: it closes every descriptor from 3 to 63 it
 # inherited, so that CMD starts with 0, 1 and 2 alone whatever the suite holds open, sets the soft open-file limit to N
 # (ulimit -S -n N; status 124 when it cannot), writes "limit <the soft limit it reads back>" to stderr, and execs CMD.
-# Given as _lf_run's CMD it is the shell that execs felix: _lf_run OUT DIR NOW TMPDIR=T /bin/bash -c "$(_lf_nfprog)" N
-# "$FELIX" lane --tsv.
+# The line is written by an external printf (env printf): a builtin's redirection needs bash to save the descriptor at
+# 10 or above, which a limit of 10 or less refuses, leaving stdout on stderr. Given as _lf_run's CMD it is the shell that
+# execs felix: _lf_run OUT DIR NOW TMPDIR=T /bin/bash -c "$(_lf_nfprog)" N "$FELIX" lane --tsv.
 _lf_nfprog() {
-  printf '%s' 'i=3; while [ "$i" -lt 64 ]; do eval "exec $i>&-"; i=$((i + 1)); done; ulimit -S -n "$0" || exit 124; printf "limit %s\n" "$(ulimit -S -n)" >&2; exec "$@"'
+  printf '%s' 'i=3; while [ "$i" -lt 64 ]; do eval "exec $i>&-"; i=$((i + 1)); done; ulimit -S -n "$0" || exit 124; env printf "limit %s\n" "$(ulimit -S -n)" >&2; exec "$@"'
 }
 
 # DIR N T -> an engine root at DIR (made when missing) whose harness/hooks/session-start is a bash script that exports

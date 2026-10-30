@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# PostToolUse: one alive line, then one append per tool call, and nothing else.
+# PostToolUse: one alive line, then one append per tool call; in a session that
+# was handed an answer, also a row for each file it named that the call reached.
 #
 # This runs after every tool call in every governed session, so its cost is the
 # design constraint rather than an afterthought. It deliberately does not

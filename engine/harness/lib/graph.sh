@@ -23,12 +23,15 @@
 FELIX_GRAPH_TAIL="${FELIX_GRAPH_TAIL:-4096}"
 
 # felix_graph_deliver records in the ledger. Sourced by path with the house
-# guard, because the suite sources libraries alone, in subshells.
+# guard, because the suite sources libraries alone, in subshells. The
+# directory by expansion, not dirname: this loads on every prompt.
+_FELIX_GRAPH_LIB="${BASH_SOURCE[0]:-$0}"
+case "$_FELIX_GRAPH_LIB" in */*) _FELIX_GRAPH_LIB="${_FELIX_GRAPH_LIB%/*}" ;; *) _FELIX_GRAPH_LIB=. ;; esac
 if ! command -v felix_ledger_record >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/ledger.sh"
+  . "$_FELIX_GRAPH_LIB/ledger.sh"
 fi
 if ! command -v _felix_answer_sid_ok >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/answer.sh"
+  . "$_FELIX_GRAPH_LIB/answer.sh"
 fi
 
 # The graph belongs to the checkout that holds it, not to the tree you are
@@ -132,7 +135,8 @@ felix_graph_line() {
 # file is not. Same shape as the discovery refresh, for the same reason, and a
 # lock older than 30 minutes is broken as there: an update killed by SIGKILL or a
 # power loss never runs its trap, and the graph would otherwise never refresh
-# again (audit b06, C043). The update leaves no record.
+# again (audit b06, C043). The update's one record is the marker written below
+# when it succeeds.
 felix_graph_refresh_bg() {
   local root="${1:-$PWD}" home lock
   command -v graphify >/dev/null 2>&1 || return 0
@@ -262,11 +266,12 @@ felix_graph_prompt() {
 
 # Ask graphify about <prompt>: spec A1 steps 1-5. Prints graphify's output.
 #   1    not asked: switched off, no graph, no graphify or perl, too few words
+#   4    not asked: under a second was left of the calling hook's deadline
 #   0    asked, and graphify printed something
 #   142  asked, and the bound killed it at the deadline
 #   3    asked, and graphify failed or printed nothing
 _felix_graph_ask() {
-  local root="${1:-$PWD}" prompt="${2:-}" f q words out rc tab=$'\t'
+  local root="${1:-$PWD}" prompt="${2:-}" f q words out rc t left tab=$'\t'
   felix_graph_ready "$root" || return 1
   f="$(felix_graph_file "$root")" || return 1
   # Whitespace, real or JSON-escaped, is one space; then the first 400
@@ -288,7 +293,21 @@ _felix_graph_ask() {
     }')"
   words="${q%%"$tab"*}"; q="${q#*"$tab"}"
   [ "${words:-0}" -ge "${FELIX_GRAPH_MIN_WORDS:-5}" ] 2>/dev/null || return 1
-  out="$(_felix_graph_bounded "${FELIX_GRAPH_TIMEOUT:-4}" \
+  # The bound is FELIX_GRAPH_TIMEOUT seconds, 4 unless a whole number above 0,
+  # and never more than FELIX_GRAPH_LEFT, the whole seconds a calling hook says
+  # it has left before the platform ends it (spec U4). With under one left, or
+  # a value that is not a whole number, the ask is not made: a hook the
+  # platform ends prints nothing, and the route and lessons go with the answer.
+  t="${FELIX_GRAPH_TIMEOUT:-4}"
+  case "$t" in *[!0123456789]*|??????????*) t=4 ;; esac
+  t=$((10#$t)); [ "$t" -gt 0 ] || t=4
+  left="${FELIX_GRAPH_LEFT:-}"
+  if [ -n "$left" ]; then
+    case "$left" in *[!0123456789]*) return 4 ;; ??????????*) left=999999999 ;; esac
+    left=$((10#$left)); [ "$left" -ge 1 ] || return 4
+    [ "$left" -lt "$t" ] && t="$left"
+  fi
+  out="$(_felix_graph_bounded "$t" \
            graphify query "$q" --budget "${FELIX_GRAPH_BUDGET:-600}" --graph "$f" 2>/dev/null)"
   rc=$?
   [ "$rc" = 142 ] && return 142
@@ -425,12 +444,14 @@ felix_graph_deliver() {
   [ "$rc" = 1 ] && return 1
   dir="$home/state/answer"; state="$dir/$session.tsv"
   mkdir -p "$dir" 2>/dev/null
-  # Every ask is written down, answered or not. Under load graphify reaches the
-  # bound and the prompt is told nothing, and a record of deliveries alone could
-  # not say how many asks that was. Silenced outside the group: a redirection
-  # that fails reports on the stderr in force before it.
+  # Every ask is written down, answered or not, and so is one the hook had too
+  # little time left to make. Under load graphify reaches the bound and the
+  # prompt is told nothing, and a record of deliveries alone could not say how
+  # many asks that was. Silenced outside the group: a redirection that fails
+  # reports on the stderr in force before it.
   case "$rc" in
     142) { printf 'asked\tgraphify\ttimeout\n' >> "$state"; } 2>/dev/null; return 1 ;;
+    4)   { printf 'asked\tgraphify\tlate\n' >> "$state"; } 2>/dev/null; return 1 ;;
     0)   ;;
     *)   { printf 'asked\tgraphify\tfailed\n' >> "$state"; } 2>/dev/null; return 1 ;;
   esac

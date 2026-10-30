@@ -474,6 +474,21 @@ felix_ledger_alive() {
   { printf 'alive\tpost-tool\n' >> "$d/$2.tsv"; } 2>/dev/null || true
 }
 
+# 0 when a session's appends are whole, so that what they lack was not done.
+# PostToolUse leaves an `alive` line before it looks for a call, so more alive
+# lines than call lines, or neither, means a run recorded nothing. A record
+# with calls and no more alive lines than calls is whole, which includes every
+# state written before the alive line existed. When the count cannot be read
+# the record is not known to be whole. A `named` or an `answer` row is the
+# user-prompt hook's, not a call, so it is no sign that a PostToolUse run
+# recorded anything, and counted as one it would hide a run that did not. The
+# fold's zero rows and the answers' measure (lib/answer.sh) both ask this.
+_felix_ledger_whole() {   # state file
+  [ "$(LC_ALL=C awk -F'\t' '$1 == "alive" { a++; next }
+                            $1 != "named" && $1 != "answer" && $2 != "" { c++ }
+                            END { r = 0; if (a > c || (a + 0 == 0 && c + 0 == 0)) r = 1; print r }' "$1" 2>/dev/null)" = 0 ]
+}
+
 # Fold one session's appends into the committed ledger, once.
 #
 # Rewritten rather than appended to, so rolling the same session twice cannot
@@ -503,20 +518,11 @@ felix_ledger_rollup() {
   # and unsuffixed so the reader's *.tsv glob cannot see it in flight.
   local tmp; tmp="$(mktemp "$dir/.${session}.XXXXXX")" || return 0
 
-  # What a zero row says. PostToolUse leaves an `alive` line before it looks for
-  # a call, so more alive lines than call lines, or neither, means a run
-  # recorded nothing: a play named and "never reached" may have been reached,
-  # and the fold writes `-` (unknown) where it would write a measured 0. A
-  # record with calls and no more alive lines than calls is whole, which
-  # includes every state written before the alive line existed. When the count
-  # cannot be read the record is not known to be whole. An `answer` row is the
-  # user-prompt hook's, not a call, so it is no sign that a PostToolUse run
-  # recorded anything, and counted as one it would hide a run that did not.
-  local zero
-  zero="$(LC_ALL=C awk -F'\t' '$1 == "alive" { a++; next }
-                               $1 != "named" && $1 != "answer" && $2 != "" { c++ }
-                               END { r = 0; if (a > c || (a + 0 == 0 && c + 0 == 0)) r = 1; print r }' "$state" 2>/dev/null)"
-  case "$zero" in 0) zero=0 ;; *) zero="-" ;; esac
+  # What a zero row says: a measured 0 only when the record is whole
+  # (_felix_ledger_whole). Otherwise a play named and "never reached" may have
+  # been reached, and the fold writes `-` (unknown) where it would write 0.
+  local zero=0
+  _felix_ledger_whole "$state" || zero="-"
 
   # `named` rows are the policy's decision, not a call. They are folded into the
   # sixth column of whatever they name rather than being rows of their own.
@@ -818,6 +824,9 @@ felix_ledger_catchup() {
 # their rows fold through felix_ledger_rollup above. Kept in their own file.
 # A failure to load it must not fail this file's own load: the hooks source
 # this with `|| exit 0`, and the ledger is worth more than the answers' half.
+# The directory by expansion, not dirname: this loads after every tool call.
 if ! command -v felix_answer_use >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/answer.sh" 2>/dev/null || true
+  _FELIX_LEDGER_LIB="${BASH_SOURCE[0]:-$0}"
+  case "$_FELIX_LEDGER_LIB" in */*) _FELIX_LEDGER_LIB="${_FELIX_LEDGER_LIB%/*}" ;; *) _FELIX_LEDGER_LIB=. ;; esac
+  . "$_FELIX_LEDGER_LIB/answer.sh" 2>/dev/null || true
 fi

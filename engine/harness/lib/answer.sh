@@ -165,7 +165,14 @@ felix_ledger_answers() {
 # Whether the sessions went where the answers pointed, per tool with an asked
 # or a given row, spec L4:
 #   tool sessions sessions_acted deliveries deliveries_acted files files_acted
-#   files_opened asked timeouts
+#   files_opened asked timeouts late unknown
+#
+# asked counts the asks made, and timeouts those the bound ended; late counts
+# the prompts on which the hook had too little time left to ask (lib/graph.sh).
+# unknown counts the sessions left out of every other column, because their
+# PostToolUse record is not whole by the test the fold uses for its zero rows
+# (lib/ledger.sh, _felix_ledger_whole): a run that recorded nothing may have
+# reached a file an answer named, and a touch missed reads as an answer unused.
 #
 # A touch credits only the answer rows of its own turn, after the record's last
 # prompt row before it. A touch row the post-tool hook wrote names the file it
@@ -189,20 +196,34 @@ felix_answer_use() {
     [ -f "$f" ] || continue
     session="${f##*/}"; session="${session%.tsv}"
     _felix_ledger_owns "$home" "$root" "$session" || continue
-    owned+=("$f")
+    if _felix_ledger_whole "$home/state/ledger/$session.tsv"; then owned+=(u=0 "$f"); else owned+=(u=1 "$f"); fi
   done
   [ "${#owned[@]}" -gt 0 ] || return 0
   # One record at a time, read whole before it is counted: its root rows
-  # anchor every touch in it, wherever they sit.
+  # anchor every touch in it, wherever they sit. The u= before each record says
+  # whether it is left out; awk has already read the next one's by the time
+  # the record before it is counted, so it is kept per record, in cu.
   LC_ALL=C awk -F'\t' "$_felix_answer_hit_awk"'
-    function run(   i, j, k, t, x, n, w, cur, dn, sg, sa, named) {
+    function run(   i, j, k, t, x, n, w, cur, dn, sg, sa, named, st) {
+      if (cu) {
+        for (i = 1; i <= rn; i++) {
+          split("", x); k = split(r[i], x, "\t")
+          if ((x[1] == "asked" || x[1] == "given") && x[2] != "") st[x[2]] = 1
+        }
+        for (t in st) { tools[t] = 1; unknown[t]++ }
+        rn = 0; return
+      }
       nr = 0; split("", roots)
       for (i = 1; i <= rn; i++) { k = split(r[i], x, "\t"); if (x[1] == "root" && k >= 2 && x[2] != "") roots[++nr] = x[2] }
       n = 0; w = 1; cur = 0; dn = 0
       for (i = 1; i <= rn; i++) {
         split("", x); k = split(r[i], x, "\t")
         if (x[1] == "prompt") { w = n + 1; cur = 0 }
-        else if (x[1] == "asked" && x[2] != "") { tools[x[2]] = 1; asked[x[2]]++; if (x[3] == "timeout") timeouts[x[2]]++ }
+        else if (x[1] == "asked" && x[2] != "") {
+          tools[x[2]] = 1
+          if (x[3] == "late") late[x[2]]++
+          else { asked[x[2]]++; if (x[3] == "timeout") timeouts[x[2]]++ }
+        }
         else if (x[1] == "given" && x[2] != "") {
           tools[x[2]] = 1; deliveries[x[2]]++; sg[x[2]] = 1
           dt[++dn] = x[2]; dacted[dn] = 0; cur = dn
@@ -227,13 +248,13 @@ felix_answer_use() {
       for (t in sg) { sessions[t]++; if (t in sa) sessions_acted[t]++ }
       rn = 0
     }
-    FNR == 1 && NR > 1 { run() }
+    FNR == 1 { if (NR > 1) run(); cu = u }
     { r[++rn] = $0 }
     END {
-      run()
+      if (NR > 0) run()
       for (t in tools)
-        printf "%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", t, sessions[t], sessions_acted[t],
+        printf "%s\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\t%d\n", t, sessions[t], sessions_acted[t],
                deliveries[t], deliveries_acted[t], files[t], files_acted[t], files_opened[t],
-               asked[t], timeouts[t]
+               asked[t], timeouts[t], late[t], unknown[t]
     }' "${owned[@]}" | LC_ALL=C sort
 }

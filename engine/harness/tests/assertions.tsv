@@ -11302,6 +11302,7 @@
 1	no plugin cache at all is not where this applies either
 1	no probe row is refused for a when, a probe or a witness ending in a final filter
 1	no project script names a fixed path under /tmp outside its comments
+1	no project script pipes into a grep that can stop reading early
 1	no pulse line carries a query string: ?
 1	no pulse line carries a query string: REDACTED
 1	no pulse line carries a query string: SECRET

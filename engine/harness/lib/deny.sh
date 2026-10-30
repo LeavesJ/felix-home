@@ -141,15 +141,21 @@ felix_deny_subject() {
 #
 # Linear in BWK awk, mawk and gawk. It uses no gsub and no split on a regex,
 # since in BWK awk, which macOS ships, both cost the length times the number
-# of matches: a gsub of 70,000 escaped quotes in 1M took 12 s. match, index,
-# substr and a split on one character are linear. BWK awk splits on a line
-# break as well when the separator is one character, so the value is split
-# into lines first and each line on its quotes. The records are split on
-# \001, which felix_deny_subject has turned away before this runs, so the
-# payload is always one record: joining many would be quadratic too. The
-# program holds no single quote, since it is a bash single-quoted string.
+# of matches: a gsub of 70,000 escaped quotes in 1M took 12 s. Nor does it
+# subscript an array, call printf or join two strings once per escaped quote,
+# since BWK awk allocates a buffer the size of the record for each of those.
+# On macOS 27 a buffer past about 1M goes back to the system when it is freed
+# and is faulted in again on the next, and 2.1M of escaped quotes took 9 s of
+# CPU to read (2026-10-30, part 0631). So the value is split on its quotes as
+# the fields of $0, and each piece is printed with print and an empty OFS.
+# match, index, substr and field splitting on one character are linear, and
+# field splitting, unlike split(), keeps a line break inside its field while
+# RS is set. The records are split on \001, which felix_deny_subject has
+# turned away before this runs, so the payload is always one record: joining
+# many would be quadratic too. The program holds no single quote, since it is
+# a bash single-quoted string.
 _FELIX_DENY_SUBJECT_AWK='
-  BEGIN { RS = "\001" }
+  BEGIN { RS = "\001"; FS = "\""; OFS = ORS = "" }
   { s = (NR > 1) ? s RS $0 : $0 }
   END {
     k = index(s, "\"" f "\"")
@@ -158,13 +164,9 @@ _FELIX_DENY_SUBJECT_AWK='
     if ((q = index(s, "\"")) > 0) s = substr(s, q + 1)
     if (substr(s, 1, 1) == "\"") exit
     if (match(s, /[^\\]"/)) s = substr(s, 1, RSTART)
-    nl = split(s, L, "\n")
-    for (i = 1; i <= nl; i++) {
-      if (i > 1) printf "\n"
-      np = split(L[i], P, "\"")
-      for (j = 1; j < np; j++) printf "%s\"", substr(P[j], 1, length(P[j]) - 1)
-      if (np) printf "%s", P[np]
-    }
+    $0 = s
+    for (j = 1; j < NF; j++) print substr($j, 1, length($j) - 1), "\""
+    if (NF) print $NF
   }'
 
 # Whether a pattern is too broad to be a rule.

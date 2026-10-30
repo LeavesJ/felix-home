@@ -31,7 +31,7 @@ _LANE_TAB=$'\t'
 # not 0 and reads as unknown, where felix itself would have ended (C3). And the repository is the one -C names, not the
 # one the caller's GIT_DIR, GIT_WORK_TREE, GIT_OBJECT_DIRECTORY and their kin name (C2).
 _lane_git() {
-  ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_PREFIX GIT_CEILING_DIRECTORIES
+  ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_PREFIX
     GIT_NO_LAZY_FETCH=1; export GIT_NO_LAZY_FETCH
     git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@" )
 }

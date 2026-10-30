@@ -471,6 +471,136 @@ is "lane command: with lanes.tsv deleted from the home's working tree and still 
    "$LNKBUILT|$LF_RC|$(cat "$LNKD/gone.out")" "built|0|$LNKLINE"
 printf '%s' "$LNKLANES" > "$LNKP/lanes.tsv"; printf '%s' "$LNKNEXTS" > "$LNKP/lane-next.tsv"
 
+# ---- the second review's round 1: next, dates, an old git's partial home, a log encoding, a closed stdout ------------
+# Added on 2026-10-30 from the second review's findings (their inputs and observed output only), still blind, in the
+# review's home-apart fixture (_lf_r2, the clock at LNKN): cap reads zero, L 0 of T 2, sec short, L 1 of T 3. R2-F5 and
+# R2-F6 are the review's fork probes (_lf_fork): at the read of a lane's next text (awk, its words holding lane=cap,
+# _lane_next on the stack) and at each formatting of a date (date, its words holding -r, _lane_iso on the stack), the
+# names being inputs of the findings, not read from the engine. Each assertion also compares the command without the
+# fault or the setting, so it is red on main, which prints no lane. Readings:
+# - R2-F5: column 9 is the next text or unknown (C5), and C3 makes every next unknown when a read of lane-next.tsv does
+#   not finish, so sec's may read unknown too; every other column stands, and the human line is built from the columns.
+# - R2-F6: a printed line keeps column 12, the ref's date (C5 fills columns 10 to 12 on every line); column 7 may read
+#   unknown, columns 10 and 11 unknown and -, a line may read unknown with a reason, or the run may end as C3's count
+#   that did not finish; never none for a lane landing that exists, an empty column, or - for a readable ref.
+# - R2-F8: C3's git before 2.44, with the home a partial clone whose HEAD's lanes.tsv blob was never fetched: nothing
+#   is fetched, and the table reads R9 (C2), as the review accepts.
+# - R2-F10: i18n.logOutputEncoding or i18n.commitEncoding UTF-16, in the caller's ~/.gitconfig or as git -c, changes no
+#   byte: the ref is a readable commit, so R1 (C5) is never its reading.
+# - R2-F12: with its stdout closed felix lane --tsv cannot print its lines, and exit 0 says it printed them (C5); a
+#   status from 1 to 124 is one felix sets, not 0 and not the shell's 125 to 127.
+LNKRT="$LNKD/r2-tmp"; mkdir -p "$LNKRT"; LNKRA="not built: the second review's fixture"
+_lf_r2 "$LNKD/r2" p "$LNKN" && LNKRA=built
+LNKRC="$LF_REPO"; LNKRL="$LF_R2"; LNKRCAP="$LF_R2A"; LNKRCAPU="$LF_R2AU"; LNKRSEC="$LF_R2B"; LNKRSECU="$LF_R2BU"
+LNKRV="$(_lf_tsv lane value zero '0 of 2 engine landings in 14 days, target 1/2')"
+_lf_use "$LF_HOME" "$LNKD/memory" "$LNKD/user" "$LNKB"
+# LINE... -> the human form of felix lane (C5) built from each TSV line, a newline after each.
+_lnk_human() {
+  printf '%s\n' "$@" | LC_ALL=C awk -F'\t' '{ c = ""
+    if ($10 == "unknown") c = "; its lanes.tsv row" sprintf("%c", 39) "s last change cannot be read"
+    else if ($10 != "-") c = "; its lanes.tsv row last changed by " substr($10, 1, 12) " at " $11
+    if ($2 == "unknown") { printf "%s: unknown, %s%s; refs/remotes/origin/main at %s\n", $1, $13, c, $12; next }
+    printf "%s: %s, %s of %s engine landings in %s %s, target %s; last lane landing %s; mark %s; next: %s%s; refs/remotes/origin/main at %s\n", $1, $2, $3, $4, $5, ($5 == "1" ? "day" : "days"), $6, $7, $8, $9, c, $12 }'
+}
+_lf_run "$LNKD/r2-t0" "$LNKRC" "$LNKN" "$FELIX" lane --tsv; LNKRU0="$LF_RC|$(cat "$LNKD/r2-t0.out")"
+_lf_run "$LNKD/r2-h0" "$LNKRC" "$LNKN" "$FELIX" lane; LNKRH0="$LF_RC|$(cat "$LNKD/r2-h0.out")"
+_lf_run "$LNKD/r2-s0" "$LNKRC" "$LNKN" "$FELIX" status --tsv; LNKRS0="$LF_RC|$(_lf_last "$LNKD/r2-s0.out")"
+
+# R2-F5: a fork that fails in the read of cap's next text.
+_lf_fork fork awk '*lane=cap*' "*' _lane_next '*" "$LNKD/r2f5-t.fired" "$LNKRT" _lf_run "$LNKD/r2f5-t" "$LNKRC" "$LNKN" "$FELIX" lane --tsv
+LNKa="status $LF_RC, stdout [$(cat "$LNKD/r2f5-t.out")]"
+for LNKx in "$LNKRCAP" "$LNKRCAPU"; do for LNKy in "$LNKRSEC" "$LNKRSECU"; do
+  [ "$LF_RC|$(cat "$LNKD/r2f5-t.out")" != "0|$LNKx"$'\n'"$LNKy" ] || LNKa="next or unknown"
+done; done
+is "lane command R2-F5-next-cell-empties-and-shifts-columns: a fork that fails in the read of cap's next text: felix lane --tsv exits 0 with cap's column 9 cap next item or unknown, never empty, sec's its own text or unknown, and every other column of both lines as without the fault" \
+   "$LNKRA|unfaulted $LNKRU0|$LF_FIRE|$LNKa" "built|unfaulted 0|$LNKRL|fired|next or unknown"
+_lf_fork fork awk '*lane=cap*' "*' _lane_next '*" "$LNKD/r2f5-h.fired" "$LNKRT" _lf_run "$LNKD/r2f5-h" "$LNKRC" "$LNKN" "$FELIX" lane
+LNKa="status $LF_RC, stdout [$(cat "$LNKD/r2f5-h.out")]"
+for LNKx in "$LNKRCAP" "$LNKRCAPU"; do for LNKy in "$LNKRSEC" "$LNKRSECU"; do
+  [ "$LF_RC|$(cat "$LNKD/r2f5-h.out")" != "0|$(_lnk_human "$LNKx" "$LNKy")" ] || LNKa="next or unknown"
+done; done
+is "lane command R2-F5-next-cell-empties-and-shifts-columns: the same fault in felix lane: each human line says next: and its text or unknown, then the rest as C5 builds it from the columns, never a line shifted by an empty next" \
+   "$LNKRA|unfaulted $LNKRH0|$LF_FIRE|$LNKa" "built|unfaulted 0|$(_lnk_human "$LNKRCAP" "$LNKRSEC")|fired|next or unknown"
+
+# R2-F6: a fork that fails in each formatting of a date. OUT -> "dates or unknown" when the run ended as the readings
+# above accept for R2-F6, else its status and stdout.
+_lnk_r2date() {
+  if [ "$(_lf_ended "$1" "$LNKRC")" = ended ]; then printf 'dates or unknown'; return 0; fi
+  printf '%s\n' "$LNKRL" > "$1.want"
+  if [ "$LF_RC" = 0 ] && [ "$(LC_ALL=C awk -F'\t' 'NR == FNR { w[FNR] = $0; next }
+      { m = FNR; k = split(w[FNR], e, "\t"); ok = (NF == 13 && k == 13 && $1 == e[1] && $12 == e[12])
+        ok = ok && (($10 == e[10] && $11 == e[11]) || ($10 == "unknown" && $11 == "-"))
+        kn = ($2 == e[2] && $3 == e[3] && $4 == e[4] && $5 == e[5] && $6 == e[6] && $8 == e[8] && $9 == e[9] && $13 == "-" && ($7 == e[7] || $7 == "unknown"))
+        un = ($2 == "unknown" && $3 == "-" && $4 == "-" && $7 == "-" && $13 != "" && $13 != "-")
+        if (ok && (kn || un)) n++ }
+      END { print n + 0, m + 0 }' "$1.want" "$1.out")" = "2 2" ]; then printf 'dates or unknown'; return 0; fi
+  printf 'status %s, stdout [%s]' "$LF_RC" "$(cat "$1.out")"
+}
+_lf_fork fork date "*' -r '*" "*' _lane_iso '*" "$LNKD/r2f6-t.fired" "$LNKRT" _lf_run "$LNKD/r2f6-t" "$LNKRC" "$LNKN" "$FELIX" lane --tsv
+is "lane command R2-F6-dates-become-none-empty-or-dash L-NEVER-OK: a fork that fails in each formatting of a date: felix lane --tsv keeps column 12, the ref's date, on each line, column 7 the last lane landing's date or unknown, never none, columns 10 and 11 the commit and its date or unknown and -, or reads a line unknown with a reason, or ends as C3's count that did not finish; never an empty column" \
+   "$LNKRA|unfaulted $LNKRU0|$LF_FIRE|$(_lnk_r2date "$LNKD/r2f6-t")" "built|unfaulted 0|$LNKRL|fired|dates or unknown"
+
+# R2-F10: the caller's log encoding. LABEL ASSIGNMENT... -> as _lnk_env, in the fixture's checkout: LNKb and LNKc gain
+# " [LABEL] <status>|<output>" and " [LABEL] <status>|<last row>", LNKw and LNKv the same without the setting.
+_lnk_r2env() {
+  local l="$1"
+  shift
+  _lf_run "$LNKD/r2e" "$LNKRC" "$LNKN" "$@" "$FELIX" lane --tsv
+  LNKb="$LNKb [$l] $LF_RC|$(cat "$LNKD/r2e.out")"; LNKw="$LNKw [$l] 0|$LNKRL"
+  _lf_run "$LNKD/r2es" "$LNKRC" "$LNKN" "$@" "$FELIX" status --tsv
+  LNKc="$LNKc [$l] $LF_RC|$(_lf_last "$LNKD/r2es.out")"; LNKv="$LNKv [$l] 0|$LNKRV"
+}
+mkdir -p "$LNKD/r2u16a" "$LNKD/r2u16b"
+printf '[i18n]\n\tlogOutputEncoding = UTF-16\n' > "$LNKD/r2u16a/.gitconfig"; printf '[i18n]\n\tcommitEncoding = UTF-16\n' > "$LNKD/r2u16b/.gitconfig"
+LNKb=""; LNKc=""; LNKw=""; LNKv=""
+_lnk_r2env '~/.gitconfig i18n.logOutputEncoding UTF-16' HOME="$LNKD/r2u16a"
+_lnk_r2env '~/.gitconfig i18n.commitEncoding UTF-16' HOME="$LNKD/r2u16b"
+_lnk_r2env 'git -c i18n.logOutputEncoding=UTF-16' GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }'i18n.logOutputEncoding=UTF-16'"
+is "lane command R2-F10-utf16-log-encoding-reads-R1: i18n.logOutputEncoding or i18n.commitEncoding UTF-16 in the caller's ~/.gitconfig, or i18n.logOutputEncoding=UTF-16 as git -c, leave felix lane --tsv's exit 0 and its two lines as they are without it; never R1, for a ref that is a readable commit" \
+   "$LNKRA|unfaulted $LNKRU0|$LNKb" "built|unfaulted 0|$LNKRL|$LNKw"
+is "lane command R2-F10-utf16-log-encoding-reads-R1: the same settings leave felix status --tsv's exit 0 and its lane row the value zero 0 of 2 engine landings in 14 days, target 1/2" \
+   "$LNKRA|unfaulted $LNKRS0|$LNKc" "built|unfaulted 0|$LNKRV|$LNKv"
+
+# R2-F12: felix lane --tsv with its stdout closed, standing in for a stdout that cannot be written.
+_lf_run "$LNKD/r2f12" "$LNKRC" "$LNKN" /bin/sh -c 'exec "$0" "$@" >&-' "$FELIX" lane --tsv
+case "$LF_RC" in
+  ([123456789]|[123456789][0123456789]|1[01][0123456789]|12[01234]) LNKa="a status from 1 to 124" ;;
+  (*) LNKa="status $LF_RC, stderr [$(cat "$LNKD/r2f12.err")]" ;;
+esac
+is "lane command R2-F12-write-failure-exits-0: felix lane --tsv with its stdout closed, where its lines cannot be written, exits with a status felix sets other than 0, never 0 as though it had printed them" \
+   "$LNKRA|unfaulted $LNKRU0|$LNKa" "built|unfaulted 0|$LNKRL|a status from 1 to 124"
+
+# R2-F8: C3's git before 2.44 (the stand-in above), the home a --filter=blob:none clone of a source S8 whose later
+# lanes.tsv commit (share 1/4) the home fetched with the same filter and moved main to, so HEAD's lanes.tsv blob was
+# never fetched while the old file stays in its working tree; the checkout a full clone of S8, bound by its committed
+# .felix. The home's remote.origin.uploadpack is the logger, set after its own fetch.
+rm -f "$LNKFL"; LNK8S=""; LNK8N=""; LNKa="not built: R2-F8's partial home"
+if [ -n "$LNKRG" ] && _lf_self "$LNKD/f8-src" ck $((LNKN - 40 * LNKDAY)); then
+  LNK8S="$LF_HOME"; printf '%s' "$LNKF6L1" > "$LNKD/f8.want"
+  _lf_table "$LF_PROJ" $((LNKN - 35 * LNKDAY)) lanes.tsv "$LNKF6L1" && _lf_commit "$LNK8S" $((LNKN - LNKDAY)) $'engine: e\n\nNo mark.\n' engine/e.sh \
+    && ( _fx_cd "$LNK8S" && _lf_g 1700000000 config uploadpack.allowFilter true ) >/dev/null 2>&1 \
+    && ( unset GIT_NO_LAZY_FETCH; _fx_cd "$LNKD" && _lf_g 1700000000 clone -q --filter=blob:none "file://$LNK8S" f8-home ) >/dev/null 2>&1 \
+    && _lf_table "$LNK8S/projects/ck" $((LNKN - 43200)) lanes.tsv $'capability\t^engine/\t1/4\t14\n' && LNK8N="$LF_SHA" \
+    && ( unset GIT_NO_LAZY_FETCH; _fx_cd "$LNKD/f8-home" || exit 1; _lf_g 1700000000 fetch -q origin \
+         && _lf_g 1700000000 update-ref refs/heads/main refs/remotes/origin/main \
+         && _lf_g 1700000000 config remote.origin.uploadpack "$LNKD/logger" ) >/dev/null 2>&1 \
+    && ( _fx_cd "$LNKD" && _lf_g 1700000000 clone -q "file://$LNK8S" f8-full ) >/dev/null 2>&1 \
+    && [ "$( _fx_cd "$LNKD/f8-home" && _lf_g 1700000000 rev-parse --verify -q HEAD )" = "$LNK8N" ] \
+    && [ "$( _fx_cd "$LNKD/f8-full" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )" = "$LNK8N" ] \
+    && ! _lnk_lazy f8-home "HEAD:projects/ck/lanes.tsv" && cmp -s "$LNKD/f8.want" "$LNKD/f8-home/projects/ck/lanes.tsv" \
+    && [ -f "$LNKD/f8-full/.felix" ] && [ ! -e "$LNKFL" ] && LNKa=built
+fi
+LNK8R9="$(_lf_tsv - unknown - - - - - - - - - "$(_lf_iso $((LNKN - 43200)))" "$LNKD/f8-home/projects/ck/lanes.tsv cannot be read as committed in the Felix home")"
+_lnk_pc f8-t f8-full f8-home "$LNKD/oldgit"
+_lnk_is "lane command R2-F8-partial-home-table-read-still-fetches L-NEVER-OK: with a git that says 2.43.0 and the home a --filter=blob:none clone whose HEAD's lanes.tsv blob was never fetched, felix lane --tsv in a full clone runs no upload-pack and reads the - line with R9" \
+   "$LNKa|$LNKf|$LF_RC|$(cat "$LNKD/f8-t.out")" "built|fetch[]|0|$LNK8R9"
+rm -f "$LNKFL"
+_lf_run "$LNKD/f8-s" "$LNKD/f8-full" "$LNKN" PATH="$LNKD/oldgit:$LNKB:$PATH" "$FELIX" status --tsv
+_lnk_is "lane command R2-F8-partial-home-table-read-still-fetches L-NEVER-OK: the same in felix status --tsv runs no upload-pack, and its lane row is lane unknown - with R9" \
+   "$LNKa|fetch[$(cat "$LNKFL" 2>/dev/null)]|$LF_RC|$(_lf_last "$LNKD/f8-s.out")" \
+   "built|fetch[]|0|$(_lf_tsv lane unknown - "$LNKD/f8-home/projects/ck/lanes.tsv cannot be read as committed in the Felix home")"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
 # ---- the review's F1: a count that ends early (C3, C5, C9) --------------------------------------------------------------
 # Added on 2026-10-30 from the review's second amendment, still blind, last in this part because a run ended early may
 # leave state behind. C9's fault through _lf_fault kill, with TMPDIR a directory of the fixture's own: when the read of

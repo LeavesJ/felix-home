@@ -374,4 +374,103 @@ is "lane states: a second data row with window 014, under a comment and a blank 
    "$LNSBUILT|$LF_RC|$(cat "$LNSD/row2.out")" \
    "built|0|$(_lf_tsv capability ok 1 2 14 1/2 "$(_lf_iso $((LNSN - 5 * LNSDAY)))" "$LNSMARK" "$LNSNEXT" "$LNSVALID" "$LNSVALIDISO" "$LNSREFD" -)
 $(_lns_u docs - - - - "$LNSSHA" "$LNSISO" "$LNSREFD" "row 2 of lanes.tsv is not a lane name, an ERE, a share n/d and a window in days")"
+
+# ---- the second review's round 1: forks that fail outside the read of the landings (R2-F1, R2-F4, R2-F9) ---------------
+# Added on 2026-10-30 from the second review's findings (their inputs and observed output only), still blind. Each runs in
+# the review's home-apart fixture (_lf_r2): lanes cap (^engine/, 1/2, 14) and sec (^docs/, 1/2, 7), a checkout where cap
+# reads zero, L 0 of T 2, and sec short, L 1 of T 3, its landings dated from the machine clock at build time, so that
+# R2-F1 can leave FELIX_LANE_NOW unset. The faults are the review's fork probes (_lf_fork), each at the read its finding
+# names, by the words and the calling function it names: inputs of the finding, not read from the engine. Each assertion
+# also compares the same command without the fault, so it is red on main, which prints no lane. Readings: a fork that
+# fails is a read that did not finish (C3), so the accepted endings are an unknown line or row, or C3's count that did
+# not finish, never a count from what was not read; where the shape check itself could not run, R9 (C2's table that
+# cannot be read) stands beside R4 for a table the check would refuse, and never R4 for one it would accept (R2-F9).
+LNSRN="$(date +%s)"; LNSRT="$LNSD/r2-tmp"; mkdir -p "$LNSRT"; LNSRA="not built: the second review's fixture"
+_lf_r2 "$LNSD/r2" p "$LNSRN" && LNSRA=built
+LNSRC="$LF_REPO"; LNSRH="$LF_HOME"; LNSRP="$LF_PROJ"; LNSRL="$LF_R2"; LNSRLU="$LF_R2AU"$'\n'"$LF_R2BU"
+LNSRREF="$(_lf_iso $((LNSRN - LNSDAY)))"; LNSRV="$(_lf_tsv lane value zero '0 of 2 engine landings in 14 days, target 1/2')"
+LNSRR9="$LNSRP/lanes.tsv cannot be read as committed in the Felix home"; LNSREND="the lane count did not finish in $LNSRC"
+_lf_use "$LNSRH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+# OUT -> "unknown or ended" when the felix lane --tsv run whose files are OUT.out and OUT.err ended as C3's count that did
+# not finish, or exited 0 with one line for cap and one for sec, each unknown with L, T and the last lane landing - and a
+# reason; else what it printed.
+_lns_r2u() {
+  if [ "$(_lf_ended "$1" "$LNSRC")" = ended ] || { [ "$LF_RC" = 0 ] && [ "$(LC_ALL=C awk -F'\t' '((NR == 1 && $1 == "cap") || (NR == 2 && $1 == "sec")) && NF == 13 && $2 == "unknown" && $3 == "-" && $4 == "-" && $7 == "-" && $13 != "" && $13 != "-" { n++ } END { print n + 0, NR }' "$1.out")" = "2 2" ]; }; then
+    printf 'unknown or ended'; return 0
+  fi
+  printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$1.out")" "$(cat "$1.err")"
+}
+# OUT ROW... -> "one of them" when the felix status --tsv run whose files are OUT.* exited 0 with ten rows, the last one of
+# the ROWs; a ROW that is "unknown" stands for any lane unknown - row with a reason. Else the status, rows and last row.
+_lns_r2row() {
+  local o="$1" l n w tb=$'\t'
+  l="$(_lf_last "$o.out")"; n="$(_lf_count "$o.out")"
+  shift
+  for w in "$@"; do
+    if [ "$w" = unknown ]; then
+      case "$l" in ("lane${tb}unknown${tb}-${tb}"*) case "${l##*"$tb"}" in (''|-) ;; (*) w="$l" ;; esac ;; esac
+    fi
+    [ "$LF_RC|$n|$l" != "0|10|$w" ] || { printf 'one of them'; return 0; }
+  done
+  printf 'status %s, %s rows, last [%s]' "$LF_RC" "$n" "$l"
+}
+
+# R2-F1: the count's read of the machine clock. FELIX_LANE_NOW unset, as in real use; the probe is an exported date that
+# acts on the words -u +%s with _lane_rows on the call stack (the review's names).
+_lf_run "$LNSD/r2f1-0" "$LNSRC" - "$FELIX" lane --tsv; LNSb="$LF_RC|$(cat "$LNSD/r2f1-0.out")"
+_lf_fork fork date "' -u +%s '" "*' _lane_rows '*" "$LNSD/r2f1-t.fired" "$LNSRT" _lf_run "$LNSD/r2f1-t" "$LNSRC" - "$FELIX" lane --tsv
+is "lane states R2-F1-clock-fork-reads-idle L-NEVER-OK: with FELIX_LANE_NOW unset, a fork that fails in the count's read of the machine clock (date -u +%s) makes felix lane --tsv read cap and sec unknown with a reason, or end as C3's count that did not finish; never idle from an empty clock, where without the fault cap reads zero and sec short" \
+   "$LNSRA|unfaulted $LNSb|$LF_FIRE|$(_lns_r2u "$LNSD/r2f1-t")" "built|unfaulted 0|$LNSRL|fired|unknown or ended"
+_lf_run "$LNSD/r2f1-s0" "$LNSRC" - "$FELIX" status --tsv; LNSb="$(_lns_r2row "$LNSD/r2f1-s0" "$LNSRV")"
+_lf_fork fork date "' -u +%s '" "*' _lane_rows '*" "$LNSD/r2f1-s.fired" "$LNSRT" _lf_run "$LNSD/r2f1-s" "$LNSRC" - "$FELIX" status --tsv
+is "lane states R2-F1-clock-fork-reads-idle L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with a reason, the last of ten; never the value idle, where without the fault it reads value zero 0 of 2" \
+   "$LNSRA|unfaulted $LNSb|$LF_FIRE|$(_lns_r2row "$LNSD/r2f1-s" unknown)" "built|unfaulted one of them|fired|one of them"
+
+# R2-F4: a lanes.tsv the shape check refuses (a comment line that is not UTF-8), with the fork failing in the check's one
+# awk pass (the words hold u8=, felix_table_check on the stack). Without the fault every surface reads R4.
+LNSF4B=$'# a comment \377 that is not UTF-8\ncap\t^engine/\t1/2\t14\n'; LNSF4A="not built: R2-F4's home"
+if [ "$LNSRA" = built ] && _lf_home "$LNSD/r2f4" p $((LNSRN - 40 * LNSDAY)); then
+  LNSF4H="$LF_HOME"; LNSF4P="$LF_PROJ"
+  _lf_table "$LNSF4P" $((LNSRN - 29 * LNSDAY)) lanes.tsv "$LNSF4B" && _lf_table "$LNSF4P" $((LNSRN - 29 * LNSDAY + 60)) lane-next.tsv $'cap\tnext item\n' \
+    && printf '%s' "$LNSF4B" > "$LNSD/r2f4.want" \
+    && ( _fx_cd "$LNSF4H" || exit 1; _lf_g 1700000000 cat-file blob HEAD:projects/p/lanes.tsv ) > "$LNSD/r2f4.got" 2>/dev/null \
+    && cmp -s "$LNSD/r2f4.want" "$LNSD/r2f4.got" && LNSF4A=built
+fi
+_lf_use "${LNSF4H:-$LNSD/r2f4}" "$LNSD/memory" "$LNSD/user" "$LNSB"
+LNSF4R4="$(_lns_u - - - - - - - "$LNSRREF" "${LNSF4P:-}/lanes.tsv cannot be read as lanes.tsv")"
+LNSF4R9="$(_lns_u - - - - - - - "$LNSRREF" "${LNSF4P:-}/lanes.tsv cannot be read as committed in the Felix home")"
+_lf_run "$LNSD/r2f4-0" "$LNSRC" "$LNSRN" "$FELIX" lane --tsv; LNSb="$LF_RC|$(cat "$LNSD/r2f4-0.out")"
+_lf_fork fork awk '*u8=*' "*' felix_table_check '*" "$LNSD/r2f4-t.fired" "$LNSRT" _lf_run "$LNSD/r2f4-t" "$LNSRC" "$LNSRN" "$FELIX" lane --tsv
+case "$LF_RC|$(cat "$LNSD/r2f4-t.out")" in
+  ("0|$LNSF4R4"|"0|$LNSF4R9") LNSa="R4, R9 or ended" ;;
+  (*) [ "$(_lf_ended "$LNSD/r2f4-t" "$LNSRC")" = ended ] && LNSa="R4, R9 or ended" || LNSa="status $LF_RC, stdout [$(cat "$LNSD/r2f4-t.out")]" ;;
+esac
+is "lane states R2-F4-shape-check-accepts-what-it-never-read L-RF3 L-NEVER-OK: a committed lanes.tsv the shape check refuses (a comment line that is not UTF-8), with a fork failing in the check's awk pass: felix lane --tsv prints the - line with R4, or R9, or ends as C3's count that did not finish; never a count of the row the check never accepted, where without the fault it reads R4" \
+   "$LNSF4A|unfaulted $LNSb|$LF_FIRE|$LNSa" "built|unfaulted 0|$LNSF4R4|fired|R4, R9 or ended"
+_lf_run "$LNSD/r2f4-s0" "$LNSRC" "$LNSRN" "$FELIX" status --tsv; LNSb="$(_lns_r2row "$LNSD/r2f4-s0" "$(_lf_tsv lane unknown - "${LNSF4P:-}/lanes.tsv cannot be read as lanes.tsv")")"
+_lf_fork fork awk '*u8=*' "*' felix_table_check '*" "$LNSD/r2f4-s.fired" "$LNSRT" _lf_run "$LNSD/r2f4-s" "$LNSRC" "$LNSRN" "$FELIX" status --tsv
+is "lane states R2-F4-shape-check-accepts-what-it-never-read L-RF3 L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with R4, R9 or the lane count did not finish, the last of ten; never the value zero" \
+   "$LNSF4A|unfaulted $LNSb|$LF_FIRE|$(_lns_r2row "$LNSD/r2f4-s" "$(_lf_tsv lane unknown - "${LNSF4P:-}/lanes.tsv cannot be read as lanes.tsv")" \
+     "$(_lf_tsv lane unknown - "${LNSF4P:-}/lanes.tsv cannot be read as committed in the Felix home")" "$(_lf_tsv lane unknown - "$LNSREND")")" \
+   "built|unfaulted one of them|fired|one of them"
+
+# R2-F9: a valid table, with the fork failing in the shape check's schema lookup (the awk program holds ENVIRON["T"],
+# felix_table_schema on the stack). The table is not malformed, so the reading is the count (every next may read
+# unknown, as for a lane-next.tsv the check could not read), R9, or C3's count that did not finish; never R4.
+_lf_use "$LNSRH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+LNSF9R9="$(_lns_u - - - - - - - "$LNSRREF" "$LNSRR9")"
+_lf_run "$LNSD/r2f9-0" "$LNSRC" "$LNSRN" "$FELIX" lane --tsv; LNSb="$LF_RC|$(cat "$LNSD/r2f9-0.out")"
+_lf_fork fork awk "*'ENVIRON[\"T\"]'*" "*' felix_table_schema '*" "$LNSD/r2f9-t.fired" "$LNSRT" _lf_run "$LNSD/r2f9-t" "$LNSRC" "$LNSRN" "$FELIX" lane --tsv
+case "$LF_RC|$(cat "$LNSD/r2f9-t.out")" in
+  ("0|$LNSRL"|"0|$LNSRLU"|"0|$LNSF9R9") LNSa="the count, R9 or ended" ;;
+  (*) [ "$(_lf_ended "$LNSD/r2f9-t" "$LNSRC")" = ended ] && LNSa="the count, R9 or ended" || LNSa="status $LF_RC, stdout [$(cat "$LNSD/r2f9-t.out")]" ;;
+esac
+is "lane states R2-F9-fork-in-shape-check-reads-R4 L-NEVER-OK: a valid committed lanes.tsv, with a fork failing in the shape check's schema lookup: felix lane --tsv prints the count, or the - line with R9, or ends as C3's count that did not finish; never R4, which says the committed table is malformed" \
+   "$LNSRA|unfaulted $LNSb|$LF_FIRE|$LNSa" "built|unfaulted 0|$LNSRL|fired|the count, R9 or ended"
+_lf_run "$LNSD/r2f9-s0" "$LNSRC" "$LNSRN" "$FELIX" status --tsv; LNSb="$(_lns_r2row "$LNSD/r2f9-s0" "$LNSRV")"
+_lf_fork fork awk "*'ENVIRON[\"T\"]'*" "*' felix_table_schema '*" "$LNSD/r2f9-s.fired" "$LNSRT" _lf_run "$LNSD/r2f9-s" "$LNSRC" "$LNSRN" "$FELIX" status --tsv
+is "lane states R2-F9-fork-in-shape-check-reads-R4 L-NEVER-OK: the same fault in felix status --tsv makes the lane row the value zero 0 of 2, or lane unknown - with R9 or the lane count did not finish, the last of ten; never R4" \
+   "$LNSRA|unfaulted $LNSb|$LF_FIRE|$(_lns_r2row "$LNSD/r2f9-s" "$LNSRV" "$(_lf_tsv lane unknown - "$LNSRR9")" "$(_lf_tsv lane unknown - "$LNSREND")")" \
+   "built|unfaulted one of them|fired|one of them"
+_lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
 # <<< lane-states

@@ -356,6 +356,85 @@ _lf_fault() {
   [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
 }
 
+# The second review's round 1 (2026-10-30), still blind: its fixture and its fork probes, taken from its findings'
+# inputs. MODE NAME WORDS STACK FILE TMPDIR CMD... -> CMD run as _lf_fault runs it, but with NAME (date, awk, tr, git or
+# command) the bash function exported into felix and the hook. It acts, every time, when " $* " matches the case
+# pattern WORDS and " ${FUNCNAME[*]} " the case pattern STACK (each case code, quoted as the caller writes it), and
+# first writes "fired" to FILE. MODE fork: it lowers the soft process limit to 1 in the shell that called it and runs
+# NAME (command NAME), which that shell cannot fork, then writes "ran <status>" if the shell gets there. MODE lower: it
+# lowers the limit and runs NAME, a builtin that needs no fork (builtin command), so that shell's next fork fails. LF_RC
+# as _lf_fault's; LF_FIRE "fired" when it acted as MODE says (fork: NAME did not run to a clean exit after it).
+_lf_fork() {
+  local m="$1" n="$2" w="$3" k="$4" f="$5" t="$6" c b
+  shift 6
+  LF_FIRE="not run"; LF_RC=125
+  case "$f$t" in (*\"*|*\'*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
+  [ -n "$f" ] && [ -n "$t" ] && [ -n "$w" ] && [ -n "$k" ] || return 1
+  case "$n" in (date|awk|tr|git) c="command $n" ;; (command) c="builtin command" ;; (*) return 1 ;; esac
+  case "$m" in (fork|lower) ;; (*) return 1 ;; esac
+  b="$n() { local r; case \" \$* \" in ($w) case \" \${FUNCNAME[*]} \" in ($k) printf 'fired\\n' >> '$f'; ulimit -S -u 1; $c \"\$@\"; r=\$?; printf 'ran %s\\n' \"\$r\" >> '$f'; return \"\$r\" ;; esac ;; esac; $c \"\$@\"; }"
+  rm -f "$f" "$f.shell"
+  { ( TMPDIR="$t"; export TMPDIR
+      eval "$b" || exit 125
+      export -f "$n"
+      "$@"
+      exit "$LF_RC" ); } 2> "$f.shell"
+  LF_RC=$?
+  LF_FIRE="$(LC_ALL=C awk -v m="$m" '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }
+    END { s = "not fired"; if (f) s = "fired"; if (f && r && m == "fork") s = "fired, but it ran to a clean exit after it"; print s }' "$f" 2>/dev/null)"
+  [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
+}
+
+# OUT REPO -> "ended" when the run whose files are OUT.out and OUT.err, with status LF_RC, ended as C3 says felix lane
+# ends a count that cannot finish: status 1, nothing on stdout, felix: the lane count did not finish in REPO on stderr.
+_lf_ended() {
+  local e
+  e="$(LC_ALL=C awk -v w="felix: the lane count did not finish in $2" '$0 == w { f = 1 } END { print (f ? "line" : "none") }' "$1.err" 2>/dev/null)"
+  if [ "$LF_RC" = 1 ] && [ ! -s "$1.out" ] && [ "$e" = line ]; then printf ended; else printf 'not ended'; fi
+}
+
+# DIR NOW -> the review's six landings on the branch DIR stands on: NOW - 20 days marked cap (engine/old.sh); NOW - 5
+# and - 4 days unmarked (engine/a.sh, engine/b.sh); NOW - 3 days marked sec (docs/x.md); NOW - 2 and - 1 days unmarked
+# (docs/y.md, docs/z.md). Then refs/remotes/origin/main names the last; LF_SHA it.
+_lf_r2land() {
+  local d="$1" n="$2"
+  _lf_commit "$d" $((n - 20 * 86400)) $'engine: old\n\nFelix-Lane: cap\n' engine/old.sh || return 1
+  _lf_commit "$d" $((n - 5 * 86400)) $'engine: a\n\nNo mark.\n' engine/a.sh || return 1
+  _lf_commit "$d" $((n - 4 * 86400)) $'engine: b\n\nNo mark.\n' engine/b.sh || return 1
+  _lf_commit "$d" $((n - 3 * 86400)) $'docs: x\n\nFelix-Lane: sec\n' docs/x.md || return 1
+  _lf_commit "$d" $((n - 2 * 86400)) $'docs: y\n' docs/y.md || return 1
+  _lf_commit "$d" $((n - 86400)) $'docs: z\n' docs/z.md || return 1
+  _lf_publish "$d" || { LF_SHA=""; return 1; }
+}
+
+# DIR P NOW -> the review's home-apart fixture in DIR (made when missing; it must hold no home or c yet): a home DIR/home
+# holding P (root at NOW - 40 days), lanes.tsv (cap ^engine/ 1/2 14, sec ^docs/ 1/2 7) committed at NOW - 29 days and
+# lane-next.tsv (cap: cap next item, sec: sec next item) a minute later; a checkout DIR/c bound to P and P's own (_lf_own,
+# remote_match o/r), its root at NOW - 30 days, then _lf_r2land's landings. Sets LF_HOME, LF_PROJ, LF_REPO, LF_R2T (the
+# lanes.tsv commit), LF_R2A and LF_R2B (cap zero 0 2 and sec short 1 3, the lines felix lane --tsv prints at NOW),
+# LF_R2AU and LF_R2BU (the same with next unknown) and LF_R2 (the two, a newline between); status 1 and LF_R2 empty
+# when the fixture is not as named.
+_lf_r2() {
+  local d="$1" p="$2" n="$3" r c a
+  LF_R2=""; LF_R2A=""; LF_R2B=""; LF_R2AU=""; LF_R2BU=""; LF_R2T=""
+  mkdir -p "$d" && [ ! -e "$d/home" ] && [ ! -e "$d/c" ] || return 1
+  _lf_home "$d/home" "$p" $((n - 40 * 86400)) || return 1
+  _lf_table "$LF_PROJ" $((n - 29 * 86400)) lanes.tsv $'cap\t^engine/\t1/2\t14\nsec\t^docs/\t1/2\t7\n' || return 1
+  LF_R2T="$LF_SHA"
+  _lf_table "$LF_PROJ" $((n - 29 * 86400 + 60)) lane-next.tsv $'cap\tcap next item\nsec\tsec next item\n' || return 1
+  _lf_checkout "$d/c" "$p" $((n - 30 * 86400)) && _lf_own "$LF_PROJ" "$LF_REPO" o/r && _lf_r2land "$LF_REPO" "$n" || return 1
+  a="$((n - 86400)):1 $((n - 2 * 86400)):1 $((n - 3 * 86400)):1 $((n - 4 * 86400)):1 $((n - 5 * 86400)):1"
+  [ "$(_lf_spine "$LF_REPO")" = "$a $((n - 20 * 86400)):1 $((n - 30 * 86400)):0" ] || return 1
+  r="$(_lf_iso $((n - 86400)))"; c="$(_lf_iso $((n - 29 * 86400)))"
+  a="$(_lf_iso $((n - 20 * 86400)))"
+  LF_R2A="$(_lf_tsv cap zero 0 2 14 1/2 "$a" 'Felix-Lane: cap' 'cap next item' "$LF_R2T" "$c" "$r" -)"
+  LF_R2AU="$(_lf_tsv cap zero 0 2 14 1/2 "$a" 'Felix-Lane: cap' unknown "$LF_R2T" "$c" "$r" -)"
+  a="$(_lf_iso $((n - 3 * 86400)))"
+  LF_R2B="$(_lf_tsv sec short 1 3 7 1/2 "$a" 'Felix-Lane: sec' 'sec next item' "$LF_R2T" "$c" "$r" -)"
+  LF_R2BU="$(_lf_tsv sec short 1 3 7 1/2 "$a" 'Felix-Lane: sec' unknown "$LF_R2T" "$c" "$r" -)"
+  LF_R2="$LF_R2A"$'\n'"$LF_R2B"
+}
+
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on
 # the screen line, else what it found.
 _lf_silent() {

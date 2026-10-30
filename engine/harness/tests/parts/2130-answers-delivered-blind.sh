@@ -10,7 +10,7 @@ printf '\nanswers delivered without being asked for\n'
 # Fixture: home ansp (remote_match OwnerA/ansp-repo); checkouts own (three commits), its worktree two ahead, marker
 # (.felix alone), foreign (an origin only containing the remote_match), nograph, and refresh (two commits). A stand-in
 # graphify first on PATH logs each argv to $AX/glog as <word>s; `query` prints $AX/out.<v>, v read from $AX/gv (fail,
-# hang, hangkid, exitkid, slow, slow3, slow4 and empty built in); any other first word is a refresh that waits for $AX/release and fails
+# hang, hangkid, exitkid, slow, slow3, slow4, slow6 and empty built in); any other first word is a refresh that waits for $AX/release and fails
 # when $AX/ufail exists. The orders U1 and R1 set are read through a harness copy whose lib/own.sh and lib/graph.sh
 # source the real ones and wrap felix_checkout_is_own and felix_graph_refresh_due to log each call: measured before
 # the change, no user-prompt, post-tool or session-end run called the first, and the second did not exist. Extended
@@ -28,6 +28,11 @@ printf '\nanswers delivered without being asked for\n'
 # loading lib/ledger.sh or lib/graph.sh runs nothing on PATH; and L4 counts late asks apart and leaves a session whose
 # ledger appends are not whole out of every column but unknown. lib/graph-answer.sh, which lib/graph.sh loads, is a black
 # box here too. Time windows are wide enough for a loaded gate, and rows are read rather than clocks where both would do.
+# v6, after the review of those fixes, written blind from A1.5, T2, L4 and L5 as amended: FELIX_GRAPH_LEFT and
+# FELIX_GRAPH_TIMEOUT are read by value (0000000000 is 0, 0000000002 is 2, and 0000000009 and 0000000019 are 9 and 19,
+# not octal), each of lib/ledger.sh and lib/graph.sh runs nothing on PATH when it is the first thing a fresh shell loads,
+# a ledger file that is empty is a record left out like one not whole, and L5's left-out clause says the record is empty
+# or incomplete.
 AX="$TMP/answers"; mkdir -p "$AX/bin" "$AX/ssbin" "$AX/co" "$AX/user" "$AX/spy" "$AX/tmp" "$AX/cache" "$AX/home/projects/ansp" "$AX/mem/ansp"
 AX="$(cd "$AX" && pwd -P)"; AXH="$AX/home"; AXM="$AX/mem"; AXP="$AXH/projects/ansp"; AXT="$(printf '\t')"; : > "$AX/glog"; : > "$AX/kids"
 AXO="$AX/co/own"; AXW="$AX/co/own-wt"; AXK="$AX/co/marker"; AXF="$AX/co/foreign"; AXN="$AX/co/nograph"; AXR="$AX/co/refresh"
@@ -93,6 +98,7 @@ case "\$v" in
   slow) sleep 1; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
   slow3) sleep 3; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
   slow4) sleep 4; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
+  slow6) sleep 6; printf 'NODE felix_one() [src=lib/one.sh loc=L83 community=3]\n'; exit 0 ;;
 esac
 [ ! -f "$AX/out.\$v" ] || cat "$AX/out.\$v"
 AXG
@@ -302,6 +308,23 @@ is "A1.5: with 1 second left under FELIX_GRAPH_TIMEOUT=12, a graphify answering 
    "$AXRC|$AXOUT" "1|"
 AX_LEFT=10 FELIX_GRAPH_TIMEOUT=12 _ax_ans slow4 "$AXO" "$AXQ"
 is "A1.5: and with 10 seconds left the same graphify is answered (control)" "$AXRC|$AXOUT" "0|lib/one.sh${AXT}L83${AXT}felix_one()"
+AX_LEFT=0000000000 _ax_ans mix "$AXO" "$AXQ"
+is "A1.5: FELIX_GRAPH_LEFT is read by value, leading zeros not counting: 0000000000 is 0, no time left, so nothing printed, exit 1, graphify not run" \
+   "$AXRC|$AXOUT|$(_ax_nl "$AX/glog")" "1||0"
+AX_LEFT=0000000002 FELIX_GRAPH_TIMEOUT=12 _ax_ans slow6 "$AXO" "$AXQ"
+is "A1.5: and 0000000002 is 2: graphify is asked, and one answering after 6 seconds under FELIX_GRAPH_TIMEOUT=12 is killed once those 2 seconds are up" \
+   "$AXRC|$AXOUT|$(_ax_nl "$AX/glog")" "1||1"
+AX_LEFT=0000000009 FELIX_GRAPH_TIMEOUT=12 _ax_ans slow4 "$AXO" "$AXQ"
+is "A1.5: and 0000000009 is 9, its digits not read as octal: under FELIX_GRAPH_TIMEOUT=12 a graphify answering after 4 seconds is answered" \
+   "$AXRC|$AXOUT" "0|lib/one.sh${AXT}L83${AXT}felix_one()"
+FELIX_GRAPH_TIMEOUT=0000000001 _ax_ans slow3 "$AXO" "$AXQ"
+is "A1.5: FELIX_GRAPH_TIMEOUT is read by value too: 0000000001 is the bound 1, so a graphify answering after 3 seconds, inside the default 4, is killed" \
+   "$AXRC|$AXOUT" "1|"
+FELIX_GRAPH_TIMEOUT=0000000000 _ax_ans hang "$AXO" "$AXQ"
+is "A1.5: and a FELIX_GRAPH_TIMEOUT of 0000000000 is 0, so the default 4 and not no bound: a graphify that would run 10 seconds is killed: no answer, exit 1" \
+   "$AXRC|$AXOUT" "1|"
+FELIX_GRAPH_TIMEOUT=0000000019 _ax_ans slow6 "$AXO" "$AXQ"
+is "A1.5: and one of 0000000019 is 19, not the default 4 nor an octal error: a graphify answering after 6 seconds is answered" "$AXRC|$AXOUT" "0|lib/one.sh${AXT}L83${AXT}felix_one()"
 _ax_ans garbage "$AXO" "$AXQ"
 is "A1.9: output with no NODE line of the form keeps no node: nothing printed, exit 1" "$AXRC|$AXOUT" "1|"
 _ax_ans dots "$AXO" "$AXQ"
@@ -378,6 +401,11 @@ _ax_r=""; _ax_i=5; for _ax_v in -2 abc 1.5; do _ax_i=$((_ax_i + 1)); AX_LEFT="$_
 is "A2.3: and so does a FELIX_GRAPH_LEFT of -2, abc or 1.5" "$_ax_r" "-2:$AXLT|0 abc:$AXLT|0 1.5:$AXLT|0 "
 AX_LEFT=1 FELIX_GRAPH_TIMEOUT=12 _ax_dl slow4 "$AX/h-out" o9 "$AXO"
 is "A2.3: a graphify killed once its 1 second left is up, under FELIX_GRAPH_TIMEOUT=12, was asked: its outcome is timeout, not late" "$(_ax_oc o9)" "1||asked${AXT}graphify${AXT}timeout|none"
+AX_LEFT=0000000000 _ax_dl mix "$AX/h-out" o10 "$AXO"
+is "A2.3: a FELIX_GRAPH_LEFT of 0000000000, 0 by value, is no time left too: exactly asked graphify late, graphify not run" "$(_ax_oc o10)|$(_ax_nl "$AX/glog")" "$AXLT|0"
+AX_LEFT=0000000002 FELIX_GRAPH_TIMEOUT=12 _ax_dl slow6 "$AX/h-out" o11 "$AXO"
+is "A2.3: and one of 0000000002 is a 2-second bound: a graphify killed once it is up, under FELIX_GRAPH_TIMEOUT=12, was asked: timeout, not late" \
+   "$(_ax_oc o11)" "1||asked${AXT}graphify${AXT}timeout|none"
 _ax_stamp "$AXO" "$AXO1"; _ax_dl noshell "$AXH" f1 "$AXO"
 is "A2.7: a graph two commits behind says 2 commit(s) behind the checkout that holds it, after the stamp's seven characters" \
    "$(_ax_par "$AXOUT" 1 c)" "$(_ax_hd "$AXO1" "2 commit(s) behind the checkout that holds it")"
@@ -687,6 +715,19 @@ is "T2: on the PATH of spies awk and git are spies too, and a command run there 
    "$([ -L "$AXTS/awk" ] && [ -L "$AXTS/git" ] && echo spies)|$(cat "$AX/tspy.log")" "spies|sed"
 is "T2: loading lib/ledger.sh runs no command found on PATH, and it loads lib/answer.sh: felix_answer_use is defined" "$(_ax_load ledger felix_answer_use)" "|defined|"
 is "T2: nor does loading lib/graph.sh, which loads lib/graph-answer.sh: felix_graph_deliver is defined" "$(_ax_load graph felix_graph_deliver)" "|defined|"
+_ax_fresh() {   # LIB FUNCTION -> as _ax_load, but lib/LIB.sh is the first thing a new shell under env -i loads, "fresh" printed first when
+                # that shell held no function before it; its PATH the spies alone, and HOME, FELIX_HOME and FELIX_MEMORY the fixture's
+  : > "$AX/tspy.log"
+  env -i HOME="$AX/user" FELIX_HOME="$AXH" FELIX_MEMORY="$AXM" PATH="$AXTS" "$BASH" -c '[ -n "$(declare -F)" ] || printf fresh; . "$1"
+    if declare -F "$2" >/dev/null; then printf "|defined|"; else printf "|undefined|"; fi' _ "$FROOT/harness/lib/$1.sh" "$2" 2>&1
+  tr '\n' ' ' < "$AX/tspy.log"
+}
+: > "$AX/tspy.log"; env -i HOME="$AX/user" PATH="$AXTS" "$BASH" -c 'sed -n 1p /dev/null' >/dev/null 2>&1
+is "T2: a command run in a fresh shell under env -i, on the PATH of spies, is logged by its name too (fixture control)" "$(cat "$AX/tspy.log")" "sed"
+is "T2: lib/ledger.sh loaded first in a fresh shell, with no library before it, runs no command found on PATH either, and still loads lib/answer.sh" \
+   "$(_ax_fresh ledger felix_answer_use)" "fresh|defined|"
+is "T2: nor does lib/graph.sh loaded first in a fresh shell, and it still loads lib/graph-answer.sh: felix_graph_deliver is defined" \
+   "$(_ax_fresh graph felix_graph_deliver)" "fresh|defined|"
 
 printf '\nR1-R4: session end and session start keep the graph current, and a lock a killed refresh left is taken back\n'
 _ax_se() {   # DIR SESSION [HARNESS] -> session-end there, read through a pipe as a hook is; output and status in $AX/se.out, se.rc
@@ -870,6 +911,7 @@ AXG1T="${AXG1}touch\tRead\t/r/lib/one.sh\n"; AXLO="$(_ax_u12 0 0 0 0 0 0 0 0 0 0
 is "L4: a session with no ledger appends on disk is not whole: it is left out of every column but unknown, which counts it" "$(_ax_l4 va "$AXG1T" -)" "$AXLO"
 is "L4: nor is one whose appends hold more alive lines than calls" "$(_ax_l4 vb "$AXG1T" 'alive\tpost-tool\nalive\tpost-tool\ntool\tRead\n')" "$AXLO"
 is "L4: nor one that holds neither, a named row and an answer row being no calls" "$(_ax_l4 vc "$AXG1T" 'named\tgraphify\nanswer\tgraphify\n')" "$AXLO"
+is "L4: nor one whose ledger appends are an empty file: an empty record, holding neither, is left out too" "$(_ax_l4 vn "$AXG1T" '')" "$AXLO"
 is "L4: nor one whose alive line has only answer rows beside it, an answer row being no call" "$(_ax_l4 vd "$AXG1T" 'answer\tgraphify\nalive\tpost-tool\nanswer\tgraphify\n')" "$AXLO"
 _ax_uput "$AX/use/ve" ve own "$AXG1T"; chmod 000 "$AX/use/ve/state/ledger/ve.tsv"
 if [ -r "$AX/use/ve/state/ledger/ve.tsv" ]; then skip "L4: nor one whose ledger appends cannot be read" "the ledger file is still readable"
@@ -936,13 +978,13 @@ AXF1="$(_ax_fl)"
 is "L5: with no answer rows felix ledger prints no answers section, its capability table there (fixture control)" "$(_ax_hl "$AXF0")|$(_ax_tbl "$AXF0" | awk 'END { print NR }')" "0 not after|5"
 is "L5: with answers it heads a section answers handed to sessions without being asked for, after the capability table" "$(_ax_hl "$AXF1")" "1 after"
 is "L5: one line a tool: answered of asks in sessions, the answers acted on before the next prompt, the files, those opened, the asks timed out, the prompts too late to ask, and the sessions left out" \
-   "$(_ax_tl graphify "$AXF1")" " graphify answered 4 of 6 asks in 2 sessions; 3 answers (75%) named a file the session then opened, edited or ran before the next prompt; 3 of 5 files (60%), 2 of them opened or edited, not only run; 2 asks timed out; 3 prompts came too late in the hook to ask; 2 sessions left out, their record of tool calls incomplete"
+   "$(_ax_tl graphify "$AXF1")" " graphify answered 4 of 6 asks in 2 sessions; 3 answers (75%) named a file the session then opened, edited or ran before the next prompt; 3 of 5 files (60%), 2 of them opened or edited, not only run; 2 asks timed out; 3 prompts came too late in the hook to ask; 2 sessions left out, their record of tool calls empty or incomplete"
 is "L5: shares are whole percentages rounded half up, 2 of 16 being 13%, and with no timeout there is no clause for it" \
    "$(_ax_tl othertool "$AXF1")" " othertool answered 16 of 16 asks in 2 sessions; 2 answers (13%) named a file the session then opened, edited or ran before the next prompt; 2 of 16 files (13%), 2 of them opened or edited, not only run"
 is "L5: and 0% where the denominator is 0" \
    "$(_ax_tl thirdtool "$AXF1")" " thirdtool answered 0 of 2 asks in 0 sessions; 0 answers (0%) named a file the session then opened, edited or ran before the next prompt; 0 of 0 files (0%), 0 of them opened or edited, not only run; 2 asks timed out"
 is "L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves" \
-   "$(_ax_tl fourthtool "$AXF1")" " fourthtool answered 0 of 0 asks in 0 sessions; 0 answers (0%) named a file the session then opened, edited or ran before the next prompt; 0 of 0 files (0%), 0 of them opened or edited, not only run; 2 prompts came too late in the hook to ask; 2 sessions left out, their record of tool calls incomplete"
+   "$(_ax_tl fourthtool "$AXF1")" " fourthtool answered 0 of 0 asks in 0 sessions; 0 answers (0%) named a file the session then opened, edited or ran before the next prompt; 0 of 0 files (0%), 0 of them opened or edited, not only run; 2 prompts came too late in the hook to ask; 2 sessions left out, their record of tool calls empty or incomplete"
 is "L5: and after the tool lines the sentence that bounds what the answers can have caused" "$(_ax_nx "$AXF1")" "after|$AXSENT"
 is "L5: the capability table's rows are the same with the answer rows as without" "$(_ax_tbl "$AXF1")" "$(_ax_tbl "$AXF0")"
 : > "$AX/release"; _ax_kids   # a refresh still waiting ends now, and no stand-in child outlives this part

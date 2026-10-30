@@ -47,6 +47,8 @@ printf '\nlane session start: the paragraph and the screen token, where they sho
 #   paragraph and the token (F11) and a count that ends early (F1), whose silence is asserted with the paragraph and token
 #   the same session start shows without the fault, which main cannot print; and the paragraph for a next text that is
 #   exactly none or unknown (F9, C1), with felix lane --tsv's column 9.
+# - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F1: a soft open-file limit from 10 to 24
+#   set in the shell that execs the hook, where the first lane is short.
 LNGN=1793000000; LNGDAY=86400; LNGK=0
 LNGNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNGPY=0; command -v python3 >/dev/null 2>&1 && LNGPY=1
@@ -501,4 +503,51 @@ _lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/r2bf4" "$LNGZ" "$LNGN" "$FELIX" 
 _lng_is "lane session start R2B-F4-numeric-lane-names-collide: lanes.tsv holding lane 1 alone and lane-next.tsv a row for lane 01 alone, in the own zero checkout: felix lane --tsv reads 1 zero 0 2 with next none, and session start shows lane 1's zero paragraph once with (lane-next.tsv names none), never (lane-next.tsv cannot be read), and the token" \
    "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$LF_RC|$(_lf_cols "$LNGD/r2bf4.out" 1 1 2 3 4 9)|$(_lng_n "$(_lng_par zero 0 2 14 1/2 '(lane-next.tsv names none)' "$LNGCLH" 1)")|$(_lng_n "$(_lng_par zero 0 2 14 1/2 '(lane-next.tsv cannot be read)' "$LNGCLH" 1)")|$LF_SCR" \
    "built|built|0|ok|0|1|zero|0|2|none|1|0|$LNGTOK14"
+
+# ---- the second review's round 3: an open-file limit that drops the marks (R3-F1) -----------------------------------
+# Added on 2026-10-30 from the second review's round 3 findings (their inputs and observed output only), still blind. The
+# review's fixture (_lf_r3, built here from the machine clock, FELIX_LANE_NOW unset): lanes.tsv holds sec before cap and
+# the checkout is p's own, so without the fault session start shows sec's short paragraph and cap's zero one, each once,
+# and no token, the first lane being short. The fault is the finding's: a soft open-file limit N, for each N from 10 to
+# 24, set in the shell that execs the hook (_lf_lroot's stand-in root, that shell first closing the descriptors from 3 up
+# it inherited), with TMPDIR a directory of the fixture's own; no other fault. Readings (C3, C7): a read that did not
+# finish never yields a count, and a lane whose count is unknown or did not finish gets nothing said. So at every N,
+# whatever else the hook printed or could not print (at the lowest limits it cannot load its libraries), the only lane
+# sentences in its output (Lane <lane> is <state>: <L> of <T> engine landings in <W> days, target <n>/<d>.) are sec's
+# short one and cap's zero one, each at most once, and no lane token shows; never Lane sec is zero, or · lane: 0 in 7
+# days on the screen line of a short lane.
+LNGN3="$(date +%s)"; LNGN3T="$LNGD/r3-tmp"; LNGN3A="not built: R3-F1's fixture"; LNGN3C="$LNGD/r3/c"
+_lf_r3 "$LNGD/r3" p "$LNGN3" && LNGN3A=built && LNGN3C="$LF_REPO"
+_lf_use "$LNGD/r3/home" "$LNGD/r3-memory" "$LNGD/r3-user" "$LNGB"
+LNGN3S='Lane sec is short: 1 of 3 engine landings in 7 days, target 1/2.'; LNGN3Z='Lane cap is zero: 0 of 2 engine landings in 14 days, target 1/2.'
+_lng_ss "$LNGN3C" -
+LNGa="$LF_RC|$LF_JSON|$(_lng_n "$(_lng_par short 1 3 7 1/2 'sec next item' "$LNGCLH" sec)")|$(_lng_n "$(_lng_par zero 0 2 14 1/2 'cap next item' "$LNGCLH" cap)")|$LF_SCR"
+# OUT -> "unfaulted or silent" when the session start whose stdout is OUT.out holds, in its context and screen line (or
+# in its bytes, when they are not a JSON object), no lane sentence but sec's short one and cap's zero one, each at most
+# once, and no lane token; else the sentences and tokens it holds beyond those.
+_lng_r3() {
+  python3 -c 'import json, re, sys
+raw = open(sys.argv[1], "rb").read().decode("utf-8", "surrogateescape")
+try:
+    d = json.loads(raw)
+    t = ((d.get("hookSpecificOutput") or {}).get("additionalContext") or "") + "\n" + (d.get("systemMessage") or "")
+except Exception:
+    t = raw
+s = re.findall(r"Lane \S+ is \S+: \d+ of \d+ engine landings in \d+ days?, target \d+/\d+\.", t)
+b = [x for x in s if x not in sys.argv[2:4] or s.count(x) > 1] + re.findall(r"lane: \d+ in \d+ days?", t)
+sys.stdout.write("[" + "; ".join(sorted(set(b))) + "]" if b else "unfaulted or silent")' "$1.out" "$LNGN3S" "$LNGN3Z" 2>/dev/null || printf 'unread'
+}
+LNGa3=""; LNGl=""
+for LNGm in 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+  rm -rf "$LNGN3T"; mkdir -p "$LNGN3T"
+  _lf_lroot "$LNGD/r3-root-$LNGm" "$LNGm" "$LNGN3T"
+  LNGK=$((LNGK + 1)); LNGF="$LNGD/ss-$LNGK"
+  _lf_start "$LNGF" "$LNGN3C" - startup "${LF_LROOT:-$LNGD/r3-root-$LNGm}"
+  [ "$(LC_ALL=C awk 'NR == 1' "$LNGF.err")" = "limit $LNGm" ] || LNGl="$LNGl $LNGm"
+  LNGx="$(_lng_r3 "$LNGF")"; [ "$LNGx" = 'unfaulted or silent' ] || LNGa3="$LNGa3 [N=$LNGm: $LNGx]"
+done
+if [ -z "$LNGl" ]; then LNGl="the limit set at every N"; else LNGl="the limit not set at$LNGl"; fi
+_lng_is "lane session start R3-F1-open-file-limit-drops-marks: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs the hook, in the own checkout where without it session start shows sec's short paragraph and cap's zero one and no token: at every N its only lane sentences are those two, each at most once, and no lane token shows; never Lane sec is zero, and never · lane: 0 in 7 days" \
+   "$LNGN3A|unfaulted $LNGa|$LNGl|${LNGa3:- unfaulted or silent at every N}" "built|unfaulted 0|ok|1|1|Felix: p|the limit set at every N| unfaulted or silent at every N"
+_lf_use "$LNGH" "$LNGD/memory" "$LNGD/user" "$LNGB"
 # <<< lane-session-start

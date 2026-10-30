@@ -24,6 +24,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 #   unknown (F9), 1 day in the human line (F11), and a count that ends early (F1), at the end of the part.
 # - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F3 (a caller's GIT_GRAFT_FILE), R2B-F4
 #   (lanes named 1 and 01) and R2B-F5 (the repository root's substitution ended early).
+# - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F2: the project's resolution ended early,
+#   in a checkout its .felix binds and in one remote_match alone binds.
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'
@@ -729,5 +731,56 @@ case "$LF_RC|$(_lf_last "$LNKD/r2bf5-s.out")" in
 esac
 is "lane command R2B-F5-repo-root-ends-early-names-no-repo L-NEVER-OK: felix_repo_root's substitution under felix_status_rows ended early the same way: felix status --tsv exits 0 and its last row is lane unknown - the lane count did not finish in <repo>, naming the checkout, or the value zero 0 of 2; never a reason naming an empty repository" \
    "$LNKRA|unfaulted $LNKRS0|$LF_FIRE|$LNKa" "built|unfaulted 0|$LNKRV|fired|did not finish naming the checkout, or the value"
+
+# ---- the second review's round 3: a resolution that ended early reads as no project (R3-F2) ---------------------------
+# Added on 2026-10-30 from the second review's round 3 findings (their inputs and observed output only), still blind,
+# last, after R2B-F5, because a run ended early may leave state behind. The review's checkout C above (_lf_r2: bound by
+# its .felix, p's own, remote_match o/r) and a checkout CR beside it, bound to p by remote_match alone: no .felix, its
+# origin https://github.com/o/r.git, the same root and landings at the same times, so felix lane --tsv prints in CR the
+# two lines it prints in C. The fault is C9's kill (_lf_kill) at a read made inside felix_resolve_project, by the words
+# the finding names: in C, tr -d [:space:], the read of the .felix marker; in CR, git remote get-url origin. It kills the
+# parent of the shell that made the read, the process felix_resolve_project runs in, then that shell. Readings (C3, C5):
+# a directory a .felix marker or a remote_match governs is never one no project governs, and a resolution that did not
+# finish is not one that found no project. So felix lane and felix lane --tsv print nothing on stdout and end as C3's
+# count that did not finish (exit 1), or exit 2 with a first stderr line of felix's naming the checkout that is not C5's
+# felix: no project governs <dir>.; or, if the process the kill ended was felix itself, exit 137 with nothing on stdout;
+# or print what they print without the fault. Never the line felix: no project governs <dir>. on stderr. The review also
+# saw this fault once in 48 runs under a real process limit, a race no fixture pins; it is not asserted.
+LNKXA="not built: R3-F2's checkouts"; LNKXR="$LNKD/r3cr"; LNKXT="$LNKD/r3f2-tmp"
+if [ "$LNKRA" = built ] && [ -f "$LNKRC/.felix" ] && _lf_checkout "$LNKD/r3cr" p $((LNKN - 30 * LNKDAY)); then
+  LNKXR="$LF_REPO"; rm -f "$LNKXR/.felix"
+  _lf_origin "$LNKXR" https://github.com/o/r.git && _lf_r2land "$LNKXR" "$LNKN" && [ ! -e "$LNKXR/.felix" ] \
+    && [ -n "$(LC_ALL=C awk '/"remote_match":"o\/r"/' "$LNKD/r2/home/projects/p/project.json")" ] \
+    && [ "$(_lf_spine "$LNKXR")" = "$(_lf_spine "$LNKRC")" ] && LNKXA=built
+fi
+_lf_use "$LNKD/r2/home" "$LNKD/memory" "$LNKD/user" "$LNKB"
+_lf_run "$LNKD/r3f2-x0" "$LNKXR" "$LNKN" "$FELIX" lane --tsv; LNKb="$LF_RC|$(cat "$LNKD/r3f2-x0.out")"
+# OUT DIR WANT -> "unresolved, ended or the lines" when the faulted felix lane run in DIR whose files are OUT.* ended as
+# the readings above accept, WANT the file of what it prints without the fault; else its status, stdout and stderr.
+_lnk_r3f2() {
+  local o="$1" e s
+  e="$(LC_ALL=C awk 'NR == 1' "$o.err")"
+  s="$(LC_ALL=C awk -v w="felix: no project governs $2." '$0 == w { f = 1 } END { print (f ? "said" : "not said") }' "$o.err" 2>/dev/null)"
+  if [ "$s" = "not said" ]; then
+    if [ "$(_lf_ended "$o" "$2")" = ended ] || { [ "$LF_RC" = 0 ] && cmp -s "$o.out" "$3"; }; then printf 'unresolved, ended or the lines'; return 0; fi
+    if [ ! -s "$o.out" ]; then
+      case "$LF_RC|$e" in ("2|felix: "*"$2"*|"137|"*) printf 'unresolved, ended or the lines'; return 0 ;; esac
+    fi
+  fi
+  printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$o.out")" "$(cat "$o.err")"
+}
+rm -rf "$LNKXT"; mkdir -p "$LNKXT"
+_lf_kill tr "*' -d [:space:] '*" "*' felix_resolve_project '*" "$LNKD/r3f2-ct.fired" "$LNKXT" _lf_run "$LNKD/r3f2-ct" "$LNKRC" "$LNKN" "$FELIX" lane --tsv
+LNKa="$(_lnk_r3f2 "$LNKD/r3f2-ct" "$LNKRC" "$LNKD/r2-t0.out")"; LNKc="$LF_FIRE"
+rm -rf "$LNKXT"; mkdir -p "$LNKXT"
+_lf_kill tr "*' -d [:space:] '*" "*' felix_resolve_project '*" "$LNKD/r3f2-ch.fired" "$LNKXT" _lf_run "$LNKD/r3f2-ch" "$LNKRC" "$LNKN" "$FELIX" lane
+LNKa="$LNKa|$(_lnk_r3f2 "$LNKD/r3f2-ch" "$LNKRC" "$LNKD/r2-h0.out")"; LNKc="$LNKc+$LF_FIRE"
+is "lane command R3-F2-ended-resolution-reads-ungoverned L-NEVER-OK: in the checkout its .felix binds, C9's kill at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane print nothing on stdout and end as C3's count that did not finish, or exit 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exit 137, or print their unfaulted lines; never felix: no project governs <dir>." \
+   "$LNKRA|unfaulted $LNKRU0|unfaulted $LNKRH0|$LNKc|$LNKa" \
+   "built|unfaulted 0|$LNKRL|unfaulted 0|$(_lnk_human "$LNKRCAP" "$LNKRSEC")|fired+fired|unresolved, ended or the lines|unresolved, ended or the lines"
+rm -rf "$LNKXT"; mkdir -p "$LNKXT"
+_lf_kill git "*' remote get-url origin '*" "*' felix_resolve_project '*" "$LNKD/r3f2-xt.fired" "$LNKXT" _lf_run "$LNKD/r3f2-xt" "$LNKXR" "$LNKN" "$FELIX" lane --tsv
+is "lane command R3-F2-ended-resolution-reads-ungoverned L-NEVER-OK: in a checkout bound by remote_match alone, C9's kill at git remote get-url origin inside felix_resolve_project: felix lane --tsv prints nothing on stdout and ends as C3's count that did not finish, or exits 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exits 137, or prints its unfaulted lines; never felix: no project governs <dir>." \
+   "$LNKXA|unfaulted $LNKb|$LF_FIRE|$(_lnk_r3f2 "$LNKD/r3f2-xt" "$LNKXR" "$LNKD/r3f2-x0.out")" "built|unfaulted 0|$LNKRL|fired|unresolved, ended or the lines"
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 # <<< lane-command

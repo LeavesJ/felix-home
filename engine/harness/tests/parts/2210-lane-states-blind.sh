@@ -25,6 +25,8 @@ printf '\nlane states: ok, short, zero, idle and unknown, each reason, and a tab
 #   directory, F8) and no scratch directory left after a fork that fails (F7), each asserted with the output it guards.
 # - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F2: the count's scratch directory taken
 #   mid-count, in felix lane and the status row.
+# - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F1: a soft open-file limit from 10 to 24,
+#   in felix lane --tsv and the status row.
 LNSN=1793000000; LNSDAY=86400; LNSNEXT='take the lane item after this one'; LNSK=0
 _lf_dir "$TMP/lane-2210"; LNSD="$LF_DIR"
 _lf_stubs "$LNSD"; LNSB="$LF_BIN"
@@ -552,5 +554,76 @@ is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count
    "$LNSGA|unfaulted $LNSb|$LNSGF|${LNSa%|*}" "built|unfaulted 0|$LNSGL|0|$LNSGHU|fired+fired+fired|unknown or ended|unknown or ended"
 is "lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2, the last of ten; never the value idle 0 of 0" \
    "$LNSGA|unfaulted $LNSc|${LNSGF##*+}|${LNSa##*|}" "built|unfaulted one of them|fired|one of them"
+_lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+
+# ---- the second review's round 3: an open-file limit that drops the marks (R3-F1) -----------------------------------
+# Added on 2026-10-30 from the second review's round 3 findings (their inputs and observed output only), still blind.
+# The review's fixture (_lf_r3): its home-apart layout with lanes.tsv holding sec (^docs/ 1/2 7) before cap (^engine/
+# 1/2 14), the checkout bound by .felix and p's own, its landings dated from the machine clock at build time and
+# FELIX_LANE_NOW unset, as the finding ran: felix lane --tsv prints sec short 1 3 and cap zero 0 2, and the status row is
+# the value short 1 of 3. The fault is the finding's: a soft open-file limit N (ulimit -S -n N) set in the shell that
+# execs felix, for each N from 10 to 24, that shell first closing the descriptors from 3 up it inherited, so that the N
+# at which a read gives out does not hang on what the suite holds open (_lf_nfprog); TMPDIR a directory of the
+# fixture's own; no other fault. Readings (C3, C4, C5, C6): a read that did not finish never yields a count. So at
+# every N, felix lane --tsv exits 0 with its unfaulted lines, or with lines that differ from them only where C5 lets a
+# column read unknown (7, 9, and 10 with 11 -), or with lines unknown with L, T and column 7 - and a reason, or the -
+# line; or it exits other than 0 with no more on stdout than a start of its unfaulted lines (C3: nothing). Never exit 0
+# with another count, column 7 none for a lane landing that exists, or nothing. The status row is the unfaulted value
+# row or lane unknown - with a reason, last, whenever a lane row is printed; a run that ends before its lane row exits
+# other than 0; a run that printed no row at all said nothing of the lane (at the lowest limits felix cannot load its
+# libraries). Each assertion also compares the run without the limit, so it is red on main.
+LNSN3="$(date +%s)"; LNSN3T="$LNSD/r3-tmp"; LNSN3A="not built: R3-F1's fixture"; LNSN3C="$LNSD/r3/c"; LNSN3L=""
+if _lf_r3 "$LNSD/r3" p "$LNSN3"; then LNSN3A=built; LNSN3C="$LF_REPO"; LNSN3L="$LF_R3"; fi
+LNSN3V="$(_lf_tsv lane value short '1 of 3 engine landings in 7 days, target 1/2')"
+_lf_use "$LNSD/r3/home" "$LNSD/r3-memory" "$LNSD/r3-user" "$LNSB"
+printf '%s\n' "$LNSN3L" > "$LNSD/r3.want"
+_lf_run "$LNSD/r3-t0" "$LNSN3C" - "$FELIX" lane --tsv; LNSb="$LF_RC|$(cat "$LNSD/r3-t0.out")"
+_lf_run "$LNSD/r3-s0" "$LNSN3C" - "$FELIX" status --tsv; LNSc="$(_lns_r2row "$LNSD/r3-s0" "$LNSN3V")"
+# OUT -> "unfaulted or unknown" when the felix lane --tsv run whose files are OUT.* ended as the readings above accept,
+# else its status and stdout.
+_lns_r3t() {
+  local o="$1" s
+  if [ "$LF_RC" != 0 ]; then
+    s="$(wc -c < "$o.out" | tr -d ' ')"
+    if [ "$(head -c "$s" "$LNSD/r3.want"; printf x)" = "$(cat "$o.out"; printf x)" ]; then printf 'unfaulted or unknown'; return 0; fi
+  elif [ "$(LC_ALL=C awk -F'\t' 'NR == FNR { w[FNR] = $0; next }
+      { m = FNR; k = split(w[FNR], e, "\t"); a = (NF == 13 && k == 13 && $1 == e[1])
+        kn = ($2 == e[2] && $3 == e[3] && $4 == e[4] && $5 == e[5] && $6 == e[6] && ($7 == e[7] || $7 == "unknown") && $8 == e[8] &&
+          ($9 == e[9] || $9 == "unknown") && (($10 == e[10] && $11 == e[11]) || ($10 == "unknown" && $11 == "-")) && $12 == e[12] && $13 == "-")
+        un = ($2 == "unknown" && $3 == "-" && $4 == "-" && $7 == "-" && $13 != "" && $13 != "-")
+        if (a && (kn || un)) n++
+        if (NF == 13 && $1 == "-" && $2 == "unknown" && $3 == "-" && $4 == "-" && $7 == "-" && $13 != "" && $13 != "-") d++ }
+      END { print (((m == 2 && n == 2) || (m == 1 && d == 1)) ? "yes" : "no") }' "$LNSD/r3.want" "$o.out")" = yes ]; then
+    printf 'unfaulted or unknown'; return 0
+  fi
+  printf 'status %s, stdout [%s]' "$LF_RC" "$(cat "$o.out")"
+}
+# OUT -> "the row or unknown" when the felix status --tsv run whose files are OUT.* ended as the readings above accept,
+# else its status, its number of rows and of lane rows, and its last row.
+_lns_r3s() {
+  local o="$1" n l u
+  n="$(LC_ALL=C awk -F'\t' '$1 == "lane" { n++ } END { print n + 0 }' "$o.out")"; l="$(_lf_last "$o.out")"
+  u="$(printf '%s\n' "$l" | LC_ALL=C awk -F'\t' '{ print ((NF == 4 && $1 == "lane" && $2 == "unknown" && $3 == "-" && $4 != "" && $4 != "-") ? "unknown" : "other") }')"
+  if [ ! -s "$o.out" ] || { [ "$n" = 0 ] && [ "$LF_RC" != 0 ]; } || { [ "$n" = 1 ] && { [ "$l" = "$LNSN3V" ] || [ "$u" = unknown ]; }; }; then
+    printf 'the row or unknown'; return 0
+  fi
+  printf 'status %s, %s rows, %s lane rows, last [%s]' "$LF_RC" "$(_lf_count "$o.out")" "$n" "$l"
+}
+LNSa=""; LNSc3=""; LNSl=""
+for LNSn in 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+  rm -rf "$LNSN3T"; mkdir -p "$LNSN3T"
+  _lf_run "$LNSD/r3-t$LNSn" "$LNSN3C" - TMPDIR="$LNSN3T" /bin/bash -c "$(_lf_nfprog)" "$LNSn" "$FELIX" lane --tsv
+  [ "$(LC_ALL=C awk 'NR == 1' "$LNSD/r3-t$LNSn.err")" = "limit $LNSn" ] || LNSl="$LNSl t$LNSn"
+  LNSx="$(_lns_r3t "$LNSD/r3-t$LNSn")"; [ "$LNSx" = 'unfaulted or unknown' ] || LNSa="$LNSa [N=$LNSn: $LNSx]"
+  rm -rf "$LNSN3T"; mkdir -p "$LNSN3T"
+  _lf_run "$LNSD/r3-s$LNSn" "$LNSN3C" - TMPDIR="$LNSN3T" /bin/bash -c "$(_lf_nfprog)" "$LNSn" "$FELIX" status --tsv
+  [ "$(LC_ALL=C awk 'NR == 1' "$LNSD/r3-s$LNSn.err")" = "limit $LNSn" ] || LNSl="$LNSl s$LNSn"
+  LNSx="$(_lns_r3s "$LNSD/r3-s$LNSn")"; [ "$LNSx" = 'the row or unknown' ] || LNSc3="$LNSc3 [N=$LNSn: $LNSx]"
+done
+if [ -z "$LNSl" ]; then LNSl="the limit set at every N"; else LNSl="the limit not set at$LNSl"; fi
+is "lane states R3-F1-open-file-limit-drops-marks L-NEVER-OK: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs felix, felix lane --tsv prints at every N its unfaulted lines sec short 1 3 and cap zero 0 2, or unknown forms of C5, or exits other than 0 with no more than a start of them; never sec zero 0 3, column 7 none for a lane landing that exists, or nothing with exit 0" \
+   "$LNSN3A|unfaulted $LNSb|$LNSl|${LNSa:- unfaulted or unknown at every N}" "built|unfaulted 0|$LNSN3L|the limit set at every N| unfaulted or unknown at every N"
+is "lane states R3-F1-open-file-limit-drops-marks L-NEVER-OK: the same limits in felix status --tsv: whenever a lane row is printed it is the last, the value short 1 of 3 engine landings in 7 days, target 1/2, or lane unknown - with a reason; never the value zero 0 of 3, and never exit 0 after rows with no lane row" \
+   "$LNSN3A|unfaulted $LNSc|$LNSl|${LNSc3:- the row or unknown at every N}" "built|unfaulted one of them|the limit set at every N| the row or unknown at every N"
 _lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
 # <<< lane-states

@@ -28,6 +28,8 @@ printf '\nlane pulse: a lane line per row of the home project'"'"'s lanes.tsv, l
 #   at the end, in a home of its own.
 # - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F1 (a home bound by remote_match alone
 #   whose resolution does not finish) and R2B-F2 (the count's scratch directory taken mid-count), each in its own home.
+# - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F1: a soft open-file limit from 10 to 24
+#   set in the shell that execs felix pulse, in a home of its own.
 LNPN=1793000000; LNPDAY=86400; LNPK=0
 _lf_dir "$TMP/lane-2250"; LNPD="$LF_DIR"
 _lf_stubs "$LNPD"; LNPB="$LF_BIN"
@@ -371,5 +373,58 @@ is "lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count'
 _lnp_gone B "*'t[\$2]++'*" "*' _lane_window '*"
 is "lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[\$2]++, _lane_window): felix pulse exits 0 and ends with lane - unknown - - or lane cap unknown - - after its backup and settings lines; never lane cap idle 0 0" \
    "$LNPGA|unfaulted $LNPb|$LF_FIRE|$LNPc" "built|unfaulted 0|$(_lf_tsv lane cap ok 1 2)|backup settings|fired|unknown"
+_lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+
+# ---- the second review's round 3: an open-file limit that drops the marks (R3-F1) -----------------------------------
+# Added on 2026-10-30 from the second review's round 3 findings (their inputs and observed output only), still blind,
+# last, in a self-governed home of its own: R holds .felix (p), lanes.tsv (cap ^engine/ 1/2 14, then sec ^docs/ 1/2 7)
+# and lane-next.tsv committed, then the review's landings (_lf_r2land) dated from the machine clock at build time, and
+# the pulse runs with FELIX_LANE_NOW unset, as the finding ran: without the fault it ends with lane cap zero 0 2 and lane
+# sec short 1 3. The fault is the finding's: a soft open-file limit N, for each N from 10 to 24, set in the shell that
+# execs felix pulse (_lf_nfprog, that shell first closing the descriptors from 3 up it inherited), with TMPDIR a
+# directory of the fixture's own; no other fault. Readings (C3, C8): a read that did not finish never yields a count. So
+# at every N the lane lines the pulse prints are, in order, lane cap zero 0 2 or lane cap unknown - -, then lane sec short
+# 1 3 or lane sec unknown - -, or the single lane - unknown - -; a run that exits 0 prints all of them, last; a run that
+# ends early (exit other than 0) may print fewer or none; a run that printed nothing at all said nothing of the lane (at
+# the lowest limits felix cannot load its libraries). Never lane sec zero 0 3, and never exit 0 after lines with no lane
+# line.
+LNPN3="$(date +%s)"; LNPN3T="$LNPD/r3-tmp"; LNPN3A="not built: R3-F1's home"; LNPN3H="$LNPD/r3"
+if _lf_self "$LNPD/r3" p $((LNPN3 - 40 * LNPDAY)); then
+  LNPN3H="$LF_HOME"
+  LNPa="$((LNPN3 - LNPDAY)):1 $((LNPN3 - 2 * LNPDAY)):1 $((LNPN3 - 3 * LNPDAY)):1 $((LNPN3 - 4 * LNPDAY)):1 $((LNPN3 - 5 * LNPDAY)):1"
+  _lf_table "$LF_PROJ" $((LNPN3 - 29 * LNPDAY)) lanes.tsv $'cap\t^engine/\t1/2\t14\nsec\t^docs/\t1/2\t7\n' \
+    && _lf_table "$LF_PROJ" $((LNPN3 - 29 * LNPDAY + 60)) lane-next.tsv $'cap\tcap next item\nsec\tsec next item\n' \
+    && _lf_r2land "$LNPN3H" "$LNPN3" \
+    && case "$(_lf_spine "$LNPN3H")" in ("$LNPa $((LNPN3 - 20 * LNPDAY)):1 "*" $((LNPN3 - 40 * LNPDAY)):0") LNPN3A=built ;; esac
+fi
+_lf_use "$LNPN3H" "$LNPD/r3-memory" "$LNPD/r3-user" "$LNPB"
+_lnp_pulse "$LNPD/r3-0" "$LNPN3H" -; LNPb="$LF_RC|$(_lnp_tail "$LNPD/r3-0.out")|$(_lnp_before "$LNPD/r3-0.out")"
+# OUT -> "unfaulted or unknown" when the pulse run whose files are OUT.* ended as the readings above accept, else its
+# status and its lines from the first lane line on.
+_lnp_r3() {
+  if [ ! -s "$1.out" ] || [ "$(LC_ALL=C awk -F'\t' -v rc="$LF_RC" '
+      $1 == "lane" { k++; l[k] = $0; next }
+      k { x = 1 }
+      END { t = "\t"; d = "lane" t "-" t "unknown" t "-" t "-"
+        c1 = "lane" t "cap" t "zero" t "0" t "2"; u1 = "lane" t "cap" t "unknown" t "-" t "-"
+        c2 = "lane" t "sec" t "short" t "1" t "3"; u2 = "lane" t "sec" t "unknown" t "-" t "-"
+        if (k == 0) ok = (rc != "0")
+        else if (l[1] == d) ok = (k == 1)
+        else ok = ((l[1] == c1 || l[1] == u1) && k <= 2 && (k < 2 || l[2] == c2 || l[2] == u2) && (rc != "0" || k == 2))
+        if (rc == "0" && x) ok = 0
+        print (ok ? "yes" : "no") }' "$1.out")" = yes ]; then printf 'unfaulted or unknown'; return 0; fi
+  printf 'status %s, lane lines [%s]' "$LF_RC" "$(_lnp_tail "$1.out")"
+}
+LNPa3=""; LNPl=""
+for LNPm in 10 11 12 13 14 15 16 17 18 19 20 21 22 23 24; do
+  rm -rf "$LNPN3T"; mkdir -p "$LNPN3T"
+  _lf_run "$LNPD/r3-$LNPm" "$LNPN3H" - TMPDIR="$LNPN3T" /bin/bash -c "$(_lf_nfprog)" "$LNPm" "$FELIX" pulse
+  _lf_calm "$LNPN3H"
+  [ "$(LC_ALL=C awk 'NR == 1' "$LNPD/r3-$LNPm.err")" = "limit $LNPm" ] || LNPl="$LNPl $LNPm"
+  LNPx="$(_lnp_r3 "$LNPD/r3-$LNPm")"; [ "$LNPx" = 'unfaulted or unknown' ] || LNPa3="$LNPa3 [N=$LNPm: $LNPx]"
+done
+if [ -z "$LNPl" ]; then LNPl="the limit set at every N"; else LNPl="the limit not set at$LNPl"; fi
+is "lane pulse R3-F1-open-file-limit-drops-marks L-NEVER-OK: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs felix pulse, where without it the pulse ends with lane cap zero 0 2 and lane sec short 1 3: at every N its lane lines are those or unknown ones, in order, all of them and last when it exits 0; never lane sec zero 0 3" \
+   "$LNPN3A|unfaulted $LNPb|$LNPl|${LNPa3:- unfaulted or unknown at every N}" "built|unfaulted 0|$LNPRW|backup settings|the limit set at every N| unfaulted or unknown at every N"
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

@@ -37,6 +37,10 @@
 # The second review's round 2 (added on 2026-10-30, still blind): _lf_kill runs C9's kill at a read a finding names
 # (pwd among them, by its words and calling functions), and _lf_gone takes the count's scratch directory away at an awk
 # call a finding names, as a cleaner of TMPDIR would.
+#
+# The second review's round 3 (added on 2026-10-30, still blind): _lf_r3 builds R3-F1's home-apart fixture, whose first
+# lane is short (sec before cap), and _lf_nfprog and _lf_lroot run felix and the hook under a soft open-file limit set in
+# the shell that execs them.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -499,6 +503,55 @@ _lf_r2() {
   LF_R2B="$(_lf_tsv sec short 1 3 7 1/2 "$a" 'Felix-Lane: sec' 'sec next item' "$LF_R2T" "$c" "$r" -)"
   LF_R2BU="$(_lf_tsv sec short 1 3 7 1/2 "$a" 'Felix-Lane: sec' unknown "$LF_R2T" "$c" "$r" -)"
   LF_R2="$LF_R2A"$'\n'"$LF_R2B"
+}
+
+# DIR P NOW -> R3-F1's home-apart fixture in DIR (made when missing; it must hold no home or c yet): _lf_r2's, but with
+# lanes.tsv holding sec (^docs/ 1/2 7) before cap (^engine/ 1/2 14), so the first lane is short. A home DIR/home holding
+# P (root at NOW - 40 days), lanes.tsv committed at NOW - 29 days and lane-next.tsv (cap: cap next item, sec: sec next
+# item) a minute later; a checkout DIR/c bound to P by .felix and P's own (_lf_own, remote_match o/r), its root at NOW -
+# 30 days, then _lf_r2land's landings, sec's mark on the one three days back and cap's on the one twenty days back. Sets
+# LF_HOME, LF_PROJ, LF_REPO, LF_R3T (the lanes.tsv commit) and LF_R3, the two lines felix lane --tsv prints at NOW, a
+# newline between: sec short 1 3, its last lane landing NOW - 3 days, then cap zero 0 2, NOW - 20 days. Status 1 and
+# LF_R3 empty when the fixture is not as named.
+_lf_r3() {
+  local d="$1" p="$2" n="$3" r c a
+  LF_R3=""; LF_R3T=""
+  mkdir -p "$d" && [ ! -e "$d/home" ] && [ ! -e "$d/c" ] || return 1
+  _lf_home "$d/home" "$p" $((n - 40 * 86400)) || return 1
+  _lf_table "$LF_PROJ" $((n - 29 * 86400)) lanes.tsv $'sec\t^docs/\t1/2\t7\ncap\t^engine/\t1/2\t14\n' || return 1
+  LF_R3T="$LF_SHA"
+  _lf_table "$LF_PROJ" $((n - 29 * 86400 + 60)) lane-next.tsv $'cap\tcap next item\nsec\tsec next item\n' || return 1
+  _lf_checkout "$d/c" "$p" $((n - 30 * 86400)) && _lf_own "$LF_PROJ" "$LF_REPO" o/r && _lf_r2land "$LF_REPO" "$n" || return 1
+  [ -f "$LF_REPO/.felix" ] || return 1
+  a="$((n - 86400)):1 $((n - 2 * 86400)):1 $((n - 3 * 86400)):1 $((n - 4 * 86400)):1 $((n - 5 * 86400)):1"
+  [ "$(_lf_spine "$LF_REPO")" = "$a $((n - 20 * 86400)):1 $((n - 30 * 86400)):0" ] || return 1
+  [ "$(_lf_marks "$LF_REPO" 'refs/remotes/origin/main~2' sec)|$(_lf_marks "$LF_REPO" 'refs/remotes/origin/main~5' cap)" = "1|1" ] || return 1
+  r="$(_lf_iso $((n - 86400)))"; c="$(_lf_iso $((n - 29 * 86400)))"
+  a="$(_lf_tsv cap zero 0 2 14 1/2 "$(_lf_iso $((n - 20 * 86400)))" 'Felix-Lane: cap' 'cap next item' "$LF_R3T" "$c" "$r" -)"
+  LF_R3="$(_lf_tsv sec short 1 3 7 1/2 "$(_lf_iso $((n - 3 * 86400)))" 'Felix-Lane: sec' 'sec next item' "$LF_R3T" "$c" "$r" -)"$'\n'"$a"
+}
+
+# -> the bash program of R3-F1's fault, for /bin/bash -c PROGRAM N CMD...: it closes every descriptor from 3 to 63 it
+# inherited, so that CMD starts with 0, 1 and 2 alone whatever the suite holds open, sets the soft open-file limit to N
+# (ulimit -S -n N; status 124 when it cannot), writes "limit <the soft limit it reads back>" to stderr, and execs CMD.
+# Given as _lf_run's CMD it is the shell that execs felix: _lf_run OUT DIR NOW TMPDIR=T /bin/bash -c "$(_lf_nfprog)" N
+# "$FELIX" lane --tsv.
+_lf_nfprog() {
+  printf '%s' 'i=3; while [ "$i" -lt 64 ]; do eval "exec $i>&-"; i=$((i + 1)); done; ulimit -S -n "$0" || exit 124; printf "limit %s\n" "$(ulimit -S -n)" >&2; exec "$@"'
+}
+
+# DIR N T -> an engine root at DIR (made when missing) whose harness/hooks/session-start is a bash script that exports
+# TMPDIR T and CLAUDE_PLUGIN_ROOT $FROOT, then execs /bin/bash -c "$(_lf_nfprog)" N $FROOT/harness/hooks/session-start,
+# so that _lf_start OUT DIR NOW SOURCE LF_LROOT runs the suite's hook under R3-F1's soft open-file limit N, set in the
+# shell that execs it. Sets LF_LROOT, DIR's physical path; status 1 and LF_LROOT empty when it cannot be made.
+_lf_lroot() {
+  LF_LROOT=""
+  [ -n "${2-}" ] && [ -n "${3-}" ] && mkdir -p "$1/harness/hooks" || return 1
+  { printf '#!/bin/bash\n# R3-F1: the suite'"'"'s hook under a soft open-file limit of %s.\n' "$2"
+    printf 'export TMPDIR=%q CLAUDE_PLUGIN_ROOT=%q\n' "$3" "$FROOT"
+    printf 'exec /bin/bash -c %q %q %q\n' "$(_lf_nfprog)" "$2" "$FROOT/harness/hooks/session-start"; } > "$1/harness/hooks/session-start" \
+    && chmod +x "$1/harness/hooks/session-start" || return 1
+  LF_LROOT="$(cd -P -- "$1" && pwd -P)"
 }
 
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on

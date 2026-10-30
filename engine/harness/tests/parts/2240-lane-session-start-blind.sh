@@ -41,6 +41,10 @@ printf '\nlane session start: the paragraph and the screen token, where they sho
 #   makes due. Red on main as C10 says: each such assertion also requires felix
 #   lane --tsv's exit 0 and the fixture's expected output (nothing, for the home with no committed lanes.tsv), and the
 #   exit 0 and valid JSON of those session starts are controls of their own.
+# - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds, at the end, C11's 1 day in the
+#   paragraph and the token (F11) and a count that ends early (F1), whose silence is asserted with the paragraph and token
+#   the same session start shows without the fault, which main cannot print; and the paragraph for a next text that is
+#   exactly none or unknown (F9, C1), with felix lane --tsv's column 9.
 LNGN=1793000000; LNGDAY=86400; LNGK=0
 LNGNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNGPY=0; command -v python3 >/dev/null 2>&1 && LNGPY=1
@@ -411,4 +415,44 @@ _lng_is "lane session start: in a checkout that is not own (no origin remote), a
    "$LNGOE|$(_lf_silent capability)|$(_lng_wh)|$LNGLR|$LNGLO" "built|none|unnamed|0|"
 _lng_is "lane session start: in those three checkouts that are not own (an ok lane, an unknown lane, no committed lanes.tsv), session start exits 0 with valid JSON (control)" \
    "$LNGCTL" "built|0|ok|built|0|ok|built|0|ok"
+
+# ---- the review's second amendment: next exactly none or unknown (F9), 1 day (F11), a count that ends early (F1) ------
+# Added on 2026-10-30, still blind, back in H and its own checkouts (H's project.json still names remote_match
+# lane-fixture/sx in its working tree). C1: a next cell that is exactly none or unknown is printed as given in column 9,
+# and the paragraph reads it as C7 reads those values.
+_lf_use "$LNGH" "$LNGD/memory" "$LNGD/user" "$LNGB"
+# WORD IN-PARAGRAPH -> lane-next.tsv holding capability<TAB>WORD committed beside the 1/2 table; then session start and
+# felix lane --tsv in the zero checkout.
+_lng_f9() {
+  _lng_put "next exactly $1" "$LNGLANES" "$(_lf_tsv capability "$1")"$'\n'
+  _lng_ss "$LNGZ"; LNGRC="$LF_RC"; _lf_run "$LNGD/f9-$1" "$LNGZ" "$LNGN" "$FELIX" lane --tsv
+  _lng_is "lane session start F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly $1, the lane zero: felix lane --tsv prints $1 in column 9 as the cell gives it, and the paragraph reads it as C7 reads $1, $2, with the token" \
+     "$LNGZE|$LNGT|$LNGRC|$LF_JSON|$LF_RC|$(_lf_cols "$LNGD/f9-$1.out" 1 1 2 3 4 9)|$(_lng_n "$(_lng_par zero 0 2 14 1/2 "$2" "$LNGCLH")")|$LF_SCR" \
+     "built|built|0|ok|0|capability|zero|0|2|$1|1|$LNGTOK14"
+}
+_lng_f9 unknown "(lane-next.tsv cannot be read)"
+_lng_f9 none "(lane-next.tsv names none)"
+# F11: a checkout of its own, own, whose one landing, an unmarked engine change, is an hour before the clock, and the
+# table's window 1: zero, 0 of 1 in 1 day.
+LNGa="not built: the one-day checkout"; LNGDY=""
+_lf_checkout "$LNGD/day" sx $((LNGN - 30 * LNGDAY)) && LNGDY="$LF_REPO" && _lf_own "$LNGP" "$LNGDY" lane-fixture/sx \
+  && _lf_chain "$LNGDY" capability $((LNGN - 3600)) 60 u && [ "$(cat "$LNGP/project.json")" = "$LNGOWNJ" ] \
+  && [ "$(_lf_spine "$LNGDY")" = "$((LNGN - 3600)):1 $((LNGN - 30 * LNGDAY)):0" ] && LNGa=built
+_lng_put "window 1" $'capability\t^engine/\t1/2\t1\n'
+_lng_ss "${LNGDY:-$LNGD/day}"
+_lng_is "lane session start F11-one-day-reads-1-days: zero with window 1 (one unmarked engine landing an hour back): the paragraph says 0 of 1 engine landings in 1 day, never 1 days, and the screen line ends with · lane: 0 in 1 day" \
+   "$LNGa|$LNGT|$LF_RC|$LF_JSON|$(_lng_n "Lane capability is zero: 0 of 1 engine landings in 1 day, target 1/2."$'\n'"If the founder has not given this session a task, take the first open lane item: $LNGNEXT. End the body of a commit on its branch that is not a merge with the line \`Felix-Lane: capability\`. $LNGCLH")|$LF_SCR" \
+   "built|built|0|ok|1|$LNGSCR · lane: 0 in 1 day"
+# F1, last in this part because a run ended early may leave state behind: C9's fault through _lf_fault kill, with TMPDIR
+# a directory of the fixture's own, in the zero checkout where the same session start without it shows the zero
+# paragraph and token. Whether the count could not finish or a read's own process ended (R2), C7 says nothing of the
+# lane: exit 0, valid JSON, neither the paragraph nor the token.
+_lng_put "share 1/2, for a count that ends early" "$LNGLANES"
+_lng_ss "$LNGZ"; LNGa="$LF_RC|$LF_JSON|$(_lng_n "$LNGZ12")|$LF_SCR"
+LNGkt="$LNGD/f1k-tmp"; rm -rf "$LNGkt"; mkdir -p "$LNGkt"
+LNGK=$((LNGK + 1)); LNGF="$LNGD/ss-$LNGK"
+_lf_fault kill "$LNGF.fired" "$LNGkt" _lf_start "$LNGF" "$LNGZ" "$LNGN" startup
+LNGRC="$LF_RC"; _lf_calm "$LNGH"; _lf_json "$LNGF"
+_lng_is "lane session start F1-count-ends-early: the parent of the shell that runs the read of the landings, then that shell, killed (C9), in the own zero checkout where the same session start without it shows the paragraph and the token: exit 0, valid JSON, neither a lane paragraph nor a lane token" \
+   "$LNGZE|$LNGT|unfaulted $LNGa|$LF_FIRE|$LNGRC|$LF_JSON|$(_lf_silent capability)" "built|built|unfaulted 0|ok|1|$LNGTOK14|fired|0|ok|none"
 # <<< lane-session-start

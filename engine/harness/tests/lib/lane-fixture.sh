@@ -14,7 +14,8 @@
 # kept byte for byte, with --cleanup=verbatim, and the paths it changes), _lf_squash (felix merge's or GitHub's
 # default squash message, C3), _lf_merge (a real merge commit) and _lf_chain (a run of marked and unmarked landings),
 # and refs/remotes/origin/main is published with _lf_publish. The surfaces run through _lf_run and _lf_start in the
-# environment _lf_use names, with the stubs of _lf_stubs first on PATH.
+# environment _lf_use names, with the stubs of _lf_stubs first on PATH. A session-start fixture that expects the lane
+# paragraph or token makes its checkout the project's own (C7, C9) with _lf_own, or with _lf_match and _lf_origin apart.
 #
 # For the parts of status, session start and the pulse (2230 to 2250): felix status --tsv is _lf_run OUT DIR NOW
 # "$FELIX" status --tsv, and _lf_last OUT.out its last row; felix pulse is _lf_run in the home of an _lf_self layout,
@@ -174,6 +175,27 @@ _lf_checkout() {
   _lf_commit "$1" "${3:-1790000000}" $'the root\n' "=README" || return 1
   LF_REPO="$(cd -P -- "$1" && pwd -P)"
 }
+
+# PROJ OWNER/REPO -> PROJ/project.json is {"name":"<P>","gate":"true","remote_match":"OWNER/REPO"}, P the name of PROJ's
+# directory, written in the working tree and never committed, so a home's commits are the same with it or without it.
+_lf_match() {
+  [ -d "${1-}" ] && [ -n "${2-}" ] || return 1
+  printf '{"name":"%s","gate":"true","remote_match":"%s"}\n' "${1##*/}" "$2" > "$1/project.json"
+}
+
+# DIR URL -> DIR's origin remote names URL: added, or its URL changed when DIR has one already (a clone). Nothing is
+# fetched, and no ref is made or removed. Status 0 when git reads URL back as remote.origin.url.
+_lf_origin() {
+  ( _fx_cd "$1" || exit 1
+    if _lf_g 1700000000 config --get remote.origin.url; then _lf_g 1700000000 remote set-url origin "$2" || exit 1
+    else _lf_g 1700000000 remote add origin "$2" || exit 1; fi
+    [ "$(_lf_g 1700000000 config --get remote.origin.url)" = "$2" ] ) >/dev/null 2>&1
+}
+
+# PROJ DIR OWNER/REPO -> the checkout DIR, bound to PROJ's project, is that project's own (C7, C9): _lf_match PROJ
+# OWNER/REPO, and DIR's origin https://github.com/OWNER/REPO.git. A checkout whose project has no remote_match, whose
+# origin is another repository, or that has no origin is not own.
+_lf_own() { _lf_match "$1" "$3" && _lf_origin "$2" "https://github.com/$3.git"; }
 
 # DIR P [T] -> one repository that is both the home and the checkout, as felix-home is: its root commit, at T
 # (1790000000), on main, holds .felix (P) at its top, projects/P/project.json and projects/P/CLAUDE.md. LF_HOME and

@@ -1292,12 +1292,23 @@ is gone. *(My call.)*
     project in a `.felix` marker, and the paragraph would then point an
     untasked session at a lane item by name, in a tree its authors choose
     (§6.5 items 3 and 4).
+45. *Slice 0.* The adversarial review of the first build (findings F1 to
+    F10, and F11 from its real-data run) changed four rules. A count that
+    cannot finish, because a fork fails in it or a signal ends it, is never
+    read as a count or as no lane: the count runs in a process of its own,
+    the status row reads `unknown`, the pulse prints one `unknown` line,
+    session start says nothing, and `felix lane` prints nothing and exits 1.
+    A scratch directory that cannot be made has a reason of its own (R10)
+    instead of reading as a home git cannot read. A next text that is
+    exactly `none` or `unknown` reads as that word, a limit the plan states.
+    A window of one day reads `1 day`. The other findings were defects
+    against rules already written, and the build fixes them.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Item 44 came from a security review of
-slice 0's first build.
+corrected text could be read two ways. Items 44 and 45 came from reviews of
+slice 0's first build: a security review, then an adversarial one.
 
 ## 12. Not decided here, and whose
 

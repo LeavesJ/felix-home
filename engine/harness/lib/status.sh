@@ -481,16 +481,19 @@ felix_status_rows() {
 # felix status [--tsv]: the rows as written, or aligned for a person, with the
 # value shown when there is one and the state word otherwise. No header.
 felix_status_command() {
-  local home="$1" cwd="$2" tsv="${3:-0}" lrc
+  local home="$1" cwd="$2" tsv="${3:-0}" lrc rrc pst
   if [ "$tsv" -eq 1 ]; then felix_status_rows "$home" "$cwd"; return 0; fi
-  felix_status_rows "$home" "$cwd" | while IFS=$'\t' read -r row state value detail; do
-    [ -n "$row" ] || continue
-    [ "$state" = value ] || value="$state"
-    printf '%-9s %-12s %s\n' "$row" "$value" "$detail"
-  done
-  # The rows are made in the pipe's left shell, which a fork that fails ends (128) with the rows it had not
-  # printed lost: that is this command's status too, as in --tsv, where the same fork ends felix itself.
-  lrc="${PIPESTATUS[0]}"
-  [ "$lrc" -lt 128 ] || return "$lrc"
+  felix_status_rows "$home" "$cwd" | { seen=0
+    while IFS=$'\t' read -r row state value detail; do
+      [ -n "$row" ] || continue
+      [ "$row" != lane ] || seen=1
+      [ "$state" = value ] || value="$state"
+      printf '%-9s %-12s %s\n' "$row" "$value" "$detail"
+    done
+    [ "$seen" -eq 1 ]; }
+  # A fork that fails ends the pipe's left shell (128, or 1 in a substitution) with the rows not yet printed lost:
+  # 128, or no lane row (the right side's 1), is this command's status too, as in --tsv. A reader that closes early is not.
+  pst=("${PIPESTATUS[@]}"); lrc="${pst[0]}"; rrc="${pst[1]:-1}"
+  [ "$lrc" -ne 128 ] && [ "$rrc" -ne 1 ] || return 128
   return 0
 }

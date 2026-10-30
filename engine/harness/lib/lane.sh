@@ -142,6 +142,7 @@ _lane_cells() {
 _lane_hprep() {
   local W="$_LANE_W" r="$_LANE_HREPO"
   _LANE_HOK=0
+  ! _lane_partial_old "$r" || return 0
   [ "$(_lane_git -C "$r" rev-parse --is-shallow-repository 2>/dev/null)" != true ] || return 0
   _lane_git -C "$r" rev-list --first-parent HEAD > "$W/hchain" 2>/dev/null || return 0
   LC_ALL=C awk 'NR > 1 { print prev " " $1 } { prev = $1 } END { if (NR > 0) print prev }' "$W/hchain" > "$W/hpairs"

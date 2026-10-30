@@ -3822,6 +3822,7 @@
 1	a kind that is two known kinds run together is refused
 1	a kind the engine does not define is refused as kind, or a table could invent its own way to land a path
 1	a land.tsv in any directory is one by its basename, and a row added to some/dir/land.tsv escapes as verifier
+1	a large payload of escaped quotes reads in linear CPU: 2.1M costs under eight times what 528K does
 1	a large payload whose awk fails part way has no subject, rather than the part it printed
 1	a large payload's subject is read by exactly one awk
 1	a last exit of 126 reads exit-126
@@ -8681,6 +8682,13 @@
 1	bootstrap names the checkout's repo, not the cache's absence
 1	bootstrap with no commit to pin says the workflow gets the placeholder
 1	both hand-written files newer than this session's catch, with no written row, do not settle it
+1	both readings agree on 600 escaped quotes in a 3K command, each read as one quote
+1	both readings agree on a value spanning 34 raw lines with escaped quotes on them
+1	both readings agree on a value that is one escaped quote, which reads as one quote
+1	both readings agree on a value that opens and closes on escaped quotes
+1	both readings agree on escaped quotes on both sides of each raw line break
+1	both readings agree on runs of escaped quotes, the longest 500 in a row
+1	both readings stop at the closing quote of a value whose last character is an escaped quote
 1	both refused setup rows are printed there
 1	both worktrees holding one branch lead with hazard:shared-branch
 1	brief reads an issue from stdin
@@ -11302,6 +11310,7 @@
 1	no plugin cache at all is not where this applies either
 1	no probe row is refused for a when, a probe or a witness ending in a final filter
 1	no project script names a fixed path under /tmp outside its comments
+1	no project script pipes into a grep that can stop reading early
 1	no pulse line carries a query string: ?
 1	no pulse line carries a query string: REDACTED
 1	no pulse line carries a query string: SECRET
@@ -11888,6 +11897,86 @@
 1	provenance is not part of the announce key
 1	provision no longer says it fetches at the commit the founder's machine runs (b23 A39)
 1	pulse --install and --uninstall write no record
+1	pulse agent P1: ProgramArguments holds exactly three strings
+1	pulse agent P1: the first is /bin/bash
+1	pulse agent P1: the program does not go through /usr/bin/env
+1	pulse agent P1: the second is the served engine's felix, not the running copy
+1	pulse agent P1: the third is pulse
+1	pulse agent P1: the three in order are /bin/bash, the served felix, pulse
+1	pulse agent P1a: ProgramArguments appears once
+1	pulse agent P1a: StandardErrorPath appears once
+1	pulse agent P1a: StandardOutPath appears once
+1	pulse agent P1a: its keys are exactly Label, ProgramArguments, StartCalendarInterval, Hour, Minute, StandardOutPath, StandardErrorPath, each once
+1	pulse agent P1a: the plist has no Program key
+1	pulse agent P2: StandardErrorPath is $HOME/Library/Logs/felix/pulse.launchd.log
+1	pulse agent P2: StandardOutPath is $HOME/Library/Logs/felix/pulse.launchd.log
+1	pulse agent P2: neither capture path is inside the Felix home
+1	pulse agent P2: neither capture path is under $HOME/Documents
+1	pulse agent P2: stdout and stderr are captured to the same file
+1	pulse agent P2a: StandardOutPath carries & as &amp;
+1	pulse agent P2a: StandardOutPath carries < as &lt;
+1	pulse agent P2a: StandardOutPath carries > as &gt;
+1	pulse agent P2a: and ~/Library/Logs/felix is made under that home
+1	pulse agent P2a: install answers 0 for a home whose path holds &, < and >
+1	pulse agent P2a: no <string> in the plist holds a raw & or <
+1	pulse agent P2a: unescaped, StandardErrorPath is exactly $HOME/Library/Logs/felix/pulse.launchd.log
+1	pulse agent P2a: unescaped, StandardOutPath is exactly $HOME/Library/Logs/felix/pulse.launchd.log
+1	pulse agent P2a: unescaped, the second ProgramArguments string is exactly the served felix
+1	pulse agent P3: a successful install leaves ~/Library/Logs/felix in place
+1	pulse agent P3: and hands launchctl nothing
+1	pulse agent P3: and says which directory it could not create
+1	pulse agent P3: and writes no plist
+1	pulse agent P3: install exits 1 when ~/Library/Logs/felix cannot be created
+1	pulse agent P3a: the capture path is a directory: and hands launchctl nothing
+1	pulse agent P3a: the capture path is a directory: and says which directory it could not use
+1	pulse agent P3a: the capture path is a directory: and writes no plist
+1	pulse agent P3a: the capture path is a directory: install exits 1
+1	pulse agent P3a: ~/Library/Logs/felix is a regular file: and hands launchctl nothing
+1	pulse agent P3a: ~/Library/Logs/felix is a regular file: and says which directory it could not use
+1	pulse agent P3a: ~/Library/Logs/felix is a regular file: and writes no plist
+1	pulse agent P3a: ~/Library/Logs/felix is a regular file: install exits 1
+1	pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and hands launchctl nothing
+1	pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and says which directory it could not use
+1	pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and writes no plist
+1	pulse agent P3a: ~/Library/Logs/felix is an executable regular file: install exits 1
+1	pulse agent P3a: ~/Library/Logs/felix is not writable: and hands launchctl nothing
+1	pulse agent P3a: ~/Library/Logs/felix is not writable: and says which directory it could not use
+1	pulse agent P3a: ~/Library/Logs/felix is not writable: and writes no plist
+1	pulse agent P3a: ~/Library/Logs/felix is not writable: install exits 1
+1	pulse agent P3b: ~/Library/Logs is a regular file, with an agent already installed: install exits 1
+1	pulse agent P3b: ~/Library/Logs is a regular file: and it never says that nothing is scheduled
+1	pulse agent P3b: ~/Library/Logs is a regular file: and launchctl is handed nothing
+1	pulse agent P3b: ~/Library/Logs is a regular file: and that it may still be loaded
+1	pulse agent P3b: ~/Library/Logs is a regular file: the message says that agent was left as it was
+1	pulse agent P3b: ~/Library/Logs is a regular file: the plist from before is left byte for byte
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file, with an agent already installed: install exits 1
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file: and it never says that nothing is scheduled
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file: and launchctl is handed nothing
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file: and that it may still be loaded
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file: the message says that agent was left as it was
+1	pulse agent P3b: ~/Library/Logs/felix is a regular file: the plist from before is left byte for byte
+1	pulse agent P4: and launchctl was asked to load it
+1	pulse agent P4: and still names the pulse's own log, state/pulse.log
+1	pulse agent P4: and that path is the one the plist's StandardOutPath holds
+1	pulse agent P4: the install message names the capture file
+1	pulse agent P4: the install message names the capture file by its full path
+1	pulse agent P4: the load-failure message names the capture file by its full path
+1	pulse agent P4: the load-failure message names the pulse's own log, state/pulse.log
+1	pulse agent P4: under that home the message names the capture file by its full, unescaped path
+1	pulse agent P4: with a launchctl load that fails, the plist is still written
+1	pulse agent P5: a machine without launchd is still refused with 1
+1	pulse agent P5: and launchd is handed that plist
+1	pulse agent P5: and minute 7
+1	pulse agent P5: and no plist is written on it
+1	pulse agent P5: at hour 9
+1	pulse agent P5: install on Darwin answers 0
+1	pulse agent P5: install writes ~/Library/LaunchAgents/felix.pulse.plist
+1	pulse agent P5: the agent still runs on a StartCalendarInterval
+1	pulse agent P5: the label is still felix.pulse
+1	pulse agent P5: uninstall answers 0
+1	pulse agent P5: uninstall leaves the capture file and what it holds
+1	pulse agent P5: uninstall removes the plist
+1	pulse agent P5a: launchd is handed the plist by a load, not by an unload alone
 1	pulse.sh's header no longer says two duties (P6)
 1	quarantine refuses a plugin that is not here
 1	quiet on JSON that holds no credential, sample 1
@@ -13793,6 +13882,7 @@
 1	the stuck-PR fixture: the gh stub serves the home's pull requests from the home's directory (fixture control)
 1	the stuck-PR fixture: the land directory holds the ledger, a dead lock and paused (fixture control)
 1	the stuck-PR fixture: the landdir founder row is on origin/main and the wtonly row only in the working tree (fixture control)
+1	the subject of the 2.1M payload is exact: 1,728,004 characters, 384,000 quotes, no backslash, and the value's own end
 1	the suite has C5 and C8's header once, and nothing shaped like a header between it and the completion marker
 1	the suite judges its own checkout's record with one bare call at the top level of its parts, and once more in the driver's record-mode branch, and nowhere else
 1	the suite's copy of a harness holding one leaves it behind

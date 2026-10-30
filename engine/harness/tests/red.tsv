@@ -8,5 +8,59 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	01e24cfc16419dfe49f605ce9a7f619890c34cd8	0.49.313
-run	0	15022	28
+base	origin/main	97b804da112d5f4b78dadb6b00a9a9fdd69d47e3	0.49.316
+run	54	15040	46
+a large payload of escaped quotes reads in linear CPU: 2.1M costs under eight times what 528K does	1
+pulse agent P1: ProgramArguments holds exactly three strings	1
+pulse agent P1: the first is /bin/bash	1
+pulse agent P1: the second is the served engine's felix, not the running copy	1
+pulse agent P1: the third is pulse	1
+pulse agent P1: the three in order are /bin/bash, the served felix, pulse	1
+pulse agent P2: StandardErrorPath is $HOME/Library/Logs/felix/pulse.launchd.log	1
+pulse agent P2: StandardOutPath is $HOME/Library/Logs/felix/pulse.launchd.log	1
+pulse agent P2: neither capture path is inside the Felix home	1
+pulse agent P2a: StandardOutPath carries & as &amp;	1
+pulse agent P2a: StandardOutPath carries < as &lt;	1
+pulse agent P2a: StandardOutPath carries > as &gt;	1
+pulse agent P2a: and ~/Library/Logs/felix is made under that home	1
+pulse agent P2a: no <string> in the plist holds a raw & or <	1
+pulse agent P2a: unescaped, StandardErrorPath is exactly $HOME/Library/Logs/felix/pulse.launchd.log	1
+pulse agent P2a: unescaped, StandardOutPath is exactly $HOME/Library/Logs/felix/pulse.launchd.log	1
+pulse agent P2a: unescaped, the second ProgramArguments string is exactly the served felix	1
+pulse agent P3: a successful install leaves ~/Library/Logs/felix in place	1
+pulse agent P3: and hands launchctl nothing	1
+pulse agent P3: and says which directory it could not create	1
+pulse agent P3: and writes no plist	1
+pulse agent P3: install exits 1 when ~/Library/Logs/felix cannot be created	1
+pulse agent P3a: the capture path is a directory: and hands launchctl nothing	1
+pulse agent P3a: the capture path is a directory: and says which directory it could not use	1
+pulse agent P3a: the capture path is a directory: and writes no plist	1
+pulse agent P3a: the capture path is a directory: install exits 1	1
+pulse agent P3a: ~/Library/Logs/felix is a regular file: and hands launchctl nothing	1
+pulse agent P3a: ~/Library/Logs/felix is a regular file: and says which directory it could not use	1
+pulse agent P3a: ~/Library/Logs/felix is a regular file: and writes no plist	1
+pulse agent P3a: ~/Library/Logs/felix is a regular file: install exits 1	1
+pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and hands launchctl nothing	1
+pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and says which directory it could not use	1
+pulse agent P3a: ~/Library/Logs/felix is an executable regular file: and writes no plist	1
+pulse agent P3a: ~/Library/Logs/felix is an executable regular file: install exits 1	1
+pulse agent P3a: ~/Library/Logs/felix is not writable: and hands launchctl nothing	1
+pulse agent P3a: ~/Library/Logs/felix is not writable: and says which directory it could not use	1
+pulse agent P3a: ~/Library/Logs/felix is not writable: and writes no plist	1
+pulse agent P3a: ~/Library/Logs/felix is not writable: install exits 1	1
+pulse agent P3b: ~/Library/Logs is a regular file, with an agent already installed: install exits 1	1
+pulse agent P3b: ~/Library/Logs is a regular file: and launchctl is handed nothing	1
+pulse agent P3b: ~/Library/Logs is a regular file: and that it may still be loaded	1
+pulse agent P3b: ~/Library/Logs is a regular file: the message says that agent was left as it was	1
+pulse agent P3b: ~/Library/Logs is a regular file: the plist from before is left byte for byte	1
+pulse agent P3b: ~/Library/Logs/felix is a regular file, with an agent already installed: install exits 1	1
+pulse agent P3b: ~/Library/Logs/felix is a regular file: and launchctl is handed nothing	1
+pulse agent P3b: ~/Library/Logs/felix is a regular file: and that it may still be loaded	1
+pulse agent P3b: ~/Library/Logs/felix is a regular file: the message says that agent was left as it was	1
+pulse agent P3b: ~/Library/Logs/felix is a regular file: the plist from before is left byte for byte	1
+pulse agent P4: and that path is the one the plist's StandardOutPath holds	1
+pulse agent P4: the install message names the capture file	1
+pulse agent P4: the install message names the capture file by its full path	1
+pulse agent P4: the load-failure message names the capture file by its full path	1
+pulse agent P4: the load-failure message names the pulse's own log, state/pulse.log	1
+pulse agent P4: under that home the message names the capture file by its full, unescaped path	1

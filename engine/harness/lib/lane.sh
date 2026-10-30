@@ -15,6 +15,8 @@
 #                                   when it holds no row. Unless FULL is 1, columns 7, 10 and 11 read - and their
 #                                   searches are not run. Prints nothing on stderr; returns 0.
 # felix_lane_command PROJ ROOT TSV  felix lane: those lines (TSV 1) or C5's human lines (TSV 0).
+# felix_lane_status_row PROJ ROOT   felix status's last row, the first lane's (C6).
+# felix_lane_pulse HOME             felix pulse's last lines, one per lane of the home's own project (C8).
 #
 # A read that did not finish never yields a count: the lane reads unknown with the reason. Bash 3.2; LC_ALL=C on
 # every text tool; awk that BWK awk and gawk both run.
@@ -310,6 +312,23 @@ felix_lane_status_row() {   # PROJ ROOT
   IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 <<< "$rows"
   if [ "$c2" = unknown ]; then _felix_status_row lane unknown - "$c13"
   else _felix_status_row lane value "$c2" "$c3 of $c4 engine landings in $c5 days, target $c6"; fi
+  return 0
+}
+
+# felix pulse's last lines (C8): lane<TAB><lane><TAB><state><TAB><L><TAB><T> for each data row of the Felix home's own
+# project, columns 1 to 4 of felix_lane_rows (L and T read - when the state is unknown). Only the project the home
+# checkout is bound to is counted: no project records where its checkout is. The git-dir check comes first because
+# felix_repo_root prints a directory outside git as its own root and felix_resolve_project would then bind a .felix
+# there, so a plain home holding a lanes.tsv would get an unknown line against C2. Prints nothing otherwise; returns 0.
+felix_lane_pulse() {   # HOME
+  local home="${1:-}" root proj
+  [ -n "$home" ] || return 0
+  _lane_git -C "$home" rev-parse --git-dir >/dev/null 2>&1 || return 0
+  root="$(felix_repo_root "$home" 2>/dev/null)" || root=""
+  [ -n "$root" ] || return 0
+  proj="$(felix_resolve_project "$root" "$home" 2>/dev/null)" || proj=""
+  [ -n "$proj" ] || return 0
+  felix_lane_rows "$proj" "$root" 0 | LC_ALL=C awk -F'\t' '{ print "lane\t" $1 "\t" $2 "\t" $3 "\t" $4 }'
   return 0
 }
 

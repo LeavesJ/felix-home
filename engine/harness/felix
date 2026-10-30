@@ -6560,6 +6560,7 @@ cmd_pulse() {
     felix_pulse_backup "$(felix_pulse_mem_repo "$FELIX_HOME_DIR")"
     printf 'settings\t%s\n' "$(felix_settings_state)"
     felix_pulse_report "$FELIX_HOME_DIR"
+    felix_lane_pulse "$FELIX_HOME_DIR"
   }; printf .)"
   case "$lines" in
     *.) lines="${lines%.}" ;;

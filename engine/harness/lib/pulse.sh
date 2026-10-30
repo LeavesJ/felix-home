@@ -8,9 +8,9 @@
 # no checkout touched, no network beyond the backup remote a person already
 # configured.
 #
-# Duties, four and a record. All of it is bash and git (and jq, when present, for
+# Duties, five and a record. All of it is bash and git (and jq, when present, for
 # the settings check). Only the first duty writes outside state/ or reaches a
-# network, and then only the backup remote; the next three read and never act:
+# network, and then only the backup remote; the next four read and never act:
 #   backup   commit and push the memory repository, verified by asking the
 #            remote what it now holds; a rejected push is reported and never
 #            forced, because a divergence is another machine's work and
@@ -23,6 +23,13 @@
 #            Felix's can say so, because none of them loads
 #   reach    which declared plugin and mcp servers a project's last reach cache
 #            says do not connect, or that no cache has been read for
+#   lane     last of all, one line per lane the home's own project counts
+#            (lib/lane.sh, felix_lane_pulse): its state, and L and T, the
+#            landings in the window that carry the lane's mark and the
+#            landings that touch its paths. It reads the home checkout's
+#            refs/remotes/origin/main as last fetched and the lane tables as
+#            committed; it fetches nothing, and a home that is not a git
+#            checkout bound to a project gets no line
 # and the record, which is not a duty but what a run leaves behind:
 #   record   state/pulse.status.tsv, rewritten whole by every run: `# ran
 #            <epoch>`, then the lines the run printed, so a status surface

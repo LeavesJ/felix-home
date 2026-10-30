@@ -28,6 +28,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 #   in a checkout its .felix binds and in one remote_match alone binds.
 # - Design item 46 (2026-10-30, still blind) adds, at the end, I46-1 to I46-10: C5's line for a resolution that did not
 #   finish, under C9's probes inside felix_resolve_project, and the misses that stand (C2's bullet The lane's resolution).
+# - The third review's round 1 (2026-10-30, still blind) adds, at the end, V3R1-F1 and V3R1-F2 (the check of a resolution
+#   whose remote_match reads failed) and V3R1-F5 (C5's sentence for a .felix marker that cannot be opened).
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'
@@ -886,6 +888,97 @@ if [ "$(id -u)" = 0 ]; then skip "$LNKa6" "the suite runs as root, which opens a
 else
   _lnk_i46m closed felix
   is "$LNKa6" "$LNKa|$LNKb" "built|felix built|0|$LNKIL|closed built|a miss|a miss"
+fi
+_lf_bind "$LNKIC" "$LNKIH" p felix
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- the third review's round 1: the lane's own check of the resolution (V3R1-F1, V3R1-F2, V3R1-F5) --------------------
+# Added on 2026-10-30 from the third review's round 1 findings (their inputs and observed output only) and C2 and C5 as
+# 777e6c2d amended them, still blind, last. Readings:
+# - V3R1-F1: item 46's checkout bound by remote_match alone (_lf_bind remote), with C9's fork probe (_lf_probe) at every
+#   sed whose words hold remote_match, whatever calls it: the resolver's read and the check's own (C2: a sed of its own,
+#   no pipe) both fail, so the check did not finish; or at every head -1, the end of the shared reader's pipe, where the
+#   resolver misses and the check reads with no head. Either way the resolution did not finish: felix lane --tsv and
+#   felix lane say C5's line (_lnk_unres: or 128 with nothing on stdout, where the fork failed in felix's own shell).
+# - V3R1-F2: a home of two projects, p (remote_match o/r, lane cap ^engine/ 1/2 14) and z (github.com/o/r, the longer, so
+#   z binds; lane zz ^docs/ 1/2 7), and a checkout remote_match alone binds (_lf_two apart), where felix lane --tsv prints
+#   zz zero 0 1 7 1/2. C9's fork and kill probes at sed naming projects/z/project.json inside felix_resolve_project let
+#   the resolver bind p while the check binds z, another project (C2): C5's line, or z's lines as without the fault (the
+#   finding allows them), or 128 or 137 where the probe reached felix itself; never p's figures, cap zero 0 1 14 1/2.
+# - V3R1-F5: item 46's checkout with a .felix of mode 000 holding p, and no origin: C5's sentence for a marker that cannot
+#   be opened, exactly, <root> the checkout. Beside it, a .felix naming no project gives a line of felix's naming <dir>
+#   and the .felix marker that is not that sentence, and no .felix gives felix: no project governs <dir>.
+_lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+# OUT DIR MODE [WANT] -> "unresolved" when _lnk_unres says so of the faulted run OUT, or when WANT is given and the run
+# exited 0 printing WANT's bytes; else what _lnk_unres said.
+_lnk_v3s() {
+  if [ -n "${4-}" ] && [ "$LF_RC" = 0 ] && cmp -s "$1.out" "$4"; then printf unresolved; return 0; fi
+  _lnk_unres "$1" "$2" "$3"
+}
+# MODE NAME WORDS STACK DIR [WANT] -> felix lane --tsv, then felix lane, in DIR under _lf_probe MODE NAME WORDS STACK, each
+# with a fresh TMPDIR; WANT the stem of their unfaulted runs (WANT-t, WANT-h). LNKb what each said (_lnk_v3s), LNKc each
+# probe's LF_FIRE.
+_lnk_v3() {
+  rm -rf "$LNKIT"; mkdir -p "$LNKIT"
+  _lf_probe "$1" "$2" "$3" "$4" "$LNKD/v3t.fired" "$LNKIT" _lf_run "$LNKD/v3t" "$5" "$LNKN" "$FELIX" lane --tsv
+  LNKb="$(_lnk_v3s "$LNKD/v3t" "$5" "$1" ${6:+"$6-t.out"})"; LNKc="$LF_FIRE"
+  rm -rf "$LNKIT"; mkdir -p "$LNKIT"
+  _lf_probe "$1" "$2" "$3" "$4" "$LNKD/v3h.fired" "$LNKIT" _lf_run "$LNKD/v3h" "$5" "$LNKN" "$FELIX" lane
+  LNKb="$LNKb|$(_lnk_v3s "$LNKD/v3h" "$5" "$1" ${6:+"$6-h.out"})"; LNKc="$LNKc+$LF_FIRE"
+}
+LNKa5='felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr felix: the project that governs <dir> could not be resolved: a read it stands on did not finish.'
+_lf_bind "$LNKIC" "$LNKIH" p remote; LNKa="$LNKIA|$LF_BOUND"
+_lf_run "$LNKD/v3-0" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; LNKa="$LNKa|unfaulted $LF_RC|$(cat "$LNKD/v3-0.out")"
+_lnk_v3 fork sed '*remote_match*' '*' "$LNKIC"
+is "lane command V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a checkout remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: $LNKa5 (or 128 with nothing on stdout, where the fork failed in felix's own shell); never felix: no project governs <dir>.; the probe fired, and unfaulted the checkout prints its lines" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+_lnk_v3 fork head "*' -1 '*" '*' "$LNKIC"
+is "lane command V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: the same checkout, C9's fork probe at every head -1, the end of the shared reader's pipe after its sed, so the resolver misses while the check reads remote_match with a sed of its own and no pipe (C2): $LNKa5 (or 128 with nothing on stdout, where the fork failed in felix's own shell); never felix: no project governs <dir>.; the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+
+LNKVA="not built: V3R1-F2's home and checkout"; LNKVC="$LNKD/v3f2/c"
+_lf_two "$LNKD/v3f2" apart "$LNKN" && LNKVA=built
+_lf_use "$LNKD/v3f2/home" "$LNKD/memory" "$LNKD/user" "$LNKB"
+_lf_run "$LNKD/v3f2-t" "$LNKVC" "$LNKN" "$FELIX" lane --tsv
+LNKa="$LNKVA|unfaulted $LF_RC|$(_lf_count "$LNKD/v3f2-t.out")|$(_lf_cols "$LNKD/v3f2-t.out" 1 1 2 3 4 5 6)"
+_lf_run "$LNKD/v3f2-h" "$LNKVC" "$LNKN" "$FELIX" lane
+case "$LF_RC|$(cat "$LNKD/v3f2-h.out")" in
+  ("0|zz: zero, 0 of 1 engine landings in 7 days, target 1/2; "*) LNKa="$LNKa|z's human line" ;;
+  (*) LNKa="$LNKa|human [$LF_RC|$(cat "$LNKD/v3f2-h.out")]" ;;
+esac
+LNKa6='felix lane --tsv and felix lane exit 2 with nothing on stdout and C5'"'"'s line felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. first on stderr, or print z'"'"'s lines as without the fault'
+_lnk_v3 fork sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC" "$LNKD/v3f2"
+is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so felix lane --tsv prints zz zero 0 1 7 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: $LNKa6 (or 128 with nothing on stdout, where the fork failed in felix's own shell); never p's figures, cap zero 0 1 14 1/2; the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|unfaulted 0|1|zz|zero|0|1|7|1/2|z's human line|fired+fired|unresolved|unresolved"
+_lnk_v3 kill sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC" "$LNKD/v3f2"
+is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNKa6 (or 137 with nothing on stdout, where the kill reached felix itself); never p's figures, cap zero 0 1 14 1/2; the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|unfaulted 0|1|zz|zero|0|1|7|1/2|z's human line|fired+fired|unresolved|unresolved"
+
+_lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+LNKb="felix: The .felix marker in $LNKIC cannot be read, so it does not resolve to a project."
+# LAYOUT -> the checkout in LAYOUT, then felix lane --tsv and felix lane there; LNKa gains what was built and, per run, its
+# status, its bytes on stdout and the first line of its stderr, written "a broken binding" when it is a line of felix's
+# naming the checkout and the .felix marker that is neither LNKb, nor no project governs, nor C5's unresolved line.
+_lnk_v3m() {
+  local o e
+  _lf_bind "$LNKIC" "$LNKIH" p "$1"; LNKa="$LNKa|$1 $LF_BOUND"
+  for o in --tsv -; do
+    if [ "$o" = - ]; then _lf_run "$LNKD/v3f5" "$LNKIC" "$LNKN" "$FELIX" lane; else _lf_run "$LNKD/v3f5" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; fi
+    e="$(LC_ALL=C awk 'NR == 1' "$LNKD/v3f5.err")"
+    case "$e" in
+      ("$LNKb"|"felix: no project governs $LNKIC."|"felix: the project that governs $LNKIC could not be resolved: a read it stands on did not finish.") ;;
+      ("felix: "*"$LNKIC"*) case "$e" in (*.felix*) e="a broken binding" ;; esac ;;
+    esac
+    LNKa="$LNKa|$LF_RC $(wc -c < "$LNKD/v3f5.out" | tr -d ' ') $e"
+  done
+}
+LNKa6="lane command V3R1-F5-unreadable-marker-called-empty: in a checkout whose .felix holds p, exists and cannot be opened (mode 000), with no origin, felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr exactly felix: The .felix marker in <root> cannot be read, so it does not resolve to a project.; a .felix naming no project gives a line of felix's naming <dir> and the marker, never that sentence; no .felix gives felix: no project governs <dir>.; with its .felix naming p the checkout prints its lines"
+if [ "$(id -u)" = 0 ]; then skip "$LNKa6" "the suite runs as root, which opens a .felix of mode 000"
+else
+  _lf_bind "$LNKIC" "$LNKIH" p felix; LNKa="$LNKIA|felix $LF_BOUND"
+  _lf_run "$LNKD/v3f5-0" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; LNKa="$LNKa|$LF_RC|$(cat "$LNKD/v3f5-0.out")"
+  _lnk_v3m closed; _lnk_v3m nosuch; _lnk_v3m none
+  is "$LNKa6" "$LNKa" "built|felix built|0|$LNKIL|closed built|2 0 $LNKb|2 0 $LNKb|nosuch built|2 0 a broken binding|2 0 a broken binding|none built|2 0 felix: no project governs $LNKIC.|2 0 felix: no project governs $LNKIC."
 fi
 _lf_bind "$LNKIC" "$LNKIH" p felix
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"

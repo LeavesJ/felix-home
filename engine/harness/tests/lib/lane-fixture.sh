@@ -45,6 +45,10 @@
 # The design's item 46 (added on 2026-10-30, still blind, from C2's bullet "The lane's resolution", C5, C6 and C8):
 # _lf_bind puts a repository in one of the layouts a binding takes or misses, _lf_probe runs C9's fork or kill probe and
 # says whether it acted in felix's own shell, and _lf_said reads what felix lane said of the resolution.
+#
+# The third review's round 1 (added on 2026-10-30, still blind, from its findings' inputs and C2 as 777e6c2d amended it):
+# _lf_probe also wraps sed and head, the reads of a project.json's remote_match, and _lf_two builds V3R1-F2's home of two
+# projects whose remote_match values both name the origin, the longer binding, apart from its checkout or its own.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -607,7 +611,8 @@ _lf_bind() {
 }
 
 # Design item 46 (2026-10-30, still blind). MODE NAME WORDS STACK FILE TMPDIR CMD... -> CMD run as _lf_fork (MODE fork)
-# or _lf_kill (MODE kill) runs it, NAME (tr or git) the bash function exported into felix, acting every time " $* "
+# or _lf_kill (MODE kill) runs it, NAME (tr or git; sed or head since the third review's round 1) the bash function
+# exported into felix, acting every time " $* "
 # matches the case pattern WORDS and " ${FUNCNAME[*]} " the case pattern STACK. It writes "fired" to FILE; then, S being
 # the shell that called it, P that shell's parent and M the bash that runs it ($$ there: felix itself, for a function
 # felix calls), fork writes "fork S M", lowers the soft process limit to 1 in that shell and runs NAME, then writes "ran
@@ -621,7 +626,7 @@ _lf_probe() {
   LF_FIRE="not run"; LF_SELF="not run"; LF_RC=125
   case "$f$t" in (*\"*|*\'*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
   [ -n "$f" ] && [ -n "$t" ] && [ -n "$w" ] && [ -n "$k" ] || return 1
-  case "$n" in (tr|git) c="command $n" ;; (*) return 1 ;; esac
+  case "$n" in (tr|git|sed|head) c="command $n" ;; (*) return 1 ;; esac
   case "$m" in
     (fork) a="printf 'fork %s %s\\n' \"\$s\" \"\$\$\" >> '$f'; ulimit -S -u 1; $c \"\$@\"; r=\$?; printf 'ran %s\\n' \"\$r\" >> '$f'; return \"\$r\"" ;;
     (kill) a="p=\"\$(ps -o ppid= -p \"\$s\" 2>/dev/null)\"; p=\"\${p//[!0123456789]/}\"
@@ -665,6 +670,42 @@ _lf_said() {
     esac
   fi
   printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$1.out" 2>/dev/null)" "$e"
+}
+
+# The third review's round 1 (2026-10-30, still blind, from V3R1-F2's inputs). DIR LAYOUT NOW -> in DIR (made when
+# missing; it must hold no home or c yet) a home DIR/home whose one commit, at NOW - 40 days, holds two projects, each
+# with project.json, CLAUDE.md and lanes.tsv: p (remote_match o/R; lanes.tsv cap ^engine/ 1/2 14) and z (remote_match
+# github.com/o/R, the longer remote_match naming the origin, so z binds (C2); lanes.tsv zz ^docs/ 1/2 7). LAYOUT apart:
+# R is r, and the checkout is DIR/c, its root (README) at NOW - 30 days; self: R is rr, and the home is its own checkout.
+# The checkout has no .felix and the origin https://github.com/o/R.git, then two unmarked landings, engine/a.sh at NOW -
+# 3 days and docs/b.md at NOW - 2 days, and refs/remotes/origin/main names the last. Sets LF_HOME and LF_REPO (the
+# checkout's physical path); status 1 and LF_REPO empty when the fixture is not as named.
+_lf_two() {
+  local d="$1" l="$2" n="$3" r=r t=30 h c a
+  LF_HOME=""; LF_REPO=""
+  case "$l" in (apart) ;; (self) r=rr; t=40 ;; (*) return 1 ;; esac
+  mkdir -p "$d" && [ ! -e "$d/home" ] && [ ! -e "$d/c" ] && _lf_init "$d/home" || return 1
+  mkdir -p "$d/home/projects/p" "$d/home/projects/z" || return 1
+  printf '{"name":"p","gate":"true","remote_match":"o/%s"}\n' "$r" > "$d/home/projects/p/project.json" \
+    && printf '{"name":"z","gate":"true","remote_match":"github.com/o/%s"}\n' "$r" > "$d/home/projects/z/project.json" \
+    && printf '# p\n' > "$d/home/projects/p/CLAUDE.md" && printf '# z\n' > "$d/home/projects/z/CLAUDE.md" \
+    && printf 'cap\t^engine/\t1/2\t14\n' > "$d/home/projects/p/lanes.tsv" \
+    && printf 'zz\t^docs/\t1/2\t7\n' > "$d/home/projects/z/lanes.tsv" || return 1
+  _lf_commit "$d/home" $((n - 40 * 86400)) $'the home of p and z\n' =projects/p/project.json =projects/p/CLAUDE.md \
+    =projects/p/lanes.tsv =projects/z/project.json =projects/z/CLAUDE.md =projects/z/lanes.tsv || return 1
+  h="$(cd -P -- "$d/home" && pwd -P)"; c="$h"
+  if [ "$l" = apart ]; then
+    _lf_init "$d/c" && printf 'a checkout of p or z\n' > "$d/c/README" \
+      && _lf_commit "$d/c" $((n - 30 * 86400)) $'the root\n' =README || return 1
+    c="$(cd -P -- "$d/c" && pwd -P)"
+  fi
+  _lf_origin "$c" "https://github.com/o/$r.git" && _lf_commit "$c" $((n - 3 * 86400)) $'engine: a\n\nNo mark.\n' engine/a.sh \
+    && _lf_commit "$c" $((n - 2 * 86400)) $'docs: b\n\nNo mark.\n' docs/b.md && _lf_publish "$c" || return 1
+  [ ! -e "$c/.felix" ] && [ ! -L "$c/.felix" ] || return 1
+  a="$( _fx_cd "$h" && _lf_g 1700000000 ls-tree -r --name-only HEAD -- projects )"
+  [ "$a" = "projects/p/CLAUDE.md"$'\n'"projects/p/lanes.tsv"$'\n'"projects/p/project.json"$'\n'"projects/z/CLAUDE.md"$'\n'"projects/z/lanes.tsv"$'\n'"projects/z/project.json" ] || return 1
+  [ "$(_lf_spine "$c")" = "$((n - 2 * 86400)):1 $((n - 3 * 86400)):1 $((n - t * 86400)):0" ] || return 1
+  LF_HOME="$h"; LF_REPO="$c"
 }
 
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on

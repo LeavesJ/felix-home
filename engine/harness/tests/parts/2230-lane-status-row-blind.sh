@@ -25,6 +25,8 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   does not finish, in felix status --tsv, plain felix status and felix lane --tsv.
 # - Design item 46 (2026-10-30, still blind) adds, at the end, I46-11 to I46-20: C6's last row for a resolution that did
 #   not finish, under C9's probes inside felix_resolve_project, and the none row of the misses that stand (C2).
+# - The third review's round 1 (2026-10-30, still blind) adds, at the end, V3R1-F1 and V3R1-F2: the status row when the
+#   reads of a project.json's remote_match fail under the resolver, or under it and the lane's check alike (C2, C6).
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "
@@ -430,4 +432,53 @@ else
   is "$LNTa6" "$LNTa|$LNTb" "built|felix built|0|$LNTIV|closed built|0|$LNTTEN|$LNTUNG"
 fi
 _lf_bind "$LNTIC" "$LNTIH" p felix
+
+# ---- the third review's round 1: the lane's own check of the resolution (V3R1-F1, V3R1-F2) ------------------------------
+# Added on 2026-10-30 from the third review's round 1 findings (their inputs and observed output only) and C2 as 777e6c2d
+# amended it, still blind, last. Readings:
+# - V3R1-F1: item 46's checkout bound by remote_match alone (_lf_bind remote), with C9's fork probe (_lf_probe) at every
+#   sed whose words hold remote_match, whatever calls it: the resolver's read and the check's own (a sed of its own, C2)
+#   both fail, so the resolution did not finish: felix status --tsv exits 0 with ten rows, the last exactly lane unknown -
+#   the lane count did not finish in <repo> (C6), or ends with 128 and no lane row where the fork failed in felix's own
+#   shell; never the none row this directory is not a governed checkout.
+# - V3R1-F2: _lf_two's home of two projects and its checkout (apart), which remote_match alone binds to z, whose
+#   github.com/o/r is longer than p's o/r: unfaulted the row is the value zero 0 of 1 engine landings in 7 days, target
+#   1/2. C9's fork and kill probes at sed naming projects/z/project.json inside felix_resolve_project let the resolver bind
+#   p while the check binds z: that row or the unknown row above (or 128 or 137 with no lane row, where the probe reached
+#   felix itself); never p's value zero 0 of 1 engine landings in 14 days.
+# STACK MODE NAME WORDS DIR ROW -> felix status --tsv in DIR under _lf_probe MODE NAME WORDS STACK with a fresh TMPDIR.
+# LNTb the probe's LF_FIRE and "as C6 says" when the run ended as the readings say (ROW a last row also accepted, or -),
+# else its status, rows and last row.
+_lnt_v3() {
+  local r l
+  rm -rf "$LNTIT"; mkdir -p "$LNTIT"
+  _lf_probe "$2" "$3" "$4" "$1" "$LNTD/v3f.fired" "$LNTIT" _lf_run "$LNTD/v3f" "$5" "$LNTN" "$FELIX" status --tsv
+  r="$(_lnt_rows "$LNTD/v3f")"; l="$(_lf_last "$LNTD/v3f.out")"
+  LNTb="$LF_FIRE|status $LF_RC, rows [$r], last [$l]"
+  if [ "$LF_RC|$r" = "0|$LNTTEN" ] && { [ "$l" = "$(_lf_tsv lane unknown - "the lane count did not finish in $5")" ] || [ "$l" = "$6" ]; }; then
+    LNTb="$LF_FIRE|as C6 says"
+  elif [ "$LF_SELF" = self ] && [ -z "$(LC_ALL=C awk -F'\t' '$1 == "lane"' "$LNTD/v3f.out")" ]; then
+    case "$2:$LF_RC" in (kill:137|fork:128) LNTb="$LF_FIRE|as C6 says" ;; esac
+  fi
+}
+_lf_bind "$LNTIC" "$LNTIH" p remote; LNTa="$LNTIA|$LF_BOUND"
+_lf_run "$LNTD/v3-0" "$LNTIC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTa|unfaulted $LF_RC|$(_lf_last "$LNTD/v3-0.out")"
+_lnt_v3 '*' fork sed '*remote_match*' "$LNTIC" -
+is "lane status row V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a checkout remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); never the none row this directory is not a governed checkout; the probe fired, and unfaulted the row is the value zero" \
+   "$LNTa|$LNTb" "built|built|unfaulted 0|$LNTIV|fired|as C6 says"
+_lf_bind "$LNTIC" "$LNTIH" p felix
+
+LNTVA="not built: V3R1-F2's home and checkout"; LNTVC="$LNTD/v3f2/c"
+_lf_two "$LNTD/v3f2" apart "$LNTN" && LNTVA=built
+_lf_use "$LNTD/v3f2/home" "$LNTD/memory" "$LNTD/user" "$LNTB"
+LNTVZ="$(_lf_tsv lane value zero '0 of 1 engine landings in 7 days, target 1/2')"
+_lf_run "$LNTD/v3f2-0" "$LNTVC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTVA|unfaulted $LF_RC|$(_lf_last "$LNTD/v3f2-0.out")"
+LNTa6='felix status --tsv exits 0 with ten rows, the last that row or lane unknown - the lane count did not finish in <repo>'
+_lnt_v3 "*' felix_resolve_project '*" fork sed '*projects/z/project.json*' "$LNTVC" "$LNTVZ"
+is "lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so the row is the value zero 0 of 1 engine landings in 7 days, target 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: $LNTa6 (or 128 with no lane row, where the fork failed in felix's own shell); never p's value zero 0 of 1 engine landings in 14 days; the probe fired" \
+   "$LNTa|$LNTb" "built|unfaulted 0|$LNTVZ|fired|as C6 says"
+_lnt_v3 "*' felix_resolve_project '*" kill sed '*projects/z/project.json*' "$LNTVC" "$LNTVZ"
+is "lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNTa6 (or 137 with no lane row, where the kill reached felix itself); never p's value zero 0 of 1 engine landings in 14 days; the probe fired" \
+   "$LNTa|$LNTb" "built|unfaulted 0|$LNTVZ|fired|as C6 says"
+_lf_use "$LNTH" "$LNTD/memory" "$LNTD/user" "$LNTB"
 # <<< lane-status-row

@@ -41,6 +41,10 @@
 # The second review's round 3 (added on 2026-10-30, still blind): _lf_r3 builds R3-F1's home-apart fixture, whose first
 # lane is short (sec before cap), and _lf_nfprog and _lf_lroot run felix and the hook under a soft open-file limit set in
 # the shell that execs them.
+#
+# The design's item 46 (added on 2026-10-30, still blind, from C2's bullet "The lane's resolution", C5, C6 and C8):
+# _lf_bind puts a repository in one of the layouts a binding takes or misses, _lf_probe runs C9's fork or kill probe and
+# says whether it acted in felix's own shell, and _lf_said reads what felix lane said of the resolution.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -553,6 +557,114 @@ _lf_lroot() {
     printf 'exec /bin/bash -c %q %q %q\n' "$(_lf_nfprog)" "$2" "$FROOT/harness/hooks/session-start"; } > "$1/harness/hooks/session-start" \
     && chmod +x "$1/harness/hooks/session-start" || return 1
   LF_LROOT="$(cd -P -- "$1" && pwd -P)"
+}
+
+# Design item 46 (2026-10-30, still blind). REPO HOME P LAYOUT -> REPO, a repository whose project P lives in
+# HOME/projects/P, bound or not as LAYOUT names (C2: a valid marker naming a project directory, else the one longest
+# remote_match naming the origin, none on a tie; a marker that cannot be opened names nothing). P's project.json is
+# written as _lf_match writes it, remote_match o/r. Each layout first removes REPO's .felix, whatever its mode, its origin
+# remote and HOME/projects/P2 (P followed by 2), then: felix, .felix holding P and no origin (bound by its marker alone);
+# remote, no .felix and origin https://github.com/o/r.git (bound by remote_match alone); none, neither; other, no .felix
+# and origin https://github.com/x/y.git, which no remote_match names; tie, as remote, with HOME/projects/P2 beside P
+# (CLAUDE.md, and project.json with remote_match o/r), two projects naming the origin equally; nosuch, .felix holding
+# nosuch, a project HOME does not hold, no origin; empty, .felix of no bytes, no origin; closed, .felix holding P with
+# mode 000, no origin. The origin is removed as a config section only, so refs/remotes/origin/main stays, and is checked
+# to name what it named before. LF_BOUND "built" when REPO and HOME stand as LAYOUT names, read back (closed: only when
+# the marker cannot be opened, so never when the suite runs as root), else "not built: <what differs>"; status 1 then.
+_lf_bind() {
+  local r="$1" h="$2" p="$3" l="$4" u="" m="" g o
+  LF_BOUND="not built: layout $l"
+  [ -n "$r" ] && [ -d "$r" ] && [ -n "$p" ] && [ -d "$h/projects/$p" ] || return 1
+  case "$l" in
+    (felix|closed) m="$p" ;; (nosuch) m=nosuch ;; (empty|none) ;;
+    (remote|tie) u=https://github.com/o/r.git ;; (other) u=https://github.com/x/y.git ;; (*) return 1 ;;
+  esac
+  o="$( _fx_cd "$r" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )"
+  rm -f "$r/.felix"; rm -rf "$h/projects/${p}2"
+  ( _fx_cd "$r" || exit 1
+    if _lf_g 1700000000 config --get remote.origin.url; then _lf_g 1700000000 config --remove-section remote.origin || exit 1; fi ) >/dev/null 2>&1 || return 1
+  _lf_match "$h/projects/$p" o/r || return 1
+  case "$l" in (felix|closed|nosuch) printf '%s\n' "$m" > "$r/.felix" || return 1 ;; (empty) : > "$r/.felix" || return 1 ;; esac
+  [ -z "$u" ] || _lf_origin "$r" "$u" || return 1
+  if [ "$l" = tie ]; then
+    mkdir -p "$h/projects/${p}2" && printf '# %s2\n' "$p" > "$h/projects/${p}2/CLAUDE.md" && _lf_match "$h/projects/${p}2" o/r || return 1
+  fi
+  [ "$l" != closed ] || chmod 000 "$r/.felix" || return 1
+  g="$( _fx_cd "$r" && _lf_g 1700000000 config --get remote.origin.url )"
+  [ "$g" = "$u" ] || { LF_BOUND="not built: layout $l, origin [$g]"; return 1; }
+  g="$( _fx_cd "$r" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )"
+  [ "$g" = "$o" ] || { LF_BOUND="not built: layout $l, refs/remotes/origin/main [$g], before [$o]"; return 1; }
+  case "$l" in
+    (felix|nosuch) [ "$(LC_ALL=C awk '{ printf "%s|", $0 }' "$r/.felix" 2>/dev/null)" = "$m|" ] ;;
+    (empty) [ -f "$r/.felix" ] && [ ! -s "$r/.felix" ] ;;
+    (closed) [ -f "$r/.felix" ] && ! ( : < "$r/.felix" ) 2>/dev/null ;;
+    (*) [ ! -e "$r/.felix" ] && [ ! -L "$r/.felix" ] ;;
+  esac || { LF_BOUND="not built: layout $l, the marker"; return 1; }
+  [ -n "$(LC_ALL=C awk '/"remote_match":"o\/r"/' "$h/projects/$p/project.json" 2>/dev/null)" ] || { LF_BOUND="not built: layout $l, $p's remote_match"; return 1; }
+  if [ "$l" = tie ]; then [ -n "$(LC_ALL=C awk '/"remote_match":"o\/r"/' "$h/projects/${p}2/project.json" 2>/dev/null)" ]
+  else [ ! -e "$h/projects/${p}2" ]; fi || { LF_BOUND="not built: layout $l, project ${p}2"; return 1; }
+  LF_BOUND=built
+}
+
+# Design item 46 (2026-10-30, still blind). MODE NAME WORDS STACK FILE TMPDIR CMD... -> CMD run as _lf_fork (MODE fork)
+# or _lf_kill (MODE kill) runs it, NAME (tr or git) the bash function exported into felix, acting every time " $* "
+# matches the case pattern WORDS and " ${FUNCNAME[*]} " the case pattern STACK. It writes "fired" to FILE; then, S being
+# the shell that called it, P that shell's parent and M the bash that runs it ($$ there: felix itself, for a function
+# felix calls), fork writes "fork S M", lowers the soft process limit to 1 in that shell and runs NAME, then writes "ran
+# <status>" if the shell gets there; kill writes "kill P S M" and sends SIGKILL to P, then S (never to pid 1 or this
+# suite's shell: it writes "kept" and runs NAME). LF_RC as _lf_fault's; LF_FIRE "fired" when it acted as MODE says (fork:
+# NAME did not run to a clean exit after it); LF_SELF "self" when it acted in felix's own shell (fork: S is M) or sent
+# felix itself a kill (P or S is M), where C3 and C9 say felix ends (128 or 137), else "apart".
+_lf_probe() {
+  local m="$1" n="$2" w="$3" k="$4" f="$5" t="$6" c a b
+  shift 6
+  LF_FIRE="not run"; LF_SELF="not run"; LF_RC=125
+  case "$f$t" in (*\"*|*\'*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
+  [ -n "$f" ] && [ -n "$t" ] && [ -n "$w" ] && [ -n "$k" ] || return 1
+  case "$n" in (tr|git) c="command $n" ;; (*) return 1 ;; esac
+  case "$m" in
+    (fork) a="printf 'fork %s %s\\n' \"\$s\" \"\$\$\" >> '$f'; ulimit -S -u 1; $c \"\$@\"; r=\$?; printf 'ran %s\\n' \"\$r\" >> '$f'; return \"\$r\"" ;;
+    (kill) a="p=\"\$(ps -o ppid= -p \"\$s\" 2>/dev/null)\"; p=\"\${p//[!0123456789]/}\"
+      case \"\$s:\$p\" in (:*|*:|1:*|*:1|$$:*|*:$$) printf 'kept %s %s\\n' \"\$p\" \"\$s\" >> '$f' ;;
+        (*) printf 'kill %s %s %s\\n' \"\$p\" \"\$s\" \"\$\$\" >> '$f'; kill -KILL \"\$p\"; kill -KILL \"\$s\" ;; esac; $c \"\$@\"; return" ;;
+    (*) return 1 ;;
+  esac
+  b="$n() { local s p r; case \" \$* \" in ($w) case \" \${FUNCNAME[*]} \" in ($k) printf 'fired\\n' >> '$f'
+    s=\"\$(exec sh -c 'echo \$PPID')\"; $a ;; esac ;; esac; $c \"\$@\"; }"
+  rm -f "$f" "$f.shell"
+  { ( TMPDIR="$t"; export TMPDIR
+      eval "$b" || exit 125
+      export -f "$n"
+      "$@"
+      exit "$LF_RC" ); } 2> "$f.shell"
+  LF_RC=$?
+  LF_FIRE="$(LC_ALL=C awk -v m="$m" '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 } /^kill [0123456789]+ [0123456789]+ [0123456789]+$/ { k = 1 }
+    /^fork [0123456789]+ [0123456789]+$/ { o = 1 } /^kept / { p = $0 }
+    END { s = "not fired"
+      if (m == "fork" && f) s = (o && !r) ? "fired" : "fired, but it ran to a clean exit after it"
+      if (m == "kill" && f) s = k ? "fired" : "fired, but no kill was sent [" p "]"
+      print s }' "$f" 2>/dev/null)"
+  LF_SELF="$(LC_ALL=C awk '($1 == "fork" && NF == 3 && $2 == $3) || ($1 == "kill" && NF == 4 && ($2 == $4 || $3 == $4)) { s = 1 }
+    END { print (s ? "self" : "apart") }' "$f" 2>/dev/null)"
+  [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
+  [ -n "$LF_SELF" ] || LF_SELF=apart
+}
+
+# Design item 46 (2026-10-30, still blind). OUT DIR -> what felix lane said of DIR's resolution (C5), in the run whose
+# files are OUT.out and OUT.err, with status LF_RC: "unresolved" when it exited 2 with nothing on stdout and the first
+# line of its stderr is exactly felix: the project that governs DIR could not be resolved: a read it stands on did not
+# finish.; "ungoverned" when the same with the line felix: no project governs DIR.; else its status, stdout and the first
+# line of its stderr.
+_lf_said() {
+  local e
+  e="$(LC_ALL=C awk 'NR == 1' "$1.err" 2>/dev/null)"
+  if [ "$LF_RC" = 2 ] && [ ! -s "$1.out" ]; then
+    case "$e" in
+      ("felix: the project that governs $2 could not be resolved: a read it stands on did not finish.") printf unresolved; return 0 ;;
+      ("felix: no project governs $2.") printf ungoverned; return 0 ;;
+    esac
+  fi
+  printf 'status %s, stdout [%s], stderr [%s]' "$LF_RC" "$(cat "$1.out" 2>/dev/null)" "$e"
 }
 
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on

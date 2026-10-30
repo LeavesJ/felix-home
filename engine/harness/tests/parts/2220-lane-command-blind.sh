@@ -26,6 +26,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 #   (lanes named 1 and 01) and R2B-F5 (the repository root's substitution ended early).
 # - The second review's round 3 (2026-10-30, still blind) adds, at the end, R3-F2: the project's resolution ended early,
 #   in a checkout its .felix binds and in one remote_match alone binds.
+# - Design item 46 (2026-10-30, still blind) adds, at the end, I46-1 to I46-10: C5's line for a resolution that did not
+#   finish, under C9's probes inside felix_resolve_project, and the misses that stand (C2's bullet The lane's resolution).
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'
@@ -782,5 +784,109 @@ rm -rf "$LNKXT"; mkdir -p "$LNKXT"
 _lf_kill git "*' remote get-url origin '*" "*' felix_resolve_project '*" "$LNKD/r3f2-xt.fired" "$LNKXT" _lf_run "$LNKD/r3f2-xt" "$LNKXR" "$LNKN" "$FELIX" lane --tsv
 is "lane command R3-F2-ended-resolution-reads-ungoverned L-NEVER-OK: in a checkout bound by remote_match alone, C9's kill at git remote get-url origin inside felix_resolve_project: felix lane --tsv prints nothing on stdout and ends as C3's count that did not finish, or exits 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exits 137, or prints its unfaulted lines; never felix: no project governs <dir>." \
    "$LNKXA|unfaulted $LNKb|$LF_FIRE|$(_lnk_r3f2 "$LNKD/r3f2-xt" "$LNKXR" "$LNKD/r3f2-x0.out")" "built|unfaulted 0|$LNKRL|fired|unresolved, ended or the lines"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- design item 46: the lane's resolution, C5's line, and the misses that stand ---------------------------------------
+# Added on 2026-10-30 from design 11 item 46 (C2's bullet The lane's resolution, C5's bullet Resolution did not finish),
+# still blind, last. A home-apart fixture of its own (_lf_r2: LNKI/home holds p, remote_match o/r; LNKI/c its checkout),
+# whose checkout _lf_bind puts in a layout: felix (its .felix alone binds it) and remote (remote_match alone) print
+# _lf_r2's two lines. The faults are C9's fork and kill probes (_lf_probe), every time a read the miss stands on is made
+# inside felix_resolve_project: in felix, tr -d [:space:], the read of the marker (as R3-F2 builds it), where no origin is
+# left for the resolver to bind instead; in remote, git remote get-url origin. Readings:
+# - I46-1 to I46-4: felix lane and felix lane --tsv exit 2, print nothing on stdout, and the first line of stderr is C5's
+#   line, <dir> as $PWD names it. Only where a probe reached felix itself (LF_SELF: the shell it killed or the parent of
+#   it, or the shell its fork failed in, is felix) may felix end with 137 (C9) or 128 (C3) and nothing on stdout.
+# - I46-5 to I46-10, no fault: in the layouts none, other, tie, nosuch, empty and closed the miss stands: exit 2, nothing
+#   on stdout, and stderr's first line felix: no project governs <dir>. (none, other); in the others, that line or one of
+#   felix's naming <dir> and the binding that missed (the .felix marker; the remote_match of a tie); never C5's line. Each
+#   first runs a layout that binds, the marker's or remote_match's, so it is red on main, where felix lane does not exist.
+LNKIA="not built: item 46's fixture"; LNKIT="$LNKD/i46-tmp"
+_lf_r2 "$LNKD/i46" p "$LNKN" && LNKIA=built
+LNKIH="$LF_HOME"; LNKIC="$LF_REPO"; LNKIL="$LF_R2"
+_lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+# OUT DIR MODE -> "unresolved" when the faulted run whose files are OUT.* said C5's line (_lf_said), or the probe reached
+# felix itself and it ended with 137 (MODE kill) or 128 (fork) with nothing on stdout and no line saying no project
+# governs DIR; else what it said.
+_lnk_unres() {
+  local s
+  s="$(_lf_said "$1" "$2")"
+  if [ "$s" != unresolved ] && [ "$LF_SELF" = self ] && [ ! -s "$1.out" ] \
+     && [ -z "$(LC_ALL=C awk -v w="felix: no project governs $2." '$0 == w' "$1.err")" ]; then
+    case "$3:$LF_RC" in (kill:137|fork:128) s=unresolved ;; esac
+  fi
+  printf '%s' "$s"
+}
+# LAYOUT MODE NAME WORDS -> the checkout in LAYOUT; felix lane --tsv there; then felix lane --tsv and felix lane, each
+# under _lf_probe MODE NAME WORDS, felix_resolve_project on the stack, with a fresh TMPDIR. LNKa what was built and the
+# unfaulted run, LNKb what each faulted run said (_lnk_unres), LNKc each probe's LF_FIRE.
+_lnk_i46f() {
+  _lf_bind "$LNKIC" "$LNKIH" p "$1"; LNKa="$LNKIA|$LF_BOUND"
+  _lf_run "$LNKD/i46-0" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; LNKa="$LNKa|unfaulted $LF_RC|$(cat "$LNKD/i46-0.out")"
+  rm -rf "$LNKIT"; mkdir -p "$LNKIT"
+  _lf_probe "$2" "$3" "$4" "*' felix_resolve_project '*" "$LNKD/i46t.fired" "$LNKIT" _lf_run "$LNKD/i46t" "$LNKIC" "$LNKN" "$FELIX" lane --tsv
+  LNKb="$(_lnk_unres "$LNKD/i46t" "$LNKIC" "$2")"; LNKc="$LF_FIRE"
+  rm -rf "$LNKIT"; mkdir -p "$LNKIT"
+  _lf_probe "$2" "$3" "$4" "*' felix_resolve_project '*" "$LNKD/i46h.fired" "$LNKIT" _lf_run "$LNKD/i46h" "$LNKIC" "$LNKN" "$FELIX" lane
+  LNKb="$LNKb|$(_lnk_unres "$LNKD/i46h" "$LNKIC" "$2")"; LNKc="$LNKc+$LF_FIRE"
+}
+LNKa5='exit 2, nothing on stdout, and the first line of stderr exactly felix: the project that governs <dir> could not be resolved: a read it stands on did not finish.'
+_lnk_i46f felix fork tr "*' -d [:space:] '*"
+is "I46-1 felix lane, in a checkout its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane $LNKa5 (or 128 with nothing on stdout, where the fork failed in felix's own shell); the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+_lnk_i46f felix kill tr "*' -d [:space:] '*"
+is "I46-2 felix lane, in a checkout its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane $LNKa5 (or 137 with nothing on stdout, where the kill reached felix itself); the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+_lnk_i46f remote fork git "*' remote get-url origin '*"
+is "I46-3 felix lane, in a checkout remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: felix lane --tsv and felix lane $LNKa5 (or 128 with nothing on stdout, where the fork failed in felix's own shell); the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+_lnk_i46f remote kill git "*' remote get-url origin '*"
+is "I46-4 felix lane, in a checkout remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: felix lane --tsv and felix lane $LNKa5 (or 137 with nothing on stdout, where the kill reached felix itself); the probe fired" \
+   "$LNKa|$LNKc|$LNKb" "built|built|unfaulted 0|$LNKIL|fired+fired|unresolved|unresolved"
+
+# OUT DIR LAYOUT -> "a miss" when the run whose files are OUT.* ended as a miss that stands, as the readings above say for
+# LAYOUT; else what it said (_lf_said).
+_lnk_miss() {
+  local s e
+  s="$(_lf_said "$1" "$2")"
+  [ "$s" != ungoverned ] || { printf 'a miss'; return 0; }
+  e="$(LC_ALL=C awk 'NR == 1' "$1.err")"
+  if [ "$s" != unresolved ] && [ "$LF_RC" = 2 ] && [ ! -s "$1.out" ]; then
+    case "$e" in ("felix: "*"$2"*) ;; (*) e="" ;; esac
+    case "$3:$e" in (tie:*remote_match*|nosuch:*.felix*|empty:*.felix*|closed:*.felix*) printf 'a miss'; return 0 ;; esac
+  fi
+  printf '%s' "$s"
+}
+# MISS BIND -> the checkout in BIND and felix lane --tsv there, then in MISS and felix lane --tsv and felix lane there.
+# LNKa what was built and BIND's run, LNKb what MISS's two runs said (_lnk_miss).
+_lnk_i46m() {
+  _lf_bind "$LNKIC" "$LNKIH" p "$2"; LNKa="$LNKIA|$2 $LF_BOUND"
+  _lf_run "$LNKD/i46b" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; LNKa="$LNKa|$LF_RC|$(cat "$LNKD/i46b.out")"
+  _lf_bind "$LNKIC" "$LNKIH" p "$1"; LNKa="$LNKa|$1 $LF_BOUND"
+  _lf_run "$LNKD/i46m" "$LNKIC" "$LNKN" "$FELIX" lane --tsv; LNKb="$(_lnk_miss "$LNKD/i46m" "$LNKIC" "$1")"
+  _lf_run "$LNKD/i46m" "$LNKIC" "$LNKN" "$FELIX" lane; LNKb="$LNKb|$(_lnk_miss "$LNKD/i46m" "$LNKIC" "$1")"
+}
+LNKa5='exit 2 with nothing on stdout, and never the line for a resolution that did not finish'
+_lnk_i46m none felix
+is "I46-5 felix lane, a miss that stands: in a checkout with no .felix and no origin remote, felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>.; with its .felix naming p the checkout prints its lines" \
+   "$LNKa|$LNKb" "built|felix built|0|$LNKIL|none built|a miss|a miss"
+_lnk_i46m other remote
+is "I46-6 felix lane, a miss that stands: in a checkout whose origin no project's remote_match names, felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>.; with an origin p's remote_match names the checkout prints its lines" \
+   "$LNKa|$LNKb" "built|remote built|0|$LNKIL|other built|a miss|a miss"
+_lnk_i46m tie remote
+is "I46-7 felix lane, a miss that stands: in a checkout whose origin two projects' remote_match name equally, a tie, felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>. or names <dir> and the remote_match; with p's alone naming it the checkout prints its lines" \
+   "$LNKa|$LNKb" "built|remote built|0|$LNKIL|tie built|a miss|a miss"
+_lnk_i46m nosuch felix
+is "I46-8 felix lane, a miss that stands: in a checkout whose .felix names no project, felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines" \
+   "$LNKa|$LNKb" "built|felix built|0|$LNKIL|nosuch built|a miss|a miss"
+_lnk_i46m empty felix
+is "I46-9 felix lane, a miss that stands: in a checkout whose .felix is empty, felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines" \
+   "$LNKa|$LNKb" "built|felix built|0|$LNKIL|empty built|a miss|a miss"
+LNKa6="I46-10 felix lane, a miss that stands: in a checkout whose .felix exists and cannot be opened (mode 000), felix lane --tsv and felix lane $LNKa5: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines"
+if [ "$(id -u)" = 0 ]; then skip "$LNKa6" "the suite runs as root, which opens a .felix of mode 000"
+else
+  _lnk_i46m closed felix
+  is "$LNKa6" "$LNKa|$LNKb" "built|felix built|0|$LNKIL|closed built|a miss|a miss"
+fi
+_lf_bind "$LNKIC" "$LNKIH" p felix
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 # <<< lane-command

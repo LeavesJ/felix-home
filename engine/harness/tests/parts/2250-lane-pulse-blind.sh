@@ -531,12 +531,14 @@ _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 #   128 and no lane line where the fork failed in felix's own shell. Never no lane line with exit 0.
 # - V3R1-F2: _lf_two's self-governed home of two projects (self), which remote_match alone binds to z, whose
 #   github.com/o/rr is longer than p's o/rr: unfaulted the pulse ends with lane zz zero 0 1. C9's fork and kill probes at
-#   sed naming projects/z/project.json inside felix_resolve_project let the resolver bind p while the check binds z: that
-#   line or lane - unknown - - (or 128 or 137 with no lane line, where the probe reached felix itself); never p's lane cap
-#   zero 0 1.
-# HOME STACK MODE NAME WORDS LINE -> felix pulse in HOME under _lf_probe MODE NAME WORDS STACK with a fresh TMPDIR. LNPb
-# the probe's LF_FIRE and "as C8 says" when the run ended as the readings say (LINE the lane lines also accepted, or -),
-# else its status, lane lines, record and what came before them.
+#   sed naming projects/z/project.json inside felix_resolve_project let the resolver bind p while the check binds z,
+#   another project, so the resolution of the home's project did not finish (C2; design item 47): lane - unknown - - (or
+#   128 or 137 with no lane line, where the probe reached felix itself); never p's lane cap zero 0 1, and never z's line
+#   as without the fault (from the disputes on round 1: an engine that put its own binding in place of the resolver's
+#   would print it).
+# HOME STACK MODE NAME WORDS -> felix pulse in HOME under _lf_probe MODE NAME WORDS STACK with a fresh TMPDIR. LNPb the
+# probe's LF_FIRE and "as C8 says" when the run ended as the readings say, else its status, lane lines, record and what
+# came before them.
 _lnp_v3() {
   local t r b
   rm -rf "$LNPIT"; mkdir -p "$LNPIT"
@@ -545,7 +547,7 @@ _lnp_v3() {
   t="$(_lnp_tail "$LNPD/v3f.out")"; r="$(_lnp_tail "$1/state/pulse.status.tsv")"; b="$(_lnp_before "$LNPD/v3f.out")"
   LNPb="$LF_FIRE|status $LF_RC, lane lines [$t], record [$r], $b"
   case "$LF_RC|$t|$r|$b" in
-    ("0|$LNPIU|$LNPIU|backup settings"|"0|$6|$6|backup settings") LNPb="$LF_FIRE|as C8 says" ;;
+    ("0|$LNPIU|$LNPIU|backup settings") LNPb="$LF_FIRE|as C8 says" ;;
     (*) if [ "$LF_SELF" = self ] && [ -z "$(_lnp_lanes "$LNPD/v3f.out")" ]; then
           case "$3:$LF_RC" in (kill:137|fork:128) LNPb="$LF_FIRE|as C8 says" ;; esac
         fi ;;
@@ -554,7 +556,7 @@ _lnp_v3() {
 _lf_use "$LNPIH" "$LNPD/i46-memory" "$LNPD/i46-user" "$LNPB"
 _lf_bind "$LNPIH" "$LNPIH" p remote; LNPa="$LNPIA|$LF_BOUND"
 _lnp_pulse "$LNPD/v3-0"; LNPa="$LNPa|unfaulted $LF_RC|$(_lnp_tail "$LNPD/v3-0.out")"
-_lnp_v3 "$LNPIH" '*' fork sed '*remote_match*' -
+_lnp_v3 "$LNPIH" '*' fork sed '*remote_match*'
 is "lane pulse V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a home remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 128 with no lane line, where the fork failed in felix's own shell); never exit 0 with no lane line; the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3" \
    "$LNPa|$LNPb" "built|built|unfaulted 0|$LNPIW|fired|as C8 says"
 _lf_bind "$LNPIH" "$LNPIH" p felix
@@ -564,12 +566,12 @@ _lf_two "$LNPD/v3f2" self "$LNPN" && LNPVA=built
 _lf_use "$LNPVH" "$LNPD/v3f2-memory" "$LNPD/v3f2-user" "$LNPB"
 LNPVZ="$(_lf_tsv lane zz zero 0 1)"
 _lnp_pulse "$LNPD/v3f2-0"; LNPa="$LNPVA|unfaulted $LF_RC|$(_lnp_tail "$LNPD/v3f2-0.out")|$(_lnp_before "$LNPD/v3f2-0.out")"
-LNPa6='felix pulse exits 0, and after its backup and settings lines its lane lines, last, are that line or the one line lane - unknown - -, in its output and its record'
-_lnp_v3 "$LNPVH" "*' felix_resolve_project '*" fork sed '*projects/z/project.json*' "$LNPVZ"
-is "lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a self-governed home whose origin two projects' remote_match name, z's github.com/o/rr the longer, so the pulse ends with lane zz zero 0 1, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/rr: $LNPa6 (or 128 with no lane line, where the fork failed in felix's own shell); never p's lane cap zero 0 1; the probe fired" \
+LNPa6='felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record, since the check binds z where the resolver found p (C2, C8)'
+_lnp_v3 "$LNPVH" "*' felix_resolve_project '*" fork sed '*projects/z/project.json*'
+is "lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a self-governed home whose origin two projects' remote_match name, z's github.com/o/rr the longer, so the pulse ends with lane zz zero 0 1, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/rr: $LNPa6 (or 128 with no lane line, where the fork failed in felix's own shell); never p's lane cap zero 0 1, nor z's line as without the fault; the probe fired" \
    "$LNPa|$LNPb" "built|unfaulted 0|$LNPVZ|backup settings|fired|as C8 says"
-_lnp_v3 "$LNPVH" "*' felix_resolve_project '*" kill sed '*projects/z/project.json*' "$LNPVZ"
-is "lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same home, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNPa6 (or 137 with no lane line, where the kill reached felix itself); never p's lane cap zero 0 1; the probe fired" \
+_lnp_v3 "$LNPVH" "*' felix_resolve_project '*" kill sed '*projects/z/project.json*'
+is "lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same home, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNPa6 (or 137 with no lane line, where the kill reached felix itself); never p's lane cap zero 0 1, nor z's line as without the fault; the probe fired" \
    "$LNPa|$LNPb" "built|unfaulted 0|$LNPVZ|backup settings|fired|as C8 says"
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

@@ -903,28 +903,23 @@ _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 # - V3R1-F2: a home of two projects, p (remote_match o/r, lane cap ^engine/ 1/2 14) and z (github.com/o/r, the longer, so
 #   z binds; lane zz ^docs/ 1/2 7), and a checkout remote_match alone binds (_lf_two apart), where felix lane --tsv prints
 #   zz zero 0 1 7 1/2. C9's fork and kill probes at sed naming projects/z/project.json inside felix_resolve_project let
-#   the resolver bind p while the check binds z, another project (C2): C5's line, or z's lines as without the fault (the
-#   finding allows them), or 128 or 137 where the probe reached felix itself; never p's figures, cap zero 0 1 14 1/2.
+#   the resolver bind p while the check binds z, another project, so the resolution did not finish (C2; design item 47:
+#   the check must finish and bind the same project): C5's line, or 128 or 137 where the probe reached felix itself;
+#   never p's figures, cap zero 0 1 14 1/2, and never z's lines as without the fault (from the disputes on round 1: an
+#   engine that put its own binding in place of the resolver's would print them).
 # - V3R1-F5: item 46's checkout with a .felix of mode 000 holding p, and no origin: C5's sentence for a marker that cannot
 #   be opened, exactly, <root> the checkout. Beside it, a .felix naming no project gives a line of felix's naming <dir>
 #   and the .felix marker that is not that sentence, and no .felix gives felix: no project governs <dir>.
 _lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"
-# OUT DIR MODE [WANT] -> "unresolved" when _lnk_unres says so of the faulted run OUT, or when WANT is given and the run
-# exited 0 printing WANT's bytes; else what _lnk_unres said.
-_lnk_v3s() {
-  if [ -n "${4-}" ] && [ "$LF_RC" = 0 ] && cmp -s "$1.out" "$4"; then printf unresolved; return 0; fi
-  _lnk_unres "$1" "$2" "$3"
-}
-# MODE NAME WORDS STACK DIR [WANT] -> felix lane --tsv, then felix lane, in DIR under _lf_probe MODE NAME WORDS STACK, each
-# with a fresh TMPDIR; WANT the stem of their unfaulted runs (WANT-t, WANT-h). LNKb what each said (_lnk_v3s), LNKc each
-# probe's LF_FIRE.
+# MODE NAME WORDS STACK DIR -> felix lane --tsv, then felix lane, in DIR under _lf_probe MODE NAME WORDS STACK, each with
+# a fresh TMPDIR. LNKb what each said (_lnk_unres), LNKc each probe's LF_FIRE.
 _lnk_v3() {
   rm -rf "$LNKIT"; mkdir -p "$LNKIT"
   _lf_probe "$1" "$2" "$3" "$4" "$LNKD/v3t.fired" "$LNKIT" _lf_run "$LNKD/v3t" "$5" "$LNKN" "$FELIX" lane --tsv
-  LNKb="$(_lnk_v3s "$LNKD/v3t" "$5" "$1" ${6:+"$6-t.out"})"; LNKc="$LF_FIRE"
+  LNKb="$(_lnk_unres "$LNKD/v3t" "$5" "$1")"; LNKc="$LF_FIRE"
   rm -rf "$LNKIT"; mkdir -p "$LNKIT"
   _lf_probe "$1" "$2" "$3" "$4" "$LNKD/v3h.fired" "$LNKIT" _lf_run "$LNKD/v3h" "$5" "$LNKN" "$FELIX" lane
-  LNKb="$LNKb|$(_lnk_v3s "$LNKD/v3h" "$5" "$1" ${6:+"$6-h.out"})"; LNKc="$LNKc+$LF_FIRE"
+  LNKb="$LNKb|$(_lnk_unres "$LNKD/v3h" "$5" "$1")"; LNKc="$LNKc+$LF_FIRE"
 }
 LNKa5='felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr felix: the project that governs <dir> could not be resolved: a read it stands on did not finish.'
 _lf_bind "$LNKIC" "$LNKIH" p remote; LNKa="$LNKIA|$LF_BOUND"
@@ -946,12 +941,12 @@ case "$LF_RC|$(cat "$LNKD/v3f2-h.out")" in
   ("0|zz: zero, 0 of 1 engine landings in 7 days, target 1/2; "*) LNKa="$LNKa|z's human line" ;;
   (*) LNKa="$LNKa|human [$LF_RC|$(cat "$LNKD/v3f2-h.out")]" ;;
 esac
-LNKa6='felix lane --tsv and felix lane exit 2 with nothing on stdout and C5'"'"'s line felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. first on stderr, or print z'"'"'s lines as without the fault'
-_lnk_v3 fork sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC" "$LNKD/v3f2"
-is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so felix lane --tsv prints zz zero 0 1 7 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: $LNKa6 (or 128 with nothing on stdout, where the fork failed in felix's own shell); never p's figures, cap zero 0 1 14 1/2; the probe fired" \
+LNKa6='felix lane --tsv and felix lane exit 2 with nothing on stdout and C5'"'"'s line felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. first on stderr, since the check binds z where the resolver found p (C2)'
+_lnk_v3 fork sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC"
+is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so felix lane --tsv prints zz zero 0 1 7 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: $LNKa6 (or 128 with nothing on stdout, where the fork failed in felix's own shell); never p's figures, cap zero 0 1 14 1/2, nor z's lines as without the fault; the probe fired" \
    "$LNKa|$LNKc|$LNKb" "built|unfaulted 0|1|zz|zero|0|1|7|1/2|z's human line|fired+fired|unresolved|unresolved"
-_lnk_v3 kill sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC" "$LNKD/v3f2"
-is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNKa6 (or 137 with nothing on stdout, where the kill reached felix itself); never p's figures, cap zero 0 1 14 1/2; the probe fired" \
+_lnk_v3 kill sed '*projects/z/project.json*' "*' felix_resolve_project '*" "$LNKVC"
+is "lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNKa6 (or 137 with nothing on stdout, where the kill reached felix itself); never p's figures, cap zero 0 1 14 1/2, nor z's lines as without the fault; the probe fired" \
    "$LNKa|$LNKc|$LNKb" "built|unfaulted 0|1|zz|zero|0|1|7|1/2|z's human line|fired+fired|unresolved|unresolved"
 
 _lf_use "$LNKIH" "$LNKD/memory" "$LNKD/user" "$LNKB"

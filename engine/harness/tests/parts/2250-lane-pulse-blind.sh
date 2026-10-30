@@ -24,6 +24,8 @@ printf '\nlane pulse: a lane line per row of the home project'"'"'s lanes.tsv, l
 # - The no-line cases are controls (C10): lanes.tsv only in the working tree, a committed one with no row, a home that is
 #   not a git checkout, a git home that binds no project, and a home whose own project has no lanes.tsv while another
 #   project in it, whose checkout the pulse runs from, has one.
+# - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's count that ends early (F1),
+#   at the end, in a home of its own.
 LNPN=1793000000; LNPDAY=86400; LNPK=0
 _lf_dir "$TMP/lane-2250"; LNPD="$LF_DIR"
 _lf_stubs "$LNPD"; LNPB="$LF_BIN"
@@ -229,5 +231,39 @@ _lf_checkout "$LNPD/qo2" qo $((LNPN - 30 * LNPDAY)); LNPQ2="$LF_REPO"
 _lf_chain "$LNPQ2" capability $((LNPN - 3 * LNPDAY)) 3600 m u || LNPa="not built: qo's checkout"
 _lf_use "$LNPO" "$LNPD/memory" "$LNPD/user" "$LNPB"
 _lnp_none "$LNPD/n5" "run from a checkout of project qo, whose lanes.tsv has a row, in a home bound to pl, which has none" "$LNPa" "$LNPQ2"
+_lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+
+# ---- the review's F1: a count that ends early (C3, C8, C9) -------------------------------------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind, last in this part and in a self-governed home of
+# its own, because a run ended early may leave state behind. Its lanes: capability (^engine/, 1/2, 14) and docs
+# (^docs/, 1/4, 7); its landings, five days back and an hour apart, an unmarked engine change and a docs change marked
+# for capability, so without the fault the pulse ends with lane capability zero 0 1 and lane docs zero 0 1. Then C9's
+# fault through _lf_fault kill, with TMPDIR a directory of the fixture's own: when a read of the landings starts, the
+# shell that runs it has its parent, then itself, killed. C8 and C9 allow two endings, and the assertion accepts exactly
+# these after the backup and settings lines: the single line lane - unknown - -, or, where each process ended was one
+# read's own, one R2 line per lane, lane <lane> unknown - -. The pulse still exits 0.
+LNPa="not built: the home for a count that ends early"
+LNPKZ=$'capability\t^engine/\t1/2\t14\ndocs\t^docs/\t1/4\t7\n'
+if _lf_self "$LNPD/kill-home" pl $((LNPN - 30 * LNPDAY)); then
+  LNPKH="$LF_HOME"
+  _lnp_put "$LNPKH" "$LF_PROJ" lanes.tsv "two lanes, for a count that ends early" "$LNPKZ"
+  _lf_chain "$LNPKH" capability $((LNPN - 5 * LNPDAY)) 3600 u md && [ "$LNPT" = built ] \
+    && [ "$(_lf_spine "$LNPKH" | LC_ALL=C awk '{ print NF }')" = 4 ] && LNPa=built
+  _lf_use "$LNPKH" "$LNPD/memory" "$LNPD/user" "$LNPB"
+  _lnp_pulse "$LNPD/k0"; LNPb="$LF_RC|$(_lnp_tail "$LNPD/k0.out")"
+  LNPkt="$LNPD/f1k-tmp"; rm -rf "$LNPkt"; mkdir -p "$LNPkt"
+  _lf_fault kill "$LNPD/f1k.fired" "$LNPkt" _lf_run "$LNPD/f1k" "$LNPKH" "$LNPN" "$FELIX" pulse
+  _lf_calm "$LNPKH"
+  LNPc="$(_lnp_tail "$LNPD/f1k.out")"
+  case "$LNPc" in
+    ("$(_lf_tsv lane - unknown - -)"|"$(_lf_tsv lane capability unknown - -)"$'\n'"$(_lf_tsv lane docs unknown - -)") LNPc="C3 or R2" ;;
+    (*) LNPc="lane lines [$LNPc]" ;;
+  esac
+else
+  LNPb="not run"; LNPc="not run"; LF_FIRE="not run"; LF_RC=125
+fi
+is "lane pulse F1-count-ends-early L-NEVER-OK: where the pulse ends with lane capability zero 0 1 and lane docs zero 0 1, the parent of the shell that runs a read of the landings, then that shell, killed (C9): felix pulse exits 0 and its last lines, after its backup and settings lines, are the single lane - unknown - -, or one R2 line per lane; never a count and never no lane line" \
+   "$LNPa|unfaulted $LNPb|$LF_FIRE|$LF_RC|$LNPc|$(_lnp_before "$LNPD/f1k.out")" \
+   "built|unfaulted 0|$(_lf_tsv lane capability zero 0 1)"$'\n'"$(_lf_tsv lane docs zero 0 1)|fired|0|C3 or R2|backup settings"
 _lf_use "$LNPH" "$LNPD/memory" "$LNPD/user" "$LNPB"
 # <<< lane-pulse

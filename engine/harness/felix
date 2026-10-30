@@ -24,6 +24,7 @@
 #   felix stack --reach [--tsv]  do the declared plugins' and servers' MCP servers connect? (advisory)
 #   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix status [--tsv] read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
+#   felix lane [--tsv]   read-only: each lane's share of engine landings, against its target
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -355,6 +356,8 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/status.sh"
 # shellcheck source=lib/pulse.sh
 . "${SCRIPT_DIR}/lib/pulse.sh"
+# shellcheck source=lib/lane.sh
+. "${SCRIPT_DIR}/lib/lane.sh"
 # shellcheck source=lib/procedures.sh
 . "${SCRIPT_DIR}/lib/procedures.sh"
 # shellcheck source=lib/probes.sh
@@ -424,6 +427,7 @@ specific project, language, or toolchain.
   every day
     felix which            which project governs here, and where its doctrine is
     felix status [--tsv]     read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
+    felix lane [--tsv]     read-only: each lane's share of engine landings on origin/main, against its target
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
     felix decisions        the capability-decision record: mandates, declines, answer rate
@@ -6577,6 +6581,17 @@ cmd_status() {
   felix_status_command "$FELIX_HOME_DIR" "$PWD" "$tsv"
 }
 
+# felix lane: each lane's share of the engine landings on origin/main (lib/lane.sh). Read-only and offline, like
+# felix status: it writes nothing, and GIT_OPTIONAL_LOCKS=0 is exported before any git command. The arguments are
+# checked before the directory is resolved. Exit 0 for any report; 2 for a usage error or a directory no project governs.
+cmd_lane() {
+  local tsv=0
+  case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac
+  resolve_or_die
+  export GIT_OPTIONAL_LOCKS=0
+  felix_lane_command "$PROJ" "$(felix_repo_root "$PWD")" "$tsv"
+}
+
 # `<subcommand> --help` answers with usage instead of running (#102). No
 # subcommand handled the flag, 24 of them take a first positional, and the ones
 # that write took the flag AS the positional: `felix adopt --help` declared a
@@ -6597,6 +6612,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
   status)  shift; cmd_status "$@" ;;
+  lane)    shift; cmd_lane "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;

@@ -1,0 +1,314 @@
+# The lane counter (slice 0 of the lane design, section 6; the Contracts it was built to are C1 to C9 of
+# docs/2026-10-29-lane-slice-0-plan.md).
+#
+# WHAT IT READS. Two per-project tables, lanes.tsv and lane-next.tsv, as the Felix home has them committed: the
+# files at HEAD of the git repository holding the project directory, never the working tree. And the first-parent
+# history of refs/remotes/origin/main in the checkout it is asked about, as last fetched. It counts each lane's
+# share of the engine landings there, offline: no fetch, no network, no model, no key.
+#
+# WHAT IT WRITES. Nothing. No ref, index, config or worktree entry of any repository, no file of the home or the
+# memory root. Its scratch files sit in one directory made under ${TMPDIR:-/tmp} and removed on the way out. Every
+# git read runs with --no-optional-locks and without lazy fetches. git diff, git status and git add are never run:
+# they rewrite an index under a stat-dirty file even with GIT_OPTIONAL_LOCKS=0.
+#
+# felix_lane_rows PROJ ROOT [FULL]  C5's thirteen-column lines, one per data row of lanes.tsv, on stdout, and nothing
+#                                   when it holds no row. Unless FULL is 1, columns 7, 10 and 11 read - and their
+#                                   searches are not run. Prints nothing on stderr; returns 0.
+# felix_lane_command PROJ ROOT TSV  felix lane: those lines (TSV 1) or C5's human lines (TSV 0).
+#
+# A read that did not finish never yields a count: the lane reads unknown with the reason. Bash 3.2; LC_ALL=C on
+# every text tool; awk that BWK awk and gawk both run.
+
+_LANE_LIB="${BASH_SOURCE[0]:-$0}"
+case "$_LANE_LIB" in */*) _LANE_LIB="${_LANE_LIB%/*}" ;; *) _LANE_LIB=. ;; esac
+_LANE_TAB=$'\t'
+
+_lane_git() { GIT_NO_LAZY_FETCH=1 git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@"; }
+_lane_iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null; }
+_lane_line() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+
+# PROJ NAME OUT -> the committed regular file copied to OUT: 0. No such entry at HEAD: 1. An entry that is no regular
+# file (a link, a submodule): 2. PROJ in no repository, HEAD naming no commit or a git read not finishing, while a
+# file or link of that name stands in PROJ: 3 (1 when none does). Sets _LANE_REPO and _LANE_REL.
+_lane_blob() {
+  local pd repo rel ent mode r no=1
+  if [ -e "$1/$2" ] || [ -L "$1/$2" ]; then no=3; fi
+  pd="$(CDPATH='' cd -- "$1" 2>/dev/null && pwd -P)" || pd=""
+  [ -n "$pd" ] || return "$no"
+  repo="$(_lane_git -C "$pd" rev-parse --show-toplevel 2>/dev/null)" || repo=""
+  case "$repo" in /*) ;; *) return "$no" ;; esac
+  case "$pd" in "$repo") rel="$2" ;; "$repo"/*) rel="${pd#"$repo"/}/$2" ;; *) return "$no" ;; esac
+  _LANE_REPO="$repo"; _LANE_REL="$rel"
+  _lane_git -C "$repo" rev-parse --verify -q 'HEAD^{commit}' >/dev/null 2>&1 || return "$no"
+  ent="$(_lane_git -C "$repo" ls-tree HEAD -- "$rel" 2>/dev/null)" || return "$no"
+  [ -n "$ent" ] || return 1
+  ent="${ent%%$'\n'*}"; mode="${ent%% *}"; r="${ent#* }"; r="${r#* }"
+  case "$mode" in 100644|100755) ;; *) return 2 ;; esac
+  [ -n "${_LANE_W:-}" ] || return 3
+  _lane_git -C "$repo" cat-file blob "${r%%$'\t'*}" > "$3" 2>/dev/null || return 3
+  return 0
+}
+
+# PROJ NAME OUT -> _lane_blob's status, with 2 also for a table the engine's table check refuses.
+_lane_table() {
+  local rc
+  _lane_blob "$1" "$2" "$3"; rc=$?
+  [ "$rc" -eq 0 ] || return "$rc"
+  command -v felix_table_check >/dev/null 2>&1 || . "$_LANE_LIB/table.sh"
+  felix_table_check "$_LANE_LIB/../templates/schemas.tsv" "$3" "$2" >/dev/null 2>&1 || return 2
+  return 0
+}
+
+# ROOT -> 0 when ROOT is a partial clone and git is older than 2.44, which ignores GIT_NO_LAZY_FETCH and would fetch.
+_lane_partial_old() {
+  if _lane_git -C "$1" config --get extensions.partialClone >/dev/null 2>&1 \
+     || _lane_git -C "$1" config --bool --get-regexp '^remote\..*\.promisor$' 2>/dev/null | LC_ALL=C awk '/ true$/ { f = 1 } END { exit !f }'; then
+    _lane_git --version 2>/dev/null | LC_ALL=C awk '{ split($3, v, "."); exit !(v[1] > 2 || (v[1] == 2 && v[2] >= 44)) }' || return 0
+  fi
+  return 1
+}
+
+# FILE "lane ..." SHA -> sha<TAB>lane for each lane that some message line of FILE marks (a git log --format with
+# %x1e before each %H, then %B). The line, once its trailing spaces, tabs and CRs are gone, is byte for byte
+# "Felix-Lane: <lane>". With SHA, that commit is named instead of each record's own.
+_lane_marks() {
+  LC_ALL=C awk -v lanes="$2" -v force="$3" '
+    BEGIN { RS = "\036"; nl = split(lanes, ls, " ") }
+    { n = split($0, ln, "\n"); if (n < 2 || ln[1] == "") next
+      who = (force != "" ? force : ln[1])
+      for (j = 2; j <= n; j++) { s = ln[j]; sub(/[ \t\r]+$/, "", s)
+        for (q = 1; q <= nl; q++) if (s == "Felix-Lane: " ls[q] && !((who SUBSEP ls[q]) in seen)) { seen[who SUBSEP ls[q]] = 1; print who "\t" ls[q] } } }' "$1"
+}
+
+# ROOT SHA PARENTS FIRST-PARENT -> $_LANE_W/dt/SHA holds the commit's changed paths against its first parent, NUL
+# separated, renames off, unquoted. A commit with no parent changed every path in its tree. 1 when git did not finish.
+_lane_paths() {
+  local f="$_LANE_W/dt/$2" rc
+  [ -f "$f" ] && return 0
+  if [ "$3" -eq 0 ]; then
+    _lane_git -C "$1" -c core.quotePath=false diff-tree --root --no-commit-id -r -z --no-renames --name-only "$2" > "$f" 2>/dev/null < /dev/null
+  else
+    _lane_git -C "$1" -c core.quotePath=false diff-tree -r -z --no-renames --name-only "$4" "$2" > "$f" 2>/dev/null < /dev/null
+  fi
+  rc=$?
+  [ "$rc" -eq 0 ] || { rm -f "$f"; return 1; }
+}
+
+# LANE -> the lane's next text, none, or unknown (lane-next.tsv refused, unreadable, or two rows for the lane).
+_lane_next() {
+  case "$_LANE_NRC" in
+    0) LC_ALL=C awk -F'\t' -v lane="$1" '$1 == lane { n++; v = $2 } END { if (n == 0) print "none"; else if (n > 1) print "unknown"; else print v }' "$_LANE_W/nrows" ;;
+    1) printf 'none\n' ;;
+    *) printf 'unknown\n' ;;
+  esac
+}
+
+# The lanes.tsv lines of the blob OID whose first cell is LANE (nothing for the OID -).
+_lane_cells() {
+  [ "$1" = - ] && return 0
+  _lane_git -C "$_LANE_HREPO" cat-file blob "$1" 2>/dev/null | LC_ALL=C awk -F'\t' -v lane="$2" '$1 == lane'
+}
+
+# Once per run: every first-parent commit of the home's HEAD whose lanes.tsv blob differs from its first parent's,
+# in $_LANE_W/hcand as "commit blob parent parent-blob". _LANE_HOK 0 when the home is shallow or git did not finish.
+_lane_hprep() {
+  local W="$_LANE_W" r="$_LANE_HREPO"
+  _LANE_HOK=0
+  [ "$(_lane_git -C "$r" rev-parse --is-shallow-repository 2>/dev/null)" != true ] || return 0
+  _lane_git -C "$r" rev-list --first-parent HEAD > "$W/hchain" 2>/dev/null || return 0
+  LC_ALL=C awk -v rel="$_LANE_HREL" '{ print $1 ":" rel }' "$W/hchain" > "$W/hq"
+  _lane_git -C "$r" cat-file --batch-check < "$W/hq" > "$W/hbc" 2>/dev/null || return 0
+  paste "$W/hchain" "$W/hbc" | LC_ALL=C awk -F'\t' '
+    { s[NR] = $1; if ($2 == "") bad = 1; split($2, f, " "); o[NR] = (f[2] == "blob") ? f[1] : "-" }
+    END { for (i = 1; i <= NR; i++) { p = (i < NR) ? o[i + 1] : "-"; if (o[i] != p) print s[i], o[i], (i < NR ? s[i + 1] : "-"), p }
+          exit bad }' > "$W/hcand" || return 0
+  _LANE_HOK=1
+}
+
+# LANE -> _LANE_C the first commit, walking first parents from the home's HEAD, whose lanes.tsv holds other lines for
+# LANE than its first parent's (a parent without the file holds none), or unknown; _LANE_CD its committer date.
+_lane_changed() {
+  local W="$_LANE_W" c co p po ct
+  _LANE_C=unknown; _LANE_CD=-
+  [ "$_LANE_HOK" = 1 ] || return 0
+  while read -r c co p po <&3; do
+    _lane_cells "$co" "$1" > "$W/l1" || return 0
+    _lane_cells "$po" "$1" > "$W/l2" || return 0
+    cmp -s "$W/l1" "$W/l2" && continue
+    ct="$(_lane_git -C "$_LANE_HREPO" log -1 --no-show-signature --format=%ct "$c" -- 2>/dev/null)" || return 0
+    case "$ct" in ''|*[!0123456789]*) return 0 ;; esac
+    _LANE_C="$c"; _LANE_CD="$(_lane_iso "$ct")"
+    return 0
+  done 3< "$W/hcand"
+}
+
+# Marks, for the landings of $_LANE_W/CAND (sha ct parents first-parent): singles through one git log --no-walk,
+# merges one by one over their first-parent range. -> sha<TAB>lane lines on stdout; 1 when git did not finish.
+_lane_markall() {   # ROOT CAND "lane ..." TAG
+  local W="$_LANE_W" sha ct np p1
+  LC_ALL=C awk '$3 <= 1 { print $1 }' "$W/$2" > "$W/$4-single"
+  if [ -s "$W/$4-single" ]; then
+    _lane_git -C "$1" log --no-walk=unsorted --no-show-signature --format='%x1e%H%n%B' --stdin < "$W/$4-single" > "$W/$4-msg" 2>/dev/null || return 1
+    _lane_marks "$W/$4-msg" "$3" ""
+  fi
+  while read -r sha ct np p1 <&3; do
+    [ "$np" -ge 2 ] || continue
+    _lane_git -C "$1" log --no-show-signature --format='%x1e%H%n%B' "$p1..$sha" -- > "$W/$4-mm" 2>/dev/null < /dev/null || return 1
+    _lane_marks "$W/$4-mm" "$3" "$sha"
+  done 3< "$W/$2"
+  return 0
+}
+
+# The window: L and T of every valid row (Rs empty), by C3. Sets Ls, Ts; Fl 1 where a read did not finish.
+_lane_window() {   # NOW ROOT
+  local now="$1" root="$2" W="$_LANE_W" k names="" maxw=0 sha ct np p1 need c rc nm
+  for ((k = 1; k <= nrows; k++)); do
+    [ -z "${Rs[$k]}" ] || continue
+    names="$names ${Nm[$k]}"; Ls[$k]=0; Ts[$k]=0
+    [ "${Wi[$k]}" -le "$maxw" ] || maxw="${Wi[$k]}"
+  done
+  [ -n "$names" ] || return 0
+  mkdir "$W/dt" 2>/dev/null; : > "$W/counted"; : > "$W/wmarks"
+  if _lane_git -C "$root" log --first-parent --no-show-signature --format='%H %ct %P' refs/remotes/origin/main -- > "$W/chain" 2>/dev/null \
+     && LC_ALL=C awk -v now="$now" -v lo="$((now - maxw * 86400))" '
+          $2 !~ /^[0123456789]+$/ { bad = 1 }
+          $2 + 0 <= now + 0 && $2 + 0 > lo + 0 { print $1, $2, NF - 2, (NF > 2 ? $3 : "-") }
+          END { exit bad }' "$W/chain" > "$W/cand" \
+     && _lane_markall "$root" cand "$names" w > "$W/wmarks"; then :; else
+    for ((k = 1; k <= nrows; k++)); do [ -n "${Rs[$k]}" ] || Fl[$k]=1; done
+    return 0
+  fi
+  while read -r sha ct np p1 <&3; do
+    need=""
+    for ((k = 1; k <= nrows; k++)); do
+      [ -z "${Rs[$k]}" ] || continue
+      [ "$ct" -gt "$((now - Wi[k] * 86400))" ] && need="$need $k"
+    done
+    [ -n "$need" ] || continue
+    if ! _lane_paths "$root" "$sha" "$np" "$p1"; then for k in $need; do Fl[$k]=1; done; continue; fi
+    for k in $need; do
+      LC_ALL=C grep -z -E -e "${Cn[$k]}" "$W/dt/$sha" > /dev/null 2>&1; rc=$?
+      if [ "$rc" -ge 2 ]; then Fl[$k]=1
+      elif [ "$rc" -eq 0 ]; then printf '%s\t%s\n' "$sha" "${Nm[$k]}" >> "$W/counted"; fi
+    done
+  done 3< "$W/cand"
+  LC_ALL=C awk 'FILENAME == ARGV[1] { m[$1 "\t" $2] = 1; next }
+                { t[$2]++; if (($1 "\t" $2) in m) l[$2]++ } END { for (x in t) print x "\t" (l[x] + 0) "\t" t[x] }' "$W/wmarks" "$W/counted" > "$W/lt"
+  while IFS=$'\t' read -r nm c rc <&3; do
+    for ((k = 1; k <= nrows; k++)); do [ "${Nm[$k]}" = "$nm" ] && [ -z "${Rs[$k]}" ] && { Ls[$k]=$c; Ts[$k]=$rc; }; done
+  done 3< "$W/lt"
+}
+
+# The last lane landing of each valid row whose count stands: its date, none, or unknown. Sets La. A read that does
+# not finish here changes nothing but this column.
+_lane_search() {   # NOW ROOT
+  local now="$1" root="$2" W="$_LANE_W" k names="" ct sha np p1 rc
+  for ((k = 1; k <= nrows; k++)); do
+    [ -z "${Rs[$k]}" ] && [ "${Fl[$k]}" = 0 ] || continue
+    names="$names ${Nm[$k]}"; La[$k]=none
+  done
+  [ -n "$names" ] || return 0
+  if ! { LC_ALL=C awk -v now="$now" '$2 + 0 <= now + 0 { print $1, $2, NF - 2, (NF > 2 ? $3 : "-") }' "$W/chain" > "$W/scand" \
+         && _lane_markall "$root" scand "$names" s > "$W/smarks"; }; then
+    for ((k = 1; k <= nrows; k++)); do [ -z "${La[$k]:-}" ] || La[$k]=unknown; done
+    return 0
+  fi
+  for ((k = 1; k <= nrows; k++)); do
+    [ -n "${La[$k]:-}" ] || continue
+    LC_ALL=C awk -v lane="${Nm[$k]}" 'FILENAME == ARGV[1] { if ($2 == lane) h[$1] = 1; next } ($1 in h) { print $2, $1, $3, $4 }' "$W/smarks" "$W/scand" \
+      | LC_ALL=C sort -k1,1nr > "$W/lc" || { La[$k]=unknown; continue; }
+    while read -r ct sha np p1 <&3; do
+      if ! _lane_paths "$root" "$sha" "$np" "$p1"; then La[$k]=unknown; break; fi
+      LC_ALL=C grep -z -E -e "${Cn[$k]}" "$W/dt/$sha" > /dev/null 2>&1; rc=$?
+      if [ "$rc" -ge 2 ]; then La[$k]=unknown; break; fi
+      if [ "$rc" -eq 0 ]; then La[$k]="$(_lane_iso "$ct")"; break; fi
+    done 3< "$W/lc"
+  done
+}
+
+_lane_rows() {   # PROJ ROOT FULL
+  local proj="$1" root="$2" full="$3" W="$_LANE_W" rc ct refd=- now glob="" r2 k nrows=0 lv cv dup nm cnt shr win n d
+  local state lane chg chgd nx last
+  local -a Nm Cn Sh Wi Rs Ls Ts Fl La Lv
+  _lane_table "$proj" lanes.tsv "$W/lanes"; rc=$?
+  [ "$rc" -ne 1 ] || return 0
+  _LANE_HREPO="$_LANE_REPO"; _LANE_HREL="$_LANE_REL"
+  ct="$(_lane_git -C "$root" log -1 --no-show-signature --format=%ct 'refs/remotes/origin/main^{commit}' -- 2>/dev/null)" || ct=""
+  case "$ct" in ''|*[!0123456789]*) ct="" ;; *) refd="$(_lane_iso "$ct")"; refd="${refd:--}" ;; esac
+  if [ "$rc" -eq 3 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as committed in the Felix home"; return 0; fi
+  if [ "$rc" -eq 2 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as lanes.tsv"; return 0; fi
+  felix_table_rows "$W/lanes" > "$W/rows"
+  LC_ALL=C awk -F'\t' '
+    { k++; l[k] = $1; s[k] = $3; w[k] = $4; seen[$1]++; row[k] = $0 }
+    END { for (i = 1; i <= k; i++) {
+            n = split(s[i], p, "/")
+            c = (n == 2 && p[1] ~ /^[123456789][0123456789]*$/ && p[2] ~ /^[123456789][0123456789]*$/ && length(p[1]) <= 4 && length(p[2]) <= 4 && p[1] + 0 <= p[2] + 0)
+            c = (c && w[i] ~ /^[123456789][0123456789]*$/ && length(w[i]) <= 4)
+            print i "\t" (l[i] ~ /^[A-Za-z0-9][A-Za-z0-9._-]*$/ ? 1 : 0) "\t" (c ? 1 : 0) "\t" (seen[l[i]] > 1 ? 1 : 0) "\t" row[i] } }' "$W/rows" > "$W/meta"
+  _lane_table "$proj" lane-next.tsv "$W/next"; _LANE_NRC=$?
+  [ "$_LANE_NRC" -ne 0 ] || felix_table_rows "$W/next" > "$W/nrows"
+  while IFS=$'\t' read -r k lv cv dup nm cnt shr win <&3; do
+    nrows="$k"; Nm[$k]="$nm"; Cn[$k]="$cnt"; Sh[$k]="$shr"; Wi[$k]="$win"; Lv[$k]="$lv"; Rs[$k]=""; Fl[$k]=0; Ls[$k]=-; Ts[$k]=-; La[$k]=""
+    if [ "$lv" = 0 ] || [ "$cv" = 0 ]; then Rs[$k]="row $k of lanes.tsv is not a lane name, an ERE, a share n/d and a window in days"
+    elif [ "$dup" = 1 ]; then Rs[$k]="lane $nm is named on more than one row of lanes.tsv"
+    else
+      LC_ALL=C grep -E -e "$cnt" < /dev/null > /dev/null 2>&1
+      [ $? -ne 2 ] || Rs[$k]="the counts pattern of lane $nm is not an ERE grep accepts"
+    fi
+  done 3< "$W/meta"
+  [ "$nrows" -gt 0 ] || return 0
+  now="${FELIX_LANE_NOW:-}"
+  if [ -z "$now" ]; then now="$(date -u +%s)"
+  else case "$now" in 0) ;; 0*|*[!0123456789]*|?????????????*) glob="FELIX_LANE_NOW is not a whole number of seconds" ;; esac; fi
+  r2="git could not read the landings on refs/remotes/origin/main in $root"
+  if [ -n "$glob" ]; then :
+  elif [ -z "$ct" ]; then glob="refs/remotes/origin/main cannot be read in $root"
+  elif [ "$(_lane_git -C "$root" rev-parse --is-shallow-repository 2>/dev/null)" = true ]; then glob="$root is a shallow clone, so its landings cannot all be read"
+  elif _lane_partial_old "$root"; then glob="$r2"
+  else
+    _lane_window "$now" "$root"
+    [ "$full" != 1 ] || _lane_search "$now" "$root"
+  fi
+  [ "$full" != 1 ] || _lane_hprep
+  for ((k = 1; k <= nrows; k++)); do
+    nm="${Nm[$k]}"; lane=-; chg=-; chgd=-; nx=-; last=-
+    [ "${Lv[$k]}" = 0 ] || lane="$nm"
+    [ "$full" != 1 ] || [ "$lane" = - ] || { _lane_changed "$nm"; chg="$_LANE_C"; chgd="$_LANE_CD"; }
+    if [ -n "${Rs[$k]}" ]; then
+      _lane_line "$lane" unknown - - - - - - - "$chg" "$chgd" "$refd" "${Rs[$k]}"; continue
+    fi
+    nx="$(_lane_next "$nm")"
+    if [ -n "$glob" ] || [ "${Fl[$k]}" = 1 ]; then
+      _lane_line "$lane" unknown - - "${Wi[$k]}" "${Sh[$k]}" - "Felix-Lane: $nm" "$nx" "$chg" "$chgd" "$refd" "${glob:-$r2}"; continue
+    fi
+    n="${Sh[$k]%/*}"; d="${Sh[$k]#*/}"
+    if [ "${Ts[$k]}" -eq 0 ]; then state=idle
+    elif [ "${Ls[$k]}" -eq 0 ]; then state=zero
+    elif [ "$((Ls[k] * d))" -ge "$((n * Ts[k]))" ]; then state=ok
+    else state=short; fi
+    [ "$full" != 1 ] || last="${La[$k]:-none}"
+    _lane_line "$lane" "$state" "${Ls[$k]}" "${Ts[$k]}" "${Wi[$k]}" "${Sh[$k]}" "$last" "Felix-Lane: $nm" "$nx" "$chg" "$chgd" "$refd" -
+  done
+}
+
+felix_lane_rows() {   # PROJ ROOT [FULL]
+  local LC_ALL=C _LANE_W="" _LANE_REPO="" _LANE_REL="" _LANE_HREPO="" _LANE_HREL="" _LANE_NRC=3 _LANE_HOK=0 _LANE_C=unknown _LANE_CD=-
+  _LANE_W="$(mktemp -d "${TMPDIR:-/tmp}/felix-lane.XXXXXX" 2>/dev/null)" || _LANE_W=""
+  _lane_rows "${1:-}" "${2:-}" "${3:-0}" 2>/dev/null
+  case "$_LANE_W" in "${TMPDIR:-/tmp}"/felix-lane.??????) rm -rf "$_LANE_W" ;; esac
+  return 0
+}
+
+# felix lane: the lines of felix_lane_rows, as TSV or in words (C5).
+felix_lane_command() {   # PROJ ROOT TSV
+  if [ "${3:-0}" = 1 ]; then felix_lane_rows "$1" "$2" 1; return 0; fi
+  felix_lane_rows "$1" "$2" 1 | LC_ALL=C awk -F'\t' '
+    { ch = ""
+      if ($10 == "unknown") ch = "its lanes.tsv row\047s last change cannot be read"
+      else if ($10 != "-") ch = "its lanes.tsv row last changed by " substr($10, 1, 12) " at " $11
+      if ($2 == "unknown") s = $1 ": unknown, " $13
+      else s = $1 ": " $2 ", " $3 " of " $4 " engine landings in " $5 " days, target " $6 "; last lane landing " $7 "; mark " $8 "; next: " $9
+      if (ch != "") s = s "; " ch
+      print s "; refs/remotes/origin/main at " $12 }'
+  return 0
+}

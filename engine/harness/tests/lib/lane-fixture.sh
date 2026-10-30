@@ -23,6 +23,11 @@
 # python3 (check for python3 first, and skip with a reason); _lf_silent says whether a lane paragraph or token showed;
 # _lf_start with a fifth argument runs another engine root, such as the copy _lf_broken makes. NOW - leaves
 # FELIX_LANE_NOW unset; any other NOW, 0123 included, is passed as it is.
+#
+# C9's faults (added on 2026-10-30 for the review's findings, still blind): _lf_fault runs _lf_run or _lf_start with
+# git a bash function exported into the engine, that makes a fork fail (fork) or ends the count early (kill) in the
+# read of the landings, and with TMPDIR a directory of the fixture's own, so a scratch directory left is seen there and
+# removed with $TMP. _lf_json reads a session start's JSON again after it.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -293,10 +298,60 @@ _lf_start() {
       FELIX_LANE_NOW="$n" CLAUDE_PLUGIN_ROOT="$r" "$r/harness/hooks/session-start" ) < "$o.in" > "$o.out" 2> "$o.err"
   LF_RC=$?
   _lf_calm "$LF_H"
+  _lf_json "$o"
+}
+
+# OUT -> what a session start wrote to OUT.out, read as _lf_start reads it: LF_JSON ok or bad (none when python3 is
+# absent), OUT.ctx and LF_CTX the context, OUT.scr and LF_SCR the screen line.
+_lf_json() {
+  LF_JSON=none; LF_CTX=""; LF_SCR=""
   command -v python3 >/dev/null 2>&1 || return 0
-  if _lf_jget "$o.out" additionalContext > "$o.ctx"; then LF_JSON=ok; else LF_JSON=bad; fi
-  _lf_jget "$o.out" systemMessage > "$o.scr"
-  LF_CTX="$(cat "$o.ctx")"; LF_SCR="$(cat "$o.scr")"
+  if _lf_jget "$1.out" additionalContext > "$1.ctx"; then LF_JSON=ok; else LF_JSON=bad; fi
+  _lf_jget "$1.out" systemMessage > "$1.scr"
+  LF_CTX="$(cat "$1.ctx")"; LF_SCR="$(cat "$1.scr")"
+}
+
+# MODE FILE TMPDIR CMD... -> CMD (_lf_run or _lf_start, with their arguments) run in a subshell whose TMPDIR, exported,
+# is TMPDIR, and where git is a bash function, exported, so that bash imports it into felix and the hook: C9's fault.
+# The function acts when its words hold --first-parent and a word that starts refs/remotes/origin/main, the read of the
+# landings, every time, and first writes "fired" to FILE. MODE fork: it lowers the soft process limit to 1 (ulimit -S
+# -u 1) in the shell that called it and runs git, which that shell cannot fork, then writes "ran <status>" if the shell
+# gets there. MODE kill: it writes "kill <parent> <shell>", then sends SIGKILL to the parent of the shell that called
+# it, and then to that shell; never to pid 1 or to this suite's shell (it writes "kept" and runs git instead). Any
+# other git runs as it is. FILE and TMPDIR hold no double quote, dollar sign, backquote, backslash or ampersand.
+# LF_RC is the subshell's status (CMD's LF_RC, or 137 when the kill reached it), LF_FIRE "fired" when the function
+# acted as MODE says (fork: git did not run to a clean exit after it; kill: both signals were sent), else what FILE
+# shows. A session start's JSON is read again after it with _lf_json, since the subshell's variables are gone.
+_lf_fault() {
+  local m="$1" f="$2" t="$3" b
+  shift 3
+  LF_FIRE="not run"; LF_RC=125
+  case "$f$t" in (*\"*|*\$*|*\`*|*\\*|*\&*) return 1 ;; esac
+  [ -n "$f" ] && [ -n "$t" ] || return 1
+  case "$m" in
+    (fork) b='printf "fired\n" >> "@F@"; ulimit -S -u 1; command git "$@"; r=$?; printf "ran %s\n" "$r" >> "@F@"; return "$r"' ;;
+    (kill) b='printf "fired\n" >> "@F@"; s="$(exec sh -c "echo \$PPID")"; p="$(ps -o ppid= -p "$s" 2>/dev/null)"; p="${p//[!0123456789]/}"
+      case "$s:$p" in (:*|*:|1:*|*:1|@K@:*|*:@K@) printf "kept %s %s\n" "$p" "$s" >> "@F@"; command git "$@"; return ;; esac
+      printf "kill %s %s\n" "$p" "$s" >> "@F@"; kill -KILL "$p"; kill -KILL "$s"; command git "$@"; return' ;;
+    (*) return 1 ;;
+  esac
+  b="${b//@F@/$f}"; b="${b//@K@/$$}"
+  rm -f "$f"
+  ( TMPDIR="$t"; export TMPDIR
+    eval 'git() { local s p r; case " $* " in (*" --first-parent "*) case " $* " in (*" refs/remotes/origin/main"*) '"$b"' ;; esac ;; esac; command git "$@"; }' \
+      || exit 125
+    export -f git
+    "$@"
+    exit "$LF_RC" )
+  LF_RC=$?
+  if [ "$m" = fork ]; then
+    LF_FIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }
+      END { s = "not fired"; if (f && r) s = "fired, but git ran to a clean exit after it"; if (f && !r) s = "fired"; print s }' "$f" 2>/dev/null)"
+  else
+    LF_FIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } /^kill [0123456789]+ [0123456789]+$/ { k = 1 } /^kept / { p = $0 }
+      END { s = "not fired"; if (f) s = "fired, but no kill was sent [" p "]"; if (f && k) s = "fired"; print s }' "$f" 2>/dev/null)"
+  fi
+  [ -n "$LF_FIRE" ] || LF_FIRE="not fired"
 }
 
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on

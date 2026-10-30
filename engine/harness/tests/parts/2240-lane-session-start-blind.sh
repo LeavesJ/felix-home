@@ -25,6 +25,22 @@ printf '\nlane session start: the paragraph and the screen token, where they sho
 # - The controls are C10's: silence for ok, unknown, no committed lanes.tsv or none with a row, a Claude Code resume and
 #   a directory no project governs; L-RF3's and L-RF5's session-start halves; L-RO's; the broken engine. Each silent
 #   case that has a lane uses a checkout where the committed 1/2 table shows the paragraph and the token.
+# - The own checkout (C7, C9, design 6.5 items 3 and 4, 11 item 44), amended on 2026-10-30, still blind. Every checkout
+#   above, those that show the paragraph and those that stay silent, the shallow clone included, is sx's own (_lf_own):
+#   H's project.json names remote_match lane-fixture/sx, written in H's working tree and never committed, and each
+#   checkout's origin is https://github.com/lane-fixture/sx.git, never fetched (the clone's set to it), so no case is
+#   silent for want of ownership. Its "built" says so. Making them own changed nothing else an assertion reads: no
+#   checkout holds a manifest that adoption reads, and the home grants no autonomy, so none of the unattended work an
+#   own checkout allows (adoption, the graph refresh, tidying) showed in a session start when this was written.
+#   L-OWN and C7's nothing-withheld rule close the part, each case in a fresh home of its own, because the withheld line
+#   is said once per checkout and set of kinds, keyed in the home. L-OWN's four homes hold the same commits at the same
+#   times, and its four checkouts the same commits, so felix lane --tsv's columns 10 to 12 are the same bytes in all
+#   four; each differs only in project.json, written after those commits, and in its origin remote. The withheld line
+#   is read as C7 gives it: a context line starting "Nothing ran here unattended: ", whose kinds, after "Withheld: " and
+#   without the closing full stop, are split on ", "; "lane item" must be one of them, whatever other kinds a fixture
+#   makes due. Red on main as C10 says: each such assertion also requires felix
+#   lane --tsv's exit 0 and the fixture's expected output (nothing, for the home with no committed lanes.tsv), and the
+#   exit 0 and valid JSON of those session starts are controls of their own.
 LNGN=1793000000; LNGDAY=86400; LNGK=0
 LNGNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNGPY=0; command -v python3 >/dev/null 2>&1 && LNGPY=1
@@ -33,6 +49,7 @@ _lf_dir "$TMP/lane-2240"; LNGD="$LF_DIR"; mkdir -p "$LNGD/plain"
 _lf_stubs "$LNGD"; LNGB="$LF_BIN"
 _lf_home "$LNGD/home" sx 1792500000; LNGH="$LF_HOME"; LNGP="$LF_PROJ"
 _lf_use "$LNGH" "$LNGD/memory" "$LNGD/user" "$LNGB"
+LNGURL='https://github.com/lane-fixture/sx.git'; LNGOWNJ='{"name":"sx","gate":"true","remote_match":"lane-fixture/sx"}'
 LNGLANES=$'capability\t^engine/\t1/2\t14\n'
 LNGNEXTS="$(_lf_tsv capability "$LNGNEXT")"$'\n'
 LNGSCR='Felix: sx'; LNGTOK14="$LNGSCR · lane: 0 in 14 days"
@@ -44,17 +61,20 @@ _lng_par() {
 }
 LNGZ12="$(_lng_par zero 0 2 14 1/2 "$LNGNEXT" "$LNGCLH")"
 
-# NAME SPEC... -> LNGR a checkout $LNGD/NAME bound to sx, its root a month before the clock, then SPEC's landings
-# (_lf_chain) from five days before it, an hour apart, published. LNGE "built" when the first-parent chain of
-# refs/remotes/origin/main holds the root and every landing.
+# NAME SPEC... -> LNGR a checkout $LNGD/NAME bound to sx and sx's own (_lf_own: H's project.json names remote_match
+# lane-fixture/sx, the checkout's origin is LNGURL), its root a month before the clock, then SPEC's landings (_lf_chain)
+# from five days before it, an hour apart, published. LNGE "built" when H's project.json is LNGOWNJ and the first-parent
+# chain of refs/remotes/origin/main holds the root and every landing.
 _lng_chk() {
   local n="$1"
   shift
   LNGE="not built: $n"; LNGR=""
   _lf_checkout "$LNGD/$n" sx $((LNGN - 30 * LNGDAY)) || return 1
   LNGR="$LF_REPO"
+  _lf_own "$LNGP" "$LNGR" lane-fixture/sx || return 1
   _lf_chain "$LNGR" capability $((LNGN - 5 * LNGDAY)) 3600 "$@" || return 1
-  [ "$(_lf_spine "$LNGR" | LC_ALL=C awk '{ print NF }')" = "$(($# + 1))" ] && LNGE=built
+  [ "$(cat "$LNGP/project.json")" = "$LNGOWNJ" ] && [ "$(_lf_spine "$LNGR" | LC_ALL=C awk '{ print NF }')" = "$(($# + 1))" ] \
+    && LNGE=built
 }
 # REL BYTES -> H's HEAD holds projects/sx/REL as exactly BYTES; status 0 when it does.
 _lng_holds() {
@@ -137,7 +157,7 @@ _lng_ss "$LNGO"
 _lng_is "lane session start: ok at share 1/2 (L 1 of T 2): exit 0, valid JSON, neither a lane paragraph nor a lane token (control)" \
    "$LNGOE|$LNGT|$LF_RC|$LF_JSON|$(_lf_silent capability)" "built|built|0|ok|none"
 _lf_checkout "$LNGD/noref" sx $((LNGN - 30 * LNGDAY)); LNGNR="$LF_REPO"; LNGa="not built: a checkout with no ref"
-_lf_commit "$LNGNR" $((LNGN - LNGDAY)) $'engine: x\n' engine/x.sh \
+_lf_own "$LNGP" "$LNGNR" lane-fixture/sx && _lf_commit "$LNGNR" $((LNGN - LNGDAY)) $'engine: x\n' engine/x.sh \
   && LNGa="$( _fx_cd "$LNGNR" || exit 1; _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main >/dev/null 2>&1 && echo has-ref || echo built )"
 _lng_ss "$LNGNR"
 _lng_is "lane session start: unknown, a checkout with no refs/remotes/origin/main: exit 0, valid JSON, neither a lane paragraph nor a lane token (control)" \
@@ -262,7 +282,8 @@ _lng_put "share 1/2, for the shallow clone, L-RO and the broken engine" "$LNGLAN
 _lng_chk rf5-source u u u; LNGa="not built: the shallow clone"
 if [ "$LNGE" = built ] && ( _fx_cd "$LNGD" && _lf_g 1700000000 clone -q --depth 2 "file://$LNGR" rf5 ) >/dev/null 2>&1; then
   { printf 'sx\n' > "$LNGD/rf5/.felix"; } 2>/dev/null
-  LNGa="$( _fx_cd "$LNGD/rf5" || exit 1; [ "$(_lf_g 1700000000 rev-parse --is-shallow-repository)" = true ] \
+  _lf_own "$LNGP" "$LNGD/rf5" lane-fixture/sx \
+    && LNGa="$( _fx_cd "$LNGD/rf5" || exit 1; [ "$(_lf_g 1700000000 rev-parse --is-shallow-repository)" = true ] \
            && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main >/dev/null && echo built )"
 fi
 _lng_ss "$LNGD/rf5"
@@ -283,4 +304,111 @@ _lf_broken "$LNGD/broken" && [ -x "$LF_ROOT/harness/hooks/session-start" ] && [ 
 _lng_ss "$LNGZ" "$LNGN" startup "$LF_ROOT"
 _lng_is "lane session start: an engine copy with lib/lane.sh removed, where the intact engine shows the zero paragraph and token, exits 0 with valid JSON and neither (control)" \
    "$LNGZE|$LNGT|$LNGa|$LF_RC|$LF_JSON|$(_lf_silent capability)" "built|built|built|0|ok|none"
+
+# ---- L-OWN, and C7's nothing-withheld rule: the own checkout, and checkouts that are not own --------------------------------
+LNGOTH='https://github.com/lane-fixture/other.git'
+# H REL BYTES -> H's HEAD holds projects/sx/REL as exactly BYTES (-: holds no such file); status 0 when so.
+_lng_in() {
+  if [ "$3" = - ]; then ! ( _fx_cd "$1" && _lf_g 1700000000 cat-file -e "HEAD:projects/sx/$2" ) >/dev/null 2>&1; return; fi
+  printf '%s' "$3" > "$LNGD/in.want"
+  ( _fx_cd "$1" || exit 1; _lf_g 1700000000 cat-file blob "HEAD:projects/sx/$2" ) > "$LNGD/in.got" 2>/dev/null
+  cmp -s "$LNGD/in.want" "$LNGD/in.got"
+}
+# NAME TABLES MATCH ORIGIN [SPEC...] -> a fresh home $LNGD/own-NAME/home holding sx (its commit at the time H's has), with
+# TABLES 1/2 LNGLANES and LNGNEXTS committed at fixed times (- none), then project.json naming remote_match MATCH (- as
+# _lf_home wrote it, with none), and the environment naming that home, a memory root and a HOME of its own. A checkout
+# $LNGD/own-NAME/c bound to sx, its root a month before the clock, its origin ORIGIN (- none ever added). With SPEC,
+# its landings as _lng_chk makes them, published; without, one unmarked engine landing a day before the clock and no
+# refs/remotes/origin/main (R1). Sets LNGOH, LNGOR, LNGOS (the home's lanes.tsv commit, - for none, empty when not
+# made), LNGOC (the home's HEAD) and LNGOX (refs/remotes/origin/main, - for none); LNGOE "built" when the home's HEAD
+# holds what TABLES names, its project.json what MATCH names, and the checkout the origin and the ref named.
+_lng_fresh() {
+  local n="$1" tb="$2" rm="$3" o="$4" d="$LNGD/own-$1" j u
+  shift 4
+  LNGOE="not built: $n"; LNGOH=""; LNGOR=""; LNGOS=""; LNGOC=""; LNGOX=""
+  mkdir -p "$d" || return 1
+  _lf_home "$d/home" sx 1792500000 || return 1
+  LNGOH="$LF_HOME"; LNGOS=-
+  if [ "$tb" = 1/2 ]; then
+    _lf_table "$LF_PROJ" 1792600000 lanes.tsv "$LNGLANES" $'lanes.tsv, share 1/2\n' || return 1
+    LNGOS="$LF_SHA"
+    _lf_table "$LF_PROJ" 1792600050 lane-next.tsv "$LNGNEXTS" $'lane-next.tsv, the capability item\n' || return 1
+  fi
+  j='{"name":"sx","gate":"true"}'
+  [ "$rm" = - ] || { _lf_match "$LF_PROJ" "$rm" || return 1; j="{\"name\":\"sx\",\"gate\":\"true\",\"remote_match\":\"$rm\"}"; }
+  _lf_use "$LNGOH" "$d/memory" "$d/user" "$LNGB"
+  _lf_checkout "$d/c" sx $((LNGN - 30 * LNGDAY)) || return 1
+  LNGOR="$LF_REPO"
+  [ "$o" = - ] || _lf_origin "$LNGOR" "$o" || return 1
+  if [ "$#" -gt 0 ]; then _lf_chain "$LNGOR" capability $((LNGN - 5 * LNGDAY)) 3600 "$@" || return 1
+  else _lf_commit "$LNGOR" $((LNGN - LNGDAY)) $'engine: x\n' engine/x.sh || return 1; fi
+  LNGOC="$( _fx_cd "$LNGOH" || exit 1; _lf_g 1700000000 rev-parse --verify -q HEAD )"
+  LNGOX="$( _fx_cd "$LNGOR" || exit 1; _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main || echo - )"
+  u="$( _fx_cd "$LNGOR" || exit 1; _lf_g 1700000000 config --get remote.origin.url || echo - )"
+  if [ "$tb" = 1/2 ]; then _lng_in "$LNGOH" lanes.tsv "$LNGLANES" && _lng_in "$LNGOH" lane-next.tsv "$LNGNEXTS" || return 1
+  else _lng_in "$LNGOH" lanes.tsv - && _lng_in "$LNGOH" lane-next.tsv - || return 1; fi
+  [ "$(cat "$LF_PROJ/project.json")" = "$j" ] && [ "$u" = "$o" ] || return 1
+  if [ "$#" -gt 0 ]; then [ "$(_lf_spine "$LNGOR" | LC_ALL=C awk '{ print NF }')" = "$(($# + 1))" ] || return 1
+  else [ "$LNGOX" = - ] || return 1; fi
+  LNGOE=built
+}
+# -> "named" when a line of the last session's context starts "Nothing ran here unattended: " and names lane item
+# among the kinds after its "Withheld: " (split on ", ", the closing full stop dropped), else "unnamed".
+_lng_wh() {
+  LC_ALL=C awk 'index($0, "Nothing ran here unattended: ") == 1 && (i = index($0, " Withheld: ")) > 0 {
+      k = substr($0, i + 11); sub(/\.$/, "", k); n = split(k, a, ", ")
+      for (j = 1; j <= n; j++) if (a[j] == "lane item") f = 1 }
+    END { print (f ? "named" : "unnamed") }' "$LNGF.ctx" 2>/dev/null
+}
+# -> session start, then felix lane --tsv, in the checkout _lng_fresh just built: LNGRC (the hook's status), LF_JSON,
+# LF_CTX and LF_SCR as _lng_ss leaves them, LNGLR felix lane --tsv's status and LNGLO its stdout, byte for byte.
+_lng_osee() {
+  _lng_ss "$LNGOR"; LNGRC="$LF_RC"
+  _lf_run "$LNGF.lane" "$LNGOR" "$LNGN" "$FELIX" lane --tsv
+  LNGLR="$LF_RC"; LNGLO="$(cat "$LNGF.lane.out"; printf x)"; LNGLO="${LNGLO%x}"
+}
+
+# L-OWN: the lane zero (two unmarked engine landings), every other input the same, in four checkouts. LNGOA is the own
+# home's HEAD and the own checkout's ref, LNGOL the line felix lane --tsv prints there; each other checkout holds the
+# same commits and prints the same line. LNGCTL gathers each session start's built, exit status and JSON.
+_lng_fresh own 1/2 lane-fixture/sx "$LNGURL" u u
+LNGOA="$LNGOC|$LNGOX"
+LNGOL="$(_lf_tsv capability zero 0 2 14 1/2 none 'Felix-Lane: capability' "$LNGNEXT" "$LNGOS" "$(_lf_iso 1792600000)" \
+  "$(_lf_iso $((LNGN - 5 * LNGDAY + 3600)))" -)"$'\n'
+_lng_osee; LNGCTL="$LNGOE|$LNGRC|$LF_JSON"
+_lng_is "lane session start L-OWN: in the project's own checkout (remote_match lane-fixture/sx, origin https://github.com/lane-fixture/sx.git), the lane zero: the context holds the zero paragraph once, the screen line ends with · lane: 0 in 14 days, no withheld line names lane item, and felix lane --tsv exits 0 printing the zero line" \
+   "$LNGOE|$(_lng_n "$LNGZ12")|$LF_SCR|$(_lng_wh)|$LNGLR|$LNGLO" "built|1|$LNGTOK14|unnamed|0|$LNGOL"
+# NAME MATCH ORIGIN WHAT -> L-OWN in a checkout that is not own, as WHAT says.
+_lng_notown() {
+  _lng_fresh "$1" 1/2 "$2" "$3" u u
+  _lng_osee; LNGCTL="$LNGCTL|$LNGOE|$LNGRC|$LF_JSON"
+  _lng_is "lane session start L-OWN: in a checkout that is not own ($4), the lane zero and every other input as in the own one: neither a lane paragraph nor a lane token, the withheld line names lane item among its kinds, and felix lane --tsv exits 0 printing the line it prints in the own checkout" \
+     "$LNGOE|$LNGOC|$LNGOX|$(_lf_silent capability)|$(_lng_wh)|$LNGLR|$LNGLO" "built|$LNGOA|none|named|0|$LNGOL"
+}
+_lng_notown nomatch - "$LNGURL" "its project declares no remote_match, its origin the own one's"
+_lng_notown other lane-fixture/sx "$LNGOTH" "its origin https://github.com/lane-fixture/other.git, another github.com repository"
+_lng_notown noorigin lane-fixture/sx - "no origin remote, refs/remotes/origin/main made by update-ref"
+_lng_is "lane session start L-OWN: in the own checkout and in each of the three that are not own, session start exits 0 with valid JSON (control)" \
+   "$LNGCTL" "built|0|ok|built|0|ok|built|0|ok|built|0|ok"
+
+# C7: a checkout that is not own withholds nothing for an ok lane, an unknown lane, or a home with no committed
+# lanes.tsv. Each in a fresh home, a different way of not being own each.
+_lng_fresh wok 1/2 lane-fixture/sx "$LNGOTH" m u
+_lng_osee; LNGCTL="$LNGOE|$LNGRC|$LF_JSON"
+_lng_is "lane session start: in a checkout that is not own (its origin another github.com repository), the lane ok (L 1 of T 2): neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing the ok line" \
+   "$LNGOE|$(_lf_silent capability)|$(_lng_wh)|$LNGLR|$LNGLO" \
+   "built|none|unnamed|0|$(_lf_tsv capability ok 1 2 14 1/2 "$(_lf_iso $((LNGN - 5 * LNGDAY)))" 'Felix-Lane: capability' "$LNGNEXT" \
+     "$LNGOS" "$(_lf_iso 1792600000)" "$(_lf_iso $((LNGN - 5 * LNGDAY + 3600)))" -)"$'\n'
+_lng_fresh wunknown 1/2 - "$LNGURL"
+_lng_osee; LNGCTL="$LNGCTL|$LNGOE|$LNGRC|$LF_JSON"
+_lng_is "lane session start: in a checkout that is not own (its project declares no remote_match), the lane unknown (no refs/remotes/origin/main): neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing the unknown line, R1" \
+   "$LNGOE|$(_lf_silent capability)|$(_lng_wh)|$LNGLR|$LNGLO" \
+   "built|none|unnamed|0|$(_lf_tsv capability unknown - - 14 1/2 - 'Felix-Lane: capability' "$LNGNEXT" "$LNGOS" \
+     "$(_lf_iso 1792600000)" - "refs/remotes/origin/main cannot be read in $LNGOR")"$'\n'
+_lng_fresh wnone - lane-fixture/sx - u u
+_lng_osee; LNGCTL="$LNGCTL|$LNGOE|$LNGRC|$LF_JSON"
+_lng_is "lane session start: in a checkout that is not own (no origin remote), a home with no committed lanes.tsv: neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing nothing" \
+   "$LNGOE|$(_lf_silent capability)|$(_lng_wh)|$LNGLR|$LNGLO" "built|none|unnamed|0|"
+_lng_is "lane session start: in those three checkouts that are not own (an ok lane, an unknown lane, no committed lanes.tsv), session start exits 0 with valid JSON (control)" \
+   "$LNGCTL" "built|0|ok|built|0|ok|built|0|ok"
 # <<< lane-session-start

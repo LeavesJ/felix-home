@@ -170,6 +170,11 @@ felix_receipt() {
   if [ "$base_ok" -eq 1 ] && [ -f "$proj/evidence.tsv" ]; then
     ev="$(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null || true)"
     gaps="$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="gap"{print $2}')"
+    # A row the check could not judge is neither met nor a gap, and a verdict
+    # built without it claims more than was read. The two whole-scan unknowns
+    # (a base that names nothing, a change git cut off) are `changed` already.
+    [ -z "$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="unknown" && index($3,"not judged")')" ] \
+      || unknown="$unknown evidence"
   fi
 
   # ---- authority. Carried here because no transport carries it, and refused

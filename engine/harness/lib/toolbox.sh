@@ -17,7 +17,7 @@
 
 # Where the plugin cache lives. Overridable so the suite can point at a fixture
 # rather than at whatever this machine happens to have installed.
-FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}"
+FELIX_PLUGIN_CACHE="${FELIX_PLUGIN_CACHE:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache}"
 
 # Newest installed directory for a plugin name, empty when it has none.
 #

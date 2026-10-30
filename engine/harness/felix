@@ -283,6 +283,10 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/repair.sh"
 # shellcheck source=lib/bootstrap.sh
 . "${SCRIPT_DIR}/lib/bootstrap.sh"
+# shellcheck source=lib/bootstrap-gh.sh
+. "${SCRIPT_DIR}/lib/bootstrap-gh.sh"
+# shellcheck source=lib/bootstrap-run.sh
+. "${SCRIPT_DIR}/lib/bootstrap-run.sh"
 # shellcheck source=lib/classify.sh
 . "${SCRIPT_DIR}/lib/classify.sh"
 # shellcheck source=lib/evidence.sh
@@ -368,6 +372,7 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/candidates.sh"
 # shellcheck source=lib/handoff.sh
 . "${SCRIPT_DIR}/lib/handoff.sh"
+. "${SCRIPT_DIR}/lib/merge-judge.sh"
 
 FELIX_HOME_DIR="$(felix_home "$FELIX_ROOT")"   # writable: projects, doctrine, memory
 
@@ -586,6 +591,7 @@ cmd_install() {
   Comparing $FELIX_ROOT with itself is what this command used to do (#55)."
 
   printf 'engine:  %s\n\n' "$src"
+  felix_install_untracked "$src"   # before any claude command or bump: what git does not track (audit b13, C064)
 
   command -v claude >/dev/null 2>&1 || {
     printf 'The claude CLI is not on PATH, so the session hook cannot be registered.\n'
@@ -1169,11 +1175,13 @@ cmd_new() {
   local tpl="$SCRIPT_DIR/templates"
   [ -d "$tpl" ] || die "missing $tpl"
 
-  local root caps gate slug
+  local root caps gate slug why repl
   root="$(felix_repo_root "$target")"
+  # A git root one project governs is not bound to another (audit b13, C116): refused before anything is made.
+  why="$(felix_new_governed "$root" "$FELIX_HOME_DIR")" && die "$why"
   caps="$(felix_detect "$root" | LC_ALL=C sort -u)"
   gate="$(felix_guess_gate "$root")"
-  slug="$(felix_repo_slug "$root")"
+  slug="$(felix_new_remote_match "$root")"
   # The marker binds the checkout, so a checkout it cannot be written into is
   # refused here, before projects/<name> exists. Refused only after it, the
   # project was left behind, and the same command, once the checkout was
@@ -1326,6 +1334,7 @@ EOF
   done
 
   # The marker binds the checkout without needing a remote.
+  repl="$(felix_new_replaced_line "$root")"
   printf '%s\n' "$name" > "$root/.felix" \
     || die "created $dir, but could not write the marker $root/.felix; write '$name' into it to bind the checkout"
 
@@ -1335,6 +1344,7 @@ EOF
   printf '  repo         %s\n' "${slug:-no github remote}"
   printf '  bound via    %s/.felix\n' "$root"
   [ -n "$kept" ] && printf '  memory       kept%s, already in %s\n' "$kept" "$memdir"
+  felix_new_notes "$root" "$target" "$dir" "$name" "$repl"
   printf '\n'
   printf 'seeded stack.tsv, profiles.tsv, setup.tsv and %s runbook(s).\n' \
     "$(ls "$dir/setup" 2>/dev/null | wc -l | tr -d ' ')"
@@ -1775,6 +1785,7 @@ _felix_merge_unskip() {    # text on stdin -> the same text, defused
 
 cmd_merge() {
   resolve_or_die
+  local orig=("$@")   # what a hand-off to main's engine repeats (lib/merge-judge.sh)
   local proj="$PROJ" root base="main" dry=0 a
   root="$(felix_repo_root "$PWD")"
   # Known before any argument is read, because a refusal of the arguments
@@ -1836,7 +1847,7 @@ cmd_merge() {
   # that circularity exists. A governed product's rules live in the Felix home
   # and are not in its diff, so it is judged as it always was and needs no
   # installed engine at all.
-  local blockers krc
+  local blockers krc hrc
   # A dry run writes nothing: the report-only blockers read this, in the
   # judge's child shell too, which inherits the environment and no flag. They
   # write only on 0, so this line must survive every edit to this prologue.
@@ -1898,6 +1909,13 @@ cmd_merge() {
       *) _felix_merge_die "$dry" "$proj" "$branch" judge "the judge is not the engine main accepted: $(printf '%s\n' "$jout" | head -3 | paste -sd, -) — the cache entry ${kernel%/harness} differs from main's engine, so it does not judge, and felix install does not replace an entry that exists. Move ${kernel%/harness} aside, then run felix install --no-bump in the home ($FELIX_HOME_DIR), or unset a cache override that points elsewhere." ;;
     esac
     [ "$kernel" -ef "$jentry/harness" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "the judge resolved to $kernel and the engine main accepted is at $jentry/harness; they are not the same directory, and only that engine judges."
+    # A felix that is not the entry forms no verdict: the whole command goes to a copy of main's engine, which
+    # does (audit b13, lib/merge-judge.sh). The copy, told apart by where it runs, judges here with its own libraries.
+    if [ ! "$SCRIPT_DIR" -ef "$kernel" ]; then
+      felix_merge_handoff "$root" "$base" "$jentry" "$dry" "$proj" "$branch" ${orig[@]+"${orig[@]}"}; hrc=$?
+      [ "$hrc" -ne 0 ] || return "$_MJ_RC"
+      kernel="$SCRIPT_DIR"
+    fi
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
     case "$krc" in
@@ -2221,7 +2239,7 @@ EOF
 
 cmd_review() {
   resolve_or_die
-  local proj="$PROJ" root verdict="" by="" note="" where="" tid
+  local proj="$PROJ" root verdict="" by="" note="" where="" tid why
   root="$(felix_repo_root "$PWD")"
   while [ $# -gt 0 ]; do
     case "$1" in
@@ -2238,6 +2256,7 @@ cmd_review() {
 
   if [ -n "$verdict" ]; then
     [ -n "$by" ] || die "felix review --pass|--block needs --by <who reviewed it>"
+    if [ "$verdict" = "pass" ]; then why="$(felix_review_where "$root" "$where")" || die "$why"; fi
     if ! felix_review_record "$FELIX_HOME_DIR" "$proj" "$tid" "$verdict" "$by" "$note" "$where" "$root"; then
       [ "$verdict" = "pass" ] && [ -n "$where" ] \
         && die "that pass says it ran in the tree under review. A reviewer running against the live tree while it is being edited reports results about neither, so this is refused rather than recorded. Run it in a separate worktree at this commit."
@@ -2255,7 +2274,7 @@ cmd_review() {
     printf 'A reviewed surface is one no test can judge, so nothing here can tell\n'
     printf 'you whether it is fine. Dispatch a reviewer that runs the claim in a\n'
     printf 'separate worktree at this commit, then record what it found:\n\n'
-    printf '  felix review --pass  --by <reviewer> --note <what it ran>\n'
+    printf '  felix review --pass  --by <reviewer> --in <its worktree> --note <what it ran>\n'
     printf '  felix review --block --by <reviewer> --note <what it found>\n'
     return 0
   fi
@@ -3002,7 +3021,7 @@ cmd_ledger() {
   done <<EOF
 $(felix_ledger_summary "$proj")
 EOF
-  [ "$n" -eq 0 ] && printf '  nothing yet\n'
+  felix_ledger_unknown_note "$proj" "$n"
 
   local retire; retire="$(felix_ledger_retire "$proj")"
   if [ -n "$retire" ]; then
@@ -3928,110 +3947,8 @@ EOF
 
 
 cmd_bootstrap() {
-  resolve_or_die; local proj="$PROJ" yes=0 a
-  for a in "$@"; do [ "$a" = "--yes" ] && yes=1; done
-  local root slug eco felix_repo branch
-  root="$(felix_repo_root "$PWD")"
-  slug="$(felix_repo_slug "$root")"
-  eco="$(felix_guess_ecosystem "$root")"
-  branch="$(git -C "$root" symbolic-ref --short HEAD 2>/dev/null || echo main)"
-  # The file the repair loop and the auto-merge streak read the gate's runs
-  # from, so the one this looks for and writes. Resolved before anything is
-  # printed: a refused gate_workflow is a fact about the project to fix first.
-  local gwf; gwf="$(felix_gate_workflow "$proj")" || die "$gwf"
-  # The Felix checkout, not the directory this script happens to sit in. #65:
-  # `felix_repo_slug "$FELIX_ROOT"` asked git for a remote inside the running
-  # engine, which from the deployed CLI is the plugin cache — no remote, so this
-  # printed "none, CI cannot fetch the harness" about an engine whose remote
-  # exists. Worse on a machine whose home directory is itself a git repository
-  # with an origin: that slug would be returned instead and interpolated into
-  # the generated workflow's `repository:`, beside a deploy key.
-  #
-  # The correct pattern was already two lines above, in this same function:
-  # resolve the tree first, then slug the tree.
-  local esrc; esrc="$(felix_engine_source "$FELIX_ROOT" "$FELIX_HOME_DIR")" || esrc=""
-  felix_repo=""
-  [ -n "$esrc" ] && felix_repo="$(felix_repo_slug "$esrc")"
-  # The commit CI checks Felix out at, from the same checkout as the slug, and
-  # holding this project when the project lives in that checkout. Physical
-  # paths on both sides: macOS spells /var as /private/var, and git reports
-  # the resolved form.
-  local etop pdir prel="" felix_ref
-  etop="$(git -C "$esrc" rev-parse --show-toplevel 2>/dev/null)" || etop=""
-  pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || pdir=""
-  case "$pdir" in "$etop"/?*) [ -n "$etop" ] && prel="${pdir#"$etop"/}" ;; esac
-  felix_ref="$(felix_bs_pin_ref "$esrc" "$prel")" || felix_ref=""
-  local ref_none="none: no commit of the engine checkout that origin's default branch holds${prel:+ with $prel in it}; the workflow gets {{FELIX_REF}} to fill"
-
-  printf 'repo:        %s\n' "${slug:-no github remote}"
-  printf 'ecosystem:   %s\n' "$eco"
-  printf 'felix repo:  %s\n' "${felix_repo:-none, CI cannot fetch the harness}"
-  printf 'felix ref:   %s\n\n' "${felix_ref:-$ref_none}"
-
-  local todo=0
-  _bs() {  # name, already-satisfied, description
-    if [ "$2" = "yes" ]; then printf '  [x] %-12s %s\n' "$1" "$3"
-    else printf '  [ ] %-12s %s\n' "$1" "$3"; todo=$((todo+1)); fi
-  }
-  _felix_bs_have_workflow "$root" "$gwf" && w=yes || w=no
-  _bs ci-workflow "$w" ".github/workflows/$gwf calling felix gate"
-  if [ -n "$slug" ]; then
-    _felix_bs_have_labels "$slug" && l=yes || l=no
-    _bs labels "$l" "escalation and risk labels the repair loop applies"
-    _felix_bs_have_protection "$slug" "$branch" && p=yes || p=no
-    _bs protection "$p" "require the gate on $branch, block force pushes"
-  else
-    printf '  [-] %-12s no github remote; labels and protection skipped\n' "github"
-  fi
-  _felix_bs_have_perms "$root" && m=yes || m=no
-  _bs permissions "$m" ".claude/settings.json deny and ask policy"
-
-  if [ "$todo" -eq 0 ]; then printf '\nBaseline already in place.\n'; return 0; fi
-  if [ "$yes" -ne 1 ]; then
-    printf '\n%s step(s) outstanding. Nothing changed.\n' "$todo"
-    printf 'apply with: felix bootstrap --yes\n'
-    return 0
-  fi
-
-  printf '\napplying\n'
-  if ! _felix_bs_have_workflow "$root" "$gwf"; then
-    if [ -z "$felix_repo" ]; then
-      printf '  skipped    ci-workflow (Felix has no remote for CI to fetch)\n'
-    else
-      mkdir -p "$root/.github/workflows"
-      felix_bs_render_workflow "$eco" "$felix_repo" "$felix_ref" > "$root/.github/workflows/$gwf"
-      printf '  wrote      .github/workflows/%s (review, then commit it)\n' "$gwf"
-      [ -n "$felix_ref" ] || printf "             its ref: is {{FELIX_REF}}; set the full sha of a commit on %s's default branch first\n" "$felix_repo"
-    fi
-  fi
-  if [ -n "$slug" ] && ! _felix_bs_have_labels "$slug"; then
-    gh label create needs-founder --repo "$slug" --color D93F0B --description "Repair loop hit its ceiling; a human must diagnose" >/dev/null 2>&1
-    gh label create needs-architecture --repo "$slug" --color 5319E7 --description "Failure is a design problem, not a patch" >/dev/null 2>&1
-    gh label create risk-green --repo "$slug" --color 0E8A16 --description "Reversible" >/dev/null 2>&1
-    gh label create risk-yellow --repo "$slug" --color FBCA04 --description "Not obviously safe; look closely, then merge on green CI" >/dev/null 2>&1
-    gh label create risk-red --repo "$slug" --color B60205 --description "Look hardest; an escape channel, not this label, stops a merge" >/dev/null 2>&1
-    printf '  created    5 labels\n'
-  fi
-  if [ -n "$slug" ] && ! _felix_bs_have_protection "$slug" "$branch"; then
-    # enforce_admins stays false on purpose: locking the founder out of their own
-    # repository during an incident is not a safety property.
-    if printf '{"required_status_checks":{"strict":false,"contexts":["gate"]},"enforce_admins":false,"required_pull_request_reviews":null,"restrictions":null,"allow_force_pushes":false,"allow_deletions":false}' \
-       | gh api -X PUT "repos/$slug/branches/$branch/protection" --input - >/dev/null 2>&1; then
-      printf '  protected  %s requires the gate\n' "$branch"
-    else
-      printf '  FAILED     branch protection (admin rights needed on %s)\n' "$slug"
-    fi
-  fi
-  if ! _felix_bs_have_perms "$root"; then
-    mkdir -p "$root/.claude"
-    if [ -f "$root/.claude/settings.json" ]; then
-      printf '  skipped    permissions (settings.json exists; merge by hand rather than clobber it)\n'
-    else
-      felix_bs_render_perms > "$root/.claude/settings.json"
-      printf '  wrote      .claude/settings.json\n'
-    fi
-  fi
-  printf '\nRe-run felix bootstrap to confirm.\n'
+  resolve_or_die
+  felix_bootstrap "$PROJ" "$@"
 }
 
 cmd_setup() {
@@ -4124,7 +4041,7 @@ cmd_evidence() {
     esac
   done
   [ -f "$proj/evidence.tsv" ] || die "project $(basename "$proj") declares no evidence.tsv"
-  local root results gaps
+  local root results gaps unk
   root="$(felix_repo_root "$PWD")"
   # origin/<base> when it exists, and the name as given otherwise. `main` is a
   # local ref a worktree can never advance, so it goes stale silently and the
@@ -4144,7 +4061,7 @@ cmd_evidence() {
   # unanswerable question is not a passing report. A here-string, not a pipe:
   # grep -q quits at the first `unknown`, and pipefail would read the printf it
   # cut off as none, which is that false all-clear again.
-  if LC_ALL=C grep -q '^unknown	' <<<"$results"; then
+  if LC_ALL=C grep -q '^unknown	' <<<"$results" && ! LC_ALL=C grep -q '^unknown	.*not judged' <<<"$results"; then
     printf '%s\n' "$results" | while IFS=$'\t' read -r st name reason; do
       [ "${st:-}" = "unknown" ] || continue
       printf '  [?] %-14s %s\n' "$name" "$reason"
@@ -4167,17 +4084,19 @@ cmd_evidence() {
       met) printf '  [x] %-14s %s\n' "$name" "$reason" ;;
       gap) printf '  [!] %-14s %s\n' "$name" "$reason" ;;
       n/a) printf '  [-] %-14s %s\n' "$name" "$reason" ;;
+      unknown) printf '  [?] %-14s %s\n' "$name" "$reason" ;;
     esac
   done
 
   gaps="$(printf '%s\n' "$results" | grep -c '^gap' || true)"
+  unk="$(printf '%s\n' "$results" | grep -c '^unknown' || true)"
   printf '\n'
-  if [ "$gaps" -eq 0 ]; then
+  if [ "$gaps" -eq 0 ] && [ "$unk" -eq 0 ]; then
     printf 'No evidence gaps.\n'
     return 0
   fi
-  printf '%s gap(s). Each one is a change to behaviour with nothing proving it.\n' "$gaps"
-  printf 'Add the test, or say in the pull request why it is not practical here.\n'
+  [ "$gaps" -eq 0 ] || printf '%s gap(s). Each one is a change to behaviour with nothing proving it.\nfelix merge refuses while a gap stands: add the test the row asks for.\n' "$gaps"
+  [ "$unk" -eq 0 ] || { printf '%s row(s) not judged: nothing above says whether the change meets them.\nfelix merge refuses until each is corrected in evidence.tsv.\n' "$unk"; return 1; }
   [ "$strict" -eq 1 ] || return 0
   printf '\n--strict: failing.\n'
   return 1
@@ -4589,14 +4508,15 @@ cmd_classify() {
       # Green means no risky path was touched. It does not mean the change was
       # proven. Auto-merging on tier alone would ship untested behaviour whenever
       # that behaviour happened to live somewhere unremarkable.
-      local ev_gaps=0
-      if [ -f "$proj/evidence.tsv" ]; then
-        ev_gaps="$(felix_evidence_check "$proj" "$base" "$root" | grep -c '^gap' || true)"
-      fi
-      if [ "$ev_gaps" -eq 0 ]; then
+      local ev_gaps=0 ev_unk=0 ev_res="" ev_why=""
+      [ ! -f "$proj/evidence.tsv" ] || ev_res="$(felix_evidence_check "$proj" "$base" "$root")"
+      ev_gaps="$(printf '%s\n' "$ev_res" | grep -c '^gap' || true)"; ev_unk="$(printf '%s\n' "$ev_res" | grep -c '^unknown' || true)"
+      [ "$ev_gaps" -eq 0 ] || ev_why="$ev_gaps evidence gap(s)"
+      [ "$ev_unk" -eq 0 ] || ev_why="${ev_why:+$ev_why and }$ev_unk evidence row(s) not judged"
+      if [ -z "$ev_why" ]; then
         printf 'Reversible, and nothing is unproven. Eligible for auto-merge once\nevery required check passes.\n'
       else
-        printf 'Reversible, but %s evidence gap(s). Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_gaps"
+        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_why"
       fi
       ;;
     # Tier is advice about how hard to look, and these two lines are what a
@@ -4793,12 +4713,7 @@ cmd_incident() {
 
   if [ -f "$proj/evidence.tsv" ]; then
     printf '\nthe fix will have to prove\n'
-    while IFS=$'\t' read -r name when requires reason; do
-      [ -n "${name:-}" ] || continue
-      _felix_any_match "$paths" "$when" && printf '  %-14s %s\n' "$name" "$reason"
-    done <<EOF
-$(_felix_evidence_rows "$proj")
-EOF
+    felix_brief_evidence "$proj" "$paths" | while IFS=$'\t' read -r name reason; do printf '  %-14s %s\n' "$name" "$reason"; done
   fi
 
   # Policy, stated every time because urgency is exactly when it gets skipped.
@@ -5256,9 +5171,9 @@ cmd_handoff() {
   # The session-end list from the guidebook, as a check rather than a memory
   # exercise. Each line is something a person is about to not do.
   printf 'before you stop:\n'
-  local dirty; dirty="$(git -C "$root" status --short 2>/dev/null | grep -v '^??' || true)"
-  [ -n "$dirty" ] && printf '  [ ] the tree is dirty; commit it or say in the devlog why not\n' \
-                  || printf '  [x] tree is clean\n'
+  local dirty; if ! _felix_mem_tree dirty "$root"; then printf '  [?] whether the tree is clean is not known: %s\n' "$dirty"
+  elif [ -n "$dirty" ]; then printf '  [ ] the tree is dirty; commit it or say in the devlog why not\n'
+  else printf '  [x] tree is clean\n'; fi
   if git -C "$root" log -1 --format=%H >/dev/null 2>&1; then
     printf '  [ ] devlog entry for this work?   felix log "..."\n'
     printf '  [ ] anything durable to keep?     felix lesson "..."\n'

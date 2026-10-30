@@ -752,7 +752,7 @@ felix_binding_broken() {
 
   root="$(felix_repo_root "$start")"
   [ -f "$root/.felix" ] || { _felix_binding_remote "$root" "$home"; return 0; }
-  name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  name="$(LC_ALL=C tr -d '[:space:]' 2>/dev/null < "$root/.felix")"
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
   known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"

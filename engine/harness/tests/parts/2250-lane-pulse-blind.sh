@@ -139,7 +139,8 @@ LNPa="not built: the ref deleted"
 _lnp_pulse "$LNPD/p6"
 is "lane pulse L-NEVER-OK: with refs/remotes/origin/main deleted in the home (R1), every row reads unknown, L and T -" \
    "$LNPa|$LNPT4|$LF_RC|$(_lnp_tail "$LNPD/p6.out")" "built|built|0|$LNPU4"
-_lf_publish "$LNPH" "$LNPTIP"
+_lf_publish "$LNPH" "$LNPTIP" && [ "$( _fx_cd "$LNPH" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )" = "$LNPTIP" ] \
+  || LNPE="not built: refs/remotes/origin/main not put back at the last landing"
 _lnp_put "$LNPH" "$LNPP" lanes.tsv "a CR in a row" $'capability\t^engine/\t1/2\t14\r\n'
 _lnp_pulse "$LNPD/p7"
 is "lane pulse L-NEVER-OK: a committed lanes.tsv the shape check refuses (a CR in its row, R4) gives the one line lane - unknown - -" \

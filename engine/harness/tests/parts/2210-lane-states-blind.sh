@@ -23,6 +23,8 @@ printf '\nlane states: ok, short, zero, idle and unknown, each reason, and a tab
 # - The session-start halves of L-RF3 are controls (C10).
 # - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's R10 (TMPDIR naming no
 #   directory, F8) and no scratch directory left after a fork that fails (F7), each asserted with the output it guards.
+# - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F2: the count's scratch directory taken
+#   mid-count, in felix lane and the status row.
 LNSN=1793000000; LNSDAY=86400; LNSNEXT='take the lane item after this one'; LNSK=0
 _lf_dir "$TMP/lane-2210"; LNSD="$LF_DIR"
 _lf_stubs "$LNSD"; LNSB="$LF_BIN"

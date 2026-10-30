@@ -41,6 +41,8 @@ printf '\nlane session start: the paragraph and the screen token, where they sho
 #   makes due. Red on main as C10 says: each such assertion also requires felix
 #   lane --tsv's exit 0 and the fixture's expected output (nothing, for the home with no committed lanes.tsv), and the
 #   exit 0 and valid JSON of those session starts are controls of their own.
+# - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F4: a lane-next.tsv row for lane 01
+#   beside a lanes.tsv holding lane 1 alone leaves lane 1's paragraph saying (lane-next.tsv names none).
 # - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds, at the end, C11's 1 day in the
 #   paragraph and the token (F11) and a count that ends early (F1), whose silence is asserted with the paragraph and token
 #   the same session start shows without the fault, which main cannot print; and the paragraph for a next text that is

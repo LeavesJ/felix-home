@@ -22,6 +22,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 # - The --help and -h exits are controls (C10); every other assertion here is red on main.
 # - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's next texts exactly none and
 #   unknown (F9), 1 day in the human line (F11), and a count that ends early (F1), at the end of the part.
+# - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F3 (a caller's GIT_GRAFT_FILE), R2B-F4
+#   (lanes named 1 and 01) and R2B-F5 (the repository root's substitution ended early).
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'

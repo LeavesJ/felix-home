@@ -26,6 +26,8 @@ printf '\nlane pulse: a lane line per row of the home project'"'"'s lanes.tsv, l
 #   project in it, whose checkout the pulse runs from, has one.
 # - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's count that ends early (F1),
 #   at the end, in a home of its own.
+# - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F1 (a home bound by remote_match alone
+#   whose resolution does not finish) and R2B-F2 (the count's scratch directory taken mid-count), each in its own home.
 LNPN=1793000000; LNPDAY=86400; LNPK=0
 _lf_dir "$TMP/lane-2250"; LNPD="$LF_DIR"
 _lf_stubs "$LNPD"; LNPB="$LF_BIN"

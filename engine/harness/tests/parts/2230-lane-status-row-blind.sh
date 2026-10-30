@@ -21,6 +21,8 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   assertion. The checkout's refs and worktree list are compared before and after.
 # - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's 1 day (F11) and a count that
 #   ends early (F1), after the shape check.
+# - The second review's round 2 (2026-10-30, still blind) adds, at the end, R2B-F1: a resolution by remote_match that
+#   does not finish, in felix status --tsv, plain felix status and felix lane --tsv.
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "

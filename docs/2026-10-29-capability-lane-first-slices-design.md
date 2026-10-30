@@ -82,15 +82,15 @@ It is outside this design.
     pull request or writes an enforcing table. Those come later: the shadow run
     (slice 3), admission (slice 4), the brief (slice 5) and supply (slice 6).
 - **No admission.** `--propose` prints a draft row and the command that would
-    admit it, as §9 wrote it. Admitting stays the founder's commit, and admission
-    by class is slice 4.
+    admit it, as the intent design's §9 wrote it. Admitting stays the founder's
+    commit, and admission by class is slice 4.
 - **No new GitHub writes,** and no file in anyone's CI.
 - **Not a time-allocation tool for teams.** Slice 0 counts Felix's own lane.
 - **Not the outcome record by provider** (lane item 7). Come-back records carry
     no provider or model field.
 - **No dispatching agents and no choosing models, in these slices.** The
-    founder's 10-29 decisions put dispatch in Felix's role later, under row 25's
-    gates.
+    founder's 10-29 decisions (the handoff's items 2 and 4, in Sources) put
+    dispatch in Felix's role later, under row 25's gates.
 
 **Anti-goals.** Any of these makes the work a failure, even if it runs:
 
@@ -116,7 +116,7 @@ It is outside this design.
         `_awk_names` lints `lib/`.
     - `LC_ALL=C` on every sort, comm, join and uniq (part 0992).
     - `[[ =~ ]]` only inside a function that declares `local LC_ALL=C` (part 0996).
-    - Flags go through `need_value` (`felix:389-391`), never a bare `shift 2`.
+    - Flags go through `need_value` (`felix:394-396`), never a bare `shift 2`.
 
 - **The engine names no project** (constitution invariant 1). The gate's
     independence and ecosystem sections fail on it. Everything project-specific
@@ -130,7 +130,7 @@ It is outside this design.
     shown failing first.
 - **Never delete a home or a memory root** (invariant 6).
 - **Where state goes.**
-    - Records go under the memory root (`felix_mem_dir`, `lib/resolve.sh:269-272`)
+    - Records go under the memory root (`felix_mem_dir`, `lib/resolve.sh:253-256`)
         or under `state/`.
     - Nothing is written into a governed repository: its refs, index, config and
         worktree list stay as they were.
@@ -162,9 +162,10 @@ It is outside this design.
         PR takes the next free patch slot at landing; on 10-29, 0.49.310 to
         0.49.314 were claimed.
     - Every new `felix` command appears in `usage()`. Part 0480 (lines 400-417)
-        asserts it only for commands in the main dispatch block (`felix:6679`).
-        A command dispatched before the libraries load needs its own usage
-        assertion, and each slice's plan says which. *(My call.)*
+        asserts it only for commands in the main dispatch block (`felix:6594`).
+        A command dispatched before the libraries load, as the read-only
+        `audit`, `inventory` and `cost` commands are (`felix:249-272`), needs
+        its own usage assertion, and each slice's plan says which. *(My call.)*
     - The suite manners recorded in memory apply:
         - commit everything before the record;
         - red and gate never share a worktree;
@@ -196,13 +197,15 @@ It is outside this design.
     replay, the pull-request check, a weekly view for the manager and an audit
     trail. (10-29)
 5. **The share lands on green.** A change to the lane's share does not wait for
-    his merge. He chose this over having it wait. `felix lane` names the commit
-    that last changed the lane's row in `lanes.tsv`, the share included, so a
-    change shows, but nothing holds it. (10-29)
+    his merge. He chose "No, it lands on green" over "Yes, it waits for me".
+    (10-29)
 
 One thing here is not his decision: this design builds on the intent design's
 §9 slice and its §10 falsifiers (design of 10-19, on file), and marks each
 departure from them.
+
+Below, a bare §9 or §10 is the intent design's. This design's own are written
+"this design's §9" and "this design's §10".
 
 ## 6. Slice 0: the lane counter
 
@@ -236,7 +239,7 @@ line.
         is not a merge. *(My call.)*
     - `felix merge` copies every non-merge commit message on the branch into the
         landing's body, and none of the merge commits' messages
-        (`felix:2088-2089`).
+        (`felix:2106-2107`).
     - A squash merge on GitHub keeps those messages only when it keeps GitHub's
         default message. The founder merged PR #455 on GitHub that way, and its
         landing carries every non-merge commit message from its branch (11 of
@@ -272,7 +275,7 @@ apart, a later guard on the target would need no change to either table.
 |---|---|
 | `lane` | a name; the lane's mark is `Felix-Lane: <lane>` |
 | `counts` | an ERE over changed paths; a landing counts when one matches |
-| `share` | the target, as `n/d`, with n at least 1 *(my call)* |
+| `share` | the target share, as `n/d`, with n at least 1 *(my call)* |
 | `window` | days |
 
 **`projects/<p>/lane-next.tsv`**, the pointer:
@@ -291,7 +294,8 @@ felix-home's rows:
 - **Schema.** Two `schemas.tsv` rows are added:
     `lanes.tsv tree lane counts share window allowed` and
     `lane-next.tsv tree lane next allowed`. A project with no `lanes.tsv` has no
-    lane, and nothing is printed.
+    lane: `felix lane`, session start and the pulse print nothing for it, and
+    its `felix status` row reads `none` (§6.5 item 2).
 - **Who changes what.**
     - The PR that lands a lane item moves `next` in the same change. That lands
         on green.
@@ -321,23 +325,33 @@ a target share of n/d:
 1. **`felix lane [--tsv]`.** Read-only and offline. It prints one line per lane
     with these fields:
     - the state, L and T;
-    - the window and the target;
+    - the window and the target share;
     - the date of the last lane landing;
     - the mark, and `next`;
     - the Felix home's last commit that changed the lane's row in `lanes.tsv`,
-        with its date.
+        with its date;
+    - the date of the main ref it read, since it never fetches (§6.2).
 
     `--tsv` prints the same fields, tab-separated. The carrier can read it when
     it picks work.
 
-2. **`felix status`.** One new row, `lane`, goes after the eight existing rows
-    (`lib/status.sh:341-354`).
+2. **`felix status`.** One new row, `lane`, goes after the nine existing rows
+    (`felix_status_rows`, `lib/status.sh:463-477`), so it follows `icloud`.
+    Four existing parts pin the list at nine rows ending in `icloud`: 1100
+    (`:409-411`, and the nine-row guard at `:429-437`), 1690 (A1 at `:184-190`,
+    A2 at `:347-356`), 1720 (A33 at `:376-379`) and 1980 (A41 at `:145-147`).
+    None of their fixture homes has a `lanes.tsv`, and each still gains the
+    row, so each list grows to ten rows ending in `lane`.
     - The row's state is `value`, its value is the state word, and its detail
         reads "L of T engine landings in W days, target n/d".
     - The `unknown` lane state is written the way an unreadable status row
         already is: state `unknown`, value `-`, and a detail naming what could
         not be read (`lib/status.sh:10-13` and `:26-27`). It is never a calm
         value. *(My call.)*
+    - In a project with no `lanes.tsv`, the row still prints, as state `none`,
+        value `-` and a detail saying no lane is counted, because the status
+        contract is one line per row in a fixed order (`lib/status.sh:10-13`).
+        *(My call.)*
     - The dash, the one consumer, keeps a row it does not know
         (`~/.claude/mods/dash/hooks/parse.ts:8-9`). It draws every row in its
         /dash pane (`register.tsx:355-362`), shows state `unknown` as a warning
@@ -359,22 +373,27 @@ a target share of n/d:
     - A session that takes the item first checks that no live session is
         already on that branch, as sessions do now.
 
-4. **The founder's screen line** (`systemMessage`,
-    `hooks/session-start:756-761`). When the state is `zero` or `idle`, the line
-    gets the token `· lane: 0 in <window> days`. A `short` state stays in the
-    session's context only. *(My call.)* Neither the token nor the paragraph
-    shows on a resumed session: the hook exits before either is built
-    (`hooks/session-start:188-189`).
-5. **The daily pulse.** Each record gets one line,
+4. **The founder's screen line** (`systemMessage`). The hook builds it at
+    `hooks/session-start:747-755` and emits it at `:760` through `_felix_emit`
+    (`:101-112`). When the state is `zero` or `idle`, the line gets the token
+    `· lane: 0 in <window> days`. A `short` state stays in the session's
+    context only. *(My call.)* Neither the token nor the paragraph shows on a
+    resumed Claude Code session: the hook exits before either is built
+    (`hooks/session-start:184-185`).
+5. **The daily pulse.** Each record gets one line per lane,
     `lane<TAB><lane><TAB><state><TAB><L><TAB><T>`, written from `cmd_pulse`
-    (`felix:6640-6644`). That puts the share's history on disk in
-    `state/pulse.log`.
+    (`felix:6555-6559`). That puts the share's history on disk in
+    `state/pulse.log`. The last run's line also lands in
+    `state/pulse.status.tsv`, which every run rewrites.
 6. **No push alert.** The alert channel has never delivered: every row in
     `land/alerts.tsv` is `failed`, and `felix-alert.yml` is on no branch, main
     included. Also, `notify.sh` belongs to the landing actor. So an empty lane
-    is on the founder's screen line whenever a session starts in a project with
-    a `lanes.tsv`, except on a resumed session, and the lane row is in the
-    dash's /dash pane.
+    is on the founder's screen line whenever a Claude Code session starts,
+    other than a resume, in a project with a `lanes.tsv`, and the lane row is
+    in the dash's /dash pane. Copilot CLI and Cursor have no screen line in
+    this hook (`_felix_emit` drops it, `hooks/session-start:97-112`). There the
+    lane shows in the context paragraph only, and their resumes run the whole
+    hook: the exit at `:184-185` is for Claude Code alone.
 
 ### 6.6 Acceptance
 
@@ -411,19 +430,29 @@ first.
 - **What shows where.**
     - The session-start paragraph appears only for `short`, `zero` and `idle`.
     - The screen token appears only for `zero` and `idle`.
-    - Neither appears for a project with no `lanes.tsv`.
+    - Neither appears for a project with no `lanes.tsv`, or on a resumed
+        Claude Code session.
+    - While the share is `1/2`, the paragraph ends "Trust work takes the other
+        half."; at `1/4` it ends "The rest goes to trust work."
+    - The paragraph and the token take the lane name and the window from the
+        table.
 
-- **`felix status --tsv`.** It gains exactly one row, at the end. The eight rows
-    before it are byte-identical. An unreadable ref gives the row state
-    `unknown` and value `-`.
+- **`felix status --tsv`.** It gains exactly one row, at the end, after
+    `icloud`, and the nine rows before it are byte-identical. An unreadable ref
+    gives the row state `unknown` and value `-`, and a project with no
+    `lanes.tsv` gives state `none`.
 - **The last change.** After a commit that changes a lane's row, `felix lane`
     names that commit and its date. An uncommitted edit to `lanes.tsv` changes
     nothing it prints.
 - **Determinism.** Two runs print identical bytes.
-- **Real data.** On felix-home's main at `e54e31f3`, with the clock pinned to
-    that commit's time (2026-10-29 21:26 UTC), the capability lane reads `zero`.
-    None of the 27 landings in the window carries the mark, and 18 of them
-    changed `engine/`.
+- **The pulse.** With the clock pinned and one lane, a pulse run appends the
+    line `lane<TAB><lane><TAB><state><TAB><L><TAB><T>` to `state/pulse.log`,
+    with the state, L and T that `felix lane` prints.
+- **Real data**, a recorded measurement outside the suite, because it names a
+    real project and commit (invariant 1, as for §7.9 (e)). On felix-home's
+    main at `e54e31f3`, with the clock pinned to that commit's time
+    (2026-10-29 21:26 UTC), the capability lane reads `zero`. None of the 27
+    landings in the window carries the mark, and 18 of them changed `engine/`.
 - **Falsified if** a hand check of what it prints for felix-home's last 60 days
     finds a landing it miscounted.
 
@@ -459,11 +488,11 @@ The table follows §9, unchanged except where marked.
         §9's grammar, keyed by capability.)*
     - `cap:<name>`: a capability. `felix_detect` names thirteen (ci, deploy,
         iac, observability, billing, e2e, database, api, llm, rust, frontend,
-        tests, secrets; `lib/detect.sh:62-103`), and a probe's `grounds` column
+        tests, secrets; `lib/detect.sh:72-113`), and a probe's `grounds` column
         can ground others. It keeps §7.4's precedence.
     - `env:<axis>>=<value>`: only `maturity` can be evaluated in this slice. It
         comes from `project.json`, where the engine accepts four values
-        (`felix:1199`, `templates/commissioning.tsv:79`). No engine code orders
+        (`felix:1207`, `templates/commissioning.tsv:79`). No engine code orders
         them, so this slice orders them prototype < internal < public-beta <
         production, as v3.2's risk envelope lists them. *(My call.)* None of the
         three projects declares a maturity, so every `env:maturity` term reads
@@ -529,8 +558,10 @@ Every reading is labelled with where it came from.
     - `facts.log` holds probe readings only; the detector's answer is not
         recorded. So in `--at` mode the detector runs on the live checkout only
         when that checkout's tree id equals the tree asked for. At any other
-        tree, a capability that only the detector could decide reads undecided,
-        and the residual says the detector could not be run there. *(My call.)*
+        tree, a capability that only the detector could decide reads undecided.
+        The header says the detector was not run, and each class that could not
+        look for that reason names the detector as its why in the residual
+        (§7.8). *(My call.)*
     - Recording the detector's answer beside the facts, so that any recorded
         tree can later be read in full, is a later choice: it changes what the
         gate writes.
@@ -582,8 +613,8 @@ At one reading, each term is true, false or undecided:
     The probe outranks the detector because it looks at the surface itself. The
     detector reads dependency manifests for some capabilities (observability,
     billing, e2e, api, llm and part of database) and looks only at which files
-    or directories exist for the rest (`lib/detect.sh:62-103`). For api it reads
-    only the manifests (`:78`, through `_felix_dep_grep` at `:17-37`), so a
+    or directories exist for the rest (`lib/detect.sh:72-113`). For api it reads
+    only the manifests (`:88`, through `_felix_dep_grep` at `:17-37`), so a
     project whose dependencies name fastapi is detected as api whether or not it
     serves a route.
 
@@ -654,7 +685,8 @@ Facts record counts, not members. So "touches" means a reading changed.
 
 - **The human report** (the default).
     - In `--change`, the header gives the project, the base and head commits,
-        their tree ids and how each side was read: recorded or scratch.
+        their tree ids and how each side was read: in a scratch checkout, with
+        the current `probes.tsv` (§7.3).
     - In `--at`, the header gives the project, the tree and the recorded run its
         readings came from. There is one reading, so each class has one state:
         ACTIVE prints as standing, UNKNOWN as could not look, and DORMANT is
@@ -693,8 +725,9 @@ Facts record counts, not members. So "touches" means a reading changed.
 
 The residual is never empty without saying why. It lists:
 
-- the classes that could not look, each with its undecided term and the probe's
-    own sentence for why (`lib/probes.sh` prints one);
+- the classes that could not look, each with its undecided term and why: the
+    probe's own sentence (`lib/probes.sh` prints one), or that the detector
+    could not be run at that tree;
 - unbound predicates: probe terms whose capability no probe in the project
     grounds, and env terms whose axis cannot be evaluated or has no value;
 - cells with no row: capabilities the detector names, or probes ground, that no
@@ -752,13 +785,18 @@ first.
 
 - **(f) A route added in the diff** is owed by that change.
 - **(g) An unrelated diff** owes no row, and the project's ACTIVE rows still
-    print as standing.
+    print as standing. After the run, the repository's refs, index, config and
+    worktree list, and the project's `facts.log`, are byte-identical to before.
 - **(h) A diff that breaks the probe's instrument** while the routes stay reads
     blinded at head, never DORMANT or retired. For example, it renames what the
     probe imports. The detector still names api, and the blind probe still
     decides (§7.4).
-- **(i) Stable ids.** The same class and project get the same id in `--at`, in
-    `--change` and across runs.
+- **(i) Stable ids and order.** The same class and project get the same id in
+    `--at`, in `--change` and across runs. `--tsv` class lines come in the
+    order owed (both forms), blinded, retired, standing, could not look, none,
+    then by id. In `--at`, ACTIVE prints as standing and UNKNOWN as could not
+    look; the verdict is standing, could not look or none, `head` holds the
+    class's one state, and `base` and `base_grounds` are `-`.
 - **Falsified if** either of these happens:
     - a stack the detector cannot see reads DORMANT on an HTTP-keyed class with
         no other term false (falsifier 5). *(My call: the qualifier refines §10's
@@ -864,8 +902,10 @@ reads merged commits for the mark. *(My call.)*
     - name C or one of C's commits ("This reverts commit `<sha>`");
     - edit lines C added.
 
-    Body lines never count. felix-home's `a8c7f504`, a first-parent squash merge
-    (PR 113), has a body line starting "reverted", and it is not a revert.
+    A body line never makes a commit a revert: only the subject does, and the
+    body is read only for the line that names C. felix-home's `a8c7f504`, a
+    first-parent squash merge (PR 113), has a body line starting "reverted", and
+    it is not a revert.
 
 2. **An edit to an added line.**
     - **The window** runs from C to T, where T is the last first-parent commit
@@ -914,10 +954,12 @@ Weak edits alone are not come-backs. *(My call.)*
 For each change, the command runs `felix situations --change C^1..C --tsv`. Each
 change that came back is then filed in one of three ways:
 
-- **Owed:** slice 1 owed or blinded at least one row at that change.
-- **No row:** slice 1 owed nothing, and there was nothing it could not look at.
-    The change is filed in the record as a class candidate.
-- **Could not look:** slice 1 owed nothing, but had classes it could not look at.
+- **Owed:** slice 1's `--tsv` for that change has at least one class line whose
+    verdict is owed (either form) or blinded.
+- **No row:** every class line is standing, retired or none. The change is
+    filed in the record as a class candidate.
+- **Could not look:** no class line is owed or blinded, and at least one is
+    could not look.
 
 The join is per change, not per surface. "Owed" means Felix would have said
 something about that change, not that the row pointed at what came back. A join
@@ -996,6 +1038,13 @@ first. A fixture repository with scripted history must show the following:
 - Two runs with the network off, and without `--issues`, give identical bytes.
 - `--issues` with `gh` stubbed as unreachable reads "could not look" for that
     kind, never "not reopened".
+- With slice 1's `--tsv` from a harness whose seed holds fixture classes, a
+    come-back with an owed or blinded line is filed owed. One with no owed or
+    blinded line and at least one could not look line is filed could not look.
+    One with neither is filed no row, as a class candidate. Each record carries
+    the owed ids slice 1 printed.
+- A run with `--window 45` prints as unsealed, and a run with the default
+    window does not.
 
 **Real data**, recorded as measurements. Each run gives its denominator and open
 count, and states the clone's fetch time:
@@ -1008,7 +1057,9 @@ count, and states the clone's fetch time:
 ### 8.8 Limits
 
 - Veldra's changes, and 38 of Elenchus's 50 measured changes, carry no PR
-    number, so their issue lookup reads "could not look".
+    number. For each of them, the issue lookup reads only the issues a closing
+    keyword in the change's message names (§8.3), and a change whose message
+    names none reads "could not look". *(My call.)*
 - The clones are stale. Fetching is the operator's step, and it changes the
     as-of time.
 - A closed change is at least 30 days old. felix-home's newest 50 closed
@@ -1055,16 +1106,22 @@ count, and states the clone's fetch time:
     - `retro.tsv`, with its schemas row;
     - fixtures.
 
-    Its come-back half needs nothing from slice 1. It can be built and measured
-    while slice 1 waits to land, but a measurement made before slice 1's seed is
-    sealed has no replay column (§8.5). The replay column follows slice 1.
+    Its come-back half needs nothing from slice 1, so it can be built and tested
+    on fixtures while slice 1 waits to land. Its first real run waits until
+    slice 1's seed and the `probes.tsv` the replay reads are sealed (§8.5),
+    because a seed sealed after the come-backs were first counted is never used
+    for the replay.
 
 Both slice 0's and slice 1's PRs edit `felix` (dispatch and `usage()`),
-`templates/schemas.tsv`, the version in `engine/.claude-plugin/plugin.json`, and
-the suite's manifest and red record (`tests/assertions.tsv`, `tests/red.tsv`),
-as every engine PR does. Beyond those, they share only felix-home's two lane
-tables. So two sessions can build them at once. Slice 1 rebases on slice 0 and
-rewrites its version, manifest and red record at landing.
+`templates/schemas.tsv`, the version in `engine/.claude-plugin/plugin.json`, the
+suite's runner, which sources every part by name (`tests/run`), and the suite's
+manifest and red record (`tests/assertions.tsv`, `tests/red.tsv`), as every
+engine PR does. Beyond those, they share felix-home's two lane tables, and two
+documents: slice 0's branch carries copies of this design and slice 0's plan,
+taken from `claude/lane-situations-owed`, so slice 1's rebase meets them. So two
+sessions can build them at once. Slice 1 rebases on slice 0 and rewrites its
+version, manifest and red record at landing. felix-home's `land.tsv` resolves
+`tests/run` as an insertions union.
 
 One finding would change the order:
 
@@ -1078,17 +1135,21 @@ is gone. *(My call.)*
 ## 10. Left to the builder
 
 - Function names, and the human layout of each report.
-- Which existing helpers to reuse: `felix_changed_paths`, `felix_tree_id_on`,
-    `felix_probes_run`, `felix_detect`, `need_value`.
+- Which other existing helpers to reuse. §4 already requires `need_value` for
+    flags, and §7.3 requires `felix_probes_run`, `felix_detect` and
+    `felix_tree_id_on` for scratch readings.
+    `felix_changed_paths <root> [<base>]` (`lib/resolve.sh:995-1020`) does not
+    list one landing's paths: it unions `<base>...HEAD` with the checkout's
+    staged and unstaged edits, with `--no-renames`. So it cannot give a
+    landing's paths against its first parent, and its `--no-renames` differs
+    from slice 2's `git diff -U0 -M` (§8.2).
 - The scratch-checkout method, within §7.3's rule that the repository stays
     untouched.
 - The exact seed rows, within §7.2's rules, and their sibling fixtures.
 - How the suite pins the clock.
-- Whether `felix lane` and `felix retro` dispatch before the libraries load, as
-    the read-only `audit`, `inventory` and `cost` commands do (`felix:249-272`).
-    A command dispatched that way needs its own usage assertion (§4).
-- Where the real-data measurements are recorded: slice 1's (e) and slice 2's
-    three repositories. Both sit outside the suite (§7.9).
+- Where the real-data measurements are recorded: slice 0's felix-home count,
+    slice 1's (e) and slice 2's three repositories. All sit outside the suite
+    (§6.6, §7.9 and §8.7).
 
 ## 11. Calls I made, for the founder to check while reading
 
@@ -1108,8 +1169,9 @@ is gone. *(My call.)*
     PR, so a later guard on the target would need no change to either table.
 5. *Slice 0.* The window is 14 days. A short or empty lane (`short`, `zero` or
     `idle`) goes into the next session's context. An empty one (`zero` or
-    `idle`) also goes on his screen line. Neither shows on a resumed session.
-    There is no push alert, because the alert channel has never delivered.
+    `idle`) also goes on his screen line. Neither shows on a resumed Claude Code
+    session. There is no push alert, because the alert channel has never
+    delivered.
 6. *Slice 1.* The PR that lands intake also lowers the share to one in four.
 7. *Slice 1.* `--propose` stays in, so slice 1 is the intent design's whole §9
     slice, and its landing is "intake lands".
@@ -1154,16 +1216,17 @@ is gone. *(My call.)*
     public-beta < production as v3.2's risk envelope lists them. No project
     declares one yet, so `class_by_maturity` prints with "maturity undeclared",
     and the paid-ingress row carries no `env:` term.
-26. *Slice 1.* The seed draws on the survey's proposed candidates as well as
-    recorded misses, and each row's source says which it is.
+26. *Slice 1.* The seed draws on the survey's proposed candidates and on v3.2
+    §10, not on recorded misses as §9 says. Each row's `source` says whether it
+    is a recorded miss, a survey candidate or v3.2's text.
 27. *Slice 1.* In `--at`, ACTIVE prints as standing, UNKNOWN as could not look,
     and DORMANT is counted. `--tsv` sorts by verdict (owed, blinded, retired,
     standing, could not look, none), then by id.
 28. *Slice 1.* How each side was read is in the header only, and (c) asserts at
     least one could-not-look class, unbound predicate or cell with no row.
 29. *Slice 1.* A class that needs a capability tag that does not exist reads
-    could-not-look when a row names the tag, and shows nowhere otherwise, not as
-    a cell with no row as §9 says.
+    could-not-look when a row names the tag, unless another of its terms is
+    false, and shows nowhere otherwise, not as a cell with no row as §9 says.
 30. *Slice 1.* (e) names real projects, so it is a recorded measurement outside
     the suite, and (a) to (d) and (f) to (i) are the suite's fixtures.
 31. *Slice 1.* Falsifier 5 fires only when no other term is false: a DORMANT
@@ -1196,10 +1259,18 @@ is gone. *(My call.)*
     precision.
 41. *Slice 2.* A finding of misread intent no longer moves slice 5's questions
     ahead of slice 3, because nothing in slice 2 measures intent.
+42. *Slice 0.* `felix status` prints the lane row in every project, as `none`
+    when the project has no `lanes.tsv`, because the status contract is one
+    line per row in a fixed order. `felix lane`, session start and the pulse
+    print nothing for such a project.
+43. *Slice 2.* A change with no PR number still has the issues that a closing
+    keyword in its message names looked up, as §8.3 says. Only a change with
+    neither a PR number nor such a keyword reads "could not look".
 
-Items 1 to 16 are the calls in the design he approved, and items 2, 3 and 5
-were corrected after the fact-check. Items 17 to 41 are corrections from the
-fact-check that change a rule.
+Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
+and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
+the fact-check that change a rule. Items 42 and 43 settle two places where the
+corrected text could be read two ways.
 
 ## 12. Not decided here, and whose
 
@@ -1216,8 +1287,12 @@ fact-check that change a rule.
     next lane items after intake: item 4 (Codex read-only), item 11 (the second
     host) and item 3 (the seeded-omission corpus). Until then, the pointer after
     slice 1 names slice 2 "pending the direction fold" (this design's §9).
-- **His, open:** whether Felix ships as software beyond the plugin. My
-    three-layer proposal is unconfirmed.
+- **His, open:**
+    - whether Felix ships as software beyond the plugin. My three-layer
+        proposal is unconfirmed;
+    - how Felix's value shows inside a team. My four-part proposal (§5 item 4)
+        is unconfirmed.
+
 - **Folding the 10-29 decisions** into `docs/direction.md` happens in a draft PR
     that waits for his yes.
 
@@ -1233,14 +1308,15 @@ fact-check that change a rule.
 - The founder's Founder OS folder, outside the repository:
     `felix_v32_conformance_amendments.md`, §1.1, and
     `felix_v32_architecture_spec.md`, the project risk envelope (:198).
-- Code read on 10-29:
+- Code read on 10-29 at `e54e31f3`, with line numbers as read again at
+    `01e24cfc` (0.49.313):
     - `lib/probes.sh`, `lib/facts.sh`, `lib/detect.sh` (`:17-37` reads the
-        dependency manifests, `:78` keys api, `:87-89` key llm);
+        dependency manifests, `:88` keys api, `:97-99` key llm);
     - `lib/escape.sh:60-78`, the tables whose changes wait for a person's
         merge, and why an added `obligations.tsv` row does not (§7.7);
     - `lib/verify.sh:354-372`, `lib/qualify-run.sh:440-462`;
     - `lib/status.sh`, `lib/pulse.sh`, `hooks/session-start`;
-    - `felix:2088-2089`, what `felix merge` copies, and `felix:6640-6644`;
+    - `felix:2106-2107`, what `felix merge` copies, and `felix:6555-6559`;
     - the dash mod, `~/.claude/mods/dash/hooks/parse.ts` and `register.tsx`.
 
 - PR #455, which the founder merged on GitHub with GitHub's default squash

@@ -372,6 +372,15 @@ a target share of n/d:
         reads the paragraph is the one that carries out the rule.
     - A session that takes the item first checks that no live session is
         already on that branch, as sessions do now.
+    - The paragraph tells a session to start work nobody asked for, so it is
+        said only in the project's own checkout: one whose origin remote is
+        `github.com/<remote_match>` exactly and that is not a submodule
+        (`lib/own.sh`, `felix_checkout_is_own`). Session start already holds
+        adoption, the graph refresh and tidying to that rule. A `.felix`
+        marker is a file of the tree, so any repository can name a governed
+        project. Elsewhere, and wherever ownership cannot be read, the
+        paragraph is withheld, and the hook's line about withheld work names
+        `lane item` (`felix_own_gate`). *(My call.)*
 
 4. **The founder's screen line** (`systemMessage`). The hook builds it at
     `hooks/session-start:747-755` and emits it at `:760` through `_felix_emit`
@@ -379,7 +388,8 @@ a target share of n/d:
     `· lane: 0 in <window> days`. A `short` state stays in the session's
     context only. *(My call.)* Neither the token nor the paragraph shows on a
     resumed Claude Code session: the hook exits before either is built
-    (`hooks/session-start:184-185`).
+    (`hooks/session-start:184-185`). Neither shows in a checkout that is not
+    the project's own (item 3).
 5. **The daily pulse.** Each record gets one line per lane,
     `lane<TAB><lane><TAB><state><TAB><L><TAB><T>`, written from `cmd_pulse`
     (`felix:6555-6559`). That puts the share's history on disk in
@@ -389,8 +399,9 @@ a target share of n/d:
     `land/alerts.tsv` is `failed`, and `felix-alert.yml` is on no branch, main
     included. Also, `notify.sh` belongs to the landing actor. So an empty lane
     is on the founder's screen line whenever a Claude Code session starts,
-    other than a resume, in a project with a `lanes.tsv`, and the lane row is
-    in the dash's /dash pane. Copilot CLI and Cursor have no screen line in
+    other than a resume, in the own checkout of a project with a `lanes.tsv`,
+    and the lane row is in the dash's /dash pane. Copilot CLI and Cursor have
+    no screen line in
     this hook (`_felix_emit` drops it, `hooks/session-start:97-112`). There the
     lane shows in the context paragraph only, and their resumes run the whole
     hook: the exit at `:184-185` is for Claude Code alone.
@@ -432,6 +443,10 @@ first.
     - The screen token appears only for `zero` and `idle`.
     - Neither appears for a project with no `lanes.tsv`, or on a resumed
         Claude Code session.
+    - Neither appears in a checkout that is not the project's own (no
+        `remote_match`, another origin, or no origin), and there the hook's
+        line about withheld work names `lane item`. The same fixture made the
+        project's own shows both.
     - While the share is `1/2`, the paragraph ends "Trust work takes the other
         half."; at `1/4` it ends "The rest goes to trust work."
     - The paragraph and the token take the lane name and the window from the
@@ -1270,11 +1285,19 @@ is gone. *(My call.)*
 43. *Slice 2.* A change with no PR number still has the issues that a closing
     keyword in its message names looked up, as §8.3 says. Only a change with
     neither a PR number nor such a keyword reads "could not look".
+44. *Slice 0.* The session-start paragraph and the screen token show only in
+    the project's own checkout (`lib/own.sh`). Elsewhere they are withheld, and
+    the hook's line about withheld work names `lane item`. A security review
+    of the first build found the gap: any repository can name a governed
+    project in a `.felix` marker, and the paragraph would then point an
+    untasked session at a lane item by name, in a tree its authors choose
+    (§6.5 items 3 and 4).
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways.
+corrected text could be read two ways. Item 44 came from a security review of
+slice 0's first build.
 
 ## 12. Not decided here, and whose
 

@@ -23,10 +23,11 @@
 # in synced Documents, and a command can hold a credential. One ledger signal
 # per delivery, `answer<TAB><tool>`, is folded by the rollup into rows no
 # capability reading sees (lib/ledger.sh). The graph is the first tool to
-# answer (lib/graph.sh, felix_graph_deliver); the next one writes the same rows
-# and is measured by the same function. That is the point of keeping this apart
-# from graph.sh: a capability plane that can mount a tool but cannot tell
-# whether its answers were used has not arranged the tool, only installed it.
+# answer (lib/graph-answer.sh, felix_graph_deliver); the next one writes the
+# same rows and is measured by the same function. That is the point of keeping
+# this apart from the graph's files: a capability plane that can mount a tool
+# but cannot tell whether its answers were used has not arranged the tool, only
+# installed it.
 # docs/2026-10-29-answers-delivered-spec.md, A2, U5, T1-T2 and L3-L5.
 
 # A session id this surface will put in a path: ASCII letters, digits, - and _.
@@ -168,7 +169,8 @@ felix_ledger_answers() {
 #   files_opened asked timeouts late unknown
 #
 # asked counts the asks made, and timeouts those the bound ended; late counts
-# the prompts on which the hook had too little time left to ask (lib/graph.sh).
+# the prompts on which the hook had too little time left to ask
+# (lib/graph-answer.sh).
 # unknown counts the sessions left out of every other column, because their
 # PostToolUse record is not whole by the test the fold uses for its zero rows
 # (lib/ledger.sh, _felix_ledger_whole): a run that recorded nothing may have

@@ -309,7 +309,8 @@ fi
 # queried in 3. A model asked to remember a tool does not; one handed the
 # tool's answer at the moment it plans has it. Each file once a session, so the
 # first prompt carries the map and later ones only what is new
-# (lib/graph.sh, felix_graph_deliver; docs/2026-10-29-answers-delivered-spec.md).
+# (lib/graph-answer.sh, felix_graph_deliver; and the spec,
+# docs/2026-10-29-answers-delivered-spec.md).
 #
 # A person's prompt only, and only in the project's own checkout: graph.json is
 # a file of the checkout, and in one bound by a marker alone its labels are
@@ -320,8 +321,8 @@ fi
 # The platform ends this hook at 30 seconds, FELIX_PROMPT_DEADLINE here, and a
 # run it ends prints nothing: the route and the lessons above go with the
 # answer. So the ask is given what is left of the 30, less 3 for the rest of
-# this run, and is not made with under a second of that (lib/graph.sh,
-# _felix_graph_ask; spec U4).
+# this run, and is not made with under a second of that
+# (lib/graph-answer.sh, _felix_graph_ask; spec U4).
 graph_block=""
 if [ -z "$machine" ] && [ -n "$sid_raw" ] && felix_graph_ready "$root" 2>/dev/null; then
   _gown=2; felix_checkout_is_own "$PROJ" "$root" 2>/dev/null; _gown=$?

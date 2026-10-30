@@ -6,9 +6,9 @@ Every behaviour below is numbered, says what is observable, and is meant to
 become one or more assertions in `engine/harness/tests/parts/`. Decisions taken
 where the brief left a choice are in section 7, each with its evidence.
 
-Tier: adversarial. `lib/graph.sh`, `lib/answer.sh`, `lib/ledger.sh`, the
-`felix` CLI and the user-prompt, post-tool, session-start and session-end hooks
-run in every session of every governed project.
+Tier: adversarial. `lib/graph.sh`, `lib/graph-answer.sh`, `lib/answer.sh`,
+`lib/ledger.sh`, the `felix` CLI and the user-prompt, post-tool, session-start
+and session-end hooks run in every session of every governed project.
 
 Notation: `\t` is one tab byte. A row written `a\tb\tc` is one line ending in a
 newline. Paths are relative to `engine/harness/` unless they start with
@@ -64,7 +64,10 @@ project that has a graph.
 
 ---
 
-## 2. `lib/graph.sh`: the answer
+## 2. `lib/graph.sh` and `lib/graph-answer.sh`: the answer
+
+A1 and A2 are in `lib/graph-answer.sh`, which `lib/graph.sh` loads, so anything
+that loads `lib/graph.sh` has them; A3 and A4 are in `lib/graph.sh`.
 
 ### A1. `felix_graph_answer <root> <prompt>`
 
@@ -313,7 +316,7 @@ no match appends nothing.
 No git, and one process beyond what the hook runs today, and that only when
 the state file exists. A failed append is silent and the exit is 0. Loading
 `lib/ledger.sh`, which loads `lib/answer.sh`, runs no command found on `PATH`;
-nor does loading `lib/graph.sh`.
+nor does loading `lib/graph.sh`, which loads `lib/graph-answer.sh`.
 
 ---
 
@@ -546,4 +549,6 @@ less 3, and what a cut inside those 3 leaves), U5 (the `prompt` row written
 before the route), T2 (loading the libraries runs nothing on `PATH`), R3 (the
 two-step race, said and left), L4 (a session whose ledger record is not whole
 is left out, and counted in `unknown`; `late`), L5 (the late and left-out
-clauses).
+clauses). And section 2: A1 and A2 moved to `lib/graph-answer.sh`, which
+`lib/graph.sh` loads, because this change had taken `lib/graph.sh` past 500
+lines.

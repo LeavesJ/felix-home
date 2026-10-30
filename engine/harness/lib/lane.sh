@@ -26,7 +26,15 @@ _LANE_LIB="${BASH_SOURCE[0]:-$0}"
 case "$_LANE_LIB" in */*) _LANE_LIB="${_LANE_LIB%/*}" ;; *) _LANE_LIB=. ;; esac
 _LANE_TAB=$'\t'
 
-_lane_git() { GIT_NO_LAZY_FETCH=1 git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@"; }
+# Every lane git read runs in a subshell of its own, for two reasons. A fork that fails ends bash 3.2's shell that was
+# forking, with status 128 and nothing printed; here it ends that one read, which the caller sees as a status that is
+# not 0 and reads as unknown, where felix itself would have ended (C3). And the repository is the one -C names, not the
+# one the caller's GIT_DIR, GIT_WORK_TREE, GIT_OBJECT_DIRECTORY and their kin name (C2).
+_lane_git() {
+  ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_NAMESPACE GIT_PREFIX GIT_CEILING_DIRECTORIES
+    GIT_NO_LAZY_FETCH=1; export GIT_NO_LAZY_FETCH
+    git --no-optional-locks --literal-pathspecs -c core.fsmonitor=false -c log.showSignature=false "$@" )
+}
 _lane_iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null; }
 _lane_line() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
 

@@ -84,9 +84,12 @@ was about 60 real queries, almost all in the four sessions (09-03, 09-04,
   hook at 30 s and a run it ends prints nothing, so the ask gets what is left
   less 3 s and is skipped, recorded `late`, with under one. And a session whose
   PostToolUse record is not whole (the fold's own test) is left out of the
-  measure and counted apart. Many `late` rows mean the hook's other parts are
-  slow; many sessions left out mean post-tool runs are being lost, and the
-  share is then over the sessions whose record is whole.
+  measure and counted apart, and so is one with no tool call on record, which
+  cannot be told from one whose hook never ran. Many `late` rows mean the
+  hook's other parts are slow. Many sessions left out mean post-tool runs are
+  being lost or sessions are ending without a tool call, and the share is then
+  over the sessions whose record is whole. None of the 15 baseline sessions
+  would have been left out.
 - Two limits the spec names and leaves: a run cut off inside the 3 s it keeps
   has recorded nodes the model never got, and they are not given again that
   session; two refreshes that find the same stale lock at once can both run.

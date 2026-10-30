@@ -85,7 +85,9 @@ graph node, and exits 0; or prints nothing and exits 1. In order:
 5. When `FELIX_GRAPH_LEFT` is set and not empty, it is the whole seconds a
    calling hook has left before the platform ends it (U4). A value that is not
    a whole number of one or more (`0`, a negative number, anything else): exit
-   1, graphify not run, because there is no time left to ask. Otherwise runs
+   1, graphify not run, because there is no time left to ask. Both it and
+   `FELIX_GRAPH_TIMEOUT` are read by value, so leading zeros do not count:
+   `0000000002` is 2 and `0000000000` is 0. Otherwise runs
    exactly
    `graphify query "<prompt>" --budget <FELIX_GRAPH_BUDGET> --graph <graph file>`
    (default budget 600), for at most `FELIX_GRAPH_TIMEOUT` seconds (default 4;
@@ -409,7 +411,10 @@ has a `given` or an `asked` row in one of those records,
   whole) is left out of every column but `unknown`. `unknown` counts those
   sessions, once per tool with an `asked` or a `given` row in the session's
   answer record. A PostToolUse run that recorded nothing may have reached a
-  named file, and a touch it missed would read as an answer not used.
+  named file, and a touch it missed would read as an answer not used. An empty
+  record (neither) is left out too: it cannot tell a session that made no tool
+  call from one whose post-tool hook never ran, and counted as answers unused
+  it would hide the hook that never ran.
 
 - **The window.** A `touch` row can credit only the `answer` rows after the
   record's last `prompt` row before it: an answer is acted on in the turn it was
@@ -462,7 +467,7 @@ capability table, a section headed
 with, when `timeouts` is more than 0, `; 6 asks timed out` appended to the
 line; then, when `late` is more than 0, `; 2 prompts came too late in the hook
 to ask`; then, when `unknown` is more than 0, `; 3 sessions left out, their
-record of tool calls incomplete`. Then the sentence: `A file the session would have opened anyway counts
+record of tool calls empty or incomplete`. Then the sentence: `A file the session would have opened anyway counts
 here too, so this is the most the answers can have caused, not what they
 caused.` Shares are whole percentages, rounded half up, and 0% when the
 denominator is 0. The capability table's rows are unchanged by `answer` rows.
@@ -512,7 +517,11 @@ sessions the hooks ran in (a session mark, the test L4 applies through
 `_felix_ledger_owns`), so automated SDK sessions that load no plugin are out;
 every prompt the user-prompt hook sees as a person's, a prompt queued while the
 model worked among them; a touch only from a call that succeeded; and a Bash
-value cut at 16,384 bytes of its escaped form, as T1 cuts it.
+value cut at 16,384 bytes of its escaped form, as T1 cuts it. L4 also leaves
+out a session with no tool call on record. All 15 sessions in the window made
+at least one successful call, so that rule leaves none of them out, and the
+baseline stands under it (counted from the same transcripts after the review
+of the merge-review fixes).
 
 ## 9. What changed after the review of 2026-10-29
 
@@ -552,3 +561,10 @@ is left out, and counted in `unknown`; `late`), L5 (the late and left-out
 clauses). And section 2: A1 and A2 moved to `lib/graph-answer.sh`, which
 `lib/graph.sh` loads, because this change had taken `lib/graph.sh` past 500
 lines.
+
+And after the review of those fixes: A1.5 (`FELIX_GRAPH_LEFT` and
+`FELIX_GRAPH_TIMEOUT` read by value, leading zeros dropped), T2 (true whatever
+was loaded first: `lib/ledger.sh` no longer runs `dirname` to find
+`lib/resolve.sh`), L4 and L5 (an empty record is left out too, and the clause
+says "empty or incomplete"), section 8 (the replay's population under L4's
+rule).

@@ -142,7 +142,9 @@ It is outside this design.
     actor's files. *My reading of the landing actor's files:*
     - `lib/automerge.sh`, `lib/green-*.sh`, `lib/land-table.sh`, `lib/notify.sh`,
         `lib/own.sh` and `lib/status-land.sh`;
-    - the `felix merge` and `felix land` code paths.
+    - the `felix merge` and `felix land` code paths, which include the
+        shared project resolver and the table validator `lib/table.sh`
+        (§11 items 46 and 47).
 
 - **Tables before code.** Each new table is a new file with one new
     `schemas.tsv` row, which is an addition and free. No column is added to an
@@ -1315,12 +1317,32 @@ is gone. *(My call.)*
     one `unknown` line. Every other surface, `felix merge` and `felix land`
     included, still reads such a resolution as no project. That is a limit
     of the shared resolver, and the change for it lies outside the lane.
+47. *Slice 0.* The third adversarial review found three more places where
+    a read that did not finish was taken for an answer, and a shared file
+    the lane had changed. The table validator, `lib/table.sh`, is a verifier:
+    the gate's schema check runs it, and `felix land`'s deploy check and
+    `felix qualify` run that check, so it stays as `main` has it, like the
+    resolver. The lane runs the check with its error stream taken: a check
+    that left anything there, as bash does when a fork fails inside it, did
+    not finish, and the table reads as one that cannot be read, never as
+    accepted or refused. The lane now checks a resolution that found a
+    project as it checks a miss, since a read that failed under the resolver
+    can leave a shorter `remote_match` to bind: the check must finish and
+    bind the same project. It reads `remote_match` with no pipe, because the
+    shared reader's status is the status of its last command. A `.felix`
+    marker that cannot be opened is called unreadable, in the lane's own
+    sentence, where the shared one calls it empty. Two limits are stated: a
+    signal inside the shared check that leaves no sign, and an open-file
+    limit low enough that felix's own load loses its output stream, which
+    every subcommand, `felix which` included, loses alike. Other surfaces,
+    session start among them, still take the shared resolver's answer as it
+    comes.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Items 44 to 46 came from reviews of
-slice 0's build: a security review, then two adversarial ones.
+corrected text could be read two ways. Items 44 to 47 came from reviews of
+slice 0's build: a security review, then three adversarial ones.
 
 ## 12. Not decided here, and whose
 

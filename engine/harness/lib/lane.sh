@@ -36,6 +36,8 @@ _lane_git() {
 }
 _lane_iso() { date -u -r "$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null || date -u -d "@$1" +%Y-%m-%dT%H:%M:%SZ 2>/dev/null; }
 _lane_line() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@"; }
+# W -> _LANE_U, the window in words: "1 day" for a window of one day, else "<W> days" (the Contracts' preamble).
+_lane_days() { if [ "$1" = 1 ]; then _LANE_U="1 day"; else _LANE_U="$1 days"; fi; }
 
 # PROJ NAME OUT -> the committed regular file copied to OUT: 0. No such entry at HEAD: 1. An entry that is no regular
 # file (a link, a submodule): 2. PROJ in no repository, HEAD naming no commit or a git read not finishing, while a
@@ -367,7 +369,7 @@ felix_lane_status_row() {   # PROJ ROOT
   rows="${rows%%$'\n'*}"
   IFS=$'\t' read -r c1 c2 c3 c4 c5 c6 c7 c8 c9 c10 c11 c12 c13 <<< "$rows"
   if [ "$c2" = unknown ]; then _felix_status_row lane unknown - "$c13"
-  else _felix_status_row lane value "$c2" "$c3 of $c4 engine landings in $c5 days, target $c6"; fi
+  else _lane_days "$c5"; _felix_status_row lane value "$c2" "$c3 of $c4 engine landings in $_LANE_U, target $c6"; fi
   return 0
 }
 
@@ -408,10 +410,11 @@ felix_start_lane() {   # PROJ ROOT
     case "$nx" in none) nx="(lane-next.tsv names none)" ;; unknown) nx="(lane-next.tsv cannot be read)" ;; esac
     cl="The rest goes to trust work."
     [ "$((10#$n * 2))" -ne "$((10#$d))" ] || cl="Trust work takes the other half."
+    _lane_days "$w"
     lane_line="${lane_line}
-Lane ${lane} is ${state}: ${l} of ${t} engine landings in ${w} days, target ${shr}.
+Lane ${lane} is ${state}: ${l} of ${t} engine landings in ${_LANE_U}, target ${shr}.
 If the founder has not given this session a task, take the first open lane item: ${nx}. End the body of a commit on its branch that is not a merge with the line \`Felix-Lane: ${lane}\`. ${cl}"
-    [ "$k" -ne 1 ] || case "$state" in zero|idle) _felix_lane_tok=" · lane: 0 in ${w} days" ;; esac
+    [ "$k" -ne 1 ] || case "$state" in zero|idle) _felix_lane_tok=" · lane: 0 in ${_LANE_U}" ;; esac
   done <<< "$rows"
   return 0
 }
@@ -441,7 +444,7 @@ felix_lane_command() {   # PROJ ROOT TSV
       if ($10 == "unknown") ch = "its lanes.tsv row\047s last change cannot be read"
       else if ($10 != "-") ch = "its lanes.tsv row last changed by " substr($10, 1, 12) " at " $11
       if ($2 == "unknown") s = $1 ": unknown, " $13
-      else s = $1 ": " $2 ", " $3 " of " $4 " engine landings in " $5 " days, target " $6 "; last lane landing " $7 "; mark " $8 "; next: " $9
+      else s = $1 ": " $2 ", " $3 " of " $4 " engine landings in " ($5 == 1 ? "1 day" : $5 " days") ", target " $6 "; last lane landing " $7 "; mark " $8 "; next: " $9
       if (ch != "") s = s "; " ch
       print s "; refs/remotes/origin/main at " $12 }'
   return 0

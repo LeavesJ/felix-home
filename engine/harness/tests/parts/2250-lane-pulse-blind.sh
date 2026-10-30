@@ -125,6 +125,31 @@ is "lane pulse: a second run appends its four lane lines to the log (nine there,
    "$LNPE|$LNPT4|$LF_RC|$(_lnp_lanes "$LF_H/state/pulse.log" | LC_ALL=C awk 'END { print NR }')|$(_lnp_lanes "$LF_H/state/pulse.status.tsv")" \
    "built|built|0|9|$LNPW4"
 
+# ---- the review's F1: a fork that fails in the read of the landings (C3, C8) ----------------------------------------------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. C3 counts a fork that fails among the
+# git reads that do not finish, so every lane the fault reaches reads unknown with - for L and T, and C8 still gives a
+# line per row, last. The fault is part 2210's: a bash function git, exported into felix pulse, that lowers the process
+# limit to 1 (ulimit -S -u 1) in the shell running it when its words hold --first-parent and refs/remotes/origin/main,
+# then runs git, which that shell cannot fork; "fired" and, if the shell gets there, "ran <status>" go to a file. It
+# runs here, after the log's count above, so that count stays as it was; the table is the four-row one.
+_lnp_fork() {
+  local f="$1.fired"
+  rm -f "$f"
+  LNPL0="$(_lf_count "$LF_H/state/pulse.log")"; [ -n "$LNPL0" ] || LNPL0=0
+  ( eval "git() { local z='' r; case \" \$* \" in *' --first-parent '*) case \" \$* \" in *' refs/remotes/origin/main'*) z=1; printf 'fired\n' >> $(printf '%q' "$f"); ulimit -S -u 1 ;; esac ;; esac; command git \"\$@\"; r=\$?; [ -z \"\$z\" ] || printf 'ran %s\n' \"\$r\" >> $(printf '%q' "$f"); return \"\$r\"; }"
+    export -f git
+    _lf_run "$1" "$LF_H" "$LNPN" "$FELIX" pulse
+    exit "$LF_RC" )
+  LF_RC=$?
+  _lf_calm "$LF_H"
+  LNPFIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }
+    END { s = "not fired"; if (f && r) s = "fired, but git ran to a clean exit after it"; if (f && !r) s = "fired"; print s }' "$f" 2>/dev/null)"
+  [ -n "$LNPFIRE" ] || LNPFIRE="not fired"
+}
+_lnp_fork "$LNPD/f1"
+is "lane pulse F1-fork-reads-as-no-lane L-NEVER-OK: a fork that fails in the read of the landings on refs/remotes/origin/main still gives the four lane lines last, each unknown with L and T -, after the backup and settings lines, never no line" \
+   "$LNPE|$LNPT4|$LNPFIRE|$LF_RC|$(_lnp_tail "$LNPD/f1.out")|$(_lnp_before "$LNPD/f1.out")" "built|built|fired|0|$LNPU4|backup settings"
+
 # ---- the clock, and unknown ----------------------------------------------------------------------------------------------------
 _lnp_pulse "$LNPD/p4" "$LNPH" $((LNPN + 20 * LNPDAY))
 is "lane pulse: with FELIX_LANE_NOW twenty days on, no landing is in either window: capability and docs read idle 0 0, the broken rows still unknown" \

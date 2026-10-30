@@ -104,6 +104,37 @@ _lf_run "$LNKD/human" "$LNKC" "$LNKN" "$FELIX" lane
 is "lane command: felix lane prints the human line built from those columns, the commit shortened to twelve characters" \
    "$LNKBUILT|$LF_RC|$(cat "$LNKD/human.out")" "built|0|$LNKHUMAN"
 
+# ---- the review's F2: git variables the caller exported change nothing (C2) ------------------------------------------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. C2 names the repository, the one
+# holding the current directory, and where the tables are read, HEAD of the repository holding <PROJ>, whatever git
+# variables the caller exported. Each setting below, given on the felix command alone, must leave felix lane --tsv's
+# line and the status row as they are without it. O is another repository, with one commit of its own.
+LNKa="not built: another repository"
+_lf_init "$LNKD/f2-other" && _lf_commit "$LNKD/f2-other" 1792700000 $'another repository\n' other.txt \
+  && LNKO="$(cd -P "$LNKD/f2-other" && pwd -P)" && [ -n "$LNKO" ] && LNKa="$LNKBUILT"
+LNKb=""; LNKc=""; LNKw=""; LNKv=""
+# LABEL ASSIGNMENT... -> felix lane --tsv and felix status --tsv in C with the ASSIGNMENTs on the felix command alone:
+# LNKb and LNKc gain " [LABEL] <status>|<output>" and " [LABEL] <status>|<last row>", LNKw and LNKv the same unchanged.
+_lnk_env() {
+  local l="$1"
+  shift
+  _lf_run "$LNKD/f2" "$LNKC" "$LNKN" "$@" "$FELIX" lane --tsv
+  LNKb="$LNKb [$l] $LF_RC|$(cat "$LNKD/f2.out")"; LNKw="$LNKw [$l] 0|$LNKLINE"
+  _lf_run "$LNKD/f2s" "$LNKC" "$LNKN" "$@" "$FELIX" status --tsv
+  LNKc="$LNKc [$l] $LF_RC|$(_lf_last "$LNKD/f2s.out")"; LNKv="$LNKv [$l] 0|$LNKROW"
+}
+_lnk_env 'GIT_DIR=<C>/.git' "GIT_DIR=$LNKC/.git"
+_lnk_env 'GIT_DIR=<H>/.git' "GIT_DIR=$LNKH/.git"
+_lnk_env 'GIT_DIR=.git' GIT_DIR=.git
+_lnk_env 'GIT_WORK_TREE=<C>' "GIT_WORK_TREE=$LNKC"
+_lnk_env 'GIT_DIR=<C>/.git and GIT_WORK_TREE=<C>' "GIT_DIR=$LNKC/.git" "GIT_WORK_TREE=$LNKC"
+_lnk_env 'GIT_DIR=<O>/.git' "GIT_DIR=$LNKO/.git"
+_lnk_env 'GIT_OBJECT_DIRECTORY=<O>/.git/objects' "GIT_OBJECT_DIRECTORY=$LNKO/.git/objects"
+is "lane command F2-caller-git-dir: GIT_DIR naming the checkout, the home, .git or another repository, GIT_WORK_TREE, both, or GIT_OBJECT_DIRECTORY of another repository, exported by the caller, leave felix lane --tsv's exit 0 and line as they are without them" \
+   "$LNKa$LNKb" "built$LNKw"
+is "lane command F2-caller-git-dir: the same settings leave felix status --tsv's exit 0 and its lane row as they are without them" \
+   "$LNKa$LNKc" "built$LNKv"
+
 _lf_checkout "$LNKD/noref" ck $((LNKN - 30 * LNKDAY)); LNKR="$LF_REPO"
 _lf_commit "$LNKR" $((LNKN - LNKDAY)) $'engine: x\n\nFelix-Lane: capability\n' engine/x.sh && LNKa=built || LNKa="not built"
 _lf_run "$LNKD/noref-h" "$LNKR" "$LNKN" "$FELIX" lane
@@ -225,6 +256,136 @@ _lf_use "$LNKh" "$LNKD/memory" "$LNKD/user" "$LNKB"
 _lf_run "$LNKD/chg-r" "$LNKC" "$LNKN" "$FELIX" lane --tsv
 is "lane command: in a home whose root commit holds the row, columns 10 and 11 name the root and its date" \
    "$LNKa|$LF_RC|$(_lf_cols "$LNKD/chg-r.out" 1 1 10 11)" "built|0|capability|${LNKRT:-root}|$(_lf_iso 1792760000)"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- the review's F6: a last change that cannot be read is unknown, never another commit (C5 column 10, C3) ----------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. Column 10 is unknown when git could
+# not finish its search, a read that did not finish never yields a value (C3), and a commit that changes only a comment
+# line does not move the column. A home's history: A adds the row (share 1/2), B changes it (1/3), C adds only a comment
+# line; with every object there, column 10 names B, and the checkout C reads ok, L 1 of T 2 at 1/3. (i) B's lanes.tsv
+# blob, a loose object only the search reads, is removed. (ii) In a second home of the same history, then D adding
+# notes.md, C's root tree, which only the search reads, is removed. The state and every other column stand.
+LNKF6L1=$'capability\t^engine/\t1/2\t14\n'; LNKF6L2=$'capability\t^engine/\t1/3\t14\n'
+LNKF6L3=$'# The lanes, with a comment.\ncapability\t^engine/\t1/3\t14\n'
+LNKF6LINE="$(_lf_tsv capability ok 1 2 14 1/3 "$LNKLASTD" "$LNKMARK" none unknown - "$LNKREFD" -)"
+# DIR -> a home at DIR (project ck), its history A, B and C as above. LNKF6H the home, LNKF6B B and LNKF6C C, empty
+# when not made.
+_lnk_f6home() {
+  LNKF6H=""; LNKF6B=""; LNKF6C=""
+  _lf_home "$1" ck 1792700000 || return 1
+  _lf_table "$LF_PROJ" 1792780000 lanes.tsv "$LNKF6L1" || return 1
+  _lf_table "$LF_PROJ" 1792781000 lanes.tsv "$LNKF6L2" || return 1
+  LNKF6B="$LF_SHA"
+  _lf_table "$LF_PROJ" 1792782000 lanes.tsv "$LNKF6L3" || return 1
+  LNKF6C="$LF_SHA"; LNKF6H="$LF_HOME"
+}
+# HOME REV -> 0 when REV names an object HOME's repository can read.
+_lnk_has() { ( _fx_cd "$1" && _lf_g 1700000000 cat-file -e "$2" ) >/dev/null 2>&1; }
+LNKa="not built: F6 (i)"; LNKb=""
+if _lnk_f6home "$LNKD/home-f6"; then
+  _lf_use "$LNKF6H" "$LNKD/memory" "$LNKD/user" "$LNKB"
+  _lf_run "$LNKD/f6-0" "$LNKC" "$LNKN" "$FELIX" lane --tsv; LNKb="$(_lf_cols "$LNKD/f6-0.out" 1 10)"
+  _lf_unobject "$LNKF6H" "$LNKF6B:projects/ck/lanes.tsv" && ! _lnk_has "$LNKF6H" "$LNKF6B:projects/ck/lanes.tsv" \
+    && _lnk_has "$LNKF6H" "$LNKF6C:projects/ck/lanes.tsv" && _lnk_has "$LNKF6H" "HEAD:projects/ck/lanes.tsv" && LNKa=built
+fi
+_lf_run "$LNKD/f6-i" "$LNKC" "$LNKN" "$FELIX" lane --tsv
+is "lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with B's lanes.tsv blob gone from the home, column 10 reads unknown and 11 -, never C, the comment-only commit; with it there, column 10 named B; the state ok and every other column stand" \
+   "$LNKa|before ${LNKb:-none}|$LF_RC|$(cat "$LNKD/f6-i.out")" "built|before ${LNKF6B:-B}|0|$LNKF6LINE"
+_lf_run "$LNKD/f6-ih" "$LNKC" "$LNKN" "$FELIX" lane
+is "lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with B's lanes.tsv blob gone, the human line says its lanes.tsv row's last change cannot be read" \
+   "$LNKa|$LF_RC|$(cat "$LNKD/f6-ih.out")" \
+   "built|0|capability: ok, 1 of 2 engine landings in 14 days, target 1/3; last lane landing $LNKLASTD; mark $LNKMARK; next: none; its lanes.tsv row's last change cannot be read; refs/remotes/origin/main at $LNKREFD"
+LNKa="not built: F6 (ii)"; LNKb=""
+if _lnk_f6home "$LNKD/home-f6t" && _lf_commit "$LNKF6H" 1792783000 $'notes beside the tables\n' notes.md; then
+  _lf_use "$LNKF6H" "$LNKD/memory" "$LNKD/user" "$LNKB"
+  _lf_run "$LNKD/f6-1" "$LNKC" "$LNKN" "$FELIX" lane --tsv; LNKb="$(_lf_cols "$LNKD/f6-1.out" 1 10)"
+  _lf_unobject "$LNKF6H" "$LNKF6C^{tree}" && ! _lnk_has "$LNKF6H" "$LNKF6C^{tree}" && _lnk_has "$LNKF6H" "HEAD^{tree}" \
+    && _lnk_has "$LNKF6H" "HEAD:projects/ck/lanes.tsv" && LNKa=built
+fi
+_lf_run "$LNKD/f6-ii" "$LNKC" "$LNKN" "$FELIX" lane --tsv
+is "lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with C's root tree gone from the home, below D, which adds notes.md, column 10 reads unknown and 11 -, never D; with it there, column 10 named B; the state ok and every other column stand" \
+   "$LNKa|before ${LNKb:-none}|$LF_RC|$(cat "$LNKD/f6-ii.out")" "built|before ${LNKF6B:-B}|0|$LNKF6LINE"
+_lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- partial clones: the review's F6 (no object fetched, a search that cannot finish is unknown) and F3 (an old git) ---
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. The source S is self-governed (C9):
+# its root holds .felix (ck), then lanes.tsv commits A (share 1/2), B (1/3) and C (a comment line only), then E, one
+# unmarked engine landing a day before the clock; uploadpack.allowFilter lets it serve partial clones. Each clone is the
+# home and the checkout; its refs/remotes/origin/main is S's main. Its remote.origin.uploadpack is a logger that writes
+# a line and fails, so a fetch is seen and fetches nothing, and nothing reaches a network. In a --filter=blob:none clone
+# B's lanes.tsv blob is missing and HEAD's is there; in a --filter=tree:0 clone C's root tree is missing.
+# - F6, with the suite's git: the blobless clone reads zero, L 0 of T 1, column 10 unknown, never C; the tree:0 clone
+#   reads unknown with R2 (E's changed paths need C's tree), column 10 unknown, never E. Nothing is fetched.
+# - F3: a git before 2.44 ignores GIT_NO_LAZY_FETCH (C3). The stand-in, first on PATH, says git version 2.43.0, refuses
+#   --no-lazy-fetch as such a git does, and drops GIT_NO_LAZY_FETCH before it runs the suite's git. (a) In the blobless
+#   clone a partial clone is not read: R2, column 10 unknown. (b) A full clone of S as the checkout, the blobless clone
+#   as the home: the full clone is counted, zero, L 0 of T 1, and column 10 is unknown. Column 12 is not compared in
+#   (a): C3 does not say whether the ref's date is read there. Nothing is fetched in either.
+LNKRG="$(type -P git)"; LNKFL="$LNKD/fetch.log"; LNKa="not built: the partial clones"
+mkdir -p "$LNKD/oldgit"
+printf '#!/bin/sh\nprintf '"'"'upload-pack ran: %%s\\n'"'"' "$*" >> %s\nexit 1\n' "$(printf '%q' "$LNKFL")" > "$LNKD/logger"
+{ printf '#!/bin/bash\n# A git that says it is 2.43.0: it refuses --no-lazy-fetch and ignores GIT_NO_LAZY_FETCH, as git before 2.44 does.\n'
+  printf 's=0\nfor a in "$@"; do\n  if [ "$s" = 1 ]; then s=0; continue; fi\n  case "$a" in\n'
+  printf '    --version|version) printf '"'"'git version 2.43.0\\n'"'"'; exit 0 ;;\n'
+  printf '    --no-lazy-fetch) printf '"'"'unknown option: --no-lazy-fetch\\n'"'"' >&2; exit 129 ;;\n'
+  printf '    -c|-C) s=1 ;;\n    -*) ;;\n    *) break ;;\n  esac\ndone\nunset GIT_NO_LAZY_FETCH\nexec %s "$@"\n' "$(printf '%q' "$LNKRG")"; } > "$LNKD/oldgit/git"
+chmod +x "$LNKD/logger" "$LNKD/oldgit/git"
+LNKS=""
+if [ -n "$LNKRG" ] && _lf_self "$LNKD/pc-src" ck $((LNKN - 40 * LNKDAY)); then
+  LNKS="$LF_HOME"
+  _lf_table "$LF_PROJ" $((LNKN - 35 * LNKDAY)) lanes.tsv "$LNKF6L1" && _lf_table "$LF_PROJ" $((LNKN - 30 * LNKDAY)) lanes.tsv "$LNKF6L2" \
+    && LNKPB="$LF_SHA" && _lf_table "$LF_PROJ" $((LNKN - 20 * LNKDAY)) lanes.tsv "$LNKF6L3" && LNKPC="$LF_SHA" \
+    && _lf_commit "$LNKS" $((LNKN - LNKDAY)) $'engine: e\n\nNo mark.\n' engine/e.sh && LNKPE="$LF_SHA" \
+    && ( _fx_cd "$LNKS" && _lf_g 1700000000 config uploadpack.allowFilter true ) >/dev/null 2>&1 || LNKS=""
+fi
+# NAME [FILTER] -> a clone of S at $LNKD/NAME (with --filter=FILTER), its uploadpack the logger; 0 when it holds
+# refs/remotes/origin/main at E, and a partial one is a promisor.
+_lnk_clone() {
+  [ -n "$LNKS" ] || return 1
+  ( unset GIT_NO_LAZY_FETCH; _fx_cd "$LNKD" && _lf_g 1700000000 clone -q ${2:+"--filter=$2"} "file://$LNKS" "$1" ) >/dev/null 2>&1 || return 1
+  ( _fx_cd "$LNKD/$1" || exit 1; _lf_g 1700000000 config remote.origin.uploadpack "$LNKD/logger" || exit 1
+    [ "$(_lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main)" = "$LNKPE" ] || exit 1
+    [ -z "${2:-}" ] || [ "$(_lf_g 1700000000 config --get remote.origin.promisor)" = true ] ) >/dev/null 2>&1
+}
+# NAME REV -> 0 when the clone NAME can read REV without fetching it.
+_lnk_lazy() { ( _fx_cd "$LNKD/$1" && GIT_NO_LAZY_FETCH=1 _lf_g 1700000000 cat-file -e "$2" ) >/dev/null 2>&1; }
+_lnk_clone pc-blob blob:none && _lnk_clone pc-tree tree:0 && _lnk_clone pc-full \
+  && ! _lnk_lazy pc-blob "$LNKPB:projects/ck/lanes.tsv" && _lnk_lazy pc-blob "HEAD:projects/ck/lanes.tsv" \
+  && ! _lnk_lazy pc-tree "$LNKPC^{tree}" && _lnk_lazy pc-tree "HEAD:projects/ck/lanes.tsv" \
+  && _lnk_lazy pc-full "$LNKPB:projects/ck/lanes.tsv" && [ ! -e "$LNKFL" ] \
+  && [ "$("$LNKD/oldgit/git" --version)" = 'git version 2.43.0' ] && LNKa=built
+LNKPBD="$(_lf_iso $((LNKN - LNKDAY)))"
+# The suite's own git must be 2.44 or later: before it, C3 reads every partial clone as R2, and GIT_NO_LAZY_FETCH, which
+# the checks above lean on, does not exist. Then these assertions skip, with the version.
+LNKRGV="$("$LNKRG" --version 2>/dev/null)"
+LNKGV="$(printf '%s\n' "$LNKRGV" | LC_ALL=C awk '{ n = split($3, v, "."); s = "old"; if (n >= 2 && (v[1] + 0 > 2 || (v[1] + 0 == 2 && v[2] + 0 >= 44))) s = "new"; print s }')"
+_lnk_is() { if [ "$LNKGV" = new ]; then is "$1" "$2" "$3"; else skip "$1" "the suite's git says [$LNKRGV], before 2.44, where C3 reads a partial clone as R2"; fi; }
+# OUT DIR HOME [PATH-FIRST] -> felix lane --tsv run from $LNKD/DIR with the home $LNKD/HOME (and PATH-FIRST before the
+# stubs on PATH), the fetch log cleared first; LNKf "fetch[<what the logger wrote>]".
+_lnk_pc() {
+  rm -f "$LNKFL"
+  _lf_use "$LNKD/$3" "$LNKD/memory" "$LNKD/user" "$LNKB"
+  if [ -n "${4:-}" ]; then _lf_run "$LNKD/$1" "$LNKD/$2" "$LNKN" PATH="$4:$LNKB:$PATH" "$FELIX" lane --tsv
+  else _lf_run "$LNKD/$1" "$LNKD/$2" "$LNKN" "$FELIX" lane --tsv; fi
+  LNKf="fetch[$(cat "$LNKFL" 2>/dev/null)]"
+}
+_lnk_pc pc-b pc-blob pc-blob
+_lnk_is "lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: a --filter=blob:none clone as home and checkout reads zero, L 0 of T 1, column 10 unknown and 11 -, never C, the comment-only commit, and fetches nothing" \
+   "$LNKa|$LNKf|$LF_RC|$(cat "$LNKD/pc-b.out")" \
+   "built|fetch[]|0|$(_lf_tsv capability zero 0 1 14 1/3 none "$LNKMARK" none unknown - "$LNKPBD" -)"
+_lnk_pc pc-t pc-tree pc-tree
+_lnk_is "lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing L-NEVER-OK: a --filter=tree:0 clone as home and checkout reads unknown with R2, column 10 unknown and 11 -, never E, the latest landing, and fetches nothing" \
+   "$LNKa|$LNKf|$LF_RC|$(cat "$LNKD/pc-t.out")" \
+   "built|fetch[]|0|$(_lf_tsv capability unknown - - 14 1/3 - "$LNKMARK" none unknown - "$LNKPBD" \
+      "git could not read the landings on refs/remotes/origin/main in $LNKD/pc-tree")"
+_lnk_pc pc-oa pc-blob pc-blob "$LNKD/oldgit"
+_lnk_is "lane command F3-old-git-lazy-fetch-through-the-home L-NEVER-OK: (a) with a git that says 2.43.0, the --filter=blob:none clone as home and checkout is not read: unknown with R2, column 10 unknown, and nothing is fetched" \
+   "$LNKa|$LNKf|$LF_RC|$(_lf_count "$LNKD/pc-oa.out")|$(_lf_cols "$LNKD/pc-oa.out" 1 1 2 3 4 5 6 7 8 9 10 11 13)" \
+   "built|fetch[]|0|1|capability|unknown|-|-|14|1/3|-|$LNKMARK|none|unknown|-|git could not read the landings on refs/remotes/origin/main in $LNKD/pc-blob"
+_lnk_pc pc-ob pc-full pc-blob "$LNKD/oldgit"
+_lnk_is "lane command F3-old-git-lazy-fetch-through-the-home: (b) with a git that says 2.43.0, a full clone as the checkout and the --filter=blob:none clone as the home: zero, L 0 of T 1, column 10 unknown and 11 -, and nothing is fetched" \
+   "$LNKa|$LNKf|$LF_RC|$(_lf_count "$LNKD/pc-ob.out")|$(_lf_cols "$LNKD/pc-ob.out" 1 1 2 3 4 10 11 13)" \
+   "built|fetch[]|0|1|capability|zero|0|1|unknown|-|-"
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
 
 # ---- L-DET -------------------------------------------------------------------------------------------------------------------

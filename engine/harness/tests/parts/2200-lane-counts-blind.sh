@@ -132,6 +132,22 @@ is "lane counts L-RF1: a mark line with more text after the lane name does not c
 _lnc_one rf1-docs $'docs: x\n\nFelix-Lane: capability   \n' docs/x.md
 is "lane counts L-RF1: a well-formed mark on a landing that changed no counted path counts in neither: L 0 of T 0, idle" "$(_lnc_read rf1-docs)" "built|0|1|idle|0|0"
 
+# ---- the review's F5: a control byte on another line of the message never drops the mark (C3 Marked) -------------------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. C3 asks only whether some line is the
+# mark; what the other lines hold, a record separator (0x1E) among them, does not matter. The second message carries
+# the other separators and two more control bytes on one line, so a mark kept for 0x1E alone is not enough.
+# NAME -> "built" when $LNCS was made, then |status|lines|columns 2, 3, 4 and 7 of felix lane --tsv in $LNCR at the clock.
+_lnc_read7() {
+  _lf_run "$LNCD/$1-run" "$LNCR" "$LNCN" "$FELIX" lane --tsv
+  printf '%s|%s|%s|%s' "${LNCS:+built}" "$LF_RC" "$(_lf_count "$LNCD/$1-run.out")" "$(_lf_cols "$LNCD/$1-run.out" 1 2 3 4 7)"
+}
+_lnc_one f5-rs $'rs\n\nsee \036 here\nFelix-Lane: capability\n'
+is "lane counts F5-0x1e-in-a-message-drops-the-mark: a landing whose message holds the line see <0x1E> here above the whole line Felix-Lane: capability counts in L: ok, L 1 of T 1, the last lane landing its date" \
+   "$(_lnc_read7 f5-rs)" "built|0|1|ok|1|1|$(_lf_iso $((LNCN - LNCDAY)))"
+_lnc_one f5-ctl $'engine: x\n\nbytes \001 \034 \035 \036 \037 \177 on one line\nFelix-Lane: capability\n'
+is "lane counts F5-0x1e-in-a-message-drops-the-mark: a line holding 0x01, 0x1C, 0x1D, 0x1E, 0x1F and DEL above the whole mark line drops nothing: ok, L 1 of T 1, the last lane landing its date" \
+   "$(_lnc_read7 f5-ctl)" "built|0|1|ok|1|1|$(_lf_iso $((LNCN - LNCDAY)))"
+
 # ---- squash messages, real merges, a rename ----------------------------------------------------------------------------
 LNCF=""; LNCS=""
 _lf_checkout "$LNCD/sq-subject" lx $((LNCN - 30 * LNCDAY)); LNCR="$LF_REPO"

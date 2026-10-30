@@ -117,6 +117,30 @@ _lf_run "$LNSD/r1-gone-run" "$LNSR" "$LNSN" "$FELIX" lane --tsv
 is "lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a commit whose object is gone: felix lane --tsv reads unknown with R1, column 12 -" \
    "${LNSa:-not built}|$LF_RC|$(cat "$LNSD/r1-gone-run.out")" "built|0|$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")"
 
+# ---- the review's F4: a tag or a branch named refs/remotes/origin/main is not the ref (C2, R1) ------------------------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. C2 reads refs/remotes/origin/main by
+# its full name, with no fallback to another ref. git's lookup of a short name finds refs/tags/refs/remotes/origin/main
+# and refs/heads/refs/remotes/origin/main under that spelling, so each is made in a checkout that has no
+# refs/remotes/origin/main, at its HEAD, a marked engine landing, and must read R1 as that checkout does without it.
+# NAME REF -> LNSR a checkout as _lns_bare builds it, REF naming its HEAD. LNSa "built" when REF exists, no
+# refs/remotes/origin/main does, and git's lookup of the short name refs/remotes/origin/main finds HEAD.
+_lns_decoy() {
+  LNSa=""
+  _lns_bare "$1" && LNSa="$( _fx_cd "$LNSR" || exit 1; h="$(_lf_g 1700000000 rev-parse --verify -q HEAD)" \
+    && _lf_g 1700000000 update-ref "$2" "$h" && _lf_g 1700000000 show-ref --verify -q "$2" \
+    && ! _lf_g 1700000000 show-ref --verify -q refs/remotes/origin/main \
+    && [ "$(_lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main 2>/dev/null)" = "$h" ] && echo built )"
+  [ -n "$LNSa" ] || LNSa="not built: $1"
+}
+_lns_decoy f4-tag refs/tags/refs/remotes/origin/main
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lns_two "F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a tag named refs/remotes/origin/main at a marked engine landing" \
+  "$LNSR" "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")" "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+_lns_decoy f4-branch refs/heads/refs/remotes/origin/main
+LNSa2="refs/remotes/origin/main cannot be read in $LNSR"
+_lns_two "F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a branch named refs/remotes/origin/main at a marked engine landing" \
+  "$LNSR" "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" - "$LNSa2")" "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+
 _lns_chk r2 m u u u; LNSa="not built: r2"
 [ "$LNSE" = built ] && _lf_unobject "$LNSR" refs/remotes/origin/main~2 \
   && LNSa="$( _fx_cd "$LNSR" || exit 1; _lf_g 1700000000 cat-file -e refs/remotes/origin/main~2 2>/dev/null && echo still-there || echo built )"
@@ -124,6 +148,40 @@ LNSa2="git could not read the landings on refs/remotes/origin/main in $LNSR"
 _lns_two "R2, the commit two first parents below the ref removed from the object store" "$LNSR" \
   "$(_lns_u capability 14 1/2 "$LNSMARK" "$LNSNEXT" "$LNSTAB" "$LNSTABISO" "$(_lf_iso $((LNSN - 5 * LNSDAY + 3 * 3600)))" "$LNSa2")" \
   "$(_lf_tsv lane unknown - "$LNSa2")" "$LNSa"
+
+# ---- the review's F1: a fork that fails in the read of the landings (C3, R2) ------------------------------------------
+# Added on 2026-10-30 from the adversarial review of the first build, still blind. C3 counts a fork that fails among the
+# git reads that do not finish: the lane reads unknown with R2, never no lane, never a count, and felix lane still exits
+# 0 with its line (C5). The fault is the review's: a bash function git, exported into felix, that lowers the process
+# limit to 1 (ulimit -S -u 1) in the shell running it when its words hold --first-parent and refs/remotes/origin/main,
+# the read of the landings, and then runs git, which that shell cannot fork. It writes "fired" to a file (a builtin, no
+# fork) first, and "ran <status>" after git if the shell gets there; "ran 0" would mean the fault did not stop git. Every
+# other git read is left alone. Columns 10 to 12 are not compared: C3 does not say whether a read after the failed one,
+# in the same shell, is made. The checkout reads zero, L 0 of T 2, without the fault.
+# OUT CMD... -> CMD run from LNSR at the clock as _lf_run runs it, with that function exported; LF_RC its status, LNSFIRE
+# "fired" when the function fired and git did not run to a clean exit after it.
+_lns_fork() {
+  local o="$1" f="$1.fired"
+  shift
+  rm -f "$f"
+  ( eval "git() { local z='' r; case \" \$* \" in *' --first-parent '*) case \" \$* \" in *' refs/remotes/origin/main'*) z=1; printf 'fired\n' >> $(printf '%q' "$f"); ulimit -S -u 1 ;; esac ;; esac; command git \"\$@\"; r=\$?; [ -z \"\$z\" ] || printf 'ran %s\n' \"\$r\" >> $(printf '%q' "$f"); return \"\$r\"; }"
+    export -f git
+    _lf_run "$o" "$LNSR" "$LNSN" "$@"
+    exit "$LF_RC" )
+  LF_RC=$?
+  LNSFIRE="$(LC_ALL=C awk '$0 == "fired" { f = 1 } $0 == "ran 0" { r = 1 }
+    END { s = "not fired"; if (f && r) s = "fired, but git ran to a clean exit after it"; if (f && !r) s = "fired"; print s }' "$f" 2>/dev/null)"
+  [ -n "$LNSFIRE" ] || LNSFIRE="not fired"
+}
+_lns_chk f1-fork u u
+LNSa2="git could not read the landings on refs/remotes/origin/main in $LNSR"
+_lns_fork "$LNSD/f1-tsv" "$FELIX" lane --tsv
+is "lane states F1-fork-reads-as-no-lane L-NEVER-OK: a fork that fails in the read of the landings on refs/remotes/origin/main makes felix lane --tsv exit 0 with one line, unknown with R2, L and T -, never no line and never a count" \
+   "$LNSE|$LNSFIRE|$LF_RC|$(_lf_count "$LNSD/f1-tsv.out")|$(_lf_cols "$LNSD/f1-tsv.out" 1 1 2 3 4 5 6 7 8 9 13)" \
+   "built|fired|0|1|capability|unknown|-|-|14|1/2|-|$LNSMARK|$LNSNEXT|$LNSa2"
+_lns_fork "$LNSD/f1-st" "$FELIX" status --tsv
+is "lane states F1-fork-reads-as-no-lane L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with R2, the last of ten, never none and never a value" \
+   "$LNSE|$LNSFIRE|$LF_RC|$(_lf_count "$LNSD/f1-st.out")|$(_lf_last "$LNSD/f1-st.out")" "built|fired|0|10|$(_lf_tsv lane unknown - "$LNSa2")"
 
 _lns_chk r3-source m u m; LNSa="not built: r3"
 if [ "$LNSE" = built ] && ( _fx_cd "$LNSD" && _lf_g 1700000000 clone -q --depth 2 "file://$LNSR" r3 ) >/dev/null 2>&1; then

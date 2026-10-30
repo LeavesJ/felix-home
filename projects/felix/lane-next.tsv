@@ -1,0 +1,3 @@
+# Each lane's first open item, on one line (lib/lane.sh, design §6.3). Read as committed. The pull
+# request that lands a lane item moves its row in the same change.
+capability	obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)

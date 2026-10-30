@@ -38,10 +38,20 @@ _felix_dep_grep() {
 
 # A web surface exists whether or not npm was ever run there. Counted from
 # tracked files so a vendored dependency tree cannot manufacture a frontend.
+#
+# Documentation and presentations are not a frontend (wave-2-docs.md F1): a
+# file is not counted when a whole directory name in its path, in any case, is
+# docs, doc, documentation, deck, decks or slides. On 2026-10-28 a pitch deck's
+# CSS made three with two files under docs/, and session start adopted frontend
+# into the home's own tables, which staled the commission. Both listings are
+# relative to the root (the fallback runs find from inside it), so only the
+# components below the root are judged, and a file's own name never is.
 _felix_frontend_assets() {
   local root="$1" n
-  n="$( { git -C "$root" ls-files 2>/dev/null || find "$root" -type f 2>/dev/null; } \
-        | grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
+  n="$( { git -C "$root" ls-files 2>/dev/null \
+          || ( CDPATH='' cd -- "$root" 2>/dev/null && find . -type f 2>/dev/null ); } \
+        | LC_ALL=C grep -ivE '(^|/)(docs?|documentation|decks?|slides)/' \
+        | LC_ALL=C grep -icE '\.(jsx?|tsx?|vue|svelte|s[ac]ss|css)$' )"
   [ "${n:-0}" -ge "${FELIX_FRONTEND_MIN:-3}" ]
 }
 
@@ -365,4 +375,127 @@ _felix_rival_gates() {
 felix_repo_slug() {
   (cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null) \
     | sed -E 's#.*github\.com[:/]##; s#\.git$##'
+}
+
+# What felix new writes as remote_match, and the checks it makes before it binds (audit b13, C116, C117).
+#
+# remote_match is the value a checkout is found by (a substring of its origin, felix_resolve_project)
+# and the one lib/own.sh compares to say a checkout is the project's own. It lands in a tracked
+# project.json, so it must never carry what an origin URL can: a token as userinfo. A GitHub origin
+# is owner/repo as ever (felix_repo_slug). Any other origin drops everything through its last @,
+# or its scheme when it has no @, then one trailing / and one trailing .git, so the value is still
+# a substring of the URL and the checkout still resolves by it. Not for the other readers of
+# felix_repo_slug (felix pr, bootstrap, setup), which can still pass such a URL whole.
+felix_new_rm_of() {   # URL -> the value felix new writes for it; a value it wrote comes back unchanged
+  local u="$1" s lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+.-
+  case "$u" in
+    *github.com/*|*github.com:*) printf '%s\n' "$u" | sed -E 's#.*github\.com[:/]##; s#\.git$##'; return 0 ;;
+    *@*) u="${u##*@}" ;;
+    *://*) s="${u%%://*}"; case "$s" in ''|*[!$lc]*) ;; *) u="${u#*://}" ;; esac ;;
+  esac
+  u="${u%/}"; printf '%s' "${u%.git}"
+}
+felix_new_remote_match() {   # ROOT -> the value, or nothing without an origin
+  local u
+  u="$(cd "${1:-$PWD}" 2>/dev/null && git remote get-url origin 2>/dev/null)"
+  [ -n "$u" ] || return 0
+  felix_new_rm_of "$u"
+}
+
+# Does a project already govern the git root felix new would bind? A .felix there naming a project
+# that exists, or with no .felix an origin naming the same repository as some project's remote_match:
+# the two values compared as felix new writes them (felix_new_rm_of), not by containment, so Widget-api
+# is not Widget (audit b13 review, R1). felix new does not rebind: `felix new web apps/web` then
+# `felix new api apps/api` used to leave .felix reading api, and web's sessions were judged as api's.
+# Prints the refusal and returns 0 when one does.
+felix_new_governed() {   # ROOT HOME
+  local root="$1" home="$2" x ro m meta LC_ALL=C
+  if [ -f "$root/.felix" ]; then
+    x="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+    _felix_name_ok "$x" && [ -d "$home/projects/$x" ] || return 1
+    printf '%s is already governed by %s through %s, and felix new does not rebind a git root a project governs: one git root has one project, whatever directory below it you name. Nothing was made. If the marker is wrong, remove it and run this again.' "$root" "$x" "$root/.felix"
+    return 0
+  fi
+  ro="$(felix_new_remote_match "$root")"
+  [ -n "$ro" ] || return 1
+  for meta in "$home"/projects/*/project.json; do
+    [ -f "$meta" ] || continue
+    m="$(felix_json_str "$meta" remote_match)"
+    [ -n "$m" ] || continue
+    [ "$m" = "$ro" ] || [ "$(felix_new_rm_of "$m")" = "$ro" ] || continue
+    x="${meta%/project.json}"; x="${x##*/}"
+    printf '%s is already governed by %s: its origin names the same repository as the remote_match in %s, and felix new does not rebind a checkout a project governs. Nothing was made. To bind it to %s by hand, write %s into %s/.felix; for a project of its own, change that remote_match first.' "$root" "$x" "$meta" "$x" "$x" "$root"
+    return 0
+  done
+  return 1
+}
+
+# What the marker held that felix new is about to replace, as the one line it prints, or nothing.
+felix_new_replaced_line() {   # ROOT
+  local x
+  [ -f "$1/.felix" ] || return 0
+  x="$(LC_ALL=C tr -d '[:space:]' < "$1/.felix" 2>/dev/null)"
+  if _felix_name_ok "$x"; then
+    printf '  replaced     %s/.felix, which named %s, and no such project exists\n' "$1" "$x"
+  else
+    printf '  replaced     %s/.felix, which named no project\n' "$1"
+  fi
+}
+
+# The lines felix new adds after it has bound: where the marker went, whether git will carry it to a
+# worktree, and whether anything runs unattended for the project (audit b13, C116, C117).
+felix_new_notes() {   # ROOT TARGET PROJECT-DIR NAME REPLACED-LINE
+  local root="$1" target="$2" dir="$3" name="$4" held why
+  [ -z "${5:-}" ] || printf '%s\n' "$5"
+  if [ "$(cd "$target" 2>/dev/null && pwd -P)" != "$(cd "$root" 2>/dev/null && pwd -P)" ]; then
+    printf '  checkout     %s, the git root holding %s: one marker binds all of it\n' "$root" "$target"
+  fi
+  if [ "$(git -C "$root" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then
+    held="$(git -C "$root" show HEAD:.felix 2>/dev/null | LC_ALL=C tr -d '[:space:]')"
+    [ "$held" = "$name" ] || printf '  commit       .felix is not committed, and a worktree gets only what is committed: commit it, or a session in a worktree is judged at the main checkout\n'
+  fi
+  if ! felix_checkout_is_own "$dir" "$root"; then
+    case "${_FELIX_OWN_WHY:-}" in
+      no-origin) why="this checkout has no origin remote" ;;
+      submodule) why="this checkout is a submodule" ;;
+      other)     why="its origin is not the github.com repository its remote_match names" ;;
+      unread)    why="git could not answer" ;;
+      *)         why="its remote_match names no github.com owner/repo" ;;
+    esac
+    printf '  unattended   nothing runs for %s unattended in this checkout: %s. Set remote_match in %s/project.json to the github.com owner/repo once the remote exists.\n' "$name" "$why" "$dir"
+  fi
+  return 0
+}
+
+# felix install copies engine/ as it lies on disk. What git does not track there, an untracked or
+# an ignored file such as a Finder .DS_Store, would be deployed with it and then fail the gate's
+# installed check, which no version bump clears (audit b13, C064). So install asks the repository
+# holding the source first, as the unattended deploy does (green-install.sh, A24), and refuses.
+# When git cannot answer it says so and goes on as before.
+felix_install_untracked() {   # SRC (the engine directory)
+  local repo="${1%/*}" top why="" out n first rest="" p k=0
+  # git answers for this source only when the source is its work tree's top level, or that tree tracks the
+  # source's engine: a source unpacked inside some other repository is one that repository never saw (audit b13 review, R2).
+  top="$(git -C "$repo" rev-parse --show-toplevel 2>/dev/null </dev/null)" || why="is not in a git work tree, or git failed"
+  if [ -z "$why" ] && ! [ "$top" -ef "$repo" ] \
+     && [ -z "$(git -C "$repo" ls-files -- engine/.claude-plugin/plugin.json 2>/dev/null </dev/null)" ]; then
+    why="sits inside the git work tree ${top:-(unnamed)}, which tracks none of its engine/"
+  fi
+  [ -z "$why" ] || { printf '  could not ask git what engine/ holds that it does not track (%s %s), so strays there are not checked\n' "$repo" "$why"; return 0; }
+  out="$(git -C "$repo" ls-files --others --directory -- engine/ 2>/dev/null </dev/null)" \
+    || { printf '  could not ask git what engine/ holds that it does not track (git failed in %s), so strays there are not checked\n' "$repo"; return 0; }
+  [ -n "$out" ] || return 0
+  n="$(printf '%s\n' "$out" | LC_ALL=C awk 'END { print NR }')"
+  first="$(printf '%s\n' "$out" | LC_ALL=C sed -n '1p')"
+  while IFS= read -r p; do
+    k=$((k + 1)); [ "$k" -le 5 ] && rest="$rest
+  $p"
+  done <<EOF
+$out
+EOF
+  [ "$n" -le 5 ] || rest="$rest
+  ... and $((n - 5)) more"
+  die "engine/ holds $n path(s) git does not track:$rest
+felix install copies engine/ as it lies on disk, so these would be deployed with it, and the installed check would then fail on them.
+Nothing was deployed or bumped. Remove them, or commit them if they belong, then run felix install again; the first is $first"
 }

@@ -30,6 +30,12 @@
 # filesystem and git say /private/var/folders/..., and both are right.
 printf '\nfixture floor\n'
 
+# A gate run inside a Claude Code cloud VM has CLAUDE_CODE_REMOTE=true in its
+# environment, and every hook this suite runs would take the cloud's branch and
+# be judged against local behaviour (audit b07, B12). The suite judges a local
+# session. A part that wants the cloud sets it on its own command.
+unset CLAUDE_CODE_REMOTE
+
 _ff_family="GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES"
 # A directory's physical path, or nothing when the name is empty or names no
 # directory. The emptiness test is the point: `cd ""` is the bug.

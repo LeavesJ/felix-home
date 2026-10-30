@@ -178,7 +178,7 @@ Felix](#why-you-might-not-want-felix)).
 | Guard | What it does |
 |:---|:---|
 | **The merge escapes** | `felix merge` picks out the changes a revert can't undo and leaves them for a person: a credential in the added lines, a change to a CI workflow (workflows run with the repository's secrets), a change to the autonomy grant or the exception table, a migration or destructive SQL, and a change that removes rows from an enforcing table kept in the repository being merged, which means Felix's own, since other projects keep their tables in Felix's home ([escape.sh](engine/harness/lib/escape.sh)). Only on the `felix merge` path. `gh pr merge` skips it |
-| **The judge on main** (Felix's own repository) | At merge, a change to Felix itself is judged by the copy of Felix on main, never by the candidate ([resolve.sh](engine/harness/lib/resolve.sh)). That rule came from one day on which nine engine changes in a row were each deployed before being judged, so each one judged itself |
+| **The judge on main** (Felix's own repository) | At merge, the verdict on a change to Felix itself is formed by the engine main holds, not by the candidate's ([merge-judge.sh](engine/harness/lib/merge-judge.sh)). `felix merge` first checks that the installed copy of main's version is byte-identical to main. Then, unless it is that installed copy (as on the land-on-green job), it copies main's engine out of git for that one run, and the copy decides. This binds every `felix` that still hands off. A branch that edits its own engine so that its `felix merge` no longer hands off, and is run from that branch, judges itself. The rule came from one day on which nine engine changes in a row were each deployed before being judged, so each one judged itself |
 | **Checker qualification** | For each checker a project declares, `felix qualify` plants every mutation its table names, each under one of six kinds of control, and requires the checker to fail or pass as that kind demands. A checker missing any of the six kinds is reported, not refused ([qualify.sh](engine/harness/lib/qualify.sh)) |
 | **Plugin discovery** | Plugins Felix finds on its own are fetched, at the catalogue's pinned commit where it lists one, and read before anything installs. The install fetches its own copy, and Felix compares the two afterwards and reports a difference rather than undoing it. A hook, a floating version or an interpolated secret marks one high risk, and high risk never installs ([discover.sh](engine/harness/lib/discover.sh)). That check says of itself that it "catches carelessness, not an attacker" |
 | **The deny table** | Before a Bash, Edit, Write, Read, NotebookEdit or WebFetch call runs, Felix matches its command, file path or URL against the project's `deny.tsv` and refuses a match with its reason ([deny.sh](engine/harness/lib/deny.sh)). It matches spellings, not intent, and skips a rule broad enough to catch ordinary work. `felix new` writes no table, so a new project refuses nothing |
@@ -270,7 +270,9 @@ it.
 
 ## Why not just run the tests in CI?
 
-You should, and Felix can set that up for you. CI checks what gets pushed.
+You should, and Felix can set that up for you once CI can fetch your project's
+rules from a Felix repository on GitHub; [the wall](#why-you-might-not-want-felix)
+says what that takes. CI checks what gets pushed.
 Code review checks what someone reads. Neither sees the moment an agent
 decides it's finished and says so. A twenty-line Stop hook that runs `npm test`
 gets you part of the way. Felix adds three things that hook doesn't have:
@@ -358,10 +360,22 @@ checker that can't fail, but so far only Felix's own checkers declare it.
 
 The wall is a required CI check that reruns `felix gate` on the pushed tree, on
 a branch admins can't bypass, with Felix fetched from a repository the agent
-can't push to. `felix bootstrap --yes` writes the workflow and a branch rule
-that requires it, but leaves admins able to bypass the rule. Of the
-repositories Felix governs today, one has the whole wall, and Felix's own isn't
-it.
+can't push to. `felix bootstrap --yes` writes the workflow and a rule on the
+repository's default branch that requires it, but leaves admins able to bypass
+the rule. It sets the rule only once CI can resolve the project: `projects/<name>`
+is committed on the default branch of the Felix repository the workflow checks
+out, the workflow's `repository:` names that repository and its `ref:` a commit
+of it that holds the project, and the workflow is on the governed repository's
+default branch. From a plain clone of this repository that means forking Felix,
+pointing the clone's origin at the fork, pushing `projects/<name>` to the fork's
+default branch and setting the workflow's `repository:` and `ref:` to the fork
+and that commit, with a `FELIX_DEPLOY_KEY` secret in the governed repository
+when the fork is private. Until then bootstrap says what is missing on its
+`ci project:` line and its protection row, and leaves the branch alone. When it
+cannot tell (this clone has not fetched the default branch, or the workflow pins
+a commit the engine checkout doesn't hold) it says that instead, leaves the
+branch alone and exits 1. Of the repositories Felix governs today, one has the
+whole wall, and Felix's own isn't it.
 
 Setting a project up with plain `felix new` also installs, for every Claude
 Code session on the machine, seven plugins every project gets, the catalogue's
@@ -440,10 +454,14 @@ Installing changes your setup, so read this part first:
 - In a governed project it adds text to sessions: a note at start naming the
   project's constitution and handoff to read, recorded lessons that match a
   prompt, and a note to each subagent. It logs the first 160 bytes of each prompt, and up to 200
-  beside anything Felix says, to the project's memory directory. It suggests a
+  beside anything Felix says, to the project's memory directory; a refused
+  command is recorded as it was typed, with any credential shape written as
+  `[redacted]`. It suggests a
   tool the first time a session's prompt matches one of its routes. It clones
-  candidate plugins once a week to read them, and adds catalogue rows for
-  tools it detects.
+  candidate plugins to read them, about weekly and again after an update that
+  changes how discovery scores; where `TMPDIR` names no private directory
+  nothing is cloned, and the pulse and the session start say why. It adds
+  catalogue rows for tools it detects.
 - The clone you install from becomes Felix's home, the directory that holds
   each project's rules, and `~/.felix-home` names it. The clone is registered
   as a local plugin marketplace and is itself governed as the project `felix`.
@@ -458,7 +476,10 @@ Installing changes your setup, so read this part first:
   git and the `claude` and `gh` CLIs: to fetch and install plugins, to work
   with pull requests, issues and CI runs, and, for `felix bootstrap`, to set a
   branch rule. `felix pulse` commits your memory directory and pushes it to
-  that repository's remote, if you've made it a git repository with one. The
+  that repository's remote, if you've made it a git repository with one; it
+  leaves out a nested git repository and any file that gained a credential
+  shape, and says in the pulse log, `felix status` and the next session start
+  that they are not backed up. The
   plugins commissioning installs are separate programs with their own network
   use: security-guidance, for one, sends code to Anthropic's API from its own
   Stop hook.
@@ -549,9 +570,9 @@ never deletes your rules or memory. The rest is by hand:
 
 | Event | What Felix does |
 |:---|:---|
-| Session start | Names the project's constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery weekly in the background |
-| Prompt | Mounts recorded lessons that match the prompt, and names a tool on the first routed turn. Logs the first 160 bytes of each prompt, and up to 200 beside anything Felix says, to the project's memory directory |
-| Before a tool call | Refuses what the project's `deny.tsv` names, with the reason. A new project has no rows |
+| Session start | Names the project's constitution (its CLAUDE.md of standing rules) and handoff to read, and reports due upkeep. Records tools the checkout has grown by adding their catalogue rows, without installing anything. Refreshes discovery in the background, about weekly and after an update that changes how it scores; where `TMPDIR` names no private directory it fetches nothing and says why |
+| Prompt | Mounts recorded lessons that match the prompt, and names a tool on the first routed turn. Logs the first 160 bytes of each prompt, and up to 200 beside anything Felix says, to the project's memory directory, with any credential shape written as `[redacted]` |
+| Before a tool call | Refuses what the project's `deny.tsv` names, with the reason, and records the refused command with any credential shape written as `[redacted]`. A new project has no rows |
 | After a tool call | Appends one ledger line. Async, never blocks |
 | Subagent start | Tells the subagent the project, its constitution and its gate |
 | Subagent stop | Once per session, if the checkout holds changes no gate has passed, tells the parent that a subagent's report must call its own changes unverified |

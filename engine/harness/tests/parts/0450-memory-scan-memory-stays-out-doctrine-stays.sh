@@ -290,8 +290,9 @@ has "a check that cannot run reads as due rather than ok" "$(_mst "$MTR")" "due	
 # The seeded row fires on a checkout with no graph, and not on one whose graph
 # is newer than its last commit — the two states that motivated the column.
 #
-# Mirrors the shipped row from templates/maintenance.tsv, exclusion and all. If
-# the two drift, this fixture stops testing what any project actually runs.
+# Mirrors Felix's own row, projects/felix/maintenance.tsv, which is due on a
+# checkout with no graph (the template's row is not: audit b14), without its
+# Markdown exclusion. If the two drift, this fixture stops testing what Felix runs.
 printf 'graphify\t0\talways\tthe map\tG="$(dirname "$(git rev-parse --git-common-dir)")"; test -n "$(find "$G/graphify-out/graph.json" -newermt "$(git log -1 --format=%%cd --date=format-local:%%Y-%%m-%%dT%%H:%%M:%%S%%z "$(git -C "$G" rev-parse HEAD)" -- . ":(exclude)projects/*/maintenance.log")" 2>/dev/null)"\n' > "$MTP/maintenance.tsv"
 has "the seeded graphify row is due on a checkout with no graph" "$(_mst "$MTR")" "due	graphify"
 # One second, because BSD find compares -newermt at whole seconds: a graph

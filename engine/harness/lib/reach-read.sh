@@ -196,17 +196,22 @@ felix_neutral_dir() {
 # felix_neutral_dir status), a marker that could not be written, or a directory
 # git or the environment places inside a repository (felix_repo_root must name
 # the directory itself, or the marker would not be the one read). It never runs
-# the command in any other directory.
+# the command in any other directory. A command may exit 125 itself, so the
+# status alone does not say whether it started: _FELIX_NEUTRAL_NOTRUN does, 0
+# once it was started, and otherwise why not (1 to 4 felix_neutral_dir's
+# statuses, 5 the marker, the repository test or the arguments).
 felix_neutral_run() {
   local proj="${1:-}" prefix="${2:-}" dir rc
+  _FELIX_NEUTRAL_NOTRUN=5
   [ "$#" -ge 3 ] && [ -n "$proj" ] || return 125
   shift 2
-  felix_neutral_dir "$prefix" || return 125
+  felix_neutral_dir "$prefix" || { _FELIX_NEUTRAL_NOTRUN=$?; return 125; }
   dir="$_FELIX_NEUTRAL_DIR"
   if ! printf '%s\n' "$(basename "$proj")" > "$dir/.felix" 2>/dev/null \
      || [ "$(felix_repo_root "$dir")" != "$dir" ]; then
     felix_neutral_rm "$dir" "$prefix"; return 125
   fi
+  _FELIX_NEUTRAL_NOTRUN=0
   ( cd "$dir" 2>/dev/null || exit 125; "$@" </dev/null )
   rc=$?
   felix_neutral_rm "$dir" "$prefix"

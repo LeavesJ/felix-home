@@ -39,7 +39,8 @@ _lane_line() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$@
 
 # PROJ NAME OUT -> the committed regular file copied to OUT: 0. No such entry at HEAD: 1. An entry that is no regular
 # file (a link, a submodule): 2. PROJ in no repository, HEAD naming no commit or a git read not finishing, while a
-# file or link of that name stands in PROJ: 3 (1 when none does). Sets _LANE_REPO and _LANE_REL.
+# file or link of that name stands in PROJ: 3 (1 when none does). An entry there of any kind and no scratch directory
+# to copy it into: 4, tried after 3 and before 2 (C5's R10 comes after R9 and before R4). Sets _LANE_REPO and _LANE_REL.
 _lane_blob() {
   local pd repo rel ent mode r no=1
   if [ -e "$1/$2" ] || [ -L "$1/$2" ]; then no=3; fi
@@ -52,9 +53,9 @@ _lane_blob() {
   _lane_git -C "$repo" rev-parse --verify -q 'HEAD^{commit}' >/dev/null 2>&1 || return "$no"
   ent="$(_lane_git -C "$repo" ls-tree HEAD -- "$rel" 2>/dev/null)" || return "$no"
   [ -n "$ent" ] || return 1
+  [ -n "${_LANE_W:-}" ] || return 4
   ent="${ent%%$'\n'*}"; mode="${ent%% *}"; r="${ent#* }"; r="${r#* }"
   case "$mode" in 100644|100755) ;; *) return 2 ;; esac
-  [ -n "${_LANE_W:-}" ] || return 3
   _lane_git -C "$repo" cat-file blob "${r%%$'\t'*}" > "$3" 2>/dev/null || return 3
   return 0
 }
@@ -289,6 +290,7 @@ _lane_rows() {   # PROJ ROOT FULL
   fi
   case "$ct" in ''|*[!0123456789]*) ct="" ;; *) refd="$(_lane_iso "$ct")"; refd="${refd:--}" ;; esac
   if [ "$rc" -eq 3 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as committed in the Felix home"; return 0; fi
+  if [ "$rc" -eq 4 ]; then _lane_line - unknown - - - - - - - - - "$refd" "no scratch directory could be made under ${TMPDIR:-/tmp}"; return 0; fi
   if [ "$rc" -eq 2 ]; then _lane_line - unknown - - - - - - - - - "$refd" "$proj/lanes.tsv cannot be read as lanes.tsv"; return 0; fi
   felix_table_rows "$W/lanes" > "$W/rows"
   LC_ALL=C awk -F'\t' '

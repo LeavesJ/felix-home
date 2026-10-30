@@ -259,9 +259,11 @@ to this row: a session that was answered once has its prompts counted.
 
 ### T1. Recording follow-through, only as matches
 
-After the existing ledger append, when `<home>/state/answer/<session>.tsv`
+After the existing ledger appends, when `<home>/state/answer/<session>.tsv`
 exists and the session id passes A2.1's test, the hook reads one value from the
-payload:
+payload. Since 0.49.313 those appends are an `alive<TAB>post-tool` line, written
+first, and then the call's own row; the session is the payload's first
+`"session_id"`. The value:
 
 | Tool | value |
 |---|---|
@@ -491,5 +493,6 @@ never written through a link or into a directory), L4 (a row T1 wrote credits
 its own file only; what the measure cannot see), section 8 (the replay's
 population and rules).
 
-And when main's audit wave 2 (0.49.313) was merged in: L1 (an `answer` row is
-not a call in the fold's test of a whole record).
+And when main's audit wave 2 (0.49.313) was merged in: T1 (the ledger appends
+it follows now begin with an `alive` line), L1 (an `answer` row is not a call
+in the fold's test of a whole record).

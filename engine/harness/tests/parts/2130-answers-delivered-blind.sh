@@ -18,6 +18,8 @@ printf '\nanswers delivered without being asked for\n'
 # default, bytes are bytes under a UTF-8 locale, the marker is read only as a regular file's first 64 bytes (calls
 # that could hang on it run under $AX/bound.pl, which kills their process group at its bound), a touch row T1 wrote
 # credits its own file only, and A4's marker is renamed into place, never written through what stands at its path.
+# After the merge of audit wave 2 (0.49.313): a post-tool run writes an alive line before its call row, and L1's
+# fold finds a record whole by its alive lines against its calls, an answer row never counted as a call.
 AX="$TMP/answers"; mkdir -p "$AX/bin" "$AX/ssbin" "$AX/co" "$AX/user" "$AX/spy" "$AX/tmp" "$AX/cache" "$AX/home/projects/ansp" "$AX/mem/ansp"
 AX="$(cd "$AX" && pwd -P)"; AXH="$AX/home"; AXM="$AX/mem"; AXP="$AXH/projects/ansp"; AXT="$(printf '\t')"; : > "$AX/glog"; : > "$AX/kids"
 AXO="$AX/co/own"; AXW="$AX/co/own-wt"; AXK="$AX/co/marker"; AXF="$AX/co/foreign"; AXN="$AX/co/nograph"; AXR="$AX/co/refresh"
@@ -578,10 +580,11 @@ _ax_t1; _ax_pt t1 WebFetch '{"url":"https://example.invalid/","file_path":"lib/o
 is "T1: a tool not in the table appends nothing, though its input names an answered file" "$(_ax_new)" ""
 _ax_t1; _ax_pt t1 Read '{"offset":3}'
 is "T1: a Read whose payload holds no file_path appends nothing" "$(_ax_new)" ""
-is "T1: the session's ledger append is still made, a tool row for each call" "$(head -1 "$AXH/state/ledger/t1.tsv" 2>/dev/null)" "tool${AXT}Read"
+is "T1: the session's ledger append is still made, a tool row for each call" \
+   "$(awk -F'\t' '$1 == "tool" { print; exit }' "$AXH/state/ledger/t1.tsv" 2>/dev/null)" "tool${AXT}Read"   # its alive lines are wave 2's to pin
 _ax_pt t0 Read "{\"file_path\":\"$AXO/lib/one.sh\"}"
 is "T1: with no state file nothing is appended and no state file is made, the ledger append made as before" \
-   "$(_ax_rec t0)|$(cat "$AXH/state/ledger/t0.tsv" 2>/dev/null)" "none|tool${AXT}Read"
+   "$(_ax_rec t0)|$(awk -F'\t' '$1 == "tool"' "$AXH/state/ledger/t0.tsv" 2>/dev/null)" "none|tool${AXT}Read"
 _ax_t1; cp "$AXS" "$AXH/state/answer/t.9.tsv"; _ax_ckb="$(_ax_ck "$AXH/state/answer/t.9.tsv")"; _ax_pt t.9 Read "{\"file_path\":\"$AXO/lib/one.sh\"}"
 is "T1: a session id that A2.1 refuses appends nothing to the record its name points at" "$(_ax_ck "$AXH/state/answer/t.9.tsv")" "$_ax_ckb"
 AXE2="$AX/e2e"; mkdir -p "$AXE2/projects/ansp" "$AXE2/state/answer" "$AXE2/state/session"; cp "$AXP/project.json" "$AXP/CLAUDE.md" "$AXP/stack.tsv" "$AXE2/projects/ansp/"
@@ -697,8 +700,22 @@ is "L1: and graphify, declared and never reached for, still gets its zero row" \
    "$(awk -F'\t' '$3 != "answer" && $4 == "graphify" && $5 == "0" { n++ } END { print n + 0 }' "$AXLM/ansl/ledger.d/l1.tsv" 2>/dev/null)" "1"
 is "L1: a route naming graphify is no naming of the answer: the answer row's sixth field stays empty" \
    "$(awk -F'\t' '$3 == "answer"' "$AXLM/ansl/ledger.d/l2.tsv" 2>/dev/null)" "l2${AXT}2026-10-29${AXT}answer${AXT}graphify${AXT}1${AXT}"
-is "L1: and that naming stays with graphify itself, on a row that reached nothing" \
-   "$(awk -F'\t' '$3 != "answer" && $4 == "graphify" && $5 == "0" && $6 == "1" { n++ } END { print n + 0 }' "$AXLM/ansl/ledger.d/l2.tsv" 2>/dev/null)" "1"
+is "L1: and that naming stays with graphify itself, on its own row named once, whose calls read - as l2 holds neither an alive line nor a call" \
+   "$(awk -F'\t' '$3 != "answer" && $4 == "graphify" && $5 == "-" && $6 == "1" { n++ } END { print n + 0 }' "$AXLM/ansl/ledger.d/l2.tsv" 2>/dev/null)" "1"
+AXLN="$AXLH/projects/ansn"; mkdir -p "$AXLN" "$AXLM/ansn"; printf 'skill\tgraphify\t-\tlow\talways\nskill\tquokka-notes\t-\tlow\talways\n' > "$AXLN/stack.tsv"
+_ax_l1s() {   # SESSION LINES -> that session's ledger state written as LINES (\t, \n escapes), then folded for ansn on 2026-10-29
+  mkdir -p "$AXLH/state/ledger"; printf '%b' "$2" > "$AXLH/state/ledger/$1.tsv"; _ax_ll felix_ledger_rollup "$AXLN" "$AXLH" "$1" 2026-10-29
+}
+_ax_l1r() {   # SESSION -> calls of graphify's named row and of quokka-notes' zero row, and the answer row's count/named, as ansn folded them
+  awk -F'\t' '$3 != "answer" && $4 == "graphify" && $6 == "1" { g = g $5 } $4 == "quokka-notes" { q = q $5 } $3 == "answer" && $4 == "graphify" { a = a $5 "/" $6 }
+    END { printf "graphify named %s, quokka-notes %s, answer %s", g, q, a }' "$AXLM/ansn/ledger.d/$1.tsv" 2>/dev/null
+}
+_ax_l1s l3 'named\tgraphify\nanswer\tgraphify\nalive\tpost-tool\ntool\tBash\nanswer\tgraphify\nalive\tpost-tool\nalive\tpost-tool\n'
+is "L1: three alive lines against one call is no whole record, its two answers not counted as calls: the named row and the zero row read -" \
+   "$(_ax_l1r l3)" "graphify named -, quokka-notes -, answer 2/"
+_ax_l1s l4 'named\tgraphify\nanswer\tgraphify\nalive\tpost-tool\ntool\tBash\nanswer\tgraphify\n'
+is "L1: one alive line and one call make the record whole beside its two answers: the named row and the zero row read 0, a measured zero" \
+   "$(_ax_l1r l4)" "graphify named 0, quokka-notes 0, answer 2/"
 for _ax_i in 1 2 3 4 5; do
   printf 'm%s\t2026-10-0%s\tnamed\tgraphify\t0\t1\nm%s\t2026-10-0%s\tplugin\tsuperpowers@x\t0\t0\nm%s\t2026-10-0%s\tmcp\tplugin_playwright_playwright\t3\t0\n' \
     "$_ax_i" "$_ax_i" "$_ax_i" "$_ax_i" "$_ax_i" "$_ax_i" > "$AXLM/ansm/ledger.d/m$_ax_i.tsv"

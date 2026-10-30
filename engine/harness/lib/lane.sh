@@ -125,25 +125,36 @@ _lane_next() {
   esac
 }
 
-# The lanes.tsv lines of the blob OID whose first cell is LANE (nothing for the OID -).
+# OID LANE OUT -> the lanes.tsv lines of the blob OID whose first cell is LANE, in OUT (none for the OID -). 1 when the
+# blob cannot be read: the lines are read from a file git finished writing, never through a pipe whose status is awk's.
 _lane_cells() {
+  : > "$3"
   [ "$1" = - ] && return 0
-  _lane_git -C "$_LANE_HREPO" cat-file blob "$1" 2>/dev/null | LC_ALL=C awk -F'\t' -v lane="$2" '$1 == lane'
+  _lane_git -C "$_LANE_HREPO" cat-file blob "$1" > "$_LANE_W/cb" 2>/dev/null || return 1
+  LC_ALL=C awk -F'\t' -v lane="$2" '$1 == lane' "$_LANE_W/cb" > "$3"
 }
 
-# Once per run: every first-parent commit of the home's HEAD whose lanes.tsv blob differs from its first parent's,
-# in $_LANE_W/hcand as "commit blob parent parent-blob". _LANE_HOK 0 when the home is shallow or git did not finish.
+# Once per run: every first-parent commit of the home's HEAD whose lanes.tsv entry differs from its first parent's,
+# in $_LANE_W/hcand as "commit blob parent parent-blob" (a blob is - where the file is absent). One git diff-tree reads
+# the trees along the file's path and no blob, so an entry whose blob is gone is still an entry, and a tree that cannot be
+# read ends the search with a status git reports: a missing object never reads as an absent file. _LANE_HOK 0 when
+# the home is shallow, or a partial clone read by a git that would fetch (C3), or git did not finish.
 _lane_hprep() {
   local W="$_LANE_W" r="$_LANE_HREPO"
   _LANE_HOK=0
   [ "$(_lane_git -C "$r" rev-parse --is-shallow-repository 2>/dev/null)" != true ] || return 0
   _lane_git -C "$r" rev-list --first-parent HEAD > "$W/hchain" 2>/dev/null || return 0
-  LC_ALL=C awk -v rel="$_LANE_HREL" '{ print $1 ":" rel }' "$W/hchain" > "$W/hq"
-  _lane_git -C "$r" cat-file --batch-check < "$W/hq" > "$W/hbc" 2>/dev/null || return 0
-  paste "$W/hchain" "$W/hbc" | LC_ALL=C awk -F'\t' '
-    { s[NR] = $1; if ($2 == "") bad = 1; split($2, f, " "); o[NR] = (f[2] == "blob") ? f[1] : "-" }
-    END { for (i = 1; i <= NR; i++) { p = (i < NR) ? o[i + 1] : "-"; if (o[i] != p) print s[i], o[i], (i < NR ? s[i + 1] : "-"), p }
-          exit bad }' > "$W/hcand" || return 0
+  LC_ALL=C awk 'NR > 1 { print prev " " $1 } { prev = $1 } END { if (NR > 0) print prev }' "$W/hchain" > "$W/hpairs"
+  _lane_git -C "$r" -c core.quotePath=false diff-tree --stdin --root -r --no-renames --no-abbrev -- "$_LANE_HREL" < "$W/hpairs" > "$W/hraw" 2>/dev/null || return 0
+  LC_ALL=C awk -v rel="$_LANE_HREL" '
+    FILENAME == ARGV[1] { par[$1] = (NF > 1 ? $2 : "-"); next }
+    /^:/ { if (split($0, f, "\t") != 2 || f[2] != rel) next
+           split(f[1], g, " ")
+           o = g[3]; w = g[4]
+           if (o ~ /^0+$/ || g[1] == ":160000") o = "-"
+           if (w ~ /^0+$/ || g[2] == "160000") w = "-"
+           print cur, w, par[cur], o; next }
+    { cur = $1 }' "$W/hpairs" "$W/hraw" > "$W/hcand" || return 0
   _LANE_HOK=1
 }
 
@@ -154,8 +165,8 @@ _lane_changed() {
   _LANE_C=unknown; _LANE_CD=-
   [ "$_LANE_HOK" = 1 ] || return 0
   while read -r c co p po <&3; do
-    _lane_cells "$co" "$1" > "$W/l1" || return 0
-    _lane_cells "$po" "$1" > "$W/l2" || return 0
+    _lane_cells "$co" "$1" "$W/l1" || return 0
+    _lane_cells "$po" "$1" "$W/l2" || return 0
     cmp -s "$W/l1" "$W/l2" && continue
     ct="$(_lane_git -C "$_LANE_HREPO" log -1 --no-show-signature --format=%ct "$c" -- 2>/dev/null)" || return 0
     case "$ct" in ''|*[!0123456789]*) return 0 ;; esac

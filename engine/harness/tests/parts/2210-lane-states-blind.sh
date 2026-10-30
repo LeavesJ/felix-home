@@ -20,6 +20,8 @@ printf '\nlane states: ok, short, zero, idle and unknown, each reason, and a tab
 #   comment and a blank line (row 2, the first row untouched), FELIX_LANE_NOW 12a and thirteen digits (R8), and 0, a
 #   valid clock (idle).
 # - The session-start halves of L-RF3 are controls (C10).
+# - The review's second amendment (2026-10-30, design 11 item 45, still blind) adds C11's R10 (TMPDIR naming no
+#   directory, F8) and no scratch directory left after a fork that fails (F7), each asserted with the output it guards.
 LNSN=1793000000; LNSDAY=86400; LNSNEXT='take the lane item after this one'; LNSK=0
 _lf_dir "$TMP/lane-2210"; LNSD="$LF_DIR"
 _lf_stubs "$LNSD"; LNSB="$LF_BIN"
@@ -183,6 +185,33 @@ _lns_fork "$LNSD/f1-st" "$FELIX" status --tsv
 is "lane states F1-fork-reads-as-no-lane L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with R2, the last of ten, never none and never a value" \
    "$LNSE|$LNSFIRE|$LF_RC|$(_lf_count "$LNSD/f1-st.out")|$(_lf_last "$LNSD/f1-st.out")" "built|fired|0|10|$(_lf_tsv lane unknown - "$LNSa2")"
 
+# ---- the review's F7: a fork that fails in a git read leaves no scratch directory (C2) ---------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind. C2: scratch files go under ${TMPDIR:-/tmp}, in
+# one directory named felix-lane.XXXXXX, and a fork that fails inside a git read leaves none. The fault is F1's above,
+# through _lf_fault, with TMPDIR a directory of the fixture's own, empty before each run; after it the felix-lane.*
+# entries there are named. Each is asserted with the R2 output it guards, which main cannot print (C10).
+LNSF1="$LNSR"; LNSF1E="$LNSE"
+# NAME CMD... -> CMD run from the F1 checkout at the clock under the fork fault, TMPDIR $LNSD/NAME-tmp made empty first;
+# LF_RC and LF_FIRE as _lf_fault sets them, LNSLEFT the felix-lane.* entries left in that TMPDIR, or none.
+_lns_f7() {
+  local n="$1" t="$LNSD/$1-tmp" e
+  shift
+  rm -rf "$t"; mkdir -p "$t"
+  _lf_fault fork "$LNSD/$n.fired" "$t" _lf_run "$LNSD/$n" "$LNSF1" "$LNSN" "$@"
+  LNSLEFT=""
+  for e in "$t"/felix-lane.*; do [ ! -e "$e" ] || LNSLEFT="$LNSLEFT${LNSLEFT:+ }${e##*/}"; done
+  [ -n "$LNSLEFT" ] || LNSLEFT=none
+}
+LNSa2="git could not read the landings on refs/remotes/origin/main in $LNSF1"
+_lns_f7 f7-tsv "$FELIX" lane --tsv
+is "lane states F7-scratch-left-when-a-fork-fails L-NEVER-OK: after a fork that fails in the read of the landings, with TMPDIR a directory of the fixture's own, no felix-lane.* entry is left there, and felix lane --tsv exited 0 with its one R2 line" \
+   "$LNSF1E|$LF_FIRE|$LF_RC|$(_lf_count "$LNSD/f7-tsv.out")|$(_lf_cols "$LNSD/f7-tsv.out" 1 1 2 3 4 5 6 7 8 9 13)|left[$LNSLEFT]" \
+   "built|fired|0|1|capability|unknown|-|-|14|1/2|-|$LNSMARK|$LNSNEXT|$LNSa2|left[none]"
+_lns_f7 f7-st "$FELIX" status --tsv
+is "lane states F7-scratch-left-when-a-fork-fails L-NEVER-OK: the same in felix status --tsv leaves no felix-lane.* entry in that TMPDIR, and the lane row was lane unknown - with R2, the last of ten" \
+   "$LNSF1E|$LF_FIRE|$LF_RC|$(_lf_count "$LNSD/f7-st.out")|$(_lf_last "$LNSD/f7-st.out")|left[$LNSLEFT]" \
+   "built|fired|0|10|$(_lf_tsv lane unknown - "$LNSa2")|left[none]"
+
 _lns_chk r3-source m u m; LNSa="not built: r3"
 if [ "$LNSE" = built ] && ( _fx_cd "$LNSD" && _lf_g 1700000000 clone -q --depth 2 "file://$LNSR" r3 ) >/dev/null 2>&1; then
   { printf 'st\n' > "$LNSD/r3/.felix"; } 2>/dev/null
@@ -225,6 +254,20 @@ _lf_run "$LNSD/r9n-run" "$LNSC" "$LNSN" "$FELIX" lane --tsv
 is "lane states: a home that is not a git repository and holds no lanes.tsv counts no lane: felix lane --tsv prints nothing and exits 0" \
    "$LNSa|$LF_RC|$(wc -c < "$LNSD/r9n-run.out" | tr -d ' ')" "built|0|0"
 _lf_use "$LNSH" "$LNSD/memory" "$LNSD/user" "$LNSB"
+
+# ---- the review's F8: R10, a scratch directory that cannot be made (C2, C5, C6) ----------------------------------------
+# Added on 2026-10-30 from the review's second amendment, still blind. With TMPDIR naming a directory that does not
+# exist, given on the felix command alone, and the home readable with its valid table committed, the table reads R10
+# with TMPDIR as the environment gives it: the single - line of C5, column 12 the ref's date as on an R9 line, and the
+# status row lane unknown - R10. Never R9, which is for a home git cannot read.
+LNSNT="$LNSD/no-such-tmp"; rm -rf "$LNSNT"; LNSa2="no scratch directory could be made under $LNSNT"
+_lf_run "$LNSD/r10-tsv" "$LNSC" "$LNSN" TMPDIR="$LNSNT" "$FELIX" lane --tsv
+is "lane states F8-unusable-tmpdir-reads-r9 L-NEVER-OK: R10, TMPDIR naming a directory that does not exist over a valid committed table: felix lane --tsv prints the one - line, unknown with R10, never R9" \
+   "$LNSCE|$([ -e "$LNSNT" ] && echo made || echo absent)|$LF_RC|$(cat "$LNSD/r10-tsv.out")" "built|absent|0|$(_lns_u - - - - - - - "$LNSREFD" "$LNSa2")"
+_lf_run "$LNSD/r10-st" "$LNSC" "$LNSN" TMPDIR="$LNSNT" "$FELIX" status --tsv
+is "lane states F8-unusable-tmpdir-reads-r9 L-NEVER-OK: R10: the same TMPDIR makes the status row lane unknown - with R10, the last of ten, never R9 and never a value" \
+   "$LNSCE|$([ -e "$LNSNT" ] && echo made || echo absent)|$LF_RC|$(_lf_count "$LNSD/r10-st.out")|$(_lf_last "$LNSD/r10-st.out")" \
+   "built|absent|0|10|$(_lf_tsv lane unknown - "$LNSa2")"
 
 # ---- L-RF3: a table broken by hand, committed, in the base checkout (L 1 of T 2) ---------------------------------------
 # LABEL BYTES -> lanes.tsv holds BYTES, committed in the home at the next time. LNSSHA the commit, LNSISO its date, and

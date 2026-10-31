@@ -30,6 +30,8 @@ printf '\nfelix lane: its usage, exits, thirteen columns and human line, the las
 #   finish, under C9's probes inside felix_resolve_project, and the misses that stand (C2's bullet The lane's resolution).
 # - The third review's round 1 (2026-10-30, still blind) adds, at the end, V3R1-F1 and V3R1-F2 (the check of a resolution
 #   whose remote_match reads failed) and V3R1-F5 (C5's sentence for a .felix marker that cannot be opened).
+# - The third review's round 2 (2026-10-30, still blind) adds, at the end, V3R2-F1 and V3R2-F2: a miss said from the lane
+#   check's own reads, in C5's sentence for its layout, and nothing written under the memory root.
 LNKN=1793000000; LNKDAY=86400
 LNKNEXT='obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed)'
 LNKMARK='Felix-Lane: capability'
@@ -978,4 +980,19 @@ else
 fi
 _lf_bind "$LNKIC" "$LNKIH" p felix
 _lf_use "$LNKH" "$LNKD/memory" "$LNKD/user" "$LNKB"
+
+# ---- the third review's round 2: a miss said from the lane check's own reads (V3R2-F1, V3R2-F2) -----------------------
+# Added on 2026-10-30 from its findings (inputs and observed output only) and C5 as 5e632334 amended it, still blind, last.
+# _lf_v3r2's checkouts: T (origin o/r, which p's and q's remote_match name equally) and N (.felix naming nope, no origin)
+# under H; MK (that .felix and that origin) under H2. felix lane runs no felix_binding_broken (C5), so a probe keyed to it
+# may never fire: each run (_lf_spoke) exits 2 with nothing on stdout, says first on stderr C5's sentence for the layout
+# (faulted, or C5's line for a resolution that did not finish), and leaves its memory root, empty before it, empty.
+LNKWA="not built: V3R2's homes and checkouts"; _lf_v3r2 "$LNKD/v3r2" "$LNKN" && LNKWA=built
+LNKWM=' A marker is present, so this tree was meant to be governed, and right now nothing is checking it.'; LNKWK="*' felix_binding_broken '*"; LNKa5='as C5 says memory[]|as C5 says memory[]'; LNKa6='as C5 says|as C5 says|as C5 says'
+_lf_spoke "$LNKN" "$LF_V3H" "$LF_V3T" "felix: The origin of the checkout at $LF_V3T fits p, q equally well: each declares a remote_match that names it, with the same length. So no project is bound, and nothing is checking this tree." sed '*projects/q/project.json*' "$LNKWK" none fork kill; LNKb="$LF_SAID"
+is "lane command V3R2-F1-binding-broken-writes-bindings-tsv L-RO: in a checkout whose origin p's and q's remote_match name equally (a tie), with C9's fork and kill probes at sed naming projects/q/project.json while felix_binding_broken is on the stack, felix lane --tsv and felix lane exit 2 with nothing on stdout, say first on stderr C5's tie sentence (or C5's line for a resolution that did not finish), and leave the memory root empty, no bindings.tsv; unfaulted, the tie sentence" "$LNKWA|$LF_SPOKE" "built|$LNKa5|$LNKa5|$LNKa5"
+_lf_spoke "$LNKN" "$LF_V3H2" "$LF_V3MK" "felix: The .felix marker in $LF_V3MK names \"nope\", and that does not resolve to a project under $LF_V3H2/projects.$LNKWM" pwd "*' -P '*" "$LNKWK" none kill
+is "lane command V3R2-F1-binding-broken-writes-bindings-tsv L-RO: in a checkout whose .felix names nope, no project, and whose origin p's remote_match names, with C9's kill probe at pwd -P while felix_binding_broken is on the stack, felix lane --tsv and felix lane exit 2 with nothing on stdout, say first on stderr C5's sentence for a marker that names no project (or C5's line for a resolution that did not finish), and leave the memory root empty, no bindings.tsv; unfaulted, that sentence" "$LNKWA|$LF_SPOKE" "built|$LNKa5|$LNKa5"
+_lf_spoke "$LNKN" "$LF_V3H" "$LF_V3N" "felix: The .felix marker in $LF_V3N names \"nope\", and that does not resolve to a project under $LF_V3H/projects.$LNKWM" tr "*' -d [:space:] '*" "$LNKWK" none fork kill
+is "lane command V3R2-F2-marker-and-tie-said-as-ungoverned: in a checkout whose .felix names nope, with no origin, under C9's fork and kill probes at tr -d [:space:] while felix_binding_broken is on the stack, and in the tie checkout under V3R2-F1's probes, felix lane --tsv and felix lane exit 2 with nothing on stdout and say first on stderr C5's sentence for the layout, names \"nope\" or the tie's (or C5's line for a resolution that did not finish); never is empty, never felix: no project governs <dir>.; unfaulted, the sentence" "$LNKWA|$LF_SAID|$LNKb" "built|$LNKa6|$LNKa6|$LNKa6|$LNKa6"
 # <<< lane-command

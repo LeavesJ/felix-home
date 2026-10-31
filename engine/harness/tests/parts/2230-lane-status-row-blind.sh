@@ -27,6 +27,8 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   not finish, under C9's probes inside felix_resolve_project, and the none row of the misses that stand (C2).
 # - The third review's round 1 (2026-10-30, still blind) adds, at the end, V3R1-F1 and V3R1-F2: the status row when the
 #   reads of a project.json's remote_match fail under the resolver, or under it and the lane's check alike (C2, C6).
+# - The third review's round 2 (2026-10-30, still blind) adds, at the end, V3R2-F3: an origin URL that ends in LF binds
+#   as the resolver binds it, with no read failed, so the row is C6's none row, never the unknown one (C2).
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "
@@ -481,5 +483,31 @@ is "lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout
 _lnt_v3 "*' felix_resolve_project '*" kill sed '*projects/z/project.json*' "$LNTVC"
 is "lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: $LNTa6 (or 137 with no lane row, where the kill reached felix itself); never p's value zero 0 of 1 engine landings in 14 days, nor z's value row as without the fault; the probe fired" \
    "$LNTa|$LNTb" "built|unfaulted 0|$LNTVZ|fired|as C6 says"
+_lf_use "$LNTH" "$LNTD/memory" "$LNTD/user" "$LNTB"
+
+# ---- the third review's round 2: an origin URL that ends in LF (V3R2-F3) ----------------------------------------------
+# Added on 2026-10-30 from the third review's round 2 finding V3R2-F3, its layout (a) (inputs and observed output only),
+# and C2 as 5e632334 amended it, still blind, last. No fault is injected and no read fails. A home of its own holds q
+# alone, its project.json naming remote_match g/r (_lf_match), and no lanes.tsv; a checkout with no .felix whose
+# remote.origin.url, set with git config, is https://gitlab.example/g/r.git and one LF, so that git remote get-url origin
+# prints the URL, an LF and git's own LF. C2: the check takes the URL with its trailing LFs dropped, as the resolver's
+# substitution takes it, and binds q as the resolver does; so felix lane --tsv exits 0 with nothing on stdout (no
+# lanes.tsv, C5), and the status row is C6's none row for q, never lane unknown - the lane count did not finish in
+# <repo>. Layout (b), a project directory whose name ends in LF, is a limit C2 states, and is not asserted.
+LNTWA="not built: V3R2-F3's home and checkout"; LNTWC="$LNTD/v3r2f3/c"; LNTWP="$LNTD/v3r2f3/home/projects/q"
+if _lf_home "$LNTD/v3r2f3/home" q $((LNTN - 40 * LNTDAY)) && _lf_match "$LF_PROJ" g/r && _lf_init "$LNTWC" \
+   && printf 'a checkout of q\n' > "$LNTWC/README" && _lf_commit "$LNTWC" $((LNTN - 30 * LNTDAY)) $'the root\n' =README && _lf_publish "$LNTWC"; then
+  LNTWC="$(cd -P -- "$LNTWC" && pwd -P)"; LNTWH="$LF_HOME"; LNTWP="$LF_PROJ"
+  ( _fx_cd "$LNTWC" || exit 1; _lf_g 1700000000 config remote.origin.url $'https://gitlab.example/g/r.git\n' ) >/dev/null 2>&1
+  ( _fx_cd "$LNTWC" || exit 1; _lf_g 1700000000 remote get-url origin ) > "$LNTD/v3r2f3.url" 2>/dev/null
+  printf 'https://gitlab.example/g/r.git\n\n' > "$LNTD/v3r2f3.want"
+  cmp -s "$LNTD/v3r2f3.url" "$LNTD/v3r2f3.want" && [ ! -e "$LNTWC/.felix" ] && [ ! -L "$LNTWC/.felix" ] && [ ! -e "$LNTWP/lanes.tsv" ] \
+    && [ "$(ls "$LNTWH/projects")" = q ] && [ -n "$(LC_ALL=C awk '/"remote_match":"g\/r"/' "$LNTWP/project.json")" ] && LNTWA=built
+  _lf_use "$LNTWH" "$LNTD/memory" "$LNTD/user" "$LNTB"
+fi
+_lf_run "$LNTD/v3r2f3-t" "$LNTWC" "$LNTN" "$FELIX" lane --tsv; LNTa="$LF_RC|$(wc -c < "$LNTD/v3r2f3-t.out" | tr -d ' ')"
+_lf_run "$LNTD/v3r2f3-s" "$LNTWC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTa|$LF_RC|$(_lnt_rows "$LNTD/v3r2f3-s")|$(_lf_last "$LNTD/v3r2f3-s.out")"
+is "lane status row V3R2-F3-origin-url-trailing-lf-reads-unresolved: in a checkout with no .felix whose origin URL, https://gitlab.example/g/r.git, ends in an LF of its own, and whose home's only project q names remote_match g/r and commits no lanes.tsv, no read failing: felix lane --tsv exits 0 with nothing on stdout, and felix status --tsv exits 0 with ten rows, the last lane none - <PROJ>/lanes.tsv has no committed row, so no lane is counted; never lane unknown - the lane count did not finish in <repo>" \
+   "$LNTWA|$LNTa" "built|0|0|0|$LNTTEN|$(_lf_tsv lane none - "$LNTWP/lanes.tsv has no committed row, so no lane is counted")"
 _lf_use "$LNTH" "$LNTD/memory" "$LNTD/user" "$LNTB"
 # <<< lane-status-row

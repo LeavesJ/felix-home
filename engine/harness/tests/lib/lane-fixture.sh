@@ -49,6 +49,10 @@
 # The third review's round 1 (added on 2026-10-30, still blind, from its findings' inputs and C2 as 777e6c2d amended it):
 # _lf_probe also wraps sed and head, the reads of a project.json's remote_match, and _lf_two builds V3R1-F2's home of two
 # projects whose remote_match values both name the origin, the longer binding, apart from its checkout or its own.
+#
+# The third review's round 2 (added on 2026-10-30, still blind, from its findings' inputs and C5 as 5e632334 amended it):
+# _lf_v3r2 builds V3R2-F1's and V3R2-F2's homes and checkouts (a tie, and a .felix naming no project), and _lf_spoke runs
+# felix lane in one of them under C9's probes, a fresh memory root beside it, and reads what it said and left there.
 
 # DIR -> DIR removed if there and made again, empty; LF_DIR its physical path. DIR must lie below $TMP.
 _lf_dir() {
@@ -706,6 +710,92 @@ _lf_two() {
   [ "$a" = "projects/p/CLAUDE.md"$'\n'"projects/p/lanes.tsv"$'\n'"projects/p/project.json"$'\n'"projects/z/CLAUDE.md"$'\n'"projects/z/lanes.tsv"$'\n'"projects/z/project.json" ] || return 1
   [ "$(_lf_spine "$c")" = "$((n - 2 * 86400)):1 $((n - 3 * 86400)):1 $((n - t * 86400)):0" ] || return 1
   LF_HOME="$h"; LF_REPO="$c"
+}
+
+# The third review's round 2 (2026-10-30, still blind, from V3R2-F1's and V3R2-F2's inputs). DIR NOW -> in DIR (made when
+# missing; it must hold none of home, home2, t, n and mk yet) a home DIR/home whose one commit, at NOW - 40 days, holds
+# projects p and q, each a project.json whose remote_match is o/r (so the two name a GitHub origin o/r equally, a tie)
+# and a CLAUDE.md, and p's lanes.tsv (cap ^engine/ 1/2 14); a home DIR/home2 whose one commit holds p alone, the same;
+# and three checkouts, each a root commit (README) at NOW - 30 days that refs/remotes/origin/main names: DIR/t, with no
+# .felix and the origin https://github.com/o/r.git; DIR/n, with an untracked .felix holding nope and no origin; DIR/mk,
+# with that .felix and that origin. Sets LF_V3H, LF_V3H2, LF_V3T, LF_V3N and LF_V3MK, their physical paths; status 1, and
+# those empty, when the layouts are not as named.
+_lf_v3r2() {
+  local d="$1" n="$2" h p a w
+  LF_V3H=""; LF_V3H2=""; LF_V3T=""; LF_V3N=""; LF_V3MK=""
+  [ -n "$d" ] && [ -n "$n" ] && mkdir -p "$d" || return 1
+  for h in home home2 t n mk; do [ ! -e "$d/$h" ] || return 1; done
+  for h in home home2; do
+    _lf_init "$d/$h" || return 1
+    for p in p q; do
+      [ "$h:$p" != home2:q ] || continue
+      mkdir -p "$d/$h/projects/$p" && printf '{"name":"%s","gate":"true","remote_match":"o/r"}\n' "$p" > "$d/$h/projects/$p/project.json" \
+        && printf '# %s\n' "$p" > "$d/$h/projects/$p/CLAUDE.md" || return 1
+    done
+    printf 'cap\t^engine/\t1/2\t14\n' > "$d/$h/projects/p/lanes.tsv" \
+      && ( _fx_cd "$d/$h" || exit 1; _lf_g $((n - 40 * 86400)) add -- projects ) >/dev/null 2>&1 \
+      && _lf_commit "$d/$h" $((n - 40 * 86400)) "the $h of p"$'\n' || return 1
+  done
+  w="projects/p/CLAUDE.md"$'\n'"projects/p/lanes.tsv"$'\n'"projects/p/project.json"
+  a="$( _fx_cd "$d/home" && _lf_g 1700000000 ls-tree -r --name-only HEAD -- projects )"
+  [ "$a" = "$w"$'\n'"projects/q/CLAUDE.md"$'\n'"projects/q/project.json" ] && [ "$(ls "$d/home/projects")" = "p"$'\n'"q" ] || return 1
+  a="$( _fx_cd "$d/home2" && _lf_g 1700000000 ls-tree -r --name-only HEAD -- projects )"
+  [ "$a" = "$w" ] && [ "$(ls "$d/home2/projects")" = p ] || return 1
+  for h in t n mk; do
+    _lf_init "$d/$h" && printf 'a checkout\n' > "$d/$h/README" && _lf_commit "$d/$h" $((n - 30 * 86400)) $'the root\n' =README \
+      && _lf_publish "$d/$h" || return 1
+    a="$( _fx_cd "$d/$h" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )"
+    [ -n "$a" ] && [ "$a" = "$LF_SHA" ] || return 1
+  done
+  printf 'nope\n' > "$d/n/.felix" && printf 'nope\n' > "$d/mk/.felix" || return 1
+  _lf_origin "$d/t" https://github.com/o/r.git && _lf_origin "$d/mk" https://github.com/o/r.git || return 1
+  [ ! -e "$d/t/.felix" ] && [ ! -L "$d/t/.felix" ] || return 1
+  [ "$(LC_ALL=C awk '{ printf "%s|", $0 }' "$d/n/.felix" "$d/mk/.felix" 2>/dev/null)" = "nope|nope|" ] || return 1
+  [ -z "$( _fx_cd "$d/n" && _lf_g 1700000000 config --get remote.origin.url )" ] || return 1
+  a="$( _fx_cd "$d/t" && _lf_g 1700000000 config --get remote.origin.url )|$( _fx_cd "$d/mk" && _lf_g 1700000000 config --get remote.origin.url )"
+  [ "$a" = "https://github.com/o/r.git|https://github.com/o/r.git" ] || return 1
+  LF_V3H="$(cd -P -- "$d/home" && pwd -P)"; LF_V3H2="$(cd -P -- "$d/home2" && pwd -P)"
+  LF_V3N="$(cd -P -- "$d/n" && pwd -P)"; LF_V3MK="$(cd -P -- "$d/mk" && pwd -P)"; LF_V3T="$(cd -P -- "$d/t" && pwd -P)"
+  [ -n "$LF_V3H" ] && [ -n "$LF_V3H2" ] && [ -n "$LF_V3N" ] && [ -n "$LF_V3MK" ] && [ -n "$LF_V3T" ]
+}
+
+# The third review's round 2 (2026-10-30, still blind). NOW HOME DIR SENT NAME WORDS STACK MODE... -> for each MODE,
+# felix lane --tsv and then felix lane, run from DIR (below $TMP) at the clock NOW with the home HOME and the memory root
+# DIR.mem, beside DIR and made empty before each run; LF_H and LF_M are as they were after. MODE none runs them as they
+# are; MODE fork or kill with NAME sed, tr, git or head runs them under _lf_probe MODE NAME WORDS STACK, and MODE kill with
+# NAME pwd under _lf_kill pwd WORDS STACK, each with a TMPDIR DIR.tmp of its own, made empty. LF_SAID gets, per run, "as
+# C5 says" when it exited 2 with nothing on stdout and the first line of its stderr is SENT or, under a probe, C5's line
+# felix: the project that governs DIR could not be resolved: a read it stands on did not finish.; else its status, its
+# stdout and that line; "|" between runs. LF_SPOKE the same, each followed by " memory[<what ls -A lists in DIR.mem>]".
+# Status 1, LF_SPOKE "not run", when DIR is not below $TMP or a MODE is not one of these.
+_lf_spoke() {
+  local t="$1" h="$2" d="$3" s="$4" n="$5" w="$6" k="$7" h0="${LF_H-}" m0="${LF_M-}" o x m f e v
+  shift 7
+  LF_SAID=""; LF_SPOKE="not run"
+  x="$(cd -P -- "$TMP" 2>/dev/null && pwd -P)"
+  case "$d" in ("$TMP"/?*|"${x:-$TMP}"/?*) ;; (*) return 1 ;; esac
+  [ "$#" -gt 0 ] || return 1
+  for m in "$@"; do case "$m:$n" in (none:*|fork:sed|fork:tr|fork:git|fork:head|kill:sed|kill:tr|kill:git|kill:head|kill:pwd) ;; (*) return 1 ;; esac; done
+  LF_SPOKE=""; o="$d.run"; LF_H="$h"; LF_M="$d.mem"
+  for m in "$@"; do
+    for f in --tsv ""; do
+      rm -rf "$d.mem" "$d.tmp" && mkdir -p "$d.mem" "$d.tmp" || { LF_H="$h0"; LF_M="$m0"; LF_SPOKE="not run"; return 1; }
+      case "$m:$n" in
+        (none:*) _lf_run "$o" "$d" "$t" "$FELIX" lane ${f:+"$f"} ;;
+        (kill:pwd) _lf_kill pwd "$w" "$k" "$o.fired" "$d.tmp" _lf_run "$o" "$d" "$t" "$FELIX" lane ${f:+"$f"} ;;
+        (*) _lf_probe "$m" "$n" "$w" "$k" "$o.fired" "$d.tmp" _lf_run "$o" "$d" "$t" "$FELIX" lane ${f:+"$f"} ;;
+      esac
+      e="$(LC_ALL=C awk 'NR == 1' "$o.err" 2>/dev/null)"
+      v="status $LF_RC, stdout [$(cat "$o.out" 2>/dev/null)], stderr [$e]"
+      if [ "$LF_RC" = 2 ] && [ ! -s "$o.out" ]; then
+        if [ "$e" = "$s" ]; then v="as C5 says"
+        elif [ "$m" != none ] && [ "$e" = "felix: the project that governs $d could not be resolved: a read it stands on did not finish." ]; then v="as C5 says"
+        fi
+      fi
+      LF_SAID="$LF_SAID${LF_SAID:+|}$v"; LF_SPOKE="$LF_SPOKE${LF_SPOKE:+|}$v memory[$(ls -A "$d.mem" 2>&1)]"
+    done
+  done
+  LF_H="$h0"; LF_M="$m0"
 }
 
 # LANE -> "none" when the last _lf_start put neither a lane paragraph (C7) for LANE in the context nor a lane token on

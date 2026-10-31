@@ -144,7 +144,12 @@ It is outside this design.
         `lib/own.sh` and `lib/status-land.sh`;
     - the `felix merge` and `felix land` code paths, which include the
         shared project resolver and the table validator `lib/table.sh`
-        (§11 items 46 to 48).
+        (§11 items 46 to 48). They are the code that decides what lands,
+        how a project resolves and whether a table passes. `felix land`'s
+        deploy check also runs the session-start hook and the gate on the
+        installed engine, as a test of it. The lane changes the hook and
+        `templates/schemas.tsv`, as §6.5 and the tables rule require
+        (§11 item 49).
 
 - **Tables before code.** Each new table is a new file with one new
     `schemas.tsv` row, which is an addition and free. No column is added to an
@@ -455,7 +460,9 @@ first.
         table.
 
 - **`felix status --tsv`.** It gains exactly one row, at the end, after
-    `icloud`, and the nine rows before it are byte-identical. An unreadable ref
+    `icloud`, and the nine rows before it are byte-identical: they take the
+    shared resolver's answer, and only the lane row reads the lane's own
+    (§11 item 49). An unreadable ref
     gives the row state `unknown` and value `-`, and a project with no
     `lanes.tsv` gives state `none`.
 - **The last change.** After a commit that changes a lane's row, `felix lane`
@@ -1351,11 +1358,27 @@ is gone. *(My call.)*
     read, are said as the layout the check read. A project directory whose
     name ends in LF, which no command substitution can carry, reads as a
     resolution that did not finish.
+49. *Slice 0.* The third review's third round found that `felix status`
+    gave the lane's own resolution to four of `main`'s rows: reach, gate,
+    land and hooks. Wherever the lane's check and the shared resolver
+    disagree, as under a fault in a read only the check makes, or for a
+    project directory whose name ends in LF, those rows read "not a
+    governed checkout" where `main` prints the project's. They take the
+    shared resolver's answer again, as `main`'s do, and only the lane row
+    reads the lane's resolution. The round also asked what the lane
+    exclusions (§4) mean for `felix land`'s deploy check. That check runs
+    the session-start hook and the gate on the installed engine as a test
+    of it, so every engine change alters what it exercises. The exclusions
+    mean the code that decides: what lands, how a project resolves, whether
+    a table passes. The lane changes the hook and `templates/schemas.tsv`
+    as §6.5 and the tables rule require. What it adds can make neither
+    check pass where `main`'s would fail: the lane's text never stands
+    alone in the hook's output, and two more schema rows only add checks.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Items 44 to 48 came from reviews of
+corrected text could be read two ways. Items 44 to 49 came from reviews of
 slice 0's build: a security review, then three adversarial ones.
 
 ## 12. Not decided here, and whose

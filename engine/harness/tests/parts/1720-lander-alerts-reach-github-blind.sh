@@ -375,8 +375,9 @@ printf '%s\tposted\tpaused\t-\tfixture/lgh#1\thttps://github.com/fixture/lgh/iss
 _l20_st "$L20/nohome"; L20A33="$L20A33|nohome=$L20ST"
 # Combined with b04 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S1) and b18: b04's land and hooks rows
 # precede alerts and b18's icloud row follows it, so the rows are nine.
-is "A33 (B13, R5): felix status --tsv prints nine rows, alerts before icloud, and alerts reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it" \
-   "$L20A33" "rows=settings schedule pulse reach gate land hooks alerts icloud |none=none -|dispatched=value dispatched ok|plain=ok|failed=value failed ok|three=unknown -|posted=unknown -|nohome=unknown -"
+# Changed by the lane counter contract (docs/2026-10-29-lane-slice-0-plan.md, C6): the lane row was added at the end, as the status header allows.
+is "A33 (B13, R5): felix status --tsv prints ten rows, alerts before icloud and lane last, and alerts reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it" \
+   "$L20A33" "rows=settings schedule pulse reach gate land hooks alerts icloud lane |none=none -|dispatched=value dispatched ok|plain=ok|failed=value failed ok|three=unknown -|posted=unknown -|nohome=unknown -"
 
 # ------------------------------------------------ review round, R1-R6 ---
 _l20_reset gh; printf 'fixture\n' > "$L20/ctl/login"; _l20_ev a36

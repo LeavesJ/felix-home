@@ -142,7 +142,14 @@ It is outside this design.
     actor's files. *My reading of the landing actor's files:*
     - `lib/automerge.sh`, `lib/green-*.sh`, `lib/land-table.sh`, `lib/notify.sh`,
         `lib/own.sh` and `lib/status-land.sh`;
-    - the `felix merge` and `felix land` code paths.
+    - the `felix merge` and `felix land` code paths, which include the
+        shared project resolver and the table validator `lib/table.sh`
+        (§11 items 46 to 48). They are the code that decides what lands,
+        how a project resolves and whether a table passes. `felix land`'s
+        deploy check also runs the session-start hook and the gate on the
+        installed engine, as a test of it. The lane changes the hook and
+        `templates/schemas.tsv`, as §6.5 and the tables rule require
+        (§11 item 49).
 
 - **Tables before code.** Each new table is a new file with one new
     `schemas.tsv` row, which is an addition and free. No column is added to an
@@ -453,7 +460,9 @@ first.
         table.
 
 - **`felix status --tsv`.** It gains exactly one row, at the end, after
-    `icloud`, and the nine rows before it are byte-identical. An unreadable ref
+    `icloud`, and the nine rows before it are byte-identical: they take the
+    shared resolver's answer, and only the lane row reads the lane's own
+    (§11 item 49). An unreadable ref
     gives the row state `unknown` and value `-`, and a project with no
     `lanes.tsv` gives state `none`.
 - **The last change.** After a commit that changes a lane's row, `felix lane`
@@ -1292,12 +1301,104 @@ is gone. *(My call.)*
     project in a `.felix` marker, and the paragraph would then point an
     untasked session at a lane item by name, in a tree its authors choose
     (§6.5 items 3 and 4).
+45. *Slice 0.* The adversarial review of the first build (findings F1 to
+    F10, and F11 from its real-data run) changed four rules. A count that
+    cannot finish, because a fork fails in it or a signal ends it, is never
+    read as a count or as no lane: the count runs in a process of its own,
+    the status row reads `unknown`, the pulse prints one `unknown` line,
+    session start says nothing, and `felix lane` prints nothing and exits 1.
+    A scratch directory that cannot be made has a reason of its own (R10)
+    instead of reading as a home git cannot read. A next text that is
+    exactly `none` or `unknown` reads as that word, a limit the plan states.
+    A window of one day reads `1 day`. The other findings were defects
+    against rules already written, and the build fixes them.
+46. *Slice 0.* The second adversarial review found that a project
+    resolution that does not finish reads as a directory no project
+    governs. The first fixes for it changed the shared resolver, which
+    `felix merge` and `felix land` run, and the lane exclusions (§4) forbid
+    that. The resolver stays as `main` has it. The lane checks a miss
+    itself: it makes every read the miss stands on again, each checked, and
+    the miss stands only when they all finished and none binds the
+    directory. Otherwise the resolution did not finish: `felix lane` exits
+    2 and says so, the status row reads `unknown`, and the pulse prints its
+    one `unknown` line. Every other surface, `felix merge` and `felix land`
+    included, still reads such a resolution as no project. That is a limit
+    of the shared resolver, and the change for it lies outside the lane.
+47. *Slice 0.* The third adversarial review found three more places where
+    a read that did not finish was taken for an answer, and a shared file
+    the lane had changed. The table validator, `lib/table.sh`, is a verifier:
+    the gate's schema check runs it, and `felix land`'s deploy check and
+    `felix qualify` run that check, so it stays as `main` has it, like the
+    resolver. The lane runs the check with its error stream taken: a check
+    that left anything there, as bash does when a fork fails inside it, did
+    not finish, and the table reads as one that cannot be read, never as
+    accepted or refused. The lane now checks a resolution that found a
+    project as it checks a miss, since a read that failed under the resolver
+    can leave a shorter `remote_match` to bind: the check must finish and
+    bind the same project. It reads `remote_match` with no pipe, because the
+    shared reader's status is the status of its last command. A `.felix`
+    marker that cannot be opened is called unreadable, in the lane's own
+    sentence, where the shared one calls it empty. Two limits are stated: a
+    signal inside the shared check that leaves no sign, and an open-file
+    limit low enough that felix's own load loses its output stream, which
+    every subcommand, `felix which` included, loses alike. Other surfaces,
+    session start among them, still take the shared resolver's answer as it
+    comes.
+48. *Slice 0.* The third review's second round found that `felix lane`
+    still took its sentence for a miss that stands from `resolve_or_die`,
+    which runs a third resolution whose reads the lane never checked.
+    Under a fault there it said the wrong thing, and `felix_binding_broken`,
+    which it runs, can append to the memory root's `bindings.tsv`, though
+    the lane writes nothing. `felix lane` now says a miss from what its own
+    check read, in the words `resolve_or_die` uses on `main` for that
+    layout, and runs neither. The check takes the origin URL as the
+    resolver does, with its trailing LFs dropped. Stated limits: a broken
+    Felix home pointer and a remembered binding whose `project.json` was
+    renamed, which `felix_binding_broken` reports and the check does not
+    read, are said as the layout the check read. A project directory whose
+    name ends in LF, which no command substitution can carry, reads as a
+    resolution that did not finish.
+49. *Slice 0.* The third review's third round found that `felix status`
+    gave the lane's own resolution to four of `main`'s rows: reach, gate,
+    land and hooks. Wherever the lane's check and the shared resolver
+    disagree, as under a fault in a read only the check makes, or for a
+    project directory whose name ends in LF, those rows read "not a
+    governed checkout" where `main` prints the project's. They take the
+    shared resolver's answer again, as `main`'s do, and only the lane row
+    reads the lane's resolution. The round also asked what the lane
+    exclusions (§4) mean for `felix land`'s deploy check. That check runs
+    the session-start hook and the gate on the installed engine as a test
+    of it, so every engine change alters what it exercises. The exclusions
+    mean the code that decides: what lands, how a project resolves, whether
+    a table passes. The lane changes the hook and `templates/schemas.tsv`
+    as §6.5 and the tables rule require. What it adds can make neither
+    check pass where `main`'s would fail: the lane's text never stands
+    alone in the hook's output, and two more schema rows only add checks.
+50. *Slice 0.* The third review's fourth round was its last. On 10-30 the
+    founder asked why slice 0 took a day and a half. The feature was built
+    in about four and a half hours; about twenty more went to adversarial
+    review rounds of about two hours each and to their fixes, and twice a
+    round found a blocker that the previous round's fix had opened. From
+    this round on, two kinds of finding are fixed: a regression of the
+    previous round's fixes, and a wrong answer in normal use. Anything else
+    is a stated limit and a follow-up. The round found neither kind: round
+    3's fixes hold under every fault it tried, and its three findings are
+    minor. Two are stated limits in the lane's own code. The count runs
+    only when three of descriptors 10 to 31 are free, so a process that has
+    more than nineteen of them open reads `unknown` though its count could
+    finish. A TAB or LF in a path a reason names, which column 13 of
+    `felix lane --tsv` prints as it is, breaks that line, and with an LF in
+    the home's path the pulse records a lane line no row produced. The
+    third was arithmetic: splitting the fixture library made this slice add
+    nine lines to `tests/run`, not seven, which leaves slices 1 and 2
+    fourteen, not fifteen, under part 1040's 500.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Item 44 came from a security review of
-slice 0's first build.
+corrected text could be read two ways. Items 44 to 50 came from reviews of
+slice 0's build: a security review, then three adversarial ones, the last of
+them in four rounds.
 
 ## 12. Not decided here, and whose
 

@@ -71,6 +71,8 @@ FELIX_ROOT="$(cd "${SCRIPT_DIR}/../.." && pwd)"
 # waiting.sh reads back what waits (audit b03); it only defines functions.
 # shellcheck source=../lib/waiting.sh
 . "${SCRIPT_DIR}/../lib/waiting.sh"
+# lane.sh, when there, says a short or empty lane; why each lane line here reads as it does: felix_start_lane in it.
+[ -f "${SCRIPT_DIR}/../lib/lane.sh" ] && . "${SCRIPT_DIR}/../lib/lane.sh"
 
 # JSON-escape via parameter substitution, one C-level pass each.
 #
@@ -568,6 +570,9 @@ fi
 # no paused lander is named, and a job installed there reads not-home (wave-1-combine C6, C7).
 _fl="$(felix_land_notice "$PROJ" "$FELIX_HOME_DIR" 2>/dev/null)"   # paused, not-loaded, not-ticking or not-home, as felix status's land row reads it
 felix_start_waits "$PROJ" "$project" "${_fl%%$'\t'*}" "$FELIX_HOME_DIR"
+lane_line=""; _felix_lane_tok=""
+command -v felix_start_lane >/dev/null 2>&1 && felix_start_lane "$PROJ" "$_repo_root" >/dev/null 2>&1
+[ -z "${lane_line}${_felix_lane_tok}" ] || felix_own_gate "lane item" "$_own" 2>/dev/null || { lane_line=""; _felix_lane_tok=""; }
 
 context="Felix governs this session.
 
@@ -575,7 +580,7 @@ Project: ${project}
 Constitution: ${PROJ}/CLAUDE.md
 ${gate_line}
 Memory: ${_mem}/
-${overnight_line}${waits_line}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
+${overnight_line}${waits_line}${lane_line:-}${drift_line}${maint_line}${graph_line}${tidy_line}${retire_line}${reconcile_line}${backup_line}
 
 ${read_lines}
 
@@ -752,7 +757,7 @@ elif [ -z "$gate" ]; then _felix_line="$_felix_line · no gate, stops unchecked"
 if [ -n "$_fl" ]; then _felix_line="$_felix_line · landing ${_fl%%$'\t'*}"; context="$context"$'\n'"Landing on green is ${_fl%%$'\t'*}: ${_fl#*$'\t'}"
   [ "${_fl%%$'\t'*}" != paused ] || context="$context"$'\n'"felix land --resume ends the pause."; fi
 [ -n "$_felix_found" ] && _felix_line="$_felix_line · new tooling found"
-_felix_line="${_felix_line}${_felix_wait_toks:-}"
+_felix_line="${_felix_line}${_felix_wait_toks:-}${_felix_lane_tok:-}"
 
 # The one line, last paragraph, when unattended work was due and withheld, then (b05, R6) the lander's alert that waits for the founder (lib/own.sh).
 _ow="$(felix_own_withheld_line "$PROJ" "$_repo_root" "$FELIX_HOME_DIR" 2>/dev/null; felix_land_alert_line "$_mem" 2>/dev/null)"; [ -z "$_ow" ] || context="$context"$'\n'"$_ow"

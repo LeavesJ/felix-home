@@ -24,6 +24,7 @@
 #   felix stack --reach [--tsv]  do the declared plugins' and servers' MCP servers connect? (advisory)
 #   felix pulse          back up memory and report what waits; --install schedules it daily
 #   felix status [--tsv] read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
+#   felix lane [--tsv]   read-only: each lane's share of engine landings, against its target
 #   felix bootstrap      bring the repo to the baseline: CI, labels, protection, permissions
 #   felix setup [id]     outstanding human steps, or one step's runbook
 #   felix scope [paths]  may an unattended agent touch these? exit 3 if not
@@ -355,6 +356,10 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/status.sh"
 # shellcheck source=lib/pulse.sh
 . "${SCRIPT_DIR}/lib/pulse.sh"
+# shellcheck source=lib/lane.sh
+. "${SCRIPT_DIR}/lib/lane.sh"
+# shellcheck source=lib/lane-resolve.sh
+. "${SCRIPT_DIR}/lib/lane-resolve.sh"
 # shellcheck source=lib/procedures.sh
 . "${SCRIPT_DIR}/lib/procedures.sh"
 # shellcheck source=lib/probes.sh
@@ -424,6 +429,7 @@ specific project, language, or toolchain.
   every day
     felix which            which project governs here, and where its doctrine is
     felix status [--tsv]     read-only: settings, the pulse schedule and last run, declared tools' reach, this checkout's gate
+    felix lane [--tsv]     read-only: each lane's share of engine landings on origin/main, against its target
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
     felix decisions        the capability-decision record: mandates, declines, answer rate
@@ -6481,6 +6487,9 @@ cmd_pulse() {
   done
   local plist="$HOME/Library/LaunchAgents/felix.pulse.plist"
   local log="$FELIX_HOME_DIR/state/pulse.log"
+  # launchd's capture, outside the Felix home (see felix_pulse_plist).
+  local capdir="$HOME/Library/Logs/felix"
+  local capture="$capdir/pulse.launchd.log"
 
   if [ "$uninstall" -eq 1 ]; then
     # The unload's status is the whole answer. `Unload failed: 5` is routine,
@@ -6521,20 +6530,41 @@ cmd_pulse() {
     fi
     [ -n "$esrc" ] || { printf 'cannot resolve a served engine to schedule\n'; return 1; }
     mkdir -p "$HOME/Library/LaunchAgents" "$FELIX_HOME_DIR/state" 2>/dev/null
+    # launchd does not create the capture file's directory, and fails the spawn
+    # the same way it does for a refused open, so no agent is written without a
+    # directory launchd can write the capture file in, and no capture path that
+    # is itself a directory. A refusal leaves a plist from before untouched.
+    local why=""
+    if ! mkdir -p "$capdir" 2>/dev/null || [ ! -d "$capdir" ]; then
+      why="could not create $capdir"
+    elif [ ! -w "$capdir" ] || [ ! -x "$capdir" ]; then
+      why="$capdir is not writable"
+    elif [ -d "$capture" ]; then
+      why="$capture is a directory"
+    fi
+    if [ -n "$why" ]; then
+      printf '%s, where launchd writes the pulse capture (%s)\n' "$why" "$capture"
+      if [ -e "$plist" ] || [ -L "$plist" ]; then
+        printf 'the agent already at %s was left as it was and may still be loaded\n' "$plist"
+      else
+        printf 'nothing was scheduled\n'
+      fi
+      return 1
+    fi
     # Checked, because the redirection's failure is silent without set -e and
     # both branches below assert the file exists: on a machine where
     # LaunchAgents is not writable, this returned 0 claiming to have written
     # a plist that was never there.
-    if ! felix_pulse_plist "$esrc/harness/felix" "$log" > "$plist" 2>/dev/null \
+    if ! felix_pulse_plist "$esrc/harness/felix" "$capture" > "$plist" 2>/dev/null \
        || [ ! -s "$plist" ]; then
       printf 'could not write %s; nothing was scheduled\n' "$plist"
       return 1
     fi
     launchctl unload "$plist" >/dev/null 2>&1
     if launchctl load "$plist" >/dev/null 2>&1; then
-      printf 'scheduled: %s pulse, daily at 09:07, logging to %s\n' "$esrc/harness/felix" "$log"
+      printf 'scheduled: %s pulse, daily at 09:07, logging to %s (launchd capture: %s)\n' "$esrc/harness/felix" "$log" "$capture"
     else
-      printf 'wrote %s but launchctl load failed; load it by hand\n' "$plist"
+      printf 'wrote %s but launchctl load failed; load it by hand (the pulse logs to %s, launchd capture: %s)\n' "$plist" "$log" "$capture"
     fi
     printf 'this was the grant: nothing scheduled itself. felix pulse --uninstall takes it back\n'
     return 0
@@ -6556,6 +6586,7 @@ cmd_pulse() {
     felix_pulse_backup "$(felix_pulse_mem_repo "$FELIX_HOME_DIR")"
     printf 'settings\t%s\n' "$(felix_settings_state)"
     felix_pulse_report "$FELIX_HOME_DIR"
+    felix_lane_pulse "$FELIX_HOME_DIR"
   }; printf .)"
   case "$lines" in
     *.) lines="${lines%.}" ;;
@@ -6575,6 +6606,27 @@ cmd_status() {
   case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix status [--tsv]" 2 ;; esac
   export GIT_OPTIONAL_LOCKS=0
   felix_status_command "$FELIX_HOME_DIR" "$PWD" "$tsv"
+}
+
+# felix lane: each lane's share of the engine landings on origin/main (lib/lane.sh). Read-only and offline, like
+# felix status: it writes nothing, and GIT_OPTIONAL_LOCKS=0 is exported before any git command, the resolution's too. The
+# arguments are checked first. The directory is resolved by the lane's own resolution (lib/lane-resolve.sh), which says a
+# miss from what its check read and runs neither resolve_or_die nor felix_binding_broken (which can append to the memory
+# root's bindings.tsv): felix merge and felix land run those, so they stay as main has them. Exit 0 for any report; 2 for a
+# usage error, a directory no project governs, or a resolution that did not finish (C2, C5); 1 when the count did not
+# finish (C3): nothing on stdout, "felix: the lane count did not finish in <repo>" on stderr.
+cmd_lane() {
+  local tsv=0 lrc=0 lout
+  case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac
+  export GIT_OPTIONAL_LOCKS=0
+  lout="$(felix_lane_resolve "$PWD" "$FELIX_HOME_DIR")" || lrc=$?
+  [ "$lrc" -ne 0 ] || [ -n "$lout" ] || lrc=2
+  case "$lrc" in
+    0) PROJ="$lout" ;;
+    1) felix_lane_miss "$lout" ;;   # a miss that stands: lout is its sentence (C5)
+    *) die "the project that governs $PWD could not be resolved: a read it stands on did not finish." 2 ;;
+  esac
+  felix_lane_command "$PROJ" "$(felix_repo_root "$PWD")" "$tsv"
 }
 
 # `<subcommand> --help` answers with usage instead of running (#102). No
@@ -6597,6 +6649,7 @@ case "${1:-help}" in
   doctor)  shift; cmd_doctor "$@" ;;
   pulse)   shift; cmd_pulse "$@" ;;
   status)  shift; cmd_status "$@" ;;
+  lane)    shift; cmd_lane "$@" ;;
   procedures) shift; cmd_procedures "$@" ;;
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;

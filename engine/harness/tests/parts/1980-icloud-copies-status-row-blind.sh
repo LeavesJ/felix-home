@@ -141,10 +141,13 @@ _ic_w44="$(find "$_ic_U33" "$_ic_c/mem" -newer "$_ic_a/marker2" -print 2>&1)"
 _ic_st > "$_ic_a/status.txt" 2> "$_ic_a/status-plain.err"; _ic_sprc=$?
 _ic_f5="$(LC_ALL=C awk -F'\t' 'NR <= 5 { printf "%s%s", (NR > 1 ? " " : ""), $1 }' "$_ic_a/status.tsv" 2>/dev/null)"
 _ic_ni="$(LC_ALL=C awk -F'\t' '$1 == "icloud" { n++ } END { print n + 0 }' "$_ic_a/status.tsv" 2>/dev/null)"
-_ic_last="$(LC_ALL=C awk -F'\t' '{ l = $1 } END { print l }' "$_ic_a/status.tsv" 2>/dev/null)"
-is "b18 A41 (B16): felix status --tsv exits 0, keeps settings, schedule, pulse, reach and gate first, and ends with one icloud row" \
-   "exit $_ic_strc; first five [$_ic_f5]; icloud rows $_ic_ni; last [$_ic_last]" \
-   "exit 0; first five [settings schedule pulse reach gate]; icloud rows 1; last [icloud]"
+# Changed by the lane counter contract (docs/2026-10-29-lane-slice-0-plan.md, C6): the lane row was added at the end, as the status header allows.
+_ic_r9="$(LC_ALL=C awk -F'\t' 'NR == 9 { print $1 }' "$_ic_a/status.tsv" 2>/dev/null)"
+_ic_nr="$(LC_ALL=C awk 'END { print NR }' "$_ic_a/status.tsv" 2>/dev/null)"
+_ic_last="$(LC_ALL=C awk '{ l = $0 } END { print l }' "$_ic_a/status.tsv" 2>/dev/null)"
+is "b18 A41 (B16): felix status --tsv exits 0, keeps settings, schedule, pulse, reach and gate first, has one icloud row, the ninth, and ends with the lane row, the tenth and last, which in this ungoverned directory reads none: this directory is not a governed checkout" \
+   "exit $_ic_strc; first five [$_ic_f5]; icloud rows $_ic_ni; ninth [$_ic_r9]; rows $_ic_nr; last [$_ic_last]" \
+   "exit 0; first five [settings schedule pulse reach gate]; icloud rows 1; ninth [icloud]; rows 10; last [lane${_ic_T}none${_ic_T}-${_ic_T}this directory is not a governed checkout]"
 is "b18 A42 (B16): the icloud row is icloud, then felix_icloud_state's line for the same home" \
    "$(LC_ALL=C awk -F'\t' '$1 == "icloud"' "$_ic_a/status.tsv" 2>/dev/null)" "icloud${_ic_T}${_ic_o33%|rc=*}"
 _ic_want43="$(printf '%-9s %-12s %s' icloud copies-4 "$_ic_D33")"; _ic_n43=0

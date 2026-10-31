@@ -1,4 +1,4 @@
-# felix status: nine rows a surface can poll, and the settings check the pulse
+# felix status: ten rows a surface can poll, and the settings check the pulse
 # shares.
 #
 # The status surface is a Claude Code mod, built outside this repository. Its
@@ -8,7 +8,7 @@
 #   <row> TAB <state> TAB <value> TAB <detail>
 #
 # One line per row, no header, in this order: settings, schedule, pulse, reach,
-# gate, land, hooks, alerts, icloud. state is value, none or unknown. value is a bare
+# gate, land, hooks, alerts, icloud, lane. state is value, none or unknown. value is a bare
 # word (no spaces) when state is value, and `-` otherwise; detail is never
 # empty. A consumer ignores rows it does not know. Weekly spend is not a row:
 # felix cost has its own --tsv and takes about twenty seconds, so a surface
@@ -430,7 +430,6 @@ felix_doctor_lines() {   # PROJ ROOT GATE
   printf '%-14s%s: %s\n' 'hooks:' "$v" "$d"
 }
 
-
 # The newest alert the lander tried to send off this Mac (lib/notify.sh, audit b05 B13), read from
 # the home's project's alerts.tsv alone: no gh, no git, nothing written. A started run of the
 # felix-alert workflow shows dispatched (not delivered: GitHub reports no push delivery); one the
@@ -459,12 +458,12 @@ _felix_status_alerts() {
       print "value\tdispatched\t" w " " f[6] }' "$f" 2>/dev/null)"
 }
 
-# The nine rows for the directory <cwd> under the Felix home <home>.
+# The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
-  local home="$1" cwd="$2" root proj
+  local home="$1" cwd="$2" root proj lproj prc
   _felix_status_need felix_repo_root resolve
   root="$(felix_repo_root "$cwd" 2>/dev/null)"
-  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)" || proj=""
+  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)" || proj=""   # the nine rows' project, as main's: before any lane code runs
   _felix_status_settings
   _felix_status_from3 schedule "$(felix_schedule_state)"
   _felix_status_pulse "$home"
@@ -474,17 +473,27 @@ felix_status_rows() {
   _felix_status_hooks "$proj" "$root"
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"
+  _felix_status_need felix_lane_resolve lane-resolve; _felix_status_need felix_lane_status_row lane
+  lproj="$(felix_lane_resolve "$cwd" "$home")"; prc=$?; [ "$prc" -eq 0 ] || lproj=""   # only the lane row reads the lane's resolution (C6); 2: it did not finish
+  felix_lane_status_row "$lproj" "$root" "$prc"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the
 # value shown when there is one and the state word otherwise. No header.
 felix_status_command() {
-  local home="$1" cwd="$2" tsv="${3:-0}"
+  local home="$1" cwd="$2" tsv="${3:-0}" lrc rrc pst
   if [ "$tsv" -eq 1 ]; then felix_status_rows "$home" "$cwd"; return 0; fi
-  felix_status_rows "$home" "$cwd" | while IFS=$'\t' read -r row state value detail; do
-    [ -n "$row" ] || continue
-    [ "$state" = value ] || value="$state"
-    printf '%-9s %-12s %s\n' "$row" "$value" "$detail"
-  done
+  felix_status_rows "$home" "$cwd" | { seen=0
+    while IFS=$'\t' read -r row state value detail; do
+      [ -n "$row" ] || continue
+      [ "$row" != lane ] || seen=1
+      [ "$state" = value ] || value="$state"
+      printf '%-9s %-12s %s\n' "$row" "$value" "$detail"
+    done
+    [ "$seen" -eq 1 ]; }
+  # A fork that fails ends the pipe's left shell (128, or 1 in a substitution) with the rows not yet printed lost:
+  # 128, or no lane row (the right side's 1), is this command's status too, as in --tsv. A reader that closes early is not.
+  pst=("${PIPESTATUS[@]}"); lrc="${pst[0]}"; rrc="${pst[1]:-1}"
+  [ "$lrc" -ne 128 ] && [ "$rrc" -ne 1 ] || return 128
   return 0
 }

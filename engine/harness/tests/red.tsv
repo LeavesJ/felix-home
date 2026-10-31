@@ -8,420 +8,326 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	e54e31f35c567cd9b32c430525069e13cf1e8a6e	0.49.309
-run	415	14588	46
-A1 (B1): a self-governed felix merge whose felix is not the installed entry runs main's felix from a copy under TMPDIR, in the same directory, with its own arguments and FELIX_MERGE_HANDED=1; the status and output are the copy's, and gh is not called	1
-A10 (B7): a non-empty FELIX_MERGE_HANDED where felix merge would hand off is refused with exit 1 naming it, with no copy run and no gh call	1
-A12 (B4): the candidate's dry run prints main's verdict sentence once and never its own, byte-identical to main once, the judged-by line naming the entry, and nothing names the copy	1
-A13 (B3): on that hand-off no library under the entry is sourced, and main's escape.sh is sourced from the copy	1
-A18 (B7): a real run with FELIX_MERGE_HANDED set is refused with exit 1 naming it, no gh pr merge, one refused judge row, and no copy's library sourced	1
-A1: felix status --tsv exits 0 and prints nine rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud	1
-A2 (B2): the copy holds exactly the paths main tracks under engine/, byte for byte and with their modes, zz-only-main.txt and tests/keep.txt among them and the entry's zz.log not	1
-A22 (B15): README.md's judge-on-main row says main's engine is copied out of git and a branch that no longer hands off judges itself, drops the old claim, and lib/merge-judge.sh exists	1
-A23 (B16): felix new api apps/api in the same repository is refused: exit 1, already governed by web, felix new does not rebind, the marker named and kept, no project, no memory, no claude call	1
-A24 (B16): the same felix new api apps/api, commissioning, is refused as well and runs no claude command	1
-A25 (B17): a checkout with no marker whose origin holds another project's remote_match is refused: exit 1, already governed by rx, naming remote_match, and nothing written	1
-A26 (B18): a marker naming no project (ghost with no projects/ghost, empty, ../bad) does not stop felix new; it binds and says in one replaced line what the marker held	1
-A28 (B19): a PATH below the git root gets one checkout line naming the root it binds, and a PATH that is the root gets none	1
-A29 (B20): a commit line naming .felix and the worktrees appears for an untracked marker after one commit and on an unborn HEAD, with and without --no-commission, and not when HEAD:.felix already names the project or outside git	1
-A2: every felix status this part ran prints the nine rows in order, and no row breaks D16's shape (1100's awk)	1
-A3 (B2): no byte of the copy changes for eol=crlf in .git/info/attributes, core.autocrlf in the checkout, or core.autocrlf in a global config, each alone, and each is undone after	1
-A30 (B21): a GitLab origin's remote_match drops its userinfo or scheme and .git, the repo line shows it, no credential reaches project.json or the output, and the checkout still resolves by its remote	1
-A32 (B22): with no origin, and with a GitLab origin, felix new says in one unattended line that nothing runs for the project unattended, naming its project.json	1
-A33 (B13, R5): felix status --tsv prints nine rows, alerts before icloud, and alerts reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it	1
-A34 (B23): felix install --no-bump with any one path git does not track under engine/ refuses with exit 1 before any claude command or bump, naming the path, and its last line names it first	1
-A34 (B23): with all three strays the refusal counts 3 path(s), and a plain felix install, bumping allowed, bumps nothing and runs no claude command	1
-A36 (B25): a source outside any git work tree installs as today, saying in one line that git could not be asked about engine/	1
-A38 (R1) (fixture control): the home holds widget at Acme/Widget and lg at a whole URL an older felix new wrote, and gl1 binds from a GitLab origin with B21's remote_match	1
-A39 (R1): a separate repository whose origin merely contains another project's remote_match (Widget-api, Widget2, NotAcme/Widget, grp/proj-docs, old/repo-two) binds as a fresh checkout does, and the other project is untouched	1
-A4 (B11): the copy's status 0, 3 and 7 is the command's, and only a status felix merge never returns (7) adds one stderr line naming it and saying the outcome is not known	1
-A40 (R1; control): an origin naming the same repository as a project's remote_match is still refused: two GitHub spellings of Acme/Widget, a token-bearing GitLab URL of gl1's repository, and the repository of lg's whole-URL value	1
-A41 (R1): each such refusal names the project.json whose remote_match binds the checkout, and no refusal and no project.json carries the origin's userinfo	1
-A42 (R2) (fixture control): a source outside git installs with B25's line and some claude commands; two sources sit in parent work trees (one untracked there, one ignored by *) that do not track their engine; a vendored source's engine is tracked by its parent, which lists only the stray .DS_Store	1
-A43 (R2): a source that is not its own repository, inside another work tree that tracks none of its engine (untracked there, or ignored), installs as a source outside git does: exit 0, one could-not-ask-git line, verified, no refusal or remedy, plugin.json kept, the same claude commands	1
-A44 (R2; control): a source whose engine its parent repository tracks is still asked: a stray engine/.DS_Store there is refused with exit 1 before any claude command, counted, and named first on the last line as git names it	1
-A5 (B9): with a blob main's engine tracks missing, felix merge refuses with exit 1, saying it could not copy main's engine, runs nothing, calls no gh, and a real run records one refused judge row	1
-A5 (fixture control): the blob of zz-only-main.txt is a loose object, and with it a dry run reaches the stub	1
-A6 (B9): when main's engine has no harness/felix, felix merge refuses with exit 1, saying so, and calls no gh	1
-A7 (B12) (fixture control): with TERM not ignored, the sleeping stub has started within 20 s	1
-A7 (B12): TERM to felix merge's pid while the copy runs ends felix merge non-zero within 5 s, the copy stopped, no gh call, and TMPDIR empty	1
-A8 (B12) (fixture control): with INT not ignored, the sleeping stub has started within 20 s	1
-A8 (B12): INT to felix merge's pid while the copy runs ends felix merge non-zero within 5 s, the copy stopped, no gh call, and TMPDIR empty	1
-A9 (B13): with FELIX_HOME unset and no .felix-home, the copy is handed the home the run felix found from its own location	1
-B11R3 A115: under a go.mod at the root of the base, a path under vendor/ is set aside: unit n/a, then VENDORED counting 1 under vendor/	1
-B11R3 A116: a go mod vendor bump of three paths, one of them deleted, reads unit n/a and VENDORED counting 3	1
-B11R3 A117: a set-aside vendor/ path hides nothing: own untested code beside it gaps unit, then VENDORED counting 1	1
-B11R3 A118 (src/third_party test): a _test.go under a nested third_party/ meets no requires cell either (control)	1
-B11R3 A118 (vendor/ test): a _test.go under vendor/ meets no requires cell, so own code beside it gaps unit (control)	1
-B11R3 A120: a directory project.json declares in evidence_vendored is set aside: unit n/a, VENDORED counting 1 under third_party/	1
-B11R3 A121: an entry declared without a trailing slash is set aside and named with one, web/assets/vendor/	1
-B11R3 A123: with no go.mod, declaring third_party/ sets aside third_party/ alone: unit gap, VENDORED counting 1	1
-B11R3 A124: a declared and a Go set-aside count together, 2, named in project.json's order and then vendor/	1
-B11R3 A125: a test under a declared directory proves nothing: unit gap, VENDORED counting 1	1
-B11R3 A128: inside the repository, a declaration committed at the base sets third_party/ aside: unit n/a, VENDORED counting 1	1
-B11R3 A129: a row named in evidence_reads_vendored reads a set-aside path: deps gap, and VENDORED says only deps read them	1
-B11R3 A130: and its requires cell reads one too: deps met, and VENDORED counts 2 and says only deps read them	1
-B11R3 A131: a row that has not opted in reads no set-aside path: deps n/a, and VENDORED says no rule read them	1
-B11R3 A133: a row that has not opted in never reads a vendor-named path with requires: deps gap	1
-B11R3 A134 (a list): an evidence_vendored that is a JSON list is one unknown line for project.json, naming the key, not judged	1
-B11R3 A134 (a number): an evidence_vendored that is a JSON number is one unknown line for project.json, naming the key, not judged	1
-B11R3 A135 (.): an evidence_vendored entry that is . alone is one unknown line for project.json naming it, not judged	1
-B11R3 A135 (../shared/): an evidence_vendored entry that has a .. component is one unknown line for project.json naming it, not judged	1
-B11R3 A135 (/vendor/): an evidence_vendored entry that has a leading slash is one unknown line for project.json naming it, not judged	1
-B11R3 A135 (a//b/): an evidence_vendored entry that has an empty component is one unknown line for project.json naming it, not judged	1
-B11R3 A135 (src/./x): an evidence_vendored entry that has a . component is one unknown line for project.json naming it, not judged	1
-B11R3 A135 (vendor/*): an evidence_vendored entry that holds a character other than a letter, a digit or . _ - @ + is one unknown line for project.json naming it, not judged	1
-B11R3 A136: a key that appears twice in project.json is one unknown line for project.json, naming the key, not judged	1
-B11R3 A137: an evidence_reads_vendored name that is no row of evidence.tsv is one unknown line for project.json naming it, not judged	1
-B11R3 A138: a project.json that cannot be read is one unknown line for project.json, not judged	1
-B11R3 A141: an evidence.tsv that cannot be read comes before a declaration it cannot read: one unknown line for evidence.tsv (control)	1
-B11R3 A142: felix evidence prints the set-aside as [-] VENDORED with its count and directory, says No evidence gaps, and exits 0	1
-B11R3 A143: and felix_merge_blockers prints no evidence line for it (control)	1
-B11R3 A145: felix merge refuses a declaration it cannot read, exit 3, naming project.json and not judged	1
-B11R3 A146: and felix receipt lists evidence as unknown and is indeterminate	1
-B11R3 A147: and felix evidence prints [?] project.json, exits 1, and claims no all-clear	1
-B11R3V A158 (project case, declared): read at the base under the path the repository records, so the committed declaration holds: unit n/a, VENDORED 1	1
-B11R3V A159 (a byte above 127): own code whose name holds a UTF-8 e-acute is read as its own name, not as git quotes it: unit gap	1
-B11R3V A160 (a double quote): own code whose name holds a double quote is read as its own name: unit gap	1
-B11R3V A161 (a backslash): own code whose name holds a backslash is read as its own name: unit gap	1
-B11R3V A162 (a tab): own code whose name holds a tab is read as its own name: unit gap	1
-B11R3V A163 (deleted): deleting own code whose name holds a UTF-8 e-acute gaps unit	1
-B11R3V A164 (requires): a test whose name holds a UTF-8 e-acute is read by the requires cell: unit met	1
-B11R3V A165 (set aside): a path under a declared directory whose name holds a UTF-8 e-acute is set aside and counted: unit n/a, VENDORED 1	1
-B11R3V A166 (a newline): a name holding a newline is never split into two paths: one unknown line for CHANGED-PATHS, not judged	1
-B11R3V A167 (merge): felix_merge_blockers refuses a change holding a name with a newline: its one evidence line is CHANGED-PATHS, not judged	1
-B12R3 A100 (B12R3-3): under s1o, the URL at srv/other/x.git, x's doubt is exactly DM and felix_exception_for exits 1 (control)	1
-B12R3 A101 (B12R3-1, B12R3-4): under s1, the URL at srv/acme/y.git, x's forged grant is refused, its doubt is DM, the judge says so and column 8 is -	1
-B12R3 A103 (B12R3-2): at S2's baseline, p's doubt is exactly D2(felix), the URL being the home's own	1
-B12R3 A104 (B12R3-2, B12R3-4): under s2, the URL at srv2/evil/z.git, p's forged grant is refused under both spellings with D2(felix), in the judge and column 8	1
-B12R3 A105 (B12R3-2): under s2l, the URL at srv2/look/acme/p.git, p's grant is refused and its doubt is exactly D2(felix)	1
-B12R3 A107 (B12R3-1): under s3, a .felix holding gone, an empty one, a directory and a dangling link each refuse p's grant with exactly D1	1
-B12R3 A110 (B12R3-7): the head and the doubt's comment block name the .felix marker, never the origin's project, the circle and the no-marker case; no comment says marker first	1
-B12R3 A99 (B12R3-1): at S1's baseline, y's merged grant is refused and its doubt is exactly DM: with no marker Q is y, not the project the URL binds	1
-B12R3V A111 (B12R3-8, B12R3-10): under s4, with no marker and p beside it, felix's forged grant is refused with exactly D3(felix), in the judge and column 8	1
-B12R3V A114 (B12R3-9, B12R3-10): under s5, p's grant from the nested repository is refused under both spellings with exactly DH, in the judge and column 8	1
-B12R3V A115 (B12R3-9): with the nested repository removed, p's doubt is exactly D2(felix) again and felix_exception_for exits 1 (control)	1
-B12R3V A116 (B12R3-11): the doubt's comment block names the nested repository and the only project	1
-W2D F1a: three .css under docs/a/, Docs/b/ and DOCUMENTATION/c/ (docs and documentation, compared without regard to case) detect no frontend	1
-W2D F1b: three .js under slides/, deck/x/ and decks/ detect no frontend	1
-W2D F1c: two .css under docs/ and one under static/ with FELIX_FRONTEND_MIN=2 detect no frontend: one asset counts, under the threshold	1
-W2D F2b: two .css under static/ and one under docs/ detect no frontend: two assets count, under the default threshold of 3	1
-W2D F2d: outside git, three .css under docs/a/, Doc/b/ and DECK/c/ detect no frontend: the fallback applies the same rule	1
-W2D F3 session: in a governed home whose own checkout holds the F3 layout, session start exits 0 and adopts nothing: w2dp's capabilities, stack.tsv and setup.tsv byte for byte as before, and no Adopted automatically	1
-W2D F3: a checkout tracking exactly Felix's four web files (workflow.js and fig.css under docs/, deck.css under strategy/applications/deck/, monitor.html) and a tests/ directory detects no frontend and still detects tests	1
-W2D R F2f count: outside git, with FELIX_FRONTEND_MIN=4 neither the link nor its target detects frontend and with 3 both do: through the link the three assets count three, as the target counts them	1
-W2D R F2f target: outside git, the link's target alone detects frontend too, and the link as the root detects exactly the capabilities its target does	1
-W2D R F2f with F1: outside git, a symbolic link whose target holds three .css under docs/ detects no frontend, and its target alone detects none	1
-W2D R F2f with F2e: outside git, a link to docs/ltgt, a directory under a real docs/ holding three .css under static/, detects frontend as docs/ltgt alone does: the link counts as its target counts itself	1
-W2D R F2f: outside git, a symbolic link whose target holds three .css under static/ detects frontend when the link is the root	1
-and prints exactly nine rows: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud	1
+base	origin/main	cc238b25d4611cd507776dfbc25e7ab51bbec4dd	0.49.317
+run	321	15136	46
+A1: felix status --tsv exits 0 and prints ten rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud, lane	1
+A2: every felix status this part ran prints the ten rows in order, and no row breaks D16's shape (1100's awk)	1
+A33 (B13, R5): felix status --tsv prints ten rows, alerts before icloud and lane last, and alerts reads none, dispatched with the run URL, failed with its note, and unknown for an unreadable record, an old posted record or a home with no project, writing nothing and calling no gh; plain status aligns it	1
+I46-1 felix lane, in a checkout its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane exit 2, nothing on stdout, and the first line of stderr exactly felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 128 with nothing on stdout, where the fork failed in felix's own shell); the probe fired	1
+I46-10 felix lane, a miss that stands: in a checkout whose .felix exists and cannot be opened (mode 000), felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines	1
+I46-11 lane status row, in a checkout its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the row is the value zero	1
+I46-12 lane status row, in a checkout its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the row is the value zero	1
+I46-13 lane status row, in a checkout remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the row is the value zero	1
+I46-14 lane status row, in a checkout remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the row is the value zero	1
+I46-15 lane status row, a miss that stands: in a checkout with no .felix and no origin remote, the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with its .felix naming p the row is the value zero	1
+I46-16 lane status row, a miss that stands: in a checkout whose origin no project's remote_match names, the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with an origin p's remote_match names the row is the value zero	1
+I46-17 lane status row, a miss that stands: in a checkout whose origin two projects' remote_match name equally, a tie, the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with p's alone naming it the row is the value zero	1
+I46-18 lane status row, a miss that stands: in a checkout whose .felix names no project, the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with its .felix naming p the row is the value zero	1
+I46-19 lane status row, a miss that stands: in a checkout whose .felix is empty, the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with its .felix naming p the row is the value zero	1
+I46-2 felix lane, in a checkout its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane exit 2, nothing on stdout, and the first line of stderr exactly felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 137 with nothing on stdout, where the kill reached felix itself); the probe fired	1
+I46-20 lane status row, a miss that stands: in a checkout whose .felix exists and cannot be opened (mode 000), the last of felix status --tsv's ten rows is lane none - this directory is not a governed checkout, never unknown; with its .felix naming p the row is the value zero	1
+I46-21 lane pulse, in a home its .felix alone binds, with C9's fork probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 128 with no lane line, where the fork failed in felix's own shell); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3	1
+I46-22 lane pulse, in a home its .felix alone binds, with C9's kill probe at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 137 with no lane line, where the kill reached felix itself); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3	1
+I46-23 lane pulse, in a home remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 128 with no lane line, where the fork failed in felix's own shell); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3	1
+I46-24 lane pulse, in a home remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 137 with no lane line, where the kill reached felix itself); the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3	1
+I46-25 lane pulse, a miss that stands: in a home with no .felix and no origin remote, felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with its .felix naming p the pulse ends with its two lane lines	1
+I46-26 lane pulse, a miss that stands: in a home whose origin no project's remote_match names, felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with an origin p's remote_match names the pulse ends with its two lane lines	1
+I46-27 lane pulse, a miss that stands: in a home whose origin two projects' remote_match name equally, a tie, felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with p's alone naming it the pulse ends with its two lane lines	1
+I46-28 lane pulse, a miss that stands: in a home whose .felix names no project, felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with its .felix naming p the pulse ends with its two lane lines	1
+I46-29 lane pulse, a miss that stands: in a home whose .felix is empty, felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with its .felix naming p the pulse ends with its two lane lines	1
+I46-3 felix lane, in a checkout remote_match alone binds, with C9's fork probe at git remote get-url origin inside felix_resolve_project: felix lane --tsv and felix lane exit 2, nothing on stdout, and the first line of stderr exactly felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 128 with nothing on stdout, where the fork failed in felix's own shell); the probe fired	1
+I46-30 lane pulse, a miss that stands: in a home whose .felix exists and cannot be opened (mode 000), felix pulse exits 0 with its backup and settings lines and no lane line, in its output or its record; with its .felix naming p the pulse ends with its two lane lines	1
+I46-4 felix lane, in a checkout remote_match alone binds, with C9's kill probe at git remote get-url origin inside felix_resolve_project: felix lane --tsv and felix lane exit 2, nothing on stdout, and the first line of stderr exactly felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 137 with nothing on stdout, where the kill reached felix itself); the probe fired	1
+I46-5 felix lane, a miss that stands: in a checkout with no .felix and no origin remote, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>.; with its .felix naming p the checkout prints its lines	1
+I46-6 felix lane, a miss that stands: in a checkout whose origin no project's remote_match names, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>.; with an origin p's remote_match names the checkout prints its lines	1
+I46-7 felix lane, a miss that stands: in a checkout whose origin two projects' remote_match name equally, a tie, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the remote_match; with p's alone naming it the checkout prints its lines	1
+I46-8 felix lane, a miss that stands: in a checkout whose .felix names no project, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines	1
+I46-9 felix lane, a miss that stands: in a checkout whose .felix is empty, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines	1
+and prints exactly ten rows: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud, lane	1
 and runs no claude command	1
-b06 A11: a lock older than 30 minutes is broken: felix runs once, the record is written, and the lock is gone	1
-b06 A12: the graph lock: a fresh one means no graphify call and stays; an old one is broken, graphify update runs once, and it is gone	1
-b06 A14: no cache and no record print exactly: no background refresh is recorded here, and the next session starts one	1
-b06 A15: a ran record prints exactly when it ran, and that the next session starts another	1
-b06 A16: a not-run record prints exactly one discover-unread line with its reason, and no dp line promises the next session	1
-b06 A17: a failed record prints failed: with its detail, in the place of ran nothing:	1
-b06 A18: an empty, two-line, non-numeric or unknown-outcome record prints exactly that the record could not be read	1
-b06 A19: no report line says the next session refreshes it in the background	1
-b06 A1: after a refresh that ran, dp.refresh is one line of three tab fields, its epoch in the call's window, outcome ran	1
-b06 A20 (precondition): a session start with TMPDIR unset leaves a not-run record	1
-b06 A20: the next session start says discovery has not refreshed for dp, and why	1
-b06 A21: said once: the start after it, with the same outcome and detail, does not say it again	1
-b06 A22: a different outcome or detail from the one last said is said again	1
-b06 A25: the stamp exits 0, is 40 lowercase hex, and is the same after only the version changes in plugin.json	1
-b06 A26: the stamp differs after one line appended to lib/discover.sh, one to lib/detect.sh, or a comment after cmd_discover() {	1
-b06 A27: when the stamp cannot be computed (no felix) no cache is current, its own stamp line's included, and both read stale	1
-b06 A28: a fresh cache stamped before a version bump stays current: not stale, both unseen, both adopted	1
-b06 A29: README.md no longer says once a week, names [redacted], and its Session start row names TMPDIR	1
-b06 A30: new nested repositories are named and left out, NOT backed up, and the rest is committed and pushed	1
-b06 A32: only a nested repository new: nothing else new to commit, HEAD unchanged, and the push still runs	1
-b06 A33: a nested repository beside a selection staged by hand is named, nothing is committed, and the selection is kept	1
-b06 A34: files that gained a credential are named and left out, NOT backed up, without the keys, and the rest is committed	1
-b06 A36: on an unborn branch a new file with a key is named and left out, and the first commit holds the rest	1
-b06 A37: a credential beside a selection staged by hand is named, nothing is committed, and the selection is kept	1
-b06 A38: with no scanner a change is not committed and not pushed, and the pulse says it could not scan	1
-b06 A3: with TMPDIR unset, empty or relative the record is not-run, TMPDIR is not an absolute path, and no felix, cache or lock	1
-b06 A40: felix pulse exits 0, its record and log name notes/leak.md, and no file under state nor stdout holds K1 or K2	1
-b06 A41: felix_pulse_remote_where prints one word for each remote, disk, network or unknown, exits 0, and network for a URL with userinfo	1
-b06 A42: a verified push to a path, or file:// and a path, says the copy is a path on this machine and writes the stamp and disk	1
-b06 A44: a disk where file adds a path on this machine to the pulse row	1
-b06 A45: a where file holding anything else says a remote whose place could not be read	1
-b06 A46: a record with a backup line saying NOT backed up adds that the last run did not back up all of memory	1
-b06 A48: a record with a line saying NOT backed up is said at session start, with its time, though the stamp is from today	1
-b06 A4: a 0777 TMPDIR, one under a .mcp.json and one that does not exist are not-run, each with its own reason	1
-b06 A51: a record whose first line is not # ran <digits> is said at a time not recorded	1
-b06 A52: CLAUDE_CODE_REMOTE=true tells the session its memory dies with the machine, and false, 1 or TRUE does not	1
-b06 A53: felix_say writes [redacted] for every key in its text and cause, before the cause is cut, and the log scans clean	1
-b06 A55: felix_route_log writes [redacted] for a key, before the 160-byte cut	1
-b06 A57: a Bash command carrying a bearer token is refused as today, and its denied line holds [redacted], not the token	1
-b06 A58: the user-prompt hook logs a prompt carrying a key with [redacted], not the key	1
-b06 A7: a felix that exits 1 leaves the previous cache byte-identical and records failed, exited 1	1
-b06 A8: a felix that started and exited 125 ran once and is failed, exited 125, never not-run	1
-b06 A9: a felix whose first line is not the current stamp leaves its stdout as the cache and records failed, naming the stamp	1
-b06 R10: a failed commit with nothing left out, then a nested repository, still ends in a commit of the rest	1
-b06 R11: a nested repository with no commit is named and left out beside one with a commit, and the rest is committed and pushed	1
-b06 R12: a nested repository with no commit and no other change says nothing else new to commit, not that the pulse could not ask	1
-b06 R1: a key written into a tracked file after the scan and before the commit is neither committed nor pushed	1
-b06 R2: a file made after the scan is not in the commit, and the index matches the commit after it	1
-b06 R3: the next pulse scans what came late: lessons.md is named and left out, and late.md is committed	1
-b06 R4: a key in a file staged by hand that .gitignore ignores is scanned: named, staged by hand, NOT backed up, nothing committed	1
-b06 R5: a commit that fails beside a nested repository says commit FAILED and leaves nothing staged	1
-b06 R7: the next run, the commit still failing, says commit FAILED again and never staged by hand	1
-b06 R8: once the commit can succeed, the next run commits the rest and pushes it, the nested repository still left out	1
-b06 R9: after a failed commit beside a file left out for a key, the next run commits the rest once it can	1
-b07 A12: with lib/verify.sh removed the stop exits 0, says Felix could not judge this stop, lib/verify.sh and nothing was held, holds nothing, and writes an unresolved.log row naming it	1
-b07 A13: with lib/resolve.sh removed the stop exits 0, says Felix could not judge this stop and lib/resolve.sh, and holds nothing	1
-b07 A1: with project.json absent the stop exits 0 and says Felix could not judge this stop, the path and nothing was held, with no decision	1
-b07 A23: with lib/hook-faults.sh removed a dirty stop holds or says lib/hook-faults.sh, never neither	1
-b07 A24: SessionStart with project.json absent says Gate: unknown, names the path, and tells the person gate unknown	1
-b07 A25: and it does not say Gate: none declared	1
-b07 A25b: and its line does not also say no gate, stops unchecked	1
-b07 A28: felix monitor --log with project.json absent exits 0, and its page gives p a gate unknown that names project.json and shows the unjudged row	1
-b07 A2: and it appends one verification.log row: verdict unjudged, tree none, a reason naming project.json	1
-b07 A33: an unjudged row gets warn and never ok	1
-b07 A34: a quarantine row gets warn and never ok	1
-b07 A35: a verdict the page has never seen gets warn and never ok	1
-b07 A36: a cloud session's dirty stop holds, and its reason says This is a cloud session., nohup, the engine's own felix gate and to say so in the last message	1
-b07 A3: and one says.log row of kind unjudged	1
-b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never verified and ends with the VM	1
-b07 A44: and says.log gains one row of kind debt	1
-b07 A47: after a prompt run killed by SIGKILL, the clean stop exits 0 with one JSON object, no decision, saying Felix's prompt hook did not finish	1
-b07 A48: and says.log gains one row of kind prompt-unfinished for session u1	1
-b07 A49: it is said once: said at u1's first stop, and u1's next stop prints nothing	1
-b07 A4: and its stdout is one JSON object	1
-b07 A50: after a prompt run ended by SIGTERM, the stop says Felix's prompt hook did not finish	1
-b07 A51: a stop that holds after a killed prompt run still says Do not describe this work as complete, and also says Felix's prompt hook did not finish	1
-b07 A52: a killed run, then a run of the same session that ends normally, and the stop still says Felix's prompt hook did not finish	1
-b07 A56: a bare attribution of brainstorming counts as a use of superpowers:brainstorming	1
-b07 A5: with project.json a named pipe the stop is not killed at 20 s, says Felix could not judge this stop and adds an unjudged row	1
-b07 A62: felix_route_skipped leaves out the two steps used by their bare names and prints superpowers:executing-plans	1
-b07 A63: after a bare attribution of brainstorming the router names the next step: Use this now: superpowers:writing-plans	1
-b07 A68: with fx/plugins refused, the run exits 0 with one JSON object whose systemMessage names alpha, beta and the log	1
-b07 A69: and its context has MISSING lines for alpha and for beta, still holds SP-CONTEXT-B07, and is a SessionStart event	1
-b07 A6: with project.json a directory the stop says Felix could not judge this stop and adds an unjudged row	1
-b07 A70: a source that failed is fetched once in the run, not again for its second entry	1
-b07 A71: on resume the same report is given, without SP-CONTEXT-B07	1
-b07 A72: with every source refused the report names superpowers, alpha and beta, and holds no SP-CONTEXT-B07	1
-b07 A73: with every fetch hanging and a budget of 4 s, the run exits 0 within 30 s and names superpowers, alpha, beta and origin/main	1
-b07 A74: two seconds after it exits, no curl or git fetch it started is still running	1
-b07 A75: with a budget of 0 the run exits 0 within 10 s, calls nothing, and says not tried for superpowers, alpha and beta	1
-b07 A76: a budget that is not a whole number reads as the default: with refusals the report still names all three	1
-b07 A77: with origin/main absent and its fetch refused, the systemMessage and a MISSING line name origin/main, and SP-CONTEXT-B07 is still there	1
-b07 A78: with a toolbox.json that cannot be read, --report exits non-zero with a MISSING line naming toolbox.json	1
-b07 A79: and --session-start exits 0 with a systemMessage naming toolbox.json	1
-b07 A7: with project.json a symbolic link to nothing the stop says Felix could not judge this stop and adds an unjudged row	1
-b07 A85: after a prompt run cut off, a dirty stop under that TMPDIR prints one JSON object that holds, with Do not describe this work as complete in its reason, and says Felix's prompt hook did not finish	1
-b07 A8: with project.json of mode 000 the stop says Felix could not judge this stop and adds an unjudged row	1
-b11 A13: felix evidence prints the gap as [!] and the row it could not judge as [?]	1
-b11 A14: and exits 1 without --strict, claiming neither no gaps nor that nothing was compared	1
-b11 A15: a row felix evidence cannot judge exits 1 on a docs-only change and says no all-clear	1
-b11 A16: a gap's advice says felix merge refuses while it stands, and offers no pull request note	1
-b11 A18: felix_merge_blockers names the row it could not judge as one evidence line saying not judged	1
-b11 A1: a when cell grep cannot compile is one unknown line for its row, naming the when cell and saying not judged	1
-b11 A21: felix merge refuses a tree with a row it could not judge, exit 3, naming the row and not judged, not the unknown-base paragraph	1
-b11 A22: felix classify at green with a row it could not judge withholds auto-merge and says not judged	1
-b11 A24: felix receipt lists evidence as unknown, is indeterminate, is not autonomous, and names the row neither met nor gap	1
-b11 A25: felix next gives Felix a row naming the row it could not judge and saying not judged	1
-b11 A27: felix_brief_evidence prints a row it cannot judge as one line, its name and not judged, with only intake.sh sourced	1
-b11 A28: and prints the same line whatever the paths hold	1
-b11 A29: a requires cell it cannot compile is printed as not judged	1
-b11 A2: and that row is unknown whatever the change touches, a docs-only change included	1
-b11 A30: a row that is not four cells is printed as not judged	1
-b11 A32: in a UTF-8 locale a when cell holding a Latin-1 byte still matches, read under LC_ALL=C	1
-b11 A33: felix brief says, under what a fix must prove, that a row was not judged	1
-b11 A34: felix incident lists, under the fix will have to prove, the row it could not judge as not judged	1
-b11 A36: obligations whose evidence runs a check and discards its status are refused, line by line, as unfailable	1
-b11 A37: as is one whose if runs the check and has no failing path	1
-b11 A38: a commissioning check that discards its status is refused	1
-b11 A39: a setup check that discards its status is refused	1
-b11 A3: a requires cell grep cannot compile, under a when that fires, is unknown, naming the requires cell and saying not judged	1
-b11 A40: a maintenance event row's check that discards its status is refused	1
-b11 A45: felix_obligations_run never runs a refused obligation, and felix_obligation_malformed names it with the reason	1
-b11 A46: felix review with no verdict prints a usage line for --pass that names --in	1
-b11 A47: a pass with no --in is refused, says --in, and records nothing	1
-b11 A48: a pass whose --in names nothing that exists is refused and records nothing	1
-b11 A49: a pass whose --in is in no git work tree is refused and records nothing	1
-b11 A4: and stays unknown when the change also adds a test	1
-b11 A50: a pass whose --in is a directory inside the reviewed checkout is refused and records nothing	1
-b11 A52: a pass whose --in is a work tree at another commit is refused, says commit, and records nothing	1
-b11 A53: a pass whose --in is a repository with no commit is refused, says commit, and records nothing	1
-b11 A5: a row with an empty when cell is one unknown line saying its cells were not judged, never judged with requires as its when	1
-b11 A6: a row of three cells is unknown, under its own name	1
-b11 A7: a row whose first cell is empty is unknown, named evidence.tsv:N by its line in the file, comments counted	1
-b11 A8: a row with a trailing tab, five cells, is unknown	1
-b11 A9: an evidence.tsv that exists and cannot be read is one unknown line for the table, not judged	1
-b12 A11 (B2, B6): with the ref file overwritten by a shell redirect with the local grant commit, felix_exception_for exits 1 and the why names reflog	1
-b12 A13 (B2, B6): the same commit written by update-ref --stdin doubts the ref, the why naming reflog	1
-b12 A15 (B1, B2, B6): origin's URL pointed at srv/other doubts the ref with remote_match, and the URL is not printed	1
-b12 A16 (B1, B2, B6): an insteadOf rewrite of srv/acme to srv/other doubts the ref with remote_match, the URL unprinted	1
-b12 A18 (B2, B6): refs/remotes/origin/main made a symbolic ref to a local main that carries the grant doubts it, the why naming symbolic	1
-b12 A19 (B2, B6): with no remote and an update-ref'd origin/main holding a grant, felix_exception_for exits 1 and the why begins not honoured:	1
-b12 A20 (B1): with git exiting 128 on reflog, felix_exception_for exits 1 and the doubt line says reflog cannot be read	1
-b12 A25 (B8): lib/exceptions.sh no longer says the ref moves only when something is fetched, and it names the reflog	1
-b12 A26 (B9): the where-stands document no longer says exception grants and obligation admission, which are read from	1
-b12 A27 (B9): it says obligation admission and every table the gate reads are read from the home's working tree	1
-b12 A28 (B9): it no longer says True only where main is server-protected	1
-b12 A29 (B10): felix_claude_dir prints X under CLAUDE_CONFIG_DIR=X, and HOME/.claude unset or empty, with no newline	1
-b12 A30 (B12): under X the registry field of px is 1.2.3, ph has none, and px's provenance is px@1.2.3/abc123	1
-b12 A32 (B12): under X, _felix_commission_installed px exits 0 and ph exits 1	1
-b12 A33 (B12): under X, felix_kernel_dir R2 main prints X/plugins/cache/felix/felix/7.7.7/harness	1
-b12 A35 (B12): with no cache under X, felix_accepted_deploy_diff exits 2 and names X/plugins/cache/felix/felix	1
-b12 A36 (B12): under X, felix_marketplace_root prints /from/ccd	1
-b12 A37 (B11, B12): under X, toolbox.sh's FELIX_PLUGIN_CACHE is X/plugins/cache and felix_toolbox_path px is X's copy	1
-b12 A38 (B12): under X, with X/plugins/cache/felix/felix present, deploy-check --applies run in R2 exits 0	1
-b12 A39 (B12): under X, felix_ready_inventory lists sx, px and bx and none of sh, ph and bh	1
-b12 A4 (B2): with origin's refspec replaced by refs/heads/forged, felix_exception_for prints nothing and exits 1	1
-b12 A40 (B12): under X, felix_ready_report prints usable, sx, skill, always available	1
-b12 A41 (B12): under X, felix_stack_plan prints present for skill sx and for plugin bx	1
-b12 A42 (B11, B12): under X, felix_coverage_events lists Stop and PreCompact and not SessionEnd	1
-b12 A43 (B13): no line outside the six named files reads $HOME/.claude without CLAUDE_CONFIG_DIR	1
-b12 A45 (B22): https://github.com/acme/webapp.git binds webapp, not web, whose acme/web it only begins with	1
-b12 A47 (B22): ssh://git@github.com/acme/webapp.git binds webapp, not web	1
-b12 A48 (B22): https://github.com/LeavesJ/Elenchus-docs.git binds nothing, though LeavesJ/Elenchus begins it	1
-b12 A49 (B22): a lowercase clone, https://github.com/leavesj/elenchus.git, binds el	1
-b12 A5 (B3): and felix_exceptions_judge prints refused, ob1, LIVE, the-founder, not honoured:, its why naming fetch	1
-b12 A52 (B22): https://gitlab.example/acme/api-gateway.git binds nothing, though gl's https://gitlab.example/acme/api begins it	1
-b12 A55 (B22): https://gitlab.example/team/svc.git binds s2, the longest match, over s1	1
-b12 A56 (B22): https://gitlab.example/xteam/svc.git binds nothing: team/svc after an x is not anchored	1
-b12 A58 (B22): https://github.com/acme/dup.git binds nothing, dup1 and dup2 tying on acme/dup	1
-b12 A6 (B4): and felix_obligations_run prints column 8 as -	1
-b12 A60 (B23): on the tie, felix_binding_broken prints a sentence naming dup1 and dup2 and remote_match	1
-b12 A61 (B23): on the tie, session-start with a startup payload says binding broken	1
-b12 A62 (B23): on the tie, stop with a Stop payload prints a block object	1
-b12 A64 (B25): bindings.tsv then holds exactly one line, the key of HOME and the URL, el, a UTC stamp	1
-b12 A65 (B25): a second call leaves exactly that one line	1
-b12 A68 (B26): with project.json renamed project 2.json, the sentence names el, project.json, project 2.json and bindings.tsv's path, not the userinfo	1
-b12 A69 (B26): with project.json deleted, the sentence names el and project.json	1
-b12 A7 (B2, B6): an added refs/heads/x/* glob onto refs/remotes/origin/* doubts the ref: exit 1, and the judge's why names fetch	1
-b12 A70 (B26): with project.json at mode 000, the sentence names el and project.json	1
-b12 A71 (B26): with project.json a FIFO, the sentence names el and project.json, within 5 s	1
-b12 A73 (B27): in that state session-start says binding broken and el, stop blocks naming el, and unresolved.log gains a line	1
-b12 A75 (B29): after projects/el is renamed el2, CO binds el2, nothing is printed, and the last line for the key names el2	1
-b12 A76 (B24): each URL part 1130 lists as own binds the project declaring OWNERX/OWNP-REPO	1
-b12 A79 (B31): with pwd printing stale/Users, felix_repo_root in a repository's subdirectory returns its top level within 5 s	1
-b12 A8 (B1, B2, B6): a remote evil writing refs/remotes/origin/* doubts it, and the one doubt line names remote.evil.fetch	1
-b12 A80 (B31): and outside any repository it returns the directory as given within 5 s	1
-b12 A81 (B32): with stdout closed after a failed printf of felix: something, the root is the top level, within 5 s (red on bash 3.2)	1
-b12 A82 (B32): and after a failed printf of /x, the root is exactly the top level (red on bash 3.2)	1
-b12 A85 (B35): each route is doubted by felix_exception_for or named in the status document's section 2 row	1
-b12 A86 (B38): the comments of lib/exceptions.sh name an honest reflog, put back, --refmap and a path that ends in the remote, and no simple forgery	1
-b12 A87 (B36): section 2's row says a worker set on forging one gets past with an honest reflog, as with a forged reflog, and drops the simple forgeries	1
-b12 A88 (B37): section 4's bullet says a fetch that writes another branch or copy into the ref gets past, and drops the reflog-only limit	1
-b12 A9 (B2, B6): an origin with no fetch refspec doubts it, the doubt line naming remote.origin.fetch	1
-b12 A90 (B41): with the home's origin at srvq/other, both grants are doubted and both judge whys name remote_match (control)	1
-b12 A92 (B39): in h1, acme/web.git, git@github.com:acme/web.git and https://github.com/acme/web bind webgit, declared as acme/web.git	1
-b12 A94 (B39): h2's acme/web/ binds acme/web/ and acme/web.git, and h3's gitlab remote_match ending in / binds svc.git and svc/	1
-b12 A95 (B39): in h4, acme/web and acme/web.git tie: nothing is bound, and the sentence names w1, w2 and remote_match	1
-b12 A96 (B39): in h1, felix_binding_broken on the acme/web.git checkout prints nothing, exits 0 and records webgit	1
-b12 A97 (B40): felix_resolve_project binds webgit and webslash exactly where felix_checkout_is_own says own, and each home has an own URL	1
-b15 A1 (B1): from a stranger's home, plan prints ci project:  none: no commit is pinned right after felix ref:, naming projects/app and a fork	1
-b15 A12 (B3, B18): while the workflow is not on origin/main protection waits: plan says so, and --yes writes the workflow at E's HEAD, skips protection naming why, and exits 0	1
-b15 A14 (B4, B18): a workflow on origin/main that still reads {{FELIX_REF}} holds protection back, and --yes says still reads {{FELIX_REF}}, writes nothing and exits 1	1
-b15 A15 (B8, B2): with no Felix remote, ci project: says so and protection is held back with no write and exit 1, and a fresh repository's workflow is skipped as today	1
-b15 A16 (B19): a repository with no GitHub remote asks gh nothing, prints the [-] github line and ci project:  projects/app	1
-b15 A17 (B10): from a worktree on claude/adopt-x, every /branches/ call names main, --yes protects main with one PUT, and the protection row names main, not adopt-x	1
-b15 A18 (B10, B11): a fork's parent and source naming trunk are not D: from the worktree every /branches/ call still names main	1
-b15 A19 (B10, B11): at a detached HEAD, D read from a pretty-printed answer is trunk: every /branches/ call names trunk and --yes makes one PUT to trunk's protection	1
-b15 A2 (B2, B17): and its plan holds protection back, [ ] protection held back because CI cannot resolve app, with no Baseline line and no write	1
-b15 A20 (B12, B17, B18): when the repository read fails, protection is [?] could not be read, default branch, with no /branches/ call; plan exits 0 with could not be read, Nothing changed.; --yes skips protection and exits 1	1
-b15 A21 (B12): a repository answer with no top-level default_branch reads [?] protection and asks nothing about /branches/	1
-b15 A22 (B13, B14, B18): a protection read that fails or is no protection (403 Pro, 404 Branch not found, 404 Not Found, no network, empty, {}, 127) reads [?] could not be read, writes nothing, and --yes exits 1	1
-b15 A25 (B13, B14): a protection requiring only gate-lint reads [ ] does not require the gate, and --yes adds gate with one POST to its required contexts, no PUT, and exits 0	1
-b15 A26 (B14, B18): a protection with no required checks gets one POST and no PUT, and a POST that fails prints FAILED     protection on main: with gh's message and exits 1	1
-b15 A27 (B14, B18): a PUT that fails prints FAILED     protection on main: with gh's message, never admin rights needed, and --yes exits 1	1
-b15 A28 (B15): the five labels after thirty others are read with --limit 1000: [x] labels, and --yes creates none	1
-b15 A29 (B15, B16): two missing labels read [ ] labels naming both, and --yes creates exactly those two with today's colours, saying created    label for each and never created    5 labels	1
-b15 A3 (B2, B18): and its --yes makes no write, prints skipped    protection ( naming CI cannot resolve app, and exits 1	1
-b15 A30 (B16, B18): a label create that fails prints FAILED     label risk-red: with gh's message, the other still says created, and --yes exits 1	1
-b15 A31 (B15, B18): a label list that fails reads [?] labels could not be read, and --yes creates none and exits 1	1
-b15 A32 (B15): a list of 1000 labels without the five may be cut: [?] labels, and --yes creates none	1
-b15 A35 (B21, M1): a committed workflow that checks out fixture/felix while Felix is stranger/felix makes ci project:  none: ... checks out fixture/felix, not stranger/felix, though the pin holds projects/app	1
-b15 A36 (B21, B18): and main unprotected stays so: the plan holds protection back for that reason, and --yes makes no write, says skipped    protection (... checks out fixture/felix, and exits 1	1
-b15 A37 (B21, B6): a main that already requires the gate under that workflow is one CI cannot pass, not Baseline already in place., and --yes exits 1 with no write	1
-b15 A38 (B21): a committed workflow at the fork but pinned to a commit without projects/app is judged by that commit, not the pin: no write, the reason named, and --yes exits 1	1
-b15 A39 (B21, control): the fork's workflow at the fork's commit holding projects/app reads ci project:  projects/app, and --yes protects main with one PUT and exits 0	1
-b15 A4 (B1): with the home outside the engine checkout, felix ref: is E's HEAD and ci project: says the pinned commit does not hold projects/app, naming a fork	1
-b15 A40 (B21, M2): with E's HEAD off origin's default branch, a main requiring the gate under a committed workflow that resolves app is Baseline already in place., ci project:  projects/app, and --yes exits 0	1
-b15 A42 (B22): a committed workflow pinned to a commit E does not have (z), or to E's unpushed commit (u), is unknown: ci project:  unknown: ..., could not be read, neither cannot pass nor Baseline already in place., and --yes writes nothing and exits 1	1
-b15 A43 (B23, M3): a clone with no origin/main, main requiring the gate: origin/main could not be read, never is not on origin/main or cannot pass, no Baseline already in place., and --yes exits 1	1
-b15 A44 (B23, M3): and with main unprotected, protection is held back because origin/main could not be read, and --yes writes nothing and exits 1	1
-b15 A46 (B21, M1): the stranger's remedy says a fork means setting the workflow's repository: too: the ci project: line and the line after wrote      .github/workflows/gate.yml each name repository:	1
-b15 A47 (B24, M2): with E's main one commit ahead of origin/main, which holds projects/app, a main requiring the gate under a workflow that names no checkout is Baseline already in place., the ci project: line says not on its default branch and names no fork, and --yes exits 0	1
-b15 A48 (B24, M2): and with main unprotected, --yes protects it with one PUT and exits 0	1
-b15 A5 (B2, B18): and --yes with that home makes no write and exits 1	1
-b15 A6 (B7): a stranger's --yes into a fresh repository writes the placeholder ref and says on the next line that {{FELIX_REF}} needs a commit holding projects/app, with no protection write	1
-b15 A7 (B7): with the home outside the engine checkout, --yes writes E's HEAD as the ref and the line after wrote names projects/app	1
-b15 A8 (B6, B18): a branch that already requires a gate CI cannot resolve is said to be one it cannot pass, not Baseline already in place, and --yes exits 1 with no write	1
-b15 A9 (B1, B2): once projects/app is on E's default branch, ci project: reads projects/app and the protection row reads require the gate on main, not held back	1
-b18 A1 (B1): post-tool makes state/ledger in a home that has none, and writes the alive line, then tool Bash	1
-b18 A10 (B8): two alive lines and one call line fold every unreached row as unknown, and the call keeps its count	1
-b18 A11 (B8): note_named, a Bash post-tool run and a run with no tool_name, then the rollup, fold the unreached rows as unknown and no alive row	1
-b18 A13 (B9): a resumed record with more call lines than alive lines is complete, folds with zeros, and has no alive row	1
-b18 A15 (B10): an unknown fold clears when the late call line lands: stranded 1, catch-up 1, then zeros and the call	1
-b18 A16 (B11): felix_ledger_summary reads known rows only, and a capability with only unknown rows gets no line	1
-b18 A17 (B11): retire lists alpha at MIN 5, alpha and gamma at MIN 4, and not delta at MIN 3, since unknown rows are no evidence of disuse	1
-b18 A18 (B11): felix_ledger_mcp counts the known mcp row only	1
-b18 A2 (B1): two Bash runs leave four lines: alive, tool Bash, alive, tool Bash	1
-b18 A20 (B12): felix_ledger_unrouted lists epsilon on its one known row, and nothing an unknown row names	1
-b18 A22 (B13): compliance counts known rows only, and a session whose named rows are all unknown prints no line	1
-b18 A23 (B14): felix_ledger_unknown counts the 9 sessions that hold an unknown row, and 0 where none does	1
-b18 A24 (B14a): felix ledger exits 0 and prints one line beginning unknown, not zero: 9 session(s), which says incomplete	1
-b18 A26 (B14c): a capability whose rows are all unknown, beta, is not a line of felix ledger's table	1
-b18 A27 (B14d): when every row is unknown felix ledger exits 0, prints no nothing yet line, and says unknown, not zero: 5 session(s)	1
-b18 A28 (B15): a home under a plain folder, with no iCloud Drive, reads value, clear: no copy, not synced	1
-b18 A29 (B15): a home under Documents, which CD/Documents links to, reads value, synced, inside iCloud-synced Documents	1
-b18 A3 (B2): a run with a session and no tool_name still leaves its alive line, and nothing else	1
-b18 A30 (B15): a home under a linked Desktop reads synced inside Desktop, and one under CD itself synced inside iCloud Drive	1
-b18 A31 (B15): a home named through a link to Documents/fh is judged by its physical path, as A29	1
-b18 A32 (B15): with CD/Documents a plain directory, or a link somewhere else, a home under Documents is not synced	1
-b18 A33 (B15): four copies under state/ and .git, objects not read, are counted, the first three listed in C order, and the home is synced	1
-b18 A34 (B15): names that are not shaped like an iCloud copy (v2.tsv, a2, x 2y, b 2., a parenthesised date) count as none	1
-b18 A35 (B15): six copies list the first three and say and 3 more	1
-b18 A36 (B15): a directory the scan cannot read makes the count unknown, not zero	1
-b18 A37 (B15): with HOME unset and no copy, whether the home is synced is unknown	1
-b18 A38 (B15): with HOME unset a copy is still counted, and the detail ends saying the sync is unknown	1
-b18 A39 (B15): an empty home, or one that does not exist, reads unknown: no Felix home resolved	1
-b18 A41 (B16): felix status --tsv exits 0, keeps settings, schedule, pulse, reach and gate first, and ends with one icloud row	1
-b18 A42 (B16): the icloud row is icloud, then felix_icloud_state's line for the same home	1
-b18 A43 (B16): plain felix status prints the icloud row aligned as the other rows are	1
-b18 A5 (B4): the payload's first session_id is the session, so an mcp call whose input and response carry session_id lands in s-top.tsv alone	1
-b18 A8 (B6): a complete record with an alive line folds as today, and no fold row is the alive line	1
-b18 A9 (B7): a record with nothing from PostToolUse folds its named row and its declared row as unknown	1
-b18 R1a (M1): the Skill run from a harness whose lib/ledger.sh will not load leaves the play unknown or reached, never at 0 calls	1
-b18 R1b (M1): the Skill run from a harness whose lib/resolve.sh will not load leaves the play unknown or reached, never at 0 calls	1
-b18 R1c (M1): the Skill run held to one process, so it cannot fork, leaves the play unknown or reached, never at 0 calls	1
-b18 R2a (M2): compliance prints no line for a session that holds an unknown row, whatever its known rows say, and still prints a complete one	1
-b18 R2b (M2): through the rollup, a session whose last run died after its alive line prints no compliance line, and the same session complete prints 2 1 1	1
-b18 R3a (M3): a home under Documents, which CD/Documents links to, with ~/Library/Mobile Documents unreadable, reads unknown, not clear	1
-b18 R3b (M3): the same home with CD itself unreadable reads unknown, not clear	1
-b18 R3c (M3): a home under a linked Desktop with ~/Library/Mobile Documents unreadable reads unknown, not clear	1
-b18 R3d (M3): with ~/Library/Mobile Documents unreadable a copy is still counted, and the detail ends saying the sync is not known	1
-b18 R3e (M3) (control): a readable ~/Library/Mobile Documents that holds no iCloud Drive folder reads clear, not unknown	1
-dated lesson: a bold claim after the date is mounted with its bold, and nothing after it	1
-dated lesson: a date repeated in bold after the date still mounts the claim sentence	1
-dated lesson: a period inside a version or a file name does not end the sentence	1
-dated lesson: a sentence that crosses a line break is mounted whole on one line, without what follows it	1
-dated lesson: a text with no sentence end is mounted from its first words, cut to 240 characters	1
-dated lesson: an L-numbered and a dated entry matched together are each mounted by their own rule	1
-dated lesson: felix lessons --for mounts a felix lesson entry as its date and its first sentence	1
-dated lesson: the prompt hook mounts the dated lesson's claim sentence	1
+b18 A41 (B16): felix status --tsv exits 0, keeps settings, schedule, pulse, reach and gate first, has one icloud row, the ninth, and ends with the lane row, the tenth and last, which in this ungoverned directory reads none: this directory is not a governed checkout	1
 felix status writes nothing under the home's state, the memory root or the checkout, .git included (S4)	1
-handoff tree: a bound directory outside git is not known, never clean	1
-handoff tree: a status that fails with no words is not known, because git status did not finish	1
-handoff tree: and claims neither clean nor dirty	1
-handoff tree: and its file says not known, with no list and no clean claim	1
-handoff tree: and its file says the tree is clean, with no branch line	1
-handoff tree: with an index git cannot read, the list says whether the tree is clean is not known, with git's reason	1
-handoff tree: with status.branch on, a clean tree is clean on the list	1
-handoff tree: with status.branch on, an edited tree's file lists the edit and no branch line	1
-lib/discover.sh closes what it inherited before backgrounding	1
-seeded graph row: a directory outside git is due, since the check cannot ask	1
-seeded graph row: a graph no modelled commit is newer than is ok	1
-seeded graph row: a worktree of a checkout with no graph is ok	1
-seeded graph row: an unborn repository holding a graph is due	1
-seeded graph row: an unborn repository with no graph reads ok too	1
-seeded graph row: and prints no DUE line for it	1
-seeded graph row: in a repository with no graph, felix maintenance reads graphify ok, check passed	1
-seeded graph row: its description names graphify-out/graph.json	1
-seeded graph row: the session start's due line does not name graphify there	1
+lane command F1-count-ends-early L-NEVER-OK: the parent of the shell that runs the read of the landings, then that shell, killed (C9): felix lane --tsv prints nothing on stdout, felix: the lane count did not finish in <repo> on stderr, and exits 1, or exits 0 with its one R2 line; never a count, no line, or exit 0 with nothing	1
+lane command F1-count-ends-early L-NEVER-OK: the same in felix lane, the human form: nothing on stdout, felix: the lane count did not finish in <repo> on stderr, and exit 1, or exit 0 with its one line capability: unknown, the R2 reason; never a count, no line, or exit 0 with nothing	1
+lane command F11-one-day-reads-1-days: with window 1 the human line says in 1 day, never 1 days: capability: idle, 0 of 0 engine landings in 1 day, target 1/2, and the rest of the line as C5 builds it	1
+lane command F2-caller-git-dir: GIT_DIR naming the checkout, the home, .git or another repository, GIT_WORK_TREE, both, or GIT_OBJECT_DIRECTORY of another repository, exported by the caller, leave felix lane --tsv's exit 0 and line as they are without them	1
+lane command F2-caller-git-dir: the same settings leave felix status --tsv's exit 0 and its lane row as they are without them	1
+lane command F3-old-git-lazy-fetch-through-the-home L-NEVER-OK: (a) with a git that says 2.43.0, the --filter=blob:none clone as home and checkout is not read: unknown with R2, column 10 unknown, and nothing is fetched	1
+lane command F3-old-git-lazy-fetch-through-the-home: (b) with a git that says 2.43.0, a full clone as the checkout and the --filter=blob:none clone as the home: zero, L 0 of T 1, column 10 unknown and 11 -, and nothing is fetched	1
+lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing L-NEVER-OK: a --filter=tree:0 clone as home and checkout reads unknown with R2, column 10 unknown and 11 -, never E, the latest landing, and fetches nothing	1
+lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: a --filter=blob:none clone as home and checkout reads zero, L 0 of T 1, column 10 unknown and 11 -, never C, the comment-only commit, and fetches nothing	1
+lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with B's lanes.tsv blob gone from the home, column 10 reads unknown and 11 -, never C, the comment-only commit; with it there, column 10 named B; the state ok and every other column stand	1
+lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with B's lanes.tsv blob gone, the human line says its lanes.tsv row's last change cannot be read	1
+lane command F6-column-10-names-a-wrong-commit-when-history-objects-are-missing: with C's root tree gone from the home, below D, which adds notes.md, column 10 reads unknown and 11 -, never D; with it there, column 10 named B; the state ok and every other column stand	1
+lane command F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly none: column 9 prints none as the cell gives it, the human line says next: none, and the state stays ok, L 1 of T 2	1
+lane command F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly unknown: column 9 prints unknown as the cell gives it, the human line says next: unknown, and the state stays ok, L 1 of T 2	1
+lane command L-DET: two runs each of felix lane, felix lane --tsv and felix status --tsv print identical bytes, the expected human line, TSV line and lane row	1
+lane command L-RO: after touch of lanes.tsv, its content unchanged: felix lane and felix status leave nothing newer under the home, the memory root and the checkout, its refs and worktree list unchanged, and print the expected lines	1
+lane command L-RO: after uncommitted edits to lanes.tsv (share 1/4, window 7) and lane-next.tsv: felix lane and felix status leave nothing newer under the home, the memory root and the checkout, its refs and worktree list unchanged, and print the expected lines	1
+lane command L-RO: as built: felix lane and felix status leave nothing newer under the home, the memory root and the checkout, its refs and worktree list unchanged, and print the expected lines	1
+lane command R2-F10-utf16-log-encoding-reads-R1: i18n.logOutputEncoding or i18n.commitEncoding UTF-16 in the caller's ~/.gitconfig, or i18n.logOutputEncoding=UTF-16 as git -c, leave felix lane --tsv's exit 0 and its two lines as they are without it; never R1, for a ref that is a readable commit	1
+lane command R2-F10-utf16-log-encoding-reads-R1: the same settings leave felix status --tsv's exit 0 and its lane row the value zero 0 of 2 engine landings in 14 days, target 1/2	1
+lane command R2-F12-write-failure-exits-0: felix lane --tsv with its stdout closed, where its lines cannot be written, exits with a status felix sets other than 0, never 0 as though it had printed them	1
+lane command R2-F5-next-cell-empties-and-shifts-columns: a fork that fails in the read of cap's next text: felix lane --tsv exits 0 with cap's column 9 cap next item or unknown, never empty, sec's its own text or unknown, and every other column of both lines as without the fault	1
+lane command R2-F5-next-cell-empties-and-shifts-columns: the same fault in felix lane: each human line says next: and its text or unknown, then the rest as C5 builds it from the columns, never a line shifted by an empty next	1
+lane command R2-F6-dates-become-none-empty-or-dash L-NEVER-OK: a fork that fails in each formatting of a date: felix lane --tsv keeps column 12, the ref's date, on each line, column 7 the last lane landing's date or unknown, never none, columns 10 and 11 the commit and its date or unknown and -, or reads a line unknown with a reason, or ends as C3's count that did not finish; never an empty column	1
+lane command R2-F8-partial-home-table-read-still-fetches L-NEVER-OK: the same in felix status --tsv runs no upload-pack, and its lane row is lane unknown - with R9	1
+lane command R2-F8-partial-home-table-read-still-fetches L-NEVER-OK: with a git that says 2.43.0 and the home a --filter=blob:none clone whose HEAD's lanes.tsv blob was never fetched, felix lane --tsv in a full clone runs no upload-pack and reads the - line with R9	1
+lane command R2B-F3-graft-file-changes-landings: GIT_GRAFT_FILE exported by the caller, making B (engine/b.sh, four days back) a root, or giving Y (docs/y.md, two days back) the single parent B, each of which changes the first-parent chain git walks, leaves felix lane --tsv's exit 0 and its two lines byte for byte as they are without it	1
+lane command R2B-F3-graft-file-changes-landings: the same GIT_GRAFT_FILE settings leave felix status --tsv's exit 0 and its lane row the value zero 0 of 2 engine landings in 14 days, target 1/2	1
+lane command R2B-F4-numeric-lane-names-collide: lanes named 1 and 01 are two lanes: felix lane --tsv prints 1 idle 0 0, last none, next first item, its row last changed by A, and 01 ok 1 1 at 1/3, last the Felix-Lane: 01 landing, next second item, its row last changed by B; never 1 taking 01's landing, next or row change	1
+lane command R2B-F4-numeric-lane-names-collide: with lanes.tsv holding lane 1 alone and lane-next.tsv a row for 01 alone, a lane lanes.tsv does not hold (C1: ignored), lane 1's next reads none, never unknown	1
+lane command R2B-F5-repo-root-ends-early-names-no-repo L-NEVER-OK: felix_repo_root's substitution under cmd_lane ended early (C9's kill at its pwd), every other read left to finish: felix lane --tsv prints nothing on stdout, felix: the lane count did not finish in <repo> naming the checkout on stderr, and exits 1, or prints the two lines it prints without the fault; never R2 naming an empty repository	1
+lane command R2B-F5-repo-root-ends-early-names-no-repo L-NEVER-OK: felix_repo_root's substitution under felix_status_rows ended early the same way: felix status --tsv exits 0 and its last row is lane unknown - the lane count did not finish in <repo>, naming the checkout, or the value zero 0 of 2; never a reason naming an empty repository	1
+lane command R3-F2-ended-resolution-reads-ungoverned L-NEVER-OK: in a checkout bound by remote_match alone, C9's kill at git remote get-url origin inside felix_resolve_project: felix lane --tsv prints nothing on stdout and ends as C3's count that did not finish, or exits 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exits 137, or prints its unfaulted lines; never felix: no project governs <dir>.	1
+lane command R3-F2-ended-resolution-reads-ungoverned L-NEVER-OK: in the checkout its .felix binds, C9's kill at the read of the marker inside felix_resolve_project (tr -d [:space:]): felix lane --tsv and felix lane print nothing on stdout and end as C3's count that did not finish, or exit 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exit 137, or print their unfaulted lines; never felix: no project governs <dir>.	1
+lane command V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a checkout remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 128 with nothing on stdout, where the fork failed in felix's own shell); never felix: no project governs <dir>.; the probe fired, and unfaulted the checkout prints its lines	1
+lane command V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: the same checkout, C9's fork probe at every head -1, the end of the shared reader's pipe after its sed, so the resolver misses while the check reads remote_match with a sed of its own and no pipe (C2): felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. (or 128 with nothing on stdout, where the fork failed in felix's own shell); never felix: no project governs <dir>.; the probe fired	1
+lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so felix lane --tsv prints zz zero 0 1 7 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: felix lane --tsv and felix lane exit 2 with nothing on stdout and C5's line felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. first on stderr, since the check binds z where the resolver found p (C2) (or 128 with nothing on stdout, where the fork failed in felix's own shell); never p's figures, cap zero 0 1 14 1/2, nor z's lines as without the fault; the probe fired	1
+lane command V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: felix lane --tsv and felix lane exit 2 with nothing on stdout and C5's line felix: the project that governs <dir> could not be resolved: a read it stands on did not finish. first on stderr, since the check binds z where the resolver found p (C2) (or 137 with nothing on stdout, where the kill reached felix itself); never p's figures, cap zero 0 1 14 1/2, nor z's lines as without the fault; the probe fired	1
+lane command V3R1-F5-unreadable-marker-called-empty: in a checkout whose .felix holds p, exists and cannot be opened (mode 000), with no origin, felix lane --tsv and felix lane exit 2, print nothing on stdout, and say first on stderr exactly felix: The .felix marker in <root> cannot be read, so it does not resolve to a project.; a .felix naming no project gives a line of felix's naming <dir> and the marker, never that sentence; no .felix gives felix: no project governs <dir>.; with its .felix naming p the checkout prints its lines	1
+lane command V3R2-F1-binding-broken-writes-bindings-tsv L-RO: in a checkout whose .felix names nope, no project, and whose origin p's remote_match names, with C9's kill probe at pwd -P while felix_binding_broken is on the stack, felix lane --tsv and felix lane exit 2 with nothing on stdout, say first on stderr C5's sentence for a marker that names no project (or C5's line for a resolution that did not finish), and leave the memory root empty, no bindings.tsv; unfaulted, that sentence	1
+lane command V3R2-F1-binding-broken-writes-bindings-tsv L-RO: in a checkout whose origin p's and q's remote_match name equally (a tie), with C9's fork and kill probes at sed naming projects/q/project.json while felix_binding_broken is on the stack, felix lane --tsv and felix lane exit 2 with nothing on stdout, say first on stderr C5's tie sentence (or C5's line for a resolution that did not finish), and leave the memory root empty, no bindings.tsv; unfaulted, the tie sentence	1
+lane command V3R2-F2-marker-and-tie-said-as-ungoverned: in a checkout whose .felix names nope, with no origin, under C9's fork and kill probes at tr -d [:space:] while felix_binding_broken is on the stack, and in the tie checkout under V3R2-F1's probes, felix lane --tsv and felix lane exit 2 with nothing on stdout and say first on stderr C5's sentence for the layout, names "nope" or the tie's (or C5's line for a resolution that did not finish); never is empty, never felix: no project governs <dir>.; unfaulted, the sentence	1
+lane command: a committed lane-next.tsv the shape check refuses, a CR in its row: next reads unknown and the state stays ok, L 1 of T 2	1
+lane command: a committed lane-next.tsv whose only row names a lane lanes.tsv does not hold: next reads none and the state stays ok, L 1 of T 2	1
+lane command: a committed lanes.tsv holding only a comment and a blank line counts no lane: felix lane and felix lane --tsv print nothing and exit 0	1
+lane command: a home that never held lanes.tsv counts no lane: felix lane and felix lane --tsv print nothing and exit 0	1
+lane command: a lane landing twenty days back is out of the window and is still the last lane landing: zero, L 0 of T 1, its date in column 7	1
+lane command: a lane-next.tsv in the home's working tree, never committed: next reads none and the state stays ok, L 1 of T 2	1
+lane command: a lanes.tsv committed, then removed by a later commit and left in the working tree, counts no lane: felix lane and felix lane --tsv print nothing and exit 0	1
+lane command: a lanes.tsv with a row in the home's working tree, never committed, counts no lane: felix lane and felix lane --tsv print nothing and exit 0	1
+lane command: after commit A adds the lane's row, columns 10 and 11 name A and its committer date	1
+lane command: after commit A, the human line names A's first twelve characters and its date	1
+lane command: an R4 line in human form has lane -, and no last-change part since column 10 is -	1
+lane command: an unknown line in human form reads <lane>: unknown, the reason, the last change, and the ref at -	1
+lane command: commit E lowers capability's share to 1/4: columns 10 and 11 name E and its date, and the other lane's stay	1
+lane command: commits that change only a comment line, another lane's row and another file leave capability's columns 10 and 11 at A; the other lane names its own commit	1
+lane command: felix help lists felix lane [--tsv] byte for byte, its text from column 28, on the line right after the one holding felix status [--tsv]	1
+lane command: felix lane --json is a usage error, in a governed checkout and where no project governs: nothing on stdout, the usage line alone on stderr, exit 2	1
+lane command: felix lane --tsv --help is a usage error, in a governed checkout and where no project governs: nothing on stdout, the usage line alone on stderr, exit 2	1
+lane command: felix lane --tsv --tsv is a usage error, in a governed checkout and where no project governs: nothing on stdout, the usage line alone on stderr, exit 2	1
+lane command: felix lane --tsv prints one line of thirteen columns: lane, ok, L 1, T 2, window, share, the last lane landing's date, the mark, next, the commit that last changed the row and its date, the ref's date, and -	1
+lane command: felix lane prints the human line built from those columns, the commit shortened to twelve characters	1
+lane command: felix lane x is a usage error, in a governed checkout and where no project governs: nothing on stdout, the usage line alone on stderr, exit 2	1
+lane command: in a home whose root commit holds the row, columns 10 and 11 name the root and its date	1
+lane command: no lane-next.tsv committed: next reads none and the state stays ok, L 1 of T 2	1
+lane command: one committed row for the lane: next reads obligation intake, slice 1: felix situations --change (branch claude/lane-situations-owed) and the state stays ok, L 1 of T 2	1
+lane command: two committed rows for the lane: next reads unknown and the state stays ok, L 1 of T 2	1
+lane command: where no project governs, felix lane and felix lane --tsv exit 2 with nothing on stdout and three lines on stderr, the first felix: no project governs <dir>.	1
+lane command: with M's root tree gone, the human line reads last lane landing unknown and the state zero	1
+lane command: with M's root tree gone, the status row still reads the value zero, 0 of 1 engine landings in 14 days, target 1/2	1
+lane command: with M's root tree gone, which only the last-landing search reads, column 7 reads unknown and the state stays zero, L 0 of T 1, columns 10 to 13 as before	1
+lane command: with lanes.tsv deleted from the home's working tree and still committed, felix lane --tsv prints the committed row's line unchanged	1
+lane command: with no marked engine landing anywhere on the chain, the last lane landing reads none	1
+lane command: with the home a shallow clone, column 10 reads unknown and 11 -, and the state and every other column stand	1
+lane command: with the home a shallow clone, the human line says its lanes.tsv row's last change cannot be read	1
+lane counts F5-0x1e-in-a-message-drops-the-mark: a landing whose message holds the line see <0x1E> here above the whole line Felix-Lane: capability counts in L: ok, L 1 of T 1, the last lane landing its date	1
+lane counts F5-0x1e-in-a-message-drops-the-mark: a line holding 0x01, 0x1C, 0x1D, 0x1E, 0x1F and DEL above the whole mark line drops nothing: ok, L 1 of T 1, the last lane landing its date	1
+lane counts L-RF1: Felix-Lane: with two spaces before the lane does not count in L, and still counts in T: L 0 of T 1	1
+lane counts L-RF1: Felix-Lane:capability with no space after the colon does not count in L, and still counts in T: L 0 of T 1	1
+lane counts L-RF1: a mark line ending in a CR counts in L: L 1 of T 1	1
+lane counts L-RF1: a mark line ending in a space, a tab, a space and a CR counts in L: L 1 of T 1	1
+lane counts L-RF1: a mark line ending in a tab counts in L: L 1 of T 1	1
+lane counts L-RF1: a mark line ending in three spaces counts in L: L 1 of T 1	1
+lane counts L-RF1: a mark line with a leading space does not count in L and the landing still counts in T: L 0 of T 1	1
+lane counts L-RF1: a mark line with a leading tab does not count in L and the landing still counts in T: L 0 of T 1	1
+lane counts L-RF1: a mark line with more text after the lane name does not count in L, and still counts in T: L 0 of T 1	1
+lane counts L-RF1: a mark that is the subject line of a landing committed straight to main is a message line, and counts in L: L 1 of T 1	1
+lane counts L-RF1: a well-formed mark on a landing that changed no counted path counts in neither: L 0 of T 0, idle	1
+lane counts L-RF1: felix-lane: capability in lower case does not count in L, and the landing still counts in T: L 0 of T 1	1
+lane counts L-RF5 L-NEVER-OK: a --depth 2 clone holding refs/remotes/origin/main reads unknown with R3 in felix lane --tsv, L and T -, never a count and never ok	1
+lane counts L-RF5 L-NEVER-OK: in the shallow clone felix status --tsv ends with the lane row unknown, value -, and R3, never the value ok	1
+lane counts L-RF5 L-NEVER-OK: the shallow clone's human line reads unknown with R3, the last change of its row and the ref's date	1
+lane counts: a branch commit whose subject is the mark lands in a felix merge squash as * Felix-Lane: capability, which does not mark: L 0 of T 1	1
+lane counts: a marked landing that only moves engine/x.sh to docs/x.sh changed engine/x.sh (renames off), so it counts: L 1 of T 1	1
+lane counts: a real merge is read through the commits it merged: one of them carries the mark and changes engine/, the merge's own message none: L 1 of T 1	1
+lane counts: a real merge whose marked commit changes no counted path, and which changes none against its first parent, counts in neither: L 0 of T 0, idle	1
+lane counts: a real merge whose only marked commit changes docs, beside an unmarked engine commit, is counted by what it changed against its first parent and marked by what it merged: L 1 of T 1	1
+lane counts: a real merge whose own message carries the mark, over an unmarked engine commit, is a lane landing: L 1 of T 1	1
+lane counts: a second after the clock, (j) sits exactly 14 days back and is out: L 4 (a, b, f, k), T 7 (a, b, d, f, g, h, k), the last lane landing (k)'s date	1
+lane counts: a second before the clock, (k) is after now and (i) is inside: L 5 (a, b, f, i, j), T 8 (a, b, d, f, g, h, i, j), and the last lane landing is (f)'s date	1
+lane counts: at the pinned clock, landings (a) to (k) give L 5 (a, b, f, j, k) and T 8 (a, b, d, f, g, h, j, k), state ok, and the last lane landing is (k)'s date	1
+lane pulse F1-count-ends-early L-NEVER-OK: where the pulse ends with lane capability zero 0 1 and lane docs zero 0 1, the parent of the shell that runs a read of the landings, then that shell, killed (C9): felix pulse exits 0 and its last lines, after its backup and settings lines, are the single lane - unknown - -, or one R2 line per lane; never a count and never no lane line	1
+lane pulse F1-fork-reads-as-no-lane L-NEVER-OK: a fork that fails in the read of the landings on refs/remotes/origin/main still gives the four lane lines last, each unknown with L and T -, after the backup and settings lines, never no line	1
+lane pulse L-NEVER-OK: FELIX_LANE_NOW=0123 (R8) gives every row unknown, L and T -, never a count	1
+lane pulse L-NEVER-OK: a committed lanes.tsv the shape check refuses (a CR in its row, R4) gives the one line lane - unknown - -	1
+lane pulse L-NEVER-OK: each of the four lines is lane, then columns 1 to 4 of the felix lane --tsv line of its row at the same FELIX_LANE_NOW	1
+lane pulse L-NEVER-OK: four rows give four lines, last and in file order: capability short 1 3, docs zero 0 2, lane bad unknown - - (share 3/2) and lane - unknown - - (a lane cell that is no lane name)	1
+lane pulse L-NEVER-OK: the record ends with the four lane lines, and the log gains the run's lines, the four lane lines last	1
+lane pulse L-NEVER-OK: with refs/remotes/origin/main deleted in the home (R1), every row reads unknown, L and T -	1
+lane pulse R2-F2-pulse-drops-lane-lines L-NEVER-OK: (b) a fork that fails in the pulse's git read of the home (rev-parse --git-dir, felix_lane_pulse on the stack), where without it the pulse ends with lane cap zero 0 2 and lane sec short 1 3: felix pulse ends with those lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line	1
+lane pulse R2-F2-pulse-drops-lane-lines L-NEVER-OK: (c) a fork that fails as the pulse reads the home's .felix (tr -d [:space:] in felix_resolve_project, called from felix_lane_pulse): felix pulse ends with the two lane lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line	1
+lane pulse R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: in a home bound to p by remote_match alone, where without the fault the pulse ends with lane cap zero 0 2 and lane sec short 1 3, a fork that fails in the git read of the origin's URL (get-url, felix_resolve_project on the stack): felix pulse ends with those lines, lane - unknown - -, or an unknown line per lane, after its backup and settings lines, or ends with 128; never exit 0 with no lane line	1
+lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count's scratch directory removed at the read of lanes.tsv's rows (skip=, felix_table_rows), where without it the pulse ends with lane cap ok 1 2: felix pulse exits 0 and ends with lane - unknown - - after its backup and settings lines; never no lane line	1
+lane pulse R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[$2]++, _lane_window): felix pulse exits 0 and ends with lane - unknown - - or lane cap unknown - - after its backup and settings lines; never lane cap idle 0 0	1
+lane pulse R3-F1-open-file-limit-drops-marks L-NEVER-OK: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs felix pulse, where without it the pulse ends with lane cap zero 0 2 and lane sec short 1 3: at every N its lane lines are those or unknown ones, in order, all of them and last when it exits 0; never lane sec zero 0 3	1
+lane pulse V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a home remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record (or 128 with no lane line, where the fork failed in felix's own shell); never exit 0 with no lane line; the probe fired, and unfaulted the pulse ends with lane cap zero 0 2 and lane sec short 1 3	1
+lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a self-governed home whose origin two projects' remote_match name, z's github.com/o/rr the longer, so the pulse ends with lane zz zero 0 1, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/rr: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record, since the check binds z where the resolver found p (C2, C8) (or 128 with no lane line, where the fork failed in felix's own shell); never p's lane cap zero 0 1, nor z's line as without the fault; the probe fired	1
+lane pulse V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same home, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: felix pulse exits 0, and after its backup and settings lines its lane lines, last, are exactly the one line lane - unknown - -, in its output and its record, since the check binds z where the resolver found p (C2, C8) (or 137 with no lane line, where the kill reached felix itself); never p's lane cap zero 0 1, nor z's line as without the fault; the probe fired	1
+lane pulse: a run leaves nothing newer in the home outside state/, .git included, its refs and worktree list as they were, and prints the four lane lines last	1
+lane pulse: a second run appends its four lane lines to the log (nine there, after one and four), and the record, rewritten, holds four	1
+lane pulse: one lane, capability, L 1 of T 3: felix pulse exits 0 and its last line is lane capability short 1 3, after its backup and settings lines	1
+lane pulse: run from the checkout of another project of the home, whose own lanes.tsv has a row, the lane lines are the home project's four and no other	1
+lane pulse: state/pulse.log gains exactly the lines the run printed, the lane line last	1
+lane pulse: state/pulse.status.tsv opens # ran <epoch>, holds every line the run printed after its header, and ends with the lane line	1
+lane pulse: the line carries the state, L and T that felix lane --tsv prints in the home at the same FELIX_LANE_NOW	1
+lane pulse: with FELIX_LANE_NOW twenty days on, no landing is in either window: capability and docs read idle 0 0, the broken rows still unknown	1
+lane session start F1-count-ends-early: the parent of the shell that runs the read of the landings, then that shell, killed (C9), in the own zero checkout where the same session start without it shows the paragraph and the token: exit 0, valid JSON, neither a lane paragraph nor a lane token	1
+lane session start F11-one-day-reads-1-days: zero with window 1 (one unmarked engine landing an hour back): the paragraph says 0 of 1 engine landings in 1 day, never 1 days, and the screen line ends with · lane: 0 in 1 day	1
+lane session start F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly none, the lane zero: felix lane --tsv prints none in column 9 as the cell gives it, and the paragraph reads it as C7 reads none, (lane-next.tsv names none), with the token	1
+lane session start F9-next-text-none-or-unknown-literally: a committed lane-next.tsv whose one row for the lane has next exactly unknown, the lane zero: felix lane --tsv prints unknown in column 9 as the cell gives it, and the paragraph reads it as C7 reads unknown, (lane-next.tsv cannot be read), with the token	1
+lane session start L-OWN: in a checkout that is not own (its origin https://github.com/lane-fixture/other.git, another github.com repository), the lane zero and every other input as in the own one: neither a lane paragraph nor a lane token, the withheld line names lane item among its kinds, and felix lane --tsv exits 0 printing the line it prints in the own checkout	1
+lane session start L-OWN: in a checkout that is not own (its project declares no remote_match, its origin the own one's), the lane zero and every other input as in the own one: neither a lane paragraph nor a lane token, the withheld line names lane item among its kinds, and felix lane --tsv exits 0 printing the line it prints in the own checkout	1
+lane session start L-OWN: in a checkout that is not own (no origin remote, refs/remotes/origin/main made by update-ref), the lane zero and every other input as in the own one: neither a lane paragraph nor a lane token, the withheld line names lane item among its kinds, and felix lane --tsv exits 0 printing the line it prints in the own checkout	1
+lane session start L-OWN: in the project's own checkout (remote_match lane-fixture/sx, origin https://github.com/lane-fixture/sx.git), the lane zero: the context holds the zero paragraph once, the screen line ends with · lane: 0 in 14 days, no withheld line names lane item, and felix lane --tsv exits 0 printing the zero line	1
+lane session start L-RF2: next holding ESC, FF, 0x01 and DEL: session start exits 0, its output still parses, the context holds ? in their places, and felix lane --tsv exits 0 with the bytes unchanged in column 9	1
+lane session start L-RF2: next holding a double quote, a backslash and an em dash, the lane zero: session start exits 0 with valid JSON whose context holds the next text byte for byte in the paragraph, and felix lane --tsv exits 0 printing it unchanged in column 9	1
+lane session start L-RF4: a committed lane-next.tsv the shape check refuses, a CR in its row: felix lane --tsv reads zero, L 0 of T 2, next unknown, and session start shows the paragraph with (lane-next.tsv cannot be read) and the token	1
+lane session start L-RF4: no committed lane-next.tsv: felix lane --tsv reads zero, L 0 of T 2, next none, and session start shows the paragraph with (lane-next.tsv names none) and the token	1
+lane session start L-RF4: two committed lane-next.tsv rows for the lane: felix lane --tsv reads zero, L 0 of T 2, next unknown, and session start shows the paragraph with (lane-next.tsv cannot be read) and the token	1
+lane session start R2-F1-clock-fork-reads-idle: with FELIX_LANE_NOW unset, a fork that fails in the count's read of the machine clock (date -u +%s), in the own checkout where the same session start without it shows cap's zero paragraph, sec's short one and the token: exit 0, valid JSON, neither a lane paragraph nor a lane token, never an idle paragraph	1
+lane session start R2-F5-next-cell-empties-and-shifts-columns: a fork that fails in the read of cap's next text, in the own checkout where without it session start shows both paragraphs and the token: exit 0, valid JSON, cap's zero paragraph once with cap next item or (lane-next.tsv cannot be read), never - or empty, sec's short one the same way, and the token	1
+lane session start R2B-F4-numeric-lane-names-collide: lanes.tsv holding lane 1 alone and lane-next.tsv a row for lane 01 alone, in the own zero checkout: felix lane --tsv reads 1 zero 0 2 with next none, and session start shows lane 1's zero paragraph once with (lane-next.tsv names none), never (lane-next.tsv cannot be read), and the token	1
+lane session start R3-F1-open-file-limit-drops-marks: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs the hook, in the own checkout where without it session start shows sec's short paragraph and cap's zero one and no token: at every N its only lane sentences are those two, each at most once, and no lane token shows; never Lane sec is zero, and never · lane: 0 in 7 days	1
+lane session start: a first row ok and a second idle: the idle row's paragraph only, none for the ok lane, and no token, since the first row is ok	1
+lane session start: a first row zero (window 10) and a second short: both paragraphs, in file order, and the token from the first row, · lane: 0 in 10 days	1
+lane session start: idle at share 1/2 (no landing in the window): the context holds the idle paragraph once, 0 of 0, and the screen line ends with · lane: 0 in 14 days	1
+lane session start: in a checkout that is not own (its origin another github.com repository), the lane ok (L 1 of T 2): neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing the ok line	1
+lane session start: in a checkout that is not own (its project declares no remote_match), the lane unknown (no refs/remotes/origin/main): neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing the unknown line, R1	1
+lane session start: in a checkout that is not own (no origin remote), a home with no committed lanes.tsv: neither a lane paragraph nor a lane token, no withheld line names lane item, and felix lane --tsv exits 0 printing nothing	1
+lane session start: short at share 1/2 (L 1 of T 4): the context holds the short paragraph once, and the screen line carries no lane token	1
+lane session start: the paragraph and the token take the lane name and the window from the table: lane cap.lane_2, 9 days, share 1/3, its mark and its next, and · lane: 0 in 9 days	1
+lane session start: uncommitted edits to lanes.tsv (share 1/4, window 7) and lane-next.tsv change nothing: the paragraph and the token read the committed share 1/2, 14 days and next	1
+lane session start: with a pull request waiting, the zero paragraph sits after Memory: and after the waiting-PR paragraph, before Read before planning:, and the lane token is last on the screen line, after PRs waiting: 1	1
+lane session start: zero at share 1/2: exit 0, valid JSON, the context holds the paragraph once, word for word, ending Trust work takes the other half., and the screen line ends with the token · lane: 0 in 14 days	1
+lane session start: zero at share 1/4: the paragraph, word for word, ends The rest goes to trust work., and the token is · lane: 0 in 14 days	1
+lane session start: zero at share 2/4, where 2n = d as at 1/2: the paragraph ends Trust work takes the other half.	1
+lane states F1-fork-reads-as-no-lane L-NEVER-OK: a fork that fails in the read of the landings on refs/remotes/origin/main makes felix lane --tsv exit 0 with one line, unknown with R2, L and T -, never no line and never a count	1
+lane states F1-fork-reads-as-no-lane L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with R2, the last of ten, never none and never a value	1
+lane states F7-scratch-left-when-a-fork-fails L-NEVER-OK: after a fork that fails in the read of the landings, with TMPDIR a directory of the fixture's own, no felix-lane.* entry is left there, and felix lane --tsv exited 0 with its one R2 line	1
+lane states F7-scratch-left-when-a-fork-fails L-NEVER-OK: the same in felix status --tsv leaves no felix-lane.* entry in that TMPDIR, and the lane row was lane unknown - with R2, the last of ten	1
+lane states F8-unusable-tmpdir-reads-r9 L-NEVER-OK: R10, TMPDIR naming a directory that does not exist over a valid committed table: felix lane --tsv prints the one - line, unknown with R10, never R9	1
+lane states F8-unusable-tmpdir-reads-r9 L-NEVER-OK: R10: the same TMPDIR makes the status row lane unknown - with R10, the last of ten, never R9 and never a value	1
+lane states L-NEVER-OK: F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a branch named refs/remotes/origin/main at a marked engine landing: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a branch named refs/remotes/origin/main at a marked engine landing: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a tag named refs/remotes/origin/main at a marked engine landing: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: F4-decoy-ref-name-read-as-origin-main: R1, no refs/remotes/origin/main and a tag named refs/remotes/origin/main at a marked engine landing: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: FELIX_LANE_NOW of thirteen digits reads unknown with R8	1
+lane states L-NEVER-OK: FELIX_LANE_NOW=0123 in a checkout with no ref reads R8, tried before R1, column 12 -	1
+lane states L-NEVER-OK: FELIX_LANE_NOW=12a reads unknown with R8	1
+lane states L-NEVER-OK: R1, a checkout with no refs/remotes/origin/main: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: R1, a checkout with no refs/remotes/origin/main: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a blob: felix lane --tsv reads unknown with R1, column 12 -	1
+lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a commit whose object is gone: felix lane --tsv reads unknown with R1, column 12 -	1
+lane states L-NEVER-OK: R1, refs/remotes/origin/main naming a tree: felix lane --tsv reads unknown with R1, column 12 -	1
+lane states L-NEVER-OK: R2, the commit two first parents below the ref removed from the object store: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: R2, the commit two first parents below the ref removed from the object store: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: R3, a --depth 2 clone: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: R3, a --depth 2 clone: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: R9, a home that is not a git repository and holds lanes.tsv: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: R9, a home that is not a git repository and holds lanes.tsv: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: R9, a home whose repository has no commit and which holds lanes.tsv: felix lane --tsv reads unknown with R9	1
+lane states L-NEVER-OK: a lane cell .x that is no lane name: R5, column 1 -: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: a lane cell .x that is no lane name: R5, column 1 -: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: counts ( beside share 3/2: R5, tried before R7: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: counts ( beside share 3/2: R5, tried before R7: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: counts ( on two rows of one lane: R6 on both, tried before R7: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: counts ( on two rows of one lane: R6 on both, tried before R7: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: lanes.tsv committed as a symlink: R4: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: lanes.tsv committed as a symlink: R4: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-NEVER-OK: two rows of one lane, the first with share 3/2: R5 on row 1, R6 on row 2: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-NEVER-OK: two rows of one lane, the first with share 3/2: R5 on row 1, R6 on row 2: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: FELIX_LANE_NOW=0123 over a valid table: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: FELIX_LANE_NOW=0123 over a valid table: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: a CR at the end of the row: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: a CR at the end of the row: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: a row of three cells: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: a row of three cells: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: an empty counts cell: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: an empty counts cell: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: counts ( committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: counts ( committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: no newline after the last row: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: no newline after the last row: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: share 0/2 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: share 0/2 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: share 1/0 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: share 1/0 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: share 1/2/3 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: share 1/2/3 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: share 3/2 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: share 3/2 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: the lane named on two rows: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: the lane named on two rows: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: window 0 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: window 0 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: window 014 committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: window 014 committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states L-RF3 L-NEVER-OK: window 14d committed: felix lane --tsv reads unknown with the C5 reason, never ok	1
+lane states L-RF3 L-NEVER-OK: window 14d committed: the status row is lane unknown - with that reason, never the value ok	1
+lane states R2-F1-clock-fork-reads-idle L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with a reason, the last of ten; never the value idle, where without the fault it reads value zero 0 of 2	1
+lane states R2-F1-clock-fork-reads-idle L-NEVER-OK: with FELIX_LANE_NOW unset, a fork that fails in the count's read of the machine clock (date -u +%s) makes felix lane --tsv read cap and sec unknown with a reason, or end as C3's count that did not finish; never idle from an empty clock, where without the fault cap reads zero and sec short	1
+lane states R2-F4-shape-check-accepts-what-it-never-read L-RF3 L-NEVER-OK: a committed lanes.tsv the shape check refuses (a comment line that is not UTF-8), with a fork failing in the check's awk pass: felix lane --tsv prints the - line with R4, or R9, or ends as C3's count that did not finish; never a count of the row the check never accepted, where without the fault it reads R4	1
+lane states R2-F4-shape-check-accepts-what-it-never-read L-RF3 L-NEVER-OK: the same fault in felix status --tsv makes the lane row lane unknown - with R4, R9 or the lane count did not finish, the last of ten; never the value zero	1
+lane states R2-F9-fork-in-shape-check-reads-R4 L-NEVER-OK: a valid committed lanes.tsv, with a fork failing in the shape check's schema lookup: felix lane --tsv prints the count, or the - line with R9, or ends as C3's count that did not finish; never R4, which says the committed table is malformed	1
+lane states R2-F9-fork-in-shape-check-reads-R4 L-NEVER-OK: the same fault in felix status --tsv makes the lane row the value zero 0 of 2, or lane unknown - with R9 or the lane count did not finish, the last of ten; never R4	1
+lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the count's scratch directory removed at the read of lanes.tsv's rows (skip=, felix_table_rows), where without it cap reads ok 1 of 2: felix lane --tsv and felix lane end as C3's count that did not finish, or print the - line with R9; never nothing with exit 0	1
+lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (A) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R9, the last of ten; never the none row of a table with no row	1
+lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the count's scratch directory removed at the tally of the window (t[$2]++, _lane_window): felix lane --tsv and felix lane end as C3's count that did not finish, or print cap unknown with R2; never idle 0 of 0	1
+lane states R2B-F2-scratch-gone-reads-none-or-idle L-NEVER-OK: (B) the same in felix status --tsv: the lane row is lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2, the last of ten; never the value idle 0 of 0	1
+lane states R3-F1-open-file-limit-drops-marks L-NEVER-OK: the same limits in felix status --tsv: whenever a lane row is printed it is the last, the value short 1 of 3 engine landings in 7 days, target 1/2, or lane unknown - with a reason; never the value zero 0 of 3, and never exit 0 after rows with no lane row	1
+lane states R3-F1-open-file-limit-drops-marks L-NEVER-OK: with FELIX_LANE_NOW unset and a soft open-file limit N from 10 to 24 set in the shell that execs felix, felix lane --tsv prints at every N its unfaulted lines sec short 1 3 and cap zero 0 2, or unknown forms of C5, or exits other than 0 with no more than a start of them; never sec zero 0 3, column 7 none for a lane landing that exists, or nothing with exit 0	1
+lane states: FELIX_LANE_NOW=0 is a valid clock, before every landing: idle, L 0 of T 0, last lane landing none	1
+lane states: T 0, no landing in the window at all (the root a month back), reads idle	1
+lane states: T 0, two docs-only landings (one marked), reads idle	1
+lane states: a home that is not a git repository and holds no lanes.tsv counts no lane: felix lane --tsv prints nothing and exits 0	1
+lane states: a second data row with window 014, under a comment and a blank line, reads R5 as row 2, and the first row keeps its state ok and its last change	1
+lane states: share 1/2 with L 1 of T 2, so L*d = n*T at L = 1, reads ok	1
+lane states: share 1/2 with L 2 of T 4, so L*d = n*T with L at least 2, reads ok	1
+lane states: share 1/2 with one lane landing fewer at L = 1, L 0 of T 2, reads zero	1
+lane states: share 1/2 with one lane landing fewer, L 1 of T 4, reads short	1
+lane status row F1-count-ends-early L-NEVER-OK: the parent of the shell that runs the read of the landings, then that shell, killed (C9): felix status --tsv exits 0 with ten rows, the last lane unknown - the lane count did not finish in <repo>, or lane unknown - with R2; never a value, the none row or no lane row	1
+lane status row F11-one-day-reads-1-days: with window 1 and no landing in the last day, the row reads lane value idle 0 of 0 engine landings in 1 day, target 1/2, never 1 days, the last of ten	1
+lane status row L-DET L-NEVER-OK: two runs of felix status --tsv in the checkout with no ref print identical bytes, ending with the unknown row	1
+lane status row L-DET: two runs a second apart of felix status --tsv and of felix status, same fixture and FELIX_LANE_NOW, print identical bytes, each ending with the expected lane row	1
+lane status row L-NEVER-OK: FELIX_LANE_NOW=12a over a valid table reads lane unknown - FELIX_LANE_NOW is not a whole number of seconds	1
+lane status row L-NEVER-OK: a committed lanes.tsv the shape check refuses (a CR in its row) reads lane unknown - <PROJ>/lanes.tsv cannot be read as lanes.tsv	1
+lane status row L-NEVER-OK: a first row whose counts is ( reads lane unknown - with R7 for that lane, never the value ok, though the row after it is valid	1
+lane status row L-NEVER-OK: an unreadable ref (no refs/remotes/origin/main) gives state unknown and value -: lane unknown - refs/remotes/origin/main cannot be read in <repo>, never a calm value	1
+lane status row L-NEVER-OK: plain felix status aligns the unknown row with the state word unknown in the value column	1
+lane status row L-RO: after a touch of lanes.tsv, its content unchanged: felix status --tsv and felix status exit 0, leave nothing newer under the home, the memory root and the checkout, leave the checkout's refs and worktree list as they were, and print the committed lane row	1
+lane status row L-RO: after an uncommitted edit to lanes.tsv (share 1/4, window 7): felix status --tsv and felix status exit 0, leave nothing newer under the home, the memory root and the checkout, leave the checkout's refs and worktree list as they were, and print the committed lane row	1
+lane status row L-RO: as built: felix status --tsv and felix status exit 0, leave nothing newer under the home, the memory root and the checkout, leave the checkout's refs and worktree list as they were, and print the committed lane row	1
+lane status row R2-F3-status-none-row-when-resolution-fails L-NEVER-OK: a fork that fails while felix status --tsv resolves the project (tr -d [:space:] in felix_resolve_project, under felix_status_rows), in a checkout the project governs: the lane row is the value zero 0 of 2 or lane unknown - with a reason, the last of ten, or felix status ends with 128; never the none row this directory is not a governed checkout	1
+lane status row R2-F7-plain-status-loses-rows-with-exit-0 L-NEVER-OK: plain felix status with a function command that lowers the process limit at command -v felix_capture, so the shell that asked fails at its next fork: ten rows ending in the lane row, zero or unknown, aligned, or felix status ends with 128; never exit 0 without the lane row	1
+lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: in a checkout bound by remote_match alone, a fork that fails in the git read of its origin's URL (get-url, felix_resolve_project on the stack): felix status --tsv's last of ten rows is lane unknown - the lane count did not finish in <repo>, or the value zero 0 of 2, or felix status ends with 128; never lane none - this directory is not a governed checkout	1
+lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: the same fault in felix lane --tsv in that checkout: nothing on stdout and C3's the lane count did not finish in <repo> with exit 1, or exit 2 with a first stderr line naming the checkout that is not felix: no project governs <dir>., or exit 128; or the two lines it prints without the fault	1
+lane status row R2B-F1-remote-match-resolution-reads-ungoverned L-NEVER-OK: the same fault in plain felix status: ten rows, the last lane, unknown, the lane count did not finish in <repo>, aligned, or the value zero, or felix status ends with 128; never lane none this directory is not a governed checkout	1
+lane status row V3R1-F1-remote-match-read-fault-reads-ungoverned L-NEVER-OK: in a checkout remote_match alone binds, C9's fork probe at every sed whose words hold remote_match, the resolver's read and the lane check's own: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); never the none row this directory is not a governed checkout; the probe fired, and unfaulted the row is the value zero	1
+lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: in a checkout whose origin two projects' remote_match name, z's github.com/o/r the longer, so the row is the value zero 0 of 1 engine landings in 7 days, target 1/2, C9's fork probe at sed naming projects/z/project.json inside felix_resolve_project, where the resolver can bind p's shorter o/r: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo>, since the check binds z where the resolver found p (C2, C6) (or 128 with no lane row, where the fork failed in felix's own shell); never p's value zero 0 of 1 engine landings in 14 days, nor z's value row as without the fault; the probe fired	1
+lane status row V3R1-F2-shorter-remote-match-binds L-NEVER-OK: the same checkout, C9's kill probe at sed naming projects/z/project.json inside felix_resolve_project: felix status --tsv exits 0 with ten rows, the last exactly lane unknown - the lane count did not finish in <repo>, since the check binds z where the resolver found p (C2, C6) (or 137 with no lane row, where the kill reached felix itself); never p's value zero 0 of 1 engine landings in 14 days, nor z's value row as without the fault; the probe fired	1
+lane status row V3R2-F3-origin-url-trailing-lf-reads-unresolved: in a checkout with no .felix whose origin URL, https://gitlab.example/g/r.git, ends in an LF of its own, and whose home's only project q names remote_match g/r and commits no lanes.tsv, no read failing: felix lane --tsv exits 0 with nothing on stdout, and felix status --tsv exits 0 with ten rows, the last lane none - <PROJ>/lanes.tsv has no committed row, so no lane is counted; never lane unknown - the lane count did not finish in <repo>	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) in a checkout bound by its .felix, with the origin p's remote_match names, C9's fork probe at tr -d [:space:] with _lane_marker on the stack, a read only the lane's check makes: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's fork probe at sed whose words hold remote_match with _lane_remote_match on the stack, a read only the lane's check makes: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's kill probe at git remote get-url origin with _lane_origin on the stack: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's kill probe at sed whose words hold remote_match with _lane_remote_match on the stack: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the same checkout with its .felix removed, bound by remote_match alone, C9's fork probe at git remote get-url origin with _lane_origin on the stack, a read only the lane's check makes: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 128 with no lane row, where the fork failed in felix's own shell); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the same checkout, C9's kill probe at tr -d [:space:] with _lane_marker on the stack: felix status --tsv's rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo> (or 137 with no lane row, where the kill reached felix itself); the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2	1
+lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (b) no fault, in a checkout with no .felix whose origin is named by the remote_match of the home's only project, a directory named q and an LF: felix status --tsv exits 0 with ten rows, rows 1 to 9 byte-identical to the rows the same engine prints for q in that home and checkout once a directory projects/q and a .felix naming q bind it, as origin/main's are (reach none - q declares no plugin or mcp rows, ...), and the tenth and last exactly lane unknown - the lane count did not finish in <repo> (the limit C2 states); with q bound, the reach row is that one and the lane row C6's none row for projects/q	1
+lane status row: L 0 of T 2 reads lane value zero 0 of 2 engine landings in 14 days, target 1/2	1
+lane status row: L 1 of T 4 at share 1/2 reads lane value short 1 of 4 engine landings in 14 days, target 1/2	1
+lane status row: a committed lanes.tsv holding only a comment and a blank line reads lane none - with the no-committed-row detail, last of ten	1
+lane status row: a lanes.tsv with a row in the home's working tree, after a commit removed it, counts no lane: lane none - with the no-committed-row detail	1
+lane status row: a second row whose share is 0/2 leaves the row speaking for the first: lane value ok 1 of 2 engine landings in 14 days, target 1/2	1
+lane status row: every felix status --tsv this part ran prints ten rows ending in lane, and no row breaks D16's shape: four tab fields, a known state, - unless the state is value, a detail, a value with no space	1
+lane status row: in a directory no project governs, outside any repository, the lane row is lane none - this directory is not a governed checkout, last of ten	1
+lane status row: in a repository with refs/remotes/origin/main and an engine landing that no project binds (no .felix, no remote), the lane row is the same none row	1
+lane status row: no landing in the window reads lane value idle 0 of 0 engine landings in 14 days, target 1/2	1
+lane status row: plain felix status aligns the none row with the state word none in the value column	1
+lane status row: plain felix status in a directory no project governs ends with lane, none, this directory is not a governed checkout, aligned	1
+lane status row: plain felix status prints the lane row last, aligned as every row is: lane, the state word ok, the detail	1
+lane status row: the row speaks for the first data row, under a comment and a blank line, with its window and share from the table: lane trust_b reads value zero, 0 of 2 engine landings in 9 days, target 2/5	1
+lane status row: with FELIX_LANE_NOW unset, and set and empty, now is the machine clock, so landings three and two days back read value ok 1 of 2; with the clock four days back they read idle 0 of 0	1
+lane status row: with lanes.tsv committed, felix status --tsv prints exactly one row more than main, ten, the lane row last: lane value ok 1 of 2 engine landings in 14 days, target 1/2	1
+lane status row: with no lanes.tsv ever committed, felix status --tsv exits 0 with ten rows, main's nine in their order and then lane none - <PROJ>/lanes.tsv has no committed row, so no lane is counted	1

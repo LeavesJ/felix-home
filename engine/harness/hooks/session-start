@@ -174,6 +174,11 @@ PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || PROJ=""
 [ -n "$PROJ" ] && felix_lifecycle_session "$PROJ" "$PWD" \
   "$_felix_source" "$_felix_session" "$_felix_transcript" >/dev/null 2>&1
 
+# The names a Bash command can reach this session by, for the post-tool hook,
+# which must not resolve the project (felix_ledger_cli_note). Every source, so a
+# resumed or compacted session reads its project's routes as they now are.
+[ -n "$PROJ" ] && felix_ledger_cli_note "$FELIX_HOME_DIR" "$_felix_session" "$PROJ" >/dev/null 2>&1
+
 # Join the split rows an engine before #267 left in mistakes.log (U44). Here
 # because every install passes through a session start whatever its gate did
 # last, and a gate that passes writes no row: a stuck install is healed by

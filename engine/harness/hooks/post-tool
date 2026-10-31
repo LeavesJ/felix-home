@@ -95,13 +95,22 @@ session="$FELIX_LEDGER_SID"
 
 [ "$_felix_pt_alive" = 1 ] || felix_ledger_alive "$home" "$session"
 
-signal="$(felix_ledger_signal "$raw")"
+# The names session start wrote for this session (felix_ledger_cli_note), so
+# that a Bash call running one of them is recorded as the reach it is. Only for
+# a session id that can be a file name.
+_felix_pt_names=""
+command -v _felix_answer_sid_ok >/dev/null 2>&1 && _felix_answer_sid_ok "$session" \
+  && _felix_pt_names="$home/state/ledger/$session.names"
+
+signal="$(felix_ledger_signal "$raw" "$_felix_pt_names")"
 [ -n "$signal" ] || exit 0
 
 felix_ledger_record "$home" "$session" "$signal"
 
 # Where the session went after an answer was handed to it, so the ledger can
 # say whether the answer was used and not only that it was given. A file test
-# for every other session (lib/answer.sh, felix_answer_touch).
+# for every other session (lib/answer.sh, felix_answer_touch). A routed tool run
+# from the shell is a Bash call there, whose command it reads as before.
+case "$signal" in $'cli\t'*) signal=$'tool\tBash' ;; esac
 [ -f "$home/state/answer/$session.tsv" ] && felix_answer_touch "$home" "$session" "$signal" "$raw"
 exit 0

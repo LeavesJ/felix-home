@@ -143,6 +143,8 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/judge-refs.sh"
 . "$HERE/lib/land-on-green.sh"
 . "$HERE/lib/lane-fixture.sh"
+. "$HERE/lib/lane-probes.sh"
+. "$HERE/lib/lane-reviews.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"
 . "$HERE/lib/lost-work.sh"

@@ -146,25 +146,29 @@ are passed over, and the next word is considered:
   follows.
 
 R4. **The program word's name.** The word's text after quote removal, from
-after its last `/`: `'graphify'`, `"graphify"`, `\graphify`, `gra"phi"fy`,
-`./graphify`, `~/.local/bin/graphify`, `/opt/x/bin/graphify`,
-`$HOME/.local/bin/graphify` and `"$D"/graphify` all name `graphify`. The part
-after the last `/` must be literal: a word whose last part holds a parameter
-expansion, a command substitution or a backtick (`$G`, `$(cat f)`, `x$y`) names
-nothing. A word that is a reserved word (R2) is not a program word.
+after its last `/`: `'graphify'`, `"graphify"`, `\graphify`, `./graphify`,
+`~/.local/bin/graphify`, `/opt/x/bin/graphify`, `$HOME/.local/bin/graphify`
+and `"$D"/graphify` all name `graphify`. The part after the last `/` must be
+literal: a word whose last part holds a parameter expansion, a command
+substitution or a backtick (`$G`, `$(cat f)`, `x$y`) names nothing. A word that
+is a reserved word (R2) is not a program word. A name the command's text does
+not spell whole, because quoting or an escape splits it (`gra"phi"fy`,
+`gra\phify`), is not seen: the reading starts only for a command whose text
+holds a name's own bytes (C3).
 
 R5. **Compared exactly.** Byte for byte and case-sensitive: `Graphify` and
 `graphifyx` are not `graphify`.
 
 R6. **Text a command only carries is never a program word.** Words inside
-single quotes, double quotes or `$'...'` (but the commands of a `$(...)` or
-backtick substitution inside double quotes are read), here-document bodies,
+single quotes, double quotes, `$'...'` or `${...}` (but the commands of a
+`$(...)` or backtick substitution inside double quotes or `${...}` are read,
+as the shell runs them), here-document bodies,
 comments (`#` at the start of a word, to the end of its line), arguments of any
 program, `case` subjects and patterns (including alternatives after `|`), the
 words after `for`, `select` and `[[` up to the end of that clause (`&&`, `||`
 and `(` inside `[[ ... ]]` do not start a command), array values in
-`a=(...)`, the contents of `${...}`, and arithmetic in `((...))` and
-`$((...))`.
+`a=(...)`, and arithmetic in `((...))` and `$((...))`, which is read to its
+closing pair and not into.
 
 R7. **Here-documents.** `<<WORD`, `<<-WORD`, `<< WORD`, `<<'WORD'`,
 `<<"WORD"` and `<<\WORD`, where WORD is made of `A-Z a-z 0-9 _ . -`. The body
@@ -195,7 +199,8 @@ R10. **Runs this reading does not see** (stated limits; such a call stays
 `sh -c`, `eval`, `ssh host '...'`), a program named as an argument of another
 program (`xargs NAME`, `sudo NAME`, `watch NAME`, a language interpreter
 running a module or a package runner fetching a tool), `coproc`, aliases, a
-`case` pattern spanning lines in unusual ways, and anything past R9's bounds.
+substitution inside arithmetic, a name split by quoting (R4), a `case` pattern
+spanning lines in unusual ways, and anything past R9's bounds.
 
 ## 4. The record (P)
 

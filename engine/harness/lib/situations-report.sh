@@ -11,7 +11,7 @@
 #   --propose          after the count line, a drafted obligations row and the command that would admit it for each
 #                      class that is ACTIVE and not yet admitted (C11); it writes nothing
 #
-# Built here so far: the --at and --change reports, human and --tsv. The --propose drafts come with the task that follows.
+# The --at and --change reports, human and --tsv, are built here, and so are the --propose drafts.
 # Every file the report needs is made inside the run's scratch directory, and every sort runs under LC_ALL=C.
 
 # FILE KEY -> the second cell of the first line of a reading file whose first cell is KEY.
@@ -182,4 +182,108 @@ felix_situations_report() {   # MODE FORMAT PROJ ROWS BASE-EVAL|- HEAD-EVAL BASE
     { n++; if ($6 == "ACTIVE") a++; else if ($6 == "DORMANT") d++; else u++ }
     END { printf "\nexamined %d, active %d, dormant %d, could not look %d\n", n, a, d, u }' "$w/classes"
   return 0
+}
+
+# The proposed section (C11), from its blank line on, to stdout: for each class that is ACTIVE in EVAL (the head side, or the
+# reading in --at) and whose name no row of the project's obligations.tsv admits, in byte order of name, the line
+# "  <id>  <class>  <grounds>", then a class line, the drafted row (seven cells joined by real tab bytes) and the one-line
+# command that would append it to the table and commit it. With none, "  none". MATURITY is project.json's string, empty when
+# none is declared; READING is the reading file EVAL was made from; HOME is the Felix home as given. The class is the one
+# class_by_maturity pairs with the declared maturity, else the strictest class the cell names. The preds cell lists the
+# predicates the class's true terms rest on that the current probes.tsv defines (the grounds file of the scratch directory).
+# Every quoted value has each apostrophe written as the four characters quote, backslash, quote, quote. The ids file is the
+# one felix_situations_report made in the same scratch directory. Writes only inside that directory, and no apostrophe may
+# stand in the awk text: it is one shell word.
+felix_situations_propose() {   # PROJ HOME ROWS EVAL MATURITY READING
+  local proj="${1-}" home="${2-}" rows="${3-}" eval="${4-}" mat="${5-}" reading="${6-}"
+  local w="${_FELIX_SITUATIONS_SCRATCH:-}" name tab=$'\t'
+  [ -n "$w" ] && [ -f "$w/ids" ] && [ -f "$w/grounds" ] || return 1
+  proj="${proj%/}"; name="${proj##*/}"
+  felix_obligation_rows "$proj" | LC_ALL=C cut -f1 > "$w/admitted" || return 1
+  LC_ALL=C sort -t "$tab" -k1,1 "$rows" > "$w/prop.rows" || return 1
+  FELIX_SIT_ROWS="$w/prop.rows" FELIX_SIT_EVAL="$eval" FELIX_SIT_ADM="$w/admitted" FELIX_SIT_IDS="$w/ids" \
+    FELIX_SIT_READING="$reading" FELIX_SIT_GROUNDS="$w/grounds" FELIX_SIT_MATURITY="$mat" FELIX_SIT_HOME="$home" \
+    FELIX_SIT_NAME="$name" LC_ALL=C awk '
+    function isst(s) { return s == "found" || s == "empty" || s == "blind" || s == "unknown" || s == "not-applicable" }
+    function ismat(m) { return m == "prototype" || m == "internal" || m == "public-beta" || m == "production" }
+    function crank(c) {
+      return (c == "INFO") ? 1 : (c == "ADVISORY") ? 2 : (c == "TASK_BLOCKING") ? 3 : (c == "RELEASE_BLOCKING") ? 4 : (c == "AUTHORITY_BLOCKING") ? 5 : 0
+    }
+    # S single-quoted for a shell, each apostrophe written as quote, backslash, quote, quote.
+    function q(s,   n, p, i, o) {
+      n = split(s, p, SQ); o = p[1]
+      for (i = 2; i <= n; i++) o = o SQ "\\" SQ SQ p[i]
+      return SQ o SQ
+    }
+    # Sets CW and CN: the class for the declared maturity and the note that says why.
+    function pick(cell,   n, pr, i, e, m, c, best, br) {
+      CW = ""; br = 0; best = ""
+      n = split(cell, pr, ",")
+      for (i = 1; i <= n; i++) {
+        e = index(pr[i], "="); m = substr(pr[i], 1, e - 1); c = substr(pr[i], e + 1)
+        if (ismat(MAT) && m == MAT) CW = c
+        if (crank(c) > br) { br = crank(c); best = c }
+      }
+      if (CW != "") { CN = "maturity " MAT; return }
+      CW = best
+      CN = (MAT == "") ? "maturity undeclared: the strictest class this row names" : "maturity " SQ MAT SQ " is not one of prototype internal public-beta production: the strictest class this row names"
+    }
+    # The grounding rows of capability c: GI[1..NG] index the reading, one per predicate, its first row, in reading order.
+    function ground(c,   i) {
+      NG = 0; split("", SP)
+      if (c == "" || c == "-") return
+      for (i = 1; i <= np; i++) if (PG[i] == c && !(PP[i] in SP)) { SP[PP[i]] = 1; GI[++NG] = i }
+    }
+    function addp(i) {
+      if (!(PP[i] in DEF) || (PP[i] in GOT)) return
+      GOT[PP[i]] = 1; PL = PL ((PL == "") ? "" : ",") PP[i]
+    }
+    # Sets PL to the predicates the true terms of an applies cell rest on, in first-use order, without repeats.
+    function preds(ap,   nt, tm, t, k, rest, e, c, s, fo) {
+      PL = ""; split("", GOT)
+      nt = split(ap, tm, / +/)
+      for (t = 1; t <= nt; t++) {
+        if (substr(tm[t], 1, 6) == "probe:") {
+          rest = substr(tm[t], 7); e = index(rest, "=")
+          if (e < 2 || !isst(substr(rest, e + 1))) continue
+          c = substr(rest, 1, e - 1); s = substr(rest, e + 1)
+          ground(c)
+          for (k = 1; k <= NG; k++) if (PS[GI[k]] == s) addp(GI[k])
+        } else if (substr(tm[t], 1, 4) == "cap:" && length(tm[t]) > 4) {
+          ground(substr(tm[t], 5)); fo = 0
+          for (k = 1; k <= NG; k++) if (PS[GI[k]] == "found") fo = 1
+          if (fo) for (k = 1; k <= NG; k++) if (PS[GI[k]] == "found") addp(GI[k])
+        }
+      }
+      if (PL == "") PL = "-"
+    }
+    BEGIN {
+      SQ = "\047"; TB = "\t"; MAT = ENVIRON["FELIX_SIT_MATURITY"] ""; H = ENVIRON["FELIX_SIT_HOME"] ""
+      P = H "/projects/" ENVIRON["FELIX_SIT_NAME"]; TBL = q(P "/obligations.tsv")
+      while ((getline l < ENVIRON["FELIX_SIT_EVAL"]) > 0) {
+        split(l, f, "\t")
+        if (f[1] == "class") { ST[f[2] ""] = f[3] ""; GR[f[2] ""] = f[4] "" }
+      }
+      while ((getline l < ENVIRON["FELIX_SIT_ADM"]) > 0) ADM[l ""] = 1
+      while ((getline l < ENVIRON["FELIX_SIT_IDS"]) > 0) { split(l, f, "\t"); ID[f[1] ""] = f[2] "" }
+      while ((getline l < ENVIRON["FELIX_SIT_GROUNDS"]) > 0) { split(l, f, "\t"); DEF[f[1] ""] = 1 }
+      while ((getline l < ENVIRON["FELIX_SIT_READING"]) > 0) {
+        split(l, f, "\t")
+        if (f[1] == "probe") { np++; PP[np] = f[2] ""; PG[np] = f[3] ""; PS[np] = f[4] "" }
+      }
+      printf "\nproposed\n"
+      while ((getline l < ENVIRON["FELIX_SIT_ROWS"]) > 0) {
+        if (split(l, f, "\t") < 4) continue
+        c = f[1] ""
+        if (ST[c] != "ACTIVE" || (c in ADM)) continue
+        shown++
+        pick(f[4] ""); preds(f[2] "")
+        print "  " ID[c] "  " c "  " GR[c]
+        print "    class  " CW "  " CN
+        print "    row  " c TB CW TB "unknown" TB "-" TB "exit 2" TB PL TB f[3]
+        print "    admit  printf " SQ "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" SQ " " q(c) " " q(CW) " " q("unknown") " " q("-") " " q("exit 2") " " q(PL) " " q(f[3] "") " >> " TBL " && git -C " q(H) " add -- " TBL " && git -C " q(H) " commit -q -m " q("obligations: admit " c) " -- " TBL
+      }
+      if (!shown) printf "  none\n"
+      exit 0
+    }' </dev/null
 }

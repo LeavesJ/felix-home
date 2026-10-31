@@ -294,6 +294,20 @@ felix_situations_verdict() {   # BASE-STATE HEAD-STATE DIFFERS
   esac
 }
 
+# The --propose drafts (C11) appended to the report in _FELIX_SITUATIONS_OUT, after one blank line, when FMT is propose and
+# otherwise nothing. EVAL and READING are the side the proposals read: the reading in --at, the head side in --change. Returns
+# 3 with a sentence naming WHAT when the drafts cannot be built.
+_felix_situations_proposed() {   # FMT WHAT EVAL READING MATURITY
+  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" prop
+  [ "${1-}" = propose ] || return 0
+  if ! prop="$(felix_situations_propose "$PROJ" "$FELIX_HOME_DIR" "$scr/rows" "${3-}" "${5-}" "${4-}")"; then
+    printf 'felix situations: %s could not be read: its proposals could not be built in %s\n' "${2-}" "$scr" >&2
+    return 3
+  fi
+  _FELIX_SITUATIONS_OUT="$_FELIX_SITUATIONS_OUT"$'\n'"$prop"
+  return 0
+}
+
 # The run of --at (C3.1, C3.2): the recorded reading of AT, or of the newest recorded tree when AT is empty, the detector
 # when this checkout is at that tree, the three values of every class, and the report, built into _FELIX_SITUATIONS_OUT. The
 # table's rows and the current probes.tsv's grounds are already in the scratch directory. Returns 3 with C2's sentence
@@ -312,11 +326,6 @@ _felix_situations_at() {   # AT FORMAT ROOT MATURITY
     printf 'felix situations: the recorded tree could not be read: no run is recorded for tree %s in %s\n' "$tree" "$log" >&2
     return 3
   fi
-  # The --propose drafts are built in the task that follows this one. Nothing is printed until they are in.
-  if [ "$fmt" = propose ]; then
-    printf 'felix situations: --propose is not built yet\n' >&2
-    return 1
-  fi
   if ! felix_situations_live_detect "$root" "$FELIX_HOME_DIR" "$tree" "$scr/at.reading" \
      || ! felix_situations_eval "$scr/rows" "$scr/at.reading" "$scr/grounds" "$mat" > "$scr/at.eval"; then
     printf 'felix situations: the recorded tree could not be read: its reading could not be written or evaluated in %s\n' "$scr" >&2
@@ -326,6 +335,7 @@ _felix_situations_at() {   # AT FORMAT ROOT MATURITY
     printf 'felix situations: the recorded tree could not be read: its report could not be built in %s\n' "$scr" >&2
     return 3
   fi
+  _felix_situations_proposed "$fmt" "the recorded tree" "$scr/at.eval" "$scr/at.reading" "$mat" || return 3
   return 0
 }
 
@@ -337,10 +347,6 @@ _felix_situations_change() {   # RANGE FORMAT ROOT MATURITY
   local range="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" sides bsha hsha gd side
   sides="$(felix_situations_range "$root" "$range")" || return 3
   bsha="${sides%%$'\t'*}"; hsha="${sides#*$'\t'}"
-  if [ "$fmt" = propose ]; then
-    printf 'felix situations: --propose is not built yet\n' >&2
-    return 1
-  fi
   gd="$(felix_situations_gitdir "$root")" || gd=""
   felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$bsha" base "$scr/base.reading" || return 3
   felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$hsha" head "$scr/head.reading" || return 3
@@ -355,6 +361,7 @@ _felix_situations_change() {   # RANGE FORMAT ROOT MATURITY
     printf 'felix situations: the change could not be read: its report could not be built in %s\n' "$scr" >&2
     return 3
   fi
+  _felix_situations_proposed "$fmt" "the change" "$scr/head.eval" "$scr/head.reading" "$mat" || return 3
   return 0
 }
 

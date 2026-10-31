@@ -1,0 +1,324 @@
+# A capability reached from the shell: the ledger counts a CLI run through Bash, the specification
+
+Written 2026-10-31 against main at 1fca9559 (engine 0.49.320). Every behaviour
+below is numbered, says what is observable, and is meant to become one or more
+assertions in `engine/harness/tests/parts/`. Decisions taken where the brief
+left a choice are in section 8, each with its evidence.
+
+Tier: adversarial. `lib/ledger.sh`, the new `lib/ledger-runs.sh`, and the
+post-tool and session-start hooks run in every session of every governed
+project.
+
+Notation: `\t` is one tab byte. A row written `a\tb\tc` is one line ending in a
+newline. Paths are relative to `engine/harness/` unless they start with
+`projects/` or `docs/`. "The payload" is the JSON object Claude Code writes to
+a hook's standard input.
+
+---
+
+## 0. Why, in one paragraph
+
+`felix_ledger_signal` records each PostToolUse call by what it reached: an MCP
+server by its server, a skill by its name, an agent by its type, and anything
+else as `tool <name>`. A Bash call that runs `graphify query ...` is therefore
+recorded as `tool Bash`, and graphify, which is a command-line tool, can never
+be reached at all. On 2026-10-31 `felix ledger` said graphify was "pointed at in
+17 of 244 sessions, named 25 times, never reached", and session start printed
+the same line as "the only unconfounded signal here". The transcripts on this
+machine say otherwise: 69 Bash commands run graphify. A capability plane that
+cannot see a well-known tool being used cannot judge whether to suggest or
+mount anything. This change reads the Bash command, in bash alone and without
+a process, and records a reach of the capability when the command runs a
+program the project's route table names.
+
+## 1. Measured before the change
+
+- `felix ledger` for felix, read 2026-10-31 18:45Z, 244 sessions: `graphify`
+  17 sessions, named 25, reached 0, and on the retire list; `semgrep` on it too
+  ("its countable surfaces never reached"); `Bash` 241 sessions, 190,516 calls.
+- The route tables name these bare play entries (no `:` and no `@`): felix
+  `code-review semgrep graphify claude-md-management`; the template and five
+  other projects `frontend-design impeccable playwright` or two of them;
+  elenchus twelve, veldra three, one project none. Of them, graphify and
+  semgrep are programs that sessions run from the shell on this machine.
+- Transcripts on this machine hold 1,313 Bash commands that contain any of
+  those names as text. Most carry the name as data: inside quotes, in a
+  here-document written to a file, in a comment, or as an argument (`command -v
+  graphify`, `pgrep -fl graphify`, `grep 'graphify '`). A prototype of the
+  reading in section 3 found 69 that run graphify and 23 that run semgrep; each
+  of the 92 was read by hand at the position the reading named, and each is a
+  run.
+- The post-tool hook costs about 22 ms of CPU per call today, almost all of it
+  in the processes it starts.
+- Passing a 4 MB payload to a shell function with `local raw="$1"` costs about
+  45 ms of CPU in bash 3.2; the hook already does this. Cutting the first 32 KB
+  of a 4 MB string with an unquoted `${raw:0:32768}` costs about 3.6 ms.
+- The prototype read each of the 1,313 commands in a median of about 2 ms of
+  CPU, p90 about 5 ms, at most about 19 ms (bash 3.2.57, macOS 27), bounded as
+  section 3 says.
+- macOS's regex library rejects an empty alternative such as `(|a)`, and bash
+  then reports no match rather than an error. Every pattern must be valid ERE
+  on both macOS and glibc.
+
+## 2. The names a session can reach from the shell (N)
+
+N1. **Written at session start.** On every SessionStart (sources `startup`,
+`resume`, `clear` and `compact` alike, and before a resume leaves the hook), for
+a governed directory whose payload carries a usable session id, the hook writes
+`<home>/state/ledger/<session>.names`, where `<home>` is the Felix home and
+`<session>` the payload's first `session_id`. It creates `state/ledger/` when
+missing. A failure to write is silent and never changes what the hook prints or
+its exit status.
+
+N2. **What a name is.** A name is a play entry, a word of the fourth field of a
+`routes.tsv` row of the session's project, that:
+- is in a row the router reads (`_felix_route_rows`: not blank, not starting
+  with `#`, a non-empty third field; a last row with no newline counts);
+- consists only of the bytes `A-Z a-z 0-9 . _ + -`, starts with a letter or a
+  digit, and is at most 64 bytes long.
+
+So `superpowers:brainstorming`, `semgrep@claude-plugins-official`, `-` and
+`a/b` are not names, and `graphify`, `code-review` and `sentry-cli` are.
+
+N3. **The file's content.** One line ending in a newline: each name once, in
+the order it first appears (rows top to bottom, entries left to right),
+separated by single spaces. At most the first 32 distinct names. When no entry
+qualifies, or the project has no `routes.tsv`, the file holds one empty line.
+
+N4. **Replaced whole.** A second start of the same session id replaces the
+file; it is never appended to. It is written to a temporary name in the same
+directory and renamed into place, so a reader never sees half of it.
+
+N5. **A session id that is not a file name.** A session id is usable when it is
+non-empty and made only of `A-Z a-z 0-9 _ -` (the rule `lib/answer.sh` applies
+to its own per-session file). Otherwise no names file is written, and the
+post-tool hook reads none (P6).
+
+N6. **Ungoverned.** In a directory no project governs, nothing is written.
+
+## 3. Reading what a Bash command runs (R)
+
+R0. **The text read.** The command is the JSON string value of the `"command"`
+key, read only when the first occurrence of the text `"command"` within the
+first 32,768 bytes of the payload is that key: followed by optional blanks, a
+colon, optional blanks and the opening quote. Otherwise nothing is read. Only
+the first 16,384 bytes of the value are read; the value ends at its first
+unescaped closing quote. JSON escapes read as JSON defines them: `\"` is a double quote,
+`\\` a backslash, `\/` a slash, `\n` a line break, `\t` a tab. `\r`, `\b`, `\f`
+and `\uXXXX` are characters, and no name contains one.
+
+R1. **The program word.** The command runs NAME when NAME is the program word
+of one of its simple commands (R2, R3). Program words are taken in the order
+their text appears in the command; the first one that is a name of the session
+(N) is the reach, and nothing after it changes the result.
+
+R2. **Where a simple command starts.**
+- at the start of the command;
+- after a line break, `;`, `&`, `&&`, `||`, `|`, `|&`;
+- after `(` opening a subshell, inside `$(...)`, inside backticks, inside
+  `<(...)` and `>(...)`;
+- after the reserved words `!`, `{`, `if`, `then`, `else`, `elif`, `while`,
+  `until`, `do` when they stand where a program word would;
+- after the `)` that ends a `case` pattern;
+- at the start of the body of a function the command defines, in any of the
+  forms `NAME()`, `NAME ()`, `function NAME` and `function NAME()`: a function
+  is defined to be called. The function's own name is not a program word.
+
+R3. **Words before the program word.** At the start of a simple command these
+are passed over, and the next word is considered:
+- an assignment: an unquoted shell identifier followed by `=` or `+=`, whatever
+  follows (`FOO=1`, `X="a b"`, `P=$(...)`);
+- a redirection and its target: `<`, `>`, `>>`, `>|`, `<>`, `<&`, `>&`, `&>`,
+  `&>>`, `<<<`, each optionally after a file-descriptor number (`2>&1`,
+  `2>/dev/null`), with the target in the same word or the next;
+- a wrapper and its options: `time` (`-p`), `nohup`, `exec` (`-c`, `-l`,
+  `-a NAME`), `command` (`-p`), `nice` (`-n N`, `-N`, `--adjustment=N`), `env`
+  (`-i`, `-`, `-u NAME`, `-C DIR`, `-P PATH`, other `-` options, and
+  assignments), `timeout` (`-s SIG`, `-k DUR`, other `-` options, then one
+  duration word). After a wrapper, every word that starts with `-` is an
+  option, the options listed with an argument also take the next word, and
+  `--` ends the options. Wrappers chain (`nohup time graphify`). A wrapper is
+  recognised by the part of its word after the last `/` (`/usr/bin/env`).
+- `command` with an option word containing `v` or `V` (`-v`, `-V`, `-pv`)
+  looks a program up and runs none: that simple command has no program word.
+- `env` with `-S` or `--split-string` has no program word that this reading
+  follows.
+
+R4. **The program word's name.** The word's text after quote removal, from
+after its last `/`: `'graphify'`, `"graphify"`, `\graphify`, `gra"phi"fy`,
+`./graphify`, `~/.local/bin/graphify`, `/opt/x/bin/graphify`,
+`$HOME/.local/bin/graphify` and `"$D"/graphify` all name `graphify`. The part
+after the last `/` must be literal: a word whose last part holds a parameter
+expansion, a command substitution or a backtick (`$G`, `$(cat f)`, `x$y`) names
+nothing. A word that is a reserved word (R2) is not a program word.
+
+R5. **Compared exactly.** Byte for byte and case-sensitive: `Graphify` and
+`graphifyx` are not `graphify`.
+
+R6. **Text a command only carries is never a program word.** Words inside
+single quotes, double quotes or `$'...'` (but the commands of a `$(...)` or
+backtick substitution inside double quotes are read), here-document bodies,
+comments (`#` at the start of a word, to the end of its line), arguments of any
+program, `case` subjects and patterns (including alternatives after `|`), the
+words after `for`, `select` and `[[` up to the end of that clause (`&&`, `||`
+and `(` inside `[[ ... ]]` do not start a command), array values in
+`a=(...)`, the contents of `${...}`, and arithmetic in `((...))` and
+`$((...))`.
+
+R7. **Here-documents.** `<<WORD`, `<<-WORD`, `<< WORD`, `<<'WORD'`,
+`<<"WORD"` and `<<\WORD`, where WORD is made of `A-Z a-z 0-9 _ . -`. The body
+runs from the line after the operator's line to the first line that is WORD
+alone (for `<<-`, after any leading tabs). Reading resumes after that line,
+whose line break counts as a separator. Several here-documents on one line are
+read in order. `<<<` is a here-string, not a here-document (R3).
+
+R8. **Line continuation.** A backslash at the end of a line joins it to the
+next: no separator.
+
+R9. **Where the reading ends early.** An unclosed quote, a here-document whose
+delimiter has another shape or whose delimiter line is not found, more than 32
+levels of nesting, more than 4,096 tokens, the 16,384-byte bound, and the end of
+the value. Program words read before that point still count; nothing after it
+is read.
+
+R10. **Runs this reading does not see** (stated limits; such a call stays
+`tool\tBash`): a command handed to another shell as text (`bash -c '...'`,
+`sh -c`, `eval`, `ssh host '...'`), a program named as an argument of another
+program (`xargs NAME`, `sudo NAME`, `watch NAME`, a language interpreter
+running a module or a package runner fetching a tool), `coproc`, aliases, a
+`case` pattern spanning lines in unusual ways, and anything past R9's bounds.
+
+## 4. The record (P)
+
+P1. **A reach.** For a PostToolUse call whose `tool_name` is `Bash`, when the
+session's names file (N) holds at least one name and the command runs one of
+them (R), the line the post-tool hook appends to
+`<home>/state/ledger/<session>.tsv` for that call is `cli\t<name>` and not
+`tool\tBash`. The `alive\tpost-tool` line is written as before. One call line
+per post-tool run, as for every other tool.
+
+P2. **Only the name.** The hook writes nothing else from the command: no
+argument, no path, no part of the text, anywhere. A command holding a
+credential leaves only `cli\t<name>` or `tool\tBash`.
+
+P3. **Nothing else changes.** Non-Bash calls, a Bash call that runs no name, a
+session with no names file, an empty names file, and an unreadable names file
+all record exactly what they recorded before this change.
+
+P4. **One name.** A command that runs two names records the first in reading
+order (R1).
+
+P5. **The answers' touch.** `felix_answer_touch` (lib/answer.sh) is given
+`tool\tBash` for a call recorded as `cli\t<name>`, so the answers measure reads
+the command exactly as it did before this change.
+
+P6. **The file read.** The only file the post-tool hook reads beyond its
+libraries and the payload is the names file, and only for a Bash call, and only
+when the session id is usable (N5). It never reads the session's ledger file or
+any other record it writes.
+
+P7. **`felix_ledger_signal RAW [NAMES_FILE]`.** The function the hook calls.
+With NAMES_FILE omitted, empty, missing or unreadable it prints exactly what it
+printed before. With a names file it prints `cli\t<name>` for a Bash payload
+whose command runs a name, and what it printed before otherwise.
+
+## 5. The fold and the reports (F)
+
+These follow from the existing code once a `cli` line is on disk; they are
+specified so that they are tested.
+
+F1. **The fold.** `felix_ledger_rollup` writes a `cli` line as a reach row
+`<session>\t<date>\tcli\t<name>\t<count>\t<namings>`, where `<count>` is the
+number of `cli\t<name>` lines and `<namings>` the number of `named\t<name>`
+lines in the session's appends.
+
+F2. **No zero row beside a reach.** In a session with a `cli\t<name>` reach,
+the fold writes no `named` row for `<name>` and no zero row for a `stack.tsv`
+declaration of `<name>`, whatever its kind.
+
+F3. **A call for the record's wholeness.** A `cli` line is a call when the fold
+asks whether the session's appends are whole (`_felix_ledger_whole`): one alive
+line and one `cli` line are a whole run.
+
+F4. **Counted.** `felix ledger` reports the capability with the session in its
+SESSIONS column and the `cli` reaches in its REACHED column. A `cli` row is
+never shown with the ` (built-in)` mark, which belongs to unqualified `skill`
+rows only.
+
+F5. **Off the retire list.** A capability with a folded `cli` reach is not in
+`felix ledger`'s "pointed at and never reached for" list nor in session start's
+"Pointed at and never once reached for:" line.
+
+F6. **Not a server.** `felix_ledger_mcp` ignores `cli` rows.
+
+## 6. Cost (C)
+
+C1. **No new process.** A post-tool run starts no process that the same run
+would not have started before this change, for any payload, with or without a
+names file: the reading, the names file read and the library load are bash
+builtins and `.`.
+
+C2. **No git.** Nothing added runs git.
+
+C3. **Loaded only when needed.** `lib/ledger-runs.sh` is loaded only for a
+Bash call whose command (within R0's bound) contains one of the session's
+names as text. Loading `lib/ledger.sh` runs no program on PATH.
+
+C4. **Bounded.** A Bash payload of 4 MB, or a 16 KB command of any content, is
+recorded by the post-tool hook in under 2 seconds of CPU on the suite's
+machine, and the hook exits 0.
+
+C5. **Bash 3.2 and 5, BWK awk and gawk.** Nothing added depends on the bash
+version beyond 3.2, on the locale, or on awk. The reading runs with `LC_ALL=C`,
+so lengths and the bound are bytes under a UTF-8 locale too.
+
+## 7. What session start says
+
+Nothing new. N1 writes a file and prints nothing. The retire line changes only
+through the data (F5).
+
+## 8. Decisions
+
+D1. **The route table, not the stack.** The brief says "a CLI the route table
+can name". A route naming a tool is the policy's decision that the tool fits
+the work, and the play entry is the string the ledger already counts as
+`named`, so the reach and the naming meet on one name. `stack.tsv` declares how
+a tool is installed, which is not what a shell command runs.
+
+D2. **A names file per session, written at session start.** The post-tool hook
+must not resolve the project: resolution runs git, and git after every tool
+call is what the hook's comment forbids. Session start resolves the project
+anyway. Per session, not per home, because each project has its own routes,
+and a session's reach belongs to its project's ledger. Beside the session's
+appends, under `state/ledger/`, so it lives and is found where they are; the
+`.names` suffix keeps it out of every `*.tsv` glob over that directory.
+
+D3. **`cli` replaces `tool Bash` for the call.** A Skill call is recorded as
+`skill <name>` and not also `tool Skill`, an Agent call as `agent <type>`, an
+MCP call as `mcp <server>`: the record names what the call reached, not the
+tool that carried it. One line per run also keeps the fold's wholeness test
+(alive lines against call lines) exact: a second line per call would read a
+lost run as whole. The cost is that `Bash`'s REACHED column no longer counts
+the calls that ran a capability: 92 of the 1,313 commands that mention a name,
+across every transcript on this machine.
+
+D4. **Read in bash, bounded, precision first.** No process (C1), so no awk:
+the engine's readers that do this properly (`lib/deny-read.sh`,
+`lib/where-read.sh`) are awk programs. A miss leaves the call as it is today; a
+false reach would take a capability off the retire list on evidence of nothing,
+and keep a route that is ignored. So everything the reading cannot follow ends
+it (R9) rather than guessing, and text a command only carries never counts
+(R6).
+
+D5. **No backfill.** The ledger never recorded the command, and rewriting a
+record to change its shape is the one operation the ledger's own header rules
+out. The baseline is re-read from the transcripts with this reading, and the
+pull request reports what it adds.
+
+D6. **Out of scope, found on the way.** A Skill call that invokes a standalone
+skill declared as `skill <name>` in `stack.tsv` (graphify's own declaration) is
+filed under `<name> (built-in)` by `felix_ledger_summary`, because an
+unqualified skill row is read as the host's. graphify's 3 Skill reaches sit
+there today. And `felix_route_step_used` asks the transcript whether a play
+step was used and does not see a CLI run either, so the route keeps naming
+graphify as due in a session that ran it. Both are follow-ups.

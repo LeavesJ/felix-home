@@ -191,3 +191,55 @@ term on `api` or `local_listener`.
   It is printed only, and the founder's reading rides slice 4's admission.
 - No row has an `env:` term: no project declares a maturity, so such a term
   reads undecided on all three, and R1 forbids one on `paid_ingress`.
+
+**A departure from the plan: the libraries load lazily.** The plan's Task 4
+put three source lines after `lib/facts.sh`, at `felix`'s top level. Then
+`felix gate`, `felix merge` and `felix land` would load `lib/situations*.sh`
+on every run, and a broken top level there would break them. Direction row
+39 (in the fold, draft #481) calls code that a hook, the gate or landing
+runs high-stakes, and design §4 puts that at B3. So by Felix's reading, which
+the starting session raised at 18:3xZ, the eager load would have made this
+slice a high-stakes feature. It would then inherit the shared-code defects
+the founder refused at 18:13Z, and it would have to open as a `needs-founder`
+draft under decision 7b. Instead, `cmd_situations` sources its three
+libraries inside its own body. That is how `cmd_audit`, `cmd_inventory` and
+`cmd_cost` already load theirs (`felix:245-273`). `felix` itself carries only
+the usage entry, that short function and the dispatch line. The slice stays
+below B3 and lands on green. Its unchecked limits are listed here and in the
+PR, as decision 5 says for such code.
+
+**Blind parts (Task 2).** Five authors (Opus 5.5, high) wrote the eight
+parts in one workflow (`wf_c56d0007-d12`, 16 minutes) from the design, the
+plan's Contracts and the seed, without reading `felix`, `lib/`, `hooks/` or
+`bin/`. Committed as `fbd44a32`. Where the Contracts left room, they read:
+the side in `--at` mode is `at`; the admit command holds `\t` and `\n` as
+text, and only the `row` line holds tab bytes; a trailing tab is a field
+count, not an empty cell; the usage lines come directly after `felix
+obligations`; `--at=x` and `--change -x` are usage errors; `"maturity":""`
+declares none; and the scratch directory is checked before the recorded tree
+or the base.
+
+**Red on main (Task 3).** The red tree is `origin/main` at `1fca9559`
+(0.49.320) with this branch's `engine/harness/tests`. Each part ran alone
+through the four-slot helper, under BWK awk. Every part reached
+`@@part-done`, with no FAIL before `@@prelude-done` and no harness error.
+
+| Part | FAIL on main |
+|---|---|
+| 2400 table | 26, after the fix below (the first run: 25, and one passed) |
+| 2410 recorded | 81 |
+| 2420 change | 62 |
+| 2430 output | 106 |
+| 2440 web fixture | 45 |
+| 2450 cargo fixture | 29 |
+| 2460 seed siblings | 2: the part reads the shipped table at run time, and main has none, so only the ledger and the network check run |
+| 2470 review focus | 30 |
+
+One 2400 assertion passed on main: "schema-check, run in a tree holding only
+schemas.tsv and the shipped situations.tsv, exits 0". The copy of the absent
+table copied nothing, so schema-check checked one table and passed. It went
+back to a blind author (Opus 5.5, high), as Task 3 says. The assertion now
+also compares a token for each template copied byte for byte. On main it
+reads `situations.tsv not copied`, and all 26 of 2400's assertions fail
+there. On the branch it passes. No other assertion in the part held without
+the table.

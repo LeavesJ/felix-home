@@ -182,8 +182,13 @@ _fx_git "$S2400X" init -q -b main >/dev/null 2>&1; _s2400_commit seed
 # HAYSTACK NEEDLE WORD -> WORD when HAYSTACK holds NEEDLE, else other (a function: bash 3.2 misreads a case inside $( ) ).
 _s2400_in() { case "$1" in *"$2"*) printf %s "$3" ;; *) printf other ;; esac; }
 _s2400_sc() { ( cd "$S2400X" && "$REAL_HARNESS/bin/schema-check" 2>&1; echo "rc=$?" ); }
+# NAME -> "NAME copied" when the fixture holds templates/NAME byte for byte as $REAL_HARNESS ships it, else "NAME not
+# copied". On an engine without the table the cp above copies nothing and schema-check exits 0 over schemas.tsv alone,
+# so the exit-0 assertion compares both copies along with the status.
+_s2400_cp() { cmp -s "$REAL_HARNESS/templates/$1" "$S2400X/engine/harness/templates/$1" && printf '%s copied' "$1" || printf '%s not copied' "$1"; }
 S2400a="$(_s2400_sc)"
-is "2400 schema-check, run in a tree holding only schemas.tsv and the shipped situations.tsv, exits 0" "${S2400a##*rc=}" "0"
+is "2400 schema-check, run in a tree holding only schemas.tsv and the shipped situations.tsv, exits 0" \
+   "$(_s2400_cp schemas.tsv)|$(_s2400_cp situations.tsv)|${S2400a##*rc=}" "schemas.tsv copied|situations.tsv copied|0"
 has "2400 and it read two tables there" "$S2400a" "2 table(s)"
 printf '# class\tapplies\towes\tclass_by_maturity\tsource\n' > "$S2400X/engine/harness/templates/situations.tsv"; _s2400_commit empty
 S2400a="$(_s2400_sc)"

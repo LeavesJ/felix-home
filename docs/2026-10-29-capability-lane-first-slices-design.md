@@ -144,7 +144,7 @@ It is outside this design.
         `lib/own.sh` and `lib/status-land.sh`;
     - the `felix merge` and `felix land` code paths, which include the
         shared project resolver and the table validator `lib/table.sh`
-        (§11 items 46 and 47).
+        (§11 items 46 to 48).
 
 - **Tables before code.** Each new table is a new file with one new
     `schemas.tsv` row, which is an addition and free. No column is added to an
@@ -1337,11 +1337,25 @@ is gone. *(My call.)*
     every subcommand, `felix which` included, loses alike. Other surfaces,
     session start among them, still take the shared resolver's answer as it
     comes.
+48. *Slice 0.* The third review's second round found that `felix lane`
+    still took its sentence for a miss that stands from `resolve_or_die`,
+    which runs a third resolution whose reads the lane never checked.
+    Under a fault there it said the wrong thing, and `felix_binding_broken`,
+    which it runs, can append to the memory root's `bindings.tsv`, though
+    the lane writes nothing. `felix lane` now says a miss from what its own
+    check read, in the words `resolve_or_die` uses on `main` for that
+    layout, and runs neither. The check takes the origin URL as the
+    resolver does, with its trailing LFs dropped. Stated limits: a broken
+    Felix home pointer and a remembered binding whose `project.json` was
+    renamed, which `felix_binding_broken` reports and the check does not
+    read, are said as the layout the check read. A project directory whose
+    name ends in LF, which no command substitution can carry, reads as a
+    resolution that did not finish.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Items 44 to 47 came from reviews of
+corrected text could be read two ways. Items 44 to 48 came from reviews of
 slice 0's build: a security review, then three adversarial ones.
 
 ## 12. Not decided here, and whose

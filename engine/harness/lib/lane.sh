@@ -381,7 +381,7 @@ felix_lane_rows() {   # PROJ ROOT [FULL]
 # (_lane_table); _lane_put's group runs after a failed write. The READS are redirected builtins: read <&3 in the loops over 3< FILE (_lane_changed,
 # _lane_markall, _lane_window, _lane_search, _lane_rows) and read < FILE in _lane_window. They move no output, and _lane_room leaves bash the
 # descriptors to save what they replace. Were a save to fail, stdin would stay on that FILE; nothing later in the count reads it, each command has input of its own.
-# _lane_room: 0 when three descriptors from 10 up are free, one for each standard stream. It sees only that: when felix's own load leaves a stream
+# _lane_room: 0 when three of descriptors 10 to 31 are free, one per standard stream (more than 19 open there: C3's limit). It sees only that: when felix's own load leaves a stream
 # moved for good (lib/escape.sh redirects a function there), the count may print nowhere, as felix which on main: a stated limit (C5, design item 47).
 _lane_room() {
   local n=10 f=0 lim

@@ -415,6 +415,14 @@ fi
 . "$HERE/parts/2230-lane-status-row-blind.sh"
 . "$HERE/parts/2240-lane-session-start-blind.sh"
 . "$HERE/parts/2250-lane-pulse-blind.sh"
+. "$HERE/parts/2400-situations-table-blind.sh"
+. "$HERE/parts/2410-situations-recorded-blind.sh"
+. "$HERE/parts/2420-situations-change-blind.sh"
+. "$HERE/parts/2430-situations-output-blind.sh"
+. "$HERE/parts/2440-situations-web-fixture-blind.sh"
+. "$HERE/parts/2450-situations-cargo-fixture-blind.sh"
+. "$HERE/parts/2460-situations-seed-siblings-blind.sh"
+. "$HERE/parts/2470-situations-review-focus-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

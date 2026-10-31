@@ -138,6 +138,9 @@ catalog.tsv	tree	kind name source risk capability keywords?	refused
 # every capability as unruled. Absent is quieter: felix doctor says nothing, as
 # if every capability had a rule (felix_capabilities_unruled).
 discover-rules.tsv	tree	capability keywords	refused
+# Engine-only. Empty or absent, felix situations exits 3 and says the situation
+# table could not be read (lib/situations.sh), with nothing reported.
+situations.tsv	tree	class applies owes class_by_maturity source	refused
 # The public snapshot's acknowledgements. Empty or absent, nothing is waived and
 # every audit hit stops the snapshot; only origin/main's copy waives anything.
 # The snapshot itself does not carry it.

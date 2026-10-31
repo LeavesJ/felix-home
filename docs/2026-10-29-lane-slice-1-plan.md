@@ -396,8 +396,16 @@ situations.tsv\ttree\tclass applies owes class_by_maturity source\trefused
 
 **The seed as committed.** Task 1 fills this list in the commit that adds the table, before the blind stage:
 
-- `<cap3>`: (filled by Task 1)
-- each class, by name, with the items of R1 to R4 it meets, and which one is the R4 class: (filled by Task 1)
+- `<cap3>`: `local_listener`.
+- Each class, by name, with the items of R1 to R4 it meets. The HTTP-keyed classes are the four whose applies holds `cap:api`.
+    - `paid_ingress` (`cap:api cap:llm`): R1, and HTTP-keyed.
+    - `route_has_http_test` (`cap:api cap:tests`): R2, HTTP-keyed.
+    - `request_body_bounded` (`cap:api`): R2, HTTP-keyed.
+    - `health_reflects_readiness` (`cap:api cap:deploy`): R2, HTTP-keyed.
+    - `local_listener_binds_loopback` (`probe:local_listener=found`): R3.
+    - `ci_actions_pinned` (`cap:ci`): R4. **This is the R4 class** that parts 2430 and 2450 read.
+    - `ci_secret_scoped_to_step` (`cap:ci probe:ci_secret=found`): no term on `api` or on `local_listener`; not the named R4 class.
+    - `container_runs_unprivileged` (`probe:container=found`): no term on `api` or on `local_listener`; not the named R4 class.
 
 **Part 2400 checks R1 to R4 as follows**, comparing owes without regard to case:
 

@@ -192,7 +192,7 @@ felix_hold_clear() {   # home, sid
 }
 
 # What a session was held on for a gate that had not passed, one line a hold:
-# the tree id, the reason (never verified, stale receipt, failed, epoch moved)
+# the tree id, the reason (never checked, stale receipt, failed, epoch moved)
 # and the checkout, tab-separated. So a session is held once for each, not at
 # every stop after it.
 #
@@ -206,7 +206,7 @@ felix_hold_clear() {   # home, sid
 # stop on the same tree, for the same reason, in the same checkout, lets the
 # session go and puts the unrun gate on record as a debt (felix_verify_log).
 # A changed tree is held again, and so is the same tree when the reason moved:
-# held as never verified, the gate then failed on it, and that is news. A
+# held as never checked, the gate then failed on it, and that is news. A
 # person's prompt clears the record (hooks/user-prompt), since a person asking
 # is a new question about the work, and so does SessionEnd. hooks/stop does not
 # hold once where the tree id cannot tell work apart (an unborn HEAD, a coarse
@@ -228,7 +228,14 @@ felix_hold_tree_seen() {   # home, sid, tid, reason, checkout -> 0 when held on 
   [ -n "${3:-}" ] || return 1
   path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 1
   [ -f "$path" ] && [ ! -L "$path" ] || return 1
-  grep -Fxq -e "$3	${4:-}	${5:-}" "$path" 2>/dev/null
+  # Before 0.49.320 hooks/stop named the first reason by the word Felix no
+  # longer prints (decision 1 of 2026-10-31), and a record written before that
+  # deploy is the same hold, not news.
+  if [ "${4:-}" = "never checked" ]; then
+    grep -Fxq -e "$3	never checked	${5:-}" -e "$3	never verified	${5:-}" "$path" 2>/dev/null
+  else
+    grep -Fxq -e "$3	${4:-}	${5:-}" "$path" 2>/dev/null
+  fi
 }
 
 felix_hold_tree_mark() {   # home, sid, tid, reason, checkout

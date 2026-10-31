@@ -15,14 +15,14 @@ printf '{ "hooks": { "SessionStart": [] } }\n' > "$ISRC/engine/hooks/hooks.json"
 printf '{ "hooks": { "SessionStart": [] } }\n' > "$ICACHE/hooks/hooks.json"
 imatch_out="$(_inst_from_cache)"
 has "matching hooks still verify" \
-    "$imatch_out" "verified   the installed engine matches this tree"
+    "$imatch_out" "checked    the installed engine matches this tree"
 
 # The tamper: harness byte-identical, hooks.json differing — the exact state
 # the old comparison certified.
 printf '{ "hooks": {} }\n' > "$ICACHE/hooks/hooks.json"
 itamper_out="$(_inst_from_cache)"
 case "$itamper_out" in
-  *"verified   the installed engine matches this tree"*)
+  *"checked    the installed engine matches this tree"*|*"verified   the installed engine matches this tree"*)
     bad "a hooks.json that never deployed is not certified" "$itamper_out" ;;
   *) ok "a hooks.json that never deployed is not certified" ;;
 esac

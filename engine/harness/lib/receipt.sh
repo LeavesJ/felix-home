@@ -223,19 +223,25 @@ felix_receipt() {
   if [ -n "$esc" ] || [ -n "$unknown" ]; then autonomous="false"; fi
 
   # ---- status. Precedence is deliberate. Not knowing outranks everything,
-  # because a blocked-or-verified verdict computed from inputs that were never
+  # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
+  #
+  # felix.receipt/2 (0.49.320) is /1 with two status words renamed: checked and
+  # unchecked, under the same conditions as /1's two words for them, because
+  # Felix says what was checked and never claims more (decision 1, 2026-10-31).
+  # The version moved so that a reader of /1 refuses the new words rather than
+  # misreading them.
   local status quality
   if   [ -n "$unknown" ]; then status="indeterminate"; quality="unknown"
   elif [ -n "$esc" ];     then status="blocked";       quality="high"
   elif [ "$vstate" = "current" ] && [ "$rres" = "green" ] && [ -z "$gaps" ]; then
-    status="verified"; quality="high"
+    status="checked"; quality="high"
   else
-    status="unverified"; quality="low"
+    status="unchecked"; quality="low"
   fi
 
   printf '{\n'
-  printf '  "schema": "felix.receipt/1",\n'
+  printf '  "schema": "felix.receipt/2",\n'
   printf '  "domain": "engineering",\n'
   printf '  "project": "%s",\n'   "$(_felix_rcpt_esc "$pname")"
   printf '  "status": "%s",\n'    "$status"

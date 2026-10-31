@@ -115,4 +115,4 @@ not a barrier; the barrier is CI.
 
 If a command fails, say what failed and what it printed. Do not paper over it —
 this is a tool whose entire value is that it refuses to report success it has
-not verified.
+not checked.

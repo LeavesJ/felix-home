@@ -226,7 +226,7 @@ felix_receipt() {
   # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
   #
-  # felix.receipt/2 (0.49.320) is /1 with two status words renamed: checked and
+  # felix.receipt/2 (0.49.321) is /1 with two status words renamed: checked and
   # unchecked, under the same conditions as /1's two words for them, because
   # Felix says what was checked and never claims more (decision 1, 2026-10-31).
   # The version moved so that a reader of /1 refuses the new words rather than

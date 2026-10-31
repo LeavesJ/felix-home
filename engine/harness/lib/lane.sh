@@ -69,14 +69,16 @@ _lane_blob() {
   return 0
 }
 
-# PROJ NAME OUT -> _lane_blob's status, with 2 for a table the table check refuses and 3 (R9) for one it could not examine.
+# PROJ NAME OUT -> _lane_blob's status, with 2 for a table the table check refuses and 3 (R9) for one it could not examine. The
+# check (lib/table.sh, main's) tests no status of its own reads, so it runs with stderr taken, stdout dropped and its status on
+# fd 3, by an exec in its own substitution: 0 or 1 with nothing on stderr is a verdict, anything else did not finish (C1).
 _lane_table() {
   local rc x
   _lane_blob "$1" "$2" "$3"; rc=$?
   [ "$rc" -eq 0 ] || return "$rc"
   [ "$(type -t felix_table_check)" = function ] || . "$_LANE_LIB/table.sh"
-  x="$(felix_table_check "$_LANE_LIB/../templates/schemas.tsv" "$3" "$2")"; rc=$?
-  case "$rc" in 0) return 0 ;; 1) return 2 ;; *) return 3 ;; esac
+  x="$(exec 3>&1 1>/dev/null 2>&3; felix_table_check "$_LANE_LIB/../templates/schemas.tsv" "$3" "$2"; r=$?; exec 1>&3; printf '\n%s.' "$r")"
+  case "$x" in $'\n0.') return 0 ;; $'\n1.') return 2 ;; *) return 3 ;; esac
 }
 
 # ROOT -> 0 when ROOT is a partial clone and git is older than 2.44, which ignores GIT_NO_LAZY_FETCH and would fetch, or
@@ -376,11 +378,11 @@ felix_lane_rows() {   # PROJ ROOT [FULL]
 
 # THE COUNT REDIRECTS NO FUNCTION, BUILTIN OR GROUP: bash 3.2 saves the descriptor it replaces at 10 or above, and with none
 # free it prints "cannot duplicate fd", applies the redirection anyway and never undoes it, so what follows lands in the
-# wrong file and the count reads marks that were never read (R3-F1). Redirections go on external commands (made in the
-# child), on subshell constructs, or inside _lane_git's subshell (_LG_I, _LG_O); _lane_put's group runs after a failed write.
-# _lane_room: 0 when three descriptors from 10 up are free here, one for each standard stream. Below that, code of the
-# surface's own that redirects a function or builtin (lib/escape.sh does at load, at a limit of 13) has left its stream in
-# the wrong place for good, so nothing printed is not nothing to print: the count did not finish.
+# wrong file and the count reads marks that were never read (R3-F1). Redirections go on external commands, subshell constructs,
+# inside _lane_git's subshell (_LG_I, _LG_O), or are an exec in a substitution (_lane_table); _lane_put's group runs after a failed write.
+# _lane_room: 0 when three descriptors from 10 up are free, one for each standard stream. It sees only that: under a limit low
+# enough that felix's own load (lib/escape.sh redirects a function there) leaves a stream moved for good, the count may run and
+# print nowhere, as every subcommand does, felix which on main too: a stated limit outside the lane (C5, design section 11 item 47).
 _lane_room() {
   local n=10 f=0 lim
   lim="$(ulimit -S -n)" || return 0

@@ -105,13 +105,11 @@ felix_table_rows() {
 }
 
 # The schema row for a table, looked up by basename: the key a table's readers
-# and FELIX_ESCAPE_TABLES already use. Empty when there is none. One awk and no
-# pipe, so its status is the lookup's own: a lookup that did not run is not an
-# empty one (a row that is not there is status 0 and empty).
+# and FELIX_ESCAPE_TABLES already use. Empty when there is none.
 felix_table_schema() {
   local schemas="$1" table="$2"
   [ -f "$schemas" ] || return 0
-  T="$table" LC_ALL=C awk -F'\t' -v skip="$FELIX_TABLE_SKIP" '$0 !~ skip && $1 == ENVIRON["T"] { print; exit }' < "$schemas"
+  felix_table_rows "$schemas" | T="$table" LC_ALL=C awk -F'\t' '$1 == ENVIRON["T"] { print; exit }'
 }
 
 # Required and total columns of a schema row, as "<required> <total>". Counted
@@ -128,10 +126,8 @@ _felix_table_arity() {
 #
 #   exit 0  accepted
 #   exit 1  refused
-#   exit 2  cannot examine: no such file, no schema row for the table, or a read
-#           of the check's own that did not finish (a fork that failed). Never
-#           read as accepted; a table nobody declared is not a clean one, and
-#           one the check did not read is not a clean one either.
+#   exit 2  cannot examine: no such file, or no schema row for the table.
+#           Never read as accepted; a table nobody declared is not a clean one.
 felix_table_check() {
   local schemas="$1" file="$2" table="${3:-}"
   [ -n "$table" ] || table="${file##*/}"
@@ -141,22 +137,21 @@ felix_table_check() {
   if [ ! -f "$file" ] || [ ! -r "$file" ]; then
     printf '%s:-\tcannot-examine\tno readable file\n' "$file"; return 2
   fi
-  local row nr="cannot-examine\ta read of the check's own did not finish"
-  row="$(felix_table_schema "$schemas" "$table")" || { printf '%s:-\t%b\n' "$file" "$nr"; return 2; }
+  local row; row="$(felix_table_schema "$schemas" "$table")"
   if [ -z "$row" ]; then
     printf '%s:-\tno-schema\t%s has no row in %s\n' "$file" "$table" "${schemas##*/}"; return 2
   fi
-  local req tot empty cols ar lb="" n1 n2
-  ar="$(_felix_table_arity "$row")" && cols="$(printf '%s\n' "$row" | LC_ALL=C cut -f3)" \
-    && empty="$(printf '%s\n' "$row" | LC_ALL=C cut -f4)" || { printf '%s:-\t%b\n' "$file" "$nr"; return 2; }
-  read -r req tot <<< "$ar"
-  case "$req$tot" in ''|*[!0123456789]*) printf '%s:-\t%b\n' "$file" "$nr"; return 2 ;; esac
+  local req tot empty
+  read -r req tot <<EOF
+$(_felix_table_arity "$row")
+EOF
+  empty="$(printf '%s\n' "$row" | LC_ALL=C cut -f4)"
 
   # One pass classifies every line and applies every per-line refusal. The last
   # line it prints is the row count, which the shell splits off.
   local out
   out="$(LC_ALL=C awk -F'\t' -v f="$file" -v req="$req" -v tot="$tot" \
-      -v cols="$cols" -v hi="$(printf '[\200-\377]')" -v u8="$FELIX_TABLE_UTF8" '
+      -v cols="$(printf '%s\n' "$row" | cut -f3)" -v hi="$(printf '[\200-\377]')" -v u8="$FELIX_TABLE_UTF8" '
     $0 !~ u8 { printf "%s:%d\tencoding\ta line that is not UTF-8, which grep drops in a UTF-8 locale and macOS awk cannot read\n", f, NR }
     /\r/ { printf "%s:%d\tcarriage-return\ta CR byte, which a tab-IFS read keeps in the last cell\n", f, NR }
     $0 ~ ("^[ \t\v\f\r]*" hi) { printf "%s:%d\tnonascii-lead\ta line that starts with a non-ASCII byte, which is whitespace to some locales and not others\n", f, NR }
@@ -172,9 +167,8 @@ felix_table_check() {
         printf "%s:%d\tcells\t%d cell(s); %s declares %s\n", f, NR, NF, (req == tot ? "exactly " req : req " to " tot), cols
     }
     END { printf "\t%d\n", rows + 0 }
-  ' < "$file")" || { printf '%s:-\t%b\n' "$file" "$nr"; return 2; }
+  ' < "$file")"
   local rows="${out##*	}"
-  case "$rows" in ''|*[!0123456789]*) printf '%s:-\t%b\n' "$file" "$nr"; return 2 ;; esac
   out="${out%	*}"
   out="${out%
 }"
@@ -185,18 +179,11 @@ felix_table_check() {
   local more=""
   # The last byte, read as a number: a command substitution drops a newline and
   # a NUL alike, so a file ending in a NUL looked like one ending in a newline.
-  # Each is read so that a read that did not finish says so (the pipe's two statuses are tested inside), and
-  # the last byte is od's own, with no pipe.
-  n2="$(wc -c < "$file")" && n1="$(LC_ALL=C tr -d '\000' < "$file" | wc -c; [ "${PIPESTATUS[0]}${PIPESTATUS[1]}" = 00 ])" \
-    && { [ "$n2" -eq 0 ] || lb="$(od -An -tx1 -j "$((n2 - 1))" -N 1 < "$file")"; } || { printf '%s:-\t%b\n' "$file" "$nr"; return 2; }
-  lb="${lb//[ ]/}"
-  case "$n1:$n2" in :*|*:|*[!0123456789\ :]*) printf '%s:-\t%b\n' "$file" "$nr"; return 2 ;; esac
-  if [ "$n2" -gt 0 ] && [ -z "$lb" ]; then printf '%s:-\t%b\n' "$file" "$nr"; return 2; fi
-  if [ -s "$file" ] && [ "$lb" != "0a" ]; then
+  if [ -s "$file" ] && [ "$(tail -c 1 < "$file" | od -An -tx1 | tr -d ' \n')" != "0a" ]; then
     more="$more$(printf '%s:-\tno-final-newline\tthe last line has no newline, and the done-< loops drop it while grep and awk keep it' "$file")
 "
   fi
-  if [ "$n1" -ne "$n2" ]; then
+  if [ "$(LC_ALL=C tr -d '\000' < "$file" | wc -c)" -ne "$(wc -c < "$file")" ]; then
     more="$more$(printf '%s:-\tnul-byte\ta NUL byte, which makes grep treat the file as binary and print no rows' "$file")
 "
   fi

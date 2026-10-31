@@ -433,6 +433,7 @@ felix_ledger_signal() {   # RAW [NAMES]
 }
 
 _FELIX_LEDGER_CLI_KEY='^"command"[[:space:]]*:[[:space:]]*"'
+_FELIX_LEDGER_CLI_STR='^([^"\\]|\\.)*'
 _FELIX_LEDGER_CLI_NAMES='^([A-Za-z0-9][A-Za-z0-9._+-]{0,63}( [A-Za-z0-9][A-Za-z0-9._+-]{0,63})*)?$'
 
 # The routed tool a Bash payload's command runs, in FELIX_LEDGER_CLI, status 0
@@ -442,7 +443,7 @@ _FELIX_LEDGER_CLI_NAMES='^([A-Za-z0-9][A-Za-z0-9._+-]{0,63}( [A-Za-z0-9][A-Za-z0
 # holds one of the names, which almost none do. A names file that holds
 # anything else is no names file.
 _felix_ledger_cli() {   # LEAD NAMES
-  local LC_ALL=C IFS=' ' lead="$1" names="" e p n hit=""
+  local LC_ALL=C IFS=' ' lead="$1" names="" e p c n hit=""
   FELIX_LEDGER_CLI=""
   [ -f "$2" ] || return 1
   { IFS= read -r names < "$2"; } 2>/dev/null
@@ -455,6 +456,12 @@ _felix_ledger_cli() {   # LEAD NAMES
   [[ $e =~ $_FELIX_LEDGER_CLI_KEY ]] || return 1
   e="${e:${#BASH_REMATCH[0]}}"; e="${e:0:16384}"
   for n in $names; do case "$e" in *"$n"*) hit=1; break ;; esac; done
+  [ -n "$hit" ] || return 1
+  # And in the command's own text, which ends at the first quote no backslash
+  # escapes: a name in the description or the response loads nothing. The
+  # reading is still handed the quote, since only the quote closes a last word.
+  [[ $e =~ $_FELIX_LEDGER_CLI_STR ]]; c="${BASH_REMATCH[0]}"; hit=""
+  for n in $names; do case "$c" in *"$n"*) hit=1; break ;; esac; done
   [ -n "$hit" ] || return 1
   command -v felix_ledger_runs >/dev/null 2>&1 \
     || . "$_FELIX_LEDGER_LIB/ledger-runs.sh" 2>/dev/null || return 1

@@ -229,8 +229,9 @@ the command exactly as it did before this change.
 P6. **The file read.** The only file the post-tool hook reads beyond its
 libraries and the payload is the names file, and only for a Bash call, and only
 when the session id is usable (N5). It never reads the session's ledger file or
-any other record it writes. A names file whose first line holds anything but
-names (N2) and single spaces is read as no names file.
+any other record it writes. A names file whose first line is anything but
+names (N2) with one space between each two, and none before the first or after
+the last, is read as no names file.
 
 P7. **`felix_ledger_signal RAW [NAMES_FILE]`.** The function the hook calls.
 With NAMES_FILE omitted, empty, missing or unreadable it prints exactly what it

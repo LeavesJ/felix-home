@@ -139,7 +139,11 @@ line break. Text the clause does not quote is unchanged.
   - `subagent-unverified`, a `felix_say` kind;
   - `'unverified\t`, `lib/escape.sh`'s merge blocker kind as its printf
     spells it (here `\t` is the two characters backslash and t, not a tab);
-  - `== "unverified"`, the same kind as `lib/green-install.sh` reads it.
+  - `== "unverified"`, the same kind as `lib/green-install.sh` reads it;
+  - `never verified`, in `harness/lib/verify.sh` only: the reason before this
+    change, which C7 has `felix_hold_tree_seen` still accept. (Round 2,
+    2026-10-31: C7 cannot accept the old reason without naming it, which the
+    blind part's lint, written from round 1, flags.)
 
   The check is shown to fail: run over a fixture directory holding a printed
   line with "Verified" or "unproven", it fails and names that line; over one

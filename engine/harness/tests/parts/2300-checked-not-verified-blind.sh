@@ -47,6 +47,10 @@ printf '\nchecked, not verified: the engine'"'"'s own words say what ran and cla
 #   the directory, files in byte order; a tracked file absent from the working tree is skipped; a directory that is
 #   not inside a git work tree is read whole (find -type f). The check over the engine also says it read many files,
 #   so it cannot pass by reading none.
+#
+# Round 2, not blind (2026-10-31, after the blind run): the contract's C18 gained one name allowed in one file,
+# `never verified` in harness/lib/verify.sh, because C7 cannot accept the old reason without naming it. The check
+# reads it from a second list, and A43 shows it allowed there and refused in any other file.
 CNV="$TMP/cnv"; mkdir -p "$CNV"; CNV="$(cd "$CNV" && pwd -P)"
 CNVCH="$CNV/home"; CNVCM="$CNV/mem"; CNVCU="$CNV/user"; CNV_CP="$CNVCH/projects/cp"; CNV_CE="$CNVCH/projects/ce"
 mkdir -p "$CNV_CP" "$CNV_CE" "$CNVCM" "$CNVCU" "$CNV/plain" "$CNV/bin"
@@ -143,6 +147,9 @@ _cnv_vword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])(un)?verified([^a-z0-9
 # C18's check. The allowed names, one a line, read as bytes by the check's awk (getline), never through awk -v,
 # which would turn the backslash and t of 'unverified\t into a tab.
 printf '%s\n' 'state/verified' 'deployed-unverified' 'subagent-unverified' "'unverified\\t" '== "unverified"' > "$CNV/allowed"
+# Round 2 of the contract, not blind (added after the blind run, 2026-10-31): a name allowed in one file only, as
+# FILE<TAB>NAME with FILE relative to the directory read. C7 cannot accept the old hold reason without naming it.
+printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' > "$CNV/allowed-in"
 _cnv_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
   if [ "$(git -C "$1" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then
     git -C "$1" ls-files -z -- . 2>/dev/null | tr '\0' '\n'
@@ -158,14 +165,17 @@ _cnv_check() {   # DIR -> FILE:LINE:TEXT for each line the check fails on; 0 whe
     files[n]="$d/$f"; n=$((n + 1))
   done < <(_cnv_list "$d")
   [ "$n" -gt 0 ] || return 2
-  CNV_PRE="$d/" LC_ALL=C awk -v A="$CNV/allowed" '
-    BEGIN { k = 0; while ((getline l < A) > 0) if (l != "") al[++k] = l; close(A); p = ENVIRON["CNV_PRE"] }
+  CNV_PRE="$d/" LC_ALL=C awk -v A="$CNV/allowed" -v B="$CNV/allowed-in" '
+    BEGIN { k = 0; while ((getline l < A) > 0) if (l != "") al[++k] = l; close(A); p = ENVIRON["CNV_PRE"]
+            m = 0; while ((getline l < B) > 0) if ((q = index(l, "\t")) > 1) { bf[++m] = substr(l, 1, q - 1); bn[m] = substr(l, q + 1) }
+            close(B) }
     { s = $0; sub(/^[ \t]+/, "", s); if (substr(s, 1, 1) == "#") next
       t = $0
       for (i = 1; i <= k; i++) while ((j = index(t, al[i])) > 0) t = substr(t, 1, j - 1) substr(t, j + length(al[i]))
+      f = FILENAME; if (index(f, p) == 1) f = substr(f, length(p) + 1)
+      for (i = 1; i <= m; i++) if (bf[i] == f) while ((j = index(t, bn[i])) > 0) t = substr(t, 1, j - 1) substr(t, j + length(bn[i]))
       t = tolower(t)
       if (t ~ /(^|[^a-z0-9_])(un)?(verified|proven)([^a-z0-9_]|$)/) {
-        f = FILENAME; if (index(f, p) == 1) f = substr(f, length(p) + 1)
         printf "%s:%d:%s\n", f, FNR, $0; hit = 1 }
     }
     END { exit (hit ? 1 : 0) }' "${files[@]}"
@@ -445,6 +455,12 @@ printf '%s\n' '# Verified, and unproven: a comment' "	  # an indented comment sa
 CNV_C2="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18b")"; CNV_C2R=$?
 is "cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name passes" \
    "rc=$CNV_C2R [$CNV_C2]" "rc=0 []"
+mkdir -p "$CNV/c18c/harness/lib"
+printf '%s\n' 'grep -e "never verified"' > "$CNV/c18c/harness/lib/verify.sh"
+printf '%s\n' 'echo "never verified"' > "$CNV/c18c/harness/lib/other.sh"
+CNV_C6="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18c")"; CNV_C6R=$?
+is "cnv A43 (C18, round 2, not blind): the old hold reason is allowed in harness/lib/verify.sh and in no other file" \
+   "rc=$CNV_C6R [$CNV_C6]" "rc=1 [harness/lib/other.sh:1:echo \"never verified\"]"
 CNV_G="$CNV/c18g"; mkdir -p "$CNV_G/harness/tests" "$CNV_G/lib"
 printf '%s\n' "printf 'verified\\n'" > "$CNV_G/harness/tests/t.sh"; printf 'echo fine\n' > "$CNV_G/lib/b.sh"
 ( _fx_cd "$CNV_G" && git init -q -b main && git add harness/tests/t.sh lib/b.sh ) >/dev/null 2>&1

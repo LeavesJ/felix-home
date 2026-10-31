@@ -334,8 +334,7 @@ _lane_rows() {   # PROJ ROOT FULL
     if [ "$shl" -eq 0 ]; then glob="$root is a shallow clone, so its landings cannot all be read"
     elif [ "$shl" -ne 1 ] || _lane_partial_old "$root"; then glob="$r2"
     else
-      # The machine clock when FELIX_LANE_NOW is unset: no whole number is a count that did not finish, never a window
-      # of an empty now, which admits no landing and reads every lane idle.
+      # The machine clock when FELIX_LANE_NOW is unset: no whole number is a count that did not finish, never a window of an empty now (every lane idle).
       [ -n "$now" ] || { now="$(date -u +%s)" || now=""; }
       case "$now" in ''|*[!0123456789]*) return 1 ;; esac
       _lane_window "$now" "$root" || return 1
@@ -376,13 +375,14 @@ felix_lane_rows() {   # PROJ ROOT [FULL]
   return "$rc"
 }
 
-# THE COUNT REDIRECTS NO FUNCTION, BUILTIN OR GROUP: bash 3.2 saves the descriptor it replaces at 10 or above, and with none
-# free it prints "cannot duplicate fd", applies the redirection anyway and never undoes it, so what follows lands in the
-# wrong file and the count reads marks that were never read (R3-F1). Redirections go on external commands, subshell constructs,
-# inside _lane_git's subshell (_LG_I, _LG_O), or are an exec in a substitution (_lane_table); _lane_put's group runs after a failed write.
-# _lane_room: 0 when three descriptors from 10 up are free, one for each standard stream. It sees only that: under a limit low
-# enough that felix's own load (lib/escape.sh redirects a function there) leaves a stream moved for good, the count may run and
-# print nowhere, as every subcommand does, felix which on main too: a stated limit outside the lane (C5, design section 11 item 47).
+# THE COUNT REDIRECTS NO WRITING FUNCTION, BUILTIN OR GROUP: bash 3.2 saves the descriptor it replaces at 10 or above, and with none free it
+# prints "cannot duplicate fd", applies the redirection anyway and never undoes it, so output lands in the wrong file and the count reads marks
+# never read (R3-F1). Writers go through external commands, subshell constructs, _lane_git's subshell (_LG_I, _LG_O) or an exec in a substitution
+# (_lane_table); _lane_put's group runs after a failed write. The READS are redirected builtins: read <&3 in the loops over 3< FILE (_lane_changed,
+# _lane_markall, _lane_window, _lane_search, _lane_rows) and read < FILE in _lane_window. They move no output, and _lane_room leaves bash the
+# descriptors to save what they replace. Were a save to fail, stdin would stay on that FILE; nothing later in the count reads it, each command has input of its own.
+# _lane_room: 0 when three descriptors from 10 up are free, one for each standard stream. It sees only that: when felix's own load leaves a stream
+# moved for good (lib/escape.sh redirects a function there), the count may print nowhere, as felix which on main: a stated limit (C5, design item 47).
 _lane_room() {
   local n=10 f=0 lim
   lim="$(ulimit -S -n)" || return 0

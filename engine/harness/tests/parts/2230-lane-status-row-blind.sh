@@ -29,6 +29,9 @@ printf '\nlane status row: felix status gains the lane row, last, in every case 
 #   reads of a project.json's remote_match fail under the resolver, or under it and the lane's check alike (C2, C6).
 # - The third review's round 2 (2026-10-30, still blind) adds, at the end, V3R2-F3: an origin URL that ends in LF binds
 #   as the resolver binds it, with no read failed, so the row is C6's none row, never the unknown one (C2).
+# - The third review's round 3 (2026-10-30, still blind) adds, at the end, V3R3-F1: the nine rows before the lane row
+#   take the shared resolver's answer, under a fault in a read only the lane's check makes and for a project directory
+#   whose name ends in LF, and only the lane row reads the lane's resolution (C6 as 8630c9b3 amended it).
 LNTN=1793000000; LNTDAY=86400; LNTK=0
 LNTNINE='settings schedule pulse reach gate land hooks alerts icloud '
 LNTTEN="${LNTNINE}lane "
@@ -509,5 +512,111 @@ _lf_run "$LNTD/v3r2f3-t" "$LNTWC" "$LNTN" "$FELIX" lane --tsv; LNTa="$LF_RC|$(wc
 _lf_run "$LNTD/v3r2f3-s" "$LNTWC" "$LNTN" "$FELIX" status --tsv; LNTa="$LNTa|$LF_RC|$(_lnt_rows "$LNTD/v3r2f3-s")|$(_lf_last "$LNTD/v3r2f3-s.out")"
 is "lane status row V3R2-F3-origin-url-trailing-lf-reads-unresolved: in a checkout with no .felix whose origin URL, https://gitlab.example/g/r.git, ends in an LF of its own, and whose home's only project q names remote_match g/r and commits no lanes.tsv, no read failing: felix lane --tsv exits 0 with nothing on stdout, and felix status --tsv exits 0 with ten rows, the last lane none - <PROJ>/lanes.tsv has no committed row, so no lane is counted; never lane unknown - the lane count did not finish in <repo>" \
    "$LNTWA|$LNTa" "built|0|0|0|$LNTTEN|$(_lf_tsv lane none - "$LNTWP/lanes.tsv has no committed row, so no lane is counted")"
+_lf_use "$LNTH" "$LNTD/memory" "$LNTD/user" "$LNTB"
+
+# ---- the third review's round 3: the rows before the lane row take the shared resolver's answer (V3R3-F1) -------------
+# Added on 2026-10-30 from the third review's round 3 finding V3R3-F1 (its inputs and observed output only) and C6 as
+# 8630c9b3 amended it (design 11 item 49), still blind, last. C6: every row before the lane row is byte-identical to what
+# origin/main prints in the same directory, because those rows take the project from felix_resolve_project before any of
+# the lane's code runs; only the lane row reads the lane's resolution (C2). Readings:
+# - Layout (a): _lf_r2's home of p (remote_match o/r; lanes.tsv cap, then sec; lane-next.tsv) and its checkout, bound by
+#   its .felix and with the origin https://github.com/o/r.git (C); then the same checkout with its .felix removed, bound
+#   by remote_match alone (CR). Unfaulted, each prints ten rows, none of the first nine reading this directory is not a
+#   governed checkout, the last the value zero 0 of 2. C9's fork and kill probes (_lf_probe) act at a read only the
+#   lane's check makes, keyed to the function names the finding gives: in C, tr whose words hold -d and [:space:] with
+#   _lane_marker on the stack; in CR, git remote get-url origin with _lane_origin on it, and sed whose words hold
+#   remote_match with _lane_remote_match on it. main never meets them, so its rows there are the unfaulted ones: rows 1
+#   to 9 under the probe are byte-identical to the same checkout's rows 1 to 9 with none, and the tenth and last row is
+#   exactly lane unknown - the lane count did not finish in <repo> (C6). Only where the probe reached felix itself
+#   (LF_SELF) may felix end with 128 (fork, C3) or 137 (kill, C9) and no lane row, each row it printed then the
+#   unfaulted one of its line.
+# - Layout (b), no fault: _lf_v3r3's home, whose only project directory is named q and one LF (remote_match o/r), and
+#   its checkout with no .felix and the origin https://github.com/o/r.git. The shared resolver's answer, through a
+#   command substitution, is q, a project with no directory, and main prints q's rows (reach none - q declares no plugin
+#   or mcp rows; gate value no-gate <home>/projects/q/project.json does not exist, ...; land none - no land-on-green job
+#   for q; ...). The rows the same engine prints for q are read in the same home and checkout once _lf_v3r3q adds a
+#   directory projects/q (a CLAUDE.md, no project.json) and a .felix naming q, which every resolution binds (on
+#   origin/main at cc238b25 the nine rows of the two layouts were byte-identical, run by hand on 2026-10-30). Rows 1 to 9
+#   of (b) are byte-identical to those, and its tenth and last row is lane unknown - the lane count did not finish in
+#   <repo>, the limit C2 states for a directory name that ends in LF.
+LNTXA="not built: V3R3-F1's home and checkout"; LNTXT="$LNTD/v3r3-tmp"; LNTXC="$LNTD/v3r3/c"
+if _lf_r2 "$LNTD/v3r3" p "$LNTN" && [ -f "$LF_REPO/.felix" ] \
+   && [ "$( _fx_cd "$LF_REPO" && _lf_g 1700000000 config --get remote.origin.url )" = https://github.com/o/r.git ]; then
+  LNTXA=built; LNTXC="$LF_REPO"
+  _lf_use "$LF_HOME" "$LNTD/memory" "$LNTD/user" "$LNTB"
+fi
+LNTXW="unfaulted 0|$LNTTEN|0 of the nine ungoverned|$(_lf_tsv lane value zero '0 of 2 engine landings in 14 days, target 1/2')"
+# DIR -> felix status --tsv in DIR with no probe. LNTXU its status, its rows, how many of rows 1 to 9 read this directory
+# is not a governed checkout, and its last row; $LNTD/v3r3-0.nine its rows 1 to 9.
+_lnt_v3r3u() {
+  _lf_run "$LNTD/v3r3-0" "$1" "$LNTN" "$FELIX" status --tsv
+  LC_ALL=C awk 'NR <= 9' "$LNTD/v3r3-0.out" > "$LNTD/v3r3-0.nine"
+  LNTXU="unfaulted $LF_RC|$(_lnt_rows "$LNTD/v3r3-0")|$(LC_ALL=C awk -F'\t' '$4 == "this directory is not a governed checkout" { n++ } END { print n + 0 }' "$LNTD/v3r3-0.nine") of the nine ungoverned|$(_lf_last "$LNTD/v3r3-0.out")"
+}
+# A B -> nothing when every line of B is the line of A at the same number and B has no more lines than A, else the
+# first line of B that is not, with its number.
+_lnt_v3r3k() { LC_ALL=C awk 'FILENAME == ARGV[1] { u[FNR] = $0; next } !(FNR in u) || $0 != u[FNR] { print FNR ": " $0; exit }' "$1" "$2" 2>/dev/null; }
+# MODE NAME WORDS STACK DIR -> felix status --tsv in DIR under _lf_probe MODE NAME WORDS STACK, with a fresh TMPDIR,
+# against the rows of the last _lnt_v3r3u. LNTb the probe's LF_FIRE and "as C6 says" when the run ended as the readings
+# say, else its status, its rows, its first row unlike the unfaulted run's, and its last row.
+_lnt_v3r3() {
+  local r l k
+  rm -rf "$LNTXT"; mkdir -p "$LNTXT"
+  _lf_probe "$1" "$2" "$3" "$4" "$LNTD/v3r3f.fired" "$LNTXT" _lf_run "$LNTD/v3r3f" "$5" "$LNTN" "$FELIX" status --tsv
+  r="$(_lnt_rows "$LNTD/v3r3f")"; l="$(_lf_last "$LNTD/v3r3f.out")"
+  LC_ALL=C awk 'NR <= 9' "$LNTD/v3r3f.out" > "$LNTD/v3r3f.nine"
+  k="$(_lnt_v3r3k "$LNTD/v3r3-0.nine" "$LNTD/v3r3f.nine")"
+  LNTb="$LF_FIRE|status $LF_RC, rows [$r], first row unlike the unfaulted one [$k], last [$l]"
+  if [ "$LF_RC|$r" = "0|$LNTTEN" ] && [ -z "$k" ] && cmp -s "$LNTD/v3r3-0.nine" "$LNTD/v3r3f.nine" \
+     && [ "$l" = "$(_lf_tsv lane unknown - "the lane count did not finish in $5")" ]; then
+    LNTb="$LF_FIRE|as C6 says"
+  elif [ "$LF_SELF" = self ] && [ -z "$k" ] && [ "$(_lf_count "$LNTD/v3r3f.out")" -le 9 ]; then
+    case "$1:$LF_RC" in (kill:137|fork:128) LNTb="$LF_FIRE|as C6 says" ;; esac
+  fi
+}
+LNTa5='felix status --tsv'"'"'s rows 1 to 9 are byte-identical to its rows with no probe, as origin/main prints them there, and the tenth and last row is exactly lane unknown - the lane count did not finish in <repo>'
+LNTa6='the probe fired, and unfaulted the rows are ten, none of the first nine reading this directory is not a governed checkout, the last the value zero 0 of 2'
+_lnt_v3r3u "$LNTXC"; LNTa="$LNTXA|$LNTXU"
+_lnt_v3r3 fork tr "*' -d '*'[:space:]'*" "*' _lane_marker '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) in a checkout bound by its .felix, with the origin p's remote_match names, C9's fork probe at tr -d [:space:] with _lane_marker on the stack, a read only the lane's check makes: $LNTa5 (or 128 with no lane row, where the fork failed in felix's own shell); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+_lnt_v3r3 kill tr "*' -d '*'[:space:]'*" "*' _lane_marker '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the same checkout, C9's kill probe at tr -d [:space:] with _lane_marker on the stack: $LNTa5 (or 137 with no lane row, where the kill reached felix itself); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+LNTXR="not built: V3R3-F1's checkout with its .felix removed"
+rm -f "$LNTXC/.felix"
+[ "$LNTXA" = built ] && [ ! -e "$LNTXC/.felix" ] && [ ! -L "$LNTXC/.felix" ] \
+  && [ "$( _fx_cd "$LNTXC" && _lf_g 1700000000 config --get remote.origin.url )" = https://github.com/o/r.git ] && LNTXR=built
+_lnt_v3r3u "$LNTXC"; LNTa="$LNTXR|$LNTXU"
+_lnt_v3r3 fork git "*' remote get-url origin '*" "*' _lane_origin '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the same checkout with its .felix removed, bound by remote_match alone, C9's fork probe at git remote get-url origin with _lane_origin on the stack, a read only the lane's check makes: $LNTa5 (or 128 with no lane row, where the fork failed in felix's own shell); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+_lnt_v3r3 kill git "*' remote get-url origin '*" "*' _lane_origin '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's kill probe at git remote get-url origin with _lane_origin on the stack: $LNTa5 (or 137 with no lane row, where the kill reached felix itself); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+_lnt_v3r3 fork sed '*remote_match*' "*' _lane_remote_match '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's fork probe at sed whose words hold remote_match with _lane_remote_match on the stack, a read only the lane's check makes: $LNTa5 (or 128 with no lane row, where the fork failed in felix's own shell); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+_lnt_v3r3 kill sed '*remote_match*' "*' _lane_remote_match '*" "$LNTXC"
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (a) the checkout bound by remote_match alone, C9's kill probe at sed whose words hold remote_match with _lane_remote_match on the stack: $LNTa5 (or 137 with no lane row, where the kill reached felix itself); $LNTa6" \
+   "$LNTa|$LNTb" "built|$LNTXW|fired|as C6 says"
+
+LNTYA="not built: V3R3-F1's home of q and an LF, and its checkout"; LNTYH=""; LNTYC=""; LNTYb="not run"; LNTYq="not run"; LNTYk="not run"
+if _lf_v3r3 "$LNTD/v3r3b" "$LNTN"; then
+  LNTYA=built; LNTYH="$LF_V3RH"; LNTYC="$LF_V3RC"
+  _lf_use "$LNTYH" "$LNTD/memory" "$LNTD/user" "$LNTB"
+  _lf_run "$LNTD/v3r3b-0" "$LNTYC" "$LNTN" "$FELIX" status --tsv
+  LNTYb="$LF_RC|$(_lnt_rows "$LNTD/v3r3b-0")|$(_lf_last "$LNTD/v3r3b-0.out")"
+  _lf_v3r3q "$LNTYH" "$LNTYC"; LNTYA="$LNTYA|$LF_V3RQ"
+  _lf_run "$LNTD/v3r3b-q" "$LNTYC" "$LNTN" "$FELIX" status --tsv
+  LNTYq="$LF_RC|$(_lnt_rows "$LNTD/v3r3b-q")|$(LC_ALL=C awk -F'\t' '$1 == "reach"' "$LNTD/v3r3b-q.out")|$(_lf_last "$LNTD/v3r3b-q.out")"
+  LC_ALL=C awk 'NR <= 9' "$LNTD/v3r3b-0.out" > "$LNTD/v3r3b-0.nine"; LC_ALL=C awk 'NR <= 9' "$LNTD/v3r3b-q.out" > "$LNTD/v3r3b-q.nine"
+  LNTYk="$(_lnt_v3r3k "$LNTD/v3r3b-q.nine" "$LNTD/v3r3b-0.nine")"
+  if [ -z "$LNTYk" ] && cmp -s "$LNTD/v3r3b-q.nine" "$LNTD/v3r3b-0.nine" && [ "$(_lf_count "$LNTD/v3r3b-0.nine")" = 9 ]; then LNTYk="nine identical"
+  else LNTYk="first row unlike q's [$LNTYk]"; fi
+fi
+is "lane status row V3R3-F1-rows-before-the-lane-row-read-ungoverned L-NEVER-OK: (b) no fault, in a checkout with no .felix whose origin is named by the remote_match of the home's only project, a directory named q and an LF: felix status --tsv exits 0 with ten rows, rows 1 to 9 byte-identical to the rows the same engine prints for q in that home and checkout once a directory projects/q and a .felix naming q bind it, as origin/main's are (reach none - q declares no plugin or mcp rows, ...), and the tenth and last exactly lane unknown - the lane count did not finish in <repo> (the limit C2 states); with q bound, the reach row is that one and the lane row C6's none row for projects/q" \
+   "$LNTYA|$LNTYb|$LNTYq|$LNTYk" \
+   "built|built|0|$LNTTEN|$(_lf_tsv lane unknown - "the lane count did not finish in $LNTYC")|0|$LNTTEN|$(_lf_tsv reach none - 'q declares no plugin or mcp rows')|$(_lf_tsv lane none - "$LNTYH/projects/q/lanes.tsv has no committed row, so no lane is counted")|nine identical"
 _lf_use "$LNTH" "$LNTD/memory" "$LNTD/user" "$LNTB"
 # <<< lane-status-row

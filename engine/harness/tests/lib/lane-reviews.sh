@@ -12,7 +12,9 @@
 # The design's item 46: _lf_bind puts a repository in one of the layouts a binding takes or misses. The third review's
 # round 1: _lf_two builds V3R1-F2's home of two projects whose remote_match values both name the origin, the longer
 # binding, apart from its checkout or its own. Its round 2: _lf_v3r2 builds V3R2-F1's and V3R2-F2's homes and checkouts
-# (a tie, and a .felix naming no project).
+# (a tie, and a .felix naming no project). Its round 3 (added on 2026-10-30, still blind, from V3R3-F1's inputs): _lf_v3r3
+# builds the home whose only project directory is named q and one LF, and its checkout that remote_match alone names, and
+# _lf_v3r3q adds a directory projects/q and a .felix naming it, so that every resolution binds q.
 
 # DIR NOW -> the review's six landings on the branch DIR stands on: NOW - 20 days marked cap (engine/old.sh); NOW - 5
 # and - 4 days unmarked (engine/a.sh, engine/b.sh); NOW - 3 days marked sec (docs/x.md); NOW - 2 and - 1 days unmarked
@@ -210,4 +212,45 @@ _lf_v3r2() {
   LF_V3H="$(cd -P -- "$d/home" && pwd -P)"; LF_V3H2="$(cd -P -- "$d/home2" && pwd -P)"
   LF_V3N="$(cd -P -- "$d/n" && pwd -P)"; LF_V3MK="$(cd -P -- "$d/mk" && pwd -P)"; LF_V3T="$(cd -P -- "$d/t" && pwd -P)"
   [ -n "$LF_V3H" ] && [ -n "$LF_V3H2" ] && [ -n "$LF_V3N" ] && [ -n "$LF_V3MK" ] && [ -n "$LF_V3T" ]
+}
+
+# The third review's round 3 (2026-10-30, still blind, from V3R3-F1's layout (b)). DIR NOW -> in DIR (made when missing;
+# it must hold no home or c yet) a home DIR/home whose only project directory is named q and one LF, holding project.json
+# ({"name":"q","gate":"true","remote_match":"o/r"}) and CLAUDE.md, committed at NOW - 40 days; and a checkout DIR/c with
+# no .felix, its root (README) at NOW - 30 days, which refs/remotes/origin/main names, and the origin
+# https://github.com/o/r.git, which that remote_match names (C2). Sets LF_V3RH and LF_V3RC, their physical paths; status
+# 1, and those empty, when the layout is not as named, read back: one entry under DIR/home/projects, a directory named q
+# and an LF; no DIR/home/projects/q; the two files at the home's HEAD, by name as git stores them; the ref; the origin.
+_lf_v3r3() {
+  local d="$1" n="$2" q="q"$'\n' e k=0 a
+  LF_V3RH=""; LF_V3RC=""
+  [ -n "$d" ] && [ -n "$n" ] && mkdir -p "$d" && [ ! -e "$d/home" ] && [ ! -e "$d/c" ] && _lf_init "$d/home" || return 1
+  mkdir -p "$d/home/projects/$q" && printf '{"name":"q","gate":"true","remote_match":"o/r"}\n' > "$d/home/projects/$q/project.json" \
+    && printf '# q\n' > "$d/home/projects/$q/CLAUDE.md" \
+    && _lf_commit "$d/home" $((n - 40 * 86400)) $'the home of q and an LF\n' "=projects/$q/project.json" "=projects/$q/CLAUDE.md" || return 1
+  for e in "$d/home/projects"/* "$d/home/projects"/.[!.]* "$d/home/projects"/..?*; do [ ! -e "$e" ] || k=$((k + 1)); done
+  [ "$k" = 1 ] && [ -d "$d/home/projects/$q" ] && [ ! -e "$d/home/projects/q" ] || return 1
+  ( _fx_cd "$d/home" || exit 1; _lf_g 1700000000 ls-tree -r -z --name-only HEAD -- projects ) > "$d/home.tree" 2>/dev/null || return 1
+  printf 'projects/%s/CLAUDE.md\0projects/%s/project.json\0' "$q" "$q" > "$d/home.want" && cmp -s "$d/home.tree" "$d/home.want" || return 1
+  _lf_init "$d/c" && printf 'a checkout of q\n' > "$d/c/README" && _lf_commit "$d/c" $((n - 30 * 86400)) $'the root\n' =README \
+    && _lf_publish "$d/c" && _lf_origin "$d/c" https://github.com/o/r.git || return 1
+  a="$( _fx_cd "$d/c" && _lf_g 1700000000 rev-parse --verify -q refs/remotes/origin/main )"
+  [ -n "$a" ] && [ "$a" = "$LF_SHA" ] && [ ! -e "$d/c/.felix" ] && [ ! -L "$d/c/.felix" ] || return 1
+  [ "$( _fx_cd "$d/c" && _lf_g 1700000000 config --get remote.origin.url )" = https://github.com/o/r.git ] || return 1
+  LF_V3RH="$(cd -P -- "$d/home" && pwd -P)"; LF_V3RC="$(cd -P -- "$d/c" && pwd -P)"
+  [ -n "$LF_V3RH" ] && [ -n "$LF_V3RC" ]
+}
+
+# HOME CHECKOUT -> _lf_v3r3's home and checkout, given a directory HOME/projects/q (a CLAUDE.md, no project.json) beside
+# q and an LF, and an untracked .felix naming q in CHECKOUT, so that every resolution binds q by its marker (C2: a valid
+# marker naming a project directory comes first). LF_V3RQ "built" when they stand so, read back, else "not built"; status
+# 1 then.
+_lf_v3r3q() {
+  local h="$1" c="$2"
+  LF_V3RQ="not built: projects/q and a .felix naming q"
+  [ -n "$h" ] && [ -n "$c" ] && [ -d "$h/projects/q"$'\n' ] && [ ! -e "$h/projects/q" ] && [ ! -e "$c/.felix" ] || return 1
+  mkdir "$h/projects/q" && printf '# q\n' > "$h/projects/q/CLAUDE.md" && printf 'q\n' > "$c/.felix" || return 1
+  [ -f "$h/projects/q/CLAUDE.md" ] && [ ! -e "$h/projects/q/project.json" ] && [ -d "$h/projects/q"$'\n' ] || return 1
+  [ "$(LC_ALL=C awk '{ printf "%s|", $0 }' "$c/.felix" 2>/dev/null)" = "q|" ] || return 1
+  LF_V3RQ=built
 }

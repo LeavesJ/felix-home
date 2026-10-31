@@ -102,8 +102,9 @@ R0. **The text read.** The command is the JSON string value of the `"command"`
 key, read only when the first occurrence of the text `"command"` within the
 first 32,768 bytes of the payload is that key: followed by optional blanks, a
 colon, optional blanks and the opening quote. Otherwise nothing is read. Only
-the first 16,384 bytes of the value are read; the value ends at its first
-unescaped closing quote. JSON escapes read as JSON defines them: `\"` is a double quote,
+the first 16,384 bytes of the value as the payload writes it (a JSON escape
+such as `\n` is two of them), and none past the payload's 32,768th byte, are
+read; the value ends at its first unescaped closing quote. JSON escapes read as JSON defines them: `\"` is a double quote,
 `\\` a backslash, `\/` a slash, `\n` a line break, `\t` a tab. `\r`, `\b`, `\f`
 and `\uXXXX` are characters, and no name contains one.
 
@@ -176,10 +177,18 @@ R8. **Line continuation.** A backslash at the end of a line joins it to the
 next: no separator.
 
 R9. **Where the reading ends early.** An unclosed quote, a here-document whose
-delimiter has another shape or whose delimiter line is not found, more than 32
-levels of nesting, more than 4,096 tokens, the 16,384-byte bound, and the end of
-the value. Program words read before that point still count; nothing after it
-is read.
+delimiter has another shape or whose delimiter line is not found, a construct
+nested more than 32 levels deep, the step bound, the byte bounds of R0, and the
+end of the value. Program words read before that point still count; nothing
+after it is read, and a word that a byte bound cuts is not read.
+- Nesting: the command itself is level 0, and each `(...)`, `$(...)`,
+  `` `...` ``, `<(...)`, `>(...)`, `${...}`, `"..."` or `a=(...)` value inside
+  another construct is one level deeper. `graphify` inside 32 nested `$(` is
+  read; inside 33 it is not.
+- Steps: the reading takes at most 8,192 steps, and every step but the one
+  that finds the end of the text consumes at least one byte, so a command
+  shorter than 8,192 bytes as the payload writes it is never cut by this
+  bound.
 
 R10. **Runs this reading does not see** (stated limits; such a call stays
 `tool\tBash`): a command handed to another shell as text (`bash -c '...'`,
@@ -215,7 +224,8 @@ the command exactly as it did before this change.
 P6. **The file read.** The only file the post-tool hook reads beyond its
 libraries and the payload is the names file, and only for a Bash call, and only
 when the session id is usable (N5). It never reads the session's ledger file or
-any other record it writes.
+any other record it writes. A names file whose first line holds anything but
+names (N2) and single spaces is read as no names file.
 
 P7. **`felix_ledger_signal RAW [NAMES_FILE]`.** The function the hook calls.
 With NAMES_FILE omitted, empty, missing or unreadable it prints exactly what it

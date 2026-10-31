@@ -28,10 +28,13 @@ that commit. Outside sources were read on 2026-10-29 and are listed in §9.
 - felix-home is private on GitHub Free. Keyless signing on the public Sigstore
   instance would publish its identity, so felix-home gets no signed receipts
   on public infrastructure. A CI only KMS key can sign them on its current
-  plan, once the three conditions of §3.2 hold; the main only pin lives in
-  the token's own claims and needs no protected environment (the desktop
-  review of 10-30, pending J's word on the recast). Public repositories,
-  starting with the Phase 4 replay repository, can sign keyless.
+  plan, once the three conditions of §3.2 hold. The main only pin lives in
+  the token's own claims and the signing job names no environment (J's
+  ruling of 10-31). If Free cannot set the token template on a private
+  repository, the pin moves into the KMS trust policy's own claim
+  conditions; if neither works, the key is on the path and felix-home stays
+  unsigned. Public repositories, starting with the Phase 4 replay
+  repository, can sign keyless.
 - A signed receipt proves who signed which statement about which commit. It
   does not prove the gate was the right gate. Until the judge pin (roadmap
   step 15) exists, the predicate says so in a field of its own.
@@ -302,13 +305,13 @@ rule C9 (`engine/harness/lib/escape.sh:495`) reads the gate workflow's own run
 on the exact commit. So "a key on the enforcing path" means **a deciding step
 that needs a key in order to decide**. It does not mean "a key on the Mac".
 
-### 3.2 The founder's reading (2026-10-29)
+### 3.2 The founder's reading (2026-10-29, condition 3 on 2026-10-31)
 
 J ruled on 2026-10-29 that a cloud KMS key that only CI can reach is off the
 enforcing path on three conditions, and that if any one fails, the key is on
-the path. This reading goes into `docs/direction.md` when receipts come
-forward in March; it is recorded here only, and direction is untouched by
-this pull request.
+the path. On 2026-10-31 he ruled how condition 3 is met. This reading goes
+into `docs/direction.md` when receipts come forward in March; it is recorded
+here only, and direction is untouched by this pull request.
 
 **Condition 1. Nothing that decides reads or waits on the signature.** Not
 the gate, CI's judgment, `felix merge` or the land tick. If KMS is down,
@@ -390,12 +393,20 @@ for the March build:
 - or a reused commit stays unsigned, and the reader says `unsigned`.
 
 **Condition 3. The KMS trust policy accepts only the signing workflow on
-`refs/heads/main`.** J's ruling of 10-29 said "behind a protected
-environment". The desktop review of 10-30 showed that phrase was the
-reviewing session's own wording of a means, and that naming an environment
-is what takes the branch out of the token. This section recasts the
-condition as the pin itself, without an environment; that recast waits on
-J's word (Q1).
+`refs/heads/main`, by the token pin alone.** J ruled on 10-31: the signing
+job names no environment, and the KMS trust policy accepts only a token
+whose `sub` names main's ref and the reusable signing workflow at
+`@refs/heads/main`. If Free cannot set the token template on a private
+repository, the pin moves into the KMS trust policy's own claim conditions.
+If neither works, the key is on the path and felix-home stays unsigned.
+
+Why no environment, in J's words of the same ruling: an environment does
+not weaken the pin everywhere. It moves the branch check out of the token
+and into the environment's branch rule. A private repository on Free has no
+such rule, so there, naming an environment would leave no branch check at
+all. On a public or paid repository, an environment with a main only branch
+rule is just as strong, but it is not needed, so this doc uses the token pin
+everywhere.
 
 A change to `.github/workflows/` is an escape channel (`escape.sh:116`,
 `FELIX_ESCAPE_EXECUTE`), so an agent's edit to the workflow cannot land on
@@ -410,8 +421,9 @@ How it is checked:
   `repo:ORG/REPO:ref:refs/heads/BRANCH` for a branch and
   `repo:ORG/REPO:pull_request` for a pull request, and it carries the ref
   only when the job names no environment; naming one replaces the ref with
-  `environment:NAME` (GitHub OIDC reference). So the signing job names no
-  environment.
+  `environment:NAME` (GitHub OIDC reference), and the branch check moves
+  to the environment's branch rule. So the signing job names no
+  environment, on every repository.
 - **The pin.** The repository's subject template is set with
   `include_claim_keys: ["repo", "context", "job_workflow_ref"]` (GitHub OIDC
   reference, "customizing the subject claims"). For a reusable workflow the
@@ -430,15 +442,17 @@ How it is checked:
   `sub`. The same endpoint has `use_immutable_subject`, which switches `sub`
   to a form built from repository ids, so the trust policy matches the
   string read from that real token, never one written by hand. If the
-  template is not available, the pin moves to the KMS side: a GCP Workload
-  Identity Federation attribute condition, for one, can check
-  `assertion.ref`, `assertion.job_workflow_ref` and `assertion.repository`
-  directly.
+  template cannot be set on a private repository on Free, the pin moves into
+  the KMS trust policy's own claim conditions: a GCP Workload Identity
+  Federation attribute condition, for one, can check `assertion.ref`,
+  `assertion.job_workflow_ref` and `assertion.repository` directly. If
+  neither can be set, the key is on the path and felix-home stays unsigned.
 - **The refusal test.** Before the first signed receipt, the desktop session
-  pushes a throwaway branch with its own copy of the signing workflow, and
-  one that calls the reusable workflow at `@main`, and shows KMS refusing
-  both, and shows a `pull_request` run refused. A pass is the signing call
-  failing on all three.
+  shows KMS refusing the two cases J's ruling names: a throwaway branch
+  carrying its own copy of the signing workflow, and a `pull_request` run.
+  The same run adds a branch that calls the reusable workflow at `@main`,
+  since that is the case only `job_workflow_ref` and the ref together
+  catch. A pass is the signing call failing on every one.
 - **The signing job runs nothing an agent can land on green.** The pin
   controls which workflow file can use the key, not what that file runs. If
   the job checked out the repository and ran `engine/harness/felix` or a
@@ -465,9 +479,10 @@ It cannot live inside `gate.yml`: a step after `./engine/harness/felix gate`
 in the same job shares the runner with whatever the engine left behind, the
 workspace, `GITHUB_ENV` and `GITHUB_PATH` included.
 
-With the template available, all three conditions can hold on felix-home on
-its current plan, and the key is off the path. If any one fails, it is on
-the path.
+With the template, or the same pin in the KMS trust policy's own claim
+conditions, all three conditions can hold on felix-home on its current
+plan, and the key is off the path. If any one fails, it is on the path and
+felix-home stays unsigned.
 
 ### 3.3 The keyless path and the Mac
 
@@ -530,7 +545,7 @@ receipts stay as they are: unsigned, local, and current only by
 | Repository | Receipts | How |
 |---|---|---|
 | A public repository Felix governs, first the Phase 4 public replay repository (roadmap Phase 4) | Signed | Keyless on the public Sigstore instance, logged in Rekor. Its identity is public already. |
-| felix-home | Signed with a CI only KMS key, from March | Never on public Sigstore. Only once all three conditions of §3.2 hold, checked as that section says; until then unsigned (Q1). |
+| felix-home | Signed with a CI only KMS key, from March | Never on public Sigstore. Only once all three conditions of §3.2 hold, checked as that section says, with the main only pin in the token template or else in the KMS trust policy's own claim conditions and no environment named; if neither pin can be set, the key is on the path and felix-home stays unsigned (Q1). |
 | LeavesJ/Felix (public) | None from this design | Publishing there is a founder stop (direction row 4); this doc proposes nothing for it. |
 | A customer's private repository | Signed only on their infrastructure | One of the three options below. |
 
@@ -702,19 +717,21 @@ Nothing before March. In March, in this order, each as its own change:
 
 ## 8. Open questions
 
-Only two wait on J. Q2, Q4 and Q5 are how questions: the March build
-decides them and writes down why. Q3 is settled, and Q6 is a test.
+Nothing waits on J now. Q1 is ruled, and Q7 waits for March. Q2, Q4 and
+Q5 are how questions: the March build decides them and writes down why. Q3
+is settled, and Q6 is a test.
 
-**For J:**
-- **Q1, ruled 2026-10-29, one point open.** A cloud KMS key that only CI can
-  reach is off the enforcing path on the three conditions of §3.2, and on
-  the path if any one fails. Into `docs/direction.md` when receipts come
-  forward in March. Open: the desktop review recasts condition 3 from
-  "behind a protected environment" to the claim pin alone, because naming
-  an environment takes the branch out of the token. With that recast,
-  felix-home meets condition 3 on GitHub Free. Does he accept it?
-- **Q7.** The predicate type URI. It needs a stable base Felix controls;
-  this doc writes `<FELIX_PREDICATE_BASE>` rather than name a domain.
+**Ruled by J, or held for March:**
+- **Q1, ruled 2026-10-29 and 2026-10-31.** A cloud KMS key that only CI
+  can reach is off the enforcing path on the three conditions of §3.2, and
+  on the path if any one fails. On 10-31 J ruled condition 3 as the token
+  pin alone, with no environment, with the fallback into the KMS trust
+  policy's own claim conditions, and felix-home unsigned if neither works.
+  The refusal test still runs before the first receipt. Into
+  `docs/direction.md` when receipts come forward in March, not now.
+- **Q7, waits for March.** The predicate type URI. It needs a stable base
+  Felix controls; this doc keeps `<FELIX_PREDICATE_BASE>`, and the address
+  gets chosen when receipts come forward.
 
 **For the March build:**
 - **Q2.** Whether the gate receipt records the obligation set's own digest
@@ -745,7 +762,8 @@ and 15, Phase 2, Phase 4, §4); `docs/2026-09-19-direction-decisions.md` §4;
 `bootstrap.sh`, `automerge.sh`; `docs/2026-08-15-authority-that-cannot-be-earned.md`;
 `docs/2026-08-11-self-diagnosis-design.md`; `lib/pr-status-gh.sh`,
 `lib/inventory-gh.sh`. The founder's ruling on the KMS key is his message of
-2026-10-29 in the felix-cso channel. The desktop session's review of 10-30
+2026-10-29 in the felix-cso channel, and his ruling on condition 3 and Q7 is
+his message of 2026-10-31 there. The desktop session's review of 10-30
 is the PR 476 comment of that date; its quotes from GitHub's OIDC
 reference, reusable workflows guide and `workflow_run` section are as that
 review read them.

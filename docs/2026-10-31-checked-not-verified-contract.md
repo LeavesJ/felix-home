@@ -163,25 +163,36 @@ line break. Text the clause does not quote is unchanged.
   project correct`.)
 - **C18 The class, not the instance.** A check in the suite reads every file
   under the engine directory under test (the parent of `REAL_HARNESS`), except
-  `harness/tests/`; inside a git work tree, only the files git tracks there.
-  It skips each line whose first character that is not a space or tab is `#`.
+  `harness/tests/`; where git tracks files under that directory, only those
+  files (round 3: a directory git tracks nothing of, such as a plugin cache
+  under a home kept in git, is read whole, not as nothing). It skips each line
+  whose first character that is not a space or tab is `#`, except in a
+  Markdown file, where that line is a heading a person reads (round 3).
   From every other line it removes each allowed name below (exact,
   case-sensitive substrings), lower-cases what is left, and fails on any match
   of the ERE `(^|[^a-z0-9_])((un)?(verified|proven)|proves)([^a-z0-9_]|$)`,
   naming each file and line. (Round 3 added `proves`, the claim form of
   `proven`, which `felix help`'s first line and the probes' witness sentences
   used; "What stays outside the class" says why `prove`, `proving` and `verify`
-  are not in it.) The allowed names:
-  - `state/verified`, the Stop hook's per-session marker directory;
-  - `deployed-unverified`, the land ledger's event kind;
-  - `subagent-unverified`, a `felix_say` kind;
-  - `'unverified\t`, `lib/escape.sh`'s merge blocker kind as its printf
-    spells it (here `\t` is the two characters backslash and t, not a tab);
-  - `== "unverified"`, the same kind as `lib/green-install.sh` reads it;
-  - `never verified`, in `harness/lib/verify.sh` only: the reason before this
-    change, which C7 has `felix_hold_tree_seen` still accept. (Round 2,
-    2026-10-31: C7 cannot accept the old reason without naming it, which the
-    blind part's lint, written from round 1, flags.)
+  are not in it.) The allowed names, each allowed only in the files named
+  (round 3; rounds 1 and 2 allowed the first five in every file):
+  - `state/verified` in `harness/hooks/stop`, the Stop hook's per-session
+    marker directory;
+  - `deployed-unverified` in `harness/lib/green-tick.sh` and
+    `harness/lib/notify.sh`, the land ledger's event kind;
+  - `subagent-unverified` in `harness/hooks/subagent-stop`, a `felix_say`
+    kind;
+  - `'unverified\t` in `harness/lib/escape.sh`, its merge blocker kind as
+    its printf spells it (here `\t` is the two characters backslash and t,
+    not a tab);
+  - `== "unverified"` in `harness/lib/green-install.sh`, the same kind as it
+    reads it;
+  - in `harness/lib/verify.sh`, the pattern `-e "$3<tab>never verified<tab>${5:-}"`
+    (`<tab>` a tab): the reason before this change, which C7 has
+    `felix_hold_tree_seen` still accept. (Round 2, 2026-10-31: C7 cannot
+    accept the old reason without naming it, which the blind part's lint,
+    written from round 1, flags. Round 3 narrowed the bare phrase to the
+    pattern.)
 
   The check is shown to fail: run over a fixture directory holding a printed
   line with "Verified", "unproven" or "Proves", it fails and names that line;
@@ -280,6 +291,11 @@ change of their own.
   never run in this checkout." and records `never checked`, as main records
   `never verified`. Telling the two apart changes the hook's decision path,
   which this change leaves alone.
+- **L5, what C18 cannot see** (round 3). A line of a shell here-document
+  that starts with `#` is printed, and C18 skips it as a comment. None that
+  holds the words exists today: every skipped line that does is a comment.
+  C18 also reads only five words (verified, unverified, proven, unproven,
+  proves), not their meaning, so a claim made in other words passes it.
 
 ## How it is tested
 
@@ -297,6 +313,12 @@ change of their own.
   round-3 sentences alone (C1, C8, C11, C15-C18 as amended, and C20-C23),
   before the round-3 change, red against the head before it. Its assertion
   names start `cnv3 A`.
+- **Round 3, the tests review, not blind.** Part 2300's own lint follows C18
+  as amended (the ERE, the per-file names, Markdown headings, a directory git
+  tracks nothing of), and its A44-A47 show it. Two mutations no assertion
+  caught now fail one each: a hold record matched as a substring (A44), and
+  the receipt's `checked` without its green or its no-gap condition (part
+  2301's A3 and A4).
 - **Round 3, the count.** No edited part has fewer lines matching
   `projects/felix/risk.tsv`'s assertion count (`^[[:space:]]*(ok|is|has|bad) `)
   than it had at base. A part that lost one reads to `felix merge` as a

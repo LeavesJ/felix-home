@@ -139,3 +139,27 @@ felix_situations_range() {   # ROOT RANGE
   fi
   printf '%s\t%s\n' "$bs" "$hs"
 }
+
+# The detector at a recorded tree (C3.2), appended to OUT as the commit, detector and cap lines of the reading. It runs on the
+# live checkout ROOT only when that checkout's tree id, taken as felix probes takes it, equals TREE. Then the commit is the live
+# HEAD, or - while HEAD is unborn, and the cap lines are what the detector names, sorted and unique. Otherwise the detector is
+# not run, the commit is -, and there is no cap line. Returns 3 when OUT cannot be written.
+felix_situations_live_detect() {   # ROOT HOME TREE OUT
+  local root="${1-}" home="${2-}" tree="${3-}" out="${4-}" live sha caps c
+  live="$(felix_tree_id "$root" "$home" 2>/dev/null)" || live=""
+  if [ -n "$live" ] && [ "$live" = "$tree" ]; then
+    sha="$(_felix_situations_rev "$root" HEAD)" || sha="-"
+    caps="$(felix_detect "$root" 2>/dev/null | LC_ALL=C sort -u)"
+    {
+      printf 'commit\t%s\ndetector\trun\n' "$sha"
+      while IFS= read -r c; do
+        [ -z "$c" ] || printf 'cap\t%s\n' "$c"
+      done <<EOF2
+$caps
+EOF2
+    } >> "$out" 2>/dev/null || return 3
+  else
+    printf 'commit\t-\ndetector\tnot-run\n' >> "$out" 2>/dev/null || return 3
+  fi
+  return 0
+}

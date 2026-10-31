@@ -6615,13 +6615,13 @@ cmd_status() {
 # governs, or a resolution that did not finish (C2, C5); 1 when the count did not finish (C3): nothing on stdout,
 # "felix: the lane count did not finish in <repo>" on stderr.
 cmd_lane() {
-  local tsv=0 lrc=0
+  local tsv=0 lrc=0 lout
   case "$#:${1:-}" in 0:) ;; 1:--tsv) tsv=1 ;; *) die "usage: felix lane [--tsv]" 2 ;; esac
-  PROJ="$(felix_lane_resolve "$PWD" "$FELIX_HOME_DIR")" || lrc=$?
-  [ "$lrc" -ne 0 ] || [ -n "$PROJ" ] || lrc=2
+  lout="$(felix_lane_resolve "$PWD" "$FELIX_HOME_DIR")" || lrc=$?
+  [ "$lrc" -ne 0 ] || [ -n "$lout" ] || lrc=2
   case "$lrc" in
-    0) ;;
-    1) felix_lane_miss ;;   # a miss that stands: resolve_or_die's sentence, no project governs or the broken binding
+    0) PROJ="$lout" ;;
+    1) felix_lane_miss "$lout" ;;   # a miss that stands: lout is the root of a .felix that cannot be opened, else empty (C5)
     *) die "the project that governs $PWD could not be resolved: a read it stands on did not finish." 2 ;;
   esac
   export GIT_OPTIONAL_LOCKS=0

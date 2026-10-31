@@ -469,7 +469,7 @@ felix_lane_pulse() {   # HOME
   root="$(felix_repo_root "$home" 2>/dev/null)" && [ -n "$root" ] || { printf '%s\n' "$u"; return 0; }
   if [ "$grc" -ne 0 ]; then [ -e "$root/.git" ] && printf '%s\n' "$u"; return 0; fi
   proj="$(felix_lane_resolve "$root" "$home")"; prc=$?
-  if [ -z "$proj" ]; then [ "$prc" -le 1 ] || printf '%s\n' "$u"; return 0; fi
+  if [ "$prc" -ne 0 ] || [ -z "$proj" ]; then [ "$prc" -le 1 ] || printf '%s\n' "$u"; return 0; fi   # a miss's stdout is no project
   if ! felix_lane_take rows "$proj" "$root" 0; then printf '%s\n' "$u"; return 0; fi
   [ -n "$rows" ] || return 0
   while IFS=$'\t' read -r c1 c2 c3 c4 x; do printf 'lane\t%s\t%s\t%s\t%s\n' "$c1" "$c2" "$c3" "$c4"; done <<< "$rows"

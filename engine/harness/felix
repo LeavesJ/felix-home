@@ -453,6 +453,9 @@ specific project, language, or toolchain.
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix obligations [--gate|--request] what this project has admitted it owes, and whether it owes it here; --request asks a session to propose what nobody named
+    felix situations [--at T | --change [B..H]] [--tsv | --propose]
+                           what a change owes: the situation rows it owes, blinds and retires,
+                           the rows already standing, and what could not be looked at; writes nothing
     felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
@@ -6488,6 +6491,19 @@ cmd_probes() {
   return 0
 }
 
+# felix situations: what a change owes (lib/situations*.sh). Its libraries are loaded here, in the command's own body, and
+# not at the top of this file with the rest, as cmd_audit, cmd_inventory and cmd_cost load theirs: felix gate, felix merge
+# and felix land must never parse or run this code, so a defect in it cannot break them. Everything else, the flags
+# included, is in the library's entry function.
+cmd_situations() {
+  local f
+  for f in situations situations-read situations-report; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
+  felix_situations "$@"
+}
+
 # The heartbeat, and the one command that may run with no session and no
 # governed checkout anywhere near it: launchd starts it in $HOME. So it does
 # not resolve a project — it is home-scoped, iterating every governed project
@@ -6676,6 +6692,7 @@ case "${1:-help}" in
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   obligations) shift; cmd_obligations "$@" ;;
+  situations) shift; cmd_situations "$@" ;;
   epoch)     shift; cmd_epoch "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;

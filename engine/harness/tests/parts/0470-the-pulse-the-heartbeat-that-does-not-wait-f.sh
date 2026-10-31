@@ -382,11 +382,9 @@ git init -q --bare -b main "$PSF"; git init -q --bare -b main "$PSP"
 printf 's\n' >> "$PSPLIT/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PSPLIT" )"
-case "$out" in
-  *"pushed and read back"*|*"pushed and verified"*) bad "a push nothing reads back says so, and no success line calls it read back" "$out" ;;
-  *"reads back"*) ok  "a push nothing reads back says so, and no success line calls it read back" ;;
-  *)              bad "a push nothing reads back says so, and no success line calls it read back" "$out" ;;
-esac
+has "a push nothing reads back says so" "$out" "reads back"
+_nb=yes; case "$out" in *"pushed and read back"*|*"pushed and verified"*) _nb=no ;; esac
+is  "and no success line calls a push nothing reads back read back, or verified" "$_nb" yes
 
 # The report half: the pulse log doubles as a note about what the next
 # session will find, read off Felix's own tables and state alone.

@@ -215,7 +215,7 @@ _fn_step_issue() {
   [ "$sel" != bad ] || { _fn_fail "gh issue list: its answer cannot be read"; return 1; }
   if [ -z "$sel" ]; then
     printf '%s\n' "This is Felix's standing issue on this repository. The lander (felix land) starts the felix-alert workflow when" \
-      "it needs the repository owner: a pull request it refused or landed, a deploy it could not verify, a job that is paused or" \
+      "it needs the repository owner: a pull request it refused or landed, a deploy that stopped at a failed step or check, a job that is paused or" \
       "stopped. The workflow comments here, one comment per event. Felix does not edit, close, reopen, label or assign this issue." > "$_FN_T/create.in"
     _fn_gh create "$_FN_T/create.in" issue create --repo "github.com/$_FN_REPO" --title "Felix needs you" --body-file -
     [ "$_FN_RC" = 0 ] || { _fn_fail "$(_fn_why 'gh issue create' create)"; return 1; }

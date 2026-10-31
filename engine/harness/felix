@@ -408,7 +408,7 @@ need_value() {
 # that every dispatched command appears here.
 usage() {
   cat <<'USAGE'
-Felix. The engineering OS: it decides how work gets built, and proves it.
+Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.
 Resolves which project governs the current directory. Knows nothing about any
 specific project, language, or toolchain.
 
@@ -6370,7 +6370,7 @@ cmd_probes() {
     || [ "${n_nosrc:-0}" -gt 0 ] && printf '\n'
   if [ "${n_block:-0}" -gt 0 ]; then
     printf '%s of %s could not be established. Those are not passes:\n' "$n_block" "$n_all"
-    printf 'blind means the witness proves a surface the probe cannot see, and\n'
+    printf 'blind means the witness says a surface exists that the probe cannot see, and\n'
     printf 'unknown means nothing decided either way.\n'
   fi
   if [ "${n_empty:-0}" -gt 0 ]; then

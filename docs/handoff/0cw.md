@@ -219,7 +219,7 @@ below as `R/`.
 
 *Later, each on its own trigger.*
 
-- **The `felix.receipt/2` evidence packet:** a derived view. It adds
+- **The `felix.receipt/3` evidence packet:** a derived view. It adds
   `skipped`, the judge's identity, worker model and effort, and the residual.
   It comes after the judge pin.
 - **Experiment C (post-merge invalidation):** with Phase 0b step 12 and the

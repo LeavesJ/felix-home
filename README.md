@@ -575,7 +575,7 @@ never deletes your rules or memory. The rest is by hand:
 | Before a tool call | Refuses what the project's `deny.tsv` names, with the reason, and records the refused command with any credential shape written as `[redacted]`. A new project has no rows |
 | After a tool call | Appends one ledger line. Async, never blocks |
 | Subagent start | Tells the subagent the project, its constitution and its gate |
-| Subagent stop | Once per session, if the checkout holds changes no gate has passed, tells the parent that a subagent's report must call its own changes unverified |
+| Subagent stop | Once per session, if the checkout holds changes no gate has passed, tells the parent that a subagent's report must call its own changes partial, failing or unchecked |
 | Session end | Folds the session into the ledger, with a zero for every declared tool never used |
 | Stop | If the tree has uncommitted changes or this session committed, holds the stop once unless a receipt for this exact tree is green and still current |
 

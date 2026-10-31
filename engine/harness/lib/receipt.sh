@@ -226,9 +226,12 @@ felix_receipt() {
   # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
   #
-  # felix.receipt/2 (0.49.321) is /1 with two status words renamed: checked and
-  # unchecked, under the same conditions as /1's two words for them, because
-  # Felix says what was checked and never claims more (decision 1, 2026-10-31).
+  # felix.receipt/2 (0.49.321) says what is true of the gate's receipt where /1
+  # had two words, because Felix says what was checked and never claims more
+  # (decision 1, 2026-10-31). /1's verified is checked. Its unverified is
+  # failed (the gate ran red on this exact tree), evidence-owed (it ran green
+  # here and evidence is owed) or unchecked (nothing current judged this tree):
+  # one word for the three was false wherever the gate had run on this tree.
   # The version moved so that a reader of /1 refuses the new words rather than
   # misreading them.
   local status quality
@@ -236,6 +239,10 @@ felix_receipt() {
   elif [ -n "$esc" ];     then status="blocked";       quality="high"
   elif [ "$vstate" = "current" ] && [ "$rres" = "green" ] && [ -z "$gaps" ]; then
     status="checked"; quality="high"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "red" ]; then
+    status="failed"; quality="low"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "green" ]; then
+    status="evidence-owed"; quality="low"
   else
     status="unchecked"; quality="low"
   fi

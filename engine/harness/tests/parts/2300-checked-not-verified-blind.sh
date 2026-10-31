@@ -51,6 +51,13 @@ printf '\nchecked, not verified: the engine'"'"'s own words say what ran and cla
 # Round 2, not blind (2026-10-31, after the blind run): the contract's C18 gained one name allowed in one file,
 # `never verified` in harness/lib/verify.sh, because C7 cannot accept the old reason without naming it. The check
 # reads it from a second list, and A43 shows it allowed there and refused in any other file.
+#
+# Round 3, not blind (2026-10-31, after the first adversarial review and its tests lens). The contract's round 3
+# rewrote C11, C15 and C16, so A29, A34, A35 and A37 now expect its words and refuse round 1's too. C18 as amended
+# matches proves as well, allows each name only in the files that need it (the old reason only as the pattern
+# lib/verify.sh greps for), reads a Markdown file's # lines as the headings they are, and reads a directory git
+# tracks nothing of whole. A40 and A43 moved to that rule; A44-A47 are new. The other round-3 clauses are part
+# 2301's, written blind.
 CNV="$TMP/cnv"; mkdir -p "$CNV"; CNV="$(cd "$CNV" && pwd -P)"
 CNVCH="$CNV/home"; CNVCM="$CNV/mem"; CNVCU="$CNV/user"; CNV_CP="$CNVCH/projects/cp"; CNV_CE="$CNVCH/projects/ce"
 mkdir -p "$CNV_CP" "$CNV_CE" "$CNVCM" "$CNVCU" "$CNV/plain" "$CNV/bin"
@@ -146,12 +153,19 @@ _cnv_vword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])(un)?verified([^a-z0-9
 
 # C18's check. The allowed names, one a line, read as bytes by the check's awk (getline), never through awk -v,
 # which would turn the backslash and t of 'unverified\t into a tab.
-printf '%s\n' 'state/verified' 'deployed-unverified' 'subagent-unverified' "'unverified\\t" '== "unverified"' > "$CNV/allowed"
-# Round 2 of the contract, not blind (added after the blind run, 2026-10-31): a name allowed in one file only, as
-# FILE<TAB>NAME with FILE relative to the directory read. C7 cannot accept the old hold reason without naming it.
-printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' > "$CNV/allowed-in"
+# Round 3, not blind (after the tests review, 2026-10-31): no name is allowed everywhere. Each is allowed in the files
+# that need it, as FILE<TAB>NAME with FILE relative to the directory read; everything after the first tab is the name.
+# Round 2 added the first such row, the old hold reason C7 cannot accept without naming; round 3 narrows it to the
+# pattern text the compatibility greps for.
+: > "$CNV/allowed"
+printf '%s\t%s\n' 'harness/hooks/stop' 'state/verified' 'harness/lib/green-tick.sh' 'deployed-unverified' \
+  'harness/lib/notify.sh' 'deployed-unverified' 'harness/hooks/subagent-stop' 'subagent-unverified' \
+  'harness/lib/escape.sh' "'unverified\\t" 'harness/lib/green-install.sh' '== "unverified"' \
+  'harness/lib/verify.sh' "$(printf -- '-e "$3\tnever verified\t${5:-}"')" > "$CNV/allowed-in"
 _cnv_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
-  if [ "$(git -C "$1" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then
+  # Round 3, not blind: git's list only where git tracks something under DIR, as _copy_content asks. A directory in a
+  # work tree that tracks none of it (a plugin cache under a home kept in git) is read whole, not as nothing.
+  if [ -n "$(git -C "$1" ls-files -c . 2>/dev/null | head -1)" ]; then
     git -C "$1" ls-files -z -- . 2>/dev/null | tr '\0' '\n'
   else
     ( cd "${1:?}" && find . -type f 2>/dev/null | sed 's|^\./||' )
@@ -169,13 +183,15 @@ _cnv_check() {   # DIR -> FILE:LINE:TEXT for each line the check fails on; 0 whe
     BEGIN { k = 0; while ((getline l < A) > 0) if (l != "") al[++k] = l; close(A); p = ENVIRON["CNV_PRE"]
             m = 0; while ((getline l < B) > 0) if ((q = index(l, "\t")) > 1) { bf[++m] = substr(l, 1, q - 1); bn[m] = substr(l, q + 1) }
             close(B) }
-    { s = $0; sub(/^[ \t]+/, "", s); if (substr(s, 1, 1) == "#") next
+    { f = FILENAME; if (index(f, p) == 1) f = substr(f, length(p) + 1)
+      # Round 3, not blind: in a Markdown file a # line is a heading a person reads, not a comment.
+      s = $0; sub(/^[ \t]+/, "", s); if (substr(s, 1, 1) == "#" && f !~ /\.md$/) next
       t = $0
       for (i = 1; i <= k; i++) while ((j = index(t, al[i])) > 0) t = substr(t, 1, j - 1) substr(t, j + length(al[i]))
-      f = FILENAME; if (index(f, p) == 1) f = substr(f, length(p) + 1)
       for (i = 1; i <= m; i++) if (bf[i] == f) while ((j = index(t, bn[i])) > 0) t = substr(t, 1, j - 1) substr(t, j + length(bn[i]))
       t = tolower(t)
-      if (t ~ /(^|[^a-z0-9_])(un)?(verified|proven)([^a-z0-9_]|$)/) {
+      # Round 3, not blind: proves, the claim form of proven (contract C18 as amended).
+      if (t ~ /(^|[^a-z0-9_])((un)?(verified|proven)|proves)([^a-z0-9_]|$)/) {
         printf "%s:%d:%s\n", f, FNR, $0; hit = 1 }
     }
     END { exit (hit ? 1 : 0) }' "${files[@]}"
@@ -298,6 +314,10 @@ is "cnv A13 (C7): felix_hold_tree_seen HOME SID TID [never checked] CHECKOUT ret
 is "cnv A14 (C7, control): it returns 0 for never checked over a never checked line, and every other reason only over its own exact line (never checked over another checkout 1, failed over never verified 1, failed over never checked 1, failed over failed 0, never verified over never checked 1)" \
    "$(_cnv_seen "$(_cnv_l7 'never checked')" 'never checked' "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 'never verified' /cnv/other)" 'never checked' "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 'never verified')" failed "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 'never checked')" failed "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 failed)" failed "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 'never checked')" 'never verified' "$CNV_CO7")" \
    "0 1 1 1 0 1"
+# Round 3, not blind (after the tests review): a match is a whole line, for the old reason's line as for the new one.
+is "cnv A44 (C7, round 3, not blind): never checked is not seen over a record line that only holds the expected line inside it (old reason, new reason, the checkout extended, the tree id extended)" \
+   "$(_cnv_seen "$(_cnv_l7 'never verified' /cnv/checkout-b)" 'never checked' "$CNV_CO7") $(_cnv_seen "$(_cnv_l7 'never checked' /cnv/checkout-b)" 'never checked' "$CNV_CO7") $(_cnv_seen "x$(_cnv_l7 'never verified')" 'never checked' "$CNV_CO7") $(_cnv_seen "x$(_cnv_l7 'never checked')" 'never checked' "$CNV_CO7")" \
+   "1 1 1 1"
 _cnv_seed cnv-oldv-1 "$CNV_T" 'never verified' "$CNVCR"; _cnv_stop cnv-oldv-1 false
 is "cnv A15 (C7): through the hook, a session whose record holds <tid>\\tnever verified\\t<checkout> stops again on that tree with no gate receipt: let go, one debt row, reason never checked" \
    "$(_cnv_sum)|$(_cnv_f 3)|$(_cnv_f 4)" "silent:0:1:debt|$CNV_T|never checked; held once on this tree already (session cnv-oldv)"
@@ -400,9 +420,9 @@ is "cnv A28 (C10, control): every other kind's sentence is unchanged: landed, de
 
 # ---- C11-C14, C17: text -----------------------------------------------------------------------------------------------
 CNV_GT="$REAL_HARNESS/lib/green-tick.sh"
-is "cnv A29 (C11): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main: the engine it holds has not been deployed and checked], and not deployed and verified" \
-   "new=$(_cnv_yn "$(_cnv_cnt "$CNV_GT" 'the home checkout is not at origin/main: the engine it holds has not been deployed and checked')") old=$(_cnv_yn "$(_cnv_cnt "$CNV_GT" 'has not been deployed and verified')")" \
-   "new=yes old=no"
+is "cnv A29 (C11, round 3): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and neither the verified wording nor round 1's" \
+   "new=$(_cnv_yn "$(_cnv_cnt "$CNV_GT" "the home checkout is not at origin/main, so main's engine has not been deployed from it and checked")") old=$(_cnv_yn "$(_cnv_cnt "$CNV_GT" 'has not been deployed and verified')") r1=$(_cnv_yn "$(_cnv_cnt "$CNV_GT" 'the engine it holds has not been deployed')")" \
+   "new=yes old=no r1=no"
 CNV_UA="$REAL_HARNESS/templates/unattended.yml"
 is "cnv A30 (C12): templates/unattended.yml commits with the subject [fix: unattended repair, checked by the gate], and nothing says verified by the gate" \
    "new=$(_cnv_eqn "$CNV_UA" 'git commit -qam "fix: unattended repair, checked by the gate') old=$(_cnv_cnt "$CNV_UA" 'verified by the gate')" \
@@ -417,24 +437,24 @@ is "cnv A33 (C14): templates/lifecycle.tsv holds the row [Stop\\twired\\trefuse 
    "new=1 old=0"
 
 # ---- C15: the cloud debt message --------------------------------------------------------------------------------------
-CNV_DEBT='This cloud session was let go with the gate not passed on this tree (never checked). Felix held it once and the gate did not run. The record of that sits in this session'"'"'s memory, which ends with the VM, so nothing outside it says this work went unchecked. Run the gate before the VM goes, or open a pull request so CI judges the branch.'
+CNV_DEBT='This cloud session was let go with the gate not passed on this tree (never checked). Felix held it once and the gate did not run. The record of that sits in this session'"'"'s memory, which ends with the VM, so nothing outside it says the gate has not passed on this work. Run the gate before the VM goes, or open a pull request so CI judges the branch.'
 _cnv_debt() {   # [NAME=value ...] -> what felix_stop_debt cp "never checked" cnv-debt-1 printed
   ( cd "${CNV:?}/plain" && env -u CLAUDE_CODE_REMOTE FELIX_HOME="$CNVCH" FELIX_HOME_DIR="$CNVCH" FELIX_MEMORY="$CNVCM" HOME="$CNVCU" "$@" /bin/bash -c '
       . "$1/lib/resolve.sh"; . "$1/lib/verify.sh"; . "$1/lib/hook-faults.sh"; . "$1/lib/say.sh"
       felix_stop_debt "$2" "never checked" cnv-debt-1' dt "$REAL_HARNESS" "$CNV_CP" 2>/dev/null )
 }
 CNV_D1="$(_cnv_debt CLAUDE_CODE_REMOTE=true)"
-is "cnv A34 (C15): felix_stop_debt with CLAUDE_CODE_REMOTE=true ends its third sentence [so nothing outside it says this work went unchecked.], the rest unchanged, and never says went unverified" \
-   "new=$(_cnv_in "$CNV_D1" "$CNV_DEBT") old=$(_cnv_in "$CNV_D1" 'went unverified')" "new=yes old=no"
+is "cnv A34 (C15, round 3): felix_stop_debt with CLAUDE_CODE_REMOTE=true ends its third sentence [so nothing outside it says the gate has not passed on this work.], the rest unchanged, and says neither went unverified nor went unchecked" \
+   "new=$(_cnv_in "$CNV_D1" "$CNV_DEBT") old=$(_cnv_in "$CNV_D1" 'went unverified') r1=$(_cnv_in "$CNV_D1" 'went unchecked')" "new=yes old=no r1=no"
 is "cnv A35 (C15): the Stop hook's debt stop of a cloud session carries that message, its reason (never checked) in parentheses" \
-   "new=$(_cnv_in "$CNV_CLOUD" "$CNV_DEBT") old=$(_cnv_in "$CNV_CLOUD" 'went unverified')" "new=yes old=no"
+   "new=$(_cnv_in "$CNV_CLOUD" "$CNV_DEBT") old=$(_cnv_in "$CNV_CLOUD" 'went unverified') r1=$(_cnv_in "$CNV_CLOUD" 'went unchecked')" "new=yes old=no r1=no"
 is "cnv A36 (C15, control): felix_stop_debt without CLAUDE_CODE_REMOTE=true prints nothing" "[$(_cnv_debt)]" "[]"
 
 # ---- C16: the SubagentStop message ------------------------------------------------------------------------------------
 _cnv_run "$CNVCH/harness/hooks/subagent-stop" "$CNVCR" '{"hook_event_name":"SubagentStop","session_id":"cnv-sub-1","stop_hook_active":false}'
-is "cnv A37 (C16): the SubagentStop hook on a checkout holding work no gate has passed says [must say so plainly: partial, or unchecked — not done, working, or passing.], and not partial, or unverified" \
-   "rc=$CNV_RC new=$(_cnv_in "$CNV_O" 'must say so plainly: partial, or unchecked — not done, working, or passing.') old=$(_cnv_in "$CNV_O" 'partial, or unverified')" \
-   "rc=0 new=yes old=no"
+is "cnv A37 (C16, round 3): the SubagentStop hook on a checkout holding work no gate has passed says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unverified nor round 1's partial, or unchecked" \
+   "rc=$CNV_RC new=$(_cnv_in "$CNV_O" 'must say so plainly: partial, failing, or unchecked — not done, working, or passing.') old=$(_cnv_in "$CNV_O" 'partial, or unverified') r1=$(_cnv_in "$CNV_O" 'partial, or unchecked')" \
+   "rc=0 new=yes old=no r1=no"
 
 # ---- C17: the /felix command ------------------------------------------------------------------------------------------
 is "cnv A38 (C17): engine/commands/felix.md ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]" \
@@ -449,18 +469,42 @@ CNV_C1="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18a")"; CNV_C1R=$?
 is "cnv A39 (C18): the check over a fixture holding a printed line with Verified and a line with unproven fails and names those two lines" \
    "rc=$CNV_C1R [$CNV_C1]" "rc=1 [a.sh:1:printf 'Verified by the gate\\n'
 b/c.txt:2:the claim stays unproven]"
-printf '%s\n' '# Verified, and unproven: a comment' "	  # an indented comment says verified too" 'mkdir -p "$H/state/verified"' \
-  'kind=deployed-unverified' 'felix_say p subagent-unverified body' "printf 'unverified\\ttree\\t%s\\n' x" \
-  '[ "$1" == "unverified" ] && exit 0' > "$CNV/c18b/x.sh"
+# Round 3, not blind: each allowed name sits in a file that may hold it, since no name is allowed everywhere.
+mkdir -p "$CNV/c18b/harness/hooks" "$CNV/c18b/harness/lib"
+printf '%s\n' '# Verified, and unproven: a comment' "	  # an indented comment says verified too" > "$CNV/c18b/x.sh"
+printf '%s\n' 'mkdir -p "$H/state/verified"' > "$CNV/c18b/harness/hooks/stop"
+printf '%s\n' 'kind=deployed-unverified' > "$CNV/c18b/harness/lib/green-tick.sh"
+printf '%s\n' 'felix_say p subagent-unverified body' > "$CNV/c18b/harness/hooks/subagent-stop"
+printf '%s\n' "printf 'unverified\\ttree\\t%s\\n' x" > "$CNV/c18b/harness/lib/escape.sh"
+printf '%s\n' '[ "$1" == "unverified" ] && exit 0' > "$CNV/c18b/harness/lib/green-install.sh"
 CNV_C2="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18b")"; CNV_C2R=$?
-is "cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name passes" \
+is "cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name, each in a file that may hold it, passes" \
    "rc=$CNV_C2R [$CNV_C2]" "rc=0 []"
 mkdir -p "$CNV/c18c/harness/lib"
-printf '%s\n' 'grep -e "never verified"' > "$CNV/c18c/harness/lib/verify.sh"
+printf '%s\n' 'grep -Fxq -e "$3	never checked	${5:-}" -e "$3	never verified	${5:-}" "$path"' 'printf "never verified\n"' > "$CNV/c18c/harness/lib/verify.sh"
 printf '%s\n' 'echo "never verified"' > "$CNV/c18c/harness/lib/other.sh"
 CNV_C6="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18c")"; CNV_C6R=$?
-is "cnv A43 (C18, round 2, not blind): the old hold reason is allowed in harness/lib/verify.sh and in no other file" \
-   "rc=$CNV_C6R [$CNV_C6]" "rc=1 [harness/lib/other.sh:1:echo \"never verified\"]"
+is "cnv A43 (C18, rounds 2 and 3, not blind): the old hold reason is allowed only as the pattern lib/verify.sh greps for, there and nowhere else" \
+   "rc=$CNV_C6R [$CNV_C6]" "rc=1 [harness/lib/other.sh:1:echo \"never verified\"
+harness/lib/verify.sh:2:printf \"never verified\\n\"]"
+mkdir -p "$CNV/c18d/harness/lib"
+printf '%s\n' "printf 'deployed-unverified: the deploy was not checked\\n'" > "$CNV/c18d/harness/lib/other.sh"
+printf '%s\n' 'kind=deployed-unverified' > "$CNV/c18d/harness/lib/notify.sh"
+CNV_C7="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18d")"; CNV_C7R=$?
+is "cnv A45 (C18, round 3, not blind): an allowed name outside the files that may hold it fails" \
+   "rc=$CNV_C7R [$CNV_C7]" "rc=1 [harness/lib/other.sh:1:printf 'deployed-unverified: the deploy was not checked\\n']"
+mkdir -p "$CNV/c18e"
+printf '%s\n' "printf 'it decides how work gets built, and Proves it\\n'" "printf 'what a fix must prove\\n'" \
+  "printf 'with nothing proving it\\n'" 'git rev-parse --verify -q HEAD' "printf 'improves, approves, provenance\\n'" > "$CNV/c18e/p.sh"
+CNV_C8="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18e")"; CNV_C8R=$?
+is "cnv A46 (C18, round 3, not blind): proves fails, and prove, proving, verify and words that only hold the letters pass" \
+   "rc=$CNV_C8R [$CNV_C8]" "rc=1 [p.sh:1:printf 'it decides how work gets built, and Proves it\\n']"
+mkdir -p "$CNV/c18f"
+printf '%s\n' '## Every command here is verified' '# Usage' > "$CNV/c18f/README.md"
+printf '%s\n' '## a shell comment that says verified' > "$CNV/c18f/s.sh"
+CNV_C9="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18f")"; CNV_C9R=$?
+is "cnv A47 (C18, round 3, not blind): a Markdown heading is read, since a person reads it, and a shell # line is not" \
+   "rc=$CNV_C9R [$CNV_C9]" "rc=1 [README.md:1:## Every command here is verified]"
 CNV_G="$CNV/c18g"; mkdir -p "$CNV_G/harness/tests" "$CNV_G/lib"
 printf '%s\n' "printf 'verified\\n'" > "$CNV_G/harness/tests/t.sh"; printf 'echo fine\n' > "$CNV_G/lib/b.sh"
 ( _fx_cd "$CNV_G" && git init -q -b main && git add harness/tests/t.sh lib/b.sh ) >/dev/null 2>&1

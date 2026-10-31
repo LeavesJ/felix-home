@@ -184,10 +184,11 @@ _lnd_calls() { LC_ALL=C awk 'END { print NR }' "$LNDK/$1.log" 2>/dev/null || ech
 # ---- B1: nine rows -------------------------------------------------------------------------------------
 # Combined with b05 (docs/2026-10-24-audit-fixes/wave-1-combine.md, S1) and b18: b05's alerts row follows hooks
 # and b18's icloud row follows alerts, so B1's rows are nine.
+# Changed by the lane counter contract (docs/2026-10-29-lane-slice-0-plan.md, C6): the lane row was added at the end, as the status header allows.
 _lnd_set
 _lnd_st "$LNDC"
-is "A1: felix status --tsv exits 0 and prints nine rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud" \
-   "$LNDRC $(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNDF")" "0 settings schedule pulse reach gate land hooks alerts icloud "
+is "A1: felix status --tsv exits 0 and prints ten rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud, lane" \
+   "$LNDRC $(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$LNDF")" "0 settings schedule pulse reach gate land hooks alerts icloud lane "
 
 # ---- B2 to B5: governed, a job, launchd's answer -------------------------------------------------------------
 _lnd_st "$LNDP"
@@ -345,14 +346,15 @@ else
 fi
 
 # ---- B1 again, over every status run above -----------------------------------------------------------------
+# Changed by the lane counter contract (docs/2026-10-29-lane-slice-0-plan.md, C6): the lane row was added at the end, as the status header allows.
 _lndo=""
 for _lndw in "$LNDO"/st/*; do
   [ -f "$_lndw" ] || continue
   _lndl="$(LC_ALL=C awk -F'\t' '{ printf "%s ", $1 }' "$_lndw")"
-  [ "$_lndl" = "settings schedule pulse reach gate land hooks alerts icloud " ] || _lndo="$_lndo [run ${_lndw##*/}: rows $_lndl]"
+  [ "$_lndl" = "settings schedule pulse reach gate land hooks alerts icloud lane " ] || _lndo="$_lndo [run ${_lndw##*/}: rows $_lndl]"
   _lndl="$(LC_ALL=C awk -F'\t' 'NF != 4 || $2 !~ /^(value|none|unknown)$/ || ($2 != "value" && $3 != "-") || $4 == "" || $3 ~ / / { print NR ": " $0 }' "$_lndw")"
   [ -z "$_lndl" ] || _lndo="$_lndo [run ${_lndw##*/}: line $_lndl]"
 done
-is "A2: every felix status this part ran prints the nine rows in order, and no row breaks D16's shape (1100's awk)" "$_lndo" ""
+is "A2: every felix status this part ran prints the ten rows in order, and no row breaks D16's shape (1100's awk)" "$_lndo" ""
 _lnd_calm
 # <<< status-lander-row

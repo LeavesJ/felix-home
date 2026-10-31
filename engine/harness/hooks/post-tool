@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# PostToolUse: one alive line, then one append per tool call, and nothing else.
+# PostToolUse: one alive line, then one append per tool call; in a session that
+# was handed an answer, also a row for each file it named that the call reached.
 #
 # This runs after every tool call in every governed session, so its cost is the
 # design constraint rather than an afterthought. It deliberately does not
@@ -98,4 +99,9 @@ signal="$(felix_ledger_signal "$raw")"
 [ -n "$signal" ] || exit 0
 
 felix_ledger_record "$home" "$session" "$signal"
+
+# Where the session went after an answer was handed to it, so the ledger can
+# say whether the answer was used and not only that it was given. A file test
+# for every other session (lib/answer.sh, felix_answer_touch).
+[ -f "$home/state/answer/$session.tsv" ] && felix_answer_touch "$home" "$session" "$signal" "$raw"
 exit 0

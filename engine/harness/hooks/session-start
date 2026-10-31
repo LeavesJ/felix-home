@@ -331,15 +331,18 @@ ${_gl}"
 # which is the only reason it may be called from here — a hook may not call a
 # model. The documents are a different job and stay the maintenance routine's.
 #
-# Only when it is behind, so an ordinary session on a current graph spawns
-# nothing. Locked, backgrounded and best-effort: a refresh that fails leaves
-# the previous graph in place, and graphify replaces graph.json by atomic
-# rename, so a session querying it mid-refresh reads the old file or the new
-# one and never half of either. Checked in the source rather than assumed.
-case "${_gl}" in
-  *"behind this checkout"*) command -v graphify >/dev/null 2>&1 && felix_own_gate "graph refresh" "$_own" 2>/dev/null \
-                              && felix_graph_refresh_bg "$_repo_root" 2>/dev/null ;;
-esac
+# Only when it is due (felix_graph_refresh_due, the session end's test): behind,
+# and not already refreshed at this HEAD, so an ordinary session on a current
+# graph spawns nothing, and a commit that changed no code's shape, which
+# graphify answers by writing nothing, is not refreshed again at every start.
+# Due is asked before the gate, because the gate's withheld line is only for
+# work that was due. Locked, backgrounded and best-effort: a refresh that fails
+# leaves the previous graph in place, and graphify replaces graph.json by
+# atomic rename, so a session querying it mid-refresh reads the old file or the
+# new one and never half of either. Checked in the source rather than assumed.
+command -v graphify >/dev/null 2>&1 && felix_graph_refresh_due "$_repo_root" 2>/dev/null \
+  && felix_own_gate "graph refresh" "$_own" 2>/dev/null \
+  && felix_graph_refresh_bg "$_repo_root" 2>/dev/null
 
 # Done, not reported. A duplicate script is not a decision somebody should be
 # handed at the start of their day; it is tidying, and Felix holds the copy that

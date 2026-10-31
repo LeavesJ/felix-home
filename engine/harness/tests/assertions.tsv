@@ -131,6 +131,47 @@
 1	A1-A11 (fixture control): S's main holds the five engine paths the contract names with the stub executable, and the candidate checked out is the real harness at 2.0.0
 1	A1-A7 (fixture control): the base-ref fixture: in the repository with no remote, main, feat and its decoy are three commits
 1	A1-A7 (fixture control): the base-ref fixture: main, refs/remotes/origin/main and the decoy are three commits, origin/HEAD names origin/main, and HEAD~1 is not origin/HEAD~1
+1	A1.1: with FELIX_GRAPH_ANSWER=0 it prints nothing, exits 1 and runs nothing
+1	A1.2: a checkout with no graph file gets nothing and exit 1, and graphify is not run
+1	A1.2: from a worktree it asks the graph of the checkout that holds it
+1	A1.3: with graphify on PATH and no perl it prints nothing, exits 1 and does not run graphify
+1	A1.3: with no graphify on PATH it prints nothing and exits 1
+1	A1.4: FELIX_GRAPH_MIN_WORDS=4 lets the same four words through
+1	A1.4: a prompt longer than 400 characters is cut to its first 400
+1	A1.4: a prompt of four words, under the default floor of five, runs nothing and exits 1
+1	A1.4: and five words so joined are five, asked as five
+1	A1.4: four words joined only by those escapes are four words, and run nothing
+1	A1.4: spaces, tabs, newlines and the two-character escapes for newline, tab and return are one space each, the ends trimmed
+1	A1.5: FELIX_GRAPH_BUDGET is the budget it passes
+1	A1.5: FELIX_GRAPH_LEFT is read by value, leading zeros not counting: 0000000000 is 0, no time left, so nothing printed, exit 1, graphify not run
+1	A1.5: FELIX_GRAPH_TIMEOUT is read by value too: 0000000001 is the bound 1, so a graphify answering after 3 seconds, inside the default 4, is killed
+1	A1.5: FELIX_GRAPH_TIMEOUT=1 is the bound itself: a graphify answering after 3 seconds, inside the default 4, is killed: no answer, exit 1
+1	A1.5: a FELIX_GRAPH_LEFT of 0, -2, abc or 1.5, no whole number of one or more, is no time left: nothing printed, exit 1, graphify not run
+1	A1.5: a FELIX_GRAPH_LEFT that is set and empty sets no limit: graphify is asked as before, and its answer printed
+1	A1.5: a FELIX_GRAPH_TIMEOUT of 0, 0.5 or abc is the default 4 seconds, so a graphify running 10 is still killed: no answer, exit 1
+1	A1.5: a graphify that exits by itself leaving a child holding the output open is read at once, and the child is killed then
+1	A1.5: a graphify that exits non-zero is no answer, the node it printed included: nothing printed, exit 1
+1	A1.5: a graphify that hangs past FELIX_GRAPH_TIMEOUT=1 is no answer: nothing printed, exit 1, back within 8 seconds where it would run 10
+1	A1.5: a graphify that prints nothing is no answer: exit 1
+1	A1.5: and 0000000002 is 2: graphify is asked, and one answering after 6 seconds under FELIX_GRAPH_TIMEOUT=12 is killed once those 2 seconds are up
+1	A1.5: and 0000000009 is 9, its digits not read as octal: under FELIX_GRAPH_TIMEOUT=12 a graphify answering after 4 seconds is answered
+1	A1.5: and a FELIX_GRAPH_TIMEOUT of 0000000000 is 0, so the default 4 and not no bound: a graphify that would run 10 seconds is killed: no answer, exit 1
+1	A1.5: and one of 0000000019 is 19, not the default 4 nor an octal error: a graphify answering after 6 seconds is answered
+1	A1.5: and under FELIX_GRAPH_TIMEOUT=0.5 a graphify answering after 1 second is answered, the bound not cut below the default
+1	A1.5: and with 10 seconds left the same graphify is answered (control)
+1	A1.5: at the deadline its whole process group is killed, so a child holding the output open neither holds the caller past 8 seconds nor outlives it
+1	A1.5: graphify's stderr is discarded, so stdout and stderr together are the rows alone
+1	A1.5: it runs graphify once, exactly: query, the prompt, --budget 600 and --graph naming the graph file
+1	A1.5: with 1 second left under FELIX_GRAPH_TIMEOUT=12, a graphify answering after 4 seconds is killed once that second is up: no answer, exit 1
+1	A1.6, A1.7: a label loses its tab and control bytes and is cut to 120 characters
+1	A1.6: a name holding .. that is not a .. segment is kept, and a loc of None prints as empty
+1	A1.6: and keeps a node only for a file under that holding checkout, not one the worktree alone holds
+1	A1.6: control bytes are removed from src and loc too, before the file is looked for
+1	A1.7: a label of two-byte characters is cut to 120 characters, not 120 bytes, and never inside one
+1	A1.8: FELIX_GRAPH_FILES=2 stops at two files, the first file's later node still printed
+1	A1.8: and never more than 16 rows in all
+1	A1.8: rows stop at eight distinct files, and a later node of a file already listed is still printed
+1	A1.9: output with no NODE line of the form keeps no node: nothing printed, exit 1
 1	A10 (B15): with the home resolving no project, --install from a governed checkout exits 1, says on stderr that the home resolves no project, and writes nothing
 1	A10 (B4, B7): a retry, after the gate receipt is written, that exits 0 writes one landed row for 50 and one notification titled Felix: landed #50
 1	A10 (B5, R1): with every session file read (run T2), a pull request whose head only SDK records name has owner - and is not live
@@ -282,6 +323,7 @@
 1	A1: both inventory runs over ca exit 0 and print rows (control)
 1	A1: each case is named apart from the others in its row
 1	A1: felix status --tsv exits 0 and prints ten rows, in order: settings, schedule, pulse, reach, gate, land, hooks, alerts, icloud, lane
+1	A1: felix_graph_answer prints a src, loc and label row for each node it keeps, in graphify's order, and exits 0
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): and send one notification
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): it exits 1, both runs
 1	A1: when main's check cannot be loaded (no lib/resolve.sh at origin/main): the row names the case
@@ -346,6 +388,44 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
+1	A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr
+1	A2.1: a session id that is empty or holds anything but letters, digits, - and _ prints nothing, exits 1 and writes nothing
+1	A2.1: and one of letters, digits, - and _ is answered
+1	A2.2: when A1 refuses before graphify is asked (switched off, no graph, four words, no graphify, no perl) it exits 1 and writes nothing
+1	A2.2: with no time left as well, those refusals still come first: exit 1 and nothing written, so no late row
+1	A2.3, A2.4: the same nodes again in that session print nothing and exit 1, the record gaining only asked graphify repeat and the ledger nothing
+1	A2.3, A2.5: the record gains the asked row, the session's root, given with the files and graphify's count, a node row a node, an answer row a file
+1	A2.3: a FELIX_GRAPH_LEFT of 0000000000, 0 by value, is no time left too: exactly asked graphify late, graphify not run
+1	A2.3: a graphify killed once its 1 second left is up, under FELIX_GRAPH_TIMEOUT=12, was asked: its outcome is timeout, not late
+1	A2.3: a graphify that exits non-zero leaves exactly asked graphify failed in a record it creates, prints nothing, exits 1, signals nothing
+1	A2.3: and one of 0000000002 is a 2-second bound: a graphify killed once it is up, under FELIX_GRAPH_TIMEOUT=12, was asked: timeout, not late
+1	A2.3: and so does a FELIX_GRAPH_LEFT of -2, abc or 1.5
+1	A2.3: another session is given the whole answer, the record being the session's own
+1	A2.3: one killed at the deadline is timeout
+1	A2.3: one that prints nothing is failed too
+1	A2.3: one whose answer keeps no node is empty
+1	A2.3: with no time left, FELIX_GRAPH_LEFT=0, the record it creates holds exactly asked graphify late: graphify not run, nothing printed, exit 1, nothing signalled
+1	A2.4: a node new by its label or by its line, in a file named earlier, is delivered, and the node given before is not
+1	A2.4: a node recorded as another tool's is not dropped from graphify's answer
+1	A2.5: and the session's roots are the worktree's top level, then the checkout that holds it
+1	A2.5: asked from a subdirectory the root recorded is the checkout's top level
+1	A2.5: its rows follow with no second root row, the count - where graphify printed none, and an answer row again for the file named before
+1	A2.6: and the session's ledger one answer graphify signal
+1	A2.6: one ledger signal a delivery, so two after two deliveries
+1	A2.7: a graph two commits behind says 2 commit(s) behind the checkout that holds it, after the stamp's seven characters
+1	A2.7: a graph with no stamp says graph carrying no build stamp in place of when it was built and how fresh
+1	A2.7: and so does a graph whose stamp names no commit here
+1	A2.7: asked from a worktree two commits ahead the freshness is still the holding checkout's
+1	A2.7: the block opens with graphify query, the stamp's first seven characters, current with the checkout that holds it, and to open first
+1	A2.7: then a blank line and a row a node: two spaces, src:loc, two spaces, the label, and src alone where loc is empty
+1	A2.8: graphify having found more nodes than the rows printed, a blank line and the line saying how many of how many follow the rows
+1	A2.9: a file whose first line is #!/usr/bin/env bash is a shell script
+1	A2.9: a first line that names bash only past its first 128 bytes does not make a shell script
+1	A2.9: a shell script among the files ends the block with the paragraph about callers, and graphify's count equal to the rows adds no A2.8 line
+1	A2.9: and so is one whose first line is #!/bin/zsh
+1	A2.9: and under it a first line of the same form naming bash at bytes 120-123 is one
+1	A2.9: under a UTF-8 locale the 128 are still bytes: a first line naming bash at bytes 140-143, characters 80-83, is no shell script
+1	A2.9: with no file a shell script by its name or its first line there is no callers paragraph
 1	A20 (B1, R2): a refused and a landed pull request each get a dispatch: @fixture Felix land: refused #41 with the refused sentence and none of the refusal's text, and @fixture Felix land: landed #42 with the landed sentence
 1	A20 (B8): a records root at mode 400 reads as A13 says
 1	A20 (B8; control): FELIX_KERNEL set, and an entry one comment off main, are refused before any hand-off, as today
@@ -807,14 +887,29 @@
 1	A39 (R1): a separate repository whose origin merely contains another project's remote_match (Widget-api, Widget2, NotAcme/Widget, grp/proj-docs, old/repo-two) binds as a fresh checkout does, and the other project is untouched
 1	A39 (R4): once the workflow exists, the same event raised again is dispatched; the no-alert-workflow record stays as it was, and BODY's line 4 counts it with its kind and time
 1	A39: felix pulse prints the same answer on its settings line: settings, hooks-off and that detail
+1	A3: a graph behind whose refreshed-at marker holds the holding checkout's HEAD is not due
+1	A3: a graph built at HEAD is not due a refresh: exit 1, nothing printed
+1	A3: a graph two commits behind is due: exit 0, nothing printed
+1	A3: a graph with no stamp is not due
+1	A3: a marker holding another commit leaves the graph due
+1	A3: a marker that is a link to /dev/zero reads as absent, the due test answering within its 15-second bound: due
+1	A3: a marker that is a link to a regular file holding HEAD reads as absent too: due, within the bound
 1	A3: a pull request that renames docs/*roadmap* away is held with one founder row and not merged
 1	A3: a pull request touching Projects/lgh/CLAUDE.MD is held with one founder row and not merged
 1	A3: a pull request touching docs/2026-x-ROADMAP.md is held with one founder row and not merged
 1	A3: a pull request touching no direction document lands (control for the cases below)
 1	A3: a pull request touching projects/lgh/claude.md is held with one founder row and not merged
 1	A3: a pull request whose file list cannot be read gets one skip row and is not merged
+1	A3: a regular marker whose HEAD sits past its first 64 bytes does not hold it: due
+1	A3: a worktree ahead of a graph current with the holding checkout is not due either
+1	A3: and asked from a worktree it is the holding checkout's distance that decides
+1	A3: and so does a marker that is a named pipe, the due test not waiting for a writer
 1	A3: and the skip row says the files could not be read
+1	A3: nor a checkout with no graph at all
+1	A3: nor asked from its worktree, the marker and the HEAD being the holding checkout's
+1	A3: nor one whose stamp is a commit the checkout does not hold
 1	A3: outside a governed checkout the land row is none: this directory is not a governed checkout
+1	A3: session start in a checkout bound by .felix alone, its marker committed as a link to /dev/zero, exits 0 within 40 seconds and prints its banner
 1	A4 (B1): a record directory holding only an SDK session gives owner -, neither question nor blocked, and the element passed over 1 SDK session(s)
 1	A4 (B1, B2): exit 1 (OUT-G) and exit 4 (OUT-M) are hourly: each refused row's detail says (tried again an hour after this row)
 1	A4 (B11): the copy's status 0, 3 and 7 is the command's, and only a status felix merge never returns (7) adds one stderr line naming it and saying the outcome is not known
@@ -864,13 +959,21 @@
 1	A49 (B19): from A41's state the tick installs once, writes one deployed row and merges nothing; the next tick lands 42 through the 9.65.0 entry
 1	A49 (R3): with only that SDK session readable beside an older unread file, sole9's owner is unknown, not -, and live, question and blocked are unknown
 1	A49: a project settings file setting felix@felix to false reads hooks felix-off: Felix's hooks do not load
+1	A4: a directory at the marker's path gets no marker and nothing inside it
+1	A4: a hard link there is replaced, not written through: the marker holds HEAD and the file it shared contents with is left as it was
+1	A4: a link at the marker's path is replaced by the marker, and the file it named is left as it was
+1	A4: a link to a directory there is replaced by the marker too, and nothing is written inside the directory it named
 1	A4: a live lock older than 45 minutes gives one stuck row and one notification over two ticks, and its holder is not signalled
+1	A4: a refresh whose update exits 0 leaves the holding checkout's full HEAD and a newline, as it was when the refresh started, a commit made meanwhile aside
+1	A4: a refresh whose update fails leaves no marker
 1	A4: a tick finding a live lock younger than 45 minutes writes no stuck row
 1	A4: a tick whose process group gets TERM, as the watchdog sends it, writes one timeout row
 1	A4: and does not signal the lock's holder
 1	A4: and releases the lock
 1	A4: and sends one notification for it
 1	A4: every git fetch and git pull runs with GIT_TERMINAL_PROMPT=0, GIT_HTTP_LOW_SPEED_LIMIT=1000 and GIT_HTTP_LOW_SPEED_TIME=60
+1	A4: no marker is written when graphify-out is itself a link, neither through it nor in place of it
+1	A4: the refresh that wrote no graph at this HEAD is not started again by the next session's end
 1	A4: the watchdog sends TERM after 30 minutes
 1	A4: with no plist and no ledger the land row is none, says felix land --install schedules one, and asks launchctl print nothing
 1	A5 (B1, control): where a person's session remains beside the SDK one, no element of the detail begins passed over
@@ -2176,6 +2279,69 @@
 1	I46-8 felix lane, a miss that stands: in a checkout whose .felix names no project, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines
 1	I46-9 felix lane, a miss that stands: in a checkout whose .felix is empty, felix lane --tsv and felix lane exit 2 with nothing on stdout, and never the line for a resolution that did not finish: the first line of stderr is felix: no project governs <dir>. or names <dir> and the .felix marker; with its .felix naming p the checkout prints its lines
 1	INT sent to a writing run's process group every 10 ms, from 16 delays across its life, cuts at least one run short
+1	L1: a route naming graphify is no naming of the answer: the answer row's sixth field stays empty
+1	L1: and graphify, declared and never reached for, still gets its zero row
+1	L1: and that naming stays with graphify itself, on its own row named once, whose calls read - as l2 holds neither an alive line nor a call
+1	L1: answer signals fold to one row: session, date, answer, the tool, the deliveries, and an empty sixth field
+1	L1: one alive line and one call make the record whole beside its two answers: the named row and the zero row read 0, a measured zero
+1	L1: three alive lines against one call is no whole record, its two answers not counted as calls: the named row and the zero row read -
+1	L2: felix_ledger_mcp reads the same with answer rows folded beside the capability rows
+1	L2: felix_ledger_partly reads the same with answer rows folded beside the capability rows
+1	L2: felix_ledger_retire reads the same with answer rows folded beside the capability rows
+1	L2: felix_ledger_summary reads the same with answer rows folded beside the capability rows
+1	L2: felix_ledger_unobserved reads the same with answer rows folded beside the capability rows
+1	L2: felix_ledger_unrouted reads the same with answer rows folded beside the capability rows
+1	L2: five sessions that named graphify and never reached for it put it on the retire list (fixture control)
+1	L3: and nothing for a project whose ledger holds no answer row
+1	L3: felix_ledger_answers prints the tool, its distinct sessions and its summed deliveries from the folded answer rows
+1	L4: ./ before it bounds the token too
+1	L4: a Bash command holding the basename, which has a dot, as a token acts on the file
+1	L4: a Bash command holding the file as a path token acts on it, and opens nothing
+1	L4: a Grep of the file's directory does not act on it
+1	L4: a Read of the file under the record's root acts on it, and opens it
+1	L4: a basename with no dot does not count as a token
+1	L4: a delivery is a given row and the answer rows after it, acted on when any file it named was
+1	L4: a session left out has its asked, timeout and late rows left out with it
+1	L4: a session marked at a commit this repository does not hold is not read
+1	L4: a session with no ledger appends on disk is not whole: it is left out of every column but unknown, which counts it
+1	L4: a session with no mark is not read, so not counted in unknown either, though its ledger appends are missing too
+1	L4: a token is bounded by = ( a quote : ; ) | & and , as well as by spaces and the ends of the command
+1	L4: a tool whose every ask came too late still has its line
+1	L4: a tool with asked rows and no given row still has its line, counting no session
+1	L4: a touch after a later prompt row cannot credit the answer before it: an answer is acted on in its own turn
+1	L4: a touch before the answer row does not act on it
+1	L4: a touch row naming a file of its window credits that file alone, not projects/x/CLAUDE.md for a row naming CLAUDE.md: 1 of 2 files
+1	L4: an Edit whose value is the file itself acts on it
+1	L4: and 1-24.md does not credit 4.md
+1	L4: and one ending in the file's name but not at a slash does not
+1	L4: and so are calls with no alive line, as appends written before 0.49.313 hold them
+1	L4: as does one holding the file under the root anywhere in it
+1	L4: as many alive lines as calls is whole, and the session counted
+1	L4: asked counts the asked rows and timeouts those that timed out
+1	L4: asked counts the asked rows whose outcome is not late, and late those whose outcome is
+1	L4: beside a whole session, one with no appends on disk and one with more alive lines than calls add to unknown alone
+1	L4: each tool is its own line, its deliveries alone deciding whether the session acted on it
+1	L4: end to end, grep -n rule <root>/CLAUDE.md through post-tool, then felix_answer_use, acts on 1 of the delivery's 2 files
+1	L4: files_opened counts the acted-on files credited by a tool other than Bash
+1	L4: nor is a session with no mark
+1	L4: nor is one whose appends hold more alive lines than calls
+1	L4: nor one that holds neither, a named row and an answer row being no calls
+1	L4: nor one whose alive line has only answer rows beside it, an answer row being no call
+1	L4: nor one whose ledger appends are an empty file: an empty record, holding neither, is left out too
+1	L4: nor one whose ledger appends cannot be read
+1	L4: one holding the file's path under another directory does not
+1	L4: projects/a/CLAUDE.md does not credit projects/b/CLAUDE.md
+1	L4: unknown counts a session left out once for each tool with an asked or a given row in its record, however many it has
+1	L4: with no root row, a value ending in /<file> acts on it
+1	L4: with root rows, a value that only ends in /<file> outside every root does not act on it
+1	L5: and 0% where the denominator is 0
+1	L5: and after the tool lines the sentence that bounds what the answers can have caused
+1	L5: one line a tool: answered of asks in sessions, the answers acted on before the next prompt, the files, those opened, the asks timed out, the prompts too late to ask, and the sessions left out
+1	L5: shares are whole percentages rounded half up, 2 of 16 being 13%, and with no timeout there is no clause for it
+1	L5: the capability table's rows are the same with the answer rows as without
+1	L5: with answers it heads a section answers handed to sessions without being asked for, after the capability table
+1	L5: with no answer rows felix ledger prints no answers section, its capability table there (fixture control)
+1	L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves
 1	Needs authentication is checked before Connected
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
@@ -2397,7 +2563,11 @@
 1	R16: unset REPO, a plain variable the prelude sets gives the seventh failure with exactly its change line
 1	R17: the tree's own groups.tsv puts 1100, 1110 and 1120 in one group, and that group is rx, a second one beside ib
 1	R1: --queue exits 0, with --tsv and without
+1	R1: a checkout bound by its .felix marker alone starts nothing, its graph behind
+1	R1: a machine session's end starts no refresh, though its checkout is own and its graph behind
 1	R1: a record run with a runner failure, while red's suite sleeps 90 s in a part, exits 1 within 49 s of the sleep's start, writes no manifest, and red.tsv holds the rows base - - - and run - - -
+1	R1: a session ending in a worktree of the own checkout refreshes the graph of the checkout that holds it
+1	R1: a session ending in the own checkout, its graph behind, starts a refresh of that graph
 1	R1: and #702 into main, founder by label, is stacked, so not in --queue
 1	R1: and it writes no manifest, and red.tsv holds exactly the rows base - - - and run - - -
 1	R1: and once it has exited nothing of its group is left, stopped or running: the sleeper of red's suite is gone, red's tree with it
@@ -2417,9 +2587,13 @@
 1	R1: and once the record run after parts that print a runner line (a second @@prelude-done, a forged @@member-done, a forged @@part-done) has exited no process of red's tree is left, stopped or running
 1	R1: and the home's project, whose checkout is the home, asks gh for no default branch
 1	R1: and zeta, read under felix, asks for none either
+1	R1: for a checkout that is not own, ownership is checked and the due test, which reads graph.json, never runs
+1	R1: for the own checkout ownership is checked first, then the due test
+1	R1: nor does one bound by an origin that only contains the remote_match
 1	R1: two has no checkout: the gh log holds exactly one GET of repos/fixture/two
 1	R1: two's default branch is trunk, from gh: #701 into trunk, founder, is listed once
 1	R1: under fixture/two (control)
+1	R1: with no graphify on PATH session end checks neither the checkout's ownership nor its graph
 1	R20: a holder whose ps -o ppid= -p WRAPPER is answered with another pid than the -j parent's takes the parent for gone: within 60 s of that answer the unit is gone, the holder asked and was answered, the parent, still running, fails the unit without its mark, exit 1, no receipt, no slot held, and nothing of the run is left
 1	R20: the parent killed with kill -9 while its holders wait for the only slot, held by another process, a holder's ps -o ppid= -p WRAPPER answered with the -j parent's pid: within 60 s nothing of the run is left, stopped or running; once the slot is let go no unit starts, and every slot file grants its lock (the parent's status is 137, no receipt, no reached)
 1	R20: with the -j parent stopped, not killed, so a holder's kill 0 still finds it, pk's and pw's ps answers the holder's ps -o ppid= -p WRAPPER with the -j parent's pid within 60 s of its gate, its log naming the holder as the caller, and the unit runs on: the holder's next check is answered too and the unit is then running (the control of pk's and pw's ps)
@@ -2440,12 +2614,14 @@
 1	R28: trap - EXIT, the prelude's EXIT trap removed, numbered last so that the -j 1 run reaches every part gives the seventh failure with exactly its change line
 1	R29: and under -j 1 the same: exit 0, the part's mktemp -d status 0, and the directory it made is below that directory
 1	R29: under a TMPDIR relative to the directory the run started in and a GNU-style mktemp first on PATH, a part's bare mktemp -d from its working directory lands below that directory, run under -j 2: the run passes and the part's status is 0
+1	R2: a graph that is current starts nothing
 1	R2: a network error: one billing GET and no orgs/ GET
 1	R2: after a 404 the gh log holds one users/ GET
 1	R2: after a 502 the gh log holds exactly one billing GET
 1	R2: and adds the scope hint after the 404
 1	R2: and gives gh's first error line (control)
 1	R2: and it is the users/ GET
+1	R2: and its ledger rollup runs as before
 1	R2: and never the scope hint after a 502
 1	R2: and never the scope hint after a network error
 1	R2: and no more billing GETs than those two
@@ -2458,9 +2634,13 @@
 1	R2: both answering 404: the budget row says unread
 1	R2: the billing GET answers: the gh log holds exactly one billing GET
 2	R2: the budget row says unread (control)
+1	R2: the hook returns while that refresh waits, within 8 seconds, exits 0 and prints nothing
+1	R2: the rollup runs whether or not a refresh starts
 1	R2: users/ 404 then orgs/ answering: two billing GETs, users/ then orgs/
 1	R2: users/ answers 404: the page exits 0
 1	R2: users/ answers 502: the page exits 0
+1	R2: with lib/graph.sh gone the session still ends with exit 0, and its rollup runs
+1	R2: with lib/own.sh failing to load the session still ends with exit 0, and its rollup runs
 1	R2: with the ending's listing number 1 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
 1	R2: with the ending's listing number 2 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
 1	R2: with the ending's listing number 3 failing (a ps first on PATH that exits 1 once), a unit that ignores TERM and forks a sleeper when it gets one leaves nothing, stopped or running, once the parent has exited with 143
@@ -2489,6 +2669,10 @@
 1	R37: the stand-in tar writes an archive to a file with 1 MiB of padding after it, and extracts it whole: exit 0, the same bytes, one call of each mode (fixture control)
 1	R37: this part holds no line the lint names, the stand-in case's and the samples' lines included
 1	R37: with the stand-in tar first on PATH, one tar writing an archive to a pipe that a second tar extracts from fails under pipefail on each of three runs, and the log shows both modes called (fixture control)
+1	R3: FELIX_GRAPH_LOCK_STALE=20 makes that same lock stale, and the refresh proceeds
+1	R3: a lock 25 minutes old still means a refresh is running: nothing runs, the call exits 0 and prints nothing, the lock stays
+1	R3: a lock directory 35 minutes old is taken back and the refresh proceeds, the call exiting 0 and printing nothing
+1	R3: a lock made a moment ago means a refresh is running, and the call does nothing, as before
 1	R3: a repository with neither origin/HEAD nor origin/main: the page exits 0 (control)
 1	R3: and #501 into main is stacked
 1	R3: and #501 into main was decided against it: ready (control)
@@ -2499,6 +2683,8 @@
 1	R3: and its origin row says default branch not read (control)
 1	R3: and its pull request was not decided: #901 is unknown (control)
 1	R3: and one into trunk is stacked (control)
+1	R3: and the lock is gone once that refresh finishes
+1	R3: and while that refresh runs the lock is a directory made just now
 1	R3: origin/HEAD names main: the origin row says default branch main (origin/HEAD)
 1	R3: origin/HEAD naming trunk: the origin row says default branch trunk (origin/HEAD)
 1	R3: origin/HEAD wins over origin/main: #502 into trunk is ready
@@ -2522,15 +2708,19 @@
 1	R4: a holder STOPped and its wrapper then killed with kill -9, W = 2: the parent ends the lost unit's holder (its pid and start time are line 2 of the slot file, found in the run's own pj directory): once the parent has exited the holder and its unit are gone, the unit failed without its mark, exit 1, no receipt
 1	R4: a run read through a pipe, as out=$(tests/run -j 2 ...) reads it, ends with the run though a unit left a background child: the pipe is closed within 10 s and the output reached its end
 1	R4: an age of FETCH_HEAD, if given, is labelled the last fetch of any ref
+1	R4: and its banner's graph line is the one it prints without the marker
+1	R4: and starts no refresh there, its graph behind, the checkout not being own
 1	R4: and that is nine days ago, not the fresh fetch of another branch
 1	R4: and that is under an hour ago (control)
 1	R4: main moved just now: the origin row says when origin/main last moved (control)
+1	R4: session start in the own checkout, its graph behind and no marker, starts the refresh (control)
 1	R4: the origin row says when origin/main last moved, from its reflog
 1	R4: the page after a fetch of another branch exits 0
 1	R4: the row still names the default branch (control)
 1	R4: the wrapper of a unit killed with kill -9 while its holder waits for a slot another process holds: with the parent stopped by the case the holder is gone within 20 s by its own check, the slot still held; once the slot is let go no unit starts; the unit has no mark, exit 1, no receipt
 1	R4: the wrapper of a unit killed with kill -9 while the unit runs a member longer than the parent's silence: that unit alone fails without its mark, exit 1, no receipt, and once the parent has exited neither the unit nor its holder runs and the pipe it read is closed
 1	R4: while a unit runs, its holder's stdout and stderr are the unit's log: both name one regular file, which is the file the unit's own stdout names, and the run then passes
+1	R4: with the marker holding the holding checkout's HEAD, session start starts no refresh
 1	R4: with the parent stopped by the case, so that only the holder's own check of its wrapper can act, a unit whose wrapper was killed with kill -9 is ended with its holder: within 60 s of the kill both are gone, and the parent is still there
 1	R5 clarified: --prs --tsv --repo on a directory whose name holds a tab exits 0, and so does the text page
 1	R5 clarified: and no line of the text page holds the directory's name with its tab
@@ -2731,11 +2921,78 @@
 1	T of a tree whose only change is a binary edit is byte for byte the stacked base's (N)
 1	T of a tree with a staged rename, copy and edits is byte for byte the stacked base's (N)
 1	T of the tree with the submodule moved is byte for byte the stacked base's (N)
+1	T1: a Bash command naming two answered files appends a touch row for each
+1	T1: a Glob is read by the key spelled exactly path, not one that ends in path
+1	T1: a Grep is read by its path, not the response's
+1	T1: a Grep of the directory that holds a file matches no file
+1	T1: a MultiEdit is read by its file_path
+1	T1: a NotebookEdit is read by its notebook_path
+1	T1: a Read of an answered file by its path under the session's root appends touch, Read and the file as the answer named it, not the response's
+1	T1: a Read whose payload holds no file_path appends nothing
+1	T1: a Write of a file no answer named appends nothing
+1	T1: a command naming <root>/CLAUDE.md touches CLAUDE.md, and not projects/x/CLAUDE.md, whose basename it only shares behind a slash
+1	T1: a file answered only before the record's last prompt row is not matched
+1	T1: a file named only past the value's first 16,384 bytes is not read
+1	T1: a session id that A2.1 refuses appends nothing to the record its name points at
+1	T1: a tool not in the table appends nothing, though its input names an answered file
+1	T1: an Edit whose value is the file itself appends its touch row
+1	T1: an escaped slash reads as a slash
+1	T1: and an escaped tab as a space, so the file after it is a token
+1	T1: nothing of the value but the named file is written: the record gains the touch row and no part of the command
+1	T1: one answered after it is, once though two answer rows name it, and one answered only before it is not
+1	T1: one named within them is, the value running on past them
+1	T1: the key is found with its colon, so a value that equals the key's name is passed over
+1	T1: the session's ledger append is still made, a tool row for each call
+1	T1: the value is read to its first unescaped quote and decoded, so a command's escaped quotes keep the rest of it
+1	T1: with no state file nothing is appended and no state file is made, the ledger append made as before
+1	T2: a command run in a fresh shell under env -i, on the PATH of spies, is logged by its name too (fixture control)
+1	T2: an append that fails is silent, the exit 0 and the file unchanged
+1	T2: lib/ledger.sh loaded first in a fresh shell, with no library before it, runs no command found on PATH either, and still loads lib/answer.sh
+1	T2: loading lib/ledger.sh runs no command found on PATH, and it loads lib/answer.sh: felix_answer_use is defined
+1	T2: no post-tool run, with a state file or without, ran git
+1	T2: nor does lib/graph.sh loaded first in a fresh shell, and it still loads lib/graph-answer.sh: felix_graph_deliver is defined
+1	T2: nor does loading lib/graph.sh, which loads lib/graph-answer.sh: felix_graph_deliver is defined
+1	T2: on the PATH of spies awk and git are spies too, and a command run there is logged by its name (fixture control)
 1	TERM sent to a writing run alone, at 16 delays from 0 to past its usual length, cuts at least one run short
 1	TMPDIR empty: claude was not run
 1	TMPDIR empty: the list is unread, with the sentence that says why
 1	TMPDIR unset: claude was not run
 1	TMPDIR unset: the list is unread, with the sentence that says why
+1	U1: FELIX_GRAPH_ANSWER=0, no graphify, no perl, no graph, a machine message and a missing session id each stop before the ownership check
+1	U1: a checkout bound by its .felix marker alone is told nothing: graphify not asked, no record
+1	U1: a payload with no session id is told nothing, and nothing is recorded
+1	U1: a person's prompt that passes those checks has the checkout's ownership checked
+1	U1: a person's prompt with a session id in the own checkout gets the block, word for word and nothing else
+1	U1: a task notification is not a person's prompt: no block, graphify not asked, no record
+1	U1: nor is one bound by an origin that only contains the remote_match
+1	U2: a prompt of more than 16,384 bytes is still asked, as its first 400 characters
+1	U2: an escaped backslash reaches graphify as one backslash
+1	U2: an escaped quote reaches graphify as a quote, and the keys after the prompt never reach it
+1	U2: and graphify is asked once, about the payload's prompt
+1	U2: and under it a fifth word starting at byte 16,384 is cut there, asked as its first letter
+1	U2: the prompt ends at its first unescaped quote, so a value that ends in an escaped backslash ends there
+1	U2: under a UTF-8 locale the 16,384 are bytes: four words, then a fifth past byte 16,384 though within 16,384 characters, are not asked
+1	U3: a prompt that produces none of the parts still exits 0 with no output
+1	U3: a prompt whose one part is the answer still gets the hook's JSON, and the hook exits 0
+1	U3: separated from the parts on either side by one blank line
+1	U3: the answer goes after the route part and before the lessons part, the rest as it was
+1	U3: with no answer the routed prompt gets the route part and then the lessons part (fixture control)
+1	U4: S is the seconds the hook has run: held 2 seconds before it asks, under FELIX_PROMPT_DEADLINE=5 it has 5 - 2 - 3 left, none, and the ask is late
+1	U4: a FELIX_PROMPT_DEADLINE that is no whole number of at most four digits is taken as 30: abc, 2.5 and a number of 20 digits leave the ask its time
+1	U4: a graphify that fails leaves the hook's exit 0 and its other parts as they are with no answer
+1	U4: and one that is not on PATH at all
+1	U4: one that hangs past the timeout does too, and the prompt waits no more than 8 seconds
+1	U4: so does one that prints garbage
+1	U4: under FELIX_PROMPT_DEADLINE=3 the ask has 3 - S - 3 seconds, under one: its record holds asked graphify late alone, graphify is not run, the exit is 0 and the other parts are as they were
+1	U4: under FELIX_PROMPT_DEADLINE=4 the bound is what is left, a second at most, not FELIX_GRAPH_TIMEOUT=12: a graphify answering after 4 seconds gives no block, its ask timeout, or late had the hook used that second
+1	U5: a later prompt of the session appends prompt before anything else it writes there
+1	U5: a machine message is no person's prompt and appends nothing
+1	U5: a prompt too short to ask still appends its prompt row, and nothing else
+1	U5: a prompt with no time left to ask still appends its prompt row first, then its late ask
+1	U5: a session's first prompt writes no prompt row: its record opens with its asked row
+1	U5: and one from a checkout that is not own, nor its fourth
+1	U5: so does a prompt the graph cannot be asked for, U1's third condition not applying to the row
+1	U5: the prompt row is written before the hook computes its route: the first route function it calls finds the row in the record already
 1	UserPromptSubmit launched in a directory nothing governs mounts the lessons of the governed worktree the payload names
 1	UserPromptSubmit launched in a directory nothing governs says nothing when the payload's cwd is ungoverned too, as before
 1	W1C C1a: in the GitHub state felix land --pause R makes one dispatch, recorded dispatched for paused, whose field 8 is R without the ; by session suffix the ledger row keeps
@@ -8087,6 +8344,10 @@
 1	another session's edit changes the tree identity
 1	another tree is said before another environment
 1	another workflow's failures on the branch are not repair attempts
+1	answers fixture: one PATH has no graphify and one no perl, and both still have git, awk and sed (fixture control)
+1	answers fixture: own and its worktree are ansp's own checkouts, marker and foreign are bound to ansp and not own (fixture control)
+1	answers fixture: own has three commits, its worktree two more, refresh two, and every other checkout a commit (fixture control)
+1	answers fixture: the spy harness wraps felix_checkout_is_own, felix_graph_refresh_due wherever lib/graph.sh defines it, and the route functions (fixture control)
 1	any one bound reached ends the night, whichever it is
 1	any trigger on a session or founder row is refused as trigger, or a path the actor may never write could be owed
 1	anything shipping hooks is high

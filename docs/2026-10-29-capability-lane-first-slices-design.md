@@ -1374,12 +1374,31 @@ is gone. *(My call.)*
     as §6.5 and the tables rule require. What it adds can make neither
     check pass where `main`'s would fail: the lane's text never stands
     alone in the hook's output, and two more schema rows only add checks.
+50. *Slice 0.* The third review's fourth round was its last. On 10-30 the
+    founder asked why slice 0 took a day and a half. The feature was built
+    in about four and a half hours; about twenty more went to adversarial
+    review rounds of about two hours each and to their fixes, and twice a
+    round found a blocker that the previous round's fix had opened. From
+    this round on, two kinds of finding are fixed: a regression of the
+    previous round's fixes, and a wrong answer in normal use. Anything else
+    is a stated limit and a follow-up. The round found neither kind: round
+    3's fixes hold under every fault it tried, and its three findings are
+    minor. Two are stated limits in the lane's own code. The count runs
+    only when three of descriptors 10 to 31 are free, so a process that has
+    more than nineteen of them open reads `unknown` though its count could
+    finish. A TAB or LF in a path a reason names, which column 13 of
+    `felix lane --tsv` prints as it is, breaks that line, and with an LF in
+    the home's path the pulse records a lane line no row produced. The
+    third was arithmetic: splitting the fixture library made this slice add
+    nine lines to `tests/run`, not seven, which leaves slices 1 and 2
+    fourteen, not fifteen, under part 1040's 500.
 
 Items 1 to 16 are the calls the approved design listed here, and items 2, 3, 4
 and 5 were corrected after the fact-check. Items 17 to 41 are corrections from
 the fact-check that change a rule. Items 42 and 43 settle two places where the
-corrected text could be read two ways. Items 44 to 49 came from reviews of
-slice 0's build: a security review, then three adversarial ones.
+corrected text could be read two ways. Items 44 to 50 came from reviews of
+slice 0's build: a security review, then three adversarial ones, the last of
+them in four rounds.
 
 ## 12. Not decided here, and whose
 

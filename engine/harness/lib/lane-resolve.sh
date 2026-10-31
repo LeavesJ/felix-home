@@ -7,8 +7,9 @@
 # answer a read that did not finish as they answer an empty one: a fork that fails in one of their substitutions leaves an
 # empty name, an empty origin or an empty remote_match, so the directory reads as one no project governs, status 1, or a
 # remote_match left out of the comparison lets a shorter one bind, status 0 with a project. Here the lane checks the answer
-# itself, a found project as it checks a miss, and says the resolution did not finish where it did not; every other surface
-# still reads such a resolution as the resolver gives it, a limit of the shared resolver whose change lies outside the lane.
+# itself, a found project as it checks a miss, and says the resolution did not finish where it did not. Only the lane's own
+# output reads this resolution (felix lane, status's lane row, the pulse's lane lines); every other surface takes the shared
+# resolver's answer as it comes (design 11 item 49), a limit of that resolver whose change lies outside the lane.
 #
 # felix_lane_resolve START HOME  Prints the project directory felix_resolve_project prints for START under HOME, returns 0.
 #                                Returns 1 for a miss that stands, printing the sentence felix lane says for it (below; every

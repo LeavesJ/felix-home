@@ -430,7 +430,6 @@ felix_doctor_lines() {   # PROJ ROOT GATE
   printf '%-14s%s: %s\n' 'hooks:' "$v" "$d"
 }
 
-
 # The newest alert the lander tried to send off this Mac (lib/notify.sh, audit b05 B13), read from
 # the home's project's alerts.tsv alone: no gh, no git, nothing written. A started run of the
 # felix-alert workflow shows dispatched (not delivered: GitHub reports no push delivery); one the
@@ -461,11 +460,10 @@ _felix_status_alerts() {
 
 # The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
-  local home="$1" cwd="$2" root proj prc
-  _felix_status_need felix_repo_root resolve; _felix_status_need felix_lane_resolve lane-resolve
+  local home="$1" cwd="$2" root proj lproj prc
+  _felix_status_need felix_repo_root resolve
   root="$(felix_repo_root "$cwd" 2>/dev/null)"
-  proj="$(felix_lane_resolve "$cwd" "$home")"; prc=$?   # the lane's resolution (lane-resolve.sh); 2: it did not finish
-  [ "$prc" -eq 0 ] || proj=""
+  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)" || proj=""   # the nine rows' project, as main's: before any lane code runs
   _felix_status_settings
   _felix_status_from3 schedule "$(felix_schedule_state)"
   _felix_status_pulse "$home"
@@ -475,7 +473,9 @@ felix_status_rows() {
   _felix_status_hooks "$proj" "$root"
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"
-  _felix_status_need felix_lane_status_row lane; felix_lane_status_row "$proj" "$root" "$prc"
+  _felix_status_need felix_lane_resolve lane-resolve; _felix_status_need felix_lane_status_row lane
+  lproj="$(felix_lane_resolve "$cwd" "$home")"; prc=$?; [ "$prc" -eq 0 ] || lproj=""   # only the lane row reads the lane's resolution (C6); 2: it did not finish
+  felix_lane_status_row "$lproj" "$root" "$prc"
 }
 
 # felix status [--tsv]: the rows as written, or aligned for a person, with the

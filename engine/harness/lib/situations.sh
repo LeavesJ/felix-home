@@ -279,10 +279,89 @@ felix_situations_eval() {   # ROWS READING PROBE-GROUNDS MATURITY
     }' </dev/null
 }
 
+# The verdict token of one class in --change (C5), from its state at the base and at the head and whether a grounding reading
+# differs between them (1 or 0): prints owed, blinded, retired, standing, could-not-look or none. Nothing is read from a clock
+# or a file. An UNKNOWN head never reads as none or retired, and an UNKNOWN base under an ACTIVE head reads owed.
+felix_situations_verdict() {   # BASE-STATE HEAD-STATE DIFFERS
+  local b="${1-}" h="${2-}" d="${3-0}"
+  case "$h" in
+    ACTIVE)
+      if [ "$b" = ACTIVE ] && [ "$d" != 1 ]; then printf 'standing'; else printf 'owed'; fi ;;
+    UNKNOWN)
+      if [ "$b" = UNKNOWN ]; then printf 'could-not-look'; else printf 'blinded'; fi ;;
+    *)
+      if [ "$b" = ACTIVE ]; then printf 'retired'; else printf 'none'; fi ;;
+  esac
+}
+
+# The run of --at (C3.1, C3.2): the recorded reading of AT, or of the newest recorded tree when AT is empty, the detector
+# when this checkout is at that tree, the three values of every class, and the report, built into _FELIX_SITUATIONS_OUT. The
+# table's rows and the current probes.tsv's grounds are already in the scratch directory. Returns 3 with C2's sentence
+# when the tree cannot be read.
+_felix_situations_at() {   # AT FORMAT ROOT MATURITY
+  local at="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" log tree
+  log="$(felix_mem_dir "$PROJ")/facts.log"
+  tree="$at"
+  if [ -z "$tree" ]; then
+    if ! tree="$(felix_situations_newest_tree "$log")"; then
+      printf 'felix situations: the recorded tree could not be read: %s records no tree\n' "$log" >&2
+      return 3
+    fi
+  fi
+  if ! felix_situations_read_recorded "$log" "$tree" "$scr/at.reading"; then
+    printf 'felix situations: the recorded tree could not be read: no run is recorded for tree %s in %s\n' "$tree" "$log" >&2
+    return 3
+  fi
+  # The --propose drafts are built in the task that follows this one. Nothing is printed until they are in.
+  if [ "$fmt" = propose ]; then
+    printf 'felix situations: --propose is not built yet\n' >&2
+    return 1
+  fi
+  if ! felix_situations_live_detect "$root" "$FELIX_HOME_DIR" "$tree" "$scr/at.reading" \
+     || ! felix_situations_eval "$scr/rows" "$scr/at.reading" "$scr/grounds" "$mat" > "$scr/at.eval"; then
+    printf 'felix situations: the recorded tree could not be read: its reading could not be written or evaluated in %s\n' "$scr" >&2
+    return 3
+  fi
+  if ! _FELIX_SITUATIONS_OUT="$(felix_situations_report at "$fmt" "$PROJ" "$scr/rows" - "$scr/at.eval" - "$scr/at.reading")"; then
+    printf 'felix situations: the recorded tree could not be read: its report could not be built in %s\n' "$scr" >&2
+    return 3
+  fi
+  return 0
+}
+
+# The run of --change (C3.3): the two ends of the change, each read in a scratch clone with the current probes.tsv and the
+# detector, the three values of every class on each side, and the report, built into _FELIX_SITUATIONS_OUT. RANGE is
+# <base>..<head> as given, or empty for the merge base of the main ref and HEAD to HEAD. Returns 3 with C2's sentence when a
+# side cannot be read. Nothing here writes facts.log, and the live checkout is only read, with no optional lock.
+_felix_situations_change() {   # RANGE FORMAT ROOT MATURITY
+  local range="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" sides bsha hsha gd side
+  sides="$(felix_situations_range "$root" "$range")" || return 3
+  bsha="${sides%%$'\t'*}"; hsha="${sides#*$'\t'}"
+  if [ "$fmt" = propose ]; then
+    printf 'felix situations: --propose is not built yet\n' >&2
+    return 1
+  fi
+  gd="$(felix_situations_gitdir "$root")" || gd=""
+  felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$bsha" base "$scr/base.reading" || return 3
+  felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$hsha" head "$scr/head.reading" || return 3
+  for side in base head; do
+    if ! felix_situations_eval "$scr/rows" "$scr/$side.reading" "$scr/grounds" "$mat" > "$scr/$side.eval"; then
+      printf 'felix situations: %s could not be read: its reading could not be evaluated in %s\n' "$side" "$scr" >&2
+      return 3
+    fi
+  done
+  if ! _FELIX_SITUATIONS_OUT="$(felix_situations_report change "$fmt" "$PROJ" "$scr/rows" "$scr/base.eval" "$scr/head.eval" \
+       "$scr/base.reading" "$scr/head.reading")"; then
+    printf 'felix situations: the change could not be read: its report could not be built in %s\n' "$scr" >&2
+    return 3
+  fi
+  return 0
+}
+
 # felix situations [--at <tree> | --change [<base>..<head>]] [--tsv | --propose] (C1). Arguments are read left to right,
 # and one that repeats a flag, conflicts with a flag before it, or is not a flag at all fails where it is read, before its
 # value is looked at; -h and --help given first never reach here, felix answers them for every command. The report itself
-# is built in the sibling libraries.
+# is built in the sibling libraries, inside the scratch directory, which is removed before the first byte is printed.
 felix_situations() {
   local mode="" at="" range="" fmt="" a
   while [ $# -gt 0 ]; do
@@ -315,7 +394,7 @@ felix_situations() {
   export GIT_OPTIONAL_LOCKS=0
   resolve_or_die
 
-  local tpath trows trc=0 log tree sides scr root mat rep
+  local tpath trows trc=0 scr root mat rc=0
   tpath="${SCRIPT_DIR}/templates/situations.tsv"
   trows="$(felix_situations_table "$tpath" 2>&1)" || trc=$?
   if [ "$trc" -ne 0 ]; then
@@ -324,56 +403,27 @@ felix_situations() {
   fi
 
   felix_situations_scratch_begin || return $?
-
-  if [ "$mode" = change ]; then
-    if [ -n "$range" ]; then
-      sides="$(felix_situations_range "$(felix_repo_root "$PWD")" "$range")" || return 3
-    fi
-  else
-    log="$(felix_mem_dir "$PROJ")/facts.log"
-    tree="$at"
-    if [ -z "$tree" ]; then
-      if ! tree="$(felix_situations_newest_tree "$log")"; then
-        printf 'felix situations: the recorded tree could not be read: %s records no tree\n' "$log" >&2
-        return 3
-      fi
-    fi
-    if ! felix_situations_read_recorded "$log" "$tree" "$_FELIX_SITUATIONS_SCRATCH/at.reading"; then
-      printf 'felix situations: the recorded tree could not be read: no run is recorded for tree %s in %s\n' "$tree" "$log" >&2
-      return 3
-    fi
-  fi
-
-  # The scratch readings of --change, their verdicts and their report, and --propose, are built in the tasks that follow
-  # this one. Nothing is printed until they are in.
-  if [ "$mode" = change ]; then
-    felix_situations_scratch_end
-    printf 'felix situations: --change is not built yet\n' >&2
-    return 1
-  fi
-  if [ "$fmt" = propose ]; then
-    felix_situations_scratch_end
-    printf 'felix situations: --propose is not built yet\n' >&2
-    return 1
-  fi
-
-  # --at: the recorded reading, the detector when this checkout is at its tree, the three values of every class, and the
-  # report, all built inside the scratch directory, which is removed before the first byte of the report is written.
   scr="$_FELIX_SITUATIONS_SCRATCH"
   root="$(felix_repo_root "$PWD")"
   mat="$(felix_json_str "$PROJ/project.json" maturity 2>/dev/null)"
-  if ! felix_situations_live_detect "$root" "$FELIX_HOME_DIR" "$tree" "$scr/at.reading" \
-     || ! printf '%s\n' "$trows" > "$scr/rows" \
-     || ! { felix_probe_rows "$PROJ" | LC_ALL=C cut -f1,2 > "$scr/grounds"; } \
-     || ! felix_situations_eval "$scr/rows" "$scr/at.reading" "$scr/grounds" "$mat" > "$scr/at.eval"; then
-    printf 'felix situations: the recorded tree could not be read: its reading could not be written or evaluated in %s\n' "$scr" >&2
+  _FELIX_SITUATIONS_OUT=""
+
+  # What both modes evaluate against: the table's rows, and the predicate and grounds cells of the current probes.tsv, which
+  # C4 needs for a grounding probe with no reading and for a term no probe grounds.
+  if ! printf '%s\n' "$trows" > "$scr/rows" \
+     || ! { felix_probe_rows "$PROJ" | LC_ALL=C cut -f1,2 > "$scr/grounds"; }; then
+    printf 'felix situations: the situation table could not be read: its rows could not be written in %s\n' "$scr" >&2
     return 3
   fi
-  if ! rep="$(felix_situations_report at "$fmt" "$PROJ" "$scr/rows" - "$scr/at.eval" - "$scr/at.reading")"; then
-    printf 'felix situations: the recorded tree could not be read: its report could not be built in %s\n' "$scr" >&2
-    return 3
+
+  if [ "$mode" = change ]; then
+    _felix_situations_change "$range" "$fmt" "$root" "$mat" || rc=$?
+  else
+    _felix_situations_at "$at" "$fmt" "$root" "$mat" || rc=$?
   fi
+  [ "$rc" -eq 0 ] || return "$rc"
+
   felix_situations_scratch_end
-  printf '%s\n' "$rep"
+  printf '%s\n' "$_FELIX_SITUATIONS_OUT"
   return 0
 }

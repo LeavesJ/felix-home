@@ -59,7 +59,11 @@ felix_situations_scratch_begin() {
     printf 'felix situations: the scratch directory could not be made: mktemp -d failed under %s\n' "$tmp" >&2
     return 3
   fi
+  # Absolute, so a TMPDIR given relative names the same directory from inside a clone, where the probes run. It is set
+  # before anything can fail, so the trap still removes the directory under the name mktemp gave it.
   _FELIX_SITUATIONS_SCRATCH="$d"
+  d="$(CDPATH='' cd -P -- "$d" 2>/dev/null && pwd -P)" || d=""
+  [ -z "$d" ] || _FELIX_SITUATIONS_SCRATCH="$d"
   return 0
 }
 
@@ -121,13 +125,48 @@ _felix_situations_rev() {   # ROOT REV
   printf '%s' "$sha"
 }
 
+# The main ref (C3.3): prints its full name. It is the target of refs/remotes/origin/HEAD when that is a symbolic ref to a
+# refs/remotes/origin/<x> that names a commit; otherwise refs/remotes/origin/main when it names a commit; otherwise
+# refs/heads/main. Returns 1, printing nothing, when none of the three names a commit.
+_felix_situations_mainref() {   # ROOT
+  local root="${1-}" t
+  t="$(_felix_git_rules "$root" symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null)" || t=""
+  case "$t" in
+    refs/remotes/origin/?*)
+      if _felix_situations_rev "$root" "$t" >/dev/null; then printf '%s' "$t"; return 0; fi ;;
+  esac
+  for t in refs/remotes/origin/main refs/heads/main; do
+    if _felix_situations_rev "$root" "$t" >/dev/null; then printf '%s' "$t"; return 0; fi
+  done
+  return 1
+}
+
 # The two ends of a change (C3.3): prints <base commit><TAB><head commit>. A given RANGE is <base>..<head> as C1 splits it,
-# and each half is resolved in the live repository to a commit, the base first. Returns 3 with C2's sentence on stderr
-# (<rev> is the half as given) when a half names no commit:
+# and each half is resolved in the live repository to a commit, the base first. With no RANGE, the head is HEAD and the base is
+# the merge base of the main ref and HEAD. Returns 3 with C2's sentence on stderr (<rev> is the half as given) when a half
+# names no commit:
 #   felix situations: base could not be read: <rev> is not a commit here      (and the same with head)
-# Only a given range is read here. The default range, from the main ref's merge base to HEAD, comes with the scratch readings.
-felix_situations_range() {   # ROOT RANGE
-  local root="${1-}" r="${2-}" b h bs hs
+# and, with no range, in this order: HEAD is not a commit, no main ref names a commit, or the main ref and HEAD share no merge
+# base (the main ref as a full ref name).
+felix_situations_range() {   # ROOT [RANGE]
+  local root="${1-}" r="${2-}" b h bs hs ref
+  if [ -z "$r" ]; then
+    if ! hs="$(_felix_situations_rev "$root" HEAD)"; then
+      printf 'felix situations: head could not be read: HEAD is not a commit here\n' >&2
+      return 3
+    fi
+    if ! ref="$(_felix_situations_mainref "$root")"; then
+      printf 'felix situations: the change could not be read: no main ref here: neither refs/remotes/origin/HEAD, refs/remotes/origin/main nor refs/heads/main names a commit\n' >&2
+      return 3
+    fi
+    bs="$(_felix_git_rules "$root" merge-base "$ref" "$hs" 2>/dev/null)" || bs=""
+    if [ -z "$bs" ]; then
+      printf 'felix situations: the change could not be read: %s and HEAD share no merge base\n' "$ref" >&2
+      return 3
+    fi
+    printf '%s\t%s\n' "$bs" "$hs"
+    return 0
+  fi
   b="${r%%..*}"; h="${r#*..}"
   if ! bs="$(_felix_situations_rev "$root" "$b")"; then
     printf 'felix situations: base could not be read: %s is not a commit here\n' "$b" >&2
@@ -138,6 +177,16 @@ felix_situations_range() {   # ROOT RANGE
     return 3
   fi
   printf '%s\t%s\n' "$bs" "$hs"
+}
+
+# The repository's common git directory, absolute, which a linked worktree and a main checkout share: the source every scratch
+# clone is made from (C3.3). Returns 1, printing nothing, when ROOT is no repository.
+felix_situations_gitdir() {   # ROOT
+  local root="${1-}" g
+  g="$(_felix_git_rules "$root" rev-parse --git-common-dir 2>/dev/null)" || return 1
+  [ -n "$g" ] || return 1
+  case "$g" in /*) ;; *) g="$root/$g" ;; esac
+  ( CDPATH='' cd -P -- "$g" 2>/dev/null && pwd -P )
 }
 
 # The detector at a recorded tree (C3.2), appended to OUT as the commit, detector and cap lines of the reading. It runs on the
@@ -160,6 +209,54 @@ EOF2
     } >> "$out" 2>/dev/null || return 3
   else
     printf 'commit\t-\ndetector\tnot-run\n' >> "$out" 2>/dev/null || return 3
+  fi
+  return 0
+}
+
+# One side read in a scratch clone (C3.3), written to OUT as a reading file with how scratch: SIDE is base or head, SHA the
+# commit, SRC the repository's common git directory (absolute). The clone is made under the scratch directory at <scratch>/SIDE,
+# shared with SRC and with no checkout and no template, then checked out detached at SHA, both through _felix_git_rules (no
+# global or system git config, so no hook, template, filter driver or lazy fetch of the caller's runs) with GIT_NO_LAZY_FETCH
+# and stdin from /dev/null. The tree id is taken right after the checkout and before anything runs in the clone. Then the
+# detector and every row of the project's current probes.tsv run in the clone, with TMPDIR set to <scratch>/tmp-SIDE and none
+# of the environment that points git at another repository. The live checkout's edits and untracked files are read by neither
+# side, since the clone holds tracked content only. Returns 3 with C2's sentence on stderr when the clone, the checkout or the
+# tree id fails.
+felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
+  local proj="${1-}" home="${2-}" src="${3-}" sha="${4-}" side="${5-}" out="${6-}"
+  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps c
+  clone="$scr/$side"; tmp="$scr/tmp-$side"
+  if [ -z "$scr" ] || [ -z "$src" ] \
+     || ! mkdir -p "$tmp" 2>/dev/null \
+     || ! GIT_NO_LAZY_FETCH=1 _felix_git_rules "$scr" clone -q --shared --no-checkout --template= -- "$src" "$clone" >/dev/null 2>&1 \
+     || ! GIT_NO_LAZY_FETCH=1 _felix_git_rules "$clone" checkout --detach -q "$sha" >/dev/null 2>&1; then
+    printf 'felix situations: %s could not be read: the scratch checkout of %s could not be made\n' "$side" "$sha" >&2
+    return 3
+  fi
+  tid="$( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+          export HOME="$scr" XDG_CONFIG_HOME="$scr" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
+          felix_tree_id_on "$clone" "$sha" "$home" 2>/dev/null )" || tid=""
+  if [ -z "$tid" ]; then
+    printf 'felix situations: %s could not be read: the tree id of %s could not be taken in its scratch checkout\n' "$side" "$sha" >&2
+    return 3
+  fi
+  caps="$( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+           export TMPDIR="$tmp"
+           felix_detect "$clone" 2>/dev/null | LC_ALL=C sort -u )"
+  if ! ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+         export TMPDIR="$tmp"
+         felix_probes_run "$proj" "$clone" ) > "$out.probes" 2>/dev/null \
+     || ! {
+       printf 'how\tscratch\ncommit\t%s\ntree\t%s\nstamp\t-\ndetector\trun\n' "$sha" "$tid"
+       while IFS= read -r c; do
+         [ -z "$c" ] || printf 'cap\t%s\n' "$c"
+       done <<EOF2
+$caps
+EOF2
+       LC_ALL=C awk -F'\t' '{ printf "probe\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' "$out.probes"
+     } > "$out" 2>/dev/null; then
+    printf 'felix situations: %s could not be read: its reading could not be written in %s\n' "$side" "$scr" >&2
+    return 3
   fi
   return 0
 }

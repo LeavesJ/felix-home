@@ -104,6 +104,9 @@ _felix_ledger_rows() {
 felix_ledger_summary() {
   local proj="$1"
   _felix_ledger_rows "$(felix_mem_dir "$proj")" | LC_ALL=C awk -F'\t' -v withunk="${2:+1}" '
+    # An answer was handed to the session, not reached for by it, and counted
+    # as a reach it would read as use nobody chose. felix_ledger_answers.
+    $3 == "answer" { next }
     $4 != "" {
       # A built-in skill is not the plugin that shares its name.
       #
@@ -217,9 +220,12 @@ felix_ledger_unknown_note() {
 # simply not have come up; the threshold is what separates that from evidence.
 # resolve.sh holds felix_mem_dir and felix_registry_field, both used below.
 # Sourced by path with the house guard because the suite sources this library
-# alone, in a subshell.
+# alone, in a subshell. The directory by expansion, not dirname: this loads
+# after every tool call, and the answers' load at the end uses it too.
+_FELIX_LEDGER_LIB="${BASH_SOURCE[0]:-$0}"
+case "$_FELIX_LEDGER_LIB" in */*) _FELIX_LEDGER_LIB="${_FELIX_LEDGER_LIB%/*}" ;; *) _FELIX_LEDGER_LIB=. ;; esac
 if ! command -v felix_mem_dir >/dev/null 2>&1; then
-  . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
+  . "$_FELIX_LEDGER_LIB/resolve.sh"
 fi
 
 FELIX_LEDGER_MIN="${FELIX_LEDGER_MIN:-5}"
@@ -471,6 +477,21 @@ felix_ledger_alive() {
   { printf 'alive\tpost-tool\n' >> "$d/$2.tsv"; } 2>/dev/null || true
 }
 
+# 0 when a session's appends are whole, so that what they lack was not done.
+# PostToolUse leaves an `alive` line before it looks for a call, so more alive
+# lines than call lines, or neither, means a run recorded nothing. A record
+# with calls and no more alive lines than calls is whole, which includes every
+# state written before the alive line existed. When the count cannot be read
+# the record is not known to be whole. A `named` or an `answer` row is the
+# user-prompt hook's, not a call, so it is no sign that a PostToolUse run
+# recorded anything, and counted as one it would hide a run that did not. The
+# fold's zero rows and the answers' measure (lib/answer.sh) both ask this.
+_felix_ledger_whole() {   # state file
+  [ "$(LC_ALL=C awk -F'\t' '$1 == "alive" { a++; next }
+                            $1 != "named" && $1 != "answer" && $2 != "" { c++ }
+                            END { r = 0; if (a > c || (a + 0 == 0 && c + 0 == 0)) r = 1; print r }' "$1" 2>/dev/null)" = 0 ]
+}
+
 # Fold one session's appends into the committed ledger, once.
 #
 # Rewritten rather than appended to, so rolling the same session twice cannot
@@ -500,18 +521,11 @@ felix_ledger_rollup() {
   # and unsuffixed so the reader's *.tsv glob cannot see it in flight.
   local tmp; tmp="$(mktemp "$dir/.${session}.XXXXXX")" || return 0
 
-  # What a zero row says. PostToolUse leaves an `alive` line before it looks for
-  # a call, so more alive lines than call lines, or neither, means a run
-  # recorded nothing: a play named and "never reached" may have been reached,
-  # and the fold writes `-` (unknown) where it would write a measured 0. A
-  # record with calls and no more alive lines than calls is whole, which
-  # includes every state written before the alive line existed. When the count
-  # cannot be read the record is not known to be whole.
-  local zero
-  zero="$(LC_ALL=C awk -F'\t' '$1 == "alive" { a++; next }
-                               $1 != "named" && $2 != "" { c++ }
-                               END { r = 0; if (a > c || (a + 0 == 0 && c + 0 == 0)) r = 1; print r }' "$state" 2>/dev/null)"
-  case "$zero" in 0) zero=0 ;; *) zero="-" ;; esac
+  # What a zero row says: a measured 0 only when the record is whole
+  # (_felix_ledger_whole). Otherwise a play named and "never reached" may have
+  # been reached, and the fold writes `-` (unknown) where it would write 0.
+  local zero=0
+  _felix_ledger_whole "$state" || zero="-"
 
   # `named` rows are the policy's decision, not a call. They are folded into the
   # sixth column of whatever they name rather than being rows of their own.
@@ -520,6 +534,16 @@ felix_ledger_rollup() {
     [ -n "${name:-}" ] || continue
     [ "$kind" = "named" ] && continue
     [ "$kind" = "alive" ] && continue
+    # An answer handed to the session: its own row, with the sixth field empty,
+    # because a route naming the same tool named the tool and not its answer.
+    # Kept out of seen and seen_owner, so that the session still gets a
+    # declared tool's zero row and a route's naming of it, both of which an
+    # answer would otherwise suppress as if the session had reached for it.
+    if [ "$kind" = "answer" ]; then
+      printf '%s\t%s\t%s\t%s\t%s\t\n' "$session" "$date" "$kind" "$name" \
+        "$(felix_count -xF "$kind	$name" "$state")" >> "$tmp"
+      continue
+    fi
     printf '%s\t%s\t%s\t%s\t%s\t%s\n' "$session" "$date" "$kind" "$name" \
       "$(felix_count -xF "$kind	$name" "$state")" \
       "$(felix_count -xF "named	$name" "$state")" >> "$tmp"
@@ -798,3 +822,12 @@ felix_ledger_catchup() {
   done
   printf '%s' "$n"
 }
+
+# Answers handed to a session, and what it did next, are the ledger's too:
+# their rows fold through felix_ledger_rollup above. Kept in their own file.
+# A failure to load it must not fail this file's own load: the hooks source
+# this with `|| exit 0`, and the ledger is worth more than the answers' half.
+# The directory is the one found by expansion at the top of this file.
+if ! command -v felix_answer_use >/dev/null 2>&1; then
+  . "$_FELIX_LEDGER_LIB/answer.sh" 2>/dev/null || true
+fi

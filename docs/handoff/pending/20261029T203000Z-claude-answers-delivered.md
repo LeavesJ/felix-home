@@ -1,4 +1,4 @@
-### 2026-10-29: the knowledge graph's answer is handed to every prompt, and the ledger counts whether it was used (0.49.318)
+### 2026-10-29: the knowledge graph's answer is handed to every prompt, and the ledger counts whether it was used (0.49.320)
 
 **What changed, in one line.** The graph is no longer named to a session; its
 answer is handed over. On each prompt a person types, the user-prompt hook runs
@@ -67,7 +67,7 @@ was about 60 real queries, almost all in the four sessions (09-03, 09-04,
 09-10, 09-17) whose subject was graphify itself.
 
 **Read next.**
-- After a week of sessions on 0.49.318, `felix ledger`'s answers line against
+- After a week of sessions on 0.49.320, `felix ledger`'s answers line against
   11% of answers, 3% of files and 6 files opened or edited. Opened or edited
   is the column to watch: "run" is mostly the felix CLI, which sessions run
   anyway. If follow-through stays at baseline, the answer is not changing

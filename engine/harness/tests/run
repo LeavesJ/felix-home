@@ -142,6 +142,9 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/inventory.sh"
 . "$HERE/lib/judge-refs.sh"
 . "$HERE/lib/land-on-green.sh"
+. "$HERE/lib/lane-fixture.sh"
+. "$HERE/lib/lane-probes.sh"
+. "$HERE/lib/lane-reviews.sh"
 . "$HERE/lib/locale-bash-collation.sh"
 . "$HERE/lib/locale-bytes.sh"
 . "$HERE/lib/lost-work.sh"
@@ -407,6 +410,12 @@ fi
 . "$HERE/parts/2120-wave-1-combine-blind.sh"
 . "$HERE/parts/2130-answers-delivered-blind.sh"
 . "$HERE/parts/2160-docs-are-not-a-frontend-blind.sh"
+. "$HERE/parts/2200-lane-counts-blind.sh"
+. "$HERE/parts/2210-lane-states-blind.sh"
+. "$HERE/parts/2220-lane-command-blind.sh"
+. "$HERE/parts/2230-lane-status-row-blind.sh"
+. "$HERE/parts/2240-lane-session-start-blind.sh"
+. "$HERE/parts/2250-lane-pulse-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

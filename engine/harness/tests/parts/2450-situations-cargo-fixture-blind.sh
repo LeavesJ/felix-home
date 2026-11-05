@@ -241,7 +241,7 @@ is '2450 r4: --change K1..K2, which removes the workflow, reads ci_actions_pinne
    "$S2450_RC|$(_s2450_class ci_actions_pinned r4-tsv)" \
    "0|$(_s2450_id ci_actions_pinned)${S2450_T}ci_actions_pinned${S2450_T}retired${S2450_T}ACTIVE${S2450_T}DORMANT${S2450_T}workflows found (ci)${S2450_T}workflows empty (ci)$S2450_T$(_s2450_owes ci_actions_pinned)"
 is '2450 b: over K1..K2 the four HTTP-keyed classes read UNKNOWN on both sides, could-not-look, never DORMANT, none or retired' \
-   "$S2450_RC|$(for _s2450_c in $S2450_HTTP; do _s2450_class "$_s2450_c" r4-tsv | cut -f2-5 | tr '\t' ' '; printf ';'; done)" \
+   "$S2450_RC|$(for _s2450_c in $S2450_HTTP; do _s2450_class "$_s2450_c" r4-tsv | cut -f2-5; done | tr '\t\n' ' ;')" \
    '0|health_reflects_readiness could-not-look UNKNOWN UNKNOWN;paid_ingress could-not-look UNKNOWN UNKNOWN;request_body_bounded could-not-look UNKNOWN UNKNOWN;route_has_http_test could-not-look UNKNOWN UNKNOWN;'
 is '2450 r4: the whole --tsv output of K1..K2 is the model' "$S2450_RC|$(cat "$S2450_D/r4-tsv.out")" "0|$(_s2450_tsv no:yes:yes no:no:yes)"
 is '2450 r4: the K1..K2 --tsv run exits 0 with stderr empty and TMPDIR left empty' "$(_s2450_clean r4-tsv)" '0||'

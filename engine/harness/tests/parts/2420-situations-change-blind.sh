@@ -114,7 +114,8 @@ _s2420_gstate() {
 }
 # CLASS -> its id, as C6 computes it.
 _s2420_id() { printf 'owed:%s' "$(printf '%s\t%s\t%s' "$1" "$S2420_P" '*' | git hash-object --stdin | cut -c1-12)"; }
-# FILE -> the file's text, with a newline before and after, for a whole-line has.
+# FILE -> the file's text, with a newline before and after, for a whole-line has. $( ) drops the newline after, so each
+# caller appends $'\n' to the substitution, as each whole-line needle does.
 _s2420_nl() { printf '\n%s\n' "$(cat "$1" 2>/dev/null)"; }
 # FILE N -> the report's line N, its tree id replaced by T.
 _s2420_side() { LC_ALL=C awk -v n="$2" 'NR == n' "$1" 2>/dev/null | sed 's/  tree [^ ]*  /  tree T  /'; }
@@ -291,12 +292,12 @@ is "2420 the default range with --tsv: every class line in token order then id, 
    "$S2420_BUILT|$S2420_RCT|$(cat "$S2420_D/o/deft.out")" "built|0|$(cat "$S2420_D/expect.tsv")"
 is "2420 the default range with --tsv prints nothing on stderr and leaves TMPDIR empty" \
    "$S2420_RCT|$(cat "$S2420_D/o/deft.err")|$(ls -A "$S2420_T" 2>&1)" "0||"
-S2420_HAY="$(_s2420_nl "$S2420_D/o/deft.out")"
+S2420_HAY="$(_s2420_nl "$S2420_D/o/deft.out")"$'\n'
 # CLASS WHAT -> the class's --tsv line is in the default range's output, whole.
 _s2420_line() {
   local l
   l="$(LC_ALL=C awk -F'\t' -v k="$1" '$2 == k' "$S2420_D/expect.tsv")"
-  has "2420 $1: $2" "$S2420_RCT|$S2420_HAY" "$(printf '\n%s\n' "$l")"
+  has "2420 $1: $2" "$S2420_RCT|$S2420_HAY" "$(printf '\n%s\n' "$l")"$'\n'
 }
 _s2420_line k_new "head ACTIVE, base DORMANT reads owed"
 _s2420_line k_pdiff "ACTIVE on both sides, a probe: term whose grounding count changed, reads owed (the first kind of differs)"
@@ -314,9 +315,9 @@ _s2420_line k_none "DORMANT on both sides reads none"
 _s2420_line k_none2 "head DORMANT, base UNKNOWN reads none"
 _s2420_line k_track "a surface found only in an untracked file of the live checkout is read on neither side: none"
 has "2420 the current probes.tsv is read on both sides: p_cst reads found at base, though the facts recorded at both trees read it empty" \
-   "$S2420_RCT|$S2420_HAY" "$(printf '\n%s\n' "$(LC_ALL=C awk -F'\t' '$2 == "k_stand"' "$S2420_D/expect.tsv")")"
+   "$S2420_RCT|$S2420_HAY" "$(printf '\n%s\n' "$(LC_ALL=C awk -F'\t' '$2 == "k_stand"' "$S2420_D/expect.tsv")")"$'\n'
 has "2420 every probe of the current probes.tsv runs on a side read: p_cfree, which grounds a capability no class uses, gives a no-row line" \
-   "$S2420_RCT|$S2420_HAY" "$(printf '\nresidual\tno-row\tcfree\tnamed by probe p_cfree\n')"
+   "$S2420_RCT|$S2420_HAY" "$(printf '\nresidual\tno-row\tcfree\tnamed by probe p_cfree\n')"$'\n'
 
 # ---- the scratch directory is gone before the report's first byte (C3.3, Removal) ------------------------------------
 _s2420_tmp; S2420_TG="$S2420_T"
@@ -342,12 +343,12 @@ is "2420 --change main..HEAD takes main's tip c2 as the base, not the merge base
    "$S2420_RC|$(_s2420_side "$S2420_D/o/main.out" 2)" "0|  base  $S2420_C2  tree T  $S2420_HOW"
 _s2420_tmp; _s2420_run "$S2420_D/o/maint" "$S2420_X" "$S2420_C" "$S2420_T" --change 'main..HEAD' --tsv
 has "2420 --change main..HEAD reads k_none retired: c2 holds its surface and f2 does not" \
-   "$S2420_RC|$(_s2420_nl "$S2420_D/o/maint.out")" \
-   "$(printf '\n%s\tk_none\tretired\tACTIVE\tDORMANT\tp_cno found (cno)\tp_cno empty (cno)\tthe k_none bound, kept\n' "$(_s2420_id k_none)")"
+   "$S2420_RC|$(_s2420_nl "$S2420_D/o/maint.out")"$'\n' \
+   "$(printf '\n%s\tk_none\tretired\tACTIVE\tDORMANT\tp_cno found (cno)\tp_cno empty (cno)\tthe k_none bound, kept\n' "$(_s2420_id k_none)")"$'\n'
 _s2420_tmp; _s2420_run "$S2420_D/o/rev" "$S2420_X" "$S2420_C" "$S2420_T" --change "$S2420_F2..$S2420_C1" --tsv
 has "2420 the reversed range f2..c1 reads k_ret owed, base DORMANT" \
-   "$S2420_RC|$(_s2420_nl "$S2420_D/o/rev.out")" \
-   "$(printf '\n%s\tk_ret\towed\tDORMANT\tACTIVE\tp_cre empty (cre)\tp_cre found (cre)\tthe k_ret bound, kept\n' "$(_s2420_id k_ret)")"
+   "$S2420_RC|$(_s2420_nl "$S2420_D/o/rev.out")"$'\n' \
+   "$(printf '\n%s\tk_ret\towed\tDORMANT\tACTIVE\tp_cre empty (cre)\tp_cre found (cre)\tthe k_ret bound, kept\n' "$(_s2420_id k_ret)")"$'\n'
 is "2420 the network stubs were never started" "$S2420_RCD|$(cat "$S2420_D/net.log")" "0|"
 
 # ---- C2's --change exits and their order -------------------------------------------------------------------------------

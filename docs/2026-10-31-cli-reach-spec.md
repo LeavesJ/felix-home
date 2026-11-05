@@ -106,9 +106,10 @@ first 32,768 bytes of the payload is that key: followed by optional blanks, a
 colon, optional blanks and the opening quote. Otherwise nothing is read. Only
 the first 16,384 bytes of the value as the payload writes it (a JSON escape
 such as `\n` is two of them), and none past the payload's 32,768th byte, are
-read; the value ends at its first unescaped closing quote. JSON escapes read as JSON defines them: `\"` is a double quote,
-`\\` a backslash, `\/` a slash, `\n` a line break, `\t` a tab. `\r`, `\b`, `\f`
-and `\uXXXX` are characters, and no name contains one.
+read; the value ends at its first unescaped closing quote. JSON escapes read as
+JSON defines them: `\"` is a double quote, `\\` a backslash, `\/` a slash, `\n`
+a line break, `\t` a tab. `\r`, `\b`, `\f` and `\uXXXX` are characters, and no
+name contains one.
 
 R1. **The program word.** The command runs NAME when NAME is the program word
 of one of its simple commands (R2, R3). Program words are taken in the order
@@ -142,8 +143,9 @@ are passed over, and the next word is considered:
   `--kill-after DUR`, other `-` options, then one duration word). An option
   written with its argument after `=` (`--chdir=DIR`) is one word. After a
   wrapper, every word that starts with `-` is an option, the options listed
-  with an argument also take the next word, and `--` ends the options. Wrappers chain (`nohup time graphify`). A wrapper is
-  recognised by the part of its word after the last `/` (`/usr/bin/env`).
+  with an argument also take the next word, and `--` ends the options.
+  Wrappers chain (`nohup time graphify`). A wrapper is recognised by the part
+  of its word after the last `/` (`/usr/bin/env`).
 - `command` with an option word containing `v` or `V` (`-v`, `-V`, `-pv`)
   looks a program up and runs none: that simple command has no program word.
 - `env` with `-S` or `--split-string` has no program word that this reading

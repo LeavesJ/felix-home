@@ -243,3 +243,92 @@ also compares a token for each template copied byte for byte. On main it
 reads `situations.tsv not copied`, and all 26 of 2400's assertions fail
 there. On the branch it passes. No other assertion in the part held without
 the table.
+
+**Build (Tasks 4 to 7).** Sonnet 5.5 built against the blind parts in two
+workflows (`wf_39af5429-03d`, then `wf_8f554527-30a` from Task 7). A task
+that stopped red was set to move to Opus 5.5; none needed to.
+
+| Task | Commit | Red rounds | Result |
+|---|---|---|---|
+| 4: the command, its flags, the table and ids | `d514b087` | 1 | green |
+| 5: recorded readings and the `--at` report | `40c56e85` | 0 | green |
+| 6: scratch readings, verdicts and the `--change` report | `a806f78c` | 1 | blocked on a part defect, below; otherwise green |
+| 7: `--propose` | `b30a9522` | 0 | green |
+
+Task 8's agent and the blind author below both stopped on the weekly limit on
+10-31. The Mac then rebooted, which emptied the session scratchpad and the slot
+helper's `gawkbin`. On 11-05 the lead rebuilt `gawkbin` from the cached gawk
+5.4.1 bottle, as memory `ci-awk-is-gawk-local-is-bwk` says, and resumed.
+
+**A defect in part 2450.** The assertion "2450 b: over K1..K2 the four
+HTTP-keyed classes read UNKNOWN on both sides, could-not-look, never DORMANT,
+none or retired" printed its `;` after each class line's newline. So no
+engine could pass it. Task 6's builder reported it instead of building
+around it. It went back to a blind author (Opus 5.5, high), who also swept
+all eight parts for the same kind of plumbing defect.
+
+**Real data (Task 10), 11-05.** Engine `b30a9522`, every command run with
+`FELIX_HOME` set to this worktree.
+- **Veldra.** Run from `/Users/a14808/ReserveGrid-OS` at `04404a4`:
+  `felix situations --at 7901ad88fd5e3857e61d51c672105ad140637a60`, the tree
+  recorded 2026-09-25T15:45:11Z, and again with `--tsv`.
+  - The checkout is not at that tree, so the detector did not run. Exit 0.
+  - Examined 8: active 1, dormant 0, could not look 7. The active class is
+    `ci_actions_pinned` (`ci_workflow=found/2`).
+  - Residual: 9 could-not-look, 2 no-row (`rust` and `secrets`, each named
+    by a probe), 3 unbound.
+  - No HTTP-keyed class reads DORMANT. Each reads could-not-look on
+    `cap:api`, with the detector not run, so falsifier 5 holds (checked by
+    hand).
+- **Elenchus.** Run from `/Users/a14808/Documents/Elenchus` at `e625a88`.
+  - `felix probes` recorded tree `84b9aa5c` at 2026-11-05T23:41:15Z. Then
+    `felix situations --propose` and `--tsv` ran, with the detector run on
+    that checkout. Exit 0.
+  - Examined 8: active 4, dormant 0, could not look 4.
+  - The four active classes: `paid_ingress` with grounds exactly
+    `http_route found (api), llm detected` (`http_route=found/16`),
+    `request_body_bounded`, `route_has_http_test` and `ci_actions_pinned`.
+  - The four that could not look: `ci_secret_scoped_to_step`,
+    `container_runs_unprivileged` and `local_listener_binds_loopback`, where
+    no probe grounds their tag; and `health_reflects_readiness`, where no
+    probe grounds `deploy` and the detector does not name it.
+  - Residual: 4 could-not-look, 1 no-row (`frontend`, named by the
+    detector), 3 unbound.
+  - `--propose` printed four rows, all with maturity undeclared:
+    RELEASE_BLOCKING for three, and TASK_BLOCKING for `route_has_http_test`.
+  - The checkout's `git status` was the same before and after. The untracked
+    `scripts/check_spend_ceiling.py` was already there.
+  - So design §7.9 (e) holds: the spend gap reads ACTIVE on a fresh reading,
+    and its proposed row prints. Slice 2's first real count does not wait
+    on Elenchus's environment.
+- **Elenchus `--change HEAD~1..HEAD`** (`dd99ba0` to `e625a88`). This is
+  beyond the plan, run to check §7.10's second limit on real data.
+  - `http_route` read blind on both sides: in a scratch checkout the system
+    python3 cannot import the app.
+  - So all four api classes read could-not-look on both sides, never
+    DORMANT, owed, retired or none.
+  - Examined 8: active 1, could not look 7. Residual: 16 could-not-look,
+    1 no-row, 3 unbound.
+  - TMPDIR held no `felix-situations` directory before or after the run. The
+    checkout's `git status` and worktree list were the same before and after.
+- **Files.** Each begins with `#` lines naming the engine commit,
+  `FELIX_HOME`, the checkout and its HEAD, and the command, and ends with the
+  exit status.
+  - `/Users/a14808/.felix/memory/veldra/measurements/situations-20261105T234104Z-at.txt`
+    and `-at-tsv.txt`.
+  - `/Users/a14808/.felix/memory/elenchus/measurements/situations-20261105T234114Z-{probes,propose,tsv}.txt`.
+  - `/Users/a14808/.felix/memory/elenchus/measurements/situations-20261105T234141Z-change.txt`
+    and `-change-tsv.txt`.
+
+**A fifth limit, which a commit security review raised in the build.**
+`--change` clones each side and runs the project's probe commands there with
+`bash -c`, as `felix probes` does in the live checkout. A probe that runs
+repository code, such as one that imports the application, therefore runs
+that revision's tracked code. That includes a revision never checked out
+here. Design §7.10 does not state this. The PR lists it as a limit, unchecked
+by any automatic check.
+
+**Shared code, noticed in passing.** The blind-probe sentence comes from
+`lib/probes.sh`: "the witness proves this surface exists". That is the
+"proven" family founder decision 1 retires. It is shared code, so it belongs
+to the engine-texts session, not to this slice.

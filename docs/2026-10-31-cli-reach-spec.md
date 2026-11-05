@@ -87,7 +87,9 @@ qualifies, or the project has no `routes.tsv`, the file holds one empty line.
 
 N4. **Replaced whole.** A second start of the same session id replaces the
 file; it is never appended to. It is written to a temporary name in the same
-directory and renamed into place, so a reader never sees half of it.
+directory and renamed into place, so a reader never sees half of it. A
+symbolic link at its path is replaced, never followed; a directory there is
+left as it is, and the session gets no names file.
 
 N5. **A session id that is not a file name.** A session id is usable when it is
 non-empty and made only of `A-Z a-z 0-9 _ -` (the rule `lib/answer.sh` applies
@@ -132,13 +134,15 @@ are passed over, and the next word is considered:
 - a redirection and its target: `<`, `>`, `>>`, `>|`, `<>`, `<&`, `>&`, `&>`,
   `&>>`, `<<<`, each optionally after a file-descriptor number (`2>&1`,
   `2>/dev/null`), with the target in the same word or the next;
-- a wrapper and its options: `time` (`-p`), `nohup`, `exec` (`-c`, `-l`,
-  `-a NAME`), `command` (`-p`), `nice` (`-n N`, `-N`, `--adjustment=N`), `env`
-  (`-i`, `-`, `-u NAME`, `-C DIR`, `-P PATH`, other `-` options, and
-  assignments), `timeout` (`-s SIG`, `-k DUR`, other `-` options, then one
-  duration word). After a wrapper, every word that starts with `-` is an
-  option, the options listed with an argument also take the next word, and
-  `--` ends the options. Wrappers chain (`nohup time graphify`). A wrapper is
+- a wrapper and its options: `time` (`-p`, `-o FILE`, `-f FORMAT`), `nohup`,
+  `exec` (`-c`, `-l`, `-a NAME`), `command` (`-p`), `nice` (`-n N`,
+  `--adjustment N`, `-N`, `--adjustment=N`), `env` (`-i`, `-`, `-u NAME`,
+  `--unset NAME`, `-C DIR`, `--chdir DIR`, `-P PATH`, other `-` options, and
+  assignments), `timeout` (`-s SIG`, `--signal SIG`, `-k DUR`,
+  `--kill-after DUR`, other `-` options, then one duration word). An option
+  written with its argument after `=` (`--chdir=DIR`) is one word. After a
+  wrapper, every word that starts with `-` is an option, the options listed
+  with an argument also take the next word, and `--` ends the options. Wrappers chain (`nohup time graphify`). A wrapper is
   recognised by the part of its word after the last `/` (`/usr/bin/env`).
 - `command` with an option word containing `v` or `V` (`-v`, `-V`, `-pv`)
   looks a program up and runs none: that simple command has no program word.
@@ -157,13 +161,15 @@ not spell whole, because quoting or an escape splits it (`gra"phi"fy`,
 holds a name's own bytes (C3).
 
 R5. **Compared exactly.** Byte for byte and case-sensitive: `Graphify` and
-`graphifyx` are not `graphify`.
+`graphifyx` are not `graphify`, and a quoted word holding two names
+(`"graphify semgrep"`) is neither of them.
 
 R6. **Text a command only carries is never a program word.** Words inside
 single quotes, double quotes, `$'...'` or `${...}` (but the commands of a
 `$(...)` or backtick substitution inside double quotes or `${...}` are read,
 as the shell runs them), here-document bodies,
-comments (`#` at the start of a word, to the end of its line), arguments of any
+comments (`#` at the start of a word, to the end of its line, among an array's
+values too), arguments of any
 program, `case` subjects and patterns (including alternatives after `|`), the
 words after `for`, `select` and `[[` up to the end of that clause (`&&`, `||`
 and `(` inside `[[ ... ]]` do not start a command), array values in
@@ -175,7 +181,11 @@ R7. **Here-documents.** `<<WORD`, `<<-WORD`, `<< WORD`, `<<'WORD'`,
 runs from the line after the operator's line to the first line that is WORD
 alone (for `<<-`, after any leading tabs). Reading resumes after that line,
 whose line break counts as a separator. Several here-documents on one line are
-read in order. `<<<` is a here-string, not a here-document (R3).
+read in order. When WORD is unquoted the shell joins a body line that ends in a
+backslash to the next before it looks for WORD, so such a line ends the reading
+(R9): the WORD line after it is not the end of the body. A substitution in such
+a body runs, and is not read (R10). `<<<` is a here-string, not a
+here-document (R3).
 
 R8. **Line continuation.** A backslash at the end of a line joins it to the
 next: no separator.
@@ -199,8 +209,21 @@ R10. **Runs this reading does not see** (stated limits; such a call stays
 `sh -c`, `eval`, `ssh host '...'`), a program named as an argument of another
 program (`xargs NAME`, `sudo NAME`, `watch NAME`, a language interpreter
 running a module or a package runner fetching a tool), `coproc`, aliases, a
-substitution inside arithmetic, a name split by quoting (R4), a `case` pattern
-spanning lines in unusual ways, and anything past R9's bounds.
+substitution inside arithmetic or inside an unquoted here-document's body (R7),
+a name split by quoting (R4), a `case` pattern spanning lines in unusual ways,
+and anything past R9's bounds.
+
+R11. **Runs this reading reports that the shell would not make** (stated
+limits, found in review, and in none of the 2,151 real commands that hold a
+name): a quoted or escaped word that spells a reserved word or an operator
+(`'!' graphify`, `"do" graphify`, `[[ $x == "]]" || graphify ]]`,
+`"2">x graphify`), an assignment or `--` after a wrapper
+(`nohup FOO=1 graphify`), and a function
+the command defines under a name it then calls (`graphify() { echo stub; };
+graphify query`), each read as what it spells. A command the shell cannot parse
+is read up to where it breaks. Most of these fail when the shell runs them, and
+PostToolUse is not sent for a call that failed, so one reaches the ledger only
+when the call as a whole still succeeds.
 
 ## 4. The record (P)
 
@@ -301,6 +324,17 @@ the work, and the play entry is the string the ledger already counts as
 `named`, so the reach and the naming meet on one name. `stack.tsv` declares how
 a tool is installed, which is not what a shell command runs.
 
+Two consequences, found in review. A reach counts under its name's owner, and a
+plugin of the same name shares it: a run of the `semgrep` CLI credits the
+`semgrep` plugin that `stack.tsv` declares, and takes it off
+`felix_ledger_partly`'s list. That is the question the list asks of a route
+(the play pointed at semgrep, and the session ran semgrep). Whether the
+plugin's own surfaces, its MCP server and skills, were what was used is a
+question a CLI run does not answer. And `stack.tsv` already has a `cli` kind
+(elenchus declares `cli strix-agent`), whose names this does not read. A
+declared `cli` row that a session runs from the shell keeps its zero row until
+it does: a follow-up.
+
 D2. **A names file per session, written at session start.** The post-tool hook
 must not resolve the project: resolution runs git, and git after every tool
 call is what the hook's comment forbids. Session start resolves the project
@@ -338,3 +372,13 @@ unqualified skill row is read as the host's. graphify's 3 Skill reaches sit
 there today. And `felix_route_step_used` asks the transcript whether a play
 step was used and does not see a CLI run either, so the route keeps naming
 graphify as due in a session that ran it. Both are follow-ups.
+
+D7. **The reading follows constructs no real reach passed through.** A review
+measured a reading that ends at `case`, `[[ ]]`, function bodies, `${...}`,
+`$'...'`, arrays and arithmetic instead of following them. It is about 130
+lines shorter, gives the same answer on all 2,151 real commands that hold a
+name, and turns 19 blind assertions from reaches into misses, none into a false
+reach. It is not taken. A session plausibly writes those shapes before a tool
+(`cd "${d}" && graphify ...`, `[[ -d out ]] && graphify ...`), the corpus is
+one person's, and following them costs about 0.2 ms, paid only when a name is
+in the command.

@@ -8,7 +8,7 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	1fca9559e517a0da5f353d78a4f187e0660985ca	0.49.320
+base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
 run	445	15716	46
 2400 R1: paid_ingress applies exactly cap:api cap:llm, and its owes names a request bound and a spend bound	1
 2400 R2: another class than paid_ingress holds the term cap:api	1

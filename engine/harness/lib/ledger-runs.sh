@@ -60,7 +60,7 @@ _felix_lr_step() {
 # A list of commands, to END: "" (the value's end), ")" or "`". Status 1 ends
 # the reading, found or not.
 _felix_lr_list() {
-  local end="$1" cmd=1 w="" lit=1 inw=0 wf="" wrap="" warg=0 tdur=0 tgt=0 \
+  local LC_ALL=C end="$1" cmd=1 w="" lit=1 inw=0 wf="" wrap="" warg=0 tdur=0 tgt=0 \
         cw=0 cpat=0 cfirst=0 tst=0 fnw=0 pw=0 m c op hd=""
   _d=$((_d + 1)); [ "$_d" -le 32 ] || return 1
   while :; do
@@ -213,7 +213,7 @@ _felix_lr_word() {
 # options (by how the word begins, so --chdir=/x is one), a reserved word, or
 # the program, which, like a wrapper, is known by its word's part after a /.
 _felix_lr_program() {
-  local b
+  local LC_ALL=C b
   if [ -n "$wrap" ]; then
     if [ "$warg" = 1 ]; then warg=0; return 0; fi
     case "${wf:-$w}" in
@@ -263,13 +263,13 @@ _felix_lr_assign() {
   local v
   case "$wf" in *=*) ;; *) return 1 ;; esac
   v="${wf%%=*}"; v="${v%+}"
-  case "$v" in ''|[0-9]*|*[!A-Za-z0-9_]*) return 1 ;; esac
+  case "$v" in ''|[0123456789]*|*[!A-Za-z0123456789_]*) return 1 ;; esac
 }
 
 # A redirection, at < or >. A word of digits in hand is its file descriptor and
 # the word after it its target, so neither is a program.
 _felix_lr_redir() {
-  if [ "$inw$lit" = 11 ] && case "$w" in ''|*[!0-9]*) false ;; esac; then inw=0; w=""; wf=""
+  local LC_ALL=C; if [ "$inw$lit" = 11 ] && case "$w" in ''|*[!0123456789]*) false ;; esac; then inw=0; w=""; wf=""
   else _felix_lr_word || return 1; fi
   case "${_r:0:3}" in
     '<<<'*) _r="${_r:3}"; tgt=1 ;;
@@ -316,7 +316,7 @@ _felix_lr_jchar() {
 # nothing in them is special, and the text joins the word in hand. An escape
 # inside stands for a character no name holds.
 _felix_lr_sq() {
-  local m
+  local LC_ALL=C m
   while :; do
     _felix_lr_step || return 1
     [[ ${_r:0:256} =~ $_FELIX_LR_SQTEXT ]]
@@ -330,7 +330,7 @@ _felix_lr_sq() {
 # Inside $'...', entered past its quote, to the quote no backslash escapes. It
 # is never a name, so only its end matters.
 _felix_lr_ansi() {
-  local m
+  local LC_ALL=C m
   while :; do
     _felix_lr_step || return 1
     [[ ${_r:0:256} =~ $_FELIX_LR_ANSITEXT ]]
@@ -343,7 +343,7 @@ _felix_lr_ansi() {
 # The rest of a line, passed to its line break or the value's end and left in
 # _l, or `?` when it is longer than a window, which no delimiter is.
 _felix_lr_line() {
-  local k=0
+  local LC_ALL=C k=0
   _l=""
   while :; do
     _felix_lr_step || return 1
@@ -359,7 +359,7 @@ _felix_lr_line() {
 # Inside double quotes, to the closing one: the text joins the word in hand,
 # and a substitution in it runs.
 _felix_lr_dq() {
-  local m
+  local LC_ALL=C m
   _d=$((_d + 1)); [ "$_d" -le 32 ] || return 1
   while :; do
     _felix_lr_step || return 1
@@ -399,7 +399,7 @@ _felix_lr_dq() {
 # Inside ${...}, to its closing brace. None of it is a word of the command, but
 # a substitution in it runs.
 _felix_lr_brace() {
-  local m w="" lit=1 inw=0
+  local LC_ALL=C m w="" lit=1 inw=0
   _d=$((_d + 1)); [ "$_d" -le 32 ] || return 1
   while :; do
     _felix_lr_step || return 1
@@ -426,7 +426,7 @@ _felix_lr_brace() {
 # A parenthesised group that is no list of commands, such as an array's values
 # or a for's arithmetic: words and comments only, though a substitution runs.
 _felix_lr_args() {
-  local m w="" lit=1 inw=0 s=1
+  local LC_ALL=C m w="" lit=1 inw=0 s=1
   _d=$((_d + 1)); [ "$_d" -le 32 ] || return 1
   while :; do
     _felix_lr_step || return 1
@@ -457,7 +457,7 @@ _felix_lr_args() {
 # Arithmetic, entered past its two opening parentheses: passed to the pair
 # that closes them and not read into, so a substitution inside is not seen.
 _felix_lr_arith() {
-  local p=2 m
+  local LC_ALL=C p=2 m
   while :; do
     _felix_lr_step || return 1
     [[ ${_r:0:256} =~ $_FELIX_LR_ARPLAIN ]]
@@ -478,7 +478,7 @@ _felix_lr_arith() {
 # a bare delimiter the shell joins a line that ends in a backslash to the next,
 # so a delimiter line right after one (b) is none, and ends the reading (R7).
 _felix_lr_bodies() {
-  local d t u f re b U='([^\\"]|\\[^n])'
+  local LC_ALL=C d t u f re b U='([^\\"]|\\[^n])'
   for d in $hd; do
     t="${d:0:1}"; u="${d:1:1}"; d="${d:2}"; f="${d:0:1}"; b=0
     [ "$f" = - ] && f='\\"-' || f="$f"'\\"'

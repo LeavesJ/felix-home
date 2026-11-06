@@ -8,7 +8,8 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 # C17's items were added on 2026-11-05 from C17 and the Contracts it amends, still without reading lib/situations*.sh
 # or felix's cmd_situations: RF5's unended row, RF6's fsmonitor and clean-filter cases, RF8, RF9, and RF3's a1 and a_1.
 # RF5's unended case calls felix_obligation_rows, which C17.1 names, with the project's directory, the one argument
-# lib/obligations.sh gives it.
+# lib/obligations.sh gives it. C17.11's two were added on 2026-11-06 in the same way: RF6's core.quotePath case
+# (C17.11.1) and RF9's unwritable live-index (C17.11.3).
 #
 # Readings where the Contracts leave room:
 # - Every run also gets HOME, an empty directory (RF6's names its own), and has GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM,
@@ -20,8 +21,11 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 #   in --tsv. The unchanged state also holds each worktree's git ls-files -s and git status --porcelain (C3.4), read
 #   with GIT_OPTIONAL_LOCKS=0; the marker is touched a second after the last fixture write and a second before the runs.
 # - RF2's --at names the tree felix probes recorded.
-# - RF3's --at reads a hand-written facts.log (C13), tree rf3-tree. The run under LANG=$LCB_U8 also unsets every other
-#   LC_* variable, so LANG decides. The orders of a1 before a_1 and of a_c before ab are asserted under both locales.
+# - RF3's --at reads a hand-written facts.log (C13): tree rf3-tree, where x was recorded found, and tree rf3-blind, where
+#   it was recorded blind, so that --at has could-not-look lines to order too. The run under LANG=$LCB_U8 also unsets
+#   every other LC_* variable, so LANG decides. The orders of a1 before a_1 and of a_c before ab are asserted under both
+#   locales. In --at, C9 prints an UNKNOWN class in no section and C8 orders --tsv's class lines by id, so the --at
+#   order is asserted on the residual's could-not-look lines, in --tsv and in the human report.
 # - RF4 starts felix through perl, which also starts a session of its own (so nothing felix sends its process group can
 #   reach the suite) and resets TERM and HUP as well as INT. The wait for the probe stops when felix has exited, and a
 #   felix still running 30 s after the signal is killed with KILL and reaped; so on an engine without the command, RF4
@@ -35,7 +39,9 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 #   folded into the assertions so that none passes without the command) asserts the template was copied, and the
 #   hooksPath hook and the smudge filter ran. C17.2's three cases share RF6's repository, range and probe, which runs
 #   no git command. Each has its own control in a plain clone, folded in the same way: git status runs the fsmonitor
-#   hook, under that HOME or that GIT_CONFIG_COUNT, and git hash-object runs the clean filter.
+#   hook, under that HOME or that GIT_CONFIG_COUNT, and git hash-object runs the clean filter. C17.11.1's case has a
+#   repository of its own, whose base commit lacks web/ so that only head can name frontend, and whose names are
+#   e-acute (UTF-8) then 1, 2 and 3. Its control, folded in, is the same two runs with HOME empty.
 # - RF7's W1 and W2 are both linked worktrees of one repository, W1 at its root commit and W2 one commit ahead.
 # - RF8 runs felix situations with no --at, so it reads the newest recorded tree, the live one. The stat-dirty file's
 #   mtime and then the index's are set to fixed past times with touch -t, so a write of the index moves its mtime
@@ -43,7 +49,8 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 # - RF9's sort reads what sort would read: its file operands, or stdin when it has none or one is -. It exits 2 and
 #   prints nothing when a line it read begins owed:; otherwise it runs the real sort with the same arguments over the
 #   same input. It writes nothing under TMPDIR. --at and --change are run with no output flag. Each unreadable table
-#   is read in both modes, with --propose for obligations.tsv.
+#   is read in both modes, with --propose for obligations.tsv. RF9's mktemp (C17.11.3) knows the scratch directory by
+#   C3.3's name, felix-situations.*, and its stderr sentence is pinned as RF9's sort case pins it.
 
 S2470_D="$TMP/s2470"
 rm -rf "$S2470_D"; mkdir -p "$S2470_D/bin" "$S2470_D/user"
@@ -227,7 +234,8 @@ $(_s2470_tab residual could-not-look env_ready "head: probe:ready=found: ready r
 # Classes ab, a_c, a_1 and a1, in that order in the table, all on probe:x=found, with owes that differ in case. In
 # bytes a1 sorts before a_1 ('1' is 0x31, '_' 0x5f) and a_c before ab ('b' is 0x62); glibc's en_US.UTF-8 collation,
 # which passes over the '_', puts ab before a_c, and macOS's puts a_1 before a1 (C17.10). Over c1, which removes
-# list.txt while the witness's keep.txt stays, x reads found at base and blind at head: all four blinded.
+# list.txt while the witness's keep.txt stays, x reads found at base and blind at head: all four blinded. At the
+# recorded tree rf3-blind x reads blind, so in --at all four could not look, each with one residual line (C10).
 _s2470_dir "$S2470_D/rf3"; S2470_D3="$S2470_P"
 _s2470_engine "$S2470_D3/x"; S2470_E3="$S2470_E"
 _s2470_row "$S2470_D3/x" ab 'probe:x=found' 'Bound The AB Surface'
@@ -236,7 +244,8 @@ _s2470_row "$S2470_D3/x" a_1 'probe:x=found' 'bound the a_1 surface'
 _s2470_row "$S2470_D3/x" a1 'probe:x=found' 'Bound The A1 Surface'
 _s2470_home "$S2470_D3/home" rf3 $'x\tx\t-\tcat list.txt\ttest -f keep.txt\n'
 mkdir -p "$S2470_D3/mem/rf3"
-printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' 2026-10-29T12:00:00Z rf3-tree x - found 1 x 'cat list.txt' > "$S2470_D3/mem/rf3/facts.log"
+printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' 2026-10-29T11:00:00Z rf3-blind x - blind 0 x 'cat list.txt' \
+  2026-10-29T12:00:00Z rf3-tree x - found 1 x 'cat list.txt' > "$S2470_D3/mem/rf3/facts.log"
 S2470_C3="$S2470_D3/c"
 _s2470_repo "$S2470_C3" rf3; printf 'kept\n' > "$S2470_C3/keep.txt"; printf 'one\n' > "$S2470_C3/list.txt"
 _s2470_commit "$S2470_C3" 1793000000 c0
@@ -248,9 +257,13 @@ S2470_N3_2="2470 rf3 the --change human report prints the same bytes under LC_AL
 S2470_N3_3="2470 rf3 --at --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
 S2470_N3_4="2470 rf3 the --at human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
 S2470_N3_5="2470 rf3 in --change, under either locale, a1, a_1, a_c and ab are all blinded, and a1 comes before a_1 and a_c before ab in the blinded section and in the residual's could-not-look lines"
+S2470_N3_6="2470 rf3 --at a tree where x was recorded blind, --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
+S2470_N3_7="2470 rf3 the --at human report of that tree prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
+S2470_N3_8="2470 rf3 in --at on that tree, under either locale, a1, a_1, a_c and ab all could not look, and a1 comes before a_1 and a_c before ab in the residual's could-not-look lines, in --tsv and in the human report"
 if [ -z "${LCB_U8:-}" ]; then
   skip "$S2470_N3_1" "$LCB_NONE"; skip "$S2470_N3_2" "$LCB_NONE"; skip "$S2470_N3_3" "$LCB_NONE"
-  skip "$S2470_N3_4" "$LCB_NONE"; skip "$S2470_N3_5" "$LCB_NONE"
+  skip "$S2470_N3_4" "$LCB_NONE"; skip "$S2470_N3_5" "$LCB_NONE"; skip "$S2470_N3_6" "$LCB_NONE"
+  skip "$S2470_N3_7" "$LCB_NONE"; skip "$S2470_N3_8" "$LCB_NONE"
 else
   for S2470_L in C u8; do
     _s2470_run "$S2470_D3/ct-$S2470_L" "$S2470_C3" "$S2470_D3/home" "$S2470_D3/mem" "$S2470_E3" situations --change HEAD~1..HEAD --tsv
@@ -261,6 +274,10 @@ else
     eval "S2470_RAT_$S2470_L=\$S2470_RC"
     _s2470_run "$S2470_D3/ah-$S2470_L" "$S2470_C3" "$S2470_D3/home" "$S2470_D3/mem" "$S2470_E3" situations --at rf3-tree
     eval "S2470_RAH_$S2470_L=\$S2470_RC"
+    _s2470_run "$S2470_D3/bt-$S2470_L" "$S2470_C3" "$S2470_D3/home" "$S2470_D3/mem" "$S2470_E3" situations --at rf3-blind --tsv
+    eval "S2470_RBT_$S2470_L=\$S2470_RC"
+    _s2470_run "$S2470_D3/bh-$S2470_L" "$S2470_C3" "$S2470_D3/home" "$S2470_D3/mem" "$S2470_E3" situations --at rf3-blind
+    eval "S2470_RBH_$S2470_L=\$S2470_RC"
   done
   S2470_L=""
   # NAME -> identical or different, for D3/NAME-C.out and D3/NAME-u8.out.
@@ -272,6 +289,21 @@ else
   is "$S2470_N3_5" \
      "$S2470_RCH_C|$(_s2470_names "$S2470_D3/ch-C.out" blinded)|$(_s2470_names "$S2470_D3/ch-C.out" residual)|$S2470_RCH_u8|$(_s2470_names "$S2470_D3/ch-u8.out" blinded)|$(_s2470_names "$S2470_D3/ch-u8.out" residual)" \
      "0|a1 a_1 a_c ab|a1 a_1 a_c ab|0|a1 a_1 a_c ab|a1 a_1 a_c ab"
+  # FILE -> the names on FILE's could-not-look residual lines, in order, joined by a space: from --tsv's residual rows
+  # (residual, kind, name, why), or from the human report's residual section (the third cell at two spaces).
+  _s2470_cnl() {
+    LC_ALL=C awk -F'\t' '
+      $1 == "residual" && $2 == "could-not-look" { printf "%s%s", sep, $3; sep = " "; next }
+      $0 == "residual" { on = 1; next }
+      on && $0 == "" { on = 0 }
+      on && index($0, "  could-not-look  ") == 1 { split($0, a, "  "); printf "%s%s", sep, a[3]; sep = " " }
+    ' "$1" 2>/dev/null
+  }
+  is "$S2470_N3_6" "$S2470_RBT_C|$S2470_RBT_u8|$(_s2470_same bt)" "0|0|identical"
+  is "$S2470_N3_7" "$S2470_RBH_C|$S2470_RBH_u8|$(_s2470_same bh)" "0|0|identical"
+  is "$S2470_N3_8" \
+     "$S2470_RBT_C|$(_s2470_cnl "$S2470_D3/bt-C.out")|$S2470_RBH_C|$(_s2470_cnl "$S2470_D3/bh-C.out")|$S2470_RBT_u8|$(_s2470_cnl "$S2470_D3/bt-u8.out")|$S2470_RBH_u8|$(_s2470_cnl "$S2470_D3/bh-u8.out")" \
+     "0|a1 a_1 a_c ab|0|a1 a_1 a_c ab|0|a1 a_1 a_c ab|0|a1 a_1 a_c ab"
 fi
 
 # ---- RF4: an interrupted run and an early close -------------------------------------------------------------------
@@ -480,6 +512,37 @@ _s2470_rf6 "2470 rf6 with core.fsmonitor given through GIT_CONFIG_COUNT=1, GIT_C
   "$S2470_D/user" 'status --porcelain' 'fsmonitor ' GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor "GIT_CONFIG_VALUE_0=$S2470_D6/fsmonitor"
 _s2470_rf6 "2470 rf6 with filter.fx.clean given through GIT_CONFIG_PARAMETERS over the committed * filter=fx, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists" \
   "$S2470_D/user" 'hash-object svc.txt' 'clean ' "GIT_CONFIG_PARAMETERS='filter.fx.clean=$S2470_D6/clean'"
+# C17.11.1: core.quotePath=false in HOME's .gitconfig, and a repository whose second commit adds three .js files under
+# web/ with an e-acute in each name, and no package.json. Where git lists those names unquoted, the detector names
+# frontend, which no class uses, so the residual holds its no-row line (C10). Under each HOME felix probes first records
+# the head tree under a memory root of its own (C13); then --at reads that tree and --change reads HEAD~1..HEAD.
+S2470_Q6="$S2470_D6/q"; S2470_EA6=$'\303\251'
+_s2470_repo "$S2470_Q6" rf6; printf 'a\n' > "$S2470_Q6/svc.txt"
+_s2470_commit "$S2470_Q6" 1793000000 q0
+mkdir -p "$S2470_Q6/web"; for _s2470_c in 1 2 3; do printf 'x\n' > "$S2470_Q6/web/$S2470_EA6$_s2470_c.js"; done
+_s2470_commit "$S2470_Q6" 1793000100 q1
+mkdir -p "$S2470_D6/uqp" "$S2470_D6/qmem/rf6" "$S2470_D6/nmem/rf6"
+printf '[core]\n\tquotePath = false\n' > "$S2470_D6/uqp/.gitconfig"
+S2470_NR6="$(_s2470_tab residual no-row frontend 'named by the detector')"
+# FILE LINE -> yes when LINE is one of FILE's lines, else no.
+_s2470_line() { L="$2" LC_ALL=C awk '$0 == ENVIRON["L"] { f = 1 } END { print (f ? "yes" : "no") }' "$1" 2>/dev/null; }
+# HOME MEMORY NAME -> S2470_QR: felix probes' exit, then --at's exit and whether the frontend no-row line is one of its
+# lines, then the same two for --change, each run in q with that HOME.
+_s2470_qp() {
+  local h="$1" m="$2" n="$3" p
+  S2470_U="$h"
+  _s2470_run "$S2470_D6/$n-p" "$S2470_Q6" "$S2470_D6/home" "$m" "$S2470_E6" probes; p="$S2470_RC"
+  _s2470_newest "$m/rf6/facts.log"
+  _s2470_run "$S2470_D6/$n-a" "$S2470_Q6" "$S2470_D6/home" "$m" "$S2470_E6" situations --at "$S2470_TREE" --tsv
+  S2470_QR="$p|$S2470_RC|$(_s2470_line "$S2470_D6/$n-a.out" "$S2470_NR6")"
+  _s2470_run "$S2470_D6/$n-c" "$S2470_Q6" "$S2470_D6/home" "$m" "$S2470_E6" situations --change HEAD~1..HEAD --tsv
+  S2470_QR="$S2470_QR|$S2470_RC|$(_s2470_line "$S2470_D6/$n-c.out" "$S2470_NR6")"
+  S2470_U="$S2470_D/user"
+}
+_s2470_qp "$S2470_D6/uqp" "$S2470_D6/qmem" qp; S2470_QW="$S2470_QR"
+_s2470_qp "$S2470_D/user" "$S2470_D6/nmem" qn
+is "2470 rf6 with core.quotePath=false in HOME's .gitconfig and three tracked .js files under web/ with a non-ASCII letter in each name and no package.json, --change HEAD~1..HEAD --tsv names frontend at head with its no-row line, as --at --tsv names it at the recorded tree, and with HOME empty neither names it" \
+   "$S2470_QW|$S2470_QR" "0|0|yes|0|yes|0|0|no|0|no"
 
 # ---- RF7: a facts log shared by worktrees -------------------------------------------------------------------------
 # W1 and W2, linked worktrees of one repository: W1 at c0, W2 at c1 (svc.txt gains a line). cap_tests (cap:tests) is
@@ -647,3 +710,34 @@ _s2470_unread "$S2470_P9/obligations.tsv" "2470 rf9 with obligations.tsv made un
   "$S2470_UO" --at "$S2470_T9" --propose
 _s2470_unread "$S2470_P9/obligations.tsv" "2470 rf9 with obligations.tsv made unreadable, --change --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty" \
   "$S2470_UO" --change HEAD~1..HEAD --propose
+# C17.11.3. The mktemp first on PATH runs the real one; when what that made is a directory named felix-situations.*,
+# the run's scratch directory (C3.3), it makes an empty live-index in it with mode 400, so the copy of the live index
+# into it fails. The control: through the shim, a directory named felix-situations.* holds live-index, mode 400, and
+# one named otherwise holds nothing. S2470_MK9 is both exits, then each directory's entries, then live-index's mode.
+mkdir -p "$S2470_D9/mshim" "$S2470_D9/mkc"
+{ printf '#!/bin/sh\n'
+  printf "real='%s'\n" "$(type -P mktemp)"
+  cat <<'S2470MKTEMP'
+# mktemp, first on PATH (C17.11.3): the real mktemp; then, when what it made is a directory named felix-situations.*,
+# an empty live-index in it with mode 400.
+out="$("$real" "$@")" || exit "$?"
+printf '%s\n' "$out"
+case "${out##*/}" in
+  felix-situations.*) if [ -d "$out" ]; then : > "$out/live-index" && chmod 400 "$out/live-index"; fi ;;
+esac
+exit 0
+S2470MKTEMP
+} > "$S2470_D9/mshim/mktemp"
+chmod +x "$S2470_D9/mshim/mktemp"
+S2470_MA9="$("$S2470_D9/mshim/mktemp" -d "$S2470_D9/mkc/felix-situations.XXXXXX" 2>&1)"; S2470_MK9="$?"
+S2470_MB9="$("$S2470_D9/mshim/mktemp" -d "$S2470_D9/mkc/other.XXXXXX" 2>&1)"; S2470_MK9="$S2470_MK9 $?"
+S2470_MK9="$S2470_MK9|$(ls -A "$S2470_MA9" 2>&1)|$(ls -A "$S2470_MB9" 2>&1)|$(ls -l "$S2470_MA9/live-index" 2>&1 | cut -c1-10)"
+S2470_N9M="2470 rf9 with a mktemp first on PATH that makes live-index, mode 400, in the run's scratch directory, --at exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty"
+if [ -w "$S2470_MA9/live-index" ]; then
+  skip "$S2470_N9M" "live-index stays writable at mode 400, as it does when the suite runs as root"
+else
+  S2470_XE=("PATH=$S2470_D9/mshim:$S2470_D/bin:$PATH")
+  _s2470_run "$S2470_D9/mk" "$S2470_C9" "$S2470_H9" "$S2470_D9/mem" "$S2470_E7" situations --at "$S2470_T9"
+  S2470_XE=(S2470_EXTRA=none)
+  is "$S2470_N9M" "$S2470_MK9|$(_s2470_x3 "$S2470_D9/mk")" "0 0|live-index||-r--------|3|0|1|yes|"
+fi

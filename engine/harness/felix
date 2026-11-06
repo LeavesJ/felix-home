@@ -510,20 +510,29 @@ USAGE
 # is read by a machine may already mean something by 2: felix repair's 2 is the
 # repair ceiling, and the unattended template escalated an unresolvable checkout
 # to a person as a spent ceiling.
+#
+# A resolution that did not finish (a read it stands on failed, was killed or
+# could not fork) is neither found nor a miss, and says so (resolve_unknown):
+# the binding check is not run then, since it can append to bindings.tsv. Each
+# read is taken whole, its output and its status, by felix_capture.
 resolve_or_die() {
-  local rc="${1:-2}"
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
-  [ -n "$PROJ" ] && return 0
+  local rc="${1:-2}" broken known nl=$'\n'
+  felix_resolve_read PROJ "$PWD" "$FELIX_HOME_DIR"
+  case "$?" in 0) return 0 ;; 1) ;; *) resolve_unknown "$rc" ;; esac
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of
   # them sends them to add a second problem.
-  local broken; broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+  felix_capture broken felix_binding_broken "$PWD" "$FELIX_HOME_DIR" || resolve_unknown "$rc"
+  while [ "${broken%"$nl"}" != "$broken" ]; do broken="${broken%"$nl"}"; done
   [ -n "$broken" ] && die "$broken" "$rc"
+  felix_capture known _felix_ls "$FELIX_HOME_DIR/projects" || resolve_unknown "$rc"
+  [ -z "$known" ] || known="${known//"$nl"/ } "
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
-  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" "$rc"
+  Known projects: $known" "$rc"
 }
+resolve_unknown() { die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "${1:-2}"; }
 
 
 # The scheduled job that merges a green pull request. The project is resolved
@@ -740,13 +749,17 @@ cmd_install() {
   printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 
+# Every value is read, whole, before the first line is printed: a read that did not finish is the
+# unknown refusal with nothing on stdout, never four lines or an empty field.
 cmd_which() {
-  resolve_or_die; local proj="$PROJ"
-  printf 'project:      %s\n' "$(basename "$proj")"
+  resolve_or_die; local proj="$PROJ" mem gate root nl=$'\n'
+  felix_capture mem felix_mem_dir "$proj" && felix_capture gate _felix_json_field "$proj/project.json" gate \
+    && felix_capture root felix_repo_root "$PWD" || resolve_unknown 2
+  printf 'project:      %s\n' "${proj##*/}"
   printf 'doctrine:     %s\n' "$proj/CLAUDE.md"
-  printf 'memory:       %s\n' "$(felix_mem_dir "$proj")/"
-  printf 'gate:         %s\n' "$(felix_json_str "$proj/project.json" gate)"
-  printf 'governs:      %s\n' "$(felix_repo_root "$PWD")"
+  printf 'memory:       %s\n' "$mem/"
+  printf 'gate:         %s\n' "${gate%%"$nl"*}"
+  printf 'governs:      %s\n' "$root"
 }
 
 cmd_gate() {

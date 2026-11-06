@@ -425,6 +425,7 @@ fi
 . "$HERE/parts/2230-lane-status-row-blind.sh"
 . "$HERE/parts/2240-lane-session-start-blind.sh"
 . "$HERE/parts/2250-lane-pulse-blind.sh"
+. "$HERE/parts/2480-deploy-window-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

@@ -47,8 +47,31 @@ the tick's next run deploys.
   that suite). A pid `ps` does not show stays: it counts as running. The marker
   ends with its door, or within a second if the door dies.
 
-**Shown red and green.** Part 2480 was written blind from the contract by an
-agent that had not seen the implementation. (Figures to be filled in.)
+**Shown red and green.** Part 2480 (102 assertions, 15 of them fixture
+controls) was written blind from the contract by an agent that had not seen the
+implementation, and run on main's tree (4c4c0b3d) before the implementation
+reached it: 54 assertions fail there, and no control does. On this tree it
+passes, 0 failures. Two of its first four failures here were the part's own
+(a limit test that removed the hold itself; a helper that read `pid 40010;` as
+not naming the pid) and went back to its author; one was the tick writing the
+hold twice a run, which broke "SINCE = LEASE on a first assertion" (fixed
+here). Seven mutants of the implementation: six turn the part red (a bare-token
+filter 6 assertions, no `FELIX_HOLD_PASSED` export 4, a tick that keeps the
+hold when nothing is owed 1, a stale lease read as in force 4, part mode that
+waits 2, a waiter with no bound 4); the seventh, a `_gt_pause` that no longer
+clears the hold, is equivalent at the contract's level, since the next tick's
+paused branch clears it (DW2.3 speaks of the end of the tick).
+The existing land parts (1280 to 1289, 1650, 1660, 1665, 1680, 1710, 1720,
+2120) pass against this tree.
+
+**Reviewed.** One adversarial pass, weighted toward simplification. Its
+blocker: with the bare token, a fixture's waiter inside a real suite's test made
+the tick drop the real suite and deploy under it; the token now carries the
+memory root. Its simplification (one marker child per wait, in place of a
+re-exec and sleep chain) replaced the first design, whose waiter was visible to
+the tick for about 15 ms per poll. Its major finding (a stray matcher stalls the
+machine for the whole limit) cut the default limit from 7200 to 3600 s; the
+rest are limits below.
 
 **Not done, and limits.**
 - The first deploy of this change is made by a tick that does not have it, so

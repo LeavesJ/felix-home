@@ -105,7 +105,7 @@ is "cli-reach amendment U4: felix_route_due prints the same with the ledger empt
 is "cli-reach amendment U4: with cli graphify in the ledger, claude-md-management is due and not graphify" \
    "$(_rs9_hl "$(_rs9_lib felix_route_due "$RS9T0" "$RS9PLAY" "$RS9LG")" claude-md-management graphify)" "+claude-md-management -graphify"
 is "cli-reach amendment U4: with cli claude-md-management alone, graphify is still due" \
-   "$(_rs9_hl "$(_rs9_lib felix_route_due "$RS9T0" "$RS9PLAY" "$RS9LC")" graphify claude-md-management)" "+graphify -claude-md-management"
+   "$(_rs9_lib felix_route_due "$RS9T0" "$RS9PLAY" "$RS9LC" | LC_ALL=C cut -f1)" "graphify"
 is "cli-reach amendment U4: with both run, nothing is due" "$(_rs9_lib felix_route_due "$RS9T0" "$RS9PLAY" "$RS9LB")" ""
 is "cli-reach amendment U4: a step the transcript used and one the ledger holds leave nothing due" \
    "$(_rs9_lib felix_route_due "$RS9TC" "code-review graphify" "$RS9LG")" ""

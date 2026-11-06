@@ -159,6 +159,9 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     r_pscore="$(printf '%s' "$best" | LC_ALL=C cut -f2)"
     r_name="$(printf '%s' "$best" | LC_ALL=C cut -f5)"
     r_play="$(printf '%s' "$best" | LC_ALL=C cut -f7)"
+    # The session's appends, which hold a step run as a program (`cli <name>`),
+    # for the payload's own id only; no usable id, no ledger.
+    felix_route_ledger "$FELIX_HOME_DIR" "$sid_raw"; r_ledger="$FELIX_ROUTE_LEDGER"
     felix_route_log "$PROJ" "$r_name" "$r_score" "$raw"
 
     # The policy's decision, recorded beside the outcome the ledger already
@@ -190,7 +193,7 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # itself a reason to speak: the next one is now the thing to do. Keyed on
     # the route alone, Felix named a tool once and went quiet for the rest of
     # the session, which is how a sequence becomes a single suggestion.
-    r_due="$(felix_route_due "$transcript" "$r_play" 2>/dev/null | LC_ALL=C cut -f1)"
+    r_due="$(felix_route_due "$transcript" "$r_play" "$r_ledger" 2>/dev/null | LC_ALL=C cut -f1)"
 
     # Where the route came from, kept as a word rather than the score it was
     # derived from. `Stop` reads this to decide whether an unused play is worth
@@ -240,9 +243,9 @@ elif [ -f "$PROJ/routes.tsv" ]; then
     # ${last%%:*} is the route name: the state value is name:due and only the
     # due half may contain colons (play entries like superpowers:brainstorming).
     if [ ! -f "$state" ]; then
-      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
+      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript" "$r_ledger")"
     elif [ "${last%%:*}" = "$r_name" ] && [ "$last" != "$r_name:${r_due:-done}" ]; then
-      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript")"
+      route_block="$(felix_route_render "$PROJ" "$r_name" "$r_play" "$root" "$r_pscore" "$transcript" "$r_ledger")"
     fi
     # Written every turn, not only when announcing, so provenance tracks the
     # latest turn. A route that was a guess and then became something you asked

@@ -470,8 +470,9 @@ _felix_ledger_cli() {   # LEAD NAMES
 # The names a session can reach from the shell: the bare play entries of the
 # project's routes, with no plugin prefix and no marketplace, which are the
 # strings a `named` row already carries, so a reach and a naming meet on one
-# name. One line, each name once in table order, at most 32, and an empty line
-# when there are none. Rows as _felix_route_rows reads them.
+# name. One line, each name once in table order, then the project's declared
+# `cli` tools (stack.tsv), at most 32 in all, and an empty line when there are
+# none. Rows as _felix_route_rows reads them.
 felix_ledger_cli_names() {   # PROJ
   local LC_ALL=C IFS=$' \t\n' proj="$1" n p pr pl one out=" " k=0 g=0
   local re='^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$'
@@ -488,6 +489,22 @@ felix_ledger_cli_names() {   # PROJ
         [ "$k" -lt 32 ] || break 2
       done
     done < "$proj/routes.tsv"
+  fi
+  # A tool stack.tsv declares with its own `cli` kind is run from the shell as
+  # much as a play entry is, so it is a name too, after the routes' names and
+  # inside the same cap. Read as the fold reads stack.tsv: a last row with no
+  # newline counts, and the kind is compared whole.
+  if [ -f "$proj/stack.tsv" ] && [ "$k" -lt 32 ]; then
+    while IFS= read -r n || [ -n "$n" ]; do
+      # Split by hand: a tab in IFS is whitespace, so read would run two tabs
+      # together and take the third field for an empty second.
+      case "$n" in "cli"$'\t'*) ;; *) continue ;; esac
+      p="${n#*$'\t'}"; p="${p%%$'\t'*}"
+      [[ $p =~ $re ]] || continue
+      case "$out" in *" $p "*) continue ;; esac
+      out="$out$p "; k=$((k + 1))
+      [ "$k" -lt 32 ] || break
+    done < "$proj/stack.tsv"
   fi
   [ "$g" = 1 ] || set +f
   out="${out# }"
@@ -552,10 +569,15 @@ felix_ledger_record() {
 # another session's file. No fork: this runs after every tool call. Returns 1,
 # with the variable empty, when the payload names no session.
 felix_ledger_session_id() {
-  local LC_ALL=C
+  local LC_ALL=C lead
   local re='"session_id"[[:space:]]*:[[:space:]]*"([^"]*)"'
   FELIX_LEDGER_SID=""
-  [[ $1 =~ $re ]] || return 1
+  # Only the payload's first 32 KB is searched, the window felix_ledger_signal
+  # reads a Bash command in: Claude Code writes the key second, after the event
+  # name, so what follows it (a tool's whole response, up to 4 MB) is never a
+  # reason to scan. Cutting is a bound on bytes under LC_ALL=C.
+  lead=${1:0:32768}
+  [[ $lead =~ $re ]] || return 1
   FELIX_LEDGER_SID="${BASH_REMATCH[1]}"
   [ -n "$FELIX_LEDGER_SID" ]
 }

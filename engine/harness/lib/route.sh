@@ -431,14 +431,14 @@ _felix_route_kind() {
 # not frontend" surfaces a keyword worth fixing. Obedience is not the goal —
 # the goal is that skipping costs a sentence.
 felix_route_render() {
-  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" transcript="${6:-}"
+  local proj="$1" name="$2" play="$3" root="$4" pscore="${5:-1}" transcript="${6:-}" ledger="${7:-}"
   local p kind due rest
   printf 'Felix routed this to: %s\n' "$name"
   [ "${pscore:-1}" -eq 0 ] && \
     printf 'Read off the working tree, not the prompt: nothing you typed named a\nkind of work, so this is a guess from what is currently changed.\n'
 
   if [ "$play" != "-" ] && [ -n "$play" ]; then
-    if due="$(felix_route_due "$transcript" "$play")"; then
+    if due="$(felix_route_due "$transcript" "$play" "$ledger")"; then
       rest="$(printf '%s' "$due" | LC_ALL=C cut -f2)"
       due="$(printf '%s' "$due" | LC_ALL=C cut -f1)"
       kind="$(_felix_route_kind "$proj" "$due")"
@@ -497,6 +497,30 @@ _felix_route_red() {
   printf 'decides only where felix merge names an escape channel.\n'
 }
 
+# The session's appends, <home>/state/ledger/<session>.tsv, in FELIX_ROUTE_LEDGER:
+# empty unless the session id is usable as a file name (the rule lib/answer.sh
+# applies to its own per-session file). Not a call into that library: the
+# prompt and Stop hooks do not both load it.
+felix_route_ledger() {   # HOME SESSION
+  FELIX_ROUTE_LEDGER=""
+  case "${2:-}" in
+    ''|*[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_-]*) return 0 ;;
+  esac
+  [ -n "${1:-}" ] && FELIX_ROUTE_LEDGER="$1/state/ledger/$2.tsv"
+  return 0
+}
+
+# 0 when FILE holds a line that is exactly LINE and ends in a line break (a
+# last line with none may be an append still being written). A read loop, no
+# process and no pipe: grep -q after a pipe races under pipefail.
+_felix_route_ledger_has() {   # FILE LINE
+  local l
+  while IFS= read -r l; do
+    [ "$l" = "$2" ] && return 0
+  done < "$1" 2>/dev/null
+  return 1
+}
+
 # Has a play step actually been used in this session?
 #
 # The session transcript records it three ways depending on what the step is: a
@@ -504,8 +528,18 @@ _felix_route_red() {
 # that ships an MCP server shows up as a tool name. Checked with grep rather
 # than parsed — 21ms against a 5MB transcript, and no JSON reader in an engine
 # that promises only bash and git.
-felix_route_step_used() {
-  local transcript="$1" step="$2" owner
+felix_route_step_used() {   # TRANSCRIPT STEP [LEDGER]
+  local transcript="$1" step="$2" ledger="${3:-}" owner
+  # A step that is a program name, run from the shell, is in the session's
+  # appends as `cli <name>` (felix_ledger_signal) and in no transcript signal
+  # below. Whole-line and exact: a plugin's bare name is a name too, and a
+  # qualified step (`a:b`, `a@m`) is not one, so it never matches here.
+  if [ -n "$ledger" ] && [ -f "$ledger" ]; then
+    case "$step" in
+      ''|*[!A-Za-z0-9._+-]*|[!A-Za-z0-9]*) ;;
+      *) [ "${#step}" -le 64 ] && _felix_route_ledger_has "$ledger" "cli	$step" && return 0 ;;
+    esac
+  fi
   [ -n "$transcript" ] && [ -f "$transcript" ] || return 1
   case "$step" in *:*) owner="${step%%:*}" ;; *) owner="$step" ;; esac
   grep -q "\"attributionSkill\":\"$step\""    "$transcript" 2>/dev/null && return 0
@@ -549,12 +583,12 @@ felix_route_step_used() {
 # browser-test something that does not exist, and spends context saying it. A
 # play is a sequence, so only the step that is actually due gets named; the rest
 # arrive as the work reaches them, or not at all if it never does.
-felix_route_due() {
-  local transcript="$1" play="$2" p due="" rest=""
+felix_route_due() {   # TRANSCRIPT PLAY [LEDGER]
+  local transcript="$1" play="$2" ledger="${3:-}" p due="" rest=""
   [ -n "$play" ] && [ "$play" != "-" ] || return 1
   for p in $play; do
     if [ -z "$due" ]; then
-      felix_route_step_used "$transcript" "$p" && continue
+      felix_route_step_used "$transcript" "$p" "$ledger" && continue
       due="$p"
     else
       rest="$rest $p"
@@ -567,11 +601,11 @@ felix_route_due() {
 # Steps a route asked for that the session never used. Read at the finish line,
 # where "you are about to call this done and never opened a browser" is a fact
 # about the work rather than a rule quoted at turn one.
-felix_route_skipped() {
-  local transcript="$1" play="$2" p out=""
+felix_route_skipped() {   # TRANSCRIPT PLAY [LEDGER]
+  local transcript="$1" play="$2" ledger="${3:-}" p out=""
   [ -n "$play" ] && [ "$play" != "-" ] || return 0
   for p in $play; do
-    felix_route_step_used "$transcript" "$p" || out="$out $p"
+    felix_route_step_used "$transcript" "$p" "$ledger" || out="$out $p"
   done
   printf '%s' "${out# }"
 }

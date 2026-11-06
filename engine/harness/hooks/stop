@@ -276,7 +276,9 @@ _felix_stop_skipped() {
   [ -n "$play" ] && [ "$play" != "-" ] || return 0
   tp="$(printf '%s' "$raw" | sed -n 's/.*"transcript_path"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
   [ -n "$tp" ] && [ -f "$tp" ] || return 0
-  felix_route_skipped "$tp" "$play"
+  # The session's appends hold a step run as a program (`cli <name>`).
+  felix_route_ledger "$FELIX_HOME_DIR" "$sid"
+  felix_route_skipped "$tp" "$play" "$FELIX_ROUTE_LEDGER"
 }
 
 # A hook belonging to another plugin that refused tool calls this session.

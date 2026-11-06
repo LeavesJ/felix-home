@@ -1,4 +1,4 @@
-### 2026-11-05: a Bash command that runs a routed tool is recorded as a reach of it (0.49.321)
+### 2026-11-05: a Bash command that runs a routed tool is recorded as a reach of it (0.49.325)
 
 **What changed, in one line.** A session's Bash call that runs, as a program, a
 tool the project's route table names is now recorded in the ledger as

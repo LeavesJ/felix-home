@@ -381,8 +381,11 @@ felix_ledger_mcp() {
 # no reading anything back.
 #
 # Emits: kind <TAB> name. Empty when the payload carries no tool name, which is
-# a normal answer and never an error.
-felix_ledger_signal() {
+# a normal answer and never an error. NAMES, when given, is the file of names
+# session start wrote for the session (felix_ledger_cli_note): a Bash call whose
+# command runs one of them as a program emits `cli <name>` in place of
+# `tool Bash`.
+felix_ledger_signal() {   # RAW [NAMES]
   local raw="$1" tool skill
   tool="$(printf '%s' "$raw" \
     | sed -n 's/.*"tool_name"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
@@ -413,8 +416,102 @@ felix_ledger_signal() {
         | sed -n 's/.*"subagent_type"[[:space:]]*:[[:space:]]*"\([^"]*\)".*/\1/p' | head -1)"
       [ -n "$skill" ] && { printf 'agent\t%s' "$skill"; return 0; }
       ;;
+    # A command-line tool a route names, run from the shell. Recorded by what
+    # it reached, as a skill or an agent is, and by its name alone: a command
+    # can hold a credential, and the ledger sits in synced Documents. Only the
+    # payload's first 32 KB is handed on, because a copy of a large payload
+    # costs more than the reading does.
+    Bash)
+      if [ -n "${2:-}" ]; then
+        local LC_ALL=C lead
+        lead=${raw:0:32768}
+        _felix_ledger_cli "$lead" "$2" && { printf 'cli\t%s' "$FELIX_LEDGER_CLI"; return 0; }
+      fi
+      ;;
   esac
   printf 'tool\t%s' "$tool"
+}
+
+_FELIX_LEDGER_CLI_KEY='^"command"[[:space:]]*:[[:space:]]*"'
+_FELIX_LEDGER_CLI_STR='^([^"\\]|\\.)*'
+_FELIX_LEDGER_CLI_NAMES='^([A-Za-z0-9][A-Za-z0-9._+-]{0,63}( [A-Za-z0-9][A-Za-z0-9._+-]{0,63})*)?$'
+
+# The routed tool a Bash payload's command runs, in FELIX_LEDGER_CLI, status 0
+# when there is one. LEAD is the payload's first 32 KB and NAMES the session's
+# names file. Up to the reading this is builtins and one read of that file, and
+# the reading (lib/ledger-runs.sh) is loaded only for a command whose text
+# holds one of the names, which almost none do. A names file that holds
+# anything else is no names file.
+_felix_ledger_cli() {   # LEAD NAMES
+  local LC_ALL=C IFS=' ' lead="$1" names="" e p c n hit=""
+  FELIX_LEDGER_CLI=""
+  [ -f "$2" ] || return 1
+  { IFS= read -r names < "$2"; } 2>/dev/null
+  [ -n "$names" ] && [[ $names =~ $_FELIX_LEDGER_CLI_NAMES ]] || return 1
+  # The command is the value of the first "command" in the payload, which is
+  # tool_input's key, and only when that is a key.
+  p="${lead%%\"command\"*}"
+  [ "${#p}" -lt "${#lead}" ] || return 1
+  e="${lead:${#p}}"
+  [[ $e =~ $_FELIX_LEDGER_CLI_KEY ]] || return 1
+  e="${e:${#BASH_REMATCH[0]}}"; e="${e:0:16384}"
+  # A name in the command's own text, which ends at the first quote no
+  # backslash escapes: one in the description or the response loads nothing.
+  # The reading is still handed the quote, since only the quote closes a word.
+  [[ $e =~ $_FELIX_LEDGER_CLI_STR ]]; c="${BASH_REMATCH[0]}"
+  for n in $names; do case "$c" in *"$n"*) hit=1; break ;; esac; done
+  [ -n "$hit" ] || return 1
+  command -v felix_ledger_runs >/dev/null 2>&1 \
+    || . "$_FELIX_LEDGER_LIB/ledger-runs.sh" 2>/dev/null || return 1
+  felix_ledger_runs "$names" "$e" || return 1
+  FELIX_LEDGER_CLI="$FELIX_LEDGER_RUN"
+}
+
+# The names a session can reach from the shell: the bare play entries of the
+# project's routes, with no plugin prefix and no marketplace, which are the
+# strings a `named` row already carries, so a reach and a naming meet on one
+# name. One line, each name once in table order, at most 32, and an empty line
+# when there are none. Rows as _felix_route_rows reads them.
+felix_ledger_cli_names() {   # PROJ
+  local LC_ALL=C IFS=$' \t\n' proj="$1" n p pr pl one out=" " k=0 g=0
+  local re='^[A-Za-z0-9][A-Za-z0-9._+-]{0,63}$'
+  case $- in *f*) g=1 ;; esac
+  set -f
+  if [ -f "$proj/routes.tsv" ]; then
+    while IFS=$'\t' read -r n p pr pl || [ -n "${n:-}" ]; do
+      case "$n" in ''|'#'*) continue ;; esac
+      [ -n "${pr:-}" ] || continue
+      for one in ${pl:-}; do
+        [[ $one =~ $re ]] || continue
+        case "$out" in *" $one "*) continue ;; esac
+        out="$out$one "; k=$((k + 1))
+        [ "$k" -lt 32 ] || break 2
+      done
+    done < "$proj/routes.tsv"
+  fi
+  [ "$g" = 1 ] || set +f
+  out="${out# }"
+  printf '%s\n' "${out% }"
+}
+
+# Written at session start, for every source, so that the post-tool hook, which
+# must not resolve the project, can read a Bash command against its routes
+# (felix_ledger_signal). Beside the session's appends and replaced whole: made
+# under a dotted name and renamed, so no reader sees half of it, and no *.tsv
+# glob over the directory sees it at all. Never fatal.
+felix_ledger_cli_note() {   # HOME SESSION PROJ
+  local home="$1" session="${2:-}" proj="$3" d t
+  [ -n "$home" ] && _felix_answer_sid_ok "$session" || return 0
+  d="$home/state/ledger"
+  [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || return 0
+  t="$(mktemp "$d/.$session.names.XXXXXX" 2>/dev/null)" || return 0
+  # A link at the path is replaced, not followed: mv onto a link to a directory
+  # moves the file into it. A directory there is left, with no names file.
+  [ -L "$d/$session.names" ] && rm -f "$d/$session.names" 2>/dev/null
+  [ -d "$d/$session.names" ] || { felix_ledger_cli_names "$proj" > "$t" 2>/dev/null \
+    && mv -f "$t" "$d/$session.names" 2>/dev/null && return 0; }
+  rm -f "$t" 2>/dev/null
+  return 0
 }
 
 _felix_ledger_state() { printf '%s/state/ledger/%s.tsv' "$1" "$2"; }

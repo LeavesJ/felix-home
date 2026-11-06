@@ -184,9 +184,10 @@ runs from the line after the operator's line to the first line that is WORD
 alone (for `<<-`, after any leading tabs). Reading resumes after that line,
 whose line break counts as a separator. Several here-documents on one line are
 read in order. When WORD is unquoted the shell joins a body line that ends in a
-backslash to the next before it looks for WORD, so such a line ends the reading
-(R9): the WORD line after it is not the end of the body. A substitution in such
-a body runs, and is not read (R10). `<<<` is a here-string, not a
+backslash to the next before it looks for WORD, so a WORD line that directly
+follows such a line is not the end of the body: it ends the reading (R9). A
+backslash line further up changes nothing. A substitution in such a body runs,
+and is not read (R10). `<<<` is a here-string, not a
 here-document (R3).
 
 R8. **Line continuation.** A backslash at the end of a line joins it to the

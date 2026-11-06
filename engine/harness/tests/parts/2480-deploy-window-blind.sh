@@ -148,9 +148,12 @@ _dw_until 3 _dw_said w2 'went ahead after'
 is "DW5: a file still there but no longer in force (a stale lease) ends the wait as the hold lapsed" \
    "$(_dw_lines w2 '^felix gate: went ahead after [0-9]+ s: the hold lapsed$')" "1"
 _dw_wait "$DWBG"
-_dw_m w3; _dw_hf "$H1" "$N" "$((N + 1000))" -; DWE=(FELIX_DEPLOY_HOLD_LIMIT=2); _dw_g w3 "$M"
+_dw_m w3; _dw_hf "$H1" "$N" "$((N + 1000))" -; DWE=(FELIX_DEPLOY_HOLD_LIMIT=2); DWHOLD=1 _dw_g w3 "$M"
+_dw_until 6 _dw_saidorgone w3 'went ahead after' "$DWBG"
 is "DW5: bounded: with FELIX_DEPLOY_HOLD_LIMIT=2 and the hold still in force, it goes ahead saying the limit was reached" \
-   "$DWW|$(_dw_lines w3 '^felix gate: went ahead after [0-9]+ s: the limit was reached$')|$(_dw_ran)" "waited|1|gate ran"
+   "$DWW|$(_dw_lines w3 '^felix gate: went ahead after [0-9]+ s: the limit was reached$')" "waited|1"
+_dw_wait "$DWBG"
+is "DW5: and then its gate runs" "$(_dw_ran)" "gate ran"
 has "DW5: and the waiting line says at most 2 s" "$(sed -n 1p "$DW/r/w3.err")" "at most 2 s"
 _dw_m w4; mkdir -p "$M/p2/land"; printf 'garbled\n' > "$H1"; _dw_hf "$M/p2/land/deploy-hold" "$((N - 1100))" "$N" -; _dw_dw1w w4 \
   "one project's file garbled and another's in force (lease 1100 s old): any one in force holds the machine"
@@ -244,7 +247,13 @@ _dw_land() {   # ARGS -> felix land ARGS from the home under a 90 s bound, this 
 _dw_tick() { rm -f "$LAND/ledger.tsv" "$DWK/ps.log"; T0="$(_dw_now)"; _dw_land --tick; T1="$(_dw_now)"; }
 _dw_k() { rm -f "$DWK"/*; cp "$DW/ps.table" "$DWK/ps.out"; [ "$#" -eq 0 ] || printf '%s\n' "$@" > "$DWK/pgrep.out"; }   # PID...: what pgrep lists
 _dw_row() { _lg_f deploy-owed "" 7; }
-_dw_named() { local r; r="$(_dw_row)"; case "$r" in *"pid $1 "*|*"pid $1,"*|*"pid $1") echo named ;; *) echo "not named" ;; esac; }   # PID -> the row's matched names it
+_dw_named() {   # PID [ROW] -> the row (default the last deploy-owed row's detail) names pid PID, followed by a non-digit or its end
+  local r; if [ "$#" -ge 2 ]; then r="$2"; else r="$(_dw_row)"; fi
+  case "$r" in *"pid $1"[!0123456789]*|*"pid $1") echo named ;; *) echo "not named" ;; esac
+}
+is "the tick fixture: _dw_named reads pid 40010 before a semicolon or at the end as named, and pid 4001 or 400100 as not (control)" \
+   "$(_dw_named 40010 'matched pid 40010; new suites and gates wait')|$(_dw_named 40010 'matched pid 40010')|$(_dw_named 4001 'matched pid 40010')|$(_dw_named 400100 'matched pid 40010')" \
+   "named|named|not named|not named"
 _dw_dwlog() { LC_ALL=C awk -F'\t' -v c="$1" '$1 == c { print $2 "|" $3; exit }' "$LGL/dw.log" 2>/dev/null; }   # CMD -> FELIX_HOLD_PASSED|hold files
 _dw_lacks() { case "$2" in *"$3"*) bad "$1" "[$2] holds [$3]" ;; *) ok "$1" ;; esac; }
 _dw_ino() { ls -i "$1" 2>/dev/null | awk '{ print $1 }'; }

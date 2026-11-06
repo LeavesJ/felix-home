@@ -123,14 +123,68 @@ lists an `evidence` blocker for the same project and base.
 - A dangling link points at a name that exists nowhere. A link to a directory
   points at a directory made in the fixture.
 - A FIFO is made with `mkfifo` and is never read, by the engine or by the
-  test; it appears only in D1.
+  test. It appears in D1 and, by amendment 1, in R. Every command run over a
+  FIFO runs under a watchdog, and the watchdog ends the command's children
+  too, not only the shell that started them: a child that opened the FIFO and
+  stays blocked in it is a leak that outlives the suite's temporary directory.
 - No assertion may depend on how many other blockers `felix merge --dry-run`
   prints. It reads the lines that start with `evidence` and nothing else.
 - Every name is emitted on every run; an assertion whose state could not be
   built skips by name and says why.
 
+## Amendments (2026-11-06, after the adversarial review of the first part)
+
+The first part passed the contract above, and a reviewer who mutated the
+engine one change at a time found what the contract had left out: three
+mutants that no assertion caught (a FIFO-only carve-out in two readers and in
+the judge, and `felix incident` printing its section with nothing at the
+path), and two readers the part never ran. These amendments close them. Each
+assertion below is new, and each says whether it holds on main before the
+fix. The part keeps every assertion above.
+
+**Amendment 1. R gains a fourth state: a FIFO.** Every reading of R above
+(A1 to A5, and the arming assertion that the state stands and that
+`felix merge --dry-run` lists the not-judged row) is run for the FIFO too,
+under the watchdog the fixtures section describes. The engine never opens the
+path, so none of these may hang. Red on main, like the other three.
+
+**Amendment 2. C1 runs `felix incident`.** With nothing at the path,
+`felix incident`, given a trace that names a path, prints its implicated files
+and does not print the heading "the fix will have to prove". Holds on main.
+
+**Amendment 3. A6, `felix next`.** For each state in R, `felix next` prints a
+row saying an evidence row cannot be judged, naming `evidence.tsv`, and with
+nothing at the path (C1) or a readable table (C3) it prints no such row. A5
+extends to it: that row is there if and only if `felix merge --dry-run` lists
+an `evidence` blocker. Holds on main; it guards the reader against a
+regression.
+
+**Amendment 4. A7, `felix brief`.** For each state in R, `felix brief`
+given an issue that names a path prints a "what a fix must prove" section
+with one row named `evidence.tsv` whose reason holds "cannot be read" and
+"not judged"; with nothing at the path (C1) it prints no such section. A5
+extends to it as for A6. Holds on main.
+
+**Amendment 5. D3 reads every unary file test.** In D3 the operators are
+every unary file operator the shell has (`-a -b -c -d -e -f -g -h -k -L -N -O
+-p -r -S -s -t -u -w -x -G` and the others a `[`, `[[` or `test` takes), not
+the six listed, so a reader that adds a `-p` or a `-h` test is found. Its
+armed control plants one of the new operators and finds it.
+
+**Amendment 6. D4, `receipt.sh` sourced alone.** A shell that sources
+`lib/receipt.sh` and nothing else of the evidence code (it may source
+`lib/resolve.sh` first, which `receipt.sh` already loads for itself) and calls
+`felix_receipt` for the widget project and a base: (a) with nothing at the path
+and with a readable table, prints nothing on stderr; (b) with a directory at
+the path lists `evidence` under `unknown`, as the CLI's `felix receipt` does.
+(a) holds on main; (b) is red on main, where the receipt takes a directory for
+no table.
+
 ## Out of scope
 
 Rewording any message the readers print. Changing what the judge says. The
 `-f` question inside `_felix_evidence_declared`, which runs only after the
-judge has found a regular file.
+judge has found a regular file. Brief mode (`felix incident`, `felix brief`)
+not reading `project.json`, so a bad `evidence_*` declaration that makes
+`felix merge` refuse reads in the brief as ordinary rows: a different
+disagreement, recorded for a later change.

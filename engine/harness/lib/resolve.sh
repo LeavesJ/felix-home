@@ -312,13 +312,13 @@ felix_json_str() {
   LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
-# Reads that say whether they finished (2026-10-31). Each read an answer stands on runs under felix_capture (lib/detect.sh),
-# so a fork that failed or a read that was killed is told apart from an empty answer; _felix_cap loads it from beside this
-# file (declare -F: no fork, no function named command), and when it cannot, every read that needed it did not finish.
+# Reads that say whether they finished (2026-10-31), each under felix_capture (lib/detect.sh): a fork that failed or a read
+# killed is not an empty answer. _felix_cap loads it from beside this file (declare -F: no fork, no function named command);
+# when it cannot, every read that needed it did not finish.
 # The readers run in felix_capture's subshell (a cd there moves nothing) and return 0 for each finished answer.
 # _felix_git_in prints a last line, git's status or - for a DIR it cannot enter, which _felix_st_split takes into _FELIX_ST,
-# the rest in _FELIX_SO with its trailing LFs dropped as $(...) drops them. _felix_json_field is felix_json_str's sed with
-# no pipe (head's status hid sed's); the caller takes its first line.
+# the rest in _FELIX_SO with its trailing LFs dropped as $(...) drops them. _felix_json_field is felix_json_str's sed and
+# head with both statuses read (head's alone hid sed's); sed's 141, the SIGPIPE after head took its line, is an answer.
 _felix_cap() {
   declare -F felix_capture >/dev/null && return 0
   local f="${BASH_SOURCE[0]:-}" d
@@ -334,9 +334,10 @@ _felix_st_split() {   # VALUE
   _FELIX_SO="$v"
 }
 _felix_marker_read() { [ -r "$1" ] || return 0; LC_ALL=C tr -d '[:space:]' < "$1" 2>/dev/null; }   # unreadable names nothing
-_felix_json_field() { [ -f "$1" ] && [ -r "$1" ] || return 0; LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1"; }
+_felix_json_field() { [ -f "$1" ] && [ -r "$1" ] || return 0
+  LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1; set -- "${PIPESTATUS[@]}"; case "$1:$2" in 0:0|141:0) ;; *) return 1 ;; esac; }
 _felix_ls() { ls "$1" 2>/dev/null; case "$?" in 0|1|2) return 0 ;; esac; return 1; }   # a directory ls cannot list is no names
-_felix_rr_walk() { cd "$1" 2>/dev/null || return 0; printf x; pwd -P; }   # x: the cd worked, so an empty or relative answer is not one
+_felix_rr_walk() { cd "$1" 2>/dev/null || return 0; printf x; pwd -P; }   # x: the cd worked, so an empty answer is not one
 
 # Print the repo root for a directory, or the directory itself when not in git.
 # Felix must work in a checkout that is not a git repo at all. It prints what it printed before 2026-10-31 in every case,
@@ -353,7 +354,7 @@ felix_repo_root() {
   # any other text ends in ${d%/*} == $d, which never ends.
   if _felix_cap; then
     felix_capture d _felix_rr_walk "$start" || { d=""; rc=2; }
-    case "$d" in x/*) d="${d#x}" ;; x*) d=""; rc=2 ;; esac
+    case "$d" in x/*) d="${d#x}" ;; x) d=""; rc=2 ;; *) d="" ;; esac   # a relative one is not walked, and git decides
   else rc=2; d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""; fi
   case "$d" in /*) ;; *) d="" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
@@ -366,7 +367,7 @@ felix_repo_root() {
   # sentinel after it says whether git ran to its end.
   root="$(cd "$start" 2>/dev/null || { printf '\n-.'; exit 0; }; git rev-parse --show-toplevel 2>/dev/null; printf '\n%s.' "$?")"
   st="${root##*"$nl"}"
-  case "$st" in -.|[0-9].|[0-9][0-9].|[0-9][0-9][0-9].) root="${root%"$nl"*}"; while [ "${root%"$nl"}" != "$root" ]; do root="${root%"$nl"}"; done ;; *) st="" ;; esac
+  case "$st" in -.|[0123456789].|[0123456789][0123456789].|[0123456789][0123456789][0123456789].) root="${root%"$nl"*}"; while [ "${root%"$nl"}" != "$root" ]; do root="${root%"$nl"}"; done ;; *) st="" ;; esac
   case "$st:$root" in 0.:/*|-.:*|128.:*) ;; *) rc=2 ;; esac
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
   return "$rc"
@@ -719,7 +720,7 @@ _felix_binding_remote() {   # ROOT HOME
   [ "$rc" != 3 ] || return 2
   [ -n "$_FELIX_RB_U" ] || return 0
   _felix_cap && felix_capture key _felix_bind_key "$root" "$home" "$_FELIX_RB_U" || return 2
-  case "${#key}:$key" in *:*[!0-9a-f]*) return 2 ;; 40:*|64:*) ;; *) return 2 ;; esac   # one SHA-1 or SHA-256 line
+  case "${#key}:$key" in *:*[!0123456789abcdef]*) return 2 ;; 40:*|64:*) ;; *) return 2 ;; esac   # one SHA-1 or SHA-256 line
   mem="${FELIX_MEMORY:-$HOME/.felix/memory}"; f="$mem/bindings.tsv"   # felix_mem_root's body: no fork to fail
   if [ -f "$f" ] && [ -r "$f" ]; then
     while IFS=$'\t' read -r k p t || [ -n "${k:-}" ]; do

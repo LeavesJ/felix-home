@@ -8,203 +8,40 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	deca9fdc8109199c6aef283dc5e8c5a1e1d2b6d9	0.49.319
-run	198	15531	35
-A1.1: with FELIX_GRAPH_ANSWER=0 it prints nothing, exits 1 and runs nothing	1
-A1.2: a checkout with no graph file gets nothing and exit 1, and graphify is not run	1
-A1.2: from a worktree it asks the graph of the checkout that holds it	1
-A1.3: with graphify on PATH and no perl it prints nothing, exits 1 and does not run graphify	1
-A1.3: with no graphify on PATH it prints nothing and exits 1	1
-A1.4: FELIX_GRAPH_MIN_WORDS=4 lets the same four words through	1
-A1.4: a prompt longer than 400 characters is cut to its first 400	1
-A1.4: a prompt of four words, under the default floor of five, runs nothing and exits 1	1
-A1.4: and five words so joined are five, asked as five	1
-A1.4: four words joined only by those escapes are four words, and run nothing	1
-A1.4: spaces, tabs, newlines and the two-character escapes for newline, tab and return are one space each, the ends trimmed	1
-A1.5: FELIX_GRAPH_BUDGET is the budget it passes	1
-A1.5: FELIX_GRAPH_LEFT is read by value, leading zeros not counting: 0000000000 is 0, no time left, so nothing printed, exit 1, graphify not run	1
-A1.5: FELIX_GRAPH_TIMEOUT is read by value too: 0000000001 is the bound 1, so a graphify answering after 3 seconds, inside the default 4, is killed	1
-A1.5: FELIX_GRAPH_TIMEOUT=1 is the bound itself: a graphify answering after 3 seconds, inside the default 4, is killed: no answer, exit 1	1
-A1.5: a FELIX_GRAPH_LEFT of 0, -2, abc or 1.5, no whole number of one or more, is no time left: nothing printed, exit 1, graphify not run	1
-A1.5: a FELIX_GRAPH_LEFT that is set and empty sets no limit: graphify is asked as before, and its answer printed	1
-A1.5: a FELIX_GRAPH_TIMEOUT of 0, 0.5 or abc is the default 4 seconds, so a graphify running 10 is still killed: no answer, exit 1	1
-A1.5: a graphify that exits by itself leaving a child holding the output open is read at once, and the child is killed then	1
-A1.5: a graphify that exits non-zero is no answer, the node it printed included: nothing printed, exit 1	1
-A1.5: a graphify that hangs past FELIX_GRAPH_TIMEOUT=1 is no answer: nothing printed, exit 1, back within 8 seconds where it would run 10	1
-A1.5: a graphify that prints nothing is no answer: exit 1	1
-A1.5: and 0000000002 is 2: graphify is asked, and one answering after 6 seconds under FELIX_GRAPH_TIMEOUT=12 is killed once those 2 seconds are up	1
-A1.5: and 0000000009 is 9, its digits not read as octal: under FELIX_GRAPH_TIMEOUT=12 a graphify answering after 4 seconds is answered	1
-A1.5: and a FELIX_GRAPH_TIMEOUT of 0000000000 is 0, so the default 4 and not no bound: a graphify that would run 10 seconds is killed: no answer, exit 1	1
-A1.5: and one of 0000000019 is 19, not the default 4 nor an octal error: a graphify answering after 6 seconds is answered	1
-A1.5: and under FELIX_GRAPH_TIMEOUT=0.5 a graphify answering after 1 second is answered, the bound not cut below the default	1
-A1.5: and with 10 seconds left the same graphify is answered (control)	1
-A1.5: at the deadline its whole process group is killed, so a child holding the output open neither holds the caller past 8 seconds nor outlives it	1
-A1.5: graphify's stderr is discarded, so stdout and stderr together are the rows alone	1
-A1.5: it runs graphify once, exactly: query, the prompt, --budget 600 and --graph naming the graph file	1
-A1.5: with 1 second left under FELIX_GRAPH_TIMEOUT=12, a graphify answering after 4 seconds is killed once that second is up: no answer, exit 1	1
-A1.6, A1.7: a label loses its tab and control bytes and is cut to 120 characters	1
-A1.6: a name holding .. that is not a .. segment is kept, and a loc of None prints as empty	1
-A1.6: and keeps a node only for a file under that holding checkout, not one the worktree alone holds	1
-A1.6: control bytes are removed from src and loc too, before the file is looked for	1
-A1.7: a label of two-byte characters is cut to 120 characters, not 120 bytes, and never inside one	1
-A1.8: FELIX_GRAPH_FILES=2 stops at two files, the first file's later node still printed	1
-A1.8: and never more than 16 rows in all	1
-A1.8: rows stop at eight distinct files, and a later node of a file already listed is still printed	1
-A1.9: output with no NODE line of the form keeps no node: nothing printed, exit 1	1
-A1: felix_graph_answer prints a src, loc and label row for each node it keeps, in graphify's order, and exits 0	1
-A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr	1
-A2.1: a session id that is empty or holds anything but letters, digits, - and _ prints nothing, exits 1 and writes nothing	1
-A2.1: and one of letters, digits, - and _ is answered	1
-A2.2: when A1 refuses before graphify is asked (switched off, no graph, four words, no graphify, no perl) it exits 1 and writes nothing	1
-A2.2: with no time left as well, those refusals still come first: exit 1 and nothing written, so no late row	1
-A2.3, A2.4: the same nodes again in that session print nothing and exit 1, the record gaining only asked graphify repeat and the ledger nothing	1
-A2.3, A2.5: the record gains the asked row, the session's root, given with the files and graphify's count, a node row a node, an answer row a file	1
-A2.3: a FELIX_GRAPH_LEFT of 0000000000, 0 by value, is no time left too: exactly asked graphify late, graphify not run	1
-A2.3: a graphify killed once its 1 second left is up, under FELIX_GRAPH_TIMEOUT=12, was asked: its outcome is timeout, not late	1
-A2.3: a graphify that exits non-zero leaves exactly asked graphify failed in a record it creates, prints nothing, exits 1, signals nothing	1
-A2.3: and one of 0000000002 is a 2-second bound: a graphify killed once it is up, under FELIX_GRAPH_TIMEOUT=12, was asked: timeout, not late	1
-A2.3: and so does a FELIX_GRAPH_LEFT of -2, abc or 1.5	1
-A2.3: another session is given the whole answer, the record being the session's own	1
-A2.3: one killed at the deadline is timeout	1
-A2.3: one that prints nothing is failed too	1
-A2.3: one whose answer keeps no node is empty	1
-A2.3: with no time left, FELIX_GRAPH_LEFT=0, the record it creates holds exactly asked graphify late: graphify not run, nothing printed, exit 1, nothing signalled	1
-A2.4: a node new by its label or by its line, in a file named earlier, is delivered, and the node given before is not	1
-A2.4: a node recorded as another tool's is not dropped from graphify's answer	1
-A2.5: and the session's roots are the worktree's top level, then the checkout that holds it	1
-A2.5: asked from a subdirectory the root recorded is the checkout's top level	1
-A2.5: its rows follow with no second root row, the count - where graphify printed none, and an answer row again for the file named before	1
-A2.6: and the session's ledger one answer graphify signal	1
-A2.6: one ledger signal a delivery, so two after two deliveries	1
-A2.7: a graph two commits behind says 2 commit(s) behind the checkout that holds it, after the stamp's seven characters	1
-A2.7: a graph with no stamp says graph carrying no build stamp in place of when it was built and how fresh	1
-A2.7: and so does a graph whose stamp names no commit here	1
-A2.7: asked from a worktree two commits ahead the freshness is still the holding checkout's	1
-A2.7: the block opens with graphify query, the stamp's first seven characters, current with the checkout that holds it, and to open first	1
-A2.7: then a blank line and a row a node: two spaces, src:loc, two spaces, the label, and src alone where loc is empty	1
-A2.8: graphify having found more nodes than the rows printed, a blank line and the line saying how many of how many follow the rows	1
-A2.9: a file whose first line is #!/usr/bin/env bash is a shell script	1
-A2.9: a first line that names bash only past its first 128 bytes does not make a shell script	1
-A2.9: a shell script among the files ends the block with the paragraph about callers, and graphify's count equal to the rows adds no A2.8 line	1
-A2.9: and so is one whose first line is #!/bin/zsh	1
-A2.9: and under it a first line of the same form naming bash at bytes 120-123 is one	1
-A2.9: under a UTF-8 locale the 128 are still bytes: a first line naming bash at bytes 140-143, characters 80-83, is no shell script	1
-A2.9: with no file a shell script by its name or its first line there is no callers paragraph	1
-A3: a graph behind whose refreshed-at marker holds the holding checkout's HEAD is not due	1
-A3: a graph built at HEAD is not due a refresh: exit 1, nothing printed	1
-A3: a graph two commits behind is due: exit 0, nothing printed	1
-A3: a graph with no stamp is not due	1
-A3: a marker holding another commit leaves the graph due	1
-A3: a marker that is a link to /dev/zero reads as absent, the due test answering within its 15-second bound: due	1
-A3: a marker that is a link to a regular file holding HEAD reads as absent too: due, within the bound	1
-A3: a regular marker whose HEAD sits past its first 64 bytes does not hold it: due	1
-A3: a worktree ahead of a graph current with the holding checkout is not due either	1
-A3: and asked from a worktree it is the holding checkout's distance that decides	1
-A3: and so does a marker that is a named pipe, the due test not waiting for a writer	1
-A3: nor a checkout with no graph at all	1
-A3: nor asked from its worktree, the marker and the HEAD being the holding checkout's	1
-A3: nor one whose stamp is a commit the checkout does not hold	1
-A4: a hard link there is replaced, not written through: the marker holds HEAD and the file it shared contents with is left as it was	1
-A4: a link at the marker's path is replaced by the marker, and the file it named is left as it was	1
-A4: a link to a directory there is replaced by the marker too, and nothing is written inside the directory it named	1
-A4: a refresh whose update exits 0 leaves the holding checkout's full HEAD and a newline, as it was when the refresh started, a commit made meanwhile aside	1
-L1: a route naming graphify is no naming of the answer: the answer row's sixth field stays empty	1
-L1: and graphify, declared and never reached for, still gets its zero row	1
-L1: and that naming stays with graphify itself, on its own row named once, whose calls read - as l2 holds neither an alive line nor a call	1
-L1: answer signals fold to one row: session, date, answer, the tool, the deliveries, and an empty sixth field	1
-L1: one alive line and one call make the record whole beside its two answers: the named row and the zero row read 0, a measured zero	1
-L1: three alive lines against one call is no whole record, its two answers not counted as calls: the named row and the zero row read -	1
-L2: felix_ledger_retire reads the same with answer rows folded beside the capability rows	1
-L2: felix_ledger_summary reads the same with answer rows folded beside the capability rows	1
-L3: felix_ledger_answers prints the tool, its distinct sessions and its summed deliveries from the folded answer rows	1
-L4: ./ before it bounds the token too	1
-L4: a Bash command holding the basename, which has a dot, as a token acts on the file	1
-L4: a Bash command holding the file as a path token acts on it, and opens nothing	1
-L4: a Grep of the file's directory does not act on it	1
-L4: a Read of the file under the record's root acts on it, and opens it	1
-L4: a basename with no dot does not count as a token	1
-L4: a delivery is a given row and the answer rows after it, acted on when any file it named was	1
-L4: a session left out has its asked, timeout and late rows left out with it	1
-L4: a session with no ledger appends on disk is not whole: it is left out of every column but unknown, which counts it	1
-L4: a token is bounded by = ( a quote : ; ) | & and , as well as by spaces and the ends of the command	1
-L4: a tool whose every ask came too late still has its line	1
-L4: a tool with asked rows and no given row still has its line, counting no session	1
-L4: a touch after a later prompt row cannot credit the answer before it: an answer is acted on in its own turn	1
-L4: a touch before the answer row does not act on it	1
-L4: a touch row naming a file of its window credits that file alone, not projects/x/CLAUDE.md for a row naming CLAUDE.md: 1 of 2 files	1
-L4: an Edit whose value is the file itself acts on it	1
-L4: and 1-24.md does not credit 4.md	1
-L4: and one ending in the file's name but not at a slash does not	1
-L4: and so are calls with no alive line, as appends written before 0.49.313 hold them	1
-L4: as does one holding the file under the root anywhere in it	1
-L4: as many alive lines as calls is whole, and the session counted	1
-L4: asked counts the asked rows and timeouts those that timed out	1
-L4: asked counts the asked rows whose outcome is not late, and late those whose outcome is	1
-L4: beside a whole session, one with no appends on disk and one with more alive lines than calls add to unknown alone	1
-L4: each tool is its own line, its deliveries alone deciding whether the session acted on it	1
-L4: end to end, grep -n rule <root>/CLAUDE.md through post-tool, then felix_answer_use, acts on 1 of the delivery's 2 files	1
-L4: files_opened counts the acted-on files credited by a tool other than Bash	1
-L4: nor is one whose appends hold more alive lines than calls	1
-L4: nor one that holds neither, a named row and an answer row being no calls	1
-L4: nor one whose alive line has only answer rows beside it, an answer row being no call	1
-L4: nor one whose ledger appends are an empty file: an empty record, holding neither, is left out too	1
-L4: nor one whose ledger appends cannot be read	1
-L4: one holding the file's path under another directory does not	1
-L4: projects/a/CLAUDE.md does not credit projects/b/CLAUDE.md	1
-L4: unknown counts a session left out once for each tool with an asked or a given row in its record, however many it has	1
-L4: with no root row, a value ending in /<file> acts on it	1
-L4: with root rows, a value that only ends in /<file> outside every root does not act on it	1
-L5: and 0% where the denominator is 0	1
-L5: and after the tool lines the sentence that bounds what the answers can have caused	1
-L5: one line a tool: answered of asks in sessions, the answers acted on before the next prompt, the files, those opened, the asks timed out, the prompts too late to ask, and the sessions left out	1
-L5: shares are whole percentages rounded half up, 2 of 16 being 13%, and with no timeout there is no clause for it	1
-L5: the capability table's rows are the same with the answer rows as without	1
-L5: with answers it heads a section answers handed to sessions without being asked for, after the capability table	1
-L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves	1
-R1: a session ending in a worktree of the own checkout refreshes the graph of the checkout that holds it	1
-R1: a session ending in the own checkout, its graph behind, starts a refresh of that graph	1
-R1: for a checkout that is not own, ownership is checked and the due test, which reads graph.json, never runs	1
-R1: for the own checkout ownership is checked first, then the due test	1
-R3: FELIX_GRAPH_LOCK_STALE=20 makes that same lock stale, and the refresh proceeds	1
-R4: with the marker holding the holding checkout's HEAD, session start starts no refresh	1
-T1: a Bash command naming two answered files appends a touch row for each	1
-T1: a Glob is read by the key spelled exactly path, not one that ends in path	1
-T1: a Grep is read by its path, not the response's	1
-T1: a MultiEdit is read by its file_path	1
-T1: a NotebookEdit is read by its notebook_path	1
-T1: a Read of an answered file by its path under the session's root appends touch, Read and the file as the answer named it, not the response's	1
-T1: a command naming <root>/CLAUDE.md touches CLAUDE.md, and not projects/x/CLAUDE.md, whose basename it only shares behind a slash	1
-T1: an Edit whose value is the file itself appends its touch row	1
-T1: an escaped slash reads as a slash	1
-T1: and an escaped tab as a space, so the file after it is a token	1
-T1: nothing of the value but the named file is written: the record gains the touch row and no part of the command	1
-T1: one answered after it is, once though two answer rows name it, and one answered only before it is not	1
-T1: one named within them is, the value running on past them	1
-T1: the key is found with its colon, so a value that equals the key's name is passed over	1
-T1: the value is read to its first unescaped quote and decoded, so a command's escaped quotes keep the rest of it	1
-T2: lib/ledger.sh loaded first in a fresh shell, with no library before it, runs no command found on PATH either, and still loads lib/answer.sh	1
-T2: loading lib/ledger.sh runs no command found on PATH, and it loads lib/answer.sh: felix_answer_use is defined	1
-T2: nor does lib/graph.sh loaded first in a fresh shell, and it still loads lib/graph-answer.sh: felix_graph_deliver is defined	1
-T2: nor does loading lib/graph.sh, which loads lib/graph-answer.sh: felix_graph_deliver is defined	1
-U1: a person's prompt that passes those checks has the checkout's ownership checked	1
-U1: a person's prompt with a session id in the own checkout gets the block, word for word and nothing else	1
-U2: a prompt of more than 16,384 bytes is still asked, as its first 400 characters	1
-U2: an escaped backslash reaches graphify as one backslash	1
-U2: an escaped quote reaches graphify as a quote, and the keys after the prompt never reach it	1
-U2: and graphify is asked once, about the payload's prompt	1
-U2: and under it a fifth word starting at byte 16,384 is cut there, asked as its first letter	1
-U2: the prompt ends at its first unescaped quote, so a value that ends in an escaped backslash ends there	1
-U3: a prompt whose one part is the answer still gets the hook's JSON, and the hook exits 0	1
-U3: separated from the parts on either side by one blank line	1
-U3: the answer goes after the route part and before the lessons part, the rest as it was	1
-U4: S is the seconds the hook has run: held 2 seconds before it asks, under FELIX_PROMPT_DEADLINE=5 it has 5 - 2 - 3 left, none, and the ask is late	1
-U4: a FELIX_PROMPT_DEADLINE that is no whole number of at most four digits is taken as 30: abc, 2.5 and a number of 20 digits leave the ask its time	1
-U4: under FELIX_PROMPT_DEADLINE=3 the ask has 3 - S - 3 seconds, under one: its record holds asked graphify late alone, graphify is not run, the exit is 0 and the other parts are as they were	1
-U4: under FELIX_PROMPT_DEADLINE=4 the bound is what is left, a second at most, not FELIX_GRAPH_TIMEOUT=12: a graphify answering after 4 seconds gives no block, its ask timeout, or late had the hook used that second	1
-U5: a later prompt of the session appends prompt before anything else it writes there	1
-U5: a prompt too short to ask still appends its prompt row, and nothing else	1
-U5: a prompt with no time left to ask still appends its prompt row first, then its late ask	1
-U5: a session's first prompt writes no prompt row: its record opens with its asked row	1
-U5: and one from a checkout that is not own, nor its fourth	1
-U5: so does a prompt the graph cannot be asked for, U1's third condition not applying to the row	1
-U5: the prompt row is written before the hook computes its route: the first route function it calls finds the row in the record already	1
+base	origin/main	1fca9559e517a0da5f353d78a4f187e0660985ca	0.49.320
+run	35	15788	35
+A1 evidence (FIFO): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
+A1 evidence (dangling link): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
+A1 evidence (directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
+A1 evidence (link to a directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
+A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
+A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
+A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
+A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
+A3 receipt (FIFO): lists evidence under unknown, and no evidence gap and no met row	1
+A3 receipt (dangling link): lists evidence under unknown, and no evidence gap and no met row	1
+A3 receipt (directory): lists evidence under unknown, and no evidence gap and no met row	1
+A3 receipt (link to a directory): lists evidence under unknown, and no evidence gap and no met row	1
+A4 incident (FIFO): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
+A4 incident (dangling link): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
+A4 incident (directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
+A4 incident (link to a directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
+A5 agreement (FIFO): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
+A5 agreement (dangling link): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
+A5 agreement (directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
+A5 agreement (link to a directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
+D1 felix_evidence_table_present (C1, nothing at the widget project's path): exits 1 and prints nothing	1
+D1 felix_evidence_table_present (a FIFO): exits 0, prints nothing, and returns without reading it	1
+D1 felix_evidence_table_present (a dangling link): exits 0 and prints nothing	1
+D1 felix_evidence_table_present (a directory): exits 0 and prints nothing	1
+D1 felix_evidence_table_present (a link that resolves to a directory): exits 0 and prints nothing	1
+D1 felix_evidence_table_present (a link that resolves to a file): exits 0 and prints nothing	1
+D1 felix_evidence_table_present (a regular file): exits 0 and prints nothing	1
+D1 felix_evidence_table_present (nothing at the path): exits 1 and prints nothing	1
+D2 the judge, felix_evidence_table_present replaced by one that always exits 0: prints the not-judged row, unknown evidence.tsv cannot be read not judged, for a project with no evidence.tsv	1
+D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is met	1
+D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is unmet	1
+D3 no tracked file under engine/harness/felix or engine/harness/lib/ but lib/evidence.sh tests evidence.tsv with any unary file operator (-a -b -c -d -e -f -g -h -k -p -r -s -t -u -w -x -G -L -N -O -S) under test, [[ or [	1
+D4 receipt.sh sourced alone after lib/resolve.sh (directory): felix_receipt lists evidence under unknown, as felix receipt does	1
+and landed on the shared home's cache, which this block does not read	1
+and the refresh the hook forked asked the claude for the catalogue	1

@@ -192,19 +192,24 @@ all.
   in the same second make one scan between them.
 - **C5. Callers are never queued behind a run.** When another run holds the
   lock, the caller returns at once with status 0:
-  - **A reading for its key is kept.** It prints that reading, with `as_of`
-    the time the reading was made. It adds a row `cover	served	last` after
-    `as_of`. In text, a line after `window` starts `served`, says when the
-    reading was made, and says that another run is reading now.
-  - **None is kept.** Coverage is unknown and `total all unknown unknown
-    unknown`, with a row `cover	served	none`. The text's total line says
-    `unknown (another felix cost run is reading now, and no earlier reading of
-    this window is kept)`.
-- **C6. `--max-age N`.** A kept reading whose scan began at most N seconds ago
-  is printed without checking for changes, and without the lock. Its `as_of`
-  is the reading's own time, and it adds `cover	served	aged`. In text, the
-  `served` line says how old the reading is. An older reading, or none, goes
-  on to C3 to C5.
+  - **A reading for its key is kept.** It prints that reading. Its `as_of` is
+    the one the run that made the reading printed, which follows
+    `FELIX_COST_NOW` when that was set. It adds a row `cover	served	last`
+    straight after the `as_of` row. In text, the line after `window` is
+    `served   the reading made at <as_of>; another felix cost run is reading
+    now`.
+  - **None is kept.** The cover rows read `files_read 0`, `files_unread 0`,
+    `responses_unread 0`, `coverage unknown`, and `as_of` now. Then come
+    `cover	served	none` and `total	all	unknown	unknown	unknown`. In text,
+    the total line is `total    unknown (another felix cost run is reading
+    now, and no earlier reading of this window is kept)`, and `calls
+    unknown` follows it.
+- **C6. `--max-age N`.** A kept reading whose scan began at most N seconds
+  ago, by the real clock and never by `FELIX_COST_NOW`, is printed without
+  checking for changes, and without the lock. Its `as_of` is the reading's
+  own, as in C5, and it adds `cover	served	aged` after `as_of`. In text, the
+  line after `window` is `served   the reading made at <as_of>, <age> s ago
+  (--max-age N)`. An older reading, or none, goes on to C3 to C5.
 - **C7. Process group and deadline.** The scan runs in a process group of its
   own, under a supervisor that holds the lock.
   - At `FELIX_COST_DEADLINE` seconds after the scan starts, the supervisor
@@ -212,9 +217,15 @@ all.
   - When the scan ends, for any reason, the supervisor kills whatever is left
     in its group.
   - A scan cut at its deadline writes no reading, and its temporary files are
-    removed.
-  - A caller still waiting then prints as C5 says, and the why reads `the
-    reading did not finish within N s`.
+    removed: the directory then holds only `lock` and the readings it held
+    before.
+  - A caller still waiting then prints as C5 says, status 0, with one change of
+    words. The `served` line ends `the new reading did not finish within N s`
+    instead of `another felix cost run is reading now`. The total line of
+    "none" reads `unknown (the reading did not finish within N s, and no
+    earlier reading of this window is kept)`. The rows are C5's, `served last`
+    or `served none`.
+  - The caller waits for its own run, up to the deadline and the 5 s after it.
 - **C8. The caller can die, and the work is not lost.** The supervisor and the
   scan hold none of the caller's standard streams. So a caller killed by a
   timeout (the mod sends TERM to `felix` alone) does not leave a process
@@ -240,6 +251,10 @@ all.
 - **C12. Same numbers.** Splitting the scan from the totals changes nothing it
   prints. Every assertion of 1050, 1060 and 1070 holds, with or without a
   kept reading.
+- **C13. What reads a transcript.** As today, the scan opens transcripts only
+  through `grep`, resolved from `PATH`, at most once per 256 files. The
+  freshness check of C3 runs `find`, which reads no file's contents. So a
+  `grep` placed first on `PATH` sees every scan, and nothing else.
 
 ### Built as
 

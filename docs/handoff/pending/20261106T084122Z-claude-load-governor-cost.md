@@ -6,7 +6,21 @@ managed by a dynamic optimization issue". The design is
 `docs/2026-11-06-load-governor-design.md` (PDF in `docs/pdf/`). It has three
 slices: `felix cost` first, then a governor that admits work against
 measured headroom, then a cap derived from its own records. Its section 8
-proposes a direction row for his yes. It is not added.
+proposed a direction row, and he said yes the same day.
+
+**Founder decision, binding from this section.** On 2026-11-06 he was asked
+"Add the proposed load row to docs/direction.md §4?" and answered "Yes, add
+it". The row, word for word as section 8 proposed it: **Load on this Mac is
+managed, not capped.** Heavy Felix work asks for a slot and is admitted
+against measured headroom: the load against the cores, and memory pressure.
+No fixed count is set in advance. The founder's own commands are never gated.
+Background work gives way first and runs at background QoS. Every job runs as
+a process group with a deadline under a supervisor, so a timeout never orphans
+work. Every admission decision is recorded with the load it saw, and caps are
+derived from those records: the concurrency at which throughput stops rising.
+No new fixed concurrency cap is added to Felix. Under `docs/direction.md` §10
+it binds from this section. The fold into §4, as row 41, waits for his merge
+in draft #489, which is stacked on #481's fold of rows 34 to 40.
 
 **What landed (branch `claude/load-governor-cost`).** Slice 0, built to the
 contract's clauses C1 to C13 (design section 5).

@@ -4,8 +4,8 @@
 making felix more sophisticated, think about optimization. Overloading issue
 should easily be managed by a dynamic optimization issue". Felix owns the how.
 This document sets out the how in three slices, and gives slice 0's contract.
-Whether the design binds future sessions is his decision. Section 8 proposes
-the row for `docs/direction.md` §4. It is not added here.
+Whether the design binds future sessions was his decision. Section 8 gives
+the row for `docs/direction.md` §4, which he said yes to on 11-06.
 
 Paths are relative to the worktree. `eh/` is `engine/harness/`. A bare
 four-digit number is `eh/tests/parts/<n>-*.sh`. "The mod" is the dash mod,
@@ -469,10 +469,12 @@ derivation over.
 **The same rule for land and background?** Not until the rows show they
 contend. One PR lands per tick, so land's concurrency is 1 by contract.
 
-## 8. The proposed direction row (for the founder's yes)
+## 8. The direction row (the founder said yes, 11-06)
 
-Only if he wants the design to bind future sessions. The number is given at
-the fold.
+Proposed here so the design could bind future sessions. Asked whether to add
+it as proposed, the founder answered "Yes, add it" on 2026-11-06. It binds
+from this branch's pending handoff section once that lands (`docs/direction.md`
+§10). The fold into §4 is row 41, in draft #489, which waits for his merge.
 
 > **Load on this Mac is managed, not capped.** Heavy Felix work asks for a slot
 > and is admitted against measured headroom: the load against the cores, and

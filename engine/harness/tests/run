@@ -416,6 +416,7 @@ fi
 . "$HERE/parts/2230-lane-status-row-blind.sh"
 . "$HERE/parts/2240-lane-session-start-blind.sh"
 . "$HERE/parts/2250-lane-pulse-blind.sh"
+. "$HERE/parts/2300-evidence-readers-agree-blind.sh"
 . "$HERE/parts/2310-brief-reads-the-declaration-blind.sh"
 . "$HERE/parts/2311-brief-reads-the-base-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }

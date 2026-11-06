@@ -191,7 +191,23 @@ if [ -n "$broken" ]; then
   exit 0
 fi
 
-PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")"; _res=$?
+[ "$_res" -eq 0 ] || PROJ=""
+
+# The resolver says 2, could not tell, when a read it stands on did not finish.
+# Without felix_capture (lib/detect.sh did not load) it can make none of them:
+# that is an engine with a file missing, somebody's state like the broken
+# binding above, and a stop that let it pass would check nothing in silence, so
+# it holds the same way. A 2 from a read that failed in a whole engine is still
+# read as ungoverned here; that policy is its own decision.
+if [ "$_res" -eq 2 ] && ! declare -F felix_capture >/dev/null; then
+  [ "$CHAIN" = "1" ] && exit 0
+  _felix_stop_may_hold || exit 0
+  _m="Felix: the project that governs $PWD could not be resolved: a read it stands on did not finish, because lib/detect.sh did not load. Nothing in this checkout is being checked until the engine has that file again."
+  felix_unresolved_log "$_m" "$PWD"
+  printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$_m")"
+  exit 0
+fi
 [ -n "$PROJ" ] || exit 0
 
 # A prompt hook the platform cut off earlier in this session is said once, at

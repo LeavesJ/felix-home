@@ -410,8 +410,11 @@ The fixes' assertions, by the same blind author, are rf6's `core.quotePath`
 case and rf9's unwritable `live-index`.
 
 **Before landing.** All eight parts have no FAIL under BWK awk and under gawk
-5.4.1, and the fifteen lint parts have no FAIL. The version is `0.49.322`:
-the `needs-founder` draft #482 holds `0.49.321`.
+5.4.1, and the fifteen lint parts have no FAIL. Under bash 5.3.9 and gawk
+5.3.2, in an ubuntu 26.04 container, the eight parts have no FAIL either. The
+version is `0.49.326`. Main took `0.49.321` (#485) and `0.49.322` (#488)
+after this branch first took `0.49.322`. The open PRs hold `0.49.323` (#487),
+`0.49.324` (#486) and `0.49.325` (#483 and #482).
 
 **An overlap with #482.** That PR changes `lib/probes.sh`'s blind-probe
 sentences from "the witness proves this surface exists" to "the witness says

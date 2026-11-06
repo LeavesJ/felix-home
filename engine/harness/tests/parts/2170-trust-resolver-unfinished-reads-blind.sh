@@ -285,11 +285,11 @@ printf '# p\n' > "$TRAST/home/projects/p/CLAUDE.md"
 ( _fx_cd "$TRAST/repo" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'p\n' > .felix && git add -A \
   && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init ) >/dev/null 2>&1 || TRABAD="$TRABAD repo"
 printf 'one more line\n' >> "$TRAST/repo/WORK.txt"
-# SID -> the Stop hook of TRAST's home run from its checkout with a Stop payload for session SID; TRAST/o.out, o.err,
-# LF_RC; TRAH yes when it held, else no.
+# SID [ACTIVE] -> the Stop hook of TRAST's home run from its checkout with a Stop payload for session SID, whose
+# stop_hook_active is ACTIVE (default false); TRAST/o.out, o.err, LF_RC; TRAH yes when it held, else no.
 _tra_stop() {
   ( _fx_cd "$TRAST/repo" || exit 125
-    printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" \
+    printf '{"hook_event_name":"Stop","stop_hook_active":%s,"session_id":"%s"}' "${2:-false}" "$1" \
       | env -u FELIX_ALLOW_RED -u CLAUDE_CODE_REMOTE -u CLAUDE_CODE_SESSION_ID -u FELIX_HOME_DIR FELIX_HOME="$TRAST/home" \
           FELIX_MEMORY="$TRAST/mem" HOME="$TRAST/user" LANGUAGE=en TZ=UTC GIT_CONFIG_NOSYSTEM=1 "$TRAST/home/harness/hooks/stop" ) \
     > "$TRAST/o.out" 2> "$TRAST/o.err"
@@ -305,5 +305,42 @@ mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
 TRALAB="P48: the same Stop with lib/detect.sh removed from the engine (felix_capture unloadable, resolve says 2): it still holds, as main, never exit 0 with nothing said"
 if [ "$TRAH" = yes ]; then ok "$TRALAB"
 else bad "$TRALAB" "expected [held] got [exit $LF_RC, stdout [$(head -c 300 "$TRAST/o.out" 2>/dev/null)], stderr [$(head -c 200 "$TRAST/o.err" 2>/dev/null)]]"; fi
+
+# --- P49 (review round 2): the flagged Stop (stop_hook_active true) when felix_capture cannot be loaded, on P48's
+# fixture, each run under a session id of its own. A chain another hook started (no hold of Felix's on record) and a
+# session's own night (a night state file for the session, started, deadline, turns left, quiet runs, session, note)
+# must still hold; a chain Felix started (an unflagged hold, then the flagged stop of the same session) still ends.
+# Every nodetect run is armed only when lib/detect.sh was moved out (TRAARM); the night's control also shows the night
+# was charged (a refused row in the project's overnight log).
+TRANI="$TRAST/mem/p/overnight"
+_tra_night() { mkdir -p "$TRANI/nights" && printf '%s\t%s\t20\t0\t%s\tnight\n' "$(date +%s)" "$(( $(date +%s) + 36000 ))" "$1" > "$TRANI/nights/$1"; }
+_tra_rows() { grep -c 'refused' "$TRANI/log.tsv" 2>/dev/null || true; }
+# LABEL SID MODE: SID's flagged Stop with lib/detect.sh moved out (MODE nodetect) or the whole engine (whole).
+_tra_flag() {
+  TRAARM=yes
+  [ "$3" = whole ] || { mv "$TRAST/home/harness/lib/detect.sh" "$TRAST/aside/detect.sh" 2>/dev/null && [ ! -e "$TRAST/home/harness/lib/detect.sh" ] || TRAARM=no; }
+  _tra_stop "$2" true
+  [ "$3" = whole ] || mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
+  if [ "$TRAARM|$TRAH" = "yes|yes" ]; then ok "$1"
+  else bad "$1" "expected [armed, held] got [armed $TRAARM, exit $LF_RC, stdout [$(head -c 300 "$TRAST/o.out" 2>/dev/null)], stderr [$(head -c 200 "$TRAST/o.err" 2>/dev/null)]]"; fi
+}
+_tra_flag "P49 (control): a flagged Stop with no hold of Felix's on record (another hook's chain), the whole engine: it holds" \
+  trust-p49-chain-whole whole
+_tra_flag "P49: the same flagged Stop (another hook's chain, no hold on record) with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said" \
+  trust-p49-chain-nodetect nodetect
+_tra_night trust-p49-night-whole; TRAR0="$(_tra_rows)"
+_tra_stop trust-p49-night-whole true; TRAR1="$(_tra_rows)"
+is "P49 (control): a flagged Stop of a session that holds a night of its own, the whole engine: it holds and charges the night (a refused row in its log)" \
+   "$TRAH|$([ "${TRAR1:-0}" -gt "${TRAR0:-0}" ] && echo charged || echo uncharged)" "yes|charged"
+_tra_night trust-p49-night-nodetect
+_tra_flag "P49: the flagged Stop of a session that holds a night of its own, with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said" \
+  trust-p49-night-nodetect nodetect
+# The guard: Felix's own chain. The unflagged Stop holds (P48), the flagged Stop of the same session that follows ends.
+mv "$TRAST/home/harness/lib/detect.sh" "$TRAST/aside/detect.sh" 2>/dev/null && [ ! -e "$TRAST/home/harness/lib/detect.sh" ] && TRAARM=yes || TRAARM=no
+_tra_stop trust-p49-own false; TRAH1="$TRAH"
+_tra_stop trust-p49-own true
+mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
+is "P49 (guard): with lib/detect.sh removed, an unflagged Stop that holds, then the flagged Stop of the same session (Felix's own chain, no night): the first holds, the second is not held again" \
+   "$TRAARM|$TRAH1|$TRAH" "yes|yes|no"
 TRP_NAMES=""
 # <<< trust-resolver-unfinished-reads

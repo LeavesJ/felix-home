@@ -342,5 +342,35 @@ _tra_stop trust-p49-own true
 mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
 is "P49 (guard): with lib/detect.sh removed, an unflagged Stop that holds, then the flagged Stop of the same session (Felix's own chain, no night): the first holds, the second is not held again" \
    "$TRAARM|$TRAH1|$TRAH" "yes|yes|no"
+
+# --- P50 (the session's review of rounds 1-2): the PreToolUse hook when felix_capture cannot be loaded, on P48's
+# fixture with a deny row for p. pre-tool does not load lib/detect.sh itself, and a library that did not load is
+# allowed and recorded there (_felix_pt_stop, a pre-tool row in the memory's hook-faults.log). With lib/detect.sh moved
+# out of the engine, npm publish from the checkout p binds is refused as on main, or allowed with a row naming
+# lib/detect.sh; never allowed with nothing recorded, which would turn the deny rows off in silence.
+printf 'Bash\t(^|[;&| ])npm publish\tp refuses a publish\n' > "$TRAST/home/projects/p/deny.tsv" || TRABAD="$TRABAD deny"
+# MODE (whole or nodetect) -> TRAPT refused, recorded or what was seen instead; TRAARM as in _tra_flag.
+_tra_pt() {
+  local n0 n1
+  TRAARM=yes; n0="$(grep -c 'pre-tool' "$TRAST/mem/hook-faults.log" 2>/dev/null || true)"
+  [ "$1" = whole ] || { mv "$TRAST/home/harness/lib/detect.sh" "$TRAST/aside/detect.sh" 2>/dev/null && [ ! -e "$TRAST/home/harness/lib/detect.sh" ] || TRAARM=no; }
+  ( _fx_cd "$TRAST/repo" || exit 125
+    printf '{"hook_event_name":"PreToolUse","session_id":"trust-p50-%s","tool_name":"Bash","tool_input":{"command":"npm publish"},"tool_use_id":"toolu_p50"}' "$1" \
+      | env -u CLAUDE_CODE_REMOTE -u CLAUDE_CODE_SESSION_ID -u FELIX_HOME_DIR FELIX_HOME="$TRAST/home" FELIX_MEMORY="$TRAST/mem" \
+          HOME="$TRAST/user" LANGUAGE=en TZ=UTC GIT_CONFIG_NOSYSTEM=1 "$TRAST/home/harness/hooks/pre-tool" ) \
+    > "$TRAST/o.out" 2> "$TRAST/o.err"
+  LF_RC=$?
+  [ "$1" = whole ] || mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
+  n1="$(grep -c 'pre-tool' "$TRAST/mem/hook-faults.log" 2>/dev/null || true)"
+  if [ "$LF_RC" -eq 2 ] && grep -q 'Felix refused this command' "$TRAST/o.err" 2>/dev/null; then TRAPT=refused
+  elif [ "$LF_RC" -eq 0 ] && [ "${n1:-0}" -gt "${n0:-0}" ] && grep -q 'lib/detect.sh' "$TRAST/mem/hook-faults.log" 2>/dev/null; then TRAPT=recorded
+  else TRAPT="exit $LF_RC, rows $n0 to $n1, stderr [$(head -c 200 "$TRAST/o.err" 2>/dev/null)]"; fi
+}
+_tra_pt whole
+is "P50 (control): PreToolUse with the whole engine, npm publish from the checkout p binds, a deny row for it: refused" \
+   "${TRABAD:-built}|$TRAARM|$TRAPT" "built|yes|refused"
+_tra_pt nodetect
+is "P50: the same PreToolUse with lib/detect.sh removed from the engine: refused as main, or recorded as not judged (a hook-faults.log row naming lib/detect.sh), never allowed with nothing recorded" \
+   "$TRAARM|$(case "$TRAPT" in (refused|recorded) echo judged-or-said ;; (*) echo "$TRAPT" ;; esac)" "yes|judged-or-said"
 TRP_NAMES=""
 # <<< trust-resolver-unfinished-reads

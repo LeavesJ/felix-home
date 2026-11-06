@@ -1,11 +1,13 @@
 ### 2026-10-31: the engine says checked, never verified or proven (decision 1, 0.49.325)
 
-**What changed (branch `claude/checked-not-verified`, a draft pull request
-labelled `needs-founder`).** This applies the founder's decision 1 of
-2026-10-31, "Checked, in every text" (direction row 36 in draft #481), to the
-engine's own printed and committed text. It is built to
+**What changed (branch `claude/checked-not-verified`).** This applies the
+founder's decision 1 of 2026-10-31, "Checked, in every text" (direction row 36
+in draft #481), to the engine's own printed and committed text. It is built to
 `docs/2026-10-31-checked-not-verified-contract.md` (C1-C23). Round 3 of that
-contract restates the first adversarial review's findings.
+contract restates the first adversarial review's findings. The pull request
+opened as a draft labelled `needs-founder`, for limit L1 below. On 2026-11-06
+the founder was asked whether L1 is acceptable so it could leave draft, and
+answered "Mark it ready".
 - On main, 25 engine lines said verified, unverified, proven, unproven or
   proves to a person. Each now says checked or what ran:
   - `felix help` (its first line said `and proves it`), `felix install`,

@@ -13,7 +13,8 @@ printf '\ntrust plane step 1, the table check: felix_table_check says cannot exa
 #   every one of them acts.
 # - The main pass is the awk whose program counts rows (rows++); the schema lookup is every awk felix_table_schema runs.
 # - P33's printf substitutions are each refusal line's own: no-final-newline on the shapes table less every per-line
-#   shape, and nul-byte and empty on the NUL and empty-refused tables (T9 names all three).
+#   shape, and nul-byte and empty on the NUL and empty-refused tables (T9 names all three). On tab-nul a refusal must
+#   still hold the nul-byte line: gawk also refuses line 2's encoding (R10), so "never 0" alone cannot see it lost.
 # - P35 is read over every run 28-34 says is unknown: stdout is that one line and nothing else.
 # - P37's second half, felix merge --dry-run on the fix branch, needs the real felix project's risk table and a base
 #   ref, which no fixture here carries; the count half reads this tree's lib/table.sh.
@@ -52,7 +53,8 @@ _trd_one() {
   is "$lab" "$(_trp_in "$TRDC" "$alts")|$TRDF2" "ok|fired"
 }
 # LABEL LAYOUT ALTS MODE NAME WORDS STACK -> as _trd_one, for a read the fix may remove: a probe that acted gives one of
-# ALTS, and one that never acted leaves the clean run's output and status.
+# ALTS, and one that never acted leaves the clean run's output and status. With TRDNEED set, a refused run that acted
+# must also print TRDNEED (a refusal line's own words).
 _trd_maybe() {
   local lab="$1" l="$2" alts="$3" v
   shift 3
@@ -60,7 +62,10 @@ _trd_maybe() {
   _trp_new "$TRD/p.fired"; _trp_arm "$@" || { bad "$lab" "the probe could not be armed: $*"; return; }
   _trd_run table "$l"
   case "$TRDF2" in
-    fired) v="$(_trp_in "$TRDC" "$alts")" ;;
+    fired) v="$(_trp_in "$TRDC" "$alts")"
+      if [ "$v" = ok ] && [ "$TRDC" = refused ] && [ -n "${TRDNEED:-}" ]; then
+        case "$TRDO" in *"$TRDNEED"*) ;; *) v="refused without its${TRDNEED//	/ } line: $TRDO" ;; esac
+      fi ;;
     *) if [ "$TRDO" = "$TRDCL" ]; then v=ok; else v="not fired, and not the clean run: $TRDO"; fi ;;
   esac
   is "$lab" "$v" ok
@@ -144,7 +149,7 @@ _trd_maybe "P32: table base, F3 at the substitution that makes hi (printf [\\200
 # --- P33: the file-level reads.
 _trd_maybe "P33: the shapes table less every per-line shape (only no-final-newline), F3 at the substitution of its refusal line (if any): never 0" \
   finalnl "refused|unknown|examine2" f3z printf '*no-final-newline*' "*' felix_table_check '*"
-_trd_maybe "P33: tab-nul, F3 at the substitution of the nul-byte refusal line (if any): never 0" \
+TRDNEED=$'\tnul-byte\t' _trd_maybe "P33: tab-nul, F3 at the substitution of the nul-byte refusal line (if any): never 0, and a refusal still holds the nul-byte line (T9; under gawk the encoding line alone keeps it refused, R10)" \
   nul "refused|unknown|examine2" f3z printf '*nul-byte*' "*' felix_table_check '*"
 _trd_maybe "P33: tab-empty-refused, F3 at the substitution of the empty refusal line (if any): never 0" \
   empty-refused "refused|unknown|examine2" f3z printf "*'emptiness is never legitimate'*" "*' felix_table_check '*"
@@ -182,6 +187,8 @@ TRDX="$TRD/sc"; mkdir -p "$TRDX/engine/harness/templates"
 printf '# table\tlives\tcolumns\tempty\nschemas.tsv\ttree\ttable lives columns empty\trefused\nt.tsv\ttree\tname kind note?\trefused\n' \
   > "$TRDX/engine/harness/templates/schemas.tsv"
 printf 'alpha\tx\n' > "$TRDX/t.tsv"
+# _lf_run's environment is this part's own: run alone (tests/run -j N), no earlier part has named one.
+mkdir -p "$TRD/sc.home" "$TRD/sc.bin"; _lf_use "$TRD/sc.home" "$TRD/sc.mem" "$TRD/sc.user" "$TRD/sc.bin"
 _lf_init "$TRDX" && _lf_commit "$TRDX" 1790000000 $'tables\n' "=engine/harness/templates/schemas.tsv" "=t.tsv"; TRDXB=$?
 _lf_run "$TRD/x" "$TRDX" - "$FROOT/harness/bin/schema-check"
 is "P36 (control): a tree with schemas.tsv and one good table t.tsv, no fault: bin/schema-check exits 0" "$TRDXB|$LF_RC" "0|0"

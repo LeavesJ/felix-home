@@ -35,7 +35,7 @@ factor of three and the minimum is what is reported):
 | 4 MB payload                         | before  | after (function only) | after (hook cuts too) |
 |--------------------------------------|---------|-----------------------|-----------------------|
 | `session_id` first                   | 24.5 ms | 25.0 ms               | 5 ms                  |
-| `session_id` absent                  | 55 ms   | 21 ms                 | 5 ms                  |
+| `session_id` absent                  | 55 ms   | 21 ms                 | not run (a 32 KB string, so about the first row) |
 | (an empty function, same argument)   | 19 ms   |                       |                       |
 
 The cut in the function alone does nothing for a payload that has the key

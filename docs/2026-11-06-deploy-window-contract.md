@@ -1,4 +1,4 @@
-# Contract: an owed engine deploy gets its window (rev 1, 2026-11-06)
+# Contract: an owed engine deploy gets its window (rev 2, 2026-11-06)
 
 ## Why
 
@@ -91,10 +91,15 @@ environment, or `FELIX_DEPLOY_HOLD` is `off`. Otherwise, when the machine is
 held (DW1), they wait; when it is not, they go on at once with no wait and no
 output.
 
-1. **`tests/run`, in every mode** (a full run, `-j N`, `--record-assertions`,
-   `--reuse`, `--part ...`). The wait comes before the suite creates anything:
-   no temporary directory, no fixture, nothing on stdout. Part mode waits too:
-   a part run measures the engine as much as a suite does.
+1. **`tests/run`, in every mode but `--part`** (a full run, `-j N`,
+   `--record-assertions`, `--reuse`). The wait comes before the suite creates
+   anything: no temporary directory, no fixture, nothing on stdout. **Part mode
+   (`--part`, one to six parts) does not wait** and says nothing: it is a person's
+   or a builder's own short run, it takes no slot, and the ledger shows no part
+   run among what held the deploy back on 2026-11-06. It still exports
+   `FELIX_HOLD_PASSED=1` on starting, as below, so nothing it starts waits.
+   A part run that is running when the tick looks still counts as running (DW3);
+   it ends by itself.
 2. **`felix gate`, with any arguments**, before it runs the project's gate
    command and before it prints anything on stdout.
 

@@ -26,8 +26,12 @@ the tick's next run deploys.
   the deploy itself, and removes it on every other way out: deployed, not owed,
   paused (also by hand), unverified, uninstalled. It sends no signal.
 - Two doors wait while the machine is held, say why on stderr, and go ahead at a
-  bound: `tests/run` in every mode (`--part` too, before it makes anything) and
-  `felix gate` (before it runs the project's gate). Each exports
+  bound: `tests/run` in every mode but `--part` (before it makes anything) and
+  `felix gate` (before it runs the project's gate). Part mode does not wait: it is
+  a person's or a builder's own short run, and none of the processes the ledger
+  names as holding the deploy back on 2026-11-06 was a `--part` run (the load
+  governor session asked for this; its design keeps a person's own work
+  ungated). It passes `FELIX_HOLD_PASSED=1` on all the same. Each exports
   `FELIX_HOLD_PASSED=1` on going on, so a `gate.sh`, its `tests/run --reuse`, the
   runner's `--part` children and `tests/red` do not wait again. The tick's own
   `felix gate --quick` is run with it. `FELIX_DEPLOY_HOLD=off` goes ahead.

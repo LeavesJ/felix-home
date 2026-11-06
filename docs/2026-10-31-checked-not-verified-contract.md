@@ -116,7 +116,8 @@ line break. Text the clause does not quote is unchanged.
   - `evidence-owed`: the gate receipt is current for this exact tree, its
     result green, and the evidence check reports at least one gap;
   - `unchecked`: every other case, that is no gate receipt, or one that is
-    stale (for another tree, or resting on facts that have moved).
+    stale (for another tree, resting on facts that have moved, or resting on
+    facts nothing records, as in a project that declares no probes).
 
   Each of the three carries `"evidence_quality": "low"`, as `/1`'s
   `unverified` did. `blocked`, `indeterminate`, their precedence over these,
@@ -151,7 +152,8 @@ line break. Text the clause does not quote is unchanged.
   `so nothing outside it says the gate has not passed on this work.`
   The rest is unchanged, the reason in parentheses included (C6). (Round 3:
   `went unchecked` was false for the reasons `failed` and `epoch moved`, where
-  the gate ran on this exact tree, and every reason reaches this message.)
+  the gate ran on this exact tree, and both reach this message. Only
+  `tree unknown` never does, since a hold with no tree id is never seen.)
 - **C16 The SubagentStop message** says
   `must say so plainly: partial, failing, or unchecked — not done, working, or passing.`
   (Round 3: the hook also speaks on a tree the gate ran red on.)
@@ -314,11 +316,19 @@ change of their own.
   before the round-3 change, red against the head before it. Its assertion
   names start `cnv3 A`.
 - **Round 3, the tests review, not blind.** Part 2300's own lint follows C18
-  as amended (the ERE, the per-file names, Markdown headings, a directory git
-  tracks nothing of), and its A44-A47 show it. Two mutations no assertion
-  caught now fail one each: a hold record matched as a substring (A44), and
-  the receipt's `checked` without its green or its no-gap condition (part
-  2301's A3 and A4).
+  as amended, and its assertions show each rule:
+  - the ERE with `proves`, and the words left outside the class (A46);
+  - each allowed text only in its own files: all six fail outside them (A45);
+  - Markdown headings are read (A47);
+  - a directory git tracks nothing of is read whole (A48).
+
+  Each rule's mutation fails its assertion: a name widened to every file,
+  each of the six alone; the Markdown rule removed; `proves` dropped; the
+  listing asked only whether it is in a work tree. So do three mutations that
+  nothing caught before round 3:
+  - a hold record matched as a substring (A44);
+  - the receipt's `checked` without its green condition (part 2301's A3);
+  - the receipt's `checked` without its no-gap condition (part 2301's A4).
 - **Round 3, the count.** No edited part has fewer lines matching
   `projects/felix/risk.tsv`'s assertion count (`^[[:space:]]*(ok|is|has|bad) `)
   than it had at base. A part that lost one reads to `felix merge` as a

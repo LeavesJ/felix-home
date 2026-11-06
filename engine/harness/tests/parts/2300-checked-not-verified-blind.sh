@@ -56,8 +56,8 @@ printf '\nchecked, not verified: the engine'"'"'s own words say what ran and cla
 # rewrote C11, C15 and C16, so A29, A34, A35 and A37 now expect its words and refuse round 1's too. C18 as amended
 # matches proves as well, allows each name only in the files that need it (the old reason only as the pattern
 # lib/verify.sh greps for), reads a Markdown file's # lines as the headings they are, and reads a directory git
-# tracks nothing of whole. A40 and A43 moved to that rule; A44-A47 are new. The other round-3 clauses are part
-# 2301's, written blind.
+# tracks nothing of whole. A40 and A43 moved to that rule; A44-A48 are new, and the last review round widened A45
+# to every allowed text and added A48. The other round-3 clauses are part 2301's, written blind.
 CNV="$TMP/cnv"; mkdir -p "$CNV"; CNV="$(cd "$CNV" && pwd -P)"
 CNVCH="$CNV/home"; CNVCM="$CNV/mem"; CNVCU="$CNV/user"; CNV_CP="$CNVCH/projects/cp"; CNV_CE="$CNVCH/projects/ce"
 mkdir -p "$CNV_CP" "$CNV_CE" "$CNVCM" "$CNVCU" "$CNV/plain" "$CNV/bin"
@@ -487,12 +487,17 @@ CNV_C6="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18c")"; CNV_C6R=$?
 is "cnv A43 (C18, rounds 2 and 3, not blind): the old hold reason is allowed only as the pattern lib/verify.sh greps for, there and nowhere else" \
    "rc=$CNV_C6R [$CNV_C6]" "rc=1 [harness/lib/other.sh:1:echo \"never verified\"
 harness/lib/verify.sh:2:printf \"never verified\\n\"]"
+# One line for each allowed text, in a file none may be in: widening any one name to every file drops its line.
 mkdir -p "$CNV/c18d/harness/lib"
-printf '%s\n' "printf 'deployed-unverified: the deploy was not checked\\n'" > "$CNV/c18d/harness/lib/other.sh"
+printf '%s\n' "printf 'deployed-unverified: the deploy was not checked\\n'" 'echo "state/verified: the tree passed"' \
+  'felix_say p subagent-unverified body' "printf 'unverified\\ttree\\t%s\\n' x" '[ "$1" == "unverified" ] && exit 0' \
+  "$(printf -- 'grep -Fxq -e "$3\tnever verified\t${5:-}" "$path"')" > "$CNV/c18d/harness/lib/other.sh"
 printf '%s\n' 'kind=deployed-unverified' > "$CNV/c18d/harness/lib/notify.sh"
 CNV_C7="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18d")"; CNV_C7R=$?
-is "cnv A45 (C18, round 3, not blind): an allowed name outside the files that may hold it fails" \
-   "rc=$CNV_C7R [$CNV_C7]" "rc=1 [harness/lib/other.sh:1:printf 'deployed-unverified: the deploy was not checked\\n']"
+CNV_C7W="$(LC_ALL=C awk '{ printf "harness/lib/other.sh:%d:%s\n", NR, $0 }' "$CNV/c18d/harness/lib/other.sh")"
+is "cnv A45 (C18, round 3, not blind): each allowed text outside the files that may hold it fails, all six of them, and the one inside its file passes" \
+   "rc=$CNV_C7R lines=$(printf '%s\n' "$CNV_C7" | LC_ALL=C awk 'NF { n++ } END { print n + 0 }') same=$([ "$CNV_C7" = "$CNV_C7W" ] && printf yes || printf no)" \
+   "rc=1 lines=6 same=yes"
 mkdir -p "$CNV/c18e"
 printf '%s\n' "printf 'it decides how work gets built, and Proves it\\n'" "printf 'what a fix must prove\\n'" \
   "printf 'with nothing proving it\\n'" 'git rev-parse --verify -q HEAD' "printf 'improves, approves, provenance\\n'" > "$CNV/c18e/p.sh"
@@ -514,6 +519,14 @@ _fx_git "$CNV_G" add lib/a.sh >/dev/null 2>&1
 CNV_C4="$(_cnv_check "$CNV_G")"; CNV_C4R=$?
 is "cnv A41 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked line passes, then fails once tracked" \
    "before rc=$CNV_C3R [$CNV_C3] after rc=$CNV_C4R [$CNV_C4]" "before rc=0 [] after rc=1 [lib/a.sh:1:echo unproven]"
+# Round 3, not blind (the last review round): a directory inside a work tree that git tracks nothing of, as a plugin
+# cache under a home kept in git is, is read whole; asking only whether it is inside a work tree read nothing (rc 2).
+CNV_U="$CNV/c18u"; mkdir -p "$CNV_U/sub"; printf 'echo fine\n' > "$CNV_U/top.sh"
+( _fx_cd "$CNV_U" && git init -q -b main && git add top.sh ) >/dev/null 2>&1
+printf '%s\n' "printf 'it proves it\\n'" > "$CNV_U/sub/p.sh"
+CNV_C10="$(_cnv_check "$CNV_U/sub")"; CNV_C10R=$?
+is "cnv A48 (C18, round 3, not blind): a directory inside a work tree that git tracks nothing of is read whole, and its line is named" \
+   "rc=$CNV_C10R [$CNV_C10]" "rc=1 [p.sh:1:printf 'it proves it\\n']"
 CNV_ENG="$(cd "$REAL_HARNESS/.." && pwd -P)"
 CNV_C5="$(_cnv_check "$CNV_ENG")"; CNV_C5R=$?; CNV_C5N="$(_cnv_list "$CNV_ENG" | LC_ALL=C awk 'END { print NR + 0 }')"
 is "cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line" \

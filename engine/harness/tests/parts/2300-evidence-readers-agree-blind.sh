@@ -47,7 +47,7 @@ printf '\nthe evidence readers agree with the judge: a path that stands and is n
 # share one assertion with their positive claim on the same output; each state of R has an "R armed" assertion
 # that the path was built and felix merge --dry-run lists the not-judged row, so the judge saw the state. C1's
 # "no evidence line" and "no unknown" are paired with C2 and C5, which list them over the same base and fixture;
-# C3's are paired with C2 and share their assertions with "No evidence gaps" and "nothing is unproven". A4 is
+# C3's are paired with C2 and share their assertions with "No evidence gaps" and "no evidence is owed". A4 is
 # paired with "A4 armed": the same trace reaches the section in C5's state. D2's "prints nothing" is paired with
 # "D2 armed": as shipped, the same checks print the gap and the met row. D3 is paired with "D3 armed": the pattern
 # finds each form in a planted text, and the file list holds felix and lib/evidence.sh.
@@ -455,7 +455,7 @@ _era_ch src/thing.js && _era_thing=1
 _era_begin none - README.md -- evidence classify receipt merge incident next brief d4
 _era_l="nothing at the path, control"
 _era_hl "C1 evidence ($_era_l): says the project declares no evidence.tsv" "$ERA_E" '+declares no evidence.tsv'
-_era_hl "C1 classify ($_era_l): on a green change says nothing is unproven" "$ERA_C" '+tier:  green' '+nothing is unproven'
+_era_hl "C1 classify ($_era_l): on a green change says no evidence is owed" "$ERA_C" '+tier:  green' '+no evidence is owed'
 _era_is "C1 receipt ($_era_l): lists no unknown" "$(_era_rf 2)" "[]" "$ERA_R"
 _era_is "C1 merge --dry-run ($_era_l): lists no evidence line, where C2 and C5 list one over the same base" \
         "$(_era_c "$ERA_ML" 1)" 0 "$ERA_M"
@@ -488,8 +488,8 @@ _era_end
 _era_begin file "$_era_T" README.md -- evidence classify receipt merge next brief
 _era_l="the same table, a change the rule does not reach, control"
 _era_hl "C3 evidence ($_era_l): says No evidence gaps, with no [!] row and not not judged" "$ERA_E" '+No evidence gaps' '-[!]' '-not judged'
-_era_hl "C3 classify ($_era_l): on a green change says nothing is unproven, and not not judged" \
-        "$ERA_C" '+tier:  green' '+nothing is unproven' '-not judged'
+_era_hl "C3 classify ($_era_l): on a green change says no evidence is owed, and not not judged" \
+        "$ERA_C" '+tier:  green' '+no evidence is owed' '-not judged'
 _era_is "C3 receipt ($_era_l): lists no gap, and evidence not under unknown" \
         "gap $(_era_rf 3), evidence under unknown $(_era_rf 1)" "gap [], evidence under unknown no" "$ERA_R"
 _era_is "C3 merge --dry-run ($_era_l): lists no evidence line, where C2 lists the gap over the same table" \
@@ -579,8 +579,8 @@ for _era_x in "dir|directory" "dangling|dangling link" "linkdir|link to a direct
   _era_is "A1 evidence ($_era_l): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv" \
           "exit $ERA_ERC, [?] evidence.tsv rows $_era_n, 1 row(s) not judged lines $_era_m, declares no evidence.tsv $_era_s" \
           "exit 1, [?] evidence.tsv rows 1, 1 row(s) not judged lines 1, declares no evidence.tsv no" "$ERA_E"
-  _era_hl "A2 classify ($_era_l): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge" \
-          "$ERA_C" '+tier:  green' '+ 1 evidence row(s) not judged' '+Not auto-merge eligible' '-nothing is unproven' '-Eligible for auto-merge'
+  _era_hl "A2 classify ($_era_l): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge" \
+          "$ERA_C" '+tier:  green' '+ 1 evidence row(s) not judged' '+Not auto-merge eligible' '-no evidence is owed' '-Eligible for auto-merge'
   _era_is "A3 receipt ($_era_l): lists evidence under unknown, and no evidence gap and no met row" \
           "evidence under unknown $(_era_rf 1), gap $(_era_rf 3), met $(_era_rf 4)" "evidence under unknown yes, gap [], met []" "$ERA_R"
   _era_v="$(_era_isec)"

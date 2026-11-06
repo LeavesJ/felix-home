@@ -22,7 +22,7 @@ printf '\ntrust plane step 1, the resolver: felix_resolve_project, felix_repo_ro
 _lf_dir "$TMP/trust-2170"; TRA="$LF_DIR"
 TRP_E="$FROOT/harness"
 _trp_driver "$TRA/drv"
-TRAL='marker remote nest tie badmarker none slug alphabet unread noorigin'
+TRAL='marker remote nest tie badmarker none slug alphabet unread noorigin half'
 TRABAD=""
 for _tra_l in $TRAL; do _trp_res "$TMP/trust-2170/$_tra_l" "$_tra_l" || TRABAD="$TRABAD $_tra_l"; done
 # The other checkout P16 runs from: its origin is the one beta's remote_match names, while the none layout's is not.
@@ -33,7 +33,7 @@ _lf_init "$TRA/none/co/other" && printf 'other\n' > "$TRA/none/co/other/README" 
 _lf_checkout "$TRA/marker/co/res2" alpha || TRABAD="$TRABAD res2"
 _trp_lib "$TRA/noown" own.sh && TRANOOWN="$TRP_LIBC" || TRABAD="$TRABAD noown"
 _trp_lib "$TRA/nodetect" detect.sh && TRANODET="$TRP_LIBC" || TRABAD="$TRABAD nodetect"
-is "P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin), the second checkouts and the two engine lib copies were built" \
+is "P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half), the second checkouts and the two engine lib copies were built" \
    "${TRABAD:-built}" "built"
 
 # LAYOUT -> the clean answer P2's examples give for resolve from LAYOUT's co/res/sub/dir, as _trp_rcls words it.
@@ -257,5 +257,53 @@ done
 _trp_at "$TRA/marker"; TRP_LIB="$TRANODET" _trp_drv "$TRA/p" "$TRP_S" root "$TRP_S"
 is "P26: felix_repo_root with felix_capture unloadable, from co/res/sub/dir: still prints main's bytes (the checkout root) and returns 2" \
    "$(_trp_ro "$TRA/p")" "rc=2 out=[$TRP_CO]"
+
+# --- P47 (review round 1): a URL is read only from a git that exited 0. res-half: alpha's remote_match is the origin's
+# first 28 bytes, beta's its whole path; the probe prints the first half of git's real answer (https://git.example.org/acme)
+# and exits with one of git's finished statuses, 128 (fatal) or 2 (no such remote). Main's answer there is none.
+TRP_NAMES=""; _tra_res half
+is "P47 (control): res-half (alpha's remote_match git.example.org/acme, beta's the origin's whole path), no fault: .../projects/beta, exit 0" \
+   "$TRAC" "found:$TRA/half/felix-home/projects/beta"
+for _tra_m in h128 h2; do
+  _tra_one "P47: res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits ${_tra_m#h}: resolve none (main's) or unknown, never 0 with a project (never alpha)" \
+    half "none|unknown" "$_tra_m" git "*' remote get-url origin '*" "*' felix_resolve_project '*"
+  _trp_new "$TRA/p.fired"; _trp_arm "$_tra_m" git "*' remote get-url origin '*" "*' _felix_resolve_remote '*"; _tra_rr half
+  is "P47: _felix_resolve_remote on res-half's root, the origin read prints half the URL then exits ${_tra_m#h}: status 1 (no origin, as main) or 3, _FELIX_RB_P and _FELIX_RB_TIE empty" \
+     "$(_trp_in "$TRAC" "rc=1 p=[] tie=[]|rc=3 p=[] tie=[]")|$TRAF" "ok|fired"
+done
+
+# --- P48 (review round 1): the Stop hook when felix_capture cannot be loaded. Part 1750's b07 fixture rebuilt here: a
+# home whose harness is the engine under test, project p (gate true), a checkout bound to p by its committed marker,
+# made dirty and never verified. The hook is run once with the whole engine (control), and once with lib/detect.sh moved
+# out of the engine's lib/. Held means its stdout carries "decision": "block" (main's hold, or a hold saying the binding
+# could not be resolved).
+TRAST="$TRA/stop"; TRABAD=""
+mkdir -p "$TRAST/home/projects/p" "$TRAST/mem" "$TRAST/user" "$TRAST/aside" "$TRAST/repo" || TRABAD=dirs
+_copy_content "$REAL_HARNESS" "$TRAST/home/harness" || TRABAD="$TRABAD harness"
+printf '{"name": "p", "gate": "true"}\n' > "$TRAST/home/projects/p/project.json"
+printf '# p\n' > "$TRAST/home/projects/p/CLAUDE.md"
+( _fx_cd "$TRAST/repo" && git init -q -b main && printf 'base\n' > WORK.txt && printf 'p\n' > .felix && git add -A \
+  && git -c user.name=t -c user.email=t@t -c commit.gpgsign=false commit -qm init ) >/dev/null 2>&1 || TRABAD="$TRABAD repo"
+printf 'one more line\n' >> "$TRAST/repo/WORK.txt"
+# SID -> the Stop hook of TRAST's home run from its checkout with a Stop payload for session SID; TRAST/o.out, o.err,
+# LF_RC; TRAH yes when it held, else no.
+_tra_stop() {
+  ( _fx_cd "$TRAST/repo" || exit 125
+    printf '{"hook_event_name":"Stop","stop_hook_active":false,"session_id":"%s"}' "$1" \
+      | env -u FELIX_ALLOW_RED -u CLAUDE_CODE_REMOTE -u CLAUDE_CODE_SESSION_ID -u FELIX_HOME_DIR FELIX_HOME="$TRAST/home" \
+          FELIX_MEMORY="$TRAST/mem" HOME="$TRAST/user" LANGUAGE=en TZ=UTC GIT_CONFIG_NOSYSTEM=1 "$TRAST/home/harness/hooks/stop" ) \
+    > "$TRAST/o.out" 2> "$TRAST/o.err"
+  LF_RC=$?
+  case "$(cat "$TRAST/o.out" 2>/dev/null)" in (*'"decision"'*'"block"'*) TRAH=yes ;; (*) TRAH=no ;; esac
+}
+_tra_stop trust-p48-whole
+is "P48 (control): the Stop hook with the whole engine, a dirty checkout bound by its marker and never verified: it holds" \
+   "${TRABAD:-built}|$TRAH" "built|yes"
+mv "$TRAST/home/harness/lib/detect.sh" "$TRAST/aside/detect.sh" 2>/dev/null
+_tra_stop trust-p48-nodetect
+mv "$TRAST/aside/detect.sh" "$TRAST/home/harness/lib/detect.sh" 2>/dev/null
+TRALAB="P48: the same Stop with lib/detect.sh removed from the engine (felix_capture unloadable, resolve says 2): it still holds, as main, never exit 0 with nothing said"
+if [ "$TRAH" = yes ]; then ok "$TRALAB"
+else bad "$TRALAB" "expected [held] got [exit $LF_RC, stdout [$(head -c 300 "$TRAST/o.out" 2>/dev/null)], stderr [$(head -c 200 "$TRAST/o.err" 2>/dev/null)]]"; fi
 TRP_NAMES=""
 # <<< trust-resolver-unfinished-reads

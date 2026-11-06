@@ -57,13 +57,19 @@ _trc_three() {
 # LAYOUT -> TRCCL what felix which says from LAYOUT's sub/dir with no fault (_trp_said), TRCCW its class.
 _trc_clean() { _trp_at "$TRC/$1"; _lf_run "$TRC/c" "$TRP_S" - "$FELIX" which; TRCCL="$(_trp_said "$TRC/c")"; TRCCW="$(_trp_wcls "$TRC/c" "$TRP_S")"; }
 # LABEL LAYOUT MODE NAME WORDS -> one assertion: under the probe (any calling function), felix which from LAYOUT is
-# unknown, or says exactly what the clean run says; and the probe acted.
+# unknown, or says exactly what the clean run says, when the probe acted; and exactly what the clean run says when the
+# probe never acted (P46, review round 1: section 5's head, a read the fix no longer makes cannot fail). A probe that
+# acted but whose command still ran to a clean exit is no fault and fails, as everywhere else.
 _trc_or_clean() {
   local lab="$1" l="$2" v
   _trp_new "$TRC/p.fired"; _trp_arm "$3" "$4" "$5" '*' || { bad "$lab" "the probe could not be armed"; return; }
   TRCCASE="$3 $4"; _trc_three "$l"
-  if [ "$TRCW" = unknown ] || [ "$TRCS" = "$TRCCL" ]; then v=ok; else v="$TRCS"; fi
-  is "$lab" "$v|$TRCF" "ok|fired"
+  case "$TRCF" in
+    (fired) if [ "$TRCW" = unknown ] || [ "$TRCS" = "$TRCCL" ]; then v=ok; else v="fired: $TRCS"; fi ;;
+    ("not fired:"*) if [ "$TRCS" = "$TRCCL" ]; then v=ok; else v="$TRCF, and not the clean run: $TRCS"; fi ;;
+    (*) v="$TRCF" ;;
+  esac
+  is "$lab" "$v" ok
 }
 
 # --- P17, P18, P19: the refusal sentences' own reads.
@@ -71,20 +77,20 @@ _trc_clean badmarker
 is "P17 (control): felix which on res-badmarker, no fault: the broken sentence, which lists the known projects" \
    "$TRCCW|$(case "$TRCCL" in (*"known projects: alpha beta gamma "*) printf listed ;; (*) printf 'not listed' ;; esac)" "broken|listed"
 for _trc_m in f2 f3; do
-  _trc_or_clean "P17: felix which on res-badmarker (a broken marker), $_trc_m at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist" \
+  _trc_or_clean "P17, P46: felix which on res-badmarker (a broken marker), $_trc_m at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist" \
     badmarker "$_trc_m" ls "*'/projects '*"
 done
 _trc_clean none
 is "P18 (control): felix which on res-none, no fault: no project governs, with Known projects: alpha beta gamma" \
    "$TRCCW|$(case "$TRCCL" in (*"Known projects: alpha beta gamma "*) printf listed ;; (*) printf 'not listed' ;; esac)" "none|listed"
 for _trc_m in f2 f3; do
-  _trc_or_clean "P18: felix which on res-none, $_trc_m at the ls behind Known projects: unknown, or main's no-project sentence byte for byte" \
+  _trc_or_clean "P18, P46: felix which on res-none, $_trc_m at the ls behind Known projects: unknown, or main's no-project sentence byte for byte" \
     none "$_trc_m" ls "*'/projects '*"
 done
 _trc_clean tie
 is "P19 (control): felix which on res-tie, no fault: the tie sentence naming alpha, beta" \
    "$TRCCW|$(case "$TRCCL" in (*"fits alpha, beta equally well"*) printf named ;; (*) printf 'not named' ;; esac)" "broken|named"
-_trc_or_clean "P19: felix which on res-tie, F3 at the tr -cd [:print:] that cleans the names (_felix_binding_sane): unknown, or the clean tie sentence byte for byte" \
+_trc_or_clean "P19, P46: felix which on res-tie, F3 at the tr -cd [:print:] that cleans the names (_felix_binding_sane): unknown, or the clean tie sentence byte for byte; a cleaner made fork-free (R12) leaves the probe unfired and must leave the clean tie sentence" \
   tie f3 tr "*' -cd [:print:] '*"
 is "P38: over the $TRCN runs of P17-P19 (res-badmarker, res-none and res-tie under their faults), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0" \
    "${TRCDIS:-agreed}" agreed

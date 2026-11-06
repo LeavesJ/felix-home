@@ -19,10 +19,10 @@ _lf_dir "$TMP/trust-2171"; TRB="$LF_DIR"
 TRP_E="$FROOT/harness"
 _trp_driver "$TRB/drv"
 TRBBAD=""
-for _trb_l in marker remote nest tie badmarker none slug alphabet unread noorigin; do
+for _trb_l in marker remote nest tie badmarker none slug alphabet unread noorigin half; do
   _trp_res "$TMP/trust-2171/$_trb_l" "$_trb_l" || TRBBAD="$TRBBAD $_trb_l"
 done
-is "P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin) was built" "${TRBBAD:-built}" built
+is "P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half) was built" "${TRBBAD:-built}" built
 TRBDIS=""; TRBN=0
 
 # LAYOUT -> TRBWANT the which class the clean run gives (P2's examples): found:P, broken or none.
@@ -141,5 +141,13 @@ done
 # --- P38, over the res layouts and faults of this part (the badmarker, none and tie faults of 17-19 are part 2172's).
 is "P38: over the $TRBN runs of this part (seven res layouts clean, and the faults of P2-P9 on base, res-remote, res-nest, res-tie and res-none, with alphabet, the unreadable marker and no origin), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0" \
    "${TRBDIS:-agreed}" agreed
+
+# --- P47 (review round 1), after P38's count: the origin read prints half the URL, then exits with a finished status.
+TRP_NAMES=""; _trb_three half
+is "P47 (control): felix which on res-half, no fault: found beta (the origin's whole path)" "$TRBW" found:beta
+for _trb_m in h128 h2; do
+  _trb_one "P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits ${_trb_m#h}: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)" \
+    half "none|unknown" "$_trb_m" git "*' remote get-url origin '*"
+done
 TRP_NAMES=""
 # <<< trust-which-unfinished-reads

@@ -18,6 +18,8 @@
 #        nothing printed (detect.sh's case of felix_capture); in the calling program's own shell it does not act.
 #   f4   prints the first half of NAME's real output (bytes), then exits 1    pN  the first N bytes, then exits 1
 #   f5   exit 0, nothing printed
+#   hS   prints the first half of NAME's real output (bytes), then exits S: a partial answer with one of the command's
+#        finished statuses (h128 and h2 for git's fatal error and no such remote; review round 1, P47)
 # TRP_FIRE is "fired" when every armed NAME acted (for f3, and the command did not then run to a clean exit), else what
 # did not; LF_RC the subshell's status (CMD's LF_RC).
 #
@@ -41,7 +43,9 @@ _trp_proj() {
 
 # DIR LAYOUT -> P2's resolver layout under DIR (below $TMP), LAYOUT one of marker remote nest tie badmarker none slug,
 # and three of this suite's: alphabet (the marker names alphabet, a project beside alpha), noorigin (remote, with no
-# origin remote) and unread (marker, the marker's mode 000). TRP_FX DIR's physical path; TRP_H the home TRP_FX/felix-home;
+# origin remote) and unread (marker, the marker's mode 000); and review round 1's half (P47: alpha's remote_match
+# git.example.org/acme is the origin's first 28 bytes https://git.example.org/acme, beta's the origin's whole path
+# git.example.org/acme/web-and-extras-and-more; clean, beta). TRP_FX DIR's physical path; TRP_H the home TRP_FX/felix-home;
 # TRP_CO the checkout TRP_FX/co/res, its one commit at 1790000000, its marker untracked; TRP_S TRP_CO/sub/dir; TRP_M the
 # memory root TRP_FX/memory; TRP_U a HOME TRP_FX/user; TRP_B the lane's stubs (_lf_stubs). _lf_use names them. Status 1
 # and TRP_FX empty when it could not be built.
@@ -57,6 +61,8 @@ _trp_res() {
     tie)   _trp_proj "$fx" alpha acme/web; _trp_proj "$fx" beta acme/web.git; _trp_proj "$fx" gamma other.example/thing ;;
     slug)  _trp_proj "$fx" alpha acme/web; _trp_proj "$fx" beta github.com/acme/web-extras; _trp_proj "$fx" gamma acme/we
            o="git@github.com:Acme/Web.git" ;;
+    half)  _trp_proj "$fx" alpha git.example.org/acme; _trp_proj "$fx" beta git.example.org/acme/web-and-extras-and-more
+           _trp_proj "$fx" gamma other.example/thing; o="https://git.example.org/acme/web-and-extras-and-more.git" ;;
     marker|remote|badmarker|none|alphabet|noorigin|unread)
            _trp_proj "$fx" alpha nomatch.example/alpha; _trp_proj "$fx" beta git.example.org/acme/web
            _trp_proj "$fx" gamma other.example/thing ;;
@@ -168,6 +174,8 @@ _trp_arm() {
       builtin printf '%s' \"\${_trpo:0:\$((\${#_trpo} / 2))}\"; return 1" ;;
     (p[0-9]*:*) a="builtin printf 'fired $n\\n' >> '$f'; _trpo=\"\$($c \"\$@\"; builtin printf x)\"; _trpo=\"\${_trpo%x}\"; local LC_ALL=C
       builtin printf '%s' \"\${_trpo:0:${m#p}}\"; return 1" ;;
+    (h[0-9]*:*) a="builtin printf 'fired $n\\n' >> '$f'; _trpo=\"\$($c \"\$@\"; builtin printf x)\"; _trpo=\"\${_trpo%x}\"; local LC_ALL=C
+      builtin printf '%s' \"\${_trpo:0:\$((\${#_trpo} / 2))}\"; return ${m#h}" ;;
     (*) return 1 ;;
   esac
   TRP_DEFS="$TRP_DEFS

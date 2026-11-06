@@ -31,9 +31,16 @@ fi
 # and there is no diff yet, because the work has not happened. This answers the
 # forward question instead — what will this have to prove — which is the one
 # worth asking before starting rather than after. It shares that check's reader
-# (_felix_evidence_judge), so the two never disagree on what a row says.
-felix_brief_evidence() {
-  _felix_evidence_judge "$1" "$2" brief
+# (_felix_evidence_judge), so the two never disagree on what a row says. It
+# shares the check's first question too: a project.json the check cannot read
+# is one row, project.json, and no other (B11R3-8), read at the commit ROOT's
+# HEAD holds. ROOT is the repository the declaration is read from, the one the
+# command runs in; absent, it is the one holding the current directory. The
+# brief sets nothing aside and says nothing of what a declaration holds.
+felix_brief_evidence() {   # PROJ PATHS [ROOT]
+  local root="${3:-}"
+  [ -n "$root" ] || root="$(felix_repo_root "$PWD")"
+  _felix_evidence_judge "$1" "$2" brief "" "$root"
 }
 
 # The play this project already decided this kind of work goes through.
@@ -152,7 +159,7 @@ $body")"
   [ -f "$proj/risk.tsv" ] && sev="$(felix_incident_severity "$proj" "$implicated")"
   printf 'tier:     %s\n' "$sev"
 
-  ev="$(felix_brief_evidence "$proj" "$implicated")"
+  ev="$(felix_brief_evidence "$proj" "$implicated" "$root")"
   if [ -n "$ev" ]; then
     printf '\nwhat a fix must prove\n'
     printf '%s\n' "$ev" | while IFS=$'\t' read -r name reason; do

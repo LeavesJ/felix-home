@@ -4741,7 +4741,7 @@ cmd_incident() {
 
   if [ -f "$proj/evidence.tsv" ]; then
     printf '\nthe fix will have to prove\n'
-    felix_brief_evidence "$proj" "$paths" | while IFS=$'\t' read -r name reason; do printf '  %-14s %s\n' "$name" "$reason"; done
+    felix_brief_evidence "$proj" "$paths" "$root" | while IFS=$'\t' read -r name reason; do printf '  %-14s %s\n' "$name" "$reason"; done
   fi
 
   # Policy, stated every time because urgency is exactly when it gets skipped.

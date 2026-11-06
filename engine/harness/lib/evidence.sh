@@ -337,8 +337,11 @@ _felix_evidence_say() {   # MODE STATUS NAME REASON
 #
 # The check, given BASE and ROOT, sets aside what project.json declares
 # vendored and says how many paths it set aside in one n/a line, VENDORED,
-# after the last row's; the brief reads every path it is given and never reads
-# project.json (round 3, B11R3-6 and B11R3-11).
+# after the last row's. The brief reads every path it is given and sets nothing
+# aside (round 3, B11R3-6 and B11R3-11), but it asks the same question the check
+# asks first, whether project.json can be read, and says the same one unknown
+# when it cannot (B11R3-8), at the commit ROOT's HEAD holds when BASE is empty:
+# a declaration the merge refuses is not a brief of ordinary rows.
 _felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
   local proj="$1" paths="$2" mode="$3" rows kind name when requires reason why rc status
   local wpaths="$2" rpaths="$2" wp rp decl ents="" opted="" go=0 vend=0 aside=0 n
@@ -347,12 +350,13 @@ _felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
     _felix_evidence_say "$mode" unknown evidence.tsv "evidence.tsv exists but cannot be read, so its rules were not judged"
     return 0
   fi
+  # A declaration it cannot read is not an empty one (B11R3-8), in both modes: one
+  # unknown for project.json, which stands for every row, and no row.
+  if ! decl="$(_felix_evidence_declared "$proj" "${4:-}" "${5:-}")"; then
+    _felix_evidence_say "$mode" unknown project.json "${decl:-project.json could not be read, so the rules were not judged}"
+    return 0
+  fi
   if [ "$mode" = check ]; then
-    # A declaration the check cannot read is not an empty one (B11R3-8).
-    if ! decl="$(_felix_evidence_declared "$proj" "${4:-}" "${5:-}")"; then
-      _felix_evidence_say check unknown project.json "${decl:-project.json could not be read, so the rules were not judged}"
-      return 0
-    fi
     ents="${decl%%$'\n'*}"
     case "$decl" in *$'\n'*) opted="${decl#*$'\n'}" ;; esac
     # Each changed path as its own bytes, never as git quotes it (B11R3-14).

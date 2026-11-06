@@ -337,7 +337,7 @@ _b11r3_hl "B11R3 A147: and felix evidence prints [?] project.json, exits 1, and 
 _reset; _b11r3_pj
 
 # ---- B11R3-11: the brief sets nothing aside -----------------------------------------------------------------
-printf '\n  the brief reads every path it is given and never reads project.json\n'
+printf '\n  the brief reads every path it is given and sets nothing aside\n'
 # PATHS: felix_brief_evidence _b11r3_P PATHS, in a shell that sources only lib/resolve.sh and lib/intake.sh.
 _b11r3_bev() { ( cd "$B11R3" && bash -c '. "$1/lib/resolve.sh"; . "$1/lib/intake.sh"; felix_brief_evidence "$2" "$3"' \
                  _ "$FROOT/harness" "$_b11r3_P" "$1" ) </dev/null 2>/dev/null; }
@@ -345,7 +345,7 @@ _b11r3_p U '{"evidence_vendored": "vendor/"}'
 is "B11R3 A148: felix_brief_evidence sets nothing aside: a path under a declared vendor/ fires unit, with only intake.sh sourced" \
    "$(_b11r3_bev vendor/github.com/x/pkg/a.go)" "$(printf 'unit\tcode changes need a test')"
 _b11r3_p U "$_b11r3_JX"
-is "B11R3 A149: and it never reads project.json, so a declaration the check cannot read changes nothing (control)" \
+is "B11R3 A149: and a declaration the check cannot read changes nothing where no commit holds it (control; part 2310 has the brief read it)" \
    "$(_b11r3_bev src/a.go)" "$(printf 'unit\tcode changes need a test')"
 
 # ---- the review round: B11R3-13 and B11R3-14 ----------------------------------------------------------------

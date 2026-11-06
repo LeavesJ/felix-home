@@ -80,13 +80,16 @@ below: `felix brief` prints a `project.json` row, `felix incident` prints one,
 The fixture's change does not edit `project.json`, so `HEAD` and the base hold
 the same declaration.
 
-**D7. A149 of part 1832 is superseded.** That assertion ("it never reads
+**D7. A149 of part 1832 is reworded.** That assertion's name ("it never reads
 project.json, so a declaration the check cannot read changes nothing") states
-the old behaviour. It is replaced, by the implementer and not by the blind
-author, with a statement of D1 for its own fixture. Nothing else in 1832 or
-1830 may change.
+the old behaviour. Its fixture is a directory that is no repository, where no
+commit holds a declaration, so its check (the brief prints the `unit` row)
+still holds and stays; its name says what it now shows, and the section line
+above it says the brief "sets nothing aside". Part 2310 has the brief read
+the declaration. The implementer rewords them, and nothing else in 1832 or
+1830 changes.
 
-## Controls (these hold on main before the fix)
+## Controls (these hold on main before the fix, except C4)
 
 - **C1.** No declaration: the brief prints the table's rows as it did, and no
   `project.json` row. Same for a good declaration (D2).
@@ -95,9 +98,10 @@ author, with a statement of D1 for its own fixture. Nothing else in 1832 or
 - **C3.** (Skipped when the suite runs as root.) A table of mode 000 and a bad
   declaration: the one row is `evidence.tsv`, in `felix brief`, and the section
   holds no `project.json` row.
-- **C4.** A bad declaration in a project whose directory is **not** inside the
-  repository the command runs in, written to the disk: the brief and
-  `felix evidence` agree with each other (a row `project.json` in both).
+- **C4.** (Red on main: the brief reads nothing there.) A bad declaration in
+  a project whose directory is **not** inside the repository the command runs
+  in, written to the disk: the brief and `felix evidence` agree with each other
+  (a row `project.json` in both).
 
 ## Fixtures and limits
 

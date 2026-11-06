@@ -408,3 +408,14 @@ in `35c1b27e`, `cd4b8ab9`, `db6b4b91` and `fb3450cb`.
 
 The fixes' assertions, by the same blind author, are rf6's `core.quotePath`
 case and rf9's unwritable `live-index`.
+
+**Before landing.** All eight parts have no FAIL under BWK awk and under gawk
+5.4.1, and the fifteen lint parts have no FAIL. The version is `0.49.322`:
+the `needs-founder` draft #482 holds `0.49.321`.
+
+**An overlap with #482.** That PR changes `lib/probes.sh`'s blind-probe
+sentences from "the witness proves this surface exists" to "the witness says
+this surface exists". Parts 2420, 2430, 2440 and 2470 quote the current
+wording in their expected values, because the residual carries a scratch
+probe's own sentence (C7, C10). Whichever of the two PRs lands second updates
+those four copies.

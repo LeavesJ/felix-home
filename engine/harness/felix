@@ -6497,7 +6497,7 @@ cmd_probes() {
 # included, is in the library's entry function.
 cmd_situations() {
   local f
-  for f in situations situations-read situations-report; do
+  for f in situations situations-read situations-report situations-check; do
     # shellcheck disable=SC1090,SC1091
     . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
   done

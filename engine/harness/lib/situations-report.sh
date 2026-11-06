@@ -161,6 +161,9 @@ felix_situations_report() {   # MODE FORMAT PROJ ROWS BASE-EVAL|- HEAD-EVAL BASE
     if [ "$det" = run ]; then
       printf '  at  %s  tree %s  recorded %s  detector run on this checkout\n' \
         "$(_felix_situations_field "$hread" commit)" "$(_felix_situations_field "$hread" tree)" "$(_felix_situations_field "$hread" stamp)"
+    elif [ "$det" = no-tree ]; then
+      printf '  at  -  tree %s  recorded %s  detector not run: the tree id of this checkout could not be taken\n' \
+        "$(_felix_situations_field "$hread" tree)" "$(_felix_situations_field "$hread" stamp)"
     else
       printf '  at  -  tree %s  recorded %s  detector not run: this checkout is not at this tree\n' \
         "$(_felix_situations_field "$hread" tree)" "$(_felix_situations_field "$hread" stamp)"

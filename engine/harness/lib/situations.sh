@@ -1,21 +1,22 @@
 # felix situations: the entry, its flags, the situation table and the ids (slice 1 of the capability lane; the design is
 # docs/2026-10-29-capability-lane-first-slices-design.md section 7, the contracts C1 to C16 of
-# docs/2026-10-29-lane-slice-1-plan.md).
+# docs/2026-10-29-lane-slice-1-plan.md, with the amendments of C17, 2026-11-05).
 #
 # WHAT IT DOES. It says which situation rows a project owes, for a recorded tree (--at) or for a change (--change): the
 # rows the change brings in, blinds and retires, the rows already standing, and what could not be looked at. Report-only:
 # no model, no key, no network, and nothing is written outside one scratch directory under ${TMPDIR:-/tmp}, which is
 # removed before the report is printed.
 #
-# HOW IT IS LOADED. cmd_situations in felix sources this file and its two siblings inside its own body, the way cmd_audit,
+# HOW IT IS LOADED. cmd_situations in felix sources this file and its three siblings inside its own body, the way cmd_audit,
 # cmd_inventory and cmd_cost load theirs, so felix gate, felix merge and felix land never parse or run any of it. Nothing
-# in these three files runs when it is sourced: they define functions and set nothing.
+# in these four files runs when it is sourced: they define functions and set nothing.
 #
 #   lib/situations.sh         this file: felix_situations (flags, project, table, scratch, the run), the table reader,
 #                             the ids, and the evaluation of every class at one reading (C4, C7, C10)
 #   lib/situations-read.sh    one side read: the scratch directory, the recorded readings of facts.log, and the detector
 #                             at the live tree
 #   lib/situations-report.sh  the human report, the --tsv form, the --propose drafts
+#   lib/situations-check.sh   what the readings share: the environment git runs in for a scratch clone (C17.2)
 #
 # THE ORDER OF A RUN (C2). Usage errors first, then the governing project, then the situation table, then the scratch
 # directory, then the rest. The first check that fails is the one line printed. The status is 2 for a usage error or a
@@ -212,7 +213,7 @@ felix_situations_eval() {   # ROWS READING PROBE-GROUNDS MATURITY
             ans = (DET == "run") ? ((C in DCAP) ? "names" : "silent") : "notrun"
             TK = TK "@" ans
             if (ans == "names") TS = "T"
-            else TY = ((NG == 0) ? "no probe grounds " C : "every probe grounding " C " is not-applicable") " and " ((ans == "silent") ? "the detector does not name it" : "the detector was not run: this checkout is not at this tree")
+            else TY = ((NG == 0) ? "no probe grounds " C : "every probe grounding " C " is not-applicable") " and " ((ans == "silent") ? "the detector does not name it" : (DET == "no-tree") ? "the detector was not run: the tree id of this checkout could not be taken" : "the detector was not run: this checkout is not at this tree")
           }
           TG = items(1)
           if (TG == "") TG = C " " ((ans == "names") ? "detected" : (ans == "silent") ? "not detected" : "detector not run")

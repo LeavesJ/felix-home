@@ -1,4 +1,4 @@
-# felix situations, the readings (slice 1 of the capability lane; contracts C3.1 to C3.4 of
+# felix situations, the readings (slice 1 of the capability lane; contracts C3.1 to C3.4 and C17 of
 # docs/2026-10-29-lane-slice-1-plan.md). Loaded by cmd_situations in felix, after lib/situations.sh. Definitions only.
 #
 # ONE SIDE READ. A side is read into a reading file, one per side, inside the run's scratch directory. Its lines are
@@ -8,7 +8,7 @@
 #   commit   <sha40>|-
 #   tree     <tree id>
 #   stamp    <stamp>|-
-#   detector run|not-run
+#   detector run|not-run|no-tree      not-run is a live tree that differs, no-tree one whose id could not be taken (C17.5)
 #   cap      <capability>            zero or more, the detector's names, sorted and unique, present only when it ran
 #   probe    <pred> <grounds> <state> <count> <detail>|-
 #
@@ -20,6 +20,8 @@
 # the run writes lives in it. It is removed before the report is printed, on every exit after it was made, and on TERM,
 # HUP and INT, which then exit 143, 129 and 130. Its path is the global _FELIX_SITUATIONS_SCRATCH, set empty before any
 # trap is installed, because a trap body is read when it fires and a local is gone by then (felix_discover's precedent).
+# mktemp's output is assigned to that global by the command that runs mktemp, so a signal that arrives as it finishes finds
+# the name already stored (C17.8).
 
 # Sets _FELIX_SITUATIONS_ME to the pid of the process that runs this, which a subshell's own differs from its parent's: the
 # parent of a shell that has exec'd sh is the process that forked it. bash 3.2 has no BASHPID, and neither $$ nor
@@ -54,14 +56,16 @@ felix_situations_scratch_begin() {
   trap 'felix_situations_scratch_remove; exit 143' TERM
   trap 'felix_situations_scratch_remove; exit 129' HUP
   trap 'felix_situations_scratch_remove; exit 130' INT
-  d="$(mktemp -d "${TMPDIR:-/tmp}/felix-situations.XXXXXX" 2>/dev/null)" || d=""
+  # mktemp's output goes straight into the global the traps read, so a signal that arrives as it completes finds the name
+  # already stored (C17.8).
+  _FELIX_SITUATIONS_SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/felix-situations.XXXXXX" 2>/dev/null)" || _FELIX_SITUATIONS_SCRATCH=""
+  d="$_FELIX_SITUATIONS_SCRATCH"
   if [ -z "$d" ] || [ ! -d "$d" ]; then
     printf 'felix situations: the scratch directory could not be made: mktemp -d failed under %s\n' "$tmp" >&2
     return 3
   fi
-  # Absolute, so a TMPDIR given relative names the same directory from inside a clone, where the probes run. It is set
-  # before anything can fail, so the trap still removes the directory under the name mktemp gave it.
-  _FELIX_SITUATIONS_SCRATCH="$d"
+  # Absolute, so a TMPDIR given relative names the same directory from inside a clone, where the probes run. The name mktemp
+  # gave is already stored, so the trap removes the directory under it until this replaces it with the same directory.
   d="$(CDPATH='' cd -P -- "$d" 2>/dev/null && pwd -P)" || d=""
   [ -z "$d" ] || _FELIX_SITUATIONS_SCRATCH="$d"
   return 0
@@ -196,14 +200,30 @@ felix_situations_gitdir() {   # ROOT
   ( CDPATH='' cd -P -- "$g" 2>/dev/null && pwd -P )
 }
 
-# The detector at a recorded tree (C3.2), appended to OUT as the commit, detector and cap lines of the reading. It runs on the
-# live checkout ROOT only when that checkout's tree id, taken as felix probes takes it, equals TREE. Then the commit is the live
-# HEAD, or - while HEAD is unborn, and the cap lines are what the detector names, sorted and unique. Otherwise the detector is
-# not run, the commit is -, and there is no cap line. Returns 3 when OUT cannot be written.
+# The detector at a recorded tree (C3.2), appended to OUT as the commit, detector and cap lines of the reading. The live
+# checkout's tree id is taken as felix probes takes it, but on a copy of the live index kept in the scratch directory (C17.3):
+# git refreshes the index it reads, and the live one keeps its bytes and its mtime. With no live index file the id is taken
+# with GIT_INDEX_FILE naming an absent file in the scratch, which git reads as an empty index. Then:
+#   the id equals TREE      the detector runs on ROOT: the commit is the live HEAD, or - while HEAD is unborn, and the cap
+#                           lines are what the detector names, sorted and unique; detector run
+#   the id differs          the detector is not run, the commit is -; detector not-run
+#   the id could not be taken (no repository, or git could not read the tree in full)
+#                           the detector is not run, the commit is -; detector no-tree (C17.5)
+# Returns 3 when OUT cannot be written.
 felix_situations_live_detect() {   # ROOT HOME TREE OUT
-  local root="${1-}" home="${2-}" tree="${3-}" out="${4-}" live sha caps c
-  live="$(felix_tree_id "$root" "$home" 2>/dev/null)" || live=""
-  if [ -n "$live" ] && [ "$live" = "$tree" ]; then
+  local root="${1-}" home="${2-}" tree="${3-}" out="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" live="" idx sha caps c
+  idx="$(git -C "$root" rev-parse --git-path index 2>/dev/null)" || idx=""
+  if [ -n "$scr" ] && [ -n "$idx" ]; then
+    case "$idx" in /*) ;; *) idx="$root/$idx" ;; esac
+    if [ -e "$idx" ] && ! cp "$idx" "$scr/live-index" 2>/dev/null; then idx=""; fi
+  fi
+  if [ -n "$scr" ] && [ -n "$idx" ]; then
+    live="$( GIT_INDEX_FILE="$scr/live-index"; export GIT_INDEX_FILE
+             felix_tree_id "$root" "$home" 2>/dev/null )" || live=""
+  fi
+  if [ -z "$live" ]; then
+    printf 'commit\t-\ndetector\tno-tree\n' >> "$out" 2>/dev/null || return 3
+  elif [ "$live" = "$tree" ]; then
     sha="$(_felix_situations_rev "$root" HEAD)" || sha="-"
     caps="$(felix_detect "$root" 2>/dev/null | LC_ALL=C sort -u)"
     {
@@ -224,11 +244,12 @@ EOF2
 # commit, SRC the repository's common git directory (absolute). The clone is made under the scratch directory at <scratch>/SIDE,
 # shared with SRC and with no checkout and no template, then checked out detached at SHA, both through _felix_git_rules (no
 # global or system git config, so no hook, template, filter driver or lazy fetch of the caller's runs) with GIT_NO_LAZY_FETCH
-# and stdin from /dev/null. The tree id is taken right after the checkout and before anything runs in the clone. Then the
-# detector and every row of the project's current probes.tsv run in the clone, with TMPDIR set to <scratch>/tmp-SIDE and none
-# of the environment that points git at another repository. The live checkout's edits and untracked files are read by neither
-# side, since the clone holds tracked content only. Returns 3 with C2's sentence on stderr when the clone, the checkout or the
-# tree id fails.
+# and stdin from /dev/null. The tree id is taken right after the checkout and before anything runs in the clone, and the
+# detector after it, both in that same environment (C17.2). Then every row of the project's current probes.tsv runs in the
+# clone, with TMPDIR set to <scratch>/tmp-SIDE and none of the environment that points git at another repository, but
+# otherwise the caller's: the probes are the project's commands. The live checkout's edits and untracked files are read by
+# neither side, since the clone holds tracked content only. Returns 3 with C2's sentence on stderr when the clone, the
+# checkout or the tree id fails.
 felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
   local proj="${1-}" home="${2-}" src="${3-}" sha="${4-}" side="${5-}" out="${6-}"
   local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps c
@@ -240,16 +261,12 @@ felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
     printf 'felix situations: %s could not be read: the scratch checkout of %s could not be made\n' "$side" "$sha" >&2
     return 3
   fi
-  tid="$( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
-          export HOME="$scr" XDG_CONFIG_HOME="$scr" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1
-          felix_tree_id_on "$clone" "$sha" "$home" 2>/dev/null )" || tid=""
+  tid="$(_felix_situations_in_rules "$scr" "$tmp" felix_tree_id_on "$clone" "$sha" "$home" 2>/dev/null)" || tid=""
   if [ -z "$tid" ]; then
     printf 'felix situations: %s could not be read: the tree id of %s could not be taken in its scratch checkout\n' "$side" "$sha" >&2
     return 3
   fi
-  caps="$( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
-           export TMPDIR="$tmp"
-           felix_detect "$clone" 2>/dev/null | LC_ALL=C sort -u )"
+  caps="$(_felix_situations_in_rules "$scr" "$tmp" felix_detect "$clone" 2>/dev/null | LC_ALL=C sort -u)"
   if ! ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
          export TMPDIR="$tmp"
          felix_probes_run "$proj" "$clone" ) > "$out.probes" 2>/dev/null \

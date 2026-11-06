@@ -340,8 +340,9 @@ _felix_evidence_say() {   # MODE STATUS NAME REASON
 # after the last row's. The brief reads every path it is given and sets nothing
 # aside (round 3, B11R3-6 and B11R3-11), but it asks the same question the check
 # asks first, whether project.json can be read, and says the same one unknown
-# when it cannot (B11R3-8), at the commit ROOT's HEAD holds when BASE is empty:
-# a declaration the merge refuses is not a brief of ordinary rows.
+# when it cannot (B11R3-8), where the check reads it: at BASE, at HEAD when BASE
+# is empty, from the disk when PROJ is outside ROOT. A declaration the merge
+# refuses is not a brief of ordinary rows.
 _felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
   local proj="$1" paths="$2" mode="$3" rows kind name when requires reason why rc status
   local wpaths="$2" rpaths="$2" wp rp decl ents="" opted="" go=0 vend=0 aside=0 n

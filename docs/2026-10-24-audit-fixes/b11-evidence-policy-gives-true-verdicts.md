@@ -210,7 +210,10 @@ The unknown and failure paths are B1 to B4, B6, B8 to B13, B16 and B17.
     it prints `NAME<TAB>T`, where T contains `not judged`, whatever PATHS
     holds.
   - A valid row is printed as today: `NAME<TAB>reason`, once, when some path
-    in PATHS matches its `when`, and nothing otherwise.
+    in PATHS matches its `when`, and nothing otherwise. (Amended 2026-11-06:
+    except when project.json holds a declaration the check cannot read; the
+    one line is then `project.json<TAB>reason` and no row. See
+    `docs/2026-11-06-brief-reads-the-declaration-contract.md`.)
   - Cells are matched under LC_ALL=C, so in a UTF-8 locale B5's Latin-1 row
     is printed as matched for src/api/x.py. Today grep fails in that locale
     and the row is dropped.

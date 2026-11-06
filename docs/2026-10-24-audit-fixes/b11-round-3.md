@@ -88,6 +88,10 @@ one (B11R3-7).
   classify ignore it, as they ignore every n/a line.
 - **B11R3-11. The brief sets nothing aside.** felix_brief_evidence reads every
   path it is given, as before round 2, and never reads project.json.
+  (Amended 2026-11-06: it reads project.json to ask whether it can be read,
+  and prints one `project.json` row when it cannot, as B11R3-8 has the check
+  do; it still sets nothing aside. See
+  `docs/2026-11-06-brief-reads-the-declaration-contract.md`.)
 - **B11R3-12. The template says so.** In section 7's generator, replace the
   three heredoc lines beginning `# Vendored code is not read by any row.`
   with the seven below. The result is 32 ASCII lines, sha256

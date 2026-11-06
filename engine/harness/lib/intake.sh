@@ -33,14 +33,18 @@ fi
 # worth asking before starting rather than after. It shares that check's reader
 # (_felix_evidence_judge), so the two never disagree on what a row says. It
 # shares the check's first question too: a project.json the check cannot read
-# is one row, project.json, and no other (B11R3-8), read at the commit ROOT's
-# HEAD holds. ROOT is the repository the declaration is read from, the one the
-# command runs in; absent, it is the one holding the current directory. The
-# brief sets nothing aside and says nothing of what a declaration holds.
+# is one row, project.json, and no other (B11R3-8), where `felix merge` and
+# `felix evidence` would read it with no --base: at main, as this repository
+# resolves it (origin/main when that exists), and at HEAD when main names
+# nothing; from the disk when PROJ is not inside ROOT (_felix_evidence_pj).
+# ROOT is the repository the command runs in; absent, the one holding the
+# current directory. The brief sets nothing aside and says nothing of what a
+# declaration holds.
 felix_brief_evidence() {   # PROJ PATHS [ROOT]
-  local root="${3:-}"
+  local root="${3:-}" base=""
   [ -n "$root" ] || root="$(felix_repo_root "$PWD")"
-  _felix_evidence_judge "$1" "$2" brief "" "$root"
+  base="$(felix_base_ref "$root" main 2>/dev/null)" || base=""
+  _felix_evidence_judge "$1" "$2" brief "$base" "$root"
 }
 
 # The play this project already decided this kind of work goes through.

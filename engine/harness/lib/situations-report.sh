@@ -191,7 +191,8 @@ felix_situations_report() {   # MODE FORMAT PROJ ROWS BASE-EVAL|- HEAD-EVAL BASE
 # none is declared; READING is the reading file EVAL was made from; HOME is the Felix home as given. The class is the one
 # class_by_maturity pairs with the declared maturity, else the strictest class the cell names. The preds cell lists the
 # predicates the class's true terms rest on that the current probes.tsv defines (the grounds file of the scratch directory).
-# Every quoted value has each apostrophe written as the four characters quote, backslash, quote, quote. The ids file is the
+# Every quoted value has each apostrophe written as the four characters quote, backslash, quote, quote. The command begins
+# with a guard that ends the table's last row when it has none (C17.1), then C11's command. The ids file is the
 # one felix_situations_report made in the same scratch directory. Writes only inside that directory, and no apostrophe may
 # stand in the awk text: it is one shell word.
 felix_situations_propose() {   # PROJ HOME ROWS EVAL MATURITY READING
@@ -260,6 +261,7 @@ felix_situations_propose() {   # PROJ HOME ROWS EVAL MATURITY READING
     BEGIN {
       SQ = "\047"; TB = "\t"; MAT = ENVIRON["FELIX_SIT_MATURITY"] ""; H = ENVIRON["FELIX_SIT_HOME"] ""
       P = H "/projects/" ENVIRON["FELIX_SIT_NAME"]; TBL = q(P "/obligations.tsv")
+      GUARD = "{ [ ! -s " TBL " ] || [ -z \"$(tail -c 1 " TBL ")\" ] || printf " SQ "\\n" SQ "; } >> " TBL " && "
       while ((getline l < ENVIRON["FELIX_SIT_EVAL"]) > 0) {
         split(l, f, "\t")
         if (f[1] == "class") { ST[f[2] ""] = f[3] ""; GR[f[2] ""] = f[4] "" }
@@ -281,7 +283,7 @@ felix_situations_propose() {   # PROJ HOME ROWS EVAL MATURITY READING
         print "  " ID[c] "  " c "  " GR[c]
         print "    class  " CW "  " CN
         print "    row  " c TB CW TB "unknown" TB "-" TB "exit 2" TB PL TB f[3]
-        print "    admit  printf " SQ "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" SQ " " q(c) " " q(CW) " " q("unknown") " " q("-") " " q("exit 2") " " q(PL) " " q(f[3] "") " >> " TBL " && git -C " q(H) " add -- " TBL " && git -C " q(H) " commit -q -m " q("obligations: admit " c) " -- " TBL
+        print "    admit  " GUARD "printf " SQ "%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n" SQ " " q(c) " " q(CW) " " q("unknown") " " q("-") " " q("exit 2") " " q(PL) " " q(f[3] "") " >> " TBL " && git -C " q(H) " add -- " TBL " && git -C " q(H) " commit -q -m " q("obligations: admit " c) " -- " TBL
       }
       if (!shown) printf "  none\n"
       exit 0

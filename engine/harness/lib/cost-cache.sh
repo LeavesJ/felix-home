@@ -65,6 +65,7 @@ _fcc_key() {
 # 0 when READING is whole and is the reading of _FCC_KEY; sets _FCC_EP (its
 # scan's start, epoch seconds) and _FCC_ASOF. A file that is not, is absent (C9).
 _fcc_valid() {
+  local LC_ALL=C
   local r="$1" line ep rest asof last
   _FCC_EP=""; _FCC_ASOF=""
   [ -f "$r" ] && [ -r "$r" ] || return 1

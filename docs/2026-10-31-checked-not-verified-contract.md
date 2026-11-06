@@ -219,10 +219,13 @@ line break. Text the clause does not quote is unchanged.
 - **C22 The README's hook table** (round 3). Its `Subagent stop` row ends
   `tells the parent that a subagent's report must call its own changes partial, failing or unchecked |`
   where it said `...unverified |`, since C16 changed the words it describes.
-- **C23 The schema the build queue reserved** (round 3).
+- **C23 The schema the build queue reserved** (round 3, amended after it).
   `docs/handoff/0cw.md` named a planned evidence packet `felix.receipt/2`.
-  This change takes `/2`, so the packet is `felix.receipt/3` there, and no
-  tracked document plans a `/2` other than this one.
+  This change takes `/2`, so the packet is `felix.receipt/3`. 0cw.md is an
+  archived section, and the handoff check the gate runs refuses an archived
+  section that was rewritten, so 0cw.md keeps its words. This change's
+  handoff section names the evidence packet `felix.receipt/3` on one line.
+  The fold carries that line into `HANDOFF.md` and later into the archive.
 
 ## What keeps its name, and why
 
@@ -329,6 +332,12 @@ change of their own.
   - a hold record matched as a substring (A44);
   - the receipt's `checked` without its green condition (part 2301's A3);
   - the receipt's `checked` without its no-gap condition (part 2301's A4).
+- **C23 amended, not blind.** Round 3 first rewrote `docs/handoff/0cw.md`,
+  and the handoff check the gate runs refused it. The session that built the
+  change rewrote part 2301's A38 for the amended clause. A38 asserts that
+  0cw.md still plans the packet as `/2`, and that a line of `HANDOFF.md` or
+  of another tracked file in `docs/handoff/` names the evidence packet
+  `felix.receipt/3`.
 - **Round 3, the count.** No edited part has fewer lines matching
   `projects/felix/risk.tsv`'s assertion count (`^[[:space:]]*(ok|is|has|bad) `)
   than it had at base. A part that lost one reads to `felix merge` as a

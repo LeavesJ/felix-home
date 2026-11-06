@@ -22,7 +22,8 @@ contract restates the first adversarial review's findings.
   - `evidence-owed`: it ran green here and evidence is owed;
   - `unchecked`: nothing current judged this tree.
 
-  `docs/handoff/0cw.md`'s planned evidence packet moves from /2 to /3.
+  The planned evidence packet is `felix.receipt/3` now. `docs/handoff/0cw.md`
+  planned it as `/2`, and an archived section keeps its words.
   Nothing in the engine, its CI or a project gate reads a receipt's status;
   the suite does.
 - The Stop hook's reason for a checkout with no gate receipt is
@@ -74,7 +75,8 @@ Outside the class on purpose:
   added A43-A48 and moved A29, A34, A35 and A37 to round 3's words; none of
   that is blind.
 - Blind part 2301: Opus 5.5 xhigh, from round 3 alone. Of its 38 assertions,
-  19 were red before round 3 and 19 were controls that stayed green.
+  19 were red before round 3 and 19 were controls that stayed green. This
+  session rewrote A38 when C23 was amended; A38 is not blind.
 - Review: Opus 5.5 xhigh, three lenses then one Opus 5.5 high skeptic for
   each lens's first two serious findings. A last round-3 lens, Opus 5.5 xhigh
   with an Opus 5.5 high skeptic, found two gaps in part 2300's tests of its

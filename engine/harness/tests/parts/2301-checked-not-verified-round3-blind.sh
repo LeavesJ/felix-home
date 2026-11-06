@@ -436,20 +436,25 @@ is "cnv3 A37 (C22): README.md's Subagent stop row ends [tells the parent that a 
    "row=1 old=0"
 
 # ---- C23: the schema the build queue reserved (text) ------------------------------------------------------------------
+# Not blind. C23 was amended after this part was written: its first reading rewrote 0cw.md, an archived section, which
+# the handoff check the gate runs refuses. The session that built the change rewrote this assertion for the amended
+# clause, under which 0cw.md keeps its words and a line of the handoff names the packet felix.receipt/3.
 CNV3_HO="$CNV3_ROOT/docs/handoff/0cw.md"
 if [ "$(git -C "$CNV3_ROOT" rev-parse --is-inside-work-tree 2>/dev/null)" = true ]; then
-  CNV3_HL="$(git -C "$CNV3_ROOT" ls-files -- docs/handoff 2>/dev/null)"
+  CNV3_HL="$(git -C "$CNV3_ROOT" ls-files -- HANDOFF.md docs/handoff 2>/dev/null)"
 else
-  CNV3_HL="$( cd "${CNV3_ROOT:?}" && find docs/handoff -type f 2>/dev/null )"
+  CNV3_HL="$( cd "${CNV3_ROOT:?}" && { [ ! -f HANDOFF.md ] || printf 'HANDOFF.md\n'; find docs/handoff -type f 2>/dev/null; } )"
 fi
-CNV3_H2=""
+# FILE NEEDLE NEEDLE -> how many lines of FILE hold both needles
+_cnv3_both() { CNV3_N1="$2" CNV3_N2="$3" LC_ALL=C awk 'index($0, ENVIRON["CNV3_N1"]) && index($0, ENVIRON["CNV3_N2"]) { n++ } END { print n + 0 }' "$1" 2>/dev/null || printf 0; }
+CNV3_H3=""
 while IFS= read -r _cnv3_fl; do
-  [ -n "$_cnv3_fl" ] && [ -f "$CNV3_ROOT/$_cnv3_fl" ] || continue
-  [ "$(_cnv3_cnt "$CNV3_ROOT/$_cnv3_fl" 'felix.receipt/2')" -gt 0 ] && CNV3_H2="$CNV3_H2 $_cnv3_fl"
+  [ -n "$_cnv3_fl" ] && [ "$_cnv3_fl" != docs/handoff/0cw.md ] && [ -f "$CNV3_ROOT/$_cnv3_fl" ] || continue
+  [ "$(_cnv3_both "$CNV3_ROOT/$_cnv3_fl" 'evidence packet' 'felix.receipt/3')" -gt 0 ] && CNV3_H3="$CNV3_H3 $_cnv3_fl"
 done <<< "$CNV3_HL"
-is "cnv3 A38 (C23): docs/handoff/0cw.md names the planned evidence packet felix.receipt/3, and no tracked file in docs/handoff/ names felix.receipt/2" \
-   "new=$(_cnv3_yn "$(_cnv3_cnt "$CNV3_HO" 'felix.receipt/3')") read=$([ -n "$CNV3_HL" ] && printf yes || printf no) old=[${CNV3_H2# }]" \
-   "new=yes read=yes old=[]"
+is "cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3" \
+   "kept=$(_cnv3_yn "$(_cnv3_both "$CNV3_HO" 'evidence packet' 'felix.receipt/2')") read=$([ -n "$CNV3_HL" ] && printf yes || printf no) new=$([ -n "$CNV3_H3" ] && printf yes || printf no)" \
+   "kept=yes read=yes new=yes"
 
 # ---- the restore ----
 for _cnv3_v in $(compgen -v | LC_ALL=C grep -E '^CNV3[A-Z0-9_]*$'); do unset "$_cnv3_v"; done

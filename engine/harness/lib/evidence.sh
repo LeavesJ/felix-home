@@ -328,6 +328,22 @@ _felix_evidence_say() {   # MODE STATUS NAME REASON
   esac
 }
 
+# 0 when anything stands at PROJ's evidence.tsv, 1 when nothing does. A regular
+# file, a directory, a link that resolves, a link that dangles and a FIFO all
+# stand; only a path where `-e` and `-L` are both false is not there. It reads
+# nothing and prints nothing.
+#
+# This is the one place that question is asked. The judge asks it before it says
+# anything, and every command that reads the table's verdict asks it before it
+# calls the judge, because a reader that tested `-f` instead said "no evidence
+# is owed" for a path the judge, and so `felix merge`, called unreadable: a
+# directory, a dangling link and a FIFO read as no table to felix classify,
+# felix receipt, felix evidence and felix incident, and as an `evidence`
+# blocker to felix merge (found reviewing #482, 2026-11-05).
+felix_evidence_table_present() {   # PROJ
+  [ -e "$1/evidence.tsv" ] || [ -L "$1/evidence.tsv" ]
+}
+
 # Every row of PROJ's table read against PATHS, in file order, one line each.
 # MODE check judges met, gap or n/a; MODE brief asks only whether a row's `when`
 # reaches PATHS, because there is no diff yet and so nothing to have proved. A
@@ -342,7 +358,7 @@ _felix_evidence_say() {   # MODE STATUS NAME REASON
 _felix_evidence_judge() {   # PROJ PATHS check|brief [BASE ROOT]
   local proj="$1" paths="$2" mode="$3" rows kind name when requires reason why rc status
   local wpaths="$2" rpaths="$2" wp rp decl ents="" opted="" go=0 vend=0 aside=0 n
-  [ -e "$proj/evidence.tsv" ] || [ -L "$proj/evidence.tsv" ] || return 0
+  felix_evidence_table_present "$proj" || return 0
   if [ ! -f "$proj/evidence.tsv" ] || [ ! -r "$proj/evidence.tsv" ] || ! rows="$(_felix_evidence_rows "$proj" 2>/dev/null)"; then
     _felix_evidence_say "$mode" unknown evidence.tsv "evidence.tsv exists but cannot be read, so its rules were not judged"
     return 0

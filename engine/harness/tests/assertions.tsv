@@ -124,6 +124,10 @@
 1	A1 (decoys: refs/tags/origin/main) (fixture control): each decoy names the decoy commit
 1	A1 (decoys: refs/tags/origin/main): and what it prints names the commit refs/remotes/origin/main names
 1	A1 (decoys: refs/tags/origin/main): felix_base_ref given main prints exactly refs/remotes/origin/main and exits 0
+1	A1 evidence (FIFO): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv
+1	A1 evidence (dangling link): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv
+1	A1 evidence (directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv
+1	A1 evidence (link to a directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv
 1	A1 fixture: b9 and b10 track their own names, and wt7 holds one untracked file (fixture control)
 1	A1 fixture: each carried tip is a proper ancestor of its carrier, the unpushed tip of none, and no case tip is on main (fixture control)
 1	A1 fixture: origin holds every pushed name at its commit, and origin/HEAD is main (fixture control)
@@ -386,6 +390,10 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
+1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
 1	A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr
@@ -631,6 +639,10 @@
 1	A3 (decoys: refs/tags/feat): and what it prints names the commit refs/heads/feat names
 1	A3 (decoys: refs/tags/feat): felix_base_ref given feat prints exactly refs/heads/feat and exits 0
 1	A3 fixture: the s20 starter's first user record is two text items, the first ending in a reminder and a blank line (fixture control)
+1	A3 receipt (FIFO): lists evidence under unknown, and no evidence gap and no met row
+1	A3 receipt (dangling link): lists evidence under unknown, and no evidence gap and no met row
+1	A3 receipt (directory): lists evidence under unknown, and no evidence gap and no met row
+1	A3 receipt (link to a directory): lists evidence under unknown, and no evidence gap and no met row
 1	A30 (B11): the trampoline sources no notify.sh from the home or the cache: its deploy-owed row names the untracked file, it dispatches, and the tripwire is never written
 1	A30 (B12): with main's entry gone and two of three processes matching, the deploy-owed row begins a gate or suite is running and names pid 40001 and pid 40002, not pid 40003
 1	A30 (B13, control): a start_session call naming the chip as proposal_id, with its result, in a file's head starts it: no row
@@ -924,6 +936,11 @@
 1	A4 (a tag by its name): and what it prints names the commit v1 names
 1	A4 (a tag by its name): felix_base_ref given v1 prints exactly v1 and exits 0
 1	A4 (a tree by its sha): felix_base_ref given its sha prints nothing and exits non-zero
+1	A4 armed (C5, control): felix incident given the trace that names src/thing.js prints the fix will have to prove section, with the unit row not judged
+1	A4 incident (FIFO): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A4 incident (dangling link): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A4 incident (directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A4 incident (link to a directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
 1	A40 (B15): with an untracked file under the home's engine/harness, two trampoline runs write one deploy-owed row and one notification, exit 1 both times; aged, a third writes a second, notified, saying still so since <T0>, and runs no land --tick
 1	A40 (B17, control): --tsv keeps 17 summary rows, helper complete with 5, and the plain unpushed worktree alone in never-proposed, complete with 1
 1	A40 (R1; control): an origin naming the same repository as a project's remote_match is still refused: two GitHub spellings of Acme/Widget, a token-bearing GitLab URL of gl1's repository, and the repository of lg's whole-URL value
@@ -990,6 +1007,27 @@
 1	A5 (fixture control): the object is restored with hash-object -w
 1	A5 (refs/heads/main): and what it prints names the commit refs/heads/main names
 1	A5 (refs/heads/main): felix_base_ref given refs/heads/main prints exactly refs/heads/main and exits 0
+1	A5 agreement (C1, nothing at the path, control): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (C3, the same table, a change the rule does not reach, control): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (C5, a row that is not four cells, the reference, control): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (FIFO): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (dangling link): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement (link to a directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (C1, nothing at the path, control): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (C3, the same table, a change the rule does not reach, control): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (C5, a row that is not four cells, the reference, control): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (FIFO): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (dangling link): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (directory): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix brief (link to a directory): felix brief, given an issue that names src/thing.js, says not judged in its what a fix must prove section exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (C1, nothing at the path, control): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (C3, the same table, a change the rule does not reach, control): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (C5, a row that is not four cells, the reference, control): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (FIFO): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (dangling link): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (directory): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
+1	A5 agreement, felix next (link to a directory): felix next prints a row saying an evidence row was not judged exactly when felix merge --dry-run lists an evidence blocker
 1	A50 (B20): an entry at main's version that existed before the install and still differs after it: one deployed-unverified row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason
 1	A50: a local felix@felix true wins over the project's false: clear
 1	A51 (B20): with no entry before the install, the diff: row does not say does not replace
@@ -1025,6 +1063,12 @@
 1	A6 (with a local main only): felix_base_ref given an empty name prints exactly refs/heads/main and exits 0
 1	A6 (with refs/remotes/origin/main): and what it prints names the commit refs/remotes/origin/main names
 1	A6 (with refs/remotes/origin/main): felix_base_ref given an empty name prints exactly refs/remotes/origin/main and exits 0
+1	A6 next (C1, nothing at the path, control): prints its rows, and no row saying an evidence row cannot be judged naming evidence.tsv, where R's states print one
+1	A6 next (C3, the same table, a change the rule does not reach, control): prints its rows, and no row saying an evidence row cannot be judged naming evidence.tsv, where R's states print one
+1	A6 next (FIFO): prints a row saying an evidence row cannot be judged, naming evidence.tsv
+1	A6 next (dangling link): prints a row saying an evidence row cannot be judged, naming evidence.tsv
+1	A6 next (directory): prints a row saying an evidence row cannot be judged, naming evidence.tsv
+1	A6 next (link to a directory): prints a row saying an evidence row cannot be judged, naming evidence.tsv
 1	A60 (B22-B25, G8): the brakes' rows (paused, resumed, installed and uninstalled are there) are each seven fields with - for the pull request
 1	A60: a project.json with no gate key reads gate value no-gate: the Stop hook checks no stop here
 1	A61 (B28): a refusal whose one blocker is unverified tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written
@@ -1060,6 +1104,11 @@
 1	A7 (B4): the tick after, with nothing touched, runs it no more: M50 stays 2
 1	A7 (fixture control): at least one felix_base_ref definition was found under engine/harness, and each one cut out parses on its own
 1	A7 (fixture control): loading the libraries felix sources at its top level, in its order, includes lib/resolve.sh and defines felix_base_ref
+1	A7 brief (C1, nothing at the path, control): given an issue that names src/thing.js, briefs src/thing.js and prints no what a fix must prove section, where R's states print one
+1	A7 brief (FIFO): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A7 brief (dangling link): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A7 brief (directory): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
+1	A7 brief (link to a directory): given an issue that names src/thing.js, prints the what a fix must prove section with one row named evidence.tsv whose reason holds cannot be read and not judged
 1	A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deployed-unverified row begins diff:, names the entry, and paused holds it
 1	A71 (B30): that row names the way out: move the entry aside, then felix install --no-bump
 1	A72 (B30, B21) [control]: the trampoline, main's entry holding one extra file: one deploy-owed row saying differs and does not replace, naming the entry
@@ -1677,7 +1726,15 @@
 1	C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
 1	C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself
 1	C1 (fixture control): every conversion is off again, and the faithful entry is accepted
+1	C1 classify (nothing at the path, control): on a green change says nothing is unproven
+1	C1 evidence (nothing at the path, control): says the project declares no evidence.tsv
+1	C1 incident (nothing at the path, control): given a trace that names src/thing.js, prints its implicated file src/thing.js and not the heading the fix will have to prove, where C5 prints it over the same trace
+1	C1 merge --dry-run (nothing at the path, control): lists no evidence line, where C2 and C5 list one over the same base
+1	C1 receipt (nothing at the path, control): lists no unknown
 1	C2 (control): strays M's rules match, beneath hooks/ and harness/, are residue: the entry exits 0 and prints itself
+1	C2 evidence (a readable table, a rule the change touches and does not meet, control): names the gap, [!] code, and not not judged
+1	C2 merge --dry-run (a readable table, a rule the change touches and does not meet, control): lists the gap as one evidence line named code, and no evidence line says not judged
+1	C2 receipt (a readable table, a rule the change touches and does not meet, control): lists the gap code, and evidence not under unknown
 1	C2: an entry that holds a top-level .claude-flow/, which M's .claude-flow/ rule matches (residue is only beneath harness/ and hooks/): exits 1 and names .claude-flow
 1	C2: an entry that holds a top-level .mcp.json: exits 1 and names .mcp.json
 1	C2: an entry that holds a top-level agents/ M does not ship: exits 1 and names agents
@@ -1685,6 +1742,10 @@
 1	C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json
 1	C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json
 1	C3 (control): an entry with M's modes everywhere: the entry exits 0 and prints itself
+1	C3 classify (the same table, a change the rule does not reach, control): on a green change says nothing is unproven, and not not judged
+1	C3 evidence (the same table, a change the rule does not reach, control): says No evidence gaps, with no [!] row and not not judged
+1	C3 merge --dry-run (the same table, a change the rule does not reach, control): lists no evidence line, where C2 lists the gap over the same table
+1	C3 receipt (the same table, a change the rule does not reach, control): lists no gap, and evidence not under unknown
 1	C3: an entry whose harness/felix lost its executable bit (M's mode is 100755): exits 1 and names harness/felix
 1	C3: an entry whose harness/lib/x.sh gained the executable bit (M's mode is 100644): exits 1 and names harness/lib/x.sh
 1	C3: an entry whose harness/lib/x.sh is a symlink to a file with M's very bytes: exits 1 and names harness/lib/x.sh
@@ -1694,6 +1755,9 @@
 1	C3: an entry with a socket only it holds: exits 1 and names harness/sock
 1	C3: an entry with a symlink only it holds: exits 1 and names harness/link
 1	C4 (control): an entry-only harness/plain.log, which *.log matches, is residue: the entry exits 0 and prints itself
+1	C4 evidence (a link that resolves to C2's file, control): names the gap, [!] code, and not not judged
+1	C4 merge --dry-run (a link that resolves to C2's file, control): lists the gap as one evidence line named code, and no evidence line says not judged
+1	C4 receipt (a link that resolves to C2's file, control): lists the gap code, and evidence not under unknown
 1	C4: a differing path whose name holds ' and ' exits 1 and is named whole: exits 1 and names harness/two and words.sh
 1	C4: a differing path whose name holds ': ' exits 1 and is named whole: exits 1 and names harness/c: d.sh
 1	C4: an entry-only harness/-dash.log exits 1 and is named
@@ -1709,6 +1773,10 @@
 1	C5 (control): with the decoy in place, an entry equal to M: the entry exits 0 and prints itself
 1	C5 (fixture control): git's own short name origin/main names the decoy, which declares 6.6.6, and the cache holds an entry for it
 1	C5 (fixture control): git's own short name origin/main now names the decoy, whose engine/.gitignore is *
+1	C5 classify (a row that is not four cells, the reference, control): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible
+1	C5 evidence (a row that is not four cells, the reference, control): prints the [?] unit row not judged and 1 row(s) not judged
+1	C5 merge --dry-run (a row that is not four cells, the reference, control): lists one evidence line, named unit, saying not judged
+1	C5 receipt (a row that is not four cells, the reference, control): lists evidence under unknown
 1	C5.1 control: its detail still holds spawned by session s5-boss: write the parser, so its meta file was found
 1	C5.1 fixture: the six inventory runs over hw5 exit 0 and print something (control)
 1	C5.10: the landed helper (landed,helper) and the live helper (live,landed,helper) are listed nowhere in the view
@@ -1773,6 +1841,10 @@
 1	C5: with the decoy in place, an entry that is M plus hooks/extra: exits 1 and names hooks/extra
 1	C5: with the decoy in place, the entry for main's 4.0.0 that is M plus harness/extra: exits 1 and names harness/extra
 1	C6 (control): an entry-only harness/data/x beneath a directory the data/ rule matches is residue: the entry exits 0 and prints itself
+1	C6 classify (a regular file at mode 000, control): on a green change says not judged and Not auto-merge eligible
+1	C6 evidence (a regular file at mode 000, control): says not judged
+1	C6 merge --dry-run (a regular file at mode 000, control): lists an evidence line saying not judged
+1	C6 receipt (a regular file at mode 000, control): lists evidence under unknown
 1	C6: an entry-only FILE harness/data, which M's data/ rule does not match (it names a directory): exits 1 and names harness/data
 1	C7 records the assertion before the move and the assertion after it, and the stand-in's config
 1	C7 writes one record, at the first move, with the state before and the state then
@@ -1819,6 +1891,14 @@
 1	C9.5: and prints the blocker on its own line, as the others are printed
 1	C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled
 1	CLAUDE_CONFIG_DIR names the settings file read (D12)
+1	D1 felix_evidence_table_present (C1, nothing at the widget project's path): exits 1 and prints nothing
+1	D1 felix_evidence_table_present (a FIFO): exits 0, prints nothing, and returns without reading it
+1	D1 felix_evidence_table_present (a dangling link): exits 0 and prints nothing
+1	D1 felix_evidence_table_present (a directory): exits 0 and prints nothing
+1	D1 felix_evidence_table_present (a link that resolves to a directory): exits 0 and prints nothing
+1	D1 felix_evidence_table_present (a link that resolves to a file): exits 0 and prints nothing
+1	D1 felix_evidence_table_present (a regular file): exits 0 and prints nothing
+1	D1 felix_evidence_table_present (nothing at the path): exits 1 and prints nothing
 1	D1: --part refuses a name the driver does not source, a prelude part (0001, 0006 and 0007), 9990, names out of order or not contiguous, seven names and none
 1	D1: --part with -j, --record-assertions or --reuse is refused
 1	D1: --record-assertions -j 3, in the other order, exits 0 and records the same manifest
@@ -1861,6 +1941,10 @@
 1	D1: with N above 1 a groups.tsv that is missing, or a directory, is refused as D1 says
 1	D1: with N above 1 an unreadable groups.tsv is refused as D1 says
 1	D1: with one sysctl answer given to every key, step 1 (the performance-core key) takes it: 200 is held to 64 and 3 is used; where every sysctl key fails or answers a non-number, getconf answers, then 1
+1	D2 armed (control): as shipped, the check prints the gap row for the unmet change, the met row for the met one, and nothing for a project with no evidence.tsv
+1	D2 the judge, felix_evidence_table_present replaced by one that always exits 0: prints the not-judged row, unknown evidence.tsv cannot be read not judged, for a project with no evidence.tsv
+1	D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is met
+1	D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is unmet
 1	D2: --part by hand prints @@prelude-done, a @@member-done line for each member in order, and the mark naming the members, each on a line of its own
 1	D2: --part takes six names and prints the prelude mark, a member mark for each in order, and the part mark naming all six, with exit 0
 1	D2: a file under subagents/workflows/ written 2 minutes ago counts as well
@@ -1885,6 +1969,8 @@
 1	D2: the ran file holds the names reached after @@prelude-done, and only those
 1	D2: with no groups line the same three parts are three units: -j 3 fails C, in three processes
 1	D2: with the FELIX_TEST_PART_ files it writes the log, in order, with the runner lines in it and none on stdout, and exits 0
+1	D3 armed (control): the pattern finds -f, -e, -L, -s, -r, -d and the unary file tests the six left out, -p and -h among them, on evidence.tsv under [, [[ and test in a planted text and nothing else there, not a string test, and git lists felix and lib/evidence.sh among the files read
+1	D3 no tracked file under engine/harness/felix or engine/harness/lib/ but lib/evidence.sh tests evidence.tsv with any unary file operator (-a -b -c -d -e -f -g -h -k -p -r -s -t -u -w -x -G -L -N -O -S) under test, [[ or [
 1	D3: -j 3 --reuse with no receipt to reuse runs the suite: exit 0, a summary that ends (counted from lines) and not (reused), and a receipt left
 1	D3: a -j 3 run gives the (verdict, name) lines a -j 1 run gives
 1	D3: a FAIL in the units' prelude only fails with its runner line, exits 1 and leaves no receipt and no process
@@ -1925,6 +2011,9 @@
 1	D3: under --no-host the chips not read are stated on the cover row chips
 1	D3: when gh lists its limit of 1000, the cover row prs says partial,unknown:unproposed
 1	D3: with no gh on PATH, likewise
+1	D4 receipt.sh sourced alone after lib/resolve.sh (C1, nothing at the path, control): felix_receipt prints a receipt, JSON, and nothing on stderr
+1	D4 receipt.sh sourced alone after lib/resolve.sh (C2, a readable table): felix_receipt prints a receipt, JSON, and nothing on stderr
+1	D4 receipt.sh sourced alone after lib/resolve.sh (directory): felix_receipt lists evidence under unknown, as felix receipt does
 1	D4: --reuse accepts the receipt a -j 3 run left, and runs no part
 1	D4: a -j 1 run and a --reuse after it neither remove nor rewrite the durations file (control)
 1	D4: a -j 3 record run exits 0, writes the manifest a serial one writes on the same tree, byte for byte, and leaves red.tsv with counts and no process
@@ -2629,6 +2718,11 @@
 1	PreToolUse reads the top-level cwd, so a later cwd inside tool_input does not lift the worktree's refusal
 1	PreToolUse refuses by the launch checkout's rows when the payload's cwd is a directory nothing governs, as before
 1	PreToolUse still refuses by the launch checkout's rows when the payload's worktree has a broken marker
+1	R armed (FIFO, control): the path is a FIFO, and felix merge --dry-run lists one evidence line, named evidence.tsv, saying cannot be read and not judged
+1	R armed (FIFO, the watchdog, control): a command whose child blocks opening a FIFO is ended at its deadline with that child, and an opener outside the command's tree is released, so neither outlives the call
+1	R armed (dangling link, control): the path is a dangling link, and felix merge --dry-run lists one evidence line, named evidence.tsv, saying cannot be read and not judged
+1	R armed (directory, control): the path is a directory, and felix merge --dry-run lists one evidence line, named evidence.tsv, saying cannot be read and not judged
+1	R armed (link to a directory, control): the path is a link to a directory, and felix merge --dry-run lists one evidence line, named evidence.tsv, saying cannot be read and not judged
 1	R1, §2: gh is asked nothing but pr list, a GET of repos/<owner>/<name> and the billing GETs
 1	R10 control: a plain risk row (no confine) makes #333 founder
 1	R10 control: and its detail lists the row once

@@ -263,11 +263,15 @@ cmd_inventory() {
 if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
 
 # felix cost is dispatched here too, for the same reason as audit: it reads the
-# transcripts Claude Code keeps, writes nothing, and needs no home. What it
-# counts, and how it reads a response once, is in lib/cost.sh.
+# transcripts Claude Code keeps and needs no home. It writes only its readings
+# and their lock, under $HOME/.cache/felix/cost. What it counts, and how it
+# reads a response once, is in lib/cost.sh; how one scan serves every caller,
+# in lib/cost-cache.sh.
 cmd_cost() {
   # shellcheck source=lib/cost.sh
   . "${SCRIPT_DIR}/lib/cost.sh" || exit 1
+  # shellcheck source=lib/cost-cache.sh
+  . "${SCRIPT_DIR}/lib/cost-cache.sh" || exit 1
   felix_cost "$@"
 }
 if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
@@ -417,7 +421,7 @@ specific project, language, or toolchain.
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
     felix inventory        read-only: where unlanded work sits, from git, gh and session records
-    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv]
+    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv] [--max-age SECONDS]
                            read-only: input-equivalent tokens spent this plan week, against
                            the weekly cap, by worktree, day or model, from the same transcripts
     felix new <name> --no-commission

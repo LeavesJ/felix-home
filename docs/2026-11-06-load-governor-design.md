@@ -179,8 +179,10 @@ all.
   - a reading for the key is kept;
   - since its scan began, nothing under the root has changed. A `find -L` of
     the root finds no `*.jsonl` file and no directory, the root included, with
-    a status-change time (ctime) newer than the reading's scan start, and find
-    reports no error.
+    a status-change time (ctime) newer than the reading's scan start. It finds
+    no `*.jsonl` that is a dangling link, and it reports no error. On a root
+    whose times carry no fraction of a second, the scan start is taken as two
+    seconds before the second it began in.
 
   `felix cost` then prints byte for byte what a fresh scan would print now,
   with `as_of` now. It opens no transcript, and it does not take the lock.
@@ -232,25 +234,30 @@ all.
   holding the pipe that the timeout was meant to close.
   - **After that:** the supervisor goes on, the scan finishes or meets its
     deadline, the reading is written, and the lock is released.
-  - **INT, QUIT and HUP:** the supervisor ignores them, and the scan's group
-    is not the terminal's foreground group. A caller waiting on the supervisor
+  - **INT, QUIT, HUP and TSTP:** the supervisor ignores them, and the scan's
+    group is not the terminal's foreground group. So neither a Ctrl-C nor a
+    Ctrl-Z stops a run that holds the lock. A caller waiting on the supervisor
     waits interruptibly, so a person's Ctrl-C ends `felix` at once.
   - **TERM to the supervisor itself:** it kills the scan's group and ends, and
     the lock goes with it.
 - **C9. Readings are whole or absent.** A reading is written to a temporary
-  file in the same directory, and renamed into place. A reader treats a file
-  as absent when it does not parse, or when its first line does not name
-  exactly its key.
+  file in the same directory once its scan has ended, and renamed into place.
+  So while a scan runs, the directory holds only `lock` and the readings. A
+  reader treats a file as absent when it does not parse, or when its first
+  line does not name exactly its key.
 - **C10. Without the means, nothing changes.** In these cases `felix cost`
   scans inline exactly as before this change, and writes nothing:
   - `HOME` is unset or empty;
   - the cache directory cannot be made or written;
-  - perl is not on `PATH`.
+  - perl is not on `PATH`;
+  - the reading cannot be written, as on a full disk.
 - **C11. Pruning.** When a reading is written, two kinds of file are removed:
   readings not rewritten for 14 days, and temporary files older than a day.
 - **C12. Same numbers.** Splitting the scan from the totals changes nothing it
   prints. Every assertion of 1050, 1060 and 1070 holds, with or without a
-  kept reading.
+  kept reading, with one change: 1060's check that `felix cost` creates and
+  changes nothing now excludes `$HOME/.cache/felix/cost`, where C2 puts the
+  readings.
 - **C13. What reads a transcript.** As today, the scan opens transcripts only
   through `grep`, resolved from `PATH`, at most once per 256 files. The
   freshness check of C3 runs `find`, which reads no file's contents. So a
@@ -268,17 +275,30 @@ all.
   fallback (C10) pipes stage 1 straight into stage 2, as one pass.
 - **`lib/cost-cache.sh`, new.** It holds the key, the freshness check, the
   reading's header (scan start in epoch seconds, `as_of`, key), and serving.
-  It also holds the supervisor: one `perl -e` that takes the flock with
-  `LOCK_NB`, ignores INT, QUIT and HUP, forks, puts the child in its own group
-  and execs the scan, enforces the deadline with `alarm`, and kills the group.
-  The caller starts it in the background and `wait`s, so the wait can be
-  interrupted.
-- **The reading's mtime is its scan start.** The scan touches a stamp before
-  find runs. Once the reading is written, `touch -r` copies the stamp's time
-  onto it, and the reading is then renamed into place. So C3 is one
-  `find -cnewer` against the reading itself. A scan killed between the stamp
-  and the rename leaves the old reading and its old time, and that errs
-  toward a needless rescan, never toward a stale "current".
+  It also holds the supervisor, one `perl -e`. It closes every descriptor
+  above stderr and takes the flock with `LOCK_NB`. It ignores INT, QUIT, HUP
+  and TSTP, and sets its CHLD handler before it forks. (On macOS a CHLD whose
+  action is the default is discarded even while blocked, so a child that
+  ended first would have left the supervisor waiting for good, holding the
+  lock.) It puts the child in its own group and execs the scan, enforces the
+  deadline with `alarm`, and kills the group. The caller starts it in the
+  background and `wait`s, so the wait can be interrupted.
+- **The reading's mtime is its scan start.** The run touches `lock` before
+  find runs: only the lock's holder writes it, and a reader passes it over,
+  so it stamps the start without adding a file. The scan holds stage 1's rows
+  in memory until it ends. Then the run writes the temporary file, copies the
+  lock's time onto it with `touch -r`, and renames it into place. So C3 is one
+  `find -cnewer` against the reading itself. A scan killed before the rename
+  leaves the old reading and its old time. That errs toward a needless
+  rescan, never toward a stale "current".
+- **Coarse filesystems.** HFS+ keeps whole seconds and FAT two, so a change
+  made just after the scan began could carry a time at or before the scan
+  start. When the root's own ctime has no fraction of a second, the reading is
+  dated two seconds before the second its scan began in, with perl's `utime`.
+  On APFS that branch is never taken.
+- **The root is checked again before the write.** The scan resolves its root
+  once more, and writes nothing if it now resolves elsewhere, as when a link
+  on the way to it was moved during the scan.
 
 ### The mod, relying on it
 
@@ -304,9 +324,21 @@ all.
 - **No perl, no coalescing.** The lock and the supervisor need perl (C10). It
   is on macOS and on the CI image, as the suite's runner already assumes
   (0007).
-- **Some roots are never current.** A root that holds an unreadable directory,
-  a link loop or a dangling link makes find report an error. Such a root is
-  rescanned on every call, as it is today.
+- **Some roots are never current.** A root that holds an unreadable directory
+  or a link loop makes find report an error, and a dangling `*.jsonl` link
+  counts as a change. Such a root is rescanned on every call, as it is today.
+- **The inline fallback is unsupervised.** When the lock cannot be taken at
+  all, or a reading cannot be written, the scan runs inline as it does today:
+  no deadline and no process group of its own.
+- **Other clocks.** A root on a network filesystem takes its times from the
+  server's clock. If that clock runs behind this Mac's, a change can carry a
+  time at or before the reading's, and a stale reading is then served as
+  current. So can a root with fine times that reaches, through a link, a
+  filesystem with coarse ones.
+- **Tabs in ids and model names.** Stage 1's rows are cut at tabs, and only
+  the record directory, which comes last, may hold one. A response id or
+  model name holding a raw tab would shift the fields. JSON escapes a tab in
+  a string, so a transcript that parses cannot hold one.
 - **Spurious rescans.** C3 counts any directory change under the root, a
   session's memory directory included. That costs a needless rescan, never a
   wrong number.

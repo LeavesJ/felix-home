@@ -522,13 +522,14 @@ _felix_remote_match() {   # M U S
 # match equally and _FELIX_RB_TIE holds their names, 3 with both empty when a read
 # did not finish (the origin, a remote_match, the slug). _FELIX_RB_U is the origin
 # URL (empty when unread); it is never printed or written, as an https remote can
-# carry a token. git's 2 and 128, and a ROOT it cannot enter, are no URL.
+# carry a token. Only a git that exited 0 gives a URL: its 2 and 128, and a ROOT it
+# cannot enter, are no URL whatever git printed (main's || _FELIX_RB_U="").
 _felix_resolve_remote() {   # ROOT HOME
   local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 nl=$'\n' LC_ALL=C
   _FELIX_RB_P=""; _FELIX_RB_TIE=""; _FELIX_RB_U=""
   _felix_cap && felix_capture m _felix_git_in "$root" remote get-url origin || return 3
   _felix_st_split "$m"
-  case "$_FELIX_ST:$_FELIX_SO" in 0:?*|2:*|128:*|-:*) _FELIX_RB_U="$_FELIX_SO" ;; *) return 3 ;; esac
+  case "$_FELIX_ST:$_FELIX_SO" in 0:?*) _FELIX_RB_U="$_FELIX_SO" ;; 2:*|128:*|-:*) ;; *) return 3 ;; esac
   [ -n "$_FELIX_RB_U" ] || return 1
   _felix_lc "$_FELIX_RB_U"; ul="$_FELIX_LC"
   for meta in "$felix_root"/projects/*/project.json; do

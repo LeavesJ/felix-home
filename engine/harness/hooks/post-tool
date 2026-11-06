@@ -90,7 +90,10 @@ home="$(felix_home "$FELIX_ROOT" 2>/dev/null)" || exit 0
 
 # The payload's own session: the first "session_id" key, not the last (see
 # felix_ledger_session_id).
-felix_ledger_session_id "$raw" || exit 0
+# Handed on as its leading window: copying a 4 MB payload into the function's
+# argument cost four times what finding the key does, and the function cuts the
+# same window itself, in bytes, so a longer cut here changes nothing.
+felix_ledger_session_id "${raw:0:32768}" || exit 0
 session="$FELIX_LEDGER_SID"
 
 [ "$_felix_pt_alive" = 1 ] || felix_ledger_alive "$home" "$session"

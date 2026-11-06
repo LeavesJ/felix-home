@@ -417,9 +417,13 @@ row of the session's project's `stack.tsv` whose first field is exactly `cli`,
 when that field meets N2's byte rule as it stands (`A-Z a-z 0-9 . _ + -`,
 starts with a letter or a digit, at most 64 bytes). The field is taken whole:
 `strix-agent` is a name, `strix-agent@x`, `a/b` and `-` are not, and nothing is
-stripped from it. Rows are read as the fold reads `stack.tsv`: a blank row, a
-row whose first field is empty or starts with `#`, and a row with an empty
-second field are skipped, and a last row with no newline counts. A row of any
+stripped from it. Rows are read for their tab-separated fields as written: a blank row,
+a row whose first field is empty or starts with `#`, and a row with an empty
+second field (`cli`, two tabs, a third field) are skipped, and a last row with
+no newline counts. A carriage return is not stripped, so a name followed by
+one is not a name. (The fold reads `stack.tsv` with a tab in `IFS`, which runs
+two tabs together; such a row keeps a zero row under the third field's name
+there. That is a stated limit of the fold, not changed here.) A row of any
 other kind (`plugin`, `skill`, `mcp`, `marketplace`, `hook`, or a word the
 engine does not know) is never a name here, whatever its second field is, and
 neither is a kind that only starts or ends with `cli` (`cli-extra`, `xcli`).
@@ -528,6 +532,14 @@ whose closing quote falls on byte 32,769 is not, however many characters
 that is, and a multi-byte character before the key counts its bytes. The match
 runs under `LC_ALL=C` (C5), and nothing in the function depends on the bash
 version beyond 3.2.
+
+W6. **The hook hands on the window.** `hooks/post-tool` gives the function the
+first 32,768 characters of the payload, not the payload: handing a 4 MB string
+to a function as an argument is most of what the call costs (about 19 of 25 ms
+of CPU measured on this Mac for a 4 MB payload with the key first, against 5 ms
+when the hook cuts). A character is at least a byte, so what the function
+receives holds the whole byte window (W1) whenever the payload does, and it cuts
+the rest itself. The result is W1 to W4 exactly, through the hook (W3).
 
 W5. **Cost.** No new process (C1, C2). On a 4 MB payload with the key at its
 start the function costs no more CPU than on a payload of 32,768 bytes plus

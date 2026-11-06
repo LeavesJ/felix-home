@@ -511,13 +511,15 @@ felix_route_ledger() {   # HOME SESSION
 }
 
 # 0 when FILE holds a line that is exactly LINE and ends in a line break (a
-# last line with none may be an append still being written). A read loop, no
-# process and no pipe: grep -q after a pipe races under pipefail.
+# last line with none may be an append still being written). The file is read
+# once into a variable and searched with a case, no process and no pipe: a
+# line-by-line loop cost 0.35 s of CPU on a 325 KB ledger, grep -q after a pipe
+# races under pipefail, and LINE is a name already checked for glob bytes.
 _felix_route_ledger_has() {   # FILE LINE
-  local l
-  while IFS= read -r l; do
-    [ "$l" = "$2" ] && return 0
-  done < "$1" 2>/dev/null
+  local c="" nl='
+'
+  { IFS= read -r -d '' c < "$1"; } 2>/dev/null
+  case "$nl$c" in *"$nl$2$nl"*) return 0 ;; esac
   return 1
 }
 

@@ -56,7 +56,7 @@ _ff_get()   { printf '%s\n' "$1" | sed -n "s/^$2 //p"; }
 # the wrong reason. Called first inside the ( ) or $( ) of such a probe, this
 # defines a cd there that returns 0 for exactly one empty operand and hands
 # everything else to the builtin. It does nothing where the shell's own cd
-# already takes an empty name, so 3.2 and 5.2 run the real thing. Called at the
+# already takes an empty name, so bash 3.2 runs the real thing. Called at the
 # top level it would replace cd for the whole suite, so only a subshell calls it.
 _ff_oldcd() {
   ( cd "" ) 2>/dev/null && return 0

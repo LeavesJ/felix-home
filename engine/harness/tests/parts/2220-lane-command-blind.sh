@@ -572,7 +572,7 @@ is "lane command R2-F10-utf16-log-encoding-reads-R1: the same settings leave fel
    "$LNKRA|unfaulted $LNKRS0|$LNKc" "built|unfaulted 0|$LNKRV|$LNKv"
 
 # R2-F12: felix lane --tsv with its stdout closed, standing in for a stdout that cannot be written. Closed is a descriptor 1 not open for writing: bash 5.3
-# opens a closed 0 to 2 on /dev/null, where the write succeeds, so `>&-` misses the fault; 1< a file (part 0574) fails the write with EBADF on every bash.
+# opens a closed descriptor 1 on /dev/null, where the write succeeds, so `>&-` misses the fault; 1< a file (part 0574) fails it with EBADF on every bash.
 : > "$LNKD/r2f12.ro"; LNKm="*the lane lines could not be written*"   # felix's sentence: a status alone could be sh's, from a stand-in it could not set up
 _lf_run "$LNKD/r2f12" "$LNKRC" "$LNKN" /bin/sh -c "exec \"\$0\" \"\$@\" 1< \"$LNKD/r2f12.ro\"" "$FELIX" lane --tsv
 case "$LF_RC:$(cat "$LNKD/r2f12.err" 2>/dev/null)" in

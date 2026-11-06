@@ -124,6 +124,8 @@ felix_situations_id() {   # CLASS PROJECT
 #   unbound    <term> <why>                 every term C4 lists as unbound, once for each class that holds it (C10)
 #   seen       <capability> <source>        a capability no class uses that the detector named, or a probe row grounds (C10)
 # A probe term is read from the grounding rows of its capability, one per predicate; a cap term the same, then the detector.
+# A grounding row whose state is none of the five is undecided, as blind and unknown are, with its own state word in the
+# reason (C17.6).
 # No apostrophe may stand in the awk text: it is one shell word.
 felix_situations_eval() {   # ROWS READING PROBE-GROUNDS MATURITY
   FELIX_SIT_ROWS="${1-}" FELIX_SIT_READING="${2-}" FELIX_SIT_GROUNDS="${3-}" FELIX_SIT_MATURITY="${4-}" LC_ALL=C awk '
@@ -191,7 +193,7 @@ felix_situations_eval() {   # ROWS READING PROBE-GROUNDS MATURITY
           TK = TK ";" PP[i] "=" PS[i] "/" PC[i]
           if (!(PP[i] in RDS)) { RDS[PP[i]] = 1; RD = RD ((RD == "") ? "" : " ") PP[i] "=" PS[i] "/" PC[i] }
           if (PS[i] == "found") fo++
-          if (PS[i] == "blind" || PS[i] == "unknown") { bu++; if (!bi) bi = i }
+          if (PS[i] == "blind" || PS[i] == "unknown" || !isst(PS[i])) { bu++; if (!bi) bi = i }
           if (PS[i] == "empty") { em++; if (!ei) ei = i }
           if (K == "probe" && PS[i] == V) any = 1
         }

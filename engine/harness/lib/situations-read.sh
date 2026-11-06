@@ -115,13 +115,20 @@ felix_situations_read_recorded() {   # LOG TREE OUT
   return 0
 }
 
+# A string of exactly the digits a full commit id is made of: 40 lowercase hex digits, or 64 under the longer hash.
+_felix_situations_fullid() {   # TEXT
+  case "${1-}" in *[!0123456789abcdef]*) return 1 ;; esac
+  [ "${#1}" -eq 40 ] || [ "${#1}" -eq 64 ]
+}
+
 # A revision resolved to a commit id in the live repository, printed whole; status 1 and nothing printed when it names no
-# commit here. A revision that begins with - is not one, so git never reads it as an option.
+# commit here, and so when git resolves it to anything but one full commit id (^HEAD resolves to ^ and the id, C17.7). A
+# revision that begins with - is not one, so git never reads it as an option.
 _felix_situations_rev() {   # ROOT REV
   local root="${1-}" rev="${2-}" sha
   case "$rev" in ''|-*) return 1 ;; esac
   sha="$(_felix_git_rules "$root" rev-parse --verify --quiet "${rev}^{commit}" 2>/dev/null)" || return 1
-  [ -n "$sha" ] || return 1
+  _felix_situations_fullid "$sha" || return 1
   printf '%s' "$sha"
 }
 

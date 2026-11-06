@@ -11,15 +11,6 @@ set -uo pipefail
 # The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
-# The door (lib/deploy-hold.sh): while the lander owes a deploy nothing new starts, so a run waits here, before it makes anything, and
-# before CDPATH goes. Absent where this file stands in a base's tree (tests/red), and then there is no wait. Part mode (--part) is a
-# person's own short run and does not wait; it passes the door on, so nothing it starts waits either.
-case "$0" in */*) _dh_lib="${0%/*}/../lib/deploy-hold.sh" ;; *) _dh_lib="../lib/deploy-hold.sh" ;; esac
-if [ -r "$_dh_lib" ] && . "$_dh_lib"; then
-  _dh_part=0; for _dh_a in "$@"; do [ "$_dh_a" != --part ] || _dh_part=1; done
-  if [ "$_dh_part" = 1 ]; then _dh_admit; else _dh_wait "tests/run"; fi
-fi
-unset _dh_lib _dh_part _dh_a
 _FELIX_CALLER_CDPATH="${CDPATH-}"
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
@@ -43,6 +34,14 @@ REAL_HARNESS="$(cd "$HERE/.." && pwd)"
 if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HARNESS/lib" ]; then
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
+fi
+# The door (lib/deploy-hold.sh): while the lander owes a deploy nothing new starts, so a run waits here, before it makes anything. Absent
+# where this file stands in a base's tree (tests/red), and then there is no wait. Part mode (--part) is a person's own short run and
+# does not wait; it passes the door on, so nothing it starts waits either. After the block above, which every entry point begins with.
+if [ -r "$REAL_HARNESS/lib/deploy-hold.sh" ] && . "$REAL_HARNESS/lib/deploy-hold.sh"; then
+  _dh_part=0; for _dh_a in "$@"; do [ "$_dh_a" != --part ] || _dh_part=1; done
+  if [ "$_dh_part" = 1 ]; then _dh_admit; else _dh_wait "tests/run"; fi
+  unset _dh_part _dh_a
 fi
 # The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison
 # and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.

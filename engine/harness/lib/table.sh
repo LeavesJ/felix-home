@@ -153,6 +153,7 @@ _felix_table_cap() {
 _felix_table_wc() { LC_ALL=C wc -c < "$1"; }
 _felix_table_nonul() { LC_ALL=C tr -d '\000' < "$1" | wc -c; set -- "${PIPESTATUS[@]}"; [ "$1:$2" = 0:0 ]; }
 _felix_table_byte() { LC_ALL=C od -An -tx1 -j "$2" -N 1 < "$1"; }
+_felix_table_dec() { _FELIX_TN="${1#"${1%%[![:blank:]]*}"}"; case "$_FELIX_TN" in ''|*[!0123456789]*) return 1 ;; esac; }   # wc pads with blanks
 
 # Everything wrong with one file as an instance of one table. One line per
 # refusal: <file>:<line> TAB <reason> TAB <detail>, with `-` for the line of a
@@ -173,7 +174,7 @@ _felix_table_byte() { LC_ALL=C od -An -tx1 -j "$2" -N 1 < "$1"; }
 # run under felix_capture; the row's cells, the arity, hi and the refusal lines
 # are made in this shell, with no fork to fail.
 felix_table_check() {
-  local schemas="$1" file="$2" table="${3:-}" unk nl=$'\n' num='^[[:blank:]]*[0-9]+$'
+  local schemas="$1" file="$2" table="${3:-}" unk nl=$'\n'
   [ -n "$table" ] || table="${file##*/}"
   if [ -L "$file" ]; then
     printf '%s:-\tsymlink\ta link, so the escape check compares its text and a reader reads its target\n' "$file"; return 1
@@ -200,32 +201,32 @@ felix_table_check() {
   local out rows
   felix_capture out _felix_table_pass "$file" "$req" "$tot" "$cols" "$hi" || { printf '%s\n' "$unk"; return 2; }
   rows="${out##*"$nl"}"
-  case "$rows" in "	"[0-9]*) ;; *) printf '%s\n' "$unk"; return 2 ;; esac
+  case "$rows" in "	"[0123456789]*) ;; *) printf '%s\n' "$unk"; return 2 ;; esac
   out="${out%"$rows"}"; out="${out%"$nl"}"; rows="${rows#	}"
-  case "$rows" in *[!0-9]*) printf '%s\n' "$unk"; return 2 ;; esac
+  case "$rows" in *[!0123456789]*) printf '%s\n' "$unk"; return 2 ;; esac
 
   # File-level shapes one awk pass cannot see: it reads a final line with no
   # newline as a line like any other, and stops or truncates at a NUL
   # depending on its build. Its size, the last byte and the size less its NULs,
   # each a number or one hex byte, or the check cannot tell.
   local more="" line size byte nonul
-  felix_capture size _felix_table_wc "$file" && [[ $size =~ $num ]] || { printf '%s\n' "$unk"; return 2; }
-  size="${size//[[:blank:]]/}"
+  felix_capture size _felix_table_wc "$file" && _felix_table_dec "$size" || { printf '%s\n' "$unk"; return 2; }
+  size="$_FELIX_TN"
   # The last byte, read as a number: a command substitution drops a newline and
   # a NUL alike, so a file ending in a NUL looked like one ending in a newline.
   byte=""
   if [ -s "$file" ]; then
     felix_capture byte _felix_table_byte "$file" "$((size - 1))" || { printf '%s\n' "$unk"; return 2; }
     byte="${byte//[[:space:]]/}"
-    case "$byte" in [0-9a-f][0-9a-f]) ;; *) printf '%s\n' "$unk"; return 2 ;; esac
+    case "$byte" in [0123456789abcdef][0123456789abcdef]) ;; *) printf '%s\n' "$unk"; return 2 ;; esac
     if [ "$byte" != "0a" ]; then
       printf -v line '%s:-\tno-final-newline\tthe last line has no newline, and the done-< loops drop it while grep and awk keep it' "$file"
       more="$more$line$nl"
     fi
   fi
   # The size less its NULs is at most its size, and at least 1 when its last byte is not a NUL.
-  felix_capture nonul _felix_table_nonul "$file" && [[ $nonul =~ $num ]] || { printf '%s\n' "$unk"; return 2; }
-  nonul="${nonul//[[:blank:]]/}"
+  felix_capture nonul _felix_table_nonul "$file" && _felix_table_dec "$nonul" || { printf '%s\n' "$unk"; return 2; }
+  nonul="$_FELIX_TN"
   [ "$nonul" -le "$size" ] && { [ "$nonul" -gt 0 ] || [ -z "$byte" ] || [ "$byte" = 00 ]; } || { printf '%s\n' "$unk"; return 2; }
   if [ "$nonul" -ne "$size" ]; then
     printf -v line '%s:-\tnul-byte\ta NUL byte, which makes grep treat the file as binary and print no rows' "$file"

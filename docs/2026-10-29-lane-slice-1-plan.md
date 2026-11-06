@@ -623,7 +623,7 @@ The first-build review ran in `wf_eb8f2798-854`: three lenses, the eleven mutant
 - Fork exhaustion can leave the scratch directory, and exit 128 instead of 3: the removal's owner check needs a fork.
 - In shared code, for the trust plane:
     - `felix_probe_rows` reads an unreadable `probes.tsv` as empty. The slice now refuses that case itself (C17.4).
-    - `felix_json_str` takes the last `"maturity"` key on a line, a nested one included, and reads a non-string as none.
+    - `felix_json_str` takes the last `"maturity"` key on a line, a nested one included, and reads a non-string as none. Its status is `head`'s, so a failed read also reads as none.
     - `_felix_tree_id_on`'s porcelain diff refreshes the index of the checkout it reads. The slice now gives it a copy (C17.3); `felix probes` and `felix gate` do not.
     - `felix_detect` reports no failure of its own.
 - The fifth limit, wider than first written. `--change` runs every probe command in a scratch checkout of each side. A probe that runs tracked code of any kind therefore runs that revision's code, even one never checked out here. Tracked code includes a script, a test, a build file and an import of the application.
@@ -633,6 +633,42 @@ The first-build review ran in `wf_eb8f2798-854`: three lenses, the eleven mutant
 - RF3's fixture also holds classes `a1` and `a_1`. C puts `a1` first, and macOS's UTF-8 collation puts `a_1` first. glibc's UTF-8 collation already reorders `ab` and `a_c`. So RF3 catches a sort without `LC_ALL=C` on both systems. The ordering assertions cover both pairs.
 - Part 2420's `main..HEAD` and reversed-range runs compare their exit status.
 - Part 2420's byte-for-byte comparison of the default range's `--tsv` also sees a missing final newline and trailing empty lines.
+- RF3's `--at` read a tree where all four classes are ACTIVE, so no line of theirs reached the `--at` residual, and a sort without `LC_ALL=C` there passed the part. RF3 also records a tree where `x` reads blind, and runs `--at` on it under both locales. There the four classes could not look, and the `--at` residual's could-not-look lines are compared byte for byte and in order. C9 prints an UNKNOWN class in no `--at` section, so the order is asserted on the residual lines. Each of the three sorts the review mutated now fails RF3 when its `LC_ALL=C` is dropped: the section sort, the `--change` residual's and the `--at` residual's.
+
+### C17.11. Amendments after fault-injection round 2, 2026-11-06
+
+Round 2 ran in `wf_8b458ad0-ba5`, on the reads C17 changed. It found:
+- one regression of a fix;
+- a scratch write that C17.4 covers and the code did not;
+- a fix that does not hold in full in normal use, which git itself causes;
+- two limits.
+
+This is the last round the review budget allows. So, as that budget says, the regression and the gap in C17.4's own rule are fixed here. Everything else becomes a stated limit.
+
+**C17.11.1 The scratch detector quotes file names as the live one does** (amends C17.2). C17.2's environment dropped the caller's `core.quotePath`. The detector's file listing in a scratch clone then quoted names that it lists unquoted on the live checkout, and `--change` stopped naming a capability that `--at` named for the same tree.
+
+- When the caller's configuration sets `core.quotePath`, the value that `git config --get core.quotePath` reads for the repository is passed to the scratch detector through `GIT_CONFIG_COUNT`, and it reaches nothing else. `core.quotePath` runs nothing.
+- A read that exits with neither 0 nor 1 gives exit 3 with C17.4's step sentence. Status 1 means the caller sets none.
+- New in part 2470, rf6. `core.quotePath=false` is set in the caller's `$HOME/.gitconfig`. The checkout tracks `web/é1.js`, `web/é2.js` and `web/é3.js` and has no `package.json`. With that, the detector names `frontend` on the live checkout. `--change` then names `frontend` at head as `--at` names it at the recorded tree, with its no-row line in each (C10). Without the setting, neither names it.
+
+**C17.11.2 A split index's shared file gets a new mtime** (a limit of C17.3 and C3.4, not fixed). With `core.splitIndex=true`, the live index links to a `sharedindex.<sha>` file in the git directory, and git freshens that file's mtime every time it reads the index.
+
+- What ran, on git 2.56.0. A plain `GIT_OPTIONAL_LOCKS=0 git ls-files` moved that file's mtime, and so did one that read only a copy of the index through `GIT_INDEX_FILE`. The live index kept its bytes and its mtime throughout.
+- So every git read of the live checkout moves the file. That includes the tree id taken on the copy, and the shared detector's file listing.
+- Its bytes stay as they were, and nothing else under the git directory changes. C3.4's mtime promise does not hold for that one file. `felix probes` and `felix gate` move it the same way.
+- The first fix tried, `core.splitIndex=false` for the copy's tree id, is not built: the file moved with it too.
+
+**C17.11.3 A failed copy of the live index exits 3** (amends C17.3 and C17.5).
+
+- When the live index exists and can be read, and the copy into `<scratch>/live-index` fails, the run gives exit 3 with C17.4's step sentence: the copy is a scratch file the slice writes.
+- A live index that exists and cannot be read keeps C17.5's header, `detector not run: the tree id of this checkout could not be taken`. So does a copy that git cannot read back.
+- New in part 2470, rf9. A `mktemp` first on `PATH` runs the real one. When it has made the run's scratch directory, it creates `live-index` there with mode 400. `--at` then exits 3, with stdout empty, one stderr line beginning `felix situations: the report could not be built: `, and TMPDIR empty. The case is skipped by name when the file stays writable.
+
+**C17.11.4 Stated limits, not fixed.** The PR and the handoff list these, with C17.9's and C17.11.2.
+
+- In shared code, for the trust plane: `_felix_obligation_scan`'s rows mode returns 0 when its own awk fails. So `--propose` reads a failed scan of a readable `obligations.tsv` as nothing admitted, and proposes an admitted class again. The slice catches an unreadable file and a failed bad-mode scan, not this. Running that admit command would admit the class twice, which the scan then refuses: "admitted twice, and a name that names two rows names neither".
+- When a scratch file cannot be opened (a full TMPDIR, a quota, an open-file limit), bash prints its own line naming the file before C17.4's sentence. So stderr holds two lines; the exit status and stdout are as C17.4 says.
+- A TMPDIR inside the checkout that git does not ignore makes the scratch directory an untracked file of the live checkout. `--at` then reads the checkout as not at the recorded tree, and does not run the detector. This was already so before C17.3.
 
 ## Review Focus
 

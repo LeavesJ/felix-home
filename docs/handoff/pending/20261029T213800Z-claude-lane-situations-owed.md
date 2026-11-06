@@ -332,3 +332,79 @@ by any automatic check.
 `lib/probes.sh`: "the witness proves this surface exists". That is the
 "proven" family founder decision 1 retires. It is shared code, so it belongs
 to the engine-texts session, not to this slice.
+
+### 2026-11-06: the review, C17, and two fault rounds
+
+**The first-build review (Task 11)**, `wf_eb8f2798-854`: three lenses
+(Opus 5.5, high), the plan's eleven mutants (three runners, Sonnet 5.5,
+xhigh), and fault-injection round 1 on the slice's own reads (Opus 5.5,
+high). 18 minutes, 22 findings.
+- **Two wrong answers in normal use.** The printed admit command's `>>`
+  glued the drafted row onto an unended last row of `obligations.tsv`, which
+  de-admits that obligation (two lenses found it). And the scratch git calls
+  still read the caller's `core.fsmonitor` and `git -c` config.
+- **Round 1.** Failures in the slice's own steps still printed a report and
+  exited 0: the report's sorts and awks, the ids, the main ref, the scratch
+  read-backs, an unreadable `obligations.tsv` or `probes.tsv`, the detector
+  pipeline, a closed stdout, and the reason given for a live tree id that
+  could not be taken.
+- **Mutants.** 10 of 11 were red. RF3's sort mutant was green, because on
+  macOS `ab` and `a_c` sort alike under C and UTF-8.
+
+**C17** (`e972d3e6`) decides each finding:
+- fixes C17.1 to C17.8;
+- limits C17.9, with the fifth limit made wider: a probe that runs tracked
+  code of any kind;
+- part repairs C17.10.
+
+The parts' blind author wrote C17's assertions (`8809bb20`). On the code
+before the fixes they failed: 2 in 2410, 1 in 2420, 6 in 2440 and 17 in
+2470. Everything else in those parts passed.
+
+**The RF3 mutants**, run by the lead in a scratch clone at `8809bb20`. The
+section sort and the `--change` residual sort were caught: 3 RF3 FAILs each.
+The `--at` residual sort was not: RF3's `--at` read a tree where every class
+is ACTIVE. That went back to the blind author, who added a recorded tree
+where `x` reads blind. The mutant then gave 3 FAILs there. The review's own
+patch files for two of these mutants did not apply: one had a hunk header
+whose counts its body did not match, the other a hunk with no context. Each
+was applied as an exact one-match swap instead.
+
+**Fixes**, `wf_8b458ad0-ba5`, Sonnet 5.5, xhigh: green with 0 red rounds,
+in `35c1b27e`, `cd4b8ab9`, `db6b4b91` and `fb3450cb`.
+- A new `lib/situations-check.sh`, named in `cmd_situations`'s load loop,
+  holds the step sentence, the table check, the detector capture and the
+  C17.2 environment.
+- Every pipeline became checked files. The class lines now lead with the id,
+  so RF9's `owed:` sort shim reaches a sort.
+- The fixer's readings where C17 left room are in its report: a failing
+  merge-base, facts.log awk and evaluation steps take the step sentence; the
+  table check runs right after the scratch is made.
+
+**Fault-injection round 2**, the last the budget allows, Opus 5.5, high.
+- **Held** against round 1's faults and their own new paths: C17.1 under
+  bash, zsh and sh over nine file shapes; C17.2 from a main checkout and a
+  linked worktree; C17.3 to C17.8.
+- **F2.2, a regression of C17.2.** The scratch detector lost the caller's
+  `core.quotePath=false`, so `--change` stopped naming `frontend` for
+  non-ASCII asset names that `--at` named. Fixed: the caller's value, when
+  set, is passed to the scratch detector alone (C17.11.1).
+- **F2.5.** A failed copy of a readable live index read as an untaken tree
+  id with exit 0. Fixed: exit 3 (C17.11.3).
+- **F2.4, now a limit (C17.11.2).** With `core.splitIndex=true`, the shared
+  index file's mtime moves. Git freshens it on every read of a split index:
+  a plain `GIT_OPTIONAL_LOCKS=0 git ls-files` moved it, and so did one that
+  read only a copy. The hinted fix, `core.splitIndex=false` for the copy's
+  tree id, was built, run, found not to help, and taken out.
+- **F2.1 and F2.3, limits (C17.11.4).** F2.1 is in shared code:
+  `_felix_obligation_scan`'s rows mode returns 0 when its awk fails, so
+  `--propose` proposes an admitted class again. F2.3: when a scratch file
+  cannot be opened, bash's own line precedes C17.4's sentence. A 44-site
+  edit after the last round was not worth the risk the budget names.
+- **Out of the round's scope**, noted only: an empty recorded state prints
+  its reason with a double space; an `obligations.tsv` whose last byte is
+  NUL defeats C17.1's guard; under a closed stdout, bash 3.2 flushes the
+  failed first line onto stderr.
+
+The fixes' assertions, by the same blind author, are rf6's `core.quotePath`
+case and rf9's unwritable `live-index`.

@@ -178,9 +178,11 @@ for _trd_l in accepted cells shapes nul empty-refused; do
   is "P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-$_trd_l: felix_table_check is 2, the unknown line" "$TRDC" unknown
 done
 TRDP35=""
-# --- P35: no partial refusal lines.
-is "P35: in each of the $TRDUN runs P28-P34 call unknown (a probe that acted, or the empty pattern), the unknown line is the only line on stdout: no refusal line printed before the read failed" \
-   "${TRDUNK:-only that line}" "only that line"
+# --- P35: no partial refusal lines. How many runs it reads is the tree's (P30 and P33 count a run only where its probe
+# acted: 40 here, 52 at 1fca9559), so the count stays out of the name, which must be one string on every tree for
+# tests/red and the manifest to agree. None counted would leave the property vacuous, and is said.
+is "P35: in each run P28-P34 call unknown (a probe that acted, or the empty pattern), the unknown line is the only line on stdout: no refusal line printed before the read failed" \
+   "$([ "${TRDUN:-0}" -gt 0 ] || printf 'no run counted: ')${TRDUNK:-only that line}" "only that line"
 
 # --- P36: bin/schema-check, the caller, over a tree whose one table check is faulted as in P28.
 TRDX="$TRD/sc"; mkdir -p "$TRDX/engine/harness/templates"

@@ -1,21 +1,17 @@
 # Which routed tool a shell command runs, read in bash alone.
 #
-# The ledger records a call by what it reached, and a Bash call that ran a
-# command-line tool reached that tool: `graphify query ...` is a reach of
-# graphify, not a use of Bash. felix_ledger_signal asks this, through
-# _felix_ledger_cli in lib/ledger.sh, about a Bash call whose command holds one
-# of the session's names. That runs after such a call in any governed session,
-# so this starts no process and reads no file: it walks the command as the
-# payload writes it, JSON escapes and all, the way the shell would read it, and
-# only as far as telling which words are programs.
+# The ledger records a call by what it reached: a Bash call that ran
+# `graphify query ...` reached graphify, not Bash. felix_ledger_signal asks
+# this, through _felix_ledger_cli in lib/ledger.sh, of a Bash call whose command
+# holds one of the session's names, in any governed session, so this starts no
+# process and reads no file. It walks the command as the payload writes it,
+# JSON escapes and all, as the shell would, as far as telling which words run.
 #
-# Precision first. A miss leaves the call as `tool Bash`, which is what it was
-# before; a false reach takes a capability off the retire list on evidence of
-# nothing, and keeps a route that is ignored. So what this cannot follow ends
-# the reading rather than being guessed at, and text a command only carries (a
-# quoted string, a here-document, a comment, an argument) is never a program.
-# The rules, and the runs they do not see: docs/2026-10-31-cli-reach-spec.md,
-# section 3.
+# Precision first. A miss leaves the call as `tool Bash`, as before; a false
+# reach takes a capability off the retire list on evidence of nothing. So what
+# this cannot follow ends the reading rather than being guessed at, and text a
+# command only carries is never a program. The rules, and the runs they miss:
+# docs/2026-10-31-cli-reach-spec.md, section 3.
 #
 # Nothing here slices or matches the whole text more than once a block: bash
 # 3.2 copies a variable whole to take any slice of it, and the regex library
@@ -33,13 +29,11 @@ _FELIX_LR_PLAIN='^([^\\"'"'"' $`;&|()<>]*)'
 _FELIX_LR_SQTEXT='^([^'"'"'\\"]|\\.)*'
 _FELIX_LR_ANSITEXT='^(\\\\(\\.|[^\\"])|\\[^\\]|[^'"'"'\\"])*'
 _FELIX_LR_DQPLAIN='^([^\\"$`]*)'
-_FELIX_LR_BRPLAIN='^([^\\"'"'"'$`{}]*)'
+_FELIX_LR_BRPLAIN='^([^\\"'"'"'$`}]*)'
 _FELIX_LR_ARPLAIN='^([^\\"()]*)'
 _FELIX_LR_LINE='^([^\\"]|\\[^n])*'
 _FELIX_LR_VAR='^\$([A-Za-z_][A-Za-z0-9_]*|[0-9@*#?$!-])'
-_FELIX_LR_FD='^[0-9]+$'
 _FELIX_LR_HDWORD='^ *(\\\\)?('"'"'([A-Za-z0-9_.-]+)'"'"'|\\"([A-Za-z0-9_.-]+)\\"|([A-Za-z0-9_.-]+))'
-_FELIX_LR_PARENS='^\(( |\\t)*\)'
 _FELIX_LR_DEFN='^( |\\t)*\(( |\\t)*\)'
 
 # NAMES TEXT: the first of NAMES, separated by single spaces, that TEXT runs as
@@ -54,9 +48,8 @@ felix_ledger_runs() {
 }
 
 # One step of the reading, counted against the bound, with the text in hand
-# topped up first. A step consumes at most 256 bytes before its last look
-# ahead, so 320 in hand is always enough, and only the end of the text leaves
-# less.
+# topped up first. A step passes at most 259 bytes (<<- and a 256-byte match)
+# before its last look ahead, so 320 in hand is enough short of the text's end.
 _felix_lr_step() {
   _n=$((_n - 1)); [ "$_n" -gt 0 ] || return 1
   if [ "$_left" -gt 0 ] && [ "${#_r}" -lt 320 ]; then
@@ -137,11 +130,11 @@ _felix_lr_list() {
         [ "$inw" = 1 ] || wf=""
         inw=1; lit=0; _r="${_r:1}"; _felix_lr_sub '`' || return 1 ;;
       '(')
-        if [ "$inw" = 0 ] && [ "$pw" = 1 ] && [[ ${_r:0:64} =~ $_FELIX_LR_PARENS ]]; then
+        if [ "$inw" = 0 ] && [ "$pw" = 1 ] && [[ ${_r:0:64} =~ $_FELIX_LR_DEFN ]]; then
           # NAME (): the word before named a function, and its body follows.
           _r="${_r:${#BASH_REMATCH[0]}}"; cmd=1; pw=0
         elif [ "$inw" = 1 ] && [ "$cmd$fnw" != 00 ] && ! _felix_lr_assign \
-             && [[ ${_r:0:64} =~ $_FELIX_LR_PARENS ]]; then
+             && [[ ${_r:0:64} =~ $_FELIX_LR_DEFN ]]; then
           # NAME(): the same, with the name still in hand, which runs nothing.
           _r="${_r:${#BASH_REMATCH[0]}}"; inw=0; w=""; lit=1; wf=""; cmd=1; fnw=0; wrap=""
         elif [ "$inw" = 0 ] && [ "$cpat" = 1 ]; then
@@ -178,7 +171,6 @@ _felix_lr_list() {
         case "${_r:0:2}" in '||'|'|&') _r="${_r:2}" ;; *) _r="${_r:1}" ;; esac
         [ "$cpat" = 1 ] || _felix_lr_sep ;;
       '<'|'>') _felix_lr_redir || return 1 ;;
-      *) return 1 ;;
     esac
   done
 }
@@ -218,22 +210,23 @@ _felix_lr_word() {
 }
 
 # A word where a simple command starts: an assignment, a wrapper or one of its
-# options, a reserved word, or the program. A wrapper is known by the part of
-# its word after the last slash, and the program by its name there.
+# options (by how the word begins, so --chdir=/x is one), a reserved word, or
+# the program, which, like a wrapper, is known by its word's part after a /.
 _felix_lr_program() {
   local b
   if [ -n "$wrap" ]; then
     if [ "$warg" = 1 ]; then warg=0; return 0; fi
-    case "$w" in
+    case "${wf:-$w}" in
       --) return 0 ;;
       -*)
         case "$wrap" in
           # command -v and -V look a program up and run none.
           command) case "$w" in *[vV]*) wrap=""; cmd=0 ;; esac ;;
-          nice) [ "$w" = -n ] && warg=1 ;;
-          timeout) case "$w" in -s|-k) warg=1 ;; esac ;;
-          env) case "$w" in -u|-C|-P) warg=1 ;; -S*|--split-string*) wrap=""; cmd=0 ;; esac ;;
+          nice) case "$w" in -n|--adjustment) warg=1 ;; esac ;;
+          timeout) case "$w" in -s|-k|--signal|--kill-after) warg=1 ;; esac ;;
+          env) case "$w" in -u|-C|-P|--unset|--chdir) warg=1 ;; -S*|--split-string*) wrap=""; cmd=0 ;; esac ;;
           exec) [ "$w" = -a ] && warg=1 ;;
+          time) case "$w" in -o|-f) warg=1 ;; esac ;;
         esac
         return 0 ;;
     esac
@@ -252,6 +245,8 @@ _felix_lr_program() {
     b="${w##*/}"
     case "$b" in
       time|nohup|exec|command|nice|env|timeout) wrap="$b"; warg=0; tdur=0; return 0 ;;
+      # A name is all of the word: one quoted with a space in it is none (R5).
+      *[!A-Za-z0-9._+-]*) b="" ;;
     esac
     case "$_names" in
       # NAME () defines a function by that name, which runs nothing yet.
@@ -274,13 +269,14 @@ _felix_lr_assign() {
 # A redirection, at < or >. A word of digits in hand is its file descriptor and
 # the word after it its target, so neither is a program.
 _felix_lr_redir() {
-  if [ "$inw" = 1 ] && [ "$lit" = 1 ] && [[ $w =~ $_FELIX_LR_FD ]]; then inw=0; w=""; wf=""
+  if [ "$inw$lit" = 11 ] && case "$w" in ''|*[!0-9]*) false ;; esac; then inw=0; w=""; wf=""
   else _felix_lr_word || return 1; fi
   case "${_r:0:3}" in
     '<<<'*) _r="${_r:3}"; tgt=1 ;;
     '<<'*)
       if [ "${_r:2:1}" = - ]; then _r="${_r:3}"; op=-; else _r="${_r:2}"; op=+; fi
       [[ ${_r:0:256} =~ $_FELIX_LR_HDWORD ]] || return 1
+      if [ -n "${BASH_REMATCH[5]}" ] && [ -z "${BASH_REMATCH[1]}" ]; then op="${op}u"; else op="${op}q"; fi
       hd="$hd$op${BASH_REMATCH[3]}${BASH_REMATCH[4]}${BASH_REMATCH[5]} "
       _r="${_r:${#BASH_REMATCH[0]}}"
       # A delimiter that goes on past what was matched has some other shape.
@@ -412,7 +408,6 @@ _felix_lr_brace() {
     if [ -n "$m" ]; then _r="${_r:${#m}}"; [ "${#m}" -lt 256 ] || continue; fi
     case "${_r:0:2}" in
       '}'*) _r="${_r:1}"; _d=$((_d - 1)); return 0 ;;
-      '{'*) _r="${_r:1}" ;;
       '\"') _r="${_r:2}"; _felix_lr_dq || return 1 ;;
       '\\') _r="${_r:2}"; _felix_lr_jchar || return 1 ;;
       '\u') _r="${_r:6}" ;;
@@ -429,19 +424,21 @@ _felix_lr_brace() {
 }
 
 # A parenthesised group that is no list of commands, such as an array's values
-# or a for's arithmetic: words only, though a substitution in one still runs.
+# or a for's arithmetic: words and comments only, though a substitution runs.
 _felix_lr_args() {
-  local m w="" lit=1 inw=0
+  local m w="" lit=1 inw=0 s=1
   _d=$((_d + 1)); [ "$_d" -le 32 ] || return 1
   while :; do
     _felix_lr_step || return 1
+    if [ "$s" = 1 ] && [ "${_r:0:1}" = '#' ]; then _felix_lr_line || return 1; continue; fi
     [[ ${_r:0:256} =~ $_FELIX_LR_PLAIN ]]
-    m="${BASH_REMATCH[1]}"
+    m="${BASH_REMATCH[1]}"; s=0
     if [ -n "$m" ]; then _r="${_r:${#m}}"; continue; fi
     case "${_r:0:2}" in
       ')'*) _r="${_r:1}"; _d=$((_d - 1)); return 0 ;;
       '('*) _r="${_r:1}"; _felix_lr_args || return 1 ;;
-      ' '*|';'*|'&'*|'|'*|'<'*|'>'*) _r="${_r:1}" ;;
+      ' '*|';'*|'&'*|'|'*|'<'*|'>'*) _r="${_r:1}"; s=1 ;;
+      '\n'|'\t') _r="${_r:2}"; s=1 ;;
       '\"') _r="${_r:2}"; _felix_lr_dq || return 1 ;;
       '\\') _r="${_r:2}"; _felix_lr_jchar || return 1 ;;
       '\u') _r="${_r:6}" ;;
@@ -477,20 +474,24 @@ _felix_lr_arith() {
 
 # The bodies of the here-documents the line just ended opened, in order. Each
 # runs to a line that is its delimiter alone, after leading tabs for <<-, and
-# the lines that cannot be are passed a window at a time, not one by one.
+# the lines that cannot be are passed a window at a time, not one by one. Under
+# a bare delimiter the shell joins a line that ends in a backslash to the next,
+# so a delimiter line right after one (b) is none, and ends the reading (R7).
 _felix_lr_bodies() {
-  local d t f re U='([^\\"]|\\[^n])'
+  local d t u f re b U='([^\\"]|\\[^n])'
   for d in $hd; do
-    t="${d:0:1}"; d="${d:1}"; f="${d:0:1}"
+    t="${d:0:1}"; u="${d:1:1}"; d="${d:2}"; f="${d:0:1}"; b=0
     [ "$f" = - ] && f='\\"-' || f="$f"'\\"'
     if [ "$t" = - ]; then re='^((\\t)*([^'"$f"']'"$U"'*|\\[^nt]'"$U"'*)?\\n)*'
     else re='^(([^'"$f"']'"$U"'*|\\[^n]'"$U"'*)?\\n)*'; fi
     while :; do
       _felix_lr_step || return 1
       [[ ${_r:0:256} =~ $re ]]; _r="${_r:${#BASH_REMATCH[0]}}"
+      case "${BASH_REMATCH[0]}" in *'\\\n') b=1 ;; ?*) b=0 ;; esac
       _felix_lr_line || return 1
       if [ "$t" = - ]; then while [ "${_l:0:2}" = '\t' ]; do _l="${_l:2}"; done; fi
-      if [ "$_l" = "$d" ]; then [ "${_r:0:2}" = '\n' ] && _r="${_r:2}"; break; fi
+      if [ "$_l" = "$d" ]; then [ "$u$b" != u1 ] || return 1; [ "${_r:0:2}" = '\n' ] && _r="${_r:2}"; break; fi
+      case "${BASH_REMATCH[0]}" in *'\\') b=1 ;; *) b=0 ;; esac
       [ "${_r:0:2}" = '\n' ] || return 1
       _r="${_r:2}"
     done

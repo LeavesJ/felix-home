@@ -455,12 +455,10 @@ _felix_ledger_cli() {   # LEAD NAMES
   e="${lead:${#p}}"
   [[ $e =~ $_FELIX_LEDGER_CLI_KEY ]] || return 1
   e="${e:${#BASH_REMATCH[0]}}"; e="${e:0:16384}"
-  for n in $names; do case "$e" in *"$n"*) hit=1; break ;; esac; done
-  [ -n "$hit" ] || return 1
-  # And in the command's own text, which ends at the first quote no backslash
-  # escapes: a name in the description or the response loads nothing. The
-  # reading is still handed the quote, since only the quote closes a last word.
-  [[ $e =~ $_FELIX_LEDGER_CLI_STR ]]; c="${BASH_REMATCH[0]}"; hit=""
+  # A name in the command's own text, which ends at the first quote no
+  # backslash escapes: one in the description or the response loads nothing.
+  # The reading is still handed the quote, since only the quote closes a word.
+  [[ $e =~ $_FELIX_LEDGER_CLI_STR ]]; c="${BASH_REMATCH[0]}"
   for n in $names; do case "$c" in *"$n"*) hit=1; break ;; esac; done
   [ -n "$hit" ] || return 1
   command -v felix_ledger_runs >/dev/null 2>&1 \
@@ -507,8 +505,11 @@ felix_ledger_cli_note() {   # HOME SESSION PROJ
   d="$home/state/ledger"
   [ -d "$d" ] || mkdir -p "$d" 2>/dev/null || return 0
   t="$(mktemp "$d/.$session.names.XXXXXX" 2>/dev/null)" || return 0
-  felix_ledger_cli_names "$proj" > "$t" 2>/dev/null \
-    && mv -f "$t" "$d/$session.names" 2>/dev/null && return 0
+  # A link at the path is replaced, not followed: mv onto a link to a directory
+  # moves the file into it. A directory there is left, with no names file.
+  [ -L "$d/$session.names" ] && rm -f "$d/$session.names" 2>/dev/null
+  [ -d "$d/$session.names" ] || { felix_ledger_cli_names "$proj" > "$t" 2>/dev/null \
+    && mv -f "$t" "$d/$session.names" 2>/dev/null && return 0; }
   rm -f "$t" 2>/dev/null
   return 0
 }

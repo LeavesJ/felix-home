@@ -233,7 +233,7 @@ felix_receipt() {
   # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
   #
-  # felix.receipt/2 (0.49.325) says what is true of the gate's receipt where /1
+  # felix.receipt/2 (0.49.327) says what is true of the gate's receipt where /1
   # had two words, because Felix says what was checked and never claims more
   # (decision 1, 2026-10-31). /1's verified is checked. Its unverified is
   # failed (the gate ran red on this exact tree), evidence-owed (it ran green

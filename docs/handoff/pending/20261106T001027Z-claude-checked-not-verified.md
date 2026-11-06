@@ -1,4 +1,4 @@
-### 2026-10-31: the engine says checked, never verified or proven (decision 1, 0.49.325)
+### 2026-10-31: the engine says checked, never verified or proven (decision 1, 0.49.327)
 
 **What changed (branch `claude/checked-not-verified`).** This applies the
 founder's decision 1 of 2026-10-31, "Checked, in every text" (direction row 36

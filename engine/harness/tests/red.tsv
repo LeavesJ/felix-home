@@ -8,203 +8,450 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	deca9fdc8109199c6aef283dc5e8c5a1e1d2b6d9	0.49.319
-run	198	15531	35
-A1.1: with FELIX_GRAPH_ANSWER=0 it prints nothing, exits 1 and runs nothing	1
-A1.2: a checkout with no graph file gets nothing and exit 1, and graphify is not run	1
-A1.2: from a worktree it asks the graph of the checkout that holds it	1
-A1.3: with graphify on PATH and no perl it prints nothing, exits 1 and does not run graphify	1
-A1.3: with no graphify on PATH it prints nothing and exits 1	1
-A1.4: FELIX_GRAPH_MIN_WORDS=4 lets the same four words through	1
-A1.4: a prompt longer than 400 characters is cut to its first 400	1
-A1.4: a prompt of four words, under the default floor of five, runs nothing and exits 1	1
-A1.4: and five words so joined are five, asked as five	1
-A1.4: four words joined only by those escapes are four words, and run nothing	1
-A1.4: spaces, tabs, newlines and the two-character escapes for newline, tab and return are one space each, the ends trimmed	1
-A1.5: FELIX_GRAPH_BUDGET is the budget it passes	1
-A1.5: FELIX_GRAPH_LEFT is read by value, leading zeros not counting: 0000000000 is 0, no time left, so nothing printed, exit 1, graphify not run	1
-A1.5: FELIX_GRAPH_TIMEOUT is read by value too: 0000000001 is the bound 1, so a graphify answering after 3 seconds, inside the default 4, is killed	1
-A1.5: FELIX_GRAPH_TIMEOUT=1 is the bound itself: a graphify answering after 3 seconds, inside the default 4, is killed: no answer, exit 1	1
-A1.5: a FELIX_GRAPH_LEFT of 0, -2, abc or 1.5, no whole number of one or more, is no time left: nothing printed, exit 1, graphify not run	1
-A1.5: a FELIX_GRAPH_LEFT that is set and empty sets no limit: graphify is asked as before, and its answer printed	1
-A1.5: a FELIX_GRAPH_TIMEOUT of 0, 0.5 or abc is the default 4 seconds, so a graphify running 10 is still killed: no answer, exit 1	1
-A1.5: a graphify that exits by itself leaving a child holding the output open is read at once, and the child is killed then	1
-A1.5: a graphify that exits non-zero is no answer, the node it printed included: nothing printed, exit 1	1
-A1.5: a graphify that hangs past FELIX_GRAPH_TIMEOUT=1 is no answer: nothing printed, exit 1, back within 8 seconds where it would run 10	1
-A1.5: a graphify that prints nothing is no answer: exit 1	1
-A1.5: and 0000000002 is 2: graphify is asked, and one answering after 6 seconds under FELIX_GRAPH_TIMEOUT=12 is killed once those 2 seconds are up	1
-A1.5: and 0000000009 is 9, its digits not read as octal: under FELIX_GRAPH_TIMEOUT=12 a graphify answering after 4 seconds is answered	1
-A1.5: and a FELIX_GRAPH_TIMEOUT of 0000000000 is 0, so the default 4 and not no bound: a graphify that would run 10 seconds is killed: no answer, exit 1	1
-A1.5: and one of 0000000019 is 19, not the default 4 nor an octal error: a graphify answering after 6 seconds is answered	1
-A1.5: and under FELIX_GRAPH_TIMEOUT=0.5 a graphify answering after 1 second is answered, the bound not cut below the default	1
-A1.5: and with 10 seconds left the same graphify is answered (control)	1
-A1.5: at the deadline its whole process group is killed, so a child holding the output open neither holds the caller past 8 seconds nor outlives it	1
-A1.5: graphify's stderr is discarded, so stdout and stderr together are the rows alone	1
-A1.5: it runs graphify once, exactly: query, the prompt, --budget 600 and --graph naming the graph file	1
-A1.5: with 1 second left under FELIX_GRAPH_TIMEOUT=12, a graphify answering after 4 seconds is killed once that second is up: no answer, exit 1	1
-A1.6, A1.7: a label loses its tab and control bytes and is cut to 120 characters	1
-A1.6: a name holding .. that is not a .. segment is kept, and a loc of None prints as empty	1
-A1.6: and keeps a node only for a file under that holding checkout, not one the worktree alone holds	1
-A1.6: control bytes are removed from src and loc too, before the file is looked for	1
-A1.7: a label of two-byte characters is cut to 120 characters, not 120 bytes, and never inside one	1
-A1.8: FELIX_GRAPH_FILES=2 stops at two files, the first file's later node still printed	1
-A1.8: and never more than 16 rows in all	1
-A1.8: rows stop at eight distinct files, and a later node of a file already listed is still printed	1
-A1.9: output with no NODE line of the form keeps no node: nothing printed, exit 1	1
-A1: felix_graph_answer prints a src, loc and label row for each node it keeps, in graphify's order, and exits 0	1
-A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr	1
-A2.1: a session id that is empty or holds anything but letters, digits, - and _ prints nothing, exits 1 and writes nothing	1
-A2.1: and one of letters, digits, - and _ is answered	1
-A2.2: when A1 refuses before graphify is asked (switched off, no graph, four words, no graphify, no perl) it exits 1 and writes nothing	1
-A2.2: with no time left as well, those refusals still come first: exit 1 and nothing written, so no late row	1
-A2.3, A2.4: the same nodes again in that session print nothing and exit 1, the record gaining only asked graphify repeat and the ledger nothing	1
-A2.3, A2.5: the record gains the asked row, the session's root, given with the files and graphify's count, a node row a node, an answer row a file	1
-A2.3: a FELIX_GRAPH_LEFT of 0000000000, 0 by value, is no time left too: exactly asked graphify late, graphify not run	1
-A2.3: a graphify killed once its 1 second left is up, under FELIX_GRAPH_TIMEOUT=12, was asked: its outcome is timeout, not late	1
-A2.3: a graphify that exits non-zero leaves exactly asked graphify failed in a record it creates, prints nothing, exits 1, signals nothing	1
-A2.3: and one of 0000000002 is a 2-second bound: a graphify killed once it is up, under FELIX_GRAPH_TIMEOUT=12, was asked: timeout, not late	1
-A2.3: and so does a FELIX_GRAPH_LEFT of -2, abc or 1.5	1
-A2.3: another session is given the whole answer, the record being the session's own	1
-A2.3: one killed at the deadline is timeout	1
-A2.3: one that prints nothing is failed too	1
-A2.3: one whose answer keeps no node is empty	1
-A2.3: with no time left, FELIX_GRAPH_LEFT=0, the record it creates holds exactly asked graphify late: graphify not run, nothing printed, exit 1, nothing signalled	1
-A2.4: a node new by its label or by its line, in a file named earlier, is delivered, and the node given before is not	1
-A2.4: a node recorded as another tool's is not dropped from graphify's answer	1
-A2.5: and the session's roots are the worktree's top level, then the checkout that holds it	1
-A2.5: asked from a subdirectory the root recorded is the checkout's top level	1
-A2.5: its rows follow with no second root row, the count - where graphify printed none, and an answer row again for the file named before	1
-A2.6: and the session's ledger one answer graphify signal	1
-A2.6: one ledger signal a delivery, so two after two deliveries	1
-A2.7: a graph two commits behind says 2 commit(s) behind the checkout that holds it, after the stamp's seven characters	1
-A2.7: a graph with no stamp says graph carrying no build stamp in place of when it was built and how fresh	1
-A2.7: and so does a graph whose stamp names no commit here	1
-A2.7: asked from a worktree two commits ahead the freshness is still the holding checkout's	1
-A2.7: the block opens with graphify query, the stamp's first seven characters, current with the checkout that holds it, and to open first	1
-A2.7: then a blank line and a row a node: two spaces, src:loc, two spaces, the label, and src alone where loc is empty	1
-A2.8: graphify having found more nodes than the rows printed, a blank line and the line saying how many of how many follow the rows	1
-A2.9: a file whose first line is #!/usr/bin/env bash is a shell script	1
-A2.9: a first line that names bash only past its first 128 bytes does not make a shell script	1
-A2.9: a shell script among the files ends the block with the paragraph about callers, and graphify's count equal to the rows adds no A2.8 line	1
-A2.9: and so is one whose first line is #!/bin/zsh	1
-A2.9: and under it a first line of the same form naming bash at bytes 120-123 is one	1
-A2.9: under a UTF-8 locale the 128 are still bytes: a first line naming bash at bytes 140-143, characters 80-83, is no shell script	1
-A2.9: with no file a shell script by its name or its first line there is no callers paragraph	1
-A3: a graph behind whose refreshed-at marker holds the holding checkout's HEAD is not due	1
-A3: a graph built at HEAD is not due a refresh: exit 1, nothing printed	1
-A3: a graph two commits behind is due: exit 0, nothing printed	1
-A3: a graph with no stamp is not due	1
-A3: a marker holding another commit leaves the graph due	1
-A3: a marker that is a link to /dev/zero reads as absent, the due test answering within its 15-second bound: due	1
-A3: a marker that is a link to a regular file holding HEAD reads as absent too: due, within the bound	1
-A3: a regular marker whose HEAD sits past its first 64 bytes does not hold it: due	1
-A3: a worktree ahead of a graph current with the holding checkout is not due either	1
-A3: and asked from a worktree it is the holding checkout's distance that decides	1
-A3: and so does a marker that is a named pipe, the due test not waiting for a writer	1
-A3: nor a checkout with no graph at all	1
-A3: nor asked from its worktree, the marker and the HEAD being the holding checkout's	1
-A3: nor one whose stamp is a commit the checkout does not hold	1
-A4: a hard link there is replaced, not written through: the marker holds HEAD and the file it shared contents with is left as it was	1
-A4: a link at the marker's path is replaced by the marker, and the file it named is left as it was	1
-A4: a link to a directory there is replaced by the marker too, and nothing is written inside the directory it named	1
-A4: a refresh whose update exits 0 leaves the holding checkout's full HEAD and a newline, as it was when the refresh started, a commit made meanwhile aside	1
-L1: a route naming graphify is no naming of the answer: the answer row's sixth field stays empty	1
-L1: and graphify, declared and never reached for, still gets its zero row	1
-L1: and that naming stays with graphify itself, on its own row named once, whose calls read - as l2 holds neither an alive line nor a call	1
-L1: answer signals fold to one row: session, date, answer, the tool, the deliveries, and an empty sixth field	1
-L1: one alive line and one call make the record whole beside its two answers: the named row and the zero row read 0, a measured zero	1
-L1: three alive lines against one call is no whole record, its two answers not counted as calls: the named row and the zero row read -	1
-L2: felix_ledger_retire reads the same with answer rows folded beside the capability rows	1
-L2: felix_ledger_summary reads the same with answer rows folded beside the capability rows	1
-L3: felix_ledger_answers prints the tool, its distinct sessions and its summed deliveries from the folded answer rows	1
-L4: ./ before it bounds the token too	1
-L4: a Bash command holding the basename, which has a dot, as a token acts on the file	1
-L4: a Bash command holding the file as a path token acts on it, and opens nothing	1
-L4: a Grep of the file's directory does not act on it	1
-L4: a Read of the file under the record's root acts on it, and opens it	1
-L4: a basename with no dot does not count as a token	1
-L4: a delivery is a given row and the answer rows after it, acted on when any file it named was	1
-L4: a session left out has its asked, timeout and late rows left out with it	1
-L4: a session with no ledger appends on disk is not whole: it is left out of every column but unknown, which counts it	1
-L4: a token is bounded by = ( a quote : ; ) | & and , as well as by spaces and the ends of the command	1
-L4: a tool whose every ask came too late still has its line	1
-L4: a tool with asked rows and no given row still has its line, counting no session	1
-L4: a touch after a later prompt row cannot credit the answer before it: an answer is acted on in its own turn	1
-L4: a touch before the answer row does not act on it	1
-L4: a touch row naming a file of its window credits that file alone, not projects/x/CLAUDE.md for a row naming CLAUDE.md: 1 of 2 files	1
-L4: an Edit whose value is the file itself acts on it	1
-L4: and 1-24.md does not credit 4.md	1
-L4: and one ending in the file's name but not at a slash does not	1
-L4: and so are calls with no alive line, as appends written before 0.49.313 hold them	1
-L4: as does one holding the file under the root anywhere in it	1
-L4: as many alive lines as calls is whole, and the session counted	1
-L4: asked counts the asked rows and timeouts those that timed out	1
-L4: asked counts the asked rows whose outcome is not late, and late those whose outcome is	1
-L4: beside a whole session, one with no appends on disk and one with more alive lines than calls add to unknown alone	1
-L4: each tool is its own line, its deliveries alone deciding whether the session acted on it	1
-L4: end to end, grep -n rule <root>/CLAUDE.md through post-tool, then felix_answer_use, acts on 1 of the delivery's 2 files	1
-L4: files_opened counts the acted-on files credited by a tool other than Bash	1
-L4: nor is one whose appends hold more alive lines than calls	1
-L4: nor one that holds neither, a named row and an answer row being no calls	1
-L4: nor one whose alive line has only answer rows beside it, an answer row being no call	1
-L4: nor one whose ledger appends are an empty file: an empty record, holding neither, is left out too	1
-L4: nor one whose ledger appends cannot be read	1
-L4: one holding the file's path under another directory does not	1
-L4: projects/a/CLAUDE.md does not credit projects/b/CLAUDE.md	1
-L4: unknown counts a session left out once for each tool with an asked or a given row in its record, however many it has	1
-L4: with no root row, a value ending in /<file> acts on it	1
-L4: with root rows, a value that only ends in /<file> outside every root does not act on it	1
-L5: and 0% where the denominator is 0	1
-L5: and after the tool lines the sentence that bounds what the answers can have caused	1
-L5: one line a tool: answered of asks in sessions, the answers acted on before the next prompt, the files, those opened, the asks timed out, the prompts too late to ask, and the sessions left out	1
-L5: shares are whole percentages rounded half up, 2 of 16 being 13%, and with no timeout there is no clause for it	1
-L5: the capability table's rows are the same with the answer rows as without	1
-L5: with answers it heads a section answers handed to sessions without being asked for, after the capability table	1
-L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves	1
-R1: a session ending in a worktree of the own checkout refreshes the graph of the checkout that holds it	1
-R1: a session ending in the own checkout, its graph behind, starts a refresh of that graph	1
-R1: for a checkout that is not own, ownership is checked and the due test, which reads graph.json, never runs	1
-R1: for the own checkout ownership is checked first, then the due test	1
-R3: FELIX_GRAPH_LOCK_STALE=20 makes that same lock stale, and the refresh proceeds	1
-R4: with the marker holding the holding checkout's HEAD, session start starts no refresh	1
-T1: a Bash command naming two answered files appends a touch row for each	1
-T1: a Glob is read by the key spelled exactly path, not one that ends in path	1
-T1: a Grep is read by its path, not the response's	1
-T1: a MultiEdit is read by its file_path	1
-T1: a NotebookEdit is read by its notebook_path	1
-T1: a Read of an answered file by its path under the session's root appends touch, Read and the file as the answer named it, not the response's	1
-T1: a command naming <root>/CLAUDE.md touches CLAUDE.md, and not projects/x/CLAUDE.md, whose basename it only shares behind a slash	1
-T1: an Edit whose value is the file itself appends its touch row	1
-T1: an escaped slash reads as a slash	1
-T1: and an escaped tab as a space, so the file after it is a token	1
-T1: nothing of the value but the named file is written: the record gains the touch row and no part of the command	1
-T1: one answered after it is, once though two answer rows name it, and one answered only before it is not	1
-T1: one named within them is, the value running on past them	1
-T1: the key is found with its colon, so a value that equals the key's name is passed over	1
-T1: the value is read to its first unescaped quote and decoded, so a command's escaped quotes keep the rest of it	1
-T2: lib/ledger.sh loaded first in a fresh shell, with no library before it, runs no command found on PATH either, and still loads lib/answer.sh	1
-T2: loading lib/ledger.sh runs no command found on PATH, and it loads lib/answer.sh: felix_answer_use is defined	1
-T2: nor does lib/graph.sh loaded first in a fresh shell, and it still loads lib/graph-answer.sh: felix_graph_deliver is defined	1
-T2: nor does loading lib/graph.sh, which loads lib/graph-answer.sh: felix_graph_deliver is defined	1
-U1: a person's prompt that passes those checks has the checkout's ownership checked	1
-U1: a person's prompt with a session id in the own checkout gets the block, word for word and nothing else	1
-U2: a prompt of more than 16,384 bytes is still asked, as its first 400 characters	1
-U2: an escaped backslash reaches graphify as one backslash	1
-U2: an escaped quote reaches graphify as a quote, and the keys after the prompt never reach it	1
-U2: and graphify is asked once, about the payload's prompt	1
-U2: and under it a fifth word starting at byte 16,384 is cut there, asked as its first letter	1
-U2: the prompt ends at its first unescaped quote, so a value that ends in an escaped backslash ends there	1
-U3: a prompt whose one part is the answer still gets the hook's JSON, and the hook exits 0	1
-U3: separated from the parts on either side by one blank line	1
-U3: the answer goes after the route part and before the lessons part, the rest as it was	1
-U4: S is the seconds the hook has run: held 2 seconds before it asks, under FELIX_PROMPT_DEADLINE=5 it has 5 - 2 - 3 left, none, and the ask is late	1
-U4: a FELIX_PROMPT_DEADLINE that is no whole number of at most four digits is taken as 30: abc, 2.5 and a number of 20 digits leave the ask its time	1
-U4: under FELIX_PROMPT_DEADLINE=3 the ask has 3 - S - 3 seconds, under one: its record holds asked graphify late alone, graphify is not run, the exit is 0 and the other parts are as they were	1
-U4: under FELIX_PROMPT_DEADLINE=4 the bound is what is left, a second at most, not FELIX_GRAPH_TIMEOUT=12: a graphify answering after 4 seconds gives no block, its ask timeout, or late had the hook used that second	1
-U5: a later prompt of the session appends prompt before anything else it writes there	1
-U5: a prompt too short to ask still appends its prompt row, and nothing else	1
-U5: a prompt with no time left to ask still appends its prompt row first, then its late ask	1
-U5: a session's first prompt writes no prompt row: its record opens with its asked row	1
-U5: and one from a checkout that is not own, nor its fourth	1
-U5: so does a prompt the graph cannot be asked for, U1's third condition not applying to the row	1
-U5: the prompt row is written before the hook computes its route: the first route function it calls finds the row in the record already	1
+base	origin/main	1fca9559e517a0da5f353d78a4f187e0660985ca	0.49.320
+run	445	15716	46
+2400 R1: paid_ingress applies exactly cap:api cap:llm, and its owes names a request bound and a spend bound	1
+2400 R2: another class than paid_ingress holds the term cap:api	1
+2400 R3: a class holds probe:local_listener=found and no cap:api, and its owes is a bind to loopback	1
+2400 R4: the named R4 class ci_actions_pinned holds no term on api or on local_listener	1
+2400 and it read two tables there	1
+2400 at least one engine/harness/lib/situations*.sh exists, and every one has under 500 lines	1
+2400 every applies holds at least one probe: or cap: term, the only kind a commit can make false	1
+2400 every applies holds one or more terms, each a form C4 evaluates (probe:<c>=<state>, cap:<c>, env:maturity>=<value>)	1
+2400 every byte of the table is printable ASCII, a tab or a newline	1
+2400 every class matches [a-z][a-z0-9_]* and none appears twice	1
+2400 every class_by_maturity names prototype, internal, public-beta and production once each, with one of the five obligation classes	1
+2400 every line of the table is a comment with # at column 0 or a row of exactly five non-empty cells	1
+2400 every source is miss:, candidate: or cite: and 12 lowercase hex digits	1
+2400 felix help prints felix situations' three usage lines byte for byte, directly after the felix obligations line under the toolbox	1
+2400 no applies holds a probe: term on blind or unknown, so no class is ACTIVE because Felix could not look	1
+2400 no class_by_maturity decreases as maturity rises from prototype to production	1
+2400 schema-check refuses a situations.tsv of comments only, as the row's refused cell says (control)	1
+2400 schema-check refuses a situations.tsv row of four cells, as the row's five columns say (control)	1
+2400 schema-check, run in a tree holding only schemas.tsv and the shipped situations.tsv, exits 0	1
+2400 the felix situations entry sits in the section headed the toolbox	1
+2400 the first non-comment line after the discover-rules.tsv row of schemas.tsv is the situations.tsv schema row	1
+2400 the seed holds six to eight rows	1
+2400 the seed's classes and their applies are C12's list as committed, so four classes are HTTP-keyed	1
+2400 the shipped templates/situations.tsv exists, is not empty and ends in a newline	1
+2400 the table holds the comment line # class<TAB>applies<TAB>owes<TAB>class_by_maturity<TAB>source	1
+2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case (8 name(s) read)	1
+2410 --at --tsv reads the tree --tsv, which has no run: exit 3	1
+2410 --at a recorded tree the checkout is not at, in the same log, does not run the detector: commit -	1
+2410 --at a tree only a 7-field line names, beside unknown-tree rows, exits 3	1
+2410 --at a tree with an absent log exits 3 with the same sentence	1
+2410 --at a tree with an empty log exits 3 with the same sentence	1
+2410 --at a tree with no run exits 3 with C2's sentence, nothing on stdout, TMPDIR empty	1
+2410 --at given twice is a usage error: exit 2, nothing on stdout, felix: usage: felix situations first on stderr	1
+2410 --at leaves TMPDIR empty and starts no gh, curl, wget, ssh, nc or claude	1
+2410 --at leaves the checkout's files, refs, HEAD, worktree list, config, index and status, the memory root and the home as they were	1
+2410 --at the live tree id runs the detector as well: a cap term no probe grounds is true where the detector names it (c_tests)	1
+2410 --at the tree of a 7-field line only exits 3: a short line is ignored	1
+2410 --at tree-a --tsv exits 0 with nothing on stderr, and leaves its TMPDIR empty	1
+2410 --at tree-z reads its two rows that share tree-a's new stamp: a run is keyed on its stamp and its tree	1
+2410 --at unknown-tree exits 3: unknown-tree rows are never read	1
+2410 --at where no project governs exits 2 with resolve_or_die's sentence, felix: no project governs first	1
+2410 --at with --change is a usage error: exit 2	1
+2410 --at with an empty value does the same	1
+2410 --at with no value exits 1 with need_value's own sentence alone on stderr and nothing on stdout	1
+2410 --at with no value is found before the governing project: exit 1 where no project governs	1
+2410 a DORMANT class gets no could-not-look line, though it holds an undecided term (d_mixed, x_dormant)	1
+2410 a cap term at step 4 says every probe grounding it is not-applicable and the detector was not run (c_na_cap)	1
+2410 a cap term whose every grounding row reads not-applicable goes to the detector, which was not run at this tree: undecided (c_na_cap)	1
+2410 a cap term whose grounding row reads empty is false: an empty reading is a witness (d_em_cap)	1
+2410 a cap term whose grounding rows read empty while another grounding probe has no reading is undecided, never false: unread is never left to empty (u_capnr at tree-b)	1
+2410 a cap term with a grounding row that reads found is true (u_capnr)	1
+2410 a cap term with no grounding probe and the detector not run is undecided, never false (c_tests)	1
+2410 a cap term with no grounding probe says so and that the detector was not run (c_tests)	1
+2410 a capability the detector names that no class uses is a no-row line named by the detector (ci)	1
+2410 a declared maturity binds no env term: no env:maturity term is unbound but the value outside the four	1
+2410 a declared maturity not one of the four leaves the env term undecided, its grounds naming the value (m_int)	1
+2410 a false term settles the class DORMANT beside an undecided one, and the grounds still name the undecided term (d_mixed, C7)	1
+2410 a grounding probe with no reading on this side is named in the why (u_nr_empty)	1
+2410 a partial unknown recorded row gives <pred> read unknown when recorded; the fact log keeps no sentence (u_bl at tree-b)	1
+2410 a predicate whose recorded row grounds another capability is a grounding probe with no reading for its own (u_capnr's why at tree-b)	1
+2410 a probe term is true when one grounding row reads its state although another grounding probe has no reading, which the grounds name (u_nr)	1
+2410 a probe term no grounding row reads, with none blind, unknown or unread, is false: the class is DORMANT, verdict none (d_dual_na)	1
+2410 a probe term no probe grounds says no probe grounds <c> (u_zz)	1
+2410 a probe term no probe grounds, in the reading or in probes.tsv, is undecided and its grounds say no probe (u_zz)	1
+2410 a probe term no row reads, with a grounding probe that has no reading, is undecided: UNKNOWN, could-not-look (u_nr_empty)	1
+2410 a probe term on found whose every grounding row reads not-applicable is false (d_na)	1
+2410 a probe term over two probes grounding one capability is true when either reads its state, and the grounds name both, in reading order, per term (a_dual)	1
+2410 a probe term whose capability only a recorded row grounds is read from the reading: here true (a_legacy)	1
+2410 a probe term whose grounding row was recorded blind is undecided, and the grounds say blind (u_bl)	1
+2410 a probe term whose only recorded grounding row reads empty is false, still listed unbound (a_legacy at tree-b)	1
+2410 a probe term with a false and a true term in one class: probe:dual=empty no row reads is false at tree-b (a_dual)	1
+2410 a recorded blind reading's why is <pred> read blind when recorded; the fact log keeps no sentence, on side at	1
+2410 a recorded grounding row whose state is outside the five, stale, leaves its probe term undecided: could-not-look, never DORMANT, the grounds naming the state (u_bl at tree-s)	1
+2410 a run with no --at on an absent log leaves its memory root as it was, creating nothing	1
+2410 a term in another form beside a false term leaves the class DORMANT (x_dormant)	1
+2410 an empty maturity string declares no maturity (m_int)	1
+2410 at the live tree probe:nr=found reads both grounding probes, nr_b recorded empty (u_nr)	1
+2410 each term in another form gets its own could-not-look line on side at (x_forms)	1
+2410 in a checkout whose HEAD is unborn the header's commit is - and the detector still runs	1
+2410 its count line counts tree-b's states: examined 20, active 5, dormant 6, could not look 9	1
+2410 its standing section prints a not-applicable reading with its count, as readings do (d_dual_na at tree-b)	1
+2410 its why and its unbound line say the value is not one of the four (m_int)	1
+2410 its why is the recorded form with the row's own state word: bl_a read stale when recorded; the fact log keeps no sentence (u_bl at tree-s)	1
+2410 probe:<c>=not-applicable is true when a grounding row reads not-applicable (d_dual_na at tree-b)	1
+2410 terms in another form are each undecided, and the grounds name each as unbound (x_forms)	1
+2410 that run too leaves the checkout, the memory root and the home as they were, TMPDIR empty, no network command run	1
+2410 the human report at tree-a is C9's: the header, standing by class name, the residual, the count line	1
+2410 the live tree's readings are still recorded ones: felix probes' blind row reads blind when recorded (u_bl)	1
+2410 the no-row lines name every capability a recorded row grounds that no class uses, whatever its state (moved, orphan at tree-b)	1
+2410 the no-row lines name the capability a recorded row grounds that no class uses, and never a grounds of -	1
+2410 the same for a capability the detector would not name either (c_billing)	1
+2410 the unbound lines are one per distinct term: the forms C4 cannot evaluate, the axis other than maturity, and the probe terms probes.tsv does not ground	1
+2410 the whole --tsv at tree-a is C8's: class lines by verdict then id, then the residual sorted as bytes, nothing else	1
+2410 where the detector ran and is silent, a cap term with no grounding probe is undecided, never false, and says so (c_billing)	1
+2410 where the detector ran, every grounding probe not-applicable and the detector silent reads so (c_na_cap)	1
+2410 with maturity internal, env:maturity>=internal is true (m_int)	1
+2410 with maturity internal, env:maturity>=production is false (m_prod)	1
+2410 with maturity internal, env:maturity>=prototype is true (m_proto)	1
+2410 with maturity internal, env:maturity>=public-beta is false, by rank and not by spelling (m_pub)	1
+2410 with maturity public-beta, prototype, internal and public-beta hold and production does not (m_proto m_int m_pub m_prod)	1
+2410 with no --at and a log of unknown-tree rows and short lines it exits 3 the same way	1
+2410 with no --at and an absent log it exits 3: the log records no tree	1
+2410 with no --at and an empty log it exits 3 the same way	1
+2410 with no --at the newest tree is the last 8-field or longer line's that is not unknown-tree, in file order: tree-b, not tree-a's later stamp or a short line's tree	1
+2410 with no --at, after felix probes, the newest tree is the live one: the header names HEAD, the tree and the run, and says the detector ran	1
+2410 with no maturity declared an env term is undecided and its grounds say maturity undeclared (m_int)	1
+2410 with no maturity declared each env:maturity term is unbound once, as project.json declares no maturity	1
+2410 with no maturity declared env:maturity>=public-beta is undecided, never false (m_pub)	1
+2410 with no maturity declared the env term's why is project.json declares no maturity (m_int)	1
+2420 --change -x (an argument that begins with - is no range) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change ..HEAD (an empty base half) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change HEAD.. (an empty head half) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change HEAD...main (three dots) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change HEAD..HEAD at an unborn HEAD: the base half is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change HEAD..nope: the head half is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change HEAD^{tree}..HEAD: a tree is not a commit: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change HEAD~1..HEAD..main (a head half holding ..) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change HEAD~2..HEAD --tsv prints the default range's --tsv byte for byte	1
+2420 --change ^HEAD..HEAD: a half that resolves to something other than a full commit id is not a commit (C17.7): exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change c1..f2, given as full commit ids, prints the default range's report byte for byte	1
+2420 --change given twice is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change main (no ..) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change main, where no project governs (usage before the project) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations	1
+2420 --change main..HEAD reads k_none retired: c2 holds its surface and f2 does not	1
+2420 --change main..HEAD takes main's tip c2 as the base, not the merge base	1
+2420 --change nope..nope2: the base half is named first: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change with no range at an unborn HEAD, where no main ref exists either: HEAD is named first: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change with no range where neither origin ref nor refs/heads/main names a commit: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change with no range where origin/HEAD points at origin/trunk, which shares no history with HEAD: the target is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 --change with no range where refs/heads/main and HEAD share no history: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 a TMPDIR that cannot hold a scratch directory and a base that is no commit: the scratch directory is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 a table with no row, a TMPDIR that cannot hold a scratch directory and a base that is no commit: the table is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 after the default range TMPDIR is empty again	1
+2420 after the default range nothing under the Felix home changed	1
+2420 after the default range nothing under the checkout, its .git included, is newer than the marker	1
+2420 after the default range nothing under the memory root changed, facts.log included	1
+2420 after the default range the refs, the worktree list and HEADs, the config bytes, ls-files -s and status --porcelain are as they were	1
+2420 an explicit range needs no main ref: --change HEAD..HEAD there exits 0 with stderr empty and TMPDIR empty	1
+2420 an unborn HEAD with a TMPDIR that cannot hold a scratch directory: the scratch directory is named before HEAD: exit 3, stdout empty, stderr the one line, TMPDIR as it was	1
+2420 every probe of the current probes.tsv runs on a side read: p_cfree, which grounds a capability no class uses, gives a no-row line	1
+2420 k_blind2: head UNKNOWN, base DORMANT reads blinded	1
+2420 k_blind: head UNKNOWN, base ACTIVE reads blinded	1
+2420 k_bunk: head ACTIVE, base UNKNOWN reads owed, with base UNKNOWN	1
+2420 k_cdiff: ACTIVE on both sides, a cap: term decided at step 1 whose grounding count changed, reads owed	1
+2420 k_ci: a capability only the detector decides, named at head and not at base, reads owed with base UNKNOWN	1
+2420 k_cnl: UNKNOWN on both sides reads could-not-look	1
+2420 k_cstand: ACTIVE on both sides with equal readings reads standing (cap: term)	1
+2420 k_new: head ACTIVE, base DORMANT reads owed	1
+2420 k_none2: head DORMANT, base UNKNOWN reads none	1
+2420 k_none: DORMANT on both sides reads none	1
+2420 k_pdiff: ACTIVE on both sides, a probe: term whose grounding count changed, reads owed (the first kind of differs)	1
+2420 k_ret: head DORMANT, base ACTIVE reads retired	1
+2420 k_stand: ACTIVE on both sides with equal readings reads standing (probe: term)	1
+2420 k_track: a surface found only in an untracked file of the live checkout is read on neither side: none	1
+2420 k_two: ACTIVE on both sides, one of two probes grounding the term changed state, reads owed	1
+2420 the base line names c1 and the tree id felix probes recorded for a clean checkout of c1	1
+2420 the current probes.tsv is read on both sides: p_cst reads found at base, though the facts recorded at both trees read it empty	1
+2420 the default range prints nothing on stderr and exits 0	1
+2420 the default range reads c1 (the merge base of main and HEAD) to f2: the human report, header to count line, byte for byte	1
+2420 the default range with --tsv prints nothing on stderr and leaves TMPDIR empty	1
+2420 the default range with --tsv: every class line in token order then id, then the residual, byte for byte	1
+2420 the head line names f2 and the tree id felix probes recorded for a clean checkout of f2	1
+2420 the main ref: an origin/HEAD that is no symbolic ref is passed over for origin/main: the base is r1	1
+2420 the main ref: origin/HEAD pointing at an origin ref that names no commit is passed over for origin/main: the base is r1	1
+2420 the main ref: origin/HEAD pointing outside refs/remotes/origin/ is passed over for origin/main: the base is r1	1
+2420 the main ref: origin/HEAD, a symbolic ref to origin/trunk, wins over origin/main and refs/heads/main: the base is r2	1
+2420 the main ref: with neither origin ref, refs/heads/main is the main ref: the base is r0	1
+2420 the network stubs were never started	1
+2420 the reversed range f2..c1 reads k_ret owed, base DORMANT	1
+2420 when the report's first line can be read, TMPDIR holds no scratch directory any more	1
+2420 where no project governs and the table cannot be read, --change main is still a usage error first	1
+2420 where no project governs, a table that cannot be read is not reached: exit 2, stdout empty, stderr begins felix: no project governs	1
+2430 (c) --at in the bash harness: paid_ingress is could-not-look, UNKNOWN, with neither api nor llm detected	1
+2430 (c) --at in the bash harness: the R4 class ci_actions_pinned is standing, ACTIVE, grounded by its workflow probe	1
+2430 (c) --at in the bash harness: the residual has a could-not-look line for paid_ingress whose why names cap:api	1
+2430 (c) --at in the bash harness: the residual names probe:local_listener=found as unbound	1
+2430 (c) --at in the bash harness: the residual names scripts, which a probe grounds and no class uses, as no-row	1
+2430 (c) --change over the commit that removes the workflow reads ci_actions_pinned retired, ACTIVE to DORMANT, its probe empty at head	1
+2430 (c) --change: paid_ingress could not look on either side, never DORMANT	1
+2430 (c) the bash harness's report is never an empty residual with exit 0, and its count line has U at least 1	1
+2430 (c) the human --at report shows ci_actions_pinned as the one standing row, with its grounds and readings	1
+2430 (c) the human --at report's residual names paid_ingress's cap:api	1
+2430 (c) the human --change report's count line has U at least 1	1
+2430 (c) the human --change report's first line names the project bash1	1
+2430 (c) the human --change report: owed and blinded say none, retired holds ci_actions_pinned alone with a witness head: line, standing says none	1
+2430 (c) the human --change residual names paid_ingress's cap:api and cap:llm at base and at head, in byte order	1
+2430 (d) two runs give identical bytes in --change and --at, human and --tsv, each exit 0 with stderr empty	1
+2430 (i) each class's id is owed: and 12 hex digits of git hash-object over class, project and *, the same at either tree and in --change	1
+2430 (i) the --tsv class lines come in verdict order, owed in all three forms first	1
+2430 --at <the base tree> --tsv: the recorded base reading, its blind reason from the fact log	1
+2430 --at <the base tree>: the header says the detector was not run, then standing, residual and the count line	1
+2430 --at <the newest tree> prints what no flag prints, human and --tsv	1
+2430 --at with no value, an empty one, --tsv --at, --at '' --bogus, and --at where no project governs: exit 1, stdout empty, need_value's sentence alone	1
+2430 --change --tsv prints C8's lines exactly: class lines by verdict (owed, blinded, retired, standing, could-not-look, none), then id, then the residual	1
+2430 --change prints C9's human report exactly: header, owed, blinded, retired, standing, residual, the count line	1
+2430 --change v1.2..v1.3 is a range, not a usage error: its base half is read and is not a commit here (exit 3)	1
+2430 --tsv at the newest recorded tree: standing, could-not-look and none, base and base_grounds -, head the one state	1
+2430 --tsv before --change prints the same bytes	1
+2430 C8: --tsv is the same bytes under LC_ALL=C and under an en_US UTF-8 LANG with LC_ALL unset	1
+2430 falsifier 2: a clone's --at is the report at its own tree, the detector run	1
+2430 falsifier 2: every verdict included: the clones' --change --tsv holds owed, blinded, retired, standing, could-not-look and none, and is C8's text exactly	1
+2430 falsifier 2: two fresh clones with fresh memory roots holding the same facts.log print identical bytes in --change and --at, human and --tsv	1
+2430 felix situations --at x --at (twice, before its value is looked at) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --at x --at y is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --at x --change is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --at=x (no = form) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --bogus --at (the first failing argument decides) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --bogus is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --bogus where no project governs (usage is found first) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change --at (a conflict, before its value is looked at) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change --at x is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change --change is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change -x (not a range, then an unknown flag) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change ..HEAD (empty base half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change HEAD.. (empty head half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change HEAD~1...HEAD (three dots) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change HEAD~1..HEAD --at x is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change a..b..c (.. in the head half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --change main (no ..) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --propose --propose is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --propose --tsv is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv --propose is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv --propose where no project governs is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv --tsv --at (the first failing argument decides) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv --tsv is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv -h (-h not first) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations --tsv extra is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations -h, --help, -h --tsv and --help --bogus print felix help's stdout, exit 0, and hold C1's three usage lines	1
+2430 felix situations extra (a bare word) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations	1
+2430 felix situations where no project governs: exit 2, stdout empty, stderr begins felix: no project governs	1
+2430 need_value refuses only a missing or empty value: --at --tsv and --at -h read the trees --tsv and -h, which no run records (exit 3)	1
+2430 no gh, curl, wget, ssh, nc or claude was started by any felix situations run, and the last run exited 0	1
+2430 order: an absent table is refused before the recorded tree, before the change's base, and before an unmakeable scratch directory	1
+2430 order: an absent table: a usage error is found before it (2), and a directory no project governs before it (2)	1
+2430 order: an unmakeable scratch directory is refused before the recorded tree and before the change's base	1
+2430 order: the base half is read before the head half	1
+2430 owed carries all three base states: DORMANT, UNKNOWN (base could not look) and ACTIVE with a reading that differs	1
+2430 table: a bad class before a bad source: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a bad class_by_maturity before a bad source: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a class of one space is not empty: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a class twice on line 2 before a bad source on line 3: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a class twice, the second on physical line 4: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a last line with no newline is a row: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a line with no tab: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: a trailing tab is a sixth field: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: absent: exit 3, stdout empty, one line: the situation table could not be read: <path>: it is absent or unreadable	1
+2430 table: an applies of blanks holds no term: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: an applies with no term before a bad class_by_maturity: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: an empty applies cell: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: an empty cell before a bad class (the first reason that fits): exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: an empty class cell: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: an empty file: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class 9lives: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class Bad-Class: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=BLOCKING,internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=INFO, internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO,production=INFO,': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO,production=INFO,staging=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=INFO,prototype=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: class_by_maturity 'prototype=info,internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: comments (indented, tab-indented), a blank line and a line of blanks only: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: four fields on physical line 3, after a comment and a blank line: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: indented comments, a line of blanks, classes in any order, a cell of blanks, no last newline and C12-only breaches are read: exit 0, stderr empty, two class lines	1
+2430 table: mode 000 is absent or unreadable: exit 3 with that line	1
+2430 table: six fields on line 2: exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'cite:': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'cite:0123456789AB': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'cite:0123456789a': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'cite:0123456789abc': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'miss0123456789ab': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: source 'ref:0123456789ab': exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: the first empty cell is named (owes and source empty): exit 3, stdout empty, one line naming the table and its reason	1
+2430 table: the first failing line is named: a bad source on line 2 before four fields on line 3: exit 3, stdout empty, one line naming the table and its reason	1
+2430 the human report at the newest tree: the at header with the detector run, standing, residual, the count line	1
+2430 the last run's TMPDIR is empty afterwards	1
+2430 the witness lines name the side where the class is DORMANT and the probe that read empty	1
+2430 where no project governs, felix situations --help prints the same usage and exits 0	1
+2440 a: at the recorded tree the --tsv line of paid_ingress is standing, ACTIVE, grounds exactly http_route found (api), llm detected	1
+2440 a: at the recorded tree the human report is the header with the detector run, paid_ingress and request_body_bounded standing, the residual and the count	1
+2440 a: at the recorded tree the whole --tsv output is the model of C4, C7, C8 and C10 over the seed	1
+2440 a: deleting the route retires paid_ingress, ACTIVE -> DORMANT, while requirements.txt at the head still names fastapi	1
+2440 a: paid_ingress's retired row names the witness, the probe deciding over the detector's api	1
+2440 a: the --at --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2440 a: the --at human run exits 0 with stderr empty and TMPDIR left empty	1
+2440 a: the B..D --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2440 a: the human report of B..D: retired holds paid_ingress and request_body_bounded, each with a head witness	1
+2440 a: the human report prints paid_ingress's grounds line whole	1
+2440 a: the whole --tsv output of B..D is the model: two retired, the tests and deploy classes none, the rest could-not-look	1
+2440 c11: --change --propose prints the report then the head side's two proposals, undeclared maturity	1
+2440 c11: --change --propose wrote nothing	1
+2440 c11: --propose at the recorded tree prints the human report, one blank line, then proposed with paid_ingress and request_body_bounded	1
+2440 c11: --propose wrote nothing: the home, the memory root and the checkout are byte for byte as before	1
+2440 c11: a class the project's obligations.tsv admits by name is not proposed; the other still is	1
+2440 c11: a maturity outside the four gives the strictest class, noted as not one of them	1
+2440 c11: in --change proposals read the head side: with the route deleted at head, proposed prints none	1
+2440 c11: paid_ingress at internal is TASK_BLOCKING, in its class line and its row line	1
+2440 c11: the --change --propose runs exit 0 with stderr empty and TMPDIR left empty	1
+2440 c11: the --propose run exits 0 with stderr empty and TMPDIR left empty	1
+2440 c11: the admit line of paid_ingress is the exact command, quoted, with FELIX_HOME as given	1
+2440 c11: the apostrophe in the owes of paid_ingress is closed, escaped and reopened inside the admit command	1
+2440 c11: the class line of paid_ingress names its strictest class while no maturity is declared	1
+2440 c11: the row line of paid_ingress has its seven cells joined by real tab bytes	1
+2440 c11: with maturity internal each proposal carries the class class_by_maturity pairs with internal, noted maturity internal	1
+2440 every felix situations run here exited 0 and none started gh, curl, wget, ssh, nc or claude	1
+2440 f: a route added in the diff makes paid_ingress owed, DORMANT -> ACTIVE, with both sides' grounds	1
+2440 f: paid_ingress's owed row names the base witness http_route empty	1
+2440 f: the A..B --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2440 f: the human report of A..B: its header by its fixed text, then owed with a base witness, blinded, retired none, standing none, residual, count	1
+2440 f: the whole --tsv output of A..B is the model: two owed, two blinded by an undecided tests or deploy term, the rest could-not-look	1
+2440 g: after both runs the refs, HEAD, worktree list, config, index, status, facts.log, home and memory root are byte-identical	1
+2440 g: the default range B..C owes no row, blinds and retires none	1
+2440 g: the default range prints paid_ingress and request_body_bounded as standing, and no other class	1
+2440 g: the default-range runs exit 0 with stderr empty and TMPDIR left empty	1
+2440 g: the explicit range B..C prints the same --tsv bytes as the default range	1
+2440 g: the human report of the default range: both headers with their tree ids, owed, blinded and retired none, two standing	1
+2440 g: the whole --tsv output of the default range is the model	1
+2440 h: no class of B..E reads DORMANT at head or retired	1
+2440 h: renaming what the probe keys on blinds paid_ingress, ACTIVE -> UNKNOWN, the blind probe deciding though the detector names api	1
+2440 h: the B..E --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2440 h: the human report of B..E: blinded holds paid_ingress and request_body_bounded, retired none	1
+2440 h: the residual line for paid_ingress names cap:api and the blind probe's sentence	1
+2440 h: the whole --tsv output of B..E is the model, the residual naming the probe's own sentence for each api class at head	1
+2450 b: --propose proposes the four HTTP-keyed classes and ci_actions_pinned, and no loopback-binding class	1
+2450 b: in a node that binds every interface local_listener_binds_loopback is DORMANT, verdict none, on the empty loopback probe	1
+2450 b: once a probe row grounds api, the four HTTP-keyed classes read ACTIVE at the recorded tree	1
+2450 b: over K1..K2 the four HTTP-keyed classes read UNKNOWN on both sides, could-not-look, never DORMANT, none or retired	1
+2450 b: paid_ingress reads could-not-look, its grounds naming api not detected beside the true llm term	1
+2450 b: paid_ingress then stands on http_route found (api) and model_client found (llm)	1
+2450 b: the --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2450 b: the count line says 1 active, 1 dormant and 6 could not look	1
+2450 b: the human report at the recorded tree: the detector run, ci_actions_pinned the one standing row, the residual, the count	1
+2450 b: the human report with the api row: five standing rows, then the residual and the count	1
+2450 b: the ids do not change when a probe row is added: the class column and the id column pair as before	1
+2450 b: the residual says why for paid_ingress: no probe grounds api and the detector does not name it	1
+2450 b: the whole --tsv output at the recorded tree is the model: ci_actions_pinned standing, the loopback class none, the rest could-not-look	1
+2450 b: the whole --tsv output with the api row is the model: five standing, the loopback class still none	1
+2450 b: with no probe grounding api, the four HTTP-keyed classes read UNKNOWN at the recorded tree, none DORMANT	1
+2450 b: with the api row, --change K1..K2 reads the four HTTP-keyed classes standing on both sides and still retires ci_actions_pinned	1
+2450 every felix run here exited 0 and none started gh, curl, wget, ssh, nc or claude	1
+2450 q: removing the model client makes paid_ingress DORMANT at head on its false llm term, api still named undecided, verdict none	1
+2450 q: the residual names paid_ingress could-not-look at base only, where it was UNKNOWN	1
+2450 q: the whole --tsv output of K1..K3 is the model	1
+2450 q: with no other term false the other three HTTP-keyed classes still read could-not-look over K1..K3	1
+2450 r4: --change K1..K2, which removes the workflow, reads ci_actions_pinned retired, ACTIVE -> DORMANT	1
+2450 r4: ci_actions_pinned reads standing, ACTIVE, at the recorded tree, grounded by the workflows probe	1
+2450 r4: the K1..K2 --tsv run exits 0 with stderr empty and TMPDIR left empty	1
+2450 r4: the human report holds no owed, blinded or standing row over K1..K2	1
+2450 r4: the human report puts ci_actions_pinned under retired, with its readings and a head witness naming the workflows probe	1
+2450 r4: the reverse, K2..K1, which brings the workflow in, reads ci_actions_pinned owed	1
+2450 r4: the whole --tsv output of K1..K2 is the model	1
+2450 the api-row runs exit 0 with stderr empty and TMPDIR left empty	1
+2460 ci_actions_pinned (sib6, ci removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 ci_actions_pinned (sib6, ci removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 ci_actions_pinned (sib6, ci removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 ci_actions_pinned (sib6, ci removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 ci_secret_scoped_to_step (sib7, ci removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 ci_secret_scoped_to_step (sib7, ci removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 ci_secret_scoped_to_step (sib7, ci removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 ci_secret_scoped_to_step (sib7, ci removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 ci_secret_scoped_to_step (sib7, ci_secret removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line	1
+2460 ci_secret_scoped_to_step (sib7, ci_secret removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line	1
+2460 container_runs_unprivileged (sib8, container removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 container_runs_unprivileged (sib8, container removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 container_runs_unprivileged (sib8, container removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 container_runs_unprivileged (sib8, container removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 health_reflects_readiness (sib4, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 health_reflects_readiness (sib4, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 health_reflects_readiness (sib4, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 health_reflects_readiness (sib4, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 health_reflects_readiness (sib4, deploy removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line	1
+2460 health_reflects_readiness (sib4, deploy removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line	1
+2460 local_listener_binds_loopback (sib5, local_listener removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 local_listener_binds_loopback (sib5, local_listener removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 local_listener_binds_loopback (sib5, local_listener removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 local_listener_binds_loopback (sib5, local_listener removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 paid_ingress (sib1, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 paid_ingress (sib1, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 paid_ingress (sib1, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 paid_ingress (sib1, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 paid_ingress (sib1, llm removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line	1
+2460 paid_ingress (sib1, llm removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line	1
+2460 request_body_bounded (sib3, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 request_body_bounded (sib3, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 request_body_bounded (sib3, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 request_body_bounded (sib3, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 route_has_http_test (sib2, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line	1
+2460 route_has_http_test (sib2, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line	1
+2460 route_has_http_test (sib2, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written	1
+2460 route_has_http_test (sib2, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written	1
+2460 route_has_http_test (sib2, tests removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line	1
+2460 route_has_http_test (sib2, tests removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line	1
+2460 the ledger: every class in the shipped table, at least six, was read retired and owed on every surface its applies stands on	1
+2460 the network stubs were never started	1
+2470 rf1 after both runs nothing under the main checkout, the linked worktree or the common git directory is newer than a marker touched before them	1
+2470 rf1 after both runs the refs, every worktree's HEAD, git worktree list --porcelain, each index and status, and the config's bytes are as they were	1
+2470 rf1 felix situations --change HEAD~1..HEAD --tsv from the linked worktree exits 0 and reads svc_owed owed over the worktree's own commit	1
+2470 rf1 felix situations --change from a linked worktree, with the default range, exits 0 with an empty stderr, its header naming the merge base with main and the worktree's HEAD, each with its tree id	1
+2470 rf2 --change HEAD~1..HEAD over a commit that does not touch the surface reads env_ready could-not-look, UNKNOWN at base and at head, never DORMANT, retired or none	1
+2470 rf2 after felix probes in the live checkout, whose ignored untracked .ready the probe needs, --at its tree reads env_ready ACTIVE, as standing	1
+2470 rf2 that --tsv is the class line, then could-not-look residual lines for base: and head:, each naming the term probe:ready=found and the probe's own sentence	1
+2470 rf3 --at --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf3 --at a tree where x was recorded blind, --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf3 --change --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf3 in --at on that tree, under either locale, a1, a_1, a_c and ab all could not look, and a1 comes before a_1 and a_c before ab in the residual's could-not-look lines, in --tsv and in the human report	1
+2470 rf3 in --change, under either locale, a1, a_1, a_c and ab are all blinded, and a1 comes before a_1 and a_c before ab in the blinded section and in the residual's could-not-look lines	1
+2470 rf3 the --at human report of that tree prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf3 the --at human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf3 the --change human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset	1
+2470 rf4 HUP sent once the head side's probe has started: felix situations --change exits 129, and TMPDIR is empty as soon as it has exited	1
+2470 rf4 HUP: TMPDIR is still empty 4 s later, after the probe's sleep would have ended	1
+2470 rf4 INT, at its default disposition, sent once the head side's probe has started: felix situations --change exits 130, and TMPDIR is empty as soon as it has exited	1
+2470 rf4 INT: TMPDIR is still empty 4 s later, after the probe's sleep would have ended	1
+2470 rf4 TERM sent once the head side's probe has started: felix situations --change exits 143, and TMPDIR is empty as soon as it has exited	1
+2470 rf4 TERM: TMPDIR is still empty 4 s later, after the probe's sleep would have ended	1
+2470 rf4 felix situations --change ... | head -1 prints the report's first line and leaves TMPDIR empty	1
+2470 rf5 --propose exits 0 and leaves obligations.tsv and the home's git status --porcelain unchanged	1
+2470 rf5 a second --propose no longer lists quote_me: its proposed section is none	1
+2470 rf5 running the printed admit command appends to obligations.tsv exactly the row line's text after its prefix, then one newline	1
+2470 rf5 the admit command makes one commit, which touches only obligations.tsv	1
+2470 rf5 the proposed section ends the report: quote_me with its grounds, the strictest class its cell names while no maturity is declared, its row, and the admit command with each ' written as '\''	1
+2470 rf5 with obligations.tsv's one admitted row unended, the printed admit command ends that row with one newline, then appends the row line's text and one newline	1
+2470 rf5 with that row unended, felix_obligation_rows names both classes once the admit command has run, the earlier one first	1
+2470 rf5 with that row unended, the admit command makes one commit, which touches only obligations.tsv	1
+2470 rf6 no marker of the template hook, the hooks-path hook or the smudge filter exists after the run	1
+2470 rf6 with HOME's .gitconfig naming a template, a hooks path and a smudge filter, --change HEAD~1..HEAD --tsv exits 0 and evaluates its class	1
+2470 rf6 with core.fsmonitor given through GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0 and GIT_CONFIG_VALUE_0, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists	1
+2470 rf6 with core.fsmonitor in HOME's .gitconfig naming a hook that writes a marker, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists	1
+2470 rf6 with core.quotePath=false in HOME's .gitconfig and three tracked .js files under web/ with a non-ASCII letter in each name and no package.json, --change HEAD~1..HEAD --tsv names frontend at head with its no-row line, as --at --tsv names it at the recorded tree, and with HOME empty neither names it	1
+2470 rf6 with filter.fx.clean given through GIT_CONFIG_PARAMETERS over the committed * filter=fx, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists	1
+2470 rf7 --at W1's tree --tsv reads cap_tests standing on tests detected, beside svc_owed, ordered by id	1
+2470 rf7 --at with W1's own tree id runs the detector: the header names W1's HEAD, that tree and its recorded stamp, and says detector run on this checkout	1
+2470 rf7 felix situations in W1, after felix probes in W1 then W2, reads W2's tree, the newest, and its header names that tree and ends detector not run: this checkout is not at this tree	1
+2470 rf7 its --tsv reads cap_tests, which only the detector decides, could-not-look at W2's tree, the residual naming the detector as its why	1
+2470 rf8 felix situations leaves the live index's bytes and mtime as they were, though git status run afterwards moves that mtime	1
+2470 rf8 with a tracked file made stat-dirty after felix probes recorded the tree, felix situations exits 0, and its header names that tree and ends detector run on this checkout	1
+2470 rf9 --at with a sort first on PATH that fails when it reads a line beginning owed: exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty	1
+2470 rf9 --change with that sort first on PATH exits 3 the same way: stdout empty, one stderr line, the report could not be built, and TMPDIR empty	1
+2470 rf9 with a mktemp first on PATH that makes live-index, mode 400, in the run's scratch directory, --at exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty	1
+2470 rf9 with obligations.tsv made unreadable, --at --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty	1
+2470 rf9 with obligations.tsv made unreadable, --change --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty	1
+2470 rf9 with probes.tsv made unreadable, --at exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty	1
+2470 rf9 with probes.tsv made unreadable, --change exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty	1
+and landed on the shared home's cache, which this block does not read	1
+and the refresh the hook forked asked the claude for the catalogue	1

@@ -1,4 +1,4 @@
-### 2026-10-31: the engine says checked, never verified or proven (decision 1, 0.49.321)
+### 2026-10-31: the engine says checked, never verified or proven (decision 1, 0.49.325)
 
 **What changed (branch `claude/checked-not-verified`, a draft pull request
 labelled `needs-founder`).** This applies the founder's decision 1 of

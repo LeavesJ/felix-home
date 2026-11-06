@@ -228,7 +228,7 @@ felix_hold_tree_seen() {   # home, sid, tid, reason, checkout -> 0 when held on 
   [ -n "${3:-}" ] || return 1
   path="$(_felix_hold_tree_path "${1:-}" "${2:-}")" || return 1
   [ -f "$path" ] && [ ! -L "$path" ] || return 1
-  # Before 0.49.321 hooks/stop named the first reason by the word Felix no
+  # Before 0.49.325 hooks/stop named the first reason by the word Felix no
   # longer prints (decision 1 of 2026-10-31), and a record written before that
   # deploy is the same hold, not news.
   if [ "${4:-}" = "never checked" ]; then

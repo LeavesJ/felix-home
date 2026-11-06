@@ -76,16 +76,23 @@ never held the command.
   The other five notes are now stated limits (R10, R11) or a decision (D1). A
   shorter reading that stops at `case`, `[[ ]]`, `${...}` and the like was
   measured and declined (D7).
-- **Cost**, measured on 2026-11-05 under bash 3.2 at load 6.
+- **Cost**, measured on 2026-11-05 under bash 3.2.
   - The reading averages about 3 ms of CPU on each of the 2,151 real commands
-    that hold a name, and loading it about 0.6 ms more. A command that holds no
-    name pays neither.
+    that hold a name, at load 6, and loading it about 0.6 ms more. A command
+    that holds no name pays neither.
+  - Declaring the C locale in each function that matches, as the engine's
+    lints ask, adds about a tenth to that.
   - A 4 MB Bash payload costs about 5 ms more than before, about as much as
     the noise between runs.
-  - The five hardest 16 KB shapes the review found take 0.1 to 0.7 s, under
-    C4's 2 s.
+  - The five hardest 16 KB shapes the review found take 0.1 to 0.9 s at load
+    13, under C4's 2 s.
 - **Bash 5 and gawk** were not run here, since this Mac has neither. CI's suite
   runs under both.
+- **Lints.** The first record failed the engine's two locale lints (parts 0996
+  and 0998). The reading had set `LC_ALL=C` once, at its entry, and its helpers
+  matched under it by dynamic scope. Two of its case patterns also held `0-9`.
+  Each of the eleven helpers that matches now declares it, and the digits are
+  spelled out.
 
 **Limits, stated** (R10 and R11).
 - Runs it misses, which stay `tool Bash`:
@@ -112,3 +119,7 @@ never held the command.
 - `felix_route_step_used` does not see a CLI run.
 - `felix_ledger_session_id` matches a regex over the whole payload, up to 4 MB,
   on every tool call.
+- Not from this change: in this branch's first record, part 0290's two
+  assertions on the refresh session start forks failed at load about 15, with
+  a second session's record running. The refresh finished without asking the
+  stub `claude`. The part passed alone at the same head.

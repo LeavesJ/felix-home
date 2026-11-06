@@ -147,12 +147,14 @@ _gt_deploy() {
   return "$rc"
 }
 
-# DW2.4: what a row says of the hold while a gate or suite is running.
-_gt_hold_say() {   # -> the words to add to the deploy-owed row; asserts the hold
-  _dh_assert "$_GT_LAND" "${_GT_VER:-}" || return 0
+# DW2.4: what a row says of the hold while a gate or suite is running. _gt_deploy asserted it at its start.
+_gt_hold_say() {
+  local now
+  _dh_read "$_GT_LAND/deploy-hold" || return 0
+  now="$(_dh_now)" || return 0
   printf '; new suites and gates wait for it'
-  if [ "$((_DH_ASOF - _DH_ASINCE))" -ge "$(_dh_limit)" ]; then
-    printf '; the hold has lapsed after %s s, so they run again' "$((_DH_ASOF - _DH_ASINCE))"
+  if [ "$((now - _DH_SINCE))" -ge "$(_dh_limit)" ]; then
+    printf '; the hold has lapsed after %s s, so they run again' "$((now - _DH_SINCE))"
   fi
 }
 
@@ -186,7 +188,6 @@ _gt_deploy_run() {
     why="the home checkout holds a commit origin/main does not: it is ahead of or diverged from origin/main"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
-  _dh_assert "$_GT_LAND" "${_GT_VER:-}"   # DW2.2: nothing starts while the engine is replaced; _gt_deploy clears it on the way out
   : > "$_GT_LAND/verifying"   # A26: owed from here; a deploy A24 stops is redone after --resume. Removed only by the deployed row below
   out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse "$_GT_MAIN" 2>/dev/null)" ]; then

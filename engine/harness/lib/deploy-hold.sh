@@ -168,7 +168,6 @@ _dh_assert() {   # LANDDIR VERSION
   mkdir -p "$land" 2>/dev/null || return 1
   [ ! -d "$f" ] || rmdir "$f" 2>/dev/null || return 1
   printf '%s\t%s\t%s\n' "$now" "$since" "$ver" > "$tmp" 2>/dev/null && mv -f "$tmp" "$f" 2>/dev/null || { rm -f "$tmp" 2>/dev/null; return 1; }
-  _DH_ASOF="$now"; _DH_ASINCE="$since"
 }
 
 _dh_clear() { rm -f "$1/deploy-hold" "$1/deploy-hold.$$" 2>/dev/null; return 0; }   # LANDDIR

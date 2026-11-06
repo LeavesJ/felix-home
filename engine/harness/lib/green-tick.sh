@@ -89,7 +89,7 @@ _gt_row_once() {   # EVENT PR SHA WORKTREE WALL DETAIL
 
 # Pausing writes the file; the ledger row and the notification are the next
 # tick's, which finds the file first (G2). A hand pause does the same.
-_gt_pause() { mkdir -p "$_GT_LAND" 2>/dev/null; printf '%s\n' "$1" > "$_GT_LAND/paused"; }
+_gt_pause() { mkdir -p "$_GT_LAND" 2>/dev/null; printf '%s\n' "$1" > "$_GT_LAND/paused"; _dh_clear "$_GT_LAND"; }
 
 # Audit b04, B12. Every tick writes its start, in whole seconds since the epoch and
 # one line, before it does anything else, so felix status can tell a job that has
@@ -134,16 +134,40 @@ _gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1
 # G7. Returns 0 when the new engine is installed and verified. Every other way
 # out has written its row, and a deploy that is not known good pauses the job:
 # nothing is rolled back, because that is roadmap step 12.
+# DW2: the hold (lib/deploy-hold.sh) outlives this call only when a gate or suite is
+# running, which is what it waits for. Every other way out clears it.
 _gt_deploy() {
+  local rc
+  _GT_HOLD_KEEP=0
+  _gt_deploy_run; rc=$?
+  [ "$_GT_HOLD_KEEP" = 1 ] || _dh_clear "$_GT_LAND"
+  return "$rc"
+}
+
+# DW2.4: what a row says of the hold while a gate or suite is running.
+_gt_hold_say() {   # -> the words to add to the deploy-owed row; asserts the hold
+  _dh_assert "$_GT_LAND" "${_GT_VER:-}" || return 0
+  printf '; new suites and gates wait for it'
+  if [ "$((_DH_ASOF - _DH_ASINCE))" -ge "$(_dh_limit)" ]; then
+    printf '; the hold has lapsed after %s s, so they run again' "$((_DH_ASOF - _DH_ASINCE))"
+  fi
+}
+
+_gt_deploy_run() {
   local home="$FELIX_HOME_DIR" why ver out entry rc pids had=0
   _GT_T0=$SECONDS
   # A gate or suite measures the engine it runs under; replacing the engine
   # beneath it would invalidate that, and nothing is ever signalled. A14: tests/red
   # starts the suite by a relative path, and a pgrep that fails reads as a suite running.
   # B12: the row names the processes it waits on, and B13 says it again each hour.
+  # DW3: a process waiting at the hold, and a shell around one, is not running work.
   pids="$(pgrep -f 'engine/harness/tests/run|gate\.sh' 2>/dev/null)"; rc=$?
+  if [ "$rc" -eq 0 ]; then pids="$(_dh_unwaiting "$pids")"; [ -n "$pids" ] || rc=1; fi
   if [ "$rc" -ne 1 ]; then
-    [ "$rc" -eq 0 ] && why="a gate or suite is running; matched $(_gt_procs "$pids")" || why="a gate or suite may be running: pgrep exited $rc"
+    if [ "$rc" -eq 0 ]; then
+      why="a gate or suite is running; matched $(_gt_procs "$pids")"
+      _GT_HOLD_KEEP=1; why="$why$(_gt_hold_say)"
+    else why="a gate or suite may be running: pgrep exited $rc"; fi
     _gt_row_once deploy-owed - - - 0 "$why"; return 1
   fi
   why=""
@@ -159,6 +183,7 @@ _gt_deploy() {
     why="the home checkout holds a commit origin/main does not: it is ahead of or diverged from origin/main"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
+  _dh_assert "$_GT_LAND" "${_GT_VER:-}"   # DW2.2: nothing starts while the engine is replaced; _gt_deploy clears it on the way out
   : > "$_GT_LAND/verifying"   # A26: owed from here; a deploy A24 stops is redone after --resume. Removed only by the deployed row below
   out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse "$_GT_MAIN" 2>/dev/null)" ]; then
@@ -178,7 +203,7 @@ _gt_deploy() {
     || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(_gt_didnt "$had" "$entry")$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   # B31: session-start must print its context and pre-tool must refuse a pattern kill (_gt_hooks, lib/green-install.sh).
   why="$(_gt_hooks "$home")" || { _gt_unverified "$why"; return 1; }
-  ( cd "$home" && "$home/engine/harness/felix" gate --quick ) >/dev/null 2>&1 </dev/null
+  ( cd "$home" && FELIX_HOLD_PASSED=1 "$home/engine/harness/felix" gate --quick ) >/dev/null 2>&1 </dev/null   # DW4: the tick holds the hold and does not wait on it
   rc=$?
   [ "$rc" -eq 0 ] || { _gt_unverified "gate: felix gate --quick exited $rc in the home"; return 1; }
   _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches origin/main, and passed session-start, pre-tool and felix gate --quick"
@@ -322,6 +347,7 @@ _gt_tick() {
   local last age ver why prs n br sha dr ho mg cr bs
   # Not paused. One row, at most one an hour, so a long pause shows itself.
   if [ -e "$_GT_LAND/paused" ]; then
+    _dh_clear "$_GT_LAND"   # DW2.3
     last=""
     [ -f "$_GT_LEDGER" ] && last="$(LC_ALL=C awk -F'\t' '$2 == "paused" { t = $1 } END { print t }' "$_GT_LEDGER")"
     age=999999
@@ -346,6 +372,7 @@ _gt_tick() {
   # A11: a tick that deploys, whether or not it verifies, merges nothing. The next
   # tick merges with the engine just deployed, and that engine runs it.
   if why="$(_gt_deploy_owed)"; then _gt_deploy; return 0; fi
+  _dh_clear "$_GT_LAND"   # DW2.3: nothing is owed, so nothing waits
   prs="$(_gt_prs)" || { _gt_row_once gh - - - 0 "gh pr list failed"; return 0; }
   _GT_ENGINE=0; _GT_DEPLOYED=0; _GT_DUPS="$(printf '%s\n' "$prs" | LC_ALL=C cut -f2 | LC_ALL=C sort | LC_ALL=C uniq -d)"
   while IFS=$'\t' read -r -u 3 n br sha dr ho mg cr bs; do

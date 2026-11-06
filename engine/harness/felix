@@ -308,6 +308,8 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/lifecycle.sh"
 # shellcheck source=lib/automerge.sh
 . "${SCRIPT_DIR}/lib/automerge.sh"
+# shellcheck source=lib/deploy-hold.sh
+. "${SCRIPT_DIR}/lib/deploy-hold.sh"
 # shellcheck source=lib/green-tick.sh
 . "${SCRIPT_DIR}/lib/green-tick.sh"
 # shellcheck source=lib/green-install.sh
@@ -753,6 +755,8 @@ cmd_gate() {
   resolve_or_die; local proj="$PROJ" gate
   gate="$(felix_json_str "$proj/project.json" gate)"
   [ -n "$gate" ] || die "project $(basename "$proj") declares no gate in project.json"
+  # While the lander owes a deploy, nothing new starts (lib/deploy-hold.sh, the gate's door); what is admitted passes it on.
+  _dh_wait_gate "felix gate"
 
   # Run from the checkout being gated, never from Felix. A gate that inspects
   # "the tree it lives in" instead of "the tree it was pointed at" reports a

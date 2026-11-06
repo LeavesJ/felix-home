@@ -19,7 +19,7 @@ the tick's next run deploys.
 - `lib/deploy-hold.sh`, new. The hold is a file,
   `<memory root>/<project>/land/deploy-hold`: `LEASE SINCE VERSION`, tab
   separated. It is in force while its lease is under 1200 s old and it began
-  under `FELIX_DEPLOY_HOLD_LIMIT` (7200) seconds ago. Anything unreadable is not
+  under `FELIX_DEPLOY_HOLD_LIMIT` (3600) seconds ago. Anything unreadable is not
   in force (fail open).
 - The tick (`lib/green-tick.sh`) writes it whole when a deploy is owed and a gate
   or suite is running, keeps `SINCE` while the lease is fresh, holds it through

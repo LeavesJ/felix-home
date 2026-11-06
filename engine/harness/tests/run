@@ -310,6 +310,7 @@ fi
 . "$HERE/parts/1050-felix-cost-tokens-spent-read-from-the-transc.sh"
 . "$HERE/parts/1060-continued.sh"
 . "$HERE/parts/1070-felix-cost-the-2026-10-11-addendum.sh"
+. "$HERE/parts/1075-felix-cost-one-reading-at-a-time-blind.sh"
 . "$HERE/parts/1080-the-stop-hook-holds-once-per-session-per-tre.sh"
 . "$HERE/parts/1090-the-stop-hook-holds-once-per-session-tree-re.sh"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"

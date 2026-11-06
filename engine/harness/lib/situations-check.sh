@@ -14,6 +14,7 @@
 #   felix_situations_tables         a project table that exists and cannot be read (C17.4)
 #   felix_situations_detect         the detector on one checkout, captured, sorted and checked (C17.4)
 #   _felix_situations_in_rules      a command run in the environment that _felix_git_rules gives (C17.2)
+#   _felix_situations_detect_quoted the detector in a scratch clone, with the caller's core.quotePath (C17.11.1)
 
 # The sentence for a step of the report that failed, on stderr, and status 3. STEP is a few words naming what was being done,
 # with no punctuation, since it stands before the word failed.
@@ -60,4 +61,15 @@ _felix_situations_in_rules() {   # SCRATCH TMP COMMAND [ARG...]
   ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
     export HOME="$scr" XDG_CONFIG_HOME="$scr" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 TMPDIR="$tmp"
     "$@" )
+}
+
+# The detector on the scratch clone ROOT, as felix_situations_detect runs it, given the caller's core.quotePath when
+# QUOTEPATH is not empty (C17.11.1). The file names its listing prints are then quoted as on the live checkout, so a scratch
+# side names what --at names for the same tree. Run it through _felix_situations_in_rules, whose subshell the setting stays
+# in, after that has cleared the caller's GIT_CONFIG_COUNT. A quotePath setting runs nothing.
+_felix_situations_detect_quoted() {   # QUOTEPATH ROOT OUT
+  if [ -n "${1-}" ]; then
+    export GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.quotePath GIT_CONFIG_VALUE_0="$1"
+  fi
+  felix_situations_detect "${2-}" "${3-}"
 }

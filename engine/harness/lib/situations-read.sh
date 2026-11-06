@@ -243,8 +243,10 @@ felix_situations_gitdir() {   # ROOT
 
 # The detector at a recorded tree (C3.2), appended to OUT as the commit, detector and cap lines of the reading. The live
 # checkout's tree id is taken as felix probes takes it, but on a copy of the live index kept in the scratch directory (C17.3):
-# git refreshes the index it reads, and the live one keeps its bytes and its mtime. With no live index file the id is taken
-# with GIT_INDEX_FILE naming an absent file in the scratch, which git reads as an empty index. Then:
+# git refreshes the index it reads, and the live one keeps its bytes and its mtime. (A split index's shared file still gets
+# a new mtime: git freshens it on every read, C17.11.2.) With no live index file the id is taken with GIT_INDEX_FILE naming
+# an absent file in the scratch, which git reads as an empty index. A live index that cannot be read leaves the id untaken;
+# one that can be read and does not copy exits 3 (C17.11.3). Then:
 #   the id equals TREE      the detector runs on ROOT: the commit is the live HEAD, or - while HEAD is unborn, and the cap
 #                           lines are what the detector names, sorted and unique; detector run
 #   the id differs          the detector is not run, the commit is -; detector not-run
@@ -257,7 +259,15 @@ felix_situations_live_detect() {   # ROOT HOME TREE OUT
   idx="$(git -C "$root" rev-parse --git-path index 2>/dev/null)" || idx=""
   if [ -n "$idx" ]; then
     case "$idx" in /*) ;; *) idx="$root/$idx" ;; esac
-    if [ -e "$idx" ] && ! cp "$idx" "$scr/live-index" 2>/dev/null; then idx=""; fi
+    # A live index that cannot be read leaves the tree id untaken (C17.5). One that can, and does not copy, is a scratch
+    # write that failed (C17.11.3).
+    if [ -e "$idx" ]; then
+      if [ ! -r "$idx" ]; then
+        idx=""
+      elif ! cp "$idx" "$scr/live-index" 2>/dev/null; then
+        _felix_situations_fail "copying the live index"; return 3
+      fi
+    fi
   fi
   if [ -n "$idx" ]; then
     live="$( GIT_INDEX_FILE="$scr/live-index"; export GIT_INDEX_FILE
@@ -287,14 +297,15 @@ felix_situations_live_detect() {   # ROOT HOME TREE OUT
 # shared with SRC and with no checkout and no template, then checked out detached at SHA, both through _felix_git_rules (no
 # global or system git config, so no hook, template, filter driver or lazy fetch of the caller's runs) with GIT_NO_LAZY_FETCH
 # and stdin from /dev/null. The tree id is taken right after the checkout and before anything runs in the clone, and the
-# detector after it, both in that same environment (C17.2). Then every row of the project's current probes.tsv runs in the
-# clone, with TMPDIR set to <scratch>/tmp-SIDE and none of the environment that points git at another repository, but
-# otherwise the caller's: the probes are the project's commands. The live checkout's edits and untracked files are read by
-# neither side, since the clone holds tracked content only. Returns 3 with a sentence on stderr when the clone, the checkout,
-# the tree id or the detector fails, or a file cannot be written.
+# detector after it, both in that same environment (C17.2). The detector also gets the caller's core.quotePath when its
+# configuration sets one, so it lists file names as on the live checkout (C17.11.1). Then every row of the project's
+# current probes.tsv runs in the clone, with TMPDIR set to <scratch>/tmp-SIDE and none of the environment that points git
+# at another repository, but otherwise the caller's: the probes are the project's commands. The live checkout's edits and
+# untracked files are read by neither side, since the clone holds tracked content only. Returns 3 with a sentence on stderr
+# when the clone, the checkout, the tree id, the quotePath read or the detector fails, or a file cannot be written.
 felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
   local proj="${1-}" home="${2-}" src="${3-}" sha="${4-}" side="${5-}" out="${6-}"
-  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps
+  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps qp qrc
   clone="$scr/$side"; tmp="$scr/tmp-$side"; caps="$scr/$side.caps"
   if [ -z "$scr" ] || [ -z "$src" ] \
      || ! mkdir -p "$tmp" 2>/dev/null \
@@ -308,7 +319,11 @@ felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
     printf 'felix situations: %s could not be read: the tree id of %s could not be taken in its scratch checkout\n' "$side" "$sha" >&2
     return 3
   fi
-  if ! _felix_situations_in_rules "$scr" "$tmp" felix_situations_detect "$clone" "$caps"; then
+  # The caller's core.quotePath, read with the caller's configuration; status 1 means it sets none (C17.11.1).
+  qp="$(git --git-dir="$src" config --get core.quotePath 2>/dev/null)"; qrc=$?
+  if [ "$qrc" -gt 1 ]; then _felix_situations_fail "reading the caller's core.quotePath"; return 3; fi
+  [ "$qrc" = 0 ] || qp=""
+  if ! _felix_situations_in_rules "$scr" "$tmp" _felix_situations_detect_quoted "$qp" "$clone" "$caps"; then
     printf 'felix situations: %s could not be read: the detector failed in its scratch checkout\n' "$side" >&2
     return 3
   fi

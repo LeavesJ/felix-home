@@ -34,6 +34,13 @@
 if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
+# The evidence block asks evidence.sh's felix_evidence_table_present and runs its
+# judge. Sourced alone, this file used to read an absent judge as an empty
+# evidence block, with no `evidence` in `unknown`, and the question it asks now
+# would also be "command not found" on stderr. Same guard as intake.sh's.
+if ! command -v felix_evidence_table_present >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/evidence.sh"
+fi
 
 # Strict JSON string escaping.
 #
@@ -167,7 +174,7 @@ felix_receipt() {
 
   # ---- evidence
   local ev="" gaps=""
-  if [ "$base_ok" -eq 1 ] && [ -f "$proj/evidence.tsv" ]; then
+  if [ "$base_ok" -eq 1 ] && felix_evidence_table_present "$proj"; then
     ev="$(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null || true)"
     gaps="$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="gap"{print $2}')"
     # A row the check could not judge is neither met nor a gap, and a verdict

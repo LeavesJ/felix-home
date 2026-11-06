@@ -110,6 +110,13 @@ _dh_first_line() {   # WHO -> the line a waiter says first (DW5)
 
 _dh_admit() { FELIX_HOLD_PASSED=1; export FELIX_HOLD_PASSED; }   # DW4
 
+# tests/run's door (DW4.1): part mode goes on at once and passes the door on, every other mode waits while the machine is held.
+_dh_door() {   # WHO, then tests/run's own arguments
+  local who="$1" a part=0; shift
+  for a in "$@"; do [ "$a" != --part ] || part=1; done
+  if [ "$part" = 1 ]; then _dh_admit; else _dh_wait "$who"; fi
+}
+
 _dh_off() { [ -n "${FELIX_HOLD_PASSED:-}" ] || [ "${FELIX_DEPLOY_HOLD:-}" = off ]; }
 
 _dh_root() { printf '%s' "${FELIX_MEMORY:-${HOME:-}/.felix/memory}"; }   # the memory root, as _dh_scan reads it

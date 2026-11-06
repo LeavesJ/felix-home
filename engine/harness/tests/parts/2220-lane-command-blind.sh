@@ -571,11 +571,13 @@ is "lane command R2-F10-utf16-log-encoding-reads-R1: i18n.logOutputEncoding or i
 is "lane command R2-F10-utf16-log-encoding-reads-R1: the same settings leave felix status --tsv's exit 0 and its lane row the value zero 0 of 2 engine landings in 14 days, target 1/2" \
    "$LNKRA|unfaulted $LNKRS0|$LNKc" "built|unfaulted 0|$LNKRV|$LNKv"
 
-# R2-F12: felix lane --tsv with its stdout closed, standing in for a stdout that cannot be written.
-_lf_run "$LNKD/r2f12" "$LNKRC" "$LNKN" /bin/sh -c 'exec "$0" "$@" >&-' "$FELIX" lane --tsv
-case "$LF_RC" in
-  ([123456789]|[123456789][0123456789]|1[01][0123456789]|12[01234]) LNKa="a status from 1 to 124" ;;
-  (*) LNKa="status $LF_RC, stderr [$(cat "$LNKD/r2f12.err")]" ;;
+# R2-F12: felix lane --tsv with its stdout closed, standing in for a stdout that cannot be written. Closed is a descriptor 1 not open for writing: bash 5.3
+# opens a closed descriptor 1 on /dev/null, where the write succeeds, so `>&-` misses the fault; 1< a file (part 0574) fails it with EBADF on every bash.
+: > "$LNKD/r2f12.ro"; LNKm="*the lane lines could not be written*"   # felix's sentence: a status alone could be sh's, from a stand-in it could not set up
+_lf_run "$LNKD/r2f12" "$LNKRC" "$LNKN" /bin/sh -c "exec \"\$0\" \"\$@\" 1< \"$LNKD/r2f12.ro\"" "$FELIX" lane --tsv
+case "$LF_RC:$(cat "$LNKD/r2f12.err" 2>/dev/null)" in
+  ([123456789]:$LNKm|[123456789][0123456789]:$LNKm|1[01][0123456789]:$LNKm|12[01234]:$LNKm) LNKa="a status from 1 to 124" ;;
+  (*) LNKa="status $LF_RC, stderr [$(cat "$LNKD/r2f12.err" 2>/dev/null)]" ;;
 esac
 is "lane command R2-F12-write-failure-exits-0: felix lane --tsv with its stdout closed, where its lines cannot be written, exits with a status felix sets other than 0, never 0 as though it had printed them" \
    "$LNKRA|unfaulted $LNKRU0|$LNKa" "built|unfaulted 0|$LNKRL|a status from 1 to 124"

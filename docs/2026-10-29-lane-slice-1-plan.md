@@ -74,6 +74,8 @@ felix situations [--at <tree> | --change [<base>..<head>]] [--tsv | --propose]
 
 ### C2. Exit status and messages
 
+*Amended: C17.4 and C17.7 add exit-3 cases and sentences (2026-11-05).*
+
 | Case | Exit | stdout | stderr |
 |---|---|---|---|
 | a report was printed, whatever it says | 0 | the report | empty |
@@ -121,6 +123,8 @@ The exit-3 lines, decided in the plan. `<rev>` is the text as given, `<memdir>` 
 
 ### C3. Readings
 
+*Amended: C17.2, C17.3 and C17.8 amend the scratch and live readings (2026-11-05).*
+
 #### C3.1 Recorded readings (`--at`)
 
 - The log is `<memdir>/facts.log`. A row is `stamp\ttree\tpredicate\tclass\tstate\tcount\tgrounds\tprobe` with an optional ninth field, `source` (`lib/facts.sh:94-96`). Rows of 8 and of 9 fields are both read. A line with fewer than 8 fields is ignored. Columns 4, 8 and 9 are not read.
@@ -160,6 +164,8 @@ The exit-3 lines, decided in the plan. `<rev>` is the text as given, `<memdir>` 
 - No `gh`, `curl`, `wget`, `ssh`, `nc` or `claude` process is started. A command named in a project's own `probes.tsv` is the project's.
 
 ### C4. Terms and class states
+
+*Amended: C17.6 reads a recorded state outside the five as undecided (2026-11-05).*
 
 A class's `applies` is a space-separated list of terms, and all of them must hold. At one reading, each term is true, false or undecided.
 
@@ -254,6 +260,8 @@ The token order is the one §7.7 sorts by: `owed`, `blinded`, `retired`, `standi
 
 ### C9. The human report
 
+*Amended: C17.5 adds an `--at` header for a live tree id that cannot be taken (2026-11-05).*
+
 ```
 situations for <project>
   base  <sha40>  tree <tid>  scratch checkout, tracked content only, current probes.tsv
@@ -296,6 +304,8 @@ examined <N>, active <A>, dormant <D>, could not look <U>
 - **Count line.** `<N>` is the number of classes in the table, and `<A>`, `<D>` and `<U>` count them by state at head, or at the reading. It is preceded by one blank line. It is the last line unless `--propose` was given.
 
 ### C10. The residual
+
+*Amended: C17.5 adds the matching step-4 reason; C17.6 the reason for a state outside the five (2026-11-05).*
 
 Three kinds, which sort in this order as bytes (C8). How each side was read is not a residual line; it is in the header (§7.8, §11 item 28).
 
@@ -340,6 +350,8 @@ Three kinds, which sort in this order as bytes (C8). How each side was read is n
 - There is one line per distinct term across all classes.
 
 ### C11. `--propose`
+
+*Amended: C17.1 puts a guard in front of `<command>`, so an unended last row is ended first (2026-11-05).*
 
 **Placement.** In the human report, after the count line, `--propose` adds one blank line and a `proposed` section. The section lists every class that is ACTIVE at head, or at the reading, and whose name is not an obligation name that the project's `obligations.tsv` admits. Admitted means the first cell of a row `felix_obligation_rows` returns. The classes are in byte order of name. With none, the section prints `  none`.
 
@@ -468,6 +480,8 @@ situations.tsv\ttree\tclass applies owes class_by_maturity source\trefused
 
 ### C14. Pinned assertions for the review focus
 
+*Amended: C17.1 and C17.2 extend RF5 and RF6; C17.3 and C17.4 add RF8 and RF9; C17.10 repairs RF3 (2026-11-05).*
+
 Each is pinned by assertions in part 2470 whose names begin `2470 rf1` to `2470 rf7`, one prefix per item.
 
 - **RF1, a linked worktree.**
@@ -542,6 +556,83 @@ No fixture needs python, fastapi, an SDK or a cargo toolchain: probes are shell 
 - `schema-check` runs as part 0730 runs it: from a fixture git tree that holds only `engine/harness/templates/schemas.tsv` and `situations.tsv`, both copied from `$REAL_HARNESS`, with `$REAL_HARNESS/bin/schema-check`. It exits 0. The schema row is the first non-comment line after the `discover-rules.tsv` row; its comment's wording is not asserted.
 
 **Part 2430's falsifier 2.** "Every verdict included" means the `--change` runs use an explicit range over which the fixture yields `owed`, `blinded`, `retired`, `standing`, `could-not-look` and `none`, and the compared bytes hold all six. A fresh clone sits on its main branch, so the default range would be empty.
+
+### C17. Amendments after the first-build review, 2026-11-05
+
+The first-build review ran in `wf_eb8f2798-854`: three lenses, the eleven mutants, and fault-injection round 1. It found two wrong answers in normal use. It also found failures in the slice's own reads that printed a report as if nothing had failed. The amendments below decide the fixes. Each names the Contract it amends; where they disagree, this section wins. Faults the review found in shared code are not fixed here: they are stated limits (C17.9) and go to the trust plane.
+
+**C17.1 The admit command first ends an unended last row** (amends C11 `<command>` and C14 RF5).
+
+- The command now begins `{ [ ! -s 'P/obligations.tsv' ] || [ -z "$(tail -c 1 'P/obligations.tsv')" ] || printf '\n'; } >> 'P/obligations.tsv' && `, and C11's command follows it unchanged. `P` is written and quoted as in C11.
+- So when the last row of an `obligations.tsv` has no newline, it gets one before the drafted row. That row stays admitted, and the drafted class is admitted after it. A file that ends in a newline, an empty file and an absent one each get exactly C11's row, and nothing else.
+- RF5 also asserts the unended case. `P/obligations.tsv` holds one admitted row and no final newline. Running the printed command leaves `felix_obligation_rows` naming both classes, the earlier one first, and makes one commit that touches only that file.
+
+**C17.2 The slice's own git calls in a scratch clone read none of the caller's config** (amends C3.3 step 5 and C14 RF6).
+
+- Every git command the slice runs in or for a scratch clone runs in the environment `_felix_git_rules` gives. That covers the clone, the checkout, the tree id, and the detector run. In that environment `GIT_CONFIG_PARAMETERS` and `GIT_CONFIG_COUNT` are unset, `GIT_CONFIG_GLOBAL` is `/dev/null`, `GIT_CONFIG_NOSYSTEM` is 1, and `HOME` and `XDG_CONFIG_HOME` name the scratch directory.
+- The probes keep the caller's environment, as C3.3 gives it: they are the project's commands.
+- RF6 also asserts the following, with probes that run no git command. `core.fsmonitor` names a script that writes a marker, set once in the caller's `$HOME/.gitconfig` and once through `GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor GIT_CONFIG_VALUE_0=<script>`. Separately, `filter.fx.clean` is given through `GIT_CONFIG_PARAMETERS`, with `* filter=fx` committed. In each case `--change` exits 0 and no marker exists.
+
+**C17.3 The live tree id is taken on a copy of the live index** (amends C3.2 and C3.4).
+
+- In `--at`, the live checkout's tree id (C3.2) is taken with `GIT_INDEX_FILE` set to `<scratch>/live-index`. That file is a byte copy of the live index, whose path is `git rev-parse --git-path index`, read with `GIT_OPTIONAL_LOCKS=0`. Git's index refresh and its lock then land in the scratch, and the live index keeps its bytes and its mtime, even when a tracked file is stat-dirty.
+- With no live index file, `GIT_INDEX_FILE` names an absent file in the scratch. Git reads that as an empty index, as it reads the live one.
+- New in part 2470, with the prefix `2470 rf8`:
+    - A tracked file is made stat-dirty, its mtime moved and its content unchanged, after `felix probes` has recorded the tree.
+    - `felix situations` then leaves the live index's bytes and mtime as they were.
+    - Its header ends `detector run on this checkout`, because the tree id is unchanged.
+
+**C17.4 A failure in the slice's own steps exits 3, never prints a report** (amends C2).
+
+- Every step the slice runs to build its answer is checked: each sort, each awk, each `git hash-object` for an id, and each scratch file it writes and reads back. That includes a pipeline's producer as well as its last stage. Any failure gives exit 3, an empty stdout and one stderr line. The scratch directory is removed, as on every exit 3.
+- The sentences:
+    - a step of the report: `felix situations: the report could not be built: <step> failed`, where `<step>` names the step in a few words of the builder's choosing;
+    - the main ref, when `git symbolic-ref -q refs/remotes/origin/HEAD` or a ref's `rev-parse --verify` exits with neither 0 nor 1: `felix situations: the change could not be read: <ref> could not be read`;
+    - a project table that exists and cannot be read: `felix situations: the project's <file> could not be read: <path> is not readable`. `<file>` is `probes.tsv` in every mode, and `obligations.tsv` with `--propose`. `<path>` is the file's path under the Felix home. (`project.json` is not among them. Project resolution reads it first, so an unreadable one fails there, with exit 2.);
+    - the detector, when it or its sort fails: `felix situations: <side> could not be read: the detector failed in its scratch checkout`. On the live checkout in `--at`: `felix situations: the recorded tree could not be read: the detector failed on this checkout`;
+    - stdout that refuses the report: exit 3, with stderr not judged.
+- New in part 2470, with the prefix `2470 rf9`:
+    - `--at` and `--change` run with a `sort` first on `PATH` that fails when it reads a line beginning `owed:`, and otherwise runs the real sort. Each run exits 3 with stdout empty, one stderr line beginning `felix situations: the report could not be built: `, and TMPDIR empty.
+    - With `probes.tsv`, then (with `--propose`) `obligations.tsv` made unreadable (`chmod 000`), each run exits 3 with that table's sentence.
+    - Each such case is skipped by name when the file stays readable, as it does when the suite runs as root.
+
+**C17.5 A live tree id that cannot be taken says so** (amends C9's `--at` header and C10's step-4 reasons).
+
+- When `felix_tree_id` fails on the live checkout, the detector is not run. The header ends `detector not run: the tree id of this checkout could not be taken`. Each step-4 reason says `the detector was not run: the tree id of this checkout could not be taken` in place of C10's `the detector was not run: this checkout is not at this tree`.
+- C10's sentence stays for a tree id that was taken and differs.
+
+**C17.6 A recorded state outside the five is undecided** (amends C4).
+
+- A grounding row may read a state other than `found`, `empty`, `blind`, `unknown` and `not-applicable`. The `probe:` and `cap:` rules then read it at their step 2, as they read `unknown`.
+- Its C10 reason is the `<pred> read <state>` form, with the row's own state word.
+- New in part 2410: a facts.log row whose state is `stale` leaves its class could-not-look, never DORMANT.
+
+**C17.7 A range half that names no commit by full id** (amends C2's base and head sentences).
+
+- Take a half that `git rev-parse --verify` resolves to something other than a full commit id. For example, `^HEAD` resolves to `^<sha>`. That half gives `<rev> is not a commit here`, as a half that does not resolve does.
+- New in part 2420: `--change ^HEAD..HEAD` exits 3 with `felix situations: base could not be read: ^HEAD is not a commit here`.
+
+**C17.8 The scratch path is stored by the command that makes it** (amends C3.3 **Removal**).
+
+- The scratch path is assigned to the variable the traps read in the same command that runs `mktemp -d`. So a TERM, HUP or INT that arrives just as it completes removes the directory too.
+
+**C17.9 Stated limits, not fixed.** The PR and the handoff list these with §7.10's four.
+
+- A `when` or witness command that reads untracked state reads not-applicable or empty in a scratch checkout. So a class whose probe gates on such state reads DORMANT on both sides, verdict `none`, with no residual line, where it should read could-not-look. §7.10's second limit names only blind and unknown reads. No project's `probes.tsv` gates on untracked state today.
+- Two runs of one tree written in the same second share a stamp, and are read as one run. A predicate in both is read from its first line (C3.1), so the older reading wins. Real logs hold such pairs; none of them disagree today.
+- Fork exhaustion can leave the scratch directory, and exit 128 instead of 3: the removal's owner check needs a fork.
+- In shared code, for the trust plane:
+    - `felix_probe_rows` reads an unreadable `probes.tsv` as empty. The slice now refuses that case itself (C17.4).
+    - `felix_json_str` takes the last `"maturity"` key on a line, a nested one included, and reads a non-string as none.
+    - `_felix_tree_id_on`'s porcelain diff refreshes the index of the checkout it reads. The slice now gives it a copy (C17.3); `felix probes` and `felix gate` do not.
+    - `felix_detect` reports no failure of its own.
+- The fifth limit, wider than first written. `--change` runs every probe command in a scratch checkout of each side. A probe that runs tracked code of any kind therefore runs that revision's code, even one never checked out here. Tracked code includes a script, a test, a build file and an import of the application.
+
+**C17.10 The blind parts' own repairs from the review.**
+
+- RF3's fixture also holds classes `a1` and `a_1`. C puts `a1` first, and macOS's UTF-8 collation puts `a_1` first. glibc's UTF-8 collation already reorders `ab` and `a_c`. So RF3 catches a sort without `LC_ALL=C` on both systems. The ordering assertions cover both pairs.
+- Part 2420's `main..HEAD` and reversed-range runs compare their exit status.
+- Part 2420's byte-for-byte comparison of the default range's `--tsv` also sees a missing final newline and trailing empty lines.
 
 ## Review Focus
 

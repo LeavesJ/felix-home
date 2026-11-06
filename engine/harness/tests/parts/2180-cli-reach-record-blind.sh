@@ -168,12 +168,12 @@ is "cli-reach P1: and the run exits 0 and prints nothing" "$(cat "$CR8/pt.rc")|$
 printf 'graphify semgrep\n' > "$(_cr8_nf p4)"; _cr8_bash p4 'semgrep scan . && graphify query x'
 is "cli-reach P4: a command that runs two names records the first in reading order" "$(_cr8_led p4)" "${CR8AB}cli${CR8T}semgrep"
 printf 'graphify\n' > "$(_cr8_nf p2)"
-_cr8_bash p2 'graphify query x --token=sk-cr8-FAKE-7f3a9c --out /home/u/cr8-private-path'
-_cr8_bash p2 'curl -H "Authorization: Bearer sk-cr8-FAKE-7f3a9c" https://example.invalid/cr8-private-path'
+_cr8_bash p2 'graphify query x --token=sk-cr8-xxxFAKE-7f3a9c --out /home/u/cr8-private-path'
+_cr8_bash p2 'curl -H "Authorization: Bearer sk-cr8-xxxFAKE-7f3a9c" https://example.invalid/cr8-private-path'
 is "cli-reach P2: a command holding a credential leaves only cli graphify, and one that runs no name only tool Bash" "$(_cr8_led p2)" \
    "${CR8AB}cli${CR8T}graphify${CR8NL}${CR8AB}tool${CR8T}Bash"
 is "cli-reach P2: no part of either command is written anywhere the hook writes" \
-   "$(grep -rl -e sk-cr8-FAKE -e cr8-private-path "$CR8H" "$CR8M" "$CR8/tmp" "$CR8/user" 2>/dev/null)" ""
+   "$(grep -rl -e sk-cr8-xxxFAKE -e cr8-private-path "$CR8H" "$CR8M" "$CR8/tmp" "$CR8/user" 2>/dev/null)" ""
 printf 'graphify semgrep\n' > "$(_cr8_nf p3)"
 _cr8_pt p3 Read '{"file_path":"/opt/x/bin/graphify"}'; _cr8_pt p3 mcp__github__create_issue '{"title":"t","command":"graphify query x"}'
 _cr8_pt p3 Skill '{"skill":"superpowers:brainstorming","args":"graphify"}'

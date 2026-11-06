@@ -379,3 +379,42 @@ for _cr7_w in "a command holding two-byte characters still runs graphify|cli${CR
   if [ -z "$CR7U8" ]; then skip "cli-reach C5: in a UTF-8 locale, ${_cr7_w%%|*}" "no UTF-8 locale here"
   else is "cli-reach C5: in a UTF-8 locale, ${_cr7_w%%|*}" "$(_cr7_u8 "$(_cr7_pj "${_cr7_b%|*}" '' '' "${_cr7_b##*|}")" "$CR7/names")" "${_cr7_l%%|*}"; fi
 done
+
+printf '\nAmended in review: R7 continued body lines, R3 options that take an argument, R5, R6 comments in arrays\n'
+# Written 2026-11-05 from the spec as amended at 1af1e086, R7 as narrowed after it, the same way: each rule's runs that
+# must count beside the text that must not. In an unquoted here-document the shell joins a body line ending in a
+# backslash to the next before it looks for WORD, so a WORD line directly after one ends the reading (R9); a backslash
+# line further up changes nothing, and the quoted forms join no lines, so those controls hold before the fix and after.
+_cr7_n "R7: in an unquoted here-document a WORD line directly after a body line ending in a backslash is no end: it ends the reading" $'cat > n <<EOF\nx \\\nEOF\ngraphify q\nEOF'
+_cr7_n "R7: nothing after that line is read, a later WORD line and a command after it included" $'cat <<EOF\nx \\\nEOF\nEOF\ngraphify q'
+_cr7_c "R7: a backslash line further up changes nothing: the lines join, WORD ends the body, and a command after it counts" $'cat > n <<EOF\nx \\\ny\nEOF\ngraphify q' graphify
+_cr7_n "R7: a << WORD body takes the same rule" $'cat << EOF\nx \\\nEOF\ngraphify q\nEOF'
+_cr7_n "R7: as does a <<-WORD body, its WORD line after leading tabs" $'cat <<-EOF\n\tx \\\n\tEOF\ngraphify q\nEOF'
+_cr7_c "R7: a program word before such a here-document still counts" $'graphify q; cat <<EOF\nx \\\nEOF\nsemgrep s\nEOF' graphify
+_cr7_c "R7: a backslash inside a body line, not at its end, ends nothing" $'cat <<EOF\na \\ b\nEOF\ngraphify q' graphify
+_cr7_c "R7: a <<'WORD' body keeps the old rule: its backslash line is text and the WORD line ends it" $'cat > n <<\'EOF\'\nx \\\nEOF\ngraphify q\nEOF' graphify
+_cr7_c "R7: as does a <<\"WORD\" body" $'cat > n <<"EOF"\nx \\\nEOF\ngraphify q\nEOF' graphify
+_cr7_c "R7: and a <<\\WORD body" $'cat > n <<\\EOF\nx \\\nEOF\ngraphify q\nEOF' graphify
+_cr7_c "R3: time -o FILE takes its file" 'time -o out.txt graphify query x' graphify
+_cr7_c "R3: time -f FORMAT takes its format" "time -f '%e s' graphify query x" graphify
+_cr7_c "R3: /usr/bin/time -o FILE" '/usr/bin/time -o out.txt graphify query x' graphify
+_cr7_c "R3: nice --adjustment N" 'nice --adjustment 5 graphify query x' graphify
+_cr7_c "R3: env --unset NAME" 'env --unset HOME graphify query x' graphify
+_cr7_c "R3: env --chdir DIR" 'env --chdir /tmp graphify query x' graphify
+_cr7_c "R3: timeout --signal SIG, then its duration" 'timeout --signal KILL 30 graphify query x' graphify
+_cr7_c "R3: timeout --kill-after DUR, then its duration" 'timeout --kill-after 5 30 graphify query x' graphify
+_cr7_n "R3: time -o takes the next word" 'time -o graphify echo x'
+_cr7_n "R3: time -f takes the next word" 'time -f graphify echo x'
+_cr7_n "R3: /usr/bin/time -f takes the next word" '/usr/bin/time -f graphify echo x'
+_cr7_n "R3: nice --adjustment takes the next word" 'nice --adjustment graphify echo x'
+_cr7_n "R3: env --unset takes the next word" 'env --unset graphify echo x'
+_cr7_n "R3: env --chdir takes the next word" 'env --chdir graphify echo x'
+_cr7_n "R3: timeout --signal takes its signal, so the word after it is the duration" 'timeout --signal KILL graphify echo x'
+_cr7_n "R3: timeout --kill-after takes its duration, so the word after it is the duration" 'timeout --kill-after 5 graphify echo x'
+_cr7_n "R3: an option written with = is one word, its value no program" 'env --chdir=graphify ls'
+_cr7_c "R3: and the word after it is the program word" 'env --chdir=/tmp graphify query x' graphify
+_cr7_c "R3: timeout --signal=SIG is one word too" 'timeout --signal=KILL 30 graphify query x' graphify
+_cr7_n "R5: a double-quoted word holding two names is neither" '"graphify semgrep" x'
+_cr7_n "R5: nor a single-quoted one, its names either way round" "'semgrep graphify' x"
+_cr7_n "R6: a comment among an array's values is a comment, and a ) in it closes nothing" $'a=(\n  semgrep # 1) x\n  graphify # 2) y\n)'
+_cr7_c "R6: the array closes at its own ), and a command after it is read" $'a=(\n  x # 1) y\n)\ngraphify query x' graphify

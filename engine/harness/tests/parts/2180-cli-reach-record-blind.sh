@@ -143,6 +143,19 @@ is "cli-reach N6: in a directory no project governs nothing is written, and the 
 is "cli-reach N4: no temporary file is left: state/ledger holds the names file of each usable session started and nothing else" \
    "$(ls -A "$CR8H/state/ledger" 2>/dev/null | awk '!/\.tsv$/' | LC_ALL=C sort | tr '\n' ' ')" \
    "n1-clear.names n1-compact.names n1-first.names n1-resume.names n1-startup.names n1-wb.names n2.names n3cap.names n3gone.names n3none.names n4.names n5-ok.names "
+# Amended in review (1af1e086, written 2026-11-05): a symbolic link to a directory, and a directory, standing at the
+# names file's path. In a home of their own, so the listing above still says what it says.
+CR8H4="$CR8/h4"; mkdir -p "$CR8H4/projects/zorb" "$CR8H4/state/ledger" "$CR8/m4" "$CR8/n4.dir"
+cp "$CR8P/project.json" "$CR8P/CLAUDE.md" "$CR8H4/projects/zorb/"; printf 'alpha\tkw\tcore\tgraphify semgrep\n' > "$CR8H4/projects/zorb/routes.tsv"
+ln -s "$CR8/n4.dir" "$CR8H4/state/ledger/n4d.names"; _cr8_ss n4d startup "$CR8C" "$CR8H4" "$CR8/m4"
+is "cli-reach N4: a symbolic link to a directory at the path is replaced by the names file, never followed" \
+   "$([ -L "$CR8H4/state/ledger/n4d.names" ] && echo link || echo not-link)|$(_cr8_raw "$CR8H4/state/ledger/n4d.names")" "not-link|graphify semgrep$CR8NL|"
+is "cli-reach N4: and nothing is written into the directory it pointed to" "$(ls -A "$CR8/n4.dir" | tr '\n' ' ')" ""
+mkdir "$CR8H4/state/ledger/n4r.names"; printf 'kept\n' > "$CR8H4/state/ledger/n4r.names/keep.txt"
+_cr8_l4() { find "$CR8H4/state/ledger" | awk '!/\/state\/ledger\/[^\/]*\.tsv$/' | LC_ALL=C sort; }   # what state/ledger holds, its .tsv appends aside
+CR8L4="$(_cr8_l4)"; _cr8_ss n4r startup "$CR8C" "$CR8H4" "$CR8/m4"
+is "cli-reach N4: a directory at the path is left as it is" "$([ -d "$CR8H4/state/ledger/n4r.names" ] && echo dir)|$(ls -A "$CR8H4/state/ledger/n4r.names" | tr '\n' ' ')|$(cat "$CR8H4/state/ledger/n4r.names/keep.txt" 2>/dev/null)" "dir|keep.txt |kept"
+is "cli-reach N4: and the session gets no names file and leaves no temporary file: state/ledger holds what it held" "$(_cr8_l4)" "$CR8L4"
 
 printf '\nP1-P6: the post-tool hook records a reach as cli <name>\n'
 mkdir -p "$CR8H/state/ledger"; printf 'graphify semgrep\n' > "$(_cr8_nf p1)"

@@ -10,7 +10,8 @@ printf '\n%s\n' 'situations: recorded readings (blind)'
 # and memory roots: M1 holds a hand-written facts.log; M2 the same log with felix probes' run of the live tree appended;
 # M3 an unborn checkout's run; MA, ME and MU an absent log, an empty one and one of unknown-tree rows and short lines.
 # M1's log, in file order: an old run of tree-a stamped 15:00 that contradicts the new one; two tree-z rows with the new
-# run's stamp; the new run of tree-a stamped 11:00 (8- and 9-field rows, a 7-field line, a predicate twice); tree-b at
+# run's stamp; the new run of tree-a stamped 11:00 (8- and 9-field rows, a 7-field line, a predicate twice); a one-row
+# run of tree-s at 10:00 whose state is stale, outside the five (C17.6, added 2026-11-05 from C17 alone); tree-b at
 # 12:00 (the newest tree by file order, though tree-a's old stamp sorts later); unknown-tree rows at 16:00; and a 7-field
 # tree-c line at 17:00. So an engine that takes the greatest stamp, keys a run on its stamp alone, reads a short line or
 # a predicate's last line, or takes unknown-tree for a tree, prints other values than these.
@@ -116,6 +117,7 @@ S2410_LOG="$(
   _s2410_row $S2410_S2 tree-a old_a found 4 legacy
   _s2410_row $S2410_S2 tree-a dash_a found 1 -
   _s2410_row $S2410_S2 tree-a dual_a found 5 dual
+  _s2410_row 2026-10-29T10:00:00Z tree-s bl_a stale 0 bl
   _s2410_row $S2410_S3 tree-b dual_a found 1 dual
   _s2410_row $S2410_S3 tree-b dual_b not-applicable 0 dual src
   _s2410_row $S2410_S3 tree-b nr_a empty 0 nr
@@ -345,6 +347,14 @@ _s2410_is "2410 a probe term whose only recorded grounding row reads empty is fa
 is "2410 the no-row lines name every capability a recorded row grounds that no class uses, whatever its state (moved, orphan at tree-b)" \
    "$S2410_RC|$(_s2410_rl no-row -)" "0|$(_s2410_r no-row moved 'named by probe nr_b')
 $(_s2410_r no-row orphan 'named by probe orph_a')"
+
+# ---- a recorded state outside the five (C17.6) ------------------------------------------------------------------------
+_s2410_run "$S2410_C" "$S2410_M1" --at tree-s --tsv
+_s2410_is "2410 a recorded grounding row whose state is outside the five, stale, leaves its probe term undecided: could-not-look, never DORMANT, the grounds naming the state (u_bl at tree-s)" \
+  u_bl could-not-look UNKNOWN 'bl_a stale (bl)'
+is "2410 its why is the recorded form with the row's own state word: bl_a read stale when recorded; the fact log keeps no sentence (u_bl at tree-s)" \
+   "$S2410_RC|$(_s2410_rl could-not-look u_bl)" \
+   "0|$(_s2410_r could-not-look u_bl 'at: probe:bl=found: bl_a read stale when recorded; the fact log keeps no sentence')"
 
 # ---- maturity: undeclared, empty, not one of the four, public-beta (C4, C10) ------------------------------------------------
 S2410_MO="project.json declares maturity 'beta', which is not one of prototype internal public-beta production"

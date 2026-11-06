@@ -27,6 +27,8 @@ printf '\n%s\n' 'situations: the change (blind)'
 # - "The scratch checkout could not be made" is not asserted: a missing blob, the one fault a fixture can make, leaves
 #   git checkout exiting 0 on git 2.56 (measured 2026-10-31), so no fixture forces that line portably.
 # - The mtime check sleeps one second after the fixture's last write, then touches the marker.
+# C17 (2026-11-05), from C17 alone: --change ^HEAD..HEAD exits 3 (C17.7); the main..HEAD and reversed-range runs compare
+# their exit status, and the default range's byte-for-byte --tsv comparison sees its trailing newlines (C17.10).
 S2420_D=""; mkdir -p "$TMP/s2420" && S2420_D="$(cd -P "$TMP/s2420" && pwd -P)"
 S2420_P=chg
 S2420_BLIND='the witness proves this surface exists and the probe enumerated none of it'
@@ -117,6 +119,11 @@ _s2420_id() { printf 'owed:%s' "$(printf '%s\t%s\t%s' "$1" "$S2420_P" '*' | git 
 # FILE -> the file's text, with a newline before and after, for a whole-line has. $( ) drops the newline after, so each
 # caller appends $'\n' to the substitution, as each whole-line needle does.
 _s2420_nl() { printf '\n%s\n' "$(cat "$1" 2>/dev/null)"; }
+# FILE LINE -> LINE when it is a whole line of FILE, else FILE's text.
+_s2420_whole() {
+  local n=$'\n'
+  case "$n$(cat "$1" 2>/dev/null)$n" in *"$n$2$n"*) printf '%s' "$2" ;; *) cat "$1" 2>/dev/null ;; esac
+}
 # FILE N -> the report's line N, its tree id replaced by T.
 _s2420_side() { LC_ALL=C awk -v n="$2" 'NR == n' "$1" 2>/dev/null | sed 's/  tree [^ ]*  /  tree T  /'; }
 
@@ -289,7 +296,7 @@ is "2420 after the default range TMPDIR is empty again" "$S2420_RCD|$(ls -A "$S2
 
 _s2420_tmp; _s2420_run "$S2420_D/o/deft" "$S2420_X" "$S2420_C" "$S2420_T" --change --tsv; S2420_RCT="$S2420_RC"
 is "2420 the default range with --tsv: every class line in token order then id, then the residual, byte for byte" \
-   "$S2420_BUILT|$S2420_RCT|$(cat "$S2420_D/o/deft.out")" "built|0|$(cat "$S2420_D/expect.tsv")"
+   "$S2420_BUILT|$S2420_RCT|$(cat "$S2420_D/o/deft.out"; printf '|end')" "built|0|$(cat "$S2420_D/expect.tsv"; printf '|end')"
 is "2420 the default range with --tsv prints nothing on stderr and leaves TMPDIR empty" \
    "$S2420_RCT|$(cat "$S2420_D/o/deft.err")|$(ls -A "$S2420_T" 2>&1)" "0||"
 S2420_HAY="$(_s2420_nl "$S2420_D/o/deft.out")"$'\n'
@@ -342,13 +349,13 @@ _s2420_tmp; _s2420_run "$S2420_D/o/main" "$S2420_X" "$S2420_C" "$S2420_T" --chan
 is "2420 --change main..HEAD takes main's tip c2 as the base, not the merge base" \
    "$S2420_RC|$(_s2420_side "$S2420_D/o/main.out" 2)" "0|  base  $S2420_C2  tree T  $S2420_HOW"
 _s2420_tmp; _s2420_run "$S2420_D/o/maint" "$S2420_X" "$S2420_C" "$S2420_T" --change 'main..HEAD' --tsv
-has "2420 --change main..HEAD reads k_none retired: c2 holds its surface and f2 does not" \
-   "$S2420_RC|$(_s2420_nl "$S2420_D/o/maint.out")"$'\n' \
-   "$(printf '\n%s\tk_none\tretired\tACTIVE\tDORMANT\tp_cno found (cno)\tp_cno empty (cno)\tthe k_none bound, kept\n' "$(_s2420_id k_none)")"$'\n'
+S2420_L="$(printf '%s\tk_none\tretired\tACTIVE\tDORMANT\tp_cno found (cno)\tp_cno empty (cno)\tthe k_none bound, kept' "$(_s2420_id k_none)")"
+is "2420 --change main..HEAD reads k_none retired: c2 holds its surface and f2 does not" \
+   "$S2420_RC|$(_s2420_whole "$S2420_D/o/maint.out" "$S2420_L")" "0|$S2420_L"
 _s2420_tmp; _s2420_run "$S2420_D/o/rev" "$S2420_X" "$S2420_C" "$S2420_T" --change "$S2420_F2..$S2420_C1" --tsv
-has "2420 the reversed range f2..c1 reads k_ret owed, base DORMANT" \
-   "$S2420_RC|$(_s2420_nl "$S2420_D/o/rev.out")"$'\n' \
-   "$(printf '\n%s\tk_ret\towed\tDORMANT\tACTIVE\tp_cre empty (cre)\tp_cre found (cre)\tthe k_ret bound, kept\n' "$(_s2420_id k_ret)")"$'\n'
+S2420_L="$(printf '%s\tk_ret\towed\tDORMANT\tACTIVE\tp_cre empty (cre)\tp_cre found (cre)\tthe k_ret bound, kept' "$(_s2420_id k_ret)")"
+is "2420 the reversed range f2..c1 reads k_ret owed, base DORMANT" \
+   "$S2420_RC|$(_s2420_whole "$S2420_D/o/rev.out" "$S2420_L")" "0|$S2420_L"
 is "2420 the network stubs were never started" "$S2420_RCD|$(cat "$S2420_D/net.log")" "0|"
 
 # ---- C2's --change exits and their order -------------------------------------------------------------------------------
@@ -408,6 +415,9 @@ _s2420_x3 "--change HEAD..nope: the head half is named" "$S2420_X" "$S2420_C" "$
 _s2420_tmp
 _s2420_x3 "--change HEAD^{tree}..HEAD: a tree is not a commit" "$S2420_X" "$S2420_C" "$S2420_T" \
   "felix situations: base could not be read: HEAD^{tree} is not a commit here" "" --change 'HEAD^{tree}..HEAD'
+_s2420_tmp
+_s2420_x3 "--change ^HEAD..HEAD: a half that resolves to something other than a full commit id is not a commit (C17.7)" \
+  "$S2420_X" "$S2420_C" "$S2420_T" "felix situations: base could not be read: ^HEAD is not a commit here" "" --change '^HEAD..HEAD'
 
 # An unborn HEAD (its .felix untracked), a repository with no main ref, and one whose main shares no history with HEAD.
 S2420_U="$S2420_D/unborn"; S2420_NM="$S2420_D/nomain"; S2420_NB="$S2420_D/nobase"; S2420_XB="not built"

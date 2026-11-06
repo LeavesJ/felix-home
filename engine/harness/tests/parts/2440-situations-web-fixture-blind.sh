@@ -13,7 +13,8 @@ printf '\n%s\n' 'situations: the web fixture (blind)'
 #   feature:  B -> C (an unrelated file), checked out last, so the default range is B..C
 # Readings where the contracts leave room:
 # - The admit command's \t and \n are the two characters backslash and t (and n), as shell text for printf to expand:
-#   C11 calls it one line, so its \n cannot be a newline byte, and its row line is the one C11 says has real tabs.
+#   C11 calls it one line, so its \n cannot be a newline byte, and its row line is the one C11 says has real tabs. C17.1's
+#   guard comes first in it (2026-11-05), its printf '\n' and its "$(tail -c 1 ...)" shell text in the same way.
 # - The expected reports are built from a model of C4, C5, C7, C9 and C10 below, over the eight seed classes, so each
 #   run's whole --tsv and human output is pinned. In --change the header's tree ids are pinned only for the default
 #   range, whose two commits the part also records with felix probes (C3.3: the scratch tree id equals the recorded id
@@ -217,7 +218,7 @@ _s2440_proposed() {
     q="'$S2440_P/obligations.tsv'"
     printf '  %s  %s  %s\n    class  %s  %s\n' "$(_s2440_id "$c")" "$c" "$g" "$S2440_CW" "$S2440_CN"
     printf '    row  %s\t%s\tunknown\t-\texit 2\thttp_route\t%s\n' "$c" "$S2440_CW" "$o"
-    printf '    admit  %s\n' "$S2440_FMT '$c' '$S2440_CW' 'unknown' '-' 'exit 2' 'http_route' $(_s2440_q "$o") >> $q && git -C '$S2440_H' add -- $q && git -C '$S2440_H' commit -q -m 'obligations: admit $c' -- $q"
+    printf '    admit  %s\n' "{ [ ! -s $q ] || [ -z \"\$(tail -c 1 $q)\" ] || printf '\\n'; } >> $q && $S2440_FMT '$c' '$S2440_CW' 'unknown' '-' 'exit 2' 'http_route' $(_s2440_q "$o") >> $q && git -C '$S2440_H' add -- $q && git -C '$S2440_H' commit -q -m 'obligations: admit $c' -- $q"
   done
 }
 
@@ -250,7 +251,7 @@ has '2440 c11: the row line of paid_ingress has its seven cells joined by real t
 has '2440 c11: the class line of paid_ingress names its strictest class while no maturity is declared' "$S2440_RC|$(cat "$S2440_D/at-prop.out")" \
     "$(printf '\n    class  RELEASE_BLOCKING  maturity undeclared: the strictest class this row names\n')$S2440_NL"
 has '2440 c11: the admit line of paid_ingress is the exact command, quoted, with FELIX_HOME as given' "$S2440_RC|$(cat "$S2440_D/at-prop.out")" \
-    "$(printf '\n    admit  %s' "printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' 'paid_ingress' 'RELEASE_BLOCKING' 'unknown' '-' 'exit 2' 'http_route' $(_s2440_q "$S2440_PIO") >> '$S2440_H/projects/web1/obligations.tsv' && git -C '$S2440_H' add -- '$S2440_H/projects/web1/obligations.tsv' && git -C '$S2440_H' commit -q -m 'obligations: admit paid_ingress' -- '$S2440_H/projects/web1/obligations.tsv'")$S2440_NL"
+    "$(printf '\n    admit  %s' "{ [ ! -s '$S2440_H/projects/web1/obligations.tsv' ] || [ -z \"\$(tail -c 1 '$S2440_H/projects/web1/obligations.tsv')\" ] || printf '\\n'; } >> '$S2440_H/projects/web1/obligations.tsv' && printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' 'paid_ingress' 'RELEASE_BLOCKING' 'unknown' '-' 'exit 2' 'http_route' $(_s2440_q "$S2440_PIO") >> '$S2440_H/projects/web1/obligations.tsv' && git -C '$S2440_H' add -- '$S2440_H/projects/web1/obligations.tsv' && git -C '$S2440_H' commit -q -m 'obligations: admit paid_ingress' -- '$S2440_H/projects/web1/obligations.tsv'")$S2440_NL"
 has "2440 c11: the apostrophe in the owes of paid_ingress is closed, escaped and reopened inside the admit command" \
     "$S2440_RC|$(LC_ALL=C awk '/^    admit  / { print; exit }' "$S2440_D/at-prop.out")" " 'exit 2' 'http_route' 'a request bound and a spend bound on every entrypoint that can reach a paid model call: a limit on each request'\\''s size and rate, "
 is '2440 c11: --propose wrote nothing: the home, the memory root and the checkout are byte for byte as before' \

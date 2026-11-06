@@ -2,13 +2,18 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 # Blind, written on 2026-10-31 from docs/2026-10-29-capability-lane-first-slices-design.md (sections 3, 4, 7, 10 and
 # 11) and the slice 1 plan's Contracts and Review Focus (C1 to C16) alone, at the spec commit 21df057c merged with main,
 # before lib/situations.sh existed, without reading lib/, hooks/, bin/ or felix. Felix is run as a black box, and every
-# fixture is built here (C13); nothing comes from tests/lib/lane-fixture.sh. C14 pins the review focus, RF1 to RF7, and
-# each item's assertions begin "2470 rf1" to "2470 rf7". Every run is C13's: ( cd C && env FELIX_HOME=H FELIX_MEMORY=M
+# fixture is built here (C13); nothing comes from tests/lib/lane-fixture.sh. C14 pins the review focus, RF1 to RF9, and
+# each item's assertions begin "2470 rf1" to "2470 rf9". Every run is C13's: ( cd C && env FELIX_HOME=H FELIX_MEMORY=M
 # TMPDIR=T felix situations ... ), T fresh and empty, the network stubs first on PATH and the four keys unset.
+# C17's items were added on 2026-11-05 from C17 and the Contracts it amends, still without reading lib/situations*.sh
+# or felix's cmd_situations: RF5's unended row, RF6's fsmonitor and clean-filter cases, RF8, RF9, and RF3's a1 and a_1.
+# RF5's unended case calls felix_obligation_rows, which C17.1 names, with the project's directory, the one argument
+# lib/obligations.sh gives it.
 #
 # Readings where the Contracts leave room:
 # - Every run also gets HOME, an empty directory (RF6's names its own), and has GIT_CONFIG_GLOBAL, GIT_CONFIG_SYSTEM,
-#   GIT_CONFIG_NOSYSTEM and XDG_CONFIG_HOME unset, so the person's own git config reaches no run and RF6's does.
+#   GIT_CONFIG_NOSYSTEM, XDG_CONFIG_HOME, GIT_CONFIG_PARAMETERS and GIT_CONFIG_COUNT unset, so the person's own git
+#   config reaches no run and RF6's does.
 # - A tree id a header prints is read from the facts.log that felix probes writes for a clean checkout of that commit,
 #   under a memory root of its own (C3.3: the scratch tree id equals it).
 # - RF1's explicit range is HEAD~1..HEAD. The default range is read in the human report (its header), the explicit one
@@ -16,18 +21,29 @@ printf '\n%s\n' 'situations: the review focus (blind)'
 #   with GIT_OPTIONAL_LOCKS=0; the marker is touched a second after the last fixture write and a second before the runs.
 # - RF2's --at names the tree felix probes recorded.
 # - RF3's --at reads a hand-written facts.log (C13), tree rf3-tree. The run under LANG=$LCB_U8 also unsets every other
-#   LC_* variable, so LANG decides. The order of a_c before ab is asserted under both locales.
+#   LC_* variable, so LANG decides. The orders of a1 before a_1 and of a_c before ab are asserted under both locales.
 # - RF4 starts felix through perl, which also starts a session of its own (so nothing felix sends its process group can
 #   reach the suite) and resets TERM and HUP as well as INT. The wait for the probe stops when felix has exited, and a
 #   felix still running 30 s after the signal is killed with KILL and reaped; so on an engine without the command, RF4
 #   costs no wait.
 # - RF5's obligations.tsv exists before --propose, holding one admitted row of another name. The printed admit command
-#   is run only when it begins "printf '" and names git -C '<H>' add, and with HOME an empty directory and
-#   GIT_CONFIG_NOSYSTEM=1 beside C14's identity, so no hook of the person's own config runs.
+#   is run only when it begins with C17.1's guard, "{ [ ! -s '<P>/obligations.tsv' ] || ", and names git -C '<H>' add,
+#   and with HOME an empty directory and GIT_CONFIG_NOSYSTEM=1 beside C14's identity, so no hook of the person's own
+#   config runs. Its unended case rewrites the same home's obligations.tsv to that one row with no final newline,
+#   commits it, and runs the admit command a third --propose prints in the same way.
 # - RF6: with core.hooksPath set, git never runs a template's hook, so the control (a plain clone under that HOME,
 #   folded into the assertions so that none passes without the command) asserts the template was copied, and the
-#   hooksPath hook and the smudge filter ran.
+#   hooksPath hook and the smudge filter ran. C17.2's three cases share RF6's repository, range and probe, which runs
+#   no git command. Each has its own control in a plain clone, folded in the same way: git status runs the fsmonitor
+#   hook, under that HOME or that GIT_CONFIG_COUNT, and git hash-object runs the clean filter.
 # - RF7's W1 and W2 are both linked worktrees of one repository, W1 at its root commit and W2 one commit ahead.
+# - RF8 runs felix situations with no --at, so it reads the newest recorded tree, the live one. The stat-dirty file's
+#   mtime and then the index's are set to fixed past times with touch -t, so a write of the index moves its mtime
+#   whatever the clock's resolution; git status run afterwards, which refreshes and writes the index, is the control.
+# - RF9's sort reads what sort would read: its file operands, or stdin when it has none or one is -. It exits 2 and
+#   prints nothing when a line it read begins owed:; otherwise it runs the real sort with the same arguments over the
+#   same input. It writes nothing under TMPDIR. --at and --change are run with no output flag. Each unreadable table
+#   is read in both modes, with --propose for obligations.tsv.
 
 S2470_D="$TMP/s2470"
 rm -rf "$S2470_D"; mkdir -p "$S2470_D/bin" "$S2470_D/user"
@@ -37,7 +53,7 @@ for _s2470_c in gh curl wget ssh nc claude; do
   printf '#!/bin/sh\nprintf '"'"'%%s %%s\\n'"'"' %s "$*" >> '"'"'%s'"'"'\nexit 1\n' "$_s2470_c" "$S2470_NET" > "$S2470_D/bin/$_s2470_c"
   chmod +x "$S2470_D/bin/$_s2470_c"
 done
-S2470_U="$S2470_D/user"; S2470_L=""
+S2470_U="$S2470_D/user"; S2470_L=""; S2470_XE=(S2470_EXTRA=none)
 S2470_CBM='prototype=INFO,internal=ADVISORY,public-beta=TASK_BLOCKING,production=RELEASE_BLOCKING'
 S2470_SRC='cite:0123456789ab'
 S2470_HDR='scratch checkout, tracked content only, current probes.tsv'
@@ -80,7 +96,8 @@ _s2470_engine() {
 # DIR CLASS APPLIES OWES -> one row of the substituted table of the engine at DIR.
 _s2470_row() { printf '%s\t%s\t%s\t%s\t%s\n' "$2" "$3" "$4" "$S2470_CBM" "$S2470_SRC" >> "$1/harness/templates/situations.tsv"; }
 # OUT DIR HOME MEMORY ENGINE ARGS... -> ENGINE ARGS run in DIR as C13 runs it, TMPDIR the fresh empty directory OUT.t;
-# OUT.out, OUT.err, and S2470_RC its exit. S2470_U is the run's HOME; S2470_L is C, u8 or empty (the locale as it is).
+# OUT.out, OUT.err, and S2470_RC its exit. S2470_U is the run's HOME; S2470_L is C, u8 or empty (the locale as it is);
+# S2470_XE holds NAME=VALUE words given after the others, so they win (RF6's git config, RF9's PATH).
 _s2470_run() {
   local o="$1" d="$2" h="$3" m="$4" e="$5"
   local -a le
@@ -92,11 +109,13 @@ _s2470_run() {
     *)  le=(-u S2470_NONE) ;;
   esac
   ( cd "$d" && exec env -u ANTHROPIC_API_KEY -u OPENAI_API_KEY -u GH_TOKEN -u GITHUB_TOKEN -u CLAUDE_CODE_SESSION_ID \
-      -u FELIX_HOME_DIR -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM -u GIT_CONFIG_NOSYSTEM -u XDG_CONFIG_HOME "${le[@]}" \
-      HOME="$S2470_U" PATH="$S2470_D/bin:$PATH" FELIX_HOME="$h" FELIX_MEMORY="$m" TMPDIR="$o.t" "$e" "$@" ) \
-    > "$o.out" 2> "$o.err" < /dev/null
+      -u FELIX_HOME_DIR -u GIT_CONFIG_GLOBAL -u GIT_CONFIG_SYSTEM -u GIT_CONFIG_NOSYSTEM -u XDG_CONFIG_HOME \
+      -u GIT_CONFIG_PARAMETERS -u GIT_CONFIG_COUNT "${le[@]}" HOME="$S2470_U" PATH="$S2470_D/bin:$PATH" \
+      FELIX_HOME="$h" FELIX_MEMORY="$m" TMPDIR="$o.t" "${S2470_XE[@]}" "$e" "$@" ) > "$o.out" 2> "$o.err" < /dev/null
   S2470_RC=$?
 }
+# FILE -> its mtime in whole seconds, read through perl, since BSD and GNU stat take different flags.
+_s2470_mtime() { perl -e '@s = stat($ARGV[0]); print @s ? $s[9] : "absent"' "$1" 2>&1; }
 # LOG -> S2470_STAMP and S2470_TREE of the newest recorded tree, as C3.1 reads it: the last line of 8 or more fields
 # whose tree is not unknown-tree. Both empty when there is none.
 _s2470_newest() {
@@ -205,13 +224,16 @@ $(_s2470_tab residual could-not-look env_ready "base: probe:ready=found: ready r
 $(_s2470_tab residual could-not-look env_ready "head: probe:ready=found: ready read blind: $S2470_W2")"
 
 # ---- RF3: the caller's locale -------------------------------------------------------------------------------------
-# Classes ab and a_c, in that order in the table, both on probe:x=found, with owes that differ in case. In bytes a_c
-# sorts before ab ('_' is 0x5f, 'b' 0x62); en_US.UTF-8 collation, which passes over the '_', puts ab first. Over c1,
-# which removes list.txt while the witness's keep.txt stays, x reads found at base and blind at head: both blinded.
+# Classes ab, a_c, a_1 and a1, in that order in the table, all on probe:x=found, with owes that differ in case. In
+# bytes a1 sorts before a_1 ('1' is 0x31, '_' 0x5f) and a_c before ab ('b' is 0x62); glibc's en_US.UTF-8 collation,
+# which passes over the '_', puts ab before a_c, and macOS's puts a_1 before a1 (C17.10). Over c1, which removes
+# list.txt while the witness's keep.txt stays, x reads found at base and blind at head: all four blinded.
 _s2470_dir "$S2470_D/rf3"; S2470_D3="$S2470_P"
 _s2470_engine "$S2470_D3/x"; S2470_E3="$S2470_E"
 _s2470_row "$S2470_D3/x" ab 'probe:x=found' 'Bound The AB Surface'
 _s2470_row "$S2470_D3/x" a_c 'probe:x=found' 'bound the a_c surface'
+_s2470_row "$S2470_D3/x" a_1 'probe:x=found' 'bound the a_1 surface'
+_s2470_row "$S2470_D3/x" a1 'probe:x=found' 'Bound The A1 Surface'
 _s2470_home "$S2470_D3/home" rf3 $'x\tx\t-\tcat list.txt\ttest -f keep.txt\n'
 mkdir -p "$S2470_D3/mem/rf3"
 printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' 2026-10-29T12:00:00Z rf3-tree x - found 1 x 'cat list.txt' > "$S2470_D3/mem/rf3/facts.log"
@@ -225,7 +247,7 @@ S2470_N3_1="2470 rf3 --change --tsv prints the same bytes under LC_ALL=C and und
 S2470_N3_2="2470 rf3 the --change human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
 S2470_N3_3="2470 rf3 --at --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
 S2470_N3_4="2470 rf3 the --at human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset"
-S2470_N3_5="2470 rf3 in --change, under either locale, a_c and ab are both blinded, and a_c comes before ab in the blinded section and in the residual's could-not-look lines"
+S2470_N3_5="2470 rf3 in --change, under either locale, a1, a_1, a_c and ab are all blinded, and a1 comes before a_1 and a_c before ab in the blinded section and in the residual's could-not-look lines"
 if [ -z "${LCB_U8:-}" ]; then
   skip "$S2470_N3_1" "$LCB_NONE"; skip "$S2470_N3_2" "$LCB_NONE"; skip "$S2470_N3_3" "$LCB_NONE"
   skip "$S2470_N3_4" "$LCB_NONE"; skip "$S2470_N3_5" "$LCB_NONE"
@@ -249,7 +271,7 @@ else
   is "$S2470_N3_4" "$S2470_RAH_C|$S2470_RAH_u8|$(_s2470_same ah)" "0|0|identical"
   is "$S2470_N3_5" \
      "$S2470_RCH_C|$(_s2470_names "$S2470_D3/ch-C.out" blinded)|$(_s2470_names "$S2470_D3/ch-C.out" residual)|$S2470_RCH_u8|$(_s2470_names "$S2470_D3/ch-u8.out" blinded)|$(_s2470_names "$S2470_D3/ch-u8.out" residual)" \
-     "0|a_c ab|a_c ab|0|a_c ab|a_c ab"
+     "0|a1 a_1 a_c ab|a1 a_1 a_c ab|0|a1 a_1 a_c ab|a1 a_1 a_c ab"
 fi
 
 # ---- RF4: an interrupted run and an early close -------------------------------------------------------------------
@@ -315,7 +337,8 @@ is "2470 rf4 felix situations --change ... | head -1 prints the report's first l
 
 # ---- RF5: quoting in the admit command ----------------------------------------------------------------------------
 # quote_me is ACTIVE and unadmitted; its owes holds an apostrophe, a percent sign, and a backslash and an n as two
-# bytes. The home is a git repository with one commit; no maturity is declared.
+# bytes. The home is a git repository with one commit; no maturity is declared. C17.1 puts its newline guard first in
+# the admit command, and the last case here leaves the one admitted row with no final newline.
 _s2470_dir "$S2470_D/rf5"; S2470_D5="$S2470_P"
 S2470_O5="don't drop 100% of the \\n bound"
 _s2470_engine "$S2470_D5/x"; S2470_E5="$S2470_E"
@@ -338,8 +361,8 @@ is "2470 rf5 --propose exits 0 and leaves obligations.tsv and the home's git sta
    "0|0|$(cksum < "$S2470_D5/ob.before")|$S2470_ST5"
 _s2470_id quote_me rf5
 S2470_ROW5="$(_s2470_tab quote_me RELEASE_BLOCKING unknown - 'exit 2' q "$S2470_O5")"
-S2470_ESC="'\\''"
-S2470_CMD5="printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' 'quote_me' 'RELEASE_BLOCKING' 'unknown' '-' 'exit 2' 'q' 'don${S2470_ESC}t drop 100% of the \\n bound' >> '$S2470_P5/obligations.tsv' && git -C '$S2470_H5' add -- '$S2470_P5/obligations.tsv' && git -C '$S2470_H5' commit -q -m 'obligations: admit quote_me' -- '$S2470_P5/obligations.tsv'"
+S2470_ESC="'\\''"; S2470_OB5="'$S2470_P5/obligations.tsv'"
+S2470_CMD5="{ [ ! -s $S2470_OB5 ] || [ -z \"\$(tail -c 1 $S2470_OB5)\" ] || printf '\\n'; } >> $S2470_OB5 && printf '%s\\t%s\\t%s\\t%s\\t%s\\t%s\\t%s\\n' 'quote_me' 'RELEASE_BLOCKING' 'unknown' '-' 'exit 2' 'q' 'don${S2470_ESC}t drop 100% of the \\n bound' >> $S2470_OB5 && git -C '$S2470_H5' add -- $S2470_OB5 && git -C '$S2470_H5' commit -q -m 'obligations: admit quote_me' -- $S2470_OB5"
 is "2470 rf5 the proposed section ends the report: quote_me with its grounds, the strictest class its cell names while no maturity is declared, its row, and the admit command with each ' written as '\\''" \
    "$S2470_RA|$(tail -n 6 "$S2470_D5/p1.out")" "0|
 proposed
@@ -347,14 +370,20 @@ proposed
     class  RELEASE_BLOCKING  maturity undeclared: the strictest class this row names
     row  $S2470_ROW5
     admit  $S2470_CMD5"
-S2470_GOT5="$(LC_ALL=C awk 'index($0, "    admit  ") == 1 { print substr($0, 12); exit }' "$S2470_D5/p1.out")"
-S2470_RGOT5="$(LC_ALL=C awk 'index($0, "    row  ") == 1 { print substr($0, 10); exit }' "$S2470_D5/p1.out")"
-S2470_ARC="not run: no admit command naming git -C '$S2470_H5' add was printed"
-case "$S2470_GOT5" in
-  "printf '"*"git -C '$S2470_H5' add -- "*)
-    S2470_ARC="$( cd "$S2470_D5" && env HOME="$S2470_U" GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t \
-      GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t bash -c "$S2470_GOT5" > /dev/null 2>&1; printf '%s' "$?" )" ;;
-esac
+# OUT -> S2470_RGOT5, the text after "    row  " in OUT.out, and S2470_ARC, the exit of the admit command OUT.out
+# prints, run as C14 runs it, or why it was not run.
+_s2470_admit() {
+  local c
+  c="$(LC_ALL=C awk 'index($0, "    admit  ") == 1 { print substr($0, 12); exit }' "$1.out")"
+  S2470_RGOT5="$(LC_ALL=C awk 'index($0, "    row  ") == 1 { print substr($0, 10); exit }' "$1.out")"
+  S2470_ARC="not run: no admit command beginning with the newline guard and naming git -C '$S2470_H5' add was printed"
+  case "$c" in
+    "{ [ ! -s '$S2470_P5/obligations.tsv' ] || "*"git -C '$S2470_H5' add -- "*)
+      S2470_ARC="$( cd "$S2470_D5" && env HOME="$S2470_U" GIT_CONFIG_NOSYSTEM=1 GIT_AUTHOR_NAME=t GIT_AUTHOR_EMAIL=t@t \
+        GIT_COMMITTER_NAME=t GIT_COMMITTER_EMAIL=t@t bash -c "$c" > /dev/null 2>&1; printf '%s' "$?" )" ;;
+  esac
+}
+_s2470_admit "$S2470_D5/p1"
 { cat "$S2470_D5/ob.before"; printf '%s\n' "$S2470_RGOT5"; } > "$S2470_D5/ob.want"
 is "2470 rf5 running the printed admit command appends to obligations.tsv exactly the row line's text after its prefix, then one newline" \
    "$S2470_ARC|$(cmp -s "$S2470_D5/ob.want" "$S2470_P5/obligations.tsv" && printf appended || printf other)|$S2470_RGOT5" \
@@ -366,6 +395,24 @@ _s2470_run "$S2470_D5/p2" "$S2470_C5" "$S2470_H5" "$S2470_D5/mem" "$S2470_E5" si
 is "2470 rf5 a second --propose no longer lists quote_me: its proposed section is none" \
    "$S2470_ARC|$S2470_RC|$(tail -n 2 "$S2470_D5/p2.out")" "0|0|proposed
   none"
+# C17.1's unended row: obligations.tsv holds the fixture's row alone, with no final newline, committed; quote_me is
+# proposed again, and its admit command runs as before.
+printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds' > "$S2470_P5/obligations.tsv"
+_s2470_commit "$S2470_H5" 1793000200 unended
+cp "$S2470_P5/obligations.tsv" "$S2470_D5/ob.unended"
+S2470_UC5="$(git -C "$S2470_H5" rev-parse HEAD 2>&1)"
+_s2470_run "$S2470_D5/p3" "$S2470_C5" "$S2470_H5" "$S2470_D5/mem" "$S2470_E5" situations --propose; S2470_RA="$S2470_RC"
+_s2470_admit "$S2470_D5/p3"
+{ cat "$S2470_D5/ob.unended"; printf '\n%s\n' "$S2470_RGOT5"; } > "$S2470_D5/ob.want3"
+S2470_OR5="$( { . "$FROOT/harness/lib/obligations.sh" && felix_obligation_rows "$S2470_P5" | LC_ALL=C cut -f1 | tr '\n' ' '; } 2>/dev/null )"
+is "2470 rf5 with obligations.tsv's one admitted row unended, the printed admit command ends that row with one newline, then appends the row line's text and one newline" \
+   "$S2470_RA|$S2470_ARC|$(cmp -s "$S2470_D5/ob.want3" "$S2470_P5/obligations.tsv" && printf appended || printf other)|$S2470_RGOT5" \
+   "0|0|appended|$S2470_ROW5"
+is "2470 rf5 with that row unended, felix_obligation_rows names both classes once the admit command has run, the earlier one first" \
+   "$S2470_ARC|$S2470_OR5" "0|fixture quote_me "
+is "2470 rf5 with that row unended, the admit command makes one commit, which touches only obligations.tsv" \
+   "$S2470_ARC|$(git -C "$S2470_H5" rev-list --count "$S2470_UC5..HEAD" 2>&1)|$(git -C "$S2470_H5" diff-tree --no-commit-id --name-only -r HEAD 2>&1)|$(git -C "$S2470_H5" log -1 --format=%s 2>&1)" \
+   "0|1|projects/rf5/obligations.tsv|obligations: admit quote_me"
 
 # ---- RF6: the caller's git config ---------------------------------------------------------------------------------
 # HOME's .gitconfig sets init.templateDir (a template whose hooks/post-checkout writes a marker), core.hooksPath (a
@@ -402,6 +449,37 @@ is "2470 rf6 with HOME's .gitconfig naming a template, a hooks path and a smudge
    "hookspath smudge template-copied|0||$(_s2470_tab "$S2470_ID" svc_owed owed ACTIVE ACTIVE 'svc found (svc)' 'svc found (svc)' "$S2470_O1")"
 is "2470 rf6 no marker of the template hook, the hooks-path hook or the smudge filter exists after the run" \
    "$S2470_CTL6|$S2470_RC|$(ls -A "$S2470_K6" 2>&1)" "hookspath smudge template-copied|0|"
+# C17.2: core.fsmonitor names a hook that writes a marker, in a HOME of its own and then through GIT_CONFIG_COUNT; and
+# filter.fx.clean, which writes a marker, comes through GIT_CONFIG_PARAMETERS over the committed * filter=fx.
+printf '#!/bin/sh\n: > '"'"'%s/fsmonitor'"'"'\nexit 1\n' "$S2470_K6" > "$S2470_D6/fsmonitor"
+printf '#!/bin/sh\n: > '"'"'%s/clean'"'"'\nexec cat\n' "$S2470_K6" > "$S2470_D6/clean"
+chmod +x "$S2470_D6/fsmonitor" "$S2470_D6/clean"
+mkdir -p "$S2470_D6/ufsm"; printf '[core]\n\tfsmonitor = %s\n' "$S2470_D6/fsmonitor" > "$S2470_D6/ufsm/.gitconfig"
+_s2470_g "$S2470_D6" 1793000200 clone -q -- "$S2470_C6" ctl
+# NAME HOME CONTROL WANT NAME=VALUE... -> git CONTROL in the plain clone ctl, then --change HEAD~1..HEAD --tsv, each
+# with HOME and the NAME=VALUE words; NAME asserts that the control left the markers WANT, and that the run exits 0,
+# evaluates its class and leaves no marker.
+_s2470_rf6() {
+  local n="$1" h="$2" a="$3" w="$4" c
+  shift 4
+  rm -rf "$S2470_K6"; mkdir -p "$S2470_K6"
+  ( unset GIT_CONFIG_GLOBAL XDG_CONFIG_HOME GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT
+    export HOME="$h" GIT_CONFIG_NOSYSTEM=1 "$@"
+    _fx_git "$S2470_D6/ctl" $a ) > /dev/null 2>&1
+  c="$(ls -A "$S2470_K6" 2>&1 | tr '\n' ' ')"
+  rm -rf "$S2470_K6"; mkdir -p "$S2470_K6"
+  S2470_U="$h"; S2470_XE=("$@")
+  _s2470_run "$S2470_D6/r2" "$S2470_C6" "$S2470_D6/home" "$S2470_D6/mem" "$S2470_E6" situations --change HEAD~1..HEAD --tsv
+  S2470_U="$S2470_D/user"; S2470_XE=(S2470_EXTRA=none)
+  is "$n" "$c|$S2470_RC|$(cat "$S2470_D6/r2.err")|$(cat "$S2470_D6/r2.out")|$(ls -A "$S2470_K6" 2>&1)" \
+     "$w|0||$(_s2470_tab "$S2470_ID" svc_owed owed ACTIVE ACTIVE 'svc found (svc)' 'svc found (svc)' "$S2470_O1")|"
+}
+_s2470_rf6 "2470 rf6 with core.fsmonitor in HOME's .gitconfig naming a hook that writes a marker, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists" \
+  "$S2470_D6/ufsm" 'status --porcelain' 'fsmonitor ' S2470_EXTRA=none
+_s2470_rf6 "2470 rf6 with core.fsmonitor given through GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0 and GIT_CONFIG_VALUE_0, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists" \
+  "$S2470_D/user" 'status --porcelain' 'fsmonitor ' GIT_CONFIG_COUNT=1 GIT_CONFIG_KEY_0=core.fsmonitor "GIT_CONFIG_VALUE_0=$S2470_D6/fsmonitor"
+_s2470_rf6 "2470 rf6 with filter.fx.clean given through GIT_CONFIG_PARAMETERS over the committed * filter=fx, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists" \
+  "$S2470_D/user" 'hash-object svc.txt' 'clean ' "GIT_CONFIG_PARAMETERS='filter.fx.clean=$S2470_D6/clean'"
 
 # ---- RF7: a facts log shared by worktrees -------------------------------------------------------------------------
 # W1 and W2, linked worktrees of one repository: W1 at c0, W2 at c1 (svc.txt gains a line). cap_tests (cap:tests) is
@@ -450,3 +528,122 @@ is "2470 rf7 --at W1's tree --tsv reads cap_tests standing on tests detected, be
    "$S2470_RC2|$(cat "$S2470_D7/ta.out")" \
    "0|$(printf '%s\n%s\n' "$(_s2470_tab "$S2470_IS7" svc_owed standing - ACTIVE - 'svc found (svc)' "$S2470_O1")" \
         "$(_s2470_tab "$S2470_IC7" cap_tests standing - ACTIVE - 'tests detected' "$S2470_O7")" | LC_ALL=C sort)"
+
+# ---- RF8: a stat-dirty index ---------------------------------------------------------------------------------------
+# C17.3. After felix probes recorded the live tree, svc.txt's mtime moves to a fixed past time and its content stays,
+# so the index's cached stat no longer matches it; then the index's own mtime is set to another fixed past time.
+_s2470_dir "$S2470_D/rf8"; S2470_D8="$S2470_P"
+_s2470_home "$S2470_D8/home" rf8 "$S2470_PSVC"
+mkdir -p "$S2470_D8/mem/rf8"
+S2470_C8="$S2470_D8/c"; S2470_I8="$S2470_D8/c/.git/index"
+_s2470_repo "$S2470_C8" rf8; printf 'a\n' > "$S2470_C8/svc.txt"
+_s2470_commit "$S2470_C8" 1793000000 c0
+S2470_HD8="$(git -C "$S2470_C8" rev-parse HEAD 2>&1)"
+_s2470_run "$S2470_D8/p" "$S2470_C8" "$S2470_D8/home" "$S2470_D8/mem" "$S2470_E7" probes; S2470_PRC="$S2470_RC"
+_s2470_newest "$S2470_D8/mem/rf8/facts.log"
+touch -t 202501010000.00 "$S2470_C8/svc.txt"; touch -t 202502020000.00 "$S2470_I8"
+S2470_B8="$(cksum < "$S2470_I8" 2>&1)|$(_s2470_mtime "$S2470_I8")"
+_s2470_run "$S2470_D8/r" "$S2470_C8" "$S2470_D8/home" "$S2470_D8/mem" "$S2470_E7" situations; S2470_RA="$S2470_RC"
+S2470_A8="$(cksum < "$S2470_I8" 2>&1)|$(_s2470_mtime "$S2470_I8")"
+_s2470_g "$S2470_C8" 1793000100 status --porcelain
+S2470_G8="$(_s2470_mtime "$S2470_I8")"
+is "2470 rf8 with a tracked file made stat-dirty after felix probes recorded the tree, felix situations exits 0, and its header names that tree and ends detector run on this checkout" \
+   "$S2470_PRC|$S2470_RA|$(cat "$S2470_D8/r.err")|$(LC_ALL=C awk 'NR == 2' "$S2470_D8/r.out")" \
+   "0|0||  at  $S2470_HD8  tree $S2470_TREE  recorded $S2470_STAMP  detector run on this checkout"
+is "2470 rf8 felix situations leaves the live index's bytes and mtime as they were, though git status run afterwards moves that mtime" \
+   "$S2470_RA|$S2470_A8|$([ "$S2470_G8" = "${S2470_B8##*|}" ] && printf 'not moved' || printf moved)" "0|$S2470_B8|moved"
+
+# ---- RF9: a step that fails, and a project table that cannot be read ---------------------------------------------
+# C17.4. The sort first on PATH exits 2, printing nothing, when a line it would read begins owed:; otherwise it runs the
+# real sort with the same arguments over the same input, which it buffers outside TMPDIR. svc_owed is owed over c1, and
+# felix probes recorded c1's tree.
+_s2470_dir "$S2470_D/rf9"; S2470_D9="$S2470_P"
+S2470_H9="$S2470_D9/home"; S2470_P9="$S2470_D9/home/projects/rf9"
+_s2470_home "$S2470_H9" rf9 "$S2470_PSVC"
+printf 'fixture\tRELEASE_BLOCKING\tdeterministic\t-\ttrue\t-\ta fixture owes one thing, and it holds\n' > "$S2470_P9/obligations.tsv"
+mkdir -p "$S2470_D9/mem/rf9" "$S2470_D9/shim" "$S2470_D9/buf"
+S2470_C9="$S2470_D9/c"
+_s2470_repo "$S2470_C9" rf9; printf 'a\n' > "$S2470_C9/svc.txt"
+_s2470_commit "$S2470_C9" 1793000000 c0
+printf 'a\nb\n' > "$S2470_C9/svc.txt"
+_s2470_commit "$S2470_C9" 1793000100 c1
+_s2470_run "$S2470_D9/p" "$S2470_C9" "$S2470_H9" "$S2470_D9/mem" "$S2470_E7" probes; S2470_PRC="$S2470_RC"
+_s2470_newest "$S2470_D9/mem/rf9/facts.log"; S2470_T9="$S2470_TREE"
+{ printf '#!/bin/sh\n'
+  printf "real='%s'; buf='%s'\n" "$(type -P sort)" "$S2470_D9/buf"
+  cat <<'S2470SORT'
+# sort, first on PATH (C17.4): exit 2, printing nothing, when a line it would read begins owed:; else the real sort.
+owed() { awk 'index($0, "owed:") == 1 { f = 1; exit } END { exit !f }' "$@"; }
+n=0; stdin=no; skip=no; opts=yes
+for a in "$@"; do
+  if [ "$skip" = yes ]; then skip=no; continue; fi
+  if [ "$opts" = yes ]; then
+    case "$a" in
+      --) opts=no; continue ;;
+      -t|-k|-o|-T|-S|--field-separator|--key|--output|--temporary-directory|--buffer-size) skip=yes; continue ;;
+      -?*) continue ;;
+    esac
+  fi
+  n=$((n + 1))
+  if [ "$a" = - ]; then stdin=yes; elif [ -f "$a" ] && owed "$a"; then exit 2; fi
+done
+[ "$n" -gt 0 ] || stdin=yes
+[ "$stdin" = yes ] || exec "$real" "$@"
+f="$(mktemp "$buf/in.XXXXXX")" || exit 2
+cat > "$f" || { rm -f "$f"; exit 2; }
+if owed "$f"; then rm -f "$f"; exit 2; fi
+"$real" "$@" < "$f"; rc=$?
+rm -f "$f"
+exit "$rc"
+S2470SORT
+} > "$S2470_D9/shim/sort"
+chmod +x "$S2470_D9/shim/sort"
+# The control: the shim sorts input that holds no owed: line, and fails, printing nothing, on input that holds one,
+# from stdin and from a file operand: S2470_SH9 is the three exits, then all they printed.
+printf 'b\na\n' > "$S2470_D9/plain.in"; printf 'x\nowed:1\n' > "$S2470_D9/mixed.in"; printf 'owed:2\n' > "$S2470_D9/owed.in"
+LC_ALL=C "$S2470_D9/shim/sort" < "$S2470_D9/plain.in" > "$S2470_D9/c1.out" 2>&1; S2470_SH9="$?"
+LC_ALL=C "$S2470_D9/shim/sort" < "$S2470_D9/mixed.in" > "$S2470_D9/c2.out" 2>&1; S2470_SH9="$S2470_SH9 $?"
+LC_ALL=C "$S2470_D9/shim/sort" -t x -k1,1 "$S2470_D9/owed.in" > "$S2470_D9/c3.out" 2>&1; S2470_SH9="$S2470_SH9 $?"
+S2470_SH9="$S2470_SH9|$(cat "$S2470_D9/c1.out" "$S2470_D9/c2.out" "$S2470_D9/c3.out" | tr '\n' ' ')"
+# OUT -> exit|stdout bytes|stderr lines|yes when stderr's first line is C17.4's report sentence|TMPDIR's entries.
+_s2470_x3() {
+  local f
+  f="$(LC_ALL=C awk 'NR == 1' "$1.err" 2>/dev/null)"
+  case "$f" in "felix situations: the report could not be built: "?*" failed") f=yes ;; *) f="no: $f" ;; esac
+  printf '%s|%s|%s|%s|%s' "$S2470_RC" "$(wc -c < "$1.out" | tr -d ' ')" "$(LC_ALL=C awk 'END { print NR }' "$1.err")" "$f" \
+    "$(ls -A "$1.t" 2>&1)"
+}
+S2470_XE=("PATH=$S2470_D9/shim:$S2470_D/bin:$PATH")
+_s2470_run "$S2470_D9/sa" "$S2470_C9" "$S2470_H9" "$S2470_D9/mem" "$S2470_E7" situations --at "$S2470_T9"
+S2470_SA="$(_s2470_x3 "$S2470_D9/sa")"
+_s2470_run "$S2470_D9/sc" "$S2470_C9" "$S2470_H9" "$S2470_D9/mem" "$S2470_E7" situations --change HEAD~1..HEAD
+S2470_SC="$(_s2470_x3 "$S2470_D9/sc")"
+S2470_XE=(S2470_EXTRA=none)
+is "2470 rf9 --at with a sort first on PATH that fails when it reads a line beginning owed: exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty" \
+   "$S2470_PRC|$S2470_SH9|$S2470_SA" "0|0 2 2|a b |3|0|1|yes|"
+is "2470 rf9 --change with that sort first on PATH exits 3 the same way: stdout empty, one stderr line, the report could not be built, and TMPDIR empty" \
+   "$S2470_SH9|$S2470_SC" "0 2 2|a b |3|0|1|yes|"
+# FILE NAME SENTENCE ARGS... -> with FILE made unreadable, felix situations ARGS exits 3, stdout empty, SENTENCE alone on
+# stderr and TMPDIR empty; skipped by NAME when FILE stays readable, as it does when the suite runs as root.
+_s2470_unread() {
+  local f="$1" n="$2" w="$3"
+  shift 3
+  chmod 000 "$f"
+  if [ -r "$f" ]; then
+    skip "$n" "$f stays readable after chmod 000, as it does when the suite runs as root"
+  else
+    _s2470_run "$S2470_D9/ur" "$S2470_C9" "$S2470_H9" "$S2470_D9/mem" "$S2470_E7" situations "$@"
+    is "$n" "$S2470_RC|$(wc -c < "$S2470_D9/ur.out" | tr -d ' ')|$(cat "$S2470_D9/ur.err")|$(ls -A "$S2470_D9/ur.t" 2>&1)" "3|0|$w|"
+  fi
+  chmod 644 "$f"
+}
+S2470_UP="felix situations: the project's probes.tsv could not be read: $S2470_P9/probes.tsv is not readable"
+S2470_UO="felix situations: the project's obligations.tsv could not be read: $S2470_P9/obligations.tsv is not readable"
+_s2470_unread "$S2470_P9/probes.tsv" "2470 rf9 with probes.tsv made unreadable, --at exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty" \
+  "$S2470_UP" --at "$S2470_T9"
+_s2470_unread "$S2470_P9/probes.tsv" "2470 rf9 with probes.tsv made unreadable, --change exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty" \
+  "$S2470_UP" --change HEAD~1..HEAD
+_s2470_unread "$S2470_P9/obligations.tsv" "2470 rf9 with obligations.tsv made unreadable, --at --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty" \
+  "$S2470_UO" --at "$S2470_T9" --propose
+_s2470_unread "$S2470_P9/obligations.tsv" "2470 rf9 with obligations.tsv made unreadable, --change --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty" \
+  "$S2470_UO" --change HEAD~1..HEAD --propose

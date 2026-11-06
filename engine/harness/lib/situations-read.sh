@@ -22,6 +22,9 @@
 # trap is installed, because a trap body is read when it fires and a local is gone by then (felix_discover's precedent).
 # mktemp's output is assigned to that global by the command that runs mktemp, so a signal that arrives as it finishes finds
 # the name already stored (C17.8).
+#
+# EVERY STEP IS CHECKED (C17.4). A function here returns 0, 1 for an answer that is no (no tree recorded, no commit), or 3
+# after it has printed the one sentence on stderr that says why the run ends. Its callers pass the 3 on.
 
 # Sets _FELIX_SITUATIONS_ME to the pid of the process that runs this, which a subshell's own differs from its parent's: the
 # parent of a shell that has exec'd sh is the process that forked it. bash 3.2 has no BASHPID, and neither $$ nor
@@ -56,8 +59,6 @@ felix_situations_scratch_begin() {
   trap 'felix_situations_scratch_remove; exit 143' TERM
   trap 'felix_situations_scratch_remove; exit 129' HUP
   trap 'felix_situations_scratch_remove; exit 130' INT
-  # mktemp's output goes straight into the global the traps read, so a signal that arrives as it completes finds the name
-  # already stored (C17.8).
   _FELIX_SITUATIONS_SCRATCH="$(mktemp -d "${TMPDIR:-/tmp}/felix-situations.XXXXXX" 2>/dev/null)" || _FELIX_SITUATIONS_SCRATCH=""
   d="$_FELIX_SITUATIONS_SCRATCH"
   if [ -z "$d" ] || [ ! -d "$d" ]; then
@@ -79,13 +80,14 @@ felix_situations_scratch_end() {
 }
 
 # The newest recorded tree of a facts.log (C3.1): the tree field of the last line, in file order, that has 8 or more
-# fields and whose tree is not unknown-tree (an empty tree field names no tree and is passed over). Prints it. Returns 3,
-# printing nothing, when the log is absent, unreadable, empty, or records no tree.
+# fields and whose tree is not unknown-tree (an empty tree field names no tree and is passed over). Prints it. Returns 1,
+# printing nothing, when the log is absent, unreadable, empty, or records no tree, and 3 when the awk that reads it failed.
 felix_situations_newest_tree() {   # LOG
   local log="${1-}" t
-  [ -f "$log" ] && [ -r "$log" ] || return 3
-  t="$(LC_ALL=C awk -F'\t' 'NF >= 8 && $2 != "unknown-tree" && $2 != "" { t = $2 "" } END { print t }' "$log")" || return 3
-  [ -n "$t" ] || return 3
+  [ -f "$log" ] && [ -r "$log" ] || return 1
+  t="$(LC_ALL=C awk -F'\t' 'NF >= 8 && $2 != "unknown-tree" && $2 != "" { t = $2 "" } END { print t }' "$log" 2>/dev/null)" \
+    || { _felix_situations_fail "reading the newest recorded tree"; return 3; }
+  [ -n "$t" ] || return 1
   printf '%s' "$t"
 }
 
@@ -94,18 +96,18 @@ felix_situations_newest_tree() {   # LOG
 # names TREE: its stamp and the tree name the run, whose rows are every such line with that stamp and tree. An older run
 # of the same tree is never read, a predicate that appears more than once in the run is read from its first line, and
 # unknown-tree is never a tree. A line with fewer than 8 fields is ignored, and columns 4, 8 and 9 are not read. The probe's
-# own sentence is not in the log, so each probe line's detail is - (C10 gives its reason). Returns 3 when no run is
-# recorded for TREE, with OUT unwritten.
+# own sentence is not in the log, so each probe line's detail is - (C10 gives its reason). Returns 1 when no run is
+# recorded for TREE, with OUT unwritten, and 3 when a step failed.
 felix_situations_read_recorded() {   # LOG TREE OUT
-  local log="${1-}" tree="${2-}" out="${3-}" body
-  [ -f "$log" ] && [ -r "$log" ] || return 3
+  local log="${1-}" tree="${2-}" out="${3-}" body rc
+  [ -f "$log" ] && [ -r "$log" ] || return 1
   body="$(FELIX_SITUATIONS_TREE="$tree" LC_ALL=C awk -F'\t' '
     BEGIN { want = ENVIRON["FELIX_SITUATIONS_TREE"] "" }
     NF >= 8 && ($2 "") == want && want != "unknown-tree" && want != "" {
       n++; STAMP[n] = $1 ""; PRED[n] = $3 ""; GRND[n] = $7 ""; STATE[n] = $5 ""; COUNT[n] = $6 ""
     }
     END {
-      if (n == 0) exit 3
+      if (n == 0) exit 1
       run = STAMP[n]
       printf "stamp\t%s\n", run
       for (i = 1; i <= n; i++) {
@@ -113,9 +115,15 @@ felix_situations_read_recorded() {   # LOG TREE OUT
         SEEN[PRED[i]] = 1
         printf "probe\t%s\t%s\t%s\t%s\t-\n", PRED[i], GRND[i], STATE[i], COUNT[i]
       }
-    }' "$log")" || return 3
-  [ -n "$body" ] || return 3
-  { printf 'how\trecorded\n'; printf 'tree\t%s\n' "$tree"; printf '%s\n' "$body"; } > "$out" 2>/dev/null || return 3
+    }' "$log" 2>/dev/null)"
+  rc=$?
+  [ "$rc" -ne 1 ] || return 1
+  if [ "$rc" -ne 0 ] || [ -z "$body" ]; then
+    _felix_situations_fail "reading the recorded run"
+    return 3
+  fi
+  printf 'how\trecorded\ntree\t%s\n%s\n' "$tree" "$body" > "$out" 2>/dev/null \
+    || { _felix_situations_fail "writing the recorded reading"; return 3; }
   return 0
 }
 
@@ -125,29 +133,52 @@ _felix_situations_fullid() {   # TEXT
   [ "${#1}" -eq 40 ] || [ "${#1}" -eq 64 ]
 }
 
-# A revision resolved to a commit id in the live repository, printed whole; status 1 and nothing printed when it names no
-# commit here, and so when git resolves it to anything but one full commit id (^HEAD resolves to ^ and the id, C17.7). A
-# revision that begins with - is not one, so git never reads it as an option.
+# A revision resolved to a commit id in the live repository, printed whole. Status 1 and nothing printed when it names no
+# commit here, and so when git resolves it to anything but one full commit id (^HEAD resolves to ^ and the id, C17.7); status 2
+# when git could not be asked, which is a status of rev-parse --verify past 1. A revision that begins with - is not one, so
+# git never reads it as an option.
 _felix_situations_rev() {   # ROOT REV
-  local root="${1-}" rev="${2-}" sha
+  local root="${1-}" rev="${2-}" sha rc
   case "$rev" in ''|-*) return 1 ;; esac
-  sha="$(_felix_git_rules "$root" rev-parse --verify --quiet "${rev}^{commit}" 2>/dev/null)" || return 1
+  sha="$(_felix_git_rules "$root" rev-parse --verify --quiet "${rev}^{commit}" 2>/dev/null)"
+  rc=$?
+  case "$rc" in 0) ;; 1) return 1 ;; *) return 2 ;; esac
   _felix_situations_fullid "$sha" || return 1
   printf '%s' "$sha"
 }
 
 # The main ref (C3.3): prints its full name. It is the target of refs/remotes/origin/HEAD when that is a symbolic ref to a
 # refs/remotes/origin/<x> that names a commit; otherwise refs/remotes/origin/main when it names a commit; otherwise
-# refs/heads/main. Returns 1, printing nothing, when none of the three names a commit.
+# refs/heads/main. Returns 1, printing nothing, when none of the three names a commit, and 3 with C17.4's sentence when git
+# answered neither yes nor no (a status past 1) to symbolic-ref or to a ref's rev-parse --verify:
+#   felix situations: the change could not be read: <ref> could not be read
 _felix_situations_mainref() {   # ROOT
-  local root="${1-}" t
-  t="$(_felix_git_rules "$root" symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null)" || t=""
+  local root="${1-}" t rc
+  t="$(_felix_git_rules "$root" symbolic-ref -q refs/remotes/origin/HEAD 2>/dev/null)"
+  rc=$?
+  case "$rc" in
+    0) ;;
+    1) t="" ;;
+    *) printf 'felix situations: the change could not be read: refs/remotes/origin/HEAD could not be read\n' >&2; return 3 ;;
+  esac
   case "$t" in
     refs/remotes/origin/?*)
-      if _felix_situations_rev "$root" "$t" >/dev/null; then printf '%s' "$t"; return 0; fi ;;
+      _felix_situations_rev "$root" "$t" >/dev/null
+      rc=$?
+      case "$rc" in
+        0) printf '%s' "$t"; return 0 ;;
+        1) ;;
+        *) printf 'felix situations: the change could not be read: %s could not be read\n' "$t" >&2; return 3 ;;
+      esac ;;
   esac
   for t in refs/remotes/origin/main refs/heads/main; do
-    if _felix_situations_rev "$root" "$t" >/dev/null; then printf '%s' "$t"; return 0; fi
+    _felix_situations_rev "$root" "$t" >/dev/null
+    rc=$?
+    case "$rc" in
+      0) printf '%s' "$t"; return 0 ;;
+      1) ;;
+      *) printf 'felix situations: the change could not be read: %s could not be read\n' "$t" >&2; return 3 ;;
+    esac
   done
   return 1
 }
@@ -157,20 +188,30 @@ _felix_situations_mainref() {   # ROOT
 # the merge base of the main ref and HEAD. Returns 3 with C2's sentence on stderr (<rev> is the half as given) when a half
 # names no commit:
 #   felix situations: base could not be read: <rev> is not a commit here      (and the same with head)
-# and, with no range, in this order: HEAD is not a commit, no main ref names a commit, or the main ref and HEAD share no merge
-# base (the main ref as a full ref name).
+# and, with no range, in this order: HEAD is not a commit, no main ref names a commit (or git could not be asked, C17.4), or
+# the main ref and HEAD share no merge base (the main ref as a full ref name).
 felix_situations_range() {   # ROOT [RANGE]
-  local root="${1-}" r="${2-}" b h bs hs ref
+  local root="${1-}" r="${2-}" b h bs hs ref rc
   if [ -z "$r" ]; then
     if ! hs="$(_felix_situations_rev "$root" HEAD)"; then
       printf 'felix situations: head could not be read: HEAD is not a commit here\n' >&2
       return 3
     fi
-    if ! ref="$(_felix_situations_mainref "$root")"; then
-      printf 'felix situations: the change could not be read: no main ref here: neither refs/remotes/origin/HEAD, refs/remotes/origin/main nor refs/heads/main names a commit\n' >&2
-      return 3
-    fi
-    bs="$(_felix_git_rules "$root" merge-base "$ref" "$hs" 2>/dev/null)" || bs=""
+    ref="$(_felix_situations_mainref "$root")"
+    rc=$?
+    case "$rc" in
+      0) ;;
+      1) printf 'felix situations: the change could not be read: no main ref here: neither refs/remotes/origin/HEAD, refs/remotes/origin/main nor refs/heads/main names a commit\n' >&2
+         return 3 ;;
+      *) return 3 ;;
+    esac
+    bs="$(_felix_git_rules "$root" merge-base "$ref" "$hs" 2>/dev/null)"
+    rc=$?
+    case "$rc" in
+      0) ;;
+      1) bs="" ;;
+      *) _felix_situations_fail "reading the merge base"; return 3 ;;
+    esac
     if [ -z "$bs" ]; then
       printf 'felix situations: the change could not be read: %s and HEAD share no merge base\n' "$ref" >&2
       return 3
@@ -209,34 +250,35 @@ felix_situations_gitdir() {   # ROOT
 #   the id differs          the detector is not run, the commit is -; detector not-run
 #   the id could not be taken (no repository, or git could not read the tree in full)
 #                           the detector is not run, the commit is -; detector no-tree (C17.5)
-# Returns 3 when OUT cannot be written.
+# Returns 3 with a sentence on stderr when the detector failed or OUT cannot be written.
 felix_situations_live_detect() {   # ROOT HOME TREE OUT
-  local root="${1-}" home="${2-}" tree="${3-}" out="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" live="" idx sha caps c
+  local root="${1-}" home="${2-}" tree="${3-}" out="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" live="" idx sha
+  if [ -z "$scr" ]; then _felix_situations_fail "finding the scratch directory"; return 3; fi
   idx="$(git -C "$root" rev-parse --git-path index 2>/dev/null)" || idx=""
-  if [ -n "$scr" ] && [ -n "$idx" ]; then
+  if [ -n "$idx" ]; then
     case "$idx" in /*) ;; *) idx="$root/$idx" ;; esac
     if [ -e "$idx" ] && ! cp "$idx" "$scr/live-index" 2>/dev/null; then idx=""; fi
   fi
-  if [ -n "$scr" ] && [ -n "$idx" ]; then
+  if [ -n "$idx" ]; then
     live="$( GIT_INDEX_FILE="$scr/live-index"; export GIT_INDEX_FILE
              felix_tree_id "$root" "$home" 2>/dev/null )" || live=""
   fi
   if [ -z "$live" ]; then
-    printf 'commit\t-\ndetector\tno-tree\n' >> "$out" 2>/dev/null || return 3
-  elif [ "$live" = "$tree" ]; then
-    sha="$(_felix_situations_rev "$root" HEAD)" || sha="-"
-    caps="$(felix_detect "$root" 2>/dev/null | LC_ALL=C sort -u)"
-    {
-      printf 'commit\t%s\ndetector\trun\n' "$sha"
-      while IFS= read -r c; do
-        [ -z "$c" ] || printf 'cap\t%s\n' "$c"
-      done <<EOF2
-$caps
-EOF2
-    } >> "$out" 2>/dev/null || return 3
-  else
-    printf 'commit\t-\ndetector\tnot-run\n' >> "$out" 2>/dev/null || return 3
+    printf 'commit\t-\ndetector\tno-tree\n' >> "$out" 2>/dev/null || { _felix_situations_fail "writing the recorded reading"; return 3; }
+    return 0
   fi
+  if [ "$live" != "$tree" ]; then
+    printf 'commit\t-\ndetector\tnot-run\n' >> "$out" 2>/dev/null || { _felix_situations_fail "writing the recorded reading"; return 3; }
+    return 0
+  fi
+  sha="$(_felix_situations_rev "$root" HEAD)" || sha="-"
+  if ! felix_situations_detect "$root" "$scr/live.caps"; then
+    printf 'felix situations: the recorded tree could not be read: the detector failed on this checkout\n' >&2
+    return 3
+  fi
+  printf 'commit\t%s\ndetector\trun\n' "$sha" >> "$out" 2>/dev/null \
+    && LC_ALL=C awk '$0 != "" { printf "cap\t%s\n", $0 }' "$scr/live.caps" >> "$out" 2>/dev/null \
+    || { _felix_situations_fail "writing the recorded reading"; return 3; }
   return 0
 }
 
@@ -248,12 +290,12 @@ EOF2
 # detector after it, both in that same environment (C17.2). Then every row of the project's current probes.tsv runs in the
 # clone, with TMPDIR set to <scratch>/tmp-SIDE and none of the environment that points git at another repository, but
 # otherwise the caller's: the probes are the project's commands. The live checkout's edits and untracked files are read by
-# neither side, since the clone holds tracked content only. Returns 3 with C2's sentence on stderr when the clone, the
-# checkout or the tree id fails.
+# neither side, since the clone holds tracked content only. Returns 3 with a sentence on stderr when the clone, the checkout,
+# the tree id or the detector fails, or a file cannot be written.
 felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
   local proj="${1-}" home="${2-}" src="${3-}" sha="${4-}" side="${5-}" out="${6-}"
-  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps c
-  clone="$scr/$side"; tmp="$scr/tmp-$side"
+  local scr="${_FELIX_SITUATIONS_SCRATCH:-}" clone tmp tid caps
+  clone="$scr/$side"; tmp="$scr/tmp-$side"; caps="$scr/$side.caps"
   if [ -z "$scr" ] || [ -z "$src" ] \
      || ! mkdir -p "$tmp" 2>/dev/null \
      || ! GIT_NO_LAZY_FETCH=1 _felix_git_rules "$scr" clone -q --shared --no-checkout --template= -- "$src" "$clone" >/dev/null 2>&1 \
@@ -266,21 +308,17 @@ felix_situations_read_scratch() {   # PROJ HOME SRC SHA SIDE OUT
     printf 'felix situations: %s could not be read: the tree id of %s could not be taken in its scratch checkout\n' "$side" "$sha" >&2
     return 3
   fi
-  caps="$(_felix_situations_in_rules "$scr" "$tmp" felix_detect "$clone" 2>/dev/null | LC_ALL=C sort -u)"
-  if ! ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
-         export TMPDIR="$tmp"
-         felix_probes_run "$proj" "$clone" ) > "$out.probes" 2>/dev/null \
-     || ! {
-       printf 'how\tscratch\ncommit\t%s\ntree\t%s\nstamp\t-\ndetector\trun\n' "$sha" "$tid"
-       while IFS= read -r c; do
-         [ -z "$c" ] || printf 'cap\t%s\n' "$c"
-       done <<EOF2
-$caps
-EOF2
-       LC_ALL=C awk -F'\t' '{ printf "probe\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' "$out.probes"
-     } > "$out" 2>/dev/null; then
-    printf 'felix situations: %s could not be read: its reading could not be written in %s\n' "$side" "$scr" >&2
+  if ! _felix_situations_in_rules "$scr" "$tmp" felix_situations_detect "$clone" "$caps"; then
+    printf 'felix situations: %s could not be read: the detector failed in its scratch checkout\n' "$side" >&2
     return 3
   fi
+  ( unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_COMMON_DIR
+    export TMPDIR="$tmp"
+    felix_probes_run "$proj" "$clone" ) > "$out.probes" 2>/dev/null \
+    || { _felix_situations_fail "running the $side probes"; return 3; }
+  printf 'how\tscratch\ncommit\t%s\ntree\t%s\nstamp\t-\ndetector\trun\n' "$sha" "$tid" > "$out" 2>/dev/null \
+    && LC_ALL=C awk '$0 != "" { printf "cap\t%s\n", $0 }' "$caps" >> "$out" 2>/dev/null \
+    && LC_ALL=C awk -F'\t' '{ printf "probe\t%s\t%s\t%s\t%s\t%s\n", $1, $2, $3, $4, $5 }' "$out.probes" >> "$out" 2>/dev/null \
+    || { _felix_situations_fail "writing the $side reading"; return 3; }
   return 0
 }

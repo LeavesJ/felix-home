@@ -16,12 +16,14 @@
 #   lib/situations-read.sh    one side read: the scratch directory, the recorded readings of facts.log, and the detector
 #                             at the live tree
 #   lib/situations-report.sh  the human report, the --tsv form, the --propose drafts
-#   lib/situations-check.sh   what the readings share: the environment git runs in for a scratch clone (C17.2)
+#   lib/situations-check.sh   what every step shares so that none fails unseen (C17.4): its sentence, the project tables, the
+#                             detector captured, and the environment git runs in for a scratch clone (C17.2)
 #
 # THE ORDER OF A RUN (C2). Usage errors first, then the governing project, then the situation table, then the scratch
 # directory, then the rest. The first check that fails is the one line printed. The status is 2 for a usage error or a
-# directory no project governs, 1 for a flag with no value (need_value), and 3 for a table, a scratch directory or a side
-# that could not be read, with one line on stderr and nothing on stdout.
+# directory no project governs, 1 for a flag with no value (need_value), and 3 for a table, a scratch directory, a side or
+# a step of the report that could not be read or built, or a stdout that refused the report (C17.4), with one line on stderr
+# and nothing on stdout.
 
 # One usage error: the status is 2 and the first stderr line begins felix: usage: felix situations. ARG is the argument
 # that failed, as given.
@@ -105,12 +107,14 @@ felix_situations_table() {   # FILE
 
 # A class's id (C6): owed: and the first 12 hex digits that git hash-object --stdin prints for the bytes
 # <class><TAB><project><TAB>* with no trailing newline, run from / with no repository, global or system configuration in
-# reach. The same in --at, in --change and across runs: it holds neither a commit nor a tree.
+# reach. The same in --at, in --change and across runs: it holds neither a commit nor a tree. Returns 1 when either end of
+# the pipe failed (pipefail, in the substitution's own shell, so a producer's status is kept) or git printed too little.
 felix_situations_id() {   # CLASS PROJECT
   local h
-  h="$(printf '%s\t%s\t%s' "${1-}" "${2-}" '*' \
-    | env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
-        GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -C / hash-object --stdin 2>/dev/null)" || return 1
+  h="$( set -o pipefail
+        printf '%s\t%s\t%s' "${1-}" "${2-}" '*' \
+          | env -u GIT_DIR -u GIT_WORK_TREE -u GIT_INDEX_FILE -u GIT_COMMON_DIR \
+              GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git -C / hash-object --stdin 2>/dev/null )" || return 1
   [ "${#h}" -ge 12 ] || return 1
   printf 'owed:%s' "${h:0:12}"
 }
@@ -237,23 +241,26 @@ felix_situations_eval() {   # ROWS READING PROBE-GROUNDS MATURITY
     }
     BEGIN {
       SQ = "\047"; US = "\037"; MAT = ENVIRON["FELIX_SIT_MATURITY"] ""
-      while ((getline line < ENVIRON["FELIX_SIT_ROWS"]) > 0) {
+      while ((rc = (getline line < ENVIRON["FELIX_SIT_ROWS"])) > 0) {
         n = split(line, f, "\t")
         if (n >= 2) { nr++; CL[nr] = f[1] ""; AP[nr] = f[2] "" }
       }
-      while ((getline line < ENVIRON["FELIX_SIT_GROUNDS"]) > 0) {
+      if (rc < 0) exit 3
+      while ((rc = (getline line < ENVIRON["FELIX_SIT_GROUNDS"])) > 0) {
         n = split(line, f, "\t")
         if (n < 2) continue
         ng++; GP[ng] = f[1] ""; GG[ng] = f[2] ""
         if (GG[ng] != "" && GG[ng] != "-") GCAP[GG[ng]] = 1
       }
-      while ((getline line < ENVIRON["FELIX_SIT_READING"]) > 0) {
+      if (rc < 0) exit 3
+      while ((rc = (getline line < ENVIRON["FELIX_SIT_READING"])) > 0) {
         n = split(line, f, "\t")
         if (f[1] == "how") HOW = f[2] ""
         else if (f[1] == "detector") DET = f[2] ""
         else if (f[1] == "cap") { nd++; DL[nd] = f[2] ""; DCAP[f[2] ""] = 1 }
         else if (f[1] == "probe") { np++; PP[np] = f[2] ""; PG[np] = f[3] ""; PS[np] = f[4] ""; PC[np] = f[5] ""; PD[np] = f[6] "" }
       }
+      if (rc < 0) exit 3
       for (r = 1; r <= nr; r++) {
         nt = split(AP[r], tm, / +/)
         RD = ""; split("", RDS); gr = ""; key = ""; nf = 0; nu = 0; wit = "-"; ud = ""
@@ -297,16 +304,24 @@ felix_situations_verdict() {   # BASE-STATE HEAD-STATE DIFFERS
   esac
 }
 
+# The report of felix_situations_report with the arguments given, built into the file report in the scratch directory and read
+# from it into _FELIX_SITUATIONS_OUT. Both steps are checked, and the report function has printed its sentence when it fails.
+# Returns 3 on a failure.
+_felix_situations_build() {   # MODE FORMAT PROJ ROWS BASE-EVAL|- HEAD-EVAL BASE-READING|- HEAD-READING
+  local scr="${_FELIX_SITUATIONS_SCRATCH:-}"
+  : > "$scr/report" 2>/dev/null || { _felix_situations_fail "making the report"; return 3; }
+  felix_situations_report "$@" > "$scr/report" || return 3
+  _FELIX_SITUATIONS_OUT="$(cat "$scr/report" 2>/dev/null)" || { _felix_situations_fail "reading the report back"; return 3; }
+  return 0
+}
+
 # The --propose drafts (C11) appended to the report in _FELIX_SITUATIONS_OUT, after one blank line, when FMT is propose and
 # otherwise nothing. EVAL and READING are the side the proposals read: the reading in --at, the head side in --change. Returns
-# 3 with a sentence naming WHAT when the drafts cannot be built.
-_felix_situations_proposed() {   # FMT WHAT EVAL READING MATURITY
+# 3 when the drafts cannot be built; felix_situations_propose has printed the sentence.
+_felix_situations_proposed() {   # FMT EVAL READING MATURITY
   local scr="${_FELIX_SITUATIONS_SCRATCH:-}" prop
   [ "${1-}" = propose ] || return 0
-  if ! prop="$(felix_situations_propose "$PROJ" "$FELIX_HOME_DIR" "$scr/rows" "${3-}" "${5-}" "${4-}")"; then
-    printf 'felix situations: %s could not be read: its proposals could not be built in %s\n' "${2-}" "$scr" >&2
-    return 3
-  fi
+  prop="$(felix_situations_propose "$PROJ" "$FELIX_HOME_DIR" "$scr/rows" "${2-}" "${4-}" "${3-}")" || return 3
   _FELIX_SITUATIONS_OUT="$_FELIX_SITUATIONS_OUT"$'\n'"$prop"
   return 0
 }
@@ -314,38 +329,40 @@ _felix_situations_proposed() {   # FMT WHAT EVAL READING MATURITY
 # The run of --at (C3.1, C3.2): the recorded reading of AT, or of the newest recorded tree when AT is empty, the detector
 # when this checkout is at that tree, the three values of every class, and the report, built into _FELIX_SITUATIONS_OUT. The
 # table's rows and the current probes.tsv's grounds are already in the scratch directory. Returns 3 with C2's sentence
-# when the tree cannot be read.
+# when the tree cannot be read, and with C17.4's when a step failed.
 _felix_situations_at() {   # AT FORMAT ROOT MATURITY
-  local at="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" log tree
+  local at="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" log tree rc
   log="$(felix_mem_dir "$PROJ")/facts.log"
   tree="$at"
   if [ -z "$tree" ]; then
-    if ! tree="$(felix_situations_newest_tree "$log")"; then
+    tree="$(felix_situations_newest_tree "$log")"
+    rc=$?
+    if [ "$rc" -eq 1 ]; then
       printf 'felix situations: the recorded tree could not be read: %s records no tree\n' "$log" >&2
       return 3
     fi
+    [ "$rc" -eq 0 ] || return 3
   fi
-  if ! felix_situations_read_recorded "$log" "$tree" "$scr/at.reading"; then
+  felix_situations_read_recorded "$log" "$tree" "$scr/at.reading"
+  rc=$?
+  if [ "$rc" -eq 1 ]; then
     printf 'felix situations: the recorded tree could not be read: no run is recorded for tree %s in %s\n' "$tree" "$log" >&2
     return 3
   fi
-  if ! felix_situations_live_detect "$root" "$FELIX_HOME_DIR" "$tree" "$scr/at.reading" \
-     || ! felix_situations_eval "$scr/rows" "$scr/at.reading" "$scr/grounds" "$mat" > "$scr/at.eval"; then
-    printf 'felix situations: the recorded tree could not be read: its reading could not be written or evaluated in %s\n' "$scr" >&2
-    return 3
-  fi
-  if ! _FELIX_SITUATIONS_OUT="$(felix_situations_report at "$fmt" "$PROJ" "$scr/rows" - "$scr/at.eval" - "$scr/at.reading")"; then
-    printf 'felix situations: the recorded tree could not be read: its report could not be built in %s\n' "$scr" >&2
-    return 3
-  fi
-  _felix_situations_proposed "$fmt" "the recorded tree" "$scr/at.eval" "$scr/at.reading" "$mat" || return 3
+  [ "$rc" -eq 0 ] || return 3
+  felix_situations_live_detect "$root" "$FELIX_HOME_DIR" "$tree" "$scr/at.reading" || return 3
+  felix_situations_eval "$scr/rows" "$scr/at.reading" "$scr/grounds" "$mat" > "$scr/at.eval" 2>/dev/null \
+    || { _felix_situations_fail "evaluating the recorded reading"; return 3; }
+  _felix_situations_build at "$fmt" "$PROJ" "$scr/rows" - "$scr/at.eval" - "$scr/at.reading" || return 3
+  _felix_situations_proposed "$fmt" "$scr/at.eval" "$scr/at.reading" "$mat" || return 3
   return 0
 }
 
 # The run of --change (C3.3): the two ends of the change, each read in a scratch clone with the current probes.tsv and the
 # detector, the three values of every class on each side, and the report, built into _FELIX_SITUATIONS_OUT. RANGE is
-# <base>..<head> as given, or empty for the merge base of the main ref and HEAD to HEAD. Returns 3 with C2's sentence when a
-# side cannot be read. Nothing here writes facts.log, and the live checkout is only read, with no optional lock.
+# <base>..<head> as given, or empty for the merge base of the main ref and HEAD to HEAD. Returns 3 with a sentence when a
+# side cannot be read or a step failed. Nothing here writes facts.log, and the live checkout is only read, with no optional
+# lock.
 _felix_situations_change() {   # RANGE FORMAT ROOT MATURITY
   local range="${1-}" fmt="${2-}" root="${3-}" mat="${4-}" scr="${_FELIX_SITUATIONS_SCRATCH:-}" sides bsha hsha gd side
   sides="$(felix_situations_range "$root" "$range")" || return 3
@@ -354,17 +371,12 @@ _felix_situations_change() {   # RANGE FORMAT ROOT MATURITY
   felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$bsha" base "$scr/base.reading" || return 3
   felix_situations_read_scratch "$PROJ" "$FELIX_HOME_DIR" "$gd" "$hsha" head "$scr/head.reading" || return 3
   for side in base head; do
-    if ! felix_situations_eval "$scr/rows" "$scr/$side.reading" "$scr/grounds" "$mat" > "$scr/$side.eval"; then
-      printf 'felix situations: %s could not be read: its reading could not be evaluated in %s\n' "$side" "$scr" >&2
-      return 3
-    fi
+    felix_situations_eval "$scr/rows" "$scr/$side.reading" "$scr/grounds" "$mat" > "$scr/$side.eval" 2>/dev/null \
+      || { _felix_situations_fail "evaluating the $side reading"; return 3; }
   done
-  if ! _FELIX_SITUATIONS_OUT="$(felix_situations_report change "$fmt" "$PROJ" "$scr/rows" "$scr/base.eval" "$scr/head.eval" \
-       "$scr/base.reading" "$scr/head.reading")"; then
-    printf 'felix situations: the change could not be read: its report could not be built in %s\n' "$scr" >&2
-    return 3
-  fi
-  _felix_situations_proposed "$fmt" "the change" "$scr/head.eval" "$scr/head.reading" "$mat" || return 3
+  _felix_situations_build change "$fmt" "$PROJ" "$scr/rows" "$scr/base.eval" "$scr/head.eval" \
+    "$scr/base.reading" "$scr/head.reading" || return 3
+  _felix_situations_proposed "$fmt" "$scr/head.eval" "$scr/head.reading" "$mat" || return 3
   return 0
 }
 
@@ -418,13 +430,14 @@ felix_situations() {
   mat="$(felix_json_str "$PROJ/project.json" maturity 2>/dev/null)"
   _FELIX_SITUATIONS_OUT=""
 
+  # A project table that exists and cannot be read ends the run here, as it must not read as an empty one (C17.4).
+  felix_situations_tables "$PROJ" "$fmt" || return 3
+
   # What both modes evaluate against: the table's rows, and the predicate and grounds cells of the current probes.tsv, which
-  # C4 needs for a grounding probe with no reading and for a term no probe grounds.
-  if ! printf '%s\n' "$trows" > "$scr/rows" \
-     || ! { felix_probe_rows "$PROJ" | LC_ALL=C cut -f1,2 > "$scr/grounds"; }; then
-    printf 'felix situations: the situation table could not be read: its rows could not be written in %s\n' "$scr" >&2
-    return 3
-  fi
+  # C4 needs for a grounding probe with no reading and for a term no probe grounds. Each step writes a file and is checked.
+  printf '%s\n' "$trows" > "$scr/rows" 2>/dev/null || { _felix_situations_fail "writing the table rows"; return 3; }
+  felix_probe_rows "$PROJ" > "$scr/probe.rows" 2>/dev/null || { _felix_situations_fail "reading probes.tsv"; return 3; }
+  LC_ALL=C cut -f1,2 "$scr/probe.rows" > "$scr/grounds" 2>/dev/null || { _felix_situations_fail "cutting the probe grounds"; return 3; }
 
   if [ "$mode" = change ]; then
     _felix_situations_change "$range" "$fmt" "$root" "$mat" || rc=$?
@@ -434,6 +447,6 @@ felix_situations() {
   [ "$rc" -eq 0 ] || return "$rc"
 
   felix_situations_scratch_end
-  printf '%s\n' "$_FELIX_SITUATIONS_OUT"
+  printf '%s\n' "$_FELIX_SITUATIONS_OUT" || { _felix_situations_fail "writing the report"; return 3; }
   return 0
 }

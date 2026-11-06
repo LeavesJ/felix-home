@@ -756,7 +756,7 @@ cmd_gate() {
   gate="$(felix_json_str "$proj/project.json" gate)"
   [ -n "$gate" ] || die "project $(basename "$proj") declares no gate in project.json"
   # While the lander owes a deploy, nothing new starts (lib/deploy-hold.sh, the gate's door); what is admitted passes it on.
-  _dh_wait_gate "felix gate"
+  _dh_wait "felix gate"
 
   # Run from the checkout being gated, never from Felix. A gate that inspects
   # "the tree it lives in" instead of "the tree it was pointed at" reports a

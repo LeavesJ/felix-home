@@ -139,6 +139,9 @@ _gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1
 _gt_deploy() {
   local rc
   _GT_HOLD_KEEP=0
+  # DW2.2: asserted first, before the tick looks for running work, so nothing starts in between; a deploy that is owed
+  # for another reason, or that ends, takes it away again below.
+  _dh_assert "$_GT_LAND" "${_GT_VER:-}"
   _gt_deploy_run; rc=$?
   [ "$_GT_HOLD_KEEP" = 1 ] || _dh_clear "$_GT_LAND"
   return "$rc"

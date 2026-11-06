@@ -17,7 +17,7 @@ export -n SHELLOPTS BASHOPTS
 case "$0" in */*) _dh_lib="${0%/*}/../lib/deploy-hold.sh" ;; *) _dh_lib="../lib/deploy-hold.sh" ;; esac
 if [ -r "$_dh_lib" ] && . "$_dh_lib"; then
   _dh_part=0; for _dh_a in "$@"; do [ "$_dh_a" != --part ] || _dh_part=1; done
-  if [ "$_dh_part" = 1 ]; then _dh_admit; else _dh_enter_run "$0" "$@"; fi
+  if [ "$_dh_part" = 1 ]; then _dh_admit; else _dh_wait "tests/run"; fi
 fi
 unset _dh_lib _dh_part _dh_a
 _FELIX_CALLER_CDPATH="${CDPATH-}"

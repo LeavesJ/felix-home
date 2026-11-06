@@ -1,4 +1,4 @@
-# Contract: an owed engine deploy gets its window (rev 2, 2026-11-06)
+# Contract: an owed engine deploy gets its window (rev 3, 2026-11-06)
 
 ## Why
 
@@ -32,7 +32,7 @@ A hold is **in force** when all of these are true, at the time a reader looks:
 2. LEASE and SINCE are plain decimal integers, and `LEASE <= now + 60`;
 3. `now - LEASE < 1200` (the lease; a tick runs every 300 s);
 4. `now - SINCE < LIMIT`, where LIMIT is `FELIX_DEPLOY_HOLD_LIMIT` seconds when
-   that is a plain decimal integer of at least 1, else 7200.
+   that is a plain decimal integer of at least 1, else 3600.
 
 Anything else is not in force: a missing file, a directory, an empty or
 garbled file, a stale lease, a lapsed limit. A reader never fails because of
@@ -52,9 +52,13 @@ file in the same directory, then a rename), so a reader never meets half a line.
    declares now; otherwise SINCE = now. The tick keeps refreshing the lease, with
    SINCE unchanged, after the limit has lapsed: the hold is then not in force
    (DW1.4) and is not asserted anew until the deploy is done or not owed.
-2. **Held through the deploy.** When the tick finds nothing running and goes on
-   to deploy, the hold is asserted (as in 1) before the deploy's first step and
-   stays until the deploy ends, so nothing starts while the engine is replaced.
+2. **Asserted first.** The tick asserts the hold (as in 1) at the start of a
+   deploy attempt, before it looks for running work, so nothing starts in
+   between, and the hold stays until the deploy ends, so nothing starts while the
+   engine is replaced. Every way out other than "a gate or suite is running"
+   removes it again (3). So a deploy owed for another reason leaves no hold
+   behind, though one may exist for the instants it takes the tick to find that
+   out.
 3. **Cleared** (the file removed) when any of these is true at the end of the
    tick: the deploy finished (a `deployed` row); no deploy is owed; the job is
    paused (by the tick itself, by `felix land --pause`, or because a deploy
@@ -71,9 +75,14 @@ Nothing is signalled. The tick sends no signal to any process, for any reason.
 
 The tick's test for "a gate or suite is running" stays `pgrep -f` with the
 pattern it has now. But a process **waiting at the hold** is not running work,
-and neither is a shell wrapped around it. After `pgrep`, the tick drops from its
-list every pid that is a *waiter* or an *ancestor of a waiter*. A waiter is a
-process whose command line contains the token `felix-deploy-hold-wait`.
+and neither is a shell wrapped around one. After `pgrep`, the tick drops from its
+list every pid that is a *waiter marker* or an *ancestor of a waiter marker*. A
+waiter marker is a process whose command line contains the string
+`felix-deploy-hold-wait <root> ` : the token, one blank, **this tick's memory
+root** (`${FELIX_MEMORY:-$HOME/.felix/memory}`, the string the tick itself
+uses), and one blank. A marker for another root is not one for this tick: a
+fixture's waiter, inside a real suite's test, must not make the real suite and
+its wrappers look idle.
 
 The tick learns the process table by running `ps -axo pid=,ppid=,command=`
 through PATH once (its lines are `PID PPID COMMAND...`, blanks before the pid
@@ -131,20 +140,26 @@ with `FELIX_HOLD_PASSED=1`: the tick holds the hold and must not wait on it.
   is in force because it is gone, and `the hold lapsed` when a file is there but
   not in force (DW1.3, DW1.4).
 - **It is bounded.** After `FELIX_DEPLOY_HOLD_LIMIT` seconds of its own waiting
-  (default 7200, the same reading as DW1.4) it goes ahead whether or not the
+  (default 3600, the same reading as DW1.4) it goes ahead whether or not the
   machine is still held, saying `went ahead after <N> s: the limit was reached`.
   The bound never depends on the lander being alive.
-- A waiter that cannot wait (no perl where it needs one) goes ahead at once,
-  and says `not waiting for the engine deploy:` and why, once.
+- A waiter that cannot wait (no perl to start the marker with) goes ahead at
+  once, and says `not waiting for the engine deploy:` and why, once.
 
-## DW6. A waiter does not look like running work
+## DW6. A waiter is visible to the tick as a waiter
 
-While a waiter waits, neither it nor any process it starts has a command line
-that matches the tick's pattern `engine/harness/tests/run|gate\.sh`, and a
-process it leaves in the table while it sleeps carries the token
-`felix-deploy-hold-wait` in its command line (DW3). A caller's own wrapper
-(`bash -c '...tests/run...'`) matches the pattern; the tick drops it because it
-is an ancestor of the waiter.
+The door does not change its own command line, which still holds the lander's
+pattern (`tests/run`'s does; so does a caller's `bash -c '...tests/run...'`).
+Instead, **for the length of its wait the door has exactly one child process**
+whose command line is `... felix-deploy-hold-wait <root> <poll>`, where `<root>`
+is the memory root the door reads (as DW3 says) and `<poll>` the poll seconds
+as the door uses them. The child:
+- exists from before the door's first line on stderr until the door goes ahead;
+- ends when the door goes ahead (the door ends it), and by itself within a few
+  seconds if the door dies, however it dies;
+- has no stdin, stdout or stderr of the door's.
+The tick drops the door and its wrappers because each is an ancestor of that
+child (DW3). A door that goes ahead leaves no such process.
 
 ## DW7. Fail open
 
@@ -161,4 +176,9 @@ because of a damaged file, and a command is never refused because of one.
   slots are, at the door.
 - A deploy that is owed for another reason (the home off main, a tracked change
   in the home) asserts no hold: holding work back would not get it deployed.
+- A matcher that is not a suite (an editor open on `projects/felix/gate.sh`, a
+  hung process) keeps the deploy owed as before, and now also holds new work
+  back, but only until the limit: it costs at most one LIMIT per owed version.
+- A gate that waited runs the engine it started under; the receipt does not
+  record the engine version.
 - The first deploy of this change is made by a tick that does not have it.

@@ -38,12 +38,14 @@ the tick's next run deploys.
 - **A waiter must not look like work.** A bash waiting in `tests/run` has the
   lander's pattern in its command line, and an agent's `bash -c '...tests/run...'`
   wrapper does too, so a wait inside either would have kept the deploy waiting for
-  the wait. The run door replaces itself with a perl that sleeps (the script's
-  path and arguments travel in its environment) and starts the script again; the
-  gate door sleeps in a child. Both carry the token `felix-deploy-hold-wait`, and
-  the tick drops from its list every pid that is a holder of the token or above
-  one (`ps -axo pid=,ppid=,command=`). A pid `ps` does not show stays: it counts
-  as running.
+  the wait. Each door therefore starts one small marker process (a perl) for the
+  length of its wait, whose command line is `felix-deploy-hold-wait <memory root>
+  <poll>`, and the tick drops from its list every pid that is such a marker or
+  stands above one (`ps -axo pid=,ppid=,command=`). The root is in the line so a
+  fixture's waiter, inside a real suite's test, does not make the real suite look
+  idle (found in review: with the bare token the tick would have deployed under
+  that suite). A pid `ps` does not show stays: it counts as running. The marker
+  ends with its door, or within a second if the door dies.
 
 **Shown red and green.** Part 2480 was written blind from the contract by an
 agent that had not seen the implementation. (Figures to be filled in.)
@@ -57,12 +59,18 @@ agent that had not seen the implementation. (Figures to be filled in.)
 - A suite that is already running is never touched, so a deploy still waits as
   long as the longest run that began before the hold. After
   `FELIX_DEPLOY_HOLD_LIMIT` seconds from the hold's start the hold is spent and
-  new suites run again until the deploy is done; a hung process that matches the
-  pattern therefore costs everyone that long once, not for good.
-- Between a waiter's pause and its next look a bash is in the table for a few
-  milliseconds with the lander's pattern in its command line. A tick that
-  samples then reads a run and tries again five minutes later.
+  new suites run again until the deploy is done.
+- A matcher that is not a suite (an editor open on `projects/felix/gate.sh`, a
+  hung process) keeps a deploy owed, as before, and now also holds new work back;
+  only until the limit, so it costs everyone at most one hour per owed version.
+  The ledger row names the pids. Tightening the pattern is a separate change.
+- A gate that waited runs the engine it started under (the receipt does not
+  record the version). A tree whose `tests/run` predates this change does not
+  wait at its own door; `felix gate` does, once this is deployed.
+- The hold is asserted at the start of a deploy attempt, but a suite that passed
+  its door a moment before and creates its first file after the tick's `pgrep`
+  still runs; that race existed before.
 - The Mac-wide suite slots (`$TMPDIR/felix-suite-slots`) are unchanged. The
   dynamic load governor (design `docs/2026-11-06-load-governor-design.md`, slice
   1) can fold the hold in as a land-class rule; its two call sites are
-  `_dh_enter_run` and `_dh_wait_gate`.
+  `_dh_wait` in `tests/run` and in `cmd_gate`.

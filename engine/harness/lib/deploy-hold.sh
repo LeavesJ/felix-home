@@ -9,15 +9,16 @@
 # Three parts, one file, because they share one format:
 #   the hold      <memory root>/<project>/land/deploy-hold, one line: LEASE SINCE VERSION (tabs).
 #                 The tick writes it (_dh_assert, _dh_clear); a reader looks at */land/deploy-hold.
-#   the doors     tests/run (_dh_enter_run) and `felix gate` (_dh_wait_gate) wait while the
-#                 machine is held, say why on stderr, and go ahead at a bound.
+#   the doors     tests/run and `felix gate` call _dh_wait first: they wait while the machine
+#                 is held, say why on stderr, and go ahead at a bound.
 #   the filter    the tick does not count a waiter, or a shell around one, as running (_dh_unwaiting).
 #
 # A waiter must not look like work. The tick finds work by `pgrep -f` on a command line that holds
-# engine/harness/tests/run or gate.sh, and a bash waiting in tests/run has exactly that. So the run
-# door replaces itself with a perl that sleeps, with the script's path in its environment and not in
-# its argv, and starts the script again; the gate door sleeps in a child. Either way the table holds
-# a process with the token below, and the tick drops it and every process above it.
+# engine/harness/tests/run or gate.sh, and a bash waiting in tests/run has exactly that, as has an agent's
+# `bash -c '...tests/run...'` around it. So each door starts one small marker process for the length of its wait,
+# whose command line holds the token and the memory root it waits on, and the tick drops every pid that is
+# such a marker or stands above one (_dh_unwaiting). The root is in the line so that a fixture's waiter, inside
+# a real suite's test, does not make the real suite look idle. The marker ends by itself if its door dies.
 #
 # Every failure here reads as "nothing is held" (DW7): a command is never refused, and never waits
 # past its bound, because of a damaged file, a clock or a table that would not read.
@@ -36,9 +37,9 @@ _dh_now() {   # prints the epoch second; fails when the clock will not say
   printf '%s' "$((10#$n))"
 }
 
-_dh_limit() {   # DW1.4, DW5: FELIX_DEPLOY_HOLD_LIMIT when a plain decimal of at least 1, else 7200
+_dh_limit() {   # DW1.4, DW5: FELIX_DEPLOY_HOLD_LIMIT when a plain decimal of at least 1, else 3600
   local v="${FELIX_DEPLOY_HOLD_LIMIT:-}"
-  if _dh_dec "$v" && [ "$((10#$v))" -ge 1 ]; then printf '%s' "$((10#$v))"; else printf '7200'; fi
+  if _dh_dec "$v" && [ "$((10#$v))" -ge 1 ]; then printf '%s' "$((10#$v))"; else printf '3600'; fi
 }
 _dh_say_every() {   # DW5: FELIX_DEPLOY_HOLD_SAY, default 300
   local v="${FELIX_DEPLOY_HOLD_SAY:-}"
@@ -107,85 +108,49 @@ _dh_first_line() {   # WHO -> the line a waiter says first (DW5)
     "$1" "$v" "$(_dh_since_iso "$_DH_HSINCE")" "$(_dh_limit)" >&2
 }
 
-_dh_admit() { FELIX_HOLD_PASSED=1; export FELIX_HOLD_PASSED; unset FELIX_HOLD_T0 FELIX_HOLD_SAID; }   # DW4
+_dh_admit() { FELIX_HOLD_PASSED=1; export FELIX_HOLD_PASSED; }   # DW4
 
 _dh_off() { [ -n "${FELIX_HOLD_PASSED:-}" ] || [ "${FELIX_DEPLOY_HOLD:-}" = off ]; }
 
-_dh_nap() {   # SECONDS: sleeps in a process that carries the token, so the tick can tell a waiter (DW3, DW6)
-  if command -v perl >/dev/null 2>&1; then
-    perl -e 'select(undef, undef, undef, $ARGV[1])' "$_DH_TOKEN" "$1" 2>/dev/null && return 0
-  fi
-  sleep "$1" 2>/dev/null || sleep 1
-}
+_dh_root() { printf '%s' "${FELIX_MEMORY:-${HOME:-}/.felix/memory}"; }   # the memory root, as _dh_scan reads it
 
-# The gate door: waits in place, because `felix gate` is not a command line the tick looks for.
-# Returns once the machine is not held or the bound is reached, with FELIX_HOLD_PASSED exported.
-_dh_wait_gate() {   # WHO
-  local who="$1" t0 now last lim say why
+# DW6. The marker: one perl for the length of a wait. Its command line holds the token, the memory root and
+# the poll, so the tick can tell this wait from running work; it ends when its door does, or dies. Sets _DH_MARK.
+_dh_mark() {   # POLL
+  _DH_MARK=""
+  command -v perl >/dev/null 2>&1 || return 1
+  perl -e 'my $p = getppid(); while (getppid() == $p) { select(undef, undef, undef, 1) }' "$_DH_TOKEN" "$(_dh_root)" "$1" \
+    </dev/null >/dev/null 2>&1 &
+  _DH_MARK="$!"
+}
+_dh_unmark() { [ -z "${_DH_MARK:-}" ] || { kill "$_DH_MARK"; wait "$_DH_MARK"; } 2>/dev/null; _DH_MARK=""; return 0; }
+
+# The door, for tests/run and `felix gate`: waits in place while the machine is held. Returns once it is not,
+# or the bound is reached, with FELIX_HOLD_PASSED exported (DW4, DW5). Nothing is created before it returns
+# and nothing goes to stdout.
+_dh_wait() {   # WHO
+  local who="$1" t0 now last lim say poll why
   if _dh_off; then _dh_admit; return 0; fi
   _dh_scan || { _dh_admit; return 0; }
   t0="$(_dh_now)" || { _dh_admit; return 0; }
+  poll="$(_dh_poll)"
+  _dh_mark "$poll" || { _dh_say "$who" "not waiting for the engine deploy: there is no perl to mark the wait with"; _dh_admit; return 0; }
   _dh_first_line "$who"
   last="$t0"; lim="$(_dh_limit)"; say="$(_dh_say_every)"
   while :; do
-    _dh_nap "$(_dh_poll)"
-    now="$(_dh_now)" || { _dh_admit; return 0; }
+    sleep "$poll" 2>/dev/null || sleep 1
+    now="$(_dh_now)" || { _dh_unmark; _dh_admit; return 0; }
     if ! _dh_scan; then
       case "$_DH_STATE" in lapsed) why="the hold lapsed" ;; *) why="the hold ended" ;; esac
-      _dh_say "$who" "went ahead after $((now - t0)) s: $why"; _dh_admit; return 0
+      _dh_unmark; _dh_say "$who" "went ahead after $((now - t0)) s: $why"; _dh_admit; return 0
     fi
     if [ "$((now - t0))" -ge "$lim" ]; then
-      _dh_say "$who" "went ahead after $((now - t0)) s: the limit was reached"; _dh_admit; return 0
+      _dh_unmark; _dh_say "$who" "went ahead after $((now - t0)) s: the limit was reached"; _dh_admit; return 0
     fi
     if [ "$((now - last))" -ge "$say" ]; then
       _dh_say "$who" "still waiting for the engine deploy ($((now - t0)) s of at most $lim s)"; last="$now"
     fi
   done
-}
-
-# The run door: tests/run calls it first, before it makes anything. While the machine is held it
-# does not return: it replaces itself with a perl that sleeps and starts the script again, which
-# comes back here, and so on, with its state in two variables. The perl holds the script's path and
-# arguments in its environment, so no process of the waiter has the lander's pattern in its command line.
-_dh_enter_run() {   # SCRIPT ARGS...
-  local script="$1" who="tests/run" t0 now last lim say why a argv
-  shift
-  if _dh_off; then _dh_admit; return 0; fi
-  t0="${FELIX_HOLD_T0:-}"; _dh_dec "$t0" || t0=""
-  if ! _dh_scan; then
-    if [ -n "$t0" ]; then
-      now="$(_dh_now)" || now="$t0"
-      case "$_DH_STATE" in lapsed) why="the hold lapsed" ;; *) why="the hold ended" ;; esac
-      _dh_say "$who" "went ahead after $((now - t0)) s: $why"
-    fi
-    _dh_admit; return 0
-  fi
-  now="$(_dh_now)" || { _dh_admit; return 0; }
-  lim="$(_dh_limit)"; say="$(_dh_say_every)"
-  if [ -z "$t0" ]; then
-    t0="$now"; last="$now"; _dh_first_line "$who"
-  else
-    last="${FELIX_HOLD_LAST:-$t0}"; _dh_dec "$last" || last="$t0"
-    if [ "$((now - t0))" -ge "$lim" ]; then
-      _dh_say "$who" "went ahead after $((now - t0)) s: the limit was reached"; _dh_admit; return 0
-    fi
-    if [ "$((now - last))" -ge "$say" ]; then
-      _dh_say "$who" "still waiting for the engine deploy ($((now - t0)) s of at most $lim s)"; last="$now"
-    fi
-  fi
-  command -v perl >/dev/null 2>&1 || { _dh_say "$who" "not waiting for the engine deploy: there is no perl to wait in"; _dh_admit; return 0; }
-  argv="${BASH:-bash}"
-  for a in "$script" "$@"; do
-    case "$a" in *$'\037'*) _dh_say "$who" "not waiting for the engine deploy: an argument holds a unit separator"; _dh_admit; return 0 ;; esac
-    argv="$argv"$'\037'"$a"
-  done
-  FELIX_HOLD_T0="$t0"; FELIX_HOLD_LAST="$last"; export FELIX_HOLD_T0 FELIX_HOLD_LAST
-  FELIX_HOLD_ARGV="$argv" exec perl -e '
-    select(undef, undef, undef, $ARGV[1]);
-    my @a = split /\037/, delete $ENV{FELIX_HOLD_ARGV}, -1;
-    exec { $a[0] } @a;
-    print STDERR "tests/run: cannot start again after waiting for the engine deploy: $!\n"; exit 127;
-  ' "$_DH_TOKEN" "$(_dh_poll)"
 }
 
 # DW2. The tick writes the hold whole (a temporary file beside it, then a rename). SINCE is kept from
@@ -209,14 +174,14 @@ _dh_assert() {   # LANDDIR VERSION
 _dh_clear() { rm -f "$1/deploy-hold" "$1/deploy-hold.$$" 2>/dev/null; return 0; }   # LANDDIR
 
 # DW3. PIDS, one per line, as pgrep printed them -> those that are not waiting. A pid is dropped when
-# the process table shows it holding the token, or above a process that holds it. Anything the table
-# does not show, or will not give, stays: it counts as running.
+# the process table shows it holding "TOKEN ROOT " (ROOT being this tick's memory root), or above a
+# process that holds it. Anything the table does not show, or will not give, stays: it counts as running.
 _dh_unwaiting() {   # PIDS
   local tbl out
   tbl="$(ps -axo pid=,ppid=,command= 2>/dev/null)" || { printf '%s\n' "$1"; return 0; }
   [ -n "$tbl" ] || { printf '%s\n' "$1"; return 0; }
-  out="$(printf '%s\n' "$tbl" | LC_ALL=C PIDS="$1" TOKEN="$_DH_TOKEN" awk '
-    BEGIN { n = split(ENVIRON["PIDS"], P, "\n"); tok = ENVIRON["TOKEN"] }
+  out="$(printf '%s\n' "$tbl" | LC_ALL=C PIDS="$1" NEEDLE="$_DH_TOKEN $(_dh_root) " awk '
+    BEGIN { n = split(ENVIRON["PIDS"], P, "\n"); tok = ENVIRON["NEEDLE"] }
     $1 ~ /^[0-9]+$/ && $2 ~ /^[0-9]+$/ {
       c = $0; sub(/^[ \t]*[0-9]+[ \t]+[0-9]+[ \t]*/, "", c)
       seen[$1] = 1; par[$1] = $2

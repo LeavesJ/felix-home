@@ -202,13 +202,8 @@ _ff_case() {    # <how> <checkout>: key-a-line report of what the floor and the 
     [ "$how" = gitdir ] && { GIT_DIR="$r/.git"; export GIT_DIR; }
     _fixture_floor "$r/fixtures" >/dev/null 2>&1; _ff_frc=$?
     printf 'floor %s\n' "$_ff_frc"; [ "$_ff_frc" -eq 0 ] || exit 0
-    # An empty cd leaves the shell where it stands in every bash: bash 5.2 and
-    # older take it as a no-op, and the newer bash on GitHub's ubuntu-26.04
-    # image refuses it, as POSIX.1-2024 asks. A fixture that does not stop on
-    # that status runs its next command from here either way, so the refusal
-    # is not a failed setup for the two cases that cd to an empty variable.
     case "$how" in
-      empty|gitdir) cd "$e" 2>/dev/null || : ;;
+      empty|gitdir) cd "$e" ;;
       dir)          cd "$r/fixtures/$e" ;;
       uninit)       cd "$r/fixtures/uninit" ;;
     esac || { printf 'cd failed\n'; exit 0; }

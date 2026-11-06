@@ -47,11 +47,11 @@ the tick's next run deploys.
   that suite). A pid `ps` does not show stays: it counts as running. The marker
   ends with its door, or within a second if the door dies.
 
-**Shown red and green.** Part 2480 (102 assertions, 15 of them fixture
-controls) was written blind from the contract by an agent that had not seen the
-implementation, and run on main's tree (4c4c0b3d) before the implementation
-reached it: 54 assertions fail there, and no control does. On this tree it
-passes, 0 failures. Two of its first four failures here were the part's own
+**Shown red and green.** Part 2480 (164 `ok` lines on this tree, 14 of them
+fixture controls) was written blind from the contract by an agent that had not
+seen the implementation, and run on main's tree (4c4c0b3d) before the
+implementation reached it: 54 assertions fail there, and no control does. On
+this tree, merged with main at c9fe3c1b, it passes, 0 failures. Two of its first four failures here were the part's own
 (a limit test that removed the hold itself; a helper that read `pid 40010;` as
 not naming the pid) and went back to its author; one was the tick writing the
 hold twice a run, which broke "SINCE = LEASE on a first assertion" (fixed

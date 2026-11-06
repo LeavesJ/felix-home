@@ -4071,7 +4071,7 @@ cmd_evidence() {
       *) shift ;;
     esac
   done
-  [ -f "$proj/evidence.tsv" ] || die "project $(basename "$proj") declares no evidence.tsv"
+  felix_evidence_table_present "$proj" || die "project $(basename "$proj") declares no evidence.tsv"
   local root results gaps unk
   root="$(felix_repo_root "$PWD")"
   # origin/<base> when it exists, and the name as given otherwise. `main` is a
@@ -4540,7 +4540,7 @@ cmd_classify() {
       # proven. Auto-merging on tier alone would ship untested behaviour whenever
       # that behaviour happened to live somewhere unremarkable.
       local ev_gaps=0 ev_unk=0 ev_res="" ev_why=""
-      [ ! -f "$proj/evidence.tsv" ] || ev_res="$(felix_evidence_check "$proj" "$base" "$root")"
+      ! felix_evidence_table_present "$proj" || ev_res="$(felix_evidence_check "$proj" "$base" "$root")"
       ev_gaps="$(printf '%s\n' "$ev_res" | grep -c '^gap' || true)"; ev_unk="$(printf '%s\n' "$ev_res" | grep -c '^unknown' || true)"
       [ "$ev_gaps" -eq 0 ] || ev_why="$ev_gaps evidence gap(s)"
       [ "$ev_unk" -eq 0 ] || ev_why="${ev_why:+$ev_why and }$ev_unk evidence row(s) not judged"
@@ -4742,7 +4742,7 @@ cmd_incident() {
     printf '  %-44s %s\n' "$f" "$c"
   done
 
-  if [ -f "$proj/evidence.tsv" ]; then
+  if felix_evidence_table_present "$proj"; then
     printf '\nthe fix will have to prove\n'
     felix_brief_evidence "$proj" "$paths" | while IFS=$'\t' read -r name reason; do printf '  %-14s %s\n' "$name" "$reason"; done
   fi

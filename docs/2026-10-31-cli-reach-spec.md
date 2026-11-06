@@ -385,3 +385,183 @@ reach. It is not taken. A session plausibly writes those shapes before a tool
 (`cd "${d}" && graphify ...`, `[[ -d out ]] && graphify ...`), the corpus is
 one person's, and following them costs about 0.2 ms, paid only when a name is
 in the command.
+
+---
+
+## 9. Amendment, 2026-11-06: the declared CLI, the route step, the session id
+
+Written against the tree at 7096f618 (engine 0.49.321, with sections 0 to 8
+above built). It closes three follow-ups that sections D1 and D6 left open and
+the handoff for 0.49.321 listed. Behaviours are numbered as above and are meant
+to become assertions. Sections 0 to 8 stand; where this section says a name or
+a bound differently, this section is the later word.
+
+### 9.1 Why, in one paragraph
+
+A reach is only as complete as the names and the readers around it. (a) Session
+start writes the names a session can reach from the play entries of
+`routes.tsv`, so a CLI that `stack.tsv` declares with its own `cli` kind
+(elenchus: `cli strix-agent`) and that no route names is never a name, a
+session that runs it records `tool Bash`, and its stack zero row says it was
+never reached. (b) `felix_route_step_used` asks only the transcript whether a
+play step was used, so a session that has run `graphify` is told, on its next
+prompt, that graphify is the step still due, and at Stop that it skipped it.
+(c) `felix_ledger_session_id` runs a regular expression over the whole payload,
+which is up to 4 MB, after every tool call, where the Bash reading already cuts
+its payload to a leading window of 32,768 bytes.
+
+### 9.2 The declared CLI (N7, N8)
+
+N7. **A name from `stack.tsv`.** A name (N2) is also the second field of a
+row of the session's project's `stack.tsv` whose first field is exactly `cli`,
+when that field meets N2's byte rule as it stands (`A-Z a-z 0-9 . _ + -`,
+starts with a letter or a digit, at most 64 bytes). The field is taken whole:
+`strix-agent` is a name, `strix-agent@x`, `a/b` and `-` are not, and nothing is
+stripped from it. Rows are read as the fold reads `stack.tsv`: a blank row, a
+row whose first field is empty or starts with `#`, and a row with an empty
+second field are skipped, and a last row with no newline counts. A row of any
+other kind (`plugin`, `skill`, `mcp`, `marketplace`, `hook`, or a word the
+engine does not know) is never a name here, whatever its second field is, and
+neither is a kind that only starts or ends with `cli` (`cli-extra`, `xcli`).
+The kind is compared byte for byte and case-sensitively: `CLI` is not `cli`.
+
+N8. **Order, once, and the cap.** The names file (N1, N3) holds the
+`routes.tsv` names first, in N3's order, then the `stack.tsv` names in row
+order. Each name appears once in all: one that both files give is where
+`routes.tsv` put it. N3's cap of 32 counts both kinds together, in this
+order, so a project whose routes already give 32 names gets no declared CLI,
+and the 33rd name of the two is not written. A project with a `stack.tsv` and
+no `routes.tsv` gets the declared names; a project with neither, or with
+neither kind of name, gets one empty line, as N3 says. Everything N4 and N5
+say of the file (replaced whole, a link replaced, a directory left, a usable
+session id, an ungoverned directory) holds for it unchanged.
+
+N9. **What follows.** Because the names file now holds a declared CLI's name,
+P1 to P7 apply to it without change: a Bash call that runs `strix-agent` as a
+program (R) is recorded as `cli\tstrix-agent`, and a call that only mentions
+it is not. The fold needs no change (F1, F2): in a session with a
+`cli\tstrix-agent` reach it writes the reach row and no zero row for the
+`stack.tsv` declaration of `strix-agent`, and in a session without one it
+writes the zero row as before.
+
+### 9.3 A route step run as a program (U)
+
+U1. **The step is used.** `felix_route_step_used TRANSCRIPT STEP [LEDGER]`,
+where LEDGER is the path of a session's appends, `state/ledger/<session>.tsv`
+(the file P1 appends to). Given a LEDGER that is a readable regular file, it
+returns 0 for a STEP that is a name (N2's byte rule) when the file holds a line
+that is exactly `cli`, a tab, and STEP, followed by a line break. It does not
+need the transcript for this: with TRANSCRIPT empty, missing or unreadable,
+and such a line in LEDGER, it returns 0.
+
+U2. **Exact.** The line is compared whole, byte for byte, case-sensitively. A
+STEP of `graphify` is not used by `cli\tgraphifyx`, `cli\tGraphify`,
+`cli\tgraph`, `cli\tgraphify extra`, by a line of any other kind with the same
+name (`tool`, `named`, `skill`, `mcp`, `agent`, `answer`, `alive`), or by a
+line that holds `cli\tgraphify` anywhere but as its whole. A STEP that is not
+a name (a `:` or an `@` in it, a `/`, `-`, or one longer than 64 bytes) is
+never used by this. In particular a qualified step (`superpowers:brainstorming`,
+`semgrep@claude-plugins-official`) is not satisfied by a `cli` line of its
+plugin's bare name.
+
+U3. **Nothing else changes.** With LEDGER omitted, empty, missing, a directory
+or unreadable, and with a LEDGER that holds no such line, it returns what it
+returned before this section, for every transcript. Every signal it read from
+the transcript still counts when LEDGER is given: a step used by the
+transcript is used.
+
+U4. **The functions that ask it.** `felix_route_due TRANSCRIPT PLAY [LEDGER]`
+and `felix_route_skipped TRANSCRIPT PLAY [LEDGER]` take the same optional
+LEDGER and hand it to each step they ask about, and `felix_route_render PROJ
+NAME PLAY ROOT PSCORE TRANSCRIPT [LEDGER]` hands it to `felix_route_due`.
+With LEDGER omitted each prints exactly what it printed before. With a LEDGER
+whose file holds `cli\tgraphify`, a play `graphify claude-md-management` has
+`claude-md-management` due and not `graphify`, and skips neither when both have
+been run; a play whose every step is used has nothing due and nothing skipped.
+
+U5. **The hooks hand it over.** `hooks/user-prompt` hands the session's
+appends, `<home>/state/ledger/<session>.tsv`, to `felix_route_due` (the due
+step that keys the announcement) and to `felix_route_render`, and
+`hooks/stop` hands it to `felix_route_skipped`, when the payload's
+`session_id` is usable (N5). When it is not usable, or the file does not exist
+yet, they hand none and behave as before. Observable through the hooks: in a
+session whose appends hold `cli\tgraphify`, the route block that the prompt
+hook injects for a play `graphify claude-md-management` does not name graphify
+as the step wanted, and the Stop hook's list of steps the session skipped does
+not hold it; in a session whose appends hold only `tool\tBash`, both are as
+before. Stop still says nothing about skipped steps when the payload names no
+transcript, as before.
+
+U6. **No new cost.** U1 reads the file once per step and starts no process in
+the post-tool hook (it is not reached from there). In the prompt and Stop
+hooks it adds at most one read of a file per play step and no `git`.
+
+### 9.4 The session id, bounded (W)
+
+W1. **A leading window.** `felix_ledger_session_id RAW` looks for the key only
+within the first 32,768 bytes of RAW, counted in bytes in any locale, the
+bound `felix_ledger_signal` puts on a Bash payload (R0). The key, its colon,
+its value and the value's closing quote must all lie within that window. The
+first such `"session_id": "value"` in the window is the session, as before. A
+payload whose first `session_id` begins in the window and is not closed by
+byte 32,768, and one whose first `session_id` lies past it, name no session:
+the function returns 1 with the variable empty, and does not look further.
+
+W2. **Everything else as it was.** For a payload whose first `session_id` lies
+wholly within the window, the function returns what it returned before: 0 with
+the variable set to the value when the value is non-empty; 1 with it empty
+when the value is empty or no key is present; the first `session_id` and not a
+later one; blanks allowed around the colon. Claude Code writes the key first,
+so every payload it sends today is in this case, with a 4 MB tool response
+after it too.
+
+W3. **Through the hooks.** `hooks/post-tool` and `hooks/session-start` take
+their session from this function. A PostToolUse payload of 4 MB whose
+`session_id` is at its start records one `alive` line and one call line in
+that session's file, as before. A payload whose only `session_id` lies past
+32,768 bytes exits 0 and records nothing for the call: the hook has no session
+to record it for, as for a payload with no `session_id` at all.
+
+W4. **Bytes, in any locale.** The window is 32,768 bytes under a UTF-8 locale
+too: a payload whose key's closing quote falls on byte 32,768 is found and one
+whose closing quote falls on byte 32,769 is not, however many characters
+that is, and a multi-byte character before the key counts its bytes. The match
+runs under `LC_ALL=C` (C5), and nothing in the function depends on the bash
+version beyond 3.2.
+
+W5. **Cost.** No new process (C1, C2). On a 4 MB payload with the key at its
+start the function costs no more CPU than on a payload of 32,768 bytes plus
+what handing the argument to a function costs, and under C4's bound. The pull
+request reports the CPU of the function before and after on a 4 MB payload,
+measured with `getrusage`, as the minimum of several runs.
+
+### 9.5 Decisions
+
+D8. **The declared kind is the only addition to the names.** `stack.tsv` also
+declares `plugin`, `skill`, `mcp`, `marketplace` and hook rows. A plugin's name
+is the owner a reach credits through its surfaces, and a CLI run does not say
+which of them was used (D1), so these stay out. The `cli` kind is by its
+definition what a session runs from the shell, which is what R reads.
+
+D9. **Routes before declarations, and one cap.** The route table is the
+policy's decision that a tool fits the work, so its names come first when the
+cap binds. 32 is N3's cap, kept: the names file is read on every Bash call that
+holds a name, and its length is what that read pays for.
+
+D10. **The ledger, not the transcript, for a CLI run.** A transcript records a
+Bash call as a tool use with its command text, and finding a run in it would
+mean reading shell grammar a second time and holding the command. The ledger
+already holds what the first reading decided, as a name and nothing else, so
+the step asks the ledger. The cost is that a run the first reading did not see
+(R10) is not used here either, which is the same answer the ledger gives.
+
+D11. **A window, not a scan.** The key is the second field of the payload
+Claude Code writes, after the event name and before the tool; a bound of
+32,768 bytes is a thousand times what precedes it. A payload where it lies
+past the bound is not one Claude Code writes, and the cost of mistaking it for
+"no session" is a call not recorded, the same cost as a payload with no
+`session_id`. The alternative, a scan for the key without a regular
+expression, would cost a loop in bash over 4 MB where it now costs a cut.
+
+D12. **Out of scope.** D6's first follow-up, a standalone skill declared
+`skill <name>` filed under `<name> (built-in)`, is not part of this section.

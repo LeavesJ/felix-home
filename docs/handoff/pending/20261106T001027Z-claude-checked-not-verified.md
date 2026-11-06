@@ -40,6 +40,11 @@ contract restates the first adversarial review's findings.
   says the words, other than the kept names below and the old hold reason
   in the `lib/verify.sh` pattern that still reads it. Part 2300 allows each
   of those only in its own files.
+- For CI: GitHub's `ubuntu-latest` became ubuntu-26.04 between 10-31 and
+  11-06, and its bash refuses `cd ""`. Part 0005's two cases that cd to an
+  empty variable read the refusal as a failed setup, and this pull
+  request's CI went red there. They now run from where the refused cd
+  leaves the shell, which is where an empty cd leaves it in every bash.
 
 **Kept, and why.** Two kinds keep their names: `lib/escape.sh`'s merge blocker
 kind `unverified` and the ledger kind `deployed-unverified`. Each has readers

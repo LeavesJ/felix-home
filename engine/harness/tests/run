@@ -419,6 +419,7 @@ fi
 . "$HERE/parts/2300-checked-not-verified-blind.sh"
 . "$HERE/parts/2300-evidence-readers-agree-blind.sh"
 . "$HERE/parts/2301-checked-not-verified-round3-blind.sh"
+. "$HERE/parts/2320-not-green-deploy-failed-blind.sh"
 . "$HERE/parts/2400-situations-table-blind.sh"
 . "$HERE/parts/2410-situations-recorded-blind.sh"
 . "$HERE/parts/2420-situations-change-blind.sh"

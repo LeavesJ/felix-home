@@ -124,7 +124,7 @@ _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
     # author's gate installs the entry for its own head, so after that head
     # lands the cache is right and the home is still behind, unverified.
     [ "$(git -C "$FELIX_HOME_DIR" rev-parse HEAD 2>/dev/null)" != "$(git -C "$FELIX_HOME_DIR" rev-parse "$_GT_MAIN" 2>/dev/null)" ] || return 1
-    why="the home checkout is not at origin/main: the engine it holds has not been deployed and verified"
+    why="the home checkout is not at origin/main, so main's engine has not been deployed from it and checked"
   fi
   printf '%s' "$(printf '%s\n' "$why" | LC_ALL=C sed -n 1p)"
 }

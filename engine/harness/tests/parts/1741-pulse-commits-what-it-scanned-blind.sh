@@ -26,7 +26,7 @@ $1
 $2
 "*) return 0 ;; esac; return 1; }
 _rN="backup${_rT}a nested git repository sits inside memory ("; _rC="backup${_rT}a possible credential was added to "
-_rM="backup${_rT}committed"; _rP="backup${_rT}pushed and verified: "
+_rM="backup${_rT}committed"; _rP="backup${_rT}pushed and read back: "
 _rQ='could not ask whether a nested repository sits inside memory'
 
 _r6_m() {   # <dir>: M, git init -b main and a base commit of l.md, ok.md, lessons.md, m.log
@@ -63,7 +63,7 @@ _r6_one() { [ "$(git -C "$1" rev-parse HEAD~1 2>/dev/null)" = "$2" ] || _rvn "HE
 _r6_ix() { local d; d="$(git -C "$1" diff --cached --name-only 2>/dev/null | tr '\n' ' ')"; [ -z "$d" ] || _rvn "the index does not match HEAD: [$d]"; }
 _r6_nokey() { if _r6_in "$R6O" "$_rK1" || _r6_in "$R6O" "$(_rkl "$_rK1")"; then _rvn "the output holds the key or its last 12 characters"; fi; }
 _r6_nohand() { [ "$(_r6_any 'staged by hand')" = 0 ] || _rvn "a line says staged by hand"; }
-_r6_nopush() { [ "$(_r6_n "$_rP")" = 0 ] || _rvn "a pushed and verified line"; }
+_r6_nopush() { [ "$(_r6_n "$_rP")" = 0 ] && [ "$(_r6_n "backup${_rT}pushed and verified: ")" = 0 ] || _rvn "a pushed and read back line, or one under the old word"; }
 _r6_failed() {
   [ "$(_r6_aw 'index($0, "backup\t") == 1 && index($0, "commit FAILED") && index($0, "NOT backed up") { n++ } END { print n + 0 }' -)" -ge 1 ] \
     || _rvn "no backup line holding commit FAILED and NOT backed up"
@@ -109,7 +109,7 @@ printf 'r1 line the scan must read\n' >> "$M/l.md"; _h0="$(git -C "$M" rev-parse
 R6H="$RP/h0"; _r6_bk "$M" "$_rh"
 [ -n "$_rpre" ] || [ -d "$_rh/bin/r6.fired" ] || _rpre="no scanner call read the l.md change, so the late writes were never made"
 [ -z "$_rpre" ] || _rvn "$_rpre"
-_r6_committed; [ "$(_r6_n "$_rP")" -ge 1 ] || _rvn "no pushed and verified line"
+_r6_committed; [ "$(_r6_n "$_rP")" -ge 1 ] || _rvn "no pushed and read back line"
 _r6_one "$M" "$_h0"; _r6_newl "$M"
 [ "$(git -C "$M" show HEAD:lessons.md 2>/dev/null)" = "$(git -C "$M" show HEAD~1:lessons.md 2>/dev/null)" ] || _rvn "HEAD's lessons.md is not HEAD~1's"
 ! _r6_in "$(git -C "$M" show HEAD:lessons.md 2>/dev/null)" "$_rK1" || _rvn "HEAD's lessons.md holds the key"

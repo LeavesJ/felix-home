@@ -833,10 +833,10 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
-1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
 1	A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr
@@ -2169,7 +2169,7 @@
 1	C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
 1	C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself
 1	C1 (fixture control): every conversion is off again, and the faithful entry is accepted
-1	C1 classify (nothing at the path, control): on a green change says nothing is unproven
+1	C1 classify (nothing at the path, control): on a green change says no evidence is owed
 1	C1 evidence (nothing at the path, control): says the project declares no evidence.tsv
 1	C1 incident (nothing at the path, control): given a trace that names src/thing.js, prints its implicated file src/thing.js and not the heading the fix will have to prove, where C5 prints it over the same trace
 1	C1 merge --dry-run (nothing at the path, control): lists no evidence line, where C2 and C5 list one over the same base
@@ -2185,7 +2185,7 @@
 1	C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json
 1	C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json
 1	C3 (control): an entry with M's modes everywhere: the entry exits 0 and prints itself
-1	C3 classify (the same table, a change the rule does not reach, control): on a green change says nothing is unproven, and not not judged
+1	C3 classify (the same table, a change the rule does not reach, control): on a green change says no evidence is owed, and not not judged
 1	C3 evidence (the same table, a change the rule does not reach, control): says No evidence gaps, with no [!] row and not not judged
 1	C3 merge --dry-run (the same table, a change the rule does not reach, control): lists no evidence line, where C2 lists the gap over the same table
 1	C3 receipt (the same table, a change the rule does not reach, control): lists no gap, and evidence not under unknown
@@ -5089,7 +5089,7 @@
 1	a prunable worktree elsewhere, not Felix's, stays listed
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
-1	a push nothing reads back is not called verified
+1	a push nothing reads back says so
 1	a push to refs/remotes/ is still refused
 1	a pushed branch with no pull request, its content not on main, leads with unproposed
 1	a pytest test id and a line number followed by a colon both name their file
@@ -5135,7 +5135,7 @@
 1	a receipt from an older claude cli whose counts are empty is unreadable, not announced
 1	a receipt from another environment says run another environment
 1	a receipt holding the stable id of a tree whose manifest changed is for another tree
-1	a receipt missing an input is indeterminate, never verified
+1	a receipt missing an input is indeterminate, never checked
 1	a receipt of eight fields is malformed
 1	a receipt of ten fields is malformed
 1	a receipt of two sound lines is malformed
@@ -7540,7 +7540,7 @@
 1	and neither subject nor body carries a ci skip marker though every commit does
 1	and neither the library nor the command ran a refused commissioning check
 1	and neither the library nor the command ran a refused evidence
-1	and never a verified receipt
+1	and never a checked receipt
 1	and never as a clock reading nobody wrote
 1	and never as an escape (E1)
 1	and never as an mcp row nothing could add
@@ -7590,6 +7590,7 @@
 1	and no run sent that held-down INT leaves a lock, or runs on
 1	and no scratch index is left in TMPDIR
 1	and no setup.tsv appears from asking for help
+1	and no success line calls a push nothing reads back read back, or verified
 1	and no temporary directory is left under the tmpdir it was given
 1	and no temporary file is left beside it
 1	and no temporary record is left
@@ -7815,7 +7816,7 @@
 1	and procedures still name it through the link
 1	and proposes nothing for it
 1	and prose counts single
-1	and pushed, and the push is verified
+1	and pushed, and the push is read back
 1	and pushes it to the branch the run repaired
 1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
@@ -8535,7 +8536,7 @@
 1	and the receipt over it, every other row done, is indeterminate and not commissioned
 1	and the receipt over those rows, every other row done, is indeterminate and not commissioned
 1	and the receipt reads valid
-1	and the receipt refuses to call that verified
+1	and the receipt refuses to call that checked
 1	and the receipt written for that tree is still red
 1	and the receipt's risk tier
 1	and the record names the channel
@@ -9095,8 +9096,8 @@
 1	b07 A38-A40: with CLAUDE_CODE_REMOTE=false the stop holds, and its reason says neither This is a cloud session. nor nohup (control)
 1	b07 A3: and one says.log row of kind unjudged
 1	b07 A41: the cloud session's flagged stop after its hold prints nothing and writes no row (control)
-1	b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never verified, held once on this tree already
-1	b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never verified and ends with the VM
+1	b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never checked, held once on this tree already
+1	b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never checked and ends with the VM
 1	b07 A44: and says.log gains one row of kind debt
 1	b07 A45: a local session's same three stops hold, then say nothing, then add one debt row and print nothing (control)
 1	b07 A46: the suite's own shell has no CLAUDE_CODE_REMOTE by the time this part runs
@@ -9771,6 +9772,92 @@
 1	clean project reports no drift
 1	clearing the queue empties it
 1	closing nothing is not a failure
+1	cnv A1 (C1): felix help prints the line [    felix receipt          what changed, its risk, and whether anything checked it], and no line saying whether anything verified it
+1	cnv A10 (C6): the same session's next unflagged stop on that tree is a debt row whose reason is exactly [never checked; held once on this tree already (session cnv-sess)]
+1	cnv A11 (C6): a night's flagged stop on that checkout is held and charged, and the night log's refused row says gate never checked
+1	cnv A12 (C6): a cloud session's debt stop prints its message (no decision), writes the debt row with never checked, and the message carries (never checked), not (never verified)
+1	cnv A13 (C7): felix_hold_tree_seen HOME SID TID [never checked] CHECKOUT returns 0 when the record holds TID\tnever verified\tCHECKOUT
+1	cnv A14 (C7, control): it returns 0 for never checked over a never checked line, and every other reason only over its own exact line (never checked over another checkout 1, failed over never verified 1, failed over never checked 1, failed over failed 0, never verified over never checked 1)
+1	cnv A15 (C7): through the hook, a session whose record holds <tid>\tnever verified\t<checkout> stops again on that tree with no gate receipt: let go, one debt row, reason never checked
+1	cnv A16 (C7): through the hook, a session whose record holds <tid>\tnever checked\t<checkout> is let go the same way, with one debt row
+1	cnv A17 (C7, control): a record of that tree and checkout with the reason failed, or stale receipt, still holds, and so does a never verified record of another checkout
+1	cnv A18 (C8): felix receipt on a tree whose gate receipt is current and green, with no evidence gap, prints schema felix.receipt/2 and status checked
+1	cnv A19 (C8): felix receipt says unchecked where the gate receipt is for another tree (stale) and where there is none
+1	cnv A2 (C2): felix install whose first comparison finds the installed engine matching prints exactly one such line, [  checked    the installed engine matches this tree], and no verified line
+1	cnv A20 (C8): none of the three receipts holds verified or unverified as a word, in its status, its keys or its limits, and each holds its new status
+1	cnv A21 (C8, control): a receipt over a base that names nothing is still indeterminate, with what it could not read listed
+1	cnv A22 (C9): a push to a path that the remote reads back prints [backup\tpushed and read back: origin holds <12 hex>; origin is a path on this machine, ...], not pushed and verified, and stamps the push
+1	cnv A23 (C9): a push to a network remote that it reads back prints exactly [backup\tpushed and read back: origin holds <12 hex>], not pushed and verified, and stamps the push
+1	cnv A24 (C9): a push through a remote helper that it reads back prints [backup\tpushed and read back: origin holds <12 hex>; where origin is could not be read], not pushed and verified, and stamps the push
+1	cnv A25 (C9, control): a push the remote does not read back still prints backup\tpushed, but origin reads back ..., no read-back or verified line, and no stamp
+1	cnv A26 (C10): _fn_sentence deployed prints exactly [The engine on main was installed and passed its deploy checks.]
+1	cnv A27 (C10): _fn_sentence deployed-unverified prints exactly [A deploy of main stopped at a failed step or check, and landing is paused.]
+1	cnv A28 (C10, control): every other kind's sentence is unchanged: landed, deploy-owed and paused, and a kind with none is status 1
+1	cnv A29 (C11, round 3): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and neither the verified wording nor round 1's
+1	cnv A3 (C2): felix install that bumps to 0.49.10 and then finds the installed engine matching prints the checked line, label column eleven wide, and no verified line
+1	cnv A30 (C12): templates/unattended.yml commits with the subject [fix: unattended repair, checked by the gate], and nothing says verified by the gate
+1	cnv A31 (C12, control): the commit's body is unchanged
+1	cnv A32 (C13): templates/moments.tsv holds the row [pre-conclude\tbefore work is called done: what was checked, recorded, and handed over], and not the verified one
+1	cnv A33 (C14): templates/lifecycle.tsv holds the row [Stop\twired\trefuse completion on a tree the gate has not passed, then ask that the claims be checked], and not the unverified one
+1	cnv A34 (C15, round 3): felix_stop_debt with CLAUDE_CODE_REMOTE=true ends its third sentence [so nothing outside it says the gate has not passed on this work.], the rest unchanged, and says neither went unverified nor went unchecked
+1	cnv A35 (C15): the Stop hook's debt stop of a cloud session carries that message, its reason (never checked) in parentheses
+1	cnv A36 (C15, control): felix_stop_debt without CLAUDE_CODE_REMOTE=true prints nothing
+1	cnv A37 (C16, round 3): the SubagentStop hook on a checkout holding work no gate has passed says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unverified nor round 1's partial, or unchecked
+1	cnv A38 (C17): engine/commands/felix.md ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]
+1	cnv A39 (C18): the check over a fixture holding a printed line with Verified and a line with unproven fails and names those two lines
+1	cnv A4 (C2, control): felix install where the installed engine does not match and bumping is declined prints the warning and neither the checked nor the verified line
+1	cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name, each in a file that may hold it, passes
+1	cnv A41 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked line passes, then fails once tracked
+1	cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line
+1	cnv A43 (C18, rounds 2 and 3, not blind): the old hold reason is allowed only as the pattern lib/verify.sh greps for, there and nowhere else
+1	cnv A44 (C7, round 3, not blind): never checked is not seen over a record line that only holds the expected line inside it (old reason, new reason, the checkout extended, the tree id extended)
+1	cnv A45 (C18, round 3, not blind): each allowed text outside the files that may hold it fails, all six of them, and the one inside its file passes
+1	cnv A46 (C18, round 3, not blind): proves fails, and prove, proving, verify and words that only hold the letters pass
+1	cnv A47 (C18, round 3, not blind): a Markdown heading is read, since a person reads it, and a shell # line is not
+1	cnv A48 (C18, round 3, not blind): a directory inside a work tree that git tracks nothing of is read whole, and its line is named
+1	cnv A5 (C3): harness/felix holds the moved-checkout lines [The checkout moved while this ran, so what was checked is not what] and [would be merged. Nothing was merged.], and not [so what was verified is not what]
+1	cnv A6 (C4): felix classify on a green tier that owes no evidence prints [Reversible, and no evidence is owed. Eligible for auto-merge once] and [every required check passes.], and not nothing is unproven
+1	cnv A7 (C5): felix classify on a green tier that owes evidence prints [Reversible, but <why>. Not auto-merge eligible: a green], [tier means no risky path was touched, not that the change was tested.] and [Run felix evidence.], and not proven
+1	cnv A8 (C6): the first hold on a checkout with no gate receipt writes a blocked row whose reason is never checked, and records exactly <tid>\tnever checked\t<checkout> in state/held-tree/<sid>
+1	cnv A9 (C6, control): that hold's text is unchanged: The gate has never run in this checkout. and do not describe this work as complete
+1	cnv3 A1 (C1): felix help's first line is [Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.], and no line of it ends and proves it.
+1	cnv3 A10 (C8, control): none of the eight receipts holds verified or unverified as a word, in its status, its keys or its limits
+1	cnv3 A11 (C11): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and not round 1's [the engine it holds has not been deployed and checked]
+1	cnv3 A12 (C15): felix_stop_debt for the reason failed, in a cloud session, ends its third sentence [so nothing outside it says the gate has not passed on this work.], the reason (failed) in parentheses, and never says went unchecked
+1	cnv3 A13 (C15): felix_stop_debt for the reason never checked says the same third sentence, (never checked) in parentheses, and never says went unchecked
+1	cnv3 A14 (C15): felix_stop_debt for the reason epoch moved says the same third sentence, (epoch moved) in parentheses, and never says went unchecked
+1	cnv3 A15 (C15, control): felix_stop_debt for the reason failed outside a cloud session prints nothing
+1	cnv3 A16 (C15, control): a cloud session's first stop on a tree whose gate receipt for that exact tree is red is held, with a blocked row whose reason is failed
+1	cnv3 A17 (C15): that session's debt stop writes the debt row for failed and prints the message with (failed) and [so nothing outside it says the gate has not passed on this work.], not went unchecked
+1	cnv3 A18 (C16): the SubagentStop hook on a checkout whose tree the gate ran red on says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unchecked nor partial, or unverified
+1	cnv3 A19 (C16, control): on that red tree the hook speaks: status 0 and its unchanged first sentence
+1	cnv3 A2 (C1, control): felix help still prints round 1's receipt line and the obligation what a fix must prove
+1	cnv3 A20 (C16): the SubagentStop hook on a checkout no gate has run on says the same sentence, and not partial, or unchecked
+1	cnv3 A21 (C17): engine/commands/felix.md's step 2 begins [2. Work out what checks this project — the command that fails when] / [the code is wrong.], and nothing says Work out what would prove this project correct
+1	cnv3 A22 (C17, control): engine/commands/felix.md still ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]
+1	cnv3 A23 (C18): the check with the round-3 ERE over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files in a work tree) reads many files and names no line
+1	cnv3 A24 (C18, control): the same check with round 1's ERE, without proves, still passes over the engine under test
+1	cnv3 A25 (C18): the check over a fixture holding a printed line with Proves, and lines with proves, unproven and Verified, fails and names those four lines
+1	cnv3 A26 (C18): the check over a fixture holding what a fix must prove, the fix will have to prove, nothing proving it, --verify and the other verify forms passes
+1	cnv3 A27 (C18): # comments with Proves, each allowed name, and never verified in harness/lib/verify.sh pass; never verified in another file fails
+1	cnv3 A28 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked proves line passes, then fails once tracked
+1	cnv3 A29 (C18, control): the engine's own lines holding what a fix must prove, the fix will have to prove and with nothing proving it are found, at least four, and pass the check
+1	cnv3 A3 (C8): a red gate receipt for this exact tree gives status failed, evidence_quality low, under schema felix.receipt/2
+1	cnv3 A30 (C20): a probe that exits non-zero while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe exited <rc>], for 1 and for 3
+1	cnv3 A31 (C20): a probe that exits 0 and enumerates nothing while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe enumerated none of it]
+1	cnv3 A32 (C20, control): those three rows' state and count are still blind and 0, each one row of three fields
+1	cnv3 A33 (C20): felix probes over a project with those two blind rows prints both witness sentences and the note [blind means the witness says a surface exists that the probe cannot see, and] / [unknown means nothing decided either way.], and no line says proves
+1	cnv3 A34 (C20, control): felix probes over a project whose one probe finds its surface prints neither note, old or new
+1	cnv3 A35 (C21): the standing issue the notifier creates names a deploy that stopped at a failed step or check among its events, and not a deploy it could not verify
+1	cnv3 A36 (C21, control): its title, the call that creates it and the rest of its body are unchanged
+1	cnv3 A37 (C22): README.md's Subagent stop row ends [tells the parent that a subagent's report must call its own changes partial, failing or unchecked |], and no line says must call its own changes unverified
+1	cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3
+1	cnv3 A4 (C8): a current green gate receipt for this exact tree with an evidence gap gives status evidence-owed, evidence_quality low
+1	cnv3 A5 (C8): a red gate receipt for this exact tree that also has an evidence gap gives status failed, not evidence-owed, evidence_quality low
+1	cnv3 A6 (C8, control): a current green gate receipt for this exact tree with no evidence gap still gives status checked, evidence_quality high
+1	cnv3 A7 (C8, control): status unchecked, evidence_quality low, where there is no gate receipt and where a green one for this exact tree rests on facts that have moved
+1	cnv3 A8 (C8, control): a red gate receipt for another tree (stale) gives status unchecked, not failed, evidence_quality low
+1	cnv3 A9 (C8, control): blocked and indeterminate keep their precedence over failed: an escaping change with a red receipt for its tree is blocked (high), and a base that names nothing is indeterminate (unknown)
 1	code with no test is a gap
 1	colour fixture: felix gate ran the project's gate.sh, which wrote the commit line and the grep match
 1	colour fixture: felix receipt names a tree fingerprint for the dirty tree
@@ -14022,7 +14109,7 @@
 1	the Stop hook holds both of two unflagged stops in a row for the session id [ho/slash]
 1	the Stop hook holds both of two unflagged stops in a row that carry no session id at all
 1	the Stop hook holds that tree only once for "epoch moved" after "failed": the next stop is debt
-1	the Stop hook holds that tree only once for "failed" after "never verified": the next stop is debt
+1	the Stop hook holds that tree only once for "failed" after "never checked": the next stop is debt
 1	the Stop hook holds that tree only once for "failed" after "stale receipt": the next stop is debt
 1	the Stop hook holds the changed tree only once: the next unflagged stop on it is debt
 1	the Stop hook holds the first stop in a home that is the checkout it governs, and names the tree as it stood
@@ -14030,10 +14117,10 @@
 1	the Stop hook holds the first stop of a session that will see three trees
 1	the Stop hook holds the first stop of the session the override and the green gate will later let through
 1	the Stop hook holds the first stop on a tree as "failed" (control)
-1	the Stop hook holds the first stop on a tree as "never verified" (control)
+1	the Stop hook holds the first stop on a tree as "never checked" (control)
 1	the Stop hook holds the first stop on a tree as "stale receipt" (control)
 1	the Stop hook holds the first stop once when the gate failed on this tree, and the blocked row says failed
-1	the Stop hook holds the first stop once when the gate never ran, and the blocked row says never verified
+1	the Stop hook holds the first stop once when the gate never ran, and the blocked row says never checked
 1	the Stop hook holds the first stop once when the gate passed on this tree and the epoch moved, and the blocked row says epoch moved
 1	the Stop hook holds the first stop once when the receipt is for a different tree, and the blocked row says stale receipt
 1	the Stop hook holds the flagged stop of a session whose night began after its record was made (control)
@@ -14043,7 +14130,7 @@
 1	the Stop hook holds the same session again at the next unflagged stop once the tree has changed
 1	the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold
 1	the Stop hook holds the same session on the same tree again when the reason has become "epoch moved" after "failed", and records that hold
-1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never verified", and records that hold
+1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never checked", and records that hold
 1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "stale receipt", and records that hold
 1	the Stop hook holds the second session only once on that tree
 1	the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold
@@ -14074,7 +14161,7 @@
 1	the Stop hook prints nothing to stdout for a stop it does not hold
 1	the Stop hook records both checkouts, each on a line of its own
 1	the Stop hook records both holds, "failed" and then "epoch moved", on lines of their own
-1	the Stop hook records both holds, "never verified" and then "failed", on lines of their own
+1	the Stop hook records both holds, "never checked" and then "failed", on lines of their own
 1	the Stop hook records both holds, "stale receipt" and then "failed", on lines of their own
 1	the Stop hook records nothing for a checkout with no commit (control)
 1	the Stop hook records nothing for a checkout with no commit, though the same session is held and then counted as debt in a checkout with a commit
@@ -14092,7 +14179,7 @@
 1	the Stop hook records the tree id of a first hold in state/held-tree under the session id
 1	the Stop hook records the tree id, a tab, "epoch moved", a tab and the checkout for a hold when the gate passed on this tree and the epoch moved
 1	the Stop hook records the tree id, a tab, "failed", a tab and the checkout for a hold when the gate failed on this tree
-1	the Stop hook records the tree id, a tab, "never verified", a tab and the checkout for a hold when the gate never ran
+1	the Stop hook records the tree id, a tab, "never checked", a tab and the checkout for a hold when the gate never ran
 1	the Stop hook records the tree id, a tab, "stale receipt", a tab and the checkout for a hold when the receipt is for a different tree
 1	the Stop hook records the tree it held inside another hook's chain, as it does for any first hold
 1	the Stop hook records the tree it held on in a record that named a different tree
@@ -14141,9 +14228,9 @@
 1	the Stop hook's debt row says in its fourth field that the tree was held once on this tree already
 1	the Stop hook's debt row still says the tree was held once already
 1	the Stop hook's debt row, its record and the tree id taken independently all name one tree
-1	the Stop hook's first hold writes a blocked row naming the tree and never verified as the reason
+1	the Stop hook's first hold writes a blocked row naming the tree and never checked as the reason
 1	the Stop hook's fixture for "failed" then "epoch moved" leaves the tree as it was (control)
-1	the Stop hook's fixture for "never verified" then "failed" leaves the tree as it was (control)
+1	the Stop hook's fixture for "never checked" then "failed" leaves the tree as it was (control)
 1	the Stop hook's fixture for "stale receipt" then "failed" leaves the tree as it was (control)
 1	the Stop hook's fixture stops a hold after its verification row and in the middle of its says row, before the JSON is printed (control)
 1	the Stop hook's fixture stops a hold in the middle of writing its verification row, before the JSON is printed (control)

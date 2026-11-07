@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	f04592c73ed99192879054a09ca2e7961fe1b07f	0.49.329
-run	107	16452	46
+base	origin/main	9051d084a56a234ea4a62ad94cb069f5905b169f	0.49.330
+run	105	16726	46
 A1 (B1, B2): a not-green refusal (exit 3, one blocker line of kind not-green) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written	1
 A10 (B4, B7): a retry, after the gate receipt is written, that exits 0 writes one landed row for 50 and one notification titled Felix: landed #50	1
 A11 (B7): a retry refused the same way writes a second refused row for 50 and no second notification, its blocker, class and head being the previous row's	1
@@ -56,10 +56,8 @@ a not-green tree blocks the merge	1
 a receipt for another tree still blocks	1
 a red gate beside the stale receipt is listed too	1
 a red receipt for this tree blocks	1
-and landed on the shared home's cache, which this block does not read	1
 and prints byte for byte what the dry run printed, its not-green blocker included, or reporting would change what blocks	1
 and still names the not-green tree, or reporting displaced the blocker that stops it	1
-and the refresh the hook forked asked the claude for the catalogue	1
 cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line	1
 cnv3 A23 (C18): the check with the round-3 ERE over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files in a work tree) reads many files and names no line	1
 cnv3 A24 (C18, control): the same check with round 1's ERE, without proves, still passes over the engine under test	1

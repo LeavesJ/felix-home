@@ -69,10 +69,27 @@ review, fixes through a blind author, record, gate.
   rest were assertions that did not pin the clauses (reasons whole, `tests`
   line only for a current receipt, the hold clauses, every kind on `_gt_say`'s
   list) and part 2301's model of the class check.
-- Round 2 contract and blind part 2321: Opus 5.5, xhigh, isolated worktree
-  (`wf_5f7ad5e2-314`). The pins that already held on the first build were
-  checked by mutation (the review's `sed` mutants, run against the head).
+- Round 2 contract and blind part 2321 (42 assertions): Opus 5.5, xhigh,
+  isolated worktree (`wf_5f7ad5e2-314`). Shown red at the head without K14 (the
+  two K14 assertions fail, the rest pass), green at the head with it (104 ok).
+  The pins that already held on the first build were checked by mutation: the
+  review's three `sed` mutants (`stuck` dropped from `_gt_say`'s list, the stale
+  reason cut at its `;`, the `tests:reused` condition widened) each fail it, and
+  the author listed a mutant for every other pin.
+- Round 2 review (fault round 1 of the two the lane budget allows): two lenses at
+  Opus 5.5 xhigh, two skeptics at Opus 5.5 high (`wf_9411d430-a28`). Two
+  findings confirmed, both low, both contract wording: K11's closing sentence
+  named two readers of the old name where three exist, and the quiet check
+  compares with the pull request's previous row of any event but `waiting`,
+  not its previous refused row. Six low: K8 and K6 wording, L6's window, B8 for
+  the ledger kind (all now in the contract), and the class lint's allowance,
+  which is now the quiet check's one line rather than the text anywhere in
+  `green-tick.sh` (with fixtures in 2300, 2301 and 2320 that fail on any other
+  line or file). No third round: the next fault class would live in shared code.
 - Mechanical edits made by the author of the change, from the review: the
-  zero-count checks in 1284, 1285, 1286 and 1665 count both ledger kinds;
-  three assertion names say `not-green`; part 2301 shows K12 on its own
-  fixtures; part 2320's scan of the real engine has a read control.
+  zero-count checks in 1284, 1285, 1286 and 1665 count both ledger kinds; four
+  assertion names say `not-green`; part 2301 shows K12 on its own fixtures;
+  part 2320's scan of the real engine has a read control (status 0 over at
+  least fifty files).
+- Merged `origin/main` (0.49.329, #487) into the branch before the record; the
+  driver stays at 500 lines (one blank line removed).

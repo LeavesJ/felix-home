@@ -35,8 +35,7 @@ if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HAR
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
 fi
-# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison
-# and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
+# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
@@ -310,6 +309,7 @@ fi
 . "$HERE/parts/1050-felix-cost-tokens-spent-read-from-the-transc.sh"
 . "$HERE/parts/1060-continued.sh"
 . "$HERE/parts/1070-felix-cost-the-2026-10-11-addendum.sh"
+. "$HERE/parts/1075-felix-cost-one-reading-at-a-time-blind.sh"
 . "$HERE/parts/1080-the-stop-hook-holds-once-per-session-per-tre.sh"
 . "$HERE/parts/1090-the-stop-hook-holds-once-per-session-tree-re.sh"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"

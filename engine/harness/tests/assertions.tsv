@@ -10964,6 +10964,103 @@
 1	felix cost leaves the status of the repository it is run from as it was, and reports
 1	felix cost never counts usage.iterations: nor when iterations is written before the top-level counts
 1	felix cost never counts usage.iterations: the top level alone is weighed (iterations after the counts)
+1	felix cost one reading (C1): --max-age 0 is taken: status 0 and the week's total
+1	felix cost one reading (C1): --max-age 604800 is taken: status 0 and the week's total
+1	felix cost one reading (C1): --max-age [ 5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [-1] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [1.5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [1e3] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [604801] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [abc] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age with no value is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [-1] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [0] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [1 0] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [2.5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [86401] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [abc] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE=1800 is taken: status 0 and the week's total
+1	felix cost one reading (C1): FELIX_COST_DEADLINE=86400 is taken: status 0 and the week's total
+1	felix cost one reading (C10): HOME empty: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): HOME unset: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): HOME/.cache a regular file: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): a cache directory that cannot be written: each call scans inline, the report as before, nothing written
+1	felix cost one reading (C10): no perl on PATH: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): no perl on PATH: nothing is made under HOME/.cache
+1	felix cost one reading (C11): writing a reading removes one not rewritten for 15 days and keeps one of 13 days
+1	felix cost one reading (C12): a --since window prints as before
+1	felix cost one reading (C12): a first scan prints the week as before, byte for byte, status 0
+1	felix cost one reading (C13): a scan of 300 transcripts runs grep twice and counts every one: 300000 over 300 calls
+1	felix cost one reading (C13): a scan of a root of two transcripts runs grep once
+1	felix cost one reading (C13): the freshness check of 300 transcripts runs no grep
+1	felix cost one reading (C2): --by, --top, --tsv, the cap and as_of are not in the key: still the lock and the one reading
+1	felix cost one reading (C2): a second window adds one reading: the lock and two
+1	felix cost one reading (C2): after one scan of one window the cache directory holds the lock and one reading
+1	felix cost one reading (C2): an engine whose lib/cost.sh has another checksum is another key: one more grep, one more reading
+1	felix cost one reading (C2): the readings are not kept under ~/.felix
+1	felix cost one reading (C2): the rescan rewrites its key's reading and adds none
+1	felix cost one reading (C2): the root named through a link is the same key: served with no grep, no reading added
+1	felix cost one reading (C3): --by model --top 1 served from the reading is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): a cap of 100M and --by day, served from the reading, is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): a current reading is served with as_of now (FELIX_COST_NOW three days on) and no grep
+1	felix cost one reading (C3): a new directory under the root makes the reading not current: one more grep, same numbers
+1	felix cost one reading (C3): a response appended to a transcript makes the reading not current: one more grep, the new total
+1	felix cost one reading (C3): a root holding a dangling link is not current, so under another's lock its reading is served last
+1	felix cost one reading (C3): a root holding a dangling link is scanned on every call: two calls, two greps, the same report
+1	felix cost one reading (C3): a transcript's mode changed (its ctime) makes the reading not current: one more grep
+1	felix cost one reading (C3): the first engine's reading is still served to it, no grep
+1	felix cost one reading (C3): the same call again prints the same bytes and runs no grep
+1	felix cost one reading (C3): the second window is served from its own reading, no grep
+1	felix cost one reading (C3): the text view served from the reading is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): while another holds the lock a current reading is served as if just read, at once, no grep
+1	felix cost one reading (C3): with nothing changed since, the rescan's reading is served, no grep
+1	felix cost one reading (C4): each of the three ends with status 0
+1	felix cost one reading (C4): each prints the reading or C5's served none, and at least one the reading
+1	felix cost one reading (C4): once they ended, the lock is free
+1	felix cost one reading (C4): three callers at once make one scan between them: one grep, one reading
+1	felix cost one reading (C5): serving it left the reading as it was
+1	felix cost one reading (C5): under another's lock a kept reading not current is printed at once: its as_of, served last, no grep
+1	felix cost one reading (C5): under another's lock with no reading kept: status 0 at once, the rows of served none, no grep
+1	felix cost one reading (C5, text): past the served line, the text is the reading's
+1	felix cost one reading (C5, text): the line after window says the reading made at its as_of, and another run is reading now
+1	felix cost one reading (C5, text): with none kept the total line says another run is reading now and none is kept
+1	felix cost one reading (C5, text): with none kept, calls unknown follows the total line
+1	felix cost one reading (C5, text): with none kept, the window line is today's
+1	felix cost one reading (C6): --max-age 0 with a current reading goes on to C3: served as just read, as_of now, no grep
+1	felix cost one reading (C6): --max-age 3600 serves the kept reading unchecked: its numbers, its as_of, served aged, no grep
+1	felix cost one reading (C6): --max-age with no reading kept scans: the numbers, no served row, one grep
+1	felix cost one reading (C6): a reading older than --max-age goes on to C3: a rescan, the new numbers, no served row
+1	felix cost one reading (C6): under another's lock --max-age still serves the reading aged, at once
+1	felix cost one reading (C6, text): past the served line, the text is the reading's
+1	felix cost one reading (C6, text): the line after window says the reading made at its as_of, its age in seconds, and --max-age 3600
+1	felix cost one reading (C7): a caller waits for its own scan of 4 s, within the deadline, and prints its numbers
+1	felix cost one reading (C7): a grep that ignores TERM is gone within 10 s, killed
+1	felix cost one reading (C7): a scan cut at its deadline writes no reading and leaves no temporary file: only the lock
+1	felix cost one reading (C7): a scan past FELIX_COST_DEADLINE=2 with no reading kept: status 0 within 30 s, the rows of served none
+1	felix cost one reading (C7): a scan past its deadline with a reading kept: status 0 within 30 s, the reading's rows, served last
+1	felix cost one reading (C7): a scan that ignores TERM is killed 5 s after its deadline: status 0 within 40 s, served none
+1	felix cost one reading (C7): after a deadline the lock is free
+1	felix cost one reading (C7): every grep of a scan cut at its deadline, and its sleep, is gone within 10 s
+1	felix cost one reading (C7): the scan's grep runs in a process group other than its caller's
+1	felix cost one reading (C7): when the scan ends, what it left in its group (a sleep) is killed within 10 s
+1	felix cost one reading (C7): with a reading kept, a scan cut at its deadline leaves the lock and that reading, unchanged
+1	felix cost one reading (C7, text): past the served line, the text is the kept reading's
+1	felix cost one reading (C7, text): the line after window says the reading made at its as_of, and the new one did not finish within 2 s
+1	felix cost one reading (C7, text): with none kept the total line says the reading did not finish within 2 s
+1	felix cost one reading (C8): INT to felix's process group, as a Ctrl-C sends it, ends felix within 10 s
+1	felix cost one reading (C8): TERM to felix alone mid-scan closes its stdout pipe within 8 s: nothing else holds it
+1	felix cost one reading (C8): TERM to the supervisor kills the scan's group: its grep and sleep are gone within 15 s
+1	felix cost one reading (C8): TERM to the supervisor lets its caller end within 20 s, its scan of 40 s cut
+1	felix cost one reading (C8): TERM to the supervisor releases the lock
+1	felix cost one reading (C8): after INT, QUIT and HUP to felix's group the scan goes on and writes the reading
+1	felix cost one reading (C8): after TERM to its caller the scan goes on and writes the reading
+1	felix cost one reading (C8): after the orphaned scan the lock is free and its greps are gone
+1	felix cost one reading (C8): the reading the orphaned scan wrote is served: its numbers, no further grep
+1	felix cost one reading (C8): the reading written after the Ctrl-C is served: its numbers, no further grep
+1	felix cost one reading (C9): a reading that does not parse is absent: a rescan prints the numbers
+1	felix cost one reading (C9): a reading that does not parse is absent: under another's lock the rows of served none
+1	felix cost one reading (C9): a reading whose first line names another key is absent: a rescan prints its window's numbers
+1	felix cost one reading (C9): a reading whose first line names another key is absent: under another's lock served none
 1	felix cost prints a cap past 2^31 whole: FELIX_COST_CAP_M=4000 is 4000000000 tokens
 1	felix cost prints a weight that has two decimals exactly: tokens are printed to the hundredth
 1	felix cost prunes by the window start in UTC under another zone: the file modified at the start is read, the one a minute before is not
@@ -10986,7 +11083,7 @@
 1	felix cost reads every *.jsonl at any depth under <E>/<sid>/subagents/: direct, in a workflow run, and deeper still: 15000 over four calls
 1	felix cost reads exactly four files there
 1	felix cost reads lines ending \r\n as whole records: 33000 over five calls from a CRLF file and a mixed file
-1	felix cost reports, and creates and changes nothing: not under the records root, nor in its working directory, HOME or TMPDIR
+1	felix cost reports, and creates and changes nothing outside its readings: not under the records root, nor in its working directory, HOME or TMPDIR
 1	felix cost runs from inside a git repository the same as from outside one: the same report, with its total
 1	felix cost skips a CRLF line that lost its last brace
 1	felix cost skips a cut-off last line with no newline

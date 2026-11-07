@@ -74,8 +74,6 @@ Outside the class on purpose:
 
 **Follow-ups.**
 - Rename the two kinds together.
-- Make classify, receipt and evidence test `evidence.tsv` the way the judge
-  does: `-e || -L`, not `-f`. This is older than this change.
 
 **Built.**
 - Contract: Opus 5.5, this session, rounds 1-3.
@@ -93,4 +91,8 @@ Outside the class on purpose:
   own lint. A45 now covers all six allowed texts, and A48 a directory git
   tracks nothing of.
 - Implementation: this session.
+- #488's part 2300-evidence-readers-agree matched classify's green sentence
+  as main prints it. After merging #488, this session made it match
+  `no evidence is owed`, the sentence this branch prints. That edit is not
+  blind.
 - The gate's result is in the pull request's body.

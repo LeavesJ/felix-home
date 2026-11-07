@@ -51,7 +51,7 @@ _gt_epoch() {   # an ISO time in UTC -> seconds since the epoch
 # written first and is the record; a failing osascript changes nothing.
 _gt_say() {   # EVENT PR DETAIL
   local title="Felix: $1" det ev
-  case "$1" in landed|refused|founder|waiting|deployed|deployed-unverified|paused|resumed|installed|uninstalled|timeout|stuck|unaged|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
+  case "$1" in landed|refused|founder|waiting|deployed|deploy-failed|paused|resumed|installed|uninstalled|timeout|stuck|unaged|gh|fetch|deploy-owed|unresolved) ;; *) return 0 ;; esac
   [ "${_GT_QUIET:-0}" = 1 ] && return 0
   [ "$2" = "-" ] || title="$title #$2"
   det="$(printf '%s' "${3%% \[main *}" | LC_ALL=C sed 's/\\/\\\\/g; s/"/\\"/g')"
@@ -129,7 +129,9 @@ _gt_deploy_owed() {   # prints why a deploy is owed; 0 when one is
   printf '%s' "$(printf '%s\n' "$why" | LC_ALL=C sed -n 1p)"
 }
 
-_gt_unverified() { _gt_row deployed-unverified - - - "$((SECONDS - _GT_T0))" "$1"; _gt_pause "$1"; }
+# The kind was named deployed-unverified until 2026-11-07 (docs/2026-11-07-not-green-deploy-failed-contract.md);
+# rows written under that name stay in the ledger as recorded.
+_gt_deploy_failed() { _gt_row deploy-failed - - - "$((SECONDS - _GT_T0))" "$1"; _gt_pause "$1"; }
 
 # G7. Returns 0 when the new engine is installed and verified. Every other way
 # out has written its row, and a deploy that is not known good pauses the job:
@@ -160,7 +162,7 @@ _gt_deploy() {
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
   fi
   : > "$_GT_LAND/verifying"   # A26: owed from here; a deploy A24 stops is redone after --resume. Removed only by the deployed row below
-  out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_unverified "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
+  out="$(_gt_git -C "$home" pull -q --ff-only 2>&1 </dev/null)" || { _gt_deploy_failed "pull: git pull --ff-only failed: $(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   if [ "$(git -C "$home" rev-parse HEAD 2>/dev/null)" != "$(git -C "$home" rev-parse "$_GT_MAIN" 2>/dev/null)" ]; then
     why="the home checkout's main is not origin/main: it holds a commit origin does not"
     _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1
@@ -170,17 +172,17 @@ _gt_deploy() {
     why="the home checkout is not main byte for byte: $why"; _gt_row_once deploy-owed - - - 0 "$why"; _gt_pause "$why"; return 1; }
   [ ! -d "$(_gt_cache)/$(_felix_plugin_version "$home")" ] || had=1   # B20: felix install does not replace an entry that exists
   out="$(cd "$home" && "$home/engine/harness/felix" install --no-bump 2>&1 </dev/null)" \
-    || { _gt_unverified "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
+    || { _gt_deploy_failed "install: felix install --no-bump failed: $(printf '%s\n' "$out" | LC_ALL=C tail -1)"; return 1; }
   ver="$(_felix_plugin_version "$home")"
   entry="$(_gt_cache)/$ver"
   # A21: against main's own commit, not the home's files: an untracked file in the home's engine/ cannot pass.
   out="$( unset FELIX_KERNEL_CACHE; felix_accepted_deploy_diff "$home" "$_GT_MAIN" 2>&1 )" \
-    || { _gt_unverified "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(_gt_didnt "$had" "$entry")$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
+    || { _gt_deploy_failed "diff: the cache entry for ${ver:-no version} is not origin/main's engine: $(_gt_didnt "$had" "$entry")$(printf '%s\n' "$out" | LC_ALL=C sed -n 1p)"; return 1; }
   # B31: session-start must print its context and pre-tool must refuse a pattern kill (_gt_hooks, lib/green-install.sh).
-  why="$(_gt_hooks "$home")" || { _gt_unverified "$why"; return 1; }
+  why="$(_gt_hooks "$home")" || { _gt_deploy_failed "$why"; return 1; }
   ( cd "$home" && "$home/engine/harness/felix" gate --quick ) >/dev/null 2>&1 </dev/null
   rc=$?
-  [ "$rc" -eq 0 ] || { _gt_unverified "gate: felix gate --quick exited $rc in the home"; return 1; }
+  [ "$rc" -eq 0 ] || { _gt_deploy_failed "gate: felix gate --quick exited $rc in the home"; return 1; }
   _gt_row deployed - - - "$((SECONDS - _GT_T0))" "$ver is installed, matches origin/main, and passed session-start, pre-tool and felix gate --quick"
   rm -f "$_GT_LAND/verifying"
   return 0

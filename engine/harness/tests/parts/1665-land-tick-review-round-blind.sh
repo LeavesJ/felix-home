@@ -6,9 +6,9 @@ printf '\nthe land tick, review round: a GitHub refusal is hourly, a brake that 
 # hooks, projects/felix/gate.sh and every other engine file were not read; the C9 blocker's words are the review's.
 #
 # B28: pull request 65 on worktree b65, built as 1650 builds 50 on b50, its gate receipt (RC65) at the path the
-# contract derives from b65's physical path. felix merge answers with OUT-S (status 3, one `unverified tests` line as
-# C9 prints it when gh run list fails), OUT-S2 (an `unverified tree` line before it), OUT-S3 (an `evidence` line after
-# it) or OUT-R (`unverified tree` alone), laid out as cmd_merge's '  %-11s %-22s %s'. M65 counts felix.log rows that
+# contract derives from b65's physical path. felix merge answers with OUT-S (status 3, one `not-green tests` line as
+# C9 prints it when gh run list fails), OUT-S2 (an `not-green tree` line before it), OUT-S3 (an `evidence` line after
+# it) or OUT-R (`not-green tree` alone), laid out as cmd_merge's '  %-11s %-22s %s'. M65 counts felix.log rows that
 # ran `merge` in b65. Rows are aged only as part 1280's _lg_age ages them, the year moved back by one.
 # B29: land/ at mode 555 with ledger.tsv in it, which a line can still be appended to; skipped where a mode refuses no
 # write (tests/lib/unwritable.sh). Those two commands are ended by SIGALRM after 60 s, so a brake that spins on the
@@ -68,12 +68,12 @@ _l65_bl() { printf '  %-11s %-22s %s\n' "$1" "$2" "$3"; }
 _l65_out() {   # NAME -> felix merge's output NAME (L: a landing's)
   case "$1" in
     L)  printf 'merged\n' ;;
-    S)  printf 'not merging\n\n'; _l65_bl unverified tests "$L65T"; printf '\nNothing here escapes the tree.\n' ;;
-    S2) printf 'not merging\n\n'; _l65_bl unverified tree 'the tree changed since the receipt'
-        _l65_bl unverified tests "$L65T"; printf '\nNothing here escapes the tree.\n' ;;
-    S3) printf 'not merging\n\n'; _l65_bl unverified tests "$L65T"
+    S)  printf 'not merging\n\n'; _l65_bl not-green tests "$L65T"; printf '\nNothing here escapes the tree.\n' ;;
+    S2) printf 'not merging\n\n'; _l65_bl not-green tree 'the tree changed since the receipt'
+        _l65_bl not-green tests "$L65T"; printf '\nNothing here escapes the tree.\n' ;;
+    S3) printf 'not merging\n\n'; _l65_bl not-green tests "$L65T"
         _l65_bl evidence notes/b65.md 'the change owes a test'; printf '\nNothing here escapes the tree.\n' ;;
-    R)  printf 'not merging\n\n'; _l65_bl unverified tree 'the tree changed since the receipt'
+    R)  printf 'not merging\n\n'; _l65_bl not-green tree 'the tree changed since the receipt'
         printf '\nNothing here escapes the tree.\n' ;;
   esac
 }
@@ -106,7 +106,7 @@ is "the land fixture (review round): green 65 lands on one tick when felix merge
 
 # ------------------------------------------- B28 (M1): GitHub's answer is hourly ---
 _l65_case S 3; _l65_rw "$L65RC"; _lg_land --tick; L65D="$(_lg_f refused 65 7)"
-is "A61 (B28): a refusal whose one blocker is unverified tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written" \
+is "A61 (B28): a refusal whose one blocker is not-green tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written" \
    "$(_lg_n refused 65)|$(_l65_has "$L65D" "$L65CH")|$(_l65_lacks "$L65D" "$L65CR")" "1|yes|yes"
 _lg_land --tick; _lg_land --tick
 is "A62 (B28) [control]: with b65's current gate receipt untouched, two more ticks inside the hour do not run felix merge again: M65 is 1, one refused row" \
@@ -115,13 +115,13 @@ _l65_out L > "$LGK/merge.b65.out"; printf '0\n' > "$LGK/merge.b65.rc"; _l65_age;
 is "A63 (B28, B5, B7): once that row is an hour old, with no receipt rewritten and GitHub answering again, the next tick runs felix merge once more and lands 65: M65 is 2, one landed row, one Felix: landed #65" \
    "$(_l65_m)|$(_lg_n landed 65)|$(_l65_osa 'Felix: landed #65')" "2|1|1"
 _l65_case S2 3; _lg_land --tick; L65D="$(_lg_f refused 65 7)"
-is "A64 (B28): unverified tree followed by unverified tests is hourly too: the row says tried again an hour after this row, not when a receipt is written" \
+is "A64 (B28): not-green tree followed by not-green tests is hourly too: the row says tried again an hour after this row, not when a receipt is written" \
    "$(_l65_has "$L65D" "$L65CH")|$(_l65_lacks "$L65D" "$L65CR")" "yes|yes"
 _l65_case S3 3; _lg_land --tick
-is "A65 (B28) [control]: unverified tests beside an evidence blocker is final: the row says final until the head or main moves" \
+is "A65 (B28) [control]: not-green tests beside an evidence blocker is final: the row says final until the head or main moves" \
    "$(_l65_has "$(_lg_f refused 65 7)" "$L65CF")" "yes"
 _l65_case R 3; _lg_land --tick
-is "A66 (B28) [control]: unverified tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written" \
+is "A66 (B28) [control]: not-green tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written" \
    "$(_l65_has "$(_lg_f refused 65 7)" "$L65CR")" "yes"
 rm -rf "${LGH:?}/state"
 
@@ -155,9 +155,9 @@ is "A69 (B29) [control]: with land/ writable, --resume over a pause exits 0, rem
 # ------------------------------------------ B30 (M3): the way out is printed ---
 _l65_reset; _lg_cache "$L65VM"; printf 'extra\n' > "$LGV/$L65VM/harness/l65-extra.txt"
 L65A="$(_la_accepts)"; : > "$LGK/install.taint"; _lg_land --tick
-L65D="$(_lg_f deployed-unverified "" 7)"; L65P="$(cat "$LAND/paused" 2>/dev/null)"
-is "A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deployed-unverified row begins diff:, names the entry, and paused holds it" \
-   "$L65A|$(_lg_n deployed-unverified)|$(_l65_begins "$L65D" 'diff:')|$(_l65_entry "$L65D" "$L65VM")|$(_l65_same "$L65P" "$L65D")" "1|1|yes|yes|yes"
+L65D="$(_lg_f deploy-failed "" 7)"; L65P="$(cat "$LAND/paused" 2>/dev/null)"
+is "A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deploy-failed row begins diff:, names the entry, and paused holds it" \
+   "$L65A|$(_lg_n deploy-failed)|$(_l65_begins "$L65D" 'diff:')|$(_l65_entry "$L65D" "$L65VM")|$(_l65_same "$L65P" "$L65D")" "1|1|yes|yes|yes"
 _l65_is "A71 (B30): that row names the way out: move the entry aside, then felix install --no-bump" \
    "$(_l65_has "$L65D" aside)|$(_l65_has "$L65D" 'felix install --no-bump')" "yes|yes" "$L65D"
 _l65_reset; _lg_cache "$L65VM"; _lg_land --install; _l65_reset
@@ -218,16 +218,16 @@ is "the land fixture (review round): the home's main carries the round's session
    "$(git -C "$LGH" ls-files -s engine/harness/hooks/pre-tool engine/harness/hooks/session-start 2>&1 | awk '{ printf "%s ", $1 }')|$(git -C "$LGH" rev-parse HEAD 2>&1)|$(git -C "$LGH" status --porcelain --untracked-files=no 2>&1)" \
    "100755 100755 |$(git -C "$LGO" rev-parse main 2>&1)|"
 _l65_deploy; L65D="$(_lg_f deployed "" 7)"
-is "A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deployed-unverified row, no pause" \
-   "$LGRC|$(_lg_n deployed)|$(_lg_n deployed-unverified)|$([ -e "$LAND/paused" ] && echo paused)" "0|1|0|"
+is "A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deploy-failed row, no pause" \
+   "$LGRC|$(_lg_n deployed)|$(_lg_n deploy-failed)|$([ -e "$LAND/paused" ] && echo paused)" "0|1|0|"
 L65A="$(_lg_logs pretool | LC_ALL=C awk -F'\t' -v h="$LGH" '($2 == h || index($3, h)) && index($3, "Bash") && index($3, "killall felix-verify-probe") { n++ } END { print n + 0 }')"
 is "A79 (B31): that verify ran pre-tool on a Bash payload of killall felix-verify-probe, the home its working directory or the payload's" \
    "$([ "$L65A" -ge 1 ] && echo ran)" "ran"
 is "A80 (B31): the deployed row names pre-tool beside session-start" "$(_l65_has "$L65D" pre-tool)|$(_l65_has "$L65D" session-start)" "yes|yes"
-_l65_unv() {   # ITEM WHAT HOOK -> one deployed-unverified row naming HOOK, no deployed row, paused the same
-  local d; d="$(_lg_f deployed-unverified "" 7)"
-  is "$1 (B31): $2 is deployed-unverified naming $3: one such row, no deployed row, and paused holds the same reason" \
-     "$(_lg_n deployed-unverified)|$(_lg_n deployed)|$(_l65_has "$(_lg_lc "$d")" "$3")|$(_l65_same "$(cat "$LAND/paused" 2>/dev/null)" "$d")" "1|0|yes|yes"
+_l65_unv() {   # ITEM WHAT HOOK -> one deploy-failed row naming HOOK, no deployed row, paused the same
+  local d; d="$(_lg_f deploy-failed "" 7)"
+  is "$1 (B31): $2 is deploy-failed naming $3: one such row, no deployed row, and paused holds the same reason" \
+     "$(_lg_n deploy-failed)|$(_lg_n deployed)|$(_l65_has "$(_lg_lc "$d")" "$3")|$(_l65_same "$(cat "$LAND/paused" 2>/dev/null)" "$d")" "1|0|yes|yes"
 }
 _l65_deploy ss.silent; _l65_unv A81 "a session-start that exits 0 and prints nothing" session-start
 _l65_deploy pt.open; _l65_unv A82 "a pre-tool that exits 0 on a pattern kill" pre-tool

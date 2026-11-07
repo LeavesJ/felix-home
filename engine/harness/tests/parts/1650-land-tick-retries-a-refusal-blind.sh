@@ -34,11 +34,11 @@ _l50_bl() { printf '  %-11s %-22s %s\n' "$1" "$2" "$3"; }
 _l50_out() {   # NAME -> felix merge's output NAME, as section 4 gives it (L: a landing's)
   case "$1" in
     L) printf 'merged\n' ;;
-    R) printf 'not merging\n\n'; _l50_bl unverified tree 'the tree changed since the receipt'
+    R) printf 'not merging\n\n'; _l50_bl not-green tree 'the tree changed since the receipt'
        printf '\nNothing here escapes the tree.\n' ;;
     C) printf 'not merging\n\n'; _l50_bl commission receipt 'the table set moved'
        printf '\nAsk them to run, in order:\n\n  felix autonomy --allow commission\n  felix commission\n' ;;
-    F) printf 'not merging\n\n'; _l50_bl unverified tree 'the tree changed since the receipt'
+    F) printf 'not merging\n\n'; _l50_bl not-green tree 'the tree changed since the receipt'
        _l50_bl evidence notes/b50.md 'the change owes a test'; printf '\nNothing here escapes the tree.\n' ;;
     E) printf 'not merging\n\n'; _l50_bl escape write 'notes/b50.md: outside the tree' ;;
     T) printf 'not merging\n\n'; _l50_bl commission table 'projects/lgh/commissioning.tsv: unreadable' ;;
@@ -85,13 +85,13 @@ is "the land fixture: green 50 lands on one tick when felix merge exits 0, felix
 # ------------------------------------------- B1, B2, B4: a receipt refusal ---
 _l50_case R 3; _lg_land --tick
 L50D="$(_lg_f refused 50 7)"; L50HF="$(_lg_f refused 50 4)"; L50WF="$(_lg_f refused 50 5)"
-is "A1 (B1, B2): an unverified refusal (exit 3, one blocker line of kind unverified) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written" \
+is "A1 (B1, B2): a not-green refusal (exit 3, one blocker line of kind not-green) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written" \
    "$(_lg_n refused 50)|$(_l50_has "$L50D" "$L50CR")" "1|yes"
-# "Begins unverified" is read past leading blanks: B2 keeps the blocker as today, and today's keeps the two
+# "Begins not-green" is read past leading blanks: B2 keeps the blocker as today, and today's keeps the two
 # spaces its blocker line begins with (seen on main 69b51a61 when this part was first run, A2 being a control).
 L50DT="${L50D#"${L50D%%[! ]*}"}"
-case "$L50DT" in "unverified"*" [main $(_l50_main)]") ok "A2 (B2): that detail still begins with the blocker, unverified (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]" ;;
-  *) bad "A2 (B2): that detail still begins with the blocker, unverified (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]" "[$L50D], main [$(_l50_main)]" ;; esac
+case "$L50DT" in "not-green"*" [main $(_l50_main)]") ok "A2 (B2): that detail still begins with the blocker, not-green (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]" ;;
+  *) bad "A2 (B2): that detail still begins with the blocker, not-green (leading blanks aside), and still ends with a space and [main <sha of refs/remotes/origin/main>]" "[$L50D], main [$(_l50_main)]" ;; esac
 _lg_land --tick
 is "A5 (B4): with neither receipt touched, a second tick neither runs felix merge again nor writes a row: M50 is 1, one refused row" \
    "$(_l50_m)|$(_lg_n refused 50)" "1|1"
@@ -121,12 +121,12 @@ _l50_final() {   # OUT ITEM WHAT -> refused, then both receipts rewritten and th
   is "$2 (B1, B3): a refusal with $3 is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1" \
      "$(_l50_m)" "1"
 }
-_l50_final F A12 "an evidence blocker beside the unverified one"
+_l50_final F A12 "an evidence blocker beside the not-green one"
 L50DF="$L50D"
 _l50_final E A13 "an escape blocker"
 _l50_final T A14 "a commission blocker whose subject is table, not receipt"
 _l50_final 0 A15 "an empty blocker block (not merging, and nothing under it)"
-is "A3 (B1, B2): a refusal holding a blocker of another kind (evidence) beside unverified says (final until the head or main moves)" \
+is "A3 (B1, B2): a refusal holding a blocker of another kind (evidence) beside not-green says (final until the head or main moves)" \
    "$(_l50_has "$L50DF" "$L50CF")" "yes"
 
 # --------------------------------------------------------- B5: hourly ---

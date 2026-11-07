@@ -113,7 +113,7 @@ if [ "$(id -u)" != 0 ]; then
 else skip "A31: a refusal, with plugin.json a file of mode 000, hands plugin.json to no wrapped tool" "the suite runs as root, which opens any file"; fi
 
 # --------------------------------------- 3. recovery keys on the newest row's kind ---
-for L9K in deploy-owed paused deployed-unverified; do
+for L9K in deploy-owed paused deploy-failed deployed-unverified; do
   _lg_reset; mkdir -p "$LAND"
   { printf '2026-10-18T07:00:00Z\tunreadable\t-\t-\t-\t0\tan older unreadable row, %s\n' "$LGH"
     printf '2026-10-18T07:30:00Z\t%s\t-\t-\t-\t0\tthe home was unreadable to the deploy, which is still owed\n' "$L9K"; } > "$LAND/ledger.tsv"

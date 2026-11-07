@@ -106,8 +106,8 @@ _l5_nohome() {   # WHAT -> no home code ran: no install, gate or session-start, 
 _l5_dep() {   # WHAT WORD... -> one tick with a deploy owed: one deploy-owed row naming the path, paused, nothing run
   local what="$1"; shift
   rm -rf "$LGV/$L5V"; _lg_reset; _lg_prs "$(_lg_pr 80)"; _lg_green 80; _lg_land --tick
-  is "A24: $what: the tick writes one deploy-owed row, and no deployed or deployed-unverified row" \
-     "$LGRC|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deployed-unverified)" "0|1|0|0"
+  is "A24: $what: the tick writes one deploy-owed row, and no deployed or deploy-failed row" \
+     "$LGRC|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deploy-failed)" "0|1|0|0"
   _la_names "A24: $what: the deploy-owed row names the path" "$(_lg_f deploy-owed "" 7)" "$@"
   [ -s "$LAND/paused" ] && ok "A24: $what: and writes paused" || bad "A24: $what: and writes paused" "no paused"
   _l5_nohome "$what"
@@ -228,8 +228,8 @@ _l6_nohome() {   # TAG WHAT -> no home code ran: no install, gate or session-sta
 _l6_stop() {   # TAG WHAT WORD... -> one tick with a deploy owed stops: one deploy-owed row naming the path, paused, nothing run
   local tag="$1" what="$2"; shift 2
   rm -rf "$LGV/$L5V"; _lg_reset; _lg_prs "$(_lg_pr 80)"; _lg_green 80; _lg_land --tick
-  is "$tag: $what: the tick writes one deploy-owed row, and no deployed or deployed-unverified row" \
-     "$LGRC|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deployed-unverified)" "0|1|0|0"
+  is "$tag: $what: the tick writes one deploy-owed row, and no deployed or deploy-failed row" \
+     "$LGRC|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deploy-failed)" "0|1|0|0"
   _la_names "$tag: $what: the deploy-owed row names the path" "$(_lg_f deploy-owed "" 7)" "$@"
   [ -s "$LAND/paused" ] && ok "$tag: $what: and writes paused" || bad "$tag: $what: and writes paused" "no paused"
   _l6_nohome "$tag" "$what"

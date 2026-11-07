@@ -160,12 +160,12 @@ done
 IFS="$_gfcIFS"
 
 # What a reused receipt's blockers came to: `held` when they are exactly one
-# row, unverified/tests, whose reason begins with the contract's sentence and
+# row, not-green/tests, whose reason begins with the contract's sentence and
 # then says what held; otherwise what came instead.
 _gfcHeld() {  # blockers tail
   local n r
   n="$(printf '%s\n' "$1" | LC_ALL=C awk 'NF { c++ } END { print c + 0 }')"
-  r="$(printf '%s\n' "$1" | LC_ALL=C awk -F'\t' '$1 == "unverified" && $2 == "tests" { print $3; exit }')"
+  r="$(printf '%s\n' "$1" | LC_ALL=C awk -F'\t' '$1 == "not-green" && $2 == "tests" { print $3; exit }')"
   if [ "$n" != 1 ] || [ -z "$r" ]; then printf 'rows=%s [%s]' "$n" "$(printf '%s' "$1" | LC_ALL=C tr '\t\n' ' |')"; return 0; fi
   case "$r" in
     "$_gfcPre"*"$2"*) printf 'held' ;;
@@ -262,7 +262,7 @@ _gfcCase runs "$(_gfcRun 40 "$_gfcH" completed cancelled ci-gate.yml)"
 _gfcOut="$( cd "${_gfcR:?}" && GIT_ALLOW_PROTOCOL=file PATH="$_gfcPATH" "$FELIX" merge --base "$(_mbase "${_gfcR:?}")" --dry-run 2>&1 )"; _gfcRc=$?
 _gfcIs "C9.5: felix merge --dry-run refuses a reused receipt whose head's gate run was cancelled" "$_gfcRc" "3"
 _gfcHas "C9.5: and prints the blocker on its own line, as the others are printed" "$_gfcOut" \
-    "$(printf '  %-11s %-22s %s' unverified tests "$_gfcPre")"
+    "$(printf '  %-11s %-22s %s' not-green tests "$_gfcPre")"
 _gfcHas "C9.3/C9.5: saying what held: its run concluded cancelled" "$_gfcOut" "its run concluded cancelled"
 
 # ==== not blind: the review of the first build of C9 (779d7f39) ===============

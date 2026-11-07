@@ -111,7 +111,7 @@ _lg_land --tick
 is "A11: the next tick merges it" "$(_lg_n landed 42)|$(_lg_merges)" "1|b42"
 is "A11: with the engine just deployed" "$(_l3_mpath)" "$L3E "
 rm -rf "$LGV/$L3V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; printf '1\n' > "$LGK/gate.rc"; _lg_land --tick
-is "A11: a tick whose deploy ends deployed-unverified merges nothing" "$(_lg_n deployed-unverified)|$(_lg_merges)" "1|"
+is "A11: a tick whose deploy ends deploy-failed merges nothing" "$(_lg_n deploy-failed)|$(_lg_merges)" "1|"
 _lg_cache "$L3V"
 
 # -------------------------------------------------------------------- A12 ---

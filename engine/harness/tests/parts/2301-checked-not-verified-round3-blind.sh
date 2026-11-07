@@ -163,8 +163,11 @@ _cnv3_pword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])proves([^a-z0-9_]|$)/
 
 # C18's check. The allowed names, one a line, read as bytes by the check's awk (getline), never through awk -v,
 # which would turn the backslash and t of 'unverified\t into a tab; the ERE through ENVIRON, for the same reason.
-printf '%s\n' 'state/verified' 'deployed-unverified' 'subagent-unverified' "'unverified\\t" '== "unverified"' > "$CNV3/allowed"
-printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' > "$CNV3/allowed-in"
+# Round 4, not blind (K12 of docs/2026-11-07-not-green-deploy-failed-contract.md): the two kinds that moved are no longer allowed
+# everywhere; the old ledger kind is allowed as notify.sh's case label, the old blocker kind as green-install.sh's clause.
+printf '%s\n' 'state/verified' 'subagent-unverified' > "$CNV3/allowed"
+printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' 'harness/lib/notify.sh' 'deployed-unverified)' \
+  'harness/lib/green-install.sh' '$1 == "unverified"' > "$CNV3/allowed-in"
 CNV3_ERE='(^|[^a-z0-9_])((un)?(verified|proven)|proves)([^a-z0-9_]|$)'
 CNV3_ERE1='(^|[^a-z0-9_])(un)?(verified|proven)([^a-z0-9_]|$)'
 _cnv3_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
@@ -346,9 +349,10 @@ CNV3_C3="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18b")"; CNV3_C3R=
 is "cnv3 A26 (C18): the check over a fixture holding what a fix must prove, the fix will have to prove, nothing proving it, --verify and the other verify forms passes" \
    "rc=$CNV3_C3R [$CNV3_C3]" "rc=0 []"
 printf '%s\n' '# Proves, verified and unproven: a comment' "	  # an indented comment says proves too" 'mkdir -p "$H/state/verified"' \
-  'kind=deployed-unverified' 'felix_say p subagent-unverified body' "printf 'unverified\\ttree\\t%s\\n' x" \
-  '[ "$1" == "unverified" ] && exit 0' > "$CNV3/c18c/x.sh"
+  'felix_say p subagent-unverified body' > "$CNV3/c18c/x.sh"
 printf '%s\n' 'grep -e "never verified"' > "$CNV3/c18c/harness/lib/verify.sh"
+printf '%s\n' "    deploy-failed|deployed-unverified) printf '%s' 'A deploy stopped at a failed step' ;;" > "$CNV3/c18c/harness/lib/notify.sh"
+printf '%s\n' '{ if ($1 == "not-green" || $1 == "unverified") h = 1 }' > "$CNV3/c18c/harness/lib/green-install.sh"
 printf '%s\n' 'echo "never verified"' > "$CNV3/c18d/harness/lib/other.sh"
 CNV3_C4="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18c")"; CNV3_C4R=$?
 CNV3_C5="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18d")"; CNV3_C5R=$?

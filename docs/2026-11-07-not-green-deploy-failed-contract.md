@@ -156,8 +156,11 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   (both forms), `felix land --prs` and the session-start list of waiting pull
   requests list a ledger that holds `deployed-unverified` rows exactly as they
   list one that holds the same rows under `deploy-failed`: the kind as
-  recorded, in the same columns, with the same detail. A ledger that holds both
-  kinds lists both. No reader drops or reorders a row for its kind.
+  recorded, in the same columns, with the same detail. These readers name a
+  ledger's newest row and the last row of each pull request, not every row, so
+  a ledger that holds both kinds lists whichever row is newest as recorded,
+  whichever kind it has and whichever came first (clarified after the blind
+  part read it). No reader drops or reorders a row for its kind.
 - **K11 What is decided is unchanged.** Which trees `felix merge` refuses, which
   paragraph closes a block, which refusals the lander retries and when, which
   deploys complete, which ones pause landing, and which events a person is
@@ -174,7 +177,8 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 
   `_gt_unverified` appears nowhere. `deployed-unverified` appears nowhere else
   (`green-tick.sh` no longer holds it). `unverified\t` appears nowhere
-  (`escape.sh` no longer holds it). Part 2300's and part 2301's allowed lists
+  (`escape.sh` no longer holds it; `unverified` followed by a tab, or by the two
+  characters backslash and t, as a printf spells it). Part 2300's and part 2301's allowed lists
   are narrowed to match: the entries `deployed-unverified` (in `green-tick.sh`
   and `notify.sh`), `'unverified\t` (in `escape.sh`) and `== "unverified"` (in
   `green-install.sh`) are gone, and the two entries above replace them. The

@@ -8,10 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
-run	73	15742	46
-D4: a unit that dies in its prelude, before @@prelude-done in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
-R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
+base	origin/main	b7aab8e9aa21f2514be53950324ac625410f14fd	0.49.327
+run	71	15925	46
 felix cost one reading (C1): --max-age 0 is taken: status 0 and the week's total	1
 felix cost one reading (C1): --max-age 604800 is taken: status 0 and the week's total	1
 felix cost one reading (C1): FELIX_COST_DEADLINE [-1] is refused: status 2, nothing on stdout, a message and the usage	1

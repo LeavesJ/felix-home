@@ -1,4 +1,4 @@
-### 2026-11-06: the shared resolver, the CLI, the table check and the status rows say could not tell when a read did not finish (0.49.328)
+### 2026-11-06: the shared resolver, the CLI, the table check and the status rows say could not tell when a read did not finish (0.49.329)
 
 **What landed (branch `claude/trust-unfinished-reads`).** This is step 1 of the trust-plane verification design
 (`~/.felix/memory/felix/designs/2026-10-31-trust-plane-verification/`, §10). It was built red-first from the cells

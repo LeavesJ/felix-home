@@ -418,7 +418,7 @@ jobs:
           # content rule reads the lines a commit adds, so this is what lets a
           # credential or destructive SQL written into a named file count as red:
           # paths alone would pass both.
-          git commit -qam "fix: unattended repair, verified by the gate
+          git commit -qam "fix: unattended repair, checked by the gate
 
           Produced by the unattended loop. Pushed only because it changed no
           file the brief did not name, the risk rules did not call its own

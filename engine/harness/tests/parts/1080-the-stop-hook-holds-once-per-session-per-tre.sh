@@ -81,10 +81,10 @@ _ho_edit()  { printf 'base\n%s\n' "$1" > "$HOREPO/WORK.txt"; }
 # Restated after the review, not blind (the contract's addendum A): a record
 # line is the tree id, the reason and the checkout, tab-separated. _ho_rec reads
 # the tree ids a record holds, and _ho_seed lays a whole line, the reason "never
-# verified" and the checkout the helpers talk to unless it is told otherwise.
+# checked" and the checkout the helpers talk to unless it is told otherwise.
 _ho_rec()   { cut -f1 "$HOSTATE/held-tree/$1" 2>/dev/null; }
 _ho_seed()  { mkdir -p "$HOSTATE/held-tree" \
-                && printf '%s\t%s\t%s\n' "$2" "${3:-never verified}" "${4:-$HODIR}" > "$HOSTATE/held-tree/$1"; }
+                && printf '%s\t%s\t%s\n' "$2" "${3:-never checked}" "${4:-$HODIR}" > "$HOSTATE/held-tree/$1"; }
 _ho_rows()  { awk 'END { print NR + 0 }' "$HOLOG" 2>/dev/null || printf '0'; }
 _ho_field() { printf '%s' "$HO_ROW" | cut -f"$1"; }
 _ho_pay() {   # session id [, flag [, transcript]] -> a Stop payload
@@ -196,8 +196,8 @@ case "$HO_OUT" in
   *)
     bad "the Stop hook still prints the block as a JSON object with the decision on its second line and the reason on its third" "[$HO_OUT]" ;;
 esac
-is  "the Stop hook's first hold writes a blocked row naming the tree and never verified as the reason" \
-    "$(_ho_field 2-4)" "$(printf 'blocked\t%s\tnever verified' "$HOT1")"
+is  "the Stop hook's first hold writes a blocked row naming the tree and never checked as the reason" \
+    "$(_ho_field 2-4)" "$(printf 'blocked\t%s\tnever checked' "$HOT1")"
 is  "the Stop hook records the tree id of a first hold in state/held-tree under the session id" \
     "$(_ho_rec ho-a)" "$HOT1"
 is  "the Stop hook's record of a first hold is exactly one line" \
@@ -237,7 +237,7 @@ has "the Stop hook records the tree it held on in a record that named a differen
 # 1 and 3 again, for each way a gate leaves a tree unpassed: held once, then debt.
 for _ho_k in never stale failed epoch; do
   case "$_ho_k" in
-    never)  _ho_lab="the gate never ran";                          _ho_det="never verified" ;;
+    never)  _ho_lab="the gate never ran";                          _ho_det="never checked" ;;
     stale)  _ho_lab="the receipt is for a different tree";         _ho_det="stale receipt" ;;
     failed) _ho_lab="the gate failed on this tree";                _ho_det="failed" ;;
     epoch)  _ho_lab="the gate passed on this tree and the epoch moved"; _ho_det="epoch moved" ;;

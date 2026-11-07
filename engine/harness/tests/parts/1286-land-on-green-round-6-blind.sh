@@ -126,19 +126,19 @@ _l7_fail part "the first 1024 bytes of the archive"
 # ---------------------------------------------------- A29: a tick, a verify ---
 rm -f "$LGB/git"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; _lg_land --tick
 is "the land fixture: with the real git, a tick lands green 42 and owes no deploy (fixture control)" \
-   "$(_lg_n landed 42)|$(_lg_merges)|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deploy-failed)" "1|b42|0|0|0"
+   "$(_lg_n landed 42)|$(_lg_merges)|$(_lg_n deploy-owed)|$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|b42|0|0|0"
 _l7_on; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; _lg_land --tick
 is "the land fixture: the tick ran git archive through the stub (fixture control)" \
    "$([ "$(_lg_cnt archive)" -ge 1 ] && echo yes)" "yes"
 is "A29: with the stub, a tick finds main's entry accepted and lands green 42" "$LGRC|$(_lg_n landed 42)|$(_lg_merges)" "0|1|b42"
 is "A29: and writes no deploy-owed, deployed or deploy-failed row" \
-   "$(_lg_n deploy-owed)|$(_lg_n deployed)|$(_lg_n deploy-failed)" "0|0|0"
+   "$(_lg_n deploy-owed)|$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "0|0|0"
 is "A29: and pauses nothing" "$([ -e "$LAND/paused" ] && echo paused)" ""
 
 # A deploy owed because main's entry is gone: its verify asks main's check too.
 rm -rf "$LGV/$L7V"; _lg_reset; _lg_land --tick
 is "A29: with the stub, a deploy's verify accepts the entry just installed: one deployed row, no deploy-failed row" \
-   "$(_lg_n deployed)|$(_lg_n deploy-failed)" "1|0"
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|0"
 is "A29: and the deploy pauses nothing" "$([ -e "$LAND/paused" ] && echo paused)" ""
 
 rm -f "$LGB/git"; _lg_cache "$L7V"; _lg_reset; rm -rf "$L7"

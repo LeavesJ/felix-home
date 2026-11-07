@@ -165,9 +165,10 @@ _cnv3_pword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])proves([^a-z0-9_]|$)/
 # which would turn the backslash and t of 'unverified\t into a tab; the ERE through ENVIRON, for the same reason.
 # Round 4, not blind (K12 of docs/2026-11-07-not-green-deploy-failed-contract.md): the two kinds that moved are no longer allowed
 # everywhere; the old ledger kind is allowed as notify.sh's case label, the old blocker kind as green-install.sh's clause.
+# Round 5, not blind (K12, K14): and, in green-tick.sh, as the text by which the quiet check reads a refusal recorded before.
 printf '%s\n' 'state/verified' 'subagent-unverified' > "$CNV3/allowed"
 printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' 'harness/lib/notify.sh' 'deployed-unverified)' \
-  'harness/lib/green-install.sh' '$1 == "unverified"' > "$CNV3/allowed-in"
+  'harness/lib/green-install.sh' '$1 == "unverified"' 'harness/lib/green-tick.sh' '  unverified  ' > "$CNV3/allowed-in"
 CNV3_ERE='(^|[^a-z0-9_])((un)?(verified|proven)|proves)([^a-z0-9_]|$)'
 CNV3_ERE1='(^|[^a-z0-9_])(un)?(verified|proven)([^a-z0-9_]|$)'
 _cnv3_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
@@ -353,12 +354,28 @@ printf '%s\n' '# Proves, verified and unproven: a comment' "	  # an indented com
 printf '%s\n' 'grep -e "never verified"' > "$CNV3/c18c/harness/lib/verify.sh"
 printf '%s\n' "    deploy-failed|deployed-unverified) printf '%s' 'A deploy stopped at a failed step' ;;" > "$CNV3/c18c/harness/lib/notify.sh"
 printf '%s\n' '{ if ($1 == "not-green" || $1 == "unverified") h = 1 }' > "$CNV3/c18c/harness/lib/green-install.sh"
+printf '%s\n' 'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' > "$CNV3/c18c/harness/lib/green-tick.sh"
 printf '%s\n' 'echo "never verified"' > "$CNV3/c18d/harness/lib/other.sh"
 CNV3_C4="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18c")"; CNV3_C4R=$?
 CNV3_C5="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18d")"; CNV3_C5R=$?
 is "cnv3 A27 (C18): # comments with Proves, each allowed name, and never verified in harness/lib/verify.sh pass; never verified in another file fails" \
    "allowed: rc=$CNV3_C4R [$CNV3_C4] elsewhere: rc=$CNV3_C5R [$CNV3_C5]" \
    "allowed: rc=0 [] elsewhere: rc=1 [harness/lib/other.sh:1:echo \"never verified\"]"
+# Round 5, not blind (K12, review round 1): this part's model of the check is shown to fail on the names that were removed from
+# its list, in the file that used to allow each, and to pass on the three that replace them, each in its own file.
+mkdir -p "$CNV3/c18p/harness/lib" "$CNV3/c18q/harness/lib"
+printf '%s\n' 'kind=deployed-unverified' > "$CNV3/c18p/harness/lib/green-tick.sh"
+printf '%s\n' "printf 'unverified\\ttree\\t%s\\n' x" > "$CNV3/c18p/harness/lib/escape.sh"
+printf '%s\n' 'kind=deployed-unverified' > "$CNV3/c18p/harness/lib/notify.sh"
+printf '%s\n' '[ "$1" == "unverified" ] && exit 0' > "$CNV3/c18p/harness/lib/green-install.sh"
+printf '%s\n' "    deploy-failed|deployed-unverified) printf '%s' 'A deploy stopped' ;;" > "$CNV3/c18q/harness/lib/notify.sh"
+printf '%s\n' '{ if ($1 == "unverified") h = 1 }' > "$CNV3/c18q/harness/lib/green-install.sh"
+printf '%s\n' 'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' > "$CNV3/c18q/harness/lib/green-tick.sh"
+CNV3_C9="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18p")"; CNV3_C9R=$?
+CNV3_C10="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18q")"; CNV3_C10R=$?
+is "cnv3 A27b (C18, round 5, not blind): the old ledger kind in green-tick.sh and notify.sh, the old blocker kind's printf in escape.sh and the wide clause in green-install.sh each fail, and the three allowed forms, each in its own file, pass" \
+   "removed: rc=$CNV3_C9R files=$(printf '%s\n' "$CNV3_C9" | LC_ALL=C cut -d: -f1 | LC_ALL=C tr '\n' ' ') allowed: rc=$CNV3_C10R [$CNV3_C10]" \
+   "removed: rc=1 files=harness/lib/escape.sh harness/lib/green-install.sh harness/lib/green-tick.sh harness/lib/notify.sh  allowed: rc=0 []"
 CNV3_G="$CNV3/c18g"; mkdir -p "$CNV3_G/harness/tests" "$CNV3_G/lib"
 printf '%s\n' "printf 'proves\\n'" > "$CNV3_G/harness/tests/t.sh"; printf 'echo fine\n' > "$CNV3_G/lib/b.sh"
 ( _fx_cd "$CNV3_G" && git init -q -b main && git add harness/tests/t.sh lib/b.sh ) >/dev/null 2>&1

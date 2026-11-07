@@ -760,7 +760,7 @@ _ltout="$( cd "$LT_P" && unset FELIX_MERGE_DRY_RUN && "$FELIX" merge --base main
 _ltn1="$(_lt_nsaid widget)"
 is  "a real felix merge on a behind product checkout with no receipt still refuses with exit 3, or reporting changed how it lands" \
     "$_ltrc" "3"
-has "and still names the unverified tree, or reporting displaced the blocker that stops it" "$_ltout" "not-green"
+has "and still names the not-green tree, or reporting displaced the blocker that stops it" "$_ltout" "not-green"
 is  "and shows no behind or owed blocker, or a report-only check would be read as a refusal" \
     "$(_lt_blockerish "$_ltout")" ""
 is  "while it adds exactly one would-refuse row to the widget's says.log, or cmd_merge never reaches the report" \
@@ -779,7 +779,7 @@ is  "the product checkout holds origin/main once it has merged it" "$(_lt_state 
 _ltn0="$(_lt_nsaid widget)"
 _ltout="$( cd "$LT_P" && unset FELIX_MERGE_DRY_RUN && "$FELIX" merge --base main 2>&1 )"; _ltrc=$?
 _ltn1="$(_lt_nsaid widget)"
-is  "and a real attempt there still refuses on the unverified tree and adds no would-refuse row, or every current branch would be reported behind" \
+is  "and a real attempt there still refuses on the not-green tree and adds no would-refuse row, or every current branch would be reported behind" \
     "$_ltrc $((_ltn1 - _ltn0))" "3 0"
 
 # -------------------------------------------------------- the table itself ----

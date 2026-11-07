@@ -219,7 +219,7 @@ is "the land fixture (review round): the home's main carries the round's session
    "100755 100755 |$(git -C "$LGO" rev-parse main 2>&1)|"
 _l65_deploy; L65D="$(_lg_f deployed "" 7)"
 is "A78 (B31) [control]: a deploy whose session-start prints a line and whose pre-tool refuses a pattern kill is deployed: one deployed row, no deploy-failed row, no pause" \
-   "$LGRC|$(_lg_n deployed)|$(_lg_n deploy-failed)|$([ -e "$LAND/paused" ] && echo paused)" "0|1|0|"
+   "$LGRC|$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))|$([ -e "$LAND/paused" ] && echo paused)" "0|1|0|"
 L65A="$(_lg_logs pretool | LC_ALL=C awk -F'\t' -v h="$LGH" '($2 == h || index($3, h)) && index($3, "Bash") && index($3, "killall felix-verify-probe") { n++ } END { print n + 0 }')"
 is "A79 (B31): that verify ran pre-tool on a Bash payload of killall felix-verify-probe, the home its working directory or the payload's" \
    "$([ "$L65A" -ge 1 ] && echo ran)" "ran"

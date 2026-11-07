@@ -112,7 +112,7 @@ is "A17: with the decoy names and main's entry in place, the tick owes no deploy
    "$(_lg_n deploy-owed)|$(_lg_ninst)|$(_lg_merges)|$(_l3_mpath)" "0|0|b42|$L4E "
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_land --tick
 is "A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deploy-failed" \
-   "$(_lg_n deployed)|$(_lg_n deploy-failed)" "1|0"
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|0"
 [ -e "$LAND/paused" ] && bad "A17: and nothing is paused" "[$(cat "$LAND/paused")]" || ok "A17: and nothing is paused"
 _l4_nodecoy; _lg_cache "$L4V"
 
@@ -184,7 +184,7 @@ _lg_cache "$L4V"
 # -------------------------------------------------------------------- A21 ---
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; _lg_land --tick
 is "A21: (control) an owed deploy with nothing untracked in the home's engine ends deployed" \
-   "$(_lg_n deployed)|$(_lg_n deploy-failed)" "1|0"
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|0"
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42
 printf 'not main\n' > "$LGH/engine/harness/a21-extra.txt"; _lg_land --tick
 # A24, later, stops this deploy before its install with a deploy-owed row; A21

@@ -258,9 +258,15 @@ _gt_detail() {   # felix merge's output -> the first blocker line, else the last
 # notified only if the blocker, the class or the head differs from the pull
 # request's previous refused row.
 _gt_refuse() {   # PR SHA WORKTREE WALL OUTPUT STATUS
-  local c b; c="$(_gt_class "$6" "$5")"
+  local c b old=""; c="$(_gt_class "$6" "$5")"
   b="$(_gt_clean "$(_gt_detail "$5")") $(_gt_clause "$c")"
-  case "$(_gt_last "$1")" in "refused"$'\t'"$2"$'\t'"$b [main "*) _GT_QUIET=1 ;; esac
+  # K14: a row recorded before the rename names the blocker kind in its column as "  unverified  "; the same refusal
+  # now reads "  not-green   ", and a refusal that stands across the deploy is the same refusal.
+  case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac
+  case "$(_gt_last "$1")" in
+    "refused"$'\t'"$2"$'\t'"$b [main "*) _GT_QUIET=1 ;;
+    "refused"$'\t'"$2"$'\t'"$old [main "*) if [ -n "$old" ]; then _GT_QUIET=1; fi ;;
+  esac
   _gt_record "$1" "$2" "$c"
   _gt_row refused "$1" "$2" "$3" "$4" "$b [main $_GT_MS]"; _GT_QUIET=0
 }

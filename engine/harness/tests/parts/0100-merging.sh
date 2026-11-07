@@ -19,7 +19,7 @@ _blk() { ( cd "$REPO" && . "$FROOT/harness/lib/escape.sh"; . "$FROOT/harness/lib
            felix_merge_blockers "$FROOT/projects/widget" HEAD~1 "$REPO" "$FROOT" ); }
 
 printf 'plain notes\n' > "$REPO/README.md"; _stage
-has "an unverified tree blocks the merge" "$(_blk)" "not-green"
+has "a not-green tree blocks the merge" "$(_blk)" "not-green"
 
 # A malformed probe row reaches the merge boundary as a blocker. cmd_probes
 # --gate already refuses one; a boundary that let the same row through would
@@ -436,6 +436,6 @@ printf 'notes\n' > "$REPO/README.md"; _stage
 before="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 ( cd "$REPO" && "$FELIX" merge --base "$(_mbase "$REPO")" >/dev/null 2>&1 )
 after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
-is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
+is "a not-green tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 

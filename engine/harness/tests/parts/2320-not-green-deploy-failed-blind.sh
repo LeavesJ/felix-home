@@ -270,10 +270,13 @@ _ngd_scan() {   # DIR -> KIND<TAB>PATH:LINE for each hit (fn: _gt_unverified; le
       if (index(ln, "_gt_unverified")) print "fn" T w
       if (FILENAME == "harness/lib/notify.sh") l = strip(l, "deployed-unverified)")
       if (FILENAME == "harness/lib/green-install.sh") l = strip(l, "$1 == \"unverified\"")
+      if (FILENAME == "harness/lib/green-tick.sh") l = strip(l, "  unverified  ")
       if (FILENAME == "harness/hooks/subagent-stop") l = strip(l, "subagent-unverified")
       if (index(l, "deployed-unverified")) print "ledger" T w
       if (index(l, "unverified\\t") || index(l, "unverified" T)) print "tab" T w
       if (tolower(l) ~ /(^|[^a-z0-9_])unverified([^a-z0-9_]|$)/) print "word" T w }' "${b[@]}" 2>/dev/null )
+  # Round 5, not blind (review round 1): the awk's status and the count of files it read, for a control over the real engine.
+  printf '%s %s\n' "$?" "${#b[@]}" > "$NGD/scan.last"
 }
 _ngd_kinds() { printf '%s\n' "$1" | LC_ALL=C awk -F'\t' 'NF == 2 { p = $2; sub(/:[0123456789]+$/, "", p); print p "=" $1 }' | LC_ALL=C sort -u | tr '\n' ' '; }
 _ngd_fx() {   # DIR PATH|LINE... -> a git repository holding each line in its file, every file tracked and committed
@@ -289,6 +292,7 @@ is "ngd A26 (K12) [control]: the check fails on each removed entry in the file t
    "README.md=ledger README.md=word harness/lib/escape.sh=tab harness/lib/escape.sh=word harness/lib/green-install.sh=word harness/lib/green-tick.sh=ledger harness/lib/green-tick.sh=word harness/lib/notify.sh=ledger harness/lib/notify.sh=word harness/lib/other.sh=fn "
 _ngd_fx "$NGD/k12b" "harness/lib/notify.sh|    deployed-unverified) printf '%s' 'x' ;;" "harness/lib/green-install.sh|  \$1 == \"unverified\" { u = 1 }" \
   "harness/hooks/subagent-stop|felix_say subagent-unverified \"\$why\"" "harness/lib/green-tick.sh|  # deployed-unverified was the kind; _gt_unverified its writer" \
+  "harness/lib/green-tick.sh|  case \"\$b\" in \"  not-green   \"*) old=\"  unverified  \${b#x}\" ;; esac" \
   "harness/tests/parts/x.sh|_gt_unverified deployed-unverified"
 printf 'deployed-unverified\n' > "$NGD/k12b/harness/lib/untracked.sh"
 is "ngd A27 (K12) [control]: and passes on each new entry in its own file, a comment, a file under harness/tests/ and a file git does not track" "$(_ngd_scan "$NGD/k12b")" ""
@@ -296,12 +300,14 @@ rm -rf "$NGD/k12c"; mkdir -p "$NGD/k12c/harness/lib"; printf '    deployed-unver
 printf '  $1 == "unverified" { u = 1 }\n' > "$NGD/k12c/harness/lib/escape.sh"
 is "ngd A28 (K12) [control]: a new entry outside its own file fails, read in a directory git tracks nothing of, which is read whole" \
    "$(_ngd_kinds "$(_ngd_scan "$NGD/k12c")")" "harness/lib/escape.sh=word harness/lib/green-tick.sh=ledger harness/lib/green-tick.sh=word "
-NGE="$(cd "$REAL_HARNESS/.." && pwd -P)"; NGK12="$(_ngd_scan "$NGE")"
+NGE="$(cd "$REAL_HARNESS/.." && pwd -P)"; NGK12="$(_ngd_scan "$NGE")"; NGSC="$(cat "$NGD/scan.last" 2>/dev/null)"
 _ngd_hits() { printf '%s\n' "$NGK12" | LC_ALL=C awk -F'\t' -v k="$1" '$1 == k { printf "%s%s", s, $2; s = " " }'; }
 is "ngd A29 (K12): _gt_unverified appears in no tracked file of the engine outside harness/tests/, comments skipped as C18 skips them" "$(_ngd_hits fn)" ""
 is "ngd A30 (K12): deployed-unverified appears there only as the case label deployed-unverified) in harness/lib/notify.sh" "$(_ngd_hits ledger)" ""
 is "ngd A31 (K12): unverified followed by a tab, or by backslash and t, appears there nowhere" "$(_ngd_hits tab)" ""
-is 'ngd A32 (K12): the old blocker name appears there as a word only as $1 == "unverified" in harness/lib/green-install.sh, beside the subagent-unverified kind this change leaves' "$(_ngd_hits word)" ""
+is 'ngd A32 (K12): the old blocker name appears there as a word only as $1 == "unverified" in harness/lib/green-install.sh, as the quiet check'"'"'s text in harness/lib/green-tick.sh, beside the subagent-unverified kind this change leaves' "$(_ngd_hits word)" ""
+is "ngd A32b (K12, review round 1, control): the scan of the engine under test read at least fifty files and its awk ended with status 0, so a scan that read nothing cannot pass" \
+   "$(printf '%s\n' "$NGSC" | LC_ALL=C awk '{ printf "rc=%s files=%s", $1, ($2 >= 50 ? "fifty or more" : $2) }')" "rc=0 files=fifty or more"
 is "ngd A33 (K12): the function's new name: a file of harness/lib defines _gt_deploy_failed" \
    "$( (cd "$REAL_HARNESS/lib" && LC_ALL=C awk '/^[ \t]*_gt_deploy_failed[ \t]*\(\)/ { print "defined"; exit }' ./*.sh) 2>/dev/null)" "defined"
 

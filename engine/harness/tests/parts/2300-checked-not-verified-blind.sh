@@ -161,9 +161,11 @@ _cnv_vword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])(un)?verified([^a-z0-9
 # Round 4, not blind (docs/2026-11-07-not-green-deploy-failed-contract.md, K12): the two kinds #482 kept moved. The entries
 # deployed-unverified (green-tick.sh, notify.sh), 'unverified\t (escape.sh) and == "unverified" (green-install.sh) are gone;
 # the old ledger kind is allowed only as the case label notify.sh accepts it by, and the old blocker kind only as the
-# clause green-install.sh's _gt_class reads it by.
+# clause green-install.sh's _gt_class reads it by. Round 5 (K12, K14), not blind: and as the text by which green-tick.sh's quiet
+# check reads a refusal recorded before the rename.
 printf '%s\t%s\n' 'harness/hooks/stop' 'state/verified' 'harness/lib/notify.sh' 'deployed-unverified)' \
   'harness/hooks/subagent-stop' 'subagent-unverified' 'harness/lib/green-install.sh' '$1 == "unverified"' \
+  'harness/lib/green-tick.sh' '  unverified  ' \
   'harness/lib/verify.sh' "$(printf -- '-e "$3\tnever verified\t${5:-}"')" > "$CNV/allowed-in"
 _cnv_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
   # Round 3, not blind: git's list only where git tracks something under DIR, as _copy_content asks. A directory in a
@@ -479,6 +481,7 @@ printf '%s\n' 'mkdir -p "$H/state/verified"' > "$CNV/c18b/harness/hooks/stop"
 printf '%s\n' 'felix_say p subagent-unverified body' > "$CNV/c18b/harness/hooks/subagent-stop"
 printf '%s\n' "    deploy-failed|deployed-unverified) printf '%s' 'A deploy stopped at a failed step' ;;" > "$CNV/c18b/harness/lib/notify.sh"
 printf '%s\n' '{ if ($1 == "not-green" || $1 == "unverified") h = 1 }' > "$CNV/c18b/harness/lib/green-install.sh"
+printf '%s\n' 'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' > "$CNV/c18b/harness/lib/green-tick.sh"
 CNV_C2="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18b")"; CNV_C2R=$?
 is "cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name, each in a file that may hold it, passes" \
    "rc=$CNV_C2R [$CNV_C2]" "rc=0 []"
@@ -493,13 +496,14 @@ harness/lib/verify.sh:2:printf \"never verified\\n\"]"
 mkdir -p "$CNV/c18d/harness/lib"
 printf '%s\n' "case \"\$k\" in deployed-unverified) echo not-checked ;; esac" 'echo "state/verified: the tree passed"' \
   'felix_say p subagent-unverified body' '{ if ($1 == "unverified") h = 1 }' \
+  'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' \
   "$(printf -- 'grep -Fxq -e "$3\tnever verified\t${5:-}" "$path"')" > "$CNV/c18d/harness/lib/other.sh"
 printf '%s\n' "    deploy-failed|deployed-unverified) printf '%s' 'A deploy stopped at a failed step' ;;" > "$CNV/c18d/harness/lib/notify.sh"
 CNV_C7="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18d")"; CNV_C7R=$?
 CNV_C7W="$(LC_ALL=C awk '{ printf "harness/lib/other.sh:%d:%s\n", NR, $0 }' "$CNV/c18d/harness/lib/other.sh")"
-is "cnv A45 (C18, round 3, not blind): each allowed text outside the files that may hold it fails, all five of them, and the one inside its file passes" \
+is "cnv A45 (C18, round 3, not blind): each allowed text outside the files that may hold it fails, all six of them, and the one inside its file passes" \
    "rc=$CNV_C7R lines=$(printf '%s\n' "$CNV_C7" | LC_ALL=C awk 'NF { n++ } END { print n + 0 }') same=$([ "$CNV_C7" = "$CNV_C7W" ] && printf yes || printf no)" \
-   "rc=1 lines=5 same=yes"
+   "rc=1 lines=6 same=yes"
 # Round 4, not blind (K12 of the not-green / deploy-failed contract): the four entries that were removed, each in the file that
 # used to allow it, now fail; the narrow form that replaced two of them, in the same file, passes.
 mkdir -p "$CNV/c18h/harness/lib"

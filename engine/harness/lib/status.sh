@@ -440,10 +440,9 @@ _felix_status_alerts() {
   if [ -z "$home" ] || [ ! -d "$home" ]; then
     _felix_status_row alerts unknown - "no Felix home resolved"; return 0
   fi
-  p="$(felix_resolve_project "$home" "$home" 2>/dev/null)" || p=""
-  if [ -z "$p" ]; then
-    _felix_status_row alerts unknown - "the home $home resolves no project, so no alert record was looked for"; return 0
-  fi
+  felix_resolve_read p "$home" "$home" 2>/dev/null; case "$?" in 0) ;;   # 2: the resolution did not finish
+    1) _felix_status_row alerts unknown - "the home $home resolves no project, so no alert record was looked for"; return 0 ;;
+    *) _felix_status_row alerts unknown - "the project that governs the home $home could not be resolved: a read it stands on did not finish"; return 0 ;; esac
   p="${p##*/}"; land="$(felix_mem_dir "$p")/land"; f="$land/alerts.tsv"
   if [ ! -e "$f" ]; then _felix_status_row alerts none - "no alert has been tried for $p"; return 0; fi
   if [ ! -f "$f" ] || [ ! -r "$f" ]; then _felix_status_row alerts unknown - "$f cannot be read"; return 0; fi
@@ -460,17 +459,16 @@ _felix_status_alerts() {
 
 # The ten rows for the directory <cwd> under the Felix home <home>.
 felix_status_rows() {
-  local home="$1" cwd="$2" root proj lproj prc
-  _felix_status_need felix_repo_root resolve
-  root="$(felix_repo_root "$cwd" 2>/dev/null)"
-  proj="$(felix_resolve_project "$cwd" "$home" 2>/dev/null)" || proj=""   # the nine rows' project, as main's: before any lane code runs
+  local home="$1" cwd="$2" root proj lproj prc rrc pst r u="could not be resolved: a read it stands on did not finish"
+  _felix_status_need felix_resolve_read resolve; root="$(felix_repo_root "$cwd" 2>/dev/null; printf '/%s' "$?")"; rrc="${root##*/}"; root="${root%/*}"
+  felix_resolve_read proj "$cwd" "$home" 2>/dev/null; pst=$?   # the nine rows' project, before any lane code runs; 2: it did not finish
   _felix_status_settings
   _felix_status_from3 schedule "$(felix_schedule_state)"
   _felix_status_pulse "$home"
-  _felix_status_reach "$proj" "$home"
-  _felix_status_gate "$root" "$home" "$proj"
-  _felix_status_land "$proj" "$home"
-  _felix_status_hooks "$proj" "$root"
+  for r in reach gate land hooks; do case "$pst:$rrc:$r" in   # unknown when the project did not resolve, or the root gate and hooks read
+    2:*) _felix_status_row "$r" unknown - "the project that governs $cwd $u"; continue ;; 0:0:*|0:*:reach|0:*:land) ;;
+    0:*) _felix_status_row "$r" unknown - "the checkout root of $cwd ${u/resolved/read}"; continue ;; esac
+    case "$r" in reach) _felix_status_reach "$proj" "$home" ;; gate) _felix_status_gate "$root" "$home" "$proj" ;; land) _felix_status_land "$proj" "$home" ;; *) _felix_status_hooks "$proj" "$root" ;; esac; done
   _felix_status_alerts "$home"
   _felix_status_icloud "$home"
   _felix_status_need felix_lane_resolve lane-resolve; _felix_status_need felix_lane_status_row lane

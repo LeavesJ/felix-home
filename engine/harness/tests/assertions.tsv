@@ -390,10 +390,10 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
-1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
 1	A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr
@@ -1726,7 +1726,7 @@
 1	C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
 1	C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself
 1	C1 (fixture control): every conversion is off again, and the faithful entry is accepted
-1	C1 classify (nothing at the path, control): on a green change says nothing is unproven
+1	C1 classify (nothing at the path, control): on a green change says no evidence is owed
 1	C1 evidence (nothing at the path, control): says the project declares no evidence.tsv
 1	C1 incident (nothing at the path, control): given a trace that names src/thing.js, prints its implicated file src/thing.js and not the heading the fix will have to prove, where C5 prints it over the same trace
 1	C1 merge --dry-run (nothing at the path, control): lists no evidence line, where C2 and C5 list one over the same base
@@ -1742,7 +1742,7 @@
 1	C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json
 1	C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json
 1	C3 (control): an entry with M's modes everywhere: the entry exits 0 and prints itself
-1	C3 classify (the same table, a change the rule does not reach, control): on a green change says nothing is unproven, and not not judged
+1	C3 classify (the same table, a change the rule does not reach, control): on a green change says no evidence is owed, and not not judged
 1	C3 evidence (the same table, a change the rule does not reach, control): says No evidence gaps, with no [!] row and not not judged
 1	C3 merge --dry-run (the same table, a change the rule does not reach, control): lists no evidence line, where C2 lists the gap over the same table
 1	C3 receipt (the same table, a change the rule does not reach, control): lists no gap, and evidence not under unknown

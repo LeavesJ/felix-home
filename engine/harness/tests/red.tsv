@@ -8,19 +8,17 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
-run	96	15709	46
+base	origin/main	c9fe3c1b83ea375f0597dc631836bbbdaaa53179	0.49.322
+run	94	15805	46
 A35 (B24; control): with nothing untracked or ignored under engine/, felix install --no-bump verifies the installed engine as today	1
 A36 (B25): a source outside any git work tree installs as today, saying in one line that git could not be asked about engine/	1
 A43 (R2): a source that is not its own repository, inside another work tree that tracks none of its engine (untracked there, or ignored), installs as a source outside git does: exit 0, one could-not-ask-git line, verified, no refusal or remedy, plugin.json kept, the same claude commands	1
-D4: a unit that dies in its prelude, before @@prelude-done in a record run writes no manifest, and red.tsv holds the rows base - - - and run - - -	1
-R1: and once the record run after a unit that dies in its prelude, before @@prelude-done has exited no process of red's tree is left, stopped or running	1
+C1 classify (nothing at the path, control): on a green change says no evidence is owed	1
+C3 classify (the same table, a change the rule does not reach, control): on a green change says no evidence is owed, and not not judged	1
 Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green	1
 Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names	1
-and landed on the shared home's cache, which this block does not read	1
 and pushed, and the push is read back	1
 and still verifies when the source really does match	1
-and the refresh the hook forked asked the claude for the catalogue	1
 b06 A30: new nested repositories are named and left out, NOT backed up, and the rest is committed and pushed	1
 b06 A32: only a nested repository new: nothing else new to commit, HEAD unchanged, and the push still runs	1
 b06 A42: a verified push to a path, or file:// and a path, says the copy is a path on this machine and writes the stamp and disk	1

@@ -230,9 +230,9 @@ felix_pulse_backup() {
       # line says so (audit b06, C094). Never the address, which can carry a password.
       where="$(felix_pulse_remote_where "$repo" "$remote")"
       case "$where" in
-        disk)    printf 'backup\tpushed and verified: %s holds %.12s; %s is a path on this machine, so this copy is only as far from this disk as whatever syncs that path\n' "$remote" "$local_head" "$remote" ;;
-        network) printf 'backup\tpushed and verified: %s holds %.12s\n' "$remote" "$local_head" ;;
-        *)       where=unknown; printf 'backup\tpushed and verified: %s holds %.12s; where %s is could not be read\n' "$remote" "$local_head" "$remote" ;;
+        disk)    printf 'backup\tpushed and read back: %s holds %.12s; %s is a path on this machine, so this copy is only as far from this disk as whatever syncs that path\n' "$remote" "$local_head" "$remote" ;;
+        network) printf 'backup\tpushed and read back: %s holds %.12s\n' "$remote" "$local_head" ;;
+        *)       where=unknown; printf 'backup\tpushed and read back: %s holds %.12s; where %s is could not be read\n' "$remote" "$local_head" "$remote" ;;
       esac
       # Stamped only here, on the one path where the memory demonstrably
       # left this disk. The staleness alarm used to read the last local

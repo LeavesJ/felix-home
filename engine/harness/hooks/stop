@@ -555,7 +555,7 @@ if [ -z "$TID" ]; then
   detail="tree unknown"
 elif [ -z "$receipt" ]; then
   why="The gate has never run in this checkout."
-  detail="never verified"
+  detail="never checked"
 elif [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   # Green on this exact tree and still not current: a fact the verdict rests
   # on moved outside the tree. Said with the reason, because "run the gate" on

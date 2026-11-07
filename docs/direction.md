@@ -15,7 +15,7 @@ such a pull request only once amendment A32 lands (draft #452,
 `claude/direction-read-first`). Until then, open it as a draft labelled
 `needs-founder`, or the tick will land it on green.
 
-As of: 2026-11-07T04:15Z: rows 42 to 47, the decisions of the trust-plane
+As of: 2026-11-07T04:39Z: rows 42 to 48, the decisions of the trust-plane
 revisit (11-06 and 11-07). A pending section dated later still wins (point 3).
 Before them: row 41 (11-06: load is managed, not capped), the refusal of
 slice 0's limits (row 40), the trust-plane answers (rows 36 to 40), what Felix
@@ -176,6 +176,7 @@ changed, the row states its current form.
 | 45 | 11-06 | **Designs answer to directions, and the directions are an open list.** So far they are speed, accuracy, efficiency, security, commercial viability and autonomy. "Everything I say is a direction." Designs stay within the token and compute budgets real users have ("Keep the human constraint in mind"). They do not put latency at risk ("we should not have even thought about the idea of a 21.5 hours check"). They stay commercially viable for a customer who pays both an API bill and Felix's fee: "Why would they be using a product that would spike their API keys by 20%? While also paying me the fee." | pending 20261107T041523Z |
 | 46 | 11-07 | **Open sets stay open.** An example the founder gives illustrates a set; it is not the set. A count is not the space either. "I don't want you to finalize things"; "engineering complexity is a lot more than rate limiting"; "we had 22 does that mean everything?" This holds in specs, designs, this file, pitches and memory: "I don't want to see this pattern again." Felix reads it this way: an example is written as an example; a count says what it counted; a question outside a document's scope is recorded as open, not answered; and no acceptance test, evaluation set or headline number rests on one instance of an open set. | pending 20261107T041523Z |
 | 47 | 11-07 | **Everything serves the product, and this file holds the newest decisions.** "Everything serves for the sake of the product." Designs are judged against §1, and against the pitch only where the pitch still agrees with this file. Pitch material that no longer fits is set aside: "don't take that into account". "direction markdown should always be updated. It should always contain our newest decision." | pending 20261107T041523Z |
+| 48 | 11-07 | **Who authorizes removing what a need checks.** A change can remove the subject of a need that applied on its base (`subject_removed`, trust-plane design draft 4 §4.3). For TASK_BLOCKING and RELEASE_BLOCKING needs, the removal is authorized by the task's admitted intent, which was admitted before the work began. For AUTHORITY_BLOCKING needs, the founder authorizes it. His answer: "Task intent; you for top". | pending 20261107T043947Z |
 
 ## 5. The build order now
 

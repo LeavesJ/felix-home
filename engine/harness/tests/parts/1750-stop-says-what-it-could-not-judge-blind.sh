@@ -284,11 +284,11 @@ _b7a_stop r1 true CLAUDE_CODE_REMOTE=true
 _b7a_is "b07 A41: the cloud session's flagged stop after its hold prints nothing and writes no row (control)" \
   "out=$B7A_OB rows=$B7A_NV/$B7A_NS/$B7A_NU" "out=0 rows=0/0/0"
 _b7a_stop r1 false CLAUDE_CODE_REMOTE=true
-_b7a_is "b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never verified, held once on this tree already" \
-  "rows=$B7A_NV f2=$(_b7a_vf 2) never=$(_b7a_in "$(_b7a_vf 4)" 'never verified') once=$(_b7a_in "$(_b7a_vf 4)" 'held once on this tree already')" \
+_b7a_is "b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never checked, held once on this tree already" \
+  "rows=$B7A_NV f2=$(_b7a_vf 2) never=$(_b7a_in "$(_b7a_vf 4)" 'never checked') once=$(_b7a_in "$(_b7a_vf 4)" 'held once on this tree already')" \
   "rows=1 f2=debt never=yes once=yes"
-_b7a_jis "b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never verified and ends with the VM" \
-  "exit=$B7A_RC json=$(_b7a_obj) decision=$(_b7a_dec) hso=$(_b7a_in "$B7A_O" '"hookSpecificOutput"') letgo=$(_b7a_says 'let go with the gate not passed on this tree') never=$(_b7a_says 'never verified') vm=$(_b7a_says 'ends with the VM')" \
+_b7a_jis "b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never checked and ends with the VM" \
+  "exit=$B7A_RC json=$(_b7a_obj) decision=$(_b7a_dec) hso=$(_b7a_in "$B7A_O" '"hookSpecificOutput"') letgo=$(_b7a_says 'let go with the gate not passed on this tree') never=$(_b7a_says 'never checked') vm=$(_b7a_says 'ends with the VM')" \
   "exit=0 json=yes decision=no hso=no letgo=yes never=yes vm=yes"
 _b7a_is "b07 A44: and says.log gains one row of kind debt" "$(_b7a_kinds debt)" "1"
 _b7a_stop l1 false; _b7a_h1="$(_b7a_hold)"

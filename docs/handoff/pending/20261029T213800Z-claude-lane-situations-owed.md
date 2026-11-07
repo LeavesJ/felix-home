@@ -416,6 +416,15 @@ version is `0.49.326`. Main took `0.49.321` (#485) and `0.49.322` (#488)
 after this branch first took `0.49.322`. The open PRs hold `0.49.323` (#487),
 `0.49.324` (#486) and `0.49.325` (#483 and #482).
 
+**After landing: the trust plane comes before slice 2.** On 2026-11-06 the
+founder asked for intake to be wrapped up and the trust plane revisited before
+any large capability build: "trust problem must be settled bc the probelm will
+propogate to future capability build". So `lane-next.tsv` no longer sends an
+untasked session to slice 2. Its capability row says to take trust-plane work,
+and that the revisit opens with the engine-language question. Slice 2,
+come-backs (`felix retro`, branch `claude/lane-retro`), starts after the
+revisit.
+
 **An overlap with #482.** That PR changes `lib/probes.sh`'s blind-probe
 sentences from "the witness proves this surface exists" to "the witness says
 this surface exists". Parts 2420, 2430, 2440 and 2470 quote the current

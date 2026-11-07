@@ -15,11 +15,12 @@ such a pull request only once amendment A32 lands (draft #452,
 `claude/direction-read-first`). Until then, open it as a draft labelled
 `needs-founder`, or the tick will land it on green.
 
-As of: 2026-10-31T18:13Z, plus row 41 (11-06: load is managed, not capped).
-A pending section dated between the two still wins (point 3). Before row 41:
-the refusal of slice 0's limits (row 40), the trust-plane answers (rows 36 to
-40), what Felix is for a team and the lane's share (10-29, rows 34, 15, 20 and
-28), and its first slices (row 35).
+As of: 2026-11-07T04:15Z: rows 42 to 47, the decisions of the trust-plane
+revisit (11-06 and 11-07). A pending section dated later still wins (point 3).
+Before them: row 41 (11-06: load is managed, not capped), the refusal of
+slice 0's limits (row 40), the trust-plane answers (rows 36 to 40), what Felix
+is for a team and the lane's share (10-29, rows 34, 15, 20 and 28), and its
+first slices (row 35).
 
 **How a session uses it.**
 1. Read this file first, then the constitution (`projects/felix/CLAUDE.md`).
@@ -169,6 +170,12 @@ changed, the row states its current form.
 | 39 | 10-31 | **The `case` blocker.** It holds a failing high-stakes change (code a hook, the gate or landing runs: B3 and above) only after its own silent shadow on two new features (by Felix's reading of "trials", design step 4, on features built after the blocker exists, after row 37's prospective tests) meets bars fixed before it ran, and only while wrong holds stay under a rate the founder sets from that data ("After trials, your bound"). **Limits.** A limit a build accepts that no automatic check can show harmless, as slice 0's stated limits were, goes to the founder only on high-stakes code ("On high-stakes code these come to you"); at B0-B2 the change lands with the limit listed as unchecked (UNKNOWN) in its receipt and residual, and no one is asked ("Only high-stakes ones", not the recommendation); until the `case` evidence exists, by Felix's interim reading, such a change lists the limit as unchecked in its pull request and handoff. By Felix's reading (the answer names no start), the high-stakes half binds from 10-31: until the `case` evidence carries such a limit as an unwitnessed narrowing (held until the founder clears it or, by design §4.8, a trust-plane PR opens a new epoch), a B3-and-above PR that states one opens as a draft labelled `needs-founder`. Retiring a hand-written test by mutation subsumption stays a hand merge, as row 4's verifier channel already makes it, until two features' trial data show that planted faults stand in for real bugs; then it is asked again ("Not yet, you merge each"). | trust-plane design §11.1, decisions 3, 5 and 6; founder, 10-31 |
 | 40 | 10-31 | **Admission.** After row 39's shadow, FAILCLOSED, WRITESET, OFFLINE and BASEEQUIV on code every session runs ("An unfinished read never yields a value; code writes only what it declares; it uses no network; outside its declared change, it behaves exactly as main does") may hold a release, under row 27's other bounds; release scope is granted here. Only the founder clears a wrong hold in them, never a dated exception. A new high-stakes feature (B3 and above) carries a known defect main already has in shared code only after the founder accepts it for that one function, which files the defect as an obligation to fix; later features on that function do not ask again. By Felix's reading (the answer names no start), the inheritance stop binds from 10-31, held by hand as a `needs-founder` draft until the `case` evidence carries it. The founder chose "Admit after trials" and "You accept per function". This amends row 27. Slice 0 (#480) landed on green at 10:01Z, after these answers, and nothing held it; it states four limits of its own (row 39) and five defects inherited from shared functions. The founder refused all nine at 18:13Z ("Refuse, fix them": "I don't accept slice 0's limits. Make each of its own limits and each inherited defect a follow-up fix."), so none is accepted, and a later high-stakes feature on those functions still asks. By Felix's reading of "fix them", each takes row 17's fix slot, not the weekly batch. Felix's placement: the lane's four and its own slug check in one lane fix; the resolver's, `_felix_remote_slug`'s and the table validator's reads in the trust plane's narrow fix (design step 1, §5); felix's load-time descriptor and `lib/own.sh`'s reads under the caller's `GIT_DIR` in one shared-code fix. | trust-plane design §11.1, decision 7; founder, 10-31; slice 0's limits, founder, 10-31 18:13Z |
 | 41 | 11-06 | **Load on this Mac is managed, not capped.** Heavy Felix work asks for a slot and is admitted against measured headroom: the load against the cores, and memory pressure. No fixed count is set in advance. The founder's own commands are never gated. Background work gives way first and runs at background QoS. Every job runs as a process group with a deadline under a supervisor, so a timeout never orphans work. Every admission decision is recorded with the load it saw, and caps are derived from those records: the concurrency at which throughput stops rising. No new fixed concurrency cap is added to Felix. His direction: "as we're developing and making felix more sophisticated, think about optimization. Overloading issue should easily be managed by a dynamic optimization issue". Asked whether to add this row as proposed, he answered "Yes, add it". | `docs/2026-11-06-load-governor-design.md` §8; pending 20261106T084122Z |
+| 42 | 11-06, 11-07 | **Intake first, then the trust plane, before large capability builds.** Lane slice 1 (#484) lands; slice 2 and later capability builds wait for the trust-plane revisit, because "trust problem must be settled bc the probelm will propogate to future capability build...which WILL be large engineering work". The revisit is a trust-plane redesign. The capability plane gets its own design after it: "It's a part that we're going to design later ... Again, this is still a trust plane redesign." Row 15's share is unchanged. By Felix's reading, a lane session that starts after intake lands and before the revisit settles takes trust-revisit work, not slice 2. | pending 20261107T041523Z |
+| 43 | 11-06 | **Felix becomes infrastructure.** "At the scale that we're running right now, come on, I cannot live off of a local tool." The authority that approves landing runs hosted, off the developer's machine. felix-home moves to the Daimonion org after the IP assignment. No date is set, and it does not move without his go-ahead. | pending 20261107T041523Z |
+| 44 | 11-06 | **The same machine rigor for every change.** A task does not earn less rigor because it is simple: "We should not go easy on this"; "Same machine rigor should be the baseline anyway". He also rejected rigor bought with process: "Rigor is currently bought with process. And that is terrible." The aim is "the smartest algorithm", not the longest or the hardest. | pending 20261107T041523Z |
+| 45 | 11-06 | **Designs answer to directions, and the directions are an open list.** So far they are speed, accuracy, efficiency, security, commercial viability and autonomy. "Everything I say is a direction." Designs stay within the token and compute budgets real users have ("Keep the human constraint in mind"). They do not put latency at risk ("we should not have even thought about the idea of a 21.5 hours check"). They stay commercially viable for a customer who pays both an API bill and Felix's fee: "Why would they be using a product that would spike their API keys by 20%? While also paying me the fee." | pending 20261107T041523Z |
+| 46 | 11-07 | **Open sets stay open.** An example the founder gives illustrates a set; it is not the set. A count is not the space either. "I don't want you to finalize things"; "engineering complexity is a lot more than rate limiting"; "we had 22 does that mean everything?" This holds in specs, designs, this file, pitches and memory: "I don't want to see this pattern again." Felix reads it this way: an example is written as an example; a count says what it counted; a question outside a document's scope is recorded as open, not answered; and no acceptance test, evaluation set or headline number rests on one instance of an open set. | pending 20261107T041523Z |
+| 47 | 11-07 | **Everything serves the product, and this file holds the newest decisions.** "Everything serves for the sake of the product." Designs are judged against §1, and against the pitch only where the pitch still agrees with this file. Pitch material that no longer fits is set aside: "don't take that into account". "direction markdown should always be updated. It should always contain our newest decision." | pending 20261107T041523Z |
 
 ## 5. The build order now
 
@@ -262,7 +269,7 @@ sequence. The order is Felix's call:
   so a lane session takes the first of these nobody owns: the lane design's
   slices after slice 0, first slice 1 `felix situations` (obligation intake,
   row 35; thesis I1 and I2), then slice 2 `felix retro`, which this fold
-  places; then item 4, item 11, and item 3 once its ceiling is set.
+  places and row 42 holds until the trust-plane revisit settles; then item 4, item 11, and item 3 once its ceiling is set.
 - **Authority side.** Items 5 to 10 keep the trust gates set out in row 25.
 - **Before row 27 arms anything,** row 40's classes included (they take
   release scope, the founder's clearance and false-block bound in place of
@@ -360,6 +367,14 @@ and not again until he raises it, unless its line names a later moment.
 - Two questions the founder raised on 10-29: whether Felix needs "an actual
   software" beyond the plugin, and how its added value shows inside an
   engineering team. A session's proposals for both are unconfirmed.
+- Landing versus releasing: whether release is a separate step that comes
+  only after deep checks pass. On 11-06 he said: "I cannot answer question two
+  to you yet ... We have to run that perhaps natively." It is tried natively
+  before it is asked again.
+- The language. Row 6 stands. The 11-06 re-measure reopened the question,
+  and the trust-plane revisit asks it after its Rust spike.
+- The trust-plane redesign (§7). It is with the founder and an external
+  reviewer, and nothing in it is decided.
 
 **Consents:**
 - The corpus spending ceiling: $96-349 for one corpus at 3 runs, or $172-632
@@ -422,6 +437,7 @@ order is Felix's call.
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |
 | `docs/2026-10-29-capability-lane-first-slices-design.md` | The capability lane's first three slices: the lane counter, `felix situations` (intake) and `felix retro` (come-backs). | Approved (row 35). The slices are lane items (§5). |
 | `docs/2026-10-31-trust-plane-verification-design.md` | A change reaches the lander carrying its evidence: claims from a versioned catalogue, a machine search over a stated fault model with a printed number of cases, evidence that each check can fail, and what stayed unchecked. Models propose; mechanisms decide. Its §8 makes design deliberation a Felix capability. | Its seven decisions are rows 36 to 40. Its kernel refactor and evidence engine are placed in §5; step 6 is not. Nothing is built, and no catch or speed figure from it goes into outside text before its replay and two prospective tests (its §11.2 #14). |
+| The trust-plane revisit, 11-06 to 11-07 (memory root `designs/2026-11-06-trust-plane-revisit/`: the brief, sketches 1 and 2, drafts 2 and 3 and their PDFs; the language re-measure, `audits/2026-11-06-language-remeasure/report.md`) | The trust plane redesigned for the product. The verdict unit is the admitted need, not a green suite. Each checker carries an evidence record. The authority runs hosted, apart from the workers, and the queue owns landing. Latency is a measured objective, and budgets are set by the user. Draft 3 is current, and the capability plane is outside its scope (row 42). | Under review by the founder and an external reviewer. Nothing in it is decided or placed. |
 
 ## 8. No longer binding
 
@@ -429,6 +445,7 @@ Older text still says some of these. Where it does, this file and §4 govern.
 
 | Was | Replaced by |
 |---|---|
+| The 10-27 pitch, decks v3 and v4, and earlier applications, read as statements of direction | Row 47: this file governs, and pitch material that no longer fits it is set aside |
 | Roadmap v1's outside-user and outreach track, and row 10's "no pricing, outreach or demand track" (09-23) | Row 10 as changed 10-27: build first, with a narrow commercial track beside it |
 | Row 19's "the Codex adapter is a lane item for about December, after arming and the pin", and the Factory Droid adapter deferred past March | Row 19 as changed 10-27: Droid first, then Codex, beside the judge pin |
 | "Felix is Phase 1 of the guidebook and nothing past it" (08-10) | Row 8, a product for other people's projects (09-22) |

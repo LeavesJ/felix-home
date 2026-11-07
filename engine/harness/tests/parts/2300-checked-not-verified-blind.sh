@@ -165,7 +165,7 @@ _cnv_vword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])(un)?verified([^a-z0-9
 # check reads a refusal recorded before the rename.
 printf '%s\t%s\n' 'harness/hooks/stop' 'state/verified' 'harness/lib/notify.sh' 'deployed-unverified)' \
   'harness/hooks/subagent-stop' 'subagent-unverified' 'harness/lib/green-install.sh' '$1 == "unverified"' \
-  'harness/lib/green-tick.sh' '  unverified  ' \
+  'harness/lib/green-tick.sh' 'old="  unverified  ${b#"  not-green   "}"' \
   'harness/lib/verify.sh' "$(printf -- '-e "$3\tnever verified\t${5:-}"')" > "$CNV/allowed-in"
 _cnv_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
   # Round 3, not blind: git's list only where git tracks something under DIR, as _copy_content asks. A directory in a
@@ -515,6 +515,12 @@ CNV_C11="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18h")"; CNV_C11R=$?
 is "cnv A49 (C18, round 4, not blind): the old ledger kind in green-tick.sh and notify.sh, the old blocker kind's printf in escape.sh and the wide clause in green-install.sh each fail now, in the file that used to allow them" \
    "rc=$CNV_C11R lines=$(printf '%s\n' "$CNV_C11" | LC_ALL=C awk 'NF { n++ } END { print n + 0 }') files=$(printf '%s\n' "$CNV_C11" | LC_ALL=C cut -d: -f1 | LC_ALL=C tr '\n' ' ')" \
    "rc=1 lines=4 files=harness/lib/escape.sh harness/lib/green-install.sh harness/lib/green-tick.sh harness/lib/notify.sh "
+# Round 5, not blind (review round 2): the quiet check's entry is that one line, not the text anywhere in the file.
+mkdir -p "$CNV/c18i/harness/lib"
+printf '%s\n' 'x="  unverified  y"' > "$CNV/c18i/harness/lib/green-tick.sh"
+CNV_C12="$(GIT_CEILING_DIRECTORIES="$CNV" _cnv_check "$CNV/c18i")"; CNV_C12R=$?
+is "cnv A49b (C18, round 5, not blind): the old name between two blanks on another line of green-tick.sh fails; only the quiet check's own line is allowed" \
+   "rc=$CNV_C12R [$CNV_C12]" "rc=1 [harness/lib/green-tick.sh:1:x=\"  unverified  y\"]"
 mkdir -p "$CNV/c18e"
 printf '%s\n' "printf 'it decides how work gets built, and Proves it\\n'" "printf 'what a fix must prove\\n'" \
   "printf 'with nothing proving it\\n'" 'git rev-parse --verify -q HEAD' "printf 'improves, approves, provenance\\n'" > "$CNV/c18e/p.sh"

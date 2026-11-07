@@ -270,7 +270,7 @@ _ngd_scan() {   # DIR -> KIND<TAB>PATH:LINE for each hit (fn: _gt_unverified; le
       if (index(ln, "_gt_unverified")) print "fn" T w
       if (FILENAME == "harness/lib/notify.sh") l = strip(l, "deployed-unverified)")
       if (FILENAME == "harness/lib/green-install.sh") l = strip(l, "$1 == \"unverified\"")
-      if (FILENAME == "harness/lib/green-tick.sh") l = strip(l, "  unverified  ")
+      if (FILENAME == "harness/lib/green-tick.sh") l = strip(l, "old=\"  unverified  ${b#\"  not-green   \"}\"")
       if (FILENAME == "harness/hooks/subagent-stop") l = strip(l, "subagent-unverified")
       if (index(l, "deployed-unverified")) print "ledger" T w
       if (index(l, "unverified\\t") || index(l, "unverified" T)) print "tab" T w
@@ -292,14 +292,15 @@ is "ngd A26 (K12) [control]: the check fails on each removed entry in the file t
    "README.md=ledger README.md=word harness/lib/escape.sh=tab harness/lib/escape.sh=word harness/lib/green-install.sh=word harness/lib/green-tick.sh=ledger harness/lib/green-tick.sh=word harness/lib/notify.sh=ledger harness/lib/notify.sh=word harness/lib/other.sh=fn "
 _ngd_fx "$NGD/k12b" "harness/lib/notify.sh|    deployed-unverified) printf '%s' 'x' ;;" "harness/lib/green-install.sh|  \$1 == \"unverified\" { u = 1 }" \
   "harness/hooks/subagent-stop|felix_say subagent-unverified \"\$why\"" "harness/lib/green-tick.sh|  # deployed-unverified was the kind; _gt_unverified its writer" \
-  "harness/lib/green-tick.sh|  case \"\$b\" in \"  not-green   \"*) old=\"  unverified  \${b#x}\" ;; esac" \
+  "harness/lib/green-tick.sh|  case \"\$b\" in \"  not-green   \"*) old=\"  unverified  \${b#\"  not-green   \"}\" ;; esac" \
   "harness/tests/parts/x.sh|_gt_unverified deployed-unverified"
 printf 'deployed-unverified\n' > "$NGD/k12b/harness/lib/untracked.sh"
 is "ngd A27 (K12) [control]: and passes on each new entry in its own file, a comment, a file under harness/tests/ and a file git does not track" "$(_ngd_scan "$NGD/k12b")" ""
 rm -rf "$NGD/k12c"; mkdir -p "$NGD/k12c/harness/lib"; printf '    deployed-unverified) printf x ;;\n' > "$NGD/k12c/harness/lib/green-tick.sh"
 printf '  $1 == "unverified" { u = 1 }\n' > "$NGD/k12c/harness/lib/escape.sh"
+printf '  case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac\n' > "$NGD/k12c/harness/lib/other.sh"
 is "ngd A28 (K12) [control]: a new entry outside its own file fails, read in a directory git tracks nothing of, which is read whole" \
-   "$(_ngd_kinds "$(_ngd_scan "$NGD/k12c")")" "harness/lib/escape.sh=word harness/lib/green-tick.sh=ledger harness/lib/green-tick.sh=word "
+   "$(_ngd_kinds "$(_ngd_scan "$NGD/k12c")")" "harness/lib/escape.sh=word harness/lib/green-tick.sh=ledger harness/lib/green-tick.sh=word harness/lib/other.sh=word "
 NGE="$(cd "$REAL_HARNESS/.." && pwd -P)"; NGK12="$(_ngd_scan "$NGE")"; NGSC="$(cat "$NGD/scan.last" 2>/dev/null)"
 _ngd_hits() { printf '%s\n' "$NGK12" | LC_ALL=C awk -F'\t' -v k="$1" '$1 == k { printf "%s%s", s, $2; s = " " }'; }
 is "ngd A29 (K12): _gt_unverified appears in no tracked file of the engine outside harness/tests/, comments skipped as C18 skips them" "$(_ngd_hits fn)" ""

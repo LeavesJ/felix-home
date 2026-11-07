@@ -74,9 +74,9 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **The tick's quiet check** (added after the first review). `_gt_refuse`
   (`lib/green-tick.sh`) builds a refused row's detail from the first block line,
   kind and its column padding included, and stays silent (no desktop banner, no
-  notifier attempt) when the pull request's previous refused row has the same
-  head and the same detail up to ` [main `, whatever main was. It reads the
-  kind's name (K14). The notifier's `_fn_same` (`lib/notify.sh`, B8) compares an
+  notifier attempt) when the pull request's previous row (any event, `waiting`
+  rows read past) is a refused row with the same head and the same detail up to
+  ` [main `, whatever main was. It reads the kind's name (K14). The notifier's `_fn_same` (`lib/notify.sh`, B8) compares an
   event's kind, pull request and detail with the newest dispatched record; it is
   reached only for an event the tick did not keep quiet (L7).
 - The grep found nothing in `.github/`, `projects/*/gate.sh`, `templates/`, a
@@ -155,10 +155,13 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   detail begins `unverified` (written before the deploy) is held and lifted
   exactly as one that begins `not-green`: the hold reads the clause and the
   head and main at its end, not the kind. This holds on each of the three
-  clauses (Round 2): an hourly row under an hour old is held, and one over an
-  hour old is run again; a receipt-clause row with a retry record matching it is
-  held, and one without a matching record is run again once a receipt is
-  written; a final row is held until the head or main moves.
+  clauses (Round 2), a refused row of either name being held on the head and
+  main it records: an hourly row for an hour; a receipt-clause row while the
+  retry record holds its head, its main and the receipts' sums from before its
+  run, and run again when a receipt is written or when the record is missing or
+  names another head or main; a final row until the head or main moves. A row
+  written before the deploy records a main the deploy has passed, so the first
+  tick after the deploy runs it again whatever its clause.
 - **K7 The ledger kind.** Each of the five calls of `_gt_unverified` (pull,
   install, diff, hook check, gate) writes a `deploy-failed` row instead, with the same detail (its `pull:`,
   `install:`, `diff:`, hook-check or `gate:` text), the same wall time, and the
@@ -175,7 +178,8 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   (Round 2): each kind on `_gt_say`'s list on main 0.49.328 other than the renamed
   one (landed, refused, founder, waiting, deployed, paused, resumed, installed,
   uninstalled, timeout, stuck, unaged, gh, fetch, deploy-owed, unresolved) still
-  raises the banner titled `Felix: <kind>` when a row of it is written;
+  raises the banner titled `Felix: <kind>` when a row of it is written (except a
+  refused row the tick's quiet check holds back, K14);
   `resumed`, `installed` and `uninstalled` start no notifier attempt; a kind not
   on the list raises neither.
 - **K9 The notifier.** `_fn_sentence deploy-failed` prints exactly
@@ -208,8 +212,9 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **K11 What is decided is unchanged.** Which trees `felix merge` refuses, which
   paragraph closes a block, which refusals the lander retries and when, which
   deploys complete, which ones pause landing, and which events a person is
-  notified of do not change. Only the two names change, and the two places K5
-  and K9 widen to accept the old name.
+  notified of do not change. Only the two names change, and three places
+  widen to accept the old name: K5's `_gt_class`, K9's `_fn_sentence` and K14's
+  quiet check in `_gt_refuse`.
 - **K12 The class, not the instance.** After this change the two old names
   appear in the engine directory under test (as C18 of the 2026-10-31
   contract reads it: tracked files outside `harness/tests/`, comments
@@ -219,8 +224,10 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   - `$1 == "unverified"`, the clause that accepts the old blocker kind, in
     `harness/lib/green-install.sh`;
   - `  unverified  ` (the name between two blanks on each side: the kind in its
-    column as a block line prints it), the text by which the quiet check reads a
-    recorded refusal row (K14), in `harness/lib/green-tick.sh`.
+    column as a block line prints it), as the one line of `harness/lib/green-tick.sh`
+    by which the quiet check builds the old form of a refusal from the new one
+    (K14). No other line of that file, and no other file, holds the name between
+    two blanks.
 
   `_gt_unverified` appears nowhere. `deployed-unverified` appears nowhere else
   (`green-tick.sh` no longer holds it). `unverified\t` appears nowhere
@@ -239,14 +246,17 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   contract's "What keeps its name, and why" says the two kinds moved, and names
   this contract.
 - **K14 A refusal that stands across the deploy stays quiet (Round 2).** The
-  tick's quiet check in `_gt_refuse` reads a previous refused row whose detail
-  begins `  unverified  ` (two blanks, the old name, two blanks: the old kind in
+  tick's quiet check in `_gt_refuse` reads a previous row (as the quiet check
+  always has: the pull request's last row of any event but `waiting`) that is a
+  refused row whose detail begins `  unverified  ` (two blanks, the old name, two blanks: the old kind in
   its column) as one that begins `  not-green   ` (two blanks, the new name,
   three blanks), when the rest of the detail, the head and the clause are the
   same. So a pull request refused before the deploy and refused again after it,
-  on the same head, for the same blocker and the same clause, raises no desktop
-  banner and starts no notifier attempt, as when main moves and no name changes.
-  A refusal whose blocker, head or clause differs is announced as before, and a
+  on the same head, for the same blocker and the same clause, with no row of
+  another event between the two refusals, raises no desktop banner and starts
+  no notifier attempt, as when main moves and no name changes. A refusal whose
+  blocker, head or clause differs is announced as before; so is a refusal after
+  a row of another event (a skip, a session or a founder row), as before; and a
   previous row of any other kind is read as before. The notifier's own check
   (B8) is not widened (L7).
 
@@ -296,17 +306,25 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **L6, the deploy of this change runs the engine before it.** The trampoline
   runs the entry of the version `origin/main` last had when the home fetched,
   and the handmerge path runs the home's own engine. So a failed step or check
-  of the one deploy that installs this change is written, notified and
-  dispatched by the older engine, as `deployed-unverified`. Every deploy after
-  it writes `deploy-failed`, and the readers list that one row as recorded
-  (K10).
+  of the deploy that installs this change is written, notified and dispatched
+  by the older engine, as `deployed-unverified`, unless `origin/main` was
+  fetched by any worktree (the refs are shared) and main's new entry was
+  already installed and accepted, in which case the new engine writes
+  `deploy-failed`. A retry the handmerge path runs after a resume is the older
+  engine's again, so more than one `deployed-unverified` row can be written.
+  Every deploy after that writes `deploy-failed`, and the readers list each
+  such row as recorded (K10).
 - **L7, the notifier's no-repeat check, and the trampoline's copy.** B8 is not
   widened: a `refused` event whose detail names `not-green`, announced while the
   newest dispatched record holds the same event under `unverified`, is
   dispatched once more. The tick's quiet check (K14) keeps the usual case from
-  reaching the notifier; what B8 would still see is a refusal announced when the
-  newest dispatched record is older than the pull request's previous refused
-  row. That is at most one extra comment for such a pull request, once.
+  reaching the notifier; what B8 would still see is a refusal the tick announces
+  although the newest dispatched record holds the same event under `unverified`
+  (for example after a row of another event between two refusals). The same
+  holds for the ledger kind: a `deploy-failed` event whose newest dispatched
+  record is the same failure under `deployed-unverified` is dispatched once
+  more. Each is at most one extra comment, once, for the pull request or the
+  deploy.
   Separately, the installed trampoline holds the copy of `lib/notify.sh` that
   the last `felix land --install` wrote, and no deploy rewrites it. It starts
   attempts only for `deploy-owed` and `unreadable`, whose sentences this change

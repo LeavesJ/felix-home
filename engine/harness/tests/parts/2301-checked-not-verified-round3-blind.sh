@@ -168,7 +168,7 @@ _cnv3_pword() { LC_ALL=C awk 'tolower($0) ~ /(^|[^a-z0-9_])proves([^a-z0-9_]|$)/
 # Round 5, not blind (K12, K14): and, in green-tick.sh, as the text by which the quiet check reads a refusal recorded before.
 printf '%s\n' 'state/verified' 'subagent-unverified' > "$CNV3/allowed"
 printf '%s\t%s\n' 'harness/lib/verify.sh' 'never verified' 'harness/lib/notify.sh' 'deployed-unverified)' \
-  'harness/lib/green-install.sh' '$1 == "unverified"' 'harness/lib/green-tick.sh' '  unverified  ' > "$CNV3/allowed-in"
+  'harness/lib/green-install.sh' '$1 == "unverified"' 'harness/lib/green-tick.sh' 'old="  unverified  ${b#"  not-green   "}"' > "$CNV3/allowed-in"
 CNV3_ERE='(^|[^a-z0-9_])((un)?(verified|proven)|proves)([^a-z0-9_]|$)'
 CNV3_ERE1='(^|[^a-z0-9_])(un)?(verified|proven)([^a-z0-9_]|$)'
 _cnv3_list() {   # DIR -> the files the check reads, relative to DIR, in byte order, harness/tests/ left out
@@ -373,6 +373,13 @@ printf '%s\n' '{ if ($1 == "unverified") h = 1 }' > "$CNV3/c18q/harness/lib/gree
 printf '%s\n' 'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' > "$CNV3/c18q/harness/lib/green-tick.sh"
 CNV3_C9="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18p")"; CNV3_C9R=$?
 CNV3_C10="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18q")"; CNV3_C10R=$?
+mkdir -p "$CNV3/c18r/harness/lib"
+printf '%s\n' 'x="  unverified  y"' > "$CNV3/c18r/harness/lib/green-tick.sh"
+printf '%s\n' 'case "$b" in "  not-green   "*) old="  unverified  ${b#"  not-green   "}" ;; esac' > "$CNV3/c18r/harness/lib/other.sh"
+CNV3_C11="$(GIT_CEILING_DIRECTORIES="$CNV3" _cnv3_check "$CNV3/c18r")"; CNV3_C11R=$?
+is "cnv3 A27c (C18, round 5, not blind): the quiet check's line fails in any file but green-tick.sh, and another line holding the old name between two blanks fails in green-tick.sh" \
+   "rc=$CNV3_C11R files=$(printf '%s\n' "$CNV3_C11" | LC_ALL=C cut -d: -f1 | LC_ALL=C tr '\n' ' ')" \
+   "rc=1 files=harness/lib/green-tick.sh harness/lib/other.sh "
 is "cnv3 A27b (C18, round 5, not blind): the old ledger kind in green-tick.sh and notify.sh, the old blocker kind's printf in escape.sh and the wide clause in green-install.sh each fail, and the three allowed forms, each in its own file, pass" \
    "removed: rc=$CNV3_C9R files=$(printf '%s\n' "$CNV3_C9" | LC_ALL=C cut -d: -f1 | LC_ALL=C tr '\n' ' ') allowed: rc=$CNV3_C10R [$CNV3_C10]" \
    "removed: rc=1 files=harness/lib/escape.sh harness/lib/green-install.sh harness/lib/green-tick.sh harness/lib/notify.sh  allowed: rc=0 []"

@@ -409,12 +409,14 @@ in `35c1b27e`, `cd4b8ab9`, `db6b4b91` and `fb3450cb`.
 The fixes' assertions, by the same blind author, are rf6's `core.quotePath`
 case and rf9's unwritable `live-index`.
 
-**Before landing.** All eight parts have no FAIL under BWK awk and under gawk
-5.4.1, and the fifteen lint parts have no FAIL. Under bash 5.3.9 and gawk
-5.3.2, in an ubuntu 26.04 container, the eight parts have no FAIL either. The
-version is `0.49.326`. Main took `0.49.321` (#485) and `0.49.322` (#488)
-after this branch first took `0.49.322`. The open PRs hold `0.49.323` (#487),
-`0.49.324` (#486) and `0.49.325` (#483 and #482).
+**Before landing.** Before the #482 merge, all eight parts had no FAIL under
+BWK awk and under gawk 5.4.1, and the fifteen lint parts had no FAIL. Under
+bash 5.3.9 and gawk 5.3.2, in an ubuntu 26.04 container, the eight parts had no
+FAIL either. After it, parts 2420 to 2470 ran on `c5d140cc` under BWK awk,
+with 396 ok, 0 FAIL and 0 skip. The version is `0.49.328`. Main took `0.49.321` (#485), `0.49.322`
+(#488) and `0.49.327` (#482) after this branch first took `0.49.322`. At
+05:00Z on 2026-11-07 no open PR held a version above main's; the highest were
+`0.49.325` (#483), `0.49.324` (#486) and `0.49.323` (#487).
 
 **After landing: the trust plane comes before slice 2.** On 2026-11-06 the
 founder asked for intake to be wrapped up and the trust plane revisited before
@@ -425,9 +427,10 @@ and that the revisit opens with the engine-language question. Slice 2,
 come-backs (`felix retro`, branch `claude/lane-retro`), starts after the
 revisit.
 
-**An overlap with #482.** That PR changes `lib/probes.sh`'s blind-probe
-sentences from "the witness proves this surface exists" to "the witness says
-this surface exists". Parts 2420, 2430, 2440 and 2470 quote the current
-wording in their expected values, because the residual carries a scratch
-probe's own sentence (C7, C10). Whichever of the two PRs lands second updates
-those four copies.
+**The overlap with #482, settled.** #482 landed first, as `0.49.327`, and
+rewrote `lib/probes.sh`'s blind-probe sentences from "the witness proves this
+surface exists" to "the witness says this surface exists". Parts 2420, 2430,
+2440 and 2470 quote that sentence in five expected values, because the
+residual carries a scratch probe's own sentence (C7, C10), so this branch
+updated those copies after the merge. No assertion name changed, so the
+manifest is as merged.

@@ -1,7 +1,7 @@
 ### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.330)
 
-**What changed.** #482 rewrote every sentence the engine prints that said
-verified, unverified, proven or unproven, and kept two kinds because each had
+**What changed.** #482 rewrote the sentences the engine prints that said
+verified, unverified, proven or unproven (its contract counts them), and kept two kinds because each had
 readers and recorded rows. Both are printed to a person, so they moved together:
 - the merge blocker kind `unverified` is **`not-green`** (`lib/escape.sh`: two
   `tree` printfs and one `tests`);
@@ -29,13 +29,13 @@ sentence already said it. Contract:
   answers `deployed-unverified` with the same sentence.
 - Found by the first adversarial review, not by the first survey: the tick's
   quiet check (`_gt_refuse`) compares the detail with the previous refused row
-  byte for byte, kind and column padding included, so every refusal that stood
+  byte for byte, kind and column padding included, so a refusal that stood
   across the deploy would have raised a second banner and a second notifier
   attempt (K14 reads `  unverified  ` as `  not-green   ` there). And the
   readers of `alerts.tsv` print a record's kind as recorded (K10).
 - Rows already on disk keep their kinds: the ledger, `says.log` and
-  `alerts.tsv` are append-only, and every reader accepts the old names (K5, K6,
-  K9, K10). A re-measurement over ledgers across the deploy has to fold
+  `alerts.tsv` are append-only, and the readers found accept the old names (K5,
+  K6, K9, K10). A re-measurement over ledgers across the deploy has to fold
   `unverified` with `not-green` and `deployed-unverified` with `deploy-failed`.
 
 **What keeps its name.** `subagent-unverified`, `state/verified/`, the ledger
@@ -75,7 +75,8 @@ review, fixes through a blind author, record, gate.
   The pins that already held on the first build were checked by mutation: the
   review's three `sed` mutants (`stuck` dropped from `_gt_say`'s list, the stale
   reason cut at its `;`, the `tests:reused` condition widened) each fail it, and
-  the author listed a mutant for every other pin.
+  the author listed a mutation for each pin and ran them in batches (for the six
+  sentence pins A9 to A14, only A11's).
 - Round 2 review (fault round 1 of the two the lane budget allows): two lenses at
   Opus 5.5 xhigh, two skeptics at Opus 5.5 high (`wf_9411d430-a28`). Two
   findings confirmed, both low, both contract wording: K11's closing sentence

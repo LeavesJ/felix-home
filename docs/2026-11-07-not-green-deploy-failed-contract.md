@@ -348,9 +348,9 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   name, so a check cannot pass by finding neither.
 - **Existing parts.** The parts that read the two kinds (0100, 0360, 0510, 0990,
   1250, 1650, 1665; 1281 to 1289, 1660, 2120) match the new names, in their
-  data and in the names of their assertions. Every negative check that refused
-  an old name or counted its rows at zero refuses the new name too, so none goes
-  vacuous. Part 0100 reads the blocker kinds out of `escape.sh` with a pattern
+  data and in the names of their assertions. The negative checks the first
+  review found that refused an old name or counted its rows at zero (1284, 1285,
+  1286, 1665) count the new name's rows too, so those do not go vacuous. Part 0100 reads the blocker kinds out of `escape.sh` with a pattern
   that admits lower-case letters only, which would skip `not-green`; it admits
   the hyphen. Parts 2300 and 2301 follow K12.
 - **Count.** No edited part has fewer lines matching

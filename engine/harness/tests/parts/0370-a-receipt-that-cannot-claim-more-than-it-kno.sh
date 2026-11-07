@@ -33,7 +33,7 @@ r="$(_rcpt)"
 printf '%s' "$r" | python3 -c 'import json,sys; json.load(sys.stdin)' 2>/dev/null \
   && ok "it emits parseable json" || bad "it emits parseable json" "$r"
 is  "it names a schema version, so a reader can refuse one it does not know" \
-    "$(_rf "$r" schema)" "felix.receipt/1"
+    "$(_rf "$r" schema)" "felix.receipt/2"
 is  "and the domain it speaks for"  "$(_rf "$r" domain)" "engineering"
 has "it names what changed"         "$(_rf "$r" changed.paths)" "src/a.py"
 is  "and says that it knows"        "$(_rf "$r" changed.known)" "true"
@@ -48,13 +48,15 @@ has "the receipt carries the limit no layer above it removes" \
 has "and the one enumeration cannot close" \
     "$(_rf "$r" limits.enumeration)" "never found is never executed"
 
-# The gate has not run against this tree, so nothing may say it is verified.
-# This is the whole point: an absent receipt is not a green one.
+# The gate has not run against this tree, so nothing may say it was checked.
+# This is the whole point: an absent receipt is not a green one. Refused under
+# the old word too (felix.receipt/1 said verified), so the check cannot pass by
+# meeting neither.
 vs="$(_rf "$r" verification.state)"
 is "an absent gate receipt reads as absent, not as green" "$vs" "none"
 st="$(_rf "$r" status)"
-case "$st" in verified) bad "and the receipt refuses to call that verified" "$st" ;;
-              *)        ok  "and the receipt refuses to call that verified" ;; esac
+case "$st" in checked|verified) bad "and the receipt refuses to call that checked" "$st" ;;
+              *)                ok  "and the receipt refuses to call that checked" ;; esac
 
 # Authority is carried in the receipt because no transport carries it.
 is "a staged workflow makes this the founder's call" "$(_rf "$r" authority.founder_required)" "true"
@@ -92,8 +94,8 @@ r2="$(_rcpt deadbeefdeadbeefdeadbeefdeadbeefdeadbeef)"
 is "an unresolvable base is not an empty changeset" "$(_rf "$r2" changed.known)" "false"
 has "and it says so where a reader must look"       "$(_rf "$r2" unknown)"       "changed"
 case "$(_rf "$r2" status)" in
-  indeterminate) ok  "a receipt missing an input is indeterminate, never verified" ;;
-  *)             bad "a receipt missing an input is indeterminate, never verified" "$(_rf "$r2" status)" ;;
+  indeterminate) ok  "a receipt missing an input is indeterminate, never checked" ;;
+  *)             bad "a receipt missing an input is indeterminate, never checked" "$(_rf "$r2" status)" ;;
 esac
 
 # Same rule for the risk table. "No risk.tsv" once reported green here, which is
@@ -103,8 +105,8 @@ r3="$(_rcpt)"
 is  "an unreadable risk table yields an unknown tier" "$(_rf "$r3" risk.tier)" "unknown"
 has "listed where a reader must look"                "$(_rf "$r3" unknown)"   "risk"
 case "$(_rf "$r3" status)" in
-  verified) bad "and never a verified receipt" "$(_rf "$r3" status)" ;;
-  *)        ok  "and never a verified receipt" ;;
+  checked|verified) bad "and never a checked receipt" "$(_rf "$r3" status)" ;;
+  *)                ok  "and never a checked receipt" ;;
 esac
 mv "$TMP/risk.tsv.bak" "$FROOT/projects/widget/risk.tsv"
 

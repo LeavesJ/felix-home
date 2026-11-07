@@ -40,7 +40,7 @@ $1
 $2
 "*) return 0 ;; esac; return 1; }
 NEST="backup${_bT}a nested git repository sits inside memory ("; CRED="backup${_bT}a possible credential was added to "
-COMM="backup${_bT}committed"; PUSH="backup${_bT}pushed and verified: "
+COMM="backup${_bT}committed"; PUSH="backup${_bT}pushed and read back: "
 
 _bk_m() {   # <dir>: M, git init -b main and a base commit of l.md, ok.md, m.log
   mkdir -p "$1"
@@ -107,7 +107,7 @@ _b6_in "$(_bk_l "$NEST")" scraps || _bvn "no nested line naming scraps"
 [ "$(_bk_n "$COMM")" = 0 ] || _bvn "a committed line"; [ "$(_bk_any 'commit FAILED')" = 0 ] || _bvn "a commit FAILED line"
 [ -n "$(_bk_eq "backup${_bT}nothing else new to commit")" ] || _bvn "no nothing else new to commit line"
 _bk_same "$M" "$_h0"; [ "$(git --git-dir="$R" rev-parse refs/heads/main 2>/dev/null)" = "$_h0" ] || _bvn "R did not move to HEAD"
-[ "$(_bk_n "$PUSH")" -ge 1 ] || _bvn "no pushed and verified line"
+[ "$(_bk_n "$PUSH")" -ge 1 ] || _bvn "no pushed and read back line"
 _bk_is "b06 A32: only a nested repository new: nothing else new to commit, HEAD unchanged, and the push still runs"
 M="$BP/m33"; _bk_m "$M"; printf 'a\n' > "$M/a.md"; printf 'b\n' > "$M/b.md"; _fx_git "$M" add a.md b.md >/dev/null 2>&1; _bk_ci "$M" ab
 _bk_nest "$M/nested"; printf 'staged\n' >> "$M/a.md"; printf 'unstaged\n' >> "$M/b.md"; _fx_git "$M" add a.md >/dev/null 2>&1
@@ -188,7 +188,7 @@ M="$BP/m42"; R="$BP/r42.git"; _bk_m "$M"; _bk_r "$M" "$R"
 _b42() {   # <home>: one verified push with BKH there; a verdict of the disk line and the two files
   mkdir -p "$1/state"; printf 'x %s\n' "$1" >> "$M/l.md"; BKH="$1" _bk "$M"
   local s; s="$(git -C "$M" rev-parse HEAD | cut -c1-12)"
-  [ -n "$(_bk_eq "backup${_bT}pushed and verified: origin holds $s; origin is a path on this machine, so this copy is only as far from this disk as whatever syncs that path")" ] \
+  [ -n "$(_bk_eq "backup${_bT}pushed and read back: origin holds $s; origin is a path on this machine, so this copy is only as far from this disk as whatever syncs that path")" ] \
     || printf 'no disk line [%s]; ' "$(_bk_l "$PUSH")"
   LC_ALL=C awk 'NR == 1 && /^[0123456789]+$/ { d = 1 } END { exit !(d && NR == 1) }' "$1/state/pulse.last-push" 2>/dev/null || printf 'no stamp; '
   LC_ALL=C awk 'NR == 1 && $0 == "disk" { d = 1 } END { exit !(d && NR == 1) }' "$1/state/pulse.last-push.where" 2>/dev/null || printf 'where is not disk; '
@@ -243,7 +243,7 @@ _bss; _v=""
 _b6_in "$BSC" "The last pulse, at 1970-01-02T00:00Z, did not back up all of memory:" || _v="$_v lacks-the-sentence"
 _b6_in "$BSC" "audits/x/fixture" || _v="$_v lacks-the-path"
 is "b06 A48: a record with a line saying NOT backed up is said at session start, with its time, though the stamp is from today" "${_v:-said}" "said"
-printf '# ran 86400\nbackup\tcommitted\nbackup\tpushed and verified: r holds 0123456789ab\n' > "$_bsr"; _bss
+printf '# ran 86400\nbackup\tcommitted\nbackup\tpushed and read back: r holds 0123456789ab\n' > "$_bsr"; _bss
 _v="$(_b6_in "$BSC" "$_bL" && echo said || echo quiet)"; rm -f "$_bsr"; _bss
 is "b06 A49 (control): no such line, or no record, says no such paragraph" "$_v $(_b6_in "$BSC" "$_bL" && echo said || echo quiet)" "quiet quiet"
 rm -f "$_bsp"; _bss; _v="$(_b6_in "$BSC" "never once got memory off this disk" && echo never)"

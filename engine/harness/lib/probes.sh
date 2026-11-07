@@ -331,9 +331,9 @@ felix_probe_state() {
   case "$ask" in
     0)
       if [ "$rc" -ne 0 ]; then
-        printf 'blind\t0\tthe witness proves this surface exists and the probe exited %s\n' "$rc"
+        printf 'blind\t0\tthe witness says this surface exists and the probe exited %s\n' "$rc"
       else
-        printf 'blind\t0\tthe witness proves this surface exists and the probe enumerated none of it\n'
+        printf 'blind\t0\tthe witness says this surface exists and the probe enumerated none of it\n'
       fi
       return 0 ;;
     1)

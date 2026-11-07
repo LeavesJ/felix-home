@@ -1,4 +1,4 @@
-### 2026-11-06: felix cost makes one reading at a time and serves every caller from it (load slice 0, 0.49.328)
+### 2026-11-06: felix cost makes one reading at a time and serves every caller from it (load slice 0, 0.49.329)
 
 **Why.** The founder, 2026-11-06: "as we're developing and making felix more
 sophisticated, think about optimization. Overloading issue should easily be
@@ -100,7 +100,7 @@ the dev copy `~/.claude/dev-mods/c80faf4c-3940-4f47-b97d-f980502a56de/dash`.
 - While the deployed engine refuses `--max-age`, it falls back to the old
   store-guarded call.
 
-Install it over `~/.claude/mods/dash` once 0.49.328 is deployed.
+Install it over `~/.claude/mods/dash` once 0.49.329 is deployed.
 
 **Next.** Slice 1, the governor, report-only first: `lib/load.sh`,
 `felix load`, rows in `$FELIX_MEMORY/load.tsv`, and the existing slot holders

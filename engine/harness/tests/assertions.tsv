@@ -2877,6 +2877,278 @@
 1	L5: with no answer rows felix ledger prints no answers section, its capability table there (fixture control)
 1	L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves
 1	Needs authentication is checked before Connected
+1	P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half) was built
+1	P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half), the second checkouts and the two engine lib copies were built
+1	P1 (fixture control): every table layout of P2 and this part's own (finalnl, encoding) was built
+1	P10: res-slug, F2 at the slug read (137), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F3 at the slug read (its substitution could not fork: nothing, status 0), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F3 at tr inside it (the fork of its own pipe fails in its subshell), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F5 at the slug read (exit 0, nothing printed, for a github.com URL), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P11: res-slug with lib/own.sh removed from the engine copy, no fault: resolve exits 1 with nothing printed (main's documented fallback: the owner/repo rule falls to its case-sensitive suffix)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f2 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f3 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f3z at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f5 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git: status 0 and _FELIX_RS acme/web
+1	P12: _felix_remote_slug https://example.org/a/b: status 0 and _FELIX_RS empty (not GitHub)
+1	P13: _felix_resolve_remote on res-none's root: status 1 (none)
+1	P13: _felix_resolve_remote on res-remote's root, F2 at every remote_match read (R6): status 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-remote's root, F2 at its origin read (R5): status 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-remote's root: status 0 and _FELIX_RB_P beta, _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-tie's root: status 2 (a tie)
+1	P14: a directory in no repository, f2 at git rev-parse --show-toplevel (R2) alone, the walk having found no .git: resolve unknown or the clean answer (none), never a project
+1	P14: a directory in no repository, f3 at git rev-parse --show-toplevel (R2) alone, the walk having found no .git: resolve unknown or the clean answer (none), never a project
+1	P14: marker, f2 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: marker, f2 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: marker, f3 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: marker, f3 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: remote, f2 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: remote, f2 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: remote, f3 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: remote, f3 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P15: felix_repo_root from a directory in no repository, no fault: prints START, status 0
+1	P15: felix_repo_root from co/res/sub/dir, F3 at R1 and R2: prints exactly START (main's bytes) and returns 2
+1	P15: felix_repo_root from co/res/sub/dir, no fault: prints the checkout root, status 0
+1	P16 (control): START res-none's sub/dir, run from a checkout whose origin beta's remote_match names, no fault: none (START's origin decides, not the cwd's)
+1	P16: START res-none's sub/dir, run from a checkout whose origin beta names, f2 at the outer substitution of felix_repo_root inside felix_resolve_project: unknown, never the cwd's project (beta)
+1	P16: START res-none's sub/dir, run from a checkout whose origin beta names, f3z at the outer substitution of felix_repo_root inside felix_resolve_project: unknown, never the cwd's project (beta)
+1	P17 (control): felix which on res-badmarker, no fault: the broken sentence, which lists the known projects
+1	P17 (fixture control): the layouts of this part were built (res-badmarker, res-none, res-tie, base, and two res-remote copies for the bindings record)
+1	P17, P46: felix which on res-badmarker (a broken marker), f2 at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist
+1	P17, P46: felix which on res-badmarker (a broken marker), f3 at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist
+1	P18 (control): felix which on res-none, no fault: no project governs, with Known projects: alpha beta gamma
+1	P18, P46: felix which on res-none, f2 at the ls behind Known projects: unknown, or main's no-project sentence byte for byte
+1	P18, P46: felix which on res-none, f3 at the ls behind Known projects: unknown, or main's no-project sentence byte for byte
+1	P19 (control): felix which on res-tie, no fault: the tie sentence naming alpha, beta
+1	P19, P46: felix which on res-tie, F3 at the tr -cd [:print:] that cleans the names (_felix_binding_sane): unknown, or the clean tie sentence byte for byte; a cleaner made fork-free (R12) leaves the probe unfired and must leave the clean tie sentence
+1	P1: felix which from res layout badmarker's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's broken class
+1	P1: felix which from res layout marker's co/res/sub/dir, no fault, gives P2's example: the five lines for alpha, exit 0
+1	P1: felix which from res layout nest's co/res/sub/dir, no fault, gives P2's example: the five lines for beta, exit 0
+1	P1: felix which from res layout none's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's none class
+1	P1: felix which from res layout remote's co/res/sub/dir, no fault, gives P2's example: the five lines for beta, exit 0
+1	P1: felix which from res layout slug's co/res/sub/dir, no fault, gives P2's example: the five lines for alpha, exit 0
+1	P1: felix which from res layout tie's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's broken class
+1	P1: felix_remote_github_slug on base's origin https://git.example.org/acme/web.git gives P2's example: nothing, exit 1
+1	P1: felix_remote_github_slug on res-slug's origin git@github.com:Acme/Web.git gives P2's example: acme/web and a LF, exit 0
+1	P1: felix_resolve_project from res layout badmarker's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout marker's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout nest's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout none's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout remote's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout slug's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout tie's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_table_check on P2's tab-accepted layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-cells layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-empty-allowed layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-empty-refused layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-missing layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-noschema layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-nul layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-shapes layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-symlink layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P20 (control): a checkout once bound to beta by remote (its bindings.tsv row written), beta's project.json moved to project.json.bak, no fault: felix which says it no longer resolves (main's), exit 2
+1	P20: the same checkout, f2 at the git hash-object that keys the bindings record: unknown, never no project governs
+1	P20: the same checkout, f3 at the git hash-object that keys the bindings record: unknown, never no project governs
+1	P21 (control): the same layout with FELIX_MEMORY unset (the record in ~/.felix/memory), no fault: felix which says it no longer resolves, exit 2
+1	P21: FELIX_MEMORY unset, F3 at the memory-root read (the substitution around felix_mem_root inside _felix_binding_remote): unknown or the clean sentence, never no project governs (a probe that never acts, the read made fork-free, must leave the clean run)
+1	P22 (control): FELIX_HOME unset, ~/.felix-home naming the real home, base, no fault: felix_binding_broken prints nothing and returns 0 (not broken)
+1	P22: FELIX_HOME unset, ~/.felix-home naming the real home, f2 at the cat of it: felix_binding_broken prints nothing and returns 2, never "is empty, so it names no home"
+1	P22: FELIX_HOME unset, ~/.felix-home naming the real home, f3 at the cat of it: felix_binding_broken prints nothing and returns 2, never "is empty, so it names no home"
+1	P23: felix land --status on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P23: felix land --tick on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence (and unresolved rows 1)
+1	P23: felix merge on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence (and says.log merged rows 0 HEAD kept)
+1	P23: felix repair on base, F3 at the marker's tr: exit 4, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P23: felix which on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P24: felix which on base, F1 at the sed that reads the gate key (called by cmd_which): unknown, nothing on stdout (never an empty gate:)
+1	P24: felix which on base, F3 at felix_repo_root for the governs line (the walk's pwd -P and git rev-parse, called by cmd_which): unknown, nothing on stdout (never four lines, never an empty or wrong governs:)
+1	P25 (control): felix_hook_dir run from base's checkout, the payload's cwd another checkout of alpha, no fault: prints the payload's cwd, status 0 (the hook moves there)
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3 at the launch directory's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3 at the payload cwd's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3z at the launch directory's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3z at the payload cwd's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P26: felix_repo_root with felix_capture unloadable, from co/res/sub/dir: still prints main's bytes (the checkout root) and returns 2
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout badmarker, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout marker, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout nest, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout none, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout remote, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout slug, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout tie, no fault: unknown, never found, never 1
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout badmarker, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout marker, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout nest, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout none, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout remote, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout slug, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout tie, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P28: tab-accepted (base is accepted), f1 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f2 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f3 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f5 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-cells (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P29: table base, F5 at the schema lookup's awk: exit 2, with either line (no-schema or the unknown line)
+1	P29: table base, f1 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P29: table base, f2 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P29: table base, f3 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P2: base (marker alpha, beta's remote_match also names the origin), f1 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f2 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f3 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f4 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: felix which on base, f1 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f2 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f3 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f4 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P3 (control): felix which, the marker names alphabet, no fault: found alphabet
+1	P3 (control): the alphabet layout, no fault: .../projects/alphabet, exit 0
+1	P30: table base, run with pipefail off (as bin/schema-check), f1 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f1 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f2 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f2 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f3 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f3 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f5 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f5 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P31: tab-empty-refused, f1 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P31: tab-empty-refused, f3 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P31: tab-empty-refused, f5 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P32: table base, F3 at the substitution that makes hi (printf [\200-\377], if one exists): never 1; none, the clean run
+1	P33: tab-empty-refused, F3 at the substitution of the empty refusal line (if any): never 0
+1	P33: tab-nul, F3 at the substitution of the nul-byte refusal line (if any): never 0, and a refusal still holds the nul-byte line (T9; under gawk the encoding line alone keeps it refused, R10)
+1	P33: table base, f1 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at od (if called): never 0
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at tail (if called): never 0
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at the substitution of its refusal line (if any): never 0
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-accepted: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-cells: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-empty-refused: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-nul: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-shapes: felix_table_check is 2, the unknown line
+1	P34: table.sh sourced with F3 at its load-time substitution (the UTF-8 pattern, if one exists), then a good row and a line holding the byte 377: never 0
+1	P35: in each run P28-P34 call unknown (a probe that acted, or the empty pattern), the unknown line is the only line on stdout: no refusal line printed before the read failed
+1	P36 (control): a tree with schemas.tsv and one good table t.tsv, no fault: bin/schema-check exits 0
+1	P36: the same tree, F1 at felix_table_check's main pass: bin/schema-check exits non-zero with an unexaminable line for t.tsv (schema-check unchanged; this pins the caller)
+1	P37: lib/table.sh holds at least 23 lines a literal \t<reason>\t matches (risk row 47's confine, counted as _felix_escape_fewer counts it; 23 at 1fca9559)
+1	P38: over the 37 runs of this part (seven res layouts clean, and the faults of P2-P9 on base, res-remote, res-nest, res-tie and res-none, with alphabet, the unreadable marker and no origin), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0
+1	P38: over the 5 runs of P17-P19 (res-badmarker, res-none and res-tie under their faults), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0
+1	P39: base, felix status --tsv, f1 at the marker's tr only inside felix_resolve_project as felix_status_rows calls it: reach, gate, land and hooks are unknown with the could-not-be-resolved sentence (never none), and the other six rows equal the clean run
+1	P39: base, felix status --tsv, f3 at the marker's tr only inside felix_resolve_project as felix_status_rows calls it: reach, gate, land and hooks are unknown with the could-not-be-resolved sentence (never none), and the other six rows equal the clean run
+1	P3: felix which, the marker names alphabet beside alpha, the marker's tr prints alpha (its first five bytes) then exits 1: unknown, never alpha
+1	P3: the marker names alphabet, projects alpha and alphabet exist, the marker's tr prints its first five bytes (alpha) then exits 1: unknown, never .../projects/alpha
+1	P40 (fixture control): every P2 resolver layout and a home that is its own checkout (project hp) were built
+1	P40: felix status --tsv from res layout badmarker's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout marker's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout nest's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout none's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout remote's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout slug's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout tie's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P41: res-remote, felix status --tsv, F2 at git remote get-url only inside felix_resolve_project as felix_status_rows calls it: as P39
+1	P42 (control): felix status --tsv in a home that is its own checkout (project hp), no fault: the alerts row is none, no alert has been tried for hp
+1	P42: felix status --tsv in that home, f1 at the marker's tr only inside the home's resolution of _felix_status_alerts: alerts is unknown with the could-not-be-resolved detail for the home, never resolves no project
+1	P42: felix status --tsv in that home, f3 at the marker's tr only inside the home's resolution of _felix_status_alerts: alerts is unknown with the could-not-be-resolved detail for the home, never resolves no project
+1	P43: base, felix status --tsv, f2 at felix_repo_root's reads (the walk's pwd -P, then git rev-parse) only as felix_status_rows calls it, the project resolving through its own call: gate and hooks are unknown with the checkout-root detail, and the probe acted
+1	P43: base, felix status --tsv, f3 at felix_repo_root's reads (the walk's pwd -P, then git rev-parse) only as felix_status_rows calls it, the project resolving through its own call: gate and hooks are unknown with the checkout-root detail, and the probe acted
+1	P44: lib/status.sh has at most 499 lines (part 1100 holds it under 500, and its limit is not raised)
+1	P45: the merge judge's call with the entry drift: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P45: the merge judge's call with the entry identical: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P45: the merge judge's call with the entry nocache: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P47 (control): felix which on res-half, no fault: found beta (the origin's whole path)
+1	P47 (control): res-half (alpha's remote_match git.example.org/acme, beta's the origin's whole path), no fault: .../projects/beta, exit 0
+1	P47: _felix_resolve_remote on res-half's root, the origin read prints half the URL then exits 128: status 1 (no origin, as main) or 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P47: _felix_resolve_remote on res-half's root, the origin read prints half the URL then exits 2: status 1 (no origin, as main) or 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 128: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)
+1	P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 2: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)
+1	P47: res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 128: resolve none (main's) or unknown, never 0 with a project (never alpha)
+1	P47: res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 2: resolve none (main's) or unknown, never 0 with a project (never alpha)
+1	P48 (control): the Stop hook with the whole engine, a dirty checkout bound by its marker and never verified: it holds
+1	P48: the same Stop with lib/detect.sh removed from the engine (felix_capture unloadable, resolve says 2): it still holds, as main, never exit 0 with nothing said
+1	P49 (control): a flagged Stop of a session that holds a night of its own, the whole engine: it holds and charges the night (a refused row in its log)
+1	P49 (control): a flagged Stop with no hold of Felix's on record (another hook's chain), the whole engine: it holds
+1	P49 (guard): with lib/detect.sh removed, an unflagged Stop that holds, then the flagged Stop of the same session (Felix's own chain, no night): the first holds, the second is not held again
+1	P49: the flagged Stop of a session that holds a night of its own, with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said
+1	P49: the same flagged Stop (another hook's chain, no hold on record) with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said
+1	P4: base with the marker mode 000 (not root): resolve exits 1 with nothing printed (an unreadable marker names nothing, as main and the lane)
+1	P4: felix which on base with the marker mode 000 (not root), no fault: exit 2, nothing on stdout, a broken-binding sentence for the marker (main's), never no project governs and never unknown
+1	P50 (control): PreToolUse with the whole engine, npm publish from the checkout p binds, a deny row for it: refused
+1	P50: the same PreToolUse with lib/detect.sh removed from the engine: refused as main, or recorded as not judged (a hook-faults.log row naming lib/detect.sh), never allowed with nothing recorded
+1	P5: felix which on res-remote, f1 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f127 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f2 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f3 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f5 at git remote get-url origin: unknown, never no project governs
+1	P5: res-remote, f1 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f127 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f2 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f3 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f5 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P6: felix which in a checkout with no origin remote (res-remote's projects), no fault: no project governs (main's sentence class), exit 2
+1	P6: felix which outside any repository, no fault: no project governs (main's sentence class), exit 2
+1	P6: outside any repository (a plain directory), no fault: resolve exits 1, nothing printed (git's not a repository is a finished answer)
+1	P6: res-remote's projects with no origin remote in the checkout, no fault: resolve exits 1, nothing printed (git's no such remote is a finished answer)
+1	P7: felix which on res-nest, f1 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f1 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f2 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f2 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f3 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f3 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f4 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f4 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: res-nest, f1 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f1 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f2 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f2 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f3 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f3 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f4 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f4 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P8: felix which on res-tie, f1 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f1 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f2 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f2 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f3 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f3 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: res-tie, f1 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f1 at the sed that reads beta's project.json: unknown, never the other project
+1	P8: res-tie, f2 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f2 at the sed that reads beta's project.json: unknown, never the other project
+1	P8: res-tie, f3 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f3 at the sed that reads beta's project.json: unknown, never the other project
+1	P9: felix which on res-none, f1 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: felix which on res-none, f2 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: felix which on res-none, f3 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: res-none, f1 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
+1	P9: res-none, f2 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
+1	P9: res-none, f3 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit

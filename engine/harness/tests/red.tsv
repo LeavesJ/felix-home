@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
-run	445	15716	46
+base	origin/main	c9fe3c1b83ea375f0597dc631836bbbdaaa53179	0.49.322
+run	443	15830	28
 2400 R1: paid_ingress applies exactly cap:api cap:llm, and its owes names a request bound and a spend bound	1
 2400 R2: another class than paid_ingress holds the term cap:api	1
 2400 R3: a class holds probe:local_listener=found and no cap:api, and its owes is a bind to loopback	1
@@ -453,5 +453,3 @@ run	445	15716	46
 2470 rf9 with obligations.tsv made unreadable, --change --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty	1
 2470 rf9 with probes.tsv made unreadable, --at exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty	1
 2470 rf9 with probes.tsv made unreadable, --change exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty	1
-and landed on the shared home's cache, which this block does not read	1
-and the refresh the hook forked asked the claude for the catalogue	1

@@ -31,7 +31,7 @@ printf '\n%s\n' 'situations: the change (blind)'
 # their exit status, and the default range's byte-for-byte --tsv comparison sees its trailing newlines (C17.10).
 S2420_D=""; mkdir -p "$TMP/s2420" && S2420_D="$(cd -P "$TMP/s2420" && pwd -P)"
 S2420_P=chg
-S2420_BLIND='the witness proves this surface exists and the probe enumerated none of it'
+S2420_BLIND='the witness says this surface exists and the probe enumerated none of it'
 S2420_UNK3='the witness exited 3, which is neither yes nor no, so absent and blind cannot be told apart'
 S2420_HOW='scratch checkout, tracked content only, current probes.tsv'
 S2420_N=0; S2420_T=""; S2420_RC=""; S2420_SHA=""; S2420_TID=""

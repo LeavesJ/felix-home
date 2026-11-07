@@ -223,7 +223,7 @@ is "2470 rf2 after felix probes in the live checkout, whose ignored untracked .r
    "0|0||$(_s2470_tab "$S2470_ID" env_ready standing - ACTIVE - 'ready found (ready)' "$S2470_O2")"
 is "2470 rf2 --change HEAD~1..HEAD over a commit that does not touch the surface reads env_ready could-not-look, UNKNOWN at base and at head, never DORMANT, retired or none" \
    "$S2470_RB|$(LC_ALL=C awk -F'\t' '$2 == "env_ready" { print $3 " " $4 " " $5 }' "$S2470_D2/ch.out")" "0|could-not-look UNKNOWN UNKNOWN"
-S2470_W2="the witness proves this surface exists and the probe exited 1"
+S2470_W2="the witness says this surface exists and the probe exited 1"
 is "2470 rf2 that --tsv is the class line, then could-not-look residual lines for base: and head:, each naming the term probe:ready=found and the probe's own sentence" \
    "$S2470_RB|$(cat "$S2470_D2/ch.err")|$(cat "$S2470_D2/ch.out")" \
    "0||$(_s2470_tab "$S2470_ID" env_ready could-not-look UNKNOWN UNKNOWN 'ready blind (ready)' 'ready blind (ready)' "$S2470_O2")

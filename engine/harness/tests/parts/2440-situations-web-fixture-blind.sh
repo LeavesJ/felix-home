@@ -123,7 +123,7 @@ _s2440_verdict() {
 _s2440_rank() { case "$1" in owed) echo 1 ;; blinded) echo 2 ;; retired) echo 3 ;; standing) echo 4 ;; could-not-look) echo 5 ;; *) echo 6 ;; esac; }
 # SIDE K -> C10's could-not-look lines for that side, unsorted.
 _s2440_res() {
-  local s="$1" c bl="http_route read blind: the witness proves this surface exists and the probe enumerated none of it"
+  local s="$1" c bl="http_route read blind: the witness says this surface exists and the probe enumerated none of it"
   printf 'residual\tcould-not-look\tci_actions_pinned\t%s: cap:ci: no probe grounds ci and the detector does not name it\n' "$s"
   printf 'residual\tcould-not-look\tci_secret_scoped_to_step\t%s: cap:ci: no probe grounds ci and the detector does not name it\n' "$s"
   printf 'residual\tcould-not-look\tci_secret_scoped_to_step\t%s: probe:ci_secret=found: no probe grounds ci_secret\n' "$s"
@@ -325,7 +325,7 @@ is '2440 h: no class of B..E reads DORMANT at head or retired' \
 is '2440 h: the whole --tsv output of B..E is the model, the residual naming the probe'\''s own sentence for each api class at head' \
    "$S2440_RC|$(cat "$S2440_D/h-tsv.out")" "0|$(_s2440_tsv found blind)"
 has '2440 h: the residual line for paid_ingress names cap:api and the blind probe'\''s sentence' "$S2440_RC|$(cat "$S2440_D/h-tsv.out")" \
-    "$S2440_NL$(printf 'residual\tcould-not-look\tpaid_ingress\thead: cap:api: http_route read blind: the witness proves this surface exists and the probe enumerated none of it\n')$S2440_NL"
+    "$S2440_NL$(printf 'residual\tcould-not-look\tpaid_ingress\thead: cap:api: http_route read blind: the witness says this surface exists and the probe enumerated none of it\n')$S2440_NL"
 is '2440 h: the B..E --tsv run exits 0 with stderr empty and TMPDIR left empty' "$(_s2440_clean h-tsv)" '0||'
 _s2440_run h-human situations --change "$S2440_B..$S2440_E"
 is '2440 h: the human report of B..E: blinded holds paid_ingress and request_body_bounded, retired none' \

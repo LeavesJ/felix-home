@@ -198,7 +198,7 @@ _s2430_run "$S2430_D/r/pbash" "$S2430_CB" "$S2430_MB" "$FELIX" probes; [ "$S2430
 : > "$S2430_NET"
 
 # ---- the expected text ---------------------------------------------------------------------------------------------
-S2430_SENT='the witness proves this surface exists and the probe enumerated none of it'
+S2430_SENT='the witness says this surface exists and the probe enumerated none of it'
 S2430_REC='when recorded; the fact log keeps no sentence'
 # MODE (c for --change, h for --at the head tree, b for --at the base tree) -> the residual's lines, as --tsv prints them.
 _s2430_resid() {

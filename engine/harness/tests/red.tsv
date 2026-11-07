@@ -9,7 +9,7 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	960b5209922c2fac8d89ea41813fc107078070a5	0.49.328
-run	177	16455	28
+run	176	16456	28
 P10: res-slug, F2 at the slug read (137), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma	1
 P10: res-slug, F3 at the slug read (its substitution could not fork: nothing, status 0), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma	1
 P10: res-slug, F3 at tr inside it (the fork of its own pipe fails in its subshell), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma	1
@@ -186,4 +186,3 @@ P9: felix which on res-none, f3 at the sed that reads every project.json's remot
 P9: res-none, f1 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)	1
 P9: res-none, f2 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)	1
 P9: res-none, f3 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)	1
-and the driver itself is under 500 lines	1

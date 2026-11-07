@@ -71,6 +71,14 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   `felix land --status` / `--prs` print that detail as recorded.
 - **`_gt_held`** reads the clause at the end of a refused row's detail and the
   head and main it records. It never reads the kind.
+- **The tick's quiet check** (added after the first review). `_gt_refuse`
+  (`lib/green-tick.sh`) builds a refused row's detail from the first block line,
+  kind and its column padding included, and stays silent (no desktop banner, no
+  notifier attempt) when the pull request's previous refused row has the same
+  head and the same detail up to ` [main `, whatever main was. It reads the
+  kind's name (K14). The notifier's `_fn_same` (`lib/notify.sh`, B8) compares an
+  event's kind, pull request and detail with the newest dispatched record; it is
+  reached only for an event the tick did not keep quiet (L7).
 - The grep found nothing in `.github/`, `projects/*/gate.sh`, `templates/`, a
   hook or `~/.claude/mods` that names the kind. The suite reads it: parts 0100, 0360, 0510,
   0990, 1250, 1650 and 1665.
@@ -87,6 +95,10 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **`_fn_sentence`** (`lib/notify.sh`) is the notifier's table of fixed
   sentences by kind. `_fn_attempt` refuses a kind it has no sentence for.
   The callers found pass the kind of an event being written now.
+- **Readers of `alerts.tsv`** (added after the first review): `_fn_missed`
+  (the dispatched comment's "Not delivered before this one" line), `felix
+  status`'s alerts row and the session-start alert line print a record's kind as
+  recorded (K10).
 - **Readers of rows by kind** (`felix land --status`, `--prs`, `lib/waiting.sh`,
   `lib/status-land.sh`, `lib/pr-status.sh`, `lib/green-wait.sh`): none names the
   kind. They print the second field as recorded. `felix land --status` prints it
@@ -104,12 +116,20 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **K1 The blocker, tree.** Where `felix_merge_blockers` printed
   `unverified\ttree\t<reason>` it prints `not-green\ttree\t<reason>`, in both of
   the branches that printed it. The reason and the condition that raises it are
-  unchanged.
+  unchanged. Pinned whole (Round 2): for a receipt that is stale because the tree
+  changed, and for one that is stale because a fact it rests on moved, the reason
+  is `felix_verify_current`'s second field, whole and including any text after a
+  `;`; for a red receipt for this exact tree, and for no receipt, it is
+  `no green receipt for this exact tree; run felix gate`.
 - **K2 The blocker, tests.** Where it printed `unverified\ttests\t<reason>` it
   prints `not-green\ttests\t<reason>`. The reason, which begins
   `the gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on `,
   and the condition (a current green receipt that reports `tests:reused` while
-  the gate workflow has not passed on the head) are unchanged.
+  the gate workflow has not passed on the head) are unchanged. Only a current
+  green receipt raises the line (Round 2): a red receipt for this exact tree, and
+  a stale receipt, each reporting `tests:reused` with the gate workflow failed on
+  the head, print the one `not-green tree` line and no `tests` line, and
+  `felix merge` makes no `gh` call for either.
 - **K3 What `felix merge` prints.** The block's lines for K1 and K2 are laid
   out as before, for example
   `  not-green   tree                   no green receipt for this exact tree; run felix gate`.
@@ -134,21 +154,41 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **K6 Rows recorded under the old blocker kind.** A `refused` ledger row whose
   detail begins `unverified` (written before the deploy) is held and lifted
   exactly as one that begins `not-green`: the hold reads the clause and the
-  head and main at its end, not the kind.
+  head and main at its end, not the kind. This holds on each of the three
+  clauses (Round 2): an hourly row under an hour old is held, and one over an
+  hour old is run again; a receipt-clause row with a retry record matching it is
+  held, and one without a matching record is run again once a receipt is
+  written; a final row is held until the head or main moves.
 - **K7 The ledger kind.** Each of the five calls of `_gt_unverified` (pull,
   install, diff, hook check, gate) writes a `deploy-failed` row instead, with the same detail (its `pull:`,
   `install:`, `diff:`, hook-check or `gate:` text), the same wall time, and the
-  same `paused` row and `paused` file holding the same reason. No path writes
+  same `paused` row and `paused` file holding the same reason. The detail is
+  the failing step's message whole, as before (Round 2): `pull: git pull --ff-only
+  failed: ` and git's first line; `install: felix install --no-bump failed: ` and
+  the install's last line; `gate: felix gate --quick exited <rc> in the home`.
+  No path writes
   a row of kind `deployed-unverified`. A deploy whose steps and checks pass
   still writes `deployed`, and one that is owed still writes `deploy-owed`.
 - **K8 The notification.** A `deploy-failed` row raises the desktop
   notification titled `Felix: deploy-failed`, and starts a notifier attempt, as
-  the old kind did. The kinds a person is notified of are otherwise the same.
+  the old kind did. The kinds a person is notified of are otherwise the same
+  (Round 2): each kind on `_gt_say`'s list on main 0.49.328 other than the renamed
+  one (landed, refused, founder, waiting, deployed, paused, resumed, installed,
+  uninstalled, timeout, stuck, unaged, gh, fetch, deploy-owed, unresolved) still
+  raises the banner titled `Felix: <kind>` when a row of it is written;
+  `resumed`, `installed` and `uninstalled` start no notifier attempt; a kind not
+  on the list raises neither.
 - **K9 The notifier.** `_fn_sentence deploy-failed` prints exactly
   `A deploy of main stopped at a failed step or check, and landing is paused.`
   and returns 0. `_fn_sentence deployed-unverified` prints exactly the same
   sentence and returns 0, so an event of the old kind recorded before the
-  deploy is still sent. Every other kind's sentence is unchanged, and a kind
+  deploy is still sent. Every other kind's sentence is unchanged (Round 2, word
+  for word: founder `A green pull request changes a direction document and waits for your yes.`;
+  deployed `The engine on main was installed and passed its deploy checks.`;
+  stuck `A tick has held the lock for more than 45 minutes.`;
+  timeout `A tick ran past its time limit and was stopped.`;
+  unresolved `The tick resolved no project, so nothing lands.`;
+  fetch `The home could not fetch its origin, so nothing lands.`), and a kind
   with none still returns 1. The comment the notifier dispatches for a
   `deploy-failed` event begins `@<owner> Felix land: deploy-failed` and holds
   the sentence below it, before the details line.
@@ -160,7 +200,11 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   ledger's newest row and the last row of each pull request, not every row, so
   a ledger that holds both kinds lists whichever row is newest as recorded,
   whichever kind it has and whichever came first (clarified after the blind
-  part read it). No reader drops or reorders a row for its kind.
+  part read it). No reader drops or reorders a row for its kind. The readers of
+  `alerts.tsv` do the same (Round 2): `felix status`'s alerts row, the
+  session-start alert line and the dispatched comment's count line name a
+  `deployed-unverified` record as recorded, as they name a `deploy-failed` one,
+  and none decides anything by which of the two names a record holds.
 - **K11 What is decided is unchanged.** Which trees `felix merge` refuses, which
   paragraph closes a block, which refusals the lander retries and when, which
   deploys complete, which ones pause landing, and which events a person is
@@ -173,7 +217,10 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   - `deployed-unverified)`, the case label that accepts the old ledger kind, in
     `harness/lib/notify.sh`;
   - `$1 == "unverified"`, the clause that accepts the old blocker kind, in
-    `harness/lib/green-install.sh`.
+    `harness/lib/green-install.sh`;
+  - `  unverified  ` (the name between two blanks on each side: the kind in its
+    column as a block line prints it), the text by which the quiet check reads a
+    recorded refusal row (K14), in `harness/lib/green-tick.sh`.
 
   `_gt_unverified` appears nowhere. `deployed-unverified` appears nowhere else
   (`green-tick.sh` no longer holds it). `unverified\t` appears nowhere
@@ -181,13 +228,27 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   characters backslash and t, as a printf spells it). Part 2300's and part 2301's allowed lists
   are narrowed to match: the entries `deployed-unverified` (in `green-tick.sh`
   and `notify.sh`), `'unverified\t` (in `escape.sh`) and `== "unverified"` (in
-  `green-install.sh`) are gone, and the two entries above replace them. The
+  `green-install.sh`) are gone, and the three entries above replace them. The
   class check is shown to fail on each removed entry in the file that used to
-  allow it, and to pass on each new entry in its own file.
+  allow it, and to pass on each new entry in its own file; part 2300's check and
+  part 2301's model of it both show it (Round 2). Run over the real engine the
+  check reads at least fifty files and ends with status 0, so a check that read
+  nothing cannot pass (Round 2).
 - **K13 Comments and the older contract.** A comment in the files this change
   edits that names a renamed value is updated with it. The 2026-10-31
   contract's "What keeps its name, and why" says the two kinds moved, and names
   this contract.
+- **K14 A refusal that stands across the deploy stays quiet (Round 2).** The
+  tick's quiet check in `_gt_refuse` reads a previous refused row whose detail
+  begins `  unverified  ` (two blanks, the old name, two blanks: the old kind in
+  its column) as one that begins `  not-green   ` (two blanks, the new name,
+  three blanks), when the rest of the detail, the head and the clause are the
+  same. So a pull request refused before the deploy and refused again after it,
+  on the same head, for the same blocker and the same clause, raises no desktop
+  banner and starts no notifier attempt, as when main moves and no name changes.
+  A refusal whose blocker, head or clause differs is announced as before, and a
+  previous row of any other kind is read as before. The notifier's own check
+  (B8) is not widened (L7).
 
 ## What keeps its name
 
@@ -213,12 +274,17 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 - **L2, an older engine reading this one.** An engine older than this change,
   reading a block of `not-green` lines, does not know the name: its
   `_gt_class` counts the line as another kind and answers `final` where it
-  would have answered `receipt` or `hourly`. The tick runs `felix merge` from
-  the cache entry of main's version (`_GT_VER`), and the code that reads its
-  output is the engine the tick itself runs from. The two can be different
-  versions while the tick runs from an engine older than main's, which is the
-  deploy of this change itself. A refusal in that window is held until the head
-  or main moves, instead of until a receipt is written. It decides no merge.
+  would have answered `receipt` or `hourly` (an hourly block as well as a
+  receipt block). The tick runs `felix merge` from the cache entry of main's
+  version (`_GT_VER`, read after the tick's own fetch), and the code that reads
+  its output is the engine the tick itself runs from. A tick that finds a
+  deploy owed deploys and stops, and a tick that lands a change to `engine/`
+  deploys it and stops (A11), so no tick reads this change's block with an
+  older engine except one started from the old entry that finds, after its
+  fetch, main's new entry accepted and the home already at main. The tick that
+  deploys this change is not that window. A refusal classed `final` there stays
+  `final` after the deploy, because the hold reads the clause, until the head
+  or main moves. It decides no merge.
 - **L3, records.** Ledger rows, `says.log` rows and `alerts.tsv` rows written
   before the deploy keep the old kinds, and readers print them as recorded
   (K10). A re-measurement over ledgers written across the deploy has to fold
@@ -227,6 +293,26 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   `deployed-unverified` for rows recorded before the deploy. No caller of the
   notifier passes an old row's kind back to it today. The label is a reader
   kept for the instruction that every reader accept old rows.
+- **L6, the deploy of this change runs the engine before it.** The trampoline
+  runs the entry of the version `origin/main` last had when the home fetched,
+  and the handmerge path runs the home's own engine. So a failed step or check
+  of the one deploy that installs this change is written, notified and
+  dispatched by the older engine, as `deployed-unverified`. Every deploy after
+  it writes `deploy-failed`, and the readers list that one row as recorded
+  (K10).
+- **L7, the notifier's no-repeat check, and the trampoline's copy.** B8 is not
+  widened: a `refused` event whose detail names `not-green`, announced while the
+  newest dispatched record holds the same event under `unverified`, is
+  dispatched once more. The tick's quiet check (K14) keeps the usual case from
+  reaching the notifier; what B8 would still see is a refusal announced when the
+  newest dispatched record is older than the pull request's previous refused
+  row. That is at most one extra comment for such a pull request, once.
+  Separately, the installed trampoline holds the copy of `lib/notify.sh` that
+  the last `felix land --install` wrote, and no deploy rewrites it. It starts
+  attempts only for `deploy-owed` and `unreadable`, whose sentences this change
+  leaves alone, so K8 and K9 are claims about the tick's `lib/notify.sh`, and
+  the trampoline's copy carries `deploy-failed` after the next `felix land
+  --install`.
 - **L5, what the class check cannot see.** It reads five words (verified,
   unverified, proven, unproven, proves) by the rules of the 2026-10-31
   contract. `not-green` and `deploy-failed` are not in it, and it cannot say
@@ -234,9 +320,12 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
 
 ## How it is tested
 
-- **Blind.** One part, `tests/parts/2320-not-green-deploy-failed-blind.sh`,
-  written from this contract alone before the change, red against main. Its
-  assertion names start `ngd A`. Each clause K1 to K12 has at least one
+- **Blind.** Two parts, written from this contract alone, red against the
+  code they were written before: `tests/parts/2320-not-green-deploy-failed-blind.sh`
+  (K1 to K12, before the change, red against main; its assertion names start
+  `ngd A`) and `tests/parts/2321-not-green-deploy-failed-round2-blind.sh` (the
+  Round 2 sentences of K1, K2, K6 to K10 and K14, red against the head that
+  carried K1 to K13; its names start `ngd2 A`). Each clause has at least one
   assertion. A clause that forbids a name asserts both the old and the new
   name, so a check cannot pass by finding neither.
 - **Existing parts.** The parts that read the two kinds (0100, 0360, 0510, 0990,
@@ -250,5 +339,11 @@ Found by grep over the engine, its hooks, `.github/`, `projects/*/gate.sh`,
   `projects/felix/risk.tsv`'s assertion count (`^[[:space:]]*(ok|is|has|bad) `)
   than it had at base.
 - **Review.** An adversarial review of the change, then its fixes go to a
-  blind author who has this contract and not the review.
+  blind author who has this contract and not the review. Round 2 is the
+  contract's answer to that review; the edits to existing parts that the review
+  asked for and that need no new behaviour (the checks that counted an old
+  kind's rows at zero count the new kind's rows too, assertion names say the
+  kind they assert, part 2301 shows K12 on its own fixtures, part 2320's scan of
+  the real engine ends with status 0 over at least fifty files) are made by the
+  author of the change and named as such in the pull request.
 - **The record and the gate** at the head the pull request carries.

@@ -258,7 +258,7 @@ is "the payload-cwd fixture's main checkout carries a current green receipt, and
 is "Stop with the payload's cwd at the launch checkout judges that checkout as before, and it is green" \
    "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s1 "$PCA")")" "silent +1 allowed $PCTA1 green"
 is "Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green" \
-   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s2 "$PCB")")" "block +1 blocked $PCTB1 never verified"
+   "$(_pcwd_stop "$PCA" "$(_pcwd_sp pc-s2 "$PCB")")" "block +1 blocked $PCTB1 never checked"
 _pco="$(_pcwd_hook "$PCA" stop "$(_pcwd_sp pc-s3 "$PCW2")")"
 case "$_pco" in
   *'"decision"'*'"block"'*) ok  "Stop refuses a broken marker in the payload's worktree though the launch checkout is green" ;;
@@ -268,7 +268,7 @@ has "and the refusal names that worktree's marker" "$_pco" "The .felix marker in
 # Entered before the flag is read: a flagged stop in a chain Felix did not
 # start is judged, and the project it is judged under is the worktree's.
 is "Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names" \
-   "$(_pcwd_stop "$PCU" "$(_pcwd_pay Stop pc-s6 "$PCB" '"stop_hook_active":true')")" "block +1 blocked $PCTB1 never verified"
+   "$(_pcwd_stop "$PCU" "$(_pcwd_pay Stop pc-s6 "$PCB" '"stop_hook_active":true')")" "block +1 blocked $PCTB1 never checked"
 
 # SubagentStop asks the same of the tree, and says so rather than holding.
 has "SubagentStop judges the payload's worktree, so its unverified work is declared though the launch checkout is green" \

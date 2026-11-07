@@ -8,41 +8,99 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
-run	36	15805	17
-A1 evidence (FIFO): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (dangling link): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (link to a directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A3 receipt (FIFO): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (dangling link): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (directory): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (link to a directory): lists evidence under unknown, and no evidence gap and no met row	1
-A4 incident (FIFO): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (dangling link): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (link to a directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A5 agreement (FIFO): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (dangling link): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (link to a directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-D1 felix_evidence_table_present (C1, nothing at the widget project's path): exits 1 and prints nothing	1
-D1 felix_evidence_table_present (a FIFO): exits 0, prints nothing, and returns without reading it	1
-D1 felix_evidence_table_present (a dangling link): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a directory): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a link that resolves to a directory): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a link that resolves to a file): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a regular file): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (nothing at the path): exits 1 and prints nothing	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 0: prints the not-judged row, unknown evidence.tsv cannot be read not judged, for a project with no evidence.tsv	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is met	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is unmet	1
-D3 no tracked file under engine/harness/felix or engine/harness/lib/ but lib/evidence.sh tests evidence.tsv with any unary file operator (-a -b -c -d -e -f -g -h -k -p -r -s -t -u -w -x -G -L -N -O -S) under test, [[ or [	1
-D4 receipt.sh sourced alone after lib/resolve.sh (directory): felix_receipt lists evidence under unknown, as felix receipt does	1
-and landed on the shared home's cache, which this block does not read	1
-and the refresh the hook forked asked the claude for the catalogue	1
-and this block leaves the projects, the state and the memory as it found them	1
+base	origin/main	c9fe3c1b83ea375f0597dc631836bbbdaaa53179	0.49.322
+run	94	15805	46
+A35 (B24; control): with nothing untracked or ignored under engine/, felix install --no-bump verifies the installed engine as today	1
+A36 (B25): a source outside any git work tree installs as today, saying in one line that git could not be asked about engine/	1
+A43 (R2): a source that is not its own repository, inside another work tree that tracks none of its engine (untracked there, or ignored), installs as a source outside git does: exit 0, one could-not-ask-git line, verified, no refusal or remedy, plugin.json kept, the same claude commands	1
+C1 classify (nothing at the path, control): on a green change says no evidence is owed	1
+C3 classify (the same table, a change the rule does not reach, control): on a green change says no evidence is owed, and not not judged	1
+Stop judges the worktree the payload names, so its unverified work blocks though the main checkout is green	1
+Stop launched in a directory nothing governs judges a flagged stop by the worktree the payload names	1
+and pushed, and the push is read back	1
+and still verifies when the source really does match	1
+b06 A30: new nested repositories are named and left out, NOT backed up, and the rest is committed and pushed	1
+b06 A32: only a nested repository new: nothing else new to commit, HEAD unchanged, and the push still runs	1
+b06 A42: a verified push to a path, or file:// and a path, says the copy is a path on this machine and writes the stamp and disk	1
+b06 R11: a nested repository with no commit is named and left out beside one with a commit, and the rest is committed and pushed	1
+b06 R1: a key written into a tracked file after the scan and before the commit is neither committed nor pushed	1
+b06 R8: once the commit can succeed, the next run commits the rest and pushes it, the nested repository still left out	1
+b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never checked, held once on this tree already	1
+b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never checked and ends with the VM	1
+cnv A1 (C1): felix help prints the line [    felix receipt          what changed, its risk, and whether anything checked it], and no line saying whether anything verified it	1
+cnv A10 (C6): the same session's next unflagged stop on that tree is a debt row whose reason is exactly [never checked; held once on this tree already (session cnv-sess)]	1
+cnv A11 (C6): a night's flagged stop on that checkout is held and charged, and the night log's refused row says gate never checked	1
+cnv A12 (C6): a cloud session's debt stop prints its message (no decision), writes the debt row with never checked, and the message carries (never checked), not (never verified)	1
+cnv A13 (C7): felix_hold_tree_seen HOME SID TID [never checked] CHECKOUT returns 0 when the record holds TID\tnever verified\tCHECKOUT	1
+cnv A15 (C7): through the hook, a session whose record holds <tid>\tnever verified\t<checkout> stops again on that tree with no gate receipt: let go, one debt row, reason never checked	1
+cnv A16 (C7): through the hook, a session whose record holds <tid>\tnever checked\t<checkout> is let go the same way, with one debt row	1
+cnv A18 (C8): felix receipt on a tree whose gate receipt is current and green, with no evidence gap, prints schema felix.receipt/2 and status checked	1
+cnv A19 (C8): felix receipt says unchecked where the gate receipt is for another tree (stale) and where there is none	1
+cnv A2 (C2): felix install whose first comparison finds the installed engine matching prints exactly one such line, [  checked    the installed engine matches this tree], and no verified line	1
+cnv A20 (C8): none of the three receipts holds verified or unverified as a word, in its status, its keys or its limits, and each holds its new status	1
+cnv A22 (C9): a push to a path that the remote reads back prints [backup\tpushed and read back: origin holds <12 hex>; origin is a path on this machine, ...], not pushed and verified, and stamps the push	1
+cnv A23 (C9): a push to a network remote that it reads back prints exactly [backup\tpushed and read back: origin holds <12 hex>], not pushed and verified, and stamps the push	1
+cnv A24 (C9): a push through a remote helper that it reads back prints [backup\tpushed and read back: origin holds <12 hex>; where origin is could not be read], not pushed and verified, and stamps the push	1
+cnv A26 (C10): _fn_sentence deployed prints exactly [The engine on main was installed and passed its deploy checks.]	1
+cnv A27 (C10): _fn_sentence deployed-unverified prints exactly [A deploy of main stopped at a failed step or check, and landing is paused.]	1
+cnv A29 (C11, round 3): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and neither the verified wording nor round 1's	1
+cnv A3 (C2): felix install that bumps to 0.49.10 and then finds the installed engine matching prints the checked line, label column eleven wide, and no verified line	1
+cnv A30 (C12): templates/unattended.yml commits with the subject [fix: unattended repair, checked by the gate], and nothing says verified by the gate	1
+cnv A32 (C13): templates/moments.tsv holds the row [pre-conclude\tbefore work is called done: what was checked, recorded, and handed over], and not the verified one	1
+cnv A33 (C14): templates/lifecycle.tsv holds the row [Stop\twired\trefuse completion on a tree the gate has not passed, then ask that the claims be checked], and not the unverified one	1
+cnv A34 (C15, round 3): felix_stop_debt with CLAUDE_CODE_REMOTE=true ends its third sentence [so nothing outside it says the gate has not passed on this work.], the rest unchanged, and says neither went unverified nor went unchecked	1
+cnv A35 (C15): the Stop hook's debt stop of a cloud session carries that message, its reason (never checked) in parentheses	1
+cnv A37 (C16, round 3): the SubagentStop hook on a checkout holding work no gate has passed says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unverified nor round 1's partial, or unchecked	1
+cnv A38 (C17): engine/commands/felix.md ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]	1
+cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line	1
+cnv A5 (C3): harness/felix holds the moved-checkout lines [The checkout moved while this ran, so what was checked is not what] and [would be merged. Nothing was merged.], and not [so what was verified is not what]	1
+cnv A6 (C4): felix classify on a green tier that owes no evidence prints [Reversible, and no evidence is owed. Eligible for auto-merge once] and [every required check passes.], and not nothing is unproven	1
+cnv A7 (C5): felix classify on a green tier that owes evidence prints [Reversible, but <why>. Not auto-merge eligible: a green], [tier means no risky path was touched, not that the change was tested.] and [Run felix evidence.], and not proven	1
+cnv A8 (C6): the first hold on a checkout with no gate receipt writes a blocked row whose reason is never checked, and records exactly <tid>\tnever checked\t<checkout> in state/held-tree/<sid>	1
+cnv3 A1 (C1): felix help's first line is [Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.], and no line of it ends and proves it.	1
+cnv3 A10 (C8, control): none of the eight receipts holds verified or unverified as a word, in its status, its keys or its limits	1
+cnv3 A11 (C11): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and not round 1's [the engine it holds has not been deployed and checked]	1
+cnv3 A12 (C15): felix_stop_debt for the reason failed, in a cloud session, ends its third sentence [so nothing outside it says the gate has not passed on this work.], the reason (failed) in parentheses, and never says went unchecked	1
+cnv3 A13 (C15): felix_stop_debt for the reason never checked says the same third sentence, (never checked) in parentheses, and never says went unchecked	1
+cnv3 A14 (C15): felix_stop_debt for the reason epoch moved says the same third sentence, (epoch moved) in parentheses, and never says went unchecked	1
+cnv3 A17 (C15): that session's debt stop writes the debt row for failed and prints the message with (failed) and [so nothing outside it says the gate has not passed on this work.], not went unchecked	1
+cnv3 A18 (C16): the SubagentStop hook on a checkout whose tree the gate ran red on says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unchecked nor partial, or unverified	1
+cnv3 A2 (C1, control): felix help still prints round 1's receipt line and the obligation what a fix must prove	1
+cnv3 A20 (C16): the SubagentStop hook on a checkout no gate has run on says the same sentence, and not partial, or unchecked	1
+cnv3 A21 (C17): engine/commands/felix.md's step 2 begins [2. Work out what checks this project — the command that fails when] / [the code is wrong.], and nothing says Work out what would prove this project correct	1
+cnv3 A22 (C17, control): engine/commands/felix.md still ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]	1
+cnv3 A23 (C18): the check with the round-3 ERE over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files in a work tree) reads many files and names no line	1
+cnv3 A24 (C18, control): the same check with round 1's ERE, without proves, still passes over the engine under test	1
+cnv3 A3 (C8): a red gate receipt for this exact tree gives status failed, evidence_quality low, under schema felix.receipt/2	1
+cnv3 A30 (C20): a probe that exits non-zero while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe exited <rc>], for 1 and for 3	1
+cnv3 A31 (C20): a probe that exits 0 and enumerates nothing while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe enumerated none of it]	1
+cnv3 A33 (C20): felix probes over a project with those two blind rows prints both witness sentences and the note [blind means the witness says a surface exists that the probe cannot see, and] / [unknown means nothing decided either way.], and no line says proves	1
+cnv3 A35 (C21): the standing issue the notifier creates names a deploy that stopped at a failed step or check among its events, and not a deploy it could not verify	1
+cnv3 A37 (C22): README.md's Subagent stop row ends [tells the parent that a subagent's report must call its own changes partial, failing or unchecked |], and no line says must call its own changes unverified	1
+cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3	1
+cnv3 A4 (C8): a current green gate receipt for this exact tree with an evidence gap gives status evidence-owed, evidence_quality low	1
+cnv3 A5 (C8): a red gate receipt for this exact tree that also has an evidence gap gives status failed, not evidence-owed, evidence_quality low	1
+cnv3 A6 (C8, control): a current green gate receipt for this exact tree with no evidence gap still gives status checked, evidence_quality high	1
+cnv3 A7 (C8, control): status unchecked, evidence_quality low, where there is no gate receipt and where a green one for this exact tree rests on facts that have moved	1
+cnv3 A8 (C8, control): a red gate receipt for another tree (stale) gives status unchecked, not failed, evidence_quality low	1
+it names a schema version, so a reader can refuse one it does not know	1
+matching hooks still verify	1
+origin outranks the name that sorts first	1
+the Stop hook counts debt when the matching line is one of several in the record, with others on both sides of it	1
+the Stop hook counts debt, and holds nothing, for a record line with this tree, this reason and this checkout	1
+the Stop hook holds a session whose record is a link to a file holding this very line, where the same line in a plain file is debt	1
+the Stop hook holds a stop whose record line differs from it only in a different checkout, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line differs from it only in a different reason, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line differs from it only in a different tree id, and records the hold on a line of its own	1
+the Stop hook holds a stop whose record line holds only the tree id, and records the hold in full	1
+the Stop hook holds a stop whose record line holds the tree id and the reason but no checkout, and records the hold in full	1
+the Stop hook holds the first stop on a tree as "never checked" (control)	1
+the Stop hook holds the first stop once when the gate never ran, and the blocked row says never checked	1
+the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold	1
+the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold	1
+the Stop hook records both checkouts, each on a line of its own	1
+the Stop hook records both holds, "never checked" and then "failed", on lines of their own	1
+the Stop hook records the tree id, a tab, "never checked", a tab and the checkout for a hold when the gate never ran	1
+the Stop hook treats a flagged stop with no hold of Felix's on record as debt when the session's record names the tree	1
+the Stop hook treats a record line holding the tree id, the reason and the checkout as a hold already made, and adds a debt row	1
+the Stop hook's first hold writes a blocked row naming the tree and never checked as the reason	1

@@ -18,7 +18,7 @@ printf 'new lesson\n' >> "$PBR/memory/pulseproj/lessons.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PBR" )"
 has "a dirty memory repo is committed"       "$out" "committed"
-has "and pushed, and the push is verified"   "$out" "pushed and verified"
+has "and pushed, and the push is read back"   "$out" "pushed and read back"
 is  "the remote actually holds the commit" \
     "$(git --git-dir="$PBREM" rev-parse refs/heads/main)" "$(git -C "$PBR" rev-parse HEAD)"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
@@ -249,8 +249,8 @@ out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PCF" )"
 has "a failed commit says the memory is NOT backed up" "$out" "NOT backed up"
 case "$out" in
-  *"pushed and verified"*) bad "and never ends on a success line" "$out" ;;
-  *)                       ok  "and never ends on a success line" ;;
+  *"pushed and read back"*|*"pushed and verified"*) bad "and never ends on a success line" "$out" ;;
+  *)                                                ok  "and never ends on a success line" ;;
 esac
 rm -f "$PCF/.git/hooks/pre-commit"
 
@@ -356,7 +356,7 @@ git init -q --bare -b main "$PMRA"; git init -q --bare -b main "$PMRO"
 printf 'm\n' >> "$PMR/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PMR" )"
-has "origin outranks the name that sorts first" "$out" "pushed and verified: origin"
+has "origin outranks the name that sorts first" "$out" "pushed and read back: origin"
 # --verify -q, and not for style: bare `git rev-parse` on a MISSING ref echoes
 # the literal back to stdout, so "did this remote receive anything" answered 1
 # whether it had or not — an instrument that reports the same thing either way,
@@ -371,7 +371,7 @@ has "two strangers and no upstream is a person's call" "$out" "a person picks"
 
 # The verification is load-bearing, pinned by an input only it can catch: a
 # push URL pointing somewhere other than the fetch URL means the push lands
-# where nothing reads back, and 'pushed and verified' would be a lie.
+# where nothing reads back, and 'pushed and read back' would be a lie.
 PSPLIT="$TMP/pulse-split"; PSF="$TMP/pulse-sf.git"; PSP="$TMP/pulse-sp.git"
 mkdir -p "$PSPLIT"
 ( _fx_cd "$PSPLIT" && git init -q -b main && printf 'l\n' > l.md \
@@ -382,7 +382,9 @@ git init -q --bare -b main "$PSF"; git init -q --bare -b main "$PSP"
 printf 's\n' >> "$PSPLIT/l.md"
 out="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/pulse.sh"
         felix_pulse_backup "$PSPLIT" )"
-has "a push nothing reads back is not called verified" "$out" "reads back"
+has "a push nothing reads back says so" "$out" "reads back"
+_nb=yes; case "$out" in *"pushed and read back"*|*"pushed and verified"*) _nb=no ;; esac
+is  "and no success line calls a push nothing reads back read back, or verified" "$_nb" yes
 
 # The report half: the pulse log doubles as a note about what the next
 # session will find, read off Felix's own tables and state alone.

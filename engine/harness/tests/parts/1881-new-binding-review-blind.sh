@@ -160,7 +160,7 @@ for B13R_K in 1 2; do
   if [ "$B13R_K" = 1 ]; then B13R_D="$B13RS1"; else B13R_D="$B13RS2"; fi
   _b13r_inst "$B13R_D" --no-bump; B13R_O="$(cat "$B13RI/out")"; B13R_C="$(_b13r_calls)"
   if [ "$B13R_C" = "$B13R_C0" ]; then B13R_C="as-outside-git"; else B13R_C="$B13R_C not $B13R_C0"; fi
-  B13R_G="$B13R_G s$B13R_K: exit=$B13RIRC,unknown=$(_b13r_unknown),verified $(_b13r_has "$B13R_O" 'verified   the installed engine matches this tree'),untracked words $(_b13r_has "$B13R_O" 'git does not track'),remedy $(_b13r_has "$B13R_O" 'Remove them'),plugin $(_b13r_plugin "$B13R_D" "s$B13R_K"),claude $B13R_C;"
+  B13R_G="$B13R_G s$B13R_K: exit=$B13RIRC,unknown=$(_b13r_unknown),verified $(_b13r_has "$B13R_O" 'checked    the installed engine matches this tree'),untracked words $(_b13r_has "$B13R_O" 'git does not track'),remedy $(_b13r_has "$B13R_O" 'Remove them'),plugin $(_b13r_plugin "$B13R_D" "s$B13R_K"),claude $B13R_C;"
   B13R_WHY="$B13R_WHY s$B13R_K: $(tr '\n' ' ' < "$B13RI/out" | head -c 500);"
 done
 _b13r_check "A43 (R2): a source that is not its own repository, inside another work tree that tracks none of its engine (untracked there, or ignored), installs as a source outside git does: exit 0, one could-not-ask-git line, verified, no refusal or remedy, plugin.json kept, the same claude commands" \

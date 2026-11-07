@@ -166,8 +166,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/widget-repo.sh"
 # The lib files' variables are set here, once, by their _vars functions (part 0006).
 if [ -d "$HERE/lib" ]; then
-  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
-  _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
+  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars; _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
 fi
 # The hand-over (contract D2, D7): part mode runs its members here and exits; a
 # -j N run hands the parts to the runner and reads the part lines below as no-ops.
@@ -411,11 +410,8 @@ fi
 . "$HERE/parts/2120-wave-1-combine-blind.sh"
 . "$HERE/parts/2130-answers-delivered-blind.sh"
 . "$HERE/parts/2160-docs-are-not-a-frontend-blind.sh"
-. "$HERE/parts/2170-trust-resolver-unfinished-reads-blind.sh"
-. "$HERE/parts/2171-trust-which-unfinished-reads-blind.sh"
-. "$HERE/parts/2172-trust-cli-refusals-unfinished-reads-blind.sh"
-. "$HERE/parts/2173-trust-table-unfinished-reads-blind.sh"
-. "$HERE/parts/2174-trust-status-rows-unfinished-reads-blind.sh"
+. "$HERE/parts/2170-trust-resolver-which-cli-unfinished-reads-blind.sh"
+. "$HERE/parts/2173-trust-table-status-unfinished-reads-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

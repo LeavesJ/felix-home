@@ -374,3 +374,363 @@ is "P50: the same PreToolUse with lib/detect.sh removed from the engine: refused
    "$TRAARM|$(case "$TRAPT" in (refused|recorded) echo judged-or-said ;; (*) echo "$TRAPT" ;; esac)" "yes|judged-or-said"
 TRP_NAMES=""
 # <<< trust-resolver-unfinished-reads
+# >>> trust-which-unfinished-reads
+printf '\ntrust plane step 1, felix which: a resolution that did not finish is said as one, and felix which agrees with felix lane and the resolver (spec section 5, properties 1-9 and 38; blind)\n'
+# Blind, written on 2026-11-05 from .felix/memory/felix/audits/2026-10-31-trust-plane-replay/step1/spec.md (sections 0-8
+# and the merge-judge item) and the P2 case's layouts and examples, before any fix. Felix is run as a black box
+# ("$FELIX" which and "$FELIX" lane --tsv, from the checkout's co/res/sub/dir, through _lf_run in the environment
+# _lf_use names), and the resolver through the driver of tests/lib/trust-probes.sh.
+#
+# Each fault is armed once and the three runs are made under it: felix which (asserted, with the probe's TRP_FIRE),
+# felix lane --tsv and felix_resolve_project (recorded for P38). The faults match their command's words in any calling
+# function, as the spec names them by the read alone ("at the marker's tr"): felix_binding_broken's and the lane's reads
+# of the same file are faulted with the resolver's. Readings where the spec leaves room:
+# - "Unknown" for which is exit 2, empty stdout, and a line of stderr exactly "felix: the project that governs <dir>
+#   could not be resolved: a read it stands on did not finish." (the CLI's sentence, section 0); bash's own note of a
+#   fork it could not make may stand on another line, since it is the probe's doing.
+# - Broken and none are P2's outcomes.tsv classes (its stderr EREs); found is five lines with the project line.
+# - P38's "every fault in 2-21" is read over res layouts only (P2's res-* and base, here and in part 2172), since 20 and 21
+#   are a layout no res layout is; felix lane's "could not be resolved" is its C5 line on stderr with exit 2.
+_lf_dir "$TMP/trust-2171"; TRB="$LF_DIR"
+TRP_E="$FROOT/harness"
+_trp_driver "$TRB/drv"
+TRBBAD=""
+for _trb_l in marker remote nest tie badmarker none slug alphabet unread noorigin half; do
+  _trp_res "$TMP/trust-2171/$_trb_l" "$_trb_l" || TRBBAD="$TRBBAD $_trb_l"
+done
+is "P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half) was built" "${TRBBAD:-built}" built
+TRBDIS=""; TRBN=0
+
+# LAYOUT -> TRBWANT the which class the clean run gives (P2's examples): found:P, broken or none.
+_trb_want() {
+  case "$1" in
+    marker|slug) TRBWANT=found:alpha ;; alphabet) TRBWANT=found:alphabet ;; remote|nest) TRBWANT=found:beta ;;
+    tie|badmarker|unread) TRBWANT=broken ;; *) TRBWANT=none ;;
+  esac
+}
+# OUT DIR -> unresolved when felix lane (OUT.out, OUT.err, LF_RC) exited 2 with nothing on stdout and a line of stderr
+# exactly C5's "could not be resolved" line; else its status and the first line of stderr.
+_trb_lane() {
+  if [ "$LF_RC" = 2 ] && [ ! -s "$1.out" ] \
+     && LC_ALL=C grep -Fxq "felix: the project that governs $2 could not be resolved: a read it stands on did not finish." "$1.err" 2>/dev/null; then
+    printf unresolved
+  else
+    printf 'status %s [%s]' "$LF_RC" "$(LC_ALL=C awk 'NR == 1' "$1.err" 2>/dev/null)"
+  fi
+}
+# LAYOUT [FROM] -> with the probes armed now (none when TRP_NAMES is empty), felix which, felix lane --tsv and
+# felix_resolve_project, each from FROM (LAYOUT's co/res/sub/dir). TRBW which's class (_trp_wcls), TRBF its probe mark
+# (clean when none is armed), TRBL the lane's (_trb_lane), TRBR the resolver's (_trp_rcls). A disagreement P38 forbids
+# is added to TRBDIS.
+_trb_three() {
+  local d r
+  _trp_at "$TRB/$1"; d="${2:-$TRP_S}"
+  if [ -n "${TRP_NAMES:-}" ]; then
+    _trp_go _lf_run "$TRB/w" "$d" - "$FELIX" which; TRBF="$TRP_FIRE"; TRBW="$(_trp_wcls "$TRB/w" "$d")"
+    _trp_go _lf_run "$TRB/l" "$d" - "$FELIX" lane --tsv; TRBL="$(_trb_lane "$TRB/l" "$d")"
+    _trp_go _trp_drv "$TRB/r" "$d" resolve "$d" "$TRP_H"; TRBR="$(_trp_rcls "$TRB/r")"
+  else
+    _lf_run "$TRB/w" "$d" - "$FELIX" which; TRBF=clean; TRBW="$(_trp_wcls "$TRB/w" "$d")"
+    _lf_run "$TRB/l" "$d" - "$FELIX" lane --tsv; TRBL="$(_trb_lane "$TRB/l" "$d")"
+    _trp_drv "$TRB/r" "$d" resolve "$d" "$TRP_H"; TRBR="$(_trp_rcls "$TRB/r")"
+  fi
+  TRBN=$((TRBN + 1)); r=""
+  case "$TRBW:$TRBL" in (unknown:unresolved) ;; (unknown:*) r="which unknown, lane not" ;; (*:unresolved) r="lane unresolved, which $TRBW" ;; esac
+  case "$TRBW" in
+    found:*) [ "$TRBR" = "found:$TRP_H/projects/${TRBW#found:}" ] || r="${r:+$r; }which $TRBW, resolve $TRBR" ;;
+    *) case "$TRBR" in found:*) r="${r:+$r; }resolve $TRBR, which $TRBW" ;; esac ;;
+  esac
+  [ -z "$r" ] || TRBDIS="$TRBDIS[$1 ${TRBCASE:-clean}: $r] "
+}
+# LABEL LAYOUT ALTS MODE NAME WORDS -> one assertion: under one probe acting at NAME with WORDS in any calling function,
+# felix which from LAYOUT is one of ALTS, and the probe acted.
+_trb_one() {
+  local lab="$1" l="$2" alts="$3"
+  _trp_new "$TRB/p.fired"; _trp_arm "$4" "$5" "$6" '*' || { bad "$lab" "the probe could not be armed: $4 $5 $6"; return; }
+  TRBCASE="$4 $5 $6"; _trb_three "$l"; TRBCASE=""
+  is "$lab" "$(_trp_in "$TRBW" "$alts")|$TRBF" "ok|fired"
+}
+TRP_NAMES=""
+
+# --- P1: every P2 layout, no fault.
+for _trb_l in marker remote nest tie badmarker none slug; do
+  _trb_want "$_trb_l"; _trb_three "$_trb_l"
+  case "$TRBWANT" in
+    found:*) _trb_p="${TRBWANT#found:}"
+      is "P1: felix which from res layout $_trb_l's co/res/sub/dir, no fault, gives P2's example: the five lines for $_trb_p, exit 0" \
+         "$(_trp_ro "$TRB/w")" "rc=0 out=[project:      $_trb_p
+doctrine:     $TRP_H/projects/$_trb_p/CLAUDE.md
+memory:       $TRP_M/$_trb_p/
+gate:         gate-$_trb_p
+governs:      $TRP_CO
+]" ;;
+    *) is "P1: felix which from res layout $_trb_l's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's $TRBWANT class" \
+         "$TRBW" "$TRBWANT" ;;
+  esac
+done
+
+# --- P2, P3: the marker read.
+for _trb_m in f1 f2 f3 f4; do
+  _trb_one "P2: felix which on base, $_trb_m at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence" \
+    marker unknown "$_trb_m" tr "*' -d [:space:] '*"
+done
+_trb_one "P3: felix which, the marker names alphabet beside alpha, the marker's tr prints alpha (its first five bytes) then exits 1: unknown, never alpha" \
+  alphabet unknown p5 tr "*' -d [:space:] '*"
+TRP_NAMES=""; _trb_three alphabet
+is "P3 (control): felix which, the marker names alphabet, no fault: found alphabet" "$TRBW" found:alphabet
+
+# --- P4: an unreadable marker.
+if [ "$(id -u)" = 0 ]; then
+  skip "P4: felix which on base with the marker mode 000: the broken sentence" "run as root, so mode 000 does not stop the read"
+else
+  TRP_NAMES=""; _trb_three unread
+  is "P4: felix which on base with the marker mode 000 (not root), no fault: exit 2, nothing on stdout, a broken-binding sentence for the marker (main's), never no project governs and never unknown" \
+     "$TRBW" broken
+fi
+
+# --- P5, P6: the origin read.
+for _trb_m in f1 f127 f2 f3 f5; do
+  _trb_one "P5: felix which on res-remote, $_trb_m at git remote get-url origin: unknown, never no project governs" \
+    remote unknown "$_trb_m" git "*' remote get-url origin '*"
+done
+TRP_NAMES=""; _trb_three noorigin
+is "P6: felix which in a checkout with no origin remote (res-remote's projects), no fault: no project governs (main's sentence class), exit 2" "$TRBW" none
+_trp_at "$TRB/remote"; _lf_run "$TRB/w" "$TRP_P" - "$FELIX" which
+is "P6: felix which outside any repository, no fault: no project governs (main's sentence class), exit 2" "$(_trp_wcls "$TRB/w" "$TRP_P")" none
+
+# --- P7, P8, P9: a remote_match unread.
+for _trb_m in f1 f2 f3 f4; do
+  _trb_one "P7: felix which on res-nest, $_trb_m at the sed that reads beta's project.json: unknown, never alpha" \
+    nest unknown "$_trb_m" sed "*remote_match*'/projects/beta/project.json '*"
+  _trb_one "P7: felix which on res-nest, $_trb_m at the sed that reads alpha's project.json: unknown, never beta" \
+    nest unknown "$_trb_m" sed "*remote_match*'/projects/alpha/project.json '*"
+done
+for _trb_m in f1 f2 f3; do
+  for _trb_p in alpha beta; do
+    _trb_one "P8: felix which on res-tie, $_trb_m at the sed that reads $_trb_p's project.json: unknown, never the other project, never the tie sentence" \
+      tie unknown "$_trb_m" sed "*remote_match*'/projects/$_trb_p/project.json '*"
+  done
+  _trb_one "P9: felix which on res-none, $_trb_m at the sed that reads every project.json's remote_match: unknown, never no project governs" \
+    none unknown "$_trb_m" sed "*remote_match*'/project.json '*"
+done
+
+# --- P38, over the res layouts and faults of this part (the badmarker, none and tie faults of 17-19 are part 2172's).
+is "P38: over the $TRBN runs of this part (seven res layouts clean, and the faults of P2-P9 on base, res-remote, res-nest, res-tie and res-none, with alphabet, the unreadable marker and no origin), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0" \
+   "${TRBDIS:-agreed}" agreed
+
+# --- P47 (review round 1), after P38's count: the origin read prints half the URL, then exits with a finished status.
+TRP_NAMES=""; _trb_three half
+is "P47 (control): felix which on res-half, no fault: found beta (the origin's whole path)" "$TRBW" found:beta
+for _trb_m in h128 h2; do
+  _trb_one "P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits ${_trb_m#h}: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)" \
+    half "none|unknown" "$_trb_m" git "*' remote get-url origin '*"
+done
+TRP_NAMES=""
+# <<< trust-which-unfinished-reads
+# >>> trust-cli-refusals-unfinished-reads
+printf '\ntrust plane step 1, the CLI refusals: the broken and no-project sentences, every resolve_or_die command, felix which'"'"'s own reads and the merge judge'"'"'s resolve.sh (spec section 5, properties 17-21, 23, 24, 38 and 45; blind)\n'
+# Blind, written on 2026-11-05 from .felix/memory/felix/audits/2026-10-31-trust-plane-replay/step1/spec.md (sections 0-8
+# and the merge-judge item) and the P2 case's layouts, before any fix. Felix is run as a black box through _lf_run, in
+# the environment _lf_use names; the probes are tests/lib/trust-probes.sh's. Readings where the spec leaves room:
+# - "Byte for byte" (P17-P21) compares exit, stdout and stderr with the clean run's, leaving out bash's own note of a
+#   fork it could not make (_trp_said), which is the probe's doing and no sentence of the engine's.
+# - P21's memory-root read may be made fork-free by the fix (R14). Where the probe does not act, the run must equal the
+#   clean run, as section 5's head says; where it acts, unknown or the clean sentence. On main it acts.
+# - P23's "unknown sentence" is a line of stderr exactly the CLI's; felix land --tick is run with FELIX_LAND_LEDGER, so
+#   the unresolved row it writes is read in that file.
+# - P24's F3 at felix_repo_root for the governs line is the fork failing at both its reads (the walk's pwd -P, then git),
+#   called by cmd_which and not by the resolution; the gate's sed is the read of the gate key called by cmd_which.
+# - P45's "suite's judge fixtures" are built here as part 1401 builds them: a home whose main ships engine/ at 4.0.0
+#   and a cache entry cut from it, plus that entry with a file more and a cache with no entry. Main's answer is the
+#   function's contract there (0 and the entry, 1 naming the path, 2), and the copy holding only resolve.sh must give it.
+_lf_dir "$TMP/trust-2172"; TRC="$LF_DIR"
+TRP_E="$FROOT/harness"
+_trp_driver "$TRC/drv"
+TRCBAD=""
+for _trc_l in badmarker none tie marker bound boundhome; do
+  case "$_trc_l" in bound|boundhome) _trc_k=remote ;; *) _trc_k="$_trc_l" ;; esac
+  _trp_res "$TMP/trust-2172/$_trc_l" "$_trc_k" || TRCBAD="$TRCBAD $_trc_l"
+done
+is "P17 (fixture control): the layouts of this part were built (res-badmarker, res-none, res-tie, base, and two res-remote copies for the bindings record)" \
+   "${TRCBAD:-built}" built
+TRCDIS=""; TRCN=0
+
+# OUT DIR RC -> unknown when the run exited RC with nothing on stdout and a line of stderr exactly the CLI's
+# could-not-be-resolved sentence for DIR; else what it said (_trp_said).
+_trc_unk() {
+  if [ "$LF_RC" = "$3" ] && [ ! -s "$1.out" ] \
+     && LC_ALL=C grep -Fxq "felix: the project that governs $2 could not be resolved: a read it stands on did not finish." "$1.err" 2>/dev/null; then
+    printf unknown
+  else _trp_said "$1"; fi
+}
+# LAYOUT -> felix which, felix lane --tsv and felix_resolve_project from LAYOUT's sub/dir under the probes armed now,
+# as part 2171's _trb_three runs them: TRCW which's class, TRCS what it said (_trp_said), TRCF its probe mark; a
+# disagreement P38 forbids is added to TRCDIS.
+_trc_three() {
+  local d r
+  _trp_at "$TRC/$1"; d="$TRP_S"
+  _trp_go _lf_run "$TRC/w" "$d" - "$FELIX" which; TRCF="$TRP_FIRE"; TRCW="$(_trp_wcls "$TRC/w" "$d")"; TRCS="$(_trp_said "$TRC/w")"
+  _trp_go _lf_run "$TRC/l" "$d" - "$FELIX" lane --tsv
+  if [ "$LF_RC" = 2 ] && [ ! -s "$TRC/l.out" ] \
+     && LC_ALL=C grep -Fxq "felix: the project that governs $d could not be resolved: a read it stands on did not finish." "$TRC/l.err" 2>/dev/null
+  then TRCL=unresolved; else TRCL="status $LF_RC"; fi
+  _trp_go _trp_drv "$TRC/r" "$d" resolve "$d" "$TRP_H"; TRCR="$(_trp_rcls "$TRC/r")"
+  TRCN=$((TRCN + 1)); r=""
+  case "$TRCW:$TRCL" in (unknown:unresolved) ;; (unknown:*) r="which unknown, lane $TRCL" ;; (*:unresolved) r="lane unresolved, which $TRCW" ;; esac
+  case "$TRCW" in
+    found:*) [ "$TRCR" = "found:$TRP_H/projects/${TRCW#found:}" ] || r="${r:+$r; }which $TRCW, resolve $TRCR" ;;
+    *) case "$TRCR" in found:*) r="${r:+$r; }resolve $TRCR, which $TRCW" ;; esac ;;
+  esac
+  [ -z "$r" ] || TRCDIS="$TRCDIS[$1 $TRCCASE: $r] "
+}
+# LAYOUT -> TRCCL what felix which says from LAYOUT's sub/dir with no fault (_trp_said), TRCCW its class.
+_trc_clean() { _trp_at "$TRC/$1"; _lf_run "$TRC/c" "$TRP_S" - "$FELIX" which; TRCCL="$(_trp_said "$TRC/c")"; TRCCW="$(_trp_wcls "$TRC/c" "$TRP_S")"; }
+# LABEL LAYOUT MODE NAME WORDS -> one assertion: under the probe (any calling function), felix which from LAYOUT is
+# unknown, or says exactly what the clean run says, when the probe acted; and exactly what the clean run says when the
+# probe never acted (P46, review round 1: section 5's head, a read the fix no longer makes cannot fail). A probe that
+# acted but whose command still ran to a clean exit is no fault and fails, as everywhere else.
+_trc_or_clean() {
+  local lab="$1" l="$2" v
+  _trp_new "$TRC/p.fired"; _trp_arm "$3" "$4" "$5" '*' || { bad "$lab" "the probe could not be armed"; return; }
+  TRCCASE="$3 $4"; _trc_three "$l"
+  case "$TRCF" in
+    (fired) if [ "$TRCW" = unknown ] || [ "$TRCS" = "$TRCCL" ]; then v=ok; else v="fired: $TRCS"; fi ;;
+    ("not fired:"*) if [ "$TRCS" = "$TRCCL" ]; then v=ok; else v="$TRCF, and not the clean run: $TRCS"; fi ;;
+    (*) v="$TRCF" ;;
+  esac
+  is "$lab" "$v" ok
+}
+
+# --- P17, P18, P19: the refusal sentences' own reads.
+_trc_clean badmarker
+is "P17 (control): felix which on res-badmarker, no fault: the broken sentence, which lists the known projects" \
+   "$TRCCW|$(case "$TRCCL" in (*"known projects: alpha beta gamma "*) printf listed ;; (*) printf 'not listed' ;; esac)" "broken|listed"
+for _trc_m in f2 f3; do
+  _trc_or_clean "P17, P46: felix which on res-badmarker (a broken marker), $_trc_m at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist" \
+    badmarker "$_trc_m" ls "*'/projects '*"
+done
+_trc_clean none
+is "P18 (control): felix which on res-none, no fault: no project governs, with Known projects: alpha beta gamma" \
+   "$TRCCW|$(case "$TRCCL" in (*"Known projects: alpha beta gamma "*) printf listed ;; (*) printf 'not listed' ;; esac)" "none|listed"
+for _trc_m in f2 f3; do
+  _trc_or_clean "P18, P46: felix which on res-none, $_trc_m at the ls behind Known projects: unknown, or main's no-project sentence byte for byte" \
+    none "$_trc_m" ls "*'/projects '*"
+done
+_trc_clean tie
+is "P19 (control): felix which on res-tie, no fault: the tie sentence naming alpha, beta" \
+   "$TRCCW|$(case "$TRCCL" in (*"fits alpha, beta equally well"*) printf named ;; (*) printf 'not named' ;; esac)" "broken|named"
+_trc_or_clean "P19, P46: felix which on res-tie, F3 at the tr -cd [:print:] that cleans the names (_felix_binding_sane): unknown, or the clean tie sentence byte for byte; a cleaner made fork-free (R12) leaves the probe unfired and must leave the clean tie sentence" \
+  tie f3 tr "*' -cd [:print:] '*"
+is "P38: over the $TRCN runs of P17-P19 (res-badmarker, res-none and res-tie under their faults), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0" \
+   "${TRCDIS:-agreed}" agreed
+
+# --- P20, P21: a checkout once bound by remote whose project.json went missing.
+# LAYOUT NOMEM -> the bindings record of LAYOUT's checkout written by felix_binding_broken itself (a clean run, in the
+# memory root FELIX_MEMORY names, or HOME's default when NOMEM is 1), then beta's project.json moved to
+# project.json.bak. TRCB "built" when the record names beta and the move was made.
+_trc_bound() {
+  local f
+  _trp_at "$TRC/$1"
+  if [ "$2" = 1 ]; then f="$TRP_U/.felix/memory/bindings.tsv"; else f="$TRP_M/bindings.tsv"; fi
+  TRP_NOMEM="$2" _trp_drv "$TRC/b" "$TRP_S" broken "$TRP_S" "$TRP_H"
+  TRCB="not built: $(_trp_ro "$TRC/b") record [$(cat "$f" 2>&1)]"
+  LC_ALL=C awk -F'\t' '$2 == "beta" { f = 1 } END { exit !f }' "$f" 2>/dev/null || return 1
+  mv "$TRP_H/projects/beta/project.json" "$TRP_H/projects/beta/project.json.bak" || return 1
+  [ ! -e "$TRP_H/projects/beta/project.json" ] && TRCB=built
+}
+_trc_bound bound 0
+_trp_at "$TRC/bound"; _lf_run "$TRC/c" "$TRP_S" - "$FELIX" which
+is "P20 (control): a checkout once bound to beta by remote (its bindings.tsv row written), beta's project.json moved to project.json.bak, no fault: felix which says it no longer resolves (main's), exit 2" \
+   "$TRCB|$(_trp_wcls "$TRC/c" "$TRP_S")|$(LC_ALL=C grep -c 'no longer resolves' "$TRC/c.err" 2>/dev/null)" "built|broken|1"
+for _trc_m in f2 f3; do
+  _trp_new "$TRC/p.fired"; _trp_arm "$_trc_m" git "*' hash-object --stdin '*" '*'
+  _trp_go _lf_run "$TRC/w" "$TRP_S" - "$FELIX" which
+  is "P20: the same checkout, $_trc_m at the git hash-object that keys the bindings record: unknown, never no project governs" \
+     "$(_trc_unk "$TRC/w" "$TRP_S" 2)|$TRP_FIRE" "unknown|fired"
+done
+_trc_bound boundhome 1
+_trp_at "$TRC/boundhome"; _lf_run "$TRC/c" "$TRP_S" - env -u FELIX_MEMORY "$FELIX" which; TRCCL="$(_trp_said "$TRC/c")"
+is "P21 (control): the same layout with FELIX_MEMORY unset (the record in ~/.felix/memory), no fault: felix which says it no longer resolves, exit 2" \
+   "$TRCB|$(_trp_wcls "$TRC/c" "$TRP_S")|$(LC_ALL=C grep -c 'no longer resolves' "$TRC/c.err" 2>/dev/null)" "built|broken|1"
+_trp_new "$TRC/p.fired"; _trp_arm f3z printf '*' "*' felix_mem_root '*' _felix_binding_remote '*"
+_trp_go _lf_run "$TRC/w" "$TRP_S" - env -u FELIX_MEMORY "$FELIX" which
+TRCS="$(_trp_said "$TRC/w")"
+case "$TRP_FIRE:$(_trp_wcls "$TRC/w" "$TRP_S")" in
+  fired:unknown) _trc_v=ok ;;
+  fired:*) [ "$TRCS" = "$TRCCL" ] && _trc_v=ok || _trc_v="fired: $TRCS" ;;
+  *) [ "$TRCS" = "$TRCCL" ] && _trc_v=ok || _trc_v="not fired, and not the clean run: $TRCS" ;;
+esac
+is "P21: FELIX_MEMORY unset, F3 at the memory-root read (the substitution around felix_mem_root inside _felix_binding_remote): unknown or the clean sentence, never no project governs (a probe that never acts, the read made fork-free, must leave the clean run)" \
+   "$_trc_v" ok
+
+# --- P23: every resolve_or_die command under a marker read that did not finish.
+_trp_at "$TRC/marker"
+_trc_sha() { ( _fx_cd "$TRP_CO" || exit 1; _lf_g 1700000000 rev-parse HEAD ) 2>/dev/null; }
+TRCH0="$(_trc_sha)"
+for _trc_c in which merge "land --status" repair "land --tick"; do
+  case "$_trc_c" in repair) _trc_rc=4 ;; *) _trc_rc=2 ;; esac
+  _trp_new "$TRC/p.fired"; _trp_arm f3 tr "*' -d [:space:] '*" '*'
+  # shellcheck disable=SC2086
+  _trp_go _lf_run "$TRC/w" "$TRP_S" - env FELIX_LAND_LEDGER="$TRP_FX/land/ledger.tsv" "$FELIX" $_trc_c
+  case "$_trc_c" in
+    merge) _trc_x="|says.log merged rows $(LC_ALL=C awk '/merged/ { n++ } END { print n + 0 }' "$TRP_M/alpha/says.log" 2>/dev/null || printf 0)|HEAD $( [ "$(_trc_sha)" = "$TRCH0" ] && printf kept || printf moved)"
+           _trc_w="|says.log merged rows 0|HEAD kept" ;;
+    "land --tick") _trc_x="|unresolved rows $(LC_ALL=C awk -F'\t' '$2 == "unresolved" { n++ } END { print n + 0 }' "$TRP_FX/land/ledger.tsv" 2>/dev/null)"
+           _trc_w="|unresolved rows 1" ;;
+    *) _trc_x=""; _trc_w="" ;;
+  esac
+  is "P23: felix $_trc_c on base, F3 at the marker's tr: exit $_trc_rc, nothing on stdout, stderr the could-not-be-resolved sentence${_trc_w:+ (and$(printf '%s' "$_trc_w" | tr '|' ' '))}" \
+     "$(_trc_unk "$TRC/w" "$TRP_S" "$_trc_rc")$_trc_x|$TRP_FIRE" "unknown$_trc_w|fired"
+done
+
+# --- P24: felix which's own reads.
+_trp_new "$TRC/p.fired"
+_trp_arm f3 pwd "*' -P '*" "*' felix_repo_root '*' cmd_which '*" "*' resolve_or_die '*|*' felix_resolve_project '*|*' felix_binding_broken '*"
+_trp_arm f3 git "*' rev-parse --show-toplevel '*" "*' felix_repo_root '*' cmd_which '*" "*' resolve_or_die '*|*' felix_resolve_project '*|*' felix_binding_broken '*"
+_trp_go _lf_run "$TRC/w" "$TRP_S" - "$FELIX" which
+is "P24: felix which on base, F3 at felix_repo_root for the governs line (the walk's pwd -P and git rev-parse, called by cmd_which): unknown, nothing on stdout (never four lines, never an empty or wrong governs:)" \
+   "$(_trc_unk "$TRC/w" "$TRP_S" 2)|$TRP_FIRE" "unknown|fired"
+_trp_new "$TRC/p.fired"; _trp_arm f1 sed "*'\"gate\"'*" "*' cmd_which '*" "*' resolve_or_die '*"
+_trp_go _lf_run "$TRC/w" "$TRP_S" - "$FELIX" which
+is "P24: felix which on base, F1 at the sed that reads the gate key (called by cmd_which): unknown, nothing on stdout (never an empty gate:)" \
+   "$(_trc_unk "$TRC/w" "$TRP_S" 2)|$TRP_FIRE" "unknown|fired"
+
+# --- P45: felix_accepted_deploy_diff from a directory that holds only resolve.sh.
+TRCJ="$TRC/judge"; TRCJR="$TRCJ/home"; TRCJC="$TRCJ/cache"; TRCJE="$TRCJC/felix/felix/4.0.0"
+mkdir -p "$TRCJR/engine/harness/lib" "$TRCJR/engine/hooks" "$TRCJR/engine/commands" "$TRCJ/alone" "$TRCJ/empty"
+printf 'real\n' > "$TRCJR/engine/harness/felix"; printf 'x\n' > "$TRCJR/engine/harness/lib/x.sh"
+printf '{}\n' > "$TRCJR/engine/hooks/hooks.json"; printf '# felix\n' > "$TRCJR/engine/commands/felix.md"
+( _fx_cd "$TRCJR" && git init -q -b main ) >/dev/null 2>&1
+_jr_commit "$TRCJR" main engine/.claude-plugin/plugin.json '{ "name": "felix", "version": "4.0.0" }'
+_jr_on "$TRCJR" "$(_jr_sha "$TRCJR" HEAD)" refs/remotes/origin/main
+cp "$FROOT/harness/lib/resolve.sh" "$TRCJ/alone/resolve.sh"
+# -> TRCJE holds main's engine/{harness,hooks,commands,.claude-plugin}, cut from the commit.
+_trc_cut() {
+  rm -rf "$TRCJE" "$TRCJ/x" "$TRCJ/x.tar"; mkdir -p "$TRCJE" "$TRCJ/x"
+  _fx_git "$TRCJR" archive -o "$TRCJ/x.tar" HEAD engine >/dev/null 2>&1 && tar -x -C "$TRCJ/x" -f "$TRCJ/x.tar"
+  for _trc_d in harness hooks commands .claude-plugin; do [ ! -d "$TRCJ/x/engine/$_trc_d" ] || cp -R "$TRCJ/x/engine/$_trc_d" "$TRCJE/$_trc_d"; done
+}
+# CACHE LIB -> TRCJO: felix_accepted_deploy_diff HOME main, run by the driver from HOME with FELIX_PLUGIN_CACHE CACHE and
+# the library directory LIB (the suite's engine lib/ when empty), FELIX_KERNEL_CACHE and GIT_CONFIG_GLOBAL unset, as
+# "rc=<status> out=[<stdout>]".
+_trc_judge() {
+  TRCJO="$( unset FELIX_KERNEL_CACHE GIT_CONFIG_GLOBAL
+            FELIX_PLUGIN_CACHE="$1" TRP_LIB="$2" _trp_drv "$TRCJ/o" "$TRCJR" judge "$TRCJR" main; _trp_ro "$TRCJ/o" )"
+}
+for _trc_v in identical drift nocache; do
+  _trc_cut; _trc_cache="$TRCJC"
+  case "$_trc_v" in drift) printf 'only in the entry\n' > "$TRCJE/harness/extra.sh" ;; nocache) _trc_cache="$TRCJ/empty" ;; esac
+  _trc_judge "$_trc_cache" ""; _trc_full="$TRCJO"
+  _trc_judge "$_trc_cache" "$TRCJ/alone"; _trc_one="$TRCJO"
+  case "$_trc_v" in
+    identical) _trc_ok="$( [ "$_trc_full" = "rc=0 out=[$TRCJE
+]" ] && printf contract || printf 'not the contract' )" ;;
+    drift) _trc_ok="$(case "$_trc_full" in ("rc=1 out=["*extra.sh*) printf contract ;; (*) printf 'not the contract' ;; esac)" ;;
+    *) _trc_ok="$(case "$_trc_full" in ("rc=2 out=["*) printf contract ;; (*) printf 'not the contract' ;; esac)" ;;
+  esac
+  case "$_trc_v:$_trc_one" in nocache:*) _trc_tell=told ;; *:rc=2*) _trc_tell="cannot tell" ;; *) _trc_tell=told ;; esac
+  is "P45: the merge judge's call with the entry $_trc_v: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells" \
+     "$_trc_ok|$( [ "$_trc_one" = "$_trc_full" ] && printf same || printf 'alone [%s] full [%s]' "$_trc_one" "$_trc_full")|$_trc_tell" "contract|same|told"
+done
+TRP_NAMES=""
+# <<< trust-cli-refusals-unfinished-reads

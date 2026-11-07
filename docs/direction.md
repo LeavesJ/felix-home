@@ -15,8 +15,9 @@ such a pull request only once amendment A32 lands (draft #452,
 `claude/direction-read-first`). Until then, open it as a draft labelled
 `needs-founder`, or the tick will land it on green.
 
-As of: 2026-11-07T04:39Z: rows 42 to 48, the decisions of the trust-plane
-revisit (11-06 and 11-07). A pending section dated later still wins (point 3).
+As of: 2026-11-07T05:00Z: rows 42 to 51, the decisions of the trust-plane
+revisit (11-06 and 11-07), its design made final, and trust rework placed
+first. A pending section dated later still wins (point 3).
 Before them: row 41 (11-06: load is managed, not capped), the refusal of
 slice 0's limits (row 40), the trust-plane answers (rows 36 to 40), what Felix
 is for a team and the lane's share (10-29, rows 34, 15, 20 and 28), and its
@@ -177,6 +178,9 @@ changed, the row states its current form.
 | 46 | 11-07 | **Open sets stay open.** An example the founder gives illustrates a set; it is not the set. A count is not the space either. "I don't want you to finalize things"; "engineering complexity is a lot more than rate limiting"; "we had 22 does that mean everything?" This holds in specs, designs, this file, pitches and memory: "I don't want to see this pattern again." Felix reads it this way: an example is written as an example; a count says what it counted; a question outside a document's scope is recorded as open, not answered; and no acceptance test, evaluation set or headline number rests on one instance of an open set. | pending 20261107T041523Z |
 | 47 | 11-07 | **Everything serves the product, and this file holds the newest decisions.** "Everything serves for the sake of the product." Designs are judged against §1, and against the pitch only where the pitch still agrees with this file. Pitch material that no longer fits is set aside: "don't take that into account". "direction markdown should always be updated. It should always contain our newest decision." | pending 20261107T041523Z |
 | 48 | 11-07 | **Who authorizes removing what a need checks.** A change can remove the subject of a need that applied on its base (`subject_removed`, trust-plane design draft 4 §4.3). For TASK_BLOCKING and RELEASE_BLOCKING needs, the removal is authorized by the task's admitted intent, which was admitted before the work began. For AUTHORITY_BLOCKING needs, the founder authorizes it. His answer: "Task intent; you for top". | pending 20261107T043947Z |
+| 49 | 11-07 | **Releases fail closed until the release subsystem exists.** A release or deployment transition, including a merge that reaches one, proceeds only when the founder authorizes that release by name. Release authorization is never taken from merge authorization (trust-plane design §4.6). His answer: "Yes, as proposed". | pending 20261107T050000Z |
+| 50 | 11-07 | **The trust-plane design is final.** `docs/2026-11-07-trust-plane-design.md`, draft 5 of the 11-06 revisit, is the trust plane's design. Its core rules: the verdict unit is the admitted need; a judged change never supplies its own judge; applicability is read on both the base and the candidate; evidence counts only from an authorized instrument closure; each need is checked at the transition whose subject it is about; and a new need binds through an admission transaction that lands before its implementation. It keeps the 10-31 design's claim catalogue, fault model, discrimination by mutation, per-claim receipts and judge pin (rows 36 to 40). It replaces that design's serial review rounds and its evidence engine's place in §5. "ok i think v5's directions can be final." | pending 20261107T050000Z |
+| 51 | 11-07 | **Trust rework is first in the queue.** The founder asked "should trust rework be top of our queue now". Felix answered yes, in the order §5 now gives: intake (#484) lands first; the design's steps 1 and 2 start at once; fixes already in flight finish; then the design's engine steps. He answered "Yes, land it" to the fold that carries this order. | pending 20261107T050000Z |
 
 ## 5. The build order now
 
@@ -189,19 +193,32 @@ nobody owns. The carrier gives the next version slot to the highest-placed
 branch that is gate-ready, so items can land out of this order.
 
 **The main sequence:**
+0. **Trust rework, the trust-plane design (rows 50 and 51).**
+    - Intake (#484) lands first (row 42).
+    - At once, beside everything below: the design's step 1, which replays
+      slice 0 against a blind held-out set, and its step 2, the
+      specification. Neither touches an engine file.
+    - Fixes already open finish. No new audit batch starts ahead of the
+      design's engine steps.
+    - Then the design's engine steps 3 to 9, in its order. They replace
+      item 2's evidence engine (the 10-31 design's steps 3 to 5). Where a
+      step of item 4 does what a design step does, the design step replaces
+      it; step 2's specification writes that mapping down. Until then, item
+      4's steps stay listed and do not start ahead of the design's steps.
+      The kernel refactor (step 1b) waits for that specification, because it
+      rewrites the files the specification maps.
 1. **The audit's 23 batches** (row 29): the non-founder ones in combined
    waves, each founder batch as its own draft.
 2. **Plan A** (row 30), in the design's step order, report-only first.
    Batch 20 and C044 wait on it.
     - After the audit's batches on its files, at least 12 (`resolve.sh`), 10
       (`escape.sh`, a founder draft) and 20 (`obligations.sh`, which waits on
-      plan A): the trust core's kernel refactor (step 1b, not restart step
-      1b; row 37), both PRs the founder's (row 38).
-    - Beside plan A after the audit, sharing its parts, once the slice-0
-      replay and two features' prospective tests pass: the trust-plane design's
-      evidence engine, steps 3-5 (row 37). The design's measurements (0a-0c)
-      and step-2 tests (never delaying a lane slice) need no place; step 1
-      takes row 17's intake once trust item 2 and batches 12 and 19 are checked.
+      plan A), and after the specification of item 0: the trust core's
+      kernel refactor (step 1b, not restart step 1b; row 37), both PRs the
+      founder's (row 38).
+    - The 10-31 design's evidence engine (its steps 3-5, row 37) is replaced
+      by item 0 (row 50). Its step 1, the narrow fix (#486), is a fix in
+      flight and finishes.
 3. **Leftovers:** slot 12 (`claude/project-writes-refuse-nonregular`); PR
    #425; the secret-scan quoted-reference fix
    (`salvage/2026-10-27/secret-scan-ref`); drafts #365 and #360; a one-line
@@ -374,8 +391,6 @@ and not again until he raises it, unless its line names a later moment.
   before it is asked again.
 - The language. Row 6 stands. The 11-06 re-measure reopened the question,
   and the trust-plane revisit asks it after its Rust spike.
-- The trust-plane redesign (§7). It is with the founder and an external
-  reviewer, and nothing in it is decided.
 
 **Consents:**
 - The corpus spending ceiling: $96-349 for one corpus at 3 runs, or $172-632
@@ -437,8 +452,8 @@ order is Felix's call.
 | Reflection triggers (memory, 08-18) | Felix questions its inputs but not its method; it needs enumerated trigger moments. | Open. |
 | `docs/2026-09-23-restart-moments-scope.md` | Restart moments. | Step 1a is on the trust track and 1b in Phase 1. Step 2 waits on the handoff repair. |
 | `docs/2026-10-29-capability-lane-first-slices-design.md` | The capability lane's first three slices: the lane counter, `felix situations` (intake) and `felix retro` (come-backs). | Approved (row 35). The slices are lane items (§5). |
-| `docs/2026-10-31-trust-plane-verification-design.md` | A change reaches the lander carrying its evidence: claims from a versioned catalogue, a machine search over a stated fault model with a printed number of cases, evidence that each check can fail, and what stayed unchecked. Models propose; mechanisms decide. Its §8 makes design deliberation a Felix capability. | Its seven decisions are rows 36 to 40. Its kernel refactor and evidence engine are placed in §5; step 6 is not. Nothing is built, and no catch or speed figure from it goes into outside text before its replay and two prospective tests (its §11.2 #14). |
-| The trust-plane revisit, 11-06 to 11-07 (memory root `designs/2026-11-06-trust-plane-revisit/`: the brief, sketches 1 and 2, drafts 2 and 3 and their PDFs; the language re-measure, `audits/2026-11-06-language-remeasure/report.md`) | The trust plane redesigned for the product. The verdict unit is the admitted need, not a green suite. Each checker carries an evidence record. The authority runs hosted, apart from the workers, and the queue owns landing. Latency is a measured objective, and budgets are set by the user. Draft 3 is current, and the capability plane is outside its scope (row 42). | Under review by the founder and an external reviewer. Nothing in it is decided or placed. |
+| `docs/2026-10-31-trust-plane-verification-design.md` | A change reaches the lander carrying its evidence: claims from a versioned catalogue, a machine search over a stated fault model with a printed number of cases, evidence that each check can fail, and what stayed unchecked. Models propose; mechanisms decide. Its §8 makes design deliberation a Felix capability. | Its seven decisions are rows 36 to 40. Row 50 keeps its claims, fault model, discrimination, receipts and judge pin, and replaces its serial review rounds and its evidence engine's place in §5. Nothing is built, and no catch or speed figure from it goes into outside text before a replay and two prospective tests (its §11.2 #14). |
+| The trust-plane revisit, 11-06 to 11-07 (memory root `designs/2026-11-06-trust-plane-revisit/`: the brief, sketches 1 and 2, drafts 2 to 5 and their PDFs; the language re-measure, `audits/2026-11-06-language-remeasure/report.md`) | The trust plane redesigned for the product. The verdict unit is the admitted need, not a green suite. Each checker carries an evidence record. The authority runs hosted, apart from the workers, and the queue owns landing. Latency is a measured objective, and budgets are set by the user. Draft 5 is final and filed as `docs/2026-11-07-trust-plane-design.md`. The capability plane is outside its scope (row 42). | Final (row 50). It is placed first in §5 (row 51). Nothing is built. |
 
 ## 8. No longer binding
 
@@ -446,6 +461,7 @@ Older text still says some of these. Where it does, this file and §4 govern.
 
 | Was | Replaced by |
 |---|---|
+| The 10-31 trust-plane design's serial review rounds, and its evidence engine as §5 item 2's placement | Row 50: the trust-plane design of 11-07 and its order |
 | The 10-27 pitch, decks v3 and v4, and earlier applications, read as statements of direction | Row 47: this file governs, and pitch material that no longer fits it is set aside |
 | Roadmap v1's outside-user and outreach track, and row 10's "no pricing, outreach or demand track" (09-23) | Row 10 as changed 10-27: build first, with a narrow commercial track beside it |
 | Row 19's "the Codex adapter is a lane item for about December, after arming and the pin", and the Factory Droid adapter deferred past March | Row 19 as changed 10-27: Droid first, then Codex, beside the judge pin |

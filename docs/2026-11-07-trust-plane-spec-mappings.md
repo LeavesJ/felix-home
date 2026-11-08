@@ -1,10 +1,10 @@
 # Felix trust plane: the specification, part 3 of 3
 
-2026-11-07. The two mappings that design §9 step 2 and direction §5 item 0 ask for, then the decisions this specification made and what it leaves open. Parts 1 and 2 are `docs/2026-11-07-trust-plane-spec.md` and `docs/2026-11-07-trust-plane-spec-evidence.md`. Part 1 states the scope.
+2026-11-07, revision 1 on 2026-11-08. The two mappings that design §9 step 2 and direction §5 item 0 ask for, then the decisions this specification made and what it leaves open. Parts 1 and 2 are `docs/2026-11-07-trust-plane-spec.md` and `docs/2026-11-07-trust-plane-spec-evidence.md`. Part 1 states the scope and what revision 1 changed. In this part, revision 1 adds §1.6, three changed rows in §2.2, decisions D31 to D37, and eight open questions and four risks in §4.
 
 ## 1. Today's engine, mapped onto the specification
 
-Line numbers are for `b7aab8e9` (main, #482). The mapping covers the files the design names as the first implementation (`lib/obligations.sh`, `lib/exceptions.sh`, `lib/escape.sh`) and the other files whose functions a rule here reads. It is a reading of the code, not a test of it. Nothing was run to produce it. Where a cell says "missing", nothing in the files read does that part. For each row:
+Line numbers are for `b7aab8e9` (main, #482). Revision 1's §1.6 was read at the same commit. The mapping covers the files the design names as the first implementation (`lib/obligations.sh`, `lib/exceptions.sh`, `lib/escape.sh`) and the other files whose functions a rule here reads. It is a reading of the code, not a test of it. Nothing was run to produce it. Where a cell says "missing", nothing in the files read does that part. For each row:
 - **enforces** means what the engine already does as the rule says;
 - **differs** means what it does otherwise;
 - **missing** means what no code in those files does.
@@ -74,6 +74,17 @@ Line numbers are for `b7aab8e9` (main, #482). The mapping covers the files the d
 
 **One worked example, as an example and not the set: felix-home under part 2 §4.** Its one workflow, `gate.yml`, runs on pull requests and on every push to main. Its token permissions are read-only (`contents: read`, plus `pull-requests`, `actions` and `checks` read for the push-only `reuse` job), and it references no secret. Under O4 that shows no credential, not that there is no effect, so it would read `unknown` until declared. Whether the authority's identity can read the repository's webhooks and installed apps depends on the permissions it is granted, and whatever it cannot read needs a declaration too (O5). A declaration of `none` by the founder can cover both, keyed to their fingerprints. Until that declaration exists, T4 would fail every felix-home merge closed once the authority governs felix-home. That is the false block O8 counts.
 
+### 1.6 The method's contract (part 2 §1.8 and §5; new in revision 1)
+
+| Rule | Today | Enforces | Differs | Missing |
+|---|---|---|---|---|
+| MD1 to MD4, MD7: a need's model | `obligations.tsv` has the columns `obligation class pathway applies evidence grounds? reason? needs?` (`templates/schemas.tsv:75`) | — | a need has no model, so no failing case can be placed outside anything | a `model` field and its version (R4, R5); S7's order for it in `_felix_escape_shrank`; the codes `outside_model` and `model_unstated` |
+| MD5, MD6: reading a case, and the derived result | `felix_obligation_state` (`lib/obligations.sh:150-163`) | the status readings MD6 keeps: 0 is SATISFIED, 2, 126 and 127 are UNKNOWN | the result is the exit status alone. The evidence command's output is its coverage report, with a verdict for each member (`lib/obligations.sh:30-32`), and only its last line reaches the detail. No file read parses the per-member verdicts, and there is no descriptor | the descriptor, the membership reading, and the derivation |
+| MD8: the model control | `felix_qualify_run` (`lib/qualify.sh:317`), six controls | the six controls. Its header says the mutations "must be authored by something that has not seen the checker" and that this "cannot be enforced" (`:59-62`) | no control concerns a model | the model control. Control 7, the coverage report, is roadmap Phase 1's |
+| MD9: a model arms nothing | the ratchet (`lib/qualify.sh`, header) | a control nobody declared refuses nothing | — | the receipt that prints both results |
+| SO1 to SO7: checker kind and context | `qualification.tsv` has the columns `checker command control expect mutation premise?` (`templates/schemas.tsv:71`). `felix_candidates_record` (`lib/candidates.sh:137`) records who proposed a candidate | a checker is named by an id and judged by its controls | there is no kind, and no record of what a checker's author saw. A proposal records who made it and not what that author was shown | `kind`; `requirement`; the lease and the context it records; a qualification that reads the kind from its seeds (SO7) |
+| PK1 to PK5: the review packet | `lib/review.sh` records a verdict for a surface no test can judge (`felix_review_record`, `:57`; `felix_review_passed`, `:144`) | a verdict is keyed to the exact tree, and a missing or blocking verdict behaves as no pass (`:32-34`) | it is a different review. A `pass` verdict clears the `reviewed` escape (`:27`), where PK4 makes the residual review advisory, unable to clear or block. Its header says independence cannot be checked (`:35`) | the residual review's packet, its program check, and its measure. No file read builds a packet |
+
 ## 2. Which steps of direction §5 the design's steps 3 to 9 replace
 
 Direction §5 item 0 and row 51 say: where a step of item 4 does what a design step does, the design step replaces it, and this specification writes that mapping down. By Felix's reading of that delegation, the replacements below bind once this specification lands, and folding them into direction §5's own text is a direction edit, owed in the next fold, for the founder's yes. The design's steps are:
@@ -108,9 +119,9 @@ Direction §5 item 0 and row 51 say: where a step of item 4 does what a design s
 
 | §5 step | What it does | Design step | Verdict | Why |
 |---|---|---|---|---|
-| The 10-31 design's step 1b, the kernel refactor | decision kernels for the trust core, checked over their whole domain | none | **Stays, re-scoped** | No design step does it. Its kernels implement this specification: `oblig_decide` is part 1 §3 and §4, `merge_decide` is part 2 §3's seven clauses, and `stricter` is the two-sided table and S7. Their domains are recomputed from K1's closed types, and 1b-a's blind properties are written from this specification's rule ids. Its place behind the audit's batches 12, 10 and 20 is unchanged, and both of its PRs stay the founder's to merge (row 38) |
-| The 10-31 design's step 3 | case format, linter, instantiator, per-claim receipts, `felix case` and the `case` gate check, report-only | 6, with part 2 §1 | **Replaced** | Row 50 already replaced the evidence engine's place. Per-claim receipts become evidence records (E1). Claims instantiated from classes become the class-rule catalogue |
-| The 10-31 design's step 4 | the harness in the engine, pinned; the `case` blocker in shadow on two new features | 6 and 3 | **Replaced** | The catalogue's shadow measures pass rate, false blocks and time per feature. Row 39's condition, shadow on two features built after the blocker exists with bars fixed first, stays the arming condition for any blocker the catalogue adds |
+| The 10-31 design's step 1b, the kernel refactor | decision kernels for the trust core, checked over their whole domain | none | **Stays, re-scoped** | No design step does it. Its kernels implement this specification: `oblig_decide` is part 1 §3 and §4, `merge_decide` is part 2 §3's seven clauses, `stricter` is the two-sided table and S7, and `result_derive` (new in revision 1) is MD5 and MD6 over their finite domain. Their domains are recomputed from K1's closed types, and 1b-a's blind properties are written from this specification's rule ids. Its place behind the audit's batches 12, 10 and 20 is unchanged, and both of its PRs stay the founder's to merge (row 38) |
+| The 10-31 design's step 3 | case format, linter, instantiator, per-claim receipts, `felix case` and the `case` gate check, report-only | 6, with part 2 §1 and §5 | **Replaced** | Row 50 already replaced the evidence engine's place. Per-claim receipts become evidence records (E1). Claims instantiated from classes become the class-rule catalogue. In revision 1 the catalogue is built to part 2 §5's contract: class rules, spec oracles and a model for each need, and not class rules alone |
+| The 10-31 design's step 4 | the harness in the engine, pinned; the `case` blocker in shadow on two new features | 6 and 3 | **Replaced** | The catalogue's shadow measures pass rate, false blocks and time per feature. Row 39's condition, shadow on two features built after the blocker exists with bars fixed first, stays the arming condition for any blocker the catalogue adds. Revision 1 adds that the shadow does not start until a rerun of design step 1 has passed (part 2 §5.4) |
 | The 10-31 design's step 5 | crash consistency at every state write, the turnstile, awk monitors over `ledger.tsv`, standing claims, the nightly sweep, a discrimination report | 4, 6 and 8 | **Replaced, split** | The lander's crash consistency and turnstile go to step 4. A crash between durable writes and concurrency on shared protocols are fault tiers (design §4.7), so they go to step 6. Standing claims and the nightly sweep are reuse, step 8. The discrimination report goes to step 6 |
 | The 10-31 design's step 1, the narrow fix (#486) | the resolver's and table validator's reads through one capture primitive | none | **Stays** | It is a fix in flight, and direction §5 lets it finish |
 
@@ -132,7 +143,8 @@ Each decision fills a gap in draft 5 or settles a conflict in it. Design questio
 - D12 lets the candidate decide a first release;
 - D14 and D28 count a run without a gateway, on the partition's word;
 - D22 defers enforcement to the arming already decided;
-- D27 limits pre-existing failures as row 27 requires.
+- D27 limits pre-existing failures as row 27 requires;
+- D31 to D34 move failures from blocking to advisory, each only on a positive reading, a ground and a passing model control, and D34 keeps all of it unarmed until the founder's arming rules hold.
 
 | # | Decision | Why |
 |---|---|---|
@@ -166,6 +178,13 @@ Each decision fills a gap in draft 5 or settles a conflict in it. Design questio
 | D28 | Nothing is subject by default; an unclassed item voids a run; without a gateway a run counts only when the candidate changed subject paths alone (E4a, E5) | §4.4: the closure is "recorded from what the check actually read and ran ... not from a list". A default of subject would let an executed file the partition missed judge from the candidate's tree |
 | D29 | A base that cannot be looked up reads UNKNOWN; a B-class that cannot be computed reads as B3 and above (P1, A6) | Unknown is never clean |
 | D30 | A release authorization is a change of its own, not the merge of what it releases; `supersedes` is a list, and a suspension ends with a `lifted` record (T5, R8, X6) | Row 49: release authorization is never taken from merge authorization. R8 resolves a fork with one record that names both branches, which a single `supersedes` id cannot do, and R9 keeps a chain to one kind |
+| D31 | A need may state a model. A fault or an input is `outside` only by a positive reading: a fault class read `not_met`, or a domain predicate that rejects the value. Everything else is `unknown` and counts inside. A need with no usable model reads exactly as today (MD1, MD2, MD5) | Step 1's false blocks were mostly faults and inputs that no deployment meets (4 of 5). A waiver needs a positive reading and a ground, because unknown is never clean (K2). With no model nothing changes, so no existing need is loosened |
+| D32 | The authority derives the result from the exit status and the cases. A failure whose every failing case is `outside` passes, and a failure that names no failing case fails (MD6) | The coverage report already holds a verdict for each member and no file read parses it (§1.6). Reading it is the only way to tell an outside failure from an inside one. A status failure with no named case has nothing to place outside |
+| D33 | A model is authored, kept independent and qualified like a checker. An unqualified model reads as not stated. Removing a model or an exclusion tightens, and every other change loosens. A proven outside case suspends the model at scope `model`, free (MD3, MD4, MD8, X3) | A model written by whoever produced a change could exclude that change's own defect. Widening a domain tightens in fact but cannot be shown mechanically (D9) |
+| D34 | A model arms nothing by itself. Until part 1's arming rules hold, the receipt prints the result both ways and the result without the model decides (MD9) | How much Felix may block is the founder's call (`lib/qualify.sh`, header), and waivers are the direction in which that call matters most |
+| D35 | A spec oracle is a checker kind whose author's context is `blind`, read from the dispatch and not from the author. The kinds are closed. A kind is read from the qualification's seeds, and two distinct sites or regions is the least that makes a class (SO1 to SO7) | Step 1: 10 of the 18 catches were a class check, the labels often misdescribed the checks behind them, and the R1 to R8 catalogue fit 7 of the 18 defects. Context cannot be verified until leases exist, so it reads `saw_implementation` without one (E12) |
+| D36 | The review packet carries no findings, a program refuses one that does, and the review's output is advisory, with its own contribution measured apart (PK1 to PK5) | Step 1's held-out reviewers held on 25 rows, each already in the packet, so the review's own contribution could not be measured |
+| D37 | The method's contract binds its tooling and the catalogue from this revision. The method does not advance to the prospective trial until a pre-registered rerun passes. Fault tiers and mutants stay in the method with their contribution unmeasured (part 2 §5.1, §5.4) | The step 1 report's verdict. Dropping the tiers would rest on the absence of evidence from runs that barely used them |
 
 ## 4. Open, and where each belongs
 
@@ -191,6 +210,14 @@ These are the questions seen so far. More will come.
 | Whether flaky evidence needs more than "the newest decides" | step 4 and step 8, from measured reruns per PR |
 | Whether declarations need an expiry beyond their fingerprints | step 3 and step 9, measured |
 | Comparing edits to evidence or `applies` commands for strictness | later, if founder stops from in-place edits are measured |
+| Who states a need's first model, and from what facts about its deployment, on a product Felix governs | the capability plane's design (row 42) for finding and writing it; the owner of the deployment for the facts |
+| How a case's fault label is read once a gateway records what a run injected (MD5) | step 3 and the gateway. Until then the label is a claim, and the model control tests it |
+| Whether two seeded sites or regions is enough to tell a class from an instance (SO7) | measurement, in step 6 |
+| How the authority verifies a checker author's `blind` context before leases exist (SO3) | the capability design's leases (direction §5, after March). Until then a measurement records its own dispatch |
+| Whether stored cases can be read again under a changed model without a rerun (MD2, V3) | step 8, reuse |
+| Whether the three changes bring the false blocks under the bar | the rerun, pre-registered (part 2 §5.4) |
+| The historical set's gaps: the T1 sweep over every site the surfaces run, the differential under faults, the full mutant sample | the catalogue, step 6 |
+| Whether the class-rule catalogue generalises beyond bash, where it was derived (it fit 7 of the 18 held-out defects) | the catalogue, step 6 |
 | The engine's language | row 6, after step 7 |
 | How Felix is sold | the founder (design §12) |
 
@@ -200,4 +227,8 @@ These are the questions seen so far. More will come.
 - **D11 sends every subject removal of a TASK_BLOCKING or RELEASE_BLOCKING need to evidence or a person until leases exist.** Those interruptions are counted.
 - **D28 voids runs that touch an unclassed item** until each repository's partition is complete. Those false blocks are counted.
 - **The declaration felix-home needs (part 3 §1.5) is a founder act** before the authority can land anything there.
+- **A model is a waiver.** One that is too wide turns a real defect into an advisory. The rerun's recall and the escapes measure it, and MD9 keeps it unarmed meanwhile.
+- **A blind oracle may not run on a correct change,** for example on an interface mismatch, and an oracle that cannot run blocks (E8). The rerun counts those blocks.
+- **Context `blind` cannot be verified** until leases exist (SO3).
+- **Step 1 is one set** of 18 cases from three authors, and the three changes were chosen after its results were seen. A pass on that set would show nothing about them. A fresh set can show it, and the rerun uses one.
 - **Self-review.** This specification can still settle something it should not, and the closure check in `~/CLAUDE.md` is the guard.

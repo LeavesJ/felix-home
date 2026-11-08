@@ -447,3 +447,36 @@ after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 
+
+# The instrument scan (lib/policy.sh, spec S2.1, trust-plane step 3) over a table of commands: what
+# it lists (a ?word is one the rewrite could not place, and refuses when P holds it) and the command
+# it rewrites. Not blind: the blind cases are parts 2176-2177. It is here so CI's awk runs it too.
+_sw=$'tools/check-fx\ntools/run.sh\ntools/marker.txt\nengine/harness/bin/x'
+_sc=( 'engine/harness/bin/x engine/harness/templates engine/hooks/hooks.json' 'bash tools/run.sh' '. tools/run.sh; f'
+      'if tools/check-fx; then tools/run.sh; fi' 'X="a b" tools/check-fx' '( cd sub && tools/check-fx )'
+      'tools/check-fx && case "$f" in a|tools/run.sh) exit 0;; esac' $'tools/check-fx <<E\ntools/run.sh\nE'
+      'bash -n tools/run.sh' 'bash -e run.sh' '"tools/check-fx"' 'tools/check\-fx' '{ tools/check-fx; }'
+      'diff <(tools/check-fx) x' 'x=$(tools/check-fx); [ -n "$x" ]' 'tools/check-fx; v=$(tools/check-fx)'
+      'x=`tools/check-fx`' 'nice tools/check-fx' "sh -c 'tools/check-fx'" 'case x in a) tools/check-fx;; esac'
+      'f() { "$@"; }; f bash tools/check-fx' 'cat tools/check-fx | bash' 'x=$(cat tools/run.sh | sh)'
+      "printf '%s\\n' p | xargs -I{} grep -qxF {} tools/marker.txt"
+      'n="$(git ls-files tools | grep -cE "^(tools/run.sh|tools/check-fx)$")"; [ "$n" = 2 ]'
+      'a=(tools/run.sh tools/check-fx); [ ${#a[@]} = 2 ]' '[[ -e tools/run.sh && tools/check-fx -nt x ]]'
+      'v="$(git show "HEAD:tools/check-fx" | head -1)"; [ -n "$v" ]' $'true # tools/check-fx\n:'
+      "sh -c 'ls Dockerfile* */Dockerfile* 2>/dev/null | grep -q .'" 'grep -q x tools/marker.txt' )
+_sl=( 'engine/harness/bin/x' 'tools/run.sh' 'tools/run.sh' 'tools/check-fx tools/run.sh' 'tools/check-fx' 'tools/check-fx'
+      'tools/check-fx' 'tools/check-fx ?tools/run.sh' '?tools/run.sh' '?run.sh' '?tools/check-fx' '?tools/check-fx'
+      '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' 'tools/check-fx ?tools/check-fx' '?tools/check-fx'
+      '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?tools/run.sh'
+      '?tools/marker.txt' '' '' '' '' '' '' '' )
+_sbad="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/policy.sh"; _k=0
+  while [ "$_k" -lt "${#_sc[@]}" ]; do
+    _c="${_sc[$_k]}"; _l="$(_felix_p_scan list "$_c" | paste -sd' ' -)"
+    [ "$_l" = "${_sl[$_k]}" ] || printf '%s: lists [%s], not [%s]; ' "$_c" "$_l" "${_sl[$_k]}"
+    _k=$((_k+1))
+  done )"
+is "the instrument scan lists, for each of ${#_sc[@]} commands, the words the rewrite takes from P and each it cannot place" "$_sbad" ""
+_srw="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/policy.sh"
+  _felix_p_scan rewrite 'X="a b" tools/check-fx && bash tools/run.sh; { tools/check-fx; }' "$_sw" /P )"
+is "and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it" \
+   "$_srw" "X=\"a b\" '/P/tools/check-fx' && bash '/P/tools/run.sh'; { tools/check-fx; }"

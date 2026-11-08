@@ -197,7 +197,9 @@ felix_policy_close() {
 # mode deep() reads the rest of the command again, from the start of the simple command the stop is
 # in, with the constructs as bash reads them, and prints `?PATH` for each word from the stop on that
 # could still run as an instrument; a quoted or expanded word in command position is printed the same
-# way. felix_policy_instruments refuses the judgement when one names a regular file P holds.
+# way. felix_policy_instruments refuses the judgement when one names a regular file P holds. An
+# interpreter met as an argument (`chronic bash x`) runs the word after it; an interpreter given no
+# script reads one from standard input (`cat x | bash`), so every path in that command is listed.
 # Read through ENVIRON, never -v: -v takes no newline in BWK awk and reads a backslash as an escape.
 _felix_p_scan() {   # MODE CMD [WORDS TREE]
   _FPS_M="$1" _FPS_S="$2" _FPS_W="${3:-}" _FPS_T="${4:-}" LC_ALL=C awk '
@@ -229,13 +231,13 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
                     return }
       if (Da[f]) { if (w ~ /^[0-9]*[<>]/) return
                    Da[f] = 0; if (w ~ /^-/) { Dop[f] = 2; return }; if (st >= B) sus(w, 1); return }
-      if (!Dc[f]) return
+      if (!Dc[f]) { if (w in rinterp) Da[f] = 3; return }
       if (Dcs[f] == 4 && w == "esac") { Dcs[f] = 0; Dc[f] = 0; return }
       if (w ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=/ || (w in reserved) || w == "{" || w == "}") return
       Dc[f] = 0
       if (w == "[[") { Dbr[f] = 1; return }
       if (w == "case") { Dcs[f] = 1; return }
-      if (w in interp) { Da[f] = 1; return }
+      if (w in interp) { Da[f] = (w in rinterp) ? 1 : 2; return }
       if (w in wrap) { Dop[f] = 1; return }
       if (st >= B) sus(w, 0)
     }
@@ -265,7 +267,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         if (c == "\\") { own(substr(s, i, 2)); i += 2; continue }
         if (c == "$" && substr(s, i + 1, 1) == "(") { own("$()"); push("P", o); i += 2; continue }
         if (c == "$" && substr(s, i + 1, 1) == "{") { e = index(substr(s, i), "}"); if (!e) e = n - i + 1; own(substr(s, i, e)); i += e; continue }
-        if (c == "`") { if (Dx[o] == "B") { fin(o); d--; i++; continue }; own("``"); push("B", o); i++; continue }
+        if (c == "`") { if (Dx[o] == "B") { fin(o); if (Da[o] == 1) sdi = 1; d--; i++; continue }; own("``"); push("B", o); i++; continue }
         if (c == "(") {
           if (Dcs[o] == 3) { i++; continue }
           if (Dw[o] ~ /=$/) { own("()"); push("A", o); i++; continue }
@@ -273,25 +275,28 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
           fin(o); push("P", o); i++; continue }
         if (c == ")") {
           if (Dcs[o] == 3) { fin(o); Dcs[o] = 4; Dc[o] = 1; i++; continue }
-          if (Dx[o] == "P" || Dx[o] == "A") { fin(o); d--; i++; continue }
-          fin(o); Dc[o] = 0; i++; continue }
+          fin(o); if (Da[o] == 1) sdi = 1
+          if (Dx[o] == "P" || Dx[o] == "A") { d--; i++; continue }
+          Dc[o] = 0; Da[o] = 0; i++; continue }
         if (c == ";" || c == "&" || c == "|" || c == "\n") {
           if (c == "&" && Dw[o] ~ /[<>]$/) { own(c); i++; continue }
           fin(o)
           if (Dcs[o] == 3 && c == "|") { i++; continue }
           if (Dbr[o] && (c == "&" || c == "|")) { i++; continue }
+          if (Da[o] == 1) sdi = 1
           if (c == ";" && Dcs[o] == 4 && index(";&", substr(s, i + 1, 1))) { Dcs[o] = 3; i += 2; if (substr(s, i, 1) == "&") i++; continue }
           Dc[o] = 1; Da[o] = 0; Dop[o] = 0; i++; continue }
         own(c); i++
       }
-      while (d > 0) { if (Dx[d] != "D") fin(d); d-- }
+      while (d > 0) { if (Dx[d] != "D") { fin(d); if (Da[d] == 1) sdi = 1 }; d-- }
     }
     BEGIN {
       mode = ENVIRON["_FPS_M"]; s = ENVIRON["_FPS_S"]; wl = ENVIRON["_FPS_W"]; tree = ENVIRON["_FPS_T"]
       nw = split(wl, arr, "\n"); for (k = 1; k <= nw; k++) if (arr[k] != "") listed[arr[k]] = 1
       split("then do else elif if while until ! time", rw, " "); for (k in rw) reserved[rw[k]] = 1
       split("bash sh zsh dash ksh python python3 perl ruby node . source exec", iw, " "); for (k in iw) interp[iw[k]] = 1
-      split("env xargs timeout nice nohup command builtin sudo stdbuf find", ww, " "); for (k in ww) wrap[ww[k]] = 1
+      split("bash sh zsh dash ksh python python3 perl ruby node", rv, " "); for (k in rv) rinterp[rv[k]] = 1
+      split("env xargs timeout nice nohup command builtin sudo stdbuf find eval setsid ionice flock chronic parallel watch doas chroot unbuffer", ww, " "); for (k in ww) wrap[ww[k]] = 1
       n = length(s); out = ""; i = 1; cmd = 1; after = 0; stop = 0; from = 0; cstart = 1
       while (i <= n) {
         c = substr(s, i, 1)
@@ -300,7 +305,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         if (c == "`" || c == "{" || c == "}") { stop = 1; from = i; break }
         if (c == "(" && (p == "=" || p == "<" || p == ">")) { stop = 1; from = i; break }
         if (c == "&" && (p == ">" || p == "<")) { out = out c; i++; continue }
-        if (index(";|&()\n", c)) { out = out c; i++; if (c != ")") { cmd = 1; after = 0; cstart = i }; continue }
+        if (index(";|&()\n", c)) { if (after && aftr) sdi = 1; out = out c; i++; if (c != ")") { cmd = 1; after = 0; cstart = i }; continue }
         w = ""; q = 0; ws = i
         while (i <= n) {
           c = substr(s, i, 1)
@@ -321,11 +326,12 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
           w = w c; i++
         }
         if (stop) { from = ws; break }
-        if ((cmd && !q && (w == "[[" || w == "case" || (w in wrap))) || w ~ /^<</ || (after && !q && w ~ /^(-|[0-9]*[<>])/)) { stop = 1; from = ws; break }
+        if ((cmd && !q && (w == "[[" || w == "case" || (w in wrap))) || w ~ /^<</ || (after && !q && w ~ /^(-|[0-9]*[<>])/) \
+            || (!cmd && !after && !q && (w in rinterp))) { stop = 1; from = ws; break }
         r = w
         if (cmd && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
         if (cmd && !q && (w in reserved)) { out = out w; continue }
-        if (cmd && !q && (w in interp)) { out = out w; cmd = 0; after = 1; continue }
+        if (cmd && !q && (w in interp)) { out = out w; cmd = 0; after = 1; aftr = (w in rinterp); continue }
         hit = (cmd && !q && plain(w) && index(bare(w), "/")) || (after && !q && plain(w))
         if (!hit && mode == "list" && (cmd || after) && (q || w ~ /[$\\]/)) sus(w, after)
         if (hit && mode == "list") print bare(w)
@@ -333,7 +339,9 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         out = out r; cmd = 0; after = 0
       }
       if (stop) out = out substr(s, from)
+      if (!stop && after && aftr) sdi = 1
       if (stop && mode == "list") deep(cstart, from)
+      if (sdi && mode == "list") sus(s, 0)
       if (mode == "rewrite") printf "%s", out
     }'
 }

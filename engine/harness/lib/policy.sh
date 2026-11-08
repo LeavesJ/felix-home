@@ -31,9 +31,10 @@
 #     judgement ends.
 #
 # WHAT THIS DOES NOT BIND, as examples and not the set. A file a P script reads by a path relative to
-# the working directory, a mixed file (`make`, `npm test` reading the candidate's Makefile or manifest),
-# and a word _felix_p_scan does not recognise (inside quotes, after a `$`) are still the candidate's:
-# the partition of every path into instrument and subject (spec part 2, E5) is not built. The suite and
+# the working directory, a mixed file (`make` reading the candidate's Makefile), a runner the scan does
+# not know executing its argument and a path built at run time are still the candidate's. A word the
+# scan sees but cannot place (inside quotes, after a `$`) refuses instead (S2.1). The partition of every
+# path into instrument and subject (spec part 2, E5) is not built. The suite and
 # the gate receipt, which judge Felix's own engine, are the candidate's and the session's. A same-user
 # process can move refs/remotes/origin/main or name another --base. The step-3 report measures each.
 #

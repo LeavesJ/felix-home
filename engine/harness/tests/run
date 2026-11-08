@@ -414,6 +414,7 @@ fi
 . "$HERE/parts/2173-trust-table-status-unfinished-reads-blind.sh"
 . "$HERE/parts/2176-trust-step3-policy-from-p-blind.sh"
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
+. "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

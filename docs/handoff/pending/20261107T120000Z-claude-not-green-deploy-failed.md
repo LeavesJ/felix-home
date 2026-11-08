@@ -1,4 +1,4 @@
-### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.331)
+### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.333)
 
 **What changed.** #482 rewrote the sentences the engine prints that said
 verified, unverified, proven or unproven (its contract counts them), and kept two kinds because each had
@@ -92,5 +92,11 @@ review, fixes through a blind author, record, gate.
   assertion names say `not-green`; part 2301 shows K12 on its own fixtures;
   part 2320's scan of the real engine has a read control (status 0 over at
   least fifty files).
-- Merged `origin/main` (0.49.329, #487) into the branch before the record; the
-  driver stays at 500 lines (one blank line removed).
+- Merged `origin/main` into the branch three times while it was open: #487
+  (0.49.329), then #493 (docs) and #486 (0.49.330), then #496 (trust-plane step 3,
+  0.49.332). The driver stays at 500 lines (blank lines removed). The last merge
+  brought a `home` blocker into `lib/escape.sh` and part 2176 that named the old
+  kind; both say `not-green` here (version 0.49.333). Parts 0100 and 2320 read the
+  merge boundary's kinds from `felix_merge_blockers`, the body it calls and
+  `lib/policy.sh`, as main's 0100 does; part 2320's A8 was edited by the author of
+  the change for that, not by a blind author, as were the two call sites in 2176.

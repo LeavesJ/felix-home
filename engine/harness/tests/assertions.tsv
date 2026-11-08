@@ -982,6 +982,7 @@
 1	A25 (B11, control): a missing records root reads unknown in all four with the detail no session records
 1	A25 (B17): a checkout with no marker whose origin holds another project's remote_match is refused: exit 1, already governed by rx, naming remote_match, and nothing written
 1	A25 (R2, B7): a detail holding a token, $HOME/ and an @ reaches no gh argument and no body; BODY's one @ is line 1's; field 8 keeps the detail with ~/
+1	A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does
 1	A25, A28: and the lock is released
 1	A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12
 1	A25: a tick that finds the lock held by a live process still writes the heartbeat first
@@ -989,6 +990,7 @@
 1	A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout
 1	A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM
 1	A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM
+1	A26 (B1, B3): a refusal with a base blocker naming a commit, the provider's base being another is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
 1	A26 (B10): a stale token for an inactive github.com account does not stop the tick: 42 lands, no gh row
 1	A26 (B11, control): one record directory at mode 000 under a readable root leaves the cover row read, and that worktree owner unknown, saying which directory
 1	A26 (B18): a marker naming no project (ghost with no projects/ghost, empty, ../bad) does not stop felix new; it binds and says in one replaced line what the marker held
@@ -15688,6 +15690,42 @@
 1	trust-step3: S4 (fixture control): the candidate no longer tracks the manifest, BASE does, and the candidate's felix_escapes prints nothing
 1	trust-step3: S4: a branch that deletes the manifest and disarms its own felix_escapes, run by its own felix, is still judged by main's engine: refused with an escape line for execute naming .github/workflows/x.yml
 1	trust-step3: workflows (control): a candidate that edits .github/workflows/gate.yml and only adds a table row is refused with an escape line for execute naming the workflow
+1	ts3b-x: S5.1 (the ref moves after the pin): refused by the fx obligation, with no base line, the move having happened
+1	ts3b-x: S5.2 (A's base name fails git check-ref-format --branch): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.2 (A's number is not digits only): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged
+1	ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged
+1	ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged
+1	ts3b-x: S6.1 (the engine's own pin survives the scrub): the gh that squashed saw GIT_CONFIG_PARAMETERS holding color.ui=never
+1	ts3b: (fixture control) R's main holds the tables and tools without danger/x, M0 before it holds danger/x, origin/main is main, tpb-evil's fx_check is true, M2 is one ahead of main, and the entry holds main's felix
+1	ts3b: S5 (control): an honest candidate whose pull request the provider holds open on main at M is merged, with --match-head-commit naming its head
+1	ts3b: S5.1 (control): the squash body's Felix-Judge trailer names main's commit in full
+1	ts3b: S5.2 (no answer, in a merge): call A answers the state CLOSED, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (a stale local ref): the provider's main is M2, one ahead of R's origin/main, and an honest candidate is refused with a base line naming both commits, and nothing is merged
+1	ts3b: S5.3 (a stale local ref, the remedy): with origin/main brought to M2 and fresh receipts, the same candidate is merged
+1	ts3b: S5.3 (another base): judged with --base refs/heads/tpb-evil while the provider names main at M as the base, a candidate off tpb-evil that deletes MARKER is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (another base, a dry run): the same, with --dry-run, is refused with a base line
+1	ts3b: S5.3 (no answer, in a dry run): call Q exits 1, and an honest candidate's dry run exits 0, says it was not compared with the provider, and still says felix merge would squash this now.
+1	ts3b: S5.3 (no answer, in a merge): call A exits 1, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (no answer, in a merge): call Q exits 1, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (the head differs): the provider names a head commit that is not the checkout's HEAD, and the merge is refused with a moved line, and nothing is merged
+1	ts3b: S5.3 (the local ref moved): with refs/remotes/origin/main moved to tpb-evil and no --base, the same candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.4 (the base moves at the last moment): call Q answers M, then M2, and the merge is refused with a moved line after asking Q twice, and nothing is merged
+1	ts3b: S5.5 (blockers first): a candidate that deletes MARKER is refused by the fx obligation, with no base or moved line, and the provider is not asked
+1	ts3b: S6 (fixture control): the loose file is put back, and main's tools/lib.sh reads as written again
+1	ts3b: S6 (packed objects) (fixture control): after git gc, R holds no loose object for main's tools/lib.sh
+1	ts3b: S6 (packed objects, a control for false blocks): after git gc, an honest candidate is merged
+1	ts3b: S6.1 (the caller's environment) (fixture control): git show of main's tools/lib.sh with GIT_OBJECT_DIRECTORY naming the copy prints the rewritten body, and without it the body as written
+1	ts3b: S6.1 (the caller's environment): a candidate that deletes MARKER, run with GIT_OBJECT_DIRECTORY naming a copy of R's objects where P's tools/lib.sh is rewritten, is refused by the fx obligation or an objects line, and nothing is merged
+1	ts3b: S6.2 (a graft) (fixture control): with the candidate's parent grafted onto M0, a plain git diff --name-only main...HEAD in R prints nothing
+1	ts3b: S6.2 (a graft): the same candidate, with its parent grafted onto M0, is still refused with an escape line naming danger/x, and nothing is merged
+1	ts3b: S6.2 (a graft, control): without a graft, a candidate that adds danger/x back with the bytes M0 held is refused with an escape line naming danger/x
+1	ts3b: S6.2 (a replace ref) (fixture control): with the candidate's head replaced by a commit holding main's tree, and the index read from it, plain git diff --name-only main...HEAD and --cached in R print nothing, and HEAD is still the candidate's commit
+1	ts3b: S6.2 (a replace ref): a candidate that adds danger/x, its head replaced by a commit holding main's tree and its index read from that, is refused with an escape line naming danger/x, and nothing is merged
+1	ts3b: S6.3 (an object whose content is not its name) (fixture control): with the loose file for main's tools/lib.sh rewritten, a plain git show of main's tools/lib.sh in R prints the rewritten body
+1	ts3b: S6.3 (an object whose content is not its name): a candidate that deletes MARKER, with the loose file for P's tools/lib.sh rewritten so fx_check is true, is refused with an objects line naming that blob, and nothing is merged
+1	ts3b: S6.5: no felix-objects.* entry remains under any run's TMPDIR after it ends
 1	turning a comment into a row escapes as verifier, or deleting a hash mark would add a row unseen
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same

@@ -209,6 +209,9 @@ _ts3_pcopy() {   # -> yes when the last run's fx log holds a check-fx run from a
   && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
 _copy_content "$REAL_HARNESS" "$TS3R/engine/harness"; _copy_content "$REAL_HARNESS/../hooks" "$TS3R/engine/hooks"
 [ -d "$REAL_HARNESS/../commands" ] && _copy_content "$REAL_HARNESS/../commands" "$TS3R/engine/commands"
+# R's engine carries no suite (a fixture change for slice 3, not blind): with one, a candidate that edits a workflow
+# changes the machinery, and felix merge runs every part of the real suite over R (lib/instrument.sh, S8.4).
+rm -rf "${TS3R:?}/engine/harness/tests"
 mkdir -p "$TS3R/engine/.claude-plugin" "$TS3P" "$TS3R/tools" "$TS3R/.github/workflows"
 printf '{ "name": "felix", "version": "1.0.0" }\n' > "$TS3R/engine/.claude-plugin/plugin.json"
 printf 'state/\n*.log\n' > "$TS3R/.gitignore"; printf 'ts3\n' > "$TS3R/.felix"

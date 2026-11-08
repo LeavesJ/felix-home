@@ -344,6 +344,9 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 # escape.sh that failed to load it must not stop a self-governed merge from reaching main's engine.
 # shellcheck source=lib/bind.sh
 . "${SCRIPT_DIR}/lib/bind.sh" 2>/dev/null || :
+# And instrument.sh, which escape.sh loads too, for the same reason: cmd_merge runs it after the binding.
+# shellcheck source=lib/instrument.sh
+. "${SCRIPT_DIR}/lib/instrument.sh" 2>/dev/null || :
 # shellcheck source=lib/review.sh
 . "${SCRIPT_DIR}/lib/review.sh"
 # shellcheck source=lib/next.sh
@@ -1995,8 +1998,25 @@ cmd_merge() {
     blockers="$_FELIX_BIND_BLOCK"; bindnote="$_FELIX_BIND_NOTE"
   fi
 
+  # P's instrument parts, as P holds them, over this tree (lib/instrument.sh, trust-plane step 3, slice 3), for the
+  # engine's own repository only, and only when nothing says the inputs they would be built from cannot be read as
+  # named: then it says so in one line instead.
+  local instnote="" instwhy=""
+  if felix_self_governed_at "$root" "$base"; then
+    instwhy="$(printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' '$1 == "base" || $1 == "moved" || $1 == "objects" || $1 == "policy" || $1 == "unknown" { print $1; exit }')"
+    if [ -n "$instwhy" ]; then
+      instnote="P's instrument parts were not run: a blocker of kind $instwhy stands, which says the inputs they would be run over cannot be read as named."
+    elif command -v felix_instrument_judge >/dev/null 2>&1; then
+      felix_instrument_judge "$root" "$base" "$head" "$branch"
+      [ -z "$_FELIX_INSTR_BLOCK" ] || blockers="${blockers:+$blockers$'\n'}$_FELIX_INSTR_BLOCK"
+      instnote="$_FELIX_INSTR_NOTE"
+    else
+      blockers="${blockers:+$blockers$'\n'}unknown"$'\t'"SUITE"$'\t'"lib/instrument.sh is not loaded, so P's instrument parts could not be run over this tree"
+    fi
+  fi
+
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0 suite=0 inst=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -2010,7 +2030,10 @@ cmd_merge() {
       # failing to load commission.sh, which no run reaches; it sits with every
       # other kind.
       case "$kind:$subject" in
+        # P's instrument parts, the machinery or the partition (lib/instrument.sh): the founder's, worded apart.
+        escape:machinery|escape:engine/harness/tests/parts/*|escape:projects/*/partition.tsv) inst=1 ;;
         escape:*)           esc=1 ;;
+        unknown:SUITE)      suite=1 ;;
         # A change git could not read to the end, by its pseudo-path
         # (2026-10-08), is not a base that names nothing.
         unknown:ADDED-LINES|unknown:CHANGED-PATHS) unread=1 ;;
@@ -2037,7 +2060,7 @@ EOF
     # And only real attempts count. A dry run asks nobody anything: a triage
     # session dry-running every open PR wrote one of these per escape per run,
     # and the figure counted each look as a founder interruption.
-    if [ "$esc" -eq 1 ] && [ "$dry" -eq 0 ]; then
+    if { [ "$esc" -eq 1 ] || [ "$inst" -eq 1 ]; } && [ "$dry" -eq 0 ]; then
       while IFS=$'\t' read -r kind subject reason; do
         [ "${kind:-}" = "escape" ] || continue
         felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
@@ -2082,6 +2105,17 @@ EOF
         printf 'reach, so it is the founder who decides. Show them the diff and the\n'
         printf 'reversal path; a green gate is not the question here.\n'
       fi
+      if [ "$inst" -eq 1 ]; then
+        printf '\nThis change moves what judges it: the base'"'"'s own test parts fail or stop\n'
+        printf 'being reached on this tree, its machinery reports what it was not given,\n'
+        printf 'or its partition marks a part subject. The lines above say which. That is\n'
+        printf 'the founder'"'"'s to decide; show them the diff of those parts.\n'
+      fi
+    fi
+    if [ "$suite" -eq 1 ]; then
+      printf '\nP'"'"'s instrument parts could not be run over this tree: the SUITE line above\n'
+      printf 'says which input could not be read. Nothing here is a finding about those\n'
+      printf 'parts. Fix what it names, then run this again.\n'
     fi
     # Said whatever else is said, beside an escape too: the founder is being
     # asked already, and a merge they clear would stop again on the receipt.
@@ -2139,7 +2173,8 @@ EOF
       printf 'it was: the line above says which. Nothing was merged. Fetch, so the base\n'
       printf 'is the one GitHub would squash onto, and run this again.\n'
     fi
-    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
+    [ -z "$instnote" ] || printf '\n%s\n' "$instnote"
+    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ] && [ "$inst" -eq 0 ] && [ "$suite" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'
@@ -2152,6 +2187,7 @@ EOF
     return 3
   fi
 
+  [ -z "$instnote" ] || printf '%s\n' "$instnote"
   if [ "$dry" -eq 1 ]; then
     [ -z "$bindnote" ] || printf '%s\n' "$bindnote"
     printf 'nothing escapes this tree, and the gate is green on it.\n'

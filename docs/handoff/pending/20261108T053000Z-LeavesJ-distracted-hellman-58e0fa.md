@@ -31,3 +31,5 @@
 - **The suite (R3):** running P's suite over the candidate.
 - **Products** whose home is a plain directory still supply their own tables.
 - `deploy-check`'s false-block replay, and a fault-injection round on `lib/policy.sh`'s own reads.
+
+**Gate.** `felix gate` was run on this branch's final tree. Its result is in the pull request's body.

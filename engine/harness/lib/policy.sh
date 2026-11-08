@@ -95,6 +95,13 @@ _felix_policy_worktree() {   # ROOT DIR -> the worktree's path, or nothing
   return 0
 }
 
+# git, or git as a repository other than the one being merged reads itself (AWAY 1): under felix merge the object
+# store is the merged repository's checked copy (lib/bind.sh), which holds nothing of another repository.
+_felix_policy_git() {   # AWAY git-args...
+  if [ "$1" = 1 ]; then shift; env -u GIT_OBJECT_DIRECTORY -u GIT_ALTERNATE_OBJECT_DIRECTORIES git "$@"
+  else shift; git "$@"; fi
+}
+
 # Where the tables come from for this judgement: sets _FELIX_POL_DIR, and _FELIX_POL_TMP when a
 # snapshot was made. Returns 0; or prints one policy blocker line and returns 1 (fail closed).
 #
@@ -115,7 +122,7 @@ _felix_policy_worktree() {   # ROOT DIR -> the worktree's path, or nothing
 #     sent the first cut to the link's target on disk, and a .git planted in a product home's
 #     projects/ became that home's repository (review round 1).
 felix_policy_open() {   # PROJ BASE ROOT
-  local proj="${1%/}" base="$2" root="$3" name parent anchor lpath top="" rel="" ref="" sha tmpd bname
+  local proj="${1%/}" base="$2" root="$3" name parent anchor lpath top="" rel="" ref="" sha tmpd bname away=0
   _FELIX_POL_DIR="$1"; _FELIX_POL_TMP=""; _FELIX_P_TREE=""; _FELIX_P_WORDS=""
   name="${proj##*/}"; parent="$(dirname "$proj")"
   # Spec S1.7: the engine's own repository at BASE names its project in BASE's .felix and holds its
@@ -145,13 +152,16 @@ felix_policy_open() {   # PROJ BASE ROOT
     if [ -n "$top" ]; then
       rel="${lpath#"$top"/}"; ref="$base"
     else
-      top="$(git -C "$anchor" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
+      # Another repository is read from its own objects: under felix merge the object store is the merged
+      # repository's checked copy (lib/bind.sh), which holds nothing of this one.
+      away=1
+      top="$(_felix_policy_git "$away" -C "$anchor" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
       top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
       case "$lpath" in "$top"/?*) rel="${lpath#"$top"/}" ;; *) return 0 ;; esac
       local onmain="" onhead=""
-      [ "$(git -C "$top" cat-file -t "refs/remotes/origin/main:$rel" 2>/dev/null </dev/null)" = tree ] && onmain=1
-      [ "$(git -C "$top" cat-file -t "HEAD:$rel" 2>/dev/null </dev/null)" = tree ] && onhead=1
-      if git -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null; then
+      [ "$(_felix_policy_git "$away" -C "$top" cat-file -t "refs/remotes/origin/main:$rel" 2>/dev/null </dev/null)" = tree ] && onmain=1
+      [ "$(_felix_policy_git "$away" -C "$top" cat-file -t "HEAD:$rel" 2>/dev/null </dev/null)" = tree ] && onhead=1
+      if _felix_policy_git "$away" -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null; then
         ref=refs/remotes/origin/main
         [ -n "$onmain" ] || [ -n "$onhead" ] || return 0
       else
@@ -160,11 +170,11 @@ felix_policy_open() {   # PROJ BASE ROOT
       fi
     fi
   fi
-  sha="$(git -C "$top" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null </dev/null)"
+  sha="$(_felix_policy_git "$away" -C "$top" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null </dev/null)"
   if [ -z "$sha" ]; then
     printf 'policy\ttable\t%s names no commit in %s, so no authorized policy judges this\n' "$ref" "$top"; return 1
   fi
-  if [ "$(git -C "$top" cat-file -t "$sha:$rel" 2>/dev/null </dev/null)" != tree ]; then
+  if [ "$(_felix_policy_git "$away" -C "$top" cat-file -t "$sha:$rel" 2>/dev/null </dev/null)" != tree ]; then
     printf 'policy\ttable\t%s is not at %s, so no authorized policy judges this; the working tree does not stand in for it\n' "$rel" "$ref"; return 1
   fi
   tmpd="${TMPDIR:-/tmp}"
@@ -172,7 +182,13 @@ felix_policy_open() {   # PROJ BASE ROOT
   if [ -z "$_FELIX_POL_TMP" ]; then
     printf 'policy\tengine\tno directory could be made under %s for the policy snapshot, so nothing was read from %s\n' "${tmpd%/}" "$ref"; return 1
   fi
-  if ! _felix_policy_copy "$top" "$sha" "$rel" "$_FELIX_POL_TMP/p/$name"; then
+  local crc=0
+  if [ "$away" -eq 1 ]; then
+    ( unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES; _felix_policy_copy "$top" "$sha" "$rel" "$_FELIX_POL_TMP/p/$name" ) || crc=1
+  else
+    _felix_policy_copy "$top" "$sha" "$rel" "$_FELIX_POL_TMP/p/$name" || crc=1
+  fi
+  if [ "$crc" -ne 0 ]; then
     printf 'policy\tengine\tthe tables could not be copied out of %s, so nothing was read from it\n' "$ref"; return 1
   fi
   _FELIX_POL_DIR="$_FELIX_POL_TMP/p/$name"

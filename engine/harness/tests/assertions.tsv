@@ -5265,6 +5265,7 @@
 1	a plugin.json naming mcpServers declares a server
 1	a pointer to a home whose path holds a space resolves to it
 1	a pointer to a real home is left alone
+1	a policy blocker says no authorized policy judged the branch
 1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
 1	a predicate whose instrument changed says so
@@ -8178,6 +8179,7 @@
 1	and returns a text's own exit 4 as 4
 1	and returns once the record is complete
 1	and returns the read's status, 0 when read
+1	and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it
 1	and rm of the marker
 1	and rm of the marker on a later line of the command
 1	and rm of the marker on a tab-indented later line
@@ -8780,6 +8782,8 @@
 1	and the plan counts that row neither to install nor blocked, and offers no apply
 1	and the planted server was not started
 1	and the play this project already chose
+1	and the policy blocker is not called work Felix owes
+1	and the policy blocker names no commission run
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
 1	and the probes marker blocker names no commission run
@@ -14999,6 +15003,7 @@
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
 1	the installed check is behind the verifier confine
+1	the instrument scan lists, for each of 38 commands, the words the rewrite takes from P and each it cannot place
 1	the judge alone: a scratch path is throwaway
 1	the judge alone: a worktree of the checkout is not
 1	the judge is found on whatever branch is being merged into

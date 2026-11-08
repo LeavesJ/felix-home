@@ -15638,9 +15638,9 @@
 1	trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)
 1	trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key
 1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure
-1	trust-step3: S1.10 (a base that names no commit, control): felix_merge_blockers called with refs/heads/ts3-names-nothing prints an unknown row and the obligations row for fx
+1	trust-step3: S1.10 (an empty base, control): felix_merge_blockers called with an empty base prints the obligations row for fx and no policy row, as before this slice
 1	trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate
-1	trust-step3: S1.10 (no base): felix_merge_blockers called with an empty base prints an unknown row and the obligations row for fx
+1	trust-step3: S1.10 (no base): with a base that names no commit, felix_merge_blockers prints an unknown row and the obligations row for fx, as before this slice
 1	trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)
 1	trust-step3: S1.7 (a home elsewhere) (fixture control): the plain home is in no repository, its project directory differs from P's only in the fx row's evidence contract, now true, and the worktree's branch only deletes MARKER
 1	trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain directory whose fx row's evidence contract is true, a candidate in a worktree of R that deletes MARKER is refused with an obligations line for fx (P's row judged)
@@ -15659,9 +15659,10 @@
 1	trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx
 1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that adds an unrelated file and changes no script passes the dry run
 1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that deletes MARKER and changes no script is refused with an obligations line for fx
-1	trust-step3: S2.1 (an option after an interpreter, guard): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with an obligations line for run
-1	trust-step3: S2.1 (fixture control): over P's tree (the unrelated candidate) the run, mark and subst contracts each exit 0 as the table holds them, the option candidate's tools/run.sh does not parse, and the placeholder candidate's tools/marker.txt reads gone
-1	trust-step3: S2.1 (the rewrite stops at a placeholder, guard): with P's contract piping into xargs -I{} grep, a candidate whose tools/marker.txt reads gone is refused with an obligations line for mark
+1	trust-step3: S2.1 (a quoted instrument): with P's contract "tools/check-fx" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh
+1	trust-step3: S2.1 (fixture control): on each case's own P its contract exits 0 over P's tree as the table holds it; the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted candidate's tools/check-fx exits 0 with MARKER gone
+1	trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt
 1	trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run
 1	trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR
 1	trust-step3: S3 (control): a candidate that adds one key to project.json, its previous last line gaining a comma, reaches a verdict with no escape line for verifier naming project.json

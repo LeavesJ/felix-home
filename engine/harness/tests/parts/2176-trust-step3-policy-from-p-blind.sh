@@ -46,14 +46,17 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 #   worktree branch off M3 adding NOTES.md; the control fast-forwards R's main to M3 and records again. Both are put
 #   back after (main reset to M, origin/main to M).
 # - S1.10 calls felix_merge_blockers loaded as part 1250's _gfcBlk loads it, plus lib/policy.sh when the entry has one
-#   (sourcing it is not reading it), over R with MARKER deleted, home R. The spec's example base is the empty string,
-#   and on main 2026-11-07 an empty base printed no unknown row (measured), while a base naming nothing printed
-#   `unknown <base> this base names nothing here` (measured). S1.10 says the base is judged as it was before, so the
-#   empty-base assertion is written as section 2 states it (red on main) and a control holds the named-nothing base.
-# - S2.1's cases share a P of their own: commit M4 off main adding tools/run.sh, tools/marker.txt and the three
-#   obligations run, mark and subst whose contracts the spec gives, with origin/main moved to M4 and the receipts read
-#   against an archive of M4's projects/ts3. On main each already holds (the candidate's files are read there), so the
-#   option and placeholder cases are named guards and the substitution case a control; they are not red-first.
+#   (sourcing it is not reading it), over R with MARKER deleted, home R. On main 2026-11-07 a base naming nothing
+#   printed `unknown <base> this base names nothing here` and an empty base printed no unknown row (both measured); the
+#   spec's section 2 was corrected to match (a base naming no commit: unknown and obligations; an empty base:
+#   obligations and no policy row). Both hold on main, as S1.10 says they are judged as before this slice.
+# - S2.1's cases each have a P of their own, a commit off main adding tools/run.sh (parses) and tools/marker.txt
+#   (present) and the one contract the case names, with origin/main moved to it and the receipts read against an
+#   archive of its projects/ts3, so that one case's fail-closed refusal (S2.1's "the merge refuses") is not another's.
+#   The quoted case's P replaces the fx row's contract with "tools/check-fx"; the others add a row (run, mark, subst).
+#   "A policy line naming X" is a blocker line of kind policy holding X. On main the option and placeholder cases are
+#   refused for their obligation (the candidate's file is read) and print no policy line, and the quoted case passes:
+#   all three red. The substitution case is a control and passes on main.
 # - "Refused" is a non-zero exit with `not merging` printed. A blocker line is a line of the output beginning with two
 #   spaces; its kind is its first field. "A KIND line for NAME" is read as NAME being its second field (the shape of
 #   part 1250's `unverified tests`); "naming X" as X appearing anywhere on that line.
@@ -417,7 +420,7 @@ _ts3_wt_done ts3-wt-behind
 _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
 
 # S1.10: felix_merge_blockers called directly, loaded as part 1250's _gfcBlk loads it (and lib/policy.sh when the
-# entry has one), over a candidate whose fx obligation fails, with an empty base and, as a control, with BASE.
+# entry has one), over a candidate whose fx obligation fails, with an empty base and with a base naming no commit.
 _ts3_case ts3-nobase; _fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" no-base
 _ts3_blk() {   # BASE -> felix_merge_blockers' rows for the candidate in R, home R, in a fresh TMPDIR (left onto TS3_LEFT)
   local left
@@ -438,47 +441,64 @@ _ts3_record "$TS3R"; TS3_B="$(_ts3_blk refs/remotes/origin/main)"
 _ts3_check "trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate" \
   "$(_ts3_rows "$TS3_B" obligations fx)" "1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
 TS3_B="$(_ts3_blk "")"
-_ts3_check "trust-step3: S1.10 (no base): felix_merge_blockers called with an empty base prints an unknown row and the obligations row for fx" \
-  "unknown $([ "$(_ts3_rows "$TS3_B" unknown -)$(_ts3_rows "$TS3_B" - unknown)" != 00 ] && echo yes || echo no)|obligations $(_ts3_rows "$TS3_B" obligations fx)" \
-  "unknown yes|obligations 1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
+_ts3_check "trust-step3: S1.10 (an empty base, control): felix_merge_blockers called with an empty base prints the obligations row for fx and no policy row, as before this slice" \
+  "obligations $(_ts3_rows "$TS3_B" obligations fx)|policy $(_ts3_rows "$TS3_B" policy -)" "obligations 1|policy 0" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
 TS3_B="$(_ts3_blk refs/heads/ts3-names-nothing)"
-_ts3_check "trust-step3: S1.10 (a base that names no commit, control): felix_merge_blockers called with refs/heads/ts3-names-nothing prints an unknown row and the obligations row for fx" \
+_ts3_check "trust-step3: S1.10 (no base): with a base that names no commit, felix_merge_blockers prints an unknown row and the obligations row for fx, as before this slice" \
   "unknown $([ "$(_ts3_rows "$TS3_B" unknown -)$(_ts3_rows "$TS3_B" - unknown)" != 00 ] && echo yes || echo no)|obligations $(_ts3_rows "$TS3_B" obligations fx)" \
   "unknown yes|obligations 1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
 
-# S2.1: on M4, main plus three obligations whose evidence contracts the amended S2.1 names, and the files they read.
-( _fx_cd "$TS3R" && git checkout -q -f -B ts3-p4 main ) >/dev/null 2>&1
-printf '#!/usr/bin/env bash\nprintf '"'"'run\\n'"'"'\n' > "$TS3R/tools/run.sh"; printf 'present\n' > "$TS3R/tools/marker.txt"
-{ printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' run RELEASE_BLOCKING deterministic - 'bash -n tools/run.sh' - 'an option after an interpreter'
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' mark RELEASE_BLOCKING deterministic - "printf '%s\\n' present | xargs -I{} grep -qxF {} tools/marker.txt" - 'a placeholder'
-  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' subst RELEASE_BLOCKING deterministic - 'n="$(git ls-files tools | grep -cE "^(tools/lib.sh|tools/check-fx)$")"; [ "$n" = 2 ]' - 'a substitution in quotes'
-} >> "$TS3P/obligations.tsv"
-_ts3_commit "$TS3R" p4; TS3_M4="$(_jr_sha "$TS3R" HEAD)"; _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M4" >/dev/null 2>&1
-mkdir -p "$TS3/p4"; _fx_git "$TS3R" archive -o "$TS3/p4.tar" "$TS3_M4" projects/ts3 >/dev/null 2>&1 && tar -x -C "$TS3/p4" -f "$TS3/p4.tar"; rm -f "$TS3/p4.tar"
-_ts3_at() { ( _fx_cd "$TS3R" && git checkout -q -f -B "$1" "$TS3_M4" ) >/dev/null 2>&1; }   # BRANCH: a new branch off M4, in R
-_ts3_co() { ( _fx_cd "$TS3R" && git checkout -q -f "$1" ) >/dev/null 2>&1; }                 # BRANCH: that branch again, in R
-_ts3_at ts3-opt; printf 'if then\n' > "$TS3R/tools/run.sh"; _ts3_commit "$TS3R" opt
-_ts3_at ts3-mark; printf 'gone\n' > "$TS3R/tools/marker.txt"; _ts3_commit "$TS3R" mark
-_ts3_at ts3-subst; printf 'notes the candidate adds\n' > "$TS3R/NOTES.md"; _ts3_commit "$TS3R" subst
-_ts3_v=""
-for _ts3_o in run mark subst; do
-  _ts3_c="$(LC_ALL=C awk -F'\t' -v o="$_ts3_o" '$1 == o { print $5 }' "$TS3P/obligations.tsv")"
-  _ts3_v="$_ts3_v $_ts3_o:$( cd "$TS3R" && bash -c "$_ts3_c" >/dev/null 2>&1; printf '%s' "$?")"
-done
-git -C "$TS3R" show ts3-opt:tools/run.sh > "$TS3/opt-run.sh" 2>/dev/null
-_ts3_v="$_ts3_v|opt's run.sh parses: $(bash -n "$TS3/opt-run.sh" >/dev/null 2>&1 && echo yes || echo no)|mark's marker: $(git -C "$TS3R" show ts3-mark:tools/marker.txt 2>&1)"
-_ts3_check "trust-step3: S2.1 (fixture control): over P's tree (the unrelated candidate) the run, mark and subst contracts each exit 0 as the table holds them, the option candidate's tools/run.sh does not parse, and the placeholder candidate's tools/marker.txt reads gone" \
-  "$_ts3_v" " run:0 mark:0 subst:0|opt's run.sh parses: no|mark's marker: gone"
-TS3_RP="$TS3/p4/projects/ts3"
-_ts3_co ts3-opt; _ts3_entry S2.1-option
-_ts3_check "trust-step3: S2.1 (an option after an interpreter, guard): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with an obligations line for run" \
-  "$(_ts3_refused)|$(_ts3_bl obligations run - -)" "refused|yes" "$(_ts3_why)"
-_ts3_co ts3-mark; _ts3_entry S2.1-placeholder
-_ts3_check "trust-step3: S2.1 (the rewrite stops at a placeholder, guard): with P's contract piping into xargs -I{} grep, a candidate whose tools/marker.txt reads gone is refused with an obligations line for mark" \
-  "$(_ts3_refused)|$(_ts3_bl obligations mark - -)" "refused|yes" "$(_ts3_why)"
-_ts3_co ts3-subst; _ts3_entry S2.1-substitution
+# S2.1: each case on a P of its own, a commit off main adding tools/run.sh and tools/marker.txt and the contract the
+# spec gives, so that one case's fail-closed refusal is not another's; the receipts read against an archive of it.
+_ts3_p2_begin() {   # BRANCH: R on a new branch off main, with tools/run.sh (parses) and tools/marker.txt (present)
+  ( _fx_cd "$TS3R" && git checkout -q -f -B "$1" main ) >/dev/null 2>&1
+  printf '#!/usr/bin/env bash\nprintf '"'"'run\\n'"'"'\n' > "$TS3R/tools/run.sh"; printf 'present\n' > "$TS3R/tools/marker.txt"
+}
+_ts3_p2_end() {   # OBLIGATION: commit; TS3_PX the commit, origin/main moved to it, TS3_RP its tables' archive, and the
+                  # obligation's contract run over P's tree as the table holds it onto TS3_FX21
+  local c
+  _ts3_commit "$TS3R" "p-$1"; TS3_PX="$(_jr_sha "$TS3R" HEAD)"
+  _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_PX" >/dev/null 2>&1
+  rm -rf "${TS3:?}/px"; mkdir -p "$TS3/px"
+  _fx_git "$TS3R" archive -o "$TS3/px.tar" "$TS3_PX" projects/ts3 >/dev/null 2>&1 && tar -x -C "$TS3/px" -f "$TS3/px.tar"; rm -f "$TS3/px.tar"
+  TS3_RP="$TS3/px/projects/ts3"
+  c="$(LC_ALL=C awk -F'\t' -v o="$1" '$1 == o { print $5 }' "$TS3P/obligations.tsv")"
+  TS3_FX21="$TS3_FX21 $1:$( cd "$TS3R" && bash -c "$c" >/dev/null 2>&1; printf '%s' "$?")"
+}
+_ts3_cand() { ( _fx_cd "$TS3R" && git checkout -q -f -B "$1" "$TS3_PX" ) >/dev/null 2>&1; }   # BRANCH: a candidate off P
+_ts3_ob() { printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$1" RELEASE_BLOCKING deterministic - "$2" - "$3" >> "$TS3P/obligations.tsv"; }
+TS3_FX21=""
+
+_ts3_p2_begin ts3-p-run; _ts3_ob run 'bash -n tools/run.sh' 'an option after an interpreter'; _ts3_p2_end run
+_ts3_cand ts3-opt; printf 'if then\n' > "$TS3R/tools/run.sh"; _ts3_commit "$TS3R" opt
+TS3_FX21="$TS3_FX21 opt-parses:$( cd "$TS3R" && bash -n tools/run.sh >/dev/null 2>&1 && echo yes || echo no)"
+_ts3_entry S2.1-option
+_ts3_check "trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh" \
+  "$(_ts3_refused)|$(_ts3_bl policy - tools/run.sh -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_p2_begin ts3-p-mark; _ts3_ob mark "printf '%s\\n' present | xargs -I{} grep -qxF {} tools/marker.txt" 'a placeholder'; _ts3_p2_end mark
+_ts3_cand ts3-mark; printf 'gone\n' > "$TS3R/tools/marker.txt"; _ts3_commit "$TS3R" mark
+TS3_FX21="$TS3_FX21 mark-reads:$(cat "$TS3R/tools/marker.txt" 2>&1)"
+_ts3_entry S2.1-placeholder
+_ts3_check "trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt" \
+  "$(_ts3_refused)|$(_ts3_bl policy - tools/marker.txt -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_p2_begin ts3-p-quoted
+LC_ALL=C awk -F'\t' -v OFS='\t' '$1 == "fx" { $5 = "\"tools/check-fx\"" } { print }' "$TS3P/obligations.tsv" > "$TS3/ob.tmp" && cat "$TS3/ob.tmp" > "$TS3P/obligations.tsv"
+_ts3_p2_end fx
+_ts3_cand ts3-quoted; printf '#!/usr/bin/env bash\nexit 0\n' > "$TS3R/tools/check-fx"; _fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" quoted
+TS3_FX21="$TS3_FX21 quoted-row:$(LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }' "$TS3P/obligations.tsv") quoted-check:$( cd "$TS3R" && tools/check-fx >/dev/null 2>&1; printf '%s' "$?")$([ -e "$TS3R/MARKER" ] && echo ' MARKER' || echo ' no MARKER')"
+_ts3_entry S2.1-quoted
+_ts3_check "trust-step3: S2.1 (a quoted instrument): with P's contract \"tools/check-fx\" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx" \
+  "$(_ts3_refused)|$(_ts3_bl policy - tools/check-fx -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_p2_begin ts3-p-subst; _ts3_ob subst 'n="$(git ls-files tools | grep -cE "^(tools/lib.sh|tools/check-fx)$")"; [ "$n" = 2 ]' 'a substitution in quotes'; _ts3_p2_end subst
+_ts3_cand ts3-subst; printf 'notes the candidate adds\n' > "$TS3R/NOTES.md"; _ts3_commit "$TS3R" subst
+_ts3_entry S2.1-substitution
 _ts3_check "trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run" \
   "$(_ts3_passed)" "passed" "$(_ts3_why)"
+_ts3_check "trust-step3: S2.1 (fixture control): on each case's own P its contract exits 0 over P's tree as the table holds it; the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted candidate's tools/check-fx exits 0 with MARKER gone" \
+  "$TS3_FX21" " run:0 opt-parses:no mark:0 mark-reads:gone fx:0 quoted-row:\"tools/check-fx\" quoted-check:0 no MARKER subst:0"
 TS3_RP=""
 ( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
 _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1

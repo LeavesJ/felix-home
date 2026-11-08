@@ -21,7 +21,7 @@
   - Until leases exist, no checker has a verified `blind` context.
 - **The review packet carries no findings** (change 3; part 2 §5.3, PK1 to PK5). A program refuses a packet that holds one, the review is advisory, and its own contribution is measured apart.
 - **Status** (part 2 §5.4). The method does not advance until a pre-registered rerun passes. Fault tiers and mutants stay in the method with their contribution unmeasured: they ran on a fraction of step 1's subjects.
-- **Part 3:** a new mapping (§1.6), two changed rows in §2.2, decisions D31 to D37, eight open questions and four risks.
+- **Part 3:** a new mapping (§1.6), three changed rows in §2.2, decisions D31 to D37, eight open questions and four risks.
 
 **The rerun is pre-registered and not run.** The pre-registration is `~/.felix/memory/felix/audits/2026-11-08-trust-plane-step1-rerun/prereg.md` (PDF beside it), written before any case exists.
 - **Bars:** step 1's H1 to H6 and its scoring rules, unchanged.

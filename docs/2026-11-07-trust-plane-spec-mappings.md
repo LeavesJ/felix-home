@@ -1,6 +1,6 @@
 # Felix trust plane: the specification, part 3 of 3
 
-2026-11-07, revision 1 on 2026-11-08. The two mappings that design §9 step 2 and direction §5 item 0 ask for, then the decisions this specification made and what it leaves open. Parts 1 and 2 are `docs/2026-11-07-trust-plane-spec.md` and `docs/2026-11-07-trust-plane-spec-evidence.md`. Part 1 states the scope and what revision 1 changed. In this part, revision 1 adds §1.6, two changed rows in §2.2, decisions D31 to D37, and eight open questions and four risks in §4.
+2026-11-07, revision 1 on 2026-11-08. The two mappings that design §9 step 2 and direction §5 item 0 ask for, then the decisions this specification made and what it leaves open. Parts 1 and 2 are `docs/2026-11-07-trust-plane-spec.md` and `docs/2026-11-07-trust-plane-spec-evidence.md`. Part 1 states the scope and what revision 1 changed. In this part, revision 1 adds §1.6, three changed rows in §2.2, decisions D31 to D37, and eight open questions and four risks in §4.
 
 ## 1. Today's engine, mapped onto the specification
 

@@ -245,7 +245,7 @@ Every need at a transition gets one primary code, chosen by the precedence below
 | secondary | `exception_expired` | a grant keyed to this need's current content exists and has expired | no; the need is judged as unexcepted |
 | secondary | `base_unknown` | the candidate reads ACTIVE and the base reads UNKNOWN (part 1 §4) | no |
 | secondary | `outside_model` | one or more failing cases of the need's newest valid evidence read `outside` its model. They are listed and counted, and they do not make the need fail (part 2 §1.8, MD6, MD7) | never |
-| secondary | `model_unstated` | the need is blocking and has no usable model: none was stated, or it is unqualified, ungrounded or suspended. Every case counts inside (MD2) | no |
+| secondary | `model_unstated` | the need is blocking and has no usable model: none was stated, or it is unqualified, suspended, or rests on a ground that no longer reads as it did. Every case counts inside (MD2) | no |
 
 **Transition hold codes.** Clauses A4 to A7 (part 2 §3.3) hold a transition for reasons that belong to no single need. Without codes of their own, a transition held by one of them would print no reason at all (D4). They form a closed set:
 

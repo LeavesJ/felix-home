@@ -16,12 +16,12 @@
 # a branch could rewrite the checker that judged it, or the library that checker sources, and pass.
 #
 # THE RULE (spec S1, S2).
-#   - P is the ref the merge judges against (BASE) when the project directory is tracked in the
-#     repository being merged, and that repository's refs/remotes/origin/main when it is tracked in
-#     another one (a product governed from a Felix home). A project directory that no repository tracks
-#     has no authorized version, and is read from disk as before.
+#   - P is the ref the merge judges against (BASE) when the project directory sits in a worktree of the
+#     repository being merged, and another repository's refs/remotes/origin/main (or its HEAD, when it
+#     has none) when it sits there (a product governed from a Felix home). A project directory that no
+#     repository holds has no authorized version, and is read from disk as before.
 #   - The tables are read from a snapshot of the project directory as P holds it: regular files only,
-#     byte for byte. A tracked project directory that P does not hold is a refusal, never the disk.
+#     byte for byte. A BASE that does not hold it is a refusal, never the disk.
 #   - A word in command position of a P command that names a regular file P holds in the repository
 #     being merged runs as P's copy of that file, with P's whole top-level directory around it, so a
 #     script that finds its libraries beside itself finds P's. The working directory stays the
@@ -36,7 +36,7 @@
 # the gate receipt, which judge Felix's own engine, are the candidate's and the session's. A same-user
 # process can move refs/remotes/origin/main or name another --base. The step-3 report measures each.
 #
-# Sourced by escape.sh. Needs resolve.sh (_felix_git_rules, felix_same_repo).
+# Sourced by escape.sh. Needs resolve.sh (_felix_git_rules).
 
 # Set only by felix_policy_open, in the shell that judges: an inherited value never names a policy
 # directory or an instrument.
@@ -76,23 +76,58 @@ _felix_policy_copy() {   # ROOT SHA PREFIX DEST
   return 0
 }
 
+# Which worktree of ROOT's repository holds DIR: the longest worktree path DIR sits under, physical
+# paths compared. Asked of the merged repository's own worktree list and never of DIR's git, because
+# the index and DIR's own .git are the candidate's to change when the home is the candidate's checkout:
+# `git rm --cached` or a .git planted in the project directory must not turn the home's tables into a
+# plain directory read from disk (security review of d21f5029; lessons.md, 2026-08-29: ls-files reads
+# the index).
+_felix_policy_worktree() {   # ROOT DIR -> the worktree's path, or nothing
+  local root="$1" dir="$2" w p best=""
+  while IFS= read -r -d '' w; do
+    case "$w" in "worktree "*) p="${w#worktree }" ;; *) continue ;; esac
+    p="$(cd "$p" 2>/dev/null && pwd -P)" || continue
+    case "$dir" in "$p"/?*) [ "${#p}" -gt "${#best}" ] && best="$p" ;; esac
+  done < <(git -C "$root" worktree list --porcelain -z 2>/dev/null </dev/null)
+  [ -n "$best" ] && printf '%s' "$best"
+  return 0
+}
+
 # Where the tables come from for this judgement: sets _FELIX_POL_DIR, and _FELIX_POL_TMP when a
 # snapshot was made. Returns 0; or prints one policy blocker line and returns 1 (fail closed).
+#
+#   - The project directory is inside a worktree of the merged repository: P is BASE, and a BASE that
+#     does not hold the directory is a refusal. Nothing on disk, in the index or under the directory's
+#     own .git changes that.
+#   - It is inside another repository (a product governed from a Felix home): P is that repository's
+#     refs/remotes/origin/main, or its HEAD when it has none (the committed tables, never the working
+#     tree). A ref that exists and does not hold the directory while HEAD does is a refusal: the policy
+#     has not landed. Neither holding it means the directory is not that repository's (a home under a
+#     $HOME that is itself a repository), and it is read from disk.
+#   - It is in no repository: there is no authorized version, and it is read from disk, as before.
 felix_policy_open() {   # PROJ BASE ROOT
-  local proj="$1" base="$2" root="$3" pdir top rel ref sha name tmpd
+  local proj="$1" base="$2" root="$3" pdir top rel ref sha name tmpd up
   _FELIX_POL_DIR="$proj"; _FELIX_POL_TMP=""; _FELIX_P_TREE=""; _FELIX_P_WORDS=""
   pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || return 0
-  top="$(git -C "$pdir" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
-  top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
-  case "$pdir" in "$top"/?*) rel="${pdir#"$top"/}" ;; *) return 0 ;; esac
-  # Tracked there, or it is not that repository's policy: a home under a $HOME that is itself a
-  # repository is a plain directory, and is read as one.
-  [ -n "$(git -C "$top" ls-files -- "$rel" 2>/dev/null </dev/null | LC_ALL=C sed -n 1p)" ] || return 0
-  if felix_same_repo "$top" "$root" 2>/dev/null; then
-    ref="$base"
+  top="$(_felix_policy_worktree "$root" "$pdir")"
+  if [ -n "$top" ]; then
+    rel="${pdir#"$top"/}"; ref="$base"
   else
-    git -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null || return 0
-    ref=refs/remotes/origin/main
+    # From the parent, so a .git inside the project directory is not its repository.
+    up="$(dirname "$pdir")"
+    top="$(git -C "$up" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
+    top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
+    case "$pdir" in "$top"/?*) rel="${pdir#"$top"/}" ;; *) return 0 ;; esac
+    local onmain="" onhead=""
+    [ "$(git -C "$top" cat-file -t "refs/remotes/origin/main:$rel" 2>/dev/null </dev/null)" = tree ] && onmain=1
+    [ "$(git -C "$top" cat-file -t "HEAD:$rel" 2>/dev/null </dev/null)" = tree ] && onhead=1
+    if git -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null; then
+      ref=refs/remotes/origin/main
+      [ -n "$onmain" ] || [ -n "$onhead" ] || return 0
+    else
+      ref=HEAD
+      [ -n "$onhead" ] || return 0
+    fi
   fi
   sha="$(git -C "$top" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null </dev/null)"
   if [ -z "$sha" ]; then

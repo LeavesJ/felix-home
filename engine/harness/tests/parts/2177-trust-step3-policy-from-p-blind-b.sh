@@ -15,7 +15,11 @@ printf '\ntrust plane step 3, slice 1, continued: S2.1, S3, S4, the workflows co
 #   read) and print no policy line, and the quoted case passes: all three red.
 # - The wrapper and group cases use the quoted case's candidate, as the spec says: tools/check-fx rewritten to exit 0 and
 #   MARKER deleted. The wrapper is nice, not timeout, which macOS lacks (the spec's correction). On main the candidate's
-#   checker runs in both, so the dry run passes: red.
+#   checker runs in both, so the dry run passes: red. The interpreter-as-an-argument and standard-input cases use the
+#   same candidate and are red on main the same way. Over P's own tree the standard-input contract does not exit 0:
+#   section 2's tools/check-fx sources lib.sh beside $0, and $0 is bash when bash reads the script from standard input,
+#   so ./lib.sh is not found and fx_check is not a command (127). The fixture control records that; it does not change
+#   what the case asks, a policy line, and on main the candidate's checker (exit 0) is what runs.
 # - The substitution and path-read cases are controls for false blocks; each candidate only adds NOTES.md, and both pass
 #   on main. The path-read row is show, its contract reading HEAD:tools/check-fx through git show in a quoted substitution.
 # - S1.8's product cases: the product Q at $TS3/prod is main's tools, MARKER, PROBE.txt, .gitignore and gate workflow
@@ -89,6 +93,12 @@ _ts3_check "trust-step3: S2.1 (a wrapper): with P's contract nice tools/check-fx
 _ts3_p2_fx group '{ tools/check-fx; }'
 _ts3_check "trust-step3: S2.1 (a group): with P's contract { tools/check-fx; }, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx" \
   "$(_ts3_refused)|$(_ts3_bl policy - tools/check-fx -)" "refused|yes" "$(_ts3_why)"
+_ts3_p2_fx argint 'f() { "$@"; }; f bash tools/check-fx'
+_ts3_check "trust-step3: S2.1 (an interpreter as an argument): with P's contract defining a function f that runs its arguments and calling f bash tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx" \
+  "$(_ts3_refused)|$(_ts3_bl policy - tools/check-fx -)" "refused|yes" "$(_ts3_why)"
+_ts3_p2_fx stdin 'cat tools/check-fx | bash'
+_ts3_check "trust-step3: S2.1 (an interpreter reading standard input): with P's contract piping tools/check-fx into bash, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx" \
+  "$(_ts3_refused)|$(_ts3_bl policy - tools/check-fx -)" "refused|yes" "$(_ts3_why)"
 
 _ts3_p2_ctl subst 'n="$(git ls-files tools | grep -cE "^(tools/lib.sh|tools/check-fx)$")"; [ "$n" = 2 ]' 'a substitution in quotes'
 _ts3_check "trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run" \
@@ -96,8 +106,8 @@ _ts3_check "trust-step3: S2.1 (the rewrite stops at a substitution in quotes, co
 _ts3_p2_ctl show 'v="$(git show "HEAD:tools/check-fx" | head -1)"; [ -n "$v" ]' 'a path read inside a substitution'
 _ts3_check "trust-step3: S2.1 (a path read inside a substitution, control): with P's contract reading HEAD:tools/check-fx through git show inside a quoted command substitution, an unrelated candidate passes the dry run" \
   "$(_ts3_passed)" "passed" "$(_ts3_why)"
-_ts3_check "trust-step3: S2.1 (fixture control): on each case's own P its contract exits 0 over P's tree as the table holds it; the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted, wrapper and group candidates' tools/check-fx exits 0 with MARKER gone" \
-  "$TS3_FX21" " run:0 opt-parses:no mark:0 mark-reads:gone quoted:0 quoted-row:\"tools/check-fx\" quoted-check:0 no MARKER wrapper:0 wrapper-row:nice tools/check-fx wrapper-check:0 no MARKER group:0 group-row:{ tools/check-fx; } group-check:0 no MARKER subst:0 show:0"
+_ts3_check "trust-step3: S2.1 (fixture control): on each case's own P its contract over P's tree as the table holds it exits 0, the standard-input one 127 (P's checker finds lib.sh from \$0, which is bash there); the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted, wrapper, group, argument and standard-input candidates' tools/check-fx exits 0 with MARKER gone" \
+  "$TS3_FX21" " run:0 opt-parses:no mark:0 mark-reads:gone quoted:0 quoted-row:\"tools/check-fx\" quoted-check:0 no MARKER wrapper:0 wrapper-row:nice tools/check-fx wrapper-check:0 no MARKER group:0 group-row:{ tools/check-fx; } group-check:0 no MARKER argint:0 argint-row:f() { \"\$@\"; }; f bash tools/check-fx argint-check:0 no MARKER stdin:127 stdin-row:cat tools/check-fx | bash stdin-check:0 no MARKER subst:0 show:0"
 TS3_RP=""
 ( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
 _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1

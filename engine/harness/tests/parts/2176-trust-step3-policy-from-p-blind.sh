@@ -28,6 +28,12 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 #   and felix_commission_receipt_write. Where the home's tables are P's this gives the epoch _jr_record's call gives
 #   (measured: the S2 controls pass on main). On main the table-editing cases therefore also print the stale-receipt
 #   lines; escape, probe and obligation lines are printed beside them (measured), so those cases do not rest on this.
+# - S1.7's case is the exception, as the spec and the coordinator ask: its receipts are recorded with the plain
+#   directory $TS3H as the home and its projects/ts3 as the project directory, so on main they are current and the
+#   loosened row is read (the dry run passes). After the change the boundary reads P's tables, against which those
+#   receipts may read stale; so the assertion holds the refusal and the obligations line for fx only, and says nothing
+#   of stale-receipt lines beside it. The plain home is made under $TS3, outside R, and the fixture control asks git
+#   that no repository holds it. The candidate is a worktree of R on a branch that only deletes MARKER; R is on main.
 # - "Refused" is a non-zero exit with `not merging` printed. A blocker line is a line of the output beginning with two
 #   spaces; its kind is its first field. "A KIND line for NAME" is read as NAME being its second field (the shape of
 #   part 1250's `unverified tests`); "naming X" as X appearing anywhere on that line.
@@ -57,7 +63,7 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 # - S4 runs R/engine/harness/felix (the candidate's) with the same environment and the entry in the cache.
 TS3="$TMP/ts3"; rm -rf "${TS3:?}"; mkdir -p "$TS3/repo" "$TS3/gh" "$TS3/home" "$TS3/kc" "$TS3/t" "$TS3/calls"
 TS3="$(cd "${TS3:?}" && pwd -P)"; TS3R="$TS3/repo"; TS3K="$TS3/kc"; TS3P="$TS3/repo/projects/ts3"; TS3W="$TS3/wt"
-TS3_TN=0; TS3T=""; TS3RC=0; TS3_LEFT=""; TS3_RUNS=0; TS3_M=""; TS3_M2=""
+TS3_TN=0; TS3T=""; TS3RC=0; TS3_LEFT=""; TS3_RUNS=0; TS3_M=""; TS3_M2=""; TS3_RH=""; TS3_RP=""; TS3H="$TS3/plainhome"
 TS3_JQ=0; command -v jq >/dev/null 2>&1 && TS3_JQ=1
 mkdir -p "$MEM/ts3"
 
@@ -138,13 +144,15 @@ _ts3_case() {   # BRANCH: a fresh branch off main, checked out in R
   ( _fx_cd "$TS3R" && git checkout -q -f main && git checkout -q -B "$1" main ) >/dev/null 2>&1
 }
 _ts3_record() {   # REPO [REPORTED]: a green gate receipt and a commission receipt for REPO as it stands, home R, both
-                  # read against P's project directory $TS3PP (see the readings above)
-  ( cd "$1" && FELIX_HOME="$TS3R"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/epoch.sh"
-    felix_verify_record "$1" "$TS3R" 0 "true" "$(felix_tree_id "$1" "$TS3R")" "" "${2:-}" "$(felix_epoch "$TS3PP" "$1")" \
-      "$(felix_epoch_components "$TS3PP" "$1" | cut -f2 | paste -sd, -)" ) >/dev/null 2>&1
-  ( cd "$1" && FELIX_HOME="$TS3R"; FELIX_HOME_DIR="$TS3R"; . "$FROOT/harness/lib/commission.sh"
-    _o="$(felix_commission_run "$TS3PP" "$1" -)"
-    felix_commission_receipt_write "$TS3R" "$TS3PP" "$1" "$_o" "" ) >/dev/null 2>&1
+                  # read against P's project directory $TS3PP (see the readings above); TS3_RH and TS3_RP, when set,
+                  # name another home and the project directory read instead (S1.7's case)
+  local h="${TS3_RH:-$TS3R}" p="${TS3_RP:-$TS3PP}"
+  ( cd "$1" && FELIX_HOME="$h"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/epoch.sh"
+    felix_verify_record "$1" "$h" 0 "true" "$(felix_tree_id "$1" "$h")" "" "${2:-}" "$(felix_epoch "$p" "$1")" \
+      "$(felix_epoch_components "$p" "$1" | cut -f2 | paste -sd, -)" ) >/dev/null 2>&1
+  ( cd "$1" && FELIX_HOME="$h"; FELIX_HOME_DIR="$h"; . "$FROOT/harness/lib/commission.sh"
+    _o="$(felix_commission_run "$p" "$1" -)"
+    felix_commission_receipt_write "$h" "$p" "$1" "$_o" "" ) >/dev/null 2>&1
 }
 # _ts3_run LABEL DIR FELIX [REPORTED]: felix merge --dry-run from FELIX in DIR, home R, a fresh TMPDIR, after a fresh
 # receipt; TS3RC, $TS3/out and $TS3/err; what the run left under its TMPDIR goes onto TS3_LEFT.
@@ -154,7 +162,7 @@ _ts3_run() {
   TS3_TN=$((TS3_TN + 1)); mkdir -p "$TS3/t/$TS3_TN"; TS3T="$(cd "$TS3/t/$TS3_TN" && pwd -P)"
   : > "$TS3/fx.log"; : > "$TS3/calls/calls"
   ( cd "$d" && env -u FELIX_KERNEL -u FELIX_MERGE_HANDED HOME="$TS3/home" PATH="$TS3/gh:$PATH" TS3_GHDIR="$TS3/calls" \
-      TS3_FXLOG="$TS3/fx.log" FELIX_HOME="$TS3R" FELIX_KERNEL_CACHE="$TS3K" TMPDIR="$TS3T" GIT_ALLOW_PROTOCOL=file \
+      TS3_FXLOG="$TS3/fx.log" FELIX_HOME="${TS3_RH:-$TS3R}" FELIX_KERNEL_CACHE="$TS3K" TMPDIR="$TS3T" GIT_ALLOW_PROTOCOL=file \
       "$fx" merge --dry-run ) > "$TS3/out" 2> "$TS3/err"; TS3RC=$?
   TS3_RUNS=$((TS3_RUNS + 1))
   if [ -d "$TS3T" ]; then
@@ -309,6 +317,26 @@ _ts3_entry S1-closed
 _ts3_check "trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line" \
   "$(_ts3_refused)|$(_ts3_bl policy - - -)" "refused|yes" "$(_ts3_why)"
 _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
+
+# ------------------------------------------------------------------- S1.7 ---
+( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
+_fx_git "$TS3R" worktree add -q -b ts3-wt2 "$TS3W" main >/dev/null 2>&1
+_fx_git "$TS3W" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3W" wt-no-marker
+mkdir -p "$TS3H/projects"; cp -R "$TS3PP" "$TS3H/projects/ts3"
+LC_ALL=C awk -F'\t' -v OFS='\t' '$1 == "fx" { $5 = "true" } { print }' "$TS3PP/obligations.tsv" > "$TS3H/projects/ts3/obligations.tsv"
+_ts3_v="$(git -C "$TS3H" rev-parse --git-dir >/dev/null 2>&1 && echo 'in a repository' || echo 'no repository')"
+_ts3_v="$_ts3_v|$(LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }' "$TS3PP/obligations.tsv") -> $(LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }' "$TS3H/projects/ts3/obligations.tsv")"
+_ts3_v="$_ts3_v|$(diff -r "$TS3PP" "$TS3H/projects/ts3" 2>&1 | LC_ALL=C awk '/^[<>]/ { n++ } END { print n + 0 }') lines differ"
+_ts3_v="$_ts3_v|$(git -C "$TS3W" diff --name-status main HEAD 2>&1 | tr '\t\n' ' ;')"
+_ts3_check "trust-step3: S1.7 (a home elsewhere) (fixture control): the plain home is in no repository, its project directory differs from P's only in the fx row's evidence contract, now true, and the worktree's branch only deletes MARKER" \
+  "$_ts3_v" "no repository|tools/check-fx -> true|2 lines differ|D MARKER;"
+TS3_RH="$TS3H"; TS3_RP="$TS3H/projects/ts3"
+_ts3_entry S1.7-plain-home "$TS3W"
+TS3_RH=""; TS3_RP=""
+_ts3_check "trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain directory whose fx row's evidence contract is true, a candidate in a worktree of R that deletes MARKER is refused with an obligations line for fx (P's row judged)" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+_fx_git "$TS3R" worktree remove --force "$TS3W" >/dev/null 2>&1; rm -rf "${TS3W:?}"
+( _fx_cd "$TS3R" && git worktree prune && git branch -q -D ts3-wt2 ) >/dev/null 2>&1
 
 # --------------------------------------------------------------------- S3 ---
 _ts3_case ts3-comma

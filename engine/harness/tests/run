@@ -36,7 +36,6 @@ if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HAR
   exit 2
 fi
 # The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
-
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
 FELIX_TEST_RAN=""
@@ -135,6 +134,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/gov-names.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/install-fixture.sh"
+. "$HERE/lib/instrument-parts.sh"
 . "$HERE/lib/inventory-blind-runs.sh"
 . "$HERE/lib/inventory-blind.sh"
 . "$HERE/lib/inventory-gizmo.sh"
@@ -415,6 +415,7 @@ fi
 . "$HERE/parts/2176-trust-step3-policy-from-p-blind.sh"
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
 . "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
+. "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"
@@ -434,7 +435,6 @@ fi
 . "$HERE/parts/2470-situations-review-focus-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
-
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion
 # line (#371). The empty line before it is this suite's own, and the red block's marker assertion pins this printf.
 printf '\nreached\n'

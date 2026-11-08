@@ -35,12 +35,10 @@
 unset _FELIX_BIND_DIR _FELIX_BIND_OWNER _FELIX_BIND_HOME _FELIX_BIND_PACK _FELIX_BIND_M _FELIX_BIND_BLOCK _FELIX_BIND_NOTE _FELIX_BIND_WHY
 unset _FELIX_BIND_PBASE _FELIX_BIND_PHEAD _FELIX_BIND_PSHA _FELIX_BIND_QSHA _FELIX_BIND_HANDED _FELIX_BIND_B
 
-# The process that runs the expansion, which is not $$ in a subshell (bash 3.2 has no BASHPID). An EXIT trap a forked
-# child runs (bash 5.2, a child signalled before it resets its traps) must not remove what its parent still reads.
-# Written out at each use, never as a function called in a substitution: that substitution is a process of its own,
-# and its pid names no shell that owns anything.
-
-# S6.5. The copy and the graft path inside it, removed by the process that made them and by no other.
+# S6.5. The copy and the graft path inside it, removed by the process that made them and by no other. That process
+# is read as BASHPID, or on bash 3.2 as the parent of a sh it execs, never $$, which a subshell shares: an EXIT trap a
+# forked child runs (bash 5.2, a child signalled before it resets its traps) must not remove what its parent still
+# reads. Written out at each use, never as a function called in a substitution, whose pid is a process of its own.
 #
 # What git wrote into the copy while the run read it is moved to the checkout first. Every child writes there (spec
 # S6.4), and a child that commits, stashes or hashes with -w leaves a ref or an index entry naming what it wrote: removed
@@ -68,7 +66,7 @@ _felix_bind_exit() {
 }
 
 # S6.1 and S6.2. Returns 0, or 1 when no directory could be made for the run (the variables are scrubbed either way,
-# and the caller refuses). The list is git 2.56's variables that choose a repository, an object store, an index,
+# and felix_bind_objects then refuses). The list is git 2.56's variables that choose a repository, an object store, an index,
 # replacement, config or a helper program, as read for the spec; one found later is added here.
 felix_bind_env() {
   local v tmpd="${TMPDIR:-/tmp}"

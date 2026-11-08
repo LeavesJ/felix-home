@@ -343,12 +343,13 @@ _tmc_plant() {   # ID: a loose file in the checkout under ID holding a blob of m
 _tmc_count() { LC_ALL=C grep -cxF -- "$2" <<<"$1"; }   # TEXT LINE -> how many lines of TEXT are LINE
 _tmc_probe() (   # BRANCH LINE -> ID|line N: plain git merge-tree of main and BRANCH, writing into a fresh store with the
                  # checkout's objects behind it, as bind's environment has them; the merged notes/f's id, and how often
-                 # LINE is in what git reads for it (git -C, as part 2178 reads under GIT_OBJECT_DIRECTORY:
+                 # LINE is in what git reads for it (in R by _fx_cd, then git, as part 2178 reads under GIT_OBJECT_DIRECTORY:
                  # _fx_git refuses to run with it set)
   rm -rf "$TMC/probe"; mkdir -p "$TMC/probe"
   ( _fx_cd "$TMC/probe" && GIT_CONFIG_GLOBAL=/dev/null git init -q --bare ) >/dev/null 2>&1
+  _fx_cd "$TMCR" || exit 1   # before the store is pointed elsewhere: _fx_cd refuses once it is
   export GIT_OBJECT_DIRECTORY="$TMC/probe/objects" GIT_ALTERNATE_OBJECT_DIRECTORIES="$TMCO"
-  t="$(git -C "$TMCR" merge-tree --write-tree main "$1" 2>/dev/null)"; t="${t%%$'\n'*}"
+  t="$(git merge-tree --write-tree main "$1" 2>/dev/null)"; t="${t%%$'\n'*}"
   b="$(git -C "$TMCR" rev-parse -q --verify "${t:-none}:notes/f" 2>/dev/null)"
   printf '%s|line %s' "${b:-none}" "$(_tmc_count "$(git -C "$TMCR" cat-file blob "${b:-none}" 2>/dev/null)" "$2")"
 )

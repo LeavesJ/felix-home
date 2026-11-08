@@ -189,21 +189,110 @@ felix_policy_close() {
 # under TREE. Quotes are tracked: nothing inside one is a word, and a word that holds one is never
 # replaced. It reads the simple grammar only, and stops at the first construct outside it (spec S2.1,
 # after review round 1): a command substitution, a backquote, a brace (a group, `${`, `-I{}`), `[[`,
-# `case`, an array literal `=(`, a process substitution, a here-document. Nothing from there on is
-# taken from P, so a path inside such a construct stays the candidate's; a guess there read subjects
-# from P (`xargs -I{} grep {} file`, a regex inside "$(...)"). An option right after an interpreter
-# word ends the look for that command: `bash -n x` checks the candidate's x.
+# `case`, an array literal `=(`, a process substitution, a here-document, an option or a redirection
+# right after an interpreter word (`bash -n x`), a wrapper (`xargs`, `env`, ...). Nothing from there on
+# is rewritten: a guess there read subjects from P (`xargs -I{} grep {} file`, a regex inside "$(...)").
+# FAIL CLOSED (spec S2.1, after the security review of round 1). Stopping left the candidate's
+# instrument running under a P command (`bash -e tools/check-fx`, `{ tools/check-fx; }`), so in list
+# mode deep() reads the rest of the command again, from the start of the simple command the stop is
+# in, with the constructs as bash reads them, and prints `?PATH` for each word from the stop on that
+# could still run as an instrument; a quoted or expanded word in command position is printed the same
+# way. felix_policy_instruments refuses the judgement when one names a regular file P holds.
 # Read through ENVIRON, never -v: -v takes no newline in BWK awk and reads a backslash as an escape.
 _felix_p_scan() {   # MODE CMD [WORDS TREE]
   _FPS_M="$1" _FPS_S="$2" _FPS_W="${3:-}" _FPS_T="${4:-}" LC_ALL=C awk '
     function plain(w) { return w !~ /["'"'"'$\\*?[`]/ && w !~ /^[\/~-]/ && w !~ /(^|\/)\.\.(\/|$)/ && w != "" }
     function bare(w) { sub(/^\.\//, "", w); return w }
+    function put(r) { if (!(r in seen)) { seen[r] = 1; print "?" r } }
+    # Each relative path with a / in T, read without its quotes; ALL takes T whole, with or without a /.
+    function sus(t, all,   k, m, a, r) {
+      gsub("[\"\047\\\\]", "", t)
+      if (all) { while (substr(t, 1, 2) == "./") t = substr(t, 3)
+                 if (t != "" && t !~ /^[\/~-]/ && t !~ /[][[:space:]$*?`(){}<>|&;=]/ && t !~ /(^|\/)\.\.(\/|$)/) put(t)
+                 return }
+      m = split(t, a, /[^A-Za-z0-9._\/+@%,-]+/)
+      for (k = 1; k <= m; k++) { r = a[k]; sub(/^-+/, "", r); while (substr(r, 1, 2) == "./") r = substr(r, 3)
+        if (r != "" && substr(r, 1, 1) != "/" && index(r, "/") && r !~ /(^|\/)\.\.(\/|$)/) put(r) }
+    }
+    # One word of command frame F is complete: decide what it is in the grammar deep() reads.
+    function fin(f,   w, st, k) {
+      w = Dw[f]; st = Dws[f]; Dw[f] = ""; Dws[f] = 0
+      if (w == "" || Dx[f] == "A") return
+      if (hd == -1) { hdl = w; hd = 1; return }
+      if (w ~ /^[0-9]*<</ && w !~ /^[0-9]*<<</) { k = w; sub(/^[0-9]*<<-?/, "", k); if (k == "") hd = -1; else { hdl = k; hd = 1 }; return }
+      if (Dcs[f] == 1) { Dcs[f] = 2; return }
+      if (Dcs[f] == 2) { Dcs[f] = (w == "in") ? 3 : 0; return }
+      if (Dcs[f] == 3) { if (w == "esac") { Dcs[f] = 0; Dc[f] = 0 }; return }
+      if (Dbr[f]) { if (w == "]]") Dbr[f] = 0; return }
+      if (Dop[f]) { if (st >= B) { if (Dop[f] == 2 && w !~ /^-/ && w !~ /^[0-9]*[<>]/) { sus(w, 1); Dop[f] = 1 }; sus(w, 0) }
+                    else if (w !~ /^-/) Dop[f] = 1
+                    return }
+      if (Da[f]) { if (w ~ /^[0-9]*[<>]/) return
+                   Da[f] = 0; if (w ~ /^-/) { Dop[f] = 2; return }; if (st >= B) sus(w, 1); return }
+      if (!Dc[f]) return
+      if (Dcs[f] == 4 && w == "esac") { Dcs[f] = 0; Dc[f] = 0; return }
+      if (w ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=/ || (w in reserved) || w == "{" || w == "}") return
+      Dc[f] = 0
+      if (w == "[[") { Dbr[f] = 1; return }
+      if (w == "case") { Dcs[f] = 1; return }
+      if (w in interp) { Da[f] = 1; return }
+      if (w in wrap) { Dop[f] = 1; return }
+      if (st >= B) sus(w, 0)
+    }
+    function push(x, o) { d++; Dx[d] = x; Do[d] = o; Dc[d] = (x == "P" || x == "B"); Da[d] = 0; Dop[d] = 0; Dbr[d] = 0; Dcs[d] = 0; Dw[d] = ""; Dws[d] = 0 }
+    function own(c) { if (Dws[o] == 0) Dws[o] = i; Dw[o] = Dw[o] c }
+    # Read s from A with subshells, substitutions, groups, case and here-documents, and put each word at or
+    # after B that sits where a command, an interpreter'"'"'s script, or a wrapper'"'"'s argument does.
+    function deep(A, b,   c, e, k, ln, z) {
+      B = b; d = 0; hd = 0; push("T", 0); Dc[1] = 1; i = A
+      while (i <= n) {
+        c = substr(s, i, 1)
+        if (Dx[d] == "D") { o = Do[d]
+          if (c == "\\") { own(substr(s, i, 2)); i += 2; continue }
+          if (c == "\"") { own(c); d--; i++; continue }
+          if (c == "$" && substr(s, i + 1, 1) == "(") { own("$()"); push("P", d); i += 2; continue }
+          if (c == "`") { own("``"); push("B", d); i++; continue }
+          own(c); i++; continue }
+        o = d
+        if (c == "\n" && hd == 1) { fin(o); z = hdl; gsub("[\"\047\\\\]", "", z); i++
+          while (i <= n) { e = index(substr(s, i), "\n"); ln = e ? substr(s, i, e - 1) : substr(s, i); i = e ? i + e : n + 1
+                           k = ln; sub(/^\t+/, "", k); if (k == z) break; if (i - length(ln) - 1 >= B) sus(ln, 0) }
+          hd = 0; Dc[o] = 1; Da[o] = 0; Dop[o] = 0; continue }
+        if (c == " " || c == "\t") { fin(o); i++; continue }
+        if (c == "#" && Dw[o] == "") { e = index(substr(s, i), "\n"); i = e ? i + e - 1 : n + 1; continue }
+        if (c == "\047") { e = index(substr(s, i + 1), "\047"); if (!e) e = n - i + 1; own(substr(s, i, e + 1)); i += e + 1; continue }
+        if (c == "\"") { own(c); push("D", o); i++; continue }
+        if (c == "\\") { own(substr(s, i, 2)); i += 2; continue }
+        if (c == "$" && substr(s, i + 1, 1) == "(") { own("$()"); push("P", o); i += 2; continue }
+        if (c == "$" && substr(s, i + 1, 1) == "{") { e = index(substr(s, i), "}"); if (!e) e = n - i + 1; own(substr(s, i, e)); i += e; continue }
+        if (c == "`") { if (Dx[o] == "B") { fin(o); d--; i++; continue }; own("``"); push("B", o); i++; continue }
+        if (c == "(") {
+          if (Dcs[o] == 3) { i++; continue }
+          if (Dw[o] ~ /=$/) { own("()"); push("A", o); i++; continue }
+          if (Dw[o] ~ /[<>]$/) { own("()"); push("P", o); i++; continue }
+          fin(o); push("P", o); i++; continue }
+        if (c == ")") {
+          if (Dcs[o] == 3) { fin(o); Dcs[o] = 4; Dc[o] = 1; i++; continue }
+          if (Dx[o] == "P" || Dx[o] == "A") { fin(o); d--; i++; continue }
+          fin(o); Dc[o] = 0; i++; continue }
+        if (c == ";" || c == "&" || c == "|" || c == "\n") {
+          if (c == "&" && Dw[o] ~ /[<>]$/) { own(c); i++; continue }
+          fin(o)
+          if (Dcs[o] == 3 && c == "|") { i++; continue }
+          if (Dbr[o] && (c == "&" || c == "|")) { i++; continue }
+          if (c == ";" && Dcs[o] == 4 && index(";&", substr(s, i + 1, 1))) { Dcs[o] = 3; i += 2; if (substr(s, i, 1) == "&") i++; continue }
+          Dc[o] = 1; Da[o] = 0; Dop[o] = 0; i++; continue }
+        own(c); i++
+      }
+      while (d > 0) { if (Dx[d] != "D") fin(d); d-- }
+    }
     BEGIN {
       mode = ENVIRON["_FPS_M"]; s = ENVIRON["_FPS_S"]; wl = ENVIRON["_FPS_W"]; tree = ENVIRON["_FPS_T"]
       nw = split(wl, arr, "\n"); for (k = 1; k <= nw; k++) if (arr[k] != "") listed[arr[k]] = 1
       split("then do else elif if while until ! time", rw, " "); for (k in rw) reserved[rw[k]] = 1
       split("bash sh zsh dash ksh python python3 perl ruby node . source exec", iw, " "); for (k in iw) interp[iw[k]] = 1
-      n = length(s); out = ""; i = 1; cmd = 1; after = 0; stop = 0; from = 0
+      split("env xargs timeout nice nohup command builtin sudo stdbuf find", ww, " "); for (k in ww) wrap[ww[k]] = 1
+      n = length(s); out = ""; i = 1; cmd = 1; after = 0; stop = 0; from = 0; cstart = 1
       while (i <= n) {
         c = substr(s, i, 1)
         if (c == " " || c == "\t") { out = out c; i++; continue }
@@ -211,7 +300,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         if (c == "`" || c == "{" || c == "}") { stop = 1; from = i; break }
         if (c == "(" && (p == "=" || p == "<" || p == ">")) { stop = 1; from = i; break }
         if (c == "&" && (p == ">" || p == "<")) { out = out c; i++; continue }
-        if (index(";|&()\n", c)) { out = out c; i++; if (c != ")") { cmd = 1; after = 0 }; continue }
+        if (index(";|&()\n", c)) { out = out c; i++; if (c != ")") { cmd = 1; after = 0; cstart = i }; continue }
         w = ""; q = 0; ws = i
         while (i <= n) {
           c = substr(s, i, 1)
@@ -232,26 +321,29 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
           w = w c; i++
         }
         if (stop) { from = ws; break }
-        if ((cmd && !q && (w == "[[" || w == "case")) || w ~ /^<</) { stop = 1; from = ws; break }
+        if ((cmd && !q && (w == "[[" || w == "case" || (w in wrap))) || w ~ /^<</ || (after && !q && w ~ /^(-|[0-9]*[<>])/)) { stop = 1; from = ws; break }
         r = w
         if (cmd && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
         if (cmd && !q && (w in reserved)) { out = out w; continue }
         if (cmd && !q && (w in interp)) { out = out w; cmd = 0; after = 1; continue }
         hit = (cmd && !q && plain(w) && index(bare(w), "/")) || (after && !q && plain(w))
+        if (!hit && mode == "list" && (cmd || after) && (q || w ~ /[$\\]/)) sus(w, after)
         if (hit && mode == "list") print bare(w)
         if (hit && mode == "rewrite" && (bare(w) in listed)) r = "\047" tree "/" bare(w) "\047"
         out = out r; cmd = 0; after = 0
       }
       if (stop) out = out substr(s, from)
+      if (stop && mode == "list") deep(cstart, from)
       if (mode == "rewrite") printf "%s", out
     }'
 }
 
 # The instruments P's commands name: every such word P holds as a regular file in ROOT's repository at
 # BASE, with its top-level directory (or itself, at the top) copied into the snapshot's tree. Sets
-# _FELIX_P_TREE and _FELIX_P_WORDS. Returns 0, or prints one policy blocker line and returns 1.
+# _FELIX_P_TREE and _FELIX_P_WORDS. Returns 0, or prints one policy blocker line and returns 1, which
+# it also does for a `?PATH` the scan could not place that names a regular file P holds (fail closed).
 felix_policy_instruments() {   # ROOT BASE
-  local root="$1" base="$2" sha cmds w words="" tops="" t mode tmpd nl='
+  local root="$1" base="$2" sha cmds w u words="" tops="" t mode tmpd nl='
 '
   [ -n "${_FELIX_POL_DIR:-}" ] || return 0
   sha="$(git -C "$root" rev-parse --verify --quiet "$base^{commit}" 2>/dev/null </dev/null)" || sha=""
@@ -264,8 +356,13 @@ felix_policy_instruments() {   # ROOT BASE
     while IFS= read -r w; do
       [ -n "$w" ] || continue
       case "$nl$words$nl" in *"$nl$w$nl"*) continue ;; esac
-      mode="$(git -C "$root" ls-tree "$sha" -- "$w" 2>/dev/null </dev/null | LC_ALL=C awk -F'\t' -v p="$w" '$2 == p { split($1, m, " "); print m[1] " " m[2]; exit }')"
+      u="${w#\?}"
+      mode="$(git -C "$root" ls-tree "$sha" -- "$u" 2>/dev/null </dev/null | LC_ALL=C awk -F'\t' -v p="$u" '$2 == p { split($1, m, " "); print m[1] " " m[2]; exit }')"
       case "$mode" in "100644 blob"|"100755 blob") ;; *) continue ;; esac
+      if [ "$u" != "$w" ]; then
+        printf 'policy\tengine\ta command in the tables %s holds names %s where P'"'"'s copy cannot be put in its place, so the candidate'"'"'s own file would run as the instrument; write that command so %s is in command position and outside a substitution, group, case, wrapper or interpreter option (spec S2.1)\n' "$base" "$u" "$u"
+        return 1
+      fi
       words="${words:+$words$nl}$w"
       case "$w" in */*) t="${w%%/*}" ;; *) t="$w" ;; esac
       case "$nl$tops$nl" in *"$nl$t$nl"*) ;; *) tops="${tops:+$tops$nl}$t" ;; esac

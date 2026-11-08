@@ -2,7 +2,7 @@
 
 2026-11-08. Design step 3 (`docs/2026-11-07-trust-plane-design.md` §4.1, §9) asks for every input the authority reads, where it is read from, whether the judged branch can change it, and where it moves. This is that inventory, for the authority as it stands today: `felix merge` and the land tick.
 
-**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the first engine slice that moves inputs to P (0.49.332, this branch). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
+**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the first engine slice that moves inputs to P (0.49.332, this branch, including spec rule S1.7). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
 
 **This list is open.** It holds what two methods found (below). The design's own words apply: "any other input the authority turns out to read. This list is enumerated from what the authority actually reads, not written down in advance". An input found later moves to P when it is found (design §11). The row numbers are labels, not a count of the space.
 
@@ -33,12 +33,12 @@ Key to the columns:
 | A3 | The version that names the judge | `BASE:engine/.claude-plugin/plugin.json` | No | Through A6 and A7 | P | Already P |
 | A4 | The code that checks the judge | `BASE:engine/harness/lib/resolve.sh` | No | Through A6 and A7 | P | Already P |
 | A5 | Environment that chooses or loosens a judge (`FELIX_KERNEL`, `FELIX_MERGE_HANDED`, the cache variables, `TMPDIR`, `PATH`) | The caller's environment | No | Yes, for its own run of felix merge. The lander takes three of them out and runs under launchd's `PATH` | The authority's own environment | Unchanged (refusals and the byte check stand); residual R1 |
-| A6 | The base the merge judges against, which names P | `--base`, or `main` resolved to `refs/remotes/origin/main` | No | **Yes:** a worker-run felix merge can name a ref the worker controls, and P is then the worker's | The PR's base on the provider | Unchanged; residual R2 |
-| A7 | `refs/remotes/origin/main` itself | The local ref. The lander fetches at the start of each tick, and felix merge does not fetch | No | Yes (`git update-ref`) | The provider's ref, read by the authority's identity | Unchanged; residual R2 |
+| A6 | The base the merge judges against, which names P | `--base`, or `main` resolved to `refs/remotes/origin/main` | No | **Yes:** a worker-run felix merge can name a ref the worker controls, and P is then the worker's | The PR's base on the provider | Not moved. Since slice 1 it also names P's tables and instruments, so this is now the route a receipt forger takes (measurement OB1); residual R2 |
+| A7 | `refs/remotes/origin/main` itself | The local ref. The lander fetches at the start of each tick, and felix merge does not fetch | No | Yes (`git update-ref`) | The provider's ref, read by the authority's identity | Not moved, and since slice 1 it names P's tables too (measurement OB2); residual R2 |
 
 ### B. Policy tables
 
-These are the files under `projects/<name>/`. Before slice 1, all of them were read from the project directory as the home's working tree holds it. The judged branch could change them when the home is the candidate's own checkout: a branch checked out in the home, a worker that points `FELIX_HOME` at its checkout, or CI, where the home is the checkout under test. A worker could change them by editing the home's working tree.
+These are the files under `projects/<name>/`. Before slice 1, all of them were read from the project directory as the home's working tree holds it. The judged branch could change them when the home is the candidate's own checkout: a branch checked out in the home, a worker that points `FELIX_HOME` at its checkout, or CI, where the home is the checkout under test. A worker could change them by editing the home's working tree, or by pointing `FELIX_HOME` at a plain directory of its own.
 
 | # | Input | Read by | Moves to | After slice 1 |
 |---|---|---|---|---|
@@ -64,7 +64,7 @@ Tables the merge does not read at all (`qualification.tsv`, `deny.tsv` beyond th
 | C2 | An obligation's evidence contract (felix-home: `engine/harness/bin/lifecycle-check`, RELEASE_BLOCKING, run at every merge) | the same | **Yes:** a branch could make its own checker exit 0 | the same | **Moved** (S2) |
 | C3 | A probe's `when`, command and witness (felix-home: `engine/harness/bin/hooks-events`) | the same | **Yes** | the same | **Moved** (S2) |
 | C4 | The closure of those scripts: what they source beside themselves (`lib/coverage.sh`, `lib/resolve.sh`) | the candidate's copy, beside the candidate's script | **Yes:** the checker unchanged and its library rewritten | P | **Moved** (S2.3: P's whole top-level directory) |
-| C5 | What a P script reads by a path relative to the working directory; a mixed file (`make`, `npm test`); a word inside quotes or after `$` | the candidate's checkout | Yes, where such a script or word exists (none in felix-home's tables today) | P, through the partition (spec E5) and the gateway (E4) | Residual R5 |
+| C5 | What a P script reads by a path relative to the working directory; a mixed file (`make`, `npm test`); a word inside quotes or after `$` | the candidate's checkout | Yes, where such a script or word exists. felix-home's tables hold one: `lifecycle_wired` hands its checker `engine/harness/templates` by path, so the stance table `lifecycle.tsv` it judges hooks against is the candidate's (a `yellow` path). Removing a hook binding itself escapes through the `red` rows on `engine/hooks/` and `engine/harness/hooks/` | P, through the partition (spec E5) and the gateway (E4) | Residual R5 |
 | C6 | `bin/secret-scan`, the `disclose` channel's scanner | the judge's own copy (P) | No | P | Already P |
 
 ### D. Evidence the merge accepts
@@ -92,7 +92,7 @@ These are rightly the candidate's:
 | F2 | The direction-document check (`projects/*/claude.md`, `docs/*roadmap*`) | the PR's files from git and gh | It does not match `docs/direction.md` (direction, header: held only once A32, draft #452, lands) | Unchanged; open, owned by #452 |
 | F3 | The CI gate run | `_felix_merge_gate_held` with the home's `project.json` | As D3 | Unchanged |
 | F4 | The checkout the tick merges from | `git worktree list` of the home: the worktree on the PR's branch at the gated head | Yes: the worker chooses it, and it is the subject | Unchanged (it is the subject) |
-| F5 | Which home the tick governs | `felix_home`: `FELIX_HOME`, which the launchd job does not set, then the `~/.felix-home` pointer. The job's `FELIX_HOME_DIR` is overwritten at startup (`felix:386`) | Yes: the pointer is a file the user owns | Tables now come from P in the merged repository whatever the home is (S1). Receipts follow the home; residual R4 |
+| F5 | Which home the tick governs | `felix_home`: `FELIX_HOME`, which the launchd job does not set, then the `~/.felix-home` pointer. The job's `FELIX_HOME_DIR` is overwritten at startup (`felix:386`) | Yes: the pointer is a file the user owns | For Felix's own repository the tables come from BASE whatever directory the home names (S1.1, S1.7). For a product governed from a home, a home that no repository holds still supplies the tables (spec §3). Receipts follow the home; residual R4 |
 | F6 | Deploy state: origin/main's version, the cache entry, the home's HEAD | git and the cache | Through A7 and the cache | Unchanged |
 | F7 | Its own ledger, pause, lock and heartbeat | the memory root | Yes | Operational; not part of a verdict |
 
@@ -108,7 +108,7 @@ These are rightly the candidate's:
 R1 to R6 are this inventory's labels for what slice 1 leaves open. They are measured in `docs/2026-11-08-trust-step3-measurement.md`.
 
 - **R1:** the authority runs as the worker's user, on the worker's machine, and the worker's tokens can push to main. Closing it needs the hosted authority with its own identity, and a repository where worker tokens are kept off main (direction row 43).
-- **R2:** the authority's idea of P is a local ref and an argument.
+- **R2:** the authority's idea of P is a local ref and an argument. Since slice 1 that ref names the tables and instruments as well as the judge, so R2 is now the one-command route around the moved inputs for anyone who also forges receipts (R4).
 - **R3:** the suite that judges Felix's engine is the candidate's.
 - **R4:** the receipts and verdict files that the merge accepts are files the worker can write. This covers the gate, review and commission receipts, and the home pointer they follow.
 - **R5:** the instrument partition and the I/O gateway are not built.

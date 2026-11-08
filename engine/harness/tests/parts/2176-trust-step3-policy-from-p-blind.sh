@@ -4,7 +4,9 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 # before the change. Not read: engine/harness/felix, lib/*.sh, hooks, bin, projects/*/gate.sh, any lib/policy.sh. How to
 # drive felix merge was learned from tests/lib/judge-refs.sh and parts 0340, 0360, 1400 and 1870; rule C9's gh stub is
 # part 1250's, answering `pr view` as _js_build's does. Every fixture is this part's own, under $TS3, and its memory
-# $MEM/ts3 is removed at its end; it adds nothing under $FROOT/projects.
+# $MEM/ts3 and $MEM/ts32 are removed at its end; it adds nothing under $FROOT/projects. The cases from the spec's
+# amendments (S1.7 added; S1.7 amended, S1.8-S1.10 and S2.1 amended after review round 1) were added blind the same way,
+# from the amended spec alone.
 #
 # R is built as section 2 says, the project ts3: _js_build's shape (the harness under test as engine/, a manifest at
 # 1.0.0, a github.com origin, refs/remotes/origin/main at main), and on main projects/ts3/ (project.json ending with
@@ -34,6 +36,24 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 #   receipts may read stale; so the assertion holds the refusal and the obligations line for fx only, and says nothing
 #   of stale-receipt lines beside it. The plain home is made under $TS3, outside R, and the fixture control asks git
 #   that no repository holds it. The candidate is a worktree of R on a branch that only deletes MARKER; R is on main.
+#   The round-1 cases S1.8, S1.7 (the name BASE gives) and S1.9 record theirs the same way, with the home and its
+#   project directory as they stand (the link; the plain home's projects/ts32; R's working tree one commit behind), as
+#   the spec says, and hold only the line each asserts. S1.10 and S2.1 read P's tables, so they keep the first reading.
+# - S1.8's link points at $TS3/moved-ts3x, outside R; the directory is moved out of R, loosened there, and put back
+#   after with git checkout. S1.7's name case uses the project name ts32 and a second plain home; its refusal is held
+#   to either line the spec offers (obligations for fx, or an escape line naming .felix). S1.9's P is a commit M3 off
+#   main adding one yellow risk.tsv row, with origin/main moved to it and R's main left at M; the candidate is a
+#   worktree branch off M3 adding NOTES.md; the control fast-forwards R's main to M3 and records again. Both are put
+#   back after (main reset to M, origin/main to M).
+# - S1.10 calls felix_merge_blockers loaded as part 1250's _gfcBlk loads it, plus lib/policy.sh when the entry has one
+#   (sourcing it is not reading it), over R with MARKER deleted, home R. The spec's example base is the empty string,
+#   and on main 2026-11-07 an empty base printed no unknown row (measured), while a base naming nothing printed
+#   `unknown <base> this base names nothing here` (measured). S1.10 says the base is judged as it was before, so the
+#   empty-base assertion is written as section 2 states it (red on main) and a control holds the named-nothing base.
+# - S2.1's cases share a P of their own: commit M4 off main adding tools/run.sh, tools/marker.txt and the three
+#   obligations run, mark and subst whose contracts the spec gives, with origin/main moved to M4 and the receipts read
+#   against an archive of M4's projects/ts3. On main each already holds (the candidate's files are read there), so the
+#   option and placeholder cases are named guards and the substitution case a control; they are not red-first.
 # - "Refused" is a non-zero exit with `not merging` printed. A blocker line is a line of the output beginning with two
 #   spaces; its kind is its first field. "A KIND line for NAME" is read as NAME being its second field (the shape of
 #   part 1250's `unverified tests`); "naming X" as X appearing anywhere on that line.
@@ -338,6 +358,131 @@ _ts3_check "trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain direct
 _fx_git "$TS3R" worktree remove --force "$TS3W" >/dev/null 2>&1; rm -rf "${TS3W:?}"
 ( _fx_cd "$TS3R" && git worktree prune && git branch -q -D ts3-wt2 ) >/dev/null 2>&1
 
+# ------------------------------------------------------ review round 1 cases ---
+_ts3_wt() {   # BRANCH FROM: a worktree of R at $TS3W on a new branch BRANCH off FROM, R itself back on main
+  ( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
+  _fx_git "$TS3R" worktree add -q -b "$1" "$TS3W" "$2" >/dev/null 2>&1
+}
+_ts3_wt_done() {   # BRANCH: that worktree and its branch removed
+  _fx_git "$TS3R" worktree remove --force "$TS3W" >/dev/null 2>&1; rm -rf "${TS3W:?}"
+  ( _fx_cd "$TS3R" && git worktree prune && git branch -q -D "$1" ) >/dev/null 2>&1
+}
+_ts3_loosen() {   # DIR: the fx row's evidence contract in DIR/obligations.tsv becomes true
+  LC_ALL=C awk -F'\t' -v OFS='\t' '$1 == "fx" { $5 = "true" } { print }' "$1/obligations.tsv" > "$TS3/ob.tmp" && cat "$TS3/ob.tmp" > "$1/obligations.tsv"
+}
+_ts3_ndiff() { diff -r "$1" "$2" 2>&1 | LC_ALL=C awk '/^[<>]/ { n++ } END { print n + 0 }'; }   # DIR DIR -> lines that differ
+_ts3_ns() { git -C "$1" diff --name-status "$2" HEAD 2>&1 | tr '\t\n' ' ;'; }                   # REPO BASE -> what the branch changes
+
+# S1.8: R/projects/ts3 a link, uncommitted, to a loosened copy under another name outside R.
+_ts3_wt ts3-wt-link main; _fx_git "$TS3W" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3W" wt-link
+mv "$TS3P" "$TS3/moved-ts3x"; _ts3_loosen "$TS3/moved-ts3x"; ln -s "$TS3/moved-ts3x" "$TS3P"
+_ts3_check "trust-step3: S1.8 (a linked project directory) (fixture control): R is on main, R/projects/ts3 is an uncommitted link to a directory outside R under another name that differs from P's only in the fx row's evidence contract, now true, and the worktree's branch only deletes MARKER" \
+  "$(git -C "$TS3R" rev-parse --abbrev-ref HEAD 2>&1)|$([ -L "$TS3P" ] && echo link)|$(readlink "$TS3P" 2>&1)|$(_ts3_ndiff "$TS3PP" "$TS3/moved-ts3x") lines differ|$(_ts3_ns "$TS3W" main)" \
+  "main|link|$TS3/moved-ts3x|2 lines differ|D MARKER;"
+TS3_RP="$TS3P"; _ts3_entry S1.8-linked "$TS3W"; TS3_RP=""
+_ts3_check "trust-step3: S1.8 (a linked project directory): the candidate in a worktree of R deletes MARKER while the home's projects/ts3 is a link to a loosened copy, and is refused with an obligations line for fx" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+rm -f "$TS3P"; rm -rf "${TS3:?}/moved-ts3x"; ( _fx_cd "$TS3R" && git checkout -q -- projects/ts3 ) >/dev/null 2>&1
+_ts3_wt_done ts3-wt-link
+
+# S1.7, the name BASE gives: the candidate's .felix names ts32, which a plain home holds loosened.
+TS3H2="$TS3/plainhome2"; mkdir -p "$TS3H2/projects" "$MEM/ts32"; cp -R "$TS3PP" "$TS3H2/projects/ts32"; _ts3_loosen "$TS3H2/projects/ts32"
+LC_ALL=C awk -F'\t' '!($5 == "verifier" && index($3, "felix$"))' "$TS3PP/risk.tsv" > "$TS3H2/projects/ts32/risk.tsv"
+_ts3_wt ts3-wt-name main; printf 'ts32\n' > "$TS3W/.felix"; _fx_git "$TS3W" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3W" wt-name
+_ts3_check "trust-step3: S1.7 (the name BASE gives) (fixture control): the plain home is in no repository, its projects/ts32 is P's tables with the fx row's evidence contract true and no .felix row in risk.tsv, and the worktree's branch names ts32 in .felix and deletes MARKER" \
+  "$(git -C "$TS3H2" rev-parse --git-dir >/dev/null 2>&1 && echo 'in a repository' || echo 'no repository')|$(LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }' "$TS3H2/projects/ts32/obligations.tsv")|.felix rows $(LC_ALL=C awk -F'\t' 'index($3, "felix$") { n++ } END { print n + 0 }' "$TS3PP/risk.tsv") -> $(LC_ALL=C awk -F'\t' 'index($3, "felix$") { n++ } END { print n + 0 }' "$TS3H2/projects/ts32/risk.tsv")|$(_ts3_ndiff "$TS3PP" "$TS3H2/projects/ts32") lines differ|$(_ts3_ns "$TS3W" main)|$(cat "$TS3W/.felix")" \
+  "no repository|true|.felix rows 1 -> 0|3 lines differ|M .felix;D MARKER;|ts32"
+TS3_RH="$TS3H2"; TS3_RP="$TS3H2/projects/ts32"; _ts3_entry S1.7-name "$TS3W"; TS3_RH=""; TS3_RP=""
+_ts3_check "trust-step3: S1.7 (the name BASE gives): a candidate whose .felix names ts32, held loosened by a plain home, and which deletes MARKER, is refused by P's projects/ts3: an obligations line for fx or an escape line naming .felix" \
+  "$(_ts3_refused)|$(if [ "$(_ts3_bl obligations fx - -)" = yes ] || [ "$(_ts3_bl escape - .felix -)" = yes ]; then echo yes; else echo no; fi)" "refused|yes" "$(_ts3_why)"
+_ts3_wt_done ts3-wt-name
+
+# S1.9: origin/main holds one more risk.tsv row than the home, which stands at the commit before it.
+( _fx_cd "$TS3R" && git checkout -q -f -B ts3-p3 main ) >/dev/null 2>&1
+printf 'yellow\tpath\t^extra/\ta row P holds and the home does not yet\n' >> "$TS3P/risk.tsv"; _ts3_commit "$TS3R" p3; TS3_M3="$(_jr_sha "$TS3R" HEAD)"
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M3" >/dev/null 2>&1
+_ts3_wt ts3-wt-behind "$TS3_M3"; printf 'notes the candidate adds\n' > "$TS3W/NOTES.md"; _ts3_commit "$TS3W" wt-behind
+_ts3_check "trust-step3: S1.9 (a home behind BASE) (fixture control): origin/main's risk.tsv has one row more than the home's working tree, the home's HEAD is the commit before origin/main, and the worktree's branch only adds NOTES.md" \
+  "rows +$(( $(git -C "$TS3R" show refs/remotes/origin/main:projects/ts3/risk.tsv 2>/dev/null | LC_ALL=C awk 'END { print NR }') - $(LC_ALL=C awk 'END { print NR }' "$TS3P/risk.tsv") ))|$([ "$(_jr_sha "$TS3R" HEAD)" = "$(_jr_sha "$TS3R" refs/remotes/origin/main~1)" ] && echo behind by one)|$(_ts3_ns "$TS3W" refs/remotes/origin/main)" \
+  "rows +1|behind by one|A NOTES.md;"
+TS3_RP="$TS3P"; _ts3_entry S1.9-behind "$TS3W"
+_ts3_check "trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home" \
+  "$(_ts3_refused)|$(_ts3_bl unverified home - -)" "refused|yes" "$(_ts3_why)"
+( _fx_cd "$TS3R" && git merge -q --ff-only "$TS3_M3" ) >/dev/null 2>&1
+_ts3_entry S1.9-brought "$TS3W"; TS3_RP=""
+_ts3_check "trust-step3: S1.9 (a home behind BASE, control): with the home brought to origin/main and the receipts recorded again, the same candidate passes the dry run" \
+  "$(_jr_sha "$TS3R" HEAD | cut -c1-12)|$(_ts3_passed)" "$(printf '%s' "$TS3_M3" | cut -c1-12)|passed" "$(_ts3_why)"
+_ts3_wt_done ts3-wt-behind
+( _fx_cd "$TS3R" && git reset -q --hard "$TS3_M" && git branch -q -D ts3-p3 ) >/dev/null 2>&1
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
+
+# S1.10: felix_merge_blockers called directly, loaded as part 1250's _gfcBlk loads it (and lib/policy.sh when the
+# entry has one), over a candidate whose fx obligation fails, with an empty base and, as a control, with BASE.
+_ts3_case ts3-nobase; _fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" no-base
+_ts3_blk() {   # BASE -> felix_merge_blockers' rows for the candidate in R, home R, in a fresh TMPDIR (left onto TS3_LEFT)
+  local left
+  TS3_TN=$((TS3_TN + 1)); mkdir -p "$TS3/t/$TS3_TN"; TS3T="$(cd "$TS3/t/$TS3_TN" && pwd -P)"
+  ( cd "$TS3R" && FELIX_HOME="$TS3R" TMPDIR="$TS3T" GIT_ALLOW_PROTOCOL=file PATH="$TS3/gh:$PATH" TS3_GHDIR="$TS3/calls" bash -c '
+      set -uo pipefail
+      k="$1"
+      for f in resolve verify review classify evidence escape; do . "$k/lib/$f.sh" 2>/dev/null || exit 3; done
+      if [ -f "$k/lib/policy.sh" ]; then . "$k/lib/policy.sh" 2>/dev/null || exit 3; fi
+      felix_merge_blockers "$2" "$3" "$4" "$5"
+    ' _ "$TS3K/1.0.0/harness" "$TS3P" "$1" "$TS3R" "$TS3R" ) 2>/dev/null
+  left="$(find "$TS3T" -name 'felix-policy.*' -print 2>/dev/null | tr '\n' ' ')"
+  [ -z "$left" ] || TS3_LEFT="${TS3_LEFT}S1.10 [$1] left [$left]; "
+  return 0
+}
+_ts3_rows() { LC_ALL=C awk -F'\t' -v a="$2" -v b="$3" '($1 == a || a == "-") && ($2 == b || b == "-") { n++ } END { print n + 0 }' <<< "$1"; }
+_ts3_record "$TS3R"; TS3_B="$(_ts3_blk refs/remotes/origin/main)"
+_ts3_check "trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate" \
+  "$(_ts3_rows "$TS3_B" obligations fx)" "1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
+TS3_B="$(_ts3_blk "")"
+_ts3_check "trust-step3: S1.10 (no base): felix_merge_blockers called with an empty base prints an unknown row and the obligations row for fx" \
+  "unknown $([ "$(_ts3_rows "$TS3_B" unknown -)$(_ts3_rows "$TS3_B" - unknown)" != 00 ] && echo yes || echo no)|obligations $(_ts3_rows "$TS3_B" obligations fx)" \
+  "unknown yes|obligations 1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
+TS3_B="$(_ts3_blk refs/heads/ts3-names-nothing)"
+_ts3_check "trust-step3: S1.10 (a base that names no commit, control): felix_merge_blockers called with refs/heads/ts3-names-nothing prints an unknown row and the obligations row for fx" \
+  "unknown $([ "$(_ts3_rows "$TS3_B" unknown -)$(_ts3_rows "$TS3_B" - unknown)" != 00 ] && echo yes || echo no)|obligations $(_ts3_rows "$TS3_B" obligations fx)" \
+  "unknown yes|obligations 1" "rows: $(printf '%s' "$TS3_B" | tr '\t\n' '| ')"
+
+# S2.1: on M4, main plus three obligations whose evidence contracts the amended S2.1 names, and the files they read.
+( _fx_cd "$TS3R" && git checkout -q -f -B ts3-p4 main ) >/dev/null 2>&1
+printf '#!/usr/bin/env bash\nprintf '"'"'run\\n'"'"'\n' > "$TS3R/tools/run.sh"; printf 'present\n' > "$TS3R/tools/marker.txt"
+{ printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' run RELEASE_BLOCKING deterministic - 'bash -n tools/run.sh' - 'an option after an interpreter'
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' mark RELEASE_BLOCKING deterministic - "printf '%s\\n' present | xargs -I{} grep -qxF {} tools/marker.txt" - 'a placeholder'
+  printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' subst RELEASE_BLOCKING deterministic - 'n="$(git ls-files tools | grep -cE "^(tools/lib.sh|tools/check-fx)$")"; [ "$n" = 2 ]' - 'a substitution in quotes'
+} >> "$TS3P/obligations.tsv"
+_ts3_commit "$TS3R" p4; TS3_M4="$(_jr_sha "$TS3R" HEAD)"; _fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M4" >/dev/null 2>&1
+mkdir -p "$TS3/p4"; _fx_git "$TS3R" archive -o "$TS3/p4.tar" "$TS3_M4" projects/ts3 >/dev/null 2>&1 && tar -x -C "$TS3/p4" -f "$TS3/p4.tar"; rm -f "$TS3/p4.tar"
+_ts3_at() { ( _fx_cd "$TS3R" && git checkout -q -f -B "$1" "$TS3_M4" ) >/dev/null 2>&1; }   # BRANCH: a new branch off M4, in R
+_ts3_co() { ( _fx_cd "$TS3R" && git checkout -q -f "$1" ) >/dev/null 2>&1; }                 # BRANCH: that branch again, in R
+_ts3_at ts3-opt; printf 'if then\n' > "$TS3R/tools/run.sh"; _ts3_commit "$TS3R" opt
+_ts3_at ts3-mark; printf 'gone\n' > "$TS3R/tools/marker.txt"; _ts3_commit "$TS3R" mark
+_ts3_at ts3-subst; printf 'notes the candidate adds\n' > "$TS3R/NOTES.md"; _ts3_commit "$TS3R" subst
+_ts3_v=""
+for _ts3_o in run mark subst; do
+  _ts3_c="$(LC_ALL=C awk -F'\t' -v o="$_ts3_o" '$1 == o { print $5 }' "$TS3P/obligations.tsv")"
+  _ts3_v="$_ts3_v $_ts3_o:$( cd "$TS3R" && bash -c "$_ts3_c" >/dev/null 2>&1; printf '%s' "$?")"
+done
+git -C "$TS3R" show ts3-opt:tools/run.sh > "$TS3/opt-run.sh" 2>/dev/null
+_ts3_v="$_ts3_v|opt's run.sh parses: $(bash -n "$TS3/opt-run.sh" >/dev/null 2>&1 && echo yes || echo no)|mark's marker: $(git -C "$TS3R" show ts3-mark:tools/marker.txt 2>&1)"
+_ts3_check "trust-step3: S2.1 (fixture control): over P's tree (the unrelated candidate) the run, mark and subst contracts each exit 0 as the table holds them, the option candidate's tools/run.sh does not parse, and the placeholder candidate's tools/marker.txt reads gone" \
+  "$_ts3_v" " run:0 mark:0 subst:0|opt's run.sh parses: no|mark's marker: gone"
+TS3_RP="$TS3/p4/projects/ts3"
+_ts3_co ts3-opt; _ts3_entry S2.1-option
+_ts3_check "trust-step3: S2.1 (an option after an interpreter, guard): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with an obligations line for run" \
+  "$(_ts3_refused)|$(_ts3_bl obligations run - -)" "refused|yes" "$(_ts3_why)"
+_ts3_co ts3-mark; _ts3_entry S2.1-placeholder
+_ts3_check "trust-step3: S2.1 (the rewrite stops at a placeholder, guard): with P's contract piping into xargs -I{} grep, a candidate whose tools/marker.txt reads gone is refused with an obligations line for mark" \
+  "$(_ts3_refused)|$(_ts3_bl obligations mark - -)" "refused|yes" "$(_ts3_why)"
+_ts3_co ts3-subst; _ts3_entry S2.1-substitution
+_ts3_check "trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run" \
+  "$(_ts3_passed)" "passed" "$(_ts3_why)"
+TS3_RP=""
+( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
+
 # --------------------------------------------------------------------- S3 ---
 _ts3_case ts3-comma
 LC_ALL=C awk -F'\t' '!d && $1 == "green" { print $0 ","; d = 1; next } { print }' "$TS3P/risk.tsv" > "$TS3/risk.tmp" && cat "$TS3/risk.tmp" > "$TS3P/risk.tsv"
@@ -381,5 +526,5 @@ _ts3_check "trust-step3: S1.5: no felix-policy.* entry remains under any run's T
   "runs $TS3_RUNS|copy seen $TS3_PCOPY|left [$TS3_LEFT]" "runs $TS3_RUNS|copy seen yes|left []"
 
 ( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
-rm -rf "$MEM/ts3" "${TS3:?}"
+rm -rf "$MEM/ts3" "$MEM/ts32" "${TS3:?}"
 # <<< trust-step3-policy-from-p

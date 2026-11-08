@@ -1396,6 +1396,15 @@ felix_self_governed() {
   git -C "$root" ls-files --error-unmatch engine/.claude-plugin/plugin.json >/dev/null 2>&1
 }
 
+# The same question asked of the base (trust-plane step 3, spec S4). felix merge asks both: the tree
+# alone let a branch that deletes the manifest stop being the engine's own repository, and so be
+# judged by the felix it carries rather than by the engine main declares.
+felix_self_governed_at() {   # ROOT REF
+  local root="${1:-}" ref="${2:-}"
+  [ -n "$root" ] && [ -n "$ref" ] || return 1
+  [ "$(git -C "$root" cat-file -t "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null </dev/null)" = blob ]
+}
+
 # The version a manifest declares, at a ref or in the working tree.
 _felix_plugin_version() {
   local root="$1" ref="${2:-}"

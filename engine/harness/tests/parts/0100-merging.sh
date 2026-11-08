@@ -264,12 +264,16 @@ is "the widget's risk table is exactly as this section found it, and it has no g
 # for the kind and not on whether this fixture can be made to raise it. The
 # kinds are read out of escape.sh first: cmd_merge files anything it does not
 # name under work Felix owes, so a kind or a commission subject added there
-# without a place here would land in that paragraph unannounced.
-_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+# without a place here would land in that paragraph unannounced. The boundary is
+# felix_merge_blockers, the body it calls once P is read, and the policy blockers
+# lib/policy.sh prints for it (trust-plane step 3).
+_mbody() { sed -n '/^felix_merge_blockers()/,/^}/p; /^_felix_merge_blockers_at()/,/^}/p' "$FROOT/harness/lib/escape.sh"
+           grep "printf 'policy" "$FROOT/harness/lib/policy.sh"; }
+_mkinds="$(_mbody \
              | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
-   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
-_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+   "$_mkinds" "commission escape evidence obligations policy probes unknown unverified "
+_mcsubj="$(_mbody \
              | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
 
@@ -299,6 +303,10 @@ _mlacks "and is not called work Felix owes"                        "$out" "work 
 out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
 has "an unknown base still says nothing was compared"             "$out" "Nothing was compared"
 _mlacks "and names no commission run"                              "$out" "The commission is not"
+out="$(_mclose 'policy\ttable\tprojects/widget is not at refs/remotes/origin/main, so no authorized policy judges this\n')"
+has "a policy blocker says no authorized policy judged the branch" "$out" "No authorized version of this project"
+_mlacks "and the policy blocker is not called work Felix owes"     "$out" "work Felix owes"
+_mlacks "and the policy blocker names no commission run"            "$out" "The commission is not"
 out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
 has "an escape beside a stale receipt is still the founder's decision" "$out" "it is the founder who decides"
 is  "and the commission run is named with it, so one visit clears both" \
@@ -439,3 +447,38 @@ after="$(grep -c '	escalated	' "$MEM/widget/says.log" 2>/dev/null || echo 0)"
 is "an unverified tree is Felix's work, not an interruption" "$after" "$before"
 _reset
 
+
+# The instrument scan (lib/policy.sh, spec S2.1, trust-plane step 3) over a table of commands: what
+# it lists (a ?word is one the rewrite could not place, and refuses when P holds it) and the command
+# it rewrites. Not blind: the blind cases are parts 2176-2177. It is here so CI's awk runs it too.
+_sw=$'tools/check-fx\ntools/run.sh\ntools/marker.txt\nengine/harness/bin/x'
+_sc=( 'engine/harness/bin/x engine/harness/templates engine/hooks/hooks.json' 'bash tools/run.sh' '. tools/run.sh; f'
+      'if tools/check-fx; then tools/run.sh; fi' 'X="a b" tools/check-fx' '( cd sub && tools/check-fx )'
+      'tools/check-fx && case "$f" in a|tools/run.sh) exit 0;; esac' $'tools/check-fx <<E\ntools/run.sh\nE'
+      'bash -n tools/run.sh' 'bash -e run.sh' '"tools/check-fx"' 'tools/check\-fx' '{ tools/check-fx; }'
+      'diff <(tools/check-fx) x' 'x=$(tools/check-fx); [ -n "$x" ]' 'tools/check-fx; v=$(tools/check-fx)'
+      'x=`tools/check-fx`' 'nice tools/check-fx' "sh -c 'tools/check-fx'" 'case x in a) tools/check-fx;; esac'
+      'f() { "$@"; }; f bash tools/check-fx' 'cat tools/check-fx | bash' 'x=$(cat tools/run.sh | sh)'
+      "printf '%s\\n' p | xargs -I{} grep -qxF {} tools/marker.txt"
+      'n="$(git ls-files tools | grep -cE "^(tools/run.sh|tools/check-fx)$")"; [ "$n" = 2 ]'
+      'a=(tools/run.sh tools/check-fx); [ ${#a[@]} = 2 ]' '[[ -e tools/run.sh && tools/check-fx -nt x ]]'
+      'v="$(git show "HEAD:tools/check-fx" | head -1)"; [ -n "$v" ]' $'true # tools/check-fx\n:'
+      "sh -c 'ls Dockerfile* */Dockerfile* 2>/dev/null | grep -q .'" 'grep -q x tools/marker.txt'
+      '/bin/bash tools/run.sh' 'nice bash run.sh' 'cat run.sh | bash -e' '"bash" tools/run.sh' './run.sh x' 'bash "tools/check-fx"' 'python3.12 tools/run.sh' )
+_sl=( 'engine/harness/bin/x' 'tools/run.sh' 'tools/run.sh' 'tools/check-fx tools/run.sh' 'tools/check-fx' 'tools/check-fx'
+      'tools/check-fx' 'tools/check-fx ?tools/run.sh' '?tools/run.sh ?bash ?n' '?run.sh ?bash ?e' '?tools/check-fx' '?tools/check-fx'
+      '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' 'tools/check-fx ?tools/check-fx' '?tools/check-fx'
+      '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?cat ?tools/check-fx ?bash'
+      '?x ?cat ?tools/run.sh ?sh'
+      '?tools/marker.txt' '' '' '' '' '' '' '' 'tools/run.sh' '?run.sh' '?cat ?run.sh ?bash ?e' '?tools/run.sh' 'run.sh' '?tools/check-fx' 'tools/run.sh' )
+_sbad="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/policy.sh"; _k=0
+  while [ "$_k" -lt "${#_sc[@]}" ]; do
+    _c="${_sc[$_k]}"; _l="$(_felix_p_scan list "$_c" | paste -sd' ' -)"
+    [ "$_l" = "${_sl[$_k]}" ] || printf '%s: lists [%s], not [%s]; ' "$_c" "$_l" "${_sl[$_k]}"
+    _k=$((_k+1))
+  done )"
+is "the instrument scan lists, for each of ${#_sc[@]} commands, the words the rewrite takes from P and each it cannot place" "$_sbad" ""
+_srw="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/policy.sh"
+  _felix_p_scan rewrite 'X="a b" tools/check-fx && bash tools/run.sh; { tools/check-fx; }' "$_sw" /P )"
+is "and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it" \
+   "$_srw" "X=\"a b\" '/P/tools/check-fx' && bash '/P/tools/run.sh'; { tools/check-fx; }"

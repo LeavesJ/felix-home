@@ -53,6 +53,11 @@ fi
 if ! command -v felix_obligations_run >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/obligations.sh" 2>/dev/null
 fi
+# And where the merge boundary reads its policy from (policy.sh, trust-plane step 3). Loaded always,
+# never "unless felix_policy_open exists": the judge's child shell imports the functions a session
+# exported, so that guard would let one of them choose the policy directory. A judge that could not
+# load it refuses below rather than reading the working tree.
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/policy.sh" 2>/dev/null || :
 
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 
@@ -257,10 +262,18 @@ _felix_escape_fewer() {
 # its whole line with it and is still caught.
 # Locale, 2026-10-08: sed stopped at a byte that was not UTF-8 and hid every
 # removal below it. The rules are above felix_json_str in resolve.sh.
+#
+# Only a JSON file forgives the comma (trust-plane step 3, spec S3). Stripped
+# from every table, it made a TSV row and the same row with `,` appended read
+# as one: appending a comma to a risk.tsv row's `count:` confine stops that
+# row counting anything (no line ends in a comma), and the edit that did it
+# was no change here, so it landed on green and loosened every merge after it.
 _felix_escape_lines() {
+  local strip='s/[[:space:]]*,[[:space:]]*$//'
+  case "$3" in *.json) ;; *) strip='s/^//' ;; esac
   felix_file_at "$1" "$2" "$3" \
     | LC_ALL=C grep -vE '^[[:space:]]*(#|$)' \
-    | LC_ALL=C sed -E 's/[[:space:]]*,[[:space:]]*$//' \
+    | LC_ALL=C sed -E "$strip" \
     | LC_ALL=C sort -u
 }
 
@@ -602,17 +615,51 @@ _felix_merge_gate_held() {
   return 1
 }
 
+# The tables and the instruments come from P (policy.sh, trust-plane step 3,
+# spec S1 and S2): the body below reads every table from POL, the snapshot of
+# the project directory as P holds it, and the commands those tables hold run
+# P's instruments. PROJ stays the project's own path for what is said, and the
+# snapshot keeps its name, so memory and receipts are found by name as before.
+# A policy that cannot be read is one blocker, and nothing else is judged:
+# no table in a working tree stands in for it. Always 0, as before, because
+# the judge's exit status says whether it could judge, not what it found.
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
+  local _FELIX_POL_TMP="" _FELIX_POL_DIR="" _FELIX_P_TREE="" _FELIX_P_WORDS=""
+  # Spec S1.10. A base that names no commit has no P: it is judged as it was before, from the
+  # directory, and the escape scan's unknown line refuses it (#56). An empty base, which only a
+  # library caller passes (cmd_merge refuses one), reads the directory as before too.
+  if [ -z "$base" ] || ! git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1 </dev/null; then
+    _felix_merge_blockers_at "$proj" "$base" "$root" "$home" "$proj"
+    return 0
+  fi
+  # No policy library: one policy line, which refuses, and the rest from the directory, so the other
+  # libraries' faults are named beside it.
+  if ! command -v felix_policy_open >/dev/null 2>&1; then
+    printf 'policy\tengine\tthe policy library is not loaded, so nothing says which tables are the authorized ones\n'
+    _felix_merge_blockers_at "$proj" "$base" "$root" "$home" "$proj"
+    return 0
+  fi
+  if felix_policy_open "$proj" "$base" "$root" && felix_policy_instruments "$root" "$base"; then
+    _felix_merge_blockers_at "$proj" "$base" "$root" "$home" "$_FELIX_POL_DIR"
+  fi
+  felix_policy_close
+  return 0
+}
+
+_felix_merge_blockers_at() {
+  local proj="$1" base="$2" root="$3" home="$4" pol="$5"
   local tid receipt line
   # owed and behind (lib/land-table.sh), report-only: they write says.log
   # would-refuse rows and print nothing here. A subshell, so nothing either
   # does, an unset variable under the judge's set -u included, can reach this
   # function's output, its status, or the shell that called it; and no input,
   # so nothing it runs can wait on a terminal.
+  # The land table reads its own rows at refs/remotes/origin/main (land-table.sh), so it is handed the
+  # project's own path: the snapshot sits in no repository it could ask.
   ( felix_land_would_refuse "$proj" "$base" "$root" ) </dev/null >/dev/null 2>&1
 
-  felix_escapes "$proj" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
+  felix_escapes "$pol" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
     # `unknown` blocks like everything else here, and is deliberately not an
     # escape. cmd_merge counts escapes as founder escalations — interruptions
@@ -640,7 +687,16 @@ felix_merge_blockers() {
   # merged (review finding C9-R3).
   local cur rcpt
   rcpt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
-  cur="$(felix_verify_current "$root" "$home" "$proj" "$rcpt" 2>/dev/null)" || true
+  cur="$(felix_verify_current "$root" "$home" "$pol" "$rcpt" 2>/dev/null)" || true
+  # A remedy that names a file names it where the reader can open it: the snapshot is gone by then.
+  [ "$pol" = "$proj" ] || cur="${cur//"$pol"/"$proj"}"
+  # Spec S1.9: receipts are written over the home's tables and read here against P's. Where the two
+  # differ, re-running the gate in that home records the same mismatch again, so the one remedy that
+  # clears it is named: bring the home to the base first.
+  if [ "$pol" != "$proj" ] && command -v felix_commission_policy_version >/dev/null 2>&1 \
+     && [ "$(felix_commission_policy_version "$proj")" != "$(felix_commission_policy_version "$pol")" ]; then
+    printf 'unverified\thome\tthe home'"'"'s tables at %s are not the ones %s holds, so no receipt written there can be current; bring the home to %s, then run felix gate\n' "$proj" "$base" "$base"
+  fi
   case "$cur" in
     current) ;;
     stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
@@ -662,14 +718,14 @@ felix_merge_blockers() {
     case ",${rfield}," in
       *,tests:reused,*)
         hsha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
-        if ! held="$(_felix_merge_gate_held "$proj" "$root" "$hsha")"; then
+        if ! held="$(_felix_merge_gate_held "$pol" "$root" "$hsha")"; then
           printf 'unverified\ttests\tthe gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on %s: %s\n' \
             "$(printf '%s' "${hsha:-HEAD}" | cut -c1-8)" "$held"
         fi ;;
     esac
   fi
 
-  felix_evidence_check "$proj" "$base" "$root" 2>/dev/null \
+  felix_evidence_check "$pol" "$base" "$root" 2>/dev/null \
     | while IFS=$'\t' read -r status name reason; do
         case "${status:-}:${reason:-}" in gap:*|unknown:*"not judged"*) printf 'evidence\t%s\t%s\n' "$name" "$reason" ;; esac
       done
@@ -686,9 +742,9 @@ felix_merge_blockers() {
   # that there is nothing to block on; it has established nothing.
   if ! command -v felix_probes_run >/dev/null 2>&1; then
     printf 'probes\tengine\tthe probe library is not loaded, so nothing was asked of reality\n'
-  elif [ ! -f "$proj/probes.tsv" ]; then
+  elif [ ! -f "$pol/probes.tsv" ]; then
     printf 'probes\ttable\tthis project asks reality nothing; write %s/probes.tsv\n' "$proj"
-  elif [ -z "$(felix_probe_rows "$proj")" ]; then
+  elif [ -z "$(felix_probe_rows "$pol")" ]; then
     printf 'probes\ttable\t%s/probes.tsv declares no probe, which is a shelf with nothing on it\n' "$proj"
   else
     # A malformed row is not skipped on the way to the rows that parse. It is
@@ -696,12 +752,12 @@ felix_merge_blockers() {
     # --gate already refuses it; a merge boundary that let it through would
     # be the weaker of the two checks on the same table, which is the order
     # they must never be in.
-    felix_probe_malformed "$proj" | while IFS= read -r line; do
+    felix_probe_malformed "$pol" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'probes\ttable\t%s/probes.tsv: the row for %s names a predicate and no command, or a command and no predicate\n' \
         "$proj" "$line"
     done
-    felix_probes_run "$proj" "$root" | felix_probes_blocking \
+    felix_probes_run "$pol" "$root" | felix_probes_blocking \
       | while IFS= read -r line; do
           [ -n "$line" ] || continue
           printf 'probes\t%s\t%s: %s\n' \
@@ -722,24 +778,24 @@ felix_merge_blockers() {
   # nothing is.
   if ! command -v felix_obligations_run >/dev/null 2>&1; then
     printf 'obligations\tengine\tthe obligation library is not loaded, so what this project owes was not asked\n'
-  elif [ ! -f "$proj/obligations.tsv" ]; then
+  elif [ ! -f "$pol/obligations.tsv" ]; then
     printf 'obligations\ttable\tthis project admits no obligation; write %s/obligations.tsv\n' "$proj"
   else
     # Refused rows first, before the table is called empty: a row somebody
     # wrote and nothing reads is the more specific fact, and a ledger whose
     # only row is refused should say which row, not just that nothing is owed.
-    felix_obligation_malformed "$proj" | while IFS= read -r line; do
+    felix_obligation_malformed "$pol" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'obligations\ttable\t%s/obligations.tsv: %s\n' "$proj" "$line"
     done
-    if [ -z "$(felix_obligation_rows "$proj")" ]; then
+    if [ -z "$(felix_obligation_rows "$pol")" ]; then
       printf 'obligations\ttable\t%s/obligations.tsv admits no obligation, which is a ledger with nothing owed\n' "$proj"
     fi
-    felix_obligations_orphans "$proj" | while IFS= read -r line; do
+    felix_obligations_orphans "$pol" | while IFS= read -r line; do
       [ -n "$line" ] || continue
       printf 'obligations\ttable\ta row grounds on %s, which %s/probes.tsv does not declare\n' "$line" "$proj"
     done
-    felix_obligations_run "$proj" "$root" release | felix_obligations_blocking release \
+    felix_obligations_run "$pol" "$root" release | felix_obligations_blocking release \
       | while IFS= read -r line; do
           [ -n "$line" ] || continue
           printf 'obligations\t%s\t%s %s: %s\n' \
@@ -766,17 +822,17 @@ felix_merge_blockers() {
   # the same reason the probes block does.
   if ! command -v felix_commission_rows >/dev/null 2>&1; then
     printf 'commission\tengine\tthe commissioning library is not loaded, so nothing was asked of this project\n'
-  elif [ ! -f "$proj/commissioning.tsv" ]; then
+  elif [ ! -f "$pol/commissioning.tsv" ]; then
     printf 'commission\ttable\tthis project was never commissioned; write %s/commissioning.tsv (felix commission says how)\n' "$proj"
-  elif [ -z "$(felix_commission_rows "$proj")" ]; then
+  elif [ -z "$(felix_commission_rows "$pol")" ]; then
     printf 'commission\ttable\t%s/commissioning.tsv declares no need, which is a shelf with nothing on it\n' "$proj"
   else
-    felix_commission_malformed "$proj" | while IFS=$'\t' read -r need why; do
+    felix_commission_malformed "$pol" | while IFS=$'\t' read -r need why; do
       [ -n "$need" ] || continue
       printf 'commission\ttable\t%s/commissioning.tsv: %s: %s\n' "$proj" "$need" "$why"
     done
     local cwhy
-    if ! cwhy="$(felix_commission_receipt_valid "$home" "$proj" "$root")"; then
+    if ! cwhy="$(felix_commission_receipt_valid "$home" "$pol" "$root")"; then
       printf 'commission\treceipt\t%s\n' "$cwhy"
     fi
   fi

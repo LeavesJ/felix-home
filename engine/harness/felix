@@ -1878,7 +1878,9 @@ cmd_merge() {
   # judge's child shell too, which inherits the environment and no flag. They
   # write only on 0, so this line must survive every edit to this prologue.
   local -x FELIX_MERGE_DRY_RUN="$dry"
-  if felix_self_governed "$root"; then
+  # Asked of the base as well as the tree (spec S4): deleting the manifest does not let a branch choose
+  # to be judged by the felix it carries.
+  if felix_self_governed "$root" || felix_self_governed_at "$root" "$base"; then
     # The judge is not chosen by the environment (#260). FELIX_KERNEL named one
     # outright and is refused by name; the cache variables still compose the
     # path, so the entry they resolve is checked, byte for byte, against the

@@ -1,0 +1,357 @@
+# >>> trust-step3-policy-from-p
+printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and its instruments from P (spec sections 1-2; blind)\n'
+# Blind, written on 2026-11-07 from .felix/memory/felix/audits/2026-11-08-trust-plane-step3/spec.md alone (sections 0-3),
+# before the change. Not read: engine/harness/felix, lib/*.sh, hooks, bin, projects/*/gate.sh, any lib/policy.sh. How to
+# drive felix merge was learned from tests/lib/judge-refs.sh and parts 0340, 0360, 1400 and 1870; rule C9's gh stub is
+# part 1250's, answering `pr view` as _js_build's does. Every fixture is this part's own, under $TS3, and its memory
+# $MEM/ts3 is removed at its end; it adds nothing under $FROOT/projects.
+#
+# R is built as section 2 says, the project ts3: _js_build's shape (the harness under test as engine/, a manifest at
+# 1.0.0, a github.com origin, refs/remotes/origin/main at main), and on main projects/ts3/ (project.json ending with
+# "gate_workflow": "gate.yml", CLAUDE.md, probes.tsv, obligations.tsv, commissioning.tsv, risk.tsv = the template plus
+# the exfil row), .felix, .gitignore (state/ and *.log), tools/check-fx, tools/lib.sh, tools/applies-fx, MARKER, and
+# what this part adds: tools/probe-fx, PROBE.txt and .github/workflows/gate.yml. The entry K/1.0.0 is main's engine cut
+# from the commit as _js_entry cuts one. Each run: a green gate receipt and a commission receipt for the tree as it
+# stands with the home R (_jr_record's calls, read against P's project directory: see the first reading), then
+# `felix merge --dry-run` from K/1.0.0/harness/felix in the candidate's checkout, FELIX_HOME=R, a fresh empty physical
+# TMPDIR, a scratch HOME, FELIX_KERNEL and FELIX_MERGE_HANDED unset, gh the stub.
+#
+# Readings, where the spec leaves room:
+# - The receipts. Section 2 says to record them as _jr_record does with the home R, which takes the epoch and the
+#   commission's table set from the project directory in the home's working tree. Where that directory differs from
+#   P's (S1's three cases, S3 and its control, the workflow control), such a receipt is current for today's reader and
+#   stale for the reader S1.6 makes of the receipt's epoch. And a stale epoch stops rule C9 before it asks gh: measured
+#   on main 2026-11-07, such a run prints `unverified tree ... the table set moved` and calls no gh, so the C9 case
+#   could not go green after the change. So every receipt here is read against P's project directory, a git archive of
+#   projects/ts3 at main: felix_epoch and felix_epoch_components over it for the gate receipt (passed to
+#   felix_verify_record as part 1520's _grf_rec passes them), and it as the project directory of felix_commission_run
+#   and felix_commission_receipt_write. Where the home's tables are P's this gives the epoch _jr_record's call gives
+#   (measured: the S2 controls pass on main). On main the table-editing cases therefore also print the stale-receipt
+#   lines; escape, probe and obligation lines are printed beside them (measured), so those cases do not rest on this.
+# - "Refused" is a non-zero exit with `not merging` printed. A blocker line is a line of the output beginning with two
+#   spaces; its kind is its first field. "A KIND line for NAME" is read as NAME being its second field (the shape of
+#   part 1250's `unverified tests`); "naming X" as X appearing anywhere on that line.
+# - The probe of S2's probe case is fxprobe: when `-`, probe `tools/probe-fx` (P's lists PROBE.txt when the file is
+#   there), witness `test -d tools`. The candidate deletes PROBE.txt and rewrites tools/probe-fx to list a member, so
+#   its own probe reads ok, while P's lists nothing over a surface the witness says exists: blind, which blocks.
+# - The obligations table holds the fx row alone; probes.tsv the marker row of every merge fixture and fxprobe;
+#   commissioning.tsv the marker row of every merge fixture.
+# - C9's edit must remove no row (so the verifier channel stays quiet) and must make today's engine ask lint.yml (the
+#   spec says today's dry run asks it and passes). The first reading, a new last key "gate_workflow": "lint.yml" after
+#   the old last line gained the comma, did not: measured on main 2026-11-07, today's engine then asked gate.yml and
+#   refused. So the candidate inserts "gate_workflow": "lint.yml", with its comma, as the line before the unchanged
+#   last key; with a receipt read from the working tree, today's engine then asked lint.yml and passed (measured). With
+#   the receipt read against P (first reading) it refuses on main for the stale table set and asks no gh. The refusal
+#   is held to the reason naming the failed run (part 1250's "concluded failure"), which only gate.yml's run gives.
+#   The receipt reports syntax:ok,tests:reused,secret:ok, as part 1250's does. Without jq the stub cannot answer, and
+#   that case is a skip.
+# - S1's fail-closed case moves refs/remotes/origin/main to a commit off main that removes projects/ts3/; the candidate
+#   is a branch off main adding NOTES.md, checked out in R, so the project directory is in its working tree.
+# - S1's home case also asks that the escape line name danger/x, the path P's row fired on.
+# - S3's row is the first `green` row of risk.tsv (the template's), a comma appended to its last cell; S3's control adds
+#   "note" as project.json's new last key, and holds that the run reached a verdict (exit 0, or not merging printed).
+# - S1.5 "nothing left" is held over every run, together with the one thing that makes it more than vacuous: in the
+#   passing control, P's tools/check-fx ran (it logs its $0 when TS3_FXLOG is set, an addition to section 2's script)
+#   from a felix-policy.* directory directly under that run's TMPDIR (S2.3). That half is also asserted on its own.
+# - The workflow control's candidate also adds a green row for ^\.github/ to its risk.tsv: what its tables say.
+# - S4 runs R/engine/harness/felix (the candidate's) with the same environment and the entry in the cache.
+TS3="$TMP/ts3"; rm -rf "${TS3:?}"; mkdir -p "$TS3/repo" "$TS3/gh" "$TS3/home" "$TS3/kc" "$TS3/t" "$TS3/calls"
+TS3="$(cd "${TS3:?}" && pwd -P)"; TS3R="$TS3/repo"; TS3K="$TS3/kc"; TS3P="$TS3/repo/projects/ts3"; TS3W="$TS3/wt"
+TS3_TN=0; TS3T=""; TS3RC=0; TS3_LEFT=""; TS3_RUNS=0; TS3_M=""; TS3_M2=""
+TS3_JQ=0; command -v jq >/dev/null 2>&1 && TS3_JQ=1
+mkdir -p "$MEM/ts3"
+
+# The stub: every call one line in calls; run list answered from runs.json as gh would (part 1250's), pr view as
+# _js_build's stub answers it, anything else silently.
+cat > "$TS3/gh/gh" <<'TS3GH'
+#!/usr/bin/env bash
+d="${TS3_GHDIR:?TS3_GHDIR is not set}"
+printf '%s\n' "$*" >> "$d/calls"
+case "${1:-} ${2:-}" in
+  "pr view")     printf '{"number":7,"state":"OPEN"}\n'; exit 0 ;;
+  "pr merge")    printf 'merged\n'; exit 0 ;;
+  "auth status") printf 'github.com\n  Logged in to github.com account example\n'; exit 0 ;;
+  "repo view")   printf 'example/ts3\n'; exit 0 ;;
+  "run list")    shift 2 ;;
+  *) exit 0 ;;
+esac
+wf=""; c=""; b=""; s=""; n=20; json=""; q=""; jsonset=0
+while [ $# -gt 0 ]; do
+  case "$1" in
+    -w|--workflow) wf="${2:-}"; shift 2 ;;  --workflow=*) wf="${1#*=}"; shift ;;
+    -c|--commit)   c="${2:-}"; shift 2 ;;   --commit=*)   c="${1#*=}"; shift ;;
+    -b|--branch)   b="${2:-}"; shift 2 ;;   --branch=*)   b="${1#*=}"; shift ;;
+    -s|--status)   s="${2:-}"; shift 2 ;;   --status=*)   s="${1#*=}"; shift ;;
+    -L|--limit)    n="${2:-}"; shift 2 ;;   --limit=*)    n="${1#*=}"; shift ;;
+    --json)        json="${2:-}"; jsonset=1; shift 2 ;; --json=*) json="${1#*=}"; jsonset=1; shift ;;
+    -q|--jq)       q="${2:-}"; shift 2 ;;   --jq=*)       q="${1#*=}"; shift ;;
+    -R|--repo|-e|--event|-u|--user|--created) shift 2 ;;
+    *) shift ;;
+  esac
+done
+case "$n" in ''|*[!0-9]*) printf 'invalid value for --limit: %s\n' "$n" >&2; exit 1 ;; esac
+[ -f "$d/runs.json" ] || printf '[]\n' > "$d/runs.json"
+sel="$(jq -c --arg wf "$wf" --arg c "$c" --arg b "$b" --arg s "$s" --argjson n "$n" --arg f "$json" '
+  [ .[] | select(($wf == "" or ._wf == $wf or .workflowName == $wf)
+             and ($c == "" or .headSha == $c) and ($b == "" or .headBranch == $b)
+             and ($s == "" or .status == $s or .conclusion == $s)) ] | .[:$n]
+  | if $f == "" then . else map(with_entries(select(.key as $k | ($f | split(",")) | index($k)))) end
+' "$d/runs.json")" || exit 1
+if [ "$jsonset" -eq 0 ]; then
+  printf '%s\n' "$sel" | jq -r '.[] | "\(.status)\t\(.conclusion)\t\(.displayTitle)\t\(.workflowName)\t\(.headBranch)\t\(.event)\t\(.databaseId)\t1m0s\t\(.createdAt)"'
+elif [ -n "$q" ]; then
+  printf '%s\n' "$sel" | jq -r "$q"
+else
+  printf '%s\n' "$sel"
+fi
+TS3GH
+chmod +x "$TS3/gh/gh"
+_ts3_ghrun() {   # ID SHA STATUS CONCLUSION WORKFLOW-FILE BRANCH -> one run as gh's JSON knows it (part 1250's _gfcRun)
+  printf '{"databaseId":%s,"number":%s,"attempt":1,"status":"%s","conclusion":"%s","headSha":"%s","headBranch":"%s","event":"pull_request","displayTitle":"ts3 change","name":"%s","workflowName":"%s","workflowDatabaseId":7,"_wf":"%s","createdAt":"2026-11-07T20:%02d:00Z","startedAt":"2026-11-07T20:%02d:00Z","updatedAt":"2026-11-07T20:%02d:30Z","url":"https://github.com/example/ts3/actions/runs/%s"}' \
+    "$1" "$1" "$3" "$4" "$2" "$6" "${5%.yml}" "${5%.yml}" "$5" "$1" "$1" "$1" "$1"
+}
+
+# ------------------------------------------------------------------ helpers ---
+_ts3_check() { if [ "$2" = "$3" ]; then ok "$1"; else bad "$1" "expected [$3] got [$2]${4:+: $4}"; fi; }   # NAME GOT WANT [DETAIL]
+_ts3_why() { printf 'exit %s; out: %s; err: %s' "$TS3RC" "$(head -c 900 "$TS3/out" 2>/dev/null | tr '\n' ' ')" "$(head -c 400 "$TS3/err" 2>/dev/null | tr '\n' ' ')"; }
+_ts3_refused() {   # -> refused when the last run exited non-zero and printed not merging, else what it did
+  if [ "$TS3RC" -ne 0 ] && [ "$(cat "$TS3/out" "$TS3/err" | LC_ALL=C awk 'index($0, "not merging") { n++ } END { print n + 0 }')" -gt 0 ]; then
+    printf 'refused'
+  else printf 'exit %s' "$TS3RC"; fi
+}
+_ts3_passed() {   # -> passed when the last run exited 0 saying felix merge would squash this now.
+  if [ "$TS3RC" -eq 0 ] && [ "$(LC_ALL=C awk 'index($0, "felix merge would squash this now.") { n++ } END { print n + 0 }' "$TS3/out")" -gt 0 ]; then
+    printf 'passed'
+  else printf 'exit %s' "$TS3RC"; fi
+}
+_ts3_bl() {   # KIND NAME WORD WORD2 -> yes when the last run printed a blocker line of KIND whose second field is NAME
+              # (- for any) and that holds WORD and WORD2 (- for none), else no
+  cat "$TS3/out" "$TS3/err" | LC_ALL=C awk -v k="$1" -v nm="$2" -v a="$3" -v b="$4" '
+    index($0, "  ") == 1 && $1 == k && (nm == "-" || $2 == nm) && (a == "-" || index($0, a)) && (b == "-" || index($0, b)) { f = 1 }
+    END { print (f ? "yes" : "no") }'
+}
+_ts3_commit() {   # REPO MSG: one commit of everything, as _jr_commit makes one, with maintenance off
+  _fx_git "$1" add -A >/dev/null 2>&1
+  _fx_git "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c maintenance.auto=false commit -qm "$2" >/dev/null 2>&1
+}
+_ts3_case() {   # BRANCH: a fresh branch off main, checked out in R
+  ( _fx_cd "$TS3R" && git checkout -q -f main && git checkout -q -B "$1" main ) >/dev/null 2>&1
+}
+_ts3_record() {   # REPO [REPORTED]: a green gate receipt and a commission receipt for REPO as it stands, home R, both
+                  # read against P's project directory $TS3PP (see the readings above)
+  ( cd "$1" && FELIX_HOME="$TS3R"; . "$FROOT/harness/lib/verify.sh"; . "$FROOT/harness/lib/probes.sh"; . "$FROOT/harness/lib/epoch.sh"
+    felix_verify_record "$1" "$TS3R" 0 "true" "$(felix_tree_id "$1" "$TS3R")" "" "${2:-}" "$(felix_epoch "$TS3PP" "$1")" \
+      "$(felix_epoch_components "$TS3PP" "$1" | cut -f2 | paste -sd, -)" ) >/dev/null 2>&1
+  ( cd "$1" && FELIX_HOME="$TS3R"; FELIX_HOME_DIR="$TS3R"; . "$FROOT/harness/lib/commission.sh"
+    _o="$(felix_commission_run "$TS3PP" "$1" -)"
+    felix_commission_receipt_write "$TS3R" "$TS3PP" "$1" "$_o" "" ) >/dev/null 2>&1
+}
+# _ts3_run LABEL DIR FELIX [REPORTED]: felix merge --dry-run from FELIX in DIR, home R, a fresh TMPDIR, after a fresh
+# receipt; TS3RC, $TS3/out and $TS3/err; what the run left under its TMPDIR goes onto TS3_LEFT.
+_ts3_run() {
+  local l="$1" d="$2" fx="$3" left
+  _ts3_record "$d" "${4:-}"
+  TS3_TN=$((TS3_TN + 1)); mkdir -p "$TS3/t/$TS3_TN"; TS3T="$(cd "$TS3/t/$TS3_TN" && pwd -P)"
+  : > "$TS3/fx.log"; : > "$TS3/calls/calls"
+  ( cd "$d" && env -u FELIX_KERNEL -u FELIX_MERGE_HANDED HOME="$TS3/home" PATH="$TS3/gh:$PATH" TS3_GHDIR="$TS3/calls" \
+      TS3_FXLOG="$TS3/fx.log" FELIX_HOME="$TS3R" FELIX_KERNEL_CACHE="$TS3K" TMPDIR="$TS3T" GIT_ALLOW_PROTOCOL=file \
+      "$fx" merge --dry-run ) > "$TS3/out" 2> "$TS3/err"; TS3RC=$?
+  TS3_RUNS=$((TS3_RUNS + 1))
+  if [ -d "$TS3T" ]; then
+    left="$(find "$TS3T" -name 'felix-policy.*' -print 2>/dev/null | LC_ALL=C sed "s|^$TS3T/||" | tr '\n' ' ')"
+    [ -z "$left" ] || TS3_LEFT="${TS3_LEFT}$l left [$left]; "
+  fi
+}
+_ts3_entry() { _ts3_run "$1" "${2:-$TS3R}" "$TS3K/1.0.0/harness/felix" "${3:-}"; }   # LABEL [DIR] [REPORTED]: from the entry
+_ts3_pcopy() {   # -> yes when the last run's fx log holds a check-fx run from a felix-policy.* directory under its TMPDIR
+  LC_ALL=C awk -v p="$TS3T/felix-policy." 'index($0, p) == 1 && substr($0, length($0) - 14) == "/tools/check-fx" { f = 1 }
+    END { print (f ? "yes" : "no") }' "$TS3/fx.log" 2>/dev/null
+}
+
+# ---------------------------------------------------------------- fixture R ---
+( _fx_cd "$TS3R" && git init -q -b main && git remote add origin https://github.com/example/ts3.git \
+  && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
+_copy_content "$REAL_HARNESS" "$TS3R/engine/harness"; _copy_content "$REAL_HARNESS/../hooks" "$TS3R/engine/hooks"
+[ -d "$REAL_HARNESS/../commands" ] && _copy_content "$REAL_HARNESS/../commands" "$TS3R/engine/commands"
+mkdir -p "$TS3R/engine/.claude-plugin" "$TS3P" "$TS3R/tools" "$TS3R/.github/workflows"
+printf '{ "name": "felix", "version": "1.0.0" }\n' > "$TS3R/engine/.claude-plugin/plugin.json"
+printf 'state/\n*.log\n' > "$TS3R/.gitignore"; printf 'ts3\n' > "$TS3R/.felix"
+printf '{\n  "name": "ts3",\n  "remote_match": "example.com/ts3",\n  "gate": "true",\n  "gate_workflow": "gate.yml"\n}\n' > "$TS3P/project.json"
+printf '# ts3\n' > "$TS3P/CLAUDE.md"
+printf 'marker\t-\t-\tls -1 .felix\ttest -f .felix\nfxprobe\t-\t-\ttools/probe-fx\ttest -d tools\n' > "$TS3P/probes.tsv"
+printf 'fx\tRELEASE_BLOCKING\tdeterministic\ttools/applies-fx\ttools/check-fx\t-\ta reason\n' > "$TS3P/obligations.tsv"
+printf 'marker\t-\t-\t-\t-\ttest -f .felix\t9\n' > "$TS3P/commissioning.tsv"
+cp "$REAL_HARNESS/templates/risk.tsv" "$TS3P/risk.tsv"
+printf 'red\tpath\t^danger/\ta danger path\texfil\n' >> "$TS3P/risk.tsv"
+cat > "$TS3R/tools/check-fx" <<'TS3CHK'
+#!/usr/bin/env bash
+[ -z "${TS3_FXLOG:-}" ] || printf '%s\n' "$0" >> "$TS3_FXLOG"
+. "$(dirname "$0")/lib.sh"
+fx_check
+TS3CHK
+printf 'fx_check() { test -f MARKER; }\n' > "$TS3R/tools/lib.sh"
+printf '#!/usr/bin/env bash\nexit 0\n' > "$TS3R/tools/applies-fx"
+printf '#!/usr/bin/env bash\n[ ! -f PROBE.txt ] || printf '"'"'PROBE.txt\\n'"'"'\nexit 0\n' > "$TS3R/tools/probe-fx"
+chmod 755 "$TS3R/tools/check-fx" "$TS3R/tools/applies-fx" "$TS3R/tools/probe-fx"
+printf 'a marker the fx check reads\n' > "$TS3R/MARKER"
+printf 'a member the fx probe lists\n' > "$TS3R/PROBE.txt"
+printf 'on: pull_request\njobs: {}\n' > "$TS3R/.github/workflows/gate.yml"
+_ts3_commit "$TS3R" base; TS3_M="$(_jr_sha "$TS3R" HEAD)"
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
+mkdir -p "$TS3/p"; _fx_git "$TS3R" archive -o "$TS3/p.tar" "$TS3_M" projects/ts3 >/dev/null 2>&1 && tar -x -C "$TS3/p" -f "$TS3/p.tar"
+rm -f "$TS3/p.tar"; TS3PP="$TS3/p/projects/ts3"
+rm -rf "$TS3K/1.0.0" "$TS3/x" "$TS3/x.tar"; mkdir -p "$TS3K/1.0.0" "$TS3/x"
+_fx_git "$TS3R" archive -o "$TS3/x.tar" "$TS3_M" engine >/dev/null 2>&1 && tar -x -C "$TS3/x" -f "$TS3/x.tar"
+for _ts3_d in harness hooks commands .claude-plugin; do [ -d "$TS3/x/engine/$_ts3_d" ] && cp -R "$TS3/x/engine/$_ts3_d" "$TS3K/1.0.0/$_ts3_d"; done
+rm -rf "$TS3/x" "$TS3/x.tar"
+_ts3_check "trust-step3: (fixture control) R's main holds the project's tables, the tools, MARKER and PROBE.txt, origin/main is main, the tools are executable, and the entry holds main's felix" \
+  "$(git -C "$TS3R" ls-tree -r --name-only "$TS3_M" -- projects tools MARKER PROBE.txt .felix .gitignore 2>&1 | tr '\n' ' ')|$(_jr_sha "$TS3R" refs/remotes/origin/main)|$(git -C "$TS3R" ls-tree "$TS3_M" tools/ 2>/dev/null | LC_ALL=C awk '{ print $1 }' | tr '\n' ' ')|$(cmp -s "$TS3K/1.0.0/harness/felix" "$TS3R/engine/harness/felix" && echo entry)" \
+  ".felix .gitignore MARKER PROBE.txt projects/ts3/CLAUDE.md projects/ts3/commissioning.tsv projects/ts3/obligations.tsv projects/ts3/probes.tsv projects/ts3/project.json projects/ts3/risk.tsv tools/applies-fx tools/check-fx tools/lib.sh tools/probe-fx |$TS3_M|100755 100755 100644 100755 |entry"
+_ts3_v="$( cd "$TS3R" && TS3_FXLOG="$TS3/fx.log" tools/check-fx >/dev/null 2>&1; printf '%s' "$?")"
+_ts3_v="$_ts3_v|$( cd "$TS3R" && TS3_FXLOG="" bash tools/applies-fx >/dev/null 2>&1; printf '%s' "$?")|$( cd "$TS3R" && tools/probe-fx 2>&1)"
+_ts3_check "trust-step3: (fixture control) in main's checkout tools/check-fx and tools/applies-fx exit 0 and tools/probe-fx lists PROBE.txt" \
+  "$_ts3_v" "0|0|PROBE.txt"
+
+# ------------------------------------------------------------- S2, controls ---
+_ts3_case ts3-notes; printf 'notes the candidate adds\n' > "$TS3R/NOTES.md"; _ts3_commit "$TS3R" notes
+_ts3_entry S2-unrelated; TS3_PCOPY="$(_ts3_pcopy)"; TS3_FXRAN="$(LC_ALL=C awk 'END { print NR }' "$TS3/fx.log" 2>/dev/null)"
+_ts3_check "trust-step3: S2 (the subject is still the candidate's, control): a candidate that adds an unrelated file and changes no script passes the dry run" \
+  "$(_ts3_passed)" "passed" "$(_ts3_why)"
+_ts3_check "trust-step3: S2 (fixture control): in that run the fx evidence instrument ran and logged its \$0" \
+  "$([ "${TS3_FXRAN:-0}" -gt 0 ] 2>/dev/null && echo ran || echo 'did not run')" "ran" "$(_ts3_why)"
+_ts3_check "trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR" \
+  "$TS3_PCOPY" "yes" "fx log: $(tr '\n' ' ' < "$TS3/fx.log" 2>/dev/null)"
+
+_ts3_case ts3-nomarker; _fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" no-marker
+_ts3_entry S2-nomarker
+_ts3_check "trust-step3: S2 (the subject is still the candidate's, control): a candidate that deletes MARKER and changes no script is refused with an obligations line for fx" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+
+# --------------------------------------------------- S2, P's instruments ---
+_ts3_case ts3-applies; printf '#!/usr/bin/env bash\nexit 1\n' > "$TS3R/tools/applies-fx"
+_fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" applies
+_ts3_entry S2-applies
+_ts3_check "trust-step3: S2 (an applies command): a candidate that rewrites tools/applies-fx to exit 1 and deletes MARKER is refused with an obligations line for fx" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_case ts3-check; printf '#!/usr/bin/env bash\nexit 0\n' > "$TS3R/tools/check-fx"
+_fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" check
+_ts3_entry S2-evidence
+_ts3_check "trust-step3: S2 (an evidence instrument): a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with an obligations line for fx" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_case ts3-closure; printf 'fx_check() { true; }\n' > "$TS3R/tools/lib.sh"
+_fx_git "$TS3R" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3R" closure
+_ts3_entry S2-closure
+_ts3_check "trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_case ts3-probe; printf '#!/usr/bin/env bash\nprintf '"'"'member\\n'"'"'\nexit 0\n' > "$TS3R/tools/probe-fx"
+_fx_git "$TS3R" rm -q PROBE.txt >/dev/null 2>&1; _ts3_commit "$TS3R" probe
+_ts3_v="$( cd "$TS3R" && tools/probe-fx 2>&1)|$( cd "$TS3R" && test -d tools; printf '%s' "$?")|$( cd "$TS3R" && git show "$TS3_M:tools/probe-fx" > "$TS3/p-probe" 2>/dev/null && bash "$TS3/p-probe" 2>&1)"
+_ts3_check "trust-step3: S2 (a probe) (fixture control): over the candidate's tree its own tools/probe-fx lists a member, the witness exits 0, and P's tools/probe-fx lists nothing" \
+  "$_ts3_v" "member|0|"
+_ts3_entry S2-probe
+_ts3_check "trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe" \
+  "$(_ts3_refused)|$(_ts3_bl probes - fxprobe -)" "refused|yes" "$(_ts3_why)"
+
+# ------------------------------------------------------------- S1, tables ---
+_ts3_case ts3-table
+LC_ALL=C awk -F'\t' '!($1 == "red" && $5 == "exfil")' "$TS3P/risk.tsv" > "$TS3/risk.tmp" && cat "$TS3/risk.tmp" > "$TS3P/risk.tsv"
+mkdir -p "$TS3R/danger"; printf 'x\n' > "$TS3R/danger/x"; _ts3_commit "$TS3R" table
+_ts3_entry S1-candidate-table
+_ts3_check "trust-step3: S1 (a table in the candidate): checked out in the home, a candidate that removes the exfil row from risk.tsv and adds danger/x is refused with an escape line naming exfil and danger/x" \
+  "$(_ts3_refused)|$(_ts3_bl escape - exfil danger/x)" "refused|yes" "$(_ts3_why)"
+
+( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
+_fx_git "$TS3R" worktree add -q -b ts3-wt "$TS3W" main >/dev/null 2>&1
+LC_ALL=C awk -F'\t' '!($1 == "red" && $5 == "exfil")' "$TS3P/risk.tsv" > "$TS3/risk.tmp" && cat "$TS3/risk.tmp" > "$TS3P/risk.tsv"
+mkdir -p "$TS3W/danger"; printf 'x\n' > "$TS3W/danger/x"; _ts3_commit "$TS3W" wt-danger
+_ts3_check "trust-step3: S1 (the home's uncommitted edit) (fixture control): R stays on main with risk.tsv's exfil row removed and uncommitted, and the worktree's branch adds danger/x" \
+  "$(git -C "$TS3R" rev-parse --abbrev-ref HEAD 2>&1)|$(git -C "$TS3R" status --porcelain 2>&1 | tr '\n' ' ')|$(LC_ALL=C awk -F'\t' '$5 == "exfil" { n++ } END { print n + 0 }' "$TS3P/risk.tsv")|$(git -C "$TS3W" diff --name-only main HEAD 2>&1 | tr '\n' ' ')" \
+  "main| M projects/ts3/risk.tsv |0|danger/x "
+_ts3_entry S1-home-uncommitted "$TS3W"
+_ts3_check "trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)" \
+  "$(_ts3_refused)|$(_ts3_bl escape - exfil danger/x)" "refused|yes" "$(_ts3_why)"
+_fx_git "$TS3R" worktree remove --force "$TS3W" >/dev/null 2>&1; rm -rf "${TS3W:?}"
+( _fx_cd "$TS3R" && git checkout -q -- projects/ts3/risk.tsv && git worktree prune && git branch -q -D ts3-wt ) >/dev/null 2>&1
+
+_ts3_case ts3-c9
+LC_ALL=C awk '$0 == "  \"gate_workflow\": \"gate.yml\"" { print "  \"gate_workflow\": \"lint.yml\","; print; next } { print }' \
+  "$TS3P/project.json" > "$TS3/pj.tmp" && cat "$TS3/pj.tmp" > "$TS3P/project.json"
+_ts3_commit "$TS3R" c9; TS3_H="$(_jr_sha "$TS3R" HEAD)"
+printf '[%s,%s]\n' "$(_ts3_ghrun 41 "$TS3_H" completed failure gate.yml ts3-c9)" "$(_ts3_ghrun 40 "$TS3_H" completed success lint.yml ts3-c9)" > "$TS3/calls/runs.json"
+_ts3_c9a="trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key"
+_ts3_c9b="trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure"
+if [ "$TS3_JQ" = 1 ]; then
+  _ts3_v="$(TS3_GHDIR="$TS3/calls" "$TS3/gh/gh" run list --workflow gate.yml --commit "$TS3_H" --json conclusion -q '.[0].conclusion' 2>&1)"
+  _ts3_v="$_ts3_v|$(TS3_GHDIR="$TS3/calls" "$TS3/gh/gh" run list --workflow lint.yml --commit "$TS3_H" --json conclusion -q '.[0].conclusion' 2>&1)"
+  _ts3_v="$_ts3_v|removed $(git -C "$TS3R" diff main HEAD 2>/dev/null | LC_ALL=C awk '/^-/ && !/^---/ { n++ } END { print n + 0 }')"
+  _ts3_check "$_ts3_c9a" "$_ts3_v|$(tail -n 3 "$TS3P/project.json" | tr '\n' ' ')" \
+    "failure|success|removed 0|  \"gate_workflow\": \"lint.yml\",   \"gate_workflow\": \"gate.yml\" } "
+  _ts3_entry S1-c9 "$TS3R" "syntax:ok,tests:reused,secret:ok"
+  _ts3_check "$_ts3_c9b" "$(_ts3_refused)|$(_ts3_bl unverified tests 'concluded failure' -)" "refused|yes" \
+    "$(_ts3_why); gh: $(tr '\n' ' ' < "$TS3/calls/calls")"
+else
+  skip "$_ts3_c9a" "no jq here for the gh stub"
+  skip "$_ts3_c9b" "no jq here for the gh stub"
+fi
+printf '[]\n' > "$TS3/calls/runs.json"
+
+( _fx_cd "$TS3R" && git checkout -q -f -B ts3-nopolicy main && git rm -r -q projects/ts3 ) >/dev/null 2>&1
+_ts3_commit "$TS3R" no-policy; TS3_M2="$(_jr_sha "$TS3R" HEAD)"
+_ts3_case ts3-closed; printf 'notes the candidate adds\n' > "$TS3R/NOTES.md"; _ts3_commit "$TS3R" closed
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M2" >/dev/null 2>&1
+_ts3_check "trust-step3: S1 (fail closed) (fixture control): origin/main names a commit without projects/ts3, which the candidate's working tree holds, and with the same engine as main" \
+  "$(git -C "$TS3R" ls-tree -d --name-only refs/remotes/origin/main -- projects/ts3 2>&1)|$([ -f "$TS3P/obligations.tsv" ] && echo present)|$(git -C "$TS3R" rev-parse "$TS3_M:engine" "$TS3_M2:engine" 2>/dev/null | LC_ALL=C sort -u | LC_ALL=C awk 'END { print NR }')" \
+  "|present|1"
+_ts3_entry S1-closed
+_ts3_check "trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line" \
+  "$(_ts3_refused)|$(_ts3_bl policy - - -)" "refused|yes" "$(_ts3_why)"
+_fx_git "$TS3R" update-ref refs/remotes/origin/main "$TS3_M" >/dev/null 2>&1
+
+# --------------------------------------------------------------------- S3 ---
+_ts3_case ts3-comma
+LC_ALL=C awk -F'\t' '!d && $1 == "green" { print $0 ","; d = 1; next } { print }' "$TS3P/risk.tsv" > "$TS3/risk.tmp" && cat "$TS3/risk.tmp" > "$TS3P/risk.tsv"
+_ts3_commit "$TS3R" comma
+_ts3_check "trust-step3: S3 (fixture control): the candidate's only change is a comma appended to the last cell of one risk.tsv row" \
+  "$(git -C "$TS3R" diff --numstat main HEAD 2>&1 | tr '\t\n' '| ')|$(git -C "$TS3R" diff main HEAD 2>/dev/null | LC_ALL=C awk '/^\+[^+]/ { print substr($0, length($0)) }')" \
+  "1|1|projects/ts3/risk.tsv |,"
+_ts3_entry S3-comma
+_ts3_check "trust-step3: S3: a comma appended to the last cell of an existing risk.tsv row is refused with an escape line for verifier naming risk.tsv" \
+  "$(_ts3_refused)|$(_ts3_bl escape verifier risk.tsv -)" "refused|yes" "$(_ts3_why)"
+
+_ts3_case ts3-jsonkey
+LC_ALL=C awk '$0 == "  \"gate_workflow\": \"gate.yml\"" { print $0 ","; print "  \"note\": \"a key the candidate adds\""; next } { print }' \
+  "$TS3P/project.json" > "$TS3/pj.tmp" && cat "$TS3/pj.tmp" > "$TS3P/project.json"
+_ts3_commit "$TS3R" jsonkey
+_ts3_entry S3-json
+case "$(_ts3_passed)|$(_ts3_refused)" in passed\|*|*\|refused) _ts3_v=verdict ;; *) _ts3_v="no verdict, exit $TS3RC" ;; esac
+_ts3_check "trust-step3: S3 (control): a candidate that adds one key to project.json, its previous last line gaining a comma, reaches a verdict with no escape line for verifier naming project.json" \
+  "$_ts3_v|$(_ts3_bl escape verifier project.json -)" "verdict|no" "$(_ts3_why)"
+
+# --------------------------------------------------------------------- S4 ---
+_ts3_case ts3-s4; _fx_git "$TS3R" rm -q engine/.claude-plugin/plugin.json >/dev/null 2>&1
+printf '\nfelix_escapes() { return 0; }\n' >> "$TS3R/engine/harness/lib/escape.sh"
+printf 'on: push\njobs: {}\n' > "$TS3R/.github/workflows/x.yml"; _ts3_commit "$TS3R" s4
+_ts3_check "trust-step3: S4 (fixture control): the candidate no longer tracks the manifest, BASE does, and the candidate's felix_escapes prints nothing" \
+  "$(git -C "$TS3R" ls-files engine/.claude-plugin/plugin.json 2>&1)|$(git -C "$TS3R" cat-file -t refs/remotes/origin/main:engine/.claude-plugin/plugin.json 2>&1)|$( ( . "$TS3R/engine/harness/lib/escape.sh" >/dev/null 2>&1; felix_escapes "$TS3P" main "$TS3R" "$TS3R" 2>/dev/null ) | LC_ALL=C awk 'END { print NR }')" \
+  "|blob|0"
+_ts3_run S4-own "$TS3R" "$TS3R/engine/harness/felix"
+_ts3_check "trust-step3: S4: a branch that deletes the manifest and disarms its own felix_escapes, run by its own felix, is still judged by main's engine: refused with an escape line for execute naming .github/workflows/x.yml" \
+  "$(_ts3_refused)|$(_ts3_bl escape execute .github/workflows/x.yml -)" "refused|yes" "$(_ts3_why)"
+
+# ---------------------------------------------------------- workflows, control ---
+_ts3_case ts3-wf; printf '# the candidate edits the gate workflow\n' >> "$TS3R/.github/workflows/gate.yml"
+printf 'green\tpath\t^\\.github/\tthe candidate calls its workflows harmless\n' >> "$TS3P/risk.tsv"; _ts3_commit "$TS3R" wf
+_ts3_entry workflows
+_ts3_check "trust-step3: workflows (control): a candidate that edits .github/workflows/gate.yml and only adds a table row is refused with an escape line for execute naming the workflow" \
+  "$(_ts3_refused)|$(_ts3_bl escape execute .github/workflows/gate.yml -)" "refused|yes" "$(_ts3_why)"
+
+# ------------------------------------------------------------------- S1.5 ---
+_ts3_check "trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)" \
+  "runs $TS3_RUNS|copy seen $TS3_PCOPY|left [$TS3_LEFT]" "runs $TS3_RUNS|copy seen yes|left []"
+
+( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
+rm -rf "$MEM/ts3" "${TS3:?}"
+# <<< trust-step3-policy-from-p

@@ -15697,7 +15697,13 @@
 1	ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged
 1	ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged
 1	ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged
+1	ts3b-x: S6 (fixture control): the three rewritten loose files are put back, and main's tools/lib.sh reads as written
 1	ts3b-x: S6.1 (the engine's own pin survives the scrub): the gh that squashed saw GIT_CONFIG_PARAMETERS holding color.ui=never
+1	ts3b-x: S6.3 (M's tree) (fixture control): the merge base of B4 and H4 is M4, stale/z is in neither B4's tree nor H4's, and its loose file now reads otherwise
+1	ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged
+1	ts3b-x: S6.3 (the commits since M) (fixture control): the first commit's loose file now reads with another message and the same parent
+1	ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged
+1	ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged
 1	ts3b: (fixture control) R's main holds the tables and tools without danger/x, M0 before it holds danger/x, origin/main is main, tpb-evil's fx_check is true, M2 is one ahead of main, and the entry holds main's felix
 1	ts3b: S5 (control): an honest candidate whose pull request the provider holds open on main at M is merged, with --match-head-commit naming its head
 1	ts3b: S5.1 (control): the squash body's Felix-Judge trailer names main's commit in full

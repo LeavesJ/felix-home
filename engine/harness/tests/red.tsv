@@ -9,7 +9,7 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	460074d58fd046d638f795a4dace179d06448024	0.49.332
-run	24	16784	46
+run	27	16787	46
 A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does	1
 A5 (B9): with a blob main's engine tracks missing, felix merge refuses with exit 1, saying it could not copy main's engine, runs nothing, calls no gh, and a real run records one refused judge row	1
 a checkout with no github remote is refused with exactly one refused row	1
@@ -20,6 +20,9 @@ ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base li
 ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged	1
 ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged	1
 ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged	1
+ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
+ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
+ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged	1
 ts3b: S5.2 (no answer, in a merge): call A answers the state CLOSED, and an honest candidate is refused with a base line, and nothing is merged	1
 ts3b: S5.3 (a stale local ref): the provider's main is M2, one ahead of R's origin/main, and an honest candidate is refused with a base line naming both commits, and nothing is merged	1
 ts3b: S5.3 (another base): judged with --base refs/heads/tpb-evil while the provider names main at M as the base, a candidate off tpb-evil that deletes MARKER is refused with a base line, and nothing is merged	1

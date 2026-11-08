@@ -15,8 +15,11 @@
 #   - S6.3, S6.4: once B and H (the checkout's HEAD) are known, the objects the verdict reads (B, H, M and their
 #     trees, and the commits from M to each) are copied through `git index-pack`, which names each object by hashing
 #     it, into a bare repository under TMPDIR named felix-objects.*. A name the copy lacks is a refusal. The rest of
-#     the run reads that copy first (GIT_OBJECT_DIRECTORY), with the checkout's objects behind it for history
-#     before M (GIT_ALTERNATE_OBJECT_DIRECTORIES).
+#     the run reads that copy first, with the checkout's objects behind it for history before M. The copy holds V
+#     twice: packed, as the run's object directory (GIT_OBJECT_DIRECTORY, which also takes what the run writes), and
+#     loose, as the first alternate, ahead of the checkout (GIT_ALTERNATE_OBJECT_DIRECTORIES). git 2.56 reads a loose
+#     object from any store before a packed one, so with the pack alone a loose file in the checkout, rewritten after
+#     the check, was what the run read (found by part 2178's copy-read case, after the slice 2 review).
 #   - S5.2 to S5.4: once the judgement found no blocker, the provider is asked which head the pull request has and
 #     which commit its base branch is. The merge stands only when they are H and B, and the base is asked again
 #     immediately before gh pr merge.
@@ -156,24 +159,36 @@ felix_bind_objects() {   # ROOT B H
   if [ -n "$miss" ]; then
     rm -f "$t"; _felix_bind_no "$miss" "the checkout does not hold $miss, which the verdict would read, so nothing can show what it holds; nothing else was judged"; return 1
   fi
-  # index-pack names each object by hashing what it holds, so a planted object comes out under another name.
-  git -C "$root" pack-objects --stdout -q --window=0 < "$t" 2>/dev/null \
-    | git --git-dir="$d" index-pack --stdin --fsck-objects >/dev/null 2>&1
-  rcs=("${PIPESTATUS[@]}"); rc1="${rcs[0]:-1}"; rc2="${rcs[1]:-1}"
+  # git reads the alternates list as paths split at ':'; a path holding one would be read as two directories.
+  case "$d$objs" in
+    *:*) rm -f "$t"; _felix_bind_no copy "the copy $d or the checkout's objects $objs holds a ':', which git reads as two directories in the list of stores, so the copy cannot be read first"; return 1 ;;
+  esac
+  # index-pack and unpack-objects each name an object by hashing what it holds, so a planted object comes out under
+  # another name. The stream is kept inside the copy, which the exit removes, so that both read the same bytes.
+  git -C "$root" pack-objects --stdout -q --window=0 < "$t" > "$d/v.stream" 2>/dev/null; rc1=$?
+  git --git-dir="$d" index-pack --stdin --fsck-objects < "$d/v.stream" >/dev/null 2>&1; rc2=$?
   if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ]; then
     rm -f "$t"; _felix_bind_no copy "the objects under $b and $h could not be copied through git index-pack (pack-objects $rc1, index-pack $rc2), so none of them was checked against its name"; return 1
   fi
   miss="$(git --git-dir="$d" cat-file --batch-check='%(objectname) %(objecttype)' < "$t" 2>/dev/null \
             | LC_ALL=C awk '$2 == "missing" && !f { print $1; f = 1 }')"; rc3=$?
-  rm -f "$t"
   if [ -n "$miss" ]; then
-    _felix_bind_no "$miss" "git holds an object under the name $miss whose bytes do not hash to that name, so what it would show for it is not what the name says; nothing else was judged"; return 1
+    rm -f "$t"; _felix_bind_no "$miss" "git holds an object under the name $miss whose bytes do not hash to that name, so what it would show for it is not what the name says; nothing else was judged"; return 1
   fi
-  [ "$rc3" -eq 0 ] || _felix_bind_no copy "the copy of the objects under $b and $h could not be read back, so none of them was checked against its name" || return 1
+  [ "$rc3" -eq 0 ] || { rm -f "$t"; _felix_bind_no copy "the copy of the objects under $b and $h could not be read back, so none of them was checked against its name"; return 1; }
+  # The same objects loose, in a store of their own that only this copy names (see the head of this file).
+  mkdir "$d/v" 2>/dev/null && GIT_OBJECT_DIRECTORY="$d/v" git --git-dir="$d" unpack-objects -q < "$d/v.stream" >/dev/null 2>&1; rc1=$?
+  rm -f "$d/v.stream"
+  miss="$(GIT_OBJECT_DIRECTORY="$d/v" git --git-dir="$d" cat-file --batch-check='%(objectname) %(objecttype)' < "$t" 2>/dev/null \
+            | LC_ALL=C awk '$2 == "missing" && !f { print $1; f = 1 }')"; rc3=$?
+  rm -f "$t"
+  if [ "$rc1" -ne 0 ] || [ "$rc3" -ne 0 ] || [ -n "$miss" ]; then
+    _felix_bind_no copy "the objects under $b and $h could not be written loose into the copy (unpack-objects $rc1${miss:+, $miss missing}), so the checkout's loose files would be read before the checked pack"; return 1
+  fi
   # The checked pack is the only one there; anything else the exit finds was written during the run.
   for t in "$d"/objects/pack/pack-*.pack; do [ -f "$t" ] && { t="${t##*/}"; _FELIX_BIND_PACK="${t%.pack}"; }; done
   _FELIX_BIND_HOME="$objs"
-  export GIT_OBJECT_DIRECTORY="$d/objects" GIT_ALTERNATE_OBJECT_DIRECTORIES="$objs"
+  export GIT_OBJECT_DIRECTORY="$d/objects" GIT_ALTERNATE_OBJECT_DIRECTORIES="$d/v:$objs"
   m2="$(git -C "$root" merge-base "$b" "$h" 2>/dev/null </dev/null)" || m2=""
   if [ "$m2" != "$m" ]; then
     unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES

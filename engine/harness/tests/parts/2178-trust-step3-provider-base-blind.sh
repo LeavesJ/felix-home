@@ -287,6 +287,70 @@ _tpb_check "ts3b: S6.2 (a graft): the same candidate, with its parent grafted on
   "$(_tpb_refused)|$(_tpb_bl escape - danger/x -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
 rm -f "$TPBR/.git/info/grafts"
 
+# ------------------------------- not blind: fixtures for three surviving mutants ---
+# The mutant run of 2026-11-08 left five mutants alive for want of a fixture (measurement, section 3). These build
+# three of them, before git gc, while every object here is loose: M's tree left out of V (S6.3), the commits since M
+# left out of V (S6.3), and the copy never read after it is checked (S6.4).
+_tpb_rewrite_as() {   # FILE TYPE CONTENT: FILE, a loose object, rewritten to hold an object of TYPE and CONTENT
+  chmod u+w "$1" 2>/dev/null
+  perl -MCompress::Zlib -e 'my ($t, $c) = @ARGV; binmode STDOUT; print compress("$t " . length($c) . "\0" . $c)' "$2" "$3" > "$1"
+}
+# S6.3, M's tree: B4 and H4 both drop stale/z, which only their merge base M4 holds, so its blob is in no tree but M's.
+_tpb_case tpb-m4; mkdir -p "$TPBR/stale"; printf 'only the merge base holds this\n' > "$TPBR/stale/z"; _tpb_commit "$TPBR" m4
+TPB_M4="$(_jr_sha "$TPBR" HEAD)"; TPB_Z="$(git -C "$TPBR" rev-parse "$TPB_M4:stale/z" 2>/dev/null)"
+_tpb_case tpb-b4 tpb-m4; _fx_git "$TPBR" rm -q -r stale >/dev/null 2>&1; _tpb_commit "$TPBR" b4; TPB_B4="$(_jr_sha "$TPBR" HEAD)"
+_tpb_case tpb-h4 tpb-m4; _fx_git "$TPBR" rm -q -r stale >/dev/null 2>&1; printf 'h4\n' > "$TPBR/H4.md"; _tpb_commit "$TPBR" h4
+TPB_H4="$(_jr_sha "$TPBR" HEAD)"; TPB_ZF="$(_tpb_loose "$TPB_Z" "$TPB_OBJ")"; cp -p "$TPB_ZF" "$TPB/z.loose" 2>/dev/null
+_tpb_rewrite_as "$TPB_ZF" blob 'not what this name holds'
+_tpb_check "ts3b-x: S6.3 (M's tree) (fixture control): the merge base of B4 and H4 is M4, stale/z is in neither B4's tree nor H4's, and its loose file now reads otherwise" \
+  "$(git -C "$TPBR" merge-base "$TPB_B4" "$TPB_H4" 2>&1)|$(git -C "$TPBR" ls-tree -r --name-only "$TPB_B4" -- stale 2>&1)$(git -C "$TPBR" ls-tree -r --name-only "$TPB_H4" -- stale 2>&1)|$(git -C "$TPBR" show "$TPB_M4:stale/z" 2>&1)" \
+  "$TPB_M4||not what this name holds"
+_fx_git "$TPBR" update-ref refs/remotes/origin/main "$TPB_B4" >/dev/null 2>&1
+_tpb_provider "$(_tpb_a "$TPB_H4")" "$(_tpb_q "$TPB_B4")"; _tpb_run X-mtree merge
+_tpb_check "ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged" \
+  "$(_tpb_refused)|$(_tpb_bl objects - "$TPB_Z" -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+chmod u+w "$TPB_ZF" 2>/dev/null; cat "$TPB/z.loose" > "$TPB_ZF"; chmod 444 "$TPB_ZF" 2>/dev/null
+_fx_git "$TPBR" update-ref refs/remotes/origin/main "$TPB_M" >/dev/null 2>&1
+
+# S6.3, the commits since M: a candidate of two commits, the first one's loose file rewritten with its parent kept.
+_tpb_case tpb-two; printf 'one\n' > "$TPBR/TWO1.md"; _tpb_commit "$TPBR" two-1; TPB_T1="$(_jr_sha "$TPBR" HEAD)"
+printf 'two\n' > "$TPBR/TWO2.md"; _tpb_commit "$TPBR" two-2
+TPB_T1F="$(_tpb_loose "$TPB_T1" "$TPB_OBJ")"; cp -p "$TPB_T1F" "$TPB/t1.loose" 2>/dev/null
+_tpb_rewrite_as "$TPB_T1F" commit "$(git -C "$TPBR" cat-file commit "$TPB_T1" 2>/dev/null | LC_ALL=C sed 's/^two-1$/not the message this name holds/')
+"
+_tpb_check "ts3b-x: S6.3 (the commits since M) (fixture control): the first commit's loose file now reads with another message and the same parent" \
+  "$(git -C "$TPBR" log -1 --format='%s|%P' "$TPB_T1" 2>&1)" "not the message this name holds|$TPB_M"
+_tpb_default; _tpb_run X-since merge
+_tpb_check "ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged" \
+  "$(_tpb_refused)|$(_tpb_bl objects - "$TPB_T1" -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+chmod u+w "$TPB_T1F" 2>/dev/null; cat "$TPB/t1.loose" > "$TPB_T1F"; chmod 444 "$TPB_T1F" 2>/dev/null
+
+# S6.4, the copy is read: a git ahead on PATH puts P's tools/lib.sh back as written before each pack-objects, so every
+# copy is made from the bytes its name says, and rewrites it (fx_check true) after each index-pack, so the checkout
+# holds the other bytes whenever the judgement reads. A run that reads the copy is refused by the fx obligation.
+cp -p "$TPB_LF" "$TPB/lib.honest" 2>/dev/null; _tpb_rewrite "$TPB_LF" 'fx_check() { true; }
+'; cp "$TPB_LF" "$TPB/lib.evil" 2>/dev/null; chmod u+w "$TPB_LF" 2>/dev/null; cat "$TPB/lib.honest" > "$TPB_LF"
+_tpb_realgit="$(type -P git)"
+cat > "$TPB/gh/git" <<TPBGIT6
+#!/bin/bash
+case " \$* " in
+  *" pack-objects "*) chmod u+w "$TPB_LF" 2>/dev/null; cat "$TPB/lib.honest" > "$TPB_LF" ;;
+  *" index-pack "*) "$_tpb_realgit" "\$@"; rc=\$?; chmod u+w "$TPB_LF" 2>/dev/null; cat "$TPB/lib.evil" > "$TPB_LF"
+                    : > "$TPB/ctl/flipped"; exit \$rc ;;
+esac
+exec "$_tpb_realgit" "\$@"
+TPBGIT6
+chmod +x "$TPB/gh/git"; rm -f "$TPB/ctl/flipped"
+( _fx_cd "$TPBR" && git checkout -q -f tpb-nomarker ) >/dev/null 2>&1
+_tpb_default; _tpb_run X-copyread merge
+_tpb_check "ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged" \
+  "$(_tpb_refused)|$(_tpb_bl obligations fx - -)|pr merge $(_tpb_pm)|$([ -f "$TPB/ctl/flipped" ] && echo flipped)" "refused|yes|pr merge 0|flipped" "$(_tpb_why)"
+rm -f "$TPB/gh/git" "$TPB/ctl/flipped"; chmod u+w "$TPB_LF" 2>/dev/null; cat "$TPB/lib.honest" > "$TPB_LF"; chmod 444 "$TPB_LF" 2>/dev/null
+_tpb_check "ts3b-x: S6 (fixture control): the three rewritten loose files are put back, and main's tools/lib.sh reads as written" \
+  "$(git -C "$TPBR" show "$TPB_M:tools/lib.sh" 2>&1)|$(git -C "$TPBR" cat-file -t "$TPB_T1" 2>&1)|$(git -C "$TPBR" show "$TPB_M4:stale/z" 2>&1)" \
+  "fx_check() { test -f MARKER; }|commit|only the merge base holds this"
+
+
 ( _fx_cd "$TPBR" && git checkout -q -f main && git gc -q --prune=now ) >/dev/null 2>&1
 _tpb_check "ts3b: S6 (packed objects) (fixture control): after git gc, R holds no loose object for main's tools/lib.sh" \
   "$([ -e "$TPB_LF" ] && echo loose || echo packed)" "packed"

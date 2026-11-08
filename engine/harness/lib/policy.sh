@@ -214,7 +214,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
                  return }
       m = split(t, a, /[^A-Za-z0-9._\/+@%,-]+/)
       for (k = 1; k <= m; k++) { r = a[k]; sub(/^-+/, "", r); while (substr(r, 1, 2) == "./") r = substr(r, 3)
-        if (r != "" && substr(r, 1, 1) != "/" && (all == 2 || index(r, "/")) && r !~ /(^|\/)\.\.(\/|$)/) put(r) }
+        if (r != "" && substr(r, 1, 1) != "/" && (all == 2 || index(a[k], "/")) && r !~ /(^|\/)\.\.(\/|$)/) put(r) }
     }
     # An interpreter by name, however it is spelled: quoted, escaped, by absolute path, or versioned.
     function isrn(w) { gsub("[\"\047\\\\]", "", w); if (substr(w, 1, 1) == "/") sub(/^.*\//, "", w)
@@ -230,12 +230,11 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
       if (Dcs[f] == 3) { if (w == "esac") { Dcs[f] = 0; Dc[f] = 0 }; return }
       if (Dbr[f]) { if (w == "]]") Dbr[f] = 0; return }
       if (Dop[f] && isrn(w)) { Dop[f] = 0; Dsp[f] = 0; Da[f] = 1; return }
-      if (Dop[f]) { if (Dop[f] == 2) Dsp[f] = 0
-                    if (st >= B) { if (Dop[f] == 2 && w !~ /^-/ && w !~ /^[0-9]*[<>]/) { sus(w, 1); Dop[f] = 1 }; sus(w, 0) }
+      if (Dop[f]) { if (st >= B) { if (Dop[f] == 2 && w !~ /^-/ && w !~ /^[0-9]*[<>]/) { sus(w, 1); if (Dcc[f]) sus(w, (w ~ /(^|[^A-Za-z0-9_.\/-])((ba|z|da|k)?sh|python[0-9.]*|perl|ruby|node)([^A-Za-z0-9_.\/-]|$)/) ? 2 : 0); Dop[f] = 1 }; sus(w, 0) }
                     else if (w !~ /^-/) Dop[f] = 1
                     return }
       if (Da[f]) { if (w ~ /^[0-9]*[<>]/) return
-                   if (w ~ /^-/) { Dsp[f] = (Da[f] == 1 && w != "-c"); Da[f] = 0; Dop[f] = 2; return }
+                   if (w ~ /^-/) { Dsp[f] = (Da[f] == 1 && w != "-c"); Dcc[f] = (w == "-c"); Da[f] = 0; Dop[f] = 2; return }
                    Da[f] = 0; if (st >= B) sus(w, 1); return }
       if (!Dc[f]) { if (isrn(w)) Da[f] = 3; return }
       if (Dcs[f] == 4 && w == "esac") { Dcs[f] = 0; Dc[f] = 0; return }
@@ -249,7 +248,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
       if (st >= B) sus(w, 0)
       if (w ~ /[$`]/) Da[f] = 1
     }
-    function push(x, o) { d++; Dx[d] = x; Do[d] = o; Dc[d] = (x == "P" || x == "B"); Da[d] = 0; Dop[d] = 0; Dsp[d] = 0; Dbr[d] = 0; Dcs[d] = 0; Dw[d] = ""; Dws[d] = 0 }
+    function push(x, o) { d++; Dx[d] = x; Do[d] = o; Dc[d] = (x == "P" || x == "B"); Da[d] = 0; Dop[d] = 0; Dsp[d] = 0; Dcc[d] = 0; Dbr[d] = 0; Dcs[d] = 0; Dw[d] = ""; Dws[d] = 0 }
     function own(c) { if (Dws[o] == 0) Dws[o] = i; Dw[o] = Dw[o] c }
     # Read s from A with subshells, substitutions, groups, case and here-documents, and put each word at or
     # after B that sits where a command, an interpreter'"'"'s script, or a wrapper'"'"'s argument does.
@@ -340,7 +339,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         if (cmd && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
         if (cmd && !q && (w in reserved)) { out = out w; continue }
         if (cmd && !q && ((w in interp) || isrn(w))) { out = out w; cmd = 0; after = 1; aftr = isrn(w); continue }
-        hit = (cmd && !q && plain(w) && index(bare(w), "/")) || (after && !q && plain(w))
+        hit = (cmd && !q && plain(w) && index(w, "/") && bare(w) != "") || (after && !q && plain(w))
         if (!hit && mode == "list" && (cmd || after) && (q || w ~ /[$\\]/)) sus(w, after)
         if (hit && mode == "list") print bare(w)
         if (hit && mode == "rewrite" && (bare(w) in listed)) r = "\047" tree "/" bare(w) "\047"

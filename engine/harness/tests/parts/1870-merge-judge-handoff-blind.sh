@@ -36,6 +36,16 @@ d="${B13_GHDIR:?B13_GHDIR is not set}"; mkdir -p "$d"
 n=0; for f in "$d"/call.*; do [ -e "$f" ] && n=$((n + 1)); done
 f="$d/call.$(printf '%03d' "$((n + 1))")"
 : > "$f"; for a in "$@"; do printf '%s\0' "$a" >> "$f"; done
+# The provider's two reads at the merge (lib/bind.sh, spec S5.2), answered with git at call time from the checkout
+# the stub runs in: the pull request open at this HEAD into main, and main at the commit it names here.
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-main}" "$(git rev-parse HEAD)"; exit 0 ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")"
+    exit 0 ;;
+esac
 case "${1:-} ${2:-}" in "pr view") printf '{"number":7,"state":"OPEN"}\n' ;; "pr merge") printf 'merged\n' ;; esac
 exit 0
 B13GH
@@ -270,11 +280,13 @@ _b13_s A5-control; _b13_a5c="$_b13_a5c|exit=$B13RC|runs=$(_b13_pre self= "$B13/s
 _b13_check "A5 (fixture control): the blob of zz-only-main.txt is a loose object, and with it a dry run reaches the stub" "$_b13_a5c" "object loose|exit=7|runs=1"
 rm -f "$B13_OBJ"
 _b13_s A5-dry
-_b13_a5="dry: exit=$B13RC,says=$(_b13_yn "$(_b13_n "could not copy main's engine" "$B13/err")"),runs=$(_b13_pre self= "$B13/stub.log"),gh=$(_b13_calls)"
+# Since trust step 3, slice 2 (spec S6.3): the blob is in V, the objects the verdict reads, so a merge refuses on it
+# by name with one objects blocker (exit 3) before any copy of main's engine is attempted.
+_b13_a5="dry: exit=$B13RC,says=$(_b13_yn "$(_b13_n "  objects     $B13_BLOB" "$B13/out")"),runs=$(_b13_pre self= "$B13/stub.log"),gh=$(_b13_calls)"
 _b13_run A5-real "$B13R" - "$B13KS" "$B13R/engine/harness/felix" -- merge --base refs/remotes/origin/main
-_b13_a5="$_b13_a5 real: exit=$B13RC,judge-rows=$(_b13_judgerows b13s),gh=$(_b13_calls)"
+_b13_a5="$_b13_a5 real: exit=$B13RC,objects-rows=$(_b13_new b13s | LC_ALL=C awk -F'\t' '$2 == "refused" && index($0, ": objects: ") { n++ } END { print n + 0 }'),gh=$(_b13_calls)"
 _b13_check "A5 (B9): with a blob main's engine tracks missing, felix merge refuses with exit 1, saying it could not copy main's engine, runs nothing, calls no gh, and a real run records one refused judge row" \
-  "$(git -C "$B13R" cat-file -e "$B13_BLOB" 2>/dev/null && echo still-there)$_b13_a5" "dry: exit=1,says=yes,runs=0,gh=0 real: exit=1,judge-rows=1,gh=0" "$(_b13_why)"
+  "$(git -C "$B13R" cat-file -e "$B13_BLOB" 2>/dev/null && echo still-there)$_b13_a5" "dry: exit=3,says=yes,runs=0,gh=0 real: exit=3,objects-rows=1,gh=0" "$(_b13_why)"
 _b13_check "A5 (fixture control): the object is restored with hash-object -w" \
   "$(_fx_git "$B13R" hash-object -w --stdin < "$B13/zz-only-main.keep" 2>/dev/null)|$(git -C "$B13R" cat-file -e "$B13_BLOB" 2>/dev/null && echo readable)" "$B13_BLOB|readable"
 _b13_run A6 "$B13R" - "$B13KS" "$B13R/engine/harness/felix" -- merge --dry-run --base refs/heads/b13s-nofelix
@@ -345,7 +357,7 @@ printf 'a change to merge\n' > "$B13P/README.md"; _b13_commit "$B13P" c
 _fx_git "$B13P" update-ref refs/heads/b13p-base HEAD~1 >/dev/null 2>&1; _b13_project b13p; _b13_a15=""
 for _b13_h in plain handed; do
   if [ "$_b13_h" = plain ]; then _b13_x=B13_PLAIN=1; else _b13_x=FELIX_MERGE_HANDED=1; fi
-  _b13_run "A15-$_b13_h" "$B13P" b13p "$B13/no-cache" "$B13Q/engine/harness/felix" "$_b13_x" -- merge --dry-run --base refs/heads/b13p-base
+  _b13_run "A15-$_b13_h" "$B13P" b13p "$B13/no-cache" "$B13Q/engine/harness/felix" "$_b13_x" GHSTUB_BASE=b13p-base -- merge --dry-run --base refs/heads/b13p-base
   _b13_a15="$_b13_a15 $_b13_h:$(_b13_yn "$(cat "$B13/out" "$B13/err" | _b13_ni 'CANDIDATE-VERDICT would squash this now.')")"
 done
 _b13_check "A15 (B14; control): in a governed product the candidate's felix forms the verdict itself, with and without FELIX_MERGE_HANDED" "$_b13_a15" " plain:yes handed:yes" "$(_b13_why)"

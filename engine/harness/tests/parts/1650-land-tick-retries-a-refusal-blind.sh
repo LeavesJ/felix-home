@@ -45,6 +45,8 @@ _l50_out() {   # NAME -> felix merge's output NAME, as section 4 gives it (L: a 
     0) printf 'not merging\n\n' ;;
     G) printf 'GraphQL: Something went wrong\nfelix: gh pr merge failed, for the reason gh gave above. Nothing was merged.\n' ;;
     M) printf 'not merging\n\n  tree       edited under it, uncommitted or untracked\n\nThe working tree was edited while this ran.\n' ;;
+    P) printf 'not merging\n\n'; _l50_bl base provider 'the provider could not be asked which commit it would squash onto (gh api for the base branch main failed), so the base judged here is not known to be its base, and nothing was merged' ;;
+    D) printf 'not merging\n\n'; _l50_bl base 0123456789abcdef0123456789abcdef01234567 'the base judged is not the base the provider would squash onto: main is another commit on GitHub. Fetch, and run this again' ;;
   esac
 }
 _l50_keep() { [ -f "$LAND/ledger.tsv" ] && cat "$LAND/ledger.tsv" >> "$L50/all.tsv"; return 0; }
@@ -139,6 +141,15 @@ _l50_case M 4; _lg_land --tick; L50DM="$(_lg_f refused 50 7)"; _l50_age; _lg_lan
 is "A18 (B5): a refusal that exits 4 (the tree was edited under it) is tried again once its row is an hour old: M50 is 2" "$(_l50_m)" "2"
 is "A4 (B1, B2): exit 1 (OUT-G) and exit 4 (OUT-M) are hourly: each refused row's detail says (tried again an hour after this row)" \
    "$(_l50_has "$L50DG" "$L50CH")|$(_l50_has "$L50DM" "$L50CH")" "yes|yes"
+
+# ----------------------------------- not blind: slice 2's review, 2026-11-08 ---
+# OUT-P and OUT-D are felix merge's two base lines since trust step 3 slice 2 (lib/bind.sh): the provider gave no
+# answer, and the provider names a base that is not the one judged. Written after that review found the first
+# classed final, which parked an honest pull request until its head or main moved.
+_l50_case P 3; _lg_land --tick; L50DP="$(_lg_f refused 50 7)"; _lg_land --tick; L50A="$(_l50_m)"; _l50_age; _lg_land --tick
+is "A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does" \
+   "$(_l50_has "$L50DP" "$L50CH")|$L50A|$(_l50_m)" "yes|1|2"
+_l50_final D A26 "a base blocker naming a commit, the provider's base being another"
 
 # ----------------------------------------------- B6, B9: rows it did not write ---
 _l50_case R 3; _l50_seed "the receipt is stale [main $(_l50_main)]"; _l50_age; _l50_rw "$L50RC50"; _l50_rw "$L50CC"

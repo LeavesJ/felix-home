@@ -17,7 +17,8 @@ printf '\nwhat felix merge records, and what it hands gh\n'
 #
 # The gh stub records each call as one file, every argument NUL-terminated, so
 # argument boundaries survive and a multi-line --body is read back whole. It
-# answers every invocation with exit 0 and no output, so it steers nothing.
+# answers every invocation with exit 0 and no output, so it steers nothing, but
+# the provider's two reads (lib/bind.sh, S5.2), answered from its checkout by git.
 L1="$TMP/l1blind"; mkdir -p "$L1/gh"; L1="$(cd "$L1" && pwd -P)"
 cat > "$L1/gh/gh" <<'STUB'
 #!/usr/bin/env bash
@@ -25,6 +26,13 @@ d="${L1GH_DIR:?}"; mkdir -p "$d"
 n=0; for f in "$d"/call.*; do [ -e "$f" ] && n=$((n+1)); done
 f="$d/call.$(printf '%03d' $((n+1)))"
 : > "$f"; for a in "$@"; do printf '%s\0' "$a" >> "$f"; done
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-main}" "$(git rev-parse HEAD)" ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")" ;;
+esac
 exit 0
 STUB
 chmod +x "$L1/gh/gh"
@@ -305,7 +313,8 @@ printf 'widget\n' > "$L1N/.felix"; printf 'contents\n' > "$L1N/WIDGET.txt"
 _l1rec "$L1N" >/dev/null
 _l1run "$L1N" l1-blind-sess-d -- --base main
 # main: exit 1, `felix: no github remote`, no row.
-if [ "$L1RC" -eq 1 ] && grep -q '^felix: ' "$L1/err" && [ -z "$L1MC" ]; then
+# Since trust step 3, slice 2 (S5.2, S5.3): no remote is no answer, refused by one `base` blocker.
+if [ "$L1RC" -ne 0 ] && [ "$(_l1kinds)" = "base " ] && [ -z "$L1MC" ]; then
   is "a checkout with no github remote is refused with exactly one refused row" "$(_l1n refused)" "1"
 else bad "a checkout with no github remote is refused with exactly one refused row" "no error refusal: exit $L1RC: $(_l1all)"; fi
 # main: no row.

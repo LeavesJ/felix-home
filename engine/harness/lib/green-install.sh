@@ -144,16 +144,20 @@ _gt_clause() { case "$1" in receipt) printf '%s' "$_GT_CR" ;; final) printf '%s'
 # receipt can lift it; final: exit 3 with any other block or none; hourly: any other status, and a block
 # of those lines with a not-green tests line among them, because that line is GitHub's answer (rule C9
 # asking it) and no receipt write lifts what GitHub says. An engine older than 2026-11-07 named the kind
-# unverified, so a block of either name, or of both, is read the same. The block follows the first line that is
-# exactly "not merging", past its one empty line, to the next empty line.
+# unverified, so a block of either name, or of both, is read the same. Hourly too: a block whose one line is base
+# provider, the provider giving felix merge no answer (lib/bind.sh, S5.3), which nothing local lifts and a
+# later read may (slice 2's review: classed final, one failed read parked an honest pull request until its
+# head or main moved). A base line naming a commit stays final: the next fetch moves main. The block
+# follows the first line that is exactly "not merging", past its one empty line, to the next empty line.
 _gt_class() {   # STATUS OUTPUT -> receipt, final or hourly
   [ "$1" = 3 ] || { printf hourly; return 0; }
-  printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0; h = 0 }
+  printf '%s\n' "$2" | LC_ALL=C awk 'BEGIN { s = 0; n = 0; b = 0; h = 0; p = 0 }
     s == 0 { if ($0 == "not merging") s = 1; next }
     s == 1 { s = 2; if ($0 == "") next }
     $0 == "" { exit }
-    { n++; if ($1 == "not-green" || $1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
-    END { print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'
+    { n++; if ($1 == "base" && $2 == "provider") p = 1
+      else if ($1 == "not-green" || $1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
+    END { if (p) print (n == 1 ? "hourly" : "final"); else print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'
 }
 
 # B4. What one receipt file holds, by its sum: - when absent, ? when unknown. Other bytes, other sum.

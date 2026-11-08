@@ -209,13 +209,16 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
     # Each relative path with a / in T, read without its quotes; ALL takes T whole, with or without a /.
     function sus(t, all,   k, m, a, r) {
       gsub("[\"\047\\\\]", "", t)
-      if (all) { while (substr(t, 1, 2) == "./") t = substr(t, 3)
+      if (all == 1) { while (substr(t, 1, 2) == "./") t = substr(t, 3)
                  if (t != "" && t !~ /^[\/~-]/ && t !~ /[][[:space:]$*?`(){}<>|&;=]/ && t !~ /(^|\/)\.\.(\/|$)/) put(t)
                  return }
       m = split(t, a, /[^A-Za-z0-9._\/+@%,-]+/)
       for (k = 1; k <= m; k++) { r = a[k]; sub(/^-+/, "", r); while (substr(r, 1, 2) == "./") r = substr(r, 3)
-        if (r != "" && substr(r, 1, 1) != "/" && index(r, "/") && r !~ /(^|\/)\.\.(\/|$)/) put(r) }
+        if (r != "" && substr(r, 1, 1) != "/" && (all == 2 || index(r, "/")) && r !~ /(^|\/)\.\.(\/|$)/) put(r) }
     }
+    # An interpreter by name, however it is spelled: quoted, escaped, by absolute path, or versioned.
+    function isrn(w) { gsub("[\"\047\\\\]", "", w); if (substr(w, 1, 1) == "/") sub(/^.*\//, "", w)
+      return (w in rinterp) || w ~ /^((ba|z|da|k|mk|a|po)?sh|python|pypy|perl|ruby|node|php|lua|tclsh|osascript)[0-9.]*$/ }
     # One word of command frame F is complete: decide what it is in the grammar deep() reads.
     function fin(f,   w, st, k) {
       w = Dw[f]; st = Dws[f]; Dw[f] = ""; Dws[f] = 0
@@ -226,22 +229,27 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
       if (Dcs[f] == 2) { Dcs[f] = (w == "in") ? 3 : 0; return }
       if (Dcs[f] == 3) { if (w == "esac") { Dcs[f] = 0; Dc[f] = 0 }; return }
       if (Dbr[f]) { if (w == "]]") Dbr[f] = 0; return }
-      if (Dop[f]) { if (st >= B) { if (Dop[f] == 2 && w !~ /^-/ && w !~ /^[0-9]*[<>]/) { sus(w, 1); Dop[f] = 1 }; sus(w, 0) }
+      if (Dop[f] && isrn(w)) { Dop[f] = 0; Dsp[f] = 0; Da[f] = 1; return }
+      if (Dop[f]) { if (Dop[f] == 2) Dsp[f] = 0
+                    if (st >= B) { if (Dop[f] == 2 && w !~ /^-/ && w !~ /^[0-9]*[<>]/) { sus(w, 1); Dop[f] = 1 }; sus(w, 0) }
                     else if (w !~ /^-/) Dop[f] = 1
                     return }
       if (Da[f]) { if (w ~ /^[0-9]*[<>]/) return
-                   Da[f] = 0; if (w ~ /^-/) { Dop[f] = 2; return }; if (st >= B) sus(w, 1); return }
-      if (!Dc[f]) { if (w in rinterp) Da[f] = 3; return }
+                   if (w ~ /^-/) { Dsp[f] = (Da[f] == 1 && w != "-c"); Da[f] = 0; Dop[f] = 2; return }
+                   Da[f] = 0; if (st >= B) sus(w, 1); return }
+      if (!Dc[f]) { if (isrn(w)) Da[f] = 3; return }
       if (Dcs[f] == 4 && w == "esac") { Dcs[f] = 0; Dc[f] = 0; return }
       if (w ~ /^[A-Za-z_][A-Za-z0-9_]*\+?=/ || (w in reserved) || w == "{" || w == "}") return
       Dc[f] = 0
       if (w == "[[") { Dbr[f] = 1; return }
       if (w == "case") { Dcs[f] = 1; return }
-      if (w in interp) { Da[f] = (w in rinterp) ? 1 : 2; return }
+      if (isrn(w)) { Da[f] = 1; return }
+      if (w in interp) { Da[f] = 2; return }
       if (w in wrap) { Dop[f] = 1; return }
       if (st >= B) sus(w, 0)
+      if (w ~ /[$`]/) Da[f] = 1
     }
-    function push(x, o) { d++; Dx[d] = x; Do[d] = o; Dc[d] = (x == "P" || x == "B"); Da[d] = 0; Dop[d] = 0; Dbr[d] = 0; Dcs[d] = 0; Dw[d] = ""; Dws[d] = 0 }
+    function push(x, o) { d++; Dx[d] = x; Do[d] = o; Dc[d] = (x == "P" || x == "B"); Da[d] = 0; Dop[d] = 0; Dsp[d] = 0; Dbr[d] = 0; Dcs[d] = 0; Dw[d] = ""; Dws[d] = 0 }
     function own(c) { if (Dws[o] == 0) Dws[o] = i; Dw[o] = Dw[o] c }
     # Read s from A with subshells, substitutions, groups, case and here-documents, and put each word at or
     # after B that sits where a command, an interpreter'"'"'s script, or a wrapper'"'"'s argument does.
@@ -267,7 +275,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         if (c == "\\") { own(substr(s, i, 2)); i += 2; continue }
         if (c == "$" && substr(s, i + 1, 1) == "(") { own("$()"); push("P", o); i += 2; continue }
         if (c == "$" && substr(s, i + 1, 1) == "{") { e = index(substr(s, i), "}"); if (!e) e = n - i + 1; own(substr(s, i, e)); i += e; continue }
-        if (c == "`") { if (Dx[o] == "B") { fin(o); if (Da[o] == 1) sdi = 1; d--; i++; continue }; own("``"); push("B", o); i++; continue }
+        if (c == "`") { if (Dx[o] == "B") { fin(o); if (Da[o] == 1 || Dsp[o]) sdi = 1; d--; i++; continue }; own("``"); push("B", o); i++; continue }
         if (c == "(") {
           if (Dcs[o] == 3) { i++; continue }
           if (Dw[o] ~ /=$/) { own("()"); push("A", o); i++; continue }
@@ -275,20 +283,20 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
           fin(o); push("P", o); i++; continue }
         if (c == ")") {
           if (Dcs[o] == 3) { fin(o); Dcs[o] = 4; Dc[o] = 1; i++; continue }
-          fin(o); if (Da[o] == 1) sdi = 1
+          fin(o); if (Da[o] == 1 || Dsp[o]) sdi = 1
           if (Dx[o] == "P" || Dx[o] == "A") { d--; i++; continue }
-          Dc[o] = 0; Da[o] = 0; i++; continue }
+          Dc[o] = 0; Da[o] = 0; Dsp[o] = 0; i++; continue }
         if (c == ";" || c == "&" || c == "|" || c == "\n") {
           if (c == "&" && Dw[o] ~ /[<>]$/) { own(c); i++; continue }
           fin(o)
           if (Dcs[o] == 3 && c == "|") { i++; continue }
           if (Dbr[o] && (c == "&" || c == "|")) { i++; continue }
-          if (Da[o] == 1) sdi = 1
+          if (Da[o] == 1 || Dsp[o]) sdi = 1
           if (c == ";" && Dcs[o] == 4 && index(";&", substr(s, i + 1, 1))) { Dcs[o] = 3; i += 2; if (substr(s, i, 1) == "&") i++; continue }
-          Dc[o] = 1; Da[o] = 0; Dop[o] = 0; i++; continue }
+          Dc[o] = 1; Da[o] = 0; Dop[o] = 0; Dsp[o] = 0; i++; continue }
         own(c); i++
       }
-      while (d > 0) { if (Dx[d] != "D") { fin(d); if (Da[d] == 1) sdi = 1 }; d-- }
+      while (d > 0) { if (Dx[d] != "D") { fin(d); if (Da[d] == 1 || Dsp[d]) sdi = 1 }; d-- }
     }
     BEGIN {
       mode = ENVIRON["_FPS_M"]; s = ENVIRON["_FPS_S"]; wl = ENVIRON["_FPS_W"]; tree = ENVIRON["_FPS_T"]
@@ -327,11 +335,11 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
         }
         if (stop) { from = ws; break }
         if ((cmd && !q && (w == "[[" || w == "case" || (w in wrap))) || w ~ /^<</ || (after && !q && w ~ /^(-|[0-9]*[<>])/) \
-            || (!cmd && !after && !q && (w in rinterp))) { stop = 1; from = ws; break }
+            || (!cmd && !after && isrn(w)) || (cmd && w !~ /^[A-Za-z_][A-Za-z0-9_]*=/ && (q || w ~ /[$`]/))) { stop = 1; from = ws; break }
         r = w
         if (cmd && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
         if (cmd && !q && (w in reserved)) { out = out w; continue }
-        if (cmd && !q && (w in interp)) { out = out w; cmd = 0; after = 1; aftr = (w in rinterp); continue }
+        if (cmd && !q && ((w in interp) || isrn(w))) { out = out w; cmd = 0; after = 1; aftr = isrn(w); continue }
         hit = (cmd && !q && plain(w) && index(bare(w), "/")) || (after && !q && plain(w))
         if (!hit && mode == "list" && (cmd || after) && (q || w ~ /[$\\]/)) sus(w, after)
         if (hit && mode == "list") print bare(w)
@@ -341,7 +349,7 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
       if (stop) out = out substr(s, from)
       if (!stop && after && aftr) sdi = 1
       if (stop && mode == "list") deep(cstart, from)
-      if (sdi && mode == "list") sus(s, 0)
+      if (sdi && mode == "list") sus(s, 2)
       if (mode == "rewrite") printf "%s", out
     }'
 }

@@ -2,9 +2,11 @@
 
 2026-11-07. Step 2 of the trust-plane design, which direction row 50 made final. The design is filed as `docs/2026-11-07-trust-plane-design.md` on branch `claude/direction-fold-2026-11-07` (PR #490) until that lands; the same text is in the memory root at `designs/2026-11-06-trust-plane-revisit/design-draft-5.md`. A section written §4.2 is the design's. A section of this specification is written "part 1 §3".
 
+**Revision 1, 2026-11-08.** Step 1 of the design replayed slice 0 against a blind held-out set (18 defective subjects and 18 clean twins, in bash, Python and TypeScript, one run per subject). It did not advance the method: 5 of the 18 clean twins drew a false block against a limit of 4 (memory root, `audits/2026-11-07-trust-plane-step1/report/step1-report.md`, §6). This revision carries the three method changes that report names, each a Felix call: a stated model for each need (S7, MD1 to MD9 in part 2 §1.8), spec oracles as a checker kind written blind to the implementation (SO1 to SO7 in part 2 §5.2), and a review packet that carries no findings (PK1 to PK5 in part 2 §5.3). The first version of this specification, #493, was written in parallel with step 1 and has none of them. Part 2 §5 is new. Whether the method advances to the prospective trial is decided by a pre-registered rerun and not here (part 2 §5.4).
+
 The specification has three files, each under 500 lines:
 1. **This file:** scope, conventions and closed types, the record contract, states and admission, and applicability.
-2. **`docs/2026-11-07-trust-plane-spec-evidence.md`:** evidence and its validity, escapes and suspensions, transitions and the acceptance rule, and the observability boundary.
+2. **`docs/2026-11-07-trust-plane-spec-evidence.md`:** evidence and its validity, a need's model, escapes and suspensions, transitions and the acceptance rule, the observability boundary, and the method's contract.
 3. **`docs/2026-11-07-trust-plane-spec-mappings.md`:** today's engine mapped onto this specification; which steps of direction §5 the design's steps 3 to 9 replace and which stay; the decisions this specification made; and what it leaves open.
 
 **What this is.** It says what the trust plane's records, states and transitions are, precisely enough that step 3's build and its blind assertions can be written from it without the design beside it. Each rule has an id, such as S4, for tests and receipts to cite. Design questions are Felix's, so this document is Felix's. It rests on the founder's decisions in direction rows 48 to 51 and changes none of them. Where it reads a direction row, it says "by Felix's reading".
@@ -23,7 +25,8 @@ Until a rule is built, today's engine stays the enforcing path. Part 3 §1 maps 
 - the state machine and the admission transaction (§4.2), and the whole applicability table (§4.3), `subject_removed` included (part 1 §3 and §4);
 - evidence (§4.4): validity, instrument closure, instrument against subject, mixed files, CI counted only with the authorized closure, and the scope and repair of suspensions (part 2 §1 and §2);
 - transitions (§4.6): subject typing, the seven-clause acceptance rule, and the interim rule that releases fail closed (row 49) (part 2 §3);
-- the observability boundary (§4.8) (part 2 §4).
+- the observability boundary (§4.8) (part 2 §4);
+- the method's contract (§4.7), as far as a need's model, the spec oracle as a checker kind and the review packet touch it (part 1 §2.1 and S7; part 2 §1.8 and §5). The method is advisory: no decision reads a worker-side record (R11).
 
 Independence (§4.5) appears only as far as evidence validity reads it.
 
@@ -56,8 +59,11 @@ Independence (§4.5) appears only as far as evidence validity reads it.
 | Evidence result | `pass`, `fail`, `could_not_examine`, `unknown` |
 | Provenance | `authority_run`, `provider_read` (part 2 §1.5) |
 | Independence context | `blind`, `saw_implementation` |
-| Suspension scope | `record`, `version_class`, `checker`, `method_class`, and `lifted`, which ends a suspension (part 2 §2) |
+| Suspension scope | `record`, `version_class`, `checker`, `method_class`, `model`, and `lifted`, which ends a suspension (part 2 §2) |
 | Effect class | `none`, `effect`, `unknown` (part 2 §4) |
+| Checker kind | `class_rule`, `spec_oracle`, `fault_tier`, `instance` (part 2 §5.2) |
+| Model reading | `inside`, `outside`, `unknown` (part 2 §1.8) |
+| Domain form | `regex`, `range`, `set`, `length`, `keys` (part 2 §1.8) |
 
 **K2. A value outside its type reads UNKNOWN, and UNKNOWN blocks.** A record holding such a value is UNKNOWN as a whole, not in part, unless the schema marks that field report-only (R5).
 
@@ -75,9 +81,9 @@ The design names five kinds: needs, checkers, evidence, decisions and escapes. I
 
 | Kind | What it holds | Writer |
 |---|---|---|
-| `need` | name, class, pathway, subject type, `applies` checker, evidence checker, grounds, minimum independence, reason | proposed by the capability side; its lifecycle is the trust side's (`admission`) |
+| `need` | name, class, pathway, subject type, `applies` checker, evidence checker, grounds, minimum independence, reason, and optionally a model: the faults and inputs of the deployment the need is about (part 2 §1.8) | proposed by the capability side; its lifecycle is the trust side's (`admission`) |
 | `admission` | one lifecycle move of one need: from, to, pathway, the qualification it rests on, the policy change that landed it | trust side |
-| `checker` | one checker version: id, entry content hash, authorized closure, author identity, author context | supplied by the capability side; the authorized closure is the trust side's |
+| `checker` | one checker version: id, entry content hash, authorized closure, author identity, author context, the kind it claims, and for a spec oracle the requirement it was written from (part 2 §5.2) | supplied by the capability side; the authorized closure is the trust side's |
 | `qualification` | checker version, fault class, method version and seeded set, with each seed's result | the authority |
 | `evidence` | part 2 §1.1 | the authority |
 | `decision` | one transition's verdict: type, subject, base, epoch, one row per need, each clause's state and codes, and the denominator | the authority |
@@ -138,6 +144,7 @@ Every record carries these fields:
 | Kind | Holds while | Stops holding when |
 |---|---|---|
 | `need` | admitted and not superseded | an `admission` record moves it to SUPERSEDED. Applicability and discharge are never stored (S2, S3) |
+| `model` (a field of `need`) | its need is admitted, its grounds still read as they did, its qualification holds, and no suspension of scope `model` covers it | any of those stops holding. The need then reads as having no model (MD2). The model is never reused or inferred |
 | `checker` | its entry hash and its authorized closure are unchanged | any byte of either changes: that is a new version, and it starts unqualified (E13) |
 | `qualification` | its checker version, method version and seeded set are unchanged, and no suspension covers it | any of them changes, or a suspension covers it (part 2 §2) |
 | `evidence` | V1 to V7 hold (part 2 §1.4) | any one of them fails |
@@ -209,9 +216,10 @@ Step 3 fixes the rest. A Rust port (step 7) has to read the same bytes.
 **S7. Strictness, for telling a tightening edit from a loosening one.** An edit tightens only when every field stays the same except one or more of these:
 - the class is raised, in the order INFO < ADVISORY < TASK_BLOCKING < RELEASE_BLOCKING < AUTHORITY_BLOCKING;
 - the minimum independence is raised, from identity to context;
-- `applies` becomes `-`, which always applies.
+- `applies` becomes `-`, which always applies;
+- the model is removed, or one of its exclusions is removed (MD4).
 
-Any other edit counts as loosening, because it cannot be compared mechanically. That covers the evidence command, the `applies` command, the subject type, the grounds and the pathway. Today an in-place edit of a row escapes, because the old line is no longer in the table (`_felix_escape_shrank`). That comparison ignores line order and a trailing comma. Until step 3 builds S7, that stays as it is.
+Any other edit counts as loosening, because it cannot be compared mechanically. That covers the evidence command, the `applies` command, the subject type, the grounds, the pathway, and every other change to a model. Adding an exclusion to a model loosens, since it turns a block into an advisory. Today an in-place edit of a row escapes, because the old line is no longer in the table (`_felix_escape_shrank`). That comparison ignores line order and a trailing comma. Until step 3 builds S7, that stays as it is.
 
 **S8. Pathway `unknown` is an authority hold.** While a blocking need with pathway `unknown` applies, it blocks every transition about its subject, whatever its evidence says. No exception clears it (amendments §1.3; `felix_obligations_blocking`). Its code is `authority_hold`. A non-blocking need with pathway `unknown` is printed and holds nothing, as today: the class is read first (`lib/obligations.sh:246`).
 
@@ -236,6 +244,8 @@ Every need at a transition gets one primary code, chosen by the precedence below
 | secondary | `instrument_changed` | the candidate changed part of this instrument's closure, so its own result is not evidence. The authority's run of the authorized closure decides (part 2 §1.5) | never on its own |
 | secondary | `exception_expired` | a grant keyed to this need's current content exists and has expired | no; the need is judged as unexcepted |
 | secondary | `base_unknown` | the candidate reads ACTIVE and the base reads UNKNOWN (part 1 §4) | no |
+| secondary | `outside_model` | one or more failing cases of the need's newest valid evidence read `outside` its model. They are listed and counted, and they do not make the need fail (part 2 §1.8, MD6, MD7) | never |
+| secondary | `model_unstated` | the need is blocking and has no usable model: none was stated, or it is unqualified, suspended, or rests on a ground that no longer reads as it did. Every case counts inside (MD2) | no |
 
 **Transition hold codes.** Clauses A4 to A7 (part 2 §3.3) hold a transition for reasons that belong to no single need. Without codes of their own, a transition held by one of them would print no reason at all (D4). They form a closed set:
 
@@ -247,19 +257,19 @@ Every need at a transition gets one primary code, chosen by the precedence below
 | `effect_unknown` | A7 | a surface the transition may reach is neither observed nor declared (part 2 §4) |
 | `release_unauthorized` | A7, T4 | a release or deployment transition, or a merge that reaches one, has no founder authorization naming it (row 49) |
 
-**S10. What a receipt prints for each need:** lifecycle, class, pathway, subject type (and "read as revision" where R17 applied), applicability on the base, on the candidate and in effect, discharge, exception state, primary code, secondary codes, and the ids of the evidence records it used. Today's report prints a sentence of detail in place of a code (`felix_obligation_state`). Part 3 §1 maps the difference.
+**S10. What a receipt prints for each need:** lifecycle, class, pathway, subject type (and "read as revision" where R17 applied), applicability on the base, on the candidate and in effect, discharge, exception state, primary code, secondary codes, the ids of the evidence records it used, and its model: the model's hash, or "model not stated", with the number of failing cases that read inside, outside and unknown (MD7). Today's report prints a sentence of detail in place of a code (`felix_obligation_state`). Part 3 §1 maps the difference.
 
 ### 3.4 The admission transaction
 
 Admitting a need and accepting the implementation that prompted it are two events, and they happen in this order. The design's example is a change that adds money transfers, where the work shows that a retry must never duplicate a transfer.
 
-**AD1. Proposal.** The capability side writes a CANDIDATE: the need's fields, a checker for it, the task that prompted it, and the proposer's identity.
+**AD1. Proposal.** The capability side writes a CANDIDATE: the need's fields (its model among them, if it has one), a checker for it, the task that prompted it, and the proposer's identity.
 
 **AD2. The hold.** A proposal holds its task when its pathway could make it blocking: `deterministic`, `witness`, `corroborated` or `unknown`, whatever class it proposes (design §4.2). Proposing a lower class therefore does not avoid the hold, and raising the class later is a tightening that the hold already covered. While it holds, `admission_pending` is on every transition of that task. A `probabilistic` proposal never holds.
 
 **AD3. Only the trust side resolves a hold**, by ADMITTED (landed) or by REJECTED. The proposer cannot withdraw a proposal that holds, since that would let a change unbind its own need (D10). If the checker fails qualification, the need is not REJECTED for it: the proposal goes back for another checker, and the hold stays. A rejection on that ground would let a bad checker retire a real need.
 
-**AD4. Admission is a policy change,** a change of its own, judged under the policy P that stands before it. Adding a need tightens P, so it lands under the admission rules: row 27 for derived rows (task scope, witness-backed, qualified, visibly Felix's, nothing armed before control 7 and the pin) and row 40 for release scope.
+**AD4. Admission is a policy change,** a change of its own, judged under the policy P that stands before it. Adding a need tightens P, so it lands under the admission rules: row 27 for derived rows (task scope, witness-backed, qualified, visibly Felix's, nothing armed before control 7 and the pin) and row 40 for release scope. A model admitted with a new need is part of that tightening, because before the admission the need blocked nothing. A later change to the model is a policy change of its own, judged by S7.
 
 **AD5. The authority qualifies the checker itself,** against seeded violations it holds. It never takes the candidate's word for the result.
 

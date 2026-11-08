@@ -170,10 +170,12 @@ else for NGX in "ngd A5 (K2): a current green receipt reporting tests:reused, wi
     "ngd A7 (K2, K11) [control]: it prints one line, a tests line of either name whose reason begins as K2 quotes it; with the workflow passed on the head, or tests:ok, no tests line"; do
   skip "$NGX" "no jq here for the gh stub"; done; fi
 
-NGKS="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" | grep -o "printf '[a-z][a-z-]*\\\\t" \
+# the boundary is felix_merge_blockers, the body it calls once P is read, and the policy blockers lib/policy.sh prints for it
+NGKS="$({ sed -n '/^felix_merge_blockers()/,/^}/p; /^_felix_merge_blockers_at()/,/^}/p' "$FROOT/harness/lib/escape.sh"
+          grep "printf 'policy" "$FROOT/harness/lib/policy.sh"; } | grep -o "printf '[a-z][a-z-]*\\\\t" \
         | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
-is "ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, probes, unknown and not-green" \
-   "$NGKS" "commission escape evidence not-green obligations probes unknown "
+is "ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, policy, probes, unknown and not-green" \
+   "$NGKS" "commission escape evidence not-green obligations policy probes unknown "
 has "ngd A9 (K3): felix merge --dry-run with no receipt prints the block line K3 gives, laid out as before" "$(_ngd_block "$NGD/m0d.out")" "$NGEX"
 is "ngd A10 (K3): no line of the block of either run begins with unverified once blanks are skipped" \
    "$(for NGX in m0d m0r m2d m2r; do _ngd_block "$NGD/$NGX.out"; done | LC_ALL=C awk '$1 == "unverified" { n++ } END { print n + 0 }')|$(_ngd_block "$NGD/m0d.out" | LC_ALL=C awk '$1 == "not-green" { n++ } END { print n + 0 }')" "0|1"

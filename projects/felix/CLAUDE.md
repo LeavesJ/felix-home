@@ -1,7 +1,7 @@
 # Felix
 
 The engineering OS, and the pilot of implementation. It turns intent into
-verified, shipped code and **decides** how that happens rather than suggesting
+checked, shipped code and **decides** how that happens rather than suggesting
 it. It holds no product code.
 
 Not a sandbox and not an advisor. A product that adopts Felix should get a
@@ -52,7 +52,7 @@ roadmap merged and was withdrawn four minutes later.
 **Felix owns how it gets built, optimally.** Which MCP, which plugin, which
 skill, which agent, in which order, in one context or several. Then the whole
 loop around that choice: read the project, plan the work, arrange the tooling,
-verify, classify, ship, repair, and remember.
+check, classify, ship, repair, and remember.
 
 If the founder is thinking about tooling, Felix has failed at its job.
 

@@ -15631,6 +15631,7 @@
 1	tree identity survives an unborn HEAD
 1	trust-step3: (fixture control) R's main holds the project's tables, the tools, MARKER and PROBE.txt, origin/main is main, the tools are executable, and the entry holds main's felix
 1	trust-step3: (fixture control) in main's checkout tools/check-fx and tools/applies-fx exit 0 and tools/probe-fx lists PROBE.txt
+1	trust-step3: (fixture control, part 2177): part 2176 ran first in this shell, so R is its repository under the suite's temporary directory and origin/main is main's commit
 1	trust-step3: S1 (a table in the candidate): checked out in the home, a candidate that removes the exfil row from risk.tsv and adds danger/x is refused with an escape line naming exfil and danger/x
 1	trust-step3: S1 (fail closed) (fixture control): origin/main names a commit without projects/ts3, which the candidate's working tree holds, and with the same engine as main
 1	trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line
@@ -15659,9 +15660,12 @@
 1	trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx
 1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that adds an unrelated file and changes no script passes the dry run
 1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that deletes MARKER and changes no script is refused with an obligations line for fx
+1	trust-step3: S2.1 (a group): with P's contract { tools/check-fx; }, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (a path read inside a substitution, control): with P's contract reading HEAD:tools/check-fx through git show inside a quoted command substitution, an unrelated candidate passes the dry run
 1	trust-step3: S2.1 (a quoted instrument): with P's contract "tools/check-fx" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (a wrapper): with P's contract nice tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
 1	trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh
-1	trust-step3: S2.1 (fixture control): on each case's own P its contract exits 0 over P's tree as the table holds it; the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted candidate's tools/check-fx exits 0 with MARKER gone
+1	trust-step3: S2.1 (fixture control): on each case's own P its contract exits 0 over P's tree as the table holds it; the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted, wrapper and group candidates' tools/check-fx exits 0 with MARKER gone
 1	trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt
 1	trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run
 1	trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR

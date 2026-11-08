@@ -12967,7 +12967,7 @@
 1	ngd A7 (K2, K11) [control]: it prints one line, a tests line of either name whose reason begins as K2 quotes it; with the workflow passed on the head, or tests:ok, no tests line
 1	ngd A70 (K10) [control]: the session-start list of waiting pull requests is the same beside a row of either kind, and names #77
 1	ngd A71 (K7) [fixture control]: the part leaves the home on main at origin's main, tracking it, with no tracked change, and main's check accepting its entry
-1	ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, probes, unknown and not-green
+1	ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, policy, probes, unknown and not-green
 1	ngd A9 (K3): felix merge --dry-run with no receipt prints the block line K3 gives, laid out as before
 1	ngd2 A1 (K1) [pin]: with no receipt, and with a red receipt for this exact tree, the tree line's reason is whole: no green receipt for this exact tree; run felix gate
 1	ngd2 A10 (K9) [pin]: deployed's sentence is unchanged
@@ -15763,7 +15763,7 @@
 1	trust-step3: S1 (the home's uncommitted edit) (fixture control): R stays on main with risk.tsv's exfil row removed and uncommitted, and the worktree's branch adds danger/x
 1	trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)
 1	trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key
-1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure
+1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with a not-green line for tests saying its run concluded failure
 1	trust-step3: S1.10 (an empty base, control): felix_merge_blockers called with an empty base prints the obligations row for fx and no policy row, as before this slice
 1	trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate
 1	trust-step3: S1.10 (no base): with a base that names no commit, felix_merge_blockers prints an unknown row and the obligations row for fx, as before this slice
@@ -15781,7 +15781,7 @@
 1	trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)
 1	trust-step3: S1.8 (a product's home, linked, control): with HR's committed projects/ts3p back, an unrelated candidate in Q passes the dry run
 1	trust-step3: S1.9 (a home behind BASE) (fixture control): origin/main's risk.tsv has one row more than the home's working tree, the home's HEAD is the commit before origin/main, and the worktree's branch only adds NOTES.md
-1	trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home
+1	trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with a not-green line whose subject is home
 1	trust-step3: S1.9 (a home behind BASE, control): with the home brought to origin/main and the receipts recorded again, the same candidate passes the dry run
 1	trust-step3: S2 (a probe) (fixture control): over the candidate's tree its own tools/probe-fx lists a member, the witness exits 0, and P's tools/probe-fx lists nothing
 1	trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe

@@ -1,5 +1,5 @@
 # >>> trust-step3-policy-from-p-b
-printf '\ntrust plane step 3, slice 1, continued: S2.1, S3, S4, the workflows control and S1.5 (spec section 2; blind)\n'
+printf '\ntrust plane step 3, slice 1, continued: S2.1, S3, S4, the workflows control, S1.8 for a product, and S1.5 (spec section 2; blind)\n'
 # Blind, as part 2176 is, and its continuation: cut from it on 2026-11-07 when it passed 550 lines. It runs after 2176 in
 # the same shell (group ts3 in tests/groups.tsv, so tests/run -j N keeps the two in one process, and --part takes both),
 # uses 2176's fixture R, its entry, its helpers and its readings, and removes what 2176 built at its end. Not read, as
@@ -18,6 +18,15 @@ printf '\ntrust plane step 3, slice 1, continued: S2.1, S3, S4, the workflows co
 #   checker runs in both, so the dry run passes: red.
 # - The substitution and path-read cases are controls for false blocks; each candidate only adds NOTES.md, and both pass
 #   on main. The path-read row is show, its contract reading HEAD:tools/check-fx through git show in a quoted substitution.
+# - S1.8's product cases: the product Q at $TS3/prod is main's tools, MARKER, PROBE.txt, .gitignore and gate workflow
+#   with .felix naming ts3p and no engine/, origin github.com/example/ts3p and origin/main at its main. Its home HR at
+#   $TS3/phome is a repository of its own (no remote; refs/remotes/origin/main set to its one commit) holding
+#   projects/ts3p, P's tables with project.json's name and remote_match renamed, and memory $MEM/ts3p. Each candidate
+#   is a branch checked out in Q; FELIX_HOME is HR, and the receipts are recorded with HR as it stands, its projects/ts3p
+#   (the link, or the loosened working tree) as the project directory, as S1.8's first case does, so on main the
+#   loosened row is read and the dry run passes: red. After the change those receipts may read stale beside the
+#   refusal; only the refusal and the obligations line for fx are held. The planted repository is `git init` in
+#   HR/projects, its one commit holding ts3p loosened, with its own refs/remotes/origin/main at it.
 is  "trust-step3: (fixture control, part 2177): part 2176 ran first in this shell, so R is its repository under the suite's temporary directory and origin/main is main's commit" \
     "$(case "${TS3R:-}" in ("$(cd "$TMP" && pwd -P)/ts3/repo") echo here ;; (*) echo "not 2176's [${TS3R:-}]" ;; esac)|$(_fx_git "${TS3R:-$TMP/no-ts3}" rev-parse -q --verify refs/remotes/origin/main 2>/dev/null)" \
     "here|${TS3_M:-unset}"
@@ -131,10 +140,58 @@ _ts3_entry workflows
 _ts3_check "trust-step3: workflows (control): a candidate that edits .github/workflows/gate.yml and only adds a table row is refused with an escape line for execute naming the workflow" \
   "$(_ts3_refused)|$(_ts3_bl escape execute .github/workflows/gate.yml -)" "refused|yes" "$(_ts3_why)"
 
+# ------------------------------------------------- S1.8, a product's home ---
+# Q, a product: main's tools, MARKER, PROBE.txt, .gitignore and gate workflow, .felix naming ts3p, no engine. HR, its
+# home, a repository of its own: projects/ts3p is P's tables renamed, committed, with origin/main at that commit.
+TS3Q="$TS3/prod"; TS3HR="$TS3/phome"; TS3HP="$TS3/phome/projects/ts3p"; mkdir -p "$TS3Q" "$TS3HR/projects" "$MEM/ts3p"
+( _fx_cd "$TS3Q" && git init -q -b main && git remote add origin https://github.com/example/ts3p.git \
+  && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
+_fx_git "$TS3R" archive -o "$TS3/q.tar" "$TS3_M" tools MARKER PROBE.txt .gitignore .github >/dev/null 2>&1 && tar -x -C "$TS3Q" -f "$TS3/q.tar"; rm -f "$TS3/q.tar"
+printf 'ts3p\n' > "$TS3Q/.felix"; _ts3_commit "$TS3Q" base; TS3_QM="$(_jr_sha "$TS3Q" HEAD)"
+_fx_git "$TS3Q" update-ref refs/remotes/origin/main "$TS3_QM" >/dev/null 2>&1
+( _fx_cd "$TS3HR" && git init -q -b main && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
+cp -R "$TS3PP" "$TS3HP"; printf 'state/\n*.log\n' > "$TS3HR/.gitignore"
+LC_ALL=C sed -e 's|"name": "ts3"|"name": "ts3p"|' -e 's|example.com/ts3"|example.com/ts3p"|' "$TS3PP/project.json" > "$TS3HP/project.json"
+_ts3_commit "$TS3HR" home; TS3_HM="$(_jr_sha "$TS3HR" HEAD)"; _fx_git "$TS3HR" update-ref refs/remotes/origin/main "$TS3_HM" >/dev/null 2>&1
+mkdir -p "$TS3/hp"; _fx_git "$TS3HR" archive -o "$TS3/hp.tar" "$TS3_HM" projects/ts3p >/dev/null 2>&1 && tar -x -C "$TS3/hp" -f "$TS3/hp.tar"; rm -f "$TS3/hp.tar"
+_ts3_qcand() { ( _fx_cd "$TS3Q" && git checkout -q -f -B "$1" main ) >/dev/null 2>&1; }   # BRANCH: a candidate in Q off main
+_ts3_check "trust-step3: S1.8 (a product's home) (fixture control): Q holds no engine manifest at main or in its tree and names ts3p, origin/main is main, and its home HR is a repository of its own whose origin/main holds projects/ts3p with the fx row's evidence contract tools/check-fx" \
+  "$(git -C "$TS3Q" ls-tree -r --name-only main -- engine 2>&1 | LC_ALL=C awk 'END { print NR }')$([ -e "$TS3Q/engine/.claude-plugin/plugin.json" ] && echo ' in tree')|$(cat "$TS3Q/.felix")|$(_jr_sha "$TS3Q" refs/remotes/origin/main)|$(git -C "$TS3HR" rev-parse --show-toplevel 2>&1)|$(git -C "$TS3HR" show refs/remotes/origin/main:projects/ts3p/obligations.tsv 2>&1 | LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }')" \
+  "0|ts3p|$TS3_QM|$TS3HR|tools/check-fx"
+
+# Linked: HR's projects/ts3p moved out of the home under another name, loosened there, and a link put back, uncommitted.
+_ts3_qcand ts3p-link; _fx_git "$TS3Q" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3Q" link
+mv "$TS3HP" "$TS3/moved-ts3p"; _ts3_loosen "$TS3/moved-ts3p"; ln -s "$TS3/moved-ts3p" "$TS3HP"
+_ts3_check "trust-step3: S1.8 (a product's home, linked) (fixture control): HR's projects/ts3p is a link, uncommitted (HR's HEAD is its origin/main), to a directory outside the home that differs from HR's committed tables only in the fx row's evidence contract, now true, and the candidate in Q only deletes MARKER" \
+  "$([ -L "$TS3HP" ] && echo link)|$(readlink "$TS3HP" 2>&1)|$(_jr_sha "$TS3HR" HEAD) $(_jr_sha "$TS3HR" refs/remotes/origin/main)|$(_ts3_ndiff "$TS3/hp/projects/ts3p" "$TS3/moved-ts3p") lines differ|$(_ts3_ns "$TS3Q" main)" \
+  "link|$TS3/moved-ts3p|$TS3_HM $TS3_HM|2 lines differ|D MARKER;"
+TS3_RH="$TS3HR"; TS3_RP="$TS3HP"; _ts3_entry S1.8-product-linked "$TS3Q"
+_ts3_check "trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+rm -f "$TS3HP"; rm -rf "${TS3:?}/moved-ts3p"; ( _fx_cd "$TS3HR" && git checkout -q -- projects/ts3p ) >/dev/null 2>&1
+_ts3_qcand ts3p-notes; printf 'notes the candidate adds\n' > "$TS3Q/NOTES.md"; _ts3_commit "$TS3Q" notes
+_ts3_entry S1.8-product-control "$TS3Q"
+_ts3_check "trust-step3: S1.8 (a product's home, linked, control): with HR's committed projects/ts3p back, an unrelated candidate in Q passes the dry run" \
+  "$(_ts3_passed)" "passed" "$(_ts3_why)"
+
+# Planted: a repository made in HR's projects/, holding the loosened tables at its HEAD and origin/main, and HR's
+# working-tree table loosened to match.
+_ts3_qcand ts3p-planted; _fx_git "$TS3Q" rm -q MARKER >/dev/null 2>&1; _ts3_commit "$TS3Q" planted
+_ts3_loosen "$TS3HP"
+( _fx_cd "$TS3HR/projects" && git init -q -b main && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
+_ts3_commit "$TS3HR/projects" planted; _fx_git "$TS3HR/projects" update-ref refs/remotes/origin/main "$(_jr_sha "$TS3HR/projects" HEAD)" >/dev/null 2>&1
+_ts3_check "trust-step3: S1.8 (a product's home, a planted repository) (fixture control): git in HR's projects answers with the planted repository, whose HEAD and origin/main hold ts3p with the fx row's evidence contract true, as HR's working tree does, while HR's origin/main holds tools/check-fx" \
+  "$(git -C "$TS3HR/projects" rev-parse --show-toplevel 2>&1)|$(git -C "$TS3HR/projects" show HEAD:ts3p/obligations.tsv 2>&1 | LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }')|$(git -C "$TS3HR/projects" show refs/remotes/origin/main:ts3p/obligations.tsv 2>&1 | LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }')|$(LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }' "$TS3HP/obligations.tsv")|$(git -C "$TS3HR" show refs/remotes/origin/main:projects/ts3p/obligations.tsv 2>&1 | LC_ALL=C awk -F'\t' '$1 == "fx" { print $5 }')|$(_ts3_ns "$TS3Q" main)" \
+  "$TS3HR/projects|true|true|true|tools/check-fx|D MARKER;"
+_ts3_entry S1.8-product-planted "$TS3Q"
+_ts3_check "trust-step3: S1.8 (a product's home, a planted repository): a candidate in the product Q that deletes MARKER, while a repository planted in HR's projects holds loosened tables and HR's working tree matches them, is refused with an obligations line for fx (P is HR's origin/main)" \
+  "$(_ts3_refused)|$(_ts3_bl obligations fx - -)" "refused|yes" "$(_ts3_why)"
+TS3_RH=""; TS3_RP=""; rm -rf "${TS3HR:?}/projects/.git"; ( _fx_cd "$TS3HR" && git checkout -q -- projects/ts3p ) >/dev/null 2>&1
+
 # ------------------------------------------------------------------- S1.5 ---
 _ts3_check "trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)" \
   "runs $TS3_RUNS|copy seen $TS3_PCOPY|left [$TS3_LEFT]" "runs $TS3_RUNS|copy seen yes|left []"
 
 ( _fx_cd "$TS3R" && git checkout -q -f main ) >/dev/null 2>&1
-rm -rf "$MEM/ts3" "$MEM/ts32" "${TS3:?}"
+rm -rf "$MEM/ts3" "$MEM/ts32" "$MEM/ts3p" "${TS3:?}"
 # <<< trust-step3-policy-from-p-b

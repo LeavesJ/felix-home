@@ -7,7 +7,8 @@ printf '\ntrust plane step 3, slice 1: the merge boundary reads its policy and i
 # $MEM/ts3 and $MEM/ts32 are removed at the end of part 2177; it adds nothing under $FROOT/projects. The cases from the
 # spec's amendments (S1.7 added; S1.7 amended, S1.8-S1.10 and S2.1 amended after review round 1, S2.1 widened after the
 # security review) were added blind the same way, from the amended spec alone. Part 2177 continues this one in the same
-# shell (group ts3 in tests/groups.tsv) and holds S2.1, S3, S4, the workflows control and S1.5; S2.1's readings are its.
+# shell (group ts3 in tests/groups.tsv) and holds S2.1, S3, S4, the workflows control, S1.8 for a product (its own
+# product, home and memory $MEM/ts3p) and S1.5; the readings for S2.1 and the product cases are its.
 #
 # R is built as section 2 says, the project ts3: _js_build's shape (the harness under test as engine/, a manifest at
 # 1.0.0, a github.com origin, refs/remotes/origin/main at main), and on main projects/ts3/ (project.json ending with

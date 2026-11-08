@@ -18,8 +18,9 @@
 # THE RULE (spec S1, S2).
 #   - P is the ref the merge judges against (BASE) when the project directory sits in a worktree of the
 #     repository being merged, and another repository's refs/remotes/origin/main (or its HEAD, when it
-#     has none) when it sits there (a product governed from a Felix home). A project directory that no
-#     repository holds has no authorized version, and is read from disk as before.
+#     has none) when it sits there (a product governed from a Felix home). When the merged repository
+#     is the engine's own and BASE holds projects/<name>, P is that, wherever the home is. Otherwise a
+#     project directory that no repository holds has no authorized version, and is read from disk.
 #   - The tables are read from a snapshot of the project directory as P holds it: regular files only,
 #     byte for byte. A BASE that does not hold it is a refusal, never the disk.
 #   - A word in command position of a P command that names a regular file P holds in the repository
@@ -31,7 +32,7 @@
 #
 # WHAT THIS DOES NOT BIND, as examples and not the set. A file a P script reads by a path relative to
 # the working directory, a mixed file (`make`, `npm test` reading the candidate's Makefile or manifest),
-# and a word _felix_p_rewrite does not recognise (inside quotes, after a `$`) are still the candidate's:
+# and a word _felix_p_scan does not recognise (inside quotes, after a `$`) are still the candidate's:
 # the partition of every path into instrument and subject (spec part 2, E5) is not built. The suite and
 # the gate receipt, which judge Felix's own engine, are the candidate's and the session's. A same-user
 # process can move refs/remotes/origin/main or name another --base. The step-3 report measures each.
@@ -105,12 +106,23 @@ _felix_policy_worktree() {   # ROOT DIR -> the worktree's path, or nothing
 #     has not landed. Neither holding it means the directory is not that repository's (a home under a
 #     $HOME that is itself a repository), and it is read from disk.
 #   - It is in no repository: there is no authorized version, and it is read from disk, as before.
+#   - Before all of these: when the merged repository is the engine's own at BASE and BASE holds
+#     projects/<the directory's name>, P is BASE there, wherever the home is (spec S1.7). A home
+#     FELIX_HOME points at a plain directory of loosened tables otherwise judged Felix's own merge.
 felix_policy_open() {   # PROJ BASE ROOT
   local proj="$1" base="$2" root="$3" pdir top rel ref sha name tmpd up
   _FELIX_POL_DIR="$proj"; _FELIX_POL_TMP=""; _FELIX_P_TREE=""; _FELIX_P_WORDS=""
   pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || return 0
+  name="${pdir##*/}"
   top="$(_felix_policy_worktree "$root" "$pdir")"
-  if [ -n "$top" ]; then
+  if [ -n "$base" ] && command -v felix_self_governed_at >/dev/null 2>&1 \
+     && felix_self_governed_at "$root" "$base" \
+     && [ "$(git -C "$root" cat-file -t "$base:projects/$name" 2>/dev/null </dev/null)" = tree ]; then
+    # Spec S1.7: the engine's own repository holds this project at BASE, so the home's directory, wherever
+    # FELIX_HOME put it and whether or not a repository holds it, does not choose the tables.
+    top="$(cd "$root" 2>/dev/null && pwd -P)" || return 0
+    rel="projects/$name"; ref="$base"
+  elif [ -n "$top" ]; then
     rel="${pdir#"$top"/}"; ref="$base"
   else
     # From the parent, so a .git inside the project directory is not its repository.
@@ -141,7 +153,6 @@ felix_policy_open() {   # PROJ BASE ROOT
   if [ -z "$_FELIX_POL_TMP" ]; then
     printf 'policy\tengine\tno directory could be made under %s for the policy snapshot, so nothing was read from %s\n' "${tmpd%/}" "$ref"; return 1
   fi
-  name="${pdir##*/}"
   if ! _felix_policy_copy "$top" "$sha" "$rel" "$_FELIX_POL_TMP/p/$name"; then
     printf 'policy\tengine\tthe tables could not be copied out of %s, so nothing was read from it\n' "$ref"; return 1
   fi

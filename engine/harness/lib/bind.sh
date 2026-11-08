@@ -36,7 +36,7 @@
 
 # Set only here, in the shell that merges: an inherited value names no copy and no pin.
 unset _FELIX_BIND_DIR _FELIX_BIND_OWNER _FELIX_BIND_HOME _FELIX_BIND_PACK _FELIX_BIND_M _FELIX_BIND_BLOCK _FELIX_BIND_NOTE _FELIX_BIND_WHY
-unset _FELIX_BIND_PBASE _FELIX_BIND_PHEAD _FELIX_BIND_PSHA _FELIX_BIND_QSHA _FELIX_BIND_HANDED _FELIX_BIND_B
+unset _FELIX_BIND_PBASE _FELIX_BIND_PHEAD _FELIX_BIND_PSHA _FELIX_BIND_QSHA _FELIX_BIND_HANDED _FELIX_BIND_B _FELIX_BIND_COPY
 
 # S6.5. The copy and the graft path inside it, removed by the process that made them and by no other. That process
 # is read as BASHPID, or on bash 3.2 as the parent of a sh it execs, never $$, which a subshell shares: an EXIT trap a
@@ -65,7 +65,7 @@ _felix_bind_exit() {
   [ "${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}" = "${_FELIX_BIND_OWNER:-}" ] || return 0
   [ -z "${_FELIX_BIND_HOME:-}" ] || _felix_bind_salvage "$_FELIX_BIND_DIR/objects" "$_FELIX_BIND_HOME" "${_FELIX_BIND_PACK:-}"
   rm -rf "$_FELIX_BIND_DIR" 2>/dev/null
-  _FELIX_BIND_DIR=""
+  _FELIX_BIND_DIR=""; _FELIX_BIND_COPY=""
 }
 
 # S6.1 and S6.2. Returns 0, or 1 when no directory could be made for the run (the variables are scrubbed either way,
@@ -195,6 +195,9 @@ felix_bind_objects() {   # ROOT B H
     _felix_bind_no "${m2:-merge-base}" "the merge base of $b and $h is ${m:-none} in the checkout and ${m2:-none} in the checked copy, so the checkout's history does not say what its objects hold; nothing else was judged"; return 1
   fi
   _FELIX_BIND_M="$m"
+  # Where the checked copy is, for the change readers' merge, which reads it alone (S6.6 rule 2). A shell variable, so
+  # the readers this shell runs see it and no child of the merge does.
+  _FELIX_BIND_COPY="$d"
   return 0
 }
 

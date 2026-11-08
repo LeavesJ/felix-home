@@ -988,7 +988,10 @@ _felix_ref_commit() {   # ROOT REF
 # merged tree is written where the caller's diff reads it. Global and system config and attributes are switched off
 # with it, the two sides are named by commit id, resolved once in the checkout, and a shallow checkout's boundary
 # is copied in. The caller's GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR and GIT_INDEX_FILE do not reach either git, and
-# a TERM or INT removes the directory (review of 07f1e869, 2026-11-08).
+# a TERM or INT removes the directory (review of 07f1e869, 2026-11-08). Inside felix merge, once lib/bind.sh's checked
+# copy is in force, the merge reads the copy's stores alone and not the checkout's (S6.6 rule 2): with the checkout
+# behind them, a loose file planted there under the merged blob's id was taken as the merge's result, which git
+# does not write again, so the change's line was never read.
 # Puts back the caller's TERM and INT traps once the made directory is gone.
 _felix_merge_untrap() {
   trap - TERM INT
@@ -997,7 +1000,7 @@ _felix_merge_untrap() {
   _FELIX_MERGE_TMP=""
 }
 _felix_merge_refs() {
-  local root="$1" base="$2" mb tip head tree objs tmpd g rc sh fmt told tint
+  local root="$1" base="$2" mb tip head tree objs tmpd g rc sh fmt told tint alt=()
   [ -n "$base" ] || return 1
   mb="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 1
   tip="$(git -C "$root" rev-parse "$base^{commit}" 2>/dev/null)" || return 1
@@ -1011,6 +1014,9 @@ _felix_merge_refs() {
   # A relative object directory names a place under the checkout, as `git -C "$root"` reads it.
   case "$objs" in /*) ;; *) objs="$(cd "$root" 2>/dev/null && cd "$objs" 2>/dev/null && pwd -P)" ;; esac
   [ -n "$objs" ] && [ -d "$objs" ] || return 1
+  if [ -n "${_FELIX_BIND_COPY:-}" ] && [ "$objs" = "$_FELIX_BIND_COPY/objects" ] && [ -d "$_FELIX_BIND_COPY/v" ]; then
+    alt=(GIT_ALTERNATE_OBJECT_DIRECTORIES="$_FELIX_BIND_COPY/v")
+  fi
   tmpd="${TMPDIR:-/tmp}"
   g="$(mktemp -d "${tmpd%/}/felix-merge.XXXXXX" 2>/dev/null)" || return 1
   _FELIX_MERGE_TMP="$g"; told="$(trap -p TERM)"; tint="$(trap -p INT)"
@@ -1025,7 +1031,8 @@ _felix_merge_refs() {
   # A shallow checkout's boundary, so the merge does not walk to parents it does not hold.
   sh="$(git -C "$root" rev-parse --path-format=absolute --git-path shallow 2>/dev/null)"
   if [ -n "$sh" ] && [ -f "$sh" ] && ! cp "$sh" "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
-  tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+  tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
+          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
           GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
   rc=$?
   rm -rf "$g"; _felix_merge_untrap

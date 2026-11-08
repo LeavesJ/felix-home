@@ -464,13 +464,13 @@ _sc=( 'engine/harness/bin/x engine/harness/templates engine/hooks/hooks.json' 'b
       'a=(tools/run.sh tools/check-fx); [ ${#a[@]} = 2 ]' '[[ -e tools/run.sh && tools/check-fx -nt x ]]'
       'v="$(git show "HEAD:tools/check-fx" | head -1)"; [ -n "$v" ]' $'true # tools/check-fx\n:'
       "sh -c 'ls Dockerfile* */Dockerfile* 2>/dev/null | grep -q .'" 'grep -q x tools/marker.txt'
-      '/bin/bash tools/run.sh' 'nice bash run.sh' 'cat run.sh | bash -e' '"bash" tools/run.sh' './tools/run.sh x' )
+      '/bin/bash tools/run.sh' 'nice bash run.sh' 'cat run.sh | bash -e' '"bash" tools/run.sh' './run.sh x' 'bash "tools/check-fx"' )
 _sl=( 'engine/harness/bin/x' 'tools/run.sh' 'tools/run.sh' 'tools/check-fx tools/run.sh' 'tools/check-fx' 'tools/check-fx'
       'tools/check-fx' 'tools/check-fx ?tools/run.sh' '?tools/run.sh ?bash ?n' '?run.sh ?bash ?e' '?tools/check-fx' '?tools/check-fx'
       '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' 'tools/check-fx ?tools/check-fx' '?tools/check-fx'
       '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?tools/check-fx' '?cat ?tools/check-fx ?bash'
       '?x ?cat ?tools/run.sh ?sh'
-      '?tools/marker.txt' '' '' '' '' '' '' '' 'tools/run.sh' '?run.sh' '?cat ?run.sh ?bash ?e' '?tools/run.sh' 'tools/run.sh' )
+      '?tools/marker.txt' '' '' '' '' '' '' '' 'tools/run.sh' '?run.sh' '?cat ?run.sh ?bash ?e' '?tools/run.sh' 'run.sh' '?tools/check-fx' )
 _sbad="$( . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/policy.sh"; _k=0
   while [ "$_k" -lt "${#_sc[@]}" ]; do
     _c="${_sc[$_k]}"; _l="$(_felix_p_scan list "$_c" | paste -sd' ' -)"

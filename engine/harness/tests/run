@@ -35,8 +35,7 @@ if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HAR
   printf 'tests/run: REAL_HARNESS [%s] is not a harness (it needs felix and lib/); nothing was copied\n' "$REAL_HARNESS" >&2
   exit 2
 fi
-# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison
-# and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
+# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
 
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
@@ -159,14 +158,14 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/router.sh"
 . "$HERE/lib/stuck-pr.sh"
+. "$HERE/lib/trust-probes.sh"
 . "$HERE/lib/unborn-repo.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
 . "$HERE/lib/widget-repo.sh"
 # The lib files' variables are set here, once, by their _vars functions (part 0006).
 if [ -d "$HERE/lib" ]; then
-  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
-  _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
+  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars; _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
 fi
 # The hand-over (contract D2, D7): part mode runs its members here and exits; a
 # -j N run hands the parts to the runner and reads the part lines below as no-ops.
@@ -310,6 +309,7 @@ fi
 . "$HERE/parts/1050-felix-cost-tokens-spent-read-from-the-transc.sh"
 . "$HERE/parts/1060-continued.sh"
 . "$HERE/parts/1070-felix-cost-the-2026-10-11-addendum.sh"
+. "$HERE/parts/1075-felix-cost-one-reading-at-a-time-blind.sh"
 . "$HERE/parts/1080-the-stop-hook-holds-once-per-session-per-tre.sh"
 . "$HERE/parts/1090-the-stop-hook-holds-once-per-session-tree-re.sh"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"
@@ -410,6 +410,8 @@ fi
 . "$HERE/parts/2120-wave-1-combine-blind.sh"
 . "$HERE/parts/2130-answers-delivered-blind.sh"
 . "$HERE/parts/2160-docs-are-not-a-frontend-blind.sh"
+. "$HERE/parts/2170-trust-resolver-which-cli-unfinished-reads-blind.sh"
+. "$HERE/parts/2173-trust-table-status-unfinished-reads-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"
@@ -419,6 +421,14 @@ fi
 . "$HERE/parts/2300-checked-not-verified-blind.sh"
 . "$HERE/parts/2300-evidence-readers-agree-blind.sh"
 . "$HERE/parts/2301-checked-not-verified-round3-blind.sh"
+. "$HERE/parts/2400-situations-table-blind.sh"
+. "$HERE/parts/2410-situations-recorded-blind.sh"
+. "$HERE/parts/2420-situations-change-blind.sh"
+. "$HERE/parts/2430-situations-output-blind.sh"
+. "$HERE/parts/2440-situations-web-fixture-blind.sh"
+. "$HERE/parts/2450-situations-cargo-fixture-blind.sh"
+. "$HERE/parts/2460-situations-seed-siblings-blind.sh"
+. "$HERE/parts/2470-situations-review-focus-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
 

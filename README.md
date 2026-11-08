@@ -132,7 +132,7 @@ at each step.
    checker in full, declares it short of some of the controls `felix qualify`
    asks for, or doesn't declare it at all. *The report is built, and a person
    writes the test ([what comes next](#direction)).*
-4. **A proof tied to the exact code.** Someone writes a test that sends the
+4. **A pass tied to the exact code.** Someone writes a test that sends the
    same payment twice at once and checks that only one goes through. The gate
    runs it and passes, and the receipt names the exact tree the pass was for.
    *Built.*
@@ -143,16 +143,17 @@ at each step.
    *Built, but only when you merge with `felix merge`. GitHub's `gh pr merge`
    skips all of it, and so does GitHub's auto-merge, which `felix automerge
    --enable` turns on for a repository. Felix's part ends at the merge.*
-6. **The proof goes stale.** Next week someone changes the transfer logic. The
+6. **The receipt goes stale.** Next week someone changes the transfer logic. The
    old receipt was about the old code, so it stops counting. An agent that
    edits that code and tries to finish is sent back once to run the gate again, and `felix merge` won't
    take the branch until it passes on the new code. *Built.*
 
 Felix is designed in two halves. Steps 2, 4, 5 and 6 are one loop: write down
-what must be true, count what nobody could check as not done, tie every proof
-to the exact code it checked, let only a current proof through Felix's merge,
-and throw the proof away when the code moves. Felix calls that loop the
-**trust plane**: the part that decides whether finished work can be believed.
+what must be true, count what nobody could check as not done, tie every
+receipt to the exact code its checks ran on, let Felix's merge take a branch
+only with a current receipt, and stop counting a receipt once the code moves.
+Felix calls that loop the **trust plane**: the part that decides whether
+finished work may count as done.
 Step 3 is the **capability plane**: working out what a project needs, and
 supplying the tools and agents that can do it. Without it, the trust plane
 holds an agent only to what someone thought to write down, and step 1's risk
@@ -397,9 +398,9 @@ private. If you want a mature, general agent framework, this isn't one.
 | State | What |
 |:---|:---|
 | **In daily use** on my projects | The Stop hold, receipts and their staleness, the merge escapes, obligations with UNKNOWN blocking (on Felix's own project; the others hold only the one row `felix new` seeds), project setup (commissioning), the deny table, checker qualification on Felix's own checks, plugin discovery, and the ledger of which tools sessions used |
-| **Built, little or no real use** | Exceptions: none granted yet, and read only for Felix's own project. The unattended repair workflow (never run on real input). Obligations proposed by a model, only advisory ones: run on two real projects as of September 23, with 22 proposed and none admitted yet. Admitting one means copying it into the project's obligations table, which is left to a person but not enforced. An obligation naming the checker it needs, reported by `felix obligations` and read by no verdict: two rows, both on Felix's own project, and neither checker declared yet. `felix land` (see Install): macOS only, on Felix's own repository only, where by October 23 it had landed five pull requests and deployed three times |
+| **Built, little or no real use** | Exceptions: none granted yet, and read only for Felix's own project. The unattended repair workflow (never run on real input). Obligations proposed by a model, only advisory ones: run on two real projects as of September 23, with 22 proposed and none admitted yet. Admitting one means copying it into the project's obligations table, which is left to a person but not enforced. An obligation naming the checker it needs, reported by `felix obligations` and read by no verdict: two rows, both on Felix's own project, and neither checker declared yet. `felix land` (see Install): macOS only, on Felix's own repository only, where by October 23 it had landed five pull requests and deployed three times. `felix lane`, since October 31: the capability lane's share of engine landings over 14 days, in `felix status`, the pulse and session start, on Felix's own project |
 | **Partial** | Pinning the judge to main covers `felix merge` but not `felix gate`. `felix automerge` only counts a streak of clean merges and, with `--enable`, turns on GitHub's auto-merge, whose merges skip `felix merge`. A receipt for a tree with uncommitted edits to tracked files hashes `git diff`, where git abbreviates object names, so it can read stale when the repository's object count crosses a bound such as 16,384, though no file changed. A clean tree's receipt does not |
-| **Designed, not built** | `felix dispatch`, which runs each worker as a restricted headless session with only the tools its task needs, and records what it did |
+| **Designed, not built** | `felix dispatch`, which runs each worker as a restricted headless session with only the tools its task needs, and records what it did. Evidence-carrying changes: each change would carry what it claims, each claim checked within a stated list of faults over a printed number of cases, with evidence that each check can fail and what stayed unchecked listed, for `felix merge` to read before landing. No figure for what it would catch or how long it would take is claimed before it has been tried on past work and on two new features ([design](docs/2026-10-31-trust-plane-verification-design.md)) |
 | **Absent** | Sandboxing, time-limited tool grants and revocation, and support for any host but Claude Code |
 
 <a id="direction"></a>
@@ -649,7 +650,7 @@ exist?
 
 On the trust side, the rules and the judge. Receipts bound to a tree, UNKNOWN
 blocking, exceptions meant to take effect only when a person merges them, the
-merge escapes, checks that must prove they can fail, and the record of every
+merge escapes, checks that must be shown able to fail, and the record of every
 hold, deny-table refusal and escape. A smarter model still shouldn't grade its
 own work.
 

@@ -108,11 +108,20 @@ felix_hook_enter "$raw" "$FELIX_HOME_DIR"
 # record tells the two apart, taken at every flagged stop, a night's included.
 # An id or a record that cannot tell ends the stop. FOREIGN marks a stop judged
 # inside another hook's chain.
+#
+# A resolver that could not tell because lib/detect.sh did not load (the hold
+# below the broken binding) does not end it either: the project, and so the
+# night, is unknown, but the record still tells Felix's chain from another's,
+# and another's is judged, which holds it below. Felix's own ends, as ever.
 CHAIN=0 FOREIGN=0
 if [ "${_active:-}" = "true" ]; then
-  _chain_proj="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)" || exit 0
+  _chain_proj="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR" 2>/dev/null)"; _res=$?
+  if [ "$_res" -ne 0 ]; then
+    { [ "$_res" -eq 2 ] && ! declare -F felix_capture >/dev/null; } || exit 0
+    _chain_proj=""
+  fi
   felix_hold_take "$FELIX_HOME_DIR" "${SID:-}"; _held=$?
-  if felix_overnight_owns "$_chain_proj" "${SID:-}"; then
+  if [ -n "$_chain_proj" ] && felix_overnight_owns "$_chain_proj" "${SID:-}"; then
     CHAIN=1
   else
     [ "$_held" -eq 1 ] || exit 0
@@ -191,7 +200,23 @@ if [ -n "$broken" ]; then
   exit 0
 fi
 
-PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
+PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")"; _res=$?
+[ "$_res" -eq 0 ] || PROJ=""
+
+# The resolver says 2, could not tell, when a read it stands on did not finish.
+# Without felix_capture (lib/detect.sh did not load) it can make none of them:
+# that is an engine with a file missing, somebody's state like the broken
+# binding above, and a stop that let it pass would check nothing in silence, so
+# it holds the same way. A 2 from a read that failed in a whole engine is still
+# read as ungoverned here; that policy is its own decision.
+if [ "$_res" -eq 2 ] && ! declare -F felix_capture >/dev/null; then
+  [ "$CHAIN" = "1" ] && exit 0
+  _felix_stop_may_hold || exit 0
+  _m="Felix: the project that governs $PWD could not be resolved: a read it stands on did not finish, because lib/detect.sh did not load. Nothing in this checkout is being checked until the engine has that file again."
+  felix_unresolved_log "$_m" "$PWD"
+  printf '{\n  "decision": "block",\n  "reason": "%s"\n}\n' "$(escape_for_json "$_m")"
+  exit 0
+fi
 [ -n "$PROJ" ] || exit 0
 
 # A prompt hook the platform cut off earlier in this session is said once, at
@@ -530,7 +555,7 @@ if [ -z "$TID" ]; then
   detail="tree unknown"
 elif [ -z "$receipt" ]; then
   why="The gate has never run in this checkout."
-  detail="never verified"
+  detail="never checked"
 elif [ "$r_tid" = "$TID" ] && [ "$r_res" = "green" ]; then
   # Green on this exact tree and still not current: a fact the verdict rests
   # on moved outside the tree. Said with the reason, because "run the gate" on

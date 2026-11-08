@@ -110,6 +110,10 @@ FELIX_ROOT=""
 declare -F felix_home >/dev/null 2>&1 || _felix_pt_stop "lib/resolve.sh did not load"
 . "${SCRIPT_DIR}/../lib/deny.sh"    2>/dev/null
 declare -F felix_deny_match >/dev/null 2>&1 || _felix_pt_stop "lib/deny.sh did not load"
+# The resolver reads through felix_capture and says could not tell without it,
+# which reads below as nothing governs: the deny rows off, with nothing said.
+. "${SCRIPT_DIR}/../lib/detect.sh"  2>/dev/null
+declare -F felix_capture >/dev/null 2>&1 || _felix_pt_stop "lib/detect.sh did not load"
 . "${SCRIPT_DIR}/../lib/say.sh"     2>/dev/null || true
 
 raw="$(cat 2>/dev/null)" || _felix_pt_stop "the payload could not be read"

@@ -263,11 +263,15 @@ cmd_inventory() {
 if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
 
 # felix cost is dispatched here too, for the same reason as audit: it reads the
-# transcripts Claude Code keeps, writes nothing, and needs no home. What it
-# counts, and how it reads a response once, is in lib/cost.sh.
+# transcripts Claude Code keeps and needs no home. It writes only its readings
+# and their lock, under $HOME/.cache/felix/cost. What it counts, and how it
+# reads a response once, is in lib/cost.sh; how one scan serves every caller,
+# in lib/cost-cache.sh.
 cmd_cost() {
   # shellcheck source=lib/cost.sh
   . "${SCRIPT_DIR}/lib/cost.sh" || exit 1
+  # shellcheck source=lib/cost-cache.sh
+  . "${SCRIPT_DIR}/lib/cost-cache.sh" || exit 1
   felix_cost "$@"
 }
 if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
@@ -408,7 +412,7 @@ need_value() {
 # that every dispatched command appears here.
 usage() {
   cat <<'USAGE'
-Felix. The engineering OS: it decides how work gets built, and proves it.
+Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.
 Resolves which project governs the current directory. Knows nothing about any
 specific project, language, or toolchain.
 
@@ -417,7 +421,7 @@ specific project, language, or toolchain.
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
     felix inventory        read-only: where unlanded work sits, from git, gh and session records
-    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv]
+    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv] [--max-age SECONDS]
                            read-only: input-equivalent tokens spent this plan week, against
                            the weekly cap, by worktree, day or model, from the same transcripts
     felix new <name> --no-commission
@@ -437,7 +441,7 @@ specific project, language, or toolchain.
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
-    felix receipt          what changed, its risk, and whether anything verified it
+    felix receipt          what changed, its risk, and whether anything checked it
     felix next             what to do next here, ranked
     felix merge            merge it, unless something in it escapes the tree
     felix review           record a reviewer verdict on a surface no test judges
@@ -453,6 +457,9 @@ specific project, language, or toolchain.
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix obligations [--gate|--request] what this project has admitted it owes, and whether it owes it here; --request asks a session to propose what nobody named
+    felix situations [--at T | --change [B..H]] [--tsv | --propose]
+                           what a change owes: the situation rows it owes, blinds and retires,
+                           the rows already standing, and what could not be looked at; writes nothing
     felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
@@ -510,20 +517,29 @@ USAGE
 # is read by a machine may already mean something by 2: felix repair's 2 is the
 # repair ceiling, and the unattended template escalated an unresolvable checkout
 # to a person as a spent ceiling.
+#
+# A resolution that did not finish (a read it stands on failed, was killed or
+# could not fork) is neither found nor a miss, and says so (resolve_unknown):
+# the binding check is not run then, since it can append to bindings.tsv. Each
+# read is taken whole, its output and its status, by felix_capture.
 resolve_or_die() {
-  local rc="${1:-2}"
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
-  [ -n "$PROJ" ] && return 0
+  local rc="${1:-2}" broken known nl=$'\n'
+  felix_resolve_read PROJ "$PWD" "$FELIX_HOME_DIR"
+  case "$?" in 0) return 0 ;; 1) ;; *) resolve_unknown "$rc" ;; esac
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of
   # them sends them to add a second problem.
-  local broken; broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+  felix_capture broken felix_binding_broken "$PWD" "$FELIX_HOME_DIR" || resolve_unknown "$rc"
+  while [ "${broken%"$nl"}" != "$broken" ]; do broken="${broken%"$nl"}"; done
   [ -n "$broken" ] && die "$broken" "$rc"
+  felix_capture known _felix_ls "$FELIX_HOME_DIR/projects" || resolve_unknown "$rc"
+  [ -z "$known" ] || known="${known//"$nl"/ } "
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
-  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" "$rc"
+  Known projects: $known" "$rc"
 }
+resolve_unknown() { die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "${1:-2}"; }
 
 
 # The scheduled job that merges a green pull request. The project is resolved
@@ -652,7 +668,7 @@ cmd_install() {
   live="$(felix_deployed_engine 2>/dev/null)" || live=""
   if [ -n "$live" ] && [ -d "$live/harness" ]; then
     if felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
-      printf '  verified   the installed engine matches this tree\n'
+      printf '  checked    the installed engine matches this tree\n'
     elif [ "$bump" -eq 0 ]; then
       printf '\n  WARNING  the installed engine does NOT match this tree.\n'
       printf '           %s\n' "$live"
@@ -700,7 +716,7 @@ cmd_install() {
         live="$(felix_deployed_engine 2>/dev/null)" || live=""
         if [ -n "$live" ] && [ -d "$live/harness" ] \
              && felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
-          printf '  verified   the installed engine matches this tree\n'
+          printf '  checked    the installed engine matches this tree\n'
         else
           local mroot
           if mroot="$(felix_deployable_from "$src")"; then
@@ -740,13 +756,17 @@ cmd_install() {
   printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 
+# Every value is read, whole, before the first line is printed: a read that did not finish is the
+# unknown refusal with nothing on stdout, never four lines or an empty field.
 cmd_which() {
-  resolve_or_die; local proj="$PROJ"
-  printf 'project:      %s\n' "$(basename "$proj")"
+  resolve_or_die; local proj="$PROJ" mem gate root nl=$'\n'
+  felix_capture mem felix_mem_dir "$proj" && felix_capture gate _felix_json_field "$proj/project.json" gate \
+    && felix_capture root felix_repo_root "$PWD" || resolve_unknown 2
+  printf 'project:      %s\n' "${proj##*/}"
   printf 'doctrine:     %s\n' "$proj/CLAUDE.md"
-  printf 'memory:       %s\n' "$(felix_mem_dir "$proj")/"
-  printf 'gate:         %s\n' "$(felix_json_str "$proj/project.json" gate)"
-  printf 'governs:      %s\n' "$(felix_repo_root "$PWD")"
+  printf 'memory:       %s\n' "$mem/"
+  printf 'gate:         %s\n' "${gate%%"$nl"*}"
+  printf 'governs:      %s\n' "$root"
 }
 
 cmd_gate() {
@@ -2165,7 +2185,7 @@ Felix-Gate: ${gtree:-none}"
       printf 'above describes a tree that is already gone. Nothing was merged.\n'
       _felix_merge_refused "$dry" "$proj" "$branch" moved "the working tree was edited while this ran"
     else
-      printf '\nThe checkout moved while this ran, so what was verified is not what\n'
+      printf '\nThe checkout moved while this ran, so what was checked is not what\n'
       printf 'would be merged. Nothing was merged.\n'
       _felix_merge_refused "$dry" "$proj" "$branch" moved "the checkout moved while this ran: $wb $ws -> $nb $ns"
     fi
@@ -4542,9 +4562,9 @@ cmd_classify() {
       [ "$ev_gaps" -eq 0 ] || ev_why="$ev_gaps evidence gap(s)"
       [ "$ev_unk" -eq 0 ] || ev_why="${ev_why:+$ev_why and }$ev_unk evidence row(s) not judged"
       if [ -z "$ev_why" ]; then
-        printf 'Reversible, and nothing is unproven. Eligible for auto-merge once\nevery required check passes.\n'
+        printf 'Reversible, and no evidence is owed. Eligible for auto-merge once\nevery required check passes.\n'
       else
-        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_why"
+        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was tested.\nRun felix evidence.\n' "$ev_why"
       fi
       ;;
     # Tier is advice about how hard to look, and these two lines are what a
@@ -6370,7 +6390,7 @@ cmd_probes() {
     || [ "${n_nosrc:-0}" -gt 0 ] && printf '\n'
   if [ "${n_block:-0}" -gt 0 ]; then
     printf '%s of %s could not be established. Those are not passes:\n' "$n_block" "$n_all"
-    printf 'blind means the witness proves a surface the probe cannot see, and\n'
+    printf 'blind means the witness says a surface exists that the probe cannot see, and\n'
     printf 'unknown means nothing decided either way.\n'
   fi
   if [ "${n_empty:-0}" -gt 0 ]; then
@@ -6486,6 +6506,19 @@ cmd_probes() {
   # the same mistake made twice with the file that documents it.
   [ -z "$malformed" ] || return 1
   return 0
+}
+
+# felix situations: what a change owes (lib/situations*.sh). Its libraries are loaded here, in the command's own body, and
+# not at the top of this file with the rest, as cmd_audit, cmd_inventory and cmd_cost load theirs: felix gate, felix merge
+# and felix land must never parse or run this code, so a defect in it cannot break them. Everything else, the flags
+# included, is in the library's entry function.
+cmd_situations() {
+  local f
+  for f in situations situations-read situations-report situations-check; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
+  felix_situations "$@"
 }
 
 # The heartbeat, and the one command that may run with no session and no
@@ -6676,6 +6709,7 @@ case "${1:-help}" in
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   obligations) shift; cmd_obligations "$@" ;;
+  situations) shift; cmd_situations "$@" ;;
   epoch)     shift; cmd_epoch "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;

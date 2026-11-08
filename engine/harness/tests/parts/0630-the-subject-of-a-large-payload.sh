@@ -234,7 +234,7 @@ _install_fixture_build differing
 # certify that they match.
 icache_out="$(_inst_from_cache)"
 case "$icache_out" in
-  *"verified   the installed engine matches this tree"*)
+  *"checked    the installed engine matches this tree"*|*"verified   the installed engine matches this tree"*)
     bad "install from the plugin cache does not certify the cache against itself" "$icache_out" ;;
   *) ok "install from the plugin cache does not certify the cache against itself" ;;
 esac
@@ -265,7 +265,7 @@ has "and it registers rather than falling through to a refresh" \
 cp -R "$ISRC/engine/harness/." "$ICACHE/harness/"
 imatch_out="$(_inst_from_cache)"
 has "and still verifies when the source really does match" \
-    "$imatch_out" "verified   the installed engine matches this tree"
+    "$imatch_out" "checked    the installed engine matches this tree"
 
 # Run from a checkout, the behaviour is unchanged. This is the path that always
 # worked, and it is what the fix must not disturb.
@@ -273,7 +273,7 @@ printf '\n# and another the deployed engine does not have\n' >> "$ISRC/engine/ha
 irepo_out="$( cd "$ISRC" && HOME="$IHOME" FELIX_HOME="$ISRC" PATH="$ICB:$PATH" \
                 "$ISRC/engine/harness/felix" install --no-bump 2>&1 )"
 case "$irepo_out" in
-  *"verified   the installed engine matches this tree"*)
+  *"checked    the installed engine matches this tree"*|*"verified   the installed engine matches this tree"*)
     bad "install from the checkout still reports a real mismatch" "$irepo_out" ;;
   *) ok "install from the checkout still reports a real mismatch" ;;
 esac

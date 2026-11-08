@@ -101,9 +101,9 @@ _hr_present()   { if [ -e "$(_hr_file "$1")" ] || [ -L "$(_hr_file "$1")" ]; the
 _hr_triple()    { printf '%s\t%s\t%s' "$1" "$2" "${3:-$HR_REPO}"; }
 # A record laid by hand: the whole file is this one line (_hr_seed) or this line
 # is added to what is there (_hr_seed_add).
-_hr_seed()      { mkdir -p "$HR_STATE/held-tree" && _hr_triple "$2" "${3:-never verified}" "${4:-$HR_REPO}" > "$(_hr_file "$1")" \
+_hr_seed()      { mkdir -p "$HR_STATE/held-tree" && _hr_triple "$2" "${3:-never checked}" "${4:-$HR_REPO}" > "$(_hr_file "$1")" \
                     && printf '\n' >> "$(_hr_file "$1")"; }
-_hr_seed_add()  { mkdir -p "$HR_STATE/held-tree" && { _hr_triple "$2" "${3:-never verified}" "${4:-$HR_REPO}"; printf '\n'; } >> "$(_hr_file "$1")"; }
+_hr_seed_add()  { mkdir -p "$HR_STATE/held-tree" && { _hr_triple "$2" "${3:-never checked}" "${4:-$HR_REPO}"; printf '\n'; } >> "$(_hr_file "$1")"; }
 # What the record file is made of, in one word per fact: the lines, the fields
 # in the first line and whether the last byte is a newline.
 _hr_shape() {
@@ -221,7 +221,7 @@ _hr_contrast() {   # session id
 # The record line, for each reason the hook gives for holding.
 for _hr_k in never stale failed epoch; do
   case "$_hr_k" in
-    never)  _hr_lab="the gate never ran";                               _hr_det="never verified" ;;
+    never)  _hr_lab="the gate never ran";                               _hr_det="never checked" ;;
     stale)  _hr_lab="the receipt is for a different tree";              _hr_det="stale receipt" ;;
     failed) _hr_lab="the gate failed on this tree";                     _hr_det="failed" ;;
     epoch)  _hr_lab="the gate passed on this tree and the epoch moved"; _hr_det="epoch moved" ;;
@@ -255,11 +255,11 @@ for _hr_c in tree reason checkout; do
   case "$_hr_c" in
     tree)     _hr_seed "hr-m-$_hr_c" "$HR_T2";  _hr_lab="a different tree id" ;;
     reason)   _hr_seed "hr-m-$_hr_c" "$HR_T1" "failed"; _hr_lab="a different reason" ;;
-    checkout) _hr_seed "hr-m-$_hr_c" "$HR_T1" "never verified" "$HR_ELSE"; _hr_lab="a different checkout" ;;
+    checkout) _hr_seed "hr-m-$_hr_c" "$HR_T1" "never checked" "$HR_ELSE"; _hr_lab="a different checkout" ;;
   esac
   _hr_stop "hr-m-$_hr_c"
   is  "the Stop hook holds a stop whose record line differs from it only in $_hr_lab, and records the hold on a line of its own" \
-      "$(_hr_sum):$(_hr_has_line "hr-m-$_hr_c" "$(_hr_triple "$HR_T1" 'never verified')")" "block:0:1:blocked:yes"
+      "$(_hr_sum):$(_hr_has_line "hr-m-$_hr_c" "$(_hr_triple "$HR_T1" 'never checked')")" "block:0:1:blocked:yes"
   _hr_stop "hr-m-$_hr_c"
   is  "the Stop hook counts the stop after that hold as debt when the record had differed only in $_hr_lab" \
       "$(_hr_sum)" "silent:0:1:debt"
@@ -269,18 +269,18 @@ mkdir -p "$HR_STATE/held-tree"
 printf '%s\n' "$HR_T1" > "$(_hr_file hr-m-onlytid)"
 _hr_stop hr-m-onlytid
 is  "the Stop hook holds a stop whose record line holds only the tree id, and records the hold in full" \
-    "$(_hr_sum):$(_hr_has_line hr-m-onlytid "$(_hr_triple "$HR_T1" 'never verified')")" "block:0:1:blocked:yes"
+    "$(_hr_sum):$(_hr_has_line hr-m-onlytid "$(_hr_triple "$HR_T1" 'never checked')")" "block:0:1:blocked:yes"
 _hr_stop hr-m-onlytid
 is  "the Stop hook counts the stop after that hold as debt when the record had held only the tree id" \
     "$(_hr_sum)" "silent:0:1:debt"
-printf '%s\t%s\n' "$HR_T1" "never verified" > "$(_hr_file hr-m-twof)"
+printf '%s\t%s\n' "$HR_T1" "never checked" > "$(_hr_file hr-m-twof)"
 _hr_stop hr-m-twof
 is  "the Stop hook holds a stop whose record line holds the tree id and the reason but no checkout, and records the hold in full" \
-    "$(_hr_sum):$(_hr_has_line hr-m-twof "$(_hr_triple "$HR_T1" 'never verified')")" "block:0:1:blocked:yes"
+    "$(_hr_sum):$(_hr_has_line hr-m-twof "$(_hr_triple "$HR_T1" 'never checked')")" "block:0:1:blocked:yes"
 # The line that matches may be any line of the record.
 _hr_seed hr-m-multi "$HR_T2"
 _hr_seed_add hr-m-multi "$HR_T1" "failed"
-_hr_seed_add hr-m-multi "$HR_T1" "never verified" "$HR_ELSE"
+_hr_seed_add hr-m-multi "$HR_T1" "never checked" "$HR_ELSE"
 _hr_seed_add hr-m-multi "$HR_T1"
 _hr_seed_add hr-m-multi "$HR_T2" "failed"
 _hr_stop hr-m-multi
@@ -296,14 +296,14 @@ is  "the Stop hook's two checkouts stand on one commit (control)" \
 is  "the Stop hook's two checkouts have one tree id (control)" "$(_hr_tid "$HR_REPO2")" "$HR_T1"
 _hr_stop hr-x
 is  "the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold" \
-    "$(_hr_sum):$(_hr_field 3):$(_hr_has_line hr-x "$(_hr_triple "$HR_T1" 'never verified' "$HR_REPO")")" "block:0:1:blocked:$HR_T1:yes"
+    "$(_hr_sum):$(_hr_field 3):$(_hr_has_line hr-x "$(_hr_triple "$HR_T1" 'never checked' "$HR_REPO")")" "block:0:1:blocked:$HR_T1:yes"
 HR_WORK="$HR_REPO2"
 _hr_stop hr-x
 is  "the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold" \
-    "$(_hr_sum):$(_hr_field 3):$(_hr_has_line hr-x "$(_hr_triple "$HR_T1" 'never verified' "$HR_REPO2")")" "block:0:1:blocked:$HR_T1:yes"
+    "$(_hr_sum):$(_hr_field 3):$(_hr_has_line hr-x "$(_hr_triple "$HR_T1" 'never checked' "$HR_REPO2")")" "block:0:1:blocked:$HR_T1:yes"
 is  "the Stop hook records both checkouts, each on a line of its own" \
-    "$(cat "$(_hr_file hr-x)" 2>/dev/null)" "$(_hr_triple "$HR_T1" 'never verified' "$HR_REPO")
-$(_hr_triple "$HR_T1" 'never verified' "$HR_REPO2")"
+    "$(cat "$(_hr_file hr-x)" 2>/dev/null)" "$(_hr_triple "$HR_T1" 'never checked' "$HR_REPO")
+$(_hr_triple "$HR_T1" 'never checked' "$HR_REPO2")"
 _hr_stop hr-x
 is  "the Stop hook counts debt for the second checkout once it was held there" "$(_hr_sum)" "silent:0:1:debt"
 HR_WORK="$HR_REPO"
@@ -333,7 +333,7 @@ is  "the Stop hook holds a checkout whose path holds spaces once and then counts
 # ---- B: the same tree with a new reason is held again, once ----
 for _hr_b in never-failed stale-failed failed-epoch; do
   case "$_hr_b" in
-    never-failed) _hr_from="never verified"; _hr_to="failed";      _hr_prepare never ;;
+    never-failed) _hr_from="never checked"; _hr_to="failed";      _hr_prepare never ;;
     stale-failed) _hr_from="stale receipt";  _hr_to="failed";      _hr_prepare stale ;;
     failed-epoch) _hr_from="failed";         _hr_to="epoch moved"; _hr_prepare failed ;;
   esac
@@ -390,7 +390,7 @@ _hr_run "$HR_ROOT/harness/hooks/stop" "$HR_WORK" "$(_hr_pay hr-c-n1 true "$HR_TX
 is  "the Stop hook holds a night's flagged stop though the record holds this tree, this reason and this checkout, and charges it (control)" \
     "$(_hr_sum):$(_hr_night_left hr-c-n1)" "block:0:1:blocked:10"
 is  "the Stop hook leaves a record it did not write as it was while the session holds a night (control)" \
-    "$(cat "$(_hr_file hr-c-n1)" 2>/dev/null)" "$(_hr_triple "$HR_T1" 'never verified')"
+    "$(cat "$(_hr_file hr-c-n1)" 2>/dev/null)" "$(_hr_triple "$HR_T1" 'never checked')"
 _hr_night_end hr-c-n1
 # What the night wrote: nothing. Held through a night, then free of it, the
 # session is held once and then is debt, which a record the night wrote would
@@ -571,7 +571,7 @@ rm -f "$HR_STATE/hr-keep"
 _hr_prepare never
 HR_TARGET="$HR_DIR/link-target"
 mkdir -p "$HR_STATE/held-tree"
-_hr_triple "$HR_T1" 'never verified' > "$HR_TARGET"; printf '\n' >> "$HR_TARGET"
+_hr_triple "$HR_T1" 'never checked' > "$HR_TARGET"; printf '\n' >> "$HR_TARGET"
 HR_SUM0="$(cksum < "$HR_TARGET")"
 ln -s "$HR_TARGET" "$(_hr_file hr-g-link)"
 _hr_stop hr-g-link; _hr_a="$(_hr_sum)"
@@ -589,7 +589,7 @@ is  "the Stop hook holds a session whose record is a link to nothing (control)" 
   || bad "the Stop hook does not create the file a dangling record link points to (control)" "$(cat "$HR_TARGET" 2>/dev/null)"
 rm -f "$(_hr_file hr-g-dangle)"
 # SessionEnd takes the link itself and nothing it points at.
-_hr_triple "$HR_T1" 'never verified' > "$HR_TARGET"; printf '\n' >> "$HR_TARGET"
+_hr_triple "$HR_T1" 'never checked' > "$HR_TARGET"; printf '\n' >> "$HR_TARGET"
 HR_SUM0="$(cksum < "$HR_TARGET")"
 ln -s "$HR_TARGET" "$(_hr_file hr-g-end)"
 _hr_end hr-g-end

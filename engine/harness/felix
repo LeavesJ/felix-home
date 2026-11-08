@@ -2161,7 +2161,9 @@ EOF
   fi
 
   command -v gh >/dev/null 2>&1 || _felix_merge_die "$dry" "$proj" "$branch" gh "felix merge needs the gh CLI, which is not on PATH"
-  local slug; slug="$(felix_repo_slug "$root")"
+  # The repository the provider was asked about (lib/bind.sh, S5.2) is the one asked to squash: one reading of
+  # origin, not two that can differ on a trailing slash or a deeper path (slice 2's review).
+  local slug; slug="$(_felix_bind_slug "$root")"
   [ -n "$slug" ] || _felix_merge_die "$dry" "$proj" "$branch" gh "no github remote"
 
   # What the squash commit says, written here and never left to GitHub's

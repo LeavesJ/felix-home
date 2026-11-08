@@ -80,6 +80,10 @@ felix_bind_env() {
   # where an object's bytes are. Either, planted in the checkout, would answer for B without B's bytes.
   export GIT_CONFIG_COUNT=2 GIT_CONFIG_KEY_0=core.commitGraph GIT_CONFIG_VALUE_0=false \
          GIT_CONFIG_KEY_1=core.multiPackIndex GIT_CONFIG_VALUE_1=false
+  # The engine's own colour pin (felix's header: a person's git colour never reaches what the engine parses) is put
+  # back alone, once the caller's entries are gone; the unset above had dropped it for the merge and every child
+  # (found in slice 2's review). git reads GIT_CONFIG_PARAMETERS after GIT_CONFIG_COUNT, and they share no key.
+  [ -z "${_felix_git_pin:-}" ] || export GIT_CONFIG_PARAMETERS="$_felix_git_pin"
   _FELIX_BIND_OWNER="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"
   _FELIX_BIND_DIR="$(mktemp -d "${tmpd%/}/felix-objects.XXXXXX" 2>/dev/null)" || _FELIX_BIND_DIR=""
   # A path inside a directory this run made, which nothing creates: git then reads no graft at all, the checkout's
@@ -181,7 +185,7 @@ felix_bind_objects() {   # ROOT B H
 
 # The repository on GitHub that the checkout's origin names, as owner/name, or nothing.
 _felix_bind_slug() {   # ROOT
-  local u s
+  local u s LC_ALL=C
   u="$(git -C "$1" remote get-url origin 2>/dev/null </dev/null)" || return 1
   case "$u" in *github.com[/:]*) ;; *) return 1 ;; esac
   s="${u#*github.com[/:]}"; s="${s%/}"; s="${s%.git}"
@@ -192,7 +196,7 @@ _felix_bind_slug() {   # ROOT
 }
 
 # A commit id as the provider writes one: 40 or 64 lower-case hex.
-_felix_bind_hex() { case "$1" in *[!0-9a-f]*|'') return 1 ;; esac; case "${#1}" in 40|64) return 0 ;; esac; return 1; }
+_felix_bind_hex() { case "$1" in *[!0123456789abcdef]*|'') return 1 ;; esac; case "${#1}" in 40|64) return 0 ;; esac; return 1; }
 
 # S5.2, call Q alone: the commit the provider's base branch PBASE names, into _FELIX_BIND_QSHA; or 1 with the
 # reason in _FELIX_BIND_WHY.
@@ -221,9 +225,9 @@ felix_bind_ask() {   # ROOT BRANCH
   case "$out" in *$'\n'*|'') _FELIX_BIND_WHY="gh pr view for $branch gave no single line"; return 1 ;; esac
   n="${out%%$'\t'*}"; rest="${out#*$'\t'}"; st="${rest%%$'\t'*}"; rest="${rest#*$'\t'}"
   pb="${rest%%$'\t'*}"; ph="${rest#*$'\t'}"
-  case "$n" in ''|*[!0-9]*) _FELIX_BIND_WHY="gh pr view for $branch named no pull request number"; return 1 ;; esac
+  case "$n" in ''|*[!0123456789]*) _FELIX_BIND_WHY="gh pr view for $branch named no pull request number"; return 1 ;; esac
   [ "$st" = OPEN ] || { _FELIX_BIND_WHY="the pull request for $branch is not open (${st:-no state})"; return 1; }
-  case "$pb" in ''|-*|*[!A-Za-z0-9._/-]*) _FELIX_BIND_WHY="gh pr view for $branch named no base branch it could be asked about"; return 1 ;; esac
+  case "$pb" in ''|-*|*[!A-Za-z0123456789._/-]*) _FELIX_BIND_WHY="gh pr view for $branch named no base branch it could be asked about"; return 1 ;; esac
   git check-ref-format --branch "$pb" >/dev/null 2>&1 </dev/null \
     || { _FELIX_BIND_WHY="gh pr view for $branch named no base branch it could be asked about"; return 1; }
   _felix_bind_hex "$ph" || { _FELIX_BIND_WHY="gh pr view for $branch named no head commit"; return 1; }

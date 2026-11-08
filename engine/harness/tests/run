@@ -441,7 +441,6 @@ printf '\nreached\n'
 # What ran, against what is supposed to run (#67): one way only, and counted per name; part 0001 says why.
 _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
-
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   # The manifest, then the mark (whole, or red is ended and not waited for).
   _rcp_mk=written

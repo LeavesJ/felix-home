@@ -42,7 +42,7 @@ case "${1:-} ${2:-}" in
       *baseRefName*) [ ! -f "$d/a.exit" ] || exit "$(cat "$d/a.exit")"; cat "$d/a"; exit 0 ;;
     esac
     printf '{"number":7,"state":"OPEN"}\n'; exit 0 ;;
-  "pr merge")    printf 'merged\n'; exit 0 ;;
+  "pr merge")    printf '%s\n' "${GIT_CONFIG_PARAMETERS-unset}" > "$d/pm.env"; printf 'merged\n'; exit 0 ;;
   "auth status") printf 'github.com\n  Logged in to github.com account example\n'; exit 0 ;;
   "repo view")   printf 'example/tpb\n'; exit 0 ;;
   api\ repos/*/git/ref/heads/*)
@@ -179,6 +179,9 @@ _tpb_check "ts3b: S5 (control): an honest candidate whose pull request the provi
   "$(_tpb_merged "$TPB_HN")" "merged" "$(_tpb_why)"
 _tpb_check "ts3b: S5.1 (control): the squash body's Felix-Judge trailer names main's commit in full" \
   "$(LC_ALL=C awk -v m="$TPB_M" 'index($0, "Felix-Judge:") && index($0, m) { f = 1 } END { print (f ? "yes" : "no") }' "$TPB/ctl/calls")" "yes" "$(_tpb_why)"
+# Not blind (slice 2's review): the engine's colour pin reaches the provider, a child of felix merge, past S6.1's scrub.
+_tpb_check "ts3b-x: S6.1 (the engine's own pin survives the scrub): the gh that squashed saw GIT_CONFIG_PARAMETERS holding color.ui=never" \
+  "$(LC_ALL=C awk 'index($0, "color.ui=never") { f = 1 } END { print (f ? "pinned" : "not pinned: " $0) }' "$TPB/ctl/pm.env" 2>/dev/null)" "pinned"
 
 _tpb_case tpb-nomarker; _fx_git "$TPBR" rm -q MARKER >/dev/null 2>&1; _tpb_commit "$TPBR" no-marker
 _tpb_default; _tpb_run S5-blockers merge
@@ -262,7 +265,7 @@ _tpb_check "ts3b: S6.1 (the caller's environment): a candidate that deletes MARK
 
 _tpb_case tpb-replaced; mkdir -p "$TPBR/danger"; printf 'the danger file main once held\n' > "$TPBR/danger/x"
 _tpb_commit "$TPBR" danger; TPB_HR="$(_jr_sha "$TPBR" HEAD)"
-TPB_F="$(git -C "$TPBR" -c user.name=t -c user.email=t@t commit-tree "$TPB_M^{tree}" -p "$TPB_M" -m same 2>/dev/null)"
+TPB_F="$(_fx_git "$TPBR" -c user.name=t -c user.email=t@t commit-tree "$TPB_M^{tree}" -p "$TPB_M" -m same 2>/dev/null)"
 _fx_git "$TPBR" replace "$TPB_HR" "$TPB_F" >/dev/null 2>&1; _fx_git "$TPBR" read-tree "$TPB_F" >/dev/null 2>&1
 _tpb_check "ts3b: S6.2 (a replace ref) (fixture control): with the candidate's head replaced by a commit holding main's tree, and the index read from it, plain git diff --name-only main...HEAD and --cached in R print nothing, and HEAD is still the candidate's commit" \
   "[$(git -C "$TPBR" diff --name-only "$TPB_M...HEAD" 2>&1 | tr '\n' ' ')]|[$(git -C "$TPBR" diff --cached --name-only 2>&1 | tr '\n' ' ')]|$(_jr_sha "$TPBR" HEAD)" "[]|[]|$TPB_HR"
@@ -291,6 +294,54 @@ _tpb_case tpb-notes2; printf 'more notes\n' > "$TPBR/NOTES2.md"; _tpb_commit "$T
 _tpb_default; _tpb_run S6-packed merge
 _tpb_check "ts3b: S6 (packed objects, a control for false blocks): after git gc, an honest candidate is merged" \
   "$(_tpb_merged "$TPB_HN2")" "merged" "$(_tpb_why)"
+
+# ------------------------------------- not blind: the mutant run (slice 2 review) ---
+# Written by the mutation run of 2026-11-08 after the blind part, each to kill a mutant the blind cases let
+# survive (the measurement, section 3, names them). The labels say ts3b-x to keep them apart from the blind ones.
+# ---------------------------------------------- extra cases (mutation run) ---
+# Spec S5.2: answers that are not answers; S5.3/S5.4: ids that share only a prefix with B; S5.1: a ref moved mid-run.
+_tpb_x7="$(printf '%s' "$TPB_M" | cut -c1-7)$(printf '%s' "$TPB_M" | cut -c8- | tr '0-9a-f' '1-9a-f0')"
+_tpb_provider "$(_tpb_a "$TPB_HN2")" "$(_tpb_q "$_tpb_x7")"; _tpb_run X-q7 merge
+_tpb_check "ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl base - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+_tpb_provider "$(_tpb_a "$TPB_HN2")" "$(_tpb_q "$TPB_M")" "$(_tpb_q "$_tpb_x7")"; _tpb_run X-last7 merge
+_tpb_check "ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl moved - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+_tpb_provider "$(_tpb_a "$TPB_HN2")" "$(_tpb_q "$TPB_M")" "nonsense"; _tpb_run X-lastnone merge
+_tpb_check "ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl moved - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+_tpb_provider "$(_tpb_a "$TPB_HN2")" "$(printf 'tag\t%s' "$TPB_M")"; _tpb_run X-qtag merge
+_tpb_check "ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl base - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+_tpb_provider "$(printf 'x7\tOPEN\tmain\t%s' "$TPB_HN2")" "$(_tpb_q "$TPB_M")"; _tpb_run X-anum merge
+_tpb_check "ts3b-x: S5.2 (A's number is not digits only): no answer, refused with a base line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl base - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+_tpb_provider "$(printf '7\tOPEN\tma..in\t%s' "$TPB_HN2")" "$(_tpb_q "$TPB_M")"; _tpb_run X-abase merge
+_tpb_check "ts3b-x: S5.2 (A's base name fails git check-ref-format --branch): no answer, refused with a base line, nothing merged" \
+  "$(_tpb_refused)|$(_tpb_bl base - - -)|pr merge $(_tpb_pm)" "refused|yes|pr merge 0" "$(_tpb_why)"
+
+# S5.1: refs/remotes/origin/main moves to tpb-evil right after the pin's own read of B (a git on PATH ahead of the real
+# one moves it once, after the first call that names $TPB_M^{commit}). A run that judges B is refused by fx, with no base line.
+( _fx_cd "$TPBR" && git checkout -q -f tpb-nomarker ) >/dev/null 2>&1
+_tpb_realgit="$(type -P git)"
+cat > "$TPB/gh/git" <<TPBGIT
+#!/bin/bash
+case " \$* " in
+  *" $TPB_M^{commit} "*)
+    c=\$(cat "$TPB/ctl/mc" 2>/dev/null || echo 0); c=\$((c + 1)); echo "\$c" > "$TPB/ctl/mc"
+    if [ -f "$TPB/ctl/move" ] && [ ! -f "$TPB/ctl/moved" ] && [ "\$c" -eq 2 ]; then
+      "$_tpb_realgit" "\$@"; rc=\$?; : > "$TPB/ctl/moved"
+      "$_tpb_realgit" -C "$TPBR" update-ref refs/remotes/origin/main "$TPB_E" >/dev/null 2>&1; exit \$rc
+    fi ;;
+esac
+exec "$_tpb_realgit" "\$@"
+TPBGIT
+chmod +x "$TPB/gh/git"; : > "$TPB/ctl/move"; rm -f "$TPB/ctl/moved" "$TPB/ctl/mc"
+_tpb_default; _tpb_run X-refmove merge
+_tpb_check "ts3b-x: S5.1 (the ref moves after the pin): refused by the fx obligation, with no base line, the move having happened" \
+  "$(_tpb_refused)|$(_tpb_bl obligations fx - -)|$(_tpb_bl base - - -)|pr merge $(_tpb_pm)|$([ -f "$TPB/ctl/moved" ] && echo moved)|$(_jr_sha "$TPBR" refs/remotes/origin/main)" \
+  "refused|yes|no|pr merge 0|moved|$TPB_E" "$(_tpb_why)"
+rm -f "$TPB/gh/git" "$TPB/ctl/move" "$TPB/ctl/moved" "$TPB/ctl/mc"; _fx_git "$TPBR" update-ref refs/remotes/origin/main "$TPB_M" >/dev/null 2>&1
 
 _tpb_check "ts3b: S6.5: no felix-objects.* entry remains under any run's TMPDIR after it ends" "runs $TPB_RUNS|left [$TPB_LEFT]" "runs $TPB_RUNS|left []"
 

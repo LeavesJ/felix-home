@@ -626,8 +626,18 @@ _felix_merge_gate_held() {
 felix_merge_blockers() {
   local proj="$1" base="$2" root="$3" home="$4"
   local _FELIX_POL_TMP="" _FELIX_POL_DIR="" _FELIX_P_TREE="" _FELIX_P_WORDS=""
+  # Spec S1.10. A base that names no commit has no P: it is judged as it was before, from the
+  # directory, and the escape scan's unknown line refuses it (#56). An empty base, which only a
+  # library caller passes (cmd_merge refuses one), reads the directory as before too.
+  if [ -z "$base" ] || ! git -C "$root" rev-parse --verify --quiet "$base^{commit}" >/dev/null 2>&1 </dev/null; then
+    _felix_merge_blockers_at "$proj" "$base" "$root" "$home" "$proj"
+    return 0
+  fi
+  # No policy library: one policy line, which refuses, and the rest from the directory, so the other
+  # libraries' faults are named beside it.
   if ! command -v felix_policy_open >/dev/null 2>&1; then
     printf 'policy\tengine\tthe policy library is not loaded, so nothing says which tables are the authorized ones\n'
+    _felix_merge_blockers_at "$proj" "$base" "$root" "$home" "$proj"
     return 0
   fi
   if felix_policy_open "$proj" "$base" "$root" && felix_policy_instruments "$root" "$base"; then
@@ -645,7 +655,9 @@ _felix_merge_blockers_at() {
   # does, an unset variable under the judge's set -u included, can reach this
   # function's output, its status, or the shell that called it; and no input,
   # so nothing it runs can wait on a terminal.
-  ( felix_land_would_refuse "$pol" "$base" "$root" ) </dev/null >/dev/null 2>&1
+  # The land table reads its own rows at refs/remotes/origin/main (land-table.sh), so it is handed the
+  # project's own path: the snapshot sits in no repository it could ask.
+  ( felix_land_would_refuse "$proj" "$base" "$root" ) </dev/null >/dev/null 2>&1
 
   felix_escapes "$pol" "$base" "$root" "$home" | while IFS=$'\t' read -r ch path reason; do
     [ -n "${ch:-}" ] || continue
@@ -676,6 +688,15 @@ _felix_merge_blockers_at() {
   local cur rcpt
   rcpt="$(felix_verify_receipt "$root" "$home" 2>/dev/null)"
   cur="$(felix_verify_current "$root" "$home" "$pol" "$rcpt" 2>/dev/null)" || true
+  # A remedy that names a file names it where the reader can open it: the snapshot is gone by then.
+  [ "$pol" = "$proj" ] || cur="${cur//"$pol"/"$proj"}"
+  # Spec S1.9: receipts are written over the home's tables and read here against P's. Where the two
+  # differ, re-running the gate in that home records the same mismatch again, so the one remedy that
+  # clears it is named: bring the home to the base first.
+  if [ "$pol" != "$proj" ] && command -v felix_commission_policy_version >/dev/null 2>&1 \
+     && [ "$(felix_commission_policy_version "$proj")" != "$(felix_commission_policy_version "$pol")" ]; then
+    printf 'unverified\thome\tthe home'"'"'s tables at %s are not the ones %s holds, so no receipt written there can be current; bring the home to %s, then run felix gate\n' "$proj" "$base" "$base"
+  fi
   case "$cur" in
     current) ;;
     stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;

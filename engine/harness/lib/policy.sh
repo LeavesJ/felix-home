@@ -107,38 +107,56 @@ _felix_policy_worktree() {   # ROOT DIR -> the worktree's path, or nothing
 #     $HOME that is itself a repository), and it is read from disk.
 #   - It is in no repository: there is no authorized version, and it is read from disk, as before.
 #   - Before all of these: when the merged repository is the engine's own at BASE and BASE holds
-#     projects/<the directory's name>, P is BASE there, wherever the home is (spec S1.7). A home
-#     FELIX_HOME points at a plain directory of loosened tables otherwise judged Felix's own merge.
+#     projects/<the name BASE's .felix gives>, P is BASE there, wherever the home is (spec S1.7). A
+#     home FELIX_HOME points at a plain directory of loosened tables, or one the candidate's .felix
+#     renamed, otherwise judged Felix's own merge.
+#   - "Inside" is asked of the home as it names the directory (spec S1.8): a link at projects/<name>
+#     sent the first cut to the link's target on disk, and a .git planted in a product home's
+#     projects/ became that home's repository (review round 1).
 felix_policy_open() {   # PROJ BASE ROOT
-  local proj="$1" base="$2" root="$3" pdir top rel ref sha name tmpd up
-  _FELIX_POL_DIR="$proj"; _FELIX_POL_TMP=""; _FELIX_P_TREE=""; _FELIX_P_WORDS=""
-  pdir="$(cd "$proj" 2>/dev/null && pwd -P)" || return 0
-  name="${pdir##*/}"
-  top="$(_felix_policy_worktree "$root" "$pdir")"
+  local proj="${1%/}" base="$2" root="$3" name parent anchor lpath top="" rel="" ref="" sha tmpd bname
+  _FELIX_POL_DIR="$1"; _FELIX_POL_TMP=""; _FELIX_P_TREE=""; _FELIX_P_WORDS=""
+  name="${proj##*/}"; parent="$(dirname "$proj")"
+  # Spec S1.7: the engine's own repository at BASE names its project in BASE's .felix and holds its
+  # tables. Neither the home's directory, wherever FELIX_HOME put it, nor the candidate's .felix
+  # chooses them.
   if [ -n "$base" ] && command -v felix_self_governed_at >/dev/null 2>&1 \
-     && felix_self_governed_at "$root" "$base" \
-     && [ "$(git -C "$root" cat-file -t "$base:projects/$name" 2>/dev/null </dev/null)" = tree ]; then
-    # Spec S1.7: the engine's own repository holds this project at BASE, so the home's directory, wherever
-    # FELIX_HOME put it and whether or not a repository holds it, does not choose the tables.
-    top="$(cd "$root" 2>/dev/null && pwd -P)" || return 0
-    rel="projects/$name"; ref="$base"
-  elif [ -n "$top" ]; then
-    rel="${pdir#"$top"/}"; ref="$base"
-  else
-    # From the parent, so a .git inside the project directory is not its repository.
-    up="$(dirname "$pdir")"
-    top="$(git -C "$up" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
-    top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
-    case "$pdir" in "$top"/?*) rel="${pdir#"$top"/}" ;; *) return 0 ;; esac
-    local onmain="" onhead=""
-    [ "$(git -C "$top" cat-file -t "refs/remotes/origin/main:$rel" 2>/dev/null </dev/null)" = tree ] && onmain=1
-    [ "$(git -C "$top" cat-file -t "HEAD:$rel" 2>/dev/null </dev/null)" = tree ] && onhead=1
-    if git -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null; then
-      ref=refs/remotes/origin/main
-      [ -n "$onmain" ] || [ -n "$onhead" ] || return 0
+     && felix_self_governed_at "$root" "$base"; then
+    bname="$(git -C "$root" cat-file blob "$base:.felix" 2>/dev/null </dev/null | LC_ALL=C sed -n '1{s/[[:space:]]//g;p;}')"
+    case "$bname" in ''|*/*|.|..) bname="" ;; esac
+    if [ -n "$bname" ] && [ "$(git -C "$root" cat-file -t "$base:projects/$bname" 2>/dev/null </dev/null)" = tree ]; then
+      top="$(cd "$root" 2>/dev/null && pwd -P)" || return 0
+      rel="projects/$bname"; ref="$base"; name="$bname"
+    fi
+  fi
+  if [ -z "$rel" ]; then
+    [ -d "$proj" ] || return 0
+    # Spec S1.8: the home directory's physical path, and below it the path as the home names it. A link
+    # at projects/<name> or at projects/ is the home's working tree and does not choose P, and the
+    # repository is asked of the home directory, never of projects/ or the project directory, so a .git
+    # planted in either is not it.
+    if [ "${parent##*/}" = projects ]; then
+      anchor="$(cd "$(dirname "$parent")" 2>/dev/null && pwd -P)" || return 0; lpath="$anchor/projects/$name"
     else
-      ref=HEAD
-      [ -n "$onhead" ] || return 0
+      anchor="$(cd "$parent" 2>/dev/null && pwd -P)" || return 0; lpath="$anchor/$name"
+    fi
+    top="$(_felix_policy_worktree "$root" "$lpath")"
+    if [ -n "$top" ]; then
+      rel="${lpath#"$top"/}"; ref="$base"
+    else
+      top="$(git -C "$anchor" rev-parse --show-toplevel 2>/dev/null </dev/null)" || return 0
+      top="$(cd "$top" 2>/dev/null && pwd -P)" || return 0
+      case "$lpath" in "$top"/?*) rel="${lpath#"$top"/}" ;; *) return 0 ;; esac
+      local onmain="" onhead=""
+      [ "$(git -C "$top" cat-file -t "refs/remotes/origin/main:$rel" 2>/dev/null </dev/null)" = tree ] && onmain=1
+      [ "$(git -C "$top" cat-file -t "HEAD:$rel" 2>/dev/null </dev/null)" = tree ] && onhead=1
+      if git -C "$top" rev-parse --verify --quiet refs/remotes/origin/main >/dev/null 2>&1 </dev/null; then
+        ref=refs/remotes/origin/main
+        [ -n "$onmain" ] || [ -n "$onhead" ] || return 0
+      else
+        ref=HEAD
+        [ -n "$onhead" ] || return 0
+      fi
     fi
   fi
   sha="$(git -C "$top" rev-parse --verify --quiet "$ref^{commit}" 2>/dev/null </dev/null)"
@@ -166,9 +184,15 @@ felix_policy_close() {
 }
 
 # One awk for both jobs over a command: mode `list` prints each word that may name an instrument (in
-# command position, or after an interpreter word, and plain enough to be a path); mode `rewrite` prints
-# the command with each such word that is listed in WORDS replaced by the single-quoted path under TREE.
-# Quotes are tracked: nothing inside one is a word, and a word that holds one is never replaced.
+# command position, or right after an interpreter word, and plain enough to be a path); mode `rewrite`
+# prints the command with each such word that is listed in WORDS replaced by the single-quoted path
+# under TREE. Quotes are tracked: nothing inside one is a word, and a word that holds one is never
+# replaced. It reads the simple grammar only, and stops at the first construct outside it (spec S2.1,
+# after review round 1): a command substitution, a backquote, a brace (a group, `${`, `-I{}`), `[[`,
+# `case`, an array literal `=(`, a process substitution, a here-document. Nothing from there on is
+# taken from P, so a path inside such a construct stays the candidate's; a guess there read subjects
+# from P (`xargs -I{} grep {} file`, a regex inside "$(...)"). An option right after an interpreter
+# word ends the look for that command: `bash -n x` checks the candidate's x.
 # Read through ENVIRON, never -v: -v takes no newline in BWK awk and reads a backslash as an escape.
 _felix_p_scan() {   # MODE CMD [WORDS TREE]
   _FPS_M="$1" _FPS_S="$2" _FPS_W="${3:-}" _FPS_T="${4:-}" LC_ALL=C awk '
@@ -179,33 +203,46 @@ _felix_p_scan() {   # MODE CMD [WORDS TREE]
       nw = split(wl, arr, "\n"); for (k = 1; k <= nw; k++) if (arr[k] != "") listed[arr[k]] = 1
       split("then do else elif if while until ! time", rw, " "); for (k in rw) reserved[rw[k]] = 1
       split("bash sh zsh dash ksh python python3 perl ruby node . source exec", iw, " "); for (k in iw) interp[iw[k]] = 1
-      n = length(s); out = ""; i = 1; cmd = 1; after = 0
+      n = length(s); out = ""; i = 1; cmd = 1; after = 0; stop = 0; from = 0
       while (i <= n) {
         c = substr(s, i, 1)
         if (c == " " || c == "\t") { out = out c; i++; continue }
-        if (index(";|&()`{}\n", c)) { out = out c; i++; if (c != ")" && c != "}") { cmd = 1; after = 0 }; continue }
-        w = ""; q = 0
+        p = substr(out, length(out), 1)
+        if (c == "`" || c == "{" || c == "}") { stop = 1; from = i; break }
+        if (c == "(" && (p == "=" || p == "<" || p == ">")) { stop = 1; from = i; break }
+        if (c == "&" && (p == ">" || p == "<")) { out = out c; i++; continue }
+        if (index(";|&()\n", c)) { out = out c; i++; if (c != ")") { cmd = 1; after = 0 }; continue }
+        w = ""; q = 0; ws = i
         while (i <= n) {
           c = substr(s, i, 1)
           if (c == "\047") { e = index(substr(s, i + 1), "\047"); if (!e) { w = w substr(s, i); i = n + 1; q = 1; break }
                              w = w substr(s, i, e + 1); i += e + 1; q = 1; continue }
           if (c == "\"") { j = i + 1
-                           while (j <= n && substr(s, j, 1) != "\"") { if (substr(s, j, 1) == "\\") j++; j++ }
+                           while (j <= n && substr(s, j, 1) != "\"") {
+                             d = substr(s, j, 1)
+                             if (d == "\\") { j += 2; continue }
+                             if (d == "`" || (d == "$" && substr(s, j + 1, 1) == "(")) { stop = 1; break }
+                             j++
+                           }
+                           if (stop) break
                            w = w substr(s, i, j - i + 1); i = j + 1; q = 1; continue }
           if (c == "\\") { w = w substr(s, i, 2); i += 2; q = 1; continue }
-          if (c == " " || c == "\t" || index(";|&()`{}\n", c)) break
+          if (c == "`" || c == "{" || c == "}" || (c == "$" && substr(s, i + 1, 1) == "(")) { stop = 1; break }
+          if (c == " " || c == "\t" || index(";|&()\n", c)) break
           w = w c; i++
         }
+        if (stop) { from = ws; break }
+        if ((cmd && !q && (w == "[[" || w == "case")) || w ~ /^<</) { stop = 1; from = ws; break }
         r = w
-        if (cmd && !q && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
+        if (cmd && w ~ /^[A-Za-z_][A-Za-z0-9_]*=/) { out = out w; continue }
         if (cmd && !q && (w in reserved)) { out = out w; continue }
         if (cmd && !q && (w in interp)) { out = out w; cmd = 0; after = 1; continue }
-        if (after && !q && w ~ /^-/) { out = out w; continue }
         hit = (cmd && !q && plain(w) && index(bare(w), "/")) || (after && !q && plain(w))
         if (hit && mode == "list") print bare(w)
         if (hit && mode == "rewrite" && (bare(w) in listed)) r = "\047" tree "/" bare(w) "\047"
         out = out r; cmd = 0; after = 0
       }
+      if (stop) out = out substr(s, from)
       if (mode == "rewrite") printf "%s", out
     }'
 }

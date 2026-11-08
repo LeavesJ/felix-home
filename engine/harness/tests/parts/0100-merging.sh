@@ -264,12 +264,16 @@ is "the widget's risk table is exactly as this section found it, and it has no g
 # for the kind and not on whether this fixture can be made to raise it. The
 # kinds are read out of escape.sh first: cmd_merge files anything it does not
 # name under work Felix owes, so a kind or a commission subject added there
-# without a place here would land in that paragraph unannounced.
-_mkinds="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+# without a place here would land in that paragraph unannounced. The boundary is
+# felix_merge_blockers, the body it calls once P is read, and the policy blockers
+# lib/policy.sh prints for it (trust-plane step 3).
+_mbody() { sed -n '/^felix_merge_blockers()/,/^}/p; /^_felix_merge_blockers_at()/,/^}/p' "$FROOT/harness/lib/escape.sh"
+           grep "printf 'policy" "$FROOT/harness/lib/policy.sh"; }
+_mkinds="$(_mbody \
              | grep -o "printf '[a-z]*\\\\t" | sed "s/printf '//; s/\\\\t\$//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "felix_merge_blockers emits exactly the kinds cmd_merge places" \
-   "$_mkinds" "commission escape evidence obligations probes unknown unverified "
-_mcsubj="$(sed -n '/^felix_merge_blockers()/,/^}/p' "$FROOT/harness/lib/escape.sh" \
+   "$_mkinds" "commission escape evidence obligations policy probes unknown unverified "
+_mcsubj="$(_mbody \
              | grep -o "printf 'commission\\\\t[a-z]*" | sed "s/.*\\\\t//" | LC_ALL=C sort -u | tr '\n' ' ')"
 is "and commission blockers carry exactly the subjects cmd_merge places" "$_mcsubj" "engine receipt table "
 
@@ -299,6 +303,10 @@ _mlacks "and is not called work Felix owes"                        "$out" "work 
 out="$(_mclose 'unknown\tno-such-ref\tthe base names nothing this repository holds\n')"
 has "an unknown base still says nothing was compared"             "$out" "Nothing was compared"
 _mlacks "and names no commission run"                              "$out" "The commission is not"
+out="$(_mclose 'policy\ttable\tprojects/widget is not at refs/remotes/origin/main, so no authorized policy judges this\n')"
+has "a policy blocker says no authorized policy judged the branch" "$out" "No authorized version of this project"
+_mlacks "and the policy blocker is not called work Felix owes"     "$out" "work Felix owes"
+_mlacks "and the policy blocker names no commission run"            "$out" "The commission is not"
 out="$(_mclose 'escape\texecute\t.github/workflows/x.yml: runs on push\ncommission\treceipt\tstale (table set moved; run felix commission)\n')"
 has "an escape beside a stale receipt is still the founder's decision" "$out" "it is the founder who decides"
 is  "and the commission run is named with it, so one visit clears both" \

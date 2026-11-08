@@ -1956,7 +1956,7 @@ cmd_merge() {
   fi
 
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -1977,6 +1977,9 @@ cmd_merge() {
         unknown:*)          unk=1 ;;
         commission:receipt) stamp=1 ;;
         commission:table)   stamp=1; table=1 ;;
+        # No authorized policy could be read (lib/policy.sh, trust-plane step 3): not a
+        # gate to run or a test to write, and not the founder's either.
+        policy:*)           nopol=1 ;;
         *)                  owed=1 ;;
       esac
     done <<EOF
@@ -2081,11 +2084,19 @@ EOF
       printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
       printf 'commission for itself, so a green gate does not clear this.\n'
     fi
+    # A policy line is never a finding about the branch: nothing judged it.
+    if [ "$nopol" -eq 1 ] && [ "$unk" -eq 0 ]; then
+      printf '\nNo authorized version of this project'"'"'s policy judged the branch: the\n'
+      printf 'policy line above says why. Its tables, and the instruments they name, are\n'
+      printf 'read from the base and never from this checkout, so nothing here stands in\n'
+      printf 'for them. Land the tables on the base, or fix what the line names, then run\n'
+      printf 'this again.\n'
+    fi
     if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'
-      elif [ "$stamp" -eq 0 ]; then
+      elif [ "$stamp" -eq 0 ] && [ "$owed" -eq 1 ]; then
         printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
         printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
         printf 'then run this again.\n'

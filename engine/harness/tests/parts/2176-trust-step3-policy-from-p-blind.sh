@@ -91,6 +91,16 @@ cat > "$TS3/gh/gh" <<'TS3GH'
 #!/usr/bin/env bash
 d="${TS3_GHDIR:?TS3_GHDIR is not set}"
 printf '%s\n' "$*" >> "$d/calls"
+# The provider's two reads at the merge (lib/bind.sh, spec S5.2), answered with git at call time from the checkout
+# the stub runs in: the pull request open at this HEAD into main, and main at the commit it names here.
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-main}" "$(git rev-parse HEAD)"; exit 0 ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")"
+    exit 0 ;;
+esac
 case "${1:-} ${2:-}" in
   "pr view")     printf '{"number":7,"state":"OPEN"}\n'; exit 0 ;;
   "pr merge")    printf 'merged\n'; exit 0 ;;

@@ -8,35 +8,32 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	5020276a0859d8507a8547629840983e17285e21	0.49.330
-run	30	16740	46
-a policy blocker says no authorized policy judged the branch	1
-and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it	1
-and the policy blocker is not called work Felix owes	1
-felix_merge_blockers emits exactly the kinds cmd_merge places	1
-the instrument scan lists, for each of 38 commands, the words the rewrite takes from P and each it cannot place	1
-trust-step3: S1 (a table in the candidate): checked out in the home, a candidate that removes the exfil row from risk.tsv and adds danger/x is refused with an escape line naming exfil and danger/x	1
-trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line	1
-trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)	1
-trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure	1
-trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)	1
-trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain directory whose fx row's evidence contract is true, a candidate in a worktree of R that deletes MARKER is refused with an obligations line for fx (P's row judged)	1
-trust-step3: S1.7 (the name BASE gives): a candidate whose .felix names ts32, held loosened by a plain home, and which deletes MARKER, is refused by P's projects/ts3: an obligations line for fx or an escape line naming .felix	1
-trust-step3: S1.8 (a linked project directory): the candidate in a worktree of R deletes MARKER while the home's projects/ts3 is a link to a loosened copy, and is refused with an obligations line for fx	1
-trust-step3: S1.8 (a product's home, a planted repository): a candidate in the product Q that deletes MARKER, while a repository planted in HR's projects holds loosened tables and HR's working tree matches them, is refused with an obligations line for fx (P is HR's origin/main)	1
-trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)	1
-trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home	1
-trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe	1
-trust-step3: S2 (an applies command): a candidate that rewrites tools/applies-fx to exit 1 and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2 (an evidence instrument): a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2.1 (a group): with P's contract { tools/check-fx; }, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (a quoted instrument): with P's contract "tools/check-fx" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (a wrapper): with P's contract nice tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an interpreter as an argument): with P's contract defining a function f that runs its arguments and calling f bash tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an interpreter reading standard input): with P's contract piping tools/check-fx into bash, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh	1
-trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt	1
-trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR	1
-trust-step3: S3: a comma appended to the last cell of an existing risk.tsv row is refused with an escape line for verifier naming risk.tsv	1
-trust-step3: S4: a branch that deletes the manifest and disarms its own felix_escapes, run by its own felix, is still judged by main's engine: refused with an escape line for execute naming .github/workflows/x.yml	1
+base	origin/main	460074d58fd046d638f795a4dace179d06448024	0.49.332
+run	27	16787	46
+A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does	1
+A5 (B9): with a blob main's engine tracks missing, felix merge refuses with exit 1, saying it could not copy main's engine, runs nothing, calls no gh, and a real run records one refused judge row	1
+a checkout with no github remote is refused with exactly one refused row	1
+ts3b-x: S5.1 (the ref moves after the pin): refused by the fx obligation, with no base line, the move having happened	1
+ts3b-x: S5.2 (A's base name fails git check-ref-format --branch): no answer, refused with a base line, nothing merged	1
+ts3b-x: S5.2 (A's number is not digits only): no answer, refused with a base line, nothing merged	1
+ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base line, nothing merged	1
+ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged	1
+ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged	1
+ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged	1
+ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
+ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
+ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged	1
+ts3b: S5.2 (no answer, in a merge): call A answers the state CLOSED, and an honest candidate is refused with a base line, and nothing is merged	1
+ts3b: S5.3 (a stale local ref): the provider's main is M2, one ahead of R's origin/main, and an honest candidate is refused with a base line naming both commits, and nothing is merged	1
+ts3b: S5.3 (another base): judged with --base refs/heads/tpb-evil while the provider names main at M as the base, a candidate off tpb-evil that deletes MARKER is refused with a base line, and nothing is merged	1
+ts3b: S5.3 (another base, a dry run): the same, with --dry-run, is refused with a base line	1
+ts3b: S5.3 (no answer, in a dry run): call Q exits 1, and an honest candidate's dry run exits 0, says it was not compared with the provider, and still says felix merge would squash this now.	1
+ts3b: S5.3 (no answer, in a merge): call A exits 1, and an honest candidate is refused with a base line, and nothing is merged	1
+ts3b: S5.3 (no answer, in a merge): call Q exits 1, and an honest candidate is refused with a base line, and nothing is merged	1
+ts3b: S5.3 (the head differs): the provider names a head commit that is not the checkout's HEAD, and the merge is refused with a moved line, and nothing is merged	1
+ts3b: S5.3 (the local ref moved): with refs/remotes/origin/main moved to tpb-evil and no --base, the same candidate is refused with a base line, and nothing is merged	1
+ts3b: S5.4 (the base moves at the last moment): call Q answers M, then M2, and the merge is refused with a moved line after asking Q twice, and nothing is merged	1
+ts3b: S6.1 (the caller's environment): a candidate that deletes MARKER, run with GIT_OBJECT_DIRECTORY naming a copy of R's objects where P's tools/lib.sh is rewritten, is refused by the fx obligation or an objects line, and nothing is merged	1
+ts3b: S6.2 (a graft): the same candidate, with its parent grafted onto M0, is still refused with an escape line naming danger/x, and nothing is merged	1
+ts3b: S6.2 (a replace ref): a candidate that adds danger/x, its head replaced by a commit holding main's tree and its index read from that, is refused with an escape line naming danger/x, and nothing is merged	1
+ts3b: S6.3 (an object whose content is not its name): a candidate that deletes MARKER, with the loose file for P's tools/lib.sh rewritten so fx_check is true, is refused with an objects line naming that blob, and nothing is merged	1

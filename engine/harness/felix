@@ -340,6 +340,10 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/where.sh"
 # shellcheck source=lib/escape.sh
 . "${SCRIPT_DIR}/lib/escape.sh"
+# escape.sh loads bind.sh too; loaded here as well because cmd_merge calls it before anything is judged, and an
+# escape.sh that failed to load it must not stop a self-governed merge from reaching main's engine.
+# shellcheck source=lib/bind.sh
+. "${SCRIPT_DIR}/lib/bind.sh" 2>/dev/null || :
 # shellcheck source=lib/review.sh
 . "${SCRIPT_DIR}/lib/review.sh"
 # shellcheck source=lib/next.sh
@@ -1810,6 +1814,10 @@ _felix_merge_unskip() {    # text on stdin -> the same text, defused
 }
 
 cmd_merge() {
+  # Before anything is read (lib/bind.sh, spec S6.1 and S6.2): the caller's git environment does not reach a read,
+  # and replacement and grafts are off, for this process and every child. A refusal waits until the arguments are
+  # known, since it is recorded and a dry run records nothing.
+  felix_bind_env 2>/dev/null || :
   resolve_or_die
   local orig=("$@")   # what a hand-off to main's engine repeats (lib/merge-judge.sh)
   local proj="$PROJ" root base="main" dry=0 a
@@ -1858,6 +1866,17 @@ cmd_merge() {
               || _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' is an expression that begins with refs/, not a ref name, and felix merge takes only a ref name that exists: git reads an expression such as refs/heads/x~0 through its short-name order, where a tag called refs/heads/x answers first. Name the ref itself with --base." ;;
     *) _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' resolves here only as given, not as a full ref name, and felix merge judges and merges against a full ref name or not at all, because an expression such as main~1 still reaches git's short-name order. Name a branch that has a remote-tracking ref or a local branch, or a refs/ name, with --base." ;;
   esac
+  # A directory that could not be made is felix_bind_objects' blocker, below; a library that is not there is this.
+  command -v felix_bind_objects >/dev/null 2>&1 \
+    || _felix_merge_die "$dry" "$proj" "$named" objects "lib/bind.sh is not loaded, so nothing can check that the base is the provider's or that what git shows is what the objects' names say. Nothing was judged."
+
+  # The base is read once (lib/bind.sh, spec S5.1): from here on it is the commit, B, and every read, the judge's
+  # and its children's included, names B by its object id, so a ref moved while this runs changes nothing judged.
+  # The ref's name is kept for what is said about it.
+  local bref="$base"
+  felix_bind_pin "$root" "$bref" \
+    || _felix_merge_die "$dry" "$proj" "$named" base "$bref names no commit now, so there is no base to judge against."
+  base="$_FELIX_BIND_B"
 
   # Read before anything is verified, and read again immediately before the
   # merge. Every blocker below is a claim about one checkout, and the branch is
@@ -1868,6 +1887,13 @@ cmd_merge() {
   local was; was="$(felix_merge_checkout "$root" "$FELIX_HOME_DIR")"
   local branch; branch="$(printf '%s' "$was" | LC_ALL=C cut -f1)"
   [ -n "$branch" ] && [ "$branch" != "HEAD" ] || _felix_merge_die "$dry" "$proj" "${branch:-HEAD}" branch "cannot name the branch to merge"
+
+  # What the verdict reads is checked against its name before any of it is read (lib/bind.sh, spec S6.3, S6.4):
+  # B, H and their merge base are copied through git index-pack, and the rest of the run reads the copy. An object
+  # whose bytes do not hash to its name is one blocker, and nothing else is judged.
+  local head bindblock=""
+  head="$(git -C "$root" rev-parse --verify --quiet 'HEAD^{commit}' 2>/dev/null </dev/null)" || head=""
+  felix_bind_objects "$root" "$base" "$head" || bindblock="$_FELIX_BIND_BLOCK"
 
   # Judged by the engine main declares, never by this tree — but only where
   # that circularity exists. A governed product's rules live in the Felix home
@@ -1880,7 +1906,9 @@ cmd_merge() {
   local -x FELIX_MERGE_DRY_RUN="$dry"
   # Asked of the base as well as the tree (spec S4): deleting the manifest does not let a branch choose
   # to be judged by the felix it carries.
-  if felix_self_governed "$root" || felix_self_governed_at "$root" "$base"; then
+  if [ -n "$bindblock" ]; then
+    blockers="$bindblock"
+  elif felix_self_governed "$root" || felix_self_governed_at "$root" "$base"; then
     # The judge is not chosen by the environment (#260). FELIX_KERNEL named one
     # outright and is refused by name; the cache variables still compose the
     # path, so the entry they resolve is checked, byte for byte, against the
@@ -1943,6 +1971,8 @@ cmd_merge() {
       felix_merge_handoff "$root" "$base" "$jentry" "$dry" "$proj" "$branch" ${orig[@]+"${orig[@]}"}; hrc=$?
       [ "$hrc" -ne 0 ] || return "$_MJ_RC"
       kernel="$SCRIPT_DIR"
+    elif [ -n "${_FELIX_BIND_HANDED:-}" ]; then
+      _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_MERGE_BASE_AT and FELIX_MERGE_HANDED are set, and this felix is the installed engine, not the copy felix merge hands a run to: only that copy takes the base its parent read. Unset them."
     fi
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
@@ -1952,11 +1982,21 @@ cmd_merge() {
       *) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel could not be loaded to judge this." ;;
     esac
   else
+    [ -z "${_FELIX_BIND_HANDED:-}" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_MERGE_BASE_AT and FELIX_MERGE_HANDED are set for a repository that is not the engine's own, where nothing hands a run on: only the copy felix merge hands a run to takes the base its parent read. Unset them."
     blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
   fi
 
+  # The provider is asked only once the judgement found nothing (lib/bind.sh, spec S5.3): the merge stands only when
+  # the pull request's head on GitHub is H and its base branch there is B. A dry run the provider could not answer
+  # says so and goes on; a merge does not.
+  local bindnote=""
+  if [ -z "$blockers" ]; then
+    felix_bind_compare "$root" "$branch" "$base" "$head" "$dry"
+    blockers="$_FELIX_BIND_BLOCK"; bindnote="$_FELIX_BIND_NOTE"
+  fi
+
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -1980,6 +2020,8 @@ cmd_merge() {
         # No authorized policy could be read (lib/policy.sh, trust-plane step 3): not a
         # gate to run or a test to write, and not the founder's either.
         policy:*)           nopol=1 ;;
+        # What was judged is not what the provider holds, or git could not show that it was (lib/bind.sh).
+        base:*|moved:*|objects:*) prov=1 ;;
         *)                  owed=1 ;;
       esac
     done <<EOF
@@ -2092,6 +2134,11 @@ EOF
       printf 'for them. Land the tables on the base, or fix what the line names, then run\n'
       printf 'this again.\n'
     fi
+    if [ "$prov" -eq 1 ]; then
+      printf '\nWhat was judged is not what the provider holds, or git could not show that\n'
+      printf 'it was: the line above says which. Nothing was merged. Fetch, so the base\n'
+      printf 'is the one GitHub would squash onto, and run this again.\n'
+    fi
     if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
@@ -2106,6 +2153,7 @@ EOF
   fi
 
   if [ "$dry" -eq 1 ]; then
+    [ -z "$bindnote" ] || printf '%s\n' "$bindnote"
     printf 'nothing escapes this tree, and the gate is green on it.\n'
     if [ -n "${jentry:-}" ]; then printf 'judged by %s, the engine main declares, byte-identical to main.\n' "$jentry"; fi
     printf 'felix merge would squash this now.\n'
@@ -2113,7 +2161,9 @@ EOF
   fi
 
   command -v gh >/dev/null 2>&1 || _felix_merge_die "$dry" "$proj" "$branch" gh "felix merge needs the gh CLI, which is not on PATH"
-  local slug; slug="$(felix_repo_slug "$root")"
+  # The repository the provider was asked about (lib/bind.sh, S5.2) is the one asked to squash: one reading of
+  # origin, not two that can differ on a trailing slash or a deeper path (slice 2's review).
+  local slug; slug="$(_felix_bind_slug "$root")"
   [ -n "$slug" ] || _felix_merge_die "$dry" "$proj" "$branch" gh "no github remote"
 
   # What the squash commit says, written here and never left to GitHub's
@@ -2203,6 +2253,16 @@ Felix-Gate: ${gtree:-none}"
       _felix_merge_refused "$dry" "$proj" "$branch" moved "the checkout moved while this ran: $wb $ws -> $nb $ns"
     fi
     printf 'Run it again once nothing else is touching this working copy.\n'
+    return 4
+  fi
+  # And the provider's base asked again, last (lib/bind.sh, spec S5.4). The window between this read and GitHub's
+  # squash is not closed here: that is the queue's (design step 4).
+  if ! felix_bind_last "$root" "$base"; then
+    printf 'not merging\n\n'
+    printf '  %-11s %-22s %s\n' moved base "the provider's base moved since it was judged: $_FELIX_BIND_WHY"
+    printf '\nThe base GitHub would squash onto is not the one judged here. Nothing was\n'
+    printf 'merged. Fetch, and run this again.\n'
+    _felix_merge_refused "$dry" "$proj" "$branch" moved "the provider's base moved since it was judged: $_FELIX_BIND_WHY"
     return 4
   fi
   # --match-head-commit is the other half of the check just made. That one

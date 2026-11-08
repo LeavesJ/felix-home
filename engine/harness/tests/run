@@ -413,6 +413,7 @@ fi
 . "$HERE/parts/2173-trust-table-status-unfinished-reads-blind.sh"
 . "$HERE/parts/2176-trust-step3-policy-from-p-blind.sh"
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
+. "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
 . "$HERE/parts/2179-trust-merge-driver-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
@@ -440,7 +441,6 @@ printf '\nreached\n'
 # What ran, against what is supposed to run (#67): one way only, and counted per name; part 0001 says why.
 _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
-
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   # The manifest, then the mark (whole, or red is ended and not waited for).
   _rcp_mk=written

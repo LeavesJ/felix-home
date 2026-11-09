@@ -21,7 +21,8 @@ are the worker's to write, and slice 2's scrub (S6.1) clears only the environmen
 
 A driver `true` keeps main's side of the file and exits 0. The candidate's lines in that file are then not "added",
 and the provider's squash still lands them. Shown on #497's head 5616dba9, in a scratch copy of part 2178:
-- **An added line.** A candidate adds `TOKEN=planted-line` to a file main also changed. With no driver it is refused.
+- **An added line.** A candidate adds a line shaped like a credential (a `TOKEN` variable set to a planted value) to
+  a file main also changed. With no driver it is refused.
   With the checkout's driver named, it is **merged**. Which rule refused it was not recorded. `bin/secret-scan`, behind
   the `disclose` escape, reads the three-dot diff and takes no merge, so a line it flags is still refused with the
   driver. What the driver hides is a line read through `felix_added_lines`, such as the escape scan's destructive SQL

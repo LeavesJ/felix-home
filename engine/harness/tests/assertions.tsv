@@ -15673,6 +15673,31 @@
 1	tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the changed paths still hold notes/f
 1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the added lines still hold the credential line
 1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the changed paths still hold notes/f
+1	tmdr: (fixture control) a content conflict: main and the candidate change x/f's third line differently since R; plain git merge-tree exits 1 in all three directory-rename modes; three-dot names x/f and adds the candidate's line
+1	tmdr: (fixture control) case 3 can see a move: git diff --name-only --no-renames from main's tree to the tree plain git merge-tree writes with merge.directoryRenames=true names e/a, d/new and e/new
+1	tmdr: (fixture control) each case-2 environment reaches a plain git merge-tree in the checkout: GIT_CONFIG_COUNT setting merge.directoryRenames to true exits 0 and to conflict exits 1, both with d/new at e/new; GIT_CONFIG_GLOBAL, GIT_CONFIG_PARAMETERS, GIT_CONFIG_SYSTEM and the checkout's own config, each setting it true, move d/new to e/new and exit 0
+1	tmdr: (fixture control) no renames: main changes p/f and the candidate q/g since R; plain git merge-tree exits 0 and writes one tree in all three directory-rename modes, and that tree holds main's p/f and the candidate's q/g
+1	tmdr: (fixture control) one deleted: R also holds d/k, which the candidate deletes while it renames the rest of d/ into e/; plain git merge-tree moves d/new to e/new with merge.directoryRenames=conflict (exit 1) and =true, and leaves it at d/new with =false
+1	tmdr: (fixture control) the finding's shape: main has moved since R, the candidate's base; the candidate holds e/a, e/b and e/c and no d/; and plain git merge-tree of main and the candidate in the checkout moves d/new to e/new with merge.directoryRenames=conflict (exit 1) and =true (exit 0), and leaves it at d/new with =false (exit 0)
+1	tmdr: case 1, one deleted: when the candidate deletes d/k and renames the rest of d/ into e/, _felix_merge_refs exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 1: from the checkout of a candidate that renames all of d/ into e/ while main added d/new, _felix_merge_refs with base main exits 0 and prints main^{tree} and the id of a tree
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, d/new is at d/new with main's bytes
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, e/new does not exist
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, the files it renamed are at e/ with its bytes, the nearly unchanged one included, and not at d/
+1	tmdr: case 2, beyond the list: with GIT_CONFIG_PARAMETERS carrying merge.directoryRenames=true after the suite's own pins, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2, beyond the list: with GIT_CONFIG_SYSTEM naming a file that sets merge.directoryRenames true and GIT_CONFIG_NOSYSTEM unset, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=conflict in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=true in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_GLOBAL naming a file that sets merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with the checkout's own .git/config setting merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the added lines still hold the candidate's changed e/c line and no line of main's d/new
+1	tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the changed paths still name e/a and neither d/new nor e/new
+1	tmdr: case 3: on the candidate that renames d/ into e/, the added lines with base main hold the candidate's changed e/c line and no line of main's d/new
+1	tmdr: case 3: on the candidate that renames d/ into e/, the changed paths with base main name e/a, the candidate's own rename, and neither d/new nor e/new
+1	tmdr: case 4: on that content conflict, the added lines still hold every line the three-dot diff adds
+1	tmdr: case 4: on that content conflict, the changed paths still hold every path the three-dot diff names
+1	tmdr: case 4: when main and the candidate change the same line of x/f differently, _felix_merge_refs with base main still exits 1
+1	tmdr: case 5: with no renames on a moved base, _felix_merge_refs exits 0 and prints main^{tree} and the tree a plain git merge-tree writes
 1	toolbox.json names installed_plugins.json, where a pin is checked by hand (b23 A34)
 1	toolbox.json no longer says the cloud runs what a local session runs (b23 A30)
 1	toolbox.json parses, about is an array of strings, and tools has one entry per line holding "name": (b23 A36)

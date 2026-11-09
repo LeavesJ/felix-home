@@ -4,7 +4,7 @@
 
 **Scope.** `felix merge`, as the lander and a session run it, dry runs included, for Felix's own repository, at two versions:
 - **main:** `origin/main` 6fe629e6 (0.49.334);
-- **slice 3:** this branch (0.49.335), spec rules S7 to S9 and amendments A1 to A21, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`.
+- **slice 3:** this branch (0.49.336), spec rules S7 to S9 and amendments A1 to A21, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`.
 
 Not measured: products' suites, which run none of this (S8.11); the gate and CI, which still run the candidate's suite (R4); the hosted authority, which does not exist; CI's bash 5.3 and gawk, which run this branch in CI and not on this Mac.
 

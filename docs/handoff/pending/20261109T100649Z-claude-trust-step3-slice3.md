@@ -1,4 +1,4 @@
-### 2026-11-09: P's instrument parts judge the candidate (trust-plane step 3, slice 3, 0.49.335)
+### 2026-11-09: P's instrument parts judge the candidate (trust-plane step 3, slice 3, 0.49.336)
 
 **What this is.** Design step 3, slice 3, on branch `claude/trust-step3-slice3`. It moves inventory row D2 for the merge and narrows residual R3.
 - The spec is in the memory root, `audits/2026-11-08-trust-plane-step3/spec-slice3.md`: rules S7 to S9, then amendments A1 to A21 after each review. The run logs are beside it in `slice3/`.
@@ -28,4 +28,4 @@
 - **The gate and CI** still run the candidate's suite (D1, D3).
 - **Products' suites,** each with a partition of its own.
 
-**Release.** 0.49.335 fails closed until the founder authorizes it by name (direction row 49). The pull request is labelled needs-founder.
+**Release.** 0.49.336 fails closed until the founder authorizes it by name (direction row 49). The pull request is labelled needs-founder.

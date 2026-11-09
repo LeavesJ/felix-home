@@ -62,7 +62,7 @@ squashed with it. A credential line is still refused with the plant, by `disclos
 
    As 0.49.334 landed it, this rule made the merge fail whenever the merge base had a parent: the copy holds no commit
    older than the base, and `merge-tree` walked to its parents. Inside `felix merge` every reader then took three-dot,
-   the stricter direction. Part 2179's fixtures never reach a base with a parent, so it passed either way. 0.49.335
+   the stricter direction. Part 2179's fixtures never reach a base with a parent, so it passed either way. 0.49.336
    writes the base into the made repository's shallow file when the copy is read alone (slice 3's A20, in
    `docs/2026-11-09-trust-step3-slice3-measurement.md`).
 3. **Failure** falls back to the three-dot diff, as before. Three-dot over-reports, so the fallback can make a verdict

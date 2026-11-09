@@ -32,4 +32,4 @@ without rule 2. The cost is about 36 ms more CPU per merge the readers take.
 - Every other reader that runs git in the checkout, which is slice 3's class.
 
 **Release.** 0.49.334 fails closed until the founder authorizes it by name (direction row 49). Under row 51 it lands
-before slice 3, which then takes 0.49.335.
+before slice 3, which then takes the next release (0.49.336: #501 took 0.49.335).

@@ -2,7 +2,7 @@
 
 2026-11-08. Design step 3 (`docs/2026-11-07-trust-plane-design.md` §4.1, §9) asks for every input the authority reads, where it is read from, whether the judged branch can change it, and where it moves. This is that inventory, for the authority as it stands today: `felix merge` and the land tick.
 
-**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the two engine slices that move inputs to P: slice 1 (0.49.332, spec rules S1 to S4, including S1.7 to S1.10 and S2.1 as amended after its reviews) and slice 2 (0.49.333, spec rules S5 and S6 in `audits/2026-11-08-trust-plane-step3/spec-slice2.md`, measured in `docs/2026-11-08-trust-step3-slice2-measurement.md`), the fix to the change readers' merge (0.49.334, rule S6.6, in `docs/2026-11-08-trust-merge-driver.md`), and slice 3 (0.49.335, spec rules S7 to S9 and amendments A1 to A21 in `audits/2026-11-08-trust-plane-step3/spec-slice3.md`, measured in `docs/2026-11-09-trust-step3-slice3-measurement.md`). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
+**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the two engine slices that move inputs to P: slice 1 (0.49.332, spec rules S1 to S4, including S1.7 to S1.10 and S2.1 as amended after its reviews) and slice 2 (0.49.333, spec rules S5 and S6 in `audits/2026-11-08-trust-plane-step3/spec-slice2.md`, measured in `docs/2026-11-08-trust-step3-slice2-measurement.md`), the fix to the change readers' merge (0.49.334, rule S6.6, in `docs/2026-11-08-trust-merge-driver.md`), and slice 3 (0.49.336, spec rules S7 to S9 and amendments A1 to A21 in `audits/2026-11-08-trust-plane-step3/spec-slice3.md`, measured in `docs/2026-11-09-trust-step3-slice3-measurement.md`). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
 
 **This list is open.** It holds what two methods found (below). The design's own words apply: "any other input the authority turns out to read. This list is enumerated from what the authority actually reads, not written down in advance". An input found later moves to P when it is found (design §11). The row numbers are labels, not a count of the space.
 
@@ -22,7 +22,7 @@ Key to the columns:
 - **Branch?** Can a commit on the judged branch change this input, so that it changes that branch's own verdict?
 - **Worker?** Can a process on this Mac, running as the same user, change it without going through review?
 - **Moves to.** Where design §4.1 puts it.
-- **After slices 1 to 3.** What 0.49.332 (slice 1), 0.49.333 (slice 2) and 0.49.335 (slice 3) do about it. A row a later slice changed says so.
+- **After slices 1 to 3.** What 0.49.332 (slice 1), 0.49.333 (slice 2) and 0.49.336 (slice 3) do about it. A row a later slice changed says so.
 
 ### A. The judge
 

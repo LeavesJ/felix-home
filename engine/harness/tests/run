@@ -20,7 +20,6 @@ case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
 esac
-
 # hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
 # one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
@@ -416,6 +415,7 @@ fi
 . "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
 . "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
 . "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
+. "$HERE/parts/2184-trust-merge-dir-renames-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

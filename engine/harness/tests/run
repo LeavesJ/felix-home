@@ -25,7 +25,6 @@ esac
 # hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
 # one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
-
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
 # REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not).
@@ -416,6 +415,7 @@ fi
 . "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
 . "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
 . "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
+. "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

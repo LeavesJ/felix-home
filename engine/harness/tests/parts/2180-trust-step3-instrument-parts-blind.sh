@@ -237,6 +237,10 @@ _ts3c_check "ts3c: S8.4: when the machinery changed, every instrument part of P 
 _ts3c_check "ts3c: S8.10: the judgement that ran the canary under the candidate's driver left no run tree or canary copy under TMPDIR, and the checkout's status as it was" \
   "canary ran $([ -s "$TS3C/hlog" ] && echo yes || echo no)|left $(_ts3c_left)" "canary ran yes|left nothing" "$(_ts3c_why)"
 TS3C_C1="$(LC_ALL=C awk '$1 == "--part" { $1 = ""; print }' "$TS3C/hlog" | tr -d ' ' | LC_ALL=C sort -u | tr '\n' ' ')"
+# A11 (spec-slice3 section 5): A5 keeps a machinery judgement, and a second judgement of the same pair reads it and runs
+# no canary. For the two canary names to be taken across two real runs, remove what the first judgement kept (the files
+# under the home naming the canary, 2181's reading), so the two cannot share a key. The assertion below is unchanged.
+grep -rlF canary "$TS3CR/state" "$TS3C/home" 2>/dev/null | while IFS= read -r _ts3c_k; do [ -z "$_ts3c_k" ] || rm -f "$_ts3c_k"; done
 _ts3c_dry
 TS3C_C2="$(LC_ALL=C awk '$1 == "--part" { $1 = ""; print }' "$TS3C/hlog" | tr -d ' ' | LC_ALL=C sort -u | tr '\n' ' ')"
 _ts3c_check "ts3c: S8.5: two judgements of the same candidate run the canary under its driver with different part file names, neither a part the candidate holds" \

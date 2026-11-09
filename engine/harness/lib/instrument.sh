@@ -55,6 +55,8 @@ unset _FELIX_INSTR_KL0 _FELIX_INSTR_MARK _FELIX_INSTR_CPART _FELIX_INSTR_CDRV _F
 _felix_instr_add() {
   local r="$3" l
   r="${r//$'\t'/ }"; r="${r//$'\n'/ }"
+  # A22, A23: no control byte from a name in the tree reaches the blocker line.
+  r="$(printf '%s' "$r" | LC_ALL=C tr '\001-\037\177' '?')"
   l="$1"$'\t'"$2"$'\t'"$r"
   case $'\n'"$_FELIX_INSTR_BLOCK"$'\n' in *$'\n'"$l"$'\n'*) return 0 ;; esac
   _FELIX_INSTR_BLOCK="${_FELIX_INSTR_BLOCK:+$_FELIX_INSTR_BLOCK$'\n'}$l"

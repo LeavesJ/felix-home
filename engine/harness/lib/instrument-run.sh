@@ -269,9 +269,10 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
   return 0
 }
 # A22, A23: whether the files written at DIR are the index's: the first difference on stdout and 1, else 0. Where the
-# filesystem under DIR's parent folds names (probed there: case, and Unicode decomposition), two index paths that fold
-# to one name, or a path of B (BASE-PATHS, NUL-separated) the index lacks that folds to an index path's name, are the
-# difference. A file is its bytes, a symbolic link its target, hashed as git hashes a blob; kind and executable bit
+# filesystem under DIR's parent folds names (probed there: case, and Unicode decomposition), two names of the index,
+# paths or their directory prefixes, with different bytes that fold to one, or a name of B (BASE-PATHS, NUL-separated)
+# that folds to a different index name, are the difference. A path is printed with bytes outside printable ASCII as
+# \xNN. A file is its bytes, a symbolic link its target, hashed as git hashes a blob; kind and executable bit
 # follow the entry's mode, and a gitlink is a directory.
 _felix_instr_tcpl='use strict; use feature "fc"; use Encode (); use Unicode::Normalize (); use Digest::SHA ();
 my ($d, $fmt, $ls, $bl) = @ARGV; my $j = $d; $j =~ s{/[^/]*$}{}; my $f = 0;
@@ -279,20 +280,28 @@ for my $pr (["fp-$$-a", "FP-$$-A"], ["fp-$$-e\xcc\x81", "fp-$$-\xc3\xa9"]) {
   open(my $h, ">", "$j/$pr->[0]") or do { print "the filesystem under the run directory could not be probed"; exit 1 };
   close $h; $f = 1 if -e "$j/$pr->[1]"; unlink "$j/$pr->[0]" }
 sub key { my $u = eval { Encode::decode("UTF-8", $_[0], Encode::FB_CROAK | Encode::LEAVE_SRC) }; fc(Unicode::Normalize::NFD(defined $u ? $u : $_[0])) }
+sub show { my $s = $_[0]; $s =~ s/([^\x20-\x7e])/sprintf("\\x%02x", ord $1)/ge; $s }
 local $/ = "\0"; open(my $l, "<", $ls) or do { print "the index of the run tree could not be read"; exit 1 };
-my (@e, %k, %in); while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
-  push @e, [$m, $o, $p]; $in{$p} = 1;
-  if ($f) { my $q = key($p); if (exists $k{$q}) { print "it holds $k{$q} and $p, which this filesystem takes for one name"; exit 1 } $k{$q} = $p } }
-if ($f && open(my $b, "<", $bl)) { while (my $p = <$b>) { chomp $p; next if $in{$p} || !exists $k{key($p)};
-  print "$p of the base, which it lacks, and its $k{key($p)} are one name on this filesystem"; exit 1 } }
+sub pre { my @c = split m{/}, $_[0], -1; map { join "/", @c[0 .. $_] } 0 .. $#c }
+my (@e, %k, %kp); while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
+  push @e, [$m, $o, $p]; next unless $f;
+  for my $x (pre($p)) { my $q = key($x); next if exists $k{$q} && $k{$q} eq $x;
+    if (exists $k{$q}) { print "it holds ", show($kp{$q}), " and ", show($p), ($k{$q} eq $kp{$q} && $x eq $p
+      ? ", which this filesystem takes for one name" : ", whose " . show($k{$q}) . " and " . show($x) . " this filesystem takes for one name"); exit 1 }
+    $k{$q} = $x; $kp{$q} = $p } }
+if ($f) { open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 }; while (my $p = <$b>) { chomp $p; for my $x (pre($p)) { my $q = key($x);
+  next if !exists $k{$q} || $k{$q} eq $x;
+  print show($p), " of the base, which it lacks, and its ", show($kp{$q}), " are one name on this filesystem (", show($x),
+    " and ", show($k{$q}), ")"; exit 1 } } }
 for (@e) { my ($m, $o, $p) = @$_; my $w = "$d/$p"; my $c;
-  if ($m eq "160000") { next if -d $w && !-l $w; print "$p is not the directory its entry names"; exit 1 }
-  if ($m eq "120000") { $c = readlink $w; defined $c or do { print "$p is not the symbolic link its entry names"; exit 1 } }
-  else { if (-l $w || !-f _) { print "$p is not the file its entry names"; exit 1 }
-    if (((stat _)[2] & 0100 ? "100755" : "100644") ne $m) { print "$p does not have the mode its entry names"; exit 1 }
-    open(my $h, "<:raw", $w) or do { print "$p could not be read"; exit 1 }; local $/; $c = <$h>; $c = "" unless defined $c }
+  my $s = show($p);
+  if ($m eq "160000") { next if -d $w && !-l $w; print "$s is not the directory its entry names"; exit 1 }
+  if ($m eq "120000") { $c = readlink $w; defined $c or do { print "$s is not the symbolic link its entry names"; exit 1 } }
+  else { if (-l $w || !-f _) { print "$s is not the file its entry names"; exit 1 }
+    if (((stat _)[2] & 0100 ? "100755" : "100644") ne $m) { print "$s does not have the mode its entry names"; exit 1 }
+    open(my $h, "<:raw", $w) or do { print "$s could not be read"; exit 1 }; local $/; $c = <$h>; $c = "" unless defined $c }
   my $g = Digest::SHA->new($fmt eq "sha256" ? 256 : 1); $g->add("blob " . length($c) . "\0", $c);
-  next if $g->hexdigest eq $o; print "$p does not hold the bytes of its blob"; exit 1 }'
+  next if $g->hexdigest eq $o; print "$s does not hold the bytes of its blob"; exit 1 }'
 _felix_instr_repo() {   # DEST COMMIT BRANCH PACK BASE-PATHS: a repository of its own at DEST, checked out at COMMIT on BRANCH
   local d="$1" c="$2" br="$3" fmt x
   _FELIX_INSTR_TWHY=""
@@ -309,7 +318,8 @@ _felix_instr_repo() {   # DEST COMMIT BRANCH PACK BASE-PATHS: a repository of it
   _felix_instr_git "$d" update-index -q --refresh >/dev/null 2>&1 </dev/null
   # A22, A23: the files written are the tree's, checked before any unit runs.
   fmt="$(_felix_instr_git "$d" rev-parse --show-object-format 2>/dev/null </dev/null)" || fmt=sha1
-  _felix_instr_git "$d" ls-files -s -z > "$_FELIX_INSTR_R/t.ls" 2>/dev/null </dev/null || return 1
+  _felix_instr_git "$d" ls-files -s -z > "$_FELIX_INSTR_R/t.ls" 2>/dev/null </dev/null \
+    || { _FELIX_INSTR_TWHY="its index could not be listed"; return 1; }
   x="$(perl -e "$_felix_instr_tcpl" "$d" "$fmt" "$_FELIX_INSTR_R/t.ls" "$5" 2>/dev/null)" || { _FELIX_INSTR_TWHY="${x:-the files written could not be checked}"; rm -f "$_FELIX_INSTR_R/t.ls"; return 1; }
   rm -f "$_FELIX_INSTR_R/t.ls" 2>/dev/null
   return 0

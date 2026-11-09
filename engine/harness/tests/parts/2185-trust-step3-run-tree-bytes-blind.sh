@@ -11,7 +11,10 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 # Cases 5a and 5b were added the same day, after the fix for cases 1 to 4 (6ab2d37e) was committed on the branch, from
 # the paragraphs of section 8 that begin "A23, amended after the automated security review" and "A22 and A23, the same
 # review" and the new observable case 5 (the old case 5 is case 6), under the same terms: no lib file named above, and
-# no git log -p of the branch's lib changes, was read.
+# no git log -p of the branch's lib changes, was read. Case 6 was added later that day, the same way, from the
+# paragraph beginning "A23, amended again after the plain-git check" and the new observable case 6 (old 6 is case 7),
+# against 7ccb545e and a later commit that changes only blocker escaping. Its non-ASCII names are written with printf
+# from their UTF-8 bytes, so this file stays ASCII: U+2C2F (Glagolitic capital) and U+2C5F (its small form).
 #
 # Readings, where the spec leaves room (part 2180's stand on "refused", "passed", a blocker line and the trace):
 # - Each candidate also appends a comment to the P part that judges it, so S8.1 counts that part changed and P's unit
@@ -33,12 +36,21 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 #   such a path, so 5b is skipped there. "Shows it as \x1b" is the SUITE line holding both paths with that byte written
 #   as the four characters \x1b. "No raw control byte" counts bytes 0x00-0x08, 0x0b-0x1f and 0x7f over stdout and
 #   stderr together (TAB and LF are not counted).
+# - Case 6 gets a base of its own, a later main that adds P's 2009-glag.sh (instrument: engine/widget/MARK+U+2C2F
+#   exists), that file, and a directory engine/wid+U+2C2F/ holding keep.txt, so the cases before it judge an unchanged
+#   base. Whether the pair is one name is probed as for case 3, with the pair. Each half's control runs everywhere, its
+#   expected value following that probe; each half's assertion is skipped where the pair is two names.
+# - Case 6's "naming both": an unknown SUITE line holds both names as A22 and A23 amended print them, each byte outside
+#   printable ASCII written as \xNN, with the hex digits in either case. In 6b these are the two directories,
+#   engine/wid\xe2\xb0\xaf and engine/wid\xe2\xb1\x9f, which a path under either also holds.
+# - 6b's candidate is committed from what it stages, not with add -A: where the pair folds, its file lands on disk
+#   inside B's directory, and git, which folds ASCII alone, would add it there a second time.
 #
-# Not covered: case 6 as an assertion (red first is how this part is run, not what it asserts); A23's fold of the
+# Not covered: case 7 as an assertion (red first is how this part is run, not what it asserts); A23's fold of the
 # Unicode-decomposed form (only case is driven); the canary's copy, which A22 and A23 also judge (no candidate here
 # changes the machinery); A22's checks of kind, executable bit, symbolic link target and gitlink, and the filter
 # attribute (it needs a driver configured where T is written); the cost; A23's "nothing here applies" where names do
-# not fold (cases 4 and 5 are skipped there); a control byte from any source other than a path (5b's paths are the
+# not fold (cases 4 to 6 are skipped there); a name the filesystem refuses outright (A23 amended again); a control byte from any source other than a path (5b's paths are the
 # only one driven); and what section 8 leaves open.
 TS3C="$TMP/ts3g"; rm -rf "${TS3C:?}"; mkdir -p "$TS3C/repo" "$TS3C/gh" "$TS3C/home" "$TS3C/kc" "$TS3C/t" "$TS3C/ctl"
 TS3C="$(cd "${TS3C:?}" && pwd -P)"; TS3CR="$TS3C/repo"; TS3CK="$TS3C/kc"; TS3CT=""; TS3CRC=0; TS3G_N=0
@@ -119,6 +131,10 @@ _ts3g_ctl() { LC_ALL=C tr -cd '\000-\010\013-\037\177' | wc -c | tr -d ' '; }   
 _ts3g_onto() {   # -> yes when an unknown SUITE line of the last run names TS3G_X and, as a word, engine or a path under it
   cat "$TS3C/out" "$TS3C/err" 2>/dev/null | LC_ALL=C awk -v x="$TS3G_X" 'index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" && index($0, x) &&
     $0 ~ /(^|[^A-Za-z0-9_.-])engine(\/|[^A-Za-z0-9_.-]|$)/ { f = 1 } END { print (f ? "yes" : "no") }'
+}
+_ts3g_suite2() {   # A B -> yes when an unknown SUITE line of the last run holds A and B, ASCII case aside (A and B through ENVIRON, unescaped)
+  cat "$TS3C/out" "$TS3C/err" 2>/dev/null | TS3G_KA="$1" TS3G_KB="$2" LC_ALL=C awk 'BEGIN { a = tolower(ENVIRON["TS3G_KA"]); b = tolower(ENVIRON["TS3G_KB"]) }
+    index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" && index(tolower($0), a) && index(tolower($0), b) { f = 1 } END { print (f ? "yes" : "no") }'
 }
 
 # ---------------------------------------------------------------- fixture R ---
@@ -254,7 +270,58 @@ else
   skip "ts3g: A22 and A23 amended, case 5b, where names fold: felix merge's whole output, stdout and stderr, holds no raw byte in 0x00-0x08, 0x0b-0x1f or 0x7f" "names do not fold under this TMPDIR"
 fi
 
+# ----- A23 amended again, case 6: the filesystem says which names are one -----
+# A later base adds P's 2009-glag.sh, which requires engine/widget/MARK+U+2C2F, that file, and B's directory
+# engine/wid+U+2C2F/. U+2C2F and U+2C5F are a case pair Unicode 14 added, which APFS folds and older tables do not.
+TS3G_UC="$(printf '\xe2\xb0\xaf')"; TS3G_LC="$(printf '\xe2\xb1\x9f')"; TS3G_XC='\xe2\xb0\xaf'; TS3G_XL='\xe2\xb1\x9f'
+mkdir -p "$TS3C/t/pair"; : > "$TS3C/t/pair/MARK$TS3G_UC"; TS3G_PAIR=no; [ -e "$TS3C/t/pair/MARK$TS3G_LC" ] && TS3G_PAIR=yes; rm -rf "${TS3C:?}/t/pair"
+TS3G_SG='glag: the engine holds the base Glagolitic MARK'; _ts3c_on main
+_ts3c_part 2009-glag.sh 'is "glag: the engine holds the base Glagolitic MARK" "$([ -e "$W/MARK$(printf "\xe2\xb0\xaf")" ] && echo yes || echo no)" yes'
+printf 'the base Glagolitic mark\n' > "$TS3CR/$TS3GW/MARK$TS3G_UC"; mkdir -p "$TS3CR/engine/wid$TS3G_UC"
+printf 'a file of the base directory\n' > "$TS3CR/engine/wid$TS3G_UC/keep.txt"
+LC_ALL=C awk '{ print } index($0, "/parts/2008-marker.sh\"") { print ". \"$HERE/parts/2009-glag.sh\"" }' "$TS3CR/$TS3GT_/run" > "$TS3C/run.t" && cat "$TS3C/run.t" > "$TS3CR/$TS3GT_/run"; rm -f "$TS3C/run.t"
+printf '2009-glag.sh\tinstrument\tguards the Glagolitic MARK file\n' >> "$TS3CR/projects/felix/partition.tsv"
+{ _ts3c_names; printf '%s\n' "$TS3G_SF" "$TS3G_SI" "$TS3G_SM" "$TS3G_SG"; } | LC_ALL=C sort | LC_ALL=C awk 'NF { printf "1\t%s\n", $0 }' > "$TS3CR/$TS3GT_/assertions.tsv"
+_ts3c_commit "$TS3CR" glag; TS3C_M="$(_ts3g_sha HEAD)"; _ts3g_main "$TS3C_M"
+_ts3g_check "ts3g: A23 amended again, case 6 (fixture control): a later main sources 2009-glag.sh, its partition marks it instrument, it holds engine/widget/MARK+U+2C2F and engine/wid+U+2C2F/keep.txt, P's 2009-glag.sh passes on its tree, and it is the provider's main" \
+  "$(_fx_git "$TS3CR" show "$TS3C_M:$TS3GT_/run" | LC_ALL=C grep -c '/parts/2009-glag.sh')|$(_fx_git "$TS3CR" show "$TS3C_M:projects/felix/partition.tsv" | LC_ALL=C awk -F'\t' '$1 == "2009-glag.sh" { print $2 }')|$(_fx_git "$TS3CR" ls-tree -r -z --name-only "$TS3C_M" -- "$TS3GW/MARK$TS3G_UC" "engine/wid$TS3G_UC" | tr '\000' ' ')|$(_ts3g_direct "$TS3C_M" "$TS3C_M" 2009-glag.sh | _ts3g_fails)|$(_ts3g_sha refs/remotes/origin/main)" \
+  "1|instrument|$TS3GW/MARK$TS3G_UC engine/wid$TS3G_UC/keep.txt ||$TS3C_M"
+
+# 6a: the candidate deletes the base's MARK+U+2C2F, adds MARK+U+2C5F, and touches 2009-glag.sh, the part that requires it.
+_ts3c_case h-glag; _fx_git "$TS3CR" rm -q "$TS3GW/MARK$TS3G_UC" >/dev/null 2>&1; _ts3g_blob "$TS3GW/MARK$TS3G_LC" "the candidate Glagolitic mark$TS3G_NL"
+_ts3g_touch 2009-glag.sh; _ts3c_commit "$TS3CR" glag-a; TS3G_H="$(_ts3g_sha HEAD)"; TS3G_WANT=""; [ "$TS3G_PAIR" = yes ] || TS3G_WANT="$TS3G_SG|"
+_ts3g_check "ts3g: A23 amended again, case 6a (fixture control): the candidate drops engine/widget/MARK+U+2C2F, adds MARK+U+2C5F and touches 2009-glag.sh, and P's 2009-glag.sh over its tree as written here, needing the base's name, passes where this filesystem takes the pair for one name and fails where not" \
+  "$(_fx_git "$TS3CR" diff -z --no-renames --name-only "$TS3C_M" "$TS3G_H" | tr '\000' ' ')|$(_ts3g_direct "$TS3G_H" "$TS3C_M" 2009-glag.sh | _ts3g_fails)" \
+  "$TS3GT_/parts/2009-glag.sh $TS3GW/MARK$TS3G_UC $TS3GW/MARK$TS3G_LC |$TS3G_WANT" "the pair is one name here: $TS3G_PAIR"
+if [ "$TS3G_PAIR" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs" \
+    "$(_ts3g_refused)|$(_ts3g_suite2 "$TS3GW/MARK$TS3G_XC" "$TS3GW/MARK$TS3G_XL")|ran [$(_ts3g_ran)]" "refused|yes|ran []" "$(_ts3g_why)"
+else
+  skip "ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs" "this filesystem takes the pair for two names"
+fi
+
+# 6b: the candidate adds engine/wid+U+2C5F/x.txt beside B's engine/wid+U+2C2F/keep.txt, and touches 2007-scan.sh.
+_ts3c_case h-wid; _ts3g_blob "engine/wid$TS3G_LC/x.txt" "a candidate file$TS3G_NL"; _ts3g_touch 2007-scan.sh
+_fx_git "$TS3CR" add "$TS3GT_/parts/2007-scan.sh" >/dev/null 2>&1
+_fx_git "$TS3CR" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c maintenance.auto=false commit -qm wid >/dev/null 2>&1; TS3G_H="$(_ts3g_sha HEAD)"
+rm -rf "${TS3C:?}/lay"; mkdir -p "$TS3C/lay"
+_fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3C_M" "engine/wid$TS3G_UC" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
+_fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3G_H" "engine/wid$TS3G_LC" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
+TS3G_IN=no; [ -e "$TS3C/lay/engine/wid$TS3G_UC/x.txt" ] && TS3G_IN=yes; rm -rf "${TS3C:?}/lay" "$TS3C/lay.tar"
+_ts3g_check "ts3g: A23 amended again, case 6b (fixture control): the candidate's tree holds B's engine/wid+U+2C2F/keep.txt and its own engine/wid+U+2C5F/x.txt, it changes only that file and 2007-scan.sh, and its file, written over B's directory here, is found inside B's directory where this filesystem takes the pair for one name, and not where not" \
+  "$(_fx_git "$TS3CR" ls-tree -r -z --name-only "$TS3G_H" -- "engine/wid$TS3G_UC" "engine/wid$TS3G_LC" | tr '\000' ' ')|$(_fx_git "$TS3CR" diff -z --no-renames --name-only "$TS3C_M" "$TS3G_H" | tr '\000' ' ')|inside $TS3G_IN" \
+  "engine/wid$TS3G_UC/keep.txt engine/wid$TS3G_LC/x.txt |$TS3GT_/parts/2007-scan.sh engine/wid$TS3G_LC/x.txt |inside $TS3G_PAIR"
+if [ "$TS3G_PAIR" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs" \
+    "$(_ts3g_refused)|$(_ts3g_suite2 "engine/wid$TS3G_XC" "engine/wid$TS3G_XL")|ran [$(_ts3g_ran)]" "refused|yes|ran []" "$(_ts3g_why)"
+else
+  skip "ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs" "this filesystem takes the pair for two names"
+fi
+
 _ts3c_on main
 rm -rf "${TS3C:?}"; [ "$TS3G_MEM" != made ] || rm -rf "${MEM:?}/felix"
-unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3C_M TS3G_MEM TS3G_N TS3G_H TS3G_A TS3G_C TS3G_F TS3G_P TS3G_S TS3G_D TS3G_WANT TS3G_L TS3G_FOLD _ts3g_v TS3G_X TS3G_IN TS3G_E
+unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3C_M TS3G_MEM TS3G_N TS3G_H TS3G_A TS3G_C TS3G_F TS3G_P TS3G_S TS3G_D TS3G_WANT TS3G_L TS3G_FOLD _ts3g_v TS3G_X TS3G_IN TS3G_E \
+  TS3G_UC TS3G_LC TS3G_XC TS3G_XL TS3G_PAIR TS3G_SG
 # <<< trust-step3-run-tree-bytes

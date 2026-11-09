@@ -1,6 +1,5 @@
 #!/usr/bin/env bash
 # Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004.
-#
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
@@ -415,6 +414,7 @@ fi
 . "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
 . "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
 . "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
+. "$HERE/parts/2184-trust-merge-dir-renames-blind.sh"
 . "$HERE/parts/2185-trust-step3-run-tree-bytes-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"

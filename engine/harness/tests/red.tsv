@@ -8,8 +8,8 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	6fe629e63f99e80dcd2c33f14c22fa28a4aec5eb	0.49.334
-run	62	16946	28
+base	origin/main	4dd8fed81977cbaac8acbd5351247228fe91de75	0.49.335
+run	62	16929	46
 ts3c: S0, S8.2: a part P's partition does not name is instrument: loosened with the engine change, it is refused with escape, the part, P's version fails on this tree, and the assertion's name	1
 ts3c: S7.1, S8.2: a candidate that moves 2001-sum.sh to subject and loosens it in the same change is refused for both: the table line, and P's version of the part (P's table says instrument)	1
 ts3c: S7.2: a candidate that moves an instrument row of the partition to subject is refused with escape, projects/felix/partition.tsv, marks 2001-sum.sh subject	1

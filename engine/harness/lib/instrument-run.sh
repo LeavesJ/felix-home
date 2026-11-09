@@ -269,38 +269,51 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
   return 0
 }
 # A22, A23: whether the files written at DIR are the index's: the first difference on stdout and 1, else 0. Which
-# names are one is the filesystem's answer, not a table's: beside DIR, each directory's names in the index (its paths
-# and their prefixes) and in B (BASE-PATHS, NUL-separated) are made, exclusively, in a scratch directory of their own,
-# and a name refused as existing is one with the name made before it. Two such names of the index, or one of the index
-# and one of B, are the difference, and so is a name of the index the filesystem will not make. A path is printed with
-# bytes outside printable ASCII as \xNN. A file is its bytes, a symbolic link its target, hashed as git hashes a blob;
+# names are one is the filesystem's answer, not a table's. Beside DIR, a directory's names in the index (its paths and
+# their prefixes) are made, exclusively, in a scratch directory of their own, and a name refused as existing is one
+# with the name made before it: two such names are the difference. Then each path of B (BASE-PATHS, NUL-separated),
+# and each symbolic link's target from the link's directory, is walked through the index as the filesystem resolves
+# it, following links in any name but the last: a name the index lacks that the scratch answers with another name of
+# the index is the difference, and so is an answer that names none. A path is printed with bytes outside printable
+# ASCII, and the backslash, as \xNN. A file is its bytes, a symbolic link its target, hashed as git hashes a blob;
 # kind and executable bit follow the entry's mode, and a gitlink is a directory.
 _felix_instr_tcpl='use strict; use Fcntl qw(O_WRONLY O_CREAT O_EXCL); use File::Path (); use Digest::SHA ();
 my ($d, $fmt, $ls, $bl) = @ARGV; my $j = $d; $j =~ s{/[^/]*$}{}; my $s = "$j/fold-$$";
 END { local $?; File::Path::remove_tree($s) if defined $s && -d $s }
-sub show { my $s = $_[0]; $s =~ s/([^\x20-\x7e])/sprintf("\\x%02x", ord $1)/ge; $s }
+sub show { my $s = $_[0]; $s =~ s/([^\x20-\x5b\x5d-\x7e])/sprintf("\\x%02x", ord $1)/ge; $s }
 local $/ = "\0"; open(my $l, "<", $ls) or do { print "the index of the run tree could not be read"; exit 1 };
-my (@e, %g, %src, %rep);
-sub add { my ($p, $w) = @_; my @c = split m{/}, $p, -1;
-  for my $i (0 .. $#c) { my $u = $i ? join("/", @c[0 .. $i - 1]) : ""; return if $w == 2 && !exists $g{$u};
-    my $k = "$u\0$c[$i]"; unless (exists $src{$k}) { push @{$g{$u}}, $c[$i]; $src{$k} = 0; $rep{$k} = $p } $src{$k} |= $w } }
+my (@e, %g, %rep, %mode, %sd, %i); my $n = 0;
 sub at { my ($u, $c) = split /\0/, $_[0], 2; length $u ? "$u/$c" : $c }
 while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
-  push @e, [$m, $o, $p]; add($p, 1) }
-open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 }; while (my $p = <$b>) { chomp $p; add($p, 2) }
-my $n = 0; mkdir $s or do { print "the names could not be made beside the run tree"; exit 1 };
-for my $u (sort keys %g) { my $q = "$s/" . $n++; mkdir $q or do { print "the names could not be made beside the run tree"; exit 1 }; my %i;
+  push @e, [$m, $o, $p]; $mode{$p} = $m; my @c = split m{/}, $p, -1;
+  for my $x (0 .. $#c) { my $u = $x ? join("/", @c[0 .. $x - 1]) : ""; my $k = "$u\0$c[$x]";
+    next if exists $rep{$k}; push @{$g{$u}}, $c[$x]; $rep{$k} = $p } }
+sub mk { my $u = $_[0]; return $sd{$u} if exists $sd{$u}; my $q = "$s/" . $n++;
+  mkdir $q or do { print "the names could not be made beside the run tree"; exit 1 }; $sd{$u} = $q;
   for my $c (sort @{$g{$u}}) { my $k = "$u\0$c";
-    if (sysopen(my $h, "$q/$c", O_WRONLY | O_CREAT | O_EXCL)) { $i{(stat $h)[1]} = $k; close $h; next }
-    my $ee = $!{EEXIST}; my @st = lstat "$q/$c"; my $w = $ee && @st ? $i{$st[1]} : undef;
-    if (!defined $w) { next unless $src{$k} & 1; print "its ", show($rep{$k}), " has a name this filesystem will not make (", show(at($k)), ")"; exit 1 }
-    my ($t1, $t2) = ($src{$w} & 1, $src{$k} & 1); next unless $t1 || $t2;
-    if ($t1 && $t2) { my ($pa, $pb, $xa, $xb) = ($rep{$w}, $rep{$k}, at($w), at($k));
-      print "it holds ", show($pa), " and ", show($pb), ($pa eq $xa && $pb eq $xb ? ", which this filesystem takes for one name"
-        : ", whose " . show($xa) . " and " . show($xb) . " this filesystem takes for one name"); exit 1 }
-    my ($bk, $tk) = $t1 ? ($k, $w) : ($w, $k);
-    print show($rep{$bk}), " of the base, which it lacks, and its ", show($rep{$tk}), " are one name on this filesystem (",
-      show(at($bk)), " and ", show(at($tk)), ")"; exit 1 } }
+    if (sysopen(my $h, "$q/$c", O_WRONLY | O_CREAT | O_EXCL)) { $i{$u}{(stat $h)[1]} = $k; close $h; next }
+    my $ee = $!{EEXIST}; my @st = lstat "$q/$c"; my $w = $ee && @st ? $i{$u}{$st[1]} : undef;
+    if (!defined $w) { print "its ", show($rep{$k}), " has a name this filesystem ", ($ee ? "answers for with a name it does not identify"
+      : "will not make"), " (", show(at($k)), ")"; exit 1 }
+    my ($pa, $pb, $xa, $xb) = ($rep{$w}, $rep{$k}, at($w), at($k));
+    print "it holds ", show($pa), " and ", show($pb), ($pa eq $xa && $pb eq $xb ? ", which this filesystem takes for one name"
+      : ", whose " . show($xa) . " and " . show($xb) . " this filesystem takes for one name"); exit 1 }
+  $q }
+sub walk { my ($u, $cs, $what) = @_; my @c = @$cs; my $hops = 0;
+  while (@c) { my $c = shift @c; next if $c eq "" || $c eq ".";
+    if ($c eq "..") { return if $u eq ""; $u =~ s{/?[^/]*$}{}; next }
+    my $x = length $u ? "$u/$c" : $c;
+    if (exists $rep{"$u\0$c"}) { if (($mode{$x} // "") eq "120000" && @c) { my $t = readlink "$d/$x";
+        return if ++$hops > 40 || !defined $t || $t =~ m{^/}; unshift @c, split(m{/}, $t, -1); next }
+      return unless exists $g{$x}; $u = $x; next }
+    return unless exists $g{$u}; my @st = lstat(mk($u) . "/$c"); return unless @st; my $w = $i{$u}{$st[1]};
+    print $what, " ", show($x), ", which this filesystem takes for ", (defined $w ? "its " . show(at($w)) : "a name it does not identify"); exit 1 } }
+mkdir $s or do { print "the names could not be made beside the run tree"; exit 1 };
+for my $u (sort keys %g) { mk($u) if @{$g{$u}} > 1 }
+open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 };
+while (my $p = <$b>) { chomp $p; walk("", [split m{/}, $p, -1], show($p) . " of the base, which it lacks, reaches") }
+for (@e) { next unless $_->[0] eq "120000"; my $p = $_->[2]; my $t = readlink "$d/$p"; next if !defined $t || $t =~ m{^/};
+  (my $u = $p) =~ s{/?[^/]*$}{}; walk($u, [split m{/}, $t, -1], "its link " . show($p) . " reaches") }
 File::Path::remove_tree($s);
 for (@e) { my ($m, $o, $p) = @$_; my $w = "$d/$p"; my $c;
   my $s = show($p);
@@ -329,8 +342,11 @@ _felix_instr_repo() {   # DEST COMMIT BRANCH PACK BASE-PATHS: a repository of it
   fmt="$(_felix_instr_git "$d" rev-parse --show-object-format 2>/dev/null </dev/null)" || fmt=sha1
   _felix_instr_git "$d" ls-files -s -z > "$_FELIX_INSTR_R/t.ls" 2>/dev/null </dev/null \
     || { _FELIX_INSTR_TWHY="its index could not be listed"; return 1; }
-  x="$(perl -e "$_felix_instr_tcpl" "$d" "$fmt" "$_FELIX_INSTR_R/t.ls" "$5" 2>/dev/null)" || { _FELIX_INSTR_TWHY="${x:-the files written could not be checked}"; rm -f "$_FELIX_INSTR_R/t.ls"; return 1; }
-  rm -f "$_FELIX_INSTR_R/t.ls" 2>/dev/null
+  # In a group of its own and waited for (A9), so a signal during the check is handled at once.
+  felix_instr_grp perl -e "$_felix_instr_tcpl" "$d" "$fmt" "$_FELIX_INSTR_R/t.ls" "$5" > "$_FELIX_INSTR_R/t.why" 2>/dev/null </dev/null \
+    || { x="$(cat "$_FELIX_INSTR_R/t.why" 2>/dev/null)"; _FELIX_INSTR_TWHY="${x:-the files written could not be checked}"
+         rm -f "$_FELIX_INSTR_R/t.ls" "$_FELIX_INSTR_R/t.why"; return 1; }
+  rm -f "$_FELIX_INSTR_R/t.ls" "$_FELIX_INSTR_R/t.why" 2>/dev/null
   return 0
 }
 

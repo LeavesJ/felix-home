@@ -261,21 +261,57 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
   fi
   printf '%s\n' $tc $cc > "$r/v.revs" || return 1
   _felix_instr_rg "$root" "$r/none.idx" pack-objects --revs --stdout -q --window=0 < "$r/v.revs" > "$r/v.pack" 2>/dev/null || return 1
-  [ -z "$tc" ] || _felix_instr_repo "$_FELIX_INSTR_J/t" "$tc" "$br" "$r/v.pack" || return 1
-  [ -z "$cc" ] || _felix_instr_repo "$_FELIX_INSTR_J/c" "$cc" "$br" "$r/v.pack" || return 1
-  rm -f "$r/v.pack" "$r/v.revs" "$r/t.idx" "$r/c.idx" "$r/t.drop" 2>/dev/null
+  # A23: B's paths, for a name the tree lacks that this filesystem would answer for.
+  _felix_instr_rg "$root" "$r/none.idx" ls-tree -r -z --name-only --full-tree "$b" > "$r/b.paths" 2>/dev/null </dev/null || return 1
+  [ -z "$tc" ] || _felix_instr_repo "$_FELIX_INSTR_J/t" "$tc" "$br" "$r/v.pack" "$r/b.paths" || return 1
+  [ -z "$cc" ] || _felix_instr_repo "$_FELIX_INSTR_J/c" "$cc" "$br" "$r/v.pack" "$r/b.paths" || return 1
+  rm -f "$r/v.pack" "$r/v.revs" "$r/t.idx" "$r/c.idx" "$r/t.drop" "$r/b.paths" 2>/dev/null
   return 0
 }
-_felix_instr_repo() {   # DEST COMMIT BRANCH PACK: a repository of its own at DEST, checked out at COMMIT on BRANCH
-  local d="$1" c="$2" br="$3"
+# A22, A23: whether the files written at DIR are the index's: the first difference on stdout and 1, else 0. Where the
+# filesystem under DIR's parent folds names (probed there: case, and Unicode decomposition), two index paths that fold
+# to one name, or a path of B (BASE-PATHS, NUL-separated) the index lacks that folds to an index path's name, are the
+# difference. A file is its bytes, a symbolic link its target, hashed as git hashes a blob; kind and executable bit
+# follow the entry's mode, and a gitlink is a directory.
+_felix_instr_tcpl='use strict; use feature "fc"; use Encode (); use Unicode::Normalize (); use Digest::SHA ();
+my ($d, $fmt, $ls, $bl) = @ARGV; my $j = $d; $j =~ s{/[^/]*$}{}; my $f = 0;
+for my $pr (["fp-$$-a", "FP-$$-A"], ["fp-$$-e\xcc\x81", "fp-$$-\xc3\xa9"]) {
+  open(my $h, ">", "$j/$pr->[0]") or do { print "the filesystem under the run directory could not be probed"; exit 1 };
+  close $h; $f = 1 if -e "$j/$pr->[1]"; unlink "$j/$pr->[0]" }
+sub key { my $u = eval { Encode::decode("UTF-8", $_[0], Encode::FB_CROAK | Encode::LEAVE_SRC) }; fc(Unicode::Normalize::NFD(defined $u ? $u : $_[0])) }
+local $/ = "\0"; open(my $l, "<", $ls) or do { print "the index of the run tree could not be read"; exit 1 };
+my (@e, %k, %in); while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
+  push @e, [$m, $o, $p]; $in{$p} = 1;
+  if ($f) { my $q = key($p); if (exists $k{$q}) { print "it holds $k{$q} and $p, which this filesystem takes for one name"; exit 1 } $k{$q} = $p } }
+if ($f && open(my $b, "<", $bl)) { while (my $p = <$b>) { chomp $p; next if $in{$p} || !exists $k{key($p)};
+  print "$p of the base, which it lacks, and its $k{key($p)} are one name on this filesystem"; exit 1 } }
+for (@e) { my ($m, $o, $p) = @$_; my $w = "$d/$p"; my $c;
+  if ($m eq "160000") { next if -d $w && !-l $w; print "$p is not the directory its entry names"; exit 1 }
+  if ($m eq "120000") { $c = readlink $w; defined $c or do { print "$p is not the symbolic link its entry names"; exit 1 } }
+  else { if (-l $w || !-f _) { print "$p is not the file its entry names"; exit 1 }
+    if (((stat _)[2] & 0100 ? "100755" : "100644") ne $m) { print "$p does not have the mode its entry names"; exit 1 }
+    open(my $h, "<:raw", $w) or do { print "$p could not be read"; exit 1 }; local $/; $c = <$h>; $c = "" unless defined $c }
+  my $g = Digest::SHA->new($fmt eq "sha256" ? 256 : 1); $g->add("blob " . length($c) . "\0", $c);
+  next if $g->hexdigest eq $o; print "$p does not hold the bytes of its blob"; exit 1 }'
+_felix_instr_repo() {   # DEST COMMIT BRANCH PACK BASE-PATHS: a repository of its own at DEST, checked out at COMMIT on BRANCH
+  local d="$1" c="$2" br="$3" fmt x
+  _FELIX_INSTR_TWHY=""
   mkdir -p "$d" 2>/dev/null && _felix_instr_git "$d" init -q --template= >/dev/null 2>&1 </dev/null || return 1
   _felix_instr_git "$d" index-pack --stdin < "$4" >/dev/null 2>&1 || return 1
   _felix_instr_git "$d" check-ref-format "refs/heads/$br" >/dev/null 2>&1 </dev/null || br=felix-run
+  # A22: info/attributes outranks every .gitattributes, so no attribute converts what the checkout writes.
+  { mkdir -p "$d/.git/info" && printf '* -text -eol -crlf -ident -filter -working-tree-encoding\n' > "$d/.git/info/attributes"; } \
+    2>/dev/null || return 1
   _felix_instr_git "$d" read-tree "$c" >/dev/null 2>&1 </dev/null \
     && _felix_instr_git "$d" update-ref "refs/heads/$br" "$c" >/dev/null 2>&1 </dev/null \
     && _felix_instr_git "$d" symbolic-ref HEAD "refs/heads/$br" >/dev/null 2>&1 </dev/null \
     && _felix_instr_git "$d" checkout-index -a -f >/dev/null 2>&1 </dev/null || return 1
   _felix_instr_git "$d" update-index -q --refresh >/dev/null 2>&1 </dev/null
+  # A22, A23: the files written are the tree's, checked before any unit runs.
+  fmt="$(_felix_instr_git "$d" rev-parse --show-object-format 2>/dev/null </dev/null)" || fmt=sha1
+  _felix_instr_git "$d" ls-files -s -z > "$_FELIX_INSTR_R/t.ls" 2>/dev/null </dev/null || return 1
+  x="$(perl -e "$_felix_instr_tcpl" "$d" "$fmt" "$_FELIX_INSTR_R/t.ls" "$5" 2>/dev/null)" || { _FELIX_INSTR_TWHY="${x:-the files written could not be checked}"; rm -f "$_FELIX_INSTR_R/t.ls"; return 1; }
+  rm -f "$_FELIX_INSTR_R/t.ls" 2>/dev/null
   return 0
 }
 

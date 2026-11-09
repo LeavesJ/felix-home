@@ -265,7 +265,7 @@ EOF
   if [ "$rc" -ne 0 ] || ! { [ "$mach" != 1 ] || _felix_instr_canary_prep "$root" "$lb" "$lm" "$tp"; }; then
     _felix_instr_add unknown SUITE "what the verdict reads (the manifest of what the squash would land, P's canary or the driver it runs under) could not be read"
   elif [ "$wt" = 1 ] && ! _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 1 0; then
-    _felix_instr_add unknown SUITE "the run tree T could not be made from what the squash would land and $b under $_FELIX_INSTR_TB"
+    _felix_instr_add unknown SUITE "the run tree T could not be made from what the squash would land and $b under $_FELIX_INSTR_TB${_FELIX_INSTR_TWHY:+ (A22, A23: $_FELIX_INSTR_TWHY)}"
   else
     [ "$mach" != 1 ] || [ "$_FELIX_INSTR_CANARY" = no ] || wc=1
     # A10, A13: the kept judgements as they stand before the first unit, in memory, and this judgement's marker.
@@ -287,7 +287,7 @@ EOF
     # A12: the canary's copy is made only now, once the last unit has ended.
     if [ "$wc" = 1 ]; then
       if _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 0 1; then _felix_instr_canary 2>/dev/null
-      else _felix_instr_add unknown SUITE "the canary's copy could not be made from what the squash would land under $_FELIX_INSTR_TB"; fi
+      else _felix_instr_add unknown SUITE "the canary's copy could not be made from what the squash would land under $_FELIX_INSTR_TB${_FELIX_INSTR_TWHY:+ (A22, A23: $_FELIX_INSTR_TWHY)}"; fi
     fi
   fi
   case $'\n'"$_FELIX_INSTR_BLOCK" in *$'\n'unknown$'\t'*) _FELIX_INSTR_KEEP="" ;; esac

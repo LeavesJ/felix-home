@@ -92,7 +92,7 @@ review, fixes through a blind author, record, gate.
   assertion names say `not-green`; part 2301 shows K12 on its own fixtures;
   part 2320's scan of the real engine has a read control (status 0 over at
   least fifty files).
-- Merged `origin/main` into the branch seven times while it was open: #487
+- Merged `origin/main` into the branch eight times while it was open: #487
   (0.49.329), then #493 (docs) and #486 (0.49.330), then #496 (trust-plane step 3,
   0.49.332), then #497 (step 3, slice 2, 0.49.333), then #500 (the change readers'
   merge ignores the checkout's merge configuration, 0.49.334; `lib/bind.sh`,
@@ -100,8 +100,10 @@ review, fixes through a blind author, record, gate.
   1495 compares two page runs with the ages put aside, 0.49.335, suite only), then
   #502 (step 3, slice 3: P's instrument parts judge the candidate at the merge,
   0.49.336; `lib/merge-judge.sh`, `lib/resolve.sh`, parts 2180 to 2183 and a line in
-  2176, none naming either kind; `lib/escape.sh` merged without a conflict). The
-  conflict was `red.tsv` every time since #486. The driver stays at 500 lines (spacer
+  2176, none naming either kind; `lib/escape.sh` merged without a conflict), then
+  #498 (the maintenance run: handoff folded to numbered files; no engine file, no
+  conflict; `red.tsv` keeps its base at 6857c7d, whose engine is the one main still
+  holds). The conflict was `red.tsv` every time since #486 bar that one. The driver stays at 500 lines (spacer
   lines removed: main's #502 and this branch each removed the same blank lines, and
   both added part lines, so two more went here). #496 brought a `home` blocker into `lib/escape.sh` and
   part 2176 that named the old kind; both say `not-green` here. #497 rewrote

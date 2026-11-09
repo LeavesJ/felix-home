@@ -8,32 +8,22 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	460074d58fd046d638f795a4dace179d06448024	0.49.332
-run	27	16787	46
-A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does	1
-A5 (B9): with a blob main's engine tracks missing, felix merge refuses with exit 1, saying it could not copy main's engine, runs nothing, calls no gh, and a real run records one refused judge row	1
-a checkout with no github remote is refused with exactly one refused row	1
-ts3b-x: S5.1 (the ref moves after the pin): refused by the fx obligation, with no base line, the move having happened	1
-ts3b-x: S5.2 (A's base name fails git check-ref-format --branch): no answer, refused with a base line, nothing merged	1
-ts3b-x: S5.2 (A's number is not digits only): no answer, refused with a base line, nothing merged	1
-ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base line, nothing merged	1
-ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged	1
-ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged	1
-ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged	1
-ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
-ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged	1
-ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged	1
-ts3b: S5.2 (no answer, in a merge): call A answers the state CLOSED, and an honest candidate is refused with a base line, and nothing is merged	1
-ts3b: S5.3 (a stale local ref): the provider's main is M2, one ahead of R's origin/main, and an honest candidate is refused with a base line naming both commits, and nothing is merged	1
-ts3b: S5.3 (another base): judged with --base refs/heads/tpb-evil while the provider names main at M as the base, a candidate off tpb-evil that deletes MARKER is refused with a base line, and nothing is merged	1
-ts3b: S5.3 (another base, a dry run): the same, with --dry-run, is refused with a base line	1
-ts3b: S5.3 (no answer, in a dry run): call Q exits 1, and an honest candidate's dry run exits 0, says it was not compared with the provider, and still says felix merge would squash this now.	1
-ts3b: S5.3 (no answer, in a merge): call A exits 1, and an honest candidate is refused with a base line, and nothing is merged	1
-ts3b: S5.3 (no answer, in a merge): call Q exits 1, and an honest candidate is refused with a base line, and nothing is merged	1
-ts3b: S5.3 (the head differs): the provider names a head commit that is not the checkout's HEAD, and the merge is refused with a moved line, and nothing is merged	1
-ts3b: S5.3 (the local ref moved): with refs/remotes/origin/main moved to tpb-evil and no --base, the same candidate is refused with a base line, and nothing is merged	1
-ts3b: S5.4 (the base moves at the last moment): call Q answers M, then M2, and the merge is refused with a moved line after asking Q twice, and nothing is merged	1
-ts3b: S6.1 (the caller's environment): a candidate that deletes MARKER, run with GIT_OBJECT_DIRECTORY naming a copy of R's objects where P's tools/lib.sh is rewritten, is refused by the fx obligation or an objects line, and nothing is merged	1
-ts3b: S6.2 (a graft): the same candidate, with its parent grafted onto M0, is still refused with an escape line naming danger/x, and nothing is merged	1
-ts3b: S6.2 (a replace ref): a candidate that adds danger/x, its head replaced by a commit holding main's tree and its index read from that, is refused with an escape line naming danger/x, and nothing is merged	1
-ts3b: S6.3 (an object whose content is not its name): a candidate that deletes MARKER, with the loose file for P's tools/lib.sh rewritten so fx_check is true, is refused with an objects line naming that blob, and nothing is merged	1
+base	origin/main	89fdaa345d3f7e17baab3458e58eb743d5abdc04	0.49.333
+run	17	16860	28
+tmd: a driver that records: felix_added_lines never runs the checkout's driver whose command writes a marker file (the marker is absent)	1
+tmd: a driver that records: felix_changed_paths never runs the checkout's driver whose command writes a marker file (the marker is absent)	1
+tmd: copy alone: with a loose file planted in the checkout under the merged blob's id holding main's bytes, felix merge --dry-run still reads tmc-sql's destructive SQL line, refusing it with escape durable ADDED-LINES and exit 3 (the planted object is not taken as the merge's result)	1
+tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the added lines hold every line the three-dot diff adds	1
+tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the changed paths hold every path the three-dot diff names	1
+tmd: fallback: with an unwritable TMPDIR on a stacked branch, the added lines hold every line the three-dot diff adds	1
+tmd: fallback: with an unwritable TMPDIR on a stacked branch, the changed paths hold every path the three-dot diff names	1
+tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line	1
+tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f	1
+tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line	1
+tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f	1
+tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the added lines still hold the credential line	1
+tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the changed paths still hold notes/f	1
+tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the added lines still hold the credential line	1
+tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the changed paths still hold notes/f	1
+tmd: the checkout's driver: with the driver in the checkout's config and attributes, the added lines still hold the credential line	1
+tmd: the checkout's driver: with the driver in the checkout's config and attributes, the changed paths still hold notes/f	1

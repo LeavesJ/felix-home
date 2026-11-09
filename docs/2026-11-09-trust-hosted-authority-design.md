@@ -2,7 +2,7 @@
 
 2026-11-09. A design for the hosted authority that `docs/2026-11-07-trust-plane-design.md` §4.8 and direction row 43 call for. It is the step that design names "the queue owns landing" (§9, step 4). The measurement beside it is `docs/2026-11-09-trust-hosted-authority-spike.md`.
 
-**Scope.** A proposal. It decides what the authority is and how it works, which is Felix's to decide. It lists the identity and account calls and does not answer them (§9). Nothing is built at GitHub, no setting on any repository or account was changed, no key was touched, and nothing in `engine/` changes. Statements about GitHub are read from its documentation on 2026-11-09 unless a row says they were read from the API. None of them was exercised.
+**Scope.** A proposal. It decides what the authority is and how it works, which is Felix's to decide. It lists the identity and account calls and does not answer them (§9). Nothing is built at GitHub, no setting on any repository or account was changed, no key was touched, and nothing in `engine/` changes. Statements about GitHub are from its documentation, most of it read on 2026-11-09, unless a row says they were read from the API. None of them was exercised.
 
 **Outside this document, and where each belongs:**
 - review and commission evidence once worker receipts stop counting (design §4.4, §4.5);
@@ -68,7 +68,7 @@ Read from the code and from this session's start-up report:
 | 8 | Make the judged copy differ from the tree | A `.gitattributes` that hides a file from the copy (spike X1); a filesystem that folds case (X7) | Rule 5 |
 | 9 | Use the founder | Drive his signed-in browser; read a credential of his at rest; ask him to approve | Not met (§8) |
 | 10 | Spend | Fill the queue; burn the minutes budget until nothing lands | Rule 9, in part |
-| 11 | Reach the authority itself | Its kernel's source; the actions and image its jobs use; its key; its host | Rules 4, 10; calls 4 and 5 |
+| 11 | Reach the authority itself | Its kernel's source; a branch name or title the kernel hands to a shell; the actions and image its jobs use; its key; its host | Rules 4, 10; calls 4 and 5 |
 | 12 | Act after main | What deploys from main to this Mac; the public snapshot; a release | Outside (row 49; design §9 step 9) |
 
 ## 4. What the authority has to be
@@ -182,7 +182,7 @@ These are Felix's. Each names what was rejected.
 | Stage | What changes | What guards main | Needs |
 |---|---|---|---|
 | 0. Today | Nothing | `felix merge`, run by the lander and by sessions on the worker's machine, and local hooks | |
-| 1. The sandbox proof | On a throwaway repository: the App, a worker identity, a ruleset, and one run of `spike/wall-test.sh`. felix-home is not touched | The same | Call 6 |
+| 1. The sandbox proof | On a throwaway repository: the App, a worker identity, a ruleset, and one run of `spike/wall-test.sh`. On the free plan a ruleset needs that repository to be public; a private one, which is closer to felix-home, needs the plan of call 3. felix-home is not touched | The same | Call 6 |
 | 2. Shadow, then swap | A judging job on felix-home, started from main's workflow, with a read-only token and no secret. It judges P over T. First it runs beside the gate run on a sample of pull requests and decides nothing: its verdicts are compared with `felix merge`'s. Then it takes the gate run's place, and the lander reads its result where it read CI's | The same. After the swap, CI's judge is P's and not the candidate's (inventory row D3) | The founder's merge of a workflow change, as today |
 | 3. The split | Workers act under their own identity. The founder's token leaves their reach. His holds and authorizations move to the provider (rule 7) | The same. The judging job now tells his label from a worker's (R6) | Calls 1, 2, 8 |
 | 4. The authority lands, then the wall | One change stops the lander merging and starts the landing job. After its first landings each carry a record and the verifier agrees, the founder turns the rule on | The authority's judgement from that change on; the provider's rule from the founder's switch on | Calls 3, 4, 5, 9 |
@@ -200,17 +200,18 @@ These are Felix's. Each names what was rejected.
 | `felix merge` | The judgement and the landing | The worker's dry run of the judgement the authority will make (design §4.7). The landing branch of `cmd_merge` goes |
 | Gate, review and commission receipts, and kept judgements | Evidence the merge accepts, worker-written (R4) | A worker's pre-flight. The authority's record is the evidence |
 | The pull request's CI gate | The candidate's suite, on the candidate's workflow | The authority's judging job: P's suite, on main's workflow |
+| The gate run on a push to main | Runs again, or is skipped by the `reuse` job when the pull request's run gated the landed tree | Goes: the tree that lands is the tree that was judged. A push made with an App's token starts workflows, so leaving it would buy a second judgement for each landing |
 | The founder's yes | Words in a session, or a label | A statement under his identity at the provider, naming the head (call 8) |
 
 ## 8. Open
 
 These are the open items seen so far. More will come.
 - **GitHub's half of the claim.** Whether GitHub refuses what the mock's provider refuses was not exercised. Stage 1 measures it.
-- **Confinement on a Linux runner.** A job there has root. The kernel has to drop to another user in a namespace with no network before it runs a unit. The spike showed the idea with macOS's sandbox, on macOS. Direction defers "the Docker sandbox" to March; whether that line covers the authority's own confinement is part of call 7.
+- **Confinement on a Linux runner.** A job there has root. The kernel has to drop to another user in a namespace with no network before it runs a unit. The spike showed the idea with macOS's sandbox, on macOS. With judging and landing in separate jobs, the landing job makes T again itself and takes the judging job's result from GitHub. A unit that escapes its confinement can then forge that one judgement. It does not reach the credential, which is on another machine. Direction defers "the Docker sandbox" to March; whether that line covers the authority's own confinement is part of call 7.
 - **Instruments that run candidate code in their own process** (spike E7). The authority confines that code. It cannot stop it deciding its own unit's result. That is step 3's, and slice 3's canary and partition are aimed at it.
 - **A hold by label can be shed by sending the same commit up under another branch name** (spike H6). Following the commit would stop that and would not stop an amended commit. Decision 4 is the answer this design gives: what must wait by content is a founder path.
 - **The founder's own session** (class 9). An agent that drives a browser signed in as the founder is the founder at GitHub. Call 2 names it. No rule in this design closes it.
-- **Re-rooting.** When the founder lands by hand, the authority stops (spike B1). The act by which he tells it to go on from the new tip is not designed (call 9).
+- **Rooting and re-rooting.** When the founder lands by hand, the authority stops (spike B1). The act by which he tells it to go on from the new tip is not designed (call 9). The authority's first start is the same act: he names the commit it starts from.
 - **Review evidence.** A review is not something the authority can run again from P. Who reviews, under which identity, once a worker's receipt is a pre-flight, is design §4.5's question.
 - **Deployment.** The authority guards main. The copy of the engine this Mac runs is installed from main by files a worker can write.
 - **Felix's suite under the authority.** Its false blocks on a runner, its time there, and its units that test where they run (slice 3's A17) are measured in shadow, not here.
@@ -229,7 +230,7 @@ Listed, not answered. Each says what waits on it. Where a call needs something t
 | 3 | **What walls main** | (a) A rule on felix-home that the authority alone passes, which needs a paid plan for a private repository. (b) Two repositories on the free plan, and a larger change to how work flows. (c) Wait for the organization and its plan. (d) No wall: the record detects and nothing prevents | Stage 4. *A ruleset, and a plan, are his settings* |
 | 4 | **Where judging runs, and what it may cost** | (a) GitHub's runners under a monthly ceiling he names. (b) A rented host at a flat fee, his to keep running. (c) This Mac under a second user: free, and not off the machine. (d) The Mac for shadow, and the choice after it is measured | Stages 2, 4. *Paid hosting is his* |
 | 5 | **Where the authority's key lives** | (a) GitHub's secret store, reachable from main's workflow alone, on the paid plan. (b) A cloud key service that signs for main's workflow and never releases the key. (c) The rented host's disk. (d) This Mac's second user, for rehearsal | Stage 4. *Keys are his* |
-| 6 | **The sandbox proof** | (a) Yes to one throwaway repository, one App, two tokens and one ruleset there, and one run of the wall test. (b) The same on a repository he names. (c) Skip it and learn in shadow. (d) Not now | Stage 1. *A repository, an App, tokens and a ruleset each need his yes* |
+| 6 | **The sandbox proof** | (a) Yes to one throwaway public repository that holds nothing of Felix's, one App, two tokens and one ruleset there, and one run of the wall test. (b) The same on a private repository, after the paid plan: closer to felix-home. (c) Skip it and learn in shadow. (d) Not now | Stage 1. *A repository, an App, tokens and a ruleset each need his yes* |
 | 7 | **What waits for March.** Roadmap §4 says "never a key on the enforcing path", and direction defers DSSE receipts and "the Docker sandbox". The authority's identity is a credential that moves main, and rule 4 confines units | (a) Records are posted under the authority's identity, unsigned, until March, and units are confined from the start. (b) Records are signed now with a second key under the 10-29 conditions, and nothing deciding reads the signature. (c) Nothing is recorded but the ledger until March. (d) Those lines cover the authority's credential or its confinement, and the authority waits for March | Decision 5; rules 4 and 8 |
 | 8 | **Where his yes is given** | (a) At GitHub, under his identity, naming the head: a comment, or a label he alone clears. (b) Through a channel of Felix's own that workers cannot write, not yet designed. (c) In sessions, as today: a worker can then speak as him. (d) At GitHub for releases and policy, in sessions for the rest | Stage 3; row 49 |
 | 9 | **Landing by his own hand** | (a) He switches the rule off, pushes, and tells the authority to go on. (b) The rule names him as well: then his token is a way through wherever it sits. (c) Main moves through the authority alone, him included. (d) Decide after the first pause in shadow | Stage 4 |

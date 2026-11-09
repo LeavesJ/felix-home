@@ -1,7 +1,8 @@
 # >>> trust-step3-instrument-parts-d
-printf '\ntrust plane step 3, slice 3: the amendments after fault round 2 (spec-slice3 section 6, A12-A15, A17; blind)\n'
+printf '\ntrust plane step 3, slice 3: the amendments after fault round 2 and round 3 (spec-slice3 sections 6 and 7, A12-A15, A17, A19; blind)\n'
 # Blind, written on 2026-11-08 from .felix/memory/felix/audits/2026-11-08-trust-plane-step3/spec-slice3.md, section 6
-# above all, by an author who has not read lib/instrument*.sh, lib/bind.sh or lib/merge-judge.sh, nor the round-2 review
+# above all (section 7, A19, added on 2026-11-09 by another blind author under the same terms),
+# by an author who has not read lib/instrument*.sh, lib/bind.sh or lib/merge-judge.sh, nor the round-2 review
 # or fix repros: felix merge is driven as a black box. The fixture is part 2180's (tests/lib/instrument-parts.sh,
 # _ts3c_build), here under $TMP/ts3f, removed at the end with $MEM/felix when this part made it. Main's driver logs its
 # arguments to $TS3C/hlog and holds one blank line (2182's _ts3f_drv), so P's driver and the candidate's both say what
@@ -20,6 +21,8 @@ printf '\ntrust plane step 3, slice 3: the amendments after fault round 2 (spec-
 # - A17: a fixture P part that tests, as part 0620 does, that a fresh directory under TMPDIR is not the checkout and
 #   the checkout is not under TMPDIR, and reads HOME, passes in the checkout at H; an honest machinery change (a
 #   respaced comment) is not refused for it.
+# - A19: a unit of one judgement holds it open over the home while a second dry run of a pair already kept is made; that
+#   run reads no kept judgement, so a clean judgement the holding unit writes at the pair's key is not read either.
 #
 # Readings, where the spec leaves room (part 2180's stand: "refused", "passed", a blocker line, the trace, "left"):
 # - "Armed" is read from an absolute trace outside every tree ($TS3C/arm): the attack records each file it wrote over,
@@ -27,7 +30,12 @@ printf '\ntrust plane step 3, slice 3: the amendments after fault round 2 (spec-
 # - A unit's engine (engine/widget/lib.sh in T, H's) is where candidate code runs; it is appended to, after add and
 #   mul, so the attack fires when P's part sources it and the honest helpers still answer.
 # - "A felix-instrument* leftover" is a name matching felix-instrument* directly under /tmp or /var/tmp that was not
-#   listed before the run; the physical directories are read through cd -P.
+#   listed before the run; the physical directories are read through cd -P. Those directories are the machine's, and
+#   sibling judgements (2180 to 2182 beside this part, other sessions on this Mac) make such names too, so a new name is
+#   this judge's when a file under it holds the run's token, and any other must go once its own judgement can have ended.
+# - A19's "kept judgement" is what one judgement of the pair adds under the home (R's state/, and HOME) and the next
+#   reads; its format is not read. A clean one at a refused pair's key is had by judging the pair while an outside
+#   switch (not in its key) leaves its engine honest, and is replayed by the holding unit byte for byte.
 TS3C="$TMP/ts3f"; rm -rf "${TS3C:?}"; mkdir -p "$TS3C/repo" "$TS3C/gh" "$TS3C/home" "$TS3C/kc" "$TS3C/t" "$TS3C/ctl" "$TS3C/slow"
 TS3C="$(cd "${TS3C:?}" && pwd -P)"; TS3CR="$TS3C/repo"; TS3CK="$TS3C/kc"; TS3CT=""; TS3CRC=0; TS3F_N=0; TS3F_ST=""
 TS3F_NL='
@@ -133,7 +141,7 @@ _ts3f_co17() {   # REV: run 2008-where.sh's assertions in a real git checkout pl
                  # (what A17 means by "the checkout": not a unit's tree under TMPDIR); prints its FAIL lines, if any
   local co="$TS3C/co" ct="$TS3C/cotmp"; rm -rf "${co:?}" "${ct:?}"; mkdir -p "$co" "$ct"
   _fx_git "$TS3CR" archive -o "$TS3C/co.tar" "$1" >/dev/null 2>&1 && tar -x -C "$co" -f "$TS3C/co.tar"; rm -f "$TS3C/co.tar"
-  ( unset GIT_DIR GIT_WORK_TREE; cd "$co" && git init -q >/dev/null 2>&1 && git add -A >/dev/null 2>&1
+  ( unset GIT_DIR GIT_WORK_TREE; _fx_cd "$co" && git init -q >/dev/null 2>&1 && git add -A >/dev/null 2>&1
     export TMPDIR="$ct"; HERE="$co/$TS3FT_"
     ok() { printf '  ok    %s\n' "$1"; }
     is() { if [ "$2" = "$3" ]; then ok "$1"; else printf '  FAIL  %s\n' "$1"; fi; }
@@ -142,6 +150,26 @@ _ts3f_co17() {   # REV: run 2008-where.sh's assertions in a real git checkout pl
   rm -rf "${co:?}" "${ct:?}"
 }
 _ts3f_nbad() { printf '%s' 'PASS=$((PASS+1)); _ran "$1"; printf '"'"'  ok    %s\n'"'"' "$1"; return 0;'; }   # a bad() that counts a pass
+_ts3f_gone() { printf '%s\n' "$1" | while IFS= read -r n; do [ -z "$n" ] || [ ! -e "$n" ] || printf '%s\n' "$n"; done; }   # PATHS, a line each -> those still there
+_ts3f_home() { find "$TS3CR/state" "$TS3C/home" -type f 2>/dev/null | LC_ALL=C sort; }   # the files under the home
+_ts3f_sums() { printf '%s\n' "$1" | while IFS= read -r f; do [ -z "$f" ] || { cksum < "$f" 2>/dev/null || echo none; }; done | tr '\n' ' '; }   # FILES -> each one's cksum
+_ts3f_holding() { ps -A -o args= 2>/dev/null | LC_ALL=C awk -v t="perl -e for (1 .. 3000) { last if -e \$ARGV[1]; select(undef, undef, undef, 0.2) } $1 " 'index($0, t) == 1 { n++ } END { print n + 0 }'; }   # TOKEN
+_ts3f_hold() {   # TOKEN [forge]: on the branch checked out, 2001-sum.sh gains a comment, and add 2 x holds its unit open: it says
+                 # so in $TS3C/held and waits for $TS3C/release (600 s at most) in a perl carrying TOKEN. With forge, it first
+                 # writes $TS3C/forge/N over the Nth path $TS3C/forge.list names, and records each in $TS3C/arm.
+  _ts3f_sed engine/widget/lib.sh 's/^add() {/add() { [ "$1" != 2 ] || _ts3f_h;/'
+  { printf '_ts3f_h() { local n=0 d; '
+    [ -z "${2:-}" ] || printf 'while IFS= read -r d; do n=$((n + 1)); cat "%s/$n" > "$d" 2>/dev/null && printf "forged %%s\\n" "$d" >> "%s"; done < "%s"; ' "$TS3C/forge" "$TS3C/arm" "$TS3C/forge.list"
+    printf 'printf "held\\n" >> "%s"; perl -e '\''for (1 .. 3000) { last if -e $ARGV[1]; select(undef, undef, undef, 0.2) }'\'' %s "%s"; }\n' "$TS3C/held" "$1" "$TS3C/release"
+  } >> "$TS3CR/engine/widget/lib.sh"
+  printf '# a unit of this candidate holds its judgement open\n' >> "$TS3CR/$TS3FT_/parts/2001-sum.sh"
+}
+_ts3f_xgo() {   # a dry run of the branch checked out, in the background (TS3F_XP), until its unit says held (3000 polls at most)
+  local i=0; rm -f "$TS3C/held" "$TS3C/release"; _ts3f_prep; ( _ts3f_go --dry-run ) > "$TS3C/x.out" 2> "$TS3C/x.err" & TS3F_XP=$!
+  while [ "$i" -lt 3000 ] && kill -0 "$TS3F_XP" 2>/dev/null && [ ! -s "$TS3C/held" ]; do sleep 0.1; i=$((i + 1)); done
+  TS3F_HELD=no; [ -s "$TS3C/held" ] && TS3F_HELD=yes; TS3F_ARMX="$(cat "$TS3C/arm" 2>/dev/null)"
+}
+_ts3f_xend() { : > "$TS3C/release"; wait "$TS3F_XP" 2>/dev/null; }   # the held unit released, and its judgement waited for
 
 # ---------------------------------------------------------------- fixture R ---
 _ts3c_build; _ts3c_on main; _ts3f_drv "$(_ts3c_honest_bad)" "$(_ts3c_honest_is)"; _ts3c_commit "$TS3CR" logging
@@ -184,10 +212,13 @@ done
 
 # ----- A14: a judge ended by KILL leaves no unit's directory -----
 # A machinery change (an honest respaced comment) runs every instrument unit; 2001-sum.sh's add() sleeps in a perl
-# carrying a token, so when the judge is KILLed one unit sleeps while others have ended. A14: within a few seconds
-# nothing of the run is under TMPDIR, nor under /tmp or /var/tmp named felix-instrument* that was not there before.
+# carrying a token, so when the judge is KILLed one unit sleeps while others have ended. Each unit prints the token to
+# its log, and each tree of the run holds it in lib.sh. A14: within a few seconds nothing of the run is under TMPDIR,
+# and no felix-instrument* name under /tmp or /var/tmp holds the token; any other such name new since the run began
+# (a sibling judgement's) is gone once that judgement can have ended, since a leftover of this judge never goes.
 _ts3c_case h-a14; _ts3f_sed "$TS3FT_/run" 's/^# The fixture suite:/#  The fixture suite:/'
 _ts3f_sed engine/widget/lib.sh 's/^add() {/add() { [ "$1" != 2 ] || perl -e "sleep 20" '"${TS3F_TOK}a"';/'
+printf 'printf "# %%s\\n" %s\n' "${TS3F_TOK}a" >> "$TS3CR/engine/widget/lib.sh"
 printf '# a unit of this candidate sleeps while others end\n' >> "$TS3CR/$TS3FT_/parts/2001-sum.sh"; _ts3c_commit "$TS3CR" a14
 _ts3f_check "ts3f: A14 (fixture control): the candidate respaces a driver comment (machinery, so every unit runs) and 2001-sum.sh's add() sleeps in a perl carrying its token" \
   "$(_ts3f_names "$TS3C_M" HEAD | tr ' ' '\n' | LC_ALL=C sort | tr '\n' ' ')|$(LC_ALL=C grep -c "perl -e \"sleep 20\" ${TS3F_TOK}a;" "$TS3CR/engine/widget/lib.sh")" \
@@ -198,11 +229,18 @@ _ts3f_i=0; while [ "$_ts3f_i" -lt 900 ] && kill -0 "$TS3F_PID" 2>/dev/null && [ 
 TS3F_MID=no; [ "$(_ts3f_alive "${TS3F_TOK}a")" -ge 1 ] && kill -0 "$TS3F_PID" 2>/dev/null && TS3F_MID=yes
 kill -KILL "$TS3F_PID" 2>/dev/null; wait "$TS3F_PID" 2>/dev/null; TS3CRC=$?
 _ts3f_i=0; while [ "$_ts3f_i" -lt 250 ] && { [ "$(_ts3f_left)" != nothing ] || [ "$(_ts3f_alive "${TS3F_TOK}a")" -ge 1 ]; }; do sleep 0.1; _ts3f_i=$((_ts3f_i + 1)); done
-TS3F_FX1="$(_ts3f_tmpfx | LC_ALL=C comm -13 <(printf '%s\n' "$TS3F_FX0") -)"
+TS3F_FX1="$(_ts3f_tmpfx | LC_ALL=C comm -13 <(printf '%s\n' "$TS3F_FX0") -)"; TS3F_OWN=""; TS3F_SIB=""
+while IFS= read -r _ts3f_n; do [ -n "$_ts3f_n" ] || continue   # this judge's names hold the token; the rest are read as a sibling's
+  if LC_ALL=C grep -rqF -- "${TS3F_TOK}a" "$_ts3f_n" 2>/dev/null; then TS3F_OWN="$TS3F_OWN$_ts3f_n$TS3F_NL"; else TS3F_SIB="$TS3F_SIB$_ts3f_n$TS3F_NL"; fi
+done < <(printf '%s\n' "$TS3F_FX1")
+_ts3f_i=0; while [ "$_ts3f_i" -lt 50 ] && [ -n "$(_ts3f_gone "$TS3F_OWN")" ]; do sleep 0.1; _ts3f_i=$((_ts3f_i + 1)); done
 _ts3f_check "ts3f: A14 (control): the judge was KILLed while one unit slept and others had ended" \
   "slept $TS3F_MID" "slept yes" "$(_ts3f_why)"
-_ts3f_check "ts3f: A14: within a few seconds of the judge KILLed, no run tree is under TMPDIR, no unit sleeps on, and nothing named felix-instrument* is new under /tmp or /var/tmp" \
-  "left $(_ts3f_left)|alive $(_ts3f_hangs "${TS3F_TOK}a")|new [$(printf '%s' "$TS3F_FX1" | tr '\n' ' ')]" "left nothing|alive 0|new []" "$(_ts3f_why)"
+_ts3f_check "ts3f: A14: within a few seconds of the judge KILLed, no run tree is under TMPDIR, no unit sleeps on, and no felix-instrument* name under /tmp or /var/tmp holds this run's token" \
+  "left $(_ts3f_left)|alive $(_ts3f_hangs "${TS3F_TOK}a")|own [$(_ts3f_gone "$TS3F_OWN" | tr '\n' ' ')]" "left nothing|alive 0|own []" "$(_ts3f_why)"
+_ts3f_i=0; while [ "$_ts3f_i" -lt 600 ] && [ -n "$(_ts3f_gone "$TS3F_SIB")" ]; do sleep 1; _ts3f_i=$((_ts3f_i + 1)); done
+_ts3f_check "ts3f: A14: every other felix-instrument* name new under /tmp or /var/tmp since the KILLed run began is gone within 600 s, as a sibling judgement's is when it ends; a leftover never goes" \
+  "stayed [$(_ts3f_gone "$TS3F_SIB" | tr '\n' ' ')]" "stayed []" "new since the run began: [$(printf '%s' "$TS3F_FX1" | tr '\n' ' ')]"
 
 # ----- A15: no window before the traps -----
 # mktemp is slowed by a PATH wrapper, so a TERM can be sent very early, before the first directory the judgement makes.
@@ -222,6 +260,61 @@ _ts3f_check "ts3f: A15 (control): mktemp was slowed and the TERM was sent very e
 # a child of the killed judge that self-reaps, so it is not read here. The run tree and the checkout are.
 _ts3f_check "ts3f: A15: a TERM sent before the first directory the judgement makes leaves no run tree under TMPDIR, no unit of it ran, and the checkout's status as it was" \
   "left $(_ts3f_left)|ran [$(_ts3f_ran)]" "left nothing|ran []" "$(_ts3f_why)"
+
+# ----- A19: no kept judgement is read while another judgement's units could be writing one -----
+# Y, the pair already kept, respaces a driver comment (machinery, so every unit runs and its judgement is kept, A5), and
+# its add() answers 6 for 2 3 only while $TS3C/ybad exists: a switch outside its tree and so outside its key. With it
+# off, a clean judgement is made at Y's key and its bytes saved; with it on, Y is refused and kept there. X and G are two
+# more pairs over the same home, each changing 2001-sum.sh and an engine whose add 2 x holds its unit open (_ts3f_hold);
+# G's unit first writes Y's saved clean judgement back over Y's kept one. A19: while X's or G's judge runs, a dry run of
+# Y reads no kept judgement and runs its own units; what is kept at Y's key stays; after X has ended, Y reads it again.
+_ts3c_case h-a19y; _ts3f_sed "$TS3FT_/run" 's/^# The fixture suite:/#  The fixture suite:/'
+_ts3f_sed engine/widget/lib.sh "s#^add() {#add() { [ ! -e \"$TS3C/ybad\" ] || [ \"\$1 \$2\" != \"2 3\" ] || { echo 6; return; };#"
+_ts3c_commit "$TS3CR" a19y; TS3F_HY="$(_jr_sha "$TS3CR" HEAD)"; rm -f "$TS3C/ybad"
+_ts3f_prep; TS3F_K0="$(_ts3f_home)"; ( _ts3f_go --dry-run ) > "$TS3C/out" 2> "$TS3C/err"; TS3CRC=$?
+TS3F_KY="$(_ts3f_home | LC_ALL=C comm -13 <(printf '%s\n' "$TS3F_K0") -)"; TS3F_KC="$(_ts3f_sums "$TS3F_KY")"
+rm -rf "${TS3C:?}/forge"; mkdir -p "$TS3C/forge"; printf '%s\n' "$TS3F_KY" | LC_ALL=C awk 'NF' > "$TS3C/forge.list"
+_ts3f_n=0; while IFS= read -r _ts3f_f; do _ts3f_n=$((_ts3f_n + 1)); cp "$_ts3f_f" "$TS3C/forge/$_ts3f_n"; done < "$TS3C/forge.list"
+_ts3f_check "ts3f: A19 (fixture control): Y respaces a driver comment and switches its add() by a file outside its tree; with the switch off it is judged clean, its units run, and the judgement adds files under the home" \
+  "$(_ts3f_names "$TS3C_M" "$TS3F_HY")|exit $TS3CRC|ran $([ -n "$(_ts3f_ran)" ] && echo yes || echo no)|kept $([ -n "$TS3F_KY" ] && echo yes || echo no)" \
+  "$TS3FT_/run engine/widget/lib.sh |exit 0|ran yes|kept yes" "$(_ts3f_why)"
+: > "$TS3C/ybad"; while IFS= read -r _ts3f_f; do rm -f "$_ts3f_f"; done < "$TS3C/forge.list"
+_ts3f_dry; TS3F_KS="$(_ts3f_sums "$TS3F_KY")"; TS3F_KK=no
+[ -n "$TS3F_KY" ] && [ "$TS3F_KS" != "$TS3F_KC" ] && case "$TS3F_KS" in *none*) ;; *) TS3F_KK=yes ;; esac
+_ts3f_check "ts3f: A19 (fixture control): with the switch on and its clean judgement removed, Y runs its units again, is refused for 2001-sum.sh, and is kept again in the same files" \
+  "$(_ts3f_refused)|$(_ts3f_bl escape 2001-sum.sh "P's version fails on this tree" 'sum: add 2 3 is 5')|ran $([ -n "$(_ts3f_ran)" ] && echo yes || echo no)|kept $TS3F_KK" "refused|yes|ran yes|kept yes" "$(_ts3f_why)"
+_ts3f_dry
+_ts3f_check "ts3f: A19 (control): with no other judgement running, a second dry run of Y reads its kept judgement: refused as kept, and no unit run" \
+  "$(_ts3f_refused)|$(_ts3f_bl escape 2001-sum.sh "P's version fails on this tree" 'sum: add 2 3 is 5')|ran [$(_ts3f_ran)]" "refused|yes|ran []" "$(_ts3f_why)"
+_ts3c_case h-a19x; _ts3f_hold "${TS3F_TOK}x"; _ts3c_commit "$TS3CR" a19x; TS3F_HX="$(_jr_sha "$TS3CR" HEAD)"
+_ts3c_case h-a19g; _ts3f_hold "${TS3F_TOK}g" forge; _ts3c_commit "$TS3CR" a19g; TS3F_HG="$(_jr_sha "$TS3CR" HEAD)"
+_ts3f_check "ts3f: A19 (fixture control): X and G are two more pairs, each changing 2001-sum.sh and an engine whose add 2 x holds its unit open, and only G's writes Y's clean judgement back" \
+  "$(_ts3f_names "$TS3C_M" "$TS3F_HX")|$(_ts3f_names "$TS3C_M" "$TS3F_HG")|$(git -C "$TS3CR" show "$TS3F_HX:engine/widget/lib.sh" | LC_ALL=C grep -c forged)$(git -C "$TS3CR" show "$TS3F_HG:engine/widget/lib.sh" | LC_ALL=C grep -c forged)" \
+  "$TS3FT_/parts/2001-sum.sh engine/widget/lib.sh |$TS3FT_/parts/2001-sum.sh engine/widget/lib.sh |01"
+_ts3c_on h-a19x; _ts3f_xgo; _ts3c_on h-a19y; _ts3f_dry   # Y's dry run while X's unit holds X's judgement open
+TS3F_HOLD="$(_ts3f_holding "${TS3F_TOK}x")"; TS3F_KA="$(_ts3f_sums "$TS3F_KY")"; TS3F_RAN="$(_ts3f_ran)"
+_ts3f_check "ts3f: A19 (control): X's unit said it held X's judgement open before Y's dry run began, and still held it when that run ended" \
+  "held $TS3F_HELD|holding $TS3F_HOLD" "held yes|holding 1" "x: $(cat "$TS3C/x.out" "$TS3C/x.err" 2>/dev/null | head -c 600 | tr '\n' ' ')"
+_ts3f_check "ts3f: A19: a second dry run of a pair already kept, made while a unit of another pair's judgement holds it open over the same home, runs its own units rather than reading the kept judgement, and is refused as they find" \
+  "ran $([ -n "$TS3F_RAN" ] && echo yes || echo no)|$(_ts3f_refused)|$(_ts3f_bl escape 2001-sum.sh "P's version fails on this tree" 'sum: add 2 3 is 5')" "ran yes|refused|yes" "ran [$TS3F_RAN]; $(_ts3f_why)"
+_ts3f_check "ts3f: A19: what is kept at that pair's key stays through the overlapping run: its files are there, byte for byte, when the run ends" \
+  "kept $TS3F_KK|$TS3F_KA" "kept yes|$TS3F_KS"
+_ts3f_xend; _ts3f_dry
+_ts3f_check "ts3f: A19 (control, and what is kept stays): the same dry run of Y, made after X's judgement has ended, reads the kept judgement: refused as kept, and no unit run" \
+  "ended $(kill -0 "$TS3F_XP" 2>/dev/null && echo no || echo yes)|$(_ts3f_refused)|ran [$(_ts3f_ran)]" "ended yes|refused|ran []" "$(_ts3f_why)"
+_ts3c_on h-a19g; _ts3f_xgo; TS3F_KG="$(_ts3f_sums "$TS3F_KY")"; _ts3c_on h-a19y; _ts3f_dry   # the same while G's unit holds
+TS3F_HOLD="$(_ts3f_holding "${TS3F_TOK}g")"; TS3F_RAN="$(_ts3f_ran)"
+_ts3f_check "ts3f: A19 (control): G's unit wrote Y's clean judgement back over Y's kept one, said it held G's judgement open before Y's dry run began, and still held it when that run ended" \
+  "forged $(printf '%s\n' "$TS3F_ARMX" | LC_ALL=C grep -c '^forged ')|clean $([ -n "$TS3F_KY" ] && [ "$TS3F_KG" = "$TS3F_KC" ] && echo yes || echo no)|held $TS3F_HELD|holding $TS3F_HOLD" \
+  "forged $(LC_ALL=C grep -c . "$TS3C/forge.list")|clean yes|held yes|holding 1" "arm [$(printf '%s' "$TS3F_ARMX" | tr '\n' ' ')]"
+_ts3f_check "ts3f: A19: a clean judgement at that pair's key, written by a unit of another judgement that still runs, is not read: the pair's dry run runs its own units and is refused" \
+  "ran $([ -n "$TS3F_RAN" ] && echo yes || echo no)|$(_ts3f_refused)" "ran yes|refused" "ran [$TS3F_RAN]; $(_ts3f_why)"
+_ts3f_xend
+_ts3f_n=0; while IFS= read -r _ts3f_f; do _ts3f_n=$((_ts3f_n + 1)); cat "$TS3C/forge/$_ts3f_n" > "$_ts3f_f"; done < "$TS3C/forge.list"
+_ts3f_dry   # the same clean judgement, written back by the fixture while no judgement runs
+_ts3f_check "ts3f: A19 (control): that clean judgement, written at the pair's key while no other judgement runs, is read: the pair's dry run passes and runs no unit" \
+  "exit $TS3CRC|ran [$(_ts3f_ran)]" "exit 0|ran []" "$(_ts3f_why)"
+rm -f "$TS3C/ybad"
 
 # ----- A17: an honest change is judged as the checkout judges it -----
 # A fixture P part tests, as part 0620 does, that a fresh directory under TMPDIR is not the checkout and the checkout
@@ -251,5 +344,6 @@ _ts3f_check "ts3f: A17: an honest machinery change is not refused for a P part t
 
 _ts3c_on main
 rm -rf "${TS3C:?}"; [ "$TS3F_MEM" != made ] || rm -rf "${MEM:?}/felix"
-unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3F_PATH0 TS3F_PID TS3F_MID TS3F_MEM TS3F_EARLY TS3F_REALMKTEMP TS3F_FX0 TS3F_FX1
+unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3F_PATH0 TS3F_PID TS3F_MID TS3F_MEM TS3F_EARLY TS3F_REALMKTEMP TS3F_FX0 TS3F_FX1 TS3F_OWN TS3F_SIB \
+  TS3F_XP TS3F_HELD TS3F_ARMX TS3F_HOLD TS3F_K0 TS3F_KY TS3F_KC TS3F_KS TS3F_KK TS3F_KA TS3F_KG TS3F_RAN
 # <<< trust-step3-instrument-parts-d

@@ -268,31 +268,40 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
   rm -f "$r/v.pack" "$r/v.revs" "$r/t.idx" "$r/c.idx" "$r/t.drop" "$r/b.paths" 2>/dev/null
   return 0
 }
-# A22, A23: whether the files written at DIR are the index's: the first difference on stdout and 1, else 0. Where the
-# filesystem under DIR's parent folds names (probed there: case, and Unicode decomposition), two names of the index,
-# paths or their directory prefixes, with different bytes that fold to one, or a name of B (BASE-PATHS, NUL-separated)
-# that folds to a different index name, are the difference. A path is printed with bytes outside printable ASCII as
-# \xNN. A file is its bytes, a symbolic link its target, hashed as git hashes a blob; kind and executable bit
-# follow the entry's mode, and a gitlink is a directory.
-_felix_instr_tcpl='use strict; use feature "fc"; use Encode (); use Unicode::Normalize (); use Digest::SHA ();
-my ($d, $fmt, $ls, $bl) = @ARGV; my $j = $d; $j =~ s{/[^/]*$}{}; my $f = 0;
-for my $pr (["fp-$$-a", "FP-$$-A"], ["fp-$$-e\xcc\x81", "fp-$$-\xc3\xa9"]) {
-  open(my $h, ">", "$j/$pr->[0]") or do { print "the filesystem under the run directory could not be probed"; exit 1 };
-  close $h; $f = 1 if -e "$j/$pr->[1]"; unlink "$j/$pr->[0]" }
-sub key { my $u = eval { Encode::decode("UTF-8", $_[0], Encode::FB_CROAK | Encode::LEAVE_SRC) }; fc(Unicode::Normalize::NFD(defined $u ? $u : $_[0])) }
+# A22, A23: whether the files written at DIR are the index's: the first difference on stdout and 1, else 0. Which
+# names are one is the filesystem's answer, not a table's: beside DIR, each directory's names in the index (its paths
+# and their prefixes) and in B (BASE-PATHS, NUL-separated) are made, exclusively, in a scratch directory of their own,
+# and a name refused as existing is one with the name made before it. Two such names of the index, or one of the index
+# and one of B, are the difference, and so is a name of the index the filesystem will not make. A path is printed with
+# bytes outside printable ASCII as \xNN. A file is its bytes, a symbolic link its target, hashed as git hashes a blob;
+# kind and executable bit follow the entry's mode, and a gitlink is a directory.
+_felix_instr_tcpl='use strict; use Fcntl qw(O_WRONLY O_CREAT O_EXCL); use File::Path (); use Digest::SHA ();
+my ($d, $fmt, $ls, $bl) = @ARGV; my $j = $d; $j =~ s{/[^/]*$}{}; my $s = "$j/fold-$$";
+END { local $?; File::Path::remove_tree($s) if defined $s && -d $s }
 sub show { my $s = $_[0]; $s =~ s/([^\x20-\x7e])/sprintf("\\x%02x", ord $1)/ge; $s }
 local $/ = "\0"; open(my $l, "<", $ls) or do { print "the index of the run tree could not be read"; exit 1 };
-sub pre { my @c = split m{/}, $_[0], -1; map { join "/", @c[0 .. $_] } 0 .. $#c }
-my (@e, %k, %kp); while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
-  push @e, [$m, $o, $p]; next unless $f;
-  for my $x (pre($p)) { my $q = key($x); next if exists $k{$q} && $k{$q} eq $x;
-    if (exists $k{$q}) { print "it holds ", show($kp{$q}), " and ", show($p), ($k{$q} eq $kp{$q} && $x eq $p
-      ? ", which this filesystem takes for one name" : ", whose " . show($k{$q}) . " and " . show($x) . " this filesystem takes for one name"); exit 1 }
-    $k{$q} = $x; $kp{$q} = $p } }
-if ($f) { open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 }; while (my $p = <$b>) { chomp $p; for my $x (pre($p)) { my $q = key($x);
-  next if !exists $k{$q} || $k{$q} eq $x;
-  print show($p), " of the base, which it lacks, and its ", show($kp{$q}), " are one name on this filesystem (", show($x),
-    " and ", show($k{$q}), ")"; exit 1 } } }
+my (@e, %g, %src, %rep);
+sub add { my ($p, $w) = @_; my @c = split m{/}, $p, -1;
+  for my $i (0 .. $#c) { my $u = $i ? join("/", @c[0 .. $i - 1]) : ""; return if $w == 2 && !exists $g{$u};
+    my $k = "$u\0$c[$i]"; unless (exists $src{$k}) { push @{$g{$u}}, $c[$i]; $src{$k} = 0; $rep{$k} = $p } $src{$k} |= $w } }
+sub at { my ($u, $c) = split /\0/, $_[0], 2; length $u ? "$u/$c" : $c }
+while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9a-f]+) ([0-3])\t(.*)$/s or next;
+  push @e, [$m, $o, $p]; add($p, 1) }
+open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 }; while (my $p = <$b>) { chomp $p; add($p, 2) }
+my $n = 0; mkdir $s or do { print "the names could not be made beside the run tree"; exit 1 };
+for my $u (sort keys %g) { my $q = "$s/" . $n++; mkdir $q or do { print "the names could not be made beside the run tree"; exit 1 }; my %i;
+  for my $c (sort @{$g{$u}}) { my $k = "$u\0$c";
+    if (sysopen(my $h, "$q/$c", O_WRONLY | O_CREAT | O_EXCL)) { $i{(stat $h)[1]} = $k; close $h; next }
+    my $ee = $!{EEXIST}; my @st = lstat "$q/$c"; my $w = $ee && @st ? $i{$st[1]} : undef;
+    if (!defined $w) { next unless $src{$k} & 1; print "its ", show($rep{$k}), " has a name this filesystem will not make (", show(at($k)), ")"; exit 1 }
+    my ($t1, $t2) = ($src{$w} & 1, $src{$k} & 1); next unless $t1 || $t2;
+    if ($t1 && $t2) { my ($pa, $pb, $xa, $xb) = ($rep{$w}, $rep{$k}, at($w), at($k));
+      print "it holds ", show($pa), " and ", show($pb), ($pa eq $xa && $pb eq $xb ? ", which this filesystem takes for one name"
+        : ", whose " . show($xa) . " and " . show($xb) . " this filesystem takes for one name"); exit 1 }
+    my ($bk, $tk) = $t1 ? ($k, $w) : ($w, $k);
+    print show($rep{$bk}), " of the base, which it lacks, and its ", show($rep{$tk}), " are one name on this filesystem (",
+      show(at($bk)), " and ", show(at($tk)), ")"; exit 1 } }
+File::Path::remove_tree($s);
 for (@e) { my ($m, $o, $p) = @$_; my $w = "$d/$p"; my $c;
   my $s = show($p);
   if ($m eq "160000") { next if -d $w && !-l $w; print "$s is not the directory its entry names"; exit 1 }

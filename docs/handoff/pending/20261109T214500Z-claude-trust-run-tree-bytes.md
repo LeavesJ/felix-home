@@ -8,7 +8,7 @@
   - A23: where the filesystem folds names (probed beside T), two names of the tree, paths or directory prefixes, that fold to one are unknown SUITE. So is a name of B's tree that folds to a different one of T's.
   - Each difference names its paths, escaped. No unit runs.
 - **`lib/instrument.sh`.** The blocker names A22 or A23's reason, and carries no control byte from any source.
-- **Tests.** Blind part 2185, in two passes from the spec and its amendment. On 0.49.336, 5 of its section's assertions fail, and on the first fix 3 more. Here it has 21 ok, 0 FAIL and 1 skip on this Mac. Parts 2180 to 2183 pass on the fix.
+- **Tests.** Blind part 2185, in two passes from the spec and its amendment. On 0.49.336, 5 of the first pass's assertions fail. The second pass's 3 new assertions fail on the first fix (6ab2d37e). Here it has 21 ok, 0 FAIL and 1 skip on this Mac. Parts 2180 to 2183 pass on the fix.
 
 **Open.**
 - **Reach.** The fix acts only when T is made: a candidate that changes an instrument part or the machinery. A candidate that changes an engine file and a `.gitattributes`, and no test, is judged by its own suite in the gate's and CI's checkouts, which obey the attributes too (R3, R4).

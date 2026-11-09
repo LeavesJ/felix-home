@@ -8,6 +8,10 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 # here under $TMP/ts3g, removed at the end with $MEM/felix when this part made it. Main gains two instrument parts of P
 # that read a candidate file, with the files they read: 2007-scan.sh (no line of engine/widget/scan.txt is exactly
 # FORBIDDEN token, and the file holds no bare $Id$ keyword) and 2008-marker.sh (engine/widget/MARKER exists).
+# Cases 5a and 5b were added the same day, after the fix for cases 1 to 4 (6ab2d37e) was committed on the branch, from
+# the paragraphs of section 8 that begin "A23, amended after the automated security review" and "A22 and A23, the same
+# review" and the new observable case 5 (the old case 5 is case 6), under the same terms: no lib file named above, and
+# no git log -p of the branch's lib changes, was read.
 #
 # Readings, where the spec leaves room (part 2180's stand on "refused", "passed", a blocker line and the trace):
 # - Each candidate also appends a comment to the P part that judges it, so S8.1 counts that part changed and P's unit
@@ -21,13 +25,21 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 # - "Naming both" is the unknown SUITE line holding both repository paths. "No unit runs" (A23) is read from the trace;
 #   the honest candidate of case 2 shows that the trace records a unit the merge runs.
 # - Folding is probed where each run's TMPDIR sits ($TS3C/t): a file made as Fold is found as fOLD. Case 3 asserts the
-#   branch that applies and skips the other; case 4 is asserted where names fold and skipped where they do not.
+#   branch that applies and skips the other; cases 4, 5a and 5b are asserted where names fold and skipped where not.
+# - Case 5a's "naming it and the directory it folds onto": the unknown SUITE line holds the candidate's whole path,
+#   Engine/harness/tests/parts/2999-x.sh, and, as a word, engine or a path that begins engine/ (B's directory the
+#   candidate's prefixes fold onto, or a path under it). A23's "no unit runs" is read as in cases 3 and 4.
+# - Case 5b's fixture is case 4's shape with an ESC byte in both names; where names do not fold no SUITE line names
+#   such a path, so 5b is skipped there. "Shows it as \x1b" is the SUITE line holding both paths with that byte written
+#   as the four characters \x1b. "No raw control byte" counts bytes 0x00-0x08, 0x0b-0x1f and 0x7f over stdout and
+#   stderr together (TAB and LF are not counted).
 #
-# Not covered: case 5 as an assertion (red first is how this part is run, not what it asserts); A23's fold of the
+# Not covered: case 6 as an assertion (red first is how this part is run, not what it asserts); A23's fold of the
 # Unicode-decomposed form (only case is driven); the canary's copy, which A22 and A23 also judge (no candidate here
 # changes the machinery); A22's checks of kind, executable bit, symbolic link target and gitlink, and the filter
 # attribute (it needs a driver configured where T is written); the cost; A23's "nothing here applies" where names do
-# not fold (case 4 is skipped there); and what section 8 leaves open.
+# not fold (cases 4 and 5 are skipped there); a control byte from any source other than a path (5b's paths are the
+# only one driven); and what section 8 leaves open.
 TS3C="$TMP/ts3g"; rm -rf "${TS3C:?}"; mkdir -p "$TS3C/repo" "$TS3C/gh" "$TS3C/home" "$TS3C/kc" "$TS3C/t" "$TS3C/ctl"
 TS3C="$(cd "${TS3C:?}" && pwd -P)"; TS3CR="$TS3C/repo"; TS3CK="$TS3C/kc"; TS3CT=""; TS3CRC=0; TS3G_N=0
 TS3G_MEM=kept; [ -e "$MEM/felix" ] || TS3G_MEM=made   # the merges write the project felix's memory, $MEM/felix
@@ -103,6 +115,11 @@ _ts3g_hid() {   # SHA FLAG PATTERN -> how many lines P's test finds in scan.txt'
     "$(LC_ALL=C grep -c "$2" -- "$3" "$TS3CR/$TS3GW/scan.txt" 2>/dev/null)"
 }
 _ts3g_part_bl() { _ts3g_bl escape "$1" "P's version fails on this tree" "$2"; }   # PART NAME -> yes when refused for it
+_ts3g_ctl() { LC_ALL=C tr -cd '\000-\010\013-\037\177' | wc -c | tr -d ' '; }   # stdin -> its bytes in 0x00-0x08, 0x0b-0x1f, 0x7f
+_ts3g_onto() {   # -> yes when an unknown SUITE line of the last run names TS3G_X and, as a word, engine or a path under it
+  cat "$TS3C/out" "$TS3C/err" 2>/dev/null | LC_ALL=C awk -v x="$TS3G_X" 'index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" && index($0, x) &&
+    $0 ~ /(^|[^A-Za-z0-9_.-])engine(\/|[^A-Za-z0-9_.-]|$)/ { f = 1 } END { print (f ? "yes" : "no") }'
+}
 
 # ---------------------------------------------------------------- fixture R ---
 _ts3c_build; _ts3c_on main
@@ -198,7 +215,46 @@ else
   skip "ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs" "names do not fold under this TMPDIR"
 fi
 
+# ----- A23 amended, case 5a: a directory prefix in other case does not reach P's test directory -----
+# The candidate adds Engine/harness/tests/parts/2999-x.sh, which a case-sensitive replacement of engine/harness/tests
+# by B's does not drop, and touches 2007-scan.sh, so T is made. That the file lands inside B's own test directory
+# where names fold is shown by writing it, from H, over B's tests extracted here.
+TS3G_X=Engine/harness/tests/parts/2999-x.sh
+_ts3c_case h-prefix; _ts3g_blob "$TS3G_X" "# a candidate file under the test directory's name in other case$TS3G_NL"
+_ts3g_touch 2007-scan.sh; _ts3c_commit "$TS3CR" prefix; TS3G_H="$(_ts3g_sha HEAD)"; rm -rf "${TS3C:?}/lay"; mkdir -p "$TS3C/lay"
+_fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3C_M" "$TS3GT_" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
+_fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3G_H" "$TS3G_X" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
+TS3G_IN=no; [ -e "$TS3C/lay/$TS3GT_/parts/2999-x.sh" ] && TS3G_IN=yes; rm -rf "${TS3C:?}/lay" "$TS3C/lay.tar"
+_ts3g_check "ts3g: A23 amended, case 5a (fixture control): the candidate adds Engine/harness/tests/parts/2999-x.sh and touches 2007-scan.sh, and that file written over B's tests here lands inside B's test directory where names fold, and not where they do not" \
+  "$(_fx_git "$TS3CR" diff --name-only "$TS3C_M" "$TS3G_H" | tr '\n' ' ')|inside $TS3G_IN" "$TS3G_X $TS3GT_/parts/2007-scan.sh |inside $TS3G_FOLD"
+if [ "$TS3G_FOLD" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs" \
+    "$(_ts3g_refused)|$(_ts3g_onto)|ran [$(_ts3g_ran)]" "refused|yes|ran []" "$(_ts3g_why)"
+else
+  skip "ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs" "names do not fold under this TMPDIR"
+fi
+
+# ----- A22 and A23 amended, case 5b: a path is printed with its control bytes written out -----
+# Case 4's shape, with an ESC byte in both names: engine/widget/E<ESC>sc.txt and engine/widget/e<ESC>sc.txt, one blob.
+TS3G_E="$(printf '\033')"
+_ts3c_case h-esc; _ts3g_blob "$TS3GW/E${TS3G_E}sc.txt" "an escape$TS3G_NL"; _ts3g_blob "$TS3GW/e${TS3G_E}sc.txt" "an escape$TS3G_NL"
+_ts3g_touch 2007-scan.sh; _ts3c_commit "$TS3CR" esc; TS3G_H="$(_ts3g_sha HEAD)"
+_ts3g_check "ts3g: A22 and A23 amended, case 5b (fixture control): the candidate's tree holds two paths under engine/widget that differ only by case and each hold a raw ESC byte, one blob for both, and the control-byte counter finds those two bytes in the tree's raw listing" \
+  "$(_fx_git "$TS3CR" ls-tree -z "$TS3G_H" -- "$TS3GW/" | LC_ALL=C tr '\000' '\n' | LC_ALL=C awk -F'\t' '$2 ~ /sc\.txt$/ { split($1, a, " "); n++; b[a[3]] = 1 } END { m = 0; for (k in b) m++; printf "%d|%d", n, m }')|$(_fx_git "$TS3CR" ls-tree -z --name-only "$TS3G_H" -- "$TS3GW/" | LC_ALL=C tr -d '\000' | _ts3g_ctl)" \
+  "2|1|2"
+if [ "$TS3G_FOLD" = yes ]; then
+  _ts3g_dry   # the -v words below hold \\, which awk reads as one backslash: the four characters \x1b
+  _ts3g_check "ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b" \
+    "$(_ts3g_refused)|$(_ts3g_bl unknown SUITE 'engine/widget/E\\x1bsc.txt' 'engine/widget/e\\x1bsc.txt')" "refused|yes" "$(_ts3g_why | LC_ALL=C tr -d '\000-\010\013-\037\177')"
+  _ts3g_check "ts3g: A22 and A23 amended, case 5b, where names fold: felix merge's whole output, stdout and stderr, holds no raw byte in 0x00-0x08, 0x0b-0x1f or 0x7f" \
+    "$(cat "$TS3C/out" "$TS3C/err" 2>/dev/null | _ts3g_ctl)" 0
+else
+  skip "ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b" "names do not fold under this TMPDIR"
+  skip "ts3g: A22 and A23 amended, case 5b, where names fold: felix merge's whole output, stdout and stderr, holds no raw byte in 0x00-0x08, 0x0b-0x1f or 0x7f" "names do not fold under this TMPDIR"
+fi
+
 _ts3c_on main
 rm -rf "${TS3C:?}"; [ "$TS3G_MEM" != made ] || rm -rf "${MEM:?}/felix"
-unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3C_M TS3G_MEM TS3G_N TS3G_H TS3G_A TS3G_C TS3G_F TS3G_P TS3G_S TS3G_D TS3G_WANT TS3G_L TS3G_FOLD _ts3g_v
+unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3C_M TS3G_MEM TS3G_N TS3G_H TS3G_A TS3G_C TS3G_F TS3G_P TS3G_S TS3G_D TS3G_WANT TS3G_L TS3G_FOLD _ts3g_v TS3G_X TS3G_IN TS3G_E
 # <<< trust-step3-run-tree-bytes

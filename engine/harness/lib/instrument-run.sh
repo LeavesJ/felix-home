@@ -1,14 +1,18 @@
-# The runs behind lib/instrument.sh (trust-plane step 3, slice 3, spec S8.2, S8.5, S8.10, A7, A8 to A10): where they
-# run, the run tree T and the canary's copy, the units of P's suite in part mode at the gate's job count, their time
-# limits, and their removal on any exit. Split from instrument.sh for its length; that file says what is judged and why.
+# The runs behind lib/instrument.sh (trust-plane step 3, slice 3, spec S8.2, S8.5, S8.10, A7, A8 to A10, A12, A14,
+# A15, A17): where they run, the run tree T and the canary's copy, the units of P's suite in part mode at the gate's
+# job count, their time limits, and their removal on any exit. Split from instrument.sh for its length; that file
+# says what is judged and why.
 #
-# - A7.5: T and the canary's copy are made under the caller's TMPDIR only when it is absolute and outside the
-#   checkout, and under /tmp otherwise; the units are given that TMPDIR. A7.8, A8: the judge's own records (each
+# - A7.5, A17: T and the canary's copy are made under the caller's TMPDIR when it is absolute and outside the
+#   checkout, and under /tmp otherwise, except where A17 needs the units to be given the caller's TMPDIR itself
+#   (felix_instr_dirs says when); the units' TMPDIR never holds T. A7.8, A8, A14: the judge's own records (each
 #   supervisor's group file, the build's indexes) are in a directory R outside that TMPDIR and outside the checkout,
-#   and each unit's end, ran and log files are the only files in a directory made for that unit alone, beside R and
-#   not in it. A unit's exit status is the judge's, held in memory from what the kernel hands it.
-# - A10: each unit, and the canary, runs with FELIX_HOME_DIR and FELIX_HOME unset and HOME a directory of its own
-#   under T's run directory, which holds no .felix-home.
+#   and each unit's end, ran and log files are the only files in a directory made for that unit alone, in a parent
+#   beside R. A unit's exit status is the judge's, held in memory from what the kernel hands it.
+# - A10, A17: each unit, and the canary, runs with FELIX_HOME_DIR and FELIX_HOME unset and HOME a directory of its
+#   own under the caller's HOME, which holds no .felix-home.
+# - A12: the canary's copy is made after the last unit has ended, and P's files in T are listed before the first unit
+#   and after the last (_felix_instr_tlist).
 # - A7.6: T and the copy each hold the objects they need, history with it, copied in through one pack, and name no
 #   other store: neither the checked copy nor the checkout's objects are handed to the candidate's code in a unit.
 # - A7.2, A7.3: each unit runs under a supervisor of the judge's (perl), in a process group of its own. The
@@ -84,32 +88,114 @@ felix_instr_tmpbase() {   # ROOT
 }
 _felix_instr_inside() { case "${1%/}/" in "${2%/}"/*) return 0 ;; esac; return 1; }   # PATH DIR, both physical
 
-# A7.5, A7.8, S8.10. The run directory J (T and the canary's copy) under the units' TMPDIR, and the records R
-# outside it, both outside the checkout; the signal and exit traps for the run. 1, with one unknown SUITE line and
-# nothing left behind, when either cannot be made.
+# A7.5, A7.8, A14, A15, A17, S8.10. The directories of the run, outside the checkout: the run directory J (T, the
+# canary's copy), the records R and the parent of the units' own directories outside the units' TMPDIR, and the
+# units' HOMEs. A15: the traps are set first, and each directory is known to the clean-up in the statement that
+# makes it. A17, the layout, so that a part sees where it runs as the checkout's suite does:
+#   - T is not under the units' TMPDIR, and the directory a bare `mktemp -d` makes (the suite's own) is under it
+#     exactly when it is under the caller's. Where mktemp honours TMPDIR, or lands outside the caller's TMPDIR, J is
+#     under the caller's TMPDIR (A7.5) and the units are given a fresh directory beside T. Where it ignores TMPDIR
+#     and lands under the caller's (macOS's per-user directory), the units are given the caller's TMPDIR, and J goes
+#     under /var/tmp or /tmp, whichever is outside it and the checkout (a departure from A7.5 it forces).
+#   - HOME: lib/where.sh holds that a temporary root holding HOME is no root, so each unit's HOME is a directory of
+#     its own under the caller's HOME (A10), and only when that cannot be made under J.
+# A14: the units' directories are made in one parent of mode 0311, which its owner cannot list without changing it.
+# A watchdog (perl, in a group of its own, deaf to TERM, INT, HUP and QUIT) removes all of it, and bind.sh's copy
+# with what git wrote there moved to the checkout as bind.sh does, when the judge is gone (KILL). 1, with one
+# unknown SUITE line and nothing left behind, when a directory cannot be made.
 felix_instr_dirs() {   # ROOT
-  local root="$1" base pb r0 q rb="" j="" r=""
-  base="$(felix_instr_tmpbase "$root")"
+  local root="$1" base pb r0 q rb="" tb="" m="" inx="" hon="" h ph
+  _FELIX_INSTR_J=""; _FELIX_INSTR_R=""; _FELIX_INSTR_UP=""; _FELIX_INSTR_HP=""; _FELIX_INSTR_PROBE=""; _FELIX_INSTR_WD=""
+  _FELIX_INSTR_UT=""; _FELIX_INSTR_UD=(); _FELIX_INSTR_RC=(); _FELIX_INSTR_T0=(); _FELIX_INSTR_SUB=()
+  _FELIX_INSTR_OWNER="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"
+  trap '_felix_instr_stop 143' TERM; trap '_felix_instr_stop 130' INT; trap '_felix_instr_stop 129' HUP; trap '_felix_instr_stop 131' QUIT
+  if command -v _felix_bind_exit >/dev/null 2>&1; then trap '_felix_instr_clean 2>/dev/null; _felix_bind_exit' EXIT; else trap '_felix_instr_clean 2>/dev/null' EXIT; fi
+  base="$(felix_instr_tmpbase "$root")"; _FELIX_INSTR_BASE="$base"
   pb="$(cd "$base" 2>/dev/null && pwd -P)" || pb="$base"
   r0="$(cd "$root" 2>/dev/null && pwd -P)" || r0="$root"
   for q in /tmp /var/tmp; do
     q="$(cd "$q" 2>/dev/null && pwd -P)" || continue
     [ "$pb" != / ] && ! _felix_instr_inside "$q" "$pb" && ! _felix_instr_inside "$q" "$r0" && { rb="$q"; break; }
   done
-  j="$(mktemp -d "${base%/}/felix-instrument.XXXXXX" 2>/dev/null)" || j=""
-  [ -z "$j" ] || j="$(cd "$j" 2>/dev/null && pwd -P)" || j=""
-  [ -z "$rb" ] || r="$(mktemp -d "$rb/felix-instrument-r.XXXXXX" 2>/dev/null)" || r=""
-  [ -z "$r" ] || r="$(cd "$r" 2>/dev/null && pwd -P)" || r=""
-  if [ -z "$j" ] || [ -z "$r" ] || ! chmod 700 "$r" 2>/dev/null; then
-    [ -z "$j" ] || rm -rf "$j" 2>/dev/null; [ -z "$r" ] || rm -rf "$r" 2>/dev/null
+  _FELIX_INSTR_RB="$rb"
+  [ -z "$rb" ] || _FELIX_INSTR_R="$(mktemp -d "$rb/felix-instrument-r.XXXXXX" 2>/dev/null)"
+  [ -z "$_FELIX_INSTR_R" ] || _FELIX_INSTR_R="$(cd "$_FELIX_INSTR_R" 2>/dev/null && pwd -P)"
+  if [ -n "$_FELIX_INSTR_R" ] && chmod 700 "$_FELIX_INSTR_R" 2>/dev/null; then
+    _FELIX_INSTR_PROBE="$(TMPDIR="$base" mktemp -d 2>/dev/null)"
+    m="$(cd "${_FELIX_INSTR_PROBE:-/nonexistent}" 2>/dev/null && pwd -P)"; [ -z "$_FELIX_INSTR_PROBE" ] || rmdir "$_FELIX_INSTR_PROBE" 2>/dev/null
+    _FELIX_INSTR_PROBE=""; [ -n "$m" ] && _felix_instr_inside "$m" "$pb" && inx=1
+    if [ -n "$inx" ]; then
+      _FELIX_INSTR_PROBE="$(TMPDIR="$_FELIX_INSTR_R" mktemp -d 2>/dev/null)"
+      m="$(cd "${_FELIX_INSTR_PROBE:-/nonexistent}" 2>/dev/null && pwd -P)"; [ -z "$_FELIX_INSTR_PROBE" ] || rmdir "$_FELIX_INSTR_PROBE" 2>/dev/null
+      _FELIX_INSTR_PROBE=""; [ -n "$m" ] && _felix_instr_inside "$m" "$_FELIX_INSTR_R" && hon=1
+      [ -n "$hon" ] || for q in /var/tmp /tmp; do
+        q="$(cd "$q" 2>/dev/null && pwd -P)" || continue
+        [ "$pb" != / ] && ! _felix_instr_inside "$q" "$pb" && ! _felix_instr_inside "$q" "$r0" && ! _felix_instr_inside "$pb" "$q" && { tb="$q"; break; }
+      done
+    fi
+    _FELIX_INSTR_J="$(mktemp -d "${tb:-${base%/}}/felix-instrument.XXXXXX" 2>/dev/null)"
+    [ -z "$_FELIX_INSTR_J" ] || _FELIX_INSTR_J="$(cd "$_FELIX_INSTR_J" 2>/dev/null && pwd -P)"
+    _FELIX_INSTR_UP="$(mktemp -d "$rb/felix-instrument-u.XXXXXX" 2>/dev/null)"
+  fi
+  _FELIX_INSTR_TB="${tb:-$base}"
+  if [ -z "$_FELIX_INSTR_J" ] || [ -z "$_FELIX_INSTR_UP" ] || ! chmod 311 "$_FELIX_INSTR_UP" 2>/dev/null \
+     || { [ -z "$tb" ] && ! mkdir "$_FELIX_INSTR_J/tmp" 2>/dev/null; }; then
+    _felix_instr_clean 2>/dev/null
     _felix_instr_add unknown SUITE "no directory could be made under $base for the run tree, or outside it for the run's records"
     return 1
   fi
-  _FELIX_INSTR_J="$j"; _FELIX_INSTR_R="$r"; _FELIX_INSTR_RB="$rb"; _FELIX_INSTR_BASE="$base"; _FELIX_INSTR_T0=()
-  _FELIX_INSTR_UD=(); _FELIX_INSTR_RC=()
-  _FELIX_INSTR_OWNER="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"
-  trap '_felix_instr_stop 143' TERM; trap '_felix_instr_stop 130' INT; trap '_felix_instr_stop 129' HUP; trap '_felix_instr_stop 131' QUIT
-  if command -v _felix_bind_exit >/dev/null 2>&1; then trap '_felix_instr_clean 2>/dev/null; _felix_bind_exit' EXIT; else trap '_felix_instr_clean 2>/dev/null' EXIT; fi
+  if [ -n "$tb" ]; then _FELIX_INSTR_UT="$base"; else _FELIX_INSTR_UT="$_FELIX_INSTR_J/tmp"; fi
+  h="${HOME:-}"; ph=""
+  case "$h" in /*) ph="$(cd "$h" 2>/dev/null && pwd -P)" || ph="" ;; esac
+  if [ -n "$ph" ] && [ "$ph" != / ] && ! _felix_instr_inside "$ph" "$r0"; then
+    _FELIX_INSTR_HP="$(mktemp -d "$ph/.felix-instrument-h.XXXXXX" 2>/dev/null)"
+  fi
+  if [ -z "$_FELIX_INSTR_HP" ] || ! chmod 700 "$_FELIX_INSTR_HP" 2>/dev/null; then
+    [ -z "$_FELIX_INSTR_HP" ] || rm -rf "$_FELIX_INSTR_HP" 2>/dev/null
+    _FELIX_INSTR_HP="$_FELIX_INSTR_J/h"; mkdir "$_FELIX_INSTR_HP" 2>/dev/null
+  fi
+  _felix_instr_watch
+}
+# A14. The watchdog: it waits for its parent, the judge, to be gone, then moves what git wrote into bind.sh's copy
+# to the checkout (bind.sh's _felix_bind_salvage, the same rule) and removes the copy and every directory of the
+# run. USR1 ends it, unused, once the judge has removed them itself.
+_felix_instr_wdpl='use File::Path (); use File::Copy (); use File::Glob qw(bsd_glob);
+my ($from, $to, $keep, @rm) = @ARGV; my $pp = getppid(); setpgrp(0, 0);
+$SIG{$_} = "IGNORE" for qw(TERM INT HUP QUIT PIPE); $SIG{USR1} = sub { exit 0 };
+while (getppid() == $pp) { select(undef, undef, undef, 0.25) }
+chdir "/";
+if ($from ne "" && $to ne "" && -d $from && -d $to) {
+  for my $f (bsd_glob("$from/[0-9a-f][0-9a-f]/*"), bsd_glob("$from/pack/*")) { next unless -f $f;
+    my $rel = substr($f, length($from) + 1); next if $keep ne "" && index($rel, "pack/$keep.") == 0;
+    next if -e "$to/$rel"; my $dd = $rel; $dd =~ s{/[^/]*$}{}; mkdir "$to/$dd"; File::Copy::move($f, "$to/$rel") } }
+for my $d (@rm) { next if $d eq "" || !-e $d; chmod 0700, $d if -d $d && !-l $d; File::Path::remove_tree($d) }
+exit 0;'
+_felix_instr_watch() {
+  local bd="" bh="" bp=""
+  if [ -n "${_FELIX_BIND_DIR:-}" ] && [ "${_FELIX_BIND_OWNER:-}" = "$_FELIX_INSTR_OWNER" ]; then
+    bd="$_FELIX_BIND_DIR"; bh="${_FELIX_BIND_HOME:-}"; bp="${_FELIX_BIND_PACK:-}"
+  fi
+  perl -e "$_felix_instr_wdpl" "${bh:+$bd/objects}" "$bh" "$bp" "$_FELIX_INSTR_J" "$_FELIX_INSTR_R" "$_FELIX_INSTR_UP" \
+    "$_FELIX_INSTR_HP" ${bd:+"$bd"} ${bd:+"$bd.list"} </dev/null >/dev/null 2>&1 &
+  _FELIX_INSTR_WD=$!
+}
+# A12. P's files in T as they are (DIR, then the paths T takes from P): one line an entry, its path in hex, size,
+# modification and change times to the nanosecond, inode and mode, from lstat, directories walked; sorted bytewise.
+_felix_instr_tpl='use Time::HiRes (); my ($t, @q) = @ARGV;
+while (@q) { my $p = shift @q; my @s = Time::HiRes::lstat("$t/$p") or next;
+  printf "%s %s %.9f %.9f %s %o\n", unpack("H*", $p), $s[7], $s[9], $s[10], $s[1], $s[2];
+  next if ($s[2] & 0170000) != 0040000; opendir(my $h, "$t/$p") or do { printf "fail %s\n", unpack("H*", $p); next };
+  push @q, map { "$p/$_" } grep { $_ ne "." && $_ ne ".." } readdir $h }'
+_felix_instr_tlist() {   # DIR PATH...
+  { perl -e "$_felix_instr_tpl" "$@" 2>/dev/null || printf 'fail\n'; } | LC_ALL=C sort
+}
+# A12. The first path two such listings differ on, read back from its hex, or "its listing" when none can be named.
+_felix_instr_tdiff() {   # BEFORE AFTER
+  local x
+  x="$(printf '%s\n@@\n%s\n' "$1" "$2" | LC_ALL=C awk '$0 == "@@" { s = 1; next } !s { a[$0] = 1; next } { b[$0] = 1; if (!($0 in a) && w == "") w = $1 }
+    END { if (w == "") for (l in a) if (!(l in b)) { split(l, f, " "); w = f[1]; break }; print w }')"
+  case "$x" in ''|*[!0123456789abcdef]*) printf 'its listing'; return 0 ;; esac
+  printf '%s' "$x" | perl -ne 'print pack("H*", $_)' 2>/dev/null
 }
 
 # git in a repository this run made: none of the copy's object variables, no machine-local configuration, an
@@ -141,8 +227,9 @@ _felix_instr_rgo() {   # VAR ROOT INDEX-FILE git-args...: VAR is the first line 
 }
 
 # T (WANT-T 1): the merge's tree MT with engine/harness/tests, the gate and the workflows replaced by B's. The
-# canary's copy (WANT-C 1): MT with the canary's part and driver from the records. Each is committed with H as its
-# parent, and both, with their history, are copied into repositories of their own through one pack (A7.6).
+# canary's copy (WANT-C 1; A12, built only once the last unit has ended): MT with the canary's part and driver,
+# written into the records from the judge's memory just before. Each is committed with H as its parent, and copied
+# with its history into a repository of its own through a pack (A7.6).
 _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
   local root="$1" mt="$2" b="$3" h="$4" gp="$5" br="$6" lb="$7" r="$_FELIX_INSTR_R" tp="$_FELIX_INSTR_TP" tc="" cc="" t p s d m
   if [ "$8" = 1 ]; then
@@ -161,6 +248,7 @@ _felix_instr_build() {   # ROOT MT B H GATE-PATH BRANCH LB WANT-T WANT-C
     _felix_instr_rgo tc "$root" "$r/t.idx" commit-tree "$t" -p "$h" -m "felix merge: P's suite over what the squash would land" || return 1
   fi
   if [ "$9" = 1 ]; then
+    { printf '%s' "${_FELIX_INSTR_CPART:-}" > "$r/canary.part" && printf '%s' "${_FELIX_INSTR_CDRV:-}" > "$r/canary.drv"; } 2>/dev/null || return 1
     _felix_instr_rg "$root" "$r/c.idx" read-tree "$mt" >/dev/null 2>&1 </dev/null || return 1
     _felix_instr_rgo s "$root" "$r/c.idx" hash-object -w --no-filters "$r/canary.part" \
       && _felix_instr_rgo d "$root" "$r/c.idx" hash-object -w --no-filters "$r/canary.drv" \
@@ -193,10 +281,10 @@ _felix_instr_repo() {   # DEST COMMIT BRANCH PACK: a repository of its own at DE
 # group, starts the unit in a group of its own with its output to LOG, writes that group's number, and waits. When
 # the unit ends, its time is up, it is told to stop, or the judge is gone, it ends the unit's group, TERM and then
 # KILL a second later, and exits with the unit's status (124: the time limit; 125: stopped). A judge that is gone
-# was killed by a signal it could not trap (KILL, or one it does not trap): the supervisor then removes J, R and the
-# unit's own directory U.
+# was killed by a signal it could not trap (KILL, or one it does not trap): the supervisor then removes J, R, the
+# unit's own directory U, the parent of the units' directories (A14) and the units' HOMEs.
 _felix_instr_pl='use POSIX ();
-my ($lim, $log, $pf, $jd, $rd, $ud, @cmd) = @ARGV; my $pp = getppid(); setpgrp(0, 0);
+my ($lim, $log, $pf, $jd, $rd, $ud, $up, $hp, @cmd) = @ARGV; my $pp = getppid(); setpgrp(0, 0);
 my $u = fork(); exit 125 unless defined $u;
 if (!$u) { setpgrp(0, 0); $SIG{$_} = "DEFAULT" for qw(INT QUIT TERM HUP PIPE ALRM);
   open(STDIN, "<", "/dev/null"); open(STDOUT, ">>", $log) or POSIX::_exit(126); open(STDERR, ">&", \*STDOUT) or POSIX::_exit(126);
@@ -212,19 +300,20 @@ kill "TERM", -$u;
 for (1 .. 10) { last unless kill 0, -$u; select(undef, undef, undef, 0.1);
   if (!defined $st && waitpid($u, POSIX::WNOHANG()) == $u) { $st = $? } }
 kill "KILL", -$u; waitpid($u, 0) unless defined $st;
-if ($why == 126) { chdir "/"; require File::Path; File::Path::remove_tree($jd, $rd, $ud); exit 125 }
+if ($why == 126) { chdir "/"; require File::Path; chmod 0700, $up; File::Path::remove_tree($jd, $rd, $ud, $up, $hp); exit 125 }
 exit $why if $why; exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));'
 # One unit of a suite in part mode, in DIR, under its supervisor, in the background: the copy's object variables,
-# bind's other settings and felix merge's own variables unset, the TMPDIR of A7.5, and A10's home: FELIX_HOME_DIR and
-# FELIX_HOME unset, HOME a directory of its own under J. A8: its log, ran and end files are in a directory made for it
-# alone (U, _FELIX_INSTR_UD), outside that TMPDIR, beside the records and not in them. N 0 is the canary, which is
-# given no end or ran file. A directory that cannot be made is a unit that did not finish (status 126).
+# bind's other settings and felix merge's own variables unset, the units' TMPDIR (A7.5, A17), and A10's home:
+# FELIX_HOME_DIR and FELIX_HOME unset, HOME a directory of its own (A17: under the caller's HOME). A8: its log, ran
+# and end files are in a directory made for it alone (U, _FELIX_INSTR_UD), in A14's parent, outside that TMPDIR. N 0
+# is the canary, which is given no end or ran file. A directory that cannot be made is a unit that did not finish
+# (status 126).
 _felix_instr_launch() {   # N DIR LIMIT MEMBER...
-  local n="$1" dir="$2" lim="$3" r="$_FELIX_INSTR_R" u="" hm="$_FELIX_INSTR_J/home.$1"
+  local n="$1" dir="$2" lim="$3" r="$_FELIX_INSTR_R" u="" hm="$_FELIX_INSTR_HP/$1"
   shift 3
   local -a ev=()
   # One assignment, so that no trap runs between the directory's making and its being known to the clean-up.
-  _FELIX_INSTR_UD[n]="$(mktemp -d "${_FELIX_INSTR_RB:-/nonexistent}/felix-instrument-u.XXXXXX" 2>/dev/null)"
+  _FELIX_INSTR_UD[n]="$(mktemp -d "${_FELIX_INSTR_UP:-/nonexistent}/u.XXXXXX" 2>/dev/null)"
   u="${_FELIX_INSTR_UD[n]}"
   if [ -z "$u" ] || ! chmod 700 "$u" 2>/dev/null || ! mkdir "$hm" 2>/dev/null; then
     _FELIX_INSTR_RC[n]=126; _FELIX_INSTR_KEEP=""; return 0   # says nothing about the tree: not kept
@@ -236,8 +325,9 @@ _felix_instr_launch() {   # N DIR LIMIT MEMBER...
       -u FELIX_MERGE_DRY_RUN -u FELIX_MERGE_BASE_AT -u FELIX_MERGE_BASE_REF -u FELIX_MERGE_HANDED -u FELIX_KERNEL \
       -u FELIX_TEST_JOBS -u FELIX_TEST_PART_RECORD -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_LOG \
       -u FELIX_INSTRUMENT_UNIT_SECONDS -u FELIX_INSTRUMENT_CANARY_SECONDS -u FELIX_HOME_DIR -u FELIX_HOME HOME="$hm" \
-      TMPDIR="$_FELIX_INSTR_BASE" ${ev[@]+"${ev[@]}"} \
-      perl -e "$_felix_instr_pl" "$lim" "$u/log" "$r/$n.pid" "$_FELIX_INSTR_J" "$r" "$u" "${BASH:-bash}" engine/harness/tests/run --part "$@" \
+      TMPDIR="$_FELIX_INSTR_UT" ${ev[@]+"${ev[@]}"} \
+      perl -e "$_felix_instr_pl" "$lim" "$u/log" "$r/$n.pid" "$_FELIX_INSTR_J" "$r" "$u" "$_FELIX_INSTR_UP" "$_FELIX_INSTR_HP" \
+      "${BASH:-bash}" engine/harness/tests/run --part "$@" \
       </dev/null >/dev/null 2>&1 ) &
   _FELIX_INSTR_SUB[n]=$!; _FELIX_INSTR_T0[n]=$SECONDS
 }
@@ -295,19 +385,27 @@ _felix_instr_kill() {
     [ -n "$live" ] || break
     sleep 0.1; i=$((i + 1))
   done
-  for f in "$_FELIX_INSTR_R"/*.pid; do [ -f "$f" ] && _felix_instr_endgroup "$f"; done
+  [ -z "${_FELIX_INSTR_R:-}" ] || for f in "$_FELIX_INSTR_R"/*.pid; do [ -f "$f" ] && _felix_instr_endgroup "$f"; done
   for p in ${_FELIX_INSTR_SUB[@]+"${_FELIX_INSTR_SUB[@]}"}; do kill -KILL "$p" 2>/dev/null; wait "$p" 2>/dev/null; done
   _FELIX_INSTR_SUB=()
 }
+# The end of the run on any path. A13: once every unit has ended, the kept judgements' sweep and the marker
+# (instrument-keep.sh), for a judgement not kept unless its normal end kept it already. Then the directories, and
+# last the watchdog, which they no longer need.
 _felix_instr_clean() {
   local u
-  [ -n "${_FELIX_INSTR_J:-}${_FELIX_INSTR_R:-}" ] || return 0
+  [ -n "${_FELIX_INSTR_J:-}${_FELIX_INSTR_R:-}${_FELIX_INSTR_UP:-}${_FELIX_INSTR_HP:-}${_FELIX_INSTR_PROBE:-}${_FELIX_INSTR_WD:-}${_FELIX_INSTR_KRUN:-}" ] || return 0
   [ "${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}" = "${_FELIX_INSTR_OWNER:-}" ] || return 0
-  [ -z "${_FELIX_INSTR_R:-}" ] || _felix_instr_kill
+  _felix_instr_kill
+  ! command -v _felix_instr_kend >/dev/null 2>&1 || _felix_instr_kend 0
+  [ -z "${_FELIX_INSTR_PROBE:-}" ] || rmdir "$_FELIX_INSTR_PROBE" 2>/dev/null
   [ -z "${_FELIX_INSTR_J:-}" ] || rm -rf "$_FELIX_INSTR_J" 2>/dev/null
   [ -z "${_FELIX_INSTR_R:-}" ] || rm -rf "$_FELIX_INSTR_R" 2>/dev/null
   for u in ${_FELIX_INSTR_UD[@]+"${_FELIX_INSTR_UD[@]}"}; do [ -z "$u" ] || rm -rf "$u" 2>/dev/null; done
-  _FELIX_INSTR_J=""; _FELIX_INSTR_R=""; _FELIX_INSTR_UD=()
+  [ -z "${_FELIX_INSTR_UP:-}" ] || { chmod 700 "$_FELIX_INSTR_UP"; rm -rf "$_FELIX_INSTR_UP"; } 2>/dev/null
+  [ -z "${_FELIX_INSTR_HP:-}" ] || rm -rf "$_FELIX_INSTR_HP" 2>/dev/null
+  [ -z "${_FELIX_INSTR_WD:-}" ] || { kill -USR1 "$_FELIX_INSTR_WD"; wait "$_FELIX_INSTR_WD"; } 2>/dev/null
+  _FELIX_INSTR_J=""; _FELIX_INSTR_R=""; _FELIX_INSTR_UD=(); _FELIX_INSTR_UP=""; _FELIX_INSTR_HP=""; _FELIX_INSTR_PROBE=""; _FELIX_INSTR_WD=""
 }
 _felix_instr_stop() {   # EXIT-STATUS: a signal reached felix merge while P's suite ran
   trap '' TERM INT HUP QUIT

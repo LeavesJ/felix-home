@@ -18,9 +18,19 @@
 #   - the kept judgements' directory is listed, each entry with its size, modification and change times and inode,
 #     before the first unit starts, and held in memory; once the last unit and the canary have ended, every entry
 #     that is new or changed since is removed (_felix_instr_ksweep), before the judge writes its own at its key.
-# Not bound: a unit that outlives its process group (E4), which can write after the sweep; and a receipt written by
-# anything but the judge between two judgements, since nothing here signs a receipt with a key the units cannot read.
-# That needs an identity of the authority's own (R1, step 4), and is not built.
+# A13, after fault round 2 (a unit forged a judgement at its own key and ended the judge before the sweep):
+#   - every end of a judgement whose first unit or canary started sweeps, and removes what is kept at its key unless
+#     it kept this run: its normal end, an exit and a trapped signal alike (_felix_instr_kend, from the clean-up);
+#   - a marker of the running judgement, beside the kept ones, is written before the first unit and removed only after
+#     the sweep; a judgement that finds one whose judge is gone (KILL) removes every kept judgement before it reads one;
+#   - the sweep fails closed (a listing or removal that fails, an entry still there, the directory's mode, owner or
+#     identity changed: the whole directory goes, its flags and permissions cleared first), and the times it lists
+#     are to the nanosecond. When even that removal fails, the marker stays, and no kept judgement is read.
+# Not bound (A13's open list): a unit that removes the marker and then ends the judge with KILL; one that rewrites
+# the home pointer under the user's real home, which it can find without HOME; one that outlives its process group
+# (E4), which can write after the sweep; and a receipt written by anything but the judge between two judgements,
+# since nothing here signs a receipt with a key the units cannot read. That needs an identity of the authority's own
+# (R1, step 4), or units run as another user or in a sandbox (E4), and is not built.
 
 # The key: B MT VERSION@HASH, or nothing (and so no receipt) when the engine's version cannot be read.
 _felix_instr_key() {   # B MT
@@ -45,44 +55,125 @@ _felix_instr_kfile() {   # KEY
   n="$(printf '%s' "$1" | git hash-object --stdin 2>/dev/null)" && [ -n "$n" ] || return 1
   printf '%s/%s' "$d" "$n"
 }
-# A10. The directory as it is: a line for the directory itself (its device, inode and type: entries come and go
-# under it) and one for each entry (size, modification time, change time, inode, and the name in hex, so that no
-# name can split a line), from lstat, which follows no link. perl's, since BSD and GNU stat do not share a format.
-_felix_instr_kpl='my $d = $ARGV[0]; my @s = lstat($d); exit 0 unless @s; printf "dir %s %s %o\n", $s[0], $s[1], $s[2] & 0170000;
-opendir(my $h, $d) or exit 0; for my $n (sort readdir $h) { next if $n eq "." || $n eq ".."; my @e = lstat("$d/$n") or next;
-  print join(" ", "e", @e[7, 9, 10, 1], unpack("H*", $n)), "\n" }'
-_felix_instr_klist() {
-  local d; d="$(_felix_instr_kdir)" || return 0
-  perl -e "$_felix_instr_kpl" "$d" 2>/dev/null
+# A10, A13. The directory as it is, from lstat, which follows no link: a line for the directory itself (its device,
+# inode, full mode and owner; entries come and go under it, so not its times), and one for each entry (size,
+# modification and change times to the nanosecond, inode, mode, and the name in hex, so that no name can split a
+# line). "none" when there is no directory, "fail" when it or an entry of it cannot be read. perl's, since BSD and
+# GNU stat do not share a format. A18: the order is LC_ALL=C sort's (part 0992's rule), and "dir" sorts first.
+_felix_instr_kpl='use Time::HiRes (); my $d = $ARGV[0]; my @s = Time::HiRes::lstat($d);
+if (!@s) { print $!{ENOENT} ? "none\n" : "fail\n"; exit 0 } printf "dir %s %s %o %s\n", @s[0, 1, 2, 4];
+if (($s[2] & 0170000) != 0040000) { print "fail\n"; exit 0 } opendir(my $h, $d) or do { print "fail\n"; exit 0 };
+for my $n (readdir $h) { next if $n eq "." || $n eq ".."; my @e = Time::HiRes::lstat("$d/$n") or do { print "fail\n"; next };
+  printf "e %s %.9f %.9f %s %o %s\n", $e[7], $e[9], $e[10], $e[1], $e[2], unpack("H*", $n) }'
+_felix_instr_klist() {   # [DIR]
+  local d="${1:-}"; [ -n "$d" ] || d="$(_felix_instr_kdir)" || return 0
+  { perl -e "$_felix_instr_kpl" "$d" 2>/dev/null || printf 'fail\n'; } | LC_ALL=C sort
 }
-# A10. Every entry of the directory that is not in LISTING as it was is removed; the whole directory when it is no
-# longer the directory listed (moved, or a link put in its place). Never fatal.
+# A13. The whole directory removed, its flags and permissions cleared first (a file a unit locked with chflags uchg,
+# a directory it made unreadable); a link in its place is removed as a link. 1 when anything of it is still there.
+_felix_instr_knuke() {   # DIR
+  local d="$1"
+  [ -n "$d" ] || return 1
+  if [ -L "$d" ]; then rm -f "$d" 2>/dev/null
+  elif [ -e "$d" ]; then { chflags -R nouchg "$d"; chmod -R u+rwx "$d"; rm -rf "$d"; } 2>/dev/null
+  fi
+  [ ! -e "$d" ] && [ ! -L "$d" ]
+}
+# A10, A13. Every entry of the directory that is not in LISTING as it was is removed. It fails closed: a listing or a
+# removal that fails, an entry still there afterwards, or a directory that is not the one listed (its mode, owner or
+# identity, or one made since) removes the whole directory. 1 only when that removal failed too.
 _felix_instr_ksweep() {   # LISTING
-  local d now l x n
+  local d now l x n bad=""
   d="$(_felix_instr_kdir)" || return 0
-  now="$(perl -e "$_felix_instr_kpl" "$d" 2>/dev/null)"
-  [ -n "$now" ] || return 0
-  if [ "${now%%$'\n'*}" != "${1%%$'\n'*}" ]; then rm -rf "$d" 2>/dev/null; return 0; fi
-  while IFS= read -r l; do
-    case "$l" in "e "*) ;; *) continue ;; esac
-    _felix_instr_in "$1" "$l" && continue
-    x="${l##* }"; case "$x" in ''|*[!0123456789abcdef]*) continue ;; esac
-    n="$(printf '%s' "$x" | perl -ne 'print pack("H*", $_)' 2>/dev/null)"
-    case "$n" in ''|.|..|*/*) continue ;; esac
-    rm -rf "$d/$n" 2>/dev/null
-  done <<EOF
+  now="$(_felix_instr_klist "$d")"
+  [ "$now" != none ] || return 0
+  case $'\n'"$now"$'\n'"$1"$'\n' in *$'\n'fail$'\n'*|*$'\n'none$'\n'*) bad=1 ;; esac
+  [ "${now%%$'\n'*}" = "${1%%$'\n'*}" ] || bad=1
+  if [ -z "$bad" ]; then
+    while IFS= read -r l; do
+      case "$l" in "e "*) ;; *) continue ;; esac
+      _felix_instr_in "$1" "$l" && continue
+      x="${l##* }"; case "$x" in ''|*[!0123456789abcdef]*) bad=1; break ;; esac
+      n="$(printf '%s' "$x" | perl -ne 'print pack("H*", $_)' 2>/dev/null)"
+      case "$n" in ''|.|..|*/*) bad=1; break ;; esac
+      rm -rf "$d/$n" 2>/dev/null || { bad=1; break; }
+    done <<EOF
 $now
+EOF
+  fi
+  if [ -z "$bad" ]; then
+    now="$(_felix_instr_klist "$d")"
+    while IFS= read -r l; do
+      case "$l" in none) ;; "e "*) _felix_instr_in "$1" "$l" || bad=1 ;; "dir "*) [ "$l" = "${1%%$'\n'*}" ] || bad=1 ;; *) bad=1 ;; esac
+    done <<EOF
+$now
+EOF
+  fi
+  [ -z "$bad" ] || _felix_instr_knuke "$d"
+}
+# A10. What is kept at KEY, removed: a judgement that ran and is not kept leaves none behind it. 1 when it is still there.
+_felix_instr_unkeep() {   # KEY
+  local f; f="$(_felix_instr_kfile "$1")" || return 0
+  rm -f "$f" 2>/dev/null; [ ! -e "$f" ] && [ ! -L "$f" ]
+}
+# A13. The markers of running judgements, beside the kept ones: one file a judge, named by its pid, holding that pid
+# and its start time as ps prints it. A judge is running while ps names that pid with that start time.
+_felix_instr_mdir() { local d; d="$(_felix_instr_kdir)" || return 1; printf '%s-judging' "$d"; }
+_felix_instr_pstart() { LC_ALL=C ps -o lstart= -p "$1" 2>/dev/null | LC_ALL=C sed -n '1s/[[:space:]]*$//p'; }   # PID
+# A13. This judgement's marker, written before its first unit or canary starts. 1 when it could not be written. A
+# start time ps cannot read is written "-", which no later judgement reads as running: it then clears what is kept.
+_felix_instr_mark() {
+  local md st p="${_FELIX_INSTR_OWNER:-}"
+  md="$(_felix_instr_mdir)" || return 0
+  case "$p" in ''|*[!0123456789]*) return 1 ;; esac
+  st="$(_felix_instr_pstart "$p")"; [ -n "$st" ] || st=-
+  _FELIX_INSTR_MARK="$md/$p"
+  { mkdir -p "$md" && printf 'felix-instrument-judging %s %s\n' "$p" "$st" > "$md/$p"; } 2>/dev/null
+}
+# A13. Before a kept judgement is read. A marker whose judge is no longer running, or anything there that is not a
+# marker, says a judgement ended without its sweep: every kept judgement is removed, then that marker. 1, and
+# nothing is read, while such a marker cannot be cleared.
+_felix_instr_kstale() {
+  local md f c p st stale=""
+  md="$(_felix_instr_mdir)" || return 0
+  [ -e "$md" ] || [ -L "$md" ] || return 0
+  if [ ! -d "$md" ] || [ -L "$md" ]; then _felix_instr_knuke "$(_felix_instr_kdir)" && _felix_instr_knuke "$md"; return; fi
+  for f in "$md"/* "$md"/.*; do
+    case "${f##*/}" in .|..) continue ;; esac
+    [ -e "$f" ] || [ -L "$f" ] || continue
+    c=""; [ -f "$f" ] && [ ! -L "$f" ] && { IFS= read -r c < "$f"; } 2>/dev/null
+    p="${c#felix-instrument-judging }"; st="${p#* }"; p="${p%% *}"
+    case "$c" in "felix-instrument-judging "*) ;; *) stale="$stale$f"$'\n'; continue ;; esac
+    case "$p" in ''|*[!0123456789]*) stale="$stale$f"$'\n'; continue ;; esac
+    [ "${f##*/}" = "$p" ] && [ -n "$st" ] && [ "$st" != - ] && [ "$(_felix_instr_pstart "$p")" = "$st" ] || stale="$stale$f"$'\n'
+  done
+  [ -n "$stale" ] || return 0
+  _felix_instr_knuke "$(_felix_instr_kdir)" || return 1
+  while IFS= read -r f; do [ -z "$f" ] || _felix_instr_knuke "$f" || return 1; done <<EOF
+$stale
 EOF
   return 0
 }
-# A10. What is kept at KEY, removed: a judgement that ran and is not kept leaves none behind it.
-_felix_instr_unkeep() {   # KEY
-  local f; f="$(_felix_instr_kfile "$1")" || return 0
-  rm -f "$f" 2>/dev/null; return 0
+# A13. The end of a judgement whose first unit or canary started, on every path (its normal end, an exit, a trapped
+# signal): A10's sweep, then this judgement kept at its key when KEEP is 1 (the run completed and says something
+# about the tree) and the sweep held, and else whatever is kept there removed; then the marker. The marker stays
+# when a removal failed, so that no judgement reads a kept judgement while it stays.
+_felix_instr_kend() {   # KEEP
+  local ok=1 k="${_FELIX_INSTR_KEY:-}"
+  [ -n "${_FELIX_INSTR_KRUN:-}" ] || return 0
+  _FELIX_INSTR_KRUN=""
+  _felix_instr_ksweep "${_FELIX_INSTR_KL0:-none}" || ok=""
+  if [ -n "$k" ] && ! { [ -n "$ok" ] && [ "$1" = 1 ] && _felix_instr_keep "$k"; }; then
+    _felix_instr_unkeep "$k" || _felix_instr_knuke "$(_felix_instr_kdir)" || ok=""
+  fi
+  [ -z "$ok" ] || [ -z "${_FELIX_INSTR_MARK:-}" ] || rm -f "$_FELIX_INSTR_MARK" 2>/dev/null
+  _FELIX_INSTR_MARK=""
+  return 0
 }
 # 0, with the receipt's lines added to _FELIX_INSTR_BLOCK, when the home holds KEY's judgement whole.
 _felix_instr_kept() {   # KEY
   local f c body sum n l cnt=0 kind subj why
+  _felix_instr_kstale || return 1
   f="$(_felix_instr_kfile "$1")" && [ -f "$f" ] || return 1
   _felix_instr_rd c cat "$f" || return 1
   case "$c" in "felix-instrument-judgement 1"$'\n'"key $1"$'\n'*) ;; *) return 1 ;; esac

@@ -1,8 +1,9 @@
 # P's instrument parts judge the candidate (trust-plane step 3, slice 3).
 #
 # The spec is in the memory root, audits/2026-11-08-trust-plane-step3/spec-slice3.md, with its section 4, the
-# amendments after the first build's review (A1 to A7), and its section 5, the amendments after fault round 1 (A8 to
-# A11). Slices 1 and 2 (policy.sh, bind.sh) moved the tables, their instruments and the commit they are read at to P.
+# amendments after the first build's review (A1 to A7), its section 5, after fault round 1 (A8 to A11), and its
+# section 6, after fault round 2 (A12 to A18). Slices 1 and 2 (policy.sh, bind.sh) moved the tables, their
+# instruments and the commit they are read at to P.
 # This file is about the suite that judges Felix's own engine, which was the candidate's: a candidate supplied the
 # instrument that judged it. Members of that class found so
 # far, as examples and not the set: a part's assertion loosened, renamed or deleted; a part deleted, or no longer
@@ -27,12 +28,18 @@
 #   - A7.1: a git read that fails is unknown SUITE, never an absent file. A7.7, A8: every input the verdict reads is
 #     read before any unit, into the judge's memory, never again from a file. A9: a signal at any point removes the
 #     run (instrument-run.sh). A10: the units cannot read the home, and what they could write there is not used.
+#   - A12: the canary's copy is made only after the last unit has ended, and P's files in T, listed before the first
+#     unit, are listed again after the last: any difference is unknown SUITE. A13: every end of a judgement sweeps
+#     the kept judgements, behind a marker a later judgement reads (instrument-keep.sh). A14, A15, A17: where the run
+#     lives, what a unit is given as TMPDIR and HOME, and its removal after a KILL (instrument-run.sh).
 #
-# WHAT THIS DOES NOT BIND, as examples and not the set (spec section 3, and section 4's still open): a part's body
-# weakened under the same name; machinery that lies only for some names or outside part mode, or that knows the
-# canary by its shape; the candidate's code redefining P's helpers, or writing into the unit's log, inside P's run;
-# a stale manifest H keeps names in (S8.3 counts H's manifest); the gate and CI, which still run the candidate's suite;
-# a unit that outlives its process group, or finds the records or the home by their paths (E4, R1).
+# WHAT THIS DOES NOT BIND, as examples and not the set (spec section 3, section 4's still open, A13's open list): a
+# part's body weakened under the same name; machinery that lies only for some names or outside part mode, or that
+# knows the canary by its shape; the candidate's code redefining P's helpers, or writing into the unit's log, inside
+# P's run; a stale manifest H keeps names in (S8.3 counts H's manifest); the gate and CI, which still run the
+# candidate's suite; a unit that outlives its process group, or finds the records or the home by their paths, or
+# removes the marker and then KILLs the judge (E4, R1); a part that tests where it runs in a way A17's layout does not
+# reproduce (the checkout as a linked worktree, or under HOME, for two).
 #
 # Sourced by escape.sh and by felix beside bind.sh. Reads through bind.sh's copy when one is set.
 
@@ -40,7 +47,9 @@
 unset _FELIX_INSTR_BLOCK _FELIX_INSTR_NOTE _FELIX_INSTR_J _FELIX_INSTR_R _FELIX_INSTR_OWNER _FELIX_INSTR_SUB
 unset _FELIX_INSTR_U _FELIX_INSTR_INST _FELIX_INSTR_CHG _FELIX_INSTR_TP _FELIX_INSTR_MT _FELIX_INSTR_WHY
 unset _FELIX_INSTR_KEEP _FELIX_INSTR_T0 _FELIX_INSTR_BASE _FELIX_INSTR_CANARY _FELIX_INSTR_CID _FELIX_INSTR_RB _FELIX_GRP
-unset _FELIX_INSTR_UD _FELIX_INSTR_RC _FELIX_INSTR_MAN _FELIX_INSTR_CEXP _FELIX_INSTR_REACHED _FELIX_INSTR_ULIM
+unset _FELIX_INSTR_UD _FELIX_INSTR_RC _FELIX_INSTR_MAN _FELIX_INSTR_CEXP _FELIX_INSTR_REACHED _FELIX_INSTR_ULIM _FELIX_INSTR_UP
+unset _FELIX_INSTR_HP _FELIX_INSTR_UT _FELIX_INSTR_TB _FELIX_INSTR_WD _FELIX_INSTR_PROBE _FELIX_INSTR_KRUN _FELIX_INSTR_KEY
+unset _FELIX_INSTR_KL0 _FELIX_INSTR_MARK _FELIX_INSTR_CPART _FELIX_INSTR_CDRV _FELIX_INSTR_CDMODE _FELIX_INSTR_CID
 
 # One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON (tabs and newlines in REASON become blanks).
 _felix_instr_add() {
@@ -159,10 +168,11 @@ _felix_instr_mtree() {   # ROOT B H
 # substitution: the signal traps it sets for the run are this shell's. Returns 0.
 felix_instrument_judge() {   # ROOT B H BRANCH
   local root="$1" b="$2" h="$3" br="$4" tp=engine/harness/tests mt lb lm bname="" pdir="" gp="" sp="" sm="" p k
-  local drb="" drm="" grp="" srcp srch pp hp plan mach=0 units nu=0 m hasc unread="" rc x key="" wt=0 wc=0 kl0="" ran=""
+  local drb="" drm="" grp="" srcp srch pp hp plan mach=0 units nu=0 m hasc unread="" rc x key="" wt=0 wc=0 tl0="" ran=""
   _FELIX_INSTR_BLOCK=""; _FELIX_INSTR_NOTE=""; _FELIX_INSTR_TP="$tp"; _FELIX_INSTR_U=(); _FELIX_INSTR_SUB=()
   _FELIX_INSTR_INST=""; _FELIX_INSTR_CHG=""; _FELIX_INSTR_KEEP=1; _FELIX_INSTR_CANARY=""; _FELIX_INSTR_MAN=""
   _FELIX_INSTR_CEXP=""; _FELIX_INSTR_REACHED=""; _FELIX_INSTR_UD=(); _FELIX_INSTR_RC=()
+  _FELIX_INSTR_KRUN=""; _FELIX_INSTR_KEY=""; _FELIX_INSTR_KL0=""; _FELIX_INSTR_MARK=""; _FELIX_INSTR_CPART=""; _FELIX_INSTR_CDRV=""
   _felix_instr_mtree "$root" "$b" "$h" || { _felix_instr_add unknown SUITE "$_FELIX_INSTR_WHY"; return 0; }
   mt="$_FELIX_INSTR_MT"
   _felix_instr_rd lb git -C "$root" -c core.quotePath=false ls-tree -r --full-tree "$b" -- .felix projects "$tp" .github/workflows \
@@ -243,35 +253,48 @@ EOF
     fi
   fi
   # A7.5, A7.7, A7.6, A8: the directories, every input the verdict reads (into memory: the manifest here, the
-  # canary's expected lines in its preparation), then T and the canary's copy, before any unit.
-  felix_instr_dirs "$root" || return 0
+  # canary's expected lines, part and driver in its preparation), then T, before any unit.
+  if ! felix_instr_dirs "$root"; then
+    trap - TERM INT HUP QUIT
+    if command -v _felix_bind_traps >/dev/null 2>&1; then _felix_bind_traps; else trap - EXIT; fi
+    return 0
+  fi
   [ "$nu" -eq 0 ] || wt=1
   _felix_instr_text _FELIX_INSTR_MAN "$root" "$lm" "$tp/assertions.tsv"; rc=$?
   if [ "$rc" -ne 0 ] || ! { [ "$mach" != 1 ] || _felix_instr_canary_prep "$root" "$lb" "$lm" "$tp"; }; then
     _felix_instr_add unknown SUITE "what the verdict reads (the manifest of what the squash would land, P's canary or the driver it runs under) could not be read"
+  elif [ "$wt" = 1 ] && ! _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 1 0; then
+    _felix_instr_add unknown SUITE "the run tree T could not be made from what the squash would land and $b under $_FELIX_INSTR_TB"
   else
     [ "$mach" != 1 ] || [ "$_FELIX_INSTR_CANARY" = no ] || wc=1
-    if ! _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" "$wt" "$wc"; then
-      _felix_instr_add unknown SUITE "the run tree T or the canary's copy could not be made from what the squash would land and $b under $_FELIX_INSTR_BASE"
-    else
-      # A10: the kept judgements as they stand before the first unit, held in memory.
-      if [ "$wt" = 1 ] || [ "$wc" = 1 ]; then kl0="$(_felix_instr_klist)"; ran=1; fi
-      if [ "$wt" = 1 ]; then
-        # Its stderr, and the canary's and the removal's, is the void: bash reports there a supervisor a unit killed.
-        _felix_instr_runall "$(_felix_instr_jobs)" "$_FELIX_INSTR_J/t" "$nu" 2>/dev/null
-        x=1; while [ "$x" -le "$nu" ]; do _felix_instr_verdict "$x"; x=$((x + 1)); done
-        _felix_instr_names
-      fi
-      [ "$wc" != 1 ] || _felix_instr_canary 2>/dev/null
-      # A10: once the last unit and the canary have ended, what is new or changed among them is removed.
-      [ -z "$ran" ] || _felix_instr_ksweep "$kl0"
+    # A10, A13: the kept judgements as they stand before the first unit, in memory, and this judgement's marker.
+    if [ "$wt" = 1 ] || [ "$wc" = 1 ]; then
+      _FELIX_INSTR_KEY="$key"; _FELIX_INSTR_KL0="$(_felix_instr_klist)"; _FELIX_INSTR_KRUN=1; ran=1
+      _felix_instr_mark || { wt=0; wc=0; _FELIX_INSTR_KEEP=""
+        _felix_instr_add unknown SUITE "the marker of a running judgement could not be written into the home's state, so nothing would show a later judgement what its units could have left there; none was run"; }
+    fi
+    if [ "$wt" = 1 ]; then
+      # A12: P's files in T, before the first unit and after the last.
+      tl0="$(_felix_instr_tlist "$_FELIX_INSTR_J/t" "$tp" ${gp:+"$gp"} .github/workflows)"
+      # Its stderr, and the canary's and the removal's, is the void: bash reports there a supervisor a unit killed.
+      _felix_instr_runall "$(_felix_instr_jobs)" "$_FELIX_INSTR_J/t" "$nu" 2>/dev/null
+      x=1; while [ "$x" -le "$nu" ]; do _felix_instr_verdict "$x"; x=$((x + 1)); done
+      _felix_instr_names
+      x="$(_felix_instr_tlist "$_FELIX_INSTR_J/t" "$tp" ${gp:+"$gp"} .github/workflows)"
+      [ "$x" = "$tl0" ] || _felix_instr_add unknown SUITE "P's instrument changed in the run tree while its units ran ($(_felix_instr_tdiff "$tl0" "$x")), so what ran is not P's"
+    fi
+    # A12: the canary's copy is made only now, once the last unit has ended.
+    if [ "$wc" = 1 ]; then
+      if _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 0 1; then _felix_instr_canary 2>/dev/null
+      else _felix_instr_add unknown SUITE "the canary's copy could not be made from what the squash would land under $_FELIX_INSTR_TB"; fi
     fi
   fi
   case $'\n'"$_FELIX_INSTR_BLOCK" in *$'\n'unknown$'\t'*) _FELIX_INSTR_KEEP="" ;; esac
-  # A5, A10: kept for its key when the run says something about the tree; else whatever is kept there is removed.
-  if [ "$mach" = 1 ] && [ -n "$key" ]; then
-    { [ -n "$_FELIX_INSTR_KEEP" ] && _felix_instr_keep "$key"; } || _felix_instr_unkeep "$key"
-  fi
+  # A5, A10, A13: kept for its key when the run says something about the tree, after the sweep; else whatever is
+  # kept there is removed. A judgement that ran nothing removes what is kept at its key.
+  x=""; [ "$mach" = 1 ] && [ -n "$key" ] && [ -n "$_FELIX_INSTR_KEEP" ] && x=1
+  if [ -n "$ran" ]; then _felix_instr_kend "$x"
+  elif [ "$mach" = 1 ] && [ -n "$key" ]; then _felix_instr_unkeep "$key"; fi
   _felix_instr_clean 2>/dev/null
   trap - TERM INT HUP QUIT
   if command -v _felix_bind_traps >/dev/null 2>&1; then _felix_bind_traps; else trap - EXIT; fi

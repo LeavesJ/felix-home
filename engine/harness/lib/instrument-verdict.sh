@@ -99,33 +99,37 @@ _felix_instr_drops() {
     END { for (i = 1; i <= n; i++) { nm = substr(o[i], index(o[i], "\t") + 1); if (k[o[i]] > m[nm] + 0) print o[i] } }'
 }
 
-# S8.5, A7.7, A8. P's canary (tests/canary/part.sh, its expectations in its own `# expect WHICH VERDICT` lines, held
-# in memory as _FELIX_INSTR_CEXP) and the driver of what the squash would land, read before any unit runs, and the
-# canary's part and the driver with a line for it made from them into the records, under a part name made for this
-# run, for the copy built before the first unit. Sets _FELIX_INSTR_CANARY to yes when the canary is to run, and no
+# S8.5, A7.7, A8, A12. P's canary (tests/canary/part.sh, its expectations in its own `# expect WHICH VERDICT` lines,
+# _FELIX_INSTR_CEXP) and the driver of what the squash would land, read before any unit runs, and the canary's part
+# and that driver with a line for it made from them under a part name made for this run, all held in memory
+# (_FELIX_INSTR_CPART, _FELIX_INSTR_CDRV): nothing of the canary is on disk while a unit runs, and its copy is made
+# from these after the last unit has ended (A12). Sets _FELIX_INSTR_CANARY to yes when the canary is to run, and no
 # (with the line that says why) when it cannot. 1 only when a read failed.
 _felix_instr_canary_prep() {   # ROOT LB LM TESTS-DIR
-  local root="$1" lb="$2" lm="$3" t="$4" r="$_FELIX_INSTR_R" body exp id pn
-  _FELIX_INSTR_CANARY=no; _FELIX_INSTR_CEXP=""
+  local root="$1" lb="$2" lm="$3" t="$4" body="" drv="" exp id pn rc
+  _FELIX_INSTR_CANARY=no; _FELIX_INSTR_CEXP=""; _FELIX_INSTR_CPART=""; _FELIX_INSTR_CDRV=""
   [ -n "$(_felix_instr_sha "$lb" "$t/canary/part.sh")" ] \
     || { _felix_instr_add unknown SUITE "P holds no canary at $t/canary/part.sh, so the machinery this tree changes cannot be checked"; return 0; }
-  _felix_instr_tofile "$root" "$lb" "$t/canary/part.sh" "$r/canary.body" || return 1
-  exp="$(LC_ALL=C awk '$1 == "#" && $2 == "expect" && NF == 4 && ($4 == "ok" || $4 == "FAIL") && $3 ~ /^[abcdefghijklmnopqrstuvwxyz]+$/ { print $3 " " $4 }' "$r/canary.body")"
+  _felix_instr_text body "$root" "$lb" "$t/canary/part.sh"; rc=$?
+  [ "$rc" -ne 1 ] || return 1
+  [ "$rc" -eq 0 ] || { _felix_instr_add unknown SUITE "P's canary $t/canary/part.sh holds a NUL byte, which the judge cannot carry"; return 0; }
+  exp="$(printf '%s\n' "$body" | LC_ALL=C awk '$1 == "#" && $2 == "expect" && NF == 4 && ($4 == "ok" || $4 == "FAIL") && $3 ~ /^[abcdefghijklmnopqrstuvwxyz]+$/ { print $3 " " $4 }')"
   [ -n "$exp" ] || { _felix_instr_add unknown SUITE "P's canary $t/canary/part.sh declares no expectation"; return 0; }
   _FELIX_INSTR_CEXP="$exp"
   [ -n "$(_felix_instr_sha "$lm" "$t/run")" ] \
     || { _felix_instr_add escape machinery "the canary could not run under this tree's driver: this tree has no $t/run"; return 0; }
-  _felix_instr_tofile "$root" "$lm" "$t/run" "$r/canary.drv0" || return 1
+  _felix_instr_text drv "$root" "$lm" "$t/run"; rc=$?
+  [ "$rc" -ne 1 ] || return 1
+  [ "$rc" -eq 0 ] || { _felix_instr_add escape machinery "the canary could not run under this tree's driver: its $t/run holds a NUL byte"; return 0; }
   _FELIX_INSTR_CDMODE="$(printf '%s\n' "$lm" | LC_ALL=C awk -v p="$t/run" '{ i = index($0, "\t") } i && substr($0, i + 1) == p { print $1; exit }')"
   case "$_FELIX_INSTR_CDMODE" in 100644|100755) ;; *) _FELIX_INSTR_CDMODE=100755 ;; esac
   id="$(od -An -N8 -tx1 /dev/urandom 2>/dev/null | LC_ALL=C tr -cd '0123456789abcdef')"
   [ -n "$id" ] || id="$$$(date +%s)"
   id="canary-$id"; pn="9989-$id.sh"; _FELIX_INSTR_CID="$id"
-  body="$(cat "$r/canary.body" && printf x)" || return 1
-  body="${body%x}"
-  printf '%s' "${body//@ID@/$id}" > "$r/canary.part" || return 1
-  LC_ALL=C awk -v l=". \"\$HERE/parts/$pn\"" -v nm="$pn" '!d && index($0, ". \"$HERE/parts/") == 1 && substr($0, length($0)) == "\"" {
-      if (substr($0, 16, length($0) - 16) > nm) { print l; d = 1 } } { print } END { if (!d) print l }' "$r/canary.drv0" > "$r/canary.drv" || return 1
+  _FELIX_INSTR_CPART="${body//@ID@/$id}"
+  _FELIX_INSTR_CDRV="$(printf '%s' "$drv" | LC_ALL=C awk -v l=". \"\$HERE/parts/$pn\"" -v nm="$pn" '!d && index($0, ". \"$HERE/parts/") == 1 && substr($0, length($0)) == "\"" {
+      if (substr($0, 16, length($0) - 16) > nm) { print l; d = 1 } } { print } END { if (!d) print l }' && printf x)" || return 1
+  _FELIX_INSTR_CDRV="${_FELIX_INSTR_CDRV%x}"
   _FELIX_INSTR_CANARY=yes
 }
 

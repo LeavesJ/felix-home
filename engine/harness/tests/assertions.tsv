@@ -2126,13 +2126,14 @@
 1	B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call
 1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 34 summaries
 1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 17 summaries
+1	B9.41 fixture: the comparison ignores the ages two pages print and nothing else: pages that differ only in an age are the same, another commit or another word is a difference, and no reference output is no verdict (fixture control)
 1	B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the real awk otherwise, the first-call stub fails only its first such call, and the late stub prints what the real awk prints and exits 2 (fixture control)
 1	B9.41: a stderr line names A and holds awk exited 2
 1	B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2
 1	B9.41: and a stderr line holds the directory as given and awk exited 2
 1	B9.41: and its stdout is the first line alone
-1	B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk
-1	B9.41: and the TSV is exactly what felix monitor --tsv --repo B prints with the real awk
+1	B9.41: and stdout is what felix monitor --repo B prints with the real awk, the ages each prints aside
+1	B9.41: and the TSV is what felix monitor --tsv --repo B prints with the real awk, the ages each prints aside
 1	B9.41: no stderr line names B
 1	B9.41: under --tsv a stderr line names A and holds awk exited 2
 1	B9.41: under --tsv no stderr line names B

@@ -1,9 +1,10 @@
 # P's instrument parts judge the candidate (trust-plane step 3, slice 3).
 #
 # The spec is in the memory root, audits/2026-11-08-trust-plane-step3/spec-slice3.md, with its section 4, the
-# amendments after the first build's review (A1 to A7). Slices 1 and 2 (policy.sh, bind.sh) moved the tables, their
-# instruments and the commit they are read at to P. This file is about the suite that judges Felix's own engine,
-# which was the candidate's: a candidate supplied the instrument that judged it. Members of that class found so
+# amendments after the first build's review (A1 to A7), and its section 5, the amendments after fault round 1 (A8 to
+# A11). Slices 1 and 2 (policy.sh, bind.sh) moved the tables, their instruments and the commit they are read at to P.
+# This file is about the suite that judges Felix's own engine, which was the candidate's: a candidate supplied the
+# instrument that judged it. Members of that class found so
 # far, as examples and not the set: a part's assertion loosened, renamed or deleted; a part deleted, or no longer
 # sourced by the driver; a helper's body in tests/run or tests/lib changed so that bad() passes; gate.sh or a
 # workflow run differently; the partition table moving a part to subject.
@@ -23,19 +24,23 @@
 #     (0001 to 0009, 9990), which no unit runs and every unit sources, counts as the machinery.
 #   - S8.2, S8.3, S8.5: the units and the canary (instrument-run.sh runs them, instrument-verdict.sh reads them).
 #     A5: the judgement of a machinery change is kept in the home's state (instrument-keep.sh), read for its key.
-#   - A7.1: a git read that fails is unknown SUITE, never an absent file. A7.7: every input is read before any unit.
+#   - A7.1: a git read that fails is unknown SUITE, never an absent file. A7.7, A8: every input the verdict reads is
+#     read before any unit, into the judge's memory, never again from a file. A9: a signal at any point removes the
+#     run (instrument-run.sh). A10: the units cannot read the home, and what they could write there is not used.
 #
 # WHAT THIS DOES NOT BIND, as examples and not the set (spec section 3, and section 4's still open): a part's body
 # weakened under the same name; machinery that lies only for some names or outside part mode, or that knows the
 # canary by its shape; the candidate's code redefining P's helpers, or writing into the unit's log, inside P's run;
-# a stale manifest H keeps names in (S8.3 counts H's manifest); the gate and CI, which still run the candidate's suite.
+# a stale manifest H keeps names in (S8.3 counts H's manifest); the gate and CI, which still run the candidate's suite;
+# a unit that outlives its process group, or finds the records or the home by their paths (E4, R1).
 #
 # Sourced by escape.sh and by felix beside bind.sh. Reads through bind.sh's copy when one is set.
 
 # Set only here, in the shell that merges: an inherited value names no run directory and no verdict.
 unset _FELIX_INSTR_BLOCK _FELIX_INSTR_NOTE _FELIX_INSTR_J _FELIX_INSTR_R _FELIX_INSTR_OWNER _FELIX_INSTR_SUB
 unset _FELIX_INSTR_U _FELIX_INSTR_INST _FELIX_INSTR_CHG _FELIX_INSTR_TP _FELIX_INSTR_MT _FELIX_INSTR_WHY
-unset _FELIX_INSTR_KEEP _FELIX_INSTR_T0 _FELIX_INSTR_BASE _FELIX_INSTR_CANARY _FELIX_INSTR_CID
+unset _FELIX_INSTR_KEEP _FELIX_INSTR_T0 _FELIX_INSTR_BASE _FELIX_INSTR_CANARY _FELIX_INSTR_CID _FELIX_INSTR_RB _FELIX_GRP
+unset _FELIX_INSTR_UD _FELIX_INSTR_RC _FELIX_INSTR_MAN _FELIX_INSTR_CEXP _FELIX_INSTR_REACHED _FELIX_INSTR_ULIM
 
 # One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON (tabs and newlines in REASON become blanks).
 _felix_instr_add() {
@@ -154,9 +159,10 @@ _felix_instr_mtree() {   # ROOT B H
 # substitution: the signal traps it sets for the run are this shell's. Returns 0.
 felix_instrument_judge() {   # ROOT B H BRANCH
   local root="$1" b="$2" h="$3" br="$4" tp=engine/harness/tests mt lb lm bname="" pdir="" gp="" sp="" sm="" p k
-  local drb="" drm="" grp="" srcp srch pp hp plan mach=0 units nu=0 m hasc unread="" rc x key="" wt=0 wc=0
+  local drb="" drm="" grp="" srcp srch pp hp plan mach=0 units nu=0 m hasc unread="" rc x key="" wt=0 wc=0 kl0="" ran=""
   _FELIX_INSTR_BLOCK=""; _FELIX_INSTR_NOTE=""; _FELIX_INSTR_TP="$tp"; _FELIX_INSTR_U=(); _FELIX_INSTR_SUB=()
-  _FELIX_INSTR_INST=""; _FELIX_INSTR_CHG=""; _FELIX_INSTR_KEEP=1; _FELIX_INSTR_CANARY=""
+  _FELIX_INSTR_INST=""; _FELIX_INSTR_CHG=""; _FELIX_INSTR_KEEP=1; _FELIX_INSTR_CANARY=""; _FELIX_INSTR_MAN=""
+  _FELIX_INSTR_CEXP=""; _FELIX_INSTR_REACHED=""; _FELIX_INSTR_UD=(); _FELIX_INSTR_RC=()
   _felix_instr_mtree "$root" "$b" "$h" || { _felix_instr_add unknown SUITE "$_FELIX_INSTR_WHY"; return 0; }
   mt="$_FELIX_INSTR_MT"
   _felix_instr_rd lb git -C "$root" -c core.quotePath=false ls-tree -r --full-tree "$b" -- .felix projects "$tp" .github/workflows \
@@ -236,31 +242,39 @@ EOF
       return 0
     fi
   fi
-  # A7.5, A7.7, A7.6: the directories, every input the verdict reads, then T and the canary's copy, before any unit.
+  # A7.5, A7.7, A7.6, A8: the directories, every input the verdict reads (into memory: the manifest here, the
+  # canary's expected lines in its preparation), then T and the canary's copy, before any unit.
   felix_instr_dirs "$root" || return 0
   [ "$nu" -eq 0 ] || wt=1
-  if ! _felix_instr_tofile "$root" "$lm" "$tp/assertions.tsv" "$_FELIX_INSTR_R/m.manifest" \
-     || ! { [ "$mach" != 1 ] || _felix_instr_canary_prep "$root" "$lb" "$lm" "$tp"; }; then
+  _felix_instr_text _FELIX_INSTR_MAN "$root" "$lm" "$tp/assertions.tsv"; rc=$?
+  if [ "$rc" -ne 0 ] || ! { [ "$mach" != 1 ] || _felix_instr_canary_prep "$root" "$lb" "$lm" "$tp"; }; then
     _felix_instr_add unknown SUITE "what the verdict reads (the manifest of what the squash would land, P's canary or the driver it runs under) could not be read"
   else
     [ "$mach" != 1 ] || [ "$_FELIX_INSTR_CANARY" = no ] || wc=1
     if ! _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" "$wt" "$wc"; then
       _felix_instr_add unknown SUITE "the run tree T or the canary's copy could not be made from what the squash would land and $b under $_FELIX_INSTR_BASE"
     else
+      # A10: the kept judgements as they stand before the first unit, held in memory.
+      if [ "$wt" = 1 ] || [ "$wc" = 1 ]; then kl0="$(_felix_instr_klist)"; ran=1; fi
       if [ "$wt" = 1 ]; then
         # Its stderr, and the canary's and the removal's, is the void: bash reports there a supervisor a unit killed.
         _felix_instr_runall "$(_felix_instr_jobs)" "$_FELIX_INSTR_J/t" "$nu" 2>/dev/null
         x=1; while [ "$x" -le "$nu" ]; do _felix_instr_verdict "$x"; x=$((x + 1)); done
-        _felix_instr_names "$_FELIX_INSTR_R/m.manifest"
+        _felix_instr_names
       fi
       [ "$wc" != 1 ] || _felix_instr_canary 2>/dev/null
+      # A10: once the last unit and the canary have ended, what is new or changed among them is removed.
+      [ -z "$ran" ] || _felix_instr_ksweep "$kl0"
     fi
   fi
   case $'\n'"$_FELIX_INSTR_BLOCK" in *$'\n'unknown$'\t'*) _FELIX_INSTR_KEEP="" ;; esac
-  [ "$mach" != 1 ] || [ -z "$key" ] || [ -z "$_FELIX_INSTR_KEEP" ] || _felix_instr_keep "$key"
+  # A5, A10: kept for its key when the run says something about the tree; else whatever is kept there is removed.
+  if [ "$mach" = 1 ] && [ -n "$key" ]; then
+    { [ -n "$_FELIX_INSTR_KEEP" ] && _felix_instr_keep "$key"; } || _felix_instr_unkeep "$key"
+  fi
   _felix_instr_clean 2>/dev/null
   trap - TERM INT HUP QUIT
-  if command -v _felix_bind_exit >/dev/null 2>&1; then trap '_felix_bind_exit' EXIT; else trap - EXIT; fi
+  if command -v _felix_bind_traps >/dev/null 2>&1; then _felix_bind_traps; else trap - EXIT; fi
   _FELIX_INSTR_NOTE="P's instrument parts ran over what the squash would land as the base holds them: $nu unit(s) of its suite in part mode"
   [ "$mach" != 1 ] || _FELIX_INSTR_NOTE="$_FELIX_INSTR_NOTE, every instrument unit since this tree changes the machinery, and the canary under this tree's driver"
   _FELIX_INSTR_NOTE="$_FELIX_INSTR_NOTE."

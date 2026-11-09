@@ -1,8 +1,13 @@
 # The verdicts behind lib/instrument.sh (trust-plane step 3, slice 3, spec S8.2, S8.3, S8.5): what a unit of P's
 # suite reported in T, what its changed members reached against the manifest of what the squash would land, and
 # what the candidate's own driver reported for P's canary. Split from instrument.sh for its length; that file says
-# what is judged and why, and instrument-run.sh how the runs are made. Every file read here is in the run's records
-# directory (_FELIX_INSTR_R), which no unit is told about (A7.8), and each unit's status there is the judge's own.
+# what is judged and why, and instrument-run.sh how the runs are made.
+#
+# A8: what the verdict reads from the trees (the manifest of what the squash would land, the canary's expected lines,
+# P's part and unit lists) is held in the judge's memory before the first unit starts, and never read again from a
+# file a unit could have reached (round 1, finding 1: a unit found the records through part mode's own end-file path
+# and wrote over the manifest read after it). A unit's report is the end, ran and log files of the directory made
+# for it alone, and its exit status is the one the judge holds. What the verdict makes of them is kept in memory.
 
 # A unit's log (stdin) -> one record a line: P (prelude done), Q NAME (a FAIL before it), D MEMBER (member done),
 # E (the part-done mark), R MEMBER NAME for each assertion reached after the prelude, F MEMBER NAME for each FAIL.
@@ -36,25 +41,26 @@ _felix_instr_rcwhy() {   # RC LIMIT
 # S8.2. Unit N's verdict, for its instrument members: each FAIL one line, a unit that did not finish one line for
 # its first instrument member. What its changed instrument members reached goes to reached for S8.3.
 _felix_instr_verdict() {   # N
-  local n="$1" u="$_FELIX_INSTR_R" mem="${_FELIX_INSTR_U[$1]}" m first="" rc="" why="" tag a b dn=" " pd="" ed=""
-  local fl="" og="" sh="" shm="" pf="" en="" rf="" tp="$_FELIX_INSTR_TP/parts"
+  local n="$1" u="${_FELIX_INSTR_UD[$1]:-}" mem="${_FELIX_INSTR_U[$1]}" m first="" rc="${_FELIX_INSTR_RC[$1]:-}" why="" tag a b
+  local dn=" " pd="" ed="" fl="" og="" sh="" shm="" pf="" en="" rf="" tp="$_FELIX_INSTR_TP/parts" rec=""
   for m in $mem; do _felix_instr_in "$_FELIX_INSTR_INST" "$m" && { first="$m"; break; }; done
   [ -n "$first" ] || return 0
-  { read -r rc < "$u/$n.rc"; } 2>/dev/null
-  # Files, not process substitutions, which bash 3.2 leaves to be reaped at a later fork.
-  LC_ALL=C awk -v mem="$mem" -v ranf="$u/$n.ran" "$_felix_instr_aw" "$u/$n.log" > "$u/$n.rec" 2>/dev/null
+  # A here-document, not a process substitution, which bash 3.2 leaves to be reaped at a later fork.
+  [ -z "$u" ] || rec="$(LC_ALL=C awk -v mem="$mem" -v ranf="$u/ran" "$_felix_instr_aw" "$u/log" 2>/dev/null)"
   while IFS=$'\t' read -r tag a b; do
     case "$tag" in
       P) pd=1 ;; E) ed=1 ;; D) dn="$dn$a " ;;
       Q) [ -n "$why" ] || why="its prelude failed: $a" ;;
       F) _felix_instr_in "$_FELIX_INSTR_INST" "$a" && _felix_instr_add escape "$tp/$a" "P's version fails on this tree: $b" ;;
-      R) _felix_instr_in "$_FELIX_INSTR_CHG" "$a" && printf '%s\t%s\n' "$a" "$b" >> "$u/reached" ;;
+      R) _felix_instr_in "$_FELIX_INSTR_CHG" "$a" && _FELIX_INSTR_REACHED="$_FELIX_INSTR_REACHED$a"$'\t'"$b"$'\n' ;;
     esac
-  done < "$u/$n.rec"
-  [ ! -f "$u/$n.end" ] || while IFS=$'\t' read -r tag a; do
+  done <<EOF
+$rec
+EOF
+  [ -z "$u" ] || [ ! -f "$u/end" ] || while IFS=$'\t' read -r tag a; do
     case "$tag" in floor) fl="$a" ;; og) og="$a" ;; shell) sh="$a" ;; shellmsg) [ -n "$shm" ] || shm="$a" ;;
       prefail) pf="$a" ;; refused) [ -n "$rf" ] || rf="$a" ;; end) en=1 ;; esac
-  done < "$u/$n.end"
+  done < "$u/end"
   [ "$rc" = 0 ] || why="$(_felix_instr_rcwhy "$rc" "${_FELIX_INSTR_ULIM:-1800}")${why:+, and $why}"
   [ -n "$pd" ] || why="${why:-it printed no @@prelude-done}"
   for m in $mem; do case "$dn" in *" $m "*) ;; *) why="${why:-$m did not finish}" ;; esac; done
@@ -68,37 +74,45 @@ _felix_instr_verdict() {   # N
   [ -z "$why" ] || { _FELIX_INSTR_KEEP=""; _felix_instr_add escape "$tp/$first" "P's version did not finish on this tree: $why"; }
 }
 
-# S8.3. Each name a changed instrument part's P version reached more often than the manifest of what the squash
-# would land lists it.
-_felix_instr_names() {   # MANIFEST-FILE
-  local p nm
-  [ -s "$_FELIX_INSTR_R/reached" ] || return 0
-  _felix_instr_drops "$1" > "$_FELIX_INSTR_R/drops" 2>/dev/null
+# S8.3, A8. Each name a changed instrument part's P version reached (_FELIX_INSTR_REACHED, PART<TAB>NAME lines) more
+# often than the manifest of what the squash would land, held in memory (_FELIX_INSTR_MAN), lists it.
+_felix_instr_names() {
+  local p nm d
+  [ -n "$_FELIX_INSTR_REACHED" ] || return 0
+  d="$(_felix_instr_drops)"
   while IFS=$'\t' read -r p nm; do
     [ -n "$p" ] && _felix_instr_add escape "$_FELIX_INSTR_TP/parts/$p" "drops assertion $nm"
-  done < "$_FELIX_INSTR_R/drops"
+  done <<EOF
+$d
+EOF
 }
-_felix_instr_drops() {   # MANIFEST-FILE -> PART<TAB>NAME, each name reached more often than listed
-  LC_ALL=C awk 'FILENAME == ARGV[1] { c = $0; sub(/^\t+/, "", c); x = c; if (!sub(/^[^\t]*\t+/, "", x)) next
-                           sub(/\t+$/, "", x); sub(/\t.*$/, "", c); if (c ~ /^[0123456789]+$/) m[x] += c; next }
-                         { if (!($0 in k)) o[++n] = $0; k[$0]++ }
-                         END { for (i = 1; i <= n; i++) { nm = substr(o[i], index(o[i], "\t") + 1); if (k[o[i]] > m[nm] + 0) print o[i] } }' \
-             "$1" "$_FELIX_INSTR_R/reached"
+# -> PART<TAB>NAME, each name reached more often than listed. One stream: the reached lines, a line no unit and no
+# tree could know (made for this judgement, A8), then the manifest, which the candidate writes and so comes last.
+_felix_instr_drops() {
+  local sep
+  sep="@@reached-end $(od -An -N8 -tx1 /dev/urandom 2>/dev/null | LC_ALL=C tr -cd '0123456789abcdef')$$"
+  { printf '%s' "$_FELIX_INSTR_REACHED"; printf '%s\n' "$sep" "$_FELIX_INSTR_MAN"; } | LC_ALL=C awk -v sep="$sep" '
+    !mf && $0 == sep { mf = 1; next }
+    mf { c = $0; sub(/^\t+/, "", c); x = c; if (!sub(/^[^\t]*\t+/, "", x)) next
+         sub(/\t+$/, "", x); sub(/\t.*$/, "", c); if (c ~ /^[0123456789]+$/) m[x] += c; next }
+    $0 != "" { if (!($0 in k)) o[++n] = $0; k[$0]++ }
+    END { for (i = 1; i <= n; i++) { nm = substr(o[i], index(o[i], "\t") + 1); if (k[o[i]] > m[nm] + 0) print o[i] } }'
 }
 
-# S8.5, A7.7. P's canary (tests/canary/part.sh, its expectations in its own `# expect WHICH VERDICT` lines) and the
-# driver of what the squash would land, read into the records before any unit runs, and the canary's part and the
-# driver with a line for it made from them, under a part name made for this run. Sets _FELIX_INSTR_CANARY to yes
-# when the canary is to run, and no (with the line that says why) when it cannot. 1 only when a read failed.
+# S8.5, A7.7, A8. P's canary (tests/canary/part.sh, its expectations in its own `# expect WHICH VERDICT` lines, held
+# in memory as _FELIX_INSTR_CEXP) and the driver of what the squash would land, read before any unit runs, and the
+# canary's part and the driver with a line for it made from them into the records, under a part name made for this
+# run, for the copy built before the first unit. Sets _FELIX_INSTR_CANARY to yes when the canary is to run, and no
+# (with the line that says why) when it cannot. 1 only when a read failed.
 _felix_instr_canary_prep() {   # ROOT LB LM TESTS-DIR
   local root="$1" lb="$2" lm="$3" t="$4" r="$_FELIX_INSTR_R" body exp id pn
-  _FELIX_INSTR_CANARY=no
+  _FELIX_INSTR_CANARY=no; _FELIX_INSTR_CEXP=""
   [ -n "$(_felix_instr_sha "$lb" "$t/canary/part.sh")" ] \
     || { _felix_instr_add unknown SUITE "P holds no canary at $t/canary/part.sh, so the machinery this tree changes cannot be checked"; return 0; }
   _felix_instr_tofile "$root" "$lb" "$t/canary/part.sh" "$r/canary.body" || return 1
   exp="$(LC_ALL=C awk '$1 == "#" && $2 == "expect" && NF == 4 && ($4 == "ok" || $4 == "FAIL") && $3 ~ /^[abcdefghijklmnopqrstuvwxyz]+$/ { print $3 " " $4 }' "$r/canary.body")"
   [ -n "$exp" ] || { _felix_instr_add unknown SUITE "P's canary $t/canary/part.sh declares no expectation"; return 0; }
-  printf '%s\n' "$exp" > "$r/canary.exp" || return 1
+  _FELIX_INSTR_CEXP="$exp"
   [ -n "$(_felix_instr_sha "$lm" "$t/run")" ] \
     || { _felix_instr_add escape machinery "the canary could not run under this tree's driver: this tree has no $t/run"; return 0; }
   _felix_instr_tofile "$root" "$lm" "$t/run" "$r/canary.drv0" || return 1
@@ -117,25 +131,27 @@ _felix_instr_canary_prep() {   # ROOT LB LM TESTS-DIR
 
 # S8.5. The canary run by the candidate's own driver in part mode, in its copy, and what it reported.
 _felix_instr_canary() {
-  local r="$_FELIX_INSTR_R" id="$_FELIX_INSTR_CID" lim rc="" last w want ok fl got
+  local r id="$_FELIX_INSTR_CID" lim rc="" last w want ok fl got
   lim="$(_felix_instr_limit 300 "${FELIX_INSTRUMENT_CANARY_SECONDS:-}")"
   _felix_instr_launch 0 "$_FELIX_INSTR_J/c" "$lim" "9989-$id.sh"
   while ! _felix_instr_ended 0 "$lim"; do sleep 0.2; done
-  { read -r rc < "$r/0.rc"; } 2>/dev/null
+  rc="${_FELIX_INSTR_RC[0]:-}"; r="${_FELIX_INSTR_UD[0]:-/nonexistent}"
   case "$rc" in 124|125)
     _FELIX_INSTR_KEEP=""
     _felix_instr_add escape machinery "the canary could not run under this tree's driver: $(_felix_instr_rcwhy "$rc" "$lim")"
     return 0 ;;
   esac
-  if ! LC_ALL=C awk -v id="$id: " 'index($0, "  ok    " id) == 1 || index($0, "  FAIL  " id) == 1 { f = 1 } END { exit !f }' "$r/0.log" 2>/dev/null; then
-    last="$(LC_ALL=C awk 'NF { l = $0 } END { print substr(l, 1, 200) }' "$r/0.log" 2>/dev/null)"
+  if ! LC_ALL=C awk -v id="$id: " 'index($0, "  ok    " id) == 1 || index($0, "  FAIL  " id) == 1 { f = 1 } END { exit !f }' "$r/log" 2>/dev/null; then
+    last="$(LC_ALL=C awk 'NF { l = $0 } END { print substr(l, 1, 200) }' "$r/log" 2>/dev/null)"
     _felix_instr_add escape machinery "the canary could not run under this tree's driver: it reported none of its assertions (status ${rc:-unknown}${last:+; its last line: $last})"
     return 0
   fi
   while read -r w want; do
-    ok="$(LC_ALL=C awk -v x="  ok    $id: $w" '$0 == x { n++ } END { print n + 0 }' "$r/0.log")"
-    fl="$(LC_ALL=C awk -v x="  FAIL  $id: $w" '$0 == x { n++ } END { print n + 0 }' "$r/0.log")"
+    ok="$(LC_ALL=C awk -v x="  ok    $id: $w" '$0 == x { n++ } END { print n + 0 }' "$r/log")"
+    fl="$(LC_ALL=C awk -v x="  FAIL  $id: $w" '$0 == x { n++ } END { print n + 0 }' "$r/log")"
     case "$ok:$fl" in 1:0) got=ok ;; 0:1) got=FAIL ;; 0:0) got="not at all" ;; *) got="$ok times ok and $fl times FAIL" ;; esac
     [ "$got" = "$want" ] || _felix_instr_add escape machinery "the canary's $w was reported $got, where P's canary expects $want"
-  done < "$r/canary.exp"
+  done <<EOF
+$_FELIX_INSTR_CEXP
+EOF
 }

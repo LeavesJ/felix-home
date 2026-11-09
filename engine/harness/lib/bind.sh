@@ -23,7 +23,11 @@
 #   - S5.2 to S5.4: once the judgement found no blocker, the provider is asked which head the pull request has and
 #     which commit its base branch is. The merge stands only when they are H and B, and the base is asked again
 #     immediately before gh pr merge.
-#   - S6.5: the copy, with the graft path inside it, is removed when the run ends, however it ends.
+#   - S6.5: the copy, with the graft path inside it, is removed when the run ends, however it ends. And the list
+#     beside it, and the git that is building it: each long git of the copy (init, pack-objects, index-pack,
+#     unpack-objects) runs in a process group of its own and is waited for (felix_instr_grp, instrument-run.sh), so
+#     a signal that ends felix merge while the copy is made ends that group with it (spec-slice3 A9, read as
+#     reaching slice 2's copy: part 2182's signal came while it was being made, and left the list and the git).
 #
 # WHAT THIS DOES NOT BIND, as examples and not the set (spec section 3). The window between the last read of the
 # provider's base and GitHub's squash. The gh on PATH, which answers for the provider as the worker's user. The
@@ -63,9 +67,14 @@ _felix_bind_salvage() {   # COPY-OBJECTS CHECKOUT-OBJECTS CHECKED-PACK
 _felix_bind_exit() {
   [ -n "${_FELIX_BIND_DIR:-}" ] || return 0
   [ "${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}" = "${_FELIX_BIND_OWNER:-}" ] || return 0
+  ! command -v felix_instr_grpend >/dev/null 2>&1 || felix_instr_grpend
   [ -z "${_FELIX_BIND_HOME:-}" ] || _felix_bind_salvage "$_FELIX_BIND_DIR/objects" "$_FELIX_BIND_HOME" "${_FELIX_BIND_PACK:-}"
-  rm -rf "$_FELIX_BIND_DIR" 2>/dev/null
+  rm -rf "$_FELIX_BIND_DIR" "$_FELIX_BIND_DIR.list" 2>/dev/null
   _FELIX_BIND_DIR=""
+}
+# A long git of the copy, in a group of its own when instrument-run.sh is loaded (S6.5 above), else as it was.
+_felix_bind_g() {   # git-args...
+  if command -v felix_instr_grp >/dev/null 2>&1; then felix_instr_grp git "$@"; else git "$@"; fi
 }
 
 # S6.1 and S6.2. Returns 0, or 1 when no directory could be made for the run (the variables are scrubbed either way,
@@ -92,9 +101,13 @@ felix_bind_env() {
   # A path inside a directory this run made, which nothing creates: git then reads no graft at all, the checkout's
   # info/grafts included. Set even when the directory could not be made, since the run refuses then anyway.
   export GIT_GRAFT_FILE="${_FELIX_BIND_DIR:-${tmpd%/}/felix-objects.none}/no-grafts"
-  trap '_felix_bind_exit' EXIT
+  _felix_bind_traps
   [ -n "$_FELIX_BIND_DIR" ]
 }
+# The copy's traps: its removal on exit, and on QUIT, whose own action ends bash without the exit trap. TERM, INT and
+# HUP are left at their own action, which runs the exit trap at once, even under a foreground child. Put back by the
+# judges that hold signals for a while of their own (instrument.sh, merge-judge.sh) when they are done.
+_felix_bind_traps() { trap '_felix_bind_exit' EXIT; trap '_felix_bind_exit; trap - EXIT; exit 131' QUIT; }
 
 # S5.1. The commit REF names, read once into _FELIX_BIND_B (called in the merging shell, never in a substitution,
 # so the exports below reach the children). REF is a full ref name (cmd_merge has
@@ -150,7 +163,7 @@ felix_bind_objects() {   # ROOT B H
   if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ] || [ ! -s "$t" ]; then
     rm -f "$t"; _felix_bind_no copy "the objects under $b and $h could not be listed, so none of them was checked against its name"; return 1
   fi
-  if ! git init -q --bare --template= ${fmt:+--object-format="$fmt"} "$d" >/dev/null 2>&1 </dev/null; then
+  if ! _felix_bind_g init -q --bare --template= ${fmt:+--object-format="$fmt"} "$d" >/dev/null 2>&1 </dev/null; then
     rm -f "$t"; _felix_bind_no copy "no repository could be made at $d to copy the objects into"; return 1
   fi
   # A name in V the checkout does not hold at all is refused by that name, before anything is copied.
@@ -165,8 +178,8 @@ felix_bind_objects() {   # ROOT B H
   esac
   # index-pack and unpack-objects each name an object by hashing what it holds, so a planted object comes out under
   # another name. The stream is kept inside the copy, which the exit removes, so that both read the same bytes.
-  git -C "$root" pack-objects --stdout -q --window=0 < "$t" > "$d/v.stream" 2>/dev/null; rc1=$?
-  git --git-dir="$d" index-pack --stdin --fsck-objects < "$d/v.stream" >/dev/null 2>&1; rc2=$?
+  _felix_bind_g -C "$root" pack-objects --stdout -q --window=0 < "$t" > "$d/v.stream" 2>/dev/null; rc1=$?
+  _felix_bind_g --git-dir="$d" index-pack --stdin --fsck-objects < "$d/v.stream" >/dev/null 2>&1; rc2=$?
   if [ "$rc1" -ne 0 ] || [ "$rc2" -ne 0 ]; then
     rm -f "$t"; _felix_bind_no copy "the objects under $b and $h could not be copied through git index-pack (pack-objects $rc1, index-pack $rc2), so none of them was checked against its name"; return 1
   fi
@@ -177,7 +190,7 @@ felix_bind_objects() {   # ROOT B H
   fi
   [ "$rc3" -eq 0 ] || { rm -f "$t"; _felix_bind_no copy "the copy of the objects under $b and $h could not be read back, so none of them was checked against its name"; return 1; }
   # The same objects loose, in a store of their own that only this copy names (see the head of this file).
-  mkdir "$d/v" 2>/dev/null && GIT_OBJECT_DIRECTORY="$d/v" git --git-dir="$d" unpack-objects -q < "$d/v.stream" >/dev/null 2>&1; rc1=$?
+  mkdir "$d/v" 2>/dev/null && GIT_OBJECT_DIRECTORY="$d/v" _felix_bind_g --git-dir="$d" unpack-objects -q < "$d/v.stream" >/dev/null 2>&1; rc1=$?
   rm -f "$d/v.stream"
   miss="$(GIT_OBJECT_DIRECTORY="$d/v" git --git-dir="$d" cat-file --batch-check='%(objectname) %(objecttype)' < "$t" 2>/dev/null \
             | LC_ALL=C awk '$2 == "missing" && !f { print $1; f = 1 }')"; rc3=$?

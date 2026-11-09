@@ -51,13 +51,19 @@ unset _FELIX_INSTR_UD _FELIX_INSTR_RC _FELIX_INSTR_MAN _FELIX_INSTR_CEXP _FELIX_
 unset _FELIX_INSTR_HP _FELIX_INSTR_UT _FELIX_INSTR_TB _FELIX_INSTR_WD _FELIX_INSTR_PROBE _FELIX_INSTR_KRUN _FELIX_INSTR_KEY
 unset _FELIX_INSTR_KL0 _FELIX_INSTR_MARK _FELIX_INSTR_CPART _FELIX_INSTR_CDRV _FELIX_INSTR_CDMODE _FELIX_INSTR_CID
 
-# One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON (tabs and newlines in REASON become blanks).
+# One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON. In each field a tab or newline becomes a blank,
+# and (A22, A23, after the automated security reviews of 6ab2d37e and 7ccb545e) a control or format character (C0, DEL,
+# C1, Unicode Cf such as a bidirectional override) or a byte that is not UTF-8 is written as \xNN, its bytes, so
+# nothing a name in the tree holds reaches a terminal raw. Text that is printable UTF-8 is left as it is.
+_felix_instr_addpl='use Encode (); my @f; for (@ARGV) { my $s = $_; $s =~ tr/\t\n/  /; my $o = "";
+  while (length $s) { my $u = Encode::decode("UTF-8", $s, Encode::FB_QUIET);
+    $u =~ s/([\p{Cc}\p{Cf}])/join "", map { sprintf "\\x%02x", $_ } unpack "C*", Encode::encode("UTF-8", $1)/ge;
+    $o .= Encode::encode("UTF-8", $u); $o .= sprintf "\\x%02x", ord substr($s, 0, 1, "") if length $s }
+  push @f, $o } print join("\t", @f)'
 _felix_instr_add() {
-  local r="$3" l
-  r="${r//$'\t'/ }"; r="${r//$'\n'/ }"
-  # A22, A23: no control byte from a name in the tree reaches the blocker line.
-  r="$(printf '%s' "$r" | LC_ALL=C tr '\001-\037\177' '?')"
-  l="$1"$'\t'"$2"$'\t'"$r"
+  local l
+  l="$(perl -e "$_felix_instr_addpl" -- "$1" "$2" "$3" 2>/dev/null)" \
+    || l="$(printf '%s\t%s\t%s' "${1//[$'\t\n']/ }" "${2//[$'\t\n']/ }" "${3//[$'\t\n']/ }" | LC_ALL=C tr '\001-\010\013-\037\177-\377' '?')"
   case $'\n'"$_FELIX_INSTR_BLOCK"$'\n' in *$'\n'"$l"$'\n'*) return 0 ;; esac
   _FELIX_INSTR_BLOCK="${_FELIX_INSTR_BLOCK:+$_FELIX_INSTR_BLOCK$'\n'}$l"
 }

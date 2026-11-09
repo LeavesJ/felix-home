@@ -35,7 +35,7 @@ Each part was written from the spec before the code it tests, without the implem
 | 2182 | section 5 (A8 to A11) | round 1's fix, 21050721: 3 of 78 fail | 78, none fail |
 | 2183 | sections 6 and 7 (A12 to A19) | round 2's fix, 2a05b99a: 2 of 81 fail; with A19's cases, 1df3b835: 2 of 93 fail | 93, none fail |
 
-Counts are reported lines: a part reports one line per case of a loop, so a line count is larger than the number of assertions written. Against main at 0.49.334, ⟦red-whole⟧ of the suite's assertions fail (`tests/red`, `red.tsv`).
+Counts are reported lines: a part reports one line per case of a loop, so a line count is larger than the number of assertions written. Which of the suite's assertions fail against main is recorded by the red run in `engine/harness/tests/red.tsv`, and its count is in the pull request's body.
 
 What the cases cover, as the spec lists them: an honest change and a subject part's count (passed); a loosened guard, with and without a partition row; a deleted, an unsourced and a renamed guard; a group whose subject member P's version would fail (not refused for it); the partition loosened, and loosened together with the part; `bad()` and `is()` neutered (refused by the canary, with every instrument unit run); an honest wording change to a helper (not refused); two judgements that cannot share a canary name; P's driver missing (`unknown SUITE`); a product (not run); nothing left after a pass, a refusal and a TERM; nothing run behind a slice 2 refusal. The amendments added a candidate cut before main's last landing, judged as the squash lands it (A1); the driver's blank lines (A2); time limits, signals and temporary directories (A7); the records and the kept judgements out of the units' reach (A8, A10, A12, A13); a KILLed judge (A14); a signal in each directory's making (A15); and two overlapping judgements (A19).
 
@@ -54,11 +54,11 @@ Each fault round's repros are filed beside the spec, and part 2181's A1 cases al
 | first build, 49df77a0 | 198 | 4,044 | near 100 | 1 line: 2180's S8.9 fixture control (A4) |
 | round 2, 2a05b99a | 200 | 1,395 | 5 to 27 | 51 lines: 0620 (46), 0204, 1510, 0992 and 2182 (2) |
 | round 3, d4b28834 | 201 | 2,024 | 23 to 91 | 2 lines: 0200's lint on 2183, and 2183's A14 |
-| this branch, ⟦tip⟧ | ⟦units⟧ | ⟦secs⟧ | ⟦load⟧ | ⟦final⟧ |
+| this branch, 91289229 | 202 | 1,350 | 7 to 14 | nothing |
 
-Each row is one sample, on this Mac, while other sessions' suites ran. Round 2's 48 lines from 0620, 0204 and 1510 came from where a unit ran: its `HOME` under the run directory dropped the units' `TMPDIR` as a temporary root (`lib/where.sh`), so the scoped lifts those parts test refused, and T sat under the units' own `TMPDIR`. Each of those parts passed alone. A17 fixed the layout. 0992's line was the slice's own sort lint failure (A18). Round 3's two lines were the blind part's own fixtures, fixed with A19's assertions.
+Each row is one sample, on this Mac, while other sessions' suites ran. Round 2's 48 lines from 0620, 0204 and 1510 came from where a unit ran: its `HOME` under the run directory dropped the units' `TMPDIR` as a temporary root (`lib/where.sh`), so the scoped lifts those parts test refused, and T sat under the units' own `TMPDIR`. Each of those parts passed alone. A17 fixed the layout. 0992's line was the slice's own sort lint failure (A18). Round 3's two lines were the blind part's own fixtures, fixed with A19's assertions. The last row is A17's test: the same honest change, judged as the checkout judges it, refused nothing.
 
-**The kept judgement (A5):** a second dry run of the same pair, at the same base and engine, read the first's blocker lines back in 3.11 s, byte for byte.
+**The kept judgement (A5):** a second judgement of the same pair, at the same base and engine, read the first's lines back instead of running: 3.11 s at round 3, byte for byte, and 1.75 s on this branch. The runs' logs are in `slice3/round3/fullrun/` and `slice3/final-fullrun/`.
 
 **Where a refusal now comes from that did not before:**
 - **Every machinery change waits for a full run,** tens of minutes on this Mac, once per pair of base, landed tree and engine. The lander's tick holds the pull request while it runs.

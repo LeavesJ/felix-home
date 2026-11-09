@@ -18,7 +18,7 @@
 **Measured** (details in the report).
 - **Battery:** on main, a loosened, deleted, unsourced or renamed guard, or a neutered `bad()` or `is()`, lands when the candidate's suite passes. Here each is refused, and so is a partition row moved to `subject`, which main has no table for.
 - **Cost:** a machinery change runs about 200 units, 1,395 to 4,044 s on this Mac across the rounds' runs, once per pair; the kept judgement reads back in about 3 s. A change to a few parts runs those units (41 s for three).
-- **False blocks:** round 2's honest full run refused 51 lines, from where units ran (A17) and one lint (A18). The final run's result is in the report.
+- **False blocks:** round 2's honest full run refused 51 lines, from where units ran (A17) and one lint (A18). The final run, on this branch with the same honest change, refused nothing: 202 units, 1,350 s, and its kept judgement read back in 1.75 s.
 - **Review:** the first build's review and two fault rounds, then checks against each confirmed finding's repro, which found no regression. Two later findings: an automated review's (A19), and the merge with 0.49.334 (A20).
 
 **Open, for whoever takes step 3 next.**

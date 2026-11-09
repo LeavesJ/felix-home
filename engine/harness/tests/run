@@ -7,7 +7,6 @@
 #   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
-
 # The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
@@ -416,6 +415,7 @@ fi
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
 . "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
 . "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
+. "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

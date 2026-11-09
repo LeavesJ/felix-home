@@ -992,6 +992,12 @@ _felix_ref_commit() {   # ROOT REF
 # copy is in force, the merge reads the copy's stores alone and not the checkout's (S6.6 rule 2): with the checkout
 # behind them, a loose file planted there under the merged blob's id was taken as the merge's result, which git
 # does not write again, so the change's line was never read.
+# S6.7 (2026-11-09): the merge detects no directory renames, set on its command line so that no config file and no
+# GIT_CONFIG_* variable the caller exports turns it back on. The squash felix merge lands is GitHub's, and GitHub's test
+# merge of #498 held the tree git writes with merge.directoryRenames=false. git's default (conflict) moved main's new
+# files into the directory the branch had emptied and failed, so every reader took three-dot and slice 3 refused (A1);
+# true moved them, and the readers blamed the branch for main's files (audits/2026-11-08-trust-plane-step3/
+# merge-dir-renames in the memory root).
 # Puts back the caller's TERM and INT traps once the made directory is gone.
 _felix_merge_untrap() {
   trap - TERM INT
@@ -1037,7 +1043,8 @@ _felix_merge_refs() {
   if [ "${#alt[@]}" -gt 0 ] && ! printf '%s\n' "$mb" >> "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
   tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
           GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
-          GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
+          GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null -c merge.directoryRenames=false \
+          merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
   rc=$?
   rm -rf "$g"; _felix_merge_untrap
   [ "$rc" -eq 0 ] || return 1

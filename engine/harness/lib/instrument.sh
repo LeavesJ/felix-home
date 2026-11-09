@@ -173,6 +173,7 @@ felix_instrument_judge() {   # ROOT B H BRANCH
   _FELIX_INSTR_INST=""; _FELIX_INSTR_CHG=""; _FELIX_INSTR_KEEP=1; _FELIX_INSTR_CANARY=""; _FELIX_INSTR_MAN=""
   _FELIX_INSTR_CEXP=""; _FELIX_INSTR_REACHED=""; _FELIX_INSTR_UD=(); _FELIX_INSTR_RC=()
   _FELIX_INSTR_KRUN=""; _FELIX_INSTR_KEY=""; _FELIX_INSTR_KL0=""; _FELIX_INSTR_MARK=""; _FELIX_INSTR_CPART=""; _FELIX_INSTR_CDRV=""
+  _FELIX_INSTR_KLIVE=""
   _felix_instr_mtree "$root" "$b" "$h" || { _felix_instr_add unknown SUITE "$_FELIX_INSTR_WHY"; return 0; }
   mt="$_FELIX_INSTR_MT"
   _felix_instr_rd lb git -C "$root" -c core.quotePath=false ls-tree -r --full-tree "$b" -- .felix projects "$tp" .github/workflows \
@@ -294,13 +295,14 @@ EOF
   # kept there is removed. A judgement that ran nothing removes what is kept at its key.
   x=""; [ "$mach" = 1 ] && [ -n "$key" ] && [ -n "$_FELIX_INSTR_KEEP" ] && x=1
   if [ -n "$ran" ]; then _felix_instr_kend "$x"
-  elif [ "$mach" = 1 ] && [ -n "$key" ]; then _felix_instr_unkeep "$key"; fi
+  elif [ "$mach" = 1 ] && [ -n "$key" ] && [ -z "$_FELIX_INSTR_KLIVE" ]; then _felix_instr_unkeep "$key"; fi
   _felix_instr_clean 2>/dev/null
   trap - TERM INT HUP QUIT
   if command -v _felix_bind_traps >/dev/null 2>&1; then _felix_bind_traps; else trap - EXIT; fi
   _FELIX_INSTR_NOTE="P's instrument parts ran over what the squash would land as the base holds them: $nu unit(s) of its suite in part mode"
   [ "$mach" != 1 ] || _FELIX_INSTR_NOTE="$_FELIX_INSTR_NOTE, every instrument unit since this tree changes the machinery, and the canary under this tree's driver"
   _FELIX_INSTR_NOTE="$_FELIX_INSTR_NOTE."
+  [ -z "$_FELIX_INSTR_KLIVE" ] || _FELIX_INSTR_NOTE="$_FELIX_INSTR_NOTE Another judgement was running in this home, so what is kept here was not read, and this judgement is not kept."
   return 0
 }
 

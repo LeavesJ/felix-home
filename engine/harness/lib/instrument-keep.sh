@@ -26,7 +26,13 @@
 #   - the sweep fails closed (a listing or removal that fails, an entry still there, the directory's mode, owner or
 #     identity changed: the whole directory goes, its flags and permissions cleared first), and the times it lists
 #     are to the nanosecond. When even that removal fails, the marker stays, and no kept judgement is read.
-# Not bound (A13's open list): a unit that removes the marker and then ends the judge with KILL; one that rewrites
+# A19, after the automated review of round 3 (a judgement read a receipt while another judgement's units ran):
+#   - a judgement that finds another's marker whose judge is running reads no kept judgement and runs its own units,
+#     writes nothing at its key and removes nothing kept there (that judge's sweep would remove what it wrote);
+#   - the markers' directory is read after that check and again after the receipt is, and what was read is used only
+#     when it held no marker and did not change between the two (a judgement that began meanwhile).
+# Not bound (A13's open list): a unit that removes its judge's marker, while that judge runs (a concurrent judgement
+# then reads what the unit wrote) or before it ends the judge with KILL; one that rewrites
 # the home pointer under the user's real home, which it can find without HOME; one that outlives its process group
 # (E4), which can write after the sweep; and a receipt written by anything but the judge between two judgements,
 # since nothing here signs a receipt with a key the units cannot read. That needs an identity of the authority's own
@@ -132,9 +138,10 @@ _felix_instr_mark() {
 }
 # A13. Before a kept judgement is read. A marker whose judge is no longer running, or anything there that is not a
 # marker, says a judgement ended without its sweep: every kept judgement is removed, then that marker. 1, and
-# nothing is read, while such a marker cannot be cleared.
+# nothing is read, while such a marker cannot be cleared. A19: _FELIX_INSTR_KLIVE is 1 when a judge is running.
 _felix_instr_kstale() {
   local md f c p st stale=""
+  _FELIX_INSTR_KLIVE=""
   md="$(_felix_instr_mdir)" || return 0
   [ -e "$md" ] || [ -L "$md" ] || return 0
   if [ ! -d "$md" ] || [ -L "$md" ]; then _felix_instr_knuke "$(_felix_instr_kdir)" && _felix_instr_knuke "$md"; return; fi
@@ -145,7 +152,9 @@ _felix_instr_kstale() {
     p="${c#felix-instrument-judging }"; st="${p#* }"; p="${p%% *}"
     case "$c" in "felix-instrument-judging "*) ;; *) stale="$stale$f"$'\n'; continue ;; esac
     case "$p" in ''|*[!0123456789]*) stale="$stale$f"$'\n'; continue ;; esac
-    [ "${f##*/}" = "$p" ] && [ -n "$st" ] && [ "$st" != - ] && [ "$(_felix_instr_pstart "$p")" = "$st" ] || stale="$stale$f"$'\n'
+    if [ "${f##*/}" = "$p" ] && [ -n "$st" ] && [ "$st" != - ] && [ "$(_felix_instr_pstart "$p")" = "$st" ]; then
+      _FELIX_INSTR_KLIVE=1
+    else stale="$stale$f"$'\n'; fi
   done
   [ -n "$stale" ] || return 0
   _felix_instr_knuke "$(_felix_instr_kdir)" || return 1
@@ -154,6 +163,13 @@ $stale
 EOF
   return 0
 }
+# A19. The markers' directory as it is, from lstat: its identity, mode, owner, size, link count, modification and
+# change times to the nanosecond, and how many entries it holds. Writing or removing a marker changes it. "none"
+# when there is none, "fail" when it cannot be read.
+_felix_instr_mpl='use Time::HiRes (); my $d = $ARGV[0]; my @s = Time::HiRes::lstat($d);
+if (!@s) { print $!{ENOENT} ? "none" : "fail"; exit 0 } opendir(my $h, $d) or do { print "fail"; exit 0 };
+my $n = grep { $_ ne "." && $_ ne ".." } readdir $h; printf "%s %s %o %s %s %s %.9f %.9f %d", @s[0, 1, 2, 4, 7, 3, 9, 10], $n'
+_felix_instr_mst() { local md; md="$(_felix_instr_mdir)" || { printf none; return 0; }; perl -e "$_felix_instr_mpl" "$md" 2>/dev/null || printf fail; }
 # A13. The end of a judgement whose first unit or canary started, on every path (its normal end, an exit, a trapped
 # signal): A10's sweep, then this judgement kept at its key when KEEP is 1 (the run completed and says something
 # about the tree) and the sweep held, and else whatever is kept there removed; then the marker. The marker stays
@@ -163,6 +179,8 @@ _felix_instr_kend() {   # KEEP
   [ -n "${_FELIX_INSTR_KRUN:-}" ] || return 0
   _FELIX_INSTR_KRUN=""
   _felix_instr_ksweep "${_FELIX_INSTR_KL0:-none}" || ok=""
+  # A19: a judgement that found another running neither keeps itself nor removes what is kept at its key.
+  [ -z "${_FELIX_INSTR_KLIVE:-}" ] || [ -z "$ok" ] || k=""
   if [ -n "$k" ] && ! { [ -n "$ok" ] && [ "$1" = 1 ] && _felix_instr_keep "$k"; }; then
     _felix_instr_unkeep "$k" || _felix_instr_knuke "$(_felix_instr_kdir)" || ok=""
   fi
@@ -172,10 +190,13 @@ _felix_instr_kend() {   # KEEP
 }
 # 0, with the receipt's lines added to _FELIX_INSTR_BLOCK, when the home holds KEY's judgement whole.
 _felix_instr_kept() {   # KEY
-  local f c body sum n l cnt=0 kind subj why
+  local f c body sum n l cnt=0 kind subj why m0
   _felix_instr_kstale || return 1
+  [ -z "${_FELIX_INSTR_KLIVE:-}" ] || return 1
+  m0="$(_felix_instr_mst)"; case "$m0" in none|*" 0") ;; *) _FELIX_INSTR_KLIVE=1; return 1 ;; esac
   f="$(_felix_instr_kfile "$1")" && [ -f "$f" ] || return 1
   _felix_instr_rd c cat "$f" || return 1
+  [ "$(_felix_instr_mst)" = "$m0" ] || { _FELIX_INSTR_KLIVE=1; return 1; }
   case "$c" in "felix-instrument-judgement 1"$'\n'"key $1"$'\n'*) ;; *) return 1 ;; esac
   sum="${c##*$'\n'}"; body="${c%$'\n'*}"
   case "$sum" in "sum "?*) ;; *) return 1 ;; esac

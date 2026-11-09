@@ -15747,6 +15747,51 @@
 1	tidy followed by a vertical tab is a grant under C and under UTF-8
 1	tidy followed by an em space is not a grant under C or under UTF-8
 1	tidy stays allowed after commission is revoked
+1	tmd: (fixture control) a driver that records: with merge.tmdrec.driver writing a marker file in the checkout's config and notes/f merge=tmdrec in its info/attributes, plain git merge-tree in the checkout exits 0, keeps main's notes/f and writes the marker
+1	tmd: (fixture control) a stacked branch: three-dot names a/g and a/h and adds both their lines, while the tree plain git merge-tree writes differs from main's only at a/h
+1	tmd: (fixture control) fallback: mktemp -d cannot make a directory in the mode-555 TMPDIR; three-dot names notes/f and adds the credential line in the checkout driver's fixture, and names a/g and a/h and adds both their lines in the stacked one
+1	tmd: (fixture control) global config alone: the checkout has no info/attributes and the candidate no .gitattributes, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines the driver and a core.attributesFile naming it for notes/f
+1	tmd: (fixture control) global config with attr.tree: the checkout's config defines no tmdkeep driver; in a bare repository with no worktree whose objects reach the checkout's, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines the driver and sets attr.tree to the candidate, whose .gitattributes names it
+1	tmd: (fixture control) global config, attribute in the checkout: the checkout's config defines no tmdkeep driver, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines it
+1	tmd: (fixture control) the candidate's attributes: the candidate's own .gitattributes reads notes/f merge=tmdkeep, the checkout has no info/attributes, and with the driver in the checkout's config plain git merge-tree in the checkout exits 0 and keeps main's notes/f
+1	tmd: (fixture control) the checkout's driver: with merge.tmdkeep.driver=true in the checkout's .git/config and notes/f merge=tmdkeep in its .git/info/attributes, plain git merge-tree in the checkout exits 0 and keeps main's notes/f, without the line
+1	tmd: (fixture control) with no driver, main has moved since the candidate's base R, plain git merge-tree in the checkout exits 0 with the credential line in its notes/f, and three-dot names notes/f and adds the line
+1	tmd: a driver that records: felix_added_lines never runs the checkout's driver whose command writes a marker file (the marker is absent)
+1	tmd: a driver that records: felix_changed_paths never runs the checkout's driver whose command writes a marker file (the marker is absent)
+1	tmd: byte-identical: on a stacked branch whose base already holds one of its two changes and gained a file of its own, the added lines are exactly the other change's line and the reader exits 0
+1	tmd: byte-identical: on a stacked branch whose base already holds one of its two changes and gained a file of its own, the changed paths are exactly a/h and the reader exits 0
+1	tmd: byte-identical: with no driver and no attributes, the added lines are exactly the credential line and the reader exits 0
+1	tmd: byte-identical: with no driver and no attributes, the changed paths are exactly notes/f and the reader exits 0
+1	tmd: control: with no driver, the added lines of a candidate that puts a credential-shaped line into notes/f hold that line
+1	tmd: control: with no driver, the changed paths hold notes/f
+1	tmd: copy alone (fixture control): before any plant, a plain git merge-tree of main and tmc-sql, writing into a fresh store with the checkout's objects behind it, names the merged notes/f by the id predicted from the clean merge's lines and holds the SQL line
+1	tmd: copy alone (fixture control): main has moved since R0, the base of each of the three candidates; origin/main is main; and the entry holds the felix under test
+1	tmd: copy alone (fixture control): that dry run took the three-way merge, running git merge-tree --write-tree
+1	tmd: copy alone (fixture control): the credential plant is there: a loose file under the merged notes/f's id for tmc-cred, holding main's notes/f
+1	tmd: copy alone (fixture control): the plant is there: a loose file in the checkout under the merged notes/f's id, git cat-file -p of that id in the checkout prints main's notes/f, and a plain merge-tree with the checkout behind it names notes/f by that id and reads it without the SQL line
+1	tmd: copy alone (fixture control): the unrelated plant is there, holding main's notes/f under an id that is not the honest candidate's merged notes/f
+1	tmd: copy alone (fixture control): three-dot main...tmc-sql adds the destructive SQL line, and bin/secret-scan against main exits 0 on it, so the disclose escape is not what refuses it
+1	tmd: copy alone (fixture control): without a plant, felix merge --dry-run refuses tmc-cred with escape disclose ADDED-LINES and exits 3
+1	tmd: copy alone (fixture control): without a plant, felix merge --dry-run refuses tmc-sql with escape durable ADDED-LINES and exits 3
+1	tmd: copy alone: after each felix merge run here, the checkout's object store still answers for every object it held before the run, the planted ones included
+1	tmd: copy alone: an honest candidate that changes notes/f with nothing a rule names, run while the checkout holds a planted loose file of an unrelated id, is not blocked: felix merge --dry-run says it would squash this now and exits 0
+1	tmd: copy alone: no felix-merge* or felix-objects* entry is left under the TMPDIR any felix merge run here was given
+1	tmd: copy alone: with a loose file planted in the checkout under the merged blob's id holding main's bytes, felix merge --dry-run still reads tmc-sql's destructive SQL line, refusing it with escape durable ADDED-LINES and exit 3 (the planted object is not taken as the merge's result)
+1	tmd: copy alone: with a loose file planted under the merged blob's id holding main's bytes, felix merge --dry-run still refuses tmc-cred's credential line with escape disclose ADDED-LINES and exit 3
+1	tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the added lines hold every line the three-dot diff adds
+1	tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the changed paths hold every path the three-dot diff names
+1	tmd: fallback: with an unwritable TMPDIR on a stacked branch, the added lines hold every line the three-dot diff adds
+1	tmd: fallback: with an unwritable TMPDIR on a stacked branch, the changed paths hold every path the three-dot diff names
+1	tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line
+1	tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f
+1	tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line
+1	tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f
+1	tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the added lines still hold the credential line
+1	tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the changed paths still hold notes/f
+1	tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the added lines still hold the credential line
+1	tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the changed paths still hold notes/f
+1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the added lines still hold the credential line
+1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the changed paths still hold notes/f
 1	toolbox.json names installed_plugins.json, where a pin is checked by hand (b23 A34)
 1	toolbox.json no longer says the cloud runs what a local session runs (b23 A30)
 1	toolbox.json parses, about is an array of strings, and tools has one entry per line holding "name": (b23 A36)

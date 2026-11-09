@@ -85,7 +85,6 @@ while :; do case "${1:-}" in
   *)                   break ;;
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
-
 # The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none:
 # FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
@@ -414,6 +413,7 @@ fi
 . "$HERE/parts/2176-trust-step3-policy-from-p-blind.sh"
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
 . "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
+. "$HERE/parts/2179-trust-merge-driver-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

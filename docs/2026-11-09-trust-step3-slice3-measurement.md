@@ -64,6 +64,9 @@ Each row is one sample, on this Mac, while other sessions' suites ran. Round 2's
 - **Every machinery change waits for a full run,** tens of minutes on this Mac, once per pair of base, landed tree and engine. The lander's tick holds the pull request while it runs.
 - **A judgement made while another runs in the same home** runs in full and is not kept (A19): what it would read or write is within reach of the other's units.
 - **A part of P that tests where it runs** can pass in the checkout and fail as a unit. Examples of what still differs, from round 3, not the set: T is a repository of its own, not a linked worktree; it is not under `HOME`; the unit's `HOME` is empty; T is under `/var/tmp` on this Mac.
+- **After landing, a branch that empties a directory main adds to** was refused as unknown SUITE on 0.49.336
+  (#498, a handoff fold): git's default directory-rename detection failed the merge A1 reads. Fixed in 0.49.337 by
+  S6.7 (`docs/2026-11-08-trust-merge-driver.md`).
 - **A mixed part** (spec §3: 1690, 1720, 1700, 0240 known) is instrument, so a landing that changes its subject assertion goes to a person.
 
 ## 3. The reviews

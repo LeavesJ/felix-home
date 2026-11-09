@@ -1,4 +1,4 @@
-### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.337)
+### 2026-11-07: the two kinds #482 kept say what is true: `not-green` and `deploy-failed` (0.49.338)
 
 **What changed.** #482 rewrote the sentences the engine prints that said
 verified, unverified, proven or unproven (its contract counts them), and kept two kinds because each had
@@ -92,7 +92,7 @@ review, fixes through a blind author, record, gate.
   assertion names say `not-green`; part 2301 shows K12 on its own fixtures;
   part 2320's scan of the real engine has a read control (status 0 over at
   least fifty files).
-- Merged `origin/main` into the branch eight times while it was open: #487
+- Merged `origin/main` into the branch nine times while it was open: #487
   (0.49.329), then #493 (docs) and #486 (0.49.330), then #496 (trust-plane step 3,
   0.49.332), then #497 (step 3, slice 2, 0.49.333), then #500 (the change readers'
   merge ignores the checkout's merge configuration, 0.49.334; `lib/bind.sh`,
@@ -103,13 +103,16 @@ review, fixes through a blind author, record, gate.
   2176, none naming either kind; `lib/escape.sh` merged without a conflict), then
   #498 (the maintenance run: handoff folded to numbered files; no engine file, no
   conflict; `red.tsv` keeps its base at 6857c7d, whose engine is the one main still
-  holds). The conflict was `red.tsv` every time since #486 bar that one. The driver stays at 500 lines (spacer
+  holds), then #503 (the readers' merge detects no directory renames, 0.49.337;
+  `lib/resolve.sh` and part 2184, neither naming either kind). The conflict was
+  `red.tsv` every time since #486 bar #498. The driver stays at 500 lines (spacer
   lines removed: main's #502 and this branch each removed the same blank lines, and
-  both added part lines, so two more went here). #496 brought a `home` blocker into `lib/escape.sh` and
+  both added part lines, so two more went here; #503 removed the next spacer and
+  added a part, so two comment lines of the driver's head were joined). #496 brought a `home` blocker into `lib/escape.sh` and
   part 2176 that named the old kind; both say `not-green` here. #497 rewrote
   `_gt_class` in `lib/green-install.sh` to hold a `base provider` block hourly; it
   keeps that rule and reads `not-green` and the old `unverified` the same (version
-  0.49.337 here, after #502 took 0.49.336). Parts 0100 and 2320 read the merge boundary's kinds from
+  0.49.338 here, after #503 took 0.49.337). Parts 0100 and 2320 read the merge boundary's kinds from
   `felix_merge_blockers`, the body it calls and `lib/policy.sh`, as main's 0100
   does; part 2320's A8 was edited by the author of the change for that, not by a
   blind author, as were the two call sites in 2176.

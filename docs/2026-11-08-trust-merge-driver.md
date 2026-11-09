@@ -113,7 +113,9 @@ before.
   back, and it was not run.
 - **Other config the merge reads** in the made repository. None comes from the checkout's files. Directory renames are off
   since S6.7; file renames and conflict style are git's own defaults, and they were not varied against GitHub's.
-- **`lib/pr-status.sh`'s `merge-tree`,** which feeds a report page and runs in the same checkout.
+- **The stuck-PR page (`lib/pr-status.sh`)** takes no merge: it asks GitHub for `mergeable` and the merge state.
+  An earlier version of this list said it ran its own `merge-tree`; it does not, and has not (review of S6.7,
+  2026-11-09). Nothing else in the engine computes a merge tree.
 - **`bin/secret-scan`,** which keeps its own copy of the patch reader. It reads three-dot, so it takes no merge.
 - **Outside `felix merge`** (the gate's readers), the checkout's objects are still reachable, so a planted merged blob
   still hides a line there. The gate's receipt is the worker's file (residual R4), and the merge itself reads the copy

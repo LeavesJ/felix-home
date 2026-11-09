@@ -9,7 +9,8 @@
 
 **Open.**
 - GitHub's merge settings are read from one pair, #498 onto main at 4dd8fed8, and not shown in general.
-- `lib/pr-status.sh` runs its own `merge-tree`, for a report page.
+- A shape where GitHub would detect a directory rename, if one exists: there the readers would name a path at its old place while GitHub lands it at the new one. The review found no such shape in plain git, and the path set is what it was before the fix.
+- The stuck-PR page takes no merge; it asks GitHub. The 0.49.334 write-up said otherwise, and is corrected here.
 - File renames and conflict style are git's defaults, not compared with GitHub's.
 
 **Release.** 0.49.337 fails closed until the founder authorizes it by name (direction row 49). The pull request is labelled needs-founder.

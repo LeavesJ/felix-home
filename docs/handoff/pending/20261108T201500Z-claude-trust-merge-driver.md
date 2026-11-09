@@ -27,7 +27,7 @@ without rule 2. The cost is about 36 ms more CPU per merge the readers take.
 **Open, for whoever takes it next.**
 - The readers outside `felix merge` still see the checkout's objects, so a planted merged blob hides a line from the
   gate's reading. The gate's receipt is R4.
-- `lib/pr-status.sh`'s merge, which feeds a report page.
+- (Corrected 2026-11-09: `lib/pr-status.sh` takes no merge; it asks GitHub. This line named it in error.)
 - The built-in `binary` driver.
 - Every other reader that runs git in the checkout, which is slice 3's class.
 

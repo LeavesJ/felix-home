@@ -263,6 +263,8 @@ is  "tmdr: case 2, beyond the list: with GIT_CONFIG_SYSTEM naming a file that se
 # ------------------------------------------------------------------- case 3 ---
 is  "tmdr: case 3: on the candidate that renames d/ into e/, the changed paths with base main name e/a, the candidate's own rename, and neither d/new nor e/new" \
     "$(_tmdr_pnames "$(_tmdr_read "$TMDR/fx" felix_changed_paths)")" "$_tmdr_pwant"
+# A guard, not a test of the move: the added lines pair renames, so main's d/new moved unchanged adds no line in any
+# rename mode (review of S6.7, 2026-11-09). Only the changed-paths assertions above and below see the move.
 is  "tmdr: case 3: on the candidate that renames d/ into e/, the added lines with base main hold the candidate's changed e/c line and no line of main's d/new" \
     "$(_tmdr_lnames "$(_tmdr_read "$TMDR/fx" felix_added_lines)")" "$_tmdr_lwant"
 is  "tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the changed paths still name e/a and neither d/new nor e/new" \
@@ -280,6 +282,8 @@ is  "tmdr: (fixture control) a content conflict: main and the candidate change x
 _tmdr_o4="$(_tmdr_refs "$TMDR/cfl")"
 is  "tmdr: case 4: when main and the candidate change the same line of x/f differently, _felix_merge_refs with base main still exits 1" \
     "${_tmdr_o4%%|*}" "rc 1"
+# These two hold for the conflicted tree too, which keeps the candidate's line between markers: the fallback itself
+# is the exit status above (review of S6.7, 2026-11-09).
 is  "tmdr: case 4: on that content conflict, the changed paths still hold every path the three-dot diff names" \
     "$(_tmdr_missing "$(_tmdr_3paths "$TMDR/cfl")" "$(_tmdr_read "$TMDR/cfl" felix_changed_paths)")" "none"
 is  "tmdr: case 4: on that content conflict, the added lines still hold every line the three-dot diff adds" \

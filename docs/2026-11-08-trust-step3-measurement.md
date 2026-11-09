@@ -81,7 +81,7 @@ OB1 and OB2 are refused only because the battery's forger did not also edit the 
 
 Where the lander stands: it passes no `--base`, fetches `origin/main` at the start of each tick, and brings its home to `origin/main` before it judges anything (`_gt_deploy_owed`). So on the lander's own path OB1 does not apply, and OB2 needs the ref moved between the tick's fetch and its judgement. That is an inference from the lander's code (inventory A7, F5), not a run.
 
-The suite (R3) is not in the battery. The fixture's gate is `true`, and its receipt is forged by construction. By reading the inventory (D1, D2), a helper's body in `tests/run` can change without changing a counted line, and the gate and CI then run the candidate's suite. That stays the largest in-band instrument a branch supplies for Felix's own engine.
+The suite (R3) is not in the battery. The fixture's gate is `true`, and its receipt is forged by construction. By reading the inventory (D1, D2), a helper's body in `tests/run` can change without changing a counted line, and the gate and CI then run the candidate's suite. That stays the largest in-band instrument a branch supplies for Felix's own engine. Slice 3 (0.49.336, `docs/2026-11-09-trust-step3-slice3-measurement.md`) has P's instrument parts judge it at the merge; the gate and CI still run the candidate's suite.
 
 ## 2. The review
 

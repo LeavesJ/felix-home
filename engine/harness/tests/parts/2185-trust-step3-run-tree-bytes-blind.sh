@@ -15,6 +15,10 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 # paragraph beginning "A23, amended again after the plain-git check" and the new observable case 6 (old 6 is case 7),
 # against 7ccb545e and a later commit that changes only blocker escaping. Its non-ASCII names are written with printf
 # from their UTF-8 bytes, so this file stays ASCII: U+2C2F (Glagolitic capital) and U+2C5F (its small form).
+# Cases 8 to 10 were added the same way against 32792d05, from the block beginning "A22 and A23, amended after the
+# review of the filesystem's answer" and observable cases 8 to 11 (old 7 kept its number). For case 10 the author
+# read, of lib/policy.sh and lib/merge-judge.sh, only the comment block directly above _felix_policy_copy, _mj_make and
+# _mj_clean and their signature lines, and nothing that implements A22 or A23.
 #
 # Readings, where the spec leaves room (part 2180's stand on "refused", "passed", a blocker line and the trace):
 # - Each candidate also appends a comment to the P part that judges it, so S8.1 counts that part changed and P's unit
@@ -41,17 +45,30 @@ printf '\ntrust plane step 3, slice 3: what the units read is what lands (spec-s
 #   base. Whether the pair is one name is probed as for case 3, with the pair. Each half's control runs everywhere, its
 #   expected value following that probe; each half's assertion is skipped where the pair is two names.
 # - Case 6's "naming both": an unknown SUITE line holds both names as A22 and A23 amended print them, each byte outside
-#   printable ASCII written as \xNN, with the hex digits in either case. In 6b these are the two directories,
-#   engine/wid\xe2\xb0\xaf and engine/wid\xe2\xb1\x9f, which a path under either also holds.
+#   printable ASCII written as \xNN, with the hex digits in either case (and ASCII letters as printed). In 6b these
+#   are the two directories, engine/wid\xe2\xb0\xaf and engine/wid\xe2\xb1\x9f, which a path under either also holds.
 # - 6b's candidate is committed from what it stages, not with add -A: where the pair folds, its file lands on disk
 #   inside B's directory, and git, which folds ASCII alone, would add it there a second time.
+# - Case 8 uses case 3's probe, and each half is skipped where names do not fold; the spec's "where names do not fold,
+#   neither is refused for A23" is not asserted. 8a's candidate moves all of engine/widget to engine/w2 before the
+#   link, so P's parts still source widget/lib.sh; "naming the base's path" is a SUITE line holding
+#   engine/widget/MARKER, and also marker, T's name, as the block's "naming the path walked and T's name" asks. 8b's
+#   target is ../Engine/widget/list.txt, and "naming the link" is a SUITE line holding engine/x.conf.
+# - Case 9 is case 4's shape with the four characters \x1b in both names, skipped where names do not fold; the SUITE
+#   line must hold both with the backslash as \x5c, the hex digits in either case.
+# - Case 10 copies from a repository of its own under $TS3C/c10, whose commit's engine/ holds the .gitattributes and
+#   an executable harness/felix (so _mj_make can return 0). PREFIX is engine, DEST an empty directory, VERSION 9.9.9,
+#   and TMPDIR for the calls is under $TS3C/c10. A copied file is looked for at its path under engine/ and then at its
+#   whole path. "Git's own checkout" is checkout-index -a into a prefix, the command the block says the copies use.
 #
-# Not covered: case 7 as an assertion (red first is how this part is run, not what it asserts); A23's fold of the
-# Unicode-decomposed form (only case is driven); the canary's copy, which A22 and A23 also judge (no candidate here
-# changes the machinery); A22's checks of kind, executable bit, symbolic link target and gitlink, and the filter
-# attribute (it needs a driver configured where T is written); the cost; A23's "nothing here applies" where names do
-# not fold (cases 4 to 6 are skipped there); a name the filesystem refuses outright (A23 amended again); a control byte from any source other than a path (5b's paths are the
-# only one driven); and what section 8 leaves open.
+# Not covered: case 7 and case 11 as assertions (red first is how this part is run, not what it asserts); A23's fold
+# of the Unicode-decomposed form (only case is driven); the canary's copy, which A22 and A23 also judge (no candidate
+# here changes the machinery); A22's checks of kind, executable bit, a link's target bytes and gitlink, and the filter
+# attribute (it needs a driver configured where T is written); the cost; A23's "nothing here applies" where names do not fold (cases 4 to
+# 6, 8 and 9 are skipped there); a name the filesystem refuses outright; a link walked past 40 links, to an absolute
+# target or above T's root; the check's promptness under TERM; the machine's attributes file, which the base-side
+# copies also obey; a control byte from any source other than a path (5b's paths are the only one driven); and what
+# section 8 leaves open.
 TS3C="$TMP/ts3g"; rm -rf "${TS3C:?}"; mkdir -p "$TS3C/repo" "$TS3C/gh" "$TS3C/home" "$TS3C/kc" "$TS3C/t" "$TS3C/ctl"
 TS3C="$(cd "${TS3C:?}" && pwd -P)"; TS3CR="$TS3C/repo"; TS3CK="$TS3C/kc"; TS3CT=""; TS3CRC=0; TS3G_N=0
 TS3G_MEM=kept; [ -e "$MEM/felix" ] || TS3G_MEM=made   # the merges write the project felix's memory, $MEM/felix
@@ -111,11 +128,19 @@ _ts3g_main() {   # SHA: SHA is the provider's main, the entry its engine, and P'
     && tar -x -C "$TS3C/p" -f "$TS3C/p.tar"; rm -f "$TS3C/p.tar"; TS3CPP="$TS3C/p/projects/felix"
 }
 _ts3g_touch() { printf '# the candidate touched this part\n' >> "$TS3CR/$TS3GT_/parts/$1"; }   # PART: S8.1 counts it changed
-_ts3g_blob() {   # PATH CONTENT: PATH's index entry holds CONTENT's bytes, through no attribute; its file is git checkout's
-  local s; printf '%s' "$2" > "$TS3C/blob.t"
-  s="$(_fx_git "$TS3CR" hash-object -w --no-filters "$TS3C/blob.t" 2>/dev/null)"; rm -f "$TS3C/blob.t"
-  _fx_git "$TS3CR" update-index --add --cacheinfo "100644,$s,$1" >/dev/null 2>&1
-  rm -f "$TS3CR/$1"; _fx_git "$TS3CR" checkout -- "$1" >/dev/null 2>&1
+_ts3g_put() {   # REPO PATH CONTENT: PATH's index entry in REPO holds CONTENT's bytes, through no attribute
+  local s; printf '%s' "$3" > "$TS3C/blob.t"
+  s="$(_fx_git "$1" hash-object -w --no-filters "$TS3C/blob.t" 2>/dev/null)"; rm -f "$TS3C/blob.t"
+  _fx_git "$1" update-index --add --cacheinfo "100644,$s,$2" >/dev/null 2>&1
+}
+_ts3g_blob() { _ts3g_put "$TS3CR" "$1" "$2"; rm -f "$TS3CR/$1"; _fx_git "$TS3CR" checkout -- "$1" >/dev/null 2>&1; }   # PATH CONTENT, and its file is git checkout's
+_ts3g_ci() { _fx_git "$1" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c maintenance.auto=false commit -qm "$2" >/dev/null 2>&1; }   # REPO MSG: what is staged
+_ts3g_bytes() {   # REPO SHA PREFIX DIR -> how many files of SHA under PREFIX DIR holds as their blobs hold them, and which not
+  local p f n=0 m=""
+  while IFS= read -r p; do f="$4/${p#"$3"/}"; [ -f "$f" ] || f="$4/$p"
+    if [ -f "$f" ] && [ "$(_fx_git "$1" hash-object --no-filters "$f" 2>/dev/null)" = "$(_fx_git "$1" rev-parse "$2:$p" 2>/dev/null)" ]; then n=$((n + 1)); else m="$m$p "; fi
+  done < <(_fx_git "$1" ls-tree -r --name-only "$2" -- "$3" 2>/dev/null)
+  printf 'same %s|differ [%s]' "$n" "$m"
 }
 _ts3g_cand() {   # BRANCH ATTRS CONTENT -> the commit of a candidate whose .gitattributes is ATTRS (none when empty), whose
                  # scan.txt blob is CONTENT, and which touches 2007-scan.sh; R is left checked out at it
@@ -132,9 +157,12 @@ _ts3g_onto() {   # -> yes when an unknown SUITE line of the last run names TS3G_
   cat "$TS3C/out" "$TS3C/err" 2>/dev/null | LC_ALL=C awk -v x="$TS3G_X" 'index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" && index($0, x) &&
     $0 ~ /(^|[^A-Za-z0-9_.-])engine(\/|[^A-Za-z0-9_.-]|$)/ { f = 1 } END { print (f ? "yes" : "no") }'
 }
-_ts3g_suite2() {   # A B -> yes when an unknown SUITE line of the last run holds A and B, ASCII case aside (A and B through ENVIRON, unescaped)
-  cat "$TS3C/out" "$TS3C/err" 2>/dev/null | TS3G_KA="$1" TS3G_KB="$2" LC_ALL=C awk 'BEGIN { a = tolower(ENVIRON["TS3G_KA"]); b = tolower(ENVIRON["TS3G_KB"]) }
-    index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" && index(tolower($0), a) && index(tolower($0), b) { f = 1 } END { print (f ? "yes" : "no") }'
+_ts3g_suite2() {   # A B -> yes when an unknown SUITE line of the last run holds A and B, the hex digits of each \xNN in
+                   # either case (A and B through ENVIRON, so awk leaves their backslashes as they are)
+  cat "$TS3C/out" "$TS3C/err" 2>/dev/null | TS3G_KA="$1" TS3G_KB="$2" LC_ALL=C awk '
+    function lowhex(s,   o) { o = ""; while (match(s, /\\x[0-9A-Fa-f][0-9A-Fa-f]/)) { o = o substr(s, 1, RSTART + 1) tolower(substr(s, RSTART + 2, 2)); s = substr(s, RSTART + RLENGTH) } return o s }
+    BEGIN { a = lowhex(ENVIRON["TS3G_KA"]); b = lowhex(ENVIRON["TS3G_KB"]) }
+    index($0, "  ") == 1 && $1 == "unknown" && $2 == "SUITE" { l = lowhex($0); if (index(l, a) && index(l, b)) f = 1 } END { print (f ? "yes" : "no") }'
 }
 
 # ---------------------------------------------------------------- fixture R ---
@@ -303,8 +331,7 @@ fi
 
 # 6b: the candidate adds engine/wid+U+2C5F/x.txt beside B's engine/wid+U+2C2F/keep.txt, and touches 2007-scan.sh.
 _ts3c_case h-wid; _ts3g_blob "engine/wid$TS3G_LC/x.txt" "a candidate file$TS3G_NL"; _ts3g_touch 2007-scan.sh
-_fx_git "$TS3CR" add "$TS3GT_/parts/2007-scan.sh" >/dev/null 2>&1
-_fx_git "$TS3CR" -c user.name=t -c user.email=t@t -c commit.gpgsign=false -c maintenance.auto=false commit -qm wid >/dev/null 2>&1; TS3G_H="$(_ts3g_sha HEAD)"
+_fx_git "$TS3CR" add "$TS3GT_/parts/2007-scan.sh" >/dev/null 2>&1; _ts3g_ci "$TS3CR" wid; TS3G_H="$(_ts3g_sha HEAD)"
 rm -rf "${TS3C:?}/lay"; mkdir -p "$TS3C/lay"
 _fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3C_M" "engine/wid$TS3G_UC" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
 _fx_git "$TS3CR" archive -o "$TS3C/lay.tar" "$TS3G_H" "engine/wid$TS3G_LC" >/dev/null 2>&1 && tar -x -C "$TS3C/lay" -f "$TS3C/lay.tar"
@@ -320,8 +347,76 @@ else
   skip "ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs" "this filesystem takes the pair for two names"
 fi
 
+# ----- A23 amended after the filesystem's answer, case 8: a link is walked -----
+# 8a: the candidate drops MARKER, moves engine/widget to engine/w2 and adds marker there, makes engine/widget a link to
+# w2, and touches 2008-marker.sh, which requires engine/widget/MARKER. (MARKER goes first: git rm refuses a path git mv
+# has just staged, and the new marker would then write over MARKER where names fold.)
+_ts3c_case h-link; _fx_git "$TS3CR" rm -q "$TS3GW/MARKER" >/dev/null 2>&1; _fx_git "$TS3CR" mv "$TS3GW" engine/w2 >/dev/null 2>&1
+printf 'the candidate marker\n' > "$TS3CR/engine/w2/marker"; ln -s w2 "$TS3CR/$TS3GW"; _ts3g_touch 2008-marker.sh; _ts3c_commit "$TS3CR" link
+TS3G_H="$(_ts3g_sha HEAD)"; TS3G_WANT=""; [ "$TS3G_FOLD" = yes ] || TS3G_WANT="$TS3G_SM|"
+_ts3g_check "ts3g: A23 amended after the filesystem's answer, case 8a (fixture control): the candidate's engine/widget is a link to w2 whose engine/w2 holds marker and no MARKER, and where names fold the base's engine/widget/MARKER answers through the link here and P's 2008-marker.sh passes over its tree as written here, and neither where not" \
+  "$(_fx_git "$TS3CR" ls-tree "$TS3G_H" -- "$TS3GW" | cut -d' ' -f1)|$(_fx_git "$TS3CR" cat-file blob "$TS3G_H:$TS3GW" 2>/dev/null)|$(_fx_git "$TS3CR" ls-tree --name-only "$TS3G_H" -- engine/w2/ | LC_ALL=C awk '/\/(MARKER|marker)$/ { printf "%s ", $0 }')|answers $([ -e "$TS3CR/$TS3GW/MARKER" ] && echo yes || echo no)|$(_ts3g_direct "$TS3G_H" "$TS3C_M" 2008-marker.sh | _ts3g_fails)" \
+  "120000|w2|engine/w2/marker |answers $TS3G_FOLD|$TS3G_WANT"
+if [ "$TS3G_FOLD" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs" \
+    "$(_ts3g_refused)|$(_ts3g_bl unknown SUITE "$TS3GW/MARKER" marker)|ran [$(_ts3g_ran)]" "refused|yes|ran []" "$(_ts3g_why)"
+else
+  skip "ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs" "names do not fold under this TMPDIR"
+fi
+# 8b: the candidate adds engine/x.conf, a link to ../Engine/widget/list.txt (B's file, its directory in other case).
+_ts3c_case h-xconf; ln -s ../Engine/widget/list.txt "$TS3CR/engine/x.conf"; _ts3g_touch 2007-scan.sh; _ts3c_commit "$TS3CR" xconf; TS3G_H="$(_ts3g_sha HEAD)"
+_ts3g_check "ts3g: A23 amended after the filesystem's answer, case 8b (fixture control): the candidate adds engine/x.conf, a link to ../Engine/widget/list.txt, and touches 2007-scan.sh, and here the link reaches B's list.txt where names fold and dangles where not" \
+  "$(_fx_git "$TS3CR" ls-tree "$TS3G_H" -- engine/x.conf | cut -d' ' -f1)|$(_fx_git "$TS3CR" cat-file blob "$TS3G_H:engine/x.conf" 2>/dev/null)|$(_fx_git "$TS3CR" diff --no-renames --name-only "$TS3C_M" "$TS3G_H" | tr '\n' ' ')|reaches $([ -f "$TS3CR/engine/x.conf" ] && cmp -s "$TS3CR/engine/x.conf" "$TS3CR/$TS3GW/list.txt" && echo yes || echo no)" \
+  "120000|../Engine/widget/list.txt|$TS3GT_/parts/2007-scan.sh engine/x.conf |reaches $TS3G_FOLD"
+if [ "$TS3G_FOLD" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs" \
+    "$(_ts3g_refused)|$(_ts3g_bl unknown SUITE engine/x.conf -)|ran [$(_ts3g_ran)]" "refused|yes|ran []" "$(_ts3g_why)"
+else
+  skip "ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs" "names do not fold under this TMPDIR"
+fi
+
+# ----- A22 and A23 amended after the filesystem's answer, case 9: a backslash in a printed path is written \x5c -----
+# Case 4's shape, with the four characters \x1b in both names: engine/widget/B\x1bk.txt and engine/widget/b\x1bk.txt.
+TS3G_BS='\x1b'; TS3G_BX='\x5cx1b'
+_ts3c_case h-bslash; _ts3g_blob "$TS3GW/B${TS3G_BS}k.txt" "a backslash$TS3G_NL"; _ts3g_blob "$TS3GW/b${TS3G_BS}k.txt" "a backslash$TS3G_NL"
+_ts3g_touch 2007-scan.sh; _ts3c_commit "$TS3CR" bslash; TS3G_H="$(_ts3g_sha HEAD)"
+_ts3g_check "ts3g: A22 and A23 amended after the filesystem's answer, case 9 (fixture control): the candidate's tree holds two paths under engine/widget that differ only by case and each hold the four characters backslash x1b, one blob for both, and no control byte" \
+  "$(_fx_git "$TS3CR" ls-tree -z "$TS3G_H" -- "$TS3GW/" | LC_ALL=C tr '\000' '\n' | LC_ALL=C awk -F'\t' '$2 ~ /k\.txt$/ { split($1, a, " "); printf "%s ", $2; b[a[3]] = 1 } END { m = 0; for (k in b) m++; printf "|%d", m }')|$(_fx_git "$TS3CR" ls-tree -z --name-only "$TS3G_H" -- "$TS3GW/" | LC_ALL=C tr -d '\000' | _ts3g_ctl)" \
+  "$TS3GW/B${TS3G_BS}k.txt $TS3GW/b${TS3G_BS}k.txt |1|0"
+if [ "$TS3G_FOLD" = yes ]; then
+  _ts3g_dry
+  _ts3g_check "ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c" \
+    "$(_ts3g_refused)|$(_ts3g_suite2 "$TS3GW/B${TS3G_BX}k.txt" "$TS3GW/b${TS3G_BX}k.txt")" "refused|yes" "$(_ts3g_why)"
+else
+  skip "ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c" "names do not fold under this TMPDIR"
+fi
+
+# ----- A22 amended after the filesystem's answer, case 10: the base-side copies write each file as its blob holds it -----
+# A repository of its own, whose commit's engine/ holds a .gitattributes giving crlf.txt text eol=crlf, id.txt ident and
+# u16.txt working-tree-encoding=UTF-16LE, over blobs those change on checkout: LF lines, a bare $Id$, UTF-8 text.
+TS3G_R10="$TS3C/c10/repo"; mkdir -p "$TS3G_R10/engine/harness" "$TS3C/c10/tmp" "$TS3C/c10/pol"
+( _fx_cd "$TS3G_R10" && git init -q -b main && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
+printf 'crlf.txt text eol=crlf\nid.txt ident\nu16.txt working-tree-encoding=UTF-16LE\n' > "$TS3G_R10/engine/.gitattributes"
+printf '#!/bin/sh\nexit 0\n' > "$TS3G_R10/engine/harness/felix"; chmod 755 "$TS3G_R10/engine/harness/felix"
+_fx_git "$TS3G_R10" add engine/.gitattributes engine/harness/felix >/dev/null 2>&1
+_ts3g_put "$TS3G_R10" engine/crlf.txt "one${TS3G_NL}two$TS3G_NL"; _ts3g_put "$TS3G_R10" engine/id.txt "keyword \$Id\$$TS3G_NL"
+_ts3g_put "$TS3G_R10" engine/u16.txt "FORBIDDEN token$TS3G_NL"; _ts3g_ci "$TS3G_R10" c10
+TS3G_S10="$(_fx_git "$TS3G_R10" rev-parse --verify -q 'HEAD^{commit}' 2>/dev/null)"
+_fx_git "$TS3G_R10" checkout-index -a -f --prefix="$TS3C/c10/co/" >/dev/null 2>&1
+_ts3g_check "ts3g: A22 amended, case 10 (fixture control): the commit's engine/ holds a .gitattributes naming text eol=crlf, ident and working-tree-encoding=UTF-16LE for three files, and git's own checkout-index of it here writes those three with bytes other than their blobs and the other two files as their blobs" \
+  "$(_ts3g_bytes "$TS3G_R10" "$TS3G_S10" engine "$TS3C/c10/co")" "same 2|differ [engine/crlf.txt engine/id.txt engine/u16.txt ]"
+TS3G_O="$( _fx_cd "$TS3G_R10" && export TMPDIR="$TS3C/c10/tmp" && . "$FROOT/harness/lib/resolve.sh" && . "$FROOT/harness/lib/policy.sh" \
+  && { _felix_policy_copy "$TS3G_R10" "$TS3G_S10" engine "$TS3C/c10/pol" >/dev/null 2>&1; printf 'rc %s|%s' "$?" "$(_ts3g_bytes "$TS3G_R10" "$TS3G_S10" engine "$TS3C/c10/pol")"; } )"
+_ts3g_check "ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it" "$TS3G_O" "rc 0|same 5|differ []"
+TS3G_O="$( _fx_cd "$TS3G_R10" && export TMPDIR="$TS3C/c10/tmp" && . "$FROOT/harness/lib/resolve.sh" && . "$FROOT/harness/lib/merge-judge.sh" \
+  && { _mj_make "$TS3G_R10" "$TS3G_S10" 9.9.9 >/dev/null 2>&1; _ts3g_rc=$?
+       printf 'rc %s|%s@@%s' "$_ts3g_rc" "$(_ts3g_bytes "$TS3G_R10" "$TS3G_S10" engine "${_MJ_COPY:-$TS3C/c10/none}/9.9.9")" "${_MJ_WHY:-}"; _mj_clean >/dev/null 2>&1; } )"
+_ts3g_check "ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it" "${TS3G_O%%@@*}" "rc 0|same 5|differ []" "why [${TS3G_O#*@@}]"
+
 _ts3c_on main
 rm -rf "${TS3C:?}"; [ "$TS3G_MEM" != made ] || rm -rf "${MEM:?}/felix"
 unset TS3C TS3CR TS3CK TS3CT TS3CPP TS3C_M TS3G_MEM TS3G_N TS3G_H TS3G_A TS3G_C TS3G_F TS3G_P TS3G_S TS3G_D TS3G_WANT TS3G_L TS3G_FOLD _ts3g_v TS3G_X TS3G_IN TS3G_E \
-  TS3G_UC TS3G_LC TS3G_XC TS3G_XL TS3G_PAIR TS3G_SG
+  TS3G_UC TS3G_LC TS3G_XC TS3G_XL TS3G_PAIR TS3G_SG TS3G_BS TS3G_BX TS3G_R10 TS3G_S10 TS3G_O
 # <<< trust-step3-run-tree-bytes

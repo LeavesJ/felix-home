@@ -1031,6 +1031,10 @@ _felix_merge_refs() {
   # A shallow checkout's boundary, so the merge does not walk to parents it does not hold.
   sh="$(git -C "$root" rev-parse --path-format=absolute --git-path shallow 2>/dev/null)"
   if [ -n "$sh" ] && [ -f "$sh" ] && ! cp "$sh" "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  # Reading the checked copy alone, the merge finds the commits since the merge base and no older one (lib/bind.sh
+  # copies no further), so the base is its boundary, as a shallow checkout's is: walking to the base's parents, the
+  # merge failed on every history longer than one commit, and every reader fell back to three-dot inside felix merge.
+  if [ "${#alt[@]}" -gt 0 ] && ! printf '%s\n' "$mb" >> "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
   tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
           GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
           GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"

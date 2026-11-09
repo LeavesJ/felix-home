@@ -61,6 +61,9 @@ fi
 # And what binds the merge to the provider's base and to objects that hash to their names (bind.sh, trust-plane
 # step 3, slice 2), loaded always for the same reason. felix merge refuses when it is not loaded.
 . "$(dirname "${BASH_SOURCE[0]:-$0}")/bind.sh" 2>/dev/null || :
+# And P's instrument parts run over the candidate (instrument.sh, trust-plane step 3, slice 3), loaded always for
+# the same reason. felix merge refuses a self-governed merge when it is not loaded.
+. "$(dirname "${BASH_SOURCE[0]:-$0}")/instrument.sh" 2>/dev/null || :
 
 FELIX_ESCAPE_SCAN="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/../bin" 2>/dev/null && pwd)/secret-scan"
 

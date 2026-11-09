@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004.
-#
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
 #   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
-
 # The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
@@ -15,18 +13,15 @@ _FELIX_CALLER_CDPATH="${CDPATH-}"
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
-
 # Git's colour stays off for every git this runs; why, and what is out of reach: engine/harness/felix, above the same lines.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
 esac
-
 # hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
 # one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
-
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
 # REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not).
@@ -133,6 +128,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/gov-names.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/install-fixture.sh"
+. "$HERE/lib/instrument-parts.sh"
 . "$HERE/lib/inventory-blind-runs.sh"
 . "$HERE/lib/inventory-blind.sh"
 . "$HERE/lib/inventory-gizmo.sh"
@@ -414,6 +410,10 @@ fi
 . "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
 . "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
 . "$HERE/parts/2179-trust-merge-driver-blind.sh"
+. "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
+. "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
+. "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
+. "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

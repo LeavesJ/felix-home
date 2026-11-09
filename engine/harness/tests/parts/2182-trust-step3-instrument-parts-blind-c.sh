@@ -119,9 +119,10 @@ _ts3e_arm_records() {
     printf '    printf "wrote %%s\\\\n" "$f" >> "%s"; done\n' "$TS3C/arm"
     printf '  } 2>/dev/null; }\n_ts3e_atk\n'; } >> "$TS3CR/engine/widget/lib.sh"
 }
-_ts3e_arm_env() {   # record the home variables and whether the home is reachable, and forge a kept judgement if it is
+_ts3e_arm_env() {   # [HOME-PATH]: record the home variables and whether the home is reachable, and forge a kept judgement
+                    # wherever it is, under HOME-PATH too when the fixture hands the unit one (A16: A10 unsets FELIX_HOME)
   { printf '\n_ts3e_atk() { { printf "FHD=%%s FH=%%s HOME=%%s dot=%%s\\\\n" "${FELIX_HOME_DIR+set}" "${FELIX_HOME+set}" "$HOME" "$([ -e "$HOME/.felix-home" ] && echo yes || echo no)" >> "%s"\n' "$TS3C/env"
-    printf '  for h in "${FELIX_HOME_DIR:-}" "${FELIX_HOME:-}" "$HOME"; do [ -n "$h" ] && [ -d "$h/state" ] && find "$h/state" -type d 2>/dev/null | while IFS= read -r g; do\n'
+    printf '  for h in "${FELIX_HOME_DIR:-}" "${FELIX_HOME:-}" "$HOME" "%s"; do [ -n "$h" ] && [ -d "$h/state" ] && find "$h/state" -type d 2>/dev/null | while IFS= read -r g; do\n' "${1:-}"
     printf '    for n in judgement judgement.txt kept receipt result; do printf "KEEP\\\\nclean\\\\n0 blockers\\\\n" > "$g/$n" 2>/dev/null; done; printf "forged %%s\\\\n" "$g" >> "%s"; done; done\n' "$TS3C/arm"
     printf '  } 2>/dev/null; }\n_ts3e_atk\n'; } >> "$TS3CR/engine/widget/lib.sh"
 }
@@ -196,13 +197,13 @@ _ts3e_check "ts3e: A10 (fixture control): the loosened candidate changes 2001-su
 _ts3e_dry
 _ts3e_check "ts3e: A10 (control): the unit ran and recorded the home variables it was given" \
   "$([ -s "$TS3C/env" ] && echo logged || echo no)|$(_ts3e_refused)" "logged|refused" "env [$(tr '\n' ' ' < "$TS3C/env")]; $(_ts3e_why)"
-_ts3e_check "ts3e: A10: a unit that reads FELIX_HOME_DIR, FELIX_HOME and HOME sees the first two unset and a HOME with no .felix-home" \
-  "$(LC_ALL=C awk 'END { print }' "$TS3C/env" 2>/dev/null)" "FHD= FH= HOME=$TS3C/home dot=no" "env [$(tr '\n' ' ' < "$TS3C/env")]; $(_ts3e_why)"
+_ts3e_check "ts3e: A10: a unit that reads FELIX_HOME_DIR, FELIX_HOME and HOME sees the first two unset and a HOME of its own, not the caller's, with no .felix-home" \
+  "$(LC_ALL=C awk -v c="HOME=$TS3C/home" 'END { $3 = ($3 == c ? "HOME=caller" : ($3 == "HOME=" ? "HOME=none" : "HOME=own")); print }' "$TS3C/env" 2>/dev/null)" "FHD= FH= HOME=own dot=no" "env [$(tr '\n' ' ' < "$TS3C/env")]; $(_ts3e_why)"
 
 # A forged clean kept judgement for ANOTHER candidate's key: the attacker (a machinery change, kept by A5) writes
 # forged judgements under the home; a later dry run of a different machinery candidate must still run its units.
 _ts3c_case h-a10x; _ts3e_drv 'PASS=$((PASS+1)); _ran "$1"; printf '"'"'  ok    %s\n'"'"' "$1"; return 0;' "$(_ts3c_honest_is)"
-_ts3e_arm_env; _ts3c_commit "$TS3CR" a10x; TS3E_HX="$(_jr_sha "$TS3CR" HEAD)"
+_ts3e_arm_env "$TS3CR"; _ts3c_commit "$TS3CR" a10x; TS3E_HX="$(_jr_sha "$TS3CR" HEAD)"
 _ts3c_case h-a10y; _ts3e_drv "$(_ts3c_honest_bad)" 'ok "$1";'; _ts3c_commit "$TS3CR" a10y; TS3E_HY="$(_jr_sha "$TS3CR" HEAD)"
 _ts3e_check "ts3e: A10 (fixture control): the attacker and the victim are two different machinery candidates, each of which P's driver would refuse" \
   "$([ "$TS3E_HX" != "$TS3E_HY" ] && echo two)|$(_ts3e_names "$TS3C_M" "$TS3E_HX")|$(_ts3e_names "$TS3C_M" "$TS3E_HY")" "two|$TS3ET_/run engine/widget/lib.sh |$TS3ET_/run "

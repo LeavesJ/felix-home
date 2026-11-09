@@ -14,7 +14,6 @@ _FELIX_CALLER_CDPATH="${CDPATH-}"
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
-
 # Git's colour stays off for every git this runs; why, and what is out of reach: engine/harness/felix, above the same lines.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
@@ -416,6 +415,7 @@ fi
 . "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
 . "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
 . "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
+. "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

@@ -1,4 +1,4 @@
-# The change readers' merge ignores the checkout's merge configuration (S6.6, 0.49.334)
+# The change readers' merge ignores the checkout's merge configuration (S6.6, 0.49.334; S6.7, 0.49.337)
 
 2026-11-08. A security finding and its fix, separate from trust step 3's slices. It was found while building slice 2
 (#497), and it was present on main before that (0.49.332), where the readers' code is byte-identical.
@@ -68,6 +68,17 @@ squashed with it. A credential line is still refused with the plant, by `disclos
 3. **Failure** falls back to the three-dot diff, as before. Three-dot over-reports, so the fallback can make a verdict
    stricter and never weaker.
 4. **Unchanged** for a configuration with no driver, attribute or merge setting.
+5. **No directory renames (S6.7, 0.49.337).** The merge runs with `merge.directoryRenames=false`, given on its
+   command line, so no config file and no `GIT_CONFIG_*` variable the caller exports turns it back on.
+
+   Found after 0.49.336 landed: `felix merge` refused #498, a handoff fold that empties `docs/handoff/pending/`, with
+   unknown SUITE. Under git's default (`conflict`), the merge took pending/ as renamed into docs/handoff/, moved the
+   four files main had since added there, and failed. With no tree, every reader took three-dot, and slice 3's A1
+   refused. With `true`, the files move and the merge succeeds, and the changed paths then blame the branch for
+   main's files; a caller's `GIT_CONFIG_PARAMETERS` or `GIT_CONFIG_COUNT` reached the merge and could set that.
+   GitHub's own test merge of #498 (`refs/pull/498/merge`) holds byte-for-byte the tree git writes with `false`, and
+   the squash `felix merge` lands is GitHub's. That is one pair observed, not GitHub's setting shown in general. The
+   finding and the spec are `audits/2026-11-08-trust-plane-step3/merge-dir-renames/` in the memory root.
 
 ## Shown
 
@@ -80,6 +91,8 @@ squashed with it. A credential line is still refused with the plant, by `disclos
   - a relative object directory, from another working directory.
 
   In each, the reader takes the merge, keeps the line and runs no driver.
+- **Blind part 2184,** written from S6.7's spec before the fix: 12 of its 25 assertions fail on 0.49.336 and 25 of
+  25 pass with the fix. Part 2181, which holds A1's cases, still passes in part mode: 40 lines, none failing.
 - **The suite** ran in full under `tests/run --record-assertions` before the pull request opened. Its counts, and
   `felix gate`'s, are in the pull request's body.
 
@@ -98,8 +111,8 @@ before.
   where P's instruments read an export of H's committed tree.
 - **The built-in `binary` driver,** named by the candidate's own `.gitattributes`. It is expected to conflict and fall
   back, and it was not run.
-- **Other config the merge reads** in the made repository. None comes from the checkout's files, but `merge-ort`'s defaults for
-  renames and conflict style are git's own, and they were not varied.
+- **Other config the merge reads** in the made repository. None comes from the checkout's files. Directory renames are off
+  since S6.7; file renames and conflict style are git's own defaults, and they were not varied against GitHub's.
 - **`lib/pr-status.sh`'s `merge-tree`,** which feeds a report page and runs in the same checkout.
 - **`bin/secret-scan`,** which keeps its own copy of the patch reader. It reads three-dot, so it takes no merge.
 - **Outside `felix merge`** (the gate's readers), the checkout's objects are still reachable, so a planted merged blob

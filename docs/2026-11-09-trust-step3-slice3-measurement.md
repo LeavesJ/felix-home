@@ -4,7 +4,7 @@
 
 **Scope.** `felix merge`, as the lander and a session run it, dry runs included, for Felix's own repository, at two versions:
 - **main:** `origin/main` 6fe629e6 (0.49.334);
-- **slice 3:** this branch (0.49.335), spec rules S7 to S9 and amendments A1 to A20, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`.
+- **slice 3:** this branch (0.49.335), spec rules S7 to S9 and amendments A1 to A21, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`.
 
 Not measured: products' suites, which run none of this (S8.11); the gate and CI, which still run the candidate's suite (R4); the hosted authority, which does not exist; CI's bash 5.3 and gawk, which run this branch in CI and not on this Mac.
 
@@ -76,6 +76,8 @@ The review budget was the first build's review and two fault rounds. Each fault 
 - **Round 3, with no fault round left:** each fix was checked against the repro of every confirmed finding of fault rounds 1 and 2 and against the automated review's scenarios (`slice3/round3/check/`), and none came back. Three repros as written had gone vacuous under the new layout, and were rebuilt so that they fail at the round they were written for. One repro removed every `felix-instrument-r.*` under `/tmp`, including a concurrent full run's live records directory, and that run's canary failure was this incident's (`check/INCIDENT-r1-f3-cleanup.txt`).
 - **The automated review of round 3** found that a judgement read a kept judgement while another judgement's units ran (A19). Fixed, and its assertions written blind.
 - **Merged with main at 0.49.334 (A20),** part 2181's A1 cases failed: inside `felix merge`, 0.49.334's merge reads the checked copy alone, the copy holds no commit older than the merge base, and `merge-tree` failed on its parents. By that mechanism both change readers (`felix_added_lines`, `felix_changed_paths`) took three-dot inside `felix merge` on 0.49.334 whenever the merge base had a parent, the stricter direction, and slice 3 refused a candidate whose base moved, as in 2181's A1 cases. Part 2179's fixtures never reach a merge base with a parent, so it passed with and without the fix. The merge base is now the made repository's shallow boundary, as a shallow checkout's already was (`lib/resolve.sh`; `slice3/round3/merge/`).
+
+- **The gate on 2da2002f** failed 2 of 17,012 assertions at a load average near 40. One was 2183's A14: after a KILL, bind's copy of the objects was left. It was not reproduced, alone or under 30 CPU spinners. The one mechanism found that fits is a race: the watchdog and the units' supervisors read the judge's pid as their first act, so a judge KILLed before that act was read as pid 1, and the watchdog waited on. A direct repro shows it on the code before the fix and not after. Each is now handed the judge's pid (A21; `slice3/release/pp/`). The other was 1291's D6, a runner fixture's grandchild left behind, in a part slice 3 does not change; it passed in this tree's record run and alone under the same load.
 
 ## 4. Open after slice 3
 

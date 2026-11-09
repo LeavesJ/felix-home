@@ -156,11 +156,12 @@ felix_instr_dirs() {   # ROOT
   fi
   _felix_instr_watch
 }
-# A14. The watchdog: it waits for its parent, the judge, to be gone, then moves what git wrote into bind.sh's copy
+# A14. The watchdog: it waits for its parent, the judge, to be gone (the judge hands it its pid, as a supervisor is
+# handed its parent's, for a judge KILLed before the watchdog first looks), then moves what git wrote into bind.sh's copy
 # to the checkout (bind.sh's _felix_bind_salvage, the same rule) and removes the copy and every directory of the
 # run. USR1 ends it, unused, once the judge has removed them itself.
 _felix_instr_wdpl='use File::Path (); use File::Copy (); use File::Glob qw(bsd_glob);
-my ($from, $to, $keep, @rm) = @ARGV; my $pp = getppid(); setpgrp(0, 0);
+my ($pp, $from, $to, $keep, @rm) = @ARGV; $pp = getppid() unless $pp =~ /^[1-9][0-9]*$/; setpgrp(0, 0);
 $SIG{$_} = "IGNORE" for qw(TERM INT HUP QUIT PIPE); $SIG{USR1} = sub { exit 0 };
 while (getppid() == $pp) { select(undef, undef, undef, 0.25) }
 chdir "/";
@@ -171,11 +172,12 @@ if ($from ne "" && $to ne "" && -d $from && -d $to) {
 for my $d (@rm) { next if $d eq "" || !-e $d; chmod 0700, $d if -d $d && !-l $d; File::Path::remove_tree($d) }
 exit 0;'
 _felix_instr_watch() {
-  local bd="" bh="" bp=""
+  local bd="" bh="" bp="" pp
+  pp="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"   # this shell, the judge; before the fork, which expands the arguments
   if [ -n "${_FELIX_BIND_DIR:-}" ] && [ "${_FELIX_BIND_OWNER:-}" = "$_FELIX_INSTR_OWNER" ]; then
     bd="$_FELIX_BIND_DIR"; bh="${_FELIX_BIND_HOME:-}"; bp="${_FELIX_BIND_PACK:-}"
   fi
-  perl -e "$_felix_instr_wdpl" "${bh:+$bd/objects}" "$bh" "$bp" "$_FELIX_INSTR_J" "$_FELIX_INSTR_R" "$_FELIX_INSTR_UP" \
+  perl -e "$_felix_instr_wdpl" "$pp" "${bh:+$bd/objects}" "$bh" "$bp" "$_FELIX_INSTR_J" "$_FELIX_INSTR_R" "$_FELIX_INSTR_UP" \
     "$_FELIX_INSTR_HP" ${bd:+"$bd"} ${bd:+"$bd.list"} </dev/null >/dev/null 2>&1 &
   _FELIX_INSTR_WD=$!
 }
@@ -280,11 +282,13 @@ _felix_instr_repo() {   # DEST COMMIT BRANCH PACK: a repository of its own at DE
 # The supervisor of one unit (A7.2, A7.3, A7.8): LIMIT LOG GROUP-FILE J R U COMMAND... It leaves the judge's process
 # group, starts the unit in a group of its own with its output to LOG, writes that group's number, and waits. When
 # the unit ends, its time is up, it is told to stop, or the judge is gone, it ends the unit's group, TERM and then
-# KILL a second later, and exits with the unit's status (124: the time limit; 125: stopped). A judge that is gone
+# KILL a second later, and exits with the unit's status (124: the time limit; 125: stopped). The shell that starts it
+# hands it its own pid (PARENT), so that a judge gone before the supervisor first looks is seen as gone (read from
+# getppid at the start, a judge KILLed in that window read as pid 1, and the supervisor waited on). A judge that is gone
 # was killed by a signal it could not trap (KILL, or one it does not trap): the supervisor then removes J, R, the
 # unit's own directory U, the parent of the units' directories (A14) and the units' HOMEs.
 _felix_instr_pl='use POSIX ();
-my ($lim, $log, $pf, $jd, $rd, $ud, $up, $hp, @cmd) = @ARGV; my $pp = getppid(); setpgrp(0, 0);
+my ($pp, $lim, $log, $pf, $jd, $rd, $ud, $up, $hp, @cmd) = @ARGV; $pp = getppid() unless $pp =~ /^[1-9][0-9]*$/; setpgrp(0, 0);
 my $u = fork(); exit 125 unless defined $u;
 if (!$u) { setpgrp(0, 0); $SIG{$_} = "DEFAULT" for qw(INT QUIT TERM HUP PIPE ALRM);
   open(STDIN, "<", "/dev/null"); open(STDOUT, ">>", $log) or POSIX::_exit(126); open(STDERR, ">&", \*STDOUT) or POSIX::_exit(126);
@@ -309,8 +313,9 @@ exit $why if $why; exit(($st & 127) ? 128 + ($st & 127) : ($st >> 8));'
 # is the canary, which is given no end or ran file. A directory that cannot be made is a unit that did not finish
 # (status 126).
 _felix_instr_launch() {   # N DIR LIMIT MEMBER...
-  local n="$1" dir="$2" lim="$3" r="$_FELIX_INSTR_R" u="" hm="$_FELIX_INSTR_HP/$1"
+  local n="$1" dir="$2" lim="$3" r="$_FELIX_INSTR_R" u="" hm="$_FELIX_INSTR_HP/$1" pp
   shift 3
+  pp="${BASHPID:-$(exec /bin/sh -c 'echo "$PPID"')}"   # this shell, the supervisor's parent
   local -a ev=()
   # One assignment, so that no trap runs between the directory's making and its being known to the clean-up.
   _FELIX_INSTR_UD[n]="$(mktemp -d "${_FELIX_INSTR_UP:-/nonexistent}/u.XXXXXX" 2>/dev/null)"
@@ -326,7 +331,7 @@ _felix_instr_launch() {   # N DIR LIMIT MEMBER...
       -u FELIX_TEST_JOBS -u FELIX_TEST_PART_RECORD -u FELIX_TEST_PART_RAN -u FELIX_TEST_PART_END -u FELIX_TEST_PART_LOG \
       -u FELIX_INSTRUMENT_UNIT_SECONDS -u FELIX_INSTRUMENT_CANARY_SECONDS -u FELIX_HOME_DIR -u FELIX_HOME HOME="$hm" \
       TMPDIR="$_FELIX_INSTR_UT" ${ev[@]+"${ev[@]}"} \
-      perl -e "$_felix_instr_pl" "$lim" "$u/log" "$r/$n.pid" "$_FELIX_INSTR_J" "$r" "$u" "$_FELIX_INSTR_UP" "$_FELIX_INSTR_HP" \
+      perl -e "$_felix_instr_pl" "$pp" "$lim" "$u/log" "$r/$n.pid" "$_FELIX_INSTR_J" "$r" "$u" "$_FELIX_INSTR_UP" "$_FELIX_INSTR_HP" \
       "${BASH:-bash}" engine/harness/tests/run --part "$@" \
       </dev/null >/dev/null 2>&1 ) &
   _FELIX_INSTR_SUB[n]=$!; _FELIX_INSTR_T0[n]=$SECONDS

@@ -1,7 +1,7 @@
 ### 2026-11-09: P's instrument parts judge the candidate (trust-plane step 3, slice 3, 0.49.335)
 
 **What this is.** Design step 3, slice 3, on branch `claude/trust-step3-slice3`. It moves inventory row D2 for the merge and narrows residual R3.
-- The spec is in the memory root, `audits/2026-11-08-trust-plane-step3/spec-slice3.md`: rules S7 to S9, then amendments A1 to A20 after each review. The run logs are beside it in `slice3/`.
+- The spec is in the memory root, `audits/2026-11-08-trust-plane-step3/spec-slice3.md`: rules S7 to S9, then amendments A1 to A21 after each review. The run logs are beside it in `slice3/`.
 - The measurement is `docs/2026-11-09-trust-step3-slice3-measurement.md`. The inventory's last column is now "After slices 1 to 3".
 - The founder approved the first partition (`projects/felix/partition.tsv`: 209 parts instrument, 50 subject) with "authorize slice 2 and approve slice 3", 2026-11-08 19:37Z.
 
@@ -19,7 +19,7 @@
 - **Battery:** on main, a loosened, deleted, unsourced or renamed guard, or a neutered `bad()` or `is()`, lands when the candidate's suite passes. Here each is refused, and so is a partition row moved to `subject`, which main has no table for.
 - **Cost:** a machinery change runs about 200 units, 1,395 to 4,044 s on this Mac across the rounds' runs, once per pair; the kept judgement reads back in about 3 s. A change to a few parts runs those units (41 s for three).
 - **False blocks:** round 2's honest full run refused 51 lines, from where units ran (A17) and one lint (A18). The final run, on this branch with the same honest change, refused nothing: 202 units, 1,350 s, and its kept judgement read back in 1.75 s.
-- **Review:** the first build's review and two fault rounds, then checks against each confirmed finding's repro, which found no regression. Two later findings: an automated review's (A19), and the merge with 0.49.334 (A20).
+- **Review:** the first build's review and two fault rounds, then checks against each confirmed finding's repro, which found no regression. Three later findings: an automated review's (A19), the merge with 0.49.334 (A20), and a watchdog race behind a gate failure under load (A21).
 
 **Open, for whoever takes step 3 next.**
 - **Candidate code in P's run (E4).** Units run as the worker's user, and none of this is a sandbox: a unit can find the real home, outlive its group, or remove its judge's marker (A13's open list).

@@ -45,14 +45,16 @@ _mj_clean() {
 
 # A signal reached felix merge while a hand-off was under way. bash holds a trap while a foreground
 # child runs, which is why the copy is waited for (felix_merge_handoff): this runs as soon as the
-# wait is interrupted. The copy is stopped with TERM, and with KILL if it has not gone in three
-# seconds, and what the hand-off made is removed, so the command ends within five.
+# wait is interrupted. The copy is stopped with TERM, and with KILL if it has not gone in eight
+# seconds, and what the hand-off made is removed, so the command ends within ten. Eight because a
+# copy that is running P's suite (lib/instrument-run.sh) needs about two to stop its units and
+# remove its run tree, and a copy killed first left that tree behind (spec-slice3 A7.4).
 _mj_stop() {   # EXIT-STATUS
   local i=0
   trap '' TERM INT HUP
   if [ -n "$_MJ_PID" ]; then
     kill -TERM "$_MJ_PID" 2>/dev/null
-    while [ "$i" -lt 30 ] && kill -0 "$_MJ_PID" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
+    while [ "$i" -lt 80 ] && kill -0 "$_MJ_PID" 2>/dev/null; do sleep 0.1; i=$((i + 1)); done
     if kill -0 "$_MJ_PID" 2>/dev/null; then kill -KILL "$_MJ_PID" 2>/dev/null; fi
     wait "$_MJ_PID" 2>/dev/null
   fi

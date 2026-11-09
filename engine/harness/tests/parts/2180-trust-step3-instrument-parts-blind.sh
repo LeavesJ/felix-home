@@ -270,7 +270,7 @@ _ts3c_case h-nd main-nd; _ts3c_loosen; _ts3c_commit "$TS3CR" nd-loose
 _fx_git "$TS3CR" update-ref refs/remotes/origin/main "$TS3C_BN" >/dev/null 2>&1; _ts3c_entry "$TS3C_BN"
 _ts3c_check "ts3c: S8.9 (fixture control): the base without a driver holds P's parts and no tests/run, and is the provider's main" \
   "$(git -C "$TS3CR" ls-tree --name-only "$TS3C_BN" "$TS3CT_/" | tr '\n' ' ')|$(_jr_sha "$TS3CR" refs/remotes/origin/main)" \
-  "$TS3CT_/assertions.tsv $TS3CT_/groups.tsv $TS3CT_/lib $TS3CT_/parts $TS3CT_/receipt.sh $TS3CT_/red |$TS3C_BN"
+  "$TS3CT_/assertions.tsv $TS3CT_/canary $TS3CT_/groups.tsv $TS3CT_/lib $TS3CT_/parts $TS3CT_/receipt.sh $TS3CT_/red |$TS3C_BN"
 _ts3c_dry
 _ts3c_check "ts3c: S8.9: with P's driver missing at B, a candidate that changes an instrument part is refused with a blocker of kind unknown, subject SUITE" \
   "$(_ts3c_refused)|$(_ts3c_bl unknown SUITE - -)" "refused|yes" "$(_ts3c_why)"

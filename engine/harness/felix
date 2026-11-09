@@ -1820,6 +1820,11 @@ cmd_merge() {
   # Before anything is read (lib/bind.sh, spec S6.1 and S6.2): the caller's git environment does not reach a read,
   # and replacement and grafts are off, for this process and every child. A refusal waits until the arguments are
   # known, since it is recorded and a dry run records nothing.
+  # And a TMPDIR that is relative, or inside the checkout, is /tmp for the whole merge (lib/instrument-run.sh,
+  # spec-slice3 A7.5): slice 2's copy, main's resolve.sh and slice 3's run tree were made in the work tree or not at all.
+  if [ -n "${TMPDIR:-}" ] && command -v felix_instr_tmpbase >/dev/null 2>&1; then
+    TMPDIR="$(felix_instr_tmpbase "$(felix_repo_root "$PWD" 2>/dev/null)")"; export TMPDIR
+  fi
   felix_bind_env 2>/dev/null || :
   resolve_or_die
   local orig=("$@")   # what a hand-off to main's engine repeats (lib/merge-judge.sh)

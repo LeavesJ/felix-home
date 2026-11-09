@@ -23,6 +23,17 @@ _merge_repo_build() {
     cat > "$GHB/gh" <<'STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GHSTUB_LOG"
+# The provider's two reads at the merge (lib/bind.sh, spec S5.2), answered from the checkout the stub runs in, with
+# git at call time: the pull request open at this HEAD into GHSTUB_BASE (jr-mbase, the base every caller of this
+# stub names through _mbase), and that branch at the commit it names here, remote-tracking ref first.
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-jr-mbase}" "$(git rev-parse HEAD)"; exit 0 ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")"
+    exit 0 ;;
+esac
 case "$1 $2" in
   "pr view") printf '{"number":7,"state":"OPEN"}\n' ;;
   "pr merge")

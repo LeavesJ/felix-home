@@ -81,7 +81,7 @@ OB1 and OB2 are refused only because the battery's forger did not also edit the 
 
 Where the lander stands: it passes no `--base`, fetches `origin/main` at the start of each tick, and brings its home to `origin/main` before it judges anything (`_gt_deploy_owed`). So on the lander's own path OB1 does not apply, and OB2 needs the ref moved between the tick's fetch and its judgement. That is an inference from the lander's code (inventory A7, F5), not a run.
 
-The suite (R3) is not in the battery. The fixture's gate is `true`, and its receipt is forged by construction. By reading the inventory (D1, D2), a helper's body in `tests/run` can change without changing a counted line, and the gate and CI then run the candidate's suite. That stays the largest in-band instrument a branch supplies for Felix's own engine.
+The suite (R3) is not in the battery. The fixture's gate is `true`, and its receipt is forged by construction. By reading the inventory (D1, D2), a helper's body in `tests/run` can change without changing a counted line, and the gate and CI then run the candidate's suite. That stays the largest in-band instrument a branch supplies for Felix's own engine. Slice 3 (0.49.336, `docs/2026-11-09-trust-step3-slice3-measurement.md`) has P's instrument parts judge it at the merge; the gate and CI still run the candidate's suite.
 
 ## 2. The review
 
@@ -191,7 +191,7 @@ m8 survives because, for Felix's own repository, S1.7 answers before the worktre
 ## Residuals after slice 1
 
 - **R1:** the authority runs as the worker's user, and the worker's login can merge. G2 passes the floor. This needs the hosted authority's own identity and a repository where worker tokens are kept off main (direction row 43).
-- **R2:** P is an argument and a local ref, and since slice 1 that ref names the tables and instruments too. OB1b and OB2b land. The next move is to bind P to the PR's base as the provider holds it (inventory A6, A7, G1).
+- **R2:** P is an argument and a local ref, and since slice 1 that ref names the tables and instruments too. OB1b and OB2b land. The next move is to bind P to the PR's base as the provider holds it (inventory A6, A7, G1). Slice 2 does that, and is measured in `docs/2026-11-08-trust-step3-slice2-measurement.md`.
 - **R3:** the suite that judges Felix's engine is the candidate's.
 - **R4:** the receipts the merge accepts are files the worker writes, and so is the home's working tree. Every battery result above assumed the first.
 - **R5:** the partition and the gateway are not built. IB9, IB10, IB15, the rewriter's open forms and the stance-table instance in section 3 belong here.
@@ -201,6 +201,6 @@ m8 survives because, for Felix's own repository, S1.7 answers before the worktre
 
 - The partition (spec E5), which the five review rounds on the command reader point to: run P's commands so that every instrument is P's by construction, and the candidate's tree is read only as the subject. The reader in S2.1 is a bounded stand-in for it.
 - Products governed from a Felix home: a home that no repository holds still supplies their tables (spec §3).
-- The object database's replace refs and grafts. `git replace` in the merged repository changes what git returns for P and for the subject. By reading, the directory snapshot is cut in a scratch repository that holds no replace ref, while a top-level file, the instrument list and the escape scan are read in the checkout, where replacement is on. Found while reading for this report and not run; recorded in the inventory as A8.
+- The object database's replace refs and grafts. `git replace` in the merged repository changes what git returns for P and for the subject. By reading, the directory snapshot is cut in a scratch repository that holds no replace ref, while a top-level file, the instrument list and the escape scan are read in the checkout, where replacement is on. Found while reading for this report and not run; recorded in the inventory as A8. Slice 2 switched both off (S6.2), and part 2178 runs them.
 - `deploy-check`'s replay, which needs a cache fixture per commit.
 - A fault-injection round on `lib/policy.sh`'s own reads (a failed `git`, a full `$TMPDIR`), under the review budget.

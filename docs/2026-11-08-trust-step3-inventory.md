@@ -2,7 +2,7 @@
 
 2026-11-08. Design step 3 (`docs/2026-11-07-trust-plane-design.md` §4.1, §9) asks for every input the authority reads, where it is read from, whether the judged branch can change it, and where it moves. This is that inventory, for the authority as it stands today: `felix merge` and the land tick.
 
-**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the first engine slice that moves inputs to P (0.49.332, this branch, including spec rules S1.7 to S1.10 and S2.1 as amended after its reviews). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
+**Scope.** The merge boundary and the land tick on felix-home, at `origin/main` 4b3179ff (0.49.330), and the two engine slices that move inputs to P: slice 1 (0.49.332, spec rules S1 to S4, including S1.7 to S1.10 and S2.1 as amended after its reviews) and slice 2 (0.49.333, spec rules S5 and S6 in `audits/2026-11-08-trust-plane-step3/spec-slice2.md`, measured in `docs/2026-11-08-trust-step3-slice2-measurement.md`), the fix to the change readers' merge (0.49.334, rule S6.6, in `docs/2026-11-08-trust-merge-driver.md`), and slice 3 (0.49.336, spec rules S7 to S9 and amendments A1 to A21 in `audits/2026-11-08-trust-plane-step3/spec-slice3.md`, measured in `docs/2026-11-09-trust-step3-slice3-measurement.md`). The gate, the hooks and the capability plane are not the landing authority, and they appear only where the authority reads something they wrote. The hosted authority (design §4.8) does not exist yet. Its identity, and the routes it would close, are listed as residual, not designed here.
 
 **This list is open.** It holds what two methods found (below). The design's own words apply: "any other input the authority turns out to read. This list is enumerated from what the authority actually reads, not written down in advance". An input found later moves to P when it is found (design §11). The row numbers are labels, not a count of the space.
 
@@ -22,26 +22,29 @@ Key to the columns:
 - **Branch?** Can a commit on the judged branch change this input, so that it changes that branch's own verdict?
 - **Worker?** Can a process on this Mac, running as the same user, change it without going through review?
 - **Moves to.** Where design §4.1 puts it.
-- **After slice 1.** What 0.49.332 does about it.
+- **After slices 1 to 3.** What 0.49.332 (slice 1), 0.49.333 (slice 2) and 0.49.336 (slice 3) do about it. A row a later slice changed says so.
 
 ### A. The judge
 
-| # | Input | Read from today | Branch? | Worker? | Moves to | After slice 1 |
+| # | Input | Read from today | Branch? | Worker? | Moves to | After slices 1 to 3 |
 |---|---|---|---|---|---|---|
 | A1 | The engine that forms the verdict | The installed cache entry for main's version, byte-checked against main through main's own `resolve.sh`. A branch's own felix hands the whole command to a copy cut from git | No, through the entry. Yes, when the worker runs the branch's own felix and the branch removed the hand-off (`lib/merge-judge.sh`, "what this does not bind") | Can write the cache (a doctored entry is refused) and can run any felix it likes | P, then the hosted authority (§4.8) | Unchanged; residual R1 |
 | A2 | Whether the checkout is the engine's own repository, which decides whether main's engine judges at all | The candidate's tree (`felix_self_governed`) | **Yes:** deleting `engine/.claude-plugin/plugin.json` made a branch be judged by the felix it carries | Yes, through A1 | P | **Moved:** read from BASE as well (S4) |
-| A3 | The version that names the judge | `BASE:engine/.claude-plugin/plugin.json` | No | Through A6 and A7 | P | Already P |
-| A4 | The code that checks the judge | `BASE:engine/harness/lib/resolve.sh` | No | Through A6 and A7 | P | Already P |
+| A3 | The version that names the judge | `BASE:engine/.claude-plugin/plugin.json` | No | Through A6 and A7, until slice 2 moved them | P | Already P |
+| A4 | The code that checks the judge | `BASE:engine/harness/lib/resolve.sh` | No | Through A6 and A7, until slice 2 moved them | P | Already P |
 | A5 | Environment that chooses or loosens a judge (`FELIX_KERNEL`, `FELIX_MERGE_HANDED`, the cache variables, `TMPDIR`, `PATH`) | The caller's environment | No | Yes, for its own run of felix merge. The lander takes three of them out and runs under launchd's `PATH` | The authority's own environment | Unchanged (refusals and the byte check stand); residual R1 |
-| A6 | The base the merge judges against, which names P | `--base`, or `main` resolved to `refs/remotes/origin/main` | No | **Yes:** a worker-run felix merge can name a ref the worker controls, and P is then the worker's | The PR's base on the provider | Not moved. Since slice 1 it also names P's tables and instruments, so this is now the route a receipt forger takes (measurement OB1); residual R2 |
-| A7 | `refs/remotes/origin/main` itself | The local ref. The lander fetches at the start of each tick, and felix merge does not fetch | No | Yes (`git update-ref`) | The provider's ref, read by the authority's identity | Not moved, and since slice 1 it names P's tables too (measurement OB2); residual R2 |
-| A8 | What git returns for an object: the merged repository's replace refs (`refs/replace/`) and grafts | Every git read the merge makes in the checkout, of P and of the subject. By reading (not run), a directory's snapshot is cut in a scratch repository that borrows only objects and so holds no replace ref, while a top-level file, the instrument list and the escape scan read in the checkout | No: a pull request carries no such ref | Yes (`git replace`) | P read with replacement off, or the authority's own clone | Not moved. Found while writing the measurement, and not measured; open |
+| A6 | The base the merge judges against, which names P | `--base`, or `main` resolved to `refs/remotes/origin/main` | No | **Yes:** a worker-run felix merge can name a ref the worker controls, and P is then the worker's | The PR's base on the provider | **Moved** (slice 2, S5): B is read once and compared with the base commit the provider names for the pull request, once nothing else blocks, and again just before the squash. Another base is refused with a `base` line. The provider's answer comes through the worker's `gh` (R1) |
+| A7 | `refs/remotes/origin/main` itself | The local ref. The lander fetches at the start of each tick, and felix merge does not fetch | No | Yes (`git update-ref`) | The provider's ref, read by the authority's identity | **Moved** (slice 2, S5), as A6: a moved or stale local ref is refused with a `base` line that names both commits |
+| A8 | What git returns for an object: the merged repository's replace refs (`refs/replace/`) and grafts | Every git read the merge makes in the checkout, of P and of the subject | No: a pull request carries no such ref | Yes (`git replace`, a graft file) | P read with replacement off, or the authority's own clone | **Moved** (slice 2, S6.2): replacement off and the graft file pointed at a path that does not exist, for the merge and every child |
+| A9 | What git returns for an object from the checkout's own store: a loose object rewritten under its old name, the commit-graph, the multi-pack index, a planted pack | Every git read the merge makes | No | Yes (a file under `.git/objects`) | Objects checked against their names, or the authority's own clone | **Moved in part** (slice 2, S6.3, S6.4): the objects of B, H and M and their trees are copied through `index-pack`, which names each by hashing it, and the run reads the copy first (held packed and loose, since git 2.56 reads a loose object in any store before a packed one); the commit-graph and the multi-pack index are switched off. A planted pack is open: git serves an object from the pack it used last without hashing it again (slice 2 measurement, section 4) |
+| A10 | The caller's git environment (`GIT_DIR`, `GIT_OBJECT_DIRECTORY`, `GIT_ALTERNATE_OBJECT_DIRECTORIES`, `GIT_CONFIG_*`, `GIT_EXEC_PATH` and others) | The caller of felix merge | No | Yes, for its own run | The authority's own environment | **Moved** (slice 2, S6.1): unset before anything is read, for the merge and every child |
+| A11 | The checkout's own merge configuration: a merge driver its `.git/config` (or the global or system config) defines, and the attributes in its `.git/info/attributes` that name one for a path; and the loose objects in its store, which a 3-way merge reuses under the merged blob's id | `git merge-tree --write-tree`, which `felix_added_lines` and `felix_changed_paths` take through `_felix_merge_refs` when main has moved since the branch was cut | Yes, with the checkout's config: the candidate's own `.gitattributes` can name a driver the config defines | **Yes** (two files under `.git`, and its object store) | A git directory the reader makes, with no config or attributes from the checkout, over the checked copy | **Moved** (S6.6, 0.49.334): the merge runs in a bare repository made for the call, with global and system config and attributes off, and inside `felix merge` it reads slice 2's checked copy alone |
 
 ### B. Policy tables
 
 These are the files under `projects/<name>/`. Before slice 1, all of them were read from the project directory as the home's working tree holds it. The judged branch could change them when the home is the candidate's own checkout: a branch checked out in the home, a worker that points `FELIX_HOME` at its checkout, or CI, where the home is the checkout under test. A worker could change them by editing the home's working tree, or by pointing `FELIX_HOME` at a plain directory of its own.
 
-| # | Input | Read by | Moves to | After slice 1 |
+| # | Input | Read by | Moves to | After slices 1 to 3 |
 |---|---|---|---|---|
 | B1 | `risk.tsv`: the project's escape rows and their confines | `felix_escapes` | P | **Moved** (S1) |
 | B2 | `evidence.tsv` | `felix_evidence_check` | P | **Moved** (S1) |
@@ -59,7 +62,7 @@ Tables the merge does not read at all (`qualification.tsv`, `deny.tsv` beyond th
 
 ### C. Instruments that P's commands execute
 
-| # | Input | Read from today | Branch? | Moves to | After slice 1 |
+| # | Input | Read from today | Branch? | Moves to | After slices 1 to 3 |
 |---|---|---|---|---|---|
 | C1 | An obligation's `applies` command, and the executable it names (felix-home: `engine/harness/bin/deploy-check`) | `bash -c` in the candidate's checkout, so a script it names was the candidate's | **Yes:** rewriting the script retired the need as DORMANT | P's instrument over the candidate's subject (§4.4) | **Moved** (S2) |
 | C2 | An obligation's evidence contract (felix-home: `engine/harness/bin/lifecycle-check`, RELEASE_BLOCKING, run at every merge) | the same | **Yes:** a branch could make its own checker exit 0 | the same | **Moved** (S2) |
@@ -70,10 +73,10 @@ Tables the merge does not read at all (`qualification.tsv`, `deny.tsv` beyond th
 
 ### D. Evidence the merge accepts
 
-| # | Input | Read from today | Branch? | Worker? | Moves to | After slice 1 |
+| # | Input | Read from today | Branch? | Worker? | Moves to | After slices 1 to 3 |
 |---|---|---|---|---|---|---|
-| D1 | The gate receipt (`<home>/state/gate/<hash of the checkout path>`) | A file the worker's own gate wrote. The gate runs the home's `gate.sh`, and through it the candidate's suite | **Yes**, within the suite's count guards (R3) | **Yes:** the file is the session's to write | An authority run (§4.4, `authority_run`) | Unchanged; residuals R3 and R4 |
-| D2 | The suite: `tests/run`, `tests/parts`, `tests/lib`, `assertions.tsv`, `red`, `receipt.sh`, `groups.tsv` | The candidate's tree, guarded only by `risk.tsv` rows: some count lines, some fire on any change | **Yes:** a helper's body (`bad()` in `tests/run`, a part's own helpers) can change without changing any counted line | Through D1 | P's suite over the candidate (E7) | Unchanged; residual R3 |
+| D1 | The gate receipt (`<home>/state/gate/<hash of the checkout path>`) | A file the worker's own gate wrote. The gate runs the home's `gate.sh`, and through it the candidate's suite | **Yes**, within the suite's count guards (R3) | **Yes:** the file is the session's to write | An authority run (§4.4, `authority_run`) | The gate still runs the candidate's suite, and its receipt is the worker's file: residual R4. At the merge itself, slice 3 runs P's instrument parts over what the squash would land (D2) |
+| D2 | The suite: `tests/run`, `tests/parts`, `tests/lib`, `assertions.tsv`, `red`, `receipt.sh`, `groups.tsv` | The candidate's tree, guarded only by `risk.tsv` rows: some count lines, some fire on any change | **Yes:** a helper's body (`bad()` in `tests/run`, a part's own helpers) can change without changing any counted line | Through D1 | P's suite over the candidate (E7) | **Moved for the merge** (slice 3, S7, S8). Which parts are instrument is read from P's partition, and a row moved to `subject` is refused by name. Each instrument part the candidate changes runs as P holds it, in a tree outside the checkout over what the squash would land, and its failures and every assertion name it dropped refuse. A change to the machinery runs every instrument unit of P and a canary from P under the candidate's driver. A machinery change's judgement is kept in the home's state for its pair, and one that a unit could have written is not read (A10, A13, A19). Subject parts stay the candidate's. Open: a guard's body weakened under its own name, candidate code inside P's run (E4), the kept judgement as the worker's file (R4), and the gate and CI (D1, D3) |
 | D3 | The CI gate run on the head (rule C9, and the lander's precondition) | GitHub. A `pull_request` run uses the candidate's workflow file (any change to it escapes `execute`), and it runs the candidate's `./engine/harness/felix gate` | **Yes:** for an engine change, CI is the candidate judging itself, so it is never `provider_read` under CI4 | No | An authority run, or `provider_read` only under CI4 | Which workflow is asked is now P's (B3); the rest is residual R4 |
 | D4 | Review verdicts (`state/review/<name>-<tree>`), which clear the `reviewed` channel | A file | No | Yes | An authority record | Unchanged; residual R4 |
 | D5 | The commission receipt (`state/commission/<name>`) | A file | No | Yes | An authority record | Unchanged; residual R4 |
@@ -85,9 +88,12 @@ These are rightly the candidate's:
 - E1: the changed paths and the added lines (`base...HEAD`, the index and the working tree), the tree id, the head and the branch name;
 - E2: the detected surfaces that the commission caps hash reads.
 
+One input here is not what lands:
+- E3: the checkout's index and working tree, which the instruments read and the squash does not carry. Slice 2 checks the objects of H, not these (spec-slice2 §3); open.
+
 ### F. The land tick
 
-| # | Input | Read from today | Worker? | After slice 1 |
+| # | Input | Read from today | Worker? | After slices 1 to 3 |
 |---|---|---|---|---|
 | F1 | The open pull requests, their labels, draft state, mergeability and base | `gh pr list`, with the tick's login | Yes: a worker's token can remove `felix:hold` or `needs-founder` | Unchanged; residual R6 |
 | F2 | The direction-document check (`projects/*/claude.md`, `docs/*roadmap*`) | the PR's files from git and gh | It does not match `docs/direction.md` (direction, header: held only once A32, draft #452, lands) | Unchanged; open, owned by #452 |
@@ -99,18 +105,18 @@ These are rightly the candidate's:
 
 ### G. The merge act and the routes around it
 
-| # | Input | Today | After slice 1 |
+| # | Input | Today | After slices 1 to 3 |
 |---|---|---|---|
-| G1 | `gh pr merge --squash --match-head-commit`. The PR is chosen by branch name, and the squash lands on the PR's base as GitHub holds it, which nothing compares with the base that was judged (A6) | the worker's or the tick's `gh` login | Residual R2 |
+| G1 | `gh pr merge --squash --match-head-commit`. The PR is chosen by branch name, and the squash lands on the PR's base as GitHub holds it | the worker's or the tick's `gh` login | **Narrowed** (slice 2, S5.3, S5.4): that base is compared with the one judged, and asked again just before the squash. Open: the window between that last read and GitHub's squash, and the `gh` that answers (R1) |
 | G2 | Landing without the authority: raw `gh pr merge`, `gh api`, `git push origin HEAD:main`, the web UI | felix-home's plan has no branch protection on a private repository (`lib/escape.sh`, C9's header). The PreToolUse deny rows are the floor (direction §5 item 4, step 18) | Residual R1 |
 
 ## Residuals named above
 
-R1 to R6 are this inventory's labels for what slice 1 leaves open. They are measured in `docs/2026-11-08-trust-step3-measurement.md`.
+R1 to R6 are this inventory's labels for what slice 1 left open. They are measured in `docs/2026-11-08-trust-step3-measurement.md`, slice 2's changes to them in `docs/2026-11-08-trust-step3-slice2-measurement.md`, and slice 3's in `docs/2026-11-09-trust-step3-slice3-measurement.md`.
 
 - **R1:** the authority runs as the worker's user, on the worker's machine, and the worker's tokens can push to main. Closing it needs the hosted authority with its own identity, and a repository where worker tokens are kept off main (direction row 43).
-- **R2:** the authority's idea of P is a local ref and an argument. Since slice 1 that ref names the tables and instruments as well as the judge, so R2 is now the one-command route around the moved inputs for anyone who also forges receipts (R4).
-- **R3:** the suite that judges Felix's engine is the candidate's.
+- **R2:** the authority's idea of P was a local ref and an argument, and since slice 1 that ref names the tables and instruments as well as the judge. Slice 2 binds P to the base the provider names (A6, A7, G1). What is left of R2 is the `gh` that answers for the provider, which is R1, and the window after the last read.
+- **R3:** the suite that judges Felix's engine is the candidate's. Since slice 3, at the merge, P's instrument parts judge the candidate (D2). The gate and CI still run the candidate's suite, and what they record is R4.
 - **R4:** the receipts and verdict files that the merge accepts are files the worker can write. This covers the gate, review and commission receipts, and the home pointer they follow.
-- **R5:** the instrument partition and the I/O gateway are not built.
+- **R5:** the I/O gateway is not built. Slice 3 built the partition for Felix's own test parts (`projects/felix/partition.tsv`, approved 2026-11-08). A P script that reads the candidate's checkout by path (C5), and products' suites, are not partitioned.
 - **R6:** a worker's token can change the labels the tick holds on.

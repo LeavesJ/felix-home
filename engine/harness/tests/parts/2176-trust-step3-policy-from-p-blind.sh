@@ -91,6 +91,16 @@ cat > "$TS3/gh/gh" <<'TS3GH'
 #!/usr/bin/env bash
 d="${TS3_GHDIR:?TS3_GHDIR is not set}"
 printf '%s\n' "$*" >> "$d/calls"
+# The provider's two reads at the merge (lib/bind.sh, spec S5.2), answered with git at call time from the checkout
+# the stub runs in: the pull request open at this HEAD into main, and main at the commit it names here.
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-main}" "$(git rev-parse HEAD)"; exit 0 ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")"
+    exit 0 ;;
+esac
 case "${1:-} ${2:-}" in
   "pr view")     printf '{"number":7,"state":"OPEN"}\n'; exit 0 ;;
   "pr merge")    printf 'merged\n'; exit 0 ;;
@@ -199,6 +209,9 @@ _ts3_pcopy() {   # -> yes when the last run's fx log holds a check-fx run from a
   && git config gc.auto 0 && git config maintenance.auto false ) >/dev/null 2>&1
 _copy_content "$REAL_HARNESS" "$TS3R/engine/harness"; _copy_content "$REAL_HARNESS/../hooks" "$TS3R/engine/hooks"
 [ -d "$REAL_HARNESS/../commands" ] && _copy_content "$REAL_HARNESS/../commands" "$TS3R/engine/commands"
+# R's engine carries no suite (a fixture change for slice 3, not blind): with one, a candidate that edits a workflow
+# changes the machinery, and felix merge runs every part of the real suite over R (lib/instrument.sh, S8.4).
+rm -rf "${TS3R:?}/engine/harness/tests"
 mkdir -p "$TS3R/engine/.claude-plugin" "$TS3P" "$TS3R/tools" "$TS3R/.github/workflows"
 printf '{ "name": "felix", "version": "1.0.0" }\n' > "$TS3R/engine/.claude-plugin/plugin.json"
 printf 'state/\n*.log\n' > "$TS3R/.gitignore"; printf 'ts3\n' > "$TS3R/.felix"

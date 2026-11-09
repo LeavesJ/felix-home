@@ -8,35 +8,67 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	5020276a0859d8507a8547629840983e17285e21	0.49.330
-run	30	16740	46
-a policy blocker says no authorized policy judged the branch	1
-and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it	1
-and the policy blocker is not called work Felix owes	1
-felix_merge_blockers emits exactly the kinds cmd_merge places	1
-the instrument scan lists, for each of 38 commands, the words the rewrite takes from P and each it cannot place	1
-trust-step3: S1 (a table in the candidate): checked out in the home, a candidate that removes the exfil row from risk.tsv and adds danger/x is refused with an escape line naming exfil and danger/x	1
-trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line	1
-trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)	1
-trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure	1
-trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)	1
-trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain directory whose fx row's evidence contract is true, a candidate in a worktree of R that deletes MARKER is refused with an obligations line for fx (P's row judged)	1
-trust-step3: S1.7 (the name BASE gives): a candidate whose .felix names ts32, held loosened by a plain home, and which deletes MARKER, is refused by P's projects/ts3: an obligations line for fx or an escape line naming .felix	1
-trust-step3: S1.8 (a linked project directory): the candidate in a worktree of R deletes MARKER while the home's projects/ts3 is a link to a loosened copy, and is refused with an obligations line for fx	1
-trust-step3: S1.8 (a product's home, a planted repository): a candidate in the product Q that deletes MARKER, while a repository planted in HR's projects holds loosened tables and HR's working tree matches them, is refused with an obligations line for fx (P is HR's origin/main)	1
-trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)	1
-trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home	1
-trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe	1
-trust-step3: S2 (an applies command): a candidate that rewrites tools/applies-fx to exit 1 and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2 (an evidence instrument): a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx	1
-trust-step3: S2.1 (a group): with P's contract { tools/check-fx; }, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (a quoted instrument): with P's contract "tools/check-fx" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (a wrapper): with P's contract nice tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an interpreter as an argument): with P's contract defining a function f that runs its arguments and calling f bash tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an interpreter reading standard input): with P's contract piping tools/check-fx into bash, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx	1
-trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh	1
-trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt	1
-trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR	1
-trust-step3: S3: a comma appended to the last cell of an existing risk.tsv row is refused with an escape line for verifier naming risk.tsv	1
-trust-step3: S4: a branch that deletes the manifest and disarms its own felix_escapes, run by its own felix, is still judged by main's engine: refused with an escape line for execute naming .github/workflows/x.yml	1
+base	origin/main	4dd8fed81977cbaac8acbd5351247228fe91de75	0.49.335
+run	62	16929	46
+ts3c: S0, S8.2: a part P's partition does not name is instrument: loosened with the engine change, it is refused with escape, the part, P's version fails on this tree, and the assertion's name	1
+ts3c: S7.1, S8.2: a candidate that moves 2001-sum.sh to subject and loosens it in the same change is refused for both: the table line, and P's version of the part (P's table says instrument)	1
+ts3c: S7.2: a candidate that moves an instrument row of the partition to subject is refused with escape, projects/felix/partition.tsv, marks 2001-sum.sh subject	1
+ts3c: S8.1, S8.3: a candidate that keeps an instrument part's file but drops its line from the driver, and its names from the manifest, is refused with drops assertion for each of its two names	1
+ts3c: S8.10: a dry run killed with SIGTERM while P's part runs in T leaves no run tree or canary copy under TMPDIR, and the checkout's status as it was	1
+ts3c: S8.10: the judgement that ran the canary under the candidate's driver left no run tree or canary copy under TMPDIR, and the checkout's status as it was	1
+ts3c: S8.2, S9: the group candidate's judgement ran P's unit g1, both its members and nothing else, and passed, leaving no run tree (S8.10)	1
+ts3c: S8.2, S9: the refused judgement ran P's unit holding 2001-sum.sh, and only it, and left no run tree and the checkout's status as it was (S8.10)	1
+ts3c: S8.2: a candidate that loosens an assertion of an instrument part, with the engine change that makes P's version fail, is refused with escape, the part, P's version fails on this tree, and that assertion's name, and the passing assertion is not named	1
+ts3c: S8.3: a candidate that deletes an instrument part and its names from the manifest, the engine still satisfying it, is refused with escape, the part, drops assertion, for each of its two names	1
+ts3c: S8.3: a candidate that renames one assertion of an instrument part, and its manifest to match, is refused with drops assertion and the old name, and the name it kept is not named	1
+ts3c: S8.4: the honest machinery change still ran every instrument part of P	1
+ts3c: S8.4: when the machinery changed, every instrument part of P was run (2001, 2003, 2005 and 2006), none missing	1
+ts3c: S8.5: a candidate whose driver's bad() counts a pass is refused with escape, machinery, and the canary	1
+ts3c: S8.5: a candidate whose driver's is() counts a pass is refused with escape, machinery, and the canary	1
+ts3c: S8.5: two judgements of the same candidate run the canary under its driver with different part file names, neither a part the candidate holds	1
+ts3c: S8.8: a loosened candidate that slice 2 refuses with objects is refused with objects, and the merge says P's instrument parts were not run	1
+ts3c: S8.9 (fixture control): the base without a driver holds P's parts and no tests/run, and is the provider's main	1
+ts3c: S8.9: with P's driver missing at B, a candidate that changes an instrument part is refused with a blocker of kind unknown, subject SUITE	1
+ts3d: A1, S9: that judgement ran P's unit holding 2005-mul.sh, and only it	1
+ts3d: A1: a candidate behind main that loosens a part main did not touch is refused for that part only, P's version failing on its assertion	1
+ts3d: A1: a candidate whose merge onto main conflicts is refused with a blocker of kind unknown, subject SUITE	1
+ts3d: A2: a driver line '. "$HERE/parts/x.sh"; <more>' is machinery: every instrument part of P runs, and the canary runs	1
+ts3d: A3: a new file under engine/harness/tests/ outside parts/ is machinery: every instrument part of P runs, and the canary runs under the candidate's driver	1
+ts3d: A4: P's instrument units run over a tree that is P's but for a file no driver reads all pass: passed, no escape line, no line of P's version, and every one ran	1
+ts3d: A5 (control): the first judgement of the neutered candidate ran P's units and the canary, and is refused for the canary	1
+ts3d: A5: a kept judgement cut to half its bytes is not used: the judgement runs again, and refuses for the canary again	1
+ts3d: A5: a kept judgement made unreadable is not used: the judgement runs again, and refuses for the canary again	1
+ts3d: A5: a second dry run of the same machinery-changing candidate at the same base runs no unit and no canary, and prints the same blocker lines	1
+ts3d: A6: a part one of whose duplicate rows says subject stays instrument: its loosened guard is refused, P's version failing on its assertion	1
+ts3d: A7.2, A7.3: a unit that never ends, under a limit lowered to 3 s, counts as not finished and refuses; no process of it is left, nor any run tree	1
+ts3d: A7.2: a canary that never ends under the candidate's driver, under a limit lowered to 3 s, refuses for the machinery; no process of it is left	1
+ts3d: A7.3, A7.4: a INT signal sent to felix merge while P's unit runs leaves no run tree under TMPDIR, no process of the unit, and the checkout's status as it was	1
+ts3d: A7.3, A7.4: a TERM signal sent to felix merge while P's unit runs leaves no run tree under TMPDIR, no process of the unit, and the checkout's status as it was	1
+ts3d: A7.5: with TMPDIR inside the checkout, P's unit runs in a tree outside the checkout, and the judgement passes	1
+ts3d: A7.5: with a relative TMPDIR, P's unit still runs, in a tree outside the checkout, and the judgement passes	1
+ts3d: A7.5: with an absolute TMPDIR outside the checkout, P's unit runs in a tree under it, and passes	1
+ts3e: A10 (control): the attacker's unit reached the home and wrote at least one forged kept judgement before the victim was judged	1
+ts3e: A10 (control): the unit ran and recorded the home variables it was given	1
+ts3e: A10: a later dry run of the victim, whose key a unit forged a clean judgement for, still runs its units and refuses	1
+ts3e: A10: a unit that reads FELIX_HOME_DIR, FELIX_HOME and HOME sees the first two unset and a HOME of its own, not the caller's, with no .felix-home	1
+ts3e: A8 (control): the attack is armed: the unit wrote over at least one file beside its records	1
+ts3e: A8 (control): the machinery judgement ran the canary and the attack wrote over the files beside its records	1
+ts3e: A8: a unit that rewrites the manifest beside its records and in T's tree does not hide a dropped guard: refused with drops assertion for each of the two names	1
+ts3e: A8: a unit that writes over the files beside its records does not flip the canary: refused with escape, machinery, the canary	1
+ts3e: A9: a TERM sent while T is being built leaves no run tree under TMPDIR, no process of the build, and the checkout's status as it was	1
+ts3f: A12 (control): the machinery judgement ran the canary and the attack wrote over at least one file under the unit's working directory's parent	1
+ts3f: A12: a unit that rewrites every file under its working directory's parent does not pass the neutered helper: refused, the canary or an unread input (machinery/canary, or unknown SUITE)	1
+ts3f: A13 (control): the KILL attacker's unit ran, forged at least one clean kept judgement under a home, and signalled the judge	1
+ts3f: A13 (control): the TERM attacker's unit ran, forged at least one clean kept judgement under a home, and signalled the judge	1
+ts3f: A13: a second dry run of the same candidate, whose unit forged a clean kept judgement and ended the judge with KILL, runs its units again rather than trusting the forged judgement, and does not merge	1
+ts3f: A13: a second dry run of the same candidate, whose unit forged a clean kept judgement and ended the judge with TERM, runs its units again rather than trusting the forged judgement, and does not merge	1
+ts3f: A14 (control): the judge was KILLed while one unit slept and others had ended	1
+ts3f: A19 (control): G's unit wrote Y's clean judgement back over Y's kept one, said it held G's judgement open before Y's dry run began, and still held it when that run ended	1
+ts3f: A19 (control): X's unit said it held X's judgement open before Y's dry run began, and still held it when that run ended	1
+ts3f: A19 (control): with no other judgement running, a second dry run of Y reads its kept judgement: refused as kept, and no unit run	1
+ts3f: A19 (control, and what is kept stays): the same dry run of Y, made after X's judgement has ended, reads the kept judgement: refused as kept, and no unit run	1
+ts3f: A19 (fixture control): Y respaces a driver comment and switches its add() by a file outside its tree; with the switch off it is judged clean, its units run, and the judgement adds files under the home	1
+ts3f: A19 (fixture control): with the switch on and its clean judgement removed, Y runs its units again, is refused for 2001-sum.sh, and is kept again in the same files	1
+ts3f: A19: a clean judgement at that pair's key, written by a unit of another judgement that still runs, is not read: the pair's dry run runs its own units and is refused	1
+ts3f: A19: a second dry run of a pair already kept, made while a unit of another pair's judgement holds it open over the same home, runs its own units rather than reading the kept judgement, and is refused as they find	1
+ts3f: A19: what is kept at that pair's key stays through the overlapping run: its files are there, byte for byte, when the run ends	1

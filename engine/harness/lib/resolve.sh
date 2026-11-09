@@ -978,8 +978,29 @@ _felix_ref_commit() {   # ROOT REF
 #   - anything that does not look like an object id
 # Three-dot over-reports, so falling back is the safe direction — it can only make the verdict
 # stricter, never weaker. A narrower answer computed from a failed merge would be the opposite.
+#
+# The merge runs in a git directory made for the call (2026-11-08, S6.6), never in the checkout's own. A 3-way merge
+# runs the merge driver the attributes name for every path both sides changed, and a driver is defined in config: the
+# checkout's .git/config and .git/info/attributes are the worker's to write, so a driver `true` there kept main's
+# side of a file and the change's own lines in it were never read (audits/2026-11-08-trust-plane-step3/
+# checkout-merge-driver in the memory root). The made directory is an empty bare repository whose object store is the
+# one the checkout reads (GIT_OBJECT_DIRECTORY when the caller set one, as felix merge's checked copy does), so the
+# merged tree is written where the caller's diff reads it. Global and system config and attributes are switched off
+# with it, the two sides are named by commit id, resolved once in the checkout, and a shallow checkout's boundary
+# is copied in. The caller's GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR and GIT_INDEX_FILE do not reach either git, and
+# a TERM or INT removes the directory (review of 07f1e869, 2026-11-08). Inside felix merge, once lib/bind.sh's checked
+# copy is in force, the merge reads the copy's stores alone and not the checkout's (S6.6 rule 2): with the checkout
+# behind them, a loose file planted there under the merged blob's id was taken as the merge's result, which git
+# does not write again, so the change's line was never read.
+# Puts back the caller's TERM and INT traps once the made directory is gone.
+_felix_merge_untrap() {
+  trap - TERM INT
+  [ -z "$told" ] || eval "$told"
+  [ -z "$tint" ] || eval "$tint"
+  _FELIX_MERGE_TMP=""
+}
 _felix_merge_refs() {
-  local root="$1" base="$2" mb tip tree
+  local root="$1" base="$2" mb tip head tree objs tmpd g rc sh fmt told tint alt=()
   [ -n "$base" ] || return 1
   mb="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 1
   tip="$(git -C "$root" rev-parse "$base^{commit}" 2>/dev/null)" || return 1
@@ -988,7 +1009,38 @@ _felix_merge_refs() {
   # exactly the right question. Left alone rather than rerouted, because this is
   # every ordinary branch and the fix is only for the case that differs.
   [ "$mb" = "$tip" ] && return 1
-  tree="$(git -C "$root" merge-tree --write-tree "$base" HEAD 2>/dev/null)" || return 1
+  head="$(git -C "$root" rev-parse --verify --quiet "HEAD^{commit}" 2>/dev/null)" || return 1
+  objs="${GIT_OBJECT_DIRECTORY:-$(git -C "$root" rev-parse --path-format=absolute --git-path objects 2>/dev/null)}"
+  # A relative object directory names a place under the checkout, as `git -C "$root"` reads it.
+  case "$objs" in /*) ;; *) objs="$(cd "$root" 2>/dev/null && cd "$objs" 2>/dev/null && pwd -P)" ;; esac
+  [ -n "$objs" ] && [ -d "$objs" ] || return 1
+  if [ -n "${_FELIX_BIND_COPY:-}" ] && [ "$objs" = "$_FELIX_BIND_COPY/objects" ] && [ -d "$_FELIX_BIND_COPY/v" ]; then
+    alt=(GIT_ALTERNATE_OBJECT_DIRECTORIES="$_FELIX_BIND_COPY/v")
+  fi
+  tmpd="${TMPDIR:-/tmp}"
+  g="$(mktemp -d "${tmpd%/}/felix-merge.XXXXXX" 2>/dev/null)" || return 1
+  _FELIX_MERGE_TMP="$g"; told="$(trap -p TERM)"; tint="$(trap -p INT)"
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 143' TERM
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 130' INT
+  fmt="$(git -C "$root" rev-parse --show-object-format 2>/dev/null)"
+  if ! env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+       GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git init -q --bare --template= ${fmt:+--object-format="$fmt"} "$g/g" \
+       >/dev/null 2>&1 </dev/null; then
+    rm -rf "$g"; _felix_merge_untrap; return 1
+  fi
+  # A shallow checkout's boundary, so the merge does not walk to parents it does not hold.
+  sh="$(git -C "$root" rev-parse --path-format=absolute --git-path shallow 2>/dev/null)"
+  if [ -n "$sh" ] && [ -f "$sh" ] && ! cp "$sh" "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  # Reading the checked copy alone, the merge finds the commits since the merge base and no older one (lib/bind.sh
+  # copies no further), so the base is its boundary, as a shallow checkout's is: walking to the base's parents, the
+  # merge failed on every history longer than one commit, and every reader fell back to three-dot inside felix merge.
+  if [ "${#alt[@]}" -gt 0 ] && ! printf '%s\n' "$mb" >> "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
+          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+          GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
+  rc=$?
+  rm -rf "$g"; _felix_merge_untrap
+  [ "$rc" -eq 0 ] || return 1
   tree="$(printf '%s\n' "$tree" | head -1)"
   case "$tree" in
     ""|*[!0-9a-f]*) return 1 ;;

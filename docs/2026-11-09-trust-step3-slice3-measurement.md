@@ -1,10 +1,11 @@
 # Trust-plane step 3, slice 3: does the suite that judges Felix's engine come from the base?
 
-2026-11-09. Slices 1 and 2 (`docs/2026-11-08-trust-step3-measurement.md`, `docs/2026-11-08-trust-step3-slice2-measurement.md`) moved the merge's tables and instruments to P and bound P to the base the provider names. They left residual R3: the suite that judges Felix's engine is the candidate's. Slice 3 has P's instrument parts judge the candidate. The spec is `audits/2026-11-08-trust-plane-step3/spec-slice3.md` in the memory root, with sections 4 to 7 amending it after each review and the merge with main. The inventory's labels (A1 to G2, R1 to R6) are those of `docs/2026-11-08-trust-step3-inventory.md`.
+2026-11-09. Slices 1 and 2 (`docs/2026-11-08-trust-step3-measurement.md`, `docs/2026-11-08-trust-step3-slice2-measurement.md`) moved the merge's tables and instruments to P and bound P to the base the provider names. They left residual R3: the suite that judges Felix's engine is the candidate's. Slice 3 has P's instrument parts judge the candidate. The spec is `audits/2026-11-08-trust-plane-step3/spec-slice3.md` in the memory root, with sections 4 to 8 amending it after each review, the merge with main, and a finding after landing. The inventory's labels (A1 to G2, R1 to R6) are those of `docs/2026-11-08-trust-step3-inventory.md`.
 
 **Scope.** `felix merge`, as the lander and a session run it, dry runs included, for Felix's own repository, at two versions:
 - **main:** `origin/main` 6fe629e6 (0.49.334);
-- **slice 3:** this branch (0.49.336), spec rules S7 to S9 and amendments A1 to A21, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`.
+- **slice 3:** this branch (0.49.336), spec rules S7 to S9 and amendments A1 to A21, in `engine/harness/lib/instrument.sh`, `instrument-run.sh`, `instrument-verdict.sh`, `instrument-keep.sh`, the canary under `engine/harness/tests/canary/`, and the partition `projects/felix/partition.tsv`;
+- **A22 and A23:** branch `claude/trust-run-tree-bytes` (0.49.338), spec section 8, in `instrument-run.sh`, `instrument.sh`, `policy.sh` and `merge-judge.sh` (section 4).
 
 Not measured: products' suites, which run none of this (S8.11); the gate and CI, which still run the candidate's suite (R4); the hosted authority, which does not exist; CI's bash 5.3 and gawk, which run this branch in CI and not on this Mac.
 
@@ -16,12 +17,15 @@ Not measured: products' suites, which run none of this (S8.11); the gate and CI,
 
 **A candidate's change to the machinery runs P's whole instrument.** When the driver's code, a helper under `tests/lib/`, `gate.sh` or a workflow changes, every instrument unit of P runs, and a canary from P checks that the candidate's driver still reports `bad`, `is` and `has` as failures (S8.4, S8.5). A `bad()` changed to count a pass is refused by the canary.
 
+**What P's parts read is what lands** (0.49.338, A22 and A23, section 4). On 0.49.336 the tree they ran over was written by git's checkout, which obeys the candidate's own `.gitattributes` and this Mac's folding filesystem. A candidate could have a file's bytes re-encoded, or a name the base held still answer, so P's part judged something other than what the squash lands. The tree now holds its blobs' bytes, and a name the filesystem takes for one with another refuses.
+
 **Moving a part to subject goes to a person.** The partition is read from P. A row that marks a part `subject` when P does not is refused by name (S7.2).
 
 **What still lands,** by the spec's section 3 and the amendments' open lists, as examples and not the set:
 - a guard's body weakened under the same name: P's version still judges that candidate, but once it lands the weakened body is P's, and binds the next one (spec §3);
 - candidate code inside P's run: a unit runs the candidate's engine as the same user, and nothing here is a sandbox (E4). A unit can find the user's real home without `HOME`, and so the kept judgements;
 - a unit that removes its own judge's marker (A13, A19), or that outlives its process group;
+- a change to an engine file together with its `.gitattributes`, and to no instrument part and no machinery: no run tree is made, and the gate and CI judge it in checkouts that obey the attributes (R3, R4);
 - the gate, CI and their receipts (R4).
 
 ## 1. The battery: parts 2180 to 2183
@@ -64,6 +68,7 @@ Each row is one sample, on this Mac, while other sessions' suites ran. Round 2's
 - **Every machinery change waits for a full run,** tens of minutes on this Mac, once per pair of base, landed tree and engine. The lander's tick holds the pull request while it runs.
 - **A judgement made while another runs in the same home** runs in full and is not kept (A19): what it would read or write is within reach of the other's units.
 - **A part of P that tests where it runs** can pass in the checkout and fail as a unit. Examples of what still differs, from round 3, not the set: T is a repository of its own, not a linked worktree; it is not under `HOME`; the unit's `HOME` is empty; T is under `/var/tmp` on this Mac.
+- **The land tick's environment (A24).** The tick's first full run, of #505 at 0.49.337, refused it with six lines from five parts it did not touch. Three assert on the machine's installed plugins through the real `claude` CLI (0480, 0580, 0590): a unit's own `HOME` hides them, and under the lander job's environment the CLI lists none, where a session's environment gives it one. Reproduced with the job's `PATH` and an empty `HOME` (`slice3/release/r338/lander-refusal.md`). By the reproduction, these three lines would refuse any machinery change the tick judged on this Mac; #505 was the first it judged, and each earlier full run was a session's. The three now run only where the CLI lists a plugin. The other two parts' lines (0660, 1292) passed alone under both environments at a load near 12, and the tick ran near 30 to 40.
 - **After landing, a branch that empties a directory main adds to** was refused as unknown SUITE on 0.49.336
   (#498, a handoff fold): git's default directory-rename detection failed the merge A1 reads. Fixed in 0.49.337 by
   S6.7 (`docs/2026-11-08-trust-merge-driver.md`).
@@ -82,7 +87,42 @@ The review budget was the first build's review and two fault rounds. Each fault 
 
 - **The gate on 2da2002f** failed 2 of 17,012 assertions at a load average near 40. One was 2183's A14: after a KILL, bind's copy of the objects was left. It was not reproduced, alone or under 30 CPU spinners. The one mechanism found that fits is a race: the watchdog and the units' supervisors read the judge's pid as their first act, so a judge KILLed before that act was read as pid 1, and the watchdog waited on. A direct repro shows it on the code before the fix and not after. Each is now handed the judge's pid (A21; `slice3/release/pp/`). The other was 1291's D6, a runner fixture's grandchild left behind, in a part slice 3 does not change; it passed in this tree's record run and alone under the same load.
 
-## 4. Open after slice 3
+## 4. After landing: the run tree's bytes and names, and the base-side copies (A22, A23)
+
+**Found** by the hosted-authority spike's review (`audits/2026-11-09-trust-hosted-authority/review/round1.md` in the memory root), and reproduced in plain git 2.56. `checkout-index` wrote the run tree T, and the canary's copy, under the tree's own `.gitattributes`:
+- a blob holding what P's part refuses, under `working-tree-encoding=UTF-16LE`, was written as UTF-16 and passed the part, and `ident` and `eol=crlf` change bytes too;
+- T sits on a filesystem that folds names here, so a name the base held and the candidate deleted (`MARKER`, with `marker` added) still answered.
+
+A side session made on the same finding asked that `lib/policy.sh` and `lib/merge-judge.sh` be measured. Their copies of the base (P's tables, and the copy of main's engine that `felix merge` hands its verdict to) are written the same way, and they obeyed a `.gitattributes` inside the copied subtree: CR before each newline and `$Id$` expanded, in both (`slice3/a22/basecopy/repro.sh`). They also read the machine's attributes file, in a directory the worker's user writes here. A candidate's own attributes do not reach them at its merge, since both copy the base; one that lands would at every merge after.
+
+**The fix** (spec section 8):
+- **A22.** T's `info/attributes` unsets, for every path, the six attributes git's checkout converts by (`text`, `eol`, `crlf`, `ident`, `filter`, `working-tree-encoding`), and it outranks a tree's `.gitattributes` and the machine's. Before any unit runs, every entry's file is hashed as a blob, and its kind and executable bit are compared with its mode. The hash is the class's guard: an attribute or a filesystem behaviour not named here that changes what is written is caught by it. The base-side copies get the same `info/attributes` line, and no hash.
+- **A23.** Which names are one is the filesystem's answer. Beside T, each directory's names in T are made exclusively in a scratch directory, and a name refused as existing is one with the name made before it: two such names of T, paths or directory prefixes, are unknown SUITE. Then each path of B, and each symbolic link's target from the link's directory, is walked through T as the filesystem resolves it, following T's links: a name T lacks that the filesystem answers with another of T's names is unknown SUITE, and so is an answer that names none.
+  - The first version folded with Perl's tables, which are Unicode 13. This Mac's APFS folds by Unicode 17, and a plain-git check found 115 pairs the table kept apart, U+2C2F and U+2C5F among them.
+  - The second compared names alone, and its review showed a link let the base's `engine/widget/MARKER` answer through the candidate's `engine/widget` (a link to `w2`) and `engine/w2/marker`.
+- Each refusal names its paths with bytes outside printable ASCII, and the backslash, as `\xNN`, and no blocker line carries a control byte from any source (`lib/instrument.sh`). The check runs in a process group of its own, so a TERM during it is handled at once (A9's rule).
+
+**Shown.** Blind part 2185, written in four passes, each red first on this Mac:
+- 5 of the first pass's assertions fail on 0.49.336;
+- 3 of the second's (directory prefixes, escaping) fail on the first fix, 6ab2d37e;
+- 2 of the third's (the Glagolitic pair as a file and as a directory) fail on e7dc3a23, where the table decided;
+- 5 of the fourth's (links, the backslash, both base-side copies) fail on 32792d05.
+
+On the fix it reports 35 ok, 0 FAIL and 1 skip, the branch for a filesystem that does not fold. Parts that drive the changed files, run alone on the fix (2176 and 2177 together, as their group runs), none failing: 0100, 1870, 2170, 2173, 2176 with 2177, 2178, 2179, and 2180 to 2183 (106, 102, 78 and 93 lines).
+
+**Cost.** The name check took about 0.08 s over this repository's 984 paths with main's 982 as B, against 0.03 s for the table (three runs each). On 50,000 files the whole check took 4.7 s in one run; in another, a TERM 0.5 s into it was handled within 0.01 s, and the check's group was gone 0.22 s after it, where the review measured 4.6 s before the check had a group. The review measured A23 at 16 s and 173 MB on 200,000 paths, before the walk replaced B's scratch names with lookups. The hash of every file of T was not timed on its own.
+
+**False blocks** of A23 on this Mac: a case-only rename by an honest candidate, a rename that changes only Unicode normalization, and every candidate that keeps either name of a pair the base already holds (main holds none today).
+
+**Reviews:**
+- the spike's review found the attributes, and the plain-git check the case;
+- an automated security review of 6ab2d37e found the directory prefixes and the control bytes in a blocker;
+- a partial review found two checks that ended silently (an unread base list, an unlisted index);
+- the plain-git check of 7ccb545e found the table's gap;
+- a review of the filesystem version (`slice3/a22/review-a23c/`) found the link route, the TERM's wait, the ambiguous backslash and the wording, all fixed, and noted the false blocks above, the canary's check after its units, and a filesystem whose inodes differ between `fstat` and `lstat`, where the check now refuses.
+- the link walk, the backslash and the base-side copies' fix were checked by their blind cases (2185, cases 8 to 10) and by the parts above, and were not reviewed again.
+
+## 5. Open after slice 3
 
 As examples and not the set:
 - **R4: the gate, CI and their receipts** still run and record the candidate's suite.
@@ -92,4 +132,6 @@ As examples and not the set:
 - **The stale manifest:** S8.3 counts names in the manifest H writes; reading the names H's version reaches is the direction.
 - **Exact counts in instrument parts,** and **mixed parts**, decided in spec §3.
 - **Products' suites,** each with its own partition (E5 is per repository).
+- **What A22 and A23 leave:** a symbolic link in T that points outside it (units run candidate code anyway, E4); attributes read by tools other than git's checkout; the filesystem's other behaviours, such as length limits; a hash of the base-side copies; trees that `lib/qualify-run.sh`, `lib/situations-read.sh` and `lib/discover.sh` write, which obey attributes; whether any runs under `felix merge` was not traced. Not driven by a test: the decomposition fold, a name the filesystem refuses, the canary's copy, the kind, link and gitlink checks, and the machine's attributes file.
+- **Parts that fail as units under load** (0660 and 1292 at the tick's run), and other parts of P that read what a unit cannot see: the three of A24 were found by running, not by reading.
 - **A criss-cross history:** with more than one merge base, the readers' merge fails and takes three-dot, as before.

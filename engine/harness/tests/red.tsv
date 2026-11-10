@@ -9,111 +9,18 @@
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
 base	origin/main	9d4baa6901c3b8a77678fca92ca9c0740aa2d226	0.49.337
-run	107	17029	46
-A1 (B1, B2): a not-green refusal (exit 3, one blocker line of kind not-green) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written	1
-A10 (B4, B7): a retry, after the gate receipt is written, that exits 0 writes one landed row for 50 and one notification titled Felix: landed #50	1
-A11 (B7): a retry refused the same way writes a second refused row for 50 and no second notification, its blocker, class and head being the previous row's	1
-A11: a tick whose deploy ends deploy-failed merges nothing	1
-A20: (setup) an owed deploy whose felix gate --quick fails ends deploy-failed, after one install	1
-A50 (B20): an entry at main's version that existed before the install and still differs after it: one deploy-failed row beginning diff:, saying felix install does not replace it, naming the entry, and paused holds the same reason	1
-A51 (B20): with no entry before the install, the diff: row does not say does not replace	1
-A6 (B4): once b50's gate receipt is written where none was, the next tick runs felix merge once more: M50 is 2	1
-A61 (B28): a refusal whose one blocker is not-green tests (C9: gh run list failed) writes one refused row for 65 saying it is tried again an hour after this row, not when a receipt is written	1
-A63 (B28, B5, B7): once that row is an hour old, with no receipt rewritten and GitHub answering again, the next tick runs felix merge once more and lands 65: M65 is 2, one landed row, one Felix: landed #65	1
-A64 (B28): not-green tree followed by not-green tests is hourly too: the row says tried again an hour after this row, not when a receipt is written	1
-A66 (B28) [control]: not-green tree alone stays a receipt refusal: the row says tried again when a new gate or commission receipt is written	1
-A7 (B4): the tick after, with nothing touched, runs it no more: M50 stays 2	1
-A70 (B30, B20) [control]: main's entry plus one file, the install tainted: main's check rejects the entry, and one deploy-failed row begins diff:, names the entry, and paused holds it	1
-A71 (B30): that row names the way out: move the entry aside, then felix install --no-bump	1
-A8 (B4): a gate receipt present then and absent now has changed: the next tick runs felix merge once more, M50 is 3	1
-A81 (B31): a session-start that exits 0 and prints nothing is deploy-failed naming session-start: one such row, no deployed row, and paused holds the same reason	1
-A82 (B31): a pre-tool that exits 0 on a pattern kill is deploy-failed naming pre-tool: one such row, no deployed row, and paused holds the same reason	1
-A83 (B31): a main whose engine holds no pre-tool is deploy-failed naming pre-tool: one such row, no deployed row, and paused holds the same reason	1
-C9.3: a failed gate run on the head holds: its run concluded failure	1
-C9.3: a gate run in progress on the head holds: its run is in_progress	1
-C9.3: a gate success on another commit only (and lint's on this one) is no run on this commit	1
-C9.3: gh answering empty holds the merge: GitHub could not be asked (...)	1
-C9.3: gh answering fail holds the merge: GitHub could not be asked (...)	1
-C9.3: gh missing holds the merge: GitHub could not be asked (...)	1
-C9.3: no gate run at all holds the merge: no run on this commit	1
-C9.5: and prints the blocker on its own line, as the others are printed	1
-G3, G7.4 (review 1): a deploy whose gate check fails is not completed: deploy-failed, and nothing merges in that tick	1
-G3, G7.4 (review 1): a deploy whose hook check fails is not completed: deploy-failed, and nothing merges in that tick	1
-G7: a deploy-failed for felix gate --quick also writes paused with the same reason	1
-G7: a deploy-failed for the diff of the cache entry against the home also writes paused with the same reason	1
-G7: a deploy-failed for the session-start hook also writes paused with the same reason	1
-G7: naming the check, felix gate --quick	1
-G7: naming the check, the diff of the cache entry against the home	1
-G7: naming the check, the session-start hook	1
-G7: when felix gate --quick fails, the tick writes one deploy-failed row and no deployed row	1
-G7: when the diff of the cache entry against the home fails, the tick writes one deploy-failed row and no deployed row	1
-G7: when the session-start hook fails, the tick writes one deploy-failed row and no deployed row	1
-G8: the deploy-failed row for felix gate --quick is sent as a notification	1
-G8: the deploy-failed row for the diff of the cache entry against the home is sent as a notification	1
-G8: the deploy-failed row for the session-start hook is sent as a notification	1
-a fact that moved under the receipt raises exactly one	1
-a not-green tree blocks the merge	1
-a receipt for another tree still blocks	1
-a red gate beside the stale receipt is listed too	1
-a red receipt for this tree blocks	1
-and prints byte for byte what the dry run printed, its not-green blocker included, or reporting would change what blocks	1
-and still names the not-green tree, or reporting displaced the blocker that stops it	1
-cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line	1
-cnv3 A23 (C18): the check with the round-3 ERE over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files in a work tree) reads many files and names no line	1
-cnv3 A24 (C18, control): the same check with round 1's ERE, without proves, still passes over the engine under test	1
-felix_merge_blockers emits exactly the kinds cmd_merge places	1
-ngd A1 (K1): with no gate receipt, a red receipt and a stale one, felix_merge_blockers prints a not-green tree line	1
-ngd A10 (K3): no line of the block of either run begins with unverified once blanks are skipped	1
-ngd A12 (K3): with the tests:reused receipt the dry run's block holds the not-green tests line, laid out as before	1
-ngd A14 (K4): a real felix merge refused for K1, and for K2, writes the refused say row <branch>: not-green: <subject>: <reason>	1
-ngd A15 (K4): and no refused row beginning <branch>: unverified:	1
-ngd A17 (K5): status 3 and blocks of not-green lines: tree alone or with commission receipt is receipt; a tests line, alone or after tree, is hourly	1
-ngd A18 (K5): blocks that mix the two names are classed the same: hourly with a tests line of either name, receipt without	1
-ngd A2 (K1): and in none of the three a line of kind unverified	1
-ngd A21 (K9): _fn_sentence deploy-failed prints exactly the deploy sentence and returns 0	1
-ngd A24 (K9): the comment dispatched for a deploy-failed event begins @<owner> Felix land: deploy-failed and holds the sentence below it, before the details line; recorded dispatched	1
-ngd A29 (K12): _gt_unverified appears in no tracked file of the engine outside harness/tests/, comments skipped as C18 skips them	1
-ngd A30 (K12): deployed-unverified appears there only as the case label deployed-unverified) in harness/lib/notify.sh	1
-ngd A31 (K12): unverified followed by a tab, or by backslash and t, appears there nowhere	1
-ngd A32 (K12): the old blocker name appears there as a word only as $1 == "unverified" in harness/lib/green-install.sh, as the quiet check's text in harness/lib/green-tick.sh, beside the subagent-unverified kind this change leaves	1
-ngd A33 (K12): the function's new name: a file of harness/lib defines _gt_deploy_failed	1
-ngd A35 (K5): end to end, a refusal whose one blocker is not-green tree is a receipt refusal: its refused row says tried again when a receipt is written, not final	1
-ngd A36 (K5): and one whose one blocker is not-green tests is hourly	1
-ngd A43 (K7): when the pull fails, the tick writes one deploy-failed row whose detail begins pull:	1
-ngd A44 (K7): and no row of kind deployed-unverified	1
-ngd A46 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified	1
-ngd A47 (K7): when the install fails, the tick writes one deploy-failed row whose detail begins install:	1
-ngd A48 (K7): and no row of kind deployed-unverified	1
-ngd A5 (K2): a current green receipt reporting tests:reused, with the gate workflow failed on the head, prints a not-green tests line	1
-ngd A50 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified	1
-ngd A51 (K7): when the comparison of the cache entry with main's engine fails, the tick writes one deploy-failed row whose detail begins diff:	1
-ngd A52 (K7): and no row of kind deployed-unverified	1
-ngd A54 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified	1
-ngd A55 (K7): when the hook check fails, the tick writes one deploy-failed row whose detail names session-start	1
-ngd A56 (K7): and no row of kind deployed-unverified	1
-ngd A58 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified	1
-ngd A59 (K7): when felix gate --quick fails, the tick writes one deploy-failed row whose detail begins gate:	1
-ngd A6 (K2): and no line of kind unverified	1
-ngd A60 (K7): and no row of kind deployed-unverified	1
-ngd A62 (K8): and that row is sent titled Felix: deploy-failed and starts an attempt of that kind, and none is sent or recorded as deployed-unverified	1
-ngd A8 (K3): the kinds felix_merge_blockers can print are commission, escape, evidence, obligations, policy, probes, unknown and not-green	1
-ngd A9 (K3): felix merge --dry-run with no receipt prints the block line K3 gives, laid out as before	1
-ngd2 A19 (K8): a deploy-failed row raises the banner titled Felix: deploy-failed and starts an attempt	1
-ngd2 A20 (K8, K12): the old ledger kind is no longer on the list, so a row of it raises neither	1
-ngd2 A25 (K14): a receipt refusal recorded under unverified before the deploy, refused again on the same head as not-green for the same blocker and clause, raises no banner and starts no attempt; its row is still written	1
-ngd2 A26 (K14): the same holds for a final refusal and for an hourly (tests) one	1
-ngd2 A28 (K14, K5): and a receipt and an hourly refusal of the new name, identical but for main, stay quiet	1
-ngd2 A4 (K1): each of the four (none, red, tree changed, fact moved) is a not-green tree line	1
-ngd2 A8 (K2): the one line of the red and the two stale tests:reused receipts is a not-green tree line	1
-not blind: mutant, accept a run on another commit: a success the answer puts on the parent commit is no run on this commit	1
-not blind: mutant, accept a run on another commit: nor is one on the head's first 8, which is not the head	1
-not blind: review finding C9-R1: a newer failed gate run on the head is not outvoted by an older success: its run concluded failure	1
-not blind: review finding C9-R1: nor is a newer gate run still in progress: its run is in_progress	1
-not blind: review finding C9-R2: a success whose headSha is absent is not a pass: GitHub could not be asked (...)	1
-not blind: review finding C9-R2: a success whose headSha is empty is not a pass: GitHub could not be asked (...)	1
-not blind: review finding C9-R2: a success whose headSha is null is not a pass: GitHub could not be asked (...)	1
-not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is removed a moment later: no run on this commit	1
-not blind: review finding C9-R3: a receipt judged current as tests:reused still asks GitHub when it is truncated a moment later: no run on this commit	1
-trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with a not-green line for tests saying its run concluded failure	1
-trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with a not-green line whose subject is home	1
-with the reason in its third field	1
+run	14	17037	47
+ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it	1
+ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it	1
+ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c	1
+ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b	1
+ts3g: A22, case 1, ident: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, text eol=crlf: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, working-tree-encoding=UTF-16LE: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs	1
+ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs	1
+ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs	1
+ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs	1
+ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs	1

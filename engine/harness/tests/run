@@ -33,8 +33,7 @@ fi
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
 FELIX_TEST_RAN=""
-# Each name is also offered to the origin guard (_og_tick, part 0003) once its state exists, so the helper block part 0770
-# lifts out of this file (this line to skip(), below) stays silent under set -u.
+# Each name is also offered to the origin guard (_og_tick, part 0003) once its state exists, so the helper block part 0770 lifts out of this file (this line to skip(), below) stays silent under set -u.
 _ran() { [ -n "$FELIX_TEST_RAN" ] || return 0; [ -z "${_og_on:-}" ] || _og_tick "$1"; printf '%s\n' "$1" >> "$FELIX_TEST_RAN"; return 0; }
 # The ran file as count<TAB>name rows sorted by name, the manifest's shape, each name kept byte for byte: cutting the count off
 # by assigning to awk's $1 folded the blanks inside a name until 2026-10-01, and red read such a name as never reached (part 0770).
@@ -414,6 +413,7 @@ fi
 . "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
 . "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
 . "$HERE/parts/2184-trust-merge-dir-renames-blind.sh"
+. "$HERE/parts/2185-trust-step3-run-tree-bytes-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"

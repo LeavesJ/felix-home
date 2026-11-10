@@ -2,9 +2,10 @@
 
 2026-11-10 (dates in UTC). The measurement beside `docs/2026-11-10-trust-door-design.md`. The code and the logs are in the memory root, under `audits/2026-11-10-trust-door/`, and its `README.md` says how to run them again.
 
-**Scope.** Three things ran on this Mac. The mock behind the 11-09 design (pull request 504, open and not merged) was copied and given a door, a model of the founder and of the thing that holds his key, and 47 cases. The door's transport was tried against this Mac's `sshd` binary, started by the spike as the current user on a loopback port with its files in a scratch directory. A probe read what this Mac offers a door today. No login, account, key, token, repository, App or setting was made or changed, and no key of the founder's was read or used. Each key was made inside a run directory and installed nowhere. The 11-09 audit folder was read and not changed.
+**Scope.** Three things ran on this Mac. The mock behind the 11-09 design (pull request 504, open when this ran) was copied and given a door, a model of the founder and of the thing that holds his key, and 47 cases. The door's transport was tried against this Mac's `sshd` binary, started by the spike as the current user on a loopback port with its files in a scratch directory. A probe read what this Mac offers a door today. No login, account, key, token, repository, App or setting was made or changed, and no key of the founder's was read or used. Each key was made inside a run directory and installed nowhere. The 11-09 audit folder was read and not changed.
 
 **What this does not show.** It comes first because the rest is easy to read as more than it is.
+- **Not the door he chose.** On 2026-11-10, after these runs, the founder chose the authority's own desktop on this Mac as his door first (the design's §11). Nothing here was run again. No second login, switch of desktop or fingerprint was used, so whether a process of his user reaches another login's desktop was not measured, and that is what the door he chose rests on. The door's cases were run with a signing key, which the desktop door does not have. The design's §5.8 says which cases still bear on it, as an argument. The transport rows are about a door reached over a network.
 - **No real surface.** No phone, SSH app, hardware key, fingerprint, second login, restart or console was used. The "surface no worker reaches" is a directory that the worker's sandbox profile denies. The profile stands for a device and is not one.
 - **No person.** The founder is a script with five behaviours (`spike/dev.sh`). What a person reads, and what he confirms from habit, was not measured. A row about a founder who "reads" or "does not read" is a row about that script.
 - **No mirroring.** Whether a session on this Mac can show and operate his phone was not tried and not read.
@@ -222,7 +223,7 @@ Each names its rows.
 9. **A door that needs a terminal has to be given one, and a door that only prints proves nothing was seen** (T3b).
 10. **The stock agent's confirmation does not show what is signed** (T6). On a trusted device that is the door's card on the same screen. At the Mac it is finding 1 again.
 11. **A worker at the device's address can shut the door for seconds at a time** (T2b).
-12. **Lending the key for a signature has a cost of its own.** A false door whose host key was accepted used the lent key to open the true door as him (T13). With no key lent it could not (T13b). The design's first form therefore lends no key, and its statements carry no signature of his.
+12. **Lending the key for a signature has a cost of its own.** A false door whose host key was accepted used the lent key to open the true door as him (T13). With no key lent it could not (T13b). The design therefore lends no key to a door reached over a network. The door the founder chose uses no key, and its statements carry no signature of his.
 13. **The door and the kernel read the founder-path policy with two pieces of code, and differed on one path of fourteen** until the kernel was fixed (V43, §8).
 14. **A statement dropped from the end of the log left both readers saying ok** (V62).
 
@@ -234,7 +235,7 @@ A fresh reviewer was given the mock's code and six claims to break. It was not s
 - **What it said makes rows read stronger than they are:**
   - **A hold is a lock on a commit, and not on a change.** The same edit under a new commit id landed (VR4). This is 11-09 decision 4, and the design now says it beside the hold.
   - **The facts founder goes by which paths are listed, and not by what the change does to them.** V41 and V42h rest on that model.
-  - **The careful founder's rows rest on his already holding the commit's whole id** from a surface no worker drew. In the recommended door that surface is the door's own list.
+  - **The careful founder's rows rest on his already holding the commit's whole id** from a surface no worker drew. In the design's door that surface is the door's own list.
 - **A smaller design.** It found one field that feeds no decision, the statement's `main`, which the design keeps as context and now says so. It found the number used once to be needed: two asks in one second for one verb and commit share each other byte (VR3).
 - **One reading it added:** a release does not bring back an authorization that a hold took back (VR9).
 - **Three routes it reasoned about and did not run.** The author ran two of them afterwards:
@@ -250,15 +251,18 @@ A fresh reviewer was given the mock's code and six claims to break. It was not s
 | A signature of his does not count a second time, at another authority, or under another use of the key | V20 to V25 | | | |
 | His later word wins, and a hold takes back | V5, V6, V7 | | | |
 | An override lands the tree he was shown | V31 | | | |
-| He is shown the commit where the surface is one no worker reaches | V40, V41: the door's card stood up to a worker's file names and a long path list | The careful and the facts founder declined (V40, V41) | | That a phone's screen is such a surface. That he reads it |
+| He is shown the commit where the surface is one no worker reaches | V40, V41: the door's card stood up to a worker's file names and a long path list | The careful and the facts founder declined (V40, V41) | | That the authority's desktop, or a phone's screen, is such a surface. That he reads it |
 | A key or a secret used at the Mac leaves him approving unseen | V50, V53: the protocol lets a worker in his terminal relay or reuse | He touched (V50) | A function stands in for a binary named by its full path (run, on this Mac). The Touch ID sheet names no command (read) | A real dialog, key or fingerprint |
-| The door is `sshd`, bash and git | T1 to T13b, with a stub door | | The apps' key custody, and that they ask at each use | A phone, an app, the network between them |
+| A door reached over a network is `sshd`, bash and git | T1 to T13b, with a stub door | | The apps' key custody, and that they ask at each use | A phone, an app, the network between them |
 | A statement can carry his signature, and lending the key for it has a cost | T5: a lent key signed the door's bytes. T13: a false door used a lent key | | | Either on a phone. A way to lend the key to the door alone |
 | With no key lent, a false door does not open the true one | T12, T13b | | The protocol's own binding of a key's proof to one connection | An app's handling of a changed host key |
-| A reader can tell his word from the authority's | V60, V61 | | | |
+| A reader can tell his word from the authority's, where his statements are signed | V60: a statement that carried no signature was reported. V61: a spent permission used again was reported, which needs no signature | | | At the door he chose no statement is signed, so V60's check tells nothing there |
 | The door needs no forge | V8 | | | A project with no forge at all |
 | The door and the kernel agree on which paths are his | V43, after a fix: fourteen of fourteen | | | Paths other than the fourteen |
 | A reader can tell when his word was dropped | V62: it could not | | | |
+| A process of his user does not reach the authority's desktop on this Mac | | | Apple's archived documents: a switched-out login's processes get no keyboard or mouse input. No statement was found on capturing or posting across logins | Everything about it. It needs a second login |
+| The cases about reading and showing hold at a door with no key | | | | Not run at such a door. The design's §5.8 is an argument |
+| The authority's password is safe where it is typed | V53: what a typed secret costs once a worker has read it | | Write-ups of password prompts a process draws. No mark of a genuine login window was found | Everything about a real login window |
 | The phone is out of a session's reach | | | iPhone Mirroring's settings and Apple's note on it | Everything about it |
 | The console before his login is out of a worker's reach | | | | Everything about it |
 

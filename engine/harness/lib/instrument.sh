@@ -57,7 +57,7 @@ unset _FELIX_INSTR_KL0 _FELIX_INSTR_MARK _FELIX_INSTR_CPART _FELIX_INSTR_CDRV _F
 # nothing a name in the tree holds reaches a terminal raw. Text that is printable UTF-8 is left as it is.
 _felix_instr_addpl='use Encode (); my @f; for (@ARGV) { my $s = $_; $s =~ tr/\t\n/  /; my $o = "";
   while (length $s) { my $u = Encode::decode("UTF-8", $s, Encode::FB_QUIET);
-    $u =~ s/([\p{Cc}\p{Cf}])/join "", map { sprintf "\\x%02x", $_ } unpack "C*", Encode::encode("UTF-8", $1)/ge;
+    $u =~ s/([\p{Cc}\p{Cf}])/join("", map { sprintf "\\x%02x", $_ } unpack "C*", Encode::encode("UTF-8", $1))/ge;
     $o .= Encode::encode("UTF-8", $u); $o .= sprintf "\\x%02x", ord substr($s, 0, 1, "") if length $s }
   push @f, $o } print join("\t", @f)'
 _felix_instr_add() {

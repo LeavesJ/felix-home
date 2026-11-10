@@ -290,7 +290,7 @@ while (my $r = <$l>) { chomp $r; my ($m, $o, undef, $p) = $r =~ /^([0-7]+) ([0-9
     next if exists $rep{$k}; push @{$g{$u}}, $c[$x]; $rep{$k} = $p } }
 sub mk { my $u = $_[0]; return $sd{$u} if exists $sd{$u}; my $q = "$s/" . $n++;
   mkdir $q or do { print "the names could not be made beside the run tree"; exit 1 }; $sd{$u} = $q;
-  for my $c (sort @{$g{$u}}) { my $k = "$u\0$c";
+  for my $c (sort(@{$g{$u}})) { my $k = "$u\0$c";
     if (sysopen(my $h, "$q/$c", O_WRONLY | O_CREAT | O_EXCL)) { $i{$u}{(stat $h)[1]} = $k; close $h; next }
     my $ee = $!{EEXIST}; my @st = lstat "$q/$c"; my $w = $ee && @st ? $i{$u}{$st[1]} : undef;
     if (!defined $w) { print "its ", show($rep{$k}), " has a name this filesystem ", ($ee ? "answers for with a name it does not identify"
@@ -309,7 +309,7 @@ sub walk { my ($u, $cs, $what) = @_; my @c = @$cs; my $hops = 0;
     return unless exists $g{$u}; my @st = lstat(mk($u) . "/$c"); return unless @st; my $w = $i{$u}{$st[1]};
     print $what, " ", show($x), ", which this filesystem takes for ", (defined $w ? "its " . show(at($w)) : "a name it does not identify"); exit 1 } }
 mkdir $s or do { print "the names could not be made beside the run tree"; exit 1 };
-for my $u (sort keys %g) { mk($u) if @{$g{$u}} > 1 }
+for my $u (sort(keys %g)) { mk($u) if @{$g{$u}} > 1 }
 open(my $b, "<", $bl) or do { print "the base\x27s paths could not be read"; exit 1 };
 while (my $p = <$b>) { chomp $p; walk("", [split m{/}, $p, -1], show($p) . " of the base, which it lacks, reaches") }
 for (@e) { next unless $_->[0] eq "120000"; my $p = $_->[2]; my $t = readlink "$d/$p"; next if !defined $t || $t =~ m{^/};

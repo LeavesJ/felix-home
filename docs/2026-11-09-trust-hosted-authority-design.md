@@ -6,6 +6,8 @@
 
 **What this revision changes.** The first draft kept main at GitHub and made the wall a GitHub rule. The founder sent that back: "Is there no design that does not require such strict bonding to Github plans?" and "it should run indpendently". The 11-07 design had already said "The queue is provider-neutral" (its §5), and the draft drifted from that. In this revision main lives in a store the authority keeps itself, and GitHub is a connector. §10 lists what was replaced.
 
+**Decided on 2026-11-10 at 07:23Z.** Asked what happens to this pull request, the founder chose "Land it; defects recorded open". The option he chose read: "The design and your answers become main's record today. The mock's defects are recorded as open against it and fixed when the authority is actually built." The defects are six findings that the session designing the door made on this design's mock later that day. §8 lists them first. None is fixed here.
+
 **Outside this document, and where each belongs:**
 - review and commission evidence once worker receipts stop counting (design §4.4, §4.5);
 - release and deployment transitions, beyond what row 49 already says (design §4.6, and §9 step 9);
@@ -34,6 +36,7 @@
   - Three cases put on main what should not be there. One is known and open (E7). Two run the kernel as it was before a fix (X1r, X7r).
   - Three cases shed a hold: a label under a new branch name (H6), and the interim falling to his token, twice (D1i, D2i).
   - This mode was written and tried over one day, and §8 says what review it has had.
+  - Six findings came after the final run, from the session that designed the door. They are open (§8).
 - **The founder's calls are answered** (§9). Each act that follows from them is still his: a login, an account, an App, a key.
 
 ## 2. Today, measured
@@ -174,7 +177,7 @@ What it has to do:
 
 How it works is not designed. One candidate for the rehearsal: a command run as the authority's login, which this Mac allows after his password or his fingerprint. It adds no new runtime (row 6). It has not been tried, and whether a session that drives his screen can get past it is not known.
 
-**The interim.** Until the door exists, his yes is read from GitHub under his name there. That is worth something once agents act at GitHub under a name of their own and his token is out of their reach (§9, call 2). Spike cases D1i and D2i show it falling when a worker holds his token.
+**The interim.** Until the door exists, his yes is read from GitHub under his name there. That is worth something once agents act at GitHub under a name of their own and his token is out of their reach (§9, call 2). Spike cases D1i and D2i show it falling when a worker holds his token. It does not stand against a session that drives his signed-in browser, which comments as him with no token in its hands (§8).
 
 ### 5.6 Decisions made here
 
@@ -259,6 +262,13 @@ These are one month on one repository, with Felix's own suite. A user's cost is 
 ## 8. Open
 
 These are the open items seen so far. More will come.
+- **Found on the mock on 2026-11-10 by the session that designed the door, and open by the founder's decision.** They are fixed when the authority is built. The first four were read again in this mock's code and are there. None was run again for this document. The spike report says more about each, and the case names are that session's.
+  - **The mock's door reads his word without its order** (V5f). A release anywhere in the door's file passes over a hold given after it. §5.5 says his statements are kept in order. The kernel has to read them in order too.
+  - **An override passes each hold** (V6f), as §5.1 has it. So once he has overridden a head, a later hold of his own does not take it back. His stop does.
+  - **An override names a head and no tree** (V31f). What lands is that head merged onto main as main then stands, so the tree can be one he was not shown. Rule 12 names the head alone.
+  - **The kernel's founder-path rule missed a path with a newline.** The mock turns the newline into a printable character before its rule about bytes outside printable ASCII reads the path.
+  - **The battery's case T1 has a default outcome equal to its expected word.** In the final run its race was staged in each mode. The case does not check that.
+  - **The interim of §5.5 does not stand against a session that drives his signed-in browser.** That is class 9 of §3, and it goes around a token that is out of an agent's reach.
 - **The mode this design rests on is one day old.** It had one adversarial review, by a fresh reviewer given the code and not the conclusion.
   - That review found a hold at the door being shed (R1, R2) and a foreign tip being lost (R4).
   - The author found two more while it ran: an authorization and an override could each be used a second time (H7, O4), and H7 was in the first draft's mode as well.
@@ -266,7 +276,7 @@ These are the open items seen so far. More will come.
   - Each of these is closed in the mock and is now part of rules 7 and 11. The review's other unrun ideas are listed in the spike report, and none of them is shown to hold or to fail.
   - One review of one day's code is not an audit, and the next route found is a new case.
 - **The rehearsal's wall is a login.** One admin password, or a way to run as root on this Mac, is the authority. The spike's worker sandbox stands for that login and is not one. Spike S2 shows what the kernel does when another hand has been in the store: it stops. It cannot prevent it.
-- **The door.** Its mechanism is not designed, and the candidate in §5.5 is not tried. Class 9, a session that drives the founder's screen or browser, is what it has to stand against, and nothing here shows that it does.
+- **The door.** Its mechanism is not designed here, and the candidate in §5.5 is not tried. A separate session began the door's own design on 2026-11-10. That document is not part of this one. Class 9, a session that drives the founder's screen or browser, is what it has to stand against, and nothing here shows that it does.
 - **GitHub's half.** What the connector needs from GitHub was not exercised. The throwaway proof measures it.
 - **Confinement.** The units need a login of their own with no network: on this Mac that login and the sandbox the spike used, and on a Linux server another user in a namespace. Direction defers "the Docker sandbox" to March. This design takes that line to be about the workers' sessions and confines the units from the start, as the founder's answer to call 8 says.
 - **Instruments that run candidate code in their own process** (spike E7). The authority confines that code. It cannot stop it deciding its own unit's result. That is step 3's, and slice 3's canary and partition are aimed at it.
@@ -295,6 +305,8 @@ Asked and answered on 2026-11-09 and 11-10. Where he wrote an answer himself it 
 | 6 | Where his yes counts | "At Felix's own door" | Rule 7 and §5.5. Until it exists, the interim |
 | 7 | His own changes, and a judge that is wrong | "Same door, with an override" | Rule 12 |
 | 8 | What is built before March | "Build and sign now" | Rule 8 and decision 5. It brings signing forward from direction's "Not before March", and direction needs a row that says so |
+
+**The pull request itself.** On 2026-11-10 at 07:23Z, asked what happens to it, he chose "Land it; defects recorded open". The option's text is quoted at the top of this document. So this document lands as the record of the design and of his answers, with §8's first item open against its mock.
 
 **Calls the first draft listed that this revision dissolves:** the GitHub plan, a monthly ceiling on runner minutes, and GitHub's secret store as the place for the authority's key.
 

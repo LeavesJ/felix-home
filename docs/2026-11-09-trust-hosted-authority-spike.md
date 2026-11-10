@@ -2,6 +2,8 @@
 
 2026-11-09, revised on 2026-11-10 (dates in UTC) after the founder chose "Felix holds main". This is the measurement behind `docs/2026-11-09-trust-hosted-authority-design.md`. That design keeps main in a store of the authority's own and treats a forge as a connector. It rests most on three claims: a worker cannot move main except through the authority, cannot forge evidence that passes, and cannot give the founder's word. The spike tries them on a local mock. Its code and logs are in the memory root, `audits/2026-11-09-trust-hosted-authority/`.
 
+**Decided on 2026-11-10 at 07:23Z.** Asked what happens to this pull request, the founder chose "Land it; defects recorded open". The option he chose read: "The design and your answers become main's record today. The mock's defects are recorded as open against it and fixed when the authority is actually built." The defects are six findings that the session designing the founder's door made later that day, on a copy of this mock. They are listed under "Open against this mock" below. None is fixed here.
+
 **Scope.** A mock on one Mac: a forge that stands for GitHub's server (the code calls it the provider), an authority kernel, a sandboxed worker, a founder and an independent verifier, in bash 3.2 with git 2.56.0, `ssh-keygen` and `sandbox-exec`. It used no network, no credential and no account, and it changed no setting on any repository. It is not engine code, and nothing in `engine/` changed. It runs in three modes:
 - **Store.** Main lives in the authority's own store. The forge holds a published copy and has no rule on it. This is the design.
 - **Wall on.** Main lives at the forge, behind a rule that names the authority. This was the first draft's design.
@@ -39,6 +41,8 @@ In five more cases the copy had been changed and a tick inside the case had alre
 **With main at the forge, the first draft's results stand.** With the rule on, no worker's request moved main except through the authority (46 cases, none unexpected). With it off, six pushes landed harm and a seventh moved main back, and both verifier modes called each of those mains unverified.
 
 **A genuine record says the authority decided. It does not say the decision was right.** In E7, X1r and X7r the record was real, the chain verified, and main held the harm.
+
+**Six findings are open against this mock.** They came after the final run, from the session that designed the door: three at the mock's door, one in its kernel, one in its battery and one in the design's interim. The founder decided that they are recorded open and fixed when the authority is built ("Open against this mock", below).
 
 **Thirteen findings came from running it** (below). Nine are breaks that are closed in the mock: five from before the first draft, and four from the store mode's first day, found by a second review and by the author. One is open: a reader with no memory accepts a copy that was moved back. Three are about the battery and the design. One review of one day's code is not an audit.
 
@@ -216,6 +220,21 @@ Thirteen things were found by running it. Each changed the kernel, the battery o
 13. **The split of identities at the forge is not what guards main.** The first draft's first finding was that agents had to stop being the founder at GitHub before any wall meant anything. With main in the store, a worker holding his forge token moved no main (P3, D1, D2, R8). The split is what the interim rests on (D1i, D2i), and it decides whose name a defaced copy carries.
 
 **Outside the mock, not fixed here.** Felix's engine builds the tree its instrument units run in with `git read-tree` and `git checkout-index` (`engine/harness/lib/instrument-run.sh`). On git 2.56.0 that checkout obeys the checked-out tree's own `.gitattributes`: a blob holding `FORBIDDEN token` under `working-tree-encoding=UTF-16LE` was written out as UTF-16, and a byte search of the copy found no line. Whether any guard in Felix's suite can be passed that way was not measured here. This Mac's filesystem also folds case under those units. Both belong to step 3, and a follow-up session was started to measure them.
+
+## Open against this mock, found after the final run
+
+On 2026-11-10 a separate session designed the founder's door. It copied this mock, gave the copy a door of its own, and ran cases against both doors. Its code and logs are in the memory root, `audits/2026-11-10-trust-door/`. Six of its findings are about this mock or this design. By the founder's decision they are recorded here as open, and are fixed when the authority is built.
+
+**What was checked here.** The first four were read again in this mock's code, and each is there. None was run again in this folder. The case names beginning with V are that session's.
+
+1. **The mock's door reads his word without its order** (V5f). The door is a file, and the kernel asks whether a line is in it. A release of a head anywhere in the file passes over a hold given after it. In that session's case the held change landed. The design says his statements are kept in order (§5.5), and the kernel has to read them in order as well.
+2. **An override passes each hold** (V6f). The kernel lands an overridden head before it looks at a hold, which is what the design's §5.1 says. So once he has overridden a head, a later hold of his own does not take it back. His stop does.
+3. **An override names a head and no tree** (V31f). What lands is that head merged onto main as main then stands. In that session's case he was shown a tree whose answer was 42, and after the landing main answered 41. Rule 12 of the design names the head alone.
+4. **The kernel's founder-path rule missed a path with a newline.** The kernel turns a newline in a changed path into `?`, which is printable, before its rule about bytes outside printable ASCII reads the path. So that rule does not hold such a path. In that session's case the change was refused all the same, by the check of the judged copy.
+5. **Case T1 has a default outcome equal to its expected word.** T1 stages a push between the judgement and the landing and expects a refusal. With main at the forge, a case that no tick decides is given "refused" by default, so a T1 whose race was not staged would read as expected. In this report's final run the race was staged in each of the three modes: each row's ticks read "requeue 1 the head moved after it was judged", then "refused". The case does not check that. This is finding 6 again, in a case that was thought to be covered.
+6. **The interim does not stand against a session that drives his signed-in browser.** Until the door exists, the design reads his yes from GitHub under his name (§5.5), and rests that on his token being out of an agent's reach. A session that drives his browser comments as him with no token of his in its hands. This is class 9 of the design's threat model, and no case here tried it.
+
+**These are the ones that session listed for this pull request.** Its own report may hold more that bears on this design, and it is not part of this document.
 
 ## What the kernel costs
 

@@ -14,6 +14,8 @@
 7. His own changes, and a judge that is wrong: "Same door, with an override".
 8. What is built before March: "Build and sign now".
 
+**Decided on 2026-11-10 at 07:23Z.** Asked what happens to this pull request, he chose "Land it; defects recorded open". The option read: "The design and your answers become main's record today. The mock's defects are recorded as open against it and fixed when the authority is actually built."
+
 **A yes to a call is not a yes to the act.** Making a login, an account, a repository, an App, a token or a key is each still his to do, or to tell a session to do by name. None was done.
 
 **What the design says now.**
@@ -30,6 +32,13 @@
 - **Still landing in the mock:** an instrument that takes candidate code into its own process (E7), and a label hold shed by sending the same commit up under a new branch name (H6).
 - **Breaks found and closed in the mock:** a hold at the door shed by opening the change again (R1, R2, the second review); an authorization and an override each used a second time (H7, O4); a foreign commit overwritten with no copy kept (R4); a planted branch that kept the published main from being sent again (P6). Before the first draft: the units' copy was not the tree that landed (X1, X7).
 
+**Open against the mock, by his decision.** The session that designed the door found six things on a copy of this mock on 2026-11-10 (design §8, and "Open against this mock" in the spike report). None is fixed here.
+- The mock's door reads his word without its order, so a release passes over a hold given after it (that session's case V5f).
+- An override passes each hold (V6f), and names a head and no tree, so the tree that lands can be one he was not shown (V31f).
+- The kernel's founder-path rule missed a path with a newline.
+- The battery's case T1 has a default outcome equal to its expected word. In the final run its race was staged in each mode.
+- The interim, where his yes is read from GitHub, does not stand against a session that drives his signed-in browser.
+
 **Not shown.** That a login holds: the mock's wall is a sandbox profile. That the door can be made so a session cannot imitate the founder there: its mechanism is not designed. Whether GitHub does what the connector needs: `spike/wall-test.sh` was written for the first draft's questions and has never run. Confinement on Linux, Felix's own suite as the judge, and a signer apart from the kernel are not measured either. The store mode was written and reviewed over one day.
 
 **Asked of direction.**
@@ -45,4 +54,4 @@
 
 **The founder's next acts,** each his to make or to order by name: the second and third logins on this Mac and the commit main starts from (stage 2); the public throwaway repository and its identities (the proof); the App, after the proof; the agents' own identity at GitHub; the server's account and fee, once the rehearsal has numbers; the daily ceiling on judgements.
 
-**Release.** None: documents only. The pull request stays labelled needs-founder: it records his answers, and it is his to read before it lands.
+**Release.** None: documents only. The pull request was labelled needs-founder for his calls. With his decision above the label comes off, and it lands on green as any other pull request does.

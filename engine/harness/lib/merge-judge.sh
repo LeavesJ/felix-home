@@ -16,8 +16,10 @@
 #
 # THE COPY IS MAIN'S BYTES. One git process for the whole tree, run against a scratch repository
 # that borrows the checkout's objects and reads no machine-local config (_felix_git_rules), so
-# nothing in the checkout's attributes, core.autocrlf or a global config touches a byte. The
-# scratch repository is gone before the copy runs.
+# nothing in the checkout's attributes, core.autocrlf or a global config touches a byte. Its
+# info/attributes unsets the six attributes checkout converts by, which outranks main's own
+# .gitattributes and the machine's (trust step 3, spec A22 as amended). The scratch repository is
+# gone before the copy runs.
 #
 # THE MARKER. FELIX_MERGE_HANDED=1 is set for the copy, and a felix that is not the entry and is
 # not that copy refuses when it finds it set: a caller that sets it can only be skipping the
@@ -79,6 +81,7 @@ _mj_make() {   # ROOT SHA VERSION
   if ! { _felix_git_rules "$_MJ_SCRATCH" init -q --template= >/dev/null 2>"$err" \
          && mkdir -p "$_MJ_SCRATCH/.git/objects/info" \
          && printf '%s\n' "$objs" > "$_MJ_SCRATCH/.git/objects/info/alternates" \
+         && mkdir -p "$_MJ_SCRATCH/.git/info" && printf '* -text -eol -crlf -ident -filter -working-tree-encoding\n' > "$_MJ_SCRATCH/.git/info/attributes" \
          && _felix_git_rules "$_MJ_SCRATCH" read-tree "$sha:engine" >/dev/null 2>>"$err" \
          && _felix_git_rules "$_MJ_SCRATCH" checkout-index -a --prefix="$_MJ_COPY/$ver/" >/dev/null 2>>"$err"; }; then
     e="$(LC_ALL=C sed -n '1p' "$err" 2>/dev/null)"; e="${e//"$_MJ_COPY"/the copy}"

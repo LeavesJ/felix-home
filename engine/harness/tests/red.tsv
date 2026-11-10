@@ -8,17 +8,19 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	6857c7d971738c83c6f6481e433e9363da23f79e	0.49.336
-run	12	17004	46
-tmdr: case 1, one deleted: when the candidate deletes d/k and renames the rest of d/ into e/, _felix_merge_refs exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 1: from the checkout of a candidate that renames all of d/ into e/ while main added d/new, _felix_merge_refs with base main exits 0 and prints main^{tree} and the id of a tree	1
-tmdr: case 1: in the tree _felix_merge_refs names for that candidate, d/new is at d/new with main's bytes	1
-tmdr: case 1: in the tree _felix_merge_refs names for that candidate, e/new does not exist	1
-tmdr: case 1: in the tree _felix_merge_refs names for that candidate, the files it renamed are at e/ with its bytes, the nearly unchanged one included, and not at d/	1
-tmdr: case 2, beyond the list: with GIT_CONFIG_PARAMETERS carrying merge.directoryRenames=true after the suite's own pins, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 2, beyond the list: with GIT_CONFIG_SYSTEM naming a file that sets merge.directoryRenames true and GIT_CONFIG_NOSYSTEM unset, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=conflict in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=true in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 2: with GIT_CONFIG_GLOBAL naming a file that sets merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 2: with the checkout's own .git/config setting merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/	1
-tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the changed paths still name e/a and neither d/new nor e/new	1
+base	origin/main	9d4baa6901c3b8a77678fca92ca9c0740aa2d226	0.49.337
+run	14	17037	47
+ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it	1
+ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it	1
+ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c	1
+ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b	1
+ts3g: A22, case 1, ident: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, text eol=crlf: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, working-tree-encoding=UTF-16LE: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs	1
+ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs	1
+ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs	1
+ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs	1
+ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs	1

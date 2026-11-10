@@ -372,7 +372,9 @@ printf '\nseeing the whole toolbox\n'
 # Felix has to work on somebody else's laptop, laid out however they left it,
 # so the inventory unions every source and each one is optional.
 INV="$( . "$FROOT/harness/lib/ready.sh"; felix_ready_inventory 2>/dev/null )"
-if has_claude; then
+# Only where the CLI can see a plugin installed here: a unit of P's run has a HOME of its own (slice 3, A17), and
+# under the land tick's environment the CLI then lists none, which reads as a machine with nothing installed.
+if has_claude && [ "$(claude plugin list --json 2>/dev/null | LC_ALL=C grep -c '"id"')" -gt 0 ]; then
   n_plug="$(printf '%s\n' "$INV" | grep -c '^plugin' || true)"
   # A static name. It read `ok "finds plugins ($n_plug)"`, and the count is how
   # many plugins THIS machine has — so the name differed between the machine
@@ -382,7 +384,7 @@ if has_claude; then
   # anything varying by machine belongs in the detail, not the name.
   [ "${n_plug:-0}" -gt 0 ] && ok "finds plugins" || bad "finds plugins" "none"
 else
-  skip "finds plugins" "no claude CLI"
+  skip "finds plugins" "no claude CLI, or one that lists no plugin"
 fi
 # Nothing may appear twice however many sources reported it.
 dupes="$(printf '%s\n' "$INV" | sort | uniq -d | grep -c . || true)"

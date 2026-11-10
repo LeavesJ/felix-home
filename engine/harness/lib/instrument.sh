@@ -51,11 +51,19 @@ unset _FELIX_INSTR_UD _FELIX_INSTR_RC _FELIX_INSTR_MAN _FELIX_INSTR_CEXP _FELIX_
 unset _FELIX_INSTR_HP _FELIX_INSTR_UT _FELIX_INSTR_TB _FELIX_INSTR_WD _FELIX_INSTR_PROBE _FELIX_INSTR_KRUN _FELIX_INSTR_KEY
 unset _FELIX_INSTR_KL0 _FELIX_INSTR_MARK _FELIX_INSTR_CPART _FELIX_INSTR_CDRV _FELIX_INSTR_CDMODE _FELIX_INSTR_CID
 
-# One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON (tabs and newlines in REASON become blanks).
+# One blocker line into _FELIX_INSTR_BLOCK, once: KIND SUBJECT REASON. In each field a tab or newline becomes a blank,
+# and (A22, A23, after the automated security reviews of 6ab2d37e and 7ccb545e) a control or format character (C0, DEL,
+# C1, Unicode Cf such as a bidirectional override) or a byte that is not UTF-8 is written as \xNN, its bytes, so
+# nothing a name in the tree holds reaches a terminal raw. Text that is printable UTF-8 is left as it is.
+_felix_instr_addpl='use Encode (); my @f; for (@ARGV) { my $s = $_; $s =~ tr/\t\n/  /; my $o = "";
+  while (length $s) { my $u = Encode::decode("UTF-8", $s, Encode::FB_QUIET);
+    $u =~ s/([\p{Cc}\p{Cf}])/join("", map { sprintf "\\x%02x", $_ } unpack "C*", Encode::encode("UTF-8", $1))/ge;
+    $o .= Encode::encode("UTF-8", $u); $o .= sprintf "\\x%02x", ord substr($s, 0, 1, "") if length $s }
+  push @f, $o } print join("\t", @f)'
 _felix_instr_add() {
-  local r="$3" l
-  r="${r//$'\t'/ }"; r="${r//$'\n'/ }"
-  l="$1"$'\t'"$2"$'\t'"$r"
+  local l
+  l="$(perl -e "$_felix_instr_addpl" -- "$1" "$2" "$3" 2>/dev/null)" \
+    || l="$(printf '%s\t%s\t%s' "${1//[$'\t\n']/ }" "${2//[$'\t\n']/ }" "${3//[$'\t\n']/ }" | LC_ALL=C tr '\001-\010\013-\037\177-\377' '?')"
   case $'\n'"$_FELIX_INSTR_BLOCK"$'\n' in *$'\n'"$l"$'\n'*) return 0 ;; esac
   _FELIX_INSTR_BLOCK="${_FELIX_INSTR_BLOCK:+$_FELIX_INSTR_BLOCK$'\n'}$l"
 }
@@ -265,7 +273,7 @@ EOF
   if [ "$rc" -ne 0 ] || ! { [ "$mach" != 1 ] || _felix_instr_canary_prep "$root" "$lb" "$lm" "$tp"; }; then
     _felix_instr_add unknown SUITE "what the verdict reads (the manifest of what the squash would land, P's canary or the driver it runs under) could not be read"
   elif [ "$wt" = 1 ] && ! _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 1 0; then
-    _felix_instr_add unknown SUITE "the run tree T could not be made from what the squash would land and $b under $_FELIX_INSTR_TB"
+    _felix_instr_add unknown SUITE "the run tree T could not be made from what the squash would land and $b under $_FELIX_INSTR_TB${_FELIX_INSTR_TWHY:+ (A22, A23: $_FELIX_INSTR_TWHY)}"
   else
     [ "$mach" != 1 ] || [ "$_FELIX_INSTR_CANARY" = no ] || wc=1
     # A10, A13: the kept judgements as they stand before the first unit, in memory, and this judgement's marker.
@@ -287,7 +295,7 @@ EOF
     # A12: the canary's copy is made only now, once the last unit has ended.
     if [ "$wc" = 1 ]; then
       if _felix_instr_build "$root" "$mt" "$b" "$h" "$gp" "$br" "$lb" 0 1; then _felix_instr_canary 2>/dev/null
-      else _felix_instr_add unknown SUITE "the canary's copy could not be made from what the squash would land under $_FELIX_INSTR_TB"; fi
+      else _felix_instr_add unknown SUITE "the canary's copy could not be made from what the squash would land under $_FELIX_INSTR_TB${_FELIX_INSTR_TWHY:+ (A22, A23: $_FELIX_INSTR_TWHY)}"; fi
     fi
   fi
   case $'\n'"$_FELIX_INSTR_BLOCK" in *$'\n'unknown$'\t'*) _FELIX_INSTR_KEEP="" ;; esac

@@ -47,6 +47,8 @@ unset _FELIX_POL_TMP _FELIX_POL_DIR _FELIX_P_TREE _FELIX_P_WORDS
 # Every regular file under SHA:PREFIX in ROOT's repository, into DEST, as git stores it (mode kept, no
 # symbolic link, no submodule). One git process for the tree, against a scratch repository that borrows
 # ROOT's objects and reads no machine-local configuration, the way lib/merge-judge.sh cuts main's engine.
+# Its info/attributes unsets the six attributes checkout converts by, which outranks the tree's own
+# .gitattributes and the machine's (trust step 3, spec A22 as amended).
 # PREFIX names a tree, or a file at the top level. Returns 0, or 1 when it could not.
 _felix_policy_copy() {   # ROOT SHA PREFIX DEST
   local root="$1" sha="$2" pre="$3" dest="$4" objs scratch typ mode
@@ -67,6 +69,7 @@ _felix_policy_copy() {   # ROOT SHA PREFIX DEST
   if ! { _felix_git_rules "$scratch" init -q --template= >/dev/null 2>&1 \
          && mkdir -p "$scratch/.git/objects/info" \
          && printf '%s\n' "$objs" > "$scratch/.git/objects/info/alternates" \
+         && mkdir -p "$scratch/.git/info" && printf '* -text -eol -crlf -ident -filter -working-tree-encoding\n' > "$scratch/.git/info/attributes" \
          && _felix_git_rules "$scratch" read-tree "$sha:$pre" >/dev/null 2>&1 \
          && _felix_git_rules "$scratch" checkout-index -a --prefix="$dest/" >/dev/null 2>&1; }; then
     rm -rf "$scratch"; return 1

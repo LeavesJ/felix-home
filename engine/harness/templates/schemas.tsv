@@ -138,6 +138,9 @@ catalog.tsv	tree	kind name source risk capability keywords?	refused
 # every capability as unruled. Absent is quieter: felix doctor says nothing, as
 # if every capability had a rule (felix_capabilities_unruled).
 discover-rules.tsv	tree	capability keywords	refused
+# Engine-only. Empty or absent, felix situations exits 3 and says the situation
+# table could not be read (lib/situations.sh), with nothing reported.
+situations.tsv	tree	class applies owes class_by_maturity source	refused
 # The public snapshot's acknowledgements. Empty or absent, nothing is waived and
 # every audit hit stops the snapshot; only origin/main's copy waives anything.
 # The snapshot itself does not carry it.
@@ -152,6 +155,9 @@ assertions.tsv	tree	count name	refused
 # Empty, no group: every part is a unit of its own under tests/run -j N. Absent,
 # a -j N above 1 refuses to start (part 0001); -j 1 never reads it.
 groups.tsv	tree	group part	allowed
+# Empty or absent, every part the driver sources is instrument (D28): felix merge runs each one a candidate
+# changes as the judged base holds it, and reads this table from that base only (lib/instrument.sh, S7).
+partition.tsv	tree	part class why	allowed
 # Empty, no table has a row and bin/schema-check fails every table as
 # undeclared. Absent, it cannot examine, which is never read as clean.
 schemas.tsv	tree	table lives columns empty	refused

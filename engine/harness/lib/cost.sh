@@ -8,10 +8,18 @@
 # happening (audits/2026-10-09-token-burn in the memory root). This is the
 # reading a governor needs before it can limit anything.
 #
-# Read-only by construction, like felix audit: the CLI dispatches it before a
-# home is resolved, and it opens no file for writing and makes no temporary
-# file (no here-document, here-string or process substitution either: bash
-# backs the first two with a file, and POSIX mode has no third).
+# Read-only towards everything it counts, like felix audit: the CLI dispatches
+# it before a home is resolved, and it never writes under the records root or a
+# home. Since 2026-11-06 it writes one thing, its readings and their lock under
+# $HOME/.cache/felix/cost, so that one scan serves every caller and no caller
+# waits behind another's (lib/cost-cache.sh, and docs/2026-11-06-load-governor-
+# design.md section 5, clauses C1-C13). Without a HOME, a writable cache or
+# perl, it scans inline and writes nothing, as before.
+#
+# Two stages. The scan (stage 1, _FC_SCAN_AWK) reads the transcripts and emits
+# one row per response id, settled as below; the totals (stage 2, _FC_SUM_AWK)
+# take the window, the cap and the view to those rows. A reading is stage 1's
+# output, kept; a reading serves every --by, --top, --tsv and cap of its window.
 #
 # Records. The root is $CLAUDE_CONFIG_DIR/projects when that is set and
 # non-empty, else $HOME/.claude/projects (the host adapter's session reader
@@ -71,12 +79,13 @@
 # total is then a floor; a floor of nothing is unknown.
 #
 # Forks: date once, then find and sort once, and one grep per 256 files, so
-# never one per line or per file. One awk does the rest.
+# never one per line or per file. One awk settles the responses and one totals
+# them; lib/cost-cache.sh adds a find, a cksum and a perl around a scan.
 
 FELIX_COST_CAP_M_DEFAULT=905
 
 felix_cost_usage() {
-  printf 'usage: felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv]\n'
+  printf 'usage: felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv] [--max-age SECONDS]\n'
 }
 _fc_refuse() { printf 'felix cost: %s\n' "$1" >&2; felix_cost_usage >&2; return 2; }
 
@@ -114,7 +123,7 @@ _fc_real() {
 # felix cost [--week | --since D] [--by F] [--top N] [--tsv]
 felix_cost() {
   local -x LC_ALL=C
-  local by="" top="" tsv=0 since="" cap root froot where now real start end
+  local by="" top="" tsv=0 since="" maxage="" deadline cap root froot where now real start end
   local re_since='^([0-9]{4})-([0-9]{2})-([0-9]{2})(T([0-9]{2}):([0-9]{2}))?$'
   local re_now='^([0-9]{4})-([0-9]{2})-([0-9]{2})T([0-9]{2}):([0-9]{2})(:([0-9]{2}))?Z$'
   local re_cap='^([0-9]+(\.[0-9]*)?|\.[0-9]+)$'
@@ -127,6 +136,9 @@ felix_cost() {
       --top) [[ "${2:-}" =~ ^[0-9]{1,9}$ ]] && [ "$((10#$2))" -gt 0 ] || { _fc_refuse "--top takes a positive whole number"; return; }
              top=$((10#$2)); shift 2 ;;
       --tsv) tsv=1; shift ;;
+      --max-age) [[ "${2:-}" =~ ^[0-9]{1,6}$ ]] && [ "$((10#$2))" -le 604800 ] \
+                   || { _fc_refuse "--max-age takes a whole number of seconds from 0 to 604800"; return; }
+                 maxage=$((10#$2)); shift 2 ;;
       -h|--help) felix_cost_usage; return 0 ;;
       *) _fc_refuse "unknown argument: $1"; return ;;
     esac
@@ -134,6 +146,10 @@ felix_cost() {
   cap="${FELIX_COST_CAP_M:-$FELIX_COST_CAP_M_DEFAULT}"
   [[ "$cap" =~ $re_cap ]] && [[ "$cap" =~ [1-9] ]] \
     || { _fc_refuse "FELIX_COST_CAP_M is not a positive number: $cap"; return; }
+  deadline="${FELIX_COST_DEADLINE:-1800}"
+  [[ "$deadline" =~ ^[0-9]{1,5}$ ]] && [ "$((10#$deadline))" -ge 1 ] && [ "$((10#$deadline))" -le 86400 ] \
+    || { _fc_refuse "FELIX_COST_DEADLINE is not a whole number of seconds from 1 to 86400: $deadline"; return; }
+  deadline=$((10#$deadline))
 
   real="$(date -u +%s)"
   case "$real" in ''|*[!0123456789]*) printf 'felix cost: the clock could not be read\n' >&2; return 1 ;; esac
@@ -177,9 +193,32 @@ felix_cost() {
     prune=$(((real - start) / 60 + 2)); [ "$prune" -ge 1 ] || prune=1; prune="-mmin|-$prune"
   fi
 
-  { if [ -n "$root" ] && [ -d "$root" ]; then _fc_files "$froot" "${prune%%|*}" "${prune#*|}"; fi; } \
-    | FC_ROOT="$froot" awk -v any="$any" -v start="$s_iso" -v end="$e_iso" -v esay="$e_say" \
-          -v asof="${n_iso:0:16}Z" -v cap="$cap" -v by="$by" -v top="$top" -v tsv="$tsv" -v where="$where" "$_FC_AWK"
+  # What stage 2 is given, in _fc_sum's order: window, the view, and the words.
+  _FC_V=("$s_iso" "$e_iso" "$e_say" "${n_iso:0:16}Z" "$cap" "$by" "$top" "$tsv" "$where")
+  if _fcc_dir && _fcc_key "$froot" "$s_iso" "$e_iso"; then
+    _fcc_serve "$froot" "${prune%%|*}" "${prune#*|}" "$any" "$real" "$maxage" "$deadline"
+    return
+  fi
+  _fc_scan "$froot" "${prune%%|*}" "${prune#*|}" "$any" | _fc_sum "" "" ""
+}
+
+# Stage 1 for the transcripts under ROOT, modified as TEST VALUE says, with ANY
+# 1 when a transcript of any age is there: a C row (files read, files unread,
+# ANY) and one R row per response id (weight in hundredths or -1, time, model,
+# id, record directory; the directory last, so a tab in it shifts nothing).
+_fc_scan() {   # ROOT TEST VALUE ANY
+  { if [ -n "$1" ] && [ -d "$1" ]; then _fc_files "$1" "$2" "$3"; fi; } \
+    | FC_ROOT="$1" awk -v any="$4" "$_FC_SCAN_AWK"
+}
+
+# Stage 2 over stage 1's rows on stdin, for the window and view in _FC_V, as
+# felix_cost set it. SERVED is empty for a reading that is current, else aged,
+# last or none (a cover row, C5 and C6); LINE is the text view's served line;
+# WHY is the reason a "none" gives. ASOF, when given, replaces _FC_V's.
+_fc_sum() {   # SERVED LINE WHY [ASOF]
+  awk -v start="${_FC_V[0]}" -v end="${_FC_V[1]}" -v esay="${_FC_V[2]}" -v asof="${4:-${_FC_V[3]}}" \
+      -v cap="${_FC_V[4]}" -v by="${_FC_V[5]}" -v top="${_FC_V[6]}" -v tsv="${_FC_V[7]}" -v where="${_FC_V[8]}" \
+      -v served="$1" -v sline="$2" -v nwhy="$3" "$_FC_SUM_AWK"
 }
 
 # The transcripts of the window under ROOT, modified as TEST VALUE says, as
@@ -211,7 +250,7 @@ _fc_files() {
 }
 
 # shellcheck disable=SC2016
-_FC_AWK='
+_FC_SCAN_AWK='
   # The number after KEY in S, 0 when S has none.
   function num(s, key,    p, v) {
     if (!(p = index(s, key))) return 0
@@ -247,7 +286,7 @@ _FC_AWK='
   BEGIN {
     FOLD = "[{\004][^{}\004\005]*[}\005]"
     OWN = "\"type\":\"[A-Za-z_-]*\",\"uuid\":\"[^\"]*\",\"timestamp\":\"[^\"]*\""
-    capt = cap * 1000000; rl = length(ENVIRON["FC_ROOT"])
+    rl = length(ENVIRON["FC_ROOT"])
   }
   substr($0, 1, 1) == "\002" { unread++; next }
   substr($0, 1, 1) == "\003" { split($0, c, "\t"); nread = c[2]; unread += c[3]; next }
@@ -285,6 +324,35 @@ _FC_AWK='
     for (id in LW) if (!(id in W) || LW[id] > W[id]) { W[id] = LW[id]; T[id] = LT[id]; WE[id] = LE[id]; WM[id] = LM[id] }
     for (id in LW) { delete LW[id]; delete LT[id]; delete LE[id]; delete LM[id] }
   }
+  # The rows stage 2 reads: C, then one R per id, then E, so a reading that
+  # ends before E was cut short.
+  END {
+    settle()
+    printf "C\t%d\t%d\t%d\n", nread, unread, any
+    for (id in W) printf "R\t%.0f\t%s\t%s\t%s\t%s\n", W[id], T[id], WM[id], id, WE[id]
+    print "E"
+  }
+'
+
+# Stage 2. Reads stage 1's rows (anything else, a reading's H line included, is
+# passed over) and prints the report exactly as one pass did before the split,
+# or nothing, status 3, when the rows did not end with E.
+# served, sline and nwhy are _fc_sum's: the cover row, the text line, and the
+# reason a "none" gives.
+# shellcheck disable=SC2016
+_FC_SUM_AWK='
+  BEGIN { capt = cap * 1000000 }
+  $0 == "E" { sawE = 1; next }
+  substr($0, 1, 2) == "C\t" { split($0, c, "\t"); nread = c[2] + 0; unread = c[3] + 0; any = c[4] + 0; next }
+  substr($0, 1, 2) == "R\t" {
+    r = substr($0, 3)
+    k = index(r, "\t"); w = substr(r, 1, k - 1); r = substr(r, k + 1)
+    k = index(r, "\t"); t = substr(r, 1, k - 1); r = substr(r, k + 1)
+    k = index(r, "\t"); mo = substr(r, 1, k - 1); r = substr(r, k + 1)
+    k = index(r, "\t"); id = substr(r, 1, k - 1)
+    W[id] = w + 0; T[id] = t; WM[id] = mo; WE[id] = substr(r, k + 1)
+    next
+  }
   # Keys of A (n of them, in K) ordered: by value largest first then key, or
   # by key alone when bykey. An insertion sort: there are tens of keys, not
   # thousands.
@@ -314,7 +382,9 @@ _FC_AWK='
       else printf "  %5s%%  %8s  %s\n", pct(A[K[i]]), mil(A[K[i]]), K[i]
   }
   END {
-    settle()
+    # Stage 1 ends its rows with E. Without it the scan died, and nothing is
+    # printed: the one pass printed nothing then either (a "none" has no rows).
+    if (served != "none" && !sawE) exit 3
     for (id in W) {
       if (T[id] != "" && (T[id] < start || (end != "" && T[id] >= end))) continue
       if (T[id] == "" || W[id] < 0) { runread++; continue }
@@ -327,12 +397,14 @@ _FC_AWK='
     cov = "measured"; why = ""
     if (!any) { cov = "unknown"; why = "no session records under " where }
     else if (unread || runread) cov = (tot > 0) ? "floor" : "unknown"
+    if (served == "none") { cov = "unknown"; why = nwhy }
     if (cov == "unknown" && why == "") why = (unread ? unread " could not be read" : "") (unread && runread ? ", " : "") (runread ? runread " responses could not be read" : "") ", and nothing readable was in the window"
     s16 = substr(start, 1, 16) "Z"
     if (tsv) {
       printf "cover\twindow_start\t%s\ncover\twindow_end\t%s\ncover\tsource\t%s\n", s16, esay, where
       printf "cover\tcap_tokens\t%.0f\ncover\tfiles_read\t%d\ncover\tfiles_unread\t%d\n", capt, nread, unread
       printf "cover\tresponses_unread\t%d\ncover\tcoverage\t%s\ncover\tas_of\t%s\n", runread, cov, asof
+      if (served != "") printf "cover\tserved\t%s\n", served
       if (cov == "unknown") { printf "total\tall\tunknown\tunknown\tunknown\n"; exit }
       printf "total\tall\t%.2f\t%s\t%d\n", tot / 100, pct(tot), calls
       if (by == "" || by == "worktree") facet("worktree", WT, WC)
@@ -342,6 +414,7 @@ _FC_AWK='
     }
     printf "felix cost: read-only. A proxy for plan usage in input-equivalent tokens, not the plan%ss own number.\n", "\047"
     printf "window   %s to %s\n", s16, esay
+    if (sline != "") printf "served   %s\n", sline
     if (cov == "unknown") {
       printf "total    unknown (%s)\ncalls    unknown\n", why
       if (any) printf "files    %d read, %d could not be read under %s\n", nread, unread, where

@@ -224,10 +224,10 @@ _b13n_check "A34 (B23): with all three strays the refusal counts 3 path(s), and 
   "strays $B13N_V|$B13N_G" "strays 3|no-bump: exit=1,says=yes | plain install: exit=1,plugin=same,claude=0" "$(tr '\n' ' ' < "$B13I/out" | head -c 700)"
 B13N_V="strays [$(_b13i_strays | tr '\n' ' ')]"; _b13i "$B13IS" --no-bump
 _b13n_check "A35 (B24; control): with nothing untracked or ignored under engine/, felix install --no-bump verifies the installed engine as today" \
-  "$B13N_V|exit=$B13IRC|$(_b13n_has "$(cat "$B13I/out")" 'verified   the installed engine matches this tree')" "strays []|exit=0|yes" "$(tr '\n' ' ' < "$B13I/out" | head -c 700)"
+  "$B13N_V|exit=$B13IRC|$(_b13n_has "$(cat "$B13I/out")" 'checked    the installed engine matches this tree')" "strays []|exit=0|yes" "$(tr '\n' ' ' < "$B13I/out" | head -c 700)"
 B13N_V="$(git -C "$B13IS2" rev-parse --is-inside-work-tree >/dev/null 2>&1 && echo in-git || echo outside-git)"; _b13i "$B13IS2" --no-bump
 _b13n_check "A36 (B25): a source outside any git work tree installs as today, saying in one line that git could not be asked about engine/" \
-  "$B13N_V|exit=$B13IRC|unknown line $(LC_ALL=C awk 'index($0, "could not ask git") && index($0, "engine/") { n++ } END { print n + 0 }' "$B13I/out")|$(_b13n_has "$(cat "$B13I/out")" 'verified   the installed engine matches this tree')" \
+  "$B13N_V|exit=$B13IRC|unknown line $(LC_ALL=C awk 'index($0, "could not ask git") && index($0, "engine/") { n++ } END { print n + 0 }' "$B13I/out")|$(_b13n_has "$(cat "$B13I/out")" 'checked    the installed engine matches this tree')" \
   "outside-git|exit=0|unknown line 1|yes" "$(tr '\n' ' ' < "$B13I/out" | head -c 700)"
 _b13i_stray ds on; _b13i "$B13IS" --uninstall; B13N_O="$(cat "$B13I/out")"
 _b13n_check "A37 (B26; control): felix install --uninstall with a .DS_Store under engine/ exits 0 and names no stray" \

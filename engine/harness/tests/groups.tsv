@@ -32,3 +32,7 @@ au	0820-felix-new-no-commission-governed-not-commiss.sh
 au	0830-felix-audit-what-the-reviews-left-open.sh
 au	0840-felix-audit-what-the-third-review-found.sh
 au	0850-felix-audit-what-the-fourth-review-found.sh
+# ts3: 2177 continues 2176 (trust step 3, slice 1): it takes up the fixture R, the entry, the helpers and the receipts
+# 2176 builds under $TMP/ts3, and removes them at its end, so under -j N they run in one process, in order.
+ts3	2176-trust-step3-policy-from-p-blind.sh
+ts3	2177-trust-step3-policy-from-p-blind-b.sh

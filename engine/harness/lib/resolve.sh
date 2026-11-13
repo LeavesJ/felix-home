@@ -155,10 +155,12 @@ felix_deployed_engine() {
 # which turned a home under `~/Library/Mobile Documents/` — iCloud's Documents, the ordinary
 # place for one — into `.../MobileDocuments/...`: a directory nobody wrote, so the pointer never
 # resolved, and the refusal sent the reader to a path that does not exist. A pointer that is
-# empty or only whitespace still reads as empty.
+# empty or only whitespace still reads as empty. Status 2, nothing printed, when the read did not finish: cat's 1 with
+# nothing read is an unreadable pointer, empty as before (L3); any other status, or 1 after part of it, is not an answer.
 _felix_home_pointer() {
-  local p LC_ALL=C
-  p="$(cat "$HOME/.felix-home" 2>/dev/null)" || p=""
+  local p r LC_ALL=C
+  p="$(cat "$HOME/.felix-home" 2>/dev/null)"; r=$?
+  case "$r:$p" in 0:*|1:) ;; *) return 2 ;; esac
   p="${p#"${p%%[![:space:]]*}"}"
   p="${p%"${p##*[![:space:]]}"}"
   printf '%s' "$p"
@@ -310,10 +312,38 @@ felix_json_str() {
   LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
+# Reads that say whether they finished (2026-10-31), each under felix_capture (lib/detect.sh): a fork that failed or a read
+# killed is not an empty answer. _felix_cap loads it from beside this file (declare -F: no fork, no function named command);
+# when it cannot, every read that needed it did not finish.
+# The readers run in felix_capture's subshell (a cd there moves nothing) and return 0 for each finished answer.
+# _felix_git_in prints a last line, git's status or - for a DIR it cannot enter, which _felix_st_split takes into _FELIX_ST,
+# the rest in _FELIX_SO with its trailing LFs dropped as $(...) drops them. _felix_json_field is felix_json_str's sed and
+# head with both statuses read (head's alone hid sed's); sed's 141, the SIGPIPE after head took its line, is an answer.
+_felix_cap() {
+  declare -F felix_capture >/dev/null && return 0
+  local f="${BASH_SOURCE[0]:-}" d
+  d="${f%/*}"; [ "$d" != "$f" ] || d=.
+  [ -f "$d/detect.sh" ] && . "$d/detect.sh" 2>/dev/null
+  declare -F felix_capture >/dev/null
+}
+_felix_git_in() { cd "$1" 2>/dev/null || { printf '\n-'; return 0; }; shift; git "$@" 2>/dev/null; printf '\n%s' "$?"; }
+_felix_st_split() {   # VALUE
+  local v="$1" nl=$'\n'
+  _FELIX_ST="${v##*"$nl"}"; v="${v%"$nl"*}"
+  while [ "${v%"$nl"}" != "$v" ]; do v="${v%"$nl"}"; done
+  _FELIX_SO="$v"
+}
+_felix_marker_read() { [ -r "$1" ] || return 0; LC_ALL=C tr -d '[:space:]' < "$1" 2>/dev/null; }   # unreadable names nothing
+_felix_json_field() { [ -f "$1" ] && [ -r "$1" ] || return 0
+  LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1; set -- "${PIPESTATUS[@]}"; case "$1:$2" in 0:0|141:0) ;; *) return 1 ;; esac; }
+_felix_ls() { ls "$1" 2>/dev/null; case "$?" in 0|1|2) return 0 ;; esac; return 1; }   # a directory ls cannot list is no names
+_felix_rr_walk() { cd "$1" 2>/dev/null || return 0; printf x; pwd -P; }   # x: the cd worked, so an empty answer is not one
+
 # Print the repo root for a directory, or the directory itself when not in git.
-# Felix must work in a checkout that is not a git repo at all.
+# Felix must work in a checkout that is not a git repo at all. It prints what it printed before 2026-10-31 in every case,
+# and returns 2 when a read did not finish (the walk's pwd -P, git rev-parse; git's 128 and a failed cd are answers).
 felix_repo_root() {
-  local start="${1:-$PWD}" root d
+  local start="${1:-$PWD}" root d rc=0 st nl=$'\n'
   # bash 3.2 keeps the text of a failed write (stdout closed, a full disk) in
   # its stdout buffer and flushes it ahead of the next output, into this very
   # $( ). Flush it to /dev/null first; bash 5 has already dropped it.
@@ -322,17 +352,25 @@ felix_repo_root() {
   # PreToolUse's budget, for an answer the filesystem has. `.git` is a file in
   # a worktree or submodule, so -e covers both. Only an absolute path is walked;
   # any other text ends in ${d%/*} == $d, which never ends.
-  d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""
+  if _felix_cap; then
+    felix_capture d _felix_rr_walk "$start" || { d=""; rc=2; }
+    case "$d" in x/*) d="${d#x}" ;; x) d=""; rc=2 ;; *) d="" ;; esac   # a relative one is not walked, and git decides
+  else rc=2; d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""; fi
   case "$d" in /*) ;; *) d="" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
-    [ -e "$d/.git" ] && { printf '%s' "$d"; return; }
+    [ -e "$d/.git" ] && { printf '%s' "$d"; return "$rc"; }
     d="${d%/*}"
   done
   # Nothing found by walking. Ask git anyway rather than give up: GIT_DIR set in
   # the environment, or any layout where the marker is not on the path above,
-  # is exactly the case the walk cannot see and git can.
-  root="$(cd "$start" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)"
+  # is exactly the case the walk cannot see and git can. Its output is kept whatever its status, as before; the
+  # sentinel after it says whether git ran to its end.
+  root="$(cd "$start" 2>/dev/null || { printf '\n-.'; exit 0; }; git rev-parse --show-toplevel 2>/dev/null; printf '\n%s.' "$?")"
+  st="${root##*"$nl"}"
+  case "$st" in -.|[0123456789].|[0123456789][0123456789].|[0123456789][0123456789][0123456789].) root="${root%"$nl"*}"; while [ "${root%"$nl"}" != "$root" ]; do root="${root%"$nl"}"; done ;; *) st="" ;; esac
+  case "$st:$root" in 0.:/*|-.:*|128.:*) ;; *) rc=2 ;; esac
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
+  return "$rc"
 }
 
 # The branch and the commit a tree stands on, each as exactly one field.
@@ -435,15 +473,21 @@ felix_mem_mistake_rows() {
 
 # The owner/repo a GitHub origin names, lowercased, in _FELIX_RS; empty for any other URL.
 # felix_remote_github_slug (own.sh) reads it, sourced from beside this file if not loaded;
-# without own.sh the owner/repo rule falls to its anchored suffix.
+# without own.sh the owner/repo rule falls to its anchored suffix. 0 with _FELIX_RS the slug or
+# empty (not GitHub, or no own.sh); 2 with it empty when the read did not finish (a 0 with nothing).
 _felix_remote_slug() {   # URL
+  local s
   _FELIX_RS=""
   case "$1" in *[Gg][Ii][Tt][Hh][Uu][Bb].[Cc][Oo][Mm]*) ;; *) return 0 ;; esac
-  command -v felix_remote_github_slug >/dev/null 2>&1 \
+  declare -F felix_remote_github_slug >/dev/null \
     || { [ -f "${BASH_SOURCE[0]%/*}/own.sh" ] && . "${BASH_SOURCE[0]%/*}/own.sh" 2>/dev/null; }
-  _FELIX_RS="$(felix_remote_github_slug "$1" 2>/dev/null)"
+  declare -F felix_remote_github_slug >/dev/null || return 0
+  _felix_cap && felix_capture s _felix_gh_slug "$1" || return 2
+  _felix_st_split "$s"; [ "$_FELIX_ST" = 1 ] || [ -n "$_FELIX_SO" ] || return 2
+  _FELIX_RS="$_FELIX_SO"
   return 0
 }
+_felix_gh_slug() { felix_remote_github_slug "$1" 2>/dev/null; set -- "$?"; case "$1" in 0|1) printf '\n%s' "$1" ;; *) return 1 ;; esac; }
 
 # ASCII lowercase of $1 into _FELIX_LC, in this shell: no process.
 _felix_lc() {
@@ -475,21 +519,27 @@ _felix_remote_match() {   # M U S
 
 # The project the origin remote of ROOT binds, among those of HOME. Returns 0
 # and sets _FELIX_RB_P (a project name), 1 when none matches, 2 when several
-# match equally and _FELIX_RB_TIE holds their names. _FELIX_RB_U is the origin
-# URL; it is never printed or written, as an https remote can carry a token.
+# match equally and _FELIX_RB_TIE holds their names, 3 with both empty when a read
+# did not finish (the origin, a remote_match, the slug). _FELIX_RB_U is the origin
+# URL (empty when unread); it is never printed or written, as an https remote can
+# carry a token. Only a git that exited 0 gives a URL: its 2 and 128, and a ROOT it
+# cannot enter, are no URL whatever git printed (main's || _FELIX_RB_U="").
 _felix_resolve_remote() {   # ROOT HOME
-  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 LC_ALL=C
-  _FELIX_RB_P=""; _FELIX_RB_TIE=""
-  _FELIX_RB_U="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null)" || _FELIX_RB_U=""
+  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 nl=$'\n' LC_ALL=C
+  _FELIX_RB_P=""; _FELIX_RB_TIE=""; _FELIX_RB_U=""
+  _felix_cap && felix_capture m _felix_git_in "$root" remote get-url origin || return 3
+  _felix_st_split "$m"
+  case "$_FELIX_ST:$_FELIX_SO" in 0:?*) _FELIX_RB_U="$_FELIX_SO" ;; 2:*|128:*|-:*) ;; *) return 3 ;; esac
   [ -n "$_FELIX_RB_U" ] || return 1
   _felix_lc "$_FELIX_RB_U"; ul="$_FELIX_LC"
   for meta in "$felix_root"/projects/*/project.json; do
     [ -e "$meta" ] || continue
-    m="$(felix_json_str "$meta" remote_match)"
+    felix_capture m _felix_json_field "$meta" remote_match || { _FELIX_RB_P=""; _FELIX_RB_TIE=""; return 3; }
+    m="${m%%"$nl"*}"
     [ -n "$m" ] || continue
     # Any match has M without a trailing / and .git, lowercased, inside U: look before the slug costs.
     m2="${m%/}"; _felix_lc "${m2%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
-    [ "$sdone" = 1 ] || { sdone=1; _felix_remote_slug "$_FELIX_RB_U"; }
+    [ "$sdone" = 1 ] || { sdone=1; _felix_remote_slug "$_FELIX_RB_U" || { _FELIX_RB_P=""; _FELIX_RB_TIE=""; return 3; }; }
     _felix_remote_match "$m" "$_FELIX_RB_U" "$_FELIX_RS" || continue
     n="${meta%/project.json}"; n="${n##*/}"
     if [ "$_FELIX_RM_LEN" -gt "$best" ]; then best="$_FELIX_RM_LEN"; _FELIX_RB_P="$n"; _FELIX_RB_TIE=""
@@ -501,7 +551,8 @@ _felix_resolve_remote() {   # ROOT HOME
 }
 
 # Resolve which project governs a working directory.
-# Prints the project directory on success, prints nothing and returns 1 on miss.
+# Prints the project directory on success, prints nothing and returns 1 on miss, and prints
+# nothing and returns 2 when a read the answer stands on did not finish (could not tell).
 #
 # Order matters. The .felix marker wins because it is the only mechanism that works for a repo
 # with no remote, a fork, a rename, or a checkout of somebody else's code. Remote matching is
@@ -510,11 +561,11 @@ _felix_resolve_remote() {   # ROOT HOME
 felix_resolve_project() {
   local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
   local root name
-  root="$(felix_repo_root "$start")"
+  _felix_cap && felix_capture root felix_repo_root "$start" && [ -n "$root" ] || return 2
 
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
-    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")"
+    felix_capture name _felix_marker_read "$root/.felix" || return 2
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
@@ -523,10 +574,22 @@ felix_resolve_project() {
   fi
 
   # 2. the origin remote, against the remote_match each project declares
-  _felix_resolve_remote "$root" "$felix_root" || return 1
+  _felix_resolve_remote "$root" "$felix_root"; case "$?" in 0) ;; 3) return 2 ;; *) return 1 ;; esac
   printf '%s' "$felix_root/projects/$_FELIX_RB_P"
   return 0
 }
+
+# VAR START HOME: felix_resolve_project read whole, output and status, into VAR (the project directory, or empty): 0
+# found, 1 a miss that stands, 2 when the resolution or the read of it did not finish. No locals, as felix_capture has
+# none: VAR is the caller's variable.
+felix_resolve_read() {
+  printf -v "$1" '%s' ""
+  _felix_cap && felix_capture _FELIX_RR _felix_resolve_st "$2" "$3" || return 2
+  _felix_st_split "$_FELIX_RR"
+  case "$_FELIX_ST:$_FELIX_SO" in 0:?*) printf -v "$1" '%s' "$_FELIX_SO"; return 0 ;; 1:) return 1 ;; esac
+  return 2
+}
+_felix_resolve_st() { felix_resolve_project "$1" "$2"; printf '\n%s' "$?"; }
 
 # Where the session stands, as against where the platform started the hook.
 #
@@ -573,22 +636,23 @@ _felix_hook_dir_set() {   # payload, home -> _felix_hd
   # trailing slash). Nothing to resolve, and this runs on every tool call.
   [ "$c" -ef "$PWD" ] && return 0
   [ -d "$c" ] || return 0
-  pc="$(felix_resolve_project "$c" "$home" 2>/dev/null)" || pc=""
+  # A resolution or a root that did not finish moves nothing: the hook stays where the platform started it.
+  felix_resolve_read pc "$c" "$home" 2>/dev/null || [ "$?" = 1 ] || return 0
   if [ -z "$pc" ]; then
     # Nothing governs it. A marker that resolves nothing is a broken binding.
-    root="$(felix_repo_root "$c" 2>/dev/null)"
+    felix_capture root felix_repo_root "$c" 2>/dev/null || return 0
     [ -f "$root/.felix" ] && _felix_hd="$c"
     return 0
   fi
   # Another project governing the launch directory keeps the hook where it is;
   # the launch project is looked up only here, off the common path.
-  pl="$(felix_resolve_project "$PWD" "$home" 2>/dev/null)" || pl=""
+  felix_resolve_read pl "$PWD" "$home" 2>/dev/null || [ "$?" = 1 ] || return 0
   if [ "$pl" = "$pc" ]; then
     _felix_hd="$c"
   elif [ -z "$pl" ]; then
     # A launch directory whose marker resolves nothing was meant to be
     # governed: its breakage is reported where it is, not stepped over.
-    root="$(felix_repo_root "$PWD" 2>/dev/null)"
+    felix_capture root felix_repo_root "$PWD" 2>/dev/null || return 0
     [ -f "$root/.felix" ] || _felix_hd="$c"
   fi
   return 0
@@ -617,15 +681,13 @@ felix_hook_enter() {   # payload, home
 # until 2026-09-24, and when the eightieth closed a directory name the refusal named the
 # target's parent: a real path, and a wrong answer rather than a short one. The tail is where
 # the directory a pointer names is, so it keeps the larger share. The whole value is always in
-# the file the refusal names.
+# the file the refusal names. Into _FELIX_SN, in this shell (2026-10-31): its printf | tr pipe was
+# unchecked, and a fork that failed put an empty name in a refusal. It keeps tr -cd [:print:]'s
+# bytes in C, space to tilde, as lib/lane-resolve.sh's _lane_clean does.
 _felix_binding_sane() {
-  local s
-  s="$(printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]')"
-  if [ "${#s}" -le 80 ]; then
-    printf '%s' "$s"
-  else
-    printf '%s[...]%s' "${s:0:24}" "${s:${#s}-51}"
-  fi
+  local LC_ALL=C s="$1"
+  s="${s//[!\ -~]/}"
+  if [ "${#s}" -le 80 ]; then _FELIX_SN="$s"; else _FELIX_SN="${s:0:24}[...]${s:${#s}-51}"; fi
 }
 
 # What a project name may be: one directory name under projects/, made of
@@ -642,7 +704,7 @@ _felix_name_ok() {
   return 0
 }
 
-# The remote half of felix_binding_broken, for a tree with no marker. An origin that binds a
+# The remote half of felix_binding_broken, for a tree with no marker. 2, nothing printed, when a read did not finish. An origin that binds a
 # project is written down, one line of bindings.tsv in the memory root: <key> TAB <project> TAB
 # <UTC stamp>. The key is the hash of HOME and the origin URL, so no part of the URL, which can
 # carry a token, is stored. A tie is reported. An origin that bound project P and no longer
@@ -651,14 +713,16 @@ _felix_name_ok() {
 # remote_match emptied or changed, projects/P/ removed, an origin never bound, another home, an
 # unwritable or unreadable record, or a line naming no project name. Those are deliberate or
 # unknown, and a hold in every repository Felix is not adopted in would make it unusable there.
+_felix_bind_key() { printf '%s\n%s\n' "$2" "$3" | git -C "$1" hash-object --stdin 2>/dev/null; set -- "${PIPESTATUS[@]}"; [ "$1:$2" = 0:0 ]; }
 _felix_binding_remote() {   # ROOT HOME
   local root="$1" home="$2" key mem f last="" stamp="" k p t dir alt="" j rc LC_ALL=C
   [ -n "$home" ] || return 0
   rc=0; _felix_resolve_remote "$root" "$home" || rc=$?
+  [ "$rc" != 3 ] || return 2
   [ -n "$_FELIX_RB_U" ] || return 0
-  key="$(printf '%s\n%s\n' "$home" "$_FELIX_RB_U" | git -C "$root" hash-object --stdin 2>/dev/null)"
-  [ -n "$key" ] || return 0
-  mem="$(felix_mem_root)"; f="$mem/bindings.tsv"
+  _felix_cap && felix_capture key _felix_bind_key "$root" "$home" "$_FELIX_RB_U" || return 2
+  case "${#key}:$key" in *:*[!0123456789abcdef]*) return 2 ;; 40:*|64:*) ;; *) return 2 ;; esac   # one SHA-1 or SHA-256 line
+  mem="${FELIX_MEMORY:-$HOME/.felix/memory}"; f="$mem/bindings.tsv"   # felix_mem_root's body: no fork to fail
   if [ -f "$f" ] && [ -r "$f" ]; then
     while IFS=$'\t' read -r k p t || [ -n "${k:-}" ]; do
       [ "$k" = "$key" ] && { last="$p"; stamp="$t"; }
@@ -668,8 +732,9 @@ _felix_binding_remote() {   # ROOT HOME
     0) [ "$last" = "$_FELIX_RB_P" ] && return 0
        { mkdir -p "$mem" && printf '%s\t%s\t%s\n' "$key" "$_FELIX_RB_P" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$f"; } 2>/dev/null
        return 0 ;;
-    2) printf 'The origin of the checkout at %s fits %s equally well: each declares a remote_match that names it, with the same length. So no project is bound, and nothing is checking this tree.\n\n' \
-         "$root" "$(_felix_binding_sane "${_FELIX_RB_TIE// /, }")"
+    2) _felix_binding_sane "${_FELIX_RB_TIE// /, }"
+       printf 'The origin of the checkout at %s fits %s equally well: each declares a remote_match that names it, with the same length. So no project is bound, and nothing is checking this tree.\n\n' \
+         "$root" "$_FELIX_SN"
        printf 'Lengthen one remote_match, or name the project in a .felix marker.\n'
        return 0 ;;
   esac
@@ -678,9 +743,10 @@ _felix_binding_remote() {   # ROOT HOME
   for j in "$dir"/project*.json; do
     [ -f "$j" ] && [ "${j##*/}" != project.json ] && { alt="${j##*/}"; break; }
   done
-  [ -z "$alt" ] || alt=", only \"$(_felix_binding_sane "$alt")\""
+  [ -z "$alt" ] || { _felix_binding_sane "$alt"; alt=", only \"$_FELIX_SN\""; }
+  _felix_binding_sane "$stamp"
   printf 'The origin of the checkout at %s bound it to %s (recorded %s in %s), and %s no longer resolves: projects/%s/ holds no readable project.json%s. Nothing is checking this tree.\n\n' \
-    "$root" "$last" "$(_felix_binding_sane "$stamp")" "$f" "$last" "$last" "$alt"
+    "$root" "$last" "$_FELIX_SN" "$f" "$last" "$last" "$alt"
   printf 'Restore the file, or name the project in a .felix marker. If %s is retired, delete projects/%s/ or its line in %s.\n' "$last" "$last" "$f"
 }
 
@@ -711,9 +777,10 @@ _felix_binding_remote() {   # ROOT HOME
 # Prints a sentence when the binding is broken and nothing when it is not, the same shape as the
 # other reporters a hook interpolates. It never repairs: the correct binding is not knowable
 # from here, since only a person can say whether this tree is a project that was renamed or a
-# tree Felix should leave alone.
+# tree Felix should leave alone. Status 2 and nothing printed when a read the answer stands on did
+# not finish: no sentence is ever built from one.
 felix_binding_broken() {
-  local start="${1:-$PWD}" home="${2:-}" root name p known why=""
+  local start="${1:-$PWD}" home="${2:-}" root name p known why="" nl=$'\n'
 
   # Three ways to be wrong, one place that decides and one place that prints.
   # Printing from inside each branch and deciding afterwards whether to finish
@@ -721,13 +788,14 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(_felix_home_pointer)"
+    _felix_cap && felix_capture p _felix_home_pointer || return 2
+    _felix_binding_sane "$p"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then
-      why="names $(_felix_binding_sane "$p"), which is not a Felix home: no such directory"
+      why="names $_FELIX_SN, which is not a Felix home: no such directory"
     elif [ ! -d "$p/projects" ]; then
-      why="names $(_felix_binding_sane "$p"), which is not a Felix home: it holds no projects/ directory"
+      why="names $_FELIX_SN, which is not a Felix home: it holds no projects/ directory"
     fi
     if [ -n "$why" ]; then
       printf 'The Felix home pointer at %s %s.\n\n' "$HOME/.felix-home" "$why"
@@ -737,20 +805,22 @@ felix_binding_broken() {
     fi
   fi
 
-  root="$(felix_repo_root "$start")"
-  [ -f "$root/.felix" ] || { _felix_binding_remote "$root" "$home"; return 0; }
-  name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  _felix_cap && felix_capture root felix_repo_root "$start" || return 2
+  [ -f "$root/.felix" ] || { _felix_binding_remote "$root" "$home"; return; }
+  felix_capture name _felix_marker_read "$root/.felix" || return 2
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
-  known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"
+  felix_capture known _felix_ls "$home/projects" || return 2
+  [ -z "$known" ] || known="${known//"$nl"/ } "
+  _felix_binding_sane "$name"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
   elif ! _felix_name_ok "$name"; then
     printf 'The .felix marker in %s names "%s", which is not a project name: a name is one directory name under %s, and this is a path or a dot. ' \
-      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
+      "$root" "$_FELIX_SN" "$home/projects"
   else
     printf 'The .felix marker in %s names "%s", and that does not resolve to a project under %s. ' \
-      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
+      "$root" "$_FELIX_SN" "$home/projects"
   fi
   printf 'A marker is present, so this tree was meant to be governed, and right now nothing is checking it.\n\n'
   printf 'Name a project that exists, or remove the marker if this tree really is ungoverned:\n\n'
@@ -908,8 +978,35 @@ _felix_ref_commit() {   # ROOT REF
 #   - anything that does not look like an object id
 # Three-dot over-reports, so falling back is the safe direction — it can only make the verdict
 # stricter, never weaker. A narrower answer computed from a failed merge would be the opposite.
+#
+# The merge runs in a git directory made for the call (2026-11-08, S6.6), never in the checkout's own. A 3-way merge
+# runs the merge driver the attributes name for every path both sides changed, and a driver is defined in config: the
+# checkout's .git/config and .git/info/attributes are the worker's to write, so a driver `true` there kept main's
+# side of a file and the change's own lines in it were never read (audits/2026-11-08-trust-plane-step3/
+# checkout-merge-driver in the memory root). The made directory is an empty bare repository whose object store is the
+# one the checkout reads (GIT_OBJECT_DIRECTORY when the caller set one, as felix merge's checked copy does), so the
+# merged tree is written where the caller's diff reads it. Global and system config and attributes are switched off
+# with it, the two sides are named by commit id, resolved once in the checkout, and a shallow checkout's boundary
+# is copied in. The caller's GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR and GIT_INDEX_FILE do not reach either git, and
+# a TERM or INT removes the directory (review of 07f1e869, 2026-11-08). Inside felix merge, once lib/bind.sh's checked
+# copy is in force, the merge reads the copy's stores alone and not the checkout's (S6.6 rule 2): with the checkout
+# behind them, a loose file planted there under the merged blob's id was taken as the merge's result, which git
+# does not write again, so the change's line was never read.
+# S6.7 (2026-11-09): the merge detects no directory renames, set on its command line so that no config file and no
+# GIT_CONFIG_* variable the caller exports turns it back on. The squash felix merge lands is GitHub's, and GitHub's test
+# merge of #498 held the tree git writes with merge.directoryRenames=false. git's default (conflict) moved main's new
+# files into the directory the branch had emptied and failed, so every reader took three-dot and slice 3 refused (A1);
+# true moved them, and the readers blamed the branch for main's files (audits/2026-11-08-trust-plane-step3/
+# merge-dir-renames in the memory root).
+# Puts back the caller's TERM and INT traps once the made directory is gone.
+_felix_merge_untrap() {
+  trap - TERM INT
+  [ -z "$told" ] || eval "$told"
+  [ -z "$tint" ] || eval "$tint"
+  _FELIX_MERGE_TMP=""
+}
 _felix_merge_refs() {
-  local root="$1" base="$2" mb tip tree
+  local root="$1" base="$2" mb tip head tree objs tmpd g rc sh fmt told tint alt=()
   [ -n "$base" ] || return 1
   mb="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 1
   tip="$(git -C "$root" rev-parse "$base^{commit}" 2>/dev/null)" || return 1
@@ -918,7 +1015,39 @@ _felix_merge_refs() {
   # exactly the right question. Left alone rather than rerouted, because this is
   # every ordinary branch and the fix is only for the case that differs.
   [ "$mb" = "$tip" ] && return 1
-  tree="$(git -C "$root" merge-tree --write-tree "$base" HEAD 2>/dev/null)" || return 1
+  head="$(git -C "$root" rev-parse --verify --quiet "HEAD^{commit}" 2>/dev/null)" || return 1
+  objs="${GIT_OBJECT_DIRECTORY:-$(git -C "$root" rev-parse --path-format=absolute --git-path objects 2>/dev/null)}"
+  # A relative object directory names a place under the checkout, as `git -C "$root"` reads it.
+  case "$objs" in /*) ;; *) objs="$(cd "$root" 2>/dev/null && cd "$objs" 2>/dev/null && pwd -P)" ;; esac
+  [ -n "$objs" ] && [ -d "$objs" ] || return 1
+  if [ -n "${_FELIX_BIND_COPY:-}" ] && [ "$objs" = "$_FELIX_BIND_COPY/objects" ] && [ -d "$_FELIX_BIND_COPY/v" ]; then
+    alt=(GIT_ALTERNATE_OBJECT_DIRECTORIES="$_FELIX_BIND_COPY/v")
+  fi
+  tmpd="${TMPDIR:-/tmp}"
+  g="$(mktemp -d "${tmpd%/}/felix-merge.XXXXXX" 2>/dev/null)" || return 1
+  _FELIX_MERGE_TMP="$g"; told="$(trap -p TERM)"; tint="$(trap -p INT)"
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 143' TERM
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 130' INT
+  fmt="$(git -C "$root" rev-parse --show-object-format 2>/dev/null)"
+  if ! env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+       GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git init -q --bare --template= ${fmt:+--object-format="$fmt"} "$g/g" \
+       >/dev/null 2>&1 </dev/null; then
+    rm -rf "$g"; _felix_merge_untrap; return 1
+  fi
+  # A shallow checkout's boundary, so the merge does not walk to parents it does not hold.
+  sh="$(git -C "$root" rev-parse --path-format=absolute --git-path shallow 2>/dev/null)"
+  if [ -n "$sh" ] && [ -f "$sh" ] && ! cp "$sh" "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  # Reading the checked copy alone, the merge finds the commits since the merge base and no older one (lib/bind.sh
+  # copies no further), so the base is its boundary, as a shallow checkout's is: walking to the base's parents, the
+  # merge failed on every history longer than one commit, and every reader fell back to three-dot inside felix merge.
+  if [ "${#alt[@]}" -gt 0 ] && ! printf '%s\n' "$mb" >> "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
+          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+          GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null -c merge.directoryRenames=false \
+          merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
+  rc=$?
+  rm -rf "$g"; _felix_merge_untrap
+  [ "$rc" -eq 0 ] || return 1
   tree="$(printf '%s\n' "$tree" | head -1)"
   case "$tree" in
     ""|*[!0-9a-f]*) return 1 ;;
@@ -1324,6 +1453,15 @@ felix_self_governed() {
   local root="${1:-}"
   [ -n "$root" ] && [ -f "$root/engine/.claude-plugin/plugin.json" ] || return 1
   git -C "$root" ls-files --error-unmatch engine/.claude-plugin/plugin.json >/dev/null 2>&1
+}
+
+# The same question asked of the base (trust-plane step 3, spec S4). felix merge asks both: the tree
+# alone let a branch that deletes the manifest stop being the engine's own repository, and so be
+# judged by the felix it carries rather than by the engine main declares.
+felix_self_governed_at() {   # ROOT REF
+  local root="${1:-}" ref="${2:-}"
+  [ -n "$root" ] && [ -n "$ref" ] || return 1
+  [ "$(git -C "$root" cat-file -t "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null </dev/null)" = blob ]
 }
 
 # The version a manifest declares, at a ref or in the working tree.

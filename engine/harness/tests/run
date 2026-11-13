@@ -1,13 +1,11 @@
 #!/usr/bin/env bash
 # Felix harness self-test. The claim it tests, that Felix governs a project it knows nothing about, is in part 0004.
-#
 #   harness/tests/run                       the suite
 #   harness/tests/run --record-assertions   the suite, the manifest, red.tsv, then the record judged
 #   harness/tests/run --reuse               say the last run on this tree stands, or run
 #   harness/tests/run -j N | --part NAME... N units at a time | some parts alone (contract D)
 # Exit 1 when an assertion failed in the main shell, a record run's judged record included.
 set -uo pipefail
-
 # The caller's environment must not change what a tool prints. Why: the comment above the same lines in engine/harness/felix.
 set +o allexport +o errexit +o keyword +o noclobber +o noglob +o physical
 export -n SHELLOPTS BASHOPTS
@@ -15,18 +13,15 @@ _FELIX_CALLER_CDPATH="${CDPATH-}"
 unset GREP_OPTIONS CLICOLOR_FORCE GH_FORCE_TTY TAPE TAR_OPTIONS TAR_READER_OPTIONS QUOTING_STYLE \
       GIT_EXTERNAL_DIFF GIT_DIFF_OPTS GIT_LITERAL_PATHSPECS GIT_GLOB_PATHSPECS GIT_NOGLOB_PATHSPECS \
       GIT_ICASE_PATHSPECS TMOUT POSIXLY_CORRECT CDPATH
-
 # Git's colour stays off for every git this runs; why, and what is out of reach: engine/harness/felix, above the same lines.
 _felix_git_pin="'color.ui=never' 'color.advice=never' 'color.branch=never' 'color.diff=never' 'color.grep=never' 'color.interactive=never' 'color.push=never' 'color.remote=never' 'color.showBranch=never' 'color.status=never' 'color.transport=never' 'color.pager=false' 'blame.coloring=none'"
 case " ${GIT_CONFIG_PARAMETERS-}" in
   *" $_felix_git_pin") ;;
   *) export GIT_CONFIG_PARAMETERS="${GIT_CONFIG_PARAMETERS:+$GIT_CONFIG_PARAMETERS }$_felix_git_pin" ;;
 esac
-
 # hooks/session-start reads a payload from stdin unless it is a terminal, and about thirty calls here run it without piping
 # one in, so an inherited pipe left open would hang the first. The suite reads nothing from its stdin: nothing is inherited.
 exec </dev/null
-
 HERE="$(cd "$(dirname "$0")" && pwd)"
 REAL_HARNESS="$(cd "$HERE/.." && pwd)"
 # REAL_HARNESS must name a harness before anything reads or copies it (part 0203: the two runs of 2026-10-08 that did not).
@@ -37,9 +32,7 @@ if [ -z "$REAL_HARNESS" ] || [ ! -f "$REAL_HARNESS/felix" ] || [ ! -d "$REAL_HAR
 fi
 # The door (lib/deploy-hold.sh): while the lander owes a deploy a run waits here, before it makes anything; --part does not.
 [ ! -r "$REAL_HARNESS/lib/deploy-hold.sh" ] || { . "$REAL_HARNESS/lib/deploy-hold.sh" && _dh_door "tests/run" "$@"; }
-# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison
-# and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
-
+# The driver: the helpers every assertion uses, one line per part (part 1040 says why not a loop), then the manifest comparison and the verdict. _suite_files, _suite_src and _suite_flat are defined in part 0003.
 PASS=0; FAIL=0
 # Every assertion that RAN, by name, whatever its verdict: why, and why in a file, at the end of part 0001.
 FELIX_TEST_RAN=""
@@ -89,7 +82,6 @@ while :; do case "${1:-}" in
   *)                   break ;;
 esac; done
 [ "$_rcp_reuse$FELIX_TEST_RECORD" = 11 ] && { printf 'tests/run: --reuse and --record-assertions do not go together\n' >&2; exit 2; }
-
 # The receipt (receipt.sh): --reuse answers from the last passed run on this tree, or runs. A red run and a part run load none:
 # FELIX_TEST_NO_MANIFEST and part mode are tested first: red stands in the base's tree, whose own receipt.sh would otherwise load.
 _rcp_on=0; _rcp_cmp=0; _rcp_judged=0; _rcp_why=""
@@ -138,6 +130,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/gov-names.sh"
 . "$HERE/lib/hook-payload.sh"
 . "$HERE/lib/install-fixture.sh"
+. "$HERE/lib/instrument-parts.sh"
 . "$HERE/lib/inventory-blind-runs.sh"
 . "$HERE/lib/inventory-blind.sh"
 . "$HERE/lib/inventory-gizmo.sh"
@@ -161,14 +154,14 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/recon.sh"
 . "$HERE/lib/router.sh"
 . "$HERE/lib/stuck-pr.sh"
+. "$HERE/lib/trust-probes.sh"
 . "$HERE/lib/unborn-repo.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
 . "$HERE/lib/widget-repo.sh"
 # The lib files' variables are set here, once, by their _vars functions (part 0006).
 if [ -d "$HERE/lib" ]; then
-  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars
-  _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
+  _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars; _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
 fi
 # The hand-over (contract D2, D7): part mode runs its members here and exits; a
 # -j N run hands the parts to the runner and reads the part lines below as no-ops.
@@ -312,6 +305,7 @@ fi
 . "$HERE/parts/1050-felix-cost-tokens-spent-read-from-the-transc.sh"
 . "$HERE/parts/1060-continued.sh"
 . "$HERE/parts/1070-felix-cost-the-2026-10-11-addendum.sh"
+. "$HERE/parts/1075-felix-cost-one-reading-at-a-time-blind.sh"
 . "$HERE/parts/1080-the-stop-hook-holds-once-per-session-per-tre.sh"
 . "$HERE/parts/1090-the-stop-hook-holds-once-per-session-tree-re.sh"
 . "$HERE/parts/1100-declared-tools-reach-the-pulse-and-felix-status.sh"
@@ -412,24 +406,44 @@ fi
 . "$HERE/parts/2120-wave-1-combine-blind.sh"
 . "$HERE/parts/2130-answers-delivered-blind.sh"
 . "$HERE/parts/2160-docs-are-not-a-frontend-blind.sh"
+. "$HERE/parts/2170-trust-resolver-which-cli-unfinished-reads-blind.sh"
+. "$HERE/parts/2173-trust-table-status-unfinished-reads-blind.sh"
+. "$HERE/parts/2176-trust-step3-policy-from-p-blind.sh"
+. "$HERE/parts/2177-trust-step3-policy-from-p-blind-b.sh"
+. "$HERE/parts/2178-trust-step3-provider-base-blind.sh"
+. "$HERE/parts/2179-trust-merge-driver-blind.sh"
+. "$HERE/parts/2180-trust-step3-instrument-parts-blind.sh"
+. "$HERE/parts/2181-trust-step3-instrument-parts-blind-b.sh"
+. "$HERE/parts/2182-trust-step3-instrument-parts-blind-c.sh"
+. "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
+. "$HERE/parts/2184-trust-merge-dir-renames-blind.sh"
+. "$HERE/parts/2185-trust-step3-run-tree-bytes-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"
 . "$HERE/parts/2230-lane-status-row-blind.sh"
 . "$HERE/parts/2240-lane-session-start-blind.sh"
 . "$HERE/parts/2250-lane-pulse-blind.sh"
+. "$HERE/parts/2300-checked-not-verified-blind.sh"
 . "$HERE/parts/2300-evidence-readers-agree-blind.sh"
+. "$HERE/parts/2301-checked-not-verified-round3-blind.sh"
+. "$HERE/parts/2400-situations-table-blind.sh"
+. "$HERE/parts/2410-situations-recorded-blind.sh"
+. "$HERE/parts/2420-situations-change-blind.sh"
+. "$HERE/parts/2430-situations-output-blind.sh"
+. "$HERE/parts/2440-situations-web-fixture-blind.sh"
+. "$HERE/parts/2450-situations-cargo-fixture-blind.sh"
+. "$HERE/parts/2460-situations-seed-siblings-blind.sh"
+. "$HERE/parts/2470-situations-review-focus-blind.sh"
 . "$HERE/parts/2480-deploy-window-blind.sh"
 ! alias . >/dev/null 2>&1 || { unalias .; shopt -u expand_aliases; }
 . "$HERE/parts/9990-the-run-stayed-inside-its-temporary-directory.sh"
-
 # The suite's completion marker: tests/red counts a red run only when a line that is exactly "reached" follows its last assertion
 # line (#371). The empty line before it is this suite's own, and the red block's marker assertion pins this printf.
 printf '\nreached\n'
 # What ran, against what is supposed to run (#67): one way only, and counted per name; part 0001 says why.
 _ran_counts="$TMP/ran.counts"
 _ran_rows < "$FELIX_TEST_RAN" > "$_ran_counts"
-
 if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   # The manifest, then the mark (whole, or red is ended and not waited for).
   _rcp_mk=written
@@ -480,9 +494,7 @@ elif [ -f "$FELIX_TEST_MANIFEST" ]; then
 else
   printf '  no manifest yet. Record one with: tests/run --record-assertions\n'
 fi
-
-# The receipt, ahead of the summary so that the summary stays the last line of the log (the gate shows that line), with no say
-# in the exit status: reached only by a run whose every part was sourced and which printed `reached` (receipt.sh).
+# The receipt, ahead of the summary so that the summary stays the last line of the log (the gate shows that line), with no say in the exit status: reached only by a run whose every part was sourced and which printed `reached` (receipt.sh).
 [ "$_rcp_on" -ne 1 ] || _rcp_finish "$_rcp_root" "$FELIX_TEST_RECORD" "$_rcp_cmp" "$_rcp_judged" "$PASS" "$FAIL" "$SKIP"
 printf '\n%d passed, %d failed' "$PASS" "$FAIL"
 [ "$SKIP" -gt 0 ] && printf ', %d skipped' "$SKIP"

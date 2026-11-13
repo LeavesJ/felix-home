@@ -292,9 +292,12 @@ felix_land_table_at_base() {   # proj -> text
   repo="$(git -C "$proj" rev-parse --show-toplevel 2>/dev/null)" || return 1
   [ -n "$proj" ] && [ -n "$repo" ] && [ "$proj" != "$repo" ] || return 1
   case "$proj" in "$repo"/*) rel="${proj#"$repo"/}/land.tsv" ;; *) return 1 ;; esac
-  git -C "$repo" rev-parse --verify --quiet 'refs/remotes/origin/main^{commit}' >/dev/null 2>&1 || return 1
-  git -C "$repo" cat-file -e "refs/remotes/origin/main:$rel" >/dev/null 2>&1 || return 1
-  git -C "$repo" cat-file blob "refs/remotes/origin/main:$rel" 2>/dev/null
+  # The home's own objects, in a subshell: under felix merge the object store is the merged repository's checked
+  # copy (lib/bind.sh), which holds nothing of a home in another repository.
+  ( unset GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES
+    git -C "$repo" rev-parse --verify --quiet 'refs/remotes/origin/main^{commit}' >/dev/null 2>&1 || exit 1
+    git -C "$repo" cat-file -e "refs/remotes/origin/main:$rel" >/dev/null 2>&1 || exit 1
+    git -C "$repo" cat-file blob "refs/remotes/origin/main:$rel" 2>/dev/null )
 }
 
 # A project's accepted rows at the base. Nothing, and still 0, with no table:
@@ -399,6 +402,8 @@ felix_land_would_refuse() {   # proj base root
     IFS=$'\t' read -r bb bs bh <<EOF
 $behind
 EOF
+    # felix merge reads its base once and hands on the commit (lib/bind.sh, spec S5.1); the row names the ref it read.
+    [ "$bb" != "${FELIX_MERGE_BASE_AT:-}" ] || [ -z "${FELIX_MERGE_BASE_REF:-}" ] || bb="$FELIX_MERGE_BASE_REF"
     felix_say "$proj" "would-refuse" "$(printf '%s: behind: %s %s is not in HEAD %s' "$branch" "$bb" "$bs" "$bh")" \
       "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" >/dev/null 2>&1
   fi

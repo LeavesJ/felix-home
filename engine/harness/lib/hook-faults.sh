@@ -102,7 +102,7 @@ felix_stop_cloud_note() {   # engine dir
 felix_stop_debt() {   # proj, reason, sid: the let-go of a cloud session; a local one says nothing, as before
   local m
   [ "${CLAUDE_CODE_REMOTE:-}" = "true" ] || return 0
-  m="This cloud session was let go with the gate not passed on this tree ($2). Felix held it once and the gate did not run. The record of that sits in this session's memory, which ends with the VM, so nothing outside it says this work went unverified. Run the gate before the VM goes, or open a pull request so CI judges the branch."
+  m="This cloud session was let go with the gate not passed on this tree ($2). Felix held it once and the gate did not run. The record of that sits in this session's memory, which ends with the VM, so nothing outside it says the gate has not passed on this work. Run the gate before the VM goes, or open a pull request so CI judges the branch."
   felix_say "$1" "debt" "$m" "" "$3"
   felix_stop_last "$m"
 }

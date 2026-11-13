@@ -52,7 +52,7 @@ anything yet — find out what is here first, then propose.
 1. Run `felix doctor` if it works, otherwise inspect the checkout directly:
    the language, whether there is a test suite, whether CI exists, whether
    anything is deployed.
-2. Work out what would prove this project correct — the command that fails when
+2. Work out what checks this project — the command that fails when
    the code is wrong. `npm test`, `cargo test`, `pytest`, `make check`, a script.
    Say what you think it is and ask, because a gate that cannot fail is worse
    than no gate at all, and guessing it silently is how that happens.
@@ -115,4 +115,4 @@ not a barrier; the barrier is CI.
 
 If a command fails, say what failed and what it printed. Do not paper over it —
 this is a tool whose entire value is that it refuses to report success it has
-not verified.
+not checked.

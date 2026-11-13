@@ -230,19 +230,32 @@ felix_receipt() {
   if [ -n "$esc" ] || [ -n "$unknown" ]; then autonomous="false"; fi
 
   # ---- status. Precedence is deliberate. Not knowing outranks everything,
-  # because a blocked-or-verified verdict computed from inputs that were never
+  # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
+  #
+  # felix.receipt/2 (0.49.327) says what is true of the gate's receipt where /1
+  # had two words, because Felix says what was checked and never claims more
+  # (decision 1, 2026-10-31). /1's verified is checked. Its unverified is
+  # failed (the gate ran red on this exact tree), evidence-owed (it ran green
+  # here and evidence is owed) or unchecked (nothing current judged this tree):
+  # one word for the three was false wherever the gate had run on this tree.
+  # The version moved so that a reader of /1 refuses the new words rather than
+  # misreading them.
   local status quality
   if   [ -n "$unknown" ]; then status="indeterminate"; quality="unknown"
   elif [ -n "$esc" ];     then status="blocked";       quality="high"
   elif [ "$vstate" = "current" ] && [ "$rres" = "green" ] && [ -z "$gaps" ]; then
-    status="verified"; quality="high"
+    status="checked"; quality="high"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "red" ]; then
+    status="failed"; quality="low"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "green" ]; then
+    status="evidence-owed"; quality="low"
   else
-    status="unverified"; quality="low"
+    status="unchecked"; quality="low"
   fi
 
   printf '{\n'
-  printf '  "schema": "felix.receipt/1",\n'
+  printf '  "schema": "felix.receipt/2",\n'
   printf '  "domain": "engineering",\n'
   printf '  "project": "%s",\n'   "$(_felix_rcpt_esc "$pname")"
   printf '  "status": "%s",\n'    "$status"

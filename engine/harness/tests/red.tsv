@@ -8,41 +8,19 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	4c4c0b3ddde9e10b0047c6960b932c5717086d47	0.49.321
-run	36	15805	17
-A1 evidence (FIFO): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (dangling link): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A1 evidence (link to a directory): exits 1, prints one [?] row named evidence.tsv whose reason holds cannot be read and not judged and a line saying 1 row(s) not judged, and does not print declares no evidence.tsv	1
-A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge	1
-A3 receipt (FIFO): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (dangling link): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (directory): lists evidence under unknown, and no evidence gap and no met row	1
-A3 receipt (link to a directory): lists evidence under unknown, and no evidence gap and no met row	1
-A4 incident (FIFO): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (dangling link): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A4 incident (link to a directory): given a trace that names src/thing.js, prints the fix will have to prove section with one row named evidence.tsv whose reason holds cannot be read and not judged	1
-A5 agreement (FIFO): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (dangling link): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-A5 agreement (link to a directory): felix evidence, felix classify (green change) and felix receipt (evidence under unknown) say not judged exactly when felix merge --dry-run lists an evidence blocker	1
-D1 felix_evidence_table_present (C1, nothing at the widget project's path): exits 1 and prints nothing	1
-D1 felix_evidence_table_present (a FIFO): exits 0, prints nothing, and returns without reading it	1
-D1 felix_evidence_table_present (a dangling link): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a directory): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a link that resolves to a directory): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a link that resolves to a file): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (a regular file): exits 0 and prints nothing	1
-D1 felix_evidence_table_present (nothing at the path): exits 1 and prints nothing	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 0: prints the not-judged row, unknown evidence.tsv cannot be read not judged, for a project with no evidence.tsv	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is met	1
-D2 the judge, felix_evidence_table_present replaced by one that always exits 1: prints nothing for a readable table whose rule is unmet	1
-D3 no tracked file under engine/harness/felix or engine/harness/lib/ but lib/evidence.sh tests evidence.tsv with any unary file operator (-a -b -c -d -e -f -g -h -k -p -r -s -t -u -w -x -G -L -N -O -S) under test, [[ or [	1
-D4 receipt.sh sourced alone after lib/resolve.sh (directory): felix_receipt lists evidence under unknown, as felix receipt does	1
-and landed on the shared home's cache, which this block does not read	1
-and the refresh the hook forked asked the claude for the catalogue	1
-and this block leaves the projects, the state and the memory as it found them	1
+base	origin/main	9d4baa6901c3b8a77678fca92ca9c0740aa2d226	0.49.337
+run	14	17037	47
+ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it	1
+ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it	1
+ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c	1
+ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b	1
+ts3g: A22, case 1, ident: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, text eol=crlf: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A22, case 1, working-tree-encoding=UTF-16LE: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
+ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs	1
+ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs	1
+ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs	1
+ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs	1
+ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs	1
+ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs	1

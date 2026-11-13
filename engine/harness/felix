@@ -263,11 +263,15 @@ cmd_inventory() {
 if [ "${1:-}" = "inventory" ]; then shift; cmd_inventory "$@"; exit $?; fi
 
 # felix cost is dispatched here too, for the same reason as audit: it reads the
-# transcripts Claude Code keeps, writes nothing, and needs no home. What it
-# counts, and how it reads a response once, is in lib/cost.sh.
+# transcripts Claude Code keeps and needs no home. It writes only its readings
+# and their lock, under $HOME/.cache/felix/cost. What it counts, and how it
+# reads a response once, is in lib/cost.sh; how one scan serves every caller,
+# in lib/cost-cache.sh.
 cmd_cost() {
   # shellcheck source=lib/cost.sh
   . "${SCRIPT_DIR}/lib/cost.sh" || exit 1
+  # shellcheck source=lib/cost-cache.sh
+  . "${SCRIPT_DIR}/lib/cost-cache.sh" || exit 1
   felix_cost "$@"
 }
 if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
@@ -338,6 +342,13 @@ if [ "${1:-}" = "cost" ]; then shift; cmd_cost "$@"; exit $?; fi
 . "${SCRIPT_DIR}/lib/where.sh"
 # shellcheck source=lib/escape.sh
 . "${SCRIPT_DIR}/lib/escape.sh"
+# escape.sh loads bind.sh too; loaded here as well because cmd_merge calls it before anything is judged, and an
+# escape.sh that failed to load it must not stop a self-governed merge from reaching main's engine.
+# shellcheck source=lib/bind.sh
+. "${SCRIPT_DIR}/lib/bind.sh" 2>/dev/null || :
+# And instrument.sh, which escape.sh loads too, for the same reason: cmd_merge runs it after the binding.
+# shellcheck source=lib/instrument.sh
+. "${SCRIPT_DIR}/lib/instrument.sh" 2>/dev/null || :
 # shellcheck source=lib/review.sh
 . "${SCRIPT_DIR}/lib/review.sh"
 # shellcheck source=lib/next.sh
@@ -410,7 +421,7 @@ need_value() {
 # that every dispatched command appears here.
 usage() {
   cat <<'USAGE'
-Felix. The engineering OS: it decides how work gets built, and proves it.
+Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.
 Resolves which project governs the current directory. Knows nothing about any
 specific project, language, or toolchain.
 
@@ -419,7 +430,7 @@ specific project, language, or toolchain.
                            read-only, from a plain clone: how often a turn stopped on an edit
                            nothing had checked, from the transcripts Claude Code keeps
     felix inventory        read-only: where unlanded work sits, from git, gh and session records
-    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv]
+    felix cost [--week | --since YYYY-MM-DD[THH:MM]] [--by worktree|day|model] [--top N] [--tsv] [--max-age SECONDS]
                            read-only: input-equivalent tokens spent this plan week, against
                            the weekly cap, by worktree, day or model, from the same transcripts
     felix new <name> --no-commission
@@ -439,7 +450,7 @@ specific project, language, or toolchain.
     felix pr [--create]    open a pull request for this branch, tier and all
     felix classify         how risky this diff is, and what that means for merging
     felix evidence         what this change still owes before it counts as done
-    felix receipt          what changed, its risk, and whether anything verified it
+    felix receipt          what changed, its risk, and whether anything checked it
     felix next             what to do next here, ranked
     felix merge            merge it, unless something in it escapes the tree
     felix review           record a reviewer verdict on a surface no test judges
@@ -455,6 +466,9 @@ specific project, language, or toolchain.
     felix procedures      what each moment must answer for, and what nothing answers yet
     felix probes [--gate] what reality says about this checkout, and what nothing asks
     felix obligations [--gate|--request] what this project has admitted it owes, and whether it owes it here; --request asks a session to propose what nobody named
+    felix situations [--at T | --change [B..H]] [--tsv | --propose]
+                           what a change owes: the situation rows it owes, blinds and retires,
+                           the rows already standing, and what could not be looked at; writes nothing
     felix epoch            the decision epoch those obligations are scoped to, and what would make a new one
     felix commission [--status] the first-encounter moment: what serves this checkout, what reaches it, what a person still owes
     felix adopt <cap>      declare a capability and everything it implies
@@ -512,20 +526,29 @@ USAGE
 # is read by a machine may already mean something by 2: felix repair's 2 is the
 # repair ceiling, and the unattended template escalated an unresolvable checkout
 # to a person as a spent ceiling.
+#
+# A resolution that did not finish (a read it stands on failed, was killed or
+# could not fork) is neither found nor a miss, and says so (resolve_unknown):
+# the binding check is not run then, since it can append to bindings.tsv. Each
+# read is taken whole, its output and its status, by felix_capture.
 resolve_or_die() {
-  local rc="${1:-2}"
-  PROJ="$(felix_resolve_project "$PWD" "$FELIX_HOME_DIR")" || PROJ=""
-  [ -n "$PROJ" ] && return 0
+  local rc="${1:-2}" broken known nl=$'\n'
+  felix_resolve_read PROJ "$PWD" "$FELIX_HOME_DIR"
+  case "$?" in 0) return 0 ;; 1) ;; *) resolve_unknown "$rc" ;; esac
   # The CLI already refused here, but it refused with the wrong sentence. A
   # marker naming a project that does not exist is not an absent binding, and
   # telling somebody to "add a .felix file" while a broken one sits in front of
   # them sends them to add a second problem.
-  local broken; broken="$(felix_binding_broken "$PWD" "$FELIX_HOME_DIR")"
+  felix_capture broken felix_binding_broken "$PWD" "$FELIX_HOME_DIR" || resolve_unknown "$rc"
+  while [ "${broken%"$nl"}" != "$broken" ]; do broken="${broken%"$nl"}"; done
   [ -n "$broken" ] && die "$broken" "$rc"
+  felix_capture known _felix_ls "$FELIX_HOME_DIR/projects" || resolve_unknown "$rc"
+  [ -z "$known" ] || known="${known//"$nl"/ } "
   die "no project governs $PWD.
   Either add a .felix file naming one, or declare remote_match in a project.json.
-  Known projects: $(ls "$FELIX_HOME_DIR/projects" 2>/dev/null | tr '\n' ' ')" "$rc"
+  Known projects: $known" "$rc"
 }
+resolve_unknown() { die "the project that governs $PWD could not be resolved: a read it stands on did not finish." "${1:-2}"; }
 
 
 # The scheduled job that merges a green pull request. The project is resolved
@@ -654,7 +677,7 @@ cmd_install() {
   live="$(felix_deployed_engine 2>/dev/null)" || live=""
   if [ -n "$live" ] && [ -d "$live/harness" ]; then
     if felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
-      printf '  verified   the installed engine matches this tree\n'
+      printf '  checked    the installed engine matches this tree\n'
     elif [ "$bump" -eq 0 ]; then
       printf '\n  WARNING  the installed engine does NOT match this tree.\n'
       printf '           %s\n' "$live"
@@ -702,7 +725,7 @@ cmd_install() {
         live="$(felix_deployed_engine 2>/dev/null)" || live=""
         if [ -n "$live" ] && [ -d "$live/harness" ] \
              && felix_deploy_diff "$src" "$live" >/dev/null 2>&1; then
-          printf '  verified   the installed engine matches this tree\n'
+          printf '  checked    the installed engine matches this tree\n'
         else
           local mroot
           if mroot="$(felix_deployable_from "$src")"; then
@@ -742,13 +765,17 @@ cmd_install() {
   printf '\nthen, in a project checkout:  felix new <name>\n'
 }
 
+# Every value is read, whole, before the first line is printed: a read that did not finish is the
+# unknown refusal with nothing on stdout, never four lines or an empty field.
 cmd_which() {
-  resolve_or_die; local proj="$PROJ"
-  printf 'project:      %s\n' "$(basename "$proj")"
+  resolve_or_die; local proj="$PROJ" mem gate root nl=$'\n'
+  felix_capture mem felix_mem_dir "$proj" && felix_capture gate _felix_json_field "$proj/project.json" gate \
+    && felix_capture root felix_repo_root "$PWD" || resolve_unknown 2
+  printf 'project:      %s\n' "${proj##*/}"
   printf 'doctrine:     %s\n' "$proj/CLAUDE.md"
-  printf 'memory:       %s\n' "$(felix_mem_dir "$proj")/"
-  printf 'gate:         %s\n' "$(felix_json_str "$proj/project.json" gate)"
-  printf 'governs:      %s\n' "$(felix_repo_root "$PWD")"
+  printf 'memory:       %s\n' "$mem/"
+  printf 'gate:         %s\n' "${gate%%"$nl"*}"
+  printf 'governs:      %s\n' "$root"
 }
 
 cmd_gate() {
@@ -1794,6 +1821,15 @@ _felix_merge_unskip() {    # text on stdin -> the same text, defused
 }
 
 cmd_merge() {
+  # Before anything is read (lib/bind.sh, spec S6.1 and S6.2): the caller's git environment does not reach a read,
+  # and replacement and grafts are off, for this process and every child. A refusal waits until the arguments are
+  # known, since it is recorded and a dry run records nothing.
+  # And a TMPDIR that is relative, or inside the checkout, is /tmp for the whole merge (lib/instrument-run.sh,
+  # spec-slice3 A7.5): slice 2's copy, main's resolve.sh and slice 3's run tree were made in the work tree or not at all.
+  if [ -n "${TMPDIR:-}" ] && command -v felix_instr_tmpbase >/dev/null 2>&1; then
+    TMPDIR="$(felix_instr_tmpbase "$(felix_repo_root "$PWD" 2>/dev/null)")"; export TMPDIR
+  fi
+  felix_bind_env 2>/dev/null || :
   resolve_or_die
   local orig=("$@")   # what a hand-off to main's engine repeats (lib/merge-judge.sh)
   local proj="$PROJ" root base="main" dry=0 a
@@ -1842,6 +1878,17 @@ cmd_merge() {
               || _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' is an expression that begins with refs/, not a ref name, and felix merge takes only a ref name that exists: git reads an expression such as refs/heads/x~0 through its short-name order, where a tag called refs/heads/x answers first. Name the ref itself with --base." ;;
     *) _felix_merge_die "$dry" "$proj" "$named" usage "felix: '$given' resolves here only as given, not as a full ref name, and felix merge judges and merges against a full ref name or not at all, because an expression such as main~1 still reaches git's short-name order. Name a branch that has a remote-tracking ref or a local branch, or a refs/ name, with --base." ;;
   esac
+  # A directory that could not be made is felix_bind_objects' blocker, below; a library that is not there is this.
+  command -v felix_bind_objects >/dev/null 2>&1 \
+    || _felix_merge_die "$dry" "$proj" "$named" objects "lib/bind.sh is not loaded, so nothing can check that the base is the provider's or that what git shows is what the objects' names say. Nothing was judged."
+
+  # The base is read once (lib/bind.sh, spec S5.1): from here on it is the commit, B, and every read, the judge's
+  # and its children's included, names B by its object id, so a ref moved while this runs changes nothing judged.
+  # The ref's name is kept for what is said about it.
+  local bref="$base"
+  felix_bind_pin "$root" "$bref" \
+    || _felix_merge_die "$dry" "$proj" "$named" base "$bref names no commit now, so there is no base to judge against."
+  base="$_FELIX_BIND_B"
 
   # Read before anything is verified, and read again immediately before the
   # merge. Every blocker below is a claim about one checkout, and the branch is
@@ -1853,6 +1900,13 @@ cmd_merge() {
   local branch; branch="$(printf '%s' "$was" | LC_ALL=C cut -f1)"
   [ -n "$branch" ] && [ "$branch" != "HEAD" ] || _felix_merge_die "$dry" "$proj" "${branch:-HEAD}" branch "cannot name the branch to merge"
 
+  # What the verdict reads is checked against its name before any of it is read (lib/bind.sh, spec S6.3, S6.4):
+  # B, H and their merge base are copied through git index-pack, and the rest of the run reads the copy. An object
+  # whose bytes do not hash to its name is one blocker, and nothing else is judged.
+  local head bindblock=""
+  head="$(git -C "$root" rev-parse --verify --quiet 'HEAD^{commit}' 2>/dev/null </dev/null)" || head=""
+  felix_bind_objects "$root" "$base" "$head" || bindblock="$_FELIX_BIND_BLOCK"
+
   # Judged by the engine main declares, never by this tree — but only where
   # that circularity exists. A governed product's rules live in the Felix home
   # and are not in its diff, so it is judged as it always was and needs no
@@ -1862,7 +1916,11 @@ cmd_merge() {
   # judge's child shell too, which inherits the environment and no flag. They
   # write only on 0, so this line must survive every edit to this prologue.
   local -x FELIX_MERGE_DRY_RUN="$dry"
-  if felix_self_governed "$root"; then
+  # Asked of the base as well as the tree (spec S4): deleting the manifest does not let a branch choose
+  # to be judged by the felix it carries.
+  if [ -n "$bindblock" ]; then
+    blockers="$bindblock"
+  elif felix_self_governed "$root" || felix_self_governed_at "$root" "$base"; then
     # The judge is not chosen by the environment (#260). FELIX_KERNEL named one
     # outright and is refused by name; the cache variables still compose the
     # path, so the entry they resolve is checked, byte for byte, against the
@@ -1925,6 +1983,8 @@ cmd_merge() {
       felix_merge_handoff "$root" "$base" "$jentry" "$dry" "$proj" "$branch" ${orig[@]+"${orig[@]}"}; hrc=$?
       [ "$hrc" -ne 0 ] || return "$_MJ_RC"
       kernel="$SCRIPT_DIR"
+    elif [ -n "${_FELIX_BIND_HANDED:-}" ]; then
+      _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_MERGE_BASE_AT and FELIX_MERGE_HANDED are set, and this felix is the installed engine, not the copy felix merge hands a run to: only that copy takes the base its parent read. Unset them."
     fi
     blockers="$(_felix_kernel_blockers "$kernel" "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
     krc=$?
@@ -1934,11 +1994,38 @@ cmd_merge() {
       *) _felix_merge_die "$dry" "$proj" "$branch" judge "the installed engine at $kernel could not be loaded to judge this." ;;
     esac
   else
+    [ -z "${_FELIX_BIND_HANDED:-}" ] || _felix_merge_die "$dry" "$proj" "$branch" judge "FELIX_MERGE_BASE_AT and FELIX_MERGE_HANDED are set for a repository that is not the engine's own, where nothing hands a run on: only the copy felix merge hands a run to takes the base its parent read. Unset them."
     blockers="$(felix_merge_blockers "$proj" "$base" "$root" "$FELIX_HOME_DIR")"
   fi
 
+  # The provider is asked only once the judgement found nothing (lib/bind.sh, spec S5.3): the merge stands only when
+  # the pull request's head on GitHub is H and its base branch there is B. A dry run the provider could not answer
+  # says so and goes on; a merge does not.
+  local bindnote=""
+  if [ -z "$blockers" ]; then
+    felix_bind_compare "$root" "$branch" "$base" "$head" "$dry"
+    blockers="$_FELIX_BIND_BLOCK"; bindnote="$_FELIX_BIND_NOTE"
+  fi
+
+  # P's instrument parts, as P holds them, over this tree (lib/instrument.sh, trust-plane step 3, slice 3), for the
+  # engine's own repository only, and only when nothing says the inputs they would be built from cannot be read as
+  # named: then it says so in one line instead.
+  local instnote="" instwhy=""
+  if felix_self_governed_at "$root" "$base"; then
+    instwhy="$(printf '%s\n' "$blockers" | LC_ALL=C awk -F'\t' '$1 == "base" || $1 == "moved" || $1 == "objects" || $1 == "policy" || $1 == "unknown" { print $1; exit }')"
+    if [ -n "$instwhy" ]; then
+      instnote="P's instrument parts were not run: a blocker of kind $instwhy stands, which says the inputs they would be run over cannot be read as named."
+    elif command -v felix_instrument_judge >/dev/null 2>&1; then
+      felix_instrument_judge "$root" "$base" "$head" "$branch"
+      [ -z "$_FELIX_INSTR_BLOCK" ] || blockers="${blockers:+$blockers$'\n'}$_FELIX_INSTR_BLOCK"
+      instnote="$_FELIX_INSTR_NOTE"
+    else
+      blockers="${blockers:+$blockers$'\n'}unknown"$'\t'"SUITE"$'\t'"lib/instrument.sh is not loaded, so P's instrument parts could not be run over this tree"
+    fi
+  fi
+
   if [ -n "$blockers" ]; then
-    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0
+    local kind subject reason esc=0 unk=0 unread=0 stamp=0 table=0 owed=0 nopol=0 prov=0 suite=0 inst=0
     printf 'not merging\n\n'
     while IFS=$'\t' read -r kind subject reason; do
       [ -n "${kind:-}" ] || continue
@@ -1952,13 +2039,21 @@ cmd_merge() {
       # failing to load commission.sh, which no run reaches; it sits with every
       # other kind.
       case "$kind:$subject" in
+        # P's instrument parts, the machinery or the partition (lib/instrument.sh): the founder's, worded apart.
+        escape:machinery|escape:engine/harness/tests/parts/*|escape:projects/*/partition.tsv) inst=1 ;;
         escape:*)           esc=1 ;;
+        unknown:SUITE)      suite=1 ;;
         # A change git could not read to the end, by its pseudo-path
         # (2026-10-08), is not a base that names nothing.
         unknown:ADDED-LINES|unknown:CHANGED-PATHS) unread=1 ;;
         unknown:*)          unk=1 ;;
         commission:receipt) stamp=1 ;;
         commission:table)   stamp=1; table=1 ;;
+        # No authorized policy could be read (lib/policy.sh, trust-plane step 3): not a
+        # gate to run or a test to write, and not the founder's either.
+        policy:*)           nopol=1 ;;
+        # What was judged is not what the provider holds, or git could not show that it was (lib/bind.sh).
+        base:*|moved:*|objects:*) prov=1 ;;
         *)                  owed=1 ;;
       esac
     done <<EOF
@@ -1974,7 +2069,7 @@ EOF
     # And only real attempts count. A dry run asks nobody anything: a triage
     # session dry-running every open PR wrote one of these per escape per run,
     # and the figure counted each look as a founder interruption.
-    if [ "$esc" -eq 1 ] && [ "$dry" -eq 0 ]; then
+    if { [ "$esc" -eq 1 ] || [ "$inst" -eq 1 ]; } && [ "$dry" -eq 0 ]; then
       while IFS=$'\t' read -r kind subject reason; do
         [ "${kind:-}" = "escape" ] || continue
         felix_say "$proj" "escalated" "$subject: $reason" "felix merge" "${CLAUDE_CODE_SESSION_ID:-}" 2>/dev/null || true
@@ -2019,6 +2114,17 @@ EOF
         printf 'reach, so it is the founder who decides. Show them the diff and the\n'
         printf 'reversal path; a green gate is not the question here.\n'
       fi
+      if [ "$inst" -eq 1 ]; then
+        printf '\nThis change moves what judges it: the base'"'"'s own test parts fail or stop\n'
+        printf 'being reached on this tree, its machinery reports what it was not given,\n'
+        printf 'or its partition marks a part subject. The lines above say which. That is\n'
+        printf 'the founder'"'"'s to decide; show them the diff of those parts.\n'
+      fi
+    fi
+    if [ "$suite" -eq 1 ]; then
+      printf '\nP'"'"'s instrument parts could not be run over this tree: the SUITE line above\n'
+      printf 'says which input could not be read. Nothing here is a finding about those\n'
+      printf 'parts. Fix what it names, then run this again.\n'
     fi
     # Said whatever else is said, beside an escape too: the founder is being
     # asked already, and a merge they clear would stop again on the receipt.
@@ -2063,11 +2169,25 @@ EOF
       printf 'Felix never writes a project'"'"'s autonomy file and a session does not\n'
       printf 'commission for itself, so a green gate does not clear this.\n'
     fi
-    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ]; then
+    # A policy line is never a finding about the branch: nothing judged it.
+    if [ "$nopol" -eq 1 ] && [ "$unk" -eq 0 ]; then
+      printf '\nNo authorized version of this project'"'"'s policy judged the branch: the\n'
+      printf 'policy line above says why. Its tables, and the instruments they name, are\n'
+      printf 'read from the base and never from this checkout, so nothing here stands in\n'
+      printf 'for them. Land the tables on the base, or fix what the line names, then run\n'
+      printf 'this again.\n'
+    fi
+    if [ "$prov" -eq 1 ]; then
+      printf '\nWhat was judged is not what the provider holds, or git could not show that\n'
+      printf 'it was: the line above says which. Nothing was merged. Fetch, so the base\n'
+      printf 'is the one GitHub would squash onto, and run this again.\n'
+    fi
+    [ -z "$instnote" ] || printf '\n%s\n' "$instnote"
+    if [ "$unk" -eq 0 ] && [ "$unread" -eq 0 ] && [ "$esc" -eq 0 ] && [ "$inst" -eq 0 ] && [ "$suite" -eq 0 ]; then
       if [ "$stamp" -eq 1 ] && [ "$owed" -eq 1 ]; then
         printf '\nThe rest escapes nothing and is work Felix owes: run the gate, or\n'
         printf 'write the test that is missing, then run this again.\n'
-      elif [ "$stamp" -eq 0 ]; then
+      elif [ "$stamp" -eq 0 ] && [ "$owed" -eq 1 ]; then
         printf '\nNothing here escapes the tree, so none of it is a founder decision.\n'
         printf 'It is work Felix owes: run the gate, or write the test that is missing,\n'
         printf 'then run this again.\n'
@@ -2076,7 +2196,9 @@ EOF
     return 3
   fi
 
+  [ -z "$instnote" ] || printf '%s\n' "$instnote"
   if [ "$dry" -eq 1 ]; then
+    [ -z "$bindnote" ] || printf '%s\n' "$bindnote"
     printf 'nothing escapes this tree, and the gate is green on it.\n'
     if [ -n "${jentry:-}" ]; then printf 'judged by %s, the engine main declares, byte-identical to main.\n' "$jentry"; fi
     printf 'felix merge would squash this now.\n'
@@ -2084,7 +2206,9 @@ EOF
   fi
 
   command -v gh >/dev/null 2>&1 || _felix_merge_die "$dry" "$proj" "$branch" gh "felix merge needs the gh CLI, which is not on PATH"
-  local slug; slug="$(felix_repo_slug "$root")"
+  # The repository the provider was asked about (lib/bind.sh, S5.2) is the one asked to squash: one reading of
+  # origin, not two that can differ on a trailing slash or a deeper path (slice 2's review).
+  local slug; slug="$(_felix_bind_slug "$root")"
   [ -n "$slug" ] || _felix_merge_die "$dry" "$proj" "$branch" gh "no github remote"
 
   # What the squash commit says, written here and never left to GitHub's
@@ -2169,11 +2293,21 @@ Felix-Gate: ${gtree:-none}"
       printf 'above describes a tree that is already gone. Nothing was merged.\n'
       _felix_merge_refused "$dry" "$proj" "$branch" moved "the working tree was edited while this ran"
     else
-      printf '\nThe checkout moved while this ran, so what was verified is not what\n'
+      printf '\nThe checkout moved while this ran, so what was checked is not what\n'
       printf 'would be merged. Nothing was merged.\n'
       _felix_merge_refused "$dry" "$proj" "$branch" moved "the checkout moved while this ran: $wb $ws -> $nb $ns"
     fi
     printf 'Run it again once nothing else is touching this working copy.\n'
+    return 4
+  fi
+  # And the provider's base asked again, last (lib/bind.sh, spec S5.4). The window between this read and GitHub's
+  # squash is not closed here: that is the queue's (design step 4).
+  if ! felix_bind_last "$root" "$base"; then
+    printf 'not merging\n\n'
+    printf '  %-11s %-22s %s\n' moved base "the provider's base moved since it was judged: $_FELIX_BIND_WHY"
+    printf '\nThe base GitHub would squash onto is not the one judged here. Nothing was\n'
+    printf 'merged. Fetch, and run this again.\n'
+    _felix_merge_refused "$dry" "$proj" "$branch" moved "the provider's base moved since it was judged: $_FELIX_BIND_WHY"
     return 4
   fi
   # --match-head-commit is the other half of the check just made. That one
@@ -4546,9 +4680,9 @@ cmd_classify() {
       [ "$ev_gaps" -eq 0 ] || ev_why="$ev_gaps evidence gap(s)"
       [ "$ev_unk" -eq 0 ] || ev_why="${ev_why:+$ev_why and }$ev_unk evidence row(s) not judged"
       if [ -z "$ev_why" ]; then
-        printf 'Reversible, and nothing is unproven. Eligible for auto-merge once\nevery required check passes.\n'
+        printf 'Reversible, and no evidence is owed. Eligible for auto-merge once\nevery required check passes.\n'
       else
-        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was proven.\nRun felix evidence.\n' "$ev_why"
+        printf 'Reversible, but %s. Not auto-merge eligible: a green\ntier means no risky path was touched, not that the change was tested.\nRun felix evidence.\n' "$ev_why"
       fi
       ;;
     # Tier is advice about how hard to look, and these two lines are what a
@@ -6374,7 +6508,7 @@ cmd_probes() {
     || [ "${n_nosrc:-0}" -gt 0 ] && printf '\n'
   if [ "${n_block:-0}" -gt 0 ]; then
     printf '%s of %s could not be established. Those are not passes:\n' "$n_block" "$n_all"
-    printf 'blind means the witness proves a surface the probe cannot see, and\n'
+    printf 'blind means the witness says a surface exists that the probe cannot see, and\n'
     printf 'unknown means nothing decided either way.\n'
   fi
   if [ "${n_empty:-0}" -gt 0 ]; then
@@ -6490,6 +6624,19 @@ cmd_probes() {
   # the same mistake made twice with the file that documents it.
   [ -z "$malformed" ] || return 1
   return 0
+}
+
+# felix situations: what a change owes (lib/situations*.sh). Its libraries are loaded here, in the command's own body, and
+# not at the top of this file with the rest, as cmd_audit, cmd_inventory and cmd_cost load theirs: felix gate, felix merge
+# and felix land must never parse or run this code, so a defect in it cannot break them. Everything else, the flags
+# included, is in the library's entry function.
+cmd_situations() {
+  local f
+  for f in situations situations-read situations-report situations-check; do
+    # shellcheck disable=SC1090,SC1091
+    . "${SCRIPT_DIR}/lib/$f.sh" || exit 1
+  done
+  felix_situations "$@"
 }
 
 # The heartbeat, and the one command that may run with no session and no
@@ -6680,6 +6827,7 @@ case "${1:-help}" in
   commission) shift; cmd_commission "$@" ;;
   probes)     shift; cmd_probes "$@" ;;
   obligations) shift; cmd_obligations "$@" ;;
+  situations) shift; cmd_situations "$@" ;;
   epoch)     shift; cmd_epoch "$@" ;;
   profile)   shift; cmd_profile "$@" ;;
   route)     shift; cmd_route "$@" ;;

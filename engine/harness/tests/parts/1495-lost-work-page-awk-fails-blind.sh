@@ -8,9 +8,12 @@ printf '\nthe lost-work page, step 6: when the page awk fails, exit 1 and the re
 # origin with main pushed, no project governing them and no pull requests. Every
 # run passes --no-host and --no-gh: no host record and no gh answer is read, so
 # the runs are cheap, and two runs over the same repository seconds apart print
-# the same bytes (the sessions and prs cover rows read unknown the same way each
-# time, and age_h is the floor of whole hours, 0 for commits made here). That is
-# what lets B9.41 compare the A-then-B page with B's page byte for byte.
+# the same bytes but for the ages the origin row and the default-branch cover row
+# read from the clock (the sessions and prs cover rows read unknown the same way
+# each time, and age_h is the floor of whole hours, 0 for commits made here).
+# That is what lets B9.41 compare the A-then-B page with B's page byte for byte,
+# the ages aside (_lw95_unaged: a minute boundary between two runs is not a
+# difference in what the page does).
 #
 # Three awk stubs, each in a directory of its own put first on PATH around the
 # runs that use it, each ending in the real awk, whose path is taken with
@@ -46,11 +49,18 @@ _lw95_b8() { LC_ALL=C awk -v w="felix monitor: $2: the page could not be made fr
 # _lw95_only NAME: "LINES|TEXT" of run NAME's stdout; _lw95_empty NAME: empty or "N bytes".
 _lw95_only() { printf '%s|%s' "$(LC_ALL=C awk 'END { print NR }' "$(_lw_o "$1")" 2>/dev/null)" "$(cat "$(_lw_o "$1")" 2>/dev/null)"; }
 _lw95_empty() { if [ -s "$(_lw_o "$1")" ]; then printf '%s bytes' "$(LC_ALL=C wc -c < "$(_lw_o "$1")" | LC_ALL=C tr -d ' ')"; else printf empty; fi; }
-# _lw95_same RUN REF: "same" when RUN's stdout is REF's byte for byte and REF printed something.
+# _lw95_unaged RUN: RUN's stdout with every age it prints put as "<age> ago", and no other byte changed (a final
+# newline sed may supply is supplied on both sides of a comparison). The origin row's
+# ages are read from the clock when each run is made ("origin/main last moved 35 min ago", "last fetch, of any
+# ref, 0 min ago", and the default branch's "fetched 0h ago"), in the text page, in --tsv and in the two sources
+# alone, so two runs on different sides of a minute, or of an hour, print different bytes for the same behaviour:
+# on 2026-11-07 a gate read 35 min against 45 because the Mac slept between the two runs.
+_lw95_unaged() { LC_ALL=C sed -E 's/[0-9]+ ?(min|h|days) ago/<age> ago/g' "$(_lw_o "$1")" 2>/dev/null; }
+# _lw95_same RUN REF: "same" when RUN's stdout is REF's byte for byte, the ages each prints aside, and REF printed something.
 _lw95_same() {
-  if [ -s "$(_lw_o "$2")" ] && cmp -s "$(_lw_o "$1")" "$(_lw_o "$2")"; then printf same; return 0; fi
+  if [ -s "$(_lw_o "$2")" ] && cmp -s <(_lw95_unaged "$1") <(_lw95_unaged "$2"); then printf same; return 0; fi
   [ -s "$(_lw_o "$2")" ] || { printf 'the reference run printed nothing'; return 0; }
-  diff "$(_lw_o "$2")" "$(_lw_o "$1")" 2>&1 | LC_ALL=C awk 'NR <= 4 { printf "%s; ", $0 }'
+  diff <(_lw95_unaged "$2") <(_lw95_unaged "$1") 2>&1 | LC_ALL=C awk 'NR <= 4 { printf "%s; ", $0 }'
 }
 # _lw95_try CMD...: "OUT:STATUS " of CMD run in the C locale.
 _lw95_try() { local o; o="$(LC_ALL=C "$@" 2>/dev/null)"; printf '%s:%s ' "$o" "$?"; }
@@ -59,6 +69,18 @@ is "B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the
    "$(_lw95_try "$LW95/one/awk" 'BEGIN { print "real" }')$(_lw95_try "$LW95/one/awk" -v order=x 'BEGIN { print "real" }')$(rm -rf "$LW95M"; _lw95_try "$LW95/first/awk" -v order=x 'BEGIN { print "real" }'; _lw95_try "$LW95/first/awk" -v order=x 'BEGIN { print "real" }')$(_lw95_try "$LW95/late/awk" -v order=x 'BEGIN { print "real" }')" \
    "real:0 :2 :2 real:0 real:2 "
 rm -rf "$LW95M"
+# The comparison B9.41 makes puts every age as "<age> ago" and changes nothing else. Y1 and Y2 differ only in their
+# ages (minutes, hours, days, and the cover row's "0h"); Y3 has another commit, Y4 another word, and Y0 is no output.
+LW95Y="B 1a2b3c4, default branch main (origin/HEAD), origin/main last moved 35 min ago; last fetch, of any ref, 2 h ago"
+printf 'first\n  %s\n  read default read: origin/main @ 1a2b3c4d; fetched 0h ago\n' "$LW95Y" > "$(_lw_o AW95Y1)"
+printf 'first\n  %s\n  read default read: origin/main @ 1a2b3c4d; fetched 23h ago\n' \
+  "B 1a2b3c4, default branch main (origin/HEAD), origin/main last moved 45 min ago; last fetch, of any ref, 3 days ago" > "$(_lw_o AW95Y2)"
+printf 'first\n  %s\n  read default read: origin/main @ 1a2b3c4d; fetched 0h ago\n' "${LW95Y/1a2b3c4,/1a2b3c5,}" > "$(_lw_o AW95Y3)"
+printf 'first\n  %s\n  read default read: origin/main @ 1a2b3c4d; fetched 0h ago\n' "${LW95Y/last moved/last fetched}" > "$(_lw_o AW95Y4)"
+: > "$(_lw_o AW95Y0)"
+is "B9.41 fixture: the comparison ignores the ages two pages print and nothing else: pages that differ only in an age are the same, another commit or another word is a difference, and no reference output is no verdict (fixture control)" \
+   "$(_lw95_same AW95Y2 AW95Y1) $([ "$(_lw95_same AW95Y3 AW95Y1)" = same ] && echo hid-commit || echo saw-commit) $([ "$(_lw95_same AW95Y4 AW95Y1)" = same ] && echo hid-word || echo saw-word) $(_lw95_same AW95Y1 AW95Y0)" \
+   "same saw-commit saw-word the reference run printed nothing"
 
 # ---- the runs ------------------------------------------------------------------------
 # With the real awk: the controls, and the references B9.41 compares with.
@@ -108,11 +130,11 @@ is "B8: and under --tsv that line too is B8's, said once" "$(_lw95_b8 AW95A1S "$
 is "B9.41: with the first-call stub, --repo A --repo B exits 1, the stub having failed the page's first order= call" "$(_lw_rc AW95X1) $LW95M1" "1 failed-one"
 is "B9.41: a stderr line names A and holds awk exited 2" "$(_lw95_named AW95X1 "$LW95A" 'awk exited 2')" named
 is "B9.41: no stderr line names B" "$(_lw95_has AW95X1 "$LW95B")" 0
-is "B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk" "$(_lw_rc AW95B0)|$(_lw95_same AW95X1 AW95B0)" "0|same"
+is "B9.41: and stdout is what felix monitor --repo B prints with the real awk, the ages each prints aside" "$(_lw_rc AW95B0)|$(_lw95_same AW95X1 AW95B0)" "0|same"
 is "B9.41: with the first-call stub, --tsv --repo A --repo B exits 1, the stub having failed the page's first order= call" "$(_lw_rc AW95X1S) $LW95M2" "1 failed-one"
 is "B9.41: under --tsv a stderr line names A and holds awk exited 2" "$(_lw95_named AW95X1S "$LW95A" 'awk exited 2')" named
 is "B9.41: under --tsv no stderr line names B" "$(_lw95_has AW95X1S "$LW95B")" 0
-is "B9.41: and the TSV is exactly what felix monitor --tsv --repo B prints with the real awk" "$(_lw_rc AW95B0S)|$(_lw95_same AW95X1S AW95B0S)" "0|same"
+is "B9.41: and the TSV is what felix monitor --tsv --repo B prints with the real awk, the ages each prints aside" "$(_lw_rc AW95B0S)|$(_lw95_same AW95X1S AW95B0S)" "0|same"
 is "B8: in both two-repository runs the line for A is B8's, said once" "$(_lw95_b8 AW95X1 "$LW95A") $(_lw95_b8 AW95X1S "$LW95A")" "1 1"
 
 # ---- B8: what the awk printed before it stopped reaches no stdout ---------------------

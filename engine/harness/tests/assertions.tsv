@@ -97,6 +97,449 @@
 1	.lsp.json at the root is medium
 1	/ itself: claude was not run
 1	/ itself: the list is unread, with the sentence that says why
+1	2400 R1: paid_ingress applies exactly cap:api cap:llm, and its owes names a request bound and a spend bound
+1	2400 R2: another class than paid_ingress holds the term cap:api
+1	2400 R3: a class holds probe:local_listener=found and no cap:api, and its owes is a bind to loopback
+1	2400 R4: the named R4 class ci_actions_pinned holds no term on api or on local_listener
+1	2400 and it read two tables there
+1	2400 at least one engine/harness/lib/situations*.sh exists, and every one has under 500 lines
+1	2400 every applies holds at least one probe: or cap: term, the only kind a commit can make false
+1	2400 every applies holds one or more terms, each a form C4 evaluates (probe:<c>=<state>, cap:<c>, env:maturity>=<value>)
+1	2400 every byte of the table is printable ASCII, a tab or a newline
+1	2400 every class matches [a-z][a-z0-9_]* and none appears twice
+1	2400 every class_by_maturity names prototype, internal, public-beta and production once each, with one of the five obligation classes
+1	2400 every line of the table is a comment with # at column 0 or a row of exactly five non-empty cells
+1	2400 every source is miss:, candidate: or cite: and 12 lowercase hex digits
+1	2400 felix help prints felix situations' three usage lines byte for byte, directly after the felix obligations line under the toolbox
+1	2400 no applies holds a probe: term on blind or unknown, so no class is ACTIVE because Felix could not look
+1	2400 no class_by_maturity decreases as maturity rises from prototype to production
+1	2400 schema-check refuses a situations.tsv of comments only, as the row's refused cell says (control)
+1	2400 schema-check refuses a situations.tsv row of four cells, as the row's five columns say (control)
+1	2400 schema-check, run in a tree holding only schemas.tsv and the shipped situations.tsv, exits 0
+1	2400 the felix situations entry sits in the section headed the toolbox
+1	2400 the first non-comment line after the discover-rules.tsv row of schemas.tsv is the situations.tsv schema row
+1	2400 the seed holds six to eight rows
+1	2400 the seed's classes and their applies are C12's list as committed, so four classes are HTTP-keyed
+1	2400 the shipped templates/situations.tsv exists, is not empty and ends in a newline
+1	2400 the table holds the comment line # class<TAB>applies<TAB>owes<TAB>class_by_maturity<TAB>source
+1	2400 the table names no project under the projects/ beside this harness but felix, comments included, without regard to case (8 name(s) read)
+1	2410 --at --tsv reads the tree --tsv, which has no run: exit 3
+1	2410 --at a recorded tree the checkout is not at, in the same log, does not run the detector: commit -
+1	2410 --at a tree only a 7-field line names, beside unknown-tree rows, exits 3
+1	2410 --at a tree with an absent log exits 3 with the same sentence
+1	2410 --at a tree with an empty log exits 3 with the same sentence
+1	2410 --at a tree with no run exits 3 with C2's sentence, nothing on stdout, TMPDIR empty
+1	2410 --at given twice is a usage error: exit 2, nothing on stdout, felix: usage: felix situations first on stderr
+1	2410 --at leaves TMPDIR empty and starts no gh, curl, wget, ssh, nc or claude
+1	2410 --at leaves the checkout's files, refs, HEAD, worktree list, config, index and status, the memory root and the home as they were
+1	2410 --at the live tree id runs the detector as well: a cap term no probe grounds is true where the detector names it (c_tests)
+1	2410 --at the tree of a 7-field line only exits 3: a short line is ignored
+1	2410 --at tree-a --tsv exits 0 with nothing on stderr, and leaves its TMPDIR empty
+1	2410 --at tree-z reads its two rows that share tree-a's new stamp: a run is keyed on its stamp and its tree
+1	2410 --at unknown-tree exits 3: unknown-tree rows are never read
+1	2410 --at where no project governs exits 2 with resolve_or_die's sentence, felix: no project governs first
+1	2410 --at with --change is a usage error: exit 2
+1	2410 --at with an empty value does the same
+1	2410 --at with no value exits 1 with need_value's own sentence alone on stderr and nothing on stdout
+1	2410 --at with no value is found before the governing project: exit 1 where no project governs
+1	2410 a DORMANT class gets no could-not-look line, though it holds an undecided term (d_mixed, x_dormant)
+1	2410 a cap term at step 4 says every probe grounding it is not-applicable and the detector was not run (c_na_cap)
+1	2410 a cap term whose every grounding row reads not-applicable goes to the detector, which was not run at this tree: undecided (c_na_cap)
+1	2410 a cap term whose grounding row reads empty is false: an empty reading is a witness (d_em_cap)
+1	2410 a cap term whose grounding rows read empty while another grounding probe has no reading is undecided, never false: unread is never left to empty (u_capnr at tree-b)
+1	2410 a cap term with a grounding row that reads found is true (u_capnr)
+1	2410 a cap term with no grounding probe and the detector not run is undecided, never false (c_tests)
+1	2410 a cap term with no grounding probe says so and that the detector was not run (c_tests)
+1	2410 a capability the detector names that no class uses is a no-row line named by the detector (ci)
+1	2410 a declared maturity binds no env term: no env:maturity term is unbound but the value outside the four
+1	2410 a declared maturity not one of the four leaves the env term undecided, its grounds naming the value (m_int)
+1	2410 a false term settles the class DORMANT beside an undecided one, and the grounds still name the undecided term (d_mixed, C7)
+1	2410 a grounding probe with no reading on this side is named in the why (u_nr_empty)
+1	2410 a partial unknown recorded row gives <pred> read unknown when recorded; the fact log keeps no sentence (u_bl at tree-b)
+1	2410 a predicate whose recorded row grounds another capability is a grounding probe with no reading for its own (u_capnr's why at tree-b)
+1	2410 a probe term is true when one grounding row reads its state although another grounding probe has no reading, which the grounds name (u_nr)
+1	2410 a probe term no grounding row reads, with none blind, unknown or unread, is false: the class is DORMANT, verdict none (d_dual_na)
+1	2410 a probe term no probe grounds says no probe grounds <c> (u_zz)
+1	2410 a probe term no probe grounds, in the reading or in probes.tsv, is undecided and its grounds say no probe (u_zz)
+1	2410 a probe term no row reads, with a grounding probe that has no reading, is undecided: UNKNOWN, could-not-look (u_nr_empty)
+1	2410 a probe term on found whose every grounding row reads not-applicable is false (d_na)
+1	2410 a probe term over two probes grounding one capability is true when either reads its state, and the grounds name both, in reading order, per term (a_dual)
+1	2410 a probe term whose capability only a recorded row grounds is read from the reading: here true (a_legacy)
+1	2410 a probe term whose grounding row was recorded blind is undecided, and the grounds say blind (u_bl)
+1	2410 a probe term whose only recorded grounding row reads empty is false, still listed unbound (a_legacy at tree-b)
+1	2410 a probe term with a false and a true term in one class: probe:dual=empty no row reads is false at tree-b (a_dual)
+1	2410 a recorded blind reading's why is <pred> read blind when recorded; the fact log keeps no sentence, on side at
+1	2410 a recorded grounding row whose state is outside the five, stale, leaves its probe term undecided: could-not-look, never DORMANT, the grounds naming the state (u_bl at tree-s)
+1	2410 a run with no --at on an absent log leaves its memory root as it was, creating nothing
+1	2410 a term in another form beside a false term leaves the class DORMANT (x_dormant)
+1	2410 an empty maturity string declares no maturity (m_int)
+1	2410 at the live tree probe:nr=found reads both grounding probes, nr_b recorded empty (u_nr)
+1	2410 each term in another form gets its own could-not-look line on side at (x_forms)
+1	2410 in a checkout whose HEAD is unborn the header's commit is - and the detector still runs
+1	2410 its count line counts tree-b's states: examined 20, active 5, dormant 6, could not look 9
+1	2410 its standing section prints a not-applicable reading with its count, as readings do (d_dual_na at tree-b)
+1	2410 its why and its unbound line say the value is not one of the four (m_int)
+1	2410 its why is the recorded form with the row's own state word: bl_a read stale when recorded; the fact log keeps no sentence (u_bl at tree-s)
+1	2410 probe:<c>=not-applicable is true when a grounding row reads not-applicable (d_dual_na at tree-b)
+1	2410 terms in another form are each undecided, and the grounds name each as unbound (x_forms)
+1	2410 that run too leaves the checkout, the memory root and the home as they were, TMPDIR empty, no network command run
+1	2410 the human report at tree-a is C9's: the header, standing by class name, the residual, the count line
+1	2410 the live tree's readings are still recorded ones: felix probes' blind row reads blind when recorded (u_bl)
+1	2410 the no-row lines name every capability a recorded row grounds that no class uses, whatever its state (moved, orphan at tree-b)
+1	2410 the no-row lines name the capability a recorded row grounds that no class uses, and never a grounds of -
+1	2410 the same for a capability the detector would not name either (c_billing)
+1	2410 the unbound lines are one per distinct term: the forms C4 cannot evaluate, the axis other than maturity, and the probe terms probes.tsv does not ground
+1	2410 the whole --tsv at tree-a is C8's: class lines by verdict then id, then the residual sorted as bytes, nothing else
+1	2410 where the detector ran and is silent, a cap term with no grounding probe is undecided, never false, and says so (c_billing)
+1	2410 where the detector ran, every grounding probe not-applicable and the detector silent reads so (c_na_cap)
+1	2410 with maturity internal, env:maturity>=internal is true (m_int)
+1	2410 with maturity internal, env:maturity>=production is false (m_prod)
+1	2410 with maturity internal, env:maturity>=prototype is true (m_proto)
+1	2410 with maturity internal, env:maturity>=public-beta is false, by rank and not by spelling (m_pub)
+1	2410 with maturity public-beta, prototype, internal and public-beta hold and production does not (m_proto m_int m_pub m_prod)
+1	2410 with no --at and a log of unknown-tree rows and short lines it exits 3 the same way
+1	2410 with no --at and an absent log it exits 3: the log records no tree
+1	2410 with no --at and an empty log it exits 3 the same way
+1	2410 with no --at the newest tree is the last 8-field or longer line's that is not unknown-tree, in file order: tree-b, not tree-a's later stamp or a short line's tree
+1	2410 with no --at, after felix probes, the newest tree is the live one: the header names HEAD, the tree and the run, and says the detector ran
+1	2410 with no maturity declared an env term is undecided and its grounds say maturity undeclared (m_int)
+1	2410 with no maturity declared each env:maturity term is unbound once, as project.json declares no maturity
+1	2410 with no maturity declared env:maturity>=public-beta is undecided, never false (m_pub)
+1	2410 with no maturity declared the env term's why is project.json declares no maturity (m_int)
+1	2420 --change -x (an argument that begins with - is no range) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change ..HEAD (an empty base half) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change HEAD.. (an empty head half) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change HEAD...main (three dots) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change HEAD..HEAD at an unborn HEAD: the base half is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change HEAD..nope: the head half is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change HEAD^{tree}..HEAD: a tree is not a commit: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change HEAD~1..HEAD..main (a head half holding ..) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change HEAD~2..HEAD --tsv prints the default range's --tsv byte for byte
+1	2420 --change ^HEAD..HEAD: a half that resolves to something other than a full commit id is not a commit (C17.7): exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change c1..f2, given as full commit ids, prints the default range's report byte for byte
+1	2420 --change given twice is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change main (no ..) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change main, where no project governs (usage before the project) is a usage error: exit 2, stdout empty, stderr begins felix: usage: felix situations
+1	2420 --change main..HEAD reads k_none retired: c2 holds its surface and f2 does not
+1	2420 --change main..HEAD takes main's tip c2 as the base, not the merge base
+1	2420 --change nope..nope2: the base half is named first: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change with no range at an unborn HEAD, where no main ref exists either: HEAD is named first: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change with no range where neither origin ref nor refs/heads/main names a commit: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change with no range where origin/HEAD points at origin/trunk, which shares no history with HEAD: the target is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 --change with no range where refs/heads/main and HEAD share no history: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 a TMPDIR that cannot hold a scratch directory and a base that is no commit: the scratch directory is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 a table with no row, a TMPDIR that cannot hold a scratch directory and a base that is no commit: the table is named: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 after the default range TMPDIR is empty again
+1	2420 after the default range nothing under the Felix home changed
+1	2420 after the default range nothing under the checkout, its .git included, is newer than the marker
+1	2420 after the default range nothing under the memory root changed, facts.log included
+1	2420 after the default range the refs, the worktree list and HEADs, the config bytes, ls-files -s and status --porcelain are as they were
+1	2420 an explicit range needs no main ref: --change HEAD..HEAD there exits 0 with stderr empty and TMPDIR empty
+1	2420 an unborn HEAD with a TMPDIR that cannot hold a scratch directory: the scratch directory is named before HEAD: exit 3, stdout empty, stderr the one line, TMPDIR as it was
+1	2420 every probe of the current probes.tsv runs on a side read: p_cfree, which grounds a capability no class uses, gives a no-row line
+1	2420 k_blind2: head UNKNOWN, base DORMANT reads blinded
+1	2420 k_blind: head UNKNOWN, base ACTIVE reads blinded
+1	2420 k_bunk: head ACTIVE, base UNKNOWN reads owed, with base UNKNOWN
+1	2420 k_cdiff: ACTIVE on both sides, a cap: term decided at step 1 whose grounding count changed, reads owed
+1	2420 k_ci: a capability only the detector decides, named at head and not at base, reads owed with base UNKNOWN
+1	2420 k_cnl: UNKNOWN on both sides reads could-not-look
+1	2420 k_cstand: ACTIVE on both sides with equal readings reads standing (cap: term)
+1	2420 k_new: head ACTIVE, base DORMANT reads owed
+1	2420 k_none2: head DORMANT, base UNKNOWN reads none
+1	2420 k_none: DORMANT on both sides reads none
+1	2420 k_pdiff: ACTIVE on both sides, a probe: term whose grounding count changed, reads owed (the first kind of differs)
+1	2420 k_ret: head DORMANT, base ACTIVE reads retired
+1	2420 k_stand: ACTIVE on both sides with equal readings reads standing (probe: term)
+1	2420 k_track: a surface found only in an untracked file of the live checkout is read on neither side: none
+1	2420 k_two: ACTIVE on both sides, one of two probes grounding the term changed state, reads owed
+1	2420 the base line names c1 and the tree id felix probes recorded for a clean checkout of c1
+1	2420 the current probes.tsv is read on both sides: p_cst reads found at base, though the facts recorded at both trees read it empty
+1	2420 the default range prints nothing on stderr and exits 0
+1	2420 the default range reads c1 (the merge base of main and HEAD) to f2: the human report, header to count line, byte for byte
+1	2420 the default range with --tsv prints nothing on stderr and leaves TMPDIR empty
+1	2420 the default range with --tsv: every class line in token order then id, then the residual, byte for byte
+1	2420 the head line names f2 and the tree id felix probes recorded for a clean checkout of f2
+1	2420 the main ref: an origin/HEAD that is no symbolic ref is passed over for origin/main: the base is r1
+1	2420 the main ref: origin/HEAD pointing at an origin ref that names no commit is passed over for origin/main: the base is r1
+1	2420 the main ref: origin/HEAD pointing outside refs/remotes/origin/ is passed over for origin/main: the base is r1
+1	2420 the main ref: origin/HEAD, a symbolic ref to origin/trunk, wins over origin/main and refs/heads/main: the base is r2
+1	2420 the main ref: with neither origin ref, refs/heads/main is the main ref: the base is r0
+1	2420 the network stubs were never started
+1	2420 the reversed range f2..c1 reads k_ret owed, base DORMANT
+1	2420 when the report's first line can be read, TMPDIR holds no scratch directory any more
+1	2420 where no project governs and the table cannot be read, --change main is still a usage error first
+1	2420 where no project governs, a table that cannot be read is not reached: exit 2, stdout empty, stderr begins felix: no project governs
+1	2430 (c) --at in the bash harness: paid_ingress is could-not-look, UNKNOWN, with neither api nor llm detected
+1	2430 (c) --at in the bash harness: the R4 class ci_actions_pinned is standing, ACTIVE, grounded by its workflow probe
+1	2430 (c) --at in the bash harness: the residual has a could-not-look line for paid_ingress whose why names cap:api
+1	2430 (c) --at in the bash harness: the residual names probe:local_listener=found as unbound
+1	2430 (c) --at in the bash harness: the residual names scripts, which a probe grounds and no class uses, as no-row
+1	2430 (c) --change over the commit that removes the workflow reads ci_actions_pinned retired, ACTIVE to DORMANT, its probe empty at head
+1	2430 (c) --change: paid_ingress could not look on either side, never DORMANT
+1	2430 (c) the bash harness's report is never an empty residual with exit 0, and its count line has U at least 1
+1	2430 (c) the human --at report shows ci_actions_pinned as the one standing row, with its grounds and readings
+1	2430 (c) the human --at report's residual names paid_ingress's cap:api
+1	2430 (c) the human --change report's count line has U at least 1
+1	2430 (c) the human --change report's first line names the project bash1
+1	2430 (c) the human --change report: owed and blinded say none, retired holds ci_actions_pinned alone with a witness head: line, standing says none
+1	2430 (c) the human --change residual names paid_ingress's cap:api and cap:llm at base and at head, in byte order
+1	2430 (d) two runs give identical bytes in --change and --at, human and --tsv, each exit 0 with stderr empty
+1	2430 (i) each class's id is owed: and 12 hex digits of git hash-object over class, project and *, the same at either tree and in --change
+1	2430 (i) the --tsv class lines come in verdict order, owed in all three forms first
+1	2430 --at <the base tree> --tsv: the recorded base reading, its blind reason from the fact log
+1	2430 --at <the base tree>: the header says the detector was not run, then standing, residual and the count line
+1	2430 --at <the newest tree> prints what no flag prints, human and --tsv
+1	2430 --at with no value, an empty one, --tsv --at, --at '' --bogus, and --at where no project governs: exit 1, stdout empty, need_value's sentence alone
+1	2430 --change --tsv prints C8's lines exactly: class lines by verdict (owed, blinded, retired, standing, could-not-look, none), then id, then the residual
+1	2430 --change prints C9's human report exactly: header, owed, blinded, retired, standing, residual, the count line
+1	2430 --change v1.2..v1.3 is a range, not a usage error: its base half is read and is not a commit here (exit 3)
+1	2430 --tsv at the newest recorded tree: standing, could-not-look and none, base and base_grounds -, head the one state
+1	2430 --tsv before --change prints the same bytes
+1	2430 C8: --tsv is the same bytes under LC_ALL=C and under an en_US UTF-8 LANG with LC_ALL unset
+1	2430 falsifier 2: a clone's --at is the report at its own tree, the detector run
+1	2430 falsifier 2: every verdict included: the clones' --change --tsv holds owed, blinded, retired, standing, could-not-look and none, and is C8's text exactly
+1	2430 falsifier 2: two fresh clones with fresh memory roots holding the same facts.log print identical bytes in --change and --at, human and --tsv
+1	2430 felix situations --at x --at (twice, before its value is looked at) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --at x --at y is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --at x --change is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --at=x (no = form) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --bogus --at (the first failing argument decides) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --bogus is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --bogus where no project governs (usage is found first) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change --at (a conflict, before its value is looked at) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change --at x is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change --change is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change -x (not a range, then an unknown flag) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change ..HEAD (empty base half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change HEAD.. (empty head half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change HEAD~1...HEAD (three dots) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change HEAD~1..HEAD --at x is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change a..b..c (.. in the head half) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --change main (no ..) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --propose --propose is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --propose --tsv is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv --propose is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv --propose where no project governs is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv --tsv --at (the first failing argument decides) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv --tsv is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv -h (-h not first) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations --tsv extra is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations -h, --help, -h --tsv and --help --bogus print felix help's stdout, exit 0, and hold C1's three usage lines
+1	2430 felix situations extra (a bare word) is a usage error: exit 2, stdout empty, stderr's first line begins felix: usage: felix situations
+1	2430 felix situations where no project governs: exit 2, stdout empty, stderr begins felix: no project governs
+1	2430 need_value refuses only a missing or empty value: --at --tsv and --at -h read the trees --tsv and -h, which no run records (exit 3)
+1	2430 no gh, curl, wget, ssh, nc or claude was started by any felix situations run, and the last run exited 0
+1	2430 order: an absent table is refused before the recorded tree, before the change's base, and before an unmakeable scratch directory
+1	2430 order: an absent table: a usage error is found before it (2), and a directory no project governs before it (2)
+1	2430 order: an unmakeable scratch directory is refused before the recorded tree and before the change's base
+1	2430 order: the base half is read before the head half
+1	2430 owed carries all three base states: DORMANT, UNKNOWN (base could not look) and ACTIVE with a reading that differs
+1	2430 table: a bad class before a bad source: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a bad class_by_maturity before a bad source: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a class of one space is not empty: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a class twice on line 2 before a bad source on line 3: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a class twice, the second on physical line 4: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a last line with no newline is a row: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a line with no tab: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: a trailing tab is a sixth field: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: absent: exit 3, stdout empty, one line: the situation table could not be read: <path>: it is absent or unreadable
+1	2430 table: an applies of blanks holds no term: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: an applies with no term before a bad class_by_maturity: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: an empty applies cell: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: an empty cell before a bad class (the first reason that fits): exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: an empty class cell: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: an empty file: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class 9lives: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class Bad-Class: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=BLOCKING,internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=INFO, internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO,production=INFO,': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=INFO,internal=INFO,public-beta=INFO,production=INFO,staging=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=INFO,prototype=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: class_by_maturity 'prototype=info,internal=INFO,public-beta=INFO,production=INFO': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: comments (indented, tab-indented), a blank line and a line of blanks only: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: four fields on physical line 3, after a comment and a blank line: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: indented comments, a line of blanks, classes in any order, a cell of blanks, no last newline and C12-only breaches are read: exit 0, stderr empty, two class lines
+1	2430 table: mode 000 is absent or unreadable: exit 3 with that line
+1	2430 table: six fields on line 2: exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'cite:': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'cite:0123456789AB': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'cite:0123456789a': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'cite:0123456789abc': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'miss0123456789ab': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: source 'ref:0123456789ab': exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: the first empty cell is named (owes and source empty): exit 3, stdout empty, one line naming the table and its reason
+1	2430 table: the first failing line is named: a bad source on line 2 before four fields on line 3: exit 3, stdout empty, one line naming the table and its reason
+1	2430 the human report at the newest tree: the at header with the detector run, standing, residual, the count line
+1	2430 the last run's TMPDIR is empty afterwards
+1	2430 the witness lines name the side where the class is DORMANT and the probe that read empty
+1	2430 where no project governs, felix situations --help prints the same usage and exits 0
+1	2440 a: at the recorded tree the --tsv line of paid_ingress is standing, ACTIVE, grounds exactly http_route found (api), llm detected
+1	2440 a: at the recorded tree the human report is the header with the detector run, paid_ingress and request_body_bounded standing, the residual and the count
+1	2440 a: at the recorded tree the whole --tsv output is the model of C4, C7, C8 and C10 over the seed
+1	2440 a: deleting the route retires paid_ingress, ACTIVE -> DORMANT, while requirements.txt at the head still names fastapi
+1	2440 a: paid_ingress's retired row names the witness, the probe deciding over the detector's api
+1	2440 a: the --at --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2440 a: the --at human run exits 0 with stderr empty and TMPDIR left empty
+1	2440 a: the B..D --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2440 a: the human report of B..D: retired holds paid_ingress and request_body_bounded, each with a head witness
+1	2440 a: the human report prints paid_ingress's grounds line whole
+1	2440 a: the whole --tsv output of B..D is the model: two retired, the tests and deploy classes none, the rest could-not-look
+1	2440 c11: --change --propose prints the report then the head side's two proposals, undeclared maturity
+1	2440 c11: --change --propose wrote nothing
+1	2440 c11: --propose at the recorded tree prints the human report, one blank line, then proposed with paid_ingress and request_body_bounded
+1	2440 c11: --propose wrote nothing: the home, the memory root and the checkout are byte for byte as before
+1	2440 c11: a class the project's obligations.tsv admits by name is not proposed; the other still is
+1	2440 c11: a maturity outside the four gives the strictest class, noted as not one of them
+1	2440 c11: in --change proposals read the head side: with the route deleted at head, proposed prints none
+1	2440 c11: paid_ingress at internal is TASK_BLOCKING, in its class line and its row line
+1	2440 c11: the --change --propose runs exit 0 with stderr empty and TMPDIR left empty
+1	2440 c11: the --propose run exits 0 with stderr empty and TMPDIR left empty
+1	2440 c11: the admit line of paid_ingress is the exact command, quoted, with FELIX_HOME as given
+1	2440 c11: the apostrophe in the owes of paid_ingress is closed, escaped and reopened inside the admit command
+1	2440 c11: the class line of paid_ingress names its strictest class while no maturity is declared
+1	2440 c11: the row line of paid_ingress has its seven cells joined by real tab bytes
+1	2440 c11: with maturity internal each proposal carries the class class_by_maturity pairs with internal, noted maturity internal
+1	2440 every felix situations run here exited 0 and none started gh, curl, wget, ssh, nc or claude
+1	2440 f: a route added in the diff makes paid_ingress owed, DORMANT -> ACTIVE, with both sides' grounds
+1	2440 f: paid_ingress's owed row names the base witness http_route empty
+1	2440 f: the A..B --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2440 f: the human report of A..B: its header by its fixed text, then owed with a base witness, blinded, retired none, standing none, residual, count
+1	2440 f: the whole --tsv output of A..B is the model: two owed, two blinded by an undecided tests or deploy term, the rest could-not-look
+1	2440 g: after both runs the refs, HEAD, worktree list, config, index, status, facts.log, home and memory root are byte-identical
+1	2440 g: the default range B..C owes no row, blinds and retires none
+1	2440 g: the default range prints paid_ingress and request_body_bounded as standing, and no other class
+1	2440 g: the default-range runs exit 0 with stderr empty and TMPDIR left empty
+1	2440 g: the explicit range B..C prints the same --tsv bytes as the default range
+1	2440 g: the human report of the default range: both headers with their tree ids, owed, blinded and retired none, two standing
+1	2440 g: the whole --tsv output of the default range is the model
+1	2440 h: no class of B..E reads DORMANT at head or retired
+1	2440 h: renaming what the probe keys on blinds paid_ingress, ACTIVE -> UNKNOWN, the blind probe deciding though the detector names api
+1	2440 h: the B..E --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2440 h: the human report of B..E: blinded holds paid_ingress and request_body_bounded, retired none
+1	2440 h: the residual line for paid_ingress names cap:api and the blind probe's sentence
+1	2440 h: the whole --tsv output of B..E is the model, the residual naming the probe's own sentence for each api class at head
+1	2450 b: --propose proposes the four HTTP-keyed classes and ci_actions_pinned, and no loopback-binding class
+1	2450 b: in a node that binds every interface local_listener_binds_loopback is DORMANT, verdict none, on the empty loopback probe
+1	2450 b: once a probe row grounds api, the four HTTP-keyed classes read ACTIVE at the recorded tree
+1	2450 b: over K1..K2 the four HTTP-keyed classes read UNKNOWN on both sides, could-not-look, never DORMANT, none or retired
+1	2450 b: paid_ingress reads could-not-look, its grounds naming api not detected beside the true llm term
+1	2450 b: paid_ingress then stands on http_route found (api) and model_client found (llm)
+1	2450 b: the --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2450 b: the count line says 1 active, 1 dormant and 6 could not look
+1	2450 b: the human report at the recorded tree: the detector run, ci_actions_pinned the one standing row, the residual, the count
+1	2450 b: the human report with the api row: five standing rows, then the residual and the count
+1	2450 b: the ids do not change when a probe row is added: the class column and the id column pair as before
+1	2450 b: the residual says why for paid_ingress: no probe grounds api and the detector does not name it
+1	2450 b: the whole --tsv output at the recorded tree is the model: ci_actions_pinned standing, the loopback class none, the rest could-not-look
+1	2450 b: the whole --tsv output with the api row is the model: five standing, the loopback class still none
+1	2450 b: with no probe grounding api, the four HTTP-keyed classes read UNKNOWN at the recorded tree, none DORMANT
+1	2450 b: with the api row, --change K1..K2 reads the four HTTP-keyed classes standing on both sides and still retires ci_actions_pinned
+1	2450 every felix run here exited 0 and none started gh, curl, wget, ssh, nc or claude
+1	2450 q: removing the model client makes paid_ingress DORMANT at head on its false llm term, api still named undecided, verdict none
+1	2450 q: the residual names paid_ingress could-not-look at base only, where it was UNKNOWN
+1	2450 q: the whole --tsv output of K1..K3 is the model
+1	2450 q: with no other term false the other three HTTP-keyed classes still read could-not-look over K1..K3
+1	2450 r4: --change K1..K2, which removes the workflow, reads ci_actions_pinned retired, ACTIVE -> DORMANT
+1	2450 r4: ci_actions_pinned reads standing, ACTIVE, at the recorded tree, grounded by the workflows probe
+1	2450 r4: the K1..K2 --tsv run exits 0 with stderr empty and TMPDIR left empty
+1	2450 r4: the human report holds no owed, blinded or standing row over K1..K2
+1	2450 r4: the human report puts ci_actions_pinned under retired, with its readings and a head witness naming the workflows probe
+1	2450 r4: the reverse, K2..K1, which brings the workflow in, reads ci_actions_pinned owed
+1	2450 r4: the whole --tsv output of K1..K2 is the model
+1	2450 the api-row runs exit 0 with stderr empty and TMPDIR left empty
+1	2460 ci_actions_pinned (sib6, ci removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 ci_actions_pinned (sib6, ci removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 ci_actions_pinned (sib6, ci removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 ci_actions_pinned (sib6, ci removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 ci_secret_scoped_to_step (sib7, ci removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 ci_secret_scoped_to_step (sib7, ci removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 ci_secret_scoped_to_step (sib7, ci removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 ci_secret_scoped_to_step (sib7, ci removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 ci_secret_scoped_to_step (sib7, ci_secret removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line
+1	2460 ci_secret_scoped_to_step (sib7, ci_secret removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line
+1	2460 container_runs_unprivileged (sib8, container removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 container_runs_unprivileged (sib8, container removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 container_runs_unprivileged (sib8, container removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 container_runs_unprivileged (sib8, container removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 health_reflects_readiness (sib4, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 health_reflects_readiness (sib4, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 health_reflects_readiness (sib4, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 health_reflects_readiness (sib4, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 health_reflects_readiness (sib4, deploy removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line
+1	2460 health_reflects_readiness (sib4, deploy removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line
+1	2460 local_listener_binds_loopback (sib5, local_listener removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 local_listener_binds_loopback (sib5, local_listener removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 local_listener_binds_loopback (sib5, local_listener removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 local_listener_binds_loopback (sib5, local_listener removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 paid_ingress (sib1, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 paid_ingress (sib1, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 paid_ingress (sib1, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 paid_ingress (sib1, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 paid_ingress (sib1, llm removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line
+1	2460 paid_ingress (sib1, llm removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line
+1	2460 request_body_bounded (sib3, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 request_body_bounded (sib3, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 request_body_bounded (sib3, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 request_body_bounded (sib3, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 route_has_http_test (sib2, api removed): --change <with>..<without> reads it retired, with a witness head: q1 empty line
+1	2460 route_has_http_test (sib2, api removed): --change <without>..<with> reads it owed, with a witness base: q1 empty line
+1	2460 route_has_http_test (sib2, api removed): the --tsv line of <with>..<without> reads retired, ACTIVE to DORMANT, its owes as written
+1	2460 route_has_http_test (sib2, api removed): the --tsv line of <without>..<with> reads owed, DORMANT to ACTIVE, its owes as written
+1	2460 route_has_http_test (sib2, tests removed): --change <with>..<without> reads it retired, with a witness head: q2 empty line
+1	2460 route_has_http_test (sib2, tests removed): --change <without>..<with> reads it owed, with a witness base: q2 empty line
+1	2460 the ledger: every class in the shipped table, at least six, was read retired and owed on every surface its applies stands on
+1	2460 the network stubs were never started
+1	2470 rf1 after both runs nothing under the main checkout, the linked worktree or the common git directory is newer than a marker touched before them
+1	2470 rf1 after both runs the refs, every worktree's HEAD, git worktree list --porcelain, each index and status, and the config's bytes are as they were
+1	2470 rf1 felix situations --change HEAD~1..HEAD --tsv from the linked worktree exits 0 and reads svc_owed owed over the worktree's own commit
+1	2470 rf1 felix situations --change from a linked worktree, with the default range, exits 0 with an empty stderr, its header naming the merge base with main and the worktree's HEAD, each with its tree id
+1	2470 rf2 --change HEAD~1..HEAD over a commit that does not touch the surface reads env_ready could-not-look, UNKNOWN at base and at head, never DORMANT, retired or none
+1	2470 rf2 after felix probes in the live checkout, whose ignored untracked .ready the probe needs, --at its tree reads env_ready ACTIVE, as standing
+1	2470 rf2 that --tsv is the class line, then could-not-look residual lines for base: and head:, each naming the term probe:ready=found and the probe's own sentence
+1	2470 rf3 --at --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf3 --at a tree where x was recorded blind, --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf3 --change --tsv prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf3 in --at on that tree, under either locale, a1, a_1, a_c and ab all could not look, and a1 comes before a_1 and a_c before ab in the residual's could-not-look lines, in --tsv and in the human report
+1	2470 rf3 in --change, under either locale, a1, a_1, a_c and ab are all blinded, and a1 comes before a_1 and a_c before ab in the blinded section and in the residual's could-not-look lines
+1	2470 rf3 the --at human report of that tree prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf3 the --at human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf3 the --change human report prints the same bytes under LC_ALL=C and under LANG=en_US.UTF-8 with LC_ALL unset
+1	2470 rf4 HUP sent once the head side's probe has started: felix situations --change exits 129, and TMPDIR is empty as soon as it has exited
+1	2470 rf4 HUP: TMPDIR is still empty 4 s later, after the probe's sleep would have ended
+1	2470 rf4 INT, at its default disposition, sent once the head side's probe has started: felix situations --change exits 130, and TMPDIR is empty as soon as it has exited
+1	2470 rf4 INT: TMPDIR is still empty 4 s later, after the probe's sleep would have ended
+1	2470 rf4 TERM sent once the head side's probe has started: felix situations --change exits 143, and TMPDIR is empty as soon as it has exited
+1	2470 rf4 TERM: TMPDIR is still empty 4 s later, after the probe's sleep would have ended
+1	2470 rf4 felix situations --change ... | head -1 prints the report's first line and leaves TMPDIR empty
+1	2470 rf5 --propose exits 0 and leaves obligations.tsv and the home's git status --porcelain unchanged
+1	2470 rf5 a second --propose no longer lists quote_me: its proposed section is none
+1	2470 rf5 running the printed admit command appends to obligations.tsv exactly the row line's text after its prefix, then one newline
+1	2470 rf5 the admit command makes one commit, which touches only obligations.tsv
+1	2470 rf5 the proposed section ends the report: quote_me with its grounds, the strictest class its cell names while no maturity is declared, its row, and the admit command with each ' written as '\''
+1	2470 rf5 with obligations.tsv's one admitted row unended, the printed admit command ends that row with one newline, then appends the row line's text and one newline
+1	2470 rf5 with that row unended, felix_obligation_rows names both classes once the admit command has run, the earlier one first
+1	2470 rf5 with that row unended, the admit command makes one commit, which touches only obligations.tsv
+1	2470 rf6 no marker of the template hook, the hooks-path hook or the smudge filter exists after the run
+1	2470 rf6 with HOME's .gitconfig naming a template, a hooks path and a smudge filter, --change HEAD~1..HEAD --tsv exits 0 and evaluates its class
+1	2470 rf6 with core.fsmonitor given through GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0 and GIT_CONFIG_VALUE_0, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists
+1	2470 rf6 with core.fsmonitor in HOME's .gitconfig naming a hook that writes a marker, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists
+1	2470 rf6 with core.quotePath=false in HOME's .gitconfig and three tracked .js files under web/ with a non-ASCII letter in each name and no package.json, --change HEAD~1..HEAD --tsv names frontend at head with its no-row line, as --at --tsv names it at the recorded tree, and with HOME empty neither names it
+1	2470 rf6 with filter.fx.clean given through GIT_CONFIG_PARAMETERS over the committed * filter=fx, --change HEAD~1..HEAD --tsv exits 0, evaluates its class, and no marker exists
+1	2470 rf7 --at W1's tree --tsv reads cap_tests standing on tests detected, beside svc_owed, ordered by id
+1	2470 rf7 --at with W1's own tree id runs the detector: the header names W1's HEAD, that tree and its recorded stamp, and says detector run on this checkout
+1	2470 rf7 felix situations in W1, after felix probes in W1 then W2, reads W2's tree, the newest, and its header names that tree and ends detector not run: this checkout is not at this tree
+1	2470 rf7 its --tsv reads cap_tests, which only the detector decides, could-not-look at W2's tree, the residual naming the detector as its why
+1	2470 rf8 felix situations leaves the live index's bytes and mtime as they were, though git status run afterwards moves that mtime
+1	2470 rf8 with a tracked file made stat-dirty after felix probes recorded the tree, felix situations exits 0, and its header names that tree and ends detector run on this checkout
+1	2470 rf9 --at with a sort first on PATH that fails when it reads a line beginning owed: exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty
+1	2470 rf9 --change with that sort first on PATH exits 3 the same way: stdout empty, one stderr line, the report could not be built, and TMPDIR empty
+1	2470 rf9 with a mktemp first on PATH that makes live-index, mode 400, in the run's scratch directory, --at exits 3, stdout empty, one stderr line, felix situations: the report could not be built: <step> failed, and TMPDIR empty
+1	2470 rf9 with obligations.tsv made unreadable, --at --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty
+1	2470 rf9 with obligations.tsv made unreadable, --change --propose exits 3, stdout empty, the project's obligations.tsv sentence alone on stderr, and TMPDIR empty
+1	2470 rf9 with probes.tsv made unreadable, --at exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty
+1	2470 rf9 with probes.tsv made unreadable, --change exits 3, stdout empty, the project's probes.tsv sentence alone on stderr, and TMPDIR empty
 1	A1 (B1): a reviewer's SDK session filed after the person's question leaves ask9 its person's session as owner, question, not blocked, and the question it ended on
 1	A1 (B1): a self-governed felix merge whose felix is not the installed entry runs main's felix from a copy under TMPDIR, in the same directory, with its own arguments and FELIX_MERGE_HANDED=1; the status and output are the copy's, and gh is not called
 1	A1 (B1, B2): an unverified refusal (exit 3, one blocker line of kind unverified) writes one refused row for 50 whose detail says it is tried again when a new gate or commission receipt is written
@@ -390,10 +833,10 @@
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/remotes/origin/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone) (fixture control): each decoy names the decoy commit
 1	A2 (no refs/remotes/origin/jr-gone, decoys: refs/tags/origin/jr-gone): felix_base_ref given origin/jr-gone prints nothing and exits non-zero
-1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
-1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither nothing is unproven nor Eligible for auto-merge
+1	A2 classify (FIFO): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (dangling link): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
+1	A2 classify (link to a directory): on a green change says 1 evidence row(s) not judged and Not auto-merge eligible, and prints neither no evidence is owed nor Eligible for auto-merge
 1	A2 fixture: s-b names spawn_task nowhere, and its proposal record holds task nowhere (fixture control)
 1	A2, A4: the tick fetched, and pulled the home
 1	A2.10: a record it cannot write still prints the block, exits 0 and says nothing on stderr
@@ -539,6 +982,7 @@
 1	A25 (B11, control): a missing records root reads unknown in all four with the detail no session records
 1	A25 (B17): a checkout with no marker whose origin holds another project's remote_match is refused: exit 1, already governed by rx, naming remote_match, and nothing written
 1	A25 (R2, B7): a detail holding a token, $HOME/ and an @ reaches no gh argument and no body; BODY's one @ is line 1's; field 8 keeps the detail with ~/
+1	A25 (slice 2 review, not blind): a refusal whose one blocker is base provider (no answer from the provider) is hourly: its row says (tried again an hour after this row), a tick inside the hour does not run felix merge again, and once the row is an hour old one does
 1	A25, A28: and the lock is released
 1	A25, A28: with _GT_WDSECS=2 the watchdog ends the held tick: one timeout row, after 2 seconds and well inside 12
 1	A25: a tick that finds the lock held by a live process still writes the heartbeat first
@@ -546,6 +990,7 @@
 1	A25: the tick's pid has TERM before its descendants do: gh, ended by TERM with status 0, leaves the tick asking gh nothing more and writing no row but timeout
 1	A25: the watchdog never signals its own process group: a process in the tick's group that does not descend from it gets no TERM
 1	A25: the watchdog's own pid is not signalled ahead of gh: it lives to send gh its TERM
+1	A26 (B1, B3): a refusal with a base blocker naming a commit, the provider's base being another is final: with both receipts rewritten and its row a year old, the next tick does not run felix merge, M50 stays 1
 1	A26 (B10): a stale token for an inactive github.com account does not stop the tick: 42 lands, no gh row
 1	A26 (B11, control): one record directory at mode 000 under a readable root leaves the cover row read, and that worktree owner unknown, saying which directory
 1	A26 (B18): a marker naming no project (ghost with no projects/ghost, empty, ../bad) does not stop felix new; it binds and says in one replaced line what the marker held
@@ -1679,13 +2124,14 @@
 1	B9.41 control: under the stub felix inventory --tsv and felix land --prs --tsv over A exit and print as they do with the real awk, so order= is the page's own call
 1	B9.41 control: with the real awk --repo A --repo B and --repo B alone exit 0, as text and as --tsv, and the TSV over both holds 34 summaries
 1	B9.41 control: with the real awk the page over A exits 0, as text beginning with B6's first line and as --tsv holding its 17 summaries
+1	B9.41 fixture: the comparison ignores the ages two pages print and nothing else: pages that differ only in an age are the same, another commit or another word is a difference, and no reference output is no verdict (fixture control)
 1	B9.41 fixture: the stub exits 2 on an argument beginning order= and runs the real awk otherwise, the first-call stub fails only its first such call, and the late stub prints what the real awk prints and exits 2 (fixture control)
 1	B9.41: a stderr line names A and holds awk exited 2
 1	B9.41: and --tsv writes a stderr line holding the directory as given and awk exited 2
 1	B9.41: and a stderr line holds the directory as given and awk exited 2
 1	B9.41: and its stdout is the first line alone
-1	B9.41: and stdout is exactly what felix monitor --repo B prints with the real awk
-1	B9.41: and the TSV is exactly what felix monitor --tsv --repo B prints with the real awk
+1	B9.41: and stdout is what felix monitor --repo B prints with the real awk, the ages each prints aside
+1	B9.41: and the TSV is what felix monitor --tsv --repo B prints with the real awk, the ages each prints aside
 1	B9.41: no stderr line names B
 1	B9.41: under --tsv a stderr line names A and holds awk exited 2
 1	B9.41: under --tsv no stderr line names B
@@ -1726,7 +2172,7 @@
 1	C1 (filter-info), an entry whose harness/lib/x.sh differs from M's blob (the bytes the home would write): exits 1 and names harness/lib/x.sh
 1	C1 (filter-info): a faithful entry is accepted: the entry exits 0 and prints itself
 1	C1 (fixture control): every conversion is off again, and the faithful entry is accepted
-1	C1 classify (nothing at the path, control): on a green change says nothing is unproven
+1	C1 classify (nothing at the path, control): on a green change says no evidence is owed
 1	C1 evidence (nothing at the path, control): says the project declares no evidence.tsv
 1	C1 incident (nothing at the path, control): given a trace that names src/thing.js, prints its implicated file src/thing.js and not the heading the fix will have to prove, where C5 prints it over the same trace
 1	C1 merge --dry-run (nothing at the path, control): lists no evidence line, where C2 and C5 list one over the same base
@@ -1742,7 +2188,7 @@
 1	C2: an entry whose plugin.json gained a hooks field: exits 1 and names .claude-plugin/plugin.json
 1	C2: an entry with an extra file beside plugin.json: exits 1 and names .claude-plugin/extra.json
 1	C3 (control): an entry with M's modes everywhere: the entry exits 0 and prints itself
-1	C3 classify (the same table, a change the rule does not reach, control): on a green change says nothing is unproven, and not not judged
+1	C3 classify (the same table, a change the rule does not reach, control): on a green change says no evidence is owed, and not not judged
 1	C3 evidence (the same table, a change the rule does not reach, control): says No evidence gaps, with no [!] row and not not judged
 1	C3 merge --dry-run (the same table, a change the rule does not reach, control): lists no evidence line, where C2 lists the gap over the same table
 1	C3 receipt (the same table, a change the rule does not reach, control): lists no gap, and evidence not under unknown
@@ -2432,6 +2878,278 @@
 1	L5: with no answer rows felix ledger prints no answers section, its capability table there (fixture control)
 1	L5: with no ask timed out the late and left-out clauses stand alone, in that order, and nothing of the sessions left out counts but themselves
 1	Needs authentication is checked before Connected
+1	P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half) was built
+1	P1 (fixture control): every resolver layout of P2 and this part's own (alphabet, unread, noorigin, half), the second checkouts and the two engine lib copies were built
+1	P1 (fixture control): every table layout of P2 and this part's own (finalnl, encoding) was built
+1	P10: res-slug, F2 at the slug read (137), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F3 at the slug read (its substitution could not fork: nothing, status 0), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F3 at tr inside it (the fork of its own pipe fails in its subshell), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P10: res-slug, F5 at the slug read (exit 0, nothing printed, for a github.com URL), felix_remote_github_slug wrapped as a whole: resolve unknown, never none, never gamma
+1	P11: res-slug with lib/own.sh removed from the engine copy, no fault: resolve exits 1 with nothing printed (main's documented fallback: the owner/repo rule falls to its case-sensitive suffix)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f2 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f3 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f3z at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git with f5 at its read of felix_remote_github_slug: status 2 and _FELIX_RS empty (did not finish)
+1	P12: _felix_remote_slug git@github.com:Acme/Web.git: status 0 and _FELIX_RS acme/web
+1	P12: _felix_remote_slug https://example.org/a/b: status 0 and _FELIX_RS empty (not GitHub)
+1	P13: _felix_resolve_remote on res-none's root: status 1 (none)
+1	P13: _felix_resolve_remote on res-remote's root, F2 at every remote_match read (R6): status 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-remote's root, F2 at its origin read (R5): status 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-remote's root: status 0 and _FELIX_RB_P beta, _FELIX_RB_TIE empty
+1	P13: _felix_resolve_remote on res-tie's root: status 2 (a tie)
+1	P14: a directory in no repository, f2 at git rev-parse --show-toplevel (R2) alone, the walk having found no .git: resolve unknown or the clean answer (none), never a project
+1	P14: a directory in no repository, f3 at git rev-parse --show-toplevel (R2) alone, the walk having found no .git: resolve unknown or the clean answer (none), never a project
+1	P14: marker, f2 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: marker, f2 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: marker, f3 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: marker, f3 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: remote, f2 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: remote, f2 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P14: remote, f3 at the walk's pwd -P (R1) alone, git left to find the root: resolve unknown or the clean answer, never another project, never none
+1	P14: remote, f3 at the walk's pwd -P (R1) and at git rev-parse --show-toplevel (R2) together: resolve unknown, never another project, never none
+1	P15: felix_repo_root from a directory in no repository, no fault: prints START, status 0
+1	P15: felix_repo_root from co/res/sub/dir, F3 at R1 and R2: prints exactly START (main's bytes) and returns 2
+1	P15: felix_repo_root from co/res/sub/dir, no fault: prints the checkout root, status 0
+1	P16 (control): START res-none's sub/dir, run from a checkout whose origin beta's remote_match names, no fault: none (START's origin decides, not the cwd's)
+1	P16: START res-none's sub/dir, run from a checkout whose origin beta names, f2 at the outer substitution of felix_repo_root inside felix_resolve_project: unknown, never the cwd's project (beta)
+1	P16: START res-none's sub/dir, run from a checkout whose origin beta names, f3z at the outer substitution of felix_repo_root inside felix_resolve_project: unknown, never the cwd's project (beta)
+1	P17 (control): felix which on res-badmarker, no fault: the broken sentence, which lists the known projects
+1	P17 (fixture control): the layouts of this part were built (res-badmarker, res-none, res-tie, base, and two res-remote copies for the bindings record)
+1	P17, P46: felix which on res-badmarker (a broken marker), f2 at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist
+1	P17, P46: felix which on res-badmarker (a broken marker), f3 at the ls of the projects directory: unknown, or the clean broken sentence byte for byte; never known projects: none while projects exist
+1	P18 (control): felix which on res-none, no fault: no project governs, with Known projects: alpha beta gamma
+1	P18, P46: felix which on res-none, f2 at the ls behind Known projects: unknown, or main's no-project sentence byte for byte
+1	P18, P46: felix which on res-none, f3 at the ls behind Known projects: unknown, or main's no-project sentence byte for byte
+1	P19 (control): felix which on res-tie, no fault: the tie sentence naming alpha, beta
+1	P19, P46: felix which on res-tie, F3 at the tr -cd [:print:] that cleans the names (_felix_binding_sane): unknown, or the clean tie sentence byte for byte; a cleaner made fork-free (R12) leaves the probe unfired and must leave the clean tie sentence
+1	P1: felix which from res layout badmarker's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's broken class
+1	P1: felix which from res layout marker's co/res/sub/dir, no fault, gives P2's example: the five lines for alpha, exit 0
+1	P1: felix which from res layout nest's co/res/sub/dir, no fault, gives P2's example: the five lines for beta, exit 0
+1	P1: felix which from res layout none's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's none class
+1	P1: felix which from res layout remote's co/res/sub/dir, no fault, gives P2's example: the five lines for beta, exit 0
+1	P1: felix which from res layout slug's co/res/sub/dir, no fault, gives P2's example: the five lines for alpha, exit 0
+1	P1: felix which from res layout tie's co/res/sub/dir, no fault, gives P2's example: exit 2, nothing on stdout, stderr of P2's broken class
+1	P1: felix_remote_github_slug on base's origin https://git.example.org/acme/web.git gives P2's example: nothing, exit 1
+1	P1: felix_remote_github_slug on res-slug's origin git@github.com:Acme/Web.git gives P2's example: acme/web and a LF, exit 0
+1	P1: felix_resolve_project from res layout badmarker's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout marker's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout nest's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout none's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout remote's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout slug's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_resolve_project from res layout tie's co/res/sub/dir, no fault, gives P2's example (found prints the project directory with no LF and exits 0; none prints nothing and exits 1)
+1	P1: felix_table_check on P2's tab-accepted layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-cells layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-empty-allowed layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-empty-refused layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-missing layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-noschema layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-nul layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-shapes layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P1: felix_table_check on P2's tab-symlink layout (base is accepted), no fault: P2's example, byte for byte, and its status (for tab-nul, under gawk, an encoding line for line 2 first: R10)
+1	P20 (control): a checkout once bound to beta by remote (its bindings.tsv row written), beta's project.json moved to project.json.bak, no fault: felix which says it no longer resolves (main's), exit 2
+1	P20: the same checkout, f2 at the git hash-object that keys the bindings record: unknown, never no project governs
+1	P20: the same checkout, f3 at the git hash-object that keys the bindings record: unknown, never no project governs
+1	P21 (control): the same layout with FELIX_MEMORY unset (the record in ~/.felix/memory), no fault: felix which says it no longer resolves, exit 2
+1	P21: FELIX_MEMORY unset, F3 at the memory-root read (the substitution around felix_mem_root inside _felix_binding_remote): unknown or the clean sentence, never no project governs (a probe that never acts, the read made fork-free, must leave the clean run)
+1	P22 (control): FELIX_HOME unset, ~/.felix-home naming the real home, base, no fault: felix_binding_broken prints nothing and returns 0 (not broken)
+1	P22: FELIX_HOME unset, ~/.felix-home naming the real home, f2 at the cat of it: felix_binding_broken prints nothing and returns 2, never "is empty, so it names no home"
+1	P22: FELIX_HOME unset, ~/.felix-home naming the real home, f3 at the cat of it: felix_binding_broken prints nothing and returns 2, never "is empty, so it names no home"
+1	P23: felix land --status on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P23: felix land --tick on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence (and unresolved rows 1)
+1	P23: felix merge on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence (and says.log merged rows 0 HEAD kept)
+1	P23: felix repair on base, F3 at the marker's tr: exit 4, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P23: felix which on base, F3 at the marker's tr: exit 2, nothing on stdout, stderr the could-not-be-resolved sentence
+1	P24: felix which on base, F1 at the sed that reads the gate key (called by cmd_which): unknown, nothing on stdout (never an empty gate:)
+1	P24: felix which on base, F3 at felix_repo_root for the governs line (the walk's pwd -P and git rev-parse, called by cmd_which): unknown, nothing on stdout (never four lines, never an empty or wrong governs:)
+1	P25 (control): felix_hook_dir run from base's checkout, the payload's cwd another checkout of alpha, no fault: prints the payload's cwd, status 0 (the hook moves there)
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3 at the launch directory's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3 at the payload cwd's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3z at the launch directory's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P25: felix_hook_dir, the payload's cwd another checkout of the same project, f3z at the payload cwd's resolve: prints $PWD (stays where the platform started the hook), status 0
+1	P26: felix_repo_root with felix_capture unloadable, from co/res/sub/dir: still prints main's bytes (the checkout root) and returns 2
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout badmarker, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout marker, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout nest, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout none, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout remote, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout slug, no fault: unknown, never found, never 1
+1	P26: resolve.sh sourced in a fresh shell from a directory holding no detect.sh (felix_capture unloadable), res layout tie, no fault: unknown, never found, never 1
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout badmarker, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout marker, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout nest, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout none, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout remote, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout slug, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P27: lib/resolve.sh sourced alone in a fresh /bin/bash, res layout tie, no fault: the example, and afterwards declare -F felix_capture succeeds (resolve.sh loaded detect.sh itself)
+1	P28: tab-accepted (base is accepted), f1 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f2 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f3 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-accepted (base is accepted), f5 at the main awk pass: unknown, never 0, never 1
+1	P28: tab-cells (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-cells (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-empty-refused (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-nul (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f1 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f2 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f3 at the main awk pass: unknown, never 0 (R2-F4)
+1	P28: tab-shapes (base is accepted), f5 at the main awk pass: unknown, never 0 (R2-F4)
+1	P29: table base, F5 at the schema lookup's awk: exit 2, with either line (no-schema or the unknown line)
+1	P29: table base, f1 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P29: table base, f2 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P29: table base, f3 at the schema lookup's awk (every awk felix_table_schema runs): unknown, never 1 (R2-F9)
+1	P2: base (marker alpha, beta's remote_match also names the origin), f1 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f2 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f3 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: base (marker alpha, beta's remote_match also names the origin), f4 at the marker's tr -d [:space:] inside felix_resolve_project: unknown (exit 2, nothing printed), never alpha, a prefix of it, beta or none
+1	P2: felix which on base, f1 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f2 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f3 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P2: felix which on base, f4 at the marker's tr -d [:space:]: unknown (exit 2, nothing on stdout, the could-not-be-resolved sentence), never alpha's prefix, beta, no project governs or a broken sentence
+1	P3 (control): felix which, the marker names alphabet, no fault: found alphabet
+1	P3 (control): the alphabet layout, no fault: .../projects/alphabet, exit 0
+1	P30: table base, run with pipefail off (as bin/schema-check), f1 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f1 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f2 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f2 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f3 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f3 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f5 at the arity's awk (if called): unknown, never 1; not called, the clean run
+1	P30: table base, run with pipefail off (as bin/schema-check), f5 at the arity's cut (if called): unknown, never 1; not called, the clean run
+1	P31: tab-empty-refused, f1 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P31: tab-empty-refused, f3 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P31: tab-empty-refused, f5 at the read of the schema's empty cell (cut -f4, if called): never 0; not called, the clean run
+1	P32: table base, F3 at the substitution that makes hi (printf [\200-\377], if one exists): never 1; none, the clean run
+1	P33: tab-empty-refused, F3 at the substitution of the empty refusal line (if any): never 0
+1	P33: tab-nul, F3 at the substitution of the nul-byte refusal line (if any): never 0, and a refusal still holds the nul-byte line (T9; under gawk the encoding line alone keeps it refused, R10)
+1	P33: table base, f1 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f1 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f2 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f3 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at od (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at tail (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at tr (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: table base, f5 at wc (the last byte and the NUL count; if called): unknown, never 1; not called, the clean run
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at od (if called): never 0
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at tail (if called): never 0
+1	P33: the shapes table less every per-line shape (only no-final-newline), F3 at the substitution of its refusal line (if any): never 0
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-accepted: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-cells: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-empty-refused: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-nul: felix_table_check is 2, the unknown line
+1	P34: FELIX_TABLE_UTF8= set after sourcing table.sh, tab-shapes: felix_table_check is 2, the unknown line
+1	P34: table.sh sourced with F3 at its load-time substitution (the UTF-8 pattern, if one exists), then a good row and a line holding the byte 377: never 0
+1	P35: in each run P28-P34 call unknown (a probe that acted, or the empty pattern), the unknown line is the only line on stdout: no refusal line printed before the read failed
+1	P36 (control): a tree with schemas.tsv and one good table t.tsv, no fault: bin/schema-check exits 0
+1	P36: the same tree, F1 at felix_table_check's main pass: bin/schema-check exits non-zero with an unexaminable line for t.tsv (schema-check unchanged; this pins the caller)
+1	P37: lib/table.sh holds at least 23 lines a literal \t<reason>\t matches (risk row 47's confine, counted as _felix_escape_fewer counts it; 23 at 1fca9559)
+1	P38: over the 37 runs of this part (seven res layouts clean, and the faults of P2-P9 on base, res-remote, res-nest, res-tie and res-none, with alphabet, the unreadable marker and no origin), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0
+1	P38: over the 5 runs of P17-P19 (res-badmarker, res-none and res-tie under their faults), felix which is unknown exactly where felix lane says could not be resolved, and found with P only where felix_resolve_project prints .../projects/P with 0
+1	P39: base, felix status --tsv, f1 at the marker's tr only inside felix_resolve_project as felix_status_rows calls it: reach, gate, land and hooks are unknown with the could-not-be-resolved sentence (never none), and the other six rows equal the clean run
+1	P39: base, felix status --tsv, f3 at the marker's tr only inside felix_resolve_project as felix_status_rows calls it: reach, gate, land and hooks are unknown with the could-not-be-resolved sentence (never none), and the other six rows equal the clean run
+1	P3: felix which, the marker names alphabet beside alpha, the marker's tr prints alpha (its first five bytes) then exits 1: unknown, never alpha
+1	P3: the marker names alphabet, projects alpha and alphabet exist, the marker's tr prints its first five bytes (alpha) then exits 1: unknown, never .../projects/alpha
+1	P40 (fixture control): every P2 resolver layout and a home that is its own checkout (project hp) were built
+1	P40: felix status --tsv from res layout badmarker's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout marker's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout nest's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout none's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout remote's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout slug's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P40: felix status --tsv from res layout tie's co/res/sub/dir, no fault: exit 0 and the ten rows byte-identical to main's
+1	P41: res-remote, felix status --tsv, F2 at git remote get-url only inside felix_resolve_project as felix_status_rows calls it: as P39
+1	P42 (control): felix status --tsv in a home that is its own checkout (project hp), no fault: the alerts row is none, no alert has been tried for hp
+1	P42: felix status --tsv in that home, f1 at the marker's tr only inside the home's resolution of _felix_status_alerts: alerts is unknown with the could-not-be-resolved detail for the home, never resolves no project
+1	P42: felix status --tsv in that home, f3 at the marker's tr only inside the home's resolution of _felix_status_alerts: alerts is unknown with the could-not-be-resolved detail for the home, never resolves no project
+1	P43: base, felix status --tsv, f2 at felix_repo_root's reads (the walk's pwd -P, then git rev-parse) only as felix_status_rows calls it, the project resolving through its own call: gate and hooks are unknown with the checkout-root detail, and the probe acted
+1	P43: base, felix status --tsv, f3 at felix_repo_root's reads (the walk's pwd -P, then git rev-parse) only as felix_status_rows calls it, the project resolving through its own call: gate and hooks are unknown with the checkout-root detail, and the probe acted
+1	P44: lib/status.sh has at most 499 lines (part 1100 holds it under 500, and its limit is not raised)
+1	P45: the merge judge's call with the entry drift: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P45: the merge judge's call with the entry identical: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P45: the merge judge's call with the entry nocache: felix_accepted_deploy_diff sourced from a directory holding only resolve.sh gives main's answer (the contract's: identical 0 and the entry, drift 1 naming the path, no cache 2), the same as with every library beside it, and never cannot tell where the full engine tells
+1	P47 (control): felix which on res-half, no fault: found beta (the origin's whole path)
+1	P47 (control): res-half (alpha's remote_match git.example.org/acme, beta's the origin's whole path), no fault: .../projects/beta, exit 0
+1	P47: _felix_resolve_remote on res-half's root, the origin read prints half the URL then exits 128: status 1 (no origin, as main) or 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P47: _felix_resolve_remote on res-half's root, the origin read prints half the URL then exits 2: status 1 (no origin, as main) or 3, _FELIX_RB_P and _FELIX_RB_TIE empty
+1	P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 128: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)
+1	P47: felix which on res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 2: no project governs (main's) or unknown, exit 2, never the five lines (never alpha)
+1	P47: res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 128: resolve none (main's) or unknown, never 0 with a project (never alpha)
+1	P47: res-half, git remote get-url origin prints the first half of the URL (https://git.example.org/acme) then exits 2: resolve none (main's) or unknown, never 0 with a project (never alpha)
+1	P48 (control): the Stop hook with the whole engine, a dirty checkout bound by its marker and never verified: it holds
+1	P48: the same Stop with lib/detect.sh removed from the engine (felix_capture unloadable, resolve says 2): it still holds, as main, never exit 0 with nothing said
+1	P49 (control): a flagged Stop of a session that holds a night of its own, the whole engine: it holds and charges the night (a refused row in its log)
+1	P49 (control): a flagged Stop with no hold of Felix's on record (another hook's chain), the whole engine: it holds
+1	P49 (guard): with lib/detect.sh removed, an unflagged Stop that holds, then the flagged Stop of the same session (Felix's own chain, no night): the first holds, the second is not held again
+1	P49: the flagged Stop of a session that holds a night of its own, with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said
+1	P49: the same flagged Stop (another hook's chain, no hold on record) with lib/detect.sh removed from the engine: it still holds, as main, never exit 0 with nothing said
+1	P4: base with the marker mode 000 (not root): resolve exits 1 with nothing printed (an unreadable marker names nothing, as main and the lane)
+1	P4: felix which on base with the marker mode 000 (not root), no fault: exit 2, nothing on stdout, a broken-binding sentence for the marker (main's), never no project governs and never unknown
+1	P50 (control): PreToolUse with the whole engine, npm publish from the checkout p binds, a deny row for it: refused
+1	P50: the same PreToolUse with lib/detect.sh removed from the engine: refused as main, or recorded as not judged (a hook-faults.log row naming lib/detect.sh), never allowed with nothing recorded
+1	P5: felix which on res-remote, f1 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f127 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f2 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f3 at git remote get-url origin: unknown, never no project governs
+1	P5: felix which on res-remote, f5 at git remote get-url origin: unknown, never no project governs
+1	P5: res-remote, f1 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f127 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f2 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f3 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P5: res-remote, f5 at git remote get-url origin: unknown, never none (that read did not finish)
+1	P6: felix which in a checkout with no origin remote (res-remote's projects), no fault: no project governs (main's sentence class), exit 2
+1	P6: felix which outside any repository, no fault: no project governs (main's sentence class), exit 2
+1	P6: outside any repository (a plain directory), no fault: resolve exits 1, nothing printed (git's not a repository is a finished answer)
+1	P6: res-remote's projects with no origin remote in the checkout, no fault: resolve exits 1, nothing printed (git's no such remote is a finished answer)
+1	P7: felix which on res-nest, f1 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f1 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f2 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f2 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f3 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f3 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: felix which on res-nest, f4 at the sed that reads alpha's project.json: unknown, never beta
+1	P7: felix which on res-nest, f4 at the sed that reads beta's project.json: unknown, never alpha
+1	P7: res-nest, f1 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f1 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f2 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f2 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f3 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f3 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P7: res-nest, f4 at the sed that reads alpha's project.json: unknown, never beta (the answer was not read whole)
+1	P7: res-nest, f4 at the sed that reads beta's project.json (the longest match): unknown, never alpha
+1	P8: felix which on res-tie, f1 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f1 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f2 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f2 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f3 at the sed that reads alpha's project.json: unknown, never the other project, never the tie sentence
+1	P8: felix which on res-tie, f3 at the sed that reads beta's project.json: unknown, never the other project, never the tie sentence
+1	P8: res-tie, f1 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f1 at the sed that reads beta's project.json: unknown, never the other project
+1	P8: res-tie, f2 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f2 at the sed that reads beta's project.json: unknown, never the other project
+1	P8: res-tie, f3 at the sed that reads alpha's project.json: unknown, never the other project
+1	P8: res-tie, f3 at the sed that reads beta's project.json: unknown, never the other project
+1	P9: felix which on res-none, f1 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: felix which on res-none, f2 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: felix which on res-none, f3 at the sed that reads every project.json's remote_match: unknown, never no project governs
+1	P9: res-none, f1 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
+1	P9: res-none, f2 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
+1	P9: res-none, f3 at the sed that reads every project.json's remote_match: unknown, never none (an unread remote_match could have named the origin)
 1	PreToolUse in a checkout nothing governs asks git for its remote once, as main does, when the payload's cwd is that checkout
 1	PreToolUse is bound for Bash
 1	PreToolUse is bound for Edit
@@ -4550,6 +5268,7 @@
 1	a plugin.json naming mcpServers declares a server
 1	a pointer to a home whose path holds a space resolves to it
 1	a pointer to a real home is left alone
+1	a policy blocker says no authorized policy judged the branch
 1	a policy version is one line
 1	a predicate that was being read and no longer is gets named
 1	a predicate whose instrument changed says so
@@ -4646,7 +5365,7 @@
 1	a prunable worktree elsewhere, not Felix's, stays listed
 1	a pulse that has run and never succeeded says never
 1	a pulse with nothing to do still answers
-1	a push nothing reads back is not called verified
+1	a push nothing reads back says so
 1	a push to refs/remotes/ is still refused
 1	a pushed branch with no pull request, its content not on main, leads with unproposed
 1	a pytest test id and a line number followed by a colon both name their file
@@ -4692,7 +5411,7 @@
 1	a receipt from an older claude cli whose counts are empty is unreadable, not announced
 1	a receipt from another environment says run another environment
 1	a receipt holding the stable id of a tree whose manifest changed is for another tree
-1	a receipt missing an input is indeterminate, never verified
+1	a receipt missing an input is indeterminate, never checked
 1	a receipt of eight fields is malformed
 1	a receipt of ten fields is malformed
 1	a receipt of two sound lines is malformed
@@ -7097,7 +7816,7 @@
 1	and neither subject nor body carries a ci skip marker though every commit does
 1	and neither the library nor the command ran a refused commissioning check
 1	and neither the library nor the command ran a refused evidence
-1	and never a verified receipt
+1	and never a checked receipt
 1	and never as a clock reading nobody wrote
 1	and never as an escape (E1)
 1	and never as an mcp row nothing could add
@@ -7147,6 +7866,7 @@
 1	and no run sent that held-down INT leaves a lock, or runs on
 1	and no scratch index is left in TMPDIR
 1	and no setup.tsv appears from asking for help
+1	and no success line calls a push nothing reads back read back, or verified
 1	and no temporary directory is left under the tmpdir it was given
 1	and no temporary file is left beside it
 1	and no temporary record is left
@@ -7372,7 +8092,7 @@
 1	and procedures still name it through the link
 1	and proposes nothing for it
 1	and prose counts single
-1	and pushed, and the push is verified
+1	and pushed, and the push is read back
 1	and pushes it to the branch the run repaired
 1	and putting the byte back puts the digest back
 1	and putting the rule back clears it
@@ -7462,6 +8182,7 @@
 1	and returns a text's own exit 4 as 4
 1	and returns once the record is complete
 1	and returns the read's status, 0 when read
+1	and rewrites a placed word to P's copy, leaving everything from a stop on as the table holds it
 1	and rm of the marker
 1	and rm of the marker on a later line of the command
 1	and rm of the marker on a tab-indented later line
@@ -8064,6 +8785,8 @@
 1	and the plan counts that row neither to install nor blocked, and offers no apply
 1	and the planted server was not started
 1	and the play this project already chose
+1	and the policy blocker is not called work Felix owes
+1	and the policy blocker names no commission run
 1	and the prefixed name is not a capability of its own
 1	and the probe is never run behind a when test nobody could answer
 1	and the probes marker blocker names no commission run
@@ -8092,7 +8815,7 @@
 1	and the receipt over it, every other row done, is indeterminate and not commissioned
 1	and the receipt over those rows, every other row done, is indeterminate and not commissioned
 1	and the receipt reads valid
-1	and the receipt refuses to call that verified
+1	and the receipt refuses to call that checked
 1	and the receipt written for that tree is still red
 1	and the receipt's risk tier
 1	and the record names the channel
@@ -8652,8 +9375,8 @@
 1	b07 A38-A40: with CLAUDE_CODE_REMOTE=false the stop holds, and its reason says neither This is a cloud session. nor nohup (control)
 1	b07 A3: and one says.log row of kind unjudged
 1	b07 A41: the cloud session's flagged stop after its hold prints nothing and writes no row (control)
-1	b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never verified, held once on this tree already
-1	b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never verified and ends with the VM
+1	b07 A42: its next unflagged stop on the unchanged tree appends one debt row: never checked, held once on this tree already
+1	b07 A43: and it exits 0 with one JSON object, no decision and no hookSpecificOutput, saying let go with the gate not passed on this tree, never checked and ends with the VM
 1	b07 A44: and says.log gains one row of kind debt
 1	b07 A45: a local session's same three stops hold, then say nothing, then add one debt row and print nothing (control)
 1	b07 A46: the suite's own shell has no CLAUDE_CODE_REMOTE by the time this part runs
@@ -9328,6 +10051,92 @@
 1	clean project reports no drift
 1	clearing the queue empties it
 1	closing nothing is not a failure
+1	cnv A1 (C1): felix help prints the line [    felix receipt          what changed, its risk, and whether anything checked it], and no line saying whether anything verified it
+1	cnv A10 (C6): the same session's next unflagged stop on that tree is a debt row whose reason is exactly [never checked; held once on this tree already (session cnv-sess)]
+1	cnv A11 (C6): a night's flagged stop on that checkout is held and charged, and the night log's refused row says gate never checked
+1	cnv A12 (C6): a cloud session's debt stop prints its message (no decision), writes the debt row with never checked, and the message carries (never checked), not (never verified)
+1	cnv A13 (C7): felix_hold_tree_seen HOME SID TID [never checked] CHECKOUT returns 0 when the record holds TID\tnever verified\tCHECKOUT
+1	cnv A14 (C7, control): it returns 0 for never checked over a never checked line, and every other reason only over its own exact line (never checked over another checkout 1, failed over never verified 1, failed over never checked 1, failed over failed 0, never verified over never checked 1)
+1	cnv A15 (C7): through the hook, a session whose record holds <tid>\tnever verified\t<checkout> stops again on that tree with no gate receipt: let go, one debt row, reason never checked
+1	cnv A16 (C7): through the hook, a session whose record holds <tid>\tnever checked\t<checkout> is let go the same way, with one debt row
+1	cnv A17 (C7, control): a record of that tree and checkout with the reason failed, or stale receipt, still holds, and so does a never verified record of another checkout
+1	cnv A18 (C8): felix receipt on a tree whose gate receipt is current and green, with no evidence gap, prints schema felix.receipt/2 and status checked
+1	cnv A19 (C8): felix receipt says unchecked where the gate receipt is for another tree (stale) and where there is none
+1	cnv A2 (C2): felix install whose first comparison finds the installed engine matching prints exactly one such line, [  checked    the installed engine matches this tree], and no verified line
+1	cnv A20 (C8): none of the three receipts holds verified or unverified as a word, in its status, its keys or its limits, and each holds its new status
+1	cnv A21 (C8, control): a receipt over a base that names nothing is still indeterminate, with what it could not read listed
+1	cnv A22 (C9): a push to a path that the remote reads back prints [backup\tpushed and read back: origin holds <12 hex>; origin is a path on this machine, ...], not pushed and verified, and stamps the push
+1	cnv A23 (C9): a push to a network remote that it reads back prints exactly [backup\tpushed and read back: origin holds <12 hex>], not pushed and verified, and stamps the push
+1	cnv A24 (C9): a push through a remote helper that it reads back prints [backup\tpushed and read back: origin holds <12 hex>; where origin is could not be read], not pushed and verified, and stamps the push
+1	cnv A25 (C9, control): a push the remote does not read back still prints backup\tpushed, but origin reads back ..., no read-back or verified line, and no stamp
+1	cnv A26 (C10): _fn_sentence deployed prints exactly [The engine on main was installed and passed its deploy checks.]
+1	cnv A27 (C10): _fn_sentence deployed-unverified prints exactly [A deploy of main stopped at a failed step or check, and landing is paused.]
+1	cnv A28 (C10, control): every other kind's sentence is unchanged: landed, deploy-owed and paused, and a kind with none is status 1
+1	cnv A29 (C11, round 3): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and neither the verified wording nor round 1's
+1	cnv A3 (C2): felix install that bumps to 0.49.10 and then finds the installed engine matching prints the checked line, label column eleven wide, and no verified line
+1	cnv A30 (C12): templates/unattended.yml commits with the subject [fix: unattended repair, checked by the gate], and nothing says verified by the gate
+1	cnv A31 (C12, control): the commit's body is unchanged
+1	cnv A32 (C13): templates/moments.tsv holds the row [pre-conclude\tbefore work is called done: what was checked, recorded, and handed over], and not the verified one
+1	cnv A33 (C14): templates/lifecycle.tsv holds the row [Stop\twired\trefuse completion on a tree the gate has not passed, then ask that the claims be checked], and not the unverified one
+1	cnv A34 (C15, round 3): felix_stop_debt with CLAUDE_CODE_REMOTE=true ends its third sentence [so nothing outside it says the gate has not passed on this work.], the rest unchanged, and says neither went unverified nor went unchecked
+1	cnv A35 (C15): the Stop hook's debt stop of a cloud session carries that message, its reason (never checked) in parentheses
+1	cnv A36 (C15, control): felix_stop_debt without CLAUDE_CODE_REMOTE=true prints nothing
+1	cnv A37 (C16, round 3): the SubagentStop hook on a checkout holding work no gate has passed says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unverified nor round 1's partial, or unchecked
+1	cnv A38 (C17): engine/commands/felix.md ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]
+1	cnv A39 (C18): the check over a fixture holding a printed line with Verified and a line with unproven fails and names those two lines
+1	cnv A4 (C2, control): felix install where the installed engine does not match and bumping is declined prints the warning and neither the checked nor the verified line
+1	cnv A40 (C18): the check over a fixture holding only # comments with the words and a line with each allowed name, each in a file that may hold it, passes
+1	cnv A41 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked line passes, then fails once tracked
+1	cnv A42 (C18): the check over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files when in a work tree) reads many files and names no line
+1	cnv A43 (C18, rounds 2 and 3, not blind): the old hold reason is allowed only as the pattern lib/verify.sh greps for, there and nowhere else
+1	cnv A44 (C7, round 3, not blind): never checked is not seen over a record line that only holds the expected line inside it (old reason, new reason, the checkout extended, the tree id extended)
+1	cnv A45 (C18, round 3, not blind): each allowed text outside the files that may hold it fails, all six of them, and the one inside its file passes
+1	cnv A46 (C18, round 3, not blind): proves fails, and prove, proving, verify and words that only hold the letters pass
+1	cnv A47 (C18, round 3, not blind): a Markdown heading is read, since a person reads it, and a shell # line is not
+1	cnv A48 (C18, round 3, not blind): a directory inside a work tree that git tracks nothing of is read whole, and its line is named
+1	cnv A5 (C3): harness/felix holds the moved-checkout lines [The checkout moved while this ran, so what was checked is not what] and [would be merged. Nothing was merged.], and not [so what was verified is not what]
+1	cnv A6 (C4): felix classify on a green tier that owes no evidence prints [Reversible, and no evidence is owed. Eligible for auto-merge once] and [every required check passes.], and not nothing is unproven
+1	cnv A7 (C5): felix classify on a green tier that owes evidence prints [Reversible, but <why>. Not auto-merge eligible: a green], [tier means no risky path was touched, not that the change was tested.] and [Run felix evidence.], and not proven
+1	cnv A8 (C6): the first hold on a checkout with no gate receipt writes a blocked row whose reason is never checked, and records exactly <tid>\tnever checked\t<checkout> in state/held-tree/<sid>
+1	cnv A9 (C6, control): that hold's text is unchanged: The gate has never run in this checkout. and do not describe this work as complete
+1	cnv3 A1 (C1): felix help's first line is [Felix. The engineering OS: it decides how work gets built, and runs the gate that checks it.], and no line of it ends and proves it.
+1	cnv3 A10 (C8, control): none of the eight receipts holds verified or unverified as a word, in its status, its keys or its limits
+1	cnv3 A11 (C11): lib/green-tick.sh gives the deploy-owed reason [the home checkout is not at origin/main, so main's engine has not been deployed from it and checked], and not round 1's [the engine it holds has not been deployed and checked]
+1	cnv3 A12 (C15): felix_stop_debt for the reason failed, in a cloud session, ends its third sentence [so nothing outside it says the gate has not passed on this work.], the reason (failed) in parentheses, and never says went unchecked
+1	cnv3 A13 (C15): felix_stop_debt for the reason never checked says the same third sentence, (never checked) in parentheses, and never says went unchecked
+1	cnv3 A14 (C15): felix_stop_debt for the reason epoch moved says the same third sentence, (epoch moved) in parentheses, and never says went unchecked
+1	cnv3 A15 (C15, control): felix_stop_debt for the reason failed outside a cloud session prints nothing
+1	cnv3 A16 (C15, control): a cloud session's first stop on a tree whose gate receipt for that exact tree is red is held, with a blocked row whose reason is failed
+1	cnv3 A17 (C15): that session's debt stop writes the debt row for failed and prints the message with (failed) and [so nothing outside it says the gate has not passed on this work.], not went unchecked
+1	cnv3 A18 (C16): the SubagentStop hook on a checkout whose tree the gate ran red on says [must say so plainly: partial, failing, or unchecked — not done, working, or passing.], and neither partial, or unchecked nor partial, or unverified
+1	cnv3 A19 (C16, control): on that red tree the hook speaks: status 0 and its unchanged first sentence
+1	cnv3 A2 (C1, control): felix help still prints round 1's receipt line and the obligation what a fix must prove
+1	cnv3 A20 (C16): the SubagentStop hook on a checkout no gate has run on says the same sentence, and not partial, or unchecked
+1	cnv3 A21 (C17): engine/commands/felix.md's step 2 begins [2. Work out what checks this project — the command that fails when] / [the code is wrong.], and nothing says Work out what would prove this project correct
+1	cnv3 A22 (C17, control): engine/commands/felix.md still ends [this is a tool whose entire value is that it refuses to report success it has] / [not checked.]
+1	cnv3 A23 (C18): the check with the round-3 ERE over the engine under test (the parent of REAL_HARNESS, harness/tests/ aside, tracked files in a work tree) reads many files and names no line
+1	cnv3 A24 (C18, control): the same check with round 1's ERE, without proves, still passes over the engine under test
+1	cnv3 A25 (C18): the check over a fixture holding a printed line with Proves, and lines with proves, unproven and Verified, fails and names those four lines
+1	cnv3 A26 (C18): the check over a fixture holding what a fix must prove, the fix will have to prove, nothing proving it, --verify and the other verify forms passes
+1	cnv3 A27 (C18): # comments with Proves, each allowed name, and never verified in harness/lib/verify.sh pass; never verified in another file fails
+1	cnv3 A28 (C18): inside a git work tree the check reads only tracked files and skips harness/tests/: an untracked proves line passes, then fails once tracked
+1	cnv3 A29 (C18, control): the engine's own lines holding what a fix must prove, the fix will have to prove and with nothing proving it are found, at least four, and pass the check
+1	cnv3 A3 (C8): a red gate receipt for this exact tree gives status failed, evidence_quality low, under schema felix.receipt/2
+1	cnv3 A30 (C20): a probe that exits non-zero while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe exited <rc>], for 1 and for 3
+1	cnv3 A31 (C20): a probe that exits 0 and enumerates nothing while its witness answers yes reads [blind\t0\tthe witness says this surface exists and the probe enumerated none of it]
+1	cnv3 A32 (C20, control): those three rows' state and count are still blind and 0, each one row of three fields
+1	cnv3 A33 (C20): felix probes over a project with those two blind rows prints both witness sentences and the note [blind means the witness says a surface exists that the probe cannot see, and] / [unknown means nothing decided either way.], and no line says proves
+1	cnv3 A34 (C20, control): felix probes over a project whose one probe finds its surface prints neither note, old or new
+1	cnv3 A35 (C21): the standing issue the notifier creates names a deploy that stopped at a failed step or check among its events, and not a deploy it could not verify
+1	cnv3 A36 (C21, control): its title, the call that creates it and the rest of its body are unchanged
+1	cnv3 A37 (C22): README.md's Subagent stop row ends [tells the parent that a subagent's report must call its own changes partial, failing or unchecked |], and no line says must call its own changes unverified
+1	cnv3 A38 (C23): docs/handoff/0cw.md, an archived section, still plans the evidence packet as felix.receipt/2, and a line of HANDOFF.md or of another tracked file in docs/handoff/ names the evidence packet felix.receipt/3
+1	cnv3 A4 (C8): a current green gate receipt for this exact tree with an evidence gap gives status evidence-owed, evidence_quality low
+1	cnv3 A5 (C8): a red gate receipt for this exact tree that also has an evidence gap gives status failed, not evidence-owed, evidence_quality low
+1	cnv3 A6 (C8, control): a current green gate receipt for this exact tree with no evidence gap still gives status checked, evidence_quality high
+1	cnv3 A7 (C8, control): status unchecked, evidence_quality low, where there is no gate receipt and where a green one for this exact tree rests on facts that have moved
+1	cnv3 A8 (C8, control): a red gate receipt for another tree (stale) gives status unchecked, not failed, evidence_quality low
+1	cnv3 A9 (C8, control): blocked and indeterminate keep their precedence over failed: an escaping change with a red receipt for its tree is blocked (high), and a base that names nothing is indeterminate (unknown)
 1	code with no test is a gap
 1	colour fixture: felix gate ran the project's gate.sh, which wrote the commit line and the grep match
 1	colour fixture: felix receipt names a tree fingerprint for the dirty tree
@@ -10162,6 +10971,103 @@
 1	felix cost leaves the status of the repository it is run from as it was, and reports
 1	felix cost never counts usage.iterations: nor when iterations is written before the top-level counts
 1	felix cost never counts usage.iterations: the top level alone is weighed (iterations after the counts)
+1	felix cost one reading (C1): --max-age 0 is taken: status 0 and the week's total
+1	felix cost one reading (C1): --max-age 604800 is taken: status 0 and the week's total
+1	felix cost one reading (C1): --max-age [ 5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [-1] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [1.5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [1e3] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [604801] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age [abc] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): --max-age with no value is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [-1] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [0] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [1 0] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [2.5] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [86401] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE [abc] is refused: status 2, nothing on stdout, a message and the usage
+1	felix cost one reading (C1): FELIX_COST_DEADLINE=1800 is taken: status 0 and the week's total
+1	felix cost one reading (C1): FELIX_COST_DEADLINE=86400 is taken: status 0 and the week's total
+1	felix cost one reading (C10): HOME empty: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): HOME unset: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): HOME/.cache a regular file: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): a cache directory that cannot be written: each call scans inline, the report as before, nothing written
+1	felix cost one reading (C10): no perl on PATH: each call scans inline, status 0, the report as before
+1	felix cost one reading (C10): no perl on PATH: nothing is made under HOME/.cache
+1	felix cost one reading (C11): writing a reading removes one not rewritten for 15 days and keeps one of 13 days
+1	felix cost one reading (C12): a --since window prints as before
+1	felix cost one reading (C12): a first scan prints the week as before, byte for byte, status 0
+1	felix cost one reading (C13): a scan of 300 transcripts runs grep twice and counts every one: 300000 over 300 calls
+1	felix cost one reading (C13): a scan of a root of two transcripts runs grep once
+1	felix cost one reading (C13): the freshness check of 300 transcripts runs no grep
+1	felix cost one reading (C2): --by, --top, --tsv, the cap and as_of are not in the key: still the lock and the one reading
+1	felix cost one reading (C2): a second window adds one reading: the lock and two
+1	felix cost one reading (C2): after one scan of one window the cache directory holds the lock and one reading
+1	felix cost one reading (C2): an engine whose lib/cost.sh has another checksum is another key: one more grep, one more reading
+1	felix cost one reading (C2): the readings are not kept under ~/.felix
+1	felix cost one reading (C2): the rescan rewrites its key's reading and adds none
+1	felix cost one reading (C2): the root named through a link is the same key: served with no grep, no reading added
+1	felix cost one reading (C3): --by model --top 1 served from the reading is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): a cap of 100M and --by day, served from the reading, is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): a current reading is served with as_of now (FELIX_COST_NOW three days on) and no grep
+1	felix cost one reading (C3): a new directory under the root makes the reading not current: one more grep, same numbers
+1	felix cost one reading (C3): a response appended to a transcript makes the reading not current: one more grep, the new total
+1	felix cost one reading (C3): a root holding a dangling link is not current, so under another's lock its reading is served last
+1	felix cost one reading (C3): a root holding a dangling link is scanned on every call: two calls, two greps, the same report
+1	felix cost one reading (C3): a transcript's mode changed (its ctime) makes the reading not current: one more grep
+1	felix cost one reading (C3): the first engine's reading is still served to it, no grep
+1	felix cost one reading (C3): the same call again prints the same bytes and runs no grep
+1	felix cost one reading (C3): the second window is served from its own reading, no grep
+1	felix cost one reading (C3): the text view served from the reading is what a fresh scan prints, with no grep
+1	felix cost one reading (C3): while another holds the lock a current reading is served as if just read, at once, no grep
+1	felix cost one reading (C3): with nothing changed since, the rescan's reading is served, no grep
+1	felix cost one reading (C4): each of the three ends with status 0
+1	felix cost one reading (C4): each prints the reading or C5's served none, and at least one the reading
+1	felix cost one reading (C4): once they ended, the lock is free
+1	felix cost one reading (C4): three callers at once make one scan between them: one grep, one reading
+1	felix cost one reading (C5): serving it left the reading as it was
+1	felix cost one reading (C5): under another's lock a kept reading not current is printed at once: its as_of, served last, no grep
+1	felix cost one reading (C5): under another's lock with no reading kept: status 0 at once, the rows of served none, no grep
+1	felix cost one reading (C5, text): past the served line, the text is the reading's
+1	felix cost one reading (C5, text): the line after window says the reading made at its as_of, and another run is reading now
+1	felix cost one reading (C5, text): with none kept the total line says another run is reading now and none is kept
+1	felix cost one reading (C5, text): with none kept, calls unknown follows the total line
+1	felix cost one reading (C5, text): with none kept, the window line is today's
+1	felix cost one reading (C6): --max-age 0 with a current reading goes on to C3: served as just read, as_of now, no grep
+1	felix cost one reading (C6): --max-age 3600 serves the kept reading unchecked: its numbers, its as_of, served aged, no grep
+1	felix cost one reading (C6): --max-age with no reading kept scans: the numbers, no served row, one grep
+1	felix cost one reading (C6): a reading older than --max-age goes on to C3: a rescan, the new numbers, no served row
+1	felix cost one reading (C6): under another's lock --max-age still serves the reading aged, at once
+1	felix cost one reading (C6, text): past the served line, the text is the reading's
+1	felix cost one reading (C6, text): the line after window says the reading made at its as_of, its age in seconds, and --max-age 3600
+1	felix cost one reading (C7): a caller waits for its own scan of 4 s, within the deadline, and prints its numbers
+1	felix cost one reading (C7): a grep that ignores TERM is gone within 10 s, killed
+1	felix cost one reading (C7): a scan cut at its deadline writes no reading and leaves no temporary file: only the lock
+1	felix cost one reading (C7): a scan past FELIX_COST_DEADLINE=2 with no reading kept: status 0 within 30 s, the rows of served none
+1	felix cost one reading (C7): a scan past its deadline with a reading kept: status 0 within 30 s, the reading's rows, served last
+1	felix cost one reading (C7): a scan that ignores TERM is killed 5 s after its deadline: status 0 within 40 s, served none
+1	felix cost one reading (C7): after a deadline the lock is free
+1	felix cost one reading (C7): every grep of a scan cut at its deadline, and its sleep, is gone within 10 s
+1	felix cost one reading (C7): the scan's grep runs in a process group other than its caller's
+1	felix cost one reading (C7): when the scan ends, what it left in its group (a sleep) is killed within 10 s
+1	felix cost one reading (C7): with a reading kept, a scan cut at its deadline leaves the lock and that reading, unchanged
+1	felix cost one reading (C7, text): past the served line, the text is the kept reading's
+1	felix cost one reading (C7, text): the line after window says the reading made at its as_of, and the new one did not finish within 2 s
+1	felix cost one reading (C7, text): with none kept the total line says the reading did not finish within 2 s
+1	felix cost one reading (C8): INT to felix's process group, as a Ctrl-C sends it, ends felix within 10 s
+1	felix cost one reading (C8): TERM to felix alone mid-scan closes its stdout pipe within 8 s: nothing else holds it
+1	felix cost one reading (C8): TERM to the supervisor kills the scan's group: its grep and sleep are gone within 15 s
+1	felix cost one reading (C8): TERM to the supervisor lets its caller end within 20 s, its scan of 40 s cut
+1	felix cost one reading (C8): TERM to the supervisor releases the lock
+1	felix cost one reading (C8): after INT, QUIT and HUP to felix's group the scan goes on and writes the reading
+1	felix cost one reading (C8): after TERM to its caller the scan goes on and writes the reading
+1	felix cost one reading (C8): after the orphaned scan the lock is free and its greps are gone
+1	felix cost one reading (C8): the reading the orphaned scan wrote is served: its numbers, no further grep
+1	felix cost one reading (C8): the reading written after the Ctrl-C is served: its numbers, no further grep
+1	felix cost one reading (C9): a reading that does not parse is absent: a rescan prints the numbers
+1	felix cost one reading (C9): a reading that does not parse is absent: under another's lock the rows of served none
+1	felix cost one reading (C9): a reading whose first line names another key is absent: a rescan prints its window's numbers
+1	felix cost one reading (C9): a reading whose first line names another key is absent: under another's lock served none
 1	felix cost prints a cap past 2^31 whole: FELIX_COST_CAP_M=4000 is 4000000000 tokens
 1	felix cost prints a weight that has two decimals exactly: tokens are printed to the hundredth
 1	felix cost prunes by the window start in UTC under another zone: the file modified at the start is read, the one a minute before is not
@@ -10184,7 +11090,7 @@
 1	felix cost reads every *.jsonl at any depth under <E>/<sid>/subagents/: direct, in a workflow run, and deeper still: 15000 over four calls
 1	felix cost reads exactly four files there
 1	felix cost reads lines ending \r\n as whole records: 33000 over five calls from a CRLF file and a mixed file
-1	felix cost reports, and creates and changes nothing: not under the records root, nor in its working directory, HOME or TMPDIR
+1	felix cost reports, and creates and changes nothing outside its readings: not under the records root, nor in its working directory, HOME or TMPDIR
 1	felix cost runs from inside a git repository the same as from outside one: the same report, with its total
 1	felix cost skips a CRLF line that lost its last brace
 1	felix cost skips a cut-off last line with no newline
@@ -13579,7 +14485,7 @@
 1	the Stop hook holds both of two unflagged stops in a row for the session id [ho/slash]
 1	the Stop hook holds both of two unflagged stops in a row that carry no session id at all
 1	the Stop hook holds that tree only once for "epoch moved" after "failed": the next stop is debt
-1	the Stop hook holds that tree only once for "failed" after "never verified": the next stop is debt
+1	the Stop hook holds that tree only once for "failed" after "never checked": the next stop is debt
 1	the Stop hook holds that tree only once for "failed" after "stale receipt": the next stop is debt
 1	the Stop hook holds the changed tree only once: the next unflagged stop on it is debt
 1	the Stop hook holds the first stop in a home that is the checkout it governs, and names the tree as it stood
@@ -13587,10 +14493,10 @@
 1	the Stop hook holds the first stop of a session that will see three trees
 1	the Stop hook holds the first stop of the session the override and the green gate will later let through
 1	the Stop hook holds the first stop on a tree as "failed" (control)
-1	the Stop hook holds the first stop on a tree as "never verified" (control)
+1	the Stop hook holds the first stop on a tree as "never checked" (control)
 1	the Stop hook holds the first stop on a tree as "stale receipt" (control)
 1	the Stop hook holds the first stop once when the gate failed on this tree, and the blocked row says failed
-1	the Stop hook holds the first stop once when the gate never ran, and the blocked row says never verified
+1	the Stop hook holds the first stop once when the gate never ran, and the blocked row says never checked
 1	the Stop hook holds the first stop once when the gate passed on this tree and the epoch moved, and the blocked row says epoch moved
 1	the Stop hook holds the first stop once when the receipt is for a different tree, and the blocked row says stale receipt
 1	the Stop hook holds the flagged stop of a session whose night began after its record was made (control)
@@ -13600,7 +14506,7 @@
 1	the Stop hook holds the same session again at the next unflagged stop once the tree has changed
 1	the Stop hook holds the same session again in a second checkout with the same tree id and the same reason, and records that hold
 1	the Stop hook holds the same session on the same tree again when the reason has become "epoch moved" after "failed", and records that hold
-1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never verified", and records that hold
+1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "never checked", and records that hold
 1	the Stop hook holds the same session on the same tree again when the reason has become "failed" after "stale receipt", and records that hold
 1	the Stop hook holds the second session only once on that tree
 1	the Stop hook holds the session in the first of two checkouts that share a tree id, and records the hold
@@ -13631,7 +14537,7 @@
 1	the Stop hook prints nothing to stdout for a stop it does not hold
 1	the Stop hook records both checkouts, each on a line of its own
 1	the Stop hook records both holds, "failed" and then "epoch moved", on lines of their own
-1	the Stop hook records both holds, "never verified" and then "failed", on lines of their own
+1	the Stop hook records both holds, "never checked" and then "failed", on lines of their own
 1	the Stop hook records both holds, "stale receipt" and then "failed", on lines of their own
 1	the Stop hook records nothing for a checkout with no commit (control)
 1	the Stop hook records nothing for a checkout with no commit, though the same session is held and then counted as debt in a checkout with a commit
@@ -13649,7 +14555,7 @@
 1	the Stop hook records the tree id of a first hold in state/held-tree under the session id
 1	the Stop hook records the tree id, a tab, "epoch moved", a tab and the checkout for a hold when the gate passed on this tree and the epoch moved
 1	the Stop hook records the tree id, a tab, "failed", a tab and the checkout for a hold when the gate failed on this tree
-1	the Stop hook records the tree id, a tab, "never verified", a tab and the checkout for a hold when the gate never ran
+1	the Stop hook records the tree id, a tab, "never checked", a tab and the checkout for a hold when the gate never ran
 1	the Stop hook records the tree id, a tab, "stale receipt", a tab and the checkout for a hold when the receipt is for a different tree
 1	the Stop hook records the tree it held inside another hook's chain, as it does for any first hold
 1	the Stop hook records the tree it held on in a record that named a different tree
@@ -13698,9 +14604,9 @@
 1	the Stop hook's debt row says in its fourth field that the tree was held once on this tree already
 1	the Stop hook's debt row still says the tree was held once already
 1	the Stop hook's debt row, its record and the tree id taken independently all name one tree
-1	the Stop hook's first hold writes a blocked row naming the tree and never verified as the reason
+1	the Stop hook's first hold writes a blocked row naming the tree and never checked as the reason
 1	the Stop hook's fixture for "failed" then "epoch moved" leaves the tree as it was (control)
-1	the Stop hook's fixture for "never verified" then "failed" leaves the tree as it was (control)
+1	the Stop hook's fixture for "never checked" then "failed" leaves the tree as it was (control)
 1	the Stop hook's fixture for "stale receipt" then "failed" leaves the tree as it was (control)
 1	the Stop hook's fixture stops a hold after its verification row and in the middle of its says row, before the JSON is printed (control)
 1	the Stop hook's fixture stops a hold in the middle of writing its verification row, before the JSON is printed (control)
@@ -14100,6 +15006,7 @@
 1	the independence check is behind the verifier confine
 1	the injected checkout actually moved the branch
 1	the installed check is behind the verifier confine
+1	the instrument scan lists, for each of 38 commands, the words the rewrite takes from P and each it cannot place
 1	the judge alone: a scratch path is throwaway
 1	the judge alone: a worktree of the checkout is not
 1	the judge is found on whatever branch is being merged into
@@ -14721,6 +15628,76 @@
 1	tidy followed by a vertical tab is a grant under C and under UTF-8
 1	tidy followed by an em space is not a grant under C or under UTF-8
 1	tidy stays allowed after commission is revoked
+1	tmd: (fixture control) a driver that records: with merge.tmdrec.driver writing a marker file in the checkout's config and notes/f merge=tmdrec in its info/attributes, plain git merge-tree in the checkout exits 0, keeps main's notes/f and writes the marker
+1	tmd: (fixture control) a stacked branch: three-dot names a/g and a/h and adds both their lines, while the tree plain git merge-tree writes differs from main's only at a/h
+1	tmd: (fixture control) fallback: mktemp -d cannot make a directory in the mode-555 TMPDIR; three-dot names notes/f and adds the credential line in the checkout driver's fixture, and names a/g and a/h and adds both their lines in the stacked one
+1	tmd: (fixture control) global config alone: the checkout has no info/attributes and the candidate no .gitattributes, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines the driver and a core.attributesFile naming it for notes/f
+1	tmd: (fixture control) global config with attr.tree: the checkout's config defines no tmdkeep driver; in a bare repository with no worktree whose objects reach the checkout's, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines the driver and sets attr.tree to the candidate, whose .gitattributes names it
+1	tmd: (fixture control) global config, attribute in the checkout: the checkout's config defines no tmdkeep driver, plain git merge-tree keeps the line without the global file, and keeps main's notes/f with GIT_CONFIG_GLOBAL naming a file that defines it
+1	tmd: (fixture control) the candidate's attributes: the candidate's own .gitattributes reads notes/f merge=tmdkeep, the checkout has no info/attributes, and with the driver in the checkout's config plain git merge-tree in the checkout exits 0 and keeps main's notes/f
+1	tmd: (fixture control) the checkout's driver: with merge.tmdkeep.driver=true in the checkout's .git/config and notes/f merge=tmdkeep in its .git/info/attributes, plain git merge-tree in the checkout exits 0 and keeps main's notes/f, without the line
+1	tmd: (fixture control) with no driver, main has moved since the candidate's base R, plain git merge-tree in the checkout exits 0 with the credential line in its notes/f, and three-dot names notes/f and adds the line
+1	tmd: a driver that records: felix_added_lines never runs the checkout's driver whose command writes a marker file (the marker is absent)
+1	tmd: a driver that records: felix_changed_paths never runs the checkout's driver whose command writes a marker file (the marker is absent)
+1	tmd: byte-identical: on a stacked branch whose base already holds one of its two changes and gained a file of its own, the added lines are exactly the other change's line and the reader exits 0
+1	tmd: byte-identical: on a stacked branch whose base already holds one of its two changes and gained a file of its own, the changed paths are exactly a/h and the reader exits 0
+1	tmd: byte-identical: with no driver and no attributes, the added lines are exactly the credential line and the reader exits 0
+1	tmd: byte-identical: with no driver and no attributes, the changed paths are exactly notes/f and the reader exits 0
+1	tmd: control: with no driver, the added lines of a candidate that puts a credential-shaped line into notes/f hold that line
+1	tmd: control: with no driver, the changed paths hold notes/f
+1	tmd: copy alone (fixture control): before any plant, a plain git merge-tree of main and tmc-sql, writing into a fresh store with the checkout's objects behind it, names the merged notes/f by the id predicted from the clean merge's lines and holds the SQL line
+1	tmd: copy alone (fixture control): main has moved since R0, the base of each of the three candidates; origin/main is main; and the entry holds the felix under test
+1	tmd: copy alone (fixture control): that dry run took the three-way merge, running git merge-tree --write-tree
+1	tmd: copy alone (fixture control): the credential plant is there: a loose file under the merged notes/f's id for tmc-cred, holding main's notes/f
+1	tmd: copy alone (fixture control): the plant is there: a loose file in the checkout under the merged notes/f's id, git cat-file -p of that id in the checkout prints main's notes/f, and a plain merge-tree with the checkout behind it names notes/f by that id and reads it without the SQL line
+1	tmd: copy alone (fixture control): the unrelated plant is there, holding main's notes/f under an id that is not the honest candidate's merged notes/f
+1	tmd: copy alone (fixture control): three-dot main...tmc-sql adds the destructive SQL line, and bin/secret-scan against main exits 0 on it, so the disclose escape is not what refuses it
+1	tmd: copy alone (fixture control): without a plant, felix merge --dry-run refuses tmc-cred with escape disclose ADDED-LINES and exits 3
+1	tmd: copy alone (fixture control): without a plant, felix merge --dry-run refuses tmc-sql with escape durable ADDED-LINES and exits 3
+1	tmd: copy alone: after each felix merge run here, the checkout's object store still answers for every object it held before the run, the planted ones included
+1	tmd: copy alone: an honest candidate that changes notes/f with nothing a rule names, run while the checkout holds a planted loose file of an unrelated id, is not blocked: felix merge --dry-run says it would squash this now and exits 0
+1	tmd: copy alone: no felix-merge* or felix-objects* entry is left under the TMPDIR any felix merge run here was given
+1	tmd: copy alone: with a loose file planted in the checkout under the merged blob's id holding main's bytes, felix merge --dry-run still reads tmc-sql's destructive SQL line, refusing it with escape durable ADDED-LINES and exit 3 (the planted object is not taken as the merge's result)
+1	tmd: copy alone: with a loose file planted under the merged blob's id holding main's bytes, felix merge --dry-run still refuses tmc-cred's credential line with escape disclose ADDED-LINES and exit 3
+1	tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the added lines hold every line the three-dot diff adds
+1	tmd: fallback: with an unwritable TMPDIR and the checkout's driver, the changed paths hold every path the three-dot diff names
+1	tmd: fallback: with an unwritable TMPDIR on a stacked branch, the added lines hold every line the three-dot diff adds
+1	tmd: fallback: with an unwritable TMPDIR on a stacked branch, the changed paths hold every path the three-dot diff names
+1	tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line
+1	tmd: global config alone: with the driver and a core.attributesFile naming it both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f
+1	tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the added lines still hold the credential line
+1	tmd: global config with attr.tree: with the driver and attr.tree naming the candidate both in the file GIT_CONFIG_GLOBAL names, the changed paths still hold notes/f
+1	tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the added lines still hold the credential line
+1	tmd: global config: with the driver in the file GIT_CONFIG_GLOBAL names and notes/f merge=tmdkeep in the checkout's info/attributes, the changed paths still hold notes/f
+1	tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the added lines still hold the credential line
+1	tmd: the candidate's attributes: with notes/f merge=tmdkeep in the candidate's .gitattributes and the driver in the checkout's config, the changed paths still hold notes/f
+1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the added lines still hold the credential line
+1	tmd: the checkout's driver: with the driver in the checkout's config and attributes, the changed paths still hold notes/f
+1	tmdr: (fixture control) a content conflict: main and the candidate change x/f's third line differently since R; plain git merge-tree exits 1 in all three directory-rename modes; three-dot names x/f and adds the candidate's line
+1	tmdr: (fixture control) case 3 can see a move: git diff --name-only --no-renames from main's tree to the tree plain git merge-tree writes with merge.directoryRenames=true names e/a, d/new and e/new
+1	tmdr: (fixture control) each case-2 environment reaches a plain git merge-tree in the checkout: GIT_CONFIG_COUNT setting merge.directoryRenames to true exits 0 and to conflict exits 1, both with d/new at e/new; GIT_CONFIG_GLOBAL, GIT_CONFIG_PARAMETERS, GIT_CONFIG_SYSTEM and the checkout's own config, each setting it true, move d/new to e/new and exit 0
+1	tmdr: (fixture control) no renames: main changes p/f and the candidate q/g since R; plain git merge-tree exits 0 and writes one tree in all three directory-rename modes, and that tree holds main's p/f and the candidate's q/g
+1	tmdr: (fixture control) one deleted: R also holds d/k, which the candidate deletes while it renames the rest of d/ into e/; plain git merge-tree moves d/new to e/new with merge.directoryRenames=conflict (exit 1) and =true, and leaves it at d/new with =false
+1	tmdr: (fixture control) the finding's shape: main has moved since R, the candidate's base; the candidate holds e/a, e/b and e/c and no d/; and plain git merge-tree of main and the candidate in the checkout moves d/new to e/new with merge.directoryRenames=conflict (exit 1) and =true (exit 0), and leaves it at d/new with =false (exit 0)
+1	tmdr: case 1, one deleted: when the candidate deletes d/k and renames the rest of d/ into e/, _felix_merge_refs exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 1: from the checkout of a candidate that renames all of d/ into e/ while main added d/new, _felix_merge_refs with base main exits 0 and prints main^{tree} and the id of a tree
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, d/new is at d/new with main's bytes
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, e/new does not exist
+1	tmdr: case 1: in the tree _felix_merge_refs names for that candidate, the files it renamed are at e/ with its bytes, the nearly unchanged one included, and not at d/
+1	tmdr: case 2, beyond the list: with GIT_CONFIG_PARAMETERS carrying merge.directoryRenames=true after the suite's own pins, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2, beyond the list: with GIT_CONFIG_SYSTEM naming a file that sets merge.directoryRenames true and GIT_CONFIG_NOSYSTEM unset, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=conflict in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_COUNT=1, GIT_CONFIG_KEY_0=merge.directoryRenames and GIT_CONFIG_VALUE_0=true in the caller's environment, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with GIT_CONFIG_GLOBAL naming a file that sets merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 2: with the checkout's own .git/config setting merge.directoryRenames true, _felix_merge_refs still exits 0 and names a tree with d/new at d/new in main's bytes, no e/new, and the renamed files at e/
+1	tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the added lines still hold the candidate's changed e/c line and no line of main's d/new
+1	tmdr: case 3, each case-2 environment: under each of case 2's environments in turn, the changed paths still name e/a and neither d/new nor e/new
+1	tmdr: case 3: on the candidate that renames d/ into e/, the added lines with base main hold the candidate's changed e/c line and no line of main's d/new
+1	tmdr: case 3: on the candidate that renames d/ into e/, the changed paths with base main name e/a, the candidate's own rename, and neither d/new nor e/new
+1	tmdr: case 4: on that content conflict, the added lines still hold every line the three-dot diff adds
+1	tmdr: case 4: on that content conflict, the changed paths still hold every path the three-dot diff names
+1	tmdr: case 4: when main and the candidate change the same line of x/f differently, _felix_merge_refs with base main still exits 1
+1	tmdr: case 5: with no renames on a moved base, _felix_merge_refs exits 0 and prints main^{tree} and the tree a plain git merge-tree writes
 1	toolbox.json names installed_plugins.json, where a pin is checked by hand (b23 A34)
 1	toolbox.json no longer says the cloud runs what a local session runs (b23 A30)
 1	toolbox.json parses, about is an array of strings, and tools has one entry per line holding "name": (b23 A36)
@@ -14730,6 +15707,269 @@
 1	touching a tracked file without editing it still reads current
 1	tree identity is computable
 1	tree identity survives an unborn HEAD
+1	trust-step3: (fixture control) R's main holds the project's tables, the tools, MARKER and PROBE.txt, origin/main is main, the tools are executable, and the entry holds main's felix
+1	trust-step3: (fixture control) in main's checkout tools/check-fx and tools/applies-fx exit 0 and tools/probe-fx lists PROBE.txt
+1	trust-step3: (fixture control, part 2177): part 2176 ran first in this shell, so R is its repository under the suite's temporary directory and origin/main is main's commit
+1	trust-step3: S1 (a table in the candidate): checked out in the home, a candidate that removes the exfil row from risk.tsv and adds danger/x is refused with an escape line naming exfil and danger/x
+1	trust-step3: S1 (fail closed) (fixture control): origin/main names a commit without projects/ts3, which the candidate's working tree holds, and with the same engine as main
+1	trust-step3: S1 (fail closed): with the home's project directory not at BASE, the dry run is refused with a policy line
+1	trust-step3: S1 (the home's uncommitted edit) (fixture control): R stays on main with risk.tsv's exfil row removed and uncommitted, and the worktree's branch adds danger/x
+1	trust-step3: S1 (the home's uncommitted edit): the candidate in a worktree of R adds danger/x while the home's risk.tsv lacks the exfil row uncommitted, and is refused with an escape line naming exfil (and danger/x)
+1	trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key
+1	trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure
+1	trust-step3: S1.10 (an empty base, control): felix_merge_blockers called with an empty base prints the obligations row for fx and no policy row, as before this slice
+1	trust-step3: S1.10 (no base) (fixture control): with BASE, the directly called judge prints an obligations row for fx over this candidate
+1	trust-step3: S1.10 (no base): with a base that names no commit, felix_merge_blockers prints an unknown row and the obligations row for fx, as before this slice
+1	trust-step3: S1.5: no felix-policy.* entry remains under any run's TMPDIR after it ends, though one existed while the passing control judged (P's check-fx ran from it)
+1	trust-step3: S1.7 (a home elsewhere) (fixture control): the plain home is in no repository, its project directory differs from P's only in the fx row's evidence contract, now true, and the worktree's branch only deletes MARKER
+1	trust-step3: S1.7 (a home elsewhere): with FELIX_HOME a plain directory whose fx row's evidence contract is true, a candidate in a worktree of R that deletes MARKER is refused with an obligations line for fx (P's row judged)
+1	trust-step3: S1.7 (the name BASE gives) (fixture control): the plain home is in no repository, its projects/ts32 is P's tables with the fx row's evidence contract true and no .felix row in risk.tsv, and the worktree's branch names ts32 in .felix and deletes MARKER
+1	trust-step3: S1.7 (the name BASE gives): a candidate whose .felix names ts32, held loosened by a plain home, and which deletes MARKER, is refused by P's projects/ts3: an obligations line for fx or an escape line naming .felix
+1	trust-step3: S1.8 (a linked project directory) (fixture control): R is on main, R/projects/ts3 is an uncommitted link to a directory outside R under another name that differs from P's only in the fx row's evidence contract, now true, and the worktree's branch only deletes MARKER
+1	trust-step3: S1.8 (a linked project directory): the candidate in a worktree of R deletes MARKER while the home's projects/ts3 is a link to a loosened copy, and is refused with an obligations line for fx
+1	trust-step3: S1.8 (a product's home) (fixture control): Q holds no engine manifest at main or in its tree and names ts3p, origin/main is main, and its home HR is a repository of its own whose origin/main holds projects/ts3p with the fx row's evidence contract tools/check-fx
+1	trust-step3: S1.8 (a product's home, a planted repository) (fixture control): git in HR's projects answers with the planted repository, whose HEAD and origin/main hold ts3p with the fx row's evidence contract true, as HR's working tree does, while HR's origin/main holds tools/check-fx
+1	trust-step3: S1.8 (a product's home, a planted repository): a candidate in the product Q that deletes MARKER, while a repository planted in HR's projects holds loosened tables and HR's working tree matches them, is refused with an obligations line for fx (P is HR's origin/main)
+1	trust-step3: S1.8 (a product's home, linked) (fixture control): HR's projects/ts3p is a link, uncommitted (HR's HEAD is its origin/main), to a directory outside the home that differs from HR's committed tables only in the fx row's evidence contract, now true, and the candidate in Q only deletes MARKER
+1	trust-step3: S1.8 (a product's home, linked): a candidate in the product Q that deletes MARKER, while its home HR's projects/ts3p is a link to a loosened copy outside the home, is refused with an obligations line for fx (P is HR's origin/main)
+1	trust-step3: S1.8 (a product's home, linked, control): with HR's committed projects/ts3p back, an unrelated candidate in Q passes the dry run
+1	trust-step3: S1.9 (a home behind BASE) (fixture control): origin/main's risk.tsv has one row more than the home's working tree, the home's HEAD is the commit before origin/main, and the worktree's branch only adds NOTES.md
+1	trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home
+1	trust-step3: S1.9 (a home behind BASE, control): with the home brought to origin/main and the receipts recorded again, the same candidate passes the dry run
+1	trust-step3: S2 (a probe) (fixture control): over the candidate's tree its own tools/probe-fx lists a member, the witness exits 0, and P's tools/probe-fx lists nothing
+1	trust-step3: S2 (a probe): a candidate whose rewritten tools/probe-fx would pass, with P's probe and witness blocking over its tree, is refused with a probes line naming fxprobe
+1	trust-step3: S2 (an applies command): a candidate that rewrites tools/applies-fx to exit 1 and deletes MARKER is refused with an obligations line for fx
+1	trust-step3: S2 (an evidence instrument): a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with an obligations line for fx
+1	trust-step3: S2 (fixture control): in that run the fx evidence instrument ran and logged its $0
+1	trust-step3: S2 (the instrument's closure): a candidate that rewrites tools/lib.sh so fx_check is true, keeps tools/check-fx and deletes MARKER is refused with an obligations line for fx
+1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that adds an unrelated file and changes no script passes the dry run
+1	trust-step3: S2 (the subject is still the candidate's, control): a candidate that deletes MARKER and changes no script is refused with an obligations line for fx
+1	trust-step3: S2.1 (a group): with P's contract { tools/check-fx; }, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (a path read inside a substitution, control): with P's contract reading HEAD:tools/check-fx through git show inside a quoted command substitution, an unrelated candidate passes the dry run
+1	trust-step3: S2.1 (a quoted instrument): with P's contract "tools/check-fx" quoted in command position, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (a wrapper): with P's contract nice tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (an interpreter as an argument): with P's contract defining a function f that runs its arguments and calling f bash tools/check-fx, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (an interpreter reading standard input): with P's contract piping tools/check-fx into bash, a candidate that rewrites tools/check-fx to exit 0 and deletes MARKER is refused with a policy line naming tools/check-fx
+1	trust-step3: S2.1 (an option after an interpreter): with P's contract bash -n tools/run.sh, a candidate whose tools/run.sh does not parse is refused with a policy line naming tools/run.sh
+1	trust-step3: S2.1 (fixture control): on each case's own P its contract over P's tree as the table holds it exits 0, the standard-input one 127 (P's checker finds lib.sh from $0, which is bash there); the option candidate's tools/run.sh does not parse, the placeholder candidate's tools/marker.txt reads gone, and the quoted, wrapper, group, argument and standard-input candidates' tools/check-fx exits 0 with MARKER gone
+1	trust-step3: S2.1 (the rewrite stops at a placeholder): with P's contract piping into xargs -I{} grep over tools/marker.txt, a candidate whose tools/marker.txt reads gone is refused with a policy line naming tools/marker.txt
+1	trust-step3: S2.1 (the rewrite stops at a substitution in quotes, control): with P's contract counting tools/lib.sh and tools/check-fx inside a quoted command substitution, an unrelated candidate passes the dry run
+1	trust-step3: S2.3: in that run tools/check-fx ran as P's copy, from a felix-policy.* directory under the run's TMPDIR
+1	trust-step3: S3 (control): a candidate that adds one key to project.json, its previous last line gaining a comma, reaches a verdict with no escape line for verifier naming project.json
+1	trust-step3: S3 (fixture control): the candidate's only change is a comma appended to the last cell of one risk.tsv row
+1	trust-step3: S3: a comma appended to the last cell of an existing risk.tsv row is refused with an escape line for verifier naming risk.tsv
+1	trust-step3: S4 (fixture control): the candidate no longer tracks the manifest, BASE does, and the candidate's felix_escapes prints nothing
+1	trust-step3: S4: a branch that deletes the manifest and disarms its own felix_escapes, run by its own felix, is still judged by main's engine: refused with an escape line for execute naming .github/workflows/x.yml
+1	trust-step3: workflows (control): a candidate that edits .github/workflows/gate.yml and only adds a table row is refused with an escape line for execute naming the workflow
+1	ts3b-x: S5.1 (the ref moves after the pin): refused by the fx obligation, with no base line, the move having happened
+1	ts3b-x: S5.2 (A's base name fails git check-ref-format --branch): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.2 (A's number is not digits only): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.2 (Q answers type tag, not commit): no answer, refused with a base line, nothing merged
+1	ts3b-x: S5.3 (Q names a commit that shares only B's first seven digits): refused with a base line, nothing merged
+1	ts3b-x: S5.4 (the second Q gives no answer): refused with a moved line, nothing merged
+1	ts3b-x: S5.4 (the second Q shares only B's first seven digits): refused with a moved line, nothing merged
+1	ts3b-x: S6 (fixture control): the three rewritten loose files are put back, and main's tools/lib.sh reads as written
+1	ts3b-x: S6.1 (the engine's own pin survives the scrub): the gh that squashed saw GIT_CONFIG_PARAMETERS holding color.ui=never
+1	ts3b-x: S6.3 (M's tree) (fixture control): the merge base of B4 and H4 is M4, stale/z is in neither B4's tree nor H4's, and its loose file now reads otherwise
+1	ts3b-x: S6.3 (M's tree): a candidate cut from an older main, whose merge base alone holds an object that does not hash to its name, is refused with an objects line naming it, and nothing is merged
+1	ts3b-x: S6.3 (the commits since M) (fixture control): the first commit's loose file now reads with another message and the same parent
+1	ts3b-x: S6.3 (the commits since M): a candidate of two commits, the first of which does not hash to its name, is refused with an objects line naming it, and nothing is merged
+1	ts3b-x: S6.4 (the copy is read): with the checkout's loose file for P's tools/lib.sh rewritten after each copy is checked, a candidate that deletes MARKER is refused by the fx obligation, and nothing is merged
+1	ts3b: (fixture control) R's main holds the tables and tools without danger/x, M0 before it holds danger/x, origin/main is main, tpb-evil's fx_check is true, M2 is one ahead of main, and the entry holds main's felix
+1	ts3b: S5 (control): an honest candidate whose pull request the provider holds open on main at M is merged, with --match-head-commit naming its head
+1	ts3b: S5.1 (control): the squash body's Felix-Judge trailer names main's commit in full
+1	ts3b: S5.2 (no answer, in a merge): call A answers the state CLOSED, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (a stale local ref): the provider's main is M2, one ahead of R's origin/main, and an honest candidate is refused with a base line naming both commits, and nothing is merged
+1	ts3b: S5.3 (a stale local ref, the remedy): with origin/main brought to M2 and fresh receipts, the same candidate is merged
+1	ts3b: S5.3 (another base): judged with --base refs/heads/tpb-evil while the provider names main at M as the base, a candidate off tpb-evil that deletes MARKER is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (another base, a dry run): the same, with --dry-run, is refused with a base line
+1	ts3b: S5.3 (no answer, in a dry run): call Q exits 1, and an honest candidate's dry run exits 0, says it was not compared with the provider, and still says felix merge would squash this now.
+1	ts3b: S5.3 (no answer, in a merge): call A exits 1, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (no answer, in a merge): call Q exits 1, and an honest candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.3 (the head differs): the provider names a head commit that is not the checkout's HEAD, and the merge is refused with a moved line, and nothing is merged
+1	ts3b: S5.3 (the local ref moved): with refs/remotes/origin/main moved to tpb-evil and no --base, the same candidate is refused with a base line, and nothing is merged
+1	ts3b: S5.4 (the base moves at the last moment): call Q answers M, then M2, and the merge is refused with a moved line after asking Q twice, and nothing is merged
+1	ts3b: S5.5 (blockers first): a candidate that deletes MARKER is refused by the fx obligation, with no base or moved line, and the provider is not asked
+1	ts3b: S6 (fixture control): the loose file is put back, and main's tools/lib.sh reads as written again
+1	ts3b: S6 (packed objects) (fixture control): after git gc, R holds no loose object for main's tools/lib.sh
+1	ts3b: S6 (packed objects, a control for false blocks): after git gc, an honest candidate is merged
+1	ts3b: S6.1 (the caller's environment) (fixture control): git show of main's tools/lib.sh with GIT_OBJECT_DIRECTORY naming the copy prints the rewritten body, and without it the body as written
+1	ts3b: S6.1 (the caller's environment): a candidate that deletes MARKER, run with GIT_OBJECT_DIRECTORY naming a copy of R's objects where P's tools/lib.sh is rewritten, is refused by the fx obligation or an objects line, and nothing is merged
+1	ts3b: S6.2 (a graft) (fixture control): with the candidate's parent grafted onto M0, a plain git diff --name-only main...HEAD in R prints nothing
+1	ts3b: S6.2 (a graft): the same candidate, with its parent grafted onto M0, is still refused with an escape line naming danger/x, and nothing is merged
+1	ts3b: S6.2 (a graft, control): without a graft, a candidate that adds danger/x back with the bytes M0 held is refused with an escape line naming danger/x
+1	ts3b: S6.2 (a replace ref) (fixture control): with the candidate's head replaced by a commit holding main's tree, and the index read from it, plain git diff --name-only main...HEAD and --cached in R print nothing, and HEAD is still the candidate's commit
+1	ts3b: S6.2 (a replace ref): a candidate that adds danger/x, its head replaced by a commit holding main's tree and its index read from that, is refused with an escape line naming danger/x, and nothing is merged
+1	ts3b: S6.3 (an object whose content is not its name) (fixture control): with the loose file for main's tools/lib.sh rewritten, a plain git show of main's tools/lib.sh in R prints the rewritten body
+1	ts3b: S6.3 (an object whose content is not its name): a candidate that deletes MARKER, with the loose file for P's tools/lib.sh rewritten so fx_check is true, is refused with an objects line naming that blob, and nothing is merged
+1	ts3b: S6.5: no felix-objects.* entry remains under any run's TMPDIR after it ends
+1	ts3c: (fixture control) R's main holds the suite, the partition, the canary when the harness has one, and plugin.json, and P's driver passes on main's own tree
+1	ts3c: (fixture control) the fixture driver's part mode prints the runner lines and the assertions of the parts it is given
+1	ts3c: S0 (fixture control): P's partition has no row for 2005-mul.sh, and P's 2005 fails on the loosened candidate's tree
+1	ts3c: S0, S8.2: a part P's partition does not name is instrument: loosened with the engine change, it is refused with escape, the part, P's version fails on this tree, and the assertion's name
+1	ts3c: S7 (fixture control): P's partition marks 2001-sum.sh instrument and the candidate's marks it subject
+1	ts3c: S7.1 (fixture control): the candidate's table marks 2001-sum.sh subject, and P's 2001 fails on its tree
+1	ts3c: S7.1, S8.2: a candidate that moves 2001-sum.sh to subject and loosens it in the same change is refused for both: the table line, and P's version of the part (P's table says instrument)
+1	ts3c: S7.2 (fixture control): the tightening candidate's partition differs from P's by the 2005 row added, the 2002 row removed and 2001's why
+1	ts3c: S7.2: a candidate that adds an instrument row, removes a row and rewords a why is not refused for the partition
+1	ts3c: S7.2: a candidate that moves an instrument row of the partition to subject is refused with escape, projects/felix/partition.tsv, marks 2001-sum.sh subject
+1	ts3c: S8.1 (fixture control): the unsourcing candidate keeps 2006-keep.sh as P holds it and its driver has no line for it
+1	ts3c: S8.1, S8.3: a candidate that keeps an instrument part's file but drops its line from the driver, and its names from the manifest, is refused with drops assertion for each of its two names
+1	ts3c: S8.10 (fixture control): the slow candidate changes 2001-sum.sh and its add sleeps before it answers
+1	ts3c: S8.10: a dry run killed with SIGTERM while P's part runs in T leaves no run tree or canary copy under TMPDIR, and the checkout's status as it was
+1	ts3c: S8.10: the judgement that ran the canary under the candidate's driver left no run tree or canary copy under TMPDIR, and the checkout's status as it was
+1	ts3c: S8.11 (fixture control): the product's base and candidate hold no engine/.claude-plugin/plugin.json, and P's 2001 fails on the candidate's tree
+1	ts3c: S8.11: in a repository felix_self_governed_at does not name, the same loosened guard is not refused for this: no escape line for the part, no P's version line, no SUITE line, and no part of P runs
+1	ts3c: S8.2 (fixture control): P's 2001-sum.sh fails on the loosened candidate's tree for add 2 3 alone, and the candidate's own 2001 passes
+1	ts3c: S8.2 (fixture control): P's unit g1 on the group candidate's tree passes 2003-grp-a.sh and fails 2004-grp-b.sh, its subject member
+1	ts3c: S8.2, S8.6: a candidate that changes one member of a group, where P's version of the subject member would fail, is not refused for the subject member
+1	ts3c: S8.2, S9: the group candidate's judgement ran P's unit g1, both its members and nothing else, and passed, leaving no run tree (S8.10)
+1	ts3c: S8.2, S9: the refused judgement ran P's unit holding 2001-sum.sh, and only it, and left no run tree and the checkout's status as it was (S8.10)
+1	ts3c: S8.2: a candidate that loosens an assertion of an instrument part, with the engine change that makes P's version fail, is refused with escape, the part, P's version fails on this tree, and that assertion's name, and the passing assertion is not named
+1	ts3c: S8.3 (fixture control): P's 2006-keep.sh passes on the renaming candidate's tree, whose manifest holds the new name and not the old
+1	ts3c: S8.3 (fixture control): the engine still satisfies P's 2006-keep.sh on the tree that deletes it, and the candidate's manifest lists neither of its names
+1	ts3c: S8.3: a candidate that deletes an instrument part and its names from the manifest, the engine still satisfying it, is refused with escape, the part, drops assertion, for each of its two names
+1	ts3c: S8.3: a candidate that renames one assertion of an instrument part, and its manifest to match, is refused with drops assertion and the old name, and the name it kept is not named
+1	ts3c: S8.4: the honest machinery change still ran every instrument part of P
+1	ts3c: S8.4: when the machinery changed, every instrument part of P was run (2001, 2003, 2005 and 2006), none missing
+1	ts3c: S8.5 (fixture control): the candidate that rewords bad()'s detail still reports bad, is and has failed and ok passed
+1	ts3c: S8.5 (fixture control): the candidate whose is() counts a pass reports is as passed, and bad and has still failed
+1	ts3c: S8.5 (fixture control): the neutered candidate's driver reports bad, is and has as passes, where P's reports them failed
+1	ts3c: S8.5: a candidate that changes a helper's wording only is not refused for the canary
+1	ts3c: S8.5: a candidate whose driver's bad() counts a pass is refused with escape, machinery, and the canary
+1	ts3c: S8.5: a candidate whose driver's is() counts a pass is refused with escape, machinery, and the canary
+1	ts3c: S8.5: two judgements of the same candidate run the canary under its driver with different part file names, neither a part the candidate holds
+1	ts3c: S8.6 (control): a candidate that changes an exact count in a part P's partition marks subject, with the engine change and the manifest, passes with no escape line
+1	ts3c: S8.6 (fixture control): P's 2002-count.sh fails on the candidate's tree, which the candidate's own 2002 passes
+1	ts3c: S8.7 (control): a candidate that changes only an engine file no part reads is merged, with no escape line
+1	ts3c: S8.7: when nothing an instrument holds changed, no part of P runs and the merge leaves no run tree and the checkout's status as it was
+1	ts3c: S8.8 (fixture control): P's 2006-keep.sh is loose, and its loose file now holds a body that is not what its name says
+1	ts3c: S8.8: a loosened candidate that slice 2 refuses with objects is refused with objects, and the merge says P's instrument parts were not run
+1	ts3c: S8.9 (fixture control): the base without a driver holds P's parts and no tests/run, and is the provider's main
+1	ts3c: S8.9: with P's driver missing at B, a candidate that changes an instrument part is refused with a blocker of kind unknown, subject SUITE
+1	ts3d: (fixture control) main's driver logs its arguments and holds one blank line, P holds the canary, P's driver passes every part on main's tree, and main is the provider's
+1	ts3d: A1 (fixture control): main's last landing tightened 2003-grp-a.sh with the greeting it checks, and moved 2002-count.sh from subject to instrument
+1	ts3d: A1 (fixture control): the conflicting candidate, cut before main's last landing, does not merge onto main
+1	ts3d: A1 (fixture control): the docs candidate was cut before that landing and changes docs/note.md alone, and P's 2003 fails on its own tree
+1	ts3d: A1, S9: that judgement ran P's unit holding 2005-mul.sh, and only it
+1	ts3d: A1: a candidate behind main that loosens a part main did not touch is refused for that part only, P's version failing on its assertion
+1	ts3d: A1: a candidate cut before main's last landing that changes only a docs file is judged as the squash lands it: passed, no escape line, no unit run
+1	ts3d: A1: a candidate whose merge onto main conflicts is refused with a blocker of kind unknown, subject SUITE
+1	ts3d: A2 (fixture control): the candidate's driver differs from P's by its blank line deleted and one part line added, and its own driver passes the new part
+1	ts3d: A2 (fixture control): the candidate's driver differs from P's by one added line that starts as a part line and runs more after it
+1	ts3d: A2: a candidate that adds a part and its driver line and frees a blank line is no machinery change: passed, no escape line, no unit run, no canary
+1	ts3d: A2: a driver line '. "$HERE/parts/x.sh"; <more>' is machinery: every instrument part of P runs, and the canary runs
+1	ts3d: A3 (fixture control): the candidate adds engine/harness/tests/helpers.txt and changes nothing else
+1	ts3d: A3: a new file under engine/harness/tests/ outside parts/ is machinery: every instrument part of P runs, and the canary runs under the candidate's driver
+1	ts3d: A4 (fixture control): the candidate is a commit of its own whose tree is main's
+1	ts3d: A4: P judged against its own tree is clean: passed, no escape line, no line of P's version
+1	ts3d: A4: P's instrument units run over a tree that is P's but for a file no driver reads all pass: passed, no escape line, no line of P's version, and every one ran
+1	ts3d: A5 (control): the first judgement of the neutered candidate ran P's units and the canary, and is refused for the canary
+1	ts3d: A5 (fixture control): the candidate changes only its driver, whose bad() counts a pass where P's reports a failure
+1	ts3d: A5: a kept judgement cut to half its bytes is not used: the judgement runs again, and refuses for the canary again
+1	ts3d: A5: a kept judgement made unreadable is not used: the judgement runs again, and refuses for the canary again
+1	ts3d: A5: a second dry run of the same machinery-changing candidate at the same base runs no unit and no canary, and prints the same blocker lines
+1	ts3d: A6 (fixture control): P's partition names 2005-mul.sh instrument, then subject last, and P's 2005 fails on the loosened candidate's tree
+1	ts3d: A6 (fixture control): the candidate's partition names 2001-sum.sh instrument then subject, and 2002-count.sh subject twice; P's once each
+1	ts3d: A6: a part one of whose duplicate rows says subject stays instrument: its loosened guard is refused, P's version failing on its assertion
+1	ts3d: A6: duplicate rows that change no part's class are not refused: passed, no partition line, no escape line
+1	ts3d: A7 (fixture control): ps lists this shell and a process carrying a token while it lives, and not after it is stopped
+1	ts3d: A7.2 (fixture control): the candidate's driver differs from P's by one line, which sleeps in part mode in a perl carrying its token
+1	ts3d: A7.2 (fixture control): the hanging candidate changes 2001-sum.sh and an add() that sleeps in a perl carrying its token
+1	ts3d: A7.2, A7.3: a unit that never ends, under a limit lowered to 3 s, counts as not finished and refuses; no process of it is left, nor any run tree
+1	ts3d: A7.2: FELIX_INSTRUMENT_UNIT_SECONDS set to 99999 is not the limit the merge reports (read only if it says one)
+1	ts3d: A7.2: a canary that never ends under the candidate's driver, under a limit lowered to 3 s, refuses for the machinery; no process of it is left
+1	ts3d: A7.3, A7.4: a INT signal sent to felix merge while P's unit runs leaves no run tree under TMPDIR, no process of the unit, and the checkout's status as it was
+1	ts3d: A7.3, A7.4: a TERM signal sent to felix merge while P's unit runs leaves no run tree under TMPDIR, no process of the unit, and the checkout's status as it was
+1	ts3d: A7.5: with TMPDIR inside the checkout, P's unit runs in a tree outside the checkout, and the judgement passes
+1	ts3d: A7.5: with TMPDIR inside the checkout, felix merge leaves nothing there, and the checkout's status as it was
+1	ts3d: A7.5: with a relative TMPDIR, P's unit still runs, in a tree outside the checkout, and the judgement passes
+1	ts3d: A7.5: with a relative TMPDIR, felix merge leaves nothing in the checkout: no tmprel made there, and the checkout's status as it was
+1	ts3d: A7.5: with an absolute TMPDIR outside the checkout, P's unit runs in a tree under it, and passes
+1	ts3d: A7.6: T's alternates, wherever a unit found them, name neither the checkout's objects nor a felix-objects directory
+1	ts3e: (fixture control) main's driver logs its arguments and holds one blank line, P holds the canary, P's driver passes every part on main's tree, and main is the provider's
+1	ts3e: A10 (control): the attacker's unit reached the home and wrote at least one forged kept judgement before the victim was judged
+1	ts3e: A10 (control): the unit ran and recorded the home variables it was given
+1	ts3e: A10 (fixture control): the attacker and the victim are two different machinery candidates, each of which P's driver would refuse
+1	ts3e: A10 (fixture control): the loosened candidate changes 2001-sum.sh and carries the home-reading attack in its engine
+1	ts3e: A10: a later dry run of the victim, whose key a unit forged a clean judgement for, still runs its units and refuses
+1	ts3e: A10: a unit that reads FELIX_HOME_DIR, FELIX_HOME and HOME sees the first two unset and a HOME of its own, not the caller's, with no .felix-home
+1	ts3e: A8 (control): the attack is armed: the unit wrote over at least one file beside its records
+1	ts3e: A8 (control): the machinery judgement ran the canary and the attack wrote over the files beside its records
+1	ts3e: A8 (fixture control): the drop keeps the engine satisfying P's 2006-keep.sh, drops both its names from H's manifest, and H's engine carries the attack
+1	ts3e: A8 (fixture control): the neutered candidate changes its driver (machinery) and carries the attack, so the canary runs and would be flipped
+1	ts3e: A8: a unit that rewrites the manifest beside its records and in T's tree does not hide a dropped guard: refused with drops assertion for each of the two names
+1	ts3e: A8: a unit that writes over the files beside its records does not flip the canary: refused with escape, machinery, the canary
+1	ts3e: A9 (control): the build was slowed and the TERM was sent while T was being built, before any unit ran
+1	ts3e: A9 (fixture control): the candidate changes 2001-sum.sh and its engine, and the git shim carries its token
+1	ts3e: A9: a TERM sent while T is being built leaves no run tree under TMPDIR, no process of the build, and the checkout's status as it was
+1	ts3f: (fixture control) main's driver logs its arguments and holds one blank line, P holds the canary, P's driver passes every part on main's tree, and main is the provider's
+1	ts3f: A12 (control): the machinery judgement ran the canary and the attack wrote over at least one file under the unit's working directory's parent
+1	ts3f: A12 (fixture control): the neutered candidate changes its driver (machinery) so the canary runs, and carries the parent-rewrite attack in its engine
+1	ts3f: A12: a unit that rewrites every file under its working directory's parent does not pass the neutered helper: refused, the canary or an unread input (machinery/canary, or unknown SUITE)
+1	ts3f: A13 (control): the KILL attacker's unit ran, forged at least one clean kept judgement under a home, and signalled the judge
+1	ts3f: A13 (control): the TERM attacker's unit ran, forged at least one clean kept judgement under a home, and signalled the judge
+1	ts3f: A13 (fixture control): the KILL attacker is a machinery change (neutered bad) carrying the forge-and-signal attack in its engine
+1	ts3f: A13 (fixture control): the TERM attacker is a machinery change (neutered bad) carrying the forge-and-signal attack in its engine
+1	ts3f: A13: a second dry run of the same candidate, whose unit forged a clean kept judgement and ended the judge with KILL, runs its units again rather than trusting the forged judgement, and does not merge
+1	ts3f: A13: a second dry run of the same candidate, whose unit forged a clean kept judgement and ended the judge with TERM, runs its units again rather than trusting the forged judgement, and does not merge
+1	ts3f: A14 (control): the judge was KILLed while one unit slept and others had ended
+1	ts3f: A14 (fixture control): the candidate respaces a driver comment (machinery, so every unit runs) and 2001-sum.sh's add() sleeps in a perl carrying its token
+1	ts3f: A14: every other felix-instrument* name new under /tmp or /var/tmp since the KILLed run began is gone within 600 s, as a sibling judgement's is when it ends; a leftover never goes
+1	ts3f: A14: within a few seconds of the judge KILLed, no run tree is under TMPDIR, no unit sleeps on, and no felix-instrument* name under /tmp or /var/tmp holds this run's token
+1	ts3f: A15 (control): mktemp was slowed and the TERM was sent very early, before any unit ran
+1	ts3f: A15 (fixture control): the candidate changes 2001-sum.sh and its engine
+1	ts3f: A15: a TERM sent before the first directory the judgement makes leaves no run tree under TMPDIR, no unit of it ran, and the checkout's status as it was
+1	ts3f: A17 (fixture control): P now sources 2008-where.sh, an instrument part, and it passes in a real checkout of main placed outside the TMPDIR it is given
+1	ts3f: A17 (fixture control): the honest candidate respaces one driver comment (a machinery change) and 2008-where.sh passes in a real checkout of H placed outside the TMPDIR it is given
+1	ts3f: A17: an honest machinery change is not refused for a P part that tests where it runs the way 0620 does: no escape line for 2008-where.sh, and P's version of it is not reported failing
+1	ts3f: A19 (control): G's unit wrote Y's clean judgement back over Y's kept one, said it held G's judgement open before Y's dry run began, and still held it when that run ended
+1	ts3f: A19 (control): X's unit said it held X's judgement open before Y's dry run began, and still held it when that run ended
+1	ts3f: A19 (control): that clean judgement, written at the pair's key while no other judgement runs, is read: the pair's dry run passes and runs no unit
+1	ts3f: A19 (control): with no other judgement running, a second dry run of Y reads its kept judgement: refused as kept, and no unit run
+1	ts3f: A19 (control, and what is kept stays): the same dry run of Y, made after X's judgement has ended, reads the kept judgement: refused as kept, and no unit run
+1	ts3f: A19 (fixture control): X and G are two more pairs, each changing 2001-sum.sh and an engine whose add 2 x holds its unit open, and only G's writes Y's clean judgement back
+1	ts3f: A19 (fixture control): Y respaces a driver comment and switches its add() by a file outside its tree; with the switch off it is judged clean, its units run, and the judgement adds files under the home
+1	ts3f: A19 (fixture control): with the switch on and its clean judgement removed, Y runs its units again, is refused for 2001-sum.sh, and is kept again in the same files
+1	ts3f: A19: a clean judgement at that pair's key, written by a unit of another judgement that still runs, is not read: the pair's dry run runs its own units and is refused
+1	ts3f: A19: a second dry run of a pair already kept, made while a unit of another pair's judgement holds it open over the same home, runs its own units rather than reading the kept judgement, and is refused as they find
+1	ts3f: A19: what is kept at that pair's key stays through the overlapping run: its files are there, byte for byte, when the run ends
+1	ts3g: (fixture control) main sources 2007-scan.sh and 2008-marker.sh, its partition marks both instrument, it holds scan.txt and MARKER, P's driver passes every part on main's tree and each part traces itself, and main is the provider's
+1	ts3g: A22 amended, case 10 (fixture control): the commit's engine/ holds a .gitattributes naming text eol=crlf, ident and working-tree-encoding=UTF-16LE for three files, and git's own checkout-index of it here writes those three with bytes other than their blobs and the other two files as their blobs
+1	ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it
+1	ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it
+1	ts3g: A22 and A23 amended after the filesystem's answer, case 9 (fixture control): the candidate's tree holds two paths under engine/widget that differ only by case and each hold the four characters backslash x1b, one blob for both, and no control byte
+1	ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c
+1	ts3g: A22 and A23 amended, case 5b (fixture control): the candidate's tree holds two paths under engine/widget that differ only by case and each hold a raw ESC byte, one blob for both, and the control-byte counter finds those two bytes in the tree's raw listing
+1	ts3g: A22 and A23 amended, case 5b, where names fold: felix merge's whole output, stdout and stderr, holds no raw byte in 0x00-0x08, 0x0b-0x1f or 0x7f
+1	ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b
+1	ts3g: A22, case 1, ident (fixture control): the candidate's blob of scan.txt holds what P's 2007-scan.sh refuses, and the file git's checkout writes for it under the candidate's .gitattributes hides it from that test
+1	ts3g: A22, case 1, ident: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed
+1	ts3g: A22, case 1, text eol=crlf (fixture control): the candidate's blob of scan.txt holds what P's 2007-scan.sh refuses, and the file git's checkout writes for it under the candidate's .gitattributes hides it from that test
+1	ts3g: A22, case 1, text eol=crlf: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed
+1	ts3g: A22, case 1, working-tree-encoding=UTF-16LE (fixture control): the candidate's blob of scan.txt holds what P's 2007-scan.sh refuses, and the file git's checkout writes for it under the candidate's .gitattributes hides it from that test
+1	ts3g: A22, case 1, working-tree-encoding=UTF-16LE: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed
+1	ts3g: A22, case 2 (control): the FORBIDDEN-line (UTF-16LE, eol=crlf) candidate of case 1 with no .gitattributes holds what P's part refuses in its checkout too, and is refused with escape, 2007-scan.sh, P's version fails on this tree, and the assertion's name
+1	ts3g: A22, case 2 (control): the bare-Id (ident) candidate of case 1 with no .gitattributes holds what P's part refuses in its checkout too, and is refused with escape, 2007-scan.sh, P's version fails on this tree, and the assertion's name
+1	ts3g: A22, case 2 (control): the honest candidate's judgement ran P's unit holding 2007-scan.sh in T
+1	ts3g: A22, case 2 (fixture control): the honest candidate's .gitattributes gives P's parts text and eol=lf, no .sh file of its tree holds a CR, and it changes only that file and 2007-scan.sh
+1	ts3g: A22, case 2: an honest candidate with an ordinary .gitattributes (*.sh text eol=lf over LF files) is not refused for A22: it passes, with no unknown SUITE line and no escape line
+1	ts3g: A23 amended after the filesystem's answer, case 8a (fixture control): the candidate's engine/widget is a link to w2 whose engine/w2 holds marker and no MARKER, and where names fold the base's engine/widget/MARKER answers through the link here and P's 2008-marker.sh passes over its tree as written here, and neither where not
+1	ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs
+1	ts3g: A23 amended after the filesystem's answer, case 8b (fixture control): the candidate adds engine/x.conf, a link to ../Engine/widget/list.txt, and touches 2007-scan.sh, and here the link reaches B's list.txt where names fold and dangles where not
+1	ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs
+1	ts3g: A23 amended again, case 6 (fixture control): a later main sources 2009-glag.sh, its partition marks it instrument, it holds engine/widget/MARK+U+2C2F and engine/wid+U+2C2F/keep.txt, P's 2009-glag.sh passes on its tree, and it is the provider's main
+1	ts3g: A23 amended again, case 6a (fixture control): the candidate drops engine/widget/MARK+U+2C2F, adds MARK+U+2C5F and touches 2009-glag.sh, and P's 2009-glag.sh over its tree as written here, needing the base's name, passes where this filesystem takes the pair for one name and fails where not
+1	ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs
+1	ts3g: A23 amended again, case 6b (fixture control): the candidate's tree holds B's engine/wid+U+2C2F/keep.txt and its own engine/wid+U+2C5F/x.txt, it changes only that file and 2007-scan.sh, and its file, written over B's directory here, is found inside B's directory where this filesystem takes the pair for one name, and not where not
+1	ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs
+1	ts3g: A23 amended, case 5a (fixture control): the candidate adds Engine/harness/tests/parts/2999-x.sh and touches 2007-scan.sh, and that file written over B's tests here lands inside B's test directory where names fold, and not where they do not
+1	ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs
+1	ts3g: A23, case 3 (fixture control): the candidate drops engine/widget/MARKER and adds engine/widget/marker, and P's 2008-marker.sh over its tree as written here passes where names fold and fails where they do not
+1	ts3g: A23, case 3, where names do not fold: a candidate that deletes the base's MARKER and adds marker is refused by P's 2008-marker.sh
+1	ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs
+1	ts3g: A23, case 4 (fixture control): the candidate's tree holds engine/widget/Twin.txt and engine/widget/twin.txt, one blob for both
+1	ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs
 1	turning a comment into a row escapes as verifier, or deleting a hash mark would add a row unseen
 1	twelve sessions ending at once are all still counted
 1	two byte-identical copies at two different paths digest the same

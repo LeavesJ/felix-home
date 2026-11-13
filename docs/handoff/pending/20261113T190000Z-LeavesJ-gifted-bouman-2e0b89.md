@@ -35,13 +35,15 @@ a design session.
 number, #494, #509 and #511, on 2026-11-13. Once they land, merge main here
 again and record. The fix keeps 0.49.344 if they land as 0.49.341 to 0.49.343.
 Then gate alone and run `felix merge --dry-run`, which runs main's part 1860
-over the tree as suite work. The escape count is not measured yet. At 19:41Z,
-main's engine computed the blockers of `bf3127c3` against main `d3eecbc9`
-without the instrument step, and they held no escape line. A static read of
-`_felix_instr_drops` predicts eight escape lines from the instrument step, one
-for each renamed assertion (A45, A47 to A51, A59, A93). Main's 1860 reaches the
-old names, and the tree's manifest no longer holds them, so each reads as
-"drops assertion". They are the founder's to answer on what he is shown.
+over the tree as suite work. Its dry run on `3624a0d5`, alone at 20:58Z,
+printed eight escape lines and nothing else that blocks besides the missing
+receipt. All eight are "drops assertion" on part 1860, one for each renamed
+assertion (A45, A47 to A51, A59, A93), with no failure and no unknown. Each of
+the eight changed what it asserts, not only its name: its input remote, or the
+binding it expects, moved with the fixture, and the old names carry the strings
+that stopped the snapshot. The founder was shown each old name beside its new
+one and answered "Yes, land when green". If the landing dry run shows any line
+beyond these eight, he is asked again.
 `.snapshot-ack.tsv` is in none of the escape tables, so `felix merge` does not
 stop on its rows, though its header says each row is a person's judgment,
 reviewed in the pull request that adds it.

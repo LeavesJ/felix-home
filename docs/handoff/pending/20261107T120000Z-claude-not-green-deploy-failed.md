@@ -92,7 +92,7 @@ review, fixes through a blind author, record, gate.
   assertion names say `not-green`; part 2301 shows K12 on its own fixtures;
   part 2320's scan of the real engine has a read control (status 0 over at
   least fifty files).
-- Merged `origin/main` into the branch eleven times while it was open: #487
+- Merged `origin/main` into the branch twelve times while it was open: #487
   (0.49.329), then #493 (docs) and #486 (0.49.330), then #496 (trust-plane step 3,
   0.49.332), then #497 (step 3, slice 2, 0.49.333), then #500 (the change readers'
   merge ignores the checkout's merge configuration, 0.49.334; `lib/bind.sh`,
@@ -112,7 +112,11 @@ review, fixes through a blind author, record, gate.
   Actions usage from GitHub's usage report, 0.49.340; `lib/pr-status-gh.sh` and the
   stuck-PR parts 1310 to 1360 and 1680, none naming either kind; the step-4 documents
   #504, #506 and #507 came with it, documents only), which conflicted in `red.tsv` and
-  `plugin.json` (version). The driver stays at 500 lines (spacer
+  `plugin.json` (version), then #473, #476, #510 and #474 (documents only, no engine
+  file, no conflict), merged at d3eecbc9 because `felix merge --dry-run` refused the
+  head that held the merge of main at cf0cb744 once main had moved (a SUITE line,
+  "the merge of H onto B conflicts or could not be made"; the merge of the same two
+  commits is clean in git). The driver stays at 500 lines (spacer
   lines removed: main's #502 and this branch each removed the same blank lines, and
   both added part lines, so two more went here; #503 removed the next spacer and
   added a part, so two comment lines of the driver's head were joined; #505 removed the last spacer

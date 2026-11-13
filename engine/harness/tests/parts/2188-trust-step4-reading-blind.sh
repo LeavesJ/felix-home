@@ -202,9 +202,10 @@ _ts4_is "ts4 reading case 18, K2: under stop, with the same four names set in th
   "$TS4K_V; decide: $TS4_DEC" "tick: 1 stopped line(s), same; decide: stopped|statement $TS4K_N1" "$(_ts4_why)"
 _ts4k_dd "$TS4K_HO"; TS4K_V="$TS4_DEC"; _ts4k_dd "$TS4K_HP"
 _ts4_is "ts4 reading K2, K7: decide says stopped and the statement, of an ordinary head and of an overridden one alike: an override does not pass over a stop" "$TS4K_V; $TS4_DEC" "stopped|statement $TS4K_N1; stopped|statement $TS4K_N1" "$(_ts4_why)"
-_ts4k_word go; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4_DEC"; _ts4k_word stop; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4K_V; $TS4_DEC"; TS4K_N1="$TS4K_N"; _ts4k_word go; _ts4_a "$TS4K_A" tick; TS4K_W2="$(_ts4_ledger "$TS4K_A")"; _ts4_a "$TS4K_A" status
+_ts4k_word go; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4_DEC"; _ts4k_word stop; _ts4k_dd "$TS4K_HP"; TS4K_V="$TS4K_V; $TS4_DEC"; TS4K_N1="$TS4K_N"; _ts4k_word go; _ts4_a "$TS4K_A" tick
+TS4K_V="$TS4K_V; $(_ts4k_decs plain ov)candidate lines: $(_ts4_cands)"; TS4K_W2="$(_ts4_ledger "$TS4K_A")"; _ts4_a "$TS4K_A" status
 _ts4_is "ts4 reading K2: the later of stop and go decides: after go the head is eligible, after a second stop it is stopped by that statement, and after a second go a tick decides each candidate again" \
-  "$TS4K_V; $(_ts4k_decs plain ov)candidate lines: $(_ts4_cands); word: $(_ts4_sv word)" "eligible|-; stopped|statement $TS4K_N1; plain: eligible|-; ov: override|statement $TS4K_NO overrides the judge for tree $TS4K_TO; candidate lines: 23; word: go" "$(_ts4_why)"
+  "$TS4K_V; word: $(_ts4_sv word)" "eligible|-; stopped|statement $TS4K_N1; plain: eligible|-; ov: override|statement $TS4K_NO overrides the judge for tree $TS4K_TO; candidate lines: 23; word: go" "$(_ts4_why)"
 
 # ------------------------------------------------------------------ main moves under an override (K6, K8, case 5) ---
 _ts4_tree "$TS4K_S" "$TS4K_M2"; _ts4_f "$TS4K_S" alpha 'hotel on main' 'delta on main'; _ts4_seal "$TS4K_S" main "$TS4K_M2" 'main moves under the override'; TS4K_M3="$TS4_C"

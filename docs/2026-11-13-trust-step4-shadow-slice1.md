@@ -1,10 +1,12 @@
 # The authority that holds main, in shadow: the first slice of step 4's first stage
 
 2026-11-13 (dates in UTC). What this change builds, from the founder's door as designed on 2026-11-10
-(`docs/2026-11-10-trust-door-design.md`, §5 and §7) and from the hosted-authority design of 2026-11-09 (pull
-request 504, which was not on main when this was written). The contract the tests were written from is in the
-memory root, `audits/2026-11-13-trust-step4-shadow/spec-slice1.md` (revision 3), with the review and the log
-of each run named here.
+(`docs/2026-11-10-trust-door-design.md`, §5 and §7) and from the hosted-authority design of 2026-11-09
+(`docs/2026-11-09-trust-hosted-authority-design.md`). Both reached main in their present form on 2026-11-13,
+while this was built: the hosted-authority design as pull request 504, with the text this slice read, and the
+door design's run at a door with no key as pull request 507 (its §5.8, and decisions 16 and 17). The contract
+the tests were written from is in the memory root, `audits/2026-11-13-trust-step4-shadow/spec-slice1.md`
+(revision 3), with the review and the log of each run named here.
 
 **Scope.** One slice of the first stage, in the engine: the authority's parameters and store, its standing, the
 founder's door, the reading of his statements, the decision for a candidate up to the judge, a reader's check of
@@ -49,7 +51,7 @@ login's desktop.
 | The reading | `lib/door-read.sh` | His statements read in order: stop and go, hold, release, authorize, override |
 | Founder paths | `lib/authority-paths.sh` | One function, used by the door's card and by the decision, that says which changed paths are his |
 | The decision | `lib/authority-tick.sh`, `felix authority tick`, `decide` | For each candidate: `stopped`, `override`, `held`, `conflict`, `nothing`, `waits` or `eligible`, with what it leaned on. A ledger row when a decision changes |
-| The reader's check | `felix authority verify` | Checks each entry of the log, and with `--memory` notices a log that no longer holds an entry this reader saw |
+| The reader's check | `felix authority verify` | Checks each entry of the log, and with `--memory` notices a log that no longer holds an entry this reader saw. It says `ok` with how many statements it took on the authority's word, or `not ok` and why |
 | The reach test | `bin/reach-witness`, `bin/reach-probe` | The witness records what arrives at the authority's desktop. The probe tries to reach it from a session of the founder's login |
 
 The enforcing path is bash 3.2 and git, as the rest of the engine. Each git the authority runs drops the
@@ -112,7 +114,7 @@ build and not copied. These are the ones this slice meets. The list is the ones 
 | V43 | The founder-path rule turned a newline in a path into `?` before the rule read it | Paths are read NUL-terminated. A path holding a byte outside printable ASCII is his, and the card shows it as `\x0a` |
 | 11-10 review | The door and the kernel read the founder-path policy differently on one path of fourteen | One function answers for both |
 | V62 | A hold dropped from the log left both readers saying ok | A reader with `--memory` says the log no longer holds the entry it saw. A reader without memory says, on each run, that it could not tell |
-| No-key run of 11-13, VD3 | The confirmation's four characters sat at one place known before the card | Two pairs of characters at places the statement's nonce picks, one try, and a refused try is recorded (§4) |
+| No-key run of 11-13, VD3 | The confirmation's four characters sat at one place known before the card | Two pairs of characters at places the statement's nonce picks, one try, and a refused try is recorded (§4). The door design's decisions 16 and 17 ask for a place the door chooses and for one try; the two pairs are this build's, after the review |
 | 11-09 ledger | A path's tab reached the ledger's "why" column as it was | A worker's word is escaped before it is written to a line or a row |
 
 **Not fixed by this slice,** because the thing it lives in is not built: the 11-09 battery's case T1 (its
@@ -176,6 +178,14 @@ the implementation and ran them against no build:
   value. The ledger had a row for main's own move, which the spec does not name. Each is fixed in the build.
 - **What was found in them:** one assertion read a tick's lines after a later call had replaced them. Its
   author fixed it, and changed no expected value.
+- **What the whole suite found.** Its first run on the build (commit 505ffbe2, before main was merged in:
+  17,351 pass, 5 fail, 47 skip) found a fifth line. The reader's failing word was `unverified`, as the mocks'
+  readers said it. The engine's wording contract (`docs/2026-10-31-checked-not-verified-contract.md`, C18)
+  refuses that word in a line the engine prints, and three assertions of parts 2300 and 2301 failed on it.
+  The spec, the reader and part 2189 now say `not ok`. That rename in part 2189 was made by the builder and
+  not by the blind author: one word changed, in the spec first, and no assertion's shape did. The other two
+  failures were in part 0290, a forked refresh that another session's note also records as failing under
+  load, in a file this change does not touch.
 - **What they do not reach,** by their author's account: a change of owner, of group or of a process's user,
   a fetch over `https` or `ssh`, the witness while it waits, and the probe on macOS. Where a machine's own
   `PATH` fails condition e, 47 assertions skip. The author's 39 notes on the spec are kept with the tests'

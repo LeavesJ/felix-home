@@ -10,7 +10,7 @@
 # records, but nothing it says counts and it holds nothing until it runs as its own login, the reach test has
 # passed, and he has given the first start at that login's console. Until then the standing is `shadow`, each
 # line it prints for a candidate starts with that word, and each statement kept says it was given in shadow and
-# never counts. No code outside these four files reads the store, the log or the ledger to decide anything, so
+# never counts. No code outside this slice's five libraries reads the store, the log or the ledger to decide anything, so
 # what a shadow authority says changes no merge. Under the founder's own login a worker can write every file
 # here. That is why it is shadow, and no check in this file is a wall there.
 #
@@ -27,13 +27,18 @@
 
 FELIX_AUTH_KEYS='user workers source source-main store door lock'
 FELIX_AUTH_ZERO=0000000000000000000000000000000000000000
+# The programs this code runs by name (W6 e). One added to these libraries is added here.
+FELIX_AUTH_TOOLS='git awk sed grep ps find id od date sort tr cut wc mkdir chmod ls cat rm mv bash'
 
 felix_authority_home() { printf '%s' "${FELIX_AUTHORITY_HOME:-$HOME/.felix/authority}"; }
 
 _fa_sha() { local LC_ALL=C; case "${1:-}" in ""|*[!0123456789abcdef]*) return 1 ;; esac; [ "${#1}" -eq 40 ]; }
 _fa_login() { local LC_ALL=C; case "${1:-}" in ""|[!A-Za-z_]*|*[!A-Za-z0-9_.-]*) return 1 ;; esac; return 0; }
 _fa_abs() { case "${1:-}" in /*) return 0 ;; esac; return 1; }
-_fa_g() { git --git-dir="$_FA_STORE" "$@"; }
+# Each git of the authority's. core.attributesFile is named because GIT_CONFIG_GLOBAL does not turn off the
+# user's attributes file ($XDG_CONFIG_HOME/git/attributes), and with `* merge=union` there a head that
+# conflicts merged clean (review F3). The store's own info/attributes is refused by felix_authority_open.
+_fa_g() { git -c core.attributesFile=/dev/null --git-dir="$_FA_STORE" "$@"; }
 
 # W2. The rows of a configuration, from its text on stdin. Sets the _FA_* variables and returns 0, or returns 1
 # with _FA_WHY. A value is printable ASCII, so a second tab in a row makes the file unreadable.
@@ -46,6 +51,8 @@ _fa_parse() {   # HOME <- text
     case "$line" in ""|"#"*) continue ;; esac
     case "$line" in *$'\t'*) ;; *) _FA_WHY="authority.conf holds a row with no tab"; return 1 ;; esac
     k="${line%%$'\t'*}"; v="${line#*$'\t'}"
+    # A key is one of the list's, whole: "store door lock" is in the list as a run of words and is no key.
+    case "$k" in *" "*) _FA_WHY="authority.conf holds a key this engine does not know"; return 1 ;; esac
     case " $FELIX_AUTH_KEYS " in *" $k "*) ;; *) _FA_WHY="authority.conf holds a key this engine does not know"; return 1 ;; esac
     case "$seen" in *" $k "*) _FA_WHY="authority.conf holds the key $k twice"; return 1 ;; esac
     seen="$seen$k "
@@ -98,6 +105,10 @@ felix_authority_load() {
 felix_authority_gitenv() {
   local v
   for v in ${!GIT_@}; do unset "$v" 2>/dev/null; done
+  # And nothing of the caller's stands in for what this code has read: with _FP_AT and its companions
+  # exported, the policy read as already read, with no rows (review F4). Each variable these libraries keep
+  # state in starts with one of these prefixes, and each is removed before the first read.
+  for v in ${!_FA_@} ${!_FP_@} ${!_FD@} ${!_DL_@} ${!_FW_@}; do unset "$v" 2>/dev/null; done
   export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 GIT_NO_REPLACE_OBJECTS=1 \
          GIT_TERMINAL_PROMPT=0 LC_ALL=C LANGUAGE=C \
          GIT_AUTHOR_NAME=felix-authority GIT_AUTHOR_EMAIL=authority@felix.invalid \
@@ -120,6 +131,10 @@ felix_authority_init() {   # USER WORKERS SOURCE SRCMAIN STORE DOOR LOCK (each "
   home="$(felix_authority_home)"; f="$home/authority.conf"; _FA_WHY=""
   _fa_abs "$home" || { _FA_WHY="the authority's home, $home, is not an absolute path"; return 1; }
   [ ! -e "$f" ] && [ ! -L "$f" ] || { _FA_WHY="an authority is already set up at $home"; return 1; }
+  # A value is one row: a newline inside an argument would write a second one (review F13).
+  for w in "$@"; do
+    case "$w" in *[!\ -~]*) _FA_WHY="an argument holds a byte outside printable ASCII"; return 1 ;; esac
+  done
   text="$(printf 'user\t%s\nworkers\t%s\nsource\t%s\n' "$1" "$2" "$3"
           [ -z "$4" ] || printf 'source-main\t%s\n' "$4"
           [ -z "$5" ] || printf 'store\t%s\n' "$5"
@@ -156,37 +171,100 @@ EOF
   _FA_ID="$id"
 }
 
-# W6 a and b. Prints one line for each condition that does not hold; returns 0 when both hold.
-felix_authority_own() {
-  local me rest w p rc=0
-  me="$(id -un 2>/dev/null)"
-  if [ "$me" != "$_FA_USER" ]; then
-    printf 'not its own login: this process runs as %s, and the authority'"'"'s user is %s\n' "${me:-?}" "$_FA_USER"; rc=1
-  fi
+# W6 e. Prints each path of the code this process runs that another login owns or can write: the engine's own
+# files, each tool as PATH resolves it, the directory each stands in, and the lock. A link is read as itself
+# and as what it points at. Group write counts when a login workers run as is in the group. NOT READ: the
+# directories above these, and an access-control list on any of them; the slice's document lists both as open.
+_fa_code_offenders() {
+  local t p w rest g
+  local -a a=() grp=()
+  a=("${SCRIPT_DIR:-/nonexistent}" "${SCRIPT_DIR:-/nonexistent}/felix" "${SCRIPT_DIR:-/nonexistent}/lib" "${SCRIPT_DIR:-/nonexistent}"/lib/*.sh)
+  for t in $FELIX_AUTH_TOOLS; do
+    p="$(type -P "$t" 2>/dev/null)" && [ -n "$p" ] || continue
+    a[${#a[@]}]="$p"
+    case "$p" in */*) a[${#a[@]}]="${p%/*}/" ;; esac
+  done
+  if [ -n "$_FA_LOCK" ]; then a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"; fi
+  find "${a[@]}" -prune ! \( -user "$_FA_USER" -o -user 0 \) -print 2>/dev/null
+  find -L "${a[@]}" -prune \( ! \( -user "$_FA_USER" -o -user 0 \) -o -perm -002 \) -print 2>/dev/null
   rest="$_FA_WORKERS,"
   while [ -n "$rest" ]; do
     w="${rest%%,*}"; rest="${rest#*,}"
-    [ "$w" != "$_FA_USER" ] || { printf 'not its own login: %s is also a login workers run as\n' "$_FA_USER"; rc=1; }
+    for g in $(id -G "$w" 2>/dev/null); do
+      case "$g" in ""|*[!0123456789]*) continue ;; esac
+      [ ${#grp[@]} -eq 0 ] || grp[${#grp[@]}]="-o"
+      grp[${#grp[@]}]="-group"; grp[${#grp[@]}]="$g"
+    done
+  done
+  [ ${#grp[@]} -eq 0 ] || find -L "${a[@]}" -prune -perm -020 \( "${grp[@]}" \) -print 2>/dev/null
+  return 0
+}
+
+# W6 a, b and e. Sets _FA_OWN to one line for each condition that does not hold, and returns 0 when each
+# holds. Read once a process, and again when asked: the door asks again when it keeps a statement.
+felix_authority_own() {   # [again]
+  local me rest w p bad n LC_ALL=C
+  if [ -n "${_FA_OWN_READ:-}" ] && [ "${1:-}" != again ]; then [ -z "$_FA_OWN" ]; return; fi
+  _FA_OWN=""
+  me="$(id -un 2>/dev/null)"
+  [ "$me" = "$_FA_USER" ] \
+    || _FA_OWN="not its own login: this process runs as ${me:-?}, and the authority's user is $_FA_USER"
+  rest="$_FA_WORKERS,"
+  while [ -n "$rest" ]; do
+    w="${rest%%,*}"; rest="${rest#*,}"
+    [ "$w" != "$_FA_USER" ] || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not its own login: $_FA_USER is also a login workers run as"
+    # Root writes every file, so nothing is the authority's alone from a worker that is root.
+    [ "$(id -u "$w" 2>/dev/null)" != 0 ] || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not its own login: $w is a login workers run as, and it writes every file"
+  done
+  # b. Each file and directory under the three, and not their modes alone: with the store at 755 and its
+  # refs/felix at 777, anyone could replace the log's ref (review F7).
+  for p in "$_FA_HOME" "$_FA_STORE" "$_FA_DOOR"; do
+    case "$p" in "$_FA_HOME"/*) [ ! -d "$p" ] || [ -L "$p" ] || continue ;; esac   # read with the home
+    bad=""
+    if [ ! -d "$p" ] || [ -L "$p" ]; then bad="$p"
+    else
+      bad="$(find "$p" \( ! -user "$_FA_USER" -o \( ! -type l \( -perm -020 -o -perm -002 \) \) \) -print 2>/dev/null | sed -n 1p)"
+      [ -n "$bad" ] || [ -n "$(find "$p" -prune -user "$_FA_USER" 2>/dev/null)" ] || bad="$p"
+    fi
+    [ -z "$bad" ] || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: $(_fa_esc "$bad" 200) is not owned by $_FA_USER, or someone else can write it"
   done
   for p in "$_FA_HOME" "$_FA_STORE" "$_FA_DOOR"; do
-    [ -n "$(find "$p" -prune -user "$_FA_USER" ! -perm -020 ! -perm -002 2>/dev/null)" ] \
-      || { printf 'not the authority'"'"'s alone: %s is not owned by %s, or someone else can write it\n' "$p" "$_FA_USER"; rc=1; }
+    case "$(ls -ld "$p" 2>/dev/null)" in
+      ??????????+*) _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: $(_fa_esc "$p" 200) carries an access-control list" ;;
+    esac
   done
-  return "$rc"
+  # e. The code it runs.
+  bad="$(_fa_code_offenders | LC_ALL=C sort -u)"
+  if [ -n "$bad" ]; then
+    n="$(printf '%s\n' "$bad" | wc -l | tr -d ' ')"
+    _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: it runs $(_fa_esc "${bad%%$'\n'*}" 200), which another login owns or can write ($n such)"
+  fi
+  _FA_OWN_READ=1
+  [ -z "$_FA_OWN" ]
 }
 
 # W8. How a statement given now is given: shadow, console or desktop. The console is this machine with no
-# process of a login workers run as: after a restart, before the founder logs in as himself. Where the
-# processes cannot be listed the answer is desktop, the one that asks for more.
-felix_authority_given() {
-  local rest w uid
-  felix_authority_own >/dev/null || { printf 'shadow'; return 0; }
-  ps -o pid= -p "$$" >/dev/null 2>&1 || { printf 'desktop'; return 0; }
+# process whose real or effective user is a login workers run as: after a restart, before the founder logs in
+# as himself. Every process is listed once, with both users. A list that fails, or that lacks process 1 or
+# this process, is not the whole list (a system that hides other logins' processes), and the answer is then
+# desktop, the one that asks for more. Asking ps for one user's processes read an error as "none": on this
+# Mac `ps -U` refused the uid of `nobody` and printed nothing (review F6).
+felix_authority_given() {   # [again]
+  local rest w uid list
+  felix_authority_own "${1:-}" || { printf 'shadow'; return 0; }
+  list="$(ps -A -o pid= -o ruid= -o uid= 2>/dev/null)" || { printf 'desktop'; return 0; }
+  printf '%s\n' "$list" | LC_ALL=C awk -v me="$$" '($1 "") == "1" { a = 1 } ($1 "") == (me "") { b = 1 } END { exit !(a && b) }' \
+    || { printf 'desktop'; return 0; }
   rest="$_FA_WORKERS,"
   while [ -n "$rest" ]; do
     w="${rest%%,*}"; rest="${rest#*,}"
     uid="$(id -u "$w" 2>/dev/null)" || { printf 'desktop'; return 0; }
-    [ -z "$(ps -U "$uid" -o pid= 2>/dev/null)" ] || { printf 'desktop'; return 0; }
+    case "$uid" in ""|*[!0123456789]*) printf 'desktop'; return 0 ;; esac
+    # A uid above 2^31 is printed by some systems as a negative number: both spellings are looked for.
+    if printf '%s\n' "$list" | LC_ALL=C awk -v u="$uid" '
+         BEGIN { alt = (u + 0 > 2147483647) ? sprintf("%d", u - 4294967296) : u }
+         ($2 "") == (u "") || ($3 "") == (u "") || ($2 "") == (alt "") || ($3 "") == (alt "") { f = 1 }
+         END { exit !f }'; then printf 'desktop'; return 0; fi
   done
   printf 'console'
 }
@@ -194,9 +272,8 @@ felix_authority_given() {
 # W6. Sets _FA_STANDING (live or shadow) and _FA_WHYS (one line a reason). The log is read first by the caller
 # (felix_door_log_read); a log that does not read back is one more reason.
 felix_authority_standing() {
-  local own
   _FA_STANDING=live; _FA_WHYS=""
-  own="$(felix_authority_own)" || { _FA_STANDING=shadow; _FA_WHYS="$own"; }
+  felix_authority_own || { _FA_STANDING=shadow; _FA_WHYS="$_FA_OWN"; }
   if [ -n "${_DL_BAD:-}" ]; then
     _FA_STANDING=shadow; _FA_WHYS="${_FA_WHYS:+$_FA_WHYS$'\n'}the door's log does not read back: statement $_DL_BAD"
     return 0

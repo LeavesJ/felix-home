@@ -11,8 +11,10 @@
 #
 # THE RULES (W9). A changed path is the founder's when:
 #   1. it holds a byte outside 0x20 to 0x7e, a newline and a tab among them: held, and not matched;
-#   2. it is the land table itself, projects/<name>/land.tsv, where <name> is the first line of the base's
-#      .felix: a change to the policy that says what is his is his;
+#   2. it is .felix, or the land table itself, projects/<name>/land.tsv, where <name> is the first line of the
+#      base's .felix, or a path under either: a change to the policy that says what is his is his. .felix is in
+#      the rule because it names the table: a candidate that changed it to another project's name, and brought
+#      that project's table, read as eligible and chose its own policy from then on (review F1);
 #   3. a row of kind `founder` in that table, as the base holds it and lib/land-table.sh's schema accepts it,
 #      matches it. A row is an ERE that grep searches the path for, as the schema checks it, and here without
 #      regard to case, which matches more: this Mac's file system folds case.
@@ -26,21 +28,23 @@
 # Bash 3.2. No project is named here.
 
 # D5, D12. A worker's word, shown: each byte outside printable ASCII, each backslash and each double quote as
-# \xNN, the whole in double quotes. With MAX, cut there, and the cut says how many bytes it left out.
+# \xNN, the whole in double quotes. With MAX, cut there, and the cut says how many bytes it left out. A word
+# with nothing to escape is printed as it is. Any other goes through od and awk, one pass over its bytes: a
+# loop in bash that appended to a string took 27 seconds for 32,000 bytes, and a founder path is never cut, so
+# one long path a worker pushed set how long the door took (review F9).
 _fa_esc() {   # STRING [MAX]
-  local s="$1" max="${2:-0}" out="" c i n v LC_ALL=C
+  local s="$1" max="${2:-0}" n LC_ALL=C
   n=${#s}
-  for (( i = 0; i < n; i++ )); do
-    [ "$max" -eq 0 ] || [ "$i" -lt "$max" ] || break
-    c="${s:i:1}"
-    case "$c" in
-      \\) out="$out\\x5c" ;;
-      \") out="$out\\x22" ;;
-      [\ -~]) out="$out$c" ;;
-      *) printf -v v '%d' "'$c" 2>/dev/null || v=63; printf -v v '\\x%02x' "$(( v & 255 ))"; out="$out$v" ;;
-    esac
-  done
-  printf '"%s"' "$out"
+  [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || s="${s:0:max}"
+  case "$s" in
+    *[!\ -~]*|*\\*|*\"*)
+      printf '"'
+      printf '%s' "$s" | od -An -v -tx1 | LC_ALL=C awk '
+        BEGIN { for (i = 32; i < 127; i++) c[sprintf("%02x", i)] = sprintf("%c", i); delete c["5c"]; delete c["22"] }
+        { for (i = 1; i <= NF; i++) printf "%s", (($i in c) ? c[$i] : "\\x" $i) }'
+      printf '"' ;;
+    *) printf '"%s"' "$s" ;;
+  esac
   [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || printf ' (+%s more bytes)' "$(( n - max ))"
 }
 
@@ -68,7 +72,9 @@ EOF
   done <<EOF
 $rows
 EOF
-  _FP_AT_ERES[$_FP_AT_N]="^projects/$(printf '%s' "$name" | LC_ALL=C sed 's/\./\\./g')/land\\.tsv\$"
+  _FP_AT_ERES[$_FP_AT_N]="^projects/$(printf '%s' "$name" | LC_ALL=C sed 's/\./\\./g')/land\\.tsv(/|\$)"
+  _FP_AT_N=$((_FP_AT_N + 1))
+  _FP_AT_ERES[$_FP_AT_N]='^\.felix(/|$)'
   _FP_AT_N=$((_FP_AT_N + 1))
 }
 

@@ -27,6 +27,10 @@
 felix_authority_open() {
   felix_authority_gitenv
   felix_authority_load || return 1
+  # W10. The merge reads no attributes file. The user's is turned off in _fa_g; the store's own cannot be,
+  # so a store that holds one is refused.
+  [ ! -e "$_FA_STORE/info/attributes" ] && [ ! -L "$_FA_STORE/info/attributes" ] \
+    || { _FA_WHY="the store holds an attributes file, $_FA_STORE/info/attributes, and the merge reads none"; return 1; }
   _FA_ID="$(felix_authority_id)" || { _FA_WHY="the store at $_FA_STORE has no identity"; return 1; }
   _FA_EMPTY="$(_fa_g hash-object -t tree /dev/null 2>/dev/null)"
   felix_door_log_read "$_FA_STORE" "$_FA_ID"
@@ -43,7 +47,8 @@ felix_authority_open() {
 felix_authority_fetch() {
   _fa_g -c transfer.fsckObjects=true -c fetch.fsckObjects=true \
         -c protocol.allow=never -c protocol.file.allow=always -c protocol.https.allow=always -c protocol.ssh.allow=always \
-        fetch -q --no-tags --prune -- "$_FA_SOURCE" \
+        -c fetch.recurseSubmodules=false -c submodule.recurse=false \
+        fetch -q --no-tags --prune --no-recurse-submodules -- "$_FA_SOURCE" \
     '+refs/heads/*:refs/remotes/src/*' "+$_FA_SRCMAIN:refs/felix/source-main" >/dev/null 2>&1 </dev/null
 }
 
@@ -58,12 +63,14 @@ felix_authority_main() {
   _FA_MAIN="${_DL_COMMIT[0]}"
 }
 
-# K7. The decision for one head against main. Sets _FD_DECISION, _FD_DETAIL and _FD_TREE.
-felix_authority_decide() {   # HEAD
+# K7. The decision for one head against main. Sets _FD_DECISION, _FD_DETAIL and _FD_TREE. With `listing`, a
+# stop is passed over: the door's list reads each head as if he had said go. That is an argument and not a
+# variable, because a variable of that name in the caller's environment did the same to `decide` (review F4).
+felix_authority_decide() {   # HEAD [listing]
   local h="$1" b="$_FA_MAIN" s mt rc t btree ovr_any="" ovr_t="" rel auth lean="" note=""
   _FD_DECISION=""; _FD_DETAIL="-"; _FD_TREE="-"
   s="$(felix_word_stop)"
-  if [ -n "$s" ] && [ -z "${_FD_NOSTOP:-}" ]; then _FD_DECISION=stopped; _FD_DETAIL="statement $s"; return 0; fi
+  if [ -n "$s" ] && [ "${2:-}" != listing ]; then _FD_DECISION=stopped; _FD_DETAIL="statement $s"; return 0; fi
   mt="$(_fa_g --attr-source="$_FA_EMPTY" merge-tree --write-tree --no-messages "$b" "$h" 2>/dev/null)"; rc=$?
   t="${mt%%$'\n'*}"
   if [ "$rc" -ne 0 ] || ! _fa_sha "$t" || ! _fa_g cat-file -e "$t^{tree}" 2>/dev/null; then t=""; fi
@@ -126,7 +133,7 @@ felix_authority_candidates() {
 # K8. One row when this head's decision, detail or main differs from its last row. Report only.
 _fa_ledger() {   # HEAD
   local f="$_FA_HOME/ledger.tsv" last
-  last="$(LC_ALL=C awk -F'\t' -v h="$1" '$4 == h { l = $3 "\t" $5 "\t" $7 } END { print l }' "$f" 2>/dev/null)"
+  last="$(LC_ALL=C awk -F'\t' -v h="$1" '($4 "") == (h "") { l = $3 "\t" $5 "\t" $7 } END { print l }' "$f" 2>/dev/null)"
   [ "$last" != "$_FD_DECISION"$'\t'"$_FA_MAIN"$'\t'"$_FD_DETAIL" ] || return 0
   printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$_FA_STANDING" "$_FD_DECISION" "$1" \
     "$_FA_MAIN" "$_FD_TREE" "$_FD_DETAIL" >> "$f"

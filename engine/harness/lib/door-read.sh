@@ -35,8 +35,9 @@ FELIX_DOOR_VERBS='start hold release authorize override stop go reach'
 _FELIX_DOOR_LOG_AWK='
 function hex(s, n) { return length(s) == n && s !~ /[^0-9a-f]/ }
 function bad(why) { if (!failed) { printf "BAD\t%d\t%s\n", n, why; failed = 1 } }
-function flush(   i, k, v, verb, names, names_n) {
+function flush(   i, k, v, verb, names, names_n, want) {
   if (n < 0 || failed) return
+  if (h_n != 9) { bad("its commit does not read back"); return }
   if (nl != 16 || L[16] != "" || L[1] != "felix-door/v1") { bad("its message is not the fields of a statement and nothing else"); return }
   names_n = split("authority serial prev verb commit tree main card key given result witness nonce at", names, " ")
   for (i = 1; i <= names_n; i++) {
@@ -47,9 +48,18 @@ function flush(   i, k, v, verb, names, names_n) {
   if (F["authority"] != aid) { bad("it was given to another authority"); return }
   if (F["serial"] != ("" n)) { bad("it is out of its place"); return }
   if (index(par, " ")) { bad("its commit has more than one parent"); return }
-  if (n == 0 ? (par != "" || F["prev"] != "-") : (par != previd || F["prev"] != previd)) { bad("it does not follow the statement before it"); return }
+  # Ids are compared as text: two ids that both read as numbers (0e11..., 0e22...) are equal as numbers.
+  if (n == 0 ? ((par "") != "" || F["prev"] != "-") : ((par "") != (previd "") || F["prev"] != (previd ""))) { bad("it does not follow the statement before it"); return }
+  # The commit holds its tree, at most one parent, the author and committer lines the authority writes and the
+  # statement, and no other byte. Its size is counted from what read back: a header git does not print (a
+  # signature, an encoding) and bytes after a NUL in the message both make it larger (review F12).
+  if (an != "felix-authority" || ae != "authority@felix.invalid" || cn != an || ce != ae) { bad("its commit was not written by an authority"); return }
+  want = 46 + ((par "") == "" ? 0 : 48) + 7 + length(an) + 2 + length(ae) + 2 + length(ad) + 1 + 10 + length(cn) + 2 + length(ce) + 2 + length(cd) + 1 + 1
+  for (i = 1; i <= 15; i++) want += length(L[i]) + 1
+  if (!(id in size) || size[id] + 0 != want) { bad("its commit holds bytes that are not its statement"); return }
   verb = F["verb"]
   if (index(" " verbs " ", " " verb " ") == 0 || index(verb, " ")) { bad("its verb is not one the door knows"); return }
+  if ((verb == "start") != (n == 0)) { bad("a start is the first statement and no other"); return }
   if (verb == "stop" || verb == "go" || verb == "reach") { if (F["commit"] != "-") { bad("it names a commit its verb does not take"); return } }
   else if (!hex(F["commit"], 40)) { bad("it names no commit"); return }
   if (verb == "override" ? !hex(F["tree"], 40) : F["tree"] != "-") { bad("its tree is not what its verb takes"); return }
@@ -63,20 +73,25 @@ function flush(   i, k, v, verb, names, names_n) {
     if (F["result"] == "pass" && F["witness"] == "-") { bad("it is a reach pass with no witness record"); return }
   } else if (F["result"] != "-" || F["witness"] != "-") { bad("it carries a reach result its verb does not take"); return }
   if (!hex(F["nonce"], 32)) { bad("its nonce is not 32 hex digits"); return }
+  if (F["nonce"] in seen) { bad("its nonce stands in an earlier statement"); return }
+  seen[F["nonce"]] = 1
   if (F["at"] !~ /^[0-9][0-9][0-9][0-9]-[0-9][0-9]-[0-9][0-9]T[0-9][0-9]:[0-9][0-9]:[0-9][0-9]Z$/) { bad("its time is not a UTC time"); return }
-  if (F["witness"] == "-" && tr != empty) { bad("its commit holds a file"); return }
+  if (F["witness"] == "-" && (tr "") != (empty "")) { bad("its commit holds a file"); return }
   printf "%d\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n", n, id, verb, F["commit"], F["tree"], F["given"], F["result"], F["witness"], F["at"], tr
   previd = id
 }
-BEGIN { n = -1; failed = 0 }
-substr($0, 1, 1) == "\001" { flush(); n++; nl = 0; h_n = split(substr($0, 2), h, "\t"); id = h[1]; par = h[2]; tr = h[3]; next }
+BEGIN { n = -1; failed = 0; m = split(sizes, z, " "); for (i = 1; i < m; i += 2) size[z[i]] = z[i + 1] }
+substr($0, 1, 1) == "\001" {
+  flush(); n++; nl = 0; h_n = split(substr($0, 2), h, "\t"); id = h[1]; par = h[2]; tr = h[3]
+  an = h[4]; ae = h[5]; ad = h[6]; cn = h[7]; ce = h[8]; cd = h[9]; next
+}
 { nl++; L[nl] = $0 }
 END { flush() }'
 
 # V1. felix_door_log_read STORE AUTHORITY-ID -> 0 with the _DL_* arrays filled, or 1 with _DL_BAD="N: why" and
 # an empty log in the arrays, so that nothing a refused log holds is read.
 felix_door_log_read() {
-  local store="$1" aid="$2" empty out ids i id verb commit tree given result witness at tr reach=0 want
+  local store="$1" aid="$2" empty out ids sizes i id verb commit tree given result witness at tr reach=0 want
   _DL_N=0; _DL_BAD=""; _DL_TIP=""; _DL_REACH=0
   _DL_ID=(); _DL_VERB=(); _DL_COMMIT=(); _DL_TREE=(); _DL_GIVEN=(); _DL_RESULT=(); _DL_WITNESS=(); _DL_AT=(); _DL_COUNTS=(); _DL_READ=()
   if ! git --git-dir="$store" rev-parse --verify --quiet 'refs/felix/door^{commit}' >/dev/null 2>&1; then
@@ -86,8 +101,12 @@ felix_door_log_read() {
   fi
   empty="$(git --git-dir="$store" hash-object -t tree /dev/null 2>/dev/null)"
   ids="$(git --git-dir="$store" rev-list --first-parent --reverse refs/felix/door 2>/dev/null)" || { _DL_BAD="0: the log cannot be listed"; return 1; }
-  out="$(git --git-dir="$store" log --first-parent --reverse --format='%x01%H%x09%P%x09%T%n%B' refs/felix/door 2>/dev/null \
-          | LC_ALL=C awk -v aid="$aid" -v empty="$empty" -v verbs="$FELIX_DOOR_VERBS" "$_FELIX_DOOR_LOG_AWK")"
+  sizes="$(printf '%s\n' "$ids" | git --git-dir="$store" cat-file --batch-check='%(objectname) %(objectsize)' 2>/dev/null | tr '\n' ' ')"
+  # --no-show-signature: with log.showSignature and gpg.program in a store's own configuration, reading an
+  # entry that carried a signature header ran the program that configuration named (review F12).
+  out="$(git --git-dir="$store" log --no-show-signature --date=raw --first-parent --reverse \
+           --format='%x01%H%x09%P%x09%T%x09%an%x09%ae%x09%ad%x09%cn%x09%ce%x09%cd%n%B' refs/felix/door 2>/dev/null \
+          | LC_ALL=C awk -v aid="$aid" -v empty="$empty" -v verbs="$FELIX_DOOR_VERBS" -v sizes="$sizes" "$_FELIX_DOOR_LOG_AWK")"
   while IFS=$'\t' read -r i id verb commit tree given result witness at tr; do
     [ -n "$i" ] || continue
     if [ "$i" = BAD ]; then _DL_BAD="$id: $verb"; break; fi
@@ -192,17 +211,18 @@ felix_authority_verify() {   # STORE MEMORY|""
   felix_door_log_read "$store" "$aid" || { printf 'unverified statement %s\n' "$_DL_BAD"; return 1; }
   if [ -n "$mem" ] && { [ -e "$mem" ] || [ -L "$mem" ]; }; then
     [ -f "$mem" ] && [ ! -L "$mem" ] && IFS=$'\t' read -r n id < "$mem" || n=""
-    case "$n" in ""|*[!0123456789]*) printf 'unverified: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1 ;; esac
+    case "$n" in ""|*[!0123456789]*|??????????*) printf 'unverified: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1 ;; esac
     _fa_sha "$id" || { printf 'unverified: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1; }
     [ "$n" -lt "$_DL_N" ] && [ "${_DL_ID[$n]}" = "$id" ] \
       || { printf 'unverified: the log no longer holds statement %s that this reader saw\n' "$n"; return 1; }
   fi
-  printf 'ok %s statements, %s on the authority'"'"'s word\n' "$_DL_N" "$_DL_N"
-  if [ -z "$mem" ]; then
-    printf 'no memory: a log whose last statements were dropped would read the same\n'
-  elif [ "$_DL_N" -gt 0 ]; then
-    printf '%s\t%s\n' "$((_DL_N - 1))" "$_DL_TIP" > "$mem.new.$$" && mv "$mem.new.$$" "$mem" \
+  # The memory is written before the verdict is printed: a reader that could not keep what it saw says so,
+  # and says nothing that reads as ok.
+  if [ -n "$mem" ] && [ "$_DL_N" -gt 0 ]; then
+    { printf '%s\t%s\n' "$((_DL_N - 1))" "$_DL_TIP" > "$mem.new.$$"; } 2>/dev/null && mv "$mem.new.$$" "$mem" 2>/dev/null \
       || { printf 'unverified: this reader'"'"'s memory, %s, could not be written\n' "$mem"; return 1; }
   fi
+  printf 'ok %s statements, %s on the authority'"'"'s word\n' "$_DL_N" "$_DL_N"
+  [ -n "$mem" ] || printf 'no memory: a log whose last statements were dropped would read the same\n'
   return 0
 }

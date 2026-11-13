@@ -455,6 +455,7 @@ specific project, language, or toolchain.
                            its standing, what the founder's word makes of each candidate, and the
                            reader's check of the log; felix authority init --user U --workers W --source S sets one up
     felix door             the founder's door: one statement to the authority, typed at its own desktop
+    felix door stop        the brake: his stop, with no fetch and no list before it
     felix gate [args]      run this project's gate; exits with the gate's status
     felix route            what kind of work this is, and what to reach for
     felix decisions        the capability-decision record: mandates, declines, answer rate
@@ -6854,8 +6855,11 @@ cmd_authority() {
 
 # The founder's door (lib/door.sh): one statement for each run, read from standard input.
 cmd_door() {
-  [ $# -eq 0 ] || die "felix door takes no argument: what he says is typed at the door" 2
-  felix_door
+  case "$#:${1:-}" in
+    0:)     felix_door ;;
+    1:stop) felix_door stop ;;   # D13, the brake: no fetch and no list stand between him and the stop
+    *)      die "felix door takes no argument but stop: what he says is typed at the door" 2 ;;
+  esac
 }
 
 cmd_lane() {

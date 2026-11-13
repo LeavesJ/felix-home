@@ -164,7 +164,7 @@ is "W1C C4c: a second tick with the file still missing writes no second unaged r
 _w1c_keep
 
 # ---------------------------------------------------------------- C5 ---
-W1K15=' landed paused refused gh founder deployed stuck deployed-unverified timeout unresolved fetch deploy-owed unreadable waiting unaged '
+W1K15=' landed paused refused gh founder deployed stuck deploy-failed timeout unresolved fetch deploy-owed unreadable waiting unaged '
 is "W1C C5: across C1-C4 some records were written, no record's note starts kind:, and every record's kind is one of the fifteen that have an R2 sentence" \
    "$(LC_ALL=C awk -F'\t' -v ks="$W1K15" '{ n++ } index($7, "kind:") == 1 { k++ } index(ks, " " $3 " ") == 0 { o = o " " $3 } END { printf "records=%s|kind-notes=%d|other-kinds=%s", (n > 0 ? "some" : "none"), k, o }' "$W1/all.alerts" 2>&1)" \
    "records=some|kind-notes=0|other-kinds="

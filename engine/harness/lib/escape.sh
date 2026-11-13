@@ -484,7 +484,8 @@ EOF
 # Three kinds, and they are not the same kind of thing:
 #
 #   escape      merging writes outside the tree. A founder decision.
-#   unverified  no green receipt for this exact tree. Run the gate.
+#   not-green   no green receipt for this exact tree. Run the gate. (It was
+#               named unverified until 2026-11-07, docs/2026-11-07-not-green-deploy-failed-contract.md.)
 #   evidence    the change owes a test. That is Felix's work, not a queue item
 #               for anybody — the charter calls handing it back a defect — but
 #               it is still a blocker, because merging first would ship the
@@ -701,12 +702,12 @@ _felix_merge_blockers_at() {
   # clears it is named: bring the home to the base first.
   if [ "$pol" != "$proj" ] && command -v felix_commission_policy_version >/dev/null 2>&1 \
      && [ "$(felix_commission_policy_version "$proj")" != "$(felix_commission_policy_version "$pol")" ]; then
-    printf 'unverified\thome\tthe home'"'"'s tables at %s are not the ones %s holds, so no receipt written there can be current; bring the home to %s, then run felix gate\n' "$proj" "$base" "$base"
+    printf 'not-green\thome\tthe home'"'"'s tables at %s are not the ones %s holds, so no receipt written there can be current; bring the home to %s, then run felix gate\n' "$proj" "$base" "$base"
   fi
   case "$cur" in
     current) ;;
-    stale*)  printf 'unverified\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
-    *)       printf 'unverified\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
+    stale*)  printf 'not-green\ttree\t%s\n' "$(printf '%s' "$cur" | cut -f2)" ;;
+    *)       printf 'not-green\ttree\tno green receipt for this exact tree; run felix gate\n' ;;
   esac
 
   # C9 (contract A2, the push security review of 2026-10-12): a gate that
@@ -725,7 +726,7 @@ _felix_merge_blockers_at() {
       *,tests:reused,*)
         hsha="$(git -C "$root" rev-parse HEAD 2>/dev/null)"
         if ! held="$(_felix_merge_gate_held "$pol" "$root" "$hsha")"; then
-          printf 'unverified\ttests\tthe gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on %s: %s\n' \
+          printf 'not-green\ttests\tthe gate reused a suite run for this tree (tests:reused), and the gate workflow has not passed on %s: %s\n' \
             "$(printf '%s' "${hsha:-HEAD}" | cut -c1-8)" "$held"
         fi ;;
     esac

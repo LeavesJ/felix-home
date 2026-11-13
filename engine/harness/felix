@@ -6844,8 +6844,8 @@ cmd_authority() {
           *) die "felix authority verify: unknown argument: $1" 2 ;;
         esac
       done
-      if [ -z "$store" ]; then felix_authority_load || die "$_FA_WHY"; store="$_FA_STORE"; fi
       felix_authority_gitenv
+      if [ -z "$store" ]; then felix_authority_load || die "$_FA_WHY"; store="$_FA_STORE"; fi
       [ -d "$store" ] || die "the store, $store, is not a directory"
       felix_authority_verify "$store" "$mem" ;;
     *) die "felix authority: init, status, tick, decide COMMIT, log or verify. Try 'felix help'." 2 ;;

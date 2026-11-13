@@ -25,8 +25,8 @@
 
 # Everything a command needs before it reads or decides. Returns 1 with _FA_WHY when no authority is set up.
 felix_authority_open() {
-  felix_authority_load || return 1
   felix_authority_gitenv
+  felix_authority_load || return 1
   _FA_ID="$(felix_authority_id)" || { _FA_WHY="the store at $_FA_STORE has no identity"; return 1; }
   _FA_EMPTY="$(_fa_g hash-object -t tree /dev/null 2>/dev/null)"
   felix_door_log_read "$_FA_STORE" "$_FA_ID"
@@ -37,9 +37,13 @@ felix_authority_open() {
 }
 
 # W10. The source's branches as candidates and its main, each object checked as it is taken. A ref name from
-# the source reaches a ref name here through git's own refspec, which refuses a name that is not one.
+# the source reaches a ref name here through git's own refspec, which refuses a name that is not one. The
+# source is named after `--`, so it is never an option, and the transports are the three the parameters allow
+# (lib/authority.sh): a transport that runs a program the value names (ext::, a remote helper) is refused by git.
 felix_authority_fetch() {
-  _fa_g -c transfer.fsckObjects=true -c fetch.fsckObjects=true fetch -q --no-tags --prune "$_FA_SOURCE" \
+  _fa_g -c transfer.fsckObjects=true -c fetch.fsckObjects=true \
+        -c protocol.allow=never -c protocol.file.allow=always -c protocol.https.allow=always -c protocol.ssh.allow=always \
+        fetch -q --no-tags --prune -- "$_FA_SOURCE" \
     '+refs/heads/*:refs/remotes/src/*' "+$_FA_SRCMAIN:refs/felix/source-main" >/dev/null 2>&1 </dev/null
 }
 

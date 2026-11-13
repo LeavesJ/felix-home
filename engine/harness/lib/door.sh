@@ -257,6 +257,10 @@ EOF
   # D6. One try.
   IFS= read -r -t "$ttl" line || { printf 'refused: no confirmation came; the statement is closed and nothing was kept\n'; return 1; }
   [ "$line" = "$want" ] || { printf 'refused: that is not this statement'"'"'s confirmation; the statement is closed and nothing was kept\n'; return 1; }
+  # W8. How a statement was given is decided when it is kept. The statement says what stood when the door
+  # opened, so a desktop that stands otherwise now (a worker's login opened meanwhile) closes it.
+  [ "$(felix_authority_given)" = "$given" ] \
+    || { printf 'refused: how this desktop stands changed while the statement was open; nothing was kept\n'; return 1; }
   # D7, D9. The next entry of the log, by compare-and-swap.
   tree="$_FA_EMPTY"
   if [ "$witness" != - ]; then

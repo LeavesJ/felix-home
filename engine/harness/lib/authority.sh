@@ -59,7 +59,13 @@ _fa_parse() {   # HOME <- text
                  _fa_login "$w" || { _FA_WHY="authority.conf names a worker that is not a login name"; return 1; }
                done
                _FA_WORKERS="$v" ;;
-      source)  _FA_SOURCE="$v" ;;
+      # A source is an absolute path or a URL of a transport named here. It is never read as an option of git
+      # (a value that starts with a dash) or as a transport that runs a program of the value's choosing.
+      source)  case "$v" in
+                 /*|file://?*|https://?*|ssh://?*) ;;
+                 *) _FA_WHY="authority.conf names a source that is not an absolute path or a file, https or ssh URL"; return 1 ;;
+               esac
+               _FA_SOURCE="$v" ;;
       source-main)
                case "$v" in refs/*) ;; *) _FA_WHY="authority.conf names a source-main that is not a ref"; return 1 ;; esac
                git check-ref-format "$v" 2>/dev/null || { _FA_WHY="authority.conf names a source-main that is not a ref"; return 1; }
@@ -86,16 +92,12 @@ felix_authority_load() {
   return 0
 }
 
-# W10. Nothing of the caller's, the user's or the system's reaches a git this process runs from here on. The
-# list is bind.sh's (git 2.56's variables that choose a repository, an object store, an index, replacement,
-# config or a helper program), with the ones that choose a transport's program; one found later is added here.
+# W10. Nothing of the caller's, the user's or the system's reaches a git this process runs from here on. Each
+# variable whose name starts with GIT_ is removed, and not a list of the ones known today: a list is the ones
+# found so far, and git reads a new one with each release. Then the few this code means are set.
 felix_authority_gitenv() {
   local v
-  unset GIT_DIR GIT_WORK_TREE GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES GIT_COMMON_DIR \
-        GIT_NAMESPACE GIT_REPLACE_REF_BASE GIT_SHALLOW_FILE GIT_GRAFT_FILE GIT_CONFIG_PARAMETERS GIT_CONFIG_COUNT \
-        GIT_EXEC_PATH GIT_EXTERNAL_DIFF GIT_CONFIG GIT_CONFIG_SYSTEM GIT_SSH GIT_SSH_COMMAND GIT_ASKPASS \
-        GIT_PROXY_COMMAND GIT_ATTR_SOURCE GIT_TEMPLATE_DIR GIT_DEFAULT_HASH 2>/dev/null
-  for v in ${!GIT_CONFIG_KEY_@} ${!GIT_CONFIG_VALUE_@}; do unset "$v"; done
+  for v in ${!GIT_@}; do unset "$v" 2>/dev/null; done
   export GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 GIT_ATTR_NOSYSTEM=1 GIT_NO_REPLACE_OBJECTS=1 \
          GIT_TERMINAL_PROMPT=0 LC_ALL=C LANGUAGE=C \
          GIT_AUTHOR_NAME=felix-authority GIT_AUTHOR_EMAIL=authority@felix.invalid \
@@ -138,7 +140,7 @@ EOF
       || { _FA_WHY="the store's path, $_FA_STORE, exists and is not an empty directory"; return 1; }
   fi
   mkdir -p "$home" "$_FA_DOOR" && chmod 700 "$home" "$_FA_DOOR" || { _FA_WHY="$home could not be made"; return 1; }
-  git init -q --bare "$_FA_STORE" >/dev/null 2>&1 && chmod 700 "$_FA_STORE" \
+  git init -q --bare --template= "$_FA_STORE" >/dev/null 2>&1 && chmod 700 "$_FA_STORE" \
     && _fa_g symbolic-ref HEAD refs/heads/main || { _FA_WHY="the store could not be made at $_FA_STORE"; return 1; }
   # The store takes no push. Under another login the file system says so; this hook says so to a push by mistake
   # from the same login, which the file system would take.

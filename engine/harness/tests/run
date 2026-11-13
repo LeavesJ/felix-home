@@ -153,6 +153,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 . "$HERE/lib/router.sh"
 . "$HERE/lib/stuck-pr.sh"
 . "$HERE/lib/trust-probes.sh"
+. "$HERE/lib/trust-step4.sh"
 . "$HERE/lib/unborn-repo.sh"
 . "$HERE/lib/unwritable.sh"
 . "$HERE/lib/user-prompt-hook.sh"
@@ -161,8 +162,7 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ] && [ "$_rcp_on" -eq 1 ] && [ -x "$HERE/red" ];
 if [ -d "$HERE/lib" ]; then
   _audit_vars; _audit_review_vars; _felix_cost_vars; _inventory_blind_runs_vars; _inventory_blind_vars; _inventory_vars; _qualify_controls_vars; _qualify_needs_vars
 fi
-# The hand-over (contract D2, D7): part mode runs its members here and exits; a
-# -j N run hands the parts to the runner and reads the part lines below as no-ops.
+# The hand-over (contract D2, D7): part mode runs its members here and exits; a -j N run hands the parts to the runner and reads the part lines below as no-ops.
 [ -z "${_pm1:-}" ] || _pm_start "$@"
 [ -z "${_pm1:-}" ] || . "$HERE/parts/$_pm1"; [ -z "${_pm1:-}" ] || _pm_done "$_pm1"
 [ -z "${_pm2:-}" ] || . "$HERE/parts/$_pm2"; [ -z "${_pm2:-}" ] || _pm_done "$_pm2"
@@ -416,6 +416,9 @@ fi
 . "$HERE/parts/2183-trust-step3-instrument-parts-blind-d.sh"
 . "$HERE/parts/2184-trust-merge-dir-renames-blind.sh"
 . "$HERE/parts/2185-trust-step3-run-tree-bytes-blind.sh"
+. "$HERE/parts/2186-trust-step4-authority-store-blind.sh"
+. "$HERE/parts/2187-trust-step4-door-blind.sh"
+. "$HERE/parts/2188-trust-step4-reading-blind.sh"
 . "$HERE/parts/2200-lane-counts-blind.sh"
 . "$HERE/parts/2210-lane-states-blind.sh"
 . "$HERE/parts/2220-lane-command-blind.sh"
@@ -448,14 +451,12 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   [ -z "$_rcp_red" ] || _rcp_mark "$_rcp_mk" "$TMP/manifest.mark"
   printf '  recorded %s assertions to %s\n' \
     "$(awk -F'\t' '{s+=$1} END {print s+0}' "$_ran_counts")" "$FELIX_TEST_MANIFEST"
-  # And what red wrote, so the manifest and the count it was shown red with travel in one diff (receipt.sh, `_rcp_red_end`;
-  # tests/red): red's status is its own, and a red run that could not be made does not turn a green suite red.
+  # And what red wrote, so the manifest and the count it was shown red with travel in one diff (receipt.sh, `_rcp_red_end`; tests/red): red's status is its own, and a red run that could not be made does not turn a green suite red.
   if [ -n "$_rcp_red" ]; then _rcp_red_end "$TMP/manifest.mark" "$TMP/red.out"
   elif [ "$_rcp_on" -eq 1 ]; then printf '  no tests/red beside this suite: red.tsv not written\n'
   else printf '  no tests/receipt.sh beside this suite: red.tsv not written\n'
   fi
-  # Then the record it wrote, judged as a normal run judges it, record mode off for the call (part 1010); the receipt names
-  # the tree this run leaves, record files and all.
+  # Then the record it wrote, judged as a normal run judges it, record mode off for the call (part 1010); the receipt names the tree this run leaves, record files and all.
   if [ "$(type -t _rt_judge)" = function ]; then
     printf '\n%s\n' 'the record this run wrote'
     _rcp_rec="$FELIX_TEST_RECORD"; FELIX_TEST_RECORD=0
@@ -467,12 +468,10 @@ if [ "$FELIX_TEST_RECORD" -eq 1 ]; then
   fi
 fi
 if [ "$FELIX_TEST_RECORD" -ne 1 ] && [ "${FELIX_TEST_NO_MANIFEST:-0}" = "1" ]; then
-  # The red run: this suite is executing inside the base's tree, whose manifest describes the base's assertions, so nothing is
-  # compared (tests/red); the line says so rather than reading as a manifest that matched.
+  # The red run: this suite is executing inside the base's tree, whose manifest describes the base's assertions, so nothing is compared (tests/red); the line says so rather than reading as a manifest that matched.
   printf '  manifest comparison off (FELIX_TEST_NO_MANIFEST): this is a red run\n'
 elif [ -f "$FELIX_TEST_MANIFEST" ]; then
-  # Emitted through bad(), so these are `  FAIL` lines, the one channel to a CI log with no workflow change: projects/felix/gate.sh
-  # prints a passing suite's last line, greps ^  FAIL on failure; .github/workflows is an escape channel no project can demote.
+  # Emitted through bad(), so these are `  FAIL` lines, the one channel to a CI log with no workflow change: projects/felix/gate.sh prints a passing suite's last line, greps ^  FAIL on failure; .github/workflows is an escape channel no project can demote.
   _missing=0
   # Read from the files, not through awk -v, which processes backslash escapes, so a name holding one could never equal itself
   # (tests/red; part 0770). One pass: see _manifest_short.

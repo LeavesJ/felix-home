@@ -1,0 +1,5 @@
+field	session_id	session file name	session.id	2	2	2	match
+field	working_directory	record cwd	session.working_directory	2	2	2	match
+field	tool_name	tool_use.name	tool.name	2	2	2	match
+field	tool_input	tool_use.input	gen_ai.tool.call.arguments	2	2	2	match
+field	failed	tool_result.is_error	event.action tool.failed	2	2	2	match

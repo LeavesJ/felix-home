@@ -160,7 +160,7 @@ _fdoor_readback() {   # GIVEN
 $_FA_WHYS
 EOF
   fi
-  printf 'given: a statement given now is given at: %s\n' "$1"
+  printf 'where: a statement given now is given at: %s\n' "$1"   # not `given: `, which is the statement's own field
   printf 'main: %s\n' "${_FA_MAIN:--}"
   s="$(felix_word_stop)"
   if [ -n "$s" ]; then printf 'word: stop (statement %s)\n' "$s"; else printf 'word: go\n'; fi
@@ -188,7 +188,7 @@ EOF
     fi
   done
   f="$(_fdoor_failed)"
-  [ "$f" -eq 0 ] || printf 'refused-confirmations: %s since the last statement this door kept\n' "$f"
+  [ "$f" -eq 0 ] || printf 'refused-confirmations: %s\nrefused-since: the last statement this door kept; one that was not yours was typed by someone else\n' "$f"
 }
 
 # D3. What waits on his word, numbered. Sets _FDI (an array of heads), _FDI_N and _FDL_OUT (the lines).

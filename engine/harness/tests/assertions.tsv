@@ -2622,7 +2622,7 @@
 1	DW2.1: a stale lease (1300 s) does not keep SINCE: SINCE is now
 1	DW2.1: past the limit the tick keeps refreshing LEASE with SINCE unchanged
 1	DW2.1: the tick asserts the hold: one line of three fields, LEASE now, SINCE = LEASE, VERSION main's
-1	DW2.3: a deploy that ends unverified clears the hold
+1	DW2.3: a deploy that ends deploy-failed clears the hold
 1	DW2.3: a hold in force is cleared by the deployed row
 1	DW2.3: after felix land --pause, the tick clears the hold
 1	DW2.3: and the deployed row clears it

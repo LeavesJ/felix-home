@@ -277,7 +277,13 @@ $line
 EOF
   case " $FELIX_DOOR_VERBS " in *" $verb "*) ;; *) _fdoor_p 'refused: %s is not a verb this door knows\n' "$(_fa_esc "$verb" 40)"; return 1 ;; esac
   if [ "$_DL_N" -eq 0 ] && [ "$verb" != start ]; then _fdoor_p 'refused: the first statement is the first start\n'; return 1; fi
-  if [ "$_DL_N" -gt 0 ] && [ "$verb" = start ]; then _fdoor_p 'refused: the first start was given, and main starts once\n'; return 1; fi
+  if [ "$_DL_N" -gt 0 ] && [ "$verb" = start ]; then
+    # A store whose start was given in shadow stays a rehearsal (W6 c), and the door says so where he would
+    # otherwise read "main starts once" and not know why a console start is turned away.
+    if [ "${_DL_GIVEN[0]}" = console ]; then _fdoor_p 'refused: the first start was given, and main starts once\n'
+    else _fdoor_p 'refused: the first start was given, and main starts once; it was given in %s, so this store stays a rehearsal, and a start that counts is the first statement of a new store\n' "${_DL_GIVEN[0]}"; fi
+    return 1
+  fi
   # D4. A first start that does not count would make main and leave no room for one that does (review F8).
   if [ "$verb" = start ] && [ "$given" = desktop ]; then
     _fdoor_p 'refused: the first start is given at the console: after a restart, with no login of a worker open\n'; return 1

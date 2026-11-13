@@ -204,23 +204,23 @@ felix_door_log_print() {
 }
 
 # V1 to V3. `felix authority verify`: the reader's check of the log of STORE, with the reader's own memory of
-# the last entry it verified in MEMORY when one is named. Prints the verdict; 0 when it is ok.
+# the last entry it checked in MEMORY when one is named. Prints the verdict; 0 when it is ok.
 felix_authority_verify() {   # STORE MEMORY|""
   local store="$1" mem="$2" aid n="" id="" LC_ALL=C
-  aid="$(felix_authority_id "$store")" || { printf 'unverified: the store at %s has no identity\n' "$store"; return 1; }
-  felix_door_log_read "$store" "$aid" || { printf 'unverified statement %s\n' "$_DL_BAD"; return 1; }
+  aid="$(felix_authority_id "$store")" || { printf 'not ok: the store at %s has no identity\n' "$store"; return 1; }
+  felix_door_log_read "$store" "$aid" || { printf 'not ok statement %s\n' "$_DL_BAD"; return 1; }
   if [ -n "$mem" ] && { [ -e "$mem" ] || [ -L "$mem" ]; }; then
     [ -f "$mem" ] && [ ! -L "$mem" ] && IFS=$'\t' read -r n id < "$mem" || n=""
-    case "$n" in ""|*[!0123456789]*|??????????*) printf 'unverified: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1 ;; esac
-    _fa_sha "$id" || { printf 'unverified: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1; }
+    case "$n" in ""|*[!0123456789]*|??????????*) printf 'not ok: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1 ;; esac
+    _fa_sha "$id" || { printf 'not ok: this reader'"'"'s memory, %s, cannot be read\n' "$mem"; return 1; }
     [ "$n" -lt "$_DL_N" ] && [ "${_DL_ID[$n]}" = "$id" ] \
-      || { printf 'unverified: the log no longer holds statement %s that this reader saw\n' "$n"; return 1; }
+      || { printf 'not ok: the log no longer holds statement %s that this reader saw\n' "$n"; return 1; }
   fi
   # The memory is written before the verdict is printed: a reader that could not keep what it saw says so,
   # and says nothing that reads as ok.
   if [ -n "$mem" ] && [ "$_DL_N" -gt 0 ]; then
     { printf '%s\t%s\n' "$((_DL_N - 1))" "$_DL_TIP" > "$mem.new.$$"; } 2>/dev/null && mv "$mem.new.$$" "$mem" 2>/dev/null \
-      || { printf 'unverified: this reader'"'"'s memory, %s, could not be written\n' "$mem"; return 1; }
+      || { printf 'not ok: this reader'"'"'s memory, %s, could not be written\n' "$mem"; return 1; }
   fi
   printf 'ok %s statements, %s on the authority'"'"'s word\n' "$_DL_N" "$_DL_N"
   [ -n "$mem" ] || printf 'no memory: a log whose last statements were dropped would read the same\n'

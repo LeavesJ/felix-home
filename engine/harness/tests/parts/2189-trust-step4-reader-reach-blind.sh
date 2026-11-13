@@ -19,7 +19,7 @@ printf '\ntrust plane step 4, slice 1: the reader of the log, with and without m
 #
 # Readings, where the spec leaves room:
 # - A dropped last statement is told from the log's ref alone: the reader with no memory says ok, as V3 says it would.
-# - "unverified statement N": where the place and the serial written differ (a dropped middle), N is not asserted.
+# - "not ok statement N": where the place and the serial written differ (a dropped middle), N is not asserted.
 #   A nonce that stands in two entries is told at the second of them.
 # - V1's "the fields of D8 and nothing else" refuses a field twice, a field gone, a line after the last, two fields
 #   in the other order, and another first line. A statement made by hand that keeps each of V1's rules verifies:
@@ -53,7 +53,7 @@ printf '#!/bin/sh\nprintf "ran\\n" >> "%s"\n' "$TS4V_X/marks" > "$TS4V_X/mark.sh
 # ------------------------------------------------------------------ helpers ---
 _ts4v_verify() { _ts4_a "$TS4V_V" verify "$@"; cat "$TS4/o" "$TS4/e" > "$TS4/oe" 2>/dev/null; }   # [ARG...]: the reader over v; both streams in $TS4/oe
 _ts4v_starts() { _ts4_yn test "$(_ts4_count "$1" "$TS4/oe")" -gt 0; }   # PREFIX: yes when a line the reader printed begins with it
-_ts4v_unv() { printf 'exit %s; unverified statement %s: %s; ok: %s' "$TS4_RC" "$1" "$(_ts4v_starts "unverified statement $1: ")" "$(_ts4v_starts 'ok ')"; }   # N
+_ts4v_unv() { printf 'exit %s; not ok statement %s: %s; ok: %s' "$TS4_RC" "$1" "$(_ts4v_starts "not ok statement $1: ")" "$(_ts4v_starts 'ok ')"; }   # N
 _ts4v_blob() { _fx_git "$TS4V_S" hash-object --no-filters "$1" 2>/dev/null; }   # FILE -> its git blob id
 _ts4v_load() {   # the last entry of v's log: TS4V_TIP, its parent TS4V_P, its tree TS4V_ET, and its commit's own bytes in $TS4V_X/ct
   TS4V_TIP="$(_ts4_tip "$TS4V_V")"; TS4V_P="$(_ts4_sg "$TS4V_ST" rev-parse -q --verify "${TS4V_TIP:-none}^")"
@@ -78,7 +78,7 @@ _ts4v_t() {   # WHAT: $TS4V_X/cv, made into the last entry, is refused by the re
   local st=no
   if _ts4v_forge; then st=yes; fi
   _ts4v_verify
-  _ts4_is "ts4 reader V1: the reader refuses a last statement $1" "staged: $st; $(_ts4v_unv "$TS4V_NTH")" "staged: yes; exit 1; unverified statement $TS4V_NTH: yes; ok: no" "$(_ts4_why)"
+  _ts4_is "ts4 reader V1: the reader refuses a last statement $1" "staged: $st; $(_ts4v_unv "$TS4V_NTH")" "staged: yes; exit 1; not ok statement $TS4V_NTH: yes; ok: no" "$(_ts4_why)"
   _ts4v_back
 }
 _ts4v_bin() {   # HOME NAME ARG...: the program NAME of the harness's bin for that home, ended after 60 s at the latest; as _ts4_x leaves it
@@ -108,33 +108,33 @@ TS4V_R0="$(_ts4_rev "$TS4V_V" 0)"; TS4V_R1="$(_ts4_rev "$TS4V_V" 1)"; _ts4v_load
 _ts4_is "ts4 reader V2, V3: a log of three statements kept through the door verifies, exit 0, each taken on the authority's word, and with no --memory the reader says what it could not see" \
   "$(_ts4_n "$TS4V_V") kept; exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o"); $(_ts4_line 'no memory: ' "$TS4/oe")" "3 kept; exit 0; $TS4V_OK3; no memory: a log whose last statements were dropped would read the same" "$(_ts4_why)"
 _ts4v_verify --memory "$TS4V_X/mem"; TS4V_A="exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o"); no memory lines: $(_ts4_count 'no memory' "$TS4/oe"); a file kept: $(_ts4_yn test -s "$TS4V_X/mem")"; _ts4v_verify --memory "$TS4V_X/mem"
-_ts4_is "ts4 reader V3: with --memory the reader keeps what it verified last in the file and says nothing of no memory, and a second run over the same log is ok" \
+_ts4_is "ts4 reader V3: with --memory the reader keeps what it checked last in the file and says nothing of no memory, and a second run over the same log is ok" \
   "$TS4V_A; again: exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o")" "exit 0; $TS4V_OK3; no memory lines: 0; a file kept: yes; again: exit 0; $TS4V_OK3" "$(_ts4_why)"
 _ts4v_verify --memory "$TS4V_X/mark.sh/mem"
-_ts4_is "ts4 reader V3: a memory that cannot be written, its path running through a plain file, prints a line starting unverified: and no ok line" \
-  "unverified: $(_ts4v_starts 'unverified: '); ok: $(_ts4v_starts 'ok '); exit 0: $(if [ "$TS4_RC" = 0 ]; then printf yes; else printf no; fi)" "unverified: yes; ok: no; exit 0: no" "$(_ts4_why)"
+_ts4_is "ts4 reader V3: a memory that cannot be written, its path running through a plain file, prints a line starting not ok: and no ok line" \
+  "not ok: $(_ts4v_starts 'not ok: '); ok: $(_ts4v_starts 'ok '); exit 0: $(if [ "$TS4_RC" = 0 ]; then printf yes; else printf no; fi)" "not ok: yes; ok: no; exit 0: no" "$(_ts4_why)"
 [ ! -d "$TS4V_ST" ] || cp -R "$TS4V_ST" "$TS4/copy.git"; _ts4_sg "$TS4/copy.git" update-ref refs/felix/door "${TS4V_R1:-none}" >/dev/null
 _ts4v_verify --store "$TS4/copy.git"; TS4V_A="a copy cut by one: exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o")"; _ts4v_verify
 _ts4_is "ts4 reader V1: --store reads the log of the store at that path: a copy of the store cut by one statement reads as two, and the configured store still as three" \
   "$TS4V_A; configured: $(_ts4_line 'ok ' "$TS4/o")" "a copy cut by one: exit 0; ok 2 statements, 2 on the authority's word; configured: $TS4V_OK3" "$(_ts4_why)"
-_ts4v_cut "$TS4V_R1"; TS4V_A="left: $(_ts4_n "$TS4V_V")"; _ts4v_verify --memory "$TS4V_X/mem"; TS4V_A="$TS4V_A; with memory: exit $TS4_RC; $(_ts4_line 'unverified: ' "$TS4/oe")"; _ts4v_verify
-_ts4_is "ts4 reader V3: a log whose last statement was dropped is unverified, by that statement's number, to the reader that saw it, and reads as ok to a reader with no memory" \
-  "$TS4V_A; without: exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o")" "left: 2; with memory: exit 1; unverified: the log no longer holds statement 2 that this reader saw; without: exit 0; ok 2 statements, 2 on the authority's word" "$(_ts4_why)"
+_ts4v_cut "$TS4V_R1"; TS4V_A="left: $(_ts4_n "$TS4V_V")"; _ts4v_verify --memory "$TS4V_X/mem"; TS4V_A="$TS4V_A; with memory: exit $TS4_RC; $(_ts4_line 'not ok: ' "$TS4/oe")"; _ts4v_verify
+_ts4_is "ts4 reader V3: a log whose last statement was dropped is not ok, by that statement's number, to the reader that saw it, and reads as ok to a reader with no memory" \
+  "$TS4V_A; without: exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o")" "left: 2; with memory: exit 1; not ok: the log no longer holds statement 2 that this reader saw; without: exit 0; ok 2 statements, 2 on the authority's word" "$(_ts4_why)"
 _ts4v_verify --memory "$TS4V_X/mh"; TS4V_A="saw the hold last: exit $TS4_RC"; _ts4v_cut "$TS4V_R0"; _ts4v_verify --memory "$TS4V_X/mh"
-_ts4_is "ts4 reader case 10: after the reader has seen a hold, a log with that hold dropped is unverified to that reader" \
-  "$TS4V_A; left: $(_ts4_n "$TS4V_V"); exit $TS4_RC; $(_ts4_line 'unverified: ' "$TS4/oe")" "saw the hold last: exit 0; left: 1; exit 1; unverified: the log no longer holds statement 1 that this reader saw" "$(_ts4_why)"
+_ts4_is "ts4 reader case 10: after the reader has seen a hold, a log with that hold dropped is not ok to that reader" \
+  "$TS4V_A; left: $(_ts4_n "$TS4V_V"); exit $TS4_RC; $(_ts4_line 'not ok: ' "$TS4/oe")" "saw the hold last: exit 0; left: 1; exit 1; not ok: the log no longer holds statement 1 that this reader saw" "$(_ts4_why)"
 _ts4v_back
 _ts4v_cv; _ts4v_set nonce "${TS4_NOPE:0:32}"; TS4V_A="staged: $(_ts4_yn _ts4v_forge)"; _ts4v_verify; TS4V_A="$TS4V_A; another commit: $(if [ -n "$TS4V_TIP" ] && [ "$(_ts4_tip "$TS4V_V")" != "$TS4V_TIP" ]; then printf yes; else printf no; fi); exit $TS4_RC; $(_ts4_line 'ok ' "$TS4/o")"
 _ts4_is "ts4 reader V1, V2 (the tries' control): the last statement made again by hand, its commit's own bytes with another nonce, is another commit, and verifies: nothing is signed" \
   "$TS4V_A" "staged: yes; another commit: yes; exit 0; $TS4V_OK3" "$(_ts4_why)"
 _ts4v_verify --memory "$TS4V_X/mem"
-_ts4_is "ts4 reader V3: memory is of the entry and not of a count: that log, as long as before, with another statement in the place of the one seen, is unverified to the reader that saw it" \
-  "exit $TS4_RC; $(_ts4_line 'unverified: ' "$TS4/oe")" "exit 1; unverified: the log no longer holds statement 2 that this reader saw" "$(_ts4_why)"
+_ts4_is "ts4 reader V3: memory is of the entry and not of a count: that log, as long as before, with another statement in the place of the one seen, is not ok to the reader that saw it" \
+  "exit $TS4_RC; $(_ts4_line 'not ok: ' "$TS4/oe")" "exit 1; not ok: the log no longer holds statement 2 that this reader saw" "$(_ts4_why)"
 _ts4v_back
-_ts4v_cv; _ts4v_hdr parent "${TS4V_R0:-none}"; TS4V_A="staged: $(_ts4_yn _ts4v_forge), $(_ts4_n "$TS4V_V") left"; _ts4v_verify; TS4V_A="$TS4V_A; reader: exit $TS4_RC, unverified statement: $(_ts4v_starts 'unverified statement '), ok: $(_ts4v_starts 'ok ')"
+_ts4v_cv; _ts4v_hdr parent "${TS4V_R0:-none}"; TS4V_A="staged: $(_ts4_yn _ts4v_forge), $(_ts4_n "$TS4V_V") left"; _ts4v_verify; TS4V_A="$TS4V_A; reader: exit $TS4_RC, not ok statement: $(_ts4v_starts 'not ok statement '), ok: $(_ts4v_starts 'ok ')"
 _ts4_a "$TS4V_V" tick; TS4V_A="$TS4V_A; tick: exit $TS4_RC, paused with the door's log: $(_ts4_paused "the door's log"), candidate lines: $(_ts4_cands)"; _ts4_dd "$TS4V_V" "$TS4V_HP"
 _ts4_is "ts4 reader case 10, K1, V4: when a middle statement is dropped, so that the entries left no longer follow one another, the reader refuses the log, a tick is paused with the door's log and exits 3, and decide decides nothing" \
-  "$TS4V_A; decide: $TS4_DEC" "staged: yes, 2 left; reader: exit 1, unverified statement: yes, ok: no; tick: exit 3, paused with the door's log: yes, candidate lines: 0; decide: no line" "$(_ts4_why)"
+  "$TS4V_A; decide: $TS4_DEC" "staged: yes, 2 left; reader: exit 1, not ok statement: yes, ok: no; tick: exit 3, paused with the door's log: yes, candidate lines: 0; decide: no line" "$(_ts4_why)"
 _ts4v_back
 
 # ------------------------------------------------------------------ each entry, checked (V1, cases 11 and 21) ---
@@ -157,20 +157,20 @@ _ts4v_cv; _ts4v_pl '$_ .= "\0more: bytes\n"'; _ts4v_t "whose message goes on aft
 _ts4v_cv; _ts4v_hdr author 'A Forger <forger@example.invalid> 1700000000 +0000'; _ts4v_t "whose author line is not the authority's own"
 _ts4_sg "$TS4V_ST" cat-file commit "${TS4V_R1:-none}" > "$TS4V_X/c1"; _ts4v_cv "$TS4V_X/c1"; _ts4v_set authority "$TS4_NOPE"
 TS4V_A="$(_ts4_yn _ts4v_forge)"; TS4V_B="$(_ts4_tip "$TS4V_V")"; _ts4v_cv; _ts4v_hdr parent "${TS4V_B:-none}"; _ts4v_set prev "${TS4V_B:-none}"; TS4V_A="$TS4V_A $(_ts4_yn _ts4v_forge)"; _ts4v_verify
-_ts4_is "ts4 reader V1: the first entry that fails is the one named: with statement 1 made to name another authority and statement 2 made to follow it, the reader says unverified statement 1" \
-  "staged: $TS4V_A; $(_ts4v_unv 1)" "staged: yes yes; exit 1; unverified statement 1: yes; ok: no" "$(_ts4_why)"
+_ts4_is "ts4 reader V1: the first entry that fails is the one named: with statement 1 made to name another authority and statement 2 made to follow it, the reader says not ok statement 1" \
+  "staged: $TS4V_A; $(_ts4v_unv 1)" "staged: yes yes; exit 1; not ok statement 1: yes; ok: no" "$(_ts4_why)"
 _ts4v_back
 _ts4_init "$TS4V_W" "$TS4_ME" "$TS4V_S"; TS4V_IDW="$TS4_ID"; _ts4_say "$TS4V_W" "start $TS4V_M2"
 TS4V_A="another store with a statement of its own: $(if [ "${#TS4V_IDW}" -eq 40 ] && [ "$TS4V_IDW" != "$TS4V_ID" ] && [ "$(_ts4_n "$TS4V_W")" = 1 ]; then printf yes; else printf no; fi)"
 TS4V_A="$TS4V_A; its log brought here: $(_ts4_yn _ts4_sg "$TS4V_ST" fetch -q "$TS4V_W/store.git" refs/felix/door:refs/ts4/other)"; _ts4_sg "$TS4V_ST" update-ref refs/felix/door refs/ts4/other >/dev/null; _ts4v_verify
 _ts4_is "ts4 reader case 11: the log of another store, put in the place of this store's, is refused at its first statement: its authority is another id" \
-  "$TS4V_A; $(_ts4v_unv 0)" "another store with a statement of its own: yes; its log brought here: yes; exit 1; unverified statement 0: yes; ok: no" "$(_ts4_why)"
+  "$TS4V_A; $(_ts4v_unv 0)" "another store with a statement of its own: yes; its log brought here: yes; exit 1; not ok statement 0: yes; ok: no" "$(_ts4_why)"
 _ts4v_back; _ts4_sg "$TS4V_ST" update-ref -d refs/ts4/other >/dev/null
 _ts4v_cv; _ts4v_hdr parent "${TS4V_TIP:-none}"; _ts4v_set serial 3; _ts4v_set prev "${TS4V_TIP:-none}"; _ts4v_set verb go; _ts4v_set nonce "${TS4_NOPE:0:32}"
 TS4V_A="$(_ts4_yn _ts4v_forge)"; _ts4v_verify; TS4V_A="under this store's id: staged $TS4V_A, exit $TS4_RC, $(_ts4_line 'ok ' "$TS4/o")"; _ts4v_back
 _ts4v_set authority "${TS4V_IDW:-none}"; TS4V_B="$(_ts4_yn _ts4v_forge)"; _ts4v_verify
 _ts4_is "ts4 reader case 11: a statement that follows this log and names the other store's id is refused, where the same statement under this store's id reads as its fourth" \
-  "$TS4V_A; under the other's: staged $TS4V_B, $(_ts4v_unv 3)" "under this store's id: staged yes, exit 0, ok 4 statements, 4 on the authority's word; under the other's: staged yes, exit 1; unverified statement 3: yes; ok: no" "$(_ts4_why)"
+  "$TS4V_A; under the other's: staged $TS4V_B, $(_ts4v_unv 3)" "under this store's id: staged yes, exit 0, ok 4 statements, 4 on the authority's word; under the other's: staged yes, exit 1; not ok statement 3: yes; ok: no" "$(_ts4_why)"
 _ts4v_back
 
 # ------------------------------------------------------------------ reach-witness and reach-probe (T1 to T3) ---

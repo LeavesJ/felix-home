@@ -47,8 +47,10 @@ the tick's next run deploys.
   that suite). A pid `ps` does not show stays: it counts as running. The marker
   ends with its door, or within a second if the door dies.
 
-**Shown red and green.** Part 2480 (164 `ok` lines on this tree, 14 of them
-fixture controls) was written blind from the contract by an agent that had not
+**Shown red and green.** Part 2480 (102 `ok` lines for 98 distinct assertions
+in the suite's log, 14 of them fixture controls; a lone `--part` run prints 164,
+the 62 more being the shared fixture floor's own checks, which every part-mode
+run prints and which belong to no part) was written blind from the contract by an agent that had not
 seen the implementation, and run on main's tree (4c4c0b3d) before the
 implementation reached it: 54 assertions fail there, and no control does. The
 red run (red.tsv, against origin/main at cf0cb744, engine 0.49.340, 56 of 17237

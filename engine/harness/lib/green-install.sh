@@ -140,10 +140,11 @@ _GT_CF='(final until the head or main moves)'
 _GT_CH='(tried again an hour after this row)'
 _gt_clause() { case "$1" in receipt) printf '%s' "$_GT_CR" ;; final) printf '%s' "$_GT_CF" ;; *) printf '%s' "$_GT_CH" ;; esac; }
 
-# B1, B28. receipt: exit 3 and a blocker block of unverified and commission receipt lines only, so a new
+# B1, B28. receipt: exit 3 and a blocker block of not-green and commission receipt lines only, so a new
 # receipt can lift it; final: exit 3 with any other block or none; hourly: any other status, and a block
-# of those lines with an unverified tests line among them, because that line is GitHub's answer (rule C9
-# asking it) and no receipt write lifts what GitHub says. Hourly too: a block whose one line is base
+# of those lines with a not-green tests line among them, because that line is GitHub's answer (rule C9
+# asking it) and no receipt write lifts what GitHub says. An engine older than 2026-11-07 named the kind
+# unverified, so a block of either name, or of both, is read the same. Hourly too: a block whose one line is base
 # provider, the provider giving felix merge no answer (lib/bind.sh, S5.3), which nothing local lifts and a
 # later read may (slice 2's review: classed final, one failed read parked an honest pull request until its
 # head or main moved). A base line naming a commit stays final: the next fetch moves main. The block
@@ -155,7 +156,7 @@ _gt_class() {   # STATUS OUTPUT -> receipt, final or hourly
     s == 1 { s = 2; if ($0 == "") next }
     $0 == "" { exit }
     { n++; if ($1 == "base" && $2 == "provider") p = 1
-      else if ($1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
+      else if ($1 == "not-green" || $1 == "unverified") { if ($2 == "tests") h = 1 } else if (!($1 == "commission" && $2 == "receipt")) b = 1 }
     END { if (p) print (n == 1 ? "hourly" : "final"); else print (n > 0 && !b) ? (h ? "hourly" : "receipt") : "final" }'
 }
 

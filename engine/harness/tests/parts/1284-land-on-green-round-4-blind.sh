@@ -111,8 +111,8 @@ _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; _lg_land --tick
 is "A17: with the decoy names and main's entry in place, the tick owes no deploy and merges a green pull request through main's entry" \
    "$(_lg_n deploy-owed)|$(_lg_ninst)|$(_lg_merges)|$(_l3_mpath)" "0|0|b42|$L4E "
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_land --tick
-is "A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deployed-unverified" \
-   "$(_lg_n deployed)|$(_lg_n deployed-unverified)" "1|0"
+is "A17, A21: with the decoy names, an owed deploy of main's engine verifies against main: deployed, not deploy-failed" \
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|0"
 [ -e "$LAND/paused" ] && bad "A17: and nothing is paused" "[$(cat "$LAND/paused")]" || ok "A17: and nothing is paused"
 _l4_nodecoy; _lg_cache "$L4V"
 
@@ -165,8 +165,8 @@ is "A20: the deploy wrote land/verifying before its verify ran felix gate --quic
 _lg_land --tick
 is "A20: the tick after it merges, with nothing installed again" "$(_lg_merges)|$(_lg_ninst)" "b42|1"
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; printf '1\n' > "$LGK/gate.rc"; _lg_land --tick
-is "A20: (setup) an owed deploy whose felix gate --quick fails ends deployed-unverified, after one install" \
-   "$(_lg_n deployed-unverified)|$(_lg_n deployed)|$(_lg_ninst)" "1|0|1"
+is "A20: (setup) an owed deploy whose felix gate --quick fails ends deploy-failed, after one install" \
+   "$(_lg_n deploy-failed)|$(_lg_n deployed)|$(_lg_ninst)" "1|0|1"
 [ -e "$LAND/verifying" ] && ok "A20: land/verifying stays after a verify that did not write deployed" \
   || bad "A20: land/verifying stays after a verify that did not write deployed" "it is gone"
 rm -f "$LGK/gate.rc"; _lg_land --resume; _lg_land --tick
@@ -184,15 +184,15 @@ _lg_cache "$L4V"
 # -------------------------------------------------------------------- A21 ---
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; _lg_land --tick
 is "A21: (control) an owed deploy with nothing untracked in the home's engine ends deployed" \
-   "$(_lg_n deployed)|$(_lg_n deployed-unverified)" "1|0"
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deployed-unverified) ))" "1|0"
 rm -rf "$LGV/$L4V"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42
 printf 'not main\n' > "$LGH/engine/harness/a21-extra.txt"; _lg_land --tick
 # A24, later, stops this deploy before its install with a deploy-owed row; A21
-# alone ended it deployed-unverified. Under either it is never deployed.
+# alone ended it deploy-failed. Under either it is never deployed.
 is "the land fixture: the file is untracked in the home (fixture control)" \
    "$(git -C "$LGH" status --porcelain -- engine 2>&1 | tr '\n' '|')" "?? engine/harness/a21-extra.txt|"
 is "A21, A24: an untracked file under the home's engine/harness at deploy time never ends deployed" \
-   "$(_lg_n deployed)|$(( $(_lg_n deployed-unverified) + $(_lg_n deploy-owed) ))" "0|1"
+   "$(_lg_n deployed)|$(( $(_lg_n deploy-failed) + $(_lg_n deploy-owed) ))" "0|1"
 [ -s "$LAND/paused" ] && ok "A21: and writes paused" || bad "A21: and writes paused" "no paused"
 is "A21: and merges nothing" "$(_lg_merges)" ""
 rm -f "$LGH/engine/harness/a21-extra.txt"; _lg_cache "$L4V"

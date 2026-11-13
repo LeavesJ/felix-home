@@ -340,7 +340,7 @@ is "A31: recovery: and the next recovery writes its own readable row and sends n
    "$(_lg_n readable)|$(_lg_rows)|$(_lg_cnt osa)|$L8RC" "2|4|2|$L8N"
 
 # A newest row of any other kind, an older unreadable row below it, is no recovery.
-for L8K in deploy-owed deployed deployed-unverified paused skip session founder refused landed gh; do
+for L8K in deploy-owed deployed deploy-failed deployed-unverified paused skip session founder refused landed gh; do
   case "$L8K" in skip|session|founder|refused|landed) L8A=5; L8B="$(_lg_sha 21)" ;; *) L8A=-; L8B=- ;; esac
   _lg_reset; mkdir -p "$LAND"
   { printf '2026-10-18T07:00:00Z\tunreadable\t-\t-\t-\t0\tan older unreadable row, %s\n' "$LGH"

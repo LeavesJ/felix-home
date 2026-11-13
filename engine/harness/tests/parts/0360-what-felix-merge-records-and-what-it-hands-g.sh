@@ -230,7 +230,7 @@ else bad "a real run on an escaping tree still writes one escalated row per esca
 _l1rec "$L1P" >/dev/null
 ( _fx_cd "$L1P" && printf 'after the gate\n' > LATER.md && git add -A >/dev/null 2>&1 && _l1commit -m 'after the gate' )
 _l1run "$L1P" l1-blind-sess-b -- --base main
-# main: exits 3 printing escape and unverified, and records neither as refused.
+# main: exits 3 printing escape and not-green, and records neither as refused.
 if [ "$L1RC" -ne 0 ] && [ -z "$L1MC" ] && case "$(_l1kinds)" in *escape*) true ;; *) false ;; esac \
    && [ "$(_l1kinds | wc -w | tr -d ' ')" -ge 2 ]; then
   is "a real run refused for blockers of two kinds records one refused row per kind" \

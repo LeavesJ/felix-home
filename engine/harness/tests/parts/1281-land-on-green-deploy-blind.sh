@@ -77,13 +77,13 @@ is "G7: the verify runs felix gate --quick in the home" \
 _lg_osa 'with title "Felix: deployed' "G8: the deployed row is sent titled Felix: deployed"
 [ -f "$LAND/paused" ] && bad "G7: a verified deploy writes no paused" "[$(cat "$LAND/paused")]" || ok "G7: a verified deploy writes no paused"
 rm -f "$LGH/untracked-note.txt"
-_lg_unv() {   # WORD WHAT -> a failed check writes deployed-unverified naming it, and paused
+_lg_unv() {   # WORD WHAT -> a failed check writes deploy-failed naming it, and paused
   _lg_land --tick
-  is "G7: when $2 fails, the tick writes one deployed-unverified row and no deployed row" \
-     "$LGRC$(_lg_n deployed-unverified)$(_lg_n deployed)" "010"
-  has "G7: naming the check, $2" "$(_lg_lc "$(_lg_f deployed-unverified "" 7)")" "$1"
-  _lg_paused_same "a deployed-unverified for $2" deployed-unverified
-  _lg_osa 'with title "Felix: deployed-unverified' "G8: the deployed-unverified row for $2 is sent as a notification"
+  is "G7: when $2 fails, the tick writes one deploy-failed row and no deployed row" \
+     "$LGRC$(_lg_n deploy-failed)$(_lg_n deployed)" "010"
+  has "G7: naming the check, $2" "$(_lg_lc "$(_lg_f deploy-failed "" 7)")" "$1"
+  _lg_paused_same "a deploy-failed for $2" deploy-failed
+  _lg_osa 'with title "Felix: deploy-failed' "G8: the deploy-failed row for $2 is sent as a notification"
 }
 rm -rf "$LGV/9.0.0"; _lg_reset; printf '1\n' > "$LGK/hook.rc"; _lg_unv session-start "the session-start hook"
 rm -rf "$LGV/9.0.0"; _lg_reset; printf '1\n' > "$LGK/gate.rc"; _lg_unv gate "felix gate --quick"

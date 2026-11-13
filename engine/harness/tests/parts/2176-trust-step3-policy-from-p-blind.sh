@@ -321,7 +321,7 @@ LC_ALL=C awk '$0 == "  \"gate_workflow\": \"gate.yml\"" { print "  \"gate_workfl
 _ts3_commit "$TS3R" c9; TS3_H="$(_jr_sha "$TS3R" HEAD)"
 printf '[%s,%s]\n' "$(_ts3_ghrun 41 "$TS3_H" completed failure gate.yml ts3-c9)" "$(_ts3_ghrun 40 "$TS3_H" completed success lint.yml ts3-c9)" > "$TS3/calls/runs.json"
 _ts3_c9a="trust-step3: S1 (the workflow C9 reads) (fixture control): the stub answers gate.yml's newest run on the head as failure and lint.yml's as success, and the candidate's project.json edit removes no line and puts lint.yml on the line before the last key"
-_ts3_c9b="trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with an unverified line for tests saying its run concluded failure"
+_ts3_c9b="trust-step3: S1 (the workflow C9 reads): on a tests:reused receipt, a candidate whose project.json names lint.yml (success on the head) over P's gate.yml (failure) is refused with a not-green line for tests saying its run concluded failure"
 if [ "$TS3_JQ" = 1 ]; then
   _ts3_v="$(TS3_GHDIR="$TS3/calls" "$TS3/gh/gh" run list --workflow gate.yml --commit "$TS3_H" --json conclusion -q '.[0].conclusion' 2>&1)"
   _ts3_v="$_ts3_v|$(TS3_GHDIR="$TS3/calls" "$TS3/gh/gh" run list --workflow lint.yml --commit "$TS3_H" --json conclusion -q '.[0].conclusion' 2>&1)"
@@ -329,7 +329,7 @@ if [ "$TS3_JQ" = 1 ]; then
   _ts3_check "$_ts3_c9a" "$_ts3_v|$(tail -n 3 "$TS3P/project.json" | tr '\n' ' ')" \
     "failure|success|removed 0|  \"gate_workflow\": \"lint.yml\",   \"gate_workflow\": \"gate.yml\" } "
   _ts3_entry S1-c9 "$TS3R" "syntax:ok,tests:reused,secret:ok"
-  _ts3_check "$_ts3_c9b" "$(_ts3_refused)|$(_ts3_bl unverified tests 'concluded failure' -)" "refused|yes" \
+  _ts3_check "$_ts3_c9b" "$(_ts3_refused)|$(_ts3_bl not-green tests 'concluded failure' -)" "refused|yes" \
     "$(_ts3_why); gh: $(tr '\n' ' ' < "$TS3/calls/calls")"
 else
   skip "$_ts3_c9a" "no jq here for the gh stub"
@@ -417,8 +417,8 @@ _ts3_check "trust-step3: S1.9 (a home behind BASE) (fixture control): origin/mai
   "rows +$(( $(git -C "$TS3R" show refs/remotes/origin/main:projects/ts3/risk.tsv 2>/dev/null | LC_ALL=C awk 'END { print NR }') - $(LC_ALL=C awk 'END { print NR }' "$TS3P/risk.tsv") ))|$([ "$(_jr_sha "$TS3R" HEAD)" = "$(_jr_sha "$TS3R" refs/remotes/origin/main~1)" ] && echo behind by one)|$(_ts3_ns "$TS3W" refs/remotes/origin/main)" \
   "rows +1|behind by one|A NOTES.md;"
 TS3_RP="$TS3P"; _ts3_entry S1.9-behind "$TS3W"
-_ts3_check "trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with an unverified line whose subject is home" \
-  "$(_ts3_refused)|$(_ts3_bl unverified home - -)" "refused|yes" "$(_ts3_why)"
+_ts3_check "trust-step3: S1.9 (a home behind BASE): with receipts recorded for the home as it stands, one commit behind origin/main, an unrelated candidate is refused with a not-green line whose subject is home" \
+  "$(_ts3_refused)|$(_ts3_bl not-green home - -)" "refused|yes" "$(_ts3_why)"
 ( _fx_cd "$TS3R" && git merge -q --ff-only "$TS3_M3" ) >/dev/null 2>&1
 _ts3_entry S1.9-brought "$TS3W"; TS3_RP=""
 _ts3_check "trust-step3: S1.9 (a home behind BASE, control): with the home brought to origin/main and the receipts recorded again, the same candidate passes the dry run" \

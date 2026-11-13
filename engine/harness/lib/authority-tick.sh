@@ -154,8 +154,6 @@ felix_authority_tick() {
         || { printf 'paused the source'"'"'s main does not descend from this store'"'"'s main\n'; return 3; }
       _fa_g update-ref refs/heads/main "$sm" "$_FA_MAIN" 2>/dev/null && _fa_g update-ref refs/felix/tip "$sm" 2>/dev/null \
         || { printf 'paused the store'"'"'s main could not be moved\n'; return 3; }
-      printf '%s\t%s\tfollowed\t-\t%s\t-\tfrom %s\n' "$(date -u +%Y-%m-%dT%H:%M:%SZ)" "$_FA_STANDING" "$sm" "$_FA_MAIN" \
-        >> "$_FA_HOME/ledger.tsv"
       _FA_MAIN="$sm"
     fi
   fi

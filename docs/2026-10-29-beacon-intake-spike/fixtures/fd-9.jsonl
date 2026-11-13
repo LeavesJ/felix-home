@@ -1,0 +1,5 @@
+{"type":"session_start","id":"fd-9","cwd":"/work/repo","title":"t"}
+{"type":"message","id":"m1","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_1","name":"Execute","input":{"command":"npm test"}}]}}
+{"type":"message","id":"m2","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_1","is_error":true,"content":"exit 1"}]}}
+{"type":"message","id":"m3","message":{"role":"assistant","content":[{"type":"tool_use","id":"toolu_2","name":"Edit","input":{"file_path":"a.ts","old_str":"x","new_str":"y"}}]}}
+{"type":"message","id":"m4","message":{"role":"user","content":[{"type":"tool_result","tool_use_id":"toolu_2","content":"ok"}]}}

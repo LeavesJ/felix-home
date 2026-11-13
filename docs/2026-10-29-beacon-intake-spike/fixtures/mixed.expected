@@ -1,0 +1,20 @@
+signal	claude_code	cc-0	hook	tool	Grep
+skip	beacon_action_not_counted	1	e-01	action "prompt.submitted" does not close a tool call
+skip	beacon_action_not_counted	2	e-02	action "tool.invoked" does not close a tool call
+signal	claude_code	cc-1	hook	skill	pdf
+signal	claude_code	cc-1	hook	tool	Bash
+skip	beacon_duplicate_call	5	e-05	this call was already counted at line 4
+signal	claude_code	cc-1	hook	mcp	github
+signal	claude_code	cc-1	hook	agent	Explore
+skip	beacon_session_missing	8	e-08	no session.id, so no ledger file to hold it
+skip	beacon_call_identity_missing	9	-	neither gen_ai.tool.call.id nor event.id, so a second report of this call could not be told apart
+skip	beacon_field_unsafe	10	e-10	a tab or line break in harness, session or name would break the ledger row
+skip	beacon_fidelity_absent	19	e-19	no event.fidelity, so Beacon does not say whether the source named this action
+skip	beacon_harness_missing	20	e-20	no harness.name
+signal	codex_cli	cx-1	otlp	tool	Bash
+skip	beacon_fidelity_inferred	12	e-12	event.fidelity "inferred": Beacon derived this action
+skip	beacon_action_not_counted	13	e-13	action "tool.invoked" does not close a tool call
+signal	factory	fd-1	poll	tool	Execute
+skip	beacon_tool_name_missing	15	e-15	no tool name, and none is guessed from the action
+skip	beacon_tool_failed	16	e-16	a failed call; PostToolUse records completed calls only
+skip	beacon_harness_not_governed	17	e-17	harness "cursor" is not one Felix governs

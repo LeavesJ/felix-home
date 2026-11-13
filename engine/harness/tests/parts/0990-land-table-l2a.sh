@@ -687,8 +687,8 @@ is  "felix_merge_blockers on a behind and owing branch writes both would-refuse 
     "$((_ltn1 - _ltn0)) $((_lta1 - _lta0)) $((_ltn2 - _ltn1)) $((_lta2 - _lta1))" "2 2 0 0"
 is  "while it prints no line whose kind is behind or owed, or cmd_merge would refuse on a check that is only meant to report" \
     "$(awk -F'\t' '$1 == "behind" || $1 == "owed"' "$TMP/lt-blk-real" 2>/dev/null)" ""
-is  "and prints byte for byte what the dry run printed, its unverified blocker included, or reporting would change what blocks" \
-    "$(grep -q '^unverified' "$TMP/lt-blk-real" 2>/dev/null && cmp -s "$TMP/lt-blk-real" "$TMP/lt-blk-dry" && echo same || echo differs)" "same"
+is  "and prints byte for byte what the dry run printed, its not-green blocker included, or reporting would change what blocks" \
+    "$(grep -q '^not-green' "$TMP/lt-blk-real" 2>/dev/null && cmp -s "$TMP/lt-blk-real" "$TMP/lt-blk-dry" && echo same || echo differs)" "same"
 is  "and exits 0 on both, or the judge would take its own library for one that could not be loaded" \
     "$_ltbr $_ltbd" "0 0"
 
@@ -742,7 +742,7 @@ is  "and the judge still exits 0 with stdout byte for byte the control's and no 
     "$_ltjr $(cmp -s "$TMP/lt-judge-control" "$TMP/lt-judge-broken" && echo same || echo differs) $((_ltn1 - _ltn0))" "0 same 0"
 
 # Through the real CLI, on a governed product checkout that is behind and has
-# no gate receipt, so it stops at unverified before any gh call.
+# no gate receipt, so it stops at not-green before any gh call.
 _lt_blockerish() { printf '%s\n' "$1" | awk '{ t = $1; sub(/^[-*]+/, "", t); sub(/:$/, "", t) }
                                              t == "behind" || t == "owed" || index($0, "behind\t") || index($0, "owed\t")'; }
 LT_P="$TMP/lt-product"; mkdir -p "$LT_P"
@@ -760,7 +760,7 @@ _ltout="$( cd "$LT_P" && unset FELIX_MERGE_DRY_RUN && "$FELIX" merge --base main
 _ltn1="$(_lt_nsaid widget)"
 is  "a real felix merge on a behind product checkout with no receipt still refuses with exit 3, or reporting changed how it lands" \
     "$_ltrc" "3"
-has "and still names the unverified tree, or reporting displaced the blocker that stops it" "$_ltout" "unverified"
+has "and still names the not-green tree, or reporting displaced the blocker that stops it" "$_ltout" "not-green"
 is  "and shows no behind or owed blocker, or a report-only check would be read as a refusal" \
     "$(_lt_blockerish "$_ltout")" ""
 is  "while it adds exactly one would-refuse row to the widget's says.log, or cmd_merge never reaches the report" \
@@ -779,7 +779,7 @@ is  "the product checkout holds origin/main once it has merged it" "$(_lt_state 
 _ltn0="$(_lt_nsaid widget)"
 _ltout="$( cd "$LT_P" && unset FELIX_MERGE_DRY_RUN && "$FELIX" merge --base main 2>&1 )"; _ltrc=$?
 _ltn1="$(_lt_nsaid widget)"
-is  "and a real attempt there still refuses on the unverified tree and adds no would-refuse row, or every current branch would be reported behind" \
+is  "and a real attempt there still refuses on the not-green tree and adds no would-refuse row, or every current branch would be reported behind" \
     "$_ltrc $((_ltn1 - _ltn0))" "3 0"
 
 # -------------------------------------------------------- the table itself ----

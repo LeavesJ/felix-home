@@ -243,7 +243,10 @@ none claims that anything was checked:
   the comment the notifier dispatches to the standing issue starts
   `@<owner> Felix land: deployed-unverified`, above C10's sentence. Both kinds
   named here are printed to a person, so they move together, with their
-  readers and every recorded row, in a change of their own.
+  readers and every recorded row, in a change of their own. (Moved on
+  2026-11-07, by `docs/2026-11-07-not-green-deploy-failed-contract.md`:
+  `unverified` is now `not-green` and `deployed-unverified` is now
+  `deploy-failed`. The lines above describe main 0.49.328.)
 - The say kind `subagent-unverified`.
 - The directory `state/verified/`.
 - Comments, function names and file names, the task's own exclusion

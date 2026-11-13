@@ -385,7 +385,7 @@ rm -f "$ERR/dirt.txt"
 # ------------------------------------------------------ the merge boundary ------
 # felix_merge_blockers sourced the way the obligation and probe sections
 # source it, plus the epoch library the reader is specified beside. Only the
-# `unverified` line is read: the fixture project has commissioned nothing, and
+# `not-green` line is read: the fixture project has commissioned nothing, and
 # whatever else the boundary says about that is not what this measures.
 _er_blk() { ( cd "$ERR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/lib/detect.sh"
               . "$FROOT/harness/lib/verify.sh";  . "$FROOT/harness/lib/evidence.sh"
@@ -393,9 +393,9 @@ _er_blk() { ( cd "$ERR" && . "$FROOT/harness/lib/resolve.sh"; . "$FROOT/harness/
               . "$FROOT/harness/lib/probes.sh";  . "$FROOT/harness/lib/facts.sh"
               . "$FROOT/harness/lib/epoch.sh"
               felix_merge_blockers "$ERP" HEAD~1 "$ERR" "$FROOT" ) 2>/dev/null \
-            | awk -F'\t' '$1 == "unverified"'; }
+            | awk -F'\t' '$1 == "not-green"'; }
 _er_rec 0
-is "a current receipt raises no unverified line at the merge boundary" "$(_er_blk)" ""
+is "a current receipt raises no not-green line at the merge boundary" "$(_er_blk)" ""
 : > "$ERR/a.tmp"
 is  "the tree id is still the one the receipt names" "$(_er_tid)" "$er_tid0"
 out="$(_er_blk)"

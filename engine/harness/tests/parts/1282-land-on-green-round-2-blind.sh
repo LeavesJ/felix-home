@@ -42,8 +42,8 @@ _fx_git "$LGH" checkout -q main >/dev/null 2>&1; _fx_git "$LGH" branch -q -D sid
 for _lgk in hook gate; do
   rm -rf "$LGV1/9.0.0"; _lg_reset; _lg_prs "$(_lg_pr 42)"; _lg_green 42; printf '1\n' > "$LGK/$_lgk.rc"
   _lg_land --tick
-  is "G3, G7.4 (review 1): a deploy whose $_lgk check fails is not completed: deployed-unverified, and nothing merges in that tick" \
-     "$(_lg_n deployed-unverified)|$(_lg_merges)" "1|"
+  is "G3, G7.4 (review 1): a deploy whose $_lgk check fails is not completed: deploy-failed, and nothing merges in that tick" \
+     "$(_lg_n deploy-failed)|$(_lg_merges)" "1|"
 done
 _lgr1_home
 

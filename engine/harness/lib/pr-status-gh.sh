@@ -1,5 +1,5 @@
 # The stuck-PR page, GitHub half: what gh says about the open pull requests of a
-# repository, and about the account's Actions minutes (lib/pr-status.sh).
+# repository, and about the account's Actions usage this month (lib/pr-status.sh).
 #
 # gh is asked `pr list` once per repository and `api` (a GET) for the budget,
 # and nothing else. It keeps state of its own (a device id on first use, update
@@ -151,33 +151,112 @@ _ps_gh_list() {   # DIR SLUG W
   return 0
 }
 
-# The account's Actions minutes this month, one gh api GET (spec 4.4):
-# users/<owner>/settings/billing/actions, and orgs/<owner>/... when that answers
-# 404 (an organisation). States budget as _PS_BST and _PS_BWHY. On 2026-10-13 the
-# endpoint answered 404 for a user, because the token lacks the user scope;
-# widening it is the founder's, so the row says so and nothing asks him.
+# The Actions items of one month of GitHub's usage report, summed (spec 4.4 as
+# amended by R13). The report is {"usageItems":[{...}, ...]}: an item counts when
+# its product is actions and its date starts with the month in PS_YM; minutes are
+# the quantity of the counted items whose unit is Minutes, and net is netAmount
+# over all of them, storage included. Prints one line: ok, the minutes, the net
+# and how many Actions items were dated outside the month; or bad and why. The
+# flattener the pull request list uses (_FI_JSON) drops whether a value was
+# quoted, and a quantity has to be a number, so this walks the text itself.
+# shellcheck disable=SC2016
+_PS_USAGE='function num(x) { return x ~ /^-?[0123456789]+([.][0123456789]+)?([eE][-+]?[0123456789]+)?$/ }
+  function item() {
+    if (Q["product"] != 1 || tolower(V["product"]) != "actions") return
+    if (Q["date"] != 1 || index(V["date"], ym) != 1) { outside++; return }
+    if (Q["netAmount"] != 0 || !num(V["netAmount"])) { notnum = 1; return }
+    net += V["netAmount"]
+    if (Q["unitType"] == 1 && tolower(V["unitType"]) == "minutes") {
+      if (Q["quantity"] != 0 || !num(V["quantity"])) { notnum = 1; return }
+      mins += V["quantity"] } }
+  { s = s $0 "\n" }
+  END { n = split(s, C, ""); d = 0; key = 0; ym = ENVIRON["PS_YM"] "-"
+    for (i = 1; i <= n; i++) { c = C[i]
+      if (c == "{" || c == "[") { d++; T[d] = c; K[d] = ""; key = (c == "{")
+        if (d == 2 && c == "[" && T[1] == "{" && K[1] == "usageItems") { list = 1; seen = 1 }
+        if (d == 3 && c == "{" && list) { split("", V); split("", Q) }
+        continue }
+      if (c == "}" || c == "]") { if (d == 3 && c == "}" && list) item(); if (d == 2) list = 0; d--; key = 0; continue }
+      if (c == ",") { key = (T[d] == "{"); continue }
+      if (c == ":") { key = 0; continue }
+      if (index(" \n\t\r", c)) continue
+      if (c == "\"") { for (j = i + 1; j <= n && C[j] != "\""; j++) if (C[j] == "\\") j++; v = substr(s, i + 1, j - i - 1); i = j; q = 1 }
+      else { for (j = i; j <= n && !index(",}] \n\t\r", C[j]); j++) ; v = substr(s, i, j - i); i = j - 1; q = 0 }
+      if (key) { K[d] = v; continue }
+      if (d == 3 && list && T[3] == "{") { V[K[3]] = v; Q[K[3]] = q } }
+    if (!seen) { print "bad\tthe usage report holds no usageItems"; exit }
+    if (notnum) { print "bad\tthe usage report holds an Actions item whose quantity or netAmount is not a number"; exit }
+    a = sprintf("%.2f", net); if (a == "-0.00") a = "0.00"
+    printf "ok\t%.0f\t%s\t%d\n", mins, a, outside }'
+
+# The scope gh says the token lacks, from the error output of a failed GET: gh
+# adds a line of its own, This API operation needs the "<scope>" scope, when
+# GitHub's headers say so. The first such name in the file, when it is letters,
+# digits, colons, underscores and hyphens; else nothing.
+_ps_budget_scope() {   # FILE
+  [ -f "$1" ] || return 0
+  LC_ALL=C awk 'BEGIN { p = "This API operation needs the \"" }
+    { i = index($0, p); if (!i) next
+      s = substr($0, i + length(p)); j = index(s, "\" scope"); if (!j) next
+      s = substr(s, 1, j - 1)
+      if (s != "" && s !~ /[^ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789:_-]/) { printf "%s", s; exit } }' "$1" 2>/dev/null
+}
+
+# The account's Actions usage this month (spec 4.4 as amended by R13): one gh api
+# GET of GitHub's usage report, users/<owner>/settings/billing/usage for the
+# clock's year and month in UTC, and of orgs/<owner>/... only when that answers
+# 404 (an organisation has no users/ report). States budget as _PS_BST and
+# _PS_BWHY: the minutes used and the net amount, and no quota, because the report
+# holds none. Until 2026-11 this asked settings/billing/actions, which GitHub
+# retired (HTTP 410), and blamed every 404 on the token's scope; a failure now
+# says what gh said, and names a scope only when gh named it.
 _ps_budget() {   # OWNER DIR
-  local o="$1" d="$2" used inc e w="$_PS_T/budget"
+  local o="$1" d="$2" w="$_PS_T/budget" ym q e1="" e2="" last s1 s2 st a b c
   _PS_BST=unread
   if [ "${_PS_NOGH:-0}" = 1 ]; then _PS_BWHY="--no-gh: gh was not asked"; return 1; fi
   command -v gh >/dev/null 2>&1 || { _PS_BWHY="gh not found"; return 1; }
   [ -n "$o" ] || { _PS_BWHY="the repository names no owner"; return 1; }
-  # One GET for a user's account. Only a 404 (an organisation's account has no
-  # such path, and a token without the user scope gets one too) asks the orgs
-  # path as well, and only a 404 says the token may lack the scope.
-  if ! _ps_ghc "$d" api "users/$o/settings/billing/actions" > "$w.json" 2> "$w.err"; then
-    e="$(_ps_err1 "$w.err")"; [ -n "$e" ] || e="gh api exited with no output"
-    case "$e" in *404*|*"Not Found"*)
-      if ! _ps_ghc "$d" api "orgs/$o/settings/billing/actions" > "$w.json" 2> "$w.err2"; then
-        _PS_BWHY="$e; the token may lack the user scope, and widening it is the founder's"; return 1
-      fi ;;
-    *) _PS_BWHY="$e"; return 1 ;;
+  ym="$(LC_ALL=C date -u +%Y-%m 2>/dev/null)"
+  case "$ym" in
+    [0123456789][0123456789][0123456789][0123456789]-[0123456789][0123456789]) ;;
+    *) _PS_BWHY="the clock gave no year and month"; return 1 ;;
+  esac
+  q="${ym#*-}"; q="settings/billing/usage?year=${ym%-*}&month=${q#0}"
+  if ! _ps_ghc "$d" api "users/$o/$q" > "$w.json" 2> "$w.err"; then
+    e1="$(_ps_err1 "$w.err")"; [ -n "$e1" ] || e1="gh api exited with no output"
+    last="$e1"
+    # Only a 404 asks the organisation's report, and nothing asks a third.
+    case "$e1" in *"HTTP 404"*|*"Not Found"*)
+      if _ps_ghc "$d" api "orgs/$o/$q" > "$w.json" 2> "$w.err2"; then e1=""
+      else e2="$(_ps_err1 "$w.err2")"; [ -n "$e2" ] || e2="gh api exited with no output"; last="$e2"; fi ;;
     esac
   fi
-  used="$(LC_ALL=C sed -n 's/.*"total_minutes_used"[[:space:]]*:[[:space:]]*\([0123456789.]*\).*/\1/p' "$w.json" 2>/dev/null | LC_ALL=C sed -n 1p)"
-  inc="$(LC_ALL=C sed -n 's/.*"included_minutes"[[:space:]]*:[[:space:]]*\([0123456789.]*\).*/\1/p' "$w.json" 2>/dev/null | LC_ALL=C sed -n 1p)"
-  if [ -z "$used" ] || [ -z "$inc" ]; then _PS_BWHY="the billing answer holds no minutes used or included"; return 1; fi
-  _PS_BST=read; _PS_BWHY="$used of $inc minutes used this month"
+  if [ -n "$e1" ]; then
+    _PS_BWHY="$e1"
+    [ -z "$e2" ] || [ "$e2" = "$e1" ] || _PS_BWHY="$_PS_BWHY; organisation report: $e2"
+    s1="$(_ps_budget_scope "$w.err")"; s2="$(_ps_budget_scope "$w.err2")"
+    [ "$s2" != "$s1" ] || s2=""
+    [ -n "$s1" ] || { s1="$s2"; s2=""; }
+    if [ -n "$s1" ]; then _PS_BWHY="$_PS_BWHY; gh names a scope the token lacks ($s1${s2:+, $s2}), and widening the token is the founder's"
+    else case "$last" in
+      *"HTTP 410"*) _PS_BWHY="$_PS_BWHY; GitHub has moved this endpoint, so the fix is to Felix's reader and no token scope brings it back" ;;
+      *"HTTP 404"*|*"Not Found"*) _PS_BWHY="$_PS_BWHY; GitHub answers 404 for an account that does not exist and for one whose billing this login may not read" ;;
+    esac; fi
+    return 1
+  fi
+  PS_YM="$ym" LC_ALL=C awk "$_PS_USAGE" "$w.json" > "$w.sum" 2>/dev/null
+  st=""; a=""; b=""; c=""
+  IFS=$'\t' read -r st a b c < "$w.sum" || :
+  case "$st" in
+    ok) ;;
+    bad) _PS_BWHY="$a"; return 1 ;;
+    *) _PS_BWHY="the usage report could not be read"; return 1 ;;
+  esac
+  # A sum awk could not print as digits (a quantity past what a double holds) is no sum.
+  case "$a" in ""|*[!0123456789]*) _PS_BWHY="the usage report holds an Actions item whose quantity or netAmount is not a number"; return 1 ;; esac
+  case "$b" in ""|*[!0123456789.-]*) _PS_BWHY="the usage report holds an Actions item whose quantity or netAmount is not a number"; return 1 ;; esac
+  _PS_BST=read; _PS_BWHY="$a Actions minutes used in $ym, net \$$b"
+  case "$c" in ""|0|*[!0123456789]*) ;; *) _PS_BWHY="$_PS_BWHY; Actions items dated outside $ym, not counted: $c" ;; esac
   return 0
 }
 

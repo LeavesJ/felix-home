@@ -220,7 +220,7 @@ jqx=""; repo=""; prev=""; bill=0; user=0; me=0; dflt=""
 for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
-  case "$a" in *settings/billing/actions*) bill=1 ;; users/*|/users/*) user=1 ;; user|/user) me=1 ;; esac
+  case "$a" in *settings/billing/usage*) bill=1; bq="$a" ;; users/*|/users/*) user=1 ;; user|/user) me=1 ;; esac
   case "$a" in repos/fixture/home|/repos/fixture/home|repos/fixture/two|/repos/fixture/two) dflt="${a#/}" ;; esac
   prev="$a"
 done
@@ -240,7 +240,7 @@ esac
 if [ "${1:-}" = api ]; then
   if [ "$bill" = 1 ]; then
     if [ -f "$K/api.rc" ]; then cat "$K/api.err" >&2; exit "$(cat "$K/api.rc")"; fi
-    printf '{"total_minutes_used":123,"total_paid_minutes_used":0,"included_minutes":2000,"minutes_used_breakdown":{"UBUNTU":123}}\n' | out; exit 0
+    by="${bq##*year=}"; by="${by%%&*}"; bm="${bq##*month=}"; bm="${bm%%&*}"; [ "${#bm}" -eq 1 ] && bm="0$bm"; printf '{"usageItems":[{"date":"%s-%s-01T00:00:00Z","product":"actions","sku":"Actions Linux","quantity":123.0,"unitType":"Minutes","pricePerUnit":0.006,"grossAmount":0.0,"discountAmount":0.0,"netAmount":0.0,"repositoryName":"home"}]}\n' "$by" "$bm" | out; exit 0
   fi
   if [ "$me" = 1 ]; then   # the signed-in account (api user): the whole body, whatever --jq is given
     if [ -f "$K/user.rc" ]; then cat "$K/user.err" >&2; exit "$(cat "$K/user.rc")"; fi

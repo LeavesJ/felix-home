@@ -39,8 +39,8 @@ for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; -R|--repo) repo="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; --repo=*) repo="${a#--repo=}" ;; esac
   case "$a" in
-    *users/*/settings/billing/actions*) bill=users ;;
-    *orgs/*/settings/billing/actions*) bill=orgs ;;
+    *users/*/settings/billing/usage*) bill=users; bq="$a" ;;
+    *orgs/*/settings/billing/usage*) bill=orgs; bq="$a" ;;
   esac
   prev="$a"
 done
@@ -59,7 +59,7 @@ fi
 if [ "${1:-}" = api ]; then
   if [ -n "$bill" ]; then
     if [ -f "$K/bill.$bill.rc" ]; then cat "$K/bill.$bill.err" >&2; exit "$(cat "$K/bill.$bill.rc")"; fi
-    printf '{"total_minutes_used":42,"total_paid_minutes_used":0,"included_minutes":2000}\n' | out; exit 0
+    by="${bq##*year=}"; by="${by%%&*}"; bm="${bq##*month=}"; bm="${bm%%&*}"; [ "${#bm}" -eq 1 ] && bm="0$bm"; printf '{"usageItems":[{"date":"%s-%s-01T00:00:00Z","product":"actions","sku":"Actions Linux","quantity":42.0,"unitType":"Minutes","pricePerUnit":0.006,"grossAmount":0.0,"discountAmount":0.0,"netAmount":0.0,"repositoryName":"home"}]}\n' "$by" "$bm" | out; exit 0
   fi
   case "$*" in *repos/*) printf '{"default_branch":"main"}\n' | out; exit 0 ;; esac
   printf 'gh: Not Found (HTTP 404)\n' >&2; exit 1

@@ -39,7 +39,7 @@ jqx=""; prev=""; bill=0; dflt=0
 for a in "$@"; do
   case "$prev" in -q|--jq) jqx="$a" ;; esac
   case "$a" in --jq=*) jqx="${a#--jq=}" ;; esac
-  case "$a" in *settings/billing/actions*) bill=1 ;; repos/fixture/home|/repos/fixture/home) dflt=1 ;; esac
+  case "$a" in *settings/billing/usage*) bill=1; bq="$a" ;; repos/fixture/home|/repos/fixture/home) dflt=1 ;; esac
   prev="$a"
 done
 out() { if [ -n "$jqx" ] && command -v jq >/dev/null 2>&1; then jq -r "$jqx"; else cat; fi; }
@@ -47,7 +47,7 @@ case "${1:-} ${2:-}" in
   "pr list") [ -f "$K/prs.json" ] || { printf 'stub: no answer\n' >&2; exit 4; }; out < "$K/prs.json"; exit 0 ;;
 esac
 if [ "${1:-}" = api ]; then
-  [ "$bill" = 1 ] && { printf '{"total_minutes_used":5,"total_paid_minutes_used":0,"included_minutes":2000}\n' | out; exit 0; }
+  [ "$bill" = 1 ] && { by="${bq##*year=}"; by="${by%%&*}"; bm="${bq##*month=}"; bm="${bm%%&*}"; [ "${#bm}" -eq 1 ] && bm="0$bm"; printf '{"usageItems":[{"date":"%s-%s-01T00:00:00Z","product":"actions","sku":"Actions Linux","quantity":5.0,"unitType":"Minutes","pricePerUnit":0.006,"grossAmount":0.0,"discountAmount":0.0,"netAmount":0.0,"repositoryName":"home"}]}\n' "$by" "$bm" | out; exit 0; }
   [ "$dflt" = 1 ] && { printf '{"full_name":"fixture/home","default_branch":"main"}\n' | out; exit 0; }
   printf 'gh: Not Found (HTTP 404)\n' >&2; exit 1
 fi

@@ -27,8 +27,6 @@
 
 FELIX_AUTH_KEYS='user workers source source-main store door lock'
 FELIX_AUTH_ZERO=0000000000000000000000000000000000000000
-# The programs this code runs by name (W6 e). One added to these libraries is added here.
-FELIX_AUTH_TOOLS='git awk sed grep ps find id od date sort tr cut wc mkdir chmod ls cat rm mv bash'
 
 felix_authority_home() { printf '%s' "${FELIX_AUTHORITY_HOME:-$HOME/.felix/authority}"; }
 
@@ -171,33 +169,63 @@ EOF
   _FA_ID="$id"
 }
 
-# W6 e. Prints each path of the code this process runs that another login owns or can write: the engine's own
-# files, each tool as PATH resolves it, the directory each stands in, and the lock. A link is read as itself
-# and as what it points at. Group write counts when a login workers run as is in the group. NOT READ: the
-# directories above these, and an access-control list on any of them; the slice's document lists both as open.
+# W6 e. Prints each path of the code this process runs that a login workers run as owns or can write: the
+# engine's own directory, its `felix` and each file of its lib/, each directory PATH names and each program in
+# one, and the lock with its directory. Directories, and not a list of the tools' names: a list is the tools
+# found so far, and the first one written here named twenty and left out one the door runs. A link is read as
+# itself and as what it points at. "Can write" is: owns it, or it is writable by every login, or by a group a
+# worker is in. A path a third login owns (a system's role account) is not a worker's. NOT READ: the
+# directories above these, and what a link in a PATH directory points into; the slice's document lists both.
 _fa_code_offenders() {
-  local t p w rest g
-  local -a a=() grp=()
-  a=("${SCRIPT_DIR:-/nonexistent}" "${SCRIPT_DIR:-/nonexistent}/felix" "${SCRIPT_DIR:-/nonexistent}/lib" "${SCRIPT_DIR:-/nonexistent}"/lib/*.sh)
-  for t in $FELIX_AUTH_TOOLS; do
-    p="$(type -P "$t" 2>/dev/null)" && [ -n "$p" ] || continue
-    a[${#a[@]}]="$p"
-    case "$p" in */*) a[${#a[@]}]="${p%/*}/" ;; esac
-  done
+  local d w rest g u e="${SCRIPT_DIR:-/nonexistent}" ifs="$IFS"
+  local -a a=() dirs=() grp=() own=()
+  a=("$e" "$e/felix" "$e/lib" "$e"/lib/*.sh)
   if [ -n "$_FA_LOCK" ]; then a[${#a[@]}]="$_FA_LOCK"; a[${#a[@]}]="${_FA_LOCK%/*}/"; fi
-  find "${a[@]}" -prune ! \( -user "$_FA_USER" -o -user 0 \) -print 2>/dev/null
-  find -L "${a[@]}" -prune \( ! \( -user "$_FA_USER" -o -user 0 \) -o -perm -002 \) -print 2>/dev/null
+  case ":${PATH:-}:" in *::*) printf '%s\n' "PATH (an empty entry: the directory the command is run from)" ;; esac
+  IFS=:
+  for d in ${PATH:-}; do
+    case "$d" in
+      "") ;;
+      /*) [ ! -d "$d" ] || { dirs[${#dirs[@]}]="$d/"; a[${#a[@]}]="$d/"; } ;;
+      *)  printf '%s\n' "PATH (an entry that is not absolute: $d)" ;;
+    esac
+  done
+  IFS="$ifs"
   rest="$_FA_WORKERS,"
   while [ -n "$rest" ]; do
     w="${rest%%,*}"; rest="${rest#*,}"
+    u="$(id -u "$w" 2>/dev/null)" || continue
+    case "$u" in ""|*[!0123456789]*) continue ;; esac
+    [ ${#own[@]} -eq 0 ] || own[${#own[@]}]="-o"
+    own[${#own[@]}]="-user"; own[${#own[@]}]="$u"
     for g in $(id -G "$w" 2>/dev/null); do
       case "$g" in ""|*[!0123456789]*) continue ;; esac
       [ ${#grp[@]} -eq 0 ] || grp[${#grp[@]}]="-o"
       grp[${#grp[@]}]="-group"; grp[${#grp[@]}]="$g"
     done
   done
-  [ ${#grp[@]} -eq 0 ] || find -L "${a[@]}" -prune -perm -020 \( "${grp[@]}" \) -print 2>/dev/null
+  [ ${#own[@]} -gt 0 ] || { own=(-user "$_FA_USER" -a ! -user "$_FA_USER"); }   # no worker is a login here: nothing is a worker's
+  [ ${#grp[@]} -gt 0 ] || { grp=(-group 0 -a ! -group 0); }
+  find "${a[@]}" -prune \( "${own[@]}" \) -print 2>/dev/null
+  find -L "${a[@]}" -prune \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
+  [ ${#dirs[@]} -gt 0 ] || return 0
+  find "${dirs[@]}" -mindepth 1 -maxdepth 1 -type l \( "${own[@]}" \) -print 2>/dev/null
+  find -L "${dirs[@]}" -mindepth 1 -maxdepth 1 ! -type d \( \( "${own[@]}" \) -o -perm -002 -o \( -perm -020 \( "${grp[@]}" \) \) \) -print 2>/dev/null
   return 0
+}
+
+# W6 b. Prints the first path under DIR that carries an access-control list. The entries themselves are read
+# where ls prints them (`ls -lde`, a line that starts with a space, a number and a colon): the mark after the
+# mode is "@" and not "+" on a path that also has extended attributes, so the mark alone missed them. Where ls
+# takes no -e, the mark is "+" and nothing stands in its place.
+_fa_acl() {   # DIR
+  if ls -lde "$1" >/dev/null 2>&1; then
+    find "$1" -exec ls -lde {} + 2>/dev/null | LC_ALL=C awk '
+      /^ [0-9]+: / { if (last != "") { print last; exit } next }
+      { last = $0 }' | LC_ALL=C sed -n 1p
+  else
+    find "$1" -exec ls -ld {} + 2>/dev/null | LC_ALL=C awk 'substr($1, 11, 1) == "+" { print; exit }' | LC_ALL=C sed -n 1p
+  fi
 }
 
 # W6 a, b and e. Sets _FA_OWN to one line for each condition that does not hold, and returns 0 when each
@@ -229,15 +257,16 @@ felix_authority_own() {   # [again]
     [ -z "$bad" ] || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: $(_fa_esc "$bad" 200) is not owned by $_FA_USER, or someone else can write it"
   done
   for p in "$_FA_HOME" "$_FA_STORE" "$_FA_DOOR"; do
-    case "$(ls -ld "$p" 2>/dev/null)" in
-      ??????????+*) _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: $(_fa_esc "$p" 200) carries an access-control list" ;;
-    esac
+    case "$p" in "$_FA_HOME"/*) [ ! -d "$p" ] || [ -L "$p" ] || continue ;; esac   # read with the home
+    [ -d "$p" ] && [ ! -L "$p" ] || continue
+    [ -z "$(_fa_acl "$p")" ] \
+      || _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: a path under $(_fa_esc "$p" 200) carries an access-control list"
   done
   # e. The code it runs.
   bad="$(_fa_code_offenders | LC_ALL=C sort -u)"
   if [ -n "$bad" ]; then
     n="$(printf '%s\n' "$bad" | wc -l | tr -d ' ')"
-    _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: it runs $(_fa_esc "${bad%%$'\n'*}" 200), which another login owns or can write ($n such)"
+    _FA_OWN="${_FA_OWN:+$_FA_OWN$'\n'}not the authority's alone: it runs $(_fa_esc "${bad%%$'\n'*}" 200), which a login workers run as owns or can write ($n such)"
   fi
   _FA_OWN_READ=1
   [ -z "$_FA_OWN" ]

@@ -8,19 +8,57 @@
 # suite stopped before reached or reached no assertion, or tests/red itself
 # was stopped; its stdout said which unless it was the one stopped.
 # Reproduce with: tests/red <ref>
-base	origin/main	9d4baa6901c3b8a77678fca92ca9c0740aa2d226	0.49.337
-run	14	17037	47
-ts3g: A22 amended, case 10: _felix_policy_copy of that commit's engine/ returns 0 and writes each file as its blob holds it	1
-ts3g: A22 amended, case 10: _mj_make of that commit returns 0 and writes each file of its engine/ as its blob holds it	1
-ts3g: A22 and A23 amended after the filesystem's answer, case 9, where names fold: the unknown SUITE refusal of two paths holding the four characters backslash x1b writes each backslash as backslash x5c	1
-ts3g: A22 and A23 amended, case 5b, where names fold: the unknown SUITE refusal of two paths holding an ESC byte names each with that byte written as backslash x1b	1
-ts3g: A22, case 1, ident: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
-ts3g: A22, case 1, text eol=crlf: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
-ts3g: A22, case 1, working-tree-encoding=UTF-16LE: a candidate whose .gitattributes gives scan.txt this attribute, and whose blob holds what P's part refuses, is refused for 2007-scan.sh (or as unknown SUITE naming scan.txt), and is not passed	1
-ts3g: A23 amended after the filesystem's answer, case 8a, where names fold: a candidate that deletes the base's MARKER, makes engine/widget a link to w2 holding marker and changes the P part that requires MARKER is refused as unknown SUITE naming the base's engine/widget/MARKER and T's marker, and no unit runs	1
-ts3g: A23 amended after the filesystem's answer, case 8b, where names fold: a candidate that adds a link engine/x.conf to ../Engine/widget/list.txt and changes a P part is refused as unknown SUITE naming the link, and no unit runs	1
-ts3g: A23 amended again, case 6a, where the filesystem takes the pair for one name: a candidate that deletes the base's MARK+U+2C2F, adds MARK+U+2C5F and changes the P part that requires the base's name is refused as unknown SUITE naming both, and no unit runs	1
-ts3g: A23 amended again, case 6b, where the filesystem takes the pair for one name: a candidate that adds a file under engine/wid+U+2C5F/ while B holds engine/wid+U+2C2F/ is refused as unknown SUITE naming both, and no unit runs	1
-ts3g: A23 amended, case 5a, where names fold: a candidate that adds a file under Engine/harness/tests/parts/ is refused as unknown SUITE naming that path and the directory it folds onto, and no unit runs	1
-ts3g: A23, case 3, where names fold: a candidate that deletes the base's MARKER and adds marker is refused as unknown SUITE naming both paths, and no unit runs	1
-ts3g: A23, case 4, where names fold: a candidate whose tree holds two paths differing only by case is refused as unknown SUITE naming both, and no unit runs	1
+base	origin/main	212830c42a1f862c57814cda0c2119b5fc3d4d5b	0.49.338
+run	52	17036	47
+R13: 404 on both: unread, and the detail says what a 404 means and names no scope	1
+R13: A1: a clock in March asks the users/ report for month=3, no leading zero	1
+R13: A1: and counts only dates starting 2026-03-, zero-padded	1
+R13: A2: an answer that ends early is unread: the usage report is not complete JSON	1
+R13: A2: text after the object closes is unread: the usage report is not complete JSON	1
+R13: A3: no usageItems key: the detail is exactly that the report holds no usageItems list	1
+R13: A3: usageItems an object is unread: no usageItems list	1
+R13: A3: usageItems null is unread: no usageItems list	1
+R13: A4: an actions item whose date is a number is unread: an Actions item with no date	1
+R13: A4: an actions item with no date is unread: an Actions item with no date	1
+R13: A5: a 404 past character 120 of the first error line still brings the orgs/ GET	1
+R13: A5: a 410 past character 120 brings no orgs/ GET and ends with the moved clause	1
+R13: A5: and the detail shows the line from its start	1
+R13: A5: and, both failing so, ends with the 404 clause	1
+R13: A6: an owner that is not an account name: no billing GET	1
+R13: A6: and the row is unread: the owner in the slug is not an account name	1
+R13: Actions items dated outside the asked month are not counted and are told by number at the end of the detail	1
+R13: a 404 on users/ is followed by one orgs/ GET, and nothing else of billing	1
+R13: a 404 on users/ then an answered orgs/ report: read	1
+R13: a 404 then a 410 on orgs/: both lines, then the moved clause	1
+R13: a 404 then a 502 on orgs/: the organisation report's error follows, and no clause	1
+R13: a counted item whose netAmount is a string is unread, quantity or netAmount not a number	1
+R13: a counted item with no netAmount is unread, quantity or netAmount not a number	1
+R13: a counted storage item whose netAmount is null is unread, quantity or netAmount not a number	1
+R13: a network error: one billing GET, and the detail is gh's first error line alone	1
+R13: a report spread over several lines, with numbers holding an exponent, is read	1
+R13: a scope gh names on the users/ GET is given, and wins over the 404 clause	1
+R13: a scope line naming no scope name (a space, a semicolon) names no scope: the 404 clause is given	1
+R13: an answered report makes the budget row read	1
+R13: an answered users/ GET is the only billing GET: no orgs/ GET and never the retired settings/billing/actions	1
+R13: an empty usageItems list is read	1
+R13: and it is a GET of orgs/<owner>/settings/billing/usage?year=Y&month=M	1
+R13: and no orgs/ GET follows a 410	1
+R13: and reads zero minutes and no net	1
+R13: and says an Actions item's quantity or netAmount is not a number	1
+R13: and says the usage report holds no usageItems	1
+R13: and summed as JSON: the whole detail	1
+R13: and that GET is of users/<owner>/settings/billing/usage?year=Y&month=M, nothing more in the path	1
+R13: and the detail is the organisation report's, in the month asked	1
+R13: and the detail says GitHub moved the endpoint and no scope brings it back	1
+R13: minutes are summed over every SKU in minutes, unit and product compared without case, storage's quantity left out	1
+R13: net is summed over the counted items, storage's included, another product's not	1
+R13: the orgs/ GET asks the same year and month, the clock's in UTC	1
+R13: the page asks the users/ usage report for the clock's year and month in UTC, the month without a leading zero	1
+R13: the whole detail of a read report	1
+R13: two GETs naming different scopes give both, in the order asked	1
+R8: gh's error line holding ESC shows it as ?	1
+spec §4.4, R13: and the net amount, with no included minutes to state	1
+spec §4.4: and gives gh's first error line	1
+spec §4.4: it gives the minutes used	1
+spec §4.4: the budget is one gh api GET of the governed account's Actions billing	1
+spec §4.4: the budget was read	1

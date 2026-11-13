@@ -50,8 +50,19 @@ the tick's next run deploys.
 **Shown red and green.** Part 2480 (164 `ok` lines on this tree, 14 of them
 fixture controls) was written blind from the contract by an agent that had not
 seen the implementation, and run on main's tree (4c4c0b3d) before the
-implementation reached it: 54 assertions fail there, and no control does. On
-this tree, merged with main at c9fe3c1b, it passes, 0 failures. Two of its first four failures here were the part's own
+implementation reached it: 54 assertions fail there, and no control does. The
+record's red run (red.tsv, against origin/main at 212830c4, engine 0.49.338)
+reads the same: 52 of the part's names fail, 54 failures with repeats. It also
+holds one row that is not this part's, `ts3f: A14` (no run tree is left under
+TMPDIR after a KILL), which failed once there; the same assertion passed in the
+suite proper (record log, `ok`). When I looked after the record this Mac held
+350 `tmp.*` directories under TMPDIR and a `felix-instrument.*` directory dated
+11-08, left by stopped and killed runs (some mine): the kind of leftover that
+assertion is about. So I read the row as a likely effect of the red run's
+environment, which I did not show, and not as a fact about the base. I did not
+remove those directories; they belong to other runs. On this tree, merged with
+main, the suite passes: 17154 passed, 0 failed, 46 skipped, at `-j 6`, which
+leaves no receipt. Two of its first four failures here were the part's own
 (a limit test that removed the hold itself; a helper that read `pid 40010;` as
 not naming the pid) and went back to its author; one was the tick writing the
 hold twice a run, which broke "SINCE = LEASE on a first assertion" (fixed

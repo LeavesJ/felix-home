@@ -31,6 +31,14 @@ a design session.
   snapshot withholds. That would have been a broken link on the public page,
   naming a private document. The link is gone and the sentence is unchanged.
 
+**Order.** The founder put this after the three releases queued ahead of it by
+number, #494, #509 and #511, on 2026-11-13. Once they land, merge main here
+again and record. The fix keeps 0.49.344 if they land as 0.49.341 to 0.49.343.
+Then gate alone and run `felix merge --dry-run`. At 19:41Z, main's engine
+computed the blockers of `bf3127c3` against main `d3eecbc9`: no escape line.
+The instrument step had not run then, and any escape line it names is the
+founder's to answer on what he is shown.
+
 **Next.** Once this lands, run `snapshot.sh` from the home on main (it runs the
 suite on the snapshot). Audit what differs from the staged preview, test the
 install in a scratch HOME, and open the public pull request, merged with

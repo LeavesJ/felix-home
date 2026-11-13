@@ -9568,11 +9568,11 @@
 1	b12 A45 (B22): https://github.com/acme/website.git binds website, not web, whose acme/web it only begins with
 1	b12 A46 (B22): git@github.com:acme/web.git binds web (control)
 1	b12 A47 (B22): ssh://git@github.com/acme/website.git binds website, not web
-1	b12 A48 (B22): https://github.com/LeavesJ/Elenchus-docs.git binds nothing, though LeavesJ/Elenchus begins it
-1	b12 A49 (B22): a lowercase clone, https://github.com/leavesj/elenchus.git, binds el
+1	b12 A48 (B22): https://github.com/Acme/Atlas-docs.git binds nothing, though Acme/Atlas begins it
+1	b12 A49 (B22): a lowercase clone, https://github.com/acme/atlas.git, binds el
 1	b12 A5 (B3): and felix_exceptions_judge prints refused, ob1, LIVE, the-founder, not honoured:, its why naming fetch
-1	b12 A50 (B22): https://github.com/LeavesJ/Elenchus.git binds el (control)
-1	b12 A51 (B22): an origin carrying userinfo before github.com/LeavesJ/Elenchus binds el (control)
+1	b12 A50 (B22): https://github.com/Acme/Atlas.git binds el (control)
+1	b12 A51 (B22): an origin carrying userinfo before github.com/Acme/Atlas binds el (control)
 1	b12 A52 (B22): https://gitlab.example/acme/api-gateway.git binds nothing, though gl's https://gitlab.example/acme/api begins it
 1	b12 A53 (B22): https://gitlab.example/acme/api.git binds gl (control)
 1	b12 A54 (B22): git@gitlab.example:team/svc.git binds s1, team/svc anchored after a colon (control)

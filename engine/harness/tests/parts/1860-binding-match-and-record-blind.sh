@@ -79,7 +79,7 @@ _n12one() {  # FILE KEY PROJECT -> "one line: KEY, PROJECT, a UTC stamp" when th
 
 # ---- C046: fixture B, the binding rule row by row ----------------------------------------------
 N12HB="$N12/b/home"; N12CB="$N12/b/co"; N12MB="$N12/b/mem"; mkdir -p "$N12MB"
-for _n12p in web:acme/web website:acme/website el:LeavesJ/Elenchus gl:https://gitlab.example/acme/api s1:team/svc \
+for _n12p in web:acme/web website:acme/website el:Acme/Atlas gl:https://gitlab.example/acme/api s1:team/svc \
              s2:gitlab.example/team/svc ex:example.invalid/pcwd-remote dup1:acme/dup dup2:acme/dup nomatch:; do
   _n12proj "$N12HB" "${_n12p%%:*}" "${_n12p#*:}"
 done
@@ -88,10 +88,10 @@ _n12row() { _n12g "$N12CB" config remote.origin.url "$2"; is "b12 A$1 (B22): $4"
 _n12row 45 https://github.com/acme/website.git 'website|0' "https://github.com/acme/website.git binds website, not web, whose acme/web it only begins with"
 _n12row 46 git@github.com:acme/web.git 'web|0' "git@github.com:acme/web.git binds web (control)"
 _n12row 47 ssh://git@github.com/acme/website.git 'website|0' "ssh://git@github.com/acme/website.git binds website, not web"
-_n12row 48 https://github.com/LeavesJ/Elenchus-docs.git '|1' "https://github.com/LeavesJ/Elenchus-docs.git binds nothing, though LeavesJ/Elenchus begins it"
-_n12row 49 https://github.com/leavesj/elenchus.git 'el|0' "a lowercase clone, https://github.com/leavesj/elenchus.git, binds el"
-_n12row 50 https://github.com/LeavesJ/Elenchus.git 'el|0' "https://github.com/LeavesJ/Elenchus.git binds el (control)"
-_n12row 51 'https://b12tok:SECRET-b12@github.com/LeavesJ/Elenchus.git' 'el|0' "an origin carrying userinfo before github.com/LeavesJ/Elenchus binds el (control)"
+_n12row 48 https://github.com/Acme/Atlas-docs.git '|1' "https://github.com/Acme/Atlas-docs.git binds nothing, though Acme/Atlas begins it"
+_n12row 49 https://github.com/acme/atlas.git 'el|0' "a lowercase clone, https://github.com/acme/atlas.git, binds el"
+_n12row 50 https://github.com/Acme/Atlas.git 'el|0' "https://github.com/Acme/Atlas.git binds el (control)"
+_n12row 51 'https://b12tok:SECRET-b12@github.com/Acme/Atlas.git' 'el|0' "an origin carrying userinfo before github.com/Acme/Atlas binds el (control)"
 _n12row 52 https://gitlab.example/acme/api-gateway.git '|1' "https://gitlab.example/acme/api-gateway.git binds nothing, though gl's https://gitlab.example/acme/api begins it"
 _n12row 53 https://gitlab.example/acme/api.git 'gl|0' "https://gitlab.example/acme/api.git binds gl (control)"
 _n12row 54 git@gitlab.example:team/svc.git 's1|0' "git@gitlab.example:team/svc.git binds s1, team/svc anchored after a colon (control)"

@@ -1,4 +1,4 @@
-### 2026-11-06: an owed engine deploy gets its window; new suites and gates wait for it (0.49.341)
+### 2026-11-06: an owed engine deploy gets its window; new suites and gates wait for it (0.49.342)
 
 **What failed.** `_gt_deploy` returns "deploy owed" whenever
 `pgrep -f 'engine/harness/tests/run|gate\.sh'` matches anything, and signals
@@ -51,18 +51,20 @@ the tick's next run deploys.
 fixture controls) was written blind from the contract by an agent that had not
 seen the implementation, and run on main's tree (4c4c0b3d) before the
 implementation reached it: 54 assertions fail there, and no control does. The
-record's red run (red.tsv, against origin/main at 212830c4, engine 0.49.338)
-reads the same: 52 of the part's names fail, 54 failures with repeats. It also
-holds one row that is not this part's, `ts3f: A14` (no run tree is left under
-TMPDIR after a KILL), which failed once there; the same assertion passed in the
-suite proper (record log, `ok`). When I looked after the record this Mac held
-350 `tmp.*` directories under TMPDIR and a `felix-instrument.*` directory dated
-11-08, left by stopped and killed runs (some mine): the kind of leftover that
-assertion is about. So I read the row as a likely effect of the red run's
-environment, which I did not show, and not as a fact about the base. I did not
-remove those directories; they belong to other runs. On this tree, merged with
-main, the suite passes: 17154 passed, 0 failed, 46 skipped, at `-j 6`, which
-leaves no receipt. Two of its first four failures here were the part's own
+red run (red.tsv, against origin/main at cf0cb744, engine 0.49.340, 56 of 17237
+failing) reads the same for this part: 52 of its names fail, 54 failures with
+repeats. It also holds two rows that are not this part's, both from part 0290
+(`and landed on the shared home's cache, which this block does not read`, and
+`and the refresh the hook forked asked the claude for the catalogue`), one
+failure each. Main's own committed red.tsv (its #508 record, base 212830c4) did
+not hold them, and the record I made earlier on this branch, against 212830c4,
+held a different foreign row (`ts3f: A14`) instead. I read all three as the red
+run's environment (part 0290's refresh block reads the shared plugin cache,
+which held 0.49.338 while the base engine was 0.49.340, and that block already
+has a session on it), which I did not show, and not as facts about the base.
+The suite proper passed on this branch before #508 merged: 17154 passed, 0
+failed, 46 skipped at `-j 6`, which leaves no receipt; the gate on the final
+tree is reported in the PR body. Two of its first four failures here were the part's own
 (a limit test that removed the hold itself; a helper that read `pid 40010;` as
 not naming the pid) and went back to its author; one was the tick writing the
 hold twice a run, which broke "SINCE = LEASE on a first assertion" (fixed

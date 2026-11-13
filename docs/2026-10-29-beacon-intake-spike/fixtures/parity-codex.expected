@@ -1,0 +1,10 @@
+field	session_id	session_meta.payload.id	session.id	4	4	4	match
+field	working_directory	turn_context.payload.cwd	session.working_directory	4	4	4	match
+field	tool_name	function_call.name	tool.name	4	4	4	match
+field	tool_input	function_call.arguments	gen_ai.tool.call.arguments	4	4	3	differs
+field	apply_patch_paths	apply_patch input, File and Move lines	the same lines in Beacon input	1	1	1	match
+field	typed_chars	write_stdin arguments.chars	gen_ai.tool.call.arguments.chars	1	1	1	match
+field	tool_output	function_call_output.output	command.output or gen_ai.tool.call.result	2	2	2	match
+field	exit_code	event_msg exec_command_end.exit_code	command.exit_code	1	0	0	absent_in_beacon
+mismatch	tool_input	call_4	{"cmd":"cat AWS_SECRET=abc123"}	{"cmd":"cat AWS_SECRET=[REDACTED]"}
+mismatch	exit_code	call_1	101	absent

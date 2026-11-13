@@ -270,7 +270,7 @@ const isToday=t=>{const d=_d(t);if(!d)return false;const n=new Date();
   return d.toDateString()===n.toDateString();};
 const unesc=s=>String(s||'').replace(/\\n/g,'\n').replace(/\\\\/g,'\\');
 
-const LABEL={brief:'routed',held:'held',skipped:'flagged','plugin-blocked':'alarm',unrecorded:'note',excepted:'excepted',merged:'merged'};
+const LABEL={brief:'routed',held:'held',skipped:'flagged','plugin-blocked':'alarm',unrecorded:'note',excepted:'excepted',merged:'merged',unjudged:'could not judge',debt:'let go','prompt-unfinished':'hook cut off'};
 
 /* A prompt can arrive carrying an attached file path and escaped quotes. Shown
    raw it is unreadable and, before the min-width fixes above, it also pushed a
@@ -485,7 +485,7 @@ function renderLog(){
   pastSays().forEach(s=>ev.push({t:s.t,m:(LABEL[s.kind]||s.kind)+' · '+gist(s),
     c:(s.kind==='held'||s.kind==='plugin-blocked')?'bad':(s.kind==='skipped'||s.kind==='unrecorded')?'warn':''}));
   (p.verifyLog||[]).forEach(v=>ev.push({t:v.t,m:'gate '+v.verdict+' · '+v.reason,
-    c:v.verdict==='blocked'?'bad':(v.verdict==='override'||v.verdict==='debt')?'warn':'ok'}));
+    c:v.verdict==='allowed'?'ok':v.verdict==='blocked'?'bad':'warn'}));
   ev.sort((a,b)=>String(b.t).localeCompare(String(a.t)));
   const n=new Set(pastSays().map(s=>s.session||'unknown')).size;
   at('logTag').textContent=n?n+' past session'+(n===1?'':'s'):'archive';

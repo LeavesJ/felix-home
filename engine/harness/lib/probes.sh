@@ -173,6 +173,8 @@ felix_probe_malformed() {
 _felix_probe_ask() {
   local root="$1" cmd="$2" rc
   [ -n "$cmd" ] && [ "$cmd" != "-" ] || return 2
+  # At the merge boundary the command runs P's instruments (policy.sh, spec S2); elsewhere it is as written.
+  command -v _felix_p_cmd >/dev/null 2>&1 && cmd="$(_felix_p_cmd "$cmd")"
   ( cd "$root" 2>/dev/null || exit 126
     bash -c "$cmd" felix-probe </dev/null >/dev/null 2>&1 )
   rc=$?
@@ -268,6 +270,8 @@ felix_probe_state() {
     esac
   fi
 
+  # P's instruments at the merge boundary (spec S2); the row's own text is what felix_probes_run prints.
+  command -v _felix_p_cmd >/dev/null 2>&1 && probe="$(_felix_p_cmd "$probe")"
   out="$( cd "$root" 2>/dev/null || exit 126
           bash -c "$probe" felix-probe </dev/null 2>/dev/null )"
   rc=$?
@@ -331,9 +335,9 @@ felix_probe_state() {
   case "$ask" in
     0)
       if [ "$rc" -ne 0 ]; then
-        printf 'blind\t0\tthe witness proves this surface exists and the probe exited %s\n' "$rc"
+        printf 'blind\t0\tthe witness says this surface exists and the probe exited %s\n' "$rc"
       else
-        printf 'blind\t0\tthe witness proves this surface exists and the probe enumerated none of it\n'
+        printf 'blind\t0\tthe witness says this surface exists and the probe enumerated none of it\n'
       fi
       return 0 ;;
     1)

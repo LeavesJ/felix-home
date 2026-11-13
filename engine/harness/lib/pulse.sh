@@ -8,9 +8,9 @@
 # no checkout touched, no network beyond the backup remote a person already
 # configured.
 #
-# Duties, four and a record. All of it is bash and git (and jq, when present, for
+# Duties, five and a record. All of it is bash and git (and jq, when present, for
 # the settings check). Only the first duty writes outside state/ or reaches a
-# network, and then only the backup remote; the next three read and never act:
+# network, and then only the backup remote; the next four read and never act:
 #   backup   commit and push the memory repository, verified by asking the
 #            remote what it now holds; a rejected push is reported and never
 #            forced, because a divergence is another machine's work and
@@ -23,6 +23,13 @@
 #            Felix's can say so, because none of them loads
 #   reach    which declared plugin and mcp servers a project's last reach cache
 #            says do not connect, or that no cache has been read for
+#   lane     last of all, one line per lane the home's own project counts
+#            (lib/lane.sh, felix_lane_pulse): its state, and L and T, the
+#            landings in the window that carry the lane's mark and the
+#            landings that touch its paths. It reads the home checkout's
+#            refs/remotes/origin/main as last fetched and the lane tables as
+#            committed; it fetches nothing, and a home that is not a git
+#            checkout bound to a project gets no line
 # and the record, which is not a duty but what a run leaves behind:
 #   record   state/pulse.status.tsv, rewritten whole by every run: `# ran
 #            <epoch>`, then the lines the run printed, so a status surface
@@ -95,54 +102,6 @@ felix_pulse_mem_repo() {
   fi
 }
 
-# Gitlinks a full staging would newly introduce, one path per line. Empty is
-# the good answer, and it is computed WITHOUT touching the real index.
-#
-# Three rounds of review found three separate defects in the parsing this
-# used to do — an awk that rebuilt the record and collapsed runs of spaces so
-# two different directories reduced to one key, a .gitmodules cross-check
-# whose quoting never matched git's own, and a count that included links
-# already in HEAD. The lesson is not "parse more carefully": it is that the
-# decision does not need most of what was being parsed.
-#
-# So: both sides come from `cut -f2-` on the literal tab git puts before a
-# path — exact, and identical on both sides, so quoting cannot make them
-# disagree — and the .gitmodules cross-check is gone entirely. A submodule
-# somebody adds deliberately is refused once and then stops being new the
-# moment they commit it, which is a self-resolving nudge rather than a
-# permanent latch, and it costs no matching rules that can be wrong.
-#
-# Returns 2, printing nothing, when the question could not be asked: no scratch
-# index, or a `git add -A` into it that did not finish (2026-10-08). A tracked
-# named pipe fails that add, and the index it left was HEAD's, so a nested
-# repository added beside the pipe read as no new gitlink. Not asked is not no.
-_felix_pulse_new_gitlinks() {
-  local repo="$1" tmp idx head
-  # A template under $TMPDIR: a bare mktemp on macOS ignores TMPDIR, and the
-  # suite points TMPDIR at a fixture to count what is left there.
-  local tmpd="${TMPDIR:-/tmp}"
-  tmp="$(mktemp "${tmpd%/}/felix-pulse.XXXXXX" 2>/dev/null)" || return 2
-  # A scratch index, so a person's deliberately staged selection survives
-  # being asked about. The check used to stage into the real index and then
-  # `git reset` on refusal, which is not an undo: it emptied whatever they
-  # had staged.
-  if git -C "$repo" rev-parse --verify -q HEAD >/dev/null 2>&1; then
-    GIT_INDEX_FILE="$tmp" git -C "$repo" read-tree HEAD >/dev/null 2>&1
-  fi
-  if ! GIT_INDEX_FILE="$tmp" git -C "$repo" add -A >/dev/null 2>&1; then
-    rm -f "$tmp"; return 2
-  fi
-  idx="$(GIT_INDEX_FILE="$tmp" git -C "$repo" ls-files -s 2>/dev/null | grep '^160000 ' | cut -f2-)"
-  rm -f "$tmp"
-  [ -n "$idx" ] || return 0
-  head="$(git -C "$repo" ls-tree -r HEAD 2>/dev/null | grep '^160000 ' | cut -f2-)"
-  printf '%s\n' "$idx" | while IFS= read -r p; do
-    [ -n "$p" ] || continue
-    felix_has_line "$head" "$p" && continue
-    printf '%s\n' "$p"
-  done
-}
-
 # When the memory last reached the remote, as a stamp this writes itself.
 _felix_pulse_stamp() { printf '%s/state/pulse.last-push' "$1"; }
 
@@ -151,7 +110,7 @@ _felix_pulse_stamp() { printf '%s/state/pulse.last-push' "$1"; }
 # "nothing to do" is not a failure, and neither is a refusal this
 # deliberately makes.
 felix_pulse_backup() {
-  local repo="$1" gitdir remotes remote branch local_head remote_head n160 n_remotes
+  local repo="$1" gitdir remotes remote branch local_head remote_head n_remotes where
   if [ -z "$repo" ]; then
     printf 'backup\tmemory is not in a git repository; nothing versions it\n'
     return 0
@@ -215,51 +174,9 @@ felix_pulse_backup() {
     return 0
   fi
   if [ -n "$st" ]; then
-    # A nested git repository stages as a bare gitlink: the push then reports
-    # verified while a restore materializes an empty directory — the exact
-    # disaster-recovery path this feature exists for. Asked on a scratch
-    # index BEFORE anything real stages, so a refusal leaves the person's own
-    # index exactly as it was found; the previous shape staged first and
-    # `git reset` on refusal, which is not an undo — it emptied whatever they
-    # had deliberately staged. Counted with grep -c, which reads its whole
-    # input, because grep -q under pipefail kills the producer and this
-    # repository has paid for that before.
-    local links lrc=0; links="$(_felix_pulse_new_gitlinks "$repo")" || lrc=$?
-    if [ "$lrc" -eq 2 ]; then
-      # Which of the two, said: git's own first error line when the stage was
-      # what failed, and the scratch index otherwise.
-      local lwhy
-      lwhy="$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
-      printf 'backup\tcould not ask whether a nested repository sits inside memory (%s), so nothing was committed, and this memory is NOT backed up\n' \
-        "${lwhy:-no scratch index could be made}"
-      return 0
-    fi
-    if [ "$(printf '%s\n' "$links" | grep -c .)" -gt 0 ]; then
-      printf 'backup\ta nested git repository sits inside memory (%s); backed up it would restore EMPTY, so nothing was committed — move it out, or commit it yourself\n' \
-        "$(printf '%s\n' "$links" | tr '\n' ' ' | sed 's/ $//')"
-      return 0
-    fi
-    # A stage that did not finish is not a commit to make (2026-10-08). `git
-    # add -A` over a tracked named pipe exits 128 having staged nothing. The
-    # commit that followed then recorded whatever a person had staged by hand,
-    # or failed as "nothing to commit", and neither says why.
-    if ! git -C "$repo" add -A >/dev/null 2>&1; then
-      printf 'backup\tgit could not stage this tree (%s), so nothing was committed, and this memory is NOT backed up\n' \
-        "$(git -C "$repo" add -A --dry-run 2>&1 >/dev/null | awk '!p && /^(error|fatal): / { print; p = 1 }')"
-      return 0
-    fi
-    if git -C "$repo" -c user.name=felix-pulse -c user.email=pulse@felix.invalid \
-         commit -q -m "pulse: $(date -u +%Y-%m-%dT%H:%M:%SZ)" >/dev/null 2>&1; then
-      printf 'backup\tcommitted\n'
-    else
-      # Returns rather than falling through. It used to push anyway: the push
-      # succeeded because there was nothing new to send, the verification
-      # passed because both heads were the stale one, and the run's LAST
-      # line — the one a person skims — read "pushed and verified". A backup
-      # that has silently stopped must not end on a success sentence.
-      printf 'backup\tcommit FAILED; nothing was pushed, and this memory is NOT backed up\n'
-      return 0
-    fi
+    # What goes into the commit, and what is left out and said so: a nested git
+    # repository, a file that gained a credential (lib/pulse-stage.sh).
+    felix_pulse_stage "$repo" || return 0
   else
     printf 'backup\tnothing new to commit\n'
   fi
@@ -307,14 +224,26 @@ felix_pulse_backup() {
        -c core.sshCommand="ssh -o ConnectTimeout=15 -o ServerAliveInterval=20 -o ServerAliveCountMax=3" \
        ls-remote "$remote" "refs/heads/$branch" 2>/dev/null | cut -f1)"
     if [ -n "$local_head" ] && [ "$local_head" = "$remote_head" ]; then
-      printf 'backup\tpushed and verified: %s holds %.12s\n' "$remote" "$local_head"
+      # Verified is a fact about the remote's head; where the remote is, is a
+      # second one. A path on this machine is still this disk's fate when
+      # whatever syncs the path stalls (a bare repository under iCloud), and the
+      # line says so (audit b06, C094). Never the address, which can carry a password.
+      where="$(felix_pulse_remote_where "$repo" "$remote")"
+      case "$where" in
+        disk)    printf 'backup\tpushed and read back: %s holds %.12s; %s is a path on this machine, so this copy is only as far from this disk as whatever syncs that path\n' "$remote" "$local_head" "$remote" ;;
+        network) printf 'backup\tpushed and read back: %s holds %.12s\n' "$remote" "$local_head" ;;
+        *)       where=unknown; printf 'backup\tpushed and read back: %s holds %.12s; where %s is could not be read\n' "$remote" "$local_head" "$remote" ;;
+      esac
       # Stamped only here, on the one path where the memory demonstrably
       # left this disk. The staleness alarm used to read the last local
       # COMMIT, which the pulse writes every day whether or not the push
       # works — so in the exact case the alarm exists for, a push failing
-      # for months, the age stayed at zero and nothing ever spoke.
+      # for months, the age stayed at zero and nothing ever spoke. The place
+      # is written beside it, first, so a new stamp never sits over an old place.
       if [ -n "${FELIX_HOME_DIR:-}" ]; then
         mkdir -p "$FELIX_HOME_DIR/state" 2>/dev/null \
+          && { printf '%s\n' "$where" > "$(_felix_pulse_stamp "$FELIX_HOME_DIR").where" 2>/dev/null \
+               || rm -f "$(_felix_pulse_stamp "$FELIX_HOME_DIR").where" 2>/dev/null; } \
           && date +%s > "$(_felix_pulse_stamp "$FELIX_HOME_DIR")" 2>/dev/null
       fi
     else
@@ -376,6 +305,15 @@ fi
 if ! command -v felix_settings_state >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/status.sh"
 fi
+# What goes into the backup commit, and what a session start is told about it
+# (lib/pulse-stage.sh); and discovery's record of its own refresh, which the
+# report below reads (lib/discover-refresh.sh).
+if ! command -v felix_pulse_stage >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/pulse-stage.sh"
+fi
+if ! command -v felix_discover_report_line >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/discover-refresh.sh"
+fi
 
 # What is waiting, one line per fact. Reads only Felix's own tables and state.
 felix_pulse_report() {
@@ -415,7 +353,9 @@ felix_pulse_report() {
       [ -n "$unread" ] && printf 'unknown\t%s\t%s\n' "$name" "$unread"
     fi
     if [ -f "$proj/routes.tsv" ] && felix_discover_stale "$proj" "$home"; then
-      printf 'stale\t%s\tdiscovery cache; the next session refreshes it in the background\n' "$name"
+      # What the last background refresh did, from its record, and what happens
+      # next; never a promise the engine cannot keep (lib/discover-refresh.sh).
+      felix_discover_report_line "$proj" "$home"
     fi
     # Reach, from the project's cache alone. This never runs claude: the launchd
     # job runs /bin/bash, which holds Full Disk Access on this machine, and
@@ -446,22 +386,36 @@ felix_pulse_record() {
   return 0
 }
 
+# XML text for a <string>: & first, then < and >.
+felix_pulse_xml() { printf '%s' "$1" | LC_ALL=C sed 's/&/\&amp;/g; s/</\&lt;/g; s/>/\&gt;/g'; }
+
 # The launchd agent, emitted rather than written so a test can read it and
 # the writer stays four lines. 09:07 local, daily: early enough that the
 # first session of a day inherits a fresh backup, odd enough to say a machine
 # chose it. launchd's own capture goes to a separate file — the pulse tees
 # its structured lines into the log itself, and one line written twice reads
-# as two heartbeats. Paths land inside <string> verbatim; the standard
-# layouts contain no XML metacharacters, and one that did would break the
-# schedule loudly at load, not silently.
+# as two heartbeats. That file lives outside the Felix home, under
+# ~/Library/Logs, because launchd opens it before the program starts, as
+# itself rather than as the shell that will run the pulse, and macOS refused
+# that open under ~/Documents on 2026-10-29: the spawn failed with exit 78, so
+# the program never ran and wrote nothing (felix status showed the exit, and
+# nothing else did). The program is /bin/bash, which holds the privacy grant
+# on a Mac where it was given (A31), running the served engine's felix, so no
+# `env` lookup decides which bash runs it. There is no Program key: launchd
+# would run that program and take ProgramArguments only as its argv. The
+# measurements are in docs/2026-10-29-pulse-agent-contract.md. Both paths are
+# XML-escaped before they land inside <string>, so a home holding &, < or >
+# still yields a plist that parses.
 felix_pulse_plist() {
-  local bin="$1" log="$2"
+  local bin capture
+  bin="$(felix_pulse_xml "$1")"; capture="$(felix_pulse_xml "$2")"
   cat <<PLIST
 <?xml version="1.0" encoding="UTF-8"?>
 <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
 <plist version="1.0"><dict>
   <key>Label</key><string>felix.pulse</string>
   <key>ProgramArguments</key><array>
+    <string>/bin/bash</string>
     <string>$bin</string>
     <string>pulse</string>
   </array>
@@ -469,8 +423,8 @@ felix_pulse_plist() {
     <key>Hour</key><integer>9</integer>
     <key>Minute</key><integer>7</integer>
   </dict>
-  <key>StandardOutPath</key><string>$log.launchd.log</string>
-  <key>StandardErrorPath</key><string>$log.launchd.log</string>
+  <key>StandardOutPath</key><string>$capture</string>
+  <key>StandardErrorPath</key><string>$capture</string>
 </dict></plist>
 PLIST
 }

@@ -271,13 +271,16 @@ case "$( . "$FROOT/harness/lib/discover.sh"; _felix_discover_stamp "$DRS" )" in
 esac
 # Through the command, with the stub cli: a mismatched cache is refilled
 # before anything is adopted, and an empty result is a stamp and no prose.
-mkdir -p "$FROOT/state/discover"
-printf 'stalerow\tllm\tlow\n' > "$FROOT/state/discover/widget.tsv"
-out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" "$FELIX" discover --adopt 2>&1)"
+# In a home of its own, state/ and all: a refresh an earlier block's hook forked writes
+# $FROOT/state/discover/widget.tsv whenever it finishes (part 0290 holds one open to show it).
+RFH="$TMP/refill-home"; mkdir -p "$RFH/state/discover"
+[ -e "$RFH/projects" ] || ln -s "$FROOT/projects" "$RFH/projects"
+printf 'stalerow\tllm\tlow\n' > "$RFH/state/discover/widget.tsv"
+out="$(cd "$REPO" && PATH="$CMSTUB:$PATH" FELIX_HOME="$RFH" "$FELIX" discover --adopt 2>&1)"
 has "discover --adopt refills a cache the current rules did not write" "$out" "filling the discovery cache"
 is  "and the refilled cache begins with the stamp" \
-    "$(head -1 "$FROOT/state/discover/widget.tsv")" "$(_dstamp | tr -d '\n')"
-is  "and holds no prose when nothing matched" "$(grep -vc '^#' "$FROOT/state/discover/widget.tsv")" "0"
+    "$(head -1 "$RFH/state/discover/widget.tsv")" "$(_dstamp | tr -d '\n')"
+is  "and holds no prose when nothing matched" "$(grep -vc '^#' "$RFH/state/discover/widget.tsv")" "0"
 case "$out" in *stalerow*) bad "and the stale row was not adopted" "$out" ;; *) ok "and the stale row was not adopted" ;; esac
 n="$(printf '%s\n' "$out" | grep -c '^declare' || true)"
 is "exactly one declaration from that cache" "$n" "1"
@@ -369,7 +372,9 @@ printf '\nseeing the whole toolbox\n'
 # Felix has to work on somebody else's laptop, laid out however they left it,
 # so the inventory unions every source and each one is optional.
 INV="$( . "$FROOT/harness/lib/ready.sh"; felix_ready_inventory 2>/dev/null )"
-if has_claude; then
+# Only where the CLI can see a plugin installed here: a unit of P's run has a HOME of its own (slice 3, A17), and
+# under the land tick's environment the CLI then lists none, which reads as a machine with nothing installed.
+if has_claude && [ "$(claude plugin list --json 2>/dev/null | LC_ALL=C grep -c '"id"')" -gt 0 ]; then
   n_plug="$(printf '%s\n' "$INV" | grep -c '^plugin' || true)"
   # A static name. It read `ok "finds plugins ($n_plug)"`, and the count is how
   # many plugins THIS machine has — so the name differed between the machine
@@ -379,7 +384,7 @@ if has_claude; then
   # anything varying by machine belongs in the detail, not the name.
   [ "${n_plug:-0}" -gt 0 ] && ok "finds plugins" || bad "finds plugins" "none"
 else
-  skip "finds plugins" "no claude CLI"
+  skip "finds plugins" "no claude CLI, or one that lists no plugin"
 fi
 # Nothing may appear twice however many sources reported it.
 dupes="$(printf '%s\n' "$INV" | sort | uniq -d | grep -c . || true)"

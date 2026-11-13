@@ -481,14 +481,20 @@ _fc_snap() {   # the names, modes, sizes and checksums under each directory give
 }
 # A pristine place for the read-only check: a cwd, HOME and TMPDIR of its own and
 # records roots copied from the cases above, so that a file the command writes on
-# every run is not already there when the first listing is taken.
-mkdir -p "$FC/ro/cwd" "$FC/ro/tmp" "$FC/ro/home/.claude/projects" "$FC/ro/cfgE/projects" "$FC/ro/cfg1" "$FC/ro/cfg6"
+# every run is not already there when the first listing is taken. Since slice 0
+# of the load design (docs/2026-11-06-load-governor-design.md, C2 and C12) the
+# command keeps its readings and their lock in HOME/.cache/felix/cost and nowhere
+# else, so that directory is made before the first listing, and what is inside it
+# is left out of both.
+mkdir -p "$FC/ro/cwd" "$FC/ro/tmp" "$FC/ro/home/.claude/projects" "$FC/ro/cfgE/projects" "$FC/ro/cfg1" "$FC/ro/cfg6" \
+  "$FC/ro/home/.cache/felix/cost"
+_fc_snapro() { _fc_snap "$FC/ro" | awk '!index($0, "./home/.cache/felix/cost")'; }
 cp -R "$FC/r1/projects/." "$FC/ro/home/.claude/projects/"
 cp -R "$FC/r1/projects" "$FC/ro/cfg1/projects"
 cp -R "$FC/r6/projects" "$FC/ro/cfg6/projects"
 printf '%s\n' "$FC/no-such-felix-home" > "$FC/ro/home/.felix-home"
 _fcro() { FCCWD="$FC/ro/cwd" FCHOME="$FC/ro/home" FCTMPD="$FC/ro/tmp" _fc "$@"; }
-FC_SN0="$(_fc_snap "$FC/ro")"
+FC_SN0="$(_fc_snapro)"
 FCCFG="$FC/ro/cfg1" _fcro --tsv;                                FC_RO_TSV="$FCOUT"
 FCCFG="$FC/ro/cfg1" _fcro
 FCCFG="$FC/ro/cfg1" _fcro --since 2026-10-09 --by model --top 2
@@ -498,11 +504,11 @@ FCCFG="$FC/ro/missing" _fcro --tsv
 _fcro --tsv
 _fcro --help
 FCCFG="$FC/ro/cfg1" _fcro --bogus
-FC_SN1="$(_fc_snap "$FC/ro")"
+FC_SN1="$(_fc_snapro)"
 FC_SAME=changed
 case "$FC_SN0" in *s1.jsonl*) [ "$FC_SN1" = "$FC_SN0" ] && FC_SAME=unchanged ;; *) FC_SAME="listing empty" ;; esac
 FC_RO_ROW="$(printf '%s\n' "$FC_RO_TSV" | awk -F'\t' '$1 == "total"')"
-is  "felix cost reports, and creates and changes nothing: not under the records root, nor in its working directory, HOME or TMPDIR" \
+is  "felix cost reports, and creates and changes nothing outside its readings: not under the records root, nor in its working directory, HOME or TMPDIR" \
     "$FC_RO_ROW|$FC_SAME" "$(_fc_exps total all 90500000.00 10.0 1)|unchanged"
 FCCFG="$FC/ro/cfg1" _fcro --tsv
 is  "felix cost leaves no scratch file in TMPDIR after a report" "$FCRC:$(ls -A "$FC/ro/tmp")" "0:"

@@ -34,6 +34,13 @@
 if ! command -v felix_changed_paths >/dev/null 2>&1; then
   . "$(dirname "${BASH_SOURCE[0]:-$0}")/resolve.sh"
 fi
+# The evidence block asks evidence.sh's felix_evidence_table_present and runs its
+# judge. Sourced alone, this file used to read an absent judge as an empty
+# evidence block, with no `evidence` in `unknown`, and the question it asks now
+# would also be "command not found" on stderr. Same guard as intake.sh's.
+if ! command -v felix_evidence_table_present >/dev/null 2>&1; then
+  . "$(dirname "${BASH_SOURCE[0]:-$0}")/evidence.sh"
+fi
 
 # Strict JSON string escaping.
 #
@@ -167,9 +174,14 @@ felix_receipt() {
 
   # ---- evidence
   local ev="" gaps=""
-  if [ "$base_ok" -eq 1 ] && [ -f "$proj/evidence.tsv" ]; then
+  if [ "$base_ok" -eq 1 ] && felix_evidence_table_present "$proj"; then
     ev="$(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null || true)"
     gaps="$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="gap"{print $2}')"
+    # A row the check could not judge is neither met nor a gap, and a verdict
+    # built without it claims more than was read. The two whole-scan unknowns
+    # (a base that names nothing, a change git cut off) are `changed` already.
+    [ -z "$(printf '%s\n' "$ev" | LC_ALL=C awk -F'\t' '$1=="unknown" && index($3,"not judged")')" ] \
+      || unknown="$unknown evidence"
   fi
 
   # ---- authority. Carried here because no transport carries it, and refused
@@ -218,19 +230,32 @@ felix_receipt() {
   if [ -n "$esc" ] || [ -n "$unknown" ]; then autonomous="false"; fi
 
   # ---- status. Precedence is deliberate. Not knowing outranks everything,
-  # because a blocked-or-verified verdict computed from inputs that were never
+  # because a blocked-or-checked verdict computed from inputs that were never
   # read is exactly the confident wrong answer this is built to refuse.
+  #
+  # felix.receipt/2 (0.49.327) says what is true of the gate's receipt where /1
+  # had two words, because Felix says what was checked and never claims more
+  # (decision 1, 2026-10-31). /1's verified is checked. Its unverified is
+  # failed (the gate ran red on this exact tree), evidence-owed (it ran green
+  # here and evidence is owed) or unchecked (nothing current judged this tree):
+  # one word for the three was false wherever the gate had run on this tree.
+  # The version moved so that a reader of /1 refuses the new words rather than
+  # misreading them.
   local status quality
   if   [ -n "$unknown" ]; then status="indeterminate"; quality="unknown"
   elif [ -n "$esc" ];     then status="blocked";       quality="high"
   elif [ "$vstate" = "current" ] && [ "$rres" = "green" ] && [ -z "$gaps" ]; then
-    status="verified"; quality="high"
+    status="checked"; quality="high"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "red" ]; then
+    status="failed"; quality="low"
+  elif [ "$vstate" = "current" ] && [ "$rres" = "green" ]; then
+    status="evidence-owed"; quality="low"
   else
-    status="unverified"; quality="low"
+    status="unchecked"; quality="low"
   fi
 
   printf '{\n'
-  printf '  "schema": "felix.receipt/1",\n'
+  printf '  "schema": "felix.receipt/2",\n'
   printf '  "domain": "engineering",\n'
   printf '  "project": "%s",\n'   "$(_felix_rcpt_esc "$pname")"
   printf '  "status": "%s",\n'    "$status"

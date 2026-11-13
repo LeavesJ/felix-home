@@ -41,6 +41,16 @@ _j12_record() {   # a green gate receipt and a commissioning stamp for the check
 cat > "$J12/gh/gh" <<'J12STUB'
 #!/usr/bin/env bash
 printf '%s\n' "$*" >> "$GHSTUB_LOG"
+# The provider's two reads at the merge (lib/bind.sh, spec S5.2), answered with git at call time from the checkout
+# the stub runs in: the pull request open at this HEAD into main, and main at the commit it names here.
+case "$*" in
+  "pr view "*"--json number,state,baseRefName,headRefOid"*)
+    printf '7\tOPEN\t%s\t%s\n' "${GHSTUB_BASE:-main}" "$(git rev-parse HEAD)"; exit 0 ;;
+  "api repos/"*"/git/ref/heads/"*)
+    n="${2#*/git/ref/heads/}"
+    printf 'commit\t%s\n' "$(git rev-parse --verify -q "refs/remotes/origin/$n^{commit}" || git rev-parse --verify -q "refs/heads/$n^{commit}")"
+    exit 0 ;;
+esac
 case "$1 $2" in "pr view") printf '{"number":7,"state":"OPEN"}\n' ;; "pr merge") printf 'merged\n' ;; esac
 exit 0
 J12STUB

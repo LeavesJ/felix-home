@@ -147,6 +147,8 @@ felix_obligation_state() {
     esac
   fi
 
+  # At the merge boundary the contract runs P's instruments (policy.sh, spec S2); elsewhere it is as written.
+  command -v _felix_p_cmd >/dev/null 2>&1 && evidence="$(_felix_p_cmd "$evidence")"
   out="$( cd "$root" 2>/dev/null || exit 126
           bash -c "$evidence" felix-obligation </dev/null 2>&1 )"
   rc=$?

@@ -81,9 +81,16 @@ felix_next() {
 
   if command -v felix_evidence_check >/dev/null 2>&1; then
     while IFS=$'\t' read -r kind subject reason; do
-      [ "${kind:-}" = "gap" ] || continue
-      _felix_next_row 1 felix "the change owes evidence: $subject — $reason" \
-        "write the test, then felix evidence"
+      case "${kind:-}" in
+        gap) _felix_next_row 1 felix "the change owes evidence: $subject — $reason" \
+               "write the test, then felix evidence" ;;
+        # A row of the table that could not be read is not a gap and not a
+        # pass. The whole-scan unknowns are the escape loop's, below.
+        unknown) case "$reason" in
+                   *"not judged"*) _felix_next_row 1 felix "an evidence row cannot be judged: $subject — $reason" \
+                        "correct that row of evidence.tsv (a verifier escape), then felix evidence" ;;
+                 esac ;;
+      esac
     done <<EOF
 $(felix_evidence_check "$proj" "$base" "$root" 2>/dev/null)
 EOF

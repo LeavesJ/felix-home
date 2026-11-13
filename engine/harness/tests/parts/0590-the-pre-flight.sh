@@ -154,13 +154,15 @@ is "the widget's tables are as this block found them" \
 # This section also guards a bash-3.2 trap: a `case` pattern's closing paren
 # inside $( ) ends the substitution, which parses fine under zsh and dies the
 # moment the real CLI runs it. Only running the CLI catches that.
-if has_claude; then
+# Only where the CLI can see a plugin installed here: a unit of P's run has a HOME of its own (slice 3, A17), and
+# under the land tick's environment the CLI then lists none, which reads as a machine with nothing installed.
+if has_claude && [ "$(claude plugin list --json 2>/dev/null | LC_ALL=C grep -c '"id"')" -gt 0 ]; then
   case "$out" in
     *"never reached for"*) ok "reports what is installed but unused" ;;
     *) bad "reports what is installed but unused" "$out" ;;
   esac
 else
-  skip "reports what is installed but unused" "no claude CLI"
+  skip "reports what is installed but unused" "no claude CLI, or one that lists no plugin"
 fi
 case "$out" in
   *"syntax error"*|*"unbound variable"*) bad "the pre-flight runs clean under bash" "$out" ;;

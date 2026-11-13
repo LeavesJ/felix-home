@@ -388,13 +388,15 @@ out="$( PATH="$NOCLI" . "$FROOT/harness/lib/ready.sh"
 has "with no CLI and nothing bundled, Felix says it cannot tell" "$out" "cannot check"
 
 # And where the CLI can answer, not installed still means absent.
-if has_claude; then
+# Only where the CLI can see a plugin installed here: a unit of P's run has a HOME of its own (slice 3, A17), and
+# under the land tick's environment the CLI then lists none, which reads as a machine with nothing installed.
+if has_claude && [ "$(claude plugin list --json 2>/dev/null | LC_ALL=C grep -c '"id"')" -gt 0 ]; then
   out="$( . "$FROOT/harness/lib/ready.sh"
           felix_ready_inventory() { printf 'plugin\tsomething-else\n'; }
           felix_ready_report "$BP" )"
   has "one genuinely absent still reads absent" "$out" "absent"
 else
-  skip "one genuinely absent still reads absent" "no claude CLI on this machine"
+  skip "one genuinely absent still reads absent" "no claude CLI on this machine, or one that lists no plugin"
 fi
 
 printf '\nevery command says it exists\n'

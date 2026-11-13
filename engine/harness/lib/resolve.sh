@@ -7,35 +7,30 @@
 
 # Substring test that never builds a pipeline.
 #
-# `producer | grep -q x` is a trap under `set -o pipefail`: grep exits the moment
-# it matches, the producer takes SIGPIPE, and the pipeline reports 141. The check
-# then says "absent" about something that is present. It is worse than a plain
-# bug because it is timing-dependent for small producers, so it passes in testing
-# and fails against a real repository.
-# Close every descriptor this shell inherited above the standard three.
+# `producer | grep -q x` is a trap under `set -o pipefail`: grep exits the moment it matches,
+# the producer takes SIGPIPE, and the pipeline reports 141. The check then says "absent" about
+# something that is present. It is worse than a plain bug because it is timing-dependent for
+# small producers, so it passes in testing and fails against a real repository. Close every
+# descriptor this shell inherited above the standard three.
 #
-# Called as the first thing inside a background subshell. Measured on the
-# shipped session-start hook, with a commission grant live so the background
-# resume actually ran:
+# Called as the first thing inside a background subshell. Measured on the shipped session-start
+# hook, with a commission grant live so the background resume actually ran:
 #
 #   hook process exits           1.9s
 #   its stderr pipe reaches EOF  12.2s
 #
-# Ten of those seconds are not work. Something in the background tree was
-# holding the stderr pipe the platform reads to know the hook is done, so the
-# session waited for a refresh it was never supposed to wait for. Redirecting
-# 0, 1 and 2 inside the subshell does not fix it — every background job here
-# already did that. Closing descriptors 10 through 13 in the subshell did:
+# Ten of those seconds are not work. Something in the background tree was holding the stderr
+# pipe the platform reads to know the hook is done, so the session waited for a refresh it was
+# never supposed to wait for. Redirecting 0, 1 and 2 inside the subshell does not fix it — every
+# background job here already did that. Closing descriptors 10 through 13 in the subshell did:
 # 12.2s became 1.9s, repeatably.
 #
-# What is measured and what is inferred, kept apart on purpose. The
-# measurement is the A/B above. The inference is WHY a descriptor in that range
-# holds the pipe: bash saves a redirected descriptor on a high number to
-# restore it afterwards, and a subshell forked while one is live inherits the
-# copy. A minimal reproduction of that shape did NOT reproduce the hang, so
-# treat the explanation as unconfirmed and the fix as empirical. If you are
-# here because something regressed, re-run the A/B rather than reasoning from
-# this paragraph.
+# What is measured and what is inferred, kept apart on purpose. The measurement is the A/B
+# above. The inference is WHY a descriptor in that range holds the pipe: bash saves a redirected
+# descriptor on a high number to restore it afterwards, and a subshell forked while one is live
+# inherits the copy. A minimal reproduction of that shape did NOT reproduce the hang, so treat
+# the explanation as unconfirmed and the fix as empirical. If you are here because something
+# regressed, re-run the A/B rather than reasoning from this paragraph.
 #
 # Bounded rather than enumerated: bash allocates saved descriptors from 10
 # upward, and /dev/fd enumeration needs a descriptor of its own to read.
@@ -65,29 +60,25 @@ EOF
 # memory, which since 2026-08-14 lives outside any repository — see
 # felix_mem_root below for why that had to stop being the same directory.
 #
-# Separate from the engine because an installed plugin lives in a versioned cache
-# that is replaced wholesale on update. Writing project doctrine in there would
-# lose it on the next `claude plugin update`, silently, which is the worst way to
-# lose a lesson someone paid for.
+# Separate from the engine because an installed plugin lives in a versioned cache that is
+# replaced wholesale on update. Writing project doctrine in there would lose it on the next
+# `claude plugin update`, silently, which is the worst way to lose a lesson someone paid for.
 #
-# Order: an explicit environment variable, then the pointer file `felix install`
-# writes, then a repo checkout that already carries projects/ beside the engine,
-# then the default.
-# Is this engine path a deployed copy of Felix rather than a checkout of it?
+# Order: an explicit environment variable, then the pointer file `felix install` writes, then a
+# repo checkout that already carries projects/ beside the engine, then the default. Is this
+# engine path a deployed copy of Felix rather than a checkout of it?
 #
-# Two callers need this and they must agree. felix_home must never adopt such a
-# copy as a home — a constitution frozen at install time, and memory written
-# into a directory the next plugin update deletes. And cmd_install must never
-# treat one as the tree being deployed FROM: run the deployed CLI and its own
-# FELIX_ROOT *is* the cache, so `diff -rq "$FELIX_ROOT/harness" "$live/harness"`
-# compared the deployed engine with itself, could not fail, and certified a
-# repository whose engine had never been deployed at all. That is #55, and it
-# was the fifth defect in this project whose cause was "correct code, installed
-# nowhere" — sitting inside the guard written to stop the other four.
+# Two callers need this and they must agree. felix_home must never adopt such a copy as a home —
+# a constitution frozen at install time, and memory written into a directory the next plugin
+# update deletes. And cmd_install must never treat one as the tree being deployed FROM: run the
+# deployed CLI and its own FELIX_ROOT *is* the cache, so `diff -rq "$FELIX_ROOT/harness"
+# "$live/harness"` compared the deployed engine with itself, could not fail, and certified a
+# repository whose engine had never been deployed at all. That is #55, and it was the fifth
+# defect in this project whose cause was "correct code, installed nowhere" — sitting inside the
+# guard written to stop the other four.
 #
-# One definition, because the alternative is two and the two would drift. This
-# is the same correction #56 made to the base-resolution check an hour earlier,
-# for the same reason.
+# One definition, because the alternative is two and the two would drift. This is the same
+# correction #56 made to the base-resolution check an hour earlier, for the same reason.
 #
 # Matched on the path, not on anything inside the directory. A frozen copy is
 # byte-identical to the checkout it came from and carries no marker that would
@@ -103,25 +94,21 @@ felix_plugin_copy() {
 # script lives IN whenever somebody uses the deployed CLI — which is what every
 # session-start message tells them to do.
 #
-# Prints the engine directory and returns 0, or prints nothing and returns 1
-# when no checkout can be found. Callers decide what an absence means: felix
-# install refuses, because a deploy it cannot verify is the defect; felix
-# bootstrap reports "none", because a machine with no Felix checkout genuinely
-# has no repository for CI to fetch the harness from.
+# Prints the engine directory and returns 0, or prints nothing and returns 1 when no checkout
+# can be found. Callers decide what an absence means: felix install refuses, because a deploy it
+# cannot verify is the defect; felix bootstrap reports "none", because a machine with no Felix
+# checkout genuinely has no repository for CI to fetch the harness from.
 #
-# Two commands needed this and each grew its own answer. cmd_install's was
-# written for #55; cmd_bootstrap resolved the same question with
-# `felix_repo_slug "$FELIX_ROOT"` and got it wrong the same way, one function
-# along (#65) — from the cache it returned empty and printed "Felix has no
-# remote for CI to fetch" about an engine whose remote exists, and on a machine
-# whose home is itself a git repository with an origin it would have returned
-# THAT slug, straight into a generated workflow's `repository:` beside a deploy
-# key. So the resolution lives here once.
+# Two commands needed this and each grew its own answer. cmd_install's was written for #55;
+# cmd_bootstrap resolved the same question with `felix_repo_slug "$FELIX_ROOT"` and got it wrong
+# the same way, one function along (#65) — from the cache it returned empty and printed "Felix
+# has no remote for CI to fetch" about an engine whose remote exists, and on a machine whose
+# home is itself a git repository with an origin it would have returned THAT slug, straight into
+# a generated workflow's `repository:` beside a deploy key. So the resolution lives here once.
 #
-# Order: what the marketplace actually serves, then where you are standing, then
-# the home. The first is the real answer — Claude Code deploys from the
-# registered marketplace root and nowhere else — and the other two are what to
-# try before a first install has registered one.
+# Order: what the marketplace actually serves, then where you are standing, then the home. The
+# first is the real answer — Claude Code deploys from the registered marketplace root and
+# nowhere else — and the other two are what to try before a first install has registered one.
 #
 # A candidate qualifies only by carrying engine/harness/felix, never by being a
 # git repository with a remote. That is what keeps an unrelated home checkout
@@ -140,20 +127,17 @@ felix_engine_source() {
 
 # Where the felix plugin is actually deployed, or nothing.
 #
-# Asked of the CLI rather than read off the cache directory, because the cache
-# keeps every version it has ever installed and the newest on disk is not
-# necessarily the one that loads.
+# Asked of the CLI rather than read off the cache directory, because the cache keeps every
+# version it has ever installed and the newest on disk is not necessarily the one that loads.
 #
-# One reader because it had been written out three times and the copies had
-# already diverged: both of cmd_install's asked the CLI and nothing else, while
-# the project gate falls back to the highest cached version when the CLI is
-# absent. That gate keeps its own copy on purpose — a project's gate must run
-# without the engine's libraries, which is the property the independence check
-# exists to protect — so this replaces the engine's two, not all three.
+# One reader because it had been written out three times and the copies had already diverged:
+# both of cmd_install's asked the CLI and nothing else, while the project gate falls back to the
+# highest cached version when the CLI is absent. That gate keeps its own copy on purpose — a
+# project's gate must run without the engine's libraries, which is the property the independence
+# check exists to protect — so this replaces the engine's two, not all three.
 #
-# Fails quiet. No CLI, or a CLI that answers nothing, is "no deployment I can
-# see", and every caller here treats that as "say nothing" rather than as a
-# finding.
+# Fails quiet. No CLI, or a CLI that answers nothing, is "no deployment I can see", and every
+# caller here treats that as "say nothing" rather than as a finding.
 felix_deployed_engine() {
   command -v claude >/dev/null 2>&1 || return 1
   local p
@@ -166,16 +150,17 @@ felix_deployed_engine() {
 
 # What the home pointer names, read the one way both of its readers read it.
 #
-# felix install writes the path verbatim with a newline after it, so the read
-# trims whitespace from the two ends and nothing inside. It deleted every
-# whitespace character until 2026-09-24, which turned a home under
-# `~/Library/Mobile Documents/` — iCloud's Documents, the ordinary place for
-# one — into `.../MobileDocuments/...`: a directory nobody wrote, so the
-# pointer never resolved, and the refusal sent the reader to a path that does
-# not exist. A pointer that is empty or only whitespace still reads as empty.
+# felix install writes the path verbatim with a newline after it, so the read trims whitespace
+# from the two ends and nothing inside. It deleted every whitespace character until 2026-09-24,
+# which turned a home under `~/Library/Mobile Documents/` — iCloud's Documents, the ordinary
+# place for one — into `.../MobileDocuments/...`: a directory nobody wrote, so the pointer never
+# resolved, and the refusal sent the reader to a path that does not exist. A pointer that is
+# empty or only whitespace still reads as empty. Status 2, nothing printed, when the read did not finish: cat's 1 with
+# nothing read is an unreadable pointer, empty as before (L3); any other status, or 1 after part of it, is not an answer.
 _felix_home_pointer() {
-  local p LC_ALL=C
-  p="$(cat "$HOME/.felix-home" 2>/dev/null)" || p=""
+  local p r LC_ALL=C
+  p="$(cat "$HOME/.felix-home" 2>/dev/null)"; r=$?
+  case "$r:$p" in 0:*|1:) ;; *) return 2 ;; esac
   p="${p#"${p%%[![:space:]]*}"}"
   p="${p%"${p##*[![:space:]]}"}"
   printf '%s' "$p"
@@ -205,21 +190,18 @@ felix_home() {
 
 # Where project memory lives — and deliberately not under felix_home.
 #
-# Doctrine and memory were one directory tree until 2026-08-14, and that is what
-# made this repository unpublishable. Doctrine is the part worth showing and the
-# part the founder owns outright. Memory is not: it holds verbatim founder
-# prompts, and whatever a governed project's work happens to be about, which
-# includes material belonging to somebody who never agreed to be published. A
-# repository that stores every governed project's memory can never be public,
-# and left alone that cost is paid again by every project Felix adopts rather
-# than once.
+# Doctrine and memory were one directory tree until 2026-08-14, and that is what made this
+# repository unpublishable. Doctrine is the part worth showing and the part the founder owns
+# outright. Memory is not: it holds verbatim founder prompts, and whatever a governed project's
+# work happens to be about, which includes material belonging to somebody who never agreed to be
+# published. A repository that stores every governed project's memory can never be public, and
+# left alone that cost is paid again by every project Felix adopts rather than once.
 #
-# The root is computed from $HOME and never from felix_home, even though every
-# other writable thing Felix owns hangs off home. Derived from home it would sit
-# inside the repository in the one case that actually went wrong — Felix
-# governing itself, where home *is* the checkout. The invariant is worth more
-# than the symmetry: memory is outside a repository by construction, not by
-# whichever directory home resolved to today.
+# The root is computed from $HOME and never from felix_home, even though every other writable
+# thing Felix owns hangs off home. Derived from home it would sit inside the repository in the
+# one case that actually went wrong — Felix governing itself, where home *is* the checkout. The
+# invariant is worth more than the symmetry: memory is outside a repository by construction, not
+# by whichever directory home resolved to today.
 #
 # A gitignore rule was the cheaper option and is not enough. It is one `git add
 # -f` from failing, it does nothing about a tree somebody clones or cleans, and
@@ -228,21 +210,25 @@ felix_home() {
 felix_mem_root() {
   printf '%s' "${FELIX_MEMORY:-$HOME/.felix/memory}"
 }
+# Where Claude Code keeps plugins, skills and settings: CLAUDE_CONFIG_DIR, an
+# empty one read as unset, else ~/.claude. The global config, .claude.json, is
+# ${CLAUDE_CONFIG_DIR:-$HOME}/.claude.json. Libraries that may be sourced
+# without this file write the expansion out.
+felix_claude_dir() { printf '%s' "${CLAUDE_CONFIG_DIR:-$HOME/.claude}"; }
 # One field of one plugin's entry in the installed-plugin registry.
 #
-# Bounded to the entry: opened by the plugin's own key, closed by the next key
-# or the end of the file, on a pretty-printed registry and a minified one
-# alike. The shape this replaces set a flag on the key line and printed the
-# next matching field it met, which on an entry lacking that field returned the
-# NEXT plugin's value, and on a single-line registry returned the last one in
-# the file for every name. Two callers carried that shape independently — the
-# ledger's hook classifier and the commissioning provenance — so it lives here,
-# in the library both already depend on, rather than being fixed twice.
+# Bounded to the entry: opened by the plugin's own key, closed by the next key or the end of the
+# file, on a pretty-printed registry and a minified one alike. The shape this replaces set a
+# flag on the key line and printed the next matching field it met, which on an entry lacking
+# that field returned the NEXT plugin's value, and on a single-line registry returned the last
+# one in the file for every name. Two callers carried that shape independently — the ledger's
+# hook classifier and the commissioning provenance — so it lives here, in the library both
+# already depend on, rather than being fixed twice.
 #
 # Prints nothing when the registry, the entry or the field is absent. Nothing
 # is the honest answer: a guess here is a wrong provenance or a wrong tier.
 felix_registry_field() {   # bare plugin name, field name -> value, or nothing
-  local name="$1" field="$2" reg="${3:-$HOME/.claude/plugins/installed_plugins.json}"
+  local name="$1" field="$2" reg="${3:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/installed_plugins.json}"
   [ -n "$name" ] && [ -n "$field" ] && [ -f "$reg" ] || return 0
   awk -v p="\"$name@" -v k="$field" '
     {
@@ -313,73 +299,106 @@ felix_mem_dir() {
 # the person's terminal does. sort, comm, join and uniq are pinned everywhere,
 # by the rule tests/run states beside its lint for them.
 
-# Read one top-level string field out of a flat JSON file.
-# Handles exactly what project.json needs: one nesting level, no escaped quotes.
-# Anything richer belongs in a real parser, and would mean project.json has
-# outgrown its job.
+# Read one top-level string field out of a flat JSON file. Handles exactly what project.json
+# needs: one nesting level, no escaped quotes. Anything richer belongs in a real parser, and
+# would mean project.json has outgrown its job.
 #
-# Something at the path that is not a regular file is not opened, and reads as
-# no field (2026-10-01). Resolution reads every project's project.json, so a
-# pipe at one project's path held sed open for a writer that never came, and
-# every hook of every project waited on it. Nothing at the path is left to sed
-# as before.
+# Something at the path that is not a regular file is not opened, and reads as no field
+# (2026-10-01). Resolution reads every project's project.json, so a pipe at one project's path
+# held sed open for a writer that never came, and every hook of every project waited on it.
+# Nothing at the path is left to sed as before.
 felix_json_str() {
   if [ -e "$1" ] && [ ! -f "$1" ]; then return 2; fi
   LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1
 }
 
+# Reads that say whether they finished (2026-10-31), each under felix_capture (lib/detect.sh): a fork that failed or a read
+# killed is not an empty answer. _felix_cap loads it from beside this file (declare -F: no fork, no function named command);
+# when it cannot, every read that needed it did not finish.
+# The readers run in felix_capture's subshell (a cd there moves nothing) and return 0 for each finished answer.
+# _felix_git_in prints a last line, git's status or - for a DIR it cannot enter, which _felix_st_split takes into _FELIX_ST,
+# the rest in _FELIX_SO with its trailing LFs dropped as $(...) drops them. _felix_json_field is felix_json_str's sed and
+# head with both statuses read (head's alone hid sed's); sed's 141, the SIGPIPE after head took its line, is an answer.
+_felix_cap() {
+  declare -F felix_capture >/dev/null && return 0
+  local f="${BASH_SOURCE[0]:-}" d
+  d="${f%/*}"; [ "$d" != "$f" ] || d=.
+  [ -f "$d/detect.sh" ] && . "$d/detect.sh" 2>/dev/null
+  declare -F felix_capture >/dev/null
+}
+_felix_git_in() { cd "$1" 2>/dev/null || { printf '\n-'; return 0; }; shift; git "$@" 2>/dev/null; printf '\n%s' "$?"; }
+_felix_st_split() {   # VALUE
+  local v="$1" nl=$'\n'
+  _FELIX_ST="${v##*"$nl"}"; v="${v%"$nl"*}"
+  while [ "${v%"$nl"}" != "$v" ]; do v="${v%"$nl"}"; done
+  _FELIX_SO="$v"
+}
+_felix_marker_read() { [ -r "$1" ] || return 0; LC_ALL=C tr -d '[:space:]' < "$1" 2>/dev/null; }   # unreadable names nothing
+_felix_json_field() { [ -f "$1" ] && [ -r "$1" ] || return 0
+  LC_ALL=C sed -n "s/.*\"$2\"[[:space:]]*:[[:space:]]*\"\([^\"]*\)\".*/\1/p" "$1" | head -1; set -- "${PIPESTATUS[@]}"; case "$1:$2" in 0:0|141:0) ;; *) return 1 ;; esac; }
+_felix_ls() { ls "$1" 2>/dev/null; case "$?" in 0|1|2) return 0 ;; esac; return 1; }   # a directory ls cannot list is no names
+_felix_rr_walk() { cd "$1" 2>/dev/null || return 0; printf x; pwd -P; }   # x: the cd worked, so an empty answer is not one
+
 # Print the repo root for a directory, or the directory itself when not in git.
-# Felix must work in a checkout that is not a git repo at all.
+# Felix must work in a checkout that is not a git repo at all. It prints what it printed before 2026-10-31 in every case,
+# and returns 2 when a read did not finish (the walk's pwd -P, git rev-parse; git's 128 and a failed cd are answers).
 felix_repo_root() {
-  local start="${1:-$PWD}" root d
-  # Walk up for .git before asking git. `git rev-parse --show-toplevel` costs
-  # about 12ms, and this is called from PreToolUse, which is synchronous on
-  # every tool call — so it was roughly a third of that hook's whole budget for
-  # an answer the filesystem already has. `.git` is a directory in a normal
-  # clone and a file in a worktree or submodule, so -e covers both.
-  d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""
+  local start="${1:-$PWD}" root d rc=0 st nl=$'\n'
+  # bash 3.2 keeps the text of a failed write (stdout closed, a full disk) in
+  # its stdout buffer and flushes it ahead of the next output, into this very
+  # $( ). Flush it to /dev/null first; bash 5 has already dropped it.
+  { echo -n; } 2>/dev/null >/dev/null
+  # Walk up for .git before asking git: rev-parse costs about 12ms, a third of
+  # PreToolUse's budget, for an answer the filesystem has. `.git` is a file in
+  # a worktree or submodule, so -e covers both. Only an absolute path is walked;
+  # any other text ends in ${d%/*} == $d, which never ends.
+  if _felix_cap; then
+    felix_capture d _felix_rr_walk "$start" || { d=""; rc=2; }
+    case "$d" in x/*) d="${d#x}" ;; x) d=""; rc=2 ;; *) d="" ;; esac   # a relative one is not walked, and git decides
+  else rc=2; d="$(cd "$start" 2>/dev/null && pwd -P)" || d=""; fi
+  case "$d" in /*) ;; *) d="" ;; esac
   while [ -n "$d" ] && [ "$d" != "/" ]; do
-    [ -e "$d/.git" ] && { printf '%s' "$d"; return; }
+    [ -e "$d/.git" ] && { printf '%s' "$d"; return "$rc"; }
     d="${d%/*}"
   done
   # Nothing found by walking. Ask git anyway rather than give up: GIT_DIR set in
   # the environment, or any layout where the marker is not on the path above,
-  # is exactly the case the walk cannot see and git can.
-  root="$(cd "$start" 2>/dev/null && git rev-parse --show-toplevel 2>/dev/null)"
+  # is exactly the case the walk cannot see and git can. Its output is kept whatever its status, as before; the
+  # sentinel after it says whether git ran to its end.
+  root="$(cd "$start" 2>/dev/null || { printf '\n-.'; exit 0; }; git rev-parse --show-toplevel 2>/dev/null; printf '\n%s.' "$?")"
+  st="${root##*"$nl"}"
+  case "$st" in -.|[0123456789].|[0123456789][0123456789].|[0123456789][0123456789][0123456789].) root="${root%"$nl"*}"; while [ "${root%"$nl"}" != "$root" ]; do root="${root%"$nl"}"; done ;; *) st="" ;; esac
+  case "$st:$root" in 0.:/*|-.:*|128.:*) ;; *) rc=2 ;; esac
   [ -n "$root" ] && printf '%s' "$root" || printf '%s' "$start"
+  return "$rc"
 }
 
 # The branch and the commit a tree stands on, each as exactly one field.
 #
-# Both were read, in two libraries, as `$(git ... 2>/dev/null || echo '?')`,
-# which is wrong in the one state where it matters. On an unborn HEAD — what
-# `git init` leaves, and where a project is commissioned — `rev-parse
-# --abbrev-ref HEAD` prints `HEAD` AND exits 128, so the fallback does not
-# replace the answer, it is appended to it: the field arrived as "HEAD\n?".
+# Both were read, in two libraries, as `$(git ... 2>/dev/null || echo '?')`, which is wrong in
+# the one state where it matters. On an unborn HEAD — what `git init` leaves, and where a
+# project is commissioned — `rev-parse --abbrev-ref HEAD` prints `HEAD` AND exits 128, so the
+# fallback does not replace the answer, it is appended to it: the field arrived as "HEAD\n?".
 #
-# In memory.sh that made a mistakes.log row two lines with no fourth column on
-# either, and every reader of that log takes column four a line at a time, so
-# the failure was written down and could not be read. In receipt.sh the escaper
-# flattened the newline, so the document stayed valid json and said
-# `"branch": "HEAD ?"` — the quieter of the two, and found a day after the
-# first, because the fix for the first put these readers in memory.sh, where
-# receipt.sh could not reach them. They are here because this is the one file
-# both already load however they are loaded: the CLI and every hook source it
-# first, receipt.sh sources it itself when it is missing, and memory.sh needs
-# it for felix_mem_dir.
+# In memory.sh that made a mistakes.log row two lines with no fourth column on either, and every
+# reader of that log takes column four a line at a time, so the failure was written down and
+# could not be read. In receipt.sh the escaper flattened the newline, so the document stayed
+# valid json and said `"branch": "HEAD ?"` — the quieter of the two, and found a day after the
+# first, because the fix for the first put these readers in memory.sh, where receipt.sh could
+# not reach them. They are here because this is the one file both already load however they are
+# loaded: the CLI and every hook source it first, receipt.sh sources it itself when it is
+# missing, and memory.sh needs it for felix_mem_dir.
 #
-# The fallback is assigned, the way felix_tree_id reads HEAD, so a command that
-# failed has its output discarded whole. The branch is asked of symbolic-ref
-# first because an unborn HEAD still has one — `git init -b main` is on main
-# before anything is committed — and a detached HEAD falls through to the
-# `HEAD` rev-parse always gave. The commit there genuinely does not exist, and
-# says `unborn`, felix_tree_id's word for the same state, rather than `?`,
-# which is what a directory that is no repository at all still reads as.
+# The fallback is assigned, the way felix_tree_id reads HEAD, so a command that failed has its
+# output discarded whole. The branch is asked of symbolic-ref first because an unborn HEAD still
+# has one — `git init -b main` is on main before anything is committed — and a detached HEAD
+# falls through to the `HEAD` rev-parse always gave. The commit there genuinely does not exist,
+# and says `unborn`, felix_tree_id's word for the same state, rather than `?`, which is what a
+# directory that is no repository at all still reads as.
 #
-# Tabs and newlines are stripped on the way out. A ref name cannot hold one, so
-# this changes nothing today; it is here because these are fields of a
-# tab-separated row and of a json string, and either is only as well-formed as
-# its worst field.
+# Tabs and newlines are stripped on the way out. A ref name cannot hold one, so this changes
+# nothing today; it is here because these are fields of a tab-separated row and of a json
+# string, and either is only as well-formed as its worst field.
 felix_head_branch() {
   local root="$1" b
   b="$(git -C "$root" symbolic-ref --short -q HEAD 2>/dev/null)" \
@@ -405,11 +424,10 @@ felix_head_commit() {
 #   <date> TAB HEAD                 exactly two fields
 #   ? TAB ? TAB <what>              exactly three fields
 #
-# rev-parse printed `HEAD` and exited 128, so `|| echo ?` appended `\n?` to the
-# branch, and the commit field was the lone `?`. Column four is on neither
-# line, so every reader that takes column four a line at a time read nothing
-# there: gate_shown_failing stayed held on an install whose gate the person had
-# watched go red, and the monitor counted the one failure twice (U42).
+# rev-parse printed `HEAD` and exited 128, so `|| echo ?` appended `\n?` to the branch, and the
+# commit field was the lone `?`. Column four is on neither line, so every reader that takes
+# column four a line at a time read nothing there: gate_shown_failing stayed held on an install
+# whose gate the person had watched go red, and the monitor counted the one failure twice (U42).
 #
 # A pair becomes `<date> TAB HEAD TAB unborn TAB <what>`. HEAD stays because it
 # is what was recorded and the real branch cannot be recovered; `unborn` is
@@ -417,20 +435,18 @@ felix_head_commit() {
 # non-zero exit happens only there. So a healed row and a new row on the same
 # unborn tree are one occasion to felix_mem_recurring_mistakes, as #267 meant.
 #
-# Only an exact pair is joined, matched on fields rather than on a regex with
-# `\t` or `\?` in it, because the CI's awk may be mawk. A two-field HEAD line
-# whose first field is not a date, a ?-? line of any other width, either half
-# alone, and every other line (a detached HEAD's four-field row, a directory
-# that was no repository, anything #267 writes) pass through byte for byte. The
-# date is spelled out rather than written `{4}`, which older awks lack.
+# Only an exact pair is joined, matched on fields rather than on a regex with `\t` or `\?` in
+# it, because the CI's awk may be mawk. A two-field HEAD line whose first field is not a date, a
+# ?-? line of any other width, either half alone, and every other line (a detached HEAD's
+# four-field row, a directory that was no repository, anything #267 writes) pass through byte
+# for byte. The date is spelled out rather than written `{4}`, which older awks lack.
 #
-# This is the one definition of the pair. The heal in memory.sh rewrites the
-# file with it, and every lib reader reads through it, because the heal can
-# decline and `felix commission --status` never heals, and a reader must be
-# right either way. It is here and not in memory.sh for the reason the two
-# readers above are: every entry point sources resolve.sh first, and so do the
-# suite's single-lib subshells, which load the monitor or the guard with
-# nothing else beside them.
+# This is the one definition of the pair. The heal in memory.sh rewrites the file with it, and
+# every lib reader reads through it, because the heal can decline and `felix commission
+# --status` never heals, and a reader must be right either way. It is here and not in memory.sh
+# for the reason the two readers above are: every entry point sources resolve.sh first, and so
+# do the suite's single-lib subshells, which load the monitor or the guard with nothing else
+# beside them.
 #
 # _felix_mem_mistake_join reads stdin, so the heal can feed it a snapshot bounded
 # to a byte count; felix_mem_mistake_rows takes the file. A file whose last line
@@ -455,23 +471,101 @@ felix_mem_mistake_rows() {
   return 0
 }
 
+# The owner/repo a GitHub origin names, lowercased, in _FELIX_RS; empty for any other URL.
+# felix_remote_github_slug (own.sh) reads it, sourced from beside this file if not loaded;
+# without own.sh the owner/repo rule falls to its anchored suffix. 0 with _FELIX_RS the slug or
+# empty (not GitHub, or no own.sh); 2 with it empty when the read did not finish (a 0 with nothing).
+_felix_remote_slug() {   # URL
+  local s
+  _FELIX_RS=""
+  case "$1" in *[Gg][Ii][Tt][Hh][Uu][Bb].[Cc][Oo][Mm]*) ;; *) return 0 ;; esac
+  declare -F felix_remote_github_slug >/dev/null \
+    || { [ -f "${BASH_SOURCE[0]%/*}/own.sh" ] && . "${BASH_SOURCE[0]%/*}/own.sh" 2>/dev/null; }
+  declare -F felix_remote_github_slug >/dev/null || return 0
+  _felix_cap && felix_capture s _felix_gh_slug "$1" || return 2
+  _felix_st_split "$s"; [ "$_FELIX_ST" = 1 ] || [ -n "$_FELIX_SO" ] || return 2
+  _FELIX_RS="$_FELIX_SO"
+  return 0
+}
+_felix_gh_slug() { felix_remote_github_slug "$1" 2>/dev/null; set -- "$?"; case "$1" in 0|1) printf '\n%s' "$1" ;; *) return 1 ;; esac; }
+
+# ASCII lowercase of $1 into _FELIX_LC, in this shell: no process.
+_felix_lc() {
+  local c t="$1"
+  for c in Aa Bb Cc Dd Ee Ff Gg Hh Ii Jj Kk Ll Mm Nn Oo Pp Qq Rr Ss Tt Uu Vv Ww Xx Yy Zz; do t="${t//${c:0:1}/${c:1:1}}"; done
+  _FELIX_LC="$t"
+}
+
+# Does remote_match M name the origin URL U? S is _felix_remote_slug of U. M is read as own.sh reads
+# it, a trailing / and then a trailing .git dropped (M2); _FELIX_RM_LEN is M2's length: longer wins.
+#   owner/repo, with a GitHub slug S: they match when M2 lowercased is S, and in no other way
+#     ("acme/web" is not "acme/web-extras").
+#   else: U loses a trailing / and .git too and matches M2 when equal or when U ends in M2 after a
+#     /, : or @, case-sensitively.
+_felix_remote_match() {   # M U S
+  local m="$1" u="$2" s="${3:-}" m2 u2 pre LC_ALL=C
+  local lc=ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-
+  m2="${m%/}"; m2="${m2%.git}"; _FELIX_RM_LEN="${#m2}"
+  [ -n "$m2" ] || return 1
+  case "$m2" in
+    */*/*|/*|*/|*[!/$lc]*) ;;
+    */*) if [ -n "$s" ]; then _felix_lc "$m2"; [ "$_FELIX_LC" = "$s" ]; return; fi ;;
+  esac
+  u2="${u%/}"; u2="${u2%.git}"
+  [ "$u2" = "$m2" ] && return 0
+  case "$u2" in *"$m2") pre="${u2%"$m2"}"; case "${pre: -1}" in /|:|@) return 0 ;; esac ;; esac
+  return 1
+}
+
+# The project the origin remote of ROOT binds, among those of HOME. Returns 0
+# and sets _FELIX_RB_P (a project name), 1 when none matches, 2 when several
+# match equally and _FELIX_RB_TIE holds their names, 3 with both empty when a read
+# did not finish (the origin, a remote_match, the slug). _FELIX_RB_U is the origin
+# URL (empty when unread); it is never printed or written, as an https remote can
+# carry a token. Only a git that exited 0 gives a URL: its 2 and 128, and a ROOT it
+# cannot enter, are no URL whatever git printed (main's || _FELIX_RB_U="").
+_felix_resolve_remote() {   # ROOT HOME
+  local root="$1" felix_root="$2" meta m m2 n ul best=0 sdone=0 nl=$'\n' LC_ALL=C
+  _FELIX_RB_P=""; _FELIX_RB_TIE=""; _FELIX_RB_U=""
+  _felix_cap && felix_capture m _felix_git_in "$root" remote get-url origin || return 3
+  _felix_st_split "$m"
+  case "$_FELIX_ST:$_FELIX_SO" in 0:?*) _FELIX_RB_U="$_FELIX_SO" ;; 2:*|128:*|-:*) ;; *) return 3 ;; esac
+  [ -n "$_FELIX_RB_U" ] || return 1
+  _felix_lc "$_FELIX_RB_U"; ul="$_FELIX_LC"
+  for meta in "$felix_root"/projects/*/project.json; do
+    [ -e "$meta" ] || continue
+    felix_capture m _felix_json_field "$meta" remote_match || { _FELIX_RB_P=""; _FELIX_RB_TIE=""; return 3; }
+    m="${m%%"$nl"*}"
+    [ -n "$m" ] || continue
+    # Any match has M without a trailing / and .git, lowercased, inside U: look before the slug costs.
+    m2="${m%/}"; _felix_lc "${m2%.git}"; case "$ul" in *"$_FELIX_LC"*) ;; *) continue ;; esac
+    [ "$sdone" = 1 ] || { sdone=1; _felix_remote_slug "$_FELIX_RB_U" || { _FELIX_RB_P=""; _FELIX_RB_TIE=""; return 3; }; }
+    _felix_remote_match "$m" "$_FELIX_RB_U" "$_FELIX_RS" || continue
+    n="${meta%/project.json}"; n="${n##*/}"
+    if [ "$_FELIX_RM_LEN" -gt "$best" ]; then best="$_FELIX_RM_LEN"; _FELIX_RB_P="$n"; _FELIX_RB_TIE=""
+    elif [ "$_FELIX_RM_LEN" -eq "$best" ]; then _FELIX_RB_TIE="${_FELIX_RB_TIE:-$_FELIX_RB_P} $n"; fi
+  done
+  [ -n "$_FELIX_RB_P" ] || return 1
+  [ -z "$_FELIX_RB_TIE" ] || return 2
+  return 0
+}
+
 # Resolve which project governs a working directory.
-# Prints the project directory on success, prints nothing and returns 1 on miss.
+# Prints the project directory on success, prints nothing and returns 1 on miss, and prints
+# nothing and returns 2 when a read the answer stands on did not finish (could not tell).
 #
-# Order matters. The .felix marker wins because it is the only mechanism that
-# works for a repo with no remote, a fork, a rename, or a checkout of somebody
-# else's code. Remote matching is the convenience path, not the contract.
-# Locale, 2026-10-08: glob order bound Web or web-admin by who ran felix. Byte
-# order still binds the less specific of the two, a separate defect. The rules
-# are above felix_json_str.
+# Order matters. The .felix marker wins because it is the only mechanism that works for a repo
+# with no remote, a fork, a rename, or a checkout of somebody else's code. Remote matching is
+# the convenience path, not the contract: the longest remote_match that names the origin, and no
+# project on a tie (felix_binding_broken says so). The locale rules are above felix_json_str.
 felix_resolve_project() {
   local start="${1:-$PWD}" felix_root="$2" LC_ALL=C
-  local root name remote meta match
-  root="$(felix_repo_root "$start")"
+  local root name
+  _felix_cap && felix_capture root felix_repo_root "$start" && [ -n "$root" ] || return 2
 
   # 1. explicit marker file naming the project
   if [ -f "$root/.felix" ]; then
-    name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix")"
+    felix_capture name _felix_marker_read "$root/.felix" || return 2
     if _felix_name_ok "$name" && [ -d "$felix_root/projects/$name" ]; then
       printf '%s' "$felix_root/projects/$name"
       return 0
@@ -479,28 +573,31 @@ felix_resolve_project() {
     return 1
   fi
 
-  # 2. git remote substring match declared by each project
-  remote="$(cd "$root" 2>/dev/null && git remote get-url origin 2>/dev/null)" || remote=""
-  [ -n "$remote" ] || return 1
-  for meta in "$felix_root"/projects/*/project.json; do
-    [ -e "$meta" ] || continue
-    match="$(felix_json_str "$meta" remote_match)"
-    [ -n "$match" ] || continue
-    case "$remote" in
-      *"$match"*) printf '%s' "$(dirname "$meta")"; return 0 ;;
-    esac
-  done
-  return 1
+  # 2. the origin remote, against the remote_match each project declares
+  _felix_resolve_remote "$root" "$felix_root"; case "$?" in 0) ;; 3) return 2 ;; *) return 1 ;; esac
+  printf '%s' "$felix_root/projects/$_FELIX_RB_P"
+  return 0
 }
+
+# VAR START HOME: felix_resolve_project read whole, output and status, into VAR (the project directory, or empty): 0
+# found, 1 a miss that stands, 2 when the resolution or the read of it did not finish. No locals, as felix_capture has
+# none: VAR is the caller's variable.
+felix_resolve_read() {
+  printf -v "$1" '%s' ""
+  _felix_cap && felix_capture _FELIX_RR _felix_resolve_st "$2" "$3" || return 2
+  _felix_st_split "$_FELIX_RR"
+  case "$_FELIX_ST:$_FELIX_SO" in 0:?*) printf -v "$1" '%s' "$_FELIX_SO"; return 0 ;; 1:) return 1 ;; esac
+  return 2
+}
+_felix_resolve_st() { felix_resolve_project "$1" "$2"; printf '\n%s' "$?"; }
 
 # Where the session stands, as against where the platform started the hook.
 #
-# Claude Desktop starts every hook in its --project-config-root, the main
-# checkout, whatever directory the session works in, while the payload's
-# top-level "cwd" is the session's own: a worktree as often as not. Measured on
-# 2.1.284 and 2.1.286 with the real binary and a mock API. A hook that resolves
-# from $PWD then judges the main checkout. Without the flag, the CLI, the two
-# are one directory.
+# Claude Desktop starts every hook in its --project-config-root, the main checkout, whatever
+# directory the session works in, while the payload's top-level "cwd" is the session's own: a
+# worktree as often as not. Measured on 2.1.284 and 2.1.286 with the real binary and a mock API.
+# A hook that resolves from $PWD then judges the main checkout. Without the flag, the CLI, the
+# two are one directory.
 #
 # The hook leaves the directory it was started in for three reasons only:
 #   - the payload's directory is another checkout or worktree of the project
@@ -512,21 +609,19 @@ felix_resolve_project() {
 # A directory another project governs, one nothing governs, a path that is not
 # there, is relative or holds a JSON escape: all answer with $PWD, as before.
 #
-# Read in pure bash, from the first 4096 characters only (characters in a UTF-8
-# locale, bytes in C; the envelope's opening keys are ASCII either way). The
-# top-level "cwd" is the third key of the envelope, well inside that, so a
-# "cwd" in a tool's input or a prompt, which sits after it or past it, is never
-# reached. Only the FIRST key is looked at: if its value is not a string there
-# is no candidate, and a later key is not tried. A quote inside a JSON string is spelt \", which the pattern does
-# not match, and a path that needs an escape is left to $PWD rather than decoded.
-# The pattern is held in a variable so that bash 3.2, which macOS ships, takes it
-# as the regex it is.
+# Read in pure bash, from the first 4096 characters only (characters in a UTF-8 locale, bytes in
+# C; the envelope's opening keys are ASCII either way). The top-level "cwd" is the third key of
+# the envelope, well inside that, so a "cwd" in a tool's input or a prompt, which sits after it
+# or past it, is never reached. Only the FIRST key is looked at: if its value is not a string
+# there is no candidate, and a later key is not tried. A quote inside a JSON string is spelt \",
+# which the pattern does not match, and a path that needs an escape is left to $PWD rather than
+# decoded. The pattern is held in a variable so that bash 3.2, which macOS ships, takes it as
+# the regex it is.
 #
-# Known limits. A session that cd's into a same-project scratch clone is judged
-# as that clone's tree, as the CLI already does. A session that cd's into a
-# directory nothing governs is judged at the launch directory, which in Desktop
-# is the main checkout. Both need a per-session record of where the session
-# stood, which this does not keep.
+# Known limits. A session that cd's into a same-project scratch clone is judged as that clone's
+# tree, as the CLI already does. A session that cd's into a directory nothing governs is judged
+# at the launch directory, which in Desktop is the main checkout. Both need a per-session record
+# of where the session stood, which this does not keep.
 _felix_hook_dir_set() {   # payload, home -> _felix_hd
   local raw="${1:-}" home="${2:-}" c root pc pl re='^[[:space:]]*:[[:space:]]*"([^"]*)"' LC_ALL=C
   _felix_hd="$PWD"
@@ -541,22 +636,23 @@ _felix_hook_dir_set() {   # payload, home -> _felix_hd
   # trailing slash). Nothing to resolve, and this runs on every tool call.
   [ "$c" -ef "$PWD" ] && return 0
   [ -d "$c" ] || return 0
-  pc="$(felix_resolve_project "$c" "$home" 2>/dev/null)" || pc=""
+  # A resolution or a root that did not finish moves nothing: the hook stays where the platform started it.
+  felix_resolve_read pc "$c" "$home" 2>/dev/null || [ "$?" = 1 ] || return 0
   if [ -z "$pc" ]; then
     # Nothing governs it. A marker that resolves nothing is a broken binding.
-    root="$(felix_repo_root "$c" 2>/dev/null)"
+    felix_capture root felix_repo_root "$c" 2>/dev/null || return 0
     [ -f "$root/.felix" ] && _felix_hd="$c"
     return 0
   fi
   # Another project governing the launch directory keeps the hook where it is;
   # the launch project is looked up only here, off the common path.
-  pl="$(felix_resolve_project "$PWD" "$home" 2>/dev/null)" || pl=""
+  felix_resolve_read pl "$PWD" "$home" 2>/dev/null || [ "$?" = 1 ] || return 0
   if [ "$pl" = "$pc" ]; then
     _felix_hd="$c"
   elif [ -z "$pl" ]; then
     # A launch directory whose marker resolves nothing was meant to be
     # governed: its breakage is reported where it is, not stepped over.
-    root="$(felix_repo_root "$PWD" 2>/dev/null)"
+    felix_capture root felix_repo_root "$PWD" 2>/dev/null || return 0
     [ -f "$root/.felix" ] || _felix_hd="$c"
   fi
   return 0
@@ -581,20 +677,17 @@ felix_hook_enter() {   # payload, home
 # end up inside a JSON string a hook emits. Printable characters only, and
 # short, so a broken binding cannot be used to say something else.
 #
-# Short is had by cutting the middle, and the cut says so. This kept the first
-# eighty characters until 2026-09-24, and when the eightieth closed a directory
-# name the refusal named the target's parent: a real path, and a wrong answer
-# rather than a short one. The tail is where the directory a pointer names is,
-# so it keeps the larger share. The whole value is always in the file the
-# refusal names.
+# Short is had by cutting the middle, and the cut says so. This kept the first eighty characters
+# until 2026-09-24, and when the eightieth closed a directory name the refusal named the
+# target's parent: a real path, and a wrong answer rather than a short one. The tail is where
+# the directory a pointer names is, so it keeps the larger share. The whole value is always in
+# the file the refusal names. Into _FELIX_SN, in this shell (2026-10-31): its printf | tr pipe was
+# unchecked, and a fork that failed put an empty name in a refusal. It keeps tr -cd [:print:]'s
+# bytes in C, space to tilde, as lib/lane-resolve.sh's _lane_clean does.
 _felix_binding_sane() {
-  local s
-  s="$(printf '%s' "$1" | LC_ALL=C tr -cd '[:print:]')"
-  if [ "${#s}" -le 80 ]; then
-    printf '%s' "$s"
-  else
-    printf '%s[...]%s' "${s:0:24}" "${s:${#s}-51}"
-  fi
+  local LC_ALL=C s="$1"
+  s="${s//[!\ -~]/}"
+  if [ "${#s}" -le 80 ]; then _FELIX_SN="$s"; else _FELIX_SN="${s:0:24}[...]${s:${#s}-51}"; fi
 }
 
 # What a project name may be: one directory name under projects/, made of
@@ -611,42 +704,83 @@ _felix_name_ok() {
   return 0
 }
 
+# The remote half of felix_binding_broken, for a tree with no marker. 2, nothing printed, when a read did not finish. An origin that binds a
+# project is written down, one line of bindings.tsv in the memory root: <key> TAB <project> TAB
+# <UTC stamp>. The key is the hash of HOME and the origin URL, so no part of the URL, which can
+# carry a token, is stored. A tie is reported. An origin that bound project P and no longer
+# resolves is reported when projects/P/ is still a directory and project.json in it is not a
+# readable file: a file that went missing, was renamed or cannot be read. Nothing else is: a
+# remote_match emptied or changed, projects/P/ removed, an origin never bound, another home, an
+# unwritable or unreadable record, or a line naming no project name. Those are deliberate or
+# unknown, and a hold in every repository Felix is not adopted in would make it unusable there.
+_felix_bind_key() { printf '%s\n%s\n' "$2" "$3" | git -C "$1" hash-object --stdin 2>/dev/null; set -- "${PIPESTATUS[@]}"; [ "$1:$2" = 0:0 ]; }
+_felix_binding_remote() {   # ROOT HOME
+  local root="$1" home="$2" key mem f last="" stamp="" k p t dir alt="" j rc LC_ALL=C
+  [ -n "$home" ] || return 0
+  rc=0; _felix_resolve_remote "$root" "$home" || rc=$?
+  [ "$rc" != 3 ] || return 2
+  [ -n "$_FELIX_RB_U" ] || return 0
+  _felix_cap && felix_capture key _felix_bind_key "$root" "$home" "$_FELIX_RB_U" || return 2
+  case "${#key}:$key" in *:*[!0123456789abcdef]*) return 2 ;; 40:*|64:*) ;; *) return 2 ;; esac   # one SHA-1 or SHA-256 line
+  mem="${FELIX_MEMORY:-$HOME/.felix/memory}"; f="$mem/bindings.tsv"   # felix_mem_root's body: no fork to fail
+  if [ -f "$f" ] && [ -r "$f" ]; then
+    while IFS=$'\t' read -r k p t || [ -n "${k:-}" ]; do
+      [ "$k" = "$key" ] && { last="$p"; stamp="$t"; }
+    done 2>/dev/null < "$f"
+  fi
+  case "$rc" in
+    0) [ "$last" = "$_FELIX_RB_P" ] && return 0
+       { mkdir -p "$mem" && printf '%s\t%s\t%s\n' "$key" "$_FELIX_RB_P" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" >> "$f"; } 2>/dev/null
+       return 0 ;;
+    2) _felix_binding_sane "${_FELIX_RB_TIE// /, }"
+       printf 'The origin of the checkout at %s fits %s equally well: each declares a remote_match that names it, with the same length. So no project is bound, and nothing is checking this tree.\n\n' \
+         "$root" "$_FELIX_SN"
+       printf 'Lengthen one remote_match, or name the project in a .felix marker.\n'
+       return 0 ;;
+  esac
+  _felix_name_ok "$last" && dir="$home/projects/$last" && [ -d "$dir" ] || return 0
+  [ -f "$dir/project.json" ] && [ -r "$dir/project.json" ] && return 0
+  for j in "$dir"/project*.json; do
+    [ -f "$j" ] && [ "${j##*/}" != project.json ] && { alt="${j##*/}"; break; }
+  done
+  [ -z "$alt" ] || { _felix_binding_sane "$alt"; alt=", only \"$_FELIX_SN\""; }
+  _felix_binding_sane "$stamp"
+  printf 'The origin of the checkout at %s bound it to %s (recorded %s in %s), and %s no longer resolves: projects/%s/ holds no readable project.json%s. Nothing is checking this tree.\n\n' \
+    "$root" "$last" "$_FELIX_SN" "$f" "$last" "$last" "$alt"
+  printf 'Restore the file, or name the project in a .felix marker. If %s is retired, delete projects/%s/ or its line in %s.\n' "$last" "$last" "$f"
+}
+
 # A binding that is PRESENT and does not resolve.
 #
-# felix_resolve_project answers one question — which project governs here — and
-# returns non-zero for two states that are not the same fact. Nothing named
-# this checkout, which is the ordinary case and means ungoverned. Or something
-# named it and the name went nowhere, which means somebody broke the binding
-# and nothing is being checked. Every caller reads a non-zero resolve as the
-# first, so `echo nonexistent > .felix` switched the whole floor off in one
-# line: no gate, no hold, no record, exit 0.
+# felix_resolve_project answers one question — which project governs here — and returns non-zero
+# for two states that are not the same fact. Nothing named this checkout, which is the ordinary
+# case and means ungoverned. Or something named it and the name went nowhere, which means
+# somebody broke the binding and nothing is being checked. Every caller reads a non-zero resolve
+# as the first, so `echo nonexistent > .felix` switched the whole floor off in one line: no
+# gate, no hold, no record, exit 0.
 #
-# Absent is not broken, and that half must keep working. A directory with no
-# marker and no matching remote is a repository Felix does not govern, and it
-# has to stay silent there or Felix is unusable anywhere it has not been
-# adopted. This function is the other half, and it is this project's own rule
-# that "nothing due" and "nothing is being checked" must not render
+# Absent is not broken, and that half must keep working. A directory with no marker and no
+# matching remote is a repository Felix does not govern, and it has to stay silent there or
+# Felix is unusable anywhere it has not been adopted. This function is the other half, and it is
+# this project's own rule that "nothing due" and "nothing is being checked" must not render
 # identically.
 #
-# Two surfaces, because there are two ways to say where the binding points.
-# `$HOME/.felix-home` is checked first and matters more: it decides which home
-# the marker below is resolved against, it is read on every invocation, and it
-# sits outside every repository — so changing it produces no diff, no
-# classification, and nothing for a reviewer to see. A pointer that exists and
-# names a directory that is not a Felix home is a broken pointer, not an
-# absence.
+# Two surfaces, because there are two ways to say where the binding points. `$HOME/.felix-home`
+# is checked first and matters more: it decides which home the marker below is resolved against,
+# it is read on every invocation, and it sits outside every repository — so changing it produces
+# no diff, no classification, and nothing for a reviewer to see. A pointer that exists and names
+# a directory that is not a Felix home is a broken pointer, not an absence.
 #
-# An explicit $FELIX_HOME wins over the pointer in felix_home, so when it is
-# set the pointer is never consulted and cannot bypass anything. Unread is not
-# broken either.
+# An explicit $FELIX_HOME wins over the pointer in felix_home, so when it is set the pointer is
+# never consulted and cannot bypass anything. Unread is not broken either.
 #
-# Prints a sentence when the binding is broken and nothing when it is not, the
-# same shape as the other reporters a hook interpolates. It never repairs: the
-# correct binding is not knowable from here, since only a person can say
-# whether this tree is a project that was renamed or a tree Felix should leave
-# alone.
+# Prints a sentence when the binding is broken and nothing when it is not, the same shape as the
+# other reporters a hook interpolates. It never repairs: the correct binding is not knowable
+# from here, since only a person can say whether this tree is a project that was renamed or a
+# tree Felix should leave alone. Status 2 and nothing printed when a read the answer stands on did
+# not finish: no sentence is ever built from one.
 felix_binding_broken() {
-  local start="${1:-$PWD}" home="${2:-}" root name p known why=""
+  local start="${1:-$PWD}" home="${2:-}" root name p known why="" nl=$'\n'
 
   # Three ways to be wrong, one place that decides and one place that prints.
   # Printing from inside each branch and deciding afterwards whether to finish
@@ -654,13 +788,14 @@ felix_binding_broken() {
   # worse than none, because the caller tests emptiness and would block on half
   # an explanation.
   if [ -z "${FELIX_HOME:-}" ] && [ -f "$HOME/.felix-home" ]; then
-    p="$(_felix_home_pointer)"
+    _felix_cap && felix_capture p _felix_home_pointer || return 2
+    _felix_binding_sane "$p"
     if   [ -z "$p" ]; then
       why="is empty, so it names no home"
     elif [ ! -d "$p" ]; then
-      why="names $(_felix_binding_sane "$p"), which is not a Felix home: no such directory"
+      why="names $_FELIX_SN, which is not a Felix home: no such directory"
     elif [ ! -d "$p/projects" ]; then
-      why="names $(_felix_binding_sane "$p"), which is not a Felix home: it holds no projects/ directory"
+      why="names $_FELIX_SN, which is not a Felix home: it holds no projects/ directory"
     fi
     if [ -n "$why" ]; then
       printf 'The Felix home pointer at %s %s.\n\n' "$HOME/.felix-home" "$why"
@@ -670,20 +805,22 @@ felix_binding_broken() {
     fi
   fi
 
-  root="$(felix_repo_root "$start")"
-  [ -f "$root/.felix" ] || return 0
-  name="$(LC_ALL=C tr -d '[:space:]' < "$root/.felix" 2>/dev/null)"
+  _felix_cap && felix_capture root felix_repo_root "$start" || return 2
+  [ -f "$root/.felix" ] || { _felix_binding_remote "$root" "$home"; return; }
+  felix_capture name _felix_marker_read "$root/.felix" || return 2
   _felix_name_ok "$name" && [ -d "$home/projects/$name" ] && return 0
 
-  known="$(ls "$home/projects" 2>/dev/null | LC_ALL=C tr '\n' ' ')"
+  felix_capture known _felix_ls "$home/projects" || return 2
+  [ -z "$known" ] || known="${known//"$nl"/ } "
+  _felix_binding_sane "$name"
   if [ -z "$name" ]; then
     printf 'The .felix marker in %s is empty, so it does not resolve to a project. ' "$root"
   elif ! _felix_name_ok "$name"; then
     printf 'The .felix marker in %s names "%s", which is not a project name: a name is one directory name under %s, and this is a path or a dot. ' \
-      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
+      "$root" "$_FELIX_SN" "$home/projects"
   else
     printf 'The .felix marker in %s names "%s", and that does not resolve to a project under %s. ' \
-      "$root" "$(_felix_binding_sane "$name")" "$home/projects"
+      "$root" "$_FELIX_SN" "$home/projects"
   fi
   printf 'A marker is present, so this tree was meant to be governed, and right now nothing is checking it.\n\n'
   printf 'Name a project that exists, or remove the marker if this tree really is ungoverned:\n\n'
@@ -693,11 +830,10 @@ felix_binding_broken() {
 # A refusal that belongs to no project, because the thing that broke is what
 # decides which project this is.
 #
-# felix_say and felix_verify_log both key on a resolved project and cannot be
-# used here. The memory root can: it is outside any repository by construction,
-# it is the one writable place that does not need the binding to work, and a
-# line here is the difference between a hook that refused and a hook that never
-# ran.
+# felix_say and felix_verify_log both key on a resolved project and cannot be used here. The
+# memory root can: it is outside any repository by construction, it is the one writable place
+# that does not need the binding to work, and a line here is the difference between a hook that
+# refused and a hook that never ran.
 felix_unresolved_log() {
   local reason="$1" where="${2:-}" mem
   mem="$(felix_mem_root)"
@@ -710,11 +846,10 @@ felix_unresolved_log() {
 
 # Does this base name something that exists here?
 #
-# The question felix_changed_paths cannot answer, because it sends every git
-# error to /dev/null and so reports a base nobody can resolve as a branch that
-# changed nothing. An empty answer and an unanswerable question are different
-# facts, and every caller that conflates them reads the second as the first —
-# which is always the permissive direction.
+# The question felix_changed_paths cannot answer, because it sends every git error to /dev/null
+# and so reports a base nobody can resolve as a branch that changed nothing. An empty answer and
+# an unanswerable question are different facts, and every caller that conflates them reads the
+# second as the first — which is always the permissive direction.
 #
 # `^{commit}` is load-bearing, and receipt.sh learned it first. `git rev-parse
 # --verify <40-hex>` exits 0 for a sha this repository has never held, because a
@@ -733,45 +868,40 @@ felix_base_resolves() {
 
 # The ref a base NAME should actually be compared against.
 #
-# Every command defaults to `main`, and `main` is a local ref. In a worktree it
-# is a SHARED local ref naming whatever the primary checkout last pulled — and a
-# worktree cannot check `main` out, so nothing in that workflow ever advances
-# it. Observed on this repository: local main three merges behind origin/main
-# while the work continued in a worktree (#74).
+# Every command defaults to `main`, and `main` is a local ref. In a worktree it is a SHARED
+# local ref naming whatever the primary checkout last pulled — and a worktree cannot check
+# `main` out, so nothing in that workflow ever advances it. Observed on this repository: local
+# main three merges behind origin/main while the work continued in a worktree (#74).
 #
 # It is also the ref that matters least. `felix merge` merges through
 # `gh pr merge`, so what a branch actually lands on is the REMOTE branch. The
 # local one is a cache of it that this workflow never refreshes.
 #
-# Only a name whose remote-tracking ref exists is redirected to it. A sha, a
-# `HEAD~1`, a tag, or a branch that lives only here is returned as itself: a
-# local branch by its full name, and the rest as given, because rewriting those
-# would invent a base nobody named.
+# Only a name whose remote-tracking ref exists is redirected to it. A sha, a `HEAD~1`, a tag, or
+# a branch that lives only here is returned as itself: a local branch by its full name, and the
+# rest as given, because rewriting those would invent a base nobody named.
 #
-# What this returns is a FULL ref name, and every ref it looks up is looked up
-# by that exact name, never by a short one. Git resolves a short name by trying
-# `$GIT_DIR/<n>`, `refs/<n>`, `refs/tags/<n>`, `refs/heads/<n>` and only then
-# `refs/remotes/<n>` (gitrevisions), and every worktree of a repository shares
-# one ref store. So any session can create `refs/tags/origin/main`,
-# `refs/heads/origin/main` or `refs/origin/main`, and `origin/main` then names
-# THAT commit for every reader: the base, the staleness, the changed paths, and
-# the judge `felix merge` reads out of the base with `git show "$base:..."`.
-# A full name has no such order to be won. `origin/X` is taken to mean
-# `refs/remotes/origin/X` and nothing else (it does not fall through to a tag
-# or a local branch of that name, which is exactly what a decoy is). A name that
-# cannot be a ref-name component (`HEAD~1`, `main~1`, a sha, `v1^{tree}`) is
-# never looked up under refs/ at all: `HEAD~1` means this repository's own
-# `HEAD~1` even though a clone always has refs/remotes/origin/HEAD.
+# What this returns is a FULL ref name, and every ref it looks up is looked up by that exact
+# name, never by a short one. Git resolves a short name by trying `$GIT_DIR/<n>`, `refs/<n>`,
+# `refs/tags/<n>`, `refs/heads/<n>` and only then `refs/remotes/<n>` (gitrevisions), and every
+# worktree of a repository shares one ref store. So any session can create
+# `refs/tags/origin/main`, `refs/heads/origin/main` or `refs/origin/main`, and `origin/main`
+# then names THAT commit for every reader: the base, the staleness, the changed paths, and the
+# judge `felix merge` reads out of the base with `git show "$base:..."`. A full name has no such
+# order to be won. `origin/X` is taken to mean `refs/remotes/origin/X` and nothing else (it does
+# not fall through to a tag or a local branch of that name, which is exactly what a decoy is). A
+# name that cannot be a ref-name component (`HEAD~1`, `main~1`, a sha, `v1^{tree}`) is never
+# looked up under refs/ at all: `HEAD~1` means this repository's own `HEAD~1` even though a
+# clone always has refs/remotes/origin/HEAD.
 #
 # An exact ref is looked up with `show-ref --verify`, which asks for that name
 # and no other, and its object is then peeled to a commit by sha. A name that
 # is not a commit (a tree, a blob) is no base.
 #
-# The same correction felix_kernel_dir makes, which now asks this function, and
-# for the same reason — its comment records that hard-coding a branch name was
-# "green on a laptop that says main and red on a runner that says master".
-# An empty NAME is `main`, as every caller's default is; an empty ROOT is
-# nothing, because `git -C ""` would read the current directory.
+# The same correction felix_kernel_dir makes, which now asks this function, and for the same
+# reason — its comment records that hard-coding a branch name was "green on a laptop that says
+# main and red on a runner that says master". An empty NAME is `main`, as every caller's default
+# is; an empty ROOT is nothing, because `git -C ""` would read the current directory.
 #
 # No fetch, ever. The enforcing path has to work with no network, so this is as
 # current as the last fetch and never more. That is a real limit and it is still
@@ -828,32 +958,55 @@ _felix_ref_commit() {   # ROOT REF
 # The two refs to diff to see what MERGING this branch would change, or nothing
 # when that cannot be computed.
 #
-# `felix merge` squashes. A squash commit is not a descendant of the branch it
-# came from, so merging a branch's base does not advance
-# merge-base(base, branch) — it stays frozen at the commit before the base
-# merged, for the life of the branch. Three-dot is anchored to that merge-base,
-# so a stacked branch keeps being blamed for every path its base touched, even
-# though the base now holds those exact bytes. #51, observed on #50 stacked on
-# #49: a documentation change classified red by inheriting plugin.json, and a
-# docs-only branch escalated to the founder because the branch below it had
-# added a workflow.
+# `felix merge` squashes. A squash commit is not a descendant of the branch it came from, so
+# merging a branch's base does not advance merge-base(base, branch) — it stays frozen at the
+# commit before the base merged, for the life of the branch. Three-dot is anchored to that
+# merge-base, so a stacked branch keeps being blamed for every path its base touched, even
+# though the base now holds those exact bytes. #51, observed on #50 stacked on #49: a
+# documentation change classified red by inheriting plugin.json, and a docs-only branch
+# escalated to the founder because the branch below it had added a workflow.
 #
-# Neither two-dot nor three-dot is the answer, which is why this computes a
-# third thing. Three-dot blames the branch for what is already in the base.
-# Two-dot blames it for the base's INDEPENDENT progress — a file main gained
-# and the branch never had reads as a deletion, which fails open. The object
-# actually being judged is the tree a merge would produce, and `merge-tree`
-# computes exactly that without touching the working tree.
+# Neither two-dot nor three-dot is the answer, which is why this computes a third thing.
+# Three-dot blames the branch for what is already in the base. Two-dot blames it for the base's
+# INDEPENDENT progress — a file main gained and the branch never had reads as a deletion, which
+# fails open. The object actually being judged is the tree a merge would produce, and
+# `merge-tree` computes exactly that without touching the working tree.
 #
 # Silent about failure on purpose, and every failure falls back to three-dot:
 #   - git older than 2.38 has no `--write-tree`
 #   - a conflicting merge exits non-zero, and its tree is not what would land
 #   - anything that does not look like an object id
-# Three-dot over-reports, so falling back is the safe direction — it can only
-# make the verdict stricter, never weaker. A narrower answer computed from a
-# failed merge would be the opposite.
+# Three-dot over-reports, so falling back is the safe direction — it can only make the verdict
+# stricter, never weaker. A narrower answer computed from a failed merge would be the opposite.
+#
+# The merge runs in a git directory made for the call (2026-11-08, S6.6), never in the checkout's own. A 3-way merge
+# runs the merge driver the attributes name for every path both sides changed, and a driver is defined in config: the
+# checkout's .git/config and .git/info/attributes are the worker's to write, so a driver `true` there kept main's
+# side of a file and the change's own lines in it were never read (audits/2026-11-08-trust-plane-step3/
+# checkout-merge-driver in the memory root). The made directory is an empty bare repository whose object store is the
+# one the checkout reads (GIT_OBJECT_DIRECTORY when the caller set one, as felix merge's checked copy does), so the
+# merged tree is written where the caller's diff reads it. Global and system config and attributes are switched off
+# with it, the two sides are named by commit id, resolved once in the checkout, and a shallow checkout's boundary
+# is copied in. The caller's GIT_DIR, GIT_WORK_TREE, GIT_COMMON_DIR and GIT_INDEX_FILE do not reach either git, and
+# a TERM or INT removes the directory (review of 07f1e869, 2026-11-08). Inside felix merge, once lib/bind.sh's checked
+# copy is in force, the merge reads the copy's stores alone and not the checkout's (S6.6 rule 2): with the checkout
+# behind them, a loose file planted there under the merged blob's id was taken as the merge's result, which git
+# does not write again, so the change's line was never read.
+# S6.7 (2026-11-09): the merge detects no directory renames, set on its command line so that no config file and no
+# GIT_CONFIG_* variable the caller exports turns it back on. The squash felix merge lands is GitHub's, and GitHub's test
+# merge of #498 held the tree git writes with merge.directoryRenames=false. git's default (conflict) moved main's new
+# files into the directory the branch had emptied and failed, so every reader took three-dot and slice 3 refused (A1);
+# true moved them, and the readers blamed the branch for main's files (audits/2026-11-08-trust-plane-step3/
+# merge-dir-renames in the memory root).
+# Puts back the caller's TERM and INT traps once the made directory is gone.
+_felix_merge_untrap() {
+  trap - TERM INT
+  [ -z "$told" ] || eval "$told"
+  [ -z "$tint" ] || eval "$tint"
+  _FELIX_MERGE_TMP=""
+}
 _felix_merge_refs() {
-  local root="$1" base="$2" mb tip tree
+  local root="$1" base="$2" mb tip head tree objs tmpd g rc sh fmt told tint alt=()
   [ -n "$base" ] || return 1
   mb="$(git -C "$root" merge-base "$base" HEAD 2>/dev/null)" || return 1
   tip="$(git -C "$root" rev-parse "$base^{commit}" 2>/dev/null)" || return 1
@@ -862,7 +1015,39 @@ _felix_merge_refs() {
   # exactly the right question. Left alone rather than rerouted, because this is
   # every ordinary branch and the fix is only for the case that differs.
   [ "$mb" = "$tip" ] && return 1
-  tree="$(git -C "$root" merge-tree --write-tree "$base" HEAD 2>/dev/null)" || return 1
+  head="$(git -C "$root" rev-parse --verify --quiet "HEAD^{commit}" 2>/dev/null)" || return 1
+  objs="${GIT_OBJECT_DIRECTORY:-$(git -C "$root" rev-parse --path-format=absolute --git-path objects 2>/dev/null)}"
+  # A relative object directory names a place under the checkout, as `git -C "$root"` reads it.
+  case "$objs" in /*) ;; *) objs="$(cd "$root" 2>/dev/null && cd "$objs" 2>/dev/null && pwd -P)" ;; esac
+  [ -n "$objs" ] && [ -d "$objs" ] || return 1
+  if [ -n "${_FELIX_BIND_COPY:-}" ] && [ "$objs" = "$_FELIX_BIND_COPY/objects" ] && [ -d "$_FELIX_BIND_COPY/v" ]; then
+    alt=(GIT_ALTERNATE_OBJECT_DIRECTORIES="$_FELIX_BIND_COPY/v")
+  fi
+  tmpd="${TMPDIR:-/tmp}"
+  g="$(mktemp -d "${tmpd%/}/felix-merge.XXXXXX" 2>/dev/null)" || return 1
+  _FELIX_MERGE_TMP="$g"; told="$(trap -p TERM)"; tint="$(trap -p INT)"
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 143' TERM
+  trap 'rm -rf "$_FELIX_MERGE_TMP"; exit 130' INT
+  fmt="$(git -C "$root" rev-parse --show-object-format 2>/dev/null)"
+  if ! env -u GIT_DIR -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE -u GIT_OBJECT_DIRECTORY \
+       GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 git init -q --bare --template= ${fmt:+--object-format="$fmt"} "$g/g" \
+       >/dev/null 2>&1 </dev/null; then
+    rm -rf "$g"; _felix_merge_untrap; return 1
+  fi
+  # A shallow checkout's boundary, so the merge does not walk to parents it does not hold.
+  sh="$(git -C "$root" rev-parse --path-format=absolute --git-path shallow 2>/dev/null)"
+  if [ -n "$sh" ] && [ -f "$sh" ] && ! cp "$sh" "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  # Reading the checked copy alone, the merge finds the commits since the merge base and no older one (lib/bind.sh
+  # copies no further), so the base is its boundary, as a shallow checkout's is: walking to the base's parents, the
+  # merge failed on every history longer than one commit, and every reader fell back to three-dot inside felix merge.
+  if [ "${#alt[@]}" -gt 0 ] && ! printf '%s\n' "$mb" >> "$g/g/shallow" 2>/dev/null; then rm -rf "$g"; _felix_merge_untrap; return 1; fi
+  tree="$(env -u GIT_WORK_TREE -u GIT_COMMON_DIR -u GIT_INDEX_FILE ${alt[@]+"${alt[@]}"} GIT_DIR="$g/g" GIT_OBJECT_DIRECTORY="$objs" \
+          GIT_CONFIG_GLOBAL=/dev/null GIT_CONFIG_NOSYSTEM=1 \
+          GIT_ATTR_NOSYSTEM=1 git -c core.attributesFile=/dev/null -c merge.directoryRenames=false \
+          merge-tree --write-tree "$tip" "$head" 2>/dev/null </dev/null)"
+  rc=$?
+  rm -rf "$g"; _felix_merge_untrap
+  [ "$rc" -eq 0 ] || return 1
   tree="$(printf '%s\n' "$tree" | head -1)"
   case "$tree" in
     ""|*[!0-9a-f]*) return 1 ;;
@@ -875,22 +1060,20 @@ _felix_merge_refs() {
 # Run a git command that reads the working tree. Set the named variable to what
 # it printed, and return 0 only when it ran to the end and exited 0.
 #
-# 2026-10-08. git does not block on a named pipe at a tracked path, and it does
-# not skip one either. `git diff` and `git diff HEAD` print every path that sorts
-# before it, then exit 128: "cannot hash". A mode-000 file does the same, and a
-# corrupt index stops every diff before it prints anything. Every caller sent
-# that to /dev/null and kept what was printed, so each path after the pipe was
-# dropped in silence. The tree id of an edited tree came out as the clean
+# 2026-10-08. git does not block on a named pipe at a tracked path, and it does not skip one
+# either. `git diff` and `git diff HEAD` print every path that sorts before it, then exit 128:
+# "cannot hash". A mode-000 file does the same, and a corrupt index stops every diff before it
+# prints anything. Every caller sent that to /dev/null and kept what was printed, so each path
+# after the pipe was dropped in silence. The tree id of an edited tree came out as the clean
 # commit's, and secret-scan passed an added key.
 #
-# A non-zero exit is not an answer. Neither is an empty capture whose subshell
-# never ran, so the mark is written only after git returns 0. The mark is a
-# line of its own holding a control character. A bare trailing `.` was tried
-# first, and a partial diff whose last line is `+foo.` read as finished. No line
-# git prints in a diff, a status or a listing is that line. The variable still
-# gets the partial output on failure, for a caller that would rather list too
-# much than too little. Trailing newlines are stripped as `$(...)` strips them,
-# so what a caller hashes is byte for byte what it hashed before.
+# A non-zero exit is not an answer. Neither is an empty capture whose subshell never ran, so the
+# mark is written only after git returns 0. The mark is a line of its own holding a control
+# character. A bare trailing `.` was tried first, and a partial diff whose last line is `+foo.`
+# read as finished. No line git prints in a diff, a status or a listing is that line. The
+# variable still gets the partial output on failure, for a caller that would rather list too
+# much than too little. Trailing newlines are stripped as `$(...)` strips them, so what a caller
+# hashes is byte for byte what it hashed before.
 _felix_git_read() {   # VAR command...
   local _felix_gr_out _felix_gr_rc=1
   _felix_gr_out="$("${@:2}" 2>/dev/null && printf '\n\037ok')"
@@ -908,12 +1091,11 @@ _felix_git_read() {   # VAR command...
   return "$_felix_gr_rc"
 }
 
-# One function because there were four, and they drifted in the same direction.
-# Each tried `git diff --name-only base...HEAD` and fell back to `git diff base`
-# only when that came back EMPTY — so on a branch with commits, which is every
-# pull request, the fallback never ran and everything staged or unstaged was
-# dropped. `felix evidence` told a session it owed a test the session had just
-# staged, and felix_escapes could not see a staged workflow change or a staged
+# One function because there were four, and they drifted in the same direction. Each tried `git
+# diff --name-only base...HEAD` and fell back to `git diff base` only when that came back EMPTY
+# — so on a branch with commits, which is every pull request, the fallback never ran and
+# everything staged or unstaged was dropped. `felix evidence` told a session it owed a test the
+# session had just staged, and felix_escapes could not see a staged workflow change or a staged
 # credential at all.
 #
 # It hid because the shape that masks it is the shape a fixture reaches for: on
@@ -925,23 +1107,20 @@ _felix_git_read() {   # VAR command...
 #   --cached      staged, about to be committed
 #   (bare)        edited, not yet staged
 #
-# With rename detection off, so a renamed file lists both its names. git
-# detects renames by default, and a rename then shows only where the file went:
-# every rule keyed on a path or a basename is asked about the new name and
-# never about the old. `git mv` of a project's deny table to deny-archived.tsv
-# switched every one of its rules off, since the hook reads deny.tsv by name,
-# and the verifier that guards the table saw a file it had no rule for. Same
-# for the risk table whose count rows guard the gate and the suite. Found by a
-# review of the table validator's contract, 2026-09-22, in a scratch clone.
-# The flag follows --name-only because the merge-race test injects a peer
-# checkout on `diff --name-only`, inside this very diff.
+# With rename detection off, so a renamed file lists both its names. git detects renames by
+# default, and a rename then shows only where the file went: every rule keyed on a path or a
+# basename is asked about the new name and never about the old. `git mv` of a project's deny
+# table to deny-archived.tsv switched every one of its rules off, since the hook reads deny.tsv
+# by name, and the verifier that guards the table saw a file it had no rule for. Same for the
+# risk table whose count rows guard the gate and the suite. Found by a review of the table
+# validator's contract, 2026-09-22, in a scratch clone. The flag follows --name-only because the
+# merge-race test injects a peer checkout on `diff --name-only`, inside this very diff.
 #
-# Exits 1 when any of the three diffs did not finish (2026-10-08), and still
-# prints every path it did read. A list git broke off is not the list of what
-# changed, and a caller that decides on it must say it does not know. A tracked
-# named pipe does not trip this one: --name-only compares stat data and never
-# hashes, so it lists the pipe and exits 0. A corrupt index trips it, and so
-# does a branch that shares no history with the base (`no merge base`).
+# Exits 1 when any of the three diffs did not finish (2026-10-08), and still prints every path
+# it did read. A list git broke off is not the list of what changed, and a caller that decides
+# on it must say it does not know. A tracked named pipe does not trip this one: --name-only
+# compares stat data and never hashes, so it lists the pipe and exits 0. A corrupt index trips
+# it, and so does a branch that shares no history with the base (`no merge base`).
 felix_changed_paths() {
   local root="$1" base="${2:-}" refs out all="" rc=0
   # The branch side only where there is a branch. On an unborn HEAD, an orphan
@@ -975,10 +1154,9 @@ $out"
 # named HEAD, `git diff HEAD` refused as ambiguous, so bin/secret-scan could
 # never call such a repository clean (a blind author's assertion, after review).
 #
-# Porcelain `git diff` prints what a person's settings and a branch's attributes
-# tell it to print. Measured on git 2.54, on a branch adding a credential line to
-# creds.py, each of these made bin/secret-scan exit 0, and felix_added_lines
-# read none of the line:
+# Porcelain `git diff` prints what a person's settings and a branch's attributes tell it to
+# print. Measured on git 2.54, on a branch adding a credential line to creds.py, each of these
+# made bin/secret-scan exit 0, and felix_added_lines read none of the line:
 # - An external diff: `diff.external`, GIT_EXTERNAL_DIFF, or an attribute
 #   `diff=<driver>` with `diff.<driver>.command`. git runs the program and prints
 #   nothing of its own.
@@ -989,11 +1167,10 @@ $out"
 #   below the file's size. git prints "Binary files differ".
 # - Colour: color.ui or color.diff set to always puts an escape before each
 #   `+`, so no line read as added.
-# None of these needs the person's config. A committed .gitattributes is read
-# from the branch itself, so `creds.py -diff` in the branch blinded the scan of
-# that branch. The tree id hashes the same patch: under an external diff or an
-# empty textconv a clean tree and an edited one had one id, so a green receipt
-# read current over an edit no gate had seen.
+# None of these needs the person's config. A committed .gitattributes is read from the branch
+# itself, so `creds.py -diff` in the branch blinded the scan of that branch. The tree id hashes
+# the same patch: under an external diff or an empty textconv a clean tree and an edited one had
+# one id, so a green receipt read current over an edit no gate had seen.
 #
 # Why per call:
 # - A driver's name is anyone's to choose. No key turns every textconv or every
@@ -1032,9 +1209,8 @@ $out"
 # For a default configuration every flag here prints what git printed without
 # it, byte for byte, so no tree id changed when this landed.
 #
-# tests/run refuses an engine line that runs `git diff` without --no-ext-diff
-# and --no-textconv on it, unless the line asks only for names. Not covered,
-# and why:
+# tests/run refuses an engine line that runs `git diff` without --no-ext-diff and --no-textconv
+# on it, unless the line asks only for names. Not covered, and why:
 # - A clean filter, core.fsmonitor, assume-unchanged and skip-worktree change
 #   what git sees in the working tree, and they change what `git add` commits
 #   the same way.
@@ -1141,17 +1317,15 @@ felix_change_why() {   # root [base]
 
 # Every line this branch ADDS, including staged and unstaged ones.
 #
-# The companion to felix_changed_paths, and the half that was missed when that
-# landed: knowing a path changed is not knowing what the change says. A content
-# rule reading only `base...HEAD` names a staged file and then inspects the
-# version without the staged content in it.
+# The companion to felix_changed_paths, and the half that was missed when that landed: knowing a
+# path changed is not knowing what the change says. A content rule reading only `base...HEAD`
+# names a staged file and then inspects the version without the staged content in it.
 #
-# Exits 1 when any of its diffs did not finish (2026-10-08), whatever lines it
-# printed. A tracked named pipe ends `git diff` at that path, so with a pipe at
-# A.txt every line added to src.txt was dropped and this printed nothing at all:
-# escape.sh and classify.sh then scanned an empty change and found it clean. It
-# used to exit with grep's status, 1 for a change that added no line, and no
-# caller read that; it exits 0 for a change it read to the end, lines or none.
+# Exits 1 when any of its diffs did not finish (2026-10-08), whatever lines it printed. A
+# tracked named pipe ends `git diff` at that path, so with a pipe at A.txt every line added to
+# src.txt was dropped and this printed nothing at all: escape.sh and classify.sh then scanned an
+# empty change and found it clean. It used to exit with grep's status, 1 for a change that added
+# no line, and no caller read that; it exits 0 for a change it read to the end, lines or none.
 #
 # Each source through _felix_git_patch (2026-10-08), so what the change adds is
 # read whatever a driver, a textconv or a binary marking would have git print.
@@ -1195,31 +1369,23 @@ felix_file_at() {
   fi
 }
 
-# Whether two paths are checkouts of one repository, worktrees included.
+# Whether two paths are checkouts of one repository, worktrees included. A worktree and its main
+# checkout share one `--git-common-dir`; it is resolved to an absolute path first, because git
+# answers `.git` from inside the main checkout and a full path from inside a worktree, and
+# comparing those two strings says "different" about the same repository.
 #
-# A worktree and its main checkout share one `--git-common-dir`, which is what
-# makes this survive being somewhere else. Resolved to an absolute path first,
-# because git answers `.git` from inside the main checkout and a full path from
-# inside a worktree — comparing those two strings says "different" about the
-# same repository, which is the bug this exists to stop rather than cause.
+# Written because two guards asked "is this Felix's own storage" with a path prefix, `case
+# "$root/$f" in "$FELIX_HOME_DIR"/projects/*)`, which is true only when you are standing in the
+# home itself. From a worktree the prefix never matches and the guard silently does nothing. One
+# of the two only reports; the other deletes. How many lines match, as one number.
 #
-# Written because two guards asked "is this Felix's own storage" with a path
-# prefix — `case "$root/$f" in "$FELIX_HOME_DIR"/projects/*)` — which is true
-# only when you are standing in the home itself. From a worktree the root is
-# elsewhere, the prefix never matches, and the guard silently does nothing. One
-# of the two guards only reports; the other deletes.
-# How many lines match, as one number.
-#
-# `grep -c` prints the count and *also* exits 1 when that count is zero, so the
-# obvious `$(grep -c … || echo 0)` appends a fallback zero to the zero grep has
-# already printed and yields "0\n0". Every arithmetic test on that errors into
-# the wrong branch, and written to a file it becomes a stray line that later
-# readers count as data: this project's own ledger held 215 of them in 280
-# lines, and `felix ledger` reported seven sessions where there were three.
-#
-# Exit 2 — no such file — is the only case that prints nothing, and so it is the
-# only case that needs a fallback. Recorded in lessons.md before this existed,
-# which is why the fix is one function rather than eight repaired call sites.
+# `grep -c` prints the count and *also* exits 1 when it is zero, so the obvious `$(grep -c … ||
+# echo 0)` appends a second zero and yields "0\n0". Every arithmetic test on that errors into
+# the wrong branch, and written to a file it becomes a stray line later readers count as data:
+# this project's own ledger held 215 of them in 280 lines, and `felix ledger` reported seven
+# sessions where there were three. Exit 2 (no such file) is the only case that prints nothing,
+# so it is the only one that needs a fallback. Recorded in lessons.md before this existed, which
+# is why the fix is one function rather than eight repaired call sites.
 felix_count() {
   local n
   n="$(grep -c "$@" 2>/dev/null)" || true
@@ -1229,20 +1395,18 @@ felix_count() {
 # Whether a file's last line is ended, so that the next
 # `printf '...\n' >> file` lands as a row of its own.
 #
-# 2026-10-01: felix adopt appended `obs` to a hand-written capabilities file
-# holding `api` with no final newline, and wrote `apiobs`, one row that was
-# neither. felix_declared then listed `apiobs`, so both capabilities were lost,
-# while the stack and setup rows for `obs` were still appended. Any file the
-# engine appends to that something else also writes - a table a person may
-# edit, a log a routine curates, a project gate's own output - can end that
-# way, so the engine ends it before it appends, and a table row that cannot be
-# put on a line of its own is not appended.
+# 2026-10-01: felix adopt appended `obs` to a hand-written capabilities file holding `api` with
+# no final newline, and wrote `apiobs`, one row that was neither. felix_declared then listed
+# `apiobs`, so both capabilities were lost, while the stack and setup rows for `obs` were still
+# appended. Any file the engine appends to that something else also writes - a table a person
+# may edit, a log a routine curates, a project gate's own output - can end that way, so the
+# engine ends it before it appends, and a table row that cannot be put on a line of its own is
+# not appended.
 #
-# 0: absent, empty, or ending in a newline. 1: a last line with no newline.
-# 2: not a regular file, or its last byte cannot be read. Something at the path
-# that is not a regular file is never opened: a FIFO would block the append
-# that follows, a directory would fail it after the caller had counted it, and
-# a dangling link would create its target.
+# 0: absent, empty, or ending in a newline. 1: a last line with no newline. 2: not a regular
+# file, or its last byte cannot be read. Something at the path that is not a regular file is
+# never opened: a FIFO would block the append that follows, a directory would fail it after the
+# caller had counted it, and a dangling link would create its target.
 #
 # The last byte is read as a number, as lib/table.sh reads it. A command
 # substitution drops a NUL the same way it drops a newline, so the obvious
@@ -1280,16 +1444,24 @@ felix_same_repo() {
 
 # Whether the repository under judgement is the one that ships this engine.
 #
-# Only that repository has the circularity worth breaking. A governed product's
-# rules live in the Felix home and are not in its diff at all — #42 established
-# that — so its branch cannot rewrite what judges it, and demanding a pinned
-# engine there would be a fix for Felix and a regression for everything Felix
-# governs: no plugin on a CI runner, none on a fresh clone, and merge refusing
-# in both.
+# Only that repository has the circularity worth breaking. A governed product's rules live in
+# the Felix home and are not in its diff at all — #42 established that — so its branch cannot
+# rewrite what judges it, and demanding a pinned engine there would be a fix for Felix and a
+# regression for everything Felix governs: no plugin on a CI runner, none on a fresh clone, and
+# merge refusing in both.
 felix_self_governed() {
   local root="${1:-}"
   [ -n "$root" ] && [ -f "$root/engine/.claude-plugin/plugin.json" ] || return 1
   git -C "$root" ls-files --error-unmatch engine/.claude-plugin/plugin.json >/dev/null 2>&1
+}
+
+# The same question asked of the base (trust-plane step 3, spec S4). felix merge asks both: the tree
+# alone let a branch that deletes the manifest stop being the engine's own repository, and so be
+# judged by the felix it carries rather than by the engine main declares.
+felix_self_governed_at() {   # ROOT REF
+  local root="${1:-}" ref="${2:-}"
+  [ -n "$root" ] && [ -n "$ref" ] || return 1
+  [ "$(git -C "$root" cat-file -t "$ref:engine/.claude-plugin/plugin.json" 2>/dev/null </dev/null)" = blob ]
 }
 
 # The version a manifest declares, at a ref or in the working tree.
@@ -1302,34 +1474,30 @@ _felix_plugin_version() {
 
 # The engine that judges, which must not be the engine being judged.
 #
-# The first version of this took the newest entry in the plugin cache and was
-# vacuous, because the gate's `installed` check will not go green until that
-# entry matches the tree byte for byte, and merge will not run without a green
-# receipt. So the newest entry is always the candidate by the time it matters.
-# docs/2026-08-14-earned-autonomy-decision.md §4a had already said base-version
-# evaluation could not be reached without settling the install-before-green
-# cycle — "one problem seen from two sides".
+# The first version took the newest entry in the plugin cache and was vacuous: the gate's
+# `installed` check will not go green until that entry matches the tree byte for byte, and merge
+# will not run without a green receipt, so the newest entry is always the candidate by the time
+# it matters. docs/2026-08-14-earned-autonomy-decision.md §4a had already said base-version
+# evaluation could not be reached without settling the install-before-green cycle — "one problem
+# seen from two sides".
 #
-# The judge is the version `main` declares instead. The cache keeps every
-# version ever installed, and `felix install` refuses a changed engine at an
-# unchanged version, so a branch that touches the engine has bumped past main
-# and main's entry is both present and not the candidate's. The deadlock is
-# side-stepped rather than fought: `installed` compares the tree against the
-# newest entry while this reads an older one, and both hold at once.
+# The judge is the version `main` declares. The cache keeps every version ever installed, and
+# `felix install` refuses a changed engine at an unchanged version, so a branch that touches the
+# engine has bumped past main and main's entry is both present and not the candidate's. The
+# deadlock is side-stepped: `installed` compares the tree against the newest entry while this
+# reads an older one, and both hold at once.
 #
-# One limit, stated because a root of trust that overclaims is worse than none:
-# this is not a signature. The trust is that the cache entry for main's version
-# is what main contained when somebody installed it, and felix merge no longer
-# takes that on trust — it asks felix_accepted_deploy_diff whether the entry is
-# byte-identical to main's engine at the base ref before letting it judge.
+# One limit, because a root of trust that overclaims is worse than none: this is
+# not a signature. The trust is that the cache entry for main's version is what
+# main contained when somebody installed it, and felix merge no longer takes that
+# on trust: it asks felix_accepted_deploy_diff whether the entry is byte-identical
+# to main's engine at the base ref before letting it judge.
 #
-# FELIX_KERNEL, which once named a judge outright, is gone (#260). It existed
-# so the suite could point at a constructed kernel and the suite never used
-# it; what it did do was let anything that can set the environment choose its
-# own judge, which is every escape channel evadable in one variable. The cache
-# location is still composable (FELIX_KERNEL_CACHE, FELIX_PLUGIN_CACHE), and
-# the byte comparison at the boundary is what makes that safe: a cache the
-# session doctored does not match main's engine and is refused as the judge.
+# FELIX_KERNEL, which once named a judge outright, is gone (#260): the suite never used it, and
+# it let anything that can set the environment choose its own judge, which is every escape
+# channel evadable in one variable. The cache location stays composable (FELIX_KERNEL_CACHE,
+# FELIX_PLUGIN_CACHE, CLAUDE_CONFIG_DIR), and the byte comparison at the boundary makes that
+# safe: a cache the session doctored does not match main's engine and is refused as the judge.
 felix_kernel_dir() {
   local root="${1:-}" base="${2:-main}" ver p ref
   [ -n "$root" ] || return 1
@@ -1350,7 +1518,7 @@ felix_kernel_dir() {
   # suite never saw it because every test set the variable explicitly, which
   # masks a collision instead of exposing one. Composed with it rather than
   # around it, so a machine that moves the plugins cache moves this too.
-  p="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}/$ver/harness"
+  p="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache}/felix/felix}/$ver/harness"
   [ -d "$p" ] || return 1
   printf '%s' "$p"
 }
@@ -1359,7 +1527,7 @@ felix_kernel_dir() {
 # registered. Reads the registry rather than assuming, because the answer is the
 # difference between a deploy and a no-op that reports success.
 felix_marketplace_root() {
-  local reg="${1:-$HOME/.claude/plugins/known_marketplaces.json}"
+  local reg="${1:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/known_marketplaces.json}"
   [ -f "$reg" ] || return 0
   # sed -n 1p, not head -1: head stops reading after one line, and a sed still
   # writing would die of SIGPIPE, which pipefail hands a caller that tests the
@@ -1370,29 +1538,25 @@ felix_marketplace_root() {
 
 # Whether this engine is one Claude Code could ever install from.
 #
-# `felix install` in a worktree bumps the manifest, runs the three plugin
-# commands, finds the cache unchanged and reports "this is no longer the version
-# cache; something else is wrong" — which sends you looking for corruption. The
-# registry is a directory marketplace pinned to one path, so a worktree's engine
-# is not the engine being served and never was. Nothing is broken; the deploy
-# went to the tree the marketplace names, which is main.
+# `felix install` in a worktree bumps the manifest, runs the three plugin commands, finds the
+# cache unchanged and reports "this is no longer the version cache; something else is wrong" —
+# which sends you looking for corruption. The registry is a directory marketplace pinned to one
+# path, so a worktree's engine is not the engine being served and never was. Nothing is broken;
+# the deploy went to the tree the marketplace names, which is main.
 #
-# It is not a refusal. The bump still belongs on the branch, because merging is
-# what makes it deployable, and a branch that never bumped deploys nothing when
-# it lands. Only the diagnosis changes.
-# Tested on the engine's own parent, not on a path prefix. A worktree lives
-# under `.claude/worktrees/` *inside* the main checkout, so "starts with the
-# marketplace root" is true of every worktree there is and the check would have
-# passed exactly where it needed to fail.
+# It is not a refusal. The bump still belongs on the branch, because merging is what makes it
+# deployable, and a branch that never bumped deploys nothing when it lands. Only the diagnosis
+# changes. Tested on the engine's own parent, not on a path prefix. A worktree lives under
+# `.claude/worktrees/` *inside* the main checkout, so "starts with the marketplace root" is true
+# of every worktree there is and the check would have passed exactly where it needed to fail.
 #
-# The comparison is between two DIRECTORIES and not between two strings. The
-# registry holds whatever path was typed at registration and this side derives
-# one from `pwd`, so a symlinked home, or /var against /private/var on macOS,
-# made the served checkout read as one the marketplace does not serve — and on
-# the obligation that rests on this, "not served" is DORMANT, which is the
-# permissive direction. `-ef` asks the filesystem the question the string was
-# standing in for; the string compare stays as the answer for a path that no
-# longer exists, where `-ef` cannot answer at all.
+# The comparison is between two DIRECTORIES and not between two strings. The registry holds
+# whatever path was typed at registration and this side derives one from `pwd`, so a symlinked
+# home, or /var against /private/var on macOS, made the served checkout read as one the
+# marketplace does not serve — and on the obligation that rests on this, "not served" is
+# DORMANT, which is the permissive direction. `-ef` asks the filesystem the question the string
+# was standing in for; the string compare stays as the answer for a path that no longer exists,
+# where `-ef` cannot answer at all.
 felix_deployable_from() {
   local engine_root="$1" mroot parent
   mroot="$(felix_marketplace_root "${2:-}")"
@@ -1408,16 +1572,14 @@ felix_deployable_from() {
 
 # Raise the patch digit in a plugin manifest, and print the new version.
 #
-# Claude Code caches a plugin by version, so a changed engine at an unchanged
-# version never deploys and still reports success. `felix install` detected that
-# exact condition and printed "bump the version, then re-run this" — a command
-# suggesting something it could safely have done, which the charter names as a
-# defect. The gate caught `installed` nine times before anybody counted, every
-# one of them a person typing the digit the command was withholding.
+# Claude Code caches a plugin by version, so a changed engine at an unchanged version never
+# deploys and still reports success. `felix install` detected that exact condition and printed
+# "bump the version, then re-run this" — a command suggesting something it could safely have
+# done, which the charter names as a defect. The gate caught `installed` nine times before
+# anybody counted, every one of them a person typing the digit the command was withholding.
 #
-# Bumping is not the risky half. install is already the thing that replaces the
-# deployed engine; refusing to change a number while doing that is caution in
-# the wrong place.
+# Bumping is not the risky half. install is already the thing that replaces the deployed engine;
+# refusing to change a number while doing that is caution in the wrong place.
 #
 # Refuses rather than guesses when the version is not three numbers. A manifest
 # it cannot parse is one it must not rewrite.
@@ -1445,42 +1607,37 @@ felix_version_bump() {
   printf '%s' "$next"
 }
 
-# The deployed surface is three directories, and comparing one of them
-# certified deployments that never happened (#82). The cache serves harness/,
-# hooks/ and commands/; hooks.json is the file that decides which hooks BIND,
-# so a deploy that copied harness/ and dropped hooks/ reads as `installed ok`
-# while every session runs yesterday's bindings — a hook binary deployed
-# perfectly and running nowhere. engine/.claude-plugin is deliberately not
-# compared: plugin.json differs whenever a bump is pending, which is this
-# tree's normal state, and the cache does not carry that directory anyway.
+# The deployed surface is three directories, and comparing one of them certified deployments
+# that never happened (#82). The cache serves harness/, hooks/ and commands/; hooks.json is the
+# file that decides which hooks BIND, so a deploy that copied harness/ and dropped hooks/ reads
+# as `installed ok` while every session runs yesterday's bindings — a hook binary deployed
+# perfectly and running nowhere. engine/.claude-plugin is deliberately not compared: plugin.json
+# differs whenever a bump is pending, which is this tree's normal state, and the cache does not
+# carry that directory anyway.
 #
-# A directory absent from BOTH sides is skipped — nothing was deployed and
-# nothing was expected, which is a fixture, not a drift. Absent from one side
-# is a drift: diff itself fails on the missing operand, which is the honest
-# verdict rather than a special case.
+# A directory absent from BOTH sides is skipped — nothing was deployed and nothing was expected,
+# which is a fixture, not a drift. Absent from one side is a drift: diff itself fails on the
+# missing operand, which is the honest verdict rather than a special case.
 #
-# The merge-time self-judgement guard is deliberately NOT this function. It
-# compares harness/ alone, on purpose — it asks whether the judging LIBRARIES
-# are the accepted ones, not whether the deployment is complete — and widening
-# it would let a hooks-only difference block a merge that hooks cannot affect.
-# The comparison itself, which both forms below share. It walks the three
-# directories and prints each line of diff that the callback does not call
-# residue, and returns 1 when it printed any. What residue IS belongs to the
-# callback, which is called as `CB ARG1 ARG2 KIND P FULL` and answers 0 for
-# residue:
+# The merge-time self-judgement guard is deliberately NOT this function. It compares harness/
+# alone, on purpose — it asks whether the judging LIBRARIES are the accepted ones, not whether
+# the deployment is complete — and widening it would let a hooks-only difference block a merge
+# that hooks cannot affect. The comparison itself, which both forms below share. It walks the
+# three directories and prints each line of diff that the callback does not call residue, and
+# returns 1 when it printed any. What residue IS belongs to the callback, which is called as `CB
+# ARG1 ARG2 KIND P FULL` and answers 0 for residue:
 #   KIND  differ: both sides hold the path and differ; src or live: only that
 #         side holds it
 #   P     the path from the engine directory, harness/lib/x.sh
 #   FULL  that path on disk, on the side that holds it, so the callback can tell
 #         a directory from a file
 #
-# A directory on one side only is reported file by file, in the shape diff
-# itself uses for a lone entry, so the report names what was missed rather than
-# the operand diff could not open — and so each file passes the residue rule on
-# its own. Lines diff emits about a missing operand, or in any shape that is not
-# a path, match no path and always survive, which keeps "absent from one side is
-# the verdict". The callback is asked from inside the loop that reads diff's
-# lines on stdin, so every command it runs reads /dev/null.
+# A directory on one side only is reported file by file, in the shape diff itself uses for a
+# lone entry, so the report names what was missed rather than the operand diff could not open —
+# and so each file passes the residue rule on its own. Lines diff emits about a missing operand,
+# or in any shape that is not a path, match no path and always survive, which keeps "absent from
+# one side is the verdict". The callback is asked from inside the loop that reads diff's lines
+# on stdin, so every command it runs reads /dev/null.
 _felix_deploy_walk() {
   local src="$1" live="$2" cb="$3" a1="$4" a2="$5" d rc=0 line rest dir name p only kind full
   for d in harness hooks commands; do
@@ -1543,14 +1700,13 @@ _felix_git_rules() {   # REPO git-args...
       git -C "${_FELIX_GIT_AT:-$r}" -c core.excludesFile=/dev/null -c core.ignoreCase=false "$@" <"${_FELIX_GIT_IN:-/dev/null}"
 }
 
-# A scratch repository at DIR that holds every .gitignore the commit SHA holds —
-# the root's, engine/'s and any nested below — and nothing else, and tracks
-# none of it. It exists so that "does a rule main committed match this path" is
-# answered by git itself, applying the rules as git applies them (directory-only
-# patterns, negations, nested files), from main's blobs and from nothing in the
-# checkout. It is made with no template, so it carries no info/exclude. A
-# symlink, or a path git would have to quote, is not materialised: fewer rules
-# can only leave more paths standing as drift.
+# A scratch repository at DIR that holds every .gitignore the commit SHA holds — the root's,
+# engine/'s and any nested below — and nothing else, and tracks none of it. It exists so that
+# "does a rule main committed match this path" is answered by git itself, applying the rules as
+# git applies them (directory-only patterns, negations, nested files), from main's blobs and
+# from nothing in the checkout. It is made with no template, so it carries no info/exclude. A
+# symlink, or a path git would have to quote, is not materialised: fewer rules can only leave
+# more paths standing as drift.
 _felix_rules_repo() {   # ROOT SHA DIR
   local root="$1" sha="$2" dir="$3" line meta path mode rest type obj
   mkdir -p "$dir" || return 1
@@ -1569,33 +1725,29 @@ _felix_rules_repo() {   # ROOT SHA DIR
   rm -f "$dir.lst"
 }
 
-# Residue for the working-tree form: a path the repository itself declares
-# non-content is residue, not drift (#86). A claude-flow hook dropped 4KB of
-# state under tests/ while the suite ran there, and this comparison called a
-# byte-identical deploy a drift — in a worktree the gate then misdiagnosed that
-# as "structural: cannot deploy". The rule is the repository's own ignore
-# rules, asked per surviving line via git check-ignore, on both sides: a stray
-# in the cache is a deployed stray, same non-content. Untracked-but-not-ignored
-# still counts — that is undeployed work, and quieting it would be loosening the
-# check.
+# Residue for the working-tree form: a path the repository itself declares non-content is
+# residue, not drift (#86). A claude-flow hook dropped 4KB of state under tests/ while the suite
+# ran there, and this comparison called a byte-identical deploy a drift — in a worktree the gate
+# then misdiagnosed that as "structural: cannot deploy". The rule is the repository's own ignore
+# rules, asked per surviving line via git check-ignore, on both sides: a stray in the cache is a
+# deployed stray, same non-content. Untracked-but-not-ignored still counts — that is undeployed
+# work, and quieting it would be loosening the check.
 #
-# A path the repository TRACKS is never residue (#360). check-ignore alone never
-# reports a tracked path, but the second query below asks about the path with a
-# trailing slash, which is in no index, so git matched a tracked FILE against
-# the patterns as if it were an untracked directory: a file main ships, named by
-# a force-added *.log, had its drift discarded. Tracked paths are therefore
-# answered first and never reach the ignore queries. Paths are matched
-# literally, so a name holding glob characters is asked about itself and not
-# about the tracked files the pattern would match.
+# A path the repository TRACKS is never residue (#360). check-ignore alone never reports a
+# tracked path, but the second query below asks about the path with a trailing slash, which is
+# in no index, so git matched a tracked FILE against the patterns as if it were an untracked
+# directory: a file main ships, named by a force-added *.log, had its drift discarded. Tracked
+# paths are therefore answered first and never reach the ignore queries. Paths are matched
+# literally, so a name holding glob characters is asked about itself and not about the tracked
+# files the pattern would match.
 #
-# For an untracked path the ignore queries are the #86 ones. Asked twice because
-# a directory-only pattern matches only what git can see is a directory, and a
-# cache-side stray does not exist in the tree at all; the trailing slash
-# supplies what the filesystem cannot. The global excludes file is shut off. What
-# cannot be shut off is .git/info/exclude — inside the repository's own .git, a
-# rule there is this machine's deliberate act, and it is named here so nobody
-# discovers it as a surprise. This is why the working-tree form is not the
-# judge's: the accepted form reads main's committed rules and nothing local.
+# For an untracked path the ignore queries are the #86 ones. Asked twice because a
+# directory-only pattern matches only what git can see is a directory, and a cache-side stray
+# does not exist in the tree at all; the trailing slash supplies what the filesystem cannot. The
+# global excludes file is shut off. What cannot be shut off is .git/info/exclude — inside the
+# repository's own .git, a rule there is this machine's deliberate act, and it is named here so
+# nobody discovers it as a surprise. This is why the working-tree form is not the judge's: the
+# accepted form reads main's committed rules and nothing local.
 _felix_residue_tree() {   # IGROOT PREFIX KIND P FULL
   local r="$1" q="$2$4" hit
   hit="$(git -C "$r" --literal-pathspecs ls-files -- "$q" 2>/dev/null </dev/null)" || return 1
@@ -1604,13 +1756,12 @@ _felix_residue_tree() {   # IGROOT PREFIX KIND P FULL
     || git -C "$r" -c core.excludesFile=/dev/null check-ignore -q -- "$q/" </dev/null; } 2>/dev/null
 }
 
-# Is the deployed copy of a tree the tree? SRC and LIVE are two engine
-# directories, compared over the three deployed ones, residue excepted; exit 1
-# and every differing line when they differ. This is the WORKING-TREE form, read
-# by `felix install`'s verify and by `felix next`, where SRC is a checkout's own
-# engine/ and what the checkout tracks and ignores is the repository's say about
-# what is content (_felix_residue_tree). The judge's question, about main's
-# engine, is felix_accepted_deploy_diff and does not come through the checkout.
+# Is the deployed copy of a tree the tree? SRC and LIVE are two engine directories, compared
+# over the three deployed ones, residue excepted; exit 1 and every differing line when they
+# differ. This is the WORKING-TREE form, read by `felix install`'s verify and by `felix next`,
+# where SRC is a checkout's own engine/ and what the checkout tracks and ignores is the
+# repository's say about what is content (_felix_residue_tree). The judge's question, about
+# main's engine, is felix_accepted_deploy_diff and does not come through the checkout.
 #
 # A third argument names the repository the rules and the index are read from;
 # it defaults to the source side, which is how every caller but the tests uses
@@ -1686,28 +1837,24 @@ _felix_entry_list() {   # ENTRY SCRATCH OUT
   rm -f "$out.raw" "$out.xraw" "$out.safe" "$out.fx" "$out.h"
 }
 
-# Residue for the accepted form, which is the narrowest there is. Only a path
-# the cache entry alone holds can be residue, only beneath harness/ or hooks/,
-# and only when a rule main COMMITTED matches it. A path main ships is content
-# whatever any rule says (a file main force-added under *.log is main's), and so
-# is a path the entry lacks. Any other top-level name is drift, and so is
-# anything under commands/ or .claude-plugin/: a Markdown file under commands/ is
-# a slash command, so an extra file is behaviour however an ignore rule reads it.
-# A path with a character that makes it ambiguous (a backslash, which stands for
-# a newline, a tab or a backslash itself, a quote, ` and `, `: `, a leading dash,
-# a glob character, a trailing space) is never residue either: a rule is not
-# trusted to mean the path it was matched against.
+# Residue for the accepted form, which is the narrowest there is. Only a path the cache entry
+# alone holds can be residue, only beneath harness/ or hooks/, and only when a rule main
+# COMMITTED matches it. A path main ships is content whatever any rule says (a file main
+# force-added under *.log is main's), and so is a path the entry lacks. Any other top-level name
+# is drift, and so is anything under commands/ or .claude-plugin/: a Markdown file under
+# commands/ is a slash command, so an extra file is behaviour however an ignore rule reads it. A
+# path with a character that makes it ambiguous (a backslash, which stands for a newline, a tab
+# or a backslash itself, a quote, ` and `, `: `, a leading dash, a glob character, a trailing
+# space) is never residue either: a rule is not trusted to mean the path it was matched against.
 #
-# The rules are asked with a path from the engine's parent, as the repository
-# holds it. A directory is asked with a trailing slash, because git matches a
-# directory-only pattern (`.claude-flow/`, the incident's own rule) only against
-# what it knows is a directory, and the entry's stray exists in no tree git can
-# look at. Measured (git 2.54): in a repository whose files do not exist,
-# check-ignore on `d/.claude-flow/x.json` answers ignored, since git takes every
-# leading component for a directory, and on `d/.claude-flow` answers not
-# ignored, so only the final component needs the slash. It is added by what the
-# entry actually holds there, not unconditionally: a FILE called data is not
-# matched by `data/` and so is not residue.
+# The rules are asked with a path from the engine's parent, as the repository holds it. A
+# directory is asked with a trailing slash, because git matches a directory-only pattern
+# (`.claude-flow/`, the incident's own rule) only against what it knows is a directory, and the
+# entry's stray exists in no tree git can look at. Measured (git 2.54): in a repository whose
+# files do not exist, check-ignore on `d/.claude-flow/x.json` answers ignored, since git takes
+# every leading component for a directory, and on `d/.claude-flow` answers not ignored, so only
+# the final component needs the slash. It is added by what the entry actually holds there, not
+# unconditionally: a FILE called data is not matched by `data/` and so is not residue.
 _felix_residue_c() {   # SCRATCH PATH TYPE
   local q="engine/$2"
   case "$2" in harness/*|hooks/*) ;; *) return 1 ;; esac
@@ -1784,32 +1931,26 @@ _felix_accepted_report() {   # SCRATCH ENTRY LABEL COMPARED
 # working tree — is what that entry must hold. Every checkout can answer this,
 # which is what lets `felix merge` run from a worktree (#2).
 #
-# The verdict depends on two things and no others: main's commit M, as
-# felix_base_ref names it, and the cache entry E. M is resolved to a commit ONCE,
-# and the version, the tree and the ignore rules are all read from that commit,
-# so a ref that moves mid-call cannot have one main's version judged against
-# another main's files. The checkout this runs in does not enter: not its
-# working tree, its index, its .git/info/exclude, its config, its attributes, the
-# branch it has checked out, nor the machine's global excludes file.
+# The verdict depends on main's commit M, as felix_base_ref names it, and the cache entry E, and
+# nothing else. M is resolved to a commit ONCE and the version, the tree and the ignore rules
+# are all read from it, so a ref that moves mid-call cannot have one main's version judged
+# against another main's files. The checkout this runs in does not enter: not its working tree,
+# index, .git/info/exclude, config, attributes or checked-out branch, nor the machine's global
+# excludes file.
 #
-# Main's side is not extracted. git archive applies the home's conversions to
-# every file it writes (a smudge filter, eol, export-ignore, ident), so an entry
-# holding what a filter wrote read as main's. Main's side is the tree object
-# itself, path, mode and blob id (git ls-tree), and the entry's side is its files
-# as they lie on disk, hashed raw (git hash-object --no-filters). The comparison
-# is by path over the WHOLE entry, `.claude-plugin/` and any other top-level name
-# included, and by type and mode: a different blob, a different executable bit, a
-# symlink, FIFO or socket anywhere, or a file against a directory is drift.
+# Main's side is not extracted: git archive applies the home's conversions to every file it
+# writes (a smudge filter, eol, export-ignore, ident), so an entry holding what a filter wrote
+# read as main's. It is the tree object itself, path, mode and blob id (git ls-tree), and the
+# entry's side is its files as they lie on disk, hashed raw (git hash-object --no-filters). The
+# comparison is by path over the WHOLE entry, `.claude-plugin/` included, and by type and mode:
+# a different blob or executable bit, a symlink, FIFO or socket anywhere, or a file against a
+# directory is drift. Which paths are residue is M's alone too: a stray only E holds beneath
+# harness/ or hooks/ is residue when an ignore rule M itself committed matches it
+# (_felix_residue_c), so an untracked .gitignore of `*` in the home cannot turn an extra file in
+# E, or drift in a file M ships, into residue.
 #
-# The one thing that looks like it should enter is which paths are residue, and
-# that too is M's alone: a stray only E holds beneath harness/ or hooks/ is
-# residue when an ignore rule M itself committed matches it
-# (_felix_residue_c), so an untracked .gitignore of `*` in the home cannot turn
-# an extra file in E, or drift in a file M ships, into residue.
-#
-# A TERM or INT delivered to the call removes the temporary directory it made
-# before the call ends, and the caller's own traps for them are put back when it
-# returns.
+# A TERM or INT delivered to the call removes its temporary directory before the
+# call ends, and the caller's own traps for them are put back when it returns.
 #
 #   exit 0  identical; prints the entry
 #   exit 1  differs; every differing path on stdout, or one line naming the
@@ -1817,19 +1958,16 @@ _felix_accepted_report() {   # SCRATCH ENTRY LABEL COMPARED
 #   exit 2  cannot examine: no cache on this machine, no base ref, or a
 #           version that cannot be read from the base
 #
-# Both readers of the question share this. deploy-check, the obligation
-# ledger's evidence for the same fact, sources it from the tree beside it. The
-# gate's `installed` check kept an inline copy until 2026-09-17, on the
-# argument that a verifier which sources the code it judges can be switched
-# off by editing that code; it now reads THIS FILE from the base ref with
-# `git show` — never the working tree, never the cache entry — and calls this
-# function in a subshell, so the code that judges is the code main accepted
-# and the argument holds without the copy. The gate and the ledger cannot
-# disagree by construction. FELIX_KERNEL, the suite's override of the judge,
-# is not read: this asks about the real cache.
+# deploy-check, the obligation ledger's evidence for the same fact, sources this from the tree
+# beside it. The gate's `installed` check kept an inline copy until 2026-09-17, on the argument
+# that a verifier which sources the code it judges can be switched off by editing that code; it
+# now reads THIS FILE from the base ref with `git show` — never the working tree, never the
+# cache entry — and calls this function in a subshell, so the code that judges is the code main
+# accepted. The gate and the ledger cannot disagree by construction. FELIX_KERNEL, the suite's
+# override of the judge, is not read: this asks about the real cache.
 felix_accepted_deploy_diff() {
   local root="$1" base="${2:-main}" cache ref sha ver entry tmp rc told tint
-  cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-$HOME/.claude/plugins/cache}/felix/felix}"
+  cache="${FELIX_KERNEL_CACHE:-${FELIX_PLUGIN_CACHE:-${CLAUDE_CONFIG_DIR:-$HOME/.claude}/plugins/cache}/felix/felix}"
   [ -d "$cache" ] || { printf 'cannot examine: no felix cache at %s\n' "$cache"; return 2; }
   ref="$(felix_base_ref "$root" "$base")" || { printf 'cannot examine: no %s or origin/%s in this repository\n' "$base" "$base"; return 2; }
   # The name stays for messages, which a person reads. Everything else is read

@@ -30,6 +30,12 @@
 # filesystem and git say /private/var/folders/..., and both are right.
 printf '\nfixture floor\n'
 
+# A gate run inside a Claude Code cloud VM has CLAUDE_CODE_REMOTE=true in its
+# environment, and every hook this suite runs would take the cloud's branch and
+# be judged against local behaviour (audit b07, B12). The suite judges a local
+# session. A part that wants the cloud sets it on its own command.
+unset CLAUDE_CODE_REMOTE
+
 _ff_family="GIT_DIR GIT_WORK_TREE GIT_COMMON_DIR GIT_INDEX_FILE GIT_OBJECT_DIRECTORY GIT_ALTERNATE_OBJECT_DIRECTORIES"
 # A directory's physical path, or nothing when the name is empty or names no
 # directory. The emptiness test is the point: `cd ""` is the bug.
@@ -42,6 +48,20 @@ _ff_child() { command printenv "$1" 2>/dev/null || printf '(unset)'; }
 _ff_git()   { ( unset $_ff_family GIT_CONFIG; git "$@" ); }
 # One key's value from the key-a-line reports the subshells below print.
 _ff_get()   { printf '%s\n' "$1" | sed -n "s/^$2 //p"; }
+# The incident was bash 3.2's: `cd ""` succeeded and stayed put. POSIX.1-2024
+# made that an error, and bash 5.3 (the ubuntu-26.04 runners') answers
+# "cd: null directory" with status 1. The probes below model the incident, so
+# a probe that runs `cd` on an empty name must see 3.2's answer or it never gets
+# to the git commands it exists to run, and its assertion passes or fails for
+# the wrong reason. Called first inside the ( ) or $( ) of such a probe, this
+# defines a cd there that returns 0 for exactly one empty operand and hands
+# everything else to the builtin. It does nothing where the shell's own cd
+# already takes an empty name, so bash 3.2 runs the real thing. Called at the
+# top level it would replace cd for the whole suite, so only a subshell calls it.
+_ff_oldcd() {
+  ( cd "" ) 2>/dev/null && return 0
+  cd() { if [ "$#" -eq 1 ] && [ -z "$1" ]; then return 0; fi; builtin cd "$@"; }
+}
 _ff_tmp="$(_ff_phys "$TMP")"
 
 # 1. Where the suite stands, and what git finds from there.
@@ -81,8 +101,8 @@ done
 # incident rewrote lives, shared by every worktree, and a GIT_DIR in the
 # environment reaches it while --show-toplevel reports only the cwd.
 _ff_empty=""
-_ff_top="$(cd "$_ff_empty" && git rev-parse --show-toplevel 2>/dev/null)"; _ff_rc=$?
-_ff_cmn="$(cd "$_ff_empty" && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
+_ff_top="$(_ff_oldcd; cd "$_ff_empty" && git rev-parse --show-toplevel 2>/dev/null)"; _ff_rc=$?
+_ff_cmn="$(_ff_oldcd; cd "$_ff_empty" && git rev-parse --path-format=absolute --git-common-dir 2>/dev/null)"
 if [ "$_ff_rc" -ne 0 ] && [ -z "$_ff_top" ] && [ -z "$_ff_cmn" ]; then
   ok  "fixture floor: an empty fixture root, cd to an empty name, reaches no repository"
 else
@@ -241,7 +261,7 @@ for _ff_how in empty dir uninit gitdir; do
   if [ "$_ff_built" -ne 1 ] || ! cp -R "$_ff_sp" "$_ff_r" 2>/dev/null; then
     _ff_why="not exercised: the stand-in checkout was not built"
   else
-    _ff_o="$(_ff_case "$_ff_how" "$_ff_r")"
+    _ff_o="$(_ff_oldcd; _ff_case "$_ff_how" "$_ff_r")"
     _ff_f="$(_ff_get "$_ff_o" floor)"; _ff_u="$(_ff_get "$_ff_o" unsafe)"
     if [ "$_ff_f" != "0" ]; then
       _ff_why="not exercised: _fixture_floor returned [${_ff_f:-nothing}] for $_ff_r/fixtures"

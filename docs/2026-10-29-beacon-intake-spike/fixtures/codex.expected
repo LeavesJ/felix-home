@@ -1,0 +1,14 @@
+signal	codex_cli	cx-2	otlp	tool	view_image
+skip	beacon_action_not_counted	2	x-02	action "tool.invoked" does not close a tool call
+signal	codex_cli	cx-2	poll	tool	write_stdin
+typed	codex_cli	cx-2	call_w1	"git commit --no-verify -m wip\n"
+signal	codex_cli	cx-2	otlp	tool	write_stdin
+typed	codex_cli	cx-2	call_w2	"git push --force\n"
+signal	codex_cli	cx-2	poll	tool	write_stdin
+signal	codex_cli	cx-2	poll	tool	write_stdin
+typed_unknown	beacon_typed_input_absent	6	x-06	no chars in the arguments of this write_stdin call, so what was typed is unknown, not nothing
+signal	codex_cli	cx-2	poll	tool	write_stdin
+typed_unknown	beacon_typed_input_not_text	7	x-07	chars is number, not text
+skip	beacon_action_not_counted	8	x-08	action "tool.invoked" does not close a tool call
+skip	beacon_action_not_counted	9	x-09	action "tool.invoked" does not close a tool call
+skip	beacon_duplicate_call	10	x-10	this call was already counted at line 4

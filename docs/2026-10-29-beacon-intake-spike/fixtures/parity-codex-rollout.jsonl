@@ -1,0 +1,9 @@
+{"timestamp":"2026-10-29T14:00:00Z","type":"session_meta","payload":{"id":"rx-1","cwd":"/work/repo","cli_version":"0.153.4"}}
+{"timestamp":"2026-10-29T14:00:01Z","type":"turn_context","payload":{"cwd":"/work/repo","model":"mock"}}
+{"timestamp":"2026-10-29T14:00:02Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"cargo test\",\"workdir\":\"/work/repo\"}","call_id":"call_1"}}
+{"timestamp":"2026-10-29T14:00:03Z","type":"event_msg","payload":{"type":"exec_command_end","call_id":"call_1","exit_code":101}}
+{"timestamp":"2026-10-29T14:00:04Z","type":"response_item","payload":{"type":"function_call_output","call_id":"call_1","output":"test result: FAILED"}}
+{"timestamp":"2026-10-29T14:00:05Z","type":"response_item","payload":{"type":"custom_tool_call","name":"apply_patch","input":"*** Begin Patch\n*** Update File: src/lib.rs\n@@\n-a\n+b\n*** Add File: tests/new.rs\n+x\n*** Update File: old.rs\n*** Move to: renamed.rs\n*** End Patch\n","call_id":"call_2"}}
+{"timestamp":"2026-10-29T14:00:06Z","type":"response_item","payload":{"type":"custom_tool_call_output","call_id":"call_2","output":"Success"}}
+{"timestamp":"2026-10-29T14:00:07Z","type":"response_item","payload":{"type":"function_call","name":"write_stdin","arguments":"{\"session_id\":3,\"chars\":\"git commit --no-verify -m wip\\n\"}","call_id":"call_3"}}
+{"timestamp":"2026-10-29T14:00:08Z","type":"response_item","payload":{"type":"function_call","name":"exec_command","arguments":"{\"cmd\":\"cat AWS_SECRET=abc123\"}","call_id":"call_4"}}

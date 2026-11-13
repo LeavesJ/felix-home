@@ -334,7 +334,7 @@ _fx_git "$LGH" checkout -q main >/dev/null 2>&1; _fx_git "$LGH" branch -q -D dws
 _lg_reset; _dw_hf "$HF" "$(_dw_now)" "$(_dw_now)" "$DWV"; _dw_k; _dw_land --pause "dw hand pause"; _dw_tick
 is "DW2.3: after felix land --pause, the tick clears the hold" "$(_dw_ex "$LAND/paused")|$(_dw_ex "$HF")" "present|absent"
 _lg_reset; printf '1\n' > "$LGK/gate.rc"; _dw_hf "$HF" "$(_dw_now)" "$(_dw_now)" "$DWV"; _dw_k; _dw_tick
-is "DW2.3: a deploy that ends unverified clears the hold" "$(_lg_n deployed-unverified)|$(_dw_ex "$HF")" "1|absent"
+is "DW2.3: a deploy that ends deploy-failed clears the hold" "$(_lg_n deploy-failed)|$(_dw_ex "$HF")" "1|absent"
 
 # ---- end to end: a suite runs, a deploy is owed; a new full suite waits; the running one ends, the tick deploys, the waiter goes on
 _dw_owe; _lg_reset; _dw_k; printf '%s\n' "$DW/live/" > "$DWK/pgrep.real"; : > "$DWK/ps.real"; mkdir -p "$DW/live/go"; rm -f "$DW/live/sig" "$DW/e2e.penv"

@@ -62,7 +62,7 @@ file in the same directory, then a rename), so a reader never meets half a line.
 3. **Cleared** (the file removed) when any of these is true at the end of the
    tick: the deploy finished (a `deployed` row); no deploy is owed; the job is
    paused (by the tick itself, by `felix land --pause`, or because a deploy
-   step failed and paused it); the deploy ended unverified. A hold must never
+   step failed and paused it); the deploy ended in a `deploy-failed` row. A hold must never
    outlive a lander that will not deploy.
 4. The row the tick writes while a gate or suite runs is the same `deploy-owed`
    row as before (its first words are still "a gate or suite is running"), and

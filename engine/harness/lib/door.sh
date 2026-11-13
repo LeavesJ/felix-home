@@ -93,8 +93,8 @@ _fdoor_card() {   # VERB HEAD GIVEN [RESULT WITNESS]
     [ "$_FP_UNREADABLE" -ne 1 ] || printf 'policy: the founder-path policy at main cannot be read, so each path is taken as yours\n'
     [ "$_FP_UNREADABLE" -ne 2 ] || printf 'policy: the paths this change touches could not be listed\n'
     printf 'founder-paths-changed: %s\n' "$_FP_NF"
-    for (( i = 0; i < _FP_NF; i++ )); do printf 'founder-path: %s\n' "$(_fa_esc "${_FP_FOUNDER[$i]}")"; done
-    for (( i = 0; i < _FP_NO && i < 20; i++ )); do printf 'path: %s\n' "$(_fa_esc "${_FP_OTHER[$i]}" 200)"; listed=$((listed + 1)); done
+    for (( i = 0; i < _FP_NF; i++ )); do _fa_esc_set "${_FP_FOUNDER[$i]}"; printf 'founder-path: %s\n' "$_FA_E"; done
+    for (( i = 0; i < _FP_NO && i < 20; i++ )); do _fa_esc_set "${_FP_OTHER[$i]}" 200; printf 'path: %s\n' "$_FA_E"; listed=$((listed + 1)); done
     printf 'paths-changed: %s (not listed above: %s)\n' "$((_FP_NF + _FP_NO))" "$((_FP_NO - listed))"
     felix_authority_decide "$h"
     printf 'decision: %s %s\n' "$_FD_DECISION" "$_FD_DETAIL"

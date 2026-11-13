@@ -29,24 +29,39 @@
 
 # D5, D12. A worker's word, shown: each byte outside printable ASCII, each backslash and each double quote as
 # \xNN, the whole in double quotes. With MAX, cut there, and the cut says how many bytes it left out. A word
-# with nothing to escape is printed as it is. Any other goes through od and awk, one pass over its bytes: a
-# loop in bash that appended to a string took 27 seconds for 32,000 bytes, and a founder path is never cut, so
-# one long path a worker pushed set how long the door took (review F9).
-_fa_esc() {   # STRING [MAX]
-  local s="$1" max="${2:-0}" n LC_ALL=C
+# with nothing to escape is taken as it is. A short one is escaped in the shell, with no process started. A
+# long one goes through od and awk, one pass over its bytes. Both were measured: a loop in bash that appended
+# to a string took 27 seconds for 32,000 bytes, and a founder path is never cut, so one long path a worker
+# pushed set how long the door took (review F9); od and awk for each of 3,000 short paths took 148 seconds to
+# draw one card (2026-11-13, load near 60). _fa_esc_set leaves the result in _FA_E and starts no subshell for
+# a short word, which is what a loop over a card's paths calls.
+_fa_esc_set() {   # STRING [MAX] -> _FA_E
+  local s="$1" max="${2:-0}" n out="" c i v LC_ALL=C
   n=${#s}
   [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || s="${s:0:max}"
   case "$s" in
     *[!\ -~]*|*\\*|*\"*)
-      printf '"'
-      printf '%s' "$s" | od -An -v -tx1 | LC_ALL=C awk '
-        BEGIN { for (i = 32; i < 127; i++) c[sprintf("%02x", i)] = sprintf("%c", i); delete c["5c"]; delete c["22"] }
-        { for (i = 1; i <= NF; i++) printf "%s", (($i in c) ? c[$i] : "\\x" $i) }'
-      printf '"' ;;
-    *) printf '"%s"' "$s" ;;
+      if [ "${#s}" -le 256 ]; then
+        for (( i = 0; i < ${#s}; i++ )); do
+          c="${s:i:1}"
+          case "$c" in
+            \\) out="$out\\x5c" ;;
+            \") out="$out\\x22" ;;
+            [\ -~]) out="$out$c" ;;
+            *) printf -v v '%d' "'$c" 2>/dev/null || v=63; printf -v v '\\x%02x' "$(( v & 255 ))"; out="$out$v" ;;
+          esac
+        done
+      else
+        out="$(printf '%s' "$s" | od -An -v -tx1 | LC_ALL=C awk '
+          BEGIN { for (i = 32; i < 127; i++) c[sprintf("%02x", i)] = sprintf("%c", i); delete c["5c"]; delete c["22"] }
+          { for (i = 1; i <= NF; i++) printf "%s", (($i in c) ? c[$i] : "\\x" $i) }')"
+      fi ;;
+    *) out="$s" ;;
   esac
-  [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || printf ' (+%s more bytes)' "$(( n - max ))"
+  _FA_E="\"$out\""
+  [ "$max" -eq 0 ] || [ "$n" -le "$max" ] || _FA_E="$_FA_E (+$(( n - max )) more bytes)"
 }
+_fa_esc() { _fa_esc_set "$@"; printf '%s' "$_FA_E"; }   # STRING [MAX], printed
 
 # The policy at BASE, read once a process (a tick asks it of each candidate). Sets _FP_AT to BASE,
 # _FP_AT_UNREADABLE to 1 when it cannot be read, and _FP_AT_ERES to the patterns: each founder row's, then the

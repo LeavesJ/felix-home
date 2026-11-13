@@ -1,4 +1,4 @@
-### 2026-11-13: the authority that holds main is built in shadow, first slice: its store, standing, door, the reading of his word, a reader's check and the reach test (trust step 4, stage 1, 0.49.339)
+### 2026-11-13: the authority that holds main is built in shadow, first slice: its store, standing, door, the reading of his word, a reader's check and the reach test (trust step 4, stage 1, 0.49.341)
 
 **What this is.** The first engine slice of the hosted authority (the 11-09 design, pull request 504) and of the founder's door (`docs/2026-11-10-trust-door-design.md`, §5 and §7). Five libraries (`lib/authority.sh`, `authority-paths.sh`, `authority-tick.sh`, `door.sh`, `door-read.sh`), two programs (`bin/reach-witness`, `bin/reach-probe`) and two commands: `felix authority init|status|tick|decide|log|verify` and `felix door`, with `felix door stop` as the brake. The document is `docs/2026-11-13-trust-step4-shadow-slice1.md`, with its PDF. The contract the tests were written from (revision 3), the review, the blind author's report and the logs are in the memory root, `audits/2026-11-13-trust-step4-shadow/`.
 

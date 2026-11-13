@@ -156,38 +156,52 @@ _ps_gh_list() {   # DIR SLUG W
 # its product is actions and its date starts with the month in PS_YM; minutes are
 # the quantity of the counted items whose unit is Minutes, and net is netAmount
 # over all of them, storage included. Prints one line: ok, the minutes, the net
-# and how many Actions items were dated outside the month; or bad and why. The
-# flattener the pull request list uses (_FI_JSON) drops whether a value was
-# quoted, and a quantity has to be a number, so this walks the text itself.
+# and how many Actions items were dated outside the month; or bad and why. An
+# answer that ends early, or that has text after its object closes, is not a
+# report (A2): only whole items could be summed, and the row would state a sum
+# that is short. The flattener the pull request list uses (_FI_JSON) drops
+# whether a value was quoted, and a quantity has to be a number, so this walks
+# the text itself, a character at a time and never through substr, whose cost
+# in one awk grows with the whole text at every call (A8).
 # shellcheck disable=SC2016
 _PS_USAGE='function num(x) { return x ~ /^-?[0123456789]+([.][0123456789]+)?([eE][-+]?[0123456789]+)?$/ }
   function item() {
     if (Q["product"] != 1 || tolower(V["product"]) != "actions") return
-    if (Q["date"] != 1 || index(V["date"], ym) != 1) { outside++; return }
-    if (Q["netAmount"] != 0 || !num(V["netAmount"])) { notnum = 1; return }
+    if (Q["date"] != 1) { nodate = 1; return }
+    if (index(V["date"], ym) != 1) { outside++; return }
+    if (!("netAmount" in V) || Q["netAmount"] != 0 || !num(V["netAmount"])) { notnum = 1; return }
     net += V["netAmount"]
     if (Q["unitType"] == 1 && tolower(V["unitType"]) == "minutes") {
-      if (Q["quantity"] != 0 || !num(V["quantity"])) { notnum = 1; return }
+      if (!("quantity" in V) || Q["quantity"] != 0 || !num(V["quantity"])) { notnum = 1; return }
       mins += V["quantity"] } }
-  { s = s $0 "\n" }
-  END { n = split(s, C, ""); d = 0; key = 0; ym = ENVIRON["PS_YM"] "-"
+  { m = split($0, L, ""); for (k = 1; k <= m; k++) C[++n] = L[k]; C[++n] = "\n" }
+  END { d = 0; key = 0; ym = ENVIRON["PS_YM"] "-"
     for (i = 1; i <= n; i++) { c = C[i]
-      if (c == "{" || c == "[") { d++; T[d] = c; K[d] = ""; key = (c == "{")
-        if (d == 2 && c == "[" && T[1] == "{" && K[1] == "usageItems") { list = 1; seen = 1 }
+      if (index(" \n\t\r", c)) continue
+      if (shut) { broken = 1; break }
+      if (c == "{" || c == "[") { if (d == 0 && c == "[") { broken = 1; break }
+        d++; T[d] = c; K[d] = ""; key = (c == "{")
+        if (d == 2 && c == "[" && K[1] == "usageItems") { list = 1; seen = 1 }
         if (d == 3 && c == "{" && list) { split("", V); split("", Q) }
         continue }
-      if (c == "}" || c == "]") { if (d == 3 && c == "}" && list) item(); if (d == 2) list = 0; d--; key = 0; continue }
+      if (c == "}" || c == "]") { if (d < 1 || T[d] != (c == "}" ? "{" : "[")) { broken = 1; break }
+        if (d == 3 && list) item(); if (d == 2) list = 0; d--; key = 0; if (d == 0) shut = 1; continue }
+      if (d == 0) { broken = 1; break }
       if (c == ",") { key = (T[d] == "{"); continue }
       if (c == ":") { key = 0; continue }
-      if (index(" \n\t\r", c)) continue
-      if (c == "\"") { for (j = i + 1; j <= n && C[j] != "\""; j++) if (C[j] == "\\") j++; v = substr(s, i + 1, j - i - 1); i = j; q = 1 }
-      else { for (j = i; j <= n && !index(",}] \n\t\r", C[j]); j++) ; v = substr(s, i, j - i); i = j - 1; q = 0 }
+      v = ""
+      if (c == "\"") { for (j = i + 1; j <= n && C[j] != "\""; j++) { if (C[j] == "\\") { v = v C[j]; j++ } v = v C[j] }
+        if (j > n) { broken = 1; break } i = j; q = 1 }
+      else { for (j = i; j <= n && !index(",}] \n\t\r", C[j]); j++) v = v C[j]; i = j - 1; q = 0 }
       if (key) { K[d] = v; continue }
       if (d == 3 && list && T[3] == "{") { V[K[3]] = v; Q[K[3]] = q } }
-    if (!seen) { print "bad\tthe usage report holds no usageItems"; exit }
+    if (broken || !shut) { print "bad\tthe usage report is not complete JSON"; exit }
+    if (!seen) { print "bad\tthe usage report holds no usageItems list"; exit }
+    if (nodate) { print "bad\tthe usage report holds an Actions item with no date"; exit }
     if (notnum) { print "bad\tthe usage report holds an Actions item whose quantity or netAmount is not a number"; exit }
-    a = sprintf("%.2f", net); if (a == "-0.00") a = "0.00"
-    printf "ok\t%.0f\t%s\t%d\n", mins, a, outside }'
+    a = sprintf("%.0f", mins); if (a == "-0") a = "0"
+    b = sprintf("%.2f", net); if (b == "-0.00") b = "0.00"
+    printf "ok\t%s\t%s\t%d\n", a, b, outside }'
 
 # The scope gh says the token lacks, from the error output of a failed GET: gh
 # adds a line of its own, This API operation needs the "<scope>" scope, when
@@ -211,11 +225,13 @@ _ps_budget_scope() {   # FILE
 # retired (HTTP 410), and blamed every 404 on the token's scope; a failure now
 # says what gh said, and names a scope only when gh named it.
 _ps_budget() {   # OWNER DIR
-  local o="$1" d="$2" w="$_PS_T/budget" ym q e1="" e2="" last s1 s2 st a b c
+  local o="$1" d="$2" w="$_PS_T/budget" ym q e1="" e2="" last="" s1 s2 st a b c
   _PS_BST=unread
   if [ "${_PS_NOGH:-0}" = 1 ]; then _PS_BWHY="--no-gh: gh was not asked"; return 1; fi
   command -v gh >/dev/null 2>&1 || { _PS_BWHY="gh not found"; return 1; }
   [ -n "$o" ] || { _PS_BWHY="the repository names no owner"; return 1; }
+  # The owner goes into the address, so it has to be an account name (A6).
+  case "$o" in *[!ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789._-]*) _PS_BWHY="the owner in the slug is not an account name"; return 1 ;; esac
   ym="$(LC_ALL=C date -u +%Y-%m 2>/dev/null)"
   case "$ym" in
     [0123456789][0123456789][0123456789][0123456789]-[0123456789][0123456789]) ;;
@@ -224,11 +240,12 @@ _ps_budget() {   # OWNER DIR
   q="${ym#*-}"; q="settings/billing/usage?year=${ym%-*}&month=${q#0}"
   if ! _ps_ghc "$d" api "users/$o/$q" > "$w.json" 2> "$w.err"; then
     e1="$(_ps_err1 "$w.err")"; [ -n "$e1" ] || e1="gh api exited with no output"
-    last="$e1"
+    # What a line says is read from the whole line, and shown cut (A5).
+    last="$(LC_ALL=C sed -n 1p "$w.err" 2>/dev/null)"
     # Only a 404 asks the organisation's report, and nothing asks a third.
-    case "$e1" in *"HTTP 404"*|*"Not Found"*)
+    case "$last" in *"HTTP 404"*|*"Not Found"*)
       if _ps_ghc "$d" api "orgs/$o/$q" > "$w.json" 2> "$w.err2"; then e1=""
-      else e2="$(_ps_err1 "$w.err2")"; [ -n "$e2" ] || e2="gh api exited with no output"; last="$e2"; fi ;;
+      else e2="$(_ps_err1 "$w.err2")"; [ -n "$e2" ] || e2="gh api exited with no output"; last="$(LC_ALL=C sed -n 1p "$w.err2" 2>/dev/null)"; fi ;;
     esac
   fi
   if [ -n "$e1" ]; then
@@ -252,9 +269,8 @@ _ps_budget() {   # OWNER DIR
     bad) _PS_BWHY="$a"; return 1 ;;
     *) _PS_BWHY="the usage report could not be read"; return 1 ;;
   esac
-  # A sum awk could not print as digits (a quantity past what a double holds) is no sum.
-  case "$a" in ""|*[!0123456789]*) _PS_BWHY="the usage report holds an Actions item whose quantity or netAmount is not a number"; return 1 ;; esac
-  case "$b" in ""|*[!0123456789.-]*) _PS_BWHY="the usage report holds an Actions item whose quantity or netAmount is not a number"; return 1 ;; esac
+  # A sum awk could not print as a number (a quantity past what a double holds) is no sum.
+  case "${a#-}|${b#-}" in "|"*|*"|"|*[!0123456789.\|]*|*.*"|"*) _PS_BWHY="the usage report's Actions sums could not be stated"; return 1 ;; esac
   _PS_BST=read; _PS_BWHY="$a Actions minutes used in $ym, net \$$b"
   case "$c" in ""|0|*[!0123456789]*) ;; *) _PS_BWHY="$_PS_BWHY; Actions items dated outside $ym, not counted: $c" ;; esac
   return 0

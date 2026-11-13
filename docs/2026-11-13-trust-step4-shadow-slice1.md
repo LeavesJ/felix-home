@@ -151,7 +151,62 @@ entries hidden behind extended attributes, a tool missing from a list), each fix
 
 ## 5. What was run
 
-RUN_SECTION_PLACEHOLDER
+Each run was on this Mac on 2026-11-13: macOS 27.0.1, 18 cores, bash 3.2.57, with git 2.54.0 (the system's,
+which the blind parts run the engine with) and 2.56.0 (Homebrew's, in the other runs). Other sessions' suites
+kept the load average between 60 and 92 throughout, so each time below is slow by about that much, and each is
+one run. The logs are in the memory root, `audits/2026-11-13-trust-step4-shadow/`.
+
+**The blind tests.** Four parts, 301 assertions, written from the spec alone by an author that did not read
+the implementation and ran them against no build:
+
+| Part | About | Assertions |
+|---|---|---|
+| 2186 | The parameters, the store, the standing, the tick, the first start, console and desktop | 117 |
+| 2187 | The door: read-back, list, card, confirmation, keeping, lock | 71 |
+| 2188 | The reading of his word in order, founder paths, the policy, the ledger | 50 |
+| 2189 | The reader's check, the reach statements, the witness and the probe | 63 |
+
+- **Red first.** On main with the four parts and no build, 282 fail, 18 pass and 1 skips. The 18 are controls
+  of the fixtures themselves, which need no authority.
+- **On the build,** run one part at a time, each passes but one skip: the probe's `--run`, which the suite
+  does not start on macOS because its tries there are real.
+- **What they found in the build:** four places where a line the door or the tick wrote was not the line the
+  spec gives. The card had a second line starting `confirm:`. The read-back had a line labelled `given:`,
+  which is the statement's own field. The refused count and the `word:` line carried words after their
+  value. The ledger had a row for main's own move, which the spec does not name. Each is fixed in the build.
+- **What was found in them:** one assertion read a tick's lines after a later call had replaced them. Its
+  author fixed it, and changed no expected value.
+- **What they do not reach,** by their author's account: a change of owner, of group or of a process's user,
+  a fetch over `https` or `ssh`, the witness while it waits, and the probe on macOS. Where a machine's own
+  `PATH` fails condition e, 47 assertions skip. The author's 39 notes on the spec are kept with the tests'
+  report.
+
+**The author's own runs,** with the implementation in view, so they show less than the blind parts. Two
+scripts, 13 and 14 statements kept: shadow under his own login; an override over a hold; a conflict; an
+unreadable policy; two doors at once; a rewound source; a dropped and a forged entry; a start refused at the
+desktop; the console; three wrong confirmations and the lockout; the brake; `go` by the nonce; a reach pass
+and the live standing in a fixture.
+
+**The reviewer's scripts,** run again after the fixes: §4, and the record it names.
+
+**A rehearsal against this repository** as it stood on this Mac, read and not written (its main checkout,
+146 branches that are not main):
+
+| Step | Result |
+|---|---|
+| `init`, then the first start with the first fetch | 2 s, then 33 s. The store is 46 MB, and the checked fetch refused no object |
+| A tick, twice | 54 s and 52 s for 146 candidates: 115 `conflict`, 22 `eligible`, 8 `nothing`, 1 `waits` |
+| The door, opened and listing, with no statement | 40 s |
+| The brake, `felix door stop`, to its confirm line | 2 s |
+| `verify` | 1 s |
+
+**What a worker's push costs,** from the review's scripts after the fixes: 100 small candidates, 44 s for a
+tick and 44 s to open the door; 400, 195 s and 155 s; one candidate with 20,000 paths, 22 s and 20 s; a card
+of 3,000 paths that each need escaping, 9 s. With no candidate a tick took 1.9 s. The brake skips the fetch
+and the list; it was timed once, in the rehearsal above.
+
+**Not in this document:** the gate's result and the suite's count on the final tree, which are in the pull
+request, since the document is part of the tree the gate reads. Linux is CI's.
 
 ## 6. What a statement is
 
